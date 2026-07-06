@@ -1,12 +1,10 @@
+import type { TavernCharacter, TavernLorebookEntry, TavernSceneStatus } from "@/features/pages/taverns/manage/model";
 import type {
-  TavernCharacter,
-  TavernLorebookEntry,
-  TavernRoom,
+  TavernRuntimeRoom as TavernRoom,
   TavernScene,
   TavernSceneInstance,
-  TavernSceneStatus,
   TavernStoryGraph,
-} from "@/features/pages/taverns/manage/model";
+} from "@/features/pages/taverns/room/model";
 
 export type TavernRuntimeStorySceneProjection = {
   id: string;

@@ -1,7 +1,4 @@
-import type {
-  AgentRuntimeResources,
-  RuntimeModelInput,
-} from "../../../../../protocol/index.js";
+import type { AgentRuntimeResources, RuntimeModelInput } from "../../../../../protocol/index.js";
 
 export type CollaborationAgentInvocation = {
   id?: string | null;

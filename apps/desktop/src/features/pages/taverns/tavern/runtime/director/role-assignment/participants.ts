@@ -1,8 +1,5 @@
-import type {
-  TavernCharacter,
-  TavernRoleAssignmentDefinition,
-  TavernRoom,
-} from "@/features/pages/taverns/manage/model";
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernCharacter, TavernRoleAssignmentDefinition } from "@/features/pages/taverns/manage/model";
 import type { TavernRoleAssignmentParticipant } from "../../../core";
 
 export const expandTavernRoleAssignmentPool = (rolePool: TavernRoleAssignmentDefinition[]) =>

@@ -19,42 +19,42 @@ type SummaryBudget = {
 
 export type RuntimeSessionSummarySourceEntry =
   | {
-    kind: "message";
-    recordId: string;
-    timestamp: number | string;
-    role: string;
-    content: string;
-    metadata?: unknown;
-  }
+      kind: "message";
+      recordId: string;
+      timestamp: number | string;
+      role: string;
+      content: string;
+      metadata?: unknown;
+    }
   | {
-    kind: "request_context";
-    recordId: string;
-    timestamp: number | string;
-    content: string;
-    metadata?: unknown;
-  }
+      kind: "request_context";
+      recordId: string;
+      timestamp: number | string;
+      content: string;
+      metadata?: unknown;
+    }
   | {
-    kind: "runtime_instruction";
-    recordId: string;
-    timestamp: number | string;
-    content: string;
-    metadata?: unknown;
-  }
+      kind: "runtime_instruction";
+      recordId: string;
+      timestamp: number | string;
+      content: string;
+      metadata?: unknown;
+    }
   | {
-    kind: "branch_summary";
-    recordId: string;
-    timestamp: number | string;
-    fromRecordId?: string | null;
-    summary: string;
-    metadata?: unknown;
-  }
+      kind: "branch_summary";
+      recordId: string;
+      timestamp: number | string;
+      fromRecordId?: string | null;
+      summary: string;
+      metadata?: unknown;
+    }
   | {
-    kind: "event";
-    recordId: string;
-    timestamp: number | string;
-    eventType: string;
-    data?: unknown;
-  };
+      kind: "event";
+      recordId: string;
+      timestamp: number | string;
+      eventType: string;
+      data?: unknown;
+    };
 
 const DEFAULT_CONTEXT_WINDOW = 128000;
 const DEFAULT_MAX_TOKENS = 4096;
@@ -69,8 +69,7 @@ const SUMMARY_SYSTEM_PROMPT = [
   "如果内容包含私密角色信息，按账本事实客观概括，不把摘要写成某个角色可见的上下文。",
 ].join("\n");
 
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, value));
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 const createSummaryBudget = (
   model: RuntimeModelInput | null | undefined,
@@ -78,29 +77,20 @@ const createSummaryBudget = (
 ): SummaryBudget => {
   const contextWindow = model?.contextWindow ?? DEFAULT_CONTEXT_WINDOW;
   const maxTokens = model?.maxTokens ?? DEFAULT_MAX_TOKENS;
-  const reserveTokens = Math.min(
-    Math.max(maxTokens + 4096, 8192),
-    Math.max(8192, Math.floor(contextWindow * 0.45)),
-  );
+  const reserveTokens = Math.min(Math.max(maxTokens + 4096, 8192), Math.max(8192, Math.floor(contextWindow * 0.45)));
   const usableTokens = Math.max(4096, contextWindow - reserveTokens);
   const chunkChars = clamp(Math.floor(usableTokens * 2.2), 8000, 160000);
 
   return {
     chunkChars,
-    maxSummaryChars: clamp(
-      Math.floor(maxSummaryChars ?? DEFAULT_MAX_SUMMARY_CHARS),
-      1000,
-      32000,
-    ),
+    maxSummaryChars: clamp(Math.floor(maxSummaryChars ?? DEFAULT_MAX_SUMMARY_CHARS), 1000, 32000),
   };
 };
 
 const compactJson = (value: unknown, maxChars = 1200) => {
   try {
     const text = JSON.stringify(value);
-    return text.length > maxChars
-      ? `${text.slice(0, maxChars)}...[truncated]`
-      : text;
+    return text.length > maxChars ? `${text.slice(0, maxChars)}...[truncated]` : text;
   } catch {
     return "[unserializable]";
   }
@@ -171,12 +161,9 @@ const renderSummaryEntry = (entry: RuntimeSessionSummarySourceEntry) => {
       "</branch_summary>",
     ].join("\n");
   }
-  return [
-    entryHeader(entry),
-    `<event type="${entry.eventType}">`,
-    compactJson(entry.data ?? null),
-    "</event>",
-  ].join("\n");
+  return [entryHeader(entry), `<event type="${entry.eventType}">`, compactJson(entry.data ?? null), "</event>"].join(
+    "\n",
+  );
 };
 
 const renderSummarySource = (entries: RuntimeSessionSummarySourceEntry[]) =>
@@ -185,20 +172,23 @@ const renderSummarySource = (entries: RuntimeSessionSummarySourceEntry[]) =>
     .filter((section) => section.trim())
     .join("\n\n");
 
-const renderViewSummarySource = (context: RuntimeSessionContextView) => [
-  ...context.messages.map((message) => [
-    `[message id=${message.messageRecordId ?? "unknown"} role=${message.role} timestamp=${message.timestamp}]`,
-    message.content,
-  ].join("\n")),
-  ...context.requestContexts.map((entry) => [
-    `[request_context id=${entry.recordId} timestamp=${entry.timestamp}]`,
-    entry.content,
-  ].join("\n")),
-  ...context.runtimeInstructions.map((entry) => [
-    `[runtime_instruction id=${entry.recordId} timestamp=${entry.timestamp}]`,
-    entry.content,
-  ].join("\n")),
-].filter((section) => section.trim()).join("\n\n");
+const renderViewSummarySource = (context: RuntimeSessionContextView) =>
+  [
+    ...context.messages.map((message) =>
+      [
+        `[message id=${message.messageRecordId ?? "unknown"} role=${message.role} timestamp=${message.timestamp}]`,
+        message.content,
+      ].join("\n"),
+    ),
+    ...context.requestContexts.map((entry) =>
+      [`[request_context id=${entry.recordId} timestamp=${entry.timestamp}]`, entry.content].join("\n"),
+    ),
+    ...context.runtimeInstructions.map((entry) =>
+      [`[runtime_instruction id=${entry.recordId} timestamp=${entry.timestamp}]`, entry.content].join("\n"),
+    ),
+  ]
+    .filter((section) => section.trim())
+    .join("\n\n");
 
 const buildSummaryUserPrompt = (input: {
   source: string;
@@ -213,11 +203,7 @@ const buildSummaryUserPrompt = (input: {
       ? `请摘要以下会话内容分块（${input.chunkIndex}/${input.chunkCount}）。`
       : "请生成当前分支的展示摘要。",
     input.summaryInstruction?.trim()
-      ? [
-        "<summary_instruction>",
-        input.summaryInstruction.trim(),
-        "</summary_instruction>",
-      ].join("\n")
+      ? ["<summary_instruction>", input.summaryInstruction.trim(), "</summary_instruction>"].join("\n")
       : "",
     [
       "<output_requirements>",
@@ -275,15 +261,17 @@ export const generateDisplaySummary = async (input: {
         stream: false,
         runtimeModel: input.runtimeModel ?? null,
         systemPrompt: SUMMARY_SYSTEM_PROMPT,
-        messages: [{
-          role: "user",
-          content: buildSummaryUserPrompt({
-            source: chunks[0],
-            summaryInstruction: input.summaryInstruction,
-            maxSummaryChars: budget.maxSummaryChars,
-            mode,
-          }),
-        }],
+        messages: [
+          {
+            role: "user",
+            content: buildSummaryUserPrompt({
+              source: chunks[0],
+              summaryInstruction: input.summaryInstruction,
+              maxSummaryChars: budget.maxSummaryChars,
+              mode,
+            }),
+          },
+        ],
       };
       const result = await implementation.chat(command, {
         emit: () => {},
@@ -305,25 +293,25 @@ export const generateDisplaySummary = async (input: {
         stream: false,
         runtimeModel: input.runtimeModel ?? null,
         systemPrompt: SUMMARY_SYSTEM_PROMPT,
-        messages: [{
-          role: "user",
-          content: buildSummaryUserPrompt({
-            source: chunk,
-            summaryInstruction: input.summaryInstruction,
-            maxSummaryChars: Math.max(1000, Math.floor(budget.maxSummaryChars * 0.75)),
-            mode: "chunk",
-            chunkIndex: index + 1,
-            chunkCount: chunks.length,
-          }),
-        }],
+        messages: [
+          {
+            role: "user",
+            content: buildSummaryUserPrompt({
+              source: chunk,
+              summaryInstruction: input.summaryInstruction,
+              maxSummaryChars: Math.max(1000, Math.floor(budget.maxSummaryChars * 0.75)),
+              mode: "chunk",
+              chunkIndex: index + 1,
+              chunkCount: chunks.length,
+            }),
+          },
+        ],
       };
       const result = await implementation.chat(command, {
         emit: () => {},
         maxRetries: 0,
       });
-      chunkSummaries.push(
-        `# 分块 ${index + 1}/${chunks.length}\n${trimSummary(result.text, budget.maxSummaryChars)}`,
-      );
+      chunkSummaries.push(`# 分块 ${index + 1}/${chunks.length}\n${trimSummary(result.text, budget.maxSummaryChars)}`);
     }
 
     const combined = chunkSummaries.join("\n\n");

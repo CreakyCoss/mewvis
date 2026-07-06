@@ -10,10 +10,7 @@ type CollectionsViewProps = {
   enabledCollectionCount: number;
   onStartNewCollection: () => void;
   onOpenCollectionDetails: (collection: KnowledgeCollection) => void;
-  onToggleCollectionEnabled: (
-    collection: KnowledgeCollection,
-    enabled: boolean,
-  ) => void;
+  onToggleCollectionEnabled: (collection: KnowledgeCollection, enabled: boolean) => void;
   onRequestRemoveCollection: (collection: KnowledgeCollection) => void;
 };
 
@@ -30,15 +27,9 @@ export const CollectionsView = ({
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-card px-4 py-4 shadow-xs">
       <div className="min-w-0">
         <h3 className="text-sm font-semibold">集合</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          启用的集合会参与知识检索，集合详情中可分配来源。
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">启用的集合会参与知识检索，集合详情中可分配来源。</p>
       </div>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={onStartNewCollection}
-      >
+      <Button type="button" variant="outline" onClick={onStartNewCollection}>
         <Plus className="size-4" />
         <span>新建集合</span>
       </Button>
@@ -55,9 +46,7 @@ export const CollectionsView = ({
               key={collection.id}
               className={[
                 "flex min-w-0 items-start justify-between gap-3 rounded-md px-3 py-3 shadow-xs transition-colors",
-                collection.id === activeCollectionId
-                  ? "bg-primary/10"
-                  : "bg-card",
+                collection.id === activeCollectionId ? "bg-primary/10" : "bg-card",
               ].join(" ")}
             >
               <button
@@ -65,9 +54,7 @@ export const CollectionsView = ({
                 className="min-w-0 flex-1 text-left"
                 onClick={() => onOpenCollectionDetails(collection)}
               >
-                <div className="truncate text-sm font-medium">
-                  {collection.name}
-                </div>
+                <div className="truncate text-sm font-medium">{collection.name}</div>
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <span>{collection.sourceIds.length} 个来源</span>
                   <Badge variant={collection.enabled ? "outline" : "secondary"}>
@@ -75,18 +62,13 @@ export const CollectionsView = ({
                   </Badge>
                 </div>
               </button>
-              <div
-                className="flex shrink-0 items-center pt-1"
-                onClick={(event) => event.stopPropagation()}
-              >
+              <div className="flex shrink-0 items-center pt-1" onClick={(event) => event.stopPropagation()}>
                 <Switch
                   size="sm"
                   checked={collection.enabled}
                   title={collection.enabled ? "停用集合检索" : "启用集合检索"}
                   aria-label={`${collection.name}${collection.enabled ? "停用集合检索" : "启用集合检索"}`}
-                  onCheckedChange={(checked) =>
-                    onToggleCollectionEnabled(collection, checked)
-                  }
+                  onCheckedChange={(checked) => onToggleCollectionEnabled(collection, checked)}
                 />
               </div>
               <Button

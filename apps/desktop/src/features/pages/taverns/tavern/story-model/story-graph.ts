@@ -4,7 +4,7 @@ import type {
   TavernStoryEdge,
   TavernStoryGraph,
   TavernStoryNode,
-} from "@/features/pages/taverns/manage/model";
+} from "@/features/pages/taverns/room/model";
 
 const normalizeTavernStoryNodeType = (value: unknown): TavernStoryNode["type"] => {
   if (value === "failure" || value === "ending") {

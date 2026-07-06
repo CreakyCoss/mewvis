@@ -1,3 +1,4 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import { useMemo, useState } from "react";
 import { BookOpenText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { requireRuntimeModelInput } from "@/features/pages/settings/llm/store";
 import { SceneNovelizerPanel } from "../../components/SceneNovelizerPanel";
 import { collectTavernSceneNovelSource } from "./collect-tavern-scene-source";
 import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
-import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { Workspace } from "@/features/pages/workspace/types";
 

@@ -25,10 +25,7 @@ export const useRuntimeAgentSettings = (_input: UseRuntimeAgentSettingsInput = {
     setSettingsError("");
 
     try {
-      const [agentSettings] = await Promise.all([
-        getAiAgentSettings(),
-        loadLlmSettings(),
-      ]);
+      const [agentSettings] = await Promise.all([getAiAgentSettings(), loadLlmSettings()]);
       const runtimeModelState = useLlmSettingsStore.getState();
       if (runtimeModelState.error) {
         throw new Error(runtimeModelState.error);
@@ -36,9 +33,7 @@ export const useRuntimeAgentSettings = (_input: UseRuntimeAgentSettingsInput = {
 
       setAgents(agentSettings.agents);
       setSelectedAgentId((currentAgentId) =>
-        agentSettings.agents.some((agent) => agent.id === currentAgentId)
-          ? currentAgentId
-          : ""
+        agentSettings.agents.some((agent) => agent.id === currentAgentId) ? currentAgentId : "",
       );
     } catch (caught) {
       setSettingsError(String(caught));
@@ -59,9 +54,7 @@ export const useRuntimeAgentSettings = (_input: UseRuntimeAgentSettingsInput = {
   }, [runtimeModels]);
 
   const selectedRuntimeModel = useMemo(
-    () => runtimeModels.find((model) => model.id === selectedRuntimeModelId)
-      ?? runtimeModels[0]
-      ?? null,
+    () => runtimeModels.find((model) => model.id === selectedRuntimeModelId) ?? runtimeModels[0] ?? null,
     [runtimeModels, selectedRuntimeModelId],
   );
   const runtimeAgentRequiresModel = true;

@@ -9,11 +9,7 @@ export type {
   RuntimeSessionRecordRef,
 } from "./context.js";
 
-import type {
-  RuntimeMessage,
-  RuntimeMessageMetadata,
-  RuntimeSessionContextView,
-} from "./context.js";
+import type { RuntimeMessage, RuntimeMessageMetadata, RuntimeSessionContextView } from "./context.js";
 
 export type RuntimeLedgerHeader = {
   type: "runtime_session";

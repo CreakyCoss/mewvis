@@ -8,20 +8,10 @@ import {
   type MutableRefObject,
 } from "react";
 import type { Workspace } from "@/features/pages/workspace/types";
-import {
-  listChatSessions,
-  loadChatSession,
-  saveChatSession,
-  setChatSessionUnread,
-} from "../../api";
+import { listChatSessions, loadChatSession, saveChatSession, setChatSessionUnread } from "../../api";
 import { useChatSessionsStore } from "../../session-store";
-import type {
-  ChatMessage,
-} from "../../types";
-import {
-  toHydratableSession,
-  type HydratableChatSession,
-} from "./history";
+import type { ChatMessage } from "../../types";
+import { toHydratableSession, type HydratableChatSession } from "./history";
 import type { RunningAgentTaskContext } from "./use-running-agent-tasks";
 import { DEFAULT_SESSION_TITLE, deriveSessionTitle } from "../../utils/sessions";
 
@@ -54,10 +44,7 @@ type UseWorkspaceChatSessionsInput = {
   agentTasks: {
     runningAgentTasksRef: MutableRefObject<Map<string, RunningAgentTaskContext>>;
     detachActiveAgentTask: () => void;
-    applyActiveAgentTaskState: (
-      task: RunningAgentTaskContext,
-      options?: { restoreTerminalState?: boolean },
-    ) => void;
+    applyActiveAgentTaskState: (task: RunningAgentTaskContext, options?: { restoreTerminalState?: boolean }) => void;
   };
 };
 
@@ -69,19 +56,9 @@ export const useWorkspaceChatSessions = ({
   chat,
   agentTasks,
 }: UseWorkspaceChatSessionsInput) => {
-  const {
-    sessionId: routeSessionId,
-    isNewSession: isRouteNewSession,
-    onSessionCreated,
-    newSessionSeed = null,
-  } = route;
-  const {
-    closePanels,
-  } = navigation;
-  const {
-    setComposerResetKey,
-    clearAgentQuestionDraft,
-  } = ui;
+  const { sessionId: routeSessionId, isNewSession: isRouteNewSession, onSessionCreated, newSessionSeed = null } = route;
+  const { closePanels } = navigation;
+  const { setComposerResetKey, clearAgentQuestionDraft } = ui;
   const {
     currentSessionId,
     setCurrentSessionId,
@@ -93,11 +70,7 @@ export const useWorkspaceChatSessions = ({
     setMessages,
     messagesRef,
   } = chat;
-  const {
-    runningAgentTasksRef,
-    detachActiveAgentTask,
-    applyActiveAgentTaskState,
-  } = agentTasks;
+  const { runningAgentTasksRef, detachActiveAgentTask, applyActiveAgentTaskState } = agentTasks;
   const saveSessionTimerRef = useRef<number | null>(null);
   const sessionsRequestIdRef = useRef(0);
   const isHydratingSessionRef = useRef(false);
@@ -107,59 +80,63 @@ export const useWorkspaceChatSessions = ({
   const upsertSession = useChatSessionsStore((store) => store.upsertSession);
   const setSessionUnread = useChatSessionsStore((store) => store.setSessionUnread);
 
-  const markSessionRead = useCallback((workspacePath: string, sessionId: string) => {
-    setSessionUnread(workspace.id, sessionId, false);
-    void setChatSessionUnread({
-      workspacePath,
-      sessionId,
-      isUnread: false,
-    }).catch((caught) => {
-      setSessionsError(String(caught));
-    });
-  }, [setSessionUnread, workspace.id]);
+  const markSessionRead = useCallback(
+    (workspacePath: string, sessionId: string) => {
+      setSessionUnread(workspace.id, sessionId, false);
+      void setChatSessionUnread({
+        workspacePath,
+        sessionId,
+        isUnread: false,
+      }).catch((caught) => {
+        setSessionsError(String(caught));
+      });
+    },
+    [setSessionUnread, workspace.id],
+  );
 
-  const hydrateSession = useCallback((
-    session: HydratableChatSession | null,
-  ) => {
-    if (saveSessionTimerRef.current) {
-      window.clearTimeout(saveSessionTimerRef.current);
-      saveSessionTimerRef.current = null;
-    }
-    detachActiveAgentTask();
-    isHydratingSessionRef.current = true;
-    hydratedWorkspacePathRef.current = workspace.path;
-    const runningTask = session?.id
-      ? [...runningAgentTasksRef.current.values()].find((task) =>
-        task.workspacePath === workspace.path && task.sessionId === session.id
-      )
-      : null;
-    const hydratedMessages = runningTask?.messages ?? session?.messages ?? [];
-    messagesRef.current = hydratedMessages;
-    setMessages(hydratedMessages);
-    const nextSessionId = session?.id ?? null;
-    const nextSessionTitle = session?.title || DEFAULT_SESSION_TITLE;
-    currentSessionIdRef.current = nextSessionId;
-    currentSessionTitleRef.current = nextSessionTitle;
-    setCurrentSessionId(nextSessionId);
-    setCurrentSessionTitle(nextSessionTitle);
-    if (runningTask) {
-      applyActiveAgentTaskState(runningTask, { restoreTerminalState: false });
-    }
-    window.setTimeout(() => {
-      isHydratingSessionRef.current = false;
-    }, 0);
-  }, [
-    applyActiveAgentTaskState,
-    currentSessionIdRef,
-    currentSessionTitleRef,
-    detachActiveAgentTask,
-    messagesRef,
-    runningAgentTasksRef,
-    setCurrentSessionId,
-    setCurrentSessionTitle,
-    setMessages,
-    workspace.path,
-  ]);
+  const hydrateSession = useCallback(
+    (session: HydratableChatSession | null) => {
+      if (saveSessionTimerRef.current) {
+        window.clearTimeout(saveSessionTimerRef.current);
+        saveSessionTimerRef.current = null;
+      }
+      detachActiveAgentTask();
+      isHydratingSessionRef.current = true;
+      hydratedWorkspacePathRef.current = workspace.path;
+      const runningTask = session?.id
+        ? [...runningAgentTasksRef.current.values()].find(
+            (task) => task.workspacePath === workspace.path && task.sessionId === session.id,
+          )
+        : null;
+      const hydratedMessages = runningTask?.messages ?? session?.messages ?? [];
+      messagesRef.current = hydratedMessages;
+      setMessages(hydratedMessages);
+      const nextSessionId = session?.id ?? null;
+      const nextSessionTitle = session?.title || DEFAULT_SESSION_TITLE;
+      currentSessionIdRef.current = nextSessionId;
+      currentSessionTitleRef.current = nextSessionTitle;
+      setCurrentSessionId(nextSessionId);
+      setCurrentSessionTitle(nextSessionTitle);
+      if (runningTask) {
+        applyActiveAgentTaskState(runningTask, { restoreTerminalState: false });
+      }
+      window.setTimeout(() => {
+        isHydratingSessionRef.current = false;
+      }, 0);
+    },
+    [
+      applyActiveAgentTaskState,
+      currentSessionIdRef,
+      currentSessionTitleRef,
+      detachActiveAgentTask,
+      messagesRef,
+      runningAgentTasksRef,
+      setCurrentSessionId,
+      setCurrentSessionTitle,
+      setMessages,
+      workspace.path,
+    ],
+  );
 
   const loadSessions = useCallback(async () => {
     const requestId = sessionsRequestIdRef.current + 1;
@@ -178,9 +155,8 @@ export const useWorkspaceChatSessions = ({
     try {
       const sessions = await listChatSessions(workspace.path);
       const targetSessionId = sessionIdToLoad ?? sessions[0]?.id ?? null;
-      const targetSession = shouldStartEmptySession || !targetSessionId
-        ? null
-        : await loadChatSession(workspace.path, targetSessionId);
+      const targetSession =
+        shouldStartEmptySession || !targetSessionId ? null : await loadChatSession(workspace.path, targetSessionId);
       if (sessionsRequestIdRef.current !== requestId) {
         return;
       }
@@ -229,11 +205,14 @@ export const useWorkspaceChatSessions = ({
     void loadSessions();
   }, [loadSessions]);
 
-  useEffect(() => () => {
-    if (saveSessionTimerRef.current) {
-      window.clearTimeout(saveSessionTimerRef.current);
-    }
-  }, []);
+  useEffect(
+    () => () => {
+      if (saveSessionTimerRef.current) {
+        window.clearTimeout(saveSessionTimerRef.current);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (isHydratingSessionRef.current) {
@@ -253,9 +232,10 @@ export const useWorkspaceChatSessions = ({
     }
 
     const derivedTitle = messages.length === 0 ? currentSessionTitle : deriveSessionTitle(messages);
-    const title = derivedTitle === DEFAULT_SESSION_TITLE && currentSessionTitle !== DEFAULT_SESSION_TITLE
-      ? currentSessionTitle
-      : derivedTitle;
+    const title =
+      derivedTitle === DEFAULT_SESSION_TITLE && currentSessionTitle !== DEFAULT_SESSION_TITLE
+        ? currentSessionTitle
+        : derivedTitle;
     if (title !== currentSessionTitle) {
       currentSessionTitleRef.current = title;
       setCurrentSessionTitle(title);

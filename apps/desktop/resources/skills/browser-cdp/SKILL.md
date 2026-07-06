@@ -73,9 +73,9 @@ agent-browser --cdp 9222 type "<CSS selector>" "<text>"
 
 ## 常见问题
 
-| 问题 | 解决方案 |
-|------|----------|
-| CDP 端口未监听 | 重新运行 `setup_cdp_chrome.sh` |
-| 页面跳转到登录页 | `snapshot -i` 找登录按钮并操作 |
-| eval 返回 null | 检查 localStorage key 名称，或改用 `document.cookie` |
-| Chrome 进程残留 | `pkill -9 -f "Google Chrome"` 后重新运行脚本 |
+| 问题             | 解决方案                                             |
+| ---------------- | ---------------------------------------------------- |
+| CDP 端口未监听   | 重新运行 `setup_cdp_chrome.sh`                       |
+| 页面跳转到登录页 | `snapshot -i` 找登录按钮并操作                       |
+| eval 返回 null   | 检查 localStorage key 名称，或改用 `document.cookie` |
+| Chrome 进程残留  | `pkill -9 -f "Google Chrome"` 后重新运行脚本         |

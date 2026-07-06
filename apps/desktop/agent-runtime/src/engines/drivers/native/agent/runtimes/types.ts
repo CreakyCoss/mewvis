@@ -126,30 +126,15 @@ export type RuntimeMode = "agent" | "chat";
 
 export type AgentRuntime = {
   readonly id: string;
-  run(
-    command: RuntimeAgentCommand,
-    context: AgentRuntimeContext,
-  ): Promise<AgentRunResult>;
-  compact?(
-    command: RuntimeAgentCompactCommand,
-    context: AgentRuntimeContext,
-  ): Promise<SessionMutationResult>;
-  rebuild?(
-    command: RuntimeAgentRebuildCommand,
-    context: AgentRuntimeContext,
-  ): Promise<SessionMutationResult>;
-  summarize?(
-    command: RuntimeAgentSummarizeCommand,
-    context: AgentRuntimeContext,
-  ): Promise<SessionMutationResult>;
+  run(command: RuntimeAgentCommand, context: AgentRuntimeContext): Promise<AgentRunResult>;
+  compact?(command: RuntimeAgentCompactCommand, context: AgentRuntimeContext): Promise<SessionMutationResult>;
+  rebuild?(command: RuntimeAgentRebuildCommand, context: AgentRuntimeContext): Promise<SessionMutationResult>;
+  summarize?(command: RuntimeAgentSummarizeCommand, context: AgentRuntimeContext): Promise<SessionMutationResult>;
 };
 
 export type ChatRuntime = {
   readonly id: string;
-  chat(
-    command: ChatRunCommand,
-    context: ChatRuntimeContext,
-  ): Promise<ChatRunResult>;
+  chat(command: ChatRunCommand, context: ChatRuntimeContext): Promise<ChatRunResult>;
 };
 
 export type RuntimeAgent = RuntimeAgentDefinition & {

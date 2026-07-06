@@ -1,17 +1,22 @@
+import type { TavernRoomRuntimeState, TavernRuntimeRoom } from "@/features/pages/taverns/room/model";
+import { pickTavernRoomConfig } from "@/features/pages/taverns/room/model/runtime-room";
+import type { TavernRoom as TavernRoomConfig } from "@/features/pages/taverns/manage/model";
 import { materializeTavernPresentationInput, type TavernPresentationInput } from "./input";
 import { switchTavernRoomStoryNode } from "../runtime/active-scene-runtime";
 import type { TavernState } from "../types";
-import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 
 const unique = (items: string[]) => [...new Set(items.filter(Boolean))];
 
 const resolvePreferredTavernRoomIds = (presentationInput: TavernPresentationInput, preferredRoomIds: string[] = []) =>
   unique([...preferredRoomIds, presentationInput.source.id ?? ""]);
 
-const resolveRoomSceneInstanceId = (room: TavernRoom, fallbackId?: string) =>
+const resolveRoomSceneInstanceId = (room: TavernRuntimeRoom, fallbackId?: string) =>
   room.activeSceneInstanceId ?? room.sceneInstances[0]?.id ?? fallbackId;
 
-const applyCarrierRoomConfig = (room: TavernRoom, carrierRoom: TavernRoom | undefined): TavernRoom => {
+const applyCarrierRoomConfig = (
+  room: TavernRuntimeRoom,
+  carrierRoom: TavernRoomConfig | undefined,
+): TavernRuntimeRoom => {
   if (!carrierRoom) {
     return room;
   }
@@ -23,14 +28,30 @@ const applyCarrierRoomConfig = (room: TavernRoom, carrierRoom: TavernRoom | unde
     systemPresetVersion: carrierRoom.systemPresetVersion,
     presentation: carrierRoom.presentation,
     prompt: carrierRoom.prompt,
-    replyMode: carrierRoom.replyMode,
-    settings: carrierRoom.settings,
+    scenePresetId: carrierRoom.scenePresetId,
     statusDefinitions: carrierRoom.statusDefinitions,
     statusRules: carrierRoom.statusRules,
     progressViews: carrierRoom.progressViews,
     progressTracker: carrierRoom.progressTracker,
+    taskDefinitions: carrierRoom.taskDefinitions,
+    sceneOutcomes: carrierRoom.sceneOutcomes,
+    replyMode: carrierRoom.replyMode,
+    settings: carrierRoom.settings,
     creationSource: carrierRoom.creationSource,
     locked: false,
+  };
+};
+
+const upsertTavernRoomConfig = (state: TavernState, room: TavernRuntimeRoom): TavernState => {
+  const roomConfig = pickTavernRoomConfig(room);
+  const rooms = state.rooms.some((item) => item.id === roomConfig.id)
+    ? state.rooms.map((item) => (item.id === roomConfig.id ? roomConfig : item))
+    : [...state.rooms, roomConfig];
+
+  return {
+    ...state,
+    activeRoomId: roomConfig.id,
+    rooms,
   };
 };
 
@@ -49,30 +70,17 @@ export const materializeTavernPresentationRoomState = ({
   preferredRoomIds?: string[];
   targetNodeId?: string;
   roomId?: string;
-  carrierRoom?: TavernRoom;
+  carrierRoom?: TavernRoomConfig;
 }) => {
   const resolvedTargetNodeId = targetNodeId || presentationInput.route.activeNodeId;
   const roomIds = resolvePreferredTavernRoomIds(presentationInput, preferredRoomIds);
   const existingRoom = tavernState.rooms.find((room) => roomIds.includes(room.id));
 
-  if (existingRoom) {
-    const switchedRoom = switchTavernRoomStoryNode(existingRoom, resolvedTargetNodeId);
-    return {
-      tavernState: {
-        ...tavernState,
-        activeRoomId: switchedRoom.id,
-        rooms: tavernState.rooms.map((room) => (room.id === switchedRoom.id ? switchedRoom : room)),
-      },
-      room: switchedRoom,
-      sceneInstanceId: resolveRoomSceneInstanceId(switchedRoom),
-    };
-  }
-
   const materialized = materializeTavernPresentationInput(workspaceId, presentationInput, {
-    roomId,
+    roomId: existingRoom?.id ?? roomId,
   });
   const switchedRoom = switchTavernRoomStoryNode(
-    applyCarrierRoomConfig(materialized.room, carrierRoom),
+    applyCarrierRoomConfig(materialized.room, existingRoom ?? carrierRoom),
     resolvedTargetNodeId,
   );
   const sceneInstanceId = resolveRoomSceneInstanceId(switchedRoom, materialized.room.id);
@@ -81,22 +89,22 @@ export const materializeTavernPresentationRoomState = ({
     sceneId: message.sceneId ?? switchedRoom.activeSceneId,
     sceneInstanceId: message.sceneInstanceId ?? sceneInstanceId,
   }));
+  const runtimeState: TavernRoomRuntimeState = {
+    version: 4,
+    activeRoomId: switchedRoom.id,
+    rooms: [switchedRoom],
+    messagesByInstance: {
+      [sceneInstanceId]: messages,
+    },
+    workflowTracesByInstance: {
+      [sceneInstanceId]: [],
+    },
+  };
 
   return {
-    tavernState: {
-      ...tavernState,
-      activeRoomId: switchedRoom.id,
-      rooms: [...tavernState.rooms, switchedRoom],
-      messagesByInstance: {
-        ...tavernState.messagesByInstance,
-        [sceneInstanceId]: messages,
-      },
-      workflowTracesByInstance: {
-        ...tavernState.workflowTracesByInstance,
-        [sceneInstanceId]: [],
-      },
-    },
+    tavernState: upsertTavernRoomConfig(tavernState, switchedRoom),
     room: switchedRoom,
     sceneInstanceId,
+    runtimeState,
   };
 };

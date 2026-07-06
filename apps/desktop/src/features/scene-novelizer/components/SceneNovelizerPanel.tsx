@@ -4,18 +4,9 @@ import { toast } from "sonner";
 import type { RuntimeModelInput } from "@/agent-client/types";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import {
-  getSceneNovelizerPlatformPackage,
-  SCENE_NOVELIZER_PLATFORM_PACKAGES,
-} from "../prompt-registry/packages";
+import { getSceneNovelizerPlatformPackage, SCENE_NOVELIZER_PLATFORM_PACKAGES } from "../prompt-registry/packages";
 import {
   DEFAULT_SCENE_NOVELIZER_RULE_PACKAGE_ID,
   getDefaultSceneNovelizerRuleOptionIds,
@@ -26,12 +17,8 @@ import {
   SCENE_NOVELIZER_RULE_PACKAGES,
   type SceneNovelizerRulePackageId,
 } from "../prompt-registry/rule-options";
-import {
-  evaluateSceneNovelDraft,
-} from "../quality/metrics";
-import {
-  runSceneNovelizer,
-} from "../runtime/run-scene-novelizer";
+import { evaluateSceneNovelDraft } from "../quality/metrics";
+import { runSceneNovelizer } from "../runtime/run-scene-novelizer";
 import type {
   SceneNovelDraft,
   SceneNovelSource,
@@ -70,13 +57,7 @@ const materialKindLabels: Record<string, string> = {
   hook: "主线钩子",
 };
 
-const ruleCategoryOrder: SceneNovelizerRuleCategory[] = [
-  "quality",
-  "narrative",
-  "genre",
-  "hook",
-  "taboo",
-];
+const ruleCategoryOrder: SceneNovelizerRuleCategory[] = ["quality", "narrative", "genre", "hook", "taboo"];
 
 const ruleOptionGroups = ruleCategoryOrder.map((category) => ({
   category,
@@ -86,10 +67,7 @@ const ruleOptionGroups = ruleCategoryOrder.map((category) => ({
 
 type RulePackageSelectValue = SceneNovelizerRulePackageId | "custom";
 
-const hasSameRuleIds = (
-  left: SceneNovelizerRuleOptionId[],
-  right: SceneNovelizerRuleOptionId[],
-) => {
+const hasSameRuleIds = (left: SceneNovelizerRuleOptionId[], right: SceneNovelizerRuleOptionId[]) => {
   const leftSet = new Set(left);
   const rightSet = new Set(right);
 
@@ -107,16 +85,11 @@ const getInitialRulePackageId = (
   platformStyleId: SceneNovelizerPlatformStyleId,
   ruleIds: SceneNovelizerRuleOptionId[],
 ): RulePackageSelectValue =>
-  SCENE_NOVELIZER_RULE_PACKAGES.find((item) =>
-    item.platformStyleId === platformStyleId &&
-    hasSameRuleIds(item.ruleOptionIds, ruleIds)
+  SCENE_NOVELIZER_RULE_PACKAGES.find(
+    (item) => item.platformStyleId === platformStyleId && hasSameRuleIds(item.ruleOptionIds, ruleIds),
   )?.id ?? "custom";
 
-const createLocalDraft = (
-  source: SceneNovelSource,
-  text: string,
-  rewriteCount: number,
-): SceneNovelDraft => ({
+const createLocalDraft = (source: SceneNovelSource, text: string, rewriteCount: number): SceneNovelDraft => ({
   id: crypto.randomUUID(),
   sourceId: source.id,
   platformStyleId: source.platformStyleId,
@@ -133,14 +106,10 @@ export const SceneNovelizerPanel = ({
   disabled = false,
   onBusyChange,
 }: SceneNovelizerPanelProps) => {
-  const [platformStyleId, setPlatformStyleId] = useState<SceneNovelizerPlatformStyleId>(
-    source.platformStyleId,
-  );
-  const [selectedRuleIds, setSelectedRuleIds] = useState<SceneNovelizerRuleOptionId[]>(
-    () => getInitialRuleIds(source),
-  );
-  const [selectedPackageId, setSelectedPackageId] = useState<RulePackageSelectValue>(
-    () => getInitialRulePackageId(source.platformStyleId, getInitialRuleIds(source)),
+  const [platformStyleId, setPlatformStyleId] = useState<SceneNovelizerPlatformStyleId>(source.platformStyleId);
+  const [selectedRuleIds, setSelectedRuleIds] = useState<SceneNovelizerRuleOptionId[]>(() => getInitialRuleIds(source));
+  const [selectedPackageId, setSelectedPackageId] = useState<RulePackageSelectValue>(() =>
+    getInitialRulePackageId(source.platformStyleId, getInitialRuleIds(source)),
   );
   const [draft, setDraft] = useState<SceneNovelDraft | null>(null);
   const [streamingText, setStreamingText] = useState("");
@@ -155,21 +124,13 @@ export const SceneNovelizerPanel = ({
         ...source.constraints,
         paragraphMaxChars: platformStyleId === "fanqie" ? 160 : 180,
       },
-      unresolvedHooks: source.unresolvedHooks.length > 0
-        ? source.unresolvedHooks
-        : platformPackage.judgeFocus,
+      unresolvedHooks: source.unresolvedHooks.length > 0 ? source.unresolvedHooks : platformPackage.judgeFocus,
     };
   }, [platformStyleId, selectedRuleIds, source]);
   const platformPackage = getSceneNovelizerPlatformPackage(platformStyleId);
-  const selectedRulePackage = selectedPackageId === "custom"
-    ? null
-    : getSceneNovelizerRulePackage(selectedPackageId);
+  const selectedRulePackage = selectedPackageId === "custom" ? null : getSceneNovelizerRulePackage(selectedPackageId);
   const selectedRuleIdSet = useMemo(() => new Set(selectedRuleIds), [selectedRuleIds]);
-  const canGenerate =
-    !disabled &&
-    !isGenerating &&
-    Boolean(runtimeModel) &&
-    effectiveSource.materials.length > 0;
+  const canGenerate = !disabled && !isGenerating && Boolean(runtimeModel) && effectiveSource.materials.length > 0;
 
   const changePlatformStyle = (value: string) => {
     const nextPlatformStyleId = value as SceneNovelizerPlatformStyleId;
@@ -191,15 +152,10 @@ export const SceneNovelizerPanel = ({
     setSelectedRuleIds(normalizeSceneNovelizerRuleOptionIds(nextPackage.ruleOptionIds));
   };
 
-  const toggleRuleOption = (
-    ruleId: SceneNovelizerRuleOptionId,
-    checked: boolean,
-  ) => {
+  const toggleRuleOption = (ruleId: SceneNovelizerRuleOptionId, checked: boolean) => {
     setSelectedPackageId("custom");
     setSelectedRuleIds((current) =>
-      checked
-        ? Array.from(new Set([...current, ruleId]))
-        : current.filter((currentRuleId) => currentRuleId !== ruleId)
+      checked ? Array.from(new Set([...current, ruleId])) : current.filter((currentRuleId) => currentRuleId !== ruleId),
     );
   };
 
@@ -251,7 +207,7 @@ export const SceneNovelizerPanel = ({
             text,
             quality: evaluateSceneNovelDraft({ text, source: effectiveSource }),
           }
-        : createLocalDraft(effectiveSource, text, 0)
+        : createLocalDraft(effectiveSource, text, 0),
     );
   };
 
@@ -262,11 +218,7 @@ export const SceneNovelizerPanel = ({
           <BookOpenText className="size-4 shrink-0 text-primary" />
           <span className="truncate">场景小说稿</span>
         </div>
-        <Select
-          value={platformStyleId}
-          onValueChange={changePlatformStyle}
-          disabled={isGenerating}
-        >
+        <Select value={platformStyleId} onValueChange={changePlatformStyle} disabled={isGenerating}>
           <SelectTrigger size="sm" className="h-8 max-w-24 text-xs">
             <SelectValue />
           </SelectTrigger>
@@ -292,11 +244,7 @@ export const SceneNovelizerPanel = ({
               void generateDraft();
             }}
           >
-            {isGenerating ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="size-3.5" />
-            )}
+            {isGenerating ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
             {draft ? "重写" : "生成"}
           </Button>
         </div>
@@ -305,10 +253,7 @@ export const SceneNovelizerPanel = ({
           {sourceStatItems(effectiveSource).map(([label, value]) => (
             <div
               key={label}
-              className={cn(
-                "rounded-md bg-current/5 px-2 py-1.5 text-center",
-                value === 0 && "opacity-55",
-              )}
+              className={cn("rounded-md bg-current/5 px-2 py-1.5 text-center", value === 0 && "opacity-55")}
             >
               <div className="text-[11px] font-semibold tabular-nums">{value}</div>
               <div className="text-[10px] opacity-65">{label}</div>
@@ -324,34 +269,26 @@ export const SceneNovelizerPanel = ({
         </summary>
         <div className="mt-2 space-y-2.5 pr-1">
           <div className="space-y-2">
-            <Select
-              value={selectedPackageId}
-              onValueChange={applyRulePackage}
-              disabled={isGenerating}
-            >
+            <Select value={selectedPackageId} onValueChange={applyRulePackage} disabled={isGenerating}>
               <SelectTrigger size="sm" className="h-8 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={DEFAULT_SCENE_NOVELIZER_RULE_PACKAGE_ID}>
-                  番茄快节奏
-                </SelectItem>
-                {SCENE_NOVELIZER_RULE_PACKAGES
-                  .filter((item) => item.id !== DEFAULT_SCENE_NOVELIZER_RULE_PACKAGE_ID)
-                  .map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
+                <SelectItem value={DEFAULT_SCENE_NOVELIZER_RULE_PACKAGE_ID}>番茄快节奏</SelectItem>
+                {SCENE_NOVELIZER_RULE_PACKAGES.filter(
+                  (item) => item.id !== DEFAULT_SCENE_NOVELIZER_RULE_PACKAGE_ID,
+                ).map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {item.label}
+                  </SelectItem>
+                ))}
                 <SelectItem value="custom">自定义</SelectItem>
               </SelectContent>
             </Select>
             {selectedRulePackage && (
               <div className="rounded-md bg-current/5 px-2 py-1.5 text-[10px] leading-4 opacity-70">
                 {selectedRulePackage.description}
-                <span className="ml-1">
-                  {selectedRulePackage.strengths.join(" / ")}
-                </span>
+                <span className="ml-1">{selectedRulePackage.strengths.join(" / ")}</span>
               </div>
             )}
           </div>
@@ -380,12 +317,8 @@ export const SceneNovelizerPanel = ({
                         }}
                       />
                       <span className="min-w-0">
-                        <span className="block truncate text-[10px] font-medium leading-4">
-                          {option.label}
-                        </span>
-                        <span className="line-clamp-1 text-[9px] leading-3.5 opacity-60">
-                          {option.description}
-                        </span>
+                        <span className="block truncate text-[10px] font-medium leading-4">{option.label}</span>
+                        <span className="line-clamp-1 text-[9px] leading-3.5 opacity-60">{option.description}</span>
                       </span>
                     </label>
                   );
@@ -402,12 +335,7 @@ export const SceneNovelizerPanel = ({
         </div>
       )}
 
-      {draft && (
-        <SceneNovelizerDraftView
-          draft={draft}
-          onTextChange={updateDraftText}
-        />
-      )}
+      {draft && <SceneNovelizerDraftView draft={draft} onTextChange={updateDraftText} />}
 
       <details className="rounded-md border border-current/10 bg-current/[0.035] px-3 py-2 text-xs">
         <summary className="cursor-pointer select-none font-medium">素材</summary>

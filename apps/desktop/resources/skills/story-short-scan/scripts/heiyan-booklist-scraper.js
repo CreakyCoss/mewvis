@@ -32,10 +32,7 @@ const PAGE_SIZE = 20;
 /** 从 Cookie 中提取 Admin-Token */
 function getToken(port) {
   const js =
-    "JSON.stringify((()=>{" +
-    "var m=document.cookie.match(/Admin-Token=([^;]+)/);" +
-    "return m?m[1]:''" +
-    "})())";
+    "JSON.stringify((()=>{" + "var m=document.cookie.match(/Admin-Token=([^;]+)/);" + "return m?m[1]:''" + "})())";
   return evalJSON(port, js) || "";
 }
 
@@ -43,13 +40,20 @@ function getToken(port) {
 function fetchBookList(port, token, pageNum) {
   const t = safeStr(token);
   const js =
-    "fetch(" + safeStr(API_BASE + "/manage/book/list") + "," +
+    "fetch(" +
+    safeStr(API_BASE + "/manage/book/list") +
+    "," +
     "{method:'POST'," +
     "headers:{" +
     "'Content-Type':'application/x-www-form-urlencoded'," +
-    "'Authorization':'Bearer '+" + t +
+    "'Authorization':'Bearer '+" +
+    t +
     "}," +
-    "body:new URLSearchParams({pageNum:" + safeStr(pageNum) + ",pageSize:" + safeStr(PAGE_SIZE) + ",language:'zh_TW'})" +
+    "body:new URLSearchParams({pageNum:" +
+    safeStr(pageNum) +
+    ",pageSize:" +
+    safeStr(PAGE_SIZE) +
+    ",language:'zh_TW'})" +
     "}).then(function(r){return r.json()})";
   return evalJSON(port, js);
 }
@@ -58,8 +62,12 @@ function fetchBookList(port, token, pageNum) {
 function fetchBookDetail(port, token, bookId) {
   const t = safeStr(token);
   const js =
-    "fetch(" + safeStr(API_BASE + "/manage/book/" + encodeURIComponent(bookId)) + "," +
-    "{headers:{'Authorization':'Bearer '+" + t + "}}" +
+    "fetch(" +
+    safeStr(API_BASE + "/manage/book/" + encodeURIComponent(bookId)) +
+    "," +
+    "{headers:{'Authorization':'Bearer '+" +
+    t +
+    "}}" +
     ").then(function(r){return r.json()})";
   return evalJSON(port, js);
 }
@@ -154,9 +162,7 @@ function main() {
   // 按频道分组
   const maleBooks = filtered.filter((b) => b.classifyStr === "男频");
   const femaleBooks = filtered.filter((b) => b.classifyStr === "女频");
-  const otherBooks = filtered.filter(
-    (b) => b.classifyStr !== "男频" && b.classifyStr !== "女频"
-  );
+  const otherBooks = filtered.filter((b) => b.classifyStr !== "男频" && b.classifyStr !== "女频");
 
   const groups = [
     { label: "男频", books: maleBooks },
@@ -197,7 +203,9 @@ function main() {
         b.words ? b.words.toLocaleString() + "字" : "",
         b.price ? b.price + "钻" : "",
         b.open ? "公开" : "未公开",
-      ].filter(Boolean).join(" · ");
+      ]
+        .filter(Boolean)
+        .join(" · ");
       if (meta) lines.push(`*${meta}*`);
 
       if (b.createTime) lines.push(`**创建：** ${b.createTime}`);

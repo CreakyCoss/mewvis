@@ -15,13 +15,7 @@ export type WorkspaceFile = {
 };
 
 export type WorkspaceVersionFileStatusKind =
-  | "added"
-  | "modified"
-  | "deleted"
-  | "renamed"
-  | "typechange"
-  | "conflicted"
-  | "untracked";
+  "added" | "modified" | "deleted" | "renamed" | "typechange" | "conflicted" | "untracked";
 
 export type WorkspaceVersionFileStatus = {
   path: string;
@@ -104,10 +98,7 @@ export async function listWorkspaceFiles(workspacePath: string) {
   });
 }
 
-export async function readWorkspaceFile(
-  workspacePath: string,
-  relativePath: string,
-) {
+export async function readWorkspaceFile(workspacePath: string, relativePath: string) {
   if (!isTauri()) {
     throw new Error("Web 预览模式暂不支持读取工作区文件");
   }
@@ -117,11 +108,7 @@ export async function readWorkspaceFile(
   });
 }
 
-export async function writeWorkspaceFile(
-  workspacePath: string,
-  relativePath: string,
-  content: string,
-) {
+export async function writeWorkspaceFile(workspacePath: string, relativePath: string, content: string) {
   if (!isTauri()) {
     throw new Error("Web 预览模式暂不支持保存工作区文件");
   }
@@ -131,10 +118,7 @@ export async function writeWorkspaceFile(
   });
 }
 
-export async function deleteWorkspaceFile(
-  workspacePath: string,
-  relativePath: string,
-) {
+export async function deleteWorkspaceFile(workspacePath: string, relativePath: string) {
   if (!isTauri()) {
     throw new Error("Web 预览模式暂不支持删除工作区文件");
   }
@@ -183,10 +167,7 @@ export async function initializeWorkspaceVersionControl(workspacePath: string) {
   });
 }
 
-export async function getWorkspaceVersionFileDiff(
-  workspacePath: string,
-  relativePath: string,
-) {
+export async function getWorkspaceVersionFileDiff(workspacePath: string, relativePath: string) {
   if (!isTauri()) {
     return {
       path: relativePath,
@@ -201,27 +182,17 @@ export async function getWorkspaceVersionFileDiff(
   });
 }
 
-export async function discardWorkspaceVersionFileChanges(
-  workspacePath: string,
-  relativePath: string,
-) {
+export async function discardWorkspaceVersionFileChanges(workspacePath: string, relativePath: string) {
   if (!isTauri()) {
     throw new Error("Web 预览模式暂不支持撤销文件修改");
   }
 
-  return invoke<WorkspaceVersionControlStatus>(
-    "discard_workspace_version_file_changes",
-    {
-      input: { workspacePath, relativePath },
-    },
-  );
+  return invoke<WorkspaceVersionControlStatus>("discard_workspace_version_file_changes", {
+    input: { workspacePath, relativePath },
+  });
 }
 
-export async function createWorkspaceVersion(
-  workspacePath: string,
-  message: string,
-  relativePaths?: string[],
-) {
+export async function createWorkspaceVersion(workspacePath: string, message: string, relativePaths?: string[]) {
   if (!isTauri()) {
     throw new Error("Web 预览模式暂不支持提交工作区变更");
   }
@@ -231,10 +202,7 @@ export async function createWorkspaceVersion(
   });
 }
 
-export async function createWorkspaceVersionBranch(
-  workspacePath: string,
-  branchName: string,
-) {
+export async function createWorkspaceVersionBranch(workspacePath: string, branchName: string) {
   if (!isTauri()) {
     throw new Error("Web 预览模式暂不支持创建工作区分支");
   }
@@ -244,10 +212,7 @@ export async function createWorkspaceVersionBranch(
   });
 }
 
-export async function switchWorkspaceVersionBranch(
-  workspacePath: string,
-  branchName: string,
-) {
+export async function switchWorkspaceVersionBranch(workspacePath: string, branchName: string) {
   if (!isTauri()) {
     throw new Error("Web 预览模式暂不支持切换工作区分支");
   }
@@ -267,10 +232,7 @@ export async function listWorkspaceVersions(workspacePath: string, branchName?: 
   });
 }
 
-export async function listWorkspaceVersionFiles(
-  workspacePath: string,
-  versionId: string,
-) {
+export async function listWorkspaceVersionFiles(workspacePath: string, versionId: string) {
   if (!isTauri()) {
     return [] satisfies WorkspaceVersionFileEntry[];
   }
@@ -280,11 +242,7 @@ export async function listWorkspaceVersionFiles(
   });
 }
 
-export async function readWorkspaceVersionFile(
-  workspacePath: string,
-  versionId: string,
-  relativePath: string,
-) {
+export async function readWorkspaceVersionFile(workspacePath: string, versionId: string, relativePath: string) {
   if (!isTauri()) {
     return {
       path: relativePath,
@@ -317,10 +275,7 @@ export async function getWorkspaceVersionCommitFileDiff(
   });
 }
 
-export async function restoreWorkspaceVersion(
-  workspacePath: string,
-  versionId: string,
-) {
+export async function restoreWorkspaceVersion(workspacePath: string, versionId: string) {
   if (!isTauri()) {
     throw new Error("Web 预览模式暂不支持回退工作区版本");
   }

@@ -1,6 +1,7 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { RuntimeModelInput } from "@/agent-client/types";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
-import type { TavernCharacter, TavernDirectorProfile, TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter, TavernDirectorProfile } from "@/features/pages/taverns/manage/model";
 import { normalizeTavernDirectorProfile } from "../../core/scheduling-profile";
 import { formatTavernCharacterRelationships } from "../../core/relationships";
 import { runTavernOneShotAgent } from "../agent";

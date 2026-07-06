@@ -1,6 +1,4 @@
-import type {
-  TavernPromptRuleGroups,
-} from "../../../prompt-registry/rule-layers/resolver";
+import type { TavernPromptRuleGroups } from "../../../prompt-registry/rule-layers/resolver";
 import type { TavernPromptSection } from "../shared/sections";
 
 type TavernPromptRuleTarget = "bridge" | "character" | "director";
@@ -54,10 +52,7 @@ const PROMPT_RULE_GROUP_CONFIGS: TavernPromptRuleGroupConfig[] = [
   },
 ];
 
-const getRuleAddendum = (
-  rule: TavernPromptRuleLike,
-  target: TavernPromptRuleTarget,
-) => {
+const getRuleAddendum = (rule: TavernPromptRuleLike, target: TavernPromptRuleTarget) => {
   if (target === "bridge") {
     return rule.bridgeAddendum;
   }
@@ -77,10 +72,12 @@ const formatRuleGroupContent = ({
   label: string;
   rules: TavernPromptRuleLike[];
   target: TavernPromptRuleTarget;
-}) => rules.map((rule) => [
-  `${label}：${rule.label}。${rule.description}`,
-  getRuleAddendum(rule, target),
-].filter(Boolean).join("\n")).join("\n\n");
+}) =>
+  rules
+    .map((rule) =>
+      [`${label}：${rule.label}。${rule.description}`, getRuleAddendum(rule, target)].filter(Boolean).join("\n"),
+    )
+    .join("\n\n");
 
 export const buildPromptRuleLayerSections = ({
   ruleGroups,
@@ -95,47 +92,49 @@ export const buildPromptRuleLayerSections = ({
       return [];
     }
 
-    return [{
-      id: config.id,
-      layer: "tavern",
-      tag: config.tag,
-      attributes: {
-        ids: rules.map((rule) => rule.id).join(","),
-        target,
+    return [
+      {
+        id: config.id,
+        layer: "tavern",
+        tag: config.tag,
+        attributes: {
+          ids: rules.map((rule) => rule.id).join(","),
+          target,
+        },
+        content: formatRuleGroupContent({
+          label: config.label,
+          rules,
+          target,
+        }),
       },
-      content: formatRuleGroupContent({
-        label: config.label,
-        rules,
-        target,
-      }),
-    }];
+    ];
   });
 
-export const formatPromptRuleLayersForDirector = (
-  ruleGroups: TavernPromptRuleGroups,
-) => PROMPT_RULE_GROUP_CONFIGS.map((config) => {
-  const rules = ruleGroups[config.key] as TavernPromptRuleLike[];
-  if (rules.length === 0) {
-    return "";
-  }
+export const formatPromptRuleLayersForDirector = (ruleGroups: TavernPromptRuleGroups) =>
+  PROMPT_RULE_GROUP_CONFIGS.map((config) => {
+    const rules = ruleGroups[config.key] as TavernPromptRuleLike[];
+    if (rules.length === 0) {
+      return "";
+    }
 
-  return [
-    `<${config.tag} ids="${rules.map((rule) => rule.id).join(",")}" target="director">`,
-    formatRuleGroupContent({
-      label: config.label,
-      rules,
-      target: "director",
-    }),
-    `</${config.tag}>`,
-    "",
-  ].join("\n");
-}).filter(Boolean).join("\n");
+    return [
+      `<${config.tag} ids="${rules.map((rule) => rule.id).join(",")}" target="director">`,
+      formatRuleGroupContent({
+        label: config.label,
+        rules,
+        target: "director",
+      }),
+      `</${config.tag}>`,
+      "",
+    ].join("\n");
+  })
+    .filter(Boolean)
+    .join("\n");
 
-export const formatPromptRuleLayersForCharacterStyle = (
-  ruleGroups: TavernPromptRuleGroups,
-) => PROMPT_RULE_GROUP_CONFIGS.flatMap((config) => {
-  const rules = ruleGroups[config.key] as TavernPromptRuleLike[];
-  return rules.length > 0
-    ? [`${config.label}：${rules.map((rule) => `${rule.label}。${rule.characterAddendum}`).join("；")}`]
-    : [];
-});
+export const formatPromptRuleLayersForCharacterStyle = (ruleGroups: TavernPromptRuleGroups) =>
+  PROMPT_RULE_GROUP_CONFIGS.flatMap((config) => {
+    const rules = ruleGroups[config.key] as TavernPromptRuleLike[];
+    return rules.length > 0
+      ? [`${config.label}：${rules.map((rule) => `${rule.label}。${rule.characterAddendum}`).join("；")}`]
+      : [];
+  });

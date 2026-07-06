@@ -22,10 +22,7 @@ export const xiaohongshuTopicStoryRuleComposition: TavernRuleComposition = {
   ],
   narrativeStyleIds: [directCommercialFlowNarrativeStyle.id],
   genreRuleIds: [],
-  hookRuleIds: [
-    topicResonanceHookRule.id,
-    conflictHookRule.id,
-  ],
+  hookRuleIds: [topicResonanceHookRule.id, conflictHookRule.id],
   tabooRuleIds: [longLoreOverexplainTabooRule.id],
   selectable: true,
   order: 50,

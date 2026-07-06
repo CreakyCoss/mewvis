@@ -1,3 +1,4 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import { appendReferencesToPrompt } from "@/features/ai/components/context-tools";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
 import { getTavernPresentationContract } from "../../../presentation/presentation-contracts";
@@ -7,7 +8,7 @@ import {
   formatTavernPromptBlocksForTarget,
 } from "../../../prompt-registry/text-blocks";
 import type { TavernReferencedFile } from "../../../types";
-import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import {
   buildTavernStoryContextPackage,
   buildTavernStoryPromptSections,

@@ -1,10 +1,11 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import {
   buildTavernStoryContextPackage,
   formatTavernStoryLorebookEntries,
   selectTavernStoryLorebookEntries,
   type TavernStoryContextLorebookEntry,
 } from "../../../adapters/story";
-import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 
 export const selectTavernLorebookEntries = ({
   room,

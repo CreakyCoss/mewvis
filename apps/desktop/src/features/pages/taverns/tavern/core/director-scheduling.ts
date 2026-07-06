@@ -1,5 +1,6 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { TavernMessage } from "../types";
-import type { TavernCharacter, TavernRoom, TavernStatusValue } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter, TavernStatusValue } from "@/features/pages/taverns/manage/model";
 import { getTavernStatusSnapshotValue } from "./progress-engine";
 import { orderTavernRoundSpeakers } from "./turn-order";
 

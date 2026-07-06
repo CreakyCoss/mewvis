@@ -22,20 +22,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import {
-  buildSideBySideDiffRows,
-  getDiffChangeRowIndexes,
-} from "./diff";
+import { buildSideBySideDiffRows, getDiffChangeRowIndexes } from "./diff";
 import { SideBySideDiffViewer } from "./diff-viewer";
 import {
   getDiscardVersionFileLabel,
@@ -85,38 +76,24 @@ export const VersionControlWorktreePanel = ({
   const [isDiffDialogOpen, setIsDiffDialogOpen] = useState(false);
   const [diffDialogFilePath, setDiffDialogFilePath] = useState("");
   const [selectedCommitPaths, setSelectedCommitPaths] = useState<string[]>([]);
-  const [hasCustomizedCommitSelection, setHasCustomizedCommitSelection] =
-    useState(false);
+  const [hasCustomizedCommitSelection, setHasCustomizedCommitSelection] = useState(false);
   const [activeDiffChangeIndex, setActiveDiffChangeIndex] = useState(0);
   const diffRowRefs = useRef(new Map<number, HTMLDivElement>());
 
-  const sideBySideDiffRows = useMemo(
-    () => buildSideBySideDiffRows(versionDiff),
-    [versionDiff],
-  );
-  const diffChangeRowIndexes = useMemo(
-    () => getDiffChangeRowIndexes(sideBySideDiffRows),
-    [sideBySideDiffRows],
-  );
+  const sideBySideDiffRows = useMemo(() => buildSideBySideDiffRows(versionDiff), [versionDiff]);
+  const diffChangeRowIndexes = useMemo(() => getDiffChangeRowIndexes(sideBySideDiffRows), [sideBySideDiffRows]);
   const activeDiffRowIndex = diffChangeRowIndexes[activeDiffChangeIndex] ?? -1;
   const isVersionControlEnabled = versionStatus?.isEnabled ?? false;
   const isVersionStatusPending = !versionStatus && isVersionControlLoading;
-  const changedFilePaths = useMemo(
-    () => versionStatus?.files.map((file) => file.path) ?? [],
-    [versionStatus?.files],
-  );
+  const changedFilePaths = useMemo(() => versionStatus?.files.map((file) => file.path) ?? [], [versionStatus?.files]);
   const changedFilePathKey = changedFilePaths.join("\0");
-  const selectedCommitPathSet = useMemo(
-    () => new Set(selectedCommitPaths),
-    [selectedCommitPaths],
-  );
+  const selectedCommitPathSet = useMemo(() => new Set(selectedCommitPaths), [selectedCommitPaths]);
   const selectedPathsForCommit = useMemo(
     () => changedFilePaths.filter((path) => selectedCommitPathSet.has(path)),
     [changedFilePaths, selectedCommitPathSet],
   );
   const allChangedFilesSelected =
-    changedFilePaths.length > 0 &&
-    selectedPathsForCommit.length === changedFilePaths.length;
+    changedFilePaths.length > 0 && selectedPathsForCommit.length === changedFilePaths.length;
   const hasSelectedChangedFiles = selectedPathsForCommit.length > 0;
   const canCreateVersion =
     isVersionControlEnabled &&
@@ -130,11 +107,7 @@ export const VersionControlWorktreePanel = ({
   }, [diffDialogFilePath, sideBySideDiffRows.length]);
 
   useEffect(() => {
-    if (
-      !isDiffDialogOpen ||
-      isVersionDiffLoading ||
-      diffChangeRowIndexes.length === 0
-    ) {
+    if (!isDiffDialogOpen || isVersionDiffLoading || diffChangeRowIndexes.length === 0) {
       return;
     }
 
@@ -178,8 +151,7 @@ export const VersionControlWorktreePanel = ({
       return;
     }
 
-    const normalizedIndex =
-      (nextChangeIndex + diffChangeRowIndexes.length) % diffChangeRowIndexes.length;
+    const normalizedIndex = (nextChangeIndex + diffChangeRowIndexes.length) % diffChangeRowIndexes.length;
     const rowIndex = diffChangeRowIndexes[normalizedIndex];
     setActiveDiffChangeIndex(normalizedIndex);
 
@@ -231,9 +203,7 @@ export const VersionControlWorktreePanel = ({
 
       {!isVersionControlEnabled ? (
         <div className="rounded-md bg-muted/45 px-2.5 py-2 text-sm text-muted-foreground">
-          {isVersionStatusPending
-            ? "正在读取版本状态"
-            : "未初始化版本仓库，请在顶部版本菜单中初始化。"}
+          {isVersionStatusPending ? "正在读取版本状态" : "未初始化版本仓库，请在顶部版本菜单中初始化。"}
         </div>
       ) : (
         <>
@@ -241,13 +211,7 @@ export const VersionControlWorktreePanel = ({
             <div className="flex min-w-0 items-center justify-between gap-2 overflow-hidden rounded-md bg-muted/45 px-2.5 py-2 text-sm">
               <div className="flex min-w-0 items-center gap-1.5">
                 <Checkbox
-                  checked={
-                    allChangedFilesSelected
-                      ? true
-                      : hasSelectedChangedFiles
-                      ? "indeterminate"
-                      : false
-                  }
+                  checked={allChangedFilesSelected ? true : hasSelectedChangedFiles ? "indeterminate" : false}
                   onCheckedChange={toggleAllCommitPaths}
                   disabled={!changedFilePaths.length}
                   aria-label="选择全部变更"
@@ -264,9 +228,7 @@ export const VersionControlWorktreePanel = ({
                 {versionStatus?.files.length ? (
                   versionStatus.files.map((file) => {
                     const isSelectedForCommit = selectedCommitPathSet.has(file.path);
-                    const fileLabel = file.previousPath
-                      ? `${file.previousPath} -> ${file.path}`
-                      : file.path;
+                    const fileLabel = file.previousPath ? `${file.previousPath} -> ${file.path}` : file.path;
                     const discardLabel = getDiscardVersionFileLabel(file.status);
                     const isDiscardingThisFile = discardingVersionFilePath === file.path;
 
@@ -320,9 +282,7 @@ export const VersionControlWorktreePanel = ({
                               <AlertDialogTitle>{discardLabel}？</AlertDialogTitle>
                               <AlertDialogDescription>
                                 {getDiscardVersionFileTitle(file.status)}。
-                                <span className="mt-2 block break-all font-medium text-foreground">
-                                  {fileLabel}
-                                </span>
+                                <span className="mt-2 block break-all font-medium text-foreground">{fileLabel}</span>
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -344,9 +304,7 @@ export const VersionControlWorktreePanel = ({
                     );
                   })
                 ) : (
-                  <div className="px-2 py-3 text-sm text-muted-foreground">
-                    没有变更
-                  </div>
+                  <div className="px-2 py-3 text-sm text-muted-foreground">没有变更</div>
                 )}
               </div>
             </ScrollArea>
@@ -407,9 +365,7 @@ export const VersionControlWorktreePanel = ({
                     rowRefs={diffRowRefs}
                   />
                 ) : (
-                  <div className="min-h-[360px] p-4 text-sm text-muted-foreground">
-                    没有文本差异
-                  </div>
+                  <div className="min-h-[360px] p-4 text-sm text-muted-foreground">没有文本差异</div>
                 )}
               </div>
             </DialogContent>
@@ -421,9 +377,7 @@ export const VersionControlWorktreePanel = ({
                 <GitCommitHorizontal className="size-3.5" />
                 <span>提交</span>
               </div>
-              <span className="shrink-0 tabular-nums">
-                {selectedPathsForCommit.length} 个文件
-              </span>
+              <span className="shrink-0 tabular-nums">{selectedPathsForCommit.length} 个文件</span>
             </div>
             <Textarea
               value={versionMessage}

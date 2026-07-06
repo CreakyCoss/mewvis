@@ -24,11 +24,7 @@ export const qidianLongformRuleComposition: TavernRuleComposition = {
   ],
   narrativeStyleIds: [webnovelHighDensityNarrativeStyle.id],
   genreRuleIds: [maleProgressionGrowthGenreRule.id],
-  hookRuleIds: [
-    expectationHookRule.id,
-    rewardFeedbackHookRule.id,
-    conflictHookRule.id,
-  ],
+  hookRuleIds: [expectationHookRule.id, rewardFeedbackHookRule.id, conflictHookRule.id],
   tabooRuleIds: [promiseMismatchTabooRule.id],
   selectable: true,
   order: 10,

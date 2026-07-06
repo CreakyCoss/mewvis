@@ -1,7 +1,8 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import { filterTavernFactEventsForAudience } from "@/features/pages/taverns/tavern/core";
 import { createTavernRenderableMessages } from "@/features/pages/taverns/tavern/message";
 import type { TavernMessage, TavernMessageSegment } from "@/features/pages/taverns/tavern/types";
-import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { DEFAULT_SCENE_NOVELIZER_PLATFORM_ID } from "../../prompt-registry/packages";
 import { getDefaultSceneNovelizerRuleOptionIds } from "../../prompt-registry/rule-options";
 import type {

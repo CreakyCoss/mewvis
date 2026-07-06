@@ -193,10 +193,7 @@ const compactChangedRows = (
   return compactRows;
 };
 
-const buildFullContentDiff = (
-  beforeContent: string,
-  afterContent: string,
-): SideBySideDiffRow[] => {
+const buildFullContentDiff = (beforeContent: string, afterContent: string): SideBySideDiffRow[] => {
   const beforeLines = splitDiffContentLines(beforeContent);
   const afterLines = splitDiffContentLines(afterContent);
   const rowCountProduct = beforeLines.length * afterLines.length;
@@ -222,18 +219,14 @@ const buildFullContentDiff = (
 
   const columnCount = afterLines.length + 1;
   const table = new Uint32Array((beforeLines.length + 1) * columnCount);
-  const at = (beforeIndex: number, afterIndex: number) =>
-    beforeIndex * columnCount + afterIndex;
+  const at = (beforeIndex: number, afterIndex: number) => beforeIndex * columnCount + afterIndex;
 
   for (let beforeIndex = beforeLines.length - 1; beforeIndex >= 0; beforeIndex -= 1) {
     for (let afterIndex = afterLines.length - 1; afterIndex >= 0; afterIndex -= 1) {
       table[at(beforeIndex, afterIndex)] =
         beforeLines[beforeIndex] === afterLines[afterIndex]
           ? table[at(beforeIndex + 1, afterIndex + 1)] + 1
-          : Math.max(
-              table[at(beforeIndex + 1, afterIndex)],
-              table[at(beforeIndex, afterIndex + 1)],
-            );
+          : Math.max(table[at(beforeIndex + 1, afterIndex)], table[at(beforeIndex, afterIndex + 1)]);
     }
   }
 
@@ -258,8 +251,7 @@ const buildFullContentDiff = (
     } else if (
       beforeIndex < beforeLines.length &&
       (afterIndex >= afterLines.length ||
-        table[at(beforeIndex + 1, afterIndex)] >=
-          table[at(beforeIndex, afterIndex + 1)])
+        table[at(beforeIndex + 1, afterIndex)] >= table[at(beforeIndex, afterIndex + 1)])
     ) {
       rawRows.push({
         kind: "removed",
@@ -280,13 +272,8 @@ const buildFullContentDiff = (
   return compactChangedRows(rawRows);
 };
 
-export const buildSideBySideDiffRows = (
-  diff: WorkspaceVersionFileDiff | null,
-): SideBySideDiffRow[] => {
-  if (
-    typeof diff?.beforeContent === "string" ||
-    typeof diff?.afterContent === "string"
-  ) {
+export const buildSideBySideDiffRows = (diff: WorkspaceVersionFileDiff | null): SideBySideDiffRow[] => {
+  if (typeof diff?.beforeContent === "string" || typeof diff?.afterContent === "string") {
     return buildFullContentDiff(diff?.beforeContent ?? "", diff?.afterContent ?? "");
   }
   return parseUnifiedDiff(diff?.patch ?? "");

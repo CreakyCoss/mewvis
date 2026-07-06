@@ -3,25 +3,25 @@ export type MarkdownMessageStatus = "loading" | "streaming" | "done" | "error";
 
 export type MarkdownContentMessage =
   | {
-    text: string;
-    content?: undefined;
-    status?: MarkdownMessageStatus;
-  }
+      text: string;
+      content?: undefined;
+      status?: MarkdownMessageStatus;
+    }
   | {
-    content: string;
-    text?: undefined;
-    status?: MarkdownMessageStatus;
-  };
+      content: string;
+      text?: undefined;
+      status?: MarkdownMessageStatus;
+    };
 
 export type MarkdownContentInput =
   | {
-    content: string;
-    message?: undefined;
-  }
+      content: string;
+      message?: undefined;
+    }
   | {
-    content?: undefined;
-    message: MarkdownContentMessage;
-  };
+      content?: undefined;
+      message: MarkdownContentMessage;
+    };
 
 type MarkdownRenderOptions = {
   className?: string;

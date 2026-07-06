@@ -3,15 +3,9 @@ import { ArrowLeft, Database, Loader2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  CollectionDetailsDialog,
-  CollectionFormDialog,
-} from "./collection-dialogs";
+import { CollectionDetailsDialog, CollectionFormDialog } from "./collection-dialogs";
 import { CollectionsView } from "./collections-view";
-import {
-  DeleteConfirmDialog,
-  KnowledgeActionConfirmDialog,
-} from "./confirm-dialogs";
+import { DeleteConfirmDialog, KnowledgeActionConfirmDialog } from "./confirm-dialogs";
 import { EmbeddingConfigDialog } from "./embedding-config-dialog";
 import { FilesView } from "./files-view";
 import { OverviewView } from "./overview-view";
@@ -57,9 +51,7 @@ type KnowledgeBasePageProps = {
   onBack?: () => void;
 };
 
-export const KnowledgeBasePage = ({
-  onBack,
-}: KnowledgeBasePageProps) => {
+export const KnowledgeBasePage = ({ onBack }: KnowledgeBasePageProps) => {
   const [library, setLibrary] = useState<KnowledgeLibrary>(emptyLibrary);
   const [settings, setSettings] = useState<KnowledgeSettings>(emptySettings);
   const [embeddingProfiles, setEmbeddingProfiles] = useState<EmbeddingProfile[]>([]);
@@ -80,8 +72,7 @@ export const KnowledgeBasePage = ({
   const [isSavingMembership, setIsSavingMembership] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<PendingDeleteTarget | null>(null);
-  const [pendingKnowledgeAction, setPendingKnowledgeAction] =
-    useState<PendingKnowledgeAction>(null);
+  const [pendingKnowledgeAction, setPendingKnowledgeAction] = useState<PendingKnowledgeAction>(null);
   const [error, setError] = useState("");
   const [view, setView] = useState<KnowledgeBaseView>("overview");
 
@@ -94,9 +85,7 @@ export const KnowledgeBasePage = ({
     [activeCollectionId, library.collections],
   );
   const activeCollectionSources = useMemo(
-    () => activeCollection
-      ? library.sources.filter((source) => activeCollection.sourceIds.includes(source.id))
-      : [],
+    () => (activeCollection ? library.sources.filter((source) => activeCollection.sourceIds.includes(source.id)) : []),
     [activeCollection, library.sources],
   );
   const enabledCollectionNamesBySourceId = useMemo(() => {
@@ -116,55 +105,51 @@ export const KnowledgeBasePage = ({
     return namesBySourceId;
   }, [library.collections]);
   const defaultEmbeddingProfile = useMemo(
-    () => embeddingProfiles.find((profile) => profile.isDefault)
-      ?? embeddingProfiles[0]
-      ?? null,
+    () => embeddingProfiles.find((profile) => profile.isDefault) ?? embeddingProfiles[0] ?? null,
     [embeddingProfiles],
   );
   const isLocalOllamaEmbedding = embeddingDraft.providerKind === "ollama";
   const embeddingModelOptions = useMemo(
-    () => isLocalOllamaEmbedding
-      ? localOllamaModelOptions
-      : openAiCompatibleEmbeddingModelOptions,
+    () => (isLocalOllamaEmbedding ? localOllamaModelOptions : openAiCompatibleEmbeddingModelOptions),
     [isLocalOllamaEmbedding],
   );
-  const defaultEmbeddingProviderLabel = defaultEmbeddingProfile?.providerKind === "ollama"
-    ? "本地 Ollama"
-    : "OpenAI-compatible";
-  const defaultEmbeddingBaseUrl = defaultEmbeddingProfile?.providerKind === "ollama"
-    ? defaultEmbeddingProfile.baseUrl || localOllamaBaseUrl
-    : defaultEmbeddingProfile?.baseUrl || "";
+  const defaultEmbeddingProviderLabel =
+    defaultEmbeddingProfile?.providerKind === "ollama" ? "本地 Ollama" : "OpenAI-compatible";
+  const defaultEmbeddingBaseUrl =
+    defaultEmbeddingProfile?.providerKind === "ollama"
+      ? defaultEmbeddingProfile.baseUrl || localOllamaBaseUrl
+      : defaultEmbeddingProfile?.baseUrl || "";
   const embeddingSummary = defaultEmbeddingProfile
     ? `${defaultEmbeddingProviderLabel} · ${defaultEmbeddingProfile.modelId} · ${defaultEmbeddingProfile.dimensions} 维`
     : "未配置 Embedding";
   const isEmbeddingConfigChanged = Boolean(
-    defaultEmbeddingProfile && (
-      defaultEmbeddingProfile.providerKind !== embeddingDraft.providerKind
-      || (defaultEmbeddingProfile.baseUrl ?? "") !== (embeddingDraft.baseUrl.trim() || "")
-      || (defaultEmbeddingProfile.apiKey ?? "") !== (embeddingDraft.apiKey.trim() || "")
-      || defaultEmbeddingProfile.modelId !== embeddingDraft.modelId.trim()
-      || defaultEmbeddingProfile.dimensions !== Math.floor(embeddingDraft.dimensions)
-    ),
+    defaultEmbeddingProfile &&
+    (defaultEmbeddingProfile.providerKind !== embeddingDraft.providerKind ||
+      (defaultEmbeddingProfile.baseUrl ?? "") !== (embeddingDraft.baseUrl.trim() || "") ||
+      (defaultEmbeddingProfile.apiKey ?? "") !== (embeddingDraft.apiKey.trim() || "") ||
+      defaultEmbeddingProfile.modelId !== embeddingDraft.modelId.trim() ||
+      defaultEmbeddingProfile.dimensions !== Math.floor(embeddingDraft.dimensions)),
   );
-  const viewTitle = ({
-    overview: "全局知识库",
-    files: "上传文件",
-    collections: "集合管理",
-  } as const)[view];
-  const viewDescription = ({
-    overview: "管理资料来源、启用集合，以及知识检索使用的向量索引。",
-    files: "设置知识库目录，上传文本文件并维护已导入来源。",
-    collections: "创建集合，启用参与检索的集合，并分配已上传文件。",
-  } as const)[view];
+  const viewTitle = (
+    {
+      overview: "全局知识库",
+      files: "上传文件",
+      collections: "集合管理",
+    } as const
+  )[view];
+  const viewDescription = (
+    {
+      overview: "管理资料来源、启用集合，以及知识检索使用的向量索引。",
+      files: "设置知识库目录，上传文本文件并维护已导入来源。",
+      collections: "创建集合，启用参与检索的集合，并分配已上传文件。",
+    } as const
+  )[view];
 
   const load = useCallback(async () => {
     setIsLoading(true);
     setError("");
     try {
-      const [nextLibrary, nextStatus] = await Promise.all([
-        listKnowledgeLibrary(),
-        getKnowledgeIndexStatus(),
-      ]);
+      const [nextLibrary, nextStatus] = await Promise.all([listKnowledgeLibrary(), getKnowledgeIndexStatus()]);
       const [nextSettings, nextEmbeddingProfiles] = await Promise.all([
         getKnowledgeSettings(),
         listEmbeddingProfiles(),
@@ -173,11 +158,11 @@ export const KnowledgeBasePage = ({
       setStatus(nextStatus);
       setSettings(nextSettings);
       setEmbeddingProfiles(nextEmbeddingProfiles);
-      setEmbeddingDraft(embeddingDraftFromProfile(
-        nextEmbeddingProfiles.find((profile) => profile.isDefault)
-          ?? nextEmbeddingProfiles[0]
-          ?? null,
-      ));
+      setEmbeddingDraft(
+        embeddingDraftFromProfile(
+          nextEmbeddingProfiles.find((profile) => profile.isDefault) ?? nextEmbeddingProfiles[0] ?? null,
+        ),
+      );
     } catch (caught) {
       setError(String(caught));
     } finally {
@@ -200,10 +185,7 @@ export const KnowledgeBasePage = ({
 
   const applySavedLibrary = (nextLibrary: KnowledgeLibrary) => {
     setLibrary(nextLibrary);
-    if (
-      activeCollectionId &&
-      !nextLibrary.collections.some((collection) => collection.id === activeCollectionId)
-    ) {
+    if (activeCollectionId && !nextLibrary.collections.some((collection) => collection.id === activeCollectionId)) {
       setActiveCollectionId(null);
     }
   };
@@ -265,7 +247,9 @@ export const KnowledgeBasePage = ({
       });
       const paths = Array.isArray(selected)
         ? selected.filter((item): item is string => typeof item === "string")
-        : typeof selected === "string" ? [selected] : [];
+        : typeof selected === "string"
+          ? [selected]
+          : [];
 
       if (paths.length > 0) {
         applySavedLibrary(await importKnowledgeFiles(paths));
@@ -371,11 +355,9 @@ export const KnowledgeBasePage = ({
         isDefault: true,
       });
       setEmbeddingProfiles(nextProfiles);
-      setEmbeddingDraft(embeddingDraftFromProfile(
-        nextProfiles.find((profile) => profile.isDefault)
-          ?? nextProfiles[0]
-          ?? null,
-      ));
+      setEmbeddingDraft(
+        embeddingDraftFromProfile(nextProfiles.find((profile) => profile.isDefault) ?? nextProfiles[0] ?? null),
+      );
       setStatus(await getKnowledgeIndexStatus());
       setIsEmbeddingDialogOpen(false);
     } catch (caught) {
@@ -418,7 +400,7 @@ export const KnowledgeBasePage = ({
         name,
         description: collectionDraft.description,
         color: null,
-        order: collectionDraft.id ? activeCollection?.order ?? 0 : library.collections.length,
+        order: collectionDraft.id ? (activeCollection?.order ?? 0) : library.collections.length,
         enabled: true,
       });
       applySavedLibrary(nextLibrary);
@@ -426,8 +408,8 @@ export const KnowledgeBasePage = ({
       const nextActive = collectionDraft.id
         ? nextLibrary.collections.find((collection) => collection.id === collectionDraft.id)
         : [...nextLibrary.collections]
-          .filter((collection) => collection.name === name)
-          .sort((left, right) => right.updatedAt - left.updatedAt)[0];
+            .filter((collection) => collection.name === name)
+            .sort((left, right) => right.updatedAt - left.updatedAt)[0];
       if (nextActive) {
         openCollectionDetails(nextActive);
       }
@@ -470,29 +452,25 @@ export const KnowledgeBasePage = ({
     }
   };
 
-  const toggleCollectionEnabled = async (
-    collection: KnowledgeCollection,
-    enabled: boolean,
-  ) => {
+  const toggleCollectionEnabled = async (collection: KnowledgeCollection, enabled: boolean) => {
     setError("");
     try {
-      applySavedLibrary(await saveKnowledgeCollection({
-        id: collection.id,
-        name: collection.name,
-        description: collection.description,
-        color: collection.color,
-        order: collection.order,
-        enabled,
-      }));
+      applySavedLibrary(
+        await saveKnowledgeCollection({
+          id: collection.id,
+          name: collection.name,
+          description: collection.description,
+          color: collection.color,
+          order: collection.order,
+          enabled,
+        }),
+      );
     } catch (caught) {
       setError(String(caught));
     }
   };
 
-  const toggleCollectionSource = (
-    sourceId: string,
-    checked: boolean | "indeterminate",
-  ) => {
+  const toggleCollectionSource = (sourceId: string, checked: boolean | "indeterminate") => {
     setCollectionSourceIds((current) => {
       const next = new Set(current);
       if (checked === true) {
@@ -513,10 +491,7 @@ export const KnowledgeBasePage = ({
     setIsSavingMembership(true);
     setError("");
     try {
-      applySavedLibrary(await setKnowledgeCollectionSources(
-        activeCollectionId,
-        [...collectionSourceIds],
-      ));
+      applySavedLibrary(await setKnowledgeCollectionSources(activeCollectionId, [...collectionSourceIds]));
       setIsCollectionDetailsDialogOpen(false);
     } catch (caught) {
       setError(String(caught));
@@ -549,9 +524,7 @@ export const KnowledgeBasePage = ({
               </span>
               <span>{viewTitle}</span>
             </h2>
-            <p className="mt-1 truncate text-xs text-muted-foreground">
-              {viewDescription}
-            </p>
+            <p className="mt-1 truncate text-xs text-muted-foreground">{viewDescription}</p>
           </div>
         </div>
         {onBack && (
@@ -640,10 +613,8 @@ export const KnowledgeBasePage = ({
                 enabledCollectionCount={enabledCollectionCount}
                 onStartNewCollection={startNewCollection}
                 onOpenCollectionDetails={openCollectionDetails}
-                onToggleCollectionEnabled={(collection, enabled) =>
-                  void toggleCollectionEnabled(collection, enabled)}
-                onRequestRemoveCollection={(collection) =>
-                  setPendingDelete({ kind: "collection", collection })}
+                onToggleCollectionEnabled={(collection, enabled) => void toggleCollectionEnabled(collection, enabled)}
+                onRequestRemoveCollection={(collection) => setPendingDelete({ kind: "collection", collection })}
               />
             )}
           </div>

@@ -1,23 +1,14 @@
-import type {
-  SceneNovelDraftQuality,
-  SceneNovelSource,
-} from "../types";
-import {
-  getSceneNovelizerRuleOptions,
-} from "../prompt-registry/rule-options";
+import type { SceneNovelDraftQuality, SceneNovelSource } from "../types";
+import { getSceneNovelizerRuleOptions } from "../prompt-registry/rule-options";
 import { countSceneNovelContamination } from "./contamination";
-import {
-  getSceneNovelParagraphStats,
-} from "./paragraph";
+import { getSceneNovelParagraphStats } from "./paragraph";
 
 const hookEndingPattern =
   /(?:门外|窗外|脚步|追兵|倒计时|钥匙|血|火|雨|钟声|来不及|逼近|失踪|真相|代价|选择|下一步|不能再等|有人来了|灯灭|闩动|名单|令牌|铜牌|后门|东口|路线|老板娘|钥匙串)/;
 
-const clampScore = (value: number) =>
-  Math.max(0, Math.min(100, Math.round(value)));
+const clampScore = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
 
-const countMatches = (text: string, pattern: RegExp) =>
-  text.match(pattern)?.length ?? 0;
+const countMatches = (text: string, pattern: RegExp) => text.match(pattern)?.length ?? 0;
 
 export const evaluateSceneNovelDraft = ({
   text,
@@ -28,20 +19,14 @@ export const evaluateSceneNovelDraft = ({
 }): SceneNovelDraftQuality => {
   const ruleOptions = getSceneNovelizerRuleOptions(source.ruleOptionIds);
   const enabledRuleIds = new Set(ruleOptions.map((rule) => rule.id));
-  const paragraphStats = getSceneNovelParagraphStats(
-    text,
-    source.constraints.paragraphMaxChars,
-  );
+  const paragraphStats = getSceneNovelParagraphStats(text, source.constraints.paragraphMaxChars);
   const contaminationCount = countSceneNovelContamination(text);
   const hasHookEnding = hookEndingPattern.test(text.slice(-180));
   const aiTemplateCount = countMatches(
     text,
     /(?:命运齿轮|眼中闪过一丝|眼底闪过一丝|嘴角勾起一抹|心中涌起|内心深处|这一刻|仿佛整个世界|空气仿佛凝固|宛若|像是被什么击中)/g,
   );
-  const mechanicalDialogueTagCount = countMatches(
-    text,
-    /(?:说道|问道|解释道|表示|开口道|沉声道|淡淡道)/g,
-  );
+  const mechanicalDialogueTagCount = countMatches(text, /(?:说道|问道|解释道|表示|开口道|沉声道|淡淡道)/g);
   const summaryToneCount = countMatches(
     text.slice(-360),
     /(?:这意味着|他终于明白|她终于明白|所有人都知道|毫无疑问|归根结底|从这一刻起|这一切都说明)/g,
@@ -147,20 +132,14 @@ export const evaluateSceneNovelDraft = ({
   }
 
   if (enabledRuleIds.has("long-lore-overexplain")) {
-    const loreExplainCount = countMatches(
-      text,
-      /(?:规则|设定|原来|其实|因为|所以|资料|档案|背景|世界|体系|流程)/g,
-    );
+    const loreExplainCount = countMatches(text, /(?:规则|设定|原来|其实|因为|所以|资料|档案|背景|世界|体系|流程)/g);
     if (paragraphStats.maxParagraphChars > source.constraints.paragraphMaxChars + 40 || loreExplainCount > 18) {
       score -= 8;
       issues.push("设定或案情解释偏重，建议拆进动作、证据变化和角色反应。");
     }
   }
 
-  if (
-    (enabledRuleIds.has("promise-mismatch") || enabledRuleIds.has("expectation-hook")) &&
-    !hasHookEnding
-  ) {
+  if ((enabledRuleIds.has("promise-mismatch") || enabledRuleIds.has("expectation-hook")) && !hasHookEnding) {
     score -= 6;
     issues.push("已启用承诺/期待规则，但结尾没有接住当前场景期待。");
   }

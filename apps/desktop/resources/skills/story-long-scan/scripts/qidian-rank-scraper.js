@@ -102,10 +102,10 @@ function extractBookList(port) {
 function extractDetail(port) {
   const js =
     "JSON.stringify((()=>{" +
-    "var tags=Array.from(document.querySelectorAll('[class*=\"tag\"] a,[class*=\"label\"] a')).map(function(a){return a.textContent.trim()});" +
-    "var intro=document.querySelector('[class*=\"intro\"],[class*=\"summary\"],[class*=\"desc\"]');" +
+    'var tags=Array.from(document.querySelectorAll(\'[class*="tag"] a,[class*="label"] a\')).map(function(a){return a.textContent.trim()});' +
+    'var intro=document.querySelector(\'[class*="intro"],[class*="summary"],[class*="desc"]\');' +
     "var introText=intro?intro.textContent.trim():'';" +
-    "var update=document.querySelector('[class*=\"update\"],[class*=\"latest\"]');" +
+    'var update=document.querySelector(\'[class*="update"],[class*="latest"]\');' +
     "var updateText=update?update.textContent.trim():'';" +
     "return {tags:tags,intro:introText,update:updateText}" +
     "})())";
@@ -199,8 +199,7 @@ function scrapeRank(port, rankTypeId) {
 }
 
 function main() {
-  const rankTypes =
-    RANKTYPE === "all" ? RANK_TYPES.map((r) => r.id) : [RANKTYPE];
+  const rankTypes = RANKTYPE === "all" ? RANK_TYPES.map((r) => r.id) : [RANKTYPE];
 
   for (const rt of rankTypes) {
     const content = scrapeRank(PORT, rt);

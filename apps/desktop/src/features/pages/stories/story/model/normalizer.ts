@@ -138,11 +138,7 @@ const normalizeScene = (value: unknown, index: number): StorySceneJson | null =>
   };
 };
 
-const normalizeNode = (
-  value: unknown,
-  index: number,
-  fallbackSceneId?: string,
-): StoryNodeJson | null => {
+const normalizeNode = (value: unknown, index: number, fallbackSceneId?: string): StoryNodeJson | null => {
   if (!isRecord(value)) {
     return null;
   }

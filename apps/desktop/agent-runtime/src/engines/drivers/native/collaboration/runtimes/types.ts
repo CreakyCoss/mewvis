@@ -1,20 +1,8 @@
-import type {
-  AgentRunCommand,
-  AgentRunResult,
-  EmitAgentEvent,
-} from "../../agent/runtimes/types.js";
-import type {
-  CollaborationHandlerRegistry,
-  EmitCollaborationEvent,
-} from "../handlers/types.js";
-import type {
-  CollaborationRunResult,
-  CollaborationRunInput,
-} from "../../../../protocol/index.js";
+import type { AgentRunCommand, AgentRunResult, EmitAgentEvent } from "../../agent/runtimes/types.js";
+import type { CollaborationHandlerRegistry, EmitCollaborationEvent } from "../handlers/types.js";
+import type { CollaborationRunResult, CollaborationRunInput } from "../../../../protocol/index.js";
 
-export type {
-  EmitCollaborationEvent,
-} from "../handlers/types.js";
+export type { EmitCollaborationEvent } from "../handlers/types.js";
 
 export type CollaborationRuntimeId = "native" | "langgraph" | (string & {});
 

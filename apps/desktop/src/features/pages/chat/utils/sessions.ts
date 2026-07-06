@@ -6,17 +6,18 @@ export const createMessageId = () => crypto.randomUUID();
 
 const padDatePart = (value: number, length = 2) => value.toString().padStart(length, "0");
 
-const formatTimestampId = (date: Date) => [
-  date.getFullYear(),
-  padDatePart(date.getMonth() + 1),
-  padDatePart(date.getDate()),
-  "-",
-  padDatePart(date.getHours()),
-  padDatePart(date.getMinutes()),
-  padDatePart(date.getSeconds()),
-  "-",
-  padDatePart(date.getMilliseconds(), 3),
-].join("");
+const formatTimestampId = (date: Date) =>
+  [
+    date.getFullYear(),
+    padDatePart(date.getMonth() + 1),
+    padDatePart(date.getDate()),
+    "-",
+    padDatePart(date.getHours()),
+    padDatePart(date.getMinutes()),
+    padDatePart(date.getSeconds()),
+    "-",
+    padDatePart(date.getMilliseconds(), 3),
+  ].join("");
 
 export const createChatSessionId = () => {
   const suffix = crypto.randomUUID().replace(/-/g, "").slice(0, 8);

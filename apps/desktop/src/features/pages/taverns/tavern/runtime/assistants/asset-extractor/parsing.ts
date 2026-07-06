@@ -1,8 +1,8 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { TavernMessage } from "../../../types";
 import type {
   TavernCharacter,
   TavernCharacterMemoryDraft,
-  TavernRoom,
   TavernSceneMemoryDraft,
 } from "@/features/pages/taverns/manage/model";
 import type { TavernExtractedAssetDraft } from "./types";

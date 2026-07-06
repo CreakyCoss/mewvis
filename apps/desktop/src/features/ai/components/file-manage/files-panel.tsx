@@ -5,11 +5,7 @@ import type { WorkspaceFile } from "@/features/pages/workspace/files-api";
 import { cn } from "@/lib/utils";
 import { VERSION_RULE_FILE_PATH } from "./constants";
 import type { FileTreeNode } from "./file-tree";
-import {
-  fileStatusBadgeClasses,
-  fileStatusLabels,
-  fileStatusTitles,
-} from "./version-control/status";
+import { fileStatusBadgeClasses, fileStatusLabels, fileStatusTitles } from "./version-control/status";
 import { VersionRuleBadge } from "./version-control/version-rule-badge";
 import type { VersionFileStatusByPath } from "./types";
 
@@ -83,8 +79,8 @@ export const FilesPanel = ({
     const fileStatusTitle = fileStatus?.previousPath
       ? `${fileStatusTitles[fileStatus.status]}：${fileStatus.previousPath} -> ${fileStatus.path}`
       : fileStatus
-      ? fileStatusTitles[fileStatus.status]
-      : "";
+        ? fileStatusTitles[fileStatus.status]
+        : "";
 
     return (
       <div
@@ -103,14 +99,7 @@ export const FilesPanel = ({
           ) : (
             <FileText className="size-4 shrink-0 text-muted-foreground" />
           )}
-          <span
-            className={cn(
-              "min-w-0 flex-1 truncate",
-              isVersionRuleFile && "font-medium",
-            )}
-          >
-            {node.name}
-          </span>
+          <span className={cn("min-w-0 flex-1 truncate", isVersionRuleFile && "font-medium")}>{node.name}</span>
         </button>
         {isVersionRuleFile && <VersionRuleBadge />}
         {fileStatus && (
@@ -139,22 +128,10 @@ export const FilesPanel = ({
           </span>
         </div>
         <div className="flex gap-1">
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            title="刷新文件"
-            onClick={onRefreshFiles}
-          >
+          <Button type="button" size="icon" variant="ghost" title="刷新文件" onClick={onRefreshFiles}>
             <RefreshCw className="size-4" />
           </Button>
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            title="新建文件"
-            onClick={onCreateFile}
-          >
+          <Button type="button" size="icon" variant="ghost" title="新建文件" onClick={onCreateFile}>
             <Plus className="size-4" />
           </Button>
         </div>
@@ -165,15 +142,11 @@ export const FilesPanel = ({
           <section className="min-w-0 space-y-2 overflow-hidden">
             <div className="min-w-0 space-y-0.5 overflow-hidden">
               {isFilesLoading ? (
-                <div className="px-2 py-8 text-center text-sm text-muted-foreground">
-                  正在读取文件
-                </div>
+                <div className="px-2 py-8 text-center text-sm text-muted-foreground">正在读取文件</div>
               ) : selectableFileCount ? (
                 fileTree.map((node) => renderFileTreeNode(node, 0))
               ) : (
-                <div className="px-2 py-8 text-center text-sm text-muted-foreground">
-                  暂无可编辑文件
-                </div>
+                <div className="px-2 py-8 text-center text-sm text-muted-foreground">暂无可编辑文件</div>
               )}
             </div>
           </section>

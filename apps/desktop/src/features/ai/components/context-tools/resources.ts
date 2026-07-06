@@ -44,8 +44,7 @@ type ResolvedPromptFile = {
 
 const hasStringContent = (
   file: ContextFileDescriptor | PromptContextFile | PromptFileReference,
-): file is ContextFileDescriptor & { content: string } =>
-  typeof file.content === "string";
+): file is ContextFileDescriptor & { content: string } => typeof file.content === "string";
 
 const normalizeLoadedFile = (
   descriptor: ContextFileDescriptor | PromptFileReference,
@@ -55,9 +54,7 @@ const normalizeLoadedFile = (
     return {
       path: descriptor.path,
       content: loaded,
-      updatedAt: "updatedAt" in descriptor && typeof descriptor.updatedAt === "number"
-        ? descriptor.updatedAt
-        : null,
+      updatedAt: "updatedAt" in descriptor && typeof descriptor.updatedAt === "number" ? descriptor.updatedAt : null,
     };
   }
   if (!loaded || typeof loaded.content !== "string") {
@@ -67,11 +64,12 @@ const normalizeLoadedFile = (
   return {
     path: loaded.path || descriptor.path,
     content: loaded.content,
-    updatedAt: "updatedAt" in loaded && typeof loaded.updatedAt === "number"
-      ? loaded.updatedAt
-      : "updatedAt" in descriptor && typeof descriptor.updatedAt === "number"
-        ? descriptor.updatedAt
-        : null,
+    updatedAt:
+      "updatedAt" in loaded && typeof loaded.updatedAt === "number"
+        ? loaded.updatedAt
+        : "updatedAt" in descriptor && typeof descriptor.updatedAt === "number"
+          ? descriptor.updatedAt
+          : null,
   };
 };
 
@@ -83,15 +81,11 @@ const resolveFile = async (
     return {
       path: descriptor.path,
       content: descriptor.content,
-      updatedAt: "updatedAt" in descriptor && typeof descriptor.updatedAt === "number"
-        ? descriptor.updatedAt
-        : null,
+      updatedAt: "updatedAt" in descriptor && typeof descriptor.updatedAt === "number" ? descriptor.updatedAt : null,
     };
   }
 
-  const loaded = loadFile
-    ? normalizeLoadedFile(descriptor, await loadFile(descriptor))
-    : null;
+  const loaded = loadFile ? normalizeLoadedFile(descriptor, await loadFile(descriptor)) : null;
   if (!loaded) {
     throw new Error(`无法加载上下文文件：${descriptor.path}`);
   }
@@ -105,19 +99,21 @@ export const loadContextResources = async ({
   loadFile,
 }: LoadContextResourcesInput): Promise<LoadedContextResources> => {
   const [resolvedReferences, resolvedActiveFile] = await Promise.all([
-    Promise.all((references ?? []).map(async (file) => {
-      const resolved = await resolveFile(file, loadFile);
-      return {
-        path: resolved.path,
-        content: resolved.content,
-      };
-    })),
+    Promise.all(
+      (references ?? []).map(async (file) => {
+        const resolved = await resolveFile(file, loadFile);
+        return {
+          path: resolved.path,
+          content: resolved.content,
+        };
+      }),
+    ),
     activeFile
       ? resolveFile(activeFile, loadFile).then((resolved) => ({
-        path: resolved.path,
-        content: resolved.content,
-        updatedAt: resolved.updatedAt,
-      }))
+          path: resolved.path,
+          content: resolved.content,
+          updatedAt: resolved.updatedAt,
+        }))
       : Promise.resolve(null),
   ]);
 

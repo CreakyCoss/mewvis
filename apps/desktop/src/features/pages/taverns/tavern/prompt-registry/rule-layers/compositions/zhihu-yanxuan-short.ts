@@ -13,11 +13,7 @@ export const zhihuYanxuanShortRuleComposition: TavernRuleComposition = {
   label: "知乎盐言短篇",
   description: "平台预期偏情绪拉扯、关系刺痛和反转治愈，组合短篇情绪结构。",
   platformStyleId: zhihuYanxuanShortPlatformStyle.id,
-  qualityRuleIds: [
-    antiAiNaturalQualityRule.id,
-    naturalDialogueQualityRule.id,
-    conciseNoSummaryQualityRule.id,
-  ],
+  qualityRuleIds: [antiAiNaturalQualityRule.id, naturalDialogueQualityRule.id, conciseNoSummaryQualityRule.id],
   narrativeStyleIds: [emotionalPushPullNarrativeStyle.id],
   genreRuleIds: [shortEmotionalStoryGenreRule.id],
   hookRuleIds: [reversalHealingHookRule.id],

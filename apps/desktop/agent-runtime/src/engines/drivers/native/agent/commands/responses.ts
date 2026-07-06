@@ -7,10 +7,7 @@ import {
   type TaskResult,
 } from "../../../../protocol/index.js";
 import type { AgentRunCommand } from "../runtimes/types.js";
-import {
-  AGENT_TOOL_DEFINITIONS,
-  DEFAULT_ALLOWED_AGENT_TOOLS,
-} from "../tools/definitions.js";
+import { AGENT_TOOL_DEFINITIONS, DEFAULT_ALLOWED_AGENT_TOOLS } from "../tools/definitions.js";
 import { MODEL_CATALOG } from "../../../../models/index.js";
 
 type RequestCommand = {
@@ -21,18 +18,14 @@ type TaskCommand = Pick<AgentRunCommand, "requestId" | "taskId">;
 
 type TaskResultStatus = { success: true } | { success: false; message: string };
 
-export const createAgentToolsResult = (
-  command: RequestCommand,
-): AgentToolsResult => ({
+export const createAgentToolsResult = (command: RequestCommand): AgentToolsResult => ({
   type: AgentResultType.AgentTools,
   requestId: command.requestId ?? null,
   tools: AGENT_TOOL_DEFINITIONS,
   defaultToolNames: [...DEFAULT_ALLOWED_AGENT_TOOLS],
 });
 
-export const createRuntimeModelsResult = (
-  command: RequestCommand,
-): RuntimeModelsResult => ({
+export const createRuntimeModelsResult = (command: RequestCommand): RuntimeModelsResult => ({
   type: AgentResultType.RuntimeModels,
   requestId: command.requestId ?? null,
   catalog: MODEL_CATALOG,
@@ -48,10 +41,7 @@ export const createShutdownAckResult = (command: RequestCommand): ShutdownAckRes
   requestId: command.requestId ?? null,
 });
 
-export const createTaskResult = (
-  command: TaskCommand,
-  result: TaskResultStatus,
-): TaskResult => ({
+export const createTaskResult = (command: TaskCommand, result: TaskResultStatus): TaskResult => ({
   type: AgentResultType.TaskResult,
   requestId: command.requestId ?? null,
   taskId: command.taskId,

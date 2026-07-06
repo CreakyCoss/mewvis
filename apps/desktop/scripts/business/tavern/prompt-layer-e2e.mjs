@@ -8,10 +8,15 @@ const workspaceRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-tavern-prompt-layer-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
-const systemPresetRoomPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/factories/system-preset-room.ts");
+const systemPresetRoomPath = resolve(
+  workspaceRoot,
+  "src/features/pages/taverns/tavern/factories/system-preset-room.ts",
+);
 const requestPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/runtime/reply/request.ts");
 
-writeFileSync(entryPath, `
+writeFileSync(
+  entryPath,
+  `
   import { createTavernRoomFromSystemPreset } from ${JSON.stringify(systemPresetRoomPath)};
   import { buildTavernReplyAgentRequest } from ${JSON.stringify(requestPath)};
 
@@ -114,7 +119,8 @@ writeFileSync(entryPath, `
   assert(request.requestContext.includes("<visible_turn_messages>"), "可见历史仍应作为资料上下文注入。");
 
   console.log("[tavern-prompt-layer] ok");
-`);
+`,
+);
 
 try {
   await build({

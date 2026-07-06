@@ -1,16 +1,6 @@
-export type TavernPromptLayer =
-  | "system"
-  | "tavern"
-  | "character"
-  | "turn"
-  | "context";
+export type TavernPromptLayer = "system" | "tavern" | "character" | "turn" | "context";
 
-export type TavernPromptAttributeValue =
-  | string
-  | number
-  | boolean
-  | null
-  | undefined;
+export type TavernPromptAttributeValue = string | number | boolean | null | undefined;
 
 export type TavernPromptSection = {
   id: string;
@@ -30,20 +20,13 @@ const TAVERN_PROMPT_LAYER_PRIORITY: Record<TavernPromptLayer, number> = {
   context: 40,
 };
 
-export const joinPromptLines = (
-  lines: Array<string | null | undefined | false>,
-) => lines.filter((line): line is string => typeof line === "string" && line.length > 0).join("\n");
+export const joinPromptLines = (lines: Array<string | null | undefined | false>) =>
+  lines.filter((line): line is string => typeof line === "string" && line.length > 0).join("\n");
 
 const escapePromptAttribute = (value: string) =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-const renderAttributes = (
-  attributes: Record<string, TavernPromptAttributeValue> | undefined,
-) => {
+const renderAttributes = (attributes: Record<string, TavernPromptAttributeValue> | undefined) => {
   if (!attributes) {
     return "";
   }
@@ -56,16 +39,14 @@ const renderAttributes = (
 };
 
 const normalizeSectionContent = (section: TavernPromptSection) => {
-  const content = Array.isArray(section.content)
-    ? joinPromptLines(section.content)
-    : section.content;
+  const content = Array.isArray(section.content) ? joinPromptLines(section.content) : section.content;
   const trimmed = content.trim();
 
   if (trimmed) {
     return trimmed;
   }
 
-  return section.includeWhenEmpty ? section.emptyContent ?? "（无）" : "";
+  return section.includeWhenEmpty ? (section.emptyContent ?? "（无）") : "";
 };
 
 export const renderTavernPromptSection = (section: TavernPromptSection) => {
@@ -91,13 +72,10 @@ export const renderTavernPromptSections = (
   } = {},
 ) => {
   const orderedSections = sortByLayer
-    ? [...sections].sort((left, right) =>
-        TAVERN_PROMPT_LAYER_PRIORITY[left.layer] - TAVERN_PROMPT_LAYER_PRIORITY[right.layer]
+    ? [...sections].sort(
+        (left, right) => TAVERN_PROMPT_LAYER_PRIORITY[left.layer] - TAVERN_PROMPT_LAYER_PRIORITY[right.layer],
       )
     : sections;
 
-  return orderedSections
-    .map(renderTavernPromptSection)
-    .filter(Boolean)
-    .join("\n\n");
+  return orderedSections.map(renderTavernPromptSection).filter(Boolean).join("\n\n");
 };

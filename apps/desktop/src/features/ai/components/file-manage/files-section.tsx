@@ -1,12 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-  type Ref,
-} from "react";
+import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
 import { FileText, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,11 +19,7 @@ import {
   type WorkspaceVersionControlStatus,
   writeWorkspaceFile,
 } from "@/features/pages/workspace/files-api";
-import {
-  buildFileTree,
-  type FileTreeNode,
-  getParentDirectoryPaths,
-} from "./file-tree";
+import { buildFileTree, type FileTreeNode, getParentDirectoryPaths } from "./file-tree";
 import { EditPanel } from "./edit-panel";
 import { FilesPanel } from "./files-panel";
 import type { VersionFileStatusByPath } from "./types";
@@ -55,11 +43,10 @@ type FilesSectionProps = {
 };
 
 const countSelectableFileTreeNodes = (nodes: FileTreeNode[]): number =>
-  nodes.reduce((count, node) => (
-    node.isDirectory
-      ? count + countSelectableFileTreeNodes(node.children)
-      : count + 1
-  ), 0);
+  nodes.reduce(
+    (count, node) => (node.isDirectory ? count + countSelectableFileTreeNodes(node.children) : count + 1),
+    0,
+  );
 
 export const FilesSection = ({
   bind,
@@ -86,10 +73,7 @@ export const FilesSection = ({
   const [isCreatingFile, setIsCreatingFile] = useState(false);
 
   const fileTree = useMemo(() => buildFileTree(files), [files]);
-  const selectableFileCount = useMemo(
-    () => countSelectableFileTreeNodes(fileTree),
-    [fileTree],
-  );
+  const selectableFileCount = useMemo(() => countSelectableFileTreeNodes(fileTree), [fileTree]);
   const versionFileStatusByPath = useMemo(() => {
     const statusByPath: VersionFileStatusByPath = new Map();
     versionStatus?.files.forEach((fileStatus) => {
@@ -122,17 +106,20 @@ export const FilesSection = ({
     }
   }, [onFilesChange, workspacePath]);
 
-  const openFile = useCallback(async (path: string) => {
-    setFileError("");
+  const openFile = useCallback(
+    async (path: string) => {
+      setFileError("");
 
-    try {
-      const file = await readWorkspaceFile(workspacePath, path);
-      setActiveFile(file);
-      setIsFileEditOpen(true);
-    } catch (caught) {
-      setFileError(String(caught));
-    }
-  }, [workspacePath]);
+      try {
+        const file = await readWorkspaceFile(workspacePath, path);
+        setActiveFile(file);
+        setIsFileEditOpen(true);
+      } catch (caught) {
+        setFileError(String(caught));
+      }
+    },
+    [workspacePath],
+  );
 
   const openActiveFile = useCallback((file: WorkspaceFile) => {
     setActiveFile(file);
@@ -144,11 +131,15 @@ export const FilesSection = ({
     setIsFileEditOpen(false);
   }, []);
 
-  useImperativeHandle(bind, () => ({
-    refresh: loadFiles,
-    openActiveFile,
-    clearActiveFile,
-  }), [clearActiveFile, loadFiles, openActiveFile]);
+  useImperativeHandle(
+    bind,
+    () => ({
+      refresh: loadFiles,
+      openActiveFile,
+      clearActiveFile,
+    }),
+    [clearActiveFile, loadFiles, openActiveFile],
+  );
 
   useEffect(() => {
     void loadFiles();
@@ -218,11 +209,14 @@ export const FilesSection = ({
     }
   };
 
-  const handleFileSaved = useCallback(async (file: WorkspaceFile) => {
-    openActiveFile(file);
-    await loadFiles();
-    onVersionChanged();
-  }, [loadFiles, onVersionChanged, openActiveFile]);
+  const handleFileSaved = useCallback(
+    async (file: WorkspaceFile) => {
+      openActiveFile(file);
+      await loadFiles();
+      onVersionChanged();
+    },
+    [loadFiles, onVersionChanged, openActiveFile],
+  );
 
   const handleFileDeleted = useCallback(async () => {
     clearActiveFile();
@@ -233,14 +227,9 @@ export const FilesSection = ({
   const fileVersionStatus =
     versionStatus?.files.find((file) => {
       const currentPath = activeFile?.path;
-      return (
-        currentPath &&
-        (file.path === currentPath || file.previousPath === currentPath)
-      );
+      return currentPath && (file.path === currentPath || file.previousPath === currentPath);
     }) ?? null;
-  const isFileDiscarding = fileVersionStatus
-    ? discardingVersionFilePath === fileVersionStatus.path
-    : false;
+  const isFileDiscarding = fileVersionStatus ? discardingVersionFilePath === fileVersionStatus.path : false;
 
   const discardFileChanges = () => {
     if (fileVersionStatus) {
@@ -278,9 +267,7 @@ export const FilesSection = ({
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>新建文件</DialogTitle>
-            <DialogDescription>
-              在当前工作区中创建一个文件，并自动打开编辑弹窗。
-            </DialogDescription>
+            <DialogDescription>在当前工作区中创建一个文件，并自动打开编辑弹窗。</DialogDescription>
           </DialogHeader>
           <div className="grid min-w-0 gap-3">
             <label className="grid gap-1.5 text-sm">
@@ -321,16 +308,8 @@ export const FilesSection = ({
             >
               取消
             </Button>
-            <Button
-              type="button"
-              onClick={() => void createNewFile()}
-              disabled={isCreatingFile || !newFilePath.trim()}
-            >
-              {isCreatingFile ? (
-                <LoaderCircle className="size-4 animate-spin" />
-              ) : (
-                <FileText className="size-4" />
-              )}
+            <Button type="button" onClick={() => void createNewFile()} disabled={isCreatingFile || !newFilePath.trim()}>
+              {isCreatingFile ? <LoaderCircle className="size-4 animate-spin" /> : <FileText className="size-4" />}
               创建文件
             </Button>
           </DialogFooter>

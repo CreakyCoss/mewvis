@@ -1,3 +1,4 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
 import type { TavernRoomContextValue } from "@/features/pages/taverns/room/context";
@@ -28,7 +29,7 @@ import {
   runTavernCollaboration,
 } from "@/features/pages/taverns/tavern/runtime/collaboration";
 import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
-import type { TavernCharacter, TavernReplyOption, TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
 import {
   getErrorMessage,
   requireTavernRuntimeModelInput,

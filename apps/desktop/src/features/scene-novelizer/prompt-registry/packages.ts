@@ -53,8 +53,5 @@ export const SCENE_NOVELIZER_PLATFORM_PACKAGES: SceneNovelizerPlatformPackage[] 
 
 export const DEFAULT_SCENE_NOVELIZER_PLATFORM_ID: SceneNovelizerPlatformStyleId = "fanqie";
 
-export const getSceneNovelizerPlatformPackage = (
-  value?: SceneNovelizerPlatformStyleId | null,
-) =>
-  SCENE_NOVELIZER_PLATFORM_PACKAGES.find((item) => item.id === value) ??
-    SCENE_NOVELIZER_PLATFORM_PACKAGES[0];
+export const getSceneNovelizerPlatformPackage = (value?: SceneNovelizerPlatformStyleId | null) =>
+  SCENE_NOVELIZER_PLATFORM_PACKAGES.find((item) => item.id === value) ?? SCENE_NOVELIZER_PLATFORM_PACKAGES[0];

@@ -1,22 +1,19 @@
 import {
+  Activity,
   Copy,
   Download,
   LockKeyhole,
-  Map,
   MoreHorizontal,
   Pencil,
   RotateCcw,
   ScrollText,
-  Target,
   Trash2,
   TriangleAlertIcon,
   UnlockKeyhole,
-  UsersRound,
   Wine,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { resolveAvatar } from "@/assets/avatars";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,10 +32,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { emptyValueText } from "../manage/utils";
 import type { TavernManagementValue } from "../store";
-import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
-import { compactScene } from "../tavern/utils";
+import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 import { getVisualPreset } from "../tavern/visual-presets";
 
 type PendingDangerAction = {
@@ -52,7 +47,7 @@ type PendingDangerAction = {
 type RoomCardProps = {
   management: Pick<
     TavernManagementValue,
-    "characterById" | "copyRoom" | "restoreSystemPresetRoom" | "setRoomLocked" | "deleteRoom" | "exportRoom"
+    "copyRoom" | "restoreSystemPresetRoom" | "setRoomLocked" | "deleteRoom" | "exportRoom"
   >;
   room: TavernRoom;
   openRoomEditor: (room: TavernRoom) => void;
@@ -61,15 +56,10 @@ type RoomCardProps = {
 
 export const RoomCard = ({ management, room, openRoomEditor, onOperationStatusChange }: RoomCardProps) => {
   const [pendingDangerAction, setPendingDangerAction] = useState<PendingDangerAction | null>(null);
-  const { characterById, copyRoom, restoreSystemPresetRoom, setRoomLocked, deleteRoom, exportRoom } = management;
-  const roomCharacters = room.characterIds
-    .map((characterId) => characterById.get(characterId))
-    .filter((character): character is TavernCharacter => Boolean(character));
+  const { copyRoom, restoreSystemPresetRoom, setRoomLocked, deleteRoom, exportRoom } = management;
   const visualPreset = getVisualPreset(room.scenePresetId);
-  const visibleCharacters = roomCharacters.slice(0, 4);
-  const hiddenCharacterCount = Math.max(0, roomCharacters.length - visibleCharacters.length);
-  const sceneCount = Math.max(1, room.scenes?.length ?? 1);
   const enabledPromptBlockCount = room.prompt.blocks.filter((block) => block.enabled && block.text.trim()).length;
+  const progressConfigCount = room.statusDefinitions.length + room.taskDefinitions.length + room.sceneOutcomes.length;
   const roomBadgeClassName = room.systemPresetId
     ? "border border-amber-200/45 bg-amber-950/75 text-amber-100 ring-amber-200/30 shadow-[0_12px_28px_-18px_rgb(245_158_11_/_0.95)]"
     : "border border-teal-100/30 bg-slate-950/65 text-teal-50 ring-teal-100/24 shadow-[0_12px_28px_-18px_rgb(15_23_42_/_0.9)]";
@@ -208,65 +198,42 @@ export const RoomCard = ({ management, room, openRoomEditor, onOperationStatusCh
           </span>
           <div className="absolute inset-x-0 -bottom-6 flex justify-start px-4">
             <div className="flex min-w-0 items-end overflow-hidden pb-px">
-              {roomCharacters.length > 0 ? (
-                <div className="flex min-w-0 items-end">
-                  {visibleCharacters.map((character, index) => (
-                    <img
-                      key={character.id}
-                      src={resolveAvatar(character.avatar).src}
-                      alt=""
-                      className={cn(
-                        "size-12 rounded-lg border-2 border-background bg-background object-cover shadow-[0_10px_26px_-18px_rgb(15_23_42_/_0.8)]",
-                        index > 0 && "-ml-3",
-                      )}
-                    />
-                  ))}
-                  {hiddenCharacterCount > 0 && (
-                    <span className="-ml-3 flex size-12 shrink-0 items-center justify-center rounded-lg border-2 border-background bg-background/95 text-sm font-semibold text-muted-foreground shadow-[0_10px_26px_-18px_rgb(15_23_42_/_0.8)]">
-                      +{hiddenCharacterCount}
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <span className="flex size-12 items-center justify-center rounded-lg border-2 border-background bg-background/90 text-primary shadow-[0_10px_26px_-18px_rgb(15_23_42_/_0.8)]">
-                  <Wine className="size-5" />
-                </span>
-              )}
+              <span className="flex size-12 items-center justify-center rounded-lg border-2 border-background bg-background/90 text-primary shadow-[0_10px_26px_-18px_rgb(15_23_42_/_0.8)]">
+                <Wine className="size-5" />
+              </span>
             </div>
           </div>
         </div>
 
         <div className="flex flex-col px-3.5 pt-8 pb-3">
           <h3 className="min-w-0 text-xl font-semibold leading-7 line-clamp-2">{room.title}</h3>
-          <p className="mt-1.5 min-h-5 line-clamp-1 text-xs leading-5 text-muted-foreground">
-            {compactScene(room.scene)}
-          </p>
+          <p className="mt-1.5 min-h-5 line-clamp-1 text-xs leading-5 text-muted-foreground">{visualPreset.label}</p>
 
           <div className="mt-2.5 grid grid-cols-3 gap-2 text-[11px] text-foreground/80">
             <span className="inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border bg-muted/20 px-1.5">
-              <UsersRound className="size-3.5 shrink-0" />
-              <span className="truncate">{roomCharacters.length} 角色</span>
+              <Wine className="size-3.5 shrink-0" />
+              <span className="truncate">{room.replyMode === "director" ? "导演调度" : "运行"}</span>
             </span>
             <span className="inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border bg-muted/20 px-1.5">
               <ScrollText className="size-3.5 shrink-0" />
               <span className="truncate">{enabledPromptBlockCount} 提示词</span>
             </span>
             <span className="inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border bg-muted/20 px-1.5">
-              <Map className="size-3.5 shrink-0" />
-              <span className="truncate">{sceneCount} 场景</span>
+              <Activity className="size-3.5 shrink-0" />
+              <span className="truncate">{progressConfigCount} 进度</span>
             </span>
           </div>
 
           <div className="mt-2.5">
             <div className="border-t pt-2.5">
               <div className="relative flex h-14 items-center gap-2.5 overflow-hidden rounded-lg border border-primary/15 bg-primary/[0.055] px-3 py-2 text-xs leading-5 text-muted-foreground">
-                <Target className="absolute -right-3 -bottom-4 size-14 text-primary/5" />
+                <Activity className="absolute -right-3 -bottom-4 size-14 text-primary/5" />
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <Target className="size-4" />
+                  <Activity className="size-4" />
                 </span>
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold leading-5 text-foreground">当前目标</div>
-                  <div className="line-clamp-1">{room.sceneGoal.trim() || emptyValueText}</div>
+                  <div className="text-sm font-semibold leading-5 text-foreground">状态追踪</div>
+                  <div className="line-clamp-1">{room.progressTracker.enabled ? "已开启" : "未开启"}</div>
                 </div>
               </div>
             </div>

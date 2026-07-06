@@ -2,10 +2,7 @@ import type { WorkspaceVersionFileEntry } from "@/features/pages/workspace/files
 import { VERSION_RULE_FILE_PATH } from "../constants";
 import type { VersionFileTreeNode } from "./types";
 
-const compareVersionFileTreeNodes = (
-  left: VersionFileTreeNode,
-  right: VersionFileTreeNode,
-) => {
+const compareVersionFileTreeNodes = (left: VersionFileTreeNode, right: VersionFileTreeNode) => {
   const leftIsVersionRule = left.path === VERSION_RULE_FILE_PATH;
   const rightIsVersionRule = right.path === VERSION_RULE_FILE_PATH;
   if (leftIsVersionRule !== rightIsVersionRule) {
@@ -97,10 +94,7 @@ export const buildVersionFileTree = (files: WorkspaceVersionFileEntry[]) => {
       directoryPaths.push(node.path);
     }
     node.children.sort(compareVersionFileTreeNodes);
-    node.fileCount = node.children.reduce(
-      (count, child) => count + sortAndCount(child),
-      0,
-    );
+    node.fileCount = node.children.reduce((count, child) => count + sortAndCount(child), 0);
     return node.fileCount;
   };
 

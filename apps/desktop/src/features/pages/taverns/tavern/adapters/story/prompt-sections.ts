@@ -1,12 +1,5 @@
-import {
-  joinPromptLines,
-  type TavernPromptSection,
-} from "../../runtime/prompt/shared/sections";
-import {
-  escapePromptXmlAttribute,
-  escapePromptXmlText,
-  limitPromptText,
-} from "../../runtime/prompt/shared/text";
+import { joinPromptLines, type TavernPromptSection } from "../../runtime/prompt/shared/sections";
+import { escapePromptXmlAttribute, escapePromptXmlText, limitPromptText } from "../../runtime/prompt/shared/text";
 import {
   getTavernStoryGraphContextSlice,
   selectTavernStoryLorebookEntries as selectTavernStoryLorebookEntriesFromContext,
@@ -25,11 +18,12 @@ export const selectTavernStoryLorebookEntries = ({
   storyContext: TavernStoryContextPackage;
   currentUserText: string;
   activeCharacterId?: string;
-}) => selectTavernStoryLorebookEntriesFromContext({
-  context: storyContext,
-  currentText: currentUserText,
-  activeCharacterId,
-});
+}) =>
+  selectTavernStoryLorebookEntriesFromContext({
+    context: storyContext,
+    currentText: currentUserText,
+    activeCharacterId,
+  });
 
 export const formatTavernStoryLorebookEntries = (
   entries: TavernStoryContextLorebookEntry[],
@@ -40,18 +34,20 @@ export const formatTavernStoryLorebookEntries = (
     maxEntries?: number;
     maxContentChars?: number;
   } = {},
-) => entries
-  .slice(0, maxEntries ?? entries.length)
-  .map((entry) => [
-    `<lore_entry title="${escapePromptXmlAttribute(entry.title)}" keywords="${escapePromptXmlAttribute(entry.keywords.join(", "))}">`,
-    escapePromptXmlText(maxContentChars ? limitPromptText(entry.content, maxContentChars) : entry.content),
-    "</lore_entry>",
-  ].join("\n")).join("\n\n");
+) =>
+  entries
+    .slice(0, maxEntries ?? entries.length)
+    .map((entry) =>
+      [
+        `<lore_entry title="${escapePromptXmlAttribute(entry.title)}" keywords="${escapePromptXmlAttribute(entry.keywords.join(", "))}">`,
+        escapePromptXmlText(maxContentChars ? limitPromptText(entry.content, maxContentChars) : entry.content),
+        "</lore_entry>",
+      ].join("\n"),
+    )
+    .join("\n\n");
 
-const storyNodeTitle = (
-  storyContext: TavernStoryContextPackage,
-  nodeId: string,
-) => storyContext.graph.nodes.find((node) => node.id === nodeId)?.title ?? nodeId;
+const storyNodeTitle = (storyContext: TavernStoryContextPackage, nodeId: string) =>
+  storyContext.graph.nodes.find((node) => node.id === nodeId)?.title ?? nodeId;
 
 export const formatTavernStoryGraphContext = (
   storyContext: TavernStoryContextPackage,
@@ -75,29 +71,29 @@ export const formatTavernStoryGraphContext = (
     `node_type: ${escapePromptXmlText(activeNode.type)}`,
     `path_role: ${escapePromptXmlText(activeNode.pathRole)}`,
     activeScene ? `scene: ${escapePromptXmlText(activeScene.title)}` : "scene: 未绑定",
-    activeScene?.scene
-      ? `scene_description: ${limitEscapedPromptText(activeScene.scene, maxSummaryChars)}`
-      : "",
-    activeScene?.goal
-      ? `scene_goal: ${limitEscapedPromptText(activeScene.goal, maxSummaryChars)}`
-      : "",
+    activeScene?.scene ? `scene_description: ${limitEscapedPromptText(activeScene.scene, maxSummaryChars)}` : "",
+    activeScene?.goal ? `scene_goal: ${limitEscapedPromptText(activeScene.goal, maxSummaryChars)}` : "",
     graphSlice.incomingEdges.length > 0
       ? [
           "incoming_edges:",
-          ...graphSlice.incomingEdges.map((edge, index) =>
-            `${index + 1}. ${escapePromptXmlText(storyNodeTitle(storyContext, edge.fromNodeId))} -> ${escapePromptXmlText(edge.label)}`
+          ...graphSlice.incomingEdges.map(
+            (edge, index) =>
+              `${index + 1}. ${escapePromptXmlText(storyNodeTitle(storyContext, edge.fromNodeId))} -> ${escapePromptXmlText(edge.label)}`,
           ),
         ].join("\n")
       : "incoming_edges: 无",
     graphSlice.outgoingEdges.length > 0
       ? [
           "available_exits:",
-          ...graphSlice.outgoingEdges.map((edge, index) =>
-            `${index + 1}. ${escapePromptXmlText(edge.label)} -> ${escapePromptXmlText(storyNodeTitle(storyContext, edge.toNodeId))}${edge.isDefault ? "（默认）" : ""}`
+          ...graphSlice.outgoingEdges.map(
+            (edge, index) =>
+              `${index + 1}. ${escapePromptXmlText(edge.label)} -> ${escapePromptXmlText(storyNodeTitle(storyContext, edge.toNodeId))}${edge.isDefault ? "（默认）" : ""}`,
           ),
         ].join("\n")
       : "available_exits: 无",
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 };
 
 const buildStoryArcContent = (storyContext: TavernStoryContextPackage) => {
@@ -106,9 +102,7 @@ const buildStoryArcContent = (storyContext: TavernStoryContextPackage) => {
   }
 
   return joinPromptLines([
-    storyContext.story.outline.trim()
-      ? limitEscapedPromptText(storyContext.story.outline, 900)
-      : "",
+    storyContext.story.outline.trim() ? limitEscapedPromptText(storyContext.story.outline, 900) : "",
     storyContext.story.goal.trim()
       ? `<final_goal>${limitEscapedPromptText(storyContext.story.goal, 500)}</final_goal>`
       : "",
@@ -118,9 +112,7 @@ const buildStoryArcContent = (storyContext: TavernStoryContextPackage) => {
 const buildStoryMemoryContent = (storyContext: TavernStoryContextPackage) => {
   const layers = storyContext.memory.sceneLayers;
   return joinPromptLines([
-    storyContext.memory.manual.trim()
-      ? limitEscapedPromptText(storyContext.memory.manual, 900)
-      : "",
+    storyContext.memory.manual.trim() ? limitEscapedPromptText(storyContext.memory.manual, 900) : "",
     layers.upstream.trim()
       ? `<branch_upstream_memory>${limitEscapedPromptText(layers.upstream, 1200)}</branch_upstream_memory>`
       : "",

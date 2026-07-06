@@ -17,25 +17,11 @@ export const feiluHighConceptRuleComposition: TavernRuleComposition = {
   label: "飞卢高概念爽文",
   description: "平台预期偏高概念、强期待和收获感，组合飞卢毒点约束。",
   platformStyleId: feiluHighConceptPlatformStyle.id,
-  qualityRuleIds: [
-    conciseNoSummaryQualityRule.id,
-    reduceEmptyAmbienceQualityRule.id,
-  ],
-  narrativeStyleIds: [
-    webnovelHighDensityNarrativeStyle.id,
-    directCommercialFlowNarrativeStyle.id,
-  ],
+  qualityRuleIds: [conciseNoSummaryQualityRule.id, reduceEmptyAmbienceQualityRule.id],
+  narrativeStyleIds: [webnovelHighDensityNarrativeStyle.id, directCommercialFlowNarrativeStyle.id],
   genreRuleIds: [maleProgressionGrowthGenreRule.id],
-  hookRuleIds: [
-    highConceptPayoffHookRule.id,
-    expectationHookRule.id,
-    rewardFeedbackHookRule.id,
-    conflictHookRule.id,
-  ],
-  tabooRuleIds: [
-    feiluToxicPointsTabooRule.id,
-    slowBuildupTabooRule.id,
-  ],
+  hookRuleIds: [highConceptPayoffHookRule.id, expectationHookRule.id, rewardFeedbackHookRule.id, conflictHookRule.id],
+  tabooRuleIds: [feiluToxicPointsTabooRule.id, slowBuildupTabooRule.id],
   selectable: true,
   order: 60,
 };

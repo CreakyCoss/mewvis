@@ -33,10 +33,7 @@ export {
   normalizeTavernMessageSegments,
   resolveTavernMessageSegments,
 } from "./domain/segments";
-export {
-  createTavernMessage,
-  materializeTavernMessage,
-} from "./domain/factory";
+export { createTavernMessage, materializeTavernMessage } from "./domain/factory";
 export {
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessageForAudience,
@@ -45,7 +42,4 @@ export {
   type TavernMessageAudience,
   type TavernVisibleMessage,
 } from "./domain/visibility";
-export {
-  createTavernRenderableMessages,
-  type TavernRenderableMessage,
-} from "./domain/render-model";
+export { createTavernRenderableMessages, type TavernRenderableMessage } from "./domain/render-model";

@@ -9,13 +9,7 @@ export type RuntimeApiFormat =
   | "google-generative-ai"
   | "openrouter";
 
-export type RuntimeThinkingLevel =
-  | "off"
-  | "minimal"
-  | "low"
-  | "medium"
-  | "high"
-  | "xhigh";
+export type RuntimeThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
 
 export type RuntimeModelInput = {
   provider: string;

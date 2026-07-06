@@ -1,5 +1,6 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { TavernMessage, TavernReferencedFile } from "../../types";
-import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
 import { buildTavernBridgeSystemPrompt, buildTavernCharacterPromptParts } from "../prompt";
 import { getTavernPresentationProfile } from "../../prompt-registry/presentation-rules";

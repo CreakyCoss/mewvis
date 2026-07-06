@@ -8,11 +8,19 @@ const workspaceRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-tavern-prompt-preview-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
-const systemPresetRoomPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/factories/system-preset-room.ts");
+const systemPresetRoomPath = resolve(
+  workspaceRoot,
+  "src/features/pages/taverns/tavern/factories/system-preset-room.ts",
+);
 const previewPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/runtime/prompt/preview.ts");
-const warningNavigationPath = resolve(workspaceRoot, "src/features/pages/taverns/manage/room-editor/modules/prompt/warning-navigation.ts");
+const warningNavigationPath = resolve(
+  workspaceRoot,
+  "src/features/pages/taverns/manage/room-editor/modules/prompt/warning-navigation.ts",
+);
 
-writeFileSync(entryPath, `
+writeFileSync(
+  entryPath,
+  `
   import { createTavernRoomFromSystemPreset } from ${JSON.stringify(systemPresetRoomPath)};
   import { buildTavernPromptPreview } from ${JSON.stringify(previewPath)};
   import { resolveTavernPromptWarningNavigation } from ${JSON.stringify(warningNavigationPath)};
@@ -226,7 +234,8 @@ writeFileSync(entryPath, `
   assert(preview.summary.warningCount >= 2, "预览摘要应统计风险项。", preview.summary);
 
   console.log("[tavern-prompt-preview] ok");
-`);
+`,
+);
 
 try {
   await build({

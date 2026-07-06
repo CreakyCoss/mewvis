@@ -1,8 +1,4 @@
-import {
-  ASK_USER_TOOL_DEFINITION,
-  type AskUserToolCall,
-  normalizeAskUserInput,
-} from "../../../tools/ask-user.js";
+import { ASK_USER_TOOL_DEFINITION, type AskUserToolCall, normalizeAskUserInput } from "../../../tools/ask-user.js";
 import type { AskUserInput } from "../../../../../../protocol/index.js";
 import { findXmlElement, parseXmlFragment } from "../../../utils/xml.js";
 

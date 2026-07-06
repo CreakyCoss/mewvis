@@ -1,13 +1,6 @@
 export { MarkdownContent } from "./markdown-content";
-export {
-  SmoothMarkdownContent,
-  SmoothPlainText,
-} from "./smooth-markdown-content";
-export {
-  getMarkdownInputContent,
-  getMarkdownMessageContent,
-  isMarkdownMessageStreaming,
-} from "./message";
+export { SmoothMarkdownContent, SmoothPlainText } from "./smooth-markdown-content";
+export { getMarkdownInputContent, getMarkdownMessageContent, isMarkdownMessageStreaming } from "./message";
 export type {
   MarkdownContentInput,
   MarkdownContentMessage,

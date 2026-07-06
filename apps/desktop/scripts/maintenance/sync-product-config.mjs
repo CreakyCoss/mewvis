@@ -24,10 +24,7 @@ async function syncIndexHtml() {
       /aria-label="[^"]*正在启动"/,
       `aria-label="${escapeHtmlAttribute(`${productConfig.displayName} 正在启动`)}"`,
     )
-    .replace(
-      /(<h1 class="startup-screen__brand-name">)[^<]*(<\/h1>)/,
-      `$1${escapeHtml(productConfig.displayName)}$2`,
-    );
+    .replace(/(<h1 class="startup-screen__brand-name">)[^<]*(<\/h1>)/, `$1${escapeHtml(productConfig.displayName)}$2`);
 
   await writeFile(indexPath, next, "utf8");
 }
@@ -47,21 +44,15 @@ async function syncTauriConfig() {
 
 async function syncCargoToml() {
   const source = await readFile(cargoTomlPath, "utf8");
-  const next = source.replace(
-    /^description = ".*"$/m,
-    `description = ${JSON.stringify(productConfig.description)}`,
-  );
+  const next = source.replace(/^description = ".*"$/m, `description = ${JSON.stringify(productConfig.description)}`);
 
   await writeFile(cargoTomlPath, next, "utf8");
 }
 
 function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+  return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
 
 function escapeHtmlAttribute(value) {
-  return escapeHtml(value).replaceAll("\"", "&quot;");
+  return escapeHtml(value).replaceAll('"', "&quot;");
 }

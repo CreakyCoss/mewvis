@@ -1,13 +1,4 @@
-import {
-  Eye,
-  FileText,
-  FileType,
-  Loader2,
-  RotateCcw,
-  Save,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Eye, FileText, FileType, Loader2, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertDialog,
@@ -21,13 +12,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
@@ -69,15 +54,14 @@ export const EditPanel = ({
   const [isFileSaving, setIsFileSaving] = useState(false);
   const [isFileDeleting, setIsFileDeleting] = useState(false);
   const isMarkdownFile = useMemo(() => isMarkdownPath(filePath), [filePath]);
-  const isNewVersionFile =
-    fileVersionStatus?.status === "added" || fileVersionStatus?.status === "untracked";
+  const isNewVersionFile = fileVersionStatus?.status === "added" || fileVersionStatus?.status === "untracked";
   const discardLabel = !fileVersionStatus
     ? "撤销修改"
     : isNewVersionFile
-    ? "撤销新增"
-    : fileVersionStatus.status === "deleted"
-    ? "撤销删除"
-    : "撤销修改";
+      ? "撤销新增"
+      : fileVersionStatus.status === "deleted"
+        ? "撤销删除"
+        : "撤销修改";
   const saveLabel = activeFile ? "保存文件" : "创建文件";
   const isBusy = isFileSaving || isFileDeleting || isFileDiscarding;
 
@@ -154,13 +138,8 @@ export const EditPanel = ({
               <FileText className="size-4" />
             </div>
             <div className="min-w-0 flex-1 overflow-hidden">
-              <DialogTitle className="whitespace-nowrap text-sm font-semibold">
-                编辑文件
-              </DialogTitle>
-              <DialogDescription
-                className="truncate text-xs text-muted-foreground"
-                title={filePath || undefined}
-              >
+              <DialogTitle className="whitespace-nowrap text-sm font-semibold">编辑文件</DialogTitle>
+              <DialogDescription className="truncate text-xs text-muted-foreground" title={filePath || undefined}>
                 {filePath || "选择或新建一个文件"}
               </DialogDescription>
             </div>
@@ -245,19 +224,11 @@ export const EditPanel = ({
                 type="button"
                 variant="outline"
                 className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800"
-                title={
-                  isNewVersionFile
-                    ? "撤销新增：删除这个未提交文件"
-                    : `${discardLabel}：恢复到当前提交状态`
-                }
+                title={isNewVersionFile ? "撤销新增：删除这个未提交文件" : `${discardLabel}：恢复到当前提交状态`}
                 onClick={() => void onDiscardFileChanges()}
                 disabled={isBusy}
               >
-                {isFileDiscarding ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <RotateCcw className="size-4" />
-                )}
+                {isFileDiscarding ? <Loader2 className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}
                 <span>{discardLabel}</span>
               </Button>
             )}
@@ -270,11 +241,7 @@ export const EditPanel = ({
                   title="从工作区删除当前文件"
                   disabled={!activeFile || isBusy}
                 >
-                  {isFileDeleting ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="size-4" />
-                  )}
+                  {isFileDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
                   <span>删除文件</span>
                 </Button>
               </AlertDialogTrigger>
@@ -302,11 +269,7 @@ export const EditPanel = ({
             onClick={() => void saveFile()}
             disabled={isBusy || !filePath.trim()}
           >
-            {isFileSaving ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Save className="size-4" />
-            )}
+            {isFileSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
             <span>{saveLabel}</span>
           </Button>
         </div>

@@ -6,10 +6,7 @@ import type {
   ShutdownAckResult,
   TaskResult,
 } from "../agent/index.js";
-import type {
-  CollaborationModeSummary,
-  CollaborationRunResult,
-} from "../collaboration/index.js";
+import type { CollaborationModeSummary, CollaborationRunResult } from "../collaboration/index.js";
 import type {
   RuntimeSessionDebugSnapshot,
   RuntimeSessionSnapshot,

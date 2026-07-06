@@ -21,8 +21,7 @@ export const IllustrationHintsDialog = ({ bind, isBusy }: PlotDataDialogProps) =
 
     setPendingConfirmAction({
       title: "清空插图提示",
-      description:
-        "清空当前场景的插图提示？这些导演生成的画面提示会从当前场景中移除。",
+      description: "清空当前场景的插图提示？这些导演生成的画面提示会从当前场景中移除。",
       confirmLabel: "清空提示",
       onConfirm: () => {
         patchRoom(activeRoom.id, {
@@ -34,16 +33,10 @@ export const IllustrationHintsDialog = ({ bind, isBusy }: PlotDataDialogProps) =
 
   return (
     <>
-      <PlotDataSheet
-        bind={bind}
-        title="插图提示"
-        description="查看导演为当前场景生成的公开画面提示。"
-      >
+      <PlotDataSheet bind={bind} title="插图提示" description="查看导演为当前场景生成的公开画面提示。">
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <div className="text-sm font-medium">
-              {activeRoom?.illustrationHints.length ?? 0} 条提示
-            </div>
+            <div className="text-sm font-medium">{activeRoom?.illustrationHints.length ?? 0} 条提示</div>
             <Button
               type="button"
               size="xs"
@@ -58,27 +51,25 @@ export const IllustrationHintsDialog = ({ bind, isBusy }: PlotDataDialogProps) =
           </div>
           {activeRoom?.illustrationHints.length ? (
             <div className="space-y-3">
-              {activeRoom.illustrationHints.slice().reverse().map((hint, index) => (
-                <div key={hint.id} className="rounded-md border bg-current/[0.065] dark:bg-current/[0.09] p-3">
-                  <div className="flex items-center justify-between gap-2 text-xs text-current/70">
-                    <span>#{activeRoom.illustrationHints.length - index}</span>
-                    <span>{new Date(hint.createdAt).toLocaleString()}</span>
+              {activeRoom.illustrationHints
+                .slice()
+                .reverse()
+                .map((hint, index) => (
+                  <div key={hint.id} className="rounded-md border bg-current/[0.065] dark:bg-current/[0.09] p-3">
+                    <div className="flex items-center justify-between gap-2 text-xs text-current/70">
+                      <span>#{activeRoom.illustrationHints.length - index}</span>
+                      <span>{new Date(hint.createdAt).toLocaleString()}</span>
+                    </div>
+                    <div className="mt-2 whitespace-pre-wrap text-sm leading-6 text-current/70">{hint.prompt}</div>
                   </div>
-                  <div className="mt-2 whitespace-pre-wrap text-sm leading-6 text-current/70">
-                    {hint.prompt}
-                  </div>
-                </div>
-              ))}
+                ))}
             </div>
           ) : (
             <EmptyDetailState>暂无插图提示。</EmptyDetailState>
           )}
         </div>
       </PlotDataSheet>
-      <ConfirmActionDialog
-        action={pendingConfirmAction}
-        onClose={() => setPendingConfirmAction(null)}
-      />
+      <ConfirmActionDialog action={pendingConfirmAction} onClose={() => setPendingConfirmAction(null)} />
     </>
   );
 };

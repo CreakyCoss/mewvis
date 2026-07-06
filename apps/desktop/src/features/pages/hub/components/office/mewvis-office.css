@@ -4,7 +4,8 @@
     transform: translateY(8px) rotate(-4deg);
   }
 
-  18%, 76% {
+  18%,
+  76% {
     opacity: 1;
   }
 
@@ -15,41 +16,29 @@
 }
 
 @keyframes mewvis-cat-walk {
-  0%, 100% {
-    transform:
-      scaleX(var(--cat-facing-scale))
-      rotate(var(--cat-walk-angle, 0deg))
-      translate3d(0, 0, 0)
-      skewY(0deg);
+  0%,
+  100% {
+    transform: scaleX(var(--cat-facing-scale)) rotate(var(--cat-walk-angle, 0deg)) translate3d(0, 0, 0) skewY(0deg);
   }
 
   18% {
-    transform:
-      scaleX(var(--cat-facing-scale))
-      rotate(calc(var(--cat-walk-angle, 0deg) + 1.4deg))
-      translate3d(4px, -3px, 0)
-      skewY(-1deg);
+    transform: scaleX(var(--cat-facing-scale)) rotate(calc(var(--cat-walk-angle, 0deg) + 1.4deg))
+      translate3d(4px, -3px, 0) skewY(-1deg);
   }
 
   42% {
-    transform:
-      scaleX(var(--cat-facing-scale))
-      rotate(var(--cat-walk-angle, 0deg))
-      translate3d(0, 1px, 0)
-      skewY(0deg);
+    transform: scaleX(var(--cat-facing-scale)) rotate(var(--cat-walk-angle, 0deg)) translate3d(0, 1px, 0) skewY(0deg);
   }
 
   68% {
-    transform:
-      scaleX(var(--cat-facing-scale))
-      rotate(calc(var(--cat-walk-angle, 0deg) - 1.2deg))
-      translate3d(-3px, -3px, 0)
-      skewY(1deg);
+    transform: scaleX(var(--cat-facing-scale)) rotate(calc(var(--cat-walk-angle, 0deg) - 1.2deg))
+      translate3d(-3px, -3px, 0) skewY(1deg);
   }
 }
 
 @keyframes mewvis-cat-back-walk {
-  0%, 100% {
+  0%,
+  100% {
     transform: translate3d(0, 0, 0) rotate(0deg) scaleY(1);
   }
 
@@ -134,11 +123,7 @@
   height: 864px;
   object-fit: contain;
   opacity: 0.84;
-  filter:
-    saturate(0.76)
-    contrast(0.88)
-    brightness(1.08)
-    drop-shadow(-12px 24px 18px oklch(0 0 0 / 8%));
+  filter: saturate(0.76) contrast(0.88) brightness(1.08) drop-shadow(-12px 24px 18px oklch(0 0 0 / 8%));
   pointer-events: none;
   user-select: none;
 }
@@ -184,7 +169,11 @@
   border-radius: 2px;
   background:
     radial-gradient(circle at 50% 42%, oklch(1 0 0 / 10%) 0 30%, transparent 68%),
-    linear-gradient(180deg, color-mix(in oklch, var(--screen-accent) 72%, white 10%), color-mix(in oklch, var(--screen-accent) 82%, black 9%));
+    linear-gradient(
+      180deg,
+      color-mix(in oklch, var(--screen-accent) 72%, white 10%),
+      color-mix(in oklch, var(--screen-accent) 82%, black 9%)
+    );
   opacity: 0;
   transition: opacity 220ms ease;
 }
@@ -430,9 +419,7 @@
   z-index: 2;
   height: 43px;
   border-radius: 15px 15px 18px 18px;
-  background:
-    linear-gradient(180deg, oklch(0.99 0.002 248), oklch(0.87 0.004 248)),
-    oklch(0.94 0.003 248);
+  background: linear-gradient(180deg, oklch(0.99 0.002 248), oklch(0.87 0.004 248)), oklch(0.94 0.003 248);
   box-shadow:
     inset 0 1px 0 oklch(1 0 0 / 80%),
     inset 0 -5px 8px oklch(0 0 0 / 8%),
@@ -729,9 +716,7 @@
   width: 22px;
   height: 22px;
   border-radius: 999px;
-  background:
-    radial-gradient(circle at 50% 50%, oklch(1 0 0) 0 18%, transparent 20%),
-    oklch(0.78 0.006 248);
+  background: radial-gradient(circle at 50% 50%, oklch(1 0 0) 0 18%, transparent 20%), oklch(0.78 0.006 248);
 }
 
 .mewvis-office-profile-section {

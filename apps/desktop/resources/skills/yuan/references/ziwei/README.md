@@ -46,6 +46,7 @@ ziwei-analysis/
 ## 安装到 Claude Code
 
 ### 项目级
+
 把整个 `ziwei-analysis/` 目录复制到：
 
 ```bash
@@ -53,6 +54,7 @@ ziwei-analysis/
 ```
 
 ### 个人级
+
 复制到：
 
 ```bash
@@ -62,6 +64,7 @@ ziwei-analysis/
 ## 安装到 Codex
 
 ### 仓库级
+
 把整个 `ziwei-analysis/` 目录复制到：
 
 ```bash
@@ -69,6 +72,7 @@ ziwei-analysis/
 ```
 
 ### 用户级
+
 复制到：
 
 ```bash
@@ -86,11 +90,13 @@ curl -X POST 'https://api.openai.com/v1/skills'   -H "Authorization: Bearer $OPE
 ## 推荐的显式调用方式
 
 ### Claude Code
+
 ```text
 /ziwei-analysis 请把紫微斗数系统拆成排盘层与解释层，并输出 JSON schema
 ```
 
 ### Codex
+
 ```text
 Use the ziwei-analysis skill to design a deterministic Ziwei charting contract and a heuristic interpretation layer.
 ```
@@ -115,11 +121,13 @@ Use the ziwei-analysis skill to design a deterministic Ziwei charting contract a
 ## Helper 脚本
 
 ### 1) 检查请求是否足够支持排盘
+
 ```bash
 python scripts/request_guard.py request.json
 ```
 
 ### 2) 检查输出结构是否合法
+
 ```bash
 python scripts/validate_output.py output.json
 ```
@@ -138,20 +146,24 @@ python scripts/validate_output.py output.json
 ## 可选：增强发现率
 
 ### Codex 的 `AGENTS.md` 片段
+
 在项目根目录的 `AGENTS.md` 里加入：
 
 ```md
 ## Ziwei workflow
+
 - For 紫微斗数 / Ziwei Dou Shu system design, schema design, or chart interpretation tasks, prefer the `ziwei-analysis` skill in `.agents/skills/ziwei-analysis`.
 - Do not fabricate chart facts from birth data unless a deterministic chart engine is available.
 - Keep deterministic charting separate from heuristic interpretation.
 ```
 
 ### Claude Code 的 `CLAUDE.md` 片段
+
 在项目根目录的 `CLAUDE.md` 或 `.claude/CLAUDE.md` 里加入：
 
 ```md
 ## Ziwei workflow
+
 - For 紫微斗数 tasks, prefer the `ziwei-analysis` skill.
 - Separate chart facts from interpretation.
 - Surface ambiguity around calendar type, late 子时, timezone, and school variant.

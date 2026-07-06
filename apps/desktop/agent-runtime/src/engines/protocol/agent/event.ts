@@ -39,13 +39,13 @@ export type RuntimeSessionRecordRef = {
 export type AgentEvent =
   | { type: AgentEventType.Started; taskId: string }
   | {
-    type: AgentEventType.Question;
-    taskId: string;
-    questionId: string;
-    question: string;
-    context?: string | null;
-    input?: AskUserInput;
-  }
+      type: AgentEventType.Question;
+      taskId: string;
+      questionId: string;
+      question: string;
+      context?: string | null;
+      input?: AskUserInput;
+    }
   | { type: AgentEventType.QuestionAnswered; taskId: string; questionId: string; answer: string }
   | { type: AgentEventType.ReplaceText; taskId: string; text: string }
   | { type: AgentEventType.TextDelta; taskId: string; delta: string }

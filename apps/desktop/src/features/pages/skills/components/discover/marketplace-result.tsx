@@ -1,19 +1,6 @@
-import {
-  Brain,
-  Code2,
-  Download,
-  Globe2,
-  Loader2,
-  Palette,
-  Search,
-  Sparkles,
-} from "lucide-react";
+import { Brain, Code2, Download, Globe2, Loader2, Palette, Search, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { MarketplaceSkill } from "../../types";
 import { formatMarketplaceUpdatedAt, formatStars } from "../utils";
 
@@ -56,9 +43,7 @@ export const MarketplaceResult = ({
               actionVisibleOnHover ? "group-hover:pr-24 group-focus-within:pr-24" : "",
             ].join(" ")}
           >
-            <h4 className="truncate text-base font-semibold tracking-normal">
-              {skill.name}
-            </h4>
+            <h4 className="truncate text-base font-semibold tracking-normal">{skill.name}</h4>
             <p className="mt-1 line-clamp-1 text-sm leading-5 text-muted-foreground">
               {skill.description || "暂无描述"}
             </p>
@@ -84,16 +69,12 @@ export const MarketplaceResult = ({
                 "absolute top-1/2 right-4 h-9 -translate-y-1/2 rounded-full px-4 transition-opacity",
                 actionPinned
                   ? "opacity-100 disabled:opacity-100"
-                : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100",
+                  : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100",
               ].join(" ")}
               onClick={onInstall}
               disabled={installing}
             >
-              {installing ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Download className="size-4" />
-              )}
+              {installing ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
               <span>{actionLabel}</span>
             </Button>
           )}
@@ -109,23 +90,15 @@ export const MarketplaceResult = ({
         <div className="space-y-2">
           <div className="flex min-w-0 items-center gap-2">
             <span className="truncate text-sm font-semibold">{skill.name}</span>
-            {installed && (
-              <span className="rounded-full bg-background/15 px-2 py-0.5 text-[11px]">
-                已添加
-              </span>
-            )}
+            {installed && <span className="rounded-full bg-background/15 px-2 py-0.5 text-[11px]">已添加</span>}
           </div>
-          <p className="text-xs text-background/75">
-            {skill.description || "暂无描述"}
-          </p>
+          <p className="text-xs text-background/75">{skill.description || "暂无描述"}</p>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-background/60">
             <span>{skill.author || "未知作者"}</span>
             <span>{formatStars(skill.stars)}</span>
             <MarketplaceUpdatedAt value={skill.updatedAt} />
           </div>
-          <p className="break-all text-[11px] text-background/60">
-            {skill.githubUrl || skill.skillUrl}
-          </p>
+          <p className="break-all text-[11px] text-background/60">{skill.githubUrl || skill.skillUrl}</p>
         </div>
       </TooltipContent>
     </Tooltip>

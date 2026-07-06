@@ -1,3 +1,4 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import { Activity, CheckCircle2, Circle, Heart, Swords, Trophy } from "lucide-react";
 import { resolveAvatar } from "@/assets/avatars";
 import { cn } from "@/lib/utils";
@@ -9,7 +10,6 @@ import type {
   TavernCharacter,
   TavernEntityRef,
   TavernProgressView,
-  TavernRoom,
   TavernStatusDefinition,
   TavernStatusTargetRef,
   TavernStatusValue,

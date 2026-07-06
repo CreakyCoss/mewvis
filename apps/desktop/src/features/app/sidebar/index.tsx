@@ -7,8 +7,7 @@ import { PrimaryNav, UtilityNav } from "./nav";
 import { SidebarSessions } from "./sessions";
 
 export const AppSidebar = () => {
-  const { overview, isLoading, error, activeWorkspace, defaultWorkspace } =
-    useWorkspaceOverview();
+  const { overview, isLoading, error, activeWorkspace, defaultWorkspace } = useWorkspaceOverview();
   const [query, setQuery] = useState("");
   const workspaces = overview?.workspaces ?? [];
   const chatWorkspace = activeWorkspace ?? defaultWorkspace ?? workspaces[0] ?? null;
@@ -25,7 +24,9 @@ export const AppSidebar = () => {
         workspace.path,
         workspace.description ?? "",
         isDefaultWorkspace(workspace) ? "默认工作区" : "",
-      ].join("\n").toLowerCase();
+      ]
+        .join("\n")
+        .toLowerCase();
       return searchable.includes(normalizedQuery);
     });
   }, [query, workspaces]);
@@ -50,11 +51,7 @@ export const AppSidebar = () => {
       </div>
 
       <PrimaryNav chatPath={chatPath} />
-      <SidebarSessions
-        workspaces={filteredWorkspaces}
-        isLoading={isLoading}
-        error={error}
-      />
+      <SidebarSessions workspaces={filteredWorkspaces} isLoading={isLoading} error={error} />
       <UtilityNav />
     </aside>
   );

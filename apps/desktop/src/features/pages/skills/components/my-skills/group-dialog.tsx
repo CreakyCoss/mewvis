@@ -1,12 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  CheckCircle2,
-  ChevronRight,
-  FolderPlus,
-  Search,
-  Sparkles,
-  X,
-} from "lucide-react";
+import { CheckCircle2, ChevronRight, FolderPlus, Search, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -67,26 +60,15 @@ export const GroupDialog = ({
   const [isDefaultGroup, setIsDefaultGroup] = useState(false);
   const [selectedSkillNames, setSelectedSkillNames] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [collapsedSources, setCollapsedSources] = useState<Set<string>>(
-    () => new Set(),
-  );
+  const [collapsedSources, setCollapsedSources] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState("");
 
   const isEditable = state.mode !== "view" && state.group?.readonly !== true;
   const targetGroupId = state.group?.id ?? ALL_SKILLS_GROUP_ID;
   const dialogTitle = getDialogTitle(state.mode, state.group?.readonly === true);
-  const visibleSkills = useMemo(
-    () => filterSkills(skills, searchQuery),
-    [skills, searchQuery],
-  );
-  const visibleSkillGroups = useMemo(
-    () => groupSkillsBySource(visibleSkills),
-    [visibleSkills],
-  );
-  const selectedSkillSet = useMemo(
-    () => new Set(selectedSkillNames),
-    [selectedSkillNames],
-  );
+  const visibleSkills = useMemo(() => filterSkills(skills, searchQuery), [skills, searchQuery]);
+  const visibleSkillGroups = useMemo(() => groupSkillsBySource(visibleSkills), [visibleSkills]);
+  const selectedSkillSet = useMemo(() => new Set(selectedSkillNames), [selectedSkillNames]);
 
   useEffect(() => {
     if (!state.open) {
@@ -101,9 +83,7 @@ export const GroupDialog = ({
       setGroupName(state.group?.name ?? state.fallbackName ?? "");
       setIsDefaultGroup(targetGroupId === defaultGroupId);
       setSelectedSkillNames(
-        state.group
-          ? existingGroupSkillNames(state.group, skillsByKey)
-          : state.fallbackSkillNames ?? [],
+        state.group ? existingGroupSkillNames(state.group, skillsByKey) : (state.fallbackSkillNames ?? []),
       );
     }
     setSearchQuery("");
@@ -179,20 +159,14 @@ export const GroupDialog = ({
       setError("至少选择一个技能");
       return;
     }
-    const duplicated = groups.some(
-      (group) => group.id !== state.group?.id && group.name === name,
-    );
+    const duplicated = groups.some((group) => group.id !== state.group?.id && group.name === name);
     if (duplicated) {
       setError("分组名称已存在");
       return;
     }
 
     const id = state.group?.id ?? `draft-${crypto.randomUUID()}`;
-    const nextDefaultGroupId = isDefaultGroup
-      ? id
-      : id === defaultGroupId
-        ? ALL_SKILLS_GROUP_ID
-        : defaultGroupId;
+    const nextDefaultGroupId = isDefaultGroup ? id : id === defaultGroupId ? ALL_SKILLS_GROUP_ID : defaultGroupId;
     const previousSkillDisabledByKey = new Map(
       state.group?.skills.map((skill) => [skill.key, skill.disabled === true]) ?? [],
     );
@@ -204,19 +178,17 @@ export const GroupDialog = ({
       readonly: false,
       isDefault: id === nextDefaultGroupId,
       order: state.group?.order ?? nextCustomGroupOrder(groups),
-      skills: [...selectedSkillNames]
-        .sort()
-        .map((key) => ({
-          key,
-          disabled: previousSkillDisabledByKey.get(key) === true,
-        })),
+      skills: [...selectedSkillNames].sort().map((key) => ({
+        key,
+        disabled: previousSkillDisabledByKey.get(key) === true,
+      })),
     };
-    const nextGroups = (state.group
-      ? groups.map((group) => (group.id === state.group?.id ? nextGroup : group))
-      : [...groups, nextGroup]).map((group) => ({
-        ...group,
-        isDefault: group.id === nextDefaultGroupId,
-      }));
+    const nextGroups = (
+      state.group ? groups.map((group) => (group.id === state.group?.id ? nextGroup : group)) : [...groups, nextGroup]
+    ).map((group) => ({
+      ...group,
+      isDefault: group.id === nextDefaultGroupId,
+    }));
 
     onGroupsChange(nextGroups, nextDefaultGroupId);
     onSelectedGroupChange(id);
@@ -259,9 +231,7 @@ export const GroupDialog = ({
                 ) : (
                   <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                     <div className="flex min-w-0 items-center gap-2">
-                      <span className="truncate text-lg font-semibold tracking-normal">
-                        {groupName || dialogTitle}
-                      </span>
+                      <span className="truncate text-lg font-semibold tracking-normal">{groupName || dialogTitle}</span>
                       {targetGroupId === defaultGroupId && (
                         <span className="shrink-0 rounded-full bg-sidebar-primary/10 px-2 py-0.5 text-xs font-medium text-sidebar-primary">
                           默认
@@ -329,11 +299,8 @@ export const GroupDialog = ({
                   <div className="space-y-4">
                     {visibleSkillGroups.map((skillGroup) => {
                       const skillKeys = skillGroup.skills.map((skill) => skill.key);
-                      const selectedCount = skillKeys.filter((skillKey) =>
-                        selectedSkillSet.has(skillKey),
-                      ).length;
-                      const allSelected =
-                        skillKeys.length > 0 && selectedCount === skillKeys.length;
+                      const selectedCount = skillKeys.filter((skillKey) => selectedSkillSet.has(skillKey)).length;
+                      const allSelected = skillKeys.length > 0 && selectedCount === skillKeys.length;
                       const collapsed = collapsedSources.has(skillGroup.source);
 
                       return (
@@ -351,9 +318,7 @@ export const GroupDialog = ({
                                   collapsed ? "" : "rotate-90",
                                 ].join(" ")}
                               />
-                              <span className="text-sm font-semibold text-foreground">
-                                {skillGroup.label}
-                              </span>
+                              <span className="text-sm font-semibold text-foreground">{skillGroup.label}</span>
                               <span className="text-xs tabular-nums text-muted-foreground">
                                 {selectedCount}/{skillKeys.length}
                               </span>
@@ -428,12 +393,7 @@ export const GroupDialog = ({
         </div>
 
         <DialogFooter className="shrink-0 border-t border-black/[0.04] bg-white/70 px-5 py-4">
-          <Button
-            type="button"
-            variant="outline"
-            className="rounded-full"
-            onClick={() => onOpenChange(false)}
-          >
+          <Button type="button" variant="outline" className="rounded-full" onClick={() => onOpenChange(false)}>
             {isEditable ? "取消" : "关闭"}
           </Button>
           {(isEditable || isDefaultGroup !== (targetGroupId === defaultGroupId)) && (

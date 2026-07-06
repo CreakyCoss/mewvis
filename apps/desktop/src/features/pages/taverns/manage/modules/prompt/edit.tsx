@@ -65,6 +65,8 @@ import {
   getTavernPromptStylePreset,
   normalizeTavernPromptStyleId,
 } from "../../../tavern/presentation/prompt-styles";
+import { createTavernRuntimeRoomFromConfig } from "../../../room/model/runtime-room";
+import type { TavernRuntimeRoom } from "../../../room/model";
 import type {
   TavernPresentationProfileId,
   TavernPromptBlock,
@@ -326,19 +328,20 @@ const createPromptFallback = (room: TavernRoom, presentationProfileId: TavernPre
     immersiveDescriptionEnabled: room.settings.immersiveDescriptionEnabled !== false,
   });
 
-const buildPromptPreviewRoom = (room: TavernRoom, draft: PromptDraft): TavernRoom => ({
-  ...room,
-  presentation: {
-    ...normalizeTavernPresentation(room.presentation),
-    profileId: normalizeTavernPresentationProfileId(draft.presentationProfileId),
-    profileVersion: 1,
-  },
-  prompt: clonePromptSettings(draft.prompt),
-  settings: {
-    ...room.settings,
-    immersiveDescriptionEnabled: draft.immersiveDescriptionEnabled,
-  },
-});
+const buildPromptPreviewRoom = (room: TavernRoom, draft: PromptDraft): TavernRuntimeRoom =>
+  createTavernRuntimeRoomFromConfig({
+    ...room,
+    presentation: {
+      ...normalizeTavernPresentation(room.presentation),
+      profileId: normalizeTavernPresentationProfileId(draft.presentationProfileId),
+      profileVersion: 1,
+    },
+    prompt: clonePromptSettings(draft.prompt),
+    settings: {
+      ...room.settings,
+      immersiveDescriptionEnabled: draft.immersiveDescriptionEnabled,
+    },
+  });
 
 const buildPromptBlockAgentContext = ({
   room,
@@ -349,7 +352,8 @@ const buildPromptBlockAgentContext = ({
   draft: PromptDraft;
   block: TavernPromptBlock;
 }) => {
-  const storyProjection = getTavernRuntimeStoryProjection(room);
+  const previewRoom = buildPromptPreviewRoom(room, draft);
+  const storyProjection = getTavernRuntimeStoryProjection(previewRoom);
   const activeNode = storyProjection.graph.nodes.find((node) => node.id === storyProjection.graph.activeNodeId);
 
   return {
@@ -459,7 +463,7 @@ export const PromptEdit = ({
       const isPresentationLocked = isTavernPresentationLocked({
         presentation: normalizeTavernPresentation(data.presentation),
         messages: [],
-        sceneId: data.activeSceneId,
+        sceneId: undefined,
       });
       const nextPresentationProfileId = isPresentationLocked
         ? current.presentationProfileId
@@ -522,9 +526,10 @@ export const PromptEdit = ({
       return;
     }
 
+    const previewRoom = buildPromptPreviewRoom(data, draft);
     const previewForSave = buildTavernPromptPreview({
-      room: buildPromptPreviewRoom(data, draft),
-      characters: getTavernRuntimeStoryProjection(data).characters,
+      room: previewRoom,
+      characters: getTavernRuntimeStoryProjection(previewRoom).characters,
       messages: [],
     });
     const blockingWarning = previewForSave.warnings.find(
@@ -541,7 +546,7 @@ export const PromptEdit = ({
     const presentationLocked = isTavernPresentationLocked({
       presentation: basePresentation,
       messages: [],
-      sceneId: data.activeSceneId,
+      sceneId: undefined,
     });
     const nextPresentation = presentationLocked
       ? basePresentation
@@ -572,7 +577,7 @@ export const PromptEdit = ({
     ? isTavernPresentationLocked({
         presentation: normalizeTavernPresentation(data.presentation),
         messages: [],
-        sceneId: data.activeSceneId,
+        sceneId: undefined,
       })
     : false;
   const selectedPresentationProfile = draft ? getTavernPresentationProfile(draft.presentationProfileId) : null;

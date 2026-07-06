@@ -8,8 +8,7 @@ import type {
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
-export const stringValue = (value: unknown) =>
-  typeof value === "string" && value.trim() ? value.trim() : null;
+export const stringValue = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : null);
 
 export const numberValue = (value: unknown, fallback: number) => {
   const number = typeof value === "number" ? value : Number(value);
@@ -22,15 +21,10 @@ export const positiveIntegerOption = (
   fallback: number,
 ) => Math.max(1, Math.floor(numberValue(options?.[key], fallback)));
 
-export const participantsByKind = (
-  input: CollaborationModeRunInput,
-  kind: CollaborationModeParticipant["kind"],
-) => input.participants.filter((participant) => participant.kind === kind);
+export const participantsByKind = (input: CollaborationModeRunInput, kind: CollaborationModeParticipant["kind"]) =>
+  input.participants.filter((participant) => participant.kind === kind);
 
-export const requireParticipant = (
-  input: CollaborationModeRunInput,
-  kind: CollaborationModeParticipant["kind"],
-) => {
+export const requireParticipant = (input: CollaborationModeRunInput, kind: CollaborationModeParticipant["kind"]) => {
   const participant = participantsByKind(input, kind)[0];
   if (!participant) {
     throw new Error(`协作模式 ${input.mode} 缺少 ${kind} participant`);
@@ -38,9 +32,7 @@ export const requireParticipant = (
   return participant;
 };
 
-export const participantToAgentRole = (
-  participant: CollaborationModeParticipant,
-): CollaborationAgentRole => ({
+export const participantToAgentRole = (participant: CollaborationModeParticipant): CollaborationAgentRole => ({
   id: participant.id,
   label: participant.label?.trim() || participant.id,
   systemPrompt: participant.systemPrompt ?? participant.instruction ?? null,
@@ -50,15 +42,10 @@ export const participantToAgentRole = (
   resources: participant.resources ?? null,
 });
 
-export const modeWorkflowId = (
-  modeId: string,
-  requestId: string | null | undefined,
-) => requestId?.trim() || `${modeId}.workflow`;
+export const modeWorkflowId = (modeId: string, requestId: string | null | undefined) =>
+  requestId?.trim() || `${modeId}.workflow`;
 
-export const modeMetadata = (
-  input: CollaborationModeRunInput,
-  extra: Record<string, unknown> = {},
-) => ({
+export const modeMetadata = (input: CollaborationModeRunInput, extra: Record<string, unknown> = {}) => ({
   modeId: input.mode,
   modeOptions: input.options ?? null,
   ...extra,
@@ -79,8 +66,8 @@ export const renderContextBlock = (context: unknown) =>
   typeof context === "string"
     ? context
     : context === null || context === undefined
-    ? ""
-    : JSON.stringify(context, null, 2);
+      ? ""
+      : JSON.stringify(context, null, 2);
 
 export const parseJsonObjectFromText = (text: string): Record<string, unknown> => {
   const trimmed = text.trim();

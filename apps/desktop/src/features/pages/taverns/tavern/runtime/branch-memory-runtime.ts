@@ -12,7 +12,11 @@ import { projectTavernSceneOntoRoom } from "./active-scene-runtime";
 import { ensureTavernRoomRuntimeScopes } from "./room-runtime-scopes";
 import { resolveActiveSceneInstance } from "./scene-instances";
 import { getTavernSceneInstanceDisplayTitle } from "./scene-selectors";
-import type { TavernMemoryEntry, TavernRoom, TavernSecretReveal } from "@/features/pages/taverns/manage/model";
+import type {
+  TavernMemoryEntry,
+  TavernRuntimeRoom as TavernRoom,
+  TavernSecretReveal,
+} from "@/features/pages/taverns/room/model";
 
 export type TavernBranchUpstreamMemoryLoadResult = {
   room: TavernRoom;

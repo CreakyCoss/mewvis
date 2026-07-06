@@ -36,10 +36,7 @@ type SkillsStore = {
   setWorkspaceSkillSettings: (settings: WorkspaceSkillSettings) => void;
   setSkillGroups: (groups: WorkspaceSkillGroup[]) => void;
   setDefaultSkillGroupId: (groupId: string) => void;
-  setMarketplaceSearchResult: (
-    input: SearchSkillMarketplaceInput,
-    result: SkillMarketplaceSearchResult,
-  ) => void;
+  setMarketplaceSearchResult: (input: SearchSkillMarketplaceInput, result: SkillMarketplaceSearchResult) => void;
   restoreMarketplaceCache: (input: SearchSkillMarketplaceInput) => boolean;
   resetDrafts: () => void;
 };
@@ -68,32 +65,33 @@ export const useSkillsStore = create<SkillsStore>((set, get) => ({
   },
   setSkillGroups: (groups) => set({ skillGroups: groups }),
   setDefaultSkillGroupId: (groupId) => set({ defaultSkillGroupId: groupId }),
-  setMarketplaceSearchResult: (input, result) => set((state) => {
-    const query = normalizeMarketplaceQuery(input.query);
-    const sortBy = input.sortBy ?? DEFAULT_MARKETPLACE_SORT;
-    const nextSkills = input.append
-      ? dedupeMarketplaceSkills([...state.marketplaceResults, ...result.skills])
-      : result.skills;
-    const pagination = result.pagination ?? null;
-    const cacheKey = marketplaceCacheKey(query, sortBy);
+  setMarketplaceSearchResult: (input, result) =>
+    set((state) => {
+      const query = normalizeMarketplaceQuery(input.query);
+      const sortBy = input.sortBy ?? DEFAULT_MARKETPLACE_SORT;
+      const nextSkills = input.append
+        ? dedupeMarketplaceSkills([...state.marketplaceResults, ...result.skills])
+        : result.skills;
+      const pagination = result.pagination ?? null;
+      const cacheKey = marketplaceCacheKey(query, sortBy);
 
-    return {
-      marketplaceResults: nextSkills,
-      marketplacePagination: pagination,
-      marketplaceQuery: query,
-      marketplaceSortBy: sortBy,
-      marketplaceHasLoaded: true,
-      marketplaceCache: {
-        ...state.marketplaceCache,
-        [cacheKey]: {
-          skills: nextSkills,
-          pagination,
-          query,
-          sortBy,
+      return {
+        marketplaceResults: nextSkills,
+        marketplacePagination: pagination,
+        marketplaceQuery: query,
+        marketplaceSortBy: sortBy,
+        marketplaceHasLoaded: true,
+        marketplaceCache: {
+          ...state.marketplaceCache,
+          [cacheKey]: {
+            skills: nextSkills,
+            pagination,
+            query,
+            sortBy,
+          },
         },
-      },
-    };
-  }),
+      };
+    }),
   restoreMarketplaceCache: (input) => {
     const query = normalizeMarketplaceQuery(input.query);
     const sortBy = input.sortBy ?? DEFAULT_MARKETPLACE_SORT;
@@ -110,10 +108,11 @@ export const useSkillsStore = create<SkillsStore>((set, get) => ({
     });
     return true;
   },
-  resetDrafts: () => set((state) => ({
-    skillGroups: state.savedSkillGroups,
-    defaultSkillGroupId: state.savedDefaultSkillGroupId,
-  })),
+  resetDrafts: () =>
+    set((state) => ({
+      skillGroups: state.savedSkillGroups,
+      defaultSkillGroupId: state.savedDefaultSkillGroupId,
+    })),
 }));
 
 export const hasSkillsDraftChanges = (
@@ -121,14 +120,10 @@ export const hasSkillsDraftChanges = (
   savedSkillGroups: WorkspaceSkillGroup[],
   defaultSkillGroupId: string,
   savedDefaultSkillGroupId: string,
-) =>
-  defaultSkillGroupId !== savedDefaultSkillGroupId
-  || !sameSkillGroups(skillGroups, savedSkillGroups);
+) => defaultSkillGroupId !== savedDefaultSkillGroupId || !sameSkillGroups(skillGroups, savedSkillGroups);
 
-const sameSkillGroups = (
-  left: WorkspaceSkillGroup[],
-  right: WorkspaceSkillGroup[],
-) => JSON.stringify(normalizeSkillGroups(left)) === JSON.stringify(normalizeSkillGroups(right));
+const sameSkillGroups = (left: WorkspaceSkillGroup[], right: WorkspaceSkillGroup[]) =>
+  JSON.stringify(normalizeSkillGroups(left)) === JSON.stringify(normalizeSkillGroups(right));
 
 const normalizeSkillGroups = (groups: WorkspaceSkillGroup[]) =>
   groups
@@ -146,11 +141,9 @@ const normalizeSkillGroups = (groups: WorkspaceSkillGroup[]) =>
     }))
     .sort((left, right) => left.id.localeCompare(right.id));
 
-const normalizeMarketplaceQuery = (query: string) =>
-  query.trim() || DEFAULT_MARKETPLACE_QUERY;
+const normalizeMarketplaceQuery = (query: string) => query.trim() || DEFAULT_MARKETPLACE_QUERY;
 
-const marketplaceCacheKey = (query: string, sortBy: SkillMarketplaceSort) =>
-  `${sortBy}:${query.trim().toLowerCase()}`;
+const marketplaceCacheKey = (query: string, sortBy: SkillMarketplaceSort) => `${sortBy}:${query.trim().toLowerCase()}`;
 
 const dedupeMarketplaceSkills = (skills: MarketplaceSkill[]) => {
   const seen = new Set<string>();

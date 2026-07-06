@@ -1,6 +1,6 @@
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { cn } from "@/lib/utils";
-import type { TavernScene } from "@/features/pages/taverns/manage/model";
+import type { TavernScene } from "@/features/pages/taverns/room/model";
 
 type SceneSelectorOption = {
   id: string;

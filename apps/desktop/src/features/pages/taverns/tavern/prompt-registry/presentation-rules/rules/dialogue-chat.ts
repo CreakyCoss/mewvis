@@ -9,7 +9,8 @@ export const dialogueChatPresentationRule: TavernPresentationRuleRegistration = 
   userInputMode: "speech",
   renderStyle: "chat",
   generationContract: "character_reply_xml",
-  bridgeSystemAddendum: "整体以现场对话演绎呈现，角色公开回复以直接对白和少量可观察动作承接现场；不要写成小说正文、设定说明或案情报告。",
+  bridgeSystemAddendum:
+    "整体以现场对话演绎呈现，角色公开回复以直接对白和少量可观察动作承接现场；不要写成小说正文、设定说明或案情报告。",
   directorAddendum: [
     "本呈现模式会把角色公开输出渲染为聊天式直接对白和近景动作；不要把角色整段改写成小说正文或角色名冒号剧本。",
     "narrator 若由导演输出，应是适合聊天流阅读的短公开场景提示。",

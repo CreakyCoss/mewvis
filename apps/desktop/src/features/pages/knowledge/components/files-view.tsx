@@ -27,24 +27,14 @@ export const FilesView = ({
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-card px-4 py-4 shadow-xs">
       <div className="min-w-0">
         <h3 className="text-sm font-semibold">上传文本文件</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          文件会导入到一级页设置的知识库目录中。
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">文件会导入到一级页设置的知识库目录中。</p>
       </div>
       <div className="flex items-center gap-2">
         <Badge variant={settings.storageDirectory ? "outline" : "secondary"}>
           {settings.storageDirectory ? "目录已设置" : "目录未设置"}
         </Badge>
-        <Button
-          type="button"
-          onClick={onAddTextFiles}
-          disabled={isAdding || isLoading}
-        >
-          {isAdding ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Upload className="size-4" />
-          )}
+        <Button type="button" onClick={onAddTextFiles} disabled={isAdding || isLoading}>
+          {isAdding ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
           <span>上传文本文件</span>
         </Button>
       </div>
@@ -53,16 +43,13 @@ export const FilesView = ({
     <section className="rounded-md bg-background p-4 shadow-xs">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-sm font-semibold">已上传文件</h3>
-        <span className="text-xs text-muted-foreground">
-          {sources.length} 个
-        </span>
+        <span className="text-xs text-muted-foreground">{sources.length} 个</span>
       </div>
 
       <div className="mt-3 space-y-3">
         {sources.length ? (
           sources.map((source) => {
-            const blockingCollectionNames =
-              enabledCollectionNamesBySourceId.get(source.id) ?? [];
+            const blockingCollectionNames = enabledCollectionNamesBySourceId.get(source.id) ?? [];
             const isDeleteBlocked = blockingCollectionNames.length > 0;
             return (
               <article
@@ -79,14 +66,8 @@ export const FilesView = ({
                       {relativeKnowledgePath(source.uri, settings.storageDirectory)}
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                      <Badge variant="secondary">
-                        {sourceKindLabel(source.kind)}
-                      </Badge>
-                      {isDeleteBlocked && (
-                        <Badge variant="outline">
-                          已被集合使用
-                        </Badge>
-                      )}
+                      <Badge variant="secondary">{sourceKindLabel(source.kind)}</Badge>
+                      {isDeleteBlocked && <Badge variant="outline">已被集合使用</Badge>}
                     </div>
                   </div>
                 </div>
@@ -94,9 +75,7 @@ export const FilesView = ({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  title={isDeleteBlocked
-                    ? `先从启用集合中移除：${blockingCollectionNames.join("、")}`
-                    : "删除来源"}
+                  title={isDeleteBlocked ? `先从启用集合中移除：${blockingCollectionNames.join("、")}` : "删除来源"}
                   aria-label="删除来源"
                   disabled={isDeleteBlocked}
                   onClick={() => onRequestRemoveSource(source)}

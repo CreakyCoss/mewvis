@@ -14,15 +14,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { getProviderOption, getProviderOptions } from "../options";
 import { saveLlmSettings } from "../api";
-import type {
-  LlmProvider,
-  LlmProviderConfig,
-  ProviderModelConfig,
-} from "../types";
-import {
-  getProviderApiFormatOptions,
-  getProviderModelOptions,
-} from "./form";
+import type { LlmProvider, LlmProviderConfig, ProviderModelConfig } from "../types";
+import { getProviderApiFormatOptions, getProviderModelOptions } from "./form";
 import {
   applyApiFormatDefaults,
   applyModelDefaults,
@@ -39,9 +32,7 @@ import {
 
 type ProviderEditMode = "create" | "edit";
 
-type ProviderEditDialogOpenOptions =
-  | { mode: "create" }
-  | { mode: "edit"; provider: LlmProvider };
+type ProviderEditDialogOpenOptions = { mode: "create" } | { mode: "edit"; provider: LlmProvider };
 
 export type ProviderEditDialogHandle = {
   open: (options?: ProviderEditDialogOpenOptions) => void;
@@ -56,15 +47,10 @@ type ProviderEditDialogProps = {
 const selectClassName =
   "h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
-export const ProviderEditDialog = ({
-  bind,
-  providers,
-  onSaved,
-}: ProviderEditDialogProps) => {
+export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDialogProps) => {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<ProviderEditMode>("create");
-  const [providerDraft, setProviderDraft] =
-    useState<LlmProviderConfig | null>(null);
+  const [providerDraft, setProviderDraft] = useState<LlmProviderConfig | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -105,35 +91,20 @@ export const ProviderEditDialog = ({
     [providers.length],
   );
 
-  const selectedProviderOption = providerDraft
-    ? getProviderOption(providerDraft.provider)
-    : undefined;
-  const selectedApiFormatOptions = providerDraft
-    ? getProviderApiFormatOptions(providerDraft.provider)
-    : [];
-  const selectedModelOptions = providerDraft
-    ? getProviderModelOptions(providerDraft.provider)
-    : [];
-  const modelOptionListId = providerDraft
-    ? `${providerDraft.id}-model-options`
-    : "";
+  const selectedProviderOption = providerDraft ? getProviderOption(providerDraft.provider) : undefined;
+  const selectedApiFormatOptions = providerDraft ? getProviderApiFormatOptions(providerDraft.provider) : [];
+  const selectedModelOptions = providerDraft ? getProviderModelOptions(providerDraft.provider) : [];
+  const modelOptionListId = providerDraft ? `${providerDraft.id}-model-options` : "";
   const canDelete = mode === "edit" && providers.length > 1;
 
-  const updateProviderDraft = (
-    updater: (provider: LlmProviderConfig) => LlmProviderConfig,
-  ) => {
-    setProviderDraft((current) => current ? updater(current) : current);
+  const updateProviderDraft = (updater: (provider: LlmProviderConfig) => LlmProviderConfig) => {
+    setProviderDraft((current) => (current ? updater(current) : current));
   };
 
-  const updateModel = (
-    modelId: string,
-    updater: (model: ProviderModelConfig) => ProviderModelConfig,
-  ) => {
+  const updateModel = (modelId: string, updater: (model: ProviderModelConfig) => ProviderModelConfig) => {
     updateProviderDraft((current) => ({
       ...current,
-      models: current.models.map((model) =>
-        model.id === modelId ? updater(model) : model,
-      ),
+      models: current.models.map((model) => (model.id === modelId ? updater(model) : model)),
     }));
   };
 
@@ -182,12 +153,8 @@ export const ProviderEditDialog = ({
     const nextProviders =
       mode === "create"
         ? [...providerConfigs, nextProvider]
-        : providerConfigs.map((item) =>
-            item.id === nextProvider.id ? nextProvider : item
-          );
-    const didSave = await saveProviders(
-      normalizeProvidersForSave(nextProviders, nextProvider.id),
-    );
+        : providerConfigs.map((item) => (item.id === nextProvider.id ? nextProvider : item));
+    const didSave = await saveProviders(normalizeProvidersForSave(nextProviders, nextProvider.id));
 
     if (didSave) {
       closeDialog();
@@ -202,9 +169,7 @@ export const ProviderEditDialog = ({
 
     const providerConfigs = toLlmSettingsConfig({ providers }).providers;
     const didSave = await saveProviders(
-      normalizeProvidersForSave(
-        providerConfigs.filter((item) => item.id !== providerDraft.id),
-      ),
+      normalizeProvidersForSave(providerConfigs.filter((item) => item.id !== providerDraft.id)),
     );
 
     if (didSave) {
@@ -283,16 +248,11 @@ export const ProviderEditDialog = ({
                     value={providerDraft.provider}
                     onChange={(event) => {
                       const value = event.currentTarget.value;
-                      updateProviderDraft((current) =>
-                        applyProviderDefaults(current, value),
-                      );
+                      updateProviderDraft((current) => applyProviderDefaults(current, value));
                     }}
                   >
                     {getProviderOptions().map((providerOption) => (
-                      <option
-                        key={providerOption.value}
-                        value={providerOption.value}
-                      >
+                      <option key={providerOption.value} value={providerOption.value}>
                         {providerOption.label}
                       </option>
                     ))}
@@ -307,14 +267,11 @@ export const ProviderEditDialog = ({
                     value={providerDraft.apiFormat}
                     onChange={(event) => {
                       const value = selectedApiFormatOptions.find(
-                        (apiFormat) =>
-                          apiFormat.value === event.currentTarget.value,
+                        (apiFormat) => apiFormat.value === event.currentTarget.value,
                       )?.value;
                       if (!value) return;
 
-                      updateProviderDraft((current) =>
-                        applyApiFormatDefaults(current, value),
-                      );
+                      updateProviderDraft((current) => applyApiFormatDefaults(current, value));
                     }}
                   >
                     {selectedApiFormatOptions.map((apiFormat) => (
@@ -374,12 +331,7 @@ export const ProviderEditDialog = ({
                 </div>
 
                 {canDelete && (
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    onClick={() => void deleteProvider()}
-                    disabled={isSaving}
-                  >
+                  <Button type="button" variant="destructive" onClick={() => void deleteProvider()} disabled={isSaving}>
                     <Trash2 className="size-4" />
                     <span>删除 Provider</span>
                   </Button>
@@ -390,9 +342,7 @@ export const ProviderEditDialog = ({
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-semibold">模型</h3>
-                    <p className="text-xs text-muted-foreground">
-                      可从供应商模型中选择，也可以手动输入自定义模型 ID。
-                    </p>
+                    <p className="text-xs text-muted-foreground">可从供应商模型中选择，也可以手动输入自定义模型 ID。</p>
                   </div>
                   <Button type="button" variant="outline" onClick={addModel}>
                     <Plus className="size-4" />
@@ -422,21 +372,13 @@ export const ProviderEditDialog = ({
                           value={model.modelId}
                           onChange={(event) => {
                             const value = event.currentTarget.value;
-                            updateModel(model.id, (item) =>
-                              applyModelDefaults(
-                                item,
-                                providerDraft.provider,
-                                value,
-                              ),
-                            );
+                            updateModel(model.id, (item) => applyModelDefaults(item, providerDraft.provider, value));
                           }}
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor={`${model.id}-model-name`}>
-                          显示名称
-                        </Label>
+                        <Label htmlFor={`${model.id}-model-name`}>显示名称</Label>
                         <Input
                           id={`${model.id}-model-name`}
                           value={model.modelName}
@@ -448,9 +390,7 @@ export const ProviderEditDialog = ({
                             }));
                           }}
                           placeholder={
-                            selectedModelOptions.find(
-                              (item) => item.id === model.modelId,
-                            )?.name ?? "自定义显示名称"
+                            selectedModelOptions.find((item) => item.id === model.modelId)?.name ?? "自定义显示名称"
                           }
                         />
                       </div>
@@ -501,20 +441,11 @@ export const ProviderEditDialog = ({
             </div>
 
             <DialogFooter className="px-6 pb-6 pt-4 shadow-[0_-10px_30px_-32px_rgb(15_23_42_/_0.35)]">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleOpenChange(false)}
-                disabled={isSaving}
-              >
+              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} disabled={isSaving}>
                 取消
               </Button>
               <Button type="submit" disabled={isSaving}>
-                {isSaving ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Save className="size-4" />
-                )}
+                {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
                 <span>{isSaving ? "正在保存" : "保存配置"}</span>
               </Button>
             </DialogFooter>

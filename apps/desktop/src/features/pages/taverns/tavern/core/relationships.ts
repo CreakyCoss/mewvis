@@ -1,8 +1,8 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type {
   TavernCharacter,
   TavernCharacterRelationship,
   TavernRelationshipTarget,
-  TavernRoom,
   TavernSceneRelationshipOverride,
   TavernStatusSnapshot,
   TavernStatusValue,

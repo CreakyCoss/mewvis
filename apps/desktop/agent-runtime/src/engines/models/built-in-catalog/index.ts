@@ -26,10 +26,7 @@ const toCatalogModel = (model: RawCatalogModel): CatalogModel => ({
   input: [...model.input],
 });
 
-const buildCatalogModelMap = (
-  rawModels: Record<string, RawCatalogModel>,
-  modelIds?: string[],
-) => {
+const buildCatalogModelMap = (rawModels: Record<string, RawCatalogModel>, modelIds?: string[]) => {
   const models: Record<string, CatalogModel> = {};
 
   for (const modelId of modelIds ?? Object.keys(rawModels)) {
@@ -49,10 +46,7 @@ const buildCatalogProvider = (
   const catalogConfig = MODEL_PROVIDER_CONFIG[provider];
   if (!catalogConfig) return null;
 
-  const models = buildCatalogModelMap(
-    rawProviderCatalog.models,
-    catalogConfig.models,
-  );
+  const models = buildCatalogModelMap(rawProviderCatalog.models, catalogConfig.models);
 
   if (Object.keys(models).length === 0) {
     return null;
@@ -69,10 +63,7 @@ const buildModelCatalog = (): RuntimeModelCatalog => {
   const catalog: RuntimeModelCatalog = {};
 
   for (const [provider, rawProviderCatalog] of Object.entries(rawModelCatalog)) {
-    const providerCatalog = buildCatalogProvider(
-      provider,
-      rawProviderCatalog,
-    );
+    const providerCatalog = buildCatalogProvider(provider, rawProviderCatalog);
     if (!providerCatalog) continue;
 
     catalog[provider] = providerCatalog;

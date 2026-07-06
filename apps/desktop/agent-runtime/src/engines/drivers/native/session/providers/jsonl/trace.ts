@@ -10,9 +10,7 @@ const withTimestamp = <TRecord extends RuntimeSessionTraceRecord>(
   timestamp: record.timestamp ?? new Date().toISOString(),
 });
 
-export const appendRuntimeSessionTraceRecord = async <
-  TRecord extends RuntimeSessionTraceRecord,
->(
+export const appendRuntimeSessionTraceRecord = async <TRecord extends RuntimeSessionTraceRecord>(
   tracePath: string,
   record: TRecord,
 ): Promise<TRecord & { timestamp: string }> => {
@@ -25,15 +23,9 @@ export const ensureRuntimeSessionTraceFile = async (tracePath: string) => {
   await appendFile(tracePath, "", "utf8");
 };
 
-export const readRuntimeSessionTraceRecords = async (
-  tracePath: string,
-): Promise<RuntimeSessionTraceRecord[]> => {
+export const readRuntimeSessionTraceRecords = async (tracePath: string): Promise<RuntimeSessionTraceRecord[]> => {
   const content = await readFile(tracePath, "utf8").catch((error: unknown) => {
-    if (
-      error &&
-      typeof error === "object" &&
-      (error as { code?: unknown }).code === "ENOENT"
-    ) {
+    if (error && typeof error === "object" && (error as { code?: unknown }).code === "ENOENT") {
       return "";
     }
     throw error;

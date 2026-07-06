@@ -10,11 +10,7 @@ export type TavernRuntimeMessage = {
   } | null;
 };
 
-const roleLabel = (role: TavernRuntimeMessage["role"]) =>
-  role === "user" ? "用户" : "助手";
+const roleLabel = (role: TavernRuntimeMessage["role"]) => (role === "user" ? "用户" : "助手");
 
-export const formatTavernRuntimeMessagesForSummary = (
-  messages: TavernRuntimeMessage[],
-) => messages
-  .map((message) => `${roleLabel(message.role)}：${message.content}`)
-  .join("\n\n");
+export const formatTavernRuntimeMessagesForSummary = (messages: TavernRuntimeMessage[]) =>
+  messages.map((message) => `${roleLabel(message.role)}：${message.content}`).join("\n\n");

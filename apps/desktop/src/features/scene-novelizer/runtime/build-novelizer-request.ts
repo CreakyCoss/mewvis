@@ -1,11 +1,6 @@
 import type { SceneNovelSource } from "../types";
-import {
-  getSceneNovelizerPlatformPackage,
-} from "../prompt-registry/packages";
-import {
-  getSceneNovelizerRuleOptions,
-  SCENE_NOVELIZER_RULE_CATEGORY_LABELS,
-} from "../prompt-registry/rule-options";
+import { getSceneNovelizerPlatformPackage } from "../prompt-registry/packages";
+import { getSceneNovelizerRuleOptions, SCENE_NOVELIZER_RULE_CATEGORY_LABELS } from "../prompt-registry/rule-options";
 
 const materialKindLabel: Record<string, string> = {
   user_action: "用户行动",
@@ -31,17 +26,15 @@ export const buildSceneNovelizerSystemPrompt = (source: SceneNovelSource) => {
   ].join("\n");
 };
 
-export const buildSceneNovelizerRequestContext = (
-  source: SceneNovelSource,
-  feedback?: string,
-) => {
+export const buildSceneNovelizerRequestContext = (source: SceneNovelSource, feedback?: string) => {
   const platformPackage = getSceneNovelizerPlatformPackage(source.platformStyleId);
   const ruleOptions = getSceneNovelizerRuleOptions(source.ruleOptionIds);
-  const visibleMaterials = source.materials.filter((material) =>
-    material.text.trim() &&
-    (source.constraints.thoughtMode !== "user_visible_only" ||
-      material.visibility === "public" ||
-      material.visibility === "user_visible")
+  const visibleMaterials = source.materials.filter(
+    (material) =>
+      material.text.trim() &&
+      (source.constraints.thoughtMode !== "user_visible_only" ||
+        material.visibility === "public" ||
+        material.visibility === "user_visible"),
   );
 
   return [
@@ -65,18 +58,19 @@ export const buildSceneNovelizerRequestContext = (
     "",
     ruleOptions.length > 0
       ? [
-          "<writing_rule_layers instruction=\"user_selected_realtime_writing_rules; lower_priority_than_facts_and_platform_rules\">",
-          ...ruleOptions.map((option) => [
-            `## ${SCENE_NOVELIZER_RULE_CATEGORY_LABELS[option.category]} / ${option.label}`,
-            ...option.writingRules.map((rule) => `- ${rule}`),
-          ].join("\n")),
+          '<writing_rule_layers instruction="user_selected_realtime_writing_rules; lower_priority_than_facts_and_platform_rules">',
+          ...ruleOptions.map((option) =>
+            [
+              `## ${SCENE_NOVELIZER_RULE_CATEGORY_LABELS[option.category]} / ${option.label}`,
+              ...option.writingRules.map((rule) => `- ${rule}`),
+            ].join("\n"),
+          ),
           "</writing_rule_layers>",
           "",
-          "<writing_rule_judge_focus instruction=\"local_quality_checker_focus; use_to_self_check_before_final_output\">",
-          ...ruleOptions.map((option) => [
-            `## ${option.label}`,
-            ...option.judgeFocus.map((focus) => `- ${focus}`),
-          ].join("\n")),
+          '<writing_rule_judge_focus instruction="local_quality_checker_focus; use_to_self_check_before_final_output">',
+          ...ruleOptions.map((option) =>
+            [`## ${option.label}`, ...option.judgeFocus.map((focus) => `- ${focus}`)].join("\n"),
+          ),
           "</writing_rule_judge_focus>",
           "",
         ].join("\n")
@@ -89,29 +83,25 @@ export const buildSceneNovelizerRequestContext = (
     ...(source.unresolvedHooks.length > 0 ? source.unresolvedHooks.map((hook) => `- ${hook}`) : ["- 无"]),
     "</unresolved_hooks>",
     "",
-    "<materials instruction=\"use_as_factual_baseline; preserve_user_actions; do_not_copy_labels_into_final_text\">",
-    ...visibleMaterials.map((material) => [
-      `turn ${material.turnIndex} / ${materialKindLabel[material.kind] ?? material.kind}`,
-      material.characterName ? `character: ${material.characterName}` : "",
-      material.tags?.length ? `tags: ${material.tags.join(", ")}` : "",
-      material.text,
-    ].filter(Boolean).join("\n")),
+    '<materials instruction="use_as_factual_baseline; preserve_user_actions; do_not_copy_labels_into_final_text">',
+    ...visibleMaterials.map((material) =>
+      [
+        `turn ${material.turnIndex} / ${materialKindLabel[material.kind] ?? material.kind}`,
+        material.characterName ? `character: ${material.characterName}` : "",
+        material.tags?.length ? `tags: ${material.tags.join(", ")}` : "",
+        material.text,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    ),
     "</materials>",
-    feedback
-      ? [
-          "",
-          "<rewrite_feedback>",
-          feedback,
-          "</rewrite_feedback>",
-        ].join("\n")
-      : "",
-  ].filter(Boolean).join("\n");
+    feedback ? ["", "<rewrite_feedback>", feedback, "</rewrite_feedback>"].join("\n") : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 };
 
-export const buildSceneNovelizerRuntimeInstruction = (
-  source: SceneNovelSource,
-  feedback?: string,
-) => {
+export const buildSceneNovelizerRuntimeInstruction = (source: SceneNovelSource, feedback?: string) => {
   const platformPackage = getSceneNovelizerPlatformPackage(source.platformStyleId);
   const ruleOptions = getSceneNovelizerRuleOptions(source.ruleOptionIds);
 

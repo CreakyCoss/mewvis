@@ -15,27 +15,14 @@ import type {
 } from "../../../../../protocol/index.js";
 import { CollaborationEventType } from "../../../../../protocol/index.js";
 import { messageFromError } from "../../../error.js";
-import type {
-  CollaborationExecutionState,
-} from "./execution-state.js";
-import type {
-  CollaborationRuntimeRunInput,
-  CollaborationRunContext,
-  RunAgentForCollaboration,
-} from "../types.js";
-import type {
-  CollaborationAgentInvocation,
-} from "./step.js";
-import type {
-  CollaborationHandlerContext,
-  CollaborationRouterResult,
-} from "../../handlers/types.js";
+import type { CollaborationExecutionState } from "./execution-state.js";
+import type { CollaborationRuntimeRunInput, CollaborationRunContext, RunAgentForCollaboration } from "../types.js";
+import type { CollaborationAgentInvocation } from "./step.js";
+import type { CollaborationHandlerContext, CollaborationRouterResult } from "../../handlers/types.js";
 
 export type StepExecutionOutcome = CollaborationStepResult | CollaborationSkippedStepResult;
 
-export type ExecuteStep = (
-  step: CollaborationWorkflowStep,
-) => Promise<StepExecutionOutcome>;
+export type ExecuteStep = (step: CollaborationWorkflowStep) => Promise<StepExecutionOutcome>;
 
 export type RunStepInput = {
   context: CollaborationRunContext;
@@ -76,12 +63,15 @@ export const collectCollaborationRunResult = ({
   steps: readonly CollaborationWorkflowStep[];
   workflowRunId: string;
 }) => {
-  const stepResults = steps.map((step) => state.stepResultById.get(step.id))
+  const stepResults = steps
+    .map((step) => state.stepResultById.get(step.id))
     .filter((step): step is CollaborationStepResult => Boolean(step));
   const declaredStepIds = new Set(steps.map((step) => step.id));
-  const dynamicStepResults = Array.from(state.stepResultById.values())
-    .filter((step) => !declaredStepIds.has(step.stepId));
-  const skippedSteps = steps.map((step) => state.skippedStepById.get(step.id))
+  const dynamicStepResults = Array.from(state.stepResultById.values()).filter(
+    (step) => !declaredStepIds.has(step.stepId),
+  );
+  const skippedSteps = steps
+    .map((step) => state.skippedStepById.get(step.id))
     .filter((step): step is CollaborationSkippedStepResult => Boolean(step));
 
   return {
@@ -132,14 +122,16 @@ export const runStepWithRetry = async ({
   step,
   workflowRunId,
 }: RunStepInput): Promise<StepExecutionOutcome> => {
-  if (!await shouldRunStep({
-    emit,
-    handlerRegistry,
-    input,
-    state,
-    step,
-    workflowRunId,
-  })) {
+  if (
+    !(await shouldRunStep({
+      emit,
+      handlerRegistry,
+      input,
+      state,
+      step,
+      workflowRunId,
+    }))
+  ) {
     const skippedStep = {
       stepId: step.id,
       reason: "condition_false",
@@ -225,13 +217,10 @@ const runAgentStepWithRetry = async ({
 }): Promise<CollaborationStepResult> => {
   const role = roleById.get(step.agentRoleId);
   if (!role) {
-    throw new CollaborationStepRunError(
-      `协作 step 引用了不存在的 agentRoleId：${step.agentRoleId}`,
-      {
-        agentRoleId: step.agentRoleId,
-        stepId: step.id,
-      },
-    );
+    throw new CollaborationStepRunError(`协作 step 引用了不存在的 agentRoleId：${step.agentRoleId}`, {
+      agentRoleId: step.agentRoleId,
+      stepId: step.id,
+    });
   }
 
   const maxRetries = normalizeMaxRetries(step.maxRetries);
@@ -251,10 +240,9 @@ const runAgentStepWithRetry = async ({
     });
 
     try {
-      const result = await runAgent(
-        buildAgentCommand(input, step, role, agentTaskId, state),
-        {
-          emit: (event) => emit({
+      const result = await runAgent(buildAgentCommand(input, step, role, agentTaskId, state), {
+        emit: (event) =>
+          emit({
             type: CollaborationEventType.AgentEvent,
             workflowRunId,
             stepId: step.id,
@@ -262,8 +250,7 @@ const runAgentStepWithRetry = async ({
             agentTaskId,
             event,
           }),
-        },
-      );
+      });
       const stepResult = {
         stepId: step.id,
         stepType: step.type,
@@ -326,9 +313,10 @@ const runDispatchStep = async ({
       workflowRunId,
     });
 
-  const invocationResults = step.mode === "parallel"
-    ? await Promise.all(invocations.map((invocation, index) => runInvocation(invocation, index)))
-    : [];
+  const invocationResults =
+    step.mode === "parallel"
+      ? await Promise.all(invocations.map((invocation, index) => runInvocation(invocation, index)))
+      : [];
 
   if (step.mode !== "parallel") {
     for (const [index, invocation] of invocations.entries()) {
@@ -491,25 +479,19 @@ const runRouterStep = async ({
   return stepResult;
 };
 
-export const runParallelSteps = async (
-  steps: readonly CollaborationWorkflowStep[],
-  executeStep: ExecuteStep,
-) => {
+export const runParallelSteps = async (steps: readonly CollaborationWorkflowStep[], executeStep: ExecuteStep) => {
   const remainingStepIds = new Set(steps.map((step) => step.id));
   const completedStepIds = new Set<string>();
 
   while (remainingStepIds.size > 0) {
-    const readySteps = steps.filter((step) =>
-      remainingStepIds.has(step.id) &&
-      (step.dependsOn ?? []).every((stepId) => completedStepIds.has(stepId))
+    const readySteps = steps.filter(
+      (step) => remainingStepIds.has(step.id) && (step.dependsOn ?? []).every((stepId) => completedStepIds.has(stepId)),
     );
     if (readySteps.length === 0) {
       throw new Error("协作 workflow 存在循环依赖或无法满足的 dependsOn");
     }
 
-    const settled = await Promise.allSettled(
-      readySteps.map((step) => executeStep(step)),
-    );
+    const settled = await Promise.allSettled(readySteps.map((step) => executeStep(step)));
     const failed = settled.find((result) => result.status === "rejected");
     for (const result of settled) {
       if (result.status === "fulfilled") {
@@ -558,29 +540,21 @@ export const runSerialSteps = async (
   }
 };
 
-export const normalizeWorkflowMaxSteps = (
-  value: number | null | undefined,
-  stepCount: number,
-) => {
+export const normalizeWorkflowMaxSteps = (value: number | null | undefined, stepCount: number) => {
   if (value === null || value === undefined || !Number.isFinite(value)) {
     return Math.max(32, stepCount * 4);
   }
   return Math.max(1, Math.floor(value));
 };
 
-const resolveRouterNextStepId = (
-  step: CollaborationWorkflowStep,
-  outcome: StepExecutionOutcome,
-) => {
+const resolveRouterNextStepId = (step: CollaborationWorkflowStep, outcome: StepExecutionOutcome) => {
   if (step.type !== "router" || !step.routes || !("outputKey" in outcome)) {
     return null;
   }
 
   const route = outcome.route ?? null;
   const destination = route ? step.routes[route] : undefined;
-  const fallbackDestination = step.fallbackRoute
-    ? step.routes[step.fallbackRoute] ?? step.fallbackRoute
-    : null;
+  const fallbackDestination = step.fallbackRoute ? (step.routes[step.fallbackRoute] ?? step.fallbackRoute) : null;
   if (!route && !fallbackDestination) {
     return null;
   }
@@ -596,11 +570,9 @@ const normalizeRouterDestination = (value: string | null | undefined) => {
   return destination === "end" || destination === "__end__" ? "__end__" : destination;
 };
 
-export const assertNoDynamicRouterSteps = (
-  steps: readonly CollaborationWorkflowStep[],
-) => {
-  const dynamicRouter = steps.find((step) =>
-    step.type === "router" && step.routes && Object.keys(step.routes).length > 0
+export const assertNoDynamicRouterSteps = (steps: readonly CollaborationWorkflowStep[]) => {
+  const dynamicRouter = steps.find(
+    (step) => step.type === "router" && step.routes && Object.keys(step.routes).length > 0,
   );
   if (dynamicRouter) {
     throw new Error(`parallel workflow 暂不支持 router.routes：${dynamicRouter.id}`);
@@ -608,18 +580,14 @@ export const assertNoDynamicRouterSteps = (
 };
 
 const createAgentTaskId = (workflowRunId: string, stepId: string, attempt = 1) =>
-  attempt === 1
-    ? `${workflowRunId}:${stepId}`
-    : `${workflowRunId}:${stepId}:attempt-${attempt}`;
+  attempt === 1 ? `${workflowRunId}:${stepId}` : `${workflowRunId}:${stepId}:attempt-${attempt}`;
 
-const normalizeDispatchInvocations = (
-  input: unknown,
-): CollaborationAgentInvocation[] => {
+const normalizeDispatchInvocations = (input: unknown): CollaborationAgentInvocation[] => {
   const rawInvocations = Array.isArray(input)
     ? input
     : input && typeof input === "object" && Array.isArray((input as { invocations?: unknown }).invocations)
-    ? (input as { invocations: unknown[] }).invocations
-    : [];
+      ? (input as { invocations: unknown[] }).invocations
+      : [];
 
   return rawInvocations.map((item, index) => {
     if (!item || typeof item !== "object" || Array.isArray(item)) {
@@ -635,11 +603,10 @@ const normalizeDispatchInvocations = (
     return {
       ...invocation,
       agentRoleId: invocation.agentRoleId.trim(),
-      id: typeof invocation.id === "string" ? invocation.id.trim() : invocation.id ?? null,
-      label: typeof invocation.label === "string" ? invocation.label.trim() : invocation.label ?? null,
-      outputKey: typeof invocation.outputKey === "string"
-        ? invocation.outputKey.trim()
-        : invocation.outputKey ?? null,
+      id: typeof invocation.id === "string" ? invocation.id.trim() : (invocation.id ?? null),
+      label: typeof invocation.label === "string" ? invocation.label.trim() : (invocation.label ?? null),
+      outputKey:
+        typeof invocation.outputKey === "string" ? invocation.outputKey.trim() : (invocation.outputKey ?? null),
       userMessage: invocation.userMessage,
     };
   });
@@ -676,16 +643,10 @@ const createDispatchAgentStep = (
   };
 };
 
-const normalizeDispatchInvocationId = (
-  invocation: CollaborationAgentInvocation,
-  index: number,
-) => {
-  const rawId = invocation.id?.trim() ||
-    invocation.outputKey?.trim() ||
-    invocation.agentRoleId.trim() ||
-    `item-${index + 1}`;
-  return rawId.replace(/[^A-Za-z0-9_.:-]+/g, "-").replace(/^-+|-+$/g, "") ||
-    `item-${index + 1}`;
+const normalizeDispatchInvocationId = (invocation: CollaborationAgentInvocation, index: number) => {
+  const rawId =
+    invocation.id?.trim() || invocation.outputKey?.trim() || invocation.agentRoleId.trim() || `item-${index + 1}`;
+  return rawId.replace(/[^A-Za-z0-9_.:-]+/g, "-").replace(/^-+|-+$/g, "") || `item-${index + 1}`;
 };
 
 const normalizeMaxRetries = (value: number | null | undefined) => {
@@ -762,11 +723,11 @@ const evaluateCondition = async ({
 
   if (condition.exists !== undefined) {
     usedOperator = true;
-    matched = matched && ((value !== null && value !== undefined) === condition.exists);
+    matched = matched && (value !== null && value !== undefined) === condition.exists;
   }
   if (condition.truthy !== undefined) {
     usedOperator = true;
-    matched = matched && (Boolean(value) === condition.truthy);
+    matched = matched && Boolean(value) === condition.truthy;
   }
   if ("equals" in condition) {
     usedOperator = true;
@@ -817,10 +778,7 @@ const createHandlerContext = <TStep extends CollaborationWorkflowStep>({
   workflowRunId,
 });
 
-const normalizeRouterResult = (
-  result: CollaborationRouterResult,
-  fallbackRoute: string | null | undefined,
-) => {
+const normalizeRouterResult = (result: CollaborationRouterResult, fallbackRoute: string | null | undefined) => {
   if (typeof result === "string" || result === null) {
     const route = result ?? fallbackRoute ?? null;
     return {
@@ -847,10 +805,7 @@ const buildAgentCommand = (
   taskId: string,
   state: CollaborationExecutionState,
 ) => {
-  const roleSystemPrompt = renderOptionalTemplate(
-    step.systemPrompt ?? role.systemPrompt ?? null,
-    state,
-  );
+  const roleSystemPrompt = renderOptionalTemplate(step.systemPrompt ?? role.systemPrompt ?? null, state);
   const runtimeInstruction = renderOptionalTemplate(step.runtimeInstruction ?? null, state);
 
   return {
@@ -866,10 +821,10 @@ const buildAgentCommand = (
     runtimeInstruction: joinInstructionSections([
       roleSystemPrompt
         ? [
-          "<agent_role_system_prompt instruction=\"agent_scoped; treat_as_system_priority_for_this_agent\">",
-          roleSystemPrompt,
-          "</agent_role_system_prompt>",
-        ].join("\n")
+            '<agent_role_system_prompt instruction="agent_scoped; treat_as_system_priority_for_this_agent">',
+            roleSystemPrompt,
+            "</agent_role_system_prompt>",
+          ].join("\n")
         : null,
       runtimeInstruction,
     ]),
@@ -879,29 +834,23 @@ const buildAgentCommand = (
   };
 };
 
-const joinInstructionSections = (
-  sections: Array<string | null | undefined>,
-) => {
-  const text = sections.map((section) => section?.trim() ?? "").filter(Boolean).join("\n\n");
+const joinInstructionSections = (sections: Array<string | null | undefined>) => {
+  const text = sections
+    .map((section) => section?.trim() ?? "")
+    .filter(Boolean)
+    .join("\n\n");
   return text || null;
 };
 
-const renderOptionalTemplate = (
-  value: string | null | undefined,
-  state: CollaborationExecutionState,
-) => value === null || value === undefined ? null : renderTemplate(value, state);
+const renderOptionalTemplate = (value: string | null | undefined, state: CollaborationExecutionState) =>
+  value === null || value === undefined ? null : renderTemplate(value, state);
 
-const renderTemplate = (
-  value: string,
-  state: CollaborationExecutionState,
-) => value.replace(/\{\{\s*([A-Za-z0-9_.:-]+)\s*\}\}/g, (_match, path: string) =>
-  stringifyTemplateValue(resolveTemplateValue(path, state))
-);
+const renderTemplate = (value: string, state: CollaborationExecutionState) =>
+  value.replace(/\{\{\s*([A-Za-z0-9_.:-]+)\s*\}\}/g, (_match, path: string) =>
+    stringifyTemplateValue(resolveTemplateValue(path, state)),
+  );
 
-const resolveStepInput = (
-  value: unknown,
-  state: CollaborationExecutionState,
-): unknown => {
+const resolveStepInput = (value: unknown, state: CollaborationExecutionState): unknown => {
   if (typeof value === "string") {
     return renderTemplate(value, state);
   }
@@ -913,19 +862,13 @@ const resolveStepInput = (
   }
   if (value !== null && typeof value === "object") {
     return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([key, item]) => [
-        key,
-        resolveStepInput(item, state),
-      ]),
+      Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, resolveStepInput(item, state)]),
     );
   }
   return value;
 };
 
-const resolveDispatchInput = (
-  value: unknown,
-  state: CollaborationExecutionState,
-): unknown => {
+const resolveDispatchInput = (value: unknown, state: CollaborationExecutionState): unknown => {
   if (isTemplateRef(value)) {
     return resolveTemplateValue(value.$ref, state);
   }
@@ -949,14 +892,10 @@ const isTemplateRef = (value: unknown): value is { $ref: string } => {
     return false;
   }
   const entries = Object.entries(value as Record<string, unknown>);
-  return entries.length === 1 && entries[0]?.[0] === "$ref" &&
-    typeof entries[0]?.[1] === "string";
+  return entries.length === 1 && entries[0]?.[0] === "$ref" && typeof entries[0]?.[1] === "string";
 };
 
-const resolveTemplateValue = (
-  path: string,
-  state: CollaborationExecutionState,
-) => {
+const resolveTemplateValue = (path: string, state: CollaborationExecutionState) => {
   const [root, ...parts] = path.split(".");
   if (root === "input") {
     return getPathValue(state.input, parts);
@@ -995,11 +934,7 @@ const stringifyTemplateValue = (value: unknown) => {
   if (typeof value === "string") {
     return value;
   }
-  if (
-    typeof value === "number" ||
-    typeof value === "boolean" ||
-    typeof value === "bigint"
-  ) {
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
     return String(value);
   }
   return JSON.stringify(value);
@@ -1009,12 +944,7 @@ const valuesEqual = (left: unknown, right: unknown) => {
   if (Object.is(left, right)) {
     return true;
   }
-  if (
-    typeof left === "object" &&
-    left !== null &&
-    typeof right === "object" &&
-    right !== null
-  ) {
+  if (typeof left === "object" && left !== null && typeof right === "object" && right !== null) {
     try {
       return JSON.stringify(left) === JSON.stringify(right);
     } catch {
@@ -1054,15 +984,15 @@ const mergeRuntimeResources = (
     ...base,
     tools: allowedTools
       ? {
-        ...(base.tools ?? {}),
-        allowed: allowedTools,
-      }
-      : base.tools ?? null,
+          ...(base.tools ?? {}),
+          allowed: allowedTools,
+        }
+      : (base.tools ?? null),
     skills: enabledSkills
       ? {
-        ...(base.skills ?? {}),
-        enabled: enabledSkills,
-      }
-      : base.skills ?? null,
+          ...(base.skills ?? {}),
+          enabled: enabledSkills,
+        }
+      : (base.skills ?? null),
   };
 };

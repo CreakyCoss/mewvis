@@ -45,7 +45,10 @@ function clickTab(port, text) {
     "var all=document.querySelectorAll('div,span,a,button,li');" +
     "var el=Array.from(all).find(function(e){" +
     "var t=e.textContent.trim();" +
-    "return t===" + safeStr(text) + "||t===" + safeStr(text + "榜") +
+    "return t===" +
+    safeStr(text) +
+    "||t===" +
+    safeStr(text + "榜") +
     "});" +
     "if(el){el.click();return true}return false" +
     "})())";
@@ -188,14 +191,7 @@ function scrapeRank(port, channelId, rankTypeId) {
 
   for (const b of books) {
     lines.push(`### #${b.rank} ${b.title}`);
-    const meta = [
-      b.author,
-      b.genre,
-      b.subGenre,
-      b.status,
-      b.words,
-      b.heat ? b.heat + "热度" : "",
-    ]
+    const meta = [b.author, b.genre, b.subGenre, b.status, b.words, b.heat ? b.heat + "热度" : ""]
       .filter(Boolean)
       .join(" · ");
     lines.push(`*${meta}*`);

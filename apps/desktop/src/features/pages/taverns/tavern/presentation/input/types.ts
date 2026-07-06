@@ -1,3 +1,4 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { TavernMessage } from "../../types";
 import type {
   TavernCharacterPrivateStatus,
@@ -7,16 +8,14 @@ import type {
   TavernPresentationSettings,
   TavernProgressTrackerSettings,
   TavernProgressView,
-  TavernRoom,
   TavernRoomPromptSettings,
   TavernRoomSettings,
-  TavernScene,
   TavernSceneOutcomeDefinition,
   TavernStatusDefinition,
   TavernStatusRule,
-  TavernStoryGraph,
   TavernTaskDefinition,
 } from "@/features/pages/taverns/manage/model";
+import type { TavernScene, TavernStoryGraph } from "@/features/pages/taverns/room/model";
 
 export type TavernPresentationInputSource = {
   type: "story" | "manual" | "import";

@@ -10,13 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 export type PlotDataDialogHandle = {
   open: () => void;
@@ -48,9 +42,13 @@ export const EmptyDetailState = ({ children }: { children: ReactNode }) => (
 
 const useDialogOpenHandle = (bind: Ref<PlotDataDialogHandle>) => {
   const [isOpen, setIsOpen] = useState(false);
-  useImperativeHandle(bind, () => ({
-    open: () => setIsOpen(true),
-  }), []);
+  useImperativeHandle(
+    bind,
+    () => ({
+      open: () => setIsOpen(true),
+    }),
+    [],
+  );
   return { isOpen, setIsOpen };
 };
 
@@ -69,31 +67,20 @@ export const PlotDataSheet = ({
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
-      <SheetContent
-        side="right"
-        className="!w-[92vw] !max-w-[92vw] gap-0 p-0 sm:!w-[480px] sm:!max-w-[480px]"
-      >
+      <SheetContent side="right" className="!w-[92vw] !max-w-[92vw] gap-0 p-0 sm:!w-[480px] sm:!max-w-[480px]">
         <SheetHeader className="border-b px-5 py-4 pr-14">
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
         <ScrollArea className="min-h-0 flex-1">
-          <div className="space-y-4 p-5">
-            {children}
-          </div>
+          <div className="space-y-4 p-5">{children}</div>
         </ScrollArea>
       </SheetContent>
     </Sheet>
   );
 };
 
-export const ConfirmActionDialog = ({
-  action,
-  onClose,
-}: {
-  action: ConfirmAction | null;
-  onClose: () => void;
-}) => {
+export const ConfirmActionDialog = ({ action, onClose }: { action: ConfirmAction | null; onClose: () => void }) => {
   const confirm = () => {
     if (!action) {
       return;
@@ -124,18 +111,10 @@ export const ConfirmActionDialog = ({
           </DialogHeader>
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-            >
+            <Button type="button" variant="outline" onClick={onClose}>
               取消
             </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={confirm}
-            >
+            <Button type="button" variant="destructive" onClick={confirm}>
               {action.confirmLabel}
             </Button>
           </DialogFooter>

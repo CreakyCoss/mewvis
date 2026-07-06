@@ -1,13 +1,7 @@
-import type {
-  AskUserInput,
-  AskUserOption,
-} from "../../../../protocol/index.js";
+import type { AskUserInput, AskUserOption } from "../../../../protocol/index.js";
 import type { ToolParameterDefinition } from "./types.js";
 
-const stringParam = (
-  description: string,
-  optional?: boolean,
-): ToolParameterDefinition => ({
+const stringParam = (description: string, optional?: boolean): ToolParameterDefinition => ({
   type: "string",
   description,
   optional,
@@ -37,15 +31,13 @@ const ASK_USER_TOOL_PARAMETERS = {
         type: {
           type: "union",
           description: "The UI control type to render for the answer",
-          anyOf: [
-            literalParam("text"),
-            literalParam("select"),
-          ],
+          anyOf: [literalParam("text"), literalParam("select")],
         },
         label: stringParam("Short label shown above the control", true),
         options: {
           type: "array",
-          description: "Required when type is select. Provide at least two options. Option value may be omitted; label will be used as the returned value.",
+          description:
+            "Required when type is select. Provide at least two options. Option value may be omitted; label will be used as the returned value.",
           optional: true,
           items: objectParam({
             value: stringParam(
@@ -66,7 +58,8 @@ const ASK_USER_TOOL_PARAMETERS = {
 export const ASK_USER_TOOL_DEFINITION = {
   name: "ask_user",
   label: "Ask User",
-  description: "Ask the user a question and wait for their answer. Use this whenever required information is missing, the user must choose a direction, or you need confirmation before continuing. Use text for open-ended answers. Use select only when you provide at least two options.",
+  description:
+    "Ask the user a question and wait for their answer. Use this whenever required information is missing, the user must choose a direction, or you need confirmation before continuing. Use text for open-ended answers. Use select only when you provide at least two options.",
   parameters: ASK_USER_TOOL_PARAMETERS,
 } as const;
 
@@ -138,10 +131,9 @@ const normalizeOption = (value: unknown, index: number): AskUserOption | undefin
 };
 
 const objectFromUnknown = (value: unknown): Record<string, unknown> | undefined =>
-  typeof value === "object" && value !== null ? value as Record<string, unknown> : undefined;
+  typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
 
-const optionalString = (value: unknown) =>
-  typeof value === "string" ? value : undefined;
+const optionalString = (value: unknown) => (typeof value === "string" ? value : undefined);
 
 const nonBlankString = (value: unknown) => {
   const text = optionalString(value);

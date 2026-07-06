@@ -1,4 +1,5 @@
-import type { TavernCharacter, TavernPromptBlockTarget, TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernCharacter, TavernPromptBlockTarget } from "@/features/pages/taverns/manage/model";
 import { escapePromptXmlText, limitPromptText } from "./text";
 
 const limitEscapedSecretPolicyText = (text: string, maxChars: number) =>

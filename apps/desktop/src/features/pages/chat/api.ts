@@ -1,9 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type {
-  ChatMessage,
-  ChatSession,
-  ChatSessionMeta,
-} from "./types";
+import type { ChatMessage, ChatSession, ChatSessionMeta } from "./types";
 
 export async function listChatSessions(workspacePath: string) {
   if (!isTauri()) {
@@ -15,10 +11,7 @@ export async function listChatSessions(workspacePath: string) {
   });
 }
 
-export async function loadChatSession(
-  workspacePath: string,
-  sessionId?: string | null,
-) {
+export async function loadChatSession(workspacePath: string, sessionId?: string | null) {
   if (!isTauri()) {
     return null;
   }
@@ -58,11 +51,7 @@ export async function saveChatSession(input: {
   });
 }
 
-export async function setChatSessionUnread(input: {
-  workspacePath: string;
-  sessionId: string;
-  isUnread: boolean;
-}) {
+export async function setChatSessionUnread(input: { workspacePath: string; sessionId: string; isUnread: boolean }) {
   if (!isTauri()) {
     return null;
   }

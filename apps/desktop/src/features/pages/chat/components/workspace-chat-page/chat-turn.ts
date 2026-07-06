@@ -1,8 +1,5 @@
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
-import type {
-  ChatMessage,
-  FileReferenceMatch,
-} from "../../types";
+import type { ChatMessage, FileReferenceMatch } from "../../types";
 
 type ValidateComposerSubmitInput = {
   runtimeAgentRequiresModel: boolean;
@@ -42,7 +39,10 @@ export const validateComposerSubmit = ({
       ok: false,
       error: ambiguousFileReferences
         .map((match) => {
-          const candidates = match.matches.slice(0, 5).map((file) => file.path).join("、");
+          const candidates = match.matches
+            .slice(0, 5)
+            .map((file) => file.path)
+            .join("、");
           return `@${match.token} 匹配到多个文件：${candidates}`;
         })
         .join("\n"),

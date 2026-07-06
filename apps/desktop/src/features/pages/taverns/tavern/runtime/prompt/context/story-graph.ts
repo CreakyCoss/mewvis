@@ -1,9 +1,9 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import {
   buildTavernStoryContextPackage,
   formatTavernStoryGraphContext as formatTavernStoryGraphContextFromPackage,
   getTavernRuntimeStoryProjection,
 } from "../../../adapters/story";
-import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 
 export const formatTavernStoryGraphContext = (
   room: TavernRoom,

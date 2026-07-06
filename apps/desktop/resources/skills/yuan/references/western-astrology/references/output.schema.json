@@ -2,22 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "AstrologyAnalysisOutput",
   "type": "object",
-  "required": [
-    "人格",
-    "事业",
-    "情感"
-  ],
+  "required": ["人格", "事业", "情感"],
   "additionalProperties": false,
   "properties": {
     "人格": {
       "type": "object",
-      "required": [
-        "核心配置",
-        "优势",
-        "挑战",
-        "建议",
-        "证据"
-      ],
+      "required": ["核心配置", "优势", "挑战", "建议", "证据"],
       "additionalProperties": false,
       "properties": {
         "核心配置": {
@@ -54,13 +44,7 @@
     },
     "事业": {
       "type": "object",
-      "required": [
-        "事业倾向",
-        "优势",
-        "挑战",
-        "建议",
-        "证据"
-      ],
+      "required": ["事业倾向", "优势", "挑战", "建议", "证据"],
       "additionalProperties": false,
       "properties": {
         "事业倾向": {
@@ -97,13 +81,7 @@
     },
     "情感": {
       "type": "object",
-      "required": [
-        "关系模式",
-        "优势",
-        "挑战",
-        "建议",
-        "证据"
-      ],
+      "required": ["关系模式", "优势", "挑战", "建议", "证据"],
       "additionalProperties": false,
       "properties": {
         "关系模式": {

@@ -1,3 +1,4 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { TavernMessage } from "../types";
 import type {
   TavernCharacter,
@@ -6,7 +7,6 @@ import type {
   TavernDirectorReplyModePreference,
   TavernDirectorSpeechBias,
   TavernFactEvent,
-  TavernRoom,
   TavernSchedulingSignal,
   TavernStatusDefinition,
   TavernStatusValue,

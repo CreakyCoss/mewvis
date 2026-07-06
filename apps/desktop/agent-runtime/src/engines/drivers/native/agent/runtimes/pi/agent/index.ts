@@ -8,29 +8,19 @@ import type {
   RuntimeAgentRebuildCommand,
   RuntimeAgentSummarizeCommand,
 } from "../../types.js";
-import type {
-  SessionMutationResult,
-} from "../../../../../../protocol/index.js";
-import {
-  createPiAgentRunState,
-  reportPiAgentRunError,
-  subscribeToPiAgentSession,
-} from "./events.js";
+import type { SessionMutationResult } from "../../../../../../protocol/index.js";
+import { createPiAgentRunState, reportPiAgentRunError, subscribeToPiAgentSession } from "./events.js";
 import { drivePiAgentSession } from "./driver.js";
-import {
-  createPiAgentSession,
-  type PiAgentSession,
-} from "./session.js";
-import {
-  compactPiAgentSession,
-  rebuildPiAgentSession,
-  summarizePiAgentSession,
-} from "./maintenance.js";
+import { createPiAgentSession, type PiAgentSession } from "./session.js";
+import { compactPiAgentSession, rebuildPiAgentSession, summarizePiAgentSession } from "./maintenance.js";
 
 export class PiAgent implements AgentRuntime {
   readonly id = "pi";
 
-  async run(command: RuntimeAgentCommand, { callbacks, emit, nativeSession }: AgentRuntimeContext): Promise<AgentRunResult> {
+  async run(
+    command: RuntimeAgentCommand,
+    { callbacks, emit, nativeSession }: AgentRuntimeContext,
+  ): Promise<AgentRunResult> {
     const state = createPiAgentRunState();
     let session: PiAgentSession | null = null;
     let unsubscribe: (() => void) | null = null;

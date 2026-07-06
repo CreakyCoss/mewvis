@@ -1,17 +1,9 @@
 import type { RuntimeSessionProvider } from "../types.js";
-import type {
-  RuntimeSessionContext,
-} from "../../model/ledger.js";
-import {
-  clearRuntimeSessionArtifactDir,
-  resolveRuntimeSessionArtifactDir,
-} from "../../internal/artifacts.js";
+import type { RuntimeSessionContext } from "../../model/ledger.js";
+import { clearRuntimeSessionArtifactDir, resolveRuntimeSessionArtifactDir } from "../../internal/artifacts.js";
 import { refreshRuntimeSessionManifest } from "./manifest.js";
 import { resolveRuntimeSessionPaths } from "./paths.js";
-import {
-  appendRuntimeSessionTraceRecord,
-  ensureRuntimeSessionTraceFile,
-} from "./trace.js";
+import { appendRuntimeSessionTraceRecord, ensureRuntimeSessionTraceFile } from "./trace.js";
 import { RuntimeLedgerStorage } from "./store.js";
 import {
   getCollaborationTimeline,
@@ -31,19 +23,11 @@ import {
   rebuildRuntimeSession,
   summarizeRuntimeSession,
 } from "../../internal/service.js";
-import {
-  prepareRuntimeSessionTurn,
-} from "../../internal/writer.js";
-import type {
-  RuntimeSessionStorageProvider,
-} from "../../internal/storage.js";
+import { prepareRuntimeSessionTurn } from "../../internal/writer.js";
+import type { RuntimeSessionStorageProvider } from "../../internal/storage.js";
 import { JsonlRuntimeSessionRecorder } from "./recorder.js";
 
-const contextViewFrom = ({
-  leafId: _leafId,
-  entries: _entries,
-  ...context
-}: RuntimeSessionContext) => context;
+const contextViewFrom = ({ leafId: _leafId, entries: _entries, ...context }: RuntimeSessionContext) => context;
 
 const jsonlRuntimeSessionStorageProvider: RuntimeSessionStorageProvider = {
   async resolvePaths(input) {
@@ -91,18 +75,11 @@ class JsonlRuntimeSessionProvider implements RuntimeSessionProvider {
   };
 
   createRecorder: RuntimeSessionProvider["createRecorder"] = (input) => {
-    return JsonlRuntimeSessionRecorder.create(
-      input,
-      jsonlRuntimeSessionStorageProvider,
-    );
+    return JsonlRuntimeSessionRecorder.create(input, jsonlRuntimeSessionStorageProvider);
   };
 
   prepareTurn: RuntimeSessionProvider["prepareTurn"] = async (input, options) => {
-    const prepared = await prepareRuntimeSessionTurn(
-      input,
-      jsonlRuntimeSessionStorageProvider,
-      options,
-    );
+    const prepared = await prepareRuntimeSessionTurn(input, jsonlRuntimeSessionStorageProvider, options);
     if (!prepared) {
       return null;
     }
@@ -162,43 +139,26 @@ class JsonlRuntimeSessionProvider implements RuntimeSessionProvider {
   };
 
   resolveArtifactDir: RuntimeSessionProvider["resolveArtifactDir"] = (input) => {
-    return resolveRuntimeSessionArtifactDir(
-      jsonlRuntimeSessionStorageProvider,
-      input,
-      input.segments,
-    );
+    return resolveRuntimeSessionArtifactDir(jsonlRuntimeSessionStorageProvider, input, input.segments);
   };
 
   clearArtifactDir: RuntimeSessionProvider["clearArtifactDir"] = (input) => {
-    return clearRuntimeSessionArtifactDir(
-      jsonlRuntimeSessionStorageProvider,
-      input,
-      input.segments,
-    );
+    return clearRuntimeSessionArtifactDir(jsonlRuntimeSessionStorageProvider, input, input.segments);
   };
 
   listRuntimeSessions: RuntimeSessionProvider["listRuntimeSessions"] = (input) => {
     return listRuntimeSessions(input);
   };
 
-  getRuntimeSessionSnapshot: RuntimeSessionProvider["getRuntimeSessionSnapshot"] = (
-    target,
-    options,
-  ) => {
+  getRuntimeSessionSnapshot: RuntimeSessionProvider["getRuntimeSessionSnapshot"] = (target, options) => {
     return getRuntimeSessionSnapshot(target, options);
   };
 
-  getRuntimeSessionDebugSnapshot: RuntimeSessionProvider["getRuntimeSessionDebugSnapshot"] = (
-    target,
-    options,
-  ) => {
+  getRuntimeSessionDebugSnapshot: RuntimeSessionProvider["getRuntimeSessionDebugSnapshot"] = (target, options) => {
     return getRuntimeSessionDebugSnapshot(target, options);
   };
 
-  getCollaborationTimeline: RuntimeSessionProvider["getCollaborationTimeline"] = (
-    target,
-    options,
-  ) => {
+  getCollaborationTimeline: RuntimeSessionProvider["getCollaborationTimeline"] = (target, options) => {
     return getCollaborationTimeline(target, options);
   };
 }

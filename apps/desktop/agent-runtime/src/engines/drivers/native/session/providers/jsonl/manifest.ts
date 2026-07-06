@@ -1,13 +1,8 @@
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import type {
-  RuntimeLedgerEntry,
-} from "../../model/ledger.js";
+import type { RuntimeLedgerEntry } from "../../model/ledger.js";
 import { RuntimeLedgerStorage } from "./store.js";
-import {
-  readRuntimeSessionTraceRecords,
-  type RuntimeSessionTraceRecord,
-} from "./trace.js";
+import { readRuntimeSessionTraceRecords, type RuntimeSessionTraceRecord } from "./trace.js";
 
 export type RuntimeSessionManifest = {
   type: "runtime_session_manifest";
@@ -39,17 +34,13 @@ export type RuntimeSessionManifestInput = {
   trace?: RuntimeSessionTraceRecord[];
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  Boolean(value) && typeof value === "object";
+const isRecord = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === "object";
 
-const isNotFoundError = (error: unknown) =>
-  isRecord(error) && error.code === "ENOENT";
+const isNotFoundError = (error: unknown) => isRecord(error) && error.code === "ENOENT";
 
-const stringValue = (value: unknown) =>
-  typeof value === "string" && value.trim() ? value.trim() : null;
+const stringValue = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : null);
 
-const timestampOfEntry = (entry: RuntimeLedgerEntry) =>
-  typeof entry.timestamp === "string" ? entry.timestamp : null;
+const timestampOfEntry = (entry: RuntimeLedgerEntry) => (typeof entry.timestamp === "string" ? entry.timestamp : null);
 
 const latestTimestamp = (timestamps: Array<string | null | undefined>) =>
   timestamps
@@ -57,8 +48,9 @@ const latestTimestamp = (timestamps: Array<string | null | undefined>) =>
     .sort()
     .at(-1) ?? null;
 
-const orderedUnique = (values: Array<string | null | undefined>) =>
-  [...new Set(values.filter((value): value is string => Boolean(value)))];
+const orderedUnique = (values: Array<string | null | undefined>) => [
+  ...new Set(values.filter((value): value is string => Boolean(value))),
+];
 
 const collaborationRecordParts = (record: RuntimeSessionTraceRecord) => {
   if (record.type !== "collaboration_event" || !isRecord(record.event)) {
@@ -110,19 +102,18 @@ const openLedgerOrNull = async (ledgerPath: string) => {
 };
 
 const fileMtimeMs = async (filePath: string) =>
-  stat(filePath).then((info) => info.mtimeMs).catch((error: unknown) => {
-    if (isNotFoundError(error)) {
-      return 0;
-    }
-    throw error;
-  });
+  stat(filePath)
+    .then((info) => info.mtimeMs)
+    .catch((error: unknown) => {
+      if (isNotFoundError(error)) {
+        return 0;
+      }
+      throw error;
+    });
 
-export const runtimeSessionManifestPath = (sessionRootDir: string) =>
-  resolve(sessionRootDir, "session.json");
+export const runtimeSessionManifestPath = (sessionRootDir: string) => resolve(sessionRootDir, "session.json");
 
-export const readRuntimeSessionManifest = async (
-  sessionRootDir: string,
-): Promise<RuntimeSessionManifest | null> => {
+export const readRuntimeSessionManifest = async (sessionRootDir: string): Promise<RuntimeSessionManifest | null> => {
   const manifestPath = runtimeSessionManifestPath(sessionRootDir);
   const content = await readFile(manifestPath, "utf8").catch((error: unknown) => {
     if (isNotFoundError(error)) {
@@ -163,7 +154,7 @@ export const readFreshRuntimeSessionManifest = async (input: {
   if (!manifest) {
     return null;
   }
-  return await isRuntimeSessionManifestFresh(input) ? manifest : null;
+  return (await isRuntimeSessionManifestFresh(input)) ? manifest : null;
 };
 
 export const buildRuntimeSessionManifest = ({
@@ -196,21 +187,15 @@ export const buildRuntimeSessionManifest = ({
   };
 };
 
-export const refreshRuntimeSessionManifest = async (
-  input: RuntimeSessionManifestInput,
-) => {
-  const ledger = input.ledger ?? await openLedgerOrNull(input.ledgerPath);
-  const trace = input.trace ?? await readRuntimeSessionTraceRecords(input.tracePath);
+export const refreshRuntimeSessionManifest = async (input: RuntimeSessionManifestInput) => {
+  const ledger = input.ledger ?? (await openLedgerOrNull(input.ledgerPath));
+  const trace = input.trace ?? (await readRuntimeSessionTraceRecords(input.tracePath));
   const manifest = buildRuntimeSessionManifest({
     ...input,
     ledger,
     trace,
   });
   await mkdir(input.sessionRootDir, { recursive: true });
-  await writeFile(
-    runtimeSessionManifestPath(input.sessionRootDir),
-    `${JSON.stringify(manifest, null, 2)}\n`,
-    "utf8",
-  );
+  await writeFile(runtimeSessionManifestPath(input.sessionRootDir), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   return manifest;
 };

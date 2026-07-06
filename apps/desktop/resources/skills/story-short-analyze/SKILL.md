@@ -30,6 +30,7 @@ metadata:
 ```
 
 题材识别关键词参考：
+
 - 追妻火葬场 / 渣男后悔 → 追妻
 - 重生复仇 / 前世今生 → 重生复仇
 - 死后视角 / 灵魂旁观 → 死人文学
@@ -57,25 +58,25 @@ metadata:
 
 ## 下一步建议
 
-| 触发条件 | 推荐 |
-|---|---|
-| 拆完想写自己的 | 「结构看懂了，开写。用 `/story-short-write`。」 |
-| 市场方向不明 | 「先看市场。用 `/story-short-scan`。」 |
-| 适合做长篇 | 「用 `/story-long-scan` 看市场，再 `/story-long-analyze` 拆解。」 |
+| 触发条件       | 推荐                                                              |
+| -------------- | ----------------------------------------------------------------- |
+| 拆完想写自己的 | 「结构看懂了，开写。用 `/story-short-write`。」                   |
+| 市场方向不明   | 「先看市场。用 `/story-short-scan`。」                            |
+| 适合做长篇     | 「用 `/story-long-scan` 看市场，再 `/story-long-analyze` 拆解。」 |
 
 ---
 
 ## 参考资料
 
-| 文件 | 何时加载 |
-|------|----------|
-| [references/output-templates.md](references/output-templates.md) | 拆文时：输出模板+结构库+必填字段 |
-| [references/deconstruction-examples.md](references/deconstruction-examples.md) | 学习拆文方法时（3个完整案例） |
-| [references/zhihu-style.md](references/zhihu-style.md) | 分析知乎盐言故事时 |
+| 文件                                                                             | 何时加载                                       |
+| -------------------------------------------------------------------------------- | ---------------------------------------------- |
+| [references/output-templates.md](references/output-templates.md)                 | 拆文时：输出模板+结构库+必填字段               |
+| [references/deconstruction-examples.md](references/deconstruction-examples.md)   | 学习拆文方法时（3个完整案例）                  |
+| [references/zhihu-style.md](references/zhihu-style.md)                           | 分析知乎盐言故事时                             |
 | [references/genre-frameworks-unified.md](references/genre-frameworks-unified.md) | 拆解特定题材时，加载对应题材的「短篇视角」章节 |
-| [references/hook-techniques.md](references/hook-techniques.md) | 深度分析钩子设计时 |
-| [references/character-design.md](references/character-design.md) | 深度分析人物设计时 |
-| [references/quality-checklist.md](references/quality-checklist.md) | 评估质量时 |
+| [references/hook-techniques.md](references/hook-techniques.md)                   | 深度分析钩子设计时                             |
+| [references/character-design.md](references/character-design.md)                 | 深度分析人物设计时                             |
+| [references/quality-checklist.md](references/quality-checklist.md)               | 评估质量时                                     |
 
 > **题材写作公式**：`references/genre-writing-formulas.md`（21大题材写作公式）
 > **市场数据**：`references/real-market-data.md`（跨平台写作差异对照表）

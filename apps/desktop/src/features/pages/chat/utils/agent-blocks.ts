@@ -161,10 +161,7 @@ export const mergeAgentThinking = (blocks: AgentMessageBlock[]) =>
     .filter(Boolean)
     .join("\n\n");
 
-export const updateLastAgentTextBlock = (
-  message: ChatMessage,
-  updater: (content: string) => string,
-) => {
+export const updateLastAgentTextBlock = (message: ChatMessage, updater: (content: string) => string) => {
   const blocks = [...(message.agentBlocks ?? [])];
   const lastBlock = blocks.at(-1);
 
@@ -184,10 +181,7 @@ export const updateLastAgentTextBlock = (
   return blocks;
 };
 
-export const updateLastAgentThinkingBlock = (
-  message: ChatMessage,
-  updater: (content: string) => string,
-) => {
+export const updateLastAgentThinkingBlock = (message: ChatMessage, updater: (content: string) => string) => {
   const blocks = [...(message.agentBlocks ?? [])];
   const lastBlock = blocks.at(-1);
 
@@ -206,9 +200,7 @@ export const updateLastAgentThinkingBlock = (
 
     if (hasPreviousThinking) {
       return blocks.map((block, index) =>
-        block.type === "thinking" && index < blocks.length - 1
-          ? { ...block, isCollapsed: true }
-          : block,
+        block.type === "thinking" && index < blocks.length - 1 ? { ...block, isCollapsed: true } : block,
       );
     }
   }
@@ -227,10 +219,7 @@ export const findLastAgentThinkingBlockId = (blocks: AgentMessageBlock[]) => {
   return null;
 };
 
-export const finalizeLastAgentThinkingBlock = (
-  message: ChatMessage,
-  content: string,
-) => {
+export const finalizeLastAgentThinkingBlock = (message: ChatMessage, content: string) => {
   const blocks = [...(message.agentBlocks ?? [])];
   const thinkingIndex = (() => {
     for (let index = blocks.length - 1; index >= 0; index -= 1) {
@@ -286,11 +275,7 @@ export const appendAgentToolEventBlock = (
   const findRunningToolBlockIndex = () => {
     for (let index = blocks.length - 1; index >= 0; index -= 1) {
       const block = blocks[index];
-      if (
-        block.type === "tool" &&
-        block.toolName === event.toolName &&
-        block.status === "running"
-      ) {
+      if (block.type === "tool" && block.toolName === event.toolName && block.status === "running") {
         return index;
       }
     }
@@ -298,9 +283,7 @@ export const appendAgentToolEventBlock = (
     return -1;
   };
   const existingIndex = event.type === "tool_start" ? -1 : findRunningToolBlockIndex();
-  const status = event.type === "tool_end"
-    ? event.isError ? "error" : "done"
-    : "running";
+  const status = event.type === "tool_end" ? (event.isError ? "error" : "done") : "running";
   let blockId: string | null = null;
 
   if (existingIndex >= 0) {
@@ -345,23 +328,16 @@ type AgentMessageStreamEvent = Extract<
   { type: "text_delta" | "thinking_delta" | "thinking_end" | "replace_text" }
 >;
 
-type AgentToolEvent = Extract<
-  AgentClientAgentEvent,
-  { type: "tool_start" | "tool_update" | "tool_end" }
->;
+type AgentToolEvent = Extract<AgentClientAgentEvent, { type: "tool_start" | "tool_update" | "tool_end" }>;
 
-export const isAgentMessageStreamEvent = (
-  event: AgentClientAgentEvent,
-): event is AgentMessageStreamEvent =>
+export const isAgentMessageStreamEvent = (event: AgentClientAgentEvent): event is AgentMessageStreamEvent =>
   event.type === "text_delta" ||
   event.type === "thinking_delta" ||
   event.type === "thinking_end" ||
   event.type === "replace_text";
 
 const isAgentToolEvent = (event: AgentClientAgentEvent): event is AgentToolEvent =>
-  event.type === "tool_start" ||
-  event.type === "tool_update" ||
-  event.type === "tool_end";
+  event.type === "tool_start" || event.type === "tool_update" || event.type === "tool_end";
 
 const appliedAgentMessageEvent = (
   message: ChatMessage,
@@ -388,10 +364,7 @@ export const applyAgentEventToMessage = (
   }
 
   if (event.type === "thinking_delta") {
-    const agentBlocks = updateLastAgentThinkingBlock(
-      message,
-      (content) => `${content}${event.delta}`,
-    );
+    const agentBlocks = updateLastAgentThinkingBlock(message, (content) => `${content}${event.delta}`);
     return appliedAgentMessageEvent({
       ...message,
       thinking: mergeAgentThinking(agentBlocks),
@@ -402,12 +375,15 @@ export const applyAgentEventToMessage = (
 
   if (event.type === "thinking_end") {
     const result = finalizeLastAgentThinkingBlock(message, event.content);
-    return appliedAgentMessageEvent({
-      ...message,
-      thinking: mergeAgentThinking(result.blocks),
-      agentBlocks: result.blocks,
-      status: "streaming",
-    }, result.blockId);
+    return appliedAgentMessageEvent(
+      {
+        ...message,
+        thinking: mergeAgentThinking(result.blocks),
+        agentBlocks: result.blocks,
+        status: "streaming",
+      },
+      result.blockId,
+    );
   }
 
   if (event.type === "replace_text") {
@@ -427,10 +403,15 @@ export const applyAgentEventToMessage = (
     return appliedAgentMessageEvent({
       ...message,
       text,
-      agentBlocks: hasTextBlock ? agentBlocks : updateLastAgentTextBlock({
-        ...message,
-        agentBlocks,
-      }, () => text),
+      agentBlocks: hasTextBlock
+        ? agentBlocks
+        : updateLastAgentTextBlock(
+            {
+              ...message,
+              agentBlocks,
+            },
+            () => text,
+          ),
       status: "done",
     });
   }
@@ -445,12 +426,16 @@ export const applyAgentEventToMessage = (
       completedToolBlockId = event.type === "tool_end" ? result.blockId : null;
     }
 
-    return appliedAgentMessageEvent({
-      ...message,
-      agentBlocks,
-      agentEvents: [...(message.agentEvents ?? []), event].slice(-80),
-      status: event.type === "error" ? "error" : message.status,
-    }, null, completedToolBlockId);
+    return appliedAgentMessageEvent(
+      {
+        ...message,
+        agentBlocks,
+        agentEvents: [...(message.agentEvents ?? []), event].slice(-80),
+        status: event.type === "error" ? "error" : message.status,
+      },
+      null,
+      completedToolBlockId,
+    );
   }
 
   return appliedAgentMessageEvent(message);

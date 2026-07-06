@@ -1,11 +1,4 @@
-import type {
-  ChangeEvent,
-  CompositionEvent,
-  Dispatch,
-  FormEvent,
-  KeyboardEvent,
-  SetStateAction,
-} from "react";
+import type { ChangeEvent, CompositionEvent, Dispatch, FormEvent, KeyboardEvent, SetStateAction } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Loader2, MessageSquare, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,10 +15,7 @@ type PendingAgentQuestionFormProps = {
   onSubmitAgentQuestionAnswer: (answerValue: string) => Promise<void>;
 };
 
-const useImeSafeDraft = (
-  value: string,
-  onValueChange: Dispatch<SetStateAction<string>>,
-) => {
+const useImeSafeDraft = (value: string, onValueChange: Dispatch<SetStateAction<string>>) => {
   const [draft, setDraft] = useState(value);
   const [isComposing, setIsComposing] = useState(false);
   const isComposingRef = useRef(false);
@@ -50,9 +40,7 @@ const useImeSafeDraft = (
     setIsComposing(true);
   };
 
-  const handleCompositionEnd = (
-    event: CompositionEvent<HTMLTextAreaElement>,
-  ) => {
+  const handleCompositionEnd = (event: CompositionEvent<HTMLTextAreaElement>) => {
     isComposingRef.current = false;
     setIsComposing(false);
 
@@ -80,21 +68,12 @@ export const PendingAgentQuestionForm = ({
   onCustomAgentQuestionAnswerChange,
   onSubmitAgentQuestionAnswer,
 }: PendingAgentQuestionFormProps) => {
-  const answerDraft = useImeSafeDraft(
-    agentQuestionAnswer,
-    onAgentQuestionAnswerChange,
-  );
-  const customAnswerDraft = useImeSafeDraft(
-    customAgentQuestionAnswer,
-    onCustomAgentQuestionAnswerChange,
-  );
-  const isAnyAnswerComposing =
-    answerDraft.isComposing || customAnswerDraft.isComposing;
+  const answerDraft = useImeSafeDraft(agentQuestionAnswer, onAgentQuestionAnswerChange);
+  const customAnswerDraft = useImeSafeDraft(customAgentQuestionAnswer, onCustomAgentQuestionAnswerChange);
+  const isAnyAnswerComposing = answerDraft.isComposing || customAnswerDraft.isComposing;
   const isOtherAnswer = agentQuestionAnswer === "other";
   const answerValue = isOtherAnswer ? customAnswerDraft.draft : answerDraft.draft;
-  const selectOptions = pendingAgentQuestion.input?.type === "select"
-    ? pendingAgentQuestion.input.options ?? []
-    : [];
+  const selectOptions = pendingAgentQuestion.input?.type === "select" ? (pendingAgentQuestion.input.options ?? []) : [];
   const hasSelectOptions = selectOptions.length > 0;
 
   const submitAnswer = (event: FormEvent<HTMLFormElement>) => {
@@ -108,14 +87,8 @@ export const PendingAgentQuestionForm = ({
     void onSubmitAgentQuestionAnswer(answerValue);
   };
 
-  const requestSubmitFromTextarea = (
-    event: KeyboardEvent<HTMLTextAreaElement>,
-  ) => {
-    if (
-      event.key === "Enter" &&
-      (event.metaKey || event.ctrlKey) &&
-      !event.nativeEvent.isComposing
-    ) {
+  const requestSubmitFromTextarea = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && !event.nativeEvent.isComposing) {
       event.currentTarget.form?.requestSubmit();
     }
   };
@@ -167,9 +140,7 @@ export const PendingAgentQuestionForm = ({
                     }
                   }}
                 >
-                  <span className="block break-words font-medium [overflow-wrap:anywhere]">
-                    {option.label}
-                  </span>
+                  <span className="block break-words font-medium [overflow-wrap:anywhere]">{option.label}</span>
                   {option.description && (
                     <span className="mt-1 block break-words text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere]">
                       {option.description}
@@ -193,17 +164,9 @@ export const PendingAgentQuestionForm = ({
               />
               <Button
                 type="submit"
-                disabled={
-                  isAnsweringAgentQuestion ||
-                  isAnyAnswerComposing ||
-                  !customAnswerDraft.draft.trim()
-                }
+                disabled={isAnsweringAgentQuestion || isAnyAnswerComposing || !customAnswerDraft.draft.trim()}
               >
-                {isAnsweringAgentQuestion ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Send className="size-4" />
-                )}
+                {isAnsweringAgentQuestion ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
                 <span>回复</span>
               </Button>
             </div>
@@ -223,17 +186,9 @@ export const PendingAgentQuestionForm = ({
           />
           <Button
             type="submit"
-            disabled={
-              isAnsweringAgentQuestion ||
-              isAnyAnswerComposing ||
-              !answerDraft.draft.trim()
-            }
+            disabled={isAnsweringAgentQuestion || isAnyAnswerComposing || !answerDraft.draft.trim()}
           >
-            {isAnsweringAgentQuestion ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Send className="size-4" />
-            )}
+            {isAnsweringAgentQuestion ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
             <span>回复</span>
           </Button>
         </div>

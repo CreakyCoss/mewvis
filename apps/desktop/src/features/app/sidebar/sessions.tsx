@@ -29,10 +29,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { isDefaultWorkspace } from "@/features/pages/workspace/default";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
-import {
-  chatSessionKey,
-  useChatSessionsStore,
-} from "@/features/pages/chat/session-store";
+import { chatSessionKey, useChatSessionsStore } from "@/features/pages/chat/session-store";
 import type { ChatSessionMeta } from "@/features/pages/chat/types";
 import { formatSessionTime } from "@/features/pages/chat/utils/sessions";
 import type { Workspace } from "@/features/pages/workspace/types";
@@ -73,14 +70,7 @@ const EmptyState = ({ children }: { children: string }) => (
   <div className="px-3 py-2 text-sm text-muted-foreground/75">{children}</div>
 );
 
-const SessionRow = ({
-  to,
-  workspace,
-  session,
-  isDeleting,
-  isRunning,
-  onConfirmDelete,
-}: SessionRowProps) => {
+const SessionRow = ({ to, workspace, session, isDeleting, isRunning, onConfirmDelete }: SessionRowProps) => {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   return (
@@ -117,7 +107,9 @@ const SessionRow = ({
         type="button"
         className={cn(
           "absolute top-1/2 right-2 z-10 flex -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none select-none hover:bg-background/75 hover:text-destructive focus-visible:ring-2 focus-visible:ring-primary/25 group-hover/session:opacity-100 focus-visible:opacity-100 disabled:cursor-default",
-          isConfirmingDelete ? "h-5 w-8 rounded-sm bg-destructive/10 px-1 py-0 text-[11px] font-semibold leading-none text-destructive opacity-100 hover:bg-destructive/15 hover:text-destructive" : "size-7",
+          isConfirmingDelete
+            ? "h-5 w-8 rounded-sm bg-destructive/10 px-1 py-0 text-[11px] font-semibold leading-none text-destructive opacity-100 hover:bg-destructive/15 hover:text-destructive"
+            : "size-7",
           isDeleting && "size-7 opacity-100",
         )}
         title={isConfirmingDelete ? "确认删除对话" : "删除对话"}
@@ -144,12 +136,7 @@ const SessionRow = ({
   );
 };
 
-const WorkspaceActions = ({
-  workspace,
-  isDeleting,
-  onEdit,
-  onRequestDelete,
-}: WorkspaceActionsProps) => {
+const WorkspaceActions = ({ workspace, isDeleting, onEdit, onRequestDelete }: WorkspaceActionsProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -202,18 +189,10 @@ const WorkspaceActions = ({
   );
 };
 
-export const SidebarSessions = ({
-  workspaces,
-  isLoading,
-  error,
-}: SessionsProps) => {
+export const SidebarSessions = ({ workspaces, isLoading, error }: SessionsProps) => {
   const navigate = useNavigate();
   const params = useParams();
-  const {
-    openEditWorkspace,
-    deleteWorkspace,
-    deletingWorkspaceId,
-  } = useWorkspaceOverview();
+  const { openEditWorkspace, deleteWorkspace, deletingWorkspaceId } = useWorkspaceOverview();
   const sessionsByWorkspaceId = useChatSessionsStore((store) => store.sessionsByWorkspaceId);
   const loadingWorkspaceIds = useChatSessionsStore((store) => store.loadingWorkspaceIds);
   const errorByWorkspaceId = useChatSessionsStore((store) => store.errorByWorkspaceId);
@@ -221,41 +200,28 @@ export const SidebarSessions = ({
   const deletingSessionKeys = useChatSessionsStore((store) => store.deletingSessionKeys);
   const loadWorkspaceSessions = useChatSessionsStore((store) => store.loadWorkspaceSessions);
   const deleteSession = useChatSessionsStore((store) => store.deleteSession);
-  const [expandedWorkspaceIds, setExpandedWorkspaceIds] = useState<Set<string>>(
-    () => new Set(),
-  );
-  const [collapsedWorkspaceIds, setCollapsedWorkspaceIds] = useState<Set<string>>(
-    () => new Set(),
-  );
+  const [expandedWorkspaceIds, setExpandedWorkspaceIds] = useState<Set<string>>(() => new Set());
+  const [collapsedWorkspaceIds, setCollapsedWorkspaceIds] = useState<Set<string>>(() => new Set());
   const [showAllDefaultSessions, setShowAllDefaultSessions] = useState(false);
-  const [workspacePendingDelete, setWorkspacePendingDelete] =
-    useState<Workspace | null>(null);
-  const defaultWorkspace = useMemo(
-    () => workspaces.find(isDefaultWorkspace) ?? null,
-    [workspaces],
-  );
+  const [workspacePendingDelete, setWorkspacePendingDelete] = useState<Workspace | null>(null);
+  const defaultWorkspace = useMemo(() => workspaces.find(isDefaultWorkspace) ?? null, [workspaces]);
   const projectWorkspaces = useMemo(
     () => workspaces.filter((workspace) => !isDefaultWorkspace(workspace)),
     [workspaces],
   );
-  const defaultSessions = defaultWorkspace
-    ? sessionsByWorkspaceId[defaultWorkspace.id] ?? []
-    : [];
+  const defaultSessions = defaultWorkspace ? (sessionsByWorkspaceId[defaultWorkspace.id] ?? []) : [];
   const workspaceSessionLoadKey = useMemo(
     () => workspaces.map((workspace) => `${workspace.id}:${workspace.path}`).join("\u0000"),
     [workspaces],
   );
   const isSessionsLoading = workspaces.some((workspace) => loadingWorkspaceIds[workspace.id]);
   const sessionsError = defaultWorkspace
-    ? errorByWorkspaceId[defaultWorkspace.id] ?? ""
-    : Object.values(errorByWorkspaceId).find(Boolean) ?? "";
+    ? (errorByWorkspaceId[defaultWorkspace.id] ?? "")
+    : (Object.values(errorByWorkspaceId).find(Boolean) ?? "");
   const visibleDefaultSessions = showAllDefaultSessions
     ? defaultSessions
     : defaultSessions.slice(0, DEFAULT_VISIBLE_SESSION_LIMIT);
-  const hiddenDefaultSessionCount = Math.max(
-    defaultSessions.length - visibleDefaultSessions.length,
-    0,
-  );
+  const hiddenDefaultSessionCount = Math.max(defaultSessions.length - visibleDefaultSessions.length, 0);
 
   useEffect(() => {
     workspaces.forEach((workspace) => {
@@ -315,169 +281,156 @@ export const SidebarSessions = ({
     <>
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-7 px-2.5 py-3 xl:px-3">
-        <section className="space-y-3">
-          <SectionHeader label="工作区" />
-          <div className="space-y-2">
-            {error && (
-              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
-                {error}
-              </div>
-            )}
-            {isLoading ? (
-              <div className="flex items-center gap-2 rounded-md px-3 py-4 text-sm text-muted-foreground">
-                <LoaderCircle className="size-4 animate-spin" />
-                <span>正在读取工作区</span>
-              </div>
-            ) : projectWorkspaces.length ? (
-              projectWorkspaces.map((workspace) => {
-                const sessions = sessionsByWorkspaceId[workspace.id] ?? [];
-                const isExpanded = expandedWorkspaceIds.has(workspace.id);
-                const isCollapsed = collapsedWorkspaceIds.has(workspace.id);
-                const visibleSessions = isCollapsed
-                  ? []
-                  : isExpanded
-                  ? sessions
-                  : sessions.slice(0, WORKSPACE_VISIBLE_SESSION_LIMIT);
-                const hiddenCount = Math.max(
-                  sessions.length - visibleSessions.length,
-                  0,
-                );
+          <section className="space-y-3">
+            <SectionHeader label="工作区" />
+            <div className="space-y-2">
+              {error && (
+                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
+                  {error}
+                </div>
+              )}
+              {isLoading ? (
+                <div className="flex items-center gap-2 rounded-md px-3 py-4 text-sm text-muted-foreground">
+                  <LoaderCircle className="size-4 animate-spin" />
+                  <span>正在读取工作区</span>
+                </div>
+              ) : projectWorkspaces.length ? (
+                projectWorkspaces.map((workspace) => {
+                  const sessions = sessionsByWorkspaceId[workspace.id] ?? [];
+                  const isExpanded = expandedWorkspaceIds.has(workspace.id);
+                  const isCollapsed = collapsedWorkspaceIds.has(workspace.id);
+                  const visibleSessions = isCollapsed
+                    ? []
+                    : isExpanded
+                      ? sessions
+                      : sessions.slice(0, WORKSPACE_VISIBLE_SESSION_LIMIT);
+                  const hiddenCount = Math.max(sessions.length - visibleSessions.length, 0);
 
-                return (
-                  <div key={workspace.id} className="min-w-0 space-y-1">
-                    <div className="group/workspace relative min-w-0">
-                      <NavLink
-                        to={`/chat/${workspace.id}/new`}
-                        title={workspace.path}
-                        className={({ isActive }) =>
-                          cn(
-                            "flex h-9 min-w-0 items-center gap-2 overflow-hidden rounded-md py-1 pr-[4.75rem] pl-3 text-muted-foreground transition-colors hover:bg-muted/55 hover:text-foreground group-hover/workspace:bg-muted/55 group-hover/workspace:text-foreground group-has-[button[data-state=open]]/workspace:bg-muted/55 group-has-[button[data-state=open]]/workspace:text-foreground",
-                            isActive && "bg-muted/55 text-foreground",
-                          )
-                        }
-                      >
-                        <Folder className="size-4 shrink-0 text-muted-foreground" />
-                        <span className="block min-w-0 flex-1 truncate text-base font-medium">
-                          {workspace.name}
-                        </span>
-                      </NavLink>
-                      {sessions.length > 0 && (
-                        <button
-                          type="button"
-                          className={cn(
-                            "absolute top-1/2 right-9 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none select-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/25 group-hover/workspace:opacity-100 group-has-[button[data-state=open]]/workspace:opacity-100 focus-visible:opacity-100 disabled:cursor-default",
-                            isCollapsed && "opacity-100",
-                          )}
-                          title={isCollapsed ? "展开会话" : "折叠会话"}
-                          aria-label={`${workspace.name} ${isCollapsed ? "展开会话" : "折叠会话"}`}
-                          aria-expanded={!isCollapsed}
-                          onClick={() => toggleWorkspaceSessions(workspace.id)}
+                  return (
+                    <div key={workspace.id} className="min-w-0 space-y-1">
+                      <div className="group/workspace relative min-w-0">
+                        <NavLink
+                          to={`/chat/${workspace.id}/new`}
+                          title={workspace.path}
+                          className={({ isActive }) =>
+                            cn(
+                              "flex h-9 min-w-0 items-center gap-2 overflow-hidden rounded-md py-1 pr-[4.75rem] pl-3 text-muted-foreground transition-colors hover:bg-muted/55 hover:text-foreground group-hover/workspace:bg-muted/55 group-hover/workspace:text-foreground group-has-[button[data-state=open]]/workspace:bg-muted/55 group-has-[button[data-state=open]]/workspace:text-foreground",
+                              isActive && "bg-muted/55 text-foreground",
+                            )
+                          }
                         >
-                          {isCollapsed ? (
-                            <ChevronRight className="size-4" />
-                          ) : (
-                            <ChevronDown className="size-4" />
-                          )}
-                        </button>
-                      )}
-                      <WorkspaceActions
-                        workspace={workspace}
-                        isDeleting={deletingWorkspaceId === workspace.id}
-                        onEdit={openEditWorkspace}
-                        onRequestDelete={setWorkspacePendingDelete}
-                      />
-                    </div>
-
-                    <div className="space-y-0.5">
-                      {visibleSessions.map((session) => (
-                        <SessionRow
-                          key={session.id}
-                          to={`/chat/${workspace.id}/session/${session.id}`}
+                          <Folder className="size-4 shrink-0 text-muted-foreground" />
+                          <span className="block min-w-0 flex-1 truncate text-base font-medium">{workspace.name}</span>
+                        </NavLink>
+                        {sessions.length > 0 && (
+                          <button
+                            type="button"
+                            className={cn(
+                              "absolute top-1/2 right-9 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none select-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/25 group-hover/workspace:opacity-100 group-has-[button[data-state=open]]/workspace:opacity-100 focus-visible:opacity-100 disabled:cursor-default",
+                              isCollapsed && "opacity-100",
+                            )}
+                            title={isCollapsed ? "展开会话" : "折叠会话"}
+                            aria-label={`${workspace.name} ${isCollapsed ? "展开会话" : "折叠会话"}`}
+                            aria-expanded={!isCollapsed}
+                            onClick={() => toggleWorkspaceSessions(workspace.id)}
+                          >
+                            {isCollapsed ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
+                          </button>
+                        )}
+                        <WorkspaceActions
                           workspace={workspace}
-                          session={session}
-                          isDeleting={isSessionDeleting(workspace, session)}
-                          isRunning={isSessionRunning(workspace, session)}
-                          onConfirmDelete={confirmDeleteSession}
+                          isDeleting={deletingWorkspaceId === workspace.id}
+                          onEdit={openEditWorkspace}
+                          onRequestDelete={setWorkspacePendingDelete}
                         />
-                      ))}
-                      {!isCollapsed && sessions.length > WORKSPACE_VISIBLE_SESSION_LIMIT && (
-                        <button
-                          type="button"
-                          className="flex h-8 w-full items-center gap-1.5 rounded-md py-1 pr-3 pl-9 text-left text-xs font-medium text-muted-foreground/75 transition-colors hover:bg-muted/55 hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:outline-none"
-                          onClick={() => toggleWorkspace(workspace.id)}
-                        >
-                          <span className="min-w-0 truncate">
-                            {isExpanded
-                              ? "收起较早对话"
-                              : `展开更多 ${hiddenCount} 条`}
-                          </span>
-                          {isExpanded ? (
-                            <ChevronUp className="size-3.5 shrink-0" />
-                          ) : (
-                            <ChevronDown className="size-3.5 shrink-0" />
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <EmptyState>暂无工作区</EmptyState>
-            )}
-          </div>
-        </section>
+                      </div>
 
-        <section className="space-y-3">
-          <SectionHeader label="对话" />
-          <div className="space-y-2">
-            {sessionsError && (
-              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
-                {sessionsError}
-              </div>
-            )}
-            {isSessionsLoading && defaultSessions.length === 0 ? (
-              <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
-                <LoaderCircle className="size-4 animate-spin" />
-                <span>正在读取对话</span>
-              </div>
-            ) : visibleDefaultSessions.length && defaultWorkspace ? (
-              <>
-                {visibleDefaultSessions.map((session) => (
-                  <SessionRow
-                    key={session.id}
-                    to={`/chat/${defaultWorkspace.id}/session/${session.id}`}
-                    workspace={defaultWorkspace}
-                    session={session}
-                    isDeleting={isSessionDeleting(defaultWorkspace, session)}
-                    isRunning={isSessionRunning(defaultWorkspace, session)}
-                    onConfirmDelete={confirmDeleteSession}
-                  />
-                ))}
-                {defaultSessions.length > DEFAULT_VISIBLE_SESSION_LIMIT && (
-                  <button
-                    type="button"
-                    className="group flex h-8 w-full items-center gap-1.5 rounded-md px-3 py-1 text-left text-xs font-medium text-muted-foreground/70 transition-colors hover:bg-muted/55 hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:outline-none"
-                    onClick={() => setShowAllDefaultSessions((current) => !current)}
-                  >
-                    <span className="min-w-0 truncate">
-                      {showAllDefaultSessions
-                        ? "收起较早对话"
-                        : `展开更多 ${hiddenDefaultSessionCount} 条`}
-                    </span>
-                    {showAllDefaultSessions ? (
-                      <ChevronUp className="size-3.5 shrink-0" />
-                    ) : (
-                      <ChevronDown className="size-3.5 shrink-0" />
-                    )}
-                  </button>
-                )}
-              </>
-            ) : (
-              <EmptyState>暂无对话</EmptyState>
-            )}
-          </div>
-        </section>
+                      <div className="space-y-0.5">
+                        {visibleSessions.map((session) => (
+                          <SessionRow
+                            key={session.id}
+                            to={`/chat/${workspace.id}/session/${session.id}`}
+                            workspace={workspace}
+                            session={session}
+                            isDeleting={isSessionDeleting(workspace, session)}
+                            isRunning={isSessionRunning(workspace, session)}
+                            onConfirmDelete={confirmDeleteSession}
+                          />
+                        ))}
+                        {!isCollapsed && sessions.length > WORKSPACE_VISIBLE_SESSION_LIMIT && (
+                          <button
+                            type="button"
+                            className="flex h-8 w-full items-center gap-1.5 rounded-md py-1 pr-3 pl-9 text-left text-xs font-medium text-muted-foreground/75 transition-colors hover:bg-muted/55 hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:outline-none"
+                            onClick={() => toggleWorkspace(workspace.id)}
+                          >
+                            <span className="min-w-0 truncate">
+                              {isExpanded ? "收起较早对话" : `展开更多 ${hiddenCount} 条`}
+                            </span>
+                            {isExpanded ? (
+                              <ChevronUp className="size-3.5 shrink-0" />
+                            ) : (
+                              <ChevronDown className="size-3.5 shrink-0" />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <EmptyState>暂无工作区</EmptyState>
+              )}
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <SectionHeader label="对话" />
+            <div className="space-y-2">
+              {sessionsError && (
+                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
+                  {sessionsError}
+                </div>
+              )}
+              {isSessionsLoading && defaultSessions.length === 0 ? (
+                <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
+                  <LoaderCircle className="size-4 animate-spin" />
+                  <span>正在读取对话</span>
+                </div>
+              ) : visibleDefaultSessions.length && defaultWorkspace ? (
+                <>
+                  {visibleDefaultSessions.map((session) => (
+                    <SessionRow
+                      key={session.id}
+                      to={`/chat/${defaultWorkspace.id}/session/${session.id}`}
+                      workspace={defaultWorkspace}
+                      session={session}
+                      isDeleting={isSessionDeleting(defaultWorkspace, session)}
+                      isRunning={isSessionRunning(defaultWorkspace, session)}
+                      onConfirmDelete={confirmDeleteSession}
+                    />
+                  ))}
+                  {defaultSessions.length > DEFAULT_VISIBLE_SESSION_LIMIT && (
+                    <button
+                      type="button"
+                      className="group flex h-8 w-full items-center gap-1.5 rounded-md px-3 py-1 text-left text-xs font-medium text-muted-foreground/70 transition-colors hover:bg-muted/55 hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:outline-none"
+                      onClick={() => setShowAllDefaultSessions((current) => !current)}
+                    >
+                      <span className="min-w-0 truncate">
+                        {showAllDefaultSessions ? "收起较早对话" : `展开更多 ${hiddenDefaultSessionCount} 条`}
+                      </span>
+                      {showAllDefaultSessions ? (
+                        <ChevronUp className="size-3.5 shrink-0" />
+                      ) : (
+                        <ChevronDown className="size-3.5 shrink-0" />
+                      )}
+                    </button>
+                  )}
+                </>
+              ) : (
+                <EmptyState>暂无对话</EmptyState>
+              )}
+            </div>
+          </section>
         </div>
       </ScrollArea>
       <AlertDialog
@@ -496,9 +449,7 @@ export const SidebarSessions = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={Boolean(deletingWorkspaceId)}>
-              取消
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={Boolean(deletingWorkspaceId)}>取消</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               disabled={Boolean(deletingWorkspaceId)}

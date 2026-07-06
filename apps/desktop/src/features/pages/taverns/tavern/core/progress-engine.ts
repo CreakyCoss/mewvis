@@ -1,9 +1,9 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { TavernMessage } from "../types";
 import type {
   TavernCondition,
   TavernEntityRef,
   TavernFactEvent,
-  TavernRoom,
   TavernOutcomeEvent,
   TavernProgressCheckpoint,
   TavernProgressAction,

@@ -7,13 +7,7 @@ export const emptyValueText = "未设置";
 
 export const compactText = (value: string | undefined) => value?.trim() || emptyValueText;
 
-export const TextBlock = ({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | undefined;
-}) => (
+export const TextBlock = ({ label, value }: { label: string; value: string | undefined }) => (
   <div className="space-y-1.5">
     <div className="text-[11px] font-medium text-current opacity-70">{label}</div>
     <div className="max-h-40 overflow-y-auto whitespace-pre-wrap rounded-md border border-current/10 bg-current/5 px-3 py-2 text-xs leading-5 text-current shadow-sm">
@@ -61,34 +55,23 @@ export const PanelSectionTitle = ({
       <Icon className="size-4 shrink-0 text-primary" />
       <span className="truncate">{children}</span>
     </div>
-    {actions && (
-      <div className="flex shrink-0 items-center gap-1">
-        {actions}
-      </div>
-    )}
+    {actions && <div className="flex shrink-0 items-center gap-1">{actions}</div>}
   </div>
 );
 
-export const MeterBar = ({
-  percent,
-  className,
-}: {
-  percent: number;
-  className?: string;
-}) => (
+export const MeterBar = ({ percent, className }: { percent: number; className?: string }) => (
   <div className="h-1.5 overflow-hidden rounded-full bg-current/10">
     <div
-      className={cn("h-full rounded-full bg-primary shadow-[0_0_8px_color-mix(in_oklab,var(--primary)_45%,transparent)]", className)}
+      className={cn(
+        "h-full rounded-full bg-primary shadow-[0_0_8px_color-mix(in_oklab,var(--primary)_45%,transparent)]",
+        className,
+      )}
       style={{ width: `${percent}%` }}
     />
   </div>
 );
 
-export const EmptyPanelCard = ({
-  children,
-}: {
-  children: ReactNode;
-}) => (
+export const EmptyPanelCard = ({ children }: { children: ReactNode }) => (
   <div className="rounded-lg border border-current/10 bg-current/[0.045] dark:bg-current/[0.065] px-3 py-4 text-center text-xs leading-5 text-current opacity-70 shadow-sm">
     {children}
   </div>

@@ -20,9 +20,10 @@ const compareFileTreeNodes = (left: FileTreeNode, right: FileTreeNode) => {
     return left.isDirectory ? -1 : 1;
   }
 
-  return left.name
-    .localeCompare(right.name, "zh-CN", { numeric: true, sensitivity: "base" })
-    || left.path.localeCompare(right.path);
+  return (
+    left.name.localeCompare(right.name, "zh-CN", { numeric: true, sensitivity: "base" }) ||
+    left.path.localeCompare(right.path)
+  );
 };
 
 export const buildFileTree = (entries: WorkspaceFileEntry[]) => {

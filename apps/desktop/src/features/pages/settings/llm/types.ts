@@ -28,15 +28,9 @@ export type LlmSettings = {
   providers: LlmProvider[];
 };
 
-export type ProviderModelConfig = Omit<
-  ProviderModel,
-  "createdAt" | "updatedAt" | "providerId"
->;
+export type ProviderModelConfig = Omit<ProviderModel, "createdAt" | "updatedAt" | "providerId">;
 
-export type LlmProviderConfig = Omit<
-  LlmProvider,
-  "apiEndpoint" | "apiKey" | "createdAt" | "updatedAt" | "models"
-> & {
+export type LlmProviderConfig = Omit<LlmProvider, "apiEndpoint" | "apiKey" | "createdAt" | "updatedAt" | "models"> & {
   apiKey: string;
   apiEndpoint: string;
   models: ProviderModelConfig[];

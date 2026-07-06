@@ -1,8 +1,6 @@
 import { useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { Check, ChevronDown, Folder, Plus, Search, X } from "lucide-react";
-import type {
-  AgentToolSummary,
-} from "@/agent-client/types";
+import type { AgentToolSummary } from "@/agent-client/types";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,18 +10,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type {
-  AgentProfile,
-} from "@/features/pages/settings/agent/types";
+import type { AgentProfile } from "@/features/pages/settings/agent/types";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { WorkspaceSkillGroup } from "@/features/pages/skills/types";
 import { isDefaultWorkspace } from "@/features/pages/workspace/default";
 import type { Workspace } from "@/features/pages/workspace/types";
-import type {
-  ChatMessage,
-  ComposerSubmitInput,
-  PendingAgentQuestion,
-} from "../../types";
+import type { ChatMessage, ComposerSubmitInput, PendingAgentQuestion } from "../../types";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import { Composer } from "./composer";
 import { MessageList } from "./message-list";
@@ -100,12 +92,7 @@ type WorkspaceSwitcherProps = {
   onCreateWorkspace: () => void;
 };
 
-const WorkspaceSwitcher = ({
-  workspace,
-  workspaces,
-  onOpenWorkspace,
-  onCreateWorkspace,
-}: WorkspaceSwitcherProps) => {
+const WorkspaceSwitcher = ({ workspace, workspaces, onOpenWorkspace, onCreateWorkspace }: WorkspaceSwitcherProps) => {
   const [workspaceSearch, setWorkspaceSearch] = useState("");
   const defaultWorkspace = workspaces.find(isDefaultWorkspace) ?? null;
   const projectWorkspaces = workspaces.filter((item) => !isDefaultWorkspace(item));
@@ -113,10 +100,11 @@ const WorkspaceSwitcher = ({
   const workspaceSwitcherLabel = isDefaultWorkspaceSelected ? "不使用项目" : workspace.name;
   const normalizedWorkspaceSearch = workspaceSearch.trim().toLowerCase();
   const visibleProjectWorkspaces = normalizedWorkspaceSearch
-    ? projectWorkspaces.filter((item) =>
-      item.name.toLowerCase().includes(normalizedWorkspaceSearch) ||
-      item.path.toLowerCase().includes(normalizedWorkspaceSearch)
-    )
+    ? projectWorkspaces.filter(
+        (item) =>
+          item.name.toLowerCase().includes(normalizedWorkspaceSearch) ||
+          item.path.toLowerCase().includes(normalizedWorkspaceSearch),
+      )
     : projectWorkspaces;
 
   return (
@@ -146,10 +134,7 @@ const WorkspaceSwitcher = ({
           <ChevronDown className="size-3.5 shrink-0" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="start"
-        className="w-80 rounded-2xl border-border/70 bg-popover p-2 shadow-xl"
-      >
+      <DropdownMenuContent align="start" className="w-80 rounded-2xl border-border/70 bg-popover p-2 shadow-xl">
         <div className="relative mb-2">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground/80" />
           <input
@@ -162,34 +147,29 @@ const WorkspaceSwitcher = ({
           />
         </div>
         <div className="space-y-1">
-          {visibleProjectWorkspaces.length > 0 ? visibleProjectWorkspaces.map((item) => (
-            <DropdownMenuItem
-              key={item.id}
-              className="h-10 gap-3 rounded-lg px-2.5 text-sm font-medium"
-              title={item.path}
-              onSelect={() => {
-                if (item.id !== workspace.id) {
-                  onOpenWorkspace(item);
-                }
-              }}
-            >
-              <Folder className="size-4 shrink-0 text-muted-foreground" />
-              <span className="min-w-0 flex-1 truncate">{item.name}</span>
-              {item.id === workspace.id && (
-                <Check className="size-4 shrink-0 text-foreground" />
-              )}
-            </DropdownMenuItem>
-          )) : (
-            <div className="px-2.5 py-4 text-sm text-muted-foreground">
-              没有匹配的项目
-            </div>
+          {visibleProjectWorkspaces.length > 0 ? (
+            visibleProjectWorkspaces.map((item) => (
+              <DropdownMenuItem
+                key={item.id}
+                className="h-10 gap-3 rounded-lg px-2.5 text-sm font-medium"
+                title={item.path}
+                onSelect={() => {
+                  if (item.id !== workspace.id) {
+                    onOpenWorkspace(item);
+                  }
+                }}
+              >
+                <Folder className="size-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate">{item.name}</span>
+                {item.id === workspace.id && <Check className="size-4 shrink-0 text-foreground" />}
+              </DropdownMenuItem>
+            ))
+          ) : (
+            <div className="px-2.5 py-4 text-sm text-muted-foreground">没有匹配的项目</div>
           )}
         </div>
         <DropdownMenuSeparator className="mx-2 my-2" />
-        <DropdownMenuItem
-          className="h-10 gap-3 rounded-lg px-2.5 text-sm font-semibold"
-          onSelect={onCreateWorkspace}
-        >
+        <DropdownMenuItem className="h-10 gap-3 rounded-lg px-2.5 text-sm font-semibold" onSelect={onCreateWorkspace}>
           <span className="relative flex size-4 shrink-0 items-center justify-center text-muted-foreground">
             <Folder className="size-4" />
             <Plus className="absolute -right-1 -bottom-1 size-2.5 stroke-[3]" />
@@ -211,9 +191,7 @@ const WorkspaceSwitcher = ({
               <X className="absolute -right-1 -bottom-1 size-2.5 stroke-[3]" />
             </span>
             <span className="min-w-0 flex-1 truncate">不使用项目</span>
-            {defaultWorkspace.id === workspace.id && (
-              <Check className="size-4 shrink-0 text-foreground" />
-            )}
+            {defaultWorkspace.id === workspace.id && <Check className="size-4 shrink-0 text-foreground" />}
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>
@@ -340,10 +318,7 @@ export const ChatPanel = () => {
               </div>
             </div>
           ) : (
-            <MessageList
-              showThinkingProcess={showThinkingProcess}
-              showToolCallProcess={showToolCallProcess}
-            />
+            <MessageList showThinkingProcess={showThinkingProcess} showToolCallProcess={showToolCallProcess} />
           )}
         </div>
       </ScrollArea>

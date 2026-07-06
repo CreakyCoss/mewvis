@@ -45,7 +45,9 @@ function evalJSON(port, js) {
   try {
     let parsed = JSON.parse(raw);
     if (typeof parsed === "string") {
-      try { parsed = JSON.parse(parsed); } catch {}
+      try {
+        parsed = JSON.parse(parsed);
+      } catch {}
     }
     return parsed;
   } catch {

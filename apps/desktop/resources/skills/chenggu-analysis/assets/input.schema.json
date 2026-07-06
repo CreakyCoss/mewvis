@@ -14,19 +14,14 @@
         },
         "calendar_type": {
           "type": "string",
-          "enum": [
-            "gregorian",
-            "lunar"
-          ],
+          "enum": ["gregorian", "lunar"],
           "default": "gregorian"
         },
         "gender": {
           "type": "string"
         }
       },
-      "required": [
-        "birth_datetime"
-      ],
+      "required": ["birth_datetime"],
       "additionalProperties": false
     },
     {
@@ -50,20 +45,7 @@
             },
             "hour_branch": {
               "type": "string",
-              "enum": [
-                "子",
-                "丑",
-                "寅",
-                "卯",
-                "辰",
-                "巳",
-                "午",
-                "未",
-                "申",
-                "酉",
-                "戌",
-                "亥"
-              ]
+              "enum": ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
             },
             "is_leap_month": {
               "type": "boolean",
@@ -74,18 +56,11 @@
               "default": true
             }
           },
-          "required": [
-            "year_ganzhi",
-            "month",
-            "day",
-            "hour_branch"
-          ],
+          "required": ["year_ganzhi", "month", "day", "hour_branch"],
           "additionalProperties": false
         }
       },
-      "required": [
-        "lunar_components"
-      ],
+      "required": ["lunar_components"],
       "additionalProperties": false
     }
   ]

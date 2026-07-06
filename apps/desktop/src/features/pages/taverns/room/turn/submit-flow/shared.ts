@@ -1,3 +1,4 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
@@ -12,12 +13,7 @@ import {
 import { resolveTavernCharacterModel } from "@/features/pages/taverns/tavern/runtime/agent";
 import { runTavernManagedUserReply } from "@/features/pages/taverns/tavern/runtime/assistants";
 import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
-import type {
-  TavernAssetDraft,
-  TavernCharacter,
-  TavernReplyOption,
-  TavernRoom,
-} from "@/features/pages/taverns/manage/model";
+import type { TavernAssetDraft, TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
 
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
 

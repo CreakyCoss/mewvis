@@ -1,10 +1,5 @@
 import { AgentEventType } from "../../../../../protocol/index.js";
-import type {
-  ChatRunResult,
-  ChatRuntime,
-  ChatRuntimeContext,
-  ChatRunCommand,
-} from "../types.js";
+import type { ChatRunResult, ChatRuntime, ChatRuntimeContext, ChatRunCommand } from "../types.js";
 import { chunkText, createMockChatText, sleep } from "./response.js";
 
 export class MockChatRuntime implements ChatRuntime {

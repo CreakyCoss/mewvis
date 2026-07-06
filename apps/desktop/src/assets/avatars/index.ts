@@ -180,7 +180,7 @@ export const tavernAvatarGroups: AvatarGroup[] = [
 
 export const agentAvatarOptions = agentAvatarGroups.flatMap((group) => group.options);
 export const tavernAvatarOptions = tavernAvatarGroups.flatMap((group) => group.options);
-const fallbackAvatar: AvatarOption = {id: "blank-avatar", label: "空白头像", src: blankAvatar, groupId: "fallback"};
+const fallbackAvatar: AvatarOption = { id: "blank-avatar", label: "空白头像", src: blankAvatar, groupId: "fallback" };
 
 export const allAvatarOptions = [...agentAvatarOptions, ...tavernAvatarOptions, fallbackAvatar];
 
@@ -191,8 +191,7 @@ const tavernAvatarById = new Map(tavernAvatarOptions.map((option) => [option.id,
 export const defaultAgentAvatar = agentAvatarOptions[0] ?? fallbackAvatar;
 export const defaultTavernAvatar = tavernAvatarOptions[0] ?? fallbackAvatar;
 
-export const resolveAvatar = (avatar: string | null | undefined) =>
-  avatarById.get(avatar ?? "") ?? fallbackAvatar;
+export const resolveAvatar = (avatar: string | null | undefined) => avatarById.get(avatar ?? "") ?? fallbackAvatar;
 
 export const normalizeAgentAvatarId = (avatar: string | null | undefined) =>
   systemAgentAvatarById.get(avatar ?? "")?.id ?? fallbackAvatar.id;

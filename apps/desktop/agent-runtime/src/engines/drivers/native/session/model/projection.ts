@@ -1,26 +1,15 @@
-import type {
-  RuntimeLedgerEntry,
-  RuntimeMessage,
-  RuntimeMessageMetadata,
-  RuntimeSessionContext,
-} from "./ledger.js";
-import type {
-  RuntimeDisplaySummary,
-  RuntimeLink,
-} from "../../../../protocol/session.js";
+import type { RuntimeLedgerEntry, RuntimeMessage, RuntimeMessageMetadata, RuntimeSessionContext } from "./ledger.js";
+import type { RuntimeDisplaySummary, RuntimeLink } from "../../../../protocol/session.js";
 import type { RuntimeSessionStore } from "../internal/storage.js";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
-const timestampMs = (entry: RuntimeLedgerEntry) =>
-  new Date(entry.timestamp).getTime();
+const timestampMs = (entry: RuntimeLedgerEntry) => new Date(entry.timestamp).getTime();
 
-const stringValue = (value: unknown) =>
-  typeof value === "string" && value.trim() ? value : null;
+const stringValue = (value: unknown) => (typeof value === "string" && value.trim() ? value : null);
 
-const numberValue = (value: unknown) =>
-  typeof value === "number" && Number.isFinite(value) ? value : null;
+const numberValue = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : null);
 
 const branchSummaryToMessage = (entry: Extract<RuntimeLedgerEntry, { type: "branch_summary" }>): RuntimeMessage => ({
   messageRecordId: entry.id,
@@ -98,9 +87,7 @@ const appendVisibleEntry = (
   }
 };
 
-const displaySummaryFromEntry = (
-  entry: RuntimeLedgerEntry,
-): RuntimeDisplaySummary | null => {
+const displaySummaryFromEntry = (entry: RuntimeLedgerEntry): RuntimeDisplaySummary | null => {
   if (entry.type !== "custom" || entry.customType !== "display_summary" || !isRecord(entry.data)) {
     return null;
   }
@@ -135,22 +122,16 @@ const buildDisplaySummaries = (
 ) => {
   const displaySummaries = allEntries
     .map(displaySummaryFromEntry)
-    .filter((summary): summary is RuntimeDisplaySummary =>
-      Boolean(summary && activeEntryIds.has(summary.targetLeafId))
-    )
-    .sort((left, right) =>
-      left.generatedAt - right.generatedAt || left.timestamp - right.timestamp
-    );
+    .filter((summary): summary is RuntimeDisplaySummary => Boolean(summary && activeEntryIds.has(summary.targetLeafId)))
+    .sort((left, right) => left.generatedAt - right.generatedAt || left.timestamp - right.timestamp);
   const displaySummary = leafId
-    ? displaySummaries.filter((summary) => summary.targetLeafId === leafId).at(-1) ?? null
+    ? (displaySummaries.filter((summary) => summary.targetLeafId === leafId).at(-1) ?? null)
     : null;
 
   return { displaySummary, displaySummaries };
 };
 
-const metadataFromEntry = (
-  entry: RuntimeLedgerEntry,
-): RuntimeMessageMetadata | null => {
+const metadataFromEntry = (entry: RuntimeLedgerEntry): RuntimeMessageMetadata | null => {
   if (entry.type === "message") {
     return entry.message.metadata ?? null;
   }
@@ -164,16 +145,9 @@ const isRuntimeMetadata = (metadata: RuntimeMessageMetadata | null): metadata is
   metadata?.source === "runtime" || typeof metadata?.runtime === "string";
 
 const runtimeLinkId = (metadata: RuntimeMessageMetadata, entry: RuntimeLedgerEntry) =>
-  metadata.runId?.trim() ||
-  metadata.taskId?.trim() ||
-  metadata.streamId?.trim() ||
-  metadata.turnId?.trim() ||
-  entry.id;
+  metadata.runId?.trim() || metadata.taskId?.trim() || metadata.streamId?.trim() || metadata.turnId?.trim() || entry.id;
 
-const ensureRuntimeLink = (
-  links: Map<string, RuntimeLink>,
-  linkId: string,
-) => {
+const ensureRuntimeLink = (links: Map<string, RuntimeLink>, linkId: string) => {
   let link = links.get(linkId);
   if (!link) {
     link = {
@@ -209,10 +183,7 @@ const pushUnique = (items: string[], value: string) => {
   }
 };
 
-const applyMetadataToRuntimeLink = (
-  link: RuntimeLink,
-  metadata: RuntimeMessageMetadata,
-) => {
+const applyMetadataToRuntimeLink = (link: RuntimeLink, metadata: RuntimeMessageMetadata) => {
   link.runtime ??= stringValue(metadata.runtime);
   link.runtimeId ??= stringValue(metadata.runtimeId);
   link.agentRoleId ??= stringValue(metadata.agentRoleId);
@@ -228,14 +199,9 @@ const applyMetadataToRuntimeLink = (
   }
 };
 
-const appendRuntimeLinkEntry = (
-  link: RuntimeLink,
-  entry: RuntimeLedgerEntry,
-) => {
+const appendRuntimeLinkEntry = (link: RuntimeLink, entry: RuntimeLedgerEntry) => {
   const entryTimestamp = timestampMs(entry);
-  link.startedAt = link.startedAt == null
-    ? entryTimestamp
-    : Math.min(link.startedAt, entryTimestamp);
+  link.startedAt = link.startedAt == null ? entryTimestamp : Math.min(link.startedAt, entryTimestamp);
 
   if (entry.type === "message") {
     pushUnique(link.messageRecordIds, entry.id);
@@ -247,9 +213,7 @@ const appendRuntimeLinkEntry = (
     }
     if (entry.message.role === "assistant") {
       pushUnique(link.assistantMessageRecordIds, entry.id);
-      link.endedAt = link.endedAt == null
-        ? entryTimestamp
-        : Math.max(link.endedAt, entryTimestamp);
+      link.endedAt = link.endedAt == null ? entryTimestamp : Math.max(link.endedAt, entryTimestamp);
     }
     return;
   }
@@ -280,9 +244,7 @@ const buildRuntimeLinks = (entries: RuntimeLedgerEntry[]) => {
   return [...links.values()]
     .map((link) => ({
       ...link,
-      status: link.status === "running" && link.assistantMessageRecordIds.length > 0
-        ? "done"
-        : link.status,
+      status: link.status === "running" && link.assistantMessageRecordIds.length > 0 ? "done" : link.status,
     }))
     .sort((left, right) => (left.startedAt ?? 0) - (right.startedAt ?? 0));
 };
@@ -293,11 +255,7 @@ export const buildRuntimeSessionContext = (
 ): RuntimeSessionContext => {
   const entries = storage.getPathToRoot(leafId);
   const activeEntryIds = new Set(entries.map((entry) => entry.id));
-  const { displaySummary, displaySummaries } = buildDisplaySummaries(
-    storage.getEntries(),
-    activeEntryIds,
-    leafId,
-  );
+  const { displaySummary, displaySummaries } = buildDisplaySummaries(storage.getEntries(), activeEntryIds, leafId);
   const messages: RuntimeMessage[] = [];
   const requestContexts: RuntimeSessionContext["requestContexts"] = [];
   const runtimeInstructions: RuntimeSessionContext["runtimeInstructions"] = [];

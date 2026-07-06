@@ -1,8 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import {
-  emptyKnowledgeLibrary,
-  emptyKnowledgeSettings,
-} from "./api-preview";
+import { emptyKnowledgeLibrary, emptyKnowledgeSettings } from "./api-preview";
 import type {
   EmbeddingProfile,
   KnowledgeLibrary,
@@ -111,10 +108,7 @@ export const deleteKnowledgeSource = (sourceId: string) => {
   return invoke<KnowledgeLibrary>("delete_knowledge_source", { sourceId });
 };
 
-export const setKnowledgeCollectionSources = (
-  collectionId: string,
-  sourceIds: string[],
-) => {
+export const setKnowledgeCollectionSources = (collectionId: string, sourceIds: string[]) => {
   if (!isTauri()) {
     return Promise.resolve(emptyKnowledgeLibrary());
   }

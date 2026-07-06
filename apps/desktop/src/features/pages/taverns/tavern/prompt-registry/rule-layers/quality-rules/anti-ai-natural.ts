@@ -4,9 +4,7 @@ export const antiAiNaturalQualityRule: TavernQualityRule = {
   id: "anti-ai-natural",
   label: "去 AI 味",
   description: "减少模板化修辞、机械对话标签和总结升华，让文字更自然。",
-  bridgeAddendum: [
-    "质量规则：去 AI 味。摘要时不要把模型化表达、修辞模板或总结升华误当作稳定剧情事实。",
-  ].join("\n"),
+  bridgeAddendum: ["质量规则：去 AI 味。摘要时不要把模型化表达、修辞模板或总结升华误当作稳定剧情事实。"].join("\n"),
   directorAddendum: [
     "去 AI 味：导演不要反复安排空气安静、所有人沉默、总结升华或抽象感慨作为推进。",
     "旁白优先使用可观察动作、场面变化和具体后果，不用“这一刻”“他明白了”“命运齿轮”等总结句。",

@@ -33,11 +33,7 @@ type SkillSourceBadgeProps = {
   systemOnly?: boolean;
 };
 
-export const SkillSourceBadge = ({
-  source,
-  readonly = true,
-  systemOnly = false,
-}: SkillSourceBadgeProps) => {
+export const SkillSourceBadge = ({ source, readonly = true, systemOnly = false }: SkillSourceBadgeProps) => {
   if (systemOnly && source !== "system") {
     return null;
   }

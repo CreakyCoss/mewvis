@@ -14,7 +14,9 @@ const protocolEntry = resolve(desktopRoot, "agent-runtime/src/engines/protocol/i
 const collaborationEntry = resolve(desktopRoot, "agent-runtime/src/engines/drivers/native/collaboration/index.ts");
 const sessionEntry = resolve(desktopRoot, "agent-runtime/src/engines/drivers/native/session/index.ts");
 
-writeFileSync(entryPath, `
+writeFileSync(
+  entryPath,
+  `
   import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
   import { tmpdir } from "node:os";
   import { join } from "node:path";
@@ -919,7 +921,9 @@ writeFileSync(entryPath, `
   } finally {
     rmSync(workspacePath, { recursive: true, force: true });
   }
-`, "utf8");
+`,
+  "utf8",
+);
 
 try {
   await build({
@@ -934,11 +938,19 @@ try {
     },
   });
 
-  writeFileSync(packagePath, `${JSON.stringify({
-    name: "novel-claw-agent-runtime-collaboration-smoke",
-    version: "0.0.0",
-    type: "module",
-  }, null, 2)}\n`, "utf8");
+  writeFileSync(
+    packagePath,
+    `${JSON.stringify(
+      {
+        name: "novel-claw-agent-runtime-collaboration-smoke",
+        version: "0.0.0",
+        type: "module",
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
 
   await import(pathToFileURL(bundlePath).href);
 } finally {

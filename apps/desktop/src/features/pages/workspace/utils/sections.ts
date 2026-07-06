@@ -1,8 +1,4 @@
-import type {
-  WorkspaceGroup,
-  WorkspaceSection,
-  WorkspaceOverview,
-} from "../types";
+import type { WorkspaceGroup, WorkspaceSection, WorkspaceOverview } from "../types";
 
 const fallbackDefaultGroup: WorkspaceGroup = {
   id: "default",
@@ -13,13 +9,10 @@ const fallbackDefaultGroup: WorkspaceGroup = {
   updatedAt: 0,
 };
 
-export const buildSections = (
-  overview: WorkspaceOverview | null,
-): WorkspaceSection[] => {
+export const buildSections = (overview: WorkspaceOverview | null): WorkspaceSection[] => {
   const groups = overview?.groups ?? [];
   const workspaces = overview?.workspaces ?? [];
-  const defaultGroup =
-    groups.find((group) => group.isDefault) ?? fallbackDefaultGroup;
+  const defaultGroup = groups.find((group) => group.isDefault) ?? fallbackDefaultGroup;
   const knownGroupIds = new Set(groups.map((group) => group.id));
   const normalizedGroups = groups.length > 0 ? groups : [defaultGroup];
 
@@ -30,10 +23,7 @@ export const buildSections = (
           return true;
         }
 
-        return (
-          group.isDefault &&
-          (!workspace.groupId || !knownGroupIds.has(workspace.groupId))
-        );
+        return group.isDefault && (!workspace.groupId || !knownGroupIds.has(workspace.groupId));
       })
       .sort((left, right) => {
         if (left.isPinned !== right.isPinned) {

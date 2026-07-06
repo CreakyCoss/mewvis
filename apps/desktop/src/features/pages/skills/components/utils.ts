@@ -1,13 +1,8 @@
 import type { WorkspaceSkill, WorkspaceSkillGroup } from "../types";
-export {
-  ALL_SKILLS_GROUP_ID,
-  NO_SKILLS_GROUP_ID,
-} from "../constants";
+export { ALL_SKILLS_GROUP_ID, NO_SKILLS_GROUP_ID } from "../constants";
 
-export const existingGroupSkillNames = (
-  group: WorkspaceSkillGroup,
-  skillsByKey: Map<string, WorkspaceSkill>,
-) => group.skills.map((skill) => skill.key).filter((key) => skillsByKey.has(key));
+export const existingGroupSkillNames = (group: WorkspaceSkillGroup, skillsByKey: Map<string, WorkspaceSkill>) =>
+  group.skills.map((skill) => skill.key).filter((key) => skillsByKey.has(key));
 
 export const nextCustomGroupOrder = (groups: WorkspaceSkillGroup[]) => {
   const maxOrder = groups
@@ -71,12 +66,7 @@ export const filterSkills = (skills: WorkspaceSkill[], query: string) => {
     return skills;
   }
   return skills.filter((skill) => {
-    const haystack = [
-      skill.name,
-      skill.description,
-      skill.content,
-      skill.source,
-    ].join("\n").toLowerCase();
+    const haystack = [skill.name, skill.description, skill.content, skill.source].join("\n").toLowerCase();
     return haystack.includes(normalized);
   });
 };
@@ -84,9 +74,7 @@ export const filterSkills = (skills: WorkspaceSkill[], query: string) => {
 export const isDirectImportInput = (value: string) => {
   const normalized = value.trim().toLowerCase();
   return (
-    normalized.includes("skills add")
-    || normalized.includes("github.com/")
-    || normalized.includes("skillsmp.com/")
+    normalized.includes("skills add") || normalized.includes("github.com/") || normalized.includes("skillsmp.com/")
   );
 };
 
@@ -138,10 +126,7 @@ const extractFrontmatter = (content: string) => {
 
 const stripWrappingQuotes = (value: string) => {
   const trimmed = value.trim();
-  if (
-    (trimmed.startsWith("\"") && trimmed.endsWith("\""))
-    || (trimmed.startsWith("'") && trimmed.endsWith("'"))
-  ) {
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
     return trimmed.slice(1, -1).trim();
   }
   return trimmed;
@@ -154,9 +139,7 @@ const extractFrontmatterDescription = (value: string) => {
   }
 
   const lines = frontmatter.split(/\r?\n/);
-  const descriptionLineIndex = lines.findIndex((line) =>
-    /^description\s*:/i.test(line.trimStart()),
-  );
+  const descriptionLineIndex = lines.findIndex((line) => /^description\s*:/i.test(line.trimStart()));
   if (descriptionLineIndex === -1) {
     return null;
   }
@@ -190,9 +173,7 @@ export const skillDescriptionPreview = (description?: string | null) => {
   }
 
   const frontmatterDescription = extractFrontmatterDescription(value);
-  const normalized = (frontmatterDescription ?? value)
-    .replace(/\s+/g, " ")
-    .trim();
+  const normalized = (frontmatterDescription ?? value).replace(/\s+/g, " ").trim();
 
   if (!normalized) {
     return "暂无描述";
@@ -203,9 +184,7 @@ export const skillDescriptionPreview = (description?: string | null) => {
 
 export const skillContentPreview = (content: string) => {
   const frontmatter = extractFrontmatter(content);
-  const contentWithoutFrontmatter = frontmatter
-    ? frontmatter.source.slice(frontmatter.bodyStart)
-    : content;
+  const contentWithoutFrontmatter = frontmatter ? frontmatter.source.slice(frontmatter.bodyStart) : content;
   const normalized = contentWithoutFrontmatter.replace(/\s+/g, " ").trim();
   if (!normalized) {
     return "暂无技能内容";

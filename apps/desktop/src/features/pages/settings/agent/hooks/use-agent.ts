@@ -7,18 +7,8 @@ import {
   saveAiAgent,
   saveCollaborationWorkflow,
 } from "../api";
-import type {
-  AiAgent,
-  CollaborationWorkflow,
-  SaveAiAgentInput,
-  SaveCollaborationWorkflowInput,
-} from "../types";
-import {
-  agentToDraft,
-  createAgentDraft,
-  createCollaborationWorkflowDraft,
-  resolveAgentProfiles,
-} from "../utils";
+import type { AiAgent, CollaborationWorkflow, SaveAiAgentInput, SaveCollaborationWorkflowInput } from "../types";
+import { agentToDraft, createAgentDraft, createCollaborationWorkflowDraft, resolveAgentProfiles } from "../utils";
 
 type AgentSettingsSelectionKind = "agent" | "workflow";
 
@@ -58,10 +48,7 @@ export const useAgentSettings = (open: boolean) => {
     () => agents.find((agent) => agent.id === selectedAgentId) ?? null,
     [agents, selectedAgentId],
   );
-  const agentProfiles = useMemo(
-    () => resolveAgentProfiles(agents),
-    [agents],
-  );
+  const agentProfiles = useMemo(() => resolveAgentProfiles(agents), [agents]);
   const selectedWorkflow = useMemo(
     () => workflows.find((workflow) => workflow.id === selectedWorkflowId) ?? null,
     [selectedWorkflowId, workflows],
@@ -90,9 +77,7 @@ export const useAgentSettings = (open: boolean) => {
             }
           : createAgentDraft(),
       );
-      setWorkflowDraft(
-        nextWorkflow ? workflowToDraft(nextWorkflow) : createCollaborationWorkflowDraft(profiles),
-      );
+      setWorkflowDraft(nextWorkflow ? workflowToDraft(nextWorkflow) : createCollaborationWorkflowDraft(profiles));
     } catch (caught) {
       setError(String(caught));
     } finally {
@@ -106,18 +91,21 @@ export const useAgentSettings = (open: boolean) => {
     }
   }, [load, open]);
 
-  const selectAgent = useCallback((agentId: string) => {
-    setSelectionKind("agent");
-    setSelectedAgentId(agentId);
-    const agent = agents.find((item) => item.id === agentId);
-    if (!agent) {
-      return;
-    }
-    setDraft({
-      ...agentToDraft(agent),
-      avatar: normalizeAgentAvatarId(agent.avatar),
-    });
-  }, [agents]);
+  const selectAgent = useCallback(
+    (agentId: string) => {
+      setSelectionKind("agent");
+      setSelectedAgentId(agentId);
+      const agent = agents.find((item) => item.id === agentId);
+      if (!agent) {
+        return;
+      }
+      setDraft({
+        ...agentToDraft(agent),
+        avatar: normalizeAgentAvatarId(agent.avatar),
+      });
+    },
+    [agents],
+  );
 
   const createNew = useCallback(() => {
     setSelectionKind("agent");
@@ -125,15 +113,18 @@ export const useAgentSettings = (open: boolean) => {
     setDraft(createAgentDraft());
   }, []);
 
-  const selectWorkflow = useCallback((workflowId: string) => {
-    setSelectionKind("workflow");
-    setSelectedWorkflowId(workflowId);
-    const workflow = workflows.find((item) => item.id === workflowId);
-    if (!workflow) {
-      return;
-    }
-    setWorkflowDraft(workflowToDraft(workflow));
-  }, [workflows]);
+  const selectWorkflow = useCallback(
+    (workflowId: string) => {
+      setSelectionKind("workflow");
+      setSelectedWorkflowId(workflowId);
+      const workflow = workflows.find((item) => item.id === workflowId);
+      if (!workflow) {
+        return;
+      }
+      setWorkflowDraft(workflowToDraft(workflow));
+    },
+    [workflows],
+  );
 
   const createNewWorkflow = useCallback(() => {
     setSelectionKind("workflow");
@@ -145,11 +136,12 @@ export const useAgentSettings = (open: boolean) => {
     setDraft(updater);
   }, []);
 
-  const updateWorkflowDraft = useCallback((
-    updater: (current: SaveCollaborationWorkflowInput) => SaveCollaborationWorkflowInput,
-  ) => {
-    setWorkflowDraft(updater);
-  }, []);
+  const updateWorkflowDraft = useCallback(
+    (updater: (current: SaveCollaborationWorkflowInput) => SaveCollaborationWorkflowInput) => {
+      setWorkflowDraft(updater);
+    },
+    [],
+  );
 
   const save = useCallback(async () => {
     if (!draft.name.trim()) {
@@ -169,9 +161,10 @@ export const useAgentSettings = (open: boolean) => {
       });
       setAgents(settings.agents);
       setWorkflows(settings.collaborationWorkflows);
-      const saved = settings.agents.find((agent) => agent.id === draft.id)
-        ?? settings.agents.find((agent) => agent.name === draft.name.trim())
-        ?? settings.agents[settings.agents.length - 1];
+      const saved =
+        settings.agents.find((agent) => agent.id === draft.id) ??
+        settings.agents.find((agent) => agent.name === draft.name.trim()) ??
+        settings.agents[settings.agents.length - 1];
       setSelectedAgentId(saved?.id ?? "");
       if (saved) {
         setDraft({
@@ -204,9 +197,7 @@ export const useAgentSettings = (open: boolean) => {
       return false;
     }
     const firstStep = steps[0];
-    const reviewerStep = steps.find((step) => step.agentId !== firstStep.agentId)
-      ?? steps[1]
-      ?? firstStep;
+    const reviewerStep = steps.find((step) => step.agentId !== firstStep.agentId) ?? steps[1] ?? firstStep;
 
     setIsSaving(true);
     setError("");
@@ -229,9 +220,10 @@ export const useAgentSettings = (open: boolean) => {
       });
       setAgents(settings.agents);
       setWorkflows(settings.collaborationWorkflows);
-      const saved = settings.collaborationWorkflows.find((workflow) => workflow.id === workflowDraft.id)
-        ?? settings.collaborationWorkflows.find((workflow) => workflow.name === workflowDraft.name.trim())
-        ?? settings.collaborationWorkflows[settings.collaborationWorkflows.length - 1];
+      const saved =
+        settings.collaborationWorkflows.find((workflow) => workflow.id === workflowDraft.id) ??
+        settings.collaborationWorkflows.find((workflow) => workflow.name === workflowDraft.name.trim()) ??
+        settings.collaborationWorkflows[settings.collaborationWorkflows.length - 1];
       setSelectedWorkflowId(saved?.id ?? "");
       setSelectionKind("workflow");
       if (saved) {
@@ -283,9 +275,7 @@ export const useAgentSettings = (open: boolean) => {
       setAgents(settings.agents);
       setWorkflows(settings.collaborationWorkflows);
       setSelectedWorkflowId(nextWorkflow?.id ?? "");
-      setWorkflowDraft(
-        nextWorkflow ? workflowToDraft(nextWorkflow) : createCollaborationWorkflowDraft(profiles),
-      );
+      setWorkflowDraft(nextWorkflow ? workflowToDraft(nextWorkflow) : createCollaborationWorkflowDraft(profiles));
     } catch (caught) {
       setError(String(caught));
     } finally {

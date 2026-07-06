@@ -1,8 +1,8 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type {
   TavernFactEvent,
   TavernInformationPolicy,
   TavernOutcomeEvent,
-  TavernRoom,
   TavernRoomSettings,
 } from "@/features/pages/taverns/manage/model";
 

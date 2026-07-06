@@ -1,10 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { MarkdownContent } from "./markdown-content";
-import {
-  getMarkdownInputContent,
-  getMarkdownMessageContent,
-  isMarkdownMessageStreaming,
-} from "./message";
+import { getMarkdownInputContent, getMarkdownMessageContent, isMarkdownMessageStreaming } from "./message";
 import type { SmoothMarkdownContentProps, SmoothPlainTextProps } from "./types";
 
 const MIN_CHARS_PER_FRAME = 2;
@@ -16,10 +12,7 @@ const getNextChunkSize = (remainingLength: number) =>
     remainingLength,
     Math.max(
       MIN_CHARS_PER_FRAME,
-      Math.min(
-        MAX_CHARS_PER_FRAME,
-        Math.ceil(remainingLength / TARGET_FRAMES_TO_CATCH_UP),
-      ),
+      Math.min(MAX_CHARS_PER_FRAME, Math.ceil(remainingLength / TARGET_FRAMES_TO_CATCH_UP)),
     ),
   );
 
@@ -38,9 +31,12 @@ const useSmoothedStreamText = (content: string, isStreaming: boolean) => {
     }
   }, []);
 
-  useEffect(() => () => {
-    cancelFrame();
-  }, [cancelFrame]);
+  useEffect(
+    () => () => {
+      cancelFrame();
+    },
+    [cancelFrame],
+  );
 
   useEffect(() => {
     isStreamingRef.current = isStreaming;
@@ -49,8 +45,7 @@ const useSmoothedStreamText = (content: string, isStreaming: boolean) => {
     }
     targetContentRef.current = content;
     const shouldSmoothAppend =
-      content.startsWith(visibleContentRef.current) &&
-      (isStreaming || shouldFinishSmoothlyRef.current);
+      content.startsWith(visibleContentRef.current) && (isStreaming || shouldFinishSmoothlyRef.current);
 
     if (!shouldSmoothAppend) {
       cancelFrame();
@@ -106,25 +101,15 @@ const useSmoothedStreamText = (content: string, isStreaming: boolean) => {
   }, [cancelFrame, content, isStreaming]);
 
   const shouldRenderSmoothContent =
-    content.startsWith(visibleContentRef.current) &&
-    (isStreaming || shouldFinishSmoothlyRef.current);
+    content.startsWith(visibleContentRef.current) && (isStreaming || shouldFinishSmoothlyRef.current);
 
   return shouldRenderSmoothContent ? visibleContent : content;
 };
 
 const SmoothMarkdownContentComponent = (props: SmoothMarkdownContentProps) => {
-  const {
-    className,
-    emClassName,
-    inverted,
-    isStreaming,
-    separateEmphasisBlocks,
-    variant,
-  } = props;
+  const { className, emClassName, inverted, isStreaming, separateEmphasisBlocks, variant } = props;
   const content = getMarkdownInputContent(props);
-  const shouldStream = isStreaming ?? (
-    props.message ? isMarkdownMessageStreaming(props.message) : false
-  );
+  const shouldStream = isStreaming ?? (props.message ? isMarkdownMessageStreaming(props.message) : false);
   const visibleContent = useSmoothedStreamText(content, shouldStream);
 
   return (
@@ -141,18 +126,9 @@ const SmoothMarkdownContentComponent = (props: SmoothMarkdownContentProps) => {
 
 export const SmoothMarkdownContent = memo(SmoothMarkdownContentComponent);
 
-const SmoothPlainTextComponent = ({
-  content,
-  message,
-  fallback,
-  isStreaming,
-}: SmoothPlainTextProps) => {
-  const sourceContent = content ?? (
-    message ? getMarkdownMessageContent(message) : ""
-  );
-  const shouldStream = isStreaming ?? (
-    message ? isMarkdownMessageStreaming(message) : false
-  );
+const SmoothPlainTextComponent = ({ content, message, fallback, isStreaming }: SmoothPlainTextProps) => {
+  const sourceContent = content ?? (message ? getMarkdownMessageContent(message) : "");
+  const shouldStream = isStreaming ?? (message ? isMarkdownMessageStreaming(message) : false);
   const visibleContent = useSmoothedStreamText(sourceContent, shouldStream);
   const renderedContent = visibleContent.trim() || fallback || "";
 

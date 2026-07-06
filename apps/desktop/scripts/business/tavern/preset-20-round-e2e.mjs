@@ -9,7 +9,10 @@ const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-tavern-preset-20-e2e-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
 const corePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/core/index.ts");
-const systemPresetRoomPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/factories/system-preset-room.ts");
+const systemPresetRoomPath = resolve(
+  workspaceRoot,
+  "src/features/pages/taverns/tavern/factories/system-preset-room.ts",
+);
 
 const assert = (condition, message, details) => {
   if (!condition) {
@@ -18,7 +21,9 @@ const assert = (condition, message, details) => {
   }
 };
 
-writeFileSync(entryPath, `
+writeFileSync(
+  entryPath,
+  `
   import {
     advanceTavernProgressFromFactEvents,
     getTavernStatusSnapshotValue,
@@ -233,7 +238,9 @@ writeFileSync(entryPath, `
   globalThis.__tavernPresetTwentyRoundChecks = {
     presets: shellPresetCases.map(runNovelPresetTwentyRounds),
   };
-`, "utf8");
+`,
+  "utf8",
+);
 
 try {
   await build({
@@ -263,9 +270,13 @@ try {
   assert(checks, "20-round preset checks did not run");
 
   const { presets } = checks;
-  assert(Array.isArray(presets) && presets.length === 3, "Shell preset 20-round checks should cover all current default taverns", {
-    presetCount: presets?.length,
-  });
+  assert(
+    Array.isArray(presets) && presets.length === 3,
+    "Shell preset 20-round checks should cover all current default taverns",
+    {
+      presetCount: presets?.length,
+    },
+  );
 
   for (const preset of presets) {
     assert(preset.room.replyMode === "director", "Shell preset should use director reply mode", {
@@ -282,15 +293,13 @@ try {
       { presetId: preset.presetId, orders: preset.orders },
     );
     assert(
-      preset.mappedCharacterIds.every((characterId) =>
-        preset.orders.some((order) => order.includes(characterId))
-      ),
+      preset.mappedCharacterIds.every((characterId) => preset.orders.some((order) => order.includes(characterId))),
       "Shell preset mapped characters should all appear in 20-round scheduling",
       { presetId: preset.presetId, mappedCharacterIds: preset.mappedCharacterIds, orders: preset.orders },
     );
     assert(
-      Object.entries(preset.expectedStatusValues).every(([statusId, expected]) =>
-        preset.statusValues[statusId] === expected
+      Object.entries(preset.expectedStatusValues).every(
+        ([statusId, expected]) => preset.statusValues[statusId] === expected,
       ),
       "Shell preset progress events should update configured statuses",
       {

@@ -1,12 +1,6 @@
-import type {
-  CollaborationEvent,
-  CollaborationRunInput,
-  CollaborationStepResult,
-} from "../../../../protocol/index.js";
+import type { CollaborationEvent, CollaborationRunInput, CollaborationStepResult } from "../../../../protocol/index.js";
 import { CollaborationEventType } from "../../../../protocol/index.js";
-import type {
-  EmitCollaborationEvent,
-} from "../handlers/types.js";
+import type { EmitCollaborationEvent } from "../handlers/types.js";
 import { createRuntimeSessionManager } from "../../session/index.js";
 import type { RuntimeSessionProviderId } from "../../session/providers/types.js";
 
@@ -23,17 +17,14 @@ type CollaborationTimelineRecord = {
   event: CollaborationEvent;
 };
 
-const hasSession = (
-  input: CollaborationRunInput,
-): input is SessionBackedCollaborationInput =>
-  Boolean(input.workspacePath.trim()) && typeof input.sessionRootDir === "string" &&
+const hasSession = (input: CollaborationRunInput): input is SessionBackedCollaborationInput =>
+  Boolean(input.workspacePath.trim()) &&
+  typeof input.sessionRootDir === "string" &&
   Boolean(input.sessionRootDir.trim());
 
 const modeIdFrom = (input: CollaborationRunInput) => {
   const metadataModeId = input.workflow.metadata?.modeId;
-  return typeof metadataModeId === "string" && metadataModeId.trim()
-    ? metadataModeId.trim()
-    : null;
+  return typeof metadataModeId === "string" && metadataModeId.trim() ? metadataModeId.trim() : null;
 };
 
 const summarizeStep = (step: CollaborationStepResult) => ({

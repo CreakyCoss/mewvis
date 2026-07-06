@@ -1,12 +1,8 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useChatSessionsStore } from "../../session-store";
-import type {
-  ChatMessage,
-  PendingAgentQuestion,
-} from "../../types";
+import type { ChatMessage, PendingAgentQuestion } from "../../types";
 
-const getRunningAgentSessionKey = (workspacePath: string, sessionId: string) =>
-  `${workspacePath}\u0000${sessionId}`;
+const getRunningAgentSessionKey = (workspacePath: string, sessionId: string) => `${workspacePath}\u0000${sessionId}`;
 
 export type RunningAgentTaskContext = {
   taskId: string;
@@ -54,49 +50,55 @@ export const useRunningAgentTasks = ({
       : "";
   }, [activeAgentTaskId, currentSessionId, runningAgentSessionKeys, workspacePath]);
 
-  const addRunningAgentTask = useCallback((task: RunningAgentTaskContext) => {
-    runningAgentTasksRef.current.set(task.taskId, task);
-    setSessionRunning(task.workspacePath, task.sessionId, true);
-    const key = getRunningAgentSessionKey(task.workspacePath, task.sessionId);
-    setRunningAgentSessionKeys((current) => {
-      if (current.has(key)) {
-        return current;
+  const addRunningAgentTask = useCallback(
+    (task: RunningAgentTaskContext) => {
+      runningAgentTasksRef.current.set(task.taskId, task);
+      setSessionRunning(task.workspacePath, task.sessionId, true);
+      const key = getRunningAgentSessionKey(task.workspacePath, task.sessionId);
+      setRunningAgentSessionKeys((current) => {
+        if (current.has(key)) {
+          return current;
+        }
+        const next = new Set(current);
+        next.add(key);
+        return next;
+      });
+    },
+    [setSessionRunning],
+  );
+
+  const removeRunningAgentTask = useCallback(
+    (taskId?: string) => {
+      if (!taskId) {
+        return;
       }
-      const next = new Set(current);
-      next.add(key);
-      return next;
-    });
-  }, [setSessionRunning]);
 
-  const removeRunningAgentTask = useCallback((taskId?: string) => {
-    if (!taskId) {
-      return;
-    }
-
-    const task = runningAgentTasksRef.current.get(taskId);
-    if (!task) {
-      return;
-    }
-
-    runningAgentTasksRef.current.delete(taskId);
-    const key = getRunningAgentSessionKey(task.workspacePath, task.sessionId);
-    const hasRemainingTaskForSession = [...runningAgentTasksRef.current.values()].some((currentTask) =>
-      currentTask.workspacePath === task.workspacePath && currentTask.sessionId === task.sessionId
-    );
-    if (hasRemainingTaskForSession) {
-      return;
-    }
-
-    setSessionRunning(task.workspacePath, task.sessionId, false);
-    setRunningAgentSessionKeys((current) => {
-      if (!current.has(key)) {
-        return current;
+      const task = runningAgentTasksRef.current.get(taskId);
+      if (!task) {
+        return;
       }
-      const next = new Set(current);
-      next.delete(key);
-      return next;
-    });
-  }, [setSessionRunning]);
+
+      runningAgentTasksRef.current.delete(taskId);
+      const key = getRunningAgentSessionKey(task.workspacePath, task.sessionId);
+      const hasRemainingTaskForSession = [...runningAgentTasksRef.current.values()].some(
+        (currentTask) => currentTask.workspacePath === task.workspacePath && currentTask.sessionId === task.sessionId,
+      );
+      if (hasRemainingTaskForSession) {
+        return;
+      }
+
+      setSessionRunning(task.workspacePath, task.sessionId, false);
+      setRunningAgentSessionKeys((current) => {
+        if (!current.has(key)) {
+          return current;
+        }
+        const next = new Set(current);
+        next.delete(key);
+        return next;
+      });
+    },
+    [setSessionRunning],
+  );
 
   return {
     runningAgentTasksRef,

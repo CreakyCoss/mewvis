@@ -2,20 +2,11 @@ import type { RuntimeModelInput } from "@/agent-client/types";
 
 export type SceneNovelizerPlatformStyleId = "fanqie" | "qidian";
 
-export type SceneNovelizerRuleCategory =
-  | "quality"
-  | "narrative"
-  | "genre"
-  | "hook"
-  | "taboo";
+export type SceneNovelizerRuleCategory = "quality" | "narrative" | "genre" | "hook" | "taboo";
 
 export type SceneNovelizerRuleOptionId = string;
 
-export type SceneNovelMaterialSource =
-  | "user"
-  | "character"
-  | "director"
-  | "system";
+export type SceneNovelMaterialSource = "user" | "character" | "director" | "system";
 
 export type SceneNovelMaterialKind =
   | "user_action"
@@ -28,11 +19,7 @@ export type SceneNovelMaterialKind =
   | "interruption"
   | "hook";
 
-export type SceneNovelMaterialVisibility =
-  | "public"
-  | "user_visible"
-  | "character_private"
-  | "director_private";
+export type SceneNovelMaterialVisibility = "public" | "user_visible" | "character_private" | "director_private";
 
 export type SceneNovelMaterialBeat = {
   id: string;

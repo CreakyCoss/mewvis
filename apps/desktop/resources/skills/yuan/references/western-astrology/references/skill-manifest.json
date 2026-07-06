@@ -9,15 +9,6 @@
     "house_system": "Placidus",
     "language": "zh-CN"
   },
-  "derived_features": [
-    "planet_positions",
-    "houses",
-    "planet_house_placement",
-    "aspects"
-  ],
-  "output_top_level_keys": [
-    "人格",
-    "事业",
-    "情感"
-  ]
+  "derived_features": ["planet_positions", "houses", "planet_house_placement", "aspects"],
+  "output_top_level_keys": ["人格", "事业", "情感"]
 }

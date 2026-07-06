@@ -39,14 +39,14 @@ In other words, `Yuan` is not a "metaphysics router" — it is a **destiny-readi
 
 `Yuan` orchestrates six reference systems under one umbrella skill:
 
-| Method | Reference |
-| --- | --- |
-| BaZi (Four Pillars) | `references/bazi/` |
-| Cheng Gu (bone-weight) | `references/chenggu/` |
-| Numerology | `references/numerology/` |
-| Western Astrology | `references/western-astrology/` |
-| Vedic Astrology | `references/vedic-astrology/` |
-| Zi Wei Dou Shu | `references/ziwei/` |
+| Method                 | Reference                       |
+| ---------------------- | ------------------------------- |
+| BaZi (Four Pillars)    | `references/bazi/`              |
+| Cheng Gu (bone-weight) | `references/chenggu/`           |
+| Numerology             | `references/numerology/`        |
+| Western Astrology      | `references/western-astrology/` |
+| Vedic Astrology        | `references/vedic-astrology/`   |
+| Zi Wei Dou Shu         | `references/ziwei/`             |
 
 Final delivery focuses on three rendering modes:
 

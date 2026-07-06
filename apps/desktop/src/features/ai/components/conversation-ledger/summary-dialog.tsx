@@ -1,13 +1,7 @@
 import { RefreshCw, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MarkdownContent } from "@/features/ai/components/markdown";
 import type { LedgerResult } from "./types";
@@ -43,13 +37,7 @@ export const LedgerSummaryDialog = ({
 
     autoRefreshRequestedRef.current = true;
     onRefreshSummary();
-  }, [
-    displaySummary,
-    isRefreshing,
-    ledger,
-    onRefreshSummary,
-    open,
-  ]);
+  }, [displaySummary, isRefreshing, ledger, onRefreshSummary, open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -59,9 +47,7 @@ export const LedgerSummaryDialog = ({
       >
         <DialogHeader className="border-b border-border/60 px-5 py-4">
           <div className="flex min-w-0 items-center gap-2">
-            <DialogTitle className="min-w-0 flex-1 truncate text-base">
-              会话摘要
-            </DialogTitle>
+            <DialogTitle className="min-w-0 flex-1 truncate text-base">会话摘要</DialogTitle>
             <span className="shrink-0 rounded-sm bg-muted/70 px-1.5 py-0.5 text-[11px] text-muted-foreground">
               {summaryCount} 条
             </span>
@@ -73,19 +59,9 @@ export const LedgerSummaryDialog = ({
               disabled={!ledger || isRefreshing}
               onClick={onRefreshSummary}
             >
-              <RefreshCw className={[
-                "size-4",
-                isRefreshing ? "animate-spin" : "",
-              ].join(" ")}
-              />
+              <RefreshCw className={["size-4", isRefreshing ? "animate-spin" : ""].join(" ")} />
             </Button>
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              title="关闭摘要"
-              onClick={() => onOpenChange(false)}
-            >
+            <Button type="button" size="icon-sm" variant="ghost" title="关闭摘要" onClick={() => onOpenChange(false)}>
               <X className="size-4" />
             </Button>
           </div>
@@ -109,20 +85,13 @@ export const LedgerSummaryDialog = ({
                     </span>
                   )}
                   {displaySummary.messageCount !== null && displaySummary.messageCount !== undefined && (
-                    <span className="rounded-sm bg-muted/60 px-1.5 py-1">
-                      {displaySummary.messageCount} 条消息
-                    </span>
+                    <span className="rounded-sm bg-muted/60 px-1.5 py-1">{displaySummary.messageCount} 条消息</span>
                   )}
                   {displaySummary.entryCount !== null && displaySummary.entryCount !== undefined && (
-                    <span className="rounded-sm bg-muted/60 px-1.5 py-1">
-                      {displaySummary.entryCount} 条记录
-                    </span>
+                    <span className="rounded-sm bg-muted/60 px-1.5 py-1">{displaySummary.entryCount} 条记录</span>
                   )}
                 </div>
-                <MarkdownContent
-                  content={displaySummary.summary}
-                  className="text-sm leading-7 text-foreground"
-                />
+                <MarkdownContent content={displaySummary.summary} className="text-sm leading-7 text-foreground" />
               </div>
             ) : (
               <div className="rounded-md bg-muted/25 px-3 py-10 text-center text-sm text-muted-foreground">

@@ -1,8 +1,9 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import { appendReferencesToPrompt } from "@/features/ai/components/context-tools";
 import type { RuntimeModelInput } from "@/agent-client/types";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
 import type { TavernMessage, TavernReferencedFile } from "../../types";
-import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { buildTavernBridgeSystemPrompt } from "../conversation";
 import { tavernArchivistAgentRoleId, tavernBridgeSessionRootDir } from "../../core";
 import { runTavernRuntimeAgent } from "../agent";

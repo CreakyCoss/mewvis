@@ -24,9 +24,7 @@
     "grade": "低",
     "verse_canonical": "身寒骨冷苦伶仃，此命推来行乞人。劳劳碌碌无度日，终年打拱过平生。",
     "structured": {
-      "trajectory_tags": [
-        "early_hardship"
-      ],
+      "trajectory_tags": ["early_hardship"],
       "career_level": "略弱",
       "wealth_level": "偏弱",
       "marriage_level": "中性",
@@ -44,9 +42,7 @@
     "grade": "低",
     "verse_canonical": "此命推来骨格轻，求谋作事事难成。妻儿兄弟应难许，别处他乡作散人。",
     "structured": {
-      "trajectory_tags": [
-        "mobility"
-      ],
+      "trajectory_tags": ["mobility"],
       "career_level": "略弱",
       "wealth_level": "中性",
       "marriage_level": "略弱",
@@ -64,10 +60,7 @@
     "grade": "低",
     "verse_canonical": "此命推来福禄无，门庭困苦总难荣。六亲骨肉皆无靠，流浪他乡作老翁。",
     "structured": {
-      "trajectory_tags": [
-        "mobility",
-        "family_support_weak"
-      ],
+      "trajectory_tags": ["mobility", "family_support_weak"],
       "career_level": "中性",
       "wealth_level": "偏弱",
       "marriage_level": "偏弱",
@@ -85,9 +78,7 @@
     "grade": "低",
     "verse_canonical": "此命推来祖业微，门庭营度似稀奇。六亲骨肉如冰炭，一世勤劳自把持。",
     "structured": {
-      "trajectory_tags": [
-        "family_support_weak"
-      ],
+      "trajectory_tags": ["family_support_weak"],
       "career_level": "中性",
       "wealth_level": "偏弱",
       "marriage_level": "中性",
@@ -105,12 +96,7 @@
     "grade": "低",
     "verse_canonical": "平生衣禄苦中求，独自营谋事不休。离祖出门宜早计，晚来衣禄自无休。",
     "structured": {
-      "trajectory_tags": [
-        "early_hardship",
-        "midlate_better",
-        "mobility",
-        "self_made"
-      ],
+      "trajectory_tags": ["early_hardship", "midlate_better", "mobility", "self_made"],
       "career_level": "略弱",
       "wealth_level": "很强",
       "marriage_level": "中性",
@@ -128,10 +114,7 @@
     "grade": "低",
     "verse_canonical": "一生作事少商量，难靠祖宗作主张。独马单枪空做去，早年晚岁总无长。",
     "structured": {
-      "trajectory_tags": [
-        "early_hardship",
-        "self_made"
-      ],
+      "trajectory_tags": ["early_hardship", "self_made"],
       "career_level": "中性",
       "wealth_level": "中性",
       "marriage_level": "中性",
@@ -149,9 +132,7 @@
     "grade": "低",
     "verse_canonical": "一生行事似飘蓬，祖宗产业在梦中。若不过房改名姓，也当移徒二三通。",
     "structured": {
-      "trajectory_tags": [
-        "mobility"
-      ],
+      "trajectory_tags": ["mobility"],
       "career_level": "中性",
       "wealth_level": "偏弱",
       "marriage_level": "中性",
@@ -169,11 +150,7 @@
     "grade": "低",
     "verse_canonical": "初年运限未曾亨，纵有功名在后成。须过四旬才可立，移居改姓始为良。",
     "structured": {
-      "trajectory_tags": [
-        "early_hardship",
-        "midlate_better",
-        "mobility"
-      ],
+      "trajectory_tags": ["early_hardship", "midlate_better", "mobility"],
       "career_level": "偏佳",
       "wealth_level": "中性",
       "marriage_level": "中性",
@@ -191,10 +168,7 @@
     "grade": "低",
     "verse_canonical": "劳劳碌碌苦中求，东奔西走何日休。若使终身勤与俭，老来稍可免忧愁。",
     "structured": {
-      "trajectory_tags": [
-        "early_hardship",
-        "midlate_better"
-      ],
+      "trajectory_tags": ["early_hardship", "midlate_better"],
       "career_level": "偏弱",
       "wealth_level": "略弱",
       "marriage_level": "中性",
@@ -212,11 +186,7 @@
     "grade": "低",
     "verse_canonical": "忙忙碌碌苦中求，何日云开见日头。难得祖基家可立，中年衣食渐无忧。",
     "structured": {
-      "trajectory_tags": [
-        "early_hardship",
-        "midlate_better",
-        "family_support_weak"
-      ],
+      "trajectory_tags": ["early_hardship", "midlate_better", "family_support_weak"],
       "career_level": "略弱",
       "wealth_level": "略弱",
       "marriage_level": "中性",
@@ -234,10 +204,7 @@
     "grade": "低",
     "verse_canonical": "初年运蹇事难谋，渐有财源如水流。到得中年衣食旺，那时名利一齐收。",
     "structured": {
-      "trajectory_tags": [
-        "early_hardship",
-        "midlate_better"
-      ],
+      "trajectory_tags": ["early_hardship", "midlate_better"],
       "career_level": "中性",
       "wealth_level": "很强",
       "marriage_level": "中性",
@@ -255,10 +222,7 @@
     "grade": "低",
     "verse_canonical": "早年做事事难成，百年勤劳枉费心。半世自如流水去，后来运到始得金。",
     "structured": {
-      "trajectory_tags": [
-        "early_hardship",
-        "midlate_better"
-      ],
+      "trajectory_tags": ["early_hardship", "midlate_better"],
       "career_level": "略弱",
       "wealth_level": "中性",
       "marriage_level": "中性",
@@ -276,10 +240,7 @@
     "grade": "低",
     "verse_canonical": "此命福气果如何，僧道门中衣禄多。离祖出家方为妙，朝晚拜佛念弥陀。",
     "structured": {
-      "trajectory_tags": [
-        "mobility",
-        "religious_path"
-      ],
+      "trajectory_tags": ["mobility", "religious_path"],
       "career_level": "中性",
       "wealth_level": "很强",
       "marriage_level": "中性",
@@ -302,9 +263,7 @@
     "grade": "低",
     "verse_canonical": "生平福量不周全，祖业根基觉少传。营事生涯宜守旧，时来衣食胜从前。",
     "structured": {
-      "trajectory_tags": [
-        "family_support_weak"
-      ],
+      "trajectory_tags": ["family_support_weak"],
       "career_level": "中性",
       "wealth_level": "偏佳",
       "marriage_level": "中性",
@@ -322,9 +281,7 @@
     "grade": "低",
     "verse_canonical": "不须劳碌过平生，独自成家福不轻。早有福星常照命，任君行去百般成。",
     "structured": {
-      "trajectory_tags": [
-        "self_made"
-      ],
+      "trajectory_tags": ["self_made"],
       "career_level": "中性",
       "wealth_level": "很强",
       "marriage_level": "中性",
@@ -342,9 +299,7 @@
     "grade": "低",
     "verse_canonical": "此命般般事不成，弟兄少力自孤行。虽然祖业须微有，来得明时去不明。",
     "structured": {
-      "trajectory_tags": [
-        "family_support_weak"
-      ],
+      "trajectory_tags": ["family_support_weak"],
       "career_level": "偏弱",
       "wealth_level": "中性",
       "marriage_level": "偏弱",
@@ -362,9 +317,7 @@
     "grade": "中",
     "verse_canonical": "一身骨肉最清高，早入黉门姓氏标。待到年将三十六，蓝衫脱去换红袍。",
     "structured": {
-      "trajectory_tags": [
-        "scholar_official"
-      ],
+      "trajectory_tags": ["scholar_official"],
       "career_level": "偏佳",
       "wealth_level": "中性",
       "marriage_level": "中性",
@@ -387,9 +340,7 @@
     "grade": "中",
     "verse_canonical": "此命终身运不通，劳劳作事尽皆空。苦心竭力成家计，到得那时在梦中。",
     "structured": {
-      "trajectory_tags": [
-        "early_hardship"
-      ],
+      "trajectory_tags": ["early_hardship"],
       "career_level": "略弱",
       "wealth_level": "偏弱",
       "marriage_level": "中性",
@@ -407,11 +358,7 @@
     "grade": "中",
     "verse_canonical": "平生衣禄是绵长，件件心中自主张。前面风霜多受过，后来必定享安康。",
     "structured": {
-      "trajectory_tags": [
-        "early_hardship",
-        "midlate_better",
-        "self_made"
-      ],
+      "trajectory_tags": ["early_hardship", "midlate_better", "self_made"],
       "career_level": "中性",
       "wealth_level": "很强",
       "marriage_level": "中性",
@@ -429,9 +376,7 @@
     "grade": "中",
     "verse_canonical": "此命推来自不同，为人能干异凡庸。中年还有逍遥福，不比前时运未通。",
     "structured": {
-      "trajectory_tags": [
-        "midlate_better"
-      ],
+      "trajectory_tags": ["midlate_better"],
       "career_level": "中性",
       "wealth_level": "偏佳",
       "marriage_level": "中性",
@@ -449,9 +394,7 @@
     "grade": "中",
     "verse_canonical": "得宽怀处且宽怀，何用双眉皱不开。若使中年命运济，那时名利一起来。",
     "structured": {
-      "trajectory_tags": [
-        "midlate_better"
-      ],
+      "trajectory_tags": ["midlate_better"],
       "career_level": "偏佳",
       "wealth_level": "中性",
       "marriage_level": "中性",
@@ -487,9 +430,7 @@
     "grade": "中",
     "verse_canonical": "万事由天莫苦求，须知福禄赖人修。当年财帛难如意，晚景欣然便不忧。",
     "structured": {
-      "trajectory_tags": [
-        "midlate_better"
-      ],
+      "trajectory_tags": ["midlate_better"],
       "career_level": "中性",
       "wealth_level": "偏佳",
       "marriage_level": "中性",
@@ -530,10 +471,7 @@
     "grade": "中",
     "verse_canonical": "东西南北尽皆通，出姓移居更觉隆。衣禄无穷无数定，中年晚景一般同。",
     "structured": {
-      "trajectory_tags": [
-        "midlate_better",
-        "mobility"
-      ],
+      "trajectory_tags": ["midlate_better", "mobility"],
       "career_level": "中性",
       "wealth_level": "偏佳",
       "marriage_level": "中性",
@@ -551,9 +489,7 @@
     "grade": "中",
     "verse_canonical": "此命推求旺末年，妻荣子贵自怡然。平生原有滔滔福，可卜财源若水泉。",
     "structured": {
-      "trajectory_tags": [
-        "midlate_better"
-      ],
+      "trajectory_tags": ["midlate_better"],
       "career_level": "中性",
       "wealth_level": "很强",
       "marriage_level": "很强",
@@ -576,10 +512,7 @@
     "grade": "中",
     "verse_canonical": "初年运道未曾亨，若是蹉跎再不兴。兄弟六亲皆无靠，一身事业晚年成。",
     "structured": {
-      "trajectory_tags": [
-        "early_hardship",
-        "family_support_weak"
-      ],
+      "trajectory_tags": ["early_hardship", "family_support_weak"],
       "career_level": "略弱",
       "wealth_level": "略弱",
       "marriage_level": "略弱",
@@ -602,9 +535,7 @@
     "grade": "中",
     "verse_canonical": "此命推来福不轻，自成自立显门庭。从来富贵人钦敬，使婢差奴过一生。",
     "structured": {
-      "trajectory_tags": [
-        "self_made"
-      ],
+      "trajectory_tags": ["self_made"],
       "career_level": "偏佳",
       "wealth_level": "很强",
       "marriage_level": "中性",
@@ -622,9 +553,7 @@
     "grade": "中",
     "verse_canonical": "为利为名终日劳，中年福禄也多遭。老来自有财星照，不比前番目下高。",
     "structured": {
-      "trajectory_tags": [
-        "midlate_better"
-      ],
+      "trajectory_tags": ["midlate_better"],
       "career_level": "中性",
       "wealth_level": "很强",
       "marriage_level": "中性",
@@ -714,10 +643,7 @@
     "grade": "高",
     "verse_canonical": "策马扬鞭争名利，少年作事费筹论。一朝福禄源源至，富贵荣华显六亲。",
     "structured": {
-      "trajectory_tags": [
-        "midlate_better",
-        "family_support_weak"
-      ],
+      "trajectory_tags": ["midlate_better", "family_support_weak"],
       "career_level": "偏佳",
       "wealth_level": "很强",
       "marriage_level": "中性",
@@ -771,9 +697,7 @@
     "grade": "高",
     "verse_canonical": "平生衣食自然来，名利双全富贵偕。金榜题名登甲第，紫袍玉带走金阶。",
     "structured": {
-      "trajectory_tags": [
-        "scholar_official"
-      ],
+      "trajectory_tags": ["scholar_official"],
       "career_level": "很强",
       "wealth_level": "很强",
       "marriage_level": "中性",
@@ -796,9 +720,7 @@
     "grade": "高",
     "verse_canonical": "细推此格秀而清，必定才高学业成。甲第之中应有分，扬鞭走马显威荣。",
     "structured": {
-      "trajectory_tags": [
-        "scholar_official"
-      ],
+      "trajectory_tags": ["scholar_official"],
       "career_level": "偏佳",
       "wealth_level": "中性",
       "marriage_level": "中性",
@@ -816,9 +738,7 @@
     "grade": "高",
     "verse_canonical": "一朝金榜快题名，显祖荣宗大器成。衣禄定然无欠缺，田园财帛更丰盈。",
     "structured": {
-      "trajectory_tags": [
-        "scholar_official"
-      ],
+      "trajectory_tags": ["scholar_official"],
       "career_level": "很强",
       "wealth_level": "很强",
       "marriage_level": "中性",
@@ -841,9 +761,7 @@
     "grade": "高",
     "verse_canonical": "不作朝中金榜客，定为世上大财翁。聪明天付经书熟，名显高科自是荣。",
     "structured": {
-      "trajectory_tags": [
-        "scholar_official"
-      ],
+      "trajectory_tags": ["scholar_official"],
       "career_level": "很强",
       "wealth_level": "偏佳",
       "marriage_level": "中性",
@@ -861,9 +779,7 @@
     "grade": "高",
     "verse_canonical": "此命生来福不穷，读书必定显亲宗。紫衣玉带为卿相，富贵荣华孰与同。",
     "structured": {
-      "trajectory_tags": [
-        "scholar_official"
-      ],
+      "trajectory_tags": ["scholar_official"],
       "career_level": "偏佳",
       "wealth_level": "很强",
       "marriage_level": "中性",
@@ -886,9 +802,7 @@
     "grade": "高",
     "verse_canonical": "命主为官福禄长，得来富贵实非常。名题雁塔传金榜，大显门庭天下扬。",
     "structured": {
-      "trajectory_tags": [
-        "scholar_official"
-      ],
+      "trajectory_tags": ["scholar_official"],
       "career_level": "很强",
       "wealth_level": "很强",
       "marriage_level": "中性",
@@ -906,9 +820,7 @@
     "grade": "高",
     "verse_canonical": "此格威权不可当，紫袍金带坐高堂。荣华富贵谁能及，万古留名姓氏扬。",
     "structured": {
-      "trajectory_tags": [
-        "scholar_official"
-      ],
+      "trajectory_tags": ["scholar_official"],
       "career_level": "偏佳",
       "wealth_level": "很强",
       "marriage_level": "中性",
@@ -954,9 +866,7 @@
     "grade": "高",
     "verse_canonical": "此格人间一福人，堆金积玉满堂春。从来富贵有天定，金榜题名更显亲。",
     "structured": {
-      "trajectory_tags": [
-        "scholar_official"
-      ],
+      "trajectory_tags": ["scholar_official"],
       "career_level": "偏佳",
       "wealth_level": "很强",
       "marriage_level": "中性",
@@ -992,9 +902,7 @@
     "grade": "高",
     "verse_canonical": "富贵由天莫苦求，万事家计不须谋。十年不比前番事，祖业根基千古留。",
     "structured": {
-      "trajectory_tags": [
-        "family_support_weak"
-      ],
+      "trajectory_tags": ["family_support_weak"],
       "career_level": "中性",
       "wealth_level": "偏佳",
       "marriage_level": "中性",
@@ -1048,9 +956,7 @@
     "grade": "高",
     "verse_canonical": "此命生成大不同，公侯卿相在其中。一生自有逍遥福，富贵荣华极品隆。",
     "structured": {
-      "trajectory_tags": [
-        "scholar_official"
-      ],
+      "trajectory_tags": ["scholar_official"],
       "career_level": "很强",
       "wealth_level": "很强",
       "marriage_level": "中性",

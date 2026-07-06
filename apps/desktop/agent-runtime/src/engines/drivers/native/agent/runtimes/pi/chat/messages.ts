@@ -1,28 +1,13 @@
-import type {
-  Api,
-  AssistantMessage,
-  Context,
-  Message,
-  Model,
-  Usage,
-} from "@earendil-works/pi-ai";
-import type {
-  ChatMessageInput,
-} from "../../../../../../protocol/index.js";
-import type {
-  ChatRunCommand,
-  ChatRunResult,
-} from "../../types.js";
+import type { Api, AssistantMessage, Context, Message, Model, Usage } from "@earendil-works/pi-ai";
+import type { ChatMessageInput } from "../../../../../../protocol/index.js";
+import type { ChatRunCommand, ChatRunResult } from "../../types.js";
 
 export const createPiChatResult = (message: AssistantMessage): ChatRunResult => ({
   text: textFromPiMessage(message),
   thinking: thinkingFromPiMessage(message),
 });
 
-export const createPiChatContext = (
-  command: ChatRunCommand,
-  model: Model<Api>,
-): Context => ({
+export const createPiChatContext = (command: ChatRunCommand, model: Model<Api>): Context => ({
   systemPrompt: command.systemPrompt ?? undefined,
   messages: command.messages.map((message) => toPiMessage(message, model)),
 });
@@ -73,10 +58,7 @@ export const thinkingFromPiMessage = (message: AssistantMessage) => {
   return thinking || null;
 };
 
-const toPiMessage = (
-  item: ChatMessageInput,
-  model: Model<Api>,
-): Message => {
+const toPiMessage = (item: ChatMessageInput, model: Model<Api>): Message => {
   if (item.role === "assistant") {
     return {
       role: "assistant",

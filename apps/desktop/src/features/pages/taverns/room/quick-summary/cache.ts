@@ -2,8 +2,7 @@ import type { QuickSummaryCache } from "./types";
 
 const QUICK_SUMMARY_CACHE_STORAGE_PREFIX = "novel-claw:tavern:quick-summary";
 
-const quickSummaryCacheStorageKey = (workspaceId: string) =>
-  `${QUICK_SUMMARY_CACHE_STORAGE_PREFIX}:${workspaceId}`;
+const quickSummaryCacheStorageKey = (workspaceId: string) => `${QUICK_SUMMARY_CACHE_STORAGE_PREFIX}:${workspaceId}`;
 
 const normalizeQuickSummaryCacheItem = (value: unknown): QuickSummaryCache | null => {
   if (!value || typeof value !== "object") {
@@ -53,19 +52,13 @@ export const loadQuickSummaryCache = (workspaceId: string): Record<string, Quick
   }
 };
 
-export const saveQuickSummaryCache = (
-  workspaceId: string,
-  cache: Record<string, QuickSummaryCache>,
-) => {
+export const saveQuickSummaryCache = (workspaceId: string, cache: Record<string, QuickSummaryCache>) => {
   if (typeof window === "undefined") {
     return;
   }
 
   try {
-    window.localStorage.setItem(
-      quickSummaryCacheStorageKey(workspaceId),
-      JSON.stringify(cache),
-    );
+    window.localStorage.setItem(quickSummaryCacheStorageKey(workspaceId), JSON.stringify(cache));
   } catch {
     // Ignore quota and private-mode storage failures; the in-memory cache still works.
   }

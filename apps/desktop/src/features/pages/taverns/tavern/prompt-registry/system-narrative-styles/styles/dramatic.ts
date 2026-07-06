@@ -5,7 +5,8 @@ export const dramaticSystemNarrativeStyle: TavernSystemNarrativeStyleRegistratio
   label: "张力推进",
   description: "提高冲突、选择压力和场景推进力度，但仍保留用户关键选择权。",
   bridgeAddendum: "摘要和压缩记录公开冲突、选择压力、关系变化和未兑现承诺；不要把可能性写成既成结果。",
-  directorAddendum: "导演优先调度最能制造承接、冲突、信息增量或选择压力的角色；随机事件只增加公开压力，不直接解决主线。",
+  directorAddendum:
+    "导演优先调度最能制造承接、冲突、信息增量或选择压力的角色；随机事件只增加公开压力，不直接解决主线。",
   characterRules: {
     narrativeBeat: [
       "- 小说正文段控制在 2 到 5 个短自然段；每段通常 40 到 120 个中文字符，避免几百字大段。",

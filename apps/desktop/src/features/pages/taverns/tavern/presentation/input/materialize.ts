@@ -27,7 +27,8 @@ import { buildTavernScene, defaultSceneTitle } from "../../story-model/scene-bui
 import { createTavernStoryBinding } from "../../story-model/story-binding";
 import { normalizeStoryGraph } from "../../story-model/story-graph";
 import type { TavernMessage } from "../../types";
-import type { TavernCharacter, TavernLorebookEntry, TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter, TavernLorebookEntry } from "@/features/pages/taverns/manage/model";
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type {
   TavernPresentationCharacterInput,
   TavernPresentationInput,

@@ -1,11 +1,6 @@
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
-import {
-  AgentEventType,
-} from "../../../../../../protocol/index.js";
-import type {
-  EmitAgentEvent,
-  RuntimeAgentCommand,
-} from "../../types.js";
+import { AgentEventType } from "../../../../../../protocol/index.js";
+import type { EmitAgentEvent, RuntimeAgentCommand } from "../../types.js";
 import { messageFromError } from "../../../../error.js";
 import type { PiAgentSession } from "./session.js";
 
@@ -207,9 +202,7 @@ const getPiMessageThinking = (event: Extract<AgentSessionEvent, { type: "message
     .trim();
 
 const getPiMessageContent = (event: Extract<AgentSessionEvent, { type: "message_end" }>) =>
-  "content" in event.message && Array.isArray(event.message.content)
-    ? event.message.content
-    : [];
+  "content" in event.message && Array.isArray(event.message.content) ? event.message.content : [];
 
 const getPiMessageError = (event: Extract<AgentSessionEvent, { type: "message_end" }>) => {
   const message = event.message;

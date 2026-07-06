@@ -8,28 +8,17 @@ const verdictLabel: Record<SceneNovelDraftQuality["verdict"], string> = {
   fail: "需重写",
 };
 
-export const SceneNovelizerQualityView = ({
-  quality,
-}: {
-  quality: SceneNovelDraftQuality;
-}) => {
+export const SceneNovelizerQualityView = ({ quality }: { quality: SceneNovelDraftQuality }) => {
   const Icon = quality.verdict === "pass" ? CheckCircle2 : AlertTriangle;
 
   return (
     <div className="space-y-2 rounded-md border border-current/10 bg-current/[0.045] p-3 text-current shadow-sm">
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <Icon
-            className={cn(
-              "size-4 shrink-0",
-              quality.verdict === "pass" ? "text-emerald-500" : "text-amber-500",
-            )}
-          />
+          <Icon className={cn("size-4 shrink-0", quality.verdict === "pass" ? "text-emerald-500" : "text-amber-500")} />
           <span className="text-xs font-semibold">{verdictLabel[quality.verdict]}</span>
         </div>
-        <span className="rounded-md bg-current/10 px-2 py-0.5 text-[11px] tabular-nums">
-          {quality.score}
-        </span>
+        <span className="rounded-md bg-current/10 px-2 py-0.5 text-[11px] tabular-nums">{quality.score}</span>
       </div>
 
       <div className="grid grid-cols-2 gap-1.5 text-[11px] leading-4 opacity-75">

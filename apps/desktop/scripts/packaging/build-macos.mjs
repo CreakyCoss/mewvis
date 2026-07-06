@@ -24,7 +24,7 @@ const targetOptionIndex = args.indexOf("--target");
 const requestedTarget =
   targetOptionIndex !== -1
     ? args[targetOptionIndex + 1]
-    : args[0] ?? (hostArch() === "arm64" ? "darwin-arm64" : "darwin-x64");
+    : (args[0] ?? (hostArch() === "arm64" ? "darwin-arm64" : "darwin-x64"));
 const targetName = TARGET_ALIASES[requestedTarget] ?? requestedTarget;
 const target = TARGETS[targetName];
 

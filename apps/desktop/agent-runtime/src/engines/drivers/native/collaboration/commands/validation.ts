@@ -1,11 +1,6 @@
-import type {
-  CollaborationWorkflowStep,
-} from "../../../../protocol/index.js";
+import type { CollaborationWorkflowStep } from "../../../../protocol/index.js";
 
-export const validateWorkflowSteps = (
-  workflowId: string,
-  steps: readonly CollaborationWorkflowStep[],
-) => {
+export const validateWorkflowSteps = (workflowId: string, steps: readonly CollaborationWorkflowStep[]) => {
   const stepIds = new Set<string>();
   for (const step of steps) {
     if (stepIds.has(step.id)) {
@@ -28,10 +23,7 @@ export const validateWorkflowSteps = (
   }
 };
 
-const validateWorkflowStepShape = (
-  workflowId: string,
-  step: CollaborationWorkflowStep,
-) => {
+const validateWorkflowStepShape = (workflowId: string, step: CollaborationWorkflowStep) => {
   if (!step.id?.trim()) {
     throw new Error(`协作 workflow step id 不能为空：${workflowId}`);
   }

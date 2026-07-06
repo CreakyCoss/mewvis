@@ -1,8 +1,9 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import { ChevronRight } from "lucide-react";
 import { resolveAvatar } from "@/assets/avatars";
 import { HoverCard, HoverCardTrigger } from "@/components/ui/hover-card";
 import { cn } from "@/lib/utils";
-import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import type { ResolvedStatusMetric } from "../types";
 import { CharacterDetail } from "./detail";
 import { CharacterMetricView } from "./status-metric";

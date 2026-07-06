@@ -1,11 +1,5 @@
-import {
-  collaborationRuntimeManifest,
-  listCollaborationRuntimes,
-} from "./registry.js";
-import type {
-  CollaborationRuntime,
-  CollaborationRuntimeId,
-} from "./types.js";
+import { collaborationRuntimeManifest, listCollaborationRuntimes } from "./registry.js";
+import type { CollaborationRuntime, CollaborationRuntimeId } from "./types.js";
 
 export type CollaborationRuntimeResolverOptions = {
   runtimes?: readonly CollaborationRuntime[];
@@ -16,10 +10,7 @@ export const createCollaborationRuntimeResolver = ({
   defaultRuntimeId = collaborationRuntimeManifest.defaultRuntimeId,
   runtimes = [],
 }: CollaborationRuntimeResolverOptions = {}) => {
-  const runtimeById = createRuntimeRegistry([
-    ...listCollaborationRuntimes(),
-    ...runtimes,
-  ]);
+  const runtimeById = createRuntimeRegistry([...listCollaborationRuntimes(), ...runtimes]);
 
   return {
     resolve(): CollaborationRuntime {
@@ -33,9 +24,7 @@ export const createCollaborationRuntimeResolver = ({
   };
 };
 
-const createRuntimeRegistry = (
-  runtimes: readonly CollaborationRuntime[],
-) => {
+const createRuntimeRegistry = (runtimes: readonly CollaborationRuntime[]) => {
   const runtimeById = new Map<string, CollaborationRuntime>();
   for (const runtime of runtimes) {
     runtimeById.set(runtime.id, runtime);
@@ -43,6 +32,5 @@ const createRuntimeRegistry = (
   return runtimeById;
 };
 
-const resolveRuntimeId = (
-  defaultRuntimeId: CollaborationRuntimeId | null | undefined,
-) => defaultRuntimeId?.trim() || collaborationRuntimeManifest.defaultRuntimeId;
+const resolveRuntimeId = (defaultRuntimeId: CollaborationRuntimeId | null | undefined) =>
+  defaultRuntimeId?.trim() || collaborationRuntimeManifest.defaultRuntimeId;

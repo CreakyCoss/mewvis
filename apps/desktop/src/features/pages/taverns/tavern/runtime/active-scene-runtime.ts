@@ -6,10 +6,10 @@ import { resolveActiveSceneInstance } from "./scene-instances";
 import { createRouteScopedSceneInstanceId, resolveRunNodePrefix } from "./story-runtime";
 import type {
   TavernCharacterMemoryLayers,
-  TavernRoom,
+  TavernRuntimeRoom as TavernRoom,
   TavernSceneMemoryLayers,
-  TavernScenePromptOverrides,
-} from "@/features/pages/taverns/manage/model";
+} from "@/features/pages/taverns/room/model";
+import type { TavernScenePromptOverrides } from "@/features/pages/taverns/manage/model";
 
 export const getActiveTavernSceneInstance = (room: TavernRoom | null | undefined) => {
   if (!room?.sceneInstances?.length) {

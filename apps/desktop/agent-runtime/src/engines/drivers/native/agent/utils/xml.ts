@@ -9,7 +9,7 @@ export type XmlElement = {
 
 const decodeXmlText = (value: string) =>
   value
-    .replace(/&quot;/g, "\"")
+    .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")

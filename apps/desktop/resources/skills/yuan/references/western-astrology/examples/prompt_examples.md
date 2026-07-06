@@ -3,11 +3,13 @@
 ## Positive triggers
 
 ### Chinese
+
 - 请根据我的出生时间和地点计算本命盘，并按人格、事业、情感输出 JSON。
 - 帮我看太阳、月亮、上升，还有主要相位。
 - 根据星盘分析我的事业方向和关系模式。
 
 ### English
+
 - Compute a Western tropical natal chart from my birth data and interpret the houses and aspects.
 - Give me a personality, career, and relationships reading from my birth chart.
 

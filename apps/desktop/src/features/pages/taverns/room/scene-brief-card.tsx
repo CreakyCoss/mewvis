@@ -1,11 +1,5 @@
 import type { ReactNode } from "react";
-import {
-  Feather,
-  Landmark,
-  Scale,
-  Swords,
-  Target,
-} from "lucide-react";
+import { Feather, Landmark, Scale, Swords, Target } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";
 import { cn } from "@/lib/utils";
@@ -52,13 +46,9 @@ const SceneBriefItem = ({
       <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-current/[0.07] text-current ring-1 ring-current/10">
         <Icon className="size-3.5 opacity-75" />
       </span>
-      <div className="min-w-0 text-[12.5px] font-semibold leading-4 opacity-80">
-        {title}
-      </div>
+      <div className="min-w-0 text-[12.5px] font-semibold leading-4 opacity-80">{title}</div>
     </div>
-    <p className="mt-1.5 whitespace-pre-wrap break-words text-[12px] leading-5 opacity-[0.76]">
-      {value}
-    </p>
+    <p className="mt-1.5 whitespace-pre-wrap break-words text-[12px] leading-5 opacity-[0.76]">{value}</p>
   </div>
 );
 
@@ -109,19 +99,11 @@ export const SceneBriefCard = ({
         >
           {content.themeLabel}
         </span>
-        <h2 className="min-w-0 truncate text-base font-semibold leading-6 sm:text-lg">
-          {content.title}
-        </h2>
-        <span className="text-xs font-medium opacity-[0.54]">
-          {content.sceneTitle}
-        </span>
+        <h2 className="min-w-0 truncate text-base font-semibold leading-6 sm:text-lg">{content.title}</h2>
+        <span className="text-xs font-medium opacity-[0.54]">{content.sceneTitle}</span>
       </div>
 
-      {sceneSelector && (
-        <div className="mt-2 grid gap-2 md:hidden">
-          {sceneSelector}
-        </div>
-      )}
+      {sceneSelector && <div className="mt-2 grid gap-2 md:hidden">{sceneSelector}</div>}
 
       {progressSlot}
 

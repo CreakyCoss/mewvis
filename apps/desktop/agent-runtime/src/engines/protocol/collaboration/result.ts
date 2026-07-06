@@ -1,7 +1,4 @@
-import type {
-  CollaborationStepCondition,
-  CollaborationStepType,
-} from "./workflow.js";
+import type { CollaborationStepCondition, CollaborationStepType } from "./workflow.js";
 
 export type CollaborationStepResult = {
   stepId: string;

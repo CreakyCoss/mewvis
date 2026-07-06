@@ -1,8 +1,6 @@
 import { mockRuntimeAgent } from "./agent/runtimes/mock/index.js";
 import { runtimeAgentManifest } from "./agent/runtimes/registry.js";
-import {
-  collaborationRuntimeManifest,
-} from "./collaboration/runtimes/registry.js";
+import { collaborationRuntimeManifest } from "./collaboration/runtimes/registry.js";
 import type { CollaborationRuntimeId } from "./collaboration/runtimes/types.js";
 import { runtimeSessionProviderManifest } from "./session/providers/registry.js";
 import type { RuntimeSessionProviderId } from "./session/providers/types.js";
@@ -36,27 +34,23 @@ const mockNativeRuntimeProfile = Object.freeze({
   sessionProviderId: runtimeSessionProviderManifest.defaultProviderId,
 } satisfies NativeRuntimeProfile);
 
-const nativeRuntimeProfiles = Object.freeze([
-  defaultNativeRuntimeProfile,
-  mockNativeRuntimeProfile,
-]);
+const nativeRuntimeProfiles = Object.freeze([defaultNativeRuntimeProfile, mockNativeRuntimeProfile]);
 
-const nativeRuntimeProfileRegistry: Readonly<Record<string, NativeRuntimeProfile>> =
-  Object.freeze(Object.fromEntries(
-    nativeRuntimeProfiles.map((profile) => [profile.id, profile]),
-  ));
+const nativeRuntimeProfileRegistry: Readonly<Record<string, NativeRuntimeProfile>> = Object.freeze(
+  Object.fromEntries(nativeRuntimeProfiles.map((profile) => [profile.id, profile])),
+);
 
 export const nativeRuntimeProfileManifest = Object.freeze({
   defaultProfileId: defaultNativeRuntimeProfile.id,
-  profiles: Object.freeze(nativeRuntimeProfiles.map(({ id, label }) => ({
-    id,
-    label,
-  }))),
+  profiles: Object.freeze(
+    nativeRuntimeProfiles.map(({ id, label }) => ({
+      id,
+      label,
+    })),
+  ),
 });
 
-export const resolveNativeRuntimeProfile = (
-  profileId?: string | null,
-): NativeRuntimeProfile => {
+export const resolveNativeRuntimeProfile = (profileId?: string | null): NativeRuntimeProfile => {
   const id = profileId?.trim() || nativeRuntimeProfileManifest.defaultProfileId;
   const profile = nativeRuntimeProfileRegistry[id];
   if (!profile) {

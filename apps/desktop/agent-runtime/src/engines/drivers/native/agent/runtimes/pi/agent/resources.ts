@@ -1,23 +1,9 @@
-import {
-  DefaultResourceLoader,
-  getAgentDir,
-  loadSkillsFromDir,
-  type Skill,
-} from "@earendil-works/pi-coding-agent";
-import type {
-  AgentRuntimeCallbacks,
-  RuntimeAgentCommand,
-} from "../../types.js";
-import {
-  enabledRuntimeSkillNames,
-  runtimeSkillSourcePaths,
-} from "../../resources.js";
+import { DefaultResourceLoader, getAgentDir, loadSkillsFromDir, type Skill } from "@earendil-works/pi-coding-agent";
+import type { AgentRuntimeCallbacks, RuntimeAgentCommand } from "../../types.js";
+import { enabledRuntimeSkillNames, runtimeSkillSourcePaths } from "../../resources.js";
 import { registerPiAskUserTool } from "../tools/ask-user-tool.js";
 
-export const createPiResourceLoader = async (
-  command: RuntimeAgentCommand,
-  callbacks: AgentRuntimeCallbacks,
-) => {
+export const createPiResourceLoader = async (command: RuntimeAgentCommand, callbacks: AgentRuntimeCallbacks) => {
   const enabledSkills = loadEnabledPiSkills(command);
   const loader = new DefaultResourceLoader({
     cwd: command.workspacePath,
@@ -46,11 +32,12 @@ const loadEnabledPiSkills = (command: RuntimeAgentCommand): Skill[] => {
     return [];
   }
 
-  const skills = paths.flatMap((dir) =>
-    loadSkillsFromDir({
-      dir,
-      source: "runtime",
-    }).skills,
+  const skills = paths.flatMap(
+    (dir) =>
+      loadSkillsFromDir({
+        dir,
+        source: "runtime",
+      }).skills,
   );
 
   return skills.filter((skill) => enabledNames.has(skill.name));

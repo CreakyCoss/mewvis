@@ -1,27 +1,12 @@
 import { useMemo, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
-import {
-  ArrowLeft,
-  Bot,
-  CheckCircle2,
-  ChevronRight,
-  KeyRound,
-  Plus,
-  ServerCog,
-  Sparkles,
-} from "lucide-react";
+import { ArrowLeft, Bot, CheckCircle2, ChevronRight, KeyRound, Plus, ServerCog, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  getApiFormatLabel,
-  getProviderWebsiteUrl,
-} from "./options";
+import { getApiFormatLabel, getProviderWebsiteUrl } from "./options";
 import type { LlmProvider } from "./types";
-import {
-  ProviderEditDialog,
-  type ProviderEditDialogHandle,
-} from "./provider-edit";
+import { ProviderEditDialog, type ProviderEditDialogHandle } from "./provider-edit";
 import { useLlmSettingsStore } from "./store";
 
 type LlmSettingsPageProps = {
@@ -29,16 +14,9 @@ type LlmSettingsPageProps = {
   onSettingsSaved?: () => void;
 };
 
-const countEnabledModels = (provider: LlmProvider) =>
-  provider.models.filter((model) => model.isEnabled).length;
+const countEnabledModels = (provider: LlmProvider) => provider.models.filter((model) => model.isEnabled).length;
 
-const ProviderTile = ({
-  provider,
-  onOpen,
-}: {
-  provider: LlmProvider;
-  onOpen: () => void;
-}) => {
+const ProviderTile = ({ provider, onOpen }: { provider: LlmProvider; onOpen: () => void }) => {
   const apiEndpoint = provider.apiEndpoint?.trim() ?? "";
   const websiteUrl = getProviderWebsiteUrl(provider.provider).trim();
   const enabledModelCount = countEnabledModels(provider);
@@ -55,9 +33,7 @@ const ProviderTile = ({
 
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="truncate text-base font-semibold">
-            {provider.name || "未命名 Provider"}
-          </span>
+          <span className="truncate text-base font-semibold">{provider.name || "未命名 Provider"}</span>
           {provider.isDefault && (
             <Badge variant="secondary" className="bg-primary/10 text-primary">
               默认
@@ -74,7 +50,9 @@ const ProviderTile = ({
           {apiEndpoint || websiteUrl || "未设置 API Endpoint"}
         </span>
         <span className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span>{enabledModelCount}/{provider.models.length} 个模型启用</span>
+          <span>
+            {enabledModelCount}/{provider.models.length} 个模型启用
+          </span>
           <span>·</span>
           <span>{provider.apiKey?.trim() ? "API Key 已配置" : "API Key 未配置"}</span>
         </span>
@@ -85,10 +63,7 @@ const ProviderTile = ({
   );
 };
 
-export const LlmSettingsPage = ({
-  onBack,
-  onSettingsSaved,
-}: LlmSettingsPageProps) => {
+export const LlmSettingsPage = ({ onBack, onSettingsSaved }: LlmSettingsPageProps) => {
   const providerEditDialogRef = useRef<ProviderEditDialogHandle>(null);
   const { settings, error, loadSettings } = useLlmSettingsStore(
     useShallow((store) => ({
@@ -100,10 +75,7 @@ export const LlmSettingsPage = ({
   const providers = settings.providers;
   const providerCount = providers.length;
   const enabledModelCount = useMemo(
-    () => providers.reduce(
-      (total, provider) => total + countEnabledModels(provider),
-      0,
-    ),
+    () => providers.reduce((total, provider) => total + countEnabledModels(provider), 0),
     [providers],
   );
 
@@ -183,11 +155,7 @@ export const LlmSettingsPage = ({
           {providers.length > 0 ? (
             <div className="space-y-3">
               {providers.map((provider) => (
-                <ProviderTile
-                  key={provider.id}
-                  provider={provider}
-                  onOpen={() => openEditProvider(provider)}
-                />
+                <ProviderTile key={provider.id} provider={provider} onOpen={() => openEditProvider(provider)} />
               ))}
             </div>
           ) : (
@@ -210,11 +178,7 @@ export const LlmSettingsPage = ({
         </div>
       </ScrollArea>
 
-      <ProviderEditDialog
-        bind={providerEditDialogRef}
-        providers={providers}
-        onSaved={handleSettingsSaved}
-      />
+      <ProviderEditDialog bind={providerEditDialogRef} providers={providers} onSaved={handleSettingsSaved} />
     </section>
   );
 };

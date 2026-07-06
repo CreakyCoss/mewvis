@@ -23,11 +23,7 @@ export const createAgentSessionPlan = async (input: {
     workspacePath: input.workspacePath,
     sessionRootDir: input.sessionRootDir,
     providerId: input.sessionProviderId,
-  }).resolveArtifactDir([
-    "agents",
-    runtimeKey,
-    agentRoleId,
-  ]);
+  }).resolveArtifactDir(["agents", runtimeKey, agentRoleId]);
 
   return {
     agentRoleId,

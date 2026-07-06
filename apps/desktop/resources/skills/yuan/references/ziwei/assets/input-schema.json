@@ -5,37 +5,21 @@
   "properties": {
     "task_mode": {
       "type": "string",
-      "enum": [
-        "auto",
-        "design",
-        "interpret_chart",
-        "chart_from_birth"
-      ],
+      "enum": ["auto", "design", "interpret_chart", "chart_from_birth"],
       "default": "auto"
     },
     "birth_datetime": {
-      "type": [
-        "string",
-        "null"
-      ],
+      "type": ["string", "null"],
       "description": "ISO-like datetime or natural-language birth datetime."
     },
     "gender": {
       "type": "string",
-      "enum": [
-        "male",
-        "female",
-        "unknown"
-      ],
+      "enum": ["male", "female", "unknown"],
       "default": "unknown"
     },
     "calendar_type": {
       "type": "string",
-      "enum": [
-        "solar",
-        "lunar",
-        "auto"
-      ],
+      "enum": ["solar", "lunar", "auto"],
       "default": "solar"
     },
     "timezone": {
@@ -43,17 +27,11 @@
       "default": "Asia/Shanghai"
     },
     "latitude": {
-      "type": [
-        "number",
-        "null"
-      ],
+      "type": ["number", "null"],
       "default": null
     },
     "longitude": {
-      "type": [
-        "number",
-        "null"
-      ],
+      "type": ["number", "null"],
       "default": null
     },
     "use_true_solar_time": {
@@ -62,26 +40,16 @@
     },
     "late_zi_hour_rule": {
       "type": "string",
-      "enum": [
-        "cross_day",
-        "same_day"
-      ],
+      "enum": ["cross_day", "same_day"],
       "default": "cross_day"
     },
     "school_variant": {
       "type": "string",
-      "enum": [
-        "traditional_fullbook_v1",
-        "traditional_complete_collection_v1",
-        "custom"
-      ],
+      "enum": ["traditional_fullbook_v1", "traditional_complete_collection_v1", "custom"],
       "default": "traditional_fullbook_v1"
     },
     "chart_facts": {
-      "type": [
-        "object",
-        "null"
-      ],
+      "type": ["object", "null"],
       "description": "Existing chart facts. Prefer this for interpretation mode."
     },
     "question_focus": {

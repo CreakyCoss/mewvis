@@ -1,5 +1,6 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import { formatTavernCharacterRelationships } from "../../../core";
-import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { escapePromptXmlText, limitPromptText } from "../shared/text";
 
 const formatField = (label: string, value: string, maxChars: number) =>

@@ -7,10 +7,7 @@ type TavernDirectorDecisionRoom = {
   };
 };
 
-export const shouldOfferTavernDirectorRandomEvent = (
-  room: TavernDirectorDecisionRoom,
-  random = Math.random,
-) => {
+export const shouldOfferTavernDirectorRandomEvent = (room: TavernDirectorDecisionRoom, random = Math.random) => {
   if (!room.settings.randomEvents.enabled) {
     return false;
   }

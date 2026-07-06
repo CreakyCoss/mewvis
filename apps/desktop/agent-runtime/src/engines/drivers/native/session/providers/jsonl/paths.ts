@@ -1,9 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
-import type {
-  RuntimeSessionPathInput,
-  RuntimeSessionPaths,
-} from "../types.js";
+import type { RuntimeSessionPathInput, RuntimeSessionPaths } from "../types.js";
 
 export type JsonlRuntimeSessionPaths = RuntimeSessionPaths & {
   ledgerPath: string;
@@ -22,9 +19,7 @@ const resolveSessionRootDir = (sessionRootDir: string) => {
   return resolve(raw);
 };
 
-export const resolveRuntimeSessionPaths = async (
-  input: RuntimeSessionPathInput,
-): Promise<JsonlRuntimeSessionPaths> => {
+export const resolveRuntimeSessionPaths = async (input: RuntimeSessionPathInput): Promise<JsonlRuntimeSessionPaths> => {
   const rawWorkspacePath = input.workspacePath.trim();
   if (!rawWorkspacePath) {
     throw new Error("runtime workspacePath 不能为空");

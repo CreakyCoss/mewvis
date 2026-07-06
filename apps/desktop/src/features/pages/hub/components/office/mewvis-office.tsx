@@ -56,14 +56,7 @@ type ScreenBox = {
 };
 
 type ScreenContentKind = "work" | "video" | "game" | "notes";
-type ScreenTextureId =
-  | "dashboard"
-  | "design"
-  | "document"
-  | "game"
-  | "media"
-  | "research"
-  | "video";
+type ScreenTextureId = "dashboard" | "design" | "document" | "game" | "media" | "research" | "video";
 
 type ScreenTexture = {
   id: ScreenTextureId;
@@ -102,10 +95,7 @@ type RandomCatTemplate = {
   breed: CatBreed;
 };
 
-type RandomWorkstationProfile = Omit<
-  OfficeCat,
-  "id" | "localizedName" | "breedName" | "breed"
->;
+type RandomWorkstationProfile = Omit<OfficeCat, "id" | "localizedName" | "breedName" | "breed">;
 
 type CatState = {
   catId: string;
@@ -232,9 +222,10 @@ const PLAY_AREAS: OfficeLocation[] = [
 ];
 
 const LOCATIONS = [...WORKSTATIONS, ...PLAY_AREAS];
-const LOCATION_BY_ID = Object.fromEntries(
-  LOCATIONS.map((location) => [location.id, location]),
-) as Record<LocationId, OfficeLocation>;
+const LOCATION_BY_ID = Object.fromEntries(LOCATIONS.map((location) => [location.id, location])) as Record<
+  LocationId,
+  OfficeLocation
+>;
 const SCREEN_TEXTURES = [
   { id: "document", kind: "work", src: screenDocumentImageUrl },
   { id: "video", kind: "video", src: screenVideoImageUrl },
@@ -245,9 +236,10 @@ const SCREEN_TEXTURES = [
   { id: "media", kind: "video", src: screenMediaImageUrl },
 ] satisfies ScreenTexture[];
 const SCREEN_TEXTURE_IDS = SCREEN_TEXTURES.map((texture) => texture.id);
-const SCREEN_TEXTURE_BY_ID = Object.fromEntries(
-  SCREEN_TEXTURES.map((texture) => [texture.id, texture]),
-) as Record<ScreenTextureId, ScreenTexture>;
+const SCREEN_TEXTURE_BY_ID = Object.fromEntries(SCREEN_TEXTURES.map((texture) => [texture.id, texture])) as Record<
+  ScreenTextureId,
+  ScreenTexture
+>;
 
 const FIXED_OFFICE_CATS: OfficeCat[] = [
   {
@@ -359,36 +351,28 @@ const shuffleItems = <T,>(items: T[]) => {
   return next;
 };
 
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(Math.max(value, min), max);
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
 const getNextMoveDelay = () =>
   MIN_CAT_MOVE_DELAY_MS + Math.floor(Math.random() * (MAX_CAT_MOVE_DELAY_MS - MIN_CAT_MOVE_DELAY_MS));
 
 const getNextScreenContentDelay = () =>
-  MIN_SCREEN_CONTENT_DELAY_MS +
-  Math.floor(Math.random() * (MAX_SCREEN_CONTENT_DELAY_MS - MIN_SCREEN_CONTENT_DELAY_MS));
+  MIN_SCREEN_CONTENT_DELAY_MS + Math.floor(Math.random() * (MAX_SCREEN_CONTENT_DELAY_MS - MIN_SCREEN_CONTENT_DELAY_MS));
 
 const getLocationView = (location: OfficeLocation): CatState["view"] =>
   location.type === "workstation" ? "back" : "lie";
 
-const isPlayLocation = (locationId: LocationId) =>
-  LOCATION_BY_ID[locationId].type === "play";
+const isPlayLocation = (locationId: LocationId) => LOCATION_BY_ID[locationId].type === "play";
 
 const isVisitingWorkstation = (cat: OfficeCat, location: OfficeLocation) =>
   location.type === "workstation" && location.id !== cat.home;
 
-const getCatLocationView = (location: OfficeLocation): CatState["view"] =>
-  getLocationView(location);
+const getCatLocationView = (location: OfficeLocation): CatState["view"] => getLocationView(location);
 
 const getWalkingView = (location: OfficeLocation): CatState["view"] =>
   location.type === "workstation" ? "back" : "side";
 
-const getWalkingAngle = (
-  currentLocation: OfficeLocation,
-  nextLocation: OfficeLocation,
-  facing: CatState["facing"],
-) => {
+const getWalkingAngle = (currentLocation: OfficeLocation, nextLocation: OfficeLocation, facing: CatState["facing"]) => {
   if (nextLocation.type === "workstation") {
     return 0;
   }
@@ -411,8 +395,7 @@ const getLocationAction = (cat: OfficeCat, location: OfficeLocation) => {
 
 const getProfilePlacement = (anchor: ProfileAnchor): ProfilePlacement => {
   const canPlaceBelow =
-    anchor.x < 760 &&
-    anchor.y + PROFILE_CARD_OFFSET + PROFILE_CARD_HEIGHT < OFFICE_HEIGHT - PROFILE_CARD_MARGIN;
+    anchor.x < 760 && anchor.y + PROFILE_CARD_OFFSET + PROFILE_CARD_HEIGHT < OFFICE_HEIGHT - PROFILE_CARD_MARGIN;
 
   if (canPlaceBelow) {
     return {
@@ -457,10 +440,7 @@ const createInitialScreenTextures = (): Record<WorkstationId, ScreenTextureId> =
   ) as Record<WorkstationId, ScreenTextureId>;
 };
 
-const getUnusedScreenTextureIds = (
-  current: Record<WorkstationId, ScreenTextureId>,
-  stationId: WorkstationId,
-) => {
+const getUnusedScreenTextureIds = (current: Record<WorkstationId, ScreenTextureId>, stationId: WorkstationId) => {
   const usedByOtherScreens = new Set<ScreenTextureId>(
     (Object.entries(current) as [WorkstationId, ScreenTextureId][])
       .filter(([currentStationId]) => currentStationId !== stationId)
@@ -488,10 +468,7 @@ const createOfficeCats = (): OfficeCat[] => {
   return [...FIXED_OFFICE_CATS, ...randomCats];
 };
 
-const createHomeCatState = (
-  cat: OfficeCat,
-  isWorking: boolean,
-): CatState => {
+const createHomeCatState = (cat: OfficeCat, isWorking: boolean): CatState => {
   const location = LOCATION_BY_ID[cat.home];
   return {
     catId: cat.id,
@@ -528,10 +505,7 @@ const createInitialCatStates = (officeCats: OfficeCat[], isWorking: boolean): Ca
       const hostState = host ? statesByCatId.get(host.id) : null;
       const visitorCountAtStation = visitorCountsByStation.get(stationId) ?? 0;
 
-      return (
-        hostState?.locationId === stationId &&
-        visitorCountAtStation < VISITOR_SLOTS.length
-      );
+      return hostState?.locationId === stationId && visitorCountAtStation < VISITOR_SLOTS.length;
     });
 
     const nextLocation = availableStations[0];
@@ -593,17 +567,12 @@ const createInitialCatStates = (officeCats: OfficeCat[], isWorking: boolean): Ca
   });
 };
 
-const getCatState = (states: CatState[], catId: string) =>
-  states.find((state) => state.catId === catId);
+const getCatState = (states: CatState[], catId: string) => states.find((state) => state.catId === catId);
 
 const getWorkstationHost = (officeCats: OfficeCat[], stationId: WorkstationId) =>
   officeCats.find((cat) => cat.home === stationId);
 
-const hasSettledHostAtWorkstation = (
-  stationId: WorkstationId,
-  states: CatState[],
-  officeCats: OfficeCat[],
-) => {
+const hasSettledHostAtWorkstation = (stationId: WorkstationId, states: CatState[], officeCats: OfficeCat[]) => {
   const host = getWorkstationHost(officeCats, stationId);
   const hostState = host ? getCatState(states, host.id) : null;
 
@@ -625,21 +594,13 @@ const getVisitorStatesAtWorkstation = (
     return Boolean(cat && cat.home !== stationId);
   });
 
-const hasVisitorsAtHomeWorkstation = (
-  cat: OfficeCat,
-  states: CatState[],
-  officeCats: OfficeCat[],
-) => getVisitorStatesAtWorkstation(cat.home, states, officeCats, cat.id).length > 0;
+const hasVisitorsAtHomeWorkstation = (cat: OfficeCat, states: CatState[], officeCats: OfficeCat[]) =>
+  getVisitorStatesAtWorkstation(cat.home, states, officeCats, cat.id).length > 0;
 
 const hasCatInPlayArea = (states: CatState[], excludedCatId?: string) =>
   states.some((state) => state.catId !== excludedCatId && isPlayLocation(state.locationId));
 
-const canVisitWorkstation = (
-  cat: OfficeCat,
-  stationId: WorkstationId,
-  states: CatState[],
-  officeCats: OfficeCat[],
-) => {
+const canVisitWorkstation = (cat: OfficeCat, stationId: WorkstationId, states: CatState[], officeCats: OfficeCat[]) => {
   if (cat.home === stationId) {
     return true;
   }
@@ -673,9 +634,7 @@ const getCatRenderPlacement = (
     .filter((candidateState) => {
       const candidateCat = officeCats.find((officeCat) => officeCat.id === candidateState.catId);
       return (
-        candidateCat &&
-        candidateState.locationId === state.locationId &&
-        isVisitingWorkstation(candidateCat, location)
+        candidateCat && candidateState.locationId === state.locationId && isVisitingWorkstation(candidateCat, location)
       );
     })
     .map((candidateState) => candidateState.catId);
@@ -704,20 +663,14 @@ const pickNextLocation = (
   }
 
   const currentLocation = LOCATION_BY_ID[currentLocationId];
-  const workstationPool = WORKSTATIONS.filter((location) =>
-    location.id !== currentLocation.id &&
-    canVisitWorkstation(cat, location.id as WorkstationId, states, officeCats)
+  const workstationPool = WORKSTATIONS.filter(
+    (location) =>
+      location.id !== currentLocation.id && canVisitWorkstation(cat, location.id as WorkstationId, states, officeCats),
   );
   const playPool = hasCatInPlayArea(states, cat.id)
     ? []
     : PLAY_AREAS.filter((location) => location.id !== currentLocation.id);
-  const weightedPool = [
-    ...workstationPool,
-    ...workstationPool,
-    ...playPool,
-    ...playPool,
-    ...playPool,
-  ];
+  const weightedPool = [...workstationPool, ...workstationPool, ...playPool, ...playPool, ...playPool];
 
   return weightedPool.length > 0 ? randomItem(weightedPool) : currentLocation;
 };
@@ -798,10 +751,7 @@ export const MewvisOffice = ({ isWorking = false }: MewvisOfficeProps) => {
               return false;
             }
 
-            return !(
-              state.locationId === cat.home &&
-              hasVisitorsAtHomeWorkstation(cat, states, officeCats)
-            );
+            return !(state.locationId === cat.home && hasVisitorsAtHomeWorkstation(cat, states, officeCats));
           });
 
           if (movableCats.length === 0) {
@@ -927,24 +877,21 @@ export const MewvisOffice = ({ isWorking = false }: MewvisOfficeProps) => {
     return ids;
   }, [catStates]);
 
-  const selectedCat = selectedCatId
-    ? officeCats.find((cat) => cat.id === selectedCatId) ?? null
-    : null;
-  const selectedCatState = selectedCat
-    ? catStates.find((state) => state.catId === selectedCat.id) ?? null
-    : null;
-  const selectedCatLocation = selectedCatState
-    ? LOCATION_BY_ID[selectedCatState.locationId]
-    : null;
-  const selectedCatRenderPlacement = selectedCat && selectedCatState
-    ? getCatRenderPlacement(selectedCat, selectedCatState, catStates, officeCats)
-    : null;
+  const selectedCat = selectedCatId ? (officeCats.find((cat) => cat.id === selectedCatId) ?? null) : null;
+  const selectedCatState = selectedCat ? (catStates.find((state) => state.catId === selectedCat.id) ?? null) : null;
+  const selectedCatLocation = selectedCatState ? LOCATION_BY_ID[selectedCatState.locationId] : null;
+  const selectedCatRenderPlacement =
+    selectedCat && selectedCatState
+      ? getCatRenderPlacement(selectedCat, selectedCatState, catStates, officeCats)
+      : null;
   const selectedCatStatus = selectedCatState?.isWalking
     ? "移动中"
     : selectedCat?.id === "mewvis" && isWorking
       ? "忙碌中"
       : selectedCatLocation?.type === "workstation"
-        ? selectedCat && selectedCatLocation.id !== selectedCat.home ? "串门中" : "工作中"
+        ? selectedCat && selectedCatLocation.id !== selectedCat.home
+          ? "串门中"
+          : "工作中"
         : "休息中";
   const selectedCatProfilePlacement = selectedCatRenderPlacement
     ? getProfilePlacement(selectedCatRenderPlacement)
@@ -961,12 +908,7 @@ export const MewvisOffice = ({ isWorking = false }: MewvisOfficeProps) => {
         aria-label={OFFICE_TITLE}
       >
         <div className="mewvis-office-stage">
-          <img
-            className="mewvis-office-image"
-            src={mewvisOfficeImageUrl}
-            alt=""
-            aria-hidden="true"
-          />
+          <img className="mewvis-office-image" src={mewvisOfficeImageUrl} alt="" aria-hidden="true" />
 
           <img
             className="mewvis-office-cat-furniture-image is-back"
@@ -977,7 +919,7 @@ export const MewvisOffice = ({ isWorking = false }: MewvisOfficeProps) => {
             decoding="async"
           />
 
-          {WORKSTATIONS.map((station) => (
+          {WORKSTATIONS.map((station) =>
             (() => {
               const stationId = station.id as WorkstationId;
               const screenTexture = SCREEN_TEXTURE_BY_ID[screenTextureIds[stationId]];
@@ -989,15 +931,19 @@ export const MewvisOffice = ({ isWorking = false }: MewvisOfficeProps) => {
                     occupiedWorkstations.has(station.id) ? "is-lit" : "",
                     screenTexture ? "has-screen-texture" : "",
                     `is-screen-${screenTexture.kind}`,
-                  ].filter(Boolean).join(" ")}
-                  style={{
-                    "--screen-accent": station.screen?.accent,
-                    "--screen-texture": `url(${screenTexture.src})`,
-                    "--screen-left": `${station.screen?.left ?? 0}px`,
-                    "--screen-top": `${station.screen?.top ?? 0}px`,
-                    "--screen-width": `${station.screen?.width ?? 0}px`,
-                    "--screen-height": `${station.screen?.height ?? 0}px`,
-                  } as CSSProperties}
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  style={
+                    {
+                      "--screen-accent": station.screen?.accent,
+                      "--screen-texture": `url(${screenTexture.src})`,
+                      "--screen-left": `${station.screen?.left ?? 0}px`,
+                      "--screen-top": `${station.screen?.top ?? 0}px`,
+                      "--screen-width": `${station.screen?.width ?? 0}px`,
+                      "--screen-height": `${station.screen?.height ?? 0}px`,
+                    } as CSSProperties
+                  }
                 >
                   <div className="mewvis-office-screen-content" aria-hidden="true">
                     <span className="screen-slot screen-a" />
@@ -1008,8 +954,8 @@ export const MewvisOffice = ({ isWorking = false }: MewvisOfficeProps) => {
                   </div>
                 </div>
               );
-            })()
-          ))}
+            })(),
+          )}
 
           {catStates.map((state) => {
             const cat = officeCats.find((officeCat) => officeCat.id === state.catId);
@@ -1031,20 +977,22 @@ export const MewvisOffice = ({ isWorking = false }: MewvisOfficeProps) => {
                   `is-location-${location.id}`,
                   placement.isVisitor ? "is-visitor" : "",
                   state.isWalking ? "is-walking" : "",
-                ].filter(Boolean).join(" ")}
-                style={{
-                  "--cat-x": `${placement.x}px`,
-                  "--cat-y": `${placement.y}px`,
-                  "--cat-scale": placement.scale,
-                  "--cat-move-duration": `${CAT_MOVE_DURATION_MS}ms`,
-                  "--cat-walk-angle": `${state.walkAngle}deg`,
-                } as CSSProperties}
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                style={
+                  {
+                    "--cat-x": `${placement.x}px`,
+                    "--cat-y": `${placement.y}px`,
+                    "--cat-scale": placement.scale,
+                    "--cat-move-duration": `${CAT_MOVE_DURATION_MS}ms`,
+                    "--cat-walk-angle": `${state.walkAngle}deg`,
+                  } as CSSProperties
+                }
                 aria-label={`查看 ${cat.name} 详细信息`}
                 onClick={() => setSelectedCatId(cat.id)}
               >
-                <div className="mewvis-office-cat-label">
-                  {cat.displayName}
-                </div>
+                <div className="mewvis-office-cat-label">{cat.displayName}</div>
                 <CatImage breed={cat.breed} view={placement.view} />
                 {location.type === "workstation" && !state.isWalking && !placement.isVisitor && (
                   <span className="mewvis-office-chair-front" aria-hidden="true" />
@@ -1082,11 +1030,13 @@ export const MewvisOffice = ({ isWorking = false }: MewvisOfficeProps) => {
             >
               <section
                 className={`mewvis-office-profile-card is-${selectedCatProfilePlacement.side}`}
-                style={{
-                  "--profile-left": `${selectedCatProfilePlacement.left}px`,
-                  "--profile-top": `${selectedCatProfilePlacement.top}px`,
-                  "--profile-arrow-top": `${selectedCatProfilePlacement.arrowTop}px`,
-                } as CSSProperties}
+                style={
+                  {
+                    "--profile-left": `${selectedCatProfilePlacement.left}px`,
+                    "--profile-top": `${selectedCatProfilePlacement.top}px`,
+                    "--profile-arrow-top": `${selectedCatProfilePlacement.arrowTop}px`,
+                  } as CSSProperties
+                }
                 role="dialog"
                 aria-modal="false"
                 aria-labelledby="mewvis-office-profile-title"

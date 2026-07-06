@@ -4,10 +4,6 @@ export const limitPromptText = (text: string, maxChars: number) => {
 };
 
 export const escapePromptXmlText = (text: string) =>
-  text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-export const escapePromptXmlAttribute = (text: string) =>
-  escapePromptXmlText(text).replace(/"/g, "&quot;");
+export const escapePromptXmlAttribute = (text: string) => escapePromptXmlText(text).replace(/"/g, "&quot;");

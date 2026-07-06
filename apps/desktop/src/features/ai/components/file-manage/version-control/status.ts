@@ -20,10 +20,7 @@ export const versionStatusTitles: Record<WorkspaceVersionFileStatus["status"], s
   untracked: "未跟踪",
 };
 
-export const versionStatusTextClasses: Record<
-  WorkspaceVersionFileStatus["status"],
-  string
-> = {
+export const versionStatusTextClasses: Record<WorkspaceVersionFileStatus["status"], string> = {
   added: "text-emerald-700",
   modified: "text-amber-700",
   deleted: "text-destructive",
@@ -53,10 +50,7 @@ export const fileStatusTitles: Record<WorkspaceVersionFileStatus["status"], stri
   untracked: "新增文件",
 };
 
-export const fileStatusBadgeClasses: Record<
-  WorkspaceVersionFileStatus["status"],
-  string
-> = {
+export const fileStatusBadgeClasses: Record<WorkspaceVersionFileStatus["status"], string> = {
   added: "bg-emerald-100 text-emerald-700 ring-emerald-200",
   modified: "bg-amber-100 text-amber-700 ring-amber-200",
   deleted: "bg-destructive/10 text-destructive ring-destructive/20",
@@ -66,20 +60,12 @@ export const fileStatusBadgeClasses: Record<
   untracked: "bg-emerald-100 text-emerald-700 ring-emerald-200",
 };
 
-export const getDiscardVersionFileLabel = (
-  status: WorkspaceVersionFileStatus["status"],
-) =>
-  status === "added" || status === "untracked"
-    ? "撤销新增"
-    : status === "deleted"
-    ? "撤销删除"
-    : "撤销修改";
+export const getDiscardVersionFileLabel = (status: WorkspaceVersionFileStatus["status"]) =>
+  status === "added" || status === "untracked" ? "撤销新增" : status === "deleted" ? "撤销删除" : "撤销修改";
 
-export const getDiscardVersionFileTitle = (
-  status: WorkspaceVersionFileStatus["status"],
-) =>
+export const getDiscardVersionFileTitle = (status: WorkspaceVersionFileStatus["status"]) =>
   status === "added" || status === "untracked"
     ? "撤销新增：删除这个未提交文件"
     : status === "deleted"
-    ? "撤销删除：恢复这个文件"
-    : "撤销修改：恢复这个文件到当前提交状态";
+      ? "撤销删除：恢复这个文件"
+      : "撤销修改：恢复这个文件到当前提交状态";

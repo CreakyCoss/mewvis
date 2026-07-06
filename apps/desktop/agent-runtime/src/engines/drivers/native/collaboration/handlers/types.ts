@@ -6,15 +6,11 @@ import type {
   CollaborationTransformWorkflowStep,
   CollaborationWorkflowStep,
 } from "../../../../protocol/index.js";
-import type {
-  CollaborationExecutionState,
-} from "../runtimes/shared/execution-state.js";
+import type { CollaborationExecutionState } from "../runtimes/shared/execution-state.js";
 
 export type EmitCollaborationEvent = (event: CollaborationEvent) => void;
 
-export type CollaborationHandlerContext<
-  TStep extends CollaborationWorkflowStep = CollaborationWorkflowStep,
-> = {
+export type CollaborationHandlerContext<TStep extends CollaborationWorkflowStep = CollaborationWorkflowStep> = {
   input: CollaborationRunInput;
   state: CollaborationExecutionState;
   step: TStep;
@@ -29,18 +25,16 @@ export type CollaborationTransformHandler = (
 
 export type CollaborationConditionHandler = (
   input: unknown,
-  context: CollaborationHandlerContext<
-    CollaborationConditionWorkflowStep | CollaborationWorkflowStep
-  >,
+  context: CollaborationHandlerContext<CollaborationConditionWorkflowStep | CollaborationWorkflowStep>,
 ) => boolean | Promise<boolean>;
 
 export type CollaborationRouterResult =
   | string
   | null
   | {
-    route?: string | null;
-    output?: unknown;
-  };
+      route?: string | null;
+      output?: unknown;
+    };
 
 export type CollaborationRouterHandler = (
   input: unknown,

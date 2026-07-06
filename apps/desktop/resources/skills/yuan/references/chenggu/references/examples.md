@@ -5,6 +5,7 @@
 ## 示例 1
 
 输入：
+
 ```json
 {
   "lunar_components": {
@@ -18,6 +19,7 @@
 ```
 
 输出：
+
 ```json
 {
   "skill_name": "chenggu-analysis",
@@ -44,9 +46,7 @@
   "grade": "中",
   "verse_canonical": "此命终身运不通，劳劳作事尽皆空。苦心竭力成家计，到得那时在梦中。",
   "analysis": {
-    "trajectory_tags": [
-      "early_hardship"
-    ],
+    "trajectory_tags": ["early_hardship"],
     "career": "略弱",
     "wealth": "偏弱",
     "marriage": "中性",
@@ -85,6 +85,7 @@
 ## 示例 2
 
 输入：
+
 ```json
 {
   "lunar_components": {
@@ -98,6 +99,7 @@
 ```
 
 输出：
+
 ```json
 {
   "skill_name": "chenggu-analysis",
@@ -124,9 +126,7 @@
   "grade": "高",
   "verse_canonical": "平生衣食自然来，名利双全富贵偕。金榜题名登甲第，紫袍玉带走金阶。",
   "analysis": {
-    "trajectory_tags": [
-      "scholar_official"
-    ],
+    "trajectory_tags": ["scholar_official"],
     "career": "很强",
     "wealth": "很强",
     "marriage": "中性",
@@ -165,6 +165,7 @@
 ## 示例 3
 
 输入：
+
 ```json
 {
   "lunar_components": {
@@ -178,6 +179,7 @@
 ```
 
 输出：
+
 ```json
 {
   "skill_name": "chenggu-analysis",
@@ -204,9 +206,7 @@
   "grade": "高",
   "verse_canonical": "此命生成大不同，公侯卿相在其中。一生自有逍遥福，富贵荣华极品隆。",
   "analysis": {
-    "trajectory_tags": [
-      "scholar_official"
-    ],
+    "trajectory_tags": ["scholar_official"],
     "career": "很强",
     "wealth": "很强",
     "marriage": "中性",

@@ -1,11 +1,5 @@
-import {
-  AgentEventType,
-  type AgentEvent,
-} from "../../../protocol/index.js";
-import type {
-  RuntimeSessionCommand,
-  SessionBackedRuntimeCommand,
-} from "./model/runtime-command.js";
+import { AgentEventType, type AgentEvent } from "../../../protocol/index.js";
+import type { RuntimeSessionCommand, SessionBackedRuntimeCommand } from "./model/runtime-command.js";
 import { isRuntimeAgentSessionCommand } from "./model/runtime-command.js";
 import type { RuntimeSessionRecordRef } from "./model/context.js";
 import { resolveRuntimeSessionProvider } from "./providers/resolver.js";
@@ -19,16 +13,15 @@ type EmitAgentEvent = (event: AgentEvent) => void;
 
 const hasSession = (command: RuntimeSessionCommand): command is SessionBackedRuntimeCommand => {
   const candidate = command as SessionBackedRuntimeCommand;
-  return isRuntimeAgentSessionCommand(command) &&
-    Boolean(candidate.workspacePath.trim() && candidate.sessionRootDir.trim());
+  return (
+    isRuntimeAgentSessionCommand(command) && Boolean(candidate.workspacePath.trim() && candidate.sessionRootDir.trim())
+  );
 };
 
 export class RuntimeSessionRecorder {
   private pendingWrite: Promise<void> = Promise.resolve();
 
-  private constructor(
-    private readonly delegate: RuntimeSessionRunRecorder,
-  ) {}
+  private constructor(private readonly delegate: RuntimeSessionRunRecorder) {}
 
   static async create(
     command: RuntimeSessionCommand,
@@ -38,9 +31,7 @@ export class RuntimeSessionRecorder {
       return null;
     }
 
-    return new RuntimeSessionRecorder(
-      await resolveRuntimeSessionProvider(providerId).createRecorder(command),
-    );
+    return new RuntimeSessionRecorder(await resolveRuntimeSessionProvider(providerId).createRecorder(command));
   }
 
   recordInitialUserMessage() {

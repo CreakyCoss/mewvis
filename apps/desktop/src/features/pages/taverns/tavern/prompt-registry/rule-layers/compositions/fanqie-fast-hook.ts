@@ -24,20 +24,10 @@ export const fanqieFastHookRuleComposition: TavernRuleComposition = {
     conciseNoSummaryQualityRule.id,
     reduceEmptyAmbienceQualityRule.id,
   ],
-  narrativeStyleIds: [
-    directCommercialFlowNarrativeStyle.id,
-    webnovelHighDensityNarrativeStyle.id,
-  ],
+  narrativeStyleIds: [directCommercialFlowNarrativeStyle.id, webnovelHighDensityNarrativeStyle.id],
   genreRuleIds: [maleProgressionGrowthGenreRule.id],
-  hookRuleIds: [
-    conflictHookRule.id,
-    rewardFeedbackHookRule.id,
-    highConceptPayoffHookRule.id,
-  ],
-  tabooRuleIds: [
-    slowBuildupTabooRule.id,
-    longLoreOverexplainTabooRule.id,
-  ],
+  hookRuleIds: [conflictHookRule.id, rewardFeedbackHookRule.id, highConceptPayoffHookRule.id],
+  tabooRuleIds: [slowBuildupTabooRule.id, longLoreOverexplainTabooRule.id],
   selectable: true,
   order: 20,
 };

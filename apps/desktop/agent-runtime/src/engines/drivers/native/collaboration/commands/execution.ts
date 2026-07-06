@@ -11,9 +11,7 @@ import type {
   CollaborationRunContext,
   RunAgentForCollaboration,
 } from "../runtimes/types.js";
-import {
-  createCollaborationRuntimeResolver,
-} from "../runtimes/resolver.js";
+import { createCollaborationRuntimeResolver } from "../runtimes/resolver.js";
 import {
   createCollaborationModeRegistry,
   type CollaborationModeDefinition,
@@ -40,20 +38,13 @@ export type CollaborationCommandExecutionOptions = {
 export const executeCollaborationRunCommand = async (
   input: CollaborationRunInput,
   context: CollaborationRunContext = {},
-  {
-    defaultRuntimeId,
-    runtimes = [],
-    runAgent,
-    sessionProviderId,
-  }: CollaborationCommandExecutionOptions,
+  { defaultRuntimeId, runtimes = [], runAgent, sessionProviderId }: CollaborationCommandExecutionOptions,
 ): Promise<CollaborationRunResult> => {
   const runtimeResolver = createCollaborationRuntimeResolver({
     defaultRuntimeId,
     runtimes,
   });
-  const resolvedHandlerRegistry = createCollaborationHandlerRegistry([
-    createBuiltinCollaborationModeHandlers(),
-  ]);
+  const resolvedHandlerRegistry = createCollaborationHandlerRegistry([createBuiltinCollaborationModeHandlers()]);
 
   const workflowRunId = createCollaborationRunId();
   assertNoRuntimeOverride(input.workflow, "协作 workflow");
@@ -117,11 +108,7 @@ export const executeCollaborationModeCommand = async (
 ): Promise<CollaborationModeRunResult> => {
   assertNoRuntimeOverride(input, "协作 mode");
   const mode = resolveCollaborationModeRegistry(options).require(input.mode);
-  const result = await executeCollaborationRunCommand(
-    mode.build(input),
-    context,
-    options,
-  );
+  const result = await executeCollaborationRunCommand(mode.build(input), context, options);
   return {
     ...result,
     mode: mode.id,
@@ -137,8 +124,7 @@ const resolveCollaborationModeRegistry = (
 ) => options.modeRegistry ?? createCollaborationModeRegistry(options.modes);
 
 const hasOwn = (value: unknown, key: string) =>
-  Boolean(value) && typeof value === "object" &&
-  Object.prototype.hasOwnProperty.call(value, key);
+  Boolean(value) && typeof value === "object" && Object.prototype.hasOwnProperty.call(value, key);
 
 const assertNoRuntimeOverride = (value: unknown, label: string) => {
   if (hasOwn(value, "runtime")) {
@@ -146,10 +132,7 @@ const assertNoRuntimeOverride = (value: unknown, label: string) => {
   }
 };
 
-const normalizeRuntimeResult = (
-  result: CollaborationRunResult,
-  workflowRunId: string,
-): CollaborationRunResult => ({
+const normalizeRuntimeResult = (result: CollaborationRunResult, workflowRunId: string): CollaborationRunResult => ({
   ...result,
   workflowRunId,
 });
@@ -171,11 +154,7 @@ const getErrorMetadata = (
   };
   return {
     stepId: typeof candidate.stepId === "string" ? candidate.stepId : undefined,
-    agentRoleId: typeof candidate.agentRoleId === "string"
-      ? candidate.agentRoleId
-      : undefined,
-    agentTaskId: typeof candidate.agentTaskId === "string"
-      ? candidate.agentTaskId
-      : undefined,
+    agentRoleId: typeof candidate.agentRoleId === "string" ? candidate.agentRoleId : undefined,
+    agentTaskId: typeof candidate.agentTaskId === "string" ? candidate.agentTaskId : undefined,
   };
 };

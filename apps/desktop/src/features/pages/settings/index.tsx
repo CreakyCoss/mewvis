@@ -29,9 +29,7 @@ export const SettingsPanel = ({
       <header className="flex min-h-14 items-center justify-between bg-card/80 px-5 py-3 shadow-[0_10px_30px_-30px_rgb(15_23_42_/_0.35)] backdrop-blur">
         <div className="min-w-0">
           <h2 className="text-base font-semibold">设置</h2>
-          <p className="truncate text-xs text-muted-foreground">
-            配置模型 Provider、可用模型、角色画像和协作流程。
-          </p>
+          <p className="truncate text-xs text-muted-foreground">配置模型 Provider、可用模型、角色画像和协作流程。</p>
         </div>
         <Button
           type="button"

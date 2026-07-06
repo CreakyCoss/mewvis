@@ -1,3 +1,4 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { TavernMessage } from "../../../types";
 import type {
   TavernCharacter,
@@ -5,7 +6,6 @@ import type {
   TavernEventIntensity,
   TavernFactEvent,
   TavernProgressVisibility,
-  TavernRoom,
 } from "@/features/pages/taverns/manage/model";
 
 const EVENT_INTENSITIES = new Set<TavernEventIntensity>(["trivial", "minor", "moderate", "major", "critical"]);

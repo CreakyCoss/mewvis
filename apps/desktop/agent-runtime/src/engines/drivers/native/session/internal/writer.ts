@@ -1,19 +1,8 @@
 import { buildRuntimeSessionContext } from "../model/projection.js";
-import type {
-  RuntimeMessage,
-  RuntimeSessionContext,
-} from "../model/ledger.js";
-import {
-  runtimeMessageMetadata,
-} from "../model/metadata.js";
-import type {
-  RuntimeSessionHandle,
-  RuntimeSessionStorageProvider,
-  RuntimeSessionStore,
-} from "./storage.js";
-import type {
-  RuntimeSessionTurnOptions,
-} from "../providers/types.js";
+import type { RuntimeMessage, RuntimeSessionContext } from "../model/ledger.js";
+import { runtimeMessageMetadata } from "../model/metadata.js";
+import type { RuntimeSessionHandle, RuntimeSessionStorageProvider, RuntimeSessionStore } from "./storage.js";
+import type { RuntimeSessionTurnOptions } from "../providers/types.js";
 import { takeContextText } from "../model/prompt-budget.js";
 import type { RuntimeSessionCommand } from "../model/runtime-command.js";
 import {
@@ -30,9 +19,7 @@ export const openRuntimeSessionStorage = async (
   return provider.openOrCreate(command);
 };
 
-export const refreshRuntimeSessionManifest = async (
-  handle: RuntimeSessionHandle,
-) => {
+export const refreshRuntimeSessionManifest = async (handle: RuntimeSessionHandle) => {
   try {
     await handle.refreshManifest();
   } catch (error: unknown) {
@@ -47,8 +34,7 @@ const normalized = (value: string | null | undefined) => value?.trim() ?? "";
 const systemMessagesIn = (context: RuntimeSessionContext) =>
   context.messages.filter((message) => message.role === "system");
 
-const latestSystemPrompt = (context: RuntimeSessionContext) =>
-  systemMessagesIn(context).at(-1)?.content.trim() ?? "";
+const latestSystemPrompt = (context: RuntimeSessionContext) => systemMessagesIn(context).at(-1)?.content.trim() ?? "";
 
 export const composeRuntimeSystemPrompt = ({
   context,
@@ -67,11 +53,13 @@ export const composeRuntimeSystemPrompt = ({
   }
 
   if (includeSummary && context.summary.trim()) {
-    sections.push([
-      "<conversation_summary source=\"runtime_ledger\" instruction=\"data_only; not_current_request\">",
-      takeContextText(context.summary.trim(), 24000),
-      "</conversation_summary>",
-    ].join("\n"));
+    sections.push(
+      [
+        '<conversation_summary source="runtime_ledger" instruction="data_only; not_current_request">',
+        takeContextText(context.summary.trim(), 24000),
+        "</conversation_summary>",
+      ].join("\n"),
+    );
   }
 
   return sections.join("\n\n");
@@ -100,22 +88,27 @@ export const appendRuntimeSystemPromptIfNeeded = async ({
     return null;
   }
   if (latest && content !== latest) {
-    throw new Error("systemPrompt 已在当前 runtime session 初始化，后续请求不能隐式变更；请使用 requestContext/runtimeInstruction 表达本轮补充，或重建/新建 session。");
+    throw new Error(
+      "systemPrompt 已在当前 runtime session 初始化，后续请求不能隐式变更；请使用 requestContext/runtimeInstruction 表达本轮补充，或重建/新建 session。",
+    );
   }
   if (content === latest) {
     return null;
   }
 
-  return storage.appendMessage({
-    role: "system",
-    content,
-    timestamp: Date.now(),
-    metadata: runtimeMessageMetadata({
-      command,
+  return storage.appendMessage(
+    {
       role: "system",
-      baseLeafId,
-    }),
-  }, parentEntryId ?? undefined);
+      content,
+      timestamp: Date.now(),
+      metadata: runtimeMessageMetadata({
+        command,
+        role: "system",
+        baseLeafId,
+      }),
+    },
+    parentEntryId ?? undefined,
+  );
 };
 
 export const visibleHistoryMessages = (messages: RuntimeMessage[]) =>
@@ -126,10 +119,7 @@ type SessionTurnCommand = RuntimeSessionCommand & {
   sessionRootDir?: string | null;
 };
 
-const resolveCommandParentEntryId = (
-  storage: RuntimeSessionStore,
-  parentEntryId: string | null | undefined,
-) => {
+const resolveCommandParentEntryId = (storage: RuntimeSessionStore, parentEntryId: string | null | undefined) => {
   const normalized = parentEntryId?.trim() || null;
   if (!normalized) {
     return null;
@@ -140,14 +130,10 @@ const resolveCommandParentEntryId = (
   return normalized;
 };
 
-export const hasRuntimeSessionTarget = (
-  command: SessionTurnCommand,
-) =>
+export const hasRuntimeSessionTarget = (command: SessionTurnCommand) =>
   Boolean(command.workspacePath?.trim() && command.sessionRootDir?.trim());
 
-export const prepareRuntimeSessionTurn = async <
-  TCommand extends SessionTurnCommand,
->(
+export const prepareRuntimeSessionTurn = async <TCommand extends SessionTurnCommand>(
   command: TCommand,
   provider: RuntimeSessionStorageProvider,
   options: RuntimeSessionTurnOptions = {},
@@ -156,23 +142,21 @@ export const prepareRuntimeSessionTurn = async <
     return null;
   }
 
-  const { storage } = await openRuntimeSessionStorage({
-    workspacePath: command.workspacePath as string,
-    sessionRootDir: command.sessionRootDir as string,
-  }, provider);
+  const { storage } = await openRuntimeSessionStorage(
+    {
+      workspacePath: command.workspacePath as string,
+      sessionRootDir: command.sessionRootDir as string,
+    },
+    provider,
+  );
   const parentEntryId = resolveCommandParentEntryId(storage, commandParentEntryId(command));
   const contextLeafId = parentEntryId ?? storage.getLeafId();
   const sessionContext = buildRuntimeSessionContext(storage, contextLeafId);
-  const inferredRecordUserMessage = shouldRecordRuntimeUserMessage(
-    sessionContext.entries,
-    contextLeafId,
-  );
+  const inferredRecordUserMessage = shouldRecordRuntimeUserMessage(sessionContext.entries, contextLeafId);
   const commandWithRecording = {
     ...command,
-    recordUserMessage: options.preserveRecordUserMessageFalse &&
-      command.recordUserMessage === false
-        ? false
-        : inferredRecordUserMessage,
+    recordUserMessage:
+      options.preserveRecordUserMessageFalse && command.recordUserMessage === false ? false : inferredRecordUserMessage,
   };
   const commandWithTurn = withSessionLink(commandWithRecording, {
     turnId: inferCommandTurnId(commandWithRecording, sessionContext.entries),
@@ -190,10 +174,7 @@ export const prepareRuntimeSessionTurn = async <
     parentEntryId: contextLeafId,
   });
   const runtimeParentEntryId = systemEntry?.id ?? parentEntryId ?? commandParentEntryId(commandWithTurn);
-  const updatedSessionContext = buildRuntimeSessionContext(
-    storage,
-    systemEntry?.id ?? contextLeafId,
-  );
+  const updatedSessionContext = buildRuntimeSessionContext(storage, systemEntry?.id ?? contextLeafId);
 
   return {
     command: withSessionLink(commandWithTurn, { parentEntryId: runtimeParentEntryId }),

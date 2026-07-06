@@ -1,10 +1,10 @@
 import { createRouteScopedSceneInstanceId } from "./story-runtime";
 import type {
   TavernMemoryEntry,
-  TavernRoom,
+  TavernRuntimeRoom as TavernRoom,
   TavernSceneInstance,
   TavernSecretReveal,
-} from "@/features/pages/taverns/manage/model";
+} from "@/features/pages/taverns/room/model";
 
 export const collectUniqueTrimmedLines = (values: Array<string | undefined>) => {
   const seen = new Set<string>();

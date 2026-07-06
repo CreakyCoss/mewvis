@@ -16,7 +16,11 @@ import { Button } from "@/components/ui/button";
 import { createAgentClient } from "@/agent-client/runtime";
 import type { AgentClientRuntimeSessionSnapshot, RuntimeSessionTimelineItem } from "@/agent-client/types";
 import { cn } from "@/lib/utils";
-import { tavernBridgeSessionRootDir, tavernCharacterAgentRoleId, tavernDirectorAgentRoleId } from "@/features/pages/taverns/tavern/core";
+import {
+  tavernBridgeSessionRootDir,
+  tavernCharacterAgentRoleId,
+  tavernDirectorAgentRoleId,
+} from "@/features/pages/taverns/tavern/core";
 import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import { EmptyPanelCard, PanelSectionTitle } from "./shared";
 

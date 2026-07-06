@@ -37,11 +37,7 @@ export type AgentClientCollaborationModeInput = Omit<CollaborationModeRunInput, 
 
 export type AgentClientChatInput = Pick<
   ChatInput,
-  | "streamId"
-  | "stream"
-  | "runtimeModel"
-  | "systemPrompt"
-  | "messages"
+  "streamId" | "stream" | "runtimeModel" | "systemPrompt" | "messages"
 > &
   AgentClientChatOutputHandlers;
 

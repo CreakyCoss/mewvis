@@ -23,19 +23,10 @@ export const jinjiangFemalePremiumRuleComposition: TavernRuleComposition = {
     conciseNoSummaryQualityRule.id,
     reduceEmptyAmbienceQualityRule.id,
   ],
-  narrativeStyleIds: [
-    delicateDailyNarrativeStyle.id,
-    emotionalPushPullNarrativeStyle.id,
-  ],
+  narrativeStyleIds: [delicateDailyNarrativeStyle.id, emotionalPushPullNarrativeStyle.id],
   genreRuleIds: [femaleRomanceRelationshipGenreRule.id],
-  hookRuleIds: [
-    expectationHookRule.id,
-    reversalHealingHookRule.id,
-  ],
-  tabooRuleIds: [
-    femaleValuesDriftTabooRule.id,
-    promiseMismatchTabooRule.id,
-  ],
+  hookRuleIds: [expectationHookRule.id, reversalHealingHookRule.id],
+  tabooRuleIds: [femaleValuesDriftTabooRule.id, promiseMismatchTabooRule.id],
   selectable: true,
   order: 30,
 };

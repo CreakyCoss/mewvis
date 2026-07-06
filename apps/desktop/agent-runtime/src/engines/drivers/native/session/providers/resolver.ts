@@ -1,15 +1,8 @@
-import {
-  getRuntimeSessionProvider,
-  runtimeSessionProviderManifest,
-} from "./registry.js";
-import type {
-  RuntimeSessionProvider,
-  RuntimeSessionProviderId,
-} from "./types.js";
+import { getRuntimeSessionProvider, runtimeSessionProviderManifest } from "./registry.js";
+import type { RuntimeSessionProvider, RuntimeSessionProviderId } from "./types.js";
 
 export const resolveRuntimeSessionProvider = (
-  providerId: RuntimeSessionProviderId | null | undefined =
-    runtimeSessionProviderManifest.defaultProviderId,
+  providerId: RuntimeSessionProviderId | null | undefined = runtimeSessionProviderManifest.defaultProviderId,
 ): RuntimeSessionProvider => {
   const id = providerId || runtimeSessionProviderManifest.defaultProviderId;
   const provider = getRuntimeSessionProvider(id);

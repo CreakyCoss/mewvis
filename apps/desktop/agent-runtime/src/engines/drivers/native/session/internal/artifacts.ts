@@ -1,11 +1,7 @@
 import { mkdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
-import type {
-  RuntimeSessionPathInput,
-} from "../providers/types.js";
-import type {
-  RuntimeSessionStorageProvider,
-} from "./storage.js";
+import type { RuntimeSessionPathInput } from "../providers/types.js";
+import type { RuntimeSessionStorageProvider } from "./storage.js";
 
 export const sanitizeSessionArtifactSegment = (value: string, fallback: string) => {
   const segment = value
@@ -16,15 +12,11 @@ export const sanitizeSessionArtifactSegment = (value: string, fallback: string) 
   return segment || fallback;
 };
 
-export const resolveSessionArtifactPath = (
-  sessionDir: string,
-  segments: string[],
-) => resolve(
-  sessionDir,
-  ...segments.map((segment, index) =>
-    sanitizeSessionArtifactSegment(segment, index === 0 ? "artifact" : "default")
-  ),
-);
+export const resolveSessionArtifactPath = (sessionDir: string, segments: string[]) =>
+  resolve(
+    sessionDir,
+    ...segments.map((segment, index) => sanitizeSessionArtifactSegment(segment, index === 0 ? "artifact" : "default")),
+  );
 
 export const resolveRuntimeSessionArtifactDir = async (
   provider: RuntimeSessionStorageProvider,

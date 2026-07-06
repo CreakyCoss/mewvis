@@ -3,10 +3,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { LedgerSummaryDialog } from "./summary-dialog";
-import type {
-  LedgerResult,
-  LedgerRuntimeLink,
-} from "./types";
+import type { LedgerResult, LedgerRuntimeLink } from "./types";
 import {
   formatLedgerDuration,
   formatLedgerTime,
@@ -28,17 +25,13 @@ type LedgerListProps = {
 };
 
 const linkDuration = (link: LedgerRuntimeLink) =>
-  link.startedAt && link.endedAt
-    ? formatLedgerDuration(Math.max(0, link.endedAt - link.startedAt))
-    : "";
+  link.startedAt && link.endedAt ? formatLedgerDuration(Math.max(0, link.endedAt - link.startedAt)) : "";
 
 const findLinkMessage = (
   messageById: Map<string, NonNullable<LedgerResult["messages"]>[number]>,
   ids: string[],
   role: string,
-) => ids
-  .map((id) => messageById.get(id) ?? null)
-  .find((message) => message?.role === role) ?? null;
+) => ids.map((id) => messageById.get(id) ?? null).find((message) => message?.role === role) ?? null;
 
 const linkDisplay = ({
   link,
@@ -51,16 +44,13 @@ const linkDisplay = ({
   messageById: Map<string, NonNullable<LedgerResult["messages"]>[number]>;
   totalLinks: number;
 }) => {
-  const orderedMessageIds = [
-    link.userMessageRecordId,
-    ...link.messageRecordIds,
-  ].filter((id): id is string => Boolean(id));
+  const orderedMessageIds = [link.userMessageRecordId, ...link.messageRecordIds].filter((id): id is string =>
+    Boolean(id),
+  );
   const userMessage = findLinkMessage(messageById, orderedMessageIds, "user");
   const assistantMessage = findLinkMessage(
     messageById,
-    link.assistantMessageRecordIds.length
-      ? link.assistantMessageRecordIds
-      : link.messageRecordIds,
+    link.assistantMessageRecordIds.length ? link.assistantMessageRecordIds : link.messageRecordIds,
     "assistant",
   );
   const userPreview = previewLedgerText(userMessage?.content, 64);
@@ -95,10 +85,7 @@ export const LedgerList = ({
 }: LedgerListProps) => {
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const messageById = useMemo(
-    () => new Map((ledger?.messages ?? []).map((message) => [
-      message.messageRecordId,
-      message,
-    ])),
+    () => new Map((ledger?.messages ?? []).map((message) => [message.messageRecordId, message])),
     [ledger?.messages],
   );
 
@@ -140,11 +127,7 @@ export const LedgerList = ({
                 disabled={isLoading}
                 onClick={onRefresh}
               >
-                <RefreshCw className={[
-                  "size-4",
-                  isLoading ? "animate-spin" : "",
-                ].join(" ")}
-                />
+                <RefreshCw className={["size-4", isLoading ? "animate-spin" : ""].join(" ")} />
               </Button>
             </div>
           </div>
@@ -156,13 +139,9 @@ export const LedgerList = ({
           )}
 
           {isLoading && links.length === 0 ? (
-            <div className="px-2 py-8 text-center text-sm text-muted-foreground">
-              正在读取链路...
-            </div>
+            <div className="px-2 py-8 text-center text-sm text-muted-foreground">正在读取链路...</div>
           ) : links.length === 0 ? (
-            <div className="px-2 py-8 text-center text-sm text-muted-foreground">
-              暂无运行链路
-            </div>
+            <div className="px-2 py-8 text-center text-sm text-muted-foreground">暂无运行链路</div>
           ) : (
             <div className="min-w-0 space-y-1 overflow-hidden">
               {links.map((link, linkIndex) => {
@@ -185,20 +164,11 @@ export const LedgerList = ({
                     aria-label="查看链路详情"
                     onClick={() => onSelectLink(link.linkId)}
                   >
-                    <span
-                      className={[
-                        "size-2 shrink-0 rounded-full",
-                        ledgerStatusClasses[status],
-                      ].join(" ")}
-                    />
+                    <span className={["size-2 shrink-0 rounded-full", ledgerStatusClasses[status]].join(" ")} />
                     <span className="min-w-0 flex-1">
                       <span className="flex min-w-0 items-center gap-1.5 text-xs">
-                        <span className="min-w-0 flex-1 truncate font-medium">
-                          {display.title}
-                        </span>
-                        <span className="shrink-0 text-[10px] text-muted-foreground">
-                          {ledgerStatusLabels[status]}
-                        </span>
+                        <span className="min-w-0 flex-1 truncate font-medium">{display.title}</span>
+                        <span className="shrink-0 text-[10px] text-muted-foreground">{ledgerStatusLabels[status]}</span>
                       </span>
                       <span className="mt-1 block truncate text-[11px] leading-4 text-muted-foreground">
                         {display.subtitle}

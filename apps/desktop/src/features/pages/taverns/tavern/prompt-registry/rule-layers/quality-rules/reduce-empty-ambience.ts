@@ -4,9 +4,7 @@ export const reduceEmptyAmbienceQualityRule: TavernQualityRule = {
   id: "reduce-empty-ambience",
   label: "减少空泛环境描写",
   description: "环境描写必须服务动作、信息、情绪或可互动变化。",
-  bridgeAddendum: [
-    "质量规则：减少空泛环境描写。摘要时只保留会影响行动、关系、线索或状态的环境变化。",
-  ].join("\n"),
+  bridgeAddendum: ["质量规则：减少空泛环境描写。摘要时只保留会影响行动、关系、线索或状态的环境变化。"].join("\n"),
   directorAddendum: [
     "减少空泛环境描写：不要连续安排风声、灯光、沉默、空气凝固等纯气氛句作为推进。",
     "环境变化要能被角色观察、利用或回应；否则压缩成一句以内。",

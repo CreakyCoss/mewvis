@@ -1,31 +1,30 @@
-import { Activity, BookOpen, LockKeyhole, ScrollText, UsersRound } from "lucide-react";
+import { Activity, BookOpen, LockKeyhole, Palette, ScrollText } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
-import { emptyValueText, getRoomCharacterById, getRoomCharacters } from "./utils";
+import type { TavernRoom } from "@/features/pages/taverns/manage/model";
+import { emptyValueText } from "./utils";
 import { editorHeaderActionButtonClassName } from "./primitives";
+import { getVisualPreset } from "../tavern/visual-presets";
 
 type HeaderProps = {
   data: TavernRoom;
-  characterById: Map<string, TavernCharacter>;
   textFieldAgentError: string;
   onOpenStoryConfig: () => void;
 };
 
-export const Header = ({ data, characterById, textFieldAgentError, onOpenStoryConfig }: HeaderProps) => {
-  const roomCharacterById = getRoomCharacterById(data, characterById);
-  const roomCharacters = getRoomCharacters(data, roomCharacterById);
+export const Header = ({ data, textFieldAgentError, onOpenStoryConfig }: HeaderProps) => {
+  const visualPreset = getVisualPreset(data.scenePresetId);
   const headerStats: Array<{
     icon: LucideIcon;
-    value: number;
+    value: number | string;
     label: string;
   }> = [
     {
-      icon: UsersRound,
-      value: roomCharacters.length,
-      label: "角色阵容",
+      icon: Palette,
+      value: visualPreset.label,
+      label: "视觉预设",
     },
     {
       icon: ScrollText,

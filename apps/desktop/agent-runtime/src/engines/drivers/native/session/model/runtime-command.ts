@@ -27,7 +27,5 @@ export type SessionBackedRuntimeCommand = RuntimeSessionCommand & {
   sessionRootDir: string;
 };
 
-export const isRuntimeAgentSessionCommand = (
-  command: RuntimeSessionCommand,
-): command is RuntimeAgentSessionCommand =>
+export const isRuntimeAgentSessionCommand = (command: RuntimeSessionCommand): command is RuntimeAgentSessionCommand =>
   "runtimeMode" in command && command.runtimeMode === "agent";

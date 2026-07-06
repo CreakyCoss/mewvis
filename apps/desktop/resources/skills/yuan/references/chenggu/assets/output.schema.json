@@ -14,11 +14,7 @@
       "properties": {
         "calendar_type_used": {
           "type": "string",
-          "enum": [
-            "gregorian",
-            "lunar",
-            "lunar_components"
-          ]
+          "enum": ["gregorian", "lunar", "lunar_components"]
         },
         "year_ganzhi": {
           "type": "string"
@@ -36,12 +32,7 @@
           "type": "boolean"
         }
       },
-      "required": [
-        "year_ganzhi",
-        "lunar_month",
-        "lunar_day",
-        "hour_branch"
-      ],
+      "required": ["year_ganzhi", "lunar_month", "lunar_day", "hour_branch"],
       "additionalProperties": true
     },
     "weights": {
@@ -60,12 +51,7 @@
           "type": "integer"
         }
       },
-      "required": [
-        "year_weight_qian",
-        "month_weight_qian",
-        "day_weight_qian",
-        "hour_weight_qian"
-      ],
+      "required": ["year_weight_qian", "month_weight_qian", "day_weight_qian", "hour_weight_qian"],
       "additionalProperties": false
     },
     "total_weight": {
@@ -81,20 +67,12 @@
           "type": "number"
         }
       },
-      "required": [
-        "qian",
-        "display",
-        "decimal_liang"
-      ],
+      "required": ["qian", "display", "decimal_liang"],
       "additionalProperties": false
     },
     "grade": {
       "type": "string",
-      "enum": [
-        "低",
-        "中",
-        "高"
-      ]
+      "enum": ["低", "中", "高"]
     },
     "verse_canonical": {
       "type": "string"
@@ -130,20 +108,11 @@
               "type": "integer"
             }
           },
-          "required": [
-            "career",
-            "wealth",
-            "marriage"
-          ],
+          "required": ["career", "wealth", "marriage"],
           "additionalProperties": false
         }
       },
-      "required": [
-        "trajectory_tags",
-        "career",
-        "wealth",
-        "marriage"
-      ],
+      "required": ["trajectory_tags", "career", "wealth", "marriage"],
       "additionalProperties": true
     },
     "advice": {

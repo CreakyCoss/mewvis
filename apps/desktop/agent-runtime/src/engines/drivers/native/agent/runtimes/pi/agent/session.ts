@@ -1,16 +1,8 @@
-import {
-  AuthStorage,
-  createAgentSession,
-  ModelRegistry,
-  SessionManager,
-} from "@earendil-works/pi-coding-agent";
+import { AuthStorage, createAgentSession, ModelRegistry, SessionManager } from "@earendil-works/pi-coding-agent";
 import { mkdirSync } from "node:fs";
 import { normalizeAllowedAgentTools } from "../../../tools/definitions.js";
 import { allowedRuntimeTools } from "../../resources.js";
-import type {
-  AgentRuntimeCallbacks,
-  RuntimeAgentCommand,
-} from "../../types.js";
+import type { AgentRuntimeCallbacks, RuntimeAgentCommand } from "../../types.js";
 import {
   createPiRuntimeModel,
   requirePiApiKey,

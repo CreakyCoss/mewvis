@@ -1,9 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { missingKnowledgeIndexStatus } from "./api-preview";
-import type {
-  KnowledgeIndexStatus,
-  RebuildKnowledgeIndexResult,
-} from "./types";
+import type { KnowledgeIndexStatus, RebuildKnowledgeIndexResult } from "./types";
 
 export const getKnowledgeIndexStatus = () => {
   if (!isTauri()) {

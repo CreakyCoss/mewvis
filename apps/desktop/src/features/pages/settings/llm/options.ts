@@ -38,11 +38,7 @@ export const getProviderOptions = (): ProviderOption[] => {
   return Object.keys(MODEL_CATALOG)
     .filter((provider) => {
       const catalog = getProviderCatalog(provider);
-      return Boolean(
-        catalog &&
-          Object.keys(catalog.models).length > 0 &&
-          catalog.apis.length > 0,
-      );
+      return Boolean(catalog && Object.keys(catalog.models).length > 0 && catalog.apis.length > 0);
     })
     .map((provider) => ({
       value: provider,
@@ -68,9 +64,7 @@ export const getProviderApiFormats = (provider: string): RuntimeApiFormat[] => {
   const orderedFormats = apiFormatLabelEntries
     .map(([apiFormat]) => apiFormat)
     .filter((apiFormat) => formats.has(apiFormat));
-  const unknownFormats = [...formats].filter(
-    (apiFormat) => !orderedFormats.includes(apiFormat),
-  );
+  const unknownFormats = [...formats].filter((apiFormat) => !orderedFormats.includes(apiFormat));
 
   return [...orderedFormats, ...unknownFormats];
 };

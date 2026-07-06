@@ -35,7 +35,9 @@ function clickTab(port, text) {
   const js =
     "JSON.stringify((()=>{" +
     "var all=document.querySelectorAll('div,span,a,button,li');" +
-    "var el=Array.from(all).find(function(e){return e.textContent.trim()===" + safeStr(text) + "});" +
+    "var el=Array.from(all).find(function(e){return e.textContent.trim()===" +
+    safeStr(text) +
+    "});" +
     "if(el){el.click();return true}return false" +
     "})())";
   return evalJSON(port, js);
@@ -51,10 +53,10 @@ function extractStories(port) {
     "var items=[];" +
     // 点众页面故事卡片结构：标题 + 评分 + 简介 + 元数据行 + 最新章节
     // 尝试用固定选择器定位
-    "var cards=document.querySelectorAll('.book-list-item,.story-item,.book-item,[class*=\"book-card\"],[class*=\"story-card\"]');" +
+    'var cards=document.querySelectorAll(\'.book-list-item,.story-item,.book-item,[class*="book-card"],[class*="story-card"]\');' +
     "if(!cards.length){" +
     // 兜底：找到所有评分标记（X.X分），向上找容器
-    "  var scores=document.querySelectorAll('[class*=\"score\"],[class*=\"rating\"]');" +
+    '  var scores=document.querySelectorAll(\'[class*="score"],[class*="rating"]\');' +
     "  if(scores.length){" +
     "    scores.forEach(function(s,idx){" +
     "      var el=s;" +

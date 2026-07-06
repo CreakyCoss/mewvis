@@ -14,24 +14,12 @@ import type {
   ShutdownAckResult,
 } from "../../protocol/index.js";
 import { createUserInputManager } from "./agent/commands/user-input.js";
-import {
-  createPongResult,
-  createShutdownAckResult,
-} from "./agent/commands/responses.js";
+import { createPongResult, createShutdownAckResult } from "./agent/commands/responses.js";
 import { createAgentEngine } from "./agent/index.js";
-import type {
-  AgentRuntimeCallbacks,
-  EmitAgentEvent,
-} from "./agent/runtimes/types.js";
+import type { AgentRuntimeCallbacks, EmitAgentEvent } from "./agent/runtimes/types.js";
 import { createCollaborationEngine } from "./collaboration/index.js";
-import type {
-  EmitCollaborationEvent,
-  RunAgentForCollaboration,
-} from "./collaboration/runtimes/types.js";
-import {
-  createNativeRuntimeCommandRouter,
-  type NativeRuntimeCommandRouter,
-} from "./router.js";
+import type { EmitCollaborationEvent, RunAgentForCollaboration } from "./collaboration/runtimes/types.js";
+import { createNativeRuntimeCommandRouter, type NativeRuntimeCommandRouter } from "./router.js";
 import { resolveNativeRuntimeProfile } from "./profile.js";
 import {
   NativeAgentRuntimeAgentSurface,
@@ -53,11 +41,7 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
   private readonly agentSurface: NativeAgentRuntimeAgentSurface;
   private readonly commandRouter: NativeRuntimeCommandRouter;
 
-  constructor({
-    callbacks,
-    close = () => undefined,
-    profileId,
-  }: RuntimeEngineOptions = {}) {
+  constructor({ callbacks, close = () => undefined, profileId }: RuntimeEngineOptions = {}) {
     super();
 
     const profile = resolveNativeRuntimeProfile(profileId);
@@ -67,8 +51,7 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
 
     const userInput = createUserInputManager(this.emitAgentEvent);
     const runtimeCallbacks: AgentRuntimeCallbacks = {
-      requestUserInput: callbacks?.requestUserInput ??
-        userInput.callbacks.requestUserInput,
+      requestUserInput: callbacks?.requestUserInput ?? userInput.callbacks.requestUserInput,
     };
     const agentEngine = createAgentEngine({
       agentRuntimeId: profile.agentRuntimeId,
@@ -141,5 +124,4 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
   };
 }
 
-export const createNativeRuntimeEngine = (options: RuntimeEngineOptions = {}) =>
-  new NativeAgentRuntimeEngine(options);
+export const createNativeRuntimeEngine = (options: RuntimeEngineOptions = {}) => new NativeAgentRuntimeEngine(options);

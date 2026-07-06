@@ -1,17 +1,6 @@
-import {
-  getModel,
-  type Api,
-  type Model,
-} from "@earendil-works/pi-ai";
-import type {
-  RuntimeApiFormat,
-  RuntimeModelInput,
-  RuntimeThinkingLevel,
-} from "../../../../../../protocol/index.js";
-import type {
-  ChatRunCommand,
-  RuntimeAgentCommand,
-} from "../../types.js";
+import { getModel, type Api, type Model } from "@earendil-works/pi-ai";
+import type { RuntimeApiFormat, RuntimeModelInput, RuntimeThinkingLevel } from "../../../../../../protocol/index.js";
+import type { ChatRunCommand, RuntimeAgentCommand } from "../../types.js";
 
 export const requirePiApiKey = (runtimeModel: RuntimeModelInput) => {
   const apiKey = runtimeModel.apiKey?.trim();
@@ -54,17 +43,13 @@ const piApiForFormat = (apiFormat: RuntimeApiFormat): Api => {
   }
 };
 
-const readCatalogPiModel = (
-  runtimeModel: RuntimeModelInput,
-): Model<Api> | undefined =>
+const readCatalogPiModel = (runtimeModel: RuntimeModelInput): Model<Api> | undefined =>
   (getModel as (provider: string, modelId: string) => Model<Api> | undefined)(
     runtimeModel.provider,
     runtimeModel.catalogModelId,
   );
 
-export const createPiRuntimeModel = (
-  runtimeModel: RuntimeModelInput,
-): Model<Api> => {
+export const createPiRuntimeModel = (runtimeModel: RuntimeModelInput): Model<Api> => {
   const catalogModel = readCatalogPiModel(runtimeModel);
 
   return {
@@ -76,12 +61,13 @@ export const createPiRuntimeModel = (
     reasoning: runtimeModel.reasoning ?? catalogModel?.reasoning ?? true,
     thinkingLevelMap: runtimeModel.thinkingLevelMap ?? catalogModel?.thinkingLevelMap,
     input: runtimeModel.input ?? catalogModel?.input ?? ["text"],
-    cost: runtimeModel.cost ?? catalogModel?.cost ?? {
-      input: 0,
-      output: 0,
-      cacheRead: 0,
-      cacheWrite: 0,
-    },
+    cost: runtimeModel.cost ??
+      catalogModel?.cost ?? {
+        input: 0,
+        output: 0,
+        cacheRead: 0,
+        cacheWrite: 0,
+      },
     contextWindow: runtimeModel.contextWindow ?? catalogModel?.contextWindow ?? 128000,
     maxTokens: runtimeModel.maxTokens ?? catalogModel?.maxTokens ?? 16384,
     headers: runtimeModel.headers ?? catalogModel?.headers,

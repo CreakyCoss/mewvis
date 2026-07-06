@@ -2,11 +2,11 @@ import { now } from "../ids";
 import type {
   TavernAssetDraft,
   TavernCharacterMemoryDraft,
-  TavernIllustrationHint,
   TavernLorebookDraft,
   TavernLorebookEntry,
   TavernSceneMemoryDraft,
 } from "@/features/pages/taverns/manage/model";
+import type { TavernIllustrationHint } from "@/features/pages/taverns/room/model";
 
 export const normalizeLorebookKeywords = (value: unknown) =>
   Array.isArray(value) ? value.flatMap((item) => (typeof item === "string" ? [item.trim()] : [])).filter(Boolean) : [];

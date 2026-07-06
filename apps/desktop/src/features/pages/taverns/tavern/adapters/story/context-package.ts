@@ -1,16 +1,14 @@
 import { formatTavernCharacterRelationships } from "../../core";
+import type { TavernCharacter, TavernLorebookEntry, TavernSceneStatus } from "@/features/pages/taverns/manage/model";
 import type {
-  TavernCharacter,
   TavernCharacterMemoryLayers,
-  TavernLorebookEntry,
-  TavernRoom,
+  TavernRuntimeRoom as TavernRoom,
   TavernScene,
   TavernSceneMemoryLayers,
-  TavernSceneStatus,
   TavernStoryEdge,
   TavernStoryGraph,
   TavernStoryNode,
-} from "@/features/pages/taverns/manage/model";
+} from "@/features/pages/taverns/room/model";
 import {
   getTavernRuntimeStoryProjection,
   type TavernRuntimeStoryProjection,

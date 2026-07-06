@@ -37,11 +37,14 @@ export const StoryModulesContent = ({ bind, onBack, onOpenManuscripts }: StoryMo
     onBack();
   }, [close, onBack]);
 
-  const handleOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      handleBack();
-    }
-  }, [handleBack]);
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        handleBack();
+      }
+    },
+    [handleBack],
+  );
 
   return (
     <Dialog open={Boolean(story)} onOpenChange={handleOpenChange}>

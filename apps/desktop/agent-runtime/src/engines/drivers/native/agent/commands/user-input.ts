@@ -1,13 +1,6 @@
 import { randomUUID } from "node:crypto";
-import {
-  AgentEventType,
-  type AnswerQuestionCommand,
-} from "../../../../protocol/index.js";
-import type {
-  AgentRuntimeCallbacks,
-  EmitAgentEvent,
-  UserInputHandler,
-} from "../runtimes/types.js";
+import { AgentEventType, type AnswerQuestionCommand } from "../../../../protocol/index.js";
+import type { AgentRuntimeCallbacks, EmitAgentEvent, UserInputHandler } from "../runtimes/types.js";
 
 const ASK_USER_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -21,17 +14,10 @@ export type UserInputManager = {
   handleAnswer(command: AnswerQuestionCommand): void;
 };
 
-export const createUserInputManager = (
-  emit: EmitAgentEvent,
-): UserInputManager => {
+export const createUserInputManager = (emit: EmitAgentEvent): UserInputManager => {
   const pendingQuestions = new Map<string, PendingQuestion>();
 
-  const requestUserInput: UserInputHandler = ({
-    taskId,
-    question,
-    context,
-    input,
-  }) => {
+  const requestUserInput: UserInputHandler = ({ taskId, question, context, input }) => {
     const questionId = randomUUID();
 
     emit({

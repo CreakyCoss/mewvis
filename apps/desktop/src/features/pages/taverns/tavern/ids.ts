@@ -1,16 +1,17 @@
 const padIdPart = (value: number, length = 2) => value.toString().padStart(length, "0");
 
-const formatTimestampId = (date: Date) => [
-  date.getFullYear(),
-  padIdPart(date.getMonth() + 1),
-  padIdPart(date.getDate()),
-  "-",
-  padIdPart(date.getHours()),
-  padIdPart(date.getMinutes()),
-  padIdPart(date.getSeconds()),
-  "-",
-  padIdPart(date.getMilliseconds(), 3),
-].join("");
+const formatTimestampId = (date: Date) =>
+  [
+    date.getFullYear(),
+    padIdPart(date.getMonth() + 1),
+    padIdPart(date.getDate()),
+    "-",
+    padIdPart(date.getHours()),
+    padIdPart(date.getMinutes()),
+    padIdPart(date.getSeconds()),
+    "-",
+    padIdPart(date.getMilliseconds(), 3),
+  ].join("");
 
 export const now = () => Date.now();
 

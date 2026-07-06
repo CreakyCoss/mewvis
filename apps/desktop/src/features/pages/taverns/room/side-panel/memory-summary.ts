@@ -1,10 +1,10 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type {
-  TavernCharacter,
   TavernCharacterMemoryLayers,
-  TavernRoom,
   TavernSceneInstance,
   TavernSceneMemoryLayers,
-} from "@/features/pages/taverns/manage/model";
+} from "@/features/pages/taverns/room/model";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 
 const trimmed = (value: string | undefined) => value?.trim() ?? "";
 

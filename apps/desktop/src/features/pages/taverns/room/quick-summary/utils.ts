@@ -1,5 +1,6 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
-import type { TavernRoom } from "@/features/pages/taverns/manage/model";
+
 import { getTavernRuntimeStoryProjection } from "@/features/pages/taverns/tavern/adapters/story";
 import type { QuickNovelExportFormat } from "./types";
 

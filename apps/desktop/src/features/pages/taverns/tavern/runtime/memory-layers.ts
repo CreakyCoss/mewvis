@@ -1,4 +1,4 @@
-import type { TavernCharacterMemoryLayers, TavernSceneMemoryLayers } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacterMemoryLayers, TavernSceneMemoryLayers } from "@/features/pages/taverns/room/model";
 
 export const createEmptySceneMemoryLayers = (
   input: Partial<TavernSceneMemoryLayers> = {},

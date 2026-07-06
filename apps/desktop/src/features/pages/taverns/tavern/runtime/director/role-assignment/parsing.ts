@@ -1,5 +1,6 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import { createTavernRoleAssignmentFactEvents, type TavernRoleAssignmentSelection } from "../../../core";
-import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import {
   createTavernRoleAssignmentParticipants,
   expandTavernRoleAssignmentPool,

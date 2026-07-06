@@ -13,10 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MarkdownContent } from "@/features/ai/components/markdown";
 import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";
 import { cn } from "@/lib/utils";
-import type {
-  QuickNovelExportFormat,
-  QuickSummaryTab,
-} from "./types";
+import type { QuickNovelExportFormat, QuickSummaryTab } from "./types";
 
 type QuickSummaryDialogProps = {
   open: boolean;
@@ -91,12 +88,7 @@ export const QuickSummaryDialog = ({
         )}
         overlayClassName="bg-black/35 backdrop-blur-sm"
       >
-        <DialogHeader
-          className={cn(
-            "shrink-0 border-b px-5 py-4 pr-12",
-            visualPreset.tavern.header,
-          )}
-        >
+        <DialogHeader className={cn("shrink-0 border-b px-5 py-4 pr-12", visualPreset.tavern.header)}>
           <div className="flex items-center gap-3">
             <span
               className={cn(
@@ -107,9 +99,7 @@ export const QuickSummaryDialog = ({
               <Sparkles className="size-4" />
             </span>
             <div className="min-w-0">
-              <DialogTitle className="truncate text-base text-current">
-                当前进展总结
-              </DialogTitle>
+              <DialogTitle className="truncate text-base text-current">当前进展总结</DialogTitle>
               <DialogDescription className="mt-1 text-xs text-current opacity-65">
                 {summaryDescription}
               </DialogDescription>
@@ -206,12 +196,7 @@ export const QuickSummaryDialog = ({
           </Tabs>
         </div>
 
-        <DialogFooter
-          className={cn(
-            "shrink-0 border-t px-5 py-4",
-            visualPreset.tavern.header,
-          )}
-        >
+        <DialogFooter className={cn("shrink-0 border-t px-5 py-4", visualPreset.tavern.header)}>
           <Button
             type="button"
             variant="outline"
@@ -232,10 +217,7 @@ export const QuickSummaryDialog = ({
             <BookOpen className="size-4" />
             {isGeneratingNovel ? "写作中" : novelContent ? "重新写作" : "生成小说"}
           </Button>
-          <Button
-            type="button"
-            onClick={() => onOpenChange(false)}
-          >
+          <Button type="button" onClick={() => onOpenChange(false)}>
             关闭
           </Button>
         </DialogFooter>

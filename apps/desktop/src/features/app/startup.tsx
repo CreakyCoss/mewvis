@@ -47,9 +47,7 @@ function initializeConfigDatabaseOnce() {
 }
 
 function shouldHoldStartupPreview() {
-  return Array.from(new URLSearchParams(window.location.search).keys()).some((key) =>
-    key.startsWith("startup-")
-  );
+  return Array.from(new URLSearchParams(window.location.search).keys()).some((key) => key.startsWith("startup-"));
 }
 
 export const StartupGate = ({ children }: StartupGateProps) => {
@@ -113,12 +111,7 @@ export const StartupGate = ({ children }: StartupGateProps) => {
 };
 
 const StartupLogo = () => (
-  <img
-    className="startup-screen__logo"
-    src="/assets/startup-cat-icon.png"
-    alt=""
-    aria-hidden="true"
-  />
+  <img className="startup-screen__logo" src="/assets/startup-cat-icon.png" alt="" aria-hidden="true" />
 );
 
 const StartupScreen = ({ isComplete = false, statusText }: StartupScreenProps) => {
@@ -139,16 +132,9 @@ const StartupScreen = ({ isComplete = false, statusText }: StartupScreenProps) =
             <span className="startup-screen__paw-trail" />
             <span className="startup-screen__lane-head" />
             {STARTUP_CATS.map((cat) => (
-              <span
-                key={cat.id}
-                className={`startup-screen__cat-walker startup-screen__cat-walker--${cat.id}`}
-              >
+              <span key={cat.id} className={`startup-screen__cat-walker startup-screen__cat-walker--${cat.id}`}>
                 <span className="startup-screen__cat-sprite">
-                  <img
-                    className="startup-screen__cat-sheet"
-                    src={cat.sheet}
-                    alt=""
-                  />
+                  <img className="startup-screen__cat-sheet" src={cat.sheet} alt="" />
                 </span>
                 <span className="startup-screen__cat-name">{cat.label}</span>
               </span>

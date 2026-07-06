@@ -1,7 +1,4 @@
-import {
-  Type,
-  type TSchema,
-} from "@earendil-works/pi-ai";
+import { Type, type TSchema } from "@earendil-works/pi-ai";
 import type { ToolParameterDefinition } from "../../../tools/types.js";
 
 export const toPiToolParameters = (definition: ToolParameterDefinition): TSchema => {
@@ -21,23 +18,17 @@ export const toPiToolParameters = (definition: ToolParameterDefinition): TSchema
       ) as TSchema;
       break;
     case "array":
-      schema = Type.Array(
-        toPiToolParameters(definition.items),
-        { description: definition.description },
-      ) as TSchema;
+      schema = Type.Array(toPiToolParameters(definition.items), { description: definition.description }) as TSchema;
       break;
     case "object":
       schema = Type.Object(
         Object.fromEntries(
-          Object.entries(definition.properties).map(([name, property]) => [
-            name,
-            toPiToolParameters(property),
-          ]),
+          Object.entries(definition.properties).map(([name, property]) => [name, toPiToolParameters(property)]),
         ),
         definition.description ? { description: definition.description } : undefined,
       ) as TSchema;
       break;
   }
 
-  return definition.optional ? Type.Optional(schema) as TSchema : schema;
+  return definition.optional ? (Type.Optional(schema) as TSchema) : schema;
 };

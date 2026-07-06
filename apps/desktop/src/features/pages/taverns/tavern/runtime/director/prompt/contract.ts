@@ -22,7 +22,9 @@ export const buildTavernDirectorOutputContract = ({
     "ambientAction",
     canConsiderRandomEvent ? "randomEvent" : "",
     canRequestIllustrationHints ? "illustrationHint" : "",
-  ].filter(Boolean).join("|");
+  ]
+    .filter(Boolean)
+    .join("|");
 
   return [
     "<output_schema>",

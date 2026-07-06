@@ -63,9 +63,7 @@ export const DEFAULT_ALLOWED_AGENT_TOOLS: readonly AgentToolName[] = Object.free
   AGENT_TOOL_DEFINITIONS.filter((tool) => tool.enabledByDefault).map((tool) => tool.name),
 );
 
-export const normalizeAllowedAgentTools = (
-  tools: readonly string[] | undefined,
-): AgentToolName[] => {
+export const normalizeAllowedAgentTools = (tools: readonly string[] | undefined): AgentToolName[] => {
   if (!tools) {
     return [...DEFAULT_ALLOWED_AGENT_TOOLS];
   }

@@ -1,3 +1,4 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import { formatTavernRuntimeMessagesForSummary } from "../../conversation";
 import {
   buildTavernSceneDriveGuidance,
@@ -7,7 +8,7 @@ import {
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
 import { formatTavernVisibleMessagesForRequestContext, normalizeTavernMessagesForAudience } from "../../../message";
 import type { TavernMessage } from "../../../types";
-import type { TavernCharacter, TavernPresentationProfile, TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter, TavernPresentationProfile } from "@/features/pages/taverns/manage/model";
 import type { TavernRuntimeMessage } from "../../conversation";
 import { escapePromptXmlAttribute, escapePromptXmlText } from "../../prompt/shared/text";
 import {

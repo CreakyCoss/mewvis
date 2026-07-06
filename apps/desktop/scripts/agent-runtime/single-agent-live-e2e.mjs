@@ -1,19 +1,11 @@
 import { execFileSync, spawn } from "node:child_process";
-import {
-  existsSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
 const workspaceRoot = process.cwd();
 const runtimePath = join(workspaceRoot, "agent-runtime/dist/cli.js");
-const configDbPath = process.env.NOVEL_CLAW_CONFIG_DB?.trim()
-  || join(homedir(), ".novel-claw", "config.db");
+const configDbPath = process.env.NOVEL_CLAW_CONFIG_DB?.trim() || join(homedir(), ".novel-claw", "config.db");
 const workspacePath = mkdtempSync(join(tmpdir(), "novel-claw-runtime-live-e2e-"));
 const sessionRootDir = join(workspacePath, "standalone-session-store", "chats", "live-e2e-session", "session");
 const sessionDirPath = sessionRootDir;
@@ -60,12 +52,14 @@ const assert = (condition, message, details) => {
 };
 
 const safeDetails = (value) =>
-  JSON.parse(JSON.stringify(value, (key, item) => {
-    if (key === "apiKey" || key === "api_key") {
-      return item ? "<redacted>" : item;
-    }
-    return item;
-  }));
+  JSON.parse(
+    JSON.stringify(value, (key, item) => {
+      if (key === "apiKey" || key === "api_key") {
+        return item ? "<redacted>" : item;
+      }
+      return item;
+    }),
+  );
 
 const loadMiniMaxRuntimeModel = () => {
   const query = [
@@ -100,9 +94,7 @@ const loadMiniMaxRuntimeModel = () => {
     apiKey: row.apiKey,
     modelId: row.modelId || LIVE_MODEL_TEMPLATE.modelId,
     apiEndpoint: row.apiEndpoint || LIVE_MODEL_TEMPLATE.apiEndpoint,
-    contextWindow: Number(row.isOneMillionContext) === 1
-      ? 1_000_000
-      : LIVE_MODEL_TEMPLATE.contextWindow,
+    contextWindow: Number(row.isOneMillionContext) === 1 ? 1_000_000 : LIVE_MODEL_TEMPLATE.contextWindow,
   };
 };
 
@@ -190,11 +182,17 @@ const waitFor = (predicate, label, timeoutMs = LIVE_TIMEOUT_MS) =>
         if (index >= 0) {
           waiters.splice(index, 1);
         }
-        reject(new Error([
-          `等待 ${label} 超时`,
-          stderrBuffer ? `stderr:\n${stderrBuffer}` : "",
-          `recent events:\n${JSON.stringify(seen.slice(-12).map(safeDetails), null, 2)}`,
-        ].filter(Boolean).join("\n\n")));
+        reject(
+          new Error(
+            [
+              `等待 ${label} 超时`,
+              stderrBuffer ? `stderr:\n${stderrBuffer}` : "",
+              `recent events:\n${JSON.stringify(seen.slice(-12).map(safeDetails), null, 2)}`,
+            ]
+              .filter(Boolean)
+              .join("\n\n"),
+          ),
+        );
       }, timeoutMs),
     };
     waiters.push(waiter);
@@ -236,26 +234,18 @@ const runtimeResources = (allowed = []) => ({
   skills: { enabled: [] },
 });
 
-const chatCommand = ({
-  requestId,
-  systemPrompt,
-  userMessage,
-  requestContext,
-  runtimeInstruction,
-}) => ({
+const chatCommand = ({ requestId, systemPrompt, userMessage, requestContext, runtimeInstruction }) => ({
   type: "chat",
   requestId,
   stream: false,
   runtimeModel,
   systemPrompt,
-  messages: [{
-    role: "user",
-    content: [
-      runtimeInstruction,
-      userMessage,
-      requestContext,
-    ].filter(Boolean).join("\n\n"),
-  }],
+  messages: [
+    {
+      role: "user",
+      content: [runtimeInstruction, userMessage, requestContext].filter(Boolean).join("\n\n"),
+    },
+  ],
 });
 
 const sendAgentMessage = ({
@@ -326,39 +316,54 @@ const agentInstruction = [
 try {
   writeFileSync(
     join(workspacePath, "live-e2e-reference.txt"),
-    [
-      `workspace marker: ${runMarker}`,
-      "这个文件只用于验证真实 agent runtime 工作区路径，不要求 agent 读取。",
-    ].join("\n"),
+    [`workspace marker: ${runMarker}`, "这个文件只用于验证真实 agent runtime 工作区路径，不要求 agent 读取。"].join(
+      "\n",
+    ),
     "utf8",
   );
 
   const list = await request({ type: "list_agents", requestId: "list" }, "agent_definitions", 10_000);
-  assert(list.agents.some((agent) => agent.id === "pi" && agent.capabilities.includes("agent")), "pi agent 应可用", list);
-  assert(list.agents.some((agent) => agent.id === "pi" && agent.capabilities.includes("chat")), "pi chat 应可用", list);
+  assert(
+    list.agents.some((agent) => agent.id === "pi" && agent.capabilities.includes("agent")),
+    "pi agent 应可用",
+    list,
+  );
+  assert(
+    list.agents.some((agent) => agent.id === "pi" && agent.capabilities.includes("chat")),
+    "pi chat 应可用",
+    list,
+  );
 
-  const created = await request({
-    type: "create_session",
-    requestId: "live-create-session",
-    workspacePath,
-    sessionRootDir,
-    systemPrompt,
-    metadata: {
-      live: true,
-      runMarker,
-      modelId: runtimeModel.modelId,
+  const created = await request(
+    {
+      type: "create_session",
+      requestId: "live-create-session",
+      workspacePath,
+      sessionRootDir,
+      systemPrompt,
+      metadata: {
+        live: true,
+        runMarker,
+        modelId: runtimeModel.modelId,
+      },
     },
-  }, "session_mutation_result", 10_000);
+    "session_mutation_result",
+    10_000,
+  );
   assert(created.messageRecordId, "create_session 应写入 systemPrompt", created);
 
   const chatMarker = `${runMarker}_CHAT`;
-  const chatResult = await request(chatCommand({
-    requestId: "live-chat",
-    systemPrompt,
-    userMessage: `只输出一行 JSON：{"marker":"${chatMarker}","mode":"chat","ok":true}`,
-    requestContext: `chat 本次引用资料 marker=${runMarker}_CHAT_CONTEXT。`,
-    runtimeInstruction: "严格保留 marker，输出 JSON。",
-  }), "chat_result", CHAT_TIMEOUT_MS);
+  const chatResult = await request(
+    chatCommand({
+      requestId: "live-chat",
+      systemPrompt,
+      userMessage: `只输出一行 JSON：{"marker":"${chatMarker}","mode":"chat","ok":true}`,
+      requestContext: `chat 本次引用资料 marker=${runMarker}_CHAT_CONTEXT。`,
+      runtimeInstruction: "严格保留 marker，输出 JSON。",
+    }),
+    "chat_result",
+    CHAT_TIMEOUT_MS,
+  );
   expectMarker(chatResult.text, chatMarker, "chat_result");
   assert(!chatResult.runtimeSession, "stateless chat_result 不应返回 runtime session 引用", chatResult);
 
@@ -376,8 +381,16 @@ try {
   });
   const agentA1 = await waitForAgentRun(agentA1TaskId, agentA1TaskId, "agent A first run");
   expectMarker(agentA1.done.text, agentA1Marker, "agent A first done");
-  assert(existsSync(agentSessionDir(agentARoleId)), "agent A 应创建 pi 底层 session 目录", agentSessionDir(agentARoleId));
-  assert(listSessionFiles(agentARoleId).length > 0, "agent A 底层 session 目录应有文件", listSessionFiles(agentARoleId));
+  assert(
+    existsSync(agentSessionDir(agentARoleId)),
+    "agent A 应创建 pi 底层 session 目录",
+    agentSessionDir(agentARoleId),
+  );
+  assert(
+    listSessionFiles(agentARoleId).length > 0,
+    "agent A 底层 session 目录应有文件",
+    listSessionFiles(agentARoleId),
+  );
 
   const stressMarkers = [];
   for (let index = 0; index < Math.max(0, STRESS_TURNS); index += 1) {
@@ -412,27 +425,31 @@ try {
   const agentA2 = await waitForAgentRun(agentA2TaskId, agentA2TaskId, "agent A second run");
   expectMarker(agentA2.done.text, agentA2Marker, "agent A second done");
 
-  const compacted = await request({
-    type: "compact",
-    requestId: "live-compact-agent-a",
-    workspacePath,
-    sessionRootDir,
-    target: {
-      scope: "agent",
-      agentId: "pi",
-      agentRoleId: agentARoleId,
+  const compacted = await request(
+    {
+      type: "compact",
+      requestId: "live-compact-agent-a",
+      workspacePath,
+      sessionRootDir,
+      target: {
+        scope: "agent",
+        agentId: "pi",
+        agentRoleId: agentARoleId,
+      },
+      options: {
+        compactInstruction: [
+          "Live E2E 手动压缩底层 agent session。",
+          `请保留 ${agentA1Marker}、${agentA2Marker} 和最新任务语义。`,
+        ].join("\n"),
+      },
+      runtime: {
+        model: runtimeModel,
+        resources: runtimeResources(),
+      },
     },
-    options: {
-      compactInstruction: [
-        "Live E2E 手动压缩底层 agent session。",
-        `请保留 ${agentA1Marker}、${agentA2Marker} 和最新任务语义。`,
-      ].join("\n"),
-    },
-    runtime: {
-      model: runtimeModel,
-      resources: runtimeResources(),
-    },
-  }, "session_mutation_result", COMPACT_TIMEOUT_MS);
+    "session_mutation_result",
+    COMPACT_TIMEOUT_MS,
+  );
   assert(typeof compacted.compacted === "boolean", "compact 应返回 boolean compacted", compacted);
   assert(compacted.summary === "", "手动 compact 底层 agent 不应写入 runtime shared summary", compacted);
 
@@ -442,11 +459,11 @@ try {
     "runtime ledger 不应产生 shared compaction entry",
     ledgerAfterCompact.entries.filter((entry) => entry.type === "compaction"),
   );
-  const agentCompactEntry = [...ledgerAfterCompact.entries].reverse()
+  const agentCompactEntry = [...ledgerAfterCompact.entries]
+    .reverse()
     .find((entry) => entry.type === "custom" && entry.customType === "agent_session_compacted");
   assert(
-    agentCompactEntry?.data?.target?.runtimeId === "pi" &&
-      agentCompactEntry.data?.target?.agentRoleId === agentARoleId,
+    agentCompactEntry?.data?.target?.runtimeId === "pi" && agentCompactEntry.data?.target?.agentRoleId === agentARoleId,
     "runtime ledger 应记录 agent_session_compacted 审计事件",
     agentCompactEntry,
   );
@@ -465,22 +482,30 @@ try {
   });
   const agentARebuild = await waitForAgentRun(agentARebuildTaskId, agentARebuildTaskId, "agent A rebuild run");
   expectMarker(agentARebuild.done.text, agentARebuildMarker, "agent A rebuild done");
-  assert(existsSync(agentSessionDir(agentARoleId)), "agent A rebuild 后应重新创建底层 session 目录", agentSessionDir(agentARoleId));
+  assert(
+    existsSync(agentSessionDir(agentARoleId)),
+    "agent A rebuild 后应重新创建底层 session 目录",
+    agentSessionDir(agentARoleId),
+  );
 
-  const serialRoot = await request({
-    type: "message_append",
-    requestId: "live-append-serial-root",
-    workspacePath,
-    sessionRootDir,
-    messages: [
-      {
-        role: "user",
-        content: `多 agent 串行协作根用户消息 ${runMarker}_SERIAL_ROOT`,
-        timestamp: Date.now(),
-        metadata: { live: true, uiMessageId: "live-serial-root" },
-      },
-    ],
-  }, "session_mutation_result", 10_000);
+  const serialRoot = await request(
+    {
+      type: "message_append",
+      requestId: "live-append-serial-root",
+      workspacePath,
+      sessionRootDir,
+      messages: [
+        {
+          role: "user",
+          content: `多 agent 串行协作根用户消息 ${runMarker}_SERIAL_ROOT`,
+          timestamp: Date.now(),
+          metadata: { live: true, uiMessageId: "live-serial-root" },
+        },
+      ],
+    },
+    "session_mutation_result",
+    10_000,
+  );
   assert(serialRoot.messageRecordId, "serial root user 应写入 runtime ledger", serialRoot);
 
   const writerRoleId = "live-writer-agent";
@@ -564,12 +589,16 @@ try {
     tavernARebuildRun.done.text,
   );
 
-  const finalSession = await request({
-    type: "read_session",
-    requestId: "live-read-final-session",
-    workspacePath,
-    sessionRootDir,
-  }, "session_result", 10_000);
+  const finalSession = await request(
+    {
+      type: "read_session",
+      requestId: "live-read-final-session",
+      workspacePath,
+      sessionRootDir,
+    },
+    "session_result",
+    10_000,
+  );
   assert(finalSession.summary === "", "live runtime session 不应维护 shared summary", finalSession.summary);
   assert(
     finalSession.messages.some((message) => message.content.includes(tavernSecret)) &&
@@ -588,20 +617,24 @@ try {
   const beforeSummaryLedger = readLedger();
   const summaryTargetLeaf = beforeSummaryLedger.entries.at(-1);
   assert(summaryTargetLeaf, "live summarize 前应存在 ledger leaf", beforeSummaryLedger.entries);
-  const displaySummaryResult = await request({
-    type: "summarize_session",
-    requestId: "live-summarize-display-session",
-    workspacePath,
-    sessionRootDir,
-    agent: { agentId: "pi" },
-    options: {
-      summaryInstruction: `生成前端展示摘要，保留 ${runMarker} 相关测试线索，并说明摘要不参与 agent 上下文。`,
-      maxSummaryChars: 3000,
+  const displaySummaryResult = await request(
+    {
+      type: "summarize_session",
+      requestId: "live-summarize-display-session",
+      workspacePath,
+      sessionRootDir,
+      agent: { agentId: "pi" },
+      options: {
+        summaryInstruction: `生成前端展示摘要，保留 ${runMarker} 相关测试线索，并说明摘要不参与 agent 上下文。`,
+        maxSummaryChars: 3000,
+      },
+      runtime: {
+        model: runtimeModel,
+      },
     },
-    runtime: {
-      model: runtimeModel,
-    },
-  }, "session_mutation_result", CHAT_TIMEOUT_MS);
+    "session_mutation_result",
+    CHAT_TIMEOUT_MS,
+  );
   assert(displaySummaryResult.summary === "", "display summary 不应写入 runtime shared summary", displaySummaryResult);
   assert(
     displaySummaryResult.displaySummary?.summary?.trim() &&
@@ -636,43 +669,47 @@ try {
     "live display_summary 写入后应复位 leaf",
     displaySummaryLeaf,
   );
-  const sessionWithDisplaySummary = await request({
-    type: "read_session",
-    requestId: "live-read-after-display-summary",
-    workspacePath,
-    sessionRootDir,
-  }, "session_result", 10_000);
+  const sessionWithDisplaySummary = await request(
+    {
+      type: "read_session",
+      requestId: "live-read-after-display-summary",
+      workspacePath,
+      sessionRootDir,
+    },
+    "session_result",
+    10_000,
+  );
   assert(
     sessionWithDisplaySummary.displaySummary?.recordId === displaySummaryResult.displaySummary.recordId &&
-      sessionWithDisplaySummary.displaySummaries?.some((summary) =>
-        summary.recordId === displaySummaryResult.displaySummary.recordId
+      sessionWithDisplaySummary.displaySummaries?.some(
+        (summary) => summary.recordId === displaySummaryResult.displaySummary.recordId,
       ),
     "read_session 应返回最近一次 displaySummary 和当前分支 displaySummaries",
     sessionWithDisplaySummary,
   );
   assert(
-    sessionWithDisplaySummary.runtimeLinks?.some((link) =>
-      link.runtime === "agent" &&
-        link.agentRoleId === writerRoleId &&
-        link.assistantMessageRecordIds.length > 0
+    sessionWithDisplaySummary.runtimeLinks?.some(
+      (link) =>
+        link.runtime === "agent" && link.agentRoleId === writerRoleId && link.assistantMessageRecordIds.length > 0,
     ) &&
-      sessionWithDisplaySummary.runtimeLinks?.some((link) =>
-        link.runtime === "agent" &&
-          link.agentRoleId === editorRoleId &&
-          link.assistantMessageRecordIds.length > 0
+      sessionWithDisplaySummary.runtimeLinks?.some(
+        (link) =>
+          link.runtime === "agent" && link.agentRoleId === editorRoleId && link.assistantMessageRecordIds.length > 0,
       ),
     "read_session 应返回多 agent 的结构化 runtimeLinks",
     sessionWithDisplaySummary.runtimeLinks,
   );
-  const serialWriterAssistant = finalLedger.entries.find((entry) =>
-    entry.type === "message" &&
-    entry.message.role === "assistant" &&
-    entry.message.metadata?.agentRoleId === writerRoleId
+  const serialWriterAssistant = finalLedger.entries.find(
+    (entry) =>
+      entry.type === "message" &&
+      entry.message.role === "assistant" &&
+      entry.message.metadata?.agentRoleId === writerRoleId,
   );
-  const serialEditorAssistant = finalLedger.entries.find((entry) =>
-    entry.type === "message" &&
-    entry.message.role === "assistant" &&
-    entry.message.metadata?.agentRoleId === editorRoleId
+  const serialEditorAssistant = finalLedger.entries.find(
+    (entry) =>
+      entry.type === "message" &&
+      entry.message.role === "assistant" &&
+      entry.message.metadata?.agentRoleId === editorRoleId,
   );
   assert(serialWriterAssistant, "serial writer assistant 应写入 ledger", finalLedger.entries);
   assert(serialEditorAssistant, "serial editor assistant 应写入 ledger", finalLedger.entries);

@@ -1,8 +1,8 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import { getTavernStatusSnapshotValue } from "@/features/pages/taverns/tavern/core";
 import type {
   TavernCharacter,
   TavernProgressView,
-  TavernRoom,
   TavernStatusDefinition,
   TavernStatusTargetRef,
   TavernStatusValue,

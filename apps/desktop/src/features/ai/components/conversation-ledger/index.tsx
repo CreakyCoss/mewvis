@@ -1,16 +1,10 @@
 import { useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
-import {
-  resolveRuntimeModelInput,
-  useLlmSettingsStore,
-} from "@/features/pages/settings/llm/store";
+import { resolveRuntimeModelInput, useLlmSettingsStore } from "@/features/pages/settings/llm/store";
 import { readLedger, summarizeLedger } from "./api";
 import { LedgerDetail } from "./detail";
 import { LedgerList } from "./list";
 import { resolveLedgerSessionRootDir } from "./path";
-import type {
-  ConversationLedgerProps,
-  LedgerResult,
-} from "./types";
+import type { ConversationLedgerProps, LedgerResult } from "./types";
 
 const DEFAULT_SUMMARY_INSTRUCTION = [
   "请生成当前会话的前端展示摘要。",
@@ -31,20 +25,13 @@ export const ConversationLedger = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isSummaryRefreshing, setIsSummaryRefreshing] = useState(false);
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
-  const sessionRootDir = useMemo(
-    () => resolveLedgerSessionRootDir(chatId),
-    [chatId],
-  );
+  const sessionRootDir = useMemo(() => resolveLedgerSessionRootDir(chatId), [chatId]);
   const links = useMemo(
-    () => [...(ledger?.runtimeLinks ?? [])].sort((left, right) =>
-      (right.startedAt ?? 0) - (left.startedAt ?? 0)
-    ),
+    () => [...(ledger?.runtimeLinks ?? [])].sort((left, right) => (right.startedAt ?? 0) - (left.startedAt ?? 0)),
     [ledger?.runtimeLinks],
   );
   const selectedLink = useMemo(
-    () => selectedLinkId
-      ? links.find((link) => link.linkId === selectedLinkId) ?? null
-      : null,
+    () => (selectedLinkId ? (links.find((link) => link.linkId === selectedLinkId) ?? null) : null),
     [links, selectedLinkId],
   );
   const resolveSummaryRuntimeModel = useCallback(async () => {
@@ -105,17 +92,16 @@ export const ConversationLedger = ({
     } finally {
       setIsSummaryRefreshing(false);
     }
-  }, [
-    resolveSummaryRuntimeModel,
-    sessionRootDir,
-    summaryInstruction,
-    workspacePath,
-  ]);
+  }, [resolveSummaryRuntimeModel, sessionRootDir, summaryInstruction, workspacePath]);
 
-  useImperativeHandle(bind, () => ({
-    refresh,
-    refreshSummary,
-  }), [refresh, refreshSummary]);
+  useImperativeHandle(
+    bind,
+    () => ({
+      refresh,
+      refreshSummary,
+    }),
+    [refresh, refreshSummary],
+  );
 
   useEffect(() => {
     setSelectedLinkId(null);
@@ -124,11 +110,7 @@ export const ConversationLedger = ({
 
   return (
     <>
-      <LedgerDetail
-        selectedLink={selectedLink}
-        ledger={ledger}
-        onClose={() => setSelectedLinkId(null)}
-      />
+      <LedgerDetail selectedLink={selectedLink} ledger={ledger} onClose={() => setSelectedLinkId(null)} />
       <LedgerList
         ledger={ledger}
         links={links}

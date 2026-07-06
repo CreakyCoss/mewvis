@@ -4,10 +4,7 @@ import {
   rebuildTavernBridgeSessionFromMessages,
   summarizeTavernBridgeSession,
 } from "../conversation";
-import {
-  tavernBridgeSessionRootDir,
-  tavernQuickNovelAgentRoleId,
-} from "../../core";
+import { tavernBridgeSessionRootDir, tavernQuickNovelAgentRoleId } from "../../core";
 import { runTavernRuntimeAgent } from "../agent";
 import { buildTavernQuickNovelPrompt } from "./quick-summary/prompt";
 import type { TavernQuickSummaryInput } from "./quick-summary/types";

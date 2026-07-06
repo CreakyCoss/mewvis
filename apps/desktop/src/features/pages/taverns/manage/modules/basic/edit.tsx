@@ -62,14 +62,6 @@ export const BasicEdit = ({ bind, data, onSave }: BasicEditProps) => {
     onSave({
       title: draft.title,
       scenePresetId: draft.scenePresetId,
-      scenes: data.scenes?.map((scene) =>
-        scene.scenePresetId === draft.scenePresetId
-          ? scene
-          : {
-              ...scene,
-              scenePresetId: draft.scenePresetId,
-            },
-      ),
       replyMode: draft.replyMode,
     });
     close();

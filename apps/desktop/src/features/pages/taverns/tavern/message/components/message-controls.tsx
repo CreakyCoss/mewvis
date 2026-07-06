@@ -1,18 +1,12 @@
 import { useState } from "react";
-import {
-  CheckCheck,
-  Copy,
-} from "lucide-react";
+import { CheckCheck, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type MessageControlsProps = {
   content: string;
   disabled?: boolean;
 };
-export const MessageControls = ({
-  content,
-  disabled,
-}: MessageControlsProps) => {
+export const MessageControls = ({ content, disabled }: MessageControlsProps) => {
   const [didCopy, setDidCopy] = useState(false);
   const canCopy = Boolean(content.trim()) && !disabled;
 
@@ -47,11 +41,7 @@ export const MessageControls = ({
           void copyContent();
         }}
       >
-        {didCopy ? (
-          <CheckCheck className="size-3.5" />
-        ) : (
-          <Copy className="size-3.5" />
-        )}
+        {didCopy ? <CheckCheck className="size-3.5" /> : <Copy className="size-3.5" />}
       </Button>
     </div>
   );

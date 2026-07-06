@@ -141,17 +141,32 @@ try {
     },
   });
 
-  const result = await waitFor((item) =>
-    item.type === "collaboration_result" &&
-    item.requestId === "stdio-collaboration-smoke"
+  const result = await waitFor(
+    (item) => item.type === "collaboration_result" && item.requestId === "stdio-collaboration-smoke",
   );
   assert(result.requestId === "stdio-collaboration-smoke", "应保留 requestId", result);
   assert(result.workflowRunId?.startsWith("workflow-"), "应返回 workflowRunId", result);
-  assert(result.steps?.map((step) => step.stepId).join("|") === "planner|writer", "应执行两个不同角色的协作 step", result);
+  assert(
+    result.steps?.map((step) => step.stepId).join("|") === "planner|writer",
+    "应执行两个不同角色的协作 step",
+    result,
+  );
   assert(result.skippedSteps?.map((step) => step.stepId).join("|") === "optional", "应返回 skippedSteps", result);
-  assert(seen.some((item) => item.type === "workflow_started" && item.workflowId === "stdio-collaboration-smoke"), "应输出 workflow_started 事件", seen);
-  assert(seen.some((item) => item.type === "agent_event"), "应输出包装后的 agent_event 事件", seen);
-  assert(seen.some((item) => item.type === "step_skipped"), "应输出 step_skipped 事件", seen);
+  assert(
+    seen.some((item) => item.type === "workflow_started" && item.workflowId === "stdio-collaboration-smoke"),
+    "应输出 workflow_started 事件",
+    seen,
+  );
+  assert(
+    seen.some((item) => item.type === "agent_event"),
+    "应输出包装后的 agent_event 事件",
+    seen,
+  );
+  assert(
+    seen.some((item) => item.type === "step_skipped"),
+    "应输出 step_skipped 事件",
+    seen,
+  );
 
   const dispatchSessionRootDir = join(workspacePath, "session-store", "stdio-dispatch-collaboration");
   send({
@@ -206,12 +221,19 @@ try {
     },
   });
 
-  const dispatchResult = await waitFor((item) =>
-    item.type === "collaboration_result" &&
-    item.requestId === "stdio-dispatch-collaboration-smoke"
+  const dispatchResult = await waitFor(
+    (item) => item.type === "collaboration_result" && item.requestId === "stdio-dispatch-collaboration-smoke",
   );
-  assert(dispatchResult.output?.writerOut?.includes("Write stdio dispatch"), "stdio dispatch 应写回动态 writer output", dispatchResult);
-  assert(dispatchResult.output?.reviewerOut?.includes("Review Mock agent 已完成模拟任务"), "stdio dispatch 后续 invocation 应能引用前序 output", dispatchResult);
+  assert(
+    dispatchResult.output?.writerOut?.includes("Write stdio dispatch"),
+    "stdio dispatch 应写回动态 writer output",
+    dispatchResult,
+  );
+  assert(
+    dispatchResult.output?.reviewerOut?.includes("Review Mock agent 已完成模拟任务"),
+    "stdio dispatch 后续 invocation 应能引用前序 output",
+    dispatchResult,
+  );
   assert(
     dispatchResult.steps?.some((step) => step.stepId === "dispatch:writer") &&
       dispatchResult.steps?.some((step) => step.stepId === "dispatch:reviewer"),
@@ -232,11 +254,14 @@ try {
     includeTimeline: true,
     timelineLimit: 20,
   });
-  const runtimeSessionResult = await waitFor((item) =>
-    item.type === "runtime_session_result" &&
-    item.requestId === "stdio-session-query"
+  const runtimeSessionResult = await waitFor(
+    (item) => item.type === "runtime_session_result" && item.requestId === "stdio-session-query",
   );
-  assert(runtimeSessionResult.session?.traceCount > 0, "stdio runtime session query 应返回 trace 摘要", runtimeSessionResult);
+  assert(
+    runtimeSessionResult.session?.traceCount > 0,
+    "stdio runtime session query 应返回 trace 摘要",
+    runtimeSessionResult,
+  );
   assert(
     runtimeSessionResult.timeline?.some((item) => item.workflowRunId === dispatchResult.workflowRunId),
     "stdio runtime session query 应返回 workflow timeline",
@@ -250,9 +275,8 @@ try {
     sessionRootDir: dispatchSessionRootDir,
     workflowRunId: dispatchResult.workflowRunId,
   });
-  const collaborationTimelineResult = await waitFor((item) =>
-    item.type === "collaboration_timeline_result" &&
-    item.requestId === "stdio-collaboration-timeline-query"
+  const collaborationTimelineResult = await waitFor(
+    (item) => item.type === "collaboration_timeline_result" && item.requestId === "stdio-collaboration-timeline-query",
   );
   assert(
     collaborationTimelineResult.events?.some((item) => item.type === "workflow_started"),
@@ -266,9 +290,8 @@ try {
     workspacePath,
     rootDir: join(workspacePath, "session-store"),
   });
-  const runtimeSessionsResult = await waitFor((item) =>
-    item.type === "runtime_sessions_result" &&
-    item.requestId === "stdio-sessions-query"
+  const runtimeSessionsResult = await waitFor(
+    (item) => item.type === "runtime_sessions_result" && item.requestId === "stdio-sessions-query",
   );
   assert(
     runtimeSessionsResult.sessions?.some((session) => session.sessionRootDir === dispatchSessionRootDir),
@@ -336,16 +359,16 @@ try {
     },
   });
 
-  const langGraphResult = await waitFor((item) =>
-    item.type === "collaboration_result" &&
-    item.requestId === "stdio-langgraph-collaboration-smoke"
+  const langGraphResult = await waitFor(
+    (item) => item.type === "collaboration_result" && item.requestId === "stdio-langgraph-collaboration-smoke",
   );
-  assert(langGraphResult.steps?.map((step) => step.stepId).join("|") === "left|right|reviewer", "LangGraph stdio 结果应按 workflow step 顺序返回", langGraphResult);
   assert(
-    seen.some((item) =>
-      item.type === "workflow_started" &&
-      item.workflowId === "stdio-langgraph-collaboration-smoke"
-    ),
+    langGraphResult.steps?.map((step) => step.stepId).join("|") === "left|right|reviewer",
+    "LangGraph stdio 结果应按 workflow step 顺序返回",
+    langGraphResult,
+  );
+  assert(
+    seen.some((item) => item.type === "workflow_started" && item.workflowId === "stdio-langgraph-collaboration-smoke"),
     "stdio 应输出 parallel workflow_started 事件",
     seen,
   );
@@ -356,13 +379,19 @@ try {
   });
   await waitFor((item) => item.type === "shutdown_ack");
 
-  console.log(JSON.stringify({
-    ok: true,
-    workflowRunId: result.workflowRunId,
-    dispatchWorkflowRunId: dispatchResult.workflowRunId,
-    langGraphWorkflowRunId: langGraphResult.workflowRunId,
-    eventCount: seen.length,
-  }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        ok: true,
+        workflowRunId: result.workflowRunId,
+        dispatchWorkflowRunId: dispatchResult.workflowRunId,
+        langGraphWorkflowRunId: langGraphResult.workflowRunId,
+        eventCount: seen.length,
+      },
+      null,
+      2,
+    ),
+  );
 } finally {
   child.kill();
   rmSync(workspacePath, { recursive: true, force: true });

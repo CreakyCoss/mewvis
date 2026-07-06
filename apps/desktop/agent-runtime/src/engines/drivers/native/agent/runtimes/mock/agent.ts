@@ -1,8 +1,4 @@
-import {
-  AgentEventType,
-  AgentResultType,
-  type SessionMutationResult,
-} from "../../../../../protocol/index.js";
+import { AgentEventType, AgentResultType, type SessionMutationResult } from "../../../../../protocol/index.js";
 import type {
   AgentRunResult,
   AgentRuntime,

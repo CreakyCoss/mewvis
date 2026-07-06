@@ -18,9 +18,7 @@ const createWorkflowStepId = () => {
   return `workflow-step-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 };
 
-export const resolveAgentProfiles = (
-  agents: AiAgent[],
-): AgentProfile[] =>
+export const resolveAgentProfiles = (agents: AiAgent[]): AgentProfile[] =>
   agents.map((agent) => ({
     id: agent.id,
     name: agent.name,
@@ -39,22 +37,23 @@ export const resolveCollaborationWorkflowProfiles = (
       return [];
     }
     const writerAgent = steps[0].agent;
-    const reviewerAgent = steps.find((step) => step.agent.id !== writerAgent.id)?.agent
-      ?? steps[1]?.agent
-      ?? writerAgent;
+    const reviewerAgent =
+      steps.find((step) => step.agent.id !== writerAgent.id)?.agent ?? steps[1]?.agent ?? writerAgent;
 
-    return [{
-      id: workflow.id,
-      name: workflow.name,
-      description: workflow.description,
-      writerAgent,
-      reviewerAgent,
-      draftInstruction: workflow.draftInstruction,
-      reviewInstruction: workflow.reviewInstruction,
-      reviseInstruction: workflow.reviseInstruction,
-      steps,
-      isDefault: false,
-    }];
+    return [
+      {
+        id: workflow.id,
+        name: workflow.name,
+        description: workflow.description,
+        writerAgent,
+        reviewerAgent,
+        draftInstruction: workflow.draftInstruction,
+        reviewInstruction: workflow.reviewInstruction,
+        reviseInstruction: workflow.reviseInstruction,
+        steps,
+        isDefault: false,
+      },
+    ];
   });
 
 export const createInitialCollaborationWorkflowSteps = (
@@ -94,13 +93,15 @@ export const resolveCollaborationWorkflowStepProfiles = (
       return [];
     }
 
-    return [{
-      id: step.id,
-      name: step.name,
-      agent,
-      instruction: step.instruction,
-      phase: step.phase,
-    }];
+    return [
+      {
+        id: step.id,
+        name: step.name,
+        agent,
+        instruction: step.instruction,
+        phase: step.phase,
+      },
+    ];
   });
 
 export const createAgentDraft = (): SaveAiAgentInput => {
@@ -112,9 +113,7 @@ export const createAgentDraft = (): SaveAiAgentInput => {
   };
 };
 
-export const agentToDraft = (
-  agent: AiAgent,
-): SaveAiAgentInput => {
+export const agentToDraft = (agent: AiAgent): SaveAiAgentInput => {
   return {
     id: agent.id,
     name: agent.name,
@@ -123,12 +122,9 @@ export const agentToDraft = (
   };
 };
 
-export const createCollaborationWorkflowDraft = (
-  agentProfiles: AgentProfile[],
-): SaveCollaborationWorkflowInput => {
+export const createCollaborationWorkflowDraft = (agentProfiles: AgentProfile[]): SaveCollaborationWorkflowInput => {
   const writerAgent = agentProfiles[0];
-  const reviewerAgent = agentProfiles.find((agent) => agent.id !== writerAgent?.id)
-    ?? writerAgent;
+  const reviewerAgent = agentProfiles.find((agent) => agent.id !== writerAgent?.id) ?? writerAgent;
 
   return {
     id: null,

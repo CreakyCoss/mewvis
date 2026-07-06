@@ -78,7 +78,7 @@ function extractRankData(port) {
     "    }" +
     "  }" +
     // 检测这个元素内是否有作品链接
-    "  var links=el.querySelectorAll('a[href*=\"onebook.php\"],a[href*=\"novelid\"]');" +
+    '  var links=el.querySelectorAll(\'a[href*="onebook.php"],a[href*="novelid"]\');' +
     "  if(links.length>0&&currentChannel){" +
     "    links.forEach(function(a){" +
     "      var novelId=(a.getAttribute('href')||'').match(/novelid=(\\d+)/);" +
@@ -158,9 +158,7 @@ function scrapeRank(port, rankTypeId, channelId) {
 
   let totalBooks = 0;
   data.channels.forEach((ch) => (totalBooks += ch.books.length));
-  console.log(
-    `  ✓ 提取 ${data.channels.length} 个频道，共 ${totalBooks} 本`
-  );
+  console.log(`  ✓ 提取 ${data.channels.length} 个频道，共 ${totalBooks} 本`);
 
   const now = new Date().toISOString();
   const lines = [
@@ -191,8 +189,7 @@ function scrapeRank(port, rankTypeId, channelId) {
 }
 
 function main() {
-  const rankTypes =
-    RANKTYPE === "all" ? RANK_TYPES.map((r) => r.id) : [RANKTYPE];
+  const rankTypes = RANKTYPE === "all" ? RANK_TYPES.map((r) => r.id) : [RANKTYPE];
   const channels = [CHANNEL]; // 晋江频道 ID 需从页面获取，默认全站
 
   for (const rt of rankTypes) {

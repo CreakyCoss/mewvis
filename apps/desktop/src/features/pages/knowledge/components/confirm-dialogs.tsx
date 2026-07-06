@@ -23,15 +23,10 @@ export const DeleteConfirmDialog = ({
   onOpenChange,
   onConfirm,
 }: DeleteConfirmDialogProps) => (
-  <AlertDialog
-    open={pendingDelete !== null}
-    onOpenChange={onOpenChange}
-  >
+  <AlertDialog open={pendingDelete !== null} onOpenChange={onOpenChange}>
     <AlertDialogContent>
       <AlertDialogHeader>
-        <AlertDialogTitle>
-          {pendingDelete?.kind === "source" ? "删除文件来源？" : "删除集合？"}
-        </AlertDialogTitle>
+        <AlertDialogTitle>{pendingDelete?.kind === "source" ? "删除文件来源？" : "删除集合？"}</AlertDialogTitle>
         <AlertDialogDescription>
           {pendingDelete?.kind === "source"
             ? `将从知识库中删除“${pendingDelete.source.title}”。此操作不会删除原始导入文件，但会移除对应索引内容。`
@@ -70,16 +65,11 @@ export const KnowledgeActionConfirmDialog = ({
   onOpenChange,
   onConfirm,
 }: KnowledgeActionConfirmDialogProps) => (
-  <AlertDialog
-    open={pendingAction !== null}
-    onOpenChange={onOpenChange}
-  >
+  <AlertDialog open={pendingAction !== null} onOpenChange={onOpenChange}>
     <AlertDialogContent>
       <AlertDialogHeader>
         <AlertDialogTitle>
-          {pendingAction === "save-embedding"
-            ? "保存 Embedding 模型配置？"
-            : "重建知识库索引？"}
+          {pendingAction === "save-embedding" ? "保存 Embedding 模型配置？" : "重建知识库索引？"}
         </AlertDialogTitle>
         <AlertDialogDescription>
           {pendingAction === "save-embedding"
@@ -88,9 +78,7 @@ export const KnowledgeActionConfirmDialog = ({
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
-        <AlertDialogCancel disabled={isRebuilding || isSavingEmbedding}>
-          取消
-        </AlertDialogCancel>
+        <AlertDialogCancel disabled={isRebuilding || isSavingEmbedding}>取消</AlertDialogCancel>
         <AlertDialogAction
           variant={pendingAction === "rebuild-index" ? "destructive" : "default"}
           disabled={isRebuilding || isSavingEmbedding}

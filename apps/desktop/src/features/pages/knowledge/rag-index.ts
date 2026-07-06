@@ -95,5 +95,4 @@ export const createGlobalKnowledgeRagIndex = (): KnowledgeRagIndex => ({
   invalidate: async () => undefined,
 });
 
-const asString = (value: unknown) =>
-  typeof value === "string" ? value : null;
+const asString = (value: unknown) => (typeof value === "string" ? value : null);

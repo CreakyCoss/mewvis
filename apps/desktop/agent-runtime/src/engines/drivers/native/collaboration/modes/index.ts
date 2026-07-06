@@ -1,7 +1,4 @@
-export type {
-  CollaborationModeDefinition,
-  CollaborationModeRunResult,
-} from "./contracts.js";
+export type { CollaborationModeDefinition, CollaborationModeRunResult } from "./contracts.js";
 
 export type {
   CollaborationModeId,
@@ -17,10 +14,6 @@ export {
   type CollaborationModeRegistry,
 } from "./registry.js";
 
-export {
-  producerReviewRewriteLoopMode,
-} from "./producer-review-rewrite-loop/index.js";
+export { producerReviewRewriteLoopMode } from "./producer-review-rewrite-loop/index.js";
 
-export {
-  supervisorDispatchLoopMode,
-} from "./supervisor-dispatch-loop/index.js";
+export { supervisorDispatchLoopMode } from "./supervisor-dispatch-loop/index.js";

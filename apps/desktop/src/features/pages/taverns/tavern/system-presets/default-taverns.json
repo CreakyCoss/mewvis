@@ -56,16 +56,12 @@
         "characterPublicStatuses": {
           "rc-stage-director": {
             "visibleMood": "专注",
-            "holding": [
-              "调度笔记"
-            ],
+            "holding": ["调度笔记"],
             "publicGoal": "控制揭示节奏"
           },
           "rc-stage-narrator": {
             "visibleMood": "安静",
-            "holding": [
-              "空白剧本夹"
-            ],
+            "holding": ["空白剧本夹"],
             "publicGoal": "将传入节点转成公开画面"
           }
         },
@@ -84,10 +80,7 @@
             "updatePolicy": {
               "mode": "eventDrivenWithReview",
               "requireFactEvent": true,
-              "allowedEventTypes": [
-                "premature_reveal",
-                "evidence_confirmed"
-              ],
+              "allowedEventTypes": ["premature_reveal", "evidence_confirmed"],
               "maxDeltaPerTurn": 25,
               "confidenceThreshold": 0.75
             }
@@ -105,10 +98,7 @@
             "updatePolicy": {
               "mode": "eventDriven",
               "requireFactEvent": true,
-              "allowedEventTypes": [
-                "evidence_confirmed",
-                "evidence_scattered"
-              ],
+              "allowedEventTypes": ["evidence_confirmed", "evidence_scattered"],
               "maxDeltaPerTurn": 20,
               "confidenceThreshold": 0.7
             }
@@ -127,10 +117,7 @@
               "target": "eventTarget",
               "op": "add",
               "value": 15,
-              "clamp": [
-                0,
-                100
-              ]
+              "clamp": [0, 100]
             },
             "safeguards": {
               "requireExplicitEvidence": true,
@@ -149,10 +136,7 @@
               "target": "eventTarget",
               "op": "add",
               "value": 20,
-              "clamp": [
-                0,
-                100
-              ]
+              "clamp": [0, 100]
             },
             "safeguards": {
               "requireExplicitEvidence": true,
@@ -244,10 +228,7 @@
             "storyDirection": "收到故事输入后再依据输入展开；未输入时只做场地与规则确认。",
             "transition": "故事端切换节点时同步切换。",
             "memory": "悬疑壳运行记忆：慢揭示、证据优先、私有事实隔离。",
-            "characterIds": [
-              "rc-stage-director",
-              "rc-stage-narrator"
-            ],
+            "characterIds": ["rc-stage-director", "rc-stage-narrator"],
             "activeCharacterId": "rc-stage-director"
           }
         ],
@@ -255,10 +236,7 @@
           "rc-stage-director": "只保存壳级调度规则，不保存故事真相。",
           "rc-stage-narrator": "只依据故事端传入资料写公开画面。"
         },
-        "characterIds": [
-          "rc-stage-director",
-          "rc-stage-narrator"
-        ],
+        "characterIds": ["rc-stage-director", "rc-stage-narrator"],
         "activeCharacterId": "rc-stage-director",
         "replyMode": "director",
         "userPersonaName": "我",
@@ -379,16 +357,12 @@
         "characterPublicStatuses": {
           "sx-stage-director": {
             "visibleMood": "沉稳",
-            "holding": [
-              "路引"
-            ],
+            "holding": ["路引"],
             "publicGoal": "控制江湖规矩和动作后果"
           },
           "sx-stage-narrator": {
             "visibleMood": "敛声",
-            "holding": [
-              "茶盏"
-            ],
+            "holding": ["茶盏"],
             "publicGoal": "把节点写成可演的武侠场面"
           }
         },
@@ -407,10 +381,7 @@
             "updatePolicy": {
               "mode": "eventDrivenWithReview",
               "requireFactEvent": true,
-              "allowedEventTypes": [
-                "pressure_rises",
-                "pressure_deflected"
-              ],
+              "allowedEventTypes": ["pressure_rises", "pressure_deflected"],
               "maxDeltaPerTurn": 25,
               "confidenceThreshold": 0.75
             }
@@ -428,10 +399,7 @@
             "updatePolicy": {
               "mode": "eventDriven",
               "requireFactEvent": true,
-              "allowedEventTypes": [
-                "action_clarified",
-                "action_muddled"
-              ],
+              "allowedEventTypes": ["action_clarified", "action_muddled"],
               "maxDeltaPerTurn": 20,
               "confidenceThreshold": 0.7
             }
@@ -450,10 +418,7 @@
               "target": "eventTarget",
               "op": "add",
               "value": 15,
-              "clamp": [
-                0,
-                100
-              ]
+              "clamp": [0, 100]
             },
             "safeguards": {
               "requireExplicitEvidence": true,
@@ -472,10 +437,7 @@
               "target": "eventTarget",
               "op": "add",
               "value": 15,
-              "clamp": [
-                0,
-                100
-              ]
+              "clamp": [0, 100]
             },
             "safeguards": {
               "requireExplicitEvidence": true,
@@ -567,10 +529,7 @@
             "storyDirection": "收到故事输入后再依据输入展开；未输入时只做场地与规则确认。",
             "transition": "故事端切换节点时同步切换。",
             "memory": "武侠壳运行记忆：江湖规矩、动作清楚、伤势约束、含蓄人情。",
-            "characterIds": [
-              "sx-stage-director",
-              "sx-stage-narrator"
-            ],
+            "characterIds": ["sx-stage-director", "sx-stage-narrator"],
             "activeCharacterId": "sx-stage-director"
           }
         ],
@@ -578,10 +537,7 @@
           "sx-stage-director": "只保存壳级武侠调度规则，不保存具体门派旧案。",
           "sx-stage-narrator": "动作描写必须来自传入节点和角色能力。"
         },
-        "characterIds": [
-          "sx-stage-director",
-          "sx-stage-narrator"
-        ],
+        "characterIds": ["sx-stage-director", "sx-stage-narrator"],
         "activeCharacterId": "sx-stage-director",
         "replyMode": "director",
         "userPersonaName": "我",
@@ -702,16 +658,12 @@
         "characterPublicStatuses": {
           "oa-stage-director": {
             "visibleMood": "冷静",
-            "holding": [
-              "战术平板"
-            ],
+            "holding": ["战术平板"],
             "publicGoal": "控制系统压力和选择代价"
           },
           "oa-stage-narrator": {
             "visibleMood": "专注",
-            "holding": [
-              "档案光屏"
-            ],
+            "holding": ["档案光屏"],
             "publicGoal": "把节点写成清晰科幻画面"
           }
         },
@@ -730,10 +682,7 @@
             "updatePolicy": {
               "mode": "eventDrivenWithReview",
               "requireFactEvent": true,
-              "allowedEventTypes": [
-                "system_warning",
-                "system_stabilized"
-              ],
+              "allowedEventTypes": ["system_warning", "system_stabilized"],
               "maxDeltaPerTurn": 25,
               "confidenceThreshold": 0.75
             }
@@ -751,10 +700,7 @@
             "updatePolicy": {
               "mode": "eventDriven",
               "requireFactEvent": true,
-              "allowedEventTypes": [
-                "signal_clarified",
-                "signal_corrupted"
-              ],
+              "allowedEventTypes": ["signal_clarified", "signal_corrupted"],
               "maxDeltaPerTurn": 20,
               "confidenceThreshold": 0.7
             }
@@ -773,10 +719,7 @@
               "target": "eventTarget",
               "op": "add",
               "value": 15,
-              "clamp": [
-                0,
-                100
-              ]
+              "clamp": [0, 100]
             },
             "safeguards": {
               "requireExplicitEvidence": true,
@@ -795,10 +738,7 @@
               "target": "eventTarget",
               "op": "add",
               "value": 15,
-              "clamp": [
-                0,
-                100
-              ]
+              "clamp": [0, 100]
             },
             "safeguards": {
               "requireExplicitEvidence": true,
@@ -890,10 +830,7 @@
             "storyDirection": "收到故事输入后再依据输入展开；未输入时只做场地与规则确认。",
             "transition": "故事端切换节点时同步切换。",
             "memory": "科幻壳运行记忆：工程因果、倒计时压力、信号清晰、伦理选择。",
-            "characterIds": [
-              "oa-stage-director",
-              "oa-stage-narrator"
-            ],
+            "characterIds": ["oa-stage-director", "oa-stage-narrator"],
             "activeCharacterId": "oa-stage-director"
           }
         ],
@@ -901,10 +838,7 @@
           "oa-stage-director": "只保存壳级科幻调度规则，不保存具体事故真相。",
           "oa-stage-narrator": "系统反馈和工程细节必须来自传入节点或当前公开事实。"
         },
-        "characterIds": [
-          "oa-stage-director",
-          "oa-stage-narrator"
-        ],
+        "characterIds": ["oa-stage-director", "oa-stage-narrator"],
         "activeCharacterId": "oa-stage-director",
         "replyMode": "director",
         "userPersonaName": "我",

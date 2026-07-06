@@ -1,10 +1,5 @@
-import type {
-  CollaborationModeDefinition,
-} from "./contracts.js";
-import type {
-  CollaborationModeId,
-  CollaborationModeSummary,
-} from "../../../../protocol/index.js";
+import type { CollaborationModeDefinition } from "./contracts.js";
+import type { CollaborationModeId, CollaborationModeSummary } from "../../../../protocol/index.js";
 import { producerReviewRewriteLoopMode } from "./producer-review-rewrite-loop/index.js";
 import { supervisorDispatchLoopMode } from "./supervisor-dispatch-loop/index.js";
 

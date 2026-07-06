@@ -5,14 +5,8 @@ import type {
   RuntimeMessageScope,
   RuntimeMessageSource,
 } from "./ledger.js";
-import {
-  commandParentEntryId,
-  commandRootUserEntryId,
-  commandTurnId,
-} from "./runtime-link.js";
-import type {
-  RuntimeSessionCommand,
-} from "./runtime-command.js";
+import { commandParentEntryId, commandRootUserEntryId, commandTurnId } from "./runtime-link.js";
+import type { RuntimeSessionCommand } from "./runtime-command.js";
 
 type AgentSessionRef = {
   runtimeId: string | null;
@@ -113,10 +107,8 @@ export const standardizeRuntimeMessageMetadata = ({
   const parsedSession = parseAgentSessionId(existingSessionId);
   const existingAgentRoleId = stringOrNull(existing.agentRoleId) ?? stringOrNull(existing.agentKey);
   const normalizedAgentRoleId = agentRoleId ?? parsedSession.agentRoleId ?? existingAgentRoleId;
-  const normalizedRuntimeId = runtimeId
-    ?? parsedSession.runtimeId
-    ?? stringOrNull(existing.runtimeId)
-    ?? stringOrNull(existing.runtimeAgentId);
+  const normalizedRuntimeId =
+    runtimeId ?? parsedSession.runtimeId ?? stringOrNull(existing.runtimeId) ?? stringOrNull(existing.runtimeAgentId);
 
   return {
     ...existing,
@@ -135,9 +127,8 @@ export const standardizeRuntimeMessageMetadata = ({
     turnId: turnId ?? stringOrNull(existing.turnId),
     parentEntryId: parentEntryId ?? stringOrNull(existing.parentEntryId),
     rootUserEntryId: rootUserEntryId ?? stringOrNull(existing.rootUserEntryId),
-    recordUserMessage: recordUserMessage ?? (
-      typeof existing.recordUserMessage === "boolean" ? existing.recordUserMessage : null
-    ),
+    recordUserMessage:
+      recordUserMessage ?? (typeof existing.recordUserMessage === "boolean" ? existing.recordUserMessage : null),
     baseLeafId: baseLeafId ?? stringOrNull(existing.baseLeafId),
     parentUserEntryId: parentUserEntryId ?? stringOrNull(existing.parentUserEntryId),
     ...(runStatus ? { runStatus } : {}),

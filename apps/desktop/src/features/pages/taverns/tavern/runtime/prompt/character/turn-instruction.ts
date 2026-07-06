@@ -1,7 +1,8 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import { isTavernFixedOrderPhase } from "../../../core";
 import { getTavernPresentationContract } from "../../../presentation/presentation-contracts";
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
-import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { joinPromptLines } from "../shared/sections";
 import {
   DEFAULT_TAVERN_CHARACTER_PROMPT_VARIANT,

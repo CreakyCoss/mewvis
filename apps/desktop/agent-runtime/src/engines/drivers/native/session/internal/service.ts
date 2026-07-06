@@ -18,26 +18,13 @@ import type {
   RuntimeSessionEventInput,
   RuntimeSessionMutationHooks,
 } from "../providers/types.js";
-import type {
-  RuntimeSessionStorageProvider,
-} from "./storage.js";
-import {
-  buildRuntimeAgentVisibleContext,
-} from "../model/agent-context.js";
+import type { RuntimeSessionStorageProvider } from "./storage.js";
+import { buildRuntimeAgentVisibleContext } from "../model/agent-context.js";
 import { buildRuntimeSessionContext } from "../model/projection.js";
 import type { RuntimeMessageRole } from "../model/ledger.js";
-import {
-  runtimeLedgerOperationMetadata,
-  commandRuntimeMessageMetadata,
-} from "../model/metadata.js";
-import {
-  openRuntimeSessionStorage,
-  refreshRuntimeSessionManifest,
-} from "./writer.js";
-import {
-  generateDisplaySummary,
-  type RuntimeSessionSummarySourceEntry,
-} from "./summary.js";
+import { runtimeLedgerOperationMetadata, commandRuntimeMessageMetadata } from "../model/metadata.js";
+import { openRuntimeSessionStorage, refreshRuntimeSessionManifest } from "./writer.js";
+import { generateDisplaySummary, type RuntimeSessionSummarySourceEntry } from "./summary.js";
 
 export const runtimeSessionResultFrom = (
   command: { requestId?: string | null; sessionRootDir: string },
@@ -61,7 +48,9 @@ export const runtimeSessionResultFrom = (
 export const runtimeSessionMutationResultFrom = (
   command: { requestId?: string | null; sessionRootDir: string },
   context: ReturnType<typeof buildRuntimeSessionContext>,
-  extra: Partial<Pick<SessionMutationResult, "messageRecordId" | "messageRecordIds" | "compacted" | "rebuilt" | "displaySummary">> = {},
+  extra: Partial<
+    Pick<SessionMutationResult, "messageRecordId" | "messageRecordIds" | "compacted" | "rebuilt" | "displaySummary">
+  > = {},
 ): SessionMutationResult => ({
   ...runtimeSessionResultFrom(command, context),
   type: AgentResultType.SessionMutationResult,
@@ -93,10 +82,7 @@ export const readRuntimeSessionAgentVisibleContext = async (
 
   const handle = await openRuntimeSessionStorage(input, provider);
   const { storage } = handle;
-  const context = buildRuntimeSessionContext(
-    storage,
-    input.anchorRecordId?.trim() || storage.getLeafId(),
-  );
+  const context = buildRuntimeSessionContext(storage, input.anchorRecordId?.trim() || storage.getLeafId());
   return buildRuntimeAgentVisibleContext(context.entries, agentRoleId);
 };
 
@@ -114,53 +100,63 @@ const summarySourceEntriesFromContext = (
       return [];
     }
     if (entry.type === "message") {
-      return [{
-        kind: "message",
-        recordId: entry.id,
-        timestamp: entry.message.timestamp,
-        role: entry.message.role,
-        content: entry.message.content,
-        metadata: entry.message.metadata ?? null,
-      }];
+      return [
+        {
+          kind: "message",
+          recordId: entry.id,
+          timestamp: entry.message.timestamp,
+          role: entry.message.role,
+          content: entry.message.content,
+          metadata: entry.message.metadata ?? null,
+        },
+      ];
     }
     if (entry.type === "request_context") {
-      return [{
-        kind: "request_context",
-        recordId: entry.id,
-        timestamp: entry.timestamp,
-        content: entry.content,
-        metadata: entry.metadata ?? null,
-      }];
+      return [
+        {
+          kind: "request_context",
+          recordId: entry.id,
+          timestamp: entry.timestamp,
+          content: entry.content,
+          metadata: entry.metadata ?? null,
+        },
+      ];
     }
     if (entry.type === "runtime_instruction") {
-      return [{
-        kind: "runtime_instruction",
-        recordId: entry.id,
-        timestamp: entry.timestamp,
-        content: entry.content,
-        metadata: entry.metadata ?? null,
-      }];
+      return [
+        {
+          kind: "runtime_instruction",
+          recordId: entry.id,
+          timestamp: entry.timestamp,
+          content: entry.content,
+          metadata: entry.metadata ?? null,
+        },
+      ];
     }
     if (entry.type === "branch_summary") {
-      return [{
-        kind: "branch_summary",
-        recordId: entry.id,
-        timestamp: entry.timestamp,
-        fromRecordId: entry.fromId,
-        summary: entry.summary,
-        metadata: entry.details ?? null,
-      }];
+      return [
+        {
+          kind: "branch_summary",
+          recordId: entry.id,
+          timestamp: entry.timestamp,
+          fromRecordId: entry.fromId,
+          summary: entry.summary,
+          metadata: entry.details ?? null,
+        },
+      ];
     }
     if (entry.customType === "display_summary") {
       return [];
     }
-    return [{
-      kind: "event",
-      recordId: entry.id,
-      timestamp: entry.timestamp,
-      eventType: entry.customType,
-      data: entry.data ?? null,
-    }];
+    return [
+      {
+        kind: "event",
+        recordId: entry.id,
+        timestamp: entry.timestamp,
+        eventType: entry.customType,
+        data: entry.data ?? null,
+      },
+    ];
   });
 
 export const recordRuntimeSessionEvent = async (
@@ -177,19 +173,19 @@ export const recordRuntimeSessionEvent = async (
   const baseLeafId = storage.getLeafId();
   const metadata = input.metadataSource
     ? runtimeLedgerOperationMetadata({
-      source: input.metadataSource,
-      baseLeafId,
-    })
+        source: input.metadataSource,
+        baseLeafId,
+      })
     : { baseLeafId };
   const payload = isRecord(input.data)
     ? {
-      ...metadata,
-      ...input.data,
-    }
+        ...metadata,
+        ...input.data,
+      }
     : {
-      ...metadata,
-      value: input.data ?? null,
-    };
+        ...metadata,
+        value: input.data ?? null,
+      };
   await storage.appendCustom(eventType, payload);
   const context = buildRuntimeSessionContext(storage);
   await refreshRuntimeSessionManifest(handle);
@@ -208,11 +204,15 @@ export const createRuntimeSession = async (
 
   if (systemPrompt) {
     const context = buildRuntimeSessionContext(storage);
-    const latestSystemPrompt = context.messages
-      .filter((message) => message.role === "system")
-      .at(-1)?.content.trim() ?? "";
+    const latestSystemPrompt =
+      context.messages
+        .filter((message) => message.role === "system")
+        .at(-1)
+        ?.content.trim() ?? "";
     if (latestSystemPrompt && latestSystemPrompt !== systemPrompt) {
-      throw new Error("systemPrompt 已在当前 runtime session 初始化，create_session 不能隐式覆盖；请重建/新建 session。");
+      throw new Error(
+        "systemPrompt 已在当前 runtime session 初始化，create_session 不能隐式覆盖；请重建/新建 session。",
+      );
     }
     if (!latestSystemPrompt) {
       const entry = await storage.appendMessage({
@@ -257,25 +257,29 @@ export const summarizeRuntimeSession = async (
     summaryInstruction: command.options?.summaryInstruction ?? null,
     maxSummaryChars: command.options?.maxSummaryChars ?? null,
   });
-  await storage.appendCustom("display_summary", {
-    ...runtimeLedgerOperationMetadata({
-      source: "runtime_display_summary",
-      baseLeafId: targetLeafId,
-    }),
-    displayOnly: true,
-    version: 1,
+  await storage.appendCustom(
+    "display_summary",
+    {
+      ...runtimeLedgerOperationMetadata({
+        source: "runtime_display_summary",
+        baseLeafId: targetLeafId,
+      }),
+      displayOnly: true,
+      version: 1,
+      targetLeafId,
+      summary: generated.summary,
+      summaryInstruction: command.options?.summaryInstruction ?? null,
+      runtimeId: generated.runtimeId,
+      modelId: generated.modelId,
+      generatedAt: Date.now(),
+      sourceCharCount: generated.sourceCharCount,
+      chunkCount: generated.chunkCount,
+      llmCallCount: generated.llmCallCount,
+      messageCount: context.messages.length,
+      entryCount: context.entries.length,
+    },
     targetLeafId,
-    summary: generated.summary,
-    summaryInstruction: command.options?.summaryInstruction ?? null,
-    runtimeId: generated.runtimeId,
-    modelId: generated.modelId,
-    generatedAt: Date.now(),
-    sourceCharCount: generated.sourceCharCount,
-    chunkCount: generated.chunkCount,
-    llmCallCount: generated.llmCallCount,
-    messageCount: context.messages.length,
-    entryCount: context.entries.length,
-  }, targetLeafId);
+  );
   await storage.setLeafId(targetLeafId);
 
   const nextContext = buildRuntimeSessionContext(storage, targetLeafId);
@@ -309,11 +313,15 @@ export const appendRuntimeSessionMessages = async (
     const role = normalizeMessageRole(message.role);
     if (role === "system") {
       const context = buildRuntimeSessionContext(storage);
-      const latestSystemPrompt = context.messages
-        .filter((item) => item.role === "system")
-        .at(-1)?.content.trim() ?? "";
+      const latestSystemPrompt =
+        context.messages
+          .filter((item) => item.role === "system")
+          .at(-1)
+          ?.content.trim() ?? "";
       if (latestSystemPrompt && latestSystemPrompt !== content) {
-        throw new Error("systemPrompt 已在当前 runtime session 初始化，message_append 不能隐式覆盖；请重建/新建 session。");
+        throw new Error(
+          "systemPrompt 已在当前 runtime session 初始化，message_append 不能隐式覆盖；请重建/新建 session。",
+        );
       }
       if (latestSystemPrompt === content) {
         continue;

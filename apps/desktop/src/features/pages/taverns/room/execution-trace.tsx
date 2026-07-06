@@ -1,11 +1,4 @@
-import {
-  AlertCircle,
-  CheckCircle2,
-  ChevronDown,
-  Circle,
-  ListChecks,
-  Loader2,
-} from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronDown, Circle, ListChecks, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";
 import { cn } from "@/lib/utils";
@@ -59,16 +52,9 @@ const getStepDetail = (step: ExecutionStep) => {
   return step.detail ?? "";
 };
 
-export const ExecutionTrace = ({
-  steps,
-  visualPreset,
-  statusText,
-}: ExecutionTraceProps) => {
+export const ExecutionTrace = ({ steps, visualPreset, statusText }: ExecutionTraceProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const stepKey = useMemo(
-    () => steps.map((step) => `${step.id}:${step.status}`).join("|"),
-    [steps],
-  );
+  const stepKey = useMemo(() => steps.map((step) => `${step.id}:${step.status}`).join("|"), [steps]);
   const activeStatusText = statusText?.trim() ?? "";
   const runningStep = steps.find((step) => step.status === "running");
   const errorStep = steps.find((step) => step.status === "error");
@@ -76,9 +62,7 @@ export const ExecutionTrace = ({
   const hasActiveStep = Boolean(runningStep || errorStep || activeStatusText);
   const summary = errorStep
     ? `${errorStep.label}失败`
-    : activeStatusText || (runningStep
-      ? `正在${runningStep.label}`
-      : `${doneCount}/${steps.length} 步完成`);
+    : activeStatusText || (runningStep ? `正在${runningStep.label}` : `${doneCount}/${steps.length} 步完成`);
 
   useEffect(() => {
     setIsExpanded(hasActiveStep);
@@ -92,12 +76,7 @@ export const ExecutionTrace = ({
     <div className="group/message flex justify-start">
       <div className="flex w-full max-w-[min(84%,720px)] gap-3">
         <div className="size-10 shrink-0" aria-hidden />
-        <div
-          className={cn(
-            "min-w-0 flex-1 overflow-hidden border text-xs shadow-lg",
-            visualPreset.tavern.sceneCard,
-          )}
-        >
+        <div className={cn("min-w-0 flex-1 overflow-hidden border text-xs shadow-lg", visualPreset.tavern.sceneCard)}>
           <button
             type="button"
             className={cn(
@@ -168,12 +147,8 @@ export const ExecutionTrace = ({
               {steps.map((step) => {
                 const meta = statusMeta[step.status];
                 const Icon = meta.icon;
-                const detail = step.status === "running" && activeStatusText
-                  ? activeStatusText
-                  : getStepDetail(step);
-                const statusClassName = step.status === "running"
-                  ? "text-current opacity-85"
-                  : meta.className;
+                const detail = step.status === "running" && activeStatusText ? activeStatusText : getStepDetail(step);
+                const statusClassName = step.status === "running" ? "text-current opacity-85" : meta.className;
 
                 return (
                   <div key={step.id} className="flex min-w-0 items-start gap-2 rounded-md px-1 py-0.5">
@@ -187,15 +162,9 @@ export const ExecutionTrace = ({
                     <div className="min-w-0 flex-1">
                       <div className="flex min-w-0 items-center gap-2">
                         <span className="min-w-0 truncate text-current">{step.label}</span>
-                        <span className={cn("shrink-0 text-[11px]", statusClassName)}>
-                          {meta.label}
-                        </span>
+                        <span className={cn("shrink-0 text-[11px]", statusClassName)}>{meta.label}</span>
                       </div>
-                      {detail && (
-                        <div className="line-clamp-1 leading-5 text-current opacity-70">
-                          {detail}
-                        </div>
-                      )}
+                      {detail && <div className="line-clamp-1 leading-5 text-current opacity-70">{detail}</div>}
                     </div>
                   </div>
                 );

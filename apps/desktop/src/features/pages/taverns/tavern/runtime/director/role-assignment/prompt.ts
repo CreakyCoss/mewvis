@@ -1,4 +1,5 @@
-import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { buildTavernStoryContextPackage } from "../../../adapters/story";
 import { createTavernRoleAssignmentParticipants, expandTavernRoleAssignmentPool } from "./participants";
 

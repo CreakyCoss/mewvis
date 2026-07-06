@@ -23,11 +23,8 @@ export const AgentEventTimeline = ({
   }
 
   const visibleAgentEventGroups =
-    messageStatus === "done" || !isCollapsed
-      ? agentEventGroups
-      : agentEventGroups.slice(-5);
-  const hiddenAgentEventGroupCount =
-    agentEventGroups.length - visibleAgentEventGroups.length;
+    messageStatus === "done" || !isCollapsed ? agentEventGroups : agentEventGroups.slice(-5);
+  const hiddenAgentEventGroupCount = agentEventGroups.length - visibleAgentEventGroups.length;
   const agentErrorCount = agentEventGroups.filter((group) => group.status === "error").length;
 
   return (
@@ -37,16 +34,10 @@ export const AgentEventTimeline = ({
         className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
         onClick={onToggle}
       >
-        {isCollapsed ? (
-          <ChevronRight className="size-3.5" />
-        ) : (
-          <ChevronDown className="size-3.5" />
-        )}
+        {isCollapsed ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
         <Wrench className="size-3.5" />
         <span>Agent 执行</span>
-        <span className="rounded-sm bg-background px-1.5 py-0.5 text-[11px]">
-          {agentEventGroups.length} 段
-        </span>
+        <span className="rounded-sm bg-background px-1.5 py-0.5 text-[11px]">{agentEventGroups.length} 段</span>
         {agentErrorCount > 0 && (
           <span className="rounded-sm bg-destructive/10 px-1.5 py-0.5 text-[11px] text-destructive">
             {agentErrorCount} 个错误
@@ -82,9 +73,7 @@ export const AgentEventTimeline = ({
               >
                 <summary className="flex cursor-pointer list-none items-center gap-2 px-2 py-1 text-xs text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
                   <ChevronRight className="size-3 transition-transform group-open:rotate-90" />
-                  <span className="min-w-0 flex-1 truncate font-medium text-foreground">
-                    {group.title}
-                  </span>
+                  <span className="min-w-0 flex-1 truncate font-medium text-foreground">{group.title}</span>
                   <span
                     className={[
                       "rounded-sm px-1.5 py-0.5 text-[11px]",
@@ -97,9 +86,7 @@ export const AgentEventTimeline = ({
                   >
                     {statusLabel}
                   </span>
-                  <span className="text-[11px]">
-                    {group.events.length} 条
-                  </span>
+                  <span className="text-[11px]">{group.events.length} 条</span>
                 </summary>
                 <div className="space-y-1 bg-muted/25 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
                   {group.events.slice(-8).map((event, index) => (

@@ -12,9 +12,7 @@ import type {
 } from "../../providers/types.js";
 import type { RuntimeSessionTraceRecord } from "../types.js";
 import { RuntimeLedgerStorage } from "./store.js";
-import {
-  readRuntimeSessionTraceRecords,
-} from "./trace.js";
+import { readRuntimeSessionTraceRecords } from "./trace.js";
 import {
   buildRuntimeSessionManifest,
   readFreshRuntimeSessionManifest,
@@ -22,11 +20,9 @@ import {
   type RuntimeSessionSummaryLike,
 } from "./manifest.js";
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  Boolean(value) && typeof value === "object";
+const isRecord = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === "object";
 
-const stringValue = (value: unknown) =>
-  typeof value === "string" && value.trim() ? value.trim() : null;
+const stringValue = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : null);
 
 const normalizeAbsoluteDir = (value: string, label: string) => {
   const trimmed = value.trim();
@@ -48,8 +44,7 @@ const runtimeSessionPaths = (target: RuntimeSessionQueryTarget) => {
   };
 };
 
-const isNotFoundError = (error: unknown) =>
-  isRecord(error) && error.code === "ENOENT";
+const isNotFoundError = (error: unknown) => isRecord(error) && error.code === "ENOENT";
 
 const openLedgerOrNull = async (ledgerPath: string) => {
   try {
@@ -74,9 +69,7 @@ const collaborationRecordParts = (record: RuntimeSessionTraceRecord) => {
   };
 };
 
-const summaryFromManifest = (
-  manifest: RuntimeSessionSummaryLike,
-): RuntimeSessionSummary => ({
+const summaryFromManifest = (manifest: RuntimeSessionSummaryLike): RuntimeSessionSummary => ({
   workspacePath: manifest.workspacePath,
   sessionRootDir: manifest.sessionRootDir,
   sessionId: manifest.sessionId ?? null,
@@ -185,17 +178,15 @@ const collaborationTimelineItem = (
     agentRoleId: stringValue(event.agentRoleId) ?? stringValue(step?.agentRoleId),
     agentTaskId: stringValue(event.agentTaskId) ?? stringValue(step?.agentTaskId),
     status: timelineStatusFor(type),
-    detail: stringValue(event.message) ??
+    detail:
+      stringValue(event.message) ??
       stringValue(nestedEvent?.type) ??
       stringValue(step?.route) ??
       stringValue(step?.outputKey),
   };
 };
 
-const runtimeTimelineItem = (
-  record: RuntimeSessionTraceRecord,
-  index: number,
-): RuntimeSessionTimelineItem => {
+const runtimeTimelineItem = (record: RuntimeSessionTraceRecord, index: number): RuntimeSessionTimelineItem => {
   const event = isRecord(record.event) ? record.event : null;
   const type = stringValue(event?.type) ?? record.type;
   return {
@@ -220,17 +211,12 @@ export const buildRuntimeSessionTimeline = (
   const timeline = trace.flatMap((record, index) => {
     const collaborationItem = collaborationTimelineItem(record, index);
     const item = collaborationItem ?? runtimeTimelineItem(record, index);
-    if (
-      options.workflowRunId &&
-      item.workflowRunId !== options.workflowRunId
-    ) {
+    if (options.workflowRunId && item.workflowRunId !== options.workflowRunId) {
       return [];
     }
     return [item];
   });
-  const limit = typeof options.limit === "number" && options.limit > 0
-    ? Math.floor(options.limit)
-    : null;
+  const limit = typeof options.limit === "number" && options.limit > 0 ? Math.floor(options.limit) : null;
   return limit ? timeline.slice(-limit) : timeline;
 };
 
@@ -259,14 +245,11 @@ export const getRuntimeSessionDebugSnapshot = async (
   } = {},
 ): Promise<RuntimeSessionDebugSnapshot> => {
   const { summary, ledger, trace } = await summarizeSession(target);
-  const hasExplicitSelection =
-    typeof options.includeLedger === "boolean" ||
-    typeof options.includeTrace === "boolean";
+  const hasExplicitSelection = typeof options.includeLedger === "boolean" || typeof options.includeTrace === "boolean";
   const includeLedger = hasExplicitSelection ? options.includeLedger === true : true;
   const includeTrace = hasExplicitSelection ? options.includeTrace === true : true;
-  const traceLimit = typeof options.traceLimit === "number" && options.traceLimit > 0
-    ? Math.floor(options.traceLimit)
-    : null;
+  const traceLimit =
+    typeof options.traceLimit === "number" && options.traceLimit > 0 ? Math.floor(options.traceLimit) : null;
 
   return {
     session: summary,
@@ -276,9 +259,7 @@ export const getRuntimeSessionDebugSnapshot = async (
           entries: ledger.getEntries(),
         }
       : undefined,
-    trace: includeTrace
-      ? traceLimit ? trace.slice(-traceLimit) : trace
-      : undefined,
+    trace: includeTrace ? (traceLimit ? trace.slice(-traceLimit) : trace) : undefined,
   };
 };
 
@@ -293,40 +274,41 @@ export const getCollaborationTimeline = async (
   return {
     session: summary,
     workflowRunId: options.workflowRunId ?? null,
-    events: buildRuntimeSessionTimeline(trace, options).filter((item) =>
-      item.source === "collaboration"
-    ),
+    events: buildRuntimeSessionTimeline(trace, options).filter((item) => item.source === "collaboration"),
   };
 };
 
 const hasRuntimeSessionFiles = async (dir: string) => {
   const [manifest, ledger, trace] = await Promise.all([
-    stat(resolve(dir, "session.json")).then(() => true).catch((error: unknown) => {
-      if (isNotFoundError(error)) {
-        return false;
-      }
-      throw error;
-    }),
-    stat(resolve(dir, "ledger.jsonl")).then(() => true).catch((error: unknown) => {
-      if (isNotFoundError(error)) {
-        return false;
-      }
-      throw error;
-    }),
-    stat(resolve(dir, "trace.jsonl")).then(() => true).catch((error: unknown) => {
-      if (isNotFoundError(error)) {
-        return false;
-      }
-      throw error;
-    }),
+    stat(resolve(dir, "session.json"))
+      .then(() => true)
+      .catch((error: unknown) => {
+        if (isNotFoundError(error)) {
+          return false;
+        }
+        throw error;
+      }),
+    stat(resolve(dir, "ledger.jsonl"))
+      .then(() => true)
+      .catch((error: unknown) => {
+        if (isNotFoundError(error)) {
+          return false;
+        }
+        throw error;
+      }),
+    stat(resolve(dir, "trace.jsonl"))
+      .then(() => true)
+      .catch((error: unknown) => {
+        if (isNotFoundError(error)) {
+          return false;
+        }
+        throw error;
+      }),
   ]);
   return manifest || ledger || trace;
 };
 
-const findRuntimeSessionDirs = async (
-  rootDir: string,
-  maxDepth: number,
-): Promise<string[]> => {
+const findRuntimeSessionDirs = async (rootDir: string, maxDepth: number): Promise<string[]> => {
   const normalizedRoot = normalizeAbsoluteDir(rootDir, "runtime session rootDir");
   if (await hasRuntimeSessionFiles(normalizedRoot)) {
     return [normalizedRoot];
@@ -349,28 +331,23 @@ const findRuntimeSessionDirs = async (
   return nested.flat();
 };
 
-export const listRuntimeSessions = async (
-  options: RuntimeSessionListOptions,
-) => {
-  const maxDepth = typeof options.maxDepth === "number"
-    ? Math.max(0, Math.floor(options.maxDepth))
-    : 6;
-  const limit = typeof options.limit === "number" && options.limit > 0
-    ? Math.floor(options.limit)
-    : null;
+export const listRuntimeSessions = async (options: RuntimeSessionListOptions) => {
+  const maxDepth = typeof options.maxDepth === "number" ? Math.max(0, Math.floor(options.maxDepth)) : 6;
+  const limit = typeof options.limit === "number" && options.limit > 0 ? Math.floor(options.limit) : null;
   const sessionDirs = await findRuntimeSessionDirs(options.rootDir, maxDepth);
   const sessions = await Promise.all(
     sessionDirs.map((sessionRootDir) =>
-      summarizeSession({
-        workspacePath: options.workspacePath,
-        sessionRootDir,
-      }, {
-        preferFreshManifest: true,
-      }).then((result) => result.summary)
+      summarizeSession(
+        {
+          workspacePath: options.workspacePath,
+          sessionRootDir,
+        },
+        {
+          preferFreshManifest: true,
+        },
+      ).then((result) => result.summary),
     ),
   );
-  const sorted = sessions.sort((left, right) =>
-    (right.updatedAt ?? "").localeCompare(left.updatedAt ?? "")
-  );
+  const sorted = sessions.sort((left, right) => (right.updatedAt ?? "").localeCompare(left.updatedAt ?? ""));
   return limit ? sorted.slice(0, limit) : sorted;
 };

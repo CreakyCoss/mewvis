@@ -1,9 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type {
-  AiAgentSettings,
-  SaveAiAgentInput,
-  SaveCollaborationWorkflowInput,
-} from "./types";
+import type { AiAgentSettings, SaveAiAgentInput, SaveCollaborationWorkflowInput } from "./types";
 
 const emptySettings = {
   agents: [],

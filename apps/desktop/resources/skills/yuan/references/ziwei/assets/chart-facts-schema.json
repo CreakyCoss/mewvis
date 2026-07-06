@@ -4,22 +4,13 @@
   "type": "object",
   "properties": {
     "ming_palace": {
-      "type": [
-        "string",
-        "null"
-      ]
+      "type": ["string", "null"]
     },
     "shen_palace": {
-      "type": [
-        "string",
-        "null"
-      ]
+      "type": ["string", "null"]
     },
     "five_element_bureau": {
-      "type": [
-        "string",
-        "null"
-      ]
+      "type": ["string", "null"]
     },
     "palaces": {
       "type": "object",
@@ -28,16 +19,10 @@
         "type": "object",
         "properties": {
           "branch": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "stem": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "major_stars": {
             "type": "array",
@@ -72,10 +57,7 @@
       }
     },
     "three_way_four_orth": {
-      "type": [
-        "object",
-        "null"
-      ],
+      "type": ["object", "null"],
       "default": null
     },
     "grand_limits": {
@@ -87,10 +69,7 @@
             "type": "string"
           },
           "palace": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "stars": {
             "type": "array",

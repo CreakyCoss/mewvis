@@ -13,11 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type {
-  WorkspaceForm,
-  WorkspaceGroup,
-  WorkspaceSection,
-} from "@/features/pages/workspace/types";
+import type { WorkspaceForm, WorkspaceGroup, WorkspaceSection } from "@/features/pages/workspace/types";
 
 type WorkspaceFormDialogProps = {
   open: boolean;
@@ -62,17 +58,13 @@ export const WorkspaceFormDialog = ({
     void onSubmit();
   };
 
-  const visibleGroups = groups.length
-    ? groups
-    : sections.map(({ group }) => group);
+  const visibleGroups = groups.length ? groups : sections.map(({ group }) => group);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="border-transparent shadow-lg sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className="text-lg">
-            {isEditing ? "编辑工作区" : "新增工作区"}
-          </DialogTitle>
+          <DialogTitle className="text-lg">{isEditing ? "编辑工作区" : "新增工作区"}</DialogTitle>
           <DialogDescription>
             {isEditing
               ? "修改工作区信息并保存，保存时会校验并迁移 workspace.db。"
@@ -153,12 +145,7 @@ export const WorkspaceFormDialog = ({
                 placeholder="请选择目录"
                 required
               />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={chooseDirectory}
-                title="选择目录"
-              >
+              <Button type="button" variant="outline" onClick={chooseDirectory} title="选择目录">
                 <FolderOpen className="size-4" />
                 <span>选择</span>
               </Button>
@@ -173,9 +160,7 @@ export const WorkspaceFormDialog = ({
 
           <DialogFooter>
             <Button type="submit" disabled={isSaving}>
-              {isSaving
-                ? isEditing ? "正在保存" : "正在创建"
-                : isEditing ? "保存工作区" : "创建工作区"}
+              {isSaving ? (isEditing ? "正在保存" : "正在创建") : isEditing ? "保存工作区" : "创建工作区"}
             </Button>
           </DialogFooter>
         </form>

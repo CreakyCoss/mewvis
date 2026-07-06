@@ -1,22 +1,7 @@
-import {
-  Brain,
-  Code2,
-  Globe2,
-  Loader2,
-  Palette,
-  Pause,
-  Play,
-  Search,
-  Sparkles,
-  Trash2,
-} from "lucide-react";
+import { Brain, Code2, Globe2, Loader2, Palette, Pause, Play, Search, Sparkles, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { WorkspaceSkill } from "../../types";
 import { skillDescriptionPreview } from "../utils";
 
@@ -60,10 +45,7 @@ export const SkillListItem = ({
           aria-label={`查看 ${skill.name} 详情`}
           onMouseLeave={(event) => {
             const activeElement = document.activeElement;
-            if (
-              activeElement instanceof HTMLElement
-              && event.currentTarget.contains(activeElement)
-            ) {
+            if (activeElement instanceof HTMLElement && event.currentTarget.contains(activeElement)) {
               activeElement.blur();
             }
           }}
@@ -77,25 +59,19 @@ export const SkillListItem = ({
           </div>
 
           <div
-            className={[
-              "min-w-0",
-              actionPinned ? "pr-14" : "",
-              actionPinned ? "" : actionHoverSpaceClassName,
-            ].join(" ")}
+            className={["min-w-0", actionPinned ? "pr-14" : "", actionPinned ? "" : actionHoverSpaceClassName].join(
+              " ",
+            )}
           >
             <div className="flex min-w-0 items-center gap-2">
-              <h3 className="min-w-0 truncate text-base font-semibold tracking-normal">
-                {skill.name}
-              </h3>
+              <h3 className="min-w-0 truncate text-base font-semibold tracking-normal">{skill.name}</h3>
               {skillDisabled && (
                 <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                   已禁用
                 </span>
               )}
             </div>
-            <p className="mt-1 line-clamp-2 break-words text-sm leading-5 text-muted-foreground">
-              {description}
-            </p>
+            <p className="mt-1 line-clamp-2 break-words text-sm leading-5 text-muted-foreground">{description}</p>
           </div>
 
           {hasActions && (
@@ -113,13 +89,7 @@ export const SkillListItem = ({
                   variant={skillDisabled ? "secondary" : "default"}
                   disabled={disabled}
                   onClick={() => onToggleSkillDisabled?.(skill)}
-                  icon={
-                    skillDisabled ? (
-                      <Play className="size-4" />
-                    ) : (
-                      <Pause className="size-4" />
-                    )
-                  }
+                  icon={skillDisabled ? <Play className="size-4" /> : <Pause className="size-4" />}
                 />
               )}
               {removable && (
@@ -128,13 +98,7 @@ export const SkillListItem = ({
                   variant="destructive"
                   disabled={disabled || removing}
                   onClick={() => onRemove(skill)}
-                  icon={
-                    removing ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="size-4" />
-                    )
-                  }
+                  icon={removing ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
                 />
               )}
             </div>
@@ -152,9 +116,7 @@ export const SkillListItem = ({
           <div className="flex min-w-0 items-center gap-2">
             <span className="truncate text-sm font-semibold">{skill.name}</span>
           </div>
-          <p className="whitespace-pre-wrap break-words text-xs text-background/75">
-            {fullDescription}
-          </p>
+          <p className="whitespace-pre-wrap break-words text-xs text-background/75">{fullDescription}</p>
         </div>
       </TooltipContent>
     </Tooltip>
@@ -169,13 +131,7 @@ type SkillActionIconButtonProps = {
   onClick: () => void;
 };
 
-const SkillActionIconButton = ({
-  label,
-  icon,
-  variant,
-  disabled,
-  onClick,
-}: SkillActionIconButtonProps) => (
+const SkillActionIconButton = ({ label, icon, variant, disabled, onClick }: SkillActionIconButtonProps) => (
   <Tooltip>
     <TooltipTrigger asChild>
       <Button

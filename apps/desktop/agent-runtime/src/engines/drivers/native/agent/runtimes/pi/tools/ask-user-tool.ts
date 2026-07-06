@@ -1,17 +1,9 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { UserInputHandler } from "../../types.js";
-import {
-  ASK_USER_TOOL_DEFINITION,
-  type AskUserToolParams,
-  normalizeAskUserInput,
-} from "../../../tools/ask-user.js";
+import { ASK_USER_TOOL_DEFINITION, type AskUserToolParams, normalizeAskUserInput } from "../../../tools/ask-user.js";
 import { toPiToolParameters } from "./schema.js";
 
-export const registerPiAskUserTool = (
-  pi: ExtensionAPI,
-  taskId: string,
-  requestUserInput: UserInputHandler,
-) => {
+export const registerPiAskUserTool = (pi: ExtensionAPI, taskId: string, requestUserInput: UserInputHandler) => {
   pi.registerTool({
     name: ASK_USER_TOOL_DEFINITION.name,
     label: ASK_USER_TOOL_DEFINITION.label,

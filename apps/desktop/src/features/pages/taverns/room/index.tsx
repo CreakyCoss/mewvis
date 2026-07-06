@@ -1,3 +1,4 @@
+import type { TavernRoomRuntimeState, TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { CSSProperties, FormEvent, KeyboardEvent, Ref } from "react";
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -37,7 +38,7 @@ import {
 } from "../tavern/runtime/active-scene-runtime";
 import { buildTavernMessageSegments, createTavernMessage, inferTavernMessageKind } from "../tavern/message";
 import { getTavernSceneInstanceDisplayTitle } from "../tavern/runtime/scene-selectors";
-import { loadTavernState, saveTavernState, type TavernRuntimeScope } from "../storage";
+import type { TavernRuntimeScope } from "../storage";
 import {
   getTavernPresentationProfile,
   hasTavernPresentationStarted,
@@ -51,8 +52,8 @@ import {
 } from "../tavern/core";
 import { createTavernRenderableMessages } from "../tavern/message";
 import { deleteTavernBridgeSession } from "../tavern/runtime/conversation";
-import type { TavernReferencedFile, TavernState } from "../tavern/types";
-import type { TavernFactEvent, TavernReplyOption, TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernReferencedFile } from "../tavern/types";
+import type { TavernFactEvent, TavernReplyOption } from "@/features/pages/taverns/manage/model";
 import { runTavernUserReplySuggestions } from "../tavern/runtime/assistants";
 import { runTavernDirectorRoleAssignment } from "../tavern/runtime/director";
 import { uniqueFilesByPath } from "../tavern/utils";
@@ -183,9 +184,9 @@ export type TavernRoomOpenOptions = {
   workspace: Workspace;
   runtimeScope?: TavernRuntimeScope;
   room: TavernRoom;
-  storyData: TavernState;
+  storyData: TavernRoomRuntimeState;
   sceneInstanceId?: string;
-  onStateChange?: (state: TavernState) => void;
+  onStateChange?: (state: TavernRoomRuntimeState) => void;
   onClose?: () => void;
 };
 
@@ -208,7 +209,7 @@ const EMPTY_WORKSPACE: Workspace = {
   updatedAt: 0,
 };
 
-const createEmptyTavernState = (): TavernState => ({
+const createEmptyTavernState = (): TavernRoomRuntimeState => ({
   version: 4,
   activeRoomId: "",
   rooms: [],
@@ -217,15 +218,13 @@ const createEmptyTavernState = (): TavernState => ({
 });
 
 const mergeTavernRoomStoryData = ({
-  loadedState,
   room,
   sceneInstanceId,
   storyData,
 }: {
-  loadedState: TavernState;
   room: TavernRoom;
   sceneInstanceId?: string;
-  storyData: TavernState;
+  storyData: TavernRoomRuntimeState;
 }) => {
   const storyRooms = storyData.rooms.length > 0 ? storyData.rooms : [room];
   const storyRoomIds = new Set(storyRooms.map((item) => item.id));
@@ -234,22 +233,14 @@ const mergeTavernRoomStoryData = ({
     ? switchTavernRoomSceneInstance(currentRoom, sceneInstanceId)
     : syncTavernRoomActiveScene(currentRoom);
   const nextRooms = [
-    ...loadedState.rooms.filter((item) => !storyRoomIds.has(item.id)),
+    ...storyData.rooms.filter((item) => !storyRoomIds.has(item.id)),
     ...storyRooms.map((item) => (item.id === nextRoom.id ? nextRoom : item)),
   ];
 
   return {
-    ...loadedState,
+    ...storyData,
     activeRoomId: nextRoom.id,
     rooms: nextRooms,
-    messagesByInstance: {
-      ...loadedState.messagesByInstance,
-      ...storyData.messagesByInstance,
-    },
-    workflowTracesByInstance: {
-      ...loadedState.workflowTracesByInstance,
-      ...storyData.workflowTracesByInstance,
-    },
   };
 };
 
@@ -257,9 +248,8 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const [openOptions, setOpenOptions] = useState<TavernRoomOpenOptions | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isTavernStateHydrated, setIsTavernStateHydrated] = useState(false);
-  const [state, setState] = useState<TavernState>(() => createEmptyTavernState());
+  const [state, setState] = useState<TavernRoomRuntimeState>(() => createEmptyTavernState());
   const workspace = openOptions?.workspace ?? EMPTY_WORKSPACE;
-  const runtimeScope = useMemo(() => openOptions?.runtimeScope ?? {}, [openOptions?.runtimeScope]);
   const runtimeModels = useLlmSettingsStore((store) => store.runtimeModels);
   const loadSettings = useLlmSettingsStore((store) => store.loadSettings);
   const runtimeModel = runtimeModels[0] ?? null;
@@ -370,48 +360,22 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       return;
     }
 
-    let isCancelled = false;
     const requestId = openRequestIdRef.current;
     setIsTavernStateHydrated(false);
 
-    loadTavernState(workspace.path, workspace.id, runtimeScope)
-      .then((loadedState) => {
-        if (isCancelled || requestId !== openRequestIdRef.current) {
-          return;
-        }
+    if (requestId !== openRequestIdRef.current) {
+      return;
+    }
 
-        setState(
-          mergeTavernRoomStoryData({
-            loadedState,
-            room: openOptions.room,
-            sceneInstanceId: openOptions.sceneInstanceId,
-            storyData: openOptions.storyData,
-          }),
-        );
-        setIsTavernStateHydrated(true);
-      })
-      .catch((loadError) => {
-        if (isCancelled || requestId !== openRequestIdRef.current) {
-          return;
-        }
-
-        console.error("Failed to load tavern room state", loadError);
-        toast.error("无法加载酒馆房间记录，已使用当前配置打开。");
-        setState(
-          mergeTavernRoomStoryData({
-            loadedState: createEmptyTavernState(),
-            room: openOptions.room,
-            sceneInstanceId: openOptions.sceneInstanceId,
-            storyData: openOptions.storyData,
-          }),
-        );
-        setIsTavernStateHydrated(true);
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [openOptions, runtimeScope, workspace.id, workspace.path]);
+    setState(
+      mergeTavernRoomStoryData({
+        room: openOptions.room,
+        sceneInstanceId: openOptions.sceneInstanceId,
+        storyData: openOptions.storyData,
+      }),
+    );
+    setIsTavernStateHydrated(true);
+  }, [openOptions]);
 
   useEffect(() => {
     if (!openOptions || !isTavernStateHydrated) {
@@ -419,10 +383,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     }
 
     openOptions.onStateChange?.(state);
-    void saveTavernState(workspace.path, workspace.id, state, runtimeScope).catch((saveError) => {
-      console.error("Failed to save tavern room state", saveError);
-    });
-  }, [isTavernStateHydrated, openOptions, runtimeScope, state, workspace.id, workspace.path]);
+  }, [isTavernStateHydrated, openOptions, state]);
 
   useEffect(() => {
     let isCancelled = false;

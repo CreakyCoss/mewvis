@@ -1,3 +1,4 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { ReactNode } from "react";
 import {
   BookOpenText,
@@ -17,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { HoverCardContent } from "@/components/ui/hover-card";
 import { getVisualPreset } from "@/features/pages/taverns/tavern/visual-presets";
 import { cn } from "@/lib/utils";
-import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { formatTavernCharacterRelationshipSummary } from "@/features/pages/taverns/tavern/core/relationships";
 import { compactText, emptyValueText } from "../shared";
 import type { ResolvedStatusMetric } from "../types";

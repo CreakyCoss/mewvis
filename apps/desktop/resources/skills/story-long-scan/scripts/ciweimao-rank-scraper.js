@@ -126,10 +126,7 @@ function main() {
   console.log(`  ✓ 提取 ${sections.length} 个榜单，${urls.length} 个书籍链接`);
 
   // 筛选需要的榜单类型
-  const targetTypes =
-    RANKTYPE === "all"
-      ? RANK_TYPES
-      : RANK_TYPES.filter((r) => r.id === RANKTYPE);
+  const targetTypes = RANKTYPE === "all" ? RANK_TYPES : RANK_TYPES.filter((r) => r.id === RANKTYPE);
 
   for (const rt of targetTypes) {
     const section = sections.find((s) => s.name === rt.header);
@@ -152,11 +149,7 @@ function main() {
 
     for (const entry of section.entries) {
       lines.push(`### #${entry.rank} ${entry.title}`);
-      const meta = [
-        entry.author,
-        entry.genre,
-        entry.metric || "",
-      ].filter(Boolean).join(" · ");
+      const meta = [entry.author, entry.genre, entry.metric || ""].filter(Boolean).join(" · ");
       if (meta) lines.push(`*${meta}*`);
 
       // 按标题匹配书籍链接

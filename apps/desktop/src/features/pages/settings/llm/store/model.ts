@@ -1,14 +1,6 @@
 import { MODEL_CATALOG } from "@/agent-client/model-catalog";
-import type {
-  CatalogModel,
-  RuntimeModelInput,
-  RuntimeThinkingLevel,
-} from "@/agent-client/types";
-import type {
-  LlmProvider,
-  LlmSettings,
-  ProviderModel,
-} from "../types";
+import type { CatalogModel, RuntimeModelInput, RuntimeThinkingLevel } from "@/agent-client/types";
+import type { LlmProvider, LlmSettings, ProviderModel } from "../types";
 
 export type RuntimeModelOption = {
   id: string;
@@ -23,25 +15,11 @@ export type RuntimeModelOption = {
 type RuntimeModelInputMap = Record<string, RuntimeModelInput>;
 type CatalogRuntimeModelInput = Pick<
   RuntimeModelInput,
-  | "reasoning"
-  | "thinkingLevel"
-  | "thinkingLevelMap"
-  | "input"
-  | "cost"
-  | "contextWindow"
-  | "maxTokens"
-  | "headers"
+  "reasoning" | "thinkingLevel" | "thinkingLevelMap" | "input" | "cost" | "contextWindow" | "maxTokens" | "headers"
 >;
 
 const ONE_MILLION_CONTEXT_SUFFIX = "[1m]";
-const THINKING_LEVELS: RuntimeThinkingLevel[] = [
-  "off",
-  "minimal",
-  "low",
-  "medium",
-  "high",
-  "xhigh",
-];
+const THINKING_LEVELS: RuntimeThinkingLevel[] = ["off", "minimal", "low", "medium", "high", "xhigh"];
 
 const withOneMillionContextSuffix = (value: string, enabled: boolean) => {
   const text = value.trim();
@@ -53,16 +31,11 @@ const withOneMillionContextSuffix = (value: string, enabled: boolean) => {
   return `${text}${ONE_MILLION_CONTEXT_SUFFIX}`;
 };
 
-const formatProviderModelId = (
-  model: Pick<ProviderModel, "modelId" | "isOneMillionContext">,
-) => withOneMillionContextSuffix(model.modelId, model.isOneMillionContext);
+const formatProviderModelId = (model: Pick<ProviderModel, "modelId" | "isOneMillionContext">) =>
+  withOneMillionContextSuffix(model.modelId, model.isOneMillionContext);
 
-const formatProviderModelName = (
-  model: Pick<ProviderModel, "modelId" | "modelName" | "isOneMillionContext">,
-) => withOneMillionContextSuffix(
-  model.modelName.trim() || model.modelId,
-  model.isOneMillionContext,
-);
+const formatProviderModelName = (model: Pick<ProviderModel, "modelId" | "modelName" | "isOneMillionContext">) =>
+  withOneMillionContextSuffix(model.modelName.trim() || model.modelId, model.isOneMillionContext);
 
 const getCatalogModel = (
   provider: Pick<LlmProvider, "provider">,
@@ -88,9 +61,7 @@ const resolveHighestThinkingLevel = (
   return null;
 };
 
-const createCatalogRuntimeModelInput = (
-  catalogModel: CatalogModel,
-): CatalogRuntimeModelInput => {
+const createCatalogRuntimeModelInput = (catalogModel: CatalogModel): CatalogRuntimeModelInput => {
   return {
     reasoning: catalogModel.reasoning,
     thinkingLevel: resolveHighestThinkingLevel(catalogModel.thinkingLevelMap),
@@ -98,18 +69,12 @@ const createCatalogRuntimeModelInput = (
     cost: { ...catalogModel.cost },
     contextWindow: catalogModel.contextWindow,
     maxTokens: catalogModel.maxTokens,
-    thinkingLevelMap: catalogModel.thinkingLevelMap
-      ? { ...catalogModel.thinkingLevelMap }
-      : undefined,
+    thinkingLevelMap: catalogModel.thinkingLevelMap ? { ...catalogModel.thinkingLevelMap } : undefined,
     headers: catalogModel.headers ? { ...catalogModel.headers } : undefined,
   };
 };
 
-const createRuntimeModelInput = (
-  provider: LlmProvider,
-  model: ProviderModel,
-  modelId: string,
-): RuntimeModelInput => {
+const createRuntimeModelInput = (provider: LlmProvider, model: ProviderModel, modelId: string): RuntimeModelInput => {
   const catalogModel = getCatalogModel(provider, model);
 
   return {
@@ -123,10 +88,7 @@ const createRuntimeModelInput = (
   };
 };
 
-const buildRuntimeModelOption = (
-  provider: LlmProvider,
-  model: ProviderModel,
-): RuntimeModelOption => {
+const buildRuntimeModelOption = (provider: LlmProvider, model: ProviderModel): RuntimeModelOption => {
   const modelId = formatProviderModelId(model);
   const modelName = formatProviderModelName(model);
 
@@ -141,27 +103,18 @@ const buildRuntimeModelOption = (
   };
 };
 
-const buildRuntimeModelInput = (
-  provider: LlmProvider,
-  model: ProviderModel,
-): RuntimeModelInput => {
+const buildRuntimeModelInput = (provider: LlmProvider, model: ProviderModel): RuntimeModelInput => {
   return createRuntimeModelInput(provider, model, formatProviderModelId(model));
 };
 
-export const buildRuntimeModelOptions = (
-  settings: LlmSettings,
-): RuntimeModelOption[] =>
+export const buildRuntimeModelOptions = (settings: LlmSettings): RuntimeModelOption[] =>
   [...settings.providers]
     .sort((left, right) => Number(right.isDefault) - Number(left.isDefault))
     .flatMap((provider) =>
-      provider.models
-        .filter((model) => model.isEnabled)
-        .map((model) => buildRuntimeModelOption(provider, model))
+      provider.models.filter((model) => model.isEnabled).map((model) => buildRuntimeModelOption(provider, model)),
     );
 
-export const buildRuntimeModelInputs = (
-  settings: LlmSettings,
-): RuntimeModelInputMap => {
+export const buildRuntimeModelInputs = (settings: LlmSettings): RuntimeModelInputMap => {
   const inputs: RuntimeModelInputMap = {};
 
   for (const provider of settings.providers) {

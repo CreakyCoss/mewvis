@@ -2,17 +2,17 @@
 
 这个包包含 4 类内容：
 
-1. **规则文档**  
+1. **规则文档**
    - `bazi_skill_spec.docx`：面向产品/策划/算法的说明文档。
 
-2. **机器可读配置**  
+2. **机器可读配置**
    - `bazi_analysis_skill.json`
    - `bazi_analysis_skill.yaml`
 
-3. **参考实现**  
+3. **参考实现**
    - `bazi_skill_engine.py`：可直接运行的 Python CLI，内置节气换算、四柱排盘、十神、旺衰、格局、神煞、大运与流年规则。
 
-4. **示例**  
+4. **示例**
    - `examples/sample_request.json`
    - `examples/sample_output.json`
 

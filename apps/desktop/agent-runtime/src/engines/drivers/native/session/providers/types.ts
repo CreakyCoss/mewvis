@@ -20,10 +20,7 @@ import type {
   RuntimeSessionSummary,
   RuntimeSessionTimelineItem,
 } from "../../../../protocol/session.js";
-import type {
-  RuntimeSessionCommand,
-  SessionBackedRuntimeCommand,
-} from "../model/runtime-command.js";
+import type { RuntimeSessionCommand, SessionBackedRuntimeCommand } from "../model/runtime-command.js";
 
 export type RuntimeSessionProviderId = "jsonl" | (string & {});
 
@@ -87,10 +84,9 @@ export type RuntimeSessionEventInput = RuntimeSessionPathInput & {
   result?: Partial<Pick<SessionMutationResult, "compacted" | "rebuilt">>;
 };
 
-export type RuntimeSessionTraceInput<TRecord extends RuntimeSessionTraceRecord> =
-  RuntimeSessionPathInput & {
-    record: TRecord;
-  };
+export type RuntimeSessionTraceInput<TRecord extends RuntimeSessionTraceRecord> = RuntimeSessionPathInput & {
+  record: TRecord;
+};
 
 export type RuntimeSessionTurnOptions = {
   includeSummary?: boolean;
@@ -141,9 +137,7 @@ export type RuntimeSessionProvider = {
   deleteSessionMessage(input: MessageDeleteCommand): Promise<SessionMutationResult>;
   compactSession(input: RuntimeSessionCompactInput): Promise<SessionMutationResult>;
   deleteSession(input: RuntimeSessionDeleteInput): Promise<void>;
-  readAgentVisibleContext(
-    input: RuntimeSessionAgentVisibleContextInput,
-  ): Promise<RuntimeAgentVisibleContext>;
+  readAgentVisibleContext(input: RuntimeSessionAgentVisibleContextInput): Promise<RuntimeAgentVisibleContext>;
   recordSessionEvent(input: RuntimeSessionEventInput): Promise<SessionMutationResult>;
   appendTraceRecord<TRecord extends RuntimeSessionTraceRecord>(
     input: RuntimeSessionTraceInput<TRecord>,

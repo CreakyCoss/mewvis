@@ -1,11 +1,5 @@
 import { execFileSync, spawn } from "node:child_process";
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
@@ -14,22 +8,21 @@ import { build } from "esbuild";
 
 const workspaceRoot = process.cwd();
 const bridgePath = join(workspaceRoot, "agent-runtime/dist/cli.js");
-const configDbPath = process.env.NOVEL_CLAW_CONFIG_DB?.trim()
-  || join(homedir(), ".novel-claw", "config.db");
+const configDbPath = process.env.NOVEL_CLAW_CONFIG_DB?.trim() || join(homedir(), ".novel-claw", "config.db");
 const workspacePath = mkdtempSync(join(tmpdir(), "novel-claw-tavern-prompt-quality-"));
 const helperEntryPath = join(workspacePath, "tavern-prompt-quality-helper.ts");
 const helperBundlePath = join(workspacePath, "tavern-prompt-quality-helper.mjs");
-const reportPath = process.env.NOVEL_CLAW_TAVERN_PROMPT_EVAL_REPORT?.trim()
-  || join(workspaceRoot, "tmp", "tavern-prompt-quality-eval.json");
+const reportPath =
+  process.env.NOVEL_CLAW_TAVERN_PROMPT_EVAL_REPORT?.trim() ||
+  join(workspaceRoot, "tmp", "tavern-prompt-quality-eval.json");
 const runMarker = `TAVERN_PROMPT_QUALITY_${Date.now()}`;
 
-const SPEED_MODEL_IDS = [
-  "MiniMax-M3-highspeed",
-  "MiniMax-M2.7-highspeed",
-];
-const MODEL_IDS = (process.env.NOVEL_CLAW_TAVERN_PROMPT_EVAL_MODELS?.trim()
-  ? process.env.NOVEL_CLAW_TAVERN_PROMPT_EVAL_MODELS.split(",")
-  : SPEED_MODEL_IDS)
+const SPEED_MODEL_IDS = ["MiniMax-M3-highspeed", "MiniMax-M2.7-highspeed"];
+const MODEL_IDS = (
+  process.env.NOVEL_CLAW_TAVERN_PROMPT_EVAL_MODELS?.trim()
+    ? process.env.NOVEL_CLAW_TAVERN_PROMPT_EVAL_MODELS.split(",")
+    : SPEED_MODEL_IDS
+)
   .map((id) => id.trim())
   .filter(Boolean);
 const LIVE_TIMEOUT_MS = Number(process.env.NOVEL_CLAW_TAVERN_PROMPT_EVAL_TIMEOUT_MS ?? 6 * 60 * 1000);
@@ -38,8 +31,7 @@ const THINKING_LEVEL = process.env.NOVEL_CLAW_LIVE_THINKING?.trim() || "off";
 const CASE_FILTER = process.env.NOVEL_CLAW_TAVERN_PROMPT_EVAL_CASE?.trim() || "";
 const KEEP_WORKSPACE = process.env.NOVEL_CLAW_KEEP_TAVERN_PROMPT_EVAL_WORKSPACE === "1";
 const CONTENT_JUDGE_ENABLED = process.env.NOVEL_CLAW_TAVERN_PROMPT_EVAL_CONTENT_JUDGE !== "0";
-const CONTENT_JUDGE_ALL_SPEED_MODELS =
-  process.env.NOVEL_CLAW_TAVERN_PROMPT_EVAL_JUDGE_ALL_SPEED_MODELS !== "0";
+const CONTENT_JUDGE_ALL_SPEED_MODELS = process.env.NOVEL_CLAW_TAVERN_PROMPT_EVAL_JUDGE_ALL_SPEED_MODELS !== "0";
 const LONGFORM_MIN_CHARS = Number(process.env.NOVEL_CLAW_TAVERN_PROMPT_EVAL_LONGFORM_MIN_CHARS ?? 1000);
 const LONGFORM_TARGET_MIN_CHARS = Math.max(LONGFORM_MIN_CHARS + 250, Math.ceil(LONGFORM_MIN_CHARS * 1.2));
 const LONGFORM_EXPANSION_MAX_ROUNDS = Number(
@@ -206,8 +198,8 @@ const EVAL_CASES = [
   },
 ];
 
-const activeEvalCases = EVAL_CASES.filter((item) =>
-  !CASE_FILTER || item.id.includes(CASE_FILTER) || item.packageId.includes(CASE_FILTER)
+const activeEvalCases = EVAL_CASES.filter(
+  (item) => !CASE_FILTER || item.id.includes(CASE_FILTER) || item.packageId.includes(CASE_FILTER),
 );
 
 if (!existsSync(bridgePath)) {
@@ -221,12 +213,14 @@ if (activeEvalCases.length === 0) {
 }
 
 const safeDetails = (value) =>
-  JSON.parse(JSON.stringify(value, (key, item) => {
-    if (key === "apiKey" || key === "api_key") {
-      return item ? "<redacted>" : item;
-    }
-    return item;
-  }));
+  JSON.parse(
+    JSON.stringify(value, (key, item) => {
+      if (key === "apiKey" || key === "api_key") {
+        return item ? "<redacted>" : item;
+      }
+      return item;
+    }),
+  );
 
 const assert = (condition, message, details) => {
   if (!condition) {
@@ -250,28 +244,32 @@ const queryConfigDb = (query) => {
 };
 
 const loadMiniMaxProvider = () => {
-  const [row] = queryConfigDb([
-    "select",
-    "id, provider, api_format as apiFormat, api_key as apiKey, api_endpoint as apiEndpoint",
-    "from llm_providers",
-    "where provider = 'minimax-cn'",
-    "and coalesce(api_key, '') <> ''",
-    "order by is_default desc",
-    "limit 1",
-  ].join(" "));
+  const [row] = queryConfigDb(
+    [
+      "select",
+      "id, provider, api_format as apiFormat, api_key as apiKey, api_endpoint as apiEndpoint",
+      "from llm_providers",
+      "where provider = 'minimax-cn'",
+      "and coalesce(api_key, '') <> ''",
+      "order by is_default desc",
+      "limit 1",
+    ].join(" "),
+  );
   assert(row, "未在 ~/.novel-claw/config.db 中找到已配置 API Key 的 minimax-cn provider");
   return row;
 };
 
 const loadProviderModelRow = (providerId, modelId) => {
-  const [row] = queryConfigDb([
-    "select",
-    "model_id as modelId, model_name as modelName, is_one_million_context as isOneMillionContext",
-    "from provider_models",
-    `where provider_id = ${sqlString(providerId)}`,
-    `and model_id = ${sqlString(modelId)}`,
-    "limit 1",
-  ].join(" "));
+  const [row] = queryConfigDb(
+    [
+      "select",
+      "model_id as modelId, model_name as modelName, is_one_million_context as isOneMillionContext",
+      "from provider_models",
+      `where provider_id = ${sqlString(providerId)}`,
+      `and model_id = ${sqlString(modelId)}`,
+      "limit 1",
+    ].join(" "),
+  );
   return row ?? null;
 };
 
@@ -291,13 +289,13 @@ const runtimeModelFor = (modelId) => {
     modelId,
     modelName: modelRow?.modelName || defaults.modelId,
     thinkingLevel: THINKING_LEVEL,
-    contextWindow: Number(modelRow?.isOneMillionContext) === 1
-      ? 1_000_000
-      : defaults.contextWindow,
+    contextWindow: Number(modelRow?.isOneMillionContext) === 1 ? 1_000_000 : defaults.contextWindow,
   };
 };
 
-writeFileSync(helperEntryPath, `
+writeFileSync(
+  helperEntryPath,
+  `
   import { buildTavernReplyAgentRequest } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/taverns/tavern/runtime/reply/request.ts"))};
   import {
     buildTavernBridgeSystemPrompt,
@@ -1152,7 +1150,9 @@ writeFileSync(helperEntryPath, `
     });
 
   export const bridgeSystemPrompt = (room) => buildTavernBridgeSystemPrompt(room);
-`, "utf8");
+`,
+  "utf8",
+);
 
 await build({
   entryPoints: [helperEntryPath],
@@ -1199,10 +1199,7 @@ const handleLine = (line) => {
   if (parsed.taskId && runs.has(parsed.taskId)) {
     const run = runs.get(parsed.taskId);
     const nowMs = performance.now();
-    if (
-      !run.firstDeltaAt &&
-      (parsed.type === "text_delta" || parsed.type === "thinking_delta")
-    ) {
+    if (!run.firstDeltaAt && (parsed.type === "text_delta" || parsed.type === "thinking_delta")) {
       run.firstDeltaAt = nowMs;
       log(`${run.label} first_delta ${Math.round(nowMs - run.startedAt)}ms`);
     }
@@ -1250,11 +1247,17 @@ const waitFor = (predicate, label, timeoutMs = LIVE_TIMEOUT_MS) =>
         if (index >= 0) {
           waiters.splice(index, 1);
         }
-        reject(new Error([
-          `等待 ${label} 超时`,
-          stderrBuffer ? `stderr:\n${stderrBuffer}` : "",
-          `recent events:\n${JSON.stringify(seen.slice(-12).map(safeDetails), null, 2)}`,
-        ].filter(Boolean).join("\n\n")));
+        reject(
+          new Error(
+            [
+              `等待 ${label} 超时`,
+              stderrBuffer ? `stderr:\n${stderrBuffer}` : "",
+              `recent events:\n${JSON.stringify(seen.slice(-12).map(safeDetails), null, 2)}`,
+            ]
+              .filter(Boolean)
+              .join("\n\n"),
+          ),
+        );
       }, timeoutMs),
     };
     waiters.push(waiter);
@@ -1279,14 +1282,18 @@ const bridgeResources = () => ({
 });
 
 const createSession = (sessionRootDir, systemPrompt, metadata = {}) =>
-  request({
-    type: "create_session",
-    requestId: `create-${metadata.label ?? Date.now()}-${Math.random().toString(36).slice(2)}`,
-    workspacePath,
-    sessionRootDir,
-    systemPrompt,
-    metadata,
-  }, "session_mutation_result", 10_000);
+  request(
+    {
+      type: "create_session",
+      requestId: `create-${metadata.label ?? Date.now()}-${Math.random().toString(36).slice(2)}`,
+      workspacePath,
+      sessionRootDir,
+      systemPrompt,
+      metadata,
+    },
+    "session_mutation_result",
+    10_000,
+  );
 
 const runAgent = async ({
   label,
@@ -1356,44 +1363,45 @@ const runAgent = async ({
   };
 };
 
-const scoreBoolean = (condition, points) => condition ? points : 0;
+const scoreBoolean = (condition, points) => (condition ? points : 0);
 
-const countMatches = (text, patterns) =>
-  patterns.reduce((count, pattern) => count + (pattern.test(text) ? 1 : 0), 0);
+const countMatches = (text, patterns) => patterns.reduce((count, pattern) => count + (pattern.test(text) ? 1 : 0), 0);
 
-const stripActionBlocks = (text) =>
-  text.replace(/(^|\n)\s*[*_][^*_\n]+[*_]\s*(?=\n|$)/g, "\n").trim();
+const stripActionBlocks = (text) => text.replace(/(^|\n)\s*[*_][^*_\n]+[*_]\s*(?=\n|$)/g, "\n").trim();
 
 const hasSpeakerLabel = (content, names) =>
-  new RegExp(`(^|\\n)\\s*(?:${names.map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")}|旁白|用户|旅人)\\s*[:：]`).test(content);
+  new RegExp(
+    `(^|\\n)\\s*(?:${names.map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")}|旁白|用户|旅人)\\s*[:：]`,
+  ).test(content);
 
-const evaluateOutput = ({
-  evalCase,
-  raw,
-  parsed,
-  activeCharacter,
-  characters,
-  presentationContract,
-}) => {
+const evaluateOutput = ({ evalCase, raw, parsed, activeCharacter, characters, presentationContract }) => {
   const content = parsed.content.trim();
   const thought = String(parsed.thought ?? "").trim();
   const expectedPublicTag = presentationContract.publicContentTag;
-  const hasThoughtTag = new RegExp("<\\s*inner_thought(?:\\s+[^>]*)?\\s*>", "i").test(raw)
-    && new RegExp("<\\s*/\\s*inner_thought\\s*>", "i").test(raw);
-  const hasPublicTag = new RegExp(`<\\s*${expectedPublicTag}(?:\\s+[^>]*)?\\s*>`, "i").test(raw)
-    && new RegExp(`<\\s*/\\s*${expectedPublicTag}\\s*>`, "i").test(raw);
-  const contentHasProtocolLeak = /<\/?(?:inner_thought|private_thought|thought|reply|public_reply|narrative_beat|public_narrative_beat)[^>]*>/i.test(content);
+  const hasThoughtTag =
+    new RegExp("<\\s*inner_thought(?:\\s+[^>]*)?\\s*>", "i").test(raw) &&
+    new RegExp("<\\s*/\\s*inner_thought\\s*>", "i").test(raw);
+  const hasPublicTag =
+    new RegExp(`<\\s*${expectedPublicTag}(?:\\s+[^>]*)?\\s*>`, "i").test(raw) &&
+    new RegExp(`<\\s*/\\s*${expectedPublicTag}\\s*>`, "i").test(raw);
+  const contentHasProtocolLeak =
+    /<\/?(?:inner_thought|private_thought|thought|reply|public_reply|narrative_beat|public_narrative_beat)[^>]*>/i.test(
+      content,
+    );
   const names = characters.map((character) => character.name);
   const speakerLabel = hasSpeakerLabel(content, names);
   const sceneSignals = countMatches(content, [/铜牌/, /脚印|泥印/, /窗|窗边/, /门闩|划痕/, /雨|炉火|灯/, /旅人/]);
-  const actionSignals = countMatches(content, [/蹲|看|压低|伸手|指|停|收|抬|避|靠|摸|检查|辨认|提醒/, /雨|泥|灯|窗|门|桌|炉火/]);
+  const actionSignals = countMatches(content, [
+    /蹲|看|压低|伸手|指|停|收|抬|避|靠|摸|检查|辨认|提醒/,
+    /雨|泥|灯|窗|门|桌|炉火/,
+  ]);
   const clicheSignals = countMatches(content, [/空气.*安静|沉默.*蔓延|气氛.*凝固|一时间.*无人|静静地|似乎|仿佛/]);
-  const userAgencyTakeover = /(旅人|你)(已经|立刻|转身|追出|决定|拿起|搜查|冲向|推开|拔出|承认|说：|说道)/.test(content);
+  const userAgencyTakeover = /(旅人|你)(已经|立刻|转身|追出|决定|拿起|搜查|冲向|推开|拔出|承认|说：|说道)/.test(
+    content,
+  );
   const foreignThought = characters
     .filter((character) => character.id !== activeCharacter.id)
-    .some((character) =>
-      new RegExp(`${character.name}.*(?:心里|意识到|知道|明白|想起)`).test(content)
-    );
+    .some((character) => new RegExp(`${character.name}.*(?:心里|意识到|知道|明白|想起)`).test(content));
   const firstPersonInContent = /(^|[^\u4e00-\u9fa5])我|我的|我们/.test(content);
   const directQuote = /[“「『"][^”」』"]{2,}[”」』"]/.test(content);
   const dialogueText = stripActionBlocks(content);
@@ -1508,22 +1516,13 @@ const evaluateOutput = ({
   };
 };
 
-const nameByCharacterId = (characters) =>
-  new Map(characters.map((character) => [character.id, character.name]));
+const nameByCharacterId = (characters) => new Map(characters.map((character) => [character.id, character.name]));
 
-const formatVisibleExcerpt = ({
-  evalCase,
-  messages,
-  characters,
-  activeCharacter,
-  content,
-}) => {
+const formatVisibleExcerpt = ({ evalCase, messages, characters, activeCharacter, content }) => {
   const characterNames = nameByCharacterId(characters);
   const visibleLines = messages.map((message) => {
     if (message.role === "narrator") {
-      return evalCase.presentationProfileId === "dialogue-chat"
-        ? `旁白：${message.content}`
-        : message.content;
+      return evalCase.presentationProfileId === "dialogue-chat" ? `旁白：${message.content}` : message.content;
     }
 
     if (message.role === "user") {
@@ -1647,13 +1646,13 @@ const extractJsonObject = (text) => {
         escaped = false;
       } else if (character === "\\") {
         escaped = true;
-      } else if (character === "\"") {
+      } else if (character === '"') {
         inString = false;
       }
       continue;
     }
 
-    if (character === "\"") {
+    if (character === '"') {
       inString = true;
       continue;
     }
@@ -1672,14 +1671,18 @@ const extractJsonObject = (text) => {
     }
   }
 
-  return candidates.reverse().find((candidate) => {
-    try {
-      JSON.parse(candidate);
-      return true;
-    } catch {
-      return false;
-    }
-  }) ?? candidates.at(-1) ?? "{}";
+  return (
+    candidates.reverse().find((candidate) => {
+      try {
+        JSON.parse(candidate);
+        return true;
+      } catch {
+        return false;
+      }
+    }) ??
+    candidates.at(-1) ??
+    "{}"
+  );
 };
 
 const clampNumber = (value, min, max) => {
@@ -1690,26 +1693,19 @@ const clampNumber = (value, min, max) => {
   return Math.min(max, Math.max(min, numeric));
 };
 
-const normalizeContentJudgeResult = ({
-  text,
-  presentationProfileId,
-  judgeModelId,
-}) => {
+const normalizeContentJudgeResult = ({ text, presentationProfileId, judgeModelId }) => {
   const categories = contentJudgeCategoriesFor(presentationProfileId);
   const parsed = JSON.parse(extractJsonObject(text));
-  const scores = Object.fromEntries(categories.map((category) => [
-    category,
-    clampNumber(parsed?.scores?.[category], 0, 5),
-  ]));
+  const scores = Object.fromEntries(
+    categories.map((category) => [category, clampNumber(parsed?.scores?.[category], 0, 5)]),
+  );
   const numericScores = Object.values(scores).filter((value) => value !== null);
-  const scoreFromCategories = numericScores.length === categories.length
-    ? numericScores.reduce((sum, value) => sum + value, 0)
-    : null;
+  const scoreFromCategories =
+    numericScores.length === categories.length ? numericScores.reduce((sum, value) => sum + value, 0) : null;
   const categoryMax = categories.length * 5;
   const overall = clampNumber(parsed?.overall, 0, 100);
-  const normalizedScore = scoreFromCategories !== null
-    ? scoreFromCategories / categoryMax
-    : (overall !== null ? overall / 100 : 0);
+  const normalizedScore =
+    scoreFromCategories !== null ? scoreFromCategories / categoryMax : overall !== null ? overall / 100 : 0;
 
   return {
     ok: true,
@@ -1719,9 +1715,7 @@ const normalizeContentJudgeResult = ({
     normalizedScore: Number(normalizedScore.toFixed(4)),
     scores,
     overall: overall ?? null,
-    notes: Array.isArray(parsed?.notes)
-      ? parsed.notes.filter((item) => typeof item === "string").slice(0, 6)
-      : [],
+    notes: Array.isArray(parsed?.notes) ? parsed.notes.filter((item) => typeof item === "string").slice(0, 6) : [],
     verdict: typeof parsed?.verdict === "string" ? parsed.verdict.slice(0, 240) : "",
     raw: text.trim(),
   };
@@ -1789,24 +1783,20 @@ const longformPlatformRubricFor = (packageId) => {
   return "platformFit: 是否像中文网文正文，而不是短剧、聊天记录、设定讲义或散文化片段。";
 };
 
-const normalizeLongformJudgeResult = ({
-  text,
-  judgeModelId,
-}) => {
+const normalizeLongformJudgeResult = ({ text, judgeModelId }) => {
   const parsed = JSON.parse(extractJsonObject(text));
-  const scores = Object.fromEntries(longformJudgeCategories.map((category) => [
-    category,
-    clampNumber(parsed?.scores?.[category], 0, 5),
-  ]));
+  const scores = Object.fromEntries(
+    longformJudgeCategories.map((category) => [category, clampNumber(parsed?.scores?.[category], 0, 5)]),
+  );
   const numericScores = Object.values(scores).filter((value) => value !== null);
-  const scoreFromCategories = numericScores.length === longformJudgeCategories.length
-    ? numericScores.reduce((sum, value) => sum + value, 0)
-    : null;
+  const scoreFromCategories =
+    numericScores.length === longformJudgeCategories.length
+      ? numericScores.reduce((sum, value) => sum + value, 0)
+      : null;
   const categoryMax = longformJudgeCategories.length * 5;
   const overall = clampNumber(parsed?.overall, 0, 100);
-  const normalizedScore = scoreFromCategories !== null
-    ? scoreFromCategories / categoryMax
-    : (overall !== null ? overall / 100 : 0);
+  const normalizedScore =
+    scoreFromCategories !== null ? scoreFromCategories / categoryMax : overall !== null ? overall / 100 : 0;
 
   return {
     ok: true,
@@ -1817,71 +1807,64 @@ const normalizeLongformJudgeResult = ({
     scores,
     overall: overall ?? null,
     canExistAsWebnovel: parsed?.canExistAsWebnovel === true,
-    notes: Array.isArray(parsed?.notes)
-      ? parsed.notes.filter((item) => typeof item === "string").slice(0, 8)
-      : [],
+    notes: Array.isArray(parsed?.notes) ? parsed.notes.filter((item) => typeof item === "string").slice(0, 8) : [],
     verdict: typeof parsed?.verdict === "string" ? parsed.verdict.slice(0, 320) : "",
     raw: text.trim(),
   };
 };
 
-const buildLongformJudgeRequestContext = (result) => [
-  "<task>",
-  "评估一段 Novel Claw 酒馆长文生成结果是否能作为中文网文正文片段存在。",
-  "重点不是协议格式，而是整篇读起来是否像网文章节：有开篇钩子、主线推进、角色行动、环境服务剧情、章尾追读。",
-  "</task>",
-  "",
-  "<platform_target>",
-  result.case.label,
-  result.case.packageId,
-  "</platform_target>",
-  "",
-  "<length>",
-  "nonWhitespaceChars: " + result.charCount,
-  "minimumRequiredChars: " + LONGFORM_MIN_CHARS,
-  "</length>",
-  "",
-  "<paragraph_stats>",
-  JSON.stringify(result.paragraphStats, null, 2),
-  "</paragraph_stats>",
-  "",
-  "<scoring>",
-  "每个 scores 字段给 0 到 5 分：0=严重失败，3=基本可用，5=优秀。",
-  "overall 给 0 到 100 分，应与各项 scores 大体一致。",
-  "canExistAsWebnovel 只有在整篇确实像可发布/可连载的网文正文片段时才为 true。",
-  "如果正文少于 minimumRequiredChars，webnovelViability 与 canExistAsWebnovel 必须严重扣分。",
-  "</scoring>",
-  "",
-  "<rubric>",
-  "webnovelViability: 整篇是否能作为中文网文正文存在，而不是提示词产物、梗概、日志或散文。",
-  longformPlatformRubricFor(result.case.packageId),
-  "openingHook: 前 150 字是否能抓住读者，交代危机/目标/异常。",
-  "paragraphStructure: 是否符合网文短段阅读习惯；动作、对白、线索和压力是否拆段清楚。若多处单段超过 180 字，或出现几百字大段说明，应明显扣分。",
-  "characterScene: 角色行动、对白和心理压强是否可信，是否推动场景而非站桩说明。",
-  "proseReadability: 句子是否顺、信息是否清楚，是否避免 AI 总结腔和过度堆砌。",
-  "chapterRetention: 结尾是否自然制造追读、悬念、压力或下一步期待。",
-  "</rubric>",
-  "",
-  "<output_schema>",
-  `{"scores":{${longformJudgeCategories.map((category) => `"${category}":0`).join(",")}},"overall":0,"canExistAsWebnovel":false,"notes":["扣分点或优秀点"],"verdict":"一句总体判断"}`,
-  "</output_schema>",
-  "",
-  "<generated_text>",
-  result.text,
-  "</generated_text>",
-].join("\n");
+const buildLongformJudgeRequestContext = (result) =>
+  [
+    "<task>",
+    "评估一段 Novel Claw 酒馆长文生成结果是否能作为中文网文正文片段存在。",
+    "重点不是协议格式，而是整篇读起来是否像网文章节：有开篇钩子、主线推进、角色行动、环境服务剧情、章尾追读。",
+    "</task>",
+    "",
+    "<platform_target>",
+    result.case.label,
+    result.case.packageId,
+    "</platform_target>",
+    "",
+    "<length>",
+    "nonWhitespaceChars: " + result.charCount,
+    "minimumRequiredChars: " + LONGFORM_MIN_CHARS,
+    "</length>",
+    "",
+    "<paragraph_stats>",
+    JSON.stringify(result.paragraphStats, null, 2),
+    "</paragraph_stats>",
+    "",
+    "<scoring>",
+    "每个 scores 字段给 0 到 5 分：0=严重失败，3=基本可用，5=优秀。",
+    "overall 给 0 到 100 分，应与各项 scores 大体一致。",
+    "canExistAsWebnovel 只有在整篇确实像可发布/可连载的网文正文片段时才为 true。",
+    "如果正文少于 minimumRequiredChars，webnovelViability 与 canExistAsWebnovel 必须严重扣分。",
+    "</scoring>",
+    "",
+    "<rubric>",
+    "webnovelViability: 整篇是否能作为中文网文正文存在，而不是提示词产物、梗概、日志或散文。",
+    longformPlatformRubricFor(result.case.packageId),
+    "openingHook: 前 150 字是否能抓住读者，交代危机/目标/异常。",
+    "paragraphStructure: 是否符合网文短段阅读习惯；动作、对白、线索和压力是否拆段清楚。若多处单段超过 180 字，或出现几百字大段说明，应明显扣分。",
+    "characterScene: 角色行动、对白和心理压强是否可信，是否推动场景而非站桩说明。",
+    "proseReadability: 句子是否顺、信息是否清楚，是否避免 AI 总结腔和过度堆砌。",
+    "chapterRetention: 结尾是否自然制造追读、悬念、压力或下一步期待。",
+    "</rubric>",
+    "",
+    "<output_schema>",
+    `{"scores":{${longformJudgeCategories.map((category) => `"${category}":0`).join(",")}},"overall":0,"canExistAsWebnovel":false,"notes":["扣分点或优秀点"],"verdict":"一句总体判断"}`,
+    "</output_schema>",
+    "",
+    "<generated_text>",
+    result.text,
+    "</generated_text>",
+  ].join("\n");
 
-const runLongformJudges = async ({
-  longformResults,
-  availableModelIds,
-  speedResults,
-}) => {
+const runLongformJudges = async ({ longformResults, availableModelIds, speedResults }) => {
   const fastestModelId = [...speedResults]
     .filter((item) => item.ok)
     .sort((first, second) => first.doneMs - second.doneMs)[0]?.modelId;
-  const judgeModelIds = CONTENT_JUDGE_ALL_SPEED_MODELS
-    ? availableModelIds
-    : [fastestModelId].filter(Boolean);
+  const judgeModelIds = CONTENT_JUDGE_ALL_SPEED_MODELS ? availableModelIds : [fastestModelId].filter(Boolean);
   const judgeSystemPrompt = "你是中文网文长文质量裁判。不要调用工具，只评估整篇正文是否能作为网文存在。";
   const judgeFailures = [];
 
@@ -1928,7 +1911,9 @@ const runLongformJudges = async ({
             doneMs: judgeRun.doneMs,
           },
         });
-        log(`${label} longformScore=${normalized.normalizedScore} viable=${normalized.canExistAsWebnovel ? "yes" : "no"} verdict=${normalized.verdict || "ok"}`);
+        log(
+          `${label} longformScore=${normalized.normalizedScore} viable=${normalized.canExistAsWebnovel ? "yes" : "no"} verdict=${normalized.verdict || "ok"}`,
+        );
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         const failure = {
@@ -1955,7 +1940,7 @@ const runLongformJudges = async ({
         judges: successfulJudges.length,
         viableVotes: successfulJudges.filter((judge) => judge.canExistAsWebnovel).length,
         notes: successfulJudges.flatMap((judge) => judge.notes).slice(0, 10),
-        verdicts: successfulJudges.flatMap((judge) => judge.verdict ? [judge.verdict] : []).slice(0, 4),
+        verdicts: successfulJudges.flatMap((judge) => (judge.verdict ? [judge.verdict] : [])).slice(0, 4),
       };
     }
   }
@@ -1997,9 +1982,7 @@ const buildLongformRankings = (longformResults) => {
       judgeVotes: group.judgeVotes,
       samples: group.samples,
     }))
-    .sort((left, right) =>
-      right.averageScore - left.averageScore || left.packageId.localeCompare(right.packageId)
-    );
+    .sort((left, right) => right.averageScore - left.averageScore || left.packageId.localeCompare(right.packageId));
 };
 
 const sceneJudgeCategories = [
@@ -2034,27 +2017,20 @@ const scenePlatformRubricFor = (packageId) => {
   return "platformFit: 多轮酒馆 transcript 是否能作为中文网文连续正文存在。";
 };
 
-const normalizeSceneJudgeResult = ({
-  text,
-  judgeModelId,
-}) => {
+const normalizeSceneJudgeResult = ({ text, judgeModelId }) => {
   const parsed = JSON.parse(extractJsonObject(text));
-  const scores = Object.fromEntries(sceneJudgeCategories.map((category) => [
-    category,
-    clampNumber(parsed?.scores?.[category], 0, 5),
-  ]));
+  const scores = Object.fromEntries(
+    sceneJudgeCategories.map((category) => [category, clampNumber(parsed?.scores?.[category], 0, 5)]),
+  );
   const numericScores = Object.values(scores).filter((value) => value !== null);
-  const scoreFromCategories = numericScores.length === sceneJudgeCategories.length
-    ? numericScores.reduce((sum, value) => sum + value, 0)
-    : null;
+  const scoreFromCategories =
+    numericScores.length === sceneJudgeCategories.length ? numericScores.reduce((sum, value) => sum + value, 0) : null;
   const categoryMax = sceneJudgeCategories.length * 5;
   const overall = clampNumber(parsed?.overall, 0, 100);
-  const normalizedScore = scoreFromCategories !== null
-    ? scoreFromCategories / categoryMax
-    : (overall !== null ? overall / 100 : 0);
-  const stringList = (value, limit) => Array.isArray(value)
-    ? value.filter((item) => typeof item === "string").slice(0, limit)
-    : [];
+  const normalizedScore =
+    scoreFromCategories !== null ? scoreFromCategories / categoryMax : overall !== null ? overall / 100 : 0;
+  const stringList = (value, limit) =>
+    Array.isArray(value) ? value.filter((item) => typeof item === "string").slice(0, limit) : [];
 
   return {
     ok: true,
@@ -2074,76 +2050,72 @@ const normalizeSceneJudgeResult = ({
   };
 };
 
-const buildSceneJudgeRequestContext = (result) => [
-  "<task>",
-  "评估 Novel Claw 酒馆模式真实多轮场景输出：导演调度、多角色发言、多轮用户动作之后，累计可见内容是否能作为中文网文连续正文存在。",
-  "这不是单次命令写 1000 字。请判断正常酒馆体验里，多段内容拼起来是否像一段可读网文，而不是聊天记录、跑团记录、问答日志或提示词产物。",
-  "</task>",
-  "",
-  "<platform_target>",
-  result.case.label,
-  result.case.packageId,
-  "</platform_target>",
-  "",
-  "<length>",
-  "generatedVisibleChars: " + result.generatedVisibleChars,
-  "totalVisibleChars: " + result.totalVisibleChars,
-  "minimumGeneratedVisibleChars: " + SCENE_EVAL_MIN_CHARS,
-  "turns: " + result.turns.length,
-  "</length>",
-  "",
-  "<scoring>",
-  "每个 scores 字段给 0 到 5 分：0=严重失败，3=基本可用，5=优秀。",
-  "overall 给 0 到 100 分，应与各项 scores 大体一致。",
-  "canExistAsWebnovel 只有在多轮累计内容确实像可发布/可连载的网文连续片段时才为 true。",
-  "如果 generatedVisibleChars 少于 minimumGeneratedVisibleChars，webnovelViability 与 canExistAsWebnovel 必须严重扣分。",
-  "请明确区分 promptFixes 与 flowFixes：前者是套餐/角色风格/呈现规则文字怎么改，后者是导演调度、续调度、消息拼接或 UI 呈现机制怎么改。",
-  "</scoring>",
-  "",
-  "<rubric>",
-  "webnovelViability: 累计内容整体是否能作为中文网文正文存在。",
-  "continuousReading: 去掉 UI 卡片感后，段落是否能顺畅连成章节，而非多条回复散落。",
-  "paragraphStructure: 是否符合网文短段阅读习惯；动作、对白、线索和压力是否拆段清楚。若多处单段超过 180 字，或出现几百字大段说明，应明显扣分。",
-  "directorScheduling: 导演是否根据场景目标、用户动作和角色动机安排合适角色；是否过度抢话、漏掉关键知情者或让所有人轮流解释。",
-  "multiCharacterNaturalness: 多角色发言是否自然接力，人物声音是否有差异，是否避免同质化 AI 推理。",
-  scenePlatformRubricFor(result.case.packageId),
-  "userAgency: 是否保留用户关键选择权，同时不给出菜单式“你决定”收尾。",
-  "outputCleanliness: 是否没有 XML、提示词残留、作者评语、格式说明、角色标签污染或重复段落。",
-  "</rubric>",
-  "",
-  "<output_schema>",
-  `{"scores":{${sceneJudgeCategories.map((category) => `"${category}":0`).join(",")}},"overall":0,"canExistAsWebnovel":false,"blockers":["阻止它成为网文的关键问题"],"promptFixes":["应该如何改提示词/套餐/角色风格"],"flowFixes":["应该如何改导演调度/续调度/拼接/呈现机制"],"notes":["优秀点或扣分点"],"verdict":"一句总体判断"}`,
-  "</output_schema>",
-  "",
-  "<director_trace>",
-  JSON.stringify(result.directorTrace, null, 2),
-  "</director_trace>",
-  "",
-  "<paragraph_stats>",
-  JSON.stringify(result.paragraphStats, null, 2),
-  "</paragraph_stats>",
-  "",
-  "<user_turns instruction=\"user_actions_are_context_only; do_not_score_labels_or_wording_as_model_output\">",
-  result.turns.map((turn) => `turn ${turn.turnIndex}: ${turn.userText}`).join("\n"),
-  "</user_turns>",
-  "",
-  "<generated_transcript instruction=\"score_this_as_model_output; judge_whether_ai_generated_visible_text_can_read_like_webnovel_continuity_between_user_turns\">",
-  result.generatedText,
-  "</generated_transcript>",
-].join("\n");
+const buildSceneJudgeRequestContext = (result) =>
+  [
+    "<task>",
+    "评估 Novel Claw 酒馆模式真实多轮场景输出：导演调度、多角色发言、多轮用户动作之后，累计可见内容是否能作为中文网文连续正文存在。",
+    "这不是单次命令写 1000 字。请判断正常酒馆体验里，多段内容拼起来是否像一段可读网文，而不是聊天记录、跑团记录、问答日志或提示词产物。",
+    "</task>",
+    "",
+    "<platform_target>",
+    result.case.label,
+    result.case.packageId,
+    "</platform_target>",
+    "",
+    "<length>",
+    "generatedVisibleChars: " + result.generatedVisibleChars,
+    "totalVisibleChars: " + result.totalVisibleChars,
+    "minimumGeneratedVisibleChars: " + SCENE_EVAL_MIN_CHARS,
+    "turns: " + result.turns.length,
+    "</length>",
+    "",
+    "<scoring>",
+    "每个 scores 字段给 0 到 5 分：0=严重失败，3=基本可用，5=优秀。",
+    "overall 给 0 到 100 分，应与各项 scores 大体一致。",
+    "canExistAsWebnovel 只有在多轮累计内容确实像可发布/可连载的网文连续片段时才为 true。",
+    "如果 generatedVisibleChars 少于 minimumGeneratedVisibleChars，webnovelViability 与 canExistAsWebnovel 必须严重扣分。",
+    "请明确区分 promptFixes 与 flowFixes：前者是套餐/角色风格/呈现规则文字怎么改，后者是导演调度、续调度、消息拼接或 UI 呈现机制怎么改。",
+    "</scoring>",
+    "",
+    "<rubric>",
+    "webnovelViability: 累计内容整体是否能作为中文网文正文存在。",
+    "continuousReading: 去掉 UI 卡片感后，段落是否能顺畅连成章节，而非多条回复散落。",
+    "paragraphStructure: 是否符合网文短段阅读习惯；动作、对白、线索和压力是否拆段清楚。若多处单段超过 180 字，或出现几百字大段说明，应明显扣分。",
+    "directorScheduling: 导演是否根据场景目标、用户动作和角色动机安排合适角色；是否过度抢话、漏掉关键知情者或让所有人轮流解释。",
+    "multiCharacterNaturalness: 多角色发言是否自然接力，人物声音是否有差异，是否避免同质化 AI 推理。",
+    scenePlatformRubricFor(result.case.packageId),
+    "userAgency: 是否保留用户关键选择权，同时不给出菜单式“你决定”收尾。",
+    "outputCleanliness: 是否没有 XML、提示词残留、作者评语、格式说明、角色标签污染或重复段落。",
+    "</rubric>",
+    "",
+    "<output_schema>",
+    `{"scores":{${sceneJudgeCategories.map((category) => `"${category}":0`).join(",")}},"overall":0,"canExistAsWebnovel":false,"blockers":["阻止它成为网文的关键问题"],"promptFixes":["应该如何改提示词/套餐/角色风格"],"flowFixes":["应该如何改导演调度/续调度/拼接/呈现机制"],"notes":["优秀点或扣分点"],"verdict":"一句总体判断"}`,
+    "</output_schema>",
+    "",
+    "<director_trace>",
+    JSON.stringify(result.directorTrace, null, 2),
+    "</director_trace>",
+    "",
+    "<paragraph_stats>",
+    JSON.stringify(result.paragraphStats, null, 2),
+    "</paragraph_stats>",
+    "",
+    '<user_turns instruction="user_actions_are_context_only; do_not_score_labels_or_wording_as_model_output">',
+    result.turns.map((turn) => `turn ${turn.turnIndex}: ${turn.userText}`).join("\n"),
+    "</user_turns>",
+    "",
+    '<generated_transcript instruction="score_this_as_model_output; judge_whether_ai_generated_visible_text_can_read_like_webnovel_continuity_between_user_turns">',
+    result.generatedText,
+    "</generated_transcript>",
+  ].join("\n");
 
-const runSceneJudges = async ({
-  sceneResults,
-  availableModelIds,
-  speedResults,
-}) => {
+const runSceneJudges = async ({ sceneResults, availableModelIds, speedResults }) => {
   const fastestModelId = [...speedResults]
     .filter((item) => item.ok)
     .sort((first, second) => first.doneMs - second.doneMs)[0]?.modelId;
-  const judgeModelIds = CONTENT_JUDGE_ALL_SPEED_MODELS
-    ? availableModelIds
-    : [fastestModelId].filter(Boolean);
-  const judgeSystemPrompt = "你是中文网文与互动叙事质量裁判。不要调用工具，只评估多轮酒馆 transcript 是否能作为网文存在，并给出可执行修改建议。";
+  const judgeModelIds = CONTENT_JUDGE_ALL_SPEED_MODELS ? availableModelIds : [fastestModelId].filter(Boolean);
+  const judgeSystemPrompt =
+    "你是中文网文与互动叙事质量裁判。不要调用工具，只评估多轮酒馆 transcript 是否能作为网文存在，并给出可执行修改建议。";
   const judgeFailures = [];
 
   for (const result of sceneResults.filter((item) => item.ok)) {
@@ -2189,7 +2161,9 @@ const runSceneJudges = async ({
             doneMs: judgeRun.doneMs,
           },
         });
-        log(`${label} sceneScore=${normalized.normalizedScore} viable=${normalized.canExistAsWebnovel ? "yes" : "no"} verdict=${normalized.verdict || "ok"}`);
+        log(
+          `${label} sceneScore=${normalized.normalizedScore} viable=${normalized.canExistAsWebnovel ? "yes" : "no"} verdict=${normalized.verdict || "ok"}`,
+        );
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         const failure = {
@@ -2219,7 +2193,7 @@ const runSceneJudges = async ({
         promptFixes: successfulJudges.flatMap((judge) => judge.promptFixes).slice(0, 10),
         flowFixes: successfulJudges.flatMap((judge) => judge.flowFixes).slice(0, 10),
         notes: successfulJudges.flatMap((judge) => judge.notes).slice(0, 10),
-        verdicts: successfulJudges.flatMap((judge) => judge.verdict ? [judge.verdict] : []).slice(0, 4),
+        verdicts: successfulJudges.flatMap((judge) => (judge.verdict ? [judge.verdict] : [])).slice(0, 4),
       };
     }
   }
@@ -2279,18 +2253,17 @@ const buildSceneRankings = (sceneResults) => {
       promptFixes: [...new Set(group.promptFixes)].slice(0, 6),
       flowFixes: [...new Set(group.flowFixes)].slice(0, 6),
     }))
-    .sort((left, right) =>
-      right.averageScore - left.averageScore || left.packageId.localeCompare(right.packageId)
-    );
+    .sort((left, right) => right.averageScore - left.averageScore || left.packageId.localeCompare(right.packageId));
 };
 
 const buildContentJudgeRequestContext = (result) => {
   const categories = contentJudgeCategoriesFor(result.case.presentationProfileId);
-  const modeLabel = result.case.presentationProfileId === "dialogue-chat"
-    ? "对话模式"
-    : result.case.presentationProfileId === "third-person-prose"
-    ? "第三人称旁白模式"
-    : "小说正文模式";
+  const modeLabel =
+    result.case.presentationProfileId === "dialogue-chat"
+      ? "对话模式"
+      : result.case.presentationProfileId === "third-person-prose"
+        ? "第三人称旁白模式"
+        : "小说正文模式";
 
   return [
     "<task>",
@@ -2324,11 +2297,7 @@ const buildContentJudgeRequestContext = (result) => {
   ].join("\n");
 };
 
-const runContentQualityJudges = async ({
-  results,
-  availableModelIds,
-  speedResults,
-}) => {
+const runContentQualityJudges = async ({ results, availableModelIds, speedResults }) => {
   if (!CONTENT_JUDGE_ENABLED) {
     return [];
   }
@@ -2336,9 +2305,7 @@ const runContentQualityJudges = async ({
   const fastestModelId = [...speedResults]
     .filter((item) => item.ok)
     .sort((first, second) => first.doneMs - second.doneMs)[0]?.modelId;
-  const judgeModelIds = CONTENT_JUDGE_ALL_SPEED_MODELS
-    ? availableModelIds
-    : [fastestModelId].filter(Boolean);
+  const judgeModelIds = CONTENT_JUDGE_ALL_SPEED_MODELS ? availableModelIds : [fastestModelId].filter(Boolean);
   const judgeSystemPrompt = "你是 Novel Claw 酒馆输出质量裁判。不要调用工具，只按给定 rubric 评估最终可见内容。";
   const judgeFailures = [];
 
@@ -2412,7 +2379,7 @@ const runContentQualityJudges = async ({
         normalizedScore: Number(normalizedScore.toFixed(4)),
         judges: successfulJudges.length,
         notes: successfulJudges.flatMap((judge) => judge.notes).slice(0, 8),
-        verdicts: successfulJudges.flatMap((judge) => judge.verdict ? [judge.verdict] : []).slice(0, 4),
+        verdicts: successfulJudges.flatMap((judge) => (judge.verdict ? [judge.verdict] : [])).slice(0, 4),
       };
     }
   }
@@ -2420,8 +2387,7 @@ const runContentQualityJudges = async ({
   return judgeFailures;
 };
 
-const average = (values) =>
-  values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+const average = (values) => (values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0);
 
 const buildRankings = (results) => {
   const grouped = new Map();
@@ -2438,9 +2404,7 @@ const buildRankings = (results) => {
     };
     const hardScore = result.evaluation.normalizedScore;
     const contentScore = result.contentEvaluation?.normalizedScore;
-    const combinedScore = contentScore === undefined
-      ? hardScore
-      : hardScore * 0.45 + contentScore * 0.55;
+    const combinedScore = contentScore === undefined ? hardScore : hardScore * 0.45 + contentScore * 0.55;
     group.scores.push(combinedScore);
     group.hardScores.push(hardScore);
     if (contentScore !== undefined) {
@@ -2461,18 +2425,13 @@ const buildRankings = (results) => {
       presentationProfileId: group.presentationProfileId,
       averageScore: Number(average(group.scores).toFixed(4)),
       hardScore: Number(average(group.hardScores).toFixed(4)),
-      contentQualityScore: group.contentScores.length > 0
-        ? Number(average(group.contentScores).toFixed(4))
-        : null,
-      dimensions: Object.fromEntries(Array.from(group.dimensionScores.entries()).map(([key, values]) => [
-        key,
-        Number(average(values).toFixed(4)),
-      ])),
+      contentQualityScore: group.contentScores.length > 0 ? Number(average(group.contentScores).toFixed(4)) : null,
+      dimensions: Object.fromEntries(
+        Array.from(group.dimensionScores.entries()).map(([key, values]) => [key, Number(average(values).toFixed(4))]),
+      ),
       samples: group.scores.length,
     }))
-    .sort((left, right) =>
-      right.averageScore - left.averageScore || left.packageId.localeCompare(right.packageId)
-    );
+    .sort((left, right) => right.averageScore - left.averageScore || left.packageId.localeCompare(right.packageId));
 };
 
 const formatSceneMessageForReading = (message, characters, userPersonaName) => {
@@ -2494,16 +2453,14 @@ const formatSceneMessagesForReading = (messages, characters, userPersonaName) =>
     .filter(Boolean)
     .join("\n\n");
 
-const stripReplyFence = (text) => text.trim()
-  .replace(/^```(?:\w+)?\s*/i, "")
-  .replace(/\s*```$/i, "")
-  .trim();
+const stripReplyFence = (text) =>
+  text
+    .trim()
+    .replace(/^```(?:\w+)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
 
-const runSceneSimulation = async ({
-  evalCase,
-  modelId,
-  runtimeModel,
-}) => {
+const runSceneSimulation = async ({ evalCase, modelId, runtimeModel }) => {
   const fixture = helper.createSceneSimulationFixture(evalCase);
   const label = `scene-${evalCase.id}-${modelId}`;
   const sessionRootDir = join(workspacePath, "scene", modelId, evalCase.id, "session");
@@ -2526,12 +2483,9 @@ const runSceneSimulation = async ({
   for (
     let turnIndex = 0;
     turnIndex < Math.min(SCENE_EVAL_MAX_TURNS, fixture.userTurns.length) &&
-      (turnIndex < SCENE_EVAL_MIN_TURNS ||
-        countReadableChars(formatSceneMessagesForReading(
-          generatedMessages,
-          characters,
-          room.userPersonaName,
-        )) < SCENE_EVAL_MIN_CHARS);
+    (turnIndex < SCENE_EVAL_MIN_TURNS ||
+      countReadableChars(formatSceneMessagesForReading(generatedMessages, characters, room.userPersonaName)) <
+        SCENE_EVAL_MIN_CHARS);
     turnIndex += 1
   ) {
     const currentUserText = fixture.userTurns[turnIndex];
@@ -2599,33 +2553,39 @@ const runSceneSimulation = async ({
     };
     const narratorText = directorDecision.narrator?.trim();
     if (narratorText) {
-      appendGeneratedMessage(helper.createSceneNarratorMessage({
-        room,
-        content: narratorText,
-        turnIndex,
-        sequence: sequence += 1,
-      }));
+      appendGeneratedMessage(
+        helper.createSceneNarratorMessage({
+          room,
+          content: narratorText,
+          turnIndex,
+          sequence: (sequence += 1),
+        }),
+      );
     }
     const randomEventText = directorDecision.randomEvent?.trim();
     if (randomEventText) {
-      appendGeneratedMessage(helper.createSceneNarratorMessage({
-        room,
-        content: randomEventText,
-        turnIndex,
-        sequence: sequence += 1,
-      }));
+      appendGeneratedMessage(
+        helper.createSceneNarratorMessage({
+          room,
+          content: randomEventText,
+          turnIndex,
+          sequence: (sequence += 1),
+        }),
+      );
     }
     for (const action of directorDecision.ambientActions ?? []) {
       if (!action.action?.trim()) {
         continue;
       }
-      appendGeneratedMessage(helper.createSceneNarratorMessage({
-        room,
-        content: action.action,
-        characterId: action.characterId,
-        turnIndex,
-        sequence: sequence += 1,
-      }));
+      appendGeneratedMessage(
+        helper.createSceneNarratorMessage({
+          room,
+          content: action.action,
+          characterId: action.characterId,
+          turnIndex,
+          sequence: (sequence += 1),
+        }),
+      );
     }
 
     let speakerQueue = speakers;
@@ -2684,7 +2644,7 @@ const runSceneSimulation = async ({
           content: finalText,
           thought: parsed.thought,
           turnIndex,
-          sequence: sequence += 1,
+          sequence: (sequence += 1),
           respondsToInteractionIds,
         });
         appendGeneratedMessage(characterMessage);
@@ -2715,9 +2675,7 @@ const runSceneSimulation = async ({
       for (const interactionId of continuation.plan.interactionIds) {
         closedInteractionIds.add(interactionId);
       }
-      speakerQueue = continuation.plan.speakerIds
-        .map((characterId) => characterById.get(characterId))
-        .filter(Boolean);
+      speakerQueue = continuation.plan.speakerIds.map((characterId) => characterById.get(characterId)).filter(Boolean);
       for (const speaker of speakerQueue) {
         continuationInstructionBySpeakerId.set(
           speaker.id,
@@ -2740,11 +2698,9 @@ const runSceneSimulation = async ({
       userText: currentUserText,
       messageCount: turnMessages.length,
       generatedCount: Math.max(0, turnMessages.length - 1),
-      generatedCharsAfterTurn: countReadableChars(formatSceneMessagesForReading(
-        generatedMessages,
-        characters,
-        room.userPersonaName,
-      )),
+      generatedCharsAfterTurn: countReadableChars(
+        formatSceneMessagesForReading(generatedMessages, characters, room.userPersonaName),
+      ),
     });
   }
 
@@ -2753,9 +2709,8 @@ const runSceneSimulation = async ({
   const generatedVisibleChars = countReadableChars(generatedText);
   const totalVisibleChars = countReadableChars(transcriptText);
   const paragraphStats = paragraphLengthStats(generatedMessages.map((message) => message.content));
-  const notes = generatedVisibleChars >= SCENE_EVAL_MIN_CHARS
-    ? []
-    : [`多轮生成可见文本不足 ${SCENE_EVAL_MIN_CHARS} 字`];
+  const notes =
+    generatedVisibleChars >= SCENE_EVAL_MIN_CHARS ? [] : [`多轮生成可见文本不足 ${SCENE_EVAL_MIN_CHARS} 字`];
 
   return {
     ok: true,
@@ -2801,7 +2756,11 @@ const cleanup = async () => {
 try {
   log("checking bridge agents");
   const list = await request({ type: "list_agents", requestId: "list" }, "agent_definitions", 10_000);
-  assert(list.agents.some((agent) => agent.id === "pi" && agent.capabilities.includes("agent")), "pi agent 应可用", list);
+  assert(
+    list.agents.some((agent) => agent.id === "pi" && agent.capabilities.includes("agent")),
+    "pi agent 应可用",
+    list,
+  );
 
   const speedResults = [];
   const speedSystemPrompt = "你是 Novel Claw 酒馆提示词质量评估测速助手。不要调用工具。";
@@ -2910,7 +2869,9 @@ try {
             }),
             evaluation,
           });
-          log(`${label} score=${evaluation.score}/${evaluation.maxScore} (${evaluation.normalizedScore}) notes=${evaluation.notes.join("；") || "ok"}`);
+          log(
+            `${label} score=${evaluation.score}/${evaluation.maxScore} (${evaluation.normalizedScore}) notes=${evaluation.notes.join("；") || "ok"}`,
+          );
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           results.push({
@@ -2927,18 +2888,16 @@ try {
 
   const contentJudgeFailures = SHOULD_RUN_TURN_EVAL
     ? await runContentQualityJudges({
-      results,
-      availableModelIds,
-      speedResults,
-    })
+        results,
+        availableModelIds,
+        speedResults,
+      })
     : [];
   const longformResults = [];
   if (SHOULD_RUN_LONGFORM) {
     for (const modelId of availableModelIds) {
       const runtimeModel = runtimeModelFor(modelId);
-      for (const evalCase of activeEvalCases.filter((item) =>
-        item.presentationProfileId === "novel-prose"
-      )) {
+      for (const evalCase of activeEvalCases.filter((item) => item.presentationProfileId === "novel-prose")) {
         const fixture = helper.createLongformEvalRequest(evalCase);
         const label = `longform-${evalCase.id}-${modelId}`;
         const sessionRootDir = join(workspacePath, "longform", modelId, evalCase.id, "session");
@@ -2960,7 +2919,8 @@ try {
             runtimeInstruction: fixture.runtimeInstruction,
             timeoutMs: LIVE_TIMEOUT_MS,
           });
-          let text = run.text.trim()
+          let text = run.text
+            .trim()
             .replace(/^```(?:\w+)?\s*/i, "")
             .replace(/\s*```$/i, "")
             .trim();
@@ -2968,20 +2928,21 @@ try {
           const expansionAttempts = [];
           for (
             let expansionIndex = 0;
-            countReadableChars(text) < LONGFORM_MIN_CHARS
-              && expansionIndex < LONGFORM_EXPANSION_MAX_ROUNDS;
+            countReadableChars(text) < LONGFORM_MIN_CHARS && expansionIndex < LONGFORM_EXPANSION_MAX_ROUNDS;
             expansionIndex += 1
           ) {
             const previousCharCount = countReadableChars(text);
             const expansionLabel = `${label}-expand-${expansionIndex + 1}`;
             log(
-              `${label} chars=${previousCharCount} below ${LONGFORM_MIN_CHARS}, `
-                + `expanding ${expansionIndex + 1}/${LONGFORM_EXPANSION_MAX_ROUNDS}`,
+              `${label} chars=${previousCharCount} below ${LONGFORM_MIN_CHARS}, ` +
+                `expanding ${expansionIndex + 1}/${LONGFORM_EXPANSION_MAX_ROUNDS}`,
             );
             const expansionRun = await runAgent({
               label: expansionLabel,
               sessionRootDir,
-              agentRoleId: `longform-expand-${evalCase.id}-${modelId}-${expansionIndex + 1}`.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+              agentRoleId: `longform-expand-${evalCase.id}-${modelId}-${expansionIndex + 1}`
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-"),
               runtimeModel,
               systemPrompt: fixture.systemPrompt,
               userMessage: "请基于上一版扩写，输出合并后的完整小说正文。",
@@ -2989,7 +2950,13 @@ try {
                 "<task>",
                 "上一版正文长度不足。请保留已有剧情和文风，扩写并输出一版合并后的完整正文。",
                 "上一版可读字符约 " + previousCharCount + " 个，当前最低要求是 " + LONGFORM_MIN_CHARS + " 个中文字符。",
-                "完整正文建议写到 " + LONGFORM_TARGET_MIN_CHARS + " 到 " + (LONGFORM_TARGET_MIN_CHARS + 400) + " 个中文字符，最低不得少于 " + LONGFORM_MIN_CHARS + " 个中文字符。",
+                "完整正文建议写到 " +
+                  LONGFORM_TARGET_MIN_CHARS +
+                  " 到 " +
+                  (LONGFORM_TARGET_MIN_CHARS + 400) +
+                  " 个中文字符，最低不得少于 " +
+                  LONGFORM_MIN_CHARS +
+                  " 个中文字符。",
                 "只输出完整正文，不要解释、标题、XML、Markdown 或改写说明。",
                 "</task>",
                 "",
@@ -3003,12 +2970,17 @@ try {
               ].join("\n"),
               runtimeInstruction: [
                 "只输出扩写后的完整小说正文。",
-                "建议不少于 " + LONGFORM_TARGET_MIN_CHARS + " 个中文字符，最低不得少于 " + LONGFORM_MIN_CHARS + " 个中文字符。",
+                "建议不少于 " +
+                  LONGFORM_TARGET_MIN_CHARS +
+                  " 个中文字符，最低不得少于 " +
+                  LONGFORM_MIN_CHARS +
+                  " 个中文字符。",
                 "不要标题、解释、XML、Markdown 或提纲。",
               ].join("\n"),
               timeoutMs: LIVE_TIMEOUT_MS,
             });
-            text = expansionRun.text.trim()
+            text = expansionRun.text
+              .trim()
               .replace(/^```(?:\w+)?\s*/i, "")
               .replace(/\s*```$/i, "")
               .trim();
@@ -3021,21 +2993,20 @@ try {
               doneMs: expansionRun.doneMs,
             });
           }
-          const expansion = expansionAttempts.length > 0
-            ? {
-              attempts: expansionAttempts.length,
-              initialCharCount,
-              finalCharCount: countReadableChars(text),
-              maxRounds: LONGFORM_EXPANSION_MAX_ROUNDS,
-              targetMinChars: LONGFORM_TARGET_MIN_CHARS,
-              attemptsDetail: expansionAttempts,
-            }
-            : null;
+          const expansion =
+            expansionAttempts.length > 0
+              ? {
+                  attempts: expansionAttempts.length,
+                  initialCharCount,
+                  finalCharCount: countReadableChars(text),
+                  maxRounds: LONGFORM_EXPANSION_MAX_ROUNDS,
+                  targetMinChars: LONGFORM_TARGET_MIN_CHARS,
+                  attemptsDetail: expansionAttempts,
+                }
+              : null;
           const charCount = countReadableChars(text);
           const paragraphStats = paragraphLengthStats([text]);
-          const notes = charCount >= LONGFORM_MIN_CHARS
-            ? []
-            : [`正文长度不足 ${LONGFORM_MIN_CHARS} 字`];
+          const notes = charCount >= LONGFORM_MIN_CHARS ? [] : [`正文长度不足 ${LONGFORM_MIN_CHARS} 字`];
           longformResults.push({
             ok: true,
             modelId,
@@ -3072,9 +3043,7 @@ try {
   if (SHOULD_RUN_SCENE_EVAL) {
     for (const modelId of availableModelIds) {
       const runtimeModel = runtimeModelFor(modelId);
-      for (const evalCase of activeEvalCases.filter((item) =>
-        item.presentationProfileId === "novel-prose"
-      )) {
+      for (const evalCase of activeEvalCases.filter((item) => item.presentationProfileId === "novel-prose")) {
         const label = `scene-${evalCase.id}-${modelId}`;
         try {
           const sceneResult = await runSceneSimulation({
@@ -3083,7 +3052,9 @@ try {
             runtimeModel,
           });
           sceneResults.push(sceneResult);
-          log(`${label} generatedChars=${sceneResult.generatedVisibleChars} totalChars=${sceneResult.totalVisibleChars} turns=${sceneResult.turns.length} lengthOk=${sceneResult.lengthOk ? "yes" : "no"}`);
+          log(
+            `${label} generatedChars=${sceneResult.generatedVisibleChars} totalChars=${sceneResult.totalVisibleChars} turns=${sceneResult.turns.length} lengthOk=${sceneResult.lengthOk ? "yes" : "no"}`,
+          );
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           sceneResults.push({
@@ -3100,17 +3071,17 @@ try {
 
   const longformJudgeFailures = SHOULD_RUN_LONGFORM
     ? await runLongformJudges({
-      longformResults,
-      availableModelIds,
-      speedResults,
-    })
+        longformResults,
+        availableModelIds,
+        speedResults,
+      })
     : [];
   const sceneJudgeFailures = SHOULD_RUN_SCENE_EVAL
     ? await runSceneJudges({
-      sceneResults,
-      availableModelIds,
-      speedResults,
-    })
+        sceneResults,
+        availableModelIds,
+        speedResults,
+      })
     : [];
   const rankings = buildRankings(results);
   const longformRankings = buildLongformRankings(longformResults);
@@ -3140,10 +3111,13 @@ try {
         sceneContinuity: "20 分：承接铜牌、脚印、窗边、门闩、雨夜等场景目标信号。",
         characterBoundary: "15 分：无说话人标签残留、不替用户行动、不写他人心理、角色心理长度合理。",
         proseQuality: "15 分：动作/感官具体性、长度可读、少套话氛围。",
-        contentQuality: "SPEED 模型裁判评估最终可见片段：小说连贯度、真人对白感、环境描写是否服务剧情、节奏和可继续性。",
+        contentQuality:
+          "SPEED 模型裁判评估最终可见片段：小说连贯度、真人对白感、环境描写是否服务剧情、节奏和可继续性。",
         combinedRanking: "综合分 = 硬指标 45% + 内容质量 55%；若内容裁判关闭，则使用硬指标。",
-        longformQuality: "长文评估要求至少 1000 字；SPEED 模型裁判评估整篇是否能作为网文正文存在、平台贴合、开篇钩子、节奏和章尾追读。",
-        sceneQuality: "场景评估模拟正常酒馆：导演调度、多角色发言、多轮用户动作后，AI 累计可见文本不少于 1000 字，再评估整体是否能作为网文连续正文存在，并区分提示词修正与流程修正。",
+        longformQuality:
+          "长文评估要求至少 1000 字；SPEED 模型裁判评估整篇是否能作为网文正文存在、平台贴合、开篇钩子、节奏和章尾追读。",
+        sceneQuality:
+          "场景评估模拟正常酒馆：导演调度、多角色发言、多轮用户动作后，AI 累计可见文本不少于 1000 字，再评估整体是否能作为网文连续正文存在，并区分提示词修正与流程修正。",
       },
     },
     speedResults,
@@ -3161,31 +3135,43 @@ try {
   mkdirSync(dirname(reportPath), { recursive: true });
   writeFileSync(reportPath, JSON.stringify(safeDetails(report), null, 2), "utf8");
 
-  console.log(JSON.stringify({
-    reportPath,
-    models: availableModelIds,
-    rankings: rankings.slice(0, 8),
-    longformRankings: longformRankings.slice(0, 8),
-    sceneRankings: sceneRankings.slice(0, 8),
-    failures: results.filter((item) => !item.ok).map((item) => ({
-      modelId: item.modelId,
-      caseId: item.case.id,
-      error: item.error,
-    })),
-    contentJudgeFailures,
-    longformFailures: longformResults.filter((item) => !item.ok).map((item) => ({
-      modelId: item.modelId,
-      caseId: item.case.id,
-      error: item.error,
-    })),
-    longformJudgeFailures,
-    sceneFailures: sceneResults.filter((item) => !item.ok).map((item) => ({
-      modelId: item.modelId,
-      caseId: item.case.id,
-      error: item.error,
-    })),
-    sceneJudgeFailures,
-  }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        reportPath,
+        models: availableModelIds,
+        rankings: rankings.slice(0, 8),
+        longformRankings: longformRankings.slice(0, 8),
+        sceneRankings: sceneRankings.slice(0, 8),
+        failures: results
+          .filter((item) => !item.ok)
+          .map((item) => ({
+            modelId: item.modelId,
+            caseId: item.case.id,
+            error: item.error,
+          })),
+        contentJudgeFailures,
+        longformFailures: longformResults
+          .filter((item) => !item.ok)
+          .map((item) => ({
+            modelId: item.modelId,
+            caseId: item.case.id,
+            error: item.error,
+          })),
+        longformJudgeFailures,
+        sceneFailures: sceneResults
+          .filter((item) => !item.ok)
+          .map((item) => ({
+            modelId: item.modelId,
+            caseId: item.case.id,
+            error: item.error,
+          })),
+        sceneJudgeFailures,
+      },
+      null,
+      2,
+    ),
+  );
 } finally {
   await shutdown();
   await cleanup();

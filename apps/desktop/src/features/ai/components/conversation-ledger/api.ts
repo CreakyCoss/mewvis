@@ -1,10 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { RuntimeModelInput } from "@/agent-client/types";
-import type {
-  CreateLedgerInput,
-  LedgerMessageInput,
-  LedgerResult,
-} from "./types";
+import type { CreateLedgerInput, LedgerMessageInput, LedgerResult } from "./types";
 
 export async function createLedger(input: CreateLedgerInput) {
   if (!isTauri()) {
@@ -14,10 +10,7 @@ export async function createLedger(input: CreateLedgerInput) {
   return invoke<LedgerResult>("create_agent_runtime_session", { input });
 }
 
-export async function readLedger(input: {
-  workspacePath: string;
-  sessionRootDir: string;
-}) {
+export async function readLedger(input: { workspacePath: string; sessionRootDir: string }) {
   if (!isTauri()) {
     return null;
   }
@@ -25,10 +18,7 @@ export async function readLedger(input: {
   return invoke<LedgerResult>("read_agent_runtime_session", { input });
 }
 
-export async function deleteLedger(input: {
-  workspacePath: string;
-  sessionRootDir: string;
-}) {
+export async function deleteLedger(input: { workspacePath: string; sessionRootDir: string }) {
   if (!isTauri()) {
     return null;
   }
@@ -36,10 +26,7 @@ export async function deleteLedger(input: {
   return invoke<void>("delete_agent_runtime_session", { input });
 }
 
-export async function disposeLedgerWorkers(input: {
-  workspacePath: string;
-  sessionRootDir: string;
-}) {
+export async function disposeLedgerWorkers(input: { workspacePath: string; sessionRootDir: string }) {
   if (!isTauri()) {
     return null;
   }

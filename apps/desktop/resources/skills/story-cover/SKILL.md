@@ -59,37 +59,38 @@ Author name '作者名' at bottom center in [作者名字体风格].
 
 #### 书名字体风格
 
-| 题材 | 描述关键词 |
-|:-----|:-----------|
+| 题材      | 描述关键词                                                           |
+| :-------- | :------------------------------------------------------------------- |
 | 玄幻/仙侠 | `bold golden brush calligraphy with metallic glow and sharp strokes` |
-| 都市 | `modern bold sans-serif with metallic silver finish` |
-| 古言/宫斗 | `elegant golden traditional Kai script with ornate decoration` |
-| 现言/甜宠 | `soft rounded handwritten style in white with pink glow` |
-| 悬疑/推理 | `distorted bold cracked letters in blood red` |
-| 科幻/末世 | `neon glowing futuristic font in electric blue` |
-| 西幻 | `metallic embossed fantasy lettering with glow effect` |
-| 历史/军事 | `heavy stone-carved seal script in deep red` |
-| 灵异/恐怖 | `eerie dripping handwritten font in sickly green` |
-| 轻小说 | `colorful cartoon outlined bubbly font` |
+| 都市      | `modern bold sans-serif with metallic silver finish`                 |
+| 古言/宫斗 | `elegant golden traditional Kai script with ornate decoration`       |
+| 现言/甜宠 | `soft rounded handwritten style in white with pink glow`             |
+| 悬疑/推理 | `distorted bold cracked letters in blood red`                        |
+| 科幻/末世 | `neon glowing futuristic font in electric blue`                      |
+| 西幻      | `metallic embossed fantasy lettering with glow effect`               |
+| 历史/军事 | `heavy stone-carved seal script in deep red`                         |
+| 灵异/恐怖 | `eerie dripping handwritten font in sickly green`                    |
+| 轻小说    | `colorful cartoon outlined bubbly font`                              |
 
 #### 作者名字体风格（重点：作者名必须精心设计，不能只是"小字"）
 
 作者名虽小，但是封面专业感的关键。必须指定：**字体 + 颜色 + 装饰元素**，让作者名与书名风格呼应但不抢焦点。
 
-| 题材 | 作者名风格提示词 |
-|:-----|:----------------|
+| 题材      | 作者名风格提示词                                                                                                                                          |
+| :-------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 玄幻/仙侠 | `small refined white serif text with faint golden glow, flanked by delicate cloud-scroll ornaments on both sides, resting on a thin horizontal gold line` |
-| 都市 | `small clean white modern text with subtle drop shadow, positioned above a thin silver horizontal divider line` |
-| 古言/宫斗 | `small elegant dark red traditional text inside a thin golden rectangular border frame with corner decorations` |
-| 现言/甜宠 | `small soft pink-white handwritten text with a tiny heart motif on the left side, light sparkle effect` |
-| 悬疑/推理 | `small pale grey text with slight blur effect, almost hidden in the shadows, a thin cracked line underneath` |
-| 科幻/末世 | `small crisp white monospace text with subtle cyan scanline overlay, flanked by small geometric brackets` |
-| 西幻 | `small bronze medieval script text with aged parchment texture, enclosed in a small decorative shield or banner shape` |
-| 历史/军事 | `small dignified white Song typeface text above a double horizontal line in dark red` |
-| 灵异/恐怖 | `small faded grey-green text slightly tilted, with a thin dripping ink line above` |
-| 轻小说 | `small playful rounded white text with pastel color outline, tiny star decorations on both sides` |
+| 都市      | `small clean white modern text with subtle drop shadow, positioned above a thin silver horizontal divider line`                                           |
+| 古言/宫斗 | `small elegant dark red traditional text inside a thin golden rectangular border frame with corner decorations`                                           |
+| 现言/甜宠 | `small soft pink-white handwritten text with a tiny heart motif on the left side, light sparkle effect`                                                   |
+| 悬疑/推理 | `small pale grey text with slight blur effect, almost hidden in the shadows, a thin cracked line underneath`                                              |
+| 科幻/末世 | `small crisp white monospace text with subtle cyan scanline overlay, flanked by small geometric brackets`                                                 |
+| 西幻      | `small bronze medieval script text with aged parchment texture, enclosed in a small decorative shield or banner shape`                                    |
+| 历史/军事 | `small dignified white Song typeface text above a double horizontal line in dark red`                                                                     |
+| 灵异/恐怖 | `small faded grey-green text slightly tilted, with a thin dripping ink line above`                                                                        |
+| 轻小说    | `small playful rounded white text with pastel color outline, tiny star decorations on both sides`                                                         |
 
 **作者名通用规则**：
+
 - 大小：`small`（不能太大抢书名焦点，也不能太小看不清）
 - 位置：`at bottom center`，与画面底部保持适当间距
 - 必须有装饰元素：线条/边框/小图标/光效中至少一种
@@ -99,14 +100,14 @@ Author name '作者名' at bottom center in [作者名字体风格].
 
 根据目标平台确定整体视觉风格：
 
-| 平台 | 风格特征 | 描述关键词 |
-|:-----|:---------|:-----------|
-| 番茄小说 | 鲜艳吸睛，人物突出，色彩饱和 | `vibrant saturated colors, eye-catching, bold contrast, popular mass-market style` |
-| 起点 | 精致大气，画面细腻，偏写实 | `polished refined style, detailed illustration, epic cinematic composition` |
-| 晋江 | 唯美梦幻，柔和色调，人物唯美 | `dreamy ethereal aesthetic, soft pastel tones, elegant romantic style` |
-| 知乎盐言 | 简约文艺，留白多，氛围感 | `minimalist literary style, subtle atmosphere, clean composition with negative space` |
-| 七猫 | 热烈夺目，冲击力强 | `striking high-impact, vivid dramatic colors, attention-grabbing` |
-| 刺猬猫 | 二次元/轻小说风 | `anime illustration style, vibrant colorful, detailed character art` |
+| 平台     | 风格特征                     | 描述关键词                                                                            |
+| :------- | :--------------------------- | :------------------------------------------------------------------------------------ |
+| 番茄小说 | 鲜艳吸睛，人物突出，色彩饱和 | `vibrant saturated colors, eye-catching, bold contrast, popular mass-market style`    |
+| 起点     | 精致大气，画面细腻，偏写实   | `polished refined style, detailed illustration, epic cinematic composition`           |
+| 晋江     | 唯美梦幻，柔和色调，人物唯美 | `dreamy ethereal aesthetic, soft pastel tones, elegant romantic style`                |
+| 知乎盐言 | 简约文艺，留白多，氛围感     | `minimalist literary style, subtle atmosphere, clean composition with negative space` |
+| 七猫     | 热烈夺目，冲击力强           | `striking high-impact, vivid dramatic colors, attention-grabbing`                     |
+| 刺猬猫   | 二次元/轻小说风              | `anime illustration style, vibrant colorful, detailed character art`                  |
 
 #### 画面层：题材 + 构图
 
@@ -114,11 +115,11 @@ Author name '作者名' at bottom center in [作者名字体风格].
 
 构图变体（首次建议出 2-3 个方案）：
 
-| 方案 | 构图 | 适合题材 |
-|:-----|:-----|:---------|
-| A | 人物特写 + 场景 | 全题材通用 |
-| B | 全身像 + 动态姿势 | 玄幻、都市、西幻 |
-| C | 纯场景/氛围图 | 悬疑、科幻、历史 |
+| 方案 | 构图              | 适合题材         |
+| :--- | :---------------- | :--------------- |
+| A    | 人物特写 + 场景   | 全题材通用       |
+| B    | 全身像 + 动态姿势 | 玄幻、都市、西幻 |
+| C    | 纯场景/氛围图     | 悬疑、科幻、历史 |
 
 #### 完整提示词模板
 
@@ -179,12 +180,12 @@ jq -r '.data[0].b64_json' response.json | base64 --decode > "${BOOK_DIR}/封面/
 
 ### Step 4：质量检查 + 迭代
 
-| 检查项 | 标准 |
-|:-------|:-----|
+| 检查项   | 标准                           |
+| :------- | :----------------------------- |
 | 文字渲染 | 书名清晰可辨，字体风格匹配题材 |
-| 题材匹配 | 视觉风格与书名题材一致 |
-| 构图合理 | 主体突出，文字不遮挡核心画面 |
-| 平台适配 | 符合目标平台的封面风格调性 |
+| 题材匹配 | 视觉风格与书名题材一致         |
+| 构图合理 | 主体突出，文字不遮挡核心画面   |
+| 平台适配 | 符合目标平台的封面风格调性     |
 
 不满意时调整方向：更换构图、调整色调、换字体风格、换平台风格。
 
@@ -192,8 +193,8 @@ jq -r '.data[0].b64_json' response.json | base64 --decode > "${BOOK_DIR}/封面/
 
 ## 参考资料
 
-| 文件 | 何时加载 |
-|:-----|:---------|
+| 文件                                                     | 何时加载                                    |
+| :------------------------------------------------------- | :------------------------------------------ |
 | [references/cover-styles.md](references/cover-styles.md) | 题材→视觉风格映射、平台风格详情、提示词模板 |
 
 ---

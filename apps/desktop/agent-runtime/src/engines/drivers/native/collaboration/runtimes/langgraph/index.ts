@@ -1,13 +1,5 @@
-import {
-  Annotation,
-  END,
-  START,
-  StateGraph,
-} from "@langchain/langgraph";
-import type {
-  CollaborationRuntime,
-  CollaborationRuntimeRunInput,
-} from "../types.js";
+import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
+import type { CollaborationRuntime, CollaborationRuntimeRunInput } from "../types.js";
 import type {
   CollaborationRunInput,
   CollaborationSkippedStepResult,
@@ -33,17 +25,11 @@ type LangGraphWorkflowState = {
 
 type LangGraphWorkflowUpdate = Partial<LangGraphWorkflowState>;
 
-function mergeStepResults(
-  left: CollaborationStepResult[],
-  right: CollaborationStepResult[],
-) {
+function mergeStepResults(left: CollaborationStepResult[], right: CollaborationStepResult[]) {
   return mergeByStepId(left, right);
 }
 
-function mergeSkippedSteps(
-  left: CollaborationSkippedStepResult[],
-  right: CollaborationSkippedStepResult[],
-) {
+function mergeSkippedSteps(left: CollaborationSkippedStepResult[], right: CollaborationSkippedStepResult[]) {
   return mergeByStepId(left, right);
 }
 
@@ -75,14 +61,7 @@ type LangGraphWorkflowBuilder = StateGraph<
 
 export const createLangGraphCollaborationRuntime = (): CollaborationRuntime => ({
   id: langGraphCollaborationRuntimeId,
-  async run({
-    context,
-    emit,
-    handlerRegistry,
-    input,
-    runAgent,
-    workflowRunId,
-  }: CollaborationRuntimeRunInput) {
+  async run({ context, emit, handlerRegistry, input, runAgent, workflowRunId }: CollaborationRuntimeRunInput) {
     const steps = input.workflow.steps ?? [];
     const roleById = new Map(input.agents.map((role) => [role.id, role]));
     let graph = new StateGraph(WorkflowStateAnnotation) as LangGraphWorkflowBuilder;
@@ -127,14 +106,17 @@ export const createLangGraphCollaborationRuntime = (): CollaborationRuntime => (
     const compiledGraph = graph.compile({
       name: input.workflow.id,
     });
-    const finalState = await compiledGraph.invoke({
-      input: input.input,
-      output: {},
-      stepResults: [],
-      skippedSteps: [],
-    }, {
-      recursionLimit: normalizeWorkflowMaxSteps(input.workflow.maxSteps, steps.length),
-    });
+    const finalState = await compiledGraph.invoke(
+      {
+        input: input.input,
+        output: {},
+        stepResults: [],
+        skippedSteps: [],
+      },
+      {
+        recursionLimit: normalizeWorkflowMaxSteps(input.workflow.maxSteps, steps.length),
+      },
+    );
     const executionState = createCollaborationExecutionState(finalState.input, {
       output: finalState.output,
       skippedSteps: finalState.skippedSteps,
@@ -161,10 +143,7 @@ const addWorkflowEdges = (
   return addParallelEdges(graph, steps);
 };
 
-const addSerialEdges = (
-  graph: LangGraphWorkflowBuilder,
-  steps: readonly CollaborationWorkflowStep[],
-) => {
+const addSerialEdges = (graph: LangGraphWorkflowBuilder, steps: readonly CollaborationWorkflowStep[]) => {
   let nextGraph = graph.addEdge(START, steps[0].id);
   for (let index = 0; index < steps.length - 1; index += 1) {
     const step = steps[index];
@@ -189,12 +168,9 @@ const addSerialEdges = (
   return nextGraph.addEdge(lastStep.id, END);
 };
 
-const addParallelEdges = (
-  graph: LangGraphWorkflowBuilder,
-  steps: readonly CollaborationWorkflowStep[],
-) => {
-  const dynamicRouter = steps.find((step) =>
-    step.type === "router" && step.routes && Object.keys(step.routes).length > 0
+const addParallelEdges = (graph: LangGraphWorkflowBuilder, steps: readonly CollaborationWorkflowStep[]) => {
+  const dynamicRouter = steps.find(
+    (step) => step.type === "router" && step.routes && Object.keys(step.routes).length > 0,
   );
   if (dynamicRouter) {
     throw new Error(`parallel workflow 暂不支持 router.routes：${dynamicRouter.id}`);
@@ -214,9 +190,10 @@ const addParallelEdges = (
       outgoingStepIds.add(dependencyId);
     }
 
-    nextGraph = dependencyIds.length === 1
-      ? nextGraph.addEdge(dependencyIds[0], step.id)
-      : nextGraph.addEdge(dependencyIds, step.id);
+    nextGraph =
+      dependencyIds.length === 1
+        ? nextGraph.addEdge(dependencyIds[0], step.id)
+        : nextGraph.addEdge(dependencyIds, step.id);
   }
 
   const terminalSteps = steps.filter((step) => !outgoingStepIds.has(step.id));
@@ -231,10 +208,7 @@ const addParallelEdges = (
   return nextGraph;
 };
 
-const resolveRouterRoute = (
-  state: LangGraphWorkflowState,
-  step: CollaborationRouterWorkflowStep,
-) => {
+const resolveRouterRoute = (state: LangGraphWorkflowState, step: CollaborationRouterWorkflowStep) => {
   const route = state.stepResults.find((result) => result.stepId === step.id)?.route ?? null;
   if (route && step.routes?.[route]) {
     return route;
@@ -287,12 +261,7 @@ const normalizeRouterDestination = (value: string) => {
   return destination === "end" || destination === "__end__" ? END : destination;
 };
 
-const mergeByStepId = <
-  T extends { stepId: string },
->(
-  left: T[] = [],
-  right: T[] = [],
-) => {
+const mergeByStepId = <T extends { stepId: string }>(left: T[] = [], right: T[] = []) => {
   const byStepId = new Map(left.map((step) => [step.stepId, step]));
   for (const step of right) {
     byStepId.set(step.stepId, step);

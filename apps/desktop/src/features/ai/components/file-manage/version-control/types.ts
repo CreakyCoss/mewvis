@@ -55,9 +55,6 @@ export type VersionControlViewProps = {
   onSelectHistoryVersionFile: (versionId: string, path: string) => void;
   onVersionMessageChange: (message: string) => void;
   onCreateVersion: (relativePaths: string[]) => void;
-  onDiscardVersionFileChanges: (
-    path: string,
-    options?: { skipConfirmation?: boolean },
-  ) => void;
+  onDiscardVersionFileChanges: (path: string, options?: { skipConfirmation?: boolean }) => void;
   onRestoreHistoryVersionFile: (file: WorkspaceVersionFileEntry) => void;
 };

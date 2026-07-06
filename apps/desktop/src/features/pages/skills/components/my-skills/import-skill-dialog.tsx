@@ -1,11 +1,6 @@
 import { useEffect, useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import {
-  Download,
-  FileArchive,
-  Globe2,
-  Loader2,
-} from "lucide-react";
+import { Download, FileArchive, Globe2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,12 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import type { InstallSkillInput } from "../../types";
 
@@ -33,12 +23,7 @@ type ImportSkillDialogProps = {
   onInstallSkill: (input: InstallSkillInput) => Promise<void>;
 };
 
-export const ImportSkillDialog = ({
-  open,
-  isInstalling,
-  onOpenChange,
-  onInstallSkill,
-}: ImportSkillDialogProps) => {
+export const ImportSkillDialog = ({ open, isInstalling, onOpenChange, onInstallSkill }: ImportSkillDialogProps) => {
   const [importMode, setImportMode] = useState<ImportMode>("remote");
   const [source, setSource] = useState("");
   const [zipPath, setZipPath] = useState("");
@@ -87,9 +72,7 @@ export const ImportSkillDialog = ({
 
     setError("");
     await onInstallSkill(
-      importMode === "zip"
-        ? { source: nextZipPath, sourceKind: "zip" }
-        : { source: nextSource, sourceKind: "remote" },
+      importMode === "zip" ? { source: nextZipPath, sourceKind: "zip" } : { source: nextSource, sourceKind: "remote" },
     );
     setSource("");
     setZipPath("");
@@ -101,9 +84,7 @@ export const ImportSkillDialog = ({
       <DialogContent className="w-[480px] gap-4 p-5 sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>导入 Skill</DialogTitle>
-          <DialogDescription>
-            选择在线来源或本地 zip 文件，将 Skill 添加到 Skill库。
-          </DialogDescription>
+          <DialogDescription>选择在线来源或本地 zip 文件，将 Skill 添加到 Skill库。</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
@@ -156,9 +137,7 @@ export const ImportSkillDialog = ({
                   {hasZipFile ? "再次点击可重新选择文件" : "压缩包需包含 SKILL.md 文件"}
                 </span>
                 <span className="mt-1 max-w-full truncate text-sm text-muted-foreground">
-                  {hasZipFile
-                    ? zipPath
-                    : ".md 文件需包含 YAML 格式的技能名称和描述"}
+                  {hasZipFile ? zipPath : ".md 文件需包含 YAML 格式的技能名称和描述"}
                 </span>
               </button>
             </TabsContent>
@@ -167,24 +146,11 @@ export const ImportSkillDialog = ({
         </div>
 
         <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isInstalling}
-          >
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isInstalling}>
             取消
           </Button>
-          <Button
-            type="button"
-            onClick={() => void handleImport()}
-            disabled={isInstalling}
-          >
-            {isInstalling ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Download className="size-4" />
-            )}
+          <Button type="button" onClick={() => void handleImport()} disabled={isInstalling}>
+            {isInstalling ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
             <span>导入</span>
           </Button>
         </DialogFooter>

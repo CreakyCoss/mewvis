@@ -6,12 +6,7 @@ import {
   updateWorkspace,
 } from "../api";
 import { isDefaultWorkspace } from "../default";
-import {
-  defaultWorkspaceForm,
-  type Workspace,
-  type WorkspaceForm,
-  type WorkspaceOverview,
-} from "../types";
+import { defaultWorkspaceForm, type Workspace, type WorkspaceForm, type WorkspaceOverview } from "../types";
 import { buildSections } from "../utils/sections";
 
 export const useOverview = () => {
@@ -75,10 +70,7 @@ export const useOverview = () => {
     }
   }, []);
 
-  const sections = useMemo(
-    () => buildSections(overview),
-    [overview],
-  );
+  const sections = useMemo(() => buildSections(overview), [overview]);
 
   const saveWorkspace = useCallback(async (): Promise<Workspace | null> => {
     setIsSaving(true);
@@ -101,26 +93,29 @@ export const useOverview = () => {
     }
   }, [editingWorkspace, form, loadOverview]);
 
-  const deleteWorkspace = useCallback(async (workspace: Workspace): Promise<boolean> => {
-    if (isDefaultWorkspace(workspace)) {
-      setError("默认工作区由系统管理，不能删除");
-      return false;
-    }
+  const deleteWorkspace = useCallback(
+    async (workspace: Workspace): Promise<boolean> => {
+      if (isDefaultWorkspace(workspace)) {
+        setError("默认工作区由系统管理，不能删除");
+        return false;
+      }
 
-    setDeletingWorkspaceId(workspace.id);
-    setError("");
+      setDeletingWorkspaceId(workspace.id);
+      setError("");
 
-    try {
-      await deleteWorkspaceRecord(workspace.id);
-      await loadOverview();
-      return true;
-    } catch (caught) {
-      setError(String(caught));
-      return false;
-    } finally {
-      setDeletingWorkspaceId(null);
-    }
-  }, [loadOverview]);
+      try {
+        await deleteWorkspaceRecord(workspace.id);
+        await loadOverview();
+        return true;
+      } catch (caught) {
+        setError(String(caught));
+        return false;
+      } finally {
+        setDeletingWorkspaceId(null);
+      }
+    },
+    [loadOverview],
+  );
 
   return {
     overview,

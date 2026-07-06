@@ -2,10 +2,8 @@ import {
   Activity,
   ArchiveRestore,
   CheckCircle2,
-  ClipboardCheck,
   Gauge,
   GitBranch,
-  History,
   LayoutDashboard,
   ListChecks,
   Pencil,
@@ -24,13 +22,7 @@ import {
   EditorStatusPill,
   editorHeaderActionButtonClassName,
 } from "../../primitives";
-import {
-  formatCount,
-  getActiveTaskCount,
-  getOutcomeEventCount,
-  getProgressPlacementText,
-  getStatusEventCounts,
-} from "../../utils";
+import { formatCount, getProgressPlacementText } from "../../utils";
 import { ProgressEdit, type ProgressEditHandle } from "./edit";
 import type { ModuleSave } from "../types";
 
@@ -53,12 +45,9 @@ const getProgressModeLabel = (data: TavernRoom) => {
 
 export const ProgressSection = ({ data, onSave }: ProgressSectionProps) => {
   const editRef = useRef<ProgressEditHandle>(null);
-  const activeTaskCount = getActiveTaskCount(data);
-  const outcomeEventCount = getOutcomeEventCount(data);
-  const statusEventCounts = getStatusEventCounts(data);
   const progressPlacementText = getProgressPlacementText(data);
-  const appliedStatusEventRate =
-    data.statusEvents.length > 0 ? Math.round((statusEventCounts.applied / data.statusEvents.length) * 100) : 0;
+  const configuredProgressItemCount =
+    data.statusDefinitions.length + data.statusRules.length + data.taskDefinitions.length + data.sceneOutcomes.length;
 
   return (
     <>
@@ -102,7 +91,7 @@ export const ProgressSection = ({ data, onSave }: ProgressSectionProps) => {
               icon: Target,
               label: "任务定义",
               value: formatCount(data.taskDefinitions.length, "个"),
-              description: formatCount(activeTaskCount, "进行中"),
+              description: formatCount(data.sceneOutcomes.length, "结局"),
             },
           ]}
         />
@@ -121,9 +110,9 @@ export const ProgressSection = ({ data, onSave }: ProgressSectionProps) => {
                     {formatCount(data.statusRules.length, "条")}
                   </EditorStatusPill>
                 </EditorSettingRow>
-                <EditorSettingRow icon={Activity} label="状态事件">
-                  <EditorStatusPill tone={data.statusEvents.length > 0 ? "info" : "muted"}>
-                    {formatCount(data.statusEvents.length, "条")}
+                <EditorSettingRow icon={LayoutDashboard} label="状态面板">
+                  <EditorStatusPill tone={data.progressViews.length > 0 ? "active" : "muted"}>
+                    {formatCount(data.progressViews.length, "个")}
                   </EditorStatusPill>
                 </EditorSettingRow>
               </EditorSettingGroup>
@@ -139,9 +128,9 @@ export const ProgressSection = ({ data, onSave }: ProgressSectionProps) => {
                     {formatCount(data.sceneOutcomes.length, "个")}
                   </EditorStatusPill>
                 </EditorSettingRow>
-                <EditorSettingRow icon={ClipboardCheck} label="已触发">
-                  <EditorStatusPill tone={outcomeEventCount > 0 ? "active" : "muted"}>
-                    {formatCount(outcomeEventCount, "个")}
+                <EditorSettingRow icon={ArchiveRestore} label="追踪器">
+                  <EditorStatusPill tone={data.progressTracker.enabled ? "active" : "muted"}>
+                    {data.progressTracker.enabled ? getProgressModeLabel(data) : "关闭"}
                   </EditorStatusPill>
                 </EditorSettingRow>
               </EditorSettingGroup>
@@ -155,25 +144,15 @@ export const ProgressSection = ({ data, onSave }: ProgressSectionProps) => {
                 <EditorSettingRow icon={Gauge} label="置信阈值">
                   <EditorStatusPill tone="active">{data.progressTracker.factConfidenceThreshold}</EditorStatusPill>
                 </EditorSettingRow>
-                <EditorSettingRow icon={ArchiveRestore} label="检查点">
-                  <EditorStatusPill tone={data.statusCheckpoints.length > 0 ? "info" : "muted"}>
-                    {formatCount(data.statusCheckpoints.length, "个")}
-                  </EditorStatusPill>
-                </EditorSettingRow>
-                <EditorSettingRow icon={History} label="状态更新">
-                  <EditorStatusPill tone={data.progressTracker.enabled ? "active" : "muted"}>
-                    {data.progressTracker.enabled ? getProgressModeLabel(data) : "关闭"}
-                  </EditorStatusPill>
-                </EditorSettingRow>
               </EditorSettingGroup>
             </div>
           </div>
 
           <EditorProgressCard
-            title="状态事件应用率"
-            value={`${appliedStatusEventRate}%`}
-            progress={appliedStatusEventRate}
-            description={`${statusEventCounts.applied} 已应用 / ${statusEventCounts.pending} 待确认`}
+            title="配置完整度"
+            value={formatCount(configuredProgressItemCount, "项")}
+            progress={Math.min(100, configuredProgressItemCount * 12)}
+            description={progressPlacementText || "未配置展示位置"}
           />
         </div>
       </EditorSection>

@@ -88,11 +88,13 @@ metadata:
 ## 工作流程
 
 ### A. 模式识别
+
 1. 若用户要的是“做 Skill / 做系统 / 做 schema / 做代码 / 做规则” → `design`
 2. 若用户已给命盘 JSON / 表格 / OCR 后的宫位星曜 → `interpret_chart`
 3. 若只有出生信息 → `chart_from_birth`
 
 ### B. 先跑请求护栏
+
 如果环境支持运行 Python，可先执行：
 
 ```bash
@@ -100,12 +102,14 @@ python scripts/request_guard.py <request.json>
 ```
 
 该脚本会告诉你：
+
 - 推断出的 `task_mode`
 - 当前输入是否足以支持排盘
 - 缺失字段与潜在歧义
 - 建议的下一步动作
 
 ### C. 确定性排盘层（仅在规则可用时）
+
 按以下顺序输出事实层：
 
 1. 时间标准化
@@ -122,7 +126,9 @@ python scripts/request_guard.py <request.json>
 12. 流年（如用户指定年份）
 
 ### D. 经验性解读层
+
 基于事实层，按主题聚合：
+
 - 命宫：人格结构、行事风格
 - 官禄/事业：职业模式、管理/执行/创作倾向
 - 财帛：收入模式、现金流风险、理财习惯
@@ -131,6 +137,7 @@ python scripts/request_guard.py <request.json>
 - 大限 / 流年：阶段变化与提醒
 
 ### E. 输出验证
+
 如环境支持，生成结果后执行：
 
 ```bash
@@ -238,6 +245,7 @@ python scripts/validate_output.py <output.json>
 9. `versioning_strategy`
 
 推荐把系统拆成三层：
+
 - `chart_engine`：只负责确定性排盘
 - `interpretation_engine`：只负责经验解读
 - `renderer`：把结构化结果转成 JSON / Markdown / API Response

@@ -10,11 +10,7 @@ import type {
   RuntimeMessageMetadata,
   RuntimeRequestContextEntry,
 } from "../model/ledger.js";
-import type {
-  RuntimeSessionPathInput,
-  RuntimeSessionPaths,
-  RuntimeSessionTraceRecord,
-} from "../providers/types.js";
+import type { RuntimeSessionPathInput, RuntimeSessionPaths, RuntimeSessionTraceRecord } from "../providers/types.js";
 
 export type RuntimeSessionStore = {
   readonly header: RuntimeLedgerHeader;
@@ -22,11 +18,7 @@ export type RuntimeSessionStore = {
   getEntries(): RuntimeLedgerEntry[];
   getEntry(id: string): RuntimeLedgerEntry | undefined;
   createEntryId(): string;
-  appendMessage(
-    message: RuntimeMessage,
-    parentId?: string | null,
-    id?: string,
-  ): Promise<RuntimeMessageEntry>;
+  appendMessage(message: RuntimeMessage, parentId?: string | null, id?: string): Promise<RuntimeMessageEntry>;
   appendRequestContext(
     content: string,
     metadata: RuntimeMessageMetadata | null,
@@ -37,11 +29,7 @@ export type RuntimeSessionStore = {
     metadata: RuntimeMessageMetadata | null,
     parentId?: string | null,
   ): Promise<RuntimeInstructionEntry>;
-  appendCustom(
-    customType: string,
-    data?: unknown,
-    parentId?: string | null,
-  ): Promise<RuntimeCustomEntry>;
+  appendCustom(customType: string, data?: unknown, parentId?: string | null): Promise<RuntimeCustomEntry>;
   appendBranchSummary(
     fromId: string,
     summary: string,

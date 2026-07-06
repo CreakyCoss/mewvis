@@ -12,6 +12,7 @@ Return a numerology analysis using only the symbolic rules in this skill. The re
 Accept either:
 
 1. A JSON object:
+
    ```json
    {
      "input": {
@@ -95,6 +96,7 @@ For every character that is not mapped by the Latin table:
 4. Use that value as the character mapping.
 
 Example:
+
 - Unicode code point `24352` -> `2 + 4 + 3 + 5 + 2 = 16` -> `1 + 6 = 7`
 
 ## 6) Name number

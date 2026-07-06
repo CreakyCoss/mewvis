@@ -3,9 +3,7 @@ import type {
   CollaborationModeParticipant,
   CollaborationModeRunInput,
 } from "../../../../../protocol/index.js";
-import type {
-  CollaborationModeDefinition,
-} from "../contracts.js";
+import type { CollaborationModeDefinition } from "../contracts.js";
 import {
   createModeRunInput,
   modeMetadata,
@@ -19,7 +17,10 @@ import {
 const modeId = "producer.review-rewrite-loop" as const;
 
 const joinSections = (sections: Array<string | null | undefined>) =>
-  sections.map((section) => section?.trim() ?? "").filter(Boolean).join("\n\n");
+  sections
+    .map((section) => section?.trim() ?? "")
+    .filter(Boolean)
+    .join("\n\n");
 
 const buildProducerInstruction = ({
   contextBlock,
@@ -27,23 +28,14 @@ const buildProducerInstruction = ({
 }: {
   contextBlock: string;
   producer: CollaborationModeParticipant;
-}) => joinSections([
-  producer.runtimeInstruction,
-  producer.instruction,
-  "你是 producer，负责产出或重写目标 artifact。",
-  contextBlock
-    ? [
-        "<collaboration_context>",
-        contextBlock,
-        "</collaboration_context>",
-      ].join("\n")
-    : null,
-  [
-    "<latest_review>",
-    "{{ outputs.review }}",
-    "</latest_review>",
-  ].join("\n"),
-]);
+}) =>
+  joinSections([
+    producer.runtimeInstruction,
+    producer.instruction,
+    "你是 producer，负责产出或重写目标 artifact。",
+    contextBlock ? ["<collaboration_context>", contextBlock, "</collaboration_context>"].join("\n") : null,
+    ["<latest_review>", "{{ outputs.review }}", "</latest_review>"].join("\n"),
+  ]);
 
 const buildReviewerInstruction = ({
   contextBlock,
@@ -51,31 +43,25 @@ const buildReviewerInstruction = ({
 }: {
   contextBlock: string;
   reviewer: CollaborationModeParticipant;
-}) => joinSections([
-  reviewer.runtimeInstruction,
-  reviewer.instruction,
-  "你是 reviewer，负责审阅 producer 的 artifact，并只输出严格 JSON，不要输出 Markdown。",
-  contextBlock
-    ? [
-        "<collaboration_context>",
-        contextBlock,
-        "</collaboration_context>",
-      ].join("\n")
-    : null,
-  [
-    "输出 JSON 格式：",
-    "{",
-    "  \"status\": \"approved\" | \"revise\" | \"blocked\",",
-    "  \"score\": number,",
-    "  \"reason\": string,",
-    "  \"revisionInstruction\": string",
-    "}",
-  ].join("\n"),
-]);
+}) =>
+  joinSections([
+    reviewer.runtimeInstruction,
+    reviewer.instruction,
+    "你是 reviewer，负责审阅 producer 的 artifact，并只输出严格 JSON，不要输出 Markdown。",
+    contextBlock ? ["<collaboration_context>", contextBlock, "</collaboration_context>"].join("\n") : null,
+    [
+      "输出 JSON 格式：",
+      "{",
+      '  "status": "approved" | "revise" | "blocked",',
+      '  "score": number,',
+      '  "reason": string,',
+      '  "revisionInstruction": string',
+      "}",
+    ].join("\n"),
+  ]);
 
-const buildAgents = (
-  participants: readonly CollaborationModeParticipant[],
-): CollaborationAgentRole[] => participants.map(participantToAgentRole);
+const buildAgents = (participants: readonly CollaborationModeParticipant[]): CollaborationAgentRole[] =>
+  participants.map(participantToAgentRole);
 
 export const producerReviewRewriteLoopMode: CollaborationModeDefinition = {
   id: modeId,
@@ -119,11 +105,9 @@ export const producerReviewRewriteLoopMode: CollaborationModeDefinition = {
             dependsOn: ["producer"],
             agentRoleId: reviewer.id,
             runtimeModel: reviewer.runtimeModel ?? null,
-            userMessage: reviewer.userMessage?.trim() || [
-              "请审阅以下 artifact，并输出严格 JSON：",
-              "",
-              "{{ outputs.draft }}",
-            ].join("\n"),
+            userMessage:
+              reviewer.userMessage?.trim() ||
+              ["请审阅以下 artifact，并输出严格 JSON：", "", "{{ outputs.draft }}"].join("\n"),
             requestContext: reviewer.requestContext ?? null,
             runtimeInstruction: buildReviewerInstruction({
               contextBlock,

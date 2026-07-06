@@ -1,13 +1,10 @@
-import { projectTavernSceneOntoRoom, syncTavernRoomActiveScene } from "../tavern/runtime/active-scene-runtime";
-import { cloneTavernRuntimeStoryProjectionFields } from "../tavern/adapters/story";
 import type {
-  TavernCharacter,
   TavernCondition,
   TavernProgressView,
+  TavernPromptBlock,
   TavernReplyMode,
   TavernRoleAssignmentDefinition,
   TavernRoom,
-  TavernRoomCharacterConfig,
   TavernRoomSettings,
   TavernSceneOutcomeDefinition,
   TavernStatusDefinition,
@@ -23,36 +20,6 @@ export const replyModeOptions: Array<{
 export const formatCount = (value: number, label: string) => `${value} ${label}`;
 
 export const emptyValueText = "未设置";
-
-export const getRoomCharacterById = (
-  room: Pick<TavernRoom, "localCharacters"> | null,
-  characterById: Map<string, TavernCharacter>,
-) => {
-  const roomCharacterById = new Map(characterById);
-  (room?.localCharacters ?? []).forEach((character) => {
-    roomCharacterById.set(character.id, character);
-  });
-  return roomCharacterById;
-};
-
-export const getRoomCharacters = (
-  room: Pick<TavernRoom, "characterIds">,
-  roomCharacterById: Map<string, TavernCharacter>,
-) =>
-  room.characterIds
-    .map((characterId) => roomCharacterById.get(characterId))
-    .filter((character): character is TavernCharacter => Boolean(character));
-
-export const getActiveTaskCount = (room: Pick<TavernRoom, "taskSnapshot">) =>
-  Object.values(room.taskSnapshot).filter((task) => task.status !== "inactive").length;
-
-export const getOutcomeEventCount = (room: Pick<TavernRoom, "outcomeEvents">) =>
-  room.outcomeEvents.filter((event) => event.status !== "dismissed").length;
-
-export const getStatusEventCounts = (room: Pick<TavernRoom, "statusEvents">) => ({
-  applied: room.statusEvents.filter((event) => event.status === "applied").length,
-  pending: room.statusEvents.filter((event) => event.status === "pending").length,
-});
 
 export const getProgressPlacementText = (room: Pick<TavernRoom, "progressViews">) =>
   Array.from(new Set(room.progressViews.map((view) => view.placement))).join("、");
@@ -74,26 +41,6 @@ export const parseKeywords = (value: string) =>
     .split(/[,，\n]/)
     .map((keyword) => keyword.trim())
     .filter(Boolean);
-
-export const cloneRoomCharacterConfigs = (
-  configs: Record<string, TavernRoomCharacterConfig> | undefined,
-): Record<string, TavernRoomCharacterConfig> =>
-  Object.fromEntries(
-    Object.entries(configs ?? {}).map(([characterId, config]) => [
-      characterId,
-      {
-        ...config,
-      },
-    ]),
-  );
-
-export const characterMemoriesFromConfigs = (configs: Record<string, TavernRoomCharacterConfig>) =>
-  Object.fromEntries(
-    Object.entries(configs).flatMap(([characterId, config]) => {
-      const memory = config.memory?.trim() ?? "";
-      return memory ? [[characterId, memory]] : [];
-    }),
-  );
 
 export const editorControlClassName = "w-full bg-background/80 shadow-none";
 export const settingsFlagGridClassName = "grid grid-cols-[repeat(auto-fit,minmax(16rem,1fr))] gap-2";
@@ -401,77 +348,40 @@ export const cloneTavernRoomSettings = (settings: TavernRoomSettings): TavernRoo
   },
 });
 
-export const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
-  ...room,
-  settings: cloneTavernRoomSettings(room.settings),
-  ...cloneTavernRuntimeStoryProjectionFields(room),
-  characterConfigs: cloneRoomCharacterConfigs(room.characterConfigs),
-  characterMemories: { ...room.characterMemories },
-  scenes:
-    room.scenes?.map((scene) => ({
-      ...scene,
-      characterConfigs: cloneRoomCharacterConfigs(scene.characterConfigs),
-      characterMemories: { ...scene.characterMemories },
-      characterIds: [...scene.characterIds],
-      assetDrafts: scene.assetDrafts.map((draft) => ({
-        ...draft,
-        sourceMessageIds: [...draft.sourceMessageIds],
-        characterMemories: draft.characterMemories.map((memory) => ({ ...memory })),
-        lorebookEntries: draft.lorebookEntries.map((entry) => ({
-          ...entry,
-          keywords: [...entry.keywords],
-        })),
-      })),
-      illustrationHints: scene.illustrationHints.map((hint) => ({
-        ...hint,
-        sourceMessageIds: [...hint.sourceMessageIds],
-      })),
-    })) ?? [],
-  assetDrafts: room.assetDrafts.map((draft) => ({
-    ...draft,
-    sourceMessageIds: [...draft.sourceMessageIds],
-    characterMemories: draft.characterMemories.map((memory) => ({ ...memory })),
-    lorebookEntries: draft.lorebookEntries.map((entry) => ({
-      ...entry,
-      keywords: [...entry.keywords],
-    })),
-  })),
-  illustrationHints: room.illustrationHints.map((hint) => ({
-    ...hint,
-    sourceMessageIds: [...hint.sourceMessageIds],
-  })),
+const cloneTavernPromptBlock = (block: TavernPromptBlock): TavernPromptBlock => ({
+  ...block,
+  source: block.source ? { ...block.source } : undefined,
 });
 
-export const prepareTavernRoomForSave = (room: TavernRoom): TavernRoom => {
-  const characterConfigs = cloneRoomCharacterConfigs(room.characterConfigs);
-  const characterMemories = characterMemoriesFromConfigs(characterConfigs);
-  const storyProjectionFields = cloneTavernRuntimeStoryProjectionFields(room);
-  const scenes = room.scenes?.map((scene) => {
-    const sceneCharacterConfigs = cloneRoomCharacterConfigs(scene.characterConfigs);
+export const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
+  ...room,
+  presentation: { ...room.presentation },
+  prompt: {
+    version: 1,
+    blocks: room.prompt.blocks.map(cloneTavernPromptBlock),
+  },
+  statusDefinitions: room.statusDefinitions.map((definition) => ({ ...definition })),
+  statusRules: room.statusRules.map((rule) => ({
+    ...rule,
+    when: { ...rule.when },
+    apply: {
+      ...rule.apply,
+      clamp: rule.apply.clamp ? [...rule.apply.clamp] : undefined,
+      valueByIntensity: rule.apply.valueByIntensity ? { ...rule.apply.valueByIntensity } : undefined,
+    },
+    safeguards: rule.safeguards ? { ...rule.safeguards } : undefined,
+  })),
+  progressViews: room.progressViews.map((view) => ({
+    ...view,
+    items: view.items.map((item) => ({ ...item })),
+  })),
+  progressTracker: { ...room.progressTracker },
+  taskDefinitions: room.taskDefinitions.map((task) => ({ ...task })),
+  sceneOutcomes: room.sceneOutcomes.map((outcome) => ({ ...outcome })),
+  settings: cloneTavernRoomSettings(room.settings),
+});
 
-    return {
-      ...scene,
-      characterConfigs: sceneCharacterConfigs,
-      characterMemories: characterMemoriesFromConfigs(sceneCharacterConfigs),
-    };
-  });
-
-  const syncedRoom = syncTavernRoomActiveScene({
-    ...room,
-    scenes,
-    characterConfigs,
-    characterMemories,
-    localCharacters: storyProjectionFields.localCharacters,
-  });
-
-  return projectTavernSceneOntoRoom({
-    ...syncedRoom,
-    scenes: (syncedRoom.scenes ?? []).map((scene, index) => ({
-      ...scene,
-      order: index,
-    })),
-  });
-};
+export const prepareTavernRoomForSave = (room: TavernRoom): TavernRoom => cloneTavernRoom(room);
 
 export const applyInformationPolicyModePreset = (
   mode: TavernRoomSettings["informationPolicy"]["mode"],

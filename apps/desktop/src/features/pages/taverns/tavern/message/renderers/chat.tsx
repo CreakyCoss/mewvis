@@ -16,9 +16,7 @@ export const chatConversationRenderer: TavernConversationRenderer = {
       {messages.map((message) => (
         <Fragment key={message.id}>
           <MessageRow message={message} />
-          {shouldShowExecutionTrace && message.id === executionTraceAnchorMessageId && (
-            renderExecutionTrace()
-          )}
+          {shouldShowExecutionTrace && message.id === executionTraceAnchorMessageId && renderExecutionTrace()}
         </Fragment>
       ))}
       {shouldShowExecutionTrace && !hasExecutionTraceAnchor && renderExecutionTrace()}

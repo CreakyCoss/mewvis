@@ -18,39 +18,25 @@ import {
   taskScopeLabels,
   taskStatusLabels,
 } from "../helpers";
-import {
-  EmptyDetailState,
-  PlotDataSheet,
-  type PlotDataDialogProps,
-} from "./shared";
+import { EmptyDetailState, PlotDataSheet, type PlotDataDialogProps } from "./shared";
 
 export const TasksOutcomesDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
-  const {
-    activeRoom,
-    roomCharacters,
-    patchRoom,
-    reportError,
-    appendProgressCheckpointToRoom,
-  } = useTavernRoomContext();
+  const { activeRoom, roomCharacters, patchRoom, reportError, appendProgressCheckpointToRoom } = useTavernRoomContext();
   const characterNameById = new Map(roomCharacters.map((character) => [character.id, character.name]));
-  const visibleTaskDefinitions = activeRoom?.taskDefinitions.filter((task) =>
-    isTavernProgressVisibilityVisibleToUser(task.visibility)
-  ) ?? [];
-  const visibleSceneOutcomes = activeRoom?.sceneOutcomes.filter((outcome) =>
-    isTavernProgressVisibilityVisibleToUser(outcome.visibility)
-  ) ?? [];
-  const recentTaskEvents = activeRoom?.taskEvents
-    .filter((event) => {
-      const task = activeRoom.taskDefinitions.find((definition) => definition.id === event.taskId);
-      return task ? isTavernProgressVisibilityVisibleToUser(task.visibility) : true;
-    })
-    .slice(-8)
-    .reverse() ?? [];
+  const visibleTaskDefinitions =
+    activeRoom?.taskDefinitions.filter((task) => isTavernProgressVisibilityVisibleToUser(task.visibility)) ?? [];
+  const visibleSceneOutcomes =
+    activeRoom?.sceneOutcomes.filter((outcome) => isTavernProgressVisibilityVisibleToUser(outcome.visibility)) ?? [];
+  const recentTaskEvents =
+    activeRoom?.taskEvents
+      .filter((event) => {
+        const task = activeRoom.taskDefinitions.find((definition) => definition.id === event.taskId);
+        return task ? isTavernProgressVisibilityVisibleToUser(task.visibility) : true;
+      })
+      .slice(-8)
+      .reverse() ?? [];
 
-  const resolvePendingOutcome = (
-    outcomeEventId: string,
-    resolution: "applied" | "dismissed",
-  ) => {
+  const resolvePendingOutcome = (outcomeEventId: string, resolution: "applied" | "dismissed") => {
     if (!activeRoom) {
       return;
     }
@@ -81,11 +67,7 @@ export const TasksOutcomesDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
   };
 
   return (
-    <PlotDataSheet
-      bind={bind}
-      title="任务与结局"
-      description="查看个人、团队、全局任务与场景胜负条件。"
-    >
+    <PlotDataSheet bind={bind} title="任务与结局" description="查看个人、团队、全局任务与场景胜负条件。">
       <div className="space-y-5">
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
@@ -102,8 +84,8 @@ export const TasksOutcomesDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
                 const progressText = state?.progress
                   ? `${state.progress.current}/${state.progress.target}`
                   : task.progress?.target
-                  ? `0/${task.progress.target}`
-                  : "";
+                    ? `0/${task.progress.target}`
+                    : "";
                 return (
                   <div key={task.id} className="rounded-md border bg-current/[0.065] dark:bg-current/[0.09] p-3">
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -115,14 +97,10 @@ export const TasksOutcomesDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
                         {taskStatusLabels[status]}
                       </span>
                       {task.required && (
-                        <span className="rounded-md bg-current/10 px-1.5 py-0.5 text-[11px] text-current/70">
-                          必做
-                        </span>
+                        <span className="rounded-md bg-current/10 px-1.5 py-0.5 text-[11px] text-current/70">必做</span>
                       )}
                       {task.optional && (
-                        <span className="rounded-md bg-current/10 px-1.5 py-0.5 text-[11px] text-current/70">
-                          支线
-                        </span>
+                        <span className="rounded-md bg-current/10 px-1.5 py-0.5 text-[11px] text-current/70">支线</span>
                       )}
                     </div>
                     {task.description?.trim() && (
@@ -132,14 +110,11 @@ export const TasksOutcomesDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
                     )}
                     <div className="mt-2 grid gap-1.5 text-xs text-current/70">
                       {progressText && <div>进度：{progressText}</div>}
-                      <div>
-                        负责人：{formatEntityRef(task.owner, characterNameById)}
-                      </div>
+                      <div>负责人：{formatEntityRef(task.owner, characterNameById)}</div>
                       {task.participants?.length ? (
                         <div>
-                          参与者：{task.participants.map((entity) =>
-                            formatEntityRef(entity, characterNameById)
-                          ).join("、")}
+                          参与者：
+                          {task.participants.map((entity) => formatEntityRef(entity, characterNameById)).join("、")}
                         </div>
                       ) : null}
                       <div>开始：{formatConditionSummary(task.lifecycle.startCondition, characterNameById)}</div>
@@ -165,11 +140,14 @@ export const TasksOutcomesDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
           {visibleSceneOutcomes.length > 0 ? (
             <div className="space-y-3">
               {visibleSceneOutcomes.map((outcome) => {
-                const event = activeRoom?.outcomeEvents.find((candidate) =>
-                  candidate.outcomeId === outcome.id && candidate.status !== "dismissed"
+                const event = activeRoom?.outcomeEvents.find(
+                  (candidate) => candidate.outcomeId === outcome.id && candidate.status !== "dismissed",
                 );
                 return (
-                  <div key={outcome.id} className="space-y-3 rounded-md border bg-current/[0.065] dark:bg-current/[0.09] p-3">
+                  <div
+                    key={outcome.id}
+                    className="space-y-3 rounded-md border bg-current/[0.065] dark:bg-current/[0.09] p-3"
+                  >
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="text-sm font-medium">{outcome.label}</span>
                       <span className="rounded-md bg-current/10 px-1.5 py-0.5 text-[11px] text-current/70">
@@ -185,8 +163,16 @@ export const TasksOutcomesDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
                       )}
                     </div>
                     <div className="grid gap-1.5 text-xs text-current/70">
-                      <div>胜利：{outcome.winner?.map((entity) => formatEntityRef(entity, characterNameById)).join("、") || "未指定"}</div>
-                      <div>失败：{outcome.loser?.map((entity) => formatEntityRef(entity, characterNameById)).join("、") || "未指定"}</div>
+                      <div>
+                        胜利：
+                        {outcome.winner?.map((entity) => formatEntityRef(entity, characterNameById)).join("、") ||
+                          "未指定"}
+                      </div>
+                      <div>
+                        失败：
+                        {outcome.loser?.map((entity) => formatEntityRef(entity, characterNameById)).join("、") ||
+                          "未指定"}
+                      </div>
                       <div>条件：{formatConditionSummary(outcome.condition, characterNameById)}</div>
                     </div>
                     {event?.status === "pending" && (
@@ -244,9 +230,7 @@ export const TasksOutcomesDialog = ({ bind, isBusy }: PlotDataDialogProps) => {
                         {taskStatusLabels[event.after.status]}
                       </span>
                     </div>
-                    <div className="mt-2 whitespace-pre-wrap text-xs leading-5 text-current/70">
-                      {event.reason}
-                    </div>
+                    <div className="mt-2 whitespace-pre-wrap text-xs leading-5 text-current/70">{event.reason}</div>
                   </div>
                 );
               })}

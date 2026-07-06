@@ -26,8 +26,8 @@ import type {
   TavernAssetDraft,
   TavernPendingInteraction,
   TavernReplyOption,
-  TavernScene,
 } from "@/features/pages/taverns/manage/model";
+import type { TavernScene } from "@/features/pages/taverns/room/model";
 
 export const defaultSceneTitle = "默认场景";
 

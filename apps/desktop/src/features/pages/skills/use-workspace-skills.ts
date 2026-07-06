@@ -8,9 +8,7 @@ import {
   saveWorkspaceSkills,
   searchSkillMarketplace,
 } from "@/features/pages/skills/api";
-import {
-  useSkillsStore,
-} from "@/features/pages/skills/store";
+import { useSkillsStore } from "@/features/pages/skills/store";
 import type {
   InstallSkillInput,
   RemoveSkillInput,
@@ -83,133 +81,134 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
     void loadWorkspaceSkills();
   }, [loadWorkspaceSkills]);
 
-  const persistSkillSettings = useCallback(async (
-    nextSkillGroups: WorkspaceSkillGroup[],
-    nextDefaultSkillGroupId: string,
-  ) => {
-    setIsSkillsSaving(true);
-    setSkillsError("");
+  const persistSkillSettings = useCallback(
+    async (nextSkillGroups: WorkspaceSkillGroup[], nextDefaultSkillGroupId: string) => {
+      setIsSkillsSaving(true);
+      setSkillsError("");
 
-    try {
-      const settings = await saveWorkspaceSkills(
-        workspaceId,
-        toSaveSkillGroups(nextSkillGroups),
-        nextDefaultSkillGroupId,
-      );
-      setWorkspaceSkillSettings(settings);
-    } catch (caught) {
-      setSkillsError(String(caught));
-      resetDrafts();
-    } finally {
-      setIsSkillsSaving(false);
-    }
-  }, [resetDrafts, setWorkspaceSkillSettings, workspaceId]);
-
-  const updateSkillGroups = useCallback((
-    groups: WorkspaceSkillGroup[],
-    nextDefaultSkillGroupId = defaultSkillGroupId,
-  ) => {
-    setSkillGroups(groups);
-    setDefaultSkillGroupId(nextDefaultSkillGroupId);
-    void persistSkillSettings(groups, nextDefaultSkillGroupId);
-  }, [
-    defaultSkillGroupId,
-    persistSkillSettings,
-    setDefaultSkillGroupId,
-    setSkillGroups,
-  ]);
-
-  const updateDefaultSkillGroup = useCallback((nextDefaultSkillGroupId: string) => {
-    setDefaultSkillGroupId(nextDefaultSkillGroupId);
-    void persistSkillSettings(skillGroups, nextDefaultSkillGroupId);
-  }, [persistSkillSettings, setDefaultSkillGroupId, skillGroups]);
-
-  const searchMarketplace = useCallback(async (input: SearchSkillMarketplaceInput) => {
-    const normalizedInput = {
-      ...input,
-      page: input.page ?? 1,
-      limit: input.limit ?? 12,
-    };
-    const isAppend = normalizedInput.append === true;
-
-    if (!isAppend && restoreMarketplaceCache(normalizedInput)) {
-      return;
-    }
-
-    if (isAppend) {
-      setIsSkillMarketplaceLoadingMore(true);
-    } else {
-      setIsSkillMarketplaceSearching(true);
-    }
-    setSkillsError("");
-
-    try {
-      const result = await searchSkillMarketplace(normalizedInput);
-      setMarketplaceSearchResult(normalizedInput, result);
-    } catch (caught) {
-      setSkillsError(String(caught));
-    } finally {
-      if (isAppend) {
-        setIsSkillMarketplaceLoadingMore(false);
-      } else {
-        setIsSkillMarketplaceSearching(false);
+      try {
+        const settings = await saveWorkspaceSkills(
+          workspaceId,
+          toSaveSkillGroups(nextSkillGroups),
+          nextDefaultSkillGroupId,
+        );
+        setWorkspaceSkillSettings(settings);
+      } catch (caught) {
+        setSkillsError(String(caught));
+        resetDrafts();
+      } finally {
+        setIsSkillsSaving(false);
       }
-    }
-  }, [restoreMarketplaceCache, setMarketplaceSearchResult]);
+    },
+    [resetDrafts, setWorkspaceSkillSettings, workspaceId],
+  );
 
-  const installMarketplaceSkill = useCallback(async (input: InstallSkillInput) => {
-    setIsSkillInstalling(true);
-    setSkillsError("");
+  const updateSkillGroups = useCallback(
+    (groups: WorkspaceSkillGroup[], nextDefaultSkillGroupId = defaultSkillGroupId) => {
+      setSkillGroups(groups);
+      setDefaultSkillGroupId(nextDefaultSkillGroupId);
+      void persistSkillSettings(groups, nextDefaultSkillGroupId);
+    },
+    [defaultSkillGroupId, persistSkillSettings, setDefaultSkillGroupId, setSkillGroups],
+  );
 
-    try {
-      const installedSkill = await installSkillFromMarketplace(input);
-      await loadWorkspaceSkills();
-      toast.success("技能导入成功", {
-        description: `${installedSkill.name} 已添加到 Skill库`,
-      });
-    } catch (caught) {
-      setSkillsError(String(caught));
-    } finally {
-      setIsSkillInstalling(false);
-    }
-  }, [loadWorkspaceSkills]);
+  const updateDefaultSkillGroup = useCallback(
+    (nextDefaultSkillGroupId: string) => {
+      setDefaultSkillGroupId(nextDefaultSkillGroupId);
+      void persistSkillSettings(skillGroups, nextDefaultSkillGroupId);
+    },
+    [persistSkillSettings, setDefaultSkillGroupId, skillGroups],
+  );
 
-  const removeMarketplaceSkill = useCallback(async (input: RemoveSkillInput) => {
-    setIsSkillRemoving(true);
-    setSkillsError("");
+  const searchMarketplace = useCallback(
+    async (input: SearchSkillMarketplaceInput) => {
+      const normalizedInput = {
+        ...input,
+        page: input.page ?? 1,
+        limit: input.limit ?? 12,
+      };
+      const isAppend = normalizedInput.append === true;
 
-    try {
-      const removedSkill = await removeAppSkill(input);
-      const nextSkillGroups = skillGroups.map((group) =>
-        group.source === "custom"
-          ? {
-              ...group,
-              skills: group.skills.filter((skill) => skill.key !== removedSkill.key),
-            }
-          : group,
-      );
-      const settings = await saveWorkspaceSkills(
-        workspaceId,
-        toSaveSkillGroups(nextSkillGroups),
-        defaultSkillGroupId,
-      );
-      setWorkspaceSkillSettings(settings);
-      toast.success("技能已移除", {
-        description: `${removedSkill.name} 已从 Skill库移除`,
-      });
-    } catch (caught) {
-      setSkillsError(String(caught));
-      await loadWorkspaceSkills();
-    } finally {
-      setIsSkillRemoving(false);
-    }
-  }, [
-    loadWorkspaceSkills,
-    defaultSkillGroupId,
-    setWorkspaceSkillSettings,
-    skillGroups,
-    workspaceId,
-  ]);
+      if (!isAppend && restoreMarketplaceCache(normalizedInput)) {
+        return;
+      }
+
+      if (isAppend) {
+        setIsSkillMarketplaceLoadingMore(true);
+      } else {
+        setIsSkillMarketplaceSearching(true);
+      }
+      setSkillsError("");
+
+      try {
+        const result = await searchSkillMarketplace(normalizedInput);
+        setMarketplaceSearchResult(normalizedInput, result);
+      } catch (caught) {
+        setSkillsError(String(caught));
+      } finally {
+        if (isAppend) {
+          setIsSkillMarketplaceLoadingMore(false);
+        } else {
+          setIsSkillMarketplaceSearching(false);
+        }
+      }
+    },
+    [restoreMarketplaceCache, setMarketplaceSearchResult],
+  );
+
+  const installMarketplaceSkill = useCallback(
+    async (input: InstallSkillInput) => {
+      setIsSkillInstalling(true);
+      setSkillsError("");
+
+      try {
+        const installedSkill = await installSkillFromMarketplace(input);
+        await loadWorkspaceSkills();
+        toast.success("技能导入成功", {
+          description: `${installedSkill.name} 已添加到 Skill库`,
+        });
+      } catch (caught) {
+        setSkillsError(String(caught));
+      } finally {
+        setIsSkillInstalling(false);
+      }
+    },
+    [loadWorkspaceSkills],
+  );
+
+  const removeMarketplaceSkill = useCallback(
+    async (input: RemoveSkillInput) => {
+      setIsSkillRemoving(true);
+      setSkillsError("");
+
+      try {
+        const removedSkill = await removeAppSkill(input);
+        const nextSkillGroups = skillGroups.map((group) =>
+          group.source === "custom"
+            ? {
+                ...group,
+                skills: group.skills.filter((skill) => skill.key !== removedSkill.key),
+              }
+            : group,
+        );
+        const settings = await saveWorkspaceSkills(
+          workspaceId,
+          toSaveSkillGroups(nextSkillGroups),
+          defaultSkillGroupId,
+        );
+        setWorkspaceSkillSettings(settings);
+        toast.success("技能已移除", {
+          description: `${removedSkill.name} 已从 Skill库移除`,
+        });
+      } catch (caught) {
+        setSkillsError(String(caught));
+        await loadWorkspaceSkills();
+      } finally {
+        setIsSkillRemoving(false);
+      }
+    },
+    [loadWorkspaceSkills, defaultSkillGroupId, setWorkspaceSkillSettings, skillGroups, workspaceId],
+  );
 
   return {
     skills,
@@ -235,18 +234,15 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
   };
 };
 
-const toSaveSkillGroups = (
-  groups: WorkspaceSkillGroup[],
-): SaveWorkspaceSkillGroupInput[] =>
-  groups
-    .map((group) => ({
-      id: group.id,
-      name: group.name,
-      description: group.description,
-      source: group.source,
-      readonly: group.readonly,
-      skills: group.skills.map((skill) => ({
-        key: skill.key,
-        disabled: skill.disabled === true,
-      })),
-    }));
+const toSaveSkillGroups = (groups: WorkspaceSkillGroup[]): SaveWorkspaceSkillGroupInput[] =>
+  groups.map((group) => ({
+    id: group.id,
+    name: group.name,
+    description: group.description,
+    source: group.source,
+    readonly: group.readonly,
+    skills: group.skills.map((skill) => ({
+      key: skill.key,
+      disabled: skill.disabled === true,
+    })),
+  }));

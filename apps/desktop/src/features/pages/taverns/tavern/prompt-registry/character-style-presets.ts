@@ -1,8 +1,5 @@
 export type TavernCharacterStylePresetId =
-  | "natural-roleplay"
-  | "cinematic-inner"
-  | "light-banter"
-  | "restrained-realistic";
+  "natural-roleplay" | "cinematic-inner" | "light-banter" | "restrained-realistic";
 
 export type TavernCharacterStylePreset = {
   id: TavernCharacterStylePresetId;
@@ -13,8 +10,7 @@ export type TavernCharacterStylePreset = {
   replyStylePrompt: string;
 };
 
-export const DEFAULT_TAVERN_CHARACTER_STYLE_PRESET_ID: TavernCharacterStylePresetId =
-  "natural-roleplay";
+export const DEFAULT_TAVERN_CHARACTER_STYLE_PRESET_ID: TavernCharacterStylePresetId = "natural-roleplay";
 
 export const TAVERN_CHARACTER_STYLE_PRESETS: TavernCharacterStylePreset[] = [
   {
@@ -23,7 +19,8 @@ export const TAVERN_CHARACTER_STYLE_PRESETS: TavernCharacterStylePreset[] = [
     description: "适合多数互动酒馆，重点保持人设和自然对白。",
     speakingStyle: "自然回应，符合角色身份、情绪和当前关系；不替用户说话，不抢先总结用户意图。",
     writingStyle: "以角色可感知的动作、神态、语气和短句心理为主；环境描写服务当前互动，不堆砌氛围。",
-    replyStylePrompt: "每次回复先判断角色是否知道相关事实；只输出角色自己的话语、动作和可见反应。需要沉默时，用动作或神态表达，不用旁白代替角色决策。",
+    replyStylePrompt:
+      "每次回复先判断角色是否知道相关事实；只输出角色自己的话语、动作和可见反应。需要沉默时，用动作或神态表达，不用旁白代替角色决策。",
   },
   {
     id: "cinematic-inner",
@@ -31,7 +28,8 @@ export const TAVERN_CHARACTER_STYLE_PRESETS: TavernCharacterStylePreset[] = [
     description: "适合情绪张力、悬疑、恋爱拉扯或剧情向角色。",
     speakingStyle: "对白有停顿、试探和情绪余味；重要信息不一次性倒完，保留角色自己的顾虑和判断。",
     writingStyle: "用近景动作、细微表情、内心闪念和场景声光承载情绪；避免解释性总结，优先让细节说话。",
-    replyStylePrompt: "公开内容里可以写少量心理活动，但必须贴合当前刺激和角色性格；结尾留下可被用户接住的动作、问题或选择。",
+    replyStylePrompt:
+      "公开内容里可以写少量心理活动，但必须贴合当前刺激和角色性格；结尾留下可被用户接住的动作、问题或选择。",
   },
   {
     id: "light-banter",
@@ -51,21 +49,14 @@ export const TAVERN_CHARACTER_STYLE_PRESETS: TavernCharacterStylePreset[] = [
   },
 ];
 
-const characterStylePresetIds = new Set(
-  TAVERN_CHARACTER_STYLE_PRESETS.map((preset) => preset.id),
-);
+const characterStylePresetIds = new Set(TAVERN_CHARACTER_STYLE_PRESETS.map((preset) => preset.id));
 
-export const normalizeTavernCharacterStylePresetId = (
-  value: unknown,
-): TavernCharacterStylePresetId =>
+export const normalizeTavernCharacterStylePresetId = (value: unknown): TavernCharacterStylePresetId =>
   typeof value === "string" && characterStylePresetIds.has(value as TavernCharacterStylePresetId)
-    ? value as TavernCharacterStylePresetId
+    ? (value as TavernCharacterStylePresetId)
     : DEFAULT_TAVERN_CHARACTER_STYLE_PRESET_ID;
 
-export const getTavernCharacterStylePreset = (
-  value: unknown,
-): TavernCharacterStylePreset => {
+export const getTavernCharacterStylePreset = (value: unknown): TavernCharacterStylePreset => {
   const id = normalizeTavernCharacterStylePresetId(value);
-  return TAVERN_CHARACTER_STYLE_PRESETS.find((preset) => preset.id === id) ??
-    TAVERN_CHARACTER_STYLE_PRESETS[0];
+  return TAVERN_CHARACTER_STYLE_PRESETS.find((preset) => preset.id === id) ?? TAVERN_CHARACTER_STYLE_PRESETS[0];
 };

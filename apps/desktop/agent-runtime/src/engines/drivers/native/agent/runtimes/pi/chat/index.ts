@@ -1,54 +1,31 @@
-import {
-  completeSimple,
-  streamSimple,
-  type AssistantMessage,
-  type SimpleStreamOptions,
-} from "@earendil-works/pi-ai";
+import { completeSimple, streamSimple, type AssistantMessage, type SimpleStreamOptions } from "@earendil-works/pi-ai";
 import { AgentEventType } from "../../../../../../protocol/index.js";
-import type {
-  ChatRunResult,
-  ChatRuntime,
-  ChatRuntimeContext,
-  ChatRunCommand,
-} from "../../types.js";
+import type { ChatRunResult, ChatRuntime, ChatRuntimeContext, ChatRunCommand } from "../../types.js";
 import {
   createPiRuntimeModel,
   requirePiApiKey,
   requirePiRuntimeConfig,
   resolvePiRuntimeThinkingLevel,
 } from "../model/index.js";
-import {
-  createPiChatContext,
-  createPiChatResult,
-} from "./messages.js";
+import { createPiChatContext, createPiChatResult } from "./messages.js";
 
 export class PiChatRuntime implements ChatRuntime {
   readonly id = "pi-ai";
 
   async chat(command: ChatRunCommand, context: ChatRuntimeContext): Promise<ChatRunResult> {
-    return command.stream === false
-      ? this.complete(command, context)
-      : this.stream(command, context);
+    return command.stream === false ? this.complete(command, context) : this.stream(command, context);
   }
 
   private async complete(command: ChatRunCommand, context: ChatRuntimeContext): Promise<ChatRunResult> {
     const request = this.createRequest(command, context);
-    const message = await completeSimple(
-      request.model,
-      request.chatContext,
-      request.options,
-    );
+    const message = await completeSimple(request.model, request.chatContext, request.options);
 
     return createPiChatResult(message);
   }
 
   private async stream(command: ChatRunCommand, context: ChatRuntimeContext): Promise<ChatRunResult> {
     const request = this.createRequest(command, context);
-    const stream = streamSimple(
-      request.model,
-      request.chatContext,
-      request.options,
-    );
+    const stream = streamSimple(request.model, request.chatContext, request.options);
     let message: AssistantMessage | null = null;
 
     for await (const event of stream) {

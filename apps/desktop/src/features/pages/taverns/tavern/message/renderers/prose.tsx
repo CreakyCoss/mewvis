@@ -1,9 +1,7 @@
 import { Loader2 } from "lucide-react";
 import { SmoothMarkdownContent } from "@/features/ai/components/markdown";
 import { cn } from "@/lib/utils";
-import {
-  formatTavernMessageSegmentsForDisplay,
-} from "../domain/segments";
+import { formatTavernMessageSegmentsForDisplay } from "../domain/segments";
 import type { TavernRenderableMessage } from "../domain/render-model";
 import { MessageControls } from "../components/message-controls";
 import { MessagePrivateIntel } from "../components/message-private-intel";
@@ -28,19 +26,19 @@ const proseTextClassName: Record<TavernRenderableMessage["role"], string> = {
   user: "text-current opacity-80",
 };
 
-const ProseMessage = ({
-  message,
-}: {
-  message: TavernRenderableMessage;
-}) => {
-  const content = formatTavernMessageSegmentsForDisplay(message.segments, {
-    includeThoughts: false,
-  }).trim() || message.content.trim();
-  const thought = message.segments
-    .filter((segment) => segment.type === "thought")
-    .map((segment) => segment.text.trim())
-    .filter(Boolean)
-    .join("\n\n") || message.thought?.trim() || "";
+const ProseMessage = ({ message }: { message: TavernRenderableMessage }) => {
+  const content =
+    formatTavernMessageSegmentsForDisplay(message.segments, {
+      includeThoughts: false,
+    }).trim() || message.content.trim();
+  const thought =
+    message.segments
+      .filter((segment) => segment.type === "thought")
+      .map((segment) => segment.text.trim())
+      .filter(Boolean)
+      .join("\n\n") ||
+    message.thought?.trim() ||
+    "";
   const copyContent = thought ? `${content}\n\n（${thought}）` : content;
 
   if (!content && !thought && message.status !== "streaming") {
@@ -48,15 +46,8 @@ const ProseMessage = ({
   }
 
   return (
-    <article
-      className={cn(
-        "group/message relative w-full py-2 pl-0 pr-9 sm:pr-12",
-        proseBlockClassName[message.role],
-      )}
-    >
-      <header
-        className="pointer-events-none absolute left-0 top-0 z-10 flex min-w-0 -translate-y-1/2 items-center gap-2 rounded-sm bg-background/80 px-1 text-[11px] leading-4 text-current opacity-0 shadow-sm backdrop-blur transition-opacity duration-150 group-hover/message:opacity-70 group-focus-within/message:opacity-70"
-      >
+    <article className={cn("group/message relative w-full py-2 pl-0 pr-9 sm:pr-12", proseBlockClassName[message.role])}>
+      <header className="pointer-events-none absolute left-0 top-0 z-10 flex min-w-0 -translate-y-1/2 items-center gap-2 rounded-sm bg-background/80 px-1 text-[11px] leading-4 text-current opacity-0 shadow-sm backdrop-blur transition-opacity duration-150 group-hover/message:opacity-70 group-focus-within/message:opacity-70">
         <span className="shrink-0 font-medium">
           {message.role === "character" ? message.speakerName : roleLabel[message.role]}
         </span>
@@ -80,9 +71,7 @@ const ProseMessage = ({
 
       {thought && (
         <div className="mt-2 border-l border-dashed border-current/25 pl-3">
-          <p
-            className="whitespace-pre-wrap break-words font-serif text-xs leading-6 text-current opacity-70 italic"
-          >
+          <p className="whitespace-pre-wrap break-words font-serif text-xs leading-6 text-current opacity-70 italic">
             {thought}
           </p>
         </div>
@@ -107,18 +96,11 @@ export const proseConversationRenderer: TavernConversationRenderer = {
     renderExecutionTrace,
     messageEndRef,
   }) => (
-    <div
-      className={cn(
-        "mx-auto flex w-full flex-col gap-1 py-1",
-        isSidePanelOpen ? "max-w-[44rem]" : "max-w-[46rem]",
-      )}
-    >
+    <div className={cn("mx-auto flex w-full flex-col gap-1 py-1", isSidePanelOpen ? "max-w-[44rem]" : "max-w-[46rem]")}>
       {messages.map((message) => (
         <div key={message.id} className="contents">
           <ProseMessage message={message} />
-          {shouldShowExecutionTrace && message.id === executionTraceAnchorMessageId && (
-            renderExecutionTrace()
-          )}
+          {shouldShowExecutionTrace && message.id === executionTraceAnchorMessageId && renderExecutionTrace()}
         </div>
       ))}
       {shouldShowExecutionTrace && !hasExecutionTraceAnchor && renderExecutionTrace()}

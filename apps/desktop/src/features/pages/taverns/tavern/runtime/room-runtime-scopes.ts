@@ -7,7 +7,7 @@ import {
   resolveRunNodePrefix,
 } from "./story-runtime";
 import { now } from "../ids";
-import type { TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 
 export const ensureTavernRoomRuntimeScopes = (room: TavernRoom): TavernRoom => {
   if (!room.scenes?.length) {

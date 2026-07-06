@@ -1,6 +1,4 @@
-import {
-  loadContextResources,
-} from "@/features/ai/components/context-tools";
+import { loadContextResources } from "@/features/ai/components/context-tools";
 import type { Workspace } from "@/features/pages/workspace/types";
 import { readWorkspaceFile } from "@/features/pages/workspace/files-api";
 import { buildWorkspacePromptContext } from "./prompt-context";
@@ -26,7 +24,10 @@ export type BuildApplicationSystemPromptInput = {
 };
 
 const compactSections = (sections: Array<string | null | undefined>) =>
-  sections.map((section) => section?.trim() ?? "").filter(Boolean).join("\n\n");
+  sections
+    .map((section) => section?.trim() ?? "")
+    .filter(Boolean)
+    .join("\n\n");
 
 export const buildApplicationPromptParts = async ({
   workspace,
@@ -52,10 +53,10 @@ export const buildApplicationPromptParts = async ({
 
   const selectedAgentProfile = selectedAgent?.name
     ? {
-      id: selectedAgent.id ?? undefined,
-      name: selectedAgent.name,
-      description: selectedAgent.description ?? null,
-    }
+        id: selectedAgent.id ?? undefined,
+        name: selectedAgent.name,
+        description: selectedAgent.description ?? null,
+      }
     : null;
 
   return {

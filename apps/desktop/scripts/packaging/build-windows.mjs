@@ -26,10 +26,7 @@ const env = { ...process.env };
 const isWindowsHost = platform() === "win32";
 env.NODE_RUNTIME_TARGET = target.nodeTarget;
 
-prependExistingPath(env, [
-  "/opt/homebrew/opt/llvm/bin",
-  "/usr/local/opt/llvm/bin",
-]);
+prependExistingPath(env, ["/opt/homebrew/opt/llvm/bin", "/usr/local/opt/llvm/bin"]);
 
 if (!isWindowsHost) {
   ensureCommand("cargo-xwin", [

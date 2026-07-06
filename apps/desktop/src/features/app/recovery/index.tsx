@@ -11,10 +11,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  getConfigDatabaseStatus,
-  rebuildConfigDatabase,
-} from "./api";
+import { getConfigDatabaseStatus, rebuildConfigDatabase } from "./api";
 import type { ConfigDatabaseStatus } from "./types";
 
 type ConfigDatabaseDialogProps = {
@@ -27,9 +24,7 @@ function revealItemInDir(path: string) {
   });
 }
 
-export const ConfigDatabaseDialog = ({
-  onRecovered,
-}: ConfigDatabaseDialogProps) => {
+export const ConfigDatabaseDialog = ({ onRecovered }: ConfigDatabaseDialogProps) => {
   const shouldCheckConfigDatabase = isTauri();
   const [status, setStatus] = useState<ConfigDatabaseStatus | null>(null);
   const [statusLoadError, setStatusLoadError] = useState("");
@@ -83,9 +78,7 @@ export const ConfigDatabaseDialog = ({
     }
   };
 
-  const setupError = shouldCheckConfigDatabase
-    ? status?.setupError ?? statusLoadError
-    : "";
+  const setupError = shouldCheckConfigDatabase ? (status?.setupError ?? statusLoadError) : "";
   const rebuildWarnings = status?.lastRebuild?.warnings ?? [];
   const shouldShowRecoveredWarnings = !setupError && rebuildWarnings.length > 0;
   const isOpen = Boolean(setupError) || shouldShowRecoveredWarnings;
@@ -113,9 +106,7 @@ export const ConfigDatabaseDialog = ({
           >
             <Database className="size-8" />
           </AlertDialogMedia>
-          <AlertDialogTitle>
-            {setupError ? "配置数据库需要重建" : "配置数据库已重建"}
-          </AlertDialogTitle>
+          <AlertDialogTitle>{setupError ? "配置数据库需要重建" : "配置数据库已重建"}</AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div className="space-y-3 text-left">
               {setupError ? (
@@ -154,12 +145,7 @@ export const ConfigDatabaseDialog = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!status?.configDbPath}
-            onClick={handleReveal}
-          >
+          <Button type="button" variant="outline" disabled={!status?.configDbPath} onClick={handleReveal}>
             <FolderOpen className="size-4" />
             <span>打开位置</span>
           </Button>
@@ -170,11 +156,7 @@ export const ConfigDatabaseDialog = ({
               disabled={!status?.canRebuild || isRebuilding}
               onClick={handleRebuild}
             >
-              {isRebuilding ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Trash2 className="size-4" />
-              )}
+              {isRebuilding ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
               <span>{isRebuilding ? "正在重建" : "删除并重建"}</span>
             </Button>
           ) : (

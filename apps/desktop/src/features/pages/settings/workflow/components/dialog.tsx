@@ -57,13 +57,10 @@ export const CollaborationWorkflowSettingsDialog = ({
     }
   };
 
-  const updateWorkflowStep = (
-    stepId: string,
-    updater: (step: WorkflowStepDraft) => WorkflowStepDraft,
-  ) => {
+  const updateWorkflowStep = (stepId: string, updater: (step: WorkflowStepDraft) => WorkflowStepDraft) => {
     updateWorkflowDraft((current) => ({
       ...current,
-      steps: (current.steps ?? []).map((step) => step.id === stepId ? updater(step) : step),
+      steps: (current.steps ?? []).map((step) => (step.id === stepId ? updater(step) : step)),
     }));
   };
 
@@ -116,9 +113,7 @@ export const CollaborationWorkflowSettingsDialog = ({
               </span>
               <span>协作流程设置</span>
             </DialogTitle>
-            <DialogDescription className="mt-2">
-              配置自定义协作流程、执行角色和步骤。
-            </DialogDescription>
+            <DialogDescription className="mt-2">配置自定义协作流程、执行角色和步骤。</DialogDescription>
           </div>
         </DialogHeader>
 
@@ -224,10 +219,7 @@ export const CollaborationWorkflowSettingsDialog = ({
 
                   <div className="space-y-3">
                     {workflowSteps.map((step, index) => (
-                      <div
-                        key={step.id}
-                        className="space-y-3 rounded-md border bg-card px-3 py-3 shadow-xs"
-                      >
+                      <div key={step.id} className="space-y-3 rounded-md border bg-card px-3 py-3 shadow-xs">
                         <div className="flex items-center justify-between gap-2">
                           <div className="text-sm font-medium">步骤 {index + 1}</div>
                           <div className="flex shrink-0 items-center gap-1">

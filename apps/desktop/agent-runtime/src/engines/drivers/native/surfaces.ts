@@ -45,16 +45,9 @@ import {
   type SummarizeSessionInput,
   type TaskResult,
 } from "../../protocol/index.js";
-import {
-  clearAgentSessionArtifacts,
-  createAgentSessionPlan,
-} from "./agent/artifacts.js";
+import { clearAgentSessionArtifacts, createAgentSessionPlan } from "./agent/artifacts.js";
 import { createUserInputManager } from "./agent/commands/user-input.js";
-import {
-  createAgentToolsResult,
-  createRuntimeModelsResult,
-  createTaskResult,
-} from "./agent/commands/responses.js";
+import { createAgentToolsResult, createRuntimeModelsResult, createTaskResult } from "./agent/commands/responses.js";
 import type { AgentEngine } from "./agent/index.js";
 import type {
   AgentRunCommand,
@@ -71,10 +64,7 @@ import type { CollaborationEngine } from "./collaboration/index.js";
 import type { EmitCollaborationEvent } from "./collaboration/runtimes/types.js";
 import { messageFromError } from "./error.js";
 import type { NativeRuntimeProfile } from "./profile.js";
-import {
-  createRuntimeSessionManager,
-  listRuntimeSessions as listRuntimeSessionSummaries,
-} from "./session/index.js";
+import { createRuntimeSessionManager, listRuntimeSessions as listRuntimeSessionSummaries } from "./session/index.js";
 
 type RuntimeSessionTarget = {
   workspacePath: string;
@@ -91,26 +81,21 @@ const runtimeSessionManagerFor = (
     providerId,
   });
 
-const withoutRuntimeSessionTarget = <
-  TInput extends RuntimeSessionTarget,
->(
+const withoutRuntimeSessionTarget = <TInput extends RuntimeSessionTarget>(
   input: TInput,
 ): Omit<TInput, keyof RuntimeSessionTarget> => {
-  const {
-    workspacePath: _workspacePath,
-    sessionRootDir: _sessionRootDir,
-    ...rest
-  } = input;
+  const { workspacePath: _workspacePath, sessionRootDir: _sessionRootDir, ...rest } = input;
   return rest;
 };
 
 const hasOwn = (value: unknown, key: string) =>
-  Boolean(value) && typeof value === "object" &&
-  Object.prototype.hasOwnProperty.call(value, key);
+  Boolean(value) && typeof value === "object" && Object.prototype.hasOwnProperty.call(value, key);
 
 const assertNoRuntimeSessionDebugOptions = (input: unknown) => {
   if (hasOwn(input, "includeLedger") || hasOwn(input, "includeTrace")) {
-    throw new Error("readRuntimeSession 不再接受 includeLedger/includeTrace；请使用稳定的 session summary/timeline 查询");
+    throw new Error(
+      "readRuntimeSession 不再接受 includeLedger/includeTrace；请使用稳定的 session summary/timeline 查询",
+    );
   }
 };
 
@@ -135,8 +120,7 @@ const runtimeContextWithSession = (
   emit,
   nativeSession: {
     readSession: () => sessionManager.readSession(),
-    readAgentVisibleContext: (contextInput) =>
-      sessionManager.readAgentVisibleContext(contextInput),
+    readAgentVisibleContext: (contextInput) => sessionManager.readAgentVisibleContext(contextInput),
   },
 });
 
@@ -225,37 +209,31 @@ class NativeAgentRuntimeSessionAdminSurface implements AgentRuntimeSessionAdmin 
   }
 
   async appendMessages(input: AppendSessionMessagesInput): Promise<SessionMutationResult> {
-    return this.runtimeSessionManagerFor(input).appendSessionMessages(
-      withoutRuntimeSessionTarget(input),
-      { invalidateDerivedArtifacts: this.clearAgentSessionArtifacts },
-    );
+    return this.runtimeSessionManagerFor(input).appendSessionMessages(withoutRuntimeSessionTarget(input), {
+      invalidateDerivedArtifacts: this.clearAgentSessionArtifacts,
+    });
   }
 
   async editMessage(input: EditSessionMessageInput): Promise<SessionMutationResult> {
-    return this.runtimeSessionManagerFor(input).editSessionMessage(
-      withoutRuntimeSessionTarget(input),
-      { invalidateDerivedArtifacts: this.clearAgentSessionArtifacts },
-    );
+    return this.runtimeSessionManagerFor(input).editSessionMessage(withoutRuntimeSessionTarget(input), {
+      invalidateDerivedArtifacts: this.clearAgentSessionArtifacts,
+    });
   }
 
   async deleteMessage(input: DeleteSessionMessageInput): Promise<SessionMutationResult> {
-    return this.runtimeSessionManagerFor(input).deleteSessionMessage(
-      withoutRuntimeSessionTarget(input),
-      { invalidateDerivedArtifacts: this.clearAgentSessionArtifacts },
-    );
+    return this.runtimeSessionManagerFor(input).deleteSessionMessage(withoutRuntimeSessionTarget(input), {
+      invalidateDerivedArtifacts: this.clearAgentSessionArtifacts,
+    });
   }
 
   async rebuild(input: RebuildSessionInput): Promise<SessionMutationResult> {
-    return this.runtimeSessionManagerFor(input).rebuildSession(
-      withoutRuntimeSessionTarget(input),
-      { invalidateDerivedArtifacts: this.clearAgentSessionArtifacts },
-    );
+    return this.runtimeSessionManagerFor(input).rebuildSession(withoutRuntimeSessionTarget(input), {
+      invalidateDerivedArtifacts: this.clearAgentSessionArtifacts,
+    });
   }
 
   async summarize(input: SummarizeSessionInput): Promise<SessionMutationResult> {
-    return this.runtimeSessionManagerFor(input).summarizeSession(
-      withoutRuntimeSessionTarget(input),
-    );
+    return this.runtimeSessionManagerFor(input).summarizeSession(withoutRuntimeSessionTarget(input));
   }
 
   private runtimeSessionManagerFor(input: RuntimeSessionTarget) {
@@ -328,11 +306,7 @@ class NativeAgentRuntimeAgentSessionSurface implements AgentRuntimeAgentSession 
     return implementation.rebuild
       ? implementation.rebuild(
           rebuildCommand,
-          runtimeContextWithSession(
-            sessionManager,
-            this.deps.runtimeCallbacks,
-            () => undefined,
-          ),
+          runtimeContextWithSession(sessionManager, this.deps.runtimeCallbacks, () => undefined),
         )
       : agentMaintenanceMutationResult(rebuildCommand, { rebuilt: false });
   }
@@ -367,11 +341,7 @@ class NativeAgentRuntimeAgentSessionSurface implements AgentRuntimeAgentSession 
     };
     return implementation.summarize(
       summarizeCommand,
-      runtimeContextWithSession(
-        sessionManager,
-        this.deps.runtimeCallbacks,
-        this.deps.emitAgentEvent,
-      ),
+      runtimeContextWithSession(sessionManager, this.deps.runtimeCallbacks, this.deps.emitAgentEvent),
     );
   }
 
@@ -384,8 +354,9 @@ class NativeAgentRuntimeSessionDebugSurface implements AgentRuntimeSessionDebug 
   constructor(private readonly deps: NativeAgentRuntimeSessionDeps) {}
 
   async read(input: RuntimeSessionDebugQuery): Promise<RuntimeSessionDebugResult> {
-    return runtimeSessionManagerFor(input, this.deps.profile.sessionProviderId)
-      .readRuntimeSessionDebug(withoutRuntimeSessionTarget(input));
+    return runtimeSessionManagerFor(input, this.deps.profile.sessionProviderId).readRuntimeSessionDebug(
+      withoutRuntimeSessionTarget(input),
+    );
   }
 }
 
@@ -406,8 +377,9 @@ export class NativeAgentRuntimeSessionSurface implements AgentRuntimeSession {
 
   async read(input: RuntimeSessionQuery): Promise<RuntimeSessionResult> {
     assertNoRuntimeSessionDebugOptions(input);
-    return runtimeSessionManagerFor(input, this.deps.profile.sessionProviderId)
-      .readRuntimeSession(withoutRuntimeSessionTarget(input));
+    return runtimeSessionManagerFor(input, this.deps.profile.sessionProviderId).readRuntimeSession(
+      withoutRuntimeSessionTarget(input),
+    );
   }
 }
 
@@ -458,10 +430,9 @@ export class NativeAgentRuntimeCollaborationSurface implements AgentRuntimeColla
     };
   }
 
-  async readTimeline(
-    input: CollaborationTimelineQuery,
-  ): Promise<CollaborationTimelineResult> {
-    return runtimeSessionManagerFor(input, this.deps.profile.sessionProviderId)
-      .readCollaborationTimeline(withoutRuntimeSessionTarget(input));
+  async readTimeline(input: CollaborationTimelineQuery): Promise<CollaborationTimelineResult> {
+    return runtimeSessionManagerFor(input, this.deps.profile.sessionProviderId).readCollaborationTimeline(
+      withoutRuntimeSessionTarget(input),
+    );
   }
 }

@@ -120,8 +120,6 @@ export type TavernState = {
   version: 4;
   activeRoomId: string;
   rooms: TavernRoom[];
-  messagesByInstance: Record<string, TavernMessage[]>;
-  workflowTracesByInstance: Record<string, TavernWorkflowTraceRun[]>;
 };
 
 export type TavernReferencedFile = {

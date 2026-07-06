@@ -29,8 +29,7 @@ export type EmbeddingDraft = {
 export type EmbeddingProviderKind = "openai-compatible" | "ollama";
 
 export type PendingDeleteTarget =
-  | { kind: "source"; source: KnowledgeSource }
-  | { kind: "collection"; collection: KnowledgeCollection };
+  { kind: "source"; source: KnowledgeSource } | { kind: "collection"; collection: KnowledgeCollection };
 
 export type PendingKnowledgeAction = "rebuild-index" | "save-embedding" | null;
 
@@ -83,9 +82,8 @@ export const openAiCompatibleEmbeddingModelOptions = [
   { id: "text-embedding-3-large", modelId: "text-embedding-3-large", modelName: "text-embedding-3-large" },
 ];
 
-const normalizeEmbeddingProviderKind = (
-  providerKind?: string | null,
-): EmbeddingProviderKind => providerKind === "ollama" ? "ollama" : "openai-compatible";
+const normalizeEmbeddingProviderKind = (providerKind?: string | null): EmbeddingProviderKind =>
+  providerKind === "ollama" ? "ollama" : "openai-compatible";
 
 export const emptyCollectionDraft = (): CollectionDraft => ({
   id: null,
@@ -104,57 +102,49 @@ export const emptyEmbeddingDraft = (): EmbeddingDraft => ({
   batchSize: 32,
 });
 
-export const embeddingDraftFromProfile = (
-  profile: EmbeddingProfile | null,
-): EmbeddingDraft => {
+export const embeddingDraftFromProfile = (profile: EmbeddingProfile | null): EmbeddingDraft => {
   const providerKind = normalizeEmbeddingProviderKind(profile?.providerKind);
 
   return {
     id: profile?.id ?? null,
     name: profile?.name ?? "默认语义检索",
     providerKind,
-    baseUrl: providerKind === "ollama"
-      ? profile?.baseUrl ?? localOllamaBaseUrl
-      : profile?.baseUrl ?? "",
+    baseUrl: providerKind === "ollama" ? (profile?.baseUrl ?? localOllamaBaseUrl) : (profile?.baseUrl ?? ""),
     apiKey: profile?.apiKey ?? "",
     modelId: profile?.modelId ?? "",
-    dimensions: providerKind === "ollama"
-      ? profile?.dimensions ?? localOllamaDimensions
-      : profile?.dimensions ?? 1536,
-    batchSize: providerKind === "ollama"
-      ? localOllamaBatchSize
-      : profile?.batchSize ?? 32,
+    dimensions:
+      providerKind === "ollama" ? (profile?.dimensions ?? localOllamaDimensions) : (profile?.dimensions ?? 1536),
+    batchSize: providerKind === "ollama" ? localOllamaBatchSize : (profile?.batchSize ?? 32),
   };
 };
 
 export const formatTime = (timestamp: number | null) =>
   timestamp
     ? new Intl.DateTimeFormat(undefined, {
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(timestamp))
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(timestamp))
     : "尚未构建";
 
-export const statusLabel = (status: string) => ({
-  missing: "未构建",
-  building: "构建中",
-  ready: "可用",
-  stale: "需重建",
-  error: "异常",
-}[status] ?? status);
+export const statusLabel = (status: string) =>
+  ({
+    missing: "未构建",
+    building: "构建中",
+    ready: "可用",
+    stale: "需重建",
+    error: "异常",
+  })[status] ?? status;
 
-export const sourceKindLabel = (kind: string) => ({
-  file: "文件",
-  directory: "目录源",
-  manual: "手动",
-}[kind] ?? kind);
+export const sourceKindLabel = (kind: string) =>
+  ({
+    file: "文件",
+    directory: "目录源",
+    manual: "手动",
+  })[kind] ?? kind;
 
-export const relativeKnowledgePath = (
-  uri: string,
-  storageDirectory: string | null,
-) => {
+export const relativeKnowledgePath = (uri: string, storageDirectory: string | null) => {
   if (!storageDirectory) {
     return uri;
   }

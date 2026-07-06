@@ -8,7 +8,13 @@ const runtimePath = join(workspaceRoot, "agent-runtime/dist/cli.js");
 const workspacePath = mkdtempSync(join(tmpdir(), "novel-claw-runtime-e2e-"));
 const sessionRootDir = join(workspacePath, "standalone-session-store", "chats", "e2e-session", "session");
 const aliasSessionRootDir = join(workspacePath, "standalone-session-store", "chats", "alias-session", "session");
-const oversizedSummarySessionRootDir = join(workspacePath, "standalone-session-store", "chats", "oversized-summary-session", "session");
+const oversizedSummarySessionRootDir = join(
+  workspacePath,
+  "standalone-session-store",
+  "chats",
+  "oversized-summary-session",
+  "session",
+);
 const sessionDirPath = sessionRootDir;
 const ledgerPath = join(sessionDirPath, "ledger.jsonl");
 const aliasLedgerPath = join(aliasSessionRootDir, "ledger.jsonl");
@@ -54,7 +60,7 @@ let stdoutBuffer = "";
 let stderrBuffer = "";
 
 const safeDetails = (value) =>
-  JSON.parse(JSON.stringify(value, (key, item) => key === "apiKey" ? "<redacted>" : item));
+  JSON.parse(JSON.stringify(value, (key, item) => (key === "apiKey" ? "<redacted>" : item)));
 
 const handleLine = (line) => {
   if (!line.trim()) {
@@ -101,11 +107,17 @@ const waitFor = (predicate, label, timeoutMs = 10_000) =>
         if (index >= 0) {
           waiters.splice(index, 1);
         }
-        reject(new Error([
-          `等待 ${label} 超时`,
-          stderrBuffer ? `stderr:\n${stderrBuffer}` : "",
-          `recent events:\n${JSON.stringify(seen.slice(-8).map(safeDetails), null, 2)}`,
-        ].filter(Boolean).join("\n\n")));
+        reject(
+          new Error(
+            [
+              `等待 ${label} 超时`,
+              stderrBuffer ? `stderr:\n${stderrBuffer}` : "",
+              `recent events:\n${JSON.stringify(seen.slice(-8).map(safeDetails), null, 2)}`,
+            ]
+              .filter(Boolean)
+              .join("\n\n"),
+          ),
+        );
       }, timeoutMs),
     };
     waiters.push(waiter);
@@ -124,8 +136,7 @@ const request = async (command, resultType, timeoutMs) => {
   );
 };
 
-const lineStartingWith = (text, prefix) =>
-  text.split("\n").find((line) => line.startsWith(prefix)) ?? "";
+const lineStartingWith = (text, prefix) => text.split("\n").find((line) => line.startsWith(prefix)) ?? "";
 
 const runtimeResources = (allowed = ["read"]) => ({
   tools: {
@@ -182,14 +193,12 @@ const chatCommand = ({
   streamId,
   runtimeModel,
   systemPrompt,
-  messages: messages ?? [{
-    role: "user",
-    content: [
-      runtimeInstruction,
-      userMessage,
-      requestContext,
-    ].filter(Boolean).join("\n\n"),
-  }],
+  messages: messages ?? [
+    {
+      role: "user",
+      content: [runtimeInstruction, userMessage, requestContext].filter(Boolean).join("\n\n"),
+    },
+  ],
 });
 
 const cleanup = async () => {
@@ -215,14 +224,17 @@ try {
   );
 
   const aliasSystemPrompt = "run_agent alias 初始系统提示词。";
-  const aliasCreated = await request({
-    type: "create_session",
-    requestId: "alias-create-session",
-    workspacePath,
-    sessionRootDir: aliasSessionRootDir,
-    systemPrompt: aliasSystemPrompt,
-    metadata: { uiSessionId: "alias-session" },
-  }, "session_mutation_result");
+  const aliasCreated = await request(
+    {
+      type: "create_session",
+      requestId: "alias-create-session",
+      workspacePath,
+      sessionRootDir: aliasSessionRootDir,
+      systemPrompt: aliasSystemPrompt,
+      metadata: { uiSessionId: "alias-session" },
+    },
+    "session_mutation_result",
+  );
   assert(
     aliasCreated.messageRecordId &&
       aliasCreated.messages.length === 1 &&
@@ -232,15 +244,18 @@ try {
     aliasCreated,
   );
 
-  const aliasChatResult = await request(chatCommand({
-    requestId: "alias-chat-stateless",
-    stream: false,
-    systemPrompt: aliasSystemPrompt,
-    userMessage: "stateless chat 用户消息",
-    requestContext: "stateless chat 本次引用资料。",
-    runtimeInstruction: "stateless chat 本轮临时说明。",
-    runtimeModel: null,
-  }), "chat_result");
+  const aliasChatResult = await request(
+    chatCommand({
+      requestId: "alias-chat-stateless",
+      stream: false,
+      systemPrompt: aliasSystemPrompt,
+      userMessage: "stateless chat 用户消息",
+      requestContext: "stateless chat 本次引用资料。",
+      runtimeInstruction: "stateless chat 本轮临时说明。",
+      runtimeModel: null,
+    }),
+    "chat_result",
+  );
   assert(
     aliasChatResult.text.includes(`系统提示词：${aliasSystemPrompt}`) &&
       aliasChatResult.text.includes("收到的最后一条用户消息：stateless chat 用户消息"),
@@ -249,12 +264,15 @@ try {
   );
   assert(!aliasChatResult.runtimeSession, "chat_result 不应携带 runtime session 引用", aliasChatResult);
 
-  const aliasAfterChat = await request({
-    type: "read_session",
-    requestId: "alias-read-after-chat",
-    workspacePath,
-    sessionRootDir: aliasSessionRootDir,
-  }, "session_result");
+  const aliasAfterChat = await request(
+    {
+      type: "read_session",
+      requestId: "alias-read-after-chat",
+      workspacePath,
+      sessionRootDir: aliasSessionRootDir,
+    },
+    "session_result",
+  );
   assert(
     aliasAfterChat.messages.map((message) => message.role).join("|") === "system",
     "stateless chat 不应写入 alias runtime session",
@@ -263,29 +281,31 @@ try {
 
   const aliasAgentTaskId = "alias-send-agent-task";
   const aliasAgentRoleId = "alias-agent-role";
-  send(runAgentCommand({
-    requestId: aliasAgentTaskId,
-    mode: "agent",
-    taskId: aliasAgentTaskId,
-    agentId: "mock",
-    workspacePath,
-    sessionRootDir: aliasSessionRootDir,
-    agentRoleId: aliasAgentRoleId,
-    userMessage: "run_agent 用户消息",
-    runtimeInstruction: "run_agent 临时执行说明。",
-    runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
-    resources: {
-      tools: {
-        allowed: ["read"],
+  send(
+    runAgentCommand({
+      requestId: aliasAgentTaskId,
+      mode: "agent",
+      taskId: aliasAgentTaskId,
+      agentId: "mock",
+      workspacePath,
+      sessionRootDir: aliasSessionRootDir,
+      agentRoleId: aliasAgentRoleId,
+      userMessage: "run_agent 用户消息",
+      runtimeInstruction: "run_agent 临时执行说明。",
+      runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
+      resources: {
+        tools: {
+          allowed: ["read"],
+        },
+        skills: {
+          enabled: [],
+        },
+        mcp: {
+          servers: [],
+        },
       },
-      skills: {
-        enabled: [],
-      },
-      mcp: {
-        servers: [],
-      },
-    },
-  }));
+    }),
+  );
   const aliasAgentDone = await waitFor(
     (item) => item.type === "done" && item.taskId === aliasAgentTaskId,
     "alias run_agent done",
@@ -307,12 +327,15 @@ try {
     "run_agent 应按 runtimeId/agentRoleId 创建稳定 agent session 目录",
     aliasAgentSessionDir,
   );
-  const aliasAfterAgent = await request({
-    type: "read_session",
-    requestId: "alias-read-after-agent",
-    workspacePath,
-    sessionRootDir: aliasSessionRootDir,
-  }, "session_result");
+  const aliasAfterAgent = await request(
+    {
+      type: "read_session",
+      requestId: "alias-read-after-agent",
+      workspacePath,
+      sessionRootDir: aliasSessionRootDir,
+    },
+    "session_result",
+  );
   assert(
     aliasAfterAgent.messages.at(-2)?.content === "run_agent 用户消息" &&
       aliasAfterAgent.messages.at(-2)?.metadata?.agentRoleId === aliasAgentRoleId &&
@@ -321,7 +344,11 @@ try {
     aliasAfterAgent.messages,
   );
   const aliasLedger = readLedgerFile(aliasLedgerPath);
-  assert(aliasLedger.header.sessionRootDir === aliasSessionRootDir, "alias ledger header 应记录独立 sessionRootDir", aliasLedger.header);
+  assert(
+    aliasLedger.header.sessionRootDir === aliasSessionRootDir,
+    "alias ledger header 应记录独立 sessionRootDir",
+    aliasLedger.header,
+  );
   assert(
     aliasLedger.entry(aliasCreated.messageRecordId)?.message?.metadata?.source === "app_create_session",
     "create_session system message 应使用 app_create_session metadata",
@@ -341,19 +368,21 @@ try {
   );
 
   const taskId = "mock-task-1";
-  send(runAgentCommand({
-    mode: "agent",
-    requestId: taskId,
-    taskId,
-    agentId: "mock",
-    workspacePath,
-    sessionRootDir,
-    agentRoleId: initialAgentRoleId,
-    systemPrompt: "E2E Agent 初始系统提示词。",
-    userMessage: initialUserMessage,
-    runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
-    resources: runtimeResources(["read", "write"]),
-  }));
+  send(
+    runAgentCommand({
+      mode: "agent",
+      requestId: taskId,
+      taskId,
+      agentId: "mock",
+      workspacePath,
+      sessionRootDir,
+      agentRoleId: initialAgentRoleId,
+      systemPrompt: "E2E Agent 初始系统提示词。",
+      userMessage: initialUserMessage,
+      runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
+      resources: runtimeResources(["read", "write"]),
+    }),
+  );
   const done = await waitFor((item) => item.type === "done" && item.taskId === taskId, "mock done");
   const taskResult = await waitFor(
     (item) => item.type === "task_result" && item.requestId === taskId,
@@ -376,12 +405,15 @@ try {
     expectedAgentSessionDir,
   );
 
-  const afterTask = await request({
-    type: "read_session",
-    requestId: "read-after-task",
-    workspacePath,
-    sessionRootDir,
-  }, "session_result");
+  const afterTask = await request(
+    {
+      type: "read_session",
+      requestId: "read-after-task",
+      workspacePath,
+      sessionRootDir,
+    },
+    "session_result",
+  );
   assert(afterTask.messages.length === 3, "任务应记录 system、user 和 assistant 三条消息", afterTask.messages);
   assert(
     afterTask.messages.map((message) => message.role).join("|") === "system|user|assistant",
@@ -398,11 +430,10 @@ try {
     "首次完整 systemPrompt 应作为 system message 进入 runtime ledger",
     taskSystemMessage,
   );
-  assert(
-    taskUserMessage?.content === initialUserMessage,
-    "账本中的 user 消息应来自 run_agent 的 userMessage",
-    { expected: initialUserMessage, actual: taskUserMessage },
-  );
+  assert(taskUserMessage?.content === initialUserMessage, "账本中的 user 消息应来自 run_agent 的 userMessage", {
+    expected: initialUserMessage,
+    actual: taskUserMessage,
+  });
   assert(
     taskAssistantMessage?.metadata?.runStatus === "done",
     "assistant 消息应记录运行完成状态",
@@ -467,21 +498,23 @@ try {
     "空 sessionRootDir 的一次性 agent 运行前不应已有持久 agent session 目录",
     unexpectedOneShotAgentSessionDir,
   );
-  send(runAgentCommand({
-    mode: "agent",
-    requestId: oneShotTaskId,
-    taskId: oneShotTaskId,
-    agentId: "mock",
-    workspacePath,
-    sessionRootDir: null,
-    agentRoleId: oneShotAgentRoleId,
-    systemPrompt: "一次性 Agent 系统提示词。",
-    userMessage: "请只完成本次一次性任务。",
-    requestContext: "一次性 Agent 的上下文资料。",
-    runtimeInstruction: "本轮只验证一次性 agent 不落库。",
-    runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
-    resources: runtimeResources(["read"]),
-  }));
+  send(
+    runAgentCommand({
+      mode: "agent",
+      requestId: oneShotTaskId,
+      taskId: oneShotTaskId,
+      agentId: "mock",
+      workspacePath,
+      sessionRootDir: null,
+      agentRoleId: oneShotAgentRoleId,
+      systemPrompt: "一次性 Agent 系统提示词。",
+      userMessage: "请只完成本次一次性任务。",
+      requestContext: "一次性 Agent 的上下文资料。",
+      runtimeInstruction: "本轮只验证一次性 agent 不落库。",
+      runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
+      resources: runtimeResources(["read"]),
+    }),
+  );
   const oneShotDone = await waitFor(
     (item) => item.type === "done" && item.taskId === oneShotTaskId,
     "mock one-shot done",
@@ -491,11 +524,7 @@ try {
     "mock one-shot task_result",
   );
   assert(oneShotTaskResult.success === true, "空 sessionRootDir 的一次性 agent 应成功", oneShotTaskResult);
-  assert(
-    !oneShotDone.runtimeSession,
-    "空 sessionRootDir 的一次性 agent done 事件不应携带 runtimeSession",
-    oneShotDone,
-  );
+  assert(!oneShotDone.runtimeSession, "空 sessionRootDir 的一次性 agent done 事件不应携带 runtimeSession", oneShotDone);
   assert(
     oneShotDone.text.includes("任务摘要：一次性 Agent 系统提示词。") &&
       oneShotDone.text.includes("请只完成本次一次性任务。") &&
@@ -509,12 +538,15 @@ try {
     "空 sessionRootDir 的一次性 agent 不应创建持久 agent session 目录",
     unexpectedOneShotAgentSessionDir,
   );
-  const afterOneShot = await request({
-    type: "read_session",
-    requestId: "read-after-one-shot",
-    workspacePath,
-    sessionRootDir,
-  }, "session_result");
+  const afterOneShot = await request(
+    {
+      type: "read_session",
+      requestId: "read-after-one-shot",
+      workspacePath,
+      sessionRootDir,
+    },
+    "session_result",
+  );
   assert(
     afterOneShot.messages.length === afterTask.messages.length &&
       afterOneShot.messages.map((message) => message.content).join("|") ===
@@ -523,14 +555,17 @@ try {
     afterOneShot.messages,
   );
 
-  const edited = await request({
-    type: "message_edit",
-    requestId: "edit-user",
-    workspacePath,
-    sessionRootDir,
-    messageRecordId: done.runtimeSession.userMessageRecordId,
-    content: "改写后的用户任务：只保留新的分支。",
-  }, "session_mutation_result");
+  const edited = await request(
+    {
+      type: "message_edit",
+      requestId: "edit-user",
+      workspacePath,
+      sessionRootDir,
+      messageRecordId: done.runtimeSession.userMessageRecordId,
+      content: "改写后的用户任务：只保留新的分支。",
+    },
+    "session_mutation_result",
+  );
   assert(
     edited.messageRecordId && edited.messageRecordId !== done.runtimeSession.userMessageRecordId,
     "edit 应创建替换 messageRecordId",
@@ -554,11 +589,10 @@ try {
   const editLedger = readLedger();
   const editedEntry = editLedger.entry(edited.messageRecordId);
   assert(editedEntry?.type === "message", "edit 返回的 messageRecordId 应指向替换 message", editedEntry);
-  assert(
-    editedEntry.parentId === taskUserEntry.parentId,
-    "edit 替换 entry 应接到原消息父节点，实现分支裁剪",
-    { originalParentId: taskUserEntry.parentId, editedEntry },
-  );
+  assert(editedEntry.parentId === taskUserEntry.parentId, "edit 替换 entry 应接到原消息父节点，实现分支裁剪", {
+    originalParentId: taskUserEntry.parentId,
+    editedEntry,
+  });
   assert(
     editedEntry.message.metadata?.editedFromEntryId === taskUserEntry.id,
     "edit 替换 entry 应记录 editedFromEntryId",
@@ -583,13 +617,16 @@ try {
     { user: editLedger.entry(taskUserEntry.id), assistant: editLedger.entry(taskAssistantEntry.id) },
   );
 
-  const deleted = await request({
-    type: "message_delete",
-    requestId: "delete-edited-user",
-    workspacePath,
-    sessionRootDir,
-    messageRecordId: edited.messageRecordId,
-  }, "session_mutation_result");
+  const deleted = await request(
+    {
+      type: "message_delete",
+      requestId: "delete-edited-user",
+      workspacePath,
+      sessionRootDir,
+      messageRecordId: edited.messageRecordId,
+    },
+    "session_mutation_result",
+  );
   assert(
     deleted.messages.length === 1 && deleted.messages[0]?.role === "system",
     "delete 后活跃消息应只保留 systemPrompt",
@@ -597,11 +634,14 @@ try {
   );
   const deleteLedger = readLedger();
   assert(!("leafId" in deleted), "delete mutation 结果不应向应用侧暴露 leafId", deleted);
-  const deleteMarker = [...deleteLedger.entries].reverse().find((entry) =>
-    entry.type === "custom" &&
-    entry.customType === "message_deleted" &&
-    entry.data?.deletedEntryId === edited.messageRecordId
-  );
+  const deleteMarker = [...deleteLedger.entries]
+    .reverse()
+    .find(
+      (entry) =>
+        entry.type === "custom" &&
+        entry.customType === "message_deleted" &&
+        entry.data?.deletedEntryId === edited.messageRecordId,
+    );
   assert(deleteMarker?.type === "custom", "delete 应写入删除标记 entry", deleteMarker);
   assert(deleteMarker.customType === "message_deleted", "delete 应写入 message_deleted 标记", deleteMarker);
   assert(deleteMarker.parentId === taskUserEntry.parentId, "delete 标记应接到被删消息父节点，实现活跃分支裁剪", {
@@ -628,16 +668,19 @@ try {
     deleteLedger.entry(edited.messageRecordId),
   );
 
-  const rebuilt = await request({
-    type: "rebuild",
-    requestId: "rebuild-session",
-    workspacePath,
-    sessionRootDir,
-    messages: [
-      { role: "user", content: "重建后的用户消息", timestamp: 11, metadata: { uiMessageId: "u1" } },
-      { role: "assistant", content: "重建后的助手消息", timestamp: 12, metadata: { uiMessageId: "a1" } },
-    ],
-  }, "session_mutation_result");
+  const rebuilt = await request(
+    {
+      type: "rebuild",
+      requestId: "rebuild-session",
+      workspacePath,
+      sessionRootDir,
+      messages: [
+        { role: "user", content: "重建后的用户消息", timestamp: 11, metadata: { uiMessageId: "u1" } },
+        { role: "assistant", content: "重建后的助手消息", timestamp: 12, metadata: { uiMessageId: "a1" } },
+      ],
+    },
+    "session_mutation_result",
+  );
   assert(rebuilt.messageRecordIds?.length === 2, "rebuild 应返回每条非空消息的 messageRecordId", rebuilt);
   assert(
     rebuilt.messages.map((message) => `${message.role}:${message.content}`).join("|") ===
@@ -646,11 +689,11 @@ try {
     rebuilt.messages,
   );
   const rebuildLedger = readLedger();
-  const rebuildStart = rebuildLedger.entries.findLast?.((entry) =>
-    entry.type === "custom" && entry.customType === "rebuild_started"
-  ) ?? [...rebuildLedger.entries].reverse().find((entry) =>
-    entry.type === "custom" && entry.customType === "rebuild_started"
-  );
+  const rebuildStart =
+    rebuildLedger.entries.findLast?.((entry) => entry.type === "custom" && entry.customType === "rebuild_started") ??
+    [...rebuildLedger.entries]
+      .reverse()
+      .find((entry) => entry.type === "custom" && entry.customType === "rebuild_started");
   assert(rebuildStart?.data?.previousLeafId === deleteMarker.id, "rebuild_started 应在内部记录重建前 leaf", {
     previousLeafId: deleteMarker.id,
     rebuildStart,
@@ -669,7 +712,7 @@ try {
     rebuildStart,
   );
   assert(
-      rebuiltUserEntry?.message.metadata?.source === "app_rebuild" &&
+    rebuiltUserEntry?.message.metadata?.source === "app_rebuild" &&
       rebuiltUserEntry?.message.metadata?.actorType === "user" &&
       rebuiltUserEntry?.message.metadata?.scope === "shared" &&
       rebuiltUserEntry?.message.metadata?.baseLeafId === deleteMarker.id,
@@ -681,18 +724,21 @@ try {
     rebuiltAssistantEntry,
   });
 
-  const compacted = await request({
-    type: "compact",
-    requestId: "compact-agent-session",
-    workspacePath,
-    sessionRootDir,
-    target: { scope: "agent", agentId: "mock", agentRoleId: initialAgentRoleId },
-    options: { compactInstruction: "测试手动压缩底层 agent session。" },
-    runtime: {
-      model: { contextWindow: 4096, maxTokens: 1024 },
-      resources: runtimeResources(),
+  const compacted = await request(
+    {
+      type: "compact",
+      requestId: "compact-agent-session",
+      workspacePath,
+      sessionRootDir,
+      target: { scope: "agent", agentId: "mock", agentRoleId: initialAgentRoleId },
+      options: { compactInstruction: "测试手动压缩底层 agent session。" },
+      runtime: {
+        model: { contextWindow: 4096, maxTokens: 1024 },
+        resources: runtimeResources(),
+      },
     },
-  }, "session_mutation_result");
+    "session_mutation_result",
+  );
   assert(compacted.compacted === false, "mock runtime compact 应作为 no-op 但保持链路可用", compacted);
   assert(compacted.summary === "", "手动 compact 底层 agent 不应写入 runtime shared summary", compacted.summary);
   assert(
@@ -708,7 +754,8 @@ try {
     "手动 compact 底层 agent 不应写入 runtime compaction entry",
     compactLedger.entries.filter((entry) => entry.type === "compaction"),
   );
-  const compactEntry = [...compactLedger.entries].reverse()
+  const compactEntry = [...compactLedger.entries]
+    .reverse()
     .find((entry) => entry.type === "custom" && entry.customType === "agent_session_compacted");
   assert(
     compactEntry?.type === "custom" &&
@@ -722,20 +769,23 @@ try {
     compactEntry,
   );
 
-  const summarized = await request({
-    type: "summarize_session",
-    requestId: "summarize-display-after-compact",
-    workspacePath,
-    sessionRootDir,
-    agent: { agentId: "mock" },
-    options: {
-      summaryInstruction: "生成 E2E 展示摘要，必须提到这只是前端展示数据。",
-      maxSummaryChars: 1800,
+  const summarized = await request(
+    {
+      type: "summarize_session",
+      requestId: "summarize-display-after-compact",
+      workspacePath,
+      sessionRootDir,
+      agent: { agentId: "mock" },
+      options: {
+        summaryInstruction: "生成 E2E 展示摘要，必须提到这只是前端展示数据。",
+        maxSummaryChars: 1800,
+      },
+      runtime: {
+        model: { contextWindow: 4096, maxTokens: 512 },
+      },
     },
-    runtime: {
-      model: { contextWindow: 4096, maxTokens: 512 },
-    },
-  }, "session_mutation_result");
+    "session_mutation_result",
+  );
   assert(summarized.summary === "", "展示摘要不应写入 runtime shared summary", summarized);
   assert(
     summarized.displaySummary?.summary?.trim() &&
@@ -770,12 +820,15 @@ try {
     "display_summary 写入后应通过 leaf entry 复位到原 leaf，避免污染后续上下文",
     summaryLeafEntry,
   );
-  const afterDisplaySummary = await request({
-    type: "read_session",
-    requestId: "read-after-display-summary",
-    workspacePath,
-    sessionRootDir,
-  }, "session_result");
+  const afterDisplaySummary = await request(
+    {
+      type: "read_session",
+      requestId: "read-after-display-summary",
+      workspacePath,
+      sessionRootDir,
+    },
+    "session_result",
+  );
   assert(
     afterDisplaySummary.displaySummary?.recordId === summarized.displaySummary.recordId &&
       afterDisplaySummary.displaySummaries?.some((summary) => summary.recordId === summarized.displaySummary.recordId),
@@ -793,31 +846,35 @@ try {
       `超长摘要源段落 ${index + 1}`,
       "这段文本用于强制触发 display summary 的分块摘要路径。",
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".repeat(2),
-    ].join(" | ")
+    ].join(" | "),
   ).join("\n\n");
-  const oversizedAppend = await request({
-    type: "message_append",
-    requestId: "append-oversized-summary-source",
-    workspacePath,
-    sessionRootDir: oversizedSummarySessionRootDir,
-    messages: [
-      { role: "user", content: oversizedSummarySource, timestamp: 31 },
-    ],
-  }, "session_mutation_result");
-  const oversizedSummary = await request({
-    type: "summarize_session",
-    requestId: "summarize-oversized-display",
-    workspacePath,
-    sessionRootDir: oversizedSummarySessionRootDir,
-    agent: { agentId: "mock" },
-    options: {
-      summaryInstruction: "测试超长输入分块摘要。",
-      maxSummaryChars: 1200,
+  const oversizedAppend = await request(
+    {
+      type: "message_append",
+      requestId: "append-oversized-summary-source",
+      workspacePath,
+      sessionRootDir: oversizedSummarySessionRootDir,
+      messages: [{ role: "user", content: oversizedSummarySource, timestamp: 31 }],
     },
-    runtime: {
-      model: { contextWindow: 4096, maxTokens: 512 },
+    "session_mutation_result",
+  );
+  const oversizedSummary = await request(
+    {
+      type: "summarize_session",
+      requestId: "summarize-oversized-display",
+      workspacePath,
+      sessionRootDir: oversizedSummarySessionRootDir,
+      agent: { agentId: "mock" },
+      options: {
+        summaryInstruction: "测试超长输入分块摘要。",
+        maxSummaryChars: 1200,
+      },
+      runtime: {
+        model: { contextWindow: 4096, maxTokens: 512 },
+      },
     },
-  }, "session_mutation_result");
+    "session_mutation_result",
+  );
   assert(
     oversizedSummary.displaySummary?.targetLeafId === oversizedAppend.messageRecordId &&
       oversizedSummary.displaySummary.chunkCount > 1 &&
@@ -840,21 +897,23 @@ try {
   const directTaskId = "mock-task-direct-system-prompt";
   const directRequestContext = "本次引用资料：request-context-e2e-only，不应记录为 ledger 的用户消息。";
   const directBootstrapInstruction = "底层 session 初始化时只使用当前 agent 可见历史。";
-  send(runAgentCommand({
-    mode: "agent",
-    requestId: directTaskId,
-    taskId: directTaskId,
-    agentId: "mock",
-    workspacePath,
-    sessionRootDir,
-    agentRoleId: directAgentRoleId,
-    systemPrompt: "E2E Agent 系统提示词。",
-    userMessage: "run_agent 直接用户消息",
-    requestContext: directRequestContext,
-    bootstrapInstruction: directBootstrapInstruction,
-    runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
-    resources: runtimeResources(),
-  }));
+  send(
+    runAgentCommand({
+      mode: "agent",
+      requestId: directTaskId,
+      taskId: directTaskId,
+      agentId: "mock",
+      workspacePath,
+      sessionRootDir,
+      agentRoleId: directAgentRoleId,
+      systemPrompt: "E2E Agent 系统提示词。",
+      userMessage: "run_agent 直接用户消息",
+      requestContext: directRequestContext,
+      bootstrapInstruction: directBootstrapInstruction,
+      runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
+      resources: runtimeResources(),
+    }),
+  );
   const directDone = await waitFor(
     (item) => item.type === "done" && item.taskId === directTaskId,
     "direct run_agent done",
@@ -891,12 +950,15 @@ try {
     "direct run_agent 应按 runtimeId/agentRoleId 创建底层 agent session 目录",
     directAgentSessionDir,
   );
-  const afterDirectTask = await request({
-    type: "read_session",
-    requestId: "read-after-direct-agent-message",
-    workspacePath,
-    sessionRootDir,
-  }, "session_result");
+  const afterDirectTask = await request(
+    {
+      type: "read_session",
+      requestId: "read-after-direct-agent-message",
+      workspacePath,
+      sessionRootDir,
+    },
+    "session_result",
+  );
   assert(
     afterDirectTask.messages.at(-2)?.content === "run_agent 直接用户消息" &&
       afterDirectTask.messages.at(-2)?.metadata?.runtimeId === "mock" &&
@@ -932,18 +994,20 @@ try {
   const tavernSecret = "TAVERN_B_PRIVATE_INNER_THOUGHT_E2E_92817";
   const tavernBRoleId = "tavern-role-b";
   const tavernBTaskId = "mock-task-tavern-b-private";
-  send(runAgentCommand({
-    mode: "agent",
-    requestId: tavernBTaskId,
-    taskId: tavernBTaskId,
-    agentId: "mock",
-    workspacePath,
-    sessionRootDir,
-    agentRoleId: tavernBRoleId,
-    userMessage: `B 的私密心理描写：${tavernSecret}`,
-    runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
-    resources: runtimeResources(),
-  }));
+  send(
+    runAgentCommand({
+      mode: "agent",
+      requestId: tavernBTaskId,
+      taskId: tavernBTaskId,
+      agentId: "mock",
+      workspacePath,
+      sessionRootDir,
+      agentRoleId: tavernBRoleId,
+      userMessage: `B 的私密心理描写：${tavernSecret}`,
+      runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
+      resources: runtimeResources(),
+    }),
+  );
   const tavernBDone = await waitFor(
     (item) => item.type === "done" && item.taskId === tavernBTaskId,
     "tavern role B private done",
@@ -958,19 +1022,21 @@ try {
   const tavernARoleId = "tavern-role-a";
   const tavernATaskId = "mock-task-tavern-a-after-b";
   const tavernARequestContext = "A 可见信息：B 公开说，今晚守城。";
-  send(runAgentCommand({
-    mode: "agent",
-    requestId: tavernATaskId,
-    taskId: tavernATaskId,
-    agentId: "mock",
-    workspacePath,
-    sessionRootDir,
-    agentRoleId: tavernARoleId,
-    userMessage: "A 根据自己可见信息继续行动。",
-    requestContext: tavernARequestContext,
-    runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
-    resources: runtimeResources(),
-  }));
+  send(
+    runAgentCommand({
+      mode: "agent",
+      requestId: tavernATaskId,
+      taskId: tavernATaskId,
+      agentId: "mock",
+      workspacePath,
+      sessionRootDir,
+      agentRoleId: tavernARoleId,
+      userMessage: "A 根据自己可见信息继续行动。",
+      requestContext: tavernARequestContext,
+      runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
+      resources: runtimeResources(),
+    }),
+  );
   const tavernADone = await waitFor(
     (item) => item.type === "done" && item.taskId === tavernATaskId,
     "tavern role A after B done",
@@ -988,20 +1054,24 @@ try {
     tavernADone.text,
   );
 
-  const tavernARebuilt = await request({
-    type: "rebuild_agent_session",
-    requestId: "rebuild-tavern-a-agent-session",
-    workspacePath,
-    sessionRootDir,
-    target: { scope: "agent", agentId: "mock", agentRoleId: tavernARoleId },
-    options: { rebuildInstruction: "测试：仅基于 A 自己的 ledger 上下文重建底层 session。" },
-    runtime: {
-      model: { contextWindow: 4096, maxTokens: 1024 },
-      resources: runtimeResources(),
+  const tavernARebuilt = await request(
+    {
+      type: "rebuild_agent_session",
+      requestId: "rebuild-tavern-a-agent-session",
+      workspacePath,
+      sessionRootDir,
+      target: { scope: "agent", agentId: "mock", agentRoleId: tavernARoleId },
+      options: { rebuildInstruction: "测试：仅基于 A 自己的 ledger 上下文重建底层 session。" },
+      runtime: {
+        model: { contextWindow: 4096, maxTokens: 1024 },
+        resources: runtimeResources(),
+      },
     },
-  }, "session_mutation_result");
+    "session_mutation_result",
+  );
   assert(tavernARebuilt.rebuilt === true, "rebuild_agent_session 应返回 rebuilt=true", tavernARebuilt);
-  const tavernARebuildEntry = [...readLedger().entries].reverse()
+  const tavernARebuildEntry = [...readLedger().entries]
+    .reverse()
     .find((entry) => entry.type === "custom" && entry.customType === "agent_session_rebuilt");
   assert(
     tavernARebuildEntry?.data?.target?.agentRoleId === tavernARoleId &&
@@ -1013,19 +1083,21 @@ try {
   );
   const tavernARebuildTaskId = "mock-task-tavern-a-rebuild";
   const tavernARebuildRequestContext = "A 可见信息：B 公开说，火把已经熄灭。";
-  send(runAgentCommand({
-    mode: "agent",
-    requestId: tavernARebuildTaskId,
-    taskId: tavernARebuildTaskId,
-    agentId: "mock",
-    workspacePath,
-    sessionRootDir,
-    agentRoleId: tavernARoleId,
-    userMessage: "A 的底层 session 被删除后继续行动。",
-    requestContext: tavernARebuildRequestContext,
-    runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
-    resources: runtimeResources(),
-  }));
+  send(
+    runAgentCommand({
+      mode: "agent",
+      requestId: tavernARebuildTaskId,
+      taskId: tavernARebuildTaskId,
+      agentId: "mock",
+      workspacePath,
+      sessionRootDir,
+      agentRoleId: tavernARoleId,
+      userMessage: "A 的底层 session 被删除后继续行动。",
+      requestContext: tavernARebuildRequestContext,
+      runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
+      resources: runtimeResources(),
+    }),
+  );
   const tavernARebuildDone = await waitFor(
     (item) => item.type === "done" && item.taskId === tavernARebuildTaskId,
     "tavern role A rebuild done",
@@ -1034,7 +1106,11 @@ try {
     (item) => item.type === "task_result" && item.requestId === tavernARebuildTaskId,
     "tavern role A rebuild task_result",
   );
-  assert(tavernARebuildTaskResult.success === true, "A 底层 session 缺失时应可由 runtime ledger 重建启动上下文", tavernARebuildTaskResult);
+  assert(
+    tavernARebuildTaskResult.success === true,
+    "A 底层 session 缺失时应可由 runtime ledger 重建启动上下文",
+    tavernARebuildTaskResult,
+  );
   assert(
     tavernARebuildDone.text.includes(tavernARebuildRequestContext) &&
       !tavernARebuildDone.text.includes(tavernSecret) &&
@@ -1042,14 +1118,17 @@ try {
     "A 底层 session 重建时只能使用 A 自己的 ledger entries 和 requestContext",
     tavernARebuildDone.text,
   );
-  const afterTavern = await request({
-    type: "read_session",
-    requestId: "read-after-tavern-agent-runs",
-    workspacePath,
-    sessionRootDir,
-  }, "session_result");
-  const tavernARequestContexts = afterTavern.requestContexts
-    ?.filter((entry) => entry.metadata?.agentRoleId === tavernARoleId) ?? [];
+  const afterTavern = await request(
+    {
+      type: "read_session",
+      requestId: "read-after-tavern-agent-runs",
+      workspacePath,
+      sessionRootDir,
+    },
+    "session_result",
+  );
+  const tavernARequestContexts =
+    afterTavern.requestContexts?.filter((entry) => entry.metadata?.agentRoleId === tavernARoleId) ?? [];
   assert(
     afterTavern.messages.some((message) => message.content.includes(tavernSecret)) &&
       tavernARequestContexts.some((entry) => entry.content === tavernARequestContext) &&
@@ -1062,18 +1141,20 @@ try {
   );
 
   const cachedSystemTaskId = "mock-task-cached-system-prompt";
-  send(runAgentCommand({
-    mode: "agent",
-    requestId: cachedSystemTaskId,
-    taskId: cachedSystemTaskId,
-    agentId: "mock",
-    workspacePath,
-    sessionRootDir,
-    agentRoleId: "mock-cached-system-agent",
-    userMessage: "不传 systemPrompt 时应使用缓存系统提示词",
-    runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
-    resources: runtimeResources(),
-  }));
+  send(
+    runAgentCommand({
+      mode: "agent",
+      requestId: cachedSystemTaskId,
+      taskId: cachedSystemTaskId,
+      agentId: "mock",
+      workspacePath,
+      sessionRootDir,
+      agentRoleId: "mock-cached-system-agent",
+      userMessage: "不传 systemPrompt 时应使用缓存系统提示词",
+      runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
+      resources: runtimeResources(),
+    }),
+  );
   const cachedSystemDone = await waitFor(
     (item) => item.type === "done" && item.taskId === cachedSystemTaskId,
     "cached system run_agent done",
@@ -1088,33 +1169,39 @@ try {
     "不传 systemPrompt 时底层 runtime 应使用 runtime ledger 中最近缓存的 systemPrompt",
     cachedSystemDone.text,
   );
-  const afterCachedSystemTask = await request({
-    type: "read_session",
-    requestId: "read-after-cached-system-agent-message",
-    workspacePath,
-    sessionRootDir,
-  }, "session_result");
+  const afterCachedSystemTask = await request(
+    {
+      type: "read_session",
+      requestId: "read-after-cached-system-agent-message",
+      workspacePath,
+      sessionRootDir,
+    },
+    "session_result",
+  );
   assert(
-    afterCachedSystemTask.messages.filter((message) => message.role === "system" &&
-      message.content === "E2E Agent 系统提示词。").length === 1,
+    afterCachedSystemTask.messages.filter(
+      (message) => message.role === "system" && message.content === "E2E Agent 系统提示词。",
+    ).length === 1,
     "缓存命中不应重复写入相同 systemPrompt",
     afterCachedSystemTask.messages,
   );
 
   const enhancedSystemTaskId = "mock-task-enhanced-system-prompt";
-  send(runAgentCommand({
-    mode: "agent",
-    requestId: enhancedSystemTaskId,
-    taskId: enhancedSystemTaskId,
-    agentId: "mock",
-    workspacePath,
-    sessionRootDir,
-    agentRoleId: "mock-enhanced-system-agent",
-    systemPrompt: "E2E Agent 增强系统提示词。",
-    userMessage: "传入增强 systemPrompt 时应覆盖缓存系统提示词",
-    runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
-    resources: runtimeResources(),
-  }));
+  send(
+    runAgentCommand({
+      mode: "agent",
+      requestId: enhancedSystemTaskId,
+      taskId: enhancedSystemTaskId,
+      agentId: "mock",
+      workspacePath,
+      sessionRootDir,
+      agentRoleId: "mock-enhanced-system-agent",
+      systemPrompt: "E2E Agent 增强系统提示词。",
+      userMessage: "传入增强 systemPrompt 时应覆盖缓存系统提示词",
+      runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
+      resources: runtimeResources(),
+    }),
+  );
   const enhancedSystemTaskResult = await waitFor(
     (item) => item.type === "task_result" && item.requestId === enhancedSystemTaskId,
     "enhanced system run_agent task_result",
@@ -1127,19 +1214,21 @@ try {
   );
 
   const runtimeInstructionTaskId = "mock-task-runtime-instruction";
-  send(runAgentCommand({
-    mode: "agent",
-    requestId: runtimeInstructionTaskId,
-    taskId: runtimeInstructionTaskId,
-    agentId: "mock",
-    workspacePath,
-    sessionRootDir,
-    agentRoleId: "mock-runtime-instruction-agent",
-    userMessage: "传入 runtimeInstruction 时应保持 systemPrompt 不变",
-    runtimeInstruction: "本轮增强要求：请用更克制的语气回答。",
-    runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
-    resources: runtimeResources(),
-  }));
+  send(
+    runAgentCommand({
+      mode: "agent",
+      requestId: runtimeInstructionTaskId,
+      taskId: runtimeInstructionTaskId,
+      agentId: "mock",
+      workspacePath,
+      sessionRootDir,
+      agentRoleId: "mock-runtime-instruction-agent",
+      userMessage: "传入 runtimeInstruction 时应保持 systemPrompt 不变",
+      runtimeInstruction: "本轮增强要求：请用更克制的语气回答。",
+      runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
+      resources: runtimeResources(),
+    }),
+  );
   const runtimeInstructionDone = await waitFor(
     (item) => item.type === "done" && item.taskId === runtimeInstructionTaskId,
     "runtime instruction run_agent done",
@@ -1148,45 +1237,54 @@ try {
     (item) => item.type === "task_result" && item.requestId === runtimeInstructionTaskId,
     "runtime instruction run_agent task_result",
   );
-  assert(runtimeInstructionTaskResult.success === true, "runtimeInstruction run_agent 应成功", runtimeInstructionTaskResult);
+  assert(
+    runtimeInstructionTaskResult.success === true,
+    "runtimeInstruction run_agent 应成功",
+    runtimeInstructionTaskResult,
+  );
   assert(
     lineStartingWith(runtimeInstructionDone.text, "系统提示词：") === "系统提示词：E2E Agent 系统提示词。",
     "runtimeInstruction 不应修改底层 runtime 的 systemPrompt",
     runtimeInstructionDone.text,
   );
 
-  const beforeStatelessChat = await request({
-    type: "read_session",
-    requestId: "read-before-stateless-chat",
-    workspacePath,
-    sessionRootDir,
-  }, "session_result");
-  const chatResult = await request(chatCommand({
-    requestId: "chat-user-message",
-    stream: false,
-    systemPrompt: "E2E Agent 系统提示词。",
-    userMessage: "chat 命令的新用户消息",
-    requestContext: "chat 本次引用资料：request-context-chat-only。",
-    runtimeInstruction: "chat 本轮临时说明：只验证链路。",
-    runtimeModel: null,
-  }), "chat_result");
+  const beforeStatelessChat = await request(
+    {
+      type: "read_session",
+      requestId: "read-before-stateless-chat",
+      workspacePath,
+      sessionRootDir,
+    },
+    "session_result",
+  );
+  const chatResult = await request(
+    chatCommand({
+      requestId: "chat-user-message",
+      stream: false,
+      systemPrompt: "E2E Agent 系统提示词。",
+      userMessage: "chat 命令的新用户消息",
+      requestContext: "chat 本次引用资料：request-context-chat-only。",
+      runtimeInstruction: "chat 本轮临时说明：只验证链路。",
+      runtimeModel: null,
+    }),
+    "chat_result",
+  );
   assert(
     chatResult.text.includes("chat 命令的新用户消息"),
     "chat runtime 应收到调用方传入的最新 user message",
     chatResult,
   );
-  assert(
-    chatResult.text.includes("消息数量：1"),
-    "chat runtime 应只依赖调用方传入的 messages",
-    chatResult,
-  );
+  assert(chatResult.text.includes("消息数量：1"), "chat runtime 应只依赖调用方传入的 messages", chatResult);
   assert(!chatResult.runtimeSession, "chat_result 不应携带 runtime user messageRecordId", chatResult);
-  const afterChat = await request({
-    type: "read_session",
-    requestId: "read-after-chat-user-message",
-    workspacePath,
-    sessionRootDir,
-  }, "session_result");
+  const afterChat = await request(
+    {
+      type: "read_session",
+      requestId: "read-after-chat-user-message",
+      workspacePath,
+      sessionRootDir,
+    },
+    "session_result",
+  );
   assert(
     afterChat.messages.length === beforeStatelessChat.messages.length &&
       afterChat.requestContexts?.length === beforeStatelessChat.requestContexts?.length &&
@@ -1198,31 +1296,36 @@ try {
     },
   );
 
-  const serialRoot = await request({
-    type: "message_append",
-    requestId: "append-serial-root-user",
-    workspacePath,
-    sessionRootDir,
-    messages: [
-      { role: "user", content: "串行协作根用户消息", timestamp: 21, metadata: { uiMessageId: "serial-root" } },
-    ],
-  }, "session_mutation_result");
+  const serialRoot = await request(
+    {
+      type: "message_append",
+      requestId: "append-serial-root-user",
+      workspacePath,
+      sessionRootDir,
+      messages: [
+        { role: "user", content: "串行协作根用户消息", timestamp: 21, metadata: { uiMessageId: "serial-root" } },
+      ],
+    },
+    "session_mutation_result",
+  );
   assert(serialRoot.messageRecordId, "serial handoff 应先有应用侧写入的 root user", serialRoot);
 
   const firstSerialTaskId = "mock-task-serial-first";
-  send(runAgentCommand({
-    mode: "agent",
-    requestId: firstSerialTaskId,
-    taskId: firstSerialTaskId,
-    agentId: "mock",
-    workspacePath,
-    sessionRootDir,
-    agentRoleId: "mock-serial-first-agent",
-    userMessage: "第一个内部 agent 基于串行协作根用户消息处理。",
-    runtimeInstruction: "串行第一个 agent 的内部执行说明。",
-    runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
-    resources: runtimeResources(),
-  }));
+  send(
+    runAgentCommand({
+      mode: "agent",
+      requestId: firstSerialTaskId,
+      taskId: firstSerialTaskId,
+      agentId: "mock",
+      workspacePath,
+      sessionRootDir,
+      agentRoleId: "mock-serial-first-agent",
+      userMessage: "第一个内部 agent 基于串行协作根用户消息处理。",
+      runtimeInstruction: "串行第一个 agent 的内部执行说明。",
+      runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
+      resources: runtimeResources(),
+    }),
+  );
   const firstSerialDone = await waitFor(
     (item) => item.type === "done" && item.taskId === firstSerialTaskId,
     "first serial run_agent done",
@@ -1234,7 +1337,9 @@ try {
   assert(firstSerialTaskResult.success === true, "first serial run_agent 应成功", firstSerialTaskResult);
 
   const firstSerialLedger = readLedger();
-  const firstSerialInstructionEntry = firstSerialLedger.entry(firstSerialDone.runtimeSession.runtimeInstructionRecordId);
+  const firstSerialInstructionEntry = firstSerialLedger.entry(
+    firstSerialDone.runtimeSession.runtimeInstructionRecordId,
+  );
   const firstSerialAssistantEntry = firstSerialLedger.entry(firstSerialDone.runtimeSession.assistantMessageRecordId);
   assert(
     !("sessionLink" in (firstSerialDone.runtimeSession ?? {})) &&
@@ -1252,19 +1357,21 @@ try {
   );
 
   const serialTaskId = "mock-task-serial-second";
-  send(runAgentCommand({
-    mode: "agent",
-    requestId: serialTaskId,
-    taskId: serialTaskId,
-    agentId: "mock",
-    workspacePath,
-    sessionRootDir,
-    agentRoleId: "mock-serial-second-agent",
-    userMessage: "请作为第二个 agent 基于上一个 agent 的回复继续处理。",
-    runtimeInstruction: "串行 agent 基于上一个 agent 的输出继续处理。",
-    runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
-    resources: runtimeResources(),
-  }));
+  send(
+    runAgentCommand({
+      mode: "agent",
+      requestId: serialTaskId,
+      taskId: serialTaskId,
+      agentId: "mock",
+      workspacePath,
+      sessionRootDir,
+      agentRoleId: "mock-serial-second-agent",
+      userMessage: "请作为第二个 agent 基于上一个 agent 的回复继续处理。",
+      runtimeInstruction: "串行 agent 基于上一个 agent 的输出继续处理。",
+      runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
+      resources: runtimeResources(),
+    }),
+  );
   const serialDone = await waitFor(
     (item) => item.type === "done" && item.taskId === serialTaskId,
     "serial run_agent done",
@@ -1275,8 +1382,7 @@ try {
   );
   assert(serialTaskResult.success === true, "serial run_agent 应成功", serialTaskResult);
   assert(
-    !("sessionLink" in (serialDone.runtimeSession ?? {})) &&
-      serialDone.runtimeSession?.userMessageRecordId === null,
+    !("sessionLink" in (serialDone.runtimeSession ?? {})) && serialDone.runtimeSession?.userMessageRecordId === null,
     "serial done 不应暴露 sessionLink，也不应创建新的 user entry",
     {
       runtimeSession: serialDone.runtimeSession,
@@ -1304,29 +1410,36 @@ try {
     "serial assistant 应挂到 runtimeInstruction 后，并记录 rootUserEntryId/turnId/recordUserMessage",
     serialAssistantEntry,
   );
-  const afterSerial = await request({
-    type: "read_session",
-    requestId: "read-after-serial",
-    workspacePath,
-    sessionRootDir,
-  }, "session_result");
+  const afterSerial = await request(
+    {
+      type: "read_session",
+      requestId: "read-after-serial",
+      workspacePath,
+      sessionRootDir,
+    },
+    "session_result",
+  );
   assert(
     afterSerial.messages.filter((message) => message.content === "串行协作根用户消息").length === 1 &&
       !afterSerial.messages.some((message) => message.content === "第一个内部 agent 基于串行协作根用户消息处理。") &&
-      !afterSerial.messages.some((message) => message.content === "请作为第二个 agent 基于上一个 agent 的回复继续处理。"),
+      !afterSerial.messages.some(
+        (message) => message.content === "请作为第二个 agent 基于上一个 agent 的回复继续处理。",
+      ),
     "serial handoff 不应把内部 agent prompt 重复写成 user 消息",
     afterSerial.messages,
   );
   assert(
-    afterSerial.runtimeLinks?.some((link) =>
-      link.runtime === "agent" &&
-        link.agentRoleId === "mock-serial-first-agent" &&
-        link.assistantMessageRecordIds.includes(firstSerialAssistantEntry.id)
-    ) &&
-      afterSerial.runtimeLinks?.some((link) =>
+    afterSerial.runtimeLinks?.some(
+      (link) =>
         link.runtime === "agent" &&
+        link.agentRoleId === "mock-serial-first-agent" &&
+        link.assistantMessageRecordIds.includes(firstSerialAssistantEntry.id),
+    ) &&
+      afterSerial.runtimeLinks?.some(
+        (link) =>
+          link.runtime === "agent" &&
           link.agentRoleId === "mock-serial-second-agent" &&
-          link.assistantMessageRecordIds.includes(serialAssistantEntry.id)
+          link.assistantMessageRecordIds.includes(serialAssistantEntry.id),
       ),
     "read_session 应返回当前分支上多 agent 的结构化 runtimeLinks",
     afterSerial.runtimeLinks,
@@ -1339,9 +1452,8 @@ try {
 
   const finalLedger = readLedger();
   const finalLedgerEntry = finalLedger.entries.at(-1);
-  const finalLedgerLeafId = finalLedgerEntry?.type === "leaf"
-    ? finalLedgerEntry.targetId
-    : finalLedgerEntry?.id ?? null;
+  const finalLedgerLeafId =
+    finalLedgerEntry?.type === "leaf" ? finalLedgerEntry.targetId : (finalLedgerEntry?.id ?? null);
   assert(
     finalManifest.type === "runtime_session_manifest" &&
       finalManifest.entryCount === finalLedger.entries.length &&
@@ -1367,7 +1479,9 @@ try {
     },
     editedMessages: edited.messages.length,
     editedMessageRecordId: edited.messageRecordId,
-    oldBranchNodesRetainedAfterEdit: Boolean(editLedger.entry(taskUserEntry.id) && editLedger.entry(taskAssistantEntry.id)),
+    oldBranchNodesRetainedAfterEdit: Boolean(
+      editLedger.entry(taskUserEntry.id) && editLedger.entry(taskAssistantEntry.id),
+    ),
     deletedMessages: deleted.messages.length,
     deleteMarkerId: deleteMarker.id,
     editedBranchNodeRetainedAfterDelete: Boolean(deleteLedger.entry(edited.messageRecordId)),

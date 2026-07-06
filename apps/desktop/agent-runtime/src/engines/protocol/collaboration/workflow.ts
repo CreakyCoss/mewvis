@@ -1,12 +1,7 @@
 import type { AgentRuntimeResources } from "../agent/index.js";
 import type { RuntimeModelInput } from "../model.js";
 
-export type CollaborationStepType =
-  | "agent"
-  | "dispatch"
-  | "transform"
-  | "condition"
-  | "router";
+export type CollaborationStepType = "agent" | "dispatch" | "transform" | "condition" | "router";
 
 export type CollaborationBuiltinStepCondition = {
   ref: string;
@@ -23,9 +18,7 @@ export type CollaborationNamedStepCondition = {
   invert?: boolean;
 };
 
-export type CollaborationStepCondition =
-  | CollaborationBuiltinStepCondition
-  | CollaborationNamedStepCondition;
+export type CollaborationStepCondition = CollaborationBuiltinStepCondition | CollaborationNamedStepCondition;
 
 export type CollaborationBaseWorkflowStep = {
   id: string;
@@ -119,17 +112,9 @@ export type CollaborationRunInput = {
   input?: unknown;
 };
 
-export type CollaborationModeId =
-  | "supervisor.dispatch-loop"
-  | "producer.review-rewrite-loop"
-  | (string & {});
+export type CollaborationModeId = "supervisor.dispatch-loop" | "producer.review-rewrite-loop" | (string & {});
 
-export type CollaborationParticipantKind =
-  | "supervisor"
-  | "worker"
-  | "producer"
-  | "reviewer"
-  | "evaluator";
+export type CollaborationParticipantKind = "supervisor" | "worker" | "producer" | "reviewer" | "evaluator";
 
 export type CollaborationModeParticipant = {
   id: string;

@@ -1,8 +1,4 @@
-import type {
-  SceneNovelizerPlatformStyleId,
-  SceneNovelizerRuleCategory,
-  SceneNovelizerRuleOptionId,
-} from "../types";
+import type { SceneNovelizerPlatformStyleId, SceneNovelizerRuleCategory, SceneNovelizerRuleOptionId } from "../types";
 
 export type SceneNovelizerRuleOption = {
   id: SceneNovelizerRuleOptionId;
@@ -14,11 +10,7 @@ export type SceneNovelizerRuleOption = {
   defaultForPlatforms: SceneNovelizerPlatformStyleId[];
 };
 
-export type SceneNovelizerRulePackageId =
-  | "fanqie-fast-hook"
-  | "qidian-longform"
-  | "jinjiang-emotional"
-  | "zhihu-short";
+export type SceneNovelizerRulePackageId = "fanqie-fast-hook" | "qidian-longform" | "jinjiang-emotional" | "zhihu-short";
 
 export type SceneNovelizerRulePackage = {
   id: SceneNovelizerRulePackageId;
@@ -68,10 +60,9 @@ const DEFAULT_RULE_IDS_BY_PLATFORM: Record<SceneNovelizerPlatformStyleId, string
 };
 
 const defaultPlatformsForRule = (ruleId: string): SceneNovelizerPlatformStyleId[] =>
-  (Object.entries(DEFAULT_RULE_IDS_BY_PLATFORM) as Array<[SceneNovelizerPlatformStyleId, string[]]>)
-    .flatMap(([platformStyleId, ruleIds]) =>
-      ruleIds.includes(ruleId) ? [platformStyleId] : []
-    );
+  (Object.entries(DEFAULT_RULE_IDS_BY_PLATFORM) as Array<[SceneNovelizerPlatformStyleId, string[]]>).flatMap(
+    ([platformStyleId, ruleIds]) => (ruleIds.includes(ruleId) ? [platformStyleId] : []),
+  );
 
 const createRuleOption = ({
   id,
@@ -101,10 +92,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "抽象判断必须落到可见动作、物件变化、身体反应或具体语气上。",
       "不把角色写成全知旁白的代言人，保留迟疑、误判、停顿和现场噪音。",
     ],
-    judgeFocus: [
-      "是否出现模板化 AI 句式。",
-      "是否用具体细节替代空泛情绪词。",
-    ],
+    judgeFocus: ["是否出现模板化 AI 句式。", "是否用具体细节替代空泛情绪词。"],
   }),
   createRuleOption({
     id: "natural-dialogue",
@@ -116,10 +104,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "每段对白都要带有说话人的目的、情绪或信息差。",
       "避免连续长篇解释；需要交代信息时穿插动作、观察和误会。",
     ],
-    judgeFocus: [
-      "对白是否有真人反应和角色差异。",
-      "是否避免资料报告式长对白。",
-    ],
+    judgeFocus: ["对白是否有真人反应和角色差异。", "是否避免资料报告式长对白。"],
   }),
   createRuleOption({
     id: "concise-no-summary",
@@ -131,10 +116,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "少用“这意味着”“他终于明白”“所有人都知道”这类解释性收束。",
       "需要交代判断时让角色用动作或一句具体反应承载。",
     ],
-    judgeFocus: [
-      "是否存在明显段末总结腔。",
-      "收尾是否保持剧情压力而非解释意义。",
-    ],
+    judgeFocus: ["是否存在明显段末总结腔。", "收尾是否保持剧情压力而非解释意义。"],
   }),
   createRuleOption({
     id: "reduce-empty-ambience",
@@ -146,10 +128,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "环境细节要能改变行动判断、揭示线索或压迫角色选择。",
       "场景气氛用可交互物件、声音来源、距离变化和身体触感表达。",
     ],
-    judgeFocus: [
-      "环境是否推动剧情或角色判断。",
-      "是否存在大量可删去的气氛句。",
-    ],
+    judgeFocus: ["环境是否推动剧情或角色判断。", "是否存在大量可删去的气氛句。"],
   }),
   createRuleOption({
     id: "webnovel-high-density",
@@ -161,10 +140,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "把素材中的行动、对白、心理和线索拆成短段推进。",
       "每 300 字内至少给出一次可感知的局势变化或关系变化。",
     ],
-    judgeFocus: [
-      "段落是否持续推进。",
-      "是否避免原地说明和重复心理。",
-    ],
+    judgeFocus: ["段落是否持续推进。", "是否避免原地说明和重复心理。"],
   }),
   createRuleOption({
     id: "direct-commercial-flow",
@@ -176,10 +152,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "用户行动之后立刻给反馈，不把后果延后成旁白说明。",
       "冲突升级要具体：有人逼近、证据失效、资源减少或关系撕裂。",
     ],
-    judgeFocus: [
-      "目标和阻碍是否清楚。",
-      "用户行动后果是否即时出现。",
-    ],
+    judgeFocus: ["目标和阻碍是否清楚。", "用户行动后果是否即时出现。"],
   }),
   createRuleOption({
     id: "emotional-push-pull",
@@ -191,10 +164,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "对白里保留潜台词和未说出口的顾虑。",
       "每个情绪转折都要对应具体动作或信息变化。",
     ],
-    judgeFocus: [
-      "关系张力是否来自行动与信息差。",
-      "情绪转折是否具体可信。",
-    ],
+    judgeFocus: ["关系张力是否来自行动与信息差。", "情绪转折是否具体可信。"],
   }),
   createRuleOption({
     id: "light-novel-banter",
@@ -206,10 +176,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "轻快对白后要接一个动作、线索或局势变化。",
       "角色反应要有差异，不用同一种语气轮流接话。",
     ],
-    judgeFocus: [
-      "轻快对白是否仍服务剧情。",
-      "角色语气是否可区分。",
-    ],
+    judgeFocus: ["轻快对白是否仍服务剧情。", "角色语气是否可区分。"],
   }),
   createRuleOption({
     id: "delicate-daily",
@@ -221,10 +188,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "日常段落仍要有小目标、小误会或小后果。",
       "避免把细腻写成静态抒情堆叠。",
     ],
-    judgeFocus: [
-      "生活细节是否具体。",
-      "慢节奏是否仍有可读目标。",
-    ],
+    judgeFocus: ["生活细节是否具体。", "慢节奏是否仍有可读目标。"],
   }),
   createRuleOption({
     id: "male-progression-growth",
@@ -236,10 +200,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "冲突要能体现实力差、信息差或规则差。",
       "避免只写被动询问；主角必须对局势产生实际影响。",
     ],
-    judgeFocus: [
-      "是否有成长或收益反馈。",
-      "主角是否推动局势变化。",
-    ],
+    judgeFocus: ["是否有成长或收益反馈。", "主角是否推动局势变化。"],
   }),
   createRuleOption({
     id: "female-romance-relationship",
@@ -251,10 +212,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "不让角色只围绕主角无条件付出。",
       "重要情绪点用具体举动、停顿和回避表达。",
     ],
-    judgeFocus: [
-      "关系变化是否具体可信。",
-      "是否避免无成本偏爱。",
-    ],
+    judgeFocus: ["关系变化是否具体可信。", "是否避免无成本偏爱。"],
   }),
   createRuleOption({
     id: "short-emotional-story",
@@ -266,10 +224,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "用一个误会、选择或证据变化推动反转。",
       "结尾留下情绪余波或新代价，而不是讲道理。",
     ],
-    judgeFocus: [
-      "情绪主线是否集中。",
-      "反转或刺点是否清楚。",
-    ],
+    judgeFocus: ["情绪主线是否集中。", "反转或刺点是否清楚。"],
   }),
   createRuleOption({
     id: "acg-character-fun",
@@ -281,10 +236,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "萌点、怪癖或反差要影响互动选择。",
       "不为了卖人设让角色忽视危险或主线。",
     ],
-    judgeFocus: [
-      "人设是否自然进入行动。",
-      "趣味是否破坏主线压力。",
-    ],
+    judgeFocus: ["人设是否自然进入行动。", "趣味是否破坏主线压力。"],
   }),
   createRuleOption({
     id: "conflict-hook",
@@ -296,10 +248,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "冲突来源要具体可见：人、物、倒计时、证据或空间封锁。",
       "不要让冲突在同段内被轻易解决。",
     ],
-    judgeFocus: [
-      "是否有明确下一步冲突。",
-      "冲突是否具体而未被立刻化解。",
-    ],
+    judgeFocus: ["是否有明确下一步冲突。", "冲突是否具体而未被立刻化解。"],
   }),
   createRuleOption({
     id: "expectation-hook",
@@ -311,10 +260,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "给出清楚的下一阶段目标，但不提前兑现核心答案。",
       "期待点要与用户行动和场景目标相关。",
     ],
-    judgeFocus: [
-      "是否形成下一阶段期待。",
-      "是否避免承诺与正文内容错位。",
-    ],
+    judgeFocus: ["是否形成下一阶段期待。", "是否避免承诺与正文内容错位。"],
   }),
   createRuleOption({
     id: "reward-feedback",
@@ -326,10 +272,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "反馈不一定是胜利，但必须让读者感到行动有重量。",
       "避免角色只继续提问而没有反馈。",
     ],
-    judgeFocus: [
-      "行动后果是否可见。",
-      "反馈是否让剧情继续前进。",
-    ],
+    judgeFocus: ["行动后果是否可见。", "反馈是否让剧情继续前进。"],
   }),
   createRuleOption({
     id: "reversal-healing",
@@ -341,25 +284,15 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "治愈点要通过动作或选择兑现，不靠旁白宣布。",
       "保留一点未解决压力，避免全局过早圆满。",
     ],
-    judgeFocus: [
-      "反转是否有铺垫。",
-      "情绪回报是否由行动兑现。",
-    ],
+    judgeFocus: ["反转是否有铺垫。", "情绪回报是否由行动兑现。"],
   }),
   createRuleOption({
     id: "topic-resonance",
     category: "hook",
     label: "话题共鸣",
     description: "把选择压力落到身份、关系、现实困境或价值冲突上。",
-    writingRules: [
-      "话题点必须嵌入角色选择，不另起议论文。",
-      "用具体困境承载价值冲突。",
-      "不替读者做道德总结。",
-    ],
-    judgeFocus: [
-      "共鸣点是否来自剧情选择。",
-      "是否避免说教。",
-    ],
+    writingRules: ["话题点必须嵌入角色选择，不另起议论文。", "用具体困境承载价值冲突。", "不替读者做道德总结。"],
+    judgeFocus: ["共鸣点是否来自剧情选择。", "是否避免说教。"],
   }),
   createRuleOption({
     id: "high-concept-payoff",
@@ -371,10 +304,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "设定说明不超过行动需要，优先展示效果。",
       "每段高概念信息都要带来风险、收益或误判。",
     ],
-    judgeFocus: [
-      "设定是否产生现场效果。",
-      "是否避免纯世界观说明。",
-    ],
+    judgeFocus: ["设定是否产生现场效果。", "是否避免纯世界观说明。"],
   }),
   createRuleOption({
     id: "feilu-toxic-points",
@@ -386,10 +316,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "强压迫后要给出信息、资源或局势上的补偿反馈。",
       "不要让关键角色无理由羞辱或降智。",
     ],
-    judgeFocus: [
-      "主角是否有能动性。",
-      "压迫与反馈是否平衡。",
-    ],
+    judgeFocus: ["主角是否有能动性。", "压迫与反馈是否平衡。"],
   }),
   createRuleOption({
     id: "female-values-drift",
@@ -401,10 +328,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "亲密、牺牲、原谅都要有成本和边界。",
       "不把冲突强行写成所有人都理解主角。",
     ],
-    judgeFocus: [
-      "价值立场是否稳定。",
-      "关系推进是否有成本。",
-    ],
+    judgeFocus: ["价值立场是否稳定。", "关系推进是否有成本。"],
   }),
   createRuleOption({
     id: "promise-mismatch",
@@ -416,10 +340,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "不要把强悬疑、强冲突写成闲谈或日常铺垫。",
       "章尾钩子要接续本场承诺，而不是另起一个无关疑问。",
     ],
-    judgeFocus: [
-      "正文是否兑现当前场景承诺。",
-      "章尾是否接住既有期待。",
-    ],
+    judgeFocus: ["正文是否兑现当前场景承诺。", "章尾是否接住既有期待。"],
   }),
   createRuleOption({
     id: "slow-buildup",
@@ -431,10 +352,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "背景信息只在角色必须用到时写。",
       "如果素材偏静态，要提炼出最尖锐的选择压力。",
     ],
-    judgeFocus: [
-      "开头是否快速进入事件。",
-      "铺垫是否造成空转。",
-    ],
+    judgeFocus: ["开头是否快速进入事件。", "铺垫是否造成空转。"],
   }),
   createRuleOption({
     id: "long-lore-overexplain",
@@ -446,10 +364,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "单次解释不超过当前行动所需。",
       "出现长推理时用打断、证据变化或角色反应切开。",
     ],
-    judgeFocus: [
-      "是否出现长篇设定说明。",
-      "信息是否通过行动和证据展开。",
-    ],
+    judgeFocus: ["是否出现长篇设定说明。", "信息是否通过行动和证据展开。"],
   }),
   createRuleOption({
     id: "unearned-reconciliation",
@@ -461,10 +376,7 @@ export const SCENE_NOVELIZER_RULE_OPTIONS: SceneNovelizerRuleOption[] = [
       "矛盾可以缓和，但不要无条件清零。",
       "情绪回落后仍保留下一步压力。",
     ],
-    judgeFocus: [
-      "关系修复是否有代价。",
-      "冲突是否被过早清零。",
-    ],
+    judgeFocus: ["关系修复是否有代价。", "冲突是否被过早清零。"],
   }),
 ];
 
@@ -472,30 +384,25 @@ const SCENE_NOVELIZER_RULE_OPTION_BY_ID = new Map(
   SCENE_NOVELIZER_RULE_OPTIONS.map((option) => [option.id, option] as const),
 );
 
-const flattenValues = (value: unknown): unknown[] => Array.isArray(value)
-  ? value.flatMap(flattenValues)
-  : [value];
+const flattenValues = (value: unknown): unknown[] => (Array.isArray(value) ? value.flatMap(flattenValues) : [value]);
 
-export const normalizeSceneNovelizerRuleOptionIds = (
-  value: unknown,
-): SceneNovelizerRuleOptionId[] =>
-  Array.from(new Set(flattenValues(value).flatMap((item) =>
-    typeof item === "string" && SCENE_NOVELIZER_RULE_OPTION_BY_ID.has(item)
-      ? [item]
-      : []
-  )));
+export const normalizeSceneNovelizerRuleOptionIds = (value: unknown): SceneNovelizerRuleOptionId[] =>
+  Array.from(
+    new Set(
+      flattenValues(value).flatMap((item) =>
+        typeof item === "string" && SCENE_NOVELIZER_RULE_OPTION_BY_ID.has(item) ? [item] : [],
+      ),
+    ),
+  );
 
-export const getSceneNovelizerRuleOptions = (
-  value: unknown,
-): SceneNovelizerRuleOption[] =>
+export const getSceneNovelizerRuleOptions = (value: unknown): SceneNovelizerRuleOption[] =>
   normalizeSceneNovelizerRuleOptionIds(value)
     .map((id) => SCENE_NOVELIZER_RULE_OPTION_BY_ID.get(id))
     .filter((option): option is SceneNovelizerRuleOption => Boolean(option));
 
 export const getDefaultSceneNovelizerRuleOptionIds = (
   platformStyleId: SceneNovelizerPlatformStyleId,
-): SceneNovelizerRuleOptionId[] =>
-  normalizeSceneNovelizerRuleOptionIds(DEFAULT_RULE_IDS_BY_PLATFORM[platformStyleId]);
+): SceneNovelizerRuleOptionId[] => normalizeSceneNovelizerRuleOptionIds(DEFAULT_RULE_IDS_BY_PLATFORM[platformStyleId]);
 
 export const SCENE_NOVELIZER_RULE_PACKAGES: SceneNovelizerRulePackage[] = [
   {
@@ -580,14 +487,9 @@ export const SCENE_NOVELIZER_RULE_PACKAGES: SceneNovelizerRulePackage[] = [
   },
 ];
 
-export const DEFAULT_SCENE_NOVELIZER_RULE_PACKAGE_ID: SceneNovelizerRulePackageId =
-  "fanqie-fast-hook";
+export const DEFAULT_SCENE_NOVELIZER_RULE_PACKAGE_ID: SceneNovelizerRulePackageId = "fanqie-fast-hook";
 
-export const getSceneNovelizerRulePackage = (
-  value?: string | null,
-): SceneNovelizerRulePackage =>
+export const getSceneNovelizerRulePackage = (value?: string | null): SceneNovelizerRulePackage =>
   SCENE_NOVELIZER_RULE_PACKAGES.find((item) => item.id === value) ??
-    SCENE_NOVELIZER_RULE_PACKAGES.find((item) =>
-      item.id === DEFAULT_SCENE_NOVELIZER_RULE_PACKAGE_ID
-    ) ??
-    SCENE_NOVELIZER_RULE_PACKAGES[0];
+  SCENE_NOVELIZER_RULE_PACKAGES.find((item) => item.id === DEFAULT_SCENE_NOVELIZER_RULE_PACKAGE_ID) ??
+  SCENE_NOVELIZER_RULE_PACKAGES[0];

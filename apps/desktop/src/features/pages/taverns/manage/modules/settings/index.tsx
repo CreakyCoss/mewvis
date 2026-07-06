@@ -10,14 +10,13 @@ import {
   Pencil,
   Settings2,
   ShieldCheck,
-  Sparkles,
   Target,
   UserRoundCog,
   UserRoundSearch,
   UserRoundMinus,
   UsersRound,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { TavernRoom, TavernRoomSettings } from "@/features/pages/taverns/manage/model";
@@ -30,16 +29,12 @@ import {
   EditorStatusPill,
   editorHeaderActionButtonClassName,
 } from "../../primitives";
-import { getErrorMessage } from "../../utils";
 import { SettingsEdit, type SettingsEditHandle } from "./edit";
 import type { ModuleSave } from "../types";
 
 type SettingsSectionProps = {
   data: TavernRoom;
   globalRuntimeModel: RuntimeModelOption | null;
-  onRegenerateDirectorProfile: (
-    room: TavernRoom,
-  ) => Promise<NonNullable<TavernRoomSettings["directorScheduling"]["profile"]>>;
   onSave: ModuleSave;
 };
 
@@ -73,15 +68,8 @@ const getProgressModeLabel = (data: TavernRoom) => {
   return `${data.progressTracker.intervalTurns} 轮`;
 };
 
-export const SettingsSection = ({
-  data,
-  globalRuntimeModel,
-  onRegenerateDirectorProfile,
-  onSave,
-}: SettingsSectionProps) => {
+export const SettingsSection = ({ data, globalRuntimeModel, onSave }: SettingsSectionProps) => {
   const editRef = useRef<SettingsEditHandle>(null);
-  const [isRegeneratingDirectorProfile, setIsRegeneratingDirectorProfile] = useState(false);
-  const [directorProfileError, setDirectorProfileError] = useState("");
   const modelLabel = globalRuntimeModel
     ? `${globalRuntimeModel.provider.name} / ${globalRuntimeModel.modelName || globalRuntimeModel.modelId}`
     : "未选择";
@@ -91,31 +79,6 @@ export const SettingsSection = ({
   const randomEventPercentage = Math.round(data.settings.randomEvents.probability * 100);
   const randomEventProgress = data.settings.randomEvents.enabled ? randomEventPercentage : 0;
 
-  const regenerateDirectorProfile = async () => {
-    if (isRegeneratingDirectorProfile) {
-      return;
-    }
-
-    setIsRegeneratingDirectorProfile(true);
-    setDirectorProfileError("");
-    try {
-      const profile = await onRegenerateDirectorProfile(data);
-      onSave({
-        settings: {
-          ...data.settings,
-          directorScheduling: {
-            ...data.settings.directorScheduling,
-            profile,
-          },
-        },
-      });
-    } catch (profileError) {
-      setDirectorProfileError(`生成调度画像失败：${getErrorMessage(profileError)}`);
-    } finally {
-      setIsRegeneratingDirectorProfile(false);
-    }
-  };
-
   return (
     <>
       <EditorSection
@@ -123,31 +86,16 @@ export const SettingsSection = ({
         title="运行设置"
         description="控制模型执行、自动化、导演调度、状态追踪和信息揭示。"
         action={
-          <div className="flex flex-wrap justify-end gap-1.5">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className={editorHeaderActionButtonClassName}
-              disabled={
-                data.locked || isRegeneratingDirectorProfile || !globalRuntimeModel || data.characterIds.length === 0
-              }
-              onClick={() => void regenerateDirectorProfile()}
-            >
-              <Sparkles className="size-3.5" />
-              {isRegeneratingDirectorProfile ? "生成中" : "生成调度画像"}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className={editorHeaderActionButtonClassName}
-              onClick={() => editRef.current?.(data)}
-            >
-              <Pencil className="size-3.5" />
-              编辑
-            </Button>
-          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className={editorHeaderActionButtonClassName}
+            onClick={() => editRef.current?.(data)}
+          >
+            <Pencil className="size-3.5" />
+            编辑
+          </Button>
         }
         contentClassName="space-y-4 pb-4"
       >
@@ -277,11 +225,6 @@ export const SettingsSection = ({
             description={data.settings.randomEvents.enabled ? "按回合触发" : "当前不触发"}
           />
         </div>
-        {directorProfileError && (
-          <div className="mt-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs leading-5 text-destructive">
-            {directorProfileError}
-          </div>
-        )}
       </EditorSection>
 
       <SettingsEdit bind={editRef} data={data} modelLabel={modelLabel} onSave={onSave} />

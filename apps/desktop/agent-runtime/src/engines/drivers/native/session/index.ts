@@ -18,9 +18,7 @@ import {
   type SessionResult,
   type SummarizeSessionInput,
 } from "../../../protocol/index.js";
-import type {
-  RuntimeAgentVisibleContext,
-} from "./model/agent-context.js";
+import type { RuntimeAgentVisibleContext } from "./model/agent-context.js";
 import type { RuntimeSessionCommand } from "./model/runtime-command.js";
 import { resolveRuntimeSessionProvider } from "./providers/resolver.js";
 import type {
@@ -37,8 +35,7 @@ import type {
   RuntimeSessionTurnOptions,
 } from "./providers/types.js";
 
-type SessionManagerInput<TInput extends RuntimeSessionPathInput> =
-  Omit<TInput, keyof RuntimeSessionPathInput>;
+type SessionManagerInput<TInput extends RuntimeSessionPathInput> = Omit<TInput, keyof RuntimeSessionPathInput>;
 
 export type RuntimeSessionManagerTarget = RuntimeSessionPathInput & {
   providerId?: RuntimeSessionProviderId | null;
@@ -68,15 +65,16 @@ class RuntimeSessionManager {
     options: RuntimeSessionTurnOptions = {},
   ) {
     await this.ensureReady();
-    return this.provider.prepareTurn({
-      ...command,
-      ...this.target,
-    }, options);
+    return this.provider.prepareTurn(
+      {
+        ...command,
+        ...this.target,
+      },
+      options,
+    );
   }
 
-  async readSession(
-    input: SessionManagerInput<ReadSessionInput> = {},
-  ): Promise<SessionResult> {
+  async readSession(input: SessionManagerInput<ReadSessionInput> = {}): Promise<SessionResult> {
     await this.ensureReady();
     return this.provider.readSession({
       ...input,
@@ -86,9 +84,7 @@ class RuntimeSessionManager {
     });
   }
 
-  async summarizeSession(
-    input: SessionManagerInput<SummarizeSessionInput>,
-  ): Promise<SessionMutationResult> {
+  async summarizeSession(input: SessionManagerInput<SummarizeSessionInput>): Promise<SessionMutationResult> {
     await this.ensureReady();
     return this.provider.summarizeSession({
       ...input,
@@ -158,9 +154,7 @@ class RuntimeSessionManager {
     return result;
   }
 
-  async compactSession(
-    input: SessionManagerInput<RuntimeSessionCompactInput> = {},
-  ): Promise<SessionMutationResult> {
+  async compactSession(input: SessionManagerInput<RuntimeSessionCompactInput> = {}): Promise<SessionMutationResult> {
     await this.ensureReady();
     return this.provider.compactSession({
       ...input,
@@ -169,9 +163,7 @@ class RuntimeSessionManager {
     });
   }
 
-  async deleteSession(
-    input: SessionManagerInput<RuntimeSessionDeleteInput> = {},
-  ): Promise<void> {
+  async deleteSession(input: SessionManagerInput<RuntimeSessionDeleteInput> = {}): Promise<void> {
     await this.ensureReady();
     await this.provider.deleteSession({
       ...input,
@@ -190,9 +182,7 @@ class RuntimeSessionManager {
     });
   }
 
-  async recordSessionEvent(
-    input: SessionManagerInput<RuntimeSessionEventInput>,
-  ): Promise<SessionMutationResult> {
+  async recordSessionEvent(input: SessionManagerInput<RuntimeSessionEventInput>): Promise<SessionMutationResult> {
     await this.ensureReady();
     return this.provider.recordSessionEvent({
       ...input,
@@ -211,17 +201,12 @@ class RuntimeSessionManager {
     });
   }
 
-  async readRuntimeSession(
-    input: SessionManagerInput<RuntimeSessionQuery> = {},
-  ): Promise<RuntimeSessionResult> {
+  async readRuntimeSession(input: SessionManagerInput<RuntimeSessionQuery> = {}): Promise<RuntimeSessionResult> {
     await this.ensureReady();
-    const snapshot = await this.provider.getRuntimeSessionSnapshot(
-      this.target,
-      {
-        includeTimeline: input.includeTimeline,
-        timelineLimit: input.timelineLimit,
-      },
-    );
+    const snapshot = await this.provider.getRuntimeSessionSnapshot(this.target, {
+      includeTimeline: input.includeTimeline,
+      timelineLimit: input.timelineLimit,
+    });
     return {
       type: AgentRuntimeResultType.RuntimeSessionResult,
       requestId: null,
@@ -234,14 +219,11 @@ class RuntimeSessionManager {
     input: SessionManagerInput<RuntimeSessionDebugQuery> = {},
   ): Promise<RuntimeSessionDebugResult> {
     await this.ensureReady();
-    const snapshot = await this.provider.getRuntimeSessionDebugSnapshot(
-      this.target,
-      {
-        includeLedger: input.includeLedger,
-        includeTrace: input.includeTrace,
-        traceLimit: input.traceLimit,
-      },
-    );
+    const snapshot = await this.provider.getRuntimeSessionDebugSnapshot(this.target, {
+      includeLedger: input.includeLedger,
+      includeTrace: input.includeTrace,
+      traceLimit: input.traceLimit,
+    });
     return {
       type: AgentRuntimeResultType.RuntimeSessionDebugResult,
       requestId: null,
@@ -258,13 +240,10 @@ class RuntimeSessionManager {
     return {
       type: AgentRuntimeResultType.CollaborationTimelineResult,
       requestId: null,
-      ...(await this.provider.getCollaborationTimeline(
-        this.target,
-        {
-          workflowRunId: input.workflowRunId,
-          limit: input.limit,
-        },
-      )),
+      ...(await this.provider.getCollaborationTimeline(this.target, {
+        workflowRunId: input.workflowRunId,
+        limit: input.limit,
+      })),
     };
   }
 
@@ -296,12 +275,8 @@ class RuntimeSessionManager {
   }
 }
 
-export const createRuntimeSessionManager = (
-  target: RuntimeSessionManagerTarget,
-) => new RuntimeSessionManager(
-  target,
-  resolveRuntimeSessionProvider(target.providerId),
-);
+export const createRuntimeSessionManager = (target: RuntimeSessionManagerTarget) =>
+  new RuntimeSessionManager(target, resolveRuntimeSessionProvider(target.providerId));
 
 export const listRuntimeSessions = async (
   input: RuntimeSessionsQuery,

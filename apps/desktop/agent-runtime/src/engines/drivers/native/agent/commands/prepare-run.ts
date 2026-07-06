@@ -1,20 +1,8 @@
-import type {
-  AgentRuntimeNativeSession,
-  AgentRunCommand,
-  RuntimeAgentCommand,
-} from "../runtimes/types.js";
-import {
-  createAgentSessionPlan,
-} from "../artifacts.js";
-import {
-  inferCommandTurnId,
-  withSessionLink,
-} from "../../session/model/runtime-link.js";
+import type { AgentRuntimeNativeSession, AgentRunCommand, RuntimeAgentCommand } from "../runtimes/types.js";
+import { createAgentSessionPlan } from "../artifacts.js";
+import { inferCommandTurnId, withSessionLink } from "../../session/model/runtime-link.js";
 import { createRuntimeSessionManager } from "../../session/index.js";
-import {
-  agentRunUserMessage,
-  buildAgentTaskPrompt,
-} from "../prompt.js";
+import { agentRunUserMessage, buildAgentTaskPrompt } from "../prompt.js";
 import type { RuntimeSessionProviderId } from "../../session/providers/types.js";
 
 export type PreparedRuntimeAgentRun = {
@@ -38,8 +26,7 @@ const nativeSessionFor = (
   sessionManager: ReturnType<typeof createRuntimeSessionManager>,
 ): AgentRuntimeNativeSession => ({
   readSession: () => sessionManager.readSession(),
-  readAgentVisibleContext: (input) =>
-    sessionManager.readAgentVisibleContext(input),
+  readAgentVisibleContext: (input) => sessionManager.readAgentVisibleContext(input),
 });
 
 export const prepareRuntimeAgentRun = async (
@@ -49,23 +36,25 @@ export const prepareRuntimeAgentRun = async (
 ): Promise<PreparedRuntimeAgentRun> => {
   const userMessage = agentRunUserMessage(command);
   if (!command.sessionRootDir?.trim()) {
-    const runtimeCommand = withSessionLink({
-      ...command,
-      userMessage,
-      recordUserMessage: true,
-      agentTaskPrompt: userMessage,
-      sessionBootstrapContext: null,
-      nativeSessionContextRef: null,
-      bootstrapInstruction: command.bootstrapInstruction ?? null,
-    }, { turnId: inferCommandTurnId(command) });
+    const runtimeCommand = withSessionLink(
+      {
+        ...command,
+        userMessage,
+        recordUserMessage: true,
+        agentTaskPrompt: userMessage,
+        sessionBootstrapContext: null,
+        nativeSessionContextRef: null,
+        bootstrapInstruction: command.bootstrapInstruction ?? null,
+      },
+      { turnId: inferCommandTurnId(command) },
+    );
 
     return {
       command: {
         ...runtimeCommand,
-        agentTaskPrompt: [
-          runtimeCommand.systemPrompt?.trim() || "",
-          buildAgentTaskPrompt(runtimeCommand, userMessage),
-        ].filter(Boolean).join("\n\n"),
+        agentTaskPrompt: [runtimeCommand.systemPrompt?.trim() || "", buildAgentTaskPrompt(runtimeCommand, userMessage)]
+          .filter(Boolean)
+          .join("\n\n"),
       },
     };
   }

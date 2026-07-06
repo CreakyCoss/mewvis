@@ -1,17 +1,9 @@
-import type {
-  ChatRunCommand,
-  RuntimeAgentCommand,
-} from "../types.js";
-import {
-  allowedRuntimeTools,
-  enabledRuntimeSkillNames,
-} from "../resources.js";
+import type { ChatRunCommand, RuntimeAgentCommand } from "../types.js";
+import { allowedRuntimeTools, enabledRuntimeSkillNames } from "../resources.js";
 
 const compact = (value: string, maxLength = 180) => {
   const normalized = value.replace(/\s+/g, " ").trim();
-  return normalized.length > maxLength
-    ? `${normalized.slice(0, maxLength)}...`
-    : normalized;
+  return normalized.length > maxLength ? `${normalized.slice(0, maxLength)}...` : normalized;
 };
 
 export const chunkText = (text: string, chunkSize = 18): string[] => {
@@ -28,15 +20,9 @@ export const sleep = (ms: number) =>
   });
 
 export const createMockChatText = (command: ChatRunCommand) => {
-  const latestUserMessage = [...command.messages]
-    .reverse()
-    .find((message) => message.role === "user");
-  const summary = latestUserMessage?.content
-    ? compact(latestUserMessage.content)
-    : "没有收到用户消息";
-  const systemPromptSummary = command.systemPrompt?.trim()
-    ? compact(command.systemPrompt)
-    : "无";
+  const latestUserMessage = [...command.messages].reverse().find((message) => message.role === "user");
+  const summary = latestUserMessage?.content ? compact(latestUserMessage.content) : "没有收到用户消息";
+  const systemPromptSummary = command.systemPrompt?.trim() ? compact(command.systemPrompt) : "无";
 
   return [
     "这是 Mock agent 的模拟回复。",
@@ -52,24 +38,14 @@ export const createMockChatText = (command: ChatRunCommand) => {
 export const createMockAgentText = (command: RuntimeAgentCommand) => {
   const allowedTools = allowedRuntimeTools(command);
   const enabledSkillNames = enabledRuntimeSkillNames(command);
-  const enabledTools = allowedTools?.length
-    ? allowedTools.join(", ")
-    : "未传入工具列表";
-  const activeSkills = enabledSkillNames.length
-    ? enabledSkillNames.join(", ")
-    : "不使用技能";
-  const bootstrapSummary = command.sessionBootstrapContext?.trim()
-    ? compact(command.sessionBootstrapContext)
-    : "无";
+  const enabledTools = allowedTools?.length ? allowedTools.join(", ") : "未传入工具列表";
+  const activeSkills = enabledSkillNames.length ? enabledSkillNames.join(", ") : "不使用技能";
+  const bootstrapSummary = command.sessionBootstrapContext?.trim() ? compact(command.sessionBootstrapContext) : "无";
   const bootstrapInstructionSummary = command.bootstrapInstruction?.trim()
     ? compact(command.bootstrapInstruction)
     : "无";
-  const systemPromptSummary = command.systemPrompt?.trim()
-    ? compact(command.systemPrompt)
-    : "无";
-  const requestContextSummary = command.requestContext?.trim()
-    ? compact(command.requestContext)
-    : "无";
+  const systemPromptSummary = command.systemPrompt?.trim() ? compact(command.systemPrompt) : "无";
+  const requestContextSummary = command.requestContext?.trim() ? compact(command.requestContext) : "无";
 
   return [
     "Mock agent 已完成模拟任务。",

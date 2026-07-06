@@ -1,9 +1,9 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type {
   TavernCharacter,
   TavernEntityRef,
   TavernFactEvent,
   TavernRoleAssignmentDefinition,
-  TavernRoom,
 } from "@/features/pages/taverns/manage/model";
 
 const generatedRoleAssignmentPrefix = "role-assignment";

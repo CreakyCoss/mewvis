@@ -1,28 +1,16 @@
 import { create } from "zustand";
 import type { Workspace } from "@/features/pages/workspace/types";
-import {
-  deleteChatSession,
-  listChatSessions,
-} from "./api";
-import type {
-  ChatSession,
-  ChatSessionMeta,
-} from "./types";
+import { deleteChatSession, listChatSessions } from "./api";
+import type { ChatSession, ChatSessionMeta } from "./types";
 
 const chatSessionRequestIds = new Map<string, number>();
 
-const sessionKey = (workspacePath: string, sessionId: string) =>
-  `${workspacePath}\u0000${sessionId}`;
+const sessionKey = (workspacePath: string, sessionId: string) => `${workspacePath}\u0000${sessionId}`;
 
 const sortSessions = (sessions: ChatSessionMeta[]) =>
-  [...sessions].sort((left, right) =>
-    right.createdAt - left.createdAt || right.id.localeCompare(left.id)
-  );
+  [...sessions].sort((left, right) => right.createdAt - left.createdAt || right.id.localeCompare(left.id));
 
-const sessionToMeta = (
-  session: ChatSession,
-  previous?: ChatSessionMeta,
-): ChatSessionMeta => ({
+const sessionToMeta = (session: ChatSession, previous?: ChatSessionMeta): ChatSessionMeta => ({
   id: session.id,
   title: session.title,
   path: previous?.path ?? "",
@@ -32,10 +20,7 @@ const sessionToMeta = (
   isUnread: session.isUnread ?? previous?.isUnread ?? false,
 });
 
-const upsertSessionMeta = (
-  sessions: ChatSessionMeta[],
-  session: ChatSessionMeta,
-) => {
+const upsertSessionMeta = (sessions: ChatSessionMeta[], session: ChatSessionMeta) => {
   const previous = sessions.find((item) => item.id === session.id);
   const nextSession = {
     ...previous,
@@ -43,10 +28,7 @@ const upsertSessionMeta = (
     createdAt: previous?.createdAt ?? session.createdAt,
   };
 
-  return sortSessions([
-    nextSession,
-    ...sessions.filter((item) => item.id !== session.id),
-  ]);
+  return sortSessions([nextSession, ...sessions.filter((item) => item.id !== session.id)]);
 };
 
 type ChatSessionsStore = {
@@ -111,64 +93,65 @@ export const useChatSessionsStore = create<ChatSessionsStore>((set, get) => ({
       }
     }
   },
-  setWorkspaceSessions: (workspaceId, sessions) => set((state) => ({
-    sessionsByWorkspaceId: {
-      ...state.sessionsByWorkspaceId,
-      [workspaceId]: sortSessions(sessions),
-    },
-    errorByWorkspaceId: {
-      ...state.errorByWorkspaceId,
-      [workspaceId]: "",
-    },
-  })),
-  upsertSession: (workspaceId, session) => set((state) => {
-    const sessions = state.sessionsByWorkspaceId[workspaceId] ?? [];
-    const previous = sessions.find((item) => item.id === session.id);
-
-    return {
+  setWorkspaceSessions: (workspaceId, sessions) =>
+    set((state) => ({
       sessionsByWorkspaceId: {
         ...state.sessionsByWorkspaceId,
-        [workspaceId]: upsertSessionMeta(sessions, sessionToMeta(session, previous)),
+        [workspaceId]: sortSessions(sessions),
       },
-    };
-  }),
-  upsertSessionMeta: (workspaceId, session) => set((state) => {
-    const sessions = state.sessionsByWorkspaceId[workspaceId] ?? [];
-
-    return {
-      sessionsByWorkspaceId: {
-        ...state.sessionsByWorkspaceId,
-        [workspaceId]: upsertSessionMeta(sessions, session),
+      errorByWorkspaceId: {
+        ...state.errorByWorkspaceId,
+        [workspaceId]: "",
       },
-    };
-  }),
-  setSessionUnread: (workspaceId, sessionId, isUnread) => set((state) => {
-    const sessions = state.sessionsByWorkspaceId[workspaceId] ?? [];
+    })),
+  upsertSession: (workspaceId, session) =>
+    set((state) => {
+      const sessions = state.sessionsByWorkspaceId[workspaceId] ?? [];
+      const previous = sessions.find((item) => item.id === session.id);
 
-    return {
-      sessionsByWorkspaceId: {
-        ...state.sessionsByWorkspaceId,
-        [workspaceId]: sessions.map((session) =>
-          session.id === sessionId
-            ? { ...session, isUnread }
-            : session
-        ),
-      },
-    };
-  }),
-  setSessionRunning: (workspacePath, sessionId, isRunning) => set((state) => {
-    const key = sessionKey(workspacePath, sessionId);
-    const next = { ...state.runningSessionKeys };
-    if (isRunning) {
-      next[key] = true;
-    } else {
-      delete next[key];
-    }
+      return {
+        sessionsByWorkspaceId: {
+          ...state.sessionsByWorkspaceId,
+          [workspaceId]: upsertSessionMeta(sessions, sessionToMeta(session, previous)),
+        },
+      };
+    }),
+  upsertSessionMeta: (workspaceId, session) =>
+    set((state) => {
+      const sessions = state.sessionsByWorkspaceId[workspaceId] ?? [];
 
-    return {
-      runningSessionKeys: next,
-    };
-  }),
+      return {
+        sessionsByWorkspaceId: {
+          ...state.sessionsByWorkspaceId,
+          [workspaceId]: upsertSessionMeta(sessions, session),
+        },
+      };
+    }),
+  setSessionUnread: (workspaceId, sessionId, isUnread) =>
+    set((state) => {
+      const sessions = state.sessionsByWorkspaceId[workspaceId] ?? [];
+
+      return {
+        sessionsByWorkspaceId: {
+          ...state.sessionsByWorkspaceId,
+          [workspaceId]: sessions.map((session) => (session.id === sessionId ? { ...session, isUnread } : session)),
+        },
+      };
+    }),
+  setSessionRunning: (workspacePath, sessionId, isRunning) =>
+    set((state) => {
+      const key = sessionKey(workspacePath, sessionId);
+      const next = { ...state.runningSessionKeys };
+      if (isRunning) {
+        next[key] = true;
+      } else {
+        delete next[key];
+      }
+
+      return {
+        runningSessionKeys: next,
+      };
+    }),
   deleteSession: async (workspace, sessionId) => {
     const key = sessionKey(workspace.path, sessionId);
     set((state) => ({

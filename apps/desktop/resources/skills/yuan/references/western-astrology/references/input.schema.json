@@ -2,17 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "AstrologyAnalysisInput",
   "type": "object",
-  "required": [
-    "input"
-  ],
+  "required": ["input"],
   "additionalProperties": true,
   "properties": {
     "input": {
       "type": "object",
-      "required": [
-        "birth_datetime",
-        "location"
-      ],
+      "required": ["birth_datetime", "location"],
       "additionalProperties": true,
       "properties": {
         "birth_datetime": {
@@ -28,11 +23,7 @@
             },
             {
               "type": "object",
-              "required": [
-                "lat",
-                "lon",
-                "timezone"
-              ],
+              "required": ["lat", "lon", "timezone"],
               "additionalProperties": true,
               "properties": {
                 "label": {

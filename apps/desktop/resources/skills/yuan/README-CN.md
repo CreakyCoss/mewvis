@@ -39,14 +39,14 @@
 
 `Yuan` 以一个总 skill 组织六个参考体系：
 
-| 方法 | 参考目录 |
-| --- | --- |
-| 八字（四柱） | `references/bazi/` |
-| 称骨 | `references/chenggu/` |
-| 数字命理 | `references/numerology/` |
-| 西方占星 | `references/western-astrology/` |
-| 吠陀占星 | `references/vedic-astrology/` |
-| 紫微斗数 | `references/ziwei/` |
+| 方法         | 参考目录                        |
+| ------------ | ------------------------------- |
+| 八字（四柱） | `references/bazi/`              |
+| 称骨         | `references/chenggu/`           |
+| 数字命理     | `references/numerology/`        |
+| 西方占星     | `references/western-astrology/` |
+| 吠陀占星     | `references/vedic-astrology/`   |
+| 紫微斗数     | `references/ziwei/`             |
 
 最终交付聚焦为三种渲染模式：
 

@@ -124,23 +124,18 @@ export const TAVERN_RULE_COMPOSITIONS: TavernRuleComposition[] = [
   xiaohongshuTopicStoryRuleComposition,
   feiluHighConceptRuleComposition,
   ciweimaoAcgFunRuleComposition,
-].sort((left, right) =>
-  (left.order ?? 0) - (right.order ?? 0)
-  || left.label.localeCompare(right.label)
+].sort((left, right) => (left.order ?? 0) - (right.order ?? 0) || left.label.localeCompare(right.label));
+
+export const TAVERN_RULE_COMPOSITION_OPTIONS = TAVERN_RULE_COMPOSITIONS.filter(
+  (composition) => composition.selectable !== false,
 );
 
-export const TAVERN_RULE_COMPOSITION_OPTIONS = TAVERN_RULE_COMPOSITIONS
-  .filter((composition) => composition.selectable !== false);
-
-const flattenValues = (value: unknown): unknown[] => Array.isArray(value)
-  ? value.flatMap(flattenValues)
-  : [value];
+const flattenValues = (value: unknown): unknown[] => (Array.isArray(value) ? value.flatMap(flattenValues) : [value]);
 
 const createDefinitionMap = <TDefinition extends { id: string }>(
   definitions: TDefinition[],
-): Map<TDefinition["id"], TDefinition> => new Map(
-  definitions.map((definition) => [definition.id, definition] as const),
-);
+): Map<TDefinition["id"], TDefinition> =>
+  new Map(definitions.map((definition) => [definition.id, definition] as const));
 
 const TAVERN_PLATFORM_STYLE_BY_ID = createDefinitionMap(TAVERN_PLATFORM_STYLES);
 const TAVERN_QUALITY_RULE_BY_ID = createDefinitionMap(TAVERN_QUALITY_RULES);
@@ -150,47 +145,38 @@ const TAVERN_HOOK_RULE_BY_ID = createDefinitionMap(TAVERN_HOOK_RULES);
 const TAVERN_TABOO_RULE_BY_ID = createDefinitionMap(TAVERN_TABOO_RULES);
 const TAVERN_RULE_COMPOSITION_BY_ID = createDefinitionMap(TAVERN_RULE_COMPOSITIONS);
 
-const normalizeDefinitionIds = <TId extends string>(
-  value: unknown,
-  definitions: Map<TId, unknown>,
-): TId[] => Array.from(new Set(flattenValues(value).flatMap((candidate) =>
-  typeof candidate === "string" && definitions.has(candidate as TId)
-    ? [candidate as TId]
-    : []
-)));
+const normalizeDefinitionIds = <TId extends string>(value: unknown, definitions: Map<TId, unknown>): TId[] =>
+  Array.from(
+    new Set(
+      flattenValues(value).flatMap((candidate) =>
+        typeof candidate === "string" && definitions.has(candidate as TId) ? [candidate as TId] : [],
+      ),
+    ),
+  );
 
 const resolveDefinitions = <TId extends string, TDefinition extends { id: TId }>(
   value: unknown,
   definitions: Map<TId, TDefinition>,
-): TDefinition[] => normalizeDefinitionIds(value, definitions)
-  .map((id) => definitions.get(id))
-  .filter((definition): definition is TDefinition => Boolean(definition));
+): TDefinition[] =>
+  normalizeDefinitionIds(value, definitions)
+    .map((id) => definitions.get(id))
+    .filter((definition): definition is TDefinition => Boolean(definition));
 
-export const normalizeTavernRuleCompositionId = (
-  value: unknown,
-): TavernPlatformStyleId => typeof value === "string"
-  && TAVERN_RULE_COMPOSITION_BY_ID.has(value as TavernPlatformStyleId)
-  ? value as TavernPlatformStyleId
-  : DEFAULT_TAVERN_RULE_COMPOSITION_ID;
+export const normalizeTavernRuleCompositionId = (value: unknown): TavernPlatformStyleId =>
+  typeof value === "string" && TAVERN_RULE_COMPOSITION_BY_ID.has(value as TavernPlatformStyleId)
+    ? (value as TavernPlatformStyleId)
+    : DEFAULT_TAVERN_RULE_COMPOSITION_ID;
 
-export const normalizeTavernQualityRuleIds = (
-  value: unknown,
-): TavernQualityRuleId[] => normalizeDefinitionIds(
-  value,
-  TAVERN_QUALITY_RULE_BY_ID,
-);
+export const normalizeTavernQualityRuleIds = (value: unknown): TavernQualityRuleId[] =>
+  normalizeDefinitionIds(value, TAVERN_QUALITY_RULE_BY_ID);
 
-export const getTavernRuleComposition = (
-  value: unknown,
-): TavernRuleComposition => TAVERN_RULE_COMPOSITION_BY_ID.get(
-  normalizeTavernRuleCompositionId(value),
-) ?? noneRuleComposition;
+export const getTavernRuleComposition = (value: unknown): TavernRuleComposition =>
+  TAVERN_RULE_COMPOSITION_BY_ID.get(normalizeTavernRuleCompositionId(value)) ?? noneRuleComposition;
 
-export const getTavernPlatformStyle = (
-  value: unknown,
-): TavernPlatformStyle => typeof value === "string"
-  ? TAVERN_PLATFORM_STYLE_BY_ID.get(value as TavernPlatformStyleId) ?? nonePlatformStyle
-  : nonePlatformStyle;
+export const getTavernPlatformStyle = (value: unknown): TavernPlatformStyle =>
+  typeof value === "string"
+    ? (TAVERN_PLATFORM_STYLE_BY_ID.get(value as TavernPlatformStyleId) ?? nonePlatformStyle)
+    : nonePlatformStyle;
 
 export type TavernPromptRuleGroups = {
   qualityRules: TavernQualityRule[];
@@ -219,10 +205,10 @@ export const resolveTavernPromptRuleStack = ({
     composition,
     platformStyle: getTavernPlatformStyle(composition.platformStyleId),
     ruleGroups: {
-      qualityRules: resolveDefinitions<TavernQualityRuleId, TavernQualityRule>([
-        composition.qualityRuleIds,
-        qualityRuleIds,
-      ], TAVERN_QUALITY_RULE_BY_ID),
+      qualityRules: resolveDefinitions<TavernQualityRuleId, TavernQualityRule>(
+        [composition.qualityRuleIds, qualityRuleIds],
+        TAVERN_QUALITY_RULE_BY_ID,
+      ),
       narrativeStyles: resolveDefinitions<TavernNarrativeStyleId, TavernNarrativeStyle>(
         composition.narrativeStyleIds,
         TAVERN_NARRATIVE_STYLE_BY_ID,
@@ -231,10 +217,7 @@ export const resolveTavernPromptRuleStack = ({
         composition.genreRuleIds,
         TAVERN_GENRE_RULE_BY_ID,
       ),
-      hookRules: resolveDefinitions<TavernHookRuleId, TavernHookRule>(
-        composition.hookRuleIds,
-        TAVERN_HOOK_RULE_BY_ID,
-      ),
+      hookRules: resolveDefinitions<TavernHookRuleId, TavernHookRule>(composition.hookRuleIds, TAVERN_HOOK_RULE_BY_ID),
       tabooRules: resolveDefinitions<TavernTabooRuleId, TavernTabooRule>(
         composition.tabooRuleIds,
         TAVERN_TABOO_RULE_BY_ID,

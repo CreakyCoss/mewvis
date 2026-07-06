@@ -24,11 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import {
-  DEFAULT_MARKETPLACE_QUERY,
-  DEFAULT_MARKETPLACE_SORT,
-  useSkillsStore,
-} from "../../store";
+import { DEFAULT_MARKETPLACE_QUERY, DEFAULT_MARKETPLACE_SORT, useSkillsStore } from "../../store";
 import type {
   InstallSkillInput,
   MarketplaceSkill,
@@ -70,13 +66,9 @@ export const DiscoverSkillsTab = ({
     })),
   );
   const [marketplaceQuery, setMarketplaceQuery] = useState(() =>
-    marketplaceHasLoaded && cachedQuery !== DEFAULT_MARKETPLACE_QUERY
-      ? cachedQuery
-      : "",
+    marketplaceHasLoaded && cachedQuery !== DEFAULT_MARKETPLACE_QUERY ? cachedQuery : "",
   );
-  const [selectedSortBy, setSelectedSortBy] = useState<SkillMarketplaceSort>(
-    cachedSortBy || DEFAULT_MARKETPLACE_SORT,
-  );
+  const [selectedSortBy, setSelectedSortBy] = useState<SkillMarketplaceSort>(cachedSortBy || DEFAULT_MARKETPLACE_SORT);
   const [selectedCategory, setSelectedCategory] = useState("全部");
   const [installingSkillKey, setInstallingSkillKey] = useState<string | null>(null);
   const [categoryScrollState, setCategoryScrollState] = useState({
@@ -88,41 +80,31 @@ export const DiscoverSkillsTab = ({
   const hasRequestedInitialSearchRef = useRef(false);
 
   const installedAppSkillNames = useMemo(
-    () => new Set(
-      skills
-        .filter((skill) => skill.source === "app")
-        .map((skill) => skill.name),
-    ),
+    () => new Set(skills.filter((skill) => skill.source === "app").map((skill) => skill.name)),
     [skills],
   );
 
-  const runSearch = useCallback(async ({
-    query = marketplaceQuery,
-    sortBy = selectedSortBy,
-    page = 1,
-    append = false,
-  }: Partial<SearchSkillMarketplaceInput> = {}) => {
-    const nextQuery = query.trim() || DEFAULT_MARKETPLACE_QUERY;
-    await onSearchMarketplace({
-      query: nextQuery,
-      sortBy,
-      page,
-      limit: marketplacePagination?.limit ?? 12,
-      append,
-    });
-  }, [
-    marketplacePagination?.limit,
-    marketplaceQuery,
-    onSearchMarketplace,
-    selectedSortBy,
-  ]);
+  const runSearch = useCallback(
+    async ({
+      query = marketplaceQuery,
+      sortBy = selectedSortBy,
+      page = 1,
+      append = false,
+    }: Partial<SearchSkillMarketplaceInput> = {}) => {
+      const nextQuery = query.trim() || DEFAULT_MARKETPLACE_QUERY;
+      await onSearchMarketplace({
+        query: nextQuery,
+        sortBy,
+        page,
+        limit: marketplacePagination?.limit ?? 12,
+        append,
+      });
+    },
+    [marketplacePagination?.limit, marketplaceQuery, onSearchMarketplace, selectedSortBy],
+  );
 
   useEffect(() => {
-    if (
-      hasRequestedInitialSearchRef.current
-      || marketplaceHasLoaded
-      || isMarketplaceSearching
-    ) {
+    if (hasRequestedInitialSearchRef.current || marketplaceHasLoaded || isMarketplaceSearching) {
       return;
     }
     hasRequestedInitialSearchRef.current = true;
@@ -139,9 +121,7 @@ export const DiscoverSkillsTab = ({
 
   const handleSortChange = (value: string) => {
     const sortBy = value as SkillMarketplaceSort;
-    const selectedCategoryQuery = DISCOVER_CATEGORIES.find(
-      (category) => category.label === selectedCategory,
-    )?.query;
+    const selectedCategoryQuery = DISCOVER_CATEGORIES.find((category) => category.label === selectedCategory)?.query;
     setSelectedSortBy(sortBy);
     void runSearch({
       query: selectedCategoryQuery ?? marketplaceQuery,
@@ -155,22 +135,25 @@ export const DiscoverSkillsTab = ({
     void runSearch({ page: 1 });
   };
 
-  const handleInstallSkill = useCallback(async (skill: MarketplaceSkill) => {
-    if (isInstalling || installingSkillKey) {
-      return;
-    }
+  const handleInstallSkill = useCallback(
+    async (skill: MarketplaceSkill) => {
+      if (isInstalling || installingSkillKey) {
+        return;
+      }
 
-    setInstallingSkillKey(marketplaceSkillKey(skill));
-    try {
-      await onInstallSkill({
-        source: skill.githubUrl || skill.skillUrl,
-        skillName: skill.name,
-        sourceKind: "remote",
-      });
-    } finally {
-      setInstallingSkillKey(null);
-    }
-  }, [installingSkillKey, isInstalling, onInstallSkill]);
+      setInstallingSkillKey(marketplaceSkillKey(skill));
+      try {
+        await onInstallSkill({
+          source: skill.githubUrl || skill.skillUrl,
+          skillName: skill.name,
+          sourceKind: "remote",
+        });
+      } finally {
+        setInstallingSkillKey(null);
+      }
+    },
+    [installingSkillKey, isInstalling, onInstallSkill],
+  );
 
   const updateCategoryScrollState = useCallback(() => {
     const scroller = categoryScrollerRef.current;
@@ -183,9 +166,7 @@ export const DiscoverSkillsTab = ({
     const atEnd = !canScroll || scroller.scrollLeft >= maxScrollLeft - 2;
 
     setCategoryScrollState((current) =>
-      current.canScroll === canScroll && current.atEnd === atEnd
-        ? current
-        : { canScroll, atEnd },
+      current.canScroll === canScroll && current.atEnd === atEnd ? current : { canScroll, atEnd },
     );
   }, []);
 
@@ -207,11 +188,7 @@ export const DiscoverSkillsTab = ({
   };
 
   const handleLoadMore = useCallback(() => {
-    if (
-      !marketplacePagination?.hasNext
-      || isMarketplaceSearching
-      || isMarketplaceLoadingMore
-    ) {
+    if (!marketplacePagination?.hasNext || isMarketplaceSearching || isMarketplaceLoadingMore) {
       return;
     }
 
@@ -239,8 +216,7 @@ export const DiscoverSkillsTab = ({
     }
 
     const handleScroll = () => {
-      const remaining =
-        viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+      const remaining = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
       if (remaining < 220) {
         handleLoadMore();
       }
@@ -261,10 +237,7 @@ export const DiscoverSkillsTab = ({
     const handleScroll = () => updateCategoryScrollState();
     scroller.addEventListener("scroll", handleScroll, { passive: true });
 
-    const resizeObserver =
-      typeof ResizeObserver === "undefined"
-        ? null
-        : new ResizeObserver(updateCategoryScrollState);
+    const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateCategoryScrollState);
     resizeObserver?.observe(scroller);
 
     return () => {
@@ -306,15 +279,9 @@ export const DiscoverSkillsTab = ({
                 type="button"
                 className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-black/[0.04] text-foreground/65 transition-colors hover:bg-black/[0.06] hover:text-foreground/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/25"
                 onClick={handleCategoryScroll}
-                aria-label={
-                  categoryScrollState.atEnd ? "向左查看更多分类" : "向右查看更多分类"
-                }
+                aria-label={categoryScrollState.atEnd ? "向左查看更多分类" : "向右查看更多分类"}
               >
-                {categoryScrollState.atEnd ? (
-                  <ChevronLeft className="size-4" />
-                ) : (
-                  <ChevronRight className="size-4" />
-                )}
+                {categoryScrollState.atEnd ? <ChevronLeft className="size-4" /> : <ChevronRight className="size-4" />}
               </button>
             )}
           </div>
@@ -342,11 +309,7 @@ export const DiscoverSkillsTab = ({
                 disabled={isMarketplaceSearching || isInstalling}
                 aria-label="搜索技能"
               >
-                {isMarketplaceSearching ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Search className="size-4" />
-                )}
+                {isMarketplaceSearching ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
               </Button>
             </div>
 
@@ -367,10 +330,7 @@ export const DiscoverSkillsTab = ({
                 sideOffset={8}
                 className="w-30 min-w-30 rounded-[22px] border-0 bg-white p-2 shadow-[0_18px_45px_-28px_rgb(15_23_42_/_0.42)] ring-0"
               >
-                <DropdownMenuRadioGroup
-                  value={selectedSortBy}
-                  onValueChange={handleSortChange}
-                >
+                <DropdownMenuRadioGroup value={selectedSortBy} onValueChange={handleSortChange}>
                   <DropdownMenuRadioItem
                     value="stars"
                     className="h-11 rounded-2xl px-4 pr-10 text-sm font-medium text-foreground/72 focus:bg-black/[0.035] focus:text-foreground/85 data-[state=checked]:bg-black/[0.035] data-[state=checked]:text-foreground/85 [&_[data-slot=dropdown-menu-radio-item-indicator]]:text-foreground/70"
@@ -437,8 +397,7 @@ const SORT_LABELS: Record<SkillMarketplaceSort, string> = {
   updatedAt: "最新",
 };
 
-const marketplaceSkillKey = (skill: MarketplaceSkill) =>
-  skill.githubUrl || skill.skillUrl || skill.name;
+const marketplaceSkillKey = (skill: MarketplaceSkill) => skill.githubUrl || skill.skillUrl || skill.name;
 
 const SearchLoadingState = () => (
   <div className="flex min-h-[220px] items-center justify-center gap-2 text-sm text-muted-foreground">
@@ -460,11 +419,7 @@ type LoadMoreStateProps = {
   onLoadMore: () => void;
 };
 
-const LoadMoreState = ({
-  isLoading,
-  hasNext,
-  onLoadMore,
-}: LoadMoreStateProps) => {
+const LoadMoreState = ({ isLoading, hasNext, onLoadMore }: LoadMoreStateProps) => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center gap-2 py-5 text-sm text-muted-foreground">
@@ -475,21 +430,12 @@ const LoadMoreState = ({
   }
 
   if (!hasNext) {
-    return (
-      <div className="py-5 text-center text-xs text-muted-foreground">
-        已加载全部结果
-      </div>
-    );
+    return <div className="py-5 text-center text-xs text-muted-foreground">已加载全部结果</div>;
   }
 
   return (
     <div className="flex justify-center py-5">
-      <Button
-        type="button"
-        variant="ghost"
-        className="h-8 rounded-full px-3 text-xs"
-        onClick={onLoadMore}
-      >
+      <Button type="button" variant="ghost" className="h-8 rounded-full px-3 text-xs" onClick={onLoadMore}>
         加载更多
       </Button>
     </div>

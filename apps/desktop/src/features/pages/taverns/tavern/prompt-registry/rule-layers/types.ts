@@ -9,23 +9,13 @@ export type TavernPlatformStyleId =
   | "ciweimao-acg-fun";
 
 export type TavernQualityRuleId =
-  | "anti-ai-natural"
-  | "natural-dialogue"
-  | "concise-no-summary"
-  | "reduce-empty-ambience";
+  "anti-ai-natural" | "natural-dialogue" | "concise-no-summary" | "reduce-empty-ambience";
 
 export type TavernNarrativeStyleId =
-  | "webnovel-high-density"
-  | "emotional-push-pull"
-  | "light-novel-banter"
-  | "delicate-daily"
-  | "direct-commercial-flow";
+  "webnovel-high-density" | "emotional-push-pull" | "light-novel-banter" | "delicate-daily" | "direct-commercial-flow";
 
 export type TavernGenreRuleId =
-  | "female-romance-relationship"
-  | "male-progression-growth"
-  | "short-emotional-story"
-  | "acg-character-fun";
+  "female-romance-relationship" | "male-progression-growth" | "short-emotional-story" | "acg-character-fun";
 
 export type TavernHookRuleId =
   | "conflict-hook"
@@ -52,23 +42,17 @@ export type TavernPromptRuleDefinition<TId extends string> = {
   characterAddendum: string;
 };
 
-export type TavernPlatformStyle =
-  TavernPromptRuleDefinition<TavernPlatformStyleId>;
+export type TavernPlatformStyle = TavernPromptRuleDefinition<TavernPlatformStyleId>;
 
-export type TavernQualityRule =
-  TavernPromptRuleDefinition<TavernQualityRuleId>;
+export type TavernQualityRule = TavernPromptRuleDefinition<TavernQualityRuleId>;
 
-export type TavernNarrativeStyle =
-  TavernPromptRuleDefinition<TavernNarrativeStyleId>;
+export type TavernNarrativeStyle = TavernPromptRuleDefinition<TavernNarrativeStyleId>;
 
-export type TavernGenreRule =
-  TavernPromptRuleDefinition<TavernGenreRuleId>;
+export type TavernGenreRule = TavernPromptRuleDefinition<TavernGenreRuleId>;
 
-export type TavernHookRule =
-  TavernPromptRuleDefinition<TavernHookRuleId>;
+export type TavernHookRule = TavernPromptRuleDefinition<TavernHookRuleId>;
 
-export type TavernTabooRule =
-  TavernPromptRuleDefinition<TavernTabooRuleId>;
+export type TavernTabooRule = TavernPromptRuleDefinition<TavernTabooRuleId>;
 
 export type TavernRuleComposition = {
   id: TavernPlatformStyleId;

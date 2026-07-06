@@ -1,8 +1,5 @@
 import { rm } from "node:fs/promises";
-import {
-  AgentResultType,
-  type SessionMutationResult,
-} from "../../../../../../protocol/index.js";
+import { AgentResultType, type SessionMutationResult } from "../../../../../../protocol/index.js";
 import type {
   AgentRuntimeContext,
   RuntimeAgentCompactCommand,
@@ -14,10 +11,7 @@ import type { RuntimeAgentVisibleContext } from "../../../../session/model/agent
 import { PiChatRuntime } from "../chat/index.js";
 import { createPiAgentSession, type PiAgentSession } from "./session.js";
 
-type PiMaintenanceCommand =
-  | RuntimeAgentCompactCommand
-  | RuntimeAgentRebuildCommand
-  | RuntimeAgentSummarizeCommand;
+type PiMaintenanceCommand = RuntimeAgentCompactCommand | RuntimeAgentRebuildCommand | RuntimeAgentSummarizeCommand;
 
 const defaultAgentSessionRebuildInstruction = [
   "你正在重建这个 runtime session 中某个 agentRoleId 对应的底层长期 Agent session。",
@@ -100,16 +94,11 @@ const renderPiSessionMessages = (messages: PiAgentSession["messages"]) =>
     .filter(Boolean)
     .join("\n\n");
 
-const formatNativeContextMessages = (
-  messages: RuntimeAgentVisibleContext["recentMessages"],
-  label: string,
-) =>
+const formatNativeContextMessages = (messages: RuntimeAgentVisibleContext["recentMessages"], label: string) =>
   messages.length
-    ? [
-        `<${label}>`,
-        messages.map((message) => `${message.role}: ${message.content}`).join("\n\n"),
-        `</${label}>`,
-      ].join("\n")
+    ? [`<${label}>`, messages.map((message) => `${message.role}: ${message.content}`).join("\n\n"), `</${label}>`].join(
+        "\n",
+      )
     : "";
 
 const renderNativeAgentContext = (context: RuntimeAgentVisibleContext) =>
@@ -125,10 +114,7 @@ export const compactPiAgentSession = async (
   command: RuntimeAgentCompactCommand,
   { callbacks }: AgentRuntimeContext,
 ): Promise<SessionMutationResult> => {
-  const { session } = await createPiAgentSession(
-    maintenanceRuntimeCommand(command),
-    callbacks,
-  );
+  const { session } = await createPiAgentSession(maintenanceRuntimeCommand(command), callbacks);
   try {
     await session.compact(command.compactInstructions?.trim() || undefined);
     return createPiAgentMaintenanceResult(command, {
@@ -136,10 +122,7 @@ export const compactPiAgentSession = async (
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    if (
-      message.includes("Nothing to compact") ||
-      message.includes("Already compacted")
-    ) {
+    if (message.includes("Nothing to compact") || message.includes("Already compacted")) {
       return createPiAgentMaintenanceResult(command, {
         compacted: false,
       });
@@ -162,8 +145,7 @@ export const rebuildPiAgentSession = async (
     ? await nativeSession.readAgentVisibleContext({ agentRoleId: command.agentRoleId })
     : null;
   const sessionBootstrapContext = nativeContext ? renderNativeAgentContext(nativeContext) : "";
-  const rebuildInstruction = command.rebuildInstruction?.trim() ||
-    defaultAgentSessionRebuildInstruction;
+  const rebuildInstruction = command.rebuildInstruction?.trim() || defaultAgentSessionRebuildInstruction;
   const userMessage = command.userMessage?.trim() || defaultAgentSessionRebuildMessage;
   const prompt = [
     rebuildInstruction,
@@ -225,11 +207,7 @@ export const summarizePiAgentSession = async (
     const userPrompt = [
       "请摘要以下 Pi agent session 内容。",
       command.summaryInstruction?.trim()
-        ? [
-            "<summary_instruction>",
-            command.summaryInstruction.trim(),
-            "</summary_instruction>",
-          ].join("\n")
+        ? ["<summary_instruction>", command.summaryInstruction.trim(), "</summary_instruction>"].join("\n")
         : "",
       [
         "<output_requirements>",

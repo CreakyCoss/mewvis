@@ -272,7 +272,7 @@ export const PromptSection = ({
   const presentationLocked = isTavernPresentationLocked({
     presentation: data.presentation,
     messages: [],
-    sceneId: data.activeSceneId,
+    sceneId: undefined,
   });
   const enabledBlockCount = getEnabledPromptBlocks(data.prompt.blocks).length;
 

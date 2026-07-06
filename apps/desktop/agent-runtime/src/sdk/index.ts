@@ -1,15 +1,6 @@
-import {
-  createRuntimeEngine,
-} from "../engines/index.js";
-import type {
-  AgentRuntimeEngine,
-  RuntimeEngineCallbacks,
-} from "../engines/runtime.js";
-import type {
-  AgentRuntimeEvent,
-  AgentRuntimeResult,
-  AskUserInput,
-} from "../engines/protocol/index.js";
+import { createRuntimeEngine } from "../engines/index.js";
+import type { AgentRuntimeEngine, RuntimeEngineCallbacks } from "../engines/runtime.js";
+import type { AgentRuntimeEvent, AgentRuntimeResult, AskUserInput } from "../engines/protocol/index.js";
 
 export type AgentRuntimeUserInputRequest = {
   taskId: string;
@@ -18,9 +9,7 @@ export type AgentRuntimeUserInputRequest = {
   input?: AskUserInput | null;
 };
 
-export type AgentRuntimeUserInputHandler = (
-  request: AgentRuntimeUserInputRequest,
-) => Promise<string>;
+export type AgentRuntimeUserInputHandler = (request: AgentRuntimeUserInputRequest) => Promise<string>;
 
 export type AgentRuntimeSdkOptions = {
   profileId?: string | null;
@@ -31,9 +20,7 @@ export type AgentRuntimeSdkOptions = {
   };
 };
 
-export const createAgentRuntime = (
-  options: AgentRuntimeSdkOptions = {},
-): AgentRuntimeEngine => {
+export const createAgentRuntime = (options: AgentRuntimeSdkOptions = {}): AgentRuntimeEngine => {
   const callbacks = options.callbacks;
   const requestUserInput = callbacks?.requestUserInput;
   const runtimeCallbacks: RuntimeEngineCallbacks = {};
@@ -54,9 +41,7 @@ export const createAgentRuntime = (
 
   const runtimeOptions = {
     profileId: options.profileId,
-    ...(Object.keys(runtimeCallbacks).length > 0
-      ? { callbacks: runtimeCallbacks }
-      : {}),
+    ...(Object.keys(runtimeCallbacks).length > 0 ? { callbacks: runtimeCallbacks } : {}),
   };
 
   return createRuntimeEngine(runtimeOptions);

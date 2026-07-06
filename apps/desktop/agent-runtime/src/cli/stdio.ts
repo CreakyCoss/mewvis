@@ -1,15 +1,10 @@
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
-import {
-  AgentCommandType,
-  AgentRuntimeCommandType,
-  type AgentRuntimeCommand,
-} from "../engines/protocol/index.js";
+import { AgentCommandType, AgentRuntimeCommandType, type AgentRuntimeCommand } from "../engines/protocol/index.js";
 
 export type StdioRuntimeReader = ReturnType<typeof createInterface>;
 
-export const createStdioRuntimeReader = (): StdioRuntimeReader =>
-  createInterface({ input });
+export const createStdioRuntimeReader = (): StdioRuntimeReader => createInterface({ input });
 
 export const writeJsonLine = (value: unknown) => {
   output.write(`${JSON.stringify(value)}\n`);

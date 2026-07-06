@@ -2,10 +2,10 @@ import { createTavernId, now } from "../ids";
 import type {
   TavernAssetDraft,
   TavernCharacterMemoryDraft,
-  TavernIllustrationHint,
   TavernLorebookEntry,
   TavernSceneMemoryDraft,
 } from "@/features/pages/taverns/manage/model";
+import type { TavernIllustrationHint } from "@/features/pages/taverns/room/model";
 
 const normalizeCharacterMemoryDraftVisibility = (value: unknown): TavernCharacterMemoryDraft["visibility"] | null =>
   value === "public" || value === "hidden" || value === "character" ? value : null;

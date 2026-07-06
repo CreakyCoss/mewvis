@@ -1,22 +1,9 @@
-import type {
-  EmbeddingProfile,
-  KnowledgeIndexStatus,
-  KnowledgeLibrary,
-  KnowledgeSettings,
-} from "../types";
+import type { EmbeddingProfile, KnowledgeIndexStatus, KnowledgeLibrary, KnowledgeSettings } from "../types";
 import type { KnowledgeBaseView } from "../ui-state";
 import { formatTime, statusLabel } from "../ui-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  ChevronRight,
-  FileText,
-  Layers3,
-  Loader2,
-  RefreshCw,
-  Settings2,
-  Tags,
-} from "lucide-react";
+import { ChevronRight, FileText, Layers3, Loader2, RefreshCw, Settings2, Tags } from "lucide-react";
 
 type OverviewViewProps = {
   settings: KnowledgeSettings;
@@ -71,11 +58,7 @@ export const OverviewView = ({
               onClick={onChooseStorageDirectory}
               disabled={isSavingSettings || isLoading}
             >
-              {isSavingSettings ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Settings2 className="size-4" />
-              )}
+              {isSavingSettings ? <Loader2 className="size-4 animate-spin" /> : <Settings2 className="size-4" />}
               <span>{settings.storageDirectory ? "修改目录" : "设置目录"}</span>
             </Button>
           </div>
@@ -86,7 +69,6 @@ export const OverviewView = ({
           </div>
         </div>
       </div>
-
     </div>
 
     <div className="rounded-md bg-card px-4 py-4 shadow-xs">
@@ -98,9 +80,7 @@ export const OverviewView = ({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h3 className="truncate text-sm font-semibold">语义检索</h3>
-              <Badge variant={defaultEmbeddingProfile ? "outline" : "secondary"}>
-                sqlite-vec
-              </Badge>
+              <Badge variant={defaultEmbeddingProfile ? "outline" : "secondary"}>sqlite-vec</Badge>
             </div>
             <div className="mt-0.5 truncate text-xs text-muted-foreground">
               {defaultEmbeddingProfile ? "模型与地址已配置" : "未配置 Embedding"}
@@ -118,11 +98,7 @@ export const OverviewView = ({
             onClick={onRequestRebuild}
             disabled={isRebuilding || isLoading || library.sources.length === 0}
           >
-            {isRebuilding ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <RefreshCw className="size-4" />
-            )}
+            {isRebuilding ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
             <span>重建索引</span>
           </Button>
         </div>
@@ -139,16 +115,12 @@ export const OverviewView = ({
         <div className="rounded-md border bg-muted/25 px-3 py-2">
           <div className="text-xs text-muted-foreground">索引状态</div>
           <div className="mt-1 text-sm font-medium">{statusLabel(status.status)}</div>
-          <div className="mt-0.5 text-xs text-muted-foreground">
-            {formatTime(status.updatedAt)}
-          </div>
+          <div className="mt-0.5 text-xs text-muted-foreground">{formatTime(status.updatedAt)}</div>
         </div>
         <div className="rounded-md border bg-muted/25 px-3 py-2">
           <div className="text-xs text-muted-foreground">向量后端</div>
           <div className="mt-1 text-sm font-medium">sqlite-vec</div>
-          <div className="mt-0.5 text-xs text-muted-foreground">
-            {isRebuilding ? "重建中" : "就绪后参与检索"}
-          </div>
+          <div className="mt-0.5 text-xs text-muted-foreground">{isRebuilding ? "重建中" : "就绪后参与检索"}</div>
         </div>
       </div>
     </div>
@@ -186,9 +158,7 @@ export const OverviewView = ({
           <span className="mt-1 block text-sm leading-6 text-muted-foreground">
             上传文本文件到知识库目录，并查看、删除已导入来源。
           </span>
-          <span className="mt-3 inline-flex text-xs text-muted-foreground">
-            {library.sources.length} 个来源
-          </span>
+          <span className="mt-3 inline-flex text-xs text-muted-foreground">{library.sources.length} 个来源</span>
         </span>
         <ChevronRight className="mt-1 size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
       </button>

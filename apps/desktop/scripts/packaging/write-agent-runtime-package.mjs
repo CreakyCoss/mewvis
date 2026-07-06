@@ -5,24 +5,13 @@ import { fileURLToPath } from "node:url";
 const desktopRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const productConfigPath = join(desktopRoot, "product.config.json");
 const desktopPackagePath = join(desktopRoot, "package.json");
-const runtimesRoot = join(
-  desktopRoot,
-  "agent-runtime",
-  "src",
-  "engines",
-  "drivers",
-  "native",
-  "agent",
-  "runtimes",
-);
+const runtimesRoot = join(desktopRoot, "agent-runtime", "src", "engines", "drivers", "native", "agent", "runtimes");
 const outputDir = join(desktopRoot, "agent-runtime", "dist");
 const outputPath = join(outputDir, "package.json");
 
 const replaceConfigTokens = (value, runtimeId, productConfig) => {
   if (typeof value === "string") {
-    return value
-      .replaceAll("{runtimeId}", runtimeId)
-      .replaceAll("{appDataDirName}", productConfig.appDataDirName);
+    return value.replaceAll("{runtimeId}", runtimeId).replaceAll("{appDataDirName}", productConfig.appDataDirName);
   }
 
   if (Array.isArray(value)) {
@@ -31,27 +20,20 @@ const replaceConfigTokens = (value, runtimeId, productConfig) => {
 
   if (value && typeof value === "object") {
     return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [
-        key,
-        replaceConfigTokens(item, runtimeId, productConfig),
-      ]),
+      Object.entries(value).map(([key, item]) => [key, replaceConfigTokens(item, runtimeId, productConfig)]),
     );
   }
 
   return value;
 };
 
-const isPlainObject = (value) =>
-  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+const isPlainObject = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
 const mergePackageConfig = (base, overrides) => {
   const result = { ...base };
 
   for (const [key, value] of Object.entries(overrides)) {
-    result[key] =
-      isPlainObject(result[key]) && isPlainObject(value)
-        ? mergePackageConfig(result[key], value)
-        : value;
+    result[key] = isPlainObject(result[key]) && isPlainObject(value) ? mergePackageConfig(result[key], value) : value;
   }
 
   return result;

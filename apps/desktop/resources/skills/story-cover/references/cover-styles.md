@@ -33,6 +33,7 @@
 **定位**：免费阅读，下沉市场，用户停留时间短，封面必须一眼吸睛。
 
 **视觉特征**：
+
 - 色彩饱和度高，对比强烈，鲜艳夺目
 - 人物占据画面 60%+，面部清晰可见
 - 书名字体大、粗、有光效（金/红/白），远处也能看清
@@ -42,6 +43,7 @@
 **提示词关键词**：`vibrant saturated colors, eye-catching bold design, character portrait dominating frame, popular mass-market novel cover style, high contrast`
 
 **示例**：
+
 ```
 Tomato Novel style cover, vibrant saturated colors, eye-catching bold design.
 Title '剑道独尊' at top in bold golden brush calligraphy with metallic glow.
@@ -58,6 +60,7 @@ High contrast, vivid colors, mass-market bestseller cover style.
 **定位**：付费阅读，老牌网文平台，读者审美偏成熟精致。
 
 **视觉特征**：
+
 - 画面细腻精致，偏写实插画风格
 - 构图讲究，层次丰富，不杂乱
 - 书名字体偏传统（毛笔/楷体），有文化底蕴感
@@ -67,6 +70,7 @@ High contrast, vivid colors, mass-market bestseller cover style.
 **提示词关键词**：`polished refined illustration, detailed cinematic composition, epic atmospheric, mature sophisticated style, premium quality`
 
 **示例**：
+
 ```
 Qidian premium novel cover, polished refined illustration style.
 Title '诡秘之主' at top in elegant dark silver calligraphy with mysterious glow.
@@ -83,6 +87,7 @@ Cinematic composition, detailed atmospheric illustration.
 **定位**：女频为主的平台，封面以唯美、梦幻、浪漫为主。
 
 **视觉特征**：
+
 - 柔和的色调（粉、紫、浅蓝、暖白）
 - 人物偏唯美画风，大眼、精致五官、柔和光影
 - 大量使用花瓣、光斑、丝绸、珠宝等装饰元素
@@ -92,6 +97,7 @@ Cinematic composition, detailed atmospheric illustration.
 **提示词关键词**：`dreamy ethereal aesthetic, soft pastel tones, elegant romantic, delicate beauty, flower petals and bokeh`
 
 **示例**：
+
 ```
 Jinjiang romance novel cover, dreamy ethereal aesthetic, soft pastel tones.
 Title '长安第一美人' at top in elegant rose-gold flowing script with sparkle effect.
@@ -108,6 +114,7 @@ Delicate romantic illustration, feminine beauty.
 **定位**：短篇为主，偏文学质感，封面走简约文艺路线。
 
 **视觉特征**：
+
 - 大量留白，构图极简
 - 色彩偏冷淡（灰、蓝、白、暗色）
 - 氛围感 > 人物细节，常用场景/物品/抽象意象
@@ -117,6 +124,7 @@ Delicate romantic illustration, feminine beauty.
 **提示词关键词**：`minimalist literary style, clean composition with negative space, subtle moody atmosphere, independent film poster aesthetic`
 
 **示例**：
+
 ```
 Zhihu Yanayan minimalist cover, independent film poster aesthetic.
 Title '白夜' at top in clean modern thin white sans-serif font.
@@ -133,6 +141,7 @@ Muted desaturated colors, clean composition with ample negative space.
 **定位**：免费阅读，与番茄类似但更偏强烈视觉冲击。
 
 **视觉特征**：
+
 - 极度饱和的色彩，视觉冲击力拉满
 - 人物华丽，服饰/装备细节丰富
 - 常用火焰、雷电、灵力等特效元素
@@ -148,6 +157,7 @@ Muted desaturated colors, clean composition with ample negative space.
 **定位**：二次元/轻小说向平台。
 
 **视觉特征**：
+
 - 日系插画风格，二次元角色
 - 色彩明亮，线稿清晰
 - 人物表情丰富，常有 Q 版元素
@@ -162,18 +172,18 @@ Muted desaturated colors, clean composition with ample negative space.
 
 根据书名中的关键字匹配题材：
 
-| 关键词 | 题材 | 风格标签 |
-|:-------|:-----|:---------|
-| 仙、道、剑、灵、修、宗、天、帝、尊、神 | 玄幻/仙侠 | xianxia fantasy |
-| 都市、总裁、校园、重生、系统、学霸、医生、兵王 | 都市 | urban modern |
-| 妃、皇、侯、宫、嫡、庶、后、朝、凤、鸾 | 古言 | ancient romance |
-| 总裁、契约、替嫁、甜宠、娇妻、萌宝、闪婚 | 现言 | modern romance |
-| 诡、案、侦探、悬疑、推理、密室、连环 | 悬疑 | mystery thriller |
-| 星际、末世、机甲、赛博、废土、进化 | 科幻 | sci-fi |
-| 龙、骑、魔法、异世界、精灵、领主 | 西幻 | western fantasy |
-| 三国、大明、大唐、战场、将军、谋士 | 历史 | historical epic |
-| 鬼、僵尸、阴阳、风水、盗墓、咒 | 灵异 | supernatural horror |
-| 萌、喵、团宠、娇、转生 | 轻小说 | light novel |
+| 关键词                                         | 题材      | 风格标签            |
+| :--------------------------------------------- | :-------- | :------------------ |
+| 仙、道、剑、灵、修、宗、天、帝、尊、神         | 玄幻/仙侠 | xianxia fantasy     |
+| 都市、总裁、校园、重生、系统、学霸、医生、兵王 | 都市      | urban modern        |
+| 妃、皇、侯、宫、嫡、庶、后、朝、凤、鸾         | 古言      | ancient romance     |
+| 总裁、契约、替嫁、甜宠、娇妻、萌宝、闪婚       | 现言      | modern romance      |
+| 诡、案、侦探、悬疑、推理、密室、连环           | 悬疑      | mystery thriller    |
+| 星际、末世、机甲、赛博、废土、进化             | 科幻      | sci-fi              |
+| 龙、骑、魔法、异世界、精灵、领主               | 西幻      | western fantasy     |
+| 三国、大明、大唐、战场、将军、谋士             | 历史      | historical epic     |
+| 鬼、僵尸、阴阳、风水、盗墓、咒                 | 灵异      | supernatural horror |
+| 萌、喵、团宠、娇、转生                         | 轻小说    | light novel         |
 
 ---
 
@@ -187,12 +197,14 @@ Muted desaturated colors, clean composition with ample negative space.
 ```
 
 通用修饰（每次追加）：
+
 ```
 professional book cover design, high detail digital painting,
 portrait orientation 2:3 ratio, no watermark
 ```
 
 **文字层是封面核心**，必须指定：
+
 - 书名内容、位置（top center）、字体风格、颜色
 - 作者名内容、位置（bottom center）、字体风格、颜色
 
@@ -216,6 +228,7 @@ Author name '青椒炒肉' at bottom center in small refined white serif text wi
 ### 人物描述要具体
 
 不要写 "a man"，要写：
+
 ```
 a young man in flowing white silk robes with gold embroidery,
 long black hair tied in a topknot with a jade crown,
@@ -226,6 +239,7 @@ holding a glowing blue spirit sword
 ### 背景分层构建
 
 三层结构营造深度感：
+
 - 前景：人物/道具
 - 中景：场景 — 山峰/建筑/森林
 - 远景：氛围 — 云海/星空/火焰
@@ -233,6 +247,7 @@ holding a glowing blue spirit sword
 ### 光效是灵魂
 
 指定光源方向 + 颜色：
+
 - `dramatic golden light from above` — 神圣感
 - `cold moonlight from the left casting long shadows` — 神秘感
 - `warm sunset glow backlighting the figure` — 温暖感
@@ -244,12 +259,12 @@ holding a glowing blue spirit sword
 
 ### 构图变体
 
-| 类型 | 提示词关键词 | 效果 |
-|:-----|:------------|:-----|
-| 人物特写 | `close-up portrait, face filling upper half` | 强调角色魅力 |
-| 全身像 | `full body shot, dynamic pose` | 展示服装和动作 |
-| 纯场景 | `no human figure, landscape composition` | 氛围感，适合悬疑/科幻 |
-| 双人 | `two figures facing each other` | 适合言情类 |
+| 类型     | 提示词关键词                                 | 效果                  |
+| :------- | :------------------------------------------- | :-------------------- |
+| 人物特写 | `close-up portrait, face filling upper half` | 强调角色魅力          |
+| 全身像   | `full body shot, dynamic pose`               | 展示服装和动作        |
+| 纯场景   | `no human figure, landscape composition`     | 氛围感，适合悬疑/科幻 |
+| 双人     | `two figures facing each other`              | 适合言情类            |
 
 ---
 
@@ -258,6 +273,7 @@ holding a glowing blue spirit sword
 ### 玄幻 / 仙侠
 
 **实测提示词**（验证通过，含中文文字渲染）：
+
 ```
 Chinese web novel cover, xianxia fantasy style.
 Title text '剑道独尊' at top center in bold golden brush calligraphy with metallic glow and sharp strokes.
@@ -275,6 +291,7 @@ Professional book cover, high detail digital painting, portrait 2:3 ratio, no wa
 **色彩**：青蓝 + 金色 + 玄黑，冷色调为主，金色/暖色光源点缀
 
 **人物**：
+
 - 男性：长发束冠/散发，持剑/法器，衣袂飘飞
 - 女性：仙裙飘逸，灵兽伴随，莲花装饰
 
@@ -291,6 +308,7 @@ Professional book cover, high detail digital painting, portrait 2:3 ratio, no wa
 **色彩**：深蓝 + 灰色 + 金色，霓虹色点缀（夜景）/ 暖橙（黄昏）
 
 **人物**：
+
 - 男性：西装/休闲装，干练气质，轮廓分明
 - 女性：时尚穿搭，自信表情
 
@@ -299,6 +317,7 @@ Professional book cover, high detail digital painting, portrait 2:3 ratio, no wa
 **光效**：`sharp city lights, sunset glow reflecting on glass buildings, neon rim light`
 
 **示例提示词**：
+
 ```
 modern urban contemporary style, a confident young man in a tailored dark suit
 standing on a rooftop, city skyline at sunset behind him,
@@ -315,6 +334,7 @@ cold blue city lights contrasting warm skin tones
 **色彩**：正红 + 金色 + 墨黑，华贵厚重
 
 **人物**：
+
 - 女性：华服盛装，凤冠/步摇，精致妆容
 - 男性：帝王/将军装束，威严或温润
 
@@ -323,6 +343,7 @@ cold blue city lights contrasting warm skin tones
 **光效**：`warm lantern light, golden candle glow, silk fabric shimmering`
 
 **示例提示词**：
+
 ```
 ancient Chinese palace romance style,
 a noble woman in ornate red and gold hanfu with phoenix crown,
@@ -346,6 +367,7 @@ elegant classical beauty, regal atmosphere
 **光效**：`soft warm backlighting, dreamy bokeh, gentle sunset glow`
 
 **示例提示词**：
+
 ```
 modern romance cover art, soft dreamy atmosphere,
 a handsome man in casual shirt gently holding hands with a sweet woman,
@@ -368,6 +390,7 @@ pink and golden light, heartwarming intimate mood
 **光效**：`dramatic chiaroscuro, single spotlight, rain-slicked reflections`
 
 **示例提示词**：
+
 ```
 dark mystery thriller noir style,
 a figure in a dark trench coat standing under a street lamp in heavy rain,
@@ -391,6 +414,7 @@ rain-slicked street reflecting red and blue lights
 **光效**：`holographic blue glow, neon rim lighting, energy arcs`
 
 **示例提示词**：
+
 ```
 sci-fi cyberpunk style,
 a warrior in advanced mech armor standing in a ruined futuristic city,
@@ -414,6 +438,7 @@ dramatic blue energy glow from the armor
 **光效**：`magic spell glow, dramatic stormy sky, firelight from torches`
 
 **示例提示词**：
+
 ```
 western high fantasy art style,
 a knight in ornate silver armor with a flowing blue cape,
@@ -437,6 +462,7 @@ magic energy radiating from the sword
 **光效**：`dramatic battlefield firelight, smoke-filled sky, sunset over war`
 
 **示例提示词**：
+
 ```
 historical Chinese war epic style,
 a general in detailed ancient armor on horseback,
@@ -460,6 +486,7 @@ grand scale cinematic composition
 **光效**：`eerie green glow, flickering candlelight, cold ghostly luminescence`
 
 **示例提示词**：
+
 ```
 Chinese supernatural horror atmosphere,
 a figure in dark robes holding a paper talisman,
@@ -483,6 +510,7 @@ yin-yang symbols carved in the doorway
 **光效**：`sparkly star effects, magical particle effects, soft luminous glow`
 
 **示例提示词**：
+
 ```
 anime light novel cover style, vibrant and colorful,
 a cute girl with cat ears and a magical staff,

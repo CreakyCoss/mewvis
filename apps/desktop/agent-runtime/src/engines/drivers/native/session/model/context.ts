@@ -1,16 +1,8 @@
-import type {
-  RuntimeDisplaySummary,
-  RuntimeLink,
-} from "../../../../protocol/session.js";
+import type { RuntimeDisplaySummary, RuntimeLink } from "../../../../protocol/session.js";
 
 export type RuntimeMessageRole = "user" | "assistant" | "system";
 
-export type RuntimeMessageActorType =
-  | "user"
-  | "agent"
-  | "system"
-  | "app"
-  | "runtime";
+export type RuntimeMessageActorType = "user" | "agent" | "system" | "app" | "runtime";
 
 export type RuntimeMessageScope = "shared" | "agent_private";
 

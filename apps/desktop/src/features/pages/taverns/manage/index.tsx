@@ -9,10 +9,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { WindowDragRegion } from "@/components/window-drag-region";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import { cn } from "@/lib/utils";
-import { buildTavernStoryContextPackage, getTavernRuntimeStoryProjection } from "../tavern/adapters/story";
 import type { TavernTextFieldAgentRequest } from "../tavern/runtime/assistants";
-import { projectTavernSceneOntoRoom } from "../tavern/runtime/active-scene-runtime";
-import type { TavernCharacter, TavernRoom, TavernRoomSettings } from "@/features/pages/taverns/manage/model";
+import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 import { Header } from "./header";
 import { BasicSection } from "./modules/basic";
 import { PromptSection } from "./modules/prompt";
@@ -82,23 +80,12 @@ const fullScreenDialogContentClassName =
 
 type RoomEditorProps = {
   bind: Ref<RoomEditorHandle>;
-  characterById: Map<string, TavernCharacter>;
   globalRuntimeModel: RuntimeModelOption | null;
   onPatchRoom: (roomId: string, patch: Partial<TavernRoom>) => void;
   onRunTextFieldAgent: (request: TavernTextFieldAgentRequest) => Promise<string>;
-  onRegenerateDirectorProfile: (
-    room: TavernRoom,
-  ) => Promise<NonNullable<TavernRoomSettings["directorScheduling"]["profile"]>>;
 };
 
-export const RoomEditor = ({
-  bind,
-  characterById,
-  globalRuntimeModel,
-  onPatchRoom,
-  onRunTextFieldAgent,
-  onRegenerateDirectorProfile,
-}: RoomEditorProps) => {
+export const RoomEditor = ({ bind, globalRuntimeModel, onPatchRoom, onRunTextFieldAgent }: RoomEditorProps) => {
   const navigate = useNavigate();
   const [data, setData] = useState<TavernRoom | null>(null);
   const [activeTextFieldAgentKey, setActiveTextFieldAgentKey] = useState("");
@@ -106,7 +93,7 @@ export const RoomEditor = ({
   const [activeModuleId, setActiveModuleId] = useState<EditorModuleId>("basic");
 
   const open = useCallback((room: TavernRoom) => {
-    setData(cloneTavernRoom(projectTavernSceneOntoRoom(room)));
+    setData(cloneTavernRoom(room));
     setActiveModuleId("basic");
     setActiveTextFieldAgentKey("");
     setTextFieldAgentError("");
@@ -122,7 +109,7 @@ export const RoomEditor = ({
 
   const persistRoom = (room: TavernRoom) => {
     const nextRoom = prepareTavernRoomForSave(room);
-    setData(cloneTavernRoom(projectTavernSceneOntoRoom(nextRoom)));
+    setData(cloneTavernRoom(nextRoom));
     onPatchRoom(nextRoom.id, nextRoom);
     return nextRoom;
   };
@@ -136,14 +123,9 @@ export const RoomEditor = ({
   };
 
   const openStoryConfig = () => {
-    const storyId = data?.storyBinding?.storyId ?? data?.id;
-    if (!storyId) {
-      return;
-    }
-
     navigate({
       pathname: "/stories",
-      search: `?storyId=${encodeURIComponent(storyId)}`,
+      search: "",
     });
   };
 
@@ -152,17 +134,13 @@ export const RoomEditor = ({
       throw new Error("Room editor is not open.");
     }
 
-    const room = data;
-    const storyProjection = getTavernRuntimeStoryProjection(room);
-    const storyContext = buildTavernStoryContextPackage({
-      room,
-      characters: storyProjection.characters,
-    });
-
     return {
       room: {
-        title: room.title,
-        promptBlocks: room.prompt.blocks
+        title: data.title,
+        scenePresetId: data.scenePresetId,
+        replyMode: data.replyMode,
+        progressTracker: data.progressTracker,
+        promptBlocks: data.prompt.blocks
           .filter((block) => block.enabled && block.text.trim())
           .map((block) => ({
             target: block.target,
@@ -170,21 +148,6 @@ export const RoomEditor = ({
             source: block.source,
             text: block.text,
           })),
-        userPersonaName: room.userPersonaName,
-      },
-      storyContext: {
-        story: storyContext.story,
-        activeNode: storyContext.graph.activeNode,
-        activeScene: storyContext.graph.activeScene,
-        branch: storyContext.branch,
-        characters: storyContext.characters,
-        lorebookEntries: storyContext.world.lorebookEntries,
-        graph: {
-          entryNodeId: storyContext.graph.entryNodeId,
-          activeNodeId: storyContext.graph.activeNodeId,
-          nodes: storyContext.graph.nodes,
-          edges: storyContext.graph.edges,
-        },
       },
     };
   };
@@ -308,14 +271,7 @@ export const RoomEditor = ({
           />
         );
       case "settings":
-        return (
-          <SettingsSection
-            data={data}
-            globalRuntimeModel={globalRuntimeModel}
-            onRegenerateDirectorProfile={onRegenerateDirectorProfile}
-            onSave={onModuleSave}
-          />
-        );
+        return <SettingsSection data={data} globalRuntimeModel={globalRuntimeModel} onSave={onModuleSave} />;
       case "progress":
         return <ProgressSection data={data} onSave={onModuleSave} />;
     }
@@ -379,12 +335,7 @@ export const RoomEditor = ({
             </aside>
 
             <div className="flex min-w-0 flex-1 flex-col">
-              <Header
-                data={data}
-                characterById={characterById}
-                textFieldAgentError={textFieldAgentError}
-                onOpenStoryConfig={openStoryConfig}
-              />
+              <Header data={data} textFieldAgentError={textFieldAgentError} onOpenStoryConfig={openStoryConfig} />
 
               <ScrollArea className="min-h-0 flex-1 bg-muted/10">
                 <div className="flex w-full flex-col gap-4 px-4 py-4 lg:px-6">

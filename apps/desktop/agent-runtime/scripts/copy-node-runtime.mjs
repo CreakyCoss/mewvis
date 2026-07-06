@@ -14,9 +14,8 @@ const cacheDir = join(targetDir, "node-runtime-cache");
 
 const args = process.argv.slice(2);
 const targetIndex = args.indexOf("--target");
-const target = targetIndex !== -1
-  ? args[targetIndex + 1]
-  : process.env.NODE_RUNTIME_TARGET ?? getHostNodeRuntimeTarget();
+const target =
+  targetIndex !== -1 ? args[targetIndex + 1] : (process.env.NODE_RUNTIME_TARGET ?? getHostNodeRuntimeTarget());
 
 const PLATFORM_MAP = {
   "win-x64": { os: "win", arch: "x64", binary: "node.exe" },
@@ -99,9 +98,7 @@ if (target) {
   }
 
   const extractedDir = join(tmpDir, `node-${version}-${plat.os}-${plat.arch}`);
-  const binarySrc = plat.archiveBinPath
-    ? join(extractedDir, plat.archiveBinPath)
-    : join(extractedDir, plat.binary);
+  const binarySrc = plat.archiveBinPath ? join(extractedDir, plat.archiveBinPath) : join(extractedDir, plat.binary);
 
   if (!(await isTargetBinaryCompatible(binarySrc, target))) {
     console.error(`Downloaded Node.js binary is not compatible with ${target}: ${binarySrc}`);
@@ -146,10 +143,7 @@ function getHostNodeRuntimeTarget() {
 }
 
 async function removeStaleRuntimeBinaries() {
-  await Promise.all([
-    rm(join(outputDir, "node"), { force: true }),
-    rm(join(outputDir, "node.exe"), { force: true }),
-  ]);
+  await Promise.all([rm(join(outputDir, "node"), { force: true }), rm(join(outputDir, "node.exe"), { force: true })]);
 }
 
 async function isTargetBinaryCompatible(path, target) {
@@ -179,10 +173,7 @@ function readWindowsMachine(buffer) {
   }
 
   const peOffset = buffer.readUInt32LE(0x3c);
-  if (
-    peOffset + 6 > buffer.length ||
-    buffer.toString("ascii", peOffset, peOffset + 4) !== "PE\0\0"
-  ) {
+  if (peOffset + 6 > buffer.length || buffer.toString("ascii", peOffset, peOffset + 4) !== "PE\0\0") {
     return null;
   }
 

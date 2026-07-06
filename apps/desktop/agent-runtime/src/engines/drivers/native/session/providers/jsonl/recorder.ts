@@ -1,37 +1,16 @@
-import {
-  AgentEventType,
-  type AgentEvent,
-} from "../../../../../protocol/index.js";
+import { AgentEventType, type AgentEvent } from "../../../../../protocol/index.js";
 import type {
   RuntimeAgentSessionCommand,
   RuntimeSessionCommand,
   SessionBackedRuntimeCommand,
 } from "../../model/runtime-command.js";
 import { isRuntimeAgentSessionCommand } from "../../model/runtime-command.js";
-import type {
-  RuntimeMessage,
-  RuntimeSessionRecordRef,
-} from "../../model/ledger.js";
-import type {
-  RuntimeSessionHandle,
-  RuntimeSessionStorageProvider,
-} from "../../internal/storage.js";
-import type {
-  RuntimeSessionAssistantMessageInput,
-  RuntimeSessionRunRecorder,
-} from "../types.js";
-import {
-  runtimeEntryMetadata,
-  runtimeMessageMetadata,
-} from "../../model/metadata.js";
-import {
-  commandParentEntryId,
-  commandRootUserEntryId,
-} from "../../model/runtime-link.js";
-import {
-  openRuntimeSessionStorage,
-  refreshRuntimeSessionManifest,
-} from "../../internal/writer.js";
+import type { RuntimeMessage, RuntimeSessionRecordRef } from "../../model/ledger.js";
+import type { RuntimeSessionHandle, RuntimeSessionStorageProvider } from "../../internal/storage.js";
+import type { RuntimeSessionAssistantMessageInput, RuntimeSessionRunRecorder } from "../types.js";
+import { runtimeEntryMetadata, runtimeMessageMetadata } from "../../model/metadata.js";
+import { commandParentEntryId, commandRootUserEntryId } from "../../model/runtime-link.js";
+import { openRuntimeSessionStorage, refreshRuntimeSessionManifest } from "../../internal/writer.js";
 
 type TraceRecord = {
   type: "event" | "error";
@@ -54,25 +33,24 @@ const initialUserMessageFor = (
     const content = command.userMessage.trim();
     return content
       ? {
-        role: "user",
-        content,
-        timestamp,
-        metadata: runtimeMessageMetadata({
-          command,
           role: "user",
-          baseLeafId,
-          parentEntryId: input?.parentEntryId ?? null,
-          rootUserEntryId: input?.rootUserEntryId ?? null,
-        }),
-      }
+          content,
+          timestamp,
+          metadata: runtimeMessageMetadata({
+            command,
+            role: "user",
+            baseLeafId,
+            parentEntryId: input?.parentEntryId ?? null,
+            rootUserEntryId: input?.rootUserEntryId ?? null,
+          }),
+        }
       : null;
   }
 
   return null;
 };
 
-const taskIdFor = (command: RuntimeSessionCommand) =>
-  command.taskId;
+const taskIdFor = (command: RuntimeSessionCommand) => command.taskId;
 
 export class JsonlRuntimeSessionRecorder implements RuntimeSessionRunRecorder {
   private text = "";
@@ -115,14 +93,10 @@ export class JsonlRuntimeSessionRecorder implements RuntimeSessionRunRecorder {
     }
 
     const userEntryId = this.input.handle.storage.createEntryId();
-    const message = initialUserMessageFor(
-      this.input.command,
-      this.input.baseLeafId,
-      {
-        parentEntryId: this.parentEntryId,
-        rootUserEntryId: this.rootUserEntryId ?? userEntryId,
-      },
-    );
+    const message = initialUserMessageFor(this.input.command, this.input.baseLeafId, {
+      parentEntryId: this.parentEntryId,
+      rootUserEntryId: this.rootUserEntryId ?? userEntryId,
+    });
     if (!message) {
       return;
     }
@@ -178,21 +152,24 @@ export class JsonlRuntimeSessionRecorder implements RuntimeSessionRunRecorder {
 
     const assistantParentId = this.userEntryId ?? this.intentLeafId ?? this.parentEntryId ?? undefined;
     const parentUserEntryId = this.userEntryId ?? this.rootUserEntryId;
-    const entry = await this.input.handle.storage.appendMessage({
-      role: "assistant",
-      content: text || thinking,
-      timestamp: Date.now(),
-      metadata: runtimeMessageMetadata({
-        command: this.input.command,
+    const entry = await this.input.handle.storage.appendMessage(
+      {
         role: "assistant",
-        baseLeafId: this.input.baseLeafId,
-        parentEntryId: assistantParentId ?? null,
-        rootUserEntryId: this.rootUserEntryId,
-        parentUserEntryId,
-        runStatus: input.runStatus ?? "done",
-        thinking: thinking || null,
-      }),
-    }, assistantParentId);
+        content: text || thinking,
+        timestamp: Date.now(),
+        metadata: runtimeMessageMetadata({
+          command: this.input.command,
+          role: "assistant",
+          baseLeafId: this.input.baseLeafId,
+          parentEntryId: assistantParentId ?? null,
+          rootUserEntryId: this.rootUserEntryId,
+          parentUserEntryId,
+          runStatus: input.runStatus ?? "done",
+          thinking: thinking || null,
+        }),
+      },
+      assistantParentId,
+    );
     this.assistantEntryId = entry.id;
   }
 

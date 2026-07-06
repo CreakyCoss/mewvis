@@ -1,9 +1,9 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { TavernMessage, TavernReferencedFile } from "../../types";
 import type {
   TavernCharacter,
   TavernPromptBlock,
   TavernPromptBlockTarget,
-  TavernRoom,
 } from "@/features/pages/taverns/manage/model";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
 import { isTavernFixedOrderPhase } from "../../core";

@@ -1,8 +1,4 @@
-import type {
-  KnowledgeIndexStatus,
-  KnowledgeLibrary,
-  KnowledgeSettings,
-} from "./types";
+import type { KnowledgeIndexStatus, KnowledgeLibrary, KnowledgeSettings } from "./types";
 
 export const emptyKnowledgeLibrary = (): KnowledgeLibrary => ({
   collections: [],

@@ -8,22 +8,12 @@ type SideBySideDiffViewerProps = {
   rowRefs?: RefObject<Map<number, HTMLDivElement>>;
 };
 
-export const SideBySideDiffViewer = ({
-  rows,
-  activeRowIndex = -1,
-  rowRefs,
-}: SideBySideDiffViewerProps) => (
+export const SideBySideDiffViewer = ({ rows, activeRowIndex = -1, rowRefs }: SideBySideDiffViewerProps) => (
   <div className="min-w-0 p-3 text-[12px] leading-5">
     <div className="sticky top-0 z-10 grid grid-cols-[2.65rem_minmax(0,1fr)_2.65rem_minmax(0,1fr)] overflow-hidden rounded-t-md border border-border/60 bg-muted/70 text-xs font-medium text-muted-foreground">
-      <div className="border-r border-border/60 px-2 py-1.5 text-right">
-        行
-      </div>
-      <div className="border-r border-border/60 px-3 py-1.5">
-        变更前
-      </div>
-      <div className="border-r border-border/60 px-2 py-1.5 text-right">
-        行
-      </div>
+      <div className="border-r border-border/60 px-2 py-1.5 text-right">行</div>
+      <div className="border-r border-border/60 px-3 py-1.5">变更前</div>
+      <div className="border-r border-border/60 px-2 py-1.5 text-right">行</div>
       <div className="px-3 py-1.5">变更后</div>
     </div>
     <div className="overflow-hidden rounded-b-md border-x border-b border-border/60">

@@ -1,6 +1,4 @@
-import {
-  AgentEventType,
-} from "../../../../../../protocol/index.js";
+import { AgentEventType } from "../../../../../../protocol/index.js";
 import type {
   AgentRunResult,
   AgentRuntimeCallbacks,
@@ -8,14 +6,8 @@ import type {
   EmitAgentEvent,
   RuntimeAgentCommand,
 } from "../../types.js";
-import {
-  throwPiSessionError,
-  type PiAgentRunState,
-} from "./events.js";
-import {
-  createPiAskUserContinuationPrompt,
-  createPiInitialPrompt,
-} from "./prompts.js";
+import { throwPiSessionError, type PiAgentRunState } from "./events.js";
+import { createPiAskUserContinuationPrompt, createPiInitialPrompt } from "./prompts.js";
 import type { PiAgentSession } from "./session.js";
 import { parsePiAskUserFunctionCall } from "../tools/ask-user-parser.js";
 
@@ -40,11 +32,7 @@ export const drivePiAgentSession = async ({
   state,
   shouldBootstrap,
 }: DrivePiAgentSessionInput): Promise<AgentRunResult> => {
-  let nextPrompt: string | null = await createPiInitialPrompt(
-    command,
-    shouldBootstrap,
-    nativeSession,
-  );
+  let nextPrompt: string | null = await createPiInitialPrompt(command, shouldBootstrap, nativeSession);
   while (nextPrompt) {
     state.assistantText = "";
     state.streamedText = "";
@@ -93,11 +81,7 @@ const runPromptWithTimeout = async (session: PiAgentSession, prompt: string) => 
   );
 };
 
-const withTimeout = async <T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-  message: string,
-): Promise<T> => {
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> => {
   let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([

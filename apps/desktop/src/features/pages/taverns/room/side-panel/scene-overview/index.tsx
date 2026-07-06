@@ -1,3 +1,8 @@
+import type {
+  TavernCharacterMemoryLayers,
+  TavernRuntimeRoom as TavernRoom,
+  TavernSceneMemoryLayers,
+} from "@/features/pages/taverns/room/model";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   BookOpen,
@@ -59,13 +64,10 @@ import {
   getTavernSceneInstanceDisplayTitle,
 } from "@/features/pages/taverns/tavern/runtime/scene-selectors";
 import type {
-  TavernCharacterMemoryLayers,
   TavernCondition,
   TavernFactEvent,
   TavernPromptBlock,
   TavernReplyMode,
-  TavernRoom,
-  TavernSceneMemoryLayers,
   TavernStatusDefinition,
   TavernStatusEvent,
   TavernStatusTargetRef,

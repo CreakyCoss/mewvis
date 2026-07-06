@@ -18,24 +18,38 @@ const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/taverns/t
 const messagePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/message/index.ts");
 const corePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/core/index.ts");
 
-writeFileSync(mockLlmStorePath, `
+writeFileSync(
+  mockLlmStorePath,
+  `
   export const requireRuntimeModelInput = (runtimeModel: any) => ({
     provider: "mock-provider",
     apiFormat: "openai-chat",
     catalogModelId: runtimeModel?.modelId ?? "mock-model",
     modelId: runtimeModel?.modelId ?? "mock-model",
   });
-`, "utf8");
+`,
+  "utf8",
+);
 
-writeFileSync(mockReplyPath, `
+writeFileSync(
+  mockReplyPath,
+  `
   export const runTavernInnerThought = async () => "mock inner thought";
-`, "utf8");
+`,
+  "utf8",
+);
 
-writeFileSync(mockConversationPath, `
+writeFileSync(
+  mockConversationPath,
+  `
   export const compactTavernAgentKnowledge = async () => ({ compacted: false });
-`, "utf8");
+`,
+  "utf8",
+);
 
-writeFileSync(mockCollaborationPath, `
+writeFileSync(
+  mockCollaborationPath,
+  `
   import {
     buildTavernSpeakerCollaborationInput as realBuildTavernSpeakerCollaborationInput,
   } from ${JSON.stringify(adapterPath)};
@@ -177,9 +191,13 @@ writeFileSync(mockCollaborationPath, `
       taskId,
     };
   };
-`, "utf8");
+`,
+  "utf8",
+);
 
-writeFileSync(entryPath, `
+writeFileSync(
+  entryPath,
+  `
   import {
     runSpeakerReplyFlow,
   } from ${JSON.stringify(speakersPath)};
@@ -489,7 +507,9 @@ writeFileSync(entryPath, `
     })),
     turnStatusUpdates,
   }, null, 2));
-`, "utf8");
+`,
+  "utf8",
+);
 
 try {
   await build({

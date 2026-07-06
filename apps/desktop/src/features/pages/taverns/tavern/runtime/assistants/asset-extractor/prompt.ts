@@ -1,10 +1,11 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import { formatTavernRuntimeMessagesForSummary } from "../../conversation";
 import { tavernMessagesToRuntimeMessages } from "../../prompt";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
 import { buildTavernStoryContextPackage, formatTavernStoryLorebookEntries } from "../../../adapters/story";
 import { formatTavernCharacterRelationships } from "../../../core";
 import type { TavernMessage } from "../../../types";
-import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 
 const characterBrief = (room: TavernRoom, characters: TavernCharacter[]) =>
   characters

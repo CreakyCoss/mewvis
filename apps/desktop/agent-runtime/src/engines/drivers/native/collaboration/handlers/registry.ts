@@ -24,24 +24,9 @@ export const createCollaborationHandlerRegistry = (
   };
 
   for (const bundle of bundles) {
-    registerHandlers(
-      handlers.transforms,
-      "transform",
-      bundle.namespace,
-      bundle.transforms,
-    );
-    registerHandlers(
-      handlers.conditions,
-      "condition",
-      bundle.namespace,
-      bundle.conditions,
-    );
-    registerHandlers(
-      handlers.routers,
-      "router",
-      bundle.namespace,
-      bundle.routers,
-    );
+    registerHandlers(handlers.transforms, "transform", bundle.namespace, bundle.transforms);
+    registerHandlers(handlers.conditions, "condition", bundle.namespace, bundle.conditions);
+    registerHandlers(handlers.routers, "router", bundle.namespace, bundle.routers);
   }
 
   return {
@@ -80,10 +65,7 @@ const registerHandlers = <THandler>(
   }
 };
 
-const resolveRegistrationIds = (
-  namespace: string | null | undefined,
-  rawId: string,
-) => {
+const resolveRegistrationIds = (namespace: string | null | undefined, rawId: string) => {
   const id = normalizeHandlerId(rawId);
   if (!id) {
     throw new Error("协作 handler id 不能为空");
@@ -97,11 +79,7 @@ const resolveRegistrationIds = (
   return [`${normalizedNamespace}.${id}`];
 };
 
-const requireHandler = <THandler>(
-  source: Map<string, THandler>,
-  kind: HandlerKind,
-  rawId: string,
-) => {
+const requireHandler = <THandler>(source: Map<string, THandler>, kind: HandlerKind, rawId: string) => {
   const id = normalizeHandlerId(rawId);
   const handler = source.get(id);
   if (!handler) {

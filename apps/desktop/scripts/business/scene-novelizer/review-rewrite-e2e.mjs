@@ -11,7 +11,9 @@ const bundledPath = join(tempDir, "runner.mjs");
 const mockAgentClientPath = join(tempDir, "mock-agent-client.ts");
 const runtimePath = resolve(workspaceRoot, "src/features/scene-novelizer/runtime/run-scene-novelizer.ts");
 
-writeFileSync(mockAgentClientPath, `
+writeFileSync(
+  mockAgentClientPath,
+  `
   const mockRunsKey = "__novelClawSceneNovelizerMockRuns";
   const globalMockState = globalThis as typeof globalThis & Record<string, any[] | undefined>;
   const listeners = new Set<any>();
@@ -101,9 +103,13 @@ writeFileSync(mockAgentClientPath, `
     getRuntimeSession: async () => ({ session: {} }),
     getCollaborationTimeline: async () => ({ session: {}, events: [] }),
   });
-`, "utf8");
+`,
+  "utf8",
+);
 
-writeFileSync(entryPath, `
+writeFileSync(
+  entryPath,
+  `
   import {
     runSceneNovelizer,
   } from ${JSON.stringify(runtimePath)};
@@ -202,7 +208,9 @@ writeFileSync(entryPath, `
     rewriteCount: draft.rewriteCount,
     text: draft.text,
   }, null, 2));
-`, "utf8");
+`,
+  "utf8",
+);
 
 try {
   await build({
@@ -221,10 +229,7 @@ try {
         name: "mock-scene-novelizer-agent-client",
         setup(build) {
           build.onResolve({ filter: /.*/ }, (args) => {
-            if (
-              args.path === "@/agent-client/runtime" ||
-              args.path.endsWith("/agent-client/runtime")
-            ) {
+            if (args.path === "@/agent-client/runtime" || args.path.endsWith("/agent-client/runtime")) {
               return { path: mockAgentClientPath };
             }
             return null;

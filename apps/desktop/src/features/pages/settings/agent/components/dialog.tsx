@@ -1,9 +1,5 @@
 import { Bot, Plus, Save, Trash2 } from "lucide-react";
-import {
-  agentAvatarGroups,
-  normalizeAgentAvatarId,
-  resolveAvatar,
-} from "@/assets/avatars";
+import { agentAvatarGroups, normalizeAgentAvatarId, resolveAvatar } from "@/assets/avatars";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,10 +19,7 @@ type AgentSettingsDialogProps = {
   onOpenChange: (open: boolean) => void;
 };
 
-export const AgentSettingsDialog = ({
-  open,
-  onOpenChange,
-}: AgentSettingsDialogProps) => {
+export const AgentSettingsDialog = ({ open, onOpenChange }: AgentSettingsDialogProps) => {
   const {
     agents,
     draft,
@@ -60,9 +53,7 @@ export const AgentSettingsDialog = ({
               </span>
               <span>角色设置</span>
             </DialogTitle>
-            <DialogDescription className="mt-2">
-              创建可复用的角色画像，聊天时可与任意模型独立组合。
-            </DialogDescription>
+            <DialogDescription className="mt-2">创建可复用的角色画像，聊天时可与任意模型独立组合。</DialogDescription>
           </div>
         </DialogHeader>
 
@@ -144,14 +135,8 @@ export const AgentSettingsDialog = ({
                       id="agent-avatar-preview"
                       className="flex h-9 items-center gap-2 rounded-md bg-background px-2 shadow-xs"
                     >
-                      <img
-                        src={draftAvatar.src}
-                        alt=""
-                        className="size-7 rounded-md"
-                      />
-                      <span className="truncate text-sm">
-                        {draftAvatar.label}
-                      </span>
+                      <img src={draftAvatar.src} alt="" className="size-7 rounded-md" />
+                      <span className="truncate text-sm">{draftAvatar.label}</span>
                     </div>
                   </div>
                 </div>
@@ -163,9 +148,7 @@ export const AgentSettingsDialog = ({
                       <section key={group.id} className="space-y-2">
                         <div>
                           <div className="text-xs font-medium text-foreground">{group.label}</div>
-                          <div className="text-[11px] leading-4 text-muted-foreground">
-                            {group.description}
-                          </div>
+                          <div className="text-[11px] leading-4 text-muted-foreground">{group.description}</div>
                         </div>
                         <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
                           {group.options.map((avatar) => (

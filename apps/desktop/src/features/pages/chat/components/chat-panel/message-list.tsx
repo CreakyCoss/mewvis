@@ -27,18 +27,14 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { SmoothMarkdownContent, SmoothPlainText } from "@/features/ai/components/markdown";
 import type { AgentMessageBlock, ChatMessage } from "../../types";
-import {
-  AGENT_BLOCK_AUTO_COLLAPSE_DELAY_MS,
-  groupAgentEvents,
-  isTimelineEvent,
-} from "../../utils/agent-blocks";
+import { AGENT_BLOCK_AUTO_COLLAPSE_DELAY_MS, groupAgentEvents, isTimelineEvent } from "../../utils/agent-blocks";
 import { AgentBlockList } from "./agent-block-list";
 import { AgentEventTimeline } from "./agent-event-timeline";
 import { useChatPanelStore } from "./store";
 
 const getMessageTextForAction = (message: ChatMessage) => {
   const blockText = message.agentBlocks
-    ?.flatMap((block) => block.type === "text" ? [block.content] : [])
+    ?.flatMap((block) => (block.type === "text" ? [block.content] : []))
     .join("\n\n")
     .trim();
 
@@ -52,10 +48,7 @@ type MessageListProps = {
   showToolCallProcess: boolean;
 };
 
-export const MessageList = ({
-  showThinkingProcess,
-  showToolCallProcess,
-}: MessageListProps) => {
+export const MessageList = ({ showThinkingProcess, showToolCallProcess }: MessageListProps) => {
   const {
     messages,
     isSending,
@@ -166,12 +159,15 @@ export const MessageList = ({
       return;
     }
 
-    void navigator.clipboard.writeText(text).then(() => {
-      setCopiedMessageId(message.id);
-      window.setTimeout(() => {
-        setCopiedMessageId((current) => current === message.id ? null : current);
-      }, 1200);
-    }).catch(() => undefined);
+    void navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        setCopiedMessageId(message.id);
+        window.setTimeout(() => {
+          setCopiedMessageId((current) => (current === message.id ? null : current));
+        }, 1200);
+      })
+      .catch(() => undefined);
   };
 
   const clearHistoryActionsCloseTimer = () => {
@@ -185,16 +181,14 @@ export const MessageList = ({
     clearHistoryActionsCloseTimer();
     setActiveHistoryActionsMessageId(messageId);
     setExpandedHistoryActionsMessageId(messageId);
-    setConfirmingDeleteMessageId((current) =>
-      expandedHistoryActionsMessageId === messageId ? current : null,
-    );
+    setConfirmingDeleteMessageId((current) => (expandedHistoryActionsMessageId === messageId ? current : null));
   };
 
   const closeHistoryActions = (messageId: string) => {
     clearHistoryActionsCloseTimer();
-    setExpandedHistoryActionsMessageId((current) => current === messageId ? null : current);
-    setActiveHistoryActionsMessageId((current) => current === messageId ? null : current);
-    setConfirmingDeleteMessageId((current) => current === messageId ? null : current);
+    setExpandedHistoryActionsMessageId((current) => (current === messageId ? null : current));
+    setActiveHistoryActionsMessageId((current) => (current === messageId ? null : current));
+    setConfirmingDeleteMessageId((current) => (current === messageId ? null : current));
   };
 
   const scheduleHistoryActionsClose = (messageId: string) => {
@@ -204,19 +198,20 @@ export const MessageList = ({
     }, 140);
   };
 
-  useEffect(() => () => {
-    if (historyActionsCloseTimerRef.current !== null) {
-      window.clearTimeout(historyActionsCloseTimerRef.current);
-      historyActionsCloseTimerRef.current = null;
-    }
-  }, []);
+  useEffect(
+    () => () => {
+      if (historyActionsCloseTimerRef.current !== null) {
+        window.clearTimeout(historyActionsCloseTimerRef.current);
+        historyActionsCloseTimerRef.current = null;
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     const messageIds = new Set(messages.map((message) => message.id));
     const blockKeys = new Set(
-      messages.flatMap((message) =>
-        (message.agentBlocks ?? []).map((block) => getAgentBlockKey(message.id, block.id))
-      ),
+      messages.flatMap((message) => (message.agentBlocks ?? []).map((block) => getAgentBlockKey(message.id, block.id))),
     );
 
     setExpandedThinkingIds((current) => new Set([...current].filter((id) => messageIds.has(id))));
@@ -265,47 +260,35 @@ export const MessageList = ({
     });
   }, [collapsedAgentBlockIds, expandedAgentBlockIds, messages]);
 
-  useEffect(() => () => {
-    agentBlockCollapseTimersRef.current.forEach((timer) => window.clearTimeout(timer));
-    agentBlockCollapseTimersRef.current.clear();
-  }, []);
+  useEffect(
+    () => () => {
+      agentBlockCollapseTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+      agentBlockCollapseTimersRef.current.clear();
+    },
+    [],
+  );
 
   return (
     <>
       {messages.map((message, messageIndex) => {
         const thinking = message.thinking?.trim();
         const isThinkingCollapsed =
-          Boolean(thinking) &&
-          message.status === "done" &&
-          !expandedThinkingIds.has(message.id);
+          Boolean(thinking) && message.status === "done" && !expandedThinkingIds.has(message.id);
         const agentEvents = message.agentEvents?.filter(isTimelineEvent) ?? [];
         const agentEventGroups = groupAgentEvents(agentEvents);
-        const isAgentEventsCollapsed =
-          message.status === "done" && !expandedAgentEventIds.has(message.id);
+        const isAgentEventsCollapsed = message.status === "done" && !expandedAgentEventIds.has(message.id);
         const isAssistantLoading =
           message.role === "assistant" &&
           (message.status === "loading" || message.status === "streaming") &&
           !message.text.trim();
-        const isMessageStreaming =
-          message.status === "loading" || message.status === "streaming";
-        const messageAgentAvatar = resolveAvatar(
-          message.agentAvatar ?? null,
-        );
+        const isMessageStreaming = message.status === "loading" || message.status === "streaming";
+        const messageAgentAvatar = resolveAvatar(message.agentAvatar ?? null);
         const agentBlocks = message.agentBlocks ?? [];
-        const isAgentBackedMessage =
-          message.mode === "agent" ||
-          agentBlocks.length > 0 ||
-          Boolean(message.agentEvents);
-        const hasAgentBlocks =
-          message.role === "assistant" &&
-          isAgentBackedMessage &&
-          agentBlocks.length > 0;
+        const isAgentBackedMessage = message.mode === "agent" || agentBlocks.length > 0 || Boolean(message.agentEvents);
+        const hasAgentBlocks = message.role === "assistant" && isAgentBackedMessage && agentBlocks.length > 0;
         const isEditingHistoryMessage = editingMessageId === message.id;
         const canChangeHistory =
-          !isSending &&
-          !activeAgentTaskId &&
-          message.status !== "loading" &&
-          message.status !== "streaming";
+          !isSending && !activeAgentTaskId && message.status !== "loading" && message.status !== "streaming";
         const isHistoryActionsVisible = activeHistoryActionsMessageId === message.id;
         const areHistoryActionsExpanded = expandedHistoryActionsMessageId === message.id;
         const isConfirmingDelete = confirmingDeleteMessageId === message.id;
@@ -322,10 +305,8 @@ export const MessageList = ({
         const messageActionText = getMessageTextForAction(message);
         const canCopyMessage = messageActionText.length > 0;
         const isSubmittingStoryMessage = storySubmittingMessageIds.includes(message.id);
-        const canSubmitMessageToStory = Boolean(onSubmitMessageToStory) &&
-          canCopyMessage &&
-          canChangeHistory &&
-          !isSubmittingStoryMessage;
+        const canSubmitMessageToStory =
+          Boolean(onSubmitMessageToStory) && canCopyMessage && canChangeHistory && !isSubmittingStoryMessage;
         const advancedHistoryActions = canChangeHistory ? (
           <DropdownMenuContent
             align={message.role === "user" ? "end" : "start"}
@@ -339,9 +320,7 @@ export const MessageList = ({
           >
             {isConfirmingDelete ? (
               <>
-                <span className="px-1.5 text-xs font-medium whitespace-nowrap text-destructive">
-                  删除？
-                </span>
+                <span className="px-1.5 text-xs font-medium whitespace-nowrap text-destructive">删除？</span>
                 <DropdownMenuItem
                   className={historyMenuItemClass}
                   title="取消删除"
@@ -450,11 +429,7 @@ export const MessageList = ({
               disabled={!canCopyMessage}
               onClick={() => copyMessageText(message)}
             >
-              {copiedMessageId === message.id ? (
-                <Check className="size-3.5" />
-              ) : (
-                <Copy className="size-3.5" />
-              )}
+              {copiedMessageId === message.id ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
               <span className="sr-only">复制</span>
             </Button>
             {onSubmitMessageToStory ? (
@@ -521,11 +496,7 @@ export const MessageList = ({
                 title={message.agentName}
               >
                 {isAgentBackedMessage || message.agentAvatar ? (
-                  <img
-                    src={messageAgentAvatar.src}
-                    alt=""
-                    className="size-full object-cover"
-                  />
+                  <img src={messageAgentAvatar.src} alt="" className="size-full object-cover" />
                 ) : (
                   <Bot className="size-4" />
                 )}
@@ -575,10 +546,10 @@ export const MessageList = ({
                       rows={4}
                       className={[
                         "max-h-72 min-h-28 resize-y border bg-background text-sm leading-6 text-foreground shadow-xs",
-                        message.role === "user"
-                          ? "border-primary-foreground/30 bg-primary-foreground"
-                          : "",
-                      ].filter(Boolean).join(" ")}
+                        message.role === "user" ? "border-primary-foreground/30 bg-primary-foreground" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
                       autoFocus
                       onKeyDown={(event) => {
                         if (event.key === "Escape") {
@@ -596,9 +567,9 @@ export const MessageList = ({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className={message.role === "user"
-                          ? "h-8 text-primary-foreground hover:bg-primary-foreground/15"
-                          : "h-8"}
+                        className={
+                          message.role === "user" ? "h-8 text-primary-foreground hover:bg-primary-foreground/15" : "h-8"
+                        }
                         onClick={cancelHistoryEdit}
                       >
                         <X className="size-3.5" />
@@ -618,47 +589,50 @@ export const MessageList = ({
                   </div>
                 )}
 
-                {!isEditingHistoryMessage && showThinkingProcess && message.role === "assistant" && !hasAgentBlocks && thinking && (
-                  <div className="mb-2 overflow-hidden rounded-md bg-muted/35 shadow-xs">
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
-                      onClick={() => toggleThinking(message.id)}
-                    >
-                      {isThinkingCollapsed ? (
-                        <ChevronRight className="size-3.5" />
-                      ) : (
-                        <ChevronDown className="size-3.5" />
+                {!isEditingHistoryMessage &&
+                  showThinkingProcess &&
+                  message.role === "assistant" &&
+                  !hasAgentBlocks &&
+                  thinking && (
+                    <div className="mb-2 overflow-hidden rounded-md bg-muted/35 shadow-xs">
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
+                        onClick={() => toggleThinking(message.id)}
+                      >
+                        {isThinkingCollapsed ? (
+                          <ChevronRight className="size-3.5" />
+                        ) : (
+                          <ChevronDown className="size-3.5" />
+                        )}
+                        <Brain className="size-3.5" />
+                        <span>Thinking</span>
+                        {message.status !== "done" && <Loader2 className="ml-auto size-3 animate-spin" />}
+                      </button>
+                      {!isThinkingCollapsed && (
+                        <div className="max-h-48 overflow-auto bg-background/45 px-2.5 py-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
+                          <SmoothPlainText content={thinking} isStreaming={isMessageStreaming} />
+                        </div>
                       )}
-                      <Brain className="size-3.5" />
-                      <span>Thinking</span>
-                      {message.status !== "done" && (
-                        <Loader2 className="ml-auto size-3 animate-spin" />
-                      )}
-                    </button>
-                    {!isThinkingCollapsed && (
-                      <div className="max-h-48 overflow-auto bg-background/45 px-2.5 py-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
-                        <SmoothPlainText
-                          content={thinking}
-                          isStreaming={isMessageStreaming}
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
+                    </div>
+                  )}
 
-                {!isEditingHistoryMessage && showToolCallProcess && message.role === "assistant" && !hasAgentBlocks && agentEventGroups.length > 0 && (
-                  <AgentEventTimeline
-                    messageId={message.id}
-                    messageStatus={message.status}
-                    agentEventGroups={agentEventGroups}
-                    isCollapsed={isAgentEventsCollapsed}
-                    onToggle={() => toggleAgentEvents(message.id)}
-                  />
-                )}
+                {!isEditingHistoryMessage &&
+                  showToolCallProcess &&
+                  message.role === "assistant" &&
+                  !hasAgentBlocks &&
+                  agentEventGroups.length > 0 && (
+                    <AgentEventTimeline
+                      messageId={message.id}
+                      messageStatus={message.status}
+                      agentEventGroups={agentEventGroups}
+                      isCollapsed={isAgentEventsCollapsed}
+                      onToggle={() => toggleAgentEvents(message.id)}
+                    />
+                  )}
 
-                {!isEditingHistoryMessage && (
-                  hasAgentBlocks ? (
+                {!isEditingHistoryMessage &&
+                  (hasAgentBlocks ? (
                     <AgentBlockList
                       messageId={message.id}
                       messageStatus={message.status}
@@ -674,10 +648,7 @@ export const MessageList = ({
                       <span>{assistantLoadingLabel}</span>
                     </div>
                   ) : message.role === "assistant" ? (
-                    <SmoothMarkdownContent
-                      message={message}
-                      isStreaming={isMessageStreaming}
-                    />
+                    <SmoothMarkdownContent message={message} isStreaming={isMessageStreaming} />
                   ) : (
                     <div className="space-y-2">
                       {message.referencedFiles && message.referencedFiles.length > 0 && (
@@ -693,12 +664,9 @@ export const MessageList = ({
                           ))}
                         </div>
                       )}
-                      <div className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-                        {message.text}
-                      </div>
+                      <div className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.text}</div>
                     </div>
-                  )
-                )}
+                  ))}
               </div>
               {messageToolbar}
             </div>

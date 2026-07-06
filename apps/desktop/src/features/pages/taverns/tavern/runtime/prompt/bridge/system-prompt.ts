@@ -1,9 +1,10 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
 import {
   formatTavernInteractionQualityRulesForTarget,
   formatTavernPromptBlocksForTarget,
 } from "../../../prompt-registry/text-blocks";
-import type { TavernRoom } from "@/features/pages/taverns/manage/model";
+
 import { buildPresentationProfileSection } from "../layers/presentation";
 import { renderTavernPromptSections, type TavernPromptSection } from "../shared/sections";
 

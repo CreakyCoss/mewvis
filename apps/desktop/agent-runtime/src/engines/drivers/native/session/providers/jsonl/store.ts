@@ -34,9 +34,7 @@ const parseJsonLine = <T>(line: string, filePath: string, lineNumber: number): T
 };
 
 const isHeader = (value: unknown): value is RuntimeLedgerHeader =>
-  Boolean(value) &&
-  typeof value === "object" &&
-  (value as { type?: unknown }).type === "runtime_session";
+  Boolean(value) && typeof value === "object" && (value as { type?: unknown }).type === "runtime_session";
 
 const leafIdAfterEntry = (entry: RuntimeLedgerEntry): string | null =>
   entry.type === "leaf" ? entry.targetId : entry.id;
@@ -87,13 +85,8 @@ export class RuntimeLedgerStorage {
       throw new Error(`runtime ledger header 不合法：${filePath}`);
     }
 
-    const entries = entryLines.map((line, index) =>
-      parseJsonLine<RuntimeLedgerEntry>(line, filePath, index + 2)
-    );
-    const leafId = entries.reduce<string | null>(
-      (_current, entry) => leafIdAfterEntry(entry),
-      null,
-    );
+    const entries = entryLines.map((line, index) => parseJsonLine<RuntimeLedgerEntry>(line, filePath, index + 2));
+    const leafId = entries.reduce<string | null>((_current, entry) => leafIdAfterEntry(entry), null);
 
     return new RuntimeLedgerStorage(filePath, header, entries, leafId);
   }
@@ -166,11 +159,7 @@ export class RuntimeLedgerStorage {
     });
   }
 
-  async appendCustom(
-    customType: string,
-    data?: unknown,
-    parentId: string | null = this.leafId,
-  ) {
+  async appendCustom(customType: string, data?: unknown, parentId: string | null = this.leafId) {
     return this.appendEntry({
       type: "custom",
       id: this.createEntryId(),

@@ -1,14 +1,9 @@
 import type { AgentRuntimeResources } from "../../../../protocol/index.js";
 import type { AgentRunCommand } from "./types.js";
 
-type RuntimeResourceCommand = Pick<
-  AgentRunCommand,
-  "resources"
->;
+type RuntimeResourceCommand = Pick<AgentRunCommand, "resources">;
 
-export const runtimeResourcesFor = (
-  command: RuntimeResourceCommand,
-): AgentRuntimeResources => ({
+export const runtimeResourcesFor = (command: RuntimeResourceCommand): AgentRuntimeResources => ({
   ...(command.resources ?? {}),
   tools: {
     ...(command.resources?.tools ?? {}),
@@ -22,25 +17,17 @@ export const runtimeResourcesFor = (
   },
 });
 
-export const allowedRuntimeTools = (
-  command: RuntimeResourceCommand,
-) => runtimeResourcesFor(command).tools?.allowed ?? undefined;
+export const allowedRuntimeTools = (command: RuntimeResourceCommand) =>
+  runtimeResourcesFor(command).tools?.allowed ?? undefined;
 
-export const enabledRuntimeSkillNames = (
-  command: RuntimeResourceCommand,
-) => runtimeResourcesFor(command).skills?.enabled ?? [];
+export const enabledRuntimeSkillNames = (command: RuntimeResourceCommand) =>
+  runtimeResourcesFor(command).skills?.enabled ?? [];
 
-export const runtimeSkillSourcePaths = (
-  command: RuntimeResourceCommand,
-) => {
+export const runtimeSkillSourcePaths = (command: RuntimeResourceCommand) => {
   const skills = runtimeResourcesFor(command).skills;
   const bundledPath = skills?.bundledPath;
   const paths = [
-    ...(Array.isArray(bundledPath)
-      ? bundledPath
-      : bundledPath
-        ? [bundledPath]
-        : []),
+    ...(Array.isArray(bundledPath) ? bundledPath : bundledPath ? [bundledPath] : []),
     ...(skills?.paths ?? []),
   ];
 

@@ -1,3 +1,4 @@
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import { formatTavernRuntimeMessagesForSummary } from "../../conversation";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
 import { tavernMessagesToRuntimeMessages } from "../../prompt";
@@ -7,7 +8,7 @@ import {
   formatTavernStoryLorebookEntries,
 } from "../../../adapters/story";
 import { formatTavernCharacterRelationships } from "../../../core";
-import type { TavernCharacter, TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import type { TavernQuickSummaryInput } from "./types";
 
 const RECENT_MESSAGE_LIMIT = 80;

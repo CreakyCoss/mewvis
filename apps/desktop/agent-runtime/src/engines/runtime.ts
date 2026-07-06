@@ -4,7 +4,6 @@ import type {
   AgentRuntimeResult,
   PongResult,
   ShutdownAckResult,
-
   AskUserInput,
   AgentRunInput,
   AgentToolsQuery,
@@ -13,7 +12,6 @@ import type {
   ChatResult,
   RuntimeModelsResult,
   TaskResult,
-
   AppendSessionMessagesInput,
   CompactAgentSessionInput,
   DeleteSessionMessageInput,
@@ -25,14 +23,12 @@ import type {
   SessionResult,
   SummarizeAgentSessionInput,
   SummarizeSessionInput,
-
   RuntimeSessionDebugQuery,
   RuntimeSessionDebugResult,
   RuntimeSessionQuery,
   RuntimeSessionResult,
   RuntimeSessionsQuery,
   RuntimeSessionsResult,
-
   CollaborationModesRuntimeResult,
   CollaborationRuntimeResult,
   CollaborationTimelineQuery,
@@ -51,9 +47,7 @@ export type RuntimeUserInputRequest = {
   input?: AskUserInput;
 };
 
-export type RuntimeUserInputHandler = (
-  request: RuntimeUserInputRequest,
-) => Promise<string>;
+export type RuntimeUserInputHandler = (request: RuntimeUserInputRequest) => Promise<string>;
 
 export type RuntimeEngineCallbacks = {
   requestUserInput?: RuntimeUserInputHandler;

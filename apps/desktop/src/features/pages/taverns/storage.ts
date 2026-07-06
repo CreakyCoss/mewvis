@@ -20,8 +20,6 @@ type TavernManifestRoom = {
   id: string;
   title: string;
   roomPath: string;
-  activeSceneId?: string;
-  activeSceneInstanceId?: string;
   systemPresetId?: string;
   locked: boolean;
   createdAt: number;
@@ -49,16 +47,12 @@ const createEmptyTavernState = (): TavernState => ({
   version: TAVERN_STATE_VERSION,
   activeRoomId: "",
   rooms: [],
-  messagesByInstance: {},
-  workflowTracesByInstance: {},
 });
 
 const toRoomConfigState = (state: TavernState): TavernState => ({
   version: TAVERN_STATE_VERSION,
   activeRoomId: state.activeRoomId,
   rooms: state.rooms,
-  messagesByInstance: {},
-  workflowTracesByInstance: {},
 });
 
 const isStoryTavernScope = (scope: TavernRuntimeScope = {}) => Boolean(scope.storyId && scope.tavernId);
@@ -66,21 +60,8 @@ const isStoryTavernScope = (scope: TavernRuntimeScope = {}) => Boolean(scope.sto
 const createFallbackTavernState = (workspaceId: string, scope?: TavernRuntimeScope) =>
   toRoomConfigState(isStoryTavernScope(scope) ? createEmptyTavernState() : createDefaultTavernState(workspaceId));
 
-const withRuntimeStatePlaceholders = (value: unknown): unknown => {
-  if (!value || typeof value !== "object") {
-    return value;
-  }
-
-  const candidate = value as Partial<TavernState>;
-  return {
-    ...candidate,
-    messagesByInstance: {},
-    workflowTracesByInstance: {},
-  };
-};
-
 const normalizeStateForScope = (workspaceId: string, value: unknown, scope?: TavernRuntimeScope) => {
-  const normalized = normalizeTavernState(workspaceId, withRuntimeStatePlaceholders(value), {
+  const normalized = normalizeTavernState(workspaceId, value, {
     includeDefaultRooms: !isStoryTavernScope(scope),
   });
   return normalized ? toRoomConfigState(normalized) : null;
@@ -249,9 +230,6 @@ const normalizeTavernManifest = (value: unknown): TavernManifest | null => {
             id,
             title: typeof source.title === "string" ? source.title : "未命名酒馆",
             roomPath: typeof source.roomPath === "string" ? source.roomPath : "",
-            activeSceneId: typeof source.activeSceneId === "string" ? source.activeSceneId : undefined,
-            activeSceneInstanceId:
-              typeof source.activeSceneInstanceId === "string" ? source.activeSceneInstanceId : undefined,
             systemPresetId: typeof source.systemPresetId === "string" ? source.systemPresetId : undefined,
             locked: Boolean(source.locked),
             createdAt: typeof source.createdAt === "number" ? source.createdAt : Date.now(),
@@ -277,8 +255,6 @@ const createTavernManifestRoom = (baseDir: string, room: TavernRoom): TavernMani
   id: room.id,
   title: room.title || "未命名酒馆",
   roomPath: tavernRoomPath(baseDir, room.id),
-  activeSceneId: room.activeSceneId,
-  activeSceneInstanceId: room.activeSceneInstanceId,
   systemPresetId: room.systemPresetId,
   locked: Boolean(room.locked),
   createdAt: room.createdAt,

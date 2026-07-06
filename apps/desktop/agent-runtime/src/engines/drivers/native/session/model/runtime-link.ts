@@ -1,8 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type {
-  RuntimeSessionCommand,
-  RuntimeSessionLink,
-} from "./runtime-command.js";
+import type { RuntimeSessionCommand, RuntimeSessionLink } from "./runtime-command.js";
 import type { RuntimeLedgerEntry } from "./ledger.js";
 
 type RuntimeSessionLinkCommand = RuntimeSessionCommand & {
@@ -10,12 +7,9 @@ type RuntimeSessionLinkCommand = RuntimeSessionCommand & {
   recordUserMessage?: boolean | null;
 };
 
-export const sessionLinkFor = (
-  command: RuntimeSessionLinkCommand,
-): RuntimeSessionLink => command.sessionLink ?? {};
+export const sessionLinkFor = (command: RuntimeSessionLinkCommand): RuntimeSessionLink => command.sessionLink ?? {};
 
-export const commandTurnId = (command: RuntimeSessionLinkCommand) =>
-  sessionLinkFor(command).turnId ?? null;
+export const commandTurnId = (command: RuntimeSessionLinkCommand) => sessionLinkFor(command).turnId ?? null;
 
 export const commandParentEntryId = (command: RuntimeSessionLinkCommand) =>
   sessionLinkFor(command).parentEntryId ?? null;
@@ -23,8 +17,7 @@ export const commandParentEntryId = (command: RuntimeSessionLinkCommand) =>
 export const commandRootUserEntryId = (command: RuntimeSessionLinkCommand) =>
   sessionLinkFor(command).rootUserEntryId ?? null;
 
-const commandIdTurnId = (command: RuntimeSessionLinkCommand) =>
-  command.taskId ?? command.requestId ?? null;
+const commandIdTurnId = (command: RuntimeSessionLinkCommand) => command.taskId ?? command.requestId ?? null;
 
 export const latestTurnIdInEntries = (entries: RuntimeLedgerEntry[]) => {
   for (const entry of entries.slice().reverse()) {
@@ -39,10 +32,7 @@ export const latestTurnIdInEntries = (entries: RuntimeLedgerEntry[]) => {
   return null;
 };
 
-export const inferCommandTurnId = (
-  command: RuntimeSessionLinkCommand,
-  entries?: RuntimeLedgerEntry[],
-) => {
+export const inferCommandTurnId = (command: RuntimeSessionLinkCommand, entries?: RuntimeLedgerEntry[]) => {
   const explicit = commandTurnId(command);
   if (explicit) {
     return explicit;
@@ -76,10 +66,7 @@ export const shouldRecordRuntimeUserMessage = (
     return false;
   }
 
-  if (
-    parent.message.role === "assistant" &&
-    parent.message.metadata?.recordUserMessage === false
-  ) {
+  if (parent.message.role === "assistant" && parent.message.metadata?.recordUserMessage === false) {
     return false;
   }
 

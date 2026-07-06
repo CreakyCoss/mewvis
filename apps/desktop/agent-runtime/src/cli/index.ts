@@ -1,19 +1,8 @@
-import {
-  createRuntimeEngine,
-} from "../engines/index.js";
-import {
-  AgentEventType,
-  type AgentRuntimeCommand,
-} from "../engines/protocol/index.js";
-import {
-  createStdioRuntimeReader,
-  parseAgentRuntimeCommand,
-  writeAgentEvent,
-  writeJsonLine,
-} from "./stdio.js";
+import { createRuntimeEngine } from "../engines/index.js";
+import { AgentEventType, type AgentRuntimeCommand } from "../engines/protocol/index.js";
+import { createStdioRuntimeReader, parseAgentRuntimeCommand, writeAgentEvent, writeJsonLine } from "./stdio.js";
 
-const cliErrorMessage = (error: unknown) =>
-  error instanceof Error ? error.message : String(error);
+const cliErrorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 const runAgentRuntimeCli = async () => {
   const reader = createStdioRuntimeReader();

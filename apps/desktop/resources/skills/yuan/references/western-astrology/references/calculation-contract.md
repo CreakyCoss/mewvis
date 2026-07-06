@@ -123,6 +123,7 @@ The deterministic stage should produce:
 ## 8. Unknown or weak inputs
 
 ### Missing birth time
+
 Do not fabricate:
 
 - Ascendant
@@ -133,6 +134,7 @@ Do not fabricate:
 A limited sign-based reading is acceptable only if explicitly marked as partial.
 
 ### Fuzzy location
+
 A city string may be acceptable during normalization, but not as the final deterministic calculation input.
 
 ## 9. Interpretation boundary

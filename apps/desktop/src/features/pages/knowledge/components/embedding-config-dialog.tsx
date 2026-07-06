@@ -78,9 +78,7 @@ export const EmbeddingConfigDialog = ({
 
         <div className="grid gap-3 md:grid-cols-2">
           <label className="space-y-2">
-            <span className="text-xs font-medium text-muted-foreground">
-              Provider
-            </span>
+            <span className="text-xs font-medium text-muted-foreground">Provider</span>
             <NativeSelect
               className="w-full"
               value={embeddingDraft.providerKind}
@@ -90,12 +88,10 @@ export const EmbeddingConfigDialog = ({
                   setEmbeddingDraft((current) => ({
                     ...current,
                     providerKind: "ollama",
-                    baseUrl: current.providerKind === "ollama"
-                      ? current.baseUrl || localOllamaBaseUrl
-                      : localOllamaBaseUrl,
-                    modelId: current.providerKind === "ollama"
-                      ? current.modelId || localOllamaModelId
-                      : localOllamaModelId,
+                    baseUrl:
+                      current.providerKind === "ollama" ? current.baseUrl || localOllamaBaseUrl : localOllamaBaseUrl,
+                    modelId:
+                      current.providerKind === "ollama" ? current.modelId || localOllamaModelId : localOllamaModelId,
                     apiKey: "",
                     dimensions: localOllamaDimensions,
                     batchSize: localOllamaBatchSize,
@@ -113,19 +109,13 @@ export const EmbeddingConfigDialog = ({
                 }));
               }}
             >
-              <NativeSelectOption value="openai-compatible">
-                OpenAI-compatible
-              </NativeSelectOption>
-              <NativeSelectOption value="ollama">
-                本地 Ollama
-              </NativeSelectOption>
+              <NativeSelectOption value="openai-compatible">OpenAI-compatible</NativeSelectOption>
+              <NativeSelectOption value="ollama">本地 Ollama</NativeSelectOption>
             </NativeSelect>
           </label>
 
           <label className="space-y-2">
-            <span className="text-xs font-medium text-muted-foreground">
-              模型 ID
-            </span>
+            <span className="text-xs font-medium text-muted-foreground">模型 ID</span>
             <Input
               list="knowledge-embedding-model-options"
               value={embeddingDraft.modelId}
@@ -149,14 +139,10 @@ export const EmbeddingConfigDialog = ({
         </div>
 
         <label className="space-y-2">
-          <span className="text-xs font-medium text-muted-foreground">
-            服务地址
-          </span>
+          <span className="text-xs font-medium text-muted-foreground">服务地址</span>
           <Input
             value={embeddingDraft.baseUrl}
-            placeholder={isLocalOllamaEmbedding
-              ? localOllamaBaseUrl
-              : "https://api.openai.com/v1"}
+            placeholder={isLocalOllamaEmbedding ? localOllamaBaseUrl : "https://api.openai.com/v1"}
             onChange={(event) => {
               const value = event.target.value;
               setEmbeddingDraft((current) => ({
@@ -174,9 +160,7 @@ export const EmbeddingConfigDialog = ({
 
         {!isLocalOllamaEmbedding && (
           <label className="space-y-2">
-            <span className="text-xs font-medium text-muted-foreground">
-              API Key
-            </span>
+            <span className="text-xs font-medium text-muted-foreground">API Key</span>
             <Input
               type="password"
               value={embeddingDraft.apiKey}
@@ -189,17 +173,13 @@ export const EmbeddingConfigDialog = ({
                 }));
               }}
             />
-            <p className="text-xs leading-5 text-muted-foreground">
-              如果服务不需要鉴权，可以留空。
-            </p>
+            <p className="text-xs leading-5 text-muted-foreground">如果服务不需要鉴权，可以留空。</p>
           </label>
         )}
 
         <div className="grid gap-3 md:grid-cols-2">
           <label className="space-y-2">
-            <span className="text-xs font-medium text-muted-foreground">
-              向量维度
-            </span>
+            <span className="text-xs font-medium text-muted-foreground">向量维度</span>
             <Input
               type="number"
               min={1}
@@ -215,9 +195,7 @@ export const EmbeddingConfigDialog = ({
           </label>
 
           <label className="space-y-2">
-            <span className="text-xs font-medium text-muted-foreground">
-              批量大小
-            </span>
+            <span className="text-xs font-medium text-muted-foreground">批量大小</span>
             <Input
               type="number"
               min={1}
@@ -241,24 +219,11 @@ export const EmbeddingConfigDialog = ({
       </div>
 
       <DialogFooter>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => onOpenChange(false)}
-          disabled={isSavingEmbedding}
-        >
+        <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSavingEmbedding}>
           取消
         </Button>
-        <Button
-          type="button"
-          onClick={onRequestSave}
-          disabled={isSavingEmbedding}
-        >
-          {isSavingEmbedding ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Save className="size-4" />
-          )}
+        <Button type="button" onClick={onRequestSave} disabled={isSavingEmbedding}>
+          {isSavingEmbedding ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
           <span>保存配置</span>
         </Button>
       </DialogFooter>

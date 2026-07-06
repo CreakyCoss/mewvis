@@ -96,4 +96,7 @@ async function main() {
   console.log(`Synced ${total} models to ${targetPath}`);
 }
 
-main().catch(err => { console.error(err); process.exit(1); });
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

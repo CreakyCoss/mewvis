@@ -1,7 +1,4 @@
-export {
-  formatTavernRuntimeMessagesForSummary,
-  type TavernRuntimeMessage,
-} from "./messages";
+export { formatTavernRuntimeMessagesForSummary, type TavernRuntimeMessage } from "./messages";
 export {
   buildTavernBridgeSystemPrompt,
   compactTavernAgentKnowledge,

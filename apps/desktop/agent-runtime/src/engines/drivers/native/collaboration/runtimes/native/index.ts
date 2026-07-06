@@ -1,10 +1,5 @@
-import type {
-  CollaborationWorkflowStep,
-} from "../../../../../protocol/index.js";
-import type {
-  CollaborationRuntime,
-  CollaborationRuntimeRunInput,
-} from "../types.js";
+import type { CollaborationWorkflowStep } from "../../../../../protocol/index.js";
+import type { CollaborationRuntime, CollaborationRuntimeRunInput } from "../types.js";
 import {
   assertNoDynamicRouterSteps,
   collectCollaborationRunResult,
@@ -14,22 +9,13 @@ import {
   runStepWithRetry,
 } from "../shared/step-runner.js";
 
-export {
-  CollaborationStepRunError,
-} from "../shared/step-runner.js";
+export { CollaborationStepRunError } from "../shared/step-runner.js";
 
 export const nativeCollaborationRuntimeId = "native" as const;
 
 export const createNativeCollaborationRuntime = (): CollaborationRuntime => ({
   id: nativeCollaborationRuntimeId,
-  async run({
-    context,
-    emit,
-    input,
-    handlerRegistry,
-    runAgent,
-    workflowRunId,
-  }: CollaborationRuntimeRunInput) {
+  async run({ context, emit, input, handlerRegistry, runAgent, workflowRunId }: CollaborationRuntimeRunInput) {
     const steps = input.workflow.steps ?? [];
     const roleById = new Map(input.agents.map((role) => [role.id, role]));
     const state = createCollaborationExecutionState(input.input);

@@ -5,18 +5,12 @@ import { ChatPage } from "@/features/pages/chat";
 import { HubPage } from "@/features/pages/hub";
 import { KnowledgePage } from "@/features/pages/knowledge";
 import { StoriesPage } from "@/features/pages/stories";
-import {
-  AgentPage,
-  LlmPage,
-  SettingsPage,
-  WorkflowPage,
-} from "@/features/pages/settings";
+import { AgentPage, LlmPage, SettingsPage, WorkflowPage } from "@/features/pages/settings";
 import { SkillsPage } from "@/features/pages/skills";
 import { TavernPage } from "@/features/pages/taverns";
 
 const IndexRoute = () => {
-  const { activeWorkspace, defaultWorkspace, overview, isLoading } =
-    useWorkspaceOverview();
+  const { activeWorkspace, defaultWorkspace, overview, isLoading } = useWorkspaceOverview();
   const workspace = activeWorkspace ?? defaultWorkspace ?? overview?.workspaces[0] ?? null;
 
   if (!workspace && isLoading) {

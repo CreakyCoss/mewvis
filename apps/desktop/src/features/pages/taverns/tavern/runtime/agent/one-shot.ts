@@ -1,10 +1,5 @@
-import type {
-  RuntimeModelInput,
-} from "@/agent-client/types";
-import {
-  runTavernRuntimeAgent,
-  type TavernRuntimeAgentOutput,
-} from "./run-agent";
+import type { RuntimeModelInput } from "@/agent-client/types";
+import { runTavernRuntimeAgent, type TavernRuntimeAgentOutput } from "./run-agent";
 
 export type RunTavernOneShotAgentInput = {
   workspacePath: string;
@@ -21,12 +16,9 @@ export type RunTavernOneShotAgentInput = {
   onThinkingDelta?: (delta: string) => void;
 };
 
-const fallbackOneShotAgentRoleId = () =>
-  `tavern-one-shot-${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+const fallbackOneShotAgentRoleId = () => `tavern-one-shot-${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
 
-export const runTavernOneShotAgent = (
-  input: RunTavernOneShotAgentInput,
-): Promise<TavernRuntimeAgentOutput> =>
+export const runTavernOneShotAgent = (input: RunTavernOneShotAgentInput): Promise<TavernRuntimeAgentOutput> =>
   runTavernRuntimeAgent({
     ...input,
     sessionRootDir: null,

@@ -27,7 +27,10 @@ const { ab, sleep, evalJSON, scrollLoad, getArg } = require("../../shared/script
 /** 提取侧边菜单品类链接 */
 function extractCategories(port, channel, type) {
   const prefix = `/rank/${channel}_${type}_`;
-  const js = "JSON.stringify(Array.from(document.querySelectorAll('a')).filter(a=>a.href&&a.href.indexOf('" + prefix + "')>-1&&a.parentElement&&a.parentElement.classList.contains('arco-menu-item-inner')).map(a=>({name:a.innerText.trim(),href:a.getAttribute('href')})).filter(x=>x.name))";
+  const js =
+    "JSON.stringify(Array.from(document.querySelectorAll('a')).filter(a=>a.href&&a.href.indexOf('" +
+    prefix +
+    "')>-1&&a.parentElement&&a.parentElement.classList.contains('arco-menu-item-inner')).map(a=>({name:a.innerText.trim(),href:a.getAttribute('href')})).filter(x=>x.name))";
   return evalJSON(port, js) || [];
 }
 
@@ -42,7 +45,10 @@ function extractBookList(port) {
 function fetchRealTitles(port, bookIds) {
   if (!bookIds.length) return {};
   const ids = JSON.stringify(bookIds);
-  const js = "JSON.stringify((()=>{const map={};var ids=" + ids + ";ids.forEach(function(id){try{var x=new XMLHttpRequest();x.open('GET','/page/'+id,false);x.send();var tm=x.responseText.match(/<title>([^<]+?)完整版/);var am=x.responseText.match(/\"author\":\"([^\"]+)\"/);var dm=x.responseText.match(/<meta\\s+name=\"description\"\\s+content=\"([^\"]+)\"/);if(!dm)dm=x.responseText.match(/\"abstract\":\"([^\"]{10,}?)\"/);map[id]={title:tm?tm[1]:'',author:am?am[1]:'',desc:dm?dm[1]:''}}catch(e){map[id]={title:'',author:'',desc:''}}});return map})())";
+  const js =
+    "JSON.stringify((()=>{const map={};var ids=" +
+    ids +
+    ";ids.forEach(function(id){try{var x=new XMLHttpRequest();x.open('GET','/page/'+id,false);x.send();var tm=x.responseText.match(/<title>([^<]+?)完整版/);var am=x.responseText.match(/\"author\":\"([^\"]+)\"/);var dm=x.responseText.match(/<meta\\s+name=\"description\"\\s+content=\"([^\"]+)\"/);if(!dm)dm=x.responseText.match(/\"abstract\":\"([^\"]{10,}?)\"/);map[id]={title:tm?tm[1]:'',author:am?am[1]:'',desc:dm?dm[1]:''}}catch(e){map[id]={title:'',author:'',desc:''}}});return map})())";
   return evalJSON(port, js) || {};
 }
 
@@ -144,7 +150,7 @@ function scrapeChannel(ch, type) {
       const author = info.author || "未知";
       lines.push(`### #${i + 1} ${title}`);
       lines.push(
-        `*${author} · ${fmtStatus(b.creationStatus)} · ${fmtReads(b.read_count)} 在读 · ${fmtWords(b.wordNumber)}字*`
+        `*${author} · ${fmtStatus(b.creationStatus)} · ${fmtReads(b.read_count)} 在读 · ${fmtWords(b.wordNumber)}字*`,
       );
       lines.push(`**最新更新：** ${b.lastChapterTitle || "未知"}`);
       lines.push(`[作品页](https://fanqienovel.com/page/${b.bookId})`);

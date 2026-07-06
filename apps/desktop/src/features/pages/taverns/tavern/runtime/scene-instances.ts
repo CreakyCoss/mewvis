@@ -2,13 +2,13 @@ import { createEmptyCharacterMemoryLayers, createEmptySceneMemoryLayers } from "
 import { normalizeScenePromptOverrides } from "./scene-prompt-overrides";
 import { createRouteScopedSceneInstanceId, resolveActiveRun, resolveRunNodePrefix } from "./story-runtime";
 import type {
-  TavernRoom,
   TavernScene,
   TavernSceneInstance,
   TavernStoryGraph,
   TavernStoryNode,
   TavernStoryRun,
-} from "@/features/pages/taverns/manage/model";
+  TavernRuntimeRoom as TavernRoom,
+} from "@/features/pages/taverns/room/model";
 
 export const resolveActiveSceneInstance = (
   room: Pick<

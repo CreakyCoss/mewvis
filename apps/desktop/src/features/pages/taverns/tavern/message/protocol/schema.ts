@@ -1,9 +1,6 @@
 export type TavernProtocolContentKind = "reply" | "narrative_beat";
 
-export type TavernProtocolFieldId =
-  | "privateThought"
-  | "publicReply"
-  | "narrativeBeat";
+export type TavernProtocolFieldId = "privateThought" | "publicReply" | "narrativeBeat";
 
 export type TavernProtocolFieldDefinition = {
   id: TavernProtocolFieldId;
@@ -21,24 +18,8 @@ export const TAVERN_PROTOCOL_FIELDS = {
     id: "privateThought",
     canonicalTag: "inner_thought",
     label: "心理想法",
-    aliases: [
-      "private_thought",
-      "history_private_thought",
-      "thought",
-      "mind",
-      "心理想法",
-      "内心想法",
-      "心想",
-      "心理",
-    ],
-    labels: [
-      "心理想法",
-      "内心想法",
-      "内心",
-      "心想",
-      "心理",
-      "想法",
-    ],
+    aliases: ["private_thought", "history_private_thought", "thought", "mind", "心理想法", "内心想法", "心想", "心理"],
+    labels: ["心理想法", "内心想法", "内心", "心想", "心理", "想法"],
     historyTag: "history_private_thought",
     visibleTag: "private_thought",
   },
@@ -57,14 +38,7 @@ export const TAVERN_PROTOCOL_FIELDS = {
       "回应",
       "对白",
     ],
-    labels: [
-      "公开回应",
-      "公开回复",
-      "回复",
-      "回应",
-      "正文",
-      "对白",
-    ],
+    labels: ["公开回应", "公开回复", "回复", "回应", "正文", "对白"],
     contentKind: "reply",
     historyTag: "history_public_reply",
     visibleTag: "public_content",
@@ -85,12 +59,7 @@ export const TAVERN_PROTOCOL_FIELDS = {
       "小说正文",
       "叙事正文",
     ],
-    labels: [
-      "叙事片段",
-      "故事片段",
-      "小说正文",
-      "叙事正文",
-    ],
+    labels: ["叙事片段", "故事片段", "小说正文", "叙事正文"],
     contentKind: "narrative_beat",
     historyTag: "history_narrative_beat",
     visibleTag: "narrative_beat",
@@ -104,16 +73,12 @@ export const TAVERN_PROTOCOL_CONTEXT_WRAPPER_TAGS = [
   "history_narration",
 ] as const;
 
-export const getTavernProtocolFieldTagNames = (
-  fieldId: TavernProtocolFieldId,
-) => [
+export const getTavernProtocolFieldTagNames = (fieldId: TavernProtocolFieldId) => [
   TAVERN_PROTOCOL_FIELDS[fieldId].canonicalTag,
   ...TAVERN_PROTOCOL_FIELDS[fieldId].aliases,
 ];
 
-export const getTavernProtocolFieldLabels = (
-  fieldId: TavernProtocolFieldId,
-) => TAVERN_PROTOCOL_FIELDS[fieldId].labels;
+export const getTavernProtocolFieldLabels = (fieldId: TavernProtocolFieldId) => TAVERN_PROTOCOL_FIELDS[fieldId].labels;
 
 export const getTavernProtocolPublicContentTagNames = () => [
   ...getTavernProtocolFieldTagNames("narrativeBeat"),
@@ -125,14 +90,11 @@ export const getTavernProtocolPublicContentLabels = () => [
   ...getTavernProtocolFieldLabels("publicReply"),
 ];
 
-export const getTavernProtocolPrivateThoughtTag = () =>
-  TAVERN_PROTOCOL_FIELDS.privateThought.canonicalTag;
+export const getTavernProtocolPrivateThoughtTag = () => TAVERN_PROTOCOL_FIELDS.privateThought.canonicalTag;
 
-export const getTavernProtocolVisiblePrivateThoughtTag = () =>
-  TAVERN_PROTOCOL_FIELDS.privateThought.visibleTag;
+export const getTavernProtocolVisiblePrivateThoughtTag = () => TAVERN_PROTOCOL_FIELDS.privateThought.visibleTag;
 
-export const getTavernProtocolHistoryPrivateThoughtTag = () =>
-  TAVERN_PROTOCOL_FIELDS.privateThought.historyTag;
+export const getTavernProtocolHistoryPrivateThoughtTag = () => TAVERN_PROTOCOL_FIELDS.privateThought.historyTag;
 
 export const openTavernProtocolTag = (tagName: string) => `<${tagName}>`;
 

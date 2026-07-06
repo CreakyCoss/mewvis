@@ -1,13 +1,7 @@
-import type {
-  RunAgentCommand,
-} from "../../../../protocol/index.js";
-import type {
-  AgentRunCommand,
-} from "../runtimes/types.js";
+import type { RunAgentCommand } from "../../../../protocol/index.js";
+import type { AgentRunCommand } from "../runtimes/types.js";
 
-export const agentRunCommandFromRunAgent = (
-  command: RunAgentCommand,
-): AgentRunCommand => ({
+export const agentRunCommandFromRunAgent = (command: RunAgentCommand): AgentRunCommand => ({
   runtimeMode: "agent",
   requestId: command.requestId ?? null,
   taskId: command.taskId,

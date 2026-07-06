@@ -1,4 +1,8 @@
-import type { TavernRoom, TavernScene, TavernSceneInstance } from "@/features/pages/taverns/manage/model";
+import type {
+  TavernRuntimeRoom as TavernRoom,
+  TavernScene,
+  TavernSceneInstance,
+} from "@/features/pages/taverns/room/model";
 
 export type TavernProjectableScene = Pick<
   TavernScene,

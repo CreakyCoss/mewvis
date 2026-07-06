@@ -1,7 +1,4 @@
-import {
-  AgentEventType,
-  type AgentEvent,
-} from "../../../../protocol/index.js";
+import { AgentEventType, type AgentEvent } from "../../../../protocol/index.js";
 import { resolveRuntime } from "../runtimes/resolver.js";
 import type {
   AgentRunCommand,
@@ -68,10 +65,8 @@ export type AgentEngineOptions = {
   sessionProviderId?: RuntimeSessionProviderId | null;
 };
 
-const runtimeIdOverride = (
-  commandRuntimeId: string | null | undefined,
-  defaultId: string | null | undefined,
-) => commandRuntimeId?.trim() || defaultId?.trim() || null;
+const runtimeIdOverride = (commandRuntimeId: string | null | undefined, defaultId: string | null | undefined) =>
+  commandRuntimeId?.trim() || defaultId?.trim() || null;
 
 const executeAgentRunCommandWithRecording = async (
   command: AgentRunCommand,
@@ -88,19 +83,17 @@ const executeAgentRunCommandWithRecording = async (
   const runtimeCommand = preparedRun.command;
   const runtimeContext = preparedRun.nativeSession
     ? {
-      ...context,
-      nativeSession: preparedRun.nativeSession,
-    }
+        ...context,
+        nativeSession: preparedRun.nativeSession,
+      }
     : context;
-  const recorder = await RuntimeSessionRecorder.create(
-    runtimeCommand,
-    options.sessionProviderId,
-  );
+  const recorder = await RuntimeSessionRecorder.create(runtimeCommand, options.sessionProviderId);
   await recorder?.recordInitialUserMessage();
   try {
-    return await implementation.run(runtimeCommand, recorder
-      ? { ...runtimeContext, emit: recorder.wrapEmit(runtimeContext.emit) }
-      : runtimeContext);
+    return await implementation.run(
+      runtimeCommand,
+      recorder ? { ...runtimeContext, emit: recorder.wrapEmit(runtimeContext.emit) } : runtimeContext,
+    );
   } finally {
     await recorder?.flush();
   }
@@ -111,10 +104,7 @@ export const executeChatCommand = async (
   context: ChatRuntimeContext,
   options: AgentEngineOptions = {},
 ): Promise<ChatRunResult> => {
-  const { implementation } = resolveRuntime(
-    "chat",
-    runtimeIdOverride(command.runtimeId, options.chatRuntimeId),
-  );
+  const { implementation } = resolveRuntime("chat", runtimeIdOverride(command.runtimeId, options.chatRuntimeId));
   const runtimeCommand = prepareChatRunCommand(command);
   let lastError: unknown;
 
@@ -155,9 +145,7 @@ export const executeChatCommand = async (
         throw error;
       }
 
-      console.warn(
-        `Chat runtime retry ${attempt}/${CHAT_MAX_ATTEMPTS - 1}: ${messageFromError(error)}`,
-      );
+      console.warn(`Chat runtime retry ${attempt}/${CHAT_MAX_ATTEMPTS - 1}: ${messageFromError(error)}`);
       await sleep(retryDelayMs(attempt));
     } finally {
       attemptState.active = false;
@@ -167,9 +155,7 @@ export const executeChatCommand = async (
   throw lastError;
 };
 
-const prepareChatRunCommand = (
-  command: ChatRunCommand,
-): ChatRunCommand => {
+const prepareChatRunCommand = (command: ChatRunCommand): ChatRunCommand => {
   if (!command.messages.length) {
     throw new Error("chat 命令必须提供 messages");
   }
@@ -212,14 +198,8 @@ const withTimeout = async <T>(
   }
 };
 
-const shouldRetryChatAttempt = (
-  error: unknown,
-  attempt: number,
-  emitted: boolean,
-) =>
-  attempt < CHAT_MAX_ATTEMPTS
-  && !emitted
-  && isRetryableExecutionError(error);
+const shouldRetryChatAttempt = (error: unknown, attempt: number, emitted: boolean) =>
+  attempt < CHAT_MAX_ATTEMPTS && !emitted && isRetryableExecutionError(error);
 
 const isRetryableExecutionError = (error: unknown) => {
   if (error instanceof ExecutionTimeoutError) {
@@ -240,13 +220,7 @@ const isRetryableExecutionError = (error: unknown) => {
   const status = numberFromUnknown(
     details?.status ?? details?.statusCode ?? objectFromUnknown(details?.response)?.status,
   );
-  if (
-    status === 408
-    || status === 409
-    || status === 425
-    || status === 429
-    || (status !== null && status >= 500)
-  ) {
+  if (status === 408 || status === 409 || status === 425 || status === 429 || (status !== null && status >= 500)) {
     return true;
   }
 
@@ -259,15 +233,16 @@ const isVisibleChatOutputEvent = (command: ChatRunCommand, event: AgentEvent) =>
     return false;
   }
 
-  return event.type === AgentEventType.TextDelta
-    || event.type === AgentEventType.ThinkingDelta
-    || event.type === AgentEventType.ReplaceText
-    || event.type === AgentEventType.ThinkingEnd
-    || event.type === AgentEventType.Done;
+  return (
+    event.type === AgentEventType.TextDelta ||
+    event.type === AgentEventType.ThinkingDelta ||
+    event.type === AgentEventType.ReplaceText ||
+    event.type === AgentEventType.ThinkingEnd ||
+    event.type === AgentEventType.Done
+  );
 };
 
-const retryDelayMs = (attempt: number) =>
-  CHAT_RETRY_BASE_DELAY_MS * attempt;
+const retryDelayMs = (attempt: number) => CHAT_RETRY_BASE_DELAY_MS * attempt;
 
 const sleep = (ms: number) =>
   new Promise<void>((resolve) => {
@@ -284,10 +259,9 @@ const formatDuration = (durationMs: number) => {
 };
 
 const objectFromUnknown = (value: unknown): Record<string, unknown> | null =>
-  typeof value === "object" && value !== null ? value as Record<string, unknown> : null;
+  typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
 
-const stringFromUnknown = (value: unknown) =>
-  typeof value === "string" ? value : null;
+const stringFromUnknown = (value: unknown) => (typeof value === "string" ? value : null);
 
 const numberFromUnknown = (value: unknown) => {
   if (typeof value === "number") {

@@ -1,5 +1,5 @@
 import { now } from "../ids";
-import type { TavernStoryEdge, TavernStoryGraph, TavernStoryRun } from "@/features/pages/taverns/manage/model";
+import type { TavernStoryEdge, TavernStoryGraph, TavernStoryRun } from "@/features/pages/taverns/room/model";
 
 const stableIdHash = (value: string) => {
   let hash = 5381;

@@ -65,14 +65,14 @@ description: Use when the user asks for Yuan, 元, Great Origin, 玄学, 算命,
 
 每次完整命理分析都应优先覆盖这六个方法。按需读取各方法自己的 `SKILL.md`、README、schema、脚本或样例，不要一次性把所有大文件塞进上下文。
 
-| 方法 | 参考入口 | 要点 |
-| --- | --- | --- |
-| 八字 | `references/bazi/README.md`，`references/bazi/bazi_skill_engine.py` | 优先使用包内规则；关注四柱、十神、五行旺衰、格局、大运流年 |
-| 称骨 | `references/chenggu/SKILL.md` | 必须给出称骨重量、歌诀、白话解释 |
-| 紫微斗数 | `references/ziwei/SKILL.md` | 严格区分排盘事实和经验解读；不能虚构星曜位置 |
-| 数字命理 | `references/numerology/SKILL.md` | 用姓名与出生日期做数字路径、人格倾向、周期解读 |
-| 西方占星 | `references/western-astrology/SKILL.md` | 优先使用包内脚本和计算合同；关注太阳、月亮、上升、宫位与相位 |
-| 吠陀占星 | `references/vedic-astrology/SKILL.md` | 按包内口径处理恒星黄道、上升、月亮、宫位、行星强弱 |
+| 方法     | 参考入口                                                            | 要点                                                         |
+| -------- | ------------------------------------------------------------------- | ------------------------------------------------------------ |
+| 八字     | `references/bazi/README.md`，`references/bazi/bazi_skill_engine.py` | 优先使用包内规则；关注四柱、十神、五行旺衰、格局、大运流年   |
+| 称骨     | `references/chenggu/SKILL.md`                                       | 必须给出称骨重量、歌诀、白话解释                             |
+| 紫微斗数 | `references/ziwei/SKILL.md`                                         | 严格区分排盘事实和经验解读；不能虚构星曜位置                 |
+| 数字命理 | `references/numerology/SKILL.md`                                    | 用姓名与出生日期做数字路径、人格倾向、周期解读               |
+| 西方占星 | `references/western-astrology/SKILL.md`                             | 优先使用包内脚本和计算合同；关注太阳、月亮、上升、宫位与相位 |
+| 吠陀占星 | `references/vedic-astrology/SKILL.md`                               | 按包内口径处理恒星黄道、上升、月亮、宫位、行星强弱           |
 
 如果某一方法的参考包明确要求外部排盘事实，而当前环境无法可靠计算，不要编造。先把该方法标记为 `blocked`，再判断是否需要向用户追问现成命盘、出生时间精度或是否允许使用外部排盘工具。
 

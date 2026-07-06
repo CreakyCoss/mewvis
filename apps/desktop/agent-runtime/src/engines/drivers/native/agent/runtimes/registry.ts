@@ -3,14 +3,9 @@ import type { RuntimeAgent } from "./types.js";
 import { mockRuntimeAgent } from "./mock/index.js";
 import { piRuntimeAgent } from "./pi/index.js";
 
-const runtimeAgents = Object.freeze([
-  piRuntimeAgent,
-  mockRuntimeAgent,
-] satisfies readonly RuntimeAgent[]);
+const runtimeAgents = Object.freeze([piRuntimeAgent, mockRuntimeAgent] satisfies readonly RuntimeAgent[]);
 
-const createRuntimeAgentRegistry = (
-  agents: readonly RuntimeAgent[],
-): Readonly<Record<string, RuntimeAgent>> =>
+const createRuntimeAgentRegistry = (agents: readonly RuntimeAgent[]): Readonly<Record<string, RuntimeAgent>> =>
   Object.freeze(Object.fromEntries(agents.map((agent) => [agent.id, agent])));
 
 const toRuntimeAgentDefinition = (agent: RuntimeAgent): RuntimeAgentDefinition =>

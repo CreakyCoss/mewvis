@@ -11,8 +11,8 @@ export const formatLedgerTime = (timestamp: number) =>
 export const formatLedgerDateTime = (timestamp?: number | null) =>
   timestamp
     ? new Date(timestamp).toLocaleString("zh-CN", {
-      hour12: false,
-    })
+        hour12: false,
+      })
     : "未记录";
 
 export const formatLedgerDuration = (durationMs?: number | null) => {
@@ -57,10 +57,7 @@ export const formatLedgerId = (value?: string | null) => {
   return `${value.slice(0, 8)}...${value.slice(-6)}`;
 };
 
-export const previewLedgerText = (
-  content?: string | null,
-  maxLength = 72,
-) => {
+export const previewLedgerText = (content?: string | null, maxLength = 72) => {
   const normalized = (content ?? "").replace(/\s+/g, " ").trim();
   if (!normalized) {
     return "";

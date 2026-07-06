@@ -11,17 +11,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  requireRuntimeModelInput,
-  type RuntimeModelOption,
-} from "@/features/pages/settings/llm/store";
+import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import {
   isTavernProgressVisibilityVisibleToUser,
   tavernCharacterAgentRoleId,
 } from "@/features/pages/taverns/tavern/core";
-import {
-  updateTavernActiveCharacterMemoryLayers,
-} from "@/features/pages/taverns/tavern/runtime/active-scene-runtime";
+import { updateTavernActiveCharacterMemoryLayers } from "@/features/pages/taverns/tavern/runtime/active-scene-runtime";
 import { runTavernAssetExtraction } from "@/features/pages/taverns/tavern/runtime/assistants";
 import {
   compactTavernAgentKnowledge,
@@ -30,11 +25,7 @@ import {
 import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import { buildTavernCharacterMemoryText } from "../memory-summary";
 import { EmptyPanelCard } from "../shared";
-import {
-  createFallbackStatusItem,
-  createResolvedStatusMetric,
-  getProgressStatusItems,
-} from "../status-utils";
+import { createFallbackStatusItem, createResolvedStatusMetric, getProgressStatusItems } from "../status-utils";
 import { CharacterStatusRow } from ".";
 
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
@@ -92,9 +83,7 @@ export const CharacterStatusSection = ({
   const [memoryDraftMode, setMemoryDraftMode] = useState<CharacterMemoryDraftMode>("manual");
   const [pendingConfirmAction, setPendingConfirmAction] = useState<CharacterConfirmAction | null>(null);
   const isCharacterBusy =
-    compactingCharacterIds.size > 0 ||
-    rebuildingCharacterIds.size > 0 ||
-    extractingCharacterMemoryIds.size > 0;
+    compactingCharacterIds.size > 0 || rebuildingCharacterIds.size > 0 || extractingCharacterMemoryIds.size > 0;
   const isBusy = externalBusy || isCharacterBusy;
   const memoryDraftCharacter = memoryDraftCharacterId
     ? roomCharacters.find((character) => character.id === memoryDraftCharacterId)
@@ -104,9 +93,12 @@ export const CharacterStatusSection = ({
     onBusyChange?.(isCharacterBusy);
   }, [isCharacterBusy, onBusyChange]);
 
-  useEffect(() => () => {
-    onBusyChange?.(false);
-  }, [onBusyChange]);
+  useEffect(
+    () => () => {
+      onBusyChange?.(false);
+    },
+    [onBusyChange],
+  );
 
   if (!activeRoom) {
     return null;
@@ -114,23 +106,22 @@ export const CharacterStatusSection = ({
 
   const statusDefinitionById = new Map(activeRoom.statusDefinitions.map((definition) => [definition.id, definition]));
   const visibleStatusDefinitions = activeRoom.statusDefinitions.filter((definition) =>
-    isTavernProgressVisibilityVisibleToUser(definition.visibility)
+    isTavernProgressVisibilityVisibleToUser(definition.visibility),
   );
-  const configuredCharacterStatusItems = getProgressStatusItems(activeRoom.progressViews, "characterCard")
-    .filter((item) => {
+  const configuredCharacterStatusItems = getProgressStatusItems(activeRoom.progressViews, "characterCard").filter(
+    (item) => {
       const definition = statusDefinitionById.get(item.statusId);
-      return definition?.scope === "character" &&
-        isTavernProgressVisibilityVisibleToUser(definition.visibility);
-    });
+      return definition?.scope === "character" && isTavernProgressVisibilityVisibleToUser(definition.visibility);
+    },
+  );
   const fallbackCharacterStatusItems = visibleStatusDefinitions
     .filter((definition) => definition.scope === "character")
     .map((definition) => createFallbackStatusItem(definition.id));
-  const characterStatusItems = configuredCharacterStatusItems.length > 0
-    ? configuredCharacterStatusItems
-    : fallbackCharacterStatusItems;
-  const metricsByCharacterId = new Map(roomCharacters.map((character) => {
-    const metrics = characterStatusItems
-      .flatMap((item) => {
+  const characterStatusItems =
+    configuredCharacterStatusItems.length > 0 ? configuredCharacterStatusItems : fallbackCharacterStatusItems;
+  const metricsByCharacterId = new Map(
+    roomCharacters.map((character) => {
+      const metrics = characterStatusItems.flatMap((item) => {
         const definition = statusDefinitionById.get(item.statusId);
         if (!definition || definition.scope !== "character") {
           return [];
@@ -143,14 +134,11 @@ export const CharacterStatusSection = ({
         });
         return metric ? [metric] : [];
       });
-    return [character.id, metrics] as const;
-  }));
+      return [character.id, metrics] as const;
+    }),
+  );
 
-  const openMemoryDraftDialog = (
-    characterId: string,
-    note = "",
-    mode: CharacterMemoryDraftMode = "manual",
-  ) => {
+  const openMemoryDraftDialog = (characterId: string, note = "", mode: CharacterMemoryDraftMode = "manual") => {
     setMemoryDraftCharacterId(characterId);
     setMemoryDraftText(note);
     setMemoryDraftMode(mode);
@@ -184,13 +172,11 @@ export const CharacterStatusSection = ({
       return;
     }
 
-    const activeInstance = activeRoom.sceneInstances.find((instance) =>
-      instance.id === activeRoom.activeSceneInstanceId
+    const activeInstance = activeRoom.sceneInstances.find(
+      (instance) => instance.id === activeRoom.activeSceneInstanceId,
     );
     const existing = activeInstance?.characterMemoryLayers?.[characterId]?.known.trim() ?? "";
-    const nextKnownMemory = existing
-      ? [existing, nextNote].join("\n")
-      : nextNote;
+    const nextKnownMemory = existing ? [existing, nextNote].join("\n") : nextNote;
     const nextRoom = updateTavernActiveCharacterMemoryLayers(activeRoom, characterId, {
       known: nextKnownMemory,
     });
@@ -215,8 +201,8 @@ export const CharacterStatusSection = ({
       return;
     }
 
-    const availableMessages = roomMessages.filter((message) =>
-      message.status !== "streaming" && message.status !== "error"
+    const availableMessages = roomMessages.filter(
+      (message) => message.status !== "streaming" && message.status !== "error",
     );
     const contextMessages = availableMessages.slice(-30);
     const sourceMessages = availableMessages.slice(-12);
@@ -229,12 +215,14 @@ export const CharacterStatusSection = ({
     reportError("");
     if (activeRoom.settings.showExecutionTrace) {
       setExecutionTraceAnchorMessageId(sourceMessages.at(-1)?.id ?? "");
-      resetExecutionTrace([{
-        id: `character-memory-extraction-${characterId}`,
-        label: `整理 ${character.name} 的记忆`,
-        detail: "从最近对话中提取该角色需要长期记住的事实。",
-        status: "running",
-      }]);
+      resetExecutionTrace([
+        {
+          id: `character-memory-extraction-${characterId}`,
+          label: `整理 ${character.name} 的记忆`,
+          detail: "从最近对话中提取该角色需要长期记住的事实。",
+          status: "running",
+        },
+      ]);
     }
 
     try {
@@ -248,8 +236,8 @@ export const CharacterStatusSection = ({
         references: [],
         currentUserText: `只整理「${character.name}」需要长期记住的稳定事实，输出 characterMemories 时只使用 characterId="${character.id}"。`,
       });
-      const characterMemoryDrafts = extractedDraft.characterMemories.filter((memory) =>
-        memory.characterId === character.id && memory.note.trim()
+      const characterMemoryDrafts = extractedDraft.characterMemories.filter(
+        (memory) => memory.characterId === character.id && memory.note.trim(),
       );
       const generatedMemory = characterMemoryDrafts
         .map((memory) => memory.note.trim())
@@ -310,9 +298,11 @@ export const CharacterStatusSection = ({
           "不要引入其他角色未公开的心理描写。",
         ].join("\n"),
       });
-      toast.success(result?.compacted === false
-        ? `${character.name} 的底层 session 暂无可压缩内容。`
-        : `已压缩 ${character.name} 的角色知识。`);
+      toast.success(
+        result?.compacted === false
+          ? `${character.name} 的底层 session 暂无可压缩内容。`
+          : `已压缩 ${character.name} 的角色知识。`,
+      );
     } catch (compactError) {
       reportError(`压缩角色知识失败：${getErrorMessage(compactError)}`);
     } finally {
@@ -424,9 +414,7 @@ export const CharacterStatusSection = ({
             />
           );
         })}
-        {roomCharacters.length === 0 && (
-          <EmptyPanelCard>还没有角色入席。</EmptyPanelCard>
-        )}
+        {roomCharacters.length === 0 && <EmptyPanelCard>还没有角色入席。</EmptyPanelCard>}
       </div>
 
       <Dialog
@@ -440,9 +428,7 @@ export const CharacterStatusSection = ({
         {memoryDraftCharacter && (
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>
-                {memoryDraftMode === "generated" ? "确认角色记忆" : "添加角色记忆"}
-              </DialogTitle>
+              <DialogTitle>{memoryDraftMode === "generated" ? "确认角色记忆" : "添加角色记忆"}</DialogTitle>
               <DialogDescription>
                 {memoryDraftMode === "generated"
                   ? `模型已从最近剧情中整理出「${memoryDraftCharacter.name}」的长期记忆，确认后会追加到当前酒馆角色记忆。`
@@ -453,18 +439,16 @@ export const CharacterStatusSection = ({
             <Textarea
               value={memoryDraftText}
               className="min-h-32 resize-none"
-              placeholder={memoryDraftMode === "generated"
-                ? "确认或修改模型整理的角色记忆。"
-                : "写下这个角色需要长期记住的事实、承诺、关系变化或已知信息。"}
+              placeholder={
+                memoryDraftMode === "generated"
+                  ? "确认或修改模型整理的角色记忆。"
+                  : "写下这个角色需要长期记住的事实、承诺、关系变化或已知信息。"
+              }
               onChange={(event) => setMemoryDraftText(event.target.value)}
             />
 
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={closeMemoryDraftDialog}
-              >
+              <Button type="button" variant="outline" onClick={closeMemoryDraftDialog}>
                 取消
               </Button>
               <Button
@@ -501,18 +485,10 @@ export const CharacterStatusSection = ({
             </DialogHeader>
 
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={closeConfirmAction}
-              >
+              <Button type="button" variant="outline" onClick={closeConfirmAction}>
                 取消
               </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={confirmPendingAction}
-              >
+              <Button type="button" variant="destructive" onClick={confirmPendingAction}>
                 {pendingConfirmAction.confirmLabel}
               </Button>
             </DialogFooter>

@@ -1,4 +1,5 @@
-import type { TavernCharacter, TavernReplyOption, TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
 
 const replyOptionIntents = new Set<TavernReplyOption["intent"]>([
   "answer",

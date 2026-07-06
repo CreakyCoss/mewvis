@@ -1,11 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import type {
-  InstallSkillInput,
-  RemoveSkillInput,
-  SearchSkillMarketplaceInput,
-  WorkspaceSkillGroup,
-} from "../types";
+import type { InstallSkillInput, RemoveSkillInput, SearchSkillMarketplaceInput, WorkspaceSkillGroup } from "../types";
 import { DiscoverSkillsTab } from "./discover";
 import { MySkillsTab } from "./my-skills";
 

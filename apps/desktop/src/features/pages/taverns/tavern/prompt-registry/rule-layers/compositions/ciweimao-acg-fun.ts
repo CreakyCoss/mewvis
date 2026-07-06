@@ -13,16 +13,10 @@ export const ciweimaoAcgFunRuleComposition: TavernRuleComposition = {
   label: "刺猬猫二次元整活",
   description: "平台预期偏二游/同人语境、人设和玩梗，组合轻小说吐槽与二次元人设规则。",
   platformStyleId: ciweimaoAcgFunPlatformStyle.id,
-  qualityRuleIds: [
-    naturalDialogueQualityRule.id,
-    conciseNoSummaryQualityRule.id,
-  ],
+  qualityRuleIds: [naturalDialogueQualityRule.id, conciseNoSummaryQualityRule.id],
   narrativeStyleIds: [lightNovelBanterNarrativeStyle.id],
   genreRuleIds: [acgCharacterFunGenreRule.id],
-  hookRuleIds: [
-    expectationHookRule.id,
-    conflictHookRule.id,
-  ],
+  hookRuleIds: [expectationHookRule.id, conflictHookRule.id],
   tabooRuleIds: [longLoreOverexplainTabooRule.id],
   selectable: true,
   order: 70,

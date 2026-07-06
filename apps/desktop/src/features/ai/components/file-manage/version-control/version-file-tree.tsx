@@ -1,17 +1,7 @@
-import {
-  ChevronRight,
-  FileText,
-  Folder,
-  FolderOpen,
-  GitBranch,
-} from "lucide-react";
+import { ChevronRight, FileText, Folder, FolderOpen, GitBranch } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VERSION_RULE_FILE_PATH } from "../constants";
-import {
-  versionStatusLabels,
-  versionStatusTextClasses,
-  versionStatusTitles,
-} from "./status";
+import { versionStatusLabels, versionStatusTextClasses, versionStatusTitles } from "./status";
 import type { VersionFileTreeNode } from "./types";
 import { VersionRuleBadge } from "./version-rule-badge";
 
@@ -46,10 +36,7 @@ export const VersionFileTree = ({
             title={node.path}
           >
             <ChevronRight
-              className={cn(
-                "size-3.5 shrink-0 text-muted-foreground transition-transform",
-                isExpanded && "rotate-90",
-              )}
+              className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", isExpanded && "rotate-90")}
             />
             {isExpanded ? (
               <FolderOpen className="size-4 shrink-0 text-sidebar-primary" />
@@ -72,9 +59,7 @@ export const VersionFileTree = ({
 
     const isVersionRuleFile = node.path === VERSION_RULE_FILE_PATH;
     const fileStatus = node.file?.status;
-    const fileTitle = node.file?.previousPath
-      ? `${node.file.previousPath} -> ${node.path}`
-      : node.path;
+    const fileTitle = node.file?.previousPath ? `${node.file.previousPath} -> ${node.path}` : node.path;
 
     return (
       <button
@@ -102,22 +87,11 @@ export const VersionFileTree = ({
             {versionStatusLabels[fileStatus]}
           </span>
         )}
-        <span
-          className={cn(
-            "min-w-0 flex-1 truncate",
-            isVersionRuleFile && "font-medium",
-          )}
-        >
-          {node.name}
-        </span>
+        <span className={cn("min-w-0 flex-1 truncate", isVersionRuleFile && "font-medium")}>{node.name}</span>
         {isVersionRuleFile && <VersionRuleBadge />}
       </button>
     );
   };
 
-  return (
-    <div className="min-w-0 space-y-0.5 overflow-hidden">
-      {nodes.map((node) => renderNode(node, 0))}
-    </div>
-  );
+  return <div className="min-w-0 space-y-0.5 overflow-hidden">{nodes.map((node) => renderNode(node, 0))}</div>;
 };

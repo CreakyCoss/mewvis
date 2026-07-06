@@ -1,22 +1,22 @@
+import type { TavernRoomRuntimeState, TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { createContext, useContext } from "react";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { Workspace } from "@/features/pages/workspace/types";
 import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";
-import type { TavernMessage, TavernState } from "@/features/pages/taverns/tavern/types";
+import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
 import type {
   TavernCharacter,
   TavernProgressCheckpoint,
   TavernReplyOption,
-  TavernRoom,
 } from "@/features/pages/taverns/manage/model";
 import type { ExecutionStep } from "./execution-trace";
 
 export type TavernRoomContextValue = {
   workspace: Workspace;
   runtimeModel: RuntimeModelOption | null;
-  state: TavernState;
-  setState: Dispatch<SetStateAction<TavernState>>;
+  state: TavernRoomRuntimeState;
+  setState: Dispatch<SetStateAction<TavernRoomRuntimeState>>;
   draft: string;
   setDraft: Dispatch<SetStateAction<string>>;
   draftCursor: number;

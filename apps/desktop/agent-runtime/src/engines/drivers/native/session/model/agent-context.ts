@@ -1,24 +1,15 @@
-import type {
-  RuntimeLedgerEntry,
-} from "./ledger.js";
-import type {
-  RuntimeAgentVisibleContext,
-  RuntimeMessage,
-  RuntimeMessageMetadata,
-} from "./context.js";
+import type { RuntimeLedgerEntry } from "./ledger.js";
+import type { RuntimeAgentVisibleContext, RuntimeMessage, RuntimeMessageMetadata } from "./context.js";
 
 export type { RuntimeAgentVisibleContext } from "./context.js";
 
-const roleLabel = (role: RuntimeMessage["role"]) =>
-  role === "assistant" ? "assistant" : "user";
+const roleLabel = (role: RuntimeMessage["role"]) => (role === "assistant" ? "assistant" : "user");
 
 const metadataAgentRoleId = (metadata?: RuntimeMessageMetadata | null) =>
   metadata?.agentRoleId?.trim() || metadata?.agentKey?.trim() || null;
 
-const belongsToAgent = (
-  metadata: RuntimeMessageMetadata | null | undefined,
-  agentRoleId: string,
-) => metadataAgentRoleId(metadata) === agentRoleId;
+const belongsToAgent = (metadata: RuntimeMessageMetadata | null | undefined, agentRoleId: string) =>
+  metadataAgentRoleId(metadata) === agentRoleId;
 
 export const buildRuntimeAgentVisibleContext = (
   entries: RuntimeLedgerEntry[],
