@@ -1,0 +1,141 @@
+import type { ComponentType, ReactNode } from "react";
+import { ChevronDown, ChevronRight, Loader2, Wrench } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+export type ExecutionChainStatus = "pending" | "running" | "done" | "skipped" | "error" | "info";
+
+export type ExecutionChainEvent = {
+  id: string;
+  content: ReactNode;
+};
+
+export type ExecutionChainGroup = {
+  id: string;
+  title: string;
+  status: ExecutionChainStatus;
+  events: ExecutionChainEvent[];
+  footer?: ReactNode;
+  defaultOpen?: boolean;
+};
+
+type ExecutionChainProps = {
+  title?: string;
+  groups: ExecutionChainGroup[];
+  isCollapsed: boolean;
+  isBusy?: boolean;
+  summaryText?: string;
+  collapsedRecentGroupLimit?: number;
+  eventLimit?: number;
+  icon?: ComponentType<{ className?: string }>;
+  className?: string;
+  contentClassName?: string;
+  onToggle: () => void;
+};
+
+const statusLabels: Record<ExecutionChainStatus, string> = {
+  pending: "等待",
+  running: "执行中",
+  done: "完成",
+  skipped: "跳过",
+  error: "异常",
+  info: "信息",
+};
+
+const statusClassNames: Record<ExecutionChainStatus, string> = {
+  pending: "bg-muted text-muted-foreground",
+  running: "bg-primary/10 text-primary",
+  done: "bg-background text-muted-foreground",
+  skipped: "bg-muted text-muted-foreground",
+  error: "bg-destructive/10 text-destructive",
+  info: "bg-muted text-muted-foreground",
+};
+
+export const ExecutionChain = ({
+  title = "Agent 执行",
+  groups,
+  isCollapsed,
+  isBusy = false,
+  summaryText,
+  collapsedRecentGroupLimit = 5,
+  eventLimit = 8,
+  icon: Icon = Wrench,
+  className,
+  contentClassName,
+  onToggle,
+}: ExecutionChainProps) => {
+  if (groups.length === 0) {
+    return null;
+  }
+
+  const visibleGroups =
+    isBusy && groups.length > collapsedRecentGroupLimit ? groups.slice(-collapsedRecentGroupLimit) : groups;
+  const hiddenGroupCount = groups.length - visibleGroups.length;
+  const errorCount = groups.filter((group) => group.status === "error").length;
+  const runningCount = groups.filter((group) => group.status === "running").length;
+
+  return (
+    <div className={cn("mb-2 overflow-hidden rounded-md bg-muted/35 shadow-xs", className)}>
+      <button
+        type="button"
+        className="flex w-full min-w-0 items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
+        onClick={onToggle}
+      >
+        {isCollapsed ? <ChevronRight className="size-3.5 shrink-0" /> : <ChevronDown className="size-3.5 shrink-0" />}
+        <Icon className="size-3.5 shrink-0" />
+        <span className="shrink-0">{title}</span>
+        <span className="rounded-sm bg-background px-1.5 py-0.5 text-[11px]">{groups.length} 段</span>
+        {summaryText ? (
+          <span className="min-w-0 truncate rounded-sm bg-background/70 px-1.5 py-0.5 text-[11px]">{summaryText}</span>
+        ) : null}
+        {errorCount > 0 && (
+          <span className="shrink-0 rounded-sm bg-destructive/10 px-1.5 py-0.5 text-[11px] text-destructive">
+            {errorCount} 个错误
+          </span>
+        )}
+        {(isBusy || runningCount > 0) && <Loader2 className="ml-auto size-3 shrink-0 animate-spin" />}
+      </button>
+
+      {!isCollapsed && (
+        <div className={cn("max-h-72 space-y-1.5 overflow-auto bg-background/45 px-2.5 py-2", contentClassName)}>
+          {hiddenGroupCount > 0 && (
+            <div className="rounded-sm bg-background/70 px-2 py-1 text-xs text-muted-foreground">
+              已折叠较早的 {hiddenGroupCount} 段执行过程，当前显示最近阶段。
+            </div>
+          )}
+          {visibleGroups.map((group) => {
+            const statusLabel = statusLabels[group.status];
+            const eventCount = group.events.length;
+            const visibleEvents = group.events.slice(-eventLimit);
+            const isGroupOpen = group.defaultOpen ?? (group.status === "running" || group.status === "error");
+
+            return (
+              <details key={group.id} className="group rounded-sm bg-background shadow-xs" open={isGroupOpen}>
+                <summary className="flex cursor-pointer list-none items-center gap-2 px-2 py-1 text-xs text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+                  <ChevronRight className="size-3 shrink-0 transition-transform group-open:rotate-90" />
+                  <span className="min-w-0 flex-1 truncate font-medium text-foreground">{group.title}</span>
+                  <span className={cn("shrink-0 rounded-sm px-1.5 py-0.5 text-[11px]", statusClassNames[group.status])}>
+                    {statusLabel}
+                  </span>
+                  <span className="shrink-0 text-[11px]">{eventCount} 条</span>
+                </summary>
+                <div className="space-y-1 bg-muted/25 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+                  {visibleEvents.map((event) => (
+                    <div key={event.id} className="whitespace-pre-wrap break-words rounded-sm bg-muted/45 px-2 py-1">
+                      {event.content}
+                    </div>
+                  ))}
+                  {eventCount > eventLimit && (
+                    <div className="rounded-sm bg-muted/35 px-2 py-1 text-[11px]">
+                      已省略本段较早的 {eventCount - eventLimit} 条更新。
+                    </div>
+                  )}
+                </div>
+                {group.footer ? <div className="bg-destructive/10 px-2 py-1 text-[11px]">{group.footer}</div> : null}
+              </details>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};

@@ -1642,11 +1642,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
                     hasExecutionTraceAnchor={hasExecutionTraceAnchor}
                     isSidePanelOpen={isSidePanelOpen}
                     renderExecutionTrace={() => (
-                      <ExecutionTrace
-                        steps={renderedExecutionSteps}
-                        visualPreset={visualPreset}
-                        statusText={renderedExecutionTraceStatusText}
-                      />
+                      <ExecutionTrace steps={renderedExecutionSteps} statusText={renderedExecutionTraceStatusText} />
                     )}
                     messageEndRef={messageEndRef}
                   />
