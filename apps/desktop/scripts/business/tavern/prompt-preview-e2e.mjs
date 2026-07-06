@@ -10,7 +10,7 @@ const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
 const systemPresetRoomPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/factories/system-preset-room.ts");
 const previewPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/runtime/prompt/preview.ts");
-const warningNavigationPath = resolve(workspaceRoot, "src/features/pages/taverns/components/manage/room-editor/modules/prompt/warning-navigation.ts");
+const warningNavigationPath = resolve(workspaceRoot, "src/features/pages/taverns/manage/room-editor/modules/prompt/warning-navigation.ts");
 
 writeFileSync(entryPath, `
   import { createTavernRoomFromSystemPreset } from ${JSON.stringify(systemPresetRoomPath)};

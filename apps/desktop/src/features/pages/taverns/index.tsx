@@ -1,9 +1,15 @@
 import { AlertCircle, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
-import { TavernPage as TavernSurface } from "@/features/pages/taverns/components/tavern-page";
+import { ManagementPage } from "@/features/pages/taverns/manage";
+import { ManagementProvider } from "@/features/pages/taverns/manage/provider";
+import {
+  TavernPageProvider,
+  useTavernPageContext,
+} from "@/features/pages/taverns/components/context";
+import { TavernRoomDialog } from "@/features/pages/taverns/room";
 import {
   TAVERN_ROOM_SEARCH_PARAM,
   TAVERN_SCENE_INSTANCE_SEARCH_PARAM,
@@ -12,7 +18,20 @@ import {
   TAVERN_ID_SEARCH_PARAM,
   TAVERN_RUNTIME_PATH_SEARCH_PARAM,
 } from "@/features/pages/taverns/navigation";
+import {
+  syncTavernRoomActiveScene,
+  switchTavernRoomSceneInstance,
+} from "@/features/pages/taverns/tavern/runtime/active-scene-runtime";
+import { disposeTavernBridgeSessionWorkers } from "@/features/pages/taverns/tavern/runtime/conversation";
+import { createDefaultTavernState } from "@/features/pages/taverns/tavern/state/state-normalizer";
+import {
+  loadTavernState,
+  saveTavernState,
+  type TavernRuntimeScope,
+} from "@/features/pages/taverns/tavern/state/storage";
+import type { TavernRoom, TavernState } from "@/features/pages/taverns/tavern/types";
 import { listWorkspaceFiles, type WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
+import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
 import type { Workspace } from "@/features/pages/workspace/types";
 import { useLlmSettingsStore } from "../settings/llm/store";
 
@@ -37,6 +56,14 @@ const StoryRuntimeMissingState = ({ onGoHome }: { onGoHome: () => void }) => (
     </div>
   </section>
 );
+
+const createEmptyTavernState = (): TavernState => ({
+  version: 4,
+  activeRoomId: "",
+  rooms: [],
+  messagesByInstance: {},
+  workflowTracesByInstance: {},
+});
 
 export const TavernPage = () => {
   const { workspaceId } = useParams();
@@ -98,7 +125,7 @@ export const TavernPage = () => {
   }
 
   return (
-    <TavernContainer
+    <TavernsPageRuntime
       workspace={tavernWorkspace}
       runtimeScope={{
         storyId: storyId || undefined,
@@ -147,26 +174,21 @@ const storyRuntimeWorkspaceFromPath = ({
   };
 };
 
-type TavernContainerProps = {
+type TavernsPageRuntimeProps = {
   workspace: Workspace;
-  runtimeScope?: {
-    storyId?: string;
-    storyNodeId?: string;
-    tavernId?: string;
-    runtimePath?: string;
-  };
+  runtimeScope?: TavernRuntimeScope;
   initialRoomId?: string;
   initialSceneInstanceId?: string;
   onExitStoryRuntime: () => void;
 };
 
-const TavernContainer = ({
+const TavernsPageRuntime = ({
   workspace,
   runtimeScope,
   initialRoomId,
   initialSceneInstanceId,
   onExitStoryRuntime,
-}: TavernContainerProps) => {
+}: TavernsPageRuntimeProps) => {
   const runtimeModels = useLlmSettingsStore((store) => store.runtimeModels);
   const loadSettings = useLlmSettingsStore((store) => store.loadSettings);
   const [files, setFiles] = useState<WorkspaceFileEntry[]>([]);
@@ -196,14 +218,291 @@ const TavernContainer = ({
   }, [workspace.path]);
 
   return (
-    <TavernSurface
+    <TavernPageProvider
       workspace={workspace}
-      runtimeScope={runtimeScope}
-      files={files}
       runtimeModel={runtimeModels[0] ?? null}
-      initialRoomId={initialRoomId}
-      initialSceneInstanceId={initialSceneInstanceId}
-      onExitStoryRuntime={onExitStoryRuntime}
-    />
+    >
+      <TavernsPageContent
+        files={files}
+        runtimeScope={runtimeScope}
+        initialRoomId={initialRoomId}
+        initialSceneInstanceId={initialSceneInstanceId}
+        onExitStoryRuntime={onExitStoryRuntime}
+      />
+    </TavernPageProvider>
+  );
+};
+
+type TavernsPageContentProps = {
+  files: WorkspaceFileEntry[];
+  runtimeScope?: TavernRuntimeScope;
+  initialRoomId?: string;
+  initialSceneInstanceId?: string;
+  onExitStoryRuntime: () => void;
+};
+
+const TavernsPageContent = ({
+  files,
+  runtimeScope = {},
+  initialRoomId,
+  initialSceneInstanceId,
+  onExitStoryRuntime,
+}: TavernsPageContentProps) => {
+  const {
+    activeRoom,
+    setDraft,
+    setDraftCursor,
+    setError,
+    setExecutionSteps,
+    setExecutionTraceAnchorMessageId,
+    setIsGeneratingReplySuggestions,
+    setIsManagedAutoRunStarted,
+    setIsManagedModeEnabled,
+    setIsQuickSummaryBusy,
+    setIsSending,
+    setReplySuggestions,
+    setState,
+    setTurnStatus,
+    state,
+    workspace,
+  } = useTavernPageContext();
+  const runtimeScopeKey = `${runtimeScope.storyId ?? ""}:${runtimeScope.storyNodeId ?? ""}:${runtimeScope.tavernId ?? ""}:${runtimeScope.runtimePath ?? ""}`;
+  const tavernRuntimeScope = useMemo(() => ({
+    storyId: runtimeScope.storyId,
+    storyNodeId: runtimeScope.storyNodeId,
+    tavernId: runtimeScope.tavernId,
+    runtimePath: runtimeScope.runtimePath,
+  }), [runtimeScope.runtimePath, runtimeScope.storyId, runtimeScope.storyNodeId, runtimeScope.tavernId]);
+  const isStoryRuntimeScope = Boolean(
+    tavernRuntimeScope.storyId &&
+    tavernRuntimeScope.tavernId &&
+    tavernRuntimeScope.runtimePath,
+  );
+  const [isTavernStateHydrated, setIsTavernStateHydrated] = useState(false);
+  const [isRoomDialogOpen, setIsRoomDialogOpen] = useState(isStoryRuntimeScope);
+  const workspaceIdRef = useRef(workspace.id);
+  const tavernRoomsRef = useRef<TavernRoom[]>(state.rooms);
+  const initialOpenKeyRef = useRef("");
+  const runtimeScopeKeyRef = useRef(runtimeScopeKey);
+
+  useEffect(() => {
+    tavernRoomsRef.current = state.rooms;
+  }, [state.rooms]);
+
+  useEffect(() => {
+    const workspaceId = workspace.id;
+    const workspacePath = workspace.path;
+
+    return () => {
+      const rooms = [
+        ...new Map(
+          tavernRoomsRef.current
+            .filter((room) => room.workspaceId === workspaceId)
+            .map((room) => [room.id, room] as const),
+        ).values(),
+      ];
+
+      if (rooms.length === 0) {
+        return;
+      }
+
+      void Promise.allSettled(
+        rooms.map((room) => disposeTavernBridgeSessionWorkers({ workspacePath, room })),
+      ).then((results) => {
+        const failed = results.find(
+          (result): result is PromiseRejectedResult => result.status === "rejected",
+        );
+        if (failed) {
+          console.warn("Failed to dispose tavern bridge workers", failed.reason);
+        }
+      });
+    };
+  }, [workspace.id, workspace.path]);
+
+  useEffect(() => {
+    const didWorkspaceChange = workspaceIdRef.current !== workspace.id;
+    const didRuntimeScopeChange = runtimeScopeKeyRef.current !== runtimeScopeKey;
+    if (!didWorkspaceChange && !didRuntimeScopeChange) {
+      return;
+    }
+
+    workspaceIdRef.current = workspace.id;
+    runtimeScopeKeyRef.current = runtimeScopeKey;
+    initialOpenKeyRef.current = "";
+    setState(isStoryRuntimeScope ? createEmptyTavernState() : createDefaultTavernState(workspace.id));
+    setIsTavernStateHydrated(false);
+    setIsRoomDialogOpen(isStoryRuntimeScope);
+    setDraft("");
+    setDraftCursor(0);
+    setError("");
+    setIsManagedModeEnabled(false);
+    setIsManagedAutoRunStarted(false);
+    setIsSending(false);
+    setIsGeneratingReplySuggestions(false);
+    setReplySuggestions([]);
+    setIsQuickSummaryBusy(false);
+    setTurnStatus("");
+    setExecutionSteps([]);
+    setExecutionTraceAnchorMessageId("");
+  }, [
+    isStoryRuntimeScope,
+    runtimeScopeKey,
+    setDraft,
+    setDraftCursor,
+    setError,
+    setExecutionSteps,
+    setExecutionTraceAnchorMessageId,
+    setIsGeneratingReplySuggestions,
+    setIsManagedAutoRunStarted,
+    setIsManagedModeEnabled,
+    setIsQuickSummaryBusy,
+    setIsSending,
+    setReplySuggestions,
+    setState,
+    setTurnStatus,
+    workspace.id,
+  ]);
+
+  useEffect(() => {
+    let isCancelled = false;
+    setIsTavernStateHydrated(false);
+
+    loadTavernState(workspace.path, workspace.id, tavernRuntimeScope)
+      .then((nextState) => {
+        if (isCancelled) {
+          return;
+        }
+
+        setState(nextState);
+        setIsTavernStateHydrated(true);
+      })
+      .catch((loadError) => {
+        if (isCancelled) {
+          return;
+        }
+
+        console.error("Failed to load tavern state", loadError);
+        toast.error(isStoryRuntimeScope
+          ? "无法加载故事酒馆记录，请从故事页重新进入或重建。"
+          : "无法加载酒馆记录，已使用默认酒馆。");
+        setState(isStoryRuntimeScope ? createEmptyTavernState() : createDefaultTavernState(workspace.id));
+        setIsTavernStateHydrated(true);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isStoryRuntimeScope, runtimeScopeKey, setState, tavernRuntimeScope, workspace.id, workspace.path]);
+
+  useEffect(() => {
+    if (
+      isTavernStateHydrated &&
+      state.rooms.some((room) => room.workspaceId === workspace.id)
+    ) {
+      void saveTavernState(workspace.path, workspace.id, state, tavernRuntimeScope).catch((saveError) => {
+        console.error("Failed to save tavern state", saveError);
+      });
+    }
+  }, [isTavernStateHydrated, runtimeScopeKey, state, tavernRuntimeScope, workspace.id, workspace.path]);
+
+  useEffect(() => {
+    if (!isTavernStateHydrated || isStoryRuntimeScope || state.rooms.length > 0) {
+      return;
+    }
+
+    setState(createDefaultTavernState(workspace.id));
+  }, [isStoryRuntimeScope, isTavernStateHydrated, setState, state.rooms.length, workspace.id]);
+
+  const openTavernRoom = useCallback((room: TavernRoom, sceneInstanceId?: string) => {
+    setState((current) => {
+      const currentRoom = current.rooms.find((item) => item.id === room.id) ?? room;
+      const nextRoom = sceneInstanceId
+        ? switchTavernRoomSceneInstance(currentRoom, sceneInstanceId)
+        : syncTavernRoomActiveScene(currentRoom);
+      const hasRoom = current.rooms.some((item) => item.id === room.id);
+
+      return {
+        ...current,
+        activeRoomId: room.id,
+        rooms: hasRoom
+          ? current.rooms.map((item) => item.id === room.id ? nextRoom : item)
+          : [...current.rooms, nextRoom],
+      };
+    });
+    setIsRoomDialogOpen(true);
+  }, [setState]);
+
+  useEffect(() => {
+    if (!isTavernStateHydrated || !initialRoomId) {
+      return;
+    }
+
+    const key = `${initialRoomId}:${initialSceneInstanceId ?? ""}`;
+    if (initialOpenKeyRef.current === key) {
+      return;
+    }
+
+    const room = state.rooms.find((item) => item.id === initialRoomId);
+    if (!room) {
+      return;
+    }
+
+    initialOpenKeyRef.current = key;
+    openTavernRoom(room, initialSceneInstanceId);
+  }, [
+    initialRoomId,
+    initialSceneInstanceId,
+    isTavernStateHydrated,
+    openTavernRoom,
+    state.rooms,
+  ]);
+
+  const closeRoomDialog = useCallback(() => {
+    if (isStoryRuntimeScope) {
+      onExitStoryRuntime();
+      return;
+    }
+
+    setIsRoomDialogOpen(false);
+  }, [isStoryRuntimeScope, onExitStoryRuntime]);
+
+  if (!isTavernStateHydrated) {
+    return (
+      <div className="flex h-full min-h-0 flex-1 items-center justify-center bg-background px-6 text-sm text-muted-foreground">
+        正在加载酒馆
+      </div>
+    );
+  }
+
+  if (isStoryRuntimeScope && !activeRoom) {
+    return (
+      <div className="flex h-full min-h-0 flex-1 items-center justify-center bg-background px-6">
+        <div className="rounded-md border bg-card px-5 py-4 text-sm text-muted-foreground">
+          当前没有可进入的酒馆房间，请先从故事节点打开酒馆。
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {!isStoryRuntimeScope && (
+        <ManagementProvider
+          workspace={workspace}
+          state={state}
+          setState={setState}
+          onError={setError}
+          onCloseActiveRoom={() => setIsRoomDialogOpen(false)}
+        >
+          <ManagementPage onOpenRoom={openTavernRoom} />
+        </ManagementProvider>
+      )}
+
+      <TavernRoomDialog
+        files={files}
+        isOpen={isRoomDialogOpen && Boolean(activeRoom)}
+        onClose={closeRoomDialog}
+      />
+    </>
   );
 };

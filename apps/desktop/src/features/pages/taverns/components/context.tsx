@@ -19,7 +19,7 @@ import type {
   TavernRoom,
   TavernState,
 } from "../tavern/types";
-import type { ExecutionStep } from "../tavern/components/room/execution-trace";
+import type { ExecutionStep } from "../room/execution-trace";
 
 export type TavernPageProps = {
   workspace: Workspace;
