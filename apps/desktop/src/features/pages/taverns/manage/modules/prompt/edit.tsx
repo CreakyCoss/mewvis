@@ -66,7 +66,6 @@ import {
   normalizeTavernPromptStyleId,
 } from "../../../tavern/presentation/prompt-styles";
 import type {
-  TavernMessage,
   TavernPresentationProfileId,
   TavernPromptBlock,
   TavernPromptBlockSourceType,
@@ -111,7 +110,6 @@ type PromptDraft = {
 type PromptEditProps = {
   bind: Ref<PromptEditHandle>;
   data: TavernRoom;
-  messages: TavernMessage[];
   onSave: ModuleSave;
   onOpenWarningNavigation?: (request: TavernPromptWarningNavigationRequest) => void;
   renderTextFieldAgentActions: TextFieldAgentActionRenderer;
@@ -391,7 +389,6 @@ const buildPromptBlockAgentContext = ({
 export const PromptEdit = ({
   bind,
   data,
-  messages,
   onSave,
   onOpenWarningNavigation,
   renderTextFieldAgentActions,
@@ -461,7 +458,7 @@ export const PromptEdit = ({
       const stylePackage = getTavernPromptStylePackage(current.presets.stylePackageId);
       const isPresentationLocked = isTavernPresentationLocked({
         presentation: normalizeTavernPresentation(data.presentation),
-        messages,
+        messages: [],
         sceneId: data.activeSceneId,
       });
       const nextPresentationProfileId = isPresentationLocked
@@ -528,7 +525,7 @@ export const PromptEdit = ({
     const previewForSave = buildTavernPromptPreview({
       room: buildPromptPreviewRoom(data, draft),
       characters: getTavernRuntimeStoryProjection(data).characters,
-      messages,
+      messages: [],
     });
     const blockingWarning = previewForSave.warnings.find(
       (warning) => warning.severity === "danger" && warning.blocksSave !== false,
@@ -543,7 +540,7 @@ export const PromptEdit = ({
     const basePresentation = normalizeTavernPresentation(data.presentation);
     const presentationLocked = isTavernPresentationLocked({
       presentation: basePresentation,
-      messages,
+      messages: [],
       sceneId: data.activeSceneId,
     });
     const nextPresentation = presentationLocked
@@ -574,7 +571,7 @@ export const PromptEdit = ({
   const presentationLocked = draft
     ? isTavernPresentationLocked({
         presentation: normalizeTavernPresentation(data.presentation),
-        messages,
+        messages: [],
         sceneId: data.activeSceneId,
       })
     : false;
@@ -610,10 +607,10 @@ export const PromptEdit = ({
         ? buildTavernPromptPreview({
             room: previewRoom,
             characters: getTavernRuntimeStoryProjection(previewRoom).characters,
-            messages,
+            messages: [],
           })
         : null,
-    [messages, previewRoom],
+    [previewRoom],
   );
   const promptPreviewBlockingCount = promptPreview?.summary.blockingWarningCount ?? 0;
   const promptPreviewWarningCount = promptPreview?.summary.warningCount ?? 0;

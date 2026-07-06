@@ -37,7 +37,7 @@ import {
 } from "../tavern/runtime/active-scene-runtime";
 import { buildTavernMessageSegments, createTavernMessage, inferTavernMessageKind } from "../tavern/message";
 import { getTavernSceneInstanceDisplayTitle } from "../tavern/runtime/scene-selectors";
-import { loadTavernState, saveTavernState, type TavernRuntimeScope } from "../tavern/state/storage";
+import { loadTavernState, saveTavernState, type TavernRuntimeScope } from "../storage";
 import {
   getTavernPresentationProfile,
   hasTavernPresentationStarted,

@@ -1,30 +1,20 @@
 import type { Dispatch, SetStateAction } from "react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { create } from "zustand";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   requireRuntimeModelInput,
   type RuntimeModelOption,
   useLlmSettingsStore,
 } from "@/features/pages/settings/llm/store";
 import type { Workspace } from "@/features/pages/workspace/types";
-import { createTavernRuntimeRoomSnapshot } from "./tavern/adapters/runtime-room-snapshot";
 import { createTavernRoom } from "./tavern/factories/manual-factories";
 import { createTavernRoomFromSystemPreset } from "./tavern/factories/system-preset-room";
-import { createTavernMessage } from "./tavern/message";
 import { runTavernTextFieldAgent } from "./tavern/runtime/assistants";
 import type { TavernTextFieldAgentRequest } from "./tavern/runtime/assistants";
 import { projectTavernSceneOntoRoom, syncTavernRoomActiveScene } from "./tavern/runtime/active-scene-runtime";
 import { deleteTavernBridgeSessionsForRoom } from "./tavern/runtime/conversation";
 import { runTavernDirectorProfileAgent } from "./tavern/runtime/director";
 import { getTavernSystemPreset } from "./tavern/system-preset-registry";
-import type {
-  TavernCharacter,
-  TavernMessage,
-  TavernRoom,
-  TavernRoomSettings,
-  TavernScene,
-  TavernState,
-} from "./tavern/types";
+import type { TavernCharacter, TavernRoom, TavernRoomSettings, TavernScene, TavernState } from "./tavern/types";
 import { sanitizeFileName } from "./room/quick-summary/utils";
 
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
@@ -34,14 +24,9 @@ const requireTavernRuntimeModelInput = (runtimeModel: RuntimeModelOption) =>
 
 const createLocalId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
-const getRoomActiveSceneId = (room: TavernRoom) => room.activeSceneId ?? room.scenes?.[0]?.id ?? room.id;
-
-const getRoomActiveSceneInstanceId = (room: TavernRoom) => room.activeSceneInstanceId ?? getRoomActiveSceneId(room);
-
-export type ManagementStoreValue = {
+export type TavernManagementValue = {
   rooms: TavernRoom[];
   characterById: Map<string, TavernCharacter>;
-  messagesByRoomId: Record<string, TavernMessage[]>;
   createRoom: () => TavernRoom | void;
   patchRoom: (roomId: string, patch: Partial<TavernRoom>) => void;
   copyRoom: (roomId: string) => boolean;
@@ -56,38 +41,14 @@ export type ManagementStoreValue = {
   ) => Promise<NonNullable<TavernRoomSettings["directorScheduling"]["profile"]>>;
 };
 
-const createInitialManagementStoreValue = (): ManagementStoreValue => ({
-  rooms: [],
-  characterById: new Map(),
-  messagesByRoomId: {},
-  createRoom: () => undefined,
-  patchRoom: () => undefined,
-  copyRoom: () => false,
-  restoreSystemPresetRoom: async () => false,
-  setRoomLocked: () => false,
-  deleteRoom: () => false,
-  exportRoom: () => false,
-  globalRuntimeModel: null,
-  runTextFieldAgent: async () => "",
-  regenerateDirectorProfile: async () => {
-    throw new Error("Management store is not initialized.");
-  },
-});
-
-export const useManagementStore = create<ManagementStoreValue>(() => createInitialManagementStoreValue());
-
-const syncManagementStore = (value: ManagementStoreValue) => {
-  useManagementStore.setState(value);
-};
-
-type ManagementStoreSyncOptions = {
+type TavernManagementOptions = {
   workspace: Workspace;
   state: TavernState;
   setState: Dispatch<SetStateAction<TavernState>>;
   onError?: (message: string) => void;
 };
 
-export const useSyncManagementStore = ({ workspace, state, setState, onError }: ManagementStoreSyncOptions) => {
+export const useTavernManagement = ({ workspace, state, setState, onError }: TavernManagementOptions) => {
   const runtimeModels = useLlmSettingsStore((store) => store.runtimeModels);
   const loadSettings = useLlmSettingsStore((store) => store.loadSettings);
   const characterById = useMemo(
@@ -98,13 +59,6 @@ export const useSyncManagementStore = ({ workspace, state, setState, onError }: 
         ),
       ]),
     [state.rooms],
-  );
-  const messagesByRoomId = useMemo(
-    () =>
-      Object.fromEntries(
-        state.rooms.map((room) => [room.id, state.messagesByInstance[getRoomActiveSceneInstanceId(room)] ?? []]),
-      ),
-    [state.messagesByInstance, state.rooms],
   );
   const runtimeModel = runtimeModels[0] ?? null;
 
@@ -161,15 +115,10 @@ export const useSyncManagementStore = ({ workspace, state, setState, onError }: 
         }
 
         const nextRooms = current.rooms.filter((room) => room.id !== roomId);
-        const runtimeTargetRoom = projectTavernSceneOntoRoom(currentTargetRoom);
-        const nextMessagesByInstance = { ...current.messagesByInstance };
-        for (const instance of runtimeTargetRoom.sceneInstances) {
-          delete nextMessagesByInstance[instance.id];
-        }
         return {
           ...current,
+          activeRoomId: current.activeRoomId === roomId ? (nextRooms[0]?.id ?? "") : current.activeRoomId,
           rooms: nextRooms,
-          messagesByInstance: nextMessagesByInstance,
         };
       });
       return true;
@@ -225,60 +174,9 @@ export const useSyncManagementStore = ({ workspace, state, setState, onError }: 
         });
 
         const sceneIdMap = new Map<string, string>();
-        const draftMessagesByCopiedSceneId: Record<string, TavernMessage[]> = {};
         const copiedScenes = sourceScenes.map((scene) => {
           const copiedSceneId = createLocalId("scene");
           sceneIdMap.set(scene.id, copiedSceneId);
-          const sourceMessages =
-            scene.id === sourceRoom.activeSceneId
-              ? (current.messagesByInstance[getRoomActiveSceneInstanceId(sourceRoom)] ?? [])
-              : [];
-          const messageIdMap = new Map<string, string>();
-          const copiedMessages = sourceMessages.flatMap((message) => {
-            const copiedMessageId = createLocalId("message");
-            messageIdMap.set(message.id, copiedMessageId);
-
-            if (message.role === "character") {
-              const copiedCharacterId = message.characterId ? characterIdMap.get(message.characterId) : undefined;
-              if (!copiedCharacterId) {
-                return [];
-              }
-
-              return [
-                {
-                  ...message,
-                  id: copiedMessageId,
-                  roomId: copiedRoomId,
-                  characterId: copiedCharacterId,
-                  createdAt,
-                  status: message.status === "streaming" ? ("done" as const) : message.status,
-                  referencedFiles: message.referencedFiles?.map((file) => ({ ...file })),
-                },
-              ];
-            }
-
-            return [
-              {
-                ...message,
-                id: copiedMessageId,
-                roomId: copiedRoomId,
-                createdAt,
-                status: message.status === "streaming" ? ("done" as const) : message.status,
-                referencedFiles: message.referencedFiles?.map((file) => ({ ...file })),
-              },
-            ];
-          });
-          draftMessagesByCopiedSceneId[copiedSceneId] =
-            copiedMessages.length > 0
-              ? copiedMessages
-              : [
-                  createTavernMessage({
-                    roomId: copiedRoomId,
-                    role: "narrator",
-                    content: "这个场景从另一个酒馆复制而来，灯光重新亮起。",
-                    status: "done",
-                  }),
-                ];
           const characterIds = scene.characterIds.flatMap((characterId) => {
             const copiedCharacterId = characterIdMap.get(characterId);
             return copiedCharacterId ? [copiedCharacterId] : [];
@@ -315,19 +213,13 @@ export const useSyncManagementStore = ({ workspace, state, setState, onError }: 
             illustrationHints: scene.illustrationHints.map((hint) => ({
               ...hint,
               id: createLocalId("illustration"),
-              sourceMessageIds: hint.sourceMessageIds.flatMap((messageId) => {
-                const copiedMessageId = messageIdMap.get(messageId);
-                return copiedMessageId ? [copiedMessageId] : [];
-              }),
+              sourceMessageIds: [],
               createdAt,
             })),
             assetDrafts: scene.assetDrafts.map((draft) => ({
               ...draft,
               id: createLocalId("draft"),
-              sourceMessageIds: draft.sourceMessageIds.flatMap((messageId) => {
-                const copiedMessageId = messageIdMap.get(messageId);
-                return copiedMessageId ? [copiedMessageId] : [];
-              }),
+              sourceMessageIds: [],
               characterMemories: draft.characterMemories.flatMap((memory) => {
                 const copiedCharacterId = characterIdMap.get(memory.characterId);
                 return copiedCharacterId
@@ -424,30 +316,15 @@ export const useSyncManagementStore = ({ workspace, state, setState, onError }: 
           createdAt,
           updatedAt: createdAt,
         });
-        const copiedActiveSceneInstanceId = getRoomActiveSceneInstanceId(copiedRoom);
-        const copiedActiveMessages = (draftMessagesByCopiedSceneId[activeSceneId] ?? []).map((message) => ({
-          ...message,
-          sceneId: copiedRoom.activeSceneId,
-          sceneInstanceId: copiedActiveSceneInstanceId,
-        }));
 
         return {
           ...current,
           rooms: [...current.rooms, copiedRoom],
-          messagesByInstance: {
-            ...current.messagesByInstance,
-            [copiedActiveSceneInstanceId]: copiedActiveMessages,
-          },
-          workflowTracesByInstance: {
-            ...current.workflowTracesByInstance,
-            [copiedActiveSceneInstanceId]: [],
-          },
         };
       });
-      reportError("");
       return true;
     },
-    [reportError, setState, state.rooms, workspace.id],
+    [setState, state.rooms, workspace.id],
   );
 
   const restoreSystemPresetRoom = useCallback(
@@ -481,17 +358,8 @@ export const useSyncManagementStore = ({ workspace, state, setState, onError }: 
         return {
           ...current,
           rooms: current.rooms.map((item) => (item.id === sourceRoom.id ? restored.room : item)),
-          messagesByInstance: {
-            ...current.messagesByInstance,
-            [getRoomActiveSceneInstanceId(restored.room)]: restored.messages,
-          },
-          workflowTracesByInstance: {
-            ...current.workflowTracesByInstance,
-            [getRoomActiveSceneInstanceId(restored.room)]: [],
-          },
         };
       });
-      reportError("");
       return true;
     },
     [reportError, setState, state.rooms, workspace.id, workspace.path],
@@ -516,10 +384,9 @@ export const useSyncManagementStore = ({ workspace, state, setState, onError }: 
             : item,
         ),
       }));
-      reportError("");
       return true;
     },
-    [reportError, setState, state.rooms],
+    [setState, state.rooms],
   );
 
   const exportRoom = useCallback(
@@ -530,17 +397,13 @@ export const useSyncManagementStore = ({ workspace, state, setState, onError }: 
       }
 
       try {
-        const payload = createTavernRuntimeRoomSnapshot({
-          room: targetRoom,
-          messagesByInstance: state.messagesByInstance,
-        });
-        const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        const blob = new Blob([JSON.stringify(targetRoom, null, 2)], {
           type: "application/json",
         });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = `${sanitizeFileName(targetRoom.title)}.tavern-runtime.json`;
+        link.download = `${sanitizeFileName(targetRoom.title)}.tavern-room.json`;
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -550,33 +413,17 @@ export const useSyncManagementStore = ({ workspace, state, setState, onError }: 
         return false;
       }
     },
-    [state],
+    [state.rooms],
   );
 
   const createRoom = useCallback(() => {
     const nextRoom = {
       ...createTavernRoom(workspace.id, state.rooms.length + 1),
     };
-    const openingMessage = createTavernMessage({
-      roomId: nextRoom.id,
-      sceneId: nextRoom.activeSceneId,
-      sceneInstanceId: getRoomActiveSceneInstanceId(nextRoom),
-      role: "narrator",
-      content: "新的桌边留出空位，灯光落在还没有写下的第一行。",
-      status: "done",
-    });
 
     setState((current) => ({
       ...current,
       rooms: [...current.rooms, nextRoom],
-      messagesByInstance: {
-        ...current.messagesByInstance,
-        [getRoomActiveSceneInstanceId(nextRoom)]: [openingMessage],
-      },
-      workflowTracesByInstance: {
-        ...current.workflowTracesByInstance,
-        [getRoomActiveSceneInstanceId(nextRoom)]: [],
-      },
     }));
     return nextRoom;
   }, [setState, state.rooms.length, workspace.id]);
@@ -622,11 +469,10 @@ export const useSyncManagementStore = ({ workspace, state, setState, onError }: 
     [characterById, runtimeModel, workspace.path],
   );
 
-  const value = useMemo<ManagementStoreValue>(
+  return useMemo<TavernManagementValue>(
     () => ({
       rooms: state.rooms,
       characterById,
-      messagesByRoomId,
       createRoom,
       patchRoom,
       copyRoom,
@@ -644,7 +490,6 @@ export const useSyncManagementStore = ({ workspace, state, setState, onError }: 
       createRoom,
       deleteRoom,
       exportRoom,
-      messagesByRoomId,
       patchRoom,
       regenerateDirectorProfile,
       restoreSystemPresetRoom,
@@ -654,16 +499,4 @@ export const useSyncManagementStore = ({ workspace, state, setState, onError }: 
       state.rooms,
     ],
   );
-  const isStoreInitializedRef = useRef(false);
-
-  if (!isStoreInitializedRef.current) {
-    syncManagementStore(value);
-    isStoreInitializedRef.current = true;
-  }
-
-  useLayoutEffect(() => {
-    syncManagementStore(value);
-  }, [value]);
-
-  return value;
 };

@@ -9,13 +9,9 @@ import { RoomEditor, type RoomEditorHandle } from "@/features/pages/taverns/mana
 import { formatCount } from "@/features/pages/taverns/manage/utils";
 import { TavernRoomDialog, type TavernRoomHandle } from "@/features/pages/taverns/room";
 import { parseTavernRouteSearch } from "@/features/pages/taverns/navigation";
-import { useSyncManagementStore } from "@/features/pages/taverns/store";
+import { useTavernManagement } from "@/features/pages/taverns/store";
 import { createDefaultTavernState } from "@/features/pages/taverns/tavern/state/state-normalizer";
-import {
-  loadTavernState,
-  saveTavernState,
-  type TavernRuntimeScope,
-} from "@/features/pages/taverns/tavern/state/storage";
+import { loadTavernState, saveTavernState, type TavernRuntimeScope } from "@/features/pages/taverns/storage";
 import type { TavernRoom, TavernState } from "@/features/pages/taverns/tavern/types";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
 import type { Workspace } from "@/features/pages/workspace/types";
@@ -283,7 +279,13 @@ const TavernsPageContent = ({
         room,
         storyData: state,
         sceneInstanceId,
-        onStateChange: setState,
+        onStateChange: (nextState) => {
+          setState((current) => ({
+            ...current,
+            activeRoomId: nextState.activeRoomId,
+            rooms: nextState.rooms,
+          }));
+        },
         onClose: isStoryRuntimeScope ? onExitStoryRuntime : undefined,
       });
     },
@@ -315,7 +317,7 @@ const TavernsPageContent = ({
     }
   }, []);
 
-  const management = useSyncManagementStore({
+  const management = useTavernManagement({
     workspace,
     state,
     setState,
@@ -324,14 +326,12 @@ const TavernsPageContent = ({
   const {
     rooms,
     characterById,
-    messagesByRoomId,
     createRoom,
     patchRoom,
     globalRuntimeModel,
     runTextFieldAgent,
     regenerateDirectorProfile,
   } = management;
-  const totalRoomMessageCount = Object.values(messagesByRoomId).reduce((sum, messages) => sum + messages.length, 0);
   const totalRoomCharacterCount = rooms.reduce((sum, room) => sum + (room.localCharacters?.length ?? 0), 0);
 
   const openRoomEditor = (room: TavernRoom) => {
@@ -384,7 +384,6 @@ const TavernsPageContent = ({
                   <div className="mt-0.5 flex flex-wrap gap-2 text-xs text-muted-foreground">
                     <span>{formatCount(rooms.length, "房间")}</span>
                     <span>{formatCount(totalRoomCharacterCount, "角色")}</span>
-                    <span>{formatCount(totalRoomMessageCount, "消息")}</span>
                     {roomOperationStatus && <span aria-live="polite">{roomOperationStatus}</span>}
                   </div>
                 </div>
@@ -403,6 +402,7 @@ const TavernsPageContent = ({
                   rooms.map((room) => (
                     <RoomCard
                       key={room.id}
+                      management={management}
                       room={room}
                       openRoomEditor={openRoomEditor}
                       onOperationStatusChange={setRoomOperationStatus}
@@ -424,7 +424,6 @@ const TavernsPageContent = ({
       <RoomEditor
         bind={roomEditorRef}
         characterById={characterById}
-        messagesByRoomId={messagesByRoomId}
         globalRuntimeModel={globalRuntimeModel}
         onPatchRoom={patchRoom}
         onRunTextFieldAgent={runTextFieldAgent}

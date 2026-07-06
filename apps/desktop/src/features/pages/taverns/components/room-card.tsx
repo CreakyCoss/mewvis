@@ -3,10 +3,10 @@ import {
   Download,
   LockKeyhole,
   Map,
-  MessageCircle,
   MoreHorizontal,
   Pencil,
   RotateCcw,
+  ScrollText,
   Target,
   Trash2,
   TriangleAlertIcon,
@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { emptyValueText } from "../manage/utils";
-import { useManagementStore } from "../store";
+import type { TavernManagementValue } from "../store";
 import type { TavernCharacter, TavernRoom } from "../tavern/types";
 import { compactScene } from "../tavern/utils";
 import { getVisualPreset } from "../tavern/visual-presets";
@@ -50,33 +50,26 @@ type PendingDangerAction = {
 };
 
 type RoomCardProps = {
+  management: Pick<
+    TavernManagementValue,
+    "characterById" | "copyRoom" | "restoreSystemPresetRoom" | "setRoomLocked" | "deleteRoom" | "exportRoom"
+  >;
   room: TavernRoom;
   openRoomEditor: (room: TavernRoom) => void;
   onOperationStatusChange?: (status: string) => void;
-  onRoomRemove?: (roomId: string) => void;
-  onRoomCopy?: (roomId: string) => void;
-  onRoomChange?: (roomId: string) => void;
 };
 
-export const RoomCard = ({
-  room,
-  openRoomEditor,
-  onOperationStatusChange,
-  onRoomRemove,
-  onRoomCopy,
-  onRoomChange,
-}: RoomCardProps) => {
+export const RoomCard = ({ management, room, openRoomEditor, onOperationStatusChange }: RoomCardProps) => {
   const [pendingDangerAction, setPendingDangerAction] = useState<PendingDangerAction | null>(null);
-  const { characterById, messagesByRoomId, copyRoom, restoreSystemPresetRoom, setRoomLocked, deleteRoom, exportRoom } =
-    useManagementStore();
+  const { characterById, copyRoom, restoreSystemPresetRoom, setRoomLocked, deleteRoom, exportRoom } = management;
   const roomCharacters = room.characterIds
     .map((characterId) => characterById.get(characterId))
     .filter((character): character is TavernCharacter => Boolean(character));
-  const messages = messagesByRoomId[room.id] ?? [];
   const visualPreset = getVisualPreset(room.scenePresetId);
   const visibleCharacters = roomCharacters.slice(0, 4);
   const hiddenCharacterCount = Math.max(0, roomCharacters.length - visibleCharacters.length);
   const sceneCount = Math.max(1, room.scenes?.length ?? 1);
+  const enabledPromptBlockCount = room.prompt.blocks.filter((block) => block.enabled && block.text.trim()).length;
   const roomBadgeClassName = room.systemPresetId
     ? "border border-amber-200/45 bg-amber-950/75 text-amber-100 ring-amber-200/30 shadow-[0_12px_28px_-18px_rgb(245_158_11_/_0.95)]"
     : "border border-teal-100/30 bg-slate-950/65 text-teal-50 ring-teal-100/24 shadow-[0_12px_28px_-18px_rgb(15_23_42_/_0.9)]";
@@ -118,12 +111,11 @@ export const RoomCard = ({
     const successMessage = `已复制「${room.title}」`;
     setOperationStatus(successMessage);
     toast.success(successMessage);
-    onRoomCopy?.(room.id);
   };
 
   const handleExportRoom = () => {
     const exported = exportRoom(room.id);
-    const message = exported ? `已导出「${room.title}」运行快照` : `导出「${room.title}」运行快照失败`;
+    const message = exported ? `已导出「${room.title}」房间配置` : `导出「${room.title}」房间配置失败`;
 
     setOperationStatus(message);
     if (exported) {
@@ -152,7 +144,6 @@ export const RoomCard = ({
         }
 
         setOperationStatus(nextLocked ? `已锁定「${room.title}」` : `已解锁「${room.title}」`);
-        onRoomChange?.(room.id);
       },
     });
   };
@@ -164,7 +155,7 @@ export const RoomCard = ({
 
     requestDangerAction({
       title: "恢复默认",
-      description: `恢复「${room.title}」为系统默认？当前场景、角色、记忆、剧情资产和对话记录都会被系统预设覆盖。`,
+      description: `恢复「${room.title}」为系统默认？当前房间配置会被系统预设覆盖。`,
       confirmLabel: "恢复默认",
       onConfirm: () => {
         void restoreSystemPresetRoom(room.id).then((applied) => {
@@ -174,7 +165,6 @@ export const RoomCard = ({
           }
 
           setOperationStatus(`已恢复「${room.title}」默认内容`);
-          onRoomChange?.(room.id);
         });
       },
     });
@@ -187,7 +177,7 @@ export const RoomCard = ({
 
     requestDangerAction({
       title: "删除酒馆",
-      description: `删除酒馆「${room.title}」？房间、对话记录和剧情资产都会被永久移除。`,
+      description: `删除酒馆「${room.title}」？该房间配置会被永久移除。`,
       confirmLabel: "删除酒馆",
       onConfirm: () => {
         if (!deleteRoom(room.id)) {
@@ -196,7 +186,6 @@ export const RoomCard = ({
         }
 
         setOperationStatus(`已删除「${room.title}」`);
-        onRoomRemove?.(room.id);
       },
     });
   };
@@ -259,8 +248,8 @@ export const RoomCard = ({
               <span className="truncate">{roomCharacters.length} 角色</span>
             </span>
             <span className="inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border bg-muted/20 px-1.5">
-              <MessageCircle className="size-3.5 shrink-0" />
-              <span className="truncate">{messages.length} 消息</span>
+              <ScrollText className="size-3.5 shrink-0" />
+              <span className="truncate">{enabledPromptBlockCount} 提示词</span>
             </span>
             <span className="inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border bg-muted/20 px-1.5">
               <Map className="size-3.5 shrink-0" />
@@ -323,7 +312,7 @@ export const RoomCard = ({
               </DropdownMenuItem>
               <DropdownMenuItem className="h-8 gap-2 rounded-md px-2 text-sm" onSelect={handleExportRoom}>
                 <Download className="size-4" />
-                导出运行快照
+                导出房间配置
               </DropdownMenuItem>
               <DropdownMenuItem className="h-8 gap-2 rounded-md px-2 text-sm" onSelect={handleRoomLockChange}>
                 {room.locked ? <LockKeyhole className="size-4" /> : <UnlockKeyhole className="size-4" />}

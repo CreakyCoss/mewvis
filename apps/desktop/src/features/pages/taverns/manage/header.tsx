@@ -1,30 +1,22 @@
-import { Activity, BookOpen, LockKeyhole, MessageSquareText, ScrollText, UsersRound } from "lucide-react";
+import { Activity, BookOpen, LockKeyhole, ScrollText, UsersRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { TavernCharacter, TavernMessage, TavernRoom } from "../tavern/types";
+import type { TavernCharacter, TavernRoom } from "../tavern/types";
 import { emptyValueText, getRoomCharacterById, getRoomCharacters } from "./utils";
 import { editorHeaderActionButtonClassName } from "./primitives";
 
 type HeaderProps = {
   data: TavernRoom;
   characterById: Map<string, TavernCharacter>;
-  messagesByRoomId: Record<string, TavernMessage[]>;
   textFieldAgentError: string;
   onOpenStoryConfig: () => void;
 };
 
-export const Header = ({
-  data,
-  characterById,
-  messagesByRoomId,
-  textFieldAgentError,
-  onOpenStoryConfig,
-}: HeaderProps) => {
+export const Header = ({ data, characterById, textFieldAgentError, onOpenStoryConfig }: HeaderProps) => {
   const roomCharacterById = getRoomCharacterById(data, characterById);
   const roomCharacters = getRoomCharacters(data, roomCharacterById);
-  const roomMessageCount = messagesByRoomId[data.id]?.length ?? 0;
   const headerStats: Array<{
     icon: LucideIcon;
     value: number;
@@ -34,11 +26,6 @@ export const Header = ({
       icon: UsersRound,
       value: roomCharacters.length,
       label: "角色阵容",
-    },
-    {
-      icon: MessageSquareText,
-      value: roomMessageCount,
-      label: "消息对话",
     },
     {
       icon: ScrollText,
@@ -98,7 +85,7 @@ export const Header = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
           {headerStats.map(({ icon: Icon, value, label }) => (
             <div key={label} className="flex items-center gap-3 rounded-lg border bg-muted/10 px-3 py-2.5 shadow-xs">
               <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">

@@ -15,18 +15,32 @@ const directorPromptPath = resolve(workspaceRoot, "src/features/pages/taverns/ta
 const messagePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/message/index.ts");
 const promptPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/runtime/prompt/index.ts");
 const promptTextBlocksPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/prompt-registry/text-blocks.ts");
-const sceneNovelizerPath = resolve(workspaceRoot, "src/features/scene-novelizer/adapters/tavern/collect-tavern-scene-source.ts");
-const activeSceneRuntimePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/runtime/active-scene-runtime.ts");
-const branchMemoryRuntimePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/runtime/branch-memory-runtime.ts");
+const sceneNovelizerPath = resolve(
+  workspaceRoot,
+  "src/features/scene-novelizer/adapters/tavern/collect-tavern-scene-source.ts",
+);
+const activeSceneRuntimePath = resolve(
+  workspaceRoot,
+  "src/features/pages/taverns/tavern/runtime/active-scene-runtime.ts",
+);
+const branchMemoryRuntimePath = resolve(
+  workspaceRoot,
+  "src/features/pages/taverns/tavern/runtime/branch-memory-runtime.ts",
+);
 const assetFactoriesPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/factories/asset-factories.ts");
 const defaultsPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/defaults.ts");
 const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/factories/manual-factories.ts");
 const sceneBuilderPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/story-model/scene-builder.ts");
 const stateNormalizerPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/state/state-normalizer.ts");
-const storagePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/state/storage.ts");
 const systemPresetRegistryPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/system-preset-registry.ts");
-const systemPresetRoomPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/factories/system-preset-room.ts");
-const assetExtractorParsingPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/runtime/assistants/asset-extractor/parsing.ts");
+const systemPresetRoomPath = resolve(
+  workspaceRoot,
+  "src/features/pages/taverns/tavern/factories/system-preset-room.ts",
+);
+const assetExtractorParsingPath = resolve(
+  workspaceRoot,
+  "src/features/pages/taverns/tavern/runtime/assistants/asset-extractor/parsing.ts",
+);
 
 const assert = (condition, message, details) => {
   if (!condition) {
@@ -35,7 +49,9 @@ const assert = (condition, message, details) => {
   }
 };
 
-writeFileSync(entryPath, `
+writeFileSync(
+  entryPath,
+  `
   import { allAvatarOptions } from ${JSON.stringify(avatarPath)};
   import {
     advanceTavernProgressFromFactEvents,
@@ -123,9 +139,6 @@ writeFileSync(entryPath, `
   import {
     createTavernAssetDraft,
   } from ${JSON.stringify(assetFactoriesPath)};
-  import {
-    saveTavernState,
-  } from ${JSON.stringify(storagePath)};
   import {
     tavernSystemPresets,
   } from ${JSON.stringify(systemPresetRegistryPath)};
@@ -2454,7 +2467,9 @@ writeFileSync(entryPath, `
     aSecret,
     aSecondSecret,
   };
-`, "utf8");
+`,
+  "utf8",
+);
 
 try {
   await build({
@@ -2484,7 +2499,7 @@ try {
 
   assert(
     checks.bridgeSessionRootDirs.active ===
-        `tavern/room-alpha/scene-instances/${checks.bridgeSessionRootDirs.activeSceneInstanceId}/bridge` &&
+      `tavern/room-alpha/scene-instances/${checks.bridgeSessionRootDirs.activeSceneInstanceId}/bridge` &&
       checks.bridgeSessionRootDirs.otherScene === "tavern/room-alpha/scene-instances/scene-instance-beta/bridge",
     "酒馆 bridge session 必须按当前节点场景实例隔离",
     checks.bridgeSessionRootDirs,
@@ -2527,7 +2542,7 @@ try {
       checks.assetExtractionMemoryChecks.createdSceneVisibilities.includes("hidden") &&
       checks.assetExtractionMemoryChecks.createdSceneVisibilities.includes("director") &&
       checks.assetExtractionMemoryChecks.sceneHiddenSecretId === "secret-well-rope" &&
-    checks.assetExtractionMemoryChecks.parsedCount === 3 &&
+      checks.assetExtractionMemoryChecks.parsedCount === 3 &&
       checks.assetExtractionMemoryChecks.createdVisibilities.includes("public") &&
       checks.assetExtractionMemoryChecks.createdVisibilities.includes("hidden") &&
       checks.assetExtractionMemoryChecks.createdVisibilities.includes("character") &&
@@ -2540,11 +2555,7 @@ try {
   assert(checks.contextForA.includes(checks.aSecondSecret), "多轮后 A 仍应能看到自己的心理");
   assert(!checks.contextForA.includes(checks.bSecret), "A 的 request_context 不应包含 B 的心理");
   assert(!checks.contextForA.includes(checks.bSecondSecret), "多轮后 A 的 request_context 不应包含 B 的心理");
-  assert(
-    checks.contextForA.includes("我去吧，门口的风我熟。"),
-    "A 应能看到 B 的公开发言",
-    checks.contextForA,
-  );
+  assert(checks.contextForA.includes("我去吧，门口的风我熟。"), "A 应能看到 B 的公开发言", checks.contextForA);
   assert(
     checks.currentTurnContextForA.includes("我还在门口，能看见灯影。"),
     "A 本轮 request_context 应包含前序角色的公开发言",
@@ -2560,10 +2571,10 @@ try {
       !checks.promptForA.includes("这轮只允许以「贝拉」的身份发言"),
     "A 的角色 prompt 必须锁定 A 身份",
     checks.promptForA,
-	  );
+  );
   assert(
-    checks.promptForA.includes("interaction_quality_rule id=\"anti-ai-natural\"") &&
-      checks.promptForA.includes("interaction_quality_rule id=\"natural-dialogue\""),
+    checks.promptForA.includes('interaction_quality_rule id="anti-ai-natural"') &&
+      checks.promptForA.includes('interaction_quality_rule id="natural-dialogue"'),
     "酒馆互动质量护栏应由设置实时注入角色 prompt，而不是依赖提示词编辑页文本块",
     checks.promptForA,
   );
@@ -2596,16 +2607,16 @@ try {
     "节点级提示词补充必须按 bridge/director/character 目标分别注入，并继承酒馆级提示词",
     checks.nodePromptOverrideChecks,
   );
-	  assert(
-	    checks.styledPromptForA.includes("prompt_block id=\"system_narrative:dramatic:character\"") &&
-	      checks.styledPromptForA.includes("prompt_block id=\"room_style:wuxia:character\"") &&
-	      checks.styledPromptForA.includes("系统叙事层保持雨夜压迫感") &&
-	      checks.styledPromptForA.includes("角色写作风格：用冷峻短句写可观察动作。") &&
-	      checks.styledPromptForA.includes("角色级回复规则：每次回复保留江湖身份分寸，不自称旁白。") &&
-	      !checks.styledTurnInstructionForA.includes("prompt_block id=\"system_narrative:dramatic:character\"") &&
-	      !checks.styledTurnInstructionForA.includes("prompt_block id=\"room_style:wuxia:character\"") &&
-	      checks.styledTurnInstructionForA.includes("当前角色回复规则：每次回复保留江湖身份分寸，不自称旁白。"),
-	    "已保存提示词文本块只进入角色 prompt 一次；turn instruction 只保留本轮和角色局部规则",
+  assert(
+    checks.styledPromptForA.includes('prompt_block id="system_narrative:dramatic:character"') &&
+      checks.styledPromptForA.includes('prompt_block id="room_style:wuxia:character"') &&
+      checks.styledPromptForA.includes("系统叙事层保持雨夜压迫感") &&
+      checks.styledPromptForA.includes("角色写作风格：用冷峻短句写可观察动作。") &&
+      checks.styledPromptForA.includes("角色级回复规则：每次回复保留江湖身份分寸，不自称旁白。") &&
+      !checks.styledTurnInstructionForA.includes('prompt_block id="system_narrative:dramatic:character"') &&
+      !checks.styledTurnInstructionForA.includes('prompt_block id="room_style:wuxia:character"') &&
+      checks.styledTurnInstructionForA.includes("当前角色回复规则：每次回复保留江湖身份分寸，不自称旁白。"),
+    "已保存提示词文本块只进入角色 prompt 一次；turn instruction 只保留本轮和角色局部规则",
     {
       prompt: checks.styledPromptForA,
       turnInstruction: checks.styledTurnInstructionForA,
@@ -2616,8 +2627,8 @@ try {
       checks.sceneNovelSource.ruleOptionIds.includes("webnovel-high-density") &&
       checks.sceneNovelSource.ruleOptionIds.includes("promise-mismatch") &&
       checks.sceneNovelSource.stats.userActionCount >= 2 &&
-      checks.sceneNovelSource.materials.some((material) =>
-        material.kind === "dialogue" && material.text.includes("第二道影子")
+      checks.sceneNovelSource.materials.some(
+        (material) => material.kind === "dialogue" && material.text.includes("第二道影子"),
       ) &&
       checks.sceneNovelSource.confirmedFacts.some((fact) => fact.includes("化学气味")) &&
       checks.sceneNovelSource.constraints.paragraphMaxChars === 180,
@@ -2634,8 +2645,7 @@ try {
     checks.qnaDriveGuidance,
   );
   assert(
-    checks.actionDriveGuidance.currentMove === "action" &&
-      checks.actionDriveGuidance.needsUserActionConsequence,
+    checks.actionDriveGuidance.currentMove === "action" && checks.actionDriveGuidance.needsUserActionConsequence,
     "用户具体行动应触发公开行动后果诊断",
     checks.actionDriveGuidance,
   );
@@ -2679,27 +2689,17 @@ try {
     checks.schemaAliasReply,
   );
   assert(
-    checks.promptForA.includes("不要代替用户说话") &&
-      checks.promptForA.includes("不要替其他角色完整发言"),
+    checks.promptForA.includes("不要代替用户说话") && checks.promptForA.includes("不要替其他角色完整发言"),
     "A 的角色 prompt 必须约束不得替他人发言",
     checks.promptForA,
   );
   assert(
-    checks.mixedSpeakerReply.content === "我先留在屋顶。" &&
-      checks.mixedSpeakerReply.thought === "我得继续盯住高处。",
+    checks.mixedSpeakerReply.content === "我先留在屋顶。" && checks.mixedSpeakerReply.thought === "我得继续盯住高处。",
     "解析器应剥离同一段内混入的 B 角色发言",
     checks.mixedSpeakerReply,
   );
-  assert(
-    checks.activeSegmentReply.content === "我守屋顶。",
-    "解析器应只保留 A 的发言片段",
-    checks.activeSegmentReply,
-  );
-  assert(
-    checks.wrongRoleReply.content === "",
-    "解析器遇到纯 B 角色发言时不应把它当成 A 的回复",
-    checks.wrongRoleReply,
-  );
+  assert(checks.activeSegmentReply.content === "我守屋顶。", "解析器应只保留 A 的发言片段", checks.activeSegmentReply);
+  assert(checks.wrongRoleReply.content === "", "解析器遇到纯 B 角色发言时不应把它当成 A 的回复", checks.wrongRoleReply);
   assert(
     checks.directAddressReply.content === "阿洛你安心歇着，门闩我压着呢。",
     "解析器应保留对其他角色的正常直接称呼",
@@ -2748,14 +2748,12 @@ try {
     checks.continuationForA,
   );
   assert(
-    checks.interactionsForUser.length === 1 &&
-      checks.interactionsForUser[0].target.type === "user",
+    checks.interactionsForUser.length === 1 && checks.interactionsForUser[0].target.type === "user",
     "角色问用户时应抽取为指向用户的待回应事项",
     checks.interactionsForUser,
   );
   assert(
-    !checks.continuationForUser.shouldContinue &&
-      checks.continuationForUser.reason === "user_targeted",
+    !checks.continuationForUser.shouldContinue && checks.continuationForUser.reason === "user_targeted",
     "角色问用户时应停止自动续调度并等待用户",
     checks.continuationForUser,
   );
@@ -2874,7 +2872,9 @@ try {
     checks.directTargetSignals,
   );
   assert(
-    checks.quietSignals.find((signal) => signal.characterId === "char-a")?.matchedRuleIds.includes("quiet-temperament-brake") &&
+    checks.quietSignals
+      .find((signal) => signal.characterId === "char-a")
+      ?.matchedRuleIds.includes("quiet-temperament-brake") &&
       checks.quietSignals.find((signal) => signal.characterId === "char-a")?.suggestedModes.includes("ambient"),
     "动态调度信号应对沉默人设且无强动机的角色降权并建议弱在场动作",
     checks.quietSignals,
@@ -2903,11 +2903,7 @@ try {
     "规则引擎应从明确事实事件生成可应用的状态事件",
     checks.progressChecks.statusEvents,
   );
-  assert(
-    checks.progressChecks.bossHealth === 0,
-    "Boss 受到明确 major damage 后健康应被扣到 0",
-    checks.progressChecks,
-  );
+  assert(checks.progressChecks.bossHealth === 0, "Boss 受到明确 major damage 后健康应被扣到 0", checks.progressChecks);
   assert(
     checks.progressChecks.aToUserFavorability === 60 &&
       checks.progressChecks.relationshipKey === "relationship:character:char-a->user:user",
@@ -2938,9 +2934,7 @@ try {
     checks.progressChecks.trimCheckpoint.reason === "before_context_trim" &&
       checks.progressChecks.trimCheckpoint.includedStatusEventIds.length ===
         checks.progressChecks.statusEvents.length &&
-      checks.progressChecks.syncedTrimSceneCheckpointIds.includes(
-        checks.progressChecks.trimCheckpoint.id,
-      ) &&
+      checks.progressChecks.syncedTrimSceneCheckpointIds.includes(checks.progressChecks.trimCheckpoint.id) &&
       checks.progressChecks.rebuiltFromTrimBossHealth === 0 &&
       checks.progressChecks.rebuiltFromTrimTaskStatus === "completed",
     "裁切前检查点应包含当前状态历史，并可作为清空对话后的重建基线",
@@ -2966,8 +2960,7 @@ try {
     checks.progressChecks,
   );
   assert(
-    checks.progressChecks.reviewRejectedStatus === "rejected" &&
-      checks.progressChecks.reviewRejectedBossHealth === 25,
+    checks.progressChecks.reviewRejectedStatus === "rejected" && checks.progressChecks.reviewRejectedBossHealth === 25,
     "review 模式下拒绝 pending 状态事件不应改变快照",
     checks.progressChecks,
   );
@@ -3017,8 +3010,8 @@ try {
   );
   assert(
     checks.progressChecks.systemPresets.raincity.room.presentation.profileId === "novel-prose" &&
-      checks.progressChecks.systemPresets.raincity.room.prompt.blocks.some((block) =>
-        block.source?.type === "room_style" && block.source.id === "novel"
+      checks.progressChecks.systemPresets.raincity.room.prompt.blocks.some(
+        (block) => block.source?.type === "room_style" && block.source.id === "novel",
       ) &&
       checks.progressChecks.systemPresets.raincity.room.settings.informationPolicy.mode === "mystery" &&
       checks.progressChecks.systemPresets.raincity.room.settings.informationPolicy.hideCharacterThoughts &&
@@ -3028,9 +3021,7 @@ try {
       checks.progressChecks.systemPresets.raincity.lorebookCount === 0 &&
       checks.progressChecks.systemPresets.raincity.storyNodeCount === 1 &&
       checks.progressChecks.systemPresets.raincity.storyEdgeCount === 0 &&
-      checks.progressChecks.systemPresets.raincity.messageProfiles.every((profileId) =>
-        profileId === "novel-prose"
-      ) &&
+      checks.progressChecks.systemPresets.raincity.messageProfiles.every((profileId) => profileId === "novel-prose") &&
       !checks.progressChecks.systemPresets.raincity.hasStorySpecificNames &&
       checks.progressChecks.systemPresets.raincity.evidenceFocusBefore === 50 &&
       checks.progressChecks.systemPresets.raincity.evidenceFocusAfter === 65 &&
@@ -3043,8 +3034,8 @@ try {
   );
   assert(
     checks.progressChecks.systemPresets.snowridge.room.presentation.profileId === "novel-prose" &&
-      checks.progressChecks.systemPresets.snowridge.room.prompt.blocks.some((block) =>
-        block.source?.type === "room_style" && block.source.id === "wuxia"
+      checks.progressChecks.systemPresets.snowridge.room.prompt.blocks.some(
+        (block) => block.source?.type === "room_style" && block.source.id === "wuxia",
       ) &&
       checks.progressChecks.systemPresets.snowridge.room.settings.informationPolicy.mode === "open" &&
       checks.progressChecks.systemPresets.snowridge.characterCount === 2 &&
@@ -3063,8 +3054,8 @@ try {
   );
   assert(
     checks.progressChecks.systemPresets.orbital.room.presentation.profileId === "novel-prose" &&
-      checks.progressChecks.systemPresets.orbital.room.prompt.blocks.some((block) =>
-        block.source?.type === "room_style" && block.source.id === "light-novel"
+      checks.progressChecks.systemPresets.orbital.room.prompt.blocks.some(
+        (block) => block.source?.type === "room_style" && block.source.id === "light-novel",
       ) &&
       checks.progressChecks.systemPresets.orbital.room.settings.informationPolicy.mode === "mystery" &&
       checks.progressChecks.systemPresets.orbital.characterCount === 2 &&

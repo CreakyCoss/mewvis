@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { buildTavernStoryContextPackage, getTavernRuntimeStoryProjection } from "../tavern/adapters/story";
 import type { TavernTextFieldAgentRequest } from "../tavern/runtime/assistants";
 import { projectTavernSceneOntoRoom } from "../tavern/runtime/active-scene-runtime";
-import type { TavernCharacter, TavernMessage, TavernRoom, TavernRoomSettings } from "../tavern/types";
+import type { TavernCharacter, TavernRoom, TavernRoomSettings } from "../tavern/types";
 import { Header } from "./header";
 import { BasicSection } from "./modules/basic";
 import { PromptSection } from "./modules/prompt";
@@ -83,7 +83,6 @@ const fullScreenDialogContentClassName =
 type RoomEditorProps = {
   bind: Ref<RoomEditorHandle>;
   characterById: Map<string, TavernCharacter>;
-  messagesByRoomId: Record<string, TavernMessage[]>;
   globalRuntimeModel: RuntimeModelOption | null;
   onPatchRoom: (roomId: string, patch: Partial<TavernRoom>) => void;
   onRunTextFieldAgent: (request: TavernTextFieldAgentRequest) => Promise<string>;
@@ -95,7 +94,6 @@ type RoomEditorProps = {
 export const RoomEditor = ({
   bind,
   characterById,
-  messagesByRoomId,
   globalRuntimeModel,
   onPatchRoom,
   onRunTextFieldAgent,
@@ -304,7 +302,6 @@ export const RoomEditor = ({
         return (
           <PromptSection
             data={data}
-            messages={messagesByRoomId[data.id] ?? []}
             onSave={onModuleSave}
             onOpenWarningNavigation={requestPromptWarningNavigation}
             renderTextFieldAgentActions={renderTextFieldAgentActions}
@@ -385,7 +382,6 @@ export const RoomEditor = ({
               <Header
                 data={data}
                 characterById={characterById}
-                messagesByRoomId={messagesByRoomId}
                 textFieldAgentError={textFieldAgentError}
                 onOpenStoryConfig={openStoryConfig}
               />

@@ -19,7 +19,6 @@ import {
   isTavernPresentationLocked,
 } from "../../../tavern/prompt-registry/presentation-rules";
 import type {
-  TavernMessage,
   TavernPromptBlock,
   TavernPromptBlockSourceType,
   TavernPromptBlockTarget,
@@ -37,7 +36,6 @@ import type { ModuleSave, TextFieldAgentActionRenderer } from "../types";
 
 type PromptSectionProps = {
   data: TavernRoom;
-  messages: TavernMessage[];
   onSave: ModuleSave;
   onOpenWarningNavigation?: (request: TavernPromptWarningNavigationRequest) => void;
   renderTextFieldAgentActions: TextFieldAgentActionRenderer;
@@ -265,7 +263,6 @@ export const PromptSummaryContent = ({ data }: { data: TavernRoom }) => {
 
 export const PromptSection = ({
   data,
-  messages,
   onSave,
   onOpenWarningNavigation,
   renderTextFieldAgentActions,
@@ -274,7 +271,7 @@ export const PromptSection = ({
   const presentationProfile = getTavernPresentationProfile(data.presentation?.profileId);
   const presentationLocked = isTavernPresentationLocked({
     presentation: data.presentation,
-    messages,
+    messages: [],
     sceneId: data.activeSceneId,
   });
   const enabledBlockCount = getEnabledPromptBlocks(data.prompt.blocks).length;
@@ -312,7 +309,6 @@ export const PromptSection = ({
       <PromptEdit
         bind={editRef}
         data={data}
-        messages={messages}
         onSave={onSave}
         onOpenWarningNavigation={onOpenWarningNavigation}
         renderTextFieldAgentActions={renderTextFieldAgentActions}
