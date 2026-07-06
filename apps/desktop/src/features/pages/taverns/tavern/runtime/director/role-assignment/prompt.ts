@@ -18,7 +18,7 @@ export const buildTavernDirectorRoleAssignmentPrompt = ({
 
   return [
     "<output_schema>",
-    `{"assignments":[{"targetType":"user","characterId":"","roleId":"role-id"},{"targetType":"character","characterId":"character-id","roleId":"role-id"}],"openingNarrator":"公开开场，不泄露身份","dayAnnouncement":"第二天清晨公布的公开事实，不泄露隐藏身份","publicFact":"一句可记录的首夜公开事实"}`,
+    `{"assignments":[{"targetType":"user","characterId":"","roleId":"role-id"},{"targetType":"character","characterId":"character-id","roleId":"role-id"}],"openingNarrator":"公开开场，不泄露身份","dayAnnouncement":"第二天清晨公布的公开结果，不泄露隐藏身份"}`,
     "</output_schema>",
     "",
     "<constraints>",
@@ -27,7 +27,7 @@ export const buildTavernDirectorRoleAssignmentPrompt = ({
     "roleId 必须来自 role_pool，并严格满足每个角色 count 展开后的数量。",
     "用户也是参与者；targetType=user 时 characterId 必须为空字符串。",
     "角色参与者 targetType=character，characterId 必须使用 participants 中给出的 id。",
-    "openingNarrator、dayAnnouncement、publicFact 都是公开信息，严禁写出任何人的身份、阵营、夜间私密行动、验人结果或心理。",
+    "openingNarrator、dayAnnouncement 都是公开信息，严禁写出任何人的身份、阵营、夜间私密行动、验人结果或心理。",
     "dayAnnouncement 应表现为首夜已经发生并进入第二天的公开结果，例如有人失踪、无人死亡、钟声异常或公开可观察线索；不要直接解决主线。",
     "只输出严格合法 JSON 对象，不要 Markdown，不要代码块。",
     "</constraints>",

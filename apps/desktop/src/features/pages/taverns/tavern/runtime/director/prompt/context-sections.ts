@@ -1,10 +1,6 @@
 import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import { formatTavernRuntimeMessagesForSummary } from "../../conversation";
-import {
-  buildTavernSceneDriveGuidance,
-  filterTavernFactEventsForAudience,
-  formatTavernCharacterRelationships,
-} from "../../../core";
+import { buildTavernSceneDriveGuidance, formatTavernCharacterRelationships } from "../../../core";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
 import { formatTavernVisibleMessagesForRequestContext, normalizeTavernMessagesForAudience } from "../../../message";
 import type { TavernMessage } from "../../../types";
@@ -36,49 +32,6 @@ const formatDirectorCharacterMemory = (room: TavernRoom, characterId: string) =>
     .join("\n\n");
 };
 
-const formatDirectorProgressContext = (room: TavernRoom) =>
-  JSON.stringify(
-    {
-      statusSnapshot: room.statusSnapshot,
-      tasks: room.taskDefinitions.map((task) => ({
-        id: task.id,
-        title: task.title,
-        owner: task.owner,
-        participants: task.participants ?? [],
-        visibility: task.visibility,
-        lifecycle: task.lifecycle,
-        currentStatus: room.taskSnapshot[task.id]?.status ?? task.lifecycle.initialStatus,
-      })),
-      outcomes: room.sceneOutcomes.map((outcome) => ({
-        id: outcome.id,
-        label: outcome.label,
-        condition: outcome.condition,
-        winner: outcome.winner ?? [],
-        loser: outcome.loser ?? [],
-        priority: outcome.priority,
-      })),
-      recentFacts: filterTavernFactEventsForAudience({
-        factEvents: room.factEvents,
-        room,
-        audience: { type: "director" },
-      })
-        .slice(-16)
-        .map((fact) => ({
-          id: fact.id,
-          type: fact.type,
-          actor: fact.actor,
-          target: fact.target,
-          evidence: fact.evidence,
-          visibility: fact.visibility,
-          visibleToUser: fact.visibleToUser,
-          visibleToCharacterIds: fact.visibleToCharacterIds ?? [],
-          visibleToFactionIds: fact.visibleToFactionIds ?? [],
-        })),
-    },
-    null,
-    2,
-  );
-
 const buildTavernDirectorCharacterList = (room: TavernRoom, characters: TavernCharacter[]) =>
   characters
     .map((character) =>
@@ -95,7 +48,6 @@ const buildTavernDirectorCharacterList = (room: TavernRoom, characters: TavernCh
             characters,
             userPersonaName: room.userPersonaName,
             relationshipOverrides: room.relationshipOverrides,
-            statusSnapshot: room.statusSnapshot,
           });
           return relationships ? `relationships: ${escapePromptXmlText(relationships)}` : "";
         })(),
@@ -243,10 +195,6 @@ export const buildTavernDirectorContextSections = ({
     '<scheduling_signals instruction="dynamic_per_turn_recommendations; director_may_override_with_reason; do_not_leak_hidden_or_private_reasons">',
     schedulingSignalsText || "[]",
     "</scheduling_signals>",
-    "",
-    '<progress_context instruction="director_only; use_for_scheduling_motivation_without_leaking_hidden_facts">',
-    limitDirectorContextText(formatDirectorProgressContext(room), 6000),
-    "</progress_context>",
     "",
     "<current_user_input>",
     isSceneDriveTurn ? "（本轮无用户输入）" : escapePromptXmlText(currentUserText),

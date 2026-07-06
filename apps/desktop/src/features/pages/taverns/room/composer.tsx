@@ -1,4 +1,4 @@
-import type { FormEvent, KeyboardEvent, ReactNode, RefObject } from "react";
+import type { FormEvent, KeyboardEvent, RefObject } from "react";
 import { FileText, Loader2, PencilLine, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,7 +11,6 @@ import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 type ComposerProps = {
   referencedFilePreviews: WorkspaceFileEntry[];
   referenceSuggestions: WorkspaceFileEntry[];
-  progressSlot?: ReactNode;
   inputRef: RefObject<HTMLTextAreaElement | null>;
   onInsertReference: (file: WorkspaceFileEntry) => void;
   onGenerateReplySuggestions: () => void;
@@ -24,7 +23,6 @@ type ComposerProps = {
 export const Composer = ({
   referencedFilePreviews,
   referenceSuggestions,
-  progressSlot,
   inputRef,
   onInsertReference,
   onGenerateReplySuggestions,
@@ -68,7 +66,6 @@ export const Composer = ({
             {error}
           </div>
         )}
-        {progressSlot}
         {referencedFilePreviews.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {referencedFilePreviews.map((file) => (

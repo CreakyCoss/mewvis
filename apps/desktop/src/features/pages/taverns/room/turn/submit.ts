@@ -22,7 +22,6 @@ import {
   resolveTurnMode,
   runAssetExtractionStep,
   runDirectorLoopTurn,
-  runProgressTrackingStep,
   runSpeakerReplyFlow,
   shouldRunTavernDirectorLoopWorkflow,
   syncOpenPendingInteractions,
@@ -295,25 +294,6 @@ export const submitRoomTurn = async ({
     }
 
     // 4. 本轮回复完成后的增强流程互相独立，单个失败不会回滚已经发送的消息。
-    if (runtime.shouldRunProgressTracking) {
-      runtime = {
-        ...runtime,
-        runtimeRoom: await runProgressTrackingStep({
-          ctx,
-          room: activeRoom,
-          runtimeRoom: runtime.runtimeRoom,
-          runtimeMessages: runtime.runtimeMessages,
-          turnMessages: runtime.turnMessages,
-          references,
-          text,
-          userMessage: turnAnchorMessage,
-          runtimeModel,
-          shouldShowProgressTrace: runtime.shouldShowProgressTrace,
-          storyContext,
-        }),
-      };
-    }
-
     if (runtime.shouldRunAssetExtraction) {
       await runAssetExtractionStep({
         ctx,

@@ -24,7 +24,6 @@ export const formatTavernPromptCharacter = (
         characters,
         userPersonaName: room.userPersonaName,
         relationshipOverrides: room.relationshipOverrides,
-        statusSnapshot: room.statusSnapshot,
       })
     : formatTavernCharacterRelationships({ character, characters });
 

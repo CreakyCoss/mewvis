@@ -11,17 +11,6 @@ import {
   normalizeReplyOption,
   normalizeSceneStatus,
 } from "../normalizers/scene-state-normalizers";
-import {
-  normalizeFactEvents,
-  normalizeOutcomeEvents,
-  normalizeProgressCheckpoints,
-  normalizeSceneOutcomes,
-  normalizeStatusEvents,
-  normalizeStatusSnapshot,
-  normalizeTaskDefinitions,
-  normalizeTaskEvents,
-  normalizeTaskSnapshot,
-} from "../normalizers/status-normalizers";
 import type {
   TavernAssetDraft,
   TavernPendingInteraction,
@@ -107,18 +96,6 @@ export const buildTavernScene = (input: TavernSceneInput = {}): TavernScene => {
       normalizePendingInteraction,
     ),
     replyOptions: normalizeItems<TavernReplyOption>(normalizeArray(input.replyOptions), normalizeReplyOption),
-    factEvents: normalizeFactEvents(input.factEvents),
-    statusEvents: normalizeStatusEvents(input.statusEvents),
-    statusSnapshot: normalizeStatusSnapshot(input.statusSnapshot, updatedAt),
-    previousStatusSnapshot: input.previousStatusSnapshot
-      ? normalizeStatusSnapshot(input.previousStatusSnapshot, updatedAt)
-      : undefined,
-    statusCheckpoints: normalizeProgressCheckpoints(input.statusCheckpoints),
-    taskDefinitions: normalizeTaskDefinitions(input.taskDefinitions),
-    taskEvents: normalizeTaskEvents(input.taskEvents),
-    taskSnapshot: normalizeTaskSnapshot(input.taskSnapshot),
-    sceneOutcomes: normalizeSceneOutcomes(input.sceneOutcomes),
-    outcomeEvents: normalizeOutcomeEvents(input.outcomeEvents),
     characterConfigs,
     characterMemories: roomCharacterMemoriesFromConfigs(characterConfigs),
     illustrationHints: normalizeIllustrationHints(input.illustrationHints),

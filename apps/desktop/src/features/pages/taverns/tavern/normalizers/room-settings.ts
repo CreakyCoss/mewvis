@@ -1,8 +1,7 @@
 import { createTavernDirectorProfileFromCharacters, normalizeTavernDirectorProfile } from "../core/scheduling-profile";
 import { DEFAULT_TAVERN_ROOM_SETTINGS } from "../defaults";
-import { clampInteger, normalizeStringList } from "./normalization";
+import { clampInteger } from "./normalization";
 import { normalizeTavernQualityRuleIds } from "../prompt-registry/rule-layers/resolver";
-import { normalizeStatusValue } from "./status-normalizers";
 import type { TavernCharacter, TavernDirectorProfile, TavernRoomSettings } from "@/features/pages/taverns/manage/model";
 
 const cloneTavernDirectorProfile = (profile: TavernDirectorProfile | undefined): TavernDirectorProfile | undefined =>
@@ -34,12 +33,10 @@ export const cloneDefaultRoomSettings = (): TavernRoomSettings => ({
   directorLoop: { ...DEFAULT_TAVERN_ROOM_SETTINGS.directorLoop },
   continuation: { ...DEFAULT_TAVERN_ROOM_SETTINGS.continuation },
   replyOptions: { ...DEFAULT_TAVERN_ROOM_SETTINGS.replyOptions },
-  statusTracking: { ...DEFAULT_TAVERN_ROOM_SETTINGS.statusTracking },
   randomEvents: { ...DEFAULT_TAVERN_ROOM_SETTINGS.randomEvents },
   illustrationHints: { ...DEFAULT_TAVERN_ROOM_SETTINGS.illustrationHints },
   directorScheduling: {
     ...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling,
-    directorOnlyPhaseValues: [...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.directorOnlyPhaseValues],
     speakerMotivation: {
       ...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.speakerMotivation,
       rules: DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.speakerMotivation.rules.map((rule) => ({ ...rule })),
@@ -47,7 +44,6 @@ export const cloneDefaultRoomSettings = (): TavernRoomSettings => ({
     profile: cloneTavernDirectorProfile(DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.profile),
     fixedOrder: {
       ...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.fixedOrder,
-      phaseValues: [...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.fixedOrder.phaseValues],
     },
   },
   informationPolicy: {
@@ -55,13 +51,13 @@ export const cloneDefaultRoomSettings = (): TavernRoomSettings => ({
     hiddenFacts: { ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.hiddenFacts },
     roleAssignment: {
       ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.roleAssignment,
+      opening: { ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.roleAssignment.opening },
       rolePool: DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.roleAssignment.rolePool.map((role) => ({ ...role })),
     },
   },
 });
 
-const normalizeInformationRevealMode = (value: unknown) =>
-  value === "sceneOutcome" || value === "never" || value === "manual" ? value : "manual";
+const normalizeInformationRevealMode = (value: unknown) => (value === "never" || value === "manual" ? value : "manual");
 
 const normalizeRoleAssignmentPool = (
   value: unknown,
@@ -161,33 +157,6 @@ const normalizeInformationPolicy = (value: unknown): TavernRoomSettings["informa
       rolePool: normalizeRoleAssignmentPool(roleAssignment.rolePool),
       opening: {
         autoStart: Boolean(roleAssignmentOpening.autoStart),
-        publicEventType:
-          typeof roleAssignmentOpening.publicEventType === "string"
-            ? roleAssignmentOpening.publicEventType.trim().slice(0, 80)
-            : "",
-        ...(roleAssignmentOpening.publicEventValue !== undefined
-          ? { publicEventValue: normalizeStatusValue(roleAssignmentOpening.publicEventValue) }
-          : {}),
-        globalStatusPatches: Array.isArray(roleAssignmentOpening.globalStatusPatches)
-          ? roleAssignmentOpening.globalStatusPatches
-              .flatMap((patch) => {
-                if (!patch || typeof patch !== "object") {
-                  return [];
-                }
-                const record = patch as Record<string, unknown>;
-                const statusId = typeof record.statusId === "string" ? record.statusId.trim() : "";
-                if (!statusId) {
-                  return [];
-                }
-                return [
-                  {
-                    statusId,
-                    value: normalizeStatusValue(record.value),
-                  },
-                ];
-              })
-              .slice(0, 12)
-          : [],
       },
     },
   };
@@ -250,9 +219,6 @@ const normalizeDirectorScheduling = (
       5,
     ),
     allowDirectorOnly: Boolean(candidate.allowDirectorOnly),
-    directorOnlyPhaseStatusId:
-      typeof candidate.directorOnlyPhaseStatusId === "string" ? candidate.directorOnlyPhaseStatusId.trim() : "",
-    directorOnlyPhaseValues: normalizeStringList(candidate.directorOnlyPhaseValues),
     speakerMotivation: {
       enabled: speakerMotivation.enabled !== false,
       maxMotivatedSpeakers: clampInteger(
@@ -297,8 +263,6 @@ const normalizeDirectorScheduling = (
     }),
     fixedOrder: {
       enabled: Boolean(fixedOrder.enabled),
-      phaseStatusId: typeof fixedOrder.phaseStatusId === "string" ? fixedOrder.phaseStatusId.trim() : "",
-      phaseValues: normalizeStringList(fixedOrder.phaseValues),
       stopAfterRound: Boolean(fixedOrder.stopAfterRound),
       includeUser: Boolean(fixedOrder.includeUser),
       userPosition: fixedOrder.userPosition === "last" ? "last" : "first",
@@ -388,10 +352,6 @@ export const normalizeRoomSettings = (
     candidate.replyOptions && typeof candidate.replyOptions === "object"
       ? (candidate.replyOptions as Partial<TavernRoomSettings["replyOptions"]>)
       : {};
-  const statusTracking =
-    candidate.statusTracking && typeof candidate.statusTracking === "object"
-      ? (candidate.statusTracking as Partial<TavernRoomSettings["statusTracking"]>)
-      : {};
   const randomEvents =
     candidate.randomEvents && typeof candidate.randomEvents === "object"
       ? (candidate.randomEvents as Partial<TavernRoomSettings["randomEvents"]>)
@@ -455,10 +415,6 @@ export const normalizeRoomSettings = (
     replyOptions: {
       enabled: replyOptions.enabled !== false,
       count: clampInteger(replyOptions.count, DEFAULT_TAVERN_ROOM_SETTINGS.replyOptions.count, 1, 6),
-    },
-    statusTracking: {
-      enabled: statusTracking.enabled !== false,
-      visibleToUser: statusTracking.visibleToUser !== false,
     },
     randomEvents: {
       enabled: Boolean(randomEvents.enabled),

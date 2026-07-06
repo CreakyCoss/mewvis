@@ -54,26 +54,6 @@ export const shouldAutoExtractAssets = (room: TavernRoom, messagesAfterUser: Tav
   return userTurnCount > 0 && userTurnCount % room.settings.assetExtractionIntervalTurns === 0;
 };
 
-export const shouldAutoTrackProgress = (room: TavernRoom, messagesAfterUser: TavernMessage[]) => {
-  if (
-    !room.settings.statusTracking.enabled ||
-    !room.progressTracker.enabled ||
-    room.progressTracker.mode === "manual" ||
-    room.statusDefinitions.length === 0 ||
-    room.statusRules.length === 0
-  ) {
-    return false;
-  }
-
-  if (room.progressTracker.mode === "afterTurn") {
-    return true;
-  }
-
-  const interval = Math.max(1, room.progressTracker.intervalTurns);
-  const userTurnCount = messagesAfterUser.filter((message) => message.role === "user").length;
-  return userTurnCount > 0 && userTurnCount % interval === 0;
-};
-
 export const shouldCompactCharacterKnowledgeAfterTurn = (
   room: TavernRoom,
   messages: TavernMessage[],
@@ -119,8 +99,7 @@ export type TurnRuntimeState = {
   turnAnchorMessage: TavernMessage;
   visibleUserMessage: TavernMessage | null;
   shouldRunAssetExtraction: boolean;
-  shouldRunProgressTracking: boolean;
-  shouldShowProgressTrace: boolean;
+  shouldShowExecutionTrace: boolean;
 };
 
 export type ActiveReplyRef = {
@@ -389,8 +368,7 @@ export const createInitialTurnRuntime = ({
     turnAnchorMessage,
     visibleUserMessage,
     shouldRunAssetExtraction: shouldAutoExtractAssets(room, runtimeMessages),
-    shouldRunProgressTracking: shouldAutoTrackProgress(room, runtimeMessages),
-    shouldShowProgressTrace: room.settings.showExecutionTrace || mode.isDirectorLikeMode,
+    shouldShowExecutionTrace: room.settings.showExecutionTrace || mode.isDirectorLikeMode,
   };
 };
 
@@ -419,7 +397,7 @@ export const prepareTurnTraceAndUserMessage = ({
         ? "导演正在准备角色状态..."
         : "正在准备对话...",
   );
-  if (runtime.shouldShowProgressTrace) {
+  if (runtime.shouldShowExecutionTrace) {
     ctx.setExecutionTraceAnchorMessageId(visibleUserMessage?.id ?? turnAnchorMessage.id);
     ctx.resetExecutionTrace([
       {

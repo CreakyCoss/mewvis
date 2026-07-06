@@ -1,10 +1,4 @@
 import { DEFAULT_VISUAL_PRESET_ID } from "@/features/pages/taverns/tavern/visual-presets";
-import {
-  DEFAULT_TAVERN_PROGRESS_TRACKER,
-  DEFAULT_TAVERN_PROGRESS_VIEWS,
-  DEFAULT_TAVERN_STATUS_DEFINITIONS,
-  DEFAULT_TAVERN_STATUS_RULES,
-} from "../defaults";
 import { createTavernId as createId, now } from "../ids";
 import { createDefaultPromptForPresentation } from "../presentation/presentation-settings";
 import { createDefaultTavernPresentation } from "../prompt-registry/presentation-rules";
@@ -26,12 +20,6 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
     scenePresetId: DEFAULT_VISUAL_PRESET_ID,
     presentation,
     prompt: createDefaultPromptForPresentation(presentation),
-    statusDefinitions: [...DEFAULT_TAVERN_STATUS_DEFINITIONS],
-    statusRules: [...DEFAULT_TAVERN_STATUS_RULES],
-    progressViews: [...DEFAULT_TAVERN_PROGRESS_VIEWS],
-    progressTracker: { ...DEFAULT_TAVERN_PROGRESS_TRACKER },
-    taskDefinitions: [],
-    sceneOutcomes: [],
     replyMode: "director",
     settings: cloneDefaultRoomSettings(),
     createdAt,

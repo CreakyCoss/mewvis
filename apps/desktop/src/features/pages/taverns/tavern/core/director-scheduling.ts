@@ -1,15 +1,12 @@
 import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { TavernMessage } from "../types";
-import type { TavernCharacter, TavernStatusValue } from "@/features/pages/taverns/manage/model";
-import { getTavernStatusSnapshotValue } from "./progress-engine";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { orderTavernRoundSpeakers } from "./turn-order";
 
 const defaultDirectorScheduling = {
   targetedReplyPolicy: "prefer" as const,
   maxExtraSpeakersOnTargetedReply: 2,
   allowDirectorOnly: false,
-  directorOnlyPhaseStatusId: "",
-  directorOnlyPhaseValues: [],
   speakerMotivation: {
     enabled: true,
     maxMotivatedSpeakers: 2,
@@ -17,8 +14,6 @@ const defaultDirectorScheduling = {
   },
   fixedOrder: {
     enabled: false,
-    phaseStatusId: "",
-    phaseValues: [],
     stopAfterRound: false,
     includeUser: false,
     userPosition: "first" as const,
@@ -46,7 +41,6 @@ const getDirectorScheduling = (room: Pick<TavernRoom, "settings">) => {
   return {
     ...defaultDirectorScheduling,
     ...candidate,
-    directorOnlyPhaseValues: candidate.directorOnlyPhaseValues ?? [],
     speakerMotivation: {
       ...defaultDirectorScheduling.speakerMotivation,
       ...candidate.speakerMotivation,
@@ -55,7 +49,6 @@ const getDirectorScheduling = (room: Pick<TavernRoom, "settings">) => {
     fixedOrder: {
       ...defaultDirectorScheduling.fixedOrder,
       ...candidate.fixedOrder,
-      phaseValues: candidate.fixedOrder?.phaseValues ?? [],
     },
   };
 };
@@ -65,75 +58,16 @@ const getDirectorNarrativeControl = (room: Pick<TavernRoom, "settings">) => ({
   ...room.settings.directorNarrativeControl,
 });
 
-const normalizeStatusValue = (value: TavernStatusValue) => (typeof value === "string" ? value.trim() : "");
+export const isTavernFixedOrderPhase = (room: Pick<TavernRoom, "settings">) =>
+  getDirectorScheduling(room).fixedOrder.enabled;
 
-const getPhaseValue = (room: Pick<TavernRoom, "settings" | "statusSnapshot">, statusId?: string) => {
-  const normalizedStatusId = statusId?.trim();
-  if (!normalizedStatusId) {
-    return "";
-  }
-
-  return normalizeStatusValue(
-    getTavernStatusSnapshotValue(room.statusSnapshot, { type: "global" }, normalizedStatusId),
-  );
-};
-
-const phaseMatches = ({
-  room,
-  statusId,
-  values,
-}: {
-  room: Pick<TavernRoom, "settings" | "statusSnapshot">;
-  statusId?: string;
-  values: string[];
-}) => {
-  const phaseValue = getPhaseValue(room, statusId);
-  return Boolean(phaseValue && values.includes(phaseValue));
-};
-
-export const isTavernFixedOrderPhase = (
-  room: Pick<TavernRoom, "settings" | "statusDefinitions" | "statusSnapshot">,
-) => {
-  const fixedOrder = getDirectorScheduling(room).fixedOrder;
-  return (
-    fixedOrder.enabled &&
-    phaseMatches({
-      room,
-      statusId: fixedOrder.phaseStatusId,
-      values: fixedOrder.phaseValues,
-    })
-  );
-};
-
-export const isTavernDirectorOnlyTurnAllowed = (room: Pick<TavernRoom, "settings" | "statusSnapshot">) => {
+export const isTavernDirectorOnlyTurnAllowed = (room: Pick<TavernRoom, "settings">) => {
   const scheduling = getDirectorScheduling(room);
-  if (!scheduling.allowDirectorOnly) {
-    return false;
-  }
-
-  if (!scheduling.directorOnlyPhaseStatusId || scheduling.directorOnlyPhaseValues.length === 0) {
-    return true;
-  }
-
-  return phaseMatches({
-    room,
-    statusId: scheduling.directorOnlyPhaseStatusId,
-    values: scheduling.directorOnlyPhaseValues,
-  });
+  return scheduling.allowDirectorOnly;
 };
 
-export const isTavernDirectorOnlyPhase = (room: Pick<TavernRoom, "settings" | "statusSnapshot">) => {
-  const scheduling = getDirectorScheduling(room);
-  return (
-    scheduling.allowDirectorOnly &&
-    Boolean(scheduling.directorOnlyPhaseStatusId && scheduling.directorOnlyPhaseValues.length > 0) &&
-    phaseMatches({
-      room,
-      statusId: scheduling.directorOnlyPhaseStatusId,
-      values: scheduling.directorOnlyPhaseValues,
-    })
-  );
-};
+export const isTavernDirectorOnlyPhase = (room: Pick<TavernRoom, "settings">) =>
+  getDirectorScheduling(room).allowDirectorOnly;
 
 export const canTavernSelectedTargetsStaySilent = (
   room: Pick<TavernRoom, "settings">,
@@ -338,9 +272,7 @@ export const canTavernCharacterUseNonverbalReply = ({
     Boolean(selectedTargetCharacterIds?.includes(characterId)) &&
     (hasTavernNonverbalTargetCue(currentUserText ?? "") || hasTavernNonverbalTargetCue(directorReason ?? "")));
 
-export const shouldSuppressTavernAutoContinuation = (
-  room: Pick<TavernRoom, "settings" | "statusDefinitions" | "statusSnapshot">,
-) => {
+export const shouldSuppressTavernAutoContinuation = (room: Pick<TavernRoom, "settings">) => {
   const policy = getDirectorScheduling(room).autoContinuation;
   if (policy === "disabled") {
     return true;
@@ -384,7 +316,7 @@ export const resolveTavernScheduledSpeakers = ({
   currentUserText,
   fallbackCharacter,
 }: {
-  room: Pick<TavernRoom, "settings" | "statusDefinitions" | "statusSnapshot">;
+  room: Pick<TavernRoom, "settings">;
   availableCharacters: TavernCharacter[];
   activeCharacterId?: string | null;
   directorSpeakerIds: string[];
@@ -459,15 +391,11 @@ export const resolveTavernScheduledSpeakers = ({
   return fallbackCharacter ? [fallbackCharacter] : availableCharacters.slice(0, 1);
 };
 
-export const formatTavernDirectorSchedulingInstruction = (
-  room: Pick<TavernRoom, "settings" | "statusDefinitions" | "statusSnapshot">,
-) => {
+export const formatTavernDirectorSchedulingInstruction = (room: Pick<TavernRoom, "settings">) => {
   const scheduling = getDirectorScheduling(room);
   const narrativeControl = getDirectorNarrativeControl(room);
   const lines = [];
   const customInstruction = scheduling.instruction.trim();
-  const fixedOrderPhaseValue = getPhaseValue(room, scheduling.fixedOrder.phaseStatusId);
-  const directorOnlyPhaseValue = getPhaseValue(room, scheduling.directorOnlyPhaseStatusId);
 
   if (customInstruction) {
     lines.push(customInstruction);
@@ -487,7 +415,6 @@ export const formatTavernDirectorSchedulingInstruction = (
     lines.push(
       [
         "当前处于固定顺序发言阶段。",
-        fixedOrderPhaseValue ? `当前阶段值：${fixedOrderPhaseValue}。` : "",
         "导演可以给出公开旁白和未发言角色动作；角色 worker 仍按应用侧固定座次逐个进入回环调度。",
         scheduling.fixedOrder.includeUser
           ? `本阶段固定顺序包含用户座位，用户位置：${scheduling.fixedOrder.userPosition === "last" ? "末位" : "首位"}；当前用户消息视为用户自己的座次发言。`
@@ -507,7 +434,6 @@ export const formatTavernDirectorSchedulingInstruction = (
     lines.push(
       [
         "当前阶段允许导演只推进公开流程，不调用角色公开发言。",
-        directorOnlyPhaseValue ? `当前阶段值：${directorOnlyPhaseValue}。` : "",
         "如果此时是夜晚、结算或投票公布阶段，可以返回 status=complete、selectedTargetId 为空，并只输出 narrator/randomEvent/illustrationHint artifacts。",
       ]
         .filter(Boolean)

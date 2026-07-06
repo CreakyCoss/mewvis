@@ -22,7 +22,6 @@ import {
 } from "../../../tavern/prompt-registry/rule-layers/resolver";
 import type { TavernQualityRuleId } from "../../../tavern/prompt-registry/rule-layers/types";
 import type {
-  TavernProgressTrackerSettings,
   TavernRoleAssignmentDefinition,
   TavernRoom,
   TavernRoomSettings,
@@ -40,7 +39,6 @@ import type { ModuleSave } from "../types";
 export type SettingsEditHandle = (data?: TavernRoom) => void;
 
 type SettingsDraft = TavernRoomSettings & {
-  progressTracker: TavernProgressTrackerSettings;
   rolePoolJson: string;
 };
 
@@ -69,17 +67,6 @@ const settingsPresets: SettingsPresetDefinition[] = [
       ...draft,
       showExecutionTrace: false,
       autoAssetExtractionEnabled: true,
-      statusTracking: {
-        ...draft.statusTracking,
-        enabled: true,
-        visibleToUser: true,
-      },
-      progressTracker: {
-        ...draft.progressTracker,
-        enabled: true,
-        mode: "afterTurn",
-        applyMode: "review",
-      },
       randomEvents: {
         ...draft.randomEvents,
         enabled: false,
@@ -111,11 +98,6 @@ const settingsPresets: SettingsPresetDefinition[] = [
     apply: (draft) => ({
       ...draft,
       showExecutionTrace: false,
-      statusTracking: {
-        ...draft.statusTracking,
-        enabled: true,
-        visibleToUser: true,
-      },
       illustrationHints: {
         ...draft.illustrationHints,
         enabled: true,
@@ -145,16 +127,6 @@ const settingsPresets: SettingsPresetDefinition[] = [
     apply: (draft) => ({
       ...draft,
       showExecutionTrace: true,
-      statusTracking: {
-        ...draft.statusTracking,
-        enabled: true,
-        visibleToUser: true,
-      },
-      progressTracker: {
-        ...draft.progressTracker,
-        enabled: true,
-        applyMode: "review",
-      },
       directorLoop: {
         ...draft.directorLoop,
         enabled: true,
@@ -281,7 +253,6 @@ export const SettingsEdit = ({ bind, data, onSave, modelLabel }: SettingsEditPro
   const open = (nextData = data) => {
     const nextDraft = {
       ...cloneTavernRoomSettings(nextData.settings),
-      progressTracker: { ...nextData.progressTracker },
       rolePoolJson: formatProgressJson(nextData.settings.informationPolicy.roleAssignment.rolePool),
     };
     setError("");
@@ -330,10 +301,6 @@ export const SettingsEdit = ({ bind, data, onSave, modelLabel }: SettingsEditPro
         ),
         interactionQualityRuleIds: [...draft.interactionQualityRuleIds],
         directorNarrativeControl: { ...draft.directorNarrativeControl },
-        statusTracking: {
-          ...data.settings.statusTracking,
-          ...draft.statusTracking,
-        },
         randomEvents: {
           ...data.settings.randomEvents,
           enabled: draft.randomEvents.enabled,
@@ -351,14 +318,6 @@ export const SettingsEdit = ({ bind, data, onSave, modelLabel }: SettingsEditPro
             rolePool: rolePool.value.map((role) => ({ ...role })),
           },
         },
-      },
-      progressTracker: {
-        enabled: draft.progressTracker.enabled,
-        mode: draft.progressTracker.mode,
-        intervalTurns: Math.min(50, Math.max(1, Number(draft.progressTracker.intervalTurns) || 1)),
-        applyMode: draft.progressTracker.applyMode,
-        factConfidenceThreshold: Math.min(1, Math.max(0, Number(draft.progressTracker.factConfidenceThreshold) || 0)),
-        generateCheckpointBeforeContextTrim: draft.progressTracker.generateCheckpointBeforeContextTrim,
       },
     });
     close();
@@ -490,22 +449,6 @@ export const SettingsEdit = ({ bind, data, onSave, modelLabel }: SettingsEditPro
                     }}
                   />
                   <SettingsSwitch
-                    label="显示状态栏"
-                    description="在界面中显示状态信息与进度。"
-                    checked={draft.statusTracking.enabled}
-                    onCheckedChange={(checked) => {
-                      setDraft({
-                        ...draft,
-                        statusTracking: {
-                          ...draft.statusTracking,
-                          enabled: checked,
-                          visibleToUser: checked,
-                        },
-                      });
-                      setSelectedPresetId("default");
-                    }}
-                  />
-                  <SettingsSwitch
                     label="插图提示"
                     description="在关键节点提供插图建议与提示。"
                     checked={draft.illustrationHints.enabled}
@@ -562,21 +505,6 @@ export const SettingsEdit = ({ bind, data, onSave, modelLabel }: SettingsEditPro
                     }}
                   />
                   <SettingsSwitch
-                    label="自动追踪状态"
-                    description="自动记录并更新角色与剧情状态。"
-                    checked={draft.progressTracker.enabled}
-                    onCheckedChange={(checked) => {
-                      setDraft({
-                        ...draft,
-                        progressTracker: {
-                          ...draft.progressTracker,
-                          enabled: checked,
-                        },
-                      });
-                      setSelectedPresetId("default");
-                    }}
-                  />
-                  <SettingsSwitch
                     label="导演随机事件"
                     description="在合适时机触发随机事件，增加变数。"
                     checked={draft.randomEvents.enabled}
@@ -613,104 +541,6 @@ export const SettingsEdit = ({ bind, data, onSave, modelLabel }: SettingsEditPro
                     }
                   />
                   <SettingsRow
-                    label="状态更新"
-                    description="选择状态追踪的触发方式。"
-                    control={
-                      <NativeSelect
-                        id="tavern-settings-layout-progress-mode"
-                        value={draft.progressTracker.mode}
-                        className={selectClassName}
-                        onChange={(event) => {
-                          setDraft({
-                            ...draft,
-                            progressTracker: {
-                              ...draft.progressTracker,
-                              mode: event.target.value as TavernProgressTrackerSettings["mode"],
-                            },
-                          });
-                          setSelectedPresetId("default");
-                        }}
-                      >
-                        <NativeSelectOption value="manual">手动</NativeSelectOption>
-                        <NativeSelectOption value="afterTurn">每轮</NativeSelectOption>
-                        <NativeSelectOption value="fixedTurns">固定轮次</NativeSelectOption>
-                      </NativeSelect>
-                    }
-                  />
-                  <SettingsRow
-                    label="状态间隔"
-                    description="固定轮次模式下的状态更新间隔。"
-                    control={
-                      <Input
-                        id="tavern-settings-layout-progress-interval"
-                        type="number"
-                        min={1}
-                        max={50}
-                        value={draft.progressTracker.intervalTurns}
-                        className={inputClassName}
-                        onChange={(event) => {
-                          setDraft({
-                            ...draft,
-                            progressTracker: {
-                              ...draft.progressTracker,
-                              intervalTurns: Math.min(50, Math.max(1, Number(event.target.value) || 1)),
-                            },
-                          });
-                          setSelectedPresetId("default");
-                        }}
-                      />
-                    }
-                  />
-                  <SettingsRow
-                    label="应用方式"
-                    description="选择状态变更是否自动应用。"
-                    control={
-                      <NativeSelect
-                        id="tavern-settings-layout-progress-apply-mode"
-                        value={draft.progressTracker.applyMode}
-                        className={selectClassName}
-                        onChange={(event) => {
-                          setDraft({
-                            ...draft,
-                            progressTracker: {
-                              ...draft.progressTracker,
-                              applyMode: event.target.value as TavernProgressTrackerSettings["applyMode"],
-                            },
-                          });
-                          setSelectedPresetId("default");
-                        }}
-                      >
-                        <NativeSelectOption value="review">需确认</NativeSelectOption>
-                        <NativeSelectOption value="auto">自动</NativeSelectOption>
-                      </NativeSelect>
-                    }
-                  />
-                  <SettingsRow
-                    label="事实置信度"
-                    description="低于阈值的状态事实不会自动采纳。"
-                    control={
-                      <Input
-                        id="tavern-settings-layout-progress-confidence"
-                        type="number"
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        value={draft.progressTracker.factConfidenceThreshold}
-                        className={inputClassName}
-                        onChange={(event) => {
-                          setDraft({
-                            ...draft,
-                            progressTracker: {
-                              ...draft.progressTracker,
-                              factConfidenceThreshold: Math.min(1, Math.max(0, Number(event.target.value) || 0)),
-                            },
-                          });
-                          setSelectedPresetId("default");
-                        }}
-                      />
-                    }
-                  />
-                  <SettingsRow
                     label="随机事件概率"
                     description="控制导演随机事件被触发的概率。"
                     control={
@@ -734,21 +564,6 @@ export const SettingsEdit = ({ bind, data, onSave, modelLabel }: SettingsEditPro
                         }}
                       />
                     }
-                  />
-                  <SettingsSwitch
-                    label="检查点"
-                    description="上下文裁剪前生成状态检查点。"
-                    checked={draft.progressTracker.generateCheckpointBeforeContextTrim}
-                    onCheckedChange={(checked) => {
-                      setDraft({
-                        ...draft,
-                        progressTracker: {
-                          ...draft.progressTracker,
-                          generateCheckpointBeforeContextTrim: checked,
-                        },
-                      });
-                      setSelectedPresetId("default");
-                    }}
                   />
                 </SettingsSection>
 
@@ -1180,7 +995,6 @@ export const SettingsEdit = ({ bind, data, onSave, modelLabel }: SettingsEditPro
                         }}
                       >
                         <NativeSelectOption value="manual">手动</NativeSelectOption>
-                        <NativeSelectOption value="sceneOutcome">结局后</NativeSelectOption>
                         <NativeSelectOption value="never">不揭示</NativeSelectOption>
                       </NativeSelect>
                     }

@@ -1,15 +1,9 @@
 import type {
-  TavernCondition,
-  TavernProgressView,
   TavernPromptBlock,
   TavernReplyMode,
   TavernRoleAssignmentDefinition,
   TavernRoom,
   TavernRoomSettings,
-  TavernSceneOutcomeDefinition,
-  TavernStatusDefinition,
-  TavernStatusRule,
-  TavernTaskDefinition,
 } from "@/features/pages/taverns/manage/model";
 
 export const replyModeOptions: Array<{
@@ -20,9 +14,6 @@ export const replyModeOptions: Array<{
 export const formatCount = (value: number, label: string) => `${value} ${label}`;
 
 export const emptyValueText = "未设置";
-
-export const getProgressPlacementText = (room: Pick<TavernRoom, "progressViews">) =>
-  Array.from(new Set(room.progressViews.map((view) => view.placement))).join("、");
 
 export const getUnknownErrorMessage = (error: unknown) => {
   if (error instanceof Error) {
@@ -77,8 +68,6 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const hasStringField = (value: Record<string, unknown>, field: string) =>
   typeof value[field] === "string" && value[field].trim().length > 0;
 
-const hasRecordField = (value: Record<string, unknown>, field: string) => isRecord(value[field]);
-
 export const parseProgressJsonArray = <T>(
   raw: string,
   label: string,
@@ -119,161 +108,11 @@ export const parseProgressJsonArray = <T>(
   return { ok: true, value: parsed };
 };
 
-export const isStatusDefinitionDraft = (item: unknown): item is TavernStatusDefinition =>
-  isRecord(item) &&
-  hasStringField(item, "id") &&
-  hasStringField(item, "label") &&
-  hasStringField(item, "scope") &&
-  hasStringField(item, "valueType") &&
-  hasStringField(item, "visibility") &&
-  hasRecordField(item, "updatePolicy");
-
-export const isStatusRuleDraft = (item: unknown): item is TavernStatusRule =>
-  isRecord(item) &&
-  hasStringField(item, "id") &&
-  hasStringField(item, "label") &&
-  hasRecordField(item, "when") &&
-  hasRecordField(item, "apply");
-
-export const isProgressViewDraft = (item: unknown): item is TavernProgressView =>
-  isRecord(item) &&
-  hasStringField(item, "id") &&
-  hasStringField(item, "label") &&
-  hasStringField(item, "kind") &&
-  hasStringField(item, "placement") &&
-  hasStringField(item, "ownerBinding") &&
-  hasStringField(item, "layout") &&
-  Array.isArray(item.items);
-
 export const isRoleAssignmentDefinitionDraft = (item: unknown): item is TavernRoleAssignmentDefinition =>
   isRecord(item) &&
   hasStringField(item, "id") &&
   hasStringField(item, "label") &&
   (item.count === undefined || typeof item.count === "number");
-
-export const isTaskDefinitionDraft = (item: unknown): item is TavernTaskDefinition =>
-  isRecord(item) &&
-  hasStringField(item, "id") &&
-  hasStringField(item, "title") &&
-  hasStringField(item, "scope") &&
-  hasRecordField(item, "owner") &&
-  hasStringField(item, "visibility") &&
-  typeof item.required === "boolean" &&
-  typeof item.optional === "boolean" &&
-  typeof item.repeatable === "boolean" &&
-  hasRecordField(item, "lifecycle") &&
-  isRecord(item.lifecycle) &&
-  hasStringField(item.lifecycle, "initialStatus") &&
-  hasRecordField(item.lifecycle, "completeCondition");
-
-export const isSceneOutcomeDraft = (item: unknown): item is TavernSceneOutcomeDefinition =>
-  isRecord(item) &&
-  hasStringField(item, "id") &&
-  hasStringField(item, "label") &&
-  hasRecordField(item, "condition") &&
-  typeof item.priority === "number" &&
-  typeof item.exclusive === "boolean" &&
-  hasStringField(item, "endScene") &&
-  hasStringField(item, "visibility");
-
-const collectConditionRefs = (
-  condition: TavernCondition | undefined,
-  refs: { statusIds: Set<string>; taskIds: Set<string> },
-) => {
-  if (!condition) {
-    return;
-  }
-  if ("all" in condition) {
-    condition.all.forEach((item) => collectConditionRefs(item, refs));
-    return;
-  }
-  if ("any" in condition) {
-    condition.any.forEach((item) => collectConditionRefs(item, refs));
-    return;
-  }
-  if ("not" in condition) {
-    collectConditionRefs(condition.not, refs);
-    return;
-  }
-  if ("status" in condition) {
-    if (typeof condition.status === "string") {
-      refs.statusIds.add(condition.status);
-    }
-    return;
-  }
-  if ("task" in condition) {
-    if (typeof condition.task === "string") {
-      refs.taskIds.add(condition.task);
-    }
-  }
-};
-
-export const validateProgressConfigReferences = ({
-  statusDefinitions,
-  statusRules,
-  progressViews,
-  taskDefinitions,
-  sceneOutcomes,
-}: {
-  statusDefinitions: TavernStatusDefinition[];
-  statusRules: TavernStatusRule[];
-  progressViews: TavernProgressView[];
-  taskDefinitions: TavernTaskDefinition[];
-  sceneOutcomes: TavernSceneOutcomeDefinition[];
-}) => {
-  const statusIds = new Set(statusDefinitions.map((definition) => definition.id));
-  const taskIds = new Set(taskDefinitions.map((task) => task.id));
-  const outcomeIds = new Set(sceneOutcomes.map((outcome) => outcome.id));
-
-  const invalidRule = statusRules.find((rule) => !statusIds.has(rule.apply.statusId));
-  if (invalidRule) {
-    return `状态规则「${invalidRule.label}」引用了不存在的状态：${invalidRule.apply.statusId}`;
-  }
-
-  for (const view of progressViews) {
-    for (const item of view.items) {
-      if (item.type === "status" && !statusIds.has(item.statusId)) {
-        return `状态面板「${view.label}」引用了不存在的状态：${item.statusId}`;
-      }
-      if (item.type === "task" && !taskIds.has(item.taskId)) {
-        return `状态面板「${view.label}」引用了不存在的任务：${item.taskId}`;
-      }
-      if (item.type === "outcome" && !outcomeIds.has(item.outcomeId)) {
-        return `状态面板「${view.label}」引用了不存在的结局：${item.outcomeId}`;
-      }
-    }
-  }
-
-  for (const task of taskDefinitions) {
-    const refs = { statusIds: new Set<string>(), taskIds: new Set<string>() };
-    collectConditionRefs(task.lifecycle.startCondition, refs);
-    collectConditionRefs(task.lifecycle.completeCondition, refs);
-    collectConditionRefs(task.lifecycle.failCondition, refs);
-    const missingStatusId = Array.from(refs.statusIds).find((statusId) => !statusIds.has(statusId));
-    if (missingStatusId) {
-      return `任务「${task.title}」引用了不存在的状态：${missingStatusId}`;
-    }
-    const missingTaskId = Array.from(refs.taskIds).find((taskId) => !taskIds.has(taskId));
-    if (missingTaskId) {
-      return `任务「${task.title}」引用了不存在的任务：${missingTaskId}`;
-    }
-  }
-
-  for (const outcome of sceneOutcomes) {
-    const refs = { statusIds: new Set<string>(), taskIds: new Set<string>() };
-    collectConditionRefs(outcome.condition, refs);
-    const missingStatusId = Array.from(refs.statusIds).find((statusId) => !statusIds.has(statusId));
-    if (missingStatusId) {
-      return `结局「${outcome.label}」引用了不存在的状态：${missingStatusId}`;
-    }
-    const missingTaskId = Array.from(refs.taskIds).find((taskId) => !taskIds.has(taskId));
-    if (missingTaskId) {
-      return `结局「${outcome.label}」引用了不存在的任务：${missingTaskId}`;
-    }
-  }
-
-  return "";
-};
 
 export const getErrorMessage = (error: unknown) => {
   if (error instanceof Error) {
@@ -316,12 +155,10 @@ export const cloneTavernRoomSettings = (settings: TavernRoomSettings): TavernRoo
   directorLoop: { ...settings.directorLoop },
   continuation: { ...settings.continuation },
   replyOptions: { ...settings.replyOptions },
-  statusTracking: { ...settings.statusTracking },
   randomEvents: { ...settings.randomEvents },
   illustrationHints: { ...settings.illustrationHints },
   directorScheduling: {
     ...settings.directorScheduling,
-    directorOnlyPhaseValues: [...settings.directorScheduling.directorOnlyPhaseValues],
     speakerMotivation: {
       ...settings.directorScheduling.speakerMotivation,
       rules: settings.directorScheduling.speakerMotivation.rules.map((rule) => ({ ...rule })),
@@ -329,7 +166,6 @@ export const cloneTavernRoomSettings = (settings: TavernRoomSettings): TavernRoo
     profile: cloneTavernDirectorProfile(settings.directorScheduling.profile),
     fixedOrder: {
       ...settings.directorScheduling.fixedOrder,
-      phaseValues: [...settings.directorScheduling.fixedOrder.phaseValues],
     },
   },
   informationPolicy: {
@@ -339,9 +175,6 @@ export const cloneTavernRoomSettings = (settings: TavernRoomSettings): TavernRoo
       ...settings.informationPolicy.roleAssignment,
       opening: {
         ...settings.informationPolicy.roleAssignment.opening,
-        globalStatusPatches: settings.informationPolicy.roleAssignment.opening.globalStatusPatches.map((patch) => ({
-          ...patch,
-        })),
       },
       rolePool: settings.informationPolicy.roleAssignment.rolePool.map((role) => ({ ...role })),
     },
@@ -360,24 +193,6 @@ export const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
     version: 1,
     blocks: room.prompt.blocks.map(cloneTavernPromptBlock),
   },
-  statusDefinitions: room.statusDefinitions.map((definition) => ({ ...definition })),
-  statusRules: room.statusRules.map((rule) => ({
-    ...rule,
-    when: { ...rule.when },
-    apply: {
-      ...rule.apply,
-      clamp: rule.apply.clamp ? [...rule.apply.clamp] : undefined,
-      valueByIntensity: rule.apply.valueByIntensity ? { ...rule.apply.valueByIntensity } : undefined,
-    },
-    safeguards: rule.safeguards ? { ...rule.safeguards } : undefined,
-  })),
-  progressViews: room.progressViews.map((view) => ({
-    ...view,
-    items: view.items.map((item) => ({ ...item })),
-  })),
-  progressTracker: { ...room.progressTracker },
-  taskDefinitions: room.taskDefinitions.map((task) => ({ ...task })),
-  sceneOutcomes: room.sceneOutcomes.map((outcome) => ({ ...outcome })),
   settings: cloneTavernRoomSettings(room.settings),
 });
 
@@ -413,12 +228,12 @@ export const applyInformationPolicyModePreset = (
     mode,
     uiDefaultView: "public",
     hideCharacterThoughts: true,
-    revealThoughts: "sceneOutcome",
+    revealThoughts: "manual",
     hiddenFacts: {
       ...current.hiddenFacts,
       enabled: true,
       defaultVisibility: "director",
-      reveal: "sceneOutcome",
+      reveal: "manual",
     },
     roleAssignment: {
       ...current.roleAssignment,

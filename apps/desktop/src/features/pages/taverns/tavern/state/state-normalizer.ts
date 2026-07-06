@@ -5,14 +5,6 @@ import { normalizeRoomSettings } from "../normalizers/room-settings";
 import { createTavernRoomFromSystemPreset } from "../factories/system-preset-room";
 import { getTavernSystemPreset, normalizeSystemPresetId, tavernSystemPresets } from "../system-preset-registry";
 import { normalizeVisualPresetId } from "../visual-presets";
-import {
-  normalizeProgressTracker,
-  normalizeProgressViews,
-  normalizeSceneOutcomes,
-  normalizeStatusDefinitions,
-  normalizeStatusRules,
-  normalizeTaskDefinitions,
-} from "../normalizers/status-normalizers";
 import type { TavernState } from "../types";
 import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 
@@ -52,12 +44,6 @@ const normalizeRoomConfig = (workspaceId: string, value: unknown): TavernRoom | 
     prompt: normalizeTavernPromptSettings(source.prompt, createDefaultPromptForPresentation(presentation)),
     creationSource: normalizeCreationSource(source.creationSource),
     scenePresetId: normalizeVisualPresetId(source.scenePresetId),
-    statusDefinitions: normalizeStatusDefinitions(source.statusDefinitions),
-    statusRules: normalizeStatusRules(source.statusRules),
-    progressViews: normalizeProgressViews(source.progressViews),
-    progressTracker: normalizeProgressTracker(source.progressTracker),
-    taskDefinitions: normalizeTaskDefinitions(source.taskDefinitions),
-    sceneOutcomes: normalizeSceneOutcomes(source.sceneOutcomes),
     replyMode: normalizeReplyMode(source.replyMode),
     settings: normalizeRoomSettings(source.settings),
     createdAt,

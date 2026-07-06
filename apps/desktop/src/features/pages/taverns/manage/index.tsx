@@ -1,4 +1,4 @@
-import { Activity, LogOut, Pencil, ScrollText, Settings2, Sparkles, Wine } from "lucide-react";
+import { LogOut, Pencil, ScrollText, Settings2, Sparkles, Wine } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { MouseEvent, Ref } from "react";
 import { useCallback, useImperativeHandle, useState } from "react";
@@ -15,14 +15,13 @@ import { Header } from "./header";
 import { BasicSection } from "./modules/basic";
 import { PromptSection } from "./modules/prompt";
 import type { TavernPromptWarningNavigationRequest } from "./modules/prompt/warning-navigation";
-import { ProgressSection } from "./modules/progress";
 import { SettingsSection } from "./modules/settings";
 import type { TextFieldAgentActionRenderer } from "./modules/types";
 import { cloneTavernRoom, getErrorMessage, prepareTavernRoomForSave } from "./utils";
 
 export type RoomEditorHandle = (room: TavernRoom) => void;
 
-type EditorModuleId = "basic" | "prompt" | "settings" | "progress";
+type EditorModuleId = "basic" | "prompt" | "settings";
 
 type EditorModuleGroupId = "runtime";
 
@@ -53,13 +52,6 @@ const editorModules: Array<{
     label: "运行设置",
     description: "模型和执行策略",
     icon: Settings2,
-  },
-  {
-    id: "progress",
-    group: "runtime",
-    label: "进度系统",
-    description: "状态追踪和进度面板",
-    icon: Activity,
   },
 ];
 
@@ -139,7 +131,6 @@ export const RoomEditor = ({ bind, globalRuntimeModel, onPatchRoom, onRunTextFie
         title: data.title,
         scenePresetId: data.scenePresetId,
         replyMode: data.replyMode,
-        progressTracker: data.progressTracker,
         promptBlocks: data.prompt.blocks
           .filter((block) => block.enabled && block.text.trim())
           .map((block) => ({
@@ -272,8 +263,6 @@ export const RoomEditor = ({ bind, globalRuntimeModel, onPatchRoom, onRunTextFie
         );
       case "settings":
         return <SettingsSection data={data} globalRuntimeModel={globalRuntimeModel} onSave={onModuleSave} />;
-      case "progress":
-        return <ProgressSection data={data} onSave={onModuleSave} />;
     }
   };
 

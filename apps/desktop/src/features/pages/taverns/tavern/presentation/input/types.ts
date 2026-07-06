@@ -6,14 +6,8 @@ import type {
   TavernCharacterRelationship,
   TavernLorebookEntry,
   TavernPresentationSettings,
-  TavernProgressTrackerSettings,
-  TavernProgressView,
   TavernRoomPromptSettings,
   TavernRoomSettings,
-  TavernSceneOutcomeDefinition,
-  TavernStatusDefinition,
-  TavernStatusRule,
-  TavernTaskDefinition,
 } from "@/features/pages/taverns/manage/model";
 import type { TavernScene, TavernStoryGraph } from "@/features/pages/taverns/room/model";
 
@@ -58,9 +52,6 @@ export type TavernPresentationSceneInput = Pick<
       | "sceneStatus"
       | "characterPublicStatuses"
       | "characterPrivateStatuses"
-      | "statusSnapshot"
-      | "taskDefinitions"
-      | "sceneOutcomes"
       | "characterMemories"
       | "characterIds"
       | "activeCharacterId"
@@ -79,14 +70,6 @@ export type TavernPresentationRuntimeInput = {
   presentation?: Partial<TavernPresentationSettings>;
   prompt?: Partial<TavernRoomPromptSettings>;
   settings?: Partial<TavernRoomSettings>;
-  progress?: {
-    statusDefinitions?: TavernStatusDefinition[];
-    statusRules?: TavernStatusRule[];
-    progressViews?: TavernProgressView[];
-    progressTracker?: Partial<TavernProgressTrackerSettings>;
-    taskDefinitions?: TavernTaskDefinition[];
-    sceneOutcomes?: TavernSceneOutcomeDefinition[];
-  };
   replyMode?: TavernRoom["replyMode"];
   creationSource?: TavernRoom["creationSource"];
 };

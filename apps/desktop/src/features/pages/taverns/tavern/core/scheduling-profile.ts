@@ -6,23 +6,15 @@ import type {
   TavernDirectorProfile,
   TavernDirectorReplyModePreference,
   TavernDirectorSpeechBias,
-  TavernFactEvent,
   TavernSchedulingSignal,
-  TavernStatusDefinition,
-  TavernStatusValue,
-  TavernTaskDefinition,
-  TavernTaskState,
 } from "@/features/pages/taverns/manage/model";
 import { isTavernDirectorOnlyPhase, isTavernFixedOrderPhase } from "./director-scheduling";
-import { filterTavernFactEventsForAudience } from "./information-policy";
-import { getTavernStatusSnapshotValue, tavernRelationshipKey } from "./progress-engine";
 import { formatTavernCharacterRelationships } from "./relationships";
 
 const PROFILE_TAG_LIMIT = 12;
 const PROFILE_TEXT_LIMIT = 160;
 const SIGNAL_REASON_LIMIT = 6;
 const RECENT_MESSAGE_SIGNAL_LIMIT = 8;
-const RECENT_FACT_SIGNAL_LIMIT = 18;
 
 const speechBiasValues: TavernDirectorSpeechBias[] = ["very_low", "low", "balanced", "high", "very_high"];
 
@@ -86,39 +78,6 @@ const uniquePush = (target: string[], value: string) => {
   if (trimmed && !target.includes(trimmed)) {
     target.push(trimmed);
   }
-};
-
-const entityMatchesCharacter = (entity: TavernFactEvent["actor"] | TavernFactEvent["target"], characterId: string) =>
-  entity?.type === "character" && entity.characterId === characterId;
-
-const taskEntityMatchesCharacter = (entity: TavernTaskDefinition["owner"], characterId: string) =>
-  entity.type === "character" && entity.characterId === characterId;
-
-const taskIncludesCharacter = (task: TavernTaskDefinition, characterId: string) =>
-  taskEntityMatchesCharacter(task.owner, characterId) ||
-  (task.participants ?? []).some((participant) => taskEntityMatchesCharacter(participant, characterId));
-
-const isActiveTask = (task: TavernTaskDefinition, taskSnapshot: Record<string, TavernTaskState>) => {
-  const status = taskSnapshot[task.id]?.status ?? task.lifecycle.initialStatus;
-  return status === "active";
-};
-
-const relationshipStatusLooksMotivating = (definition: TavernStatusDefinition) => {
-  const text = normalizeText(`${definition.id} ${definition.label} ${definition.description ?? ""}`);
-  return /favor|affection|trust|hostility|rival|bond|好感|信任|敌对|关系|承诺|竞争|仇恨|亲密/u.test(text);
-};
-
-const statusValueHasStake = (value: TavernStatusValue) => {
-  if (typeof value === "number") {
-    return Math.abs(value) >= 20;
-  }
-  if (typeof value === "boolean") {
-    return value;
-  }
-  if (Array.isArray(value)) {
-    return value.length > 0;
-  }
-  return typeof value === "string" && value.trim().length > 0;
 };
 
 const textMatchesAnyTag = (text: string, tags: string[]) => {
@@ -329,84 +288,6 @@ const recentCharacterMessageCount = (messages: TavernMessage[], characterId: str
     .slice(-RECENT_MESSAGE_SIGNAL_LIMIT)
     .filter((message) => message.role === "character" && message.characterId === characterId).length;
 
-const characterHasRelatedVisibleFact = ({
-  room,
-  characterId,
-  currentText,
-}: {
-  room: Pick<TavernRoom, "factEvents" | "settings"> & Partial<Pick<TavernRoom, "outcomeEvents">>;
-  characterId: string;
-  currentText: string;
-}) => {
-  const recentFacts = filterTavernFactEventsForAudience({
-    factEvents: room.factEvents,
-    room: {
-      settings: room.settings,
-      outcomeEvents: room.outcomeEvents ?? [],
-    },
-    audience: { type: "character", characterId },
-  }).slice(-RECENT_FACT_SIGNAL_LIMIT);
-  const normalizedCurrentText = normalizeText(currentText);
-  const currentKeywords = extractLooseTags(normalizedCurrentText, 8);
-
-  return recentFacts.some((fact) => {
-    if (entityMatchesCharacter(fact.actor, characterId) || entityMatchesCharacter(fact.target, characterId)) {
-      return true;
-    }
-
-    return currentKeywords.some(
-      (keyword) => keyword.length >= 2 && normalizeText(`${fact.type} ${fact.evidence}`).includes(keyword),
-    );
-  });
-};
-
-const characterHasRelationshipStake = ({
-  room,
-  characterId,
-}: {
-  room: Pick<TavernRoom, "statusDefinitions" | "statusSnapshot">;
-  characterId: string;
-}) => {
-  const userRef = { type: "user", userId: "user" } as const;
-  const characterRef = { type: "character", characterId } as const;
-  const motivatingDefinitions = room.statusDefinitions.filter(
-    (definition) => definition.scope === "relationship" && relationshipStatusLooksMotivating(definition),
-  );
-
-  return motivatingDefinitions.some((definition) => {
-    const towardUser = getTavernStatusSnapshotValue(
-      room.statusSnapshot,
-      {
-        type: "relationship",
-        subject: characterRef,
-        object: userRef,
-      },
-      definition.id,
-    );
-    const fromUser = getTavernStatusSnapshotValue(
-      room.statusSnapshot,
-      {
-        type: "relationship",
-        subject: userRef,
-        object: characterRef,
-      },
-      definition.id,
-    );
-    return statusValueHasStake(towardUser) || statusValueHasStake(fromUser);
-  });
-};
-
-const characterHasActiveTaskStake = ({
-  room,
-  characterId,
-}: {
-  room: Pick<TavernRoom, "taskDefinitions" | "taskSnapshot">;
-  characterId: string;
-}) =>
-  room.taskDefinitions.some(
-    (task) => taskIncludesCharacter(task, characterId) && isActiveTask(task, room.taskSnapshot),
-  );
-
 const clampScore = (score: number) => Math.max(0, Math.min(100, Math.round(score)));
 
 const signalModes = ({
@@ -444,16 +325,7 @@ export const buildTavernSchedulingSignals = ({
   currentUserText,
   selectedTargetCharacterIds = [],
 }: {
-  room: Pick<
-    TavernRoom,
-    | "settings"
-    | "statusDefinitions"
-    | "statusSnapshot"
-    | "factEvents"
-    | "outcomeEvents"
-    | "taskDefinitions"
-    | "taskSnapshot"
-  >;
+  room: Pick<TavernRoom, "settings">;
   characters: TavernCharacter[];
   messages: TavernMessage[];
   currentUserText: string;
@@ -506,30 +378,6 @@ export const buildTavernSchedulingSignals = ({
       score += 18;
       uniquePush(reasons, "与角色目标或触发条件一致");
       matchedRuleIds.push("goal-competes-for-user-attention");
-    }
-
-    if (
-      characterHasRelatedVisibleFact({
-        room,
-        characterId: character.id,
-        currentText: currentUserText,
-      })
-    ) {
-      score += 14;
-      uniquePush(reasons, "角色掌握或关联近期可见事实");
-      matchedRuleIds.push("knowledge-holder-helps-or-misdirects");
-    }
-
-    if (characterHasRelationshipStake({ room, characterId: character.id })) {
-      score += 12;
-      uniquePush(reasons, "关系状态存在调度利益");
-      matchedRuleIds.push("relationship-stakes");
-    }
-
-    if (characterHasActiveTaskStake({ room, characterId: character.id })) {
-      score += 16;
-      uniquePush(reasons, "角色有活跃任务或胜负目标");
-      matchedRuleIds.push("active-task-stake");
     }
 
     const recentSpeechCount = recentCharacterMessageCount(messages, character.id);
@@ -628,5 +476,3 @@ export const formatTavernSchedulingSignalsForPrompt = ({
     2,
   );
 };
-
-export const formatTavernRelationshipKeyForScheduling = tavernRelationshipKey;

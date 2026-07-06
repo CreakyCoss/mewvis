@@ -23,15 +23,6 @@ export const pickTavernRoomConfig = (room: TavernRoomConfig): TavernRoomConfig =
   },
   creationSource: room.creationSource,
   scenePresetId: room.scenePresetId,
-  statusDefinitions: room.statusDefinitions.map((definition) => ({ ...definition })),
-  statusRules: room.statusRules.map((rule) => ({ ...rule })),
-  progressViews: room.progressViews.map((view) => ({
-    ...view,
-    items: view.items.map((item) => ({ ...item })),
-  })),
-  progressTracker: { ...room.progressTracker },
-  taskDefinitions: room.taskDefinitions.map((task) => ({ ...task })),
-  sceneOutcomes: room.sceneOutcomes.map((outcome) => ({ ...outcome })),
   replyMode: room.replyMode,
   settings: {
     ...room.settings,
@@ -40,19 +31,16 @@ export const pickTavernRoomConfig = (room: TavernRoomConfig): TavernRoomConfig =
     directorLoop: { ...room.settings.directorLoop },
     continuation: { ...room.settings.continuation },
     replyOptions: { ...room.settings.replyOptions },
-    statusTracking: { ...room.settings.statusTracking },
     randomEvents: { ...room.settings.randomEvents },
     illustrationHints: { ...room.settings.illustrationHints },
     directorScheduling: {
       ...room.settings.directorScheduling,
-      directorOnlyPhaseValues: [...room.settings.directorScheduling.directorOnlyPhaseValues],
       speakerMotivation: {
         ...room.settings.directorScheduling.speakerMotivation,
         rules: room.settings.directorScheduling.speakerMotivation.rules.map((rule) => ({ ...rule })),
       },
       fixedOrder: {
         ...room.settings.directorScheduling.fixedOrder,
-        phaseValues: [...room.settings.directorScheduling.fixedOrder.phaseValues],
       },
     },
     informationPolicy: {
@@ -62,11 +50,6 @@ export const pickTavernRoomConfig = (room: TavernRoomConfig): TavernRoomConfig =
         ...room.settings.informationPolicy.roleAssignment,
         opening: {
           ...room.settings.informationPolicy.roleAssignment.opening,
-          globalStatusPatches: room.settings.informationPolicy.roleAssignment.opening.globalStatusPatches.map(
-            (patch) => ({
-              ...patch,
-            }),
-          ),
         },
         rolePool: room.settings.informationPolicy.roleAssignment.rolePool.map((role) => ({ ...role })),
       },
@@ -82,8 +65,6 @@ export const createTavernRuntimeRoomFromConfig = (room: TavernRoomConfig): Taver
   const scene = buildTavernScene({
     title: defaultSceneTitle,
     scenePresetId: room.scenePresetId,
-    taskDefinitions: room.taskDefinitions,
-    sceneOutcomes: room.sceneOutcomes,
     createdAt,
     updatedAt,
   });

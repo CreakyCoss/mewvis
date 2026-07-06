@@ -1,5 +1,5 @@
 import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
-import { createTavernRoleAssignmentFactEvents, type TavernRoleAssignmentSelection } from "../../../core";
+import type { TavernRoleAssignmentSelection } from "../../../core";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import {
   createTavernRoleAssignmentParticipants,
@@ -12,7 +12,6 @@ type ParsedRoleAssignment = {
   assignments?: unknown;
   openingNarrator?: unknown;
   dayAnnouncement?: unknown;
-  publicFact?: unknown;
 };
 
 const extractJsonObject = (text: string) => {
@@ -39,14 +38,10 @@ export const parseTavernDirectorRoleAssignmentText = ({
   text,
   room,
   characters,
-  turnId,
-  createdAt,
 }: {
   text: string;
   room: TavernRoom;
   characters: TavernCharacter[];
-  turnId: string;
-  createdAt: number;
 }): TavernDirectorRoleAssignment => {
   const roleAssignment = room.settings.informationPolicy.roleAssignment;
   const participants = createTavernRoleAssignmentParticipants(room, characters);
@@ -124,18 +119,10 @@ export const parseTavernDirectorRoleAssignmentText = ({
 
   const openingNarrator = typeof parsed.openingNarrator === "string" ? parsed.openingNarrator.trim().slice(0, 240) : "";
   const dayAnnouncement = typeof parsed.dayAnnouncement === "string" ? parsed.dayAnnouncement.trim().slice(0, 360) : "";
-  const publicFact = typeof parsed.publicFact === "string" ? parsed.publicFact.trim().slice(0, 240) : "";
 
   return {
-    factEvents: createTavernRoleAssignmentFactEvents({
-      room,
-      assignments: selections,
-      turnId,
-      createdAt,
-    }),
     openingNarrator,
     dayAnnouncement,
-    publicFact,
     rawText: text,
   };
 };

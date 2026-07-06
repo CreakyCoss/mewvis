@@ -77,7 +77,6 @@ export const runTavernInnerThought = async ({
     characters,
     userPersonaName: room.userPersonaName,
     relationshipOverrides: room.relationshipOverrides,
-    statusSnapshot: room.statusSnapshot,
   });
   const result = await runTavernRuntimeAgent({
     workspacePath,

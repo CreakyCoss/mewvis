@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils";
 import { formatTavernMessageSegmentsForDisplay } from "../domain/segments";
 import type { TavernRenderableMessage } from "../domain/render-model";
 import { MessageControls } from "../components/message-controls";
-import { MessagePrivateIntel } from "../components/message-private-intel";
 import { formatTavernMessageTime } from "../components/message-time";
 import type { TavernConversationRenderer } from "./types";
 
@@ -77,7 +76,6 @@ const ProseMessage = ({ message }: { message: TavernRenderableMessage }) => {
         </div>
       )}
 
-      <MessagePrivateIntel align="center" factEvents={message.userVisibleFactEvents} />
       <div className="absolute right-1 top-1">
         <MessageControls content={copyContent} disabled={message.status === "streaming"} />
       </div>

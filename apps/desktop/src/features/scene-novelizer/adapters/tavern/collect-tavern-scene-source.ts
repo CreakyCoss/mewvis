@@ -1,5 +1,4 @@
 import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
-import { filterTavernFactEventsForAudience } from "@/features/pages/taverns/tavern/core";
 import { createTavernRenderableMessages } from "@/features/pages/taverns/tavern/message";
 import type { TavernMessage, TavernMessageSegment } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
@@ -276,11 +275,6 @@ export const collectTavernSceneNovelSource = ({
     ];
   });
 
-  const visibleFacts = filterTavernFactEventsForAudience({
-    factEvents: room.factEvents,
-    room,
-    audience: { type: "user" },
-  }).filter((factEvent) => factEvent.visibleToUser === true || factEvent.visibility === "public");
   const unresolvedHooks = [
     ...room.pendingInteractions
       .filter((interaction) => interaction.status === "open")
@@ -299,7 +293,7 @@ export const collectTavernSceneNovelSource = ({
     sceneStatus: summarizeSceneStatus(room),
     userPersonaName: room.userPersonaName,
     materials,
-    confirmedFacts: visibleFacts.slice(-16).map((factEvent) => factEvent.evidence),
+    confirmedFacts: [],
     unresolvedHooks: Array.from(new Set(unresolvedHooks.map((hook) => textSnippet(hook, 160)))).slice(-8),
     constraints: {
       preserveUserActions: true,

@@ -1,5 +1,4 @@
 import {
-  Activity,
   Copy,
   Download,
   LockKeyhole,
@@ -7,6 +6,7 @@ import {
   Pencil,
   RotateCcw,
   ScrollText,
+  Settings2,
   Trash2,
   TriangleAlertIcon,
   UnlockKeyhole,
@@ -59,7 +59,7 @@ export const RoomCard = ({ management, room, openRoomEditor, onOperationStatusCh
   const { copyRoom, restoreSystemPresetRoom, setRoomLocked, deleteRoom, exportRoom } = management;
   const visualPreset = getVisualPreset(room.scenePresetId);
   const enabledPromptBlockCount = room.prompt.blocks.filter((block) => block.enabled && block.text.trim()).length;
-  const progressConfigCount = room.statusDefinitions.length + room.taskDefinitions.length + room.sceneOutcomes.length;
+  const interactionRuleCount = room.settings.interactionQualityRuleIds.length;
   const roomBadgeClassName = room.systemPresetId
     ? "border border-amber-200/45 bg-amber-950/75 text-amber-100 ring-amber-200/30 shadow-[0_12px_28px_-18px_rgb(245_158_11_/_0.95)]"
     : "border border-teal-100/30 bg-slate-950/65 text-teal-50 ring-teal-100/24 shadow-[0_12px_28px_-18px_rgb(15_23_42_/_0.9)]";
@@ -219,22 +219,15 @@ export const RoomCard = ({ management, room, openRoomEditor, onOperationStatusCh
               <span className="truncate">{enabledPromptBlockCount} 提示词</span>
             </span>
             <span className="inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border bg-muted/20 px-1.5">
-              <Activity className="size-3.5 shrink-0" />
-              <span className="truncate">{progressConfigCount} 进度</span>
+              <Settings2 className="size-3.5 shrink-0" />
+              <span className="truncate">{interactionRuleCount} 规则</span>
             </span>
           </div>
 
           <div className="mt-2.5">
             <div className="border-t pt-2.5">
-              <div className="relative flex h-14 items-center gap-2.5 overflow-hidden rounded-lg border border-primary/15 bg-primary/[0.055] px-3 py-2 text-xs leading-5 text-muted-foreground">
-                <Activity className="absolute -right-3 -bottom-4 size-14 text-primary/5" />
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <Activity className="size-4" />
-                </span>
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold leading-5 text-foreground">状态追踪</div>
-                  <div className="line-clamp-1">{room.progressTracker.enabled ? "已开启" : "未开启"}</div>
-                </div>
+              <div className="line-clamp-2 min-h-10 text-xs leading-5 text-muted-foreground">
+                {room.settings.directorScheduling.instruction.trim() || "使用当前房间的默认导演调度策略"}
               </div>
             </div>
             {room.locked && (

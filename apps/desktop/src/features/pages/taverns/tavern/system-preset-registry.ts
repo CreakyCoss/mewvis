@@ -5,17 +5,10 @@ import type {
   TavernCharacterPublicStatus,
   TavernCharacterRelationship,
   TavernPresentationSettings,
-  TavernProgressTrackerSettings,
-  TavernProgressView,
   TavernReplyMode,
   TavernRoomSettings,
-  TavernSceneOutcomeDefinition,
   TavernSceneRelationshipOverride,
   TavernSceneStatus,
-  TavernStatusDefinition,
-  TavernStatusRule,
-  TavernStatusSnapshot,
-  TavernTaskDefinition,
 } from "@/features/pages/taverns/manage/model";
 
 export type TavernSystemPresetCharacter = {
@@ -50,9 +43,6 @@ export type TavernSystemPresetScene = {
   sceneStatus?: Partial<TavernSceneStatus>;
   characterPublicStatuses?: Record<string, Partial<TavernCharacterPublicStatus>>;
   characterPrivateStatuses?: Record<string, Partial<TavernCharacterPrivateStatus>>;
-  statusSnapshot?: Partial<TavernStatusSnapshot>;
-  taskDefinitions?: TavernTaskDefinition[];
-  sceneOutcomes?: TavernSceneOutcomeDefinition[];
   characterMemories?: Record<string, string>;
   lorebookEntries?: Array<{
     title: string;
@@ -106,13 +96,6 @@ export type TavernSystemPresetRoom = {
   sceneStatus?: Partial<TavernSceneStatus>;
   characterPublicStatuses?: Record<string, Partial<TavernCharacterPublicStatus>>;
   characterPrivateStatuses?: Record<string, Partial<TavernCharacterPrivateStatus>>;
-  statusDefinitions?: TavernStatusDefinition[];
-  statusRules?: TavernStatusRule[];
-  progressViews?: TavernProgressView[];
-  progressTracker?: Partial<TavernProgressTrackerSettings>;
-  statusSnapshot?: Partial<TavernStatusSnapshot>;
-  taskDefinitions?: TavernTaskDefinition[];
-  sceneOutcomes?: TavernSceneOutcomeDefinition[];
   scenes?: TavernSystemPresetScene[];
   characterMemories?: Record<string, string>;
   lorebookEntries?: Array<{

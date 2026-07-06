@@ -44,16 +44,10 @@ import {
   hasTavernPresentationStarted,
   normalizeTavernPresentation,
 } from "../tavern/prompt-registry/presentation-rules";
-import {
-  advanceTavernProgressFromFactEvents,
-  createTavernProgressCheckpoint,
-  isGeneratedTavernRoleAssignmentFactEvent,
-  setTavernStatusSnapshotValue,
-} from "../tavern/core";
 import { createTavernRenderableMessages } from "../tavern/message";
 import { deleteTavernBridgeSession } from "../tavern/runtime/conversation";
 import type { TavernReferencedFile } from "../tavern/types";
-import type { TavernFactEvent, TavernReplyOption } from "@/features/pages/taverns/manage/model";
+import type { TavernReplyOption } from "@/features/pages/taverns/manage/model";
 import { runTavernUserReplySuggestions } from "../tavern/runtime/assistants";
 import { runTavernDirectorRoleAssignment } from "../tavern/runtime/director";
 import { uniqueFilesByPath } from "../tavern/utils";
@@ -61,7 +55,6 @@ import { Composer } from "./composer";
 import { TavernRoomProvider, type TavernRoomContextValue } from "./context";
 import { ExecutionTrace, type ExecutionStep } from "./execution-trace";
 import { Header } from "./header";
-import { ProgressPanel } from "./progress-panel";
 import { QuickSummary, type QuickSummaryHandle } from "./quick-summary";
 import { resolveTavernConversationRenderer } from "../tavern/message/renderers";
 import { SceneBriefCard } from "./scene-brief-card";
@@ -171,10 +164,6 @@ const getSceneDriveAutoPauseReason = (room: TavernRoom) => {
   );
   if (hasUserTargetedInteraction) {
     return "自动自推已暂停：有角色正在等待你的回应。";
-  }
-
-  if (room.outcomeEvents.some((event) => event.status === "applied")) {
-    return "自动自推已暂停：当前场景已达成结局。";
   }
 
   return "";
@@ -425,22 +414,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     );
   }, []);
 
-  const appendProgressCheckpointToRoom = useCallback<TavernRoomContextValue["appendProgressCheckpointToRoom"]>(
-    (room, reason, turnId) => {
-      const checkpoint = createTavernProgressCheckpoint({
-        room,
-        turnId,
-        reason,
-        createdAt: Date.now(),
-      });
-      return syncTavernRoomActiveScene({
-        ...room,
-        statusCheckpoints: [...room.statusCheckpoints, checkpoint].slice(-20),
-      });
-    },
-    [],
-  );
-
   const patchRoom = useCallback<TavernRoomContextValue["patchRoom"]>(
     (roomId, patch) => {
       setState((current) => {
@@ -649,7 +622,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       patchExecutionStep,
       appendExecutionStep,
       upsertExecutionStep,
-      appendProgressCheckpointToRoom,
       patchRoom,
       appendMessagesToRoom,
       patchMessage,
@@ -661,7 +633,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       activeRoom,
       appendExecutionStep,
       appendMessagesToRoom,
-      appendProgressCheckpointToRoom,
       characterById,
       draft,
       draftCursor,
@@ -721,7 +692,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const presentationProfile = getTavernPresentationProfile(activeRoom?.presentation?.profileId);
   const conversationRenderer = resolveTavernConversationRenderer(presentationProfile.renderStyle);
   const Conversation = conversationRenderer.Conversation;
-  const hasGlobalHeaderProgress = Boolean(activeRoom?.progressViews.some((view) => view.placement === "globalHeader"));
 
   useEffect(() => {
     setIsGeneratingReplySuggestions(false);
@@ -828,12 +798,10 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     }
 
     const roleAssignment = activeRoom.settings.informationPolicy.roleAssignment;
-    const alreadyAssigned = activeRoom.factEvents.some(isGeneratedTavernRoleAssignmentFactEvent);
     if (
       !roleAssignment.enabled ||
       roleAssignment.strategy !== "director_random" ||
       !roleAssignment.opening.autoStart ||
-      alreadyAssigned ||
       roleAssignmentRoomIdsRef.current.has(activeRoom.id) ||
       !runtimeModel ||
       roomCharacters.length === 0
@@ -864,7 +832,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
           return;
         }
 
-        const createdAt = Date.now();
         const narratorMessages = [assignment.openingNarrator?.trim(), assignment.dayAnnouncement?.trim()].filter(
           (content): content is string => Boolean(content),
         );
@@ -882,43 +849,8 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
           );
         }
 
-        const openingEventType = roleAssignment.opening.publicEventType.trim();
-        const openingFactEvent: TavernFactEvent | null = openingEventType
-          ? {
-              id: `director-opening-event-${createdAt.toString(36)}`,
-              turnId: assignment.factEvents[0]?.turnId ?? `director-opening-${createdAt.toString(36)}`,
-              sourceMessageIds: [],
-              type: openingEventType,
-              target: { type: "global" },
-              ...(roleAssignment.opening.publicEventValue !== undefined
-                ? { value: roleAssignment.opening.publicEventValue }
-                : {}),
-              evidence:
-                assignment.publicFact?.trim() ||
-                assignment.dayAnnouncement?.trim() ||
-                "身份分配完成，公开流程进入下一阶段。",
-              confidence: 1,
-              visibility: "public",
-              createdAt,
-            }
-          : null;
-        const progressPatch = advanceTavernProgressFromFactEvents({
-          room: activeRoom,
-          factEvents: [...assignment.factEvents, ...(openingFactEvent ? [openingFactEvent] : [])],
-          turnId:
-            openingFactEvent?.turnId ??
-            assignment.factEvents[0]?.turnId ??
-            `director-opening-${createdAt.toString(36)}`,
-          createdAt,
-        });
-        const statusSnapshot = roleAssignment.opening.globalStatusPatches.reduce(
-          (snapshot, patch) => setTavernStatusSnapshotValue(snapshot, { type: "global" }, patch.statusId, patch.value),
-          progressPatch.statusSnapshot,
-        );
-
         patchRoom(activeRoom.id, {
-          ...progressPatch,
-          statusSnapshot,
+          updatedAt: Date.now(),
         });
         setTurnStatus("身份已分配，按当前阶段继续。");
       })
@@ -1129,7 +1061,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     const sceneInstanceId = getRoomActiveSceneInstanceId(activeRoom);
     const sceneTitle = getTavernSceneInstanceDisplayTitle(activeRoom, activeRoom.activeSceneInstanceId, "当前节点");
     const confirmed = window.confirm(
-      `清空当前节点「${sceneTitle}」的对话记录？系统会先保存状态检查点，再把当前节点场景实例的消息替换为一条重置提示。`,
+      `清空当前节点「${sceneTitle}」的对话记录？当前节点场景实例的消息会被替换为一条重置提示。`,
     );
     if (!confirmed) {
       return;
@@ -1168,28 +1100,18 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
             ...room,
             updatedAt: Date.now(),
           });
-          const checkpoint = createTavernProgressCheckpoint({
-            room: syncedRoom,
-            turnId: resetMessage.id,
-            reason: "before_context_trim",
-            createdAt: Date.now(),
-          });
-          const checkpointRoom = syncTavernRoomActiveScene({
-            ...syncedRoom,
-            statusCheckpoints: [...syncedRoom.statusCheckpoints, checkpoint].slice(-20),
-          });
-          const presentation = normalizeTavernPresentation(checkpointRoom.presentation);
+          const presentation = normalizeTavernPresentation(syncedRoom.presentation);
 
           return presentation.lockedSceneId === currentSceneInstanceId
             ? {
-                ...checkpointRoom,
+                ...syncedRoom,
                 presentation: {
                   ...presentation,
                   lockedAt: undefined,
                   lockedSceneId: undefined,
                 },
               }
-            : checkpointRoom;
+            : syncedRoom;
         }),
         messagesByInstance: {
           ...current.messagesByInstance,
@@ -1605,10 +1527,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
                 }}
               />
 
-              {hasGlobalHeaderProgress && (
-                <ProgressPanel placement="globalHeader" className="mx-auto w-full max-w-3xl px-4 py-2 sm:px-5" />
-              )}
-
               <ScrollArea
                 viewportRef={messageViewportRef}
                 className={cn("min-h-0 flex-1", visualPreset.tavern.scrollArea)}
@@ -1633,7 +1551,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
                         onSelectScene={(sceneInstanceId) => selectRoomSceneInstance(activeRoom.id, sceneInstanceId)}
                       />
                     }
-                    progressSlot={<ProgressPanel placement="sceneHeader" className="mt-2" />}
                   />
                   <Conversation
                     messages={renderableRoomMessages}
@@ -1652,7 +1569,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
               <Composer
                 referencedFilePreviews={referencedFilePreviews}
                 referenceSuggestions={referenceSuggestions}
-                progressSlot={<ProgressPanel placement="composerBelow" />}
                 inputRef={draftInputRef}
                 onInsertReference={insertReference}
                 onGenerateReplySuggestions={handleGenerateReplySuggestions}

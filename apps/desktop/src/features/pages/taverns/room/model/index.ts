@@ -5,23 +5,14 @@ import type {
   TavernCharacter,
   TavernCharacterPrivateStatus,
   TavernCharacterPublicStatus,
-  TavernFactEvent,
   TavernLorebookEntry,
   TavernPendingInteraction,
-  TavernProgressCheckpoint,
   TavernReplyOption,
   TavernRoom as TavernRoomConfig,
   TavernRoomCharacterConfig,
-  TavernOutcomeEvent,
-  TavernSceneOutcomeDefinition,
   TavernScenePromptOverrides,
   TavernSceneRelationshipOverride,
   TavernSceneStatus,
-  TavernStatusEvent,
-  TavernStatusSnapshot,
-  TavernTaskDefinition,
-  TavernTaskEvent,
-  TavernTaskState,
 } from "@/features/pages/taverns/manage/model";
 
 export type TavernStoryNodeType = "normal" | "failure" | "ending";
@@ -98,16 +89,6 @@ export type TavernScene = {
   characterPrivateStatuses: Record<string, TavernCharacterPrivateStatus>;
   pendingInteractions: TavernPendingInteraction[];
   replyOptions: TavernReplyOption[];
-  factEvents: TavernFactEvent[];
-  statusEvents: TavernStatusEvent[];
-  statusSnapshot: TavernStatusSnapshot;
-  previousStatusSnapshot?: TavernStatusSnapshot;
-  statusCheckpoints: TavernProgressCheckpoint[];
-  taskDefinitions: TavernTaskDefinition[];
-  taskEvents: TavernTaskEvent[];
-  taskSnapshot: Record<string, TavernTaskState>;
-  sceneOutcomes: TavernSceneOutcomeDefinition[];
-  outcomeEvents: TavernOutcomeEvent[];
   characterConfigs?: Record<string, TavernRoomCharacterConfig>;
   characterMemories: Record<string, string>;
   illustrationHints: TavernIllustrationHint[];
@@ -214,14 +195,6 @@ export type TavernRuntimeRoom = TavernRoomConfig & {
   characterPrivateStatuses: Record<string, TavernCharacterPrivateStatus>;
   pendingInteractions: TavernPendingInteraction[];
   replyOptions: TavernReplyOption[];
-  factEvents: TavernFactEvent[];
-  statusEvents: TavernStatusEvent[];
-  statusSnapshot: TavernStatusSnapshot;
-  previousStatusSnapshot?: TavernStatusSnapshot;
-  statusCheckpoints: TavernProgressCheckpoint[];
-  taskEvents: TavernTaskEvent[];
-  taskSnapshot: Record<string, TavernTaskState>;
-  outcomeEvents: TavernOutcomeEvent[];
   characterConfigs?: Record<string, TavernRoomCharacterConfig>;
   characterMemories: Record<string, string>;
   localCharacters?: TavernCharacter[];

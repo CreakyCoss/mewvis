@@ -1,4 +1,4 @@
-import { Activity, BookOpen, LockKeyhole, Palette, ScrollText } from "lucide-react";
+import { BookOpen, LockKeyhole, Palette, ScrollText } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,11 +31,6 @@ export const Header = ({ data, textFieldAgentError, onOpenStoryConfig }: HeaderP
       value: data.prompt.blocks.filter((block) => block.enabled && block.text.trim()).length,
       label: "启用提示词",
     },
-    {
-      icon: Activity,
-      value: data.statusDefinitions.length + data.taskDefinitions.length,
-      label: "进度配置",
-    },
   ];
 
   return (
@@ -61,7 +56,7 @@ export const Header = ({ data, textFieldAgentError, onOpenStoryConfig }: HeaderP
               )}
             </div>
             <p className="line-clamp-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              编辑酒馆呈现、提示词、调度和进度系统；故事资产在独立故事页维护。
+              编辑酒馆呈现、提示词和调度策略；故事资产在独立故事页维护。
             </p>
             {textFieldAgentError && (
               <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs leading-5 text-destructive">
@@ -84,7 +79,7 @@ export const Header = ({ data, textFieldAgentError, onOpenStoryConfig }: HeaderP
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2 text-xs">
           {headerStats.map(({ icon: Icon, value, label }) => (
             <div key={label} className="flex items-center gap-3 rounded-lg border bg-muted/10 px-3 py-2.5 shadow-xs">
               <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">

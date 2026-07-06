@@ -1,11 +1,9 @@
 import {
-  Activity,
   Box,
   Clapperboard,
   Clock3,
   FileText,
   Image,
-  LayoutDashboard,
   PackageCheck,
   Pencil,
   Settings2,
@@ -56,18 +54,6 @@ const qnaBreakLabel = {
   aggressive: "积极打断",
 } satisfies Record<TavernRoomSettings["directorNarrativeControl"]["qnaBreak"], string>;
 
-const getProgressModeLabel = (data: TavernRoom) => {
-  if (data.progressTracker.mode === "manual") {
-    return "手动";
-  }
-
-  if (data.progressTracker.mode === "afterTurn") {
-    return "每轮";
-  }
-
-  return `${data.progressTracker.intervalTurns} 轮`;
-};
-
 export const SettingsSection = ({ data, globalRuntimeModel, onSave }: SettingsSectionProps) => {
   const editRef = useRef<SettingsEditHandle>(null);
   const modelLabel = globalRuntimeModel
@@ -84,7 +70,7 @@ export const SettingsSection = ({ data, globalRuntimeModel, onSave }: SettingsSe
       <EditorSection
         icon={Settings2}
         title="运行设置"
-        description="控制模型执行、自动化、导演调度、状态追踪和信息揭示。"
+        description="控制模型执行、自动化、导演调度和信息揭示。"
         action={
           <Button
             type="button"
@@ -140,11 +126,6 @@ export const SettingsSection = ({ data, globalRuntimeModel, onSave }: SettingsSe
                     {enabledText(data.settings.illustrationHints.enabled)}
                   </EditorStatusPill>
                 </EditorSettingRow>
-                <EditorSettingRow icon={LayoutDashboard} label="状态栏">
-                  <EditorStatusPill tone={data.settings.statusTracking.enabled ? "active" : "muted"}>
-                    {data.settings.statusTracking.enabled ? "显示" : "隐藏"}
-                  </EditorStatusPill>
-                </EditorSettingRow>
               </EditorSettingGroup>
 
               <EditorSettingGroup title="自动化" className="lg:px-5">
@@ -152,14 +133,6 @@ export const SettingsSection = ({ data, globalRuntimeModel, onSave }: SettingsSe
                   <EditorStatusPill tone={booleanTone(data.settings.autoAssetExtractionEnabled)}>
                     {enabledText(data.settings.autoAssetExtractionEnabled)}
                   </EditorStatusPill>
-                </EditorSettingRow>
-                <EditorSettingRow icon={Target} label="自动追踪状态">
-                  <EditorStatusPill tone={booleanTone(data.progressTracker.enabled)}>
-                    {enabledText(data.progressTracker.enabled)}
-                  </EditorStatusPill>
-                </EditorSettingRow>
-                <EditorSettingRow icon={Activity} label="状态追踪">
-                  <EditorStatusPill tone="active">{getProgressModeLabel(data)}</EditorStatusPill>
                 </EditorSettingRow>
                 <EditorSettingRow icon={PackageCheck} label="草稿上限">
                   <EditorStatusPill tone="info">{data.settings.maxAssetDrafts} 份</EditorStatusPill>
@@ -207,11 +180,6 @@ export const SettingsSection = ({ data, globalRuntimeModel, onSave }: SettingsSe
                     {data.settings.agentKnowledgeCompactIntervalTurns > 0
                       ? `${data.settings.agentKnowledgeCompactIntervalTurns} 轮`
                       : "关闭"}
-                  </EditorStatusPill>
-                </EditorSettingRow>
-                <EditorSettingRow icon={LayoutDashboard} label="状态配置">
-                  <EditorStatusPill tone={data.progressViews.length > 0 ? "active" : "muted"}>
-                    {data.progressViews.length} 面板
                   </EditorStatusPill>
                 </EditorSettingRow>
               </EditorSettingGroup>

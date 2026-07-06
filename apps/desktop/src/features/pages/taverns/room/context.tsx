@@ -5,11 +5,7 @@ import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { Workspace } from "@/features/pages/workspace/types";
 import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";
 import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
-import type {
-  TavernCharacter,
-  TavernProgressCheckpoint,
-  TavernReplyOption,
-} from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
 import type { ExecutionStep } from "./execution-trace";
 
 export type TavernRoomContextValue = {
@@ -51,11 +47,6 @@ export type TavernRoomContextValue = {
   patchExecutionStep: (stepId: string, patch: Partial<Omit<ExecutionStep, "id">>) => void;
   appendExecutionStep: (step: ExecutionStep) => void;
   upsertExecutionStep: (step: ExecutionStep) => void;
-  appendProgressCheckpointToRoom: (
-    room: TavernRoom,
-    reason: TavernProgressCheckpoint["reason"],
-    turnId?: string,
-  ) => TavernRoom;
   patchRoom: (roomId: string, patch: Partial<TavernRoom>) => void;
   appendMessagesToRoom: (roomId: string, messages: TavernMessage[]) => void;
   patchMessage: (messageId: string, patch: Partial<TavernMessage>) => void;

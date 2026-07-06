@@ -245,8 +245,6 @@ export type TavernRoomSettings = {
     targetedReplyPolicy: "director" | "prefer" | "include" | "exclusive";
     maxExtraSpeakersOnTargetedReply: number;
     allowDirectorOnly: boolean;
-    directorOnlyPhaseStatusId?: string;
-    directorOnlyPhaseValues: string[];
     speakerMotivation: {
       enabled: boolean;
       maxMotivatedSpeakers: number;
@@ -261,8 +259,6 @@ export type TavernRoomSettings = {
     profile?: TavernDirectorProfile;
     fixedOrder: {
       enabled: boolean;
-      phaseStatusId?: string;
-      phaseValues: string[];
       stopAfterRound: boolean;
       includeUser: boolean;
       userPosition: "first" | "last";
@@ -279,10 +275,6 @@ export type TavernRoomSettings = {
   replyOptions: {
     enabled: boolean;
     count: number;
-  };
-  statusTracking: {
-    enabled: boolean;
-    visibleToUser: boolean;
   };
   randomEvents: {
     enabled: boolean;
@@ -352,28 +344,9 @@ export type TavernReplyOption = {
   intent: "answer" | "ask" | "act" | "interrupt" | "wait" | "inspect";
 };
 
-export type TavernEntityRef =
-  | { type: "user"; userId: "user" }
-  | { type: "character"; characterId: string }
-  | { type: "team"; teamId: string }
-  | { type: "faction"; factionId: string }
-  | { type: "party"; partyId: string }
-  | { type: "scene"; sceneId: string }
-  | { type: "global" };
-
-export type TavernStatusScope = "global" | "scene" | "party" | "character" | "relationship";
-
-export type TavernStatusValueType = "number" | "text" | "enum" | "boolean" | "tags";
-
-export type TavernStatusValue = number | string | boolean | string[] | null;
-
-export type TavernProgressVisibility = "public" | "owner" | "team" | "private" | "director" | "hidden" | "debug";
-
-export type TavernEventIntensity = "trivial" | "minor" | "moderate" | "major" | "critical";
-
 export type TavernInformationPolicyMode = "open" | "mystery" | "social_deduction" | "custom";
 
-export type TavernInformationRevealMode = "manual" | "sceneOutcome" | "never";
+export type TavernInformationRevealMode = "manual" | "never";
 
 export type TavernRoleAssignmentDefinition = {
   id: string;
@@ -391,7 +364,7 @@ export type TavernInformationPolicy = {
   revealThoughts: TavernInformationRevealMode;
   hiddenFacts: {
     enabled: boolean;
-    defaultVisibility: Extract<TavernProgressVisibility, "director" | "hidden" | "debug">;
+    defaultVisibility: "director" | "hidden" | "debug";
     reveal: TavernInformationRevealMode;
   };
   roleAssignment: {
@@ -403,302 +376,8 @@ export type TavernInformationPolicy = {
     rolePool: TavernRoleAssignmentDefinition[];
     opening: {
       autoStart: boolean;
-      publicEventType: string;
-      publicEventValue?: TavernStatusValue;
-      globalStatusPatches: Array<{
-        statusId: string;
-        value: TavernStatusValue;
-      }>;
     };
   };
-};
-
-export type TavernStatusTargetRef =
-  | { type: "global" }
-  | { type: "scene"; sceneId?: string }
-  | { type: "party"; partyId: string }
-  | { type: "character"; characterId: string }
-  | {
-      type: "relationship";
-      subject: TavernEntityRef;
-      object: TavernEntityRef;
-    };
-
-export type TavernStatusDefinition = {
-  id: string;
-  label: string;
-  description?: string;
-  scope: TavernStatusScope;
-  valueType: TavernStatusValueType;
-  defaultValue: TavernStatusValue;
-  visibility: TavernProgressVisibility;
-  min?: number;
-  max?: number;
-  enumOptions?: Array<{ value: string; label: string }>;
-  relationship?: {
-    directed: boolean;
-    allowedSubjectTypes?: TavernEntityRef["type"][];
-    allowedObjectTypes?: TavernEntityRef["type"][];
-  };
-  updatePolicy: {
-    mode: "manualOnly" | "eventDriven" | "eventDrivenWithReview" | "llmSuggestedWithReview";
-    requireFactEvent: boolean;
-    allowedEventTypes?: string[];
-    maxDeltaPerTurn?: number;
-    confidenceThreshold?: number;
-    manualReviewAboveDelta?: number;
-  };
-};
-
-export type TavernFactEvent = {
-  id: string;
-  turnId: string;
-  sourceMessageIds: string[];
-  type: string;
-  actor?: TavernEntityRef;
-  target?: TavernEntityRef;
-  intensity?: TavernEventIntensity;
-  value?: TavernStatusValue;
-  evidence: string;
-  confidence: number;
-  visibility?: TavernProgressVisibility;
-  revealWhen?: TavernInformationRevealMode;
-  visibleToUser?: boolean;
-  visibleToCharacterIds?: string[];
-  visibleToFactionIds?: string[];
-  createdAt: number;
-};
-
-export type TavernStatusRule = {
-  id: string;
-  label: string;
-  when: {
-    eventType: string;
-    targetScope: TavernStatusScope;
-  };
-  apply: {
-    statusId: string;
-    target?: "eventTarget" | "eventActor" | "relationshipActorToTarget" | "relationshipTargetToActor";
-    op: "add" | "set";
-    value?: TavernStatusValue;
-    valueByIntensity?: Partial<Record<TavernEventIntensity, number>>;
-    clamp?: [number, number];
-  };
-  safeguards?: {
-    maxDeltaPerTurn?: number;
-    cooldownTurns?: number;
-    requireExplicitEvidence?: boolean;
-    manualReviewAboveDelta?: number;
-  };
-};
-
-export type TavernStatusEvent = {
-  id: string;
-  turnId: string;
-  sourceFactEventIds: string[];
-  sourceMessageIds: string[];
-  target: TavernStatusTargetRef;
-  statusId: string;
-  before: TavernStatusValue;
-  after: TavernStatusValue;
-  delta?: number;
-  reason: string;
-  confidence: number;
-  visibility: TavernProgressVisibility;
-  ruleId?: string;
-  status: "applied" | "pending" | "rejected";
-  createdBy: "status_tracker" | "rule_engine" | "manual" | "system";
-  createdAt: number;
-};
-
-export type TavernStatusSnapshot = {
-  turnId: string;
-  global: Record<string, TavernStatusValue>;
-  scene: Record<string, TavernStatusValue>;
-  parties: Record<string, Record<string, TavernStatusValue>>;
-  characters: Record<string, Record<string, TavernStatusValue>>;
-  relationships: Record<string, Record<string, TavernStatusValue>>;
-  updatedAt: number;
-};
-
-export type TavernCondition =
-  | { all: TavernCondition[] }
-  | { any: TavernCondition[] }
-  | { not: TavernCondition }
-  | {
-      status: string;
-      target: TavernStatusTargetRef;
-      gte?: number;
-      lte?: number;
-      equals?: TavernStatusValue;
-      notEquals?: TavernStatusValue;
-      crossing?: "up" | "down";
-    }
-  | {
-      factEvent: string;
-      actor?: TavernEntityRef;
-      target?: TavernEntityRef;
-      countGte?: number;
-      withinTurns?: number;
-    }
-  | {
-      task: string;
-      owner?: TavernEntityRef;
-      status: "inactive" | "active" | "completed" | "failed";
-    }
-  | {
-      flag: string;
-      equals: TavernStatusValue;
-    };
-
-export type TavernProgressAction =
-  | { type: "statusPatch"; statusEvents: TavernStatusEvent[] }
-  | { type: "directorDirective"; instruction: string }
-  | { type: "replyOptions"; options: TavernReplyOption[] }
-  | { type: "sceneTransitionSuggestion"; targetSceneId: string; requiresUserConfirm: boolean }
-  | { type: "messageInline"; visibility: TavernProgressVisibility; text: string };
-
-export type TavernTaskDefinition = {
-  id: string;
-  title: string;
-  description?: string;
-  scope: "personal" | "team" | "party" | "scene" | "global";
-  owner: TavernEntityRef;
-  participants?: TavernEntityRef[];
-  visibility: TavernProgressVisibility;
-  required: boolean;
-  optional: boolean;
-  repeatable: boolean;
-  lifecycle: {
-    initialStatus: "inactive" | "active";
-    startCondition?: TavernCondition;
-    completeCondition: TavernCondition;
-    failCondition?: TavernCondition;
-  };
-  progress?: {
-    mode: "boolean" | "count" | "meter" | "checklist";
-    target?: number;
-  };
-  onComplete?: TavernProgressAction[];
-  onFail?: TavernProgressAction[];
-};
-
-export type TavernTaskState = {
-  taskId: string;
-  owner: TavernEntityRef;
-  status: "inactive" | "active" | "completed" | "failed";
-  progress?: {
-    current: number;
-    target: number;
-  };
-  updatedTurnId?: string;
-  updatedAt: number;
-};
-
-export type TavernTaskEvent = {
-  id: string;
-  turnId: string;
-  taskId: string;
-  owner: TavernEntityRef;
-  type: "activated" | "progressed" | "completed" | "failed" | "reset";
-  before?: TavernTaskState;
-  after: TavernTaskState;
-  sourceFactEventIds: string[];
-  sourceStatusEventIds: string[];
-  reason: string;
-  createdAt: number;
-};
-
-export type TavernSceneOutcomeDefinition = {
-  id: string;
-  label: string;
-  winner?: TavernEntityRef[];
-  loser?: TavernEntityRef[];
-  condition: TavernCondition;
-  priority: number;
-  exclusive: boolean;
-  endScene: "none" | "suggest" | "auto";
-  visibility: TavernProgressVisibility;
-  onAchieved?: TavernProgressAction[];
-};
-
-export type TavernOutcomeEvent = {
-  id: string;
-  turnId: string;
-  outcomeId: string;
-  winners: TavernEntityRef[];
-  losers: TavernEntityRef[];
-  sourceTaskEventIds: string[];
-  sourceStatusEventIds: string[];
-  status: "pending" | "applied" | "dismissed";
-  createdAt: number;
-};
-
-export type TavernProgressCheckpoint = {
-  id: string;
-  turnId: string;
-  statusSnapshot: TavernStatusSnapshot;
-  taskSnapshot: Record<string, TavernTaskState>;
-  includedFactEventIds: string[];
-  includedStatusEventIds: string[];
-  includedTaskEventIds: string[];
-  includedOutcomeEventIds: string[];
-  reason: "initial" | "after_turn" | "before_context_trim" | "manual" | "compaction" | "rebuild";
-  createdAt: number;
-};
-
-export type TavernProgressView = {
-  id: string;
-  label: string;
-  kind: "status" | "task" | "outcome" | "mixed";
-  placement: "globalHeader" | "sceneHeader" | "sidePanel" | "characterCard" | "composerBelow" | "messageInline";
-  ownerBinding:
-    | "global"
-    | "scene"
-    | "party"
-    | "allCharacters"
-    | "activeCharacter"
-    | "activeCharacterOutgoing"
-    | "activeCharacterToUser"
-    | "allCharactersToUser"
-    | "allCharacterPairs"
-    | "team"
-    | "currentUser";
-  layout: "compact" | "list" | "grid" | "bars" | "matrix" | "questLog";
-  compareWith?: "none" | "previousTurn" | "lastChanged";
-  items: Array<
-    | {
-        type: "status";
-        statusId: string;
-        display: "bar" | "meter" | "badge" | "tags" | "text" | "number" | "enum" | "switch";
-        showDelta?: boolean;
-        hiddenWhenDefault?: boolean;
-        thresholds?: Array<{
-          lte?: number;
-          gte?: number;
-          tone: "normal" | "info" | "success" | "warning" | "danger";
-        }>;
-      }
-    | {
-        type: "task";
-        taskId: string;
-        display: "checkbox" | "progress" | "badge" | "detail";
-      }
-    | {
-        type: "outcome";
-        outcomeId: string;
-        display: "badge" | "banner";
-      }
-  >;
-};
-
-export type TavernProgressTrackerSettings = {
-  enabled: boolean;
-  mode: "manual" | "afterTurn" | "fixedTurns";
-  intervalTurns: number;
-  applyMode: "auto" | "review";
-  factConfidenceThreshold: number;
-  generateCheckpointBeforeContextTrim: boolean;
 };
 
 export type TavernRoom = {
@@ -712,12 +391,6 @@ export type TavernRoom = {
   prompt: TavernRoomPromptSettings;
   creationSource?: "manual" | "quick" | "imported" | "agent_generated";
   scenePresetId: VisualPresetId;
-  statusDefinitions: TavernStatusDefinition[];
-  statusRules: TavernStatusRule[];
-  progressViews: TavernProgressView[];
-  progressTracker: TavernProgressTrackerSettings;
-  taskDefinitions: TavernTaskDefinition[];
-  sceneOutcomes: TavernSceneOutcomeDefinition[];
   replyMode: TavernReplyMode;
   settings: TavernRoomSettings;
   createdAt: number;

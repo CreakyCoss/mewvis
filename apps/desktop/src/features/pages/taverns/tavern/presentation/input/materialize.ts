@@ -1,23 +1,9 @@
-import {
-  DEFAULT_TAVERN_PROGRESS_TRACKER,
-  DEFAULT_TAVERN_PROGRESS_VIEWS,
-  DEFAULT_TAVERN_STATUS_DEFINITIONS,
-  DEFAULT_TAVERN_STATUS_RULES,
-} from "../../defaults";
 import { createTavernId as createId, now } from "../../ids";
 import { materializeTavernMessage } from "../../message";
 import { normalizeReplyMode } from "../../normalizers/reply-mode";
 import { normalizeCharacterRelationships } from "../../normalizers/relationships";
 import { normalizeRoomCharacterConfigs } from "../../normalizers/room-character-configs";
 import { normalizeRoomSettings } from "../../normalizers/room-settings";
-import {
-  normalizeProgressTracker,
-  normalizeProgressViews,
-  normalizeSceneOutcomes,
-  normalizeStatusDefinitions,
-  normalizeStatusRules,
-  normalizeTaskDefinitions,
-} from "../../normalizers/status-normalizers";
 import { normalizeRoomPresentation } from "../presentation-settings";
 import { createDefaultPromptForPresentation } from "../presentation-settings";
 import { createDefaultTavernPromptSettings, normalizeTavernPromptSettings } from "../../prompt-registry/text-blocks";
@@ -142,16 +128,6 @@ const createTavernInputScene = ({
     characterPrivateStatuses: scene.characterPrivateStatuses,
     pendingInteractions: [],
     replyOptions: [],
-    factEvents: [],
-    statusEvents: [],
-    statusSnapshot: scene.statusSnapshot,
-    previousStatusSnapshot: undefined,
-    statusCheckpoints: [],
-    taskDefinitions: scene.taskDefinitions,
-    taskEvents: [],
-    taskSnapshot: {},
-    sceneOutcomes: scene.sceneOutcomes,
-    outcomeEvents: [],
     characterConfigs: normalizeRoomCharacterConfigs(
       undefined,
       createSceneCharacterMemories({ scene, characterMemoryDefaults }),
@@ -303,21 +279,6 @@ export const materializeTavernPresentationInput = (
     activeSceneId: activeScene.id,
     scenes: normalizedScenes,
   };
-  const roomProgress = {
-    statusDefinitions: normalizeStatusDefinitions(
-      input.runtime?.progress?.statusDefinitions ?? DEFAULT_TAVERN_STATUS_DEFINITIONS,
-    ),
-    statusRules: normalizeStatusRules(input.runtime?.progress?.statusRules ?? DEFAULT_TAVERN_STATUS_RULES),
-    progressViews: normalizeProgressViews(input.runtime?.progress?.progressViews ?? DEFAULT_TAVERN_PROGRESS_VIEWS),
-    progressTracker: normalizeProgressTracker(
-      input.runtime?.progress?.progressTracker ?? DEFAULT_TAVERN_PROGRESS_TRACKER,
-    ),
-    taskDefinitions: normalizeTaskDefinitions(input.runtime?.progress?.taskDefinitions),
-    taskEvents: activeScene.taskEvents,
-    taskSnapshot: activeScene.taskSnapshot,
-    sceneOutcomes: normalizeSceneOutcomes(input.runtime?.progress?.sceneOutcomes),
-    outcomeEvents: activeScene.outcomeEvents,
-  };
   const room = projectTavernSceneOntoRoom({
     id: roomId,
     workspaceId,
@@ -328,7 +289,6 @@ export const materializeTavernPresentationInput = (
     prompt,
     ...roomStory,
     ...projectTavernSceneFieldsOntoRoom(activeScene),
-    ...roomProgress,
     characterConfigs,
     characterMemories: characterMemoryDefaults,
     localCharacters: characters,

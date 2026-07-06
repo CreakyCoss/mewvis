@@ -26,7 +26,6 @@ const characterBrief = (room: TavernRoom, characters: TavernCharacter[]) =>
             characters,
             userPersonaName: room.userPersonaName,
             relationshipOverrides: room.relationshipOverrides,
-            statusSnapshot: room.statusSnapshot,
           });
           return relationships ? `关系：${relationships}` : "";
         })(),

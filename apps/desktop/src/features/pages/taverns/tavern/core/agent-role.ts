@@ -82,7 +82,3 @@ export const tavernQuickNovelAgentRoleId = (room: Pick<TavernRoom, "id" | "activ
 
 export const tavernArchivistAgentRoleId = (room: Pick<TavernRoom, "id" | "activeSceneInstanceId" | "activeSceneId">) =>
   `tavern-${sanitizeAgentRoleSegment(room.id, "room")}-${tavernAgentScopeSegment(room)}-archivist`;
-
-export const tavernProgressTrackerAgentRoleId = (
-  room: Pick<TavernRoom, "id" | "activeSceneInstanceId" | "activeSceneId">,
-) => `tavern-${sanitizeAgentRoleSegment(room.id, "room")}-${tavernAgentScopeSegment(room)}-progress-tracker`;

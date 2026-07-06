@@ -24,7 +24,6 @@ const messageRoleRenderers: Record<TavernMessage["role"], (context: MessageRoleR
   narrator: ({ message, visualPreset }) => (
     <NarratorMessage
       content={message.content}
-      factEvents={message.userVisibleFactEvents}
       isStreaming={message.status === "streaming"}
       visualPreset={visualPreset}
     />
@@ -33,7 +32,6 @@ const messageRoleRenderers: Record<TavernMessage["role"], (context: MessageRoleR
     <UserMessage
       content={message.content}
       createdAt={message.createdAt}
-      factEvents={message.userVisibleFactEvents}
       isSending={isSending}
       isStreaming={message.status === "streaming"}
       referencedFiles={message.referencedFiles}
@@ -46,7 +44,6 @@ const messageRoleRenderers: Record<TavernMessage["role"], (context: MessageRoleR
       character={character}
       content={message.content}
       createdAt={message.createdAt}
-      factEvents={message.userVisibleFactEvents}
       immersiveDescriptionEnabled={activeRoom.settings.immersiveDescriptionEnabled !== false}
       isError={message.status === "error"}
       isStreaming={message.status === "streaming"}

@@ -3,17 +3,15 @@ import { resolveAvatar } from "@/assets/avatars";
 import { SmoothMarkdownContent } from "@/features/ai/components/markdown";
 import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";
 import { cn } from "@/lib/utils";
-import type { TavernCharacter, TavernFactEvent } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { stripTavernImmersiveDescriptionText } from "../protocol/parse-reply";
 import { MessageControls } from "./message-controls";
-import { MessagePrivateIntel } from "./message-private-intel";
 import { formatTavernMessageTime } from "./message-time";
 
 type CharacterMessageProps = {
   character?: TavernCharacter | null;
   content: string;
   createdAt: number;
-  factEvents?: TavernFactEvent[];
   immersiveDescriptionEnabled: boolean;
   isError: boolean;
   isStreaming: boolean;
@@ -24,7 +22,6 @@ export const CharacterMessage = ({
   character,
   content,
   createdAt,
-  factEvents,
   immersiveDescriptionEnabled,
   isError,
   isStreaming,
@@ -86,7 +83,6 @@ export const CharacterMessage = ({
               variant="tavern"
             />
           </div>
-          <MessagePrivateIntel align="left" factEvents={factEvents} />
           <MessageControls content={copyContent} disabled={isStreaming} />
         </div>
       </div>

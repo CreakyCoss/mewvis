@@ -21,7 +21,6 @@ type SceneBriefCardProps = {
   content: SceneBriefCardContent;
   className?: string;
   sceneSelector?: ReactNode;
-  progressSlot?: ReactNode;
 };
 
 const SceneBriefItem = ({
@@ -52,13 +51,7 @@ const SceneBriefItem = ({
   </div>
 );
 
-export const SceneBriefCard = ({
-  visualPreset,
-  content,
-  className,
-  sceneSelector,
-  progressSlot,
-}: SceneBriefCardProps) => {
+export const SceneBriefCard = ({ visualPreset, content, className, sceneSelector }: SceneBriefCardProps) => {
   const items = [
     {
       icon: Landmark,
@@ -104,8 +97,6 @@ export const SceneBriefCard = ({
       </div>
 
       {sceneSelector && <div className="mt-2 grid gap-2 md:hidden">{sceneSelector}</div>}
-
-      {progressSlot}
 
       {content.briefLines.length > 0 && (
         <div className="mt-3 space-y-0.5 rounded-lg border border-current/12 bg-current/[0.025] px-3 py-2.5 text-[12px] leading-5 shadow-[inset_0_1px_18px_rgba(255,255,255,0.04)]">

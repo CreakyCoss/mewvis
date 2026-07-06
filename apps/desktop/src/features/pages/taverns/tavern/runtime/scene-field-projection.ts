@@ -19,16 +19,6 @@ export type TavernProjectableScene = Pick<
   | "characterPrivateStatuses"
   | "pendingInteractions"
   | "replyOptions"
-  | "factEvents"
-  | "statusEvents"
-  | "statusSnapshot"
-  | "previousStatusSnapshot"
-  | "statusCheckpoints"
-  | "taskDefinitions"
-  | "taskEvents"
-  | "taskSnapshot"
-  | "sceneOutcomes"
-  | "outcomeEvents"
   | "characterConfigs"
   | "characterMemories"
   | "illustrationHints"
@@ -56,19 +46,6 @@ const projectSceneInteractionFieldsToRoom = (scene: TavernProjectableScene) => (
   replyOptions: scene.replyOptions,
 });
 
-const projectSceneProgressFieldsToRoom = (scene: TavernProjectableScene) => ({
-  factEvents: scene.factEvents,
-  statusEvents: scene.statusEvents,
-  statusSnapshot: scene.statusSnapshot,
-  previousStatusSnapshot: scene.previousStatusSnapshot,
-  statusCheckpoints: scene.statusCheckpoints,
-  taskDefinitions: scene.taskDefinitions,
-  taskEvents: scene.taskEvents,
-  taskSnapshot: scene.taskSnapshot,
-  sceneOutcomes: scene.sceneOutcomes,
-  outcomeEvents: scene.outcomeEvents,
-});
-
 const projectSceneAssetFieldsToRoom = (scene: TavernProjectableScene) => ({
   illustrationHints: scene.illustrationHints,
   assetDrafts: scene.assetDrafts,
@@ -84,7 +61,6 @@ const projectSceneCharacterFieldsToRoom = (scene: TavernProjectableScene) => ({
 export const projectTavernSceneFieldsOntoRoom = (scene: TavernProjectableScene) => ({
   ...projectSceneNarrativeFieldsToRoom(scene),
   ...projectSceneInteractionFieldsToRoom(scene),
-  ...projectSceneProgressFieldsToRoom(scene),
   ...projectSceneAssetFieldsToRoom(scene),
   ...projectSceneCharacterFieldsToRoom(scene),
 });
@@ -108,19 +84,6 @@ const projectRoomInteractionFieldsToScene = (room: TavernRoom) => ({
   replyOptions: room.replyOptions,
 });
 
-const projectRoomProgressFieldsToScene = (room: TavernRoom) => ({
-  factEvents: room.factEvents,
-  statusEvents: room.statusEvents,
-  statusSnapshot: room.statusSnapshot,
-  previousStatusSnapshot: room.previousStatusSnapshot,
-  statusCheckpoints: room.statusCheckpoints,
-  taskDefinitions: room.taskDefinitions,
-  taskEvents: room.taskEvents,
-  taskSnapshot: room.taskSnapshot,
-  sceneOutcomes: room.sceneOutcomes,
-  outcomeEvents: room.outcomeEvents,
-});
-
 const projectRoomAssetFieldsToScene = (room: TavernRoom) => ({
   illustrationHints: room.illustrationHints,
   assetDrafts: room.assetDrafts,
@@ -140,7 +103,6 @@ export const syncTavernSceneInstanceFieldsFromRoom = (
   ...activeInstance,
   ...projectRoomNarrativeFieldsToScene(room),
   ...projectRoomInteractionFieldsToScene(room),
-  ...projectRoomProgressFieldsToScene(room),
   ...projectRoomAssetFieldsToScene(room),
   ...projectRoomCharacterFieldsToScene(room),
   updatedAt: room.updatedAt,

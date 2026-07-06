@@ -12,14 +12,12 @@ export const createTavernRoleAssignmentParticipants = (
   ...(room.settings.informationPolicy.roleAssignment.includeUser
     ? [
         {
-          entity: { type: "user", userId: "user" } as const,
           label: room.userPersonaName.trim() || "你",
           isUser: true,
         },
       ]
     : []),
   ...characters.map((character) => ({
-    entity: { type: "character", characterId: character.id } as const,
     label: character.name,
     characterId: character.id,
     isUser: false,

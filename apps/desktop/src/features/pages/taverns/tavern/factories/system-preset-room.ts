@@ -8,14 +8,6 @@ import { normalizeRoomSettings } from "../normalizers/room-settings";
 import { normalizeVisualPresetId } from "../visual-presets";
 import { createTavernId as createId, now } from "../ids";
 import { getTavernSystemPreset } from "../system-preset-registry";
-import {
-  normalizeProgressTracker,
-  normalizeProgressViews,
-  normalizeSceneOutcomes,
-  normalizeStatusDefinitions,
-  normalizeStatusRules,
-  normalizeTaskDefinitions,
-} from "../normalizers/status-normalizers";
 import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 
 export const createTavernRoomFromSystemPreset = (
@@ -64,12 +56,6 @@ export const createTavernRoomFromSystemPreset = (
     }),
     creationSource: markAsSystemPreset ? "imported" : "manual",
     scenePresetId: normalizeVisualPresetId(preset.room.scenePresetId),
-    statusDefinitions: normalizeStatusDefinitions(preset.room.statusDefinitions),
-    statusRules: normalizeStatusRules(preset.room.statusRules),
-    progressViews: normalizeProgressViews(preset.room.progressViews),
-    progressTracker: normalizeProgressTracker(preset.room.progressTracker),
-    taskDefinitions: normalizeTaskDefinitions(preset.room.taskDefinitions),
-    sceneOutcomes: normalizeSceneOutcomes(preset.room.sceneOutcomes),
     replyMode: normalizeReplyMode(preset.room.replyMode),
     settings: normalizeRoomSettings(preset.room.settings),
     createdAt: options.roomCreatedAt ?? createdAt,

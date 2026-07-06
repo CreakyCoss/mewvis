@@ -200,7 +200,6 @@ const buildDirectorProfileRequestContext = (
           characters,
           userPersonaName: room.userPersonaName,
           relationshipOverrides: room.relationshipOverrides,
-          statusSnapshot: room.statusSnapshot,
         }),
         memory: characterMemoryText(character.id),
         publicStatus: room.characterPublicStatuses[character.id] ?? null,

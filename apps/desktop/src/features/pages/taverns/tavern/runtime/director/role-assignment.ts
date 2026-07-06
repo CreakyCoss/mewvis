@@ -22,8 +22,6 @@ export const runTavernDirectorRoleAssignment = async ({
   room: TavernRoom;
   characters: TavernCharacter[];
 }): Promise<TavernDirectorRoleAssignment> => {
-  const turnId = `director-role-assignment-${Date.now().toString(36)}`;
-  const createdAt = Date.now();
   const prompt = buildTavernDirectorRoleAssignmentPrompt({ room, characters });
 
   const result = await runTavernRuntimeAgent({
@@ -46,7 +44,5 @@ export const runTavernDirectorRoleAssignment = async ({
     text: result.text,
     room,
     characters,
-    turnId,
-    createdAt,
   });
 };

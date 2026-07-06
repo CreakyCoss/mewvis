@@ -192,7 +192,6 @@ const mapTavernCharacter = ({
       characters,
       userPersonaName: room.userPersonaName,
       relationshipOverrides: room.relationshipOverrides,
-      statusSnapshot: room.statusSnapshot,
       includePrivate: true,
     }),
     publicRelationshipSummary: formatTavernCharacterRelationships({
@@ -200,7 +199,6 @@ const mapTavernCharacter = ({
       characters,
       userPersonaName: room.userPersonaName,
       relationshipOverrides: room.relationshipOverrides,
-      statusSnapshot: room.statusSnapshot,
       includePrivate: false,
     }),
     memory: {
