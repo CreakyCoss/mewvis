@@ -20,7 +20,7 @@ import type {
   TavernCharacter,
   TavernMessage,
   TavernRoom,
-} from "@/features/pages/tavern/types";
+} from "@/features/pages/taverns/tavern/types";
 import type {
   RuntimeModelOption,
 } from "@/features/pages/settings/llm/store";

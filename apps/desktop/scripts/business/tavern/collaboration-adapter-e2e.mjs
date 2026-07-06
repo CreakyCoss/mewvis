@@ -8,11 +8,11 @@ const workspaceRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-tavern-collaboration-adapter-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
-const adapterPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/collaboration/index.ts");
-const collaborationTracePath = resolve(workspaceRoot, "src/features/pages/tavern/components/room/turn/submit-flow/collaboration-trace.ts");
-const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/tavern/factories/manual-factories.ts");
-const messagePath = resolve(workspaceRoot, "src/features/pages/tavern/message/index.ts");
-const corePath = resolve(workspaceRoot, "src/features/pages/tavern/core/index.ts");
+const adapterPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/runtime/collaboration/index.ts");
+const collaborationTracePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/components/room/turn/submit-flow/collaboration-trace.ts");
+const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/factories/manual-factories.ts");
+const messagePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/message/index.ts");
+const corePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/core/index.ts");
 
 writeFileSync(entryPath, `
   import {

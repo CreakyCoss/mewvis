@@ -298,28 +298,28 @@ const runtimeModelFor = (modelId) => {
 };
 
 writeFileSync(helperEntryPath, `
-  import { buildTavernReplyAgentRequest } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/reply/request.ts"))};
+  import { buildTavernReplyAgentRequest } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/taverns/tavern/runtime/reply/request.ts"))};
   import {
     buildTavernBridgeSystemPrompt,
     buildTavernCharacterTurnInstruction,
-  } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/prompt/index.ts"))};
+  } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/taverns/tavern/runtime/prompt/index.ts"))};
   import {
     buildTavernDirectorPromptContext,
-  } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/runtime/director/prompt.ts"))};
-  import { parseTavernReplyText } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/message/index.ts"))};
-  import { getTavernPresentationContract } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/presentation/presentation-contracts.ts"))};
-  import { getTavernPresentationProfile } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/prompt-registry/presentation-rules/index.ts"))};
+  } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/taverns/tavern/runtime/director/prompt.ts"))};
+  import { parseTavernReplyText } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/taverns/tavern/message/index.ts"))};
+  import { getTavernPresentationContract } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/taverns/tavern/presentation/presentation-contracts.ts"))};
+  import { getTavernPresentationProfile } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/taverns/tavern/prompt-registry/presentation-rules/index.ts"))};
   import {
     canTavernCharacterUseNonverbalReply,
     extractTavernPendingInteractionsFromMessages,
     planTavernContinuation,
     resolveTavernScheduledSpeakers,
     shouldSuppressTavernAutoContinuation,
-  } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/core/index.ts"))};
+  } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/taverns/tavern/core/index.ts"))};
   import {
     createDefaultTavernPromptSettings,
     formatTavernPromptBlocksForTarget,
-  } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/tavern/prompt-registry/text-blocks.ts"))};
+  } from ${JSON.stringify(resolve(workspaceRoot, "src/features/pages/taverns/tavern/prompt-registry/text-blocks.ts"))};
 
   const now = Date.now();
   const longformMinChars = Number(process.env.NOVEL_CLAW_TAVERN_PROMPT_EVAL_LONGFORM_MIN_CHARS ?? 1000);

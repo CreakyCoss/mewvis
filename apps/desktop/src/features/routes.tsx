@@ -12,7 +12,7 @@ import {
   WorkflowPage,
 } from "@/features/pages/settings";
 import { SkillsPage } from "@/features/pages/skills";
-import { TavernPage } from "@/features/pages/tavern";
+import { TavernPage } from "@/features/pages/taverns";
 
 const IndexRoute = () => {
   const { activeWorkspace, defaultWorkspace, overview, isLoading } =

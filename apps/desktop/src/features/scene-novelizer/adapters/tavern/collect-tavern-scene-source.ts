@@ -1,15 +1,15 @@
 import {
   filterTavernFactEventsForAudience,
-} from "@/features/pages/tavern/core";
+} from "@/features/pages/taverns/tavern/core";
 import {
   createTavernRenderableMessages,
-} from "@/features/pages/tavern/message";
+} from "@/features/pages/taverns/tavern/message";
 import type {
   TavernCharacter,
   TavernMessage,
   TavernMessageSegment,
   TavernRoom,
-} from "@/features/pages/tavern/types";
+} from "@/features/pages/taverns/tavern/types";
 import {
   DEFAULT_SCENE_NOVELIZER_PLATFORM_ID,
 } from "../../prompt-registry/packages";

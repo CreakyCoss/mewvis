@@ -12,11 +12,11 @@ const mockCollaborationPath = join(tempDir, "mock-collaboration.ts");
 const mockConversationPath = join(tempDir, "mock-conversation.ts");
 const mockLlmStorePath = join(tempDir, "mock-llm-store.ts");
 const mockReplyPath = join(tempDir, "mock-reply.ts");
-const adapterPath = resolve(workspaceRoot, "src/features/pages/tavern/runtime/collaboration/adapter.ts");
-const speakersPath = resolve(workspaceRoot, "src/features/pages/tavern/components/room/turn/submit-flow/speakers.ts");
-const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/tavern/factories/manual-factories.ts");
-const messagePath = resolve(workspaceRoot, "src/features/pages/tavern/message/index.ts");
-const corePath = resolve(workspaceRoot, "src/features/pages/tavern/core/index.ts");
+const adapterPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/runtime/collaboration/adapter.ts");
+const speakersPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/components/room/turn/submit-flow/speakers.ts");
+const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/factories/manual-factories.ts");
+const messagePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/message/index.ts");
+const corePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/core/index.ts");
 
 writeFileSync(mockLlmStorePath, `
   export const requireRuntimeModelInput = (runtimeModel: any) => ({

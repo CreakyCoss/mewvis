@@ -11,9 +11,9 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
-import { loadTavernState } from "@/features/pages/tavern/state/storage";
-import type { TavernRoom } from "@/features/pages/tavern/types";
-import { compactScene } from "@/features/pages/tavern/utils";
+import { loadTavernState } from "@/features/pages/taverns/tavern/state/storage";
+import type { TavernRoom } from "@/features/pages/taverns/tavern/types";
+import { compactScene } from "@/features/pages/taverns/tavern/utils";
 import { cn } from "@/lib/utils";
 import type { StoryNodeSelectOption } from "../node";
 

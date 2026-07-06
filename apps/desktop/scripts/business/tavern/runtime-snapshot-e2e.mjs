@@ -8,9 +8,9 @@ const workspaceRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-tavern-runtime-snapshot-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
-const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/tavern/factories/manual-factories.ts");
-const presentationInputPath = resolve(workspaceRoot, "src/features/pages/tavern/presentation/input/index.ts");
-const snapshotPath = resolve(workspaceRoot, "src/features/pages/tavern/adapters/runtime-room-snapshot.ts");
+const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/factories/manual-factories.ts");
+const presentationInputPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/presentation/input/index.ts");
+const snapshotPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/adapters/runtime-room-snapshot.ts");
 const storyTavernInputPath = resolve(workspaceRoot, "src/features/story/projection/tavern-input.ts");
 const storyRuntimeContextPath = resolve(workspaceRoot, "src/features/story/projection/story-runtime-context.ts");
 

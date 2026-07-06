@@ -1,6 +1,6 @@
 import { buildStoryNodeProjection, type StoryNodeProjection } from "../../model/projection";
-import type { TavernPresentationInput } from "@/features/pages/tavern/presentation/input";
-import type { TavernStoryGraph, TavernStoryNode } from "@/features/pages/tavern/types";
+import type { TavernPresentationInput } from "@/features/pages/taverns/tavern/presentation/input";
+import type { TavernStoryGraph, TavernStoryNode } from "@/features/pages/taverns/tavern/types";
 import type { StoryJson } from "../../model/types";
 
 const trimText = (value: string | undefined | null) => value?.trim() ?? "";
