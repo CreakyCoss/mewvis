@@ -13,6 +13,7 @@ import {
   Workflow,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { createAgentClient } from "@/agent-client/runtime";
 import type { AgentClientRuntimeSessionSnapshot, RuntimeSessionTimelineItem } from "@/agent-client/types";
 import { cn } from "@/lib/utils";
@@ -256,6 +257,7 @@ export const RuntimeTimelineSection = () => {
   const [snapshot, setSnapshot] = useState<AgentClientRuntimeSessionSnapshot | null>(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [filter, setFilter] = useState<TimelineFilter>("all");
   const wasSendingRef = useRef(isSending);
   const sessionRootDir = useMemo(() => (activeRoom ? tavernBridgeSessionRootDir(activeRoom) : ""), [activeRoom]);
@@ -272,6 +274,22 @@ export const RuntimeTimelineSection = () => {
   const latestWorkflowRunId = snapshot?.session.latestWorkflowRunId ?? "";
   const workflowCount = snapshot?.session.workflowRunIds.length ?? 0;
   const modeLabels = snapshot?.session.modeIds.length ? snapshot.session.modeIds : [];
+  const latestEvent = timeline.at(-1);
+  const errorCount = timeline.filter((item) => item.status === "error" || item.type === "error").length;
+  const summaryText = error
+    ? "读取失败"
+    : timeline.length === 0
+      ? isLoading
+        ? "正在读取运行链路"
+        : "暂无运行链路"
+      : [
+          `${timeline.length} 个事件`,
+          workflowCount ? `${workflowCount} 个 Workflow` : "",
+          errorCount ? `${errorCount} 个异常` : "",
+          latestEvent ? `最新 ${formatTime(latestEvent.timestamp)}` : "",
+        ]
+          .filter(Boolean)
+          .join(" · ");
 
   const refresh = useCallback(
     async (options: { silent?: boolean } = {}) => {
@@ -328,98 +346,98 @@ export const RuntimeTimelineSection = () => {
     wasSendingRef.current = isSending;
   }, [isSending, refresh]);
 
-  return (
-    <section className="space-y-2 text-current">
-      <PanelSectionTitle
-        icon={Activity}
-        actions={
-          <>
-            {isSending && (
-              <span className="inline-flex h-6 items-center gap-1 rounded-md bg-emerald-500/10 px-1.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-300">
-                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                live
-              </span>
-            )}
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              className="size-7 rounded-md text-current/65 hover:bg-current/10 hover:text-current"
-              title="刷新运行链路"
-              aria-label="刷新运行链路"
-              disabled={isLoading}
-              onClick={() => void refresh()}
-            >
-              {isLoading ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
-            </Button>
-          </>
-        }
+  const headerActions = (
+    <>
+      {isSending && (
+        <span className="inline-flex h-6 items-center gap-1 rounded-md bg-emerald-500/10 px-1.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-300">
+          <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          live
+        </span>
+      )}
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        className="size-7 rounded-md text-current/65 hover:bg-current/10 hover:text-current"
+        title="刷新运行链路"
+        aria-label="刷新运行链路"
+        disabled={isLoading}
+        onClick={() => void refresh()}
       >
-        运行链路
-      </PanelSectionTitle>
+        {isLoading ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+      </Button>
+    </>
+  );
 
-      <div className="grid grid-cols-3 gap-1.5 text-center text-[10px] text-current/65">
-        <div className="rounded-md bg-current/[0.055] px-1.5 py-1.5">
-          <div className="font-semibold text-current">{timeline.length}</div>
-          <div>事件</div>
-        </div>
-        <div className="rounded-md bg-current/[0.055] px-1.5 py-1.5">
-          <div className="font-semibold text-current">{workflowCount}</div>
-          <div>Workflow</div>
-        </div>
-        <div className="rounded-md bg-current/[0.055] px-1.5 py-1.5">
-          <div className="font-semibold text-current">{localTraceCount}</div>
-          <div>本地</div>
-        </div>
+  const summaryCards = (
+    <div className="grid grid-cols-3 gap-1.5 text-center text-[10px] text-current/65">
+      <div className="rounded-md bg-current/[0.055] px-1.5 py-1.5">
+        <div className="font-semibold text-current">{timeline.length}</div>
+        <div>事件</div>
       </div>
-
-      <div className="flex min-w-0 flex-wrap gap-1">
-        {filterOptions.map((option) => {
-          const Icon = option.icon;
-          const isActive = filter === option.value;
-          return (
-            <button
-              key={option.value}
-              type="button"
-              className={cn(
-                "inline-flex h-7 min-w-0 items-center gap-1 rounded-md border px-2 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                isActive
-                  ? "border-primary/25 bg-primary/10 text-primary"
-                  : "border-current/10 bg-current/[0.045] text-current/65 hover:bg-current/10 hover:text-current",
-              )}
-              aria-pressed={isActive}
-              onClick={() => setFilter(option.value)}
-            >
-              <Icon className="size-3" />
-              {option.label}
-            </button>
-          );
-        })}
+      <div className="rounded-md bg-current/[0.055] px-1.5 py-1.5">
+        <div className="font-semibold text-current">{workflowCount}</div>
+        <div>Workflow</div>
       </div>
+      <div className="rounded-md bg-current/[0.055] px-1.5 py-1.5">
+        <div className="font-semibold text-current">{localTraceCount}</div>
+        <div>本地</div>
+      </div>
+    </div>
+  );
 
-      {modeLabels.length > 0 || latestWorkflowRunId ? (
-        <div className="space-y-1 rounded-md border border-current/10 bg-current/[0.045] px-2.5 py-2 text-[11px] leading-4 text-current/70">
-          {modeLabels.length > 0 && (
-            <div className="flex min-w-0 flex-wrap gap-1">
-              {modeLabels.map((mode) => (
-                <span
-                  key={mode}
-                  className="max-w-full truncate rounded-sm bg-current/[0.08] px-1.5 py-0.5 font-medium text-current"
-                  title={mode}
-                >
-                  {mode}
-                </span>
-              ))}
-            </div>
-          )}
-          {latestWorkflowRunId && (
-            <div className="truncate" title={latestWorkflowRunId}>
-              latest · {compactId(latestWorkflowRunId)}
-            </div>
-          )}
-        </div>
-      ) : null}
+  const filterTabs = (
+    <div className="flex min-w-0 flex-wrap gap-1">
+      {filterOptions.map((option) => {
+        const Icon = option.icon;
+        const isActive = filter === option.value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            className={cn(
+              "inline-flex h-7 min-w-0 items-center gap-1 rounded-md border px-2 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              isActive
+                ? "border-primary/25 bg-primary/10 text-primary"
+                : "border-current/10 bg-current/[0.045] text-current/65 hover:bg-current/10 hover:text-current",
+            )}
+            aria-pressed={isActive}
+            onClick={() => setFilter(option.value)}
+          >
+            <Icon className="size-3" />
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
 
+  const modeSummary =
+    modeLabels.length > 0 || latestWorkflowRunId ? (
+      <div className="space-y-1 rounded-md border border-current/10 bg-current/[0.045] px-2.5 py-2 text-[11px] leading-4 text-current/70">
+        {modeLabels.length > 0 && (
+          <div className="flex min-w-0 flex-wrap gap-1">
+            {modeLabels.map((mode) => (
+              <span
+                key={mode}
+                className="max-w-full truncate rounded-sm bg-current/[0.08] px-1.5 py-0.5 font-medium text-current"
+                title={mode}
+              >
+                {mode}
+              </span>
+            ))}
+          </div>
+        )}
+        {latestWorkflowRunId && (
+          <div className="truncate" title={latestWorkflowRunId}>
+            latest · {compactId(latestWorkflowRunId)}
+          </div>
+        )}
+      </div>
+    ) : null;
+
+  const timelineContent = (
+    <>
       {error && (
         <div className="rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-xs leading-5 text-destructive">
           {error}
@@ -442,6 +460,57 @@ export const RuntimeTimelineSection = () => {
           ))}
         </div>
       )}
+    </>
+  );
+
+  return (
+    <section className="space-y-2 text-current">
+      <PanelSectionTitle icon={Activity} actions={headerActions}>
+        运行链路
+      </PanelSectionTitle>
+
+      {summaryCards}
+
+      <button
+        type="button"
+        className="flex w-full min-w-0 items-center gap-2 rounded-lg border border-current/10 bg-current/[0.045] dark:bg-current/[0.065] px-3 py-2.5 text-left text-current shadow-sm transition-colors hover:bg-current/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onClick={() => setIsDialogOpen(true)}
+      >
+        <Activity className="size-4 shrink-0 text-primary" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[13px] font-semibold leading-5">查看运行链路</span>
+          <span className="mt-0.5 block truncate text-[11px] leading-4 opacity-65">{summaryText}</span>
+        </span>
+        {isLoading ? (
+          <Loader2 className="size-4 shrink-0 animate-spin opacity-70" />
+        ) : (
+          <ChevronRight className="size-4 shrink-0 opacity-55" />
+        )}
+      </button>
+
+      {modeSummary}
+
+      {error && (
+        <div className="rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-xs leading-5 text-destructive">
+          {error}
+        </div>
+      )}
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-h-[min(88vh,46rem)] overflow-hidden sm:max-w-3xl">
+          <DialogHeader className="pr-8">
+            <DialogTitle>运行链路</DialogTitle>
+            <DialogDescription>{summaryText}</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 overflow-hidden text-current">
+            {summaryCards}
+            {filterTabs}
+            {modeSummary}
+            <div className="max-h-[min(56vh,30rem)] overflow-auto pr-1">{timelineContent}</div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 };
