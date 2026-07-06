@@ -20,7 +20,7 @@ export type StoryCreateDialogHandle = () => void;
 
 type StoryCreateForm = {
   name: string;
-  workspacePath: string;
+  workspaceParentPath: string;
 };
 
 type StoryCreateDialogProps = {
@@ -30,7 +30,7 @@ type StoryCreateDialogProps = {
 
 const emptyForm = (): StoryCreateForm => ({
   name: "",
-  workspacePath: "",
+  workspaceParentPath: "",
 });
 
 export const StoryCreateDialog = ({ bind, onCreated }: StoryCreateDialogProps) => {
@@ -49,11 +49,11 @@ export const StoryCreateDialog = ({ bind, onCreated }: StoryCreateDialogProps) =
     const selected = await openDirectoryDialog({
       directory: true,
       multiple: false,
-      title: "选择故事工作区",
+      title: "选择故事父目录",
     });
 
     if (typeof selected === "string") {
-      setForm((current) => ({ ...current, workspacePath: selected }));
+      setForm((current) => ({ ...current, workspaceParentPath: selected }));
     }
   };
 
@@ -87,7 +87,7 @@ export const StoryCreateDialog = ({ bind, onCreated }: StoryCreateDialogProps) =
         <DialogHeader>
           <DialogTitle className="text-lg">新建故事</DialogTitle>
           <DialogDescription>
-            创建后，故事源内容会写入所选工作区的 story/ 目录，酒馆运行时会写入 .tavern/。
+            创建后，会在所选父目录下按故事名创建独立子目录；删除故事时只删除这个子目录。
           </DialogDescription>
         </DialogHeader>
 
@@ -107,14 +107,14 @@ export const StoryCreateDialog = ({ bind, onCreated }: StoryCreateDialogProps) =
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="story-create-workspace">故事工作区</Label>
+            <Label htmlFor="story-create-workspace">故事父目录</Label>
             <div className="flex gap-2">
               <Input
                 id="story-create-workspace"
-                value={form.workspacePath}
+                value={form.workspaceParentPath}
                 onChange={(event) => {
                   const value = event.currentTarget.value;
-                  setForm((current) => ({ ...current, workspacePath: value }));
+                  setForm((current) => ({ ...current, workspaceParentPath: value }));
                 }}
                 placeholder="请选择目录"
                 required

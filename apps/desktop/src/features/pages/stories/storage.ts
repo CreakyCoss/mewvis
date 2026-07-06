@@ -29,7 +29,7 @@ export type StoryLibraryItem = {
 
 export type CreateStoryInput = {
   name: string;
-  workspacePath: string;
+  workspaceParentPath: string;
 };
 
 type StoryManifest = {
@@ -143,7 +143,7 @@ export const createStoryRecord = async (input: CreateStoryInput): Promise<StoryR
   const record = await invoke<unknown>("create_story_record", {
     input: {
       name: input.name,
-      workspacePath: input.workspacePath,
+      workspacePath: input.workspaceParentPath,
     },
   });
   const normalized = normalizeStoryRecord(record);

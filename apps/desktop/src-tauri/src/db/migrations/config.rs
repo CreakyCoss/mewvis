@@ -1,8 +1,8 @@
 use rusqlite::Connection;
 
 use super::version::{
-    CONFIG_INITIAL_SCHEMA_VERSION, CONFIG_SCHEMA_VERSION, database_user_version,
-    set_database_user_version,
+    database_user_version, set_database_user_version, CONFIG_INITIAL_SCHEMA_VERSION,
+    CONFIG_SCHEMA_VERSION,
 };
 use crate::db::{schema::validate_config_schema, sqlite::table_columns};
 
@@ -99,6 +99,11 @@ const CONFIG_MIGRATIONS: &[ConfigMigrationStep] = &[
         name: "add_story_registry",
         run: add_story_registry,
     },
+    ConfigMigrationStep {
+        target_version: 21,
+        name: "clear_legacy_story_registry",
+        run: clear_legacy_story_registry,
+    },
 ];
 
 fn add_story_registry(conn: &Connection) -> Result<(), String> {
@@ -114,6 +119,12 @@ fn add_story_registry(conn: &Connection) -> Result<(), String> {
         "#,
     )
     .map_err(|error| format!("无法创建故事索引表：{error}"))
+}
+
+fn clear_legacy_story_registry(conn: &Connection) -> Result<(), String> {
+    conn.execute("DELETE FROM stories", [])
+        .map_err(|error| format!("无法清理旧故事索引：{error}"))?;
+    Ok(())
 }
 
 fn add_knowledge_library(conn: &Connection) -> Result<(), String> {
@@ -539,6 +550,7 @@ pub(crate) fn run_config_migrations(
     }
     if current_version == 0 {
         validate_config_schema(conn)?;
+        clear_legacy_story_registry(conn)?;
         set_database_user_version(conn, CONFIG_SCHEMA_VERSION)?;
         return Ok(());
     }
@@ -926,5 +938,31 @@ mod tests {
 
         let columns = table_columns(&conn, "agent_runtime_settings").expect("read columns");
         assert_eq!(columns, vec!["key", "value_json", "updated_at"]);
+    }
+
+    #[test]
+    fn clear_legacy_story_registry_removes_story_rows() {
+        let conn = Connection::open_in_memory().expect("open database");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE stories (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                workspace_path TEXT NOT NULL UNIQUE,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            INSERT INTO stories (id, name, workspace_path, created_at, updated_at)
+            VALUES ('story-1', '旧故事', '/tmp/legacy-story', 1, 1);
+            "#,
+        )
+        .expect("create story registry");
+
+        clear_legacy_story_registry(&conn).expect("clear legacy story registry");
+
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM stories", [], |row| row.get(0))
+            .expect("count story records");
+        assert_eq!(count, 0);
     }
 }

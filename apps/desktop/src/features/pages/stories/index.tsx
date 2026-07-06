@@ -81,7 +81,7 @@ export const StoriesPage = () => {
     try {
       await deleteStoryRecord(item.id);
       setStoryItems((current) => current.filter((currentItem) => currentItem.id !== item.id));
-      toast.success("故事及工作区已删除。");
+      toast.success("故事及子工作区已删除。");
     } catch (error) {
       console.error("Failed to delete story", error);
       toast.error(error instanceof Error ? error.message : "故事删除失败。");

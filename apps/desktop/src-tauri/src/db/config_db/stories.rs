@@ -1,5 +1,8 @@
-use rusqlite::{OptionalExtension, params};
-use std::{fs, path::PathBuf};
+use rusqlite::{params, OptionalExtension};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 use tauri::AppHandle;
 
 use super::{
@@ -39,8 +42,17 @@ pub fn create_story_record(
         return Err("故事名不能为空".to_string());
     }
 
-    let workspace_path = normalize_story_workspace_path(&input.workspace_path)?;
-    fs::create_dir_all(&workspace_path).map_err(|error| format!("无法创建故事工作区：{error}"))?;
+    let workspace_parent_path = normalize_story_workspace_parent_path(&input.workspace_path)?;
+    fs::create_dir_all(&workspace_parent_path)
+        .map_err(|error| format!("无法创建故事工作区父目录：{error}"))?;
+    let workspace_parent_path = workspace_parent_path
+        .canonicalize()
+        .map_err(|error| format!("无法定位故事工作区父目录：{error}"))?;
+    let workspace_path = create_story_workspace_path(&workspace_parent_path, name)?;
+    if workspace_path.exists() {
+        return Err("故事工作区子目录已存在，请更换故事名或目录".to_string());
+    }
+    fs::create_dir(&workspace_path).map_err(|error| format!("无法创建故事工作区：{error}"))?;
 
     let conn = open_config_connection(app)?;
     let now = now_millis()?;
@@ -134,16 +146,54 @@ fn story_record_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoryRecor
     })
 }
 
-fn normalize_story_workspace_path(value: &str) -> Result<PathBuf, String> {
+fn normalize_story_workspace_parent_path(value: &str) -> Result<PathBuf, String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
-        return Err("请选择故事工作区".to_string());
+        return Err("请选择故事工作区父目录".to_string());
     }
 
     Ok(PathBuf::from(trimmed))
 }
 
-fn ensure_removable_story_workspace(path: &PathBuf) -> Result<(), String> {
+fn create_story_workspace_path(parent_path: &Path, name: &str) -> Result<PathBuf, String> {
+    let directory_name = sanitize_story_workspace_directory_name(name);
+    if directory_name.is_empty() {
+        return Err("故事工作区子目录名不能为空".to_string());
+    }
+
+    Ok(parent_path.join(directory_name))
+}
+
+fn sanitize_story_workspace_directory_name(name: &str) -> String {
+    let mut sanitized = String::new();
+    let mut previous_was_separator = false;
+
+    for character in name.trim().chars() {
+        let is_forbidden = character.is_control()
+            || matches!(
+                character,
+                '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|'
+            );
+
+        if is_forbidden {
+            if !previous_was_separator {
+                sanitized.push('-');
+                previous_was_separator = true;
+            }
+            continue;
+        }
+
+        sanitized.push(character);
+        previous_was_separator = false;
+    }
+
+    sanitized
+        .trim_matches(|character| matches!(character, '.' | ' ' | '-'))
+        .trim()
+        .to_string()
+}
+
+fn ensure_removable_story_workspace(path: &Path) -> Result<(), String> {
     let canonical = path
         .canonicalize()
         .map_err(|error| format!("无法定位故事工作区：{error}"))?;
@@ -153,4 +203,30 @@ fn ensure_removable_story_workspace(path: &PathBuf) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn create_story_workspace_path_sanitizes_story_name_for_single_directory() {
+        let path =
+            create_story_workspace_path(Path::new("/tmp/stories"), " ../雨巷/尽头:*? ").unwrap();
+
+        assert_eq!(
+            path.file_name()
+                .expect("workspace directory name")
+                .to_string_lossy(),
+            "雨巷-尽头"
+        );
+    }
+
+    #[test]
+    fn create_story_workspace_path_rejects_empty_sanitized_name() {
+        let result = create_story_workspace_path(Path::new("/tmp/stories"), " /\\:*?\"<>| ");
+
+        assert!(result.is_err());
+    }
 }
