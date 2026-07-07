@@ -17,7 +17,7 @@ import {
 import {
   buildTavernDirectorLoopCollaborationInput,
   runTavernCollaboration,
-} from "@/features/pages/taverns/tavern/runtime/collaboration";
+} from "@/features/pages/taverns/room/turn/collaboration";
 import { resolveTavernCharacterModel } from "@/features/pages/taverns/tavern/runtime/agent";
 import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";

@@ -24,7 +24,7 @@ import { buildTavernCharacterTurnInstruction } from "@/features/pages/taverns/ta
 import {
   buildTavernSpeakerCollaborationInput,
   runTavernCollaboration,
-} from "@/features/pages/taverns/tavern/runtime/collaboration";
+} from "@/features/pages/taverns/room/turn/collaboration";
 import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
 import {

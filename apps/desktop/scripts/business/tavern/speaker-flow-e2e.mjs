@@ -12,7 +12,7 @@ const mockCollaborationPath = join(tempDir, "mock-collaboration.ts");
 const mockConversationPath = join(tempDir, "mock-conversation.ts");
 const mockLlmStorePath = join(tempDir, "mock-llm-store.ts");
 const mockReplyPath = join(tempDir, "mock-reply.ts");
-const adapterPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/runtime/collaboration/adapter.ts");
+const adapterPath = resolve(workspaceRoot, "src/features/pages/taverns/room/turn/collaboration/adapter.ts");
 const speakersPath = resolve(workspaceRoot, "src/features/pages/taverns/room/turn/submit-flow/speakers.ts");
 const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/factories/manual-factories.ts");
 const messagePath = resolve(workspaceRoot, "src/features/pages/taverns/room/message/index.ts");
@@ -577,13 +577,13 @@ try {
         name: "mock-tavern-speaker-flow-dependencies",
         setup(build) {
           build.onResolve({ filter: /.*/ }, (args) => {
-            if (args.path.includes("runtime/collaboration") && !args.path.endsWith("adapter.ts")) {
+            if (args.path.includes("turn/collaboration") && !args.path.endsWith("adapter.ts")) {
               return { path: mockCollaborationPath };
             }
             if (args.path.includes("runtime/conversation")) {
               return { path: mockConversationPath };
             }
-            if (args.path.includes("runtime/reply")) {
+            if (args.path === "@/features/pages/taverns/tavern/runtime/reply") {
               return { path: mockReplyPath };
             }
             if (args.path === "@/features/pages/settings/llm/store") {
