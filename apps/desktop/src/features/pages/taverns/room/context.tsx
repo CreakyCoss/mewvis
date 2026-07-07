@@ -5,27 +5,36 @@ import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { Workspace } from "@/features/pages/workspace/types";
 import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";
 import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
-import type { TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
+
+export type TavernRoomBusyKind = "idle" | "sending" | "reply_suggestions";
+
+export type TavernRoomBusyState = {
+  kind: TavernRoomBusyKind;
+  status: string;
+};
+
+export const createIdleTavernRoomBusyState = (): TavernRoomBusyState => ({
+  kind: "idle",
+  status: "",
+});
+
+export const isTavernRoomBusy = (busy: TavernRoomBusyState) => busy.kind !== "idle";
+
+export const isTavernRoomSending = (busy: TavernRoomBusyState) => busy.kind === "sending";
+
+export const isTavernRoomGeneratingReplySuggestions = (busy: TavernRoomBusyState) => busy.kind === "reply_suggestions";
 
 export type TavernRoomContextValue = {
   workspace: Workspace;
   runtimeModel: RuntimeModelOption | null;
   state: TavernRoomSessionState;
   setState: Dispatch<SetStateAction<TavernRoomSessionState>>;
-  draft: string;
-  setDraft: Dispatch<SetStateAction<string>>;
-  draftCursor: number;
-  setDraftCursor: Dispatch<SetStateAction<number>>;
   error: string;
   setError: Dispatch<SetStateAction<string>>;
-  isSending: boolean;
-  setIsSending: Dispatch<SetStateAction<boolean>>;
-  isGeneratingReplySuggestions: boolean;
-  setIsGeneratingReplySuggestions: Dispatch<SetStateAction<boolean>>;
-  replySuggestions: TavernReplyOption[];
-  setReplySuggestions: Dispatch<SetStateAction<TavernReplyOption[]>>;
-  turnStatus: string;
-  setTurnStatus: Dispatch<SetStateAction<string>>;
+  busy: TavernRoomBusyState;
+  setBusy: Dispatch<SetStateAction<TavernRoomBusyState>>;
+  setBusyStatus: (status: string) => void;
   activeRoom: TavernRoom | null;
   visualPreset: VisualPresetDefinition;
   characterById: Map<string, TavernCharacter>;

@@ -1,7 +1,7 @@
 import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
-import type { TavernRoomContextValue } from "@/features/pages/taverns/room/context";
+import { createIdleTavernRoomBusyState, type TavernRoomContextValue } from "@/features/pages/taverns/room/context";
 import { createTavernMessage } from "@/features/pages/taverns/tavern/message";
 import {
   isTavernCharacterAvailableForSpeech,
@@ -171,27 +171,13 @@ export const createSpeakerRuntimeModelResolver =
     return resolvedModel.runtimeModel;
   };
 
-export const getReferencePreviewsForSubmit = ({
-  submittedText,
-  referencedFilePreviews,
-}: {
-  submittedText?: string;
-  referencedFilePreviews: WorkspaceFileEntry[];
-}) => (submittedText === undefined ? referencedFilePreviews : []);
-
 export const validateSubmitReferences = ({
-  submittedText,
   unresolvedFileReferences,
   ambiguousFileReferences,
 }: {
-  submittedText?: string;
   unresolvedFileReferences: Array<{ token: string }>;
   ambiguousFileReferences: Array<{ token: string }>;
 }) => {
-  if (submittedText !== undefined) {
-    return "";
-  }
-
   if (unresolvedFileReferences.length > 0) {
     return `未找到引用文件：${unresolvedFileReferences.map((match) => `@${match.token}`).join("、")}`;
   }
@@ -212,24 +198,22 @@ export const beginTurnSubmission = ({
   room: TavernRoom;
   mode: TurnMode;
 }) => {
-  ctx.setIsSending(true);
-  ctx.setError("");
-  ctx.setReplySuggestions([]);
-  ctx.patchRoom(room.id, {
-    replyOptions: [],
-  });
-  ctx.setTurnStatus(
-    mode.isSceneDriveMode
+  ctx.setBusy({
+    kind: "sending",
+    status: mode.isSceneDriveMode
       ? "导演正在自推动场景..."
       : mode.isDirectorLikeMode
         ? "导演正在接收你的消息..."
         : "正在发送消息...",
-  );
+  });
+  ctx.setError("");
+  ctx.patchRoom(room.id, {
+    replyOptions: [],
+  });
 };
 
 export const abortTurnSubmission = ({ ctx }: { ctx: TavernRoomContextValue }) => {
-  ctx.setIsSending(false);
-  ctx.setTurnStatus("");
+  ctx.setBusy(createIdleTavernRoomBusyState());
 };
 
 export const readTurnReferences = async ({
@@ -245,7 +229,7 @@ export const readTurnReferences = async ({
     return [];
   }
 
-  ctx.setTurnStatus("正在读取引用文件...");
+  ctx.setBusyStatus("正在读取引用文件...");
   return readReferencedFiles();
 };
 
@@ -320,16 +304,14 @@ export const prepareTurnUserMessage = ({
   visibleUserMessage: TavernMessage | null;
   mode: TurnMode;
 }) => {
-  // 提交流程真正开始后才清空输入和落地用户消息，保证前置失败不会改动页面。
-  ctx.setTurnStatus(
+  // 提交流程真正开始后才落地用户消息，保证前置失败不会改动页面。
+  ctx.setBusyStatus(
     mode.isSceneDriveMode
       ? "导演正在准备自推动轮次..."
       : mode.isDirectorLikeMode
         ? "导演正在准备角色状态..."
         : "正在准备对话...",
   );
-  ctx.setDraft("");
-  ctx.setDraftCursor(0);
   if (visibleUserMessage) {
     ctx.appendMessagesToRoom(room.id, [visibleUserMessage]);
   }

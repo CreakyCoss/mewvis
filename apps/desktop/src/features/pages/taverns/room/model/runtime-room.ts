@@ -58,8 +58,6 @@ export const createTavernRuntimeRoomFromConfig = (room: TavernRoomConfig): Taver
     storyOutline: "",
     storyGoal: "",
     storyGraph: createDefaultStoryGraph([scene]),
-    storyRuns: [],
-    activeRunId: undefined,
     activeSceneInstanceId: undefined,
     sceneInstances: [],
     activeSceneId: scene.id,

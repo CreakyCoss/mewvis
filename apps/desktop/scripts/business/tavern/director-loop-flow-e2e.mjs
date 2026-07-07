@@ -668,9 +668,20 @@ writeFileSync(
     setError: (message: string) => {
       errors.push(message);
     },
+    busy: { kind: "idle", status: "" },
+    setBusy: (nextBusy: any) => {
+      ctx.busy = typeof nextBusy === "function" ? nextBusy(ctx.busy) : nextBusy;
+      if (ctx.busy?.status) {
+        turnStatusUpdates.push(ctx.busy.status);
+      }
+    },
+    setBusyStatus: (status: string) => {
+      ctx.busy = { ...ctx.busy, status };
+      turnStatusUpdates.push(status);
+    },
     turnStatus: "",
     setTurnStatus: (status: string) => {
-      turnStatusUpdates.push(status);
+      ctx.setBusyStatus(status);
     },
     get activeRoom() {
       return state.rooms.find((item: any) => item.id === room.id) ?? room;

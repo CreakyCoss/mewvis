@@ -1,19 +1,10 @@
-import {
-  ArrowLeft,
-  Eraser,
-  PanelRightClose,
-  PanelRightOpen,
-  Pause,
-  RotateCcw,
-  Sparkles,
-  Wine,
-} from "lucide-react";
+import { ArrowLeft, Eraser, PanelRightClose, PanelRightOpen, Pause, RotateCcw, Sparkles, Wine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WindowDragRegion } from "@/components/window-drag-region";
 import { cn } from "@/lib/utils";
 import { compactScene } from "@/features/pages/taverns/tavern/utils";
 import { getTavernSceneInstanceDisplayTitle } from "@/features/pages/taverns/tavern/runtime/scene-selectors";
-import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
+import { isTavernRoomBusy, isTavernRoomSending, useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import { SceneSelector } from "./scene-selector";
 
 type HeaderProps = {
@@ -42,11 +33,13 @@ export const Header = ({
   onToggleSceneDriveAuto,
   onToggleSidePanel,
 }: HeaderProps) => {
-  const { activeRoom, visualPreset, isSending } = useTavernRoomContext();
+  const { activeRoom, visualPreset, busy } = useTavernRoomContext();
   if (!activeRoom) {
     return null;
   }
 
+  const isBusy = isTavernRoomBusy(busy);
+  const isSending = isTavernRoomSending(busy);
   const sceneInstanceOptions = activeRoom.sceneInstances.map((instance) => ({
     id: instance.id,
     label: getTavernSceneInstanceDisplayTitle(activeRoom, instance.id),
@@ -100,7 +93,7 @@ export const Header = ({
           className={tavernHeaderActionButtonClassName}
           title={isSending ? "正在回应" : "自推动一轮"}
           aria-label={isSending ? "正在回应" : "自推动一轮"}
-          disabled={isSending || isSceneDriveAutoRunning}
+          disabled={isBusy || isSceneDriveAutoRunning}
           onClick={onSceneDriveTurn}
         >
           <Sparkles className="size-4" />
@@ -117,7 +110,7 @@ export const Header = ({
           title={isSceneDriveAutoRunning ? "停止自动自推" : "自动自推"}
           aria-label={isSceneDriveAutoRunning ? "停止自动自推" : "自动自推"}
           aria-pressed={isSceneDriveAutoRunning}
-          disabled={isSending && !isSceneDriveAutoRunning}
+          disabled={isBusy && !isSceneDriveAutoRunning}
           onClick={onToggleSceneDriveAuto}
         >
           {isSceneDriveAutoRunning ? <Pause className="size-4" /> : <Sparkles className="size-4" />}
@@ -130,7 +123,7 @@ export const Header = ({
           className={tavernHeaderActionButtonClassName}
           title="清空当前节点对话"
           aria-label="清空当前节点对话"
-          disabled={isSending || isSceneDriveAutoRunning}
+          disabled={isBusy || isSceneDriveAutoRunning}
           onClick={onClearCurrentSceneMessages}
         >
           <Eraser className="size-4" />
@@ -144,7 +137,7 @@ export const Header = ({
             className={tavernHeaderActionButtonClassName}
             title="按最新故事内容重建酒馆运行时"
             aria-label="按最新故事内容重建酒馆运行时"
-            disabled={isSending || isSceneDriveAutoRunning}
+            disabled={isBusy || isSceneDriveAutoRunning}
             onClick={onRebuildRuntime}
           >
             <RotateCcw className="size-4" />

@@ -1,27 +1,12 @@
 import type { TavernRoomSessionState, TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
-import type { CSSProperties, FormEvent, KeyboardEvent, Ref } from "react";
+import type { CSSProperties, Ref } from "react";
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import {
-  getActiveReferenceToken,
-  loadContextResources,
-  quoteReferencePath,
-  resolveFileReferenceMatches,
-  summarizeReferenceMatches,
-} from "@/features/ai/components/context-tools";
-import {
-  requireRuntimeModelInput,
-  type RuntimeModelOption,
-  useLlmSettingsStore,
-} from "@/features/pages/settings/llm/store";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { useLlmSettingsStore } from "@/features/pages/settings/llm/store";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { WindowDragRegion } from "@/components/window-drag-region";
-import { listWorkspaceFiles, readWorkspaceFile, type WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
+import { listWorkspaceFiles, type WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import type { Workspace } from "@/features/pages/workspace/types";
 import { cn } from "@/lib/utils";
 import { getVisualPreset } from "../tavern/visual-presets";
@@ -37,12 +22,20 @@ import type { TavernRuntimeScope } from "../storage";
 import { getTavernPresentationProfile } from "../tavern/prompt-registry/presentation-rules";
 import { createTavernRenderableMessages } from "../tavern/message";
 import { deleteTavernBridgeSession } from "../tavern/runtime/conversation";
-import type { TavernMessage, TavernReferencedFile } from "../tavern/types";
-import type { TavernReplyOption } from "@/features/pages/taverns/manage/model";
-import { runTavernUserReplySuggestions } from "../tavern/runtime/assistants";
-import { uniqueFilesByPath } from "../tavern/utils";
-import { Composer } from "./composer";
-import { TavernRoomProvider, type TavernRoomContextValue } from "./context";
+import type { TavernMessage } from "../tavern/types";
+import {
+  Composer,
+  createEmptyComposerSubmitPayload,
+  type ComposerHandle,
+  type ComposerSubmitPayload,
+} from "./composer";
+import {
+  createIdleTavernRoomBusyState,
+  isTavernRoomBusy,
+  type TavernRoomContextValue,
+  type TavernRoomBusyState,
+  TavernRoomProvider,
+} from "./context";
 import { Header } from "./header";
 import { resolveTavernConversationRenderer } from "../tavern/message/renderers";
 import { SceneBriefCard } from "./scene-brief-card";
@@ -51,15 +44,10 @@ import { SidePanel, type SidePanelHandle } from "./side-panel";
 import { loadTavernRoomSessionState, saveTavernRoomSessionState } from "./storage";
 import { submitRoomTurn } from "./turn/submit";
 
-const REFERENCE_SUGGESTION_LIMIT = 8;
-const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
 const TAVERN_SCENE_DRIVE_AUTO_INTERVAL_MS = 900;
 const TAVERN_SCENE_DRIVE_AUTO_MAX_TURNS = 20;
 const fullScreenDialogContentClassName =
   "!fixed !inset-0 !left-0 !top-0 !flex !h-screen !max-h-none !w-screen !max-w-none !translate-x-0 !translate-y-0 flex-col gap-0 overflow-hidden !rounded-none p-0 !ring-0";
-
-const requireTavernRuntimeModelInput = (runtimeModel: RuntimeModelOption) =>
-  requireRuntimeModelInput(runtimeModel, TAVERN_RUNTIME_MODEL_UNAVAILABLE);
 
 const getErrorMessage = (error: unknown) => {
   if (error instanceof Error) {
@@ -162,13 +150,8 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const loadSettings = useLlmSettingsStore((store) => store.loadSettings);
   const runtimeModel = runtimeModels[0] ?? null;
   const [files, setFiles] = useState<WorkspaceFileEntry[]>([]);
-  const [draft, setDraft] = useState("");
-  const [draftCursor, setDraftCursor] = useState(0);
   const [error, setError] = useState("");
-  const [isSending, setIsSending] = useState(false);
-  const [isGeneratingReplySuggestions, setIsGeneratingReplySuggestions] = useState(false);
-  const [replySuggestions, setReplySuggestions] = useState<TavernReplyOption[]>([]);
-  const [turnStatus, setTurnStatus] = useState("");
+  const [busy, setBusy] = useState<TavernRoomBusyState>(() => createIdleTavernRoomBusyState());
   const activeRoom = useMemo(() => {
     const stateRoom = getSessionStateRoom(state, openOptions?.room.id);
     const sourceRoom = stateRoom ?? openOptions?.room ?? null;
@@ -193,9 +176,10 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   }, [activeRoom, state.messages]);
   const activeCharacter =
     roomCharacters.find((character) => character.id === activeRoom?.activeCharacterId) ?? roomCharacters[0] ?? null;
+  const isBusy = isTavernRoomBusy(busy);
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const [isSceneDriveAutoRunning, setIsSceneDriveAutoRunning] = useState(false);
-  const draftInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const composerRef = useRef<ComposerHandle | null>(null);
   const sceneDriveAutoTimerRef = useRef<number | null>(null);
   const sceneDriveAutoRunCountRef = useRef(0);
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
@@ -210,13 +194,8 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     setState(createEmptyTavernSessionState());
     setIsOpen(true);
     setIsTavernStateHydrated(false);
-    setDraft("");
-    setDraftCursor(0);
     setError("");
-    setIsSending(false);
-    setIsGeneratingReplySuggestions(false);
-    setReplySuggestions([]);
-    setTurnStatus("");
+    setBusy(createIdleTavernRoomBusyState());
     setIsSidePanelOpen(false);
     setIsSceneDriveAutoRunning(false);
     sceneDriveAutoRunCountRef.current = 0;
@@ -427,26 +406,24 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     setError(message);
   }, []);
 
+  const setBusyStatus = useCallback((status: string) => {
+    setBusy((current) => ({
+      ...current,
+      status,
+    }));
+  }, []);
+
   const ctx = useMemo<TavernRoomContextValue>(
     () => ({
       workspace,
       runtimeModel,
       state,
       setState,
-      draft,
-      setDraft,
-      draftCursor,
-      setDraftCursor,
       error,
       setError,
-      isSending,
-      setIsSending,
-      isGeneratingReplySuggestions,
-      setIsGeneratingReplySuggestions,
-      replySuggestions,
-      setReplySuggestions,
-      turnStatus,
-      setTurnStatus,
+      busy,
+      setBusy,
+      setBusyStatus,
       activeRoom,
       visualPreset,
       characterById,
@@ -463,23 +440,19 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       activeCharacter,
       activeRoom,
       appendMessagesToRoom,
+      busy,
       characterById,
-      draft,
-      draftCursor,
       error,
-      isGeneratingReplySuggestions,
-      isSending,
       patchMessage,
       patchRoom,
       removeMessage,
-      replySuggestions,
       reportError,
       roomCharacters,
       roomMessages,
       runtimeModel,
+      setBusyStatus,
       setState,
       state,
-      turnStatus,
       visualPreset,
       workspace,
     ],
@@ -511,8 +484,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const Conversation = conversationRenderer.Conversation;
 
   useEffect(() => {
-    setIsGeneratingReplySuggestions(false);
-    setReplySuggestions(activeRoom?.replyOptions ?? []);
+    setBusy((current) => (current.kind === "reply_suggestions" ? createIdleTavernRoomBusyState() : current));
     setIsSceneDriveAutoRunning(false);
     if (sceneDriveAutoTimerRef.current !== null) {
       window.clearTimeout(sceneDriveAutoTimerRef.current);
@@ -567,40 +539,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     return () => resizeObserver.disconnect();
   }, [activeRoom?.id, activeRoom?.activeSceneInstanceId, scrollMessagesToBottom, isOpen]);
 
-  const selectableFiles = useMemo(() => files.filter((file) => !file.isDirectory), [files]);
-  const activeReferenceToken = useMemo(() => getActiveReferenceToken(draft, draftCursor), [draft, draftCursor]);
-  const referenceSuggestions = useMemo(() => {
-    if (!activeReferenceToken) {
-      return [];
-    }
-
-    const query = activeReferenceToken.query.toLowerCase();
-    return selectableFiles
-      .filter((file) => {
-        if (!query) {
-          return true;
-        }
-
-        const path = file.path.toLowerCase();
-        const name = file.name.toLowerCase();
-        return path.includes(query) || name.includes(query);
-      })
-      .slice(0, REFERENCE_SUGGESTION_LIMIT);
-  }, [activeReferenceToken, selectableFiles]);
-  const fileReferenceMatches = useMemo(() => resolveFileReferenceMatches(draft, files), [draft, files]);
-  const referencedFilePreviews = useMemo(
-    () => uniqueFilesByPath(summarizeReferenceMatches(fileReferenceMatches)),
-    [fileReferenceMatches],
-  );
-  const unresolvedFileReferences = useMemo(
-    () => fileReferenceMatches.filter((match) => match.matches.length === 0),
-    [fileReferenceMatches],
-  );
-  const ambiguousFileReferences = useMemo(
-    () => fileReferenceMatches.filter((match) => match.matches.length > 1),
-    [fileReferenceMatches],
-  );
-
   const selectRoomSceneInstance = useCallback((roomId: string, sceneInstanceId: string) => {
     setState((current) => {
       const targetRoom = getSessionStateRoom(current, roomId);
@@ -613,145 +551,35 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
         : switchTavernRoomScene(targetRoom, sceneInstanceId);
       return replaceSessionStateRoom(current, nextRoom);
     });
-    setReplySuggestions([]);
+    composerRef.current?.clearReplySuggestions();
   }, []);
 
-  const insertReference = useCallback(
-    (file: WorkspaceFileEntry) => {
-      const reference = `${quoteReferencePath(file.path)} `;
-      const start = activeReferenceToken?.start ?? draftCursor;
-      const end = activeReferenceToken?.end ?? draftCursor;
-      const nextCursor = start + reference.length;
-
-      setDraft((current) => `${current.slice(0, start)}${reference}${current.slice(end)}`);
-      setDraftCursor(nextCursor);
-      window.setTimeout(() => {
-        draftInputRef.current?.focus();
-        draftInputRef.current?.setSelectionRange(nextCursor, nextCursor);
-      }, 0);
-    },
-    [activeReferenceToken, draftCursor],
-  );
-
-  const readReferencedFiles = useCallback(async (): Promise<TavernReferencedFile[]> => {
-    const resources = await loadContextResources({
-      references: referencedFilePreviews.map((file) => ({ path: file.path })),
-      loadFile: async ({ path }) => {
-        const workspaceFile = await readWorkspaceFile(workspace.path, path);
-        return {
-          path: workspaceFile.path,
-          content: workspaceFile.content,
-          updatedAt: workspaceFile.updatedAt,
-        };
-      },
-    });
-    return resources.references.map((file) => ({
-      path: file.path,
-      content: file.content,
-    }));
-  }, [referencedFilePreviews, workspace.path]);
-
-  const handleGenerateReplySuggestions = useCallback(async () => {
-    if (isSending || isGeneratingReplySuggestions) {
-      return;
-    }
-
-    if (!runtimeModel) {
-      setError("请先在设置中选择模型，再生成候选回复。");
-      return;
-    }
-
-    if (!activeRoom) {
-      setError("当前房间还没有可生成回复的场景。");
-      return;
-    }
-
-    setError("");
-    setIsGeneratingReplySuggestions(true);
-    try {
-      const suggestions = await runTavernUserReplySuggestions({
-        workspacePath: workspace.path,
-        runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
-        room: activeRoom,
-        characters: roomCharacters,
-        messages: roomMessages,
-        currentDraft: draft,
-      });
-      setReplySuggestions(suggestions);
-      patchRoom(activeRoom.id, {
-        replyOptions: suggestions,
-      });
-      if (suggestions.length === 0) {
-        setError("暂时没有生成可用候选回复，请再试一次。");
-      }
-    } catch (suggestionError) {
-      setError(`生成候选回复失败：${getErrorMessage(suggestionError)}`);
-    } finally {
-      setIsGeneratingReplySuggestions(false);
-    }
-  }, [
-    activeRoom,
-    draft,
-    isGeneratingReplySuggestions,
-    isSending,
-    patchRoom,
-    roomCharacters,
-    roomMessages,
-    runtimeModel,
-    workspace.path,
-  ]);
-
-  const handleFillReplySuggestion = useCallback(
-    (suggestion: TavernReplyOption) => {
-      const nextDraft = suggestion.text.trim();
-      if (!nextDraft) {
-        return;
-      }
-
-      setDraft(nextDraft);
-      setDraftCursor(nextDraft.length);
-      setReplySuggestions([]);
-      if (activeRoom) {
-        patchRoom(activeRoom.id, {
-          replyOptions: [],
-        });
-      }
-      window.setTimeout(() => {
-        draftInputRef.current?.focus();
-        draftInputRef.current?.setSelectionRange(nextDraft.length, nextDraft.length);
-      }, 0);
-    },
-    [activeRoom, patchRoom],
-  );
-
   const handleSubmit = useCallback(
-    async (
-      event?: FormEvent,
-      submittedText?: string,
-      selectedReplyOption?: TavernReplyOption,
-      trigger?: { type: "user" | "scene_drive"; directive?: string },
-    ) => {
+    async (payload: ComposerSubmitPayload, trigger?: { type: "user" | "scene_drive"; directive?: string }) => {
       await submitRoomTurn({
         ctx,
-        event,
-        submittedText,
-        selectedReplyOption,
-        trigger,
-        ambiguousFileReferences,
-        readReferencedFiles,
-        referencedFilePreviews,
-        unresolvedFileReferences,
+        submittedText: trigger?.type === "scene_drive" ? undefined : payload.text,
+        selectedReplyOption: payload.selectedReplyOption,
+        trigger: trigger?.type === "scene_drive" ? { ...trigger, directive: payload.text } : trigger,
+        ambiguousFileReferences: payload.ambiguousFileReferences,
+        readReferencedFiles: payload.readReferencedFiles,
+        referencedFilePreviews: payload.referencedFilePreviews,
+        unresolvedFileReferences: payload.unresolvedFileReferences,
+        onCommitted: () => {
+          composerRef.current?.clearDraft();
+          composerRef.current?.clearReplySuggestions();
+        },
       });
     },
-    [ambiguousFileReferences, ctx, readReferencedFiles, referencedFilePreviews, unresolvedFileReferences],
+    [ctx],
   );
 
   const handleSceneDriveTurn = useCallback(async () => {
-    await handleSubmit(undefined, undefined, undefined, {
+    const payload = composerRef.current?.getSubmitPayload() ?? createEmptyComposerSubmitPayload();
+    await handleSubmit(payload, {
       type: "scene_drive",
-      directive: draft,
     });
-  }, [draft, handleSubmit]);
+  }, [handleSubmit]);
 
   const clearSceneDriveAutoTimer = useCallback(() => {
     if (sceneDriveAutoTimerRef.current !== null) {
@@ -803,7 +631,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
         messages: [resetMessage],
       };
     });
-    setReplySuggestions([]);
+    composerRef.current?.clearReplySuggestions();
     setIsSceneDriveAutoRunning(false);
     clearSceneDriveAutoTimer();
     sceneDriveAutoRunCountRef.current = 0;
@@ -817,20 +645,10 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       sceneDriveAutoRunCountRef.current = 0;
       setIsSceneDriveAutoRunning(false);
       if (statusText) {
-        setTurnStatus(statusText);
+        setBusyStatus(statusText);
       }
     },
-    [clearSceneDriveAutoTimer, setTurnStatus],
-  );
-
-  const handleComposerKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLTextAreaElement>) => {
-      if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
-        event.preventDefault();
-        void handleSubmit();
-      }
-    },
-    [handleSubmit],
+    [clearSceneDriveAutoTimer, setBusyStatus],
   );
 
   const handleToggleSceneDriveAuto = useCallback(() => {
@@ -839,7 +657,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       return;
     }
 
-    if (isSending) {
+    if (isBusy) {
       return;
     }
 
@@ -850,7 +668,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
 
     const pauseReason = getSceneDriveAutoPauseReason(activeRoom);
     if (pauseReason) {
-      setTurnStatus(pauseReason);
+      setBusyStatus(pauseReason);
       return;
     }
 
@@ -858,15 +676,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     setIsSceneDriveAutoRunning(true);
     sceneDriveAutoRunCountRef.current = 1;
     void handleSceneDriveTurn();
-  }, [
-    activeRoom,
-    handleSceneDriveTurn,
-    isSceneDriveAutoRunning,
-    isSending,
-    setError,
-    setTurnStatus,
-    stopSceneDriveAuto,
-  ]);
+  }, [activeRoom, handleSceneDriveTurn, isBusy, isSceneDriveAutoRunning, setError, setBusyStatus, stopSceneDriveAuto]);
 
   useEffect(() => {
     if (!isSceneDriveAutoRunning) {
@@ -884,7 +694,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       return;
     }
 
-    if (isSending) {
+    if (isBusy) {
       clearSceneDriveAutoTimer();
       return;
     }
@@ -923,8 +733,8 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     clearSceneDriveAutoTimer,
     error,
     handleSceneDriveTurn,
+    isBusy,
     isSceneDriveAutoRunning,
-    isSending,
     roomMessages,
     stopSceneDriveAuto,
     isOpen,
@@ -1084,25 +894,16 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
               </ScrollArea>
 
               <Composer
-                referencedFilePreviews={referencedFilePreviews}
-                referenceSuggestions={referenceSuggestions}
-                inputRef={draftInputRef}
-                onInsertReference={insertReference}
-                onGenerateReplySuggestions={handleGenerateReplySuggestions}
-                onSelectReplySuggestion={(suggestion) => {
-                  void handleSubmit(undefined, suggestion.text, suggestion);
+                bind={composerRef}
+                files={files}
+                onSubmit={(payload) => {
+                  void handleSubmit(payload);
                 }}
-                onFillReplySuggestion={handleFillReplySuggestion}
-                onSubmit={(event) => {
-                  void handleSubmit(event);
-                }}
-                onKeyDown={handleComposerKeyDown}
               />
             </main>
 
             <SidePanel bind={sidePanelRef} isOpen={isSidePanelOpen} onOpenChange={setIsSidePanelOpen} />
           </div>
-
         </DialogContent>
       </Dialog>
     </TavernRoomProvider>

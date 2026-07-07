@@ -1,6 +1,7 @@
 import type { FormEvent } from "react";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import type { TavernRoomContextValue } from "@/features/pages/taverns/room/context";
+import { createIdleTavernRoomBusyState, isTavernRoomBusy } from "@/features/pages/taverns/room/context";
 import { buildTavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
 import type { TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import type { TavernReplyOption } from "@/features/pages/taverns/manage/model";
@@ -13,7 +14,6 @@ import {
   createUserTurnMessage,
   findMissingSpeakerModel,
   getErrorMessage,
-  getReferencePreviewsForSubmit,
   handleTurnFailure,
   prepareTurnUserMessage,
   readTurnReferences,
@@ -43,6 +43,7 @@ type SubmitRoomTurnParams = {
   readReferencedFiles: () => Promise<TavernReferencedFile[]>;
   referencedFilePreviews: WorkspaceFileEntry[];
   unresolvedFileReferences: Array<{ token: string }>;
+  onCommitted?: () => void;
 };
 
 export const submitRoomTurn = async ({
@@ -55,17 +56,18 @@ export const submitRoomTurn = async ({
   readReferencedFiles,
   referencedFilePreviews,
   unresolvedFileReferences,
+  onCommitted,
 }: SubmitRoomTurnParams) => {
   event?.preventDefault();
 
-  const { activeCharacter, activeRoom, draft, isSending, roomCharacters, roomMessages, runtimeModel, setError } = ctx;
+  const { activeCharacter, activeRoom, busy, roomCharacters, roomMessages, runtimeModel, setError } = ctx;
   const triggerType = trigger.type;
   const draftText = (
-    trigger.type === "scene_drive" ? (trigger.directive ?? submittedText ?? draft) : (submittedText ?? draft)
+    trigger.type === "scene_drive" ? (trigger.directive ?? submittedText ?? "") : (submittedText ?? "")
   ).trim();
 
   // 1. 前置校验只做“能不能提交”的判断，不改动房间数据。
-  if (isSending) {
+  if (isTavernRoomBusy(busy)) {
     return;
   }
 
@@ -101,7 +103,6 @@ export const submitRoomTurn = async ({
   }
 
   const referenceError = validateSubmitReferences({
-    submittedText,
     unresolvedFileReferences,
     ambiguousFileReferences,
   });
@@ -110,10 +111,7 @@ export const submitRoomTurn = async ({
     return;
   }
 
-  const currentReferencedFilePreviews = getReferencePreviewsForSubmit({
-    submittedText,
-    referencedFilePreviews,
-  });
+  const currentReferencedFilePreviews = referencedFilePreviews;
   const requireSpeakerRuntimeModel = createSpeakerRuntimeModelResolver(runtimeModel);
 
   beginTurnSubmission({
@@ -175,6 +173,7 @@ export const submitRoomTurn = async ({
       visibleUserMessage,
       mode,
     });
+    onCommitted?.();
 
     let speakers = speakerPlan.candidateSpeakers;
     let directorReason = "";
@@ -259,7 +258,6 @@ export const submitRoomTurn = async ({
       activeReplyRef,
     });
   } finally {
-    ctx.setIsSending(false);
-    ctx.setTurnStatus("");
+    ctx.setBusy(createIdleTavernRoomBusyState());
   }
 };

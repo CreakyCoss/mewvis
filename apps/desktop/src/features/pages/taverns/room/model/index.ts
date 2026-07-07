@@ -120,11 +120,7 @@ export type TavernMemoryEntry = {
   updatedAt: number;
 };
 
-export type TavernSecretRevealScope =
-  | { type: "scene"; sceneId: string }
-  | { type: "node"; nodeId: string }
-  | { type: "sceneInstance"; sceneInstanceId: string }
-  | { type: "run"; runId: string };
+export type TavernSecretRevealScope = { type: "scene"; sceneId: string } | { type: "node"; nodeId: string };
 
 export type TavernSecretReveal = {
   id: string;
@@ -137,20 +133,9 @@ export type TavernSecretReveal = {
   revealedAt: number;
 };
 
-export type TavernStoryRun = {
-  id: string;
-  title: string;
-  pathNodeIds: string[];
-  pathEdgeIds: string[];
-  activeNodeId: string;
-  createdAt: number;
-  updatedAt: number;
-};
-
 export type TavernSceneInstance = TavernScene & {
   sceneId: string;
   nodeId: string;
-  runIds: string[];
   pathNodeIds: string[];
   pathEdgeIds: string[];
   promptOverrides: TavernScenePromptOverrides;
@@ -164,8 +149,6 @@ export type TavernRuntimeRoom = TavernRoomConfig & {
   storyOutline: string;
   storyGoal: string;
   storyGraph: TavernStoryGraph;
-  storyRuns: TavernStoryRun[];
-  activeRunId?: string;
   activeSceneInstanceId?: string;
   sceneInstances: TavernSceneInstance[];
   activeSceneId?: string;

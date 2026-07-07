@@ -270,8 +270,6 @@ export const materializeTavernPresentationInput = (
     storyOutline: trimText(input.world.outline),
     storyGoal: trimText(input.world.goal),
     storyGraph,
-    storyRuns: [],
-    activeRunId: undefined,
     activeSceneInstanceId: undefined,
     sceneInstances: [],
     activeSceneId: activeScene.id,

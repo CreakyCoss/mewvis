@@ -1,56 +1,57 @@
 import { createEmptyCharacterMemoryLayers, createEmptySceneMemoryLayers } from "./memory-layers";
 import { normalizeScenePromptOverrides } from "./scene-prompt-overrides";
-import { createRouteScopedSceneInstanceId, resolveActiveRun, resolveRunNodePrefix } from "./story-runtime";
 import type {
   TavernScene,
   TavernSceneInstance,
   TavernStoryGraph,
   TavernStoryNode,
-  TavernStoryRun,
   TavernRuntimeRoom as TavernRoom,
 } from "@/features/pages/taverns/room/model";
 
+const stableIdHash = (value: string) => {
+  let hash = 5381;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = ((hash << 5) + hash) ^ value.charCodeAt(index);
+  }
+  return (hash >>> 0).toString(36);
+};
+
+export const createNodeScopedSceneInstanceId = (roomId: string, nodeId: string) =>
+  `scene-instance-${stableIdHash([roomId, nodeId].join(">"))}`;
+
 export const resolveActiveSceneInstance = (
-  room: Pick<
-    TavernRoom,
-    "id" | "activeRunId" | "activeSceneInstanceId" | "storyRuns" | "storyGraph" | "sceneInstances"
-  >,
+  room: Pick<TavernRoom, "activeSceneId" | "activeSceneInstanceId" | "storyGraph" | "sceneInstances">,
 ) => {
   const explicitInstance = room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId);
   if (explicitInstance) {
     return explicitInstance;
   }
 
-  const activeRun = resolveActiveRun(room.storyRuns, room.activeRunId);
-  const pathNodeIds = resolveRunNodePrefix(activeRun, room.storyGraph.activeNodeId);
-  const scopedInstanceId = pathNodeIds.length > 0 ? createRouteScopedSceneInstanceId(room.id, pathNodeIds) : "";
-  return room.sceneInstances.find((instance) => instance.id === scopedInstanceId) ?? room.sceneInstances[0] ?? null;
+  return (
+    room.sceneInstances.find((instance) => instance.nodeId === room.storyGraph.activeNodeId) ??
+    room.sceneInstances.find((instance) => instance.sceneId === room.activeSceneId) ??
+    room.sceneInstances[0] ??
+    null
+  );
 };
 
 const createSceneInstanceFromScene = ({
   roomId,
   scene,
   node,
-  runId,
-  pathNodeIds,
-  pathEdgeIds,
 }: {
   roomId: string;
   scene: TavernScene;
   node: TavernStoryNode;
-  runId: string;
-  pathNodeIds: string[];
-  pathEdgeIds: string[];
 }): TavernSceneInstance => {
-  const id = createRouteScopedSceneInstanceId(roomId, pathNodeIds);
+  const id = createNodeScopedSceneInstanceId(roomId, node.id);
   return {
     ...scene,
     id,
     sceneId: scene.id,
     nodeId: node.id,
-    runIds: [runId],
-    pathNodeIds,
-    pathEdgeIds,
+    pathNodeIds: [node.id],
+    pathEdgeIds: [],
     promptOverrides: normalizeScenePromptOverrides(),
     memoryLayers: createEmptySceneMemoryLayers({
       required: scene.memory,
@@ -69,66 +70,56 @@ const createSceneInstanceFromScene = ({
   };
 };
 
-export const buildSceneInstancesForRuns = ({
+export const buildNodeScopedSceneInstances = ({
   roomId,
   graph,
   scenes,
-  runs,
   existingInstances = [],
 }: {
   roomId: string;
   graph: TavernStoryGraph;
   scenes: TavernScene[];
-  runs: TavernStoryRun[];
   existingInstances?: TavernSceneInstance[];
 }) => {
   const sceneById = new Map(scenes.map((scene) => [scene.id, scene]));
-  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
   const existingById = new Map(existingInstances.map((instance) => [instance.id, instance]));
   const instanceById = new Map<string, TavernSceneInstance>();
 
-  runs.forEach((run) => {
-    run.pathNodeIds.forEach((nodeId, index) => {
-      const node = nodeById.get(nodeId);
-      const scene = node?.sceneId ? sceneById.get(node.sceneId) : scenes[0];
-      if (!node || !scene) {
-        return;
-      }
+  graph.nodes.forEach((node) => {
+    const scene = node.sceneId ? sceneById.get(node.sceneId) : scenes[0];
+    if (!scene) {
+      return;
+    }
 
-      const pathNodeIds = run.pathNodeIds.slice(0, index + 1);
-      const pathEdgeIds = run.pathEdgeIds.slice(0, index);
-      const instanceId = createRouteScopedSceneInstanceId(roomId, pathNodeIds);
-      const existing = existingById.get(instanceId);
-      const current = instanceById.get(instanceId);
-      const instance =
-        current ??
-        existing ??
-        createSceneInstanceFromScene({
-          roomId,
-          scene,
-          node,
-          runId: run.id,
-          pathNodeIds,
-          pathEdgeIds,
-        });
-
-      instanceById.set(instanceId, {
-        ...instance,
-        sceneId: scene.id,
-        nodeId: node.id,
-        runIds: Array.from(new Set([...instance.runIds, run.id])),
-        pathNodeIds,
-        pathEdgeIds,
-        promptOverrides: normalizeScenePromptOverrides(instance.promptOverrides),
-        memoryLayers: createEmptySceneMemoryLayers(instance.memoryLayers),
-        characterMemoryLayers: Object.fromEntries(
-          Object.entries(instance.characterMemoryLayers ?? {}).map(([characterId, layers]) => [
-            characterId,
-            createEmptyCharacterMemoryLayers(layers),
-          ]),
-        ),
-        secretReveals: Array.isArray(instance.secretReveals) ? instance.secretReveals : [],
+    const instanceId = createNodeScopedSceneInstanceId(roomId, node.id);
+    const legacyInstance =
+      existingInstances.find((instance) => instance.nodeId === node.id) ??
+      existingInstances.find((instance) => instance.sceneId === scene.id);
+    const existing = existingById.get(instanceId) ?? legacyInstance;
+    const instance =
+      existing ??
+      createSceneInstanceFromScene({
+        roomId,
+        scene,
+        node,
       });
+
+    instanceById.set(instanceId, {
+      ...instance,
+      id: instanceId,
+      sceneId: scene.id,
+      nodeId: node.id,
+      pathNodeIds: [node.id],
+      pathEdgeIds: [],
+      promptOverrides: normalizeScenePromptOverrides(instance.promptOverrides),
+      memoryLayers: createEmptySceneMemoryLayers(instance.memoryLayers),
+      characterMemoryLayers: Object.fromEntries(
+        Object.entries(instance.characterMemoryLayers ?? {}).map(([characterId, layers]) => [
+          characterId,
+          createEmptyCharacterMemoryLayers(layers),
+        ]),
+      ),
+      secretReveals: Array.isArray(instance.secretReveals) ? instance.secretReveals : [],
     });
   });
 

@@ -1,14 +1,15 @@
 import { useImperativeHandle } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
+import { isTavernRoomBusy, useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import { CharacterStatusSection } from "./characters/section";
 import { SceneOverviewSection } from "./scene-overview";
 import type { SidePanelProps } from "./types";
 export type { SidePanelHandle } from "./types";
 
 export const SidePanel = ({ bind, isOpen, onOpenChange }: SidePanelProps) => {
-  const { activeRoom, visualPreset, isSending } = useTavernRoomContext();
+  const { activeRoom, visualPreset, busy } = useTavernRoomContext();
+  const isBusy = isTavernRoomBusy(busy);
 
   useImperativeHandle(
     bind,
@@ -30,9 +31,7 @@ export const SidePanel = ({ bind, isOpen, onOpenChange }: SidePanelProps) => {
         <div className="space-y-5 p-4">
           <SceneOverviewSection externalBusy={false} />
 
-          <CharacterStatusSection
-            externalBusy={isSending}
-          />
+          <CharacterStatusSection externalBusy={isBusy} />
         </div>
       </ScrollArea>
     </aside>

@@ -84,7 +84,7 @@ export const runDirectorLoopTurn = async ({
   userMessage: TavernMessage;
 }) => {
   const maxRounds = resolveDirectorLoopMaxRounds(runtimeRoom);
-  ctx.setTurnStatus("导演正在进行回环调度...");
+  ctx.setBusyStatus("导演正在进行回环调度...");
 
   const activeSpeakerRuntimeByRoleId = new Map<string, LoopSpeakerRuntime>();
   const speakerByRoleId = new Map(
@@ -263,7 +263,7 @@ const startLoopSpeakerRuntime = ({
   runtimeRoom: TavernRoom;
   speaker: TavernCharacter;
 }): LoopSpeakerRuntime => {
-  ctx.setTurnStatus(`${speaker.name} 正在按导演回环回应...`);
+  ctx.setBusyStatus(`${speaker.name} 正在按导演回环回应...`);
   const replyMessage = createTavernMessage({
     roomId: room.id,
     role: "character",
@@ -400,7 +400,7 @@ const applyLoopSupervisorDecision = ({
     throw new Error(`角色 ${missingDirectedModel.name} 还没有可用模型。`);
   }
 
-  ctx.setTurnStatus(
+  ctx.setBusyStatus(
     speakers.length > 0
       ? `导演继续安排 ${speakers.map((speaker) => speaker.name).join("、")} 发言。`
       : "导演回环判断结束。",

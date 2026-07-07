@@ -295,7 +295,7 @@ const ensureSpeakerReplyRuntimeStarted = ({
   }
 
   const { speaker } = runtime;
-  ctx.setTurnStatus(mode.isDirectorLikeMode ? `${speaker.name} 正在按导演调度回应...` : `${speaker.name} 正在回应...`);
+  ctx.setBusyStatus(mode.isDirectorLikeMode ? `${speaker.name} 正在按导演调度回应...` : `${speaker.name} 正在回应...`);
 
   const replyMessage = createTavernMessage({
     roomId: room.id,
@@ -723,7 +723,7 @@ const runSingleSpeakerReply = async ({
   const presentationProfile = getTavernPresentationProfile(runtimeRoom.presentation?.profileId);
   const presentationContract = getTavernPresentationContract(presentationProfile);
   const contentOnlyReplyAllowed = nonverbalReplyAllowed || presentationContract.allowsContentOnlyReply;
-  ctx.setTurnStatus(mode.isDirectorLikeMode ? `${speaker.name} 正在按导演调度回应...` : `${speaker.name} 正在回应...`);
+  ctx.setBusyStatus(mode.isDirectorLikeMode ? `${speaker.name} 正在按导演调度回应...` : `${speaker.name} 正在回应...`);
 
   const replyMessage = createTavernMessage({
     roomId: room.id,

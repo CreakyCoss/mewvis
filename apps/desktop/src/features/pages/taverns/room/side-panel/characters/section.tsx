@@ -21,7 +21,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import { cn } from "@/lib/utils";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { formatTavernCharacterRelationshipSummary } from "@/features/pages/taverns/tavern/core";
-import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
+import { isTavernRoomBusy, useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import { getVisualPreset } from "@/features/pages/taverns/tavern/visual-presets";
 import { buildTavernCharacterMemoryText } from "../memory-summary";
 import { EmptyPanelCard, emptyValueText } from "../shared";
@@ -434,13 +434,7 @@ export const CharacterStatusSection = ({
   externalBusy: boolean;
   onBusyChange?: (isBusy: boolean) => void;
 }) => {
-  const {
-    activeRoom,
-    activeCharacter,
-    roomCharacters,
-    isSending,
-    patchRoom,
-  } = useTavernRoomContext();
+  const { activeRoom, activeCharacter, roomCharacters, busy, patchRoom } = useTavernRoomContext();
 
   useEffect(() => {
     onBusyChange?.(false);
@@ -449,6 +443,7 @@ export const CharacterStatusSection = ({
   if (!activeRoom) {
     return null;
   }
+  const isBusy = isTavernRoomBusy(busy);
 
   const showRemovedActionToast = (label: string) => {
     toast.info(`${label} 已暂时移除。`);
@@ -467,7 +462,7 @@ export const CharacterStatusSection = ({
               key={character.id}
               character={character}
               isActive={character.id === activeCharacter?.id}
-              disabled={isSending}
+              disabled={isBusy}
               memory={buildTavernCharacterMemoryText(activeRoom, character)}
               isBusy={externalBusy}
               isCompacting={false}

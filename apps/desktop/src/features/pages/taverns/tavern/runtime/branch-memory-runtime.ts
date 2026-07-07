@@ -1,7 +1,4 @@
-import {
-  collectUniqueTrimmedLines,
-  getTavernBranchPathInstances,
-} from "./branch-memory";
+import { collectUniqueTrimmedLines, getTavernBranchPathInstances } from "./branch-memory";
 import { createTavernId as createId } from "../ids";
 import { createEmptyCharacterMemoryLayers, createEmptySceneMemoryLayers } from "./memory-layers";
 import { projectTavernSceneOntoRoom } from "./active-scene-runtime";
@@ -31,7 +28,7 @@ export const listTavernBranchSecretMemoryEntries = (room: TavernRoom): TavernBra
     return [];
   }
 
-  const { pathInstances } = getTavernBranchPathInstances(runtimeRoom, activeInstance);
+  const { pathInstances } = getTavernBranchPathInstances(activeInstance);
   const seen = new Set<string>();
 
   return pathInstances.flatMap((instance) => {
@@ -176,7 +173,7 @@ export const revealTavernSecretMemory = (
   const reveal: TavernSecretReveal = {
     id: createId("secret-reveal"),
     secretId,
-    scope: { type: "sceneInstance", sceneInstanceId: activeInstance.id },
+    scope: { type: "node", nodeId: activeInstance.nodeId },
     visibility: input.visibility,
     targetCharacterIds,
     sourceMessageIds: [],
@@ -193,8 +190,8 @@ export const revealTavernSecretMemory = (
       (item) =>
         !(
           item.secretId === reveal.secretId &&
-          item.scope.type === "sceneInstance" &&
-          item.scope.sceneInstanceId === activeInstance.id &&
+          item.scope.type === "node" &&
+          item.scope.nodeId === activeInstance.nodeId &&
           item.visibility === reveal.visibility &&
           item.targetCharacterIds.join("|") === reveal.targetCharacterIds.join("|")
         ),

@@ -2,7 +2,7 @@ import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/r
 import type { ReactElement } from "react";
 import type { TavernMessage } from "../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
-import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
+import { isTavernRoomSending, useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import type { TavernRenderableMessage } from "../domain/render-model";
 import { CharacterMessage } from "./character-message";
 import { NarratorMessage } from "./narrator-message";
@@ -54,11 +54,12 @@ const messageRoleRenderers: Record<TavernMessage["role"], (context: MessageRoleR
 };
 
 export const MessageRow = ({ message }: MessageRowProps) => {
-  const { activeRoom, characterById, isSending, visualPreset } = useTavernRoomContext();
+  const { activeRoom, characterById, busy, visualPreset } = useTavernRoomContext();
   if (!activeRoom) {
     return null;
   }
 
+  const isSending = isTavernRoomSending(busy);
   const character = message.characterId ? (characterById.get(message.characterId) ?? null) : null;
   const renderMessage = messageRoleRenderers[message.role];
 

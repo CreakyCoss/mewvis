@@ -1,59 +1,312 @@
-import type { FormEvent, KeyboardEvent, RefObject } from "react";
+import type { FormEvent, Ref } from "react";
+import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { FileText, Loader2, PencilLine, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
+import {
+  getActiveReferenceToken,
+  loadContextResources,
+  quoteReferencePath,
+  resolveFileReferenceMatches,
+  summarizeReferenceMatches,
+} from "@/features/ai/components/context-tools";
+import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
+import { readWorkspaceFile, type WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import { cn } from "@/lib/utils";
 import type { TavernReplyOption } from "@/features/pages/taverns/manage/model";
 import { getTavernPresentationProfile } from "@/features/pages/taverns/tavern/prompt-registry/presentation-rules";
-import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
+import { runTavernUserReplySuggestions } from "@/features/pages/taverns/tavern/runtime/assistants";
+import type { TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
+import { uniqueFilesByPath } from "@/features/pages/taverns/tavern/utils";
+import {
+  createIdleTavernRoomBusyState,
+  isTavernRoomBusy,
+  isTavernRoomGeneratingReplySuggestions,
+  isTavernRoomSending,
+  useTavernRoomContext,
+} from "@/features/pages/taverns/room/context";
 
-type ComposerProps = {
+const REFERENCE_SUGGESTION_LIMIT = 8;
+const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
+
+const requireTavernRuntimeModelInput = (runtimeModel: RuntimeModelOption) =>
+  requireRuntimeModelInput(runtimeModel, TAVERN_RUNTIME_MODEL_UNAVAILABLE);
+
+export type ComposerSubmitPayload = {
+  text: string;
+  selectedReplyOption?: TavernReplyOption;
   referencedFilePreviews: WorkspaceFileEntry[];
-  referenceSuggestions: WorkspaceFileEntry[];
-  inputRef: RefObject<HTMLTextAreaElement | null>;
-  onInsertReference: (file: WorkspaceFileEntry) => void;
-  onGenerateReplySuggestions: () => void;
-  onSelectReplySuggestion: (suggestion: TavernReplyOption) => void;
-  onFillReplySuggestion: (suggestion: TavernReplyOption) => void;
-  onSubmit: (event?: FormEvent) => void;
-  onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
+  unresolvedFileReferences: Array<{ token: string }>;
+  ambiguousFileReferences: Array<{ token: string }>;
+  readReferencedFiles: () => Promise<TavernReferencedFile[]>;
 };
 
-export const Composer = ({
-  referencedFilePreviews,
-  referenceSuggestions,
-  inputRef,
-  onInsertReference,
-  onGenerateReplySuggestions,
-  onSelectReplySuggestion,
-  onFillReplySuggestion,
-  onSubmit,
-  onKeyDown,
-}: ComposerProps) => {
+export type ComposerHandle = {
+  getDraft: () => string;
+  getSubmitPayload: () => ComposerSubmitPayload;
+  clearDraft: () => void;
+  clearReplySuggestions: () => void;
+};
+
+type ComposerProps = {
+  bind: Ref<ComposerHandle>;
+  files: WorkspaceFileEntry[];
+  onSubmit: (payload: ComposerSubmitPayload) => void;
+};
+
+export const createEmptyComposerSubmitPayload = (): ComposerSubmitPayload => ({
+  text: "",
+  referencedFilePreviews: [],
+  unresolvedFileReferences: [],
+  ambiguousFileReferences: [],
+  readReferencedFiles: async () => [],
+});
+
+export const Composer = ({ bind, files, onSubmit }: ComposerProps) => {
   const {
     activeRoom,
-    draft,
+    busy,
     error,
-    isGeneratingReplySuggestions,
-    isSending,
-    replySuggestions,
-    setDraft,
-    setDraftCursor,
+    patchRoom,
+    roomCharacters,
+    roomMessages,
+    runtimeModel,
+    setBusy,
+    setError,
     visualPreset,
+    workspace,
   } = useTavernRoomContext();
+  const [draft, setDraft] = useState("");
+  const [draftCursor, setDraftCursor] = useState(0);
+  const [replySuggestions, setReplySuggestions] = useState<TavernReplyOption[]>([]);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const isSending = isTavernRoomSending(busy);
+  const isGeneratingReplySuggestions = isTavernRoomGeneratingReplySuggestions(busy);
+  const isBusy = isTavernRoomBusy(busy);
   const presentationProfile = getTavernPresentationProfile(activeRoom?.presentation?.profileId);
   const placeholder =
     presentationProfile.userInputMode !== "speech"
       ? presentationProfile.composerPlaceholder
       : "写给导演的方向，或留空点自推...";
   const canSubmit = Boolean(draft.trim());
+  const selectableFiles = useMemo(() => files.filter((file) => !file.isDirectory), [files]);
+  const activeReferenceToken = useMemo(() => getActiveReferenceToken(draft, draftCursor), [draft, draftCursor]);
+  const referenceSuggestions = useMemo(() => {
+    if (!activeReferenceToken) {
+      return [];
+    }
+
+    const query = activeReferenceToken.query.toLowerCase();
+    return selectableFiles
+      .filter((file) => {
+        if (!query) {
+          return true;
+        }
+
+        const path = file.path.toLowerCase();
+        const name = file.name.toLowerCase();
+        return path.includes(query) || name.includes(query);
+      })
+      .slice(0, REFERENCE_SUGGESTION_LIMIT);
+  }, [activeReferenceToken, selectableFiles]);
+  const fileReferenceMatches = useMemo(() => resolveFileReferenceMatches(draft, files), [draft, files]);
+  const referencedFilePreviews = useMemo(
+    () => uniqueFilesByPath(summarizeReferenceMatches(fileReferenceMatches)),
+    [fileReferenceMatches],
+  );
+  const unresolvedFileReferences = useMemo(
+    () => fileReferenceMatches.filter((match) => match.matches.length === 0),
+    [fileReferenceMatches],
+  );
+  const ambiguousFileReferences = useMemo(
+    () => fileReferenceMatches.filter((match) => match.matches.length > 1),
+    [fileReferenceMatches],
+  );
+
+  const clearReplySuggestions = useCallback(() => {
+    setReplySuggestions([]);
+  }, []);
+
+  const clearDraft = useCallback(() => {
+    setDraft("");
+    setDraftCursor(0);
+  }, []);
+
+  const readReferencedFiles = useCallback(async (): Promise<TavernReferencedFile[]> => {
+    const resources = await loadContextResources({
+      references: referencedFilePreviews.map((file) => ({ path: file.path })),
+      loadFile: async ({ path }) => {
+        const workspaceFile = await readWorkspaceFile(workspace.path, path);
+        return {
+          path: workspaceFile.path,
+          content: workspaceFile.content,
+          updatedAt: workspaceFile.updatedAt,
+        };
+      },
+    });
+    return resources.references.map((file) => ({
+      path: file.path,
+      content: file.content,
+    }));
+  }, [referencedFilePreviews, workspace.path]);
+
+  const createSubmitPayload = useCallback(
+    (
+      text: string,
+      {
+        selectedReplyOption,
+        includeReferences,
+      }: {
+        selectedReplyOption?: TavernReplyOption;
+        includeReferences: boolean;
+      },
+    ): ComposerSubmitPayload => ({
+      text,
+      selectedReplyOption,
+      referencedFilePreviews: includeReferences ? referencedFilePreviews : [],
+      unresolvedFileReferences: includeReferences ? unresolvedFileReferences : [],
+      ambiguousFileReferences: includeReferences ? ambiguousFileReferences : [],
+      readReferencedFiles: includeReferences ? readReferencedFiles : async () => [],
+    }),
+    [ambiguousFileReferences, readReferencedFiles, referencedFilePreviews, unresolvedFileReferences],
+  );
+
+  useImperativeHandle(
+    bind,
+    () => ({
+      getDraft: () => draft,
+      getSubmitPayload: () => createSubmitPayload(draft, { includeReferences: true }),
+      clearDraft,
+      clearReplySuggestions,
+    }),
+    [bind, clearDraft, clearReplySuggestions, createSubmitPayload, draft],
+  );
+
+  useEffect(() => {
+    setReplySuggestions(activeRoom?.replyOptions ?? []);
+    clearDraft();
+  }, [activeRoom?.activeSceneInstanceId, activeRoom?.id, clearDraft]);
+
+  const insertReference = useCallback(
+    (file: WorkspaceFileEntry) => {
+      const reference = `${quoteReferencePath(file.path)} `;
+      const start = activeReferenceToken?.start ?? draftCursor;
+      const end = activeReferenceToken?.end ?? draftCursor;
+      const nextCursor = start + reference.length;
+
+      setDraft((current) => `${current.slice(0, start)}${reference}${current.slice(end)}`);
+      setDraftCursor(nextCursor);
+      window.setTimeout(() => {
+        inputRef.current?.focus();
+        inputRef.current?.setSelectionRange(nextCursor, nextCursor);
+      }, 0);
+    },
+    [activeReferenceToken, draftCursor],
+  );
+
+  const handleGenerateReplySuggestions = useCallback(async () => {
+    if (isBusy) {
+      return;
+    }
+
+    if (!runtimeModel) {
+      setError("请先在设置中选择模型，再生成候选回复。");
+      return;
+    }
+
+    if (!activeRoom) {
+      setError("当前房间还没有可生成回复的场景。");
+      return;
+    }
+
+    setError("");
+    setBusy({ kind: "reply_suggestions", status: "正在生成候选回复..." });
+    try {
+      const suggestions = await runTavernUserReplySuggestions({
+        workspacePath: workspace.path,
+        runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
+        room: activeRoom,
+        characters: roomCharacters,
+        messages: roomMessages,
+        currentDraft: draft,
+      });
+      setReplySuggestions(suggestions);
+      patchRoom(activeRoom.id, {
+        replyOptions: suggestions,
+      });
+      if (suggestions.length === 0) {
+        setError("暂时没有生成可用候选回复，请再试一次。");
+      }
+    } catch (suggestionError) {
+      const message = suggestionError instanceof Error ? suggestionError.message : String(suggestionError);
+      setError(`生成候选回复失败：${message}`);
+    } finally {
+      setBusy(createIdleTavernRoomBusyState());
+    }
+  }, [
+    activeRoom,
+    draft,
+    isBusy,
+    patchRoom,
+    roomCharacters,
+    roomMessages,
+    runtimeModel,
+    setBusy,
+    setError,
+    workspace.path,
+  ]);
+
+  const submitDraft = useCallback(
+    (event?: FormEvent) => {
+      event?.preventDefault();
+      const text = draft.trim();
+      if (!text || isBusy) {
+        return;
+      }
+
+      onSubmit(createSubmitPayload(text, { includeReferences: true }));
+    },
+    [createSubmitPayload, draft, isBusy, onSubmit],
+  );
+
+  const submitReplySuggestion = useCallback(
+    (suggestion: TavernReplyOption) => {
+      if (isBusy) {
+        return;
+      }
+
+      onSubmit(
+        createSubmitPayload(suggestion.text.trim(), { selectedReplyOption: suggestion, includeReferences: false }),
+      );
+    },
+    [createSubmitPayload, isBusy, onSubmit],
+  );
+
+  const fillReplySuggestion = useCallback(
+    (suggestion: TavernReplyOption) => {
+      const nextDraft = suggestion.text.trim();
+      if (!nextDraft) {
+        return;
+      }
+
+      setDraft(nextDraft);
+      setDraftCursor(nextDraft.length);
+      clearReplySuggestions();
+      if (activeRoom) {
+        patchRoom(activeRoom.id, {
+          replyOptions: [],
+        });
+      }
+      window.setTimeout(() => {
+        inputRef.current?.focus();
+        inputRef.current?.setSelectionRange(nextDraft.length, nextDraft.length);
+      }, 0);
+    },
+    [activeRoom, clearReplySuggestions, patchRoom],
+  );
 
   return (
-    <form
-      className={cn("border-t px-4 py-3 sm:px-5", visualPreset.tavern.composer)}
-      onSubmit={(event) => onSubmit(event)}
-    >
+    <form className={cn("border-t px-4 py-3 sm:px-5", visualPreset.tavern.composer)} onSubmit={submitDraft}>
       <div className="mx-auto max-w-3xl space-y-2">
         {error && (
           <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -100,8 +353,8 @@ export const Composer = ({
                       className="min-w-0 flex-1 px-3 py-2 text-left transition-colors hover:bg-current/10 focus-visible:outline-none"
                       title="直接发送"
                       aria-label={`直接发送候选回复：${suggestion.text}`}
-                      disabled={isSending || isGeneratingReplySuggestions}
-                      onClick={() => onSelectReplySuggestion(suggestion)}
+                      disabled={isBusy}
+                      onClick={() => submitReplySuggestion(suggestion)}
                     >
                       {suggestion.text}
                     </button>
@@ -112,8 +365,8 @@ export const Composer = ({
                       className="h-auto min-h-10 w-10 shrink-0 rounded-none border-0 border-l border-current/10 bg-transparent text-current hover:bg-current/10 hover:text-current focus-visible:text-current dark:hover:bg-current/10 dark:hover:text-current"
                       title="填入输入框后编辑"
                       aria-label={`填入输入框编辑候选回复：${suggestion.text}`}
-                      disabled={isSending || isGeneratingReplySuggestions}
-                      onClick={() => onFillReplySuggestion(suggestion)}
+                      disabled={isBusy}
+                      onClick={() => fillReplySuggestion(suggestion)}
                     >
                       <PencilLine className="size-4" />
                     </Button>
@@ -133,7 +386,7 @@ export const Composer = ({
                     type="button"
                     className="flex w-full min-w-0 items-center gap-2 rounded-[5px] px-2.5 py-2 text-left text-sm hover:bg-muted"
                     onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => onInsertReference(file)}
+                    onClick={() => insertReference(file)}
                     title={file.path}
                   >
                     <FileText className="size-4 shrink-0 text-muted-foreground" />
@@ -154,7 +407,12 @@ export const Composer = ({
             }}
             onClick={(event) => setDraftCursor(event.currentTarget.selectionStart ?? draft.length)}
             onKeyUp={(event) => setDraftCursor(event.currentTarget.selectionStart ?? draft.length)}
-            onKeyDown={onKeyDown}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                event.preventDefault();
+                submitDraft();
+              }
+            }}
             onSelect={(event) => setDraftCursor(event.currentTarget.selectionStart ?? draft.length)}
           />
           <Button
@@ -164,8 +422,8 @@ export const Composer = ({
             className="absolute right-14 bottom-3 size-9 border-current/20 bg-current/5 text-current hover:bg-current/10 hover:text-current focus-visible:text-current dark:hover:bg-current/10 dark:hover:text-current"
             title={isGeneratingReplySuggestions ? "正在生成候选回复" : "生成回复"}
             aria-label={isGeneratingReplySuggestions ? "正在生成候选回复" : "生成回复"}
-            disabled={isSending || isGeneratingReplySuggestions}
-            onClick={onGenerateReplySuggestions}
+            disabled={isBusy}
+            onClick={handleGenerateReplySuggestions}
           >
             {isGeneratingReplySuggestions ? (
               <Loader2 className="size-4 animate-spin" />
@@ -179,7 +437,7 @@ export const Composer = ({
             className="absolute right-3 bottom-3 size-9"
             title={isSending ? "正在回应" : "发送"}
             aria-label={isSending ? "正在回应" : "发送"}
-            disabled={isSending || !canSubmit}
+            disabled={isBusy || !canSubmit}
           >
             {isSending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </Button>

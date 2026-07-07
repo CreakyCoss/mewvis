@@ -3,7 +3,6 @@ import { ensureTavernRoomRuntimeScopes } from "./room-runtime-scopes";
 import { normalizeScenePromptOverrides } from "./scene-prompt-overrides";
 import { projectTavernSceneFieldsOntoRoom, syncTavernSceneInstanceFieldsFromRoom } from "./scene-field-projection";
 import { resolveActiveSceneInstance } from "./scene-instances";
-import { createRouteScopedSceneInstanceId, resolveRunNodePrefix } from "./story-runtime";
 import type {
   TavernCharacterMemoryLayers,
   TavernRuntimeRoom as TavernRoom,
@@ -26,19 +25,7 @@ export const findTavernSceneInstanceIdForNode = (room: TavernRoom, nodeId: strin
   }
 
   const runtimeRoom = ensureTavernRoomRuntimeScopes(room);
-  const activeRun =
-    runtimeRoom.storyRuns.find((run) => run.id === runtimeRoom.activeRunId && run.pathNodeIds.includes(targetNodeId)) ??
-    runtimeRoom.storyRuns.find((run) => run.pathNodeIds.includes(targetNodeId)) ??
-    null;
-  const scopedInstanceId = activeRun
-    ? createRouteScopedSceneInstanceId(runtimeRoom.id, resolveRunNodePrefix(activeRun, targetNodeId))
-    : "";
-
-  return (
-    runtimeRoom.sceneInstances.find((instance) => instance.id === scopedInstanceId)?.id ??
-    runtimeRoom.sceneInstances.find((instance) => instance.nodeId === targetNodeId)?.id ??
-    ""
-  );
+  return runtimeRoom.sceneInstances.find((instance) => instance.nodeId === targetNodeId)?.id ?? "";
 };
 
 export const switchTavernRoomStoryNode = (room: TavernRoom, nodeId: string | undefined | null) => {
@@ -57,6 +44,10 @@ export const projectTavernSceneOntoRoom = (room: TavernRoom): TavernRoom => {
     ...runtimeRoom,
     activeSceneId: activeInstance.sceneId,
     activeSceneInstanceId: activeInstance.id,
+    storyGraph: {
+      ...runtimeRoom.storyGraph,
+      activeNodeId: activeInstance.nodeId,
+    },
     ...projectTavernSceneFieldsOntoRoom(activeInstance),
   };
 };
@@ -180,36 +171,27 @@ export const syncTavernRoomActiveScene = (room: TavernRoom): TavernRoom => {
 export const switchTavernRoomScene = (room: TavernRoom, sceneId: string): TavernRoom => {
   const runtimeRoom = ensureTavernRoomRuntimeScopes(room);
   const scene = runtimeRoom.scenes?.find((item) => item.id === sceneId);
-  const node = runtimeRoom.storyGraph?.nodes.find((item) => item.sceneId === sceneId);
-  const activeRun = node
-    ? (runtimeRoom.storyRuns.find((run) => run.id === runtimeRoom.activeRunId && run.pathNodeIds.includes(node.id)) ??
-      runtimeRoom.storyRuns.find((run) => run.pathNodeIds.includes(node.id)) ??
-      null)
-    : null;
-  const activeInstanceId =
-    activeRun && node
-      ? createRouteScopedSceneInstanceId(runtimeRoom.id, resolveRunNodePrefix(activeRun, node.id))
-      : undefined;
-  return scene
-    ? projectTavernSceneOntoRoom({
-        ...runtimeRoom,
-        storyGraph: node
-          ? {
-              ...runtimeRoom.storyGraph,
-              activeNodeId: node.id,
-            }
-          : runtimeRoom.storyGraph,
-        storyRuns: activeRun
-          ? runtimeRoom.storyRuns.map((run) =>
-              run.id === activeRun.id ? { ...run, activeNodeId: node?.id ?? run.activeNodeId } : run,
-            )
-          : runtimeRoom.storyRuns,
-        activeRunId: activeRun?.id ?? runtimeRoom.activeRunId,
-        activeSceneId: scene.id,
-        activeSceneInstanceId: activeInstanceId ?? runtimeRoom.activeSceneInstanceId,
-        updatedAt: Date.now(),
-      })
-    : runtimeRoom;
+  const node =
+    runtimeRoom.storyGraph.nodes.find((item) => item.sceneId === sceneId) ??
+    runtimeRoom.storyGraph.nodes.find((item) => item.id === sceneId);
+  const activeInstance =
+    (node ? runtimeRoom.sceneInstances.find((instance) => instance.nodeId === node.id) : undefined) ??
+    runtimeRoom.sceneInstances.find((instance) => instance.sceneId === sceneId);
+
+  if (!scene && !activeInstance) {
+    return runtimeRoom;
+  }
+
+  return projectTavernSceneOntoRoom({
+    ...runtimeRoom,
+    activeSceneId: activeInstance?.sceneId ?? scene?.id ?? runtimeRoom.activeSceneId,
+    activeSceneInstanceId: activeInstance?.id ?? runtimeRoom.activeSceneInstanceId,
+    storyGraph: {
+      ...runtimeRoom.storyGraph,
+      activeNodeId: activeInstance?.nodeId ?? node?.id ?? runtimeRoom.storyGraph.activeNodeId,
+    },
+    updatedAt: Date.now(),
+  });
 };
 
 export const switchTavernRoomSceneInstance = (room: TavernRoom, sceneInstanceId: string): TavernRoom => {
@@ -219,22 +201,14 @@ export const switchTavernRoomSceneInstance = (room: TavernRoom, sceneInstanceId:
     return switchTavernRoomScene(runtimeRoom, sceneInstanceId);
   }
 
-  const activeRunId = activeInstance.runIds.includes(runtimeRoom.activeRunId ?? "")
-    ? runtimeRoom.activeRunId
-    : (activeInstance.runIds[0] ?? runtimeRoom.activeRunId);
-
   return projectTavernSceneOntoRoom({
     ...runtimeRoom,
-    activeRunId,
     activeSceneId: activeInstance.sceneId,
     activeSceneInstanceId: activeInstance.id,
     storyGraph: {
       ...runtimeRoom.storyGraph,
       activeNodeId: activeInstance.nodeId,
     },
-    storyRuns: runtimeRoom.storyRuns.map((run) =>
-      run.id === activeRunId ? { ...run, activeNodeId: activeInstance.nodeId, updatedAt: Date.now() } : run,
-    ),
     updatedAt: Date.now(),
   });
 };

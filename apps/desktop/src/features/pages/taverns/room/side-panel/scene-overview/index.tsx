@@ -46,7 +46,7 @@ import {
   getTavernSceneInstanceDisplayTitle,
 } from "@/features/pages/taverns/tavern/runtime/scene-selectors";
 import type { TavernPromptBlock, TavernReplyMode } from "@/features/pages/taverns/manage/model";
-import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
+import { isTavernRoomBusy, useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import { compactText } from "../shared";
 import { buildTavernMemoryOverviewSummary } from "../memory-summary";
 
@@ -358,7 +358,7 @@ const ToolActionsSection = ({
 );
 
 export const SceneOverviewSection = ({ externalBusy, onBusyChange }: SceneOverviewSectionProps) => {
-  const { activeRoom, roomCharacters, isSending, patchRoom } = useTavernRoomContext();
+  const { activeRoom, roomCharacters, busy, patchRoom } = useTavernRoomContext();
   const [secretDialogMode, setSecretDialogMode] = useState<"record" | "reveal" | null>(null);
   const [secretDraftText, setSecretDraftText] = useState("");
   const [secretDraftTarget, setSecretDraftTarget] = useState("scene");
@@ -393,7 +393,7 @@ export const SceneOverviewSection = ({ externalBusy, onBusyChange }: SceneOvervi
     return null;
   }
 
-  const isBusy = isSending || externalBusy;
+  const isBusy = isTavernRoomBusy(busy) || externalBusy;
   const userPersonaName = activeRoom.userPersonaName.trim();
   const activeScene = activeRoom.scenes?.find((scene) => scene.id === activeRoom.activeSceneId);
   const sceneOverviewTitle =
@@ -543,7 +543,7 @@ export const SceneOverviewSection = ({ externalBusy, onBusyChange }: SceneOvervi
         immersiveDescriptionEnabled={activeRoom.settings.immersiveDescriptionEnabled}
         scene={activeRoom.scene}
         memorySummary={memoryOverviewSummary}
-        isSending={isSending}
+        isSending={isBusy}
         onOpenTipsDetail={openMemoryEditor}
         onImmersiveDescriptionChange={(checked) =>
           patchRoom(activeRoom.id, {
