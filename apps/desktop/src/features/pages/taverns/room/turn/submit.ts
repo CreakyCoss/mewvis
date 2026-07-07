@@ -5,7 +5,7 @@ import {
   isTavernRoomBusy,
   useTavernRoomContext,
 } from "@/features/pages/taverns/room/context";
-import { buildTavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
+import { buildTavernStoryContextPackage } from "@/features/pages/taverns/room/story-context";
 import type { TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import type { TavernReplyOption } from "@/features/pages/taverns/manage/model";
 import {

@@ -1,10 +1,9 @@
 import { BookOpen } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { openTavernPresentationInput } from "@/features/pages/taverns/tavern/presentation/open";
 import type { TavernRoom } from "@/features/pages/taverns/manage/model";
+import { TavernRoomDialog, type TavernRoomHandle } from "@/features/pages/taverns/room";
 import { editorHeaderActionButtonClassName } from "../../../components/story-primitives";
 import { useStoryState } from "../../use-story-state";
 import { StoryTavernSelectDialog } from "./dialog";
@@ -17,12 +16,12 @@ type OpenStoryTavernInput = {
 };
 
 export const TavernStoryAction = () => {
-  const navigate = useNavigate();
   const buildNodeOptions = useStoryState((state) => state.buildNodeOptions);
   const getTavernWorkspacePath = useStoryState((state) => state.getTavernWorkspacePath);
   const story = useStoryState((state) => state.story);
   const storyWorkspace = useStoryState((state) => state.storyWorkspace);
   const [tavernSelectNodeId, setTavernSelectNodeId] = useState<string | null | undefined>(undefined);
+  const roomDialogRef = useRef<TavernRoomHandle>(null);
   const storyNodeOptions = useMemo(() => buildNodeOptions(story), [buildNodeOptions, story]);
 
   useEffect(() => {
@@ -37,22 +36,12 @@ export const TavernStoryAction = () => {
 
     const storyNodeId = resolveNodeId(story, nodeId);
     try {
-      const { room, initialMessages, target } = await openTavernPresentationInput({
-        workspace: storyWorkspace,
-        storyId: story.id,
-        storyNodeId,
-        tavernId: tavernRoom.id,
-        runtimePath: getTavernWorkspacePath(storyNodeId),
-        carrierRoom: tavernRoom,
+      roomDialogRef.current?.({
+        tavernRoom,
         presentationInput: createTavernPayload(story, {
           nodeId: storyNodeId,
         }),
-      });
-      navigate(target, {
-        state: {
-          tavernRoom: room,
-          tavernInitialMessages: initialMessages,
-        },
+        tavernWorkspacePath: getTavernWorkspacePath(storyNodeId, tavernRoom.id),
       });
     } catch (error) {
       console.error("Failed to open story in tavern", error);
@@ -83,6 +72,7 @@ export const TavernStoryAction = () => {
         }}
         onConfirm={(input) => openStoryTavern(input)}
       />
+      <TavernRoomDialog bind={roomDialogRef} />
     </>
   );
 };

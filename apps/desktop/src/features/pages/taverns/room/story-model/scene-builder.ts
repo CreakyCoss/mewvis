@@ -1,15 +1,15 @@
-import { normalizeVisualPresetId } from "../visual-presets";
-import { createTavernId as createId, now } from "../ids";
-import { normalizeStringRecord } from "../normalizers/normalization";
-import { normalizeRoomCharacterConfigs, roomCharacterMemoriesFromConfigs } from "../normalizers/room-character-configs";
-import { normalizeSceneRelationshipOverrides } from "../normalizers/relationships";
+import { normalizeVisualPresetId } from "../../tavern/visual-presets";
+import { createTavernId as createId, now } from "../../tavern/ids";
+import { normalizeStringRecord } from "../../tavern/normalizers/normalization";
+import { normalizeRoomCharacterConfigs, roomCharacterMemoriesFromConfigs } from "../../tavern/normalizers/room-character-configs";
+import { normalizeSceneRelationshipOverrides } from "../../tavern/normalizers/relationships";
 import {
   normalizeCharacterPrivateStatuses,
   normalizeCharacterPublicStatuses,
   normalizePendingInteraction,
   normalizeReplyOption,
   normalizeSceneStatus,
-} from "../normalizers/scene-state-normalizers";
+} from "../../tavern/normalizers/scene-state-normalizers";
 import type {
   TavernPendingInteraction,
   TavernReplyOption,

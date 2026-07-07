@@ -14,7 +14,7 @@ const activeSceneRuntimePath = resolve(
 );
 const directorPromptPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/runtime/director/prompt.ts");
 const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/factories/manual-factories.ts");
-const sceneBuilderPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/story-model/scene-builder.ts");
+const sceneBuilderPath = resolve(workspaceRoot, "src/features/pages/taverns/room/story-model/scene-builder.ts");
 const userReplySuggestionPromptPath = resolve(
   workspaceRoot,
   "src/features/pages/taverns/tavern/runtime/assistants/user-reply/suggestion-prompt.ts",

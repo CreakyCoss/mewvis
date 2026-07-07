@@ -1,4 +1,4 @@
-import { createTavernId as createId, now } from "../ids";
+import { createTavernId as createId, now } from "../../tavern/ids";
 import type {
   TavernScene,
   TavernStoryEdge,

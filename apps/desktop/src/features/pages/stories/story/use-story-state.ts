@@ -13,7 +13,7 @@ import type { StoryNodeSelectOption } from "./actions/node";
 type StoryStore = {
   buildNodeOptions: (story: StoryJson | null) => StoryNodeSelectOption[];
   getChatWorkspacePath: (chatWorkspaceId: string) => string;
-  getTavernWorkspacePath: (nodeId: string) => string;
+  getTavernWorkspacePath: (nodeId: string, roomId: string) => string;
   isSaving: boolean;
   closeStory: () => void;
   openStory: (item: StoryLibraryItem) => void;
@@ -72,7 +72,7 @@ export const useStoryState = create<StoryStore>((set, get) => ({
 
   getChatWorkspacePath: (chatWorkspaceId) => `/chat/${chatWorkspaceId}/new`,
 
-  getTavernWorkspacePath: (nodeId) => {
+  getTavernWorkspacePath: (nodeId, roomId) => {
     const { story, storyWorkspace } = get();
     if (!story || !storyWorkspace) {
       return "";
@@ -83,6 +83,7 @@ export const useStoryState = create<StoryStore>((set, get) => ({
       ".tavern",
       safePathSegment(story.id, "story"),
       safePathSegment(nodeId, "node"),
+      safePathSegment(roomId, "room"),
     ].join("/");
   },
 

@@ -1,4 +1,4 @@
-import { now } from "../ids";
+import { now } from "../../tavern/ids";
 import type { TavernStoryBinding } from "@/features/pages/taverns/room/model";
 
 export const createTavernStoryBinding = (storyId: string, boundAt = now()): TavernStoryBinding => ({

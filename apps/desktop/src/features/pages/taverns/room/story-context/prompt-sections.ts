@@ -1,5 +1,5 @@
-import { joinPromptLines, type TavernPromptSection } from "../../runtime/prompt/shared/sections";
-import { escapePromptXmlAttribute, escapePromptXmlText, limitPromptText } from "../../runtime/prompt/shared/text";
+import { joinPromptLines, type TavernPromptSection } from "../../tavern/runtime/prompt/shared/sections";
+import { escapePromptXmlAttribute, escapePromptXmlText, limitPromptText } from "../../tavern/runtime/prompt/shared/text";
 import {
   getTavernStoryGraphContextSlice,
   selectTavernStoryLorebookEntries as selectTavernStoryLorebookEntriesFromContext,

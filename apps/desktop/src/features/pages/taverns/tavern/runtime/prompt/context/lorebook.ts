@@ -4,7 +4,7 @@ import {
   formatTavernStoryLorebookEntries,
   selectTavernStoryLorebookEntries,
   type TavernStoryContextLorebookEntry,
-} from "../../../adapters/story";
+} from "@/features/pages/taverns/room/story-context";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 
 export const selectTavernLorebookEntries = ({

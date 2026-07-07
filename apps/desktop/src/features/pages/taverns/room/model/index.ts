@@ -174,7 +174,57 @@ export type TavernRuntimeRoom = TavernRoomConfig & {
   userPersonaName: string;
 };
 
+export type TavernRoomRuntime = {
+  version: 1;
+  identity: {
+    id: string;
+    workspaceId: string;
+    title: string;
+    systemPresetId?: string;
+    systemPresetVersion?: number;
+    creationSource: TavernRoomConfig["creationSource"];
+    createdAt: number;
+    updatedAt: number;
+  };
+  config: {
+    room: TavernRoomConfig;
+  };
+  presentation: {
+    profile: TavernRoomConfig["presentation"];
+    prompt: TavernRoomConfig["prompt"];
+    settings: TavernRoomConfig["settings"];
+    scenePresetId: TavernRoomConfig["scenePresetId"];
+    replyMode: TavernRoomConfig["replyMode"];
+  };
+  story: {
+    binding?: TavernStoryBinding;
+    outline: string;
+    goal: string;
+    graph: TavernStoryGraph;
+    activeNodeId: string;
+  };
+  cast: {
+    characters: TavernCharacter[];
+    characterIds: string[];
+    activeCharacterId: string;
+    characterConfigs?: Record<string, TavernRoomCharacterConfig>;
+    characterMemories: Record<string, string>;
+  };
+  scenes: {
+    items: TavernScene[];
+    activeSceneId?: string;
+    instances: TavernSceneInstance[];
+    activeSceneInstanceId?: string;
+  };
+  world: {
+    lorebookEntries: TavernLorebookEntry[];
+  };
+  user: {
+    personaName: string;
+  };
+};
+
 export type TavernRoomSessionState = {
-  room: TavernRuntimeRoom | null;
+  runtime: TavernRoomRuntime | null;
   messages: TavernMessage[];
 };

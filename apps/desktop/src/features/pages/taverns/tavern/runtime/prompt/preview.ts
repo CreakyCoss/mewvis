@@ -5,12 +5,12 @@ import type {
   TavernPromptBlock,
   TavernPromptBlockTarget,
 } from "@/features/pages/taverns/manage/model";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
+import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context";
 import { isTavernFixedOrderPhase } from "../../core";
 import { buildTavernDirectorPromptContext, buildTavernDirectorRuntimeInstruction } from "../director/prompt";
 import { buildTavernReplyAgentRequest } from "../reply/request";
 import { buildTavernBridgeSystemPrompt } from "./bridge/system-prompt";
-import { buildTavernStoryContextPackage, getTavernRuntimeStoryProjection } from "../../adapters/story";
+import { buildTavernStoryContextPackage, getTavernRuntimeStoryProjection } from "@/features/pages/taverns/room/story-context";
 
 export type TavernPromptPreviewTarget = TavernPromptBlockTarget;
 

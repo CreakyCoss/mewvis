@@ -1,8 +1,8 @@
 import type { TavernRoom as TavernRoomConfig } from "@/features/pages/taverns/manage/model";
 import { projectTavernSceneOntoRoom } from "@/features/pages/taverns/tavern/runtime/active-scene-runtime";
 import { projectTavernSceneFieldsOntoRoom } from "@/features/pages/taverns/tavern/runtime/scene-field-projection";
-import { buildTavernScene, defaultSceneTitle } from "@/features/pages/taverns/tavern/story-model/scene-builder";
-import { createDefaultStoryGraph } from "@/features/pages/taverns/tavern/story-model/story-graph";
+import { buildTavernScene, defaultSceneTitle } from "@/features/pages/taverns/room/story-model/scene-builder";
+import { createDefaultStoryGraph } from "@/features/pages/taverns/room/story-model/story-graph";
 import type { TavernRuntimeRoom } from ".";
 
 export const pickTavernRoomConfig = (room: TavernRoomConfig): TavernRoomConfig => ({

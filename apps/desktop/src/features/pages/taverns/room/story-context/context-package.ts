@@ -1,4 +1,4 @@
-import { formatTavernCharacterRelationships } from "../../core";
+import { formatTavernCharacterRelationships } from "../../tavern/core";
 import type { TavernCharacter, TavernLorebookEntry, TavernSceneStatus } from "@/features/pages/taverns/manage/model";
 import type {
   TavernCharacterMemoryLayers,

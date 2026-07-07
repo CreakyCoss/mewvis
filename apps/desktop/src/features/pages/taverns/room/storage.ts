@@ -1,47 +1,29 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type { TavernRuntimeScope } from "../storage";
-import type { TavernRoomSessionState, TavernRuntimeRoom as TavernRoom } from "./model";
 import type { TavernMessage } from "../tavern/types";
+import type { TavernRoomRuntime, TavernRoomSessionState, TavernRuntimeRoom } from "./model";
+import { createTavernRoomRuntimeFromRoom, selectTavernRoomFromRuntime } from "./runtime/selectors";
 
-const TAVERN_SOURCE_DIR = "tavern";
 const TAVERN_ROOM_FILE_NAME = "room.json";
 const TAVERN_MESSAGES_FILE_NAME = "messages.json";
 const TAVERN_CONVERSATION_FILE_NAME = "conversation.json";
+const TAVERN_WORKSPACE_PATH_MARKER = "/.tavern/";
+const TAVERN_WORKSPACE_INIT_FILE_PREFIX = ".__tavern_workspace_init";
+const ensuredTavernWorkspacePaths = new Set<string>();
 
-const normalizeSlashes = (value: string) => value.trim().replace(/\\/g, "/").replace(/\/+$/g, "");
+const normalizePathSeparators = (value: string) => value.trim().replace(/\\/g, "/").replace(/\/+$/, "");
 
-const runtimePathToWorkspaceRelativePath = (workspacePath: string, runtimePath: string) => {
-  const workspaceRoot = normalizeSlashes(workspacePath);
-  const runtimeRoot = normalizeSlashes(runtimePath);
-  if (!runtimeRoot) {
-    return TAVERN_SOURCE_DIR;
+const resolveTavernWorkspaceBackingPath = (tavernWorkspacePath: string) => {
+  const normalizedPath = normalizePathSeparators(tavernWorkspacePath);
+  const markerIndex = normalizedPath.lastIndexOf(TAVERN_WORKSPACE_PATH_MARKER);
+  if (markerIndex <= 0) {
+    return null;
   }
 
-  if (runtimeRoot === workspaceRoot) {
-    return TAVERN_SOURCE_DIR;
-  }
-
-  if (runtimeRoot.startsWith(`${workspaceRoot}/`)) {
-    return runtimeRoot.slice(workspaceRoot.length + 1);
-  }
-
-  return runtimeRoot.replace(/^\/+/g, "");
+  return {
+    workspacePath: normalizedPath.slice(0, markerIndex),
+    relativePath: normalizedPath.slice(markerIndex + 1),
+  };
 };
-
-const tavernBaseDir = (workspacePath: string, scope: TavernRuntimeScope = {}) =>
-  scope.runtimePath?.trim() ? runtimePathToWorkspaceRelativePath(workspacePath, scope.runtimePath) : TAVERN_SOURCE_DIR;
-
-const joinPath = (...parts: string[]) =>
-  parts
-    .map((part) => part.trim().replace(/^\/+|\/+$/g, ""))
-    .filter(Boolean)
-    .join("/");
-
-const tavernMessagesPath = (baseDir: string) => joinPath(baseDir, TAVERN_MESSAGES_FILE_NAME);
-
-const tavernConversationPath = (baseDir: string) => joinPath(baseDir, TAVERN_CONVERSATION_FILE_NAME);
-
-const tavernRoomPath = (baseDir: string) => joinPath(baseDir, TAVERN_ROOM_FILE_NAME);
 
 const readJsonWorkspaceFile = async (workspacePath: string, relativePath: string): Promise<unknown | null> => {
   try {
@@ -54,14 +36,18 @@ const readJsonWorkspaceFile = async (workspacePath: string, relativePath: string
   }
 };
 
-const writeJsonWorkspaceFile = async (workspacePath: string, relativePath: string, value: unknown) => {
+const writeTextWorkspaceFile = async (workspacePath: string, relativePath: string, content: string) => {
   await invoke("write_workspace_file", {
     input: {
       workspacePath,
       relativePath,
-      content: JSON.stringify(value, null, 2),
+      content,
     },
   });
+};
+
+const writeJsonWorkspaceFile = async (workspacePath: string, relativePath: string, value: unknown) => {
+  await writeTextWorkspaceFile(workspacePath, relativePath, JSON.stringify(value, null, 2));
 };
 
 const deleteWorkspaceFileIfExists = async (workspacePath: string, relativePath: string) => {
@@ -74,21 +60,29 @@ const deleteWorkspaceFileIfExists = async (workspacePath: string, relativePath: 
   }
 };
 
-const normalizeTavernRuntimeRoom = (value: unknown): TavernRoom | null => {
-  if (!value || typeof value !== "object") {
-    return null;
+export const ensureTavernWorkspaceDirectory = async (tavernWorkspacePath: string) => {
+  if (!tavernWorkspacePath.trim() || !isTauri()) {
+    return;
   }
 
-  const candidate = value as Partial<TavernRoom>;
-  const id = typeof candidate.id === "string" ? candidate.id.trim() : "";
-  if (!id) {
-    return null;
+  const normalizedPath = normalizePathSeparators(tavernWorkspacePath);
+  if (ensuredTavernWorkspacePaths.has(normalizedPath)) {
+    return;
   }
 
-  return {
-    ...candidate,
-    id,
-  } as TavernRoom;
+  const backingPath = resolveTavernWorkspaceBackingPath(tavernWorkspacePath);
+  if (!backingPath) {
+    ensuredTavernWorkspacePaths.add(normalizedPath);
+    return;
+  }
+
+  const initFileName = `${TAVERN_WORKSPACE_INIT_FILE_PREFIX}-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2)}.tmp`;
+  const initFilePath = `${backingPath.relativePath}/${initFileName}`;
+  await writeTextWorkspaceFile(backingPath.workspacePath, initFilePath, "");
+  await deleteWorkspaceFileIfExists(backingPath.workspacePath, initFilePath);
+  ensuredTavernWorkspacePaths.add(normalizedPath);
 };
 
 const normalizeTavernRuntimeMessages = (value: unknown): TavernMessage[] | null => {
@@ -116,10 +110,39 @@ const normalizeTavernRuntimeMessages = (value: unknown): TavernMessage[] | null 
   });
 };
 
-const activeSceneInstanceIdFor = (room: TavernRoom) =>
-  room.activeSceneInstanceId ?? room.sceneInstances?.[0]?.id ?? room.activeSceneId ?? room.id;
+const normalizeLegacyTavernRuntimeRoom = (value: unknown): TavernRuntimeRoom | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
 
-const materializeRuntimeMessagesForRoom = (room: TavernRoom, messages: TavernMessage[]) => {
+  const candidate = value as Partial<TavernRuntimeRoom>;
+  const id = typeof candidate.id === "string" ? candidate.id.trim() : "";
+  if (!id || !candidate.storyGraph) {
+    return null;
+  }
+
+  return {
+    ...candidate,
+    id,
+  } as TavernRuntimeRoom;
+};
+
+const normalizeTavernRoomRuntime = (value: unknown): TavernRoomRuntime | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Partial<TavernRoomRuntime>;
+  if (candidate.version === 1 && candidate.identity?.id && candidate.config?.room && candidate.story?.graph) {
+    return candidate as TavernRoomRuntime;
+  }
+
+  const legacyRoom = normalizeLegacyTavernRuntimeRoom(value);
+  return legacyRoom ? createTavernRoomRuntimeFromRoom(legacyRoom) : null;
+};
+
+const materializeRuntimeMessages = (runtime: TavernRoomRuntime, messages: TavernMessage[]) => {
+  const room = selectTavernRoomFromRuntime(runtime);
   return messages.map((message) => ({
     ...message,
     roomId: message.roomId || room.id,
@@ -127,82 +150,57 @@ const materializeRuntimeMessagesForRoom = (room: TavernRoom, messages: TavernMes
   }));
 };
 
-const normalizeTavernRuntimeConversationMessages = (room: TavernRoom, value: unknown) => {
-  const messages = normalizeTavernRuntimeMessages(value);
-  if (messages) {
-    return messages;
-  }
-
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-
-  return normalizeTavernRuntimeMessages((value as Record<string, unknown>)[activeSceneInstanceIdFor(room)]);
-};
-
 export const loadTavernRoomSessionState = async (
-  workspacePath: string,
-  scope: TavernRuntimeScope = {},
+  tavernWorkspacePath: string,
   fallbackState?: TavernRoomSessionState,
 ): Promise<TavernRoomSessionState | null> => {
-  if (!scope.runtimePath?.trim() || !isTauri()) {
+  if (!tavernWorkspacePath.trim() || !isTauri()) {
     return null;
   }
 
-  const baseDir = tavernBaseDir(workspacePath, scope);
-  const room =
-    normalizeTavernRuntimeRoom(await readJsonWorkspaceFile(workspacePath, tavernRoomPath(baseDir))) ??
-    fallbackState?.room ??
+  const runtime =
+    normalizeTavernRoomRuntime(await readJsonWorkspaceFile(tavernWorkspacePath, TAVERN_ROOM_FILE_NAME)) ??
+    fallbackState?.runtime ??
     null;
   const messages =
-    normalizeTavernRuntimeMessages(await readJsonWorkspaceFile(workspacePath, tavernMessagesPath(baseDir))) ??
-    (room
-      ? normalizeTavernRuntimeConversationMessages(
-          room,
-          await readJsonWorkspaceFile(workspacePath, tavernConversationPath(baseDir)),
-        )
-      : null);
-  if (!room || !messages || messages.length === 0) {
+    normalizeTavernRuntimeMessages(await readJsonWorkspaceFile(tavernWorkspacePath, TAVERN_MESSAGES_FILE_NAME)) ??
+    normalizeTavernRuntimeMessages(await readJsonWorkspaceFile(tavernWorkspacePath, TAVERN_CONVERSATION_FILE_NAME)) ??
+    null;
+  if (!runtime || !messages || messages.length === 0) {
     return null;
   }
 
   return {
-    room,
-    messages: materializeRuntimeMessagesForRoom(room, messages),
+    runtime,
+    messages: materializeRuntimeMessages(runtime, messages),
   };
 };
 
-export const saveTavernRoomSessionState = async (
-  workspacePath: string,
-  scope: TavernRuntimeScope = {},
-  state: TavernRoomSessionState,
-) => {
-  if (!scope.runtimePath?.trim() || !isTauri()) {
+export const saveTavernRoomSessionState = async (tavernWorkspacePath: string, state: TavernRoomSessionState) => {
+  if (!tavernWorkspacePath.trim() || !isTauri()) {
     return;
   }
 
-  const room = state.room;
-  if (!room) {
+  const runtime = state.runtime;
+  if (!runtime) {
     return;
   }
 
-  const baseDir = tavernBaseDir(workspacePath, scope);
+  await ensureTavernWorkspaceDirectory(tavernWorkspacePath);
   await Promise.all([
-    writeJsonWorkspaceFile(workspacePath, tavernRoomPath(baseDir), room),
-    writeJsonWorkspaceFile(workspacePath, tavernMessagesPath(baseDir), state.messages),
-    writeJsonWorkspaceFile(workspacePath, tavernConversationPath(baseDir), state.messages),
+    writeJsonWorkspaceFile(tavernWorkspacePath, TAVERN_ROOM_FILE_NAME, runtime),
+    writeJsonWorkspaceFile(tavernWorkspacePath, TAVERN_MESSAGES_FILE_NAME, state.messages),
   ]);
 };
 
-export const deleteTavernRoomSessionState = async (workspacePath: string, scope: TavernRuntimeScope = {}) => {
-  if (!scope.runtimePath?.trim() || !isTauri()) {
+export const deleteTavernRoomSessionState = async (tavernWorkspacePath: string) => {
+  if (!tavernWorkspacePath.trim() || !isTauri()) {
     return;
   }
 
-  const baseDir = tavernBaseDir(workspacePath, scope);
   await Promise.all([
-    deleteWorkspaceFileIfExists(workspacePath, tavernRoomPath(baseDir)),
-    deleteWorkspaceFileIfExists(workspacePath, tavernMessagesPath(baseDir)),
-    deleteWorkspaceFileIfExists(workspacePath, tavernConversationPath(baseDir)),
+    deleteWorkspaceFileIfExists(tavernWorkspacePath, TAVERN_ROOM_FILE_NAME),
+    deleteWorkspaceFileIfExists(tavernWorkspacePath, TAVERN_MESSAGES_FILE_NAME),
+    deleteWorkspaceFileIfExists(tavernWorkspacePath, TAVERN_CONVERSATION_FILE_NAME),
   ]);
 };

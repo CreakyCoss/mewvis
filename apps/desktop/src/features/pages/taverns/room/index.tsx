@@ -1,29 +1,26 @@
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { Ref } from "react";
 import { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useLlmSettingsStore } from "@/features/pages/settings/llm/store";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { WindowDragRegion } from "@/components/window-drag-region";
 import type { Workspace } from "@/features/pages/workspace/types";
+import type { TavernRoom as TavernRoomConfig } from "@/features/pages/taverns/manage/model";
 import { cn } from "@/lib/utils";
-import type { TavernRuntimeScope } from "../storage";
-import type { TavernMessage } from "../tavern/types";
 import { TavernRoomContent } from "./content";
-import { createTavernRoomInitialState, useTavernRoomContext } from "./context";
+import { useTavernRoomContext } from "./context";
 import { Header } from "./header";
+import type { TavernPresentationInput } from "./presentation-input";
+import { createTavernRoomRuntimeSessionState } from "./runtime/build";
 import { SidePanel, type SidePanelHandle } from "./side-panel";
-import { loadTavernRoomSessionState, saveTavernRoomSessionState } from "./storage";
+import { ensureTavernWorkspaceDirectory, loadTavernRoomSessionState, saveTavernRoomSessionState } from "./storage";
 
 const fullScreenDialogContentClassName =
   "!fixed !inset-0 !left-0 !top-0 !flex !h-screen !max-h-none !w-screen !max-w-none !translate-x-0 !translate-y-0 flex-col gap-0 overflow-hidden !rounded-none p-0 !ring-0";
 
 export type TavernRoomOpenOptions = {
-  workspace: Workspace;
-  runtimeScope?: TavernRuntimeScope;
-  room: TavernRoom;
-  initialMessages?: TavernMessage[];
-  sceneInstanceId?: string;
-  onClose?: () => void;
+  tavernRoom: TavernRoomConfig;
+  presentationInput: TavernPresentationInput;
+  tavernWorkspacePath: string;
 };
 
 export type TavernRoomHandle = (options: TavernRoomOpenOptions) => void;
@@ -39,7 +36,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const runtimeModels = useLlmSettingsStore((store) => store.runtimeModels);
   const loadSettings = useLlmSettingsStore((store) => store.loadSettings);
   const runtimeModel = runtimeModels[0] ?? null;
-  const workspace = useTavernRoomContext((store) => store.workspace);
   const roomState = useTavernRoomContext((store) => store.state);
   const setRoomState = useTavernRoomContext((store) => store.setState);
   const resetRoomStore = useTavernRoomContext((store) => store.resetRoomStore);
@@ -50,23 +46,42 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const sidePanelRef = useRef<SidePanelHandle | null>(null);
   const openRequestIdRef = useRef(0);
 
+  const createTavernWorkspace = useCallback(
+    (tavernWorkspacePath: string): Workspace => ({
+      id: tavernWorkspacePath,
+      name: "酒馆工作区",
+      description: null,
+      path: tavernWorkspacePath,
+      isDefault: false,
+      isPinned: false,
+      order: 0,
+      groupId: null,
+      createdAt: 0,
+      updatedAt: 0,
+    }),
+    [],
+  );
+
   const open = useCallback(
     (options: TavernRoomOpenOptions) => {
       openRequestIdRef.current += 1;
+      const initialState = createTavernRoomRuntimeSessionState({
+        tavernRoom: options.tavernRoom,
+        presentationInput: options.presentationInput,
+      });
+      const workspace = createTavernWorkspace(options.tavernWorkspacePath);
       setOpenOptions(options);
       resetRoomStore({
-        workspace: options.workspace,
-        runtimeScope: options.runtimeScope,
+        workspace,
         runtimeModel,
-        initialRoom: options.room,
-        initialMessages: options.initialMessages,
-        initialSceneInstanceId: options.sceneInstanceId,
+        initialRuntime: initialState.runtime,
+        initialMessages: initialState.messages,
       });
       setIsOpen(true);
       setIsTavernStateHydrated(false);
       setIsSidePanelOpen(false);
     },
-    [resetRoomStore, runtimeModel],
+    [createTavernWorkspace, resetRoomStore, runtimeModel],
   );
 
   useImperativeHandle(bind, () => open, [bind, open]);
@@ -88,13 +103,13 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     const requestId = openRequestIdRef.current;
     setIsTavernStateHydrated(false);
 
-    const nextState = createTavernRoomInitialState({
-      room: openOptions.room,
-      initialMessages: openOptions.initialMessages,
-      sceneInstanceId: openOptions.sceneInstanceId,
+    const nextState = createTavernRoomRuntimeSessionState({
+      tavernRoom: openOptions.tavernRoom,
+      presentationInput: openOptions.presentationInput,
     });
 
-    void loadTavernRoomSessionState(openOptions.workspace.path, openOptions.runtimeScope, nextState)
+    void ensureTavernWorkspaceDirectory(openOptions.tavernWorkspacePath)
+      .then(() => loadTavernRoomSessionState(openOptions.tavernWorkspacePath, nextState))
       .then((sessionState) => {
         if (isCancelled || requestId !== openRequestIdRef.current) {
           return;
@@ -110,10 +125,9 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
 
         console.error("Failed to load tavern room session state", loadError);
         setRoomState(
-          createTavernRoomInitialState({
-            room: openOptions.room,
-            initialMessages: openOptions.initialMessages,
-            sceneInstanceId: openOptions.sceneInstanceId,
+          createTavernRoomRuntimeSessionState({
+            tavernRoom: openOptions.tavernRoom,
+            presentationInput: openOptions.presentationInput,
           }),
         );
         setIsTavernStateHydrated(true);
@@ -129,15 +143,14 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       return;
     }
 
-    void saveTavernRoomSessionState(workspace.path, openOptions.runtimeScope, roomState).catch((saveError) => {
+    void saveTavernRoomSessionState(openOptions.tavernWorkspacePath, roomState).catch((saveError) => {
       console.error("Failed to save tavern room session state", saveError);
     });
-  }, [isTavernStateHydrated, openOptions, roomState, workspace.path]);
+  }, [isTavernStateHydrated, openOptions, roomState]);
 
   const closeRoomSurface = () => {
     sidePanelRef.current?.hide();
     setIsOpen(false);
-    openOptions?.onClose?.();
   };
 
   if (!isOpen) {

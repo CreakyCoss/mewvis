@@ -1,5 +1,5 @@
 import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
-import type { TavernMessage } from "../../types";
+import type { TavernMessage } from "../../tavern/types";
 import type {
   TavernCharacterPrivateStatus,
   TavernCharacterPublicStatus,

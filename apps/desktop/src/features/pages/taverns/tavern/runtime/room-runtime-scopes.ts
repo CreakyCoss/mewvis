@@ -1,5 +1,5 @@
 import { buildNodeScopedSceneInstances } from "./scene-instances";
-import { createDefaultStoryGraph, normalizeStoryGraph } from "../story-model/story-graph";
+import { createDefaultStoryGraph, normalizeStoryGraph } from "@/features/pages/taverns/room/story-model/story-graph";
 import { now } from "../ids";
 import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 

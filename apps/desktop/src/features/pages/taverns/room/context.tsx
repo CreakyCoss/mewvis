@@ -1,4 +1,8 @@
-import type { TavernRoomSessionState, TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type {
+  TavernRoomRuntime,
+  TavernRoomSessionState,
+  TavernRuntimeRoom as TavernRoom,
+} from "@/features/pages/taverns/room/model";
 import type { Dispatch, SetStateAction } from "react";
 import { create } from "zustand";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
@@ -6,7 +10,6 @@ import type { Workspace } from "@/features/pages/workspace/types";
 import { getVisualPreset, type VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";
 import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
-import type { TavernRuntimeScope } from "@/features/pages/taverns/storage";
 import { buildTavernMessageSegments, inferTavernMessageKind } from "@/features/pages/taverns/room/message";
 import {
   projectTavernSceneOntoRoom,
@@ -16,6 +19,7 @@ import {
 } from "@/features/pages/taverns/tavern/runtime/active-scene-runtime";
 import type { ComposerHandle } from "./composer";
 import type { ExecutionStep } from "./execution-trace";
+import { createTavernRoomRuntimeFromRoom, selectTavernRoomFromRuntime } from "./runtime/selectors";
 
 export type TavernRoomBusyKind = "idle" | "sending" | "reply_suggestions";
 
@@ -49,40 +53,18 @@ const EMPTY_WORKSPACE: Workspace = {
 };
 
 const createEmptyTavernSessionState = (): TavernRoomSessionState => ({
-  room: null,
+  runtime: null,
   messages: [],
 });
 
-export const createTavernRoomInitialState = ({
-  room,
-  initialMessages = [],
-  sceneInstanceId,
-}: {
-  room: TavernRoom;
-  initialMessages?: TavernMessage[];
-  sceneInstanceId?: string;
-}) => {
-  const nextRoom = sceneInstanceId
-    ? switchTavernRoomSceneInstance(room, sceneInstanceId)
-    : syncTavernRoomActiveScene(room);
-  const messages = initialMessages.map((message) => ({
-    ...message,
-    roomId: message.roomId || nextRoom.id,
-    status: message.status === "streaming" ? ("done" as const) : message.status,
-  }));
-
-  return {
-    room: nextRoom,
-    messages,
-  } satisfies TavernRoomSessionState;
+const getSessionStateRoom = (state: TavernRoomSessionState, roomId?: string) => {
+  const room = state.runtime ? selectTavernRoomFromRuntime(state.runtime) : null;
+  return room && (!roomId || room.id === roomId) ? room : null;
 };
-
-const getSessionStateRoom = (state: TavernRoomSessionState, roomId?: string) =>
-  state.room && (!roomId || state.room.id === roomId) ? state.room : null;
 
 const replaceSessionStateRoom = (state: TavernRoomSessionState, room: TavernRoom): TavernRoomSessionState => ({
   ...state,
-  room,
+  runtime: createTavernRoomRuntimeFromRoom(room),
 });
 
 type TavernRoomDerivedState = {
@@ -95,14 +77,11 @@ type TavernRoomDerivedState = {
 };
 
 const deriveTavernRoomState = ({
-  initialRoom,
   state,
 }: {
-  initialRoom: TavernRoom | null;
   state: TavernRoomSessionState;
 }): TavernRoomDerivedState => {
-  const stateRoom = getSessionStateRoom(state, initialRoom?.id);
-  const sourceRoom = stateRoom ?? initialRoom;
+  const sourceRoom = state.runtime ? selectTavernRoomFromRuntime(state.runtime) : null;
   const activeRoom = sourceRoom ? projectTavernSceneOntoRoom(sourceRoom) : null;
   const visualPreset = getVisualPreset(activeRoom?.scenePresetId);
   const characterById = new Map((activeRoom?.localCharacters ?? []).map((character) => [character.id, character]));
@@ -127,12 +106,10 @@ const deriveTavernRoomState = ({
 
 type TavernRoomStoreBase = {
   workspace: Workspace;
-  runtimeScope: TavernRuntimeScope | undefined;
   runtimeModel: RuntimeModelOption | null;
   state: TavernRoomSessionState;
-  initialRoom: TavernRoom | null;
+  initialRuntime: TavernRoomRuntime | null;
   initialMessages: TavernMessage[];
-  initialSceneInstanceId: string | undefined;
   composerHandle: ComposerHandle | null;
   error: string;
   busy: TavernRoomBusyState;
@@ -143,15 +120,13 @@ type TavernRoomStoreBase = {
 type TavernRoomStoreActions = {
   resetRoomStore: (input?: {
     workspace?: Workspace;
-    runtimeScope?: TavernRuntimeScope;
     runtimeModel?: RuntimeModelOption | null;
-    initialRoom?: TavernRoom | null;
+    initialRuntime?: TavernRoomRuntime | null;
     initialMessages?: TavernMessage[];
-    initialSceneInstanceId?: string;
   }) => void;
   setWorkspace: (workspace: Workspace) => void;
   setRuntimeModel: (runtimeModel: RuntimeModelOption | null) => void;
-  setInitialRoom: (room: TavernRoom | null) => void;
+  setInitialRuntime: (runtime: TavernRoomRuntime | null) => void;
   setComposerHandle: (composerHandle: ComposerHandle | null) => void;
   setState: Dispatch<SetStateAction<TavernRoomSessionState>>;
   setError: Dispatch<SetStateAction<string>>;
@@ -176,30 +151,26 @@ export type TavernRoomStoreState = TavernRoomStoreBase & TavernRoomStoreActions;
 const createBaseStoreState = (
   input: {
     workspace?: Workspace;
-    runtimeScope?: TavernRuntimeScope;
     runtimeModel?: RuntimeModelOption | null;
-    initialRoom?: TavernRoom | null;
+    initialRuntime?: TavernRoomRuntime | null;
     initialMessages?: TavernMessage[];
-    initialSceneInstanceId?: string;
   } = {},
 ): TavernRoomStoreBase => {
   const state = createEmptyTavernSessionState();
-  const initialRoom = input.initialRoom ?? null;
+  const initialRuntime = input.initialRuntime ?? null;
 
   return {
     workspace: input.workspace ?? EMPTY_WORKSPACE,
-    runtimeScope: input.runtimeScope,
     runtimeModel: input.runtimeModel ?? null,
     state,
-    initialRoom,
+    initialRuntime,
     initialMessages: input.initialMessages ?? [],
-    initialSceneInstanceId: input.initialSceneInstanceId,
     composerHandle: null,
     error: "",
     busy: createIdleTavernRoomBusyState(),
     executionSteps: [],
     executionTraceAnchorMessageId: "",
-    ...deriveTavernRoomState({ initialRoom, state }),
+    ...deriveTavernRoomState({ state }),
   };
 };
 
@@ -214,10 +185,10 @@ export const useTavernRoomContext = create<TavernRoomStoreState>((set) => ({
   setRuntimeModel: (runtimeModel) => {
     set({ runtimeModel });
   },
-  setInitialRoom: (initialRoom) => {
+  setInitialRuntime: (initialRuntime) => {
     set((current) => ({
-      initialRoom,
-      ...deriveTavernRoomState({ initialRoom, state: current.state }),
+      initialRuntime,
+      ...deriveTavernRoomState({ state: current.state }),
     }));
   },
   setComposerHandle: (composerHandle) => {
@@ -228,7 +199,7 @@ export const useTavernRoomContext = create<TavernRoomStoreState>((set) => ({
       const state = typeof updater === "function" ? updater(current.state) : updater;
       return {
         state,
-        ...deriveTavernRoomState({ initialRoom: current.initialRoom, state }),
+        ...deriveTavernRoomState({ state }),
       };
     });
   },
@@ -295,7 +266,7 @@ export const useTavernRoomContext = create<TavernRoomStoreState>((set) => ({
 
       return {
         state,
-        ...deriveTavernRoomState({ initialRoom: current.initialRoom, state }),
+        ...deriveTavernRoomState({ state }),
       };
     });
   },
@@ -315,7 +286,7 @@ export const useTavernRoomContext = create<TavernRoomStoreState>((set) => ({
 
       return {
         state,
-        ...deriveTavernRoomState({ initialRoom: current.initialRoom, state }),
+        ...deriveTavernRoomState({ state }),
       };
     });
   },
@@ -336,7 +307,7 @@ export const useTavernRoomContext = create<TavernRoomStoreState>((set) => ({
 
       return {
         state,
-        ...deriveTavernRoomState({ initialRoom: current.initialRoom, state }),
+        ...deriveTavernRoomState({ state }),
       };
     });
   },
@@ -383,7 +354,7 @@ export const useTavernRoomContext = create<TavernRoomStoreState>((set) => ({
 
       return {
         state,
-        ...deriveTavernRoomState({ initialRoom: current.initialRoom, state }),
+        ...deriveTavernRoomState({ state }),
       };
     });
   },
@@ -402,7 +373,7 @@ export const useTavernRoomContext = create<TavernRoomStoreState>((set) => ({
         return current;
       }
 
-      const room = current.state.room;
+      const room = current.state.runtime ? selectTavernRoomFromRuntime(current.state.runtime) : null;
       const state = {
         ...(room
           ? replaceSessionStateRoom(current.state, {
@@ -415,7 +386,7 @@ export const useTavernRoomContext = create<TavernRoomStoreState>((set) => ({
 
       return {
         state,
-        ...deriveTavernRoomState({ initialRoom: current.initialRoom, state }),
+        ...deriveTavernRoomState({ state }),
       };
     });
   },

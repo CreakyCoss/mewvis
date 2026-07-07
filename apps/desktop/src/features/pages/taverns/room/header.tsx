@@ -9,7 +9,6 @@ import { getTavernSceneInstanceDisplayTitle } from "@/features/pages/taverns/tav
 import { deleteTavernBridgeSession } from "@/features/pages/taverns/tavern/runtime/conversation";
 import {
   createIdleTavernRoomBusyState,
-  createTavernRoomInitialState,
   isTavernRoomBusy,
   isTavernRoomSending,
   useTavernRoomContext,
@@ -50,11 +49,9 @@ export const Header = ({
   onToggleSidePanel,
 }: HeaderProps) => {
   const workspace = useTavernRoomContext((store) => store.workspace);
-  const runtimeScope = useTavernRoomContext((store) => store.runtimeScope);
   const activeRoom = useTavernRoomContext((store) => store.activeRoom);
-  const initialRoom = useTavernRoomContext((store) => store.initialRoom);
+  const initialRuntime = useTavernRoomContext((store) => store.initialRuntime);
   const initialMessages = useTavernRoomContext((store) => store.initialMessages);
-  const initialSceneInstanceId = useTavernRoomContext((store) => store.initialSceneInstanceId);
   const roomMessages = useTavernRoomContext((store) => store.roomMessages);
   const visualPreset = useTavernRoomContext((store) => store.visualPreset);
   const busy = useTavernRoomContext((store) => store.busy);
@@ -156,7 +153,7 @@ export const Header = ({
     }
 
     try {
-      await deleteTavernRoomSessionState(workspace.path, runtimeScope);
+      await deleteTavernRoomSessionState(workspace.path);
     } catch (deleteError) {
       const message = getErrorMessage(deleteError);
       setError(`无法清理当前节点运行文件：${message}`);
@@ -164,14 +161,10 @@ export const Header = ({
       return;
     }
 
-    const resetSceneInstanceId = activeRoom.activeSceneInstanceId || initialSceneInstanceId;
-    const nextState = createTavernRoomInitialState({
-      room: initialRoom ?? activeRoom,
-      initialMessages,
-      sceneInstanceId: resetSceneInstanceId,
+    setRoomState({
+      runtime: initialRuntime,
+      messages: initialMessages,
     });
-
-    setRoomState(nextState);
     useTavernRoomContext.getState().composerHandle?.clearReplySuggestions();
     setIsSceneDriveAutoRunning(false);
     clearSceneDriveAutoTimer();
@@ -185,10 +178,8 @@ export const Header = ({
     activeRoom,
     clearSceneDriveAutoTimer,
     initialMessages,
-    initialRoom,
-    initialSceneInstanceId,
+    initialRuntime,
     resetExecutionTrace,
-    runtimeScope,
     setBusy,
     setError,
     setExecutionTraceAnchorMessageId,

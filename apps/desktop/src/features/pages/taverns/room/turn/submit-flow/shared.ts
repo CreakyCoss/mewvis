@@ -9,10 +9,6 @@ import {
   orderTavernRoundParticipants,
   orderTavernRoundSpeakers,
 } from "@/features/pages/taverns/tavern/core";
-import {
-  projectTavernSceneOntoRoom,
-  syncTavernRoomActiveScene,
-} from "@/features/pages/taverns/tavern/runtime/active-scene-runtime";
 import { resolveTavernCharacterModel } from "@/features/pages/taverns/tavern/runtime/agent";
 import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
@@ -77,17 +73,9 @@ export const syncOpenPendingInteractions = ({
   room: TavernRoom;
   openPendingInteractions: TavernPendingInteractions;
 }) => {
-  ctx.setState((current) => ({
-    ...current,
-    room:
-      current.room?.id === room.id
-        ? syncTavernRoomActiveScene({
-            ...projectTavernSceneOntoRoom(current.room),
-            pendingInteractions: openPendingInteractions,
-            updatedAt: Date.now(),
-          })
-        : current.room,
-  }));
+  ctx.patchRoom(room.id, {
+    pendingInteractions: openPendingInteractions,
+  });
 };
 
 export const resolveTurnMode = (triggerType: TurnTriggerType = "user"): TurnMode => {

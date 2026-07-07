@@ -31,7 +31,7 @@ import {
   type TavernPromptPreviewWarning,
   type TavernPromptPreviewWarningSeverity,
 } from "../../../tavern/runtime/prompt/preview";
-import { getTavernRuntimeStoryProjection } from "../../../tavern/adapters/story";
+import { getTavernRuntimeStoryProjection } from "../../../room/story-context";
 import { getTavernCharacterStylePreset } from "../../../tavern/prompt-registry/character-style-presets";
 import {
   TAVERN_PRESENTATION_PROFILE_OPTIONS,

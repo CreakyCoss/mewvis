@@ -1,6 +1,6 @@
 import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
+import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context";
 import type { TavernRoomStoreState } from "@/features/pages/taverns/room/context";
 import { createTavernMessage } from "@/features/pages/taverns/room/message";
 import {

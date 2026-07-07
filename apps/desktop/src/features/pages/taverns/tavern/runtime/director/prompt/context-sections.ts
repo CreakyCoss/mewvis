@@ -1,7 +1,7 @@
 import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import { formatTavernRuntimeMessagesForSummary } from "../../conversation";
 import { buildTavernSceneDriveGuidance, formatTavernCharacterRelationships } from "../../../core";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
+import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context";
 import {
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
