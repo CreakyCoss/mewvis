@@ -1,7 +1,6 @@
 import {
   Copy,
   Download,
-  LockKeyhole,
   MoreHorizontal,
   Pencil,
   RotateCcw,
@@ -9,7 +8,6 @@ import {
   Settings2,
   Trash2,
   TriangleAlertIcon,
-  UnlockKeyhole,
   Wine,
 } from "lucide-react";
 import { useState } from "react";
@@ -28,7 +26,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -47,7 +44,7 @@ type PendingDangerAction = {
 type RoomCardProps = {
   management: Pick<
     TavernManagementValue,
-    "copyRoom" | "restoreSystemPresetRoom" | "setRoomLocked" | "deleteRoom" | "exportRoom"
+    "copyRoom" | "restoreSystemPresetRoom" | "deleteRoom" | "exportRoom"
   >;
   room: TavernRoom;
   openRoomEditor: (room: TavernRoom) => void;
@@ -56,7 +53,7 @@ type RoomCardProps = {
 
 export const RoomCard = ({ management, room, openRoomEditor, onOperationStatusChange }: RoomCardProps) => {
   const [pendingDangerAction, setPendingDangerAction] = useState<PendingDangerAction | null>(null);
-  const { copyRoom, restoreSystemPresetRoom, setRoomLocked, deleteRoom, exportRoom } = management;
+  const { copyRoom, restoreSystemPresetRoom, deleteRoom, exportRoom } = management;
   const visualPreset = getVisualPreset(room.scenePresetId);
   const enabledPromptBlockCount = room.prompt.blocks.filter((block) => block.enabled && block.text.trim()).length;
   const interactionRuleCount = room.settings.interactionQualityRuleIds.length;
@@ -115,31 +112,8 @@ export const RoomCard = ({ management, room, openRoomEditor, onOperationStatusCh
     }
   };
 
-  const handleRoomLockChange = () => {
-    const nextLocked = !room.locked;
-    const actionLabel = nextLocked ? "锁定酒馆" : "解锁酒馆";
-    const consequence = nextLocked
-      ? "锁定后将不能删除该酒馆或恢复系统默认。"
-      : "解锁后将重新允许删除该酒馆或恢复系统默认。";
-
-    requestDangerAction({
-      title: actionLabel,
-      description: `${actionLabel}「${room.title}」？${consequence}`,
-      confirmLabel: actionLabel,
-      onConfirm: () => {
-        const applied = setRoomLocked(room.id, nextLocked);
-        if (!applied) {
-          setOperationStatus(`${actionLabel}「${room.title}」失败`);
-          return;
-        }
-
-        setOperationStatus(nextLocked ? `已锁定「${room.title}」` : `已解锁「${room.title}」`);
-      },
-    });
-  };
-
   const handleRestoreSystemPresetRoom = () => {
-    if (!room.systemPresetId || room.locked) {
+    if (!room.systemPresetId) {
       return;
     }
 
@@ -161,10 +135,6 @@ export const RoomCard = ({ management, room, openRoomEditor, onOperationStatusCh
   };
 
   const handleDeleteRoom = () => {
-    if (room.locked) {
-      return;
-    }
-
     requestDangerAction({
       title: "删除酒馆",
       description: `删除酒馆「${room.title}」？该房间配置会被永久移除。`,
@@ -230,12 +200,6 @@ export const RoomCard = ({ management, room, openRoomEditor, onOperationStatusCh
                 {room.settings.directorScheduling.instruction.trim() || "使用当前房间的默认导演调度策略"}
               </div>
             </div>
-            {room.locked && (
-              <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                <LockKeyhole className="size-3.5" />
-                已锁定
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -274,15 +238,9 @@ export const RoomCard = ({ management, room, openRoomEditor, onOperationStatusCh
                 <Download className="size-4" />
                 导出房间配置
               </DropdownMenuItem>
-              <DropdownMenuItem className="h-8 gap-2 rounded-md px-2 text-sm" onSelect={handleRoomLockChange}>
-                {room.locked ? <LockKeyhole className="size-4" /> : <UnlockKeyhole className="size-4" />}
-                {room.locked ? "解锁酒馆" : "锁定酒馆"}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="mx-2 my-1.5" />
               {room.systemPresetId && (
                 <DropdownMenuItem
                   className="h-8 gap-2 rounded-md px-2 text-sm"
-                  disabled={room.locked}
                   onSelect={handleRestoreSystemPresetRoom}
                 >
                   <RotateCcw className="size-4" />
@@ -292,7 +250,6 @@ export const RoomCard = ({ management, room, openRoomEditor, onOperationStatusCh
               <DropdownMenuItem
                 variant="destructive"
                 className="h-8 gap-2 rounded-md px-2 text-sm"
-                disabled={room.locked}
                 onSelect={handleDeleteRoom}
               >
                 <Trash2 className="size-4" />

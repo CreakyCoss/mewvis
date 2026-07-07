@@ -32,7 +32,6 @@ const applyCarrierRoomConfig = (
     replyMode: carrierRoom.replyMode,
     settings: carrierRoom.settings,
     creationSource: carrierRoom.creationSource,
-    locked: false,
   };
 };
 

@@ -1,4 +1,3 @@
-import type { TavernMessage } from "../../types";
 import type {
   TavernPresentationProfile,
   TavernPresentationProfileId,
@@ -50,35 +49,10 @@ export const normalizeTavernPresentation = (value: unknown): TavernPresentationS
   return {
     profileId: normalizeTavernPresentationProfileId(candidate.profileId),
     profileVersion: 1,
-    lockedAt: typeof candidate.lockedAt === "number" ? candidate.lockedAt : undefined,
-    lockedSceneId:
-      typeof candidate.lockedSceneId === "string" && candidate.lockedSceneId.trim()
-        ? candidate.lockedSceneId
-        : undefined,
   };
 };
 
 export const getTavernPresentationProfile = (value: unknown): TavernPresentationProfile => {
   const id = normalizeTavernPresentationProfileId(value);
   return TAVERN_PRESENTATION_PROFILES.find((profile) => profile.id === id) ?? TAVERN_PRESENTATION_PROFILES[0];
-};
-
-export const hasTavernPresentationStarted = (messages: Array<Pick<TavernMessage, "role">>) =>
-  messages.some((message) => message.role === "user" || message.role === "character");
-
-export const isTavernPresentationLocked = ({
-  presentation,
-  messages,
-  sceneId,
-}: {
-  presentation?: TavernPresentationSettings | null;
-  messages: Array<Pick<TavernMessage, "role">>;
-  sceneId?: string | null;
-}) => {
-  const normalizedPresentation = normalizeTavernPresentation(presentation);
-  const lockedSceneId = normalizedPresentation.lockedSceneId?.trim() ?? "";
-  const isCurrentSceneLocked = sceneId
-    ? Boolean(normalizedPresentation.lockedAt && lockedSceneId === sceneId)
-    : Boolean(normalizedPresentation.lockedAt);
-  return isCurrentSceneLocked || hasTavernPresentationStarted(messages);
 };

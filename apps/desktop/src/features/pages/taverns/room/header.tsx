@@ -1,7 +1,6 @@
 import {
   ArrowLeft,
   Eraser,
-  History,
   PanelRightClose,
   PanelRightOpen,
   Pause,
@@ -22,7 +21,6 @@ type HeaderProps = {
   isSidePanelOpen: boolean;
   onBack?: () => void;
   onClearCurrentSceneMessages: () => void;
-  onLoadBranchMemory: () => void;
   onRebuildRuntime?: () => void;
   onSelectSceneInstance: (sceneInstanceId: string) => void;
   onSceneDriveTurn: () => void;
@@ -38,7 +36,6 @@ export const Header = ({
   isSidePanelOpen,
   onBack,
   onClearCurrentSceneMessages,
-  onLoadBranchMemory,
   onRebuildRuntime,
   onSelectSceneInstance,
   onSceneDriveTurn,
@@ -131,22 +128,9 @@ export const Header = ({
           size="sm"
           variant="ghost"
           className={tavernHeaderActionButtonClassName}
-          title={activeRoom.locked ? "酒馆已锁定" : "加载上游记忆"}
-          aria-label={activeRoom.locked ? "酒馆已锁定" : "加载上游记忆"}
-          disabled={activeRoom.locked || isSending}
-          onClick={onLoadBranchMemory}
-        >
-          <History className="size-4" />
-          <span className="hidden text-xs font-medium sm:inline">记忆</span>
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className={tavernHeaderActionButtonClassName}
-          title={activeRoom.locked ? "酒馆已锁定" : "清空当前节点对话"}
-          aria-label={activeRoom.locked ? "酒馆已锁定" : "清空当前节点对话"}
-          disabled={activeRoom.locked || isSending || isSceneDriveAutoRunning}
+          title="清空当前节点对话"
+          aria-label="清空当前节点对话"
+          disabled={isSending || isSceneDriveAutoRunning}
           onClick={onClearCurrentSceneMessages}
         >
           <Eraser className="size-4" />
@@ -160,7 +144,7 @@ export const Header = ({
             className={tavernHeaderActionButtonClassName}
             title="按最新故事内容重建酒馆运行时"
             aria-label="按最新故事内容重建酒馆运行时"
-            disabled={activeRoom.locked || isSending || isSceneDriveAutoRunning}
+            disabled={isSending || isSceneDriveAutoRunning}
             onClick={onRebuildRuntime}
           >
             <RotateCcw className="size-4" />

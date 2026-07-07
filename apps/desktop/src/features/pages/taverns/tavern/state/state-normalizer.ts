@@ -38,7 +38,6 @@ const normalizeRoomConfig = (workspaceId: string, value: unknown): TavernRoom | 
         ? source.systemPresetVersion
         : systemPreset.version
       : undefined,
-    locked: Boolean(source.locked),
     title: source.title,
     presentation,
     prompt: normalizeTavernPromptSettings(source.prompt, createDefaultPromptForPresentation(presentation)),

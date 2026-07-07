@@ -21,7 +21,6 @@ type TavernManifestRoom = {
   title: string;
   roomPath: string;
   systemPresetId?: string;
-  locked: boolean;
   createdAt: number;
   updatedAt: number;
 };
@@ -231,7 +230,6 @@ const normalizeTavernManifest = (value: unknown): TavernManifest | null => {
             title: typeof source.title === "string" ? source.title : "未命名酒馆",
             roomPath: typeof source.roomPath === "string" ? source.roomPath : "",
             systemPresetId: typeof source.systemPresetId === "string" ? source.systemPresetId : undefined,
-            locked: Boolean(source.locked),
             createdAt: typeof source.createdAt === "number" ? source.createdAt : Date.now(),
             updatedAt: typeof source.updatedAt === "number" ? source.updatedAt : Date.now(),
           },
@@ -256,7 +254,6 @@ const createTavernManifestRoom = (baseDir: string, room: TavernRoom): TavernMani
   title: room.title || "未命名酒馆",
   roomPath: tavernRoomPath(baseDir, room.id),
   systemPresetId: room.systemPresetId,
-  locked: Boolean(room.locked),
   createdAt: room.createdAt,
   updatedAt: room.updatedAt,
 });

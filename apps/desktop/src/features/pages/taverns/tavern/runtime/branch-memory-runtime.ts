@@ -1,10 +1,6 @@
 import {
   collectUniqueTrimmedLines,
-  formatTavernMemoryBlocks,
   getTavernBranchPathInstances,
-  getTavernBranchSecretReveals,
-  resolveCharacterMemoryEntryText,
-  resolveSceneMemoryEntryText,
 } from "./branch-memory";
 import { createTavernId as createId } from "../ids";
 import { createEmptyCharacterMemoryLayers, createEmptySceneMemoryLayers } from "./memory-layers";
@@ -17,115 +13,6 @@ import type {
   TavernRuntimeRoom as TavernRoom,
   TavernSecretReveal,
 } from "@/features/pages/taverns/room/model";
-
-export type TavernBranchUpstreamMemoryLoadResult = {
-  room: TavernRoom;
-  sourceInstanceIds: string[];
-  sceneMemory: string;
-  characterMemories: Record<string, string>;
-  revealedSecretIds: string[];
-};
-
-export const loadTavernBranchUpstreamMemory = (room: TavernRoom): TavernBranchUpstreamMemoryLoadResult => {
-  const runtimeRoom = ensureTavernRoomRuntimeScopes(room);
-  const activeInstance = resolveActiveSceneInstance(runtimeRoom);
-  if (!activeInstance) {
-    return {
-      room: runtimeRoom,
-      sourceInstanceIds: [],
-      sceneMemory: "",
-      characterMemories: {},
-      revealedSecretIds: [],
-    };
-  }
-
-  const { upstreamInstances, pathInstances } = getTavernBranchPathInstances(runtimeRoom, activeInstance);
-  const reveals = getTavernBranchSecretReveals(pathInstances);
-  const revealedSecretIds = Array.from(new Set(reveals.map((reveal) => reveal.secretId)));
-
-  const sceneMemory = formatTavernMemoryBlocks(
-    upstreamInstances.map((instance) => {
-      const layers = createEmptySceneMemoryLayers(instance.memoryLayers);
-      const entryLines = (layers.entries ?? [])
-        .map((entry) => resolveSceneMemoryEntryText(entry, reveals))
-        .filter(Boolean);
-
-      return {
-        title: getTavernSceneInstanceDisplayTitle(runtimeRoom, instance.id, instance.title),
-        lines: [layers.required, instance.memory, layers.public, layers.private, ...entryLines],
-      };
-    }),
-  );
-
-  const characterIds = Array.from(
-    new Set([
-      ...runtimeRoom.characterIds,
-      ...activeInstance.characterIds,
-      ...upstreamInstances.flatMap((instance) => [
-        ...instance.characterIds,
-        ...Object.keys(instance.characterMemoryLayers ?? {}),
-      ]),
-    ]),
-  );
-  const characterMemories = Object.fromEntries(
-    characterIds.flatMap((characterId) => {
-      const memory = formatTavernMemoryBlocks(
-        upstreamInstances.map((instance) => {
-          const layers = createEmptyCharacterMemoryLayers(instance.characterMemoryLayers?.[characterId]);
-          const entryLines = (layers.entries ?? [])
-            .map((entry) => resolveCharacterMemoryEntryText(entry, reveals, characterId))
-            .filter(Boolean);
-
-          return {
-            title: getTavernSceneInstanceDisplayTitle(runtimeRoom, instance.id, instance.title),
-            lines: [layers.required, layers.public, layers.known, layers.privateSelf, ...entryLines],
-          };
-        }),
-      );
-
-      return memory.trim() ? [[characterId, memory]] : [];
-    }),
-  );
-  const updatedAt = Date.now();
-  const nextInstances = runtimeRoom.sceneInstances.map((instance) => {
-    if (instance.id !== activeInstance.id) {
-      return instance;
-    }
-
-    const nextCharacterMemoryLayers = { ...instance.characterMemoryLayers };
-    for (const characterId of characterIds) {
-      const layers = createEmptyCharacterMemoryLayers(nextCharacterMemoryLayers[characterId]);
-      nextCharacterMemoryLayers[characterId] = {
-        ...layers,
-        known: characterMemories[characterId] ?? "",
-        updatedAt,
-      };
-    }
-
-    return {
-      ...instance,
-      memoryLayers: {
-        ...createEmptySceneMemoryLayers(instance.memoryLayers),
-        upstream: sceneMemory,
-        updatedAt,
-      },
-      characterMemoryLayers: nextCharacterMemoryLayers,
-      updatedAt,
-    };
-  });
-
-  return {
-    room: projectTavernSceneOntoRoom({
-      ...runtimeRoom,
-      sceneInstances: nextInstances,
-      updatedAt,
-    }),
-    sourceInstanceIds: upstreamInstances.map((instance) => instance.id),
-    sceneMemory,
-    characterMemories,
-    revealedSecretIds,
-  };
-};
 
 export type TavernBranchSecretMemoryOption = {
   secretId: string;

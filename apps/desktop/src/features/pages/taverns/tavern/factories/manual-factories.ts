@@ -14,7 +14,6 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
   return {
     id: roomId,
     workspaceId,
-    locked: false,
     title: `新酒馆 ${index}`,
     creationSource: "manual",
     scenePresetId: DEFAULT_VISUAL_PRESET_ID,

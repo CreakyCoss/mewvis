@@ -280,7 +280,6 @@ export const materializeTavernPresentationInput = (
   const room = projectTavernSceneOntoRoom({
     id: roomId,
     workspaceId,
-    locked: false,
     title: trimText(input.meta.title) || "故事演绎",
     creationSource: input.runtime?.creationSource ?? "manual",
     presentation,

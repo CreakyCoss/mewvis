@@ -136,7 +136,6 @@ writeFileSync(
     promptOverrides: { version: 1 as const, blocks: [] },
     memoryLayers: {
       required: "",
-      upstream: "",
       private: "",
       public: "",
       directorSecret: "",

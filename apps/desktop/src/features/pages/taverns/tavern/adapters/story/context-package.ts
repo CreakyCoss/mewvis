@@ -34,7 +34,7 @@ export type TavernStoryContextScene = {
 
 export type TavernStoryContextMemoryLayers = Pick<
   TavernSceneMemoryLayers,
-  "required" | "upstream" | "public" | "private" | "directorSecret"
+  "required" | "public" | "private" | "directorSecret"
 >;
 
 export type TavernStoryContextCharacterMemory = Pick<
@@ -123,7 +123,6 @@ const createEmptySceneLayers = (
   input: Partial<TavernStoryContextMemoryLayers> = {},
 ): TavernStoryContextMemoryLayers => ({
   required: trimText(input.required),
-  upstream: trimText(input.upstream),
   public: trimText(input.public),
   private: trimText(input.private),
   directorSecret: trimText(input.directorSecret),

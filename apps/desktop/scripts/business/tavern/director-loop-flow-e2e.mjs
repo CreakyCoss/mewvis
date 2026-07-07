@@ -490,7 +490,6 @@ writeFileSync(
       promptOverrides: { version: 1, blocks: [] },
       memoryLayers: {
         required: "",
-        upstream: "",
         private: "",
         public: "",
         directorSecret: "",

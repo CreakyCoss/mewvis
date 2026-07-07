@@ -14,10 +14,7 @@ import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  getTavernPresentationProfile,
-  isTavernPresentationLocked,
-} from "../../../tavern/prompt-registry/presentation-rules";
+import { getTavernPresentationProfile } from "../../../tavern/prompt-registry/presentation-rules";
 import type {
   TavernPromptBlock,
   TavernPromptBlockSourceType,
@@ -269,11 +266,6 @@ export const PromptSection = ({
 }: PromptSectionProps) => {
   const editRef = useRef<PromptEditHandle>(null);
   const presentationProfile = getTavernPresentationProfile(data.presentation?.profileId);
-  const presentationLocked = isTavernPresentationLocked({
-    presentation: data.presentation,
-    messages: [],
-    sceneId: undefined,
-  });
   const enabledBlockCount = getEnabledPromptBlocks(data.prompt.blocks).length;
 
   return (
@@ -299,11 +291,6 @@ export const PromptSection = ({
         contentClassName="p-4"
       >
         <PromptSummaryContent data={data} />
-        {presentationLocked && (
-          <div className="rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-700 dark:text-amber-200">
-            当前场景已有对话，呈现规则已锁定；仍可引用预设并调整已保存文本块。
-          </div>
-        )}
       </EditorSection>
 
       <PromptEdit

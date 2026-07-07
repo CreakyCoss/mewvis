@@ -34,7 +34,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   addTavernSecretMemoryEntry,
   listTavernBranchSecretMemoryEntries,
-  loadTavernBranchUpstreamMemory,
   revealTavernSecretMemory,
 } from "@/features/pages/taverns/tavern/runtime/branch-memory-runtime";
 import {
@@ -217,7 +216,6 @@ type MemoryEditorTarget = "scene" | string;
 
 type MemoryEditorDraft = {
   required: string;
-  upstream: string;
   public: string;
   private: string;
   known: string;
@@ -237,7 +235,6 @@ const createMemoryEditorDraft = (target: MemoryEditorTarget, activeRoom: TavernR
     const layers = activeInstance?.memoryLayers;
     return {
       required: layers?.required ?? "",
-      upstream: layers?.upstream ?? "",
       public: layers?.public ?? "",
       private: layers?.private ?? "",
       known: "",
@@ -249,7 +246,6 @@ const createMemoryEditorDraft = (target: MemoryEditorTarget, activeRoom: TavernR
   const layers = activeInstance?.characterMemoryLayers?.[target];
   return {
     required: layers?.required ?? "",
-    upstream: "",
     public: layers?.public ?? "",
     private: "",
     known: layers?.known ?? "",
@@ -373,7 +369,6 @@ export const SceneOverviewSection = ({ externalBusy, onBusyChange }: SceneOvervi
   const [memoryEditorTarget, setMemoryEditorTarget] = useState<MemoryEditorTarget>("scene");
   const [memoryEditorDraft, setMemoryEditorDraft] = useState<MemoryEditorDraft>({
     required: "",
-    upstream: "",
     public: "",
     private: "",
     known: "",
@@ -440,7 +435,6 @@ export const SceneOverviewSection = ({ externalBusy, onBusyChange }: SceneOvervi
     if (memoryEditorTarget === "scene") {
       const nextRoom = updateTavernActiveSceneMemoryLayers(activeRoom, {
         required: memoryEditorDraft.required.trim(),
-        upstream: memoryEditorDraft.upstream.trim(),
         public: memoryEditorDraft.public.trim(),
         private: memoryEditorDraft.private.trim(),
         directorSecret: memoryEditorDraft.directorSecret.trim(),
@@ -532,8 +526,7 @@ export const SceneOverviewSection = ({ externalBusy, onBusyChange }: SceneOvervi
       return;
     }
 
-    const refreshed = loadTavernBranchUpstreamMemory(result.room);
-    patchRoom(activeRoom.id, refreshed.room);
+    patchRoom(activeRoom.id, result.room);
     toast.success(revealVisibility === "public" ? "秘密已公开" : "秘密已对角色解密");
     closeSecretDialog();
   };
@@ -629,19 +622,6 @@ export const SceneOverviewSection = ({ externalBusy, onBusyChange }: SceneOvervi
               </label>
               {memoryEditorTarget === "scene" ? (
                 <>
-                  <label className="space-y-1.5">
-                    <span className="text-xs font-medium text-muted-foreground">上游汇总</span>
-                    <Textarea
-                      value={memoryEditorDraft.upstream}
-                      className="min-h-24 resize-none"
-                      onChange={(event) =>
-                        setMemoryEditorDraft((draft) => ({
-                          ...draft,
-                          upstream: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
                   <label className="space-y-1.5">
                     <span className="text-xs font-medium text-muted-foreground">分支私有</span>
                     <Textarea
@@ -834,7 +814,7 @@ export const SceneOverviewSection = ({ externalBusy, onBusyChange }: SceneOvervi
           <DialogHeader>
             <DialogTitle>解密秘密</DialogTitle>
             <DialogDescription>
-              在当前节点场景实例写入解密标记；重新加载上游记忆时会按公开或指定角色可见规则汇总。
+              在当前节点场景实例写入解密标记，并同步到当前节点公开记忆或指定角色已知记忆。
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">

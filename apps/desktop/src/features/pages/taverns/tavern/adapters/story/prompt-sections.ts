@@ -113,9 +113,6 @@ const buildStoryMemoryContent = (storyContext: TavernStoryContextPackage) => {
   const layers = storyContext.memory.sceneLayers;
   return joinPromptLines([
     storyContext.memory.manual.trim() ? limitEscapedPromptText(storyContext.memory.manual, 900) : "",
-    layers.upstream.trim()
-      ? `<branch_upstream_memory>${limitEscapedPromptText(layers.upstream, 1200)}</branch_upstream_memory>`
-      : "",
     layers.public.trim()
       ? `<branch_public_memory>${limitEscapedPromptText(layers.public, 600)}</branch_public_memory>`
       : "",

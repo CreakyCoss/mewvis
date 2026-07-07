@@ -45,7 +45,6 @@ const formatMemorySections = (sections: Array<{ title: string; values: Array<str
 
 const visibleSceneLayerValues = (layers: TavernSceneMemoryLayers | undefined) => [
   layers?.required,
-  layers?.upstream,
   layers?.public,
   layers?.private,
 ];
@@ -63,7 +62,6 @@ export const buildTavernCurrentSceneMemoryText = (room: TavernRoom) => {
 
   return formatMemorySections([
     { title: "节点必须记忆", values: [layers?.required] },
-    { title: "上游场景记忆", values: [layers?.upstream] },
     { title: "节点公开记忆", values: [layers?.public] },
     { title: "分支私有记忆", values: [layers?.private] },
   ]);

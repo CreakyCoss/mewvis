@@ -40,8 +40,6 @@ export type TavernPresentationProfile = {
 export type TavernPresentationSettings = {
   profileId: TavernPresentationProfileId;
   profileVersion: 1;
-  lockedAt?: number;
-  lockedSceneId?: string;
 };
 
 export type TavernPromptBlockTarget = "bridge" | "director" | "character";
@@ -291,7 +289,6 @@ export type TavernRoom = {
   workspaceId: string;
   systemPresetId?: string;
   systemPresetVersion?: number;
-  locked: boolean;
   title: string;
   presentation: TavernPresentationSettings;
   prompt: TavernRoomPromptSettings;

@@ -89,7 +89,6 @@ export type TavernScene = {
 
 export type TavernSceneMemoryLayers = {
   required: string;
-  upstream: string;
   private: string;
   public: string;
   directorSecret: string;

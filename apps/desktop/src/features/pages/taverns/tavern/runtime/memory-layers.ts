@@ -4,7 +4,6 @@ export const createEmptySceneMemoryLayers = (
   input: Partial<TavernSceneMemoryLayers> = {},
 ): TavernSceneMemoryLayers => ({
   required: input.required?.trim() ?? "",
-  upstream: input.upstream?.trim() ?? "",
   private: input.private?.trim() ?? "",
   public: input.public?.trim() ?? "",
   directorSecret: input.directorSecret?.trim() ?? "",

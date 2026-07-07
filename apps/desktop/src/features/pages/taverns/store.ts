@@ -34,7 +34,6 @@ export type TavernManagementValue = {
   patchRoom: (roomId: string, patch: Partial<TavernRoom>) => void;
   copyRoom: (roomId: string) => boolean;
   restoreSystemPresetRoom: (roomId: string) => Promise<boolean>;
-  setRoomLocked: (roomId: string, locked: boolean) => boolean;
   deleteRoom: (roomId: string) => boolean;
   exportRoom: (roomId: string) => boolean;
   globalRuntimeModel: RuntimeModelOption | null;
@@ -89,13 +88,13 @@ export const useTavernManagement = ({ workspace, state, setState }: TavernManage
   const deleteRoom = useCallback(
     (roomId: string) => {
       const targetRoom = state.rooms.find((room) => room.id === roomId);
-      if (!targetRoom || targetRoom.locked) {
+      if (!targetRoom) {
         return false;
       }
 
       setState((current) => {
         const currentTargetRoom = current.rooms.find((room) => room.id === roomId);
-        if (!currentTargetRoom || currentTargetRoom.locked) {
+        if (!currentTargetRoom) {
           return current;
         }
 
@@ -131,12 +130,7 @@ export const useTavernManagement = ({ workspace, state, setState }: TavernManage
           workspaceId: workspace.id,
           systemPresetId: undefined,
           systemPresetVersion: undefined,
-          locked: false,
-          presentation: {
-            ...sourceRoom.presentation,
-            lockedAt: undefined,
-            lockedSceneId: undefined,
-          },
+          presentation: { ...sourceRoom.presentation },
           title: `${currentSourceRoom.title}（副本）`,
           createdAt,
           updatedAt: createdAt,
@@ -156,14 +150,14 @@ export const useTavernManagement = ({ workspace, state, setState }: TavernManage
     async (roomId: string) => {
       const room = state.rooms.find((item) => item.id === roomId);
       const preset = getTavernSystemPreset(room?.systemPresetId);
-      if (!room || room.locked || !preset) {
+      if (!room || !preset) {
         return false;
       }
 
       setState((current) => {
         const sourceRoom = current.rooms.find((item) => item.id === roomId);
         const sourcePreset = getTavernSystemPreset(sourceRoom?.systemPresetId);
-        if (!sourceRoom || sourceRoom.locked || !sourcePreset) {
+        if (!sourceRoom || !sourcePreset) {
           return current;
         }
 
@@ -180,30 +174,6 @@ export const useTavernManagement = ({ workspace, state, setState }: TavernManage
       return true;
     },
     [setState, state.rooms, workspace.id],
-  );
-
-  const setRoomLocked = useCallback(
-    (roomId: string, locked: boolean) => {
-      const room = state.rooms.find((item) => item.id === roomId);
-      if (!room || room.locked === locked) {
-        return false;
-      }
-
-      setState((current) => ({
-        ...current,
-        rooms: current.rooms.map((item) =>
-          item.id === roomId
-            ? {
-                ...item,
-                locked,
-                updatedAt: Date.now(),
-              }
-            : item,
-        ),
-      }));
-      return true;
-    },
-    [setState, state.rooms],
   );
 
   const exportRoom = useCallback(
@@ -267,7 +237,6 @@ export const useTavernManagement = ({ workspace, state, setState }: TavernManage
       patchRoom,
       copyRoom,
       restoreSystemPresetRoom,
-      setRoomLocked,
       deleteRoom,
       exportRoom,
       globalRuntimeModel: runtimeModel,
@@ -282,7 +251,6 @@ export const useTavernManagement = ({ workspace, state, setState }: TavernManage
       restoreSystemPresetRoom,
       runTextFieldAgent,
       runtimeModel,
-      setRoomLocked,
       state.rooms,
     ],
   );

@@ -44,7 +44,6 @@ export const createTavernRoomFromSystemPreset = (
           systemPresetVersion: preset.version,
         }
       : {}),
-    locked: false,
     title: preset.room.title.trim(),
     presentation,
     prompt: createDefaultTavernPromptSettings({

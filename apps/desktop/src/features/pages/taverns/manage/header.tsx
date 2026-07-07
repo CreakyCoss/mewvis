@@ -1,4 +1,4 @@
-import { BookOpen, LockKeyhole, Palette, ScrollText } from "lucide-react";
+import { BookOpen, Palette, ScrollText } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,12 +46,6 @@ export const Header = ({ data, textFieldAgentError, onOpenStoryConfig }: HeaderP
                   className="border border-primary/15 bg-primary/10 text-primary dark:border-primary/20 dark:bg-primary/15"
                 >
                   系统预设
-                </Badge>
-              )}
-              {data.locked && (
-                <Badge variant="outline" className="gap-1">
-                  <LockKeyhole className="size-3" />
-                  已锁定
                 </Badge>
               )}
             </div>

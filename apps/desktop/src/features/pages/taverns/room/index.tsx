@@ -14,13 +14,9 @@ import {
   type RuntimeModelOption,
   useLlmSettingsStore,
 } from "@/features/pages/settings/llm/store";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -29,7 +25,6 @@ import { listWorkspaceFiles, readWorkspaceFile, type WorkspaceFileEntry } from "
 import type { Workspace } from "@/features/pages/workspace/types";
 import { cn } from "@/lib/utils";
 import { getVisualPreset } from "../tavern/visual-presets";
-import { loadTavernBranchUpstreamMemory } from "../tavern/runtime/branch-memory-runtime";
 import {
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
@@ -76,56 +71,6 @@ const getErrorMessage = (error: unknown) => {
   }
 
   return "未知错误";
-};
-
-const parseTavernMemoryPreviewBlocks = (value: string) => {
-  const blocks: Array<{ title?: string; content: string }> = [];
-  let currentTitle: string | undefined;
-  let currentLines: string[] = [];
-
-  const pushCurrent = () => {
-    const content = currentLines.join("\n").trim();
-    if (content) {
-      blocks.push({ title: currentTitle, content });
-    }
-    currentLines = [];
-  };
-
-  for (const line of value.trim().split(/\n/)) {
-    const trimmedLine = line.trim();
-    const titleMatch = trimmedLine.match(/^【(.+)】$/) ?? trimmedLine.match(/^##\s+(.+)$/);
-    if (titleMatch) {
-      pushCurrent();
-      currentTitle = titleMatch[1]?.trim();
-      continue;
-    }
-
-    currentLines.push(line);
-  }
-
-  pushCurrent();
-  return blocks;
-};
-
-const TavernMemoryPreviewText = ({ value, emptyText }: { value: string; emptyText: string }) => {
-  const blocks = parseTavernMemoryPreviewBlocks(value);
-
-  if (blocks.length === 0) {
-    return <div className="mt-2 text-xs leading-5 text-muted-foreground">{emptyText}</div>;
-  }
-
-  return (
-    <div className="mt-2 space-y-2">
-      {blocks.map((block, index) => (
-        <div key={`${block.title ?? "memory"}-${index}`} className="space-y-1">
-          {block.title ? (
-            <div className="text-[11px] font-medium leading-4 text-muted-foreground">{block.title}</div>
-          ) : null}
-          <div className="whitespace-pre-wrap break-words text-xs leading-5">{block.content}</div>
-        </div>
-      ))}
-    </div>
-  );
 };
 
 const getTavernSceneText = (value: string, fallback: string) => value.trim() || fallback;
@@ -250,9 +195,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     roomCharacters.find((character) => character.id === activeRoom?.activeCharacterId) ?? roomCharacters[0] ?? null;
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const [isSceneDriveAutoRunning, setIsSceneDriveAutoRunning] = useState(false);
-  const [branchMemoryPreview, setBranchMemoryPreview] = useState<ReturnType<
-    typeof loadTavernBranchUpstreamMemory
-  > | null>(null);
   const draftInputRef = useRef<HTMLTextAreaElement | null>(null);
   const sceneDriveAutoTimerRef = useRef<number | null>(null);
   const sceneDriveAutoRunCountRef = useRef(0);
@@ -277,7 +219,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     setTurnStatus("");
     setIsSidePanelOpen(false);
     setIsSceneDriveAutoRunning(false);
-    setBranchMemoryPreview(null);
     sceneDriveAutoRunCountRef.current = 0;
     if (sceneDriveAutoTimerRef.current !== null) {
       window.clearTimeout(sceneDriveAutoTimerRef.current);
@@ -573,7 +514,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     setIsGeneratingReplySuggestions(false);
     setReplySuggestions(activeRoom?.replyOptions ?? []);
     setIsSceneDriveAutoRunning(false);
-    setBranchMemoryPreview(null);
     if (sceneDriveAutoTimerRef.current !== null) {
       window.clearTimeout(sceneDriveAutoTimerRef.current);
       sceneDriveAutoTimerRef.current = null;
@@ -821,7 +761,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   }, []);
 
   const clearActiveSceneMessages = useCallback(async () => {
-    if (!activeRoom || activeRoom.locked) {
+    if (!activeRoom) {
       return;
     }
 
@@ -870,44 +810,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     setError("");
     toast.success("已清空当前节点对话");
   }, [activeRoom, clearSceneDriveAutoTimer, setState, workspace.path]);
-
-  const loadActiveBranchMemory = useCallback(() => {
-    if (!activeRoom || activeRoom.locked) {
-      return;
-    }
-
-    const result = loadTavernBranchUpstreamMemory(activeRoom);
-    setBranchMemoryPreview(result);
-  }, [activeRoom]);
-
-  const applyBranchMemoryPreview = useCallback(() => {
-    if (!activeRoom || !branchMemoryPreview) {
-      return;
-    }
-
-    setState((current) => ({
-      ...replaceSessionStateRoom(current, branchMemoryPreview.room),
-    }));
-
-    const characterMemoryCount = Object.values(branchMemoryPreview.characterMemories).filter((memory) =>
-      memory.trim(),
-    ).length;
-    const sourceCount = branchMemoryPreview.sourceInstanceIds.length;
-    const suffix = [
-      branchMemoryPreview.sceneMemory.trim() ? "场景记忆" : "",
-      characterMemoryCount > 0 ? `${characterMemoryCount} 个角色记忆` : "",
-      branchMemoryPreview.revealedSecretIds.length > 0
-        ? `${branchMemoryPreview.revealedSecretIds.length} 个已解密秘密`
-        : "",
-    ]
-      .filter(Boolean)
-      .join("、");
-
-    toast.success(
-      sourceCount > 0 ? `已从 ${sourceCount} 个上游节点加载${suffix || "记忆"}` : "当前节点没有可加载的上游记忆",
-    );
-    setBranchMemoryPreview(null);
-  }, [activeRoom, branchMemoryPreview, setState]);
 
   const stopSceneDriveAuto = useCallback(
     (statusText?: string) => {
@@ -1106,13 +1008,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     ending: sceneEnding,
     footerNote: sceneDirectionNote,
   };
-  const branchMemoryPreviewCharacterNameById = new Map(
-    roomCharacters.map((character) => [character.id, character.name]),
-  );
-  const branchMemoryPreviewCharacterEntries = branchMemoryPreview
-    ? Object.entries(branchMemoryPreview.characterMemories).filter(([, memory]) => memory.trim())
-    : [];
-
   return (
     <TavernRoomProvider value={ctx}>
       <Dialog
@@ -1144,7 +1039,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
                 onClearCurrentSceneMessages={() => {
                   void clearActiveSceneMessages();
                 }}
-                onLoadBranchMemory={loadActiveBranchMemory}
                 onRebuildRuntime={undefined}
                 onSelectSceneInstance={(sceneInstanceId) => selectRoomSceneInstance(activeRoom.id, sceneInstanceId)}
                 onSceneDriveTurn={() => {
@@ -1209,72 +1103,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
             <SidePanel bind={sidePanelRef} isOpen={isSidePanelOpen} onOpenChange={setIsSidePanelOpen} />
           </div>
 
-          <Dialog
-            open={Boolean(branchMemoryPreview)}
-            onOpenChange={(open) => {
-              if (!open) {
-                setBranchMemoryPreview(null);
-              }
-            }}
-          >
-            {branchMemoryPreview && (
-              <DialogContent className="sm:max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>加载上游记忆</DialogTitle>
-                  <DialogDescription>
-                    预览当前分支路径上游节点汇总，确认后写入当前节点实例的上游场景记忆和角色已知记忆。
-                  </DialogDescription>
-                </DialogHeader>
-
-                <div className="grid gap-2 text-sm sm:grid-cols-3">
-                  <div className="rounded-md border bg-muted/20 px-3 py-2">
-                    <div className="text-xs text-muted-foreground">上游节点</div>
-                    <div className="mt-1 font-semibold">{branchMemoryPreview.sourceInstanceIds.length}</div>
-                  </div>
-                  <div className="rounded-md border bg-muted/20 px-3 py-2">
-                    <div className="text-xs text-muted-foreground">角色记忆</div>
-                    <div className="mt-1 font-semibold">{branchMemoryPreviewCharacterEntries.length}</div>
-                  </div>
-                  <div className="rounded-md border bg-muted/20 px-3 py-2">
-                    <div className="text-xs text-muted-foreground">已解密秘密</div>
-                    <div className="mt-1 font-semibold">{branchMemoryPreview.revealedSecretIds.length}</div>
-                  </div>
-                </div>
-
-                <ScrollArea className="max-h-[52vh] pr-3">
-                  <div className="space-y-3">
-                    <section className="rounded-md border bg-background px-3 py-2">
-                      <div className="text-xs font-medium text-muted-foreground">场景上游记忆</div>
-                      <TavernMemoryPreviewText value={branchMemoryPreview.sceneMemory} emptyText="无可汇总场景记忆。" />
-                    </section>
-                    {branchMemoryPreviewCharacterEntries.length > 0 ? (
-                      branchMemoryPreviewCharacterEntries.map(([characterId, memory]) => (
-                        <section key={characterId} className="rounded-md border bg-background px-3 py-2">
-                          <div className="text-xs font-medium text-muted-foreground">
-                            {branchMemoryPreviewCharacterNameById.get(characterId) ?? characterId}
-                          </div>
-                          <TavernMemoryPreviewText value={memory} emptyText="无可汇总角色记忆。" />
-                        </section>
-                      ))
-                    ) : (
-                      <section className="rounded-md border bg-background px-3 py-2 text-xs text-muted-foreground">
-                        无可汇总角色记忆。
-                      </section>
-                    )}
-                  </div>
-                </ScrollArea>
-
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setBranchMemoryPreview(null)}>
-                    取消
-                  </Button>
-                  <Button type="button" onClick={applyBranchMemoryPreview}>
-                    应用记忆
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            )}
-          </Dialog>
         </DialogContent>
       </Dialog>
     </TavernRoomProvider>

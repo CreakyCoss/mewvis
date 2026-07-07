@@ -36,7 +36,6 @@ import { getTavernCharacterStylePreset } from "../../../tavern/prompt-registry/c
 import {
   TAVERN_PRESENTATION_PROFILE_OPTIONS,
   getTavernPresentationProfile,
-  isTavernPresentationLocked,
   normalizeTavernPresentation,
   normalizeTavernPresentationProfileId,
 } from "../../../tavern/prompt-registry/presentation-rules";
@@ -460,14 +459,7 @@ export const PromptEdit = ({
       }
 
       const stylePackage = getTavernPromptStylePackage(current.presets.stylePackageId);
-      const isPresentationLocked = isTavernPresentationLocked({
-        presentation: normalizeTavernPresentation(data.presentation),
-        messages: [],
-        sceneId: undefined,
-      });
-      const nextPresentationProfileId = isPresentationLocked
-        ? current.presentationProfileId
-        : stylePackage.presentationProfileId;
+      const nextPresentationProfileId = stylePackage.presentationProfileId;
 
       return {
         ...current,
@@ -543,18 +535,11 @@ export const PromptEdit = ({
     }
 
     const basePresentation = normalizeTavernPresentation(data.presentation);
-    const presentationLocked = isTavernPresentationLocked({
-      presentation: basePresentation,
-      messages: [],
-      sceneId: undefined,
-    });
-    const nextPresentation = presentationLocked
-      ? basePresentation
-      : {
-          ...basePresentation,
-          profileId: normalizeTavernPresentationProfileId(draft.presentationProfileId),
-          profileVersion: 1 as const,
-        };
+    const nextPresentation = {
+      ...basePresentation,
+      profileId: normalizeTavernPresentationProfileId(draft.presentationProfileId),
+      profileVersion: 1 as const,
+    };
 
     onSave({
       presentation: nextPresentation,
@@ -573,13 +558,6 @@ export const PromptEdit = ({
     close();
   };
 
-  const presentationLocked = draft
-    ? isTavernPresentationLocked({
-        presentation: normalizeTavernPresentation(data.presentation),
-        messages: [],
-        sceneId: undefined,
-      })
-    : false;
   const selectedPresentationProfile = draft ? getTavernPresentationProfile(draft.presentationProfileId) : null;
   const selectedStylePackage = draft ? getTavernPromptStylePackage(draft.presets.stylePackageId) : null;
   const selectedPackageCharacterStyle = selectedStylePackage
@@ -726,15 +704,12 @@ export const PromptEdit = ({
                   <EditorField
                     label="呈现规则"
                     htmlFor="tavern-prompt-presentation-profile"
-                    description={
-                      presentationLocked ? "场景已开始，呈现规则已锁定。" : selectedPresentationProfile?.description
-                    }
+                    description={selectedPresentationProfile?.description}
                   >
                     <NativeSelect
                       id="tavern-prompt-presentation-profile"
                       value={draft.presentationProfileId}
                       className={selectClassName}
-                      disabled={presentationLocked}
                       onChange={(event) =>
                         setDraft({
                           ...draft,

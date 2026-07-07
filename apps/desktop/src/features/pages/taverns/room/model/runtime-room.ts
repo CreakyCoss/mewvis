@@ -10,7 +10,6 @@ export const pickTavernRoomConfig = (room: TavernRoomConfig): TavernRoomConfig =
   workspaceId: room.workspaceId,
   systemPresetId: room.systemPresetId,
   systemPresetVersion: room.systemPresetVersion,
-  locked: room.locked,
   title: room.title,
   presentation: { ...room.presentation },
   prompt: {
