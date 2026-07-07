@@ -36,24 +36,18 @@ export const Composer = ({
     draft,
     error,
     isGeneratingReplySuggestions,
-    isManagedAutoRunStarted,
-    isManagedModeEnabled,
     isSending,
     replySuggestions,
     setDraft,
     setDraftCursor,
     visualPreset,
   } = useTavernRoomContext();
-  const isManagedAutoRunning = isManagedModeEnabled && isManagedAutoRunStarted;
   const presentationProfile = getTavernPresentationProfile(activeRoom?.presentation?.profileId);
-  const placeholder = isManagedAutoRunning
-    ? "全托管运行中，关闭托管可重新手动发言..."
-    : isManagedModeEnabled
-      ? "全托管：首次留空发送启动，后续自动运行；自推按钮会把这里当导演方向..."
-      : presentationProfile.userInputMode !== "speech"
-        ? presentationProfile.composerPlaceholder
-        : "写给导演的方向，或留空点自推...";
-  const canSubmit = (isManagedModeEnabled && !isManagedAutoRunning) || Boolean(draft.trim());
+  const placeholder =
+    presentationProfile.userInputMode !== "speech"
+      ? presentationProfile.composerPlaceholder
+      : "写给导演的方向，或留空点自推...";
+  const canSubmit = Boolean(draft.trim());
 
   return (
     <form
@@ -183,25 +177,9 @@ export const Composer = ({
             type="submit"
             size="icon"
             className="absolute right-3 bottom-3 size-9"
-            title={
-              isSending
-                ? "正在回应"
-                : isManagedAutoRunning
-                  ? "全托管运行中"
-                  : isManagedModeEnabled
-                    ? "启动全托管"
-                    : "发送"
-            }
-            aria-label={
-              isSending
-                ? "正在回应"
-                : isManagedAutoRunning
-                  ? "全托管运行中"
-                  : isManagedModeEnabled
-                    ? "启动全托管"
-                    : "发送"
-            }
-            disabled={isSending || isManagedAutoRunning || !canSubmit}
+            title={isSending ? "正在回应" : "发送"}
+            aria-label={isSending ? "正在回应" : "发送"}
+            disabled={isSending || !canSubmit}
           >
             {isSending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </Button>

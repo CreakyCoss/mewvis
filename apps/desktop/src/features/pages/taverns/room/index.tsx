@@ -242,8 +242,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const [draft, setDraft] = useState("");
   const [draftCursor, setDraftCursor] = useState(0);
   const [error, setError] = useState("");
-  const [isManagedModeEnabled, setIsManagedModeEnabled] = useState(false);
-  const [isManagedAutoRunStarted, setIsManagedAutoRunStarted] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isGeneratingReplySuggestions, setIsGeneratingReplySuggestions] = useState(false);
   const [replySuggestions, setReplySuggestions] = useState<TavernReplyOption[]>([]);
@@ -280,7 +278,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     typeof loadTavernBranchUpstreamMemory
   > | null>(null);
   const draftInputRef = useRef<HTMLTextAreaElement | null>(null);
-  const managedAutoRunTimerRef = useRef<number | null>(null);
   const sceneDriveAutoTimerRef = useRef<number | null>(null);
   const sceneDriveAutoRunCountRef = useRef(0);
   const roleAssignmentRoomIdsRef = useRef<Set<string>>(new Set());
@@ -300,8 +297,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     setDraft("");
     setDraftCursor(0);
     setError("");
-    setIsManagedModeEnabled(false);
-    setIsManagedAutoRunStarted(false);
     setIsSending(false);
     setIsGeneratingReplySuggestions(false);
     setReplySuggestions([]);
@@ -312,10 +307,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     setIsSceneDriveAutoRunning(false);
     setBranchMemoryPreview(null);
     sceneDriveAutoRunCountRef.current = 0;
-    if (managedAutoRunTimerRef.current !== null) {
-      window.clearTimeout(managedAutoRunTimerRef.current);
-      managedAutoRunTimerRef.current = null;
-    }
     if (sceneDriveAutoTimerRef.current !== null) {
       window.clearTimeout(sceneDriveAutoTimerRef.current);
       sceneDriveAutoTimerRef.current = null;
@@ -555,10 +546,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       setDraftCursor,
       error,
       setError,
-      isManagedModeEnabled,
-      setIsManagedModeEnabled,
-      isManagedAutoRunStarted,
-      setIsManagedAutoRunStarted,
       isSending,
       setIsSending,
       isGeneratingReplySuggestions,
@@ -599,8 +586,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       executionSteps,
       executionTraceAnchorMessageId,
       isGeneratingReplySuggestions,
-      isManagedAutoRunStarted,
-      isManagedModeEnabled,
       isSending,
       patchExecutionStep,
       patchMessage,
@@ -623,10 +608,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
 
   useEffect(() => {
     return () => {
-      if (managedAutoRunTimerRef.current !== null) {
-        window.clearTimeout(managedAutoRunTimerRef.current);
-        managedAutoRunTimerRef.current = null;
-      }
       if (sceneDriveAutoTimerRef.current !== null) {
         window.clearTimeout(sceneDriveAutoTimerRef.current);
         sceneDriveAutoTimerRef.current = null;
@@ -654,13 +635,8 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   useEffect(() => {
     setIsGeneratingReplySuggestions(false);
     setReplySuggestions(activeRoom?.replyOptions ?? []);
-    setIsManagedAutoRunStarted(false);
     setIsSceneDriveAutoRunning(false);
     setBranchMemoryPreview(null);
-    if (managedAutoRunTimerRef.current !== null) {
-      window.clearTimeout(managedAutoRunTimerRef.current);
-      managedAutoRunTimerRef.current = null;
-    }
     if (sceneDriveAutoTimerRef.current !== null) {
       window.clearTimeout(sceneDriveAutoTimerRef.current);
       sceneDriveAutoTimerRef.current = null;
@@ -850,11 +826,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       return replaceSessionStateRoom(current, nextRoom);
     });
     setReplySuggestions([]);
-    setIsManagedAutoRunStarted(false);
-    if (managedAutoRunTimerRef.current !== null) {
-      window.clearTimeout(managedAutoRunTimerRef.current);
-      managedAutoRunTimerRef.current = null;
-    }
   }, []);
 
   const insertReference = useCallback(
@@ -1051,12 +1022,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       };
     });
     setReplySuggestions([]);
-    setIsManagedAutoRunStarted(false);
     setIsSceneDriveAutoRunning(false);
-    if (managedAutoRunTimerRef.current !== null) {
-      window.clearTimeout(managedAutoRunTimerRef.current);
-      managedAutoRunTimerRef.current = null;
-    }
     clearSceneDriveAutoTimer();
     sceneDriveAutoRunCountRef.current = 0;
     setError("");
@@ -1123,23 +1089,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     [handleSubmit],
   );
 
-  const handleToggleManagedMode = useCallback(() => {
-    setIsManagedModeEnabled((current) => {
-      const next = !current;
-      if (next) {
-        stopSceneDriveAuto();
-      }
-      if (!next) {
-        setIsManagedAutoRunStarted(false);
-        if (managedAutoRunTimerRef.current !== null) {
-          window.clearTimeout(managedAutoRunTimerRef.current);
-          managedAutoRunTimerRef.current = null;
-        }
-      }
-      return next;
-    });
-  }, [stopSceneDriveAuto]);
-
   const handleToggleSceneDriveAuto = useCallback(() => {
     if (isSceneDriveAutoRunning) {
       stopSceneDriveAuto("自动自推已停止。");
@@ -1162,11 +1111,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     }
 
     setError("");
-    setIsManagedAutoRunStarted(false);
-    if (managedAutoRunTimerRef.current !== null) {
-      window.clearTimeout(managedAutoRunTimerRef.current);
-      managedAutoRunTimerRef.current = null;
-    }
     setIsSceneDriveAutoRunning(true);
     sceneDriveAutoRunCountRef.current = 1;
     void handleSceneDriveTurn();
@@ -1176,42 +1120,9 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     isSceneDriveAutoRunning,
     isSending,
     setError,
-    setIsManagedAutoRunStarted,
     setTurnStatus,
     stopSceneDriveAuto,
   ]);
-
-  useEffect(() => {
-    if (!isManagedModeEnabled || !isManagedAutoRunStarted || isSending || !isOpen || !activeRoom || error) {
-      if (managedAutoRunTimerRef.current !== null) {
-        window.clearTimeout(managedAutoRunTimerRef.current);
-        managedAutoRunTimerRef.current = null;
-      }
-      return;
-    }
-
-    const lastMessage = roomMessages[roomMessages.length - 1] ?? null;
-    if (
-      !lastMessage ||
-      lastMessage.role === "user" ||
-      lastMessage.status === "streaming" ||
-      lastMessage.status === "error"
-    ) {
-      return;
-    }
-
-    managedAutoRunTimerRef.current = window.setTimeout(() => {
-      managedAutoRunTimerRef.current = null;
-      void handleSubmit();
-    }, 800);
-
-    return () => {
-      if (managedAutoRunTimerRef.current !== null) {
-        window.clearTimeout(managedAutoRunTimerRef.current);
-        managedAutoRunTimerRef.current = null;
-      }
-    };
-  }, [activeRoom, error, handleSubmit, isManagedAutoRunStarted, isManagedModeEnabled, isSending, roomMessages, isOpen]);
 
   useEffect(() => {
     if (!isSceneDriveAutoRunning) {
@@ -1277,12 +1188,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
 
   const closeRoomSurface = () => {
     sidePanelRef.current?.hide();
-    setIsManagedAutoRunStarted(false);
     setIsSceneDriveAutoRunning(false);
-    if (managedAutoRunTimerRef.current !== null) {
-      window.clearTimeout(managedAutoRunTimerRef.current);
-      managedAutoRunTimerRef.current = null;
-    }
     clearSceneDriveAutoTimer();
     sceneDriveAutoRunCountRef.current = 0;
     setIsOpen(false);
@@ -1344,7 +1250,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
           }`
         : turnStatus;
   const shouldShowExecutionTrace =
-    (activeRoom.settings.showExecutionTrace || isSending || isManagedModeEnabled) && renderedExecutionSteps.length > 0;
+    (activeRoom.settings.showExecutionTrace || isSending) && renderedExecutionSteps.length > 0;
   const hasExecutionTraceAnchor =
     shouldShowExecutionTrace &&
     renderableRoomMessages.some((message) => message.id === renderedExecutionTraceAnchorMessageId);
@@ -1421,7 +1327,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
           >
             <main className="flex min-h-0 min-w-0 flex-col">
               <Header
-                isManagedModeEnabled={isManagedModeEnabled}
                 isSceneDriveAutoRunning={isSceneDriveAutoRunning}
                 isSidePanelOpen={isSidePanelOpen}
                 onBack={closeRoomSurface}
@@ -1435,7 +1340,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
                   void handleSceneDriveTurn();
                 }}
                 onToggleSceneDriveAuto={handleToggleSceneDriveAuto}
-                onToggleManagedMode={handleToggleManagedMode}
                 onToggleSidePanel={() => {
                   sidePanelRef.current?.toggle();
                 }}

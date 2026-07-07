@@ -1,6 +1,5 @@
 import {
   ArrowLeft,
-  Bot,
   Eraser,
   History,
   PanelRightClose,
@@ -19,7 +18,6 @@ import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import { SceneSelector } from "./scene-selector";
 
 type HeaderProps = {
-  isManagedModeEnabled: boolean;
   isSceneDriveAutoRunning: boolean;
   isSidePanelOpen: boolean;
   onBack?: () => void;
@@ -29,7 +27,6 @@ type HeaderProps = {
   onSelectSceneInstance: (sceneInstanceId: string) => void;
   onSceneDriveTurn: () => void;
   onToggleSceneDriveAuto: () => void;
-  onToggleManagedMode: () => void;
   onToggleSidePanel: () => void;
 };
 
@@ -37,7 +34,6 @@ const tavernHeaderActionButtonClassName =
   "h-9 shrink-0 gap-1.5 border border-current/15 bg-current/5 px-2.5 text-current hover:border-current/25 hover:bg-current/10 hover:text-current focus-visible:border-current/30 focus-visible:text-current focus-visible:ring-current/20 aria-expanded:bg-current/10 aria-expanded:text-current dark:hover:bg-current/10 dark:hover:text-current";
 
 export const Header = ({
-  isManagedModeEnabled,
   isSceneDriveAutoRunning,
   isSidePanelOpen,
   onBack,
@@ -47,7 +43,6 @@ export const Header = ({
   onSelectSceneInstance,
   onSceneDriveTurn,
   onToggleSceneDriveAuto,
-  onToggleManagedMode,
   onToggleSidePanel,
 }: HeaderProps) => {
   const { activeRoom, visualPreset, isSending } = useTavernRoomContext();
@@ -130,22 +125,6 @@ export const Header = ({
         >
           {isSceneDriveAutoRunning ? <Pause className="size-4" /> : <Sparkles className="size-4" />}
           <span className="hidden text-xs font-medium sm:inline">{isSceneDriveAutoRunning ? "停止" : "自动"}</span>
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className={cn(
-            tavernHeaderActionButtonClassName,
-            isManagedModeEnabled && "border-current/30 bg-current/15 text-current",
-          )}
-          title={isManagedModeEnabled ? "关闭全托管" : "开启全托管"}
-          aria-label={isManagedModeEnabled ? "关闭全托管" : "开启全托管"}
-          aria-pressed={isManagedModeEnabled}
-          onClick={onToggleManagedMode}
-        >
-          <Bot className="size-4" />
-          <span className="hidden text-xs font-medium sm:inline">{isManagedModeEnabled ? "托管中" : "托管"}</span>
         </Button>
         <Button
           type="button"

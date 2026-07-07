@@ -15,7 +15,6 @@ import {
   hasAssetDraftItems,
   requireTavernRuntimeModelInput,
   type TavernPendingInteractions,
-  type TurnMode,
 } from "./shared";
 
 export const syncOpenPendingInteractions = ({
@@ -49,7 +48,6 @@ export const runAssetExtractionStep = async ({
   references,
   text,
   runtimeModel,
-  mode,
   storyContext,
 }: {
   ctx: TavernRoomContextValue;
@@ -60,7 +58,6 @@ export const runAssetExtractionStep = async ({
   references: TavernReferencedFile[];
   text: string;
   runtimeModel: RuntimeModelOption;
-  mode: TurnMode;
   storyContext: TavernStoryContextPackage;
 }) => {
   // 剧情资产整理是本轮后的增强流程，失败时只提示，不回滚对话。
@@ -115,8 +112,5 @@ export const runAssetExtractionStep = async ({
       detail: getErrorMessage(assetError),
     });
     ctx.setError(`剧情资产整理失败：${getErrorMessage(assetError)}`);
-    if (mode.isManagedMode) {
-      ctx.setIsManagedAutoRunStarted(false);
-    }
   }
 };

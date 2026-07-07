@@ -91,7 +91,6 @@ writeFileSync(
     tavernArchivistAgentRoleId,
     tavernBridgeSessionRootDir,
     tavernDirectorAgentRoleId,
-    tavernManagedUserAgentRoleId,
     tavernRelationshipKey,
     tavernProgressTrackerAgentRoleId,
     tavernQuickNovelAgentRoleId,
@@ -1240,7 +1239,6 @@ writeFileSync(
     speakerIndex: 0,
     speakerCount: 1,
     isDirectorLikeMode: true,
-    isManagedMode: false,
     directorReason: "测试武侠风格。",
   });
   const narrativeRoom = {
@@ -1264,7 +1262,6 @@ writeFileSync(
     speakerIndex: 0,
     speakerCount: 1,
     isDirectorLikeMode: true,
-    isManagedMode: false,
     directorReason: "测试第三人称叙事。",
   });
   const narrativeBeatReply = parseTavernReplyText({
@@ -2447,7 +2444,6 @@ writeFileSync(
       a: tavernCharacterAgentRoleId(room, characters[0]),
       b: tavernCharacterAgentRoleId(room, characters[1]),
       director: tavernDirectorAgentRoleId(room),
-      managed: tavernManagedUserAgentRoleId(room),
       quick: tavernQuickReplyAgentRoleId(room),
       novel: tavernQuickNovelAgentRoleId(room),
       archivist: tavernArchivistAgentRoleId(room),
@@ -2854,7 +2850,7 @@ try {
   );
   assert(
     new Set(Object.values(checks.roleIds)).size === Object.values(checks.roleIds).length,
-    "导演、角色、快捷回复、托管用户、小说写作、资产整理都应有独立 agentRoleId",
+    "导演、角色、快捷回复、小说写作、资产整理都应有独立 agentRoleId",
     checks.roleIds,
   );
   assert(

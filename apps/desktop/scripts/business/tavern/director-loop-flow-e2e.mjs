@@ -495,7 +495,6 @@ writeFileSync(
   };
   const directorMode = {
     replyMode: "director",
-    isManagedMode: false,
     isSceneDriveMode: false,
     isDirectorLikeMode: true,
   } as const;

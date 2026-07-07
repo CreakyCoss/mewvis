@@ -70,10 +70,6 @@ export const tavernCharacterAgentRoleId = (
     "character",
   )}`;
 
-export const tavernManagedUserAgentRoleId = (
-  room: Pick<TavernRoom, "id" | "activeSceneInstanceId" | "activeSceneId">,
-) => `tavern-${sanitizeAgentRoleSegment(room.id, "room")}-${tavernAgentScopeSegment(room)}-user-proxy`;
-
 export const tavernQuickReplyAgentRoleId = (room: Pick<TavernRoom, "id" | "activeSceneInstanceId" | "activeSceneId">) =>
   `tavern-${sanitizeAgentRoleSegment(room.id, "room")}-${tavernAgentScopeSegment(room)}-quick-reply`;
 

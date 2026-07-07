@@ -678,7 +678,6 @@ writeFileSync(
       speakerIndex: 0,
       speakerCount: 1,
       isDirectorLikeMode: true,
-      isManagedMode: false,
       directorReason: "用户点名阿洛查看窗边脚印；承接铜牌失踪和门闩划痕，给出下一步可行动信息，但不要直接破案。",
       allowNonverbalReply: false,
     });
@@ -1069,7 +1068,6 @@ writeFileSync(
       speakerIndex,
       speakerCount,
       isDirectorLikeMode: true,
-      isManagedMode: false,
       isSceneDriveMode: false,
       directorReason,
       allowNonverbalReply,

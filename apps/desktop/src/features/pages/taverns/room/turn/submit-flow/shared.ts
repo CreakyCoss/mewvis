@@ -1,6 +1,5 @@
 import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import type { TavernRoomContextValue } from "@/features/pages/taverns/room/context";
 import { createTavernMessage } from "@/features/pages/taverns/tavern/message";
@@ -11,7 +10,6 @@ import {
   orderTavernRoundSpeakers,
 } from "@/features/pages/taverns/tavern/core";
 import { resolveTavernCharacterModel } from "@/features/pages/taverns/tavern/runtime/agent";
-import { runTavernManagedUserReply } from "@/features/pages/taverns/tavern/runtime/assistants";
 import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import type { TavernAssetDraft, TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
 
@@ -80,7 +78,6 @@ export type RequireSpeakerRuntimeModel = (speaker: TavernCharacter) => RuntimeMo
 export type TurnTriggerType = "user" | "scene_drive";
 
 export type TurnMode = {
-  isManagedMode: boolean;
   isSceneDriveMode: boolean;
   isDirectorLikeMode: boolean;
 };
@@ -107,12 +104,10 @@ export type ActiveReplyRef = {
   text: string;
 };
 
-export const resolveTurnMode = (isManagedModeEnabled: boolean, triggerType: TurnTriggerType = "user"): TurnMode => {
+export const resolveTurnMode = (triggerType: TurnTriggerType = "user"): TurnMode => {
   const isSceneDriveMode = triggerType === "scene_drive";
-  const isManagedMode = isManagedModeEnabled && !isSceneDriveMode;
 
   return {
-    isManagedMode,
     isSceneDriveMode,
     isDirectorLikeMode: true,
   };
@@ -231,10 +226,6 @@ export const beginTurnSubmission = ({
   room: TavernRoom;
   mode: TurnMode;
 }) => {
-  if (mode.isManagedMode) {
-    ctx.setIsManagedAutoRunStarted(true);
-  }
-
   ctx.setIsSending(true);
   ctx.setError("");
   ctx.setReplySuggestions([]);
@@ -244,18 +235,13 @@ export const beginTurnSubmission = ({
   ctx.setTurnStatus(
     mode.isSceneDriveMode
       ? "导演正在自推动场景..."
-      : mode.isManagedMode
-        ? "导演正在调度你的回复..."
-        : mode.isDirectorLikeMode
-          ? "导演正在接收你的消息..."
-          : "正在发送消息...",
+      : mode.isDirectorLikeMode
+        ? "导演正在接收你的消息..."
+        : "正在发送消息...",
   );
 };
 
-export const abortTurnSubmission = ({ ctx, mode }: { ctx: TavernRoomContextValue; mode: TurnMode }) => {
-  if (mode.isManagedMode) {
-    ctx.setIsManagedAutoRunStarted(false);
-  }
+export const abortTurnSubmission = ({ ctx }: { ctx: TavernRoomContextValue }) => {
   ctx.setIsSending(false);
   ctx.setTurnStatus("");
 };
@@ -275,37 +261,6 @@ export const readTurnReferences = async ({
 
   ctx.setTurnStatus("正在读取引用文件...");
   return readReferencedFiles();
-};
-
-export const resolveManagedUserText = async ({
-  ctx,
-  room,
-  runtimeModel,
-  draftText,
-  mode,
-  storyContext,
-}: {
-  ctx: TavernRoomContextValue;
-  room: TavernRoom;
-  runtimeModel: RuntimeModelOption;
-  draftText: string;
-  mode: TurnMode;
-  storyContext?: TavernStoryContextPackage;
-}) => {
-  if (!mode.isManagedMode) {
-    return draftText;
-  }
-
-  ctx.setTurnStatus("导演正在代你生成本轮回复...");
-  return runTavernManagedUserReply({
-    workspacePath: ctx.workspace.path,
-    runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
-    room,
-    characters: ctx.roomCharacters,
-    messages: ctx.roomMessages,
-    currentDraft: draftText,
-    storyContext,
-  });
 };
 
 export const createUserTurnMessage = ({
@@ -431,13 +386,11 @@ export const handleTurnFailure = ({
   room,
   error,
   activeReplyRef,
-  mode,
 }: {
   ctx: TavernRoomContextValue;
   room: TavernRoom;
   error: unknown;
   activeReplyRef: ActiveReplyRef;
-  mode: TurnMode;
 }) => {
   const message = getErrorMessage(error);
   ctx.setExecutionSteps((current) =>
@@ -461,7 +414,4 @@ export const handleTurnFailure = ({
     ]);
   }
   ctx.setError(message);
-  if (mode.isManagedMode) {
-    ctx.setIsManagedAutoRunStarted(false);
-  }
 };

@@ -3,11 +3,7 @@ export {
   type RunTavernAssetExtractionInput,
   type TavernExtractedAssetDraft,
 } from "./asset-extractor";
-export {
-  runTavernManagedUserReply,
-  runTavernUserReplySuggestions,
-  type TavernUserReplySuggestionInput,
-} from "./user-reply-suggestions";
+export { runTavernUserReplySuggestions, type TavernUserReplySuggestionInput } from "./user-reply-suggestions";
 export {
   runTavernTextFieldAgent,
   type TavernTextFieldAgentInput,

@@ -19,10 +19,6 @@ export type TavernRoomContextValue = {
   setDraftCursor: Dispatch<SetStateAction<number>>;
   error: string;
   setError: Dispatch<SetStateAction<string>>;
-  isManagedModeEnabled: boolean;
-  setIsManagedModeEnabled: Dispatch<SetStateAction<boolean>>;
-  isManagedAutoRunStarted: boolean;
-  setIsManagedAutoRunStarted: Dispatch<SetStateAction<boolean>>;
   isSending: boolean;
   setIsSending: Dispatch<SetStateAction<boolean>>;
   isGeneratingReplySuggestions: boolean;

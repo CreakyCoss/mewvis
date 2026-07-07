@@ -80,19 +80,9 @@ const buildOwnReplyInstruction = ({
   ]);
 };
 
-const getDirectorModeLabel = ({
-  isSceneDriveMode,
-  isManagedMode,
-}: {
-  isSceneDriveMode: boolean;
-  isManagedMode: boolean;
-}) => {
+const getDirectorModeLabel = ({ isSceneDriveMode }: { isSceneDriveMode: boolean }) => {
   if (isSceneDriveMode) {
     return "场景自推动导演";
-  }
-
-  if (isManagedMode) {
-    return "全托管导演";
   }
 
   return "导演调度";
@@ -122,7 +112,6 @@ export const buildTavernCharacterTurnInstruction = ({
   speakerIndex,
   speakerCount,
   isDirectorLikeMode,
-  isManagedMode,
   isSceneDriveMode = false,
   directorReason,
   promptVariant = DEFAULT_TAVERN_CHARACTER_PROMPT_VARIANT,
@@ -133,7 +122,6 @@ export const buildTavernCharacterTurnInstruction = ({
   speakerIndex: number;
   speakerCount: number;
   isDirectorLikeMode: boolean;
-  isManagedMode: boolean;
   isSceneDriveMode?: boolean;
   directorReason?: string | null;
   promptVariant?: TavernCharacterPromptVariant;
@@ -174,7 +162,7 @@ export const buildTavernCharacterTurnInstruction = ({
   }
 
   const directorLines = [
-    `${getDirectorModeLabel({ isSceneDriveMode, isManagedMode })}选择你作为第 ${speakerIndex + 1}/${speakerCount} 位发言者。`,
+    `${getDirectorModeLabel({ isSceneDriveMode })}选择你作为第 ${speakerIndex + 1}/${speakerCount} 位发言者。`,
   ];
 
   if (directorReason) {

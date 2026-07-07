@@ -362,10 +362,6 @@ writeFileSync(
     setError: (message: string) => {
       errors.push(message);
     },
-    isManagedModeEnabled: false,
-    setIsManagedModeEnabled: () => {},
-    isManagedAutoRunStarted: false,
-    setIsManagedAutoRunStarted: () => {},
     isSending: false,
     setIsSending: () => {},
     isGeneratingReplySuggestions: false,
@@ -437,7 +433,6 @@ writeFileSync(
     availableRoomCharacters: [characterA, characterB],
     mode: {
       replyMode: "director",
-      isManagedMode: false,
       isSceneDriveMode: false,
       isDirectorLikeMode: true,
     },

@@ -17,7 +17,6 @@ import {
   handleTurnFailure,
   prepareTurnTraceAndUserMessage,
   readTurnReferences,
-  resolveManagedUserText,
   resolveSubmitSpeakerPlan,
   resolveTurnMode,
   runAssetExtractionStep,
@@ -60,17 +59,7 @@ export const submitRoomTurn = async ({
 }: SubmitRoomTurnParams) => {
   event?.preventDefault();
 
-  const {
-    activeCharacter,
-    activeRoom,
-    draft,
-    isManagedModeEnabled,
-    isSending,
-    roomCharacters,
-    roomMessages,
-    runtimeModel,
-    setError,
-  } = ctx;
+  const { activeCharacter, activeRoom, draft, isSending, roomCharacters, roomMessages, runtimeModel, setError } = ctx;
   const triggerType = trigger.type;
   const draftText = (
     trigger.type === "scene_drive" ? (trigger.directive ?? submittedText ?? draft) : (submittedText ?? draft)
@@ -91,8 +80,8 @@ export const submitRoomTurn = async ({
     return;
   }
 
-  const mode = resolveTurnMode(isManagedModeEnabled, triggerType);
-  if (!draftText && !mode.isManagedMode && !mode.isSceneDriveMode) {
+  const mode = resolveTurnMode(triggerType);
+  if (!draftText && !mode.isSceneDriveMode) {
     return;
   }
 
@@ -134,7 +123,7 @@ export const submitRoomTurn = async ({
     mode,
   });
 
-  // 2. 外部输入准备阶段：引用文件和全托管回复都可能失败，失败时只复位忙碌态。
+  // 2. 外部输入准备阶段：读取引用文件可能失败，失败时只复位忙碌态。
   let references: TavernReferencedFile[] = [];
   try {
     references = await readTurnReferences({
@@ -144,35 +133,11 @@ export const submitRoomTurn = async ({
     });
   } catch (readError) {
     setError(`读取引用文件失败：${getErrorMessage(readError)}`);
-    abortTurnSubmission({ ctx, mode });
+    abortTurnSubmission({ ctx });
     return;
   }
 
-  let text = draftText;
-  const preliminaryStoryContext = buildTavernStoryContextPackage({
-    room: activeRoom,
-    characters: roomCharacters,
-  });
-  try {
-    text = await resolveManagedUserText({
-      ctx,
-      room: activeRoom,
-      runtimeModel,
-      draftText,
-      mode,
-      storyContext: preliminaryStoryContext,
-    });
-  } catch (managedError) {
-    setError(`全托管生成回复失败：${getErrorMessage(managedError)}`);
-    abortTurnSubmission({ ctx, mode });
-    return;
-  }
-
-  if (!text.trim() && !mode.isSceneDriveMode) {
-    setError("全托管没有生成可发送的回复，请重试或输入方向提示。");
-    abortTurnSubmission({ ctx, mode });
-    return;
-  }
+  const text = draftText;
 
   const visibleUserMessage = mode.isSceneDriveMode
     ? null
@@ -304,7 +269,6 @@ export const submitRoomTurn = async ({
         references,
         text,
         runtimeModel,
-        mode,
         storyContext,
       });
     }
@@ -314,7 +278,6 @@ export const submitRoomTurn = async ({
       room: activeRoom,
       error: runError,
       activeReplyRef,
-      mode,
     });
   } finally {
     ctx.setIsSending(false);

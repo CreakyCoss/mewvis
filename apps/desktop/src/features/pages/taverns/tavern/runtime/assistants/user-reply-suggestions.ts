@@ -4,14 +4,10 @@ import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/
 import type { TavernMessage } from "../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { buildTavernBridgeSystemPrompt } from "../conversation";
-import { tavernBridgeSessionRootDir, tavernManagedUserAgentRoleId, tavernQuickReplyAgentRoleId } from "../../core";
+import { tavernBridgeSessionRootDir, tavernQuickReplyAgentRoleId } from "../../core";
 import { runTavernRuntimeAgent } from "../agent";
-import { createManagedReplyFallback, parseManagedReply, parseSuggestions } from "./user-reply/parsing";
-import {
-  buildTavernManagedUserReplyPrompt,
-  buildTavernManagedUserReplySystemPrompt,
-  buildTavernUserReplySuggestionPrompt,
-} from "./user-reply/prompt";
+import { parseSuggestions } from "./user-reply/parsing";
+import { buildTavernUserReplySuggestionPrompt } from "./user-reply/prompt";
 
 export type TavernUserReplySuggestionInput = {
   workspacePath: string;
@@ -65,58 +61,4 @@ export const runTavernUserReplySuggestions = async ({
       return true;
     })
     .slice(0, suggestionCount);
-};
-
-export const runTavernManagedUserReply = async ({
-  workspacePath,
-  runtimeModel,
-  room,
-  characters,
-  messages,
-  currentDraft,
-  storyContext,
-}: TavernUserReplySuggestionInput) => {
-  const prompt = buildTavernManagedUserReplyPrompt({
-    room,
-    characters,
-    messages,
-    currentDraft,
-    storyContext,
-  });
-  const systemPrompt = buildTavernManagedUserReplySystemPrompt();
-
-  const runManagedReplyRequest = async (content: string) => {
-    const result = await runTavernRuntimeAgent({
-      workspacePath,
-      sessionRootDir: tavernBridgeSessionRootDir(room),
-      agentRoleId: tavernManagedUserAgentRoleId(room),
-      runtimeModel,
-      systemPrompt: buildTavernBridgeSystemPrompt(room),
-      userMessage: `以导演身份，为酒馆用户「${room.userPersonaName || "我"}」生成本轮要发送的回复。`,
-      requestContext: content,
-      runtimeInstruction: systemPrompt,
-    });
-
-    return parseManagedReply(result.text, room.userPersonaName);
-  };
-
-  const firstReply = await runManagedReplyRequest(prompt);
-  if (firstReply) {
-    return firstReply;
-  }
-
-  const retryReply = await runManagedReplyRequest(
-    [
-      prompt,
-      "",
-      "<retry_instruction>",
-      "上一次输出没有可发送的 reply。现在必须生成一个非空 reply 字符串；只输出 JSON，不要解释。",
-      "</retry_instruction>",
-    ].join("\n"),
-  );
-  if (retryReply) {
-    return retryReply;
-  }
-
-  return createManagedReplyFallback(room);
 };
