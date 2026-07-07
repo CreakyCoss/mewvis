@@ -1,7 +1,10 @@
 import type { FormEvent } from "react";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
-import type { TavernRoomContextValue } from "@/features/pages/taverns/room/context";
-import { createIdleTavernRoomBusyState, isTavernRoomBusy } from "@/features/pages/taverns/room/context";
+import {
+  createIdleTavernRoomBusyState,
+  isTavernRoomBusy,
+  useTavernRoomContext,
+} from "@/features/pages/taverns/room/context";
 import { buildTavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
 import type { TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import type { TavernReplyOption } from "@/features/pages/taverns/manage/model";
@@ -34,7 +37,6 @@ export type SubmitRoomTurnTrigger = {
 };
 
 type SubmitRoomTurnParams = {
-  ctx: TavernRoomContextValue;
   event?: FormEvent;
   submittedText?: string;
   selectedReplyOption?: TavernReplyOption;
@@ -47,7 +49,6 @@ type SubmitRoomTurnParams = {
 };
 
 export const submitRoomTurn = async ({
-  ctx,
   event,
   submittedText,
   selectedReplyOption,
@@ -60,6 +61,7 @@ export const submitRoomTurn = async ({
 }: SubmitRoomTurnParams) => {
   event?.preventDefault();
 
+  const ctx = useTavernRoomContext.getState();
   const { activeCharacter, activeRoom, busy, roomCharacters, roomMessages, runtimeModel, setError } = ctx;
   const triggerType = trigger.type;
   const draftText = (

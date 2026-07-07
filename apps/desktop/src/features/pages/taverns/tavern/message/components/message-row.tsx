@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import type { TavernMessage } from "../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { isTavernRoomSending, useTavernRoomContext } from "@/features/pages/taverns/room/context";
+import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";
 import type { TavernRenderableMessage } from "../domain/render-model";
 import { CharacterMessage } from "./character-message";
 import { NarratorMessage } from "./narrator-message";
@@ -17,7 +18,7 @@ type MessageRoleRendererContext = {
   character: TavernCharacter | null;
   isSending: boolean;
   message: TavernRenderableMessage;
-  visualPreset: ReturnType<typeof useTavernRoomContext>["visualPreset"];
+  visualPreset: VisualPresetDefinition;
 };
 
 const messageRoleRenderers: Record<TavernMessage["role"], (context: MessageRoleRendererContext) => ReactElement> = {
@@ -54,7 +55,10 @@ const messageRoleRenderers: Record<TavernMessage["role"], (context: MessageRoleR
 };
 
 export const MessageRow = ({ message }: MessageRowProps) => {
-  const { activeRoom, characterById, busy, visualPreset } = useTavernRoomContext();
+  const activeRoom = useTavernRoomContext((store) => store.activeRoom);
+  const characterById = useTavernRoomContext((store) => store.characterById);
+  const busy = useTavernRoomContext((store) => store.busy);
+  const visualPreset = useTavernRoomContext((store) => store.visualPreset);
   if (!activeRoom) {
     return null;
   }

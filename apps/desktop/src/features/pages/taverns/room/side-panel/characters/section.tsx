@@ -101,7 +101,7 @@ const CharacterDetail = ({
   onCompact?: () => void;
   onRebuild?: () => void;
 }) => {
-  const { activeRoom } = useTavernRoomContext();
+  const activeRoom = useTavernRoomContext((store) => store.activeRoom);
   if (!activeRoom) {
     return null;
   }
@@ -309,7 +309,7 @@ const CharacterDetail = ({
 };
 
 const CharacterCardContent = ({ character, isActive }: { character: TavernCharacter; isActive: boolean }) => {
-  const { activeRoom } = useTavernRoomContext();
+  const activeRoom = useTavernRoomContext((store) => store.activeRoom);
   const avatar = resolveAvatar(character.avatar).src;
   const publicStatus = activeRoom?.characterPublicStatuses[character.id];
   const chipTexts = unique([
@@ -434,7 +434,11 @@ export const CharacterStatusSection = ({
   externalBusy: boolean;
   onBusyChange?: (isBusy: boolean) => void;
 }) => {
-  const { activeRoom, activeCharacter, roomCharacters, busy, patchRoom } = useTavernRoomContext();
+  const activeRoom = useTavernRoomContext((store) => store.activeRoom);
+  const activeCharacter = useTavernRoomContext((store) => store.activeCharacter);
+  const roomCharacters = useTavernRoomContext((store) => store.roomCharacters);
+  const busy = useTavernRoomContext((store) => store.busy);
+  const patchRoom = useTavernRoomContext((store) => store.patchRoom);
 
   useEffect(() => {
     onBusyChange?.(false);

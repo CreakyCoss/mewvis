@@ -8,7 +8,9 @@ import type { SidePanelProps } from "./types";
 export type { SidePanelHandle } from "./types";
 
 export const SidePanel = ({ bind, isOpen, onOpenChange }: SidePanelProps) => {
-  const { activeRoom, visualPreset, busy } = useTavernRoomContext();
+  const activeRoom = useTavernRoomContext((store) => store.activeRoom);
+  const visualPreset = useTavernRoomContext((store) => store.visualPreset);
+  const busy = useTavernRoomContext((store) => store.busy);
   const isBusy = isTavernRoomBusy(busy);
 
   useImperativeHandle(

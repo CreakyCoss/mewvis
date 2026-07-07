@@ -1,7 +1,7 @@
 import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
-import { createIdleTavernRoomBusyState, type TavernRoomContextValue } from "@/features/pages/taverns/room/context";
+import { createIdleTavernRoomBusyState, type TavernRoomStoreState } from "@/features/pages/taverns/room/context";
 import { createTavernMessage } from "@/features/pages/taverns/tavern/message";
 import {
   isTavernCharacterAvailableForSpeech,
@@ -73,7 +73,7 @@ export const syncOpenPendingInteractions = ({
   room,
   openPendingInteractions,
 }: {
-  ctx: TavernRoomContextValue;
+  ctx: TavernRoomStoreState;
   room: TavernRoom;
   openPendingInteractions: TavernPendingInteractions;
 }) => {
@@ -194,7 +194,7 @@ export const beginTurnSubmission = ({
   room,
   mode,
 }: {
-  ctx: TavernRoomContextValue;
+  ctx: TavernRoomStoreState;
   room: TavernRoom;
   mode: TurnMode;
 }) => {
@@ -212,7 +212,7 @@ export const beginTurnSubmission = ({
   });
 };
 
-export const abortTurnSubmission = ({ ctx }: { ctx: TavernRoomContextValue }) => {
+export const abortTurnSubmission = ({ ctx }: { ctx: TavernRoomStoreState }) => {
   ctx.setBusy(createIdleTavernRoomBusyState());
 };
 
@@ -221,7 +221,7 @@ export const readTurnReferences = async ({
   referencedFilePreviews,
   readReferencedFiles,
 }: {
-  ctx: TavernRoomContextValue;
+  ctx: TavernRoomStoreState;
   referencedFilePreviews: WorkspaceFileEntry[];
   readReferencedFiles: () => Promise<TavernReferencedFile[]>;
 }) => {
@@ -299,7 +299,7 @@ export const prepareTurnUserMessage = ({
   visibleUserMessage,
   mode,
 }: {
-  ctx: TavernRoomContextValue;
+  ctx: TavernRoomStoreState;
   room: TavernRoom;
   visibleUserMessage: TavernMessage | null;
   mode: TurnMode;
@@ -323,7 +323,7 @@ export const handleTurnFailure = ({
   error,
   activeReplyRef,
 }: {
-  ctx: TavernRoomContextValue;
+  ctx: TavernRoomStoreState;
   room: TavernRoom;
   error: unknown;
   activeReplyRef: ActiveReplyRef;

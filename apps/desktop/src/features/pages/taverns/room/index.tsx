@@ -9,14 +9,12 @@ import { WindowDragRegion } from "@/components/window-drag-region";
 import { listWorkspaceFiles, type WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import type { Workspace } from "@/features/pages/workspace/types";
 import { cn } from "@/lib/utils";
-import { getVisualPreset } from "../tavern/visual-presets";
 import {
-  projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
   switchTavernRoomScene,
   switchTavernRoomSceneInstance,
 } from "../tavern/runtime/active-scene-runtime";
-import { buildTavernMessageSegments, createTavernMessage, inferTavernMessageKind } from "../tavern/message";
+import { createTavernMessage } from "../tavern/message";
 import { getTavernSceneInstanceDisplayTitle } from "../tavern/runtime/scene-selectors";
 import type { TavernRuntimeScope } from "../storage";
 import { getTavernPresentationProfile } from "../tavern/prompt-registry/presentation-rules";
@@ -29,13 +27,7 @@ import {
   type ComposerHandle,
   type ComposerSubmitPayload,
 } from "./composer";
-import {
-  createIdleTavernRoomBusyState,
-  isTavernRoomBusy,
-  type TavernRoomContextValue,
-  type TavernRoomBusyState,
-  TavernRoomProvider,
-} from "./context";
+import { createIdleTavernRoomBusyState, isTavernRoomBusy, useTavernRoomContext } from "./context";
 import { Header } from "./header";
 import { resolveTavernConversationRenderer } from "../tavern/message/renderers";
 import { SceneBriefCard } from "./scene-brief-card";
@@ -90,24 +82,6 @@ type TavernRoomDialogProps = {
   bind: Ref<TavernRoomHandle>;
 };
 
-const EMPTY_WORKSPACE: Workspace = {
-  id: "",
-  name: "",
-  description: null,
-  path: "",
-  isDefault: false,
-  isPinned: false,
-  order: 0,
-  groupId: null,
-  createdAt: 0,
-  updatedAt: 0,
-};
-
-const createEmptyTavernSessionState = (): TavernRoomSessionState => ({
-  room: null,
-  messages: [],
-});
-
 const createTavernRoomInitialState = ({
   room,
   initialMessages = [],
@@ -144,38 +118,24 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const [openOptions, setOpenOptions] = useState<TavernRoomOpenOptions | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isTavernStateHydrated, setIsTavernStateHydrated] = useState(false);
-  const [state, setState] = useState<TavernRoomSessionState>(() => createEmptyTavernSessionState());
-  const workspace = openOptions?.workspace ?? EMPTY_WORKSPACE;
   const runtimeModels = useLlmSettingsStore((store) => store.runtimeModels);
   const loadSettings = useLlmSettingsStore((store) => store.loadSettings);
   const runtimeModel = runtimeModels[0] ?? null;
   const [files, setFiles] = useState<WorkspaceFileEntry[]>([]);
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState<TavernRoomBusyState>(() => createIdleTavernRoomBusyState());
-  const activeRoom = useMemo(() => {
-    const stateRoom = getSessionStateRoom(state, openOptions?.room.id);
-    const sourceRoom = stateRoom ?? openOptions?.room ?? null;
-    return sourceRoom ? projectTavernSceneOntoRoom(sourceRoom) : null;
-  }, [openOptions?.room, state.room]);
-  const visualPreset = getVisualPreset(activeRoom?.scenePresetId);
-  const characterById = useMemo(
-    () => new Map((activeRoom?.localCharacters ?? []).map((character) => [character.id, character] as const)),
-    [activeRoom?.localCharacters],
-  );
-  const roomCharacters = useMemo(
-    () =>
-      activeRoom
-        ? activeRoom.characterIds
-            .map((characterId) => characterById.get(characterId))
-            .filter((character): character is NonNullable<typeof character> => Boolean(character))
-        : [],
-    [activeRoom, characterById],
-  );
-  const roomMessages = useMemo(() => {
-    return activeRoom ? state.messages : [];
-  }, [activeRoom, state.messages]);
-  const activeCharacter =
-    roomCharacters.find((character) => character.id === activeRoom?.activeCharacterId) ?? roomCharacters[0] ?? null;
+  const workspace = useTavernRoomContext((store) => store.workspace);
+  const roomState = useTavernRoomContext((store) => store.state);
+  const setRoomState = useTavernRoomContext((store) => store.setState);
+  const resetRoomStore = useTavernRoomContext((store) => store.resetRoomStore);
+  const setRuntimeModel = useTavernRoomContext((store) => store.setRuntimeModel);
+  const error = useTavernRoomContext((store) => store.error);
+  const setError = useTavernRoomContext((store) => store.setError);
+  const busy = useTavernRoomContext((store) => store.busy);
+  const setBusy = useTavernRoomContext((store) => store.setBusy);
+  const setBusyStatus = useTavernRoomContext((store) => store.setBusyStatus);
+  const activeRoom = useTavernRoomContext((store) => store.activeRoom);
+  const visualPreset = useTavernRoomContext((store) => store.visualPreset);
+  const roomCharacters = useTavernRoomContext((store) => store.roomCharacters);
+  const roomMessages = useTavernRoomContext((store) => store.roomMessages);
   const isBusy = isTavernRoomBusy(busy);
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const [isSceneDriveAutoRunning, setIsSceneDriveAutoRunning] = useState(false);
@@ -188,28 +148,37 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const sidePanelRef = useRef<SidePanelHandle | null>(null);
   const openRequestIdRef = useRef(0);
 
-  const open = useCallback((options: TavernRoomOpenOptions) => {
-    openRequestIdRef.current += 1;
-    setOpenOptions(options);
-    setState(createEmptyTavernSessionState());
-    setIsOpen(true);
-    setIsTavernStateHydrated(false);
-    setError("");
-    setBusy(createIdleTavernRoomBusyState());
-    setIsSidePanelOpen(false);
-    setIsSceneDriveAutoRunning(false);
-    sceneDriveAutoRunCountRef.current = 0;
-    if (sceneDriveAutoTimerRef.current !== null) {
-      window.clearTimeout(sceneDriveAutoTimerRef.current);
-      sceneDriveAutoTimerRef.current = null;
-    }
-  }, []);
+  const open = useCallback(
+    (options: TavernRoomOpenOptions) => {
+      openRequestIdRef.current += 1;
+      setOpenOptions(options);
+      resetRoomStore({
+        workspace: options.workspace,
+        runtimeModel,
+        initialRoom: options.room,
+      });
+      setIsOpen(true);
+      setIsTavernStateHydrated(false);
+      setIsSidePanelOpen(false);
+      setIsSceneDriveAutoRunning(false);
+      sceneDriveAutoRunCountRef.current = 0;
+      if (sceneDriveAutoTimerRef.current !== null) {
+        window.clearTimeout(sceneDriveAutoTimerRef.current);
+        sceneDriveAutoTimerRef.current = null;
+      }
+    },
+    [resetRoomStore, runtimeModel],
+  );
 
   useImperativeHandle(bind, () => open, [bind, open]);
 
   useEffect(() => {
     void loadSettings();
   }, [loadSettings]);
+
+  useEffect(() => {
+    setRuntimeModel(runtimeModel);
+  }, [runtimeModel, setRuntimeModel]);
 
   useEffect(() => {
     if (!openOptions) {
@@ -226,13 +195,13 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       sceneInstanceId: openOptions.sceneInstanceId,
     });
 
-    void loadTavernRoomSessionState(workspace.path, openOptions.runtimeScope, nextState)
+    void loadTavernRoomSessionState(openOptions.workspace.path, openOptions.runtimeScope, nextState)
       .then((sessionState) => {
         if (isCancelled || requestId !== openRequestIdRef.current) {
           return;
         }
 
-        setState(sessionState ?? nextState);
+        setRoomState(sessionState ?? nextState);
         setIsTavernStateHydrated(true);
       })
       .catch((loadError) => {
@@ -241,7 +210,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
         }
 
         console.error("Failed to load tavern room session state", loadError);
-        setState(
+        setRoomState(
           createTavernRoomInitialState({
             room: openOptions.room,
             initialMessages: openOptions.initialMessages,
@@ -254,19 +223,24 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     return () => {
       isCancelled = true;
     };
-  }, [openOptions, workspace.path]);
+  }, [openOptions, setRoomState]);
 
   useEffect(() => {
     if (!openOptions || !isTavernStateHydrated) {
       return;
     }
 
-    void saveTavernRoomSessionState(workspace.path, openOptions.runtimeScope, state).catch((saveError) => {
+    void saveTavernRoomSessionState(workspace.path, openOptions.runtimeScope, roomState).catch((saveError) => {
       console.error("Failed to save tavern room session state", saveError);
     });
-  }, [isTavernStateHydrated, openOptions, state, workspace.path]);
+  }, [isTavernStateHydrated, openOptions, roomState, workspace.path]);
 
   useEffect(() => {
+    if (!workspace.path) {
+      setFiles([]);
+      return;
+    }
+
     let isCancelled = false;
 
     void listWorkspaceFiles(workspace.path)
@@ -285,178 +259,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       isCancelled = true;
     };
   }, [workspace.path]);
-
-  const patchRoom = useCallback<TavernRoomContextValue["patchRoom"]>(
-    (roomId, patch) => {
-      setState((current) => {
-        const room = getSessionStateRoom(current, roomId);
-        if (!room) {
-          return current;
-        }
-
-        const patchedRoom = syncTavernRoomActiveScene({
-          ...projectTavernSceneOntoRoom(room),
-          ...patch,
-          updatedAt: Date.now(),
-        });
-
-        return replaceSessionStateRoom(current, patchedRoom);
-      });
-    },
-    [setState],
-  );
-
-  const appendMessagesToRoom = useCallback<TavernRoomContextValue["appendMessagesToRoom"]>(
-    (roomId, messages) => {
-      setState((current) => {
-        const room = getSessionStateRoom(current, roomId);
-        if (!room) {
-          return current;
-        }
-
-        const nextMessages = [...current.messages, ...messages];
-        const nextRoom = {
-          ...room,
-          updatedAt: Date.now(),
-        };
-
-        return {
-          ...replaceSessionStateRoom(current, nextRoom),
-          messages: nextMessages,
-        };
-      });
-    },
-    [setState],
-  );
-
-  const patchMessage = useCallback<TavernRoomContextValue["patchMessage"]>(
-    (messageId, patch) => {
-      setState((current) => {
-        let didPatch = false;
-        const nextMessages = current.messages.map((message) => {
-          if (message.id !== messageId) {
-            return message;
-          }
-
-          didPatch = true;
-          const nextMessage = {
-            ...message,
-            ...patch,
-          };
-          const shouldRebuildSegments =
-            !patch.segments &&
-            (patch.content !== undefined ||
-              patch.thought !== undefined ||
-              patch.presentationProfileId !== undefined ||
-              patch.role !== undefined ||
-              patch.characterId !== undefined);
-          return {
-            ...nextMessage,
-            kind:
-              nextMessage.kind ??
-              inferTavernMessageKind({
-                role: nextMessage.role,
-                presentationProfileId: nextMessage.presentationProfileId,
-              }),
-            segments: shouldRebuildSegments ? buildTavernMessageSegments(nextMessage) : nextMessage.segments,
-          };
-        });
-
-        if (!didPatch) {
-          return current;
-        }
-
-        return {
-          ...current,
-          messages: nextMessages,
-        };
-      });
-    },
-    [setState],
-  );
-
-  const removeMessage = useCallback<TavernRoomContextValue["removeMessage"]>(
-    (messageId) => {
-      setState((current) => {
-        let didRemove = false;
-        const nextMessages = current.messages.filter((message) => {
-          const shouldKeep = message.id !== messageId;
-          if (!shouldKeep) {
-            didRemove = true;
-          }
-          return shouldKeep;
-        });
-
-        if (!didRemove) {
-          return current;
-        }
-        const room = current.room;
-        const nextRoom = room ? { ...room, updatedAt: Date.now() } : null;
-
-        return {
-          ...(nextRoom ? replaceSessionStateRoom(current, nextRoom) : current),
-          messages: nextMessages,
-        };
-      });
-    },
-    [setState],
-  );
-
-  const reportError = useCallback((message: string) => {
-    setError(message);
-  }, []);
-
-  const setBusyStatus = useCallback((status: string) => {
-    setBusy((current) => ({
-      ...current,
-      status,
-    }));
-  }, []);
-
-  const ctx = useMemo<TavernRoomContextValue>(
-    () => ({
-      workspace,
-      runtimeModel,
-      state,
-      setState,
-      error,
-      setError,
-      busy,
-      setBusy,
-      setBusyStatus,
-      activeRoom,
-      visualPreset,
-      characterById,
-      roomCharacters,
-      roomMessages,
-      activeCharacter,
-      patchRoom,
-      appendMessagesToRoom,
-      patchMessage,
-      removeMessage,
-      reportError,
-    }),
-    [
-      activeCharacter,
-      activeRoom,
-      appendMessagesToRoom,
-      busy,
-      characterById,
-      error,
-      patchMessage,
-      patchRoom,
-      removeMessage,
-      reportError,
-      roomCharacters,
-      roomMessages,
-      runtimeModel,
-      setBusyStatus,
-      setState,
-      state,
-      visualPreset,
-      workspace,
-    ],
-  );
 
   useEffect(() => {
     return () => {
@@ -539,25 +341,27 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     return () => resizeObserver.disconnect();
   }, [activeRoom?.id, activeRoom?.activeSceneInstanceId, scrollMessagesToBottom, isOpen]);
 
-  const selectRoomSceneInstance = useCallback((roomId: string, sceneInstanceId: string) => {
-    setState((current) => {
-      const targetRoom = getSessionStateRoom(current, roomId);
-      if (!targetRoom) {
-        return current;
-      }
+  const selectRoomSceneInstance = useCallback(
+    (roomId: string, sceneInstanceId: string) => {
+      setRoomState((current) => {
+        const targetRoom = getSessionStateRoom(current, roomId);
+        if (!targetRoom) {
+          return current;
+        }
 
-      const nextRoom = targetRoom.sceneInstances.some((instance) => instance.id === sceneInstanceId)
-        ? switchTavernRoomSceneInstance(targetRoom, sceneInstanceId)
-        : switchTavernRoomScene(targetRoom, sceneInstanceId);
-      return replaceSessionStateRoom(current, nextRoom);
-    });
-    composerRef.current?.clearReplySuggestions();
-  }, []);
+        const nextRoom = targetRoom.sceneInstances.some((instance) => instance.id === sceneInstanceId)
+          ? switchTavernRoomSceneInstance(targetRoom, sceneInstanceId)
+          : switchTavernRoomScene(targetRoom, sceneInstanceId);
+        return replaceSessionStateRoom(current, nextRoom);
+      });
+      composerRef.current?.clearReplySuggestions();
+    },
+    [setRoomState],
+  );
 
   const handleSubmit = useCallback(
     async (payload: ComposerSubmitPayload, trigger?: { type: "user" | "scene_drive"; directive?: string }) => {
       await submitRoomTurn({
-        ctx,
         submittedText: trigger?.type === "scene_drive" ? undefined : payload.text,
         selectedReplyOption: payload.selectedReplyOption,
         trigger: trigger?.type === "scene_drive" ? { ...trigger, directive: payload.text } : trigger,
@@ -571,7 +375,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
         },
       });
     },
-    [ctx],
+    [],
   );
 
   const handleSceneDriveTurn = useCallback(async () => {
@@ -617,7 +421,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       status: "done",
     });
 
-    setState((current) => {
+    setRoomState((current) => {
       const currentRoom = getSessionStateRoom(current, activeRoom.id);
       const nextRoom = currentRoom
         ? syncTavernRoomActiveScene({
@@ -637,7 +441,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     sceneDriveAutoRunCountRef.current = 0;
     setError("");
     toast.success("已清空当前节点对话");
-  }, [activeRoom, clearSceneDriveAutoTimer, setState, workspace.path]);
+  }, [activeRoom, clearSceneDriveAutoTimer, setError, setRoomState, workspace.path]);
 
   const stopSceneDriveAuto = useCallback(
     (statusText?: string) => {
@@ -819,93 +623,88 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     footerNote: sceneDirectionNote,
   };
   return (
-    <TavernRoomProvider value={ctx}>
-      <Dialog
-        open={isOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            closeRoomSurface();
-          }
-        }}
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          closeRoomSurface();
+        }
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        overlayClassName="bg-black/5 backdrop-blur-none"
+        className={cn(fullScreenDialogContentClassName, "text-foreground", visualPreset.tavern.page)}
       >
-        <DialogContent
-          showCloseButton={false}
-          overlayClassName="bg-black/5 backdrop-blur-none"
-          className={cn(fullScreenDialogContentClassName, "text-foreground", visualPreset.tavern.page)}
+        <DialogTitle className="sr-only">{activeRoom.title ? `${activeRoom.title} · 酒馆` : "酒馆房间"}</DialogTitle>
+        <WindowDragRegion className="h-10 shrink-0" />
+        <div
+          className={[
+            "grid min-h-0 w-full flex-1 grid-cols-1",
+            isSidePanelOpen ? "lg:grid-cols-[minmax(0,1fr)_360px]" : "lg:grid-cols-1",
+          ].join(" ")}
         >
-          <DialogTitle className="sr-only">{activeRoom.title ? `${activeRoom.title} · 酒馆` : "酒馆房间"}</DialogTitle>
-          <WindowDragRegion className="h-10 shrink-0" />
-          <div
-            className={[
-              "grid min-h-0 w-full flex-1 grid-cols-1",
-              isSidePanelOpen ? "lg:grid-cols-[minmax(0,1fr)_360px]" : "lg:grid-cols-1",
-            ].join(" ")}
-          >
-            <main className="flex min-h-0 min-w-0 flex-col">
-              <Header
-                isSceneDriveAutoRunning={isSceneDriveAutoRunning}
-                isSidePanelOpen={isSidePanelOpen}
-                onBack={closeRoomSurface}
-                onClearCurrentSceneMessages={() => {
-                  void clearActiveSceneMessages();
-                }}
-                onRebuildRuntime={undefined}
-                onSelectSceneInstance={(sceneInstanceId) => selectRoomSceneInstance(activeRoom.id, sceneInstanceId)}
-                onSceneDriveTurn={() => {
-                  void handleSceneDriveTurn();
-                }}
-                onToggleSceneDriveAuto={handleToggleSceneDriveAuto}
-                onToggleSidePanel={() => {
-                  sidePanelRef.current?.toggle();
-                }}
-              />
+          <main className="flex min-h-0 min-w-0 flex-col">
+            <Header
+              isSceneDriveAutoRunning={isSceneDriveAutoRunning}
+              isSidePanelOpen={isSidePanelOpen}
+              onBack={closeRoomSurface}
+              onClearCurrentSceneMessages={() => {
+                void clearActiveSceneMessages();
+              }}
+              onRebuildRuntime={undefined}
+              onSelectSceneInstance={(sceneInstanceId) => selectRoomSceneInstance(activeRoom.id, sceneInstanceId)}
+              onSceneDriveTurn={() => {
+                void handleSceneDriveTurn();
+              }}
+              onToggleSceneDriveAuto={handleToggleSceneDriveAuto}
+              onToggleSidePanel={() => {
+                sidePanelRef.current?.toggle();
+              }}
+            />
 
-              <ScrollArea
-                viewportRef={messageViewportRef}
-                className={cn("min-h-0 flex-1", visualPreset.tavern.scrollArea)}
-                style={backgroundStyle}
+            <ScrollArea
+              viewportRef={messageViewportRef}
+              className={cn("min-h-0 flex-1", visualPreset.tavern.scrollArea)}
+              style={backgroundStyle}
+            >
+              <div
+                ref={messageListRef}
+                className={cn("mx-auto flex w-full flex-col gap-4 px-4 py-6 sm:px-5", visualPreset.tavern.messageList)}
               >
-                <div
-                  ref={messageListRef}
-                  className={cn(
-                    "mx-auto flex w-full flex-col gap-4 px-4 py-6 sm:px-5",
-                    visualPreset.tavern.messageList,
-                  )}
-                >
-                  <SceneBriefCard
-                    className={cn("w-full self-center", isSidePanelOpen ? "max-w-[44rem]" : "max-w-[46rem]")}
-                    visualPreset={visualPreset}
-                    content={sceneBriefContent}
-                    sceneSelector={
-                      <SceneSelector
-                        options={sceneInstanceOptions}
-                        activeValue={activeRoom.activeSceneInstanceId}
-                        label="节点："
-                        onSelectScene={(sceneInstanceId) => selectRoomSceneInstance(activeRoom.id, sceneInstanceId)}
-                      />
-                    }
-                  />
-                  <Conversation
-                    messages={renderableRoomMessages}
-                    isSidePanelOpen={isSidePanelOpen}
-                    messageEndRef={messageEndRef}
-                  />
-                </div>
-              </ScrollArea>
+                <SceneBriefCard
+                  className={cn("w-full self-center", isSidePanelOpen ? "max-w-[44rem]" : "max-w-[46rem]")}
+                  visualPreset={visualPreset}
+                  content={sceneBriefContent}
+                  sceneSelector={
+                    <SceneSelector
+                      options={sceneInstanceOptions}
+                      activeValue={activeRoom.activeSceneInstanceId}
+                      label="节点："
+                      onSelectScene={(sceneInstanceId) => selectRoomSceneInstance(activeRoom.id, sceneInstanceId)}
+                    />
+                  }
+                />
+                <Conversation
+                  messages={renderableRoomMessages}
+                  isSidePanelOpen={isSidePanelOpen}
+                  messageEndRef={messageEndRef}
+                />
+              </div>
+            </ScrollArea>
 
-              <Composer
-                bind={composerRef}
-                files={files}
-                onSubmit={(payload) => {
-                  void handleSubmit(payload);
-                }}
-              />
-            </main>
+            <Composer
+              bind={composerRef}
+              files={files}
+              onSubmit={(payload) => {
+                void handleSubmit(payload);
+              }}
+            />
+          </main>
 
-            <SidePanel bind={sidePanelRef} isOpen={isSidePanelOpen} onOpenChange={setIsSidePanelOpen} />
-          </div>
-        </DialogContent>
-      </Dialog>
-    </TavernRoomProvider>
+          <SidePanel bind={sidePanelRef} isOpen={isSidePanelOpen} onOpenChange={setIsSidePanelOpen} />
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };

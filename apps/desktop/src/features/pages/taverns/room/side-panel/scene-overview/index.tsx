@@ -358,7 +358,10 @@ const ToolActionsSection = ({
 );
 
 export const SceneOverviewSection = ({ externalBusy, onBusyChange }: SceneOverviewSectionProps) => {
-  const { activeRoom, roomCharacters, busy, patchRoom } = useTavernRoomContext();
+  const activeRoom = useTavernRoomContext((store) => store.activeRoom);
+  const roomCharacters = useTavernRoomContext((store) => store.roomCharacters);
+  const busy = useTavernRoomContext((store) => store.busy);
+  const patchRoom = useTavernRoomContext((store) => store.patchRoom);
   const [secretDialogMode, setSecretDialogMode] = useState<"record" | "reveal" | null>(null);
   const [secretDraftText, setSecretDraftText] = useState("");
   const [secretDraftTarget, setSecretDraftTarget] = useState("scene");

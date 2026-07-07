@@ -1,7 +1,7 @@
 import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
-import type { TavernRoomContextValue } from "@/features/pages/taverns/room/context";
+import type { TavernRoomStoreState } from "@/features/pages/taverns/room/context";
 import { createTavernMessage } from "@/features/pages/taverns/tavern/message";
 import {
   canTavernCharacterUseNonverbalReply,
@@ -107,7 +107,7 @@ const generateMissingInnerThought = async ({
   finalText,
   storyContext,
 }: {
-  ctx: TavernRoomContextValue;
+  ctx: TavernRoomStoreState;
   runtimeRoom: TavernRoom;
   speaker: TavernCharacter;
   runtimeModel: RuntimeModelOption;
@@ -147,7 +147,7 @@ const runSpeakerReplyThroughCollaboration = async ({
   storyContext,
   onTextDelta,
 }: {
-  ctx: TavernRoomContextValue;
+  ctx: TavernRoomStoreState;
   runtimeRoom: TavernRoom;
   speaker: TavernCharacter;
   speakerRuntimeModel: RuntimeModelOption;
@@ -283,7 +283,7 @@ const ensureSpeakerReplyRuntimeStarted = ({
   runtimeRoom,
 }: {
   activeReplyRef: ActiveReplyRef;
-  ctx: TavernRoomContextValue;
+  ctx: TavernRoomStoreState;
   mode: TurnMode;
   room: TavernRoom;
   runtime: SpeakerReplyRuntime;
@@ -322,7 +322,7 @@ const appendSpeakerReplyDelta = ({
   runtimeRoom,
 }: {
   activeReplyRef: ActiveReplyRef;
-  ctx: TavernRoomContextValue;
+  ctx: TavernRoomStoreState;
   delta: string;
   runtime: SpeakerReplyRuntime;
   runtimeRoom: TavernRoom;
@@ -353,7 +353,7 @@ const resetSpeakerReplyRuntimeForRetry = ({
   runtime,
 }: {
   activeReplyRef: ActiveReplyRef;
-  ctx: TavernRoomContextValue;
+  ctx: TavernRoomStoreState;
   runtime: SpeakerReplyRuntime;
 }) => {
   runtime.streamedText = "";
@@ -382,7 +382,7 @@ const finalizeSpeakerReplyRuntime = async ({
   turnNarratorTexts,
 }: {
   activeReplyRef: ActiveReplyRef;
-  ctx: TavernRoomContextValue;
+  ctx: TavernRoomStoreState;
   currentUserText: string;
   references: TavernReferencedFile[];
   runtime: SpeakerReplyRuntime;
@@ -515,7 +515,7 @@ const runSpeakerReplyRoundThroughCollaboration = async ({
   turnNarratorTexts,
 }: {
   activeReplyRef: ActiveReplyRef;
-  ctx: TavernRoomContextValue;
+  ctx: TavernRoomStoreState;
   currentUserText: string;
   directorNonverbalReplyIds: string[];
   directorReason: string;
@@ -693,7 +693,7 @@ const runSingleSpeakerReply = async ({
   activeReplyRef,
   storyContext,
 }: {
-  ctx: TavernRoomContextValue;
+  ctx: TavernRoomStoreState;
   room: TavernRoom;
   runtimeRoom: TavernRoom;
   speaker: TavernCharacter;
@@ -896,7 +896,7 @@ export const runSpeakerReplyFlow = async ({
   activeReplyRef,
   storyContext,
 }: {
-  ctx: TavernRoomContextValue;
+  ctx: TavernRoomStoreState;
   room: TavernRoom;
   runtimeRoom: TavernRoom;
   runtimeMessages: TavernMessage[];

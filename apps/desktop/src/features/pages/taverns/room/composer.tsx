@@ -63,19 +63,17 @@ export const createEmptyComposerSubmitPayload = (): ComposerSubmitPayload => ({
 });
 
 export const Composer = ({ bind, files, onSubmit }: ComposerProps) => {
-  const {
-    activeRoom,
-    busy,
-    error,
-    patchRoom,
-    roomCharacters,
-    roomMessages,
-    runtimeModel,
-    setBusy,
-    setError,
-    visualPreset,
-    workspace,
-  } = useTavernRoomContext();
+  const activeRoom = useTavernRoomContext((store) => store.activeRoom);
+  const busy = useTavernRoomContext((store) => store.busy);
+  const error = useTavernRoomContext((store) => store.error);
+  const patchRoom = useTavernRoomContext((store) => store.patchRoom);
+  const roomCharacters = useTavernRoomContext((store) => store.roomCharacters);
+  const roomMessages = useTavernRoomContext((store) => store.roomMessages);
+  const runtimeModel = useTavernRoomContext((store) => store.runtimeModel);
+  const setBusy = useTavernRoomContext((store) => store.setBusy);
+  const setError = useTavernRoomContext((store) => store.setError);
+  const visualPreset = useTavernRoomContext((store) => store.visualPreset);
+  const workspace = useTavernRoomContext((store) => store.workspace);
   const [draft, setDraft] = useState("");
   const [draftCursor, setDraftCursor] = useState(0);
   const [replySuggestions, setReplySuggestions] = useState<TavernReplyOption[]>([]);

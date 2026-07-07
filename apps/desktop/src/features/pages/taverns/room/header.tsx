@@ -33,7 +33,9 @@ export const Header = ({
   onToggleSceneDriveAuto,
   onToggleSidePanel,
 }: HeaderProps) => {
-  const { activeRoom, visualPreset, busy } = useTavernRoomContext();
+  const activeRoom = useTavernRoomContext((store) => store.activeRoom);
+  const visualPreset = useTavernRoomContext((store) => store.visualPreset);
+  const busy = useTavernRoomContext((store) => store.busy);
   if (!activeRoom) {
     return null;
   }
