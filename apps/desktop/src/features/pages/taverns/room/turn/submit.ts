@@ -21,14 +21,13 @@ import {
   readTurnReferences,
   resolveSubmitSpeakerPlan,
   resolveTurnMode,
-  runDirectorLoopTurn,
-  runSpeakerReplyFlow,
-  shouldRunTavernDirectorLoopWorkflow,
   syncOpenPendingInteractions,
   validateSubmitReferences,
   type ActiveReplyRef,
   type TurnTriggerType,
-} from "./submit-flow";
+} from "./submit-flow/shared";
+import { runDirectorLoopTurn, shouldRunTavernDirectorLoopWorkflow } from "./submit-flow/director-loop";
+import { runSpeakerReplyFlow } from "./submit-flow/speakers";
 
 export type SubmitRoomTurnTrigger = {
   type: TurnTriggerType;

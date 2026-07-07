@@ -11,18 +11,6 @@ import { balancedSystemNarrativeStyle } from "./styles/balanced";
 import { dramaticSystemNarrativeStyle } from "./styles/dramatic";
 import { restrainedSystemNarrativeStyle } from "./styles/restrained";
 
-export {
-  getRegisteredTavernSystemNarrativeStyles,
-  getSelectableTavernSystemNarrativeStyles,
-  registerTavernSystemNarrativeStyle,
-  registerTavernSystemNarrativeStyles,
-} from "./registry";
-export type {
-  TavernSystemNarrativePreset,
-  TavernSystemNarrativeRuleSet,
-  TavernSystemNarrativeStyleRegistration,
-} from "./registry";
-
 export const DEFAULT_TAVERN_SYSTEM_NARRATIVE_PRESET_ID: TavernSystemNarrativePresetId = "balanced";
 
 registerTavernSystemNarrativeStyles([

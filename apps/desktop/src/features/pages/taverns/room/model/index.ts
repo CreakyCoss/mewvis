@@ -1,4 +1,4 @@
-import type { VisualPresetId } from "@/features/pages/taverns/tavern/visual-presets";
+import type { VisualPresetId } from "@/features/pages/taverns/tavern/visual-presets/types";
 import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
 import type {
   TavernCharacter,

@@ -1,7 +1,7 @@
 import type { RuntimeModelInput } from "@/agent-client/types";
 import type { TavernPromptStyleId } from "@/features/pages/taverns/manage/model";
 import { TAVERN_PROMPT_STYLE_PRESETS, normalizeTavernPromptStyleId } from "../../presentation/prompt-styles";
-import { runTavernOneShotAgent } from "../agent";
+import { runTavernOneShotAgent } from "../agent/one-shot";
 
 export type TavernTextFieldAgentMode = "polish" | "inspire";
 

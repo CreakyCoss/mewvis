@@ -1,9 +1,9 @@
-import type { TavernRuntimeMessage } from "../../conversation";
+import type { TavernRuntimeMessage } from "../../conversation/messages";
 import {
   formatTavernMessageSegmentsForPrompt,
-  parseTavernReplyText,
   resolveTavernMessageSegments,
-} from "@/features/pages/taverns/room/message";
+} from "@/features/pages/taverns/room/message/domain/segments";
+import { parseTavernReplyText } from "@/features/pages/taverns/room/message/protocol/parse-reply";
 import { getTavernPresentationContractForMessageKind } from "../../../presentation/presentation-contracts";
 import { getTavernProtocolHistoryPrivateThoughtTag } from "@/features/pages/taverns/room/message/protocol/schema";
 import type { TavernMessage } from "../../../types";

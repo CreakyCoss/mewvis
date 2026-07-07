@@ -2,14 +2,15 @@ import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/tavern
 import type { TavernMessage, TavernReferencedFile } from "../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
-import { buildTavernBridgeSystemPrompt, buildTavernCharacterPromptParts } from "../prompt";
+import { buildTavernBridgeSystemPrompt } from "../prompt/bridge/system-prompt";
+import { buildTavernCharacterPromptParts } from "../prompt/character/system-prompt";
 import { getTavernPresentationProfile } from "../../prompt-registry/presentation-rules";
 import { getTavernPresentationContract } from "../../presentation/presentation-contracts";
 import {
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
-} from "@/features/pages/taverns/room/message";
-import { tavernBridgeSessionRootDir, tavernCharacterAgentRoleId } from "../../core";
+} from "@/features/pages/taverns/room/message/domain/visibility";
+import { tavernBridgeSessionRootDir, tavernCharacterAgentRoleId } from "../../core/agent-role";
 
 export type TavernReplyAgentRequestInput = {
   room: TavernRoom;

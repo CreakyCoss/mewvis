@@ -1,5 +1,5 @@
 import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
-import { isTavernFixedOrderPhase } from "../../../core";
+import { isTavernFixedOrderPhase } from "../../../core/director-scheduling";
 import { getTavernPresentationContract } from "../../../presentation/presentation-contracts";
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
@@ -14,8 +14,6 @@ import {
   type TavernCharacterTurnOutputMode,
 } from "./output-contract";
 import { buildCharacterTurnStyleInstruction } from "./style-instruction";
-
-export { DEFAULT_TAVERN_CHARACTER_PROMPT_VARIANT, type TavernCharacterPromptVariant } from "./output-contract";
 
 const buildSchedulingInstruction = (room: TavernRoom) => {
   if (!isTavernFixedOrderPhase(room.settings)) {

@@ -9,9 +9,10 @@ import { cn } from "@/lib/utils";
 import { TavernRoomContent } from "./content";
 import { useTavernRoomContext } from "./context";
 import { Header } from "./header";
-import type { TavernPresentationInput } from "./presentation-input";
+import type { TavernPresentationInput } from "./presentation-input/types";
 import { createTavernRoomRuntimeSessionState } from "./runtime/build";
-import { SidePanel, type SidePanelHandle } from "./side-panel";
+import { SidePanel } from "./side-panel";
+import type { SidePanelHandle } from "./side-panel/types";
 import { ensureTavernWorkspaceDirectory, loadTavernRoomSessionState, saveTavernRoomSessionState } from "./storage";
 
 const fullScreenDialogContentClassName =

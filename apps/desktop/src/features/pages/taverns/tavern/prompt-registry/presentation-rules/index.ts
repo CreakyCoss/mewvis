@@ -12,14 +12,6 @@ import { dialogueChatPresentationRule } from "./rules/dialogue-chat";
 import { novelProsePresentationRule } from "./rules/novel-prose";
 import { thirdPersonProsePresentationRule } from "./rules/third-person-prose";
 
-export {
-  getRegisteredTavernPresentationRules,
-  getSelectableTavernPresentationRules,
-  registerTavernPresentationRule,
-  registerTavernPresentationRules,
-} from "./registry";
-export type { TavernPresentationRuleRegistration } from "./registry";
-
 export const DEFAULT_TAVERN_PRESENTATION_PROFILE_ID: TavernPresentationProfileId = "dialogue-chat";
 
 registerTavernPresentationRules([

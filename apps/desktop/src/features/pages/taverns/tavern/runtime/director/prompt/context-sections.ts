@@ -1,14 +1,15 @@
 import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
-import { formatTavernRuntimeMessagesForSummary } from "../../conversation";
-import { buildTavernSceneDriveGuidance, formatTavernCharacterRelationships } from "../../../core";
+import { formatTavernRuntimeMessagesForSummary } from "../../conversation/messages";
+import { buildTavernSceneDriveGuidance } from "../../../core/director-scheduling";
+import { formatTavernCharacterRelationships } from "../../../core/relationships";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import {
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
-} from "@/features/pages/taverns/room/message";
+} from "@/features/pages/taverns/room/message/domain/visibility";
 import type { TavernMessage } from "../../../types";
 import type { TavernCharacter, TavernPresentationProfile } from "@/features/pages/taverns/manage/model";
-import type { TavernRuntimeMessage } from "../../conversation";
+import type { TavernRuntimeMessage } from "../../conversation/messages";
 import { escapePromptXmlAttribute, escapePromptXmlText } from "../../prompt/shared/text";
 import {
   buildTavernDirectorSecretMemoryContext,

@@ -3,7 +3,7 @@ import { appendReferencesToPrompt } from "@/features/ai/components/context-tools
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import type { TavernMessage, TavernReferencedFile } from "../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
-import { tavernMessagesToRuntimeMessages } from "../prompt";
+import { tavernMessagesToRuntimeMessages } from "../prompt/context/history";
 import { buildTavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import {
   formatTavernStoryGraphContext,
@@ -12,12 +12,14 @@ import {
 } from "@/features/pages/taverns/room/story-context/prompt-sections";
 import {
   buildTavernSchedulingSignals,
-  canTavernSelectedTargetsStaySilent,
   formatTavernDirectorProfileForPrompt,
-  formatTavernDirectorSchedulingInstruction,
   formatTavernSchedulingSignalsForPrompt,
+} from "../../core/scheduling-profile";
+import {
+  canTavernSelectedTargetsStaySilent,
+  formatTavernDirectorSchedulingInstruction,
   isTavernDirectorOnlyTurnAllowed,
-} from "../../core";
+} from "../../core/director-scheduling";
 import { getTavernPresentationProfile } from "../../prompt-registry/presentation-rules";
 import {
   formatTavernInteractionQualityRulesForTarget,

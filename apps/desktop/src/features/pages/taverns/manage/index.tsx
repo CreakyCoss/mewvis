@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { WindowDragRegion } from "@/components/window-drag-region";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import { cn } from "@/lib/utils";
-import type { TavernTextFieldAgentRequest } from "../tavern/runtime/assistants";
+import type { TavernTextFieldAgentRequest } from "../tavern/runtime/assistants/field-polish-agent";
 import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 import { Header } from "./header";
 import { BasicSection } from "./modules/basic";

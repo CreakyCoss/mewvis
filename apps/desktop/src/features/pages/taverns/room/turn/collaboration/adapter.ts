@@ -1,4 +1,4 @@
-import { buildTavernBridgeSystemPrompt } from "@/features/pages/taverns/tavern/runtime/conversation";
+import { buildTavernBridgeSystemPrompt } from "@/features/pages/taverns/tavern/runtime/prompt/bridge/system-prompt";
 import {
   buildTavernDirectorPromptContext,
   buildTavernDirectorRuntimeInstruction,
@@ -8,7 +8,7 @@ import {
   tavernBridgeSessionRootDir,
   tavernCharacterAgentRoleId,
   tavernDirectorAgentRoleId,
-} from "@/features/pages/taverns/tavern/core";
+} from "@/features/pages/taverns/tavern/core/agent-role";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import type {
   TavernDirectorLoopCollaborationInput,

@@ -8,7 +8,7 @@ import { getTavernSceneInstanceDisplayTitle } from "@/features/pages/taverns/tav
 import { Composer } from "../composer";
 import { createIdleTavernRoomBusyState, useTavernRoomContext } from "../context";
 import { ExecutionTrace } from "../execution-trace";
-import { createTavernRenderableMessages } from "../message";
+import { createTavernRenderableMessages } from "../message/domain/render-model";
 import { resolveTavernConversationRenderer } from "../message/renderers";
 import { SceneBriefCard } from "../scene-brief-card";
 import { SceneSelector } from "../scene-selector";

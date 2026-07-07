@@ -1,4 +1,4 @@
-import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";
+import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets/types";
 import { cn } from "@/lib/utils";
 import { MessageControls } from "./message-controls";
 

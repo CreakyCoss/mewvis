@@ -1,5 +1,6 @@
 import type { TavernRoom as TavernRoomConfig } from "@/features/pages/taverns/manage/model";
-import { materializeTavernPresentationInput, type TavernPresentationInput } from "../presentation-input";
+import { materializeTavernPresentationInput } from "../presentation-input/materialize";
+import type { TavernPresentationInput } from "../presentation-input/types";
 import { switchTavernRoomStoryNode } from "@/features/pages/taverns/tavern/runtime/active-scene-runtime";
 import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
 import type { TavernRoomSessionState, TavernActiveRoomView } from "../model";

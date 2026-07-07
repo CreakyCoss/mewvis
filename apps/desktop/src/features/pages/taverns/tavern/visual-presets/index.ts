@@ -3,8 +3,6 @@ import tavernBackgroundUrl from "@/assets/backgrounds/rainy-tavern.jpg";
 import wuxiaBackgroundUrl from "@/assets/backgrounds/wuxia-courtyard.jpg";
 import type { VisualPresetDefinition, VisualPresetId } from "./types";
 
-export type { TavernVisualPresetClassNames, VisualPresetDefinition, VisualPresetId, VisualPresetScope } from "./types";
-
 export const DEFAULT_VISUAL_PRESET_ID: VisualPresetId = "general";
 
 export const VISUAL_PRESETS: VisualPresetDefinition[] = [

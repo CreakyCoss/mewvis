@@ -3,11 +3,11 @@ import type { RuntimeModelInput } from "@/agent-client/types";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import type { TavernMessage } from "../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
-import { buildTavernBridgeSystemPrompt } from "../conversation";
-import { tavernBridgeSessionRootDir, tavernQuickReplyAgentRoleId } from "../../core";
-import { runTavernRuntimeAgent } from "../agent";
+import { buildTavernBridgeSystemPrompt } from "../prompt/bridge/system-prompt";
+import { tavernBridgeSessionRootDir, tavernQuickReplyAgentRoleId } from "../../core/agent-role";
+import { runTavernRuntimeAgent } from "../agent/run-agent";
 import { parseSuggestions } from "./user-reply/parsing";
-import { buildTavernUserReplySuggestionPrompt } from "./user-reply/prompt";
+import { buildTavernUserReplySuggestionPrompt } from "./user-reply/suggestion-prompt";
 
 export type TavernUserReplySuggestionInput = {
   workspacePath: string;

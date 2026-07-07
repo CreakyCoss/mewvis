@@ -6,7 +6,7 @@ import type {
   TavernPromptBlockTarget,
 } from "@/features/pages/taverns/manage/model";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
-import { isTavernFixedOrderPhase } from "../../core";
+import { isTavernFixedOrderPhase } from "../../core/director-scheduling";
 import { buildTavernDirectorPromptContext, buildTavernDirectorRuntimeInstruction } from "../director/prompt";
 import { buildTavernReplyAgentRequest } from "../reply/request";
 import { buildTavernBridgeSystemPrompt } from "./bridge/system-prompt";

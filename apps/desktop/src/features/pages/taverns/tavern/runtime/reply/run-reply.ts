@@ -3,14 +3,15 @@ import type { RuntimeModelInput } from "@/agent-client/types";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import type { TavernMessage } from "../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
+import { cleanTavernThoughtText } from "@/features/pages/taverns/room/message/protocol/parse-reply";
 import {
-  cleanTavernThoughtText,
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
-} from "@/features/pages/taverns/room/message";
-import { buildTavernBridgeSystemPrompt } from "../conversation";
-import { formatTavernCharacterRelationships, tavernBridgeSessionRootDir, tavernCharacterAgentRoleId } from "../../core";
-import { runTavernRuntimeAgent } from "../agent";
+} from "@/features/pages/taverns/room/message/domain/visibility";
+import { buildTavernBridgeSystemPrompt } from "../prompt/bridge/system-prompt";
+import { tavernBridgeSessionRootDir, tavernCharacterAgentRoleId } from "../../core/agent-role";
+import { formatTavernCharacterRelationships } from "../../core/relationships";
+import { runTavernRuntimeAgent } from "../agent/run-agent";
 import { getActiveTavernScene } from "../scene-selectors";
 export type RunTavernInnerThoughtInput = {
   workspacePath: string;

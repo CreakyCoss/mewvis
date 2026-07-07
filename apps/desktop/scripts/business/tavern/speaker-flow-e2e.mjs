@@ -13,10 +13,10 @@ const mockConversationPath = join(tempDir, "mock-conversation.ts");
 const mockLlmStorePath = join(tempDir, "mock-llm-store.ts");
 const mockReplyPath = join(tempDir, "mock-reply.ts");
 const adapterPath = resolve(workspaceRoot, "src/features/pages/taverns/room/turn/collaboration/adapter.ts");
+const agentRolePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/core/agent-role.ts");
 const speakersPath = resolve(workspaceRoot, "src/features/pages/taverns/room/turn/submit-flow/speakers.ts");
 const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/factories/manual-factories.ts");
-const messagePath = resolve(workspaceRoot, "src/features/pages/taverns/room/message/index.ts");
-const corePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/core/index.ts");
+const messageFactoryPath = resolve(workspaceRoot, "src/features/pages/taverns/room/message/domain/factory.ts");
 
 writeFileSync(
   mockLlmStorePath,
@@ -207,10 +207,10 @@ writeFileSync(
   } from ${JSON.stringify(manualFactoriesPath)};
   import {
     createTavernMessage,
-  } from ${JSON.stringify(messagePath)};
+  } from ${JSON.stringify(messageFactoryPath)};
   import {
     tavernCharacterAgentRoleId,
-  } from ${JSON.stringify(corePath)};
+  } from ${JSON.stringify(agentRolePath)};
   import {
     tavernCollaborationMockRuns,
   } from ${JSON.stringify(mockCollaborationPath)};
@@ -583,7 +583,7 @@ try {
             if (args.path.includes("runtime/conversation")) {
               return { path: mockConversationPath };
             }
-            if (args.path === "@/features/pages/taverns/tavern/runtime/reply") {
+            if (args.path === "@/features/pages/taverns/tavern/runtime/reply/run-reply") {
               return { path: mockReplyPath };
             }
             if (args.path === "@/features/pages/settings/llm/store") {

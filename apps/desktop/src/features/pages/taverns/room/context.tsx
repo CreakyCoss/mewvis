@@ -7,10 +7,14 @@ import type { Dispatch, SetStateAction } from "react";
 import { create } from "zustand";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { Workspace } from "@/features/pages/workspace/types";
-import { getVisualPreset, type VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";
+import { getVisualPreset } from "@/features/pages/taverns/tavern/visual-presets";
+import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets/types";
 import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
-import { buildTavernMessageSegments, inferTavernMessageKind } from "@/features/pages/taverns/room/message";
+import {
+  buildTavernMessageSegments,
+  inferTavernMessageKind,
+} from "@/features/pages/taverns/room/message/domain/segments";
 import {
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,

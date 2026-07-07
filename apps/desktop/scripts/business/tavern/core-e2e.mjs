@@ -13,10 +13,26 @@ const activeSceneRuntimePath = resolve(
   workspaceRoot,
   "src/features/pages/taverns/tavern/runtime/active-scene-runtime.ts",
 );
-const corePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/core/index.ts");
+const agentRolePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/core/agent-role.ts");
+const directorSchedulingPath = resolve(
+  workspaceRoot,
+  "src/features/pages/taverns/tavern/core/director-scheduling.ts",
+);
 const directorPromptPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/runtime/director/prompt.ts");
+const interactionExtractorPath = resolve(
+  workspaceRoot,
+  "src/features/pages/taverns/tavern/core/interaction-extractor.ts",
+);
 const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/factories/manual-factories.ts");
-const messagePath = resolve(workspaceRoot, "src/features/pages/taverns/room/message/index.ts");
+const messageParseReplyPath = resolve(
+  workspaceRoot,
+  "src/features/pages/taverns/room/message/protocol/parse-reply.ts",
+);
+const messageRenderModelPath = resolve(
+  workspaceRoot,
+  "src/features/pages/taverns/room/message/domain/render-model.ts",
+);
+const schedulingProfilePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/core/scheduling-profile.ts");
 const sceneBuilderPath = resolve(workspaceRoot, "src/features/pages/taverns/room/story-model/scene-builder.ts");
 const stateNormalizerPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/state/state-normalizer.ts");
 const systemPresetRegistryPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/system-preset-registry.ts");
@@ -31,24 +47,32 @@ writeFileSync(
   import { allAvatarOptions } from ${JSON.stringify(avatarPath)};
   import {
     buildTavernSchedulingSignals,
-    canTavernCharacterUseNonverbalReply,
     createTavernDirectorProfileFromCharacters,
-    extractTavernPendingInteractionsFromMessages,
     formatTavernDirectorProfileForPrompt,
     formatTavernSchedulingSignalsForPrompt,
+  } from ${JSON.stringify(schedulingProfilePath)};
+  import {
+    canTavernCharacterUseNonverbalReply,
     resolveTavernScheduledSpeakers,
+  } from ${JSON.stringify(directorSchedulingPath)};
+  import {
+    extractTavernPendingInteractionsFromMessages,
+  } from ${JSON.stringify(interactionExtractorPath)};
+  import {
     tavernBridgeSessionRootDir,
     tavernCharacterAgentRoleId,
     tavernDirectorAgentRoleId,
     tavernQuickReplyAgentRoleId,
-  } from ${JSON.stringify(corePath)};
+  } from ${JSON.stringify(agentRolePath)};
   import {
     projectTavernSceneOntoRoom,
   } from ${JSON.stringify(activeSceneRuntimePath)};
   import {
     createTavernRenderableMessages,
+  } from ${JSON.stringify(messageRenderModelPath)};
+  import {
     parseTavernReplyText,
-  } from ${JSON.stringify(messagePath)};
+  } from ${JSON.stringify(messageParseReplyPath)};
   import {
     createTavernCharacter,
     createTavernRoom,

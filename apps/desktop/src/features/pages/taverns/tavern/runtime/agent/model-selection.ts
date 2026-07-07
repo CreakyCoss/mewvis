@@ -19,10 +19,3 @@ export const resolveTavernCharacterModel = ({
       }
     : null;
 };
-
-export const formatTavernResolvedModelLabel = (resolvedModel: TavernResolvedCharacterModel | null) =>
-  resolvedModel
-    ? `${resolvedModel.runtimeModel.provider.name} / ${
-        resolvedModel.runtimeModel.modelName || resolvedModel.runtimeModel.modelId
-      }`
-    : "未选择模型";

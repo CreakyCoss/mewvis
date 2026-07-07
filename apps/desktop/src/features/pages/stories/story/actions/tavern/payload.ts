@@ -1,5 +1,5 @@
 import { buildStoryNodeProjection, type StoryNodeProjection } from "../../model/projection";
-import type { TavernPresentationInput } from "@/features/pages/taverns/room/presentation-input";
+import type { TavernPresentationInput } from "@/features/pages/taverns/room/presentation-input/types";
 import type { TavernStoryGraph, TavernStoryNode } from "@/features/pages/taverns/room/model";
 import type { StoryJson } from "../../model/types";
 

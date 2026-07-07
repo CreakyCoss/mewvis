@@ -22,7 +22,7 @@ import { buildCharacterSystemContractSection } from "../layers/system-contract";
 import { renderTavernPromptSections, type TavernPromptSection } from "../shared/sections";
 import { buildTavernSecretMemoryProtocol } from "../shared/secret-policy";
 
-export type BuildTavernSystemPromptInput = {
+type BuildTavernCharacterPromptInput = {
   room: TavernRoom;
   activeCharacter: TavernCharacter;
   characters: TavernCharacter[];
@@ -32,7 +32,7 @@ export type BuildTavernSystemPromptInput = {
   storyContext?: TavernStoryContextPackage;
 };
 
-export type TavernCharacterPromptParts = {
+type TavernCharacterPromptParts = {
   runtimeInstruction: string;
   requestContext: string;
   fullPrompt: string;
@@ -81,25 +81,6 @@ const buildSecretMemoryProtocolSection = (): TavernPromptSection => ({
   content: buildTavernSecretMemoryProtocol("character"),
 });
 
-export const buildTavernSystemPrompt = ({
-  room,
-  activeCharacter,
-  characters,
-  references,
-  currentUserText,
-  turnInstruction,
-  storyContext,
-}: BuildTavernSystemPromptInput) =>
-  buildTavernCharacterPromptParts({
-    room,
-    activeCharacter,
-    characters,
-    references,
-    currentUserText,
-    turnInstruction,
-    storyContext,
-  }).fullPrompt;
-
 export const buildTavernCharacterPromptParts = ({
   room,
   activeCharacter,
@@ -108,7 +89,7 @@ export const buildTavernCharacterPromptParts = ({
   currentUserText,
   turnInstruction,
   storyContext: inputStoryContext,
-}: BuildTavernSystemPromptInput): TavernCharacterPromptParts => {
+}: BuildTavernCharacterPromptInput): TavernCharacterPromptParts => {
   const storyContext = inputStoryContext ?? buildTavernStoryContextPackage({ room, characters });
   const matchedStoryCharacter = storyContext.characters.find((character) => character.id === activeCharacter.id);
   const characterLayers = matchedStoryCharacter?.memory;

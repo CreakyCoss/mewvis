@@ -1,7 +1,7 @@
 import { Loader2 } from "lucide-react";
 import { resolveAvatar } from "@/assets/avatars";
 import { SmoothMarkdownContent } from "@/features/ai/components/markdown";
-import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";
+import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets/types";
 import { cn } from "@/lib/utils";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { stripTavernImmersiveDescriptionText } from "../protocol/parse-reply";

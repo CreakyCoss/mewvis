@@ -15,7 +15,7 @@ import { readWorkspaceFile, type WorkspaceFileEntry } from "@/features/pages/wor
 import { cn } from "@/lib/utils";
 import type { TavernReplyOption } from "@/features/pages/taverns/manage/model";
 import { getTavernPresentationProfile } from "@/features/pages/taverns/tavern/prompt-registry/presentation-rules";
-import { runTavernUserReplySuggestions } from "@/features/pages/taverns/tavern/runtime/assistants";
+import { runTavernUserReplySuggestions } from "@/features/pages/taverns/tavern/runtime/assistants/user-reply-suggestions";
 import type { TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import { uniqueFilesByPath } from "@/features/pages/taverns/tavern/utils";
 import {
@@ -26,7 +26,7 @@ import {
   useTavernRoomContext,
 } from "@/features/pages/taverns/room/context";
 import { submitRoomTurn } from "./turn/submit";
-import { getErrorMessage } from "./turn/submit-flow";
+import { getErrorMessage } from "./turn/submit-flow/shared";
 
 const REFERENCE_SUGGESTION_LIMIT = 8;
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";

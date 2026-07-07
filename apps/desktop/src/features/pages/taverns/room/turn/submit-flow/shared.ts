@@ -2,14 +2,14 @@ import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/tavern
 import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import type { TavernRoomStoreState } from "@/features/pages/taverns/room/context";
-import { createTavernMessage } from "@/features/pages/taverns/room/message";
+import { createTavernMessage } from "@/features/pages/taverns/room/message/domain/factory";
 import {
   isTavernCharacterAvailableForSpeech,
-  isTavernFixedOrderPhase,
   orderTavernRoundParticipants,
   orderTavernRoundSpeakers,
-} from "@/features/pages/taverns/tavern/core";
-import { resolveTavernCharacterModel } from "@/features/pages/taverns/tavern/runtime/agent";
+} from "@/features/pages/taverns/tavern/core/turn-order";
+import { isTavernFixedOrderPhase } from "@/features/pages/taverns/tavern/core/director-scheduling";
+import { resolveTavernCharacterModel } from "@/features/pages/taverns/tavern/runtime/agent/model-selection";
 import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
 

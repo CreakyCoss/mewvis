@@ -8,10 +8,10 @@ const workspaceRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-tavern-collaboration-adapter-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
-const adapterPath = resolve(workspaceRoot, "src/features/pages/taverns/room/turn/collaboration/index.ts");
+const adapterPath = resolve(workspaceRoot, "src/features/pages/taverns/room/turn/collaboration/adapter.ts");
+const agentRolePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/core/agent-role.ts");
 const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/factories/manual-factories.ts");
-const messagePath = resolve(workspaceRoot, "src/features/pages/taverns/room/message/index.ts");
-const corePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/core/index.ts");
+const messageFactoryPath = resolve(workspaceRoot, "src/features/pages/taverns/room/message/domain/factory.ts");
 
 writeFileSync(
   entryPath,
@@ -26,12 +26,12 @@ writeFileSync(
   } from ${JSON.stringify(manualFactoriesPath)};
   import {
     createTavernMessage,
-  } from ${JSON.stringify(messagePath)};
+  } from ${JSON.stringify(messageFactoryPath)};
   import {
     tavernBridgeSessionRootDir,
     tavernCharacterAgentRoleId,
     tavernDirectorAgentRoleId,
-  } from ${JSON.stringify(corePath)};
+  } from ${JSON.stringify(agentRolePath)};
 
   const assert = (condition: unknown, message: string, details?: unknown) => {
     if (!condition) {

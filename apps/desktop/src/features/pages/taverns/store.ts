@@ -8,8 +8,10 @@ import {
 import type { Workspace } from "@/features/pages/workspace/types";
 import { createTavernRoom } from "./tavern/factories/manual-factories";
 import { createTavernRoomFromSystemPreset } from "./tavern/factories/system-preset-room";
-import { runTavernTextFieldAgent } from "./tavern/runtime/assistants";
-import type { TavernTextFieldAgentRequest } from "./tavern/runtime/assistants";
+import {
+  runTavernTextFieldAgent,
+  type TavernTextFieldAgentRequest,
+} from "./tavern/runtime/assistants/field-polish-agent";
 import { getTavernSystemPreset } from "./tavern/system-preset-registry";
 import type { TavernState } from "./tavern/types";
 import type { TavernRoom } from "@/features/pages/taverns/manage/model";

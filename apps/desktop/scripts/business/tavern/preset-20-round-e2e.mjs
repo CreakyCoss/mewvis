@@ -8,7 +8,10 @@ const workspaceRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-tavern-preset-20-e2e-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
-const corePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/core/index.ts");
+const directorSchedulingPath = resolve(
+  workspaceRoot,
+  "src/features/pages/taverns/tavern/core/director-scheduling.ts",
+);
 const systemPresetRoomPath = resolve(
   workspaceRoot,
   "src/features/pages/taverns/tavern/factories/system-preset-room.ts",
@@ -25,7 +28,7 @@ const assert = (condition, message, details) => {
 writeFileSync(
   entryPath,
   `
-  import { resolveTavernScheduledSpeakers } from ${JSON.stringify(corePath)};
+  import { resolveTavernScheduledSpeakers } from ${JSON.stringify(directorSchedulingPath)};
   import { createTavernRoomFromSystemPreset } from ${JSON.stringify(systemPresetRoomPath)};
   import { createTavernActiveRoomViewFromConfig } from ${JSON.stringify(runtimeRoomPath)};
 

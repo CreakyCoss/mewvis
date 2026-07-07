@@ -2,29 +2,27 @@ import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/tavern
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import type { TavernRoomStoreState } from "@/features/pages/taverns/room/context";
-import { createTavernMessage } from "@/features/pages/taverns/room/message";
-import {
-  canTavernCharacterUseNonverbalReply,
-  extractTavernPendingInteractionsFromMessages,
-  tavernCharacterAgentRoleId,
-} from "@/features/pages/taverns/tavern/core";
+import { createTavernMessage } from "@/features/pages/taverns/room/message/domain/factory";
+import { canTavernCharacterUseNonverbalReply } from "@/features/pages/taverns/tavern/core/director-scheduling";
+import { tavernCharacterAgentRoleId } from "@/features/pages/taverns/tavern/core/agent-role";
+import { extractTavernPendingInteractionsFromMessages } from "@/features/pages/taverns/tavern/core/interaction-extractor";
 import {
   buildTavernMessageSegments,
-  hasTavernReplyDialogueText,
   inferTavernMessageKind,
+} from "@/features/pages/taverns/room/message/domain/segments";
+import {
+  hasTavernReplyDialogueText,
   parseTavernReplyText,
-} from "@/features/pages/taverns/room/message";
+} from "@/features/pages/taverns/room/message/protocol/parse-reply";
 import { getTavernPresentationProfile } from "@/features/pages/taverns/tavern/prompt-registry/presentation-rules";
 import {
   getTavernPresentationContract,
   type TavernPresentationRuntimeContract,
 } from "@/features/pages/taverns/tavern/presentation/presentation-contracts";
-import { runTavernInnerThought } from "@/features/pages/taverns/tavern/runtime/reply";
-import { buildTavernCharacterTurnInstruction } from "@/features/pages/taverns/tavern/runtime/prompt";
-import {
-  buildTavernSpeakerCollaborationInput,
-  runTavernCollaboration,
-} from "@/features/pages/taverns/room/turn/collaboration";
+import { runTavernInnerThought } from "@/features/pages/taverns/tavern/runtime/reply/run-reply";
+import { buildTavernCharacterTurnInstruction } from "@/features/pages/taverns/tavern/runtime/prompt/character/turn-instruction";
+import { buildTavernSpeakerCollaborationInput } from "@/features/pages/taverns/room/turn/collaboration/adapter";
+import { runTavernCollaboration } from "@/features/pages/taverns/room/turn/collaboration/run-collaboration";
 import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
 import {

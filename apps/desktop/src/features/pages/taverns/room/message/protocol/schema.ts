@@ -85,13 +85,6 @@ export const getTavernProtocolPublicContentTagNames = () => [
   ...getTavernProtocolFieldTagNames("publicReply"),
 ];
 
-export const getTavernProtocolPublicContentLabels = () => [
-  ...getTavernProtocolFieldLabels("narrativeBeat"),
-  ...getTavernProtocolFieldLabels("publicReply"),
-];
-
-export const getTavernProtocolPrivateThoughtTag = () => TAVERN_PROTOCOL_FIELDS.privateThought.canonicalTag;
-
 export const getTavernProtocolVisiblePrivateThoughtTag = () => TAVERN_PROTOCOL_FIELDS.privateThought.visibleTag;
 
 export const getTavernProtocolHistoryPrivateThoughtTag = () => TAVERN_PROTOCOL_FIELDS.privateThought.historyTag;

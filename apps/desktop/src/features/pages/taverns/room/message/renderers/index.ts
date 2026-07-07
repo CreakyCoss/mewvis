@@ -10,5 +10,3 @@ const conversationRenderers: Record<TavernPresentationRenderStyle, TavernConvers
 
 export const resolveTavernConversationRenderer = (renderStyle: TavernPresentationRenderStyle) =>
   conversationRenderers[renderStyle] ?? chatConversationRenderer;
-
-export type { TavernConversationRenderer, TavernConversationRendererProps } from "./types";

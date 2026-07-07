@@ -1,12 +1,12 @@
 import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
-import { formatTavernRuntimeMessagesForSummary } from "../../conversation";
+import { formatTavernRuntimeMessagesForSummary } from "../../conversation/messages";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
-import { tavernMessagesToRuntimeMessages } from "../../prompt";
+import { tavernMessagesToRuntimeMessages } from "../../prompt/context/history";
 import { buildTavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import {
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
-} from "@/features/pages/taverns/room/message";
+} from "@/features/pages/taverns/room/message/domain/visibility";
 import type { TavernMessage } from "../../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 

@@ -5,7 +5,6 @@ import { isTavernRoomBusy, useTavernRoomContext } from "@/features/pages/taverns
 import { CharacterStatusSection } from "./characters/section";
 import { SceneOverviewSection } from "./scene-overview";
 import type { SidePanelProps } from "./types";
-export type { SidePanelHandle } from "./types";
 
 export const SidePanel = ({ bind, isOpen, onOpenChange }: SidePanelProps) => {
   const activeRoom = useTavernRoomContext((store) => store.activeRoom);

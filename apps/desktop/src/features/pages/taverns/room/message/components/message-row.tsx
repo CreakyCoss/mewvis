@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { isTavernRoomSending, useTavernRoomContext } from "@/features/pages/taverns/room/context";
-import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";
+import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets/types";
 import type { TavernRenderableMessage } from "../domain/render-model";
 import { CharacterMessage } from "./character-message";
 import { NarratorMessage } from "./narrator-message";

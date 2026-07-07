@@ -1,7 +1,4 @@
-import type {
-  TavernSystemNarrativePresetId,
-  TavernSystemNarrativePresetSettings,
-} from "@/features/pages/taverns/manage/model";
+import type { TavernSystemNarrativePresetId } from "@/features/pages/taverns/manage/model";
 
 export type TavernSystemNarrativeRuleSet = {
   narrativeBeat: string[];
@@ -71,5 +68,3 @@ export const getSelectableTavernSystemNarrativeStyles = () =>
   getOrderedSystemNarrativeStyleEntries()
     .filter((entry) => entry.selectable)
     .map(toSystemNarrativePreset);
-
-export type { TavernSystemNarrativePresetSettings };

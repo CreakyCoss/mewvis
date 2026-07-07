@@ -3,23 +3,18 @@ import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { AgentClientCollaborationEvent } from "@/agent-client/types";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import type { TavernRoomStoreState } from "@/features/pages/taverns/room/context";
+import { buildTavernMessageSegments, inferTavernMessageKind } from "@/features/pages/taverns/room/message/domain/segments";
+import { createTavernMessage } from "@/features/pages/taverns/room/message/domain/factory";
+import { parseTavernReplyText } from "@/features/pages/taverns/room/message/protocol/parse-reply";
+import { extractTavernPendingInteractionsFromMessages } from "@/features/pages/taverns/tavern/core/interaction-extractor";
+import { resolveTavernScheduledSpeakers } from "@/features/pages/taverns/tavern/core/director-scheduling";
 import {
-  buildTavernMessageSegments,
-  createTavernMessage,
-  inferTavernMessageKind,
-  parseTavernReplyText,
-} from "@/features/pages/taverns/room/message";
-import {
-  extractTavernPendingInteractionsFromMessages,
-  resolveTavernScheduledSpeakers,
   tavernCharacterAgentRoleId,
   tavernDirectorAgentRoleId,
-} from "@/features/pages/taverns/tavern/core";
-import {
-  buildTavernDirectorLoopCollaborationInput,
-  runTavernCollaboration,
-} from "@/features/pages/taverns/room/turn/collaboration";
-import { resolveTavernCharacterModel } from "@/features/pages/taverns/tavern/runtime/agent";
+} from "@/features/pages/taverns/tavern/core/agent-role";
+import { buildTavernDirectorLoopCollaborationInput } from "@/features/pages/taverns/room/turn/collaboration/adapter";
+import { runTavernCollaboration } from "@/features/pages/taverns/room/turn/collaboration/run-collaboration";
+import { resolveTavernCharacterModel } from "@/features/pages/taverns/tavern/runtime/agent/model-selection";
 import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
 import { findMissingSpeakerModel, requireTavernRuntimeModelInput, type ActiveReplyRef, type TurnMode } from "./shared";

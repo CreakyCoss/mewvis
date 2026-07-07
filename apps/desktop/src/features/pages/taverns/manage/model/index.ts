@@ -1,4 +1,4 @@
-import type { VisualPresetId } from "@/features/pages/taverns/tavern/visual-presets";
+import type { VisualPresetId } from "@/features/pages/taverns/tavern/visual-presets/types";
 import type { TavernQualityRuleId } from "@/features/pages/taverns/tavern/prompt-registry/rule-layers/types";
 
 export type TavernReplyMode = "director";

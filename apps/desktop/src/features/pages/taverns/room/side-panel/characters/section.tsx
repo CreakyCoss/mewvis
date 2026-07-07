@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { cn } from "@/lib/utils";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
-import { formatTavernCharacterRelationshipSummary } from "@/features/pages/taverns/tavern/core";
+import { formatTavernCharacterRelationshipSummary } from "@/features/pages/taverns/tavern/core/relationships";
 import { isTavernRoomBusy, useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import { getVisualPreset } from "@/features/pages/taverns/tavern/visual-presets";
 import { buildTavernCharacterMemoryText } from "../memory-summary";

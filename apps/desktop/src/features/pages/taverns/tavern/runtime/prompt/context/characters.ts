@@ -1,5 +1,5 @@
 import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
-import { formatTavernCharacterRelationships } from "../../../core";
+import { formatTavernCharacterRelationships } from "../../../core/relationships";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { escapePromptXmlText, limitPromptText } from "../shared/text";
 

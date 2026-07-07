@@ -6,7 +6,7 @@ import { WindowDragRegion } from "@/components/window-drag-region";
 import { cn } from "@/lib/utils";
 import { compactScene } from "@/features/pages/taverns/tavern/utils";
 import { getTavernSceneInstanceDisplayTitle } from "@/features/pages/taverns/tavern/runtime/scene-selectors";
-import { deleteTavernBridgeSession } from "@/features/pages/taverns/tavern/runtime/conversation";
+import { deleteTavernBridgeSession } from "@/features/pages/taverns/tavern/runtime/conversation/bridge-session";
 import {
   createIdleTavernRoomBusyState,
   isTavernRoomBusy,
@@ -18,7 +18,7 @@ import { createEmptyComposerSubmitPayload } from "./composer";
 import { SceneSelector } from "./scene-selector";
 import { deleteTavernRoomSessionState } from "./storage";
 import { submitRoomTurn } from "./turn/submit";
-import { getErrorMessage } from "./turn/submit-flow";
+import { getErrorMessage } from "./turn/submit-flow/shared";
 
 type HeaderProps = {
   isSidePanelOpen: boolean;
