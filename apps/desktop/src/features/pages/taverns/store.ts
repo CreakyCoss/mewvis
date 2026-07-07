@@ -13,7 +13,6 @@ import type { TavernTextFieldAgentRequest } from "./tavern/runtime/assistants";
 import { getTavernSystemPreset } from "./tavern/system-preset-registry";
 import type { TavernState } from "./tavern/types";
 import type { TavernRoom } from "@/features/pages/taverns/manage/model";
-import { sanitizeFileName } from "./room/quick-summary/utils";
 
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
 
@@ -21,6 +20,13 @@ const requireTavernRuntimeModelInput = (runtimeModel: RuntimeModelOption) =>
   requireRuntimeModelInput(runtimeModel, TAVERN_RUNTIME_MODEL_UNAVAILABLE);
 
 const createLocalId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
+
+const sanitizeFileName = (value: string) =>
+  value
+    .trim()
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "-")
+    .replace(/\s+/g, " ")
+    .slice(0, 96) || "untitled";
 
 export type TavernManagementValue = {
   rooms: TavernRoom[];

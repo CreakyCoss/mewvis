@@ -1,6 +1,5 @@
 import {
   ArrowLeft,
-  BookOpen,
   Bot,
   Eraser,
   History,
@@ -28,7 +27,6 @@ type HeaderProps = {
   onLoadBranchMemory: () => void;
   onRebuildRuntime?: () => void;
   onSelectSceneInstance: (sceneInstanceId: string) => void;
-  onOpenQuickSummary: () => void;
   onSceneDriveTurn: () => void;
   onToggleSceneDriveAuto: () => void;
   onToggleManagedMode: () => void;
@@ -47,13 +45,12 @@ export const Header = ({
   onLoadBranchMemory,
   onRebuildRuntime,
   onSelectSceneInstance,
-  onOpenQuickSummary,
   onSceneDriveTurn,
   onToggleSceneDriveAuto,
   onToggleManagedMode,
   onToggleSidePanel,
 }: HeaderProps) => {
-  const { activeRoom, visualPreset, isQuickSummaryBusy, isSending } = useTavernRoomContext();
+  const { activeRoom, visualPreset, isSending } = useTavernRoomContext();
   if (!activeRoom) {
     return null;
   }
@@ -191,19 +188,6 @@ export const Header = ({
             <span className="hidden text-xs font-medium sm:inline">重建</span>
           </Button>
         ) : null}
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className={tavernHeaderActionButtonClassName}
-          title={isQuickSummaryBusy ? "正在总结" : "快速总结"}
-          aria-label={isQuickSummaryBusy ? "正在总结" : "快速总结"}
-          disabled={isQuickSummaryBusy}
-          onClick={onOpenQuickSummary}
-        >
-          <BookOpen className="size-4" />
-          <span className="hidden text-xs font-medium sm:inline">总结</span>
-        </Button>
         <Button
           type="button"
           size="sm"

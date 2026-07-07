@@ -29,8 +29,6 @@ export type TavernRoomContextValue = {
   setIsGeneratingReplySuggestions: Dispatch<SetStateAction<boolean>>;
   replySuggestions: TavernReplyOption[];
   setReplySuggestions: Dispatch<SetStateAction<TavernReplyOption[]>>;
-  isQuickSummaryBusy: boolean;
-  setIsQuickSummaryBusy: Dispatch<SetStateAction<boolean>>;
   turnStatus: string;
   setTurnStatus: Dispatch<SetStateAction<string>>;
   executionSteps: ExecutionStep[];

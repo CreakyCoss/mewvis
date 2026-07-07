@@ -51,7 +51,6 @@ import { Composer } from "./composer";
 import { TavernRoomProvider, type TavernRoomContextValue } from "./context";
 import { ExecutionTrace, type ExecutionStep } from "./execution-trace";
 import { Header } from "./header";
-import { QuickSummary, type QuickSummaryHandle } from "./quick-summary";
 import { resolveTavernConversationRenderer } from "../tavern/message/renderers";
 import { SceneBriefCard } from "./scene-brief-card";
 import { SceneSelector } from "./scene-selector";
@@ -248,7 +247,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const [isSending, setIsSending] = useState(false);
   const [isGeneratingReplySuggestions, setIsGeneratingReplySuggestions] = useState(false);
   const [replySuggestions, setReplySuggestions] = useState<TavernReplyOption[]>([]);
-  const [isQuickSummaryBusy, setIsQuickSummaryBusy] = useState(false);
   const [turnStatus, setTurnStatus] = useState("");
   const [executionSteps, setExecutionSteps] = useState<ExecutionStep[]>([]);
   const [executionTraceAnchorMessageId, setExecutionTraceAnchorMessageId] = useState("");
@@ -291,7 +289,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const messageListRef = useRef<HTMLDivElement | null>(null);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
   const sidePanelRef = useRef<SidePanelHandle | null>(null);
-  const quickSummaryRef = useRef<QuickSummaryHandle | null>(null);
   const openRequestIdRef = useRef(0);
 
   const open = useCallback((options: TavernRoomOpenOptions) => {
@@ -308,7 +305,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     setIsSending(false);
     setIsGeneratingReplySuggestions(false);
     setReplySuggestions([]);
-    setIsQuickSummaryBusy(false);
     setTurnStatus("");
     setExecutionSteps([]);
     setExecutionTraceAnchorMessageId("");
@@ -569,8 +565,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       setIsGeneratingReplySuggestions,
       replySuggestions,
       setReplySuggestions,
-      isQuickSummaryBusy,
-      setIsQuickSummaryBusy,
       turnStatus,
       setTurnStatus,
       executionSteps,
@@ -607,7 +601,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       isGeneratingReplySuggestions,
       isManagedAutoRunStarted,
       isManagedModeEnabled,
-      isQuickSummaryBusy,
       isSending,
       patchExecutionStep,
       patchMessage,
@@ -661,7 +654,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   useEffect(() => {
     setIsGeneratingReplySuggestions(false);
     setReplySuggestions(activeRoom?.replyOptions ?? []);
-    setIsQuickSummaryBusy(false);
     setIsManagedAutoRunStarted(false);
     setIsSceneDriveAutoRunning(false);
     setBranchMemoryPreview(null);
@@ -858,7 +850,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       return replaceSessionStateRoom(current, nextRoom);
     });
     setReplySuggestions([]);
-    setIsQuickSummaryBusy(false);
     setIsManagedAutoRunStarted(false);
     if (managedAutoRunTimerRef.current !== null) {
       window.clearTimeout(managedAutoRunTimerRef.current);
@@ -1060,7 +1051,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       };
     });
     setReplySuggestions([]);
-    setIsQuickSummaryBusy(false);
     setIsManagedAutoRunStarted(false);
     setIsSceneDriveAutoRunning(false);
     if (managedAutoRunTimerRef.current !== null) {
@@ -1435,9 +1425,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
                 isSceneDriveAutoRunning={isSceneDriveAutoRunning}
                 isSidePanelOpen={isSidePanelOpen}
                 onBack={closeRoomSurface}
-                onOpenQuickSummary={() => {
-                  quickSummaryRef.current?.();
-                }}
                 onClearCurrentSceneMessages={() => {
                   void clearActiveSceneMessages();
                 }}
@@ -1513,7 +1500,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
             <SidePanel bind={sidePanelRef} isOpen={isSidePanelOpen} onOpenChange={setIsSidePanelOpen} />
           </div>
 
-          <QuickSummary bind={quickSummaryRef} />
           <Dialog
             open={Boolean(branchMemoryPreview)}
             onOpenChange={(open) => {

@@ -3,7 +3,6 @@ export {
   type RunTavernAssetExtractionInput,
   type TavernExtractedAssetDraft,
 } from "./asset-extractor";
-export { runTavernQuickNovel, runTavernQuickSummary, type TavernQuickSummaryInput } from "./quick-summary";
 export {
   runTavernManagedUserReply,
   runTavernUserReplySuggestions,

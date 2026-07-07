@@ -1,6 +1,5 @@
 import { useImperativeHandle, useRef, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { TavernSceneNovelizerSection } from "@/features/scene-novelizer/adapters/tavern/TavernSceneNovelizerSection";
 import { cn } from "@/lib/utils";
 import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import { CharacterStatusSection } from "./characters/section";
@@ -12,10 +11,8 @@ import type { SidePanelProps } from "./types";
 export type { SidePanelHandle } from "./types";
 
 export const SidePanel = ({ bind, isOpen, onOpenChange }: SidePanelProps) => {
-  const { activeRoom, roomCharacters, roomMessages, runtimeModel, visualPreset, workspace, isSending } =
-    useTavernRoomContext();
+  const { activeRoom, visualPreset, isSending } = useTavernRoomContext();
   const [isSceneOperationBusy, setIsSceneOperationBusy] = useState(false);
-  const [isNovelizerOperationBusy, setIsNovelizerOperationBusy] = useState(false);
   const [isPlotDataOperationBusy, setIsPlotDataOperationBusy] = useState(false);
   const [isCharacterOperationBusy, setIsCharacterOperationBusy] = useState(false);
   const plotDataSectionRef = useRef<PlotDataSectionHandle | null>(null);
@@ -39,33 +36,23 @@ export const SidePanel = ({ bind, isOpen, onOpenChange }: SidePanelProps) => {
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-5 p-4">
           <SceneOverviewSection
-            externalBusy={isNovelizerOperationBusy || isPlotDataOperationBusy || isCharacterOperationBusy}
+            externalBusy={isPlotDataOperationBusy || isCharacterOperationBusy}
             onBusyChange={setIsSceneOperationBusy}
             onOpenTipsDetail={() => plotDataSectionRef.current?.open("tips")}
           />
 
           <IllustrationHintsPreviewSection />
 
-          <TavernSceneNovelizerSection
-            room={activeRoom}
-            messages={roomMessages}
-            characters={roomCharacters}
-            workspace={workspace}
-            runtimeModel={runtimeModel}
-            disabled={isSending || isSceneOperationBusy || isPlotDataOperationBusy || isCharacterOperationBusy}
-            onBusyChange={setIsNovelizerOperationBusy}
-          />
-
           <RuntimeTimelineSection />
 
           <CharacterStatusSection
-            externalBusy={isSending || isSceneOperationBusy || isNovelizerOperationBusy || isPlotDataOperationBusy}
+            externalBusy={isSending || isSceneOperationBusy || isPlotDataOperationBusy}
             onBusyChange={setIsCharacterOperationBusy}
           />
 
           <PlotDataSection
             bind={plotDataSectionRef}
-            externalBusy={isSending || isSceneOperationBusy || isNovelizerOperationBusy || isCharacterOperationBusy}
+            externalBusy={isSending || isSceneOperationBusy || isCharacterOperationBusy}
             onBusyChange={setIsPlotDataOperationBusy}
           />
         </div>
