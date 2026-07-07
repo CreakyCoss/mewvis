@@ -1,7 +1,6 @@
 import type {
   TavernPromptBlock,
   TavernReplyMode,
-  TavernRoleAssignmentDefinition,
   TavernRoom,
   TavernRoomSettings,
 } from "@/features/pages/taverns/manage/model";
@@ -65,9 +64,6 @@ export const formatProgressJson = (value: unknown) => JSON.stringify(value, null
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value && typeof value === "object" && !Array.isArray(value));
 
-const hasStringField = (value: Record<string, unknown>, field: string) =>
-  typeof value[field] === "string" && value[field].trim().length > 0;
-
 export const parseProgressJsonArray = <T>(
   raw: string,
   label: string,
@@ -108,12 +104,6 @@ export const parseProgressJsonArray = <T>(
   return { ok: true, value: parsed };
 };
 
-export const isRoleAssignmentDefinitionDraft = (item: unknown): item is TavernRoleAssignmentDefinition =>
-  isRecord(item) &&
-  hasStringField(item, "id") &&
-  hasStringField(item, "label") &&
-  (item.count === undefined || typeof item.count === "number");
-
 export const getErrorMessage = (error: unknown) => {
   if (error instanceof Error) {
     return error.message;
@@ -149,14 +139,11 @@ const cloneTavernDirectorProfile = (
     : undefined;
 
 export const cloneTavernRoomSettings = (settings: TavernRoomSettings): TavernRoomSettings => ({
-  ...settings,
+  immersiveDescriptionEnabled: settings.immersiveDescriptionEnabled,
+  directorMaxSpeakers: settings.directorMaxSpeakers,
+  directorLoop: { ...settings.directorLoop },
   interactionQualityRuleIds: [...settings.interactionQualityRuleIds],
   directorNarrativeControl: { ...settings.directorNarrativeControl },
-  directorLoop: { ...settings.directorLoop },
-  continuation: { ...settings.continuation },
-  replyOptions: { ...settings.replyOptions },
-  randomEvents: { ...settings.randomEvents },
-  illustrationHints: { ...settings.illustrationHints },
   directorScheduling: {
     ...settings.directorScheduling,
     speakerMotivation: {
@@ -166,17 +153,6 @@ export const cloneTavernRoomSettings = (settings: TavernRoomSettings): TavernRoo
     profile: cloneTavernDirectorProfile(settings.directorScheduling.profile),
     fixedOrder: {
       ...settings.directorScheduling.fixedOrder,
-    },
-  },
-  informationPolicy: {
-    ...settings.informationPolicy,
-    hiddenFacts: { ...settings.informationPolicy.hiddenFacts },
-    roleAssignment: {
-      ...settings.informationPolicy.roleAssignment,
-      opening: {
-        ...settings.informationPolicy.roleAssignment.opening,
-      },
-      rolePool: settings.informationPolicy.roleAssignment.rolePool.map((role) => ({ ...role })),
     },
   },
 });
@@ -197,50 +173,3 @@ export const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
 });
 
 export const prepareTavernRoomForSave = (room: TavernRoom): TavernRoom => cloneTavernRoom(room);
-
-export const applyInformationPolicyModePreset = (
-  mode: TavernRoomSettings["informationPolicy"]["mode"],
-  current: TavernRoomSettings["informationPolicy"],
-): TavernRoomSettings["informationPolicy"] => {
-  if (mode === "open") {
-    return {
-      ...current,
-      mode,
-      uiDefaultView: "reveal",
-      hideCharacterThoughts: false,
-      revealThoughts: "manual",
-      hiddenFacts: {
-        ...current.hiddenFacts,
-        enabled: false,
-        reveal: "manual",
-      },
-      roleAssignment: {
-        ...current.roleAssignment,
-        enabled: false,
-        strategy: "manual",
-        rolePool: current.roleAssignment.rolePool.map((role) => ({ ...role })),
-      },
-    };
-  }
-
-  return {
-    ...current,
-    mode,
-    uiDefaultView: "public",
-    hideCharacterThoughts: true,
-    revealThoughts: "manual",
-    hiddenFacts: {
-      ...current.hiddenFacts,
-      enabled: true,
-      defaultVisibility: "director",
-      reveal: "manual",
-    },
-    roleAssignment: {
-      ...current.roleAssignment,
-      enabled: mode === "social_deduction" ? true : current.roleAssignment.enabled,
-      strategy: mode === "social_deduction" ? "director_random" : current.roleAssignment.strategy,
-      includeUser: mode === "social_deduction" ? true : current.roleAssignment.includeUser,
-      rolePool: current.roleAssignment.rolePool.map((role) => ({ ...role })),
-    },
-  };
-};

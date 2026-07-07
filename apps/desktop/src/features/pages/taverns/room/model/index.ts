@@ -1,7 +1,6 @@
 import type { VisualPresetId } from "@/features/pages/taverns/tavern/visual-presets";
-import type { TavernMessage, TavernWorkflowTraceRun } from "@/features/pages/taverns/tavern/types";
+import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
 import type {
-  TavernAssetDraft,
   TavernCharacter,
   TavernCharacterPrivateStatus,
   TavernCharacterPublicStatus,
@@ -63,15 +62,6 @@ export type TavernStoryBinding = {
   boundAt: number;
 };
 
-export type TavernIllustrationHint = {
-  id: string;
-  turnId?: string;
-  source: "director";
-  prompt: string;
-  sourceMessageIds: string[];
-  createdAt: number;
-};
-
 export type TavernScene = {
   id: string;
   order: number;
@@ -91,8 +81,6 @@ export type TavernScene = {
   replyOptions: TavernReplyOption[];
   characterConfigs?: Record<string, TavernRoomCharacterConfig>;
   characterMemories: Record<string, string>;
-  illustrationHints: TavernIllustrationHint[];
-  assetDrafts: TavernAssetDraft[];
   characterIds: string[];
   activeCharacterId: string;
   createdAt: number;
@@ -199,8 +187,6 @@ export type TavernRuntimeRoom = TavernRoomConfig & {
   characterMemories: Record<string, string>;
   localCharacters?: TavernCharacter[];
   lorebookEntries: TavernLorebookEntry[];
-  illustrationHints: TavernIllustrationHint[];
-  assetDrafts: TavernAssetDraft[];
   characterIds: string[];
   activeCharacterId: string;
   userPersonaName: string;
@@ -209,5 +195,4 @@ export type TavernRuntimeRoom = TavernRoomConfig & {
 export type TavernRoomSessionState = {
   room: TavernRuntimeRoom | null;
   messages: TavernMessage[];
-  workflowTraces: TavernWorkflowTraceRun[];
 };

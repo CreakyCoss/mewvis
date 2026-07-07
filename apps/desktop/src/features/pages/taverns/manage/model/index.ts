@@ -185,52 +185,13 @@ export type TavernLorebookEntry = {
   updatedAt: number;
 };
 
-export type TavernCharacterMemoryDraft = {
-  id: string;
-  characterId: string;
-  note: string;
-  visibility: "public" | "hidden" | "character";
-  secretId?: string;
-  revealToCharacterIds: string[];
-};
-
-export type TavernSceneMemoryDraft = {
-  id: string;
-  note: string;
-  visibility: "public" | "hidden" | "director";
-  secretId?: string;
-};
-
-export type TavernLorebookDraft = {
-  id: string;
-  title: string;
-  content: string;
-  keywords: string[];
-  alwaysOn: boolean;
-};
-
-export type TavernAssetDraft = {
-  id: string;
-  sourceMessageIds: string[];
-  sceneMemories: TavernSceneMemoryDraft[];
-  characterMemories: TavernCharacterMemoryDraft[];
-  lorebookEntries: TavernLorebookDraft[];
-  createdAt: number;
-  updatedAt: number;
-};
-
 export type TavernRoomSettings = {
   immersiveDescriptionEnabled: boolean;
-  showExecutionTrace: boolean;
-  autoAssetExtractionEnabled: boolean;
-  assetExtractionIntervalTurns: number;
-  maxAssetDrafts: number;
   directorMaxSpeakers: number;
   directorLoop: {
     enabled: boolean;
     maxRounds: number;
   };
-  agentKnowledgeCompactIntervalTurns: number;
   interactionQualityRuleIds: TavernQualityRuleId[];
   directorNarrativeControl: {
     agencyMode: "player_protagonist" | "story_directive" | "scene_drive";
@@ -263,27 +224,8 @@ export type TavernRoomSettings = {
       includeUser: boolean;
       userPosition: "first" | "last";
     };
-    autoContinuation: "enabled" | "disabled" | "disabledForFixedOrder";
     instruction: string;
   };
-  continuation: {
-    enabled: boolean;
-    maxAutoContinuationRounds: number;
-    maxSpeakersPerContinuation: number;
-    stopWhenUserTargeted: boolean;
-  };
-  replyOptions: {
-    enabled: boolean;
-    count: number;
-  };
-  randomEvents: {
-    enabled: boolean;
-    probability: number;
-  };
-  illustrationHints: {
-    enabled: boolean;
-  };
-  informationPolicy: TavernInformationPolicy;
 };
 
 export type TavernSceneStatus = {
@@ -342,42 +284,6 @@ export type TavernReplyOption = {
   respondsToInteractionId?: string;
   targetCharacterIds: string[];
   intent: "answer" | "ask" | "act" | "interrupt" | "wait" | "inspect";
-};
-
-export type TavernInformationPolicyMode = "open" | "mystery" | "social_deduction" | "custom";
-
-export type TavernInformationRevealMode = "manual" | "never";
-
-export type TavernRoleAssignmentDefinition = {
-  id: string;
-  label: string;
-  description?: string;
-  factionId?: string;
-  factionLabel?: string;
-  count: number;
-};
-
-export type TavernInformationPolicy = {
-  mode: TavernInformationPolicyMode;
-  uiDefaultView: "public" | "reveal" | "director";
-  hideCharacterThoughts: boolean;
-  revealThoughts: TavernInformationRevealMode;
-  hiddenFacts: {
-    enabled: boolean;
-    defaultVisibility: "director" | "hidden" | "debug";
-    reveal: TavernInformationRevealMode;
-  };
-  roleAssignment: {
-    enabled: boolean;
-    strategy: "manual" | "director_random";
-    includeUser: boolean;
-    revealToAssignedCharacter: boolean;
-    revealFactionMembers: boolean;
-    rolePool: TavernRoleAssignmentDefinition[];
-    opening: {
-      autoStart: boolean;
-    };
-  };
 };
 
 export type TavernRoom = {

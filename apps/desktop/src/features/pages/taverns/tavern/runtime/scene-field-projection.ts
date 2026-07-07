@@ -21,8 +21,6 @@ export type TavernProjectableScene = Pick<
   | "replyOptions"
   | "characterConfigs"
   | "characterMemories"
-  | "illustrationHints"
-  | "assetDrafts"
   | "characterIds"
   | "activeCharacterId"
 >;
@@ -46,11 +44,6 @@ const projectSceneInteractionFieldsToRoom = (scene: TavernProjectableScene) => (
   replyOptions: scene.replyOptions,
 });
 
-const projectSceneAssetFieldsToRoom = (scene: TavernProjectableScene) => ({
-  illustrationHints: scene.illustrationHints,
-  assetDrafts: scene.assetDrafts,
-});
-
 const projectSceneCharacterFieldsToRoom = (scene: TavernProjectableScene) => ({
   characterConfigs: scene.characterConfigs ?? {},
   characterMemories: scene.characterMemories,
@@ -61,7 +54,6 @@ const projectSceneCharacterFieldsToRoom = (scene: TavernProjectableScene) => ({
 export const projectTavernSceneFieldsOntoRoom = (scene: TavernProjectableScene) => ({
   ...projectSceneNarrativeFieldsToRoom(scene),
   ...projectSceneInteractionFieldsToRoom(scene),
-  ...projectSceneAssetFieldsToRoom(scene),
   ...projectSceneCharacterFieldsToRoom(scene),
 });
 
@@ -84,11 +76,6 @@ const projectRoomInteractionFieldsToScene = (room: TavernRoom) => ({
   replyOptions: room.replyOptions,
 });
 
-const projectRoomAssetFieldsToScene = (room: TavernRoom) => ({
-  illustrationHints: room.illustrationHints,
-  assetDrafts: room.assetDrafts,
-});
-
 const projectRoomCharacterFieldsToScene = (room: TavernRoom) => ({
   characterConfigs: room.characterConfigs ?? {},
   characterMemories: room.characterMemories,
@@ -103,7 +90,6 @@ export const syncTavernSceneInstanceFieldsFromRoom = (
   ...activeInstance,
   ...projectRoomNarrativeFieldsToScene(room),
   ...projectRoomInteractionFieldsToScene(room),
-  ...projectRoomAssetFieldsToScene(room),
   ...projectRoomCharacterFieldsToScene(room),
   updatedAt: room.updatedAt,
 });

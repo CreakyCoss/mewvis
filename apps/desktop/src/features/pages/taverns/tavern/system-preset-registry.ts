@@ -51,27 +51,6 @@ export type TavernSystemPresetScene = {
     enabled?: boolean;
     alwaysOn?: boolean;
   }>;
-  assetDrafts?: Array<{
-    sourceMessageIds?: string[];
-    sceneMemories?: Array<{
-      note: string;
-      visibility?: unknown;
-      secretId?: string;
-    }>;
-    characterMemories?: Array<{
-      characterId: string;
-      note: string;
-      visibility?: unknown;
-      secretId?: string;
-      revealToCharacterIds?: string[];
-    }>;
-    lorebookEntries?: Array<{
-      title: string;
-      content: string;
-      keywords?: string[];
-      alwaysOn?: boolean;
-    }>;
-  }>;
   characterIds?: string[];
   activeCharacterId?: string;
 };
@@ -104,27 +83,6 @@ export type TavernSystemPresetRoom = {
     keywords?: string[];
     enabled?: boolean;
     alwaysOn?: boolean;
-  }>;
-  assetDrafts?: Array<{
-    sourceMessageIds?: string[];
-    sceneMemories?: Array<{
-      note: string;
-      visibility?: unknown;
-      secretId?: string;
-    }>;
-    characterMemories?: Array<{
-      characterId: string;
-      note: string;
-      visibility?: unknown;
-      secretId?: string;
-      revealToCharacterIds?: string[];
-    }>;
-    lorebookEntries?: Array<{
-      title: string;
-      content: string;
-      keywords?: string[];
-      alwaysOn?: boolean;
-    }>;
   }>;
   characterIds: string[];
   activeCharacterId: string;

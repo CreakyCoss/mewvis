@@ -6,9 +6,7 @@ import {
   disposeLedgerWorkers,
   readLedger,
   rebuildLedger,
-  rebuildAgentLedgerSession,
   summarizeLedger,
-  compactLedger,
 } from "@/features/ai/components/conversation-ledger/api";
 import type { LedgerResult } from "@/features/ai/components/conversation-ledger/types";
 import { tavernBridgeSessionRootDir, tavernBridgeSessionRootDirsForRoom } from "../../core";
@@ -162,47 +160,4 @@ export const summarizeTavernBridgeSession = async ({
     runtimeModel,
     summaryInstruction,
     maxSummaryChars,
-  });
-
-export const compactTavernAgentKnowledge = async ({
-  workspacePath,
-  room,
-  runtimeModel,
-  agentRoleId,
-  compactInstruction,
-}: {
-  workspacePath: string;
-  room: TavernRoom;
-  runtimeModel?: RuntimeModelInput | null;
-  agentRoleId: string;
-  compactInstruction?: string | null;
-}) =>
-  compactLedger({
-    ...tavernBridgeSessionInput({ workspacePath, room }),
-    agentRoleId,
-    runtimeModel,
-    compactInstruction,
-  });
-
-export const rebuildTavernAgentKnowledge = async ({
-  workspacePath,
-  room,
-  runtimeModel,
-  agentRoleId,
-  rebuildInstruction,
-  userMessage,
-}: {
-  workspacePath: string;
-  room: TavernRoom;
-  runtimeModel?: RuntimeModelInput | null;
-  agentRoleId: string;
-  rebuildInstruction?: string | null;
-  userMessage?: string | null;
-}) =>
-  rebuildAgentLedgerSession({
-    ...tavernBridgeSessionInput({ workspacePath, room }),
-    agentRoleId,
-    runtimeModel,
-    rebuildInstruction,
-    userMessage,
   });

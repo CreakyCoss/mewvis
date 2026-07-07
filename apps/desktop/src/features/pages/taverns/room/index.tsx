@@ -45,11 +45,9 @@ import { deleteTavernBridgeSession } from "../tavern/runtime/conversation";
 import type { TavernMessage, TavernReferencedFile } from "../tavern/types";
 import type { TavernReplyOption } from "@/features/pages/taverns/manage/model";
 import { runTavernUserReplySuggestions } from "../tavern/runtime/assistants";
-import { runTavernDirectorRoleAssignment } from "../tavern/runtime/director";
 import { uniqueFilesByPath } from "../tavern/utils";
 import { Composer } from "./composer";
 import { TavernRoomProvider, type TavernRoomContextValue } from "./context";
-import { ExecutionTrace, type ExecutionStep } from "./execution-trace";
 import { Header } from "./header";
 import { resolveTavernConversationRenderer } from "../tavern/message/renderers";
 import { SceneBriefCard } from "./scene-brief-card";
@@ -60,7 +58,6 @@ import { submitRoomTurn } from "./turn/submit";
 
 const REFERENCE_SUGGESTION_LIMIT = 8;
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
-const TAVERN_ROLE_ASSIGNMENT_OPENING_TIMEOUT_MS = 90_000;
 const TAVERN_SCENE_DRIVE_AUTO_INTERVAL_MS = 900;
 const TAVERN_SCENE_DRIVE_AUTO_MAX_TURNS = 20;
 const fullScreenDialogContentClassName =
@@ -68,23 +65,6 @@ const fullScreenDialogContentClassName =
 
 const requireTavernRuntimeModelInput = (runtimeModel: RuntimeModelOption) =>
   requireRuntimeModelInput(runtimeModel, TAVERN_RUNTIME_MODEL_UNAVAILABLE);
-
-const withTavernTimeout = async <T,>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> => {
-  let timeoutId: number | undefined;
-
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<never>((_, reject) => {
-        timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timeoutId !== undefined) {
-      window.clearTimeout(timeoutId);
-    }
-  }
-};
 
 const getErrorMessage = (error: unknown) => {
   if (error instanceof Error) {
@@ -193,7 +173,6 @@ const EMPTY_WORKSPACE: Workspace = {
 const createEmptyTavernSessionState = (): TavernRoomSessionState => ({
   room: null,
   messages: [],
-  workflowTraces: [],
 });
 
 const createTavernRoomInitialState = ({
@@ -217,7 +196,6 @@ const createTavernRoomInitialState = ({
   return {
     room: nextRoom,
     messages,
-    workflowTraces: [],
   } satisfies TavernRoomSessionState;
 };
 
@@ -246,8 +224,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const [isGeneratingReplySuggestions, setIsGeneratingReplySuggestions] = useState(false);
   const [replySuggestions, setReplySuggestions] = useState<TavernReplyOption[]>([]);
   const [turnStatus, setTurnStatus] = useState("");
-  const [executionSteps, setExecutionSteps] = useState<ExecutionStep[]>([]);
-  const [executionTraceAnchorMessageId, setExecutionTraceAnchorMessageId] = useState("");
   const activeRoom = useMemo(() => {
     const stateRoom = getSessionStateRoom(state, openOptions?.room.id);
     const sourceRoom = stateRoom ?? openOptions?.room ?? null;
@@ -280,8 +256,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const draftInputRef = useRef<HTMLTextAreaElement | null>(null);
   const sceneDriveAutoTimerRef = useRef<number | null>(null);
   const sceneDriveAutoRunCountRef = useRef(0);
-  const roleAssignmentRoomIdsRef = useRef<Set<string>>(new Set());
-  const roleAssignmentRunIdRef = useRef(0);
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
   const messageListRef = useRef<HTMLDivElement | null>(null);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
@@ -301,8 +275,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     setIsGeneratingReplySuggestions(false);
     setReplySuggestions([]);
     setTurnStatus("");
-    setExecutionSteps([]);
-    setExecutionTraceAnchorMessageId("");
     setIsSidePanelOpen(false);
     setIsSceneDriveAutoRunning(false);
     setBranchMemoryPreview(null);
@@ -393,26 +365,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       isCancelled = true;
     };
   }, [workspace.path]);
-
-  const resetExecutionTrace = useCallback((steps: ExecutionStep[]) => {
-    setExecutionSteps(steps);
-  }, []);
-
-  const patchExecutionStep = useCallback((stepId: string, patch: Partial<Omit<ExecutionStep, "id">>) => {
-    setExecutionSteps((current) => current.map((step) => (step.id === stepId ? { ...step, ...patch } : step)));
-  }, []);
-
-  const appendExecutionStep = useCallback((step: ExecutionStep) => {
-    setExecutionSteps((current) => [...current, step]);
-  }, []);
-
-  const upsertExecutionStep = useCallback((step: ExecutionStep) => {
-    setExecutionSteps((current) =>
-      current.some((item) => item.id === step.id)
-        ? current.map((item) => (item.id === step.id ? { ...item, ...step } : item))
-        : [...current, step],
-    );
-  }, []);
 
   const patchRoom = useCallback<TavernRoomContextValue["patchRoom"]>(
     (roomId, patch) => {
@@ -554,20 +506,12 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       setReplySuggestions,
       turnStatus,
       setTurnStatus,
-      executionSteps,
-      setExecutionSteps,
-      executionTraceAnchorMessageId,
-      setExecutionTraceAnchorMessageId,
       activeRoom,
       visualPreset,
       characterById,
       roomCharacters,
       roomMessages,
       activeCharacter,
-      resetExecutionTrace,
-      patchExecutionStep,
-      appendExecutionStep,
-      upsertExecutionStep,
       patchRoom,
       appendMessagesToRoom,
       patchMessage,
@@ -577,30 +521,24 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     [
       activeCharacter,
       activeRoom,
-      appendExecutionStep,
       appendMessagesToRoom,
       characterById,
       draft,
       draftCursor,
       error,
-      executionSteps,
-      executionTraceAnchorMessageId,
       isGeneratingReplySuggestions,
       isSending,
-      patchExecutionStep,
       patchMessage,
       patchRoom,
       removeMessage,
       replySuggestions,
       reportError,
-      resetExecutionTrace,
       roomCharacters,
       roomMessages,
       runtimeModel,
       setState,
       state,
       turnStatus,
-      upsertExecutionStep,
       visualPreset,
       workspace,
     ],
@@ -622,7 +560,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
             messages: roomMessages,
             characters: roomCharacters,
             userPersonaName: activeRoom.userPersonaName,
-            room: activeRoom,
           })
         : [],
     [activeRoom, roomCharacters, roomMessages],
@@ -669,7 +606,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   }, [
     activeRoom?.id,
     activeRoom?.activeSceneInstanceId,
-    executionSteps.length,
     latestMessage?.content,
     latestMessage?.id,
     renderableRoomMessages.length,
@@ -724,94 +660,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     () => fileReferenceMatches.filter((match) => match.matches.length > 1),
     [fileReferenceMatches],
   );
-
-  useEffect(() => {
-    if (!isOpen || !activeRoom) {
-      return;
-    }
-
-    const roleAssignment = activeRoom.settings.informationPolicy.roleAssignment;
-    if (
-      !roleAssignment.enabled ||
-      roleAssignment.strategy !== "director_random" ||
-      !roleAssignment.opening.autoStart ||
-      roleAssignmentRoomIdsRef.current.has(activeRoom.id) ||
-      !runtimeModel ||
-      roomCharacters.length === 0
-    ) {
-      return;
-    }
-
-    let isCancelled = false;
-    const runId = roleAssignmentRunIdRef.current + 1;
-    roleAssignmentRunIdRef.current = runId;
-    roleAssignmentRoomIdsRef.current.add(activeRoom.id);
-    setIsSending(true);
-    setError("");
-    setTurnStatus("导演正在实时分配本局身份...");
-
-    withTavernTimeout(
-      runTavernDirectorRoleAssignment({
-        workspacePath: workspace.path,
-        runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
-        room: activeRoom,
-        characters: roomCharacters,
-      }),
-      TAVERN_ROLE_ASSIGNMENT_OPENING_TIMEOUT_MS,
-      "导演实时分配身份超时，请重试或稍后再进入酒馆。",
-    )
-      .then((assignment) => {
-        if (isCancelled || roleAssignmentRunIdRef.current !== runId) {
-          return;
-        }
-
-        const narratorMessages = [assignment.openingNarrator?.trim(), assignment.dayAnnouncement?.trim()].filter(
-          (content): content is string => Boolean(content),
-        );
-        if (narratorMessages.length > 0) {
-          appendMessagesToRoom(
-            activeRoom.id,
-            narratorMessages.map((content) =>
-              createTavernMessage({
-                roomId: activeRoom.id,
-                role: "narrator",
-                content,
-                status: "done",
-              }),
-            ),
-          );
-        }
-
-        patchRoom(activeRoom.id, {
-          updatedAt: Date.now(),
-        });
-        setTurnStatus("身份已分配，按当前阶段继续。");
-      })
-      .catch((assignmentError) => {
-        if (roleAssignmentRunIdRef.current !== runId) {
-          return;
-        }
-
-        roleAssignmentRoomIdsRef.current.delete(activeRoom.id);
-        if (!isCancelled) {
-          setError(`导演实时分配身份失败：${getErrorMessage(assignmentError)}`);
-          setTurnStatus("");
-        }
-      })
-      .finally(() => {
-        if (roleAssignmentRunIdRef.current === runId) {
-          setIsSending(false);
-          if (isCancelled) {
-            roleAssignmentRoomIdsRef.current.delete(activeRoom.id);
-            setTurnStatus("");
-          }
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [activeRoom, appendMessagesToRoom, patchRoom, roomCharacters, runtimeModel, isOpen, workspace.path]);
 
   const selectRoomSceneInstance = useCallback((roomId: string, sceneInstanceId: string) => {
     setState((current) => {
@@ -875,11 +723,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
 
     if (!activeRoom) {
       setError("当前房间还没有可生成回复的场景。");
-      return;
-    }
-
-    if (!activeRoom.settings.replyOptions.enabled) {
-      setError("当前房间已关闭候选回复。");
       return;
     }
 
@@ -1018,7 +861,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       return {
         ...(nextRoom ? replaceSessionStateRoom(current, nextRoom) : current),
         messages: [resetMessage],
-        workflowTraces: [],
       };
     });
     setReplySuggestions([]);
@@ -1223,37 +1065,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     );
   }
 
-  const latestPersistedWorkflowTrace = state.workflowTraces.at(-1) ?? null;
-  const persistedExecutionSteps: ExecutionStep[] = latestPersistedWorkflowTrace
-    ? latestPersistedWorkflowTrace.steps.map((step) => ({
-        id: `persisted:${latestPersistedWorkflowTrace.workflowRunId}:${step.id}`,
-        label: step.label,
-        detail: step.detail,
-        status: step.status,
-      }))
-    : [];
-  const renderedExecutionSteps = executionSteps.length > 0 ? executionSteps : persistedExecutionSteps;
-  const renderedExecutionTraceAnchorMessageId =
-    executionSteps.length > 0
-      ? executionTraceAnchorMessageId
-      : (latestPersistedWorkflowTrace?.anchorMessageId ?? executionTraceAnchorMessageId);
-  const renderedExecutionTraceStatusText =
-    executionSteps.length > 0
-      ? turnStatus
-      : latestPersistedWorkflowTrace
-        ? `${latestPersistedWorkflowTrace.scopeLabel ?? latestPersistedWorkflowTrace.workflowId} · ${
-            latestPersistedWorkflowTrace.status === "done"
-              ? "已保存"
-              : latestPersistedWorkflowTrace.status === "error"
-                ? "失败"
-                : "运行中"
-          }`
-        : turnStatus;
-  const shouldShowExecutionTrace =
-    (activeRoom.settings.showExecutionTrace || isSending) && renderedExecutionSteps.length > 0;
-  const hasExecutionTraceAnchor =
-    shouldShowExecutionTrace &&
-    renderableRoomMessages.some((message) => message.id === renderedExecutionTraceAnchorMessageId);
   const backgroundStyle = {
     backgroundImage: `${visualPreset.tavern.backgroundOverlay}, url(${visualPreset.tavern.backgroundImage})`,
     backgroundPosition: visualPreset.tavern.backgroundPosition,
@@ -1372,13 +1183,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
                   />
                   <Conversation
                     messages={renderableRoomMessages}
-                    shouldShowExecutionTrace={shouldShowExecutionTrace}
-                    executionTraceAnchorMessageId={renderedExecutionTraceAnchorMessageId}
-                    hasExecutionTraceAnchor={hasExecutionTraceAnchor}
                     isSidePanelOpen={isSidePanelOpen}
-                    renderExecutionTrace={() => (
-                      <ExecutionTrace steps={renderedExecutionSteps} statusText={renderedExecutionTraceStatusText} />
-                    )}
                     messageEndRef={messageEndRef}
                   />
                 </div>

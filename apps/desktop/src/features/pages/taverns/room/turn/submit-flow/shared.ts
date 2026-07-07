@@ -9,9 +9,13 @@ import {
   orderTavernRoundParticipants,
   orderTavernRoundSpeakers,
 } from "@/features/pages/taverns/tavern/core";
+import {
+  projectTavernSceneOntoRoom,
+  syncTavernRoomActiveScene,
+} from "@/features/pages/taverns/tavern/runtime/active-scene-runtime";
 import { resolveTavernCharacterModel } from "@/features/pages/taverns/tavern/runtime/agent";
 import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
-import type { TavernAssetDraft, TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
 
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
 
@@ -30,48 +34,10 @@ export const getErrorMessage = (error: unknown) => {
   return "未知错误";
 };
 
-export const hasAssetDraftItems = (draft: TavernAssetDraft) =>
-  draft.characterMemories.some((memory) => memory.characterId.trim() && memory.note.trim()) ||
-  draft.lorebookEntries.some((entry) => entry.title.trim() && entry.content.trim());
-
 export const getRoomActiveSceneId = (room: TavernRoom) => room.activeSceneId ?? room.scenes?.[0]?.id ?? room.id;
 
 export const getRoomActiveSceneInstanceId = (room: TavernRoom) =>
   room.activeSceneInstanceId ?? getRoomActiveSceneId(room);
-
-export const shouldAutoExtractAssets = (room: TavernRoom, messagesAfterUser: TavernMessage[]) => {
-  if (!room.settings.autoAssetExtractionEnabled) {
-    return false;
-  }
-
-  if (room.assetDrafts.length >= room.settings.maxAssetDrafts) {
-    return false;
-  }
-
-  const userTurnCount = messagesAfterUser.filter((message) => message.role === "user").length;
-  return userTurnCount > 0 && userTurnCount % room.settings.assetExtractionIntervalTurns === 0;
-};
-
-export const shouldCompactCharacterKnowledgeAfterTurn = (
-  room: TavernRoom,
-  messages: TavernMessage[],
-  characterId: string,
-) => {
-  const interval = room.settings.agentKnowledgeCompactIntervalTurns;
-  if (!interval || interval <= 0) {
-    return false;
-  }
-
-  const completedTurns = messages.filter(
-    (message) =>
-      message.role === "character" &&
-      message.characterId === characterId &&
-      message.status !== "streaming" &&
-      message.status !== "error" &&
-      message.content.trim(),
-  ).length;
-  return completedTurns > 0 && completedTurns % interval === 0;
-};
 
 export type TavernPendingInteractions = NonNullable<TavernRoom["pendingInteractions"]>;
 export type RequireSpeakerRuntimeModel = (speaker: TavernCharacter) => RuntimeModelOption;
@@ -95,13 +61,33 @@ export type TurnRuntimeState = {
   turnMessages: TavernMessage[];
   turnAnchorMessage: TavernMessage;
   visibleUserMessage: TavernMessage | null;
-  shouldRunAssetExtraction: boolean;
-  shouldShowExecutionTrace: boolean;
 };
 
 export type ActiveReplyRef = {
   message: TavernMessage | null;
   text: string;
+};
+
+export const syncOpenPendingInteractions = ({
+  ctx,
+  room,
+  openPendingInteractions,
+}: {
+  ctx: TavernRoomContextValue;
+  room: TavernRoom;
+  openPendingInteractions: TavernPendingInteractions;
+}) => {
+  ctx.setState((current) => ({
+    ...current,
+    room:
+      current.room?.id === room.id
+        ? syncTavernRoomActiveScene({
+            ...projectTavernSceneOntoRoom(current.room),
+            pendingInteractions: openPendingInteractions,
+            updatedAt: Date.now(),
+          })
+        : current.room,
+  }));
 };
 
 export const resolveTurnMode = (triggerType: TurnTriggerType = "user"): TurnMode => {
@@ -305,13 +291,11 @@ export const createInitialTurnRuntime = ({
   roomMessages,
   turnAnchorMessage,
   visibleUserMessage,
-  mode,
 }: {
   room: TavernRoom;
   roomMessages: TavernMessage[];
   turnAnchorMessage: TavernMessage;
   visibleUserMessage: TavernMessage | null;
-  mode: TurnMode;
 }): TurnRuntimeState => {
   const runtimeMessages = visibleUserMessage ? [...roomMessages, visibleUserMessage] : [...roomMessages];
   const turnMessages = visibleUserMessage ? [visibleUserMessage] : [];
@@ -322,26 +306,18 @@ export const createInitialTurnRuntime = ({
     turnMessages,
     turnAnchorMessage,
     visibleUserMessage,
-    shouldRunAssetExtraction: shouldAutoExtractAssets(room, runtimeMessages),
-    shouldShowExecutionTrace: room.settings.showExecutionTrace || mode.isDirectorLikeMode,
   };
 };
 
-export const prepareTurnTraceAndUserMessage = ({
+export const prepareTurnUserMessage = ({
   ctx,
   room,
-  turnAnchorMessage,
   visibleUserMessage,
-  references,
-  runtime,
   mode,
 }: {
   ctx: TavernRoomContextValue;
   room: TavernRoom;
-  turnAnchorMessage: TavernMessage;
   visibleUserMessage: TavernMessage | null;
-  references: TavernReferencedFile[];
-  runtime: TurnRuntimeState;
   mode: TurnMode;
 }) => {
   // 提交流程真正开始后才清空输入和落地用户消息，保证前置失败不会改动页面。
@@ -352,33 +328,11 @@ export const prepareTurnTraceAndUserMessage = ({
         ? "导演正在准备角色状态..."
         : "正在准备对话...",
   );
-  if (runtime.shouldShowExecutionTrace) {
-    ctx.setExecutionTraceAnchorMessageId(visibleUserMessage?.id ?? turnAnchorMessage.id);
-    ctx.resetExecutionTrace([
-      {
-        id: "context",
-        label: mode.isSceneDriveMode ? "准备自推" : "准备对话",
-        detail: mode.isSceneDriveMode ? "读取本轮导演方向与引用文件。" : "读取本轮用户输入与引用文件。",
-        status: "running",
-      },
-    ]);
-  } else {
-    ctx.setExecutionTraceAnchorMessageId("");
-    ctx.resetExecutionTrace([]);
-  }
   ctx.setDraft("");
   ctx.setDraftCursor(0);
   if (visibleUserMessage) {
     ctx.appendMessagesToRoom(room.id, [visibleUserMessage]);
   }
-  ctx.patchExecutionStep("context", {
-    status: "done",
-    detail: references.length
-      ? `已加载 ${references.length} 个引用文件。`
-      : mode.isSceneDriveMode
-        ? "已准备自推动轮次。"
-        : "已准备本轮对话。",
-  });
 };
 
 export const handleTurnFailure = ({
@@ -393,9 +347,6 @@ export const handleTurnFailure = ({
   activeReplyRef: ActiveReplyRef;
 }) => {
   const message = getErrorMessage(error);
-  ctx.setExecutionSteps((current) =>
-    current.map((step) => (step.status === "running" ? { ...step, status: "error", detail: message } : step)),
-  );
   if (activeReplyRef.message) {
     ctx.patchMessage(activeReplyRef.message.id, {
       content: activeReplyRef.text.trim()

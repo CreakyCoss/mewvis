@@ -9,10 +9,6 @@ const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-tavern-collaboration-adap
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
 const adapterPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/runtime/collaboration/index.ts");
-const collaborationTracePath = resolve(
-  workspaceRoot,
-  "src/features/pages/taverns/room/turn/submit-flow/collaboration-trace.ts",
-);
 const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/factories/manual-factories.ts");
 const messagePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/message/index.ts");
 const corePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/core/index.ts");
@@ -24,9 +20,6 @@ writeFileSync(
     buildTavernDirectorLoopCollaborationInput,
     buildTavernSpeakerCollaborationInput,
   } from ${JSON.stringify(adapterPath)};
-  import {
-    applyTavernCollaborationTraceEvent,
-  } from ${JSON.stringify(collaborationTracePath)};
   import {
     createTavernCharacter,
     createTavernRoom,
@@ -53,8 +46,100 @@ writeFileSync(
     catalogModelId: "mock-model",
     modelId: "mock-model",
   };
+  const createRuntimeRoom = (roomBase: any, characters: any[]) => {
+    const createdAt = Date.now();
+    const sceneId = roomBase.id + "-scene";
+    const nodeId = roomBase.id + "-node";
+    const sceneInstanceId = roomBase.id + "-scene-instance";
+    const characterIds = characters.map((character) => character.id);
+    const activeCharacterId = characterIds[0] ?? "";
+    const sceneInstance = {
+      id: sceneInstanceId,
+      sceneId,
+      nodeId,
+      order: 0,
+      title: "测试场景",
+      scenePresetId: roomBase.scenePresetId,
+      scene: "低灯照着吧台，柜台下方传来轻响。",
+      sceneGoal: "确认声响来源。",
+      plot: "",
+      storyDirection: "",
+      transition: "",
+      memory: "",
+      relationshipOverrides: [],
+      sceneStatus: undefined,
+      characterPublicStatuses: {},
+      characterPrivateStatuses: {},
+      pendingInteractions: [],
+      replyOptions: [],
+      characterConfigs: {},
+      characterMemories: {},
+      characterIds,
+      activeCharacterId,
+      runIds: [],
+      pathNodeIds: [nodeId],
+      pathEdgeIds: [],
+      promptOverrides: { version: 1, blocks: [] },
+      memoryLayers: {
+        required: "",
+        upstream: "",
+        private: "",
+        public: "",
+        directorSecret: "",
+      },
+      characterMemoryLayers: {},
+      secretReveals: [],
+      createdAt,
+      updatedAt: createdAt,
+    };
+    return {
+      ...roomBase,
+      storyOutline: "",
+      storyGoal: "",
+      storyGraph: {
+        version: 1,
+        entryNodeId: nodeId,
+        activeNodeId: nodeId,
+        nodes: [{
+          id: nodeId,
+          sceneId,
+          title: "测试节点",
+          type: "normal",
+          pathRole: "main",
+          position: { x: 0, y: 0 },
+          status: "ready",
+          createdAt,
+          updatedAt: createdAt,
+        }],
+        edges: [],
+      },
+      storyRuns: [],
+      activeSceneId: sceneId,
+      activeSceneInstanceId: sceneInstanceId,
+      sceneInstances: [sceneInstance],
+      scenes: [sceneInstance],
+      scene: sceneInstance.scene,
+      sceneGoal: sceneInstance.sceneGoal,
+      scenePlot: sceneInstance.plot,
+      sceneDirection: sceneInstance.storyDirection,
+      sceneTransition: sceneInstance.transition,
+      memory: sceneInstance.memory,
+      relationshipOverrides: [],
+      sceneStatus: undefined,
+      characterPublicStatuses: {},
+      characterPrivateStatuses: {},
+      pendingInteractions: [],
+      replyOptions: [],
+      characterConfigs: {},
+      characterMemories: {},
+      localCharacters: characters,
+      lorebookEntries: [],
+      characterIds,
+      activeCharacterId,
+      userPersonaName: "我",
+    };
+  };
   const roomBase = createTavernRoom("workspace-collab", 1);
-  const activeInstance = roomBase.sceneInstances[0];
   const characterA = {
     ...createTavernCharacter({
       name: "林晏",
@@ -73,12 +158,8 @@ writeFileSync(
     }),
     id: "char-b",
   };
-  const room = {
-    ...roomBase,
-    localCharacters: [characterA, characterB],
-    characterIds: [characterA.id, characterB.id],
-    activeCharacterId: characterA.id,
-  };
+  const room = createRuntimeRoom(roomBase, [characterA, characterB]);
+  const activeInstance = room.sceneInstances[0];
   const messages = [
     createTavernMessage({
       roomId: room.id,
@@ -105,7 +186,7 @@ writeFileSync(
     },
     allowNonverbalReplyCharacterIds: [characterB.id],
   });
-  assert(speakerInput.type === "collaboration", "角色 adapter 应输出 collaboration input", speakerInput);
+  assert(speakerInput.workflow?.id === "tavern.speaker-replies", "角色 adapter 应输出 speaker replies workflow", speakerInput);
   assert(speakerInput.sessionRootDir === tavernBridgeSessionRootDir(room), "角色 workflow 应复用同一 bridge session", speakerInput);
   assert(speakerInput.agents.length === 2 && speakerInput.workflow.steps.length === 2, "角色 workflow 应按 speakers 生成 steps", speakerInput);
   assert(speakerInput.workflow.maxSteps === 8, "角色 workflow 应声明 maxSteps，为后续回环编排预留保险丝", speakerInput.workflow);
@@ -157,7 +238,6 @@ writeFileSync(
     maxSpeakers: 2,
     maxRounds: 2,
   });
-  assert(directorLoopInput.type === "collaborationMode", "导演回环 adapter 应输出 collaboration mode input", directorLoopInput);
   assert(directorLoopInput.mode === "supervisor.dispatch-loop", "导演回环应使用通用 supervisor.dispatch-loop mode", directorLoopInput);
   assert(directorLoopInput.options?.maxRounds === 2, "导演回环 mode 应传入最大轮次", directorLoopInput.options);
   assert(
@@ -195,112 +275,6 @@ writeFileSync(
     directorLoopInput.context,
   );
 
-  let executionSteps: Array<{ id: string; label: string; status: string; detail?: string }> = [];
-  let traceState = {
-    version: 4 as const,
-    activeRoomId: room.id,
-    rooms: [room],
-    messagesByInstance: {
-      [activeInstance?.id ?? room.id]: messages,
-    },
-    workflowTracesByInstance: {
-      [activeInstance?.id ?? room.id]: [],
-    },
-  };
-  const traceCtx = {
-    activeRoom: room,
-    executionTraceAnchorMessageId: messages[0]?.id ?? "",
-    setState: (updater: typeof traceState | ((current: typeof traceState) => typeof traceState)) => {
-      traceState = typeof updater === "function" ? updater(traceState) : updater;
-    },
-    upsertExecutionStep: (step: { id: string; label: string; status: string; detail?: string }) => {
-      executionSteps = executionSteps.some((item) => item.id === step.id)
-        ? executionSteps.map((item) => item.id === step.id ? { ...item, ...step } : item)
-        : [...executionSteps, step];
-    },
-    patchExecutionStep: (stepId: string, patch: Partial<{ label: string; status: string; detail?: string }>) => {
-      executionSteps = executionSteps.map((item) => item.id === stepId ? { ...item, ...patch } : item);
-    },
-  } as any;
-  const traceWorkflowRunId = "workflow-trace-e2e";
-  applyTavernCollaborationTraceEvent(traceCtx, {
-    type: "workflow_started",
-    taskId: "trace-task",
-    workflowRunId: traceWorkflowRunId,
-    workflowId: "trace.workflow",
-    runtimeId: "langgraph",
-  }, { scopeLabel: "Trace" });
-  applyTavernCollaborationTraceEvent(traceCtx, {
-    type: "step_started",
-    taskId: "trace-task",
-    workflowRunId: traceWorkflowRunId,
-    stepId: "planner",
-    stepType: "agent",
-    agentRoleId: "planner",
-    agentTaskId: "trace-task:planner",
-  }, { scopeLabel: "Trace" });
-  applyTavernCollaborationTraceEvent(traceCtx, {
-    type: "agent_event",
-    taskId: "trace-task",
-    workflowRunId: traceWorkflowRunId,
-    stepId: "planner",
-    agentRoleId: "planner",
-    agentTaskId: "trace-task:planner",
-    event: { type: "text_delta", delta: "token" },
-  }, { scopeLabel: "Trace" });
-  applyTavernCollaborationTraceEvent(traceCtx, {
-    type: "agent_event",
-    taskId: "trace-task",
-    workflowRunId: traceWorkflowRunId,
-    stepId: "planner",
-    agentRoleId: "planner",
-    agentTaskId: "trace-task:planner",
-    event: { type: "tool_start", toolName: "read_file", args: { path: "x" } },
-  }, { scopeLabel: "Trace" });
-  applyTavernCollaborationTraceEvent(traceCtx, {
-    type: "step_done",
-    taskId: "trace-task",
-    workflowRunId: traceWorkflowRunId,
-    step: {
-      stepId: "planner",
-      stepType: "agent",
-      agentRoleId: "planner",
-      agentTaskId: "trace-task:planner",
-      outputKey: "plan",
-      output: "trace result",
-      text: "trace result",
-    },
-  }, { scopeLabel: "Trace" });
-  applyTavernCollaborationTraceEvent(traceCtx, {
-    type: "workflow_done",
-    taskId: "trace-task",
-    workflowRunId: traceWorkflowRunId,
-    result: {
-      workflowRunId: traceWorkflowRunId,
-      runtimeId: "langgraph",
-      steps: [{
-        stepId: "planner",
-        stepType: "agent",
-        agentRoleId: "planner",
-        agentTaskId: "trace-task:planner",
-        outputKey: "plan",
-        output: "trace result",
-        text: "trace result",
-      }],
-      skippedSteps: [],
-      output: { plan: "trace result" },
-    },
-  }, { scopeLabel: "Trace" });
-  const persistedTrace = traceState.workflowTracesByInstance[activeInstance?.id ?? room.id]?.[0];
-  assert(persistedTrace?.status === "done", "协作 trace 应持久化为完成状态", persistedTrace);
-  assert(persistedTrace?.steps[0]?.status === "done", "协作 trace 应持久化 step 状态", persistedTrace?.steps);
-  assert(
-    persistedTrace?.events.some((event) => event.type === "agent_event" && event.detail === "tool_start") &&
-      !persistedTrace.events.some((event) => event.payload && JSON.stringify(event.payload).includes("text_delta")),
-    "协作 trace 应保留关键 agent_event 并跳过 token 级 text_delta",
-    persistedTrace?.events,
-  );
-
   console.log(JSON.stringify({
     ok: true,
     speakers: speakerInput.workflow.steps.map((step) => ({
@@ -312,11 +286,6 @@ writeFileSync(
       mode: directorLoopInput.mode,
       maxRounds: directorLoopInput.options?.maxRounds,
       participantIds: directorLoopInput.participants.map((participant) => participant.id),
-    },
-    trace: {
-      status: persistedTrace?.status,
-      eventCount: persistedTrace?.events.length,
-      stepCount: persistedTrace?.steps.length,
     },
   }, null, 2));
 `,

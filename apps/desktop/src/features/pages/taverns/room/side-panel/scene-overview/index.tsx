@@ -54,7 +54,6 @@ import { buildTavernMemoryOverviewSummary } from "../memory-summary";
 type SceneOverviewSectionProps = {
   externalBusy: boolean;
   onBusyChange?: (isBusy: boolean) => void;
-  onOpenTipsDetail: () => void;
 };
 
 const replyModeDescriptions: Record<TavernReplyMode, string> = {
@@ -362,7 +361,7 @@ const ToolActionsSection = ({
   </SectionCard>
 );
 
-export const SceneOverviewSection = ({ externalBusy, onBusyChange, onOpenTipsDetail }: SceneOverviewSectionProps) => {
+export const SceneOverviewSection = ({ externalBusy, onBusyChange }: SceneOverviewSectionProps) => {
   const { activeRoom, roomCharacters, isSending, patchRoom } = useTavernRoomContext();
   const [secretDialogMode, setSecretDialogMode] = useState<"record" | "reveal" | null>(null);
   const [secretDraftText, setSecretDraftText] = useState("");
@@ -417,8 +416,6 @@ export const SceneOverviewSection = ({ externalBusy, onBusyChange, onOpenTipsDet
     `回复方式：${replyModeDescriptions[activeRoom.replyMode ?? "director"]}`,
     userPersonaName && userPersonaName !== "我" ? `你的称呼：${userPersonaName}` : "",
     `沉浸描写：${activeRoom.settings.immersiveDescriptionEnabled ? "开启" : "关闭"}`,
-    `生成过程：${activeRoom.settings.showExecutionTrace ? "显示" : "隐藏"}`,
-    `自动整理资产：${activeRoom.settings.autoAssetExtractionEnabled ? "开启" : "关闭"}`,
   ].filter(Boolean);
   const characterNameById = new Map(roomCharacters.map((character) => [character.id, character.name]));
   const branchSecretOptions = listTavernBranchSecretMemoryEntries(activeRoom);
@@ -554,7 +551,7 @@ export const SceneOverviewSection = ({ externalBusy, onBusyChange, onOpenTipsDet
         scene={activeRoom.scene}
         memorySummary={memoryOverviewSummary}
         isSending={isSending}
-        onOpenTipsDetail={onOpenTipsDetail}
+        onOpenTipsDetail={openMemoryEditor}
         onImmersiveDescriptionChange={(checked) =>
           patchRoom(activeRoom.id, {
             settings: {

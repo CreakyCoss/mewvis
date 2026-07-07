@@ -24,7 +24,6 @@ type TavernDirectorBaseCollaborationInput = {
   };
   selectedTargetCharacterIds?: string[];
   maxSpeakers?: number;
-  randomEventOpportunity?: boolean;
   storyContext?: TavernStoryContextPackage;
 };
 

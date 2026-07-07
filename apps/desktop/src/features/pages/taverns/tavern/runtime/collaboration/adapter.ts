@@ -26,7 +26,6 @@ export const buildTavernDirectorLoopCollaborationInput = ({
   selectedTargetCharacterIds = [],
   maxSpeakers = 3,
   maxRounds = TAVERN_DIRECTOR_LOOP_DEFAULT_MAX_ROUNDS,
-  randomEventOpportunity,
   storyContext,
 }: TavernDirectorLoopCollaborationInput): TavernCollaborationInput => {
   const speakers = speakerInputs.map((speakerInput) => speakerInput.character);
@@ -39,7 +38,6 @@ export const buildTavernDirectorLoopCollaborationInput = ({
     turnTrigger,
     selectedTargetCharacterIds,
     maxSpeakers,
-    randomEventOpportunity,
     storyContext,
   });
   const directorRoleId = tavernDirectorAgentRoleId(room);
@@ -120,8 +118,6 @@ export const buildTavernDirectorLoopCollaborationInput = ({
       speakerIds: speakers.map((speaker) => speaker.id),
       maxSpeakers,
       turnTrigger,
-      canConsiderRandomEvent: directorPromptContext.canConsiderRandomEvent,
-      canRequestIllustrationHints: directorPromptContext.canRequestIllustrationHints,
       workerTargets,
     },
     options: {
@@ -238,7 +234,7 @@ const buildSupervisorDispatchRuntimeInstruction = ({
     '  "selectedInstruction": string,',
     '  "reason": string,',
     '  "artifacts": [',
-    '    { "type": "narrator" | "randomEvent" | "illustrationHint" | "ambientAction", "content": string, "targetId": string }',
+    '    { "type": "narrator" | "ambientAction", "content": string, "targetId": string }',
     ,
     "  ]",
     ,

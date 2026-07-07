@@ -25,7 +25,7 @@ export const buildTavernUserReplySuggestionPrompt = ({
   const characterList = characters
     .map((character) => `id: ${character.id}\nname: ${character.name}\ndescription: ${character.description}`)
     .join("\n");
-  const suggestionCount = Math.max(1, Math.min(room.settings.replyOptions.count || SUGGESTION_COUNT, 5));
+  const suggestionCount = SUGGESTION_COUNT;
   const pendingInteractions = formatPendingInteractionsForPrompt(room, characters);
   const prompt = [
     "<task>",

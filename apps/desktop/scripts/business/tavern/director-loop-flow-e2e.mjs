@@ -43,7 +43,6 @@ writeFileSync(
   mockConversationPath,
   `
   export const buildTavernBridgeSystemPrompt = () => "mock tavern system prompt";
-  export const compactTavernAgentKnowledge = async () => ({ compacted: false });
 `,
   "utf8",
 );
@@ -455,8 +454,101 @@ writeFileSync(
     modelId: "mock-model",
     modelName: "Mock Model",
   };
+  const createRuntimeRoom = (roomBase: any, characters: any[]) => {
+    const createdAt = Date.now();
+    const sceneId = roomBase.id + "-scene";
+    const nodeId = roomBase.id + "-node";
+    const sceneInstanceId = roomBase.id + "-scene-instance";
+    const characterIds = characters.map((character) => character.id);
+    const activeCharacterId = characterIds[0] ?? "";
+    const sceneInstance = {
+      id: sceneInstanceId,
+      sceneId,
+      nodeId,
+      order: 0,
+      title: "测试场景",
+      scenePresetId: roomBase.scenePresetId,
+      scene: "低灯照着吧台，柜台下方传来轻响。",
+      sceneGoal: "确认声响来源。",
+      plot: "",
+      storyDirection: "",
+      transition: "",
+      memory: "",
+      relationshipOverrides: [],
+      sceneStatus: undefined,
+      characterPublicStatuses: {},
+      characterPrivateStatuses: {},
+      pendingInteractions: [],
+      replyOptions: [],
+      characterConfigs: {},
+      characterMemories: {},
+      characterIds,
+      activeCharacterId,
+      runIds: [],
+      pathNodeIds: [nodeId],
+      pathEdgeIds: [],
+      promptOverrides: { version: 1, blocks: [] },
+      memoryLayers: {
+        required: "",
+        upstream: "",
+        private: "",
+        public: "",
+        directorSecret: "",
+      },
+      characterMemoryLayers: {},
+      secretReveals: [],
+      createdAt,
+      updatedAt: createdAt,
+    };
+    return {
+      ...roomBase,
+      storyOutline: "",
+      storyGoal: "",
+      storyGraph: {
+        version: 1,
+        entryNodeId: nodeId,
+        activeNodeId: nodeId,
+        nodes: [{
+          id: nodeId,
+          sceneId,
+          title: "测试节点",
+          type: "normal",
+          pathRole: "main",
+          position: { x: 0, y: 0 },
+          status: "ready",
+          createdAt,
+          updatedAt: createdAt,
+        }],
+        edges: [],
+      },
+      storyRuns: [],
+      activeSceneId: sceneId,
+      activeSceneInstanceId: sceneInstanceId,
+      sceneInstances: [sceneInstance],
+      scenes: [sceneInstance],
+      scene: sceneInstance.scene,
+      sceneGoal: sceneInstance.sceneGoal,
+      scenePlot: sceneInstance.plot,
+      sceneDirection: sceneInstance.storyDirection,
+      sceneTransition: sceneInstance.transition,
+      memory: sceneInstance.memory,
+      relationshipOverrides: [],
+      sceneStatus: undefined,
+      characterPublicStatuses: {},
+      characterPrivateStatuses: {},
+      pendingInteractions: [],
+      replyOptions: [],
+      characterConfigs: {},
+      characterMemories: {},
+      localCharacters: characters,
+      lorebookEntries: [],
+      characterIds,
+      activeCharacterId,
+      replyMode: "director" as const,
+      userPersonaName: "我",
+    };
+  };
   const roomBase = createTavernRoom("workspace-director-loop-flow", 1);
-  const sceneInstanceId = roomBase.activeSceneInstanceId ?? roomBase.activeSceneId ?? roomBase.id;
   const characterA = {
     ...createTavernCharacter({
       name: "林晏",
@@ -475,24 +567,8 @@ writeFileSync(
     }),
     id: "char-b",
   };
-  const room = {
-    ...roomBase,
-    replyMode: "director" as const,
-    localCharacters: [characterA, characterB],
-    characterIds: [characterA.id, characterB.id],
-    activeCharacterId: characterA.id,
-    settings: {
-      ...roomBase.settings,
-      continuation: {
-        ...roomBase.settings.continuation,
-        enabled: false,
-      },
-      illustrationHints: {
-        ...roomBase.settings.illustrationHints,
-        enabled: false,
-      },
-    },
-  };
+  const room = createRuntimeRoom(roomBase, [characterA, characterB]);
+  const sceneInstanceId = room.activeSceneInstanceId;
   const directorMode = {
     replyMode: "director",
     isSceneDriveMode: false,
@@ -540,23 +616,11 @@ writeFileSync(
     messagesByInstance: {
       [sceneInstanceId]: [userMessage],
     },
-    workflowTracesByInstance: {
-      [sceneInstanceId]: [],
-    },
   };
-  let executionSteps: any[] = [];
   const turnStatusUpdates: string[] = [];
   const errors: string[] = [];
   const applyStateUpdate = (updater: any) => {
     state = typeof updater === "function" ? updater(state) : updater;
-  };
-  const upsertExecutionStep = (step: any) => {
-    executionSteps = executionSteps.some((item) => item.id === step.id)
-      ? executionSteps.map((item) => item.id === step.id ? { ...item, ...step } : item)
-      : [...executionSteps, step];
-  };
-  const patchExecutionStep = (stepId: string, patch: any) => {
-    executionSteps = executionSteps.map((step) => step.id === stepId ? { ...step, ...patch } : step);
   };
   const appendMessagesToRoom = (roomId: string, messages: any[]) => {
     const targetRoom = state.rooms.find((item: any) => item.id === roomId) ?? room;
@@ -609,14 +673,6 @@ writeFileSync(
     setTurnStatus: (status: string) => {
       turnStatusUpdates.push(status);
     },
-    get executionSteps() {
-      return executionSteps;
-    },
-    setExecutionSteps: (updater: any) => {
-      executionSteps = typeof updater === "function" ? updater(executionSteps) : updater;
-    },
-    executionTraceAnchorMessageId: userMessage.id,
-    setExecutionTraceAnchorMessageId: () => {},
     get activeRoom() {
       return state.rooms.find((item: any) => item.id === room.id) ?? room;
     },
@@ -626,14 +682,6 @@ writeFileSync(
       return state.messagesByInstance[sceneInstanceId] ?? [];
     },
     activeCharacter: characterA,
-    resetExecutionTrace: (steps: any[]) => {
-      executionSteps = steps;
-    },
-    patchExecutionStep,
-    appendExecutionStep: (step: any) => {
-      executionSteps = [...executionSteps, step];
-    },
-    upsertExecutionStep,
     patchRoom: (roomId: string, patch: any) => {
       state = {
         ...state,
@@ -675,10 +723,8 @@ writeFileSync(
   const characterMessages = allMessages.filter((message: any) => message.role === "character");
   const narratorMessages = allMessages.filter((message: any) => message.role === "narrator");
   const characterMessageIds = new Set(characterMessages.map((message: any) => message.id));
-  const persistedTrace = state.workflowTracesByInstance[sceneInstanceId]?.[0];
 
   assert(tavernDirectorLoopMockRuns.length === 1, "导演回环应合并为一次 collaboration 调用", tavernDirectorLoopMockRuns);
-  assert(firstRun.type === "collaborationMode", "导演回环应使用 collaboration mode", firstRun);
   assert(firstRun.mode === "supervisor.dispatch-loop", "应运行 supervisor.dispatch-loop mode", firstRun);
   assert(
     firstRun.participants.map((participant: any) => participant.id).join("|") ===
@@ -696,17 +742,6 @@ writeFileSync(
   assert(characterMessages[0]?.content.includes("柜台下看看"), "第一轮 A 的最终内容应来自流式输出", characterMessages[0]);
   assert(characterMessages[1]?.content.includes("门口交给我"), "第二轮 B 的最终内容应来自流式输出", characterMessages[1]);
   assert(characterMessages[1]?.thought?.includes("门口"), "第二轮 B 的心理内容应被解析落地", characterMessages[1]);
-  assert(
-    executionSteps.filter((step) => step.label.endsWith("回环回复") && step.status === "done").length === 2,
-    "两个回环 speaker 执行步骤都应完成",
-    executionSteps,
-  );
-  assert(
-    executionSteps.some((step) => step.id === "director-loop" && step.status === "done"),
-    "导演回环总执行步骤应完成",
-    executionSteps,
-  );
-  assert(persistedTrace?.status === "done", "导演回环 workflow trace 应完成", persistedTrace);
   assert(result.turnMessages.filter((message: any) => message.role === "character").length === 2, "返回值应包含两条角色 turnMessages", result.turnMessages);
   assert(result.turnNarratorTexts.length === 2, "返回值应包含两条导演旁白文本", result.turnNarratorTexts);
   assert(result.supervisorDecision?.speakerIds?.[0] === characterB.id, "返回值应保留最后一轮 supervisor 决策", result.supervisorDecision);
@@ -726,15 +761,6 @@ writeFileSync(
       thought: message.thought,
     })),
     narratorMessages: narratorMessages.map((message: any) => message.content),
-    executionSteps: executionSteps.map((step) => ({
-      id: step.id,
-      label: step.label,
-      status: step.status,
-    })),
-    trace: {
-      status: persistedTrace?.status,
-      stepCount: persistedTrace?.steps.length,
-    },
     turnStatusUpdates,
   }, null, 2));
 `,

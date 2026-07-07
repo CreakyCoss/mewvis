@@ -15,7 +15,7 @@ export const buildTavernSecretMemoryProtocol = (target: TavernPromptBlockTarget)
     "秘密被公开或对角色解密之前，不要让角色说出秘密事实，不要让旁白替系统揭露秘密，也不要用“他知道了某秘密”这类元叙述泄露。",
     "如需表现秘密影响，只写公开可观察后果，例如迟疑、回避、试探、改变路线或保留话语；不要解释未公开原因。",
     target === "director"
-      ? "导演可以用导演秘密安排调度、节奏、压力和伏笔，但输出 JSON 的 narrator、ambientActions、randomEvent、illustrationHints 与 reason 都必须保持公开可见，不得泄露未公开内容。"
+      ? "导演可以用导演秘密安排调度、节奏、压力和伏笔，但输出 JSON 的 narrator、ambientActions 与 reason 都必须保持公开可见，不得泄露未公开内容。"
       : "角色只能使用自己可见的角色记忆和公开场景信息；若某事实只在别人的 known/privateSelf/directorSecret 中，该角色不得知晓或主动说出。",
     "</secret_memory_protocol>",
   ].join("\n");

@@ -18,7 +18,6 @@ const defaultDirectorScheduling = {
     includeUser: false,
     userPosition: "first" as const,
   },
-  autoContinuation: "enabled" as const,
   instruction: "",
 };
 
@@ -207,7 +206,7 @@ export const buildTavernSceneDriveGuidance = ({
       ? "本轮是场景自推动，必须主动安排合适角色、公开旁白或可观察事件推进场景目标；不要停在等待用户输入。"
       : "",
     needsUserActionConsequence
-      ? "本轮必须让用户行动产生公开可见后果，写进 narrator、randomEvent 或被调度角色的正文；不要只让角色继续解释。"
+      ? "本轮必须让用户行动产生公开可见后果，写进 narrator 或被调度角色的正文；不要只让角色继续解释。"
       : "",
     needsEventInterruption
       ? "本轮必须打断纯问答链：加入公开可观察的局势变化、时间压力、外部声音、线索状态变化或角色主动行动。"
@@ -271,15 +270,6 @@ export const canTavernCharacterUseNonverbalReply = ({
   (canTavernSelectedTargetsStaySilent(room, selectedTargetCharacterIds) &&
     Boolean(selectedTargetCharacterIds?.includes(characterId)) &&
     (hasTavernNonverbalTargetCue(currentUserText ?? "") || hasTavernNonverbalTargetCue(directorReason ?? "")));
-
-export const shouldSuppressTavernAutoContinuation = (room: Pick<TavernRoom, "settings">) => {
-  const policy = getDirectorScheduling(room).autoContinuation;
-  if (policy === "disabled") {
-    return true;
-  }
-
-  return policy === "disabledForFixedOrder" && isTavernFixedOrderPhase(room);
-};
 
 const uniqueCharacters = (characters: TavernCharacter[]) => {
   const seen = new Set<string>();
@@ -434,7 +424,7 @@ export const formatTavernDirectorSchedulingInstruction = (room: Pick<TavernRoom,
     lines.push(
       [
         "当前阶段允许导演只推进公开流程，不调用角色公开发言。",
-        "如果此时是夜晚、结算或投票公布阶段，可以返回 status=complete、selectedTargetId 为空，并只输出 narrator/randomEvent/illustrationHint artifacts。",
+        "如果此时是夜晚、结算或投票公布阶段，可以返回 status=complete、selectedTargetId 为空，并只输出 narrator artifact。",
       ]
         .filter(Boolean)
         .join(""),
@@ -485,10 +475,6 @@ export const formatTavernDirectorSchedulingInstruction = (room: Pick<TavernRoom,
         .filter(Boolean)
         .join("\n"),
     );
-  }
-
-  if (shouldSuppressTavernAutoContinuation(room)) {
-    lines.push("本阶段禁用自动续调度；角色提出问题或点名他人，也不会在同一轮内自动追加被点名角色发言。");
   }
 
   return lines.join("\n");

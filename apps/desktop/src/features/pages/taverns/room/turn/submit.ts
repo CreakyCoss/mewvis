@@ -15,11 +15,10 @@ import {
   getErrorMessage,
   getReferencePreviewsForSubmit,
   handleTurnFailure,
-  prepareTurnTraceAndUserMessage,
+  prepareTurnUserMessage,
   readTurnReferences,
   resolveSubmitSpeakerPlan,
   resolveTurnMode,
-  runAssetExtractionStep,
   runDirectorLoopTurn,
   runSpeakerReplyFlow,
   shouldRunTavernDirectorLoopWorkflow,
@@ -158,7 +157,6 @@ export const submitRoomTurn = async ({
     roomMessages,
     turnAnchorMessage,
     visibleUserMessage,
-    mode,
   });
   const activeReplyRef: ActiveReplyRef = {
     message: null,
@@ -171,13 +169,10 @@ export const submitRoomTurn = async ({
 
   try {
     // 3. 本轮正式入队后，后续流程都围绕 runtime 这份运行时快照向前推进。
-    prepareTurnTraceAndUserMessage({
+    prepareTurnUserMessage({
       ctx,
       room: activeRoom,
-      turnAnchorMessage,
       visibleUserMessage,
-      references,
-      runtime,
       mode,
     });
 
@@ -237,7 +232,6 @@ export const submitRoomTurn = async ({
         references,
         selectedReplyOption,
         speakers,
-        availableRoomCharacters: speakerPlan.availableRoomCharacters,
         mode,
         directorReason,
         directorNonverbalReplyIds,
@@ -255,21 +249,6 @@ export const submitRoomTurn = async ({
         ctx,
         room: activeRoom,
         openPendingInteractions: speakerTurn.openPendingInteractions,
-      });
-    }
-
-    // 4. 本轮回复完成后的增强流程互相独立，单个失败不会回滚已经发送的消息。
-    if (runtime.shouldRunAssetExtraction) {
-      await runAssetExtractionStep({
-        ctx,
-        room: activeRoom,
-        runtimeRoom: runtime.runtimeRoom,
-        runtimeMessages: runtime.runtimeMessages,
-        turnMessages: runtime.turnMessages,
-        references,
-        text,
-        runtimeModel,
-        storyContext,
       });
     }
   } catch (runError) {

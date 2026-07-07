@@ -4,8 +4,6 @@ export const buildTavernDirectorOutputContract = ({
   isSceneDriveTurn,
   directorOnlyAllowed,
   selectedTargetsCanStaySilent,
-  canConsiderRandomEvent,
-  canRequestIllustrationHints,
   schedulingInstruction,
 }: {
   maxSpeakers: number;
@@ -13,18 +11,9 @@ export const buildTavernDirectorOutputContract = ({
   isSceneDriveTurn: boolean;
   directorOnlyAllowed: boolean;
   selectedTargetsCanStaySilent: boolean;
-  canConsiderRandomEvent: boolean;
-  canRequestIllustrationHints: boolean;
   schedulingInstruction: string;
 }) => {
-  const artifactTypes = [
-    "narrator",
-    "ambientAction",
-    canConsiderRandomEvent ? "randomEvent" : "",
-    canRequestIllustrationHints ? "illustrationHint" : "",
-  ]
-    .filter(Boolean)
-    .join("|");
+  const artifactTypes = "narrator|ambientAction";
 
   return [
     "<output_schema>",
@@ -75,12 +64,6 @@ export const buildTavernDirectorOutputContract = ({
     "narrator artifact 只能写公开可见的场景承接、状态变化、环境压力或镜头提示；可以让已存在的场景元素产生轻微公开变化，例如雨水冲淡脚印、门缝漏风、炉火骤暗、远处脚步压近，但不要新增关键结论、泄露秘密、解决主线或替用户选择行动。",
     "对话模式 narrator artifact 建议 40 字内；小说正文/第三人称呈现可写 80-120 字的短场景段，用来合并多个零散 ambientAction、承接上一轮尾句、制造公开压力和连续阅读感。",
     "reason 只能写公开调度理由，不得包含隐藏身份、阵营、未公开心理、夜间私密行动或验人结果；不要只写“用户点名某角色”，还要说明该角色为何最能推进场景目标、压力、冲突或信息增量。",
-    canConsiderRandomEvent
-      ? "randomEvent artifact 由导演决定是否触发；只能写公开可观察的小事件，例如门外脚步、灯火闪动、远处钟声。不要直接解决主线、不要覆盖用户选择、不要替任何角色做关键行动；不触发则不要输出该 artifact。"
-      : "randomEvent 当前不可用，禁止输出 type 为 randomEvent 的 artifact。",
-    canRequestIllustrationHints
-      ? "illustrationHint artifact 可选，写 1-3 条适合后续生图的画面提示；只能包含公开可观察的人物、动作、环境、构图和氛围，不写心理、秘密信息、用户未选择的行动或剧情结论。"
-      : "illustrationHint 当前不可用，禁止输出 type 为 illustrationHint 的 artifact。",
     "如果已经输出 narrator artifact，selectedTargetId 应选择会对旁白产生角色回应的人；不要安排 worker 复述 narrator。",
     "输出必须是严格合法 JSON 对象，以 { 开头，以 } 结尾；不要代码块。",
     "</constraints>",

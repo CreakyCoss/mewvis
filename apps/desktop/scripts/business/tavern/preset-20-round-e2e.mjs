@@ -1,5 +1,5 @@
 import { build } from "esbuild";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -13,6 +13,7 @@ const systemPresetRoomPath = resolve(
   workspaceRoot,
   "src/features/pages/taverns/tavern/factories/system-preset-room.ts",
 );
+const runtimeRoomPath = resolve(workspaceRoot, "src/features/pages/taverns/room/model/runtime-room.ts");
 
 const assert = (condition, message, details) => {
   if (!condition) {
@@ -24,37 +25,58 @@ const assert = (condition, message, details) => {
 writeFileSync(
   entryPath,
   `
-  import {
-    advanceTavernProgressFromFactEvents,
-    getTavernStatusSnapshotValue,
-    resolveTavernScheduledSpeakers,
-  } from ${JSON.stringify(corePath)};
+  import { resolveTavernScheduledSpeakers } from ${JSON.stringify(corePath)};
   import { createTavernRoomFromSystemPreset } from ${JSON.stringify(systemPresetRoomPath)};
+  import { createTavernRuntimeRoomFromConfig } from ${JSON.stringify(runtimeRoomPath)};
 
   const baseNow = 1_800_000_000_000;
 
-  const materializePreset = (presetId, characterIds, roomId) =>
-    createTavernRoomFromSystemPreset("workspace-e2e", presetId, {
-      roomId,
-      createdAt: baseNow,
-      characterIdByPresetId: new Map(Object.entries(characterIds)),
-      markAsSystemPreset: false,
-    });
-
-  const applyProgressPatch = (room, patch) => ({
-    ...room,
-    factEvents: patch.factEvents,
-    statusEvents: patch.statusEvents,
-    previousStatusSnapshot: patch.previousStatusSnapshot,
-    statusSnapshot: patch.statusSnapshot,
-    taskEvents: patch.taskEvents,
-    taskSnapshot: patch.taskSnapshot,
-    outcomeEvents: patch.outcomeEvents,
-    replyOptions: patch.replyOptions,
-    sceneDirection: patch.sceneDirection,
-    sceneTransition: patch.sceneTransition,
-    updatedAt: patch.statusSnapshot.updatedAt,
+  const createCharacter = (id, name, description) => ({
+    id,
+    name,
+    avatar: "",
+    description,
+    speakingStyle: "短句，保持场景信息增量。",
+    writingStyle: "克制、具体。",
+    replyStylePrompt: "只回应当前节点内能感知的信息。",
+    goals: "推进当前场景目标，但不替用户做决定。",
+    relationships: [],
+    createdAt: baseNow,
+    updatedAt: baseNow,
   });
+
+  const presetCases = [
+    {
+      key: "raincity",
+      presetId: "raincity-mystery-stage",
+      roomId: "room-raincity-20",
+      characters: [
+        createCharacter("rain-investigator", "穆青砚", "负责检查封蜡、雨痕和纸张纤维。"),
+        createCharacter("rain-bartender", "梁桐", "熟悉雨城酒馆与过路人。"),
+        createCharacter("rain-runner", "阿绮", "在门口和巷子之间传递消息。"),
+      ],
+    },
+    {
+      key: "snowridge",
+      presetId: "snowridge-wuxia-stage",
+      roomId: "room-snowridge-20",
+      characters: [
+        createCharacter("snow-swordsman", "谢孤鸿", "守在门边，判断江湖压力。"),
+        createCharacter("snow-healer", "闻素", "观察伤势、毒性和人心变化。"),
+        createCharacter("snow-scout", "柳七", "负责听雪线外的脚步。"),
+      ],
+    },
+    {
+      key: "orbital",
+      presetId: "orbital-scifi-stage",
+      roomId: "room-orbital-20",
+      characters: [
+        createCharacter("orbit-captain", "洛弥", "负责权衡舱段风险。"),
+        createCharacter("orbit-engineer", "秦工", "关注系统告警和接口异常。"),
+        createCharacter("orbit-medic", "伊芙", "追踪队员状态和生命体征。"),
+      ],
+    },
+  ];
 
   const createMessage = ({
     id,
@@ -64,121 +86,71 @@ writeFileSync(
     characterId,
     turnId,
     createdAt,
-    thought,
   }) => ({
     id,
     roomId: room.id,
     sceneId: room.activeSceneId,
+    sceneInstanceId: room.activeSceneInstanceId,
     turnId,
     role,
     ...(characterId ? { characterId } : {}),
     content,
-    ...(thought ? { thought } : {}),
     createdAt,
     status: "done",
   });
 
-  const shellPresetCases = [
-    {
-      key: "raincity",
-      presetId: "raincity-mystery-stage",
-      roomId: "room-raincity-20",
-      characterIds: {
-        "rc-stage-director": "rain-director",
-        "rc-stage-narrator": "rain-narrator",
+  const runPresetTwentyRounds = (presetCase) => {
+    const materialized = createTavernRoomFromSystemPreset("workspace-e2e", presetCase.presetId, {
+      roomId: presetCase.roomId,
+      createdAt: baseNow,
+      markAsSystemPreset: false,
+    });
+    const runtimeRoom = createTavernRuntimeRoomFromConfig(materialized.room);
+    const characters = presetCase.characters;
+    const room = {
+      ...runtimeRoom,
+      localCharacters: characters,
+      characterIds: characters.map((character) => character.id),
+      activeCharacterId: characters[0].id,
+      userPersonaName: "旅人",
+      settings: {
+        ...runtimeRoom.settings,
+        directorScheduling: {
+          ...runtimeRoom.settings.directorScheduling,
+          allowDirectorOnly: false,
+        },
       },
-      targetCharacterId: "rain-narrator",
-      eventRounds: [
-        { round: 1, type: "story_input_received", target: { type: "scene" } },
-        { round: 5, type: "evidence_confirmed", target: { type: "scene" } },
-        { round: 10, type: "premature_reveal", target: { type: "scene" } },
-      ],
-      statusChecks: [
-        { scope: { type: "scene" }, statusId: "evidence_focus", expected: 65 },
-        { scope: { type: "scene" }, statusId: "reveal_pressure", expected: 40 },
-      ],
-      completedTaskId: "mystery-shell-receive-story",
-    },
-    {
-      key: "snowridge",
-      presetId: "snowridge-wuxia-stage",
-      roomId: "room-snowridge-20",
-      characterIds: {
-        "sx-stage-director": "snow-director",
-        "sx-stage-narrator": "snow-narrator",
-      },
-      targetCharacterId: "snow-narrator",
-      eventRounds: [
-        { round: 1, type: "story_input_received", target: { type: "scene" } },
-        { round: 5, type: "pressure_rises", target: { type: "scene" } },
-        { round: 10, type: "action_clarified", target: { type: "scene" } },
-      ],
-      statusChecks: [
-        { scope: { type: "scene" }, statusId: "jianghu_pressure", expected: 50 },
-        { scope: { type: "scene" }, statusId: "action_clarity", expected: 70 },
-      ],
-      completedTaskId: "wuxia-shell-receive-story",
-    },
-    {
-      key: "orbital",
-      presetId: "orbital-scifi-stage",
-      roomId: "room-orbital-20",
-      characterIds: {
-        "oa-stage-director": "orbit-director",
-        "oa-stage-narrator": "orbit-narrator",
-      },
-      targetCharacterId: "orbit-narrator",
-      eventRounds: [
-        { round: 1, type: "story_input_received", target: { type: "scene" } },
-        { round: 5, type: "system_warning", target: { type: "scene" } },
-        { round: 10, type: "signal_clarified", target: { type: "scene" } },
-      ],
-      statusChecks: [
-        { scope: { type: "scene" }, statusId: "system_pressure", expected: 55 },
-        { scope: { type: "scene" }, statusId: "signal_clarity", expected: 60 },
-      ],
-      completedTaskId: "scifi-shell-receive-story",
-    },
-  ];
-
-  const normalizeEventTarget = (target, room) =>
-    target.type === "scene"
-      ? { type: "scene", sceneId: room.activeSceneId }
-      : target;
-
-  const runNovelPresetTwentyRounds = (presetCase) => {
-    const materialized = materializePreset(
-      presetCase.presetId,
-      presetCase.characterIds,
-      presetCase.roomId,
-    );
-    let room = materialized.room;
-    const characters = materialized.characters;
+    };
     const messages = [...materialized.messages];
     const orders = [];
-    const eventByRound = new Map(presetCase.eventRounds.map((event) => [event.round, event]));
 
     for (let round = 1; round <= 20; round += 1) {
       const turnId = \`\${presetCase.key}-turn-\${round}\`;
       const createdAt = baseNow + round * 1_000;
-      messages.push(createMessage({
+      const userMessage = createMessage({
         id: \`\${presetCase.key}-user-\${round}\`,
         room,
         role: "user",
         content: \`第 \${round} 轮，我推进当前小说节点，但不替角色做决定。\`,
         turnId,
         createdAt,
-      }));
+      });
+      messages.push(userMessage);
 
+      const primary = characters[round % characters.length];
+      const secondary = characters[(round + 1) % characters.length];
       const speakers = resolveTavernScheduledSpeakers({
         room,
         availableCharacters: characters,
         activeCharacterId: room.activeCharacterId,
-        directorSpeakerIds: [characters[round % characters.length]?.id ?? characters[0].id],
-        selectedTargetCharacterIds: [presetCase.targetCharacterId],
+        directorSpeakerIds: [primary.id, secondary.id],
+        directorNonverbalReplyIds: [],
+        selectedTargetCharacterIds: round % 4 === 0 ? [secondary.id] : [],
+        currentUserText: userMessage.content,
         fallbackCharacter: characters[0],
       });
       orders.push(speakers.map((speaker) => speaker.id));
+
       for (const [speakerIndex, speaker] of speakers.entries()) {
         messages.push(createMessage({
           id: \`\${presetCase.key}-\${round}-speaker-\${speaker.id}\`,
@@ -190,53 +162,20 @@ writeFileSync(
           createdAt: createdAt + speakerIndex + 1,
         }));
       }
-
-      const event = eventByRound.get(round);
-      if (event) {
-        room = applyProgressPatch(
-          room,
-          advanceTavernProgressFromFactEvents({
-            room,
-            factEvents: [{
-              id: \`\${presetCase.key}-fact-\${event.type}\`,
-              turnId,
-              sourceMessageIds: [\`\${presetCase.key}-user-\${round}\`],
-              type: event.type,
-              target: normalizeEventTarget(event.target, room),
-              evidence: \`第 \${round} 轮出现了与 \${event.type} 对应的明确证据。\`,
-              confidence: 0.95,
-              visibility: "public",
-              createdAt: createdAt + 200,
-            }],
-            turnId,
-            createdAt: createdAt + 300,
-          }),
-        );
-      }
     }
 
     return {
       presetId: presetCase.presetId,
       room,
-      characters,
       messages,
       orders,
-      mappedCharacterIds: characters.map((character) => character.id),
-      statusValues: Object.fromEntries(presetCase.statusChecks.map((check) => [
-        check.statusId,
-        getTavernStatusSnapshotValue(room.statusSnapshot, check.scope, check.statusId),
-      ])),
-      expectedStatusValues: Object.fromEntries(presetCase.statusChecks.map((check) => [
-        check.statusId,
-        check.expected,
-      ])),
-      completedTaskId: presetCase.completedTaskId,
-      completedTaskStatus: room.taskSnapshot[presetCase.completedTaskId]?.status,
+      characterIds: characters.map((character) => character.id),
+      directorLoop: room.settings.directorLoop,
     };
   };
 
   globalThis.__tavernPresetTwentyRoundChecks = {
-    presets: shellPresetCases.map(runNovelPresetTwentyRounds),
+    presets: presetCases.map(runPresetTwentyRounds),
   };
 `,
   "utf8",
@@ -270,52 +209,43 @@ try {
   assert(checks, "20-round preset checks did not run");
 
   const { presets } = checks;
-  assert(
-    Array.isArray(presets) && presets.length === 3,
-    "Shell preset 20-round checks should cover all current default taverns",
-    {
-      presetCount: presets?.length,
-    },
-  );
+  assert(Array.isArray(presets) && presets.length === 3, "20-round checks should cover all default tavern presets", {
+    presetCount: presets?.length,
+  });
 
   for (const preset of presets) {
-    assert(preset.room.replyMode === "director", "Shell preset should use director reply mode", {
+    assert(preset.room.replyMode === "director", "Preset should use director reply mode", {
       presetId: preset.presetId,
       replyMode: preset.room.replyMode,
     });
-    assert(preset.orders.length === 20, "Shell preset should run exactly 20 rounds", {
+    assert(
+      preset.directorLoop.enabled && preset.directorLoop.maxRounds >= 1,
+      "Preset should keep per-turn director loop settings",
+      { presetId: preset.presetId, directorLoop: preset.directorLoop },
+    );
+    assert(preset.orders.length === 20, "Preset should run exactly 20 scheduling rounds", {
       presetId: preset.presetId,
       rounds: preset.orders.length,
     });
     assert(
-      preset.orders.every((order) => order.length > 0),
-      "Shell preset scheduling should keep at least one speaker each round",
-      { presetId: preset.presetId, orders: preset.orders },
+      preset.orders.every((order) => order.length > 0 && order.length <= preset.room.settings.directorMaxSpeakers),
+      "Scheduling should keep at least one speaker and respect max speakers",
+      { presetId: preset.presetId, orders: preset.orders, maxSpeakers: preset.room.settings.directorMaxSpeakers },
     );
     assert(
-      preset.mappedCharacterIds.every((characterId) => preset.orders.some((order) => order.includes(characterId))),
-      "Shell preset mapped characters should all appear in 20-round scheduling",
-      { presetId: preset.presetId, mappedCharacterIds: preset.mappedCharacterIds, orders: preset.orders },
+      preset.characterIds.every((characterId) => preset.orders.some((order) => order.includes(characterId))),
+      "All configured characters should appear during 20-round scheduling",
+      { presetId: preset.presetId, characterIds: preset.characterIds, orders: preset.orders },
     );
     assert(
-      Object.entries(preset.expectedStatusValues).every(
-        ([statusId, expected]) => preset.statusValues[statusId] === expected,
-      ),
-      "Shell preset progress events should update configured statuses",
-      {
-        presetId: preset.presetId,
-        statusValues: preset.statusValues,
-        expectedStatusValues: preset.expectedStatusValues,
-      },
+      preset.messages.filter((message) => message.role === "user").length === 20,
+      "20-round smoke should preserve user turns",
+      { presetId: preset.presetId },
     );
     assert(
-      preset.completedTaskStatus === "completed",
-      "Shell preset receive-story task should complete during 20-round progression",
-      {
-        presetId: preset.presetId,
-        taskId: preset.completedTaskId,
-        taskStatus: preset.completedTaskStatus,
-      },
+      preset.messages.filter((message) => message.role === "character").length >= 20,
+      "20-round smoke should create character replies",
+      { presetId: preset.presetId },
     );
   }
 
@@ -324,9 +254,8 @@ try {
     presets: presets.map((preset) => ({
       presetId: preset.presetId,
       rounds: preset.orders.length,
-      mappedCharacterIds: preset.mappedCharacterIds,
-      statusValues: preset.statusValues,
-      completedTask: preset.completedTaskStatus,
+      characterIds: preset.characterIds,
+      directorLoop: preset.directorLoop,
     })),
   };
 

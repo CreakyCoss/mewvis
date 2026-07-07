@@ -27,14 +27,11 @@ const cloneTavernDirectorProfile = (profile: TavernDirectorProfile | undefined):
     : undefined;
 
 export const cloneDefaultRoomSettings = (): TavernRoomSettings => ({
-  ...DEFAULT_TAVERN_ROOM_SETTINGS,
+  immersiveDescriptionEnabled: DEFAULT_TAVERN_ROOM_SETTINGS.immersiveDescriptionEnabled,
+  directorMaxSpeakers: DEFAULT_TAVERN_ROOM_SETTINGS.directorMaxSpeakers,
+  directorLoop: { ...DEFAULT_TAVERN_ROOM_SETTINGS.directorLoop },
   interactionQualityRuleIds: [...DEFAULT_TAVERN_ROOM_SETTINGS.interactionQualityRuleIds],
   directorNarrativeControl: { ...DEFAULT_TAVERN_ROOM_SETTINGS.directorNarrativeControl },
-  directorLoop: { ...DEFAULT_TAVERN_ROOM_SETTINGS.directorLoop },
-  continuation: { ...DEFAULT_TAVERN_ROOM_SETTINGS.continuation },
-  replyOptions: { ...DEFAULT_TAVERN_ROOM_SETTINGS.replyOptions },
-  randomEvents: { ...DEFAULT_TAVERN_ROOM_SETTINGS.randomEvents },
-  illustrationHints: { ...DEFAULT_TAVERN_ROOM_SETTINGS.illustrationHints },
   directorScheduling: {
     ...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling,
     speakerMotivation: {
@@ -46,121 +43,7 @@ export const cloneDefaultRoomSettings = (): TavernRoomSettings => ({
       ...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.fixedOrder,
     },
   },
-  informationPolicy: {
-    ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy,
-    hiddenFacts: { ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.hiddenFacts },
-    roleAssignment: {
-      ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.roleAssignment,
-      opening: { ...DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.roleAssignment.opening },
-      rolePool: DEFAULT_TAVERN_ROOM_SETTINGS.informationPolicy.roleAssignment.rolePool.map((role) => ({ ...role })),
-    },
-  },
 });
-
-const normalizeInformationRevealMode = (value: unknown) => (value === "never" || value === "manual" ? value : "manual");
-
-const normalizeRoleAssignmentPool = (
-  value: unknown,
-): TavernRoomSettings["informationPolicy"]["roleAssignment"]["rolePool"] => {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.flatMap((item, index) => {
-    if (!item || typeof item !== "object") {
-      return [];
-    }
-
-    const candidate = item as Record<string, unknown>;
-    const label = typeof candidate.label === "string" ? candidate.label.trim() : "";
-    if (!label) {
-      return [];
-    }
-
-    const rawId = typeof candidate.id === "string" ? candidate.id.trim() : "";
-    const count =
-      typeof candidate.count === "number" && Number.isFinite(candidate.count)
-        ? Math.min(20, Math.max(1, Math.round(candidate.count)))
-        : 1;
-    const description = typeof candidate.description === "string" ? candidate.description.trim() : "";
-    const factionId = typeof candidate.factionId === "string" ? candidate.factionId.trim() : "";
-    const factionLabel = typeof candidate.factionLabel === "string" ? candidate.factionLabel.trim() : "";
-
-    return [
-      {
-        id: rawId || `role-${index + 1}`,
-        label,
-        ...(description ? { description } : {}),
-        ...(factionId ? { factionId } : {}),
-        ...(factionLabel ? { factionLabel } : {}),
-        count,
-      },
-    ];
-  });
-};
-
-const normalizeInformationPolicy = (value: unknown): TavernRoomSettings["informationPolicy"] => {
-  const defaults = cloneDefaultRoomSettings().informationPolicy;
-  if (!value || typeof value !== "object") {
-    return defaults;
-  }
-
-  const candidate = value as Partial<TavernRoomSettings["informationPolicy"]>;
-  const hiddenFacts =
-    candidate.hiddenFacts && typeof candidate.hiddenFacts === "object"
-      ? (candidate.hiddenFacts as Partial<TavernRoomSettings["informationPolicy"]["hiddenFacts"]>)
-      : {};
-  const roleAssignment =
-    candidate.roleAssignment && typeof candidate.roleAssignment === "object"
-      ? (candidate.roleAssignment as Partial<TavernRoomSettings["informationPolicy"]["roleAssignment"]>)
-      : {};
-  const roleAssignmentOpening =
-    roleAssignment.opening && typeof roleAssignment.opening === "object"
-      ? (roleAssignment.opening as Partial<TavernRoomSettings["informationPolicy"]["roleAssignment"]["opening"]>)
-      : {};
-  const mode =
-    candidate.mode === "mystery" ||
-    candidate.mode === "social_deduction" ||
-    candidate.mode === "custom" ||
-    candidate.mode === "open"
-      ? candidate.mode
-      : defaults.mode;
-  const uiDefaultView =
-    candidate.uiDefaultView === "public" ||
-    candidate.uiDefaultView === "director" ||
-    candidate.uiDefaultView === "reveal"
-      ? candidate.uiDefaultView
-      : defaults.uiDefaultView;
-  const defaultVisibility =
-    hiddenFacts.defaultVisibility === "hidden" ||
-    hiddenFacts.defaultVisibility === "debug" ||
-    hiddenFacts.defaultVisibility === "director"
-      ? hiddenFacts.defaultVisibility
-      : defaults.hiddenFacts.defaultVisibility;
-
-  return {
-    mode,
-    uiDefaultView,
-    hideCharacterThoughts: Boolean(candidate.hideCharacterThoughts),
-    revealThoughts: normalizeInformationRevealMode(candidate.revealThoughts),
-    hiddenFacts: {
-      enabled: Boolean(hiddenFacts.enabled),
-      defaultVisibility,
-      reveal: normalizeInformationRevealMode(hiddenFacts.reveal),
-    },
-    roleAssignment: {
-      enabled: Boolean(roleAssignment.enabled),
-      strategy: roleAssignment.strategy === "director_random" ? "director_random" : "manual",
-      includeUser: roleAssignment.includeUser !== false,
-      revealToAssignedCharacter: roleAssignment.revealToAssignedCharacter !== false,
-      revealFactionMembers: roleAssignment.revealFactionMembers !== false,
-      rolePool: normalizeRoleAssignmentPool(roleAssignment.rolePool),
-      opening: {
-        autoStart: Boolean(roleAssignmentOpening.autoStart),
-      },
-    },
-  };
-};
 
 const normalizeDirectorScheduling = (
   value: unknown,
@@ -203,12 +86,6 @@ const normalizeDirectorScheduling = (
     candidate.targetedReplyPolicy === "include"
       ? candidate.targetedReplyPolicy
       : defaults.targetedReplyPolicy;
-  const autoContinuation =
-    candidate.autoContinuation === "disabled" ||
-    candidate.autoContinuation === "disabledForFixedOrder" ||
-    candidate.autoContinuation === "enabled"
-      ? candidate.autoContinuation
-      : defaults.autoContinuation;
 
   return {
     targetedReplyPolicy,
@@ -267,7 +144,6 @@ const normalizeDirectorScheduling = (
       includeUser: Boolean(fixedOrder.includeUser),
       userPosition: fixedOrder.userPosition === "last" ? "last" : "first",
     },
-    autoContinuation,
     instruction: typeof candidate.instruction === "string" ? candidate.instruction.trim().slice(0, 1200) : "",
   };
 };
@@ -340,41 +216,12 @@ export const normalizeRoomSettings = (
   }
 
   const candidate = value as Partial<TavernRoomSettings>;
-  const continuation =
-    candidate.continuation && typeof candidate.continuation === "object"
-      ? (candidate.continuation as Partial<TavernRoomSettings["continuation"]>)
-      : {};
   const directorLoop =
     candidate.directorLoop && typeof candidate.directorLoop === "object"
       ? (candidate.directorLoop as Partial<TavernRoomSettings["directorLoop"]>)
       : {};
-  const replyOptions =
-    candidate.replyOptions && typeof candidate.replyOptions === "object"
-      ? (candidate.replyOptions as Partial<TavernRoomSettings["replyOptions"]>)
-      : {};
-  const randomEvents =
-    candidate.randomEvents && typeof candidate.randomEvents === "object"
-      ? (candidate.randomEvents as Partial<TavernRoomSettings["randomEvents"]>)
-      : {};
-  const illustrationHints =
-    candidate.illustrationHints && typeof candidate.illustrationHints === "object"
-      ? (candidate.illustrationHints as Partial<TavernRoomSettings["illustrationHints"]>)
-      : {};
-  const probability =
-    typeof randomEvents.probability === "number"
-      ? randomEvents.probability
-      : DEFAULT_TAVERN_ROOM_SETTINGS.randomEvents.probability;
   return {
     immersiveDescriptionEnabled: candidate.immersiveDescriptionEnabled !== false,
-    showExecutionTrace: Boolean(candidate.showExecutionTrace),
-    autoAssetExtractionEnabled: Boolean(candidate.autoAssetExtractionEnabled),
-    assetExtractionIntervalTurns: clampInteger(
-      candidate.assetExtractionIntervalTurns,
-      DEFAULT_TAVERN_ROOM_SETTINGS.assetExtractionIntervalTurns,
-      1,
-      10,
-    ),
-    maxAssetDrafts: clampInteger(candidate.maxAssetDrafts, DEFAULT_TAVERN_ROOM_SETTINGS.maxAssetDrafts, 1, 20),
     directorMaxSpeakers: clampInteger(
       candidate.directorMaxSpeakers,
       DEFAULT_TAVERN_ROOM_SETTINGS.directorMaxSpeakers,
@@ -385,44 +232,10 @@ export const normalizeRoomSettings = (
       enabled: directorLoop.enabled !== false,
       maxRounds: clampInteger(directorLoop.maxRounds, DEFAULT_TAVERN_ROOM_SETTINGS.directorLoop.maxRounds, 1, 5),
     },
-    agentKnowledgeCompactIntervalTurns: clampInteger(
-      candidate.agentKnowledgeCompactIntervalTurns,
-      DEFAULT_TAVERN_ROOM_SETTINGS.agentKnowledgeCompactIntervalTurns,
-      0,
-      50,
-    ),
     interactionQualityRuleIds: normalizeTavernQualityRuleIds(
       candidate.interactionQualityRuleIds ?? DEFAULT_TAVERN_ROOM_SETTINGS.interactionQualityRuleIds,
     ),
     directorNarrativeControl: normalizeDirectorNarrativeControl(candidate.directorNarrativeControl),
     directorScheduling: normalizeDirectorScheduling(candidate.directorScheduling, options),
-    continuation: {
-      enabled: continuation.enabled !== false,
-      maxAutoContinuationRounds: clampInteger(
-        continuation.maxAutoContinuationRounds,
-        DEFAULT_TAVERN_ROOM_SETTINGS.continuation.maxAutoContinuationRounds,
-        0,
-        3,
-      ),
-      maxSpeakersPerContinuation: clampInteger(
-        continuation.maxSpeakersPerContinuation,
-        DEFAULT_TAVERN_ROOM_SETTINGS.continuation.maxSpeakersPerContinuation,
-        1,
-        3,
-      ),
-      stopWhenUserTargeted: continuation.stopWhenUserTargeted !== false,
-    },
-    replyOptions: {
-      enabled: replyOptions.enabled !== false,
-      count: clampInteger(replyOptions.count, DEFAULT_TAVERN_ROOM_SETTINGS.replyOptions.count, 1, 6),
-    },
-    randomEvents: {
-      enabled: Boolean(randomEvents.enabled),
-      probability: Math.min(1, Math.max(0, probability)),
-    },
-    illustrationHints: {
-      enabled: Boolean(illustrationHints.enabled),
-    },
-    informationPolicy: normalizeInformationPolicy(candidate.informationPolicy),
   };
 };

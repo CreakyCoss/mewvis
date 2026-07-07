@@ -1,7 +1,6 @@
 import { normalizeVisualPresetId } from "../visual-presets";
 import { createTavernId as createId, now } from "../ids";
 import { normalizeStringRecord } from "../normalizers/normalization";
-import { normalizeAssetDraft, normalizeIllustrationHints } from "../normalizers/asset-normalizers";
 import { normalizeRoomCharacterConfigs, roomCharacterMemoriesFromConfigs } from "../normalizers/room-character-configs";
 import { normalizeSceneRelationshipOverrides } from "../normalizers/relationships";
 import {
@@ -12,7 +11,6 @@ import {
   normalizeSceneStatus,
 } from "../normalizers/scene-state-normalizers";
 import type {
-  TavernAssetDraft,
   TavernPendingInteraction,
   TavernReplyOption,
 } from "@/features/pages/taverns/manage/model";
@@ -98,8 +96,6 @@ export const buildTavernScene = (input: TavernSceneInput = {}): TavernScene => {
     replyOptions: normalizeItems<TavernReplyOption>(normalizeArray(input.replyOptions), normalizeReplyOption),
     characterConfigs,
     characterMemories: roomCharacterMemoriesFromConfigs(characterConfigs),
-    illustrationHints: normalizeIllustrationHints(input.illustrationHints),
-    assetDrafts: normalizeItems<TavernAssetDraft>(normalizeArray(input.assetDrafts), normalizeAssetDraft),
     characterIds,
     activeCharacterId,
     createdAt,

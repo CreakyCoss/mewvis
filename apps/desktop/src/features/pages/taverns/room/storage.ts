@@ -159,7 +159,6 @@ export const loadTavernRoomSessionState = async (
   return {
     room,
     messages: materializeRuntimeMessagesForRoom(room, messages),
-    workflowTraces: [],
   };
 };
 

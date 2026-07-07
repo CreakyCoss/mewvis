@@ -3,16 +3,11 @@ import type { TavernRoomSettings } from "@/features/pages/taverns/manage/model";
 
 export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
   immersiveDescriptionEnabled: true,
-  showExecutionTrace: false,
-  autoAssetExtractionEnabled: false,
-  assetExtractionIntervalTurns: 3,
-  maxAssetDrafts: 5,
   directorMaxSpeakers: 3,
   directorLoop: {
     enabled: true,
     maxRounds: 2,
   },
-  agentKnowledgeCompactIntervalTurns: 0,
   interactionQualityRuleIds: [...DEFAULT_TAVERN_INTERACTION_QUALITY_RULE_IDS],
   directorNarrativeControl: {
     agencyMode: "player_protagonist",
@@ -78,46 +73,6 @@ export const DEFAULT_TAVERN_ROOM_SETTINGS: TavernRoomSettings = {
       includeUser: false,
       userPosition: "first",
     },
-    autoContinuation: "enabled",
     instruction: "",
-  },
-  continuation: {
-    enabled: true,
-    maxAutoContinuationRounds: 1,
-    maxSpeakersPerContinuation: 1,
-    stopWhenUserTargeted: true,
-  },
-  replyOptions: {
-    enabled: true,
-    count: 3,
-  },
-  randomEvents: {
-    enabled: false,
-    probability: 0.15,
-  },
-  illustrationHints: {
-    enabled: false,
-  },
-  informationPolicy: {
-    mode: "open",
-    uiDefaultView: "reveal",
-    hideCharacterThoughts: false,
-    revealThoughts: "manual",
-    hiddenFacts: {
-      enabled: false,
-      defaultVisibility: "director",
-      reveal: "manual",
-    },
-    roleAssignment: {
-      enabled: false,
-      strategy: "manual",
-      includeUser: true,
-      revealToAssignedCharacter: true,
-      revealFactionMembers: true,
-      rolePool: [],
-      opening: {
-        autoStart: false,
-      },
-    },
   },
 };

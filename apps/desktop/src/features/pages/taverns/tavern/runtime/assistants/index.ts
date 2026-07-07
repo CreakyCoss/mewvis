@@ -1,8 +1,3 @@
-export {
-  runTavernAssetExtraction,
-  type RunTavernAssetExtractionInput,
-  type TavernExtractedAssetDraft,
-} from "./asset-extractor";
 export { runTavernUserReplySuggestions, type TavernUserReplySuggestionInput } from "./user-reply-suggestions";
 export {
   runTavernTextFieldAgent,

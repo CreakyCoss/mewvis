@@ -24,14 +24,11 @@ export const pickTavernRoomConfig = (room: TavernRoomConfig): TavernRoomConfig =
   scenePresetId: room.scenePresetId,
   replyMode: room.replyMode,
   settings: {
-    ...room.settings,
+    immersiveDescriptionEnabled: room.settings.immersiveDescriptionEnabled,
+    directorMaxSpeakers: room.settings.directorMaxSpeakers,
+    directorLoop: { ...room.settings.directorLoop },
     interactionQualityRuleIds: [...room.settings.interactionQualityRuleIds],
     directorNarrativeControl: { ...room.settings.directorNarrativeControl },
-    directorLoop: { ...room.settings.directorLoop },
-    continuation: { ...room.settings.continuation },
-    replyOptions: { ...room.settings.replyOptions },
-    randomEvents: { ...room.settings.randomEvents },
-    illustrationHints: { ...room.settings.illustrationHints },
     directorScheduling: {
       ...room.settings.directorScheduling,
       speakerMotivation: {
@@ -40,17 +37,6 @@ export const pickTavernRoomConfig = (room: TavernRoomConfig): TavernRoomConfig =
       },
       fixedOrder: {
         ...room.settings.directorScheduling.fixedOrder,
-      },
-    },
-    informationPolicy: {
-      ...room.settings.informationPolicy,
-      hiddenFacts: { ...room.settings.informationPolicy.hiddenFacts },
-      roleAssignment: {
-        ...room.settings.informationPolicy.roleAssignment,
-        opening: {
-          ...room.settings.informationPolicy.roleAssignment.opening,
-        },
-        rolePool: room.settings.informationPolicy.roleAssignment.rolePool.map((role) => ({ ...role })),
       },
     },
   },

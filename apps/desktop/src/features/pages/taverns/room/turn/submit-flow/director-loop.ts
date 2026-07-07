@@ -4,11 +4,6 @@ import type { AgentClientCollaborationEvent } from "@/agent-client/types";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
 import type { TavernRoomContextValue } from "@/features/pages/taverns/room/context";
 import {
-  projectTavernSceneOntoRoom,
-  syncTavernRoomActiveScene,
-} from "@/features/pages/taverns/tavern/runtime/active-scene-runtime";
-import { createTavernIllustrationHint } from "@/features/pages/taverns/tavern/factories/asset-factories";
-import {
   buildTavernMessageSegments,
   createTavernMessage,
   inferTavernMessageKind,
@@ -27,12 +22,8 @@ import { resolveTavernCharacterModel } from "@/features/pages/taverns/tavern/run
 import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
 import { findMissingSpeakerModel, requireTavernRuntimeModelInput, type ActiveReplyRef, type TurnMode } from "./shared";
-import { applyTavernCollaborationTraceEvent } from "./collaboration-trace";
-
-const TAVERN_LOOP_ILLUSTRATION_HINT_LIMIT = 24;
 
 type LoopSpeakerRuntime = {
-  executionStepId: string;
   message: TavernMessage;
   speaker: TavernCharacter;
   text: string;
@@ -42,8 +33,6 @@ type TavernLoopSupervisorDecision = {
   speakerIds: string[];
   nonverbalReplyIds?: string[];
   narrator?: string;
-  randomEvent?: string;
-  illustrationHints?: string[];
   ambientActions?: Array<{
     characterId: string;
     action: string;
@@ -96,12 +85,6 @@ export const runDirectorLoopTurn = async ({
 }) => {
   const maxRounds = resolveDirectorLoopMaxRounds(runtimeRoom);
   ctx.setTurnStatus("导演正在进行回环调度...");
-  ctx.appendExecutionStep({
-    id: "director-loop",
-    label: "导演回环",
-    detail: maxRounds > 1 ? `最多 ${maxRounds} 轮` : "单轮动态调度",
-    status: "running",
-  });
 
   const activeSpeakerRuntimeByRoleId = new Map<string, LoopSpeakerRuntime>();
   const speakerByRoleId = new Map(
@@ -110,20 +93,12 @@ export const runDirectorLoopTurn = async ({
   const characterIdByRoleId = new Map(
     availableRoomCharacters.map((speaker) => [tavernCharacterAgentRoleId(runtimeRoom, speaker), speaker.id]),
   );
-  const agentRoleLabelById = Object.fromEntries(
-    availableRoomCharacters.map((speaker) => [tavernCharacterAgentRoleId(runtimeRoom, speaker), speaker.name]),
-  );
   let latestSupervisorDecision: TavernLoopSupervisorDecision | undefined;
   let directorReason = "";
   let directorNonverbalReplyIds: string[] = [];
   let turnNarratorTexts: string[] = [];
 
   const handleEvent = (event: AgentClientCollaborationEvent) => {
-    applyTavernCollaborationTraceEvent(ctx, event, {
-      scopeLabel: "导演回环",
-      agentRoleLabelById,
-    });
-
     if (event.type === "step_started" && event.agentRoleId) {
       const speaker = speakerByRoleId.get(event.agentRoleId);
       if (!speaker) {
@@ -177,7 +152,6 @@ export const runDirectorLoopTurn = async ({
         selectedReplyOption,
         text,
         turnMessages,
-        userMessage,
       });
       runtimeMessages = directorEffects.runtimeMessages;
       runtimeRoom = directorEffects.runtimeRoom;
@@ -237,10 +211,6 @@ export const runDirectorLoopTurn = async ({
     onEvent: handleEvent,
   });
 
-  ctx.patchExecutionStep("director-loop", {
-    status: "done",
-    detail: latestSupervisorDecision?.reason ?? "回环调度完成",
-  });
   activeReplyRef.message = null;
   activeReplyRef.text = "";
 
@@ -302,19 +272,11 @@ const startLoopSpeakerRuntime = ({
     content: "",
     status: "streaming",
   });
-  const executionStepId = `director-loop-speaker-${speaker.id}-${replyMessage.id}`;
-  ctx.appendExecutionStep({
-    id: executionStepId,
-    label: `${speaker.name} 回环回复`,
-    detail: "导演回环 workflow",
-    status: "running",
-  });
   ctx.appendMessagesToRoom(room.id, [replyMessage]);
   activeReplyRef.message = replyMessage;
   activeReplyRef.text = "";
 
   return {
-    executionStepId,
     message: replyMessage,
     speaker,
     text: "",
@@ -391,10 +353,6 @@ const finalizeLoopSpeakerRuntime = ({
     segments: finalizedMessage.segments,
     status: "done",
   });
-  ctx.patchExecutionStep(runtime.executionStepId, {
-    status: "done",
-    detail: finalText.slice(0, 120),
-  });
   activeReplyRef.message = null;
   activeReplyRef.text = "";
 
@@ -413,7 +371,6 @@ const applyLoopSupervisorDecision = ({
   selectedReplyOption,
   text,
   turnMessages,
-  userMessage,
 }: {
   availableActiveCharacter: TavernCharacter | null;
   availableRoomCharacters: TavernCharacter[];
@@ -426,7 +383,6 @@ const applyLoopSupervisorDecision = ({
   selectedReplyOption?: TavernReplyOption;
   text: string;
   turnMessages: TavernMessage[];
-  userMessage: TavernMessage;
 }) => {
   const directorNonverbalReplyIds = decision.nonverbalReplyIds ?? [];
   const speakers = resolveTavernScheduledSpeakers({
@@ -476,21 +432,6 @@ const applyLoopSupervisorDecision = ({
       : [],
   );
 
-  const randomEventText = decision.randomEvent?.trim();
-  appendNarratorMessages(
-    randomEventText
-      ? [
-          createTavernMessage({
-            roomId: room.id,
-            role: "narrator",
-            presentationProfileId: runtimeRoom.presentation?.profileId,
-            content: randomEventText,
-            status: "done",
-          }),
-        ]
-      : [],
-  );
-
   const ambientActionMessages = (decision.ambientActions ?? [])
     .map((action) => {
       const actionText = action.action.trim();
@@ -508,34 +449,6 @@ const applyLoopSupervisorDecision = ({
     })
     .filter((message): message is TavernMessage => Boolean(message));
   appendNarratorMessages(ambientActionMessages);
-
-  const illustrationSourceMessageIds =
-    userMessage.role === "user" ? [userMessage.id] : turnMessages.map((message) => message.id).slice(-4);
-  const illustrationHints = room.settings.illustrationHints.enabled
-    ? (decision.illustrationHints ?? [])
-        .map((hint) => hint.trim())
-        .filter(Boolean)
-        .map((prompt) =>
-          createTavernIllustrationHint({
-            prompt,
-            turnId: userMessage.turnId ?? userMessage.id,
-            sourceMessageIds: illustrationSourceMessageIds,
-          }),
-        )
-    : [];
-  if (illustrationHints.length > 0) {
-    const nextIllustrationHints = [...runtimeRoom.illustrationHints, ...illustrationHints].slice(
-      -TAVERN_LOOP_ILLUSTRATION_HINT_LIMIT,
-    );
-    runtimeRoom = syncTavernRoomActiveScene({
-      ...projectTavernSceneOntoRoom(runtimeRoom),
-      illustrationHints: nextIllustrationHints,
-      updatedAt: Date.now(),
-    });
-    ctx.patchRoom(room.id, {
-      illustrationHints: nextIllustrationHints,
-    });
-  }
 
   return {
     runtimeMessages,
@@ -565,22 +478,15 @@ const normalizeLoopSupervisorDecision = (
     speakerIds,
     nonverbalReplyIds: [],
     narrator: artifacts.narrator,
-    randomEvent: artifacts.randomEvent,
-    illustrationHints: artifacts.illustrationHints,
     ambientActions: artifacts.ambientActions,
     reason: readOptionalString(record.reason),
   };
 };
 
 const normalizeSupervisorArtifacts = (value: unknown, characterIdByRoleId: Map<string, string>) => {
-  const result: Pick<
-    TavernLoopSupervisorDecision,
-    "ambientActions" | "illustrationHints" | "narrator" | "randomEvent"
-  > = {
+  const result: Pick<TavernLoopSupervisorDecision, "ambientActions" | "narrator"> = {
     ambientActions: [],
-    illustrationHints: [],
     narrator: undefined,
-    randomEvent: undefined,
   };
   if (!Array.isArray(value)) {
     return result;
@@ -599,14 +505,6 @@ const normalizeSupervisorArtifacts = (value: unknown, characterIdByRoleId: Map<s
     }
     if (type === "narrator") {
       narratorTexts.push(content);
-      continue;
-    }
-    if (type === "randomEvent") {
-      result.randomEvent ??= content;
-      continue;
-    }
-    if (type === "illustrationHint") {
-      result.illustrationHints?.push(content);
       continue;
     }
     if (type === "ambientAction") {

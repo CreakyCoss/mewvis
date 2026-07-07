@@ -23,7 +23,6 @@ import {
   formatTavernInteractionQualityRulesForTarget,
   formatTavernPromptBlocksForTarget,
 } from "../../prompt-registry/text-blocks";
-import { shouldOfferTavernDirectorRandomEvent } from "./decision";
 import { buildTavernDirectorContextSections } from "./prompt/context-sections";
 import { buildTavernDirectorOutputContract } from "./prompt/contract";
 
@@ -39,7 +38,6 @@ export type BuildTavernDirectorPromptContextInput = {
   };
   selectedTargetCharacterIds: string[];
   maxSpeakers: number;
-  randomEventOpportunity?: boolean;
   storyContext?: TavernStoryContextPackage;
 };
 
@@ -52,7 +50,6 @@ export const buildTavernDirectorPromptContext = ({
   turnTrigger,
   selectedTargetCharacterIds,
   maxSpeakers,
-  randomEventOpportunity,
   storyContext: inputStoryContext,
 }: BuildTavernDirectorPromptContextInput) => {
   const isSceneDriveTurn = turnTrigger.type === "scene_drive";
@@ -90,8 +87,6 @@ export const buildTavernDirectorPromptContext = ({
   ]
     .filter(Boolean)
     .join("\n\n");
-  const canConsiderRandomEvent = randomEventOpportunity ?? shouldOfferTavernDirectorRandomEvent(room);
-  const canRequestIllustrationHints = room.settings.illustrationHints.enabled;
   const directorOnlyAllowed = isTavernDirectorOnlyTurnAllowed(room);
   const schedulingInstruction = formatTavernDirectorSchedulingInstruction(room);
   const schedulingSignals = buildTavernSchedulingSignals({
@@ -117,8 +112,6 @@ export const buildTavernDirectorPromptContext = ({
       isSceneDriveTurn,
       directorOnlyAllowed,
       selectedTargetsCanStaySilent,
-      canConsiderRandomEvent,
-      canRequestIllustrationHints,
       schedulingInstruction,
     }),
     "",
@@ -142,8 +135,6 @@ export const buildTavernDirectorPromptContext = ({
   ].join("\n");
 
   return {
-    canConsiderRandomEvent,
-    canRequestIllustrationHints,
     directorOnlyAllowed,
     isSceneDriveTurn,
     presentationProfile,
@@ -169,12 +160,6 @@ export const buildTavernDirectorRuntimeInstruction = (directorPromptContext: Tav
     '当前系统叙事、酒馆风格和写作规则来自 requestContext 中 target="director" 的 prompt_block；这些是用户保存后的文本，必须按文本执行。',
     "必须输出 supervisor.dispatch-loop JSON：给所有候选 worker 评分，每轮最多选择一个 selectedTargetId。",
     "可以通过 artifacts 插入一条简短旁白来做环境过渡，但不要新增关键事实，不要代替角色行动或长篇发言。",
-    directorPromptContext.canConsiderRandomEvent
-      ? "本轮可以考虑 randomEvent artifact；如果触发，只写公开可观察且不解决主线的小事件。"
-      : "本轮不要触发随机事件，不要输出 randomEvent artifact。",
-    directorPromptContext.canRequestIllustrationHints
-      ? "本轮可以给出 illustrationHint artifact；插图提示只描述公开可见画面，不参与角色发言。"
-      : "本轮不要生成插图提示，不要输出 illustrationHint artifact。",
     "ambientAction artifact 只用于未被 selectedTargetId 选中的角色公开可观察动作，不是角色对白，也不要写心理。",
     directorPromptContext.directorOnlyAllowed
       ? "当前阶段允许 status=complete 且 selectedTargetId 为空；只有确实需要公开角色发言或非语言近景反应时才选择 worker。"

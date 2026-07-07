@@ -1,8 +1,6 @@
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { TavernMessage } from "../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { normalizeTavernMessageForAudience, type TavernVisibleMessage } from "./visibility";
-import { shouldShowTavernCharacterThoughts } from "../../core/information-policy";
 import { buildTavernMessageSegments } from "./segments";
 
 export type TavernRenderableMessage = TavernVisibleMessage & {
@@ -68,21 +66,18 @@ export const createTavernRenderableMessages = ({
   messages,
   characters,
   userPersonaName,
-  room,
 }: {
   messages: TavernMessage[];
   characters: TavernCharacter[];
   userPersonaName: string;
-  room?: Pick<TavernRoom, "settings">;
 }): TavernRenderableMessage[] => {
   const turnNarratorTexts: string[] = [];
-  const includeAllThoughts = room ? shouldShowTavernCharacterThoughts({ settings: room.settings }) : true;
   const renderableMessages = messages.map((message) => ({
     ...normalizeTavernMessageForAudience({
       message,
       characters,
       userPersonaName,
-      audience: { type: "ui", includeAllThoughts },
+      audience: { type: "ui", includeAllThoughts: true },
     }),
     source: message,
   }));

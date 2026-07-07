@@ -6,7 +6,6 @@ import type { Workspace } from "@/features/pages/workspace/types";
 import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";
 import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
-import type { ExecutionStep } from "./execution-trace";
 
 export type TavernRoomContextValue = {
   workspace: Workspace;
@@ -27,20 +26,12 @@ export type TavernRoomContextValue = {
   setReplySuggestions: Dispatch<SetStateAction<TavernReplyOption[]>>;
   turnStatus: string;
   setTurnStatus: Dispatch<SetStateAction<string>>;
-  executionSteps: ExecutionStep[];
-  setExecutionSteps: Dispatch<SetStateAction<ExecutionStep[]>>;
-  executionTraceAnchorMessageId: string;
-  setExecutionTraceAnchorMessageId: Dispatch<SetStateAction<string>>;
   activeRoom: TavernRoom | null;
   visualPreset: VisualPresetDefinition;
   characterById: Map<string, TavernCharacter>;
   roomCharacters: TavernCharacter[];
   roomMessages: TavernMessage[];
   activeCharacter: TavernCharacter | null;
-  resetExecutionTrace: (steps: ExecutionStep[]) => void;
-  patchExecutionStep: (stepId: string, patch: Partial<Omit<ExecutionStep, "id">>) => void;
-  appendExecutionStep: (step: ExecutionStep) => void;
-  upsertExecutionStep: (step: ExecutionStep) => void;
   patchRoom: (roomId: string, patch: Partial<TavernRoom>) => void;
   appendMessagesToRoom: (roomId: string, messages: TavernMessage[]) => void;
   patchMessage: (messageId: string, patch: Partial<TavernMessage>) => void;

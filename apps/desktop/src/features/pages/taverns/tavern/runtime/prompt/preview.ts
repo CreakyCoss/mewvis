@@ -620,7 +620,6 @@ export const buildTavernPromptPreview = ({
     turnTrigger: { type: "user" },
     selectedTargetCharacterIds,
     maxSpeakers: getPreviewMaxSpeakers(room, previewCharacters),
-    randomEventOpportunity: room.settings.randomEvents.enabled,
     storyContext: previewStoryContext,
   });
   const directorItem = createPreviewItem({
@@ -628,7 +627,7 @@ export const buildTavernPromptPreview = ({
     systemPrompt: bridgeSystemPrompt,
     runtimeInstruction: buildTavernDirectorRuntimeInstruction(directorPromptContext),
     requestContext: directorPromptContext.requestContext,
-    userMessage: "请决定本轮酒馆对话的发言顺序、可选在场动作和可选插图提示，并只输出严格合法 JSON。",
+    userMessage: "请决定本轮酒馆对话的发言顺序和可选在场动作，并只输出严格合法 JSON。",
   });
 
   const characterItem = activeCharacter

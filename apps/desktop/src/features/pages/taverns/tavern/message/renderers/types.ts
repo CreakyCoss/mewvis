@@ -3,11 +3,7 @@ import type { TavernRenderableMessage } from "../domain/render-model";
 
 export type TavernConversationRendererProps = {
   messages: TavernRenderableMessage[];
-  shouldShowExecutionTrace: boolean;
-  executionTraceAnchorMessageId: string;
-  hasExecutionTraceAnchor: boolean;
   isSidePanelOpen?: boolean;
-  renderExecutionTrace: () => ReactNode;
   messageEndRef: RefObject<HTMLDivElement | null>;
 };
 
