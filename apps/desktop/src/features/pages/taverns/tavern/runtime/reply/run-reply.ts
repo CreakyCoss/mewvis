@@ -7,7 +7,7 @@ import {
   cleanTavernThoughtText,
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
-} from "../../message";
+} from "@/features/pages/taverns/room/message";
 import { buildTavernBridgeSystemPrompt } from "../conversation";
 import { formatTavernCharacterRelationships, tavernBridgeSessionRootDir, tavernCharacterAgentRoleId } from "../../core";
 import { runTavernRuntimeAgent } from "../agent";

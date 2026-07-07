@@ -1,5 +1,5 @@
 import { createTavernId as createId, now } from "../../ids";
-import { materializeTavernMessage } from "../../message";
+import { materializeTavernMessage } from "@/features/pages/taverns/room/message";
 import { normalizeReplyMode } from "../../normalizers/reply-mode";
 import { normalizeCharacterRelationships } from "../../normalizers/relationships";
 import { normalizeRoomCharacterConfigs } from "../../normalizers/room-character-configs";

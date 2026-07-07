@@ -4,7 +4,11 @@ import type {
   TavernPresentationGenerationContract,
   TavernPresentationProfile,
 } from "@/features/pages/taverns/manage/model";
-import { formatTavernProtocolTagPair, TAVERN_PROTOCOL_FIELDS, wrapTavernProtocolTag } from "../message/protocol/schema";
+import {
+  formatTavernProtocolTagPair,
+  TAVERN_PROTOCOL_FIELDS,
+  wrapTavernProtocolTag,
+} from "@/features/pages/taverns/room/message/protocol/schema";
 
 export type TavernPresentationPublicContentTag =
   typeof TAVERN_PROTOCOL_FIELDS.publicReply.canonicalTag | typeof TAVERN_PROTOCOL_FIELDS.narrativeBeat.canonicalTag;

@@ -2,7 +2,7 @@ import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/r
 import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import { createIdleTavernRoomBusyState, type TavernRoomStoreState } from "@/features/pages/taverns/room/context";
-import { createTavernMessage } from "@/features/pages/taverns/tavern/message";
+import { createTavernMessage } from "@/features/pages/taverns/room/message";
 import {
   isTavernCharacterAvailableForSpeech,
   isTavernFixedOrderPhase,

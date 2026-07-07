@@ -10,7 +10,7 @@ const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
 const adapterPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/runtime/collaboration/index.ts");
 const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/factories/manual-factories.ts");
-const messagePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/message/index.ts");
+const messagePath = resolve(workspaceRoot, "src/features/pages/taverns/room/message/index.ts");
 const corePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/core/index.ts");
 
 writeFileSync(

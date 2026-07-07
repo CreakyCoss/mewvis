@@ -1,6 +1,11 @@
-import { getTavernPresentationProfile } from "../../prompt-registry/presentation-rules";
-import { getTavernPresentationContract } from "../../presentation/presentation-contracts";
-import type { TavernMessage, TavernMessageActorRef, TavernMessageKind, TavernMessageSegment } from "../../types";
+import { getTavernPresentationProfile } from "@/features/pages/taverns/tavern/prompt-registry/presentation-rules";
+import { getTavernPresentationContract } from "@/features/pages/taverns/tavern/presentation/presentation-contracts";
+import type {
+  TavernMessage,
+  TavernMessageActorRef,
+  TavernMessageKind,
+  TavernMessageSegment,
+} from "@/features/pages/taverns/tavern/types";
 import type { TavernPresentationProfileId } from "@/features/pages/taverns/manage/model";
 
 const createActorForMessage = (message: Pick<TavernMessage, "role" | "characterId">): TavernMessageActorRef => {

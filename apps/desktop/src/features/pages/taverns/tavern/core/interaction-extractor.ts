@@ -1,6 +1,6 @@
 import type { TavernMessage } from "../types";
 import type { TavernCharacter, TavernPendingInteraction } from "@/features/pages/taverns/manage/model";
-import { getTavernProtocolFieldTagNames } from "../message/protocol/schema";
+import { getTavernProtocolFieldTagNames } from "@/features/pages/taverns/room/message/protocol/schema";
 
 const questionPattern = /[?？]|(?:吗|么|呢|哪|谁|什么|为何|为什么|怎么|如何)(?:[。！？!?」”']|$)/;
 

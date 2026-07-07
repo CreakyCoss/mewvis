@@ -3,9 +3,9 @@ import {
   formatTavernMessageSegmentsForPrompt,
   parseTavernReplyText,
   resolveTavernMessageSegments,
-} from "../../../message";
+} from "@/features/pages/taverns/room/message";
 import { getTavernPresentationContractForMessageKind } from "../../../presentation/presentation-contracts";
-import { getTavernProtocolHistoryPrivateThoughtTag } from "../../../message/protocol/schema";
+import { getTavernProtocolHistoryPrivateThoughtTag } from "@/features/pages/taverns/room/message/protocol/schema";
 import type { TavernMessage } from "../../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { escapePromptXmlAttribute, escapePromptXmlText } from "../shared/text";

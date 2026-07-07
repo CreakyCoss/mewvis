@@ -5,7 +5,7 @@ import {
   formatTavernProtocolTagPair,
   openTavernProtocolTag,
   wrapTavernProtocolTag,
-} from "../../../message/protocol/schema";
+} from "@/features/pages/taverns/room/message/protocol/schema";
 
 export type TavernCharacterPromptVariant = "xml_contract" | "dialogue_first" | "minimal_contract";
 

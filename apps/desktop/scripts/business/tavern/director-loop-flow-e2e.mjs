@@ -15,7 +15,7 @@ const mockReplyPath = join(tempDir, "mock-reply.ts");
 const adapterPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/runtime/collaboration/adapter.ts");
 const directorLoopPath = resolve(workspaceRoot, "src/features/pages/taverns/room/turn/submit-flow/director-loop.ts");
 const manualFactoriesPath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/factories/manual-factories.ts");
-const messagePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/message/index.ts");
+const messagePath = resolve(workspaceRoot, "src/features/pages/taverns/room/message/index.ts");
 const corePath = resolve(workspaceRoot, "src/features/pages/taverns/tavern/core/index.ts");
 
 writeFileSync(

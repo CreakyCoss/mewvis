@@ -1,7 +1,7 @@
 import { FileText, UserRound } from "lucide-react";
 import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";
 import { cn } from "@/lib/utils";
-import type { TavernMessage } from "../../types";
+import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
 import { MessageControls } from "./message-controls";
 import { formatTavernMessageTime } from "./message-time";
 

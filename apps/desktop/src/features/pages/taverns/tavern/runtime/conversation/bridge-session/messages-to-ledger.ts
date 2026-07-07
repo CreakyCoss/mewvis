@@ -1,6 +1,9 @@
 import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { LedgerMessageInput } from "@/features/ai/components/conversation-ledger/types";
-import { formatTavernVisibleMessagesForRequestContext, normalizeTavernMessagesForAudience } from "../../../message";
+import {
+  formatTavernVisibleMessagesForRequestContext,
+  normalizeTavernMessagesForAudience,
+} from "@/features/pages/taverns/room/message";
 import type { TavernMessage } from "../../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 

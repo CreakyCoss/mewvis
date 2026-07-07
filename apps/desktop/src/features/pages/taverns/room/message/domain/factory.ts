@@ -1,5 +1,5 @@
-import { createTavernId, now } from "../../ids";
-import type { TavernMessage } from "../../types";
+import { createTavernId, now } from "@/features/pages/taverns/tavern/ids";
+import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
 import { buildTavernMessageSegments, inferTavernMessageKind } from "./segments";
 
 export const createTavernMessage = (input: Omit<TavernMessage, "id" | "createdAt">): TavernMessage => {

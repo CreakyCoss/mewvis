@@ -1,6 +1,6 @@
 import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { ReactElement } from "react";
-import type { TavernMessage } from "../../types";
+import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { isTavernRoomSending, useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";

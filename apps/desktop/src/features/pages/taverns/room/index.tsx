@@ -14,11 +14,11 @@ import {
   switchTavernRoomScene,
   switchTavernRoomSceneInstance,
 } from "../tavern/runtime/active-scene-runtime";
-import { createTavernMessage } from "../tavern/message";
+import { createTavernMessage } from "./message";
 import { getTavernSceneInstanceDisplayTitle } from "../tavern/runtime/scene-selectors";
 import type { TavernRuntimeScope } from "../storage";
 import { getTavernPresentationProfile } from "../tavern/prompt-registry/presentation-rules";
-import { createTavernRenderableMessages } from "../tavern/message";
+import { createTavernRenderableMessages } from "./message";
 import { deleteTavernBridgeSession } from "../tavern/runtime/conversation";
 import type { TavernMessage } from "../tavern/types";
 import {
@@ -29,7 +29,7 @@ import {
 } from "./composer";
 import { createIdleTavernRoomBusyState, isTavernRoomBusy, useTavernRoomContext } from "./context";
 import { Header } from "./header";
-import { resolveTavernConversationRenderer } from "../tavern/message/renderers";
+import { resolveTavernConversationRenderer } from "./message/renderers";
 import { SceneBriefCard } from "./scene-brief-card";
 import { SceneSelector } from "./scene-selector";
 import { SidePanel, type SidePanelHandle } from "./side-panel";

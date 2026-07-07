@@ -8,7 +8,7 @@ import {
   createTavernMessage,
   inferTavernMessageKind,
   parseTavernReplyText,
-} from "@/features/pages/taverns/tavern/message";
+} from "@/features/pages/taverns/room/message";
 import {
   extractTavernPendingInteractionsFromMessages,
   resolveTavernScheduledSpeakers,

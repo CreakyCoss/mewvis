@@ -5,7 +5,10 @@ import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/
 import { buildTavernBridgeSystemPrompt, buildTavernCharacterPromptParts } from "../prompt";
 import { getTavernPresentationProfile } from "../../prompt-registry/presentation-rules";
 import { getTavernPresentationContract } from "../../presentation/presentation-contracts";
-import { formatTavernVisibleMessagesForRequestContext, normalizeTavernMessagesForAudience } from "../../message";
+import {
+  formatTavernVisibleMessagesForRequestContext,
+  normalizeTavernMessagesForAudience,
+} from "@/features/pages/taverns/room/message";
 import { tavernBridgeSessionRootDir, tavernCharacterAgentRoleId } from "../../core";
 
 export type TavernReplyAgentRequestInput = {

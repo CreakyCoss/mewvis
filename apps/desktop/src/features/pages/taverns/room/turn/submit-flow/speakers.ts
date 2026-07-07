@@ -2,7 +2,7 @@ import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/r
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
 import type { TavernRoomStoreState } from "@/features/pages/taverns/room/context";
-import { createTavernMessage } from "@/features/pages/taverns/tavern/message";
+import { createTavernMessage } from "@/features/pages/taverns/room/message";
 import {
   canTavernCharacterUseNonverbalReply,
   extractTavernPendingInteractionsFromMessages,
@@ -13,7 +13,7 @@ import {
   hasTavernReplyDialogueText,
   inferTavernMessageKind,
   parseTavernReplyText,
-} from "@/features/pages/taverns/tavern/message";
+} from "@/features/pages/taverns/room/message";
 import { getTavernPresentationProfile } from "@/features/pages/taverns/tavern/prompt-registry/presentation-rules";
 import {
   getTavernPresentationContract,

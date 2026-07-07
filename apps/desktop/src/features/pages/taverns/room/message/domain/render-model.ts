@@ -1,4 +1,4 @@
-import type { TavernMessage } from "../../types";
+import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { normalizeTavernMessageForAudience, type TavernVisibleMessage } from "./visibility";
 import { buildTavernMessageSegments } from "./segments";

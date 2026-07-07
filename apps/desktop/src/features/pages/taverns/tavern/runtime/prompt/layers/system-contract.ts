@@ -1,5 +1,8 @@
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
-import { formatTavernProtocolTagPair, openTavernProtocolTag } from "../../../message/protocol/schema";
+import {
+  formatTavernProtocolTagPair,
+  openTavernProtocolTag,
+} from "@/features/pages/taverns/room/message/protocol/schema";
 import type { TavernPromptSection } from "../shared/sections";
 import { escapePromptXmlText, limitPromptText } from "../shared/text";
 

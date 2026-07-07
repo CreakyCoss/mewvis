@@ -6,7 +6,7 @@ import type { Workspace } from "@/features/pages/workspace/types";
 import { getVisualPreset, type VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets";
 import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
-import { buildTavernMessageSegments, inferTavernMessageKind } from "@/features/pages/taverns/tavern/message";
+import { buildTavernMessageSegments, inferTavernMessageKind } from "@/features/pages/taverns/room/message";
 import {
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,

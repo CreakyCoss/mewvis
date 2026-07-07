@@ -3,7 +3,10 @@ import { formatTavernRuntimeMessagesForSummary } from "../../conversation";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/tavern/adapters/story";
 import { tavernMessagesToRuntimeMessages } from "../../prompt";
 import { buildTavernStoryContextPackage } from "../../../adapters/story";
-import { formatTavernVisibleMessagesForRequestContext, normalizeTavernMessagesForAudience } from "../../../message";
+import {
+  formatTavernVisibleMessagesForRequestContext,
+  normalizeTavernMessagesForAudience,
+} from "@/features/pages/taverns/room/message";
 import type { TavernMessage } from "../../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 
