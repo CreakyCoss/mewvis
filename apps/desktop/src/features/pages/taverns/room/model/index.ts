@@ -206,10 +206,8 @@ export type TavernRuntimeRoom = TavernRoomConfig & {
   userPersonaName: string;
 };
 
-export type TavernRoomRuntimeState = {
-  version: 4;
-  activeRoomId: string;
-  rooms: TavernRuntimeRoom[];
-  messagesByInstance: Record<string, TavernMessage[]>;
-  workflowTracesByInstance: Record<string, TavernWorkflowTraceRun[]>;
+export type TavernRoomSessionState = {
+  room: TavernRuntimeRoom | null;
+  messages: TavernMessage[];
+  workflowTraces: TavernWorkflowTraceRun[];
 };

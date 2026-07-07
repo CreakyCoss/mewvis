@@ -1,8 +1,10 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { TavernRuntimeScope } from "../storage";
+import type { TavernRoomSessionState, TavernRuntimeRoom as TavernRoom } from "./model";
 import type { TavernMessage } from "../tavern/types";
 
 const TAVERN_SOURCE_DIR = "tavern";
+const TAVERN_ROOM_FILE_NAME = "room.json";
 const TAVERN_MESSAGES_FILE_NAME = "messages.json";
 const TAVERN_CONVERSATION_FILE_NAME = "conversation.json";
 
@@ -39,6 +41,8 @@ const tavernMessagesPath = (baseDir: string) => joinPath(baseDir, TAVERN_MESSAGE
 
 const tavernConversationPath = (baseDir: string) => joinPath(baseDir, TAVERN_CONVERSATION_FILE_NAME);
 
+const tavernRoomPath = (baseDir: string) => joinPath(baseDir, TAVERN_ROOM_FILE_NAME);
+
 const readJsonWorkspaceFile = async (workspacePath: string, relativePath: string): Promise<unknown | null> => {
   try {
     const file = await invoke<{ content: string }>("read_workspace_file", {
@@ -58,6 +62,23 @@ const writeJsonWorkspaceFile = async (workspacePath: string, relativePath: strin
       content: JSON.stringify(value, null, 2),
     },
   });
+};
+
+const normalizeTavernRuntimeRoom = (value: unknown): TavernRoom | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Partial<TavernRoom>;
+  const id = typeof candidate.id === "string" ? candidate.id.trim() : "";
+  if (!id) {
+    return null;
+  }
+
+  return {
+    ...candidate,
+    id,
+  } as TavernRoom;
 };
 
 const normalizeTavernRuntimeMessages = (value: unknown): TavernMessage[] | null => {
@@ -85,37 +106,81 @@ const normalizeTavernRuntimeMessages = (value: unknown): TavernMessage[] | null 
   });
 };
 
-export const loadTavernRuntimeMessages = async (
+const activeSceneInstanceIdFor = (room: TavernRoom) =>
+  room.activeSceneInstanceId ?? room.sceneInstances?.[0]?.id ?? room.activeSceneId ?? room.id;
+
+const materializeRuntimeMessagesForRoom = (room: TavernRoom, messages: TavernMessage[]) => {
+  return messages.map((message) => ({
+    ...message,
+    roomId: message.roomId || room.id,
+    status: message.status === "streaming" ? ("done" as const) : message.status,
+  }));
+};
+
+const normalizeTavernRuntimeConversationMessages = (room: TavernRoom, value: unknown) => {
+  const messages = normalizeTavernRuntimeMessages(value);
+  if (messages) {
+    return messages;
+  }
+
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  return normalizeTavernRuntimeMessages((value as Record<string, unknown>)[activeSceneInstanceIdFor(room)]);
+};
+
+export const loadTavernRoomSessionState = async (
   workspacePath: string,
   scope: TavernRuntimeScope = {},
-): Promise<TavernMessage[] | null> => {
+  fallbackState?: TavernRoomSessionState,
+): Promise<TavernRoomSessionState | null> => {
   if (!scope.runtimePath?.trim() || !isTauri()) {
     return null;
   }
 
   const baseDir = tavernBaseDir(workspacePath, scope);
-  const messages = normalizeTavernRuntimeMessages(
-    await readJsonWorkspaceFile(workspacePath, tavernMessagesPath(baseDir)),
-  );
-  if (messages) {
-    return messages;
+  const room =
+    normalizeTavernRuntimeRoom(await readJsonWorkspaceFile(workspacePath, tavernRoomPath(baseDir))) ??
+    fallbackState?.room ??
+    null;
+  const messages =
+    normalizeTavernRuntimeMessages(await readJsonWorkspaceFile(workspacePath, tavernMessagesPath(baseDir))) ??
+    (room
+      ? normalizeTavernRuntimeConversationMessages(
+          room,
+          await readJsonWorkspaceFile(workspacePath, tavernConversationPath(baseDir)),
+        )
+      : null);
+  if (!room || !messages || messages.length === 0) {
+    return null;
   }
 
-  return normalizeTavernRuntimeMessages(await readJsonWorkspaceFile(workspacePath, tavernConversationPath(baseDir)));
+  return {
+    room,
+    messages: materializeRuntimeMessagesForRoom(room, messages),
+    workflowTraces: [],
+  };
 };
 
-export const saveTavernRuntimeMessages = async (
+export const saveTavernRoomSessionState = async (
   workspacePath: string,
   scope: TavernRuntimeScope = {},
-  messages: TavernMessage[],
+  state: TavernRoomSessionState,
 ) => {
   if (!scope.runtimePath?.trim() || !isTauri()) {
     return;
   }
 
+  const room = state.room;
+  if (!room) {
+    return;
+  }
+
   const baseDir = tavernBaseDir(workspacePath, scope);
   await Promise.all([
-    writeJsonWorkspaceFile(workspacePath, tavernMessagesPath(baseDir), messages),
-    writeJsonWorkspaceFile(workspacePath, tavernConversationPath(baseDir), messages),
+    writeJsonWorkspaceFile(workspacePath, tavernRoomPath(baseDir), room),
+    writeJsonWorkspaceFile(workspacePath, tavernMessagesPath(baseDir), state.messages),
+    writeJsonWorkspaceFile(workspacePath, tavernConversationPath(baseDir), state.messages),
   ]);
 };

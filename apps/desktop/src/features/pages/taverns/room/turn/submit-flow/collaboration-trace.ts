@@ -22,13 +22,6 @@ const agentTraceStepId = (workflowRunId: string, stepId: string) => `workflow:${
 
 const shortId = (value: string | null | undefined) => value?.slice(0, 8) ?? "runtime";
 
-const activeTraceSceneInstanceId = (ctx: TavernRoomContextValue) =>
-  ctx.activeRoom?.activeSceneInstanceId ??
-  ctx.activeRoom?.activeSceneId ??
-  ctx.activeRoom?.sceneInstances[0]?.id ??
-  ctx.activeRoom?.id ??
-  "";
-
 const toDetailText = (value: unknown, fallback = "") => {
   if (typeof value === "string") {
     return value.trim().slice(0, 160);
@@ -324,14 +317,13 @@ const persistCollaborationTraceEvent = (
     return;
   }
 
-  const sceneInstanceId = activeTraceSceneInstanceId(ctx);
-  if (!sceneInstanceId) {
+  if (!ctx.activeRoom) {
     return;
   }
 
   ctx.setState((current) => {
     const now = Date.now();
-    const traces = current.workflowTracesByInstance[sceneInstanceId] ?? [];
+    const traces = current.workflowTraces;
     const existingIndex = traces.findIndex((trace) => trace.workflowRunId === event.workflowRunId);
     const existingRun = existingIndex >= 0 ? traces[existingIndex] : null;
     const workflowId = event.type === "workflow_started" ? event.workflowId : (existingRun?.workflowId ?? "unknown");
@@ -368,10 +360,7 @@ const persistCollaborationTraceEvent = (
 
     return {
       ...current,
-      workflowTracesByInstance: {
-        ...current.workflowTracesByInstance,
-        [sceneInstanceId]: nextTraces.sort((left, right) => left.startedAt - right.startedAt).slice(-TRACE_RUN_LIMIT),
-      },
+      workflowTraces: nextTraces.sort((left, right) => left.startedAt - right.startedAt).slice(-TRACE_RUN_LIMIT),
     };
   });
 };

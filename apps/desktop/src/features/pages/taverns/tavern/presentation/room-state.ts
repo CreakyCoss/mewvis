@@ -1,4 +1,4 @@
-import type { TavernRoomRuntimeState, TavernRuntimeRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRuntimeRoom } from "@/features/pages/taverns/room/model";
 import { pickTavernRoomConfig } from "@/features/pages/taverns/room/model/runtime-room";
 import type { TavernRoom as TavernRoomConfig } from "@/features/pages/taverns/manage/model";
 import { materializeTavernPresentationInput, type TavernPresentationInput } from "./input";
@@ -83,22 +83,10 @@ export const materializeTavernPresentationRoomState = ({
     sceneId: message.sceneId ?? switchedRoom.activeSceneId,
     sceneInstanceId: message.sceneInstanceId ?? sceneInstanceId,
   }));
-  const runtimeState: TavernRoomRuntimeState = {
-    version: 4,
-    activeRoomId: switchedRoom.id,
-    rooms: [switchedRoom],
-    messagesByInstance: {
-      [sceneInstanceId]: messages,
-    },
-    workflowTracesByInstance: {
-      [sceneInstanceId]: [],
-    },
-  };
-
   return {
     tavernState: upsertTavernRoomConfig(tavernState, switchedRoom),
     room: switchedRoom,
     sceneInstanceId,
-    runtimeState,
+    messages,
   };
 };

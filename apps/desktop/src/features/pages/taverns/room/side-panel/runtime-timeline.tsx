@@ -137,9 +137,6 @@ const filterTimeline = (timeline: RuntimeSessionTimelineItem[], filter: Timeline
   return timeline.filter((item) => item.source === filter);
 };
 
-const activeSceneInstanceIdFor = (room: ReturnType<typeof useTavernRoomContext>["activeRoom"]) =>
-  room?.activeSceneInstanceId ?? room?.activeSceneId ?? room?.sceneInstances[0]?.id ?? room?.id ?? "";
-
 const buildRoleLabelMap = (
   room: NonNullable<ReturnType<typeof useTavernRoomContext>["activeRoom"]>,
   characters: ReturnType<typeof useTavernRoomContext>["roomCharacters"],
@@ -266,9 +263,8 @@ export const RuntimeTimelineSection = () => {
     [activeRoom, roomCharacters],
   );
   const localTraceCount = useMemo(() => {
-    const sceneInstanceId = activeSceneInstanceIdFor(activeRoom);
-    return sceneInstanceId ? (state.workflowTracesByInstance[sceneInstanceId]?.length ?? 0) : 0;
-  }, [activeRoom, state.workflowTracesByInstance]);
+    return activeRoom ? state.workflowTraces.length : 0;
+  }, [activeRoom, state.workflowTraces]);
   const timeline = snapshot?.timeline ?? [];
   const filteredTimeline = filterTimeline(timeline, filter);
   const latestWorkflowRunId = snapshot?.session.latestWorkflowRunId ?? "";

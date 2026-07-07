@@ -1,4 +1,4 @@
-import type { TavernRoomRuntimeState, TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomSessionState, TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { CSSProperties, FormEvent, KeyboardEvent, Ref } from "react";
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -39,11 +39,7 @@ import {
 import { buildTavernMessageSegments, createTavernMessage, inferTavernMessageKind } from "../tavern/message";
 import { getTavernSceneInstanceDisplayTitle } from "../tavern/runtime/scene-selectors";
 import type { TavernRuntimeScope } from "../storage";
-import {
-  getTavernPresentationProfile,
-  hasTavernPresentationStarted,
-  normalizeTavernPresentation,
-} from "../tavern/prompt-registry/presentation-rules";
+import { getTavernPresentationProfile } from "../tavern/prompt-registry/presentation-rules";
 import { createTavernRenderableMessages } from "../tavern/message";
 import { deleteTavernBridgeSession } from "../tavern/runtime/conversation";
 import type { TavernMessage, TavernReferencedFile } from "../tavern/types";
@@ -60,7 +56,7 @@ import { resolveTavernConversationRenderer } from "../tavern/message/renderers";
 import { SceneBriefCard } from "./scene-brief-card";
 import { SceneSelector } from "./scene-selector";
 import { SidePanel, type SidePanelHandle } from "./side-panel";
-import { loadTavernRuntimeMessages, saveTavernRuntimeMessages } from "./storage";
+import { loadTavernRoomSessionState, saveTavernRoomSessionState } from "./storage";
 import { submitRoomTurn } from "./turn/submit";
 
 const REFERENCE_SUGGESTION_LIMIT = 8;
@@ -155,9 +151,6 @@ const TavernMemoryPreviewText = ({ value, emptyText }: { value: string; emptyTex
 
 const getTavernSceneText = (value: string, fallback: string) => value.trim() || fallback;
 
-const getRoomActiveSceneInstanceId = (room: TavernRoom) =>
-  room.activeSceneInstanceId ?? room.activeSceneId ?? room.scenes?.[0]?.id ?? room.id;
-
 const getSceneDriveAutoPauseReason = (room: TavernRoom) => {
   const hasUserTargetedInteraction = room.pendingInteractions.some(
     (interaction) =>
@@ -174,9 +167,8 @@ export type TavernRoomOpenOptions = {
   workspace: Workspace;
   runtimeScope?: TavernRuntimeScope;
   room: TavernRoom;
-  storyData: TavernRoomRuntimeState;
+  initialMessages?: TavernMessage[];
   sceneInstanceId?: string;
-  onStateChange?: (state: TavernRoomRuntimeState) => void;
   onClose?: () => void;
 };
 
@@ -199,57 +191,50 @@ const EMPTY_WORKSPACE: Workspace = {
   updatedAt: 0,
 };
 
-const createEmptyTavernState = (): TavernRoomRuntimeState => ({
-  version: 4,
-  activeRoomId: "",
-  rooms: [],
-  messagesByInstance: {},
-  workflowTracesByInstance: {},
+const createEmptyTavernSessionState = (): TavernRoomSessionState => ({
+  room: null,
+  messages: [],
+  workflowTraces: [],
 });
 
-const mergeTavernRoomStoryData = ({
+const createTavernRoomInitialState = ({
   room,
+  initialMessages = [],
   sceneInstanceId,
-  storyData,
 }: {
   room: TavernRoom;
+  initialMessages?: TavernMessage[];
   sceneInstanceId?: string;
-  storyData: TavernRoomRuntimeState;
 }) => {
-  const storyRooms = storyData.rooms.length > 0 ? storyData.rooms : [room];
-  const storyRoomIds = new Set(storyRooms.map((item) => item.id));
-  const currentRoom = storyRooms.find((item) => item.id === room.id) ?? room;
   const nextRoom = sceneInstanceId
-    ? switchTavernRoomSceneInstance(currentRoom, sceneInstanceId)
-    : syncTavernRoomActiveScene(currentRoom);
-  const nextRooms = [
-    ...storyData.rooms.filter((item) => !storyRoomIds.has(item.id)),
-    ...storyRooms.map((item) => (item.id === nextRoom.id ? nextRoom : item)),
-  ];
-
-  return {
-    ...storyData,
-    activeRoomId: nextRoom.id,
-    rooms: nextRooms,
-  };
-};
-
-const materializeRuntimeMessagesForRoom = (room: TavernRoom, messages: TavernMessage[]) => {
-  const sceneInstanceId = getRoomActiveSceneInstanceId(room);
-  return messages.map((message) => ({
+    ? switchTavernRoomSceneInstance(room, sceneInstanceId)
+    : syncTavernRoomActiveScene(room);
+  const messages = initialMessages.map((message) => ({
     ...message,
-    roomId: message.roomId || room.id,
-    sceneId: room.activeSceneId,
-    sceneInstanceId,
+    roomId: message.roomId || nextRoom.id,
     status: message.status === "streaming" ? ("done" as const) : message.status,
   }));
+
+  return {
+    room: nextRoom,
+    messages,
+    workflowTraces: [],
+  } satisfies TavernRoomSessionState;
 };
+
+const getSessionStateRoom = (state: TavernRoomSessionState, roomId?: string) =>
+  state.room && (!roomId || state.room.id === roomId) ? state.room : null;
+
+const replaceSessionStateRoom = (state: TavernRoomSessionState, room: TavernRoom): TavernRoomSessionState => ({
+  ...state,
+  room,
+});
 
 export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const [openOptions, setOpenOptions] = useState<TavernRoomOpenOptions | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isTavernStateHydrated, setIsTavernStateHydrated] = useState(false);
-  const [state, setState] = useState<TavernRoomRuntimeState>(() => createEmptyTavernState());
+  const [state, setState] = useState<TavernRoomSessionState>(() => createEmptyTavernSessionState());
   const workspace = openOptions?.workspace ?? EMPTY_WORKSPACE;
   const runtimeModels = useLlmSettingsStore((store) => store.runtimeModels);
   const loadSettings = useLlmSettingsStore((store) => store.loadSettings);
@@ -268,20 +253,14 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const [executionSteps, setExecutionSteps] = useState<ExecutionStep[]>([]);
   const [executionTraceAnchorMessageId, setExecutionTraceAnchorMessageId] = useState("");
   const activeRoom = useMemo(() => {
-    const roomId = openOptions?.room.id;
-    const stateRoom = roomId ? state.rooms.find((item) => item.id === roomId) : null;
+    const stateRoom = getSessionStateRoom(state, openOptions?.room.id);
     const sourceRoom = stateRoom ?? openOptions?.room ?? null;
     return sourceRoom ? projectTavernSceneOntoRoom(sourceRoom) : null;
-  }, [openOptions?.room, state.rooms]);
+  }, [openOptions?.room, state.room]);
   const visualPreset = getVisualPreset(activeRoom?.scenePresetId);
   const characterById = useMemo(
-    () =>
-      new Map([
-        ...state.rooms.flatMap((room) =>
-          (room.localCharacters ?? []).map((character) => [character.id, character] as const),
-        ),
-      ]),
-    [state.rooms],
+    () => new Map((activeRoom?.localCharacters ?? []).map((character) => [character.id, character] as const)),
+    [activeRoom?.localCharacters],
   );
   const roomCharacters = useMemo(
     () =>
@@ -293,11 +272,8 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     [activeRoom, characterById],
   );
   const roomMessages = useMemo(() => {
-    if (!activeRoom) {
-      return [];
-    }
-    return state.messagesByInstance[getRoomActiveSceneInstanceId(activeRoom)] ?? [];
-  }, [activeRoom, state.messagesByInstance]);
+    return activeRoom ? state.messages : [];
+  }, [activeRoom, state.messages]);
   const activeCharacter =
     roomCharacters.find((character) => character.id === activeRoom?.activeCharacterId) ?? roomCharacters[0] ?? null;
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
@@ -321,7 +297,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const open = useCallback((options: TavernRoomOpenOptions) => {
     openRequestIdRef.current += 1;
     setOpenOptions(options);
-    setState(createEmptyTavernState());
+    setState(createEmptyTavernSessionState());
     setIsOpen(true);
     setIsTavernStateHydrated(false);
     setDraft("");
@@ -365,33 +341,19 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     const requestId = openRequestIdRef.current;
     setIsTavernStateHydrated(false);
 
-    const nextState = mergeTavernRoomStoryData({
+    const nextState = createTavernRoomInitialState({
       room: openOptions.room,
+      initialMessages: openOptions.initialMessages,
       sceneInstanceId: openOptions.sceneInstanceId,
-      storyData: openOptions.storyData,
     });
 
-    void loadTavernRuntimeMessages(workspace.path, openOptions.runtimeScope)
-      .then((runtimeMessages) => {
+    void loadTavernRoomSessionState(workspace.path, openOptions.runtimeScope, nextState)
+      .then((sessionState) => {
         if (isCancelled || requestId !== openRequestIdRef.current) {
           return;
         }
 
-        if (!runtimeMessages) {
-          setState(nextState);
-          setIsTavernStateHydrated(true);
-          return;
-        }
-
-        const room = nextState.rooms.find((item) => item.id === nextState.activeRoomId) ?? openOptions.room;
-        const sceneInstanceId = getRoomActiveSceneInstanceId(room);
-        setState({
-          ...nextState,
-          messagesByInstance: {
-            ...nextState.messagesByInstance,
-            [sceneInstanceId]: materializeRuntimeMessagesForRoom(room, runtimeMessages),
-          },
-        });
+        setState(sessionState ?? nextState);
         setIsTavernStateHydrated(true);
       })
       .catch((loadError) => {
@@ -399,12 +361,12 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
           return;
         }
 
-        console.error("Failed to load tavern runtime messages", loadError);
+        console.error("Failed to load tavern room session state", loadError);
         setState(
-          mergeTavernRoomStoryData({
+          createTavernRoomInitialState({
             room: openOptions.room,
+            initialMessages: openOptions.initialMessages,
             sceneInstanceId: openOptions.sceneInstanceId,
-            storyData: openOptions.storyData,
           }),
         );
         setIsTavernStateHydrated(true);
@@ -420,17 +382,8 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       return;
     }
 
-    openOptions.onStateChange?.(state);
-
-    const room = state.rooms.find((item) => item.id === state.activeRoomId) ?? state.rooms[0];
-    if (!room) {
-      return;
-    }
-
-    const sceneInstanceId = getRoomActiveSceneInstanceId(room);
-    const messages = state.messagesByInstance[sceneInstanceId] ?? [];
-    void saveTavernRuntimeMessages(workspace.path, openOptions.runtimeScope, messages).catch((saveError) => {
-      console.error("Failed to save tavern runtime messages", saveError);
+    void saveTavernRoomSessionState(workspace.path, openOptions.runtimeScope, state).catch((saveError) => {
+      console.error("Failed to save tavern room session state", saveError);
     });
   }, [isTavernStateHydrated, openOptions, state, workspace.path]);
 
@@ -477,28 +430,18 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const patchRoom = useCallback<TavernRoomContextValue["patchRoom"]>(
     (roomId, patch) => {
       setState((current) => {
-        let patchedRoom: TavernRoom | null = null;
-        const nextRooms = current.rooms.map((room) => {
-          if (room.id !== roomId) {
-            return room;
-          }
-
-          patchedRoom = syncTavernRoomActiveScene({
-            ...projectTavernSceneOntoRoom(room),
-            ...patch,
-            updatedAt: Date.now(),
-          });
-          return patchedRoom;
-        });
-
-        if (!patchedRoom) {
+        const room = getSessionStateRoom(current, roomId);
+        if (!room) {
           return current;
         }
 
-        return {
-          ...current,
-          rooms: nextRooms,
-        };
+        const patchedRoom = syncTavernRoomActiveScene({
+          ...projectTavernSceneOntoRoom(room),
+          ...patch,
+          updatedAt: Date.now(),
+        });
+
+        return replaceSessionStateRoom(current, patchedRoom);
       });
     },
     [setState],
@@ -507,44 +450,20 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const appendMessagesToRoom = useCallback<TavernRoomContextValue["appendMessagesToRoom"]>(
     (roomId, messages) => {
       setState((current) => {
-        const room = current.rooms.find((item) => item.id === roomId);
-        const sceneInstanceId = room ? getRoomActiveSceneInstanceId(room) : roomId;
-        const sceneId = room?.activeSceneId;
-        const updatedAt = Date.now();
-        const shouldLockPresentation = hasTavernPresentationStarted(messages);
-        const materializedMessages = messages.map((message) => ({
-          ...message,
-          sceneId: message.sceneId ?? sceneId,
-          sceneInstanceId: message.sceneInstanceId ?? sceneInstanceId,
-        }));
-        const nextSceneMessages = [...(current.messagesByInstance[sceneInstanceId] ?? []), ...materializedMessages];
+        const room = getSessionStateRoom(current, roomId);
+        if (!room) {
+          return current;
+        }
+
+        const nextMessages = [...current.messages, ...messages];
+        const nextRoom = {
+          ...room,
+          updatedAt: Date.now(),
+        };
 
         return {
-          ...current,
-          rooms: current.rooms.map((room) => {
-            if (room.id !== roomId) {
-              return room;
-            }
-
-            const presentation = normalizeTavernPresentation(room.presentation);
-            const shouldWritePresentationLock =
-              shouldLockPresentation && presentation.lockedSceneId !== sceneInstanceId;
-            return {
-              ...room,
-              presentation: shouldWritePresentationLock
-                ? {
-                    ...presentation,
-                    lockedAt: updatedAt,
-                    lockedSceneId: sceneInstanceId,
-                  }
-                : presentation,
-              updatedAt,
-            };
-          }),
-          messagesByInstance: {
-            ...current.messagesByInstance,
-            [sceneInstanceId]: nextSceneMessages,
-          },
+          ...replaceSessionStateRoom(current, nextRoom),
+          messages: nextMessages,
         };
       });
     },
@@ -554,48 +473,43 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const patchMessage = useCallback<TavernRoomContextValue["patchMessage"]>(
     (messageId, patch) => {
       setState((current) => {
-        let patchedSceneId = "";
-        const nextMessagesByInstance = Object.fromEntries(
-          Object.entries(current.messagesByInstance).map(([sceneId, messages]) => {
-            const nextMessages = messages.map((message) => {
-              if (message.id !== messageId) {
-                return message;
-              }
+        let didPatch = false;
+        const nextMessages = current.messages.map((message) => {
+          if (message.id !== messageId) {
+            return message;
+          }
 
-              patchedSceneId = sceneId;
-              const nextMessage = {
-                ...message,
-                ...patch,
-              };
-              const shouldRebuildSegments =
-                !patch.segments &&
-                (patch.content !== undefined ||
-                  patch.thought !== undefined ||
-                  patch.presentationProfileId !== undefined ||
-                  patch.role !== undefined ||
-                  patch.characterId !== undefined);
-              return {
-                ...nextMessage,
-                kind:
-                  nextMessage.kind ??
-                  inferTavernMessageKind({
-                    role: nextMessage.role,
-                    presentationProfileId: nextMessage.presentationProfileId,
-                  }),
-                segments: shouldRebuildSegments ? buildTavernMessageSegments(nextMessage) : nextMessage.segments,
-              };
-            });
-            return [sceneId, nextMessages];
-          }),
-        );
+          didPatch = true;
+          const nextMessage = {
+            ...message,
+            ...patch,
+          };
+          const shouldRebuildSegments =
+            !patch.segments &&
+            (patch.content !== undefined ||
+              patch.thought !== undefined ||
+              patch.presentationProfileId !== undefined ||
+              patch.role !== undefined ||
+              patch.characterId !== undefined);
+          return {
+            ...nextMessage,
+            kind:
+              nextMessage.kind ??
+              inferTavernMessageKind({
+                role: nextMessage.role,
+                presentationProfileId: nextMessage.presentationProfileId,
+              }),
+            segments: shouldRebuildSegments ? buildTavernMessageSegments(nextMessage) : nextMessage.segments,
+          };
+        });
 
-        if (!patchedSceneId) {
+        if (!didPatch) {
           return current;
         }
 
         return {
           ...current,
-          messagesByInstance: nextMessagesByInstance,
+          messages: nextMessages,
         };
       });
     },
@@ -605,33 +519,24 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const removeMessage = useCallback<TavernRoomContextValue["removeMessage"]>(
     (messageId) => {
       setState((current) => {
-        let removedSceneId = "";
-        const nextMessagesByInstance = Object.fromEntries(
-          Object.entries(current.messagesByInstance).map(([sceneId, messages]) => {
-            const nextMessages = messages.filter((message) => {
-              const shouldKeep = message.id !== messageId;
+        let didRemove = false;
+        const nextMessages = current.messages.filter((message) => {
+          const shouldKeep = message.id !== messageId;
+          if (!shouldKeep) {
+            didRemove = true;
+          }
+          return shouldKeep;
+        });
 
-              if (!shouldKeep) {
-                removedSceneId = sceneId;
-              }
-
-              return shouldKeep;
-            });
-            return [sceneId, nextMessages];
-          }),
-        );
-
-        if (!removedSceneId) {
+        if (!didRemove) {
           return current;
         }
-        const removedRoom = current.rooms.find((room) => getRoomActiveSceneInstanceId(room) === removedSceneId);
+        const room = current.room;
+        const nextRoom = room ? { ...room, updatedAt: Date.now() } : null;
 
         return {
-          ...current,
-          rooms: current.rooms.map((room) =>
-            removedRoom && room.id === removedRoom.id ? { ...room, updatedAt: Date.now() } : room,
-          ),
-          messagesByInstance: nextMessagesByInstance,
+          ...(nextRoom ? replaceSessionStateRoom(current, nextRoom) : current),
+          messages: nextMessages,
         };
       });
     },
@@ -942,7 +847,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
 
   const selectRoomSceneInstance = useCallback((roomId: string, sceneInstanceId: string) => {
     setState((current) => {
-      const targetRoom = current.rooms.find((room) => room.id === roomId);
+      const targetRoom = getSessionStateRoom(current, roomId);
       if (!targetRoom) {
         return current;
       }
@@ -950,10 +855,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       const nextRoom = targetRoom.sceneInstances.some((instance) => instance.id === sceneInstanceId)
         ? switchTavernRoomSceneInstance(targetRoom, sceneInstanceId)
         : switchTavernRoomScene(targetRoom, sceneInstanceId);
-      return {
-        ...current,
-        rooms: current.rooms.map((room) => (room.id === roomId ? nextRoom : room)),
-      };
+      return replaceSessionStateRoom(current, nextRoom);
     });
     setReplySuggestions([]);
     setIsQuickSummaryBusy(false);
@@ -1118,7 +1020,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       return;
     }
 
-    const sceneInstanceId = getRoomActiveSceneInstanceId(activeRoom);
     const sceneTitle = getTavernSceneInstanceDisplayTitle(activeRoom, activeRoom.activeSceneInstanceId, "当前节点");
     const confirmed = window.confirm(
       `清空当前节点「${sceneTitle}」的对话记录？当前节点场景实例的消息会被替换为一条重置提示。`,
@@ -1138,55 +1039,24 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
 
     const resetMessage = createTavernMessage({
       roomId: activeRoom.id,
-      sceneId: activeRoom.activeSceneId,
-      sceneInstanceId,
       role: "narrator",
       content: "这个节点的桌面被重新擦亮，旧谈话暂时收进抽屉。",
       status: "done",
     });
 
     setState((current) => {
-      const currentRoom = current.rooms.find((room) => room.id === activeRoom.id);
-      const currentSceneInstanceId = currentRoom ? getRoomActiveSceneInstanceId(currentRoom) : sceneInstanceId;
+      const currentRoom = getSessionStateRoom(current, activeRoom.id);
+      const nextRoom = currentRoom
+        ? syncTavernRoomActiveScene({
+            ...currentRoom,
+            updatedAt: Date.now(),
+          })
+        : null;
 
       return {
-        ...current,
-        rooms: current.rooms.map((room) => {
-          if (room.id !== activeRoom.id) {
-            return room;
-          }
-
-          const syncedRoom = syncTavernRoomActiveScene({
-            ...room,
-            updatedAt: Date.now(),
-          });
-          const presentation = normalizeTavernPresentation(syncedRoom.presentation);
-
-          return presentation.lockedSceneId === currentSceneInstanceId
-            ? {
-                ...syncedRoom,
-                presentation: {
-                  ...presentation,
-                  lockedAt: undefined,
-                  lockedSceneId: undefined,
-                },
-              }
-            : syncedRoom;
-        }),
-        messagesByInstance: {
-          ...current.messagesByInstance,
-          [currentSceneInstanceId]: [
-            {
-              ...resetMessage,
-              sceneId: resetMessage.sceneId ?? currentRoom?.activeSceneId,
-              sceneInstanceId: resetMessage.sceneInstanceId ?? currentSceneInstanceId,
-            },
-          ],
-        },
-        workflowTracesByInstance: {
-          ...current.workflowTracesByInstance,
-          [currentSceneInstanceId]: [],
-        },
+        ...(nextRoom ? replaceSessionStateRoom(current, nextRoom) : current),
+        messages: [resetMessage],
+        workflowTraces: [],
       };
     });
     setReplySuggestions([]);
@@ -1218,8 +1088,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     }
 
     setState((current) => ({
-      ...current,
-      rooms: current.rooms.map((room) => (room.id === activeRoom.id ? branchMemoryPreview.room : room)),
+      ...replaceSessionStateRoom(current, branchMemoryPreview.room),
     }));
 
     const characterMemoryCount = Object.values(branchMemoryPreview.characterMemories).filter((memory) =>
@@ -1458,9 +1327,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     );
   }
 
-  const activeSceneInstanceId =
-    activeRoom.activeSceneInstanceId ?? activeRoom.activeSceneId ?? activeRoom.sceneInstances[0]?.id ?? activeRoom.id;
-  const latestPersistedWorkflowTrace = (state.workflowTracesByInstance[activeSceneInstanceId] ?? []).at(-1) ?? null;
+  const latestPersistedWorkflowTrace = state.workflowTraces.at(-1) ?? null;
   const persistedExecutionSteps: ExecutionStep[] = latestPersistedWorkflowTrace
     ? latestPersistedWorkflowTrace.steps.map((step) => ({
         id: `persisted:${latestPersistedWorkflowTrace.workflowRunId}:${step.id}`,

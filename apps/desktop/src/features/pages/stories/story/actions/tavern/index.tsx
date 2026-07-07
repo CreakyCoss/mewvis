@@ -37,7 +37,7 @@ export const TavernStoryAction = () => {
 
     const storyNodeId = resolveNodeId(story, nodeId);
     try {
-      const { runtimeState, target } = await openTavernPresentationInput({
+      const { room, initialMessages, target } = await openTavernPresentationInput({
         workspace: storyWorkspace,
         storyId: story.id,
         storyNodeId,
@@ -50,7 +50,8 @@ export const TavernStoryAction = () => {
       });
       navigate(target, {
         state: {
-          tavernRuntimeState: runtimeState,
+          tavernRoom: room,
+          tavernInitialMessages: initialMessages,
         },
       });
     } catch (error) {

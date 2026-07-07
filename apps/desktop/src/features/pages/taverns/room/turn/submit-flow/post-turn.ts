@@ -29,15 +29,14 @@ export const syncOpenPendingInteractions = ({
 }) => {
   ctx.setState((current) => ({
     ...current,
-    rooms: current.rooms.map((currentRoom) =>
-      currentRoom.id === room.id
+    room:
+      current.room?.id === room.id
         ? syncTavernRoomActiveScene({
-            ...projectTavernSceneOntoRoom(currentRoom),
+            ...projectTavernSceneOntoRoom(current.room),
             pendingInteractions: openPendingInteractions,
             updatedAt: Date.now(),
           })
-        : currentRoom,
-    ),
+        : current.room,
   }));
 };
 
@@ -89,17 +88,16 @@ export const runAssetExtractionStep = async ({
     if (hasAssetDraftItems(assetDraft)) {
       ctx.setState((current) => ({
         ...current,
-        rooms: current.rooms.map((currentRoom) =>
-          currentRoom.id === room.id
+        room:
+          current.room?.id === room.id
             ? syncTavernRoomActiveScene({
-                ...projectTavernSceneOntoRoom(currentRoom),
-                assetDrafts: [...projectTavernSceneOntoRoom(currentRoom).assetDrafts, assetDraft].slice(
-                  -currentRoom.settings.maxAssetDrafts,
+                ...projectTavernSceneOntoRoom(current.room),
+                assetDrafts: [...projectTavernSceneOntoRoom(current.room).assetDrafts, assetDraft].slice(
+                  -current.room.settings.maxAssetDrafts,
                 ),
                 updatedAt: Date.now(),
               })
-            : currentRoom,
-        ),
+            : current.room,
       }));
       ctx.patchExecutionStep("asset-extraction", {
         status: "done",

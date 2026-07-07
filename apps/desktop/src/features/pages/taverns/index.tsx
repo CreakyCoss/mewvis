@@ -8,16 +8,13 @@ import { RoomCard } from "@/features/pages/taverns/components/room-card";
 import { RoomEditor, type RoomEditorHandle } from "@/features/pages/taverns/manage";
 import { formatCount } from "@/features/pages/taverns/manage/utils";
 import { TavernRoomDialog, type TavernRoomHandle } from "@/features/pages/taverns/room";
-import type { TavernRoomRuntimeState } from "@/features/pages/taverns/room/model";
-import {
-  createTavernRoomRuntimeStateFromConfigState,
-  pickTavernRoomConfig,
-} from "@/features/pages/taverns/room/model/runtime-room";
+import type { TavernRuntimeRoom } from "@/features/pages/taverns/room/model";
+import { createTavernRuntimeRoomFromConfig } from "@/features/pages/taverns/room/model/runtime-room";
 import { parseTavernRouteSearch } from "@/features/pages/taverns/navigation";
 import { useTavernManagement } from "@/features/pages/taverns/store";
 import { createDefaultTavernState } from "@/features/pages/taverns/tavern/state/state-normalizer";
 import { loadTavernState, saveTavernState, type TavernRuntimeScope } from "@/features/pages/taverns/storage";
-import type { TavernState } from "@/features/pages/taverns/tavern/types";
+import type { TavernMessage, TavernState } from "@/features/pages/taverns/tavern/types";
 import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
 import type { Workspace } from "@/features/pages/workspace/types";
@@ -51,16 +48,26 @@ const createEmptyTavernState = (): TavernState => ({
 });
 
 type TavernPageLocationState = {
-  tavernRuntimeState?: TavernRoomRuntimeState;
+  tavernRoom?: TavernRuntimeRoom;
+  tavernInitialMessages?: TavernMessage[];
 };
 
-const getTavernRuntimeStateFromLocation = (state: unknown): TavernRoomRuntimeState | undefined => {
+const getTavernRoomFromLocation = (state: unknown): TavernRuntimeRoom | undefined => {
   if (!state || typeof state !== "object") {
     return undefined;
   }
 
-  const runtimeState = (state as TavernPageLocationState).tavernRuntimeState;
-  return runtimeState?.version === 4 && Array.isArray(runtimeState.rooms) ? runtimeState : undefined;
+  const room = (state as TavernPageLocationState).tavernRoom;
+  return room && typeof room.id === "string" ? room : undefined;
+};
+
+const getTavernInitialMessagesFromLocation = (state: unknown): TavernMessage[] => {
+  if (!state || typeof state !== "object") {
+    return [];
+  }
+
+  const messages = (state as TavernPageLocationState).tavernInitialMessages;
+  return Array.isArray(messages) ? messages : [];
 };
 
 export const TavernPage = () => {
@@ -72,7 +79,8 @@ export const TavernPage = () => {
   const workspace =
     workspaces.find((item) => item.id === workspaceId) ?? activeWorkspace ?? defaultWorkspace ?? workspaces[0] ?? null;
   const routeSearch = parseTavernRouteSearch(location.search);
-  const locationRuntimeState = getTavernRuntimeStateFromLocation(location.state);
+  const locationRoom = getTavernRoomFromLocation(location.state);
+  const locationInitialMessages = getTavernInitialMessagesFromLocation(location.state);
   const exitTavernSurface = () => {
     if (routeSearch.isStoryRuntimeRequest) {
       navigate(
@@ -122,7 +130,8 @@ export const TavernPage = () => {
       runtimeScope={routeSearch.runtimeScope}
       initialRoomId={routeSearch.initialRoomId}
       initialSceneInstanceId={routeSearch.initialSceneInstanceId}
-      initialRuntimeState={routeSearch.isStoryRuntimeRequest ? locationRuntimeState : undefined}
+      initialRoom={routeSearch.isStoryRuntimeRequest ? locationRoom : undefined}
+      initialMessages={routeSearch.isStoryRuntimeRequest ? locationInitialMessages : undefined}
       onExitStoryRuntime={exitTavernSurface}
     />
   );
@@ -167,7 +176,8 @@ type TavernsPageRuntimeProps = {
   runtimeScope?: TavernRuntimeScope;
   initialRoomId?: string;
   initialSceneInstanceId?: string;
-  initialRuntimeState?: TavernRoomRuntimeState;
+  initialRoom?: TavernRuntimeRoom;
+  initialMessages?: TavernMessage[];
   onExitStoryRuntime: () => void;
 };
 
@@ -176,7 +186,8 @@ const TavernsPageRuntime = ({
   runtimeScope,
   initialRoomId,
   initialSceneInstanceId,
-  initialRuntimeState,
+  initialRoom,
+  initialMessages,
   onExitStoryRuntime,
 }: TavernsPageRuntimeProps) => {
   return (
@@ -185,7 +196,8 @@ const TavernsPageRuntime = ({
       runtimeScope={runtimeScope}
       initialRoomId={initialRoomId}
       initialSceneInstanceId={initialSceneInstanceId}
-      initialRuntimeState={initialRuntimeState}
+      initialRoom={initialRoom}
+      initialMessages={initialMessages}
       onExitStoryRuntime={onExitStoryRuntime}
     />
   );
@@ -196,7 +208,8 @@ type TavernsPageContentProps = {
   runtimeScope?: TavernRuntimeScope;
   initialRoomId?: string;
   initialSceneInstanceId?: string;
-  initialRuntimeState?: TavernRoomRuntimeState;
+  initialRoom?: TavernRuntimeRoom;
+  initialMessages?: TavernMessage[];
   onExitStoryRuntime: () => void;
 };
 
@@ -205,7 +218,8 @@ const TavernsPageContent = ({
   runtimeScope = {},
   initialRoomId,
   initialSceneInstanceId,
-  initialRuntimeState,
+  initialRoom,
+  initialMessages = [],
   onExitStoryRuntime,
 }: TavernsPageContentProps) => {
   const runtimeScopeKey = `${runtimeScope.storyId ?? ""}:${runtimeScope.storyNodeId ?? ""}:${runtimeScope.tavernId ?? ""}:${runtimeScope.runtimePath ?? ""}`;
@@ -247,6 +261,12 @@ const TavernsPageContent = ({
   }, [isStoryRuntimeScope, runtimeScopeKey, setState, workspace.id]);
 
   useEffect(() => {
+    if (isStoryRuntimeScope) {
+      setState(createEmptyTavernState());
+      setIsTavernStateHydrated(true);
+      return;
+    }
+
     let isCancelled = false;
     setIsTavernStateHydrated(false);
 
@@ -280,12 +300,24 @@ const TavernsPageContent = ({
   }, [isStoryRuntimeScope, runtimeScopeKey, setState, tavernRuntimeScope, workspace.id, workspace.path]);
 
   useEffect(() => {
+    if (isStoryRuntimeScope) {
+      return;
+    }
+
     if (isTavernStateHydrated && state.rooms.some((room) => room.workspaceId === workspace.id)) {
       void saveTavernState(workspace.path, workspace.id, state, tavernRuntimeScope).catch((saveError) => {
         console.error("Failed to save tavern state", saveError);
       });
     }
-  }, [isTavernStateHydrated, runtimeScopeKey, state, tavernRuntimeScope, workspace.id, workspace.path]);
+  }, [
+    isStoryRuntimeScope,
+    isTavernStateHydrated,
+    runtimeScopeKey,
+    state,
+    tavernRuntimeScope,
+    workspace.id,
+    workspace.path,
+  ]);
 
   useEffect(() => {
     if (!isTavernStateHydrated || isStoryRuntimeScope || state.rooms.length > 0) {
@@ -297,52 +329,47 @@ const TavernsPageContent = ({
 
   const openTavernRoom = useCallback(
     (room: TavernRoom, sceneInstanceId?: string) => {
-      const runtimeState =
-        isStoryRuntimeScope && initialRuntimeState?.rooms.some((item) => item.id === room.id)
-          ? initialRuntimeState
-          : createTavernRoomRuntimeStateFromConfigState(state, room);
-      const runtimeRoom = runtimeState.rooms.find((item) => item.id === room.id) ?? runtimeState.rooms[0];
-      if (!runtimeRoom) {
-        return;
-      }
+      const runtimeRoom =
+        isStoryRuntimeScope && initialRoom?.id === room.id ? initialRoom : createTavernRuntimeRoomFromConfig(room);
 
       roomDialogRef.current?.({
         workspace,
         runtimeScope: tavernRuntimeScope,
         room: runtimeRoom,
-        storyData: runtimeState,
+        initialMessages: isStoryRuntimeScope && initialRoom?.id === runtimeRoom.id ? initialMessages : [],
         sceneInstanceId,
-        onStateChange: (nextState) => {
-          setState((current) => ({
-            ...current,
-            activeRoomId: nextState.activeRoomId,
-            rooms: nextState.rooms.map(pickTavernRoomConfig),
-          }));
-        },
         onClose: isStoryRuntimeScope ? onExitStoryRuntime : undefined,
       });
     },
-    [initialRuntimeState, isStoryRuntimeScope, onExitStoryRuntime, state, tavernRuntimeScope, workspace],
+    [initialMessages, initialRoom, isStoryRuntimeScope, onExitStoryRuntime, tavernRuntimeScope, workspace],
   );
 
   useEffect(() => {
-    if (!isTavernStateHydrated || !initialRoomId) {
+    if (!isTavernStateHydrated || (!initialRoomId && !isStoryRuntimeScope)) {
       return;
     }
 
-    const key = `${initialRoomId}:${initialSceneInstanceId ?? ""}`;
+    const key = `${initialRoomId ?? initialRoom?.id ?? ""}:${initialSceneInstanceId ?? ""}`;
     if (initialOpenKeyRef.current === key) {
       return;
     }
 
-    const room = state.rooms.find((item) => item.id === initialRoomId);
+    const room = isStoryRuntimeScope ? initialRoom : state.rooms.find((item) => item.id === initialRoomId);
     if (!room) {
       return;
     }
 
     initialOpenKeyRef.current = key;
     openTavernRoom(room, initialSceneInstanceId);
-  }, [initialRoomId, initialSceneInstanceId, isTavernStateHydrated, openTavernRoom, state.rooms]);
+  }, [
+    initialRoomId,
+    initialRoom,
+    initialSceneInstanceId,
+    isStoryRuntimeScope,
+    isTavernStateHydrated,
+    openTavernRoom,
+    state.rooms,
+  ]);
 
   const reportManagementError = useCallback((message: string) => {
     if (message) {
@@ -383,7 +410,7 @@ const TavernsPageContent = ({
     );
   }
 
-  if (isStoryRuntimeScope && state.rooms.length === 0) {
+  if (isStoryRuntimeScope && state.rooms.length === 0 && !initialRoom) {
     return (
       <div className="flex h-full min-h-0 flex-1 items-center justify-center bg-background px-6">
         <div className="rounded-md border bg-card px-5 py-4 text-sm text-muted-foreground">

@@ -1,4 +1,4 @@
-import type { TavernRoomRuntimeState, TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomSessionState, TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { createContext, useContext } from "react";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
@@ -11,8 +11,8 @@ import type { ExecutionStep } from "./execution-trace";
 export type TavernRoomContextValue = {
   workspace: Workspace;
   runtimeModel: RuntimeModelOption | null;
-  state: TavernRoomRuntimeState;
-  setState: Dispatch<SetStateAction<TavernRoomRuntimeState>>;
+  state: TavernRoomSessionState;
+  setState: Dispatch<SetStateAction<TavernRoomSessionState>>;
   draft: string;
   setDraft: Dispatch<SetStateAction<string>>;
   draftCursor: number;

@@ -1,5 +1,4 @@
 import type { TavernRoom as TavernRoomConfig } from "@/features/pages/taverns/manage/model";
-import type { TavernState } from "@/features/pages/taverns/tavern/types";
 import { projectTavernSceneOntoRoom } from "@/features/pages/taverns/tavern/runtime/active-scene-runtime";
 import { projectTavernSceneFieldsOntoRoom } from "@/features/pages/taverns/tavern/runtime/scene-field-projection";
 import { buildTavernScene, defaultSceneTitle } from "@/features/pages/taverns/tavern/story-model/scene-builder";
@@ -91,28 +90,4 @@ export const createTavernRuntimeRoomFromConfig = (room: TavernRoomConfig): Taver
     createdAt,
     updatedAt,
   });
-};
-
-const activeSceneInstanceIdFor = (room: TavernRuntimeRoom) =>
-  room.activeSceneInstanceId ?? room.sceneInstances[0]?.id ?? room.activeSceneId ?? room.id;
-
-export const createTavernRoomRuntimeStateFromConfigState = (state: TavernState, activeRoom: TavernRoomConfig) => {
-  const rooms = state.rooms.map((room) =>
-    createTavernRuntimeRoomFromConfig(room.id === activeRoom.id ? activeRoom : room),
-  );
-  const runtimeActiveRoom =
-    rooms.find((room) => room.id === activeRoom.id) ?? createTavernRuntimeRoomFromConfig(activeRoom);
-  const activeSceneInstanceId = activeSceneInstanceIdFor(runtimeActiveRoom);
-
-  return {
-    version: 4 as const,
-    activeRoomId: runtimeActiveRoom.id,
-    rooms: rooms.some((room) => room.id === runtimeActiveRoom.id) ? rooms : [...rooms, runtimeActiveRoom],
-    messagesByInstance: {
-      [activeSceneInstanceId]: [],
-    },
-    workflowTracesByInstance: {
-      [activeSceneInstanceId]: [],
-    },
-  };
 };
