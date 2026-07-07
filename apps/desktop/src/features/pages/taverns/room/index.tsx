@@ -46,7 +46,7 @@ import {
 } from "../tavern/prompt-registry/presentation-rules";
 import { createTavernRenderableMessages } from "../tavern/message";
 import { deleteTavernBridgeSession } from "../tavern/runtime/conversation";
-import type { TavernReferencedFile } from "../tavern/types";
+import type { TavernMessage, TavernReferencedFile } from "../tavern/types";
 import type { TavernReplyOption } from "@/features/pages/taverns/manage/model";
 import { runTavernUserReplySuggestions } from "../tavern/runtime/assistants";
 import { runTavernDirectorRoleAssignment } from "../tavern/runtime/director";
@@ -60,6 +60,7 @@ import { resolveTavernConversationRenderer } from "../tavern/message/renderers";
 import { SceneBriefCard } from "./scene-brief-card";
 import { SceneSelector } from "./scene-selector";
 import { SidePanel, type SidePanelHandle } from "./side-panel";
+import { loadTavernRuntimeMessages, saveTavernRuntimeMessages } from "./storage";
 import { submitRoomTurn } from "./turn/submit";
 
 const REFERENCE_SUGGESTION_LIMIT = 8;
@@ -233,6 +234,17 @@ const mergeTavernRoomStoryData = ({
   };
 };
 
+const materializeRuntimeMessagesForRoom = (room: TavernRoom, messages: TavernMessage[]) => {
+  const sceneInstanceId = getRoomActiveSceneInstanceId(room);
+  return messages.map((message) => ({
+    ...message,
+    roomId: message.roomId || room.id,
+    sceneId: room.activeSceneId,
+    sceneInstanceId,
+    status: message.status === "streaming" ? ("done" as const) : message.status,
+  }));
+};
+
 export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const [openOptions, setOpenOptions] = useState<TavernRoomOpenOptions | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -349,22 +361,59 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       return;
     }
 
+    let isCancelled = false;
     const requestId = openRequestIdRef.current;
     setIsTavernStateHydrated(false);
 
-    if (requestId !== openRequestIdRef.current) {
-      return;
-    }
+    const nextState = mergeTavernRoomStoryData({
+      room: openOptions.room,
+      sceneInstanceId: openOptions.sceneInstanceId,
+      storyData: openOptions.storyData,
+    });
 
-    setState(
-      mergeTavernRoomStoryData({
-        room: openOptions.room,
-        sceneInstanceId: openOptions.sceneInstanceId,
-        storyData: openOptions.storyData,
-      }),
-    );
-    setIsTavernStateHydrated(true);
-  }, [openOptions]);
+    void loadTavernRuntimeMessages(workspace.path, openOptions.runtimeScope)
+      .then((runtimeMessages) => {
+        if (isCancelled || requestId !== openRequestIdRef.current) {
+          return;
+        }
+
+        if (!runtimeMessages) {
+          setState(nextState);
+          setIsTavernStateHydrated(true);
+          return;
+        }
+
+        const room = nextState.rooms.find((item) => item.id === nextState.activeRoomId) ?? openOptions.room;
+        const sceneInstanceId = getRoomActiveSceneInstanceId(room);
+        setState({
+          ...nextState,
+          messagesByInstance: {
+            ...nextState.messagesByInstance,
+            [sceneInstanceId]: materializeRuntimeMessagesForRoom(room, runtimeMessages),
+          },
+        });
+        setIsTavernStateHydrated(true);
+      })
+      .catch((loadError) => {
+        if (isCancelled || requestId !== openRequestIdRef.current) {
+          return;
+        }
+
+        console.error("Failed to load tavern runtime messages", loadError);
+        setState(
+          mergeTavernRoomStoryData({
+            room: openOptions.room,
+            sceneInstanceId: openOptions.sceneInstanceId,
+            storyData: openOptions.storyData,
+          }),
+        );
+        setIsTavernStateHydrated(true);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [openOptions, workspace.path]);
 
   useEffect(() => {
     if (!openOptions || !isTavernStateHydrated) {
@@ -372,7 +421,18 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     }
 
     openOptions.onStateChange?.(state);
-  }, [isTavernStateHydrated, openOptions, state]);
+
+    const room = state.rooms.find((item) => item.id === state.activeRoomId) ?? state.rooms[0];
+    if (!room) {
+      return;
+    }
+
+    const sceneInstanceId = getRoomActiveSceneInstanceId(room);
+    const messages = state.messagesByInstance[sceneInstanceId] ?? [];
+    void saveTavernRuntimeMessages(workspace.path, openOptions.runtimeScope, messages).catch((saveError) => {
+      console.error("Failed to save tavern runtime messages", saveError);
+    });
+  }, [isTavernStateHydrated, openOptions, state, workspace.path]);
 
   useEffect(() => {
     let isCancelled = false;
