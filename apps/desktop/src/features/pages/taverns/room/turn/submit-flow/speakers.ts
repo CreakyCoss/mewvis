@@ -33,6 +33,7 @@ import {
   type RequireSpeakerRuntimeModel,
   type TurnMode,
 } from "./shared";
+import { applyTavernCollaborationTraceEvent } from "./collaboration-trace";
 
 type ParsedTavernReply = ReturnType<typeof parseTavernReplyText>;
 
@@ -146,6 +147,7 @@ const runSpeakerReplyThroughCollaboration = async ({
   allowNonverbalReply,
   storyContext,
   onTextDelta,
+  traceOptions,
 }: {
   ctx: TavernRoomStoreState;
   runtimeRoom: TavernRoom;
@@ -159,6 +161,10 @@ const runSpeakerReplyThroughCollaboration = async ({
   allowNonverbalReply: boolean;
   storyContext: TavernStoryContextPackage;
   onTextDelta: (delta: string) => void;
+  traceOptions?: {
+    scopeLabel?: string;
+    agentRoleLabelById?: Record<string, string | undefined>;
+  };
 }) => {
   const collaborationInput = buildTavernSpeakerCollaborationInput({
     workspacePath: ctx.workspace.path,
@@ -177,6 +183,9 @@ const runSpeakerReplyThroughCollaboration = async ({
   });
   const output = await runTavernCollaboration({
     ...collaborationInput,
+    onEvent: (event) => {
+      applyTavernCollaborationTraceEvent(ctx, event, traceOptions);
+    },
     onAgentEvent: (event) => {
       if (
         event.agentRoleId !== tavernCharacterAgentRoleId(runtimeRoom, speaker) ||
@@ -201,6 +210,7 @@ const runSpeakerReplyThroughCollaboration = async ({
 type SpeakerReplyPlan = {
   speaker: TavernCharacter;
   speakerRuntimeModel: RuntimeModelOption;
+  speakerStepId: string;
   speakerIndex: number;
   speakerCount: number;
   nonverbalReplyAllowed: boolean;
@@ -265,6 +275,7 @@ const buildSpeakerReplyPlan = ({
   return {
     speaker,
     speakerRuntimeModel,
+    speakerStepId: `speaker-${speaker.id}-${speakerIndex}`,
     speakerIndex,
     speakerCount,
     nonverbalReplyAllowed,
@@ -296,6 +307,12 @@ const ensureSpeakerReplyRuntimeStarted = ({
 
   const { speaker } = runtime;
   ctx.setBusyStatus(mode.isDirectorLikeMode ? `${speaker.name} 正在按导演调度回应...` : `${speaker.name} 正在回应...`);
+  ctx.appendExecutionStep?.({
+    id: runtime.speakerStepId,
+    label: `${speaker.name} 回复`,
+    detail: `${runtime.speakerIndex + 1}/${runtime.speakerCount}`,
+    status: "running",
+  });
 
   const replyMessage = createTavernMessage({
     roomId: room.id,
@@ -405,6 +422,10 @@ const finalizeSpeakerReplyRuntime = async ({
   });
 
   if (!isFinalReplyUsable(finalReply, runtime.contentOnlyReplyAllowed)) {
+    ctx.patchExecutionStep?.(runtime.speakerStepId, {
+      status: "running",
+      detail: "公开回复不完整，正在重试...",
+    });
     resetSpeakerReplyRuntimeForRetry({
       activeReplyRef,
       ctx,
@@ -435,6 +456,12 @@ const finalizeSpeakerReplyRuntime = async ({
           runtime,
           runtimeRoom,
         }),
+      traceOptions: {
+        scopeLabel: `${runtime.speaker.name} 回复`,
+        agentRoleLabelById: {
+          [tavernCharacterAgentRoleId(runtimeRoom, runtime.speaker)]: runtime.speaker.name,
+        },
+      },
     });
     finalReply = parseTavernReplyText({
       text: retryResult.text || runtime.streamedText,
@@ -452,6 +479,10 @@ const finalizeSpeakerReplyRuntime = async ({
   });
   if (isNarratorEchoReply(finalText, turnNarratorTexts)) {
     ctx.removeMessage(replyMessage.id);
+    ctx.patchExecutionStep?.(runtime.speakerStepId, {
+      status: "done",
+      detail: "已跳过重复旁白。",
+    });
     activeReplyRef.message = null;
     activeReplyRef.text = "";
     return null;
@@ -489,6 +520,10 @@ const finalizeSpeakerReplyRuntime = async ({
     thought: finalThought,
     segments: finalizedMessage.segments,
     status: "done",
+  });
+  ctx.patchExecutionStep?.(runtime.speakerStepId, {
+    status: "done",
+    detail: finalText.slice(0, 120),
   });
   activeReplyRef.message = null;
   activeReplyRef.text = "";
@@ -554,6 +589,9 @@ const runSpeakerReplyRoundThroughCollaboration = async ({
   const runtimeByOutputKey = new Map(
     runtimes.map((runtime) => [tavernSpeakerReplyOutputKey(runtime.speaker), runtime]),
   );
+  const agentRoleLabelById = Object.fromEntries(
+    runtimes.map((runtime) => [tavernCharacterAgentRoleId(runtimeRoom, runtime.speaker), runtime.speaker.name]),
+  );
   const firstRuntime = runtimes[0];
   if (!firstRuntime) {
     return {
@@ -582,6 +620,10 @@ const runSpeakerReplyRoundThroughCollaboration = async ({
   const output = await runTavernCollaboration({
     ...collaborationInput,
     onEvent: (event) => {
+      applyTavernCollaborationTraceEvent(ctx, event, {
+        scopeLabel: "角色协作",
+        agentRoleLabelById,
+      });
       if (event.type !== "step_started" || !event.agentRoleId) {
         return;
       }
@@ -631,6 +673,10 @@ const runSpeakerReplyRoundThroughCollaboration = async ({
       }
       ctx.patchMessage(runtime.replyMessage.id, {
         status: "error",
+      });
+      ctx.patchExecutionStep?.(runtime.speakerStepId, {
+        status: "error",
+        detail: error instanceof Error ? error.message : String(error),
       });
     }
     throw error;
@@ -723,7 +769,14 @@ const runSingleSpeakerReply = async ({
   const presentationProfile = getTavernPresentationProfile(runtimeRoom.presentation?.profileId);
   const presentationContract = getTavernPresentationContract(presentationProfile);
   const contentOnlyReplyAllowed = nonverbalReplyAllowed || presentationContract.allowsContentOnlyReply;
+  const speakerStepId = `speaker-${speaker.id}-${speakerIndex}`;
   ctx.setBusyStatus(mode.isDirectorLikeMode ? `${speaker.name} 正在按导演调度回应...` : `${speaker.name} 正在回应...`);
+  ctx.appendExecutionStep?.({
+    id: speakerStepId,
+    label: `${speaker.name} 回复`,
+    detail: `${speakerIndex + 1}/${speakerCount}`,
+    status: "running",
+  });
 
   const replyMessage = createTavernMessage({
     roomId: room.id,
@@ -779,6 +832,12 @@ const runSingleSpeakerReply = async ({
     allowNonverbalReply: nonverbalReplyAllowed,
     storyContext,
     onTextDelta: handleReplyTextDelta,
+    traceOptions: {
+      scopeLabel: `${speaker.name} 回复`,
+      agentRoleLabelById: {
+        [tavernCharacterAgentRoleId(runtimeRoom, speaker)]: speaker.name,
+      },
+    },
   });
   let finalReply = parseTavernReplyText({
     text: result.text || streamedText,
@@ -788,6 +847,10 @@ const runSingleSpeakerReply = async ({
   });
 
   if (!isFinalReplyUsable(finalReply, contentOnlyReplyAllowed)) {
+    ctx.patchExecutionStep?.(speakerStepId, {
+      status: "running",
+      detail: "公开回复不完整，正在重试...",
+    });
     streamedText = "";
     activeReplyRef.text = "";
     ctx.patchMessage(replyMessage.id, {
@@ -813,6 +876,12 @@ const runSingleSpeakerReply = async ({
       allowNonverbalReply: nonverbalReplyAllowed,
       storyContext,
       onTextDelta: handleReplyTextDelta,
+      traceOptions: {
+        scopeLabel: `${speaker.name} 回复`,
+        agentRoleLabelById: {
+          [tavernCharacterAgentRoleId(runtimeRoom, speaker)]: speaker.name,
+        },
+      },
     });
     finalReply = parseTavernReplyText({
       text: result.text || streamedText,
@@ -830,6 +899,10 @@ const runSingleSpeakerReply = async ({
   });
   if (isNarratorEchoReply(finalText, turnNarratorTexts)) {
     ctx.removeMessage(replyMessage.id);
+    ctx.patchExecutionStep?.(speakerStepId, {
+      status: "done",
+      detail: "已跳过重复旁白。",
+    });
     activeReplyRef.message = null;
     activeReplyRef.text = "";
     return null;
@@ -867,6 +940,10 @@ const runSingleSpeakerReply = async ({
     thought: finalThought,
     segments: finalizedMessage.segments,
     status: "done",
+  });
+  ctx.patchExecutionStep?.(speakerStepId, {
+    status: "done",
+    detail: finalText.slice(0, 120),
   });
   activeReplyRef.message = null;
   activeReplyRef.text = "";

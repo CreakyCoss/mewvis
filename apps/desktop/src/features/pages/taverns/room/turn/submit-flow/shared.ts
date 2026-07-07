@@ -296,12 +296,16 @@ export const createInitialTurnRuntime = ({
 export const prepareTurnUserMessage = ({
   ctx,
   room,
+  turnAnchorMessage,
   visibleUserMessage,
+  references,
   mode,
 }: {
   ctx: TavernRoomStoreState;
   room: TavernRoom;
+  turnAnchorMessage: TavernMessage;
   visibleUserMessage: TavernMessage | null;
+  references: TavernReferencedFile[];
   mode: TurnMode;
 }) => {
   // 提交流程真正开始后才落地用户消息，保证前置失败不会改动页面。
@@ -312,9 +316,31 @@ export const prepareTurnUserMessage = ({
         ? "导演正在准备角色状态..."
         : "正在准备对话...",
   );
+  if (mode.isDirectorLikeMode) {
+    ctx.setExecutionTraceAnchorMessageId?.(visibleUserMessage?.id ?? turnAnchorMessage.id);
+    ctx.resetExecutionTrace?.([
+      {
+        id: "context",
+        label: mode.isSceneDriveMode ? "准备自推" : "准备对话",
+        detail: mode.isSceneDriveMode ? "读取本轮导演方向与引用文件。" : "读取本轮用户输入与引用文件。",
+        status: "running",
+      },
+    ]);
+  } else {
+    ctx.setExecutionTraceAnchorMessageId?.("");
+    ctx.resetExecutionTrace?.([]);
+  }
   if (visibleUserMessage) {
     ctx.appendMessagesToRoom(room.id, [visibleUserMessage]);
   }
+  ctx.patchExecutionStep?.("context", {
+    status: "done",
+    detail: references.length
+      ? `已加载 ${references.length} 个引用文件。`
+      : mode.isSceneDriveMode
+        ? "已准备自推动轮次。"
+        : "已准备本轮对话。",
+  });
 };
 
 export const handleTurnFailure = ({
@@ -329,6 +355,9 @@ export const handleTurnFailure = ({
   activeReplyRef: ActiveReplyRef;
 }) => {
   const message = getErrorMessage(error);
+  ctx.setExecutionSteps?.((current) =>
+    current.map((step) => (step.status === "running" ? { ...step, status: "error", detail: message } : step)),
+  );
   if (activeReplyRef.message) {
     ctx.patchMessage(activeReplyRef.message.id, {
       content: activeReplyRef.text.trim()

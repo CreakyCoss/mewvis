@@ -13,6 +13,7 @@ import {
   extractTavernPendingInteractionsFromMessages,
   resolveTavernScheduledSpeakers,
   tavernCharacterAgentRoleId,
+  tavernDirectorAgentRoleId,
 } from "@/features/pages/taverns/tavern/core";
 import {
   buildTavernDirectorLoopCollaborationInput,
@@ -22,8 +23,10 @@ import { resolveTavernCharacterModel } from "@/features/pages/taverns/tavern/run
 import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
 import { findMissingSpeakerModel, requireTavernRuntimeModelInput, type ActiveReplyRef, type TurnMode } from "./shared";
+import { applyTavernCollaborationTraceEvent } from "./collaboration-trace";
 
 type LoopSpeakerRuntime = {
+  executionStepId: string;
   message: TavernMessage;
   speaker: TavernCharacter;
   text: string;
@@ -85,11 +88,23 @@ export const runDirectorLoopTurn = async ({
 }) => {
   const maxRounds = resolveDirectorLoopMaxRounds(runtimeRoom);
   ctx.setBusyStatus("导演正在进行回环调度...");
+  ctx.appendExecutionStep?.({
+    id: "director-loop",
+    label: "导演回环",
+    detail: maxRounds > 1 ? `最多 ${maxRounds} 轮` : "单轮动态调度",
+    status: "running",
+  });
 
   const activeSpeakerRuntimeByRoleId = new Map<string, LoopSpeakerRuntime>();
   const speakerByRoleId = new Map(
     availableRoomCharacters.map((speaker) => [tavernCharacterAgentRoleId(runtimeRoom, speaker), speaker]),
   );
+  const agentRoleLabelById: Record<string, string> = {
+    [tavernDirectorAgentRoleId(runtimeRoom)]: "酒馆导演",
+    ...Object.fromEntries(
+      availableRoomCharacters.map((speaker) => [tavernCharacterAgentRoleId(runtimeRoom, speaker), speaker.name]),
+    ),
+  };
   const characterIdByRoleId = new Map(
     availableRoomCharacters.map((speaker) => [tavernCharacterAgentRoleId(runtimeRoom, speaker), speaker.id]),
   );
@@ -208,9 +223,19 @@ export const runDirectorLoopTurn = async ({
       maxRounds,
       storyContext,
     }),
-    onEvent: handleEvent,
+    onEvent: (event) => {
+      applyTavernCollaborationTraceEvent(ctx, event, {
+        scopeLabel: "导演回环",
+        agentRoleLabelById,
+      });
+      handleEvent(event);
+    },
   });
 
+  ctx.patchExecutionStep?.("director-loop", {
+    status: "done",
+    detail: latestSupervisorDecision?.reason ?? "回环调度完成",
+  });
   activeReplyRef.message = null;
   activeReplyRef.text = "";
 
@@ -272,11 +297,19 @@ const startLoopSpeakerRuntime = ({
     content: "",
     status: "streaming",
   });
+  const executionStepId = `director-loop-speaker-${speaker.id}-${replyMessage.id}`;
+  ctx.appendExecutionStep?.({
+    id: executionStepId,
+    label: `${speaker.name} 回环回复`,
+    detail: "导演回环 workflow",
+    status: "running",
+  });
   ctx.appendMessagesToRoom(room.id, [replyMessage]);
   activeReplyRef.message = replyMessage;
   activeReplyRef.text = "";
 
   return {
+    executionStepId,
     message: replyMessage,
     speaker,
     text: "",
@@ -352,6 +385,10 @@ const finalizeLoopSpeakerRuntime = ({
     thought: finalizedMessage.thought,
     segments: finalizedMessage.segments,
     status: "done",
+  });
+  ctx.patchExecutionStep?.(runtime.executionStepId, {
+    status: "done",
+    detail: finalText.slice(0, 120),
   });
   activeReplyRef.message = null;
   activeReplyRef.text = "";

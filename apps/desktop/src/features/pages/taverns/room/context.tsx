@@ -11,6 +11,7 @@ import {
   projectTavernSceneOntoRoom,
   syncTavernRoomActiveScene,
 } from "@/features/pages/taverns/tavern/runtime/active-scene-runtime";
+import type { ExecutionStep } from "./execution-trace";
 
 export type TavernRoomBusyKind = "idle" | "sending" | "reply_suggestions";
 
@@ -103,6 +104,8 @@ type TavernRoomStoreBase = {
   initialRoom: TavernRoom | null;
   error: string;
   busy: TavernRoomBusyState;
+  executionSteps: ExecutionStep[];
+  executionTraceAnchorMessageId: string;
 } & TavernRoomDerivedState;
 
 type TavernRoomStoreActions = {
@@ -118,6 +121,12 @@ type TavernRoomStoreActions = {
   setError: Dispatch<SetStateAction<string>>;
   setBusy: Dispatch<SetStateAction<TavernRoomBusyState>>;
   setBusyStatus: (status: string) => void;
+  setExecutionSteps: Dispatch<SetStateAction<ExecutionStep[]>>;
+  setExecutionTraceAnchorMessageId: Dispatch<SetStateAction<string>>;
+  resetExecutionTrace: (steps: ExecutionStep[]) => void;
+  patchExecutionStep: (stepId: string, patch: Partial<Omit<ExecutionStep, "id">>) => void;
+  appendExecutionStep: (step: ExecutionStep) => void;
+  upsertExecutionStep: (step: ExecutionStep) => void;
   patchRoom: (roomId: string, patch: Partial<TavernRoom>) => void;
   appendMessagesToRoom: (roomId: string, messages: TavernMessage[]) => void;
   patchMessage: (messageId: string, patch: Partial<TavernMessage>) => void;
@@ -144,6 +153,8 @@ const createBaseStoreState = (
     initialRoom,
     error: "",
     busy: createIdleTavernRoomBusyState(),
+    executionSteps: [],
+    executionTraceAnchorMessageId: "",
     ...deriveTavernRoomState({ initialRoom, state }),
   };
 };
@@ -190,6 +201,37 @@ export const useTavernRoomContext = create<TavernRoomStoreState>((set) => ({
         ...current.busy,
         status,
       },
+    }));
+  },
+  setExecutionSteps: (updater) => {
+    set((current) => ({
+      executionSteps: typeof updater === "function" ? updater(current.executionSteps) : updater,
+    }));
+  },
+  setExecutionTraceAnchorMessageId: (updater) => {
+    set((current) => ({
+      executionTraceAnchorMessageId:
+        typeof updater === "function" ? updater(current.executionTraceAnchorMessageId) : updater,
+    }));
+  },
+  resetExecutionTrace: (executionSteps) => {
+    set({ executionSteps });
+  },
+  patchExecutionStep: (stepId, patch) => {
+    set((current) => ({
+      executionSteps: current.executionSteps.map((step) => (step.id === stepId ? { ...step, ...patch } : step)),
+    }));
+  },
+  appendExecutionStep: (step) => {
+    set((current) => ({
+      executionSteps: [...current.executionSteps, step],
+    }));
+  },
+  upsertExecutionStep: (step) => {
+    set((current) => ({
+      executionSteps: current.executionSteps.some((item) => item.id === step.id)
+        ? current.executionSteps.map((item) => (item.id === step.id ? { ...item, ...step } : item))
+        : [...current.executionSteps, step],
     }));
   },
   patchRoom: (roomId, patch) => {

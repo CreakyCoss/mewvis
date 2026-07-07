@@ -9,7 +9,6 @@ import { buildTavernStoryContextPackage } from "@/features/pages/taverns/tavern/
 import type { TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import type { TavernReplyOption } from "@/features/pages/taverns/manage/model";
 import {
-  abortTurnSubmission,
   beginTurnSubmission,
   createInitialTurnRuntime,
   createSceneDriveTurnAnchorMessage,
@@ -116,63 +115,65 @@ export const submitRoomTurn = async ({
   const currentReferencedFilePreviews = referencedFilePreviews;
   const requireSpeakerRuntimeModel = createSpeakerRuntimeModelResolver(runtimeModel);
 
-  beginTurnSubmission({
-    ctx,
-    room: activeRoom,
-    mode,
-  });
-
-  // 2. 外部输入准备阶段：读取引用文件可能失败，失败时只复位忙碌态。
-  let references: TavernReferencedFile[] = [];
-  try {
-    references = await readTurnReferences({
-      ctx,
-      referencedFilePreviews: currentReferencedFilePreviews,
-      readReferencedFiles,
-    });
-  } catch (readError) {
-    setError(`读取引用文件失败：${getErrorMessage(readError)}`);
-    abortTurnSubmission({ ctx });
-    return;
-  }
-
-  const text = draftText;
-
-  const visibleUserMessage = mode.isSceneDriveMode
-    ? null
-    : createUserTurnMessage({
-        room: activeRoom,
-        text,
-        referencedFilePreviews: currentReferencedFilePreviews,
-        selectedReplyOption,
-      });
-  const turnAnchorMessage =
-    visibleUserMessage ??
-    createSceneDriveTurnAnchorMessage({
-      room: activeRoom,
-      directive: text,
-    });
-  let runtime = createInitialTurnRuntime({
-    room: activeRoom,
-    roomMessages,
-    turnAnchorMessage,
-    visibleUserMessage,
-  });
   const activeReplyRef: ActiveReplyRef = {
     message: null,
     text: "",
   };
-  const storyContext = buildTavernStoryContextPackage({
-    room: runtime.runtimeRoom,
-    characters: roomCharacters,
-  });
 
   try {
+    beginTurnSubmission({
+      ctx,
+      room: activeRoom,
+      mode,
+    });
+
+    // 2. 置忙之后的准备阶段也必须纳入统一收尾，避免初始化异常让界面一直停在发送中。
+    let references: TavernReferencedFile[] = [];
+    try {
+      references = await readTurnReferences({
+        ctx,
+        referencedFilePreviews: currentReferencedFilePreviews,
+        readReferencedFiles,
+      });
+    } catch (readError) {
+      setError(`读取引用文件失败：${getErrorMessage(readError)}`);
+      return;
+    }
+
+    const text = draftText;
+
+    const visibleUserMessage = mode.isSceneDriveMode
+      ? null
+      : createUserTurnMessage({
+          room: activeRoom,
+          text,
+          referencedFilePreviews: currentReferencedFilePreviews,
+          selectedReplyOption,
+        });
+    const turnAnchorMessage =
+      visibleUserMessage ??
+      createSceneDriveTurnAnchorMessage({
+        room: activeRoom,
+        directive: text,
+      });
+    let runtime = createInitialTurnRuntime({
+      room: activeRoom,
+      roomMessages,
+      turnAnchorMessage,
+      visibleUserMessage,
+    });
+    const storyContext = buildTavernStoryContextPackage({
+      room: runtime.runtimeRoom,
+      characters: roomCharacters,
+    });
+
     // 3. 本轮正式入队后，后续流程都围绕 runtime 这份运行时快照向前推进。
     prepareTurnUserMessage({
       ctx,
       room: activeRoom,
+      turnAnchorMessage,
       visibleUserMessage,
+      references,
       mode,
     });
     onCommitted?.();

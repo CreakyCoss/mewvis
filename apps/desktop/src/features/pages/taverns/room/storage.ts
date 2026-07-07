@@ -64,6 +64,16 @@ const writeJsonWorkspaceFile = async (workspacePath: string, relativePath: strin
   });
 };
 
+const deleteWorkspaceFileIfExists = async (workspacePath: string, relativePath: string) => {
+  try {
+    await invoke("delete_workspace_file", {
+      input: { workspacePath, relativePath },
+    });
+  } catch {
+    // Missing runtime files are already equivalent to a cleared room session.
+  }
+};
+
 const normalizeTavernRuntimeRoom = (value: unknown): TavernRoom | null => {
   if (!value || typeof value !== "object") {
     return null;
@@ -181,5 +191,18 @@ export const saveTavernRoomSessionState = async (
     writeJsonWorkspaceFile(workspacePath, tavernRoomPath(baseDir), room),
     writeJsonWorkspaceFile(workspacePath, tavernMessagesPath(baseDir), state.messages),
     writeJsonWorkspaceFile(workspacePath, tavernConversationPath(baseDir), state.messages),
+  ]);
+};
+
+export const deleteTavernRoomSessionState = async (workspacePath: string, scope: TavernRuntimeScope = {}) => {
+  if (!scope.runtimePath?.trim() || !isTauri()) {
+    return;
+  }
+
+  const baseDir = tavernBaseDir(workspacePath, scope);
+  await Promise.all([
+    deleteWorkspaceFileIfExists(workspacePath, tavernRoomPath(baseDir)),
+    deleteWorkspaceFileIfExists(workspacePath, tavernMessagesPath(baseDir)),
+    deleteWorkspaceFileIfExists(workspacePath, tavernConversationPath(baseDir)),
   ]);
 };
