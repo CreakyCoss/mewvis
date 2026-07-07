@@ -1,4 +1,4 @@
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 import type {
   TavernCharacter,
   TavernCharacterRelationship,
@@ -11,13 +11,13 @@ type CharacterLookup = Map<string, TavernCharacter> | TavernCharacter[];
 const asCharacterMap = (characters?: CharacterLookup) =>
   characters instanceof Map ? characters : new Map((characters ?? []).map((character) => [character.id, character]));
 
-export const tavernRelationshipTargetKey = (target: TavernRelationshipTarget) =>
+const tavernRelationshipTargetKey = (target: TavernRelationshipTarget) =>
   target.type === "user" ? "user" : `character:${target.characterId}`;
 
-export const tavernRelationshipTargetsEqual = (left: TavernRelationshipTarget, right: TavernRelationshipTarget) =>
+const tavernRelationshipTargetsEqual = (left: TavernRelationshipTarget, right: TavernRelationshipTarget) =>
   tavernRelationshipTargetKey(left) === tavernRelationshipTargetKey(right);
 
-export const tavernRelationshipTargetLabel = (
+const tavernRelationshipTargetLabel = (
   target: TavernRelationshipTarget,
   characters?: CharacterLookup,
   userPersonaName = "我",

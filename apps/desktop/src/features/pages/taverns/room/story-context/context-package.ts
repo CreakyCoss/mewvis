@@ -2,7 +2,7 @@ import { formatTavernCharacterRelationships } from "../../tavern/core";
 import type { TavernCharacter, TavernLorebookEntry, TavernSceneStatus } from "@/features/pages/taverns/manage/model";
 import type {
   TavernCharacterMemoryLayers,
-  TavernRuntimeRoom as TavernRoom,
+  TavernActiveRoomView as TavernRoom,
   TavernScene,
   TavernSceneMemoryLayers,
   TavernStoryEdge,

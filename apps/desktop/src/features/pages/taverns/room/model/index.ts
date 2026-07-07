@@ -144,7 +144,7 @@ export type TavernSceneInstance = TavernScene & {
   secretReveals: TavernSecretReveal[];
 };
 
-export type TavernRuntimeRoom = TavernRoomConfig & {
+export type TavernActiveRoomView = TavernRoomConfig & {
   storyBinding?: TavernStoryBinding;
   storyOutline: string;
   storyGoal: string;

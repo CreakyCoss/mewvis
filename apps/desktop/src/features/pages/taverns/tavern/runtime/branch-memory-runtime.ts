@@ -7,7 +7,7 @@ import { resolveActiveSceneInstance } from "./scene-instances";
 import { getTavernSceneInstanceDisplayTitle } from "./scene-selectors";
 import type {
   TavernMemoryEntry,
-  TavernRuntimeRoom as TavernRoom,
+  TavernActiveRoomView as TavernRoom,
   TavernSecretReveal,
 } from "@/features/pages/taverns/room/model";
 

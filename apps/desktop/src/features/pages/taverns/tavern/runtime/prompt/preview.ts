@@ -1,16 +1,17 @@
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { TavernMessage, TavernReferencedFile } from "../../types";
 import type {
   TavernCharacter,
   TavernPromptBlock,
   TavernPromptBlockTarget,
 } from "@/features/pages/taverns/manage/model";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context";
+import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import { isTavernFixedOrderPhase } from "../../core";
 import { buildTavernDirectorPromptContext, buildTavernDirectorRuntimeInstruction } from "../director/prompt";
 import { buildTavernReplyAgentRequest } from "../reply/request";
 import { buildTavernBridgeSystemPrompt } from "./bridge/system-prompt";
-import { buildTavernStoryContextPackage, getTavernRuntimeStoryProjection } from "@/features/pages/taverns/room/story-context";
+import { buildTavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
+import { getTavernRuntimeStoryProjection } from "@/features/pages/taverns/room/story-context/projection";
 
 export type TavernPromptPreviewTarget = TavernPromptBlockTarget;
 
@@ -235,7 +236,7 @@ const getPreviewActiveCharacter = ({
 };
 
 const getPreviewMaxSpeakers = (room: TavernRoom, characters: TavernCharacter[]) => {
-  if (isTavernFixedOrderPhase(room)) {
+  if (isTavernFixedOrderPhase(room.settings)) {
     return Math.max(1, characters.length);
   }
   const configuredMaxSpeakers = Number.isFinite(room.settings.directorMaxSpeakers)

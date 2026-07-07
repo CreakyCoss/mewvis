@@ -44,29 +44,9 @@ export const normalizeTavernSystemNarrativePresetId = (value: unknown): TavernSy
     ? (value as TavernSystemNarrativePresetId)
     : DEFAULT_TAVERN_SYSTEM_NARRATIVE_PRESET_ID;
 
-export const normalizeTavernSystemNarrativePresetSettings = (value: unknown): TavernSystemNarrativePresetSettings => {
-  const candidate = value && typeof value === "object" ? (value as Partial<TavernSystemNarrativePresetSettings>) : {};
-
-  return {
-    presetId: normalizeTavernSystemNarrativePresetId(candidate.presetId),
-    customInstructions:
-      typeof candidate.customInstructions === "string" && candidate.customInstructions.trim()
-        ? candidate.customInstructions.trim().slice(0, 2000)
-        : undefined,
-  };
-};
-
 export const getTavernSystemNarrativePreset = (value: unknown) => {
   const id = normalizeTavernSystemNarrativePresetId(value);
   return TAVERN_SYSTEM_NARRATIVE_PRESETS.find((preset) => preset.id === id) ?? TAVERN_SYSTEM_NARRATIVE_PRESETS[0];
-};
-
-export const resolveTavernSystemNarrativePreset = (settings: unknown) => {
-  const normalizedSettings = normalizeTavernSystemNarrativePresetSettings(settings);
-  return {
-    settings: normalizedSettings,
-    preset: getTavernSystemNarrativePreset(normalizedSettings.presetId),
-  };
 };
 
 export const formatTavernSystemNarrativeCharacterRules = ({

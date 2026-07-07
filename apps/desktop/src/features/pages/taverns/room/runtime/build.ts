@@ -2,15 +2,15 @@ import type { TavernRoom as TavernRoomConfig } from "@/features/pages/taverns/ma
 import { materializeTavernPresentationInput, type TavernPresentationInput } from "../presentation-input";
 import { switchTavernRoomStoryNode } from "@/features/pages/taverns/tavern/runtime/active-scene-runtime";
 import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
-import type { TavernRoomRuntime, TavernRoomSessionState, TavernRuntimeRoom } from "../model";
-import { createTavernRoomRuntimeFromRoom } from "./selectors";
+import type { TavernRoomSessionState, TavernActiveRoomView } from "../model";
+import { createTavernRoomRuntimeFromView } from "./selectors";
 
-export type CreateTavernRoomRuntimeInput = {
+type CreateTavernRoomRuntimeInput = {
   tavernRoom: TavernRoomConfig;
   presentationInput: TavernPresentationInput;
 };
 
-const applyTavernRoomConfig = (room: TavernRuntimeRoom, tavernRoom: TavernRoomConfig): TavernRuntimeRoom => ({
+const applyTavernRoomConfig = (room: TavernActiveRoomView, tavernRoom: TavernRoomConfig): TavernActiveRoomView => ({
   ...room,
   id: tavernRoom.id,
   workspaceId: tavernRoom.workspaceId,
@@ -26,10 +26,10 @@ const applyTavernRoomConfig = (room: TavernRuntimeRoom, tavernRoom: TavernRoomCo
   createdAt: tavernRoom.createdAt,
 });
 
-const resolveRuntimeMessageSceneInstanceId = (room: TavernRuntimeRoom) =>
+const resolveRuntimeMessageSceneInstanceId = (room: TavernActiveRoomView) =>
   room.activeSceneInstanceId ?? room.sceneInstances[0]?.id ?? room.activeSceneId ?? room.id;
 
-const materializeMessagesForRoom = (room: TavernRuntimeRoom, messages: TavernMessage[]) => {
+const materializeMessagesForRoom = (room: TavernActiveRoomView, messages: TavernMessage[]) => {
   const sceneInstanceId = resolveRuntimeMessageSceneInstanceId(room);
   return messages.map((message) => ({
     ...message,
@@ -38,20 +38,6 @@ const materializeMessagesForRoom = (room: TavernRuntimeRoom, messages: TavernMes
     sceneInstanceId: message.sceneInstanceId ?? sceneInstanceId,
     status: message.status === "streaming" ? ("done" as const) : message.status,
   }));
-};
-
-export const createTavernRoomRuntime = ({
-  tavernRoom,
-  presentationInput,
-}: CreateTavernRoomRuntimeInput): TavernRoomRuntime => {
-  const materialized = materializeTavernPresentationInput(tavernRoom.workspaceId, presentationInput, {
-    roomId: tavernRoom.id,
-  });
-  const runtimeRoom = switchTavernRoomStoryNode(
-    applyTavernRoomConfig(materialized.room, tavernRoom),
-    presentationInput.route.activeNodeId,
-  );
-  return createTavernRoomRuntimeFromRoom(runtimeRoom);
 };
 
 export const createTavernRoomRuntimeSessionState = ({
@@ -67,7 +53,7 @@ export const createTavernRoomRuntimeSessionState = ({
   );
 
   return {
-    runtime: createTavernRoomRuntimeFromRoom(runtimeRoom),
+    runtime: createTavernRoomRuntimeFromView(runtimeRoom),
     messages: materializeMessagesForRoom(runtimeRoom, materialized.messages),
   };
 };

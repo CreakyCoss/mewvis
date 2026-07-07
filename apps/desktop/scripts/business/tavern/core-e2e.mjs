@@ -228,7 +228,7 @@ writeFileSync(
     turnId: "turn-core",
   });
   const schedulingSignals = buildTavernSchedulingSignals({
-    room,
+    settings: room.settings,
     characters,
     messages,
     currentUserText: messages[0].content,
@@ -249,7 +249,7 @@ writeFileSync(
     characters,
   });
   const scheduledSpeakers = resolveTavernScheduledSpeakers({
-    room,
+    settings: room.settings,
     availableCharacters: characters,
     activeCharacterId: characterA.id,
     directorSpeakerIds: [characterB.id],
@@ -259,7 +259,7 @@ writeFileSync(
     fallbackCharacter: characterA,
   });
   const nonverbalAllowed = canTavernCharacterUseNonverbalReply({
-    room,
+    settings: room.settings,
     characterId: characterB.id,
     selectedTargetCharacterIds: [characterB.id],
     directorNonverbalReplyIds: [characterB.id],

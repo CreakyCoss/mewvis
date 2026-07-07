@@ -1,4 +1,4 @@
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 import type {
   TavernCharacterMemoryLayers,
   TavernSceneInstance,
@@ -56,17 +56,6 @@ const visibleCharacterLayerValues = (layers: TavernCharacterMemoryLayers | undef
   layers?.privateSelf,
 ];
 
-export const buildTavernCurrentSceneMemoryText = (room: TavernRoom) => {
-  const activeInstance = getActiveSceneInstance(room);
-  const layers = activeInstance?.memoryLayers;
-
-  return formatMemorySections([
-    { title: "节点必须记忆", values: [layers?.required] },
-    { title: "节点公开记忆", values: [layers?.public] },
-    { title: "分支私有记忆", values: [layers?.private] },
-  ]);
-};
-
 export const buildTavernCharacterMemoryText = (room: TavernRoom, character: Pick<TavernCharacter, "id" | "name">) => {
   const activeInstance = getActiveSceneInstance(room);
   const layers = activeInstance?.characterMemoryLayers?.[character.id];
@@ -78,15 +67,6 @@ export const buildTavernCharacterMemoryText = (room: TavernRoom, character: Pick
     { title: "角色私有", values: [layers?.privateSelf] },
   ]);
 };
-
-export const buildTavernCurrentCharacterMemoriesText = (
-  room: TavernRoom,
-  characters: Array<Pick<TavernCharacter, "id" | "name">>,
-) =>
-  characters
-    .map((character) => buildTavernCharacterMemoryText(room, character))
-    .filter(Boolean)
-    .join("\n\n");
 
 export const buildTavernMemoryOverviewSummary = (
   room: TavernRoom,

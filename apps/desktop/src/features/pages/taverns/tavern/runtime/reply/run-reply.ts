@@ -1,6 +1,6 @@
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { RuntimeModelInput } from "@/agent-client/types";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context";
+import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import type { TavernMessage } from "../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import {

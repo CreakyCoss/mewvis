@@ -3,7 +3,6 @@ export {
   buildTavernBridgeSystemPrompt,
   deleteTavernBridgeSession,
   deleteTavernBridgeSessionsForRoom,
-  disposeTavernBridgeSessionWorkers,
   ensureTavernBridgeSession,
   readTavernBridgeSession,
   rebuildTavernBridgeSessionFromMessages,

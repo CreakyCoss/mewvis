@@ -1,10 +1,12 @@
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 import {
   buildTavernStoryContextPackage,
+  type TavernStoryContextLorebookEntry,
+} from "@/features/pages/taverns/room/story-context/context-package";
+import {
   formatTavernStoryLorebookEntries,
   selectTavernStoryLorebookEntries,
-  type TavernStoryContextLorebookEntry,
-} from "@/features/pages/taverns/room/story-context";
+} from "@/features/pages/taverns/room/story-context/prompt-sections";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 
 export const selectTavernLorebookEntries = ({

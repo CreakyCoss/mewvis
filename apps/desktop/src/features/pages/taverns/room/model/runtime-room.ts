@@ -3,7 +3,7 @@ import { projectTavernSceneOntoRoom } from "@/features/pages/taverns/tavern/runt
 import { projectTavernSceneFieldsOntoRoom } from "@/features/pages/taverns/tavern/runtime/scene-field-projection";
 import { buildTavernScene, defaultSceneTitle } from "@/features/pages/taverns/room/story-model/scene-builder";
 import { createDefaultStoryGraph } from "@/features/pages/taverns/room/story-model/story-graph";
-import type { TavernRuntimeRoom } from ".";
+import type { TavernActiveRoomView } from ".";
 
 export const pickTavernRoomConfig = (room: TavernRoomConfig): TavernRoomConfig => ({
   id: room.id,
@@ -43,7 +43,7 @@ export const pickTavernRoomConfig = (room: TavernRoomConfig): TavernRoomConfig =
   updatedAt: room.updatedAt,
 });
 
-export const createTavernRuntimeRoomFromConfig = (room: TavernRoomConfig): TavernRuntimeRoom => {
+export const createTavernActiveRoomViewFromConfig = (room: TavernRoomConfig): TavernActiveRoomView => {
   const createdAt = typeof room.createdAt === "number" ? room.createdAt : Date.now();
   const updatedAt = typeof room.updatedAt === "number" ? room.updatedAt : createdAt;
   const scene = buildTavernScene({

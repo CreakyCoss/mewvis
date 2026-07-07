@@ -27,7 +27,7 @@ writeFileSync(
   `
   import { resolveTavernScheduledSpeakers } from ${JSON.stringify(corePath)};
   import { createTavernRoomFromSystemPreset } from ${JSON.stringify(systemPresetRoomPath)};
-  import { createTavernRuntimeRoomFromConfig } from ${JSON.stringify(runtimeRoomPath)};
+  import { createTavernActiveRoomViewFromConfig } from ${JSON.stringify(runtimeRoomPath)};
 
   const baseNow = 1_800_000_000_000;
 
@@ -105,7 +105,7 @@ writeFileSync(
       createdAt: baseNow,
       markAsSystemPreset: false,
     });
-    const runtimeRoom = createTavernRuntimeRoomFromConfig(materialized.room);
+    const runtimeRoom = createTavernActiveRoomViewFromConfig(materialized.room);
     const characters = presetCase.characters;
     const room = {
       ...runtimeRoom,
@@ -140,7 +140,7 @@ writeFileSync(
       const primary = characters[round % characters.length];
       const secondary = characters[(round + 1) % characters.length];
       const speakers = resolveTavernScheduledSpeakers({
-        room,
+        settings: room.settings,
         availableCharacters: characters,
         activeCharacterId: room.activeCharacterId,
         directorSpeakerIds: [primary.id, secondary.id],

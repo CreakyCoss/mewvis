@@ -2,9 +2,9 @@ import type { TavernRoom as TavernRoomConfig } from "@/features/pages/taverns/ma
 import { projectTavernSceneOntoRoom } from "@/features/pages/taverns/tavern/runtime/active-scene-runtime";
 import { projectTavernSceneFieldsOntoRoom } from "@/features/pages/taverns/tavern/runtime/scene-field-projection";
 import { pickTavernRoomConfig } from "../model/runtime-room";
-import type { TavernRoomRuntime, TavernRuntimeRoom } from "../model";
+import type { TavernRoomRuntime, TavernActiveRoomView } from "../model";
 
-export const createTavernRoomRuntimeFromRoom = (room: TavernRuntimeRoom): TavernRoomRuntime => {
+export const createTavernRoomRuntimeFromView = (room: TavernActiveRoomView): TavernRoomRuntime => {
   const roomConfig = pickTavernRoomConfig(room);
 
   return {
@@ -75,7 +75,7 @@ const patchConfigRoomFromRuntime = (runtime: TavernRoomRuntime): TavernRoomConfi
   updatedAt: runtime.identity.updatedAt,
 });
 
-export const selectTavernRoomFromRuntime = (runtime: TavernRoomRuntime): TavernRuntimeRoom => {
+export const selectTavernActiveRoomView = (runtime: TavernRoomRuntime): TavernActiveRoomView => {
   const activeSceneInstance =
     runtime.scenes.instances.find((instance) => instance.id === runtime.scenes.activeSceneInstanceId) ??
     runtime.scenes.instances.find((instance) => instance.nodeId === runtime.story.activeNodeId) ??

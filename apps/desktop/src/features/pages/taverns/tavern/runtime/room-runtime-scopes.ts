@@ -1,7 +1,7 @@
 import { buildNodeScopedSceneInstances } from "./scene-instances";
 import { createDefaultStoryGraph, normalizeStoryGraph } from "@/features/pages/taverns/room/story-model/story-graph";
 import { now } from "../ids";
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 
 export const ensureTavernRoomRuntimeScopes = (room: TavernRoom): TavernRoom => {
   if (!room.scenes?.length) {

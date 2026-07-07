@@ -5,12 +5,12 @@ import { projectTavernSceneFieldsOntoRoom, syncTavernSceneInstanceFieldsFromRoom
 import { resolveActiveSceneInstance } from "./scene-instances";
 import type {
   TavernCharacterMemoryLayers,
-  TavernRuntimeRoom as TavernRoom,
+  TavernActiveRoomView as TavernRoom,
   TavernSceneMemoryLayers,
 } from "@/features/pages/taverns/room/model";
 import type { TavernScenePromptOverrides } from "@/features/pages/taverns/manage/model";
 
-export const getActiveTavernSceneInstance = (room: TavernRoom | null | undefined) => {
+const getActiveTavernSceneInstance = (room: TavernRoom | null | undefined) => {
   if (!room?.sceneInstances?.length) {
     return null;
   }
@@ -18,7 +18,7 @@ export const getActiveTavernSceneInstance = (room: TavernRoom | null | undefined
   return resolveActiveSceneInstance(room);
 };
 
-export const findTavernSceneInstanceIdForNode = (room: TavernRoom, nodeId: string | undefined | null) => {
+const findTavernSceneInstanceIdForNode = (room: TavernRoom, nodeId: string | undefined | null) => {
   const targetNodeId = nodeId?.trim();
   if (!targetNodeId) {
     return "";

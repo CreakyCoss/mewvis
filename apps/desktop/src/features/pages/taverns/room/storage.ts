@@ -1,7 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { TavernMessage } from "../tavern/types";
-import type { TavernRoomRuntime, TavernRoomSessionState, TavernRuntimeRoom } from "./model";
-import { createTavernRoomRuntimeFromRoom, selectTavernRoomFromRuntime } from "./runtime/selectors";
+import type { TavernRoomRuntime, TavernRoomSessionState, TavernActiveRoomView } from "./model";
+import { createTavernRoomRuntimeFromView, selectTavernActiveRoomView } from "./runtime/selectors";
 
 const TAVERN_ROOM_FILE_NAME = "room.json";
 const TAVERN_MESSAGES_FILE_NAME = "messages.json";
@@ -110,12 +110,12 @@ const normalizeTavernRuntimeMessages = (value: unknown): TavernMessage[] | null 
   });
 };
 
-const normalizeLegacyTavernRuntimeRoom = (value: unknown): TavernRuntimeRoom | null => {
+const normalizeLegacyTavernActiveRoomView = (value: unknown): TavernActiveRoomView | null => {
   if (!value || typeof value !== "object") {
     return null;
   }
 
-  const candidate = value as Partial<TavernRuntimeRoom>;
+  const candidate = value as Partial<TavernActiveRoomView>;
   const id = typeof candidate.id === "string" ? candidate.id.trim() : "";
   if (!id || !candidate.storyGraph) {
     return null;
@@ -124,7 +124,7 @@ const normalizeLegacyTavernRuntimeRoom = (value: unknown): TavernRuntimeRoom | n
   return {
     ...candidate,
     id,
-  } as TavernRuntimeRoom;
+  } as TavernActiveRoomView;
 };
 
 const normalizeTavernRoomRuntime = (value: unknown): TavernRoomRuntime | null => {
@@ -137,12 +137,12 @@ const normalizeTavernRoomRuntime = (value: unknown): TavernRoomRuntime | null =>
     return candidate as TavernRoomRuntime;
   }
 
-  const legacyRoom = normalizeLegacyTavernRuntimeRoom(value);
-  return legacyRoom ? createTavernRoomRuntimeFromRoom(legacyRoom) : null;
+  const legacyRoom = normalizeLegacyTavernActiveRoomView(value);
+  return legacyRoom ? createTavernRoomRuntimeFromView(legacyRoom) : null;
 };
 
 const materializeRuntimeMessages = (runtime: TavernRoomRuntime, messages: TavernMessage[]) => {
-  const room = selectTavernRoomFromRuntime(runtime);
+  const room = selectTavernActiveRoomView(runtime);
   return messages.map((message) => ({
     ...message,
     roomId: message.roomId || room.id,

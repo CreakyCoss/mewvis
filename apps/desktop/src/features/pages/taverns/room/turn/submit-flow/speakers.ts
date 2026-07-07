@@ -1,6 +1,6 @@
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context";
+import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import type { TavernRoomStoreState } from "@/features/pages/taverns/room/context";
 import { createTavernMessage } from "@/features/pages/taverns/room/message";
 import {
@@ -251,7 +251,7 @@ const buildSpeakerReplyPlan = ({
 }): SpeakerReplyPlan => {
   const speakerRuntimeModel = requireSpeakerRuntimeModel(speaker);
   const nonverbalReplyAllowed = canTavernCharacterUseNonverbalReply({
-    room: runtimeRoom,
+    settings: runtimeRoom.settings,
     characterId: speaker.id,
     selectedTargetCharacterIds: selectedReplyOption?.targetCharacterIds,
     directorNonverbalReplyIds,
@@ -759,7 +759,7 @@ const runSingleSpeakerReply = async ({
 }) => {
   const speakerRuntimeModel = requireSpeakerRuntimeModel(speaker);
   const nonverbalReplyAllowed = canTavernCharacterUseNonverbalReply({
-    room: runtimeRoom,
+    settings: runtimeRoom.settings,
     characterId: speaker.id,
     selectedTargetCharacterIds: selectedReplyOption?.targetCharacterIds,
     directorNonverbalReplyIds,

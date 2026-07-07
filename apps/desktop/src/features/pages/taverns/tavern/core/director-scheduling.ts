@@ -1,6 +1,5 @@
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { TavernMessage } from "../types";
-import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter, TavernRoomSettings, TavernSceneStatus } from "@/features/pages/taverns/manage/model";
 import { orderTavernRoundSpeakers } from "./turn-order";
 
 const defaultDirectorScheduling = {
@@ -21,7 +20,7 @@ const defaultDirectorScheduling = {
   instruction: "",
 };
 
-const defaultDirectorNarrativeControl: TavernRoom["settings"]["directorNarrativeControl"] = {
+const defaultDirectorNarrativeControl: TavernRoomSettings["directorNarrativeControl"] = {
   agencyMode: "player_protagonist",
   responseScale: "balanced",
   narratorPressure: "balanced",
@@ -31,8 +30,8 @@ const defaultDirectorNarrativeControl: TavernRoom["settings"]["directorNarrative
   qnaBreak: "auto",
 };
 
-const getDirectorScheduling = (room: Pick<TavernRoom, "settings">) => {
-  const candidate = room.settings.directorScheduling;
+const getDirectorScheduling = (settings: TavernRoomSettings) => {
+  const candidate = settings.directorScheduling;
   if (!candidate) {
     return defaultDirectorScheduling;
   }
@@ -52,34 +51,34 @@ const getDirectorScheduling = (room: Pick<TavernRoom, "settings">) => {
   };
 };
 
-const getDirectorNarrativeControl = (room: Pick<TavernRoom, "settings">) => ({
+const getDirectorNarrativeControl = (settings: TavernRoomSettings) => ({
   ...defaultDirectorNarrativeControl,
-  ...room.settings.directorNarrativeControl,
+  ...settings.directorNarrativeControl,
 });
 
-export const isTavernFixedOrderPhase = (room: Pick<TavernRoom, "settings">) =>
-  getDirectorScheduling(room).fixedOrder.enabled;
+export const isTavernFixedOrderPhase = (settings: TavernRoomSettings) =>
+  getDirectorScheduling(settings).fixedOrder.enabled;
 
-export const isTavernDirectorOnlyTurnAllowed = (room: Pick<TavernRoom, "settings">) => {
-  const scheduling = getDirectorScheduling(room);
+export const isTavernDirectorOnlyTurnAllowed = (settings: TavernRoomSettings) => {
+  const scheduling = getDirectorScheduling(settings);
   return scheduling.allowDirectorOnly;
 };
 
-export const isTavernDirectorOnlyPhase = (room: Pick<TavernRoom, "settings">) =>
-  getDirectorScheduling(room).allowDirectorOnly;
+export const isTavernDirectorOnlyPhase = (settings: TavernRoomSettings) =>
+  getDirectorScheduling(settings).allowDirectorOnly;
 
 export const canTavernSelectedTargetsStaySilent = (
-  room: Pick<TavernRoom, "settings">,
+  settings: TavernRoomSettings,
   selectedTargetCharacterIds?: string[],
 ) => {
   if (!selectedTargetCharacterIds?.length) {
     return false;
   }
 
-  return getDirectorScheduling(room).targetedReplyPolicy === "prefer";
+  return getDirectorScheduling(settings).targetedReplyPolicy === "prefer";
 };
 
-export const hasTavernNonverbalTargetCue = (text: string) =>
+const hasTavernNonverbalTargetCue = (text: string) =>
   /(?:不用|不必|不要|别)(?:回答|回复|回应|开口)|只(?:用|要)(?:动作|神态|眼神)|(?:动作|神态|眼神)(?:回应|表示)|(?:可以|可)(?:沉默|不回答|不回复|不开口|只用动作)|保持沉默|沉默回应|没有开口|不出声/u.test(
     text,
   );
@@ -111,7 +110,7 @@ const recentText = (messages: TavernMessage[]) =>
 const classifyCurrentUserMove = (
   text: string,
   isSceneDriveTurn: boolean,
-  agencyMode: TavernRoom["settings"]["directorNarrativeControl"]["agencyMode"],
+  agencyMode: TavernRoomSettings["directorNarrativeControl"]["agencyMode"],
 ) => {
   const trimmed = text.trim();
   if (isSceneDriveTurn) {
@@ -132,9 +131,9 @@ const classifyCurrentUserMove = (
   return trimmed ? "statement" : "empty";
 };
 
-export type TavernSceneDriveGuidance = {
+type TavernSceneDriveGuidance = {
   currentMove: "scene_drive" | "continue" | "action" | "question" | "statement" | "empty";
-  controls: TavernRoom["settings"]["directorNarrativeControl"];
+  controls: TavernRoomSettings["directorNarrativeControl"];
   qnaChainRisk: boolean;
   needsUserActionConsequence: boolean;
   needsEventInterruption: boolean;
@@ -145,24 +144,31 @@ export type TavernSceneDriveGuidance = {
 };
 
 export const buildTavernSceneDriveGuidance = ({
-  room,
+  settings,
+  scene,
   messages,
   currentUserText,
   isSceneDriveTurn = false,
 }: {
-  room: Pick<TavernRoom, "sceneGoal" | "scenePlot" | "storyGoal" | "sceneStatus" | "settings">;
+  settings: TavernRoomSettings;
+  scene: {
+    sceneGoal: string;
+    scenePlot: string;
+    storyGoal: string;
+    sceneStatus?: TavernSceneStatus;
+  };
   messages: TavernMessage[];
   currentUserText: string;
   isSceneDriveTurn?: boolean;
 }): TavernSceneDriveGuidance => {
-  const controls = getDirectorNarrativeControl(room);
+  const controls = getDirectorNarrativeControl(settings);
   const currentMove = classifyCurrentUserMove(currentUserText, isSceneDriveTurn, controls.agencyMode);
   const recent = recentText(messages);
   const recentUserQuestionCount = countRecentUserQuestions(messages);
   const hasRecentConsequence = consequencePattern.test(recent);
   const hasRecentInterruption = interruptionPattern.test(recent);
   const hasRecentMainHook = mainHookPattern.test(recent);
-  const hasSceneGoal = Boolean(room.sceneGoal.trim() || room.storyGoal.trim() || room.scenePlot.trim());
+  const hasSceneGoal = Boolean(scene.sceneGoal.trim() || scene.storyGoal.trim() || scene.scenePlot.trim());
   const qnaQuestionThreshold = controls.qnaBreak === "aggressive" ? 1 : 2;
   const qnaChainRisk =
     controls.qnaBreak !== "off" &&
@@ -196,10 +202,10 @@ export const buildTavernSceneDriveGuidance = ({
       (controls.mainHook === "forceOnStall" && currentMove === "question"));
   const needsSceneDriveProgression = currentMove === "scene_drive" && hasSceneGoal;
   const suggestedPublicPressure = [
-    room.sceneStatus?.immediateThreat ? `推进当前公开威胁：${room.sceneStatus.immediateThreat}` : "",
-    room.sceneStatus?.weather ? `让天气影响线索或行动：${room.sceneStatus.weather}` : "",
-    room.sceneStatus?.timeLabel ? `体现时间压力：${room.sceneStatus.timeLabel}` : "",
-    room.sceneStatus?.location ? `利用当前地点制造空间变化：${room.sceneStatus.location}` : "",
+    scene.sceneStatus?.immediateThreat ? `推进当前公开威胁：${scene.sceneStatus.immediateThreat}` : "",
+    scene.sceneStatus?.weather ? `让天气影响线索或行动：${scene.sceneStatus.weather}` : "",
+    scene.sceneStatus?.timeLabel ? `体现时间压力：${scene.sceneStatus.timeLabel}` : "",
+    scene.sceneStatus?.location ? `利用当前地点制造空间变化：${scene.sceneStatus.location}` : "",
   ].filter(Boolean);
   const requiredMoves = [
     needsSceneDriveProgression
@@ -230,7 +236,7 @@ export const buildTavernSceneDriveGuidance = ({
   };
 };
 
-const formatAgencyModeInstruction = (agencyMode: TavernRoom["settings"]["directorNarrativeControl"]["agencyMode"]) => {
+const formatAgencyModeInstruction = (agencyMode: TavernRoomSettings["directorNarrativeControl"]["agencyMode"]) => {
   if (agencyMode === "scene_drive") {
     return [
       "用户控制权：scene_drive。用户短确认、空输入或续写信号表示希望场景自推动；导演应根据场景目标、近期矛盾、角色动机和公开压力主动调度合适角色互相推进。",
@@ -252,14 +258,14 @@ const formatAgencyModeInstruction = (agencyMode: TavernRoom["settings"]["directo
 };
 
 export const canTavernCharacterUseNonverbalReply = ({
-  room,
+  settings,
   characterId,
   selectedTargetCharacterIds,
   directorNonverbalReplyIds,
   currentUserText,
   directorReason,
 }: {
-  room: Pick<TavernRoom, "settings">;
+  settings: TavernRoomSettings;
   characterId: string;
   selectedTargetCharacterIds?: string[];
   directorNonverbalReplyIds?: string[];
@@ -267,7 +273,7 @@ export const canTavernCharacterUseNonverbalReply = ({
   directorReason?: string | null;
 }) =>
   Boolean(directorNonverbalReplyIds?.includes(characterId)) ||
-  (canTavernSelectedTargetsStaySilent(room, selectedTargetCharacterIds) &&
+  (canTavernSelectedTargetsStaySilent(settings, selectedTargetCharacterIds) &&
     Boolean(selectedTargetCharacterIds?.includes(characterId)) &&
     (hasTavernNonverbalTargetCue(currentUserText ?? "") || hasTavernNonverbalTargetCue(directorReason ?? "")));
 
@@ -282,7 +288,7 @@ const uniqueCharacters = (characters: TavernCharacter[]) => {
   });
 };
 
-export const mergeTavernCharacterIds = (...characterIdLists: Array<readonly string[] | undefined | null>) => {
+const mergeTavernCharacterIds = (...characterIdLists: Array<readonly string[] | undefined | null>) => {
   const seen = new Set<string>();
   return characterIdLists
     .flatMap((list) => list ?? [])
@@ -297,7 +303,7 @@ export const mergeTavernCharacterIds = (...characterIdLists: Array<readonly stri
 };
 
 export const resolveTavernScheduledSpeakers = ({
-  room,
+  settings,
   availableCharacters,
   activeCharacterId,
   directorSpeakerIds,
@@ -306,7 +312,7 @@ export const resolveTavernScheduledSpeakers = ({
   currentUserText,
   fallbackCharacter,
 }: {
-  room: Pick<TavernRoom, "settings">;
+  settings: TavernRoomSettings;
   availableCharacters: TavernCharacter[];
   activeCharacterId?: string | null;
   directorSpeakerIds: string[];
@@ -315,13 +321,13 @@ export const resolveTavernScheduledSpeakers = ({
   currentUserText?: string;
   fallbackCharacter?: TavernCharacter | null;
 }): TavernCharacter[] => {
-  if (isTavernDirectorOnlyPhase(room)) {
+  if (isTavernDirectorOnlyPhase(settings)) {
     return [];
   }
 
-  if (isTavernFixedOrderPhase(room)) {
+  if (isTavernFixedOrderPhase(settings)) {
     return orderTavernRoundSpeakers({
-      room,
+      settings,
       characters: availableCharacters,
       activeCharacterId: activeCharacterId ?? undefined,
     });
@@ -338,11 +344,11 @@ export const resolveTavernScheduledSpeakers = ({
       .map((characterId) => characterById.get(characterId))
       .filter((character): character is TavernCharacter => Boolean(character)),
   );
-  const scheduling = getDirectorScheduling(room);
+  const scheduling = getDirectorScheduling(settings);
   const targetedReplyPolicy = scheduling.targetedReplyPolicy;
   const targetIds = new Set(targetSpeakers.map((speaker) => speaker.id));
   const shouldScheduleTargetsForNonverbalReply =
-    canTavernSelectedTargetsStaySilent(room, selectedTargetCharacterIds) &&
+    canTavernSelectedTargetsStaySilent(settings, selectedTargetCharacterIds) &&
     hasTavernNonverbalTargetCue(currentUserText ?? "");
   const directedSpeakers = rawDirectedSpeakers;
 
@@ -374,16 +380,16 @@ export const resolveTavernScheduledSpeakers = ({
     return directedSpeakers;
   }
 
-  if (isTavernDirectorOnlyTurnAllowed(room)) {
+  if (isTavernDirectorOnlyTurnAllowed(settings)) {
     return [];
   }
 
   return fallbackCharacter ? [fallbackCharacter] : availableCharacters.slice(0, 1);
 };
 
-export const formatTavernDirectorSchedulingInstruction = (room: Pick<TavernRoom, "settings">) => {
-  const scheduling = getDirectorScheduling(room);
-  const narrativeControl = getDirectorNarrativeControl(room);
+export const formatTavernDirectorSchedulingInstruction = (settings: TavernRoomSettings) => {
+  const scheduling = getDirectorScheduling(settings);
+  const narrativeControl = getDirectorNarrativeControl(settings);
   const lines = [];
   const customInstruction = scheduling.instruction.trim();
 
@@ -401,7 +407,7 @@ export const formatTavernDirectorSchedulingInstruction = (room: Pick<TavernRoom,
     ].join("\n"),
   );
 
-  if (isTavernFixedOrderPhase(room)) {
+  if (isTavernFixedOrderPhase(settings)) {
     lines.push(
       [
         "当前处于固定顺序发言阶段。",
@@ -420,7 +426,7 @@ export const formatTavernDirectorSchedulingInstruction = (room: Pick<TavernRoom,
     );
   }
 
-  if (isTavernDirectorOnlyTurnAllowed(room)) {
+  if (isTavernDirectorOnlyTurnAllowed(settings)) {
     lines.push(
       [
         "当前阶段允许导演只推进公开流程，不调用角色公开发言。",

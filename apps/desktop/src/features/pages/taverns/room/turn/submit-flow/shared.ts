@@ -1,7 +1,7 @@
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
-import { createIdleTavernRoomBusyState, type TavernRoomStoreState } from "@/features/pages/taverns/room/context";
+import type { TavernRoomStoreState } from "@/features/pages/taverns/room/context";
 import { createTavernMessage } from "@/features/pages/taverns/room/message";
 import {
   isTavernCharacterAvailableForSpeech,
@@ -98,9 +98,9 @@ export const resolveSubmitSpeakerPlan = ({
 }): SubmitSpeakerPlan => {
   const fixedOrderSettings = room.settings.directorScheduling.fixedOrder;
   const fixedOrderParticipants =
-    isTavernFixedOrderPhase(room) && fixedOrderSettings.includeUser
+    isTavernFixedOrderPhase(room.settings) && fixedOrderSettings.includeUser
       ? orderTavernRoundParticipants({
-          room,
+          settings: room.settings,
           characters,
           activeCharacterId: activeCharacter?.id,
           includeUser: true,
@@ -119,12 +119,12 @@ export const resolveSubmitSpeakerPlan = ({
     fixedOrderUserIndex >= 0
       ? fixedOrderCharactersAfterUser
       : orderTavernRoundSpeakers({
-          room,
+          settings: room.settings,
           characters,
           activeCharacterId: activeCharacter?.id,
         });
   const availableActiveCharacter =
-    activeCharacter && isTavernCharacterAvailableForSpeech(room, activeCharacter)
+    activeCharacter && isTavernCharacterAvailableForSpeech(room.settings, activeCharacter)
       ? activeCharacter
       : (availableRoomCharacters[0] ?? null);
   const candidateSpeakers = availableRoomCharacters;
@@ -198,10 +198,6 @@ export const beginTurnSubmission = ({
   ctx.patchRoom(room.id, {
     replyOptions: [],
   });
-};
-
-export const abortTurnSubmission = ({ ctx }: { ctx: TavernRoomStoreState }) => {
-  ctx.setBusy(createIdleTavernRoomBusyState());
 };
 
 export const readTurnReferences = async ({

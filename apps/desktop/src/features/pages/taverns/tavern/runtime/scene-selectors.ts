@@ -1,6 +1,6 @@
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 
-export const getActiveTavernStoryNode = (room: TavernRoom | null | undefined) => {
+const getActiveTavernStoryNode = (room: TavernRoom | null | undefined) => {
   if (!room?.storyGraph?.nodes.length) {
     return null;
   }

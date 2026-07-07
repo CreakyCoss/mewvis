@@ -122,13 +122,3 @@ export const normalizeSystemPresetId = (presetId: unknown) => {
 
   return getTavernSystemPreset(presetId)?.id;
 };
-
-export const normalizeSystemPresetCharacterId = (presetId: string | undefined, characterId: unknown) => {
-  if (!presetId || typeof characterId !== "string") {
-    return undefined;
-  }
-
-  return getTavernSystemPreset(presetId)?.characters.some((character) => character.id === characterId)
-    ? characterId
-    : undefined;
-};

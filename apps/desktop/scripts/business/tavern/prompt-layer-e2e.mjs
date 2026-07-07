@@ -19,7 +19,7 @@ writeFileSync(
   entryPath,
   `
   import { createTavernRoomFromSystemPreset } from ${JSON.stringify(systemPresetRoomPath)};
-  import { createTavernRuntimeRoomFromConfig } from ${JSON.stringify(runtimeRoomPath)};
+  import { createTavernActiveRoomViewFromConfig } from ${JSON.stringify(runtimeRoomPath)};
   import { buildTavernReplyAgentRequest } from ${JSON.stringify(requestPath)};
 
   const assert = (condition: unknown, message: string, details?: unknown) => {
@@ -45,7 +45,7 @@ writeFileSync(
       markAsSystemPreset: false,
     },
   );
-  const runtimeRoom = createTavernRuntimeRoomFromConfig(materialized.room);
+  const runtimeRoom = createTavernActiveRoomViewFromConfig(materialized.room);
   const characters = [
     {
       id: "char-director",

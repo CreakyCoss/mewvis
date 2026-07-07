@@ -18,7 +18,7 @@ import type { TavernScene } from "@/features/pages/taverns/room/model";
 
 export const defaultSceneTitle = "默认场景";
 
-export type TavernSceneInput = Partial<Omit<TavernScene, "scenePresetId">> & {
+type TavernSceneInput = Partial<Omit<TavernScene, "scenePresetId">> & {
   scenePresetId?: unknown;
 };
 
@@ -102,5 +102,3 @@ export const buildTavernScene = (input: TavernSceneInput = {}): TavernScene => {
     updatedAt,
   };
 };
-
-export const createTavernScene = (input: TavernSceneInput = {}): TavernScene => buildTavernScene(input);

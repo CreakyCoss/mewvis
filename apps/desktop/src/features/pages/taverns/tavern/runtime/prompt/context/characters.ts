@@ -1,4 +1,4 @@
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 import { formatTavernCharacterRelationships } from "../../../core";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { escapePromptXmlText, limitPromptText } from "../shared/text";

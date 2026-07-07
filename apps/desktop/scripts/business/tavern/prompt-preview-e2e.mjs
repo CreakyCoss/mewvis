@@ -23,7 +23,7 @@ writeFileSync(
   entryPath,
   `
   import { createTavernRoomFromSystemPreset } from ${JSON.stringify(systemPresetRoomPath)};
-  import { createTavernRuntimeRoomFromConfig } from ${JSON.stringify(runtimeRoomPath)};
+  import { createTavernActiveRoomViewFromConfig } from ${JSON.stringify(runtimeRoomPath)};
   import { buildTavernPromptPreview } from ${JSON.stringify(previewPath)};
   import { resolveTavernPromptWarningNavigation } from ${JSON.stringify(warningNavigationPath)};
 
@@ -62,7 +62,7 @@ writeFileSync(
       markAsSystemPreset: false,
     },
   );
-  const runtimeRoom = createTavernRuntimeRoomFromConfig(materialized.room);
+  const runtimeRoom = createTavernActiveRoomViewFromConfig(materialized.room);
   const maliciousCharacterBlockId = "preview-character-injection";
   const duplicateSourceId = "preview-duplicate-source";
   const longBlockId = "preview-long-bridge-block";

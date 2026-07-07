@@ -1,6 +1,6 @@
 import type {
   TavernCharacterMemoryLayers,
-  TavernRuntimeRoom as TavernRoom,
+  TavernActiveRoomView as TavernRoom,
   TavernSceneMemoryLayers,
 } from "@/features/pages/taverns/room/model";
 import { useEffect, useState, type ReactNode } from "react";

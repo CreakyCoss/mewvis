@@ -1,6 +1,6 @@
 import type { TavernCharacter, TavernLorebookEntry, TavernSceneStatus } from "@/features/pages/taverns/manage/model";
 import type {
-  TavernRuntimeRoom as TavernRoom,
+  TavernActiveRoomView as TavernRoom,
   TavernScene,
   TavernSceneInstance,
   TavernStoryGraph,
@@ -39,7 +39,7 @@ export type TavernRuntimeStoryProjection = {
   activeCharacterId: string;
 };
 
-export const getTavernActiveSceneInstance = (room: TavernRoom) =>
+const getTavernActiveSceneInstance = (room: TavernRoom) =>
   room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId) ?? room.sceneInstances[0] ?? null;
 
 export const getTavernRuntimeStoryProjection = (
@@ -79,35 +79,3 @@ export const getTavernRuntimeStoryProjection = (
     activeCharacterId: room.activeCharacterId,
   };
 };
-
-const cloneTavernStoryGraph = (storyGraph: TavernStoryGraph): TavernStoryGraph => ({
-  ...storyGraph,
-  nodes: storyGraph.nodes.map((node) => ({
-    ...node,
-    position: { ...node.position },
-  })),
-  edges: storyGraph.edges.map((edge) => ({ ...edge })),
-});
-
-const cloneTavernStoryCharacter = (character: TavernCharacter): TavernCharacter => ({
-  ...character,
-  relationships: character.relationships.map((relationship) => ({
-    ...relationship,
-    target: { ...relationship.target },
-    tags: [...relationship.tags],
-  })),
-});
-
-const cloneTavernStoryLorebookEntry = (entry: TavernLorebookEntry): TavernLorebookEntry => ({
-  ...entry,
-  keywords: [...entry.keywords],
-});
-
-export const cloneTavernRuntimeStoryProjectionFields = (
-  room: TavernRoom,
-): Pick<TavernRoom, "storyGraph" | "localCharacters" | "characterIds" | "lorebookEntries"> => ({
-  storyGraph: cloneTavernStoryGraph(room.storyGraph),
-  localCharacters: room.localCharacters?.map(cloneTavernStoryCharacter) ?? [],
-  characterIds: [...room.characterIds],
-  lorebookEntries: room.lorebookEntries.map(cloneTavernStoryLorebookEntry),
-});

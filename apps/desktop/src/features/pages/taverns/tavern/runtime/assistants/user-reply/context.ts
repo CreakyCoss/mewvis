@@ -1,8 +1,8 @@
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 import { formatTavernRuntimeMessagesForSummary } from "../../conversation";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context";
+import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import { tavernMessagesToRuntimeMessages } from "../../prompt";
-import { buildTavernStoryContextPackage } from "@/features/pages/taverns/room/story-context";
+import { buildTavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import {
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,

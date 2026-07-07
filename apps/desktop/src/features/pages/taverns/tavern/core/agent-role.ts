@@ -1,4 +1,4 @@
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 
 type TavernBridgeSessionScope = Pick<
@@ -72,9 +72,3 @@ export const tavernCharacterAgentRoleId = (
 
 export const tavernQuickReplyAgentRoleId = (room: Pick<TavernRoom, "id" | "activeSceneInstanceId" | "activeSceneId">) =>
   `tavern-${sanitizeAgentRoleSegment(room.id, "room")}-${tavernAgentScopeSegment(room)}-quick-reply`;
-
-export const tavernQuickNovelAgentRoleId = (room: Pick<TavernRoom, "id" | "activeSceneInstanceId" | "activeSceneId">) =>
-  `tavern-${sanitizeAgentRoleSegment(room.id, "room")}-${tavernAgentScopeSegment(room)}-quick-novel`;
-
-export const tavernArchivistAgentRoleId = (room: Pick<TavernRoom, "id" | "activeSceneInstanceId" | "activeSceneId">) =>
-  `tavern-${sanitizeAgentRoleSegment(room.id, "room")}-${tavernAgentScopeSegment(room)}-archivist`;

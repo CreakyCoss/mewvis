@@ -31,7 +31,7 @@ import {
   type TavernPromptPreviewWarning,
   type TavernPromptPreviewWarningSeverity,
 } from "../../../tavern/runtime/prompt/preview";
-import { getTavernRuntimeStoryProjection } from "../../../room/story-context";
+import { getTavernRuntimeStoryProjection } from "../../../room/story-context/projection";
 import { getTavernCharacterStylePreset } from "../../../tavern/prompt-registry/character-style-presets";
 import {
   TAVERN_PRESENTATION_PROFILE_OPTIONS,
@@ -64,8 +64,8 @@ import {
   getTavernPromptStylePreset,
   normalizeTavernPromptStyleId,
 } from "../../../tavern/presentation/prompt-styles";
-import { createTavernRuntimeRoomFromConfig } from "../../../room/model/runtime-room";
-import type { TavernRuntimeRoom } from "../../../room/model";
+import { createTavernActiveRoomViewFromConfig } from "../../../room/model/runtime-room";
+import type { TavernActiveRoomView } from "../../../room/model";
 import type {
   TavernPresentationProfileId,
   TavernPromptBlock,
@@ -327,8 +327,8 @@ const createPromptFallback = (room: TavernRoom, presentationProfileId: TavernPre
     immersiveDescriptionEnabled: room.settings.immersiveDescriptionEnabled !== false,
   });
 
-const buildPromptPreviewRoom = (room: TavernRoom, draft: PromptDraft): TavernRuntimeRoom =>
-  createTavernRuntimeRoomFromConfig({
+const buildPromptPreviewRoom = (room: TavernRoom, draft: PromptDraft): TavernActiveRoomView =>
+  createTavernActiveRoomViewFromConfig({
     ...room,
     presentation: {
       ...normalizeTavernPresentation(room.presentation),

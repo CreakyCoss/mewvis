@@ -14,7 +14,7 @@ import { createTavernStoryBinding } from "@/features/pages/taverns/room/story-mo
 import { normalizeStoryGraph } from "@/features/pages/taverns/room/story-model/story-graph";
 import type { TavernMessage } from "../../tavern/types";
 import type { TavernCharacter, TavernLorebookEntry } from "@/features/pages/taverns/manage/model";
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 import type {
   TavernPresentationCharacterInput,
   TavernPresentationInput,

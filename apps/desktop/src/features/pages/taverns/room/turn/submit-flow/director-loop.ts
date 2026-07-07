@@ -1,7 +1,7 @@
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { AgentClientCollaborationEvent } from "@/agent-client/types";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context";
+import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import type { TavernRoomStoreState } from "@/features/pages/taverns/room/context";
 import {
   buildTavernMessageSegments,
@@ -423,7 +423,7 @@ const applyLoopSupervisorDecision = ({
 }) => {
   const directorNonverbalReplyIds = decision.nonverbalReplyIds ?? [];
   const speakers = resolveTavernScheduledSpeakers({
-    room: runtimeRoom,
+    settings: runtimeRoom.settings,
     availableCharacters: availableRoomCharacters,
     activeCharacterId: ctx.activeCharacter?.id,
     directorSpeakerIds: decision.speakerIds,

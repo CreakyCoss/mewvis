@@ -1,4 +1,3 @@
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { TavernMessage } from "../types";
 import type {
   TavernCharacter,
@@ -6,6 +5,7 @@ import type {
   TavernDirectorProfile,
   TavernDirectorReplyModePreference,
   TavernDirectorSpeechBias,
+  TavernRoomSettings,
   TavernSchedulingSignal,
 } from "@/features/pages/taverns/manage/model";
 import { isTavernDirectorOnlyPhase, isTavernFixedOrderPhase } from "./director-scheduling";
@@ -122,7 +122,7 @@ const inferSpeechBias = (character: TavernCharacter): TavernDirectorSpeechBias =
   return "balanced";
 };
 
-export const createTavernDirectorCharacterProfile = (character: TavernCharacter): TavernDirectorCharacterProfile => {
+const createTavernDirectorCharacterProfile = (character: TavernCharacter): TavernDirectorCharacterProfile => {
   const speechBias = inferSpeechBias(character);
   const descriptionTags = extractLooseTags(character.description);
   const goalTags = extractLooseTags(character.goals ?? "");
@@ -153,7 +153,11 @@ export const createTavernDirectorProfileFromCharacters = ({
   source = "system",
   updatedAt,
 }: {
-  room?: Pick<TavernRoom, "storyGoal" | "sceneGoal" | "settings">;
+  room?: {
+    storyGoal: string;
+    sceneGoal: string;
+    settings: TavernRoomSettings;
+  };
   characters: TavernCharacter[];
   source?: TavernDirectorProfile["source"];
   updatedAt?: number;
@@ -279,8 +283,8 @@ export const normalizeTavernDirectorProfile = (
   };
 };
 
-const profileForCharacter = (room: Pick<TavernRoom, "settings">, character: TavernCharacter) =>
-  room.settings.directorScheduling.profile?.characterProfiles[character.id] ??
+const profileForCharacter = (settings: TavernRoomSettings, character: TavernCharacter) =>
+  settings.directorScheduling.profile?.characterProfiles[character.id] ??
   createTavernDirectorCharacterProfile(character);
 
 const recentCharacterMessageCount = (messages: TavernMessage[], characterId: string) =>
@@ -319,19 +323,19 @@ const signalModes = ({
 };
 
 export const buildTavernSchedulingSignals = ({
-  room,
+  settings,
   characters,
   messages,
   currentUserText,
   selectedTargetCharacterIds = [],
 }: {
-  room: Pick<TavernRoom, "settings">;
+  settings: TavernRoomSettings;
   characters: TavernCharacter[];
   messages: TavernMessage[];
   currentUserText: string;
   selectedTargetCharacterIds?: string[];
 }): TavernSchedulingSignal[] => {
-  if (isTavernDirectorOnlyPhase(room)) {
+  if (isTavernDirectorOnlyPhase(settings)) {
     return [];
   }
 
@@ -340,9 +344,9 @@ export const buildTavernSchedulingSignals = ({
     currentUserText,
     ...messages.slice(-RECENT_MESSAGE_SIGNAL_LIMIT).map((message) => message.content),
   ].join("\n");
-  const fixedOrder = isTavernFixedOrderPhase(room);
+  const fixedOrder = isTavernFixedOrderPhase(settings);
   const signals = characters.map((character) => {
-    const profile = profileForCharacter(room, character);
+    const profile = profileForCharacter(settings, character);
     const reasons: string[] = [];
     const matchedRuleIds: string[] = [];
     let score = 35 + biasScore(profile.speechBias);

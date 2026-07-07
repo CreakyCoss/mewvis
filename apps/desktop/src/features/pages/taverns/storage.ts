@@ -9,7 +9,7 @@ const TAVERN_STATE_VERSION = 4;
 const TAVERN_STORAGE_VERSION = 1;
 const STORAGE_PREFIX = "novel-claw:tavern";
 
-export type TavernRuntimeScope = {
+type TavernRuntimeScope = {
   storyId?: string;
   storyNodeId?: string;
   tavernId?: string;
@@ -32,14 +32,6 @@ type TavernManifest = {
   updatedAt: number;
   roomIds: string[];
   rooms: TavernManifestRoom[];
-};
-
-type SaveTavernRoomInput = {
-  workspacePath: string;
-  workspaceId: string;
-  room: TavernRoom;
-  scope?: TavernRuntimeScope;
-  activate?: boolean;
 };
 
 const createEmptyTavernState = (): TavernState => ({
@@ -348,91 +340,4 @@ export const saveTavernState = async (
     createTavernManifest(baseDir, stateForStorage),
   );
   return stateForStorage;
-};
-
-export const clearTavernState = async (workspacePath: string, workspaceId: string, scope: TavernRuntimeScope = {}) => {
-  if (!isTauri()) {
-    deleteTavernStateFromLocalStorage(workspaceId, scope);
-    return;
-  }
-
-  deleteTavernStateFromLocalStorage(workspaceId, scope);
-
-  const baseDir = tavernBaseDir(workspacePath, scope);
-  const manifest = normalizeTavernManifest(await readJsonWorkspaceFile(workspacePath, tavernManifestPath(baseDir)));
-  const manifestRooms = manifest ? roomManifestById(manifest) : new Map<string, TavernManifestRoom>();
-  const roomIds = manifest?.roomIds ?? [];
-
-  await Promise.all(
-    roomIds.map((roomId) => {
-      const manifestRoom = manifestRooms.get(roomId);
-      return deleteWorkspaceFileIfExists(workspacePath, manifestRoom?.roomPath || tavernRoomPath(baseDir, roomId));
-    }),
-  );
-  await deleteWorkspaceFileIfExists(workspacePath, tavernManifestPath(baseDir));
-};
-
-export const listTavernRooms = async (workspacePath: string, workspaceId: string, scope: TavernRuntimeScope = {}) =>
-  (await loadTavernState(workspacePath, workspaceId, scope)).rooms;
-
-export const loadTavernRoom = async (
-  workspacePath: string,
-  workspaceId: string,
-  roomId: string,
-  scope: TavernRuntimeScope = {},
-) => {
-  const state = await loadTavernState(workspacePath, workspaceId, scope);
-  return state.rooms.find((room) => room.id === roomId) ?? null;
-};
-
-export const saveTavernRoom = async ({
-  workspacePath,
-  workspaceId,
-  room,
-  scope = {},
-  activate = true,
-}: SaveTavernRoomInput) => {
-  const current = await loadTavernState(workspacePath, workspaceId, scope);
-  const nextRooms = current.rooms.some((item) => item.id === room.id)
-    ? current.rooms.map((item) => (item.id === room.id ? room : item))
-    : [...current.rooms, room];
-  const nextState = await saveTavernState(
-    workspacePath,
-    workspaceId,
-    {
-      ...current,
-      activeRoomId: activate ? room.id : current.activeRoomId || (nextRooms[0]?.id ?? ""),
-      rooms: nextRooms,
-    },
-    scope,
-  );
-
-  return nextState.rooms.find((item) => item.id === room.id) ?? room;
-};
-
-export const deleteTavernRoom = async (
-  workspacePath: string,
-  workspaceId: string,
-  roomId: string,
-  scope: TavernRuntimeScope = {},
-) => {
-  const current = await loadTavernState(workspacePath, workspaceId, scope);
-  if (!current.rooms.some((room) => room.id === roomId)) {
-    return current;
-  }
-
-  const nextRooms = current.rooms.filter((room) => room.id !== roomId);
-  return saveTavernState(
-    workspacePath,
-    workspaceId,
-    {
-      ...current,
-      activeRoomId:
-        current.activeRoomId === roomId
-          ? (nextRooms.find((room) => room.id !== roomId)?.id ?? "")
-          : current.activeRoomId,
-      rooms: nextRooms,
-    },
-    scope,
-  );
 };

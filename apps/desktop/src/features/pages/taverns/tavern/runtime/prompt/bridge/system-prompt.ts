@@ -1,4 +1,4 @@
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
 import {
   formatTavernInteractionQualityRulesForTarget,

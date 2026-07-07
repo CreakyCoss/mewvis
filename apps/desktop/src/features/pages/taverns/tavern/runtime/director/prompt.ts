@@ -1,15 +1,15 @@
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 import { appendReferencesToPrompt } from "@/features/ai/components/context-tools";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context";
+import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import type { TavernMessage, TavernReferencedFile } from "../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { tavernMessagesToRuntimeMessages } from "../prompt";
+import { buildTavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import {
-  buildTavernStoryContextPackage,
   formatTavernStoryGraphContext,
   formatTavernStoryLorebookEntries,
   selectTavernStoryLorebookEntries,
-} from "@/features/pages/taverns/room/story-context";
+} from "@/features/pages/taverns/room/story-context/prompt-sections";
 import {
   buildTavernSchedulingSignals,
   canTavernSelectedTargetsStaySilent,
@@ -87,10 +87,10 @@ export const buildTavernDirectorPromptContext = ({
   ]
     .filter(Boolean)
     .join("\n\n");
-  const directorOnlyAllowed = isTavernDirectorOnlyTurnAllowed(room);
-  const schedulingInstruction = formatTavernDirectorSchedulingInstruction(room);
+  const directorOnlyAllowed = isTavernDirectorOnlyTurnAllowed(room.settings);
+  const schedulingInstruction = formatTavernDirectorSchedulingInstruction(room.settings);
   const schedulingSignals = buildTavernSchedulingSignals({
-    room,
+    settings: room.settings,
     characters,
     messages,
     currentUserText,
@@ -104,7 +104,10 @@ export const buildTavernDirectorPromptContext = ({
     signals: schedulingSignals,
     characters,
   });
-  const selectedTargetsCanStaySilent = canTavernSelectedTargetsStaySilent(room, selectedTargetCharacterIds);
+  const selectedTargetsCanStaySilent = canTavernSelectedTargetsStaySilent(
+    room.settings,
+    selectedTargetCharacterIds,
+  );
   const directorPrompt = [
     buildTavernDirectorOutputContract({
       maxSpeakers,

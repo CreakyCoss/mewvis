@@ -1,7 +1,7 @@
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 import { formatTavernRuntimeMessagesForSummary } from "../../conversation";
 import { buildTavernSceneDriveGuidance, formatTavernCharacterRelationships } from "../../../core";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context";
+import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import {
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
@@ -100,7 +100,13 @@ export const buildTavernDirectorContextSections = ({
     .map((characterId) => characters.find((character) => character.id === characterId))
     .filter((character): character is TavernCharacter => Boolean(character));
   const sceneDriveGuidance = buildTavernSceneDriveGuidance({
-    room,
+    settings: room.settings,
+    scene: {
+      sceneGoal: room.sceneGoal,
+      scenePlot: room.scenePlot,
+      storyGoal: room.storyGoal,
+      sceneStatus: room.sceneStatus,
+    },
     messages,
     currentUserText,
     isSceneDriveTurn,

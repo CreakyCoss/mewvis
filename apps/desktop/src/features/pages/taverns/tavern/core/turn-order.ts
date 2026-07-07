@@ -1,7 +1,6 @@
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
-import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter, TavernRoomSettings } from "@/features/pages/taverns/manage/model";
 
-export type TavernRoundParticipant =
+type TavernRoundParticipant =
   | {
       type: "user";
       id: "user";
@@ -14,19 +13,19 @@ export type TavernRoundParticipant =
       character: TavernCharacter;
     };
 
-export const isTavernCharacterAvailableForSpeech = (_room: Pick<TavernRoom, "settings">, _character: TavernCharacter) =>
+export const isTavernCharacterAvailableForSpeech = (_settings: TavernRoomSettings, _character: TavernCharacter) =>
   true;
 
 export const orderTavernRoundSpeakers = ({
-  room,
+  settings,
   characters,
   activeCharacterId,
 }: {
-  room: Pick<TavernRoom, "settings">;
+  settings: TavernRoomSettings;
   characters: TavernCharacter[];
   activeCharacterId?: string;
 }) => {
-  const availableCharacters = characters.filter((character) => isTavernCharacterAvailableForSpeech(room, character));
+  const availableCharacters = characters.filter((character) => isTavernCharacterAvailableForSpeech(settings, character));
 
   if (!activeCharacterId) {
     return availableCharacters;
@@ -41,14 +40,14 @@ export const orderTavernRoundSpeakers = ({
 };
 
 export const orderTavernRoundParticipants = ({
-  room,
+  settings,
   characters,
   activeCharacterId,
   includeUser = false,
   userPosition = "first",
   userPersonaName,
 }: {
-  room: Pick<TavernRoom, "settings">;
+  settings: TavernRoomSettings;
   characters: TavernCharacter[];
   activeCharacterId?: string;
   includeUser?: boolean;
@@ -56,7 +55,7 @@ export const orderTavernRoundParticipants = ({
   userPersonaName?: string;
 }): TavernRoundParticipant[] => {
   const characterParticipants: TavernRoundParticipant[] = orderTavernRoundSpeakers({
-    room,
+    settings,
     characters,
     activeCharacterId,
   }).map((character) => ({

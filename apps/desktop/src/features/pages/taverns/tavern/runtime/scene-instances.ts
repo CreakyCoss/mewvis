@@ -5,7 +5,7 @@ import type {
   TavernSceneInstance,
   TavernStoryGraph,
   TavernStoryNode,
-  TavernRuntimeRoom as TavernRoom,
+  TavernActiveRoomView as TavernRoom,
 } from "@/features/pages/taverns/room/model";
 
 const stableIdHash = (value: string) => {
@@ -16,7 +16,7 @@ const stableIdHash = (value: string) => {
   return (hash >>> 0).toString(36);
 };
 
-export const createNodeScopedSceneInstanceId = (roomId: string, nodeId: string) =>
+const createNodeScopedSceneInstanceId = (roomId: string, nodeId: string) =>
   `scene-instance-${stableIdHash([roomId, nodeId].join(">"))}`;
 
 export const resolveActiveSceneInstance = (

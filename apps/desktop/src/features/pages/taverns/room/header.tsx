@@ -13,7 +13,7 @@ import {
   isTavernRoomSending,
   useTavernRoomContext,
 } from "@/features/pages/taverns/room/context";
-import type { TavernRuntimeRoom as TavernRoom } from "./model";
+import type { TavernActiveRoomView as TavernRoom } from "./model";
 import { createEmptyComposerSubmitPayload } from "./composer";
 import { SceneSelector } from "./scene-selector";
 import { deleteTavernRoomSessionState } from "./storage";

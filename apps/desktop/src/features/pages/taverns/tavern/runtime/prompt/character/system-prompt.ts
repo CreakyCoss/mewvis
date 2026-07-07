@@ -1,6 +1,6 @@
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 import { appendReferencesToPrompt } from "@/features/ai/components/context-tools";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context";
+import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import { getTavernPresentationContract } from "../../../presentation/presentation-contracts";
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
 import {
@@ -9,13 +9,13 @@ import {
 } from "../../../prompt-registry/text-blocks";
 import type { TavernReferencedFile } from "../../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
+import { buildTavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import {
-  buildTavernStoryContextPackage,
   buildTavernStoryPromptSections,
   formatTavernStoryGraphContext,
   formatTavernStoryLorebookEntries,
   selectTavernStoryLorebookEntries,
-} from "@/features/pages/taverns/room/story-context";
+} from "@/features/pages/taverns/room/story-context/prompt-sections";
 import { buildCharacterContextSections, formatCompactPresentCharacters } from "../layers/character-context";
 import { buildPresentationProfileSection } from "../layers/presentation";
 import { buildCharacterSystemContractSection } from "../layers/system-contract";

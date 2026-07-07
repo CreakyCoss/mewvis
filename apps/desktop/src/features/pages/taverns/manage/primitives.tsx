@@ -1,7 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 import { DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { emptyValueText } from "./utils";
 
 export const EditorField = ({
   label,
@@ -26,26 +25,6 @@ export const EditorField = ({
     {children}
     {description && <span className="block text-xs leading-5 text-muted-foreground">{description}</span>}
   </label>
-);
-
-export const CompactSummaryItem = ({
-  label,
-  value,
-  description,
-  className,
-  valueClassName,
-}: {
-  label: string;
-  value: ReactNode;
-  description?: ReactNode;
-  className?: string;
-  valueClassName?: string;
-}) => (
-  <div className={cn("min-w-0 rounded-md bg-background/45 px-2.5 py-2", className)}>
-    <div className="truncate text-[11px] font-medium uppercase text-muted-foreground">{label}</div>
-    <div className={cn("mt-0.5 min-w-0 truncate text-sm font-medium leading-5", valueClassName)}>{value}</div>
-    {description && <div className="mt-0.5 truncate text-xs leading-5 text-muted-foreground">{description}</div>}
-  </div>
 );
 
 type EditorMetricItem = {
@@ -121,103 +100,6 @@ export const EditorSettingGroup = ({
     <div className="space-y-2">{children}</div>
   </section>
 );
-
-export const EditorSettingRow = ({
-  icon: Icon,
-  label,
-  children,
-}: {
-  icon: ComponentType<{ className?: string }>;
-  label: string;
-  children: ReactNode;
-}) => (
-  <div className="grid min-w-0 grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-2">
-    <Icon className="size-3.5 text-muted-foreground" />
-    <span className="min-w-0 truncate text-xs font-medium leading-5 text-foreground/72">{label}</span>
-    <span className="shrink-0">{children}</span>
-  </div>
-);
-
-export const EditorProgressCard = ({
-  title,
-  value,
-  progress,
-  description,
-}: {
-  title: string;
-  value: ReactNode;
-  progress: number;
-  description?: ReactNode;
-}) => {
-  const clampedProgress = Math.min(100, Math.max(0, progress));
-
-  return (
-    <aside className="flex min-h-full rounded-lg border border-border/70 bg-background/72 p-2.5 shadow-xs">
-      <div className="flex min-h-32 w-full flex-col justify-between rounded-md bg-primary/5 px-3.5 py-3.5 ring-1 ring-primary/8">
-        <div className="space-y-1">
-          <div className="text-sm font-semibold text-foreground">{title}</div>
-          {description && <div className="text-xs leading-5 text-muted-foreground">{description}</div>}
-        </div>
-        <div className="space-y-3">
-          <div className="text-xl font-semibold leading-7 tracking-normal text-foreground">{value}</div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-primary transition-[width]"
-              style={{ width: `${clampedProgress}%` }}
-            />
-          </div>
-        </div>
-      </div>
-    </aside>
-  );
-};
-
-export const InlineSummaryItem = ({
-  label,
-  value,
-  className,
-}: {
-  label: string;
-  value: string;
-  className?: string;
-}) => {
-  const normalizedValue = value.trim();
-  const displayValue = normalizedValue || emptyValueText;
-
-  return (
-    <div className={cn("flex min-w-0 items-baseline gap-2", className)}>
-      <span className="shrink-0 text-[11px] font-medium text-muted-foreground">{label}</span>
-      <span
-        className={cn(
-          "min-w-0 truncate text-sm leading-5 text-foreground",
-          !normalizedValue && "text-muted-foreground",
-        )}
-        title={displayValue}
-      >
-        {displayValue}
-      </span>
-    </div>
-  );
-};
-
-export const SceneSummaryLine = ({ label, value, className }: { label: string; value: string; className?: string }) => {
-  const normalizedValue = value.trim();
-
-  return (
-    <div className={cn("flex min-w-0 items-start gap-1.5 text-xs leading-5", className)}>
-      <span className="shrink-0 font-medium text-foreground/70">{label}：</span>
-      <span
-        className={cn(
-          "min-w-0 flex-1 line-clamp-2 whitespace-pre-wrap text-muted-foreground",
-          !normalizedValue && "text-muted-foreground/70",
-        )}
-        title={normalizedValue || emptyValueText}
-      >
-        {normalizedValue || emptyValueText}
-      </span>
-    </div>
-  );
-};
 
 export const editorHeaderActionButtonClassName =
   "h-8 gap-1.5 rounded-md border-primary/15 bg-primary/[0.06] px-2.5 text-xs font-medium text-primary shadow-none hover:border-primary/25 hover:bg-primary/10 hover:text-primary focus-visible:ring-primary/20 dark:border-primary/20 dark:bg-primary/12 dark:hover:bg-primary/18";

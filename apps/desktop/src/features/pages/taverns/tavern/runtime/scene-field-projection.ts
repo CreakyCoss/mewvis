@@ -1,5 +1,5 @@
 import type {
-  TavernRuntimeRoom as TavernRoom,
+  TavernActiveRoomView as TavernRoom,
   TavernScene,
   TavernSceneInstance,
 } from "@/features/pages/taverns/room/model";

@@ -57,7 +57,7 @@ import type {
 
 export const DEFAULT_TAVERN_RULE_COMPOSITION_ID: TavernPlatformStyleId = "none";
 
-export const TAVERN_PLATFORM_STYLES: TavernPlatformStyle[] = [
+const TAVERN_PLATFORM_STYLES: TavernPlatformStyle[] = [
   nonePlatformStyle,
   qidianLongformPlatformStyle,
   fanqieFastHookPlatformStyle,
@@ -82,7 +82,7 @@ export const DEFAULT_TAVERN_INTERACTION_QUALITY_RULE_IDS: TavernQualityRuleId[] 
   reduceEmptyAmbienceQualityRule.id,
 ];
 
-export const TAVERN_NARRATIVE_STYLES: TavernNarrativeStyle[] = [
+const TAVERN_NARRATIVE_STYLES: TavernNarrativeStyle[] = [
   webnovelHighDensityNarrativeStyle,
   emotionalPushPullNarrativeStyle,
   lightNovelBanterNarrativeStyle,
@@ -90,14 +90,14 @@ export const TAVERN_NARRATIVE_STYLES: TavernNarrativeStyle[] = [
   directCommercialFlowNarrativeStyle,
 ];
 
-export const TAVERN_GENRE_RULES: TavernGenreRule[] = [
+const TAVERN_GENRE_RULES: TavernGenreRule[] = [
   femaleRomanceRelationshipGenreRule,
   maleProgressionGrowthGenreRule,
   shortEmotionalStoryGenreRule,
   acgCharacterFunGenreRule,
 ];
 
-export const TAVERN_HOOK_RULES: TavernHookRule[] = [
+const TAVERN_HOOK_RULES: TavernHookRule[] = [
   conflictHookRule,
   expectationHookRule,
   rewardFeedbackHookRule,
@@ -106,7 +106,7 @@ export const TAVERN_HOOK_RULES: TavernHookRule[] = [
   highConceptPayoffHookRule,
 ];
 
-export const TAVERN_TABOO_RULES: TavernTabooRule[] = [
+const TAVERN_TABOO_RULES: TavernTabooRule[] = [
   feiluToxicPointsTabooRule,
   femaleValuesDriftTabooRule,
   promiseMismatchTabooRule,
@@ -115,7 +115,7 @@ export const TAVERN_TABOO_RULES: TavernTabooRule[] = [
   unearnedReconciliationTabooRule,
 ];
 
-export const TAVERN_RULE_COMPOSITIONS: TavernRuleComposition[] = [
+const TAVERN_RULE_COMPOSITIONS: TavernRuleComposition[] = [
   noneRuleComposition,
   qidianLongformRuleComposition,
   fanqieFastHookRuleComposition,
@@ -125,10 +125,6 @@ export const TAVERN_RULE_COMPOSITIONS: TavernRuleComposition[] = [
   feiluHighConceptRuleComposition,
   ciweimaoAcgFunRuleComposition,
 ].sort((left, right) => (left.order ?? 0) - (right.order ?? 0) || left.label.localeCompare(right.label));
-
-export const TAVERN_RULE_COMPOSITION_OPTIONS = TAVERN_RULE_COMPOSITIONS.filter(
-  (composition) => composition.selectable !== false,
-);
 
 const flattenValues = (value: unknown): unknown[] => (Array.isArray(value) ? value.flatMap(flattenValues) : [value]);
 
@@ -162,7 +158,7 @@ const resolveDefinitions = <TId extends string, TDefinition extends { id: TId }>
     .map((id) => definitions.get(id))
     .filter((definition): definition is TDefinition => Boolean(definition));
 
-export const normalizeTavernRuleCompositionId = (value: unknown): TavernPlatformStyleId =>
+const normalizeTavernRuleCompositionId = (value: unknown): TavernPlatformStyleId =>
   typeof value === "string" && TAVERN_RULE_COMPOSITION_BY_ID.has(value as TavernPlatformStyleId)
     ? (value as TavernPlatformStyleId)
     : DEFAULT_TAVERN_RULE_COMPOSITION_ID;
@@ -173,7 +169,7 @@ export const normalizeTavernQualityRuleIds = (value: unknown): TavernQualityRule
 export const getTavernRuleComposition = (value: unknown): TavernRuleComposition =>
   TAVERN_RULE_COMPOSITION_BY_ID.get(normalizeTavernRuleCompositionId(value)) ?? noneRuleComposition;
 
-export const getTavernPlatformStyle = (value: unknown): TavernPlatformStyle =>
+const getTavernPlatformStyle = (value: unknown): TavernPlatformStyle =>
   typeof value === "string"
     ? (TAVERN_PLATFORM_STYLE_BY_ID.get(value as TavernPlatformStyleId) ?? nonePlatformStyle)
     : nonePlatformStyle;
@@ -186,7 +182,7 @@ export type TavernPromptRuleGroups = {
   tabooRules: TavernTabooRule[];
 };
 
-export type TavernPromptRuleStack = {
+type TavernPromptRuleStack = {
   composition: TavernRuleComposition;
   platformStyle: TavernPlatformStyle;
   ruleGroups: TavernPromptRuleGroups;

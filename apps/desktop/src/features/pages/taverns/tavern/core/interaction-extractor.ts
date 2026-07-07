@@ -34,14 +34,14 @@ const mentionsUser = (text: string, userPersonaName: string) => {
   );
 };
 
-export type ExtractTavernPendingInteractionsInput = {
+type ExtractTavernPendingInteractionsInput = {
   message: TavernMessage;
   characters: TavernCharacter[];
   userPersonaName: string;
   turnId?: string;
 };
 
-export const extractTavernPendingInteractions = ({
+const extractTavernPendingInteractions = ({
   message,
   characters,
   userPersonaName,

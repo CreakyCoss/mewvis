@@ -1,9 +1,7 @@
-import type { TavernRuntimeRoom as TavernRoom } from "@/features/pages/taverns/room/model";
-import {
-  buildTavernStoryContextPackage,
-  formatTavernStoryGraphContext as formatTavernStoryGraphContextFromPackage,
-  getTavernRuntimeStoryProjection,
-} from "@/features/pages/taverns/room/story-context";
+import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import { buildTavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
+import { getTavernRuntimeStoryProjection } from "@/features/pages/taverns/room/story-context/projection";
+import { formatTavernStoryGraphContext as formatTavernStoryGraphContextFromPackage } from "@/features/pages/taverns/room/story-context/prompt-sections";
 
 export const formatTavernStoryGraphContext = (
   room: TavernRoom,
