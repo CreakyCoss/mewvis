@@ -25,6 +25,8 @@ import {
   isTavernRoomSending,
   useTavernRoomContext,
 } from "@/features/pages/taverns/room/context";
+import { submitRoomTurn } from "./turn/submit";
+import { getErrorMessage } from "./turn/submit-flow";
 
 const REFERENCE_SUGGESTION_LIMIT = 8;
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
@@ -49,9 +51,8 @@ export type ComposerHandle = {
 };
 
 type ComposerProps = {
-  bind: Ref<ComposerHandle>;
+  bind?: Ref<ComposerHandle>;
   files: WorkspaceFileEntry[];
-  onSubmit: (payload: ComposerSubmitPayload) => void;
 };
 
 export const createEmptyComposerSubmitPayload = (): ComposerSubmitPayload => ({
@@ -62,7 +63,7 @@ export const createEmptyComposerSubmitPayload = (): ComposerSubmitPayload => ({
   readReferencedFiles: async () => [],
 });
 
-export const Composer = ({ bind, files, onSubmit }: ComposerProps) => {
+export const Composer = ({ bind, files }: ComposerProps) => {
   const activeRoom = useTavernRoomContext((store) => store.activeRoom);
   const busy = useTavernRoomContext((store) => store.busy);
   const error = useTavernRoomContext((store) => store.error);
@@ -71,6 +72,7 @@ export const Composer = ({ bind, files, onSubmit }: ComposerProps) => {
   const roomMessages = useTavernRoomContext((store) => store.roomMessages);
   const runtimeModel = useTavernRoomContext((store) => store.runtimeModel);
   const setBusy = useTavernRoomContext((store) => store.setBusy);
+  const setComposerHandle = useTavernRoomContext((store) => store.setComposerHandle);
   const setError = useTavernRoomContext((store) => store.setError);
   const visualPreset = useTavernRoomContext((store) => store.visualPreset);
   const workspace = useTavernRoomContext((store) => store.workspace);
@@ -169,21 +171,56 @@ export const Composer = ({ bind, files, onSubmit }: ComposerProps) => {
     [ambiguousFileReferences, readReferencedFiles, referencedFilePreviews, unresolvedFileReferences],
   );
 
-  useImperativeHandle(
-    bind,
+  const composerHandle = useMemo<ComposerHandle>(
     () => ({
       getDraft: () => draft,
       getSubmitPayload: () => createSubmitPayload(draft, { includeReferences: true }),
       clearDraft,
       clearReplySuggestions,
     }),
-    [bind, clearDraft, clearReplySuggestions, createSubmitPayload, draft],
+    [clearDraft, clearReplySuggestions, createSubmitPayload, draft],
   );
+
+  useImperativeHandle(bind, () => composerHandle, [bind, composerHandle]);
+
+  useEffect(() => {
+    setComposerHandle(composerHandle);
+    return () => {
+      const store = useTavernRoomContext.getState();
+      if (store.composerHandle === composerHandle) {
+        store.setComposerHandle(null);
+      }
+    };
+  }, [composerHandle, setComposerHandle]);
 
   useEffect(() => {
     setReplySuggestions(activeRoom?.replyOptions ?? []);
     clearDraft();
   }, [activeRoom?.activeSceneInstanceId, activeRoom?.id, clearDraft]);
+
+  const submitPayload = useCallback(
+    async (payload: ComposerSubmitPayload) => {
+      try {
+        await submitRoomTurn({
+          submittedText: payload.text,
+          selectedReplyOption: payload.selectedReplyOption,
+          ambiguousFileReferences: payload.ambiguousFileReferences,
+          readReferencedFiles: payload.readReferencedFiles,
+          referencedFilePreviews: payload.referencedFilePreviews,
+          unresolvedFileReferences: payload.unresolvedFileReferences,
+          onCommitted: () => {
+            clearDraft();
+            clearReplySuggestions();
+          },
+        });
+      } catch (submitError) {
+        console.error("Failed to submit tavern room turn", submitError);
+        setError(`酒馆回应失败：${getErrorMessage(submitError)}`);
+        setBusy(createIdleTavernRoomBusyState());
+      }
+    },
+    [clearDraft, clearReplySuggestions, setBusy, setError],
+  );
 
   const insertReference = useCallback(
     (file: WorkspaceFileEntry) => {
@@ -262,9 +299,9 @@ export const Composer = ({ bind, files, onSubmit }: ComposerProps) => {
         return;
       }
 
-      onSubmit(createSubmitPayload(text, { includeReferences: true }));
+      void submitPayload(createSubmitPayload(text, { includeReferences: true }));
     },
-    [createSubmitPayload, draft, isBusy, onSubmit],
+    [createSubmitPayload, draft, isBusy, submitPayload],
   );
 
   const submitReplySuggestion = useCallback(
@@ -273,11 +310,11 @@ export const Composer = ({ bind, files, onSubmit }: ComposerProps) => {
         return;
       }
 
-      onSubmit(
+      void submitPayload(
         createSubmitPayload(suggestion.text.trim(), { selectedReplyOption: suggestion, includeReferences: false }),
       );
     },
-    [createSubmitPayload, isBusy, onSubmit],
+    [createSubmitPayload, isBusy, submitPayload],
   );
 
   const fillReplySuggestion = useCallback(

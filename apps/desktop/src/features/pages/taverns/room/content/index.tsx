@@ -1,73 +1,40 @@
-import type { CSSProperties, Ref } from "react";
-import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { listWorkspaceFiles, type WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import { cn } from "@/lib/utils";
 import { getTavernPresentationProfile } from "@/features/pages/taverns/tavern/prompt-registry/presentation-rules";
 import { getTavernSceneInstanceDisplayTitle } from "@/features/pages/taverns/tavern/runtime/scene-selectors";
-import {
-  Composer,
-  createEmptyComposerSubmitPayload,
-  type ComposerHandle,
-  type ComposerSubmitPayload,
-} from "../composer";
-import { useTavernRoomContext } from "../context";
+import { Composer } from "../composer";
+import { createIdleTavernRoomBusyState, useTavernRoomContext } from "../context";
 import { ExecutionTrace } from "../execution-trace";
 import { createTavernRenderableMessages } from "../message";
 import { resolveTavernConversationRenderer } from "../message/renderers";
 import { SceneBriefCard } from "../scene-brief-card";
 import { SceneSelector } from "../scene-selector";
 
-export { createEmptyComposerSubmitPayload };
-
-export type TavernRoomContentHandle = ComposerHandle;
-export type TavernRoomContentSubmitPayload = ComposerSubmitPayload;
-
 type TavernRoomContentProps = {
-  bind: Ref<TavernRoomContentHandle>;
   isOpen: boolean;
   isSidePanelOpen: boolean;
-  onSelectSceneInstance: (sceneInstanceId: string) => void;
-  onSubmit: (payload: ComposerSubmitPayload) => void;
 };
 
 const getTavernSceneText = (value: string, fallback: string) => value.trim() || fallback;
 
-export const TavernRoomContent = ({
-  bind,
-  isOpen,
-  isSidePanelOpen,
-  onSelectSceneInstance,
-  onSubmit,
-}: TavernRoomContentProps) => {
+export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContentProps) => {
   const workspace = useTavernRoomContext((store) => store.workspace);
   const activeRoom = useTavernRoomContext((store) => store.activeRoom);
   const visualPreset = useTavernRoomContext((store) => store.visualPreset);
   const roomCharacters = useTavernRoomContext((store) => store.roomCharacters);
   const roomMessages = useTavernRoomContext((store) => store.roomMessages);
   const busy = useTavernRoomContext((store) => store.busy);
+  const selectRoomSceneInstance = useTavernRoomContext((store) => store.selectRoomSceneInstance);
+  const setBusy = useTavernRoomContext((store) => store.setBusy);
   const executionSteps = useTavernRoomContext((store) => store.executionSteps);
   const executionTraceAnchorMessageId = useTavernRoomContext((store) => store.executionTraceAnchorMessageId);
   const [files, setFiles] = useState<WorkspaceFileEntry[]>([]);
-  const composerRef = useRef<ComposerHandle | null>(null);
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
   const messageListRef = useRef<HTMLDivElement | null>(null);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
-
-  useImperativeHandle(
-    bind,
-    () => ({
-      getDraft: () => composerRef.current?.getDraft() ?? "",
-      getSubmitPayload: () => composerRef.current?.getSubmitPayload() ?? createEmptyComposerSubmitPayload(),
-      clearDraft: () => {
-        composerRef.current?.clearDraft();
-      },
-      clearReplySuggestions: () => {
-        composerRef.current?.clearReplySuggestions();
-      },
-    }),
-    [],
-  );
 
   useEffect(() => {
     if (!workspace.path) {
@@ -94,6 +61,10 @@ export const TavernRoomContent = ({
     };
   }, [workspace.path]);
 
+  useEffect(() => {
+    setBusy((current) => (current.kind === "reply_suggestions" ? createIdleTavernRoomBusyState() : current));
+  }, [activeRoom?.id, activeRoom?.activeSceneInstanceId, setBusy]);
+
   const renderableRoomMessages = useMemo(
     () =>
       activeRoom
@@ -113,6 +84,17 @@ export const TavernRoomContent = ({
   const shouldShowExecutionTrace = executionSteps.length > 0;
   const hasExecutionTraceAnchor =
     shouldShowExecutionTrace && renderableRoomMessages.some((message) => message.id === executionTraceAnchorMessageId);
+  const handleSelectSceneInstance = useCallback(
+    (sceneInstanceId: string) => {
+      if (!activeRoom) {
+        return;
+      }
+
+      selectRoomSceneInstance(activeRoom.id, sceneInstanceId);
+      useTavernRoomContext.getState().composerHandle?.clearReplySuggestions();
+    },
+    [activeRoom, selectRoomSceneInstance],
+  );
 
   const scrollMessagesToBottom = useCallback(() => {
     const viewport = messageViewportRef.current;
@@ -227,7 +209,7 @@ export const TavernRoomContent = ({
                 options={sceneInstanceOptions}
                 activeValue={activeRoom.activeSceneInstanceId}
                 label="节点："
-                onSelectScene={onSelectSceneInstance}
+                onSelectScene={handleSelectSceneInstance}
               />
             }
           />
@@ -243,13 +225,7 @@ export const TavernRoomContent = ({
         </div>
       </ScrollArea>
 
-      <Composer
-        bind={composerRef}
-        files={files}
-        onSubmit={(payload) => {
-          onSubmit(payload);
-        }}
-      />
+      <Composer files={files} />
     </>
   );
 };
