@@ -1,12 +1,9 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { createDefaultTavernState, normalizeTavernState } from "./tavern/state/state-normalizer";
 import type { TavernState } from "./tavern/types";
 import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 
 const TAVERN_SOURCE_DIR = "tavern";
 const TAVERN_MANIFEST_FILE_NAME = "manifest.json";
-const TAVERN_STATE_VERSION = 4;
-const TAVERN_STORAGE_VERSION = 1;
 const STORAGE_PREFIX = "novel-claw:tavern";
 
 type TavernRuntimeScope = {
@@ -25,52 +22,48 @@ type TavernManifestRoom = {
 };
 
 type TavernManifest = {
-  version: 1;
-  stateVersion: 4;
-  activeRoomId: string;
-  updatedAt: number;
-  roomIds: string[];
   rooms: TavernManifestRoom[];
 };
 
 const createEmptyTavernState = (): TavernState => ({
-  version: TAVERN_STATE_VERSION,
-  activeRoomId: "",
   rooms: [],
-});
-
-const toRoomConfigState = (state: TavernState): TavernState => ({
-  version: TAVERN_STATE_VERSION,
-  activeRoomId: state.activeRoomId,
-  rooms: state.rooms,
 });
 
 const isStoryTavernScope = (scope: TavernRuntimeScope = {}) => Boolean(scope.storyId && scope.tavernId);
 
-const createFallbackTavernState = (workspaceId: string, scope?: TavernRuntimeScope) =>
-  toRoomConfigState(isStoryTavernScope(scope) ? createEmptyTavernState() : createDefaultTavernState(workspaceId));
+const createFallbackTavernState = () => createEmptyTavernState();
 
-const normalizeStateForScope = (workspaceId: string, value: unknown) => {
-  const normalized = normalizeTavernState(workspaceId, value);
-  return normalized ? toRoomConfigState(normalized) : null;
+const normalizeTavernState = (workspaceId: string, value: unknown): TavernState | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Partial<TavernState>;
+  if (!Array.isArray(candidate.rooms)) {
+    return null;
+  }
+
+  const rooms = candidate.rooms
+    .map((room) => {
+      const source = room as TavernRoom;
+      return source.id && source.workspaceId === workspaceId && source.title ? source : null;
+    })
+    .filter((room): room is TavernRoom => Boolean(room));
+
+  return rooms.length > 0 ? { rooms } : null;
 };
 
 const selectStateForScope = (state: TavernState, scope?: TavernRuntimeScope): TavernState => {
-  const roomConfigState = toRoomConfigState(state);
   if (!isStoryTavernScope(scope)) {
-    return roomConfigState;
+    return state;
   }
 
-  const rooms = roomConfigState.rooms.filter((room) => room.id === scope?.tavernId);
+  const rooms = state.rooms.filter((room) => room.id === scope?.tavernId);
   if (rooms.length === 0) {
-    return roomConfigState;
+    return state;
   }
 
   return {
-    ...roomConfigState,
-    activeRoomId: rooms.some((room) => room.id === roomConfigState.activeRoomId)
-      ? roomConfigState.activeRoomId
-      : (rooms[0]?.id ?? ""),
     rooms,
   };
 };
@@ -83,18 +76,16 @@ const loadTavernStateFromLocalStorage = async (
   scope?: TavernRuntimeScope,
 ): Promise<TavernState> => {
   if (typeof window === "undefined") {
-    return createFallbackTavernState(workspaceId, scope);
+    return createFallbackTavernState();
   }
 
   try {
     const raw = window.localStorage.getItem(storageKeyForWorkspace(workspaceId, scope));
     const parsed = raw ? JSON.parse(raw) : null;
-    const normalizedState = normalizeStateForScope(workspaceId, parsed);
-    return normalizedState
-      ? selectStateForScope(normalizedState, scope)
-      : createFallbackTavernState(workspaceId, scope);
+    const normalizedState = normalizeTavernState(workspaceId, parsed);
+    return normalizedState ? selectStateForScope(normalizedState, scope) : createFallbackTavernState();
   } catch {
-    return createFallbackTavernState(workspaceId, scope);
+    return createFallbackTavernState();
   }
 };
 
@@ -103,7 +94,7 @@ const saveTavernStateToLocalStorage = (workspaceId: string, state: TavernState, 
     return;
   }
 
-  const normalizedState = normalizeStateForScope(workspaceId, state) ?? toRoomConfigState(state);
+  const normalizedState = normalizeTavernState(workspaceId, state) ?? state;
   window.localStorage.setItem(
     storageKeyForWorkspace(workspaceId, scope),
     JSON.stringify(selectStateForScope(normalizedState, scope)),
@@ -184,55 +175,17 @@ const deleteWorkspaceFileIfExists = async (workspacePath: string, relativePath: 
   }
 };
 
-const normalizeTavernManifest = (value: unknown): TavernManifest | null => {
+const readTavernManifest = (value: unknown): TavernManifest | null => {
   if (!value || typeof value !== "object") {
     return null;
   }
 
   const candidate = value as Partial<TavernManifest>;
-  if (
-    candidate.version !== TAVERN_STORAGE_VERSION ||
-    candidate.stateVersion !== TAVERN_STATE_VERSION ||
-    !Array.isArray(candidate.roomIds)
-  ) {
+  if (!Array.isArray(candidate.rooms)) {
     return null;
   }
 
-  const roomIds = candidate.roomIds
-    .filter((roomId): roomId is string => typeof roomId === "string" && Boolean(roomId.trim()))
-    .map((roomId) => roomId.trim());
-  const rooms = Array.isArray(candidate.rooms)
-    ? candidate.rooms.flatMap((room) => {
-        if (!room || typeof room !== "object") {
-          return [];
-        }
-
-        const source = room as Partial<TavernManifestRoom>;
-        const id = typeof source.id === "string" ? source.id.trim() : "";
-        if (!id) {
-          return [];
-        }
-
-        return [
-          {
-            id,
-            title: typeof source.title === "string" ? source.title : "未命名酒馆",
-            roomPath: typeof source.roomPath === "string" ? source.roomPath : "",
-            createdAt: typeof source.createdAt === "number" ? source.createdAt : Date.now(),
-            updatedAt: typeof source.updatedAt === "number" ? source.updatedAt : Date.now(),
-          },
-        ];
-      })
-    : [];
-
-  return {
-    version: TAVERN_STORAGE_VERSION,
-    stateVersion: TAVERN_STATE_VERSION,
-    activeRoomId: typeof candidate.activeRoomId === "string" ? candidate.activeRoomId : "",
-    updatedAt: typeof candidate.updatedAt === "number" ? candidate.updatedAt : Date.now(),
-    roomIds,
-    rooms,
-  };
+  return { rooms: candidate.rooms as TavernManifestRoom[] };
 };
 
 const roomManifestById = (manifest: TavernManifest) => new Map(manifest.rooms.map((room) => [room.id, room] as const));
@@ -246,11 +199,6 @@ const createTavernManifestRoom = (baseDir: string, room: TavernRoom): TavernMani
 });
 
 const createTavernManifest = (baseDir: string, state: TavernState): TavernManifest => ({
-  version: TAVERN_STORAGE_VERSION,
-  stateVersion: TAVERN_STATE_VERSION,
-  activeRoomId: state.activeRoomId,
-  updatedAt: Date.now(),
-  roomIds: state.rooms.map((room) => room.id),
   rooms: state.rooms.map((room) => createTavernManifestRoom(baseDir, room)),
 });
 
@@ -266,28 +214,25 @@ export const loadTavernState = async (
   deleteTavernStateFromLocalStorage(workspaceId, scope);
 
   const baseDir = tavernBaseDir(workspacePath, scope);
-  const manifest = normalizeTavernManifest(await readJsonWorkspaceFile(workspacePath, tavernManifestPath(baseDir)));
+  const manifest = readTavernManifest(await readJsonWorkspaceFile(workspacePath, tavernManifestPath(baseDir)));
   if (!manifest) {
-    return createFallbackTavernState(workspaceId, scope);
+    return createFallbackTavernState();
   }
 
-  const roomManifest = roomManifestById(manifest);
   const rooms: unknown[] = [];
 
-  for (const roomId of manifest.roomIds) {
-    const manifestRoom = roomManifest.get(roomId);
-    const room = await readJsonWorkspaceFile(workspacePath, manifestRoom?.roomPath || tavernRoomPath(baseDir, roomId));
+  for (const manifestRoom of manifest.rooms) {
+    const room = await readJsonWorkspaceFile(
+      workspacePath,
+      manifestRoom.roomPath || tavernRoomPath(baseDir, manifestRoom.id),
+    );
     if (room && typeof room === "object") {
       rooms.push(room);
     }
   }
 
-  const normalizedState = normalizeStateForScope(workspaceId, {
-    version: TAVERN_STATE_VERSION,
-    activeRoomId: manifest.activeRoomId,
-    rooms,
-  });
-  return normalizedState ? selectStateForScope(normalizedState, scope) : createFallbackTavernState(workspaceId, scope);
+  const normalizedState = normalizeTavernState(workspaceId, { rooms });
+  return normalizedState ? selectStateForScope(normalizedState, scope) : createFallbackTavernState();
 };
 
 export const saveTavernState = async (
@@ -296,7 +241,7 @@ export const saveTavernState = async (
   state: TavernState,
   scope: TavernRuntimeScope = {},
 ) => {
-  const normalizedState = normalizeStateForScope(workspaceId, state) ?? toRoomConfigState(state);
+  const normalizedState = normalizeTavernState(workspaceId, state) ?? state;
   const stateForStorage = selectStateForScope(normalizedState, scope);
 
   if (!isTauri()) {
@@ -307,11 +252,11 @@ export const saveTavernState = async (
   deleteTavernStateFromLocalStorage(workspaceId, scope);
 
   const baseDir = tavernBaseDir(workspacePath, scope);
-  const previousManifest = normalizeTavernManifest(
-    await readJsonWorkspaceFile(workspacePath, tavernManifestPath(baseDir)),
-  );
+  const previousManifest = readTavernManifest(await readJsonWorkspaceFile(workspacePath, tavernManifestPath(baseDir)));
   const nextRoomIds = new Set(stateForStorage.rooms.map((room) => room.id));
-  const staleRoomIds = (previousManifest?.roomIds ?? []).filter((roomId) => !nextRoomIds.has(roomId));
+  const staleRoomIds = (previousManifest?.rooms.map((room) => room.id) ?? []).filter(
+    (roomId) => !nextRoomIds.has(roomId),
+  );
   const previousRooms = previousManifest ? roomManifestById(previousManifest) : new Map<string, TavernManifestRoom>();
 
   await Promise.all(

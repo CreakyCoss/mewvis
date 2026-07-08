@@ -4,7 +4,7 @@ import {
   getTavernProtocolVisiblePrivateThoughtTag,
   TAVERN_PROTOCOL_CONTEXT_WRAPPER_TAGS,
 } from "../protocol/schema";
-import { getTavernPresentationContractForMessageKind } from "@/features/pages/taverns/tavern/presentation/presentation-contracts";
+import { getTavernPresentationOutputContractForMessageKind } from "@/features/pages/taverns/room/prompt-xml/presentation-output-contract";
 import {
   buildTavernMessageSegments,
   formatTavernMessageSegmentsForPrompt,
@@ -199,7 +199,7 @@ export const formatTavernVisibleMessagesForRequestContext = (messages: TavernVis
         ].join("\n");
       }
 
-      const publicContentTag = getTavernPresentationContractForMessageKind(message.kind).visibleContentTag;
+      const publicContentTag = getTavernPresentationOutputContractForMessageKind(message.kind).visibleContentTag;
       const lines = [
         `<message role="${message.role}" speaker="${escapePromptXmlAttribute(message.speakerName)}">`,
         `<${publicContentTag}>`,

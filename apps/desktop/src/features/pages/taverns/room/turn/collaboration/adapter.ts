@@ -1,14 +1,14 @@
-import { buildTavernBridgeSystemPrompt } from "@/features/pages/taverns/tavern/runtime/prompt/bridge/system-prompt";
+import { buildTavernBridgeSystemPrompt } from "@/features/pages/taverns/room/turn/prompt/bridge/system-prompt";
 import {
   buildTavernDirectorPromptContext,
   buildTavernDirectorRuntimeInstruction,
-} from "@/features/pages/taverns/tavern/runtime/director/prompt";
-import { buildTavernReplyAgentRequest } from "@/features/pages/taverns/tavern/runtime/reply/request";
+} from "@/features/pages/taverns/room/turn/collaboration/director-prompt";
+import { buildTavernReplyAgentRequest } from "@/features/pages/taverns/room/turn/collaboration/reply-request";
 import {
   tavernBridgeSessionRootDir,
   tavernCharacterAgentRoleId,
   tavernDirectorAgentRoleId,
-} from "@/features/pages/taverns/tavern/core/agent-role";
+} from "@/features/pages/taverns/room/turn/agent-role";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import type {
   TavernDirectorLoopCollaborationInput,

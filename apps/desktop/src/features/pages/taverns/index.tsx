@@ -8,7 +8,6 @@ import { RoomCard } from "@/features/pages/taverns/components/room-card";
 import { RoomEditor, type RoomEditorHandle } from "@/features/pages/taverns/manage";
 import { formatCount } from "@/features/pages/taverns/manage/utils";
 import { useTavernManagement } from "@/features/pages/taverns/store";
-import { createDefaultTavernState } from "@/features/pages/taverns/tavern/state/state-normalizer";
 import { loadTavernState, saveTavernState } from "@/features/pages/taverns/storage";
 import type { TavernState } from "@/features/pages/taverns/tavern/types";
 import type { TavernRoom } from "@/features/pages/taverns/manage/model";
@@ -54,8 +53,12 @@ type TavernsPageContentProps = {
   workspace: Workspace;
 };
 
+const createEmptyTavernState = (): TavernState => ({
+  rooms: [],
+});
+
 const TavernsPageContent = ({ workspace }: TavernsPageContentProps) => {
-  const [state, setState] = useState<TavernState>(() => createDefaultTavernState(workspace.id));
+  const [state, setState] = useState<TavernState>(() => createEmptyTavernState());
   const [isTavernStateHydrated, setIsTavernStateHydrated] = useState(false);
   const roomEditorRef = useRef<RoomEditorHandle>(null);
   const workspaceIdRef = useRef(workspace.id);
@@ -68,7 +71,7 @@ const TavernsPageContent = ({ workspace }: TavernsPageContentProps) => {
     }
 
     workspaceIdRef.current = workspace.id;
-    setState(createDefaultTavernState(workspace.id));
+    setState(createEmptyTavernState());
     setIsTavernStateHydrated(false);
   }, [setState, workspace.id]);
 
@@ -92,7 +95,7 @@ const TavernsPageContent = ({ workspace }: TavernsPageContentProps) => {
 
         console.error("Failed to load tavern state", loadError);
         toast.error("无法加载酒馆记录，已使用空酒馆列表。");
-        setState(createDefaultTavernState(workspace.id));
+        setState(createEmptyTavernState());
         setIsTavernStateHydrated(true);
       });
 

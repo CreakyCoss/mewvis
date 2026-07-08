@@ -52,8 +52,6 @@ export type TavernMessage = {
 };
 
 export type TavernState = {
-  version: 4;
-  activeRoomId: string;
   rooms: TavernRoom[];
 };
 

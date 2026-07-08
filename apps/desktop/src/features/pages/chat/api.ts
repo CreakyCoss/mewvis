@@ -1,5 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { ChatMessage, ChatSession, ChatSessionMeta } from "./types";
+import { getCurrentTimestamp } from "@/utils/time";
 
 export async function listChatSessions(workspacePath: string) {
   if (!isTauri()) {
@@ -29,7 +30,7 @@ export async function saveChatSession(input: {
   isUnread?: boolean;
 }) {
   if (!isTauri()) {
-    const now = Date.now();
+    const now = getCurrentTimestamp();
     return {
       id: input.sessionId ?? crypto.randomUUID(),
       title: input.title ?? "新的聊天",

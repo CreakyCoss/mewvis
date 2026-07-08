@@ -9,6 +9,7 @@ import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { formatTavernCharacterRelationshipSummary } from "@/features/pages/taverns/tavern/core/relationships";
 import { isTavernRoomBusy, useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import { getVisualPreset } from "@/features/pages/taverns/tavern/visual-presets";
+import { getCurrentTimestamp } from "@/utils/time";
 import { getTavernRoomCharacterMemoryLayers, getTavernRoomCharacters, getTavernRoomSceneFields } from "../../model";
 import { EmptyPanelCard, emptyValueText } from "../shared";
 
@@ -314,7 +315,7 @@ export const CharacterStatusSection = () => {
               disabled={isBusy}
               onClick={() =>
                 patchRoom(activeRoom.identity.id, (room) => {
-                  const updatedAt = Date.now();
+                  const updatedAt = getCurrentTimestamp();
                   return {
                     ...room,
                     identity: {

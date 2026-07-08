@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { WindowDragRegion } from "@/components/window-drag-region";
 import { cn } from "@/lib/utils";
 import { compactScene } from "@/features/pages/taverns/tavern/utils";
-import { deleteTavernBridgeSession } from "@/features/pages/taverns/tavern/runtime/conversation/bridge-session";
+import { deleteTavernBridgeSession } from "@/features/pages/taverns/room/turn/session/bridge-session";
 import {
   createIdleTavernRoomBusyState,
   isTavernRoomBusy,

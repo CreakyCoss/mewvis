@@ -30,11 +30,6 @@ export const normalizeTavernPresentationProfileId = (value: unknown): TavernPres
     ? (value as TavernPresentationProfileId)
     : DEFAULT_TAVERN_PRESENTATION_PROFILE_ID;
 
-export const createDefaultTavernPresentation = (): TavernPresentationSettings => ({
-  profileId: DEFAULT_TAVERN_PRESENTATION_PROFILE_ID,
-  profileVersion: 1,
-});
-
 export const normalizeTavernPresentation = (value: unknown): TavernPresentationSettings => {
   const candidate = value && typeof value === "object" ? (value as Partial<TavernPresentationSettings>) : {};
 

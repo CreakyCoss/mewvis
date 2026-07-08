@@ -16,6 +16,7 @@ import type { TavernReplyOption } from "@/features/pages/taverns/manage/model";
 import { getTavernPresentationProfile } from "@/features/pages/taverns/tavern/prompt-registry/presentation-rules";
 import type { TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import { uniqueFilesByPath } from "@/features/pages/taverns/tavern/utils";
+import { getCurrentTimestamp } from "@/utils/time";
 import {
   createIdleTavernRoomBusyState,
   isTavernRoomBusy,
@@ -267,7 +268,7 @@ export const Composer = ({ bind, files }: ComposerProps) => {
       clearReplyOptions();
       if (activeRoom) {
         patchRoom(activeRoom.identity.id, (room) => {
-          const updatedAt = Date.now();
+          const updatedAt = getCurrentTimestamp();
           return {
             ...room,
             identity: {

@@ -29,6 +29,7 @@ import { useModelSettings } from "./use-model-settings";
 import { type RunningAgentTaskContext, useRunningAgentTasks } from "./use-running-agent-tasks";
 import { useWorkspaceChatSessions } from "./use-workspace-chat-sessions";
 import type { StoryChatSeed } from "./story-seed";
+import { getCurrentTimestamp } from "@/utils/time";
 
 type ContextPanelTool = "files" | "ledger";
 
@@ -859,7 +860,7 @@ export const WorkspaceChatPage = ({
         title: deriveSessionTitle(nextMessages),
         path: "",
         createdAt: userUiMessage.createdAt,
-        updatedAt: Date.now(),
+        updatedAt: getCurrentTimestamp(),
         messageCount: nextMessages.length,
         isUnread: false,
       });
@@ -896,7 +897,7 @@ export const WorkspaceChatPage = ({
 
     const draftReferencedFiles = referencedFileDescriptors;
 
-    const now = Date.now();
+    const now = getCurrentTimestamp();
     const userMessageId = createMessageId();
     const assistantMessageId = createMessageId();
     const { userUiMessage, assistantUiMessage } = createChatTurnDraft({

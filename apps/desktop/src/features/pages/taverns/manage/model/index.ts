@@ -1,4 +1,6 @@
 import type { VisualPresetId } from "@/features/pages/taverns/tavern/visual-presets/types";
+import { createTimestampId } from "@/utils/ids";
+import { getCurrentTimestamp } from "@/utils/time";
 
 export type TavernReplyMode = "director";
 
@@ -226,4 +228,39 @@ export type TavernRoom = {
   settings: TavernRoomSettings;
   createdAt: number;
   updatedAt: number;
+};
+
+export const createEmptyManualTavernRoom = (workspaceId: string, index: number): TavernRoom => {
+  const createdAt = getCurrentTimestamp();
+
+  return {
+    id: createTimestampId("room"),
+    workspaceId,
+    title: `新酒馆 ${index}`,
+    creationSource: "manual",
+    scenePresetId: "general",
+    presentation: {
+      profileId: "dialogue-chat",
+      profileVersion: 1,
+    },
+    prompt: {
+      version: 1,
+      blocks: [],
+    },
+    replyMode: "director",
+    settings: {
+      immersiveDescriptionEnabled: true,
+      directorMaxSpeakers: 3,
+      directorLoop: {
+        maxRounds: 2,
+      },
+      directorNarrativeControl: {
+        agencyMode: "player_protagonist",
+        responseScale: "balanced",
+        narratorPressure: "balanced",
+      },
+    },
+    createdAt,
+    updatedAt: createdAt,
+  };
 };

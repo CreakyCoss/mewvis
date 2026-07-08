@@ -3,7 +3,7 @@ import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { TavernRoomStoreState } from "@/features/pages/taverns/room/context";
 import { createTavernMessage } from "@/features/pages/taverns/room/message/domain/factory";
 import { canTavernCharacterUseNonverbalReply } from "@/features/pages/taverns/tavern/core/director-scheduling";
-import { tavernCharacterAgentRoleId } from "@/features/pages/taverns/tavern/core/agent-role";
+import { tavernCharacterAgentRoleId } from "@/features/pages/taverns/room/turn/agent-role";
 import { extractTavernPendingInteractionsFromMessages } from "@/features/pages/taverns/tavern/core/interaction-extractor";
 import {
   buildTavernMessageSegments,
@@ -17,9 +17,9 @@ import { getTavernPresentationProfile } from "@/features/pages/taverns/tavern/pr
 import {
   getTavernPresentationContract,
   type TavernPresentationRuntimeContract,
-} from "@/features/pages/taverns/tavern/presentation/presentation-contracts";
-import { runTavernInnerThought } from "@/features/pages/taverns/tavern/runtime/reply/run-reply";
-import { buildTavernCharacterTurnInstruction } from "@/features/pages/taverns/tavern/runtime/prompt/character/turn-instruction";
+} from "@/features/pages/taverns/room/turn/presentation-contract";
+import { runTavernInnerThought } from "@/features/pages/taverns/room/turn/submit-flow/inner-thought";
+import { buildTavernCharacterTurnInstruction } from "@/features/pages/taverns/room/turn/prompt/character/turn-instruction";
 import { buildTavernSpeakerCollaborationInput } from "@/features/pages/taverns/room/turn/collaboration/adapter";
 import { runTavernCollaboration } from "@/features/pages/taverns/room/turn/collaboration/run-collaboration";
 import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";

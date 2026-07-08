@@ -10,13 +10,18 @@ import { createTavernMessage } from "@/features/pages/taverns/room/message/domai
 import { parseTavernReplyText } from "@/features/pages/taverns/room/message/protocol/parse-reply";
 import { extractTavernPendingInteractionsFromMessages } from "@/features/pages/taverns/tavern/core/interaction-extractor";
 import { resolveTavernScheduledSpeakers } from "@/features/pages/taverns/tavern/core/director-scheduling";
-import { tavernCharacterAgentRoleId, tavernDirectorAgentRoleId } from "@/features/pages/taverns/tavern/core/agent-role";
+import { tavernCharacterAgentRoleId, tavernDirectorAgentRoleId } from "@/features/pages/taverns/room/turn/agent-role";
 import { buildTavernDirectorLoopCollaborationInput } from "@/features/pages/taverns/room/turn/collaboration/adapter";
 import { runTavernCollaboration } from "@/features/pages/taverns/room/turn/collaboration/run-collaboration";
-import { resolveTavernCharacterModel } from "@/features/pages/taverns/tavern/runtime/agent/model-selection";
 import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
-import { findMissingSpeakerModel, requireTavernRuntimeModelInput, type ActiveReplyRef, type TurnMode } from "./shared";
+import {
+  findMissingSpeakerModel,
+  requireTavernRuntimeModelInput,
+  resolveTavernCharacterModel,
+  type ActiveReplyRef,
+  type TurnMode,
+} from "./shared";
 import { applyTavernCollaborationTraceEvent } from "./collaboration-trace";
 
 type LoopSpeakerRuntime = {
@@ -45,7 +50,10 @@ export const shouldRunTavernDirectorLoopWorkflow = ({
   availableRoomCharacters: TavernCharacter[];
   mode: TurnMode;
   room: TavernRoomRuntime;
-}) => mode.isDirectorLikeMode && room.presentation.settings.directorLoop.maxRounds > 0 && availableRoomCharacters.length > 0;
+}) =>
+  mode.isDirectorLikeMode &&
+  room.presentation.settings.directorLoop.maxRounds > 0 &&
+  availableRoomCharacters.length > 0;
 
 export const runDirectorLoopTurn = async ({
   activeReplyRef,

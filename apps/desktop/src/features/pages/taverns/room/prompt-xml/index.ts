@@ -1,3 +1,5 @@
+export * from "./presentation-output-contract";
+
 export const TAVERN_ROOM_PROMPT_XML_TAGS = {
   activeCharacter: "active_character",
   branchPrivateMemory: "branch_private_memory",

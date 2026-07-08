@@ -7,9 +7,9 @@ import {
   isTavernCharacterAvailableForSpeech,
   orderTavernRoundSpeakers,
 } from "@/features/pages/taverns/tavern/core/turn-order";
-import { resolveTavernCharacterModel } from "@/features/pages/taverns/tavern/runtime/agent/model-selection";
 import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
+import { getCurrentTimestamp } from "@/utils/time";
 
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
 
@@ -57,6 +57,23 @@ export type ActiveReplyRef = {
   text: string;
 };
 
+type TavernResolvedCharacterModel = {
+  runtimeModel: RuntimeModelOption;
+  source: "global";
+};
+
+export const resolveTavernCharacterModel = ({
+  fallbackRuntimeModel,
+}: {
+  fallbackRuntimeModel: RuntimeModelOption | null;
+}): TavernResolvedCharacterModel | null =>
+  fallbackRuntimeModel
+    ? {
+        runtimeModel: fallbackRuntimeModel,
+        source: "global",
+      }
+    : null;
+
 export const syncOpenPendingInteractions = ({
   ctx,
   room,
@@ -67,7 +84,7 @@ export const syncOpenPendingInteractions = ({
   openPendingInteractions: TavernPendingInteractions;
 }) => {
   ctx.patchRoom(room.identity.id, (runtime) => {
-    const updatedAt = Date.now();
+    const updatedAt = getCurrentTimestamp();
     return {
       ...runtime,
       identity: {
@@ -182,7 +199,7 @@ export const beginTurnSubmission = ({
   });
   ctx.setError("");
   ctx.patchRoom(room.identity.id, (runtime) => {
-    const updatedAt = Date.now();
+    const updatedAt = getCurrentTimestamp();
     return {
       ...runtime,
       identity: {

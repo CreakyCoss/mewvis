@@ -3,9 +3,9 @@ import { useCallback, useEffect, useMemo } from "react";
 import { cloneDeep } from "lodash-es";
 import { type RuntimeModelOption, useLlmSettingsStore } from "@/features/pages/settings/llm/store";
 import type { Workspace } from "@/features/pages/workspace/types";
-import { createTavernRoom } from "./tavern/factories/manual-factories";
 import type { TavernState } from "./tavern/types";
-import type { TavernRoom } from "@/features/pages/taverns/manage/model";
+import { createEmptyManualTavernRoom, type TavernRoom } from "@/features/pages/taverns/manage/model";
+import { getCurrentTimestamp } from "@/utils/time";
 
 const createLocalId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
@@ -54,7 +54,7 @@ export const useTavernManagement = ({ workspace, state, setState }: TavernManage
           patchedRoom = {
             ...room,
             ...patch,
-            updatedAt: Date.now(),
+            updatedAt: getCurrentTimestamp(),
           };
           return patchedRoom;
         });
@@ -87,7 +87,6 @@ export const useTavernManagement = ({ workspace, state, setState }: TavernManage
         const nextRooms = current.rooms.filter((room) => room.id !== roomId);
         return {
           ...current,
-          activeRoomId: current.activeRoomId === roomId ? (nextRooms[0]?.id ?? "") : current.activeRoomId,
           rooms: nextRooms,
         };
       });
@@ -109,7 +108,7 @@ export const useTavernManagement = ({ workspace, state, setState }: TavernManage
           return current;
         }
 
-        const createdAt = Date.now();
+        const createdAt = getCurrentTimestamp();
         const copiedRoom: TavernRoom = {
           ...cloneDeep(currentSourceRoom),
           id: createLocalId("room"),
@@ -159,7 +158,7 @@ export const useTavernManagement = ({ workspace, state, setState }: TavernManage
 
   const createRoom = useCallback(() => {
     const nextRoom = {
-      ...createTavernRoom(workspace.id, state.rooms.length + 1),
+      ...createEmptyManualTavernRoom(workspace.id, state.rooms.length + 1),
     };
 
     setState((current) => ({

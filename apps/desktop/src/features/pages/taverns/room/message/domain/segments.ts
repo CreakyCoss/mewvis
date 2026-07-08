@@ -1,5 +1,5 @@
 import { getTavernPresentationProfile } from "@/features/pages/taverns/tavern/prompt-registry/presentation-rules";
-import { getTavernPresentationContract } from "@/features/pages/taverns/tavern/presentation/presentation-contracts";
+import { getTavernPresentationOutputContract } from "@/features/pages/taverns/room/prompt-xml/presentation-output-contract";
 import type {
   TavernMessage,
   TavernMessageActorRef,
@@ -114,7 +114,7 @@ export const inferTavernMessageKind = ({
   }
 
   const profile = getTavernPresentationProfile(presentationProfileId);
-  return getTavernPresentationContract(profile).characterMessageKind;
+  return getTavernPresentationOutputContract(profile).characterMessageKind;
 };
 
 export const buildTavernMessageSegments = ({
@@ -131,7 +131,7 @@ export const buildTavernMessageSegments = ({
   const trimmedContent = content.trim();
   const segments: TavernMessageSegment[] = [];
   const profile = getTavernPresentationProfile(presentationProfileId);
-  const presentationContract = getTavernPresentationContract(profile);
+  const presentationContract = getTavernPresentationOutputContract(profile);
 
   if (trimmedContent) {
     if (role === "narrator") {

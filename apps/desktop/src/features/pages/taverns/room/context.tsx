@@ -17,6 +17,7 @@ import {
   buildTavernMessageSegments,
   inferTavernMessageKind,
 } from "@/features/pages/taverns/room/message/domain/segments";
+import { getCurrentTimestamp } from "@/utils/time";
 import type { ComposerHandle } from "./composer";
 import type { ExecutionStep } from "./execution-trace";
 
@@ -261,7 +262,7 @@ export const useTavernRoomContext = create<TavernRoomStoreState>((set) => ({
         return current;
       }
 
-      const updatedAt = Date.now();
+      const updatedAt = getCurrentTimestamp();
       const state = {
         ...replaceSessionStateRoom(current.state, {
           ...room,
@@ -353,7 +354,7 @@ export const useTavernRoomContext = create<TavernRoomStoreState>((set) => ({
               ...current.state.runtime,
               identity: {
                 ...current.state.runtime.identity,
-                updatedAt: Date.now(),
+                updatedAt: getCurrentTimestamp(),
               },
             })
           : current.state),
