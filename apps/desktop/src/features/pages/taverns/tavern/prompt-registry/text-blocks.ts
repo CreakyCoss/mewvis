@@ -13,6 +13,7 @@ import {
   getTavernSystemNarrativePreset,
 } from "./system-narrative-styles";
 import { DEFAULT_TAVERN_PROMPT_STYLE_ID, getTavernPromptStylePreset } from "../presentation/prompt-styles";
+import { formatTavernRoomPromptXml, TAVERN_ROOM_PROMPT_XML_TAGS } from "@/features/pages/taverns/room/prompt-xml";
 import type {
   TavernPresentationProfileId,
   TavernPromptBlock,
@@ -39,10 +40,6 @@ type PromptRuleLike = {
   directorAddendum: string;
   characterAddendum: string;
 };
-
-const escapePromptXmlText = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-const escapePromptXmlAttribute = (text: string) => escapePromptXmlText(text).replace(/"/g, "&quot;");
 
 const getTargetText = (rule: PromptRuleLike, target: TavernPromptBlockTarget) => {
   if (target === "bridge") {
@@ -376,15 +373,24 @@ export const formatTavernPromptBlocksForTarget = ({
   prompt?: { blocks: TavernPromptBlock[] } | null;
   target: TavernPromptBlockTarget;
   publicContentTag?: string;
-}) =>
-  (prompt?.blocks ?? [])
+}) => {
+  const blocks = (prompt?.blocks ?? [])
     .filter((block) => block.enabled && block.target === target && block.text.trim())
-    .sort((left, right) => left.order - right.order || left.label.localeCompare(right.label))
-    .map((block) =>
-      [
-        `<prompt_block id="${escapePromptXmlAttribute(block.id)}" label="${escapePromptXmlAttribute(block.label)}" target="${escapePromptXmlAttribute(block.target)}">`,
-        escapePromptXmlText(block.text.split("{publicContentTag}").join(publicContentTag ?? "reply")),
-        "</prompt_block>",
-      ].join("\n"),
-    )
-    .join("\n\n");
+    .sort((left, right) => left.order - right.order || left.label.localeCompare(right.label));
+
+  return formatTavernRoomPromptXml(
+    blocks.flatMap((block, index) => [
+      {
+        tag: TAVERN_ROOM_PROMPT_XML_TAGS.promptBlock,
+        attributes: {
+          id: block.id,
+          label: block.label,
+          target: block.target,
+        },
+        text: block.text.split("{publicContentTag}").join(publicContentTag ?? "reply"),
+        emptyText: "",
+      },
+      index < blocks.length - 1 ? { text: "" } : undefined,
+    ]),
+  );
+};

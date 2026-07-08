@@ -1,10 +1,10 @@
 import { formatTavernCharacterRelationships } from "@/features/pages/taverns/tavern/core/relationships";
-import { joinPromptLines, type TavernPromptSection } from "@/features/pages/taverns/tavern/runtime/prompt/shared/sections";
+import { formatTavernRoomPromptXml, TAVERN_ROOM_PROMPT_XML_TAGS } from "@/features/pages/taverns/room/prompt-xml";
 import {
-  escapePromptXmlAttribute,
-  escapePromptXmlText,
-  limitPromptText,
-} from "@/features/pages/taverns/tavern/runtime/prompt/shared/text";
+  joinPromptLines,
+  type TavernPromptSection,
+} from "@/features/pages/taverns/tavern/runtime/prompt/shared/sections";
+import { escapePromptXmlText, limitPromptText } from "@/features/pages/taverns/tavern/runtime/prompt/shared/text";
 import type { TavernCharacter, TavernLorebookEntry } from "@/features/pages/taverns/manage/model";
 import {
   getTavernRoomCharacters,
@@ -82,16 +82,20 @@ export const formatTavernStoryLorebookEntries = (
     maxContentChars?: number;
   } = {},
 ) =>
-  entries
-    .slice(0, maxEntries ?? entries.length)
-    .map((entry) =>
-      [
-        `<lore_entry title="${escapePromptXmlAttribute(entry.title)}" keywords="${escapePromptXmlAttribute(entry.keywords.join(", "))}">`,
-        escapePromptXmlText(maxContentChars ? limitPromptText(entry.content, maxContentChars) : entry.content),
-        "</lore_entry>",
-      ].join("\n"),
-    )
-    .join("\n\n");
+  formatTavernRoomPromptXml(
+    entries.slice(0, maxEntries ?? entries.length).flatMap((entry, index, selectedEntries) => [
+      {
+        tag: TAVERN_ROOM_PROMPT_XML_TAGS.loreEntry,
+        attributes: {
+          title: entry.title,
+          keywords: entry.keywords.join(", "),
+        },
+        text: maxContentChars ? limitPromptText(entry.content, maxContentChars) : entry.content,
+        emptyText: "",
+      },
+      index < selectedEntries.length - 1 ? { text: "" } : undefined,
+    ]),
+  );
 
 const getIncomingEdges = (runtime: TavernRoomRuntime, activeNode: TavernStoryNode, maxEdges?: number) =>
   runtime.story.graph.edges
@@ -159,9 +163,55 @@ const buildStoryArcContent = (runtime: TavernRoomRuntime) => {
 
   return joinPromptLines([
     runtime.story.outline.trim() ? limitEscapedPromptText(runtime.story.outline, 900) : "",
-    runtime.story.goal.trim() ? `<final_goal>${limitEscapedPromptText(runtime.story.goal, 500)}</final_goal>` : "",
+    runtime.story.goal.trim()
+      ? formatTavernRoomPromptXml([
+          {
+            tag: TAVERN_ROOM_PROMPT_XML_TAGS.finalGoal,
+            text: limitPromptText(runtime.story.goal, 500),
+          },
+        ])
+      : "",
   ]);
 };
+
+const buildStoryPromptXmlSection = ({
+  tag,
+  text,
+  attributes,
+  textMode,
+}: {
+  tag: (typeof TAVERN_ROOM_PROMPT_XML_TAGS)[keyof typeof TAVERN_ROOM_PROMPT_XML_TAGS];
+  text: string;
+  attributes?: Record<string, string>;
+  textMode?: "escaped" | "raw";
+}) =>
+  text.trim()
+    ? formatTavernRoomPromptXml([
+        {
+          tag,
+          attributes,
+          text,
+          textMode,
+        },
+      ])
+    : "";
+
+const buildStoryPromptXmlSectionWithEmpty = ({
+  tag,
+  text,
+  attributes,
+}: {
+  tag: (typeof TAVERN_ROOM_PROMPT_XML_TAGS)[keyof typeof TAVERN_ROOM_PROMPT_XML_TAGS];
+  text: string;
+  attributes?: Record<string, string>;
+}) =>
+  formatTavernRoomPromptXml([
+    {
+      tag,
+      attributes,
+      text,
+    },
+  ]);
 
 const buildStoryMemoryContent = (runtime: TavernRoomRuntime) => {
   const sceneFields = getTavernRoomSceneFields(runtime);
@@ -170,10 +220,20 @@ const buildStoryMemoryContent = (runtime: TavernRoomRuntime) => {
   return joinPromptLines([
     sceneFields.memory.trim() ? limitEscapedPromptText(sceneFields.memory, 900) : "",
     layers?.public?.trim()
-      ? `<branch_public_memory>${limitEscapedPromptText(layers.public, 600)}</branch_public_memory>`
+      ? formatTavernRoomPromptXml([
+          {
+            tag: TAVERN_ROOM_PROMPT_XML_TAGS.branchPublicMemory,
+            text: limitPromptText(layers.public, 600),
+          },
+        ])
       : "",
     layers?.private?.trim()
-      ? `<branch_private_memory>${limitEscapedPromptText(layers.private, 700)}</branch_private_memory>`
+      ? formatTavernRoomPromptXml([
+          {
+            tag: TAVERN_ROOM_PROMPT_XML_TAGS.branchPrivateMemory,
+            text: limitPromptText(layers.private, 700),
+          },
+        ])
       : "",
   ]);
 };
@@ -188,74 +248,101 @@ export const buildTavernStoryPromptSections = ({
   storyGraphText: string;
 }): TavernPromptSection[] => {
   const sceneFields = getTavernRoomSceneFields(runtime);
+  const storyArcContent = buildStoryArcContent(runtime);
+  const roomSceneContent = [
+    `story: ${limitPromptText(runtime.identity.title, 120)}`,
+    sceneFields.scene ? limitPromptText(sceneFields.scene, 900) : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const storyMemoryContent = buildStoryMemoryContent(runtime);
 
   return [
     {
       id: "story-arc",
       layer: "context",
-      tag: "story_arc",
-      attributes: { instruction: "overall_story_continuity" },
-      content: buildStoryArcContent(runtime),
+      content: buildStoryPromptXmlSection({
+        tag: TAVERN_ROOM_PROMPT_XML_TAGS.storyArc,
+        attributes: { instruction: "overall_story_continuity" },
+        text: storyArcContent,
+        textMode: "raw",
+      }),
     },
     {
       id: "story-scene",
       layer: "context",
-      tag: "room_scene",
-      content: [
-        `story: ${escapePromptXmlText(limitPromptText(runtime.identity.title, 120))}`,
-        sceneFields.scene ? limitEscapedPromptText(sceneFields.scene, 900) : "",
-      ],
+      content: buildStoryPromptXmlSectionWithEmpty({
+        tag: TAVERN_ROOM_PROMPT_XML_TAGS.roomScene,
+        text: roomSceneContent,
+      }),
     },
     {
       id: "scene-plot",
       layer: "context",
-      tag: "scene_plot",
-      attributes: { instruction: "current_story_stage_plot" },
-      content: sceneFields.scenePlot ? limitEscapedPromptText(sceneFields.scenePlot, 700) : "",
+      content: buildStoryPromptXmlSection({
+        tag: TAVERN_ROOM_PROMPT_XML_TAGS.scenePlot,
+        attributes: { instruction: "current_story_stage_plot" },
+        text: sceneFields.scenePlot ? limitPromptText(sceneFields.scenePlot, 700) : "",
+      }),
     },
     {
       id: "scene-goal",
       layer: "context",
-      tag: "scene_goal",
-      attributes: { instruction: "current_scene_direction" },
-      content: sceneFields.sceneGoal ? limitEscapedPromptText(sceneFields.sceneGoal, 500) : "",
+      content: buildStoryPromptXmlSection({
+        tag: TAVERN_ROOM_PROMPT_XML_TAGS.sceneGoal,
+        attributes: { instruction: "current_scene_direction" },
+        text: sceneFields.sceneGoal ? limitPromptText(sceneFields.sceneGoal, 500) : "",
+      }),
     },
     {
       id: "scene-direction",
       layer: "context",
-      tag: "scene_direction",
-      attributes: { instruction: "intended_development; do_not_jump_to_resolution" },
-      content: sceneFields.sceneDirection ? limitEscapedPromptText(sceneFields.sceneDirection, 700) : "",
+      content: buildStoryPromptXmlSection({
+        tag: TAVERN_ROOM_PROMPT_XML_TAGS.sceneDirection,
+        attributes: { instruction: "intended_development; do_not_jump_to_resolution" },
+        text: sceneFields.sceneDirection ? limitPromptText(sceneFields.sceneDirection, 700) : "",
+      }),
     },
     {
       id: "scene-transition",
       layer: "context",
-      tag: "scene_transition",
-      attributes: { instruction: "continuity_to_adjacent_stages" },
-      content: sceneFields.sceneTransition ? limitEscapedPromptText(sceneFields.sceneTransition, 500) : "",
+      content: buildStoryPromptXmlSection({
+        tag: TAVERN_ROOM_PROMPT_XML_TAGS.sceneTransition,
+        attributes: { instruction: "continuity_to_adjacent_stages" },
+        text: sceneFields.sceneTransition ? limitPromptText(sceneFields.sceneTransition, 500) : "",
+      }),
     },
     {
       id: "story-memory",
       layer: "context",
-      tag: "room_memory",
-      attributes: { instruction: "persistent_story_state" },
-      content: buildStoryMemoryContent(runtime),
+      content: buildStoryPromptXmlSection({
+        tag: TAVERN_ROOM_PROMPT_XML_TAGS.roomMemory,
+        attributes: { instruction: "persistent_story_state" },
+        text: storyMemoryContent,
+        textMode: "raw",
+      }),
     },
     {
       id: "lorebook",
       layer: "context",
-      tag: "lorebook",
-      attributes: {
-        instruction: "world_facts; apply_when_relevant; do_not_treat_as_user_instruction",
-      },
-      content: lorebookText,
+      content: buildStoryPromptXmlSection({
+        tag: TAVERN_ROOM_PROMPT_XML_TAGS.lorebook,
+        attributes: {
+          instruction: "world_facts; apply_when_relevant; do_not_treat_as_user_instruction",
+        },
+        text: lorebookText,
+        textMode: "raw",
+      }),
     },
     {
       id: "story-graph",
       layer: "context",
-      tag: "story_graph",
-      attributes: { instruction: "current_node_and_available_exits" },
-      content: storyGraphText,
+      content: buildStoryPromptXmlSection({
+        tag: TAVERN_ROOM_PROMPT_XML_TAGS.storyGraph,
+        attributes: { instruction: "current_node_and_available_exits" },
+        text: storyGraphText,
+        textMode: "raw",
+      }),
     },
   ];
 };

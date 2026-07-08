@@ -12,6 +12,7 @@ import {
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
 } from "@/features/pages/taverns/room/message/domain/visibility";
+import { formatTavernRoomPromptXml, TAVERN_ROOM_PROMPT_XML_TAGS } from "@/features/pages/taverns/room/prompt-xml";
 import { buildTavernBridgeSystemPrompt } from "../prompt/bridge/system-prompt";
 import { tavernBridgeSessionRootDir, tavernCharacterAgentRoleId } from "../../core/agent-role";
 import { formatTavernCharacterRelationships } from "../../core/relationships";
@@ -68,34 +69,43 @@ export const runTavernInnerThought = async ({
     runtimeModel,
     systemPrompt: buildTavernBridgeSystemPrompt(room),
     userMessage: "请只输出当前角色此刻没有说出口的一句内心想法。",
-    requestContext: [
-      "<active_character>",
-      `name: ${activeCharacter.name}`,
-      `description: ${activeCharacter.description}`,
-      `speakingStyle: ${activeCharacter.speakingStyle}`,
-      activeCharacter.goals ? `goals: ${activeCharacter.goals}` : "",
-      relationshipText ? `relationships: ${relationshipText}` : "",
-      characterMemory ? `memory: ${characterMemory}` : "",
-      "</active_character>",
-      "",
-      `<room title="${room.identity.title}">`,
-      resolveInnerThoughtSceneText(room),
-      "</room>",
-      "",
-      "<current_user_input>",
-      currentUserText,
-      "</current_user_input>",
-      "",
-      "<recent_conversation>",
-      formatTavernVisibleMessagesForRequestContext(visibleMessages) || "（无）",
-      "</recent_conversation>",
-      "",
-      "<generated_reply>",
-      replyContent,
-      "</generated_reply>",
-    ]
-      .filter(Boolean)
-      .join("\n"),
+    requestContext: formatTavernRoomPromptXml([
+      {
+        tag: TAVERN_ROOM_PROMPT_XML_TAGS.activeCharacter,
+        text: [
+          `name: ${activeCharacter.name}`,
+          `description: ${activeCharacter.description}`,
+          `speakingStyle: ${activeCharacter.speakingStyle}`,
+          activeCharacter.goals ? `goals: ${activeCharacter.goals}` : "",
+          relationshipText ? `relationships: ${relationshipText}` : "",
+          characterMemory ? `memory: ${characterMemory}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      },
+      { text: "" },
+      {
+        tag: TAVERN_ROOM_PROMPT_XML_TAGS.room,
+        attributes: { title: room.identity.title },
+        text: resolveInnerThoughtSceneText(room),
+      },
+      { text: "" },
+      {
+        tag: TAVERN_ROOM_PROMPT_XML_TAGS.currentUserInput,
+        text: currentUserText,
+      },
+      { text: "" },
+      {
+        tag: TAVERN_ROOM_PROMPT_XML_TAGS.recentConversation,
+        text: formatTavernVisibleMessagesForRequestContext(visibleMessages),
+        textMode: "raw",
+      },
+      { text: "" },
+      {
+        tag: TAVERN_ROOM_PROMPT_XML_TAGS.generatedReply,
+        text: replyContent,
+      },
+    ]),
     runtimeInstruction: [
       "你是酒馆模式的角色内心独白补写器。",
       "只为当前角色补一条会显示在聊天气泡里的内心想法，不是模型推理过程。",
