@@ -1,15 +1,18 @@
 import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
-import type { TavernMessage, TavernReferencedFile } from "../../types";
+import type { TavernMessage, TavernReferencedFile } from "../../../tavern/types";
 import type {
   TavernCharacter,
   TavernPromptBlock,
   TavernPromptBlockTarget,
 } from "@/features/pages/taverns/manage/model";
 import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
-import { isTavernFixedOrderPhase } from "../../core/director-scheduling";
-import { buildTavernDirectorPromptContext, buildTavernDirectorRuntimeInstruction } from "../director/prompt";
-import { buildTavernReplyAgentRequest } from "../reply/request";
-import { buildTavernBridgeSystemPrompt } from "./bridge/system-prompt";
+import { isTavernFixedOrderPhase } from "../../../tavern/core/director-scheduling";
+import {
+  buildTavernDirectorPromptContext,
+  buildTavernDirectorRuntimeInstruction,
+} from "../../../tavern/runtime/director/prompt";
+import { buildTavernReplyAgentRequest } from "../../../tavern/runtime/reply/request";
+import { buildTavernBridgeSystemPrompt } from "../../../tavern/runtime/prompt/bridge/system-prompt";
 import { buildTavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import { getTavernRuntimeStoryProjection } from "@/features/pages/taverns/room/story-context/projection";
 

@@ -31,7 +31,7 @@ import {
   buildTavernPromptPreview,
   type TavernPromptPreviewWarning,
   type TavernPromptPreviewWarningSeverity,
-} from "../../../tavern/runtime/prompt/preview";
+} from "./preview";
 import { getTavernRuntimeStoryProjection } from "../../../room/story-context/projection";
 import { getTavernCharacterStylePreset } from "../../../tavern/prompt-registry/character-style-presets";
 import {

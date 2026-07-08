@@ -2,7 +2,7 @@ import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 import type {
   TavernPromptPreviewWarning,
   TavernPromptPreviewWarningLocation,
-} from "../../../tavern/runtime/prompt/preview";
+} from "./preview";
 
 export type TavernPromptWarningNavigationTarget = "runtimeBasic" | "storyConfig";
 
