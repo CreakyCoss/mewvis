@@ -9,8 +9,7 @@ import { cn } from "@/lib/utils";
 import { TavernRoomContent } from "./content";
 import { useTavernRoomContext } from "./context";
 import { Header } from "./header";
-import type { TavernPresentationInput } from "./presentation-input/types";
-import { createTavernRoomRuntimeSessionState } from "./runtime/build";
+import { createTavernRoomSessionState, type TavernRoomOpeningInput } from "./model";
 import { SidePanel } from "./side-panel";
 import { ensureTavernWorkspaceDirectory, loadTavernRoomSessionState, saveTavernRoomSessionState } from "./storage";
 
@@ -19,7 +18,7 @@ const fullScreenDialogContentClassName =
 
 export type TavernRoomOpenOptions = {
   tavernRoom: TavernRoomConfig;
-  presentationInput: TavernPresentationInput;
+  openingInput: TavernRoomOpeningInput;
   tavernWorkspacePath: string;
 };
 
@@ -64,9 +63,9 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const open = useCallback(
     (options: TavernRoomOpenOptions) => {
       openRequestIdRef.current += 1;
-      const initialState = createTavernRoomRuntimeSessionState({
+      const initialState = createTavernRoomSessionState({
         tavernRoom: options.tavernRoom,
-        presentationInput: options.presentationInput,
+        openingInput: options.openingInput,
       });
       const workspace = createTavernWorkspace(options.tavernWorkspacePath);
       setOpenOptions(options);
@@ -102,9 +101,9 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     const requestId = openRequestIdRef.current;
     setIsTavernStateHydrated(false);
 
-    const nextState = createTavernRoomRuntimeSessionState({
+    const nextState = createTavernRoomSessionState({
       tavernRoom: openOptions.tavernRoom,
-      presentationInput: openOptions.presentationInput,
+      openingInput: openOptions.openingInput,
     });
 
     void ensureTavernWorkspaceDirectory(openOptions.tavernWorkspacePath)
@@ -124,9 +123,9 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
 
         console.error("Failed to load tavern room session state", loadError);
         setRoomState(
-          createTavernRoomRuntimeSessionState({
+          createTavernRoomSessionState({
             tavernRoom: openOptions.tavernRoom,
-            presentationInput: openOptions.presentationInput,
+            openingInput: openOptions.openingInput,
           }),
         );
         setIsTavernStateHydrated(true);

@@ -1,4 +1,8 @@
-import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
+import {
+  getTavernRoomCharacterMemoryLayers,
+  getTavernRoomSceneFields,
+  type TavernRoomRuntime,
+} from "@/features/pages/taverns/room/model";
 import { formatTavernRuntimeMessagesForSummary } from "../../conversation/messages";
 import { buildTavernSceneDriveGuidance } from "../../../core/director-scheduling";
 import { formatTavernCharacterRelationships } from "../../../core/relationships";
@@ -14,10 +18,6 @@ import {
   buildTavernDirectorSecretMemoryContext,
   buildTavernSecretMemoryProtocol,
 } from "../../prompt/shared/secret-policy";
-import {
-  selectTavernRuntimeActiveSceneFields,
-  selectTavernRuntimeActiveSceneInstance,
-} from "@/features/pages/taverns/room/runtime/accessors";
 
 const DIRECTOR_RECENT_MESSAGE_LIMIT = 10;
 
@@ -30,8 +30,7 @@ const limitEscapedDirectorText = (text: string, maxChars: number) =>
   escapePromptXmlText(limitDirectorContextText(text, maxChars));
 
 const formatDirectorCharacterMemory = (runtime: TavernRoomRuntime, characterId: string) => {
-  const activeInstance = selectTavernRuntimeActiveSceneInstance(runtime);
-  const layers = activeInstance?.characterMemoryLayers?.[characterId];
+  const layers = getTavernRoomCharacterMemoryLayers(runtime, characterId);
 
   return [layers?.required?.trim() ?? "", layers?.public?.trim() ?? "", layers?.known?.trim() ?? ""]
     .filter(Boolean)
@@ -39,7 +38,7 @@ const formatDirectorCharacterMemory = (runtime: TavernRoomRuntime, characterId: 
 };
 
 const buildTavernDirectorCharacterList = (runtime: TavernRoomRuntime, characters: TavernCharacter[]) => {
-  const sceneFields = selectTavernRuntimeActiveSceneFields(runtime);
+  const sceneFields = getTavernRoomSceneFields(runtime);
   return characters
     .map((character) =>
       [
@@ -99,7 +98,7 @@ export const buildTavernDirectorContextSections = ({
   presentationProfile: TavernPresentationProfile;
   promptBlocksText: string;
 }) => {
-  const sceneFields = selectTavernRuntimeActiveSceneFields(room);
+  const sceneFields = getTavernRoomSceneFields(room);
   const selectedTargetCharacters = selectedTargetCharacterIds
     .map((characterId) => characters.find((character) => character.id === characterId))
     .filter((character): character is TavernCharacter => Boolean(character));

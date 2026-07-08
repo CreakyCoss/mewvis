@@ -1,7 +1,11 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { TavernMessage } from "../tavern/types";
-import type { TavernRoomRuntime, TavernRoomSessionState } from "./model";
-import { selectTavernRuntimeActiveSceneId, selectTavernRuntimeActiveSceneInstanceId } from "./runtime/accessors";
+import {
+  isTavernRoomRuntime,
+  materializeTavernRoomMessages,
+  type TavernRoomRuntime,
+  type TavernRoomSessionState,
+} from "./model";
 
 const TAVERN_ROOM_FILE_NAME = "room.json";
 const TAVERN_MESSAGES_FILE_NAME = "messages.json";
@@ -109,28 +113,7 @@ const normalizeTavernRuntimeMessages = (value: unknown): TavernMessage[] | null 
 };
 
 const normalizeTavernRoomRuntime = (value: unknown): TavernRoomRuntime | null => {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-
-  const candidate = value as Partial<TavernRoomRuntime>;
-  if (candidate.version === 1 && candidate.identity?.id && candidate.config?.room && candidate.story?.graph) {
-    return candidate as TavernRoomRuntime;
-  }
-
-  return null;
-};
-
-const materializeRuntimeMessages = (runtime: TavernRoomRuntime, messages: TavernMessage[]) => {
-  const sceneId = selectTavernRuntimeActiveSceneId(runtime);
-  const sceneInstanceId = selectTavernRuntimeActiveSceneInstanceId(runtime);
-  return messages.map((message) => ({
-    ...message,
-    roomId: message.roomId || runtime.identity.id,
-    sceneId: message.sceneId ?? sceneId,
-    sceneInstanceId: message.sceneInstanceId ?? sceneInstanceId,
-    status: message.status === "streaming" ? ("done" as const) : message.status,
-  }));
+  return isTavernRoomRuntime(value) ? value : null;
 };
 
 export const loadTavernRoomSessionState = async (
@@ -155,7 +138,7 @@ export const loadTavernRoomSessionState = async (
 
   return {
     runtime,
-    messages: materializeRuntimeMessages(runtime, messages),
+    messages: materializeTavernRoomMessages(runtime, messages),
   };
 };
 

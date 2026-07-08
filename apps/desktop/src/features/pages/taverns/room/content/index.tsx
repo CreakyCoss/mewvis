@@ -4,15 +4,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { listWorkspaceFiles, type WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import { cn } from "@/lib/utils";
 import { getTavernPresentationProfile } from "@/features/pages/taverns/tavern/prompt-registry/presentation-rules";
-import { getTavernSceneInstanceDisplayTitle } from "@/features/pages/taverns/tavern/runtime/scene-selectors";
+import { getTavernRoomSceneFields, getTavernRoomSceneTitle } from "@/features/pages/taverns/room/model";
 import { Composer } from "../composer";
 import { useTavernRoomContext } from "../context";
 import { ExecutionTrace } from "../execution-trace";
 import { createTavernRenderableMessages } from "../message/domain/render-model";
 import { resolveTavernConversationRenderer } from "../message/renderers";
-import { selectTavernRuntimeActiveSceneFields, selectTavernRuntimeActiveSceneInstanceId } from "../runtime/accessors";
 import { SceneBriefCard } from "../scene-brief-card";
-import { SceneSelector } from "../scene-selector";
 
 type TavernRoomContentProps = {
   isOpen: boolean;
@@ -28,7 +26,6 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
   const roomCharacters = useTavernRoomContext((store) => store.roomCharacters);
   const roomMessages = useTavernRoomContext((store) => store.roomMessages);
   const busy = useTavernRoomContext((store) => store.busy);
-  const selectRoomSceneInstance = useTavernRoomContext((store) => store.selectRoomSceneInstance);
   const executionSteps = useTavernRoomContext((store) => store.executionSteps);
   const executionTraceAnchorMessageId = useTavernRoomContext((store) => store.executionTraceAnchorMessageId);
   const [files, setFiles] = useState<WorkspaceFileEntry[]>([]);
@@ -80,18 +77,6 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
   const shouldShowExecutionTrace = executionSteps.length > 0;
   const hasExecutionTraceAnchor =
     shouldShowExecutionTrace && renderableRoomMessages.some((message) => message.id === executionTraceAnchorMessageId);
-  const handleSelectSceneInstance = useCallback(
-    (sceneInstanceId: string) => {
-      if (!activeRoom) {
-        return;
-      }
-
-      selectRoomSceneInstance(activeRoom.identity.id, sceneInstanceId);
-      useTavernRoomContext.getState().composerHandle?.clearReplyOptions();
-    },
-    [activeRoom, selectRoomSceneInstance],
-  );
-
   const scrollMessagesToBottom = useCallback(() => {
     const viewport = messageViewportRef.current;
     if (!viewport) {
@@ -116,7 +101,6 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
     return () => window.cancelAnimationFrame(firstFrame);
   }, [
     activeRoom?.identity.id,
-    activeRoom ? selectTavernRuntimeActiveSceneInstanceId(activeRoom) : "",
     latestMessage?.content,
     latestMessage?.id,
     renderableRoomMessages.length,
@@ -138,12 +122,7 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
     resizeObserver.observe(messageList);
 
     return () => resizeObserver.disconnect();
-  }, [
-    activeRoom?.identity.id,
-    activeRoom ? selectTavernRuntimeActiveSceneInstanceId(activeRoom) : "",
-    scrollMessagesToBottom,
-    isOpen,
-  ]);
+  }, [activeRoom?.identity.id, scrollMessagesToBottom, isOpen]);
 
   if (!activeRoom) {
     return null;
@@ -155,13 +134,8 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
     backgroundRepeat: "no-repeat",
     backgroundSize: visualPreset.tavern.backgroundSize,
   } satisfies CSSProperties;
-  const activeSceneFields = selectTavernRuntimeActiveSceneFields(activeRoom);
-  const activeSceneInstanceId = selectTavernRuntimeActiveSceneInstanceId(activeRoom);
-  const activeSceneTitle = getTavernSceneInstanceDisplayTitle(activeRoom, activeSceneInstanceId);
-  const sceneInstanceOptions = activeRoom.scenes.instances.map((instance) => ({
-    id: instance.id,
-    label: getTavernSceneInstanceDisplayTitle(activeRoom, instance.id),
-  }));
+  const activeSceneFields = getTavernRoomSceneFields(activeRoom);
+  const activeSceneTitle = getTavernRoomSceneTitle(activeRoom);
   const sceneDescription = getTavernSceneText(activeSceneFields.scene, "这个房间还没有场景描述。");
   const sceneMechanism = getTavernSceneText(
     activeSceneFields.scenePlot,
@@ -207,14 +181,6 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
             className={cn("w-full self-center", isSidePanelOpen ? "max-w-[44rem]" : "max-w-[46rem]")}
             visualPreset={visualPreset}
             content={sceneBriefContent}
-            sceneSelector={
-              <SceneSelector
-                options={sceneInstanceOptions}
-                activeValue={activeSceneInstanceId}
-                label="节点："
-                onSelectScene={handleSelectSceneInstance}
-              />
-            }
           />
           <Conversation
             messages={renderableRoomMessages}

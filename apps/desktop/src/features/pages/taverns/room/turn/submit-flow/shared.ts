@@ -1,4 +1,4 @@
-import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
+import { getTavernRoomSceneFields, type TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import type { TavernRoomStoreState } from "@/features/pages/taverns/room/context";
@@ -12,12 +12,6 @@ import { isTavernFixedOrderPhase } from "@/features/pages/taverns/tavern/core/di
 import { resolveTavernCharacterModel } from "@/features/pages/taverns/tavern/runtime/agent/model-selection";
 import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
-import {
-  selectTavernRuntimeActiveSceneFields,
-  selectTavernRuntimeActiveSceneId,
-  selectTavernRuntimeActiveSceneInstanceId,
-} from "@/features/pages/taverns/room/runtime/accessors";
-import { patchTavernRuntimeActiveSceneFields } from "@/features/pages/taverns/room/runtime/mutations";
 
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
 
@@ -36,11 +30,7 @@ export const getErrorMessage = (error: unknown) => {
   return "未知错误";
 };
 
-export const getRoomActiveSceneId = (room: TavernRoomRuntime) => selectTavernRuntimeActiveSceneId(room);
-
-export const getRoomActiveSceneInstanceId = (room: TavernRoomRuntime) => selectTavernRuntimeActiveSceneInstanceId(room);
-
-export type TavernPendingInteractions = ReturnType<typeof selectTavernRuntimeActiveSceneFields>["pendingInteractions"];
+export type TavernPendingInteractions = ReturnType<typeof getTavernRoomSceneFields>["pendingInteractions"];
 export type RequireSpeakerRuntimeModel = (speaker: TavernCharacter) => RuntimeModelOption;
 export type TurnTriggerType = "user" | "scene_drive";
 
@@ -78,11 +68,27 @@ export const syncOpenPendingInteractions = ({
   room: TavernRoomRuntime;
   openPendingInteractions: TavernPendingInteractions;
 }) => {
-  ctx.patchRoom(room.identity.id, (runtime) =>
-    patchTavernRuntimeActiveSceneFields(runtime, {
-      pendingInteractions: openPendingInteractions,
-    }),
-  );
+  ctx.patchRoom(room.identity.id, (runtime) => {
+    const updatedAt = Date.now();
+    return {
+      ...runtime,
+      identity: {
+        ...runtime.identity,
+        updatedAt,
+      },
+      config: {
+        room: {
+          ...runtime.config.room,
+          updatedAt,
+        },
+      },
+      scene: {
+        ...runtime.scene,
+        pendingInteractions: openPendingInteractions,
+        updatedAt,
+      },
+    };
+  });
 };
 
 export const resolveTurnMode = (triggerType: TurnTriggerType = "user"): TurnMode => {
@@ -203,7 +209,27 @@ export const beginTurnSubmission = ({
         : "正在发送消息...",
   });
   ctx.setError("");
-  ctx.patchRoom(room.identity.id, (runtime) => patchTavernRuntimeActiveSceneFields(runtime, { replyOptions: [] }));
+  ctx.patchRoom(room.identity.id, (runtime) => {
+    const updatedAt = Date.now();
+    return {
+      ...runtime,
+      identity: {
+        ...runtime.identity,
+        updatedAt,
+      },
+      config: {
+        room: {
+          ...runtime.config.room,
+          updatedAt,
+        },
+      },
+      scene: {
+        ...runtime.scene,
+        replyOptions: [],
+        updatedAt,
+      },
+    };
+  });
 };
 
 export const readTurnReferences = async ({
@@ -236,8 +262,6 @@ export const createUserTurnMessage = ({
 }) =>
   createTavernMessage({
     roomId: room.identity.id,
-    sceneId: getRoomActiveSceneId(room),
-    sceneInstanceId: getRoomActiveSceneInstanceId(room),
     role: "user",
     presentationProfileId: room.presentation.profile?.profileId,
     content: text,
@@ -258,8 +282,6 @@ export const createSceneDriveTurnAnchorMessage = ({
 }) =>
   createTavernMessage({
     roomId: room.identity.id,
-    sceneId: getRoomActiveSceneId(room),
-    sceneInstanceId: getRoomActiveSceneInstanceId(room),
     role: "narrator",
     presentationProfileId: room.presentation.profile?.profileId,
     content: directive.trim() ? `场景自推动：${directive.trim()}` : "场景自推动",

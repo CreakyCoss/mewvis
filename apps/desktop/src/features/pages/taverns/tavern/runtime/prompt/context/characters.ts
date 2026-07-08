@@ -1,5 +1,4 @@
-import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
-import { selectTavernRuntimeActiveSceneFields } from "@/features/pages/taverns/room/runtime/accessors";
+import { getTavernRoomSceneFields, type TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import { formatTavernCharacterRelationships } from "../../../core/relationships";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { escapePromptXmlText, limitPromptText } from "../shared/text";
@@ -19,7 +18,7 @@ export const formatTavernPromptCharacter = (
     characters?: TavernCharacter[];
   } = {},
 ) => {
-  const sceneFields = runtime ? selectTavernRuntimeActiveSceneFields(runtime) : null;
+  const sceneFields = runtime ? getTavernRoomSceneFields(runtime) : null;
   const relationships = formatTavernCharacterRelationships({
     character,
     characters,

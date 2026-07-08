@@ -38,7 +38,7 @@ export const TavernStoryAction = () => {
     try {
       roomDialogRef.current?.({
         tavernRoom,
-        presentationInput: createTavernPayload(story, {
+        openingInput: createTavernPayload(story, {
           nodeId: storyNodeId,
         }),
         tavernWorkspacePath: getTavernWorkspacePath(storyNodeId, tavernRoom.id),

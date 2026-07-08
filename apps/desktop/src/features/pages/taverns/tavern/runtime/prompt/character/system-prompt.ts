@@ -1,4 +1,8 @@
-import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
+import {
+  getTavernRoomCharacterMemoryLayers,
+  getTavernRoomPromptOverrides,
+  type TavernRoomRuntime,
+} from "@/features/pages/taverns/room/model";
 import { appendReferencesToPrompt } from "@/features/ai/components/context-tools";
 import { getTavernPresentationContract } from "../../../presentation/presentation-contracts";
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
@@ -13,16 +17,12 @@ import {
   formatTavernStoryGraphContext,
   formatTavernStoryLorebookEntries,
   selectTavernStoryLorebookEntries,
-} from "@/features/pages/taverns/room/story-context/prompt-sections";
+} from "../context/story";
 import { buildCharacterContextSections, formatCompactPresentCharacters } from "../layers/character-context";
 import { buildPresentationProfileSection } from "../layers/presentation";
 import { buildCharacterSystemContractSection } from "../layers/system-contract";
 import { renderTavernPromptSections, type TavernPromptSection } from "../shared/sections";
 import { buildTavernSecretMemoryProtocol } from "../shared/secret-policy";
-import {
-  selectTavernRuntimeActivePromptOverrides,
-  selectTavernRuntimeActiveSceneInstance,
-} from "@/features/pages/taverns/room/runtime/accessors";
 
 type BuildTavernCharacterPromptInput = {
   room: TavernRoomRuntime;
@@ -62,7 +62,7 @@ const buildSavedPromptBlocksSection = ({
       publicContentTag,
     }),
     formatTavernPromptBlocksForTarget({
-      prompt: selectTavernRuntimeActivePromptOverrides(room),
+      prompt: getTavernRoomPromptOverrides(room),
       target: "character",
       publicContentTag,
     }),
@@ -90,12 +90,9 @@ export const buildTavernCharacterPromptParts = ({
   currentUserText,
   turnInstruction,
 }: BuildTavernCharacterPromptInput): TavernCharacterPromptParts => {
-  const activeInstance = selectTavernRuntimeActiveSceneInstance(room);
-  const characterLayers = activeInstance?.characterMemoryLayers?.[activeCharacter.id];
-  const baseCharacterMemory = room.cast.characterMemories[activeCharacter.id]?.trim() ?? "";
+  const characterLayers = getTavernRoomCharacterMemoryLayers(room, activeCharacter.id);
   const characterMemory = [
     characterLayers?.required?.trim() ?? "",
-    baseCharacterMemory,
     characterLayers?.public?.trim() ?? "",
     characterLayers?.known?.trim() ?? "",
     characterLayers?.privateSelf?.trim() ?? "",

@@ -35,8 +35,6 @@ export type TavernMessageKind = "user_input" | "character_reply" | "narration" |
 export type TavernMessage = {
   id: string;
   roomId: string;
-  sceneId?: string;
-  sceneInstanceId?: string;
   turnId?: string;
   kind?: TavernMessageKind;
   role: "user" | "character" | "narrator";

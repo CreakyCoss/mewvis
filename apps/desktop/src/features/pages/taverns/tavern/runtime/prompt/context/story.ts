@@ -1,18 +1,19 @@
-import { formatTavernCharacterRelationships } from "../../tavern/core/relationships";
-import { joinPromptLines, type TavernPromptSection } from "../../tavern/runtime/prompt/shared/sections";
+import { formatTavernCharacterRelationships } from "@/features/pages/taverns/tavern/core/relationships";
+import { joinPromptLines, type TavernPromptSection } from "@/features/pages/taverns/tavern/runtime/prompt/shared/sections";
 import {
   escapePromptXmlAttribute,
   escapePromptXmlText,
   limitPromptText,
-} from "../../tavern/runtime/prompt/shared/text";
+} from "@/features/pages/taverns/tavern/runtime/prompt/shared/text";
 import type { TavernCharacter, TavernLorebookEntry } from "@/features/pages/taverns/manage/model";
-import type { TavernRoomRuntime, TavernStoryNode } from "@/features/pages/taverns/room/model";
 import {
-  selectTavernRuntimeActiveNode,
-  selectTavernRuntimeActiveSceneFields,
-  selectTavernRuntimeActiveSceneInstance,
-  selectTavernRuntimeCharacters,
-} from "@/features/pages/taverns/room/runtime/accessors";
+  getTavernRoomCharacters,
+  getTavernRoomSceneFields,
+  getTavernRoomSceneMemoryLayers,
+  getTavernRoomStoryNode,
+  type TavernRoomRuntime,
+  type TavernStoryNode,
+} from "@/features/pages/taverns/room/model";
 
 const limitEscapedPromptText = (text: string, maxChars?: number) =>
   escapePromptXmlText(maxChars ? limitPromptText(text, maxChars) : text);
@@ -24,7 +25,7 @@ const storyNodeTitle = (runtime: TavernRoomRuntime, nodeId: string) =>
 
 export const selectTavernStoryLorebookEntries = ({
   runtime,
-  characters = selectTavernRuntimeCharacters(runtime),
+  characters = getTavernRoomCharacters(runtime),
   currentUserText,
   activeCharacterId,
 }: {
@@ -33,7 +34,7 @@ export const selectTavernStoryLorebookEntries = ({
   currentUserText: string;
   activeCharacterId?: string;
 }): TavernLorebookEntry[] => {
-  const sceneFields = selectTavernRuntimeActiveSceneFields(runtime);
+  const sceneFields = getTavernRoomSceneFields(runtime);
   const activeCharacter = activeCharacterId
     ? characters.find((character) => character.id === activeCharacterId)
     : undefined;
@@ -112,12 +113,12 @@ export const formatTavernStoryGraphContext = (
     maxSummaryChars?: number;
   } = {},
 ) => {
-  const activeNode = selectTavernRuntimeActiveNode(runtime);
+  const activeNode = getTavernRoomStoryNode(runtime);
   if (!activeNode) {
     return "";
   }
 
-  const sceneFields = selectTavernRuntimeActiveSceneFields(runtime);
+  const sceneFields = getTavernRoomSceneFields(runtime);
   const incomingEdges = getIncomingEdges(runtime, activeNode, maxEdges);
   const outgoingEdges = getOutgoingEdges(runtime, activeNode, maxEdges);
 
@@ -163,8 +164,8 @@ const buildStoryArcContent = (runtime: TavernRoomRuntime) => {
 };
 
 const buildStoryMemoryContent = (runtime: TavernRoomRuntime) => {
-  const sceneFields = selectTavernRuntimeActiveSceneFields(runtime);
-  const layers = selectTavernRuntimeActiveSceneInstance(runtime)?.memoryLayers;
+  const sceneFields = getTavernRoomSceneFields(runtime);
+  const layers = getTavernRoomSceneMemoryLayers(runtime);
 
   return joinPromptLines([
     sceneFields.memory.trim() ? limitEscapedPromptText(sceneFields.memory, 900) : "",
@@ -186,7 +187,7 @@ export const buildTavernStoryPromptSections = ({
   lorebookText: string;
   storyGraphText: string;
 }): TavernPromptSection[] => {
-  const sceneFields = selectTavernRuntimeActiveSceneFields(runtime);
+  const sceneFields = getTavernRoomSceneFields(runtime);
 
   return [
     {

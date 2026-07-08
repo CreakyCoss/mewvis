@@ -9,9 +9,8 @@ import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { formatTavernCharacterRelationshipSummary } from "@/features/pages/taverns/tavern/core/relationships";
 import { isTavernRoomBusy, useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import { getVisualPreset } from "@/features/pages/taverns/tavern/visual-presets";
+import { getTavernRoomCharacterMemoryLayers, getTavernRoomCharacters, getTavernRoomSceneFields } from "../../model";
 import { EmptyPanelCard, emptyValueText } from "../shared";
-import { selectTavernRuntimeActiveSceneFields, selectTavernRuntimeActiveSceneInstance } from "../../runtime/accessors";
-import { patchTavernRuntimeActiveSceneFields } from "../../runtime/mutations";
 
 const trimText = (value: string | undefined) => value?.trim() ?? "";
 
@@ -72,9 +71,8 @@ const CharacterDetail = ({ character }: { character: TavernCharacter }) => {
     return null;
   }
 
-  const sceneFields = selectTavernRuntimeActiveSceneFields(activeRoom);
-  const activeSceneInstance = selectTavernRuntimeActiveSceneInstance(activeRoom);
-  const characterMemoryLayers = activeSceneInstance?.characterMemoryLayers?.[character.id];
+  const sceneFields = getTavernRoomSceneFields(activeRoom);
+  const characterMemoryLayers = getTavernRoomCharacterMemoryLayers(activeRoom, character.id);
   const avatar = resolveAvatar(character.avatar).src;
   const publicStatus = sceneFields.characterPublicStatuses[character.id];
   const privateStatus = sceneFields.characterPrivateStatuses[character.id];
@@ -113,7 +111,7 @@ const CharacterDetail = ({ character }: { character: TavernCharacter }) => {
   ].filter(Boolean);
   const relationshipSummary = formatTavernCharacterRelationshipSummary({
     character,
-    characters: activeRoom.cast.characters,
+    characters: getTavernRoomCharacters(activeRoom),
     room: {
       userPersonaName: activeRoom.user.personaName,
       relationshipOverrides: sceneFields.relationshipOverrides,
@@ -122,7 +120,7 @@ const CharacterDetail = ({ character }: { character: TavernCharacter }) => {
   });
   const relationshipLines = splitLines(relationshipSummary);
   const memoryLines = unique([
-    trimText(activeRoom.cast.characterMemories[character.id]),
+    trimText(sceneFields.characterMemories[character.id]),
     trimText(characterMemoryLayers?.required),
     trimText(characterMemoryLayers?.public),
     trimText(characterMemoryLayers?.known),
@@ -200,7 +198,7 @@ const CharacterCardContent = ({ character, isActive }: { character: TavernCharac
   const activeRoom = useTavernRoomContext((store) => store.activeRoom);
   const avatar = resolveAvatar(character.avatar).src;
   const publicStatus = activeRoom
-    ? selectTavernRuntimeActiveSceneFields(activeRoom).characterPublicStatuses[character.id]
+    ? getTavernRoomSceneFields(activeRoom).characterPublicStatuses[character.id]
     : undefined;
   const chipTexts = unique([
     trimText(publicStatus?.visibleMood),
@@ -315,9 +313,31 @@ export const CharacterStatusSection = () => {
               isActive={character.id === activeCharacter?.id}
               disabled={isBusy}
               onClick={() =>
-                patchRoom(activeRoom.identity.id, (room) =>
-                  patchTavernRuntimeActiveSceneFields(room, { activeCharacterId: character.id }),
-                )
+                patchRoom(activeRoom.identity.id, (room) => {
+                  const updatedAt = Date.now();
+                  return {
+                    ...room,
+                    identity: {
+                      ...room.identity,
+                      updatedAt,
+                    },
+                    config: {
+                      room: {
+                        ...room.config.room,
+                        updatedAt,
+                      },
+                    },
+                    cast: {
+                      ...room.cast,
+                      activeCharacterId: character.id,
+                    },
+                    scene: {
+                      ...room.scene,
+                      activeCharacterId: character.id,
+                      updatedAt,
+                    },
+                  };
+                })
               }
             />
           );

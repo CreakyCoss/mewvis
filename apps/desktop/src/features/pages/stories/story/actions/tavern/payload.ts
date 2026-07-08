@@ -1,6 +1,5 @@
 import { buildStoryNodeProjection, type StoryNodeProjection } from "../../model/projection";
-import type { TavernPresentationInput } from "@/features/pages/taverns/room/presentation-input/types";
-import type { TavernStoryGraph, TavernStoryNode } from "@/features/pages/taverns/room/model";
+import type { TavernRoomOpeningInput, TavernStoryGraph, TavernStoryNode } from "@/features/pages/taverns/room/model";
 import type { StoryJson } from "../../model/types";
 
 const trimText = (value: string | undefined | null) => value?.trim() ?? "";
@@ -20,7 +19,6 @@ const createTavernGraph = (nodeContext: StoryNodeProjection): TavernStoryGraph =
   activeNodeId: nodeContext.graph.activeNodeId,
   nodes: nodeContext.graph.nodes.map((node, index) => ({
     id: node.id,
-    sceneId: node.sceneId,
     title: node.title,
     type: normalizeTavernNodeType(node.type),
     pathRole: normalizeTavernPathRole(node.pathRole),
@@ -51,15 +49,16 @@ const formatCharacterMemory = (character: StoryNodeProjection["characters"][numb
     .filter(Boolean)
     .join("\n\n");
 
-const createInputFromNodeContext = (nodeContext: StoryNodeProjection): TavernPresentationInput => {
+const createInputFromNodeContext = (nodeContext: StoryNodeProjection): TavernRoomOpeningInput => {
   const activeNodeId = nodeContext.graph.activeNodeId || nodeContext.nodeId;
   const activeNode =
     nodeContext.graph.nodes.find((node) => node.id === activeNodeId) ??
     nodeContext.current.node ??
     nodeContext.graph.nodes.find((node) => node.id === nodeContext.graph.entryNodeId) ??
     nodeContext.graph.nodes[0];
-  const activeSceneId = activeNode?.sceneId || nodeContext.current.scene?.id || nodeContext.scenes[0]?.id || "";
   const characterIds = nodeContext.characters.map((character) => character.id);
+
+  const activeScene = nodeContext.current.scene ?? nodeContext.scenes[0] ?? null;
 
   return {
     version: 1,
@@ -68,13 +67,15 @@ const createInputFromNodeContext = (nodeContext: StoryNodeProjection): TavernPre
       id: nodeContext.storyId,
       label: nodeContext.background.title,
     },
-    meta: {
-      title: nodeContext.background.title,
-      userPersonaName: nodeContext.background.userPersonaName,
-    },
-    world: {
+    title: nodeContext.background.title,
+    userPersonaName: nodeContext.background.userPersonaName,
+    story: {
       outline: nodeContext.background.outline,
       goal: nodeContext.background.goal,
+      graph: createTavernGraph(nodeContext),
+      activeNodeId,
+    },
+    world: {
       lorebookEntries: nodeContext.world.lorebookEntries.map((entry) => ({
         id: entry.id,
         title: entry.title,
@@ -101,42 +102,31 @@ const createInputFromNodeContext = (nodeContext: StoryNodeProjection): TavernPre
       characterIds,
       activeCharacterId: characterIds[0],
     },
-    route: {
-      graph: createTavernGraph(nodeContext),
-      activeNodeId,
+    scene: {
+      title: activeScene?.title ?? activeNode?.title ?? "当前场景",
+      scene: activeScene?.scene,
+      sceneGoal: activeScene?.goal,
+      plot: activeScene?.plot,
+      storyDirection: activeScene?.direction,
+      transition: activeScene?.transition,
+      memory: activeScene?.memory,
+      sceneStatus: activeScene?.status
+        ? {
+            ...activeScene.status,
+            updatedAt: nodeContext.timestamps.updatedAt,
+          }
+        : undefined,
+      characterIds,
+      activeCharacterId: characterIds[0],
+      createdAt: nodeContext.timestamps.createdAt,
+      updatedAt: nodeContext.timestamps.updatedAt,
     },
-    scenes: {
-      activeSceneId,
-      items: nodeContext.scenes.map((scene, index) => ({
-        id: scene.id,
-        title: scene.title,
-        order: index,
-        scene: scene.scene,
-        sceneGoal: scene.goal,
-        plot: scene.plot,
-        storyDirection: scene.direction,
-        transition: scene.transition,
-        memory: scene.memory,
-        sceneStatus: scene.status
-          ? {
-              ...scene.status,
-              updatedAt: nodeContext.timestamps.updatedAt,
-            }
-          : undefined,
-        characterIds,
-        activeCharacterId: characterIds[0],
-        createdAt: nodeContext.timestamps.createdAt,
-        updatedAt: nodeContext.timestamps.updatedAt,
-      })),
-    },
-    opening: {
-      messages: [
-        {
-          role: "narrator",
-          content: `已从故事「${nodeContext.background.title}」进入酒馆演绎。`,
-        },
-      ],
-    },
+    openingMessages: [
+      {
+        role: "narrator",
+        content: `已从故事「${nodeContext.background.title}」进入酒馆演绎。`,
+      },
+    ],
   };
 };
 

@@ -1,8 +1,8 @@
-import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import {
-  selectTavernRuntimeActivePromptOverrides,
-  selectTavernRuntimeRoomConfig,
-} from "@/features/pages/taverns/room/runtime/accessors";
+  getTavernRoomConfig,
+  getTavernRoomPromptOverrides,
+  type TavernRoomRuntime,
+} from "@/features/pages/taverns/room/model";
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
 import {
   formatTavernInteractionQualityRulesForTarget,
@@ -25,9 +25,9 @@ const buildBridgeSystemContractSection = (): TavernPromptSection => ({
 });
 
 export const buildTavernBridgeSystemPrompt = (room: TavernRoomRuntime) => {
-  const roomConfig = selectTavernRuntimeRoomConfig(room);
+  const roomConfig = getTavernRoomConfig(room);
   const presentationProfile = getTavernPresentationProfile(room.presentation.profile?.profileId);
-  const activePromptOverrides = selectTavernRuntimeActivePromptOverrides(room);
+  const activePromptOverrides = getTavernRoomPromptOverrides(room);
   const sections: TavernPromptSection[] = [
     buildBridgeSystemContractSection(),
     buildPresentationProfileSection({

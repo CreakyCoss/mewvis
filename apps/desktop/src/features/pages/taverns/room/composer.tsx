@@ -22,10 +22,9 @@ import {
   isTavernRoomSending,
   useTavernRoomContext,
 } from "@/features/pages/taverns/room/context";
+import { getTavernRoomSceneFields } from "./model";
 import { submitRoomTurn } from "./turn/submit";
 import { getErrorMessage } from "./turn/submit-flow/shared";
-import { selectTavernRuntimeActiveSceneFields, selectTavernRuntimeActiveSceneInstanceId } from "./runtime/accessors";
-import { patchTavernRuntimeActiveSceneFields } from "./runtime/mutations";
 
 const REFERENCE_SUGGESTION_LIMIT = 8;
 
@@ -185,9 +184,9 @@ export const Composer = ({ bind, files }: ComposerProps) => {
   }, [composerHandle, setComposerHandle]);
 
   useEffect(() => {
-    setReplyOptions(activeRoom ? selectTavernRuntimeActiveSceneFields(activeRoom).replyOptions : []);
+    setReplyOptions(activeRoom ? getTavernRoomSceneFields(activeRoom).replyOptions : []);
     clearDraft();
-  }, [activeRoom?.identity.id, activeRoom ? selectTavernRuntimeActiveSceneInstanceId(activeRoom) : "", clearDraft]);
+  }, [activeRoom?.identity.id, clearDraft]);
 
   const submitPayload = useCallback(
     async (payload: ComposerSubmitPayload) => {
@@ -267,7 +266,27 @@ export const Composer = ({ bind, files }: ComposerProps) => {
       setDraftCursor(nextDraft.length);
       clearReplyOptions();
       if (activeRoom) {
-        patchRoom(activeRoom.identity.id, (room) => patchTavernRuntimeActiveSceneFields(room, { replyOptions: [] }));
+        patchRoom(activeRoom.identity.id, (room) => {
+          const updatedAt = Date.now();
+          return {
+            ...room,
+            identity: {
+              ...room.identity,
+              updatedAt,
+            },
+            config: {
+              room: {
+                ...room.config.room,
+                updatedAt,
+              },
+            },
+            scene: {
+              ...room.scene,
+              replyOptions: [],
+              updatedAt,
+            },
+          };
+        });
       }
       window.setTimeout(() => {
         inputRef.current?.focus();

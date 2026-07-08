@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { WindowDragRegion } from "@/components/window-drag-region";
 import { cn } from "@/lib/utils";
 import { compactScene } from "@/features/pages/taverns/tavern/utils";
-import { getTavernSceneInstanceDisplayTitle } from "@/features/pages/taverns/tavern/runtime/scene-selectors";
 import { deleteTavernBridgeSession } from "@/features/pages/taverns/tavern/runtime/conversation/bridge-session";
 import {
   createIdleTavernRoomBusyState,
@@ -13,10 +12,8 @@ import {
   isTavernRoomSending,
   useTavernRoomContext,
 } from "@/features/pages/taverns/room/context";
-import type { TavernRoomRuntime } from "./model";
-import { selectTavernRuntimeActiveSceneFields, selectTavernRuntimeActiveSceneInstanceId } from "./runtime/accessors";
+import { getTavernRoomSceneFields, getTavernRoomSceneTitle, type TavernRoomRuntime } from "./model";
 import { createEmptyComposerSubmitPayload } from "./composer";
-import { SceneSelector } from "./scene-selector";
 import { deleteTavernRoomSessionState } from "./storage";
 import { submitRoomTurn } from "./turn/submit";
 import { getErrorMessage } from "./turn/submit-flow/shared";
@@ -33,7 +30,7 @@ const tavernHeaderActionButtonClassName =
   "h-9 shrink-0 gap-1.5 border border-current/15 bg-current/5 px-2.5 text-current hover:border-current/25 hover:bg-current/10 hover:text-current focus-visible:border-current/30 focus-visible:text-current focus-visible:ring-current/20 aria-expanded:bg-current/10 aria-expanded:text-current dark:hover:bg-current/10 dark:hover:text-current";
 
 const getSceneDriveAutoPauseReason = (room: TavernRoomRuntime) => {
-  const hasUserTargetedInteraction = selectTavernRuntimeActiveSceneFields(room).pendingInteractions.some(
+  const hasUserTargetedInteraction = getTavernRoomSceneFields(room).pendingInteractions.some(
     (interaction) =>
       interaction.status === "open" && interaction.requiresResponse && interaction.target.type === "user",
   );
@@ -54,7 +51,6 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
   const visualPreset = useTavernRoomContext((store) => store.visualPreset);
   const busy = useTavernRoomContext((store) => store.busy);
   const error = useTavernRoomContext((store) => store.error);
-  const selectRoomSceneInstance = useTavernRoomContext((store) => store.selectRoomSceneInstance);
   const setRoomState = useTavernRoomContext((store) => store.setState);
   const setBusy = useTavernRoomContext((store) => store.setBusy);
   const setBusyStatus = useTavernRoomContext((store) => store.setBusyStatus);
@@ -67,31 +63,13 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
 
   const isBusy = isTavernRoomBusy(busy);
   const isSending = isTavernRoomSending(busy);
-  const activeSceneFields = activeRoom ? selectTavernRuntimeActiveSceneFields(activeRoom) : null;
-  const activeSceneInstanceId = activeRoom ? selectTavernRuntimeActiveSceneInstanceId(activeRoom) : "";
-  const sceneInstanceOptions =
-    activeRoom?.scenes.instances.map((instance) => ({
-      id: instance.id,
-      label: getTavernSceneInstanceDisplayTitle(activeRoom, instance.id),
-    })) ?? [];
+  const activeSceneFields = activeRoom ? getTavernRoomSceneFields(activeRoom) : null;
   const clearSceneDriveAutoTimer = useCallback(() => {
     if (sceneDriveAutoTimerRef.current !== null) {
       window.clearTimeout(sceneDriveAutoTimerRef.current);
       sceneDriveAutoTimerRef.current = null;
     }
   }, []);
-
-  const handleSelectSceneInstance = useCallback(
-    (sceneInstanceId: string) => {
-      if (!activeRoom) {
-        return;
-      }
-
-      selectRoomSceneInstance(activeRoom.identity.id, sceneInstanceId);
-      useTavernRoomContext.getState().composerHandle?.clearReplyOptions();
-    },
-    [activeRoom, selectRoomSceneInstance],
-  );
 
   const handleSceneDriveTurn = useCallback(async () => {
     const composerHandle = useTavernRoomContext.getState().composerHandle;
@@ -135,7 +113,7 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
       return;
     }
 
-    const sceneTitle = getTavernSceneInstanceDisplayTitle(activeRoom, activeSceneInstanceId, "当前节点");
+    const sceneTitle = getTavernRoomSceneTitle(activeRoom, "当前场景");
     const confirmed = window.confirm(
       `清空当前节点「${sceneTitle}」的酒馆运行数据？下次会按故事页传入的最新数据重新初始化。`,
     );
@@ -178,7 +156,6 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
     toast.success("已按最新故事数据重建当前节点酒馆");
   }, [
     activeRoom,
-    activeSceneInstanceId,
     runtime,
     clearSceneDriveAutoTimer,
     initialMessages,
@@ -228,7 +205,7 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
     setIsSceneDriveAutoRunning(false);
     clearSceneDriveAutoTimer();
     sceneDriveAutoRunCountRef.current = 0;
-  }, [activeRoom?.identity.id, activeSceneInstanceId, clearSceneDriveAutoTimer]);
+  }, [activeRoom?.identity.id, clearSceneDriveAutoTimer]);
 
   useEffect(() => {
     if (!isSceneDriveAutoRunning) {
@@ -327,14 +304,6 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
             </div>
             <p className="line-clamp-1 text-sm text-muted-foreground">{compactScene(activeSceneFields?.scene ?? "")}</p>
           </div>
-        </div>
-        <div className="hidden min-w-[220px] max-w-[280px] md:flex">
-          <SceneSelector
-            options={sceneInstanceOptions}
-            activeValue={activeSceneInstanceId}
-            label="节点："
-            onSelectScene={handleSelectSceneInstance}
-          />
         </div>
         <Button
           type="button"

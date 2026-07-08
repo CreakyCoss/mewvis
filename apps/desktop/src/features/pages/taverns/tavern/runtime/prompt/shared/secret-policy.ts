@@ -1,6 +1,9 @@
-import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
+import {
+  getTavernRoomCharacterMemoryLayers,
+  getTavernRoomSceneMemoryLayers,
+  type TavernRoomRuntime,
+} from "@/features/pages/taverns/room/model";
 import type { TavernCharacter, TavernPromptBlockTarget } from "@/features/pages/taverns/manage/model";
-import { selectTavernRuntimeActiveSceneInstance } from "@/features/pages/taverns/room/runtime/accessors";
 import { escapePromptXmlText, limitPromptText } from "./text";
 
 const limitEscapedSecretPolicyText = (text: string, maxChars: number) =>
@@ -28,14 +31,9 @@ export const buildTavernDirectorSecretMemoryContext = ({
   runtime: TavernRoomRuntime;
   characters: TavernCharacter[];
 }) => {
-  const activeInstance = selectTavernRuntimeActiveSceneInstance(runtime);
-  if (!activeInstance) {
-    return "";
-  }
-
-  const sceneSecret = activeInstance.memoryLayers?.directorSecret?.trim();
+  const sceneSecret = getTavernRoomSceneMemoryLayers(runtime).directorSecret.trim();
   const characterSecrets = characters.flatMap((character) => {
-    const secret = activeInstance.characterMemoryLayers?.[character.id]?.directorSecret?.trim();
+    const secret = getTavernRoomCharacterMemoryLayers(runtime, character.id).directorSecret.trim();
     return secret ? [`character: ${character.name} (${character.id})\n${secret}`] : [];
   });
   const content = [sceneSecret ? `scene:\n${sceneSecret}` : "", ...characterSecrets]

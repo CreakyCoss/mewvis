@@ -1,4 +1,9 @@
-import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
+import {
+  getTavernRoomCharacterMemoryLayers,
+  getTavernRoomScene,
+  getTavernRoomSceneFields,
+  type TavernRoomRuntime,
+} from "@/features/pages/taverns/room/model";
 import type { RuntimeModelInput } from "@/agent-client/types";
 import type { TavernMessage } from "../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
@@ -11,11 +16,6 @@ import { buildTavernBridgeSystemPrompt } from "../prompt/bridge/system-prompt";
 import { tavernBridgeSessionRootDir, tavernCharacterAgentRoleId } from "../../core/agent-role";
 import { formatTavernCharacterRelationships } from "../../core/relationships";
 import { runTavernRuntimeAgent } from "../agent/run-agent";
-import {
-  selectTavernRuntimeActiveScene,
-  selectTavernRuntimeActiveSceneFields,
-  selectTavernRuntimeActiveSceneInstance,
-} from "@/features/pages/taverns/room/runtime/accessors";
 export type RunTavernInnerThoughtInput = {
   workspacePath: string;
   runtimeModel: RuntimeModelInput;
@@ -27,19 +27,7 @@ export type RunTavernInnerThoughtInput = {
   replyContent: string;
 };
 
-const resolveInnerThoughtSceneText = (room: TavernRoomRuntime) => {
-  const activeInstance = selectTavernRuntimeActiveSceneInstance(room);
-  if (activeInstance) {
-    return activeInstance.scene;
-  }
-
-  const activeScene = selectTavernRuntimeActiveScene(room);
-  if (!activeScene) {
-    throw new Error("当前酒馆缺少标准故事场景，无法生成角色内心想法。");
-  }
-
-  return activeScene.scene;
-};
+const resolveInnerThoughtSceneText = (room: TavernRoomRuntime) => getTavernRoomScene(room).scene;
 
 export const runTavernInnerThought = async ({
   workspacePath,
@@ -57,9 +45,8 @@ export const runTavernInnerThought = async ({
     userPersonaName: room.user.personaName,
     audience: { type: "character", characterId: activeCharacter.id },
   }).slice(-8);
-  const activeInstance = selectTavernRuntimeActiveSceneInstance(room);
-  const sceneFields = selectTavernRuntimeActiveSceneFields(room);
-  const characterMemoryLayers = activeInstance?.characterMemoryLayers?.[activeCharacter.id];
+  const sceneFields = getTavernRoomSceneFields(room);
+  const characterMemoryLayers = getTavernRoomCharacterMemoryLayers(room, activeCharacter.id);
   const characterMemory = [
     characterMemoryLayers?.required?.trim() ?? "",
     characterMemoryLayers?.public?.trim() ?? "",

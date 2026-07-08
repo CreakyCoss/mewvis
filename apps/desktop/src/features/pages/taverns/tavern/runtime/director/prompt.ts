@@ -1,4 +1,4 @@
-import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
+import { getTavernRoomPromptOverrides, type TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import { appendReferencesToPrompt } from "@/features/ai/components/context-tools";
 import type { TavernMessage, TavernReferencedFile } from "../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
@@ -7,7 +7,7 @@ import {
   formatTavernStoryGraphContext,
   formatTavernStoryLorebookEntries,
   selectTavernStoryLorebookEntries,
-} from "@/features/pages/taverns/room/story-context/prompt-sections";
+} from "../prompt/context/story";
 import {
   buildTavernSchedulingSignals,
   formatTavernDirectorProfileForPrompt,
@@ -25,7 +25,6 @@ import {
 } from "../../prompt-registry/text-blocks";
 import { buildTavernDirectorContextSections } from "./prompt/context-sections";
 import { buildTavernDirectorOutputContract } from "./prompt/contract";
-import { selectTavernRuntimeActivePromptOverrides } from "@/features/pages/taverns/room/runtime/accessors";
 
 type BuildTavernDirectorPromptContextInput = {
   room: TavernRoomRuntime;
@@ -68,7 +67,7 @@ export const buildTavernDirectorPromptContext = ({
   const storyGraphText = formatTavernStoryGraphContext(room);
   const ambientActionMax = Math.min(2, Math.max(0, characters.length - 1));
   const presentationProfile = getTavernPresentationProfile(room.presentation.profile?.profileId);
-  const activePromptOverrides = selectTavernRuntimeActivePromptOverrides(room);
+  const activePromptOverrides = getTavernRoomPromptOverrides(room);
   const promptBlocksText = [
     formatTavernPromptBlocksForTarget({
       prompt: room.presentation.prompt,

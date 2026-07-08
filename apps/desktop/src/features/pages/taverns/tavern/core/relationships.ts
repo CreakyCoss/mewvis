@@ -7,7 +7,6 @@ import type {
 
 type CharacterLookup = Map<string, TavernCharacter> | TavernCharacter[];
 type TavernRelationshipSummaryRoom = {
-  localCharacters?: TavernCharacter[];
   userPersonaName?: string;
   relationshipOverrides?: TavernSceneRelationshipOverride[];
 };
@@ -110,7 +109,7 @@ export const formatTavernCharacterRelationshipSummary = ({
 }) => {
   const text = formatTavernCharacterRelationships({
     character,
-    characters: characters ?? room?.localCharacters ?? [],
+    characters: characters ?? [],
     userPersonaName: room?.userPersonaName,
     relationshipOverrides: room?.relationshipOverrides,
     includePrivate: false,
