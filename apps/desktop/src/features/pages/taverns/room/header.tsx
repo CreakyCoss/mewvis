@@ -394,7 +394,7 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
           onClick={onToggleSidePanel}
         >
           {isSidePanelOpen ? <PanelRightClose className="size-4" /> : <PanelRightOpen className="size-4" />}
-          <span className="text-xs font-medium">{isSidePanelOpen ? "收起" : "概览"}</span>
+          <span className="text-xs font-medium">{isSidePanelOpen ? "收起" : "角色"}</span>
         </Button>
       </div>
     </header>

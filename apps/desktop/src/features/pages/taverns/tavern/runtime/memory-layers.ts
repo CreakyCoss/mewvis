@@ -7,7 +7,6 @@ export const createEmptySceneMemoryLayers = (
   private: input.private?.trim() ?? "",
   public: input.public?.trim() ?? "",
   directorSecret: input.directorSecret?.trim() ?? "",
-  entries: Array.isArray(input.entries) ? input.entries : [],
   updatedAt: input.updatedAt,
 });
 
@@ -19,6 +18,5 @@ export const createEmptyCharacterMemoryLayers = (
   known: input.known?.trim() ?? "",
   privateSelf: input.privateSelf?.trim() ?? "",
   directorSecret: input.directorSecret?.trim() ?? "",
-  entries: Array.isArray(input.entries) ? input.entries : [],
   updatedAt: input.updatedAt,
 });

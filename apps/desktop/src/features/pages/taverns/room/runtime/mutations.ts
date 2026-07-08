@@ -1,13 +1,4 @@
-import type { TavernScenePromptOverrides, TavernRoomSettings } from "@/features/pages/taverns/manage/model";
-import type {
-  TavernCharacterMemoryLayers,
-  TavernRoomRuntime,
-  TavernScene,
-  TavernSceneInstance,
-  TavernSceneMemoryLayers,
-} from "@/features/pages/taverns/room/model";
-import { createEmptyCharacterMemoryLayers, createEmptySceneMemoryLayers } from "../../tavern/runtime/memory-layers";
-import { normalizeScenePromptOverrides } from "../../tavern/runtime/scene-prompt-overrides";
+import type { TavernRoomRuntime, TavernScene, TavernSceneInstance } from "@/features/pages/taverns/room/model";
 import {
   selectTavernRuntimeActiveSceneFields,
   selectTavernRuntimeActiveSceneId,
@@ -53,27 +44,6 @@ const patchSceneFields = <Scene extends TavernScene | TavernSceneInstance>(
   activeCharacterId: patch.activeCharacterId ?? scene.activeCharacterId,
   updatedAt,
 });
-
-export const patchTavernRuntimeSettings = (
-  runtime: TavernRoomRuntime,
-  settings: TavernRoomSettings,
-): TavernRoomRuntime => {
-  const updatedAt = Date.now();
-  return {
-    ...touchRuntime(runtime, updatedAt),
-    config: {
-      room: {
-        ...runtime.config.room,
-        settings,
-        updatedAt,
-      },
-    },
-    presentation: {
-      ...runtime.presentation,
-      settings,
-    },
-  };
-};
 
 export const patchTavernRuntimeActiveSceneFields = (
   runtime: TavernRoomRuntime,
@@ -164,101 +134,6 @@ export const switchTavernRuntimeScene = (runtime: TavernRoomRuntime, sceneId: st
     scenes: {
       ...runtime.scenes,
       activeSceneId: targetScene.id,
-    },
-  };
-};
-
-export const updateTavernRuntimeActiveSceneMemoryLayers = (
-  runtime: TavernRoomRuntime,
-  patch: Partial<TavernSceneMemoryLayers>,
-): TavernRoomRuntime => {
-  const activeInstance = selectTavernRuntimeActiveSceneInstance(runtime);
-  if (!activeInstance) {
-    return runtime;
-  }
-
-  const updatedAt = Date.now();
-  return {
-    ...touchRuntime(runtime, updatedAt),
-    scenes: {
-      ...runtime.scenes,
-      instances: runtime.scenes.instances.map((instance) =>
-        instance.id === activeInstance.id
-          ? {
-              ...instance,
-              memoryLayers: {
-                ...createEmptySceneMemoryLayers(instance.memoryLayers),
-                ...patch,
-                updatedAt,
-              },
-              updatedAt,
-            }
-          : instance,
-      ),
-    },
-  };
-};
-
-export const updateTavernRuntimeActiveCharacterMemoryLayers = (
-  runtime: TavernRoomRuntime,
-  characterId: string,
-  patch: Partial<TavernCharacterMemoryLayers>,
-): TavernRoomRuntime => {
-  const activeInstance = selectTavernRuntimeActiveSceneInstance(runtime);
-  if (!activeInstance || !characterId) {
-    return runtime;
-  }
-
-  const updatedAt = Date.now();
-  return {
-    ...touchRuntime(runtime, updatedAt),
-    scenes: {
-      ...runtime.scenes,
-      instances: runtime.scenes.instances.map((instance) => {
-        if (instance.id !== activeInstance.id) {
-          return instance;
-        }
-
-        const characterMemoryLayers = { ...instance.characterMemoryLayers };
-        characterMemoryLayers[characterId] = {
-          ...createEmptyCharacterMemoryLayers(characterMemoryLayers[characterId]),
-          ...patch,
-          updatedAt,
-        };
-
-        return {
-          ...instance,
-          characterMemoryLayers,
-          updatedAt,
-        };
-      }),
-    },
-  };
-};
-
-export const updateTavernRuntimeActiveScenePromptOverrides = (
-  runtime: TavernRoomRuntime,
-  overrides: Partial<TavernScenePromptOverrides>,
-): TavernRoomRuntime => {
-  const activeInstance = selectTavernRuntimeActiveSceneInstance(runtime);
-  if (!activeInstance) {
-    return runtime;
-  }
-
-  const updatedAt = Date.now();
-  return {
-    ...touchRuntime(runtime, updatedAt),
-    scenes: {
-      ...runtime.scenes,
-      instances: runtime.scenes.instances.map((instance) =>
-        instance.id === activeInstance.id
-          ? {
-              ...instance,
-              promptOverrides: normalizeScenePromptOverrides(overrides),
-              updatedAt,
-            }
-          : instance,
-      ),
     },
   };
 };

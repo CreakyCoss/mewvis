@@ -12,7 +12,7 @@ export const buildTavernSecretMemoryProtocol = (target: TavernPromptBlockTarget)
     "记忆可见性是硬约束，不是剧情建议。",
     "public / branch_public_memory / 已公开解密内容：可作为公开连续性使用，角色和旁白可以在合理场合自然承接。",
     "known / privateSelf / character-only 解密内容：只允许影响对应角色的认知、反应、隐瞒、试探或行动动机；其他角色不能凭空知道，也不能由旁白直接公开解释。",
-    "private / directorSecret / hidden entries / hidden facts：只能作为内部规划或伏笔约束；不得在公开对白、旁白、ambientActions、reason、候选回复或画面提示里直接写出、转述、总结或暗示到足以等同公开。",
+    "private / directorSecret / hidden facts：只能作为内部规划或伏笔约束；不得在公开对白、旁白、ambientActions、reason、候选回复或画面提示里直接写出、转述、总结或暗示到足以等同公开。",
     "秘密被公开或对角色解密之前，不要让角色说出秘密事实，不要让旁白替系统揭露秘密，也不要用“他知道了某秘密”这类元叙述泄露。",
     "如需表现秘密影响，只写公开可观察后果，例如迟疑、回避、试探、改变路线或保留话语；不要解释未公开原因。",
     target === "director"

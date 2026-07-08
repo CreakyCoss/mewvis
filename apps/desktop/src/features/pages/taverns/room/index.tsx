@@ -12,7 +12,6 @@ import { Header } from "./header";
 import type { TavernPresentationInput } from "./presentation-input/types";
 import { createTavernRoomRuntimeSessionState } from "./runtime/build";
 import { SidePanel } from "./side-panel";
-import type { SidePanelHandle } from "./side-panel/types";
 import { ensureTavernWorkspaceDirectory, loadTavernRoomSessionState, saveTavernRoomSessionState } from "./storage";
 
 const fullScreenDialogContentClassName =
@@ -44,7 +43,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const activeRoom = useTavernRoomContext((store) => store.activeRoom);
   const visualPreset = useTavernRoomContext((store) => store.visualPreset);
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
-  const sidePanelRef = useRef<SidePanelHandle | null>(null);
   const openRequestIdRef = useRef(0);
 
   const createTavernWorkspace = useCallback(
@@ -150,7 +148,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   }, [isTavernStateHydrated, openOptions, roomState]);
 
   const closeRoomSurface = () => {
-    sidePanelRef.current?.hide();
+    setIsSidePanelOpen(false);
     setIsOpen(false);
   };
 
@@ -211,14 +209,14 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
               isSidePanelOpen={isSidePanelOpen}
               onBack={closeRoomSurface}
               onToggleSidePanel={() => {
-                sidePanelRef.current?.toggle();
+                setIsSidePanelOpen((current) => !current);
               }}
             />
 
             <TavernRoomContent isOpen={isOpen} isSidePanelOpen={isSidePanelOpen} />
           </main>
 
-          <SidePanel bind={sidePanelRef} isOpen={isSidePanelOpen} onOpenChange={setIsSidePanelOpen} />
+          <SidePanel isOpen={isSidePanelOpen} />
         </div>
       </DialogContent>
     </Dialog>

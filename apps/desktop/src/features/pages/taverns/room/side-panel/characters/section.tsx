@@ -1,32 +1,16 @@
-import { useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { compact, uniq } from "lodash-es";
-import {
-  BookOpenText,
-  BriefcaseBusiness,
-  ChevronRight,
-  Loader2,
-  MessageCircle,
-  Plus,
-  RefreshCcw,
-  RotateCcw,
-  Shield,
-  Sparkles,
-  Target,
-  UsersRound,
-} from "lucide-react";
+import { BookOpenText, ChevronRight, MessageCircle, Shield, Target, UsersRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { toast } from "sonner";
 import { resolveAvatar } from "@/assets/avatars";
-import { Button } from "@/components/ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { cn } from "@/lib/utils";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { formatTavernCharacterRelationshipSummary } from "@/features/pages/taverns/tavern/core/relationships";
 import { isTavernRoomBusy, useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import { getVisualPreset } from "@/features/pages/taverns/tavern/visual-presets";
-import { buildTavernCharacterMemoryText } from "../memory-summary";
 import { EmptyPanelCard, emptyValueText } from "../shared";
-import { selectTavernRuntimeActiveSceneFields } from "../../runtime/accessors";
+import { selectTavernRuntimeActiveSceneFields, selectTavernRuntimeActiveSceneInstance } from "../../runtime/accessors";
 import { patchTavernRuntimeActiveSceneFields } from "../../runtime/mutations";
 
 const trimText = (value: string | undefined) => value?.trim() ?? "";
@@ -82,35 +66,15 @@ const LineList = ({ lines, empty = emptyValueText }: { lines: string[]; empty?: 
   );
 };
 
-const CharacterDetail = ({
-  character,
-  memory,
-  isBusy,
-  isCompacting,
-  isRebuilding,
-  isExtractingMemory,
-  onAddMemory,
-  onExtractMemory,
-  onCompact,
-  onRebuild,
-}: {
-  character: TavernCharacter;
-  memory: string;
-  isBusy?: boolean;
-  isCompacting?: boolean;
-  isRebuilding?: boolean;
-  isExtractingMemory?: boolean;
-  onAddMemory?: () => void;
-  onExtractMemory?: () => void;
-  onCompact?: () => void;
-  onRebuild?: () => void;
-}) => {
+const CharacterDetail = ({ character }: { character: TavernCharacter }) => {
   const activeRoom = useTavernRoomContext((store) => store.activeRoom);
   if (!activeRoom) {
     return null;
   }
 
   const sceneFields = selectTavernRuntimeActiveSceneFields(activeRoom);
+  const activeSceneInstance = selectTavernRuntimeActiveSceneInstance(activeRoom);
+  const characterMemoryLayers = activeSceneInstance?.characterMemoryLayers?.[character.id];
   const avatar = resolveAvatar(character.avatar).src;
   const publicStatus = sceneFields.characterPublicStatuses[character.id];
   const privateStatus = sceneFields.characterPrivateStatuses[character.id];
@@ -157,13 +121,15 @@ const CharacterDetail = ({
     maxItems: 4,
   });
   const relationshipLines = splitLines(relationshipSummary);
-  const memoryLines = [
-    trimText(memory),
+  const memoryLines = unique([
+    trimText(activeRoom.cast.characterMemories[character.id]),
+    trimText(characterMemoryLayers?.required),
+    trimText(characterMemoryLayers?.public),
+    trimText(characterMemoryLayers?.known),
+    trimText(characterMemoryLayers?.privateSelf),
     privateKnowledge.length > 0 ? `已知信息：${privateKnowledge.join("、")}` : "",
-  ].filter(Boolean);
+  ]);
   const visualPreset = getVisualPreset(sceneFields.scenePresetId);
-  const actionButtonClassName =
-    "h-auto justify-start gap-3 border-current/15 bg-current/[0.055] px-3 py-2 text-left text-current hover:bg-current/10 hover:text-current dark:bg-current/[0.075]";
 
   return (
     <HoverCardContent
@@ -225,93 +191,6 @@ const CharacterDetail = ({
         <DetailSection icon={BookOpenText} title="角色记忆">
           <LineList lines={memoryLines} empty="暂无稳定记忆" />
         </DetailSection>
-
-        {(onAddMemory || onExtractMemory || onCompact || onRebuild) && (
-          <DetailSection icon={BriefcaseBusiness} title="角色工具">
-            <div className="grid gap-2 md:grid-cols-2">
-              {onAddMemory && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className={actionButtonClassName}
-                  disabled={isBusy || isCompacting || isRebuilding || isExtractingMemory}
-                  onClick={onAddMemory}
-                >
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                    <Plus className="size-4" />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-[13px] font-semibold">添加记忆</span>
-                    <span className="mt-0.5 block truncate text-[11px] font-normal text-current/70">
-                      手动追加角色记忆
-                    </span>
-                  </span>
-                </Button>
-              )}
-              {onExtractMemory && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className={actionButtonClassName}
-                  disabled={isBusy || isCompacting || isRebuilding || isExtractingMemory}
-                  onClick={onExtractMemory}
-                >
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                    {isExtractingMemory ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-[13px] font-semibold">从剧情整理</span>
-                    <span className="mt-0.5 block truncate text-[11px] font-normal text-current/70">
-                      生成待确认记忆草稿
-                    </span>
-                  </span>
-                </Button>
-              )}
-              {onCompact && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className={actionButtonClassName}
-                  disabled={isBusy || isCompacting || isRebuilding || isExtractingMemory}
-                  onClick={onCompact}
-                >
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                    {isCompacting ? <Loader2 className="size-4 animate-spin" /> : <RefreshCcw className="size-4" />}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-[13px] font-semibold">压缩角色知识</span>
-                    <span className="mt-0.5 block truncate text-[11px] font-normal text-current/70">
-                      控制底层角色上下文长度
-                    </span>
-                  </span>
-                </Button>
-              )}
-              {onRebuild && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className={actionButtonClassName}
-                  disabled={isBusy || isCompacting || isRebuilding || isExtractingMemory}
-                  onClick={onRebuild}
-                >
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                    {isRebuilding ? <Loader2 className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-[13px] font-semibold">重建记忆</span>
-                    <span className="mt-0.5 block truncate text-[11px] font-normal text-current/70">
-                      基于历史重建角色记忆
-                    </span>
-                  </span>
-                </Button>
-              )}
-            </div>
-          </DetailSection>
-        )}
       </div>
     </HoverCardContent>
   );
@@ -384,30 +263,12 @@ const CharacterCard = ({
   character,
   isActive,
   disabled,
-  memory,
-  isBusy,
-  isCompacting,
-  isRebuilding,
-  isExtractingMemory,
   onClick,
-  onAddMemory,
-  onExtractMemory,
-  onCompact,
-  onRebuild,
 }: {
   character: TavernCharacter;
   isActive: boolean;
   disabled: boolean;
-  memory: string;
-  isBusy: boolean;
-  isCompacting: boolean;
-  isRebuilding: boolean;
-  isExtractingMemory: boolean;
   onClick: () => void;
-  onAddMemory: () => void;
-  onExtractMemory: () => void;
-  onCompact: () => void;
-  onRebuild: () => void;
 }) => (
   <HoverCard openDelay={120} closeDelay={120}>
     <HoverCardTrigger asChild>
@@ -423,46 +284,21 @@ const CharacterCard = ({
         <CharacterCardContent character={character} isActive={isActive} />
       </button>
     </HoverCardTrigger>
-    <CharacterDetail
-      character={character}
-      memory={memory}
-      isBusy={isBusy}
-      isCompacting={isCompacting}
-      isRebuilding={isRebuilding}
-      isExtractingMemory={isExtractingMemory}
-      onAddMemory={onAddMemory}
-      onExtractMemory={onExtractMemory}
-      onCompact={onCompact}
-      onRebuild={onRebuild}
-    />
+    <CharacterDetail character={character} />
   </HoverCard>
 );
 
-export const CharacterStatusSection = ({
-  externalBusy,
-  onBusyChange,
-}: {
-  externalBusy: boolean;
-  onBusyChange?: (isBusy: boolean) => void;
-}) => {
+export const CharacterStatusSection = () => {
   const activeRoom = useTavernRoomContext((store) => store.activeRoom);
   const activeCharacter = useTavernRoomContext((store) => store.activeCharacter);
   const roomCharacters = useTavernRoomContext((store) => store.roomCharacters);
   const busy = useTavernRoomContext((store) => store.busy);
   const patchRoom = useTavernRoomContext((store) => store.patchRoom);
 
-  useEffect(() => {
-    onBusyChange?.(false);
-  }, [onBusyChange]);
-
   if (!activeRoom) {
     return null;
   }
   const isBusy = isTavernRoomBusy(busy);
-
-  const showRemovedActionToast = (label: string) => {
-    toast.info(`${label} 已暂时移除。`);
-  };
 
   return (
     <section className="space-y-3">
@@ -478,20 +314,11 @@ export const CharacterStatusSection = ({
               character={character}
               isActive={character.id === activeCharacter?.id}
               disabled={isBusy}
-              memory={buildTavernCharacterMemoryText(activeRoom, character)}
-              isBusy={externalBusy}
-              isCompacting={false}
-              isRebuilding={false}
-              isExtractingMemory={false}
               onClick={() =>
                 patchRoom(activeRoom.identity.id, (room) =>
                   patchTavernRuntimeActiveSceneFields(room, { activeCharacterId: character.id }),
                 )
               }
-              onAddMemory={() => showRemovedActionToast("添加角色记忆")}
-              onExtractMemory={() => showRemovedActionToast("从剧情整理角色记忆")}
-              onCompact={() => showRemovedActionToast("压缩角色知识")}
-              onRebuild={() => showRemovedActionToast("重建角色记忆")}
             />
           );
         })}

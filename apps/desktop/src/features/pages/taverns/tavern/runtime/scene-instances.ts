@@ -49,7 +49,6 @@ const createSceneInstanceFromScene = ({
         }),
       ]),
     ),
-    secretReveals: [],
   };
 };
 
@@ -102,7 +101,6 @@ export const buildNodeScopedSceneInstances = ({
           createEmptyCharacterMemoryLayers(layers),
         ]),
       ),
-      secretReveals: Array.isArray(instance.secretReveals) ? instance.secretReveals : [],
     });
   });
 
