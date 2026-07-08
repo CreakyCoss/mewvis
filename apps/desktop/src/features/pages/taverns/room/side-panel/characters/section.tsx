@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from "react";
+import { compact, uniq } from "lodash-es";
 import {
   BookOpenText,
   BriefcaseBusiness,
@@ -28,13 +29,14 @@ import { EmptyPanelCard, emptyValueText } from "../shared";
 
 const trimText = (value: string | undefined) => value?.trim() ?? "";
 
-const trimArray = (values: string[] | undefined) => values?.map((value) => value.trim()).filter(Boolean) ?? [];
+const trimArray = (values: string[] | undefined) => compact(values?.map((value) => value.trim()) ?? []);
 
 const splitLines = (value: string | undefined) =>
-  trimText(value)
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+  compact(
+    trimText(value)
+      .split(/\n+/)
+      .map((line) => line.trim()),
+  );
 
 const splitPhrases = (value: string | undefined) =>
   trimText(value)
@@ -43,7 +45,7 @@ const splitPhrases = (value: string | undefined) =>
     .filter((phrase) => phrase.length > 0 && phrase.length <= 8)
     .slice(0, 3);
 
-const unique = (values: string[]) => Array.from(new Set(values.filter(Boolean)));
+const unique = (values: string[]) => uniq(values.filter(Boolean));
 
 const Pill = ({ children }: { children: ReactNode }) => (
   <span className="max-w-full truncate rounded-md bg-primary/10 px-1.5 py-1 text-[11px] font-medium leading-none text-primary">

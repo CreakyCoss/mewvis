@@ -1,3 +1,4 @@
+import { clamp } from "lodash-es";
 import type { RuntimeModelInput } from "../../../../protocol/index.js";
 import { resolveRuntime } from "../../agent/runtimes/resolver.js";
 import type { ChatRunCommand } from "../../agent/runtimes/types.js";
@@ -68,8 +69,6 @@ const SUMMARY_SYSTEM_PROMPT = [
   "保留关键用户意图、助手结论、重要运行链路、编辑/删除/重建等事件。",
   "如果内容包含私密角色信息，按账本事实客观概括，不把摘要写成某个角色可见的上下文。",
 ].join("\n");
-
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 const createSummaryBudget = (
   model: RuntimeModelInput | null | undefined,

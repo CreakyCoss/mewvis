@@ -1,7 +1,11 @@
+import { uniq } from "lodash-es";
 import { normalizeVisualPresetId } from "../../tavern/visual-presets";
 import { createTavernId as createId, now } from "../../tavern/ids";
 import { normalizeStringRecord } from "../../tavern/normalizers/normalization";
-import { normalizeRoomCharacterConfigs, roomCharacterMemoriesFromConfigs } from "../../tavern/normalizers/room-character-configs";
+import {
+  normalizeRoomCharacterConfigs,
+  roomCharacterMemoriesFromConfigs,
+} from "../../tavern/normalizers/room-character-configs";
 import { normalizeSceneRelationshipOverrides } from "../../tavern/normalizers/relationships";
 import {
   normalizeCharacterPrivateStatuses,
@@ -10,10 +14,7 @@ import {
   normalizeReplyOption,
   normalizeSceneStatus,
 } from "../../tavern/normalizers/scene-state-normalizers";
-import type {
-  TavernPendingInteraction,
-  TavernReplyOption,
-} from "@/features/pages/taverns/manage/model";
+import type { TavernPendingInteraction, TavernReplyOption } from "@/features/pages/taverns/manage/model";
 import type { TavernScene } from "@/features/pages/taverns/room/model";
 
 export const defaultSceneTitle = "默认场景";
@@ -27,7 +28,7 @@ const normalizeSceneCharacterIds = (characterIds: unknown) => {
     ? characterIds.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
     : [];
 
-  return [...new Set(ids)];
+  return uniq(ids);
 };
 
 const numberOrDefault = (value: unknown, defaultValue: number) => (typeof value === "number" ? value : defaultValue);

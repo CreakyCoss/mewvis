@@ -1,4 +1,5 @@
 import type { MutableRefObject } from "react";
+import { uniq } from "lodash-es";
 import type { AgentClient } from "@/agent-client/types";
 import { requireRuntimeModelInput } from "@/features/pages/settings/llm/store";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
@@ -68,7 +69,7 @@ export const runAgentTurn = async (
   prepareActiveAgentRun({
     messageId: assistantMessageId,
   });
-  const allowedToolsForRun = [...new Set(allowedAgentTools)];
+  const allowedToolsForRun = uniq(allowedAgentTools);
   const task = await agentClient.agent.run({
     workspacePath: workspace.path,
     sessionRootDir: createAgentSessionRootDir(nextSessionId),

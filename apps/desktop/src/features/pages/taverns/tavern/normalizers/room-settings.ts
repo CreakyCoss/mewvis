@@ -1,49 +1,11 @@
+import { cloneDeep } from "lodash-es";
 import { createTavernDirectorProfileFromCharacters, normalizeTavernDirectorProfile } from "../core/scheduling-profile";
 import { DEFAULT_TAVERN_ROOM_SETTINGS } from "../defaults";
 import { clampInteger } from "./normalization";
 import { normalizeTavernQualityRuleIds } from "../prompt-registry/rule-layers/resolver";
 import type { TavernCharacter, TavernDirectorProfile, TavernRoomSettings } from "@/features/pages/taverns/manage/model";
 
-const cloneTavernDirectorProfile = (profile: TavernDirectorProfile | undefined): TavernDirectorProfile | undefined =>
-  profile
-    ? {
-        ...profile,
-        globalGoals: [...profile.globalGoals],
-        globalRules: [...profile.globalRules],
-        characterProfiles: Object.fromEntries(
-          Object.entries(profile.characterProfiles).map(([characterId, characterProfile]) => [
-            characterId,
-            {
-              ...characterProfile,
-              interestTags: [...characterProfile.interestTags],
-              goalTags: [...characterProfile.goalTags],
-              knowledgeTags: [...characterProfile.knowledgeTags],
-              speechTriggers: [...characterProfile.speechTriggers],
-              silenceTriggers: [...characterProfile.silenceTriggers],
-            },
-          ]),
-        ),
-      }
-    : undefined;
-
-export const cloneDefaultRoomSettings = (): TavernRoomSettings => ({
-  immersiveDescriptionEnabled: DEFAULT_TAVERN_ROOM_SETTINGS.immersiveDescriptionEnabled,
-  directorMaxSpeakers: DEFAULT_TAVERN_ROOM_SETTINGS.directorMaxSpeakers,
-  directorLoop: { ...DEFAULT_TAVERN_ROOM_SETTINGS.directorLoop },
-  interactionQualityRuleIds: [...DEFAULT_TAVERN_ROOM_SETTINGS.interactionQualityRuleIds],
-  directorNarrativeControl: { ...DEFAULT_TAVERN_ROOM_SETTINGS.directorNarrativeControl },
-  directorScheduling: {
-    ...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling,
-    speakerMotivation: {
-      ...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.speakerMotivation,
-      rules: DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.speakerMotivation.rules.map((rule) => ({ ...rule })),
-    },
-    profile: cloneTavernDirectorProfile(DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.profile),
-    fixedOrder: {
-      ...DEFAULT_TAVERN_ROOM_SETTINGS.directorScheduling.fixedOrder,
-    },
-  },
-});
+export const cloneDefaultRoomSettings = (): TavernRoomSettings => cloneDeep(DEFAULT_TAVERN_ROOM_SETTINGS);
 
 const normalizeDirectorScheduling = (
   value: unknown,
@@ -129,7 +91,7 @@ const normalizeDirectorScheduling = (
               ];
             })
             .slice(0, 12)
-        : defaults.speakerMotivation.rules.map((rule) => ({ ...rule })),
+        : cloneDeep(defaults.speakerMotivation.rules),
     },
     profile: normalizeTavernDirectorProfile(candidate.profile, {
       characters: options.characters,

@@ -1,3 +1,4 @@
+import { uniq } from "lodash-es";
 import { createTavernId as createId, now } from "../../tavern/ids";
 import { materializeTavernMessage } from "@/features/pages/taverns/room/message/domain/factory";
 import { normalizeReplyMode } from "../../tavern/normalizers/reply-mode";
@@ -6,7 +7,10 @@ import { normalizeRoomCharacterConfigs } from "../../tavern/normalizers/room-cha
 import { normalizeRoomSettings } from "../../tavern/normalizers/room-settings";
 import { normalizeRoomPresentation } from "../../tavern/presentation/presentation-settings";
 import { createDefaultPromptForPresentation } from "../../tavern/presentation/presentation-settings";
-import { createDefaultTavernPromptSettings, normalizeTavernPromptSettings } from "../../tavern/prompt-registry/text-blocks";
+import {
+  createDefaultTavernPromptSettings,
+  normalizeTavernPromptSettings,
+} from "../../tavern/prompt-registry/text-blocks";
 import { projectTavernSceneOntoRoom } from "../../tavern/runtime/active-scene-runtime";
 import { projectTavernSceneFieldsOntoRoom } from "../../tavern/runtime/scene-field-projection";
 import { buildTavernScene, defaultSceneTitle } from "@/features/pages/taverns/room/story-model/scene-builder";
@@ -25,7 +29,7 @@ import type {
 
 const trimText = (value: string | undefined | null) => value?.trim() ?? "";
 
-const unique = (items: string[]) => [...new Set(items.filter(Boolean))];
+const unique = (items: string[]) => uniq(items.filter(Boolean));
 
 const createTavernInputCharacter = (input: TavernPresentationCharacterInput, createdAt: number): TavernCharacter => ({
   id: trimText(input.id) || createId("character"),

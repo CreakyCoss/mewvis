@@ -1,3 +1,4 @@
+import { compact, uniq } from "lodash-es";
 import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 import type {
   TavernCharacterMemoryLayers,
@@ -11,27 +12,15 @@ const trimmed = (value: string | undefined) => value?.trim() ?? "";
 const getActiveSceneInstance = (room: TavernRoom): TavernSceneInstance | null =>
   room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId) ?? room.sceneInstances[0] ?? null;
 
-const uniqueBlocks = (values: Array<string | undefined>) => {
-  const seen = new Set<string>();
-  return values.flatMap((value) => {
-    const text = trimmed(value);
-    if (!text || seen.has(text)) {
-      return [];
-    }
-
-    seen.add(text);
-    return [text];
-  });
-};
+const uniqueBlocks = (values: Array<string | undefined>) => uniq(compact(values.map(trimmed)));
 
 const formatMemorySections = (sections: Array<{ title: string; values: Array<string | undefined> }>) => {
   const seen = new Set<string>();
 
   return sections
     .flatMap((section) => {
-      const lines = section.values.flatMap((value) => {
-        const text = trimmed(value);
-        if (!text || seen.has(text)) {
+      const lines = uniqueBlocks(section.values).flatMap((text) => {
+        if (seen.has(text)) {
           return [];
         }
 
@@ -77,24 +66,18 @@ export const buildTavernMemoryOverviewSummary = (
   const characterValues = characters.flatMap((character) => [
     ...visibleCharacterLayerValues(activeInstance?.characterMemoryLayers?.[character.id]),
   ]);
-  const seenLines = new Set<string>();
-
-  const lines = uniqueBlocks([room.memory, ...visibleSceneLayerValues(sceneLayers), ...characterValues])
-    .flatMap((block) => block.split(/\n+/))
-    .map((line) =>
-      line
-        .replace(/^#+\s*/, "")
-        .replace(/^【(.+)】$/, "$1")
-        .trim(),
-    )
-    .flatMap((line) => {
-      if (!line || seenLines.has(line)) {
-        return [];
-      }
-
-      seenLines.add(line);
-      return [line];
-    });
+  const lines = uniq(
+    compact(
+      uniqueBlocks([room.memory, ...visibleSceneLayerValues(sceneLayers), ...characterValues])
+        .flatMap((block) => block.split(/\n+/))
+        .map((line) =>
+          line
+            .replace(/^#+\s*/, "")
+            .replace(/^【(.+)】$/, "$1")
+            .trim(),
+        ),
+    ),
+  );
 
   return lines.length > 0 ? lines.join("；") : "";
 };

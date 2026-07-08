@@ -1,3 +1,4 @@
+import { uniq } from "lodash-es";
 import type { StoryJson } from "./types";
 
 export type StoryNodeProjection = {
@@ -109,7 +110,7 @@ export const buildStoryNodeProjection = (story: StoryJson, nodeId?: string | nul
 
 const compact = (value: string | undefined | null) => value?.trim() ?? "";
 
-const unique = (items: string[]) => [...new Set(items.filter(Boolean))];
+const unique = (items: string[]) => uniq(items.filter(Boolean));
 
 const getNode = (story: StoryJson, nodeId: string) =>
   story.graph.nodes.find((node) => node.id === nodeId) ??

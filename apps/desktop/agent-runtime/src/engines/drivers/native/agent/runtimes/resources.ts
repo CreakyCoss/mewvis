@@ -1,3 +1,4 @@
+import { uniq } from "lodash-es";
 import type { AgentRuntimeResources } from "../../../../protocol/index.js";
 import type { AgentRunCommand } from "./types.js";
 
@@ -31,5 +32,5 @@ export const runtimeSkillSourcePaths = (command: RuntimeResourceCommand) => {
     ...(skills?.paths ?? []),
   ];
 
-  return [...new Set(paths.filter(Boolean))];
+  return uniq(paths.filter(Boolean));
 };

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { clamp, keyBy, shuffle } from "lodash-es";
 import { X } from "lucide-react";
 import catFurnitureStackImageUrl from "./assets/generated/cat-furniture-stack.png";
 import mewvisOfficeImageUrl from "./assets/mewvis-office.svg";
@@ -222,10 +223,7 @@ const PLAY_AREAS: OfficeLocation[] = [
 ];
 
 const LOCATIONS = [...WORKSTATIONS, ...PLAY_AREAS];
-const LOCATION_BY_ID = Object.fromEntries(LOCATIONS.map((location) => [location.id, location])) as Record<
-  LocationId,
-  OfficeLocation
->;
+const LOCATION_BY_ID = keyBy(LOCATIONS, "id") as Record<LocationId, OfficeLocation>;
 const SCREEN_TEXTURES = [
   { id: "document", kind: "work", src: screenDocumentImageUrl },
   { id: "video", kind: "video", src: screenVideoImageUrl },
@@ -236,10 +234,7 @@ const SCREEN_TEXTURES = [
   { id: "media", kind: "video", src: screenMediaImageUrl },
 ] satisfies ScreenTexture[];
 const SCREEN_TEXTURE_IDS = SCREEN_TEXTURES.map((texture) => texture.id);
-const SCREEN_TEXTURE_BY_ID = Object.fromEntries(SCREEN_TEXTURES.map((texture) => [texture.id, texture])) as Record<
-  ScreenTextureId,
-  ScreenTexture
->;
+const SCREEN_TEXTURE_BY_ID = keyBy(SCREEN_TEXTURES, "id") as Record<ScreenTextureId, ScreenTexture>;
 
 const FIXED_OFFICE_CATS: OfficeCat[] = [
   {
@@ -342,16 +337,7 @@ const RANDOM_CAT_TEMPLATES: RandomCatTemplate[] = [
 
 const randomItem = <T,>(items: T[]) => items[Math.floor(Math.random() * items.length)];
 
-const shuffleItems = <T,>(items: T[]) => {
-  const next = [...items];
-  for (let index = next.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
-    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
-  }
-  return next;
-};
-
-const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+const shuffleItems = <T,>(items: T[]) => shuffle(items);
 
 const getNextMoveDelay = () =>
   MIN_CAT_MOVE_DELAY_MS + Math.floor(Math.random() * (MAX_CAT_MOVE_DELAY_MS - MIN_CAT_MOVE_DELAY_MS));

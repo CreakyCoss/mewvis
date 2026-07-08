@@ -5,44 +5,6 @@ import { buildTavernScene, defaultSceneTitle } from "@/features/pages/taverns/ro
 import { createDefaultStoryGraph } from "@/features/pages/taverns/room/story-model/story-graph";
 import type { TavernActiveRoomView } from ".";
 
-export const pickTavernRoomConfig = (room: TavernRoomConfig): TavernRoomConfig => ({
-  id: room.id,
-  workspaceId: room.workspaceId,
-  systemPresetId: room.systemPresetId,
-  systemPresetVersion: room.systemPresetVersion,
-  title: room.title,
-  presentation: { ...room.presentation },
-  prompt: {
-    version: 1,
-    blocks: room.prompt.blocks.map((block) => ({
-      ...block,
-      source: block.source ? { ...block.source } : undefined,
-    })),
-  },
-  creationSource: room.creationSource,
-  scenePresetId: room.scenePresetId,
-  replyMode: room.replyMode,
-  settings: {
-    immersiveDescriptionEnabled: room.settings.immersiveDescriptionEnabled,
-    directorMaxSpeakers: room.settings.directorMaxSpeakers,
-    directorLoop: { ...room.settings.directorLoop },
-    interactionQualityRuleIds: [...room.settings.interactionQualityRuleIds],
-    directorNarrativeControl: { ...room.settings.directorNarrativeControl },
-    directorScheduling: {
-      ...room.settings.directorScheduling,
-      speakerMotivation: {
-        ...room.settings.directorScheduling.speakerMotivation,
-        rules: room.settings.directorScheduling.speakerMotivation.rules.map((rule) => ({ ...rule })),
-      },
-      fixedOrder: {
-        ...room.settings.directorScheduling.fixedOrder,
-      },
-    },
-  },
-  createdAt: room.createdAt,
-  updatedAt: room.updatedAt,
-});
-
 export const createTavernActiveRoomViewFromConfig = (room: TavernRoomConfig): TavernActiveRoomView => {
   const createdAt = typeof room.createdAt === "number" ? room.createdAt : Date.now();
   const updatedAt = typeof room.updatedAt === "number" ? room.updatedAt : createdAt;

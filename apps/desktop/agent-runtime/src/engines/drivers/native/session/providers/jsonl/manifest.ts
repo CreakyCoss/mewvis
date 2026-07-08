@@ -1,5 +1,6 @@
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { uniq } from "lodash-es";
 import type { RuntimeLedgerEntry } from "../../model/ledger.js";
 import { RuntimeLedgerStorage } from "./store.js";
 import { readRuntimeSessionTraceRecords, type RuntimeSessionTraceRecord } from "./trace.js";
@@ -48,9 +49,8 @@ const latestTimestamp = (timestamps: Array<string | null | undefined>) =>
     .sort()
     .at(-1) ?? null;
 
-const orderedUnique = (values: Array<string | null | undefined>) => [
-  ...new Set(values.filter((value): value is string => Boolean(value))),
-];
+const orderedUnique = (values: Array<string | null | undefined>) =>
+  uniq(values.filter((value): value is string => Boolean(value)));
 
 const collaborationRecordParts = (record: RuntimeSessionTraceRecord) => {
   if (record.type !== "collaboration_event" || !isRecord(record.event)) {

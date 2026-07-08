@@ -1,3 +1,4 @@
+import { uniq } from "lodash-es";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import {
   getTavernProtocolFieldLabels,
@@ -10,9 +11,7 @@ import {
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const uniqueLabels = (labels: string[]) =>
-  [...new Set(labels.map((label) => label.trim()).filter(Boolean))].sort(
-    (first, second) => second.length - first.length,
-  );
+  uniq(labels.map((label) => label.trim()).filter(Boolean)).sort((first, second) => second.length - first.length);
 
 export const cleanTavernReplyText = ({
   text,

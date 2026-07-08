@@ -1,3 +1,4 @@
+import { cloneDeep } from "lodash-es";
 import { getTavernPresentationProfile } from "./presentation-rules";
 import {
   DEFAULT_TAVERN_RULE_COMPOSITION_ID,
@@ -365,7 +366,7 @@ export const normalizeTavernPromptSettings = (
     version: 1,
     blocks: hasBlockArray
       ? blocks.sort((left, right) => left.order - right.order || left.label.localeCompare(right.label))
-      : fallback.blocks.map((block) => ({ ...block, source: block.source ? { ...block.source } : undefined })),
+      : cloneDeep(fallback.blocks),
   };
 };
 

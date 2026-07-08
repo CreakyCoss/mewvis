@@ -1,3 +1,4 @@
+import { cloneDeep } from "lodash-es";
 import { MODEL_PROVIDER_CONFIG } from "./config.js";
 import { RAW_MODEL_CATALOG } from "./data.js";
 import type {
@@ -55,7 +56,7 @@ const buildCatalogProvider = (
   return {
     models,
     websiteUrl: catalogConfig.websiteUrl,
-    apis: catalogConfig.apis.map((api) => ({ ...api })),
+    apis: cloneDeep(catalogConfig.apis),
   };
 };
 

@@ -1,14 +1,10 @@
+import { clamp } from "lodash-es";
 import { Box, Clapperboard, Gauge, Settings2, UsersRound } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { TavernRoom, TavernRoomSettings } from "@/features/pages/taverns/manage/model";
-import {
-  EditorField,
-  EditorMetricStrip,
-  EditorSection,
-  EditorSettingGroup,
-} from "../../primitives";
+import { EditorField, EditorMetricStrip, EditorSection, EditorSettingGroup } from "../../primitives";
 import type { ModuleSave } from "../types";
 
 type SettingsSectionProps = {
@@ -42,7 +38,7 @@ const clampInteger = (value: number, fallback: number, min: number, max: number)
     return fallback;
   }
 
-  return Math.min(max, Math.max(min, Math.round(value)));
+  return clamp(Math.round(value), min, max);
 };
 
 export const SettingsSection = ({ data, globalRuntimeModel, onSave }: SettingsSectionProps) => {
@@ -134,7 +130,8 @@ export const SettingsSection = ({ data, globalRuntimeModel, onSave }: SettingsSe
                 className={editorControlClassName}
                 onChange={(event) =>
                   saveNarrativeControl({
-                    responseScale: event.target.value as TavernRoomSettings["directorNarrativeControl"]["responseScale"],
+                    responseScale: event.target
+                      .value as TavernRoomSettings["directorNarrativeControl"]["responseScale"],
                   })
                 }
               >

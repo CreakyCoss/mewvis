@@ -1,9 +1,5 @@
-import type {
-  TavernPromptBlock,
-  TavernReplyMode,
-  TavernRoom,
-  TavernRoomSettings,
-} from "@/features/pages/taverns/manage/model";
+import { cloneDeep } from "lodash-es";
+import type { TavernReplyMode, TavernRoom, TavernRoomSettings } from "@/features/pages/taverns/manage/model";
 
 export const replyModeOptions: Array<{
   value: TavernReplyMode;
@@ -29,62 +25,17 @@ export const getErrorMessage = (error: unknown) => {
   return "未知错误";
 };
 
-const cloneTavernDirectorProfile = (
-  profile: TavernRoomSettings["directorScheduling"]["profile"],
-): TavernRoomSettings["directorScheduling"]["profile"] =>
-  profile
-    ? {
-        ...profile,
-        globalGoals: [...profile.globalGoals],
-        globalRules: [...profile.globalRules],
-        characterProfiles: Object.fromEntries(
-          Object.entries(profile.characterProfiles).map(([characterId, characterProfile]) => [
-            characterId,
-            {
-              ...characterProfile,
-              interestTags: [...characterProfile.interestTags],
-              goalTags: [...characterProfile.goalTags],
-              knowledgeTags: [...characterProfile.knowledgeTags],
-              speechTriggers: [...characterProfile.speechTriggers],
-              silenceTriggers: [...characterProfile.silenceTriggers],
-            },
-          ]),
-        ),
-      }
-    : undefined;
+export const cloneTavernRoomSettings = (settings: TavernRoomSettings): TavernRoomSettings => cloneDeep(settings);
 
-export const cloneTavernRoomSettings = (settings: TavernRoomSettings): TavernRoomSettings => ({
-  immersiveDescriptionEnabled: settings.immersiveDescriptionEnabled,
-  directorMaxSpeakers: settings.directorMaxSpeakers,
-  directorLoop: { ...settings.directorLoop },
-  interactionQualityRuleIds: [...settings.interactionQualityRuleIds],
-  directorNarrativeControl: { ...settings.directorNarrativeControl },
-  directorScheduling: {
-    ...settings.directorScheduling,
-    speakerMotivation: {
-      ...settings.directorScheduling.speakerMotivation,
-      rules: settings.directorScheduling.speakerMotivation.rules.map((rule) => ({ ...rule })),
+export const cloneTavernRoom = (room: TavernRoom): TavernRoom => {
+  const clonedRoom = cloneDeep(room);
+  return {
+    ...clonedRoom,
+    prompt: {
+      ...clonedRoom.prompt,
+      version: 1,
     },
-    profile: cloneTavernDirectorProfile(settings.directorScheduling.profile),
-    fixedOrder: {
-      ...settings.directorScheduling.fixedOrder,
-    },
-  },
-});
-
-const cloneTavernPromptBlock = (block: TavernPromptBlock): TavernPromptBlock => ({
-  ...block,
-  source: block.source ? { ...block.source } : undefined,
-});
-
-export const cloneTavernRoom = (room: TavernRoom): TavernRoom => ({
-  ...room,
-  presentation: { ...room.presentation },
-  prompt: {
-    version: 1,
-    blocks: room.prompt.blocks.map(cloneTavernPromptBlock),
-  },
-  settings: cloneTavernRoomSettings(room.settings),
-});
+  };
+};
 
 export const prepareTavernRoomForSave = (room: TavernRoom): TavernRoom => cloneTavernRoom(room);

@@ -1,3 +1,4 @@
+import { uniq } from "lodash-es";
 import { collectUniqueTrimmedLines, getTavernBranchPathInstances } from "./branch-memory";
 import { createTavernId as createId } from "../ids";
 import { createEmptyCharacterMemoryLayers, createEmptySceneMemoryLayers } from "./memory-layers";
@@ -169,7 +170,7 @@ export const revealTavernSecretMemory = (
 
   const revealedAt = Date.now();
   const targetCharacterIds =
-    input.visibility === "character" ? Array.from(new Set((input.targetCharacterIds ?? []).filter(Boolean))) : [];
+    input.visibility === "character" ? uniq((input.targetCharacterIds ?? []).filter(Boolean)) : [];
   const reveal: TavernSecretReveal = {
     id: createId("secret-reveal"),
     secretId,

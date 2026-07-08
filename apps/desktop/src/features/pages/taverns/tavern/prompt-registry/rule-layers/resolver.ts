@@ -1,3 +1,4 @@
+import { flattenDeep, uniq } from "lodash-es";
 import { ciweimaoAcgFunRuleComposition } from "./compositions/ciweimao-acg-fun";
 import { fanqieFastHookRuleComposition } from "./compositions/fanqie-fast-hook";
 import { feiluHighConceptRuleComposition } from "./compositions/feilu-high-concept";
@@ -126,7 +127,7 @@ const TAVERN_RULE_COMPOSITIONS: TavernRuleComposition[] = [
   ciweimaoAcgFunRuleComposition,
 ].sort((left, right) => (left.order ?? 0) - (right.order ?? 0) || left.label.localeCompare(right.label));
 
-const flattenValues = (value: unknown): unknown[] => (Array.isArray(value) ? value.flatMap(flattenValues) : [value]);
+const flattenValues = (value: unknown): unknown[] => (Array.isArray(value) ? flattenDeep(value) : [value]);
 
 const createDefinitionMap = <TDefinition extends { id: string }>(
   definitions: TDefinition[],
@@ -142,11 +143,9 @@ const TAVERN_TABOO_RULE_BY_ID = createDefinitionMap(TAVERN_TABOO_RULES);
 const TAVERN_RULE_COMPOSITION_BY_ID = createDefinitionMap(TAVERN_RULE_COMPOSITIONS);
 
 const normalizeDefinitionIds = <TId extends string>(value: unknown, definitions: Map<TId, unknown>): TId[] =>
-  Array.from(
-    new Set(
-      flattenValues(value).flatMap((candidate) =>
-        typeof candidate === "string" && definitions.has(candidate as TId) ? [candidate as TId] : [],
-      ),
+  uniq(
+    flattenValues(value).flatMap((candidate) =>
+      typeof candidate === "string" && definitions.has(candidate as TId) ? [candidate as TId] : [],
     ),
   );
 

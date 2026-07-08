@@ -1,3 +1,4 @@
+import { uniq } from "lodash-es";
 import type { TavernMessage } from "../types";
 import type {
   TavernCharacter,
@@ -25,14 +26,12 @@ const trimLimited = (value: unknown, maxLength = PROFILE_TEXT_LIMIT) =>
 
 const normalizeStringList = (value: unknown, maxItems = PROFILE_TAG_LIMIT, maxLength = 36) =>
   Array.isArray(value)
-    ? [
-        ...new Set(
-          value.flatMap((item) => {
-            const text = trimLimited(item, maxLength);
-            return text ? [text] : [];
-          }),
-        ),
-      ].slice(0, maxItems)
+    ? uniq(
+        value.flatMap((item) => {
+          const text = trimLimited(item, maxLength);
+          return text ? [text] : [];
+        }),
+      ).slice(0, maxItems)
     : [];
 
 const normalizeSpeechBias = (
@@ -89,15 +88,13 @@ const textMatchesAnyTag = (text: string, tags: string[]) => {
 };
 
 const extractLooseTags = (text: string, maxItems = 6) =>
-  [
-    ...new Set(
-      text
-        .split(/[，,。；;、/｜|：:\n\r\t（）()[\]{}<>《》【】"'“”‘’!?！？\s]+/u)
-        .map((item) => item.trim())
-        .filter((item) => item.length >= 2 && item.length <= 12)
-        .filter((item) => !/^(一个|一种|当前|自己|角色|目标|关系|公开|回应|自然|保持)$/u.test(item)),
-    ),
-  ].slice(0, maxItems);
+  uniq(
+    text
+      .split(/[，,。；;、/｜|：:\n\r\t（）()[\]{}<>《》【】"'“”‘’!?！？\s]+/u)
+      .map((item) => item.trim())
+      .filter((item) => item.length >= 2 && item.length <= 12)
+      .filter((item) => !/^(一个|一种|当前|自己|角色|目标|关系|公开|回应|自然|保持)$/u.test(item)),
+  ).slice(0, maxItems);
 
 const inferSpeechBias = (character: TavernCharacter): TavernDirectorSpeechBias => {
   const relationshipText = formatTavernCharacterRelationships({ character });
@@ -319,7 +316,7 @@ const signalModes = ({
   if (score < 55) {
     modes.push("ambient");
   }
-  return [...new Set(modes)];
+  return uniq(modes);
 };
 
 export const buildTavernSchedulingSignals = ({
@@ -408,7 +405,7 @@ export const buildTavernSchedulingSignals = ({
         isDirectTarget,
         profile,
       }),
-      matchedRuleIds: [...new Set(matchedRuleIds)].slice(0, 8),
+      matchedRuleIds: uniq(matchedRuleIds).slice(0, 8),
     };
   });
 

@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { uniq } from "lodash-es";
 import { Activity, Folder, PanelRight } from "lucide-react";
 import { toast } from "sonner";
 import type { AgentToolSummary } from "@/agent-client/types";
@@ -72,7 +73,7 @@ const specialSkillGroupIds = new Set([ALL_SKILLS_GROUP_ID, NO_SKILLS_GROUP_ID]);
 
 const defaultSkillGroupSelection = (defaultSkillGroupId: string) => [defaultSkillGroupId || ALL_SKILLS_GROUP_ID];
 
-const uniqueSkillGroupIds = (ids: string[]) => [...new Set(ids.filter(Boolean))];
+const uniqueSkillGroupIds = (ids: string[]) => uniq(ids.filter(Boolean));
 
 const normalizeSkillGroupSelection = (ids: string[]) => {
   const uniqueIds = uniqueSkillGroupIds(ids);
@@ -209,7 +210,7 @@ export const WorkspaceChatPage = ({
         setAllowedAgentTools((current) => {
           const next = current.filter((toolName) => availableToolNames.has(toolName));
           if (next.length > 0) {
-            return [...new Set(next)];
+            return uniq(next);
           }
           return result.defaultToolNames.filter((toolName) => availableToolNames.has(toolName));
         });
@@ -568,7 +569,7 @@ export const WorkspaceChatPage = ({
   const toggleAllowedAgentTool = useCallback((toolId: string, enabled: boolean) => {
     setAllowedAgentTools((current) => {
       if (enabled) {
-        return current.includes(toolId) ? current : [...new Set([...current, toolId])];
+        return current.includes(toolId) ? current : uniq([...current, toolId]);
       }
 
       return current.filter((item) => item !== toolId);

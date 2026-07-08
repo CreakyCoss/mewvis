@@ -1,3 +1,5 @@
+import { uniq } from "lodash-es";
+
 export type AgentToolDefinition = Readonly<{
   name: string;
   label: string;
@@ -68,5 +70,5 @@ export const normalizeAllowedAgentTools = (tools: readonly string[] | undefined)
     return [...DEFAULT_ALLOWED_AGENT_TOOLS];
   }
 
-  return [...new Set(tools)] as AgentToolName[];
+  return uniq(tools) as AgentToolName[];
 };

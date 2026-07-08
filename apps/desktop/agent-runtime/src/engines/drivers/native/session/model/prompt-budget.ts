@@ -1,3 +1,4 @@
+import { clamp } from "lodash-es";
 import type { RuntimeMessage } from "./context.js";
 
 export type PromptModelContext = {
@@ -20,8 +21,6 @@ export type PromptLimits = {
 
 const DEFAULT_CONTEXT_WINDOW = 200000;
 const BASE_CONTEXT_WINDOW = 64000;
-
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 export const createPromptLimits = (modelContext?: PromptModelContext | null): PromptLimits => {
   const contextWindow = modelContext?.contextWindow ?? DEFAULT_CONTEXT_WINDOW;

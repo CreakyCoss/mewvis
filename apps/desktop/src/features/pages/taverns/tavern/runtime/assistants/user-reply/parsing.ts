@@ -1,3 +1,4 @@
+import { uniq } from "lodash-es";
 import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
 
@@ -51,7 +52,7 @@ const normalizeReplyOptionIntent = (value: unknown): TavernReplyOption["intent"]
 
 const normalizeReplyOptionTargetCharacterIds = (value: unknown, characterIds: Set<string>) =>
   Array.isArray(value)
-    ? [...new Set(value.flatMap((item) => (typeof item === "string" && characterIds.has(item) ? [item] : [])))]
+    ? uniq(value.flatMap((item) => (typeof item === "string" && characterIds.has(item) ? [item] : [])))
     : [];
 
 export const parseSuggestions = (

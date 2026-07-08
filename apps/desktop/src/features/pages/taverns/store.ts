@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo } from "react";
+import { cloneDeep } from "lodash-es";
 import {
   requireRuntimeModelInput,
   type RuntimeModelOption,
@@ -127,7 +128,7 @@ export const useTavernManagement = ({ workspace, state, setState }: TavernManage
 
         const createdAt = Date.now();
         const copiedRoom: TavernRoom = {
-          ...structuredClone(currentSourceRoom),
+          ...cloneDeep(currentSourceRoom),
           id: createLocalId("room"),
           workspaceId: workspace.id,
           systemPresetId: undefined,

@@ -1,3 +1,4 @@
+import { cloneDeep } from "lodash-es";
 import type { RuntimeApiFormat } from "@/agent-client/types";
 import { getProviderApiFormats, getProviderOption, getProviderOptions } from "../options";
 import type { LlmProvider, LlmProviderConfig, LlmSettings, LlmSettingsConfig, ProviderModelConfig } from "../types";
@@ -145,10 +146,7 @@ export const validateLlmSettingsConfig = (draft: LlmSettingsConfig) => {
   return "";
 };
 
-export const cloneProviderConfig = (provider: LlmProviderConfig): LlmProviderConfig => ({
-  ...provider,
-  models: provider.models.map((model) => ({ ...model })),
-});
+export const cloneProviderConfig = (provider: LlmProviderConfig): LlmProviderConfig => cloneDeep(provider);
 
 export const toProviderConfig = (provider: LlmProvider) => {
   return toLlmSettingsConfig({ providers: [provider] }).providers[0] ?? null;

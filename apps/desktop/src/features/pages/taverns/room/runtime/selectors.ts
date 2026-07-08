@@ -1,11 +1,11 @@
+import { cloneDeep } from "lodash-es";
 import type { TavernRoom as TavernRoomConfig } from "@/features/pages/taverns/manage/model";
 import { projectTavernSceneOntoRoom } from "@/features/pages/taverns/tavern/runtime/active-scene-runtime";
 import { projectTavernSceneFieldsOntoRoom } from "@/features/pages/taverns/tavern/runtime/scene-field-projection";
-import { pickTavernRoomConfig } from "../model/runtime-room";
 import type { TavernRoomRuntime, TavernActiveRoomView } from "../model";
 
 export const createTavernRoomRuntimeFromView = (room: TavernActiveRoomView): TavernRoomRuntime => {
-  const roomConfig = pickTavernRoomConfig(room);
+  const roomConfig = cloneDeep(room) as TavernRoomConfig;
 
   return {
     version: 1,

@@ -17,6 +17,7 @@ import {
   Trash2,
   Wand2,
 } from "lucide-react";
+import { cloneDeep } from "lodash-es";
 import type { Ref } from "react";
 import { useImperativeHandle, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -233,10 +234,7 @@ const getGenerationContractLabel = (profileId: TavernPresentationProfileId) => {
 const sortPromptBlocks = (blocks: TavernPromptBlock[]) =>
   [...blocks].sort((left, right) => left.order - right.order || left.label.localeCompare(right.label));
 
-const clonePromptBlock = (block: TavernPromptBlock): TavernPromptBlock => ({
-  ...block,
-  source: block.source ? { ...block.source } : undefined,
-});
+const clonePromptBlock = (block: TavernPromptBlock): TavernPromptBlock => cloneDeep(block);
 
 const clonePromptSettings = (prompt: TavernRoomPromptSettings): TavernRoomPromptSettings => ({
   version: 1,
