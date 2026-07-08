@@ -1,5 +1,5 @@
 import { cloneDeep } from "lodash-es";
-import type { TavernReplyMode, TavernRoom, TavernRoomSettings } from "@/features/pages/taverns/manage/model";
+import type { TavernReplyMode, TavernRoom } from "@/features/pages/taverns/manage/model";
 
 export const replyModeOptions: Array<{
   value: TavernReplyMode;
@@ -14,18 +14,6 @@ export const editorControlClassName = "w-full bg-background/80 shadow-none";
 
 export const getReplyModeLabel = (replyMode: TavernReplyMode) =>
   replyModeOptions.find((option) => option.value === replyMode)?.label ?? "导演调度";
-
-export const getErrorMessage = (error: unknown) => {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  if (typeof error === "string") {
-    return error;
-  }
-  return "未知错误";
-};
-
-export const cloneTavernRoomSettings = (settings: TavernRoomSettings): TavernRoomSettings => cloneDeep(settings);
 
 export const cloneTavernRoom = (room: TavernRoom): TavernRoom => {
   const clonedRoom = cloneDeep(room);

@@ -21,8 +21,6 @@ export const tavernBridgeSessionRootDir = (roomOrRoomId: TavernRoomRuntime | str
   return `tavern/${sanitizeAgentRoleSegment(roomOrRoomId.identity.id, "room")}/bridge`;
 };
 
-export const tavernBridgeSessionRootDirsForRoom = (room: TavernRoomRuntime) => [tavernBridgeSessionRootDir(room)];
-
 export const tavernDirectorAgentRoleId = (room: TavernRoomRuntime) =>
   `tavern-${sanitizeAgentRoleSegment(room.identity.id, "room")}-${tavernAgentScopeSegment(room)}-director`;
 
@@ -31,6 +29,3 @@ export const tavernCharacterAgentRoleId = (room: TavernRoomRuntime, character: P
     character.id,
     "character",
   )}`;
-
-export const tavernQuickReplyAgentRoleId = (room: TavernRoomRuntime) =>
-  `tavern-${sanitizeAgentRoleSegment(room.identity.id, "room")}-${tavernAgentScopeSegment(room)}-quick-reply`;

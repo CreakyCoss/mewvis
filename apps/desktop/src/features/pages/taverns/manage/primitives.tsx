@@ -104,30 +104,6 @@ export const EditorSettingGroup = ({
 export const editorHeaderActionButtonClassName =
   "h-8 gap-1.5 rounded-md border-primary/15 bg-primary/[0.06] px-2.5 text-xs font-medium text-primary shadow-none hover:border-primary/25 hover:bg-primary/10 hover:text-primary focus-visible:ring-primary/20 dark:border-primary/20 dark:bg-primary/12 dark:hover:bg-primary/18";
 
-export const editorQuietActionButtonClassName =
-  "h-7 gap-1 rounded-md border-border/60 bg-background/55 px-2 text-[11px] font-medium text-muted-foreground shadow-none hover:border-primary/20 hover:bg-primary/[0.06] hover:text-primary focus-visible:ring-primary/20 disabled:bg-transparent disabled:text-muted-foreground/45";
-
-export const editorPrimaryActionButtonClassName =
-  "h-7 gap-1 rounded-md border-primary/20 bg-primary/[0.08] px-2 text-[11px] font-medium text-primary shadow-none hover:border-primary/30 hover:bg-primary/12 hover:text-primary focus-visible:ring-primary/20 disabled:border-primary/15 disabled:bg-primary/[0.06] disabled:text-primary/70 disabled:opacity-100";
-
-export const editorDangerActionButtonClassName =
-  "h-7 gap-1 rounded-md border-transparent bg-transparent px-2 text-[11px] font-medium text-muted-foreground shadow-none hover:border-destructive/15 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/20";
-
-export const editorIconActionButtonClassName =
-  "size-7 rounded-md border border-transparent bg-transparent text-muted-foreground shadow-none hover:border-primary/15 hover:bg-primary/[0.07] hover:text-primary focus-visible:ring-primary/20";
-
-export const editorDangerIconActionButtonClassName =
-  "size-7 rounded-md border border-transparent bg-transparent text-muted-foreground shadow-none hover:border-destructive/15 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/20";
-
-export const editorListEntryTitleClassName = "min-w-0 truncate text-[13px] font-semibold leading-5 text-foreground/90";
-
-export const editorListEntryBodyClassName = "whitespace-pre-wrap text-[13px] leading-5 text-muted-foreground";
-
-export const editorListBadgeClassName = "h-[18px] px-1.5 text-[11px] font-medium leading-4";
-
-export const editorListKeywordClassName =
-  "rounded-full bg-muted/70 px-2 py-0.5 text-[11px] leading-4 text-muted-foreground";
-
 export const EditorSection = ({
   id,
   icon: Icon,

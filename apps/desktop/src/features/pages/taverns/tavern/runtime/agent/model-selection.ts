@@ -5,8 +5,6 @@ export type TavernResolvedCharacterModel = {
   source: "global";
 };
 
-export type TavernReplyModel = Pick<TavernResolvedCharacterModel, "runtimeModel">;
-
 export const resolveTavernCharacterModel = ({
   fallbackRuntimeModel,
 }: {

@@ -155,9 +155,6 @@ const normalizeTavernRuleCompositionId = (value: unknown): TavernPlatformStyleId
     ? (value as TavernPlatformStyleId)
     : DEFAULT_TAVERN_RULE_COMPOSITION_ID;
 
-export const normalizeTavernQualityRuleIds = (value: unknown): TavernQualityRuleId[] =>
-  normalizeDefinitionIds(value, TAVERN_QUALITY_RULE_BY_ID);
-
 export const getTavernRuleComposition = (value: unknown): TavernRuleComposition =>
   TAVERN_RULE_COMPOSITION_BY_ID.get(normalizeTavernRuleCompositionId(value)) ?? noneRuleComposition;
 
