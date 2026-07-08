@@ -154,7 +154,7 @@ export const StoryTavernSelectDialog = ({
                         <span className="flex min-w-0 items-center gap-2">
                           <span className="truncate text-sm font-semibold">{room.title}</span>
                           <span className="shrink-0 rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
-                            {room.systemPresetId ? "系统预设" : "用户酒馆"}
+                            用户酒馆
                           </span>
                         </span>
                         <span className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">

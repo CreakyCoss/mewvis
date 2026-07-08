@@ -76,13 +76,6 @@ export const TAVERN_QUALITY_RULES: TavernQualityRule[] = [
   reduceEmptyAmbienceQualityRule,
 ];
 
-export const DEFAULT_TAVERN_INTERACTION_QUALITY_RULE_IDS: TavernQualityRuleId[] = [
-  antiAiNaturalQualityRule.id,
-  naturalDialogueQualityRule.id,
-  conciseNoSummaryQualityRule.id,
-  reduceEmptyAmbienceQualityRule.id,
-];
-
 const TAVERN_NARRATIVE_STYLES: TavernNarrativeStyle[] = [
   webnovelHighDensityNarrativeStyle,
   emotionalPushPullNarrativeStyle,

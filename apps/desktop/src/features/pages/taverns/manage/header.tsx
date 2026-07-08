@@ -1,6 +1,5 @@
 import { BookOpen, Palette, ScrollText } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { TavernRoom } from "@/features/pages/taverns/manage/model";
@@ -39,14 +38,6 @@ export const Header = ({ data, onOpenStoryConfig }: HeaderProps) => {
           <div className="min-w-0 space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="truncate text-xl font-semibold leading-7">{data.title.trim() || emptyValueText}</h1>
-              {data.systemPresetId && (
-                <Badge
-                  variant="secondary"
-                  className="border border-primary/15 bg-primary/10 text-primary dark:border-primary/20 dark:bg-primary/15"
-                >
-                  系统预设
-                </Badge>
-              )}
             </div>
             <p className="line-clamp-2 max-w-2xl text-sm leading-6 text-muted-foreground">
               编辑酒馆呈现、提示词和调度策略；故事资产在独立故事页维护。

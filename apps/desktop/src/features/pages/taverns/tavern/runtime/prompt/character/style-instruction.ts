@@ -10,9 +10,9 @@ export const buildCharacterTurnStyleInstruction = ({
   speaker: TavernCharacter;
 }) => {
   const lines = [
-    room.presentation.settings.immersiveDescriptionEnabled === false
-      ? "当前房间关闭沉浸描写；动作和场景互动只在必要时简短使用。"
-      : "",
+    room.presentation.settings.immersiveDescriptionEnabled
+      ? ""
+      : "当前房间关闭沉浸描写；动作和场景互动只在必要时简短使用。",
   ];
 
   if (speaker.writingStyle) {

@@ -62,8 +62,6 @@ export const getTavernRoomConfig = (runtime: TavernRoomRuntime): TavernRoomConfi
   id: runtime.identity.id,
   workspaceId: runtime.identity.workspaceId,
   title: runtime.identity.title,
-  systemPresetId: runtime.identity.systemPresetId,
-  systemPresetVersion: runtime.identity.systemPresetVersion,
   creationSource: runtime.identity.creationSource,
   presentation: runtime.presentation.profile,
   prompt: runtime.presentation.prompt,

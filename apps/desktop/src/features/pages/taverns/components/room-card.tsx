@@ -3,9 +3,7 @@ import {
   Download,
   MoreHorizontal,
   Pencil,
-  RotateCcw,
   ScrollText,
-  Settings2,
   Trash2,
   TriangleAlertIcon,
   Wine,
@@ -42,10 +40,7 @@ type PendingDangerAction = {
 };
 
 type RoomCardProps = {
-  management: Pick<
-    TavernManagementValue,
-    "copyRoom" | "restoreSystemPresetRoom" | "deleteRoom" | "exportRoom"
-  >;
+  management: Pick<TavernManagementValue, "copyRoom" | "deleteRoom" | "exportRoom">;
   room: TavernRoom;
   openRoomEditor: (room: TavernRoom) => void;
   onOperationStatusChange?: (status: string) => void;
@@ -53,13 +48,11 @@ type RoomCardProps = {
 
 export const RoomCard = ({ management, room, openRoomEditor, onOperationStatusChange }: RoomCardProps) => {
   const [pendingDangerAction, setPendingDangerAction] = useState<PendingDangerAction | null>(null);
-  const { copyRoom, restoreSystemPresetRoom, deleteRoom, exportRoom } = management;
+  const { copyRoom, deleteRoom, exportRoom } = management;
   const visualPreset = getVisualPreset(room.scenePresetId);
   const enabledPromptBlockCount = room.prompt.blocks.filter((block) => block.enabled && block.text.trim()).length;
-  const interactionRuleCount = room.settings.interactionQualityRuleIds.length;
-  const roomBadgeClassName = room.systemPresetId
-    ? "border border-amber-200/45 bg-amber-950/75 text-amber-100 ring-amber-200/30 shadow-[0_12px_28px_-18px_rgb(245_158_11_/_0.95)]"
-    : "border border-teal-100/30 bg-slate-950/65 text-teal-50 ring-teal-100/24 shadow-[0_12px_28px_-18px_rgb(15_23_42_/_0.9)]";
+  const roomBadgeClassName =
+    "border border-teal-100/30 bg-slate-950/65 text-teal-50 ring-teal-100/24 shadow-[0_12px_28px_-18px_rgb(15_23_42_/_0.9)]";
   const coverStyle = {
     backgroundImage: `linear-gradient(180deg,rgba(8,13,12,0.18),rgba(8,13,12,0.26) 42%,rgba(8,13,12,0.46)), url(${visualPreset.tavern.backgroundImage})`,
     backgroundPosition: visualPreset.tavern.backgroundPosition,
@@ -112,28 +105,6 @@ export const RoomCard = ({ management, room, openRoomEditor, onOperationStatusCh
     }
   };
 
-  const handleRestoreSystemPresetRoom = () => {
-    if (!room.systemPresetId) {
-      return;
-    }
-
-    requestDangerAction({
-      title: "恢复默认",
-      description: `恢复「${room.title}」为系统默认？当前房间配置会被系统预设覆盖。`,
-      confirmLabel: "恢复默认",
-      onConfirm: () => {
-        void restoreSystemPresetRoom(room.id).then((applied) => {
-          if (!applied) {
-            setOperationStatus(`恢复「${room.title}」默认内容失败`);
-            return;
-          }
-
-          setOperationStatus(`已恢复「${room.title}」默认内容`);
-        });
-      },
-    });
-  };
-
   const handleDeleteRoom = () => {
     requestDangerAction({
       title: "删除酒馆",
@@ -164,7 +135,7 @@ export const RoomCard = ({ management, room, openRoomEditor, onOperationStatusCh
               roomBadgeClassName,
             )}
           >
-            {room.systemPresetId ? "系统预设" : visualPreset.label}
+            {visualPreset.label}
           </span>
           <div className="absolute inset-x-0 -bottom-6 flex justify-start px-4">
             <div className="flex min-w-0 items-end overflow-hidden pb-px">
@@ -179,7 +150,7 @@ export const RoomCard = ({ management, room, openRoomEditor, onOperationStatusCh
           <h3 className="min-w-0 text-xl font-semibold leading-7 line-clamp-2">{room.title}</h3>
           <p className="mt-1.5 min-h-5 line-clamp-1 text-xs leading-5 text-muted-foreground">{visualPreset.label}</p>
 
-          <div className="mt-2.5 grid grid-cols-3 gap-2 text-[11px] text-foreground/80">
+          <div className="mt-2.5 grid grid-cols-2 gap-2 text-[11px] text-foreground/80">
             <span className="inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border bg-muted/20 px-1.5">
               <Wine className="size-3.5 shrink-0" />
               <span className="truncate">{room.replyMode === "director" ? "导演调度" : "运行"}</span>
@@ -188,18 +159,6 @@ export const RoomCard = ({ management, room, openRoomEditor, onOperationStatusCh
               <ScrollText className="size-3.5 shrink-0" />
               <span className="truncate">{enabledPromptBlockCount} 提示词</span>
             </span>
-            <span className="inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border bg-muted/20 px-1.5">
-              <Settings2 className="size-3.5 shrink-0" />
-              <span className="truncate">{interactionRuleCount} 规则</span>
-            </span>
-          </div>
-
-          <div className="mt-2.5">
-            <div className="border-t pt-2.5">
-              <div className="line-clamp-2 min-h-10 text-xs leading-5 text-muted-foreground">
-                {room.settings.directorScheduling.instruction.trim() || "使用当前房间的默认导演调度策略"}
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -238,15 +197,6 @@ export const RoomCard = ({ management, room, openRoomEditor, onOperationStatusCh
                 <Download className="size-4" />
                 导出房间配置
               </DropdownMenuItem>
-              {room.systemPresetId && (
-                <DropdownMenuItem
-                  className="h-8 gap-2 rounded-md px-2 text-sm"
-                  onSelect={handleRestoreSystemPresetRoom}
-                >
-                  <RotateCcw className="size-4" />
-                  恢复默认
-                </DropdownMenuItem>
-              )}
               <DropdownMenuItem
                 variant="destructive"
                 className="h-8 gap-2 rounded-md px-2 text-sm"

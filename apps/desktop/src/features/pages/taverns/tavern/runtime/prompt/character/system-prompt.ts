@@ -6,10 +6,7 @@ import {
 import { appendReferencesToPrompt } from "@/features/ai/components/context-tools";
 import { getTavernPresentationContract } from "../../../presentation/presentation-contracts";
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
-import {
-  formatTavernInteractionQualityRulesForTarget,
-  formatTavernPromptBlocksForTarget,
-} from "../../../prompt-registry/text-blocks";
+import { formatTavernPromptBlocksForTarget } from "../../../prompt-registry/text-blocks";
 import type { TavernReferencedFile } from "../../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import {
@@ -63,11 +60,6 @@ const buildSavedPromptBlocksSection = ({
     }),
     formatTavernPromptBlocksForTarget({
       prompt: getTavernRoomPromptOverrides(room),
-      target: "character",
-      publicContentTag,
-    }),
-    formatTavernInteractionQualityRulesForTarget({
-      qualityRuleIds: room.presentation.settings.interactionQualityRuleIds,
       target: "character",
       publicContentTag,
     }),

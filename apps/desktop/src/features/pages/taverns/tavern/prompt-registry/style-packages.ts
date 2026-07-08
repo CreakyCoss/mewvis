@@ -28,7 +28,6 @@ export type TavernPromptStylePackage = {
   promptStyleId: TavernPromptStyleId;
   ruleCompositionId: TavernPlatformStyleId;
   qualityRuleIds: TavernQualityRuleId[];
-  immersiveDescriptionEnabled: boolean;
   characterStylePresetId: TavernCharacterStylePresetId;
   evaluationSummary: string;
   codexReviewScore: number;
@@ -49,7 +48,6 @@ const tavernPromptStylePackages = [
     promptStyleId: "novel",
     ruleCompositionId: "none",
     qualityRuleIds: [],
-    immersiveDescriptionEnabled: true,
     characterStylePresetId: "cinematic-inner",
     evaluationSummary: "硬指标 0.92 / 内容裁判 0.96。小说形态、场景承接和角色边界整体最稳。",
     codexReviewScore: 91,
@@ -66,7 +64,6 @@ const tavernPromptStylePackages = [
     promptStyleId: "grounded",
     ruleCompositionId: "none",
     qualityRuleIds: [],
-    immersiveDescriptionEnabled: true,
     characterStylePresetId: "restrained-realistic",
     evaluationSummary: "硬指标 0.90 / 内容裁判 0.92。写实克制，适合短篇和悬疑观察。",
     codexReviewScore: 90,
@@ -83,7 +80,6 @@ const tavernPromptStylePackages = [
     promptStyleId: "silent-law",
     ruleCompositionId: "none",
     qualityRuleIds: [],
-    immersiveDescriptionEnabled: true,
     characterStylePresetId: "cinematic-inner",
     evaluationSummary: "真实场景评估均分 0.79，2/3 有效裁判判可用。短段落达标，最长约 73 字；仍需加强长线主线钩。",
     codexReviewScore: 76,
@@ -100,7 +96,6 @@ const tavernPromptStylePackages = [
     promptStyleId: "dramatic",
     ruleCompositionId: "none",
     qualityRuleIds: [],
-    immersiveDescriptionEnabled: true,
     characterStylePresetId: "cinematic-inner",
     evaluationSummary:
       "真实场景评估均分 0.72，2/4 裁判判可用。短段落达标，最长约 89 字；外部压力改善，但仍需更强爆点。",
@@ -119,7 +114,6 @@ const tavernPromptStylePackages = [
     promptStyleId: "silent-law",
     ruleCompositionId: "none",
     qualityRuleIds: [],
-    immersiveDescriptionEnabled: true,
     characterStylePresetId: "cinematic-inner",
     evaluationSummary: "硬指标 0.90 / 内容裁判 0.88。镜头和线索张力强，适合悬疑场面。",
     codexReviewScore: 88,
@@ -136,7 +130,6 @@ const tavernPromptStylePackages = [
     promptStyleId: "novel",
     ruleCompositionId: "none",
     qualityRuleIds: [],
-    immersiveDescriptionEnabled: true,
     characterStylePresetId: "restrained-realistic",
     evaluationSummary: "硬指标 0.96 / 内容裁判 0.88。第三人称边界稳定，但仍需防止选项菜单化。",
     codexReviewScore: 86,
@@ -153,7 +146,6 @@ const tavernPromptStylePackages = [
     promptStyleId: "grounded",
     ruleCompositionId: "none",
     qualityRuleIds: [],
-    immersiveDescriptionEnabled: true,
     characterStylePresetId: "natural-roleplay",
     evaluationSummary: "硬指标 0.94 / 内容裁判 0.83。比轻快对话更稳，但 M2.7 仍需防菜单式收尾。",
     codexReviewScore: 82,
@@ -170,7 +162,6 @@ const tavernPromptStylePackages = [
     promptStyleId: "light-novel",
     ruleCompositionId: "none",
     qualityRuleIds: [],
-    immersiveDescriptionEnabled: true,
     characterStylePresetId: "light-banter",
     evaluationSummary: "硬指标 0.91 / 内容裁判 0.79。互动感强，但部分样本偏侦探报告。",
     codexReviewScore: 78,
@@ -187,7 +178,6 @@ const tavernPromptStylePackages = [
     promptStyleId: "grounded",
     ruleCompositionId: "none",
     qualityRuleIds: [],
-    immersiveDescriptionEnabled: true,
     characterStylePresetId: "restrained-realistic",
     evaluationSummary: "硬指标 0.97 / 内容裁判 0.79。动作和空间明确，但第三人称纯度波动更大。",
     codexReviewScore: 82,
@@ -218,9 +208,11 @@ export const getTavernPromptStylePackage = (value: unknown): TavernPromptStylePa
 export const createTavernPromptSettingsFromStylePackage = ({
   stylePackageId = DEFAULT_TAVERN_PROMPT_STYLE_PACKAGE_ID,
   presentationProfileId,
+  immersiveDescriptionEnabled = true,
 }: {
   stylePackageId?: TavernPromptStylePackageId;
   presentationProfileId?: TavernPresentationProfileId;
+  immersiveDescriptionEnabled?: boolean;
 } = {}): TavernRoomPromptSettings => {
   const stylePackage = getTavernPromptStylePackage(stylePackageId);
 
@@ -230,6 +222,6 @@ export const createTavernPromptSettingsFromStylePackage = ({
     systemNarrativePresetId: stylePackage.systemNarrativePresetId,
     ruleCompositionId: stylePackage.ruleCompositionId,
     qualityRuleIds: stylePackage.qualityRuleIds,
-    immersiveDescriptionEnabled: stylePackage.immersiveDescriptionEnabled,
+    immersiveDescriptionEnabled,
   });
 };

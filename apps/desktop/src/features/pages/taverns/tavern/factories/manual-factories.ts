@@ -10,6 +10,7 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
   const createdAt = now();
   const roomId = createId("room");
   const presentation = createDefaultTavernPresentation();
+  const settings = cloneDefaultRoomSettings();
 
   return {
     id: roomId,
@@ -18,9 +19,9 @@ export const createTavernRoom = (workspaceId: string, index: number): TavernRoom
     creationSource: "manual",
     scenePresetId: DEFAULT_VISUAL_PRESET_ID,
     presentation,
-    prompt: createDefaultPromptForPresentation(presentation),
+    prompt: createDefaultPromptForPresentation(presentation, settings),
     replyMode: "director",
-    settings: cloneDefaultRoomSettings(),
+    settings,
     createdAt,
     updatedAt: createdAt,
   };

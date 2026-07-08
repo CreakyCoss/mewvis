@@ -1,4 +1,4 @@
-import { MessageSquareText, PanelTop, ScrollText, Settings2 } from "lucide-react";
+import { MessageSquareText, PanelTop, ScrollText, UsersRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getVisualPreset } from "../../../tavern/visual-presets";
@@ -22,14 +22,13 @@ const MetricCard = ({ icon: Icon, label, value }: { icon: LucideIcon; label: str
 export const BasicSummaryContent = ({ data, className }: { data: TavernRoom; className?: string }) => {
   const visualPreset = getVisualPreset(data.scenePresetId);
   const enabledPromptBlockCount = data.prompt.blocks.filter((block) => block.enabled && block.text.trim()).length;
-  const interactionRuleCount = data.settings.interactionQualityRuleIds.length;
 
   return (
     <div className={cn("grid gap-2 sm:grid-cols-2 xl:grid-cols-4", className)}>
       <MetricCard icon={PanelTop} label="默认视觉" value={visualPreset.label} />
       <MetricCard icon={MessageSquareText} label="回复模式" value={getReplyModeLabel(data.replyMode ?? "director")} />
       <MetricCard icon={ScrollText} label="启用提示词" value={`${enabledPromptBlockCount} 块`} />
-      <MetricCard icon={Settings2} label="交互规则" value={`${interactionRuleCount} 项`} />
+      <MetricCard icon={UsersRound} label="导演人数" value={`${data.settings.directorMaxSpeakers} 人`} />
     </div>
   );
 };

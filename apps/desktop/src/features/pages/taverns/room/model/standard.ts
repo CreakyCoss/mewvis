@@ -110,8 +110,6 @@ export type TavernRoomRuntime = {
     id: string;
     workspaceId: string;
     title: string;
-    systemPresetId?: string;
-    systemPresetVersion?: number;
     creationSource: TavernRoomConfig["creationSource"];
     createdAt: number;
     updatedAt: number;

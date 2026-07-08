@@ -32,7 +32,6 @@ export const CharacterMessage = ({
   const displayThought = immersiveDescriptionEnabled ? (thought?.trim() ?? "") : "";
   const displayContent = immersiveDescriptionEnabled ? content : stripTavernImmersiveDescriptionText(content);
   const copyContent = displayThought ? `心想：${displayThought}\n\n${displayContent}` : displayContent;
-  const immersiveDescriptionClassName = immersiveDescriptionEnabled ? "tavern-immersive-em" : undefined;
 
   if (!displayContent.trim() && !displayThought && !isError && !isStreaming) {
     return null;
@@ -77,7 +76,7 @@ export const CharacterMessage = ({
             <SmoothMarkdownContent
               className={immersiveDescriptionEnabled ? "tavern-immersive-markdown" : undefined}
               content={displayContent}
-              emClassName={immersiveDescriptionClassName}
+              emClassName={immersiveDescriptionEnabled ? "tavern-immersive-em" : undefined}
               isStreaming={isStreaming}
               separateEmphasisBlocks={immersiveDescriptionEnabled}
               variant="tavern"

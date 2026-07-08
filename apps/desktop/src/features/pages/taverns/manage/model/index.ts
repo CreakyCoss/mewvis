@@ -1,5 +1,4 @@
 import type { VisualPresetId } from "@/features/pages/taverns/tavern/visual-presets/types";
-import type { TavernQualityRuleId } from "@/features/pages/taverns/tavern/prompt-registry/rule-layers/types";
 
 export type TavernReplyMode = "director";
 
@@ -121,9 +120,6 @@ export type TavernSceneRelationshipOverride = {
 
 export type TavernCharacter = {
   id: string;
-  systemPresetId?: string;
-  systemPresetCharacterId?: string;
-  systemPresetVersion?: number;
   name: string;
   avatar: string;
   description: string;
@@ -134,42 +130,6 @@ export type TavernCharacter = {
   relationships: TavernCharacterRelationship[];
   createdAt: number;
   updatedAt: number;
-};
-
-export type TavernDirectorSpeechBias = "very_low" | "low" | "balanced" | "high" | "very_high";
-
-export type TavernDirectorReplyModePreference = "speech" | "nonverbal" | "ambient";
-
-export type TavernDirectorCharacterProfile = {
-  characterId: string;
-  temperament?: string;
-  speechBias: TavernDirectorSpeechBias;
-  nonverbalBias?: TavernDirectorSpeechBias;
-  interestTags: string[];
-  goalTags: string[];
-  knowledgeTags: string[];
-  conflictStyle?: string;
-  socialStrategy?: string;
-  speechTriggers: string[];
-  silenceTriggers: string[];
-  notes?: string;
-};
-
-export type TavernDirectorProfile = {
-  version: 1;
-  source: "system" | "preset" | "generated" | "manual";
-  globalGoals: string[];
-  globalRules: string[];
-  characterProfiles: Record<string, TavernDirectorCharacterProfile>;
-  updatedAt?: number;
-};
-
-export type TavernSchedulingSignal = {
-  characterId: string;
-  score: number;
-  reasons: string[];
-  suggestedModes: TavernDirectorReplyModePreference[];
-  matchedRuleIds: string[];
 };
 
 export type TavernLorebookEntry = {
@@ -187,42 +147,12 @@ export type TavernRoomSettings = {
   immersiveDescriptionEnabled: boolean;
   directorMaxSpeakers: number;
   directorLoop: {
-    enabled: boolean;
     maxRounds: number;
   };
-  interactionQualityRuleIds: TavernQualityRuleId[];
   directorNarrativeControl: {
     agencyMode: "player_protagonist" | "story_directive" | "scene_drive";
     responseScale: "focused" | "balanced" | "ensemble";
     narratorPressure: "low" | "balanced" | "high";
-    eventInterruption: "off" | "auto" | "forceOnStall";
-    userActionConsequence: "light" | "visible" | "strict";
-    mainHook: "off" | "auto" | "forceOnStall";
-    qnaBreak: "off" | "auto" | "aggressive";
-  };
-  directorScheduling: {
-    targetedReplyPolicy: "director" | "prefer" | "include" | "exclusive";
-    maxExtraSpeakersOnTargetedReply: number;
-    allowDirectorOnly: boolean;
-    speakerMotivation: {
-      enabled: boolean;
-      maxMotivatedSpeakers: number;
-      rules: Array<{
-        id: string;
-        label: string;
-        when: string;
-        priority: number;
-        instruction: string;
-      }>;
-    };
-    profile?: TavernDirectorProfile;
-    fixedOrder: {
-      enabled: boolean;
-      stopAfterRound: boolean;
-      includeUser: boolean;
-      userPosition: "first" | "last";
-    };
-    instruction: string;
   };
 };
 
@@ -287,8 +217,6 @@ export type TavernReplyOption = {
 export type TavernRoom = {
   id: string;
   workspaceId: string;
-  systemPresetId?: string;
-  systemPresetVersion?: number;
   title: string;
   presentation: TavernPresentationSettings;
   prompt: TavernRoomPromptSettings;

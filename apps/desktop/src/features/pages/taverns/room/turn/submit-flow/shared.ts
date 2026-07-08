@@ -5,10 +5,8 @@ import type { TavernRoomStoreState } from "@/features/pages/taverns/room/context
 import { createTavernMessage } from "@/features/pages/taverns/room/message/domain/factory";
 import {
   isTavernCharacterAvailableForSpeech,
-  orderTavernRoundParticipants,
   orderTavernRoundSpeakers,
 } from "@/features/pages/taverns/tavern/core/turn-order";
-import { isTavernFixedOrderPhase } from "@/features/pages/taverns/tavern/core/director-scheduling";
 import { resolveTavernCharacterModel } from "@/features/pages/taverns/tavern/runtime/agent/model-selection";
 import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
@@ -101,44 +99,18 @@ export const resolveTurnMode = (triggerType: TurnTriggerType = "user"): TurnMode
 };
 
 export const resolveSubmitSpeakerPlan = ({
-  room,
   characters,
   activeCharacter,
 }: {
-  room: TavernRoomRuntime;
   characters: TavernCharacter[];
   activeCharacter: TavernCharacter | null;
 }): SubmitSpeakerPlan => {
-  const settings = room.presentation.settings;
-  const fixedOrderSettings = settings.directorScheduling.fixedOrder;
-  const fixedOrderParticipants =
-    isTavernFixedOrderPhase(settings) && fixedOrderSettings.includeUser
-      ? orderTavernRoundParticipants({
-          settings,
-          characters,
-          activeCharacterId: activeCharacter?.id,
-          includeUser: true,
-          userPosition: fixedOrderSettings.userPosition,
-          userPersonaName: room.user.personaName,
-        })
-      : [];
-  const fixedOrderUserIndex = fixedOrderParticipants.findIndex((participant) => participant.type === "user");
-  const fixedOrderCharactersAfterUser =
-    fixedOrderUserIndex >= 0
-      ? fixedOrderParticipants
-          .slice(fixedOrderUserIndex + 1)
-          .flatMap((participant) => (participant.type === "character" ? [participant.character] : []))
-      : [];
-  const availableRoomCharacters =
-    fixedOrderUserIndex >= 0
-      ? fixedOrderCharactersAfterUser
-      : orderTavernRoundSpeakers({
-          settings,
-          characters,
-          activeCharacterId: activeCharacter?.id,
-        });
+  const availableRoomCharacters = orderTavernRoundSpeakers({
+    characters,
+    activeCharacterId: activeCharacter?.id,
+  });
   const availableActiveCharacter =
-    activeCharacter && isTavernCharacterAvailableForSpeech(settings, activeCharacter)
+    activeCharacter && isTavernCharacterAvailableForSpeech(activeCharacter)
       ? activeCharacter
       : (availableRoomCharacters[0] ?? null);
   const candidateSpeakers = availableRoomCharacters;
@@ -147,7 +119,7 @@ export const resolveSubmitSpeakerPlan = ({
     availableRoomCharacters,
     availableActiveCharacter,
     candidateSpeakers,
-    canSubmitFixedOrderUserOnlyTurn: fixedOrderUserIndex >= 0 && fixedOrderCharactersAfterUser.length === 0,
+    canSubmitFixedOrderUserOnlyTurn: false,
   };
 };
 

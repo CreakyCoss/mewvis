@@ -4,10 +4,7 @@ import {
   type TavernRoomRuntime,
 } from "@/features/pages/taverns/room/model";
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
-import {
-  formatTavernInteractionQualityRulesForTarget,
-  formatTavernPromptBlocksForTarget,
-} from "../../../prompt-registry/text-blocks";
+import { formatTavernPromptBlocksForTarget } from "../../../prompt-registry/text-blocks";
 
 import { buildPresentationProfileSection } from "../layers/presentation";
 import { renderTavernPromptSections, type TavernPromptSection } from "../shared/sections";
@@ -44,10 +41,6 @@ export const buildTavernBridgeSystemPrompt = (room: TavernRoomRuntime) => {
         }),
         formatTavernPromptBlocksForTarget({
           prompt: activePromptOverrides,
-          target: "bridge",
-        }),
-        formatTavernInteractionQualityRulesForTarget({
-          qualityRuleIds: room.presentation.settings.interactionQualityRuleIds,
           target: "bridge",
         }),
       ]

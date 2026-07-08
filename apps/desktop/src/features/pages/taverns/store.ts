@@ -4,8 +4,6 @@ import { cloneDeep } from "lodash-es";
 import { type RuntimeModelOption, useLlmSettingsStore } from "@/features/pages/settings/llm/store";
 import type { Workspace } from "@/features/pages/workspace/types";
 import { createTavernRoom } from "./tavern/factories/manual-factories";
-import { createTavernRoomFromSystemPreset } from "./tavern/factories/system-preset-room";
-import { getTavernSystemPreset } from "./tavern/system-preset-registry";
 import type { TavernState } from "./tavern/types";
 import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 
@@ -23,7 +21,6 @@ export type TavernManagementValue = {
   createRoom: () => TavernRoom | void;
   patchRoom: (roomId: string, patch: Partial<TavernRoom>) => void;
   copyRoom: (roomId: string) => boolean;
-  restoreSystemPresetRoom: (roomId: string) => Promise<boolean>;
   deleteRoom: (roomId: string) => boolean;
   exportRoom: (roomId: string) => boolean;
   globalRuntimeModel: RuntimeModelOption | null;
@@ -117,8 +114,6 @@ export const useTavernManagement = ({ workspace, state, setState }: TavernManage
           ...cloneDeep(currentSourceRoom),
           id: createLocalId("room"),
           workspaceId: workspace.id,
-          systemPresetId: undefined,
-          systemPresetVersion: undefined,
           presentation: { ...sourceRoom.presentation },
           title: `${currentSourceRoom.title}（副本）`,
           createdAt,
@@ -128,36 +123,6 @@ export const useTavernManagement = ({ workspace, state, setState }: TavernManage
         return {
           ...current,
           rooms: [...current.rooms, copiedRoom],
-        };
-      });
-      return true;
-    },
-    [setState, state.rooms, workspace.id],
-  );
-
-  const restoreSystemPresetRoom = useCallback(
-    async (roomId: string) => {
-      const room = state.rooms.find((item) => item.id === roomId);
-      const preset = getTavernSystemPreset(room?.systemPresetId);
-      if (!room || !preset) {
-        return false;
-      }
-
-      setState((current) => {
-        const sourceRoom = current.rooms.find((item) => item.id === roomId);
-        const sourcePreset = getTavernSystemPreset(sourceRoom?.systemPresetId);
-        if (!sourceRoom || !sourcePreset) {
-          return current;
-        }
-
-        const restored = createTavernRoomFromSystemPreset(workspace.id, sourcePreset.id, {
-          roomId: sourceRoom.id,
-          roomCreatedAt: sourceRoom.createdAt,
-        });
-
-        return {
-          ...current,
-          rooms: current.rooms.map((item) => (item.id === sourceRoom.id ? restored.room : item)),
         };
       });
       return true;
@@ -210,11 +175,10 @@ export const useTavernManagement = ({ workspace, state, setState }: TavernManage
       createRoom,
       patchRoom,
       copyRoom,
-      restoreSystemPresetRoom,
       deleteRoom,
       exportRoom,
       globalRuntimeModel: runtimeModel,
     }),
-    [copyRoom, createRoom, deleteRoom, exportRoom, patchRoom, restoreSystemPresetRoom, runtimeModel, state.rooms],
+    [copyRoom, createRoom, deleteRoom, exportRoom, patchRoom, runtimeModel, state.rooms],
   );
 };

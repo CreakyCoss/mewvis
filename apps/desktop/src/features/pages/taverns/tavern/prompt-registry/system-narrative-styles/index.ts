@@ -52,11 +52,10 @@ export const formatTavernSystemNarrativeCharacterRules = ({
     return withPublicContentTag(preset.characterRules.narrativeBeat, publicContentTag);
   }
 
-  if (immersiveDescriptionEnabled) {
-    return withPublicContentTag(preset.characterRules.dialogueImmersive, publicContentTag);
-  }
-
-  return withPublicContentTag(preset.characterRules.dialoguePlain, publicContentTag);
+  return withPublicContentTag(
+    immersiveDescriptionEnabled ? preset.characterRules.dialogueImmersive : preset.characterRules.dialoguePlain,
+    publicContentTag,
+  );
 };
 
 export const formatTavernSystemNarrativePresetForPrompt = ({

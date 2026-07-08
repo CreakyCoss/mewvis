@@ -1,7 +1,8 @@
 import { clamp } from "lodash-es";
-import { Box, Clapperboard, Gauge, Settings2, UsersRound } from "lucide-react";
+import { Box, Clapperboard, Eye, Gauge, Settings2, UsersRound } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Switch } from "@/components/ui/switch";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { TavernRoom, TavernRoomSettings } from "@/features/pages/taverns/manage/model";
 import { EditorField, EditorMetricStrip, EditorSection, EditorSettingGroup } from "../../primitives";
@@ -63,7 +64,6 @@ export const SettingsSection = ({ data, globalRuntimeModel, onSave }: SettingsSe
     saveSettings({
       directorLoop: {
         ...data.settings.directorLoop,
-        enabled: true,
         ...patch,
       },
     });
@@ -91,12 +91,17 @@ export const SettingsSection = ({ data, globalRuntimeModel, onSave }: SettingsSe
           {
             icon: Clapperboard,
             label: "导演回环",
-            value: data.settings.directorLoop.enabled ? `${data.settings.directorLoop.maxRounds} 轮` : "单轮",
+            value: `${data.settings.directorLoop.maxRounds} 轮`,
           },
           {
             icon: Gauge,
             label: "控制权",
             value: agencyModeLabel[data.settings.directorNarrativeControl.agencyMode],
+          },
+          {
+            icon: Eye,
+            label: "沉浸描写",
+            value: data.settings.immersiveDescriptionEnabled ? "开启" : "关闭",
           },
         ]}
       />
@@ -198,6 +203,25 @@ export const SettingsSection = ({ data, globalRuntimeModel, onSave }: SettingsSe
                   </NativeSelectOption>
                 ))}
               </NativeSelect>
+            </EditorField>
+
+            <EditorField
+              label="沉浸描写"
+              htmlFor="tavern-settings-immersive-description"
+              description="控制角色回复中的动作标注、内心和沉浸式排版。"
+            >
+              <div className="flex h-10 items-center rounded-md border border-input bg-background/80 px-3">
+                <Switch
+                  id="tavern-settings-immersive-description"
+                  checked={data.settings.immersiveDescriptionEnabled}
+                  onCheckedChange={(checked) =>
+                    saveSettings({
+                      immersiveDescriptionEnabled: checked === true,
+                    })
+                  }
+                  aria-label="切换沉浸描写"
+                />
+              </div>
             </EditorField>
           </div>
         </EditorSettingGroup>

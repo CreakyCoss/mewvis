@@ -238,9 +238,6 @@ export const PromptSummaryContent = ({ data }: { data: TavernRoom }) => {
                 : "后续请求只使用系统合同和上下文资料。"}
             </p>
             <div className="flex flex-wrap gap-1.5 pt-1">
-              <EditorStatusPill tone={data.settings.immersiveDescriptionEnabled ? "active" : "muted"}>
-                沉浸描写{data.settings.immersiveDescriptionEnabled ? "开启" : "关闭"}
-              </EditorStatusPill>
               {sourceLabels.slice(0, 5).map((label) => (
                 <EditorStatusPill key={label} tone="info">
                   {label}

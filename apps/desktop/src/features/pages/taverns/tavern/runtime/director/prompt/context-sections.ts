@@ -78,8 +78,6 @@ export const buildTavernDirectorContextSections = ({
   lorebookText,
   storyGraphText,
   selectedTargetCharacterIds,
-  directorProfileText,
-  schedulingSignalsText,
   presentationProfile,
   promptBlocksText,
 }: {
@@ -93,8 +91,6 @@ export const buildTavernDirectorContextSections = ({
   lorebookText: string;
   storyGraphText: string;
   selectedTargetCharacterIds: string[];
-  directorProfileText: string;
-  schedulingSignalsText: string;
   presentationProfile: TavernPresentationProfile;
   promptBlocksText: string;
 }) => {
@@ -198,14 +194,6 @@ export const buildTavernDirectorContextSections = ({
           .join("\n\n---\n\n")
       : "（无）",
     "</selected_reply_targets>",
-    "",
-    '<director_profile instruction="stable_scheduling_profile; low_frequency; do_not_rewrite_in_this_turn">',
-    directorProfileText,
-    "</director_profile>",
-    "",
-    '<scheduling_signals instruction="dynamic_per_turn_recommendations; director_may_override_with_reason; do_not_leak_hidden_or_private_reasons">',
-    schedulingSignalsText || "[]",
-    "</scheduling_signals>",
     "",
     "<current_user_input>",
     isSceneDriveTurn ? "（本轮无用户输入）" : escapePromptXmlText(currentUserText),

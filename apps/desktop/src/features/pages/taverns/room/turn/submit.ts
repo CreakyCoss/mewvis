@@ -86,7 +86,6 @@ export const submitRoomTurn = async ({
   }
 
   const speakerPlan = resolveSubmitSpeakerPlan({
-    room: activeRoom,
     characters: roomCharacters,
     activeCharacter,
   });

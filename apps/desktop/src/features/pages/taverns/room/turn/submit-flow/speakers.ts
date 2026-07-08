@@ -242,7 +242,6 @@ const buildSpeakerReplyPlan = ({
 }): SpeakerReplyPlan => {
   const speakerRuntimeModel = requireSpeakerRuntimeModel(speaker);
   const nonverbalReplyAllowed = canTavernCharacterUseNonverbalReply({
-    settings: runtimeRoom.presentation.settings,
     characterId: speaker.id,
     selectedTargetCharacterIds: selectedReplyOption?.targetCharacterIds,
     directorNonverbalReplyIds,
@@ -740,7 +739,6 @@ const runSingleSpeakerReply = async ({
 }) => {
   const speakerRuntimeModel = requireSpeakerRuntimeModel(speaker);
   const nonverbalReplyAllowed = canTavernCharacterUseNonverbalReply({
-    settings: runtimeRoom.presentation.settings,
     characterId: speaker.id,
     selectedTargetCharacterIds: selectedReplyOption?.targetCharacterIds,
     directorNonverbalReplyIds,

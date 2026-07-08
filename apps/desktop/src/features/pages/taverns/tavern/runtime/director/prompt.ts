@@ -8,21 +8,9 @@ import {
   formatTavernStoryLorebookEntries,
   selectTavernStoryLorebookEntries,
 } from "../prompt/context/story";
-import {
-  buildTavernSchedulingSignals,
-  formatTavernDirectorProfileForPrompt,
-  formatTavernSchedulingSignalsForPrompt,
-} from "../../core/scheduling-profile";
-import {
-  canTavernSelectedTargetsStaySilent,
-  formatTavernDirectorSchedulingInstruction,
-  isTavernDirectorOnlyTurnAllowed,
-} from "../../core/director-scheduling";
+import { formatTavernDirectorSchedulingInstruction } from "../../core/director-scheduling";
 import { getTavernPresentationProfile } from "../../prompt-registry/presentation-rules";
-import {
-  formatTavernInteractionQualityRulesForTarget,
-  formatTavernPromptBlocksForTarget,
-} from "../../prompt-registry/text-blocks";
+import { formatTavernPromptBlocksForTarget } from "../../prompt-registry/text-blocks";
 import { buildTavernDirectorContextSections } from "./prompt/context-sections";
 import { buildTavernDirectorOutputContract } from "./prompt/contract";
 
@@ -77,41 +65,15 @@ export const buildTavernDirectorPromptContext = ({
       prompt: activePromptOverrides,
       target: "director",
     }),
-    formatTavernInteractionQualityRulesForTarget({
-      qualityRuleIds: room.presentation.settings.interactionQualityRuleIds,
-      target: "director",
-    }),
   ]
     .filter(Boolean)
     .join("\n\n");
-  const directorOnlyAllowed = isTavernDirectorOnlyTurnAllowed(room.presentation.settings);
   const schedulingInstruction = formatTavernDirectorSchedulingInstruction(room.presentation.settings);
-  const schedulingSignals = buildTavernSchedulingSignals({
-    settings: room.presentation.settings,
-    characters,
-    messages,
-    currentUserText,
-    selectedTargetCharacterIds,
-  });
-  const directorProfileText = formatTavernDirectorProfileForPrompt({
-    profile: room.presentation.settings.directorScheduling.profile,
-    characters,
-  });
-  const schedulingSignalsText = formatTavernSchedulingSignalsForPrompt({
-    signals: schedulingSignals,
-    characters,
-  });
-  const selectedTargetsCanStaySilent = canTavernSelectedTargetsStaySilent(
-    room.presentation.settings,
-    selectedTargetCharacterIds,
-  );
   const directorPrompt = [
     buildTavernDirectorOutputContract({
       maxSpeakers,
       ambientActionMax,
       isSceneDriveTurn,
-      directorOnlyAllowed,
-      selectedTargetsCanStaySilent,
       schedulingInstruction,
     }),
     "",
@@ -126,21 +88,17 @@ export const buildTavernDirectorPromptContext = ({
       lorebookText,
       storyGraphText,
       selectedTargetCharacterIds,
-      directorProfileText,
-      schedulingSignalsText,
       presentationProfile,
       promptBlocksText,
     }),
   ].join("\n");
 
   return {
-    directorOnlyAllowed,
     isSceneDriveTurn,
     presentationProfile,
     promptBlocksText,
     requestContext: appendReferencesToPrompt(directorPrompt, references),
     schedulingInstruction,
-    selectedTargetsCanStaySilent,
   };
 };
 
@@ -160,11 +118,7 @@ export const buildTavernDirectorRuntimeInstruction = (directorPromptContext: Tav
     "必须输出 supervisor.dispatch-loop JSON：给所有候选 worker 评分，每轮最多选择一个 selectedTargetId。",
     "可以通过 artifacts 插入一条简短旁白来做环境过渡，但不要新增关键事实，不要代替角色行动或长篇发言。",
     "ambientAction artifact 只用于未被 selectedTargetId 选中的角色公开可观察动作，不是角色对白，也不要写心理。",
-    directorPromptContext.directorOnlyAllowed
-      ? "当前阶段允许 status=complete 且 selectedTargetId 为空；只有确实需要公开角色发言或非语言近景反应时才选择 worker。"
-      : directorPromptContext.selectedTargetsCanStaySilent
-        ? "当前候选回复/点名目标可以选择不开口；若用户要求目标只动作/神态回应，仍应选择该 worker，并在 selectedInstruction 中说明只输出心理和可观察动作。"
-        : "只要有可用 worker，就必须选择一个 selectedTargetId；不要用 complete 表达沉默。",
+    "只要有可用 worker，就必须选择一个 selectedTargetId；不要用 complete 表达沉默。",
     directorPromptContext.schedulingInstruction,
     "JSON 字符串内不要使用未转义英文双引号；引用用户短句时改用中文引号。",
     "只输出严格合法 JSON，不要输出 Markdown、代码块或解释。",

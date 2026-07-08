@@ -20,10 +20,7 @@ import {
   normalizeReplyOption,
   normalizeSceneStatus,
 } from "@/features/pages/taverns/tavern/normalizers/scene-state-normalizers";
-import {
-  createDefaultPromptForPresentation,
-  normalizeRoomPresentation,
-} from "@/features/pages/taverns/tavern/presentation/presentation-settings";
+import { normalizeRoomPresentation } from "@/features/pages/taverns/tavern/presentation/presentation-settings";
 import {
   createDefaultTavernPromptSettings,
   normalizeTavernPromptSettings,
@@ -379,9 +376,6 @@ const createInputCharacter = (
   createdAt: number,
 ): TavernCharacter => ({
   id: trimText(input.id) || createId("character"),
-  systemPresetId: trimText(input.systemPresetId) || undefined,
-  systemPresetCharacterId: trimText(input.systemPresetCharacterId) || undefined,
-  systemPresetVersion: typeof input.systemPresetVersion === "number" ? input.systemPresetVersion : undefined,
   name: pickText(input.name, "未命名角色"),
   avatar: pickText(input.avatar),
   description: pickText(input.description),
@@ -517,21 +511,19 @@ const createRuntimeFromOpeningInput = ({
   const presentation = normalizeRoomPresentation({
     presentation: tavernRoom.presentation,
   });
+  const settings = normalizeRoomSettings(openingInput.runtime?.settings ?? tavernRoom.settings);
   const prompt = normalizeTavernPromptSettings(
     openingInput.runtime?.prompt ?? tavernRoom.prompt,
     openingInput.runtime?.prompt
-      ? createDefaultPromptForPresentation(presentation)
+      ? createDefaultTavernPromptSettings({
+          presentationProfileId: presentation.profileId,
+          immersiveDescriptionEnabled: settings.immersiveDescriptionEnabled,
+        })
       : createDefaultTavernPromptSettings({
           presentationProfileId: presentation.profileId,
-          immersiveDescriptionEnabled: true,
+          immersiveDescriptionEnabled: settings.immersiveDescriptionEnabled,
         }),
   );
-  const settings = normalizeRoomSettings(openingInput.runtime?.settings ?? tavernRoom.settings, {
-    characters,
-    characterIds,
-    profileSource: "manual",
-    updatedAt: createdAt,
-  });
   const replyMode = normalizeReplyMode(openingInput.runtime?.replyMode ?? tavernRoom.replyMode);
   const scene = normalizeScene(openingInput.scene, {
     characterIds,
@@ -565,8 +557,6 @@ const createRuntimeFromOpeningInput = ({
       id: roomConfig.id,
       workspaceId: roomConfig.workspaceId,
       title: roomConfig.title,
-      systemPresetId: roomConfig.systemPresetId,
-      systemPresetVersion: roomConfig.systemPresetVersion,
       creationSource: roomConfig.creationSource,
       createdAt: roomConfig.createdAt,
       updatedAt: createdAt,

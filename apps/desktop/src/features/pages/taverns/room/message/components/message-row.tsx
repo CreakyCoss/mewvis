@@ -45,7 +45,7 @@ const messageRoleRenderers: Record<TavernMessage["role"], (context: MessageRoleR
       character={character}
       content={message.content}
       createdAt={message.createdAt}
-      immersiveDescriptionEnabled={activeRoom.presentation.settings.immersiveDescriptionEnabled !== false}
+      immersiveDescriptionEnabled={activeRoom.presentation.settings.immersiveDescriptionEnabled}
       isError={message.status === "error"}
       isStreaming={message.status === "streaming"}
       thought={message.thought}

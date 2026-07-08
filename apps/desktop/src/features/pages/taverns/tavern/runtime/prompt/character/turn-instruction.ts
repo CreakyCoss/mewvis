@@ -1,5 +1,4 @@
 import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
-import { isTavernFixedOrderPhase } from "../../../core/director-scheduling";
 import { getTavernPresentationContract } from "../../../presentation/presentation-contracts";
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
@@ -14,18 +13,6 @@ import {
   type TavernCharacterTurnOutputMode,
 } from "./output-contract";
 import { buildCharacterTurnStyleInstruction } from "./style-instruction";
-
-const buildSchedulingInstruction = (room: TavernRoomRuntime) => {
-  if (!isTavernFixedOrderPhase(room.presentation.settings)) {
-    return "";
-  }
-
-  return [
-    "当前是固定顺序发言阶段。",
-    "你可以点名、质疑或回应其他角色的公开发言，但被点名者不会在本轮插队回应。",
-    "发言结束后应把控制权交回固定流程；不要要求导演立刻让某人加塞发言。",
-  ].join("\n");
-};
 
 const buildOwnReplyInstruction = ({
   outputMode,
@@ -65,7 +52,7 @@ const buildOwnReplyInstruction = ({
     ]);
   }
 
-  if (room.presentation.settings.immersiveDescriptionEnabled !== false) {
+  if (room.presentation.settings.immersiveDescriptionEnabled) {
     return joinPromptLines([
       ...commonRules,
       "只输出当前角色自己的公开发言和可选短动作标注；不要复述旁白或环境转场，不要替其他角色总结或行动。",
@@ -151,7 +138,7 @@ export const buildTavernCharacterTurnInstruction = ({
       outputMode,
     }),
     styleInstruction: buildCharacterTurnStyleInstruction({ room, speaker }),
-    schedulingInstruction: buildSchedulingInstruction(room),
+    schedulingInstruction: "",
     allowNonverbalReply,
   });
 

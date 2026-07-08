@@ -20,7 +20,6 @@ type TavernManifestRoom = {
   id: string;
   title: string;
   roomPath: string;
-  systemPresetId?: string;
   createdAt: number;
   updatedAt: number;
 };
@@ -51,10 +50,8 @@ const isStoryTavernScope = (scope: TavernRuntimeScope = {}) => Boolean(scope.sto
 const createFallbackTavernState = (workspaceId: string, scope?: TavernRuntimeScope) =>
   toRoomConfigState(isStoryTavernScope(scope) ? createEmptyTavernState() : createDefaultTavernState(workspaceId));
 
-const normalizeStateForScope = (workspaceId: string, value: unknown, scope?: TavernRuntimeScope) => {
-  const normalized = normalizeTavernState(workspaceId, value, {
-    includeDefaultRooms: !isStoryTavernScope(scope),
-  });
+const normalizeStateForScope = (workspaceId: string, value: unknown) => {
+  const normalized = normalizeTavernState(workspaceId, value);
   return normalized ? toRoomConfigState(normalized) : null;
 };
 
@@ -92,7 +89,7 @@ const loadTavernStateFromLocalStorage = async (
   try {
     const raw = window.localStorage.getItem(storageKeyForWorkspace(workspaceId, scope));
     const parsed = raw ? JSON.parse(raw) : null;
-    const normalizedState = normalizeStateForScope(workspaceId, parsed, scope);
+    const normalizedState = normalizeStateForScope(workspaceId, parsed);
     return normalizedState
       ? selectStateForScope(normalizedState, scope)
       : createFallbackTavernState(workspaceId, scope);
@@ -106,7 +103,7 @@ const saveTavernStateToLocalStorage = (workspaceId: string, state: TavernState, 
     return;
   }
 
-  const normalizedState = normalizeStateForScope(workspaceId, state, scope) ?? toRoomConfigState(state);
+  const normalizedState = normalizeStateForScope(workspaceId, state) ?? toRoomConfigState(state);
   window.localStorage.setItem(
     storageKeyForWorkspace(workspaceId, scope),
     JSON.stringify(selectStateForScope(normalizedState, scope)),
@@ -221,7 +218,6 @@ const normalizeTavernManifest = (value: unknown): TavernManifest | null => {
             id,
             title: typeof source.title === "string" ? source.title : "未命名酒馆",
             roomPath: typeof source.roomPath === "string" ? source.roomPath : "",
-            systemPresetId: typeof source.systemPresetId === "string" ? source.systemPresetId : undefined,
             createdAt: typeof source.createdAt === "number" ? source.createdAt : Date.now(),
             updatedAt: typeof source.updatedAt === "number" ? source.updatedAt : Date.now(),
           },
@@ -245,7 +241,6 @@ const createTavernManifestRoom = (baseDir: string, room: TavernRoom): TavernMani
   id: room.id,
   title: room.title || "未命名酒馆",
   roomPath: tavernRoomPath(baseDir, room.id),
-  systemPresetId: room.systemPresetId,
   createdAt: room.createdAt,
   updatedAt: room.updatedAt,
 });
@@ -287,15 +282,11 @@ export const loadTavernState = async (
     }
   }
 
-  const normalizedState = normalizeStateForScope(
-    workspaceId,
-    {
-      version: TAVERN_STATE_VERSION,
-      activeRoomId: manifest.activeRoomId,
-      rooms,
-    },
-    scope,
-  );
+  const normalizedState = normalizeStateForScope(workspaceId, {
+    version: TAVERN_STATE_VERSION,
+    activeRoomId: manifest.activeRoomId,
+    rooms,
+  });
   return normalizedState ? selectStateForScope(normalizedState, scope) : createFallbackTavernState(workspaceId, scope);
 };
 
@@ -305,7 +296,7 @@ export const saveTavernState = async (
   state: TavernState,
   scope: TavernRuntimeScope = {},
 ) => {
-  const normalizedState = normalizeStateForScope(workspaceId, state, scope) ?? toRoomConfigState(state);
+  const normalizedState = normalizeStateForScope(workspaceId, state) ?? toRoomConfigState(state);
   const stateForStorage = selectStateForScope(normalizedState, scope);
 
   if (!isTauri()) {

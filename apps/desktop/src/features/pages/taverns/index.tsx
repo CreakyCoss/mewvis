@@ -91,7 +91,7 @@ const TavernsPageContent = ({ workspace }: TavernsPageContentProps) => {
         }
 
         console.error("Failed to load tavern state", loadError);
-        toast.error("无法加载酒馆记录，已使用默认酒馆。");
+        toast.error("无法加载酒馆记录，已使用空酒馆列表。");
         setState(createDefaultTavernState(workspace.id));
         setIsTavernStateHydrated(true);
       });
@@ -108,14 +108,6 @@ const TavernsPageContent = ({ workspace }: TavernsPageContentProps) => {
       });
     }
   }, [isTavernStateHydrated, state, workspace.id, workspace.path]);
-
-  useEffect(() => {
-    if (!isTavernStateHydrated || state.rooms.length > 0) {
-      return;
-    }
-
-    setState(createDefaultTavernState(workspace.id));
-  }, [isTavernStateHydrated, setState, state.rooms.length, workspace.id]);
 
   const reportManagementError = useCallback((message: string) => {
     if (message) {
@@ -137,7 +129,7 @@ const TavernsPageContent = ({ workspace }: TavernsPageContentProps) => {
 
   const createOrdinaryRoom = () => {
     const room = createRoom();
-    setRoomOperationStatus("已创建普通酒馆。");
+    setRoomOperationStatus("已创建手动酒馆。");
 
     if (!room) {
       return;
@@ -176,7 +168,7 @@ const TavernsPageContent = ({ workspace }: TavernsPageContentProps) => {
             <div className="flex shrink-0 items-center gap-2">
               <Button type="button" size="sm" className="h-9 gap-1.5" onClick={createOrdinaryRoom}>
                 <Plus className="size-4" />
-                普通创建
+                手动创建
               </Button>
             </div>
           </header>

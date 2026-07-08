@@ -88,7 +88,6 @@ type PromptPresetDraft = {
 type PromptDraft = {
   presentationProfileId: TavernPresentationProfileId;
   prompt: TavernRoomPromptSettings;
-  immersiveDescriptionEnabled: boolean;
   presets: PromptPresetDraft;
 };
 
@@ -232,10 +231,12 @@ const createCustomPromptBlock = (
   };
 };
 
+const isImmersiveDescriptionEnabled = (room: TavernRoom) => room.settings.immersiveDescriptionEnabled !== false;
+
 const createPromptFallback = (room: TavernRoom, presentationProfileId: TavernPresentationProfileId) =>
   createDefaultTavernPromptSettings({
     presentationProfileId,
-    immersiveDescriptionEnabled: room.settings.immersiveDescriptionEnabled !== false,
+    immersiveDescriptionEnabled: isImmersiveDescriptionEnabled(room),
   });
 
 export const PromptEdit = ({ bind, data, onSave }: PromptEditProps) => {
@@ -251,7 +252,6 @@ export const PromptEdit = ({ bind, data, onSave }: PromptEditProps) => {
     setDraft({
       presentationProfileId,
       prompt: clonePromptSettings(prompt),
-      immersiveDescriptionEnabled: nextData.settings.immersiveDescriptionEnabled !== false,
       presets: getPromptPresetDraft(prompt, presentationProfileId),
     });
   };
@@ -283,7 +283,7 @@ export const PromptEdit = ({ bind, data, onSave }: PromptEditProps) => {
         nextBlocks: createSystemNarrativePromptBlocks({
           presetId: current.presets.systemNarrativePresetId,
           presentationProfileId: current.presentationProfileId,
-          immersiveDescriptionEnabled: current.immersiveDescriptionEnabled,
+          immersiveDescriptionEnabled: isImmersiveDescriptionEnabled(data),
         }),
       }),
     );
@@ -301,7 +301,6 @@ export const PromptEdit = ({ bind, data, onSave }: PromptEditProps) => {
       return {
         ...current,
         presentationProfileId: nextPresentationProfileId,
-        immersiveDescriptionEnabled: stylePackage.immersiveDescriptionEnabled,
         presets: {
           stylePackageId: stylePackage.id,
           systemNarrativePresetId: stylePackage.systemNarrativePresetId,
@@ -310,6 +309,7 @@ export const PromptEdit = ({ bind, data, onSave }: PromptEditProps) => {
         prompt: createTavernPromptSettingsFromStylePackage({
           stylePackageId: stylePackage.id,
           presentationProfileId: nextPresentationProfileId,
+          immersiveDescriptionEnabled: isImmersiveDescriptionEnabled(data),
         }),
       };
     });
@@ -355,10 +355,6 @@ export const PromptEdit = ({ bind, data, onSave }: PromptEditProps) => {
         },
         createPromptFallback(data, nextPresentation.profileId),
       ),
-      settings: {
-        ...data.settings,
-        immersiveDescriptionEnabled: draft.immersiveDescriptionEnabled,
-      },
     });
     close();
   };
@@ -426,9 +422,6 @@ export const PromptEdit = ({ bind, data, onSave }: PromptEditProps) => {
                         <EditorStatusPill tone={enabledBlockCount > 0 ? "active" : "muted"}>
                           {enabledBlockCount}/{totalBlockCount} 块启用
                         </EditorStatusPill>
-                        <EditorStatusPill tone={draft.immersiveDescriptionEnabled ? "active" : "muted"}>
-                          沉浸描写{draft.immersiveDescriptionEnabled ? "开" : "关"}
-                        </EditorStatusPill>
                       </>
                     }
                   >
@@ -463,7 +456,7 @@ export const PromptEdit = ({ bind, data, onSave }: PromptEditProps) => {
                 title="系统层"
                 description="呈现规则仍由底层协议控制，决定可见标签、输出形态和解析合同。"
               >
-                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_16rem]">
+                <div className="grid gap-3">
                   <EditorField
                     label="呈现规则"
                     htmlFor="tavern-prompt-presentation-profile"
@@ -487,27 +480,6 @@ export const PromptEdit = ({ bind, data, onSave }: PromptEditProps) => {
                       ))}
                     </NativeSelect>
                   </EditorField>
-
-                  <div className="rounded-lg border border-border/70 bg-background/72 p-3 shadow-xs">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold leading-5">沉浸描写</div>
-                        <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                          作为系统叙事文本块的引用参数；已编辑文本不会被自动覆盖。
-                        </div>
-                      </div>
-                      <Switch
-                        checked={draft.immersiveDescriptionEnabled}
-                        onCheckedChange={(checked) =>
-                          setDraft({
-                            ...draft,
-                            immersiveDescriptionEnabled: checked === true,
-                          })
-                        }
-                        aria-label="切换沉浸描写"
-                      />
-                    </div>
-                  </div>
                 </div>
               </EditorFormCard>
 

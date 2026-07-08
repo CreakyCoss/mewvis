@@ -45,7 +45,7 @@ export const shouldRunTavernDirectorLoopWorkflow = ({
   availableRoomCharacters: TavernCharacter[];
   mode: TurnMode;
   room: TavernRoomRuntime;
-}) => mode.isDirectorLikeMode && room.presentation.settings.directorLoop.enabled && availableRoomCharacters.length > 0;
+}) => mode.isDirectorLikeMode && room.presentation.settings.directorLoop.maxRounds > 0 && availableRoomCharacters.length > 0;
 
 export const runDirectorLoopTurn = async ({
   activeReplyRef,
@@ -157,7 +157,6 @@ export const runDirectorLoopTurn = async ({
         runtimeModel,
         runtimeRoom,
         selectedReplyOption,
-        text,
         turnMessages,
       });
       runtimeMessages = directorEffects.runtimeMessages;
@@ -251,9 +250,7 @@ export const runDirectorLoopTurn = async ({
 };
 
 const resolveDirectorLoopMaxRounds = (room: TavernRoomRuntime) =>
-  room.presentation.settings.directorLoop.enabled
-    ? Math.max(1, Math.floor(room.presentation.settings.directorLoop.maxRounds))
-    : 1;
+  Math.max(1, Math.floor(room.presentation.settings.directorLoop.maxRounds));
 
 const resolveRequiredSpeakerRuntimeModel = ({
   runtimeModel,
@@ -402,7 +399,6 @@ const applyLoopSupervisorDecision = ({
   runtimeModel,
   runtimeRoom,
   selectedReplyOption,
-  text,
   turnMessages,
 }: {
   availableActiveCharacter: TavernCharacter | null;
@@ -414,18 +410,14 @@ const applyLoopSupervisorDecision = ({
   runtimeModel: RuntimeModelOption;
   runtimeRoom: TavernRoomRuntime;
   selectedReplyOption?: TavernReplyOption;
-  text: string;
   turnMessages: TavernMessage[];
 }) => {
   const directorNonverbalReplyIds = decision.nonverbalReplyIds ?? [];
   const speakers = resolveTavernScheduledSpeakers({
-    settings: runtimeRoom.presentation.settings,
     availableCharacters: availableRoomCharacters,
-    activeCharacterId: ctx.activeCharacter?.id,
     directorSpeakerIds: decision.speakerIds,
     directorNonverbalReplyIds,
     selectedTargetCharacterIds: selectedReplyOption?.targetCharacterIds,
-    currentUserText: text,
     fallbackCharacter: availableActiveCharacter,
   });
   const missingDirectedModel = findMissingSpeakerModel(speakers, runtimeModel);
