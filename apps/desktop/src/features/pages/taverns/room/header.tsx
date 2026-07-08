@@ -88,7 +88,7 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
       }
 
       selectRoomSceneInstance(activeRoom.identity.id, sceneInstanceId);
-      useTavernRoomContext.getState().composerHandle?.clearReplySuggestions();
+      useTavernRoomContext.getState().composerHandle?.clearReplyOptions();
     },
     [activeRoom, selectRoomSceneInstance],
   );
@@ -108,7 +108,7 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
         unresolvedFileReferences: payload.unresolvedFileReferences,
         onCommitted: () => {
           composerHandle?.clearDraft();
-          composerHandle?.clearReplySuggestions();
+          composerHandle?.clearReplyOptions();
         },
       });
     } catch (submitError) {
@@ -167,7 +167,7 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
       runtime: initialRuntime,
       messages: initialMessages,
     });
-    useTavernRoomContext.getState().composerHandle?.clearReplySuggestions();
+    useTavernRoomContext.getState().composerHandle?.clearReplyOptions();
     setIsSceneDriveAutoRunning(false);
     clearSceneDriveAutoTimer();
     sceneDriveAutoRunCountRef.current = 0;

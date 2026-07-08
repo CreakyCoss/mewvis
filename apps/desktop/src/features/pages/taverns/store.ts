@@ -1,26 +1,13 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo } from "react";
 import { cloneDeep } from "lodash-es";
-import {
-  requireRuntimeModelInput,
-  type RuntimeModelOption,
-  useLlmSettingsStore,
-} from "@/features/pages/settings/llm/store";
+import { type RuntimeModelOption, useLlmSettingsStore } from "@/features/pages/settings/llm/store";
 import type { Workspace } from "@/features/pages/workspace/types";
 import { createTavernRoom } from "./tavern/factories/manual-factories";
 import { createTavernRoomFromSystemPreset } from "./tavern/factories/system-preset-room";
-import {
-  runTavernTextFieldAgent,
-  type TavernTextFieldAgentRequest,
-} from "./tavern/runtime/assistants/field-polish-agent";
 import { getTavernSystemPreset } from "./tavern/system-preset-registry";
 import type { TavernState } from "./tavern/types";
 import type { TavernRoom } from "@/features/pages/taverns/manage/model";
-
-const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
-
-const requireTavernRuntimeModelInput = (runtimeModel: RuntimeModelOption) =>
-  requireRuntimeModelInput(runtimeModel, TAVERN_RUNTIME_MODEL_UNAVAILABLE);
 
 const createLocalId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
@@ -40,7 +27,6 @@ export type TavernManagementValue = {
   deleteRoom: (roomId: string) => boolean;
   exportRoom: (roomId: string) => boolean;
   globalRuntimeModel: RuntimeModelOption | null;
-  runTextFieldAgent: (request: TavernTextFieldAgentRequest) => Promise<string>;
 };
 
 type TavernManagementOptions = {
@@ -218,21 +204,6 @@ export const useTavernManagement = ({ workspace, state, setState }: TavernManage
     return nextRoom;
   }, [setState, state.rooms.length, workspace.id]);
 
-  const runTextFieldAgent = useCallback(
-    async (request: TavernTextFieldAgentRequest) => {
-      if (!runtimeModel) {
-        throw new Error(TAVERN_RUNTIME_MODEL_UNAVAILABLE);
-      }
-
-      return runTavernTextFieldAgent({
-        ...request,
-        workspacePath: workspace.path,
-        runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
-      });
-    },
-    [runtimeModel, workspace.path],
-  );
-
   return useMemo<TavernManagementValue>(
     () => ({
       rooms: state.rooms,
@@ -243,18 +214,7 @@ export const useTavernManagement = ({ workspace, state, setState }: TavernManage
       deleteRoom,
       exportRoom,
       globalRuntimeModel: runtimeModel,
-      runTextFieldAgent,
     }),
-    [
-      copyRoom,
-      createRoom,
-      deleteRoom,
-      exportRoom,
-      patchRoom,
-      restoreSystemPresetRoom,
-      runTextFieldAgent,
-      runtimeModel,
-      state.rooms,
-    ],
+    [copyRoom, createRoom, deleteRoom, exportRoom, patchRoom, restoreSystemPresetRoom, runtimeModel, state.rooms],
   );
 };

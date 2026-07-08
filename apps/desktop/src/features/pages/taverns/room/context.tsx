@@ -20,7 +20,7 @@ import {
 } from "./runtime/accessors";
 import { switchTavernRuntimeScene, switchTavernRuntimeSceneInstance } from "./runtime/mutations";
 
-export type TavernRoomBusyKind = "idle" | "sending" | "reply_suggestions";
+export type TavernRoomBusyKind = "idle" | "sending";
 
 export type TavernRoomBusyState = {
   kind: TavernRoomBusyKind;
@@ -35,8 +35,6 @@ export const createIdleTavernRoomBusyState = (): TavernRoomBusyState => ({
 export const isTavernRoomBusy = (busy: TavernRoomBusyState) => busy.kind !== "idle";
 
 export const isTavernRoomSending = (busy: TavernRoomBusyState) => busy.kind === "sending";
-
-export const isTavernRoomGeneratingReplySuggestions = (busy: TavernRoomBusyState) => busy.kind === "reply_suggestions";
 
 const EMPTY_WORKSPACE: Workspace = {
   id: "",

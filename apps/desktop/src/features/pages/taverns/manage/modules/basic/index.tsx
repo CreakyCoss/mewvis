@@ -5,15 +5,14 @@ import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 import { EditorSection, editorHeaderActionButtonClassName } from "../../primitives";
 import { BasicEdit, type BasicEditHandle } from "./edit";
 import { BasicSummaryContent } from "./summary";
-import type { ModuleSave, ModuleEditProps } from "../types";
+import type { ModuleSave } from "../types";
 
 type BasicSectionProps = {
   data: TavernRoom;
   onSave: ModuleSave;
-  renderTextFieldAgentActions: ModuleEditProps["renderTextFieldAgentActions"];
 };
 
-export const BasicSection = ({ data, onSave, renderTextFieldAgentActions }: BasicSectionProps) => {
+export const BasicSection = ({ data, onSave }: BasicSectionProps) => {
   const editRef = useRef<BasicEditHandle>(null);
 
   return (
@@ -39,7 +38,7 @@ export const BasicSection = ({ data, onSave, renderTextFieldAgentActions }: Basi
         <BasicSummaryContent data={data} />
       </EditorSection>
 
-      <BasicEdit bind={editRef} data={data} onSave={onSave} renderTextFieldAgentActions={renderTextFieldAgentActions} />
+      <BasicEdit bind={editRef} data={data} onSave={onSave} />
     </>
   );
 };

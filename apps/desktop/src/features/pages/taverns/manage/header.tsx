@@ -10,11 +10,10 @@ import { getVisualPreset } from "../tavern/visual-presets";
 
 type HeaderProps = {
   data: TavernRoom;
-  textFieldAgentError: string;
   onOpenStoryConfig: () => void;
 };
 
-export const Header = ({ data, textFieldAgentError, onOpenStoryConfig }: HeaderProps) => {
+export const Header = ({ data, onOpenStoryConfig }: HeaderProps) => {
   const visualPreset = getVisualPreset(data.scenePresetId);
   const headerStats: Array<{
     icon: LucideIcon;
@@ -52,11 +51,6 @@ export const Header = ({ data, textFieldAgentError, onOpenStoryConfig }: HeaderP
             <p className="line-clamp-2 max-w-2xl text-sm leading-6 text-muted-foreground">
               编辑酒馆呈现、提示词和调度策略；故事资产在独立故事页维护。
             </p>
-            {textFieldAgentError && (
-              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs leading-5 text-destructive">
-                {textFieldAgentError}
-              </div>
-            )}
           </div>
 
           <div className="flex shrink-0 flex-wrap items-center gap-2 self-start lg:self-auto">

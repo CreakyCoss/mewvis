@@ -1,6 +1,6 @@
 import type { FormEvent, Ref } from "react";
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { FileText, Loader2, PencilLine, Send, Sparkles } from "lucide-react";
+import { FileText, Loader2, PencilLine, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -10,18 +10,15 @@ import {
   resolveFileReferenceMatches,
   summarizeReferenceMatches,
 } from "@/features/ai/components/context-tools";
-import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import { readWorkspaceFile, type WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import { cn } from "@/lib/utils";
 import type { TavernReplyOption } from "@/features/pages/taverns/manage/model";
 import { getTavernPresentationProfile } from "@/features/pages/taverns/tavern/prompt-registry/presentation-rules";
-import { runTavernUserReplySuggestions } from "@/features/pages/taverns/tavern/runtime/assistants/user-reply-suggestions";
 import type { TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import { uniqueFilesByPath } from "@/features/pages/taverns/tavern/utils";
 import {
   createIdleTavernRoomBusyState,
   isTavernRoomBusy,
-  isTavernRoomGeneratingReplySuggestions,
   isTavernRoomSending,
   useTavernRoomContext,
 } from "@/features/pages/taverns/room/context";
@@ -31,10 +28,6 @@ import { selectTavernRuntimeActiveSceneFields, selectTavernRuntimeActiveSceneIns
 import { patchTavernRuntimeActiveSceneFields } from "./runtime/mutations";
 
 const REFERENCE_SUGGESTION_LIMIT = 8;
-const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
-
-const requireTavernRuntimeModelInput = (runtimeModel: RuntimeModelOption) =>
-  requireRuntimeModelInput(runtimeModel, TAVERN_RUNTIME_MODEL_UNAVAILABLE);
 
 export type ComposerSubmitPayload = {
   text: string;
@@ -49,7 +42,7 @@ export type ComposerHandle = {
   getDraft: () => string;
   getSubmitPayload: () => ComposerSubmitPayload;
   clearDraft: () => void;
-  clearReplySuggestions: () => void;
+  clearReplyOptions: () => void;
 };
 
 type ComposerProps = {
@@ -70,10 +63,6 @@ export const Composer = ({ bind, files }: ComposerProps) => {
   const busy = useTavernRoomContext((store) => store.busy);
   const error = useTavernRoomContext((store) => store.error);
   const patchRoom = useTavernRoomContext((store) => store.patchRoom);
-  const roomCharacters = useTavernRoomContext((store) => store.roomCharacters);
-  const roomMessages = useTavernRoomContext((store) => store.roomMessages);
-  const runtime = useTavernRoomContext((store) => store.state.runtime);
-  const runtimeModel = useTavernRoomContext((store) => store.runtimeModel);
   const setBusy = useTavernRoomContext((store) => store.setBusy);
   const setComposerHandle = useTavernRoomContext((store) => store.setComposerHandle);
   const setError = useTavernRoomContext((store) => store.setError);
@@ -81,10 +70,9 @@ export const Composer = ({ bind, files }: ComposerProps) => {
   const workspace = useTavernRoomContext((store) => store.workspace);
   const [draft, setDraft] = useState("");
   const [draftCursor, setDraftCursor] = useState(0);
-  const [replySuggestions, setReplySuggestions] = useState<TavernReplyOption[]>([]);
+  const [replyOptions, setReplyOptions] = useState<TavernReplyOption[]>([]);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const isSending = isTavernRoomSending(busy);
-  const isGeneratingReplySuggestions = isTavernRoomGeneratingReplySuggestions(busy);
   const isBusy = isTavernRoomBusy(busy);
   const presentationProfile = getTavernPresentationProfile(activeRoom?.presentation.profile?.profileId);
   const placeholder =
@@ -126,8 +114,8 @@ export const Composer = ({ bind, files }: ComposerProps) => {
     [fileReferenceMatches],
   );
 
-  const clearReplySuggestions = useCallback(() => {
-    setReplySuggestions([]);
+  const clearReplyOptions = useCallback(() => {
+    setReplyOptions([]);
   }, []);
 
   const clearDraft = useCallback(() => {
@@ -179,9 +167,9 @@ export const Composer = ({ bind, files }: ComposerProps) => {
       getDraft: () => draft,
       getSubmitPayload: () => createSubmitPayload(draft, { includeReferences: true }),
       clearDraft,
-      clearReplySuggestions,
+      clearReplyOptions,
     }),
-    [clearDraft, clearReplySuggestions, createSubmitPayload, draft],
+    [clearDraft, clearReplyOptions, createSubmitPayload, draft],
   );
 
   useImperativeHandle(bind, () => composerHandle, [bind, composerHandle]);
@@ -197,7 +185,7 @@ export const Composer = ({ bind, files }: ComposerProps) => {
   }, [composerHandle, setComposerHandle]);
 
   useEffect(() => {
-    setReplySuggestions(activeRoom ? selectTavernRuntimeActiveSceneFields(activeRoom).replyOptions : []);
+    setReplyOptions(activeRoom ? selectTavernRuntimeActiveSceneFields(activeRoom).replyOptions : []);
     clearDraft();
   }, [activeRoom?.identity.id, activeRoom ? selectTavernRuntimeActiveSceneInstanceId(activeRoom) : "", clearDraft]);
 
@@ -213,7 +201,7 @@ export const Composer = ({ bind, files }: ComposerProps) => {
           unresolvedFileReferences: payload.unresolvedFileReferences,
           onCommitted: () => {
             clearDraft();
-            clearReplySuggestions();
+            clearReplyOptions();
           },
         });
       } catch (submitError) {
@@ -222,7 +210,7 @@ export const Composer = ({ bind, files }: ComposerProps) => {
         setBusy(createIdleTavernRoomBusyState());
       }
     },
-    [clearDraft, clearReplySuggestions, setBusy, setError],
+    [clearDraft, clearReplyOptions, setBusy, setError],
   );
 
   const insertReference = useCallback(
@@ -242,59 +230,6 @@ export const Composer = ({ bind, files }: ComposerProps) => {
     [activeReferenceToken, draftCursor],
   );
 
-  const handleGenerateReplySuggestions = useCallback(async () => {
-    if (isBusy) {
-      return;
-    }
-
-    if (!runtimeModel) {
-      setError("请先在设置中选择模型，再生成候选回复。");
-      return;
-    }
-
-    if (!activeRoom || !runtime) {
-      setError("当前房间还没有可生成回复的场景。");
-      return;
-    }
-
-    setError("");
-    setBusy({ kind: "reply_suggestions", status: "正在生成候选回复..." });
-    try {
-      const suggestions = await runTavernUserReplySuggestions({
-        workspacePath: workspace.path,
-        runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
-        room: runtime,
-        characters: roomCharacters,
-        messages: roomMessages,
-        currentDraft: draft,
-      });
-      setReplySuggestions(suggestions);
-      patchRoom(activeRoom.identity.id, (room) =>
-        patchTavernRuntimeActiveSceneFields(room, { replyOptions: suggestions }),
-      );
-      if (suggestions.length === 0) {
-        setError("暂时没有生成可用候选回复，请再试一次。");
-      }
-    } catch (suggestionError) {
-      const message = suggestionError instanceof Error ? suggestionError.message : String(suggestionError);
-      setError(`生成候选回复失败：${message}`);
-    } finally {
-      setBusy(createIdleTavernRoomBusyState());
-    }
-  }, [
-    activeRoom,
-    draft,
-    isBusy,
-    patchRoom,
-    roomCharacters,
-    roomMessages,
-    runtime,
-    runtimeModel,
-    setBusy,
-    setError,
-    workspace.path,
-  ]);
-
   const submitDraft = useCallback(
     (event?: FormEvent) => {
       event?.preventDefault();
@@ -308,29 +243,29 @@ export const Composer = ({ bind, files }: ComposerProps) => {
     [createSubmitPayload, draft, isBusy, submitPayload],
   );
 
-  const submitReplySuggestion = useCallback(
-    (suggestion: TavernReplyOption) => {
+  const submitReplyOption = useCallback(
+    (option: TavernReplyOption) => {
       if (isBusy) {
         return;
       }
 
       void submitPayload(
-        createSubmitPayload(suggestion.text.trim(), { selectedReplyOption: suggestion, includeReferences: false }),
+        createSubmitPayload(option.text.trim(), { selectedReplyOption: option, includeReferences: false }),
       );
     },
     [createSubmitPayload, isBusy, submitPayload],
   );
 
-  const fillReplySuggestion = useCallback(
-    (suggestion: TavernReplyOption) => {
-      const nextDraft = suggestion.text.trim();
+  const fillReplyOption = useCallback(
+    (option: TavernReplyOption) => {
+      const nextDraft = option.text.trim();
       if (!nextDraft) {
         return;
       }
 
       setDraft(nextDraft);
       setDraftCursor(nextDraft.length);
-      clearReplySuggestions();
+      clearReplyOptions();
       if (activeRoom) {
         patchRoom(activeRoom.identity.id, (room) => patchTavernRuntimeActiveSceneFields(room, { replyOptions: [] }));
       }
@@ -339,7 +274,7 @@ export const Composer = ({ bind, files }: ComposerProps) => {
         inputRef.current?.setSelectionRange(nextDraft.length, nextDraft.length);
       }, 0);
     },
-    [activeRoom, clearReplySuggestions, patchRoom],
+    [activeRoom, clearReplyOptions, patchRoom],
   );
 
   return (
@@ -364,53 +299,47 @@ export const Composer = ({ bind, files }: ComposerProps) => {
             ))}
           </div>
         )}
-        {(replySuggestions.length > 0 || isGeneratingReplySuggestions) && (
+        {replyOptions.length > 0 && (
           <div
             className={cn("space-y-2 rounded-md border p-2.5 text-current shadow-sm", visualPreset.tavern.sceneCard)}
             role="list"
             aria-label="候选回复"
           >
             <div className="flex items-center gap-2 text-xs font-medium">
-              {isGeneratingReplySuggestions ? (
-                <Loader2 className="size-3.5 animate-spin text-primary" />
-              ) : (
-                <Sparkles className="size-3.5 text-primary" />
-              )}
-              <span>{isGeneratingReplySuggestions ? "正在生成候选回复" : "候选回复"}</span>
+              <PencilLine className="size-3.5 text-primary" />
+              <span>候选回复</span>
             </div>
-            {replySuggestions.length > 0 && (
-              <div className="grid gap-1.5">
-                {replySuggestions.map((suggestion) => (
-                  <div
-                    key={suggestion.id}
-                    className="flex min-h-10 overflow-hidden rounded-md border border-current/10 bg-current/5 text-sm leading-5 transition-colors focus-within:ring-2 focus-within:ring-ring"
+            <div className="grid gap-1.5">
+              {replyOptions.map((option) => (
+                <div
+                  key={option.id}
+                  className="flex min-h-10 overflow-hidden rounded-md border border-current/10 bg-current/5 text-sm leading-5 transition-colors focus-within:ring-2 focus-within:ring-ring"
+                >
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 px-3 py-2 text-left transition-colors hover:bg-current/10 focus-visible:outline-none"
+                    title="直接发送"
+                    aria-label={`直接发送候选回复：${option.text}`}
+                    disabled={isBusy}
+                    onClick={() => submitReplyOption(option)}
                   >
-                    <button
-                      type="button"
-                      className="min-w-0 flex-1 px-3 py-2 text-left transition-colors hover:bg-current/10 focus-visible:outline-none"
-                      title="直接发送"
-                      aria-label={`直接发送候选回复：${suggestion.text}`}
-                      disabled={isBusy}
-                      onClick={() => submitReplySuggestion(suggestion)}
-                    >
-                      {suggestion.text}
-                    </button>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="outline"
-                      className="h-auto min-h-10 w-10 shrink-0 rounded-none border-0 border-l border-current/10 bg-transparent text-current hover:bg-current/10 hover:text-current focus-visible:text-current dark:hover:bg-current/10 dark:hover:text-current"
-                      title="填入输入框后编辑"
-                      aria-label={`填入输入框编辑候选回复：${suggestion.text}`}
-                      disabled={isBusy}
-                      onClick={() => fillReplySuggestion(suggestion)}
-                    >
-                      <PencilLine className="size-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
+                    {option.text}
+                  </button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="h-auto min-h-10 w-10 shrink-0 rounded-none border-0 border-l border-current/10 bg-transparent text-current hover:bg-current/10 hover:text-current focus-visible:text-current dark:hover:bg-current/10 dark:hover:text-current"
+                    title="填入输入框后编辑"
+                    aria-label={`填入输入框编辑候选回复：${option.text}`}
+                    disabled={isBusy}
+                    onClick={() => fillReplyOption(option)}
+                  >
+                    <PencilLine className="size-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
         <div className="relative">
@@ -437,7 +366,7 @@ export const Composer = ({ bind, files }: ComposerProps) => {
             ref={inputRef}
             value={draft}
             placeholder={placeholder}
-            className={cn("min-h-[92px] resize-none pr-24 text-sm leading-6", visualPreset.tavern.composerInput)}
+            className={cn("min-h-[92px] resize-none pr-14 text-sm leading-6", visualPreset.tavern.composerInput)}
             onChange={(event) => {
               setDraft(event.target.value);
               setDraftCursor(event.target.selectionStart ?? event.target.value.length);
@@ -452,22 +381,6 @@ export const Composer = ({ bind, files }: ComposerProps) => {
             }}
             onSelect={(event) => setDraftCursor(event.currentTarget.selectionStart ?? draft.length)}
           />
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            className="absolute right-14 bottom-3 size-9 border-current/20 bg-current/5 text-current hover:bg-current/10 hover:text-current focus-visible:text-current dark:hover:bg-current/10 dark:hover:text-current"
-            title={isGeneratingReplySuggestions ? "正在生成候选回复" : "生成回复"}
-            aria-label={isGeneratingReplySuggestions ? "正在生成候选回复" : "生成回复"}
-            disabled={isBusy}
-            onClick={handleGenerateReplySuggestions}
-          >
-            {isGeneratingReplySuggestions ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Sparkles className="size-4" />
-            )}
-          </Button>
           <Button
             type="submit"
             size="icon"

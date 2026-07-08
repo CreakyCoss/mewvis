@@ -1,19 +1,13 @@
 import {
-  AlertTriangle,
   Braces,
-  CheckCircle2,
-  Eye,
   FilePlus2,
   Goal,
-  ListChecks,
-  LocateFixed,
   MessageSquareText,
   Plus,
   Save,
   ScrollText,
   ShieldCheck,
   Sparkles,
-  TextSearch,
   Trash2,
   Wand2,
 } from "lucide-react";
@@ -24,20 +18,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import {
-  buildTavernPromptPreview,
-  type TavernPromptPreviewWarning,
-  type TavernPromptPreviewWarningSeverity,
-} from "./preview";
-import {
-  selectTavernRuntimeActiveNode,
-  selectTavernRuntimeActiveSceneFields,
-  selectTavernRuntimeActiveSceneInstance,
-  selectTavernRuntimeCharacters,
-} from "../../../room/runtime/accessors";
 import { getTavernCharacterStylePreset } from "../../../tavern/prompt-registry/character-style-presets";
 import {
   TAVERN_PRESENTATION_PROFILE_OPTIONS,
@@ -70,8 +52,6 @@ import {
   getTavernPromptStylePreset,
   normalizeTavernPromptStyleId,
 } from "../../../tavern/presentation/prompt-styles";
-import { createTavernRoomRuntimeFromConfig } from "../../../room/model/runtime-room";
-import type { TavernRoomRuntime } from "../../../room/model";
 import type {
   TavernPresentationProfileId,
   TavernPromptBlock,
@@ -89,15 +69,13 @@ import {
   EditorFormFooter,
   EditorFormHeader,
   EditorFormLayout,
-  EditorMetricStrip,
   EditorFormNav,
   EditorFormSidebarCard,
   EditorFormSidebarPanel,
   EditorStatusPill,
 } from "../../primitives";
 import { editorControlClassName, emptyValueText } from "../../utils";
-import { resolveTavernPromptWarningNavigation, type TavernPromptWarningNavigationRequest } from "./warning-navigation";
-import type { ModuleSave, TextFieldAgentActionRenderer } from "../types";
+import type { ModuleSave } from "../types";
 
 export type PromptEditHandle = (data?: TavernRoom) => void;
 
@@ -118,8 +96,6 @@ type PromptEditProps = {
   bind: Ref<PromptEditHandle>;
   data: TavernRoom;
   onSave: ModuleSave;
-  onOpenWarningNavigation?: (request: TavernPromptWarningNavigationRequest) => void;
-  renderTextFieldAgentActions: TextFieldAgentActionRenderer;
 };
 
 const selectClassName = cn(editorControlClassName, "min-h-9");
@@ -156,74 +132,6 @@ const sourceTypeLabels: Record<TavernPromptBlockSourceType, string> = {
   hook_rule: "钩子规则",
   taboo_rule: "雷点边界",
   custom: "自定义",
-};
-
-const formatPromptCharCount = (value: number) => {
-  if (value >= 10_000) {
-    return `${(value / 1000).toFixed(1)}k`;
-  }
-
-  if (value >= 1000) {
-    return `${(value / 1000).toFixed(1)}k`;
-  }
-
-  return String(value);
-};
-
-const getPromptWarningTone = (severity: TavernPromptPreviewWarningSeverity): "active" | "muted" | "info" | "warning" =>
-  severity === "danger" || severity === "warning" ? "warning" : "info";
-
-const getPromptWarningLabel = (severity: TavernPromptPreviewWarningSeverity) => {
-  if (severity === "danger") {
-    return "阻断";
-  }
-
-  if (severity === "warning") {
-    return "风险";
-  }
-
-  return "提示";
-};
-
-const getPromptBlockWarningLocation = (warning: TavernPromptPreviewWarning) =>
-  warning.locations?.find((location) => location.type === "prompt_block");
-
-const focusElementById = (id: string) => {
-  if (typeof document === "undefined") {
-    return false;
-  }
-
-  const element = document.getElementById(id) as HTMLElement | null;
-  if (!element) {
-    return false;
-  }
-
-  element.scrollIntoView({ block: "center", behavior: "smooth" });
-  const focus = () => {
-    element.focus({ preventScroll: true });
-  };
-  if (typeof window !== "undefined") {
-    window.requestAnimationFrame(focus);
-  } else {
-    focus();
-  }
-  return true;
-};
-
-const focusPromptWarningLocation = (warning: TavernPromptPreviewWarning) => {
-  const promptBlockLocation = getPromptBlockWarningLocation(warning);
-  if (!promptBlockLocation) {
-    return false;
-  }
-
-  const fieldElementId =
-    promptBlockLocation.field === "label"
-      ? `tavern-prompt-block-label-${promptBlockLocation.blockId}`
-      : `tavern-prompt-block-${promptBlockLocation.blockId}`;
-
-  return (
-    focusElementById(fieldElementId) || focusElementById(`tavern-prompt-block-card-${promptBlockLocation.blockId}`)
-  );
 };
 
 const getGenerationContractLabel = (profileId: TavernPresentationProfileId) => {
@@ -330,88 +238,8 @@ const createPromptFallback = (room: TavernRoom, presentationProfileId: TavernPre
     immersiveDescriptionEnabled: room.settings.immersiveDescriptionEnabled !== false,
   });
 
-const buildPromptPreviewRoom = (room: TavernRoom, draft: PromptDraft): TavernRoomRuntime =>
-  createTavernRoomRuntimeFromConfig({
-    ...room,
-    presentation: {
-      ...normalizeTavernPresentation(room.presentation),
-      profileId: normalizeTavernPresentationProfileId(draft.presentationProfileId),
-      profileVersion: 1,
-    },
-    prompt: clonePromptSettings(draft.prompt),
-    settings: {
-      ...room.settings,
-      immersiveDescriptionEnabled: draft.immersiveDescriptionEnabled,
-    },
-  });
-
-const buildPromptBlockAgentContext = ({
-  room,
-  draft,
-  block,
-}: {
-  room: TavernRoom;
-  draft: PromptDraft;
-  block: TavernPromptBlock;
-}) => {
-  const previewRoom = buildPromptPreviewRoom(room, draft);
-  const activeNode = selectTavernRuntimeActiveNode(previewRoom);
-  const activeScene = selectTavernRuntimeActiveSceneFields(previewRoom);
-  const activeSceneInstance = selectTavernRuntimeActiveSceneInstance(previewRoom);
-
-  return {
-    promptEditingMode: "saved_prompt_block",
-    constraints: [
-      "只优化当前提示词文本块，不要输出 JSON、标题或解释。",
-      "不要新增、改名或要求 XML 标签；输出协议由 system_contract 和 presentation_profile 控制。",
-      "不要把文本写成系统底层不可改规则；保持为用户可编辑的风格、节奏、偏好或边界说明。",
-      "保留 target 对应职责：bridge 负责整理，director 负责调度，character 负责角色正文表达。",
-    ],
-    presentationProfile: getTavernPresentationProfile(draft.presentationProfileId),
-    promptBlock: {
-      id: block.id,
-      target: block.target,
-      label: block.label,
-      source: block.source,
-      enabled: block.enabled,
-    },
-    relatedPromptBlocks: draft.prompt.blocks
-      .filter((item) => item.id !== block.id && item.enabled && item.text.trim())
-      .slice(0, 8)
-      .map((item) => ({
-        target: item.target,
-        label: item.label,
-        source: item.source,
-        text: item.text.slice(0, 800),
-      })),
-    runtimeContext: {
-      story: {
-        id: previewRoom.story.binding?.storyId ?? previewRoom.identity.id,
-        title: previewRoom.identity.title,
-        outline: previewRoom.story.outline,
-        goal: previewRoom.story.goal,
-        userPersonaName: previewRoom.user.personaName,
-      },
-      activeNode,
-      activeScene,
-      branch: {
-        pathNodeIds: activeSceneInstance?.pathNodeIds ?? [],
-        pathEdgeIds: activeSceneInstance?.pathEdgeIds ?? [],
-      },
-    },
-  };
-};
-
-export const PromptEdit = ({
-  bind,
-  data,
-  onSave,
-  onOpenWarningNavigation,
-  renderTextFieldAgentActions,
-}: PromptEditProps) => {
+export const PromptEdit = ({ bind, data, onSave }: PromptEditProps) => {
   const [draft, setDraft] = useState<PromptDraft | null>(null);
-  const [error, setError] = useState("");
-  const [focusedBlockId, setFocusedBlockId] = useState("");
 
   const open = (nextData = data) => {
     const presentationProfileId = normalizeTavernPresentationProfileId(nextData.presentation?.profileId);
@@ -420,7 +248,6 @@ export const PromptEdit = ({
       createPromptFallback(nextData, presentationProfileId),
     );
 
-    setError("");
     setDraft({
       presentationProfileId,
       prompt: clonePromptSettings(prompt),
@@ -433,14 +260,11 @@ export const PromptEdit = ({
 
   const close = () => {
     setDraft(null);
-    setError("");
-    setFocusedBlockId("");
   };
 
   const patchDraftPrompt = (
     updater: (prompt: TavernRoomPromptSettings, current: PromptDraft) => TavernRoomPromptSettings,
   ) => {
-    setError("");
     setDraft((current) =>
       current
         ? {
@@ -510,40 +334,8 @@ export const PromptEdit = ({
     }));
   };
 
-  const locatePromptWarning = (warning: TavernPromptPreviewWarning) => {
-    const promptBlockLocation = getPromptBlockWarningLocation(warning);
-    if (promptBlockLocation) {
-      setFocusedBlockId(promptBlockLocation.blockId);
-      if (typeof window !== "undefined") {
-        window.setTimeout(() => {
-          setFocusedBlockId((current) => (current === promptBlockLocation.blockId ? "" : current));
-        }, 1800);
-      }
-    }
-
-    if (!focusPromptWarningLocation(warning)) {
-      focusElementById("tavern-prompt-preview-section");
-    }
-  };
-
   const save = () => {
     if (!draft) {
-      return;
-    }
-
-    const previewRoom = buildPromptPreviewRoom(data, draft);
-    const previewForSave = buildTavernPromptPreview({
-      room: previewRoom,
-      characters: selectTavernRuntimeCharacters(previewRoom),
-      messages: [],
-    });
-    const blockingWarning = previewForSave.warnings.find(
-      (warning) => warning.severity === "danger" && warning.blocksSave !== false,
-    );
-
-    if (blockingWarning) {
-      setError(blockingWarning.message);
-      locatePromptWarning(blockingWarning);
       return;
     }
 
@@ -596,42 +388,6 @@ export const PromptEdit = ({
       ]),
     );
   }, [draft]);
-  const previewRoom = useMemo(() => (draft ? buildPromptPreviewRoom(data, draft) : null), [data, draft]);
-  const promptPreview = useMemo(
-    () =>
-      previewRoom
-        ? buildTavernPromptPreview({
-            room: previewRoom,
-            characters: selectTavernRuntimeCharacters(previewRoom),
-            messages: [],
-          })
-        : null,
-    [previewRoom],
-  );
-  const promptPreviewBlockingCount = promptPreview?.summary.blockingWarningCount ?? 0;
-  const promptPreviewWarningCount = promptPreview?.summary.warningCount ?? 0;
-  const getPromptWarningAction = (warning: TavernPromptPreviewWarning) => {
-    if (getPromptBlockWarningLocation(warning)) {
-      return {
-        label: "定位",
-        onClick: () => locatePromptWarning(warning),
-      };
-    }
-
-    const navigation = previewRoom ? resolveTavernPromptWarningNavigation(warning) : null;
-
-    if (!navigation || !onOpenWarningNavigation) {
-      return null;
-    }
-
-    return {
-      label: "打开来源",
-      onClick: () => {
-        onOpenWarningNavigation(navigation);
-        close();
-      },
-    };
-  };
 
   return (
     <Dialog
@@ -673,11 +429,6 @@ export const PromptEdit = ({
                         <EditorStatusPill tone={draft.immersiveDescriptionEnabled ? "active" : "muted"}>
                           沉浸描写{draft.immersiveDescriptionEnabled ? "开" : "关"}
                         </EditorStatusPill>
-                        <EditorStatusPill
-                          tone={promptPreviewBlockingCount > 0 || promptPreviewWarningCount > 0 ? "warning" : "active"}
-                        >
-                          诊断 {promptPreviewBlockingCount + promptPreviewWarningCount}
-                        </EditorStatusPill>
                       </>
                     }
                   >
@@ -700,7 +451,6 @@ export const PromptEdit = ({
                     items={[
                       { href: "#tavern-prompt-structure-section", icon: MessageSquareText, label: "系统层" },
                       { href: "#tavern-prompt-presets-section", icon: FilePlus2, label: "引用预设" },
-                      { href: "#tavern-prompt-preview-section", icon: Eye, label: "最终预览" },
                       { href: "#tavern-prompt-blocks-section", icon: Braces, label: "文本块" },
                     ]}
                   />
@@ -894,190 +644,6 @@ export const PromptEdit = ({
                 </div>
               </EditorFormCard>
 
-              {promptPreview && (
-                <EditorFormCard
-                  id="tavern-prompt-preview-section"
-                  icon={Eye}
-                  title="最终预览"
-                  description="按当前草稿拼装整理员、导演和角色请求，并标出结构风险。"
-                >
-                  <div className="space-y-3">
-                    <EditorMetricStrip
-                      items={[
-                        {
-                          icon: TextSearch,
-                          label: "预览总量",
-                          value: formatPromptCharCount(promptPreview.summary.totalChars),
-                          description: "三个目标合计",
-                        },
-                        {
-                          icon: Braces,
-                          label: "启用文本块",
-                          value: promptPreview.summary.enabledPromptBlockCount,
-                          description: `${formatPromptCharCount(promptPreview.summary.totalPromptBlockChars)} 字`,
-                        },
-                        {
-                          icon: AlertTriangle,
-                          label: "结构诊断",
-                          value:
-                            promptPreviewBlockingCount > 0
-                              ? `${promptPreviewBlockingCount} 阻断`
-                              : promptPreviewWarningCount > 0
-                                ? `${promptPreviewWarningCount} 风险`
-                                : "通过",
-                          description: promptPreview.activeCharacter
-                            ? `角色：${promptPreview.activeCharacter.name}`
-                            : "未找到角色",
-                        },
-                        {
-                          icon: ListChecks,
-                          label: "覆盖目标",
-                          value: promptPreview.items.length,
-                          description: "bridge / director / character",
-                        },
-                      ]}
-                    />
-
-                    {(() => {
-                      const actionableWarnings = promptPreview.warnings.filter(
-                        (warning) => warning.severity !== "info",
-                      );
-
-                      if (actionableWarnings.length === 0) {
-                        return (
-                          <div className="flex items-center gap-2 rounded-lg border border-teal-500/15 bg-teal-500/8 px-3 py-2 text-xs leading-5 text-teal-700 dark:text-teal-200">
-                            <CheckCircle2 className="size-4 shrink-0" />
-                            <span>未发现阻断或风险项。</span>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div className="space-y-2 rounded-lg border border-amber-500/20 bg-amber-500/8 px-3 py-2">
-                          {actionableWarnings.slice(0, 6).map((warning) => {
-                            const action = getPromptWarningAction(warning);
-
-                            return (
-                              <div
-                                key={warning.id}
-                                className="flex min-w-0 items-start gap-2 text-xs leading-5 text-amber-800 dark:text-amber-100"
-                              >
-                                <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-                                  <EditorStatusPill tone={getPromptWarningTone(warning.severity)}>
-                                    {getPromptWarningLabel(warning.severity)}
-                                  </EditorStatusPill>
-                                  <span className="min-w-0 flex-1">{warning.message}</span>
-                                  {action && (
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant="outline"
-                                      className="h-6 gap-1 px-2 text-[11px]"
-                                      onClick={action.onClick}
-                                    >
-                                      <LocateFixed className="size-3" />
-                                      {action.label}
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                          {actionableWarnings.length > 6 && (
-                            <div className="text-xs leading-5 text-amber-800/80 dark:text-amber-100/80">
-                              另有 {actionableWarnings.length - 6} 项风险未展开。
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-
-                    <Tabs defaultValue={promptPreview.items[0]?.target ?? "bridge"}>
-                      <TabsList className="max-w-full overflow-x-auto">
-                        {promptPreview.items.map((item) => (
-                          <TabsTrigger key={item.target} value={item.target}>
-                            {item.label}
-                            {item.warnings.some((warning) => warning.severity !== "info") && (
-                              <AlertTriangle className="size-3.5 text-amber-600" />
-                            )}
-                          </TabsTrigger>
-                        ))}
-                      </TabsList>
-
-                      {promptPreview.items.map((item) => {
-                        const actionableItemWarnings = item.warnings.filter((warning) => warning.severity !== "info");
-
-                        return (
-                          <TabsContent key={item.target} value={item.target} className="space-y-3">
-                            <div className="grid gap-2 md:grid-cols-4">
-                              <div className="rounded-md border border-border/70 bg-background/72 px-3 py-2">
-                                <div className="text-[11px] font-medium text-muted-foreground">systemPrompt</div>
-                                <div className="mt-0.5 text-sm font-semibold leading-5">
-                                  {formatPromptCharCount(item.metrics.systemPromptChars)}
-                                </div>
-                              </div>
-                              <div className="rounded-md border border-border/70 bg-background/72 px-3 py-2">
-                                <div className="text-[11px] font-medium text-muted-foreground">runtimeInstruction</div>
-                                <div className="mt-0.5 text-sm font-semibold leading-5">
-                                  {formatPromptCharCount(item.metrics.runtimeInstructionChars)}
-                                </div>
-                              </div>
-                              <div className="rounded-md border border-border/70 bg-background/72 px-3 py-2">
-                                <div className="text-[11px] font-medium text-muted-foreground">requestContext</div>
-                                <div className="mt-0.5 text-sm font-semibold leading-5">
-                                  {formatPromptCharCount(item.metrics.requestContextChars)}
-                                </div>
-                              </div>
-                              <div className="rounded-md border border-border/70 bg-background/72 px-3 py-2">
-                                <div className="text-[11px] font-medium text-muted-foreground">userMessage</div>
-                                <div className="mt-0.5 text-sm font-semibold leading-5">
-                                  {formatPromptCharCount(item.metrics.userMessageChars)}
-                                </div>
-                              </div>
-                            </div>
-
-                            {actionableItemWarnings.length > 0 && (
-                              <div className="space-y-1.5 rounded-md border border-amber-500/20 bg-amber-500/8 px-3 py-2">
-                                {actionableItemWarnings.map((warning) => {
-                                  const action = getPromptWarningAction(warning);
-
-                                  return (
-                                    <div
-                                      key={warning.id}
-                                      className="flex items-start gap-2 text-xs leading-5 text-amber-800 dark:text-amber-100"
-                                    >
-                                      <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                                      <span className="min-w-0 flex-1">{warning.message}</span>
-                                      {action && (
-                                        <Button
-                                          type="button"
-                                          size="sm"
-                                          variant="outline"
-                                          className="h-6 gap-1 px-2 text-[11px]"
-                                          onClick={action.onClick}
-                                        >
-                                          <LocateFixed className="size-3" />
-                                          {action.label}
-                                        </Button>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-
-                            <pre className="max-h-[28rem] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border/70 bg-muted/20 p-3 font-mono text-[11px] leading-5 text-foreground shadow-inner">
-                              {item.previewText || "暂无可预览内容。"}
-                            </pre>
-                          </TabsContent>
-                        );
-                      })}
-                    </Tabs>
-                  </div>
-                </EditorFormCard>
-              )}
-
               <EditorFormCard
                 id="tavern-prompt-blocks-section"
                 icon={Braces}
@@ -1128,7 +694,6 @@ export const PromptEdit = ({
                                   className={cn(
                                     "rounded-lg border border-border/70 bg-background/72 p-3 shadow-xs transition-[border-color,box-shadow]",
                                     !block.enabled && "opacity-70",
-                                    focusedBlockId === block.id && "border-primary/55 ring-2 ring-primary/20",
                                   )}
                                 >
                                   <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
@@ -1185,26 +750,6 @@ export const PromptEdit = ({
                                     className="mt-2 flex min-h-6 items-center justify-between gap-2 text-xs font-medium text-muted-foreground"
                                   >
                                     <span>文本</span>
-                                    <span className="shrink-0">
-                                      {renderTextFieldAgentActions({
-                                        fieldKey: `promptBlock:${block.id}`,
-                                        fieldLabel: `提示词文本块：${block.label}`,
-                                        currentText: block.text,
-                                        applyText: (text) => {
-                                          patchDraftPrompt((prompt) =>
-                                            updatePromptBlock(prompt, block.id, (nextBlock) => ({
-                                              ...nextBlock,
-                                              text,
-                                            })),
-                                          );
-                                        },
-                                        context: buildPromptBlockAgentContext({
-                                          room: data,
-                                          draft,
-                                          block,
-                                        }),
-                                      })}
-                                    </span>
                                   </label>
                                   <Textarea
                                     id={textAreaId}
@@ -1230,23 +775,13 @@ export const PromptEdit = ({
                   })}
                 </div>
               </EditorFormCard>
-
-              {error && (
-                <div className="rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                  {error}
-                </div>
-              )}
             </EditorFormLayout>
 
             <EditorFormFooter
               status={
                 <span className="inline-flex items-center gap-1.5">
                   <Goal className="size-3.5" />
-                  {promptPreviewBlockingCount > 0
-                    ? `有 ${promptPreviewBlockingCount} 项阻断诊断，建议先处理`
-                    : promptPreviewWarningCount > 0
-                      ? `有 ${promptPreviewWarningCount} 项风险诊断，保存后影响后续请求`
-                      : "诊断通过；保存后会影响后续整理员、导演与角色请求"}
+                  保存后会影响后续整理员、导演与角色请求
                 </span>
               }
             >

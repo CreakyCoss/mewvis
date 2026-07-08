@@ -28,14 +28,11 @@ import {
   editorHeaderActionButtonClassName,
 } from "../../primitives";
 import { PromptEdit, type PromptEditHandle } from "./edit";
-import type { TavernPromptWarningNavigationRequest } from "./warning-navigation";
-import type { ModuleSave, TextFieldAgentActionRenderer } from "../types";
+import type { ModuleSave } from "../types";
 
 type PromptSectionProps = {
   data: TavernRoom;
   onSave: ModuleSave;
-  onOpenWarningNavigation?: (request: TavernPromptWarningNavigationRequest) => void;
-  renderTextFieldAgentActions: TextFieldAgentActionRenderer;
 };
 
 type PromptHierarchyStep = {
@@ -258,12 +255,7 @@ export const PromptSummaryContent = ({ data }: { data: TavernRoom }) => {
   );
 };
 
-export const PromptSection = ({
-  data,
-  onSave,
-  onOpenWarningNavigation,
-  renderTextFieldAgentActions,
-}: PromptSectionProps) => {
+export const PromptSection = ({ data, onSave }: PromptSectionProps) => {
   const editRef = useRef<PromptEditHandle>(null);
   const presentationProfile = getTavernPresentationProfile(data.presentation?.profileId);
   const enabledBlockCount = getEnabledPromptBlocks(data.prompt.blocks).length;
@@ -293,13 +285,7 @@ export const PromptSection = ({
         <PromptSummaryContent data={data} />
       </EditorSection>
 
-      <PromptEdit
-        bind={editRef}
-        data={data}
-        onSave={onSave}
-        onOpenWarningNavigation={onOpenWarningNavigation}
-        renderTextFieldAgentActions={renderTextFieldAgentActions}
-      />
+      <PromptEdit bind={editRef} data={data} onSave={onSave} />
     </>
   );
 };

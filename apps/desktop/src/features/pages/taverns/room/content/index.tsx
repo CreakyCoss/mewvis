@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { getTavernPresentationProfile } from "@/features/pages/taverns/tavern/prompt-registry/presentation-rules";
 import { getTavernSceneInstanceDisplayTitle } from "@/features/pages/taverns/tavern/runtime/scene-selectors";
 import { Composer } from "../composer";
-import { createIdleTavernRoomBusyState, useTavernRoomContext } from "../context";
+import { useTavernRoomContext } from "../context";
 import { ExecutionTrace } from "../execution-trace";
 import { createTavernRenderableMessages } from "../message/domain/render-model";
 import { resolveTavernConversationRenderer } from "../message/renderers";
@@ -29,7 +29,6 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
   const roomMessages = useTavernRoomContext((store) => store.roomMessages);
   const busy = useTavernRoomContext((store) => store.busy);
   const selectRoomSceneInstance = useTavernRoomContext((store) => store.selectRoomSceneInstance);
-  const setBusy = useTavernRoomContext((store) => store.setBusy);
   const executionSteps = useTavernRoomContext((store) => store.executionSteps);
   const executionTraceAnchorMessageId = useTavernRoomContext((store) => store.executionTraceAnchorMessageId);
   const [files, setFiles] = useState<WorkspaceFileEntry[]>([]);
@@ -62,10 +61,6 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
     };
   }, [workspace.path]);
 
-  useEffect(() => {
-    setBusy((current) => (current.kind === "reply_suggestions" ? createIdleTavernRoomBusyState() : current));
-  }, [activeRoom?.identity.id, activeRoom ? selectTavernRuntimeActiveSceneInstanceId(activeRoom) : "", setBusy]);
-
   const renderableRoomMessages = useMemo(
     () =>
       activeRoom
@@ -92,7 +87,7 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
       }
 
       selectRoomSceneInstance(activeRoom.identity.id, sceneInstanceId);
-      useTavernRoomContext.getState().composerHandle?.clearReplySuggestions();
+      useTavernRoomContext.getState().composerHandle?.clearReplyOptions();
     },
     [activeRoom, selectRoomSceneInstance],
   );

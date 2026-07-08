@@ -1,6 +1,6 @@
-import { LogOut, Pencil, ScrollText, Settings2, Sparkles, Wine } from "lucide-react";
+import { LogOut, ScrollText, Settings2, Wine } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { MouseEvent, Ref } from "react";
+import type { Ref } from "react";
 import { useCallback, useImperativeHandle, useState } from "react";
 import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
@@ -9,15 +9,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { WindowDragRegion } from "@/components/window-drag-region";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import { cn } from "@/lib/utils";
-import type { TavernTextFieldAgentRequest } from "../tavern/runtime/assistants/field-polish-agent";
 import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 import { Header } from "./header";
 import { BasicSection } from "./modules/basic";
 import { PromptSection } from "./modules/prompt";
-import type { TavernPromptWarningNavigationRequest } from "./modules/prompt/warning-navigation";
 import { SettingsSection } from "./modules/settings";
-import type { TextFieldAgentActionRenderer } from "./modules/types";
-import { cloneTavernRoom, getErrorMessage, prepareTavernRoomForSave } from "./utils";
+import { cloneTavernRoom, prepareTavernRoomForSave } from "./utils";
 
 export type RoomEditorHandle = (room: TavernRoom) => void;
 
@@ -74,29 +71,22 @@ type RoomEditorProps = {
   bind: Ref<RoomEditorHandle>;
   globalRuntimeModel: RuntimeModelOption | null;
   onPatchRoom: (roomId: string, patch: Partial<TavernRoom>) => void;
-  onRunTextFieldAgent: (request: TavernTextFieldAgentRequest) => Promise<string>;
 };
 
-export const RoomEditor = ({ bind, globalRuntimeModel, onPatchRoom, onRunTextFieldAgent }: RoomEditorProps) => {
+export const RoomEditor = ({ bind, globalRuntimeModel, onPatchRoom }: RoomEditorProps) => {
   const navigate = useNavigate();
   const [data, setData] = useState<TavernRoom | null>(null);
-  const [activeTextFieldAgentKey, setActiveTextFieldAgentKey] = useState("");
-  const [textFieldAgentError, setTextFieldAgentError] = useState("");
   const [activeModuleId, setActiveModuleId] = useState<EditorModuleId>("basic");
 
   const open = useCallback((room: TavernRoom) => {
     setData(cloneTavernRoom(room));
     setActiveModuleId("basic");
-    setActiveTextFieldAgentKey("");
-    setTextFieldAgentError("");
   }, []);
 
   useImperativeHandle(bind, () => open, [bind, open]);
 
   const closeRoomEditor = () => {
     setData(null);
-    setActiveTextFieldAgentKey("");
-    setTextFieldAgentError("");
   };
 
   const persistRoom = (room: TavernRoom) => {
@@ -121,127 +111,6 @@ export const RoomEditor = ({ bind, globalRuntimeModel, onPatchRoom, onRunTextFie
     });
   };
 
-  const buildTextFieldAgentContext = () => {
-    if (!data) {
-      throw new Error("Room editor is not open.");
-    }
-
-    return {
-      room: {
-        title: data.title,
-        scenePresetId: data.scenePresetId,
-        replyMode: data.replyMode,
-        promptBlocks: data.prompt.blocks
-          .filter((block) => block.enabled && block.text.trim())
-          .map((block) => ({
-            target: block.target,
-            label: block.label,
-            source: block.source,
-            text: block.text,
-          })),
-      },
-    };
-  };
-
-  const runTextFieldAgentForDraft = async ({
-    mode,
-    fieldKey,
-    fieldLabel,
-    currentText,
-    applyText,
-    context,
-  }: {
-    mode: "polish" | "inspire";
-    fieldKey: string;
-    fieldLabel: string;
-    currentText: string;
-    applyText: (text: string) => void;
-    context?: Record<string, unknown>;
-  }) => {
-    setActiveTextFieldAgentKey(`${fieldKey}:${mode}`);
-    setTextFieldAgentError("");
-    try {
-      const text = await onRunTextFieldAgent({
-        mode,
-        fieldLabel,
-        currentText,
-        context: {
-          ...buildTextFieldAgentContext(),
-          ...(context ?? {}),
-        },
-      });
-      if (text.trim()) {
-        applyText(text);
-      }
-    } catch (error) {
-      setTextFieldAgentError(getErrorMessage(error));
-    } finally {
-      setActiveTextFieldAgentKey("");
-    }
-  };
-
-  const renderTextFieldAgentActions: TextFieldAgentActionRenderer = ({
-    fieldKey,
-    fieldLabel,
-    currentText,
-    applyText,
-    context,
-  }) => {
-    const isPolishing = activeTextFieldAgentKey === `${fieldKey}:polish`;
-    const isInspiring = activeTextFieldAgentKey === `${fieldKey}:inspire`;
-    const isBusy = Boolean(activeTextFieldAgentKey);
-    const run = (mode: "polish" | "inspire") => (event: MouseEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-      void runTextFieldAgentForDraft({
-        mode,
-        fieldKey,
-        fieldLabel,
-        currentText,
-        applyText,
-        context,
-      });
-    };
-
-    return (
-      <span className="flex items-center gap-1">
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className="h-6 px-2 text-[11px]"
-          disabled={isBusy}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={run("polish")}
-        >
-          <Pencil className="size-3" />
-          {isPolishing ? "处理中" : "润色"}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className="h-6 px-2 text-[11px]"
-          disabled={isBusy}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={run("inspire")}
-        >
-          <Sparkles className="size-3" />
-          {isInspiring ? "处理中" : "灵感"}
-        </Button>
-      </span>
-    );
-  };
-
-  const requestPromptWarningNavigation = (request: TavernPromptWarningNavigationRequest) => {
-    if (request.target === "runtimeBasic") {
-      setActiveModuleId("basic");
-      return;
-    }
-
-    openStoryConfig();
-  };
-
   const renderActiveModule = () => {
     if (!data) {
       return null;
@@ -249,18 +118,9 @@ export const RoomEditor = ({ bind, globalRuntimeModel, onPatchRoom, onRunTextFie
 
     switch (activeModuleId) {
       case "basic":
-        return (
-          <BasicSection data={data} onSave={onModuleSave} renderTextFieldAgentActions={renderTextFieldAgentActions} />
-        );
+        return <BasicSection data={data} onSave={onModuleSave} />;
       case "prompt":
-        return (
-          <PromptSection
-            data={data}
-            onSave={onModuleSave}
-            onOpenWarningNavigation={requestPromptWarningNavigation}
-            renderTextFieldAgentActions={renderTextFieldAgentActions}
-          />
-        );
+        return <PromptSection data={data} onSave={onModuleSave} />;
       case "settings":
         return <SettingsSection data={data} globalRuntimeModel={globalRuntimeModel} onSave={onModuleSave} />;
     }
@@ -324,7 +184,7 @@ export const RoomEditor = ({ bind, globalRuntimeModel, onPatchRoom, onRunTextFie
             </aside>
 
             <div className="flex min-w-0 flex-1 flex-col">
-              <Header data={data} textFieldAgentError={textFieldAgentError} onOpenStoryConfig={openStoryConfig} />
+              <Header data={data} onOpenStoryConfig={openStoryConfig} />
 
               <ScrollArea className="min-h-0 flex-1 bg-muted/10">
                 <div className="flex w-full flex-col gap-4 px-4 py-4 lg:px-6">

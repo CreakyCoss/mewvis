@@ -129,7 +129,7 @@ const TavernsPageContent = ({ workspace }: TavernsPageContentProps) => {
     setState,
     onError: reportManagementError,
   });
-  const { rooms, createRoom, patchRoom, globalRuntimeModel, runTextFieldAgent } = management;
+  const { rooms, createRoom, patchRoom, globalRuntimeModel } = management;
 
   const openRoomEditor = (room: TavernRoom) => {
     roomEditorRef.current?.(room);
@@ -202,12 +202,7 @@ const TavernsPageContent = ({ workspace }: TavernsPageContentProps) => {
           </section>
         </div>
       </ScrollArea>
-      <RoomEditor
-        bind={roomEditorRef}
-        globalRuntimeModel={globalRuntimeModel}
-        onPatchRoom={patchRoom}
-        onRunTextFieldAgent={runTextFieldAgent}
-      />
+      <RoomEditor bind={roomEditorRef} globalRuntimeModel={globalRuntimeModel} onPatchRoom={patchRoom} />
     </div>
   );
 };
