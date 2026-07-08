@@ -1,6 +1,5 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import type { TavernRoomStoreState } from "@/features/pages/taverns/room/context";
 import { createTavernMessage } from "@/features/pages/taverns/room/message/domain/factory";
 import { canTavernCharacterUseNonverbalReply } from "@/features/pages/taverns/tavern/core/director-scheduling";
@@ -104,16 +103,14 @@ const generateMissingInnerThought = async ({
   turnMessages,
   text,
   finalText,
-  storyContext,
 }: {
   ctx: TavernRoomStoreState;
-  runtimeRoom: TavernRoom;
+  runtimeRoom: TavernRoomRuntime;
   speaker: TavernCharacter;
   runtimeModel: RuntimeModelOption;
   turnMessages: TavernMessage[];
   text: string;
   finalText: string;
-  storyContext: TavernStoryContextPackage;
 }) => {
   try {
     return await runTavernInnerThought({
@@ -125,7 +122,6 @@ const generateMissingInnerThought = async ({
       messages: turnMessages,
       currentUserText: text,
       replyContent: finalText,
-      storyContext,
     });
   } catch {
     return undefined;
@@ -143,12 +139,11 @@ const runSpeakerReplyThroughCollaboration = async ({
   currentUserText,
   turnInstruction,
   allowNonverbalReply,
-  storyContext,
   onTextDelta,
   traceOptions,
 }: {
   ctx: TavernRoomStoreState;
-  runtimeRoom: TavernRoom;
+  runtimeRoom: TavernRoomRuntime;
   speaker: TavernCharacter;
   speakerRuntimeModel: RuntimeModelOption;
   characters: TavernCharacter[];
@@ -157,7 +152,6 @@ const runSpeakerReplyThroughCollaboration = async ({
   currentUserText: string;
   turnInstruction: string;
   allowNonverbalReply: boolean;
-  storyContext: TavernStoryContextPackage;
   onTextDelta: (delta: string) => void;
   traceOptions?: {
     scopeLabel?: string;
@@ -173,7 +167,6 @@ const runSpeakerReplyThroughCollaboration = async ({
     messages: turnMessages,
     references,
     currentUserText,
-    storyContext,
     turnInstructionByCharacterId: {
       [speaker.id]: turnInstruction,
     },
@@ -235,8 +228,8 @@ const buildSpeakerReplyPlan = ({
   mode,
   requireSpeakerRuntimeModel,
 }: {
-  room: TavernRoom;
-  runtimeRoom: TavernRoom;
+  room: TavernRoomRuntime;
+  runtimeRoom: TavernRoomRuntime;
   speaker: TavernCharacter;
   speakerIndex: number;
   speakerCount: number;
@@ -249,14 +242,14 @@ const buildSpeakerReplyPlan = ({
 }): SpeakerReplyPlan => {
   const speakerRuntimeModel = requireSpeakerRuntimeModel(speaker);
   const nonverbalReplyAllowed = canTavernCharacterUseNonverbalReply({
-    settings: runtimeRoom.settings,
+    settings: runtimeRoom.presentation.settings,
     characterId: speaker.id,
     selectedTargetCharacterIds: selectedReplyOption?.targetCharacterIds,
     directorNonverbalReplyIds,
     currentUserText: text,
     directorReason,
   });
-  const presentationProfile = getTavernPresentationProfile(runtimeRoom.presentation?.profileId);
+  const presentationProfile = getTavernPresentationProfile(runtimeRoom.presentation.profile?.profileId);
   const presentationContract = getTavernPresentationContract(presentationProfile);
   const contentOnlyReplyAllowed = nonverbalReplyAllowed || presentationContract.allowsContentOnlyReply;
   const turnInstruction = buildTavernCharacterTurnInstruction({
@@ -294,9 +287,9 @@ const ensureSpeakerReplyRuntimeStarted = ({
   activeReplyRef: ActiveReplyRef;
   ctx: TavernRoomStoreState;
   mode: TurnMode;
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   runtime: SpeakerReplyRuntime;
-  runtimeRoom: TavernRoom;
+  runtimeRoom: TavernRoomRuntime;
 }) => {
   if (runtime.replyMessage) {
     activeReplyRef.message = runtime.replyMessage;
@@ -313,10 +306,10 @@ const ensureSpeakerReplyRuntimeStarted = ({
   });
 
   const replyMessage = createTavernMessage({
-    roomId: room.id,
+    roomId: room.identity.id,
     role: "character",
     characterId: speaker.id,
-    presentationProfileId: runtimeRoom.presentation?.profileId,
+    presentationProfileId: runtimeRoom.presentation.profile?.profileId,
     content: "",
     status: "streaming",
   });
@@ -324,7 +317,7 @@ const ensureSpeakerReplyRuntimeStarted = ({
   runtime.streamedText = "";
   activeReplyRef.message = replyMessage;
   activeReplyRef.text = "";
-  ctx.appendMessagesToRoom(room.id, [replyMessage]);
+  ctx.appendMessagesToRoom(room.identity.id, [replyMessage]);
 
   return replyMessage;
 };
@@ -340,7 +333,7 @@ const appendSpeakerReplyDelta = ({
   ctx: TavernRoomStoreState;
   delta: string;
   runtime: SpeakerReplyRuntime;
-  runtimeRoom: TavernRoom;
+  runtimeRoom: TavernRoomRuntime;
 }) => {
   if (!runtime.replyMessage) {
     return;
@@ -351,7 +344,7 @@ const appendSpeakerReplyDelta = ({
     text: runtime.streamedText,
     activeCharacter: runtime.speaker,
     characters: ctx.roomCharacters,
-    userPersonaName: runtimeRoom.userPersonaName,
+    userPersonaName: runtimeRoom.user.personaName,
   });
   activeReplyRef.message = runtime.replyMessage;
   activeReplyRef.text = streamedReply.content;
@@ -391,7 +384,6 @@ const finalizeSpeakerReplyRuntime = async ({
   references,
   runtime,
   runtimeRoom,
-  storyContext,
   text,
   turnMessages,
   turnNarratorTexts,
@@ -401,8 +393,7 @@ const finalizeSpeakerReplyRuntime = async ({
   currentUserText: string;
   references: TavernReferencedFile[];
   runtime: SpeakerReplyRuntime;
-  runtimeRoom: TavernRoom;
-  storyContext: TavernStoryContextPackage;
+  runtimeRoom: TavernRoomRuntime;
   text: string;
   turnMessages: TavernMessage[];
   turnNarratorTexts: string[];
@@ -416,7 +407,7 @@ const finalizeSpeakerReplyRuntime = async ({
     text: text || runtime.streamedText,
     activeCharacter: runtime.speaker,
     characters: ctx.roomCharacters,
-    userPersonaName: runtimeRoom.userPersonaName,
+    userPersonaName: runtimeRoom.user.personaName,
   });
 
   if (!isFinalReplyUsable(finalReply, runtime.contentOnlyReplyAllowed)) {
@@ -445,7 +436,6 @@ const finalizeSpeakerReplyRuntime = async ({
         speaker: runtime.speaker,
       }),
       allowNonverbalReply: runtime.nonverbalReplyAllowed,
-      storyContext,
       onTextDelta: (delta) =>
         appendSpeakerReplyDelta({
           activeReplyRef,
@@ -465,7 +455,7 @@ const finalizeSpeakerReplyRuntime = async ({
       text: retryResult.text || runtime.streamedText,
       activeCharacter: runtime.speaker,
       characters: ctx.roomCharacters,
-      userPersonaName: runtimeRoom.userPersonaName,
+      userPersonaName: runtimeRoom.user.personaName,
     });
   }
 
@@ -496,7 +486,6 @@ const finalizeSpeakerReplyRuntime = async ({
       turnMessages,
       text: currentUserText,
       finalText,
-      storyContext,
     }));
   const finalizedMessage: TavernMessage = {
     ...replyMessage,
@@ -543,7 +532,6 @@ const runSpeakerReplyRoundThroughCollaboration = async ({
   runtimeRoom,
   selectedReplyOption,
   speakers,
-  storyContext,
   turnMessages,
   turnNarratorTexts,
 }: {
@@ -555,12 +543,11 @@ const runSpeakerReplyRoundThroughCollaboration = async ({
   mode: TurnMode;
   references: TavernReferencedFile[];
   requireSpeakerRuntimeModel: RequireSpeakerRuntimeModel;
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   runtimeMessages: TavernMessage[];
-  runtimeRoom: TavernRoom;
+  runtimeRoom: TavernRoomRuntime;
   selectedReplyOption?: TavernReplyOption;
   speakers: TavernCharacter[];
-  storyContext: TavernStoryContextPackage;
   turnMessages: TavernMessage[];
   turnNarratorTexts: string[];
 }) => {
@@ -607,7 +594,6 @@ const runSpeakerReplyRoundThroughCollaboration = async ({
     messages: turnMessages,
     references,
     currentUserText,
-    storyContext,
     turnInstructionByCharacterId: Object.fromEntries(
       runtimes.map((runtime) => [runtime.speaker.id, runtime.effectiveTurnInstruction]),
     ),
@@ -701,7 +687,6 @@ const runSpeakerReplyRoundThroughCollaboration = async ({
       references,
       runtime,
       runtimeRoom,
-      storyContext,
       text: outputText ?? runtime.streamedText,
       turnMessages,
       turnNarratorTexts,
@@ -735,11 +720,10 @@ const runSingleSpeakerReply = async ({
   mode,
   requireSpeakerRuntimeModel,
   activeReplyRef,
-  storyContext,
 }: {
   ctx: TavernRoomStoreState;
-  room: TavernRoom;
-  runtimeRoom: TavernRoom;
+  room: TavernRoomRuntime;
+  runtimeRoom: TavernRoomRuntime;
   speaker: TavernCharacter;
   speakerIndex: number;
   speakerCount: number;
@@ -753,18 +737,17 @@ const runSingleSpeakerReply = async ({
   mode: TurnMode;
   requireSpeakerRuntimeModel: RequireSpeakerRuntimeModel;
   activeReplyRef: ActiveReplyRef;
-  storyContext: TavernStoryContextPackage;
 }) => {
   const speakerRuntimeModel = requireSpeakerRuntimeModel(speaker);
   const nonverbalReplyAllowed = canTavernCharacterUseNonverbalReply({
-    settings: runtimeRoom.settings,
+    settings: runtimeRoom.presentation.settings,
     characterId: speaker.id,
     selectedTargetCharacterIds: selectedReplyOption?.targetCharacterIds,
     directorNonverbalReplyIds,
     currentUserText: text,
     directorReason,
   });
-  const presentationProfile = getTavernPresentationProfile(runtimeRoom.presentation?.profileId);
+  const presentationProfile = getTavernPresentationProfile(runtimeRoom.presentation.profile?.profileId);
   const presentationContract = getTavernPresentationContract(presentationProfile);
   const contentOnlyReplyAllowed = nonverbalReplyAllowed || presentationContract.allowsContentOnlyReply;
   const speakerStepId = `speaker-${speaker.id}-${speakerIndex}`;
@@ -777,16 +760,16 @@ const runSingleSpeakerReply = async ({
   });
 
   const replyMessage = createTavernMessage({
-    roomId: room.id,
+    roomId: room.identity.id,
     role: "character",
     characterId: speaker.id,
-    presentationProfileId: runtimeRoom.presentation?.profileId,
+    presentationProfileId: runtimeRoom.presentation.profile?.profileId,
     content: "",
     status: "streaming",
   });
   activeReplyRef.message = replyMessage;
   activeReplyRef.text = "";
-  ctx.appendMessagesToRoom(room.id, [replyMessage]);
+  ctx.appendMessagesToRoom(room.identity.id, [replyMessage]);
 
   const turnInstruction = buildTavernCharacterTurnInstruction({
     room,
@@ -807,7 +790,7 @@ const runSingleSpeakerReply = async ({
       text: streamedText,
       activeCharacter: speaker,
       characters: ctx.roomCharacters,
-      userPersonaName: runtimeRoom.userPersonaName,
+      userPersonaName: runtimeRoom.user.personaName,
     });
     activeReplyRef.text = streamedReply.content;
     ctx.patchMessage(replyMessage.id, {
@@ -828,7 +811,6 @@ const runSingleSpeakerReply = async ({
     currentUserText: text,
     turnInstruction: effectiveTurnInstruction,
     allowNonverbalReply: nonverbalReplyAllowed,
-    storyContext,
     onTextDelta: handleReplyTextDelta,
     traceOptions: {
       scopeLabel: `${speaker.name} 回复`,
@@ -841,7 +823,7 @@ const runSingleSpeakerReply = async ({
     text: result.text || streamedText,
     activeCharacter: speaker,
     characters: ctx.roomCharacters,
-    userPersonaName: runtimeRoom.userPersonaName,
+    userPersonaName: runtimeRoom.user.personaName,
   });
 
   if (!isFinalReplyUsable(finalReply, contentOnlyReplyAllowed)) {
@@ -872,7 +854,6 @@ const runSingleSpeakerReply = async ({
         speaker,
       }),
       allowNonverbalReply: nonverbalReplyAllowed,
-      storyContext,
       onTextDelta: handleReplyTextDelta,
       traceOptions: {
         scopeLabel: `${speaker.name} 回复`,
@@ -885,7 +866,7 @@ const runSingleSpeakerReply = async ({
       text: result.text || streamedText,
       activeCharacter: speaker,
       characters: ctx.roomCharacters,
-      userPersonaName: runtimeRoom.userPersonaName,
+      userPersonaName: runtimeRoom.user.personaName,
     });
   }
 
@@ -916,7 +897,6 @@ const runSingleSpeakerReply = async ({
       turnMessages,
       text,
       finalText,
-      storyContext,
     }));
   const finalizedMessage: TavernMessage = {
     ...replyMessage,
@@ -969,11 +949,10 @@ export const runSpeakerReplyFlow = async ({
   turnNarratorTexts,
   requireSpeakerRuntimeModel,
   activeReplyRef,
-  storyContext,
 }: {
   ctx: TavernRoomStoreState;
-  room: TavernRoom;
-  runtimeRoom: TavernRoom;
+  room: TavernRoomRuntime;
+  runtimeRoom: TavernRoomRuntime;
   runtimeMessages: TavernMessage[];
   turnMessages: TavernMessage[];
   userMessage: TavernMessage;
@@ -987,7 +966,6 @@ export const runSpeakerReplyFlow = async ({
   turnNarratorTexts: string[];
   requireSpeakerRuntimeModel: RequireSpeakerRuntimeModel;
   activeReplyRef: ActiveReplyRef;
-  storyContext: TavernStoryContextPackage;
 }) => {
   if (shouldRunSpeakerRoundThroughCollaboration({ speakers })) {
     const speakerRound = await runSpeakerReplyRoundThroughCollaboration({
@@ -1006,7 +984,6 @@ export const runSpeakerReplyFlow = async ({
       requireSpeakerRuntimeModel,
       activeReplyRef,
       speakers,
-      storyContext,
     });
     runtimeMessages = speakerRound.runtimeMessages;
     turnMessages = speakerRound.turnMessages;
@@ -1029,7 +1006,6 @@ export const runSpeakerReplyFlow = async ({
         mode,
         requireSpeakerRuntimeModel,
         activeReplyRef,
-        storyContext,
       });
 
       if (finalizedMessage) {
@@ -1045,7 +1021,7 @@ export const runSpeakerReplyFlow = async ({
     openPendingInteractions: extractTavernPendingInteractionsFromMessages({
       messages: turnMessages,
       characters: ctx.roomCharacters,
-      userPersonaName: runtimeRoom.userPersonaName,
+      userPersonaName: runtimeRoom.user.personaName,
       turnId: userMessage.turnId ?? userMessage.id,
     }),
   };

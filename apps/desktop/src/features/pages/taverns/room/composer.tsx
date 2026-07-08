@@ -27,6 +27,8 @@ import {
 } from "@/features/pages/taverns/room/context";
 import { submitRoomTurn } from "./turn/submit";
 import { getErrorMessage } from "./turn/submit-flow/shared";
+import { selectTavernRuntimeActiveSceneFields, selectTavernRuntimeActiveSceneInstanceId } from "./runtime/accessors";
+import { patchTavernRuntimeActiveSceneFields } from "./runtime/mutations";
 
 const REFERENCE_SUGGESTION_LIMIT = 8;
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
@@ -70,6 +72,7 @@ export const Composer = ({ bind, files }: ComposerProps) => {
   const patchRoom = useTavernRoomContext((store) => store.patchRoom);
   const roomCharacters = useTavernRoomContext((store) => store.roomCharacters);
   const roomMessages = useTavernRoomContext((store) => store.roomMessages);
+  const runtime = useTavernRoomContext((store) => store.state.runtime);
   const runtimeModel = useTavernRoomContext((store) => store.runtimeModel);
   const setBusy = useTavernRoomContext((store) => store.setBusy);
   const setComposerHandle = useTavernRoomContext((store) => store.setComposerHandle);
@@ -83,7 +86,7 @@ export const Composer = ({ bind, files }: ComposerProps) => {
   const isSending = isTavernRoomSending(busy);
   const isGeneratingReplySuggestions = isTavernRoomGeneratingReplySuggestions(busy);
   const isBusy = isTavernRoomBusy(busy);
-  const presentationProfile = getTavernPresentationProfile(activeRoom?.presentation?.profileId);
+  const presentationProfile = getTavernPresentationProfile(activeRoom?.presentation.profile?.profileId);
   const placeholder =
     presentationProfile.userInputMode !== "speech"
       ? presentationProfile.composerPlaceholder
@@ -194,9 +197,9 @@ export const Composer = ({ bind, files }: ComposerProps) => {
   }, [composerHandle, setComposerHandle]);
 
   useEffect(() => {
-    setReplySuggestions(activeRoom?.replyOptions ?? []);
+    setReplySuggestions(activeRoom ? selectTavernRuntimeActiveSceneFields(activeRoom).replyOptions : []);
     clearDraft();
-  }, [activeRoom?.activeSceneInstanceId, activeRoom?.id, clearDraft]);
+  }, [activeRoom?.identity.id, activeRoom ? selectTavernRuntimeActiveSceneInstanceId(activeRoom) : "", clearDraft]);
 
   const submitPayload = useCallback(
     async (payload: ComposerSubmitPayload) => {
@@ -249,7 +252,7 @@ export const Composer = ({ bind, files }: ComposerProps) => {
       return;
     }
 
-    if (!activeRoom) {
+    if (!activeRoom || !runtime) {
       setError("当前房间还没有可生成回复的场景。");
       return;
     }
@@ -260,15 +263,15 @@ export const Composer = ({ bind, files }: ComposerProps) => {
       const suggestions = await runTavernUserReplySuggestions({
         workspacePath: workspace.path,
         runtimeModel: requireTavernRuntimeModelInput(runtimeModel),
-        room: activeRoom,
+        room: runtime,
         characters: roomCharacters,
         messages: roomMessages,
         currentDraft: draft,
       });
       setReplySuggestions(suggestions);
-      patchRoom(activeRoom.id, {
-        replyOptions: suggestions,
-      });
+      patchRoom(activeRoom.identity.id, (room) =>
+        patchTavernRuntimeActiveSceneFields(room, { replyOptions: suggestions }),
+      );
       if (suggestions.length === 0) {
         setError("暂时没有生成可用候选回复，请再试一次。");
       }
@@ -285,6 +288,7 @@ export const Composer = ({ bind, files }: ComposerProps) => {
     patchRoom,
     roomCharacters,
     roomMessages,
+    runtime,
     runtimeModel,
     setBusy,
     setError,
@@ -328,9 +332,7 @@ export const Composer = ({ bind, files }: ComposerProps) => {
       setDraftCursor(nextDraft.length);
       clearReplySuggestions();
       if (activeRoom) {
-        patchRoom(activeRoom.id, {
-          replyOptions: [],
-        });
+        patchRoom(activeRoom.identity.id, (room) => patchTavernRuntimeActiveSceneFields(room, { replyOptions: [] }));
       }
       window.setTimeout(() => {
         inputRef.current?.focus();

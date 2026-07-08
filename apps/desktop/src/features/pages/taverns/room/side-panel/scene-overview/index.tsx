@@ -1,6 +1,6 @@
 import type {
   TavernCharacterMemoryLayers,
-  TavernActiveRoomView as TavernRoom,
+  TavernRoomRuntime,
   TavernSceneMemoryLayers,
 } from "@/features/pages/taverns/room/model";
 import { useEffect, useState, type ReactNode } from "react";
@@ -37,16 +37,23 @@ import {
   revealTavernSecretMemory,
 } from "@/features/pages/taverns/tavern/runtime/branch-memory-runtime";
 import {
-  updateTavernActiveCharacterMemoryLayers,
-  updateTavernActiveSceneMemoryLayers,
-  updateTavernActiveScenePromptOverrides,
-} from "@/features/pages/taverns/tavern/runtime/active-scene-runtime";
-import {
   getTavernSceneDisplayTitle,
   getTavernSceneInstanceDisplayTitle,
 } from "@/features/pages/taverns/tavern/runtime/scene-selectors";
 import type { TavernPromptBlock, TavernReplyMode } from "@/features/pages/taverns/manage/model";
 import { isTavernRoomBusy, useTavernRoomContext } from "@/features/pages/taverns/room/context";
+import {
+  patchTavernRuntimeSettings,
+  updateTavernRuntimeActiveCharacterMemoryLayers,
+  updateTavernRuntimeActiveSceneMemoryLayers,
+  updateTavernRuntimeActiveScenePromptOverrides,
+} from "@/features/pages/taverns/room/runtime/mutations";
+import {
+  selectTavernRuntimeActiveSceneFields,
+  selectTavernRuntimeActiveSceneId,
+  selectTavernRuntimeActiveSceneInstance,
+  selectTavernRuntimeActiveSceneInstanceId,
+} from "@/features/pages/taverns/room/runtime/accessors";
 import { compactText } from "../shared";
 import { buildTavernMemoryOverviewSummary } from "../memory-summary";
 
@@ -229,8 +236,8 @@ type PromptOverrideDraft = {
   character: string;
 };
 
-const createMemoryEditorDraft = (target: MemoryEditorTarget, activeRoom: TavernRoom): MemoryEditorDraft => {
-  const activeInstance = activeRoom.sceneInstances.find((instance) => instance.id === activeRoom.activeSceneInstanceId);
+const createMemoryEditorDraft = (target: MemoryEditorTarget, activeRoom: TavernRoomRuntime): MemoryEditorDraft => {
+  const activeInstance = selectTavernRuntimeActiveSceneInstance(activeRoom);
   if (target === "scene") {
     const layers = activeInstance?.memoryLayers;
     return {
@@ -254,8 +261,8 @@ const createMemoryEditorDraft = (target: MemoryEditorTarget, activeRoom: TavernR
   };
 };
 
-const createPromptOverrideDraft = (activeRoom: TavernRoom): PromptOverrideDraft => {
-  const activeInstance = activeRoom.sceneInstances.find((instance) => instance.id === activeRoom.activeSceneInstanceId);
+const createPromptOverrideDraft = (activeRoom: TavernRoomRuntime): PromptOverrideDraft => {
+  const activeInstance = selectTavernRuntimeActiveSceneInstance(activeRoom);
   const blockByTarget = new Map(
     (activeInstance?.promptOverrides?.blocks ?? []).map((block) => [block.target, block.text] as const),
   );
@@ -397,23 +404,26 @@ export const SceneOverviewSection = ({ externalBusy, onBusyChange }: SceneOvervi
   }
 
   const isBusy = isTavernRoomBusy(busy) || externalBusy;
-  const userPersonaName = activeRoom.userPersonaName.trim();
-  const activeScene = activeRoom.scenes?.find((scene) => scene.id === activeRoom.activeSceneId);
+  const activeSceneFields = selectTavernRuntimeActiveSceneFields(activeRoom);
+  const activeSceneId = selectTavernRuntimeActiveSceneId(activeRoom);
+  const activeSceneInstanceId = selectTavernRuntimeActiveSceneInstanceId(activeRoom);
+  const userPersonaName = activeRoom.user.personaName.trim();
+  const activeScene = activeRoom.scenes.items.find((scene) => scene.id === activeSceneId);
   const sceneOverviewTitle =
-    getTavernSceneInstanceDisplayTitle(activeRoom, activeRoom.activeSceneInstanceId, "") ||
+    getTavernSceneInstanceDisplayTitle(activeRoom, activeSceneInstanceId, "") ||
     getTavernSceneDisplayTitle(activeRoom, activeScene?.id, "") ||
-    activeRoom.sceneStatus?.location?.trim() ||
-    activeRoom.title.trim() ||
+    activeSceneFields.sceneStatus?.location?.trim() ||
+    activeRoom.identity.title.trim() ||
     "当前场景";
   const sceneOverviewPhase =
-    activeRoom.sceneStatus?.scenePhase?.trim() ||
-    activeRoom.sceneStatus?.atmosphere?.trim() ||
-    activeRoom.sceneStatus?.timeLabel?.trim() ||
+    activeSceneFields.sceneStatus?.scenePhase?.trim() ||
+    activeSceneFields.sceneStatus?.atmosphere?.trim() ||
+    activeSceneFields.sceneStatus?.timeLabel?.trim() ||
     "进行中";
   const sceneStatusItems = [
-    `回复方式：${replyModeDescriptions[activeRoom.replyMode ?? "director"]}`,
+    `回复方式：${replyModeDescriptions[activeRoom.presentation.replyMode ?? "director"]}`,
     userPersonaName && userPersonaName !== "我" ? `你的称呼：${userPersonaName}` : "",
-    `沉浸描写：${activeRoom.settings.immersiveDescriptionEnabled ? "开启" : "关闭"}`,
+    `沉浸描写：${activeRoom.presentation.settings.immersiveDescriptionEnabled ? "开启" : "关闭"}`,
   ].filter(Boolean);
   const characterNameById = new Map(roomCharacters.map((character) => [character.id, character.name]));
   const branchSecretOptions = listTavernBranchSecretMemoryEntries(activeRoom);
@@ -436,26 +446,28 @@ export const SceneOverviewSection = ({ externalBusy, onBusyChange }: SceneOvervi
 
   const saveMemoryEditor = () => {
     if (memoryEditorTarget === "scene") {
-      const nextRoom = updateTavernActiveSceneMemoryLayers(activeRoom, {
-        required: memoryEditorDraft.required.trim(),
-        public: memoryEditorDraft.public.trim(),
-        private: memoryEditorDraft.private.trim(),
-        directorSecret: memoryEditorDraft.directorSecret.trim(),
-      } satisfies Partial<TavernSceneMemoryLayers>);
-      patchRoom(activeRoom.id, nextRoom);
+      patchRoom(activeRoom.identity.id, (room) =>
+        updateTavernRuntimeActiveSceneMemoryLayers(room, {
+          required: memoryEditorDraft.required.trim(),
+          public: memoryEditorDraft.public.trim(),
+          private: memoryEditorDraft.private.trim(),
+          directorSecret: memoryEditorDraft.directorSecret.trim(),
+        } satisfies Partial<TavernSceneMemoryLayers>),
+      );
       toast.success("当前节点场景记忆已更新。");
       closeMemoryEditor();
       return;
     }
 
-    const nextRoom = updateTavernActiveCharacterMemoryLayers(activeRoom, memoryEditorTarget, {
-      required: memoryEditorDraft.required.trim(),
-      public: memoryEditorDraft.public.trim(),
-      known: memoryEditorDraft.known.trim(),
-      privateSelf: memoryEditorDraft.privateSelf.trim(),
-      directorSecret: memoryEditorDraft.directorSecret.trim(),
-    } satisfies Partial<TavernCharacterMemoryLayers>);
-    patchRoom(activeRoom.id, nextRoom);
+    patchRoom(activeRoom.identity.id, (room) =>
+      updateTavernRuntimeActiveCharacterMemoryLayers(room, memoryEditorTarget, {
+        required: memoryEditorDraft.required.trim(),
+        public: memoryEditorDraft.public.trim(),
+        known: memoryEditorDraft.known.trim(),
+        privateSelf: memoryEditorDraft.privateSelf.trim(),
+        directorSecret: memoryEditorDraft.directorSecret.trim(),
+      } satisfies Partial<TavernCharacterMemoryLayers>),
+    );
     toast.success("当前节点角色记忆已更新。");
     closeMemoryEditor();
   };
@@ -470,11 +482,12 @@ export const SceneOverviewSection = ({ externalBusy, onBusyChange }: SceneOvervi
   };
 
   const savePromptOverrideEditor = () => {
-    const nextRoom = updateTavernActiveScenePromptOverrides(activeRoom, {
-      version: 1,
-      blocks: createPromptOverrideBlocks(promptOverrideDraft),
-    });
-    patchRoom(activeRoom.id, nextRoom);
+    patchRoom(activeRoom.identity.id, (room) =>
+      updateTavernRuntimeActiveScenePromptOverrides(room, {
+        version: 1,
+        blocks: createPromptOverrideBlocks(promptOverrideDraft),
+      }),
+    );
     toast.success("当前节点提示词补充已更新。");
     closePromptOverrideEditor();
   };
@@ -510,7 +523,7 @@ export const SceneOverviewSection = ({ externalBusy, onBusyChange }: SceneOvervi
       return;
     }
 
-    patchRoom(activeRoom.id, result.room);
+    patchRoom(activeRoom.identity.id, () => result.room);
     toast.success("已记录当前节点秘密");
     closeSecretDialog();
   };
@@ -529,7 +542,7 @@ export const SceneOverviewSection = ({ externalBusy, onBusyChange }: SceneOvervi
       return;
     }
 
-    patchRoom(activeRoom.id, result.room);
+    patchRoom(activeRoom.identity.id, () => result.room);
     toast.success(revealVisibility === "public" ? "秘密已公开" : "秘密已对角色解密");
     closeSecretDialog();
   };
@@ -541,20 +554,20 @@ export const SceneOverviewSection = ({ externalBusy, onBusyChange }: SceneOvervi
         scenePhase={sceneOverviewPhase}
         sceneStatusItems={sceneStatusItems}
       />
-      <GoalCard sceneGoal={activeRoom.sceneGoal} />
+      <GoalCard sceneGoal={activeSceneFields.sceneGoal} />
       <SceneDetailsSection
-        immersiveDescriptionEnabled={activeRoom.settings.immersiveDescriptionEnabled}
-        scene={activeRoom.scene}
+        immersiveDescriptionEnabled={activeRoom.presentation.settings.immersiveDescriptionEnabled}
+        scene={activeSceneFields.scene}
         memorySummary={memoryOverviewSummary}
         isSending={isBusy}
         onOpenTipsDetail={openMemoryEditor}
         onImmersiveDescriptionChange={(checked) =>
-          patchRoom(activeRoom.id, {
-            settings: {
-              ...activeRoom.settings,
+          patchRoom(activeRoom.identity.id, (room) =>
+            patchTavernRuntimeSettings(room, {
+              ...room.presentation.settings,
               immersiveDescriptionEnabled: checked,
-            },
-          })
+            }),
+          )
         }
       />
       <ToolActionsSection

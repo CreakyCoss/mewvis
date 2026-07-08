@@ -1,4 +1,8 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
+import {
+  selectTavernRuntimeActivePromptOverrides,
+  selectTavernRuntimeRoomConfig,
+} from "@/features/pages/taverns/room/runtime/accessors";
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
 import {
   formatTavernInteractionQualityRulesForTarget,
@@ -20,10 +24,10 @@ const buildBridgeSystemContractSection = (): TavernPromptSection => ({
   ],
 });
 
-export const buildTavernBridgeSystemPrompt = (room: TavernRoom) => {
-  const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
-  const activeInstance =
-    room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId) ?? room.sceneInstances[0];
+export const buildTavernBridgeSystemPrompt = (room: TavernRoomRuntime) => {
+  const roomConfig = selectTavernRuntimeRoomConfig(room);
+  const presentationProfile = getTavernPresentationProfile(room.presentation.profile?.profileId);
+  const activePromptOverrides = selectTavernRuntimeActivePromptOverrides(room);
   const sections: TavernPromptSection[] = [
     buildBridgeSystemContractSection(),
     buildPresentationProfileSection({
@@ -35,15 +39,15 @@ export const buildTavernBridgeSystemPrompt = (room: TavernRoom) => {
       layer: "tavern",
       content: [
         formatTavernPromptBlocksForTarget({
-          prompt: room.prompt,
+          prompt: roomConfig.prompt,
           target: "bridge",
         }),
         formatTavernPromptBlocksForTarget({
-          prompt: activeInstance?.promptOverrides,
+          prompt: activePromptOverrides,
           target: "bridge",
         }),
         formatTavernInteractionQualityRulesForTarget({
-          qualityRuleIds: room.settings.interactionQualityRuleIds,
+          qualityRuleIds: room.presentation.settings.interactionQualityRuleIds,
           target: "bridge",
         }),
       ]

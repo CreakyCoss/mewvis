@@ -1,6 +1,5 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import type { RuntimeModelInput } from "@/agent-client/types";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import type { TavernMessage } from "../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { cleanTavernThoughtText } from "@/features/pages/taverns/room/message/protocol/parse-reply";
@@ -12,32 +11,29 @@ import { buildTavernBridgeSystemPrompt } from "../prompt/bridge/system-prompt";
 import { tavernBridgeSessionRootDir, tavernCharacterAgentRoleId } from "../../core/agent-role";
 import { formatTavernCharacterRelationships } from "../../core/relationships";
 import { runTavernRuntimeAgent } from "../agent/run-agent";
-import { getActiveTavernScene } from "../scene-selectors";
+import {
+  selectTavernRuntimeActiveScene,
+  selectTavernRuntimeActiveSceneFields,
+  selectTavernRuntimeActiveSceneInstance,
+} from "@/features/pages/taverns/room/runtime/accessors";
 export type RunTavernInnerThoughtInput = {
   workspacePath: string;
   runtimeModel: RuntimeModelInput;
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   activeCharacter: TavernCharacter;
   characters: TavernCharacter[];
   messages: TavernMessage[];
   currentUserText: string;
   replyContent: string;
-  storyContext?: TavernStoryContextPackage;
 };
 
-const resolveInnerThoughtSceneText = (room: TavernRoom, storyContext?: TavernStoryContextPackage) => {
-  const storyScene = storyContext?.graph.activeScene;
-  if (storyScene) {
-    return storyScene.scene;
-  }
-
-  const activeInstance =
-    room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId) ?? room.sceneInstances[0];
+const resolveInnerThoughtSceneText = (room: TavernRoomRuntime) => {
+  const activeInstance = selectTavernRuntimeActiveSceneInstance(room);
   if (activeInstance) {
     return activeInstance.scene;
   }
 
-  const activeScene = getActiveTavernScene(room);
+  const activeScene = selectTavernRuntimeActiveScene(room);
   if (!activeScene) {
     throw new Error("当前酒馆缺少标准故事场景，无法生成角色内心想法。");
   }
@@ -54,16 +50,15 @@ export const runTavernInnerThought = async ({
   messages,
   currentUserText,
   replyContent,
-  storyContext,
 }: RunTavernInnerThoughtInput) => {
   const visibleMessages = normalizeTavernMessagesForAudience({
     messages,
     characters,
-    userPersonaName: room.userPersonaName,
+    userPersonaName: room.user.personaName,
     audience: { type: "character", characterId: activeCharacter.id },
   }).slice(-8);
-  const activeInstance =
-    room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId) ?? room.sceneInstances[0];
+  const activeInstance = selectTavernRuntimeActiveSceneInstance(room);
+  const sceneFields = selectTavernRuntimeActiveSceneFields(room);
   const characterMemoryLayers = activeInstance?.characterMemoryLayers?.[activeCharacter.id];
   const characterMemory = [
     characterMemoryLayers?.required?.trim() ?? "",
@@ -76,8 +71,8 @@ export const runTavernInnerThought = async ({
   const relationshipText = formatTavernCharacterRelationships({
     character: activeCharacter,
     characters,
-    userPersonaName: room.userPersonaName,
-    relationshipOverrides: room.relationshipOverrides,
+    userPersonaName: room.user.personaName,
+    relationshipOverrides: sceneFields.relationshipOverrides,
   });
   const result = await runTavernRuntimeAgent({
     workspacePath,
@@ -96,8 +91,8 @@ export const runTavernInnerThought = async ({
       characterMemory ? `memory: ${characterMemory}` : "",
       "</active_character>",
       "",
-      `<room title="${room.title}">`,
-      resolveInnerThoughtSceneText(room, storyContext),
+      `<room title="${room.identity.title}">`,
+      resolveInnerThoughtSceneText(room),
       "</room>",
       "",
       "<current_user_input>",

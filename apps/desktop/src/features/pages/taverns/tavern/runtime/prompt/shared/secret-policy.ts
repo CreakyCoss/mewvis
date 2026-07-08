@@ -1,5 +1,6 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import type { TavernCharacter, TavernPromptBlockTarget } from "@/features/pages/taverns/manage/model";
+import { selectTavernRuntimeActiveSceneInstance } from "@/features/pages/taverns/room/runtime/accessors";
 import { escapePromptXmlText, limitPromptText } from "./text";
 
 const limitEscapedSecretPolicyText = (text: string, maxChars: number) =>
@@ -21,14 +22,13 @@ export const buildTavernSecretMemoryProtocol = (target: TavernPromptBlockTarget)
   ].join("\n");
 
 export const buildTavernDirectorSecretMemoryContext = ({
-  room,
+  runtime,
   characters,
 }: {
-  room: TavernRoom;
+  runtime: TavernRoomRuntime;
   characters: TavernCharacter[];
 }) => {
-  const activeInstance =
-    room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId) ?? room.sceneInstances[0];
+  const activeInstance = selectTavernRuntimeActiveSceneInstance(runtime);
   if (!activeInstance) {
     return "";
   }

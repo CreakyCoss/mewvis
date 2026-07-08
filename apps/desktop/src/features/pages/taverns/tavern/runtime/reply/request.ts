@@ -1,7 +1,6 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import type { TavernMessage, TavernReferencedFile } from "../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import { buildTavernBridgeSystemPrompt } from "../prompt/bridge/system-prompt";
 import { buildTavernCharacterPromptParts } from "../prompt/character/system-prompt";
 import { getTavernPresentationProfile } from "../../prompt-registry/presentation-rules";
@@ -13,7 +12,7 @@ import {
 import { tavernBridgeSessionRootDir, tavernCharacterAgentRoleId } from "../../core/agent-role";
 
 export type TavernReplyAgentRequestInput = {
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   activeCharacter: TavernCharacter;
   characters: TavernCharacter[];
   messages: TavernMessage[];
@@ -21,7 +20,6 @@ export type TavernReplyAgentRequestInput = {
   currentUserText: string;
   turnInstruction?: string;
   allowNonverbalReply?: boolean;
-  storyContext?: TavernStoryContextPackage;
 };
 
 export const buildTavernReplyAgentRequest = ({
@@ -33,9 +31,8 @@ export const buildTavernReplyAgentRequest = ({
   currentUserText,
   turnInstruction,
   allowNonverbalReply = false,
-  storyContext,
 }: TavernReplyAgentRequestInput) => {
-  const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
+  const presentationProfile = getTavernPresentationProfile(room.presentation.profile?.profileId);
   const presentationContract = getTavernPresentationContract(presentationProfile);
   const promptParts = buildTavernCharacterPromptParts({
     room,
@@ -44,12 +41,11 @@ export const buildTavernReplyAgentRequest = ({
     references,
     currentUserText,
     turnInstruction,
-    storyContext,
   });
   const visibleMessages = normalizeTavernMessagesForAudience({
     messages,
     characters,
-    userPersonaName: room.userPersonaName,
+    userPersonaName: room.user.personaName,
     audience: { type: "character", characterId: activeCharacter.id },
   });
 

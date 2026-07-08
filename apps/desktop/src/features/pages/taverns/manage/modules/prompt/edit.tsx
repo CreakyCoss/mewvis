@@ -32,7 +32,12 @@ import {
   type TavernPromptPreviewWarning,
   type TavernPromptPreviewWarningSeverity,
 } from "./preview";
-import { getTavernRuntimeStoryProjection } from "../../../room/story-context/projection";
+import {
+  selectTavernRuntimeActiveNode,
+  selectTavernRuntimeActiveSceneFields,
+  selectTavernRuntimeActiveSceneInstance,
+  selectTavernRuntimeCharacters,
+} from "../../../room/runtime/accessors";
 import { getTavernCharacterStylePreset } from "../../../tavern/prompt-registry/character-style-presets";
 import {
   TAVERN_PRESENTATION_PROFILE_OPTIONS,
@@ -65,8 +70,8 @@ import {
   getTavernPromptStylePreset,
   normalizeTavernPromptStyleId,
 } from "../../../tavern/presentation/prompt-styles";
-import { createTavernActiveRoomViewFromConfig } from "../../../room/model/runtime-room";
-import type { TavernActiveRoomView } from "../../../room/model";
+import { createTavernRoomRuntimeFromConfig } from "../../../room/model/runtime-room";
+import type { TavernRoomRuntime } from "../../../room/model";
 import type {
   TavernPresentationProfileId,
   TavernPromptBlock,
@@ -325,8 +330,8 @@ const createPromptFallback = (room: TavernRoom, presentationProfileId: TavernPre
     immersiveDescriptionEnabled: room.settings.immersiveDescriptionEnabled !== false,
   });
 
-const buildPromptPreviewRoom = (room: TavernRoom, draft: PromptDraft): TavernActiveRoomView =>
-  createTavernActiveRoomViewFromConfig({
+const buildPromptPreviewRoom = (room: TavernRoom, draft: PromptDraft): TavernRoomRuntime =>
+  createTavernRoomRuntimeFromConfig({
     ...room,
     presentation: {
       ...normalizeTavernPresentation(room.presentation),
@@ -350,8 +355,9 @@ const buildPromptBlockAgentContext = ({
   block: TavernPromptBlock;
 }) => {
   const previewRoom = buildPromptPreviewRoom(room, draft);
-  const storyProjection = getTavernRuntimeStoryProjection(previewRoom);
-  const activeNode = storyProjection.graph.nodes.find((node) => node.id === storyProjection.graph.activeNodeId);
+  const activeNode = selectTavernRuntimeActiveNode(previewRoom);
+  const activeScene = selectTavernRuntimeActiveSceneFields(previewRoom);
+  const activeSceneInstance = selectTavernRuntimeActiveSceneInstance(previewRoom);
 
   return {
     promptEditingMode: "saved_prompt_block",
@@ -378,11 +384,20 @@ const buildPromptBlockAgentContext = ({
         source: item.source,
         text: item.text.slice(0, 800),
       })),
-    runtimeStoryProjection: {
-      story: storyProjection.story,
+    runtimeContext: {
+      story: {
+        id: previewRoom.story.binding?.storyId ?? previewRoom.identity.id,
+        title: previewRoom.identity.title,
+        outline: previewRoom.story.outline,
+        goal: previewRoom.story.goal,
+        userPersonaName: previewRoom.user.personaName,
+      },
       activeNode,
-      activeScene: storyProjection.activeScene,
-      branch: storyProjection.branch,
+      activeScene,
+      branch: {
+        pathNodeIds: activeSceneInstance?.pathNodeIds ?? [],
+        pathEdgeIds: activeSceneInstance?.pathEdgeIds ?? [],
+      },
     },
   };
 };
@@ -519,7 +534,7 @@ export const PromptEdit = ({
     const previewRoom = buildPromptPreviewRoom(data, draft);
     const previewForSave = buildTavernPromptPreview({
       room: previewRoom,
-      characters: getTavernRuntimeStoryProjection(previewRoom).characters,
+      characters: selectTavernRuntimeCharacters(previewRoom),
       messages: [],
     });
     const blockingWarning = previewForSave.warnings.find(
@@ -587,7 +602,7 @@ export const PromptEdit = ({
       previewRoom
         ? buildTavernPromptPreview({
             room: previewRoom,
-            characters: getTavernRuntimeStoryProjection(previewRoom).characters,
+            characters: selectTavernRuntimeCharacters(previewRoom),
             messages: [],
           })
         : null,
@@ -603,7 +618,7 @@ export const PromptEdit = ({
       };
     }
 
-    const navigation = previewRoom ? resolveTavernPromptWarningNavigation(warning, previewRoom) : null;
+    const navigation = previewRoom ? resolveTavernPromptWarningNavigation(warning) : null;
 
     if (!navigation || !onOpenWarningNavigation) {
       return null;

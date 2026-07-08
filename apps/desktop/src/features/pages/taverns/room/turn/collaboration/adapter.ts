@@ -33,7 +33,6 @@ export const buildTavernDirectorLoopCollaborationInput = ({
   selectedTargetCharacterIds = [],
   maxSpeakers = 3,
   maxRounds = TAVERN_DIRECTOR_LOOP_DEFAULT_MAX_ROUNDS,
-  storyContext,
 }: TavernDirectorLoopCollaborationInput): TavernCollaborationInput => {
   const speakers = speakerInputs.map((speakerInput) => speakerInput.character);
   const directorPromptContext = buildTavernDirectorPromptContext({
@@ -45,7 +44,6 @@ export const buildTavernDirectorLoopCollaborationInput = ({
     turnTrigger,
     selectedTargetCharacterIds,
     maxSpeakers,
-    storyContext,
   });
   const directorRoleId = tavernDirectorAgentRoleId(room);
   const speakerRequests = speakerInputs.map((speakerInput) => ({
@@ -60,7 +58,6 @@ export const buildTavernDirectorLoopCollaborationInput = ({
       currentUserText,
       turnInstruction: speakerInput.turnInstruction,
       allowNonverbalReply: speakerInput.allowNonverbalReply === true,
-      storyContext,
     }),
   }));
   const normalizedMaxRounds = normalizePositiveInteger(maxRounds, TAVERN_DIRECTOR_LOOP_DEFAULT_MAX_ROUNDS);
@@ -94,7 +91,7 @@ export const buildTavernDirectorLoopCollaborationInput = ({
           : "请根据当前用户输入和上一轮角色回复，给每个候选角色打分，决定是否继续调度，并按 supervisor.dispatch-loop JSON 输出。",
         capabilities: ["score", "select", "dispatch", "evaluate"],
         metadata: {
-          roomId: room.id,
+          roomId: room.identity.id,
           role: "director",
         },
       },
@@ -119,7 +116,7 @@ export const buildTavernDirectorLoopCollaborationInput = ({
       })),
     ],
     context: {
-      roomId: room.id,
+      roomId: room.identity.id,
       currentUserText,
       selectedTargetCharacterIds,
       speakerIds: speakers.map((speaker) => speaker.id),
@@ -143,7 +140,6 @@ export const buildTavernSpeakerCollaborationInput = ({
   messages,
   references,
   currentUserText,
-  storyContext,
   turnInstructionByCharacterId = {},
   allowNonverbalReplyCharacterIds = [],
 }: TavernSpeakerCollaborationInput): TavernCollaborationInput => {
@@ -159,7 +155,6 @@ export const buildTavernSpeakerCollaborationInput = ({
       currentUserText,
       turnInstruction: turnInstructionByCharacterId[speaker.id],
       allowNonverbalReply: allowNonverbalReplyIds.has(speaker.id),
-      storyContext,
     }),
   }));
 
@@ -191,7 +186,7 @@ export const buildTavernSpeakerCollaborationInput = ({
         outputKey: tavernSpeakerReplyOutputKey(speaker),
       })),
       metadata: {
-        roomId: room.id,
+        roomId: room.identity.id,
         speakerIds: speakers.map((speaker) => speaker.id),
         currentUserText,
       },

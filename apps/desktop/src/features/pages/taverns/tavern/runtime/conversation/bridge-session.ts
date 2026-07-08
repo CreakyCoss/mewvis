@@ -1,4 +1,4 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import { deleteLedger } from "@/features/ai/components/conversation-ledger/api";
 import { tavernBridgeSessionRootDir } from "../../core/agent-role";
 
@@ -7,7 +7,7 @@ export const deleteTavernBridgeSession = async ({
   room,
 }: {
   workspacePath: string;
-  room: Pick<TavernRoom, "id" | "activeSceneId" | "activeSceneInstanceId" | "scenes" | "sceneInstances">;
+  room: TavernRoomRuntime;
 }) => {
   const sessionRootDirs = Array.from(new Set([tavernBridgeSessionRootDir(room)]));
   const results = await Promise.allSettled(

@@ -1,17 +1,16 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { AgentClientCollaborationEvent } from "@/agent-client/types";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import type { TavernRoomStoreState } from "@/features/pages/taverns/room/context";
-import { buildTavernMessageSegments, inferTavernMessageKind } from "@/features/pages/taverns/room/message/domain/segments";
+import {
+  buildTavernMessageSegments,
+  inferTavernMessageKind,
+} from "@/features/pages/taverns/room/message/domain/segments";
 import { createTavernMessage } from "@/features/pages/taverns/room/message/domain/factory";
 import { parseTavernReplyText } from "@/features/pages/taverns/room/message/protocol/parse-reply";
 import { extractTavernPendingInteractionsFromMessages } from "@/features/pages/taverns/tavern/core/interaction-extractor";
 import { resolveTavernScheduledSpeakers } from "@/features/pages/taverns/tavern/core/director-scheduling";
-import {
-  tavernCharacterAgentRoleId,
-  tavernDirectorAgentRoleId,
-} from "@/features/pages/taverns/tavern/core/agent-role";
+import { tavernCharacterAgentRoleId, tavernDirectorAgentRoleId } from "@/features/pages/taverns/tavern/core/agent-role";
 import { buildTavernDirectorLoopCollaborationInput } from "@/features/pages/taverns/room/turn/collaboration/adapter";
 import { runTavernCollaboration } from "@/features/pages/taverns/room/turn/collaboration/run-collaboration";
 import { resolveTavernCharacterModel } from "@/features/pages/taverns/tavern/runtime/agent/model-selection";
@@ -45,8 +44,8 @@ export const shouldRunTavernDirectorLoopWorkflow = ({
 }: {
   availableRoomCharacters: TavernCharacter[];
   mode: TurnMode;
-  room: TavernRoom;
-}) => mode.isDirectorLikeMode && room.settings.directorLoop.enabled && availableRoomCharacters.length > 0;
+  room: TavernRoomRuntime;
+}) => mode.isDirectorLikeMode && room.presentation.settings.directorLoop.enabled && availableRoomCharacters.length > 0;
 
 export const runDirectorLoopTurn = async ({
   activeReplyRef,
@@ -60,7 +59,6 @@ export const runDirectorLoopTurn = async ({
   runtimeModel,
   runtimeRoom,
   selectedReplyOption,
-  storyContext,
   text,
   turnMessages,
   userMessage,
@@ -71,12 +69,11 @@ export const runDirectorLoopTurn = async ({
   ctx: TavernRoomStoreState;
   mode: TurnMode;
   references: TavernReferencedFile[];
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   runtimeMessages: TavernMessage[];
   runtimeModel: RuntimeModelOption;
-  runtimeRoom: TavernRoom;
+  runtimeRoom: TavernRoomRuntime;
   selectedReplyOption?: TavernReplyOption;
-  storyContext: TavernStoryContextPackage;
   text: string;
   turnMessages: TavernMessage[];
   userMessage: TavernMessage;
@@ -214,9 +211,11 @@ export const runDirectorLoopTurn = async ({
       currentUserText: text,
       turnTrigger: mode.isSceneDriveMode ? { type: "scene_drive", directive: text } : { type: "user" },
       selectedTargetCharacterIds: selectedReplyOption?.targetCharacterIds,
-      maxSpeakers: Math.min(room.settings.directorMaxSpeakers, Math.max(1, ctx.roomCharacters.length)),
+      maxSpeakers: Math.min(
+        runtimeRoom.presentation.settings.directorMaxSpeakers,
+        Math.max(1, ctx.roomCharacters.length),
+      ),
       maxRounds,
-      storyContext,
     }),
     onEvent: (event) => {
       applyTavernCollaborationTraceEvent(ctx, event, {
@@ -245,14 +244,16 @@ export const runDirectorLoopTurn = async ({
     openPendingInteractions: extractTavernPendingInteractionsFromMessages({
       messages: turnMessages,
       characters: ctx.roomCharacters,
-      userPersonaName: runtimeRoom.userPersonaName,
+      userPersonaName: runtimeRoom.user.personaName,
       turnId: userMessage.turnId ?? userMessage.id,
     }),
   };
 };
 
-const resolveDirectorLoopMaxRounds = (room: TavernRoom) =>
-  room.settings.directorLoop.enabled ? Math.max(1, Math.floor(room.settings.directorLoop.maxRounds)) : 1;
+const resolveDirectorLoopMaxRounds = (room: TavernRoomRuntime) =>
+  room.presentation.settings.directorLoop.enabled
+    ? Math.max(1, Math.floor(room.presentation.settings.directorLoop.maxRounds))
+    : 1;
 
 const resolveRequiredSpeakerRuntimeModel = ({
   runtimeModel,
@@ -279,16 +280,16 @@ const startLoopSpeakerRuntime = ({
 }: {
   activeReplyRef: ActiveReplyRef;
   ctx: TavernRoomStoreState;
-  room: TavernRoom;
-  runtimeRoom: TavernRoom;
+  room: TavernRoomRuntime;
+  runtimeRoom: TavernRoomRuntime;
   speaker: TavernCharacter;
 }): LoopSpeakerRuntime => {
   ctx.setBusyStatus(`${speaker.name} 正在按导演回环回应...`);
   const replyMessage = createTavernMessage({
-    roomId: room.id,
+    roomId: room.identity.id,
     role: "character",
     characterId: speaker.id,
-    presentationProfileId: runtimeRoom.presentation?.profileId,
+    presentationProfileId: runtimeRoom.presentation.profile?.profileId,
     content: "",
     status: "streaming",
   });
@@ -299,7 +300,7 @@ const startLoopSpeakerRuntime = ({
     detail: "导演回环 workflow",
     status: "running",
   });
-  ctx.appendMessagesToRoom(room.id, [replyMessage]);
+  ctx.appendMessagesToRoom(room.identity.id, [replyMessage]);
   activeReplyRef.message = replyMessage;
   activeReplyRef.text = "";
 
@@ -322,14 +323,14 @@ const appendLoopSpeakerDelta = ({
   ctx: TavernRoomStoreState;
   delta: string;
   runtime: LoopSpeakerRuntime;
-  runtimeRoom: TavernRoom;
+  runtimeRoom: TavernRoomRuntime;
 }) => {
   runtime.text += delta;
   const parsed = parseTavernReplyText({
     text: runtime.text,
     activeCharacter: runtime.speaker,
     characters: ctx.roomCharacters,
-    userPersonaName: runtimeRoom.userPersonaName,
+    userPersonaName: runtimeRoom.user.personaName,
   });
   activeReplyRef.message = runtime.message;
   activeReplyRef.text = parsed.content;
@@ -351,13 +352,13 @@ const finalizeLoopSpeakerRuntime = ({
   ctx: TavernRoomStoreState;
   outputText: string;
   runtime: LoopSpeakerRuntime;
-  runtimeRoom: TavernRoom;
+  runtimeRoom: TavernRoomRuntime;
 }): TavernMessage => {
   const parsed = parseTavernReplyText({
     text: outputText || runtime.text,
     activeCharacter: runtime.speaker,
     characters: ctx.roomCharacters,
-    userPersonaName: runtimeRoom.userPersonaName,
+    userPersonaName: runtimeRoom.user.personaName,
   });
   const finalText = parsed.content.trim() || "（对方短暂沉默，杯沿映着灯光。）";
   const finalizedMessage: TavernMessage = {
@@ -408,17 +409,17 @@ const applyLoopSupervisorDecision = ({
   availableRoomCharacters: TavernCharacter[];
   ctx: TavernRoomStoreState;
   decision: TavernLoopSupervisorDecision;
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   runtimeMessages: TavernMessage[];
   runtimeModel: RuntimeModelOption;
-  runtimeRoom: TavernRoom;
+  runtimeRoom: TavernRoomRuntime;
   selectedReplyOption?: TavernReplyOption;
   text: string;
   turnMessages: TavernMessage[];
 }) => {
   const directorNonverbalReplyIds = decision.nonverbalReplyIds ?? [];
   const speakers = resolveTavernScheduledSpeakers({
-    settings: runtimeRoom.settings,
+    settings: runtimeRoom.presentation.settings,
     availableCharacters: availableRoomCharacters,
     activeCharacterId: ctx.activeCharacter?.id,
     directorSpeakerIds: decision.speakerIds,
@@ -443,7 +444,7 @@ const applyLoopSupervisorDecision = ({
     if (messages.length === 0) {
       return;
     }
-    ctx.appendMessagesToRoom(room.id, messages);
+    ctx.appendMessagesToRoom(room.identity.id, messages);
     runtimeMessages = [...runtimeMessages, ...messages];
     turnMessages.push(...messages);
     turnNarratorTexts.push(...messages.map((message) => message.content));
@@ -454,9 +455,9 @@ const applyLoopSupervisorDecision = ({
     narratorText
       ? [
           createTavernMessage({
-            roomId: room.id,
+            roomId: room.identity.id,
             role: "narrator",
-            presentationProfileId: runtimeRoom.presentation?.profileId,
+            presentationProfileId: runtimeRoom.presentation.profile?.profileId,
             content: narratorText,
             status: "done",
           }),
@@ -471,10 +472,10 @@ const applyLoopSupervisorDecision = ({
         return null;
       }
       return createTavernMessage({
-        roomId: room.id,
+        roomId: room.identity.id,
         role: "narrator",
         characterId: action.characterId,
-        presentationProfileId: runtimeRoom.presentation?.profileId,
+        presentationProfileId: runtimeRoom.presentation.profile?.profileId,
         content: actionText,
         status: "done",
       });

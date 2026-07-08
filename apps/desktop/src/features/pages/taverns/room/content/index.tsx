@@ -10,6 +10,7 @@ import { createIdleTavernRoomBusyState, useTavernRoomContext } from "../context"
 import { ExecutionTrace } from "../execution-trace";
 import { createTavernRenderableMessages } from "../message/domain/render-model";
 import { resolveTavernConversationRenderer } from "../message/renderers";
+import { selectTavernRuntimeActiveSceneFields, selectTavernRuntimeActiveSceneInstanceId } from "../runtime/accessors";
 import { SceneBriefCard } from "../scene-brief-card";
 import { SceneSelector } from "../scene-selector";
 
@@ -63,7 +64,7 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
 
   useEffect(() => {
     setBusy((current) => (current.kind === "reply_suggestions" ? createIdleTavernRoomBusyState() : current));
-  }, [activeRoom?.id, activeRoom?.activeSceneInstanceId, setBusy]);
+  }, [activeRoom?.identity.id, activeRoom ? selectTavernRuntimeActiveSceneInstanceId(activeRoom) : "", setBusy]);
 
   const renderableRoomMessages = useMemo(
     () =>
@@ -71,13 +72,13 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
         ? createTavernRenderableMessages({
             messages: roomMessages,
             characters: roomCharacters,
-            userPersonaName: activeRoom.userPersonaName,
+            userPersonaName: activeRoom.user.personaName,
           })
         : [],
     [activeRoom, roomCharacters, roomMessages],
   );
   const latestMessage = renderableRoomMessages[renderableRoomMessages.length - 1] ?? null;
-  const presentationProfile = getTavernPresentationProfile(activeRoom?.presentation?.profileId);
+  const presentationProfile = getTavernPresentationProfile(activeRoom?.presentation.profile?.profileId);
   const conversationRenderer = resolveTavernConversationRenderer(presentationProfile.renderStyle);
   const Conversation = conversationRenderer.Conversation;
   const executionTraceStatusText = busy.kind === "sending" ? busy.status : "";
@@ -90,7 +91,7 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
         return;
       }
 
-      selectRoomSceneInstance(activeRoom.id, sceneInstanceId);
+      selectRoomSceneInstance(activeRoom.identity.id, sceneInstanceId);
       useTavernRoomContext.getState().composerHandle?.clearReplySuggestions();
     },
     [activeRoom, selectRoomSceneInstance],
@@ -119,8 +120,8 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
 
     return () => window.cancelAnimationFrame(firstFrame);
   }, [
-    activeRoom?.id,
-    activeRoom?.activeSceneInstanceId,
+    activeRoom?.identity.id,
+    activeRoom ? selectTavernRuntimeActiveSceneInstanceId(activeRoom) : "",
     latestMessage?.content,
     latestMessage?.id,
     renderableRoomMessages.length,
@@ -142,7 +143,12 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
     resizeObserver.observe(messageList);
 
     return () => resizeObserver.disconnect();
-  }, [activeRoom?.id, activeRoom?.activeSceneInstanceId, scrollMessagesToBottom, isOpen]);
+  }, [
+    activeRoom?.identity.id,
+    activeRoom ? selectTavernRuntimeActiveSceneInstanceId(activeRoom) : "",
+    scrollMessagesToBottom,
+    isOpen,
+  ]);
 
   if (!activeRoom) {
     return null;
@@ -154,39 +160,41 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
     backgroundRepeat: "no-repeat",
     backgroundSize: visualPreset.tavern.backgroundSize,
   } satisfies CSSProperties;
-  const activeSceneTitle = getTavernSceneInstanceDisplayTitle(activeRoom, activeRoom.activeSceneInstanceId);
-  const sceneInstanceOptions = activeRoom.sceneInstances.map((instance) => ({
+  const activeSceneFields = selectTavernRuntimeActiveSceneFields(activeRoom);
+  const activeSceneInstanceId = selectTavernRuntimeActiveSceneInstanceId(activeRoom);
+  const activeSceneTitle = getTavernSceneInstanceDisplayTitle(activeRoom, activeSceneInstanceId);
+  const sceneInstanceOptions = activeRoom.scenes.instances.map((instance) => ({
     id: instance.id,
     label: getTavernSceneInstanceDisplayTitle(activeRoom, instance.id),
   }));
-  const sceneDescription = getTavernSceneText(activeRoom.scene, "这个房间还没有场景描述。");
+  const sceneDescription = getTavernSceneText(activeSceneFields.scene, "这个房间还没有场景描述。");
   const sceneMechanism = getTavernSceneText(
-    activeRoom.scenePlot,
-    getTavernSceneText(activeRoom.storyOutline, "剧情会根据角色行动与明确事件推进。"),
+    activeSceneFields.scenePlot,
+    getTavernSceneText(activeRoom.story.outline, "剧情会根据角色行动与明确事件推进。"),
   );
   const sceneGoal = getTavernSceneText(
-    activeRoom.sceneGoal,
-    getTavernSceneText(activeRoom.storyGoal, "完成当前场景目标。"),
+    activeSceneFields.sceneGoal,
+    getTavernSceneText(activeRoom.story.goal, "完成当前场景目标。"),
   );
-  const sceneEnding = getTavernSceneText(activeRoom.sceneTransition, "达成目标或触发关键条件时结算。");
+  const sceneEnding = getTavernSceneText(activeSceneFields.sceneTransition, "达成目标或触发关键条件时结算。");
   const sceneBriefLines = Array.from(
     new Set(
       [
-        activeRoom.storyOutline.trim() || sceneDescription,
-        activeRoom.storyGoal.trim() || activeRoom.sceneGoal.trim(),
+        activeRoom.story.outline.trim() || sceneDescription,
+        activeRoom.story.goal.trim() || activeSceneFields.sceneGoal.trim(),
       ].filter(Boolean),
     ),
   );
   const sceneBriefContent = {
     themeLabel: visualPreset.label,
-    title: activeRoom.title,
+    title: activeRoom.identity.title,
     sceneTitle: activeSceneTitle,
     briefLines: sceneBriefLines,
     description: sceneDescription,
     mechanism: sceneMechanism,
     goal: sceneGoal,
     ending: sceneEnding,
-    footerNote: activeRoom.sceneDirection.trim(),
+    footerNote: activeSceneFields.sceneDirection.trim(),
   };
 
   return (
@@ -207,7 +215,7 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
             sceneSelector={
               <SceneSelector
                 options={sceneInstanceOptions}
-                activeValue={activeRoom.activeSceneInstanceId}
+                activeValue={activeSceneInstanceId}
                 label="节点："
                 onSelectScene={handleSelectSceneInstance}
               />

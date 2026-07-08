@@ -1,6 +1,5 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import type { RuntimeModelInput } from "@/agent-client/types";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import type { TavernMessage } from "../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { buildTavernBridgeSystemPrompt } from "../prompt/bridge/system-prompt";
@@ -12,11 +11,10 @@ import { buildTavernUserReplySuggestionPrompt } from "./user-reply/suggestion-pr
 export type TavernUserReplySuggestionInput = {
   workspacePath: string;
   runtimeModel: RuntimeModelInput;
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   characters: TavernCharacter[];
   messages: TavernMessage[];
   currentDraft?: string;
-  storyContext?: TavernStoryContextPackage;
 };
 
 export const runTavernUserReplySuggestions = async ({
@@ -26,14 +24,12 @@ export const runTavernUserReplySuggestions = async ({
   characters,
   messages,
   currentDraft,
-  storyContext,
 }: TavernUserReplySuggestionInput) => {
   const { prompt, suggestionCount } = buildTavernUserReplySuggestionPrompt({
     room,
     characters,
     messages,
     currentDraft,
-    storyContext,
   });
 
   const result = await runTavernRuntimeAgent({
@@ -42,7 +38,7 @@ export const runTavernUserReplySuggestions = async ({
     agentRoleId: tavernQuickReplyAgentRoleId(room),
     runtimeModel,
     systemPrompt: buildTavernBridgeSystemPrompt(room),
-    userMessage: `为酒馆用户「${room.userPersonaName || "我"}」生成 ${suggestionCount} 个下一句回复候选。`,
+    userMessage: `为酒馆用户「${room.user.personaName || "我"}」生成 ${suggestionCount} 个下一句回复候选。`,
     requestContext: prompt,
     runtimeInstruction: [
       "你是酒馆模式的用户回复建议助手。",

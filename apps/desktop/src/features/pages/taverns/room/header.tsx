@@ -13,7 +13,8 @@ import {
   isTavernRoomSending,
   useTavernRoomContext,
 } from "@/features/pages/taverns/room/context";
-import type { TavernActiveRoomView as TavernRoom } from "./model";
+import type { TavernRoomRuntime } from "./model";
+import { selectTavernRuntimeActiveSceneFields, selectTavernRuntimeActiveSceneInstanceId } from "./runtime/accessors";
 import { createEmptyComposerSubmitPayload } from "./composer";
 import { SceneSelector } from "./scene-selector";
 import { deleteTavernRoomSessionState } from "./storage";
@@ -31,8 +32,8 @@ const TAVERN_SCENE_DRIVE_AUTO_MAX_TURNS = 20;
 const tavernHeaderActionButtonClassName =
   "h-9 shrink-0 gap-1.5 border border-current/15 bg-current/5 px-2.5 text-current hover:border-current/25 hover:bg-current/10 hover:text-current focus-visible:border-current/30 focus-visible:text-current focus-visible:ring-current/20 aria-expanded:bg-current/10 aria-expanded:text-current dark:hover:bg-current/10 dark:hover:text-current";
 
-const getSceneDriveAutoPauseReason = (room: TavernRoom) => {
-  const hasUserTargetedInteraction = room.pendingInteractions.some(
+const getSceneDriveAutoPauseReason = (room: TavernRoomRuntime) => {
+  const hasUserTargetedInteraction = selectTavernRuntimeActiveSceneFields(room).pendingInteractions.some(
     (interaction) =>
       interaction.status === "open" && interaction.requiresResponse && interaction.target.type === "user",
   );
@@ -43,13 +44,10 @@ const getSceneDriveAutoPauseReason = (room: TavernRoom) => {
   return "";
 };
 
-export const Header = ({
-  isSidePanelOpen,
-  onBack,
-  onToggleSidePanel,
-}: HeaderProps) => {
+export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderProps) => {
   const workspace = useTavernRoomContext((store) => store.workspace);
   const activeRoom = useTavernRoomContext((store) => store.activeRoom);
+  const runtime = useTavernRoomContext((store) => store.state.runtime);
   const initialRuntime = useTavernRoomContext((store) => store.initialRuntime);
   const initialMessages = useTavernRoomContext((store) => store.initialMessages);
   const roomMessages = useTavernRoomContext((store) => store.roomMessages);
@@ -69,8 +67,10 @@ export const Header = ({
 
   const isBusy = isTavernRoomBusy(busy);
   const isSending = isTavernRoomSending(busy);
+  const activeSceneFields = activeRoom ? selectTavernRuntimeActiveSceneFields(activeRoom) : null;
+  const activeSceneInstanceId = activeRoom ? selectTavernRuntimeActiveSceneInstanceId(activeRoom) : "";
   const sceneInstanceOptions =
-    activeRoom?.sceneInstances.map((instance) => ({
+    activeRoom?.scenes.instances.map((instance) => ({
       id: instance.id,
       label: getTavernSceneInstanceDisplayTitle(activeRoom, instance.id),
     })) ?? [];
@@ -87,7 +87,7 @@ export const Header = ({
         return;
       }
 
-      selectRoomSceneInstance(activeRoom.id, sceneInstanceId);
+      selectRoomSceneInstance(activeRoom.identity.id, sceneInstanceId);
       useTavernRoomContext.getState().composerHandle?.clearReplySuggestions();
     },
     [activeRoom, selectRoomSceneInstance],
@@ -135,7 +135,7 @@ export const Header = ({
       return;
     }
 
-    const sceneTitle = getTavernSceneInstanceDisplayTitle(activeRoom, activeRoom.activeSceneInstanceId, "当前节点");
+    const sceneTitle = getTavernSceneInstanceDisplayTitle(activeRoom, activeSceneInstanceId, "当前节点");
     const confirmed = window.confirm(
       `清空当前节点「${sceneTitle}」的酒馆运行数据？下次会按故事页传入的最新数据重新初始化。`,
     );
@@ -143,13 +143,15 @@ export const Header = ({
       return;
     }
 
-    try {
-      await deleteTavernBridgeSession({ workspacePath: workspace.path, room: activeRoom });
-    } catch (deleteError) {
-      const message = getErrorMessage(deleteError);
-      setError(`无法清理当前节点底层会话：${message}`);
-      toast.error("清空当前节点失败");
-      return;
+    if (runtime) {
+      try {
+        await deleteTavernBridgeSession({ workspacePath: workspace.path, room: runtime });
+      } catch (deleteError) {
+        const message = getErrorMessage(deleteError);
+        setError(`无法清理当前节点底层会话：${message}`);
+        toast.error("清空当前节点失败");
+        return;
+      }
     }
 
     try {
@@ -176,6 +178,8 @@ export const Header = ({
     toast.success("已按最新故事数据重建当前节点酒馆");
   }, [
     activeRoom,
+    activeSceneInstanceId,
+    runtime,
     clearSceneDriveAutoTimer,
     initialMessages,
     initialRuntime,
@@ -224,7 +228,7 @@ export const Header = ({
     setIsSceneDriveAutoRunning(false);
     clearSceneDriveAutoTimer();
     sceneDriveAutoRunCountRef.current = 0;
-  }, [activeRoom?.id, activeRoom?.activeSceneInstanceId, clearSceneDriveAutoTimer]);
+  }, [activeRoom?.identity.id, activeSceneInstanceId, clearSceneDriveAutoTimer]);
 
   useEffect(() => {
     if (!isSceneDriveAutoRunning) {
@@ -319,15 +323,15 @@ export const Header = ({
           </div>
           <div className="min-w-0">
             <div className="flex min-w-0 items-center gap-1.5">
-              <h2 className="truncate text-base font-semibold leading-5">{activeRoom.title}</h2>
+              <h2 className="truncate text-base font-semibold leading-5">{activeRoom.identity.title}</h2>
             </div>
-            <p className="line-clamp-1 text-sm text-muted-foreground">{compactScene(activeRoom.scene)}</p>
+            <p className="line-clamp-1 text-sm text-muted-foreground">{compactScene(activeSceneFields?.scene ?? "")}</p>
           </div>
         </div>
         <div className="hidden min-w-[220px] max-w-[280px] md:flex">
           <SceneSelector
             options={sceneInstanceOptions}
-            activeValue={activeRoom.activeSceneInstanceId}
+            activeValue={activeSceneInstanceId}
             label="节点："
             onSelectScene={handleSelectSceneInstance}
           />

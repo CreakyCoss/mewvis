@@ -2,15 +2,9 @@ import { uniq } from "lodash-es";
 import { collectUniqueTrimmedLines, getTavernBranchPathInstances } from "./branch-memory";
 import { createTavernId as createId } from "../ids";
 import { createEmptyCharacterMemoryLayers, createEmptySceneMemoryLayers } from "./memory-layers";
-import { projectTavernSceneOntoRoom } from "./active-scene-runtime";
-import { ensureTavernRoomRuntimeScopes } from "./room-runtime-scopes";
-import { resolveActiveSceneInstance } from "./scene-instances";
 import { getTavernSceneInstanceDisplayTitle } from "./scene-selectors";
-import type {
-  TavernMemoryEntry,
-  TavernActiveRoomView as TavernRoom,
-  TavernSecretReveal,
-} from "@/features/pages/taverns/room/model";
+import { selectTavernRuntimeActiveSceneInstance } from "@/features/pages/taverns/room/runtime/accessors";
+import type { TavernMemoryEntry, TavernRoomRuntime, TavernSecretReveal } from "@/features/pages/taverns/room/model";
 
 export type TavernBranchSecretMemoryOption = {
   secretId: string;
@@ -22,9 +16,22 @@ export type TavernBranchSecretMemoryOption = {
   ownerCharacterId?: string;
 };
 
-export const listTavernBranchSecretMemoryEntries = (room: TavernRoom): TavernBranchSecretMemoryOption[] => {
-  const runtimeRoom = ensureTavernRoomRuntimeScopes(room);
-  const activeInstance = resolveActiveSceneInstance(runtimeRoom);
+const touchRuntime = (runtime: TavernRoomRuntime, updatedAt: number): TavernRoomRuntime => ({
+  ...runtime,
+  identity: {
+    ...runtime.identity,
+    updatedAt,
+  },
+  config: {
+    room: {
+      ...runtime.config.room,
+      updatedAt,
+    },
+  },
+});
+
+export const listTavernBranchSecretMemoryEntries = (room: TavernRoomRuntime): TavernBranchSecretMemoryOption[] => {
+  const activeInstance = selectTavernRuntimeActiveSceneInstance(room);
   if (!activeInstance) {
     return [];
   }
@@ -33,7 +40,7 @@ export const listTavernBranchSecretMemoryEntries = (room: TavernRoom): TavernBra
   const seen = new Set<string>();
 
   return pathInstances.flatMap((instance) => {
-    const sourceTitle = getTavernSceneInstanceDisplayTitle(runtimeRoom, instance.id, instance.title);
+    const sourceTitle = getTavernSceneInstanceDisplayTitle(room, instance.id, instance.title);
     const sceneEntries = (instance.memoryLayers.entries ?? []).flatMap((entry) => {
       const secretId = entry.secretId?.trim();
       const text = entry.text.trim();
@@ -81,18 +88,17 @@ export const listTavernBranchSecretMemoryEntries = (room: TavernRoom): TavernBra
 export type TavernSecretMemoryTarget = { type: "scene" } | { type: "character"; characterId: string };
 
 export const addTavernSecretMemoryEntry = (
-  room: TavernRoom,
+  room: TavernRoomRuntime,
   input: {
     target: TavernSecretMemoryTarget;
     text: string;
     secretId?: string;
   },
 ) => {
-  const runtimeRoom = ensureTavernRoomRuntimeScopes(room);
-  const activeInstance = resolveActiveSceneInstance(runtimeRoom);
+  const activeInstance = selectTavernRuntimeActiveSceneInstance(room);
   const text = input.text.trim();
   if (!activeInstance || !text) {
-    return { room: runtimeRoom, entry: null };
+    return { room, entry: null };
   }
 
   const createdAt = Date.now();
@@ -109,7 +115,7 @@ export const addTavernSecretMemoryEntry = (
     updatedAt: createdAt,
   };
 
-  const sceneInstances = runtimeRoom.sceneInstances.map((instance) => {
+  const sceneInstances = room.scenes.instances.map((instance) => {
     if (instance.id !== activeInstance.id) {
       return instance;
     }
@@ -143,17 +149,19 @@ export const addTavernSecretMemoryEntry = (
   });
 
   return {
-    room: projectTavernSceneOntoRoom({
-      ...runtimeRoom,
-      sceneInstances,
-      updatedAt: createdAt,
-    }),
+    room: {
+      ...touchRuntime(room, createdAt),
+      scenes: {
+        ...room.scenes,
+        instances: sceneInstances,
+      },
+    },
     entry,
   };
 };
 
 export const revealTavernSecretMemory = (
-  room: TavernRoom,
+  room: TavernRoomRuntime,
   input: {
     secretId: string;
     visibility: "public" | "character";
@@ -161,11 +169,10 @@ export const revealTavernSecretMemory = (
     note?: string;
   },
 ) => {
-  const runtimeRoom = ensureTavernRoomRuntimeScopes(room);
-  const activeInstance = resolveActiveSceneInstance(runtimeRoom);
+  const activeInstance = selectTavernRuntimeActiveSceneInstance(room);
   const secretId = input.secretId.trim();
   if (!activeInstance || !secretId) {
-    return { room: runtimeRoom, reveal: null };
+    return { room, reveal: null };
   }
 
   const revealedAt = Date.now();
@@ -182,7 +189,7 @@ export const revealTavernSecretMemory = (
     revealedAt,
   };
 
-  const sceneInstances = runtimeRoom.sceneInstances.map((instance) => {
+  const sceneInstances = room.scenes.instances.map((instance) => {
     if (instance.id !== activeInstance.id) {
       return instance;
     }
@@ -258,11 +265,13 @@ export const revealTavernSecretMemory = (
   });
 
   return {
-    room: projectTavernSceneOntoRoom({
-      ...runtimeRoom,
-      sceneInstances,
-      updatedAt: revealedAt,
-    }),
+    room: {
+      ...touchRuntime(room, revealedAt),
+      scenes: {
+        ...room.scenes,
+        instances: sceneInstances,
+      },
+    },
     reveal,
   };
 };

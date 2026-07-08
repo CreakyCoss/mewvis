@@ -1,5 +1,4 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import type { TavernMessage } from "../../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import {
@@ -14,13 +13,11 @@ export const buildTavernUserReplySuggestionPrompt = ({
   characters,
   messages,
   currentDraft,
-  storyContext,
 }: {
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   characters: TavernCharacter[];
   messages: TavernMessage[];
   currentDraft?: string;
-  storyContext?: TavernStoryContextPackage;
 }) => {
   const characterList = characters
     .map((character) => `id: ${character.id}\nname: ${character.name}\ndescription: ${character.description}`)
@@ -29,7 +26,7 @@ export const buildTavernUserReplySuggestionPrompt = ({
   const pendingInteractions = formatPendingInteractionsForPrompt(room, characters);
   const prompt = [
     "<task>",
-    `为酒馆用户「${room.userPersonaName || "我"}」生成 ${suggestionCount} 个下一句回复候选。`,
+    `为酒馆用户「${room.user.personaName || "我"}」生成 ${suggestionCount} 个下一句回复候选。`,
     "</task>",
     "",
     "<rules>",
@@ -48,7 +45,7 @@ export const buildTavernUserReplySuggestionPrompt = ({
     `{"replies":[{"text":"候选 1","targetCharacterIds":["character-id"],"respondsToInteractionId":"可选 pending id","intent":"ask"}]}`,
     "</output_schema>",
     "",
-    ...buildTavernUserReplySceneSections({ room, characters, storyContext }),
+    ...buildTavernUserReplySceneSections({ room, characters }),
     "",
     "<characters>",
     characterList,

@@ -144,36 +144,6 @@ export type TavernSceneInstance = TavernScene & {
   secretReveals: TavernSecretReveal[];
 };
 
-export type TavernActiveRoomView = TavernRoomConfig & {
-  storyBinding?: TavernStoryBinding;
-  storyOutline: string;
-  storyGoal: string;
-  storyGraph: TavernStoryGraph;
-  activeSceneInstanceId?: string;
-  sceneInstances: TavernSceneInstance[];
-  activeSceneId?: string;
-  scenes?: TavernScene[];
-  scene: string;
-  sceneGoal: string;
-  scenePlot: string;
-  sceneDirection: string;
-  sceneTransition: string;
-  memory: string;
-  relationshipOverrides: TavernSceneRelationshipOverride[];
-  sceneStatus?: TavernSceneStatus;
-  characterPublicStatuses: Record<string, TavernCharacterPublicStatus>;
-  characterPrivateStatuses: Record<string, TavernCharacterPrivateStatus>;
-  pendingInteractions: TavernPendingInteraction[];
-  replyOptions: TavernReplyOption[];
-  characterConfigs?: Record<string, TavernRoomCharacterConfig>;
-  characterMemories: Record<string, string>;
-  localCharacters?: TavernCharacter[];
-  lorebookEntries: TavernLorebookEntry[];
-  characterIds: string[];
-  activeCharacterId: string;
-  userPersonaName: string;
-};
-
 export type TavernRoomRuntime = {
   version: 1;
   identity: {

@@ -1,58 +1,50 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import { formatTavernRuntimeMessagesForSummary } from "../../conversation/messages";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import { tavernMessagesToRuntimeMessages } from "../../prompt/context/history";
-import { buildTavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import {
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
 } from "@/features/pages/taverns/room/message/domain/visibility";
 import type { TavernMessage } from "../../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
+import { selectTavernRuntimeActiveSceneFields } from "@/features/pages/taverns/room/runtime/accessors";
 
 export const SUGGESTION_COUNT = 3;
 export const RECENT_MESSAGE_LIMIT = 12;
 
 export const buildTavernUserReplySceneSections = ({
   room,
-  characters,
-  storyContext: inputStoryContext,
 }: {
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   characters: TavernCharacter[];
-  storyContext?: TavernStoryContextPackage;
 }) => {
-  const storyContext = inputStoryContext ?? buildTavernStoryContextPackage({ room, characters });
-  const activeScene = storyContext.graph.activeScene;
+  const sceneFields = selectTavernRuntimeActiveSceneFields(room);
 
   return [
-    storyContext.story.outline.trim() || storyContext.story.goal.trim()
-      ? `<story_arc>\n${[
-          storyContext.story.outline.trim(),
-          storyContext.story.goal.trim() ? `终局目标：${storyContext.story.goal.trim()}` : "",
-        ]
+    room.story.outline.trim() || room.story.goal.trim()
+      ? `<story_arc>\n${[room.story.outline.trim(), room.story.goal.trim() ? `终局目标：${room.story.goal.trim()}` : ""]
           .filter(Boolean)
           .join("\n\n")}\n</story_arc>`
       : "<story_arc>（无）</story_arc>",
     "",
-    `<room title="${storyContext.story.title}">`,
-    activeScene?.scene ?? "",
+    `<room title="${room.identity.title}">`,
+    sceneFields.scene,
     "</room>",
     "",
-    activeScene?.plot.trim()
-      ? `<scene_plot>\n${activeScene.plot.trim()}\n</scene_plot>`
+    sceneFields.scenePlot.trim()
+      ? `<scene_plot>\n${sceneFields.scenePlot.trim()}\n</scene_plot>`
       : "<scene_plot>（无）</scene_plot>",
     "",
-    activeScene?.goal.trim()
-      ? `<scene_goal>\n${activeScene.goal.trim()}\n</scene_goal>`
+    sceneFields.sceneGoal.trim()
+      ? `<scene_goal>\n${sceneFields.sceneGoal.trim()}\n</scene_goal>`
       : "<scene_goal>（无）</scene_goal>",
     "",
-    activeScene?.direction.trim()
-      ? `<scene_direction>\n${activeScene.direction.trim()}\n</scene_direction>`
+    sceneFields.sceneDirection.trim()
+      ? `<scene_direction>\n${sceneFields.sceneDirection.trim()}\n</scene_direction>`
       : "<scene_direction>（无）</scene_direction>",
     "",
-    activeScene?.transition.trim()
-      ? `<scene_transition>\n${activeScene.transition.trim()}\n</scene_transition>`
+    sceneFields.sceneTransition.trim()
+      ? `<scene_transition>\n${sceneFields.sceneTransition.trim()}\n</scene_transition>`
       : "<scene_transition>（无）</scene_transition>",
   ];
 };
@@ -62,14 +54,14 @@ export const buildTavernUserReplyConversationSections = ({
   characters,
   messages,
 }: {
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   characters: TavernCharacter[];
   messages: TavernMessage[];
 }) => {
   const runtimeMessages = tavernMessagesToRuntimeMessages({
     messages,
     characters,
-    userPersonaName: room.userPersonaName,
+    userPersonaName: room.user.personaName,
   });
   const recentConversation = formatTavernRuntimeMessagesForSummary(runtimeMessages.slice(-RECENT_MESSAGE_LIMIT));
 
@@ -83,7 +75,7 @@ export const buildTavernUserReplyConversationSections = ({
       normalizeTavernMessagesForAudience({
         messages,
         characters,
-        userPersonaName: room.userPersonaName,
+        userPersonaName: room.user.personaName,
         audience: { type: "user_proxy" },
       }).slice(-RECENT_MESSAGE_LIMIT),
     ) || "（无）",
@@ -91,9 +83,9 @@ export const buildTavernUserReplyConversationSections = ({
   ];
 };
 
-export const formatPendingInteractionsForPrompt = (room: TavernRoom, characters: TavernCharacter[]) => {
+export const formatPendingInteractionsForPrompt = (room: TavernRoomRuntime, characters: TavernCharacter[]) => {
   const characterById = new Map(characters.map((character) => [character.id, character]));
-  const openInteractions = room.pendingInteractions.filter(
+  const openInteractions = selectTavernRuntimeActiveSceneFields(room).pendingInteractions.filter(
     (interaction) => interaction.status === "open" && interaction.requiresResponse,
   );
 
@@ -106,7 +98,7 @@ export const formatPendingInteractionsForPrompt = (room: TavernRoom, characters:
       const source =
         interaction.source.type === "character"
           ? (characterById.get(interaction.source.characterId ?? "")?.name ?? "角色")
-          : room.userPersonaName || "我";
+          : room.user.personaName || "我";
       const target =
         interaction.target.type === "character"
           ? (interaction.target.characterIds ?? [])

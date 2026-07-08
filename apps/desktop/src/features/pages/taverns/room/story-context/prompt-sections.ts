@@ -1,32 +1,78 @@
+import { formatTavernCharacterRelationships } from "../../tavern/core/relationships";
 import { joinPromptLines, type TavernPromptSection } from "../../tavern/runtime/prompt/shared/sections";
-import { escapePromptXmlAttribute, escapePromptXmlText, limitPromptText } from "../../tavern/runtime/prompt/shared/text";
 import {
-  getTavernStoryGraphContextSlice,
-  selectTavernStoryLorebookEntries as selectTavernStoryLorebookEntriesFromContext,
-  type TavernStoryContextLorebookEntry,
-  type TavernStoryContextPackage,
-} from "./context-package";
+  escapePromptXmlAttribute,
+  escapePromptXmlText,
+  limitPromptText,
+} from "../../tavern/runtime/prompt/shared/text";
+import type { TavernCharacter, TavernLorebookEntry } from "@/features/pages/taverns/manage/model";
+import type { TavernRoomRuntime, TavernStoryNode } from "@/features/pages/taverns/room/model";
+import {
+  selectTavernRuntimeActiveNode,
+  selectTavernRuntimeActiveSceneFields,
+  selectTavernRuntimeActiveSceneInstance,
+  selectTavernRuntimeCharacters,
+} from "@/features/pages/taverns/room/runtime/accessors";
 
 const limitEscapedPromptText = (text: string, maxChars?: number) =>
   escapePromptXmlText(maxChars ? limitPromptText(text, maxChars) : text);
 
+const normalizeSearchText = (text: string) => text.toLowerCase();
+
+const storyNodeTitle = (runtime: TavernRoomRuntime, nodeId: string) =>
+  runtime.story.graph.nodes.find((node) => node.id === nodeId)?.title ?? nodeId;
+
 export const selectTavernStoryLorebookEntries = ({
-  storyContext,
+  runtime,
+  characters = selectTavernRuntimeCharacters(runtime),
   currentUserText,
   activeCharacterId,
 }: {
-  storyContext: TavernStoryContextPackage;
+  runtime: TavernRoomRuntime;
+  characters?: TavernCharacter[];
   currentUserText: string;
   activeCharacterId?: string;
-}) =>
-  selectTavernStoryLorebookEntriesFromContext({
-    context: storyContext,
-    currentText: currentUserText,
-    activeCharacterId,
-  });
+}): TavernLorebookEntry[] => {
+  const sceneFields = selectTavernRuntimeActiveSceneFields(runtime);
+  const activeCharacter = activeCharacterId
+    ? characters.find((character) => character.id === activeCharacterId)
+    : undefined;
+  const matchText = normalizeSearchText(
+    [
+      currentUserText,
+      runtime.identity.title,
+      runtime.story.outline,
+      runtime.story.goal,
+      sceneFields.scene,
+      sceneFields.sceneGoal,
+      sceneFields.scenePlot,
+      activeCharacter?.name ?? "",
+      characters
+        .map((character) =>
+          [
+            character.name,
+            character.description,
+            character.goals ?? "",
+            formatTavernCharacterRelationships({
+              character,
+              characters,
+              userPersonaName: runtime.user.personaName,
+              relationshipOverrides: sceneFields.relationshipOverrides,
+              includePrivate: false,
+            }),
+          ].join("\n"),
+        )
+        .join("\n\n"),
+    ].join("\n\n"),
+  );
+
+  return runtime.world.lorebookEntries
+    .filter((entry) => entry.enabled)
+    .filter((entry) => entry.alwaysOn || entry.keywords.some((keyword) => matchText.includes(keyword.toLowerCase())));
+};
 
 export const formatTavernStoryLorebookEntries = (
-  entries: TavernStoryContextLorebookEntry[],
+  entries: TavernLorebookEntry[],
   {
     maxEntries,
     maxContentChars,
@@ -46,11 +92,18 @@ export const formatTavernStoryLorebookEntries = (
     )
     .join("\n\n");
 
-const storyNodeTitle = (storyContext: TavernStoryContextPackage, nodeId: string) =>
-  storyContext.graph.nodes.find((node) => node.id === nodeId)?.title ?? nodeId;
+const getIncomingEdges = (runtime: TavernRoomRuntime, activeNode: TavernStoryNode, maxEdges?: number) =>
+  runtime.story.graph.edges
+    .filter((edge) => edge.toNodeId === activeNode.id)
+    .slice(0, maxEdges ?? runtime.story.graph.edges.length);
+
+const getOutgoingEdges = (runtime: TavernRoomRuntime, activeNode: TavernStoryNode, maxEdges?: number) =>
+  runtime.story.graph.edges
+    .filter((edge) => edge.fromNodeId === activeNode.id)
+    .slice(0, maxEdges ?? runtime.story.graph.edges.length);
 
 export const formatTavernStoryGraphContext = (
-  storyContext: TavernStoryContextPackage,
+  runtime: TavernRoomRuntime,
   {
     maxEdges,
     maxSummaryChars,
@@ -59,35 +112,37 @@ export const formatTavernStoryGraphContext = (
     maxSummaryChars?: number;
   } = {},
 ) => {
-  const graphSlice = getTavernStoryGraphContextSlice(storyContext, { maxEdges });
-  const activeNode = graphSlice.activeNode;
+  const activeNode = selectTavernRuntimeActiveNode(runtime);
   if (!activeNode) {
     return "";
   }
 
-  const activeScene = graphSlice.activeScene;
+  const sceneFields = selectTavernRuntimeActiveSceneFields(runtime);
+  const incomingEdges = getIncomingEdges(runtime, activeNode, maxEdges);
+  const outgoingEdges = getOutgoingEdges(runtime, activeNode, maxEdges);
+
   return [
     `current_node: ${escapePromptXmlText(activeNode.title)}`,
     `node_type: ${escapePromptXmlText(activeNode.type)}`,
     `path_role: ${escapePromptXmlText(activeNode.pathRole)}`,
-    activeScene ? `scene: ${escapePromptXmlText(activeScene.title)}` : "scene: 未绑定",
-    activeScene?.scene ? `scene_description: ${limitEscapedPromptText(activeScene.scene, maxSummaryChars)}` : "",
-    activeScene?.goal ? `scene_goal: ${limitEscapedPromptText(activeScene.goal, maxSummaryChars)}` : "",
-    graphSlice.incomingEdges.length > 0
+    sceneFields.scene ? `scene: ${escapePromptXmlText(sceneFields.scene.slice(0, 80))}` : "scene: 未绑定",
+    sceneFields.scene ? `scene_description: ${limitEscapedPromptText(sceneFields.scene, maxSummaryChars)}` : "",
+    sceneFields.sceneGoal ? `scene_goal: ${limitEscapedPromptText(sceneFields.sceneGoal, maxSummaryChars)}` : "",
+    incomingEdges.length > 0
       ? [
           "incoming_edges:",
-          ...graphSlice.incomingEdges.map(
+          ...incomingEdges.map(
             (edge, index) =>
-              `${index + 1}. ${escapePromptXmlText(storyNodeTitle(storyContext, edge.fromNodeId))} -> ${escapePromptXmlText(edge.label)}`,
+              `${index + 1}. ${escapePromptXmlText(storyNodeTitle(runtime, edge.fromNodeId))} -> ${escapePromptXmlText(edge.label)}`,
           ),
         ].join("\n")
       : "incoming_edges: 无",
-    graphSlice.outgoingEdges.length > 0
+    outgoingEdges.length > 0
       ? [
           "available_exits:",
-          ...graphSlice.outgoingEdges.map(
+          ...outgoingEdges.map(
             (edge, index) =>
-              `${index + 1}. ${escapePromptXmlText(edge.label)} -> ${escapePromptXmlText(storyNodeTitle(storyContext, edge.toNodeId))}${edge.isDefault ? "（默认）" : ""}`,
+              `${index + 1}. ${escapePromptXmlText(edge.label)} -> ${escapePromptXmlText(storyNodeTitle(runtime, edge.toNodeId))}${edge.isDefault ? "（默认）" : ""}`,
           ),
         ].join("\n")
       : "available_exits: 无",
@@ -96,57 +151,58 @@ export const formatTavernStoryGraphContext = (
     .join("\n");
 };
 
-const buildStoryArcContent = (storyContext: TavernStoryContextPackage) => {
-  if (!storyContext.story.outline.trim() && !storyContext.story.goal.trim()) {
+const buildStoryArcContent = (runtime: TavernRoomRuntime) => {
+  if (!runtime.story.outline.trim() && !runtime.story.goal.trim()) {
     return "";
   }
 
   return joinPromptLines([
-    storyContext.story.outline.trim() ? limitEscapedPromptText(storyContext.story.outline, 900) : "",
-    storyContext.story.goal.trim()
-      ? `<final_goal>${limitEscapedPromptText(storyContext.story.goal, 500)}</final_goal>`
-      : "",
+    runtime.story.outline.trim() ? limitEscapedPromptText(runtime.story.outline, 900) : "",
+    runtime.story.goal.trim() ? `<final_goal>${limitEscapedPromptText(runtime.story.goal, 500)}</final_goal>` : "",
   ]);
 };
 
-const buildStoryMemoryContent = (storyContext: TavernStoryContextPackage) => {
-  const layers = storyContext.memory.sceneLayers;
+const buildStoryMemoryContent = (runtime: TavernRoomRuntime) => {
+  const sceneFields = selectTavernRuntimeActiveSceneFields(runtime);
+  const layers = selectTavernRuntimeActiveSceneInstance(runtime)?.memoryLayers;
+
   return joinPromptLines([
-    storyContext.memory.manual.trim() ? limitEscapedPromptText(storyContext.memory.manual, 900) : "",
-    layers.public.trim()
+    sceneFields.memory.trim() ? limitEscapedPromptText(sceneFields.memory, 900) : "",
+    layers?.public?.trim()
       ? `<branch_public_memory>${limitEscapedPromptText(layers.public, 600)}</branch_public_memory>`
       : "",
-    layers.private.trim()
+    layers?.private?.trim()
       ? `<branch_private_memory>${limitEscapedPromptText(layers.private, 700)}</branch_private_memory>`
       : "",
   ]);
 };
 
 export const buildTavernStoryPromptSections = ({
-  storyContext,
+  runtime,
   lorebookText,
   storyGraphText,
 }: {
-  storyContext: TavernStoryContextPackage;
+  runtime: TavernRoomRuntime;
   lorebookText: string;
   storyGraphText: string;
 }): TavernPromptSection[] => {
-  const activeScene = storyContext.graph.activeScene;
+  const sceneFields = selectTavernRuntimeActiveSceneFields(runtime);
+
   return [
     {
       id: "story-arc",
       layer: "context",
       tag: "story_arc",
       attributes: { instruction: "overall_story_continuity" },
-      content: buildStoryArcContent(storyContext),
+      content: buildStoryArcContent(runtime),
     },
     {
       id: "story-scene",
       layer: "context",
       tag: "room_scene",
       content: [
-        `story: ${escapePromptXmlText(limitPromptText(storyContext.story.title, 120))}`,
-        activeScene ? limitEscapedPromptText(activeScene.scene, 900) : "",
+        `story: ${escapePromptXmlText(limitPromptText(runtime.identity.title, 120))}`,
+        sceneFields.scene ? limitEscapedPromptText(sceneFields.scene, 900) : "",
       ],
     },
     {
@@ -154,35 +210,35 @@ export const buildTavernStoryPromptSections = ({
       layer: "context",
       tag: "scene_plot",
       attributes: { instruction: "current_story_stage_plot" },
-      content: activeScene ? limitEscapedPromptText(activeScene.plot, 700) : "",
+      content: sceneFields.scenePlot ? limitEscapedPromptText(sceneFields.scenePlot, 700) : "",
     },
     {
       id: "scene-goal",
       layer: "context",
       tag: "scene_goal",
       attributes: { instruction: "current_scene_direction" },
-      content: activeScene ? limitEscapedPromptText(activeScene.goal, 500) : "",
+      content: sceneFields.sceneGoal ? limitEscapedPromptText(sceneFields.sceneGoal, 500) : "",
     },
     {
       id: "scene-direction",
       layer: "context",
       tag: "scene_direction",
       attributes: { instruction: "intended_development; do_not_jump_to_resolution" },
-      content: activeScene ? limitEscapedPromptText(activeScene.direction, 700) : "",
+      content: sceneFields.sceneDirection ? limitEscapedPromptText(sceneFields.sceneDirection, 700) : "",
     },
     {
       id: "scene-transition",
       layer: "context",
       tag: "scene_transition",
       attributes: { instruction: "continuity_to_adjacent_stages" },
-      content: activeScene ? limitEscapedPromptText(activeScene.transition, 500) : "",
+      content: sceneFields.sceneTransition ? limitEscapedPromptText(sceneFields.sceneTransition, 500) : "",
     },
     {
       id: "story-memory",
       layer: "context",
       tag: "room_memory",
       attributes: { instruction: "persistent_story_state" },
-      content: buildStoryMemoryContent(storyContext),
+      content: buildStoryMemoryContent(runtime),
     },
     {
       id: "lorebook",

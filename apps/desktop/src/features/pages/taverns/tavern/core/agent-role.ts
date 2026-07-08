@@ -1,10 +1,9 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
-
-type TavernBridgeSessionScope = Pick<
-  TavernRoom,
-  "id" | "activeSceneId" | "activeSceneInstanceId" | "scenes" | "sceneInstances"
->;
+import {
+  selectTavernRuntimeActiveSceneId,
+  selectTavernRuntimeActiveSceneInstanceId,
+} from "@/features/pages/taverns/room/runtime/accessors";
 
 const sanitizeAgentRoleSegment = (value: string, fallback: string) => {
   const segment = value
@@ -16,20 +15,20 @@ const sanitizeAgentRoleSegment = (value: string, fallback: string) => {
   return segment || fallback;
 };
 
-const resolveTavernBridgeInstanceId = (room: TavernBridgeSessionScope, instanceId?: string | null) =>
+const resolveTavernBridgeInstanceId = (room: TavernRoomRuntime, instanceId?: string | null) =>
   instanceId?.trim() ||
-  room.activeSceneInstanceId?.trim() ||
-  room.sceneInstances?.[0]?.id?.trim() ||
-  room.activeSceneId?.trim() ||
-  room.id;
+  selectTavernRuntimeActiveSceneInstanceId(room).trim() ||
+  room.scenes.instances[0]?.id?.trim() ||
+  selectTavernRuntimeActiveSceneId(room).trim() ||
+  room.identity.id;
 
-const tavernAgentScopeSegment = (room: Pick<TavernRoom, "id" | "activeSceneInstanceId" | "activeSceneId">) =>
-  sanitizeAgentRoleSegment(room.activeSceneInstanceId ?? room.activeSceneId ?? room.id, "instance");
+const tavernAgentScopeSegment = (room: TavernRoomRuntime) =>
+  sanitizeAgentRoleSegment(
+    selectTavernRuntimeActiveSceneInstanceId(room) ?? selectTavernRuntimeActiveSceneId(room) ?? room.identity.id,
+    "instance",
+  );
 
-export const tavernBridgeSessionRootDir = (
-  roomOrRoomId: TavernBridgeSessionScope | string,
-  instanceId?: string | null,
-) => {
+export const tavernBridgeSessionRootDir = (roomOrRoomId: TavernRoomRuntime | string, instanceId?: string | null) => {
   if (typeof roomOrRoomId === "string") {
     return `tavern/${sanitizeAgentRoleSegment(roomOrRoomId, "room")}/scene-instances/${sanitizeAgentRoleSegment(
       instanceId ?? roomOrRoomId,
@@ -37,38 +36,35 @@ export const tavernBridgeSessionRootDir = (
     )}/bridge`;
   }
 
-  return `tavern/${sanitizeAgentRoleSegment(roomOrRoomId.id, "room")}/scene-instances/${sanitizeAgentRoleSegment(
+  return `tavern/${sanitizeAgentRoleSegment(roomOrRoomId.identity.id, "room")}/scene-instances/${sanitizeAgentRoleSegment(
     resolveTavernBridgeInstanceId(roomOrRoomId, instanceId),
     "instance",
   )}/bridge`;
 };
 
-export const tavernBridgeSessionRootDirsForRoom = (room: TavernBridgeSessionScope) =>
+export const tavernBridgeSessionRootDirsForRoom = (room: TavernRoomRuntime) =>
   Array.from(
     new Set([
-      ...(room.sceneInstances?.map((instance) => tavernBridgeSessionRootDir(room, instance.id)) ?? []),
-      ...(room.scenes?.map(
+      ...room.scenes.instances.map((instance) => tavernBridgeSessionRootDir(room, instance.id)),
+      ...room.scenes.items.map(
         (scene) =>
-          `tavern/${sanitizeAgentRoleSegment(room.id, "room")}/scenes/${sanitizeAgentRoleSegment(
+          `tavern/${sanitizeAgentRoleSegment(room.identity.id, "room")}/scenes/${sanitizeAgentRoleSegment(
             scene.id,
             "scene",
           )}/bridge`,
-      ) ?? []),
+      ),
       tavernBridgeSessionRootDir(room),
     ]),
   );
 
-export const tavernDirectorAgentRoleId = (room: Pick<TavernRoom, "id" | "activeSceneInstanceId" | "activeSceneId">) =>
-  `tavern-${sanitizeAgentRoleSegment(room.id, "room")}-${tavernAgentScopeSegment(room)}-director`;
+export const tavernDirectorAgentRoleId = (room: TavernRoomRuntime) =>
+  `tavern-${sanitizeAgentRoleSegment(room.identity.id, "room")}-${tavernAgentScopeSegment(room)}-director`;
 
-export const tavernCharacterAgentRoleId = (
-  room: Pick<TavernRoom, "id" | "activeSceneInstanceId" | "activeSceneId">,
-  character: Pick<TavernCharacter, "id">,
-) =>
-  `tavern-${sanitizeAgentRoleSegment(room.id, "room")}-${tavernAgentScopeSegment(room)}-character-${sanitizeAgentRoleSegment(
+export const tavernCharacterAgentRoleId = (room: TavernRoomRuntime, character: Pick<TavernCharacter, "id">) =>
+  `tavern-${sanitizeAgentRoleSegment(room.identity.id, "room")}-${tavernAgentScopeSegment(room)}-character-${sanitizeAgentRoleSegment(
     character.id,
     "character",
   )}`;
 
-export const tavernQuickReplyAgentRoleId = (room: Pick<TavernRoom, "id" | "activeSceneInstanceId" | "activeSceneId">) =>
-  `tavern-${sanitizeAgentRoleSegment(room.id, "room")}-${tavernAgentScopeSegment(room)}-quick-reply`;
+export const tavernQuickReplyAgentRoleId = (room: TavernRoomRuntime) =>
+  `tavern-${sanitizeAgentRoleSegment(room.identity.id, "room")}-${tavernAgentScopeSegment(room)}-quick-reply`;

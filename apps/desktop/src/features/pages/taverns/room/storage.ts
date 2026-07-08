@@ -1,7 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { TavernMessage } from "../tavern/types";
-import type { TavernRoomRuntime, TavernRoomSessionState, TavernActiveRoomView } from "./model";
-import { createTavernRoomRuntimeFromView, selectTavernActiveRoomView } from "./runtime/selectors";
+import type { TavernRoomRuntime, TavernRoomSessionState } from "./model";
+import { selectTavernRuntimeActiveSceneId, selectTavernRuntimeActiveSceneInstanceId } from "./runtime/accessors";
 
 const TAVERN_ROOM_FILE_NAME = "room.json";
 const TAVERN_MESSAGES_FILE_NAME = "messages.json";
@@ -76,9 +76,7 @@ export const ensureTavernWorkspaceDirectory = async (tavernWorkspacePath: string
     return;
   }
 
-  const initFileName = `${TAVERN_WORKSPACE_INIT_FILE_PREFIX}-${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2)}.tmp`;
+  const initFileName = `${TAVERN_WORKSPACE_INIT_FILE_PREFIX}-${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`;
   const initFilePath = `${backingPath.relativePath}/${initFileName}`;
   await writeTextWorkspaceFile(backingPath.workspacePath, initFilePath, "");
   await deleteWorkspaceFileIfExists(backingPath.workspacePath, initFilePath);
@@ -110,23 +108,6 @@ const normalizeTavernRuntimeMessages = (value: unknown): TavernMessage[] | null 
   });
 };
 
-const normalizeLegacyTavernActiveRoomView = (value: unknown): TavernActiveRoomView | null => {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-
-  const candidate = value as Partial<TavernActiveRoomView>;
-  const id = typeof candidate.id === "string" ? candidate.id.trim() : "";
-  if (!id || !candidate.storyGraph) {
-    return null;
-  }
-
-  return {
-    ...candidate,
-    id,
-  } as TavernActiveRoomView;
-};
-
 const normalizeTavernRoomRuntime = (value: unknown): TavernRoomRuntime | null => {
   if (!value || typeof value !== "object") {
     return null;
@@ -137,15 +118,17 @@ const normalizeTavernRoomRuntime = (value: unknown): TavernRoomRuntime | null =>
     return candidate as TavernRoomRuntime;
   }
 
-  const legacyRoom = normalizeLegacyTavernActiveRoomView(value);
-  return legacyRoom ? createTavernRoomRuntimeFromView(legacyRoom) : null;
+  return null;
 };
 
 const materializeRuntimeMessages = (runtime: TavernRoomRuntime, messages: TavernMessage[]) => {
-  const room = selectTavernActiveRoomView(runtime);
+  const sceneId = selectTavernRuntimeActiveSceneId(runtime);
+  const sceneInstanceId = selectTavernRuntimeActiveSceneInstanceId(runtime);
   return messages.map((message) => ({
     ...message,
-    roomId: message.roomId || room.id,
+    roomId: message.roomId || runtime.identity.id,
+    sceneId: message.sceneId ?? sceneId,
+    sceneInstanceId: message.sceneInstanceId ?? sceneInstanceId,
     status: message.status === "streaming" ? ("done" as const) : message.status,
   }));
 };

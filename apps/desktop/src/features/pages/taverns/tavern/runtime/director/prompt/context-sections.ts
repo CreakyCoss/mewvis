@@ -1,8 +1,7 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import { formatTavernRuntimeMessagesForSummary } from "../../conversation/messages";
 import { buildTavernSceneDriveGuidance } from "../../../core/director-scheduling";
 import { formatTavernCharacterRelationships } from "../../../core/relationships";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import {
   formatTavernVisibleMessagesForRequestContext,
   normalizeTavernMessagesForAudience,
@@ -15,6 +14,10 @@ import {
   buildTavernDirectorSecretMemoryContext,
   buildTavernSecretMemoryProtocol,
 } from "../../prompt/shared/secret-policy";
+import {
+  selectTavernRuntimeActiveSceneFields,
+  selectTavernRuntimeActiveSceneInstance,
+} from "@/features/pages/taverns/room/runtime/accessors";
 
 const DIRECTOR_RECENT_MESSAGE_LIMIT = 10;
 
@@ -26,9 +29,8 @@ const limitDirectorContextText = (text: string, maxChars: number) => {
 const limitEscapedDirectorText = (text: string, maxChars: number) =>
   escapePromptXmlText(limitDirectorContextText(text, maxChars));
 
-const formatDirectorCharacterMemory = (room: TavernRoom, characterId: string) => {
-  const activeInstance =
-    room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId) ?? room.sceneInstances[0];
+const formatDirectorCharacterMemory = (runtime: TavernRoomRuntime, characterId: string) => {
+  const activeInstance = selectTavernRuntimeActiveSceneInstance(runtime);
   const layers = activeInstance?.characterMemoryLayers?.[characterId];
 
   return [layers?.required?.trim() ?? "", layers?.public?.trim() ?? "", layers?.known?.trim() ?? ""]
@@ -36,8 +38,9 @@ const formatDirectorCharacterMemory = (room: TavernRoom, characterId: string) =>
     .join("\n\n");
 };
 
-const buildTavernDirectorCharacterList = (room: TavernRoom, characters: TavernCharacter[]) =>
-  characters
+const buildTavernDirectorCharacterList = (runtime: TavernRoomRuntime, characters: TavernCharacter[]) => {
+  const sceneFields = selectTavernRuntimeActiveSceneFields(runtime);
+  return characters
     .map((character) =>
       [
         `id: ${escapePromptXmlText(character.id)}`,
@@ -50,23 +53,23 @@ const buildTavernDirectorCharacterList = (room: TavernRoom, characters: TavernCh
           const relationships = formatTavernCharacterRelationships({
             character,
             characters,
-            userPersonaName: room.userPersonaName,
-            relationshipOverrides: room.relationshipOverrides,
+            userPersonaName: runtime.user.personaName,
+            relationshipOverrides: sceneFields.relationshipOverrides,
           });
           return relationships ? `relationships: ${escapePromptXmlText(relationships)}` : "";
         })(),
-        formatDirectorCharacterMemory(room, character.id)
-          ? `memory: ${escapePromptXmlText(formatDirectorCharacterMemory(room, character.id))}`
+        formatDirectorCharacterMemory(runtime, character.id)
+          ? `memory: ${escapePromptXmlText(formatDirectorCharacterMemory(runtime, character.id))}`
           : "",
       ]
         .filter(Boolean)
         .join("\n"),
     )
     .join("\n\n---\n\n");
+};
 
 export const buildTavernDirectorContextSections = ({
   room,
-  storyContext,
   characters,
   messages,
   currentUserText,
@@ -81,8 +84,7 @@ export const buildTavernDirectorContextSections = ({
   presentationProfile,
   promptBlocksText,
 }: {
-  room: TavernRoom;
-  storyContext: TavernStoryContextPackage;
+  room: TavernRoomRuntime;
   characters: TavernCharacter[];
   messages: TavernMessage[];
   currentUserText: string;
@@ -97,23 +99,23 @@ export const buildTavernDirectorContextSections = ({
   presentationProfile: TavernPresentationProfile;
   promptBlocksText: string;
 }) => {
+  const sceneFields = selectTavernRuntimeActiveSceneFields(room);
   const selectedTargetCharacters = selectedTargetCharacterIds
     .map((characterId) => characters.find((character) => character.id === characterId))
     .filter((character): character is TavernCharacter => Boolean(character));
   const sceneDriveGuidance = buildTavernSceneDriveGuidance({
-    settings: room.settings,
+    settings: room.presentation.settings,
     scene: {
-      sceneGoal: room.sceneGoal,
-      scenePlot: room.scenePlot,
-      storyGoal: room.storyGoal,
-      sceneStatus: room.sceneStatus,
+      sceneGoal: sceneFields.sceneGoal,
+      scenePlot: sceneFields.scenePlot,
+      storyGoal: room.story.goal,
+      sceneStatus: sceneFields.sceneStatus,
     },
     messages,
     currentUserText,
     isSceneDriveTurn,
   });
-  const directorOperationPolicy = room.settings.directorNarrativeControl;
-  const activeScene = storyContext.graph.activeScene;
+  const directorOperationPolicy = room.presentation.settings.directorNarrativeControl;
 
   return [
     `<presentation_profile id="${escapePromptXmlAttribute(presentationProfile.id)}" label="${escapePromptXmlAttribute(presentationProfile.label)}" render="${escapePromptXmlAttribute(presentationProfile.renderStyle)}" contract="${escapePromptXmlAttribute(presentationProfile.generationContract)}">`,
@@ -123,36 +125,36 @@ export const buildTavernDirectorContextSections = ({
     buildTavernSecretMemoryProtocol("director"),
     "",
     promptBlocksText,
-    storyContext.story.outline.trim() || storyContext.story.goal.trim()
+    room.story.outline.trim() || room.story.goal.trim()
       ? `<story_arc>\n${[
-          escapePromptXmlText(storyContext.story.outline.trim()),
-          storyContext.story.goal.trim() ? `终局目标：${escapePromptXmlText(storyContext.story.goal.trim())}` : "",
+          escapePromptXmlText(room.story.outline.trim()),
+          room.story.goal.trim() ? `终局目标：${escapePromptXmlText(room.story.goal.trim())}` : "",
         ]
           .filter(Boolean)
           .join("\n\n")}\n</story_arc>`
       : "<story_arc>（无）</story_arc>",
     "",
-    `<room title="${escapePromptXmlAttribute(storyContext.story.title)}">`,
-    escapePromptXmlText(activeScene?.scene ?? ""),
+    `<room title="${escapePromptXmlAttribute(room.identity.title)}">`,
+    escapePromptXmlText(sceneFields.scene),
     "</room>",
     "",
-    activeScene?.plot.trim()
-      ? `<scene_plot>\n${limitEscapedDirectorText(activeScene.plot, 3000)}\n</scene_plot>`
+    sceneFields.scenePlot.trim()
+      ? `<scene_plot>\n${limitEscapedDirectorText(sceneFields.scenePlot, 3000)}\n</scene_plot>`
       : "<scene_plot>（无）</scene_plot>",
     "",
-    activeScene?.goal.trim()
-      ? `<scene_goal>\n${limitEscapedDirectorText(activeScene.goal, 2000)}\n</scene_goal>`
+    sceneFields.sceneGoal.trim()
+      ? `<scene_goal>\n${limitEscapedDirectorText(sceneFields.sceneGoal, 2000)}\n</scene_goal>`
       : "<scene_goal>（无）</scene_goal>",
     "",
     '<scene_status instruction="public_scene_pressure; use_for_narrator_and_scheduling_without_solving_user_choices">',
     JSON.stringify(
       {
-        location: activeScene?.status?.location ?? "",
-        timeLabel: activeScene?.status?.timeLabel ?? "",
-        weather: activeScene?.status?.weather ?? "",
-        atmosphere: activeScene?.status?.atmosphere ?? "",
-        scenePhase: activeScene?.status?.scenePhase ?? "",
-        immediateThreat: activeScene?.status?.immediateThreat ?? "",
+        location: sceneFields.sceneStatus?.location ?? "",
+        timeLabel: sceneFields.sceneStatus?.timeLabel ?? "",
+        weather: sceneFields.sceneStatus?.weather ?? "",
+        atmosphere: sceneFields.sceneStatus?.atmosphere ?? "",
+        scenePhase: sceneFields.sceneStatus?.scenePhase ?? "",
+        immediateThreat: sceneFields.sceneStatus?.immediateThreat ?? "",
       },
       null,
       2,
@@ -167,12 +169,12 @@ export const buildTavernDirectorContextSections = ({
     JSON.stringify(sceneDriveGuidance, null, 2),
     "</scene_drive_guidance>",
     "",
-    activeScene?.direction.trim()
-      ? `<scene_direction>\n${limitEscapedDirectorText(activeScene.direction, 3000)}\n</scene_direction>`
+    sceneFields.sceneDirection.trim()
+      ? `<scene_direction>\n${limitEscapedDirectorText(sceneFields.sceneDirection, 3000)}\n</scene_direction>`
       : "<scene_direction>（无）</scene_direction>",
     "",
-    activeScene?.transition.trim()
-      ? `<scene_transition>\n${limitEscapedDirectorText(activeScene.transition, 2000)}\n</scene_transition>`
+    sceneFields.sceneTransition.trim()
+      ? `<scene_transition>\n${limitEscapedDirectorText(sceneFields.sceneTransition, 2000)}\n</scene_transition>`
       : "<scene_transition>（无）</scene_transition>",
     "",
     "<story_graph>",
@@ -187,7 +189,7 @@ export const buildTavernDirectorContextSections = ({
     buildTavernDirectorCharacterList(room, characters),
     "</characters>",
     "",
-    buildTavernDirectorSecretMemoryContext({ room, characters }),
+    buildTavernDirectorSecretMemoryContext({ runtime: room, characters }),
     "",
     '<selected_reply_targets instruction="targets_addressed_by_user_or_reply_option; may_speak_or_react_nonverbally_depending_on_relationship_and_context">',
     selectedTargetCharacters.length > 0
@@ -227,7 +229,7 @@ export const buildTavernDirectorContextSections = ({
       normalizeTavernMessagesForAudience({
         messages,
         characters,
-        userPersonaName: room.userPersonaName,
+        userPersonaName: room.user.personaName,
         audience: { type: "director" },
       }).slice(-DIRECTOR_RECENT_MESSAGE_LIMIT),
     ) || "（无）",

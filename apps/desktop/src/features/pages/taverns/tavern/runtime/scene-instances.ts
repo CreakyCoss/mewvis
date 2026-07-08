@@ -5,7 +5,6 @@ import type {
   TavernSceneInstance,
   TavernStoryGraph,
   TavernStoryNode,
-  TavernActiveRoomView as TavernRoom,
 } from "@/features/pages/taverns/room/model";
 
 const stableIdHash = (value: string) => {
@@ -18,22 +17,6 @@ const stableIdHash = (value: string) => {
 
 const createNodeScopedSceneInstanceId = (roomId: string, nodeId: string) =>
   `scene-instance-${stableIdHash([roomId, nodeId].join(">"))}`;
-
-export const resolveActiveSceneInstance = (
-  room: Pick<TavernRoom, "activeSceneId" | "activeSceneInstanceId" | "storyGraph" | "sceneInstances">,
-) => {
-  const explicitInstance = room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId);
-  if (explicitInstance) {
-    return explicitInstance;
-  }
-
-  return (
-    room.sceneInstances.find((instance) => instance.nodeId === room.storyGraph.activeNodeId) ??
-    room.sceneInstances.find((instance) => instance.sceneId === room.activeSceneId) ??
-    room.sceneInstances[0] ??
-    null
-  );
-};
 
 const createSceneInstanceFromScene = ({
   roomId,

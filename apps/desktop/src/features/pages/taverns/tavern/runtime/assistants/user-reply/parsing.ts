@@ -1,5 +1,6 @@
 import { uniq } from "lodash-es";
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
+import { selectTavernRuntimeActiveSceneFields } from "@/features/pages/taverns/room/runtime/accessors";
 import type { TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
 
 const replyOptionIntents = new Set<TavernReplyOption["intent"]>([
@@ -62,11 +63,12 @@ export const parseSuggestions = (
     room,
   }: {
     characters: TavernCharacter[];
-    room: TavernRoom;
+    room: TavernRoomRuntime;
   },
 ): TavernReplyOption[] => {
   const characterIds = new Set(characters.map((character) => character.id));
-  const pendingUserInteraction = room.pendingInteractions.find(
+  const pendingInteractions = selectTavernRuntimeActiveSceneFields(room).pendingInteractions;
+  const pendingUserInteraction = pendingInteractions.find(
     (interaction) =>
       interaction.status === "open" && interaction.requiresResponse && interaction.target.type === "user",
   );
@@ -83,7 +85,7 @@ export const parseSuggestions = (
       return parsed.replies.flatMap((item, index) => {
         const record = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
         const rawText = typeof item === "string" ? item : typeof record.text === "string" ? record.text : "";
-        const replyText = stripUserLabel(rawText, room.userPersonaName)
+        const replyText = stripUserLabel(rawText, room.user.personaName)
           .replace(/^["“”]+|["“”]+$/g, "")
           .trim();
         if (!replyText) {
@@ -92,7 +94,7 @@ export const parseSuggestions = (
         const targetCharacterIds = normalizeReplyOptionTargetCharacterIds(record.targetCharacterIds, characterIds);
         const respondsToInteractionId =
           typeof record.respondsToInteractionId === "string" &&
-          room.pendingInteractions.some((interaction) => interaction.id === record.respondsToInteractionId)
+          pendingInteractions.some((interaction) => interaction.id === record.respondsToInteractionId)
             ? record.respondsToInteractionId
             : pendingUserInteraction?.id;
 
@@ -115,7 +117,7 @@ export const parseSuggestions = (
     .split(/\n+/)
     .map((line) => line.replace(/^\s*(?:[-*]|\d+[.)、])\s*/, ""))
     .flatMap((replyText, index): TavernReplyOption[] => {
-      const cleaned = stripUserLabel(replyText, room.userPersonaName)
+      const cleaned = stripUserLabel(replyText, room.user.personaName)
         .replace(/^["“”]+|["“”]+$/g, "")
         .trim();
 

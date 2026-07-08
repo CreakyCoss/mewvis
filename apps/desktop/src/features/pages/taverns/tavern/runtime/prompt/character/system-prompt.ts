@@ -1,6 +1,5 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import { appendReferencesToPrompt } from "@/features/ai/components/context-tools";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import { getTavernPresentationContract } from "../../../presentation/presentation-contracts";
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
 import {
@@ -9,7 +8,6 @@ import {
 } from "../../../prompt-registry/text-blocks";
 import type { TavernReferencedFile } from "../../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
-import { buildTavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import {
   buildTavernStoryPromptSections,
   formatTavernStoryGraphContext,
@@ -21,15 +19,18 @@ import { buildPresentationProfileSection } from "../layers/presentation";
 import { buildCharacterSystemContractSection } from "../layers/system-contract";
 import { renderTavernPromptSections, type TavernPromptSection } from "../shared/sections";
 import { buildTavernSecretMemoryProtocol } from "../shared/secret-policy";
+import {
+  selectTavernRuntimeActivePromptOverrides,
+  selectTavernRuntimeActiveSceneInstance,
+} from "@/features/pages/taverns/room/runtime/accessors";
 
 type BuildTavernCharacterPromptInput = {
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   activeCharacter: TavernCharacter;
   characters: TavernCharacter[];
   references: TavernReferencedFile[];
   currentUserText: string;
   turnInstruction?: string;
-  storyContext?: TavernStoryContextPackage;
 };
 
 type TavernCharacterPromptParts = {
@@ -49,24 +50,24 @@ const buildSavedPromptBlocksSection = ({
   room,
   publicContentTag,
 }: {
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   publicContentTag: string;
 }): TavernPromptSection => ({
   id: "prompt-blocks",
   layer: "tavern",
   content: [
     formatTavernPromptBlocksForTarget({
-      prompt: room.prompt,
+      prompt: room.presentation.prompt,
       target: "character",
       publicContentTag,
     }),
     formatTavernPromptBlocksForTarget({
-      prompt: room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId)?.promptOverrides,
+      prompt: selectTavernRuntimeActivePromptOverrides(room),
       target: "character",
       publicContentTag,
     }),
     formatTavernInteractionQualityRulesForTarget({
-      qualityRuleIds: room.settings.interactionQualityRuleIds,
+      qualityRuleIds: room.presentation.settings.interactionQualityRuleIds,
       target: "character",
       publicContentTag,
     }),
@@ -88,13 +89,13 @@ export const buildTavernCharacterPromptParts = ({
   references,
   currentUserText,
   turnInstruction,
-  storyContext: inputStoryContext,
 }: BuildTavernCharacterPromptInput): TavernCharacterPromptParts => {
-  const storyContext = inputStoryContext ?? buildTavernStoryContextPackage({ room, characters });
-  const matchedStoryCharacter = storyContext.characters.find((character) => character.id === activeCharacter.id);
-  const characterLayers = matchedStoryCharacter?.memory;
+  const activeInstance = selectTavernRuntimeActiveSceneInstance(room);
+  const characterLayers = activeInstance?.characterMemoryLayers?.[activeCharacter.id];
+  const baseCharacterMemory = room.cast.characterMemories[activeCharacter.id]?.trim() ?? "";
   const characterMemory = [
     characterLayers?.required?.trim() ?? "",
+    baseCharacterMemory,
     characterLayers?.public?.trim() ?? "",
     characterLayers?.known?.trim() ?? "",
     characterLayers?.privateSelf?.trim() ?? "",
@@ -103,7 +104,8 @@ export const buildTavernCharacterPromptParts = ({
     .join("\n\n");
   const lorebookText = formatTavernStoryLorebookEntries(
     selectTavernStoryLorebookEntries({
-      storyContext,
+      runtime: room,
+      characters,
       activeCharacterId: activeCharacter.id,
       currentUserText,
     }),
@@ -112,17 +114,17 @@ export const buildTavernCharacterPromptParts = ({
       maxContentChars: 700,
     },
   );
-  const storyGraphText = formatTavernStoryGraphContext(storyContext, {
+  const storyGraphText = formatTavernStoryGraphContext(room, {
     maxEdges: 8,
     maxSummaryChars: 280,
   });
-  const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
+  const presentationProfile = getTavernPresentationProfile(room.presentation.profile?.profileId);
   const presentationContract = getTavernPresentationContract(presentationProfile);
   const publicContentTag = presentationContract.publicContentTag;
   const usesNarrativeBeat = presentationContract.characterMessageKind === "narrative_beat";
   const compactCharacters = formatCompactPresentCharacters({
     activeCharacter,
-    room,
+    runtime: room,
     characters,
   });
 
@@ -147,13 +149,13 @@ export const buildTavernCharacterPromptParts = ({
   ];
   const contextSections: TavernPromptSection[] = [
     ...buildTavernStoryPromptSections({
-      storyContext,
+      runtime: room,
       lorebookText,
       storyGraphText,
     }),
     ...buildCharacterContextSections({
       activeCharacter,
-      room,
+      runtime: room,
       characters,
       characterMemory,
       compactCharacters,

@@ -1,4 +1,4 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import { isTavernFixedOrderPhase } from "../../../core/director-scheduling";
 import { getTavernPresentationContract } from "../../../presentation/presentation-contracts";
 import { getTavernPresentationProfile } from "../../../prompt-registry/presentation-rules";
@@ -15,8 +15,8 @@ import {
 } from "./output-contract";
 import { buildCharacterTurnStyleInstruction } from "./style-instruction";
 
-const buildSchedulingInstruction = (room: TavernRoom) => {
-  if (!isTavernFixedOrderPhase(room.settings)) {
+const buildSchedulingInstruction = (room: TavernRoomRuntime) => {
+  if (!isTavernFixedOrderPhase(room.presentation.settings)) {
     return "";
   }
 
@@ -38,7 +38,7 @@ const buildOwnReplyInstruction = ({
   allowNonverbalReply,
 }: {
   outputMode: TavernCharacterTurnOutputMode;
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   replyFormatInstruction: string;
   replyPerspectiveInstruction: string;
   nonEmptyReplyInstruction: string;
@@ -65,7 +65,7 @@ const buildOwnReplyInstruction = ({
     ]);
   }
 
-  if (room.settings.immersiveDescriptionEnabled !== false) {
+  if (room.presentation.settings.immersiveDescriptionEnabled !== false) {
     return joinPromptLines([
       ...commonRules,
       "只输出当前角色自己的公开发言和可选短动作标注；不要复述旁白或环境转场，不要替其他角色总结或行动。",
@@ -115,7 +115,7 @@ export const buildTavernCharacterTurnInstruction = ({
   promptVariant = DEFAULT_TAVERN_CHARACTER_PROMPT_VARIANT,
   allowNonverbalReply = false,
 }: {
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   speaker: TavernCharacter;
   speakerIndex: number;
   speakerCount: number;
@@ -125,7 +125,7 @@ export const buildTavernCharacterTurnInstruction = ({
   promptVariant?: TavernCharacterPromptVariant;
   allowNonverbalReply?: boolean;
 }) => {
-  const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
+  const presentationProfile = getTavernPresentationProfile(room.presentation.profile?.profileId);
   const presentationContract = getTavernPresentationContract(presentationProfile);
   const publicContentTag = presentationContract.publicContentTag;
   const outputMode = resolveCharacterTurnOutputMode(presentationContract, allowNonverbalReply);

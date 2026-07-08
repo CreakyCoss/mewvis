@@ -1,4 +1,4 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { joinPromptLines } from "../shared/sections";
 
@@ -6,11 +6,11 @@ export const buildCharacterTurnStyleInstruction = ({
   room,
   speaker,
 }: {
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   speaker: TavernCharacter;
 }) => {
   const lines = [
-    room.settings.immersiveDescriptionEnabled === false
+    room.presentation.settings.immersiveDescriptionEnabled === false
       ? "当前房间关闭沉浸描写；动作和场景互动只在必要时简短使用。"
       : "",
   ];

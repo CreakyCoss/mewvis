@@ -1,4 +1,5 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
+import { selectTavernRuntimeActiveSceneFields } from "@/features/pages/taverns/room/runtime/accessors";
 import { formatTavernCharacterRelationships } from "../../../core/relationships";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { escapePromptXmlText, limitPromptText } from "../shared/text";
@@ -10,22 +11,21 @@ export const formatTavernPromptCharacter = (
   character: TavernCharacter,
   {
     compact = false,
-    room,
+    runtime,
     characters = [],
   }: {
     compact?: boolean;
-    room?: TavernRoom;
+    runtime?: TavernRoomRuntime;
     characters?: TavernCharacter[];
   } = {},
 ) => {
-  const relationships = room
-    ? formatTavernCharacterRelationships({
-        character,
-        characters,
-        userPersonaName: room.userPersonaName,
-        relationshipOverrides: room.relationshipOverrides,
-      })
-    : formatTavernCharacterRelationships({ character, characters });
+  const sceneFields = runtime ? selectTavernRuntimeActiveSceneFields(runtime) : null;
+  const relationships = formatTavernCharacterRelationships({
+    character,
+    characters,
+    userPersonaName: runtime?.user.personaName,
+    relationshipOverrides: sceneFields?.relationshipOverrides,
+  });
 
   if (compact) {
     return [

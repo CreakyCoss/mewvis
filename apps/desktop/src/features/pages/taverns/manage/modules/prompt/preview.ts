@@ -1,11 +1,10 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import type { TavernMessage, TavernReferencedFile } from "../../../tavern/types";
 import type {
   TavernCharacter,
   TavernPromptBlock,
   TavernPromptBlockTarget,
 } from "@/features/pages/taverns/manage/model";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import { isTavernFixedOrderPhase } from "../../../tavern/core/director-scheduling";
 import {
   buildTavernDirectorPromptContext,
@@ -13,8 +12,11 @@ import {
 } from "../../../tavern/runtime/director/prompt";
 import { buildTavernReplyAgentRequest } from "../../../tavern/runtime/reply/request";
 import { buildTavernBridgeSystemPrompt } from "../../../tavern/runtime/prompt/bridge/system-prompt";
-import { buildTavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
-import { getTavernRuntimeStoryProjection } from "@/features/pages/taverns/room/story-context/projection";
+import {
+  selectTavernRuntimeActiveSceneFields,
+  selectTavernRuntimeActiveSceneInstance,
+  selectTavernRuntimeCharacters,
+} from "../../../room/runtime/accessors";
 
 export type TavernPromptPreviewTarget = TavernPromptBlockTarget;
 
@@ -98,14 +100,13 @@ export type TavernPromptPreview = {
 };
 
 export type BuildTavernPromptPreviewInput = {
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   characters?: TavernCharacter[];
   messages?: TavernMessage[];
   references?: TavernReferencedFile[];
   currentUserText?: string;
   selectedTargetCharacterIds?: string[];
   activeCharacterId?: string;
-  storyContext?: TavernStoryContextPackage;
 };
 
 const previewCurrentUserText = "（预览）请按当前场景继续回应。";
@@ -222,35 +223,36 @@ const createPreviewItem = ({
   };
 };
 
-const getPreviewCharacters = (room: TavernRoom, characters?: TavernCharacter[]) =>
-  characters?.length ? characters : getTavernRuntimeStoryProjection(room).characters;
+const getPreviewCharacters = (room: TavernRoomRuntime, characters?: TavernCharacter[]) =>
+  characters?.length ? characters : selectTavernRuntimeCharacters(room);
 
 const getPreviewActiveCharacter = ({
   room,
   characters,
   activeCharacterId,
 }: {
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   characters: TavernCharacter[];
   activeCharacterId?: string;
 }) => {
-  const targetId = activeCharacterId ?? getTavernRuntimeStoryProjection(room).activeCharacterId;
+  const sceneFields = selectTavernRuntimeActiveSceneFields(room);
+  const targetId = activeCharacterId ?? sceneFields.activeCharacterId ?? room.cast.activeCharacterId;
   return characters.find((character) => character.id === targetId) ?? characters[0];
 };
 
-const getPreviewMaxSpeakers = (room: TavernRoom, characters: TavernCharacter[]) => {
-  if (isTavernFixedOrderPhase(room.settings)) {
+const getPreviewMaxSpeakers = (room: TavernRoomRuntime, characters: TavernCharacter[]) => {
+  if (isTavernFixedOrderPhase(room.presentation.settings)) {
     return Math.max(1, characters.length);
   }
-  const configuredMaxSpeakers = Number.isFinite(room.settings.directorMaxSpeakers)
-    ? room.settings.directorMaxSpeakers
+  const configuredMaxSpeakers = Number.isFinite(room.presentation.settings.directorMaxSpeakers)
+    ? room.presentation.settings.directorMaxSpeakers
     : 3;
 
   return Math.min(Math.max(1, configuredMaxSpeakers), Math.max(1, characters.length));
 };
 
-const buildSourceDuplicateWarnings = (room: TavernRoom): TavernPromptPreviewWarning[] => {
-  const enabledBlocks = room.prompt.blocks.filter((block) => block.enabled && block.text.trim());
+const buildSourceDuplicateWarnings = (room: TavernRoomRuntime): TavernPromptPreviewWarning[] => {
+  const enabledBlocks = room.presentation.prompt.blocks.filter((block) => block.enabled && block.text.trim());
   const sourceKeyMap = new Map<string, typeof enabledBlocks>();
   const idMap = new Map<string, typeof enabledBlocks>();
 
@@ -293,11 +295,18 @@ const buildSourceDuplicateWarnings = (room: TavernRoom): TavernPromptPreviewWarn
   ];
 };
 
-const buildEditableTagWarnings = (room: TavernRoom, storyContext: TavernStoryContextPackage) => {
-  const activeScene = storyContext.graph.activeScene;
-  const characterMemoryText = (character: TavernStoryContextPackage["characters"][number]) => {
-    const layers = character.memory;
-    return [layers?.required, layers?.public, layers?.known, layers?.privateSelf]
+const buildEditableTagWarnings = (room: TavernRoomRuntime, characters: TavernCharacter[]) => {
+  const sceneFields = selectTavernRuntimeActiveSceneFields(room);
+  const activeSceneInstance = selectTavernRuntimeActiveSceneInstance(room);
+  const characterMemoryText = (character: TavernCharacter) => {
+    const layers = activeSceneInstance?.characterMemoryLayers?.[character.id];
+    return [
+      layers?.required,
+      room.cast.characterMemories[character.id],
+      layers?.public,
+      layers?.known,
+      layers?.privateSelf,
+    ]
       .map((value) => value?.trim())
       .filter(Boolean)
       .join("\n");
@@ -309,7 +318,7 @@ const buildEditableTagWarnings = (room: TavernRoom, storyContext: TavernStoryCon
     target?: TavernPromptPreviewTarget;
     location?: TavernPromptPreviewWarningLocation;
   }> = [
-    ...room.prompt.blocks
+    ...room.presentation.prompt.blocks
       .filter((block) => block.enabled && block.text.trim())
       .map((block) => ({
         id: `block:${block.id}`,
@@ -318,56 +327,61 @@ const buildEditableTagWarnings = (room: TavernRoom, storyContext: TavernStoryCon
         target: block.target,
         location: createPromptBlockLocation(block),
       })),
-    { id: "room:title", label: "房间标题", text: room.title, location: createRoomFieldLocation("title", "房间标题") },
+    {
+      id: "room:title",
+      label: "房间标题",
+      text: room.identity.title,
+      location: createRoomFieldLocation("title", "房间标题"),
+    },
     {
       id: "room:storyOutline",
       label: "故事大纲",
-      text: storyContext.story.outline,
+      text: room.story.outline,
       location: createRoomFieldLocation("storyOutline", "故事大纲"),
     },
     {
       id: "room:storyGoal",
       label: "故事目标",
-      text: storyContext.story.goal,
+      text: room.story.goal,
       location: createRoomFieldLocation("storyGoal", "故事目标"),
     },
     {
       id: "room:scene",
       label: "当前场景",
-      text: activeScene?.scene ?? "",
+      text: sceneFields.scene,
       location: createRoomFieldLocation("scene", "当前场景"),
     },
     {
       id: "room:scenePlot",
       label: "场景剧情",
-      text: activeScene?.plot ?? "",
+      text: sceneFields.scenePlot,
       location: createRoomFieldLocation("scenePlot", "场景剧情"),
     },
     {
       id: "room:sceneGoal",
       label: "场景目标",
-      text: activeScene?.goal ?? "",
+      text: sceneFields.sceneGoal,
       location: createRoomFieldLocation("sceneGoal", "场景目标"),
     },
     {
       id: "room:sceneDirection",
       label: "场景方向",
-      text: activeScene?.direction ?? "",
+      text: sceneFields.sceneDirection,
       location: createRoomFieldLocation("sceneDirection", "场景方向"),
     },
     {
       id: "room:sceneTransition",
       label: "场景转场",
-      text: activeScene?.transition ?? "",
+      text: sceneFields.sceneTransition,
       location: createRoomFieldLocation("sceneTransition", "场景转场"),
     },
     {
       id: "room:memory",
       label: "长期记忆",
-      text: storyContext.memory.manual,
+      text: sceneFields.memory,
       location: createRoomFieldLocation("memory", "长期记忆"),
     },
-    ...storyContext.world.lorebookEntries.flatMap((entry) => [
+    ...room.world.lorebookEntries.flatMap((entry) => [
       {
         id: `lore:${entry.id}:title`,
         label: `世界书“${entry.title}”标题`,
@@ -387,7 +401,7 @@ const buildEditableTagWarnings = (room: TavernRoom, storyContext: TavernStoryCon
         location: createLorebookEntryLocation(entry.id, "keywords", `世界书“${entry.title}”关键词`),
       },
     ]),
-    ...storyContext.characters.flatMap((character) => [
+    ...characters.flatMap((character) => [
       {
         id: `character:${character.id}:name`,
         label: `角色“${character.name}”名称`,
@@ -455,8 +469,8 @@ const buildEditableTagWarnings = (room: TavernRoom, storyContext: TavernStoryCon
   );
 };
 
-const buildLengthWarnings = (room: TavernRoom): TavernPromptPreviewWarning[] => {
-  const enabledBlocks = room.prompt.blocks.filter((block) => block.enabled && block.text.trim());
+const buildLengthWarnings = (room: TavernRoomRuntime): TavernPromptPreviewWarning[] => {
+  const enabledBlocks = room.presentation.prompt.blocks.filter((block) => block.enabled && block.text.trim());
   const totalPromptBlockChars = enabledBlocks.reduce((total, block) => total + block.text.length, 0);
   const warnings: TavernPromptPreviewWarning[] = [];
 
@@ -484,9 +498,9 @@ const buildLengthWarnings = (room: TavernRoom): TavernPromptPreviewWarning[] => 
   return warnings;
 };
 
-const buildCoverageWarnings = (room: TavernRoom) => {
+const buildCoverageWarnings = (room: TavernRoomRuntime) => {
   const enabledTargets = new Set(
-    room.prompt.blocks.filter((block) => block.enabled && block.text.trim()).map((block) => block.target),
+    room.presentation.prompt.blocks.filter((block) => block.enabled && block.text.trim()).map((block) => block.target),
   );
 
   return (["bridge", "director", "character"] as TavernPromptPreviewTarget[]).flatMap((target) =>
@@ -549,11 +563,11 @@ const buildLayerInvariantWarnings = (characterItem: TavernPromptPreviewItem) => 
   return warnings;
 };
 
-const buildPromptBlockCountWarnings = (room: TavernRoom, items: TavernPromptPreviewItem[]) => {
+const buildPromptBlockCountWarnings = (room: TavernRoomRuntime, items: TavernPromptPreviewItem[]) => {
   const itemByTarget = new Map(items.map((item) => [item.target, item]));
 
   return (["bridge", "director", "character"] as TavernPromptPreviewTarget[]).flatMap((target) => {
-    const expectedCount = room.prompt.blocks.filter(
+    const expectedCount = room.presentation.prompt.blocks.filter(
       (block) => block.enabled && block.target === target && block.text.trim(),
     ).length;
     const item = itemByTarget.get(target);
@@ -595,15 +609,8 @@ export const buildTavernPromptPreview = ({
   currentUserText = previewCurrentUserText,
   selectedTargetCharacterIds = [],
   activeCharacterId,
-  storyContext,
 }: BuildTavernPromptPreviewInput): TavernPromptPreview => {
   const previewCharacters = getPreviewCharacters(room, characters);
-  const previewStoryContext =
-    storyContext ??
-    buildTavernStoryContextPackage({
-      room,
-      characters: previewCharacters,
-    });
   const activeCharacter = getPreviewActiveCharacter({
     room,
     characters: previewCharacters,
@@ -624,7 +631,6 @@ export const buildTavernPromptPreview = ({
     turnTrigger: { type: "user" },
     selectedTargetCharacterIds,
     maxSpeakers: getPreviewMaxSpeakers(room, previewCharacters),
-    storyContext: previewStoryContext,
   });
   const directorItem = createPreviewItem({
     target: "director",
@@ -644,7 +650,6 @@ export const buildTavernPromptPreview = ({
           references,
           currentUserText,
           turnInstruction: "预览当前角色请求层级；真实运行时会替换为当轮角色任务。",
-          storyContext: previewStoryContext,
         });
 
         return createPreviewItem({
@@ -672,7 +677,7 @@ export const buildTavernPromptPreview = ({
   const warnings = [
     ...buildLengthWarnings(room),
     ...buildSourceDuplicateWarnings(room),
-    ...buildEditableTagWarnings(room, previewStoryContext),
+    ...buildEditableTagWarnings(room, previewCharacters),
     ...buildCoverageWarnings(room),
     ...buildLayerInvariantWarnings(characterItem),
     ...buildPromptBlockCountWarnings(room, initialItems),
@@ -692,7 +697,7 @@ export const buildTavernPromptPreview = ({
     ),
   ];
   const items = attachWarningsToItems(initialItems, warnings);
-  const enabledPromptBlocks = room.prompt.blocks.filter((block) => block.enabled && block.text.trim());
+  const enabledPromptBlocks = room.presentation.prompt.blocks.filter((block) => block.enabled && block.text.trim());
 
   return {
     items,

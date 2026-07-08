@@ -1,8 +1,4 @@
-import type { TavernRoom } from "@/features/pages/taverns/manage/model";
-import type {
-  TavernPromptPreviewWarning,
-  TavernPromptPreviewWarningLocation,
-} from "./preview";
+import type { TavernPromptPreviewWarning, TavernPromptPreviewWarningLocation } from "./preview";
 
 export type TavernPromptWarningNavigationTarget = "runtimeBasic" | "storyConfig";
 
@@ -13,7 +9,6 @@ export type TavernPromptWarningNavigationRequest = {
 
 export const resolveTavernPromptWarningNavigationLocation = (
   location: TavernPromptPreviewWarningLocation,
-  _room: TavernRoom,
 ): TavernPromptWarningNavigationRequest | null => {
   if (location.type === "room_field") {
     if (location.field === "title") {
@@ -58,7 +53,7 @@ export const resolveTavernPromptWarningNavigationLocation = (
   return null;
 };
 
-export const resolveTavernPromptWarningNavigation = (warning: TavernPromptPreviewWarning, room: TavernRoom) =>
+export const resolveTavernPromptWarningNavigation = (warning: TavernPromptPreviewWarning) =>
   warning.locations
-    ?.map((location) => resolveTavernPromptWarningNavigationLocation(location, room))
+    ?.map((location) => resolveTavernPromptWarningNavigationLocation(location))
     .find((request): request is TavernPromptWarningNavigationRequest => Boolean(request)) ?? null;

@@ -196,7 +196,9 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
         overlayClassName="bg-black/5 backdrop-blur-none"
         className={cn(fullScreenDialogContentClassName, "text-foreground", visualPreset.tavern.page)}
       >
-        <DialogTitle className="sr-only">{activeRoom.title ? `${activeRoom.title} · 酒馆` : "酒馆房间"}</DialogTitle>
+        <DialogTitle className="sr-only">
+          {activeRoom.identity.title ? `${activeRoom.identity.title} · 酒馆` : "酒馆房间"}
+        </DialogTitle>
         <WindowDragRegion className="h-10 shrink-0" />
         <div
           className={[

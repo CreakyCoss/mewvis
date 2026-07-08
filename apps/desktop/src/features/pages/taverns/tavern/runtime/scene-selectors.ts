@@ -1,36 +1,14 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
+import {
+  selectTavernRuntimeActiveNode,
+  selectTavernRuntimeActiveScene,
+} from "@/features/pages/taverns/room/runtime/accessors";
 
-const getActiveTavernStoryNode = (room: TavernRoom | null | undefined) => {
-  if (!room?.storyGraph?.nodes.length) {
-    return null;
-  }
-
-  return (
-    room.storyGraph.nodes.find((node) => node.id === room.storyGraph.activeNodeId) ??
-    room.storyGraph.nodes.find((node) => node.id === room.storyGraph.entryNodeId) ??
-    room.storyGraph.nodes[0] ??
-    null
-  );
-};
-
-export const getActiveTavernScene = (room: TavernRoom | null | undefined) => {
-  if (!room?.scenes?.length) {
-    return null;
-  }
-
-  const activeNode = getActiveTavernStoryNode(room);
-  if (activeNode?.sceneId) {
-    const nodeScene = room.scenes.find((scene) => scene.id === activeNode.sceneId);
-    if (nodeScene) {
-      return nodeScene;
-    }
-  }
-
-  return room.scenes.find((scene) => scene.id === room.activeSceneId) ?? room.scenes[0] ?? null;
-};
+export const getActiveTavernScene = (room: TavernRoomRuntime | null | undefined) =>
+  room ? selectTavernRuntimeActiveScene(room) : null;
 
 export const getTavernSceneDisplayTitle = (
-  room: Pick<TavernRoom, "storyGraph" | "scenes"> | null | undefined,
+  room: TavernRoomRuntime | null | undefined,
   sceneId: string | undefined,
   fallback = "默认场景",
 ) => {
@@ -38,16 +16,16 @@ export const getTavernSceneDisplayTitle = (
     return fallback;
   }
 
-  const boundNodeTitle = room?.storyGraph?.nodes.find((node) => node.sceneId === sceneId)?.title?.trim();
+  const boundNodeTitle = room?.story.graph.nodes.find((node) => node.sceneId === sceneId)?.title?.trim();
   if (boundNodeTitle) {
     return boundNodeTitle;
   }
 
-  return room?.scenes?.find((scene) => scene.id === sceneId)?.title?.trim() || fallback;
+  return room?.scenes.items.find((scene) => scene.id === sceneId)?.title?.trim() || fallback;
 };
 
 export const getTavernSceneInstanceDisplayTitle = (
-  room: Pick<TavernRoom, "storyGraph" | "scenes" | "sceneInstances"> | null | undefined,
+  room: TavernRoomRuntime | null | undefined,
   sceneInstanceId: string | undefined,
   fallback = "当前节点",
 ) => {
@@ -55,14 +33,17 @@ export const getTavernSceneInstanceDisplayTitle = (
     return fallback;
   }
 
-  const instance = room?.sceneInstances?.find((item) => item.id === sceneInstanceId);
+  const instance = room.scenes.instances.find((item) => item.id === sceneInstanceId);
   if (!instance) {
     return fallback;
   }
 
-  const nodeById = new Map(room.storyGraph.nodes.map((node) => [node.id, node]));
+  const activeNode = selectTavernRuntimeActiveNode(room);
+  const nodeById = new Map(room.story.graph.nodes.map((node) => [node.id, node]));
   const currentNodeTitle =
-    nodeById.get(instance.nodeId)?.title.trim() || getTavernSceneDisplayTitle(room, instance.sceneId, fallback);
+    nodeById.get(instance.nodeId)?.title.trim() ||
+    activeNode?.title.trim() ||
+    getTavernSceneDisplayTitle(room, instance.sceneId, fallback);
   const pathTitles = instance.pathNodeIds
     .map((nodeId) => {
       const node = nodeById.get(nodeId);

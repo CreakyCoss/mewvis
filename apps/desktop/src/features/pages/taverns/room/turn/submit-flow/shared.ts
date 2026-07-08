@@ -1,4 +1,4 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import { requireRuntimeModelInput, type RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import type { TavernRoomStoreState } from "@/features/pages/taverns/room/context";
@@ -12,6 +12,12 @@ import { isTavernFixedOrderPhase } from "@/features/pages/taverns/tavern/core/di
 import { resolveTavernCharacterModel } from "@/features/pages/taverns/tavern/runtime/agent/model-selection";
 import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter, TavernReplyOption } from "@/features/pages/taverns/manage/model";
+import {
+  selectTavernRuntimeActiveSceneFields,
+  selectTavernRuntimeActiveSceneId,
+  selectTavernRuntimeActiveSceneInstanceId,
+} from "@/features/pages/taverns/room/runtime/accessors";
+import { patchTavernRuntimeActiveSceneFields } from "@/features/pages/taverns/room/runtime/mutations";
 
 const TAVERN_RUNTIME_MODEL_UNAVAILABLE = "当前模型配置已不可用，请重新选择模型。";
 
@@ -30,12 +36,11 @@ export const getErrorMessage = (error: unknown) => {
   return "未知错误";
 };
 
-export const getRoomActiveSceneId = (room: TavernRoom) => room.activeSceneId ?? room.scenes?.[0]?.id ?? room.id;
+export const getRoomActiveSceneId = (room: TavernRoomRuntime) => selectTavernRuntimeActiveSceneId(room);
 
-export const getRoomActiveSceneInstanceId = (room: TavernRoom) =>
-  room.activeSceneInstanceId ?? getRoomActiveSceneId(room);
+export const getRoomActiveSceneInstanceId = (room: TavernRoomRuntime) => selectTavernRuntimeActiveSceneInstanceId(room);
 
-export type TavernPendingInteractions = NonNullable<TavernRoom["pendingInteractions"]>;
+export type TavernPendingInteractions = ReturnType<typeof selectTavernRuntimeActiveSceneFields>["pendingInteractions"];
 export type RequireSpeakerRuntimeModel = (speaker: TavernCharacter) => RuntimeModelOption;
 export type TurnTriggerType = "user" | "scene_drive";
 
@@ -52,7 +57,7 @@ export type SubmitSpeakerPlan = {
 };
 
 export type TurnRuntimeState = {
-  runtimeRoom: TavernRoom;
+  runtimeRoom: TavernRoomRuntime;
   runtimeMessages: TavernMessage[];
   turnMessages: TavernMessage[];
   turnAnchorMessage: TavernMessage;
@@ -70,12 +75,14 @@ export const syncOpenPendingInteractions = ({
   openPendingInteractions,
 }: {
   ctx: TavernRoomStoreState;
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   openPendingInteractions: TavernPendingInteractions;
 }) => {
-  ctx.patchRoom(room.id, {
-    pendingInteractions: openPendingInteractions,
-  });
+  ctx.patchRoom(room.identity.id, (runtime) =>
+    patchTavernRuntimeActiveSceneFields(runtime, {
+      pendingInteractions: openPendingInteractions,
+    }),
+  );
 };
 
 export const resolveTurnMode = (triggerType: TurnTriggerType = "user"): TurnMode => {
@@ -92,20 +99,21 @@ export const resolveSubmitSpeakerPlan = ({
   characters,
   activeCharacter,
 }: {
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   characters: TavernCharacter[];
   activeCharacter: TavernCharacter | null;
 }): SubmitSpeakerPlan => {
-  const fixedOrderSettings = room.settings.directorScheduling.fixedOrder;
+  const settings = room.presentation.settings;
+  const fixedOrderSettings = settings.directorScheduling.fixedOrder;
   const fixedOrderParticipants =
-    isTavernFixedOrderPhase(room.settings) && fixedOrderSettings.includeUser
+    isTavernFixedOrderPhase(settings) && fixedOrderSettings.includeUser
       ? orderTavernRoundParticipants({
-          settings: room.settings,
+          settings,
           characters,
           activeCharacterId: activeCharacter?.id,
           includeUser: true,
           userPosition: fixedOrderSettings.userPosition,
-          userPersonaName: room.userPersonaName,
+          userPersonaName: room.user.personaName,
         })
       : [];
   const fixedOrderUserIndex = fixedOrderParticipants.findIndex((participant) => participant.type === "user");
@@ -119,12 +127,12 @@ export const resolveSubmitSpeakerPlan = ({
     fixedOrderUserIndex >= 0
       ? fixedOrderCharactersAfterUser
       : orderTavernRoundSpeakers({
-          settings: room.settings,
+          settings,
           characters,
           activeCharacterId: activeCharacter?.id,
         });
   const availableActiveCharacter =
-    activeCharacter && isTavernCharacterAvailableForSpeech(room.settings, activeCharacter)
+    activeCharacter && isTavernCharacterAvailableForSpeech(settings, activeCharacter)
       ? activeCharacter
       : (availableRoomCharacters[0] ?? null);
   const candidateSpeakers = availableRoomCharacters;
@@ -183,7 +191,7 @@ export const beginTurnSubmission = ({
   mode,
 }: {
   ctx: TavernRoomStoreState;
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   mode: TurnMode;
 }) => {
   ctx.setBusy({
@@ -195,9 +203,7 @@ export const beginTurnSubmission = ({
         : "正在发送消息...",
   });
   ctx.setError("");
-  ctx.patchRoom(room.id, {
-    replyOptions: [],
-  });
+  ctx.patchRoom(room.identity.id, (runtime) => patchTavernRuntimeActiveSceneFields(runtime, { replyOptions: [] }));
 };
 
 export const readTurnReferences = async ({
@@ -223,17 +229,17 @@ export const createUserTurnMessage = ({
   referencedFilePreviews,
   selectedReplyOption,
 }: {
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   text: string;
   referencedFilePreviews: WorkspaceFileEntry[];
   selectedReplyOption?: TavernReplyOption;
 }) =>
   createTavernMessage({
-    roomId: room.id,
-    sceneId: room.activeSceneId,
+    roomId: room.identity.id,
+    sceneId: getRoomActiveSceneId(room),
     sceneInstanceId: getRoomActiveSceneInstanceId(room),
     role: "user",
-    presentationProfileId: room.presentation?.profileId,
+    presentationProfileId: room.presentation.profile?.profileId,
     content: text,
     status: "done",
     referencedFiles: referencedFilePreviews.map((file) => ({ path: file.path })),
@@ -243,33 +249,43 @@ export const createUserTurnMessage = ({
       : undefined,
   });
 
-export const createSceneDriveTurnAnchorMessage = ({ room, directive }: { room: TavernRoom; directive: string }) =>
+export const createSceneDriveTurnAnchorMessage = ({
+  room,
+  directive,
+}: {
+  room: TavernRoomRuntime;
+  directive: string;
+}) =>
   createTavernMessage({
-    roomId: room.id,
-    sceneId: room.activeSceneId,
+    roomId: room.identity.id,
+    sceneId: getRoomActiveSceneId(room),
     sceneInstanceId: getRoomActiveSceneInstanceId(room),
     role: "narrator",
-    presentationProfileId: room.presentation?.profileId,
+    presentationProfileId: room.presentation.profile?.profileId,
     content: directive.trim() ? `场景自推动：${directive.trim()}` : "场景自推动",
     status: "done",
   });
 
 export const createInitialTurnRuntime = ({
-  room,
+  runtimeRoom,
   roomMessages,
   turnAnchorMessage,
   visibleUserMessage,
 }: {
-  room: TavernRoom;
+  runtimeRoom: TavernRoomRuntime | null;
   roomMessages: TavernMessage[];
   turnAnchorMessage: TavernMessage;
   visibleUserMessage: TavernMessage | null;
 }): TurnRuntimeState => {
+  if (!runtimeRoom) {
+    throw new Error("当前房间运行状态尚未初始化。");
+  }
+
   const runtimeMessages = visibleUserMessage ? [...roomMessages, visibleUserMessage] : [...roomMessages];
   const turnMessages = visibleUserMessage ? [visibleUserMessage] : [];
 
   return {
-    runtimeRoom: room,
+    runtimeRoom,
     runtimeMessages,
     turnMessages,
     turnAnchorMessage,
@@ -286,7 +302,7 @@ export const prepareTurnUserMessage = ({
   mode,
 }: {
   ctx: TavernRoomStoreState;
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   turnAnchorMessage: TavernMessage;
   visibleUserMessage: TavernMessage | null;
   references: TavernReferencedFile[];
@@ -315,7 +331,7 @@ export const prepareTurnUserMessage = ({
     ctx.resetExecutionTrace?.([]);
   }
   if (visibleUserMessage) {
-    ctx.appendMessagesToRoom(room.id, [visibleUserMessage]);
+    ctx.appendMessagesToRoom(room.identity.id, [visibleUserMessage]);
   }
   ctx.patchExecutionStep?.("context", {
     status: "done",
@@ -334,7 +350,7 @@ export const handleTurnFailure = ({
   activeReplyRef,
 }: {
   ctx: TavernRoomStoreState;
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   error: unknown;
   activeReplyRef: ActiveReplyRef;
 }) => {
@@ -350,9 +366,9 @@ export const handleTurnFailure = ({
       status: "error",
     });
   } else {
-    ctx.appendMessagesToRoom(room.id, [
+    ctx.appendMessagesToRoom(room.identity.id, [
       createTavernMessage({
-        roomId: room.id,
+        roomId: room.identity.id,
         role: "narrator",
         content: `酒馆回应失败：${message}`,
         status: "error",

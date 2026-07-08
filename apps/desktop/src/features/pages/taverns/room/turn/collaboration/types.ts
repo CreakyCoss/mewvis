@@ -1,10 +1,9 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import type {
   AgentClientCollaborationInput,
   AgentClientCollaborationModeInput,
   RuntimeModelInput,
 } from "@/agent-client/types";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 
@@ -13,7 +12,7 @@ export type TavernCollaborationInput = AgentClientCollaborationInput | AgentClie
 type TavernDirectorBaseCollaborationInput = {
   workspacePath: string;
   runtimeModel: RuntimeModelInput;
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   characters: TavernCharacter[];
   messages: TavernMessage[];
   references: TavernReferencedFile[];
@@ -24,19 +23,17 @@ type TavernDirectorBaseCollaborationInput = {
   };
   selectedTargetCharacterIds?: string[];
   maxSpeakers?: number;
-  storyContext?: TavernStoryContextPackage;
 };
 
 export type TavernSpeakerCollaborationInput = {
   workspacePath: string;
   runtimeModel: RuntimeModelInput;
-  room: TavernRoom;
+  room: TavernRoomRuntime;
   speakers: TavernCharacter[];
   characters: TavernCharacter[];
   messages: TavernMessage[];
   references: TavernReferencedFile[];
   currentUserText: string;
-  storyContext?: TavernStoryContextPackage;
   turnInstructionByCharacterId?: Record<string, string | undefined>;
   allowNonverbalReplyCharacterIds?: string[];
 };

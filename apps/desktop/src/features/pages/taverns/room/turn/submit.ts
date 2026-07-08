@@ -5,7 +5,6 @@ import {
   isTavernRoomBusy,
   useTavernRoomContext,
 } from "@/features/pages/taverns/room/context";
-import { buildTavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import type { TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
 import type { TavernReplyOption } from "@/features/pages/taverns/manage/model";
 import {
@@ -156,14 +155,10 @@ export const submitRoomTurn = async ({
         directive: text,
       });
     let runtime = createInitialTurnRuntime({
-      room: activeRoom,
+      runtimeRoom: ctx.state.runtime,
       roomMessages,
       turnAnchorMessage,
       visibleUserMessage,
-    });
-    const storyContext = buildTavernStoryContextPackage({
-      room: runtime.runtimeRoom,
-      characters: roomCharacters,
     });
 
     // 3. 本轮正式入队后，后续流程都围绕 runtime 这份运行时快照向前推进。
@@ -200,7 +195,6 @@ export const submitRoomTurn = async ({
         runtimeModel,
         runtimeRoom: runtime.runtimeRoom,
         selectedReplyOption,
-        storyContext,
         text,
         turnMessages: runtime.turnMessages,
         userMessage: turnAnchorMessage,
@@ -239,7 +233,6 @@ export const submitRoomTurn = async ({
         turnNarratorTexts,
         requireSpeakerRuntimeModel,
         activeReplyRef,
-        storyContext,
       });
       runtime = {
         ...runtime,

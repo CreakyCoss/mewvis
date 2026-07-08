@@ -1,4 +1,4 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import type { ReactElement } from "react";
 import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
@@ -14,7 +14,7 @@ type MessageRowProps = {
 };
 
 type MessageRoleRendererContext = {
-  activeRoom: TavernRoom;
+  activeRoom: TavernRoomRuntime;
   character: TavernCharacter | null;
   isSending: boolean;
   message: TavernRenderableMessage;
@@ -36,7 +36,7 @@ const messageRoleRenderers: Record<TavernMessage["role"], (context: MessageRoleR
       isSending={isSending}
       isStreaming={message.status === "streaming"}
       referencedFiles={message.referencedFiles}
-      userPersonaName={activeRoom.userPersonaName}
+      userPersonaName={activeRoom.user.personaName}
       visualPreset={visualPreset}
     />
   ),
@@ -45,7 +45,7 @@ const messageRoleRenderers: Record<TavernMessage["role"], (context: MessageRoleR
       character={character}
       content={message.content}
       createdAt={message.createdAt}
-      immersiveDescriptionEnabled={activeRoom.settings.immersiveDescriptionEnabled !== false}
+      immersiveDescriptionEnabled={activeRoom.presentation.settings.immersiveDescriptionEnabled !== false}
       isError={message.status === "error"}
       isStreaming={message.status === "streaming"}
       thought={message.thought}

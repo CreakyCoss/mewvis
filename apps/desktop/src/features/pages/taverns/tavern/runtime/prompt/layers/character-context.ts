@@ -1,4 +1,4 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { formatTavernPromptCharacter } from "../context/characters";
 import type { TavernPromptSection } from "../shared/sections";
@@ -16,27 +16,27 @@ const buildCharacterPromptRules = (activeCharacter: TavernCharacter) =>
 
 export const formatCompactPresentCharacters = ({
   activeCharacter,
-  room,
+  runtime,
   characters,
 }: {
   activeCharacter: TavernCharacter;
-  room: TavernRoom;
+  runtime: TavernRoomRuntime;
   characters: TavernCharacter[];
 }) =>
   characters
     .filter((character) => character.id !== activeCharacter.id)
-    .map((character) => formatTavernPromptCharacter(character, { compact: true, room, characters }))
+    .map((character) => formatTavernPromptCharacter(character, { compact: true, runtime, characters }))
     .join("\n\n---\n\n");
 
 export const buildCharacterContextSections = ({
   activeCharacter,
-  room,
+  runtime,
   characters,
   characterMemory,
   compactCharacters,
 }: {
   activeCharacter: TavernCharacter;
-  room: TavernRoom;
+  runtime: TavernRoomRuntime;
   characters: TavernCharacter[];
   characterMemory: string;
   compactCharacters: string;
@@ -45,7 +45,7 @@ export const buildCharacterContextSections = ({
     id: "active-character",
     layer: "character",
     tag: "active_character",
-    content: formatTavernPromptCharacter(activeCharacter, { room, characters }),
+    content: formatTavernPromptCharacter(activeCharacter, { runtime, characters }),
   },
   {
     id: "active-character-rules",

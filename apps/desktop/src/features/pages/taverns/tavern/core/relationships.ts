@@ -1,4 +1,3 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 import type {
   TavernCharacter,
   TavernCharacterRelationship,
@@ -7,6 +6,11 @@ import type {
 } from "@/features/pages/taverns/manage/model";
 
 type CharacterLookup = Map<string, TavernCharacter> | TavernCharacter[];
+type TavernRelationshipSummaryRoom = {
+  localCharacters?: TavernCharacter[];
+  userPersonaName?: string;
+  relationshipOverrides?: TavernSceneRelationshipOverride[];
+};
 
 const asCharacterMap = (characters?: CharacterLookup) =>
   characters instanceof Map ? characters : new Map((characters ?? []).map((character) => [character.id, character]));
@@ -101,7 +105,7 @@ export const formatTavernCharacterRelationshipSummary = ({
 }: {
   character: TavernCharacter;
   characters?: CharacterLookup;
-  room?: TavernRoom;
+  room?: TavernRelationshipSummaryRoom;
   maxItems?: number;
 }) => {
   const text = formatTavernCharacterRelationships({

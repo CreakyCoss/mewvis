@@ -1,10 +1,8 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import { appendReferencesToPrompt } from "@/features/ai/components/context-tools";
-import type { TavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import type { TavernMessage, TavernReferencedFile } from "../../types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { tavernMessagesToRuntimeMessages } from "../prompt/context/history";
-import { buildTavernStoryContextPackage } from "@/features/pages/taverns/room/story-context/context-package";
 import {
   formatTavernStoryGraphContext,
   formatTavernStoryLorebookEntries,
@@ -27,9 +25,10 @@ import {
 } from "../../prompt-registry/text-blocks";
 import { buildTavernDirectorContextSections } from "./prompt/context-sections";
 import { buildTavernDirectorOutputContract } from "./prompt/contract";
+import { selectTavernRuntimeActivePromptOverrides } from "@/features/pages/taverns/room/runtime/accessors";
 
-export type BuildTavernDirectorPromptContextInput = {
-  room: TavernRoom;
+type BuildTavernDirectorPromptContextInput = {
+  room: TavernRoomRuntime;
   characters: TavernCharacter[];
   messages: TavernMessage[];
   references: TavernReferencedFile[];
@@ -40,7 +39,6 @@ export type BuildTavernDirectorPromptContextInput = {
   };
   selectedTargetCharacterIds: string[];
   maxSpeakers: number;
-  storyContext?: TavernStoryContextPackage;
 };
 
 export const buildTavernDirectorPromptContext = ({
@@ -52,54 +50,52 @@ export const buildTavernDirectorPromptContext = ({
   turnTrigger,
   selectedTargetCharacterIds,
   maxSpeakers,
-  storyContext: inputStoryContext,
 }: BuildTavernDirectorPromptContextInput) => {
   const isSceneDriveTurn = turnTrigger.type === "scene_drive";
   const sceneDriveDirective = turnTrigger.directive?.trim() || currentUserText.trim() || "继续推进当前场景。";
   const runtimeMessages = tavernMessagesToRuntimeMessages({
     messages,
     characters,
-    userPersonaName: room.userPersonaName,
+    userPersonaName: room.user.personaName,
   });
-  const storyContext = inputStoryContext ?? buildTavernStoryContextPackage({ room, characters });
   const lorebookText = formatTavernStoryLorebookEntries(
     selectTavernStoryLorebookEntries({
-      storyContext,
+      runtime: room,
+      characters,
       currentUserText,
     }),
   );
-  const storyGraphText = formatTavernStoryGraphContext(storyContext);
+  const storyGraphText = formatTavernStoryGraphContext(room);
   const ambientActionMax = Math.min(2, Math.max(0, characters.length - 1));
-  const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
-  const activeInstance =
-    room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId) ?? room.sceneInstances[0];
+  const presentationProfile = getTavernPresentationProfile(room.presentation.profile?.profileId);
+  const activePromptOverrides = selectTavernRuntimeActivePromptOverrides(room);
   const promptBlocksText = [
     formatTavernPromptBlocksForTarget({
-      prompt: room.prompt,
+      prompt: room.presentation.prompt,
       target: "director",
     }),
     formatTavernPromptBlocksForTarget({
-      prompt: activeInstance?.promptOverrides,
+      prompt: activePromptOverrides,
       target: "director",
     }),
     formatTavernInteractionQualityRulesForTarget({
-      qualityRuleIds: room.settings.interactionQualityRuleIds,
+      qualityRuleIds: room.presentation.settings.interactionQualityRuleIds,
       target: "director",
     }),
   ]
     .filter(Boolean)
     .join("\n\n");
-  const directorOnlyAllowed = isTavernDirectorOnlyTurnAllowed(room.settings);
-  const schedulingInstruction = formatTavernDirectorSchedulingInstruction(room.settings);
+  const directorOnlyAllowed = isTavernDirectorOnlyTurnAllowed(room.presentation.settings);
+  const schedulingInstruction = formatTavernDirectorSchedulingInstruction(room.presentation.settings);
   const schedulingSignals = buildTavernSchedulingSignals({
-    settings: room.settings,
+    settings: room.presentation.settings,
     characters,
     messages,
     currentUserText,
     selectedTargetCharacterIds,
   });
   const directorProfileText = formatTavernDirectorProfileForPrompt({
-    profile: room.settings.directorScheduling.profile,
+    profile: room.presentation.settings.directorScheduling.profile,
     characters,
   });
   const schedulingSignalsText = formatTavernSchedulingSignalsForPrompt({
@@ -107,7 +103,7 @@ export const buildTavernDirectorPromptContext = ({
     characters,
   });
   const selectedTargetsCanStaySilent = canTavernSelectedTargetsStaySilent(
-    room.settings,
+    room.presentation.settings,
     selectedTargetCharacterIds,
   );
   const directorPrompt = [
@@ -122,7 +118,6 @@ export const buildTavernDirectorPromptContext = ({
     "",
     buildTavernDirectorContextSections({
       room,
-      storyContext,
       characters,
       messages,
       currentUserText,
@@ -150,7 +145,7 @@ export const buildTavernDirectorPromptContext = ({
   };
 };
 
-export type TavernDirectorPromptContext = ReturnType<typeof buildTavernDirectorPromptContext>;
+type TavernDirectorPromptContext = ReturnType<typeof buildTavernDirectorPromptContext>;
 
 export const buildTavernDirectorRuntimeInstruction = (directorPromptContext: TavernDirectorPromptContext) =>
   [

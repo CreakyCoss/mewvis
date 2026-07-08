@@ -11,14 +11,18 @@ import {
   createDefaultTavernPromptSettings,
   normalizeTavernPromptSettings,
 } from "../../tavern/prompt-registry/text-blocks";
-import { projectTavernSceneOntoRoom } from "../../tavern/runtime/active-scene-runtime";
-import { projectTavernSceneFieldsOntoRoom } from "../../tavern/runtime/scene-field-projection";
+import { buildNodeScopedSceneInstances } from "../../tavern/runtime/scene-instances";
 import { buildTavernScene, defaultSceneTitle } from "@/features/pages/taverns/room/story-model/scene-builder";
 import { createTavernStoryBinding } from "@/features/pages/taverns/room/story-model/story-binding";
 import { normalizeStoryGraph } from "@/features/pages/taverns/room/story-model/story-graph";
 import type { TavernMessage } from "../../tavern/types";
-import type { TavernCharacter, TavernLorebookEntry } from "@/features/pages/taverns/manage/model";
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
+import type {
+  TavernCharacter,
+  TavernLorebookEntry,
+  TavernPresentationSettings,
+  TavernRoom as TavernRoomConfig,
+} from "@/features/pages/taverns/manage/model";
+import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import type {
   TavernPresentationCharacterInput,
   TavernPresentationInput,
@@ -150,7 +154,13 @@ const createOpeningMessage = ({
   createdAt,
 }: {
   input: TavernPresentationOpeningMessageInput;
-  room: TavernRoom;
+  room: {
+    id: string;
+    activeSceneId?: string;
+    activeSceneInstanceId?: string;
+    characterIds: string[];
+    presentationProfileId: TavernPresentationSettings["profileId"];
+  };
   createdAt: number;
 }): TavernMessage | null => {
   const content = trimText(input.content);
@@ -176,7 +186,7 @@ const createOpeningMessage = ({
         createdAt,
         status: "done",
       },
-      room.presentation.profileId,
+      room.presentationProfileId,
     );
   }
 
@@ -191,7 +201,7 @@ const createOpeningMessage = ({
       createdAt,
       status: "done",
     },
-    room.presentation.profileId,
+    room.presentationProfileId,
   );
 };
 
@@ -269,44 +279,103 @@ export const materializeTavernPresentationInput = (
           immersiveDescriptionEnabled: true,
         }),
   );
-  const roomStory = {
-    storyBinding: createTavernStoryBinding(input.source.id ?? roomId, createdAt),
-    storyOutline: trimText(input.world.outline),
-    storyGoal: trimText(input.world.goal),
-    storyGraph,
-    activeSceneInstanceId: undefined,
-    sceneInstances: [],
-    activeSceneId: activeScene.id,
+  const settings = normalizeRoomSettings(input.runtime?.settings, {
+    characters,
+    characterIds: roomCharacterIds,
+    profileSource: "manual",
+    updatedAt: createdAt,
+  });
+  const replyMode = normalizeReplyMode(input.runtime?.replyMode);
+  const storyBinding = createTavernStoryBinding(input.source.id ?? roomId, createdAt);
+  const sceneInstances = buildNodeScopedSceneInstances({
+    roomId,
+    graph: storyGraph,
     scenes: normalizedScenes,
-  };
-  const room = projectTavernSceneOntoRoom({
+  });
+  const activeInstance =
+    sceneInstances.find((instance) => instance.nodeId === storyGraph.activeNodeId) ??
+    sceneInstances.find((instance) => instance.sceneId === activeScene.id) ??
+    sceneInstances[0] ??
+    null;
+  const activeNodeId = activeInstance?.nodeId ?? storyGraph.activeNodeId;
+  const activeSceneId = activeInstance?.sceneId ?? activeScene.id;
+  const activeSceneInstanceId = activeInstance?.id;
+  const roomCreatedAt = options.roomCreatedAt ?? createdAt;
+  const scenePresetId = activeInstance?.scenePresetId ?? activeScene.scenePresetId;
+  const roomConfig: TavernRoomConfig = {
     id: roomId,
     workspaceId,
     title: trimText(input.meta.title) || "故事演绎",
     creationSource: input.runtime?.creationSource ?? "manual",
     presentation,
     prompt,
-    ...roomStory,
-    ...projectTavernSceneFieldsOntoRoom(activeScene),
-    characterConfigs,
-    characterMemories: characterMemoryDefaults,
-    localCharacters: characters,
-    lorebookEntries,
-    characterIds: roomCharacterIds,
-    activeCharacterId: roomActiveCharacterId,
-    replyMode: normalizeReplyMode(input.runtime?.replyMode),
-    userPersonaName: trimText(input.meta.userPersonaName) || "我",
-    settings: normalizeRoomSettings(input.runtime?.settings, {
+    scenePresetId,
+    replyMode,
+    settings,
+    createdAt: roomCreatedAt,
+    updatedAt: createdAt,
+  };
+  const room: TavernRoomRuntime = {
+    version: 1,
+    identity: {
+      id: roomConfig.id,
+      workspaceId: roomConfig.workspaceId,
+      title: roomConfig.title,
+      systemPresetId: roomConfig.systemPresetId,
+      systemPresetVersion: roomConfig.systemPresetVersion,
+      creationSource: roomConfig.creationSource,
+      createdAt: roomCreatedAt,
+      updatedAt: createdAt,
+    },
+    config: {
+      room: roomConfig,
+    },
+    presentation: {
+      profile: presentation,
+      prompt,
+      settings,
+      scenePresetId,
+      replyMode,
+    },
+    story: {
+      binding: storyBinding,
+      outline: trimText(input.world.outline),
+      goal: trimText(input.world.goal),
+      graph: {
+        ...storyGraph,
+        activeNodeId,
+      },
+      activeNodeId,
+    },
+    cast: {
       characters,
       characterIds: roomCharacterIds,
-      profileSource: "manual",
-      updatedAt: createdAt,
-    }),
-    createdAt: options.roomCreatedAt ?? createdAt,
-    updatedAt: createdAt,
-  });
+      activeCharacterId: roomActiveCharacterId,
+      characterConfigs,
+      characterMemories: characterMemoryDefaults,
+    },
+    scenes: {
+      items: normalizedScenes,
+      activeSceneId,
+      instances: sceneInstances,
+      activeSceneInstanceId,
+    },
+    world: {
+      lorebookEntries,
+    },
+    user: {
+      personaName: trimText(input.meta.userPersonaName) || "我",
+    },
+  };
+  const openingRoomContext = {
+    id: room.identity.id,
+    activeSceneId: room.scenes.activeSceneId,
+    activeSceneInstanceId: room.scenes.activeSceneInstanceId,
+    characterIds: room.cast.characterIds,
+    presentationProfileId: room.presentation.profile.profileId,
+  };
   const messages = (input.opening?.messages ?? [])
-    .map((message) => createOpeningMessage({ input: message, room, createdAt }))
+    .map((message) => createOpeningMessage({ input: message, room: openingRoomContext, createdAt }))
     .filter((message): message is TavernMessage => Boolean(message));
 
   return {
@@ -319,14 +388,14 @@ export const materializeTavernPresentationInput = (
             {
               id: createId("message"),
               roomId,
-              sceneId: room.activeSceneId,
-              sceneInstanceId: room.activeSceneInstanceId,
+              sceneId: room.scenes.activeSceneId,
+              sceneInstanceId: room.scenes.activeSceneInstanceId,
               role: "narrator" as const,
-              presentationProfileId: room.presentation.profileId,
+              presentationProfileId: room.presentation.profile.profileId,
               content: "故事演绎已经准备好。",
               createdAt,
               status: "done" as const,
             },
-          ].map((message) => materializeTavernMessage(message, room.presentation.profileId)),
+          ].map((message) => materializeTavernMessage(message, room.presentation.profile.profileId)),
   };
 };

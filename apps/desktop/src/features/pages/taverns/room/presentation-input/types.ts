@@ -1,4 +1,3 @@
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 import type { TavernMessage } from "../../tavern/types";
 import type {
   TavernCharacterPrivateStatus,
@@ -6,6 +5,7 @@ import type {
   TavernCharacterRelationship,
   TavernLorebookEntry,
   TavernPresentationSettings,
+  TavernRoom,
   TavernRoomPromptSettings,
   TavernRoomSettings,
 } from "@/features/pages/taverns/manage/model";

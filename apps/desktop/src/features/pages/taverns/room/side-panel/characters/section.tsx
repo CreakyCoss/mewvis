@@ -26,6 +26,8 @@ import { isTavernRoomBusy, useTavernRoomContext } from "@/features/pages/taverns
 import { getVisualPreset } from "@/features/pages/taverns/tavern/visual-presets";
 import { buildTavernCharacterMemoryText } from "../memory-summary";
 import { EmptyPanelCard, emptyValueText } from "../shared";
+import { selectTavernRuntimeActiveSceneFields } from "../../runtime/accessors";
+import { patchTavernRuntimeActiveSceneFields } from "../../runtime/mutations";
 
 const trimText = (value: string | undefined) => value?.trim() ?? "";
 
@@ -108,9 +110,10 @@ const CharacterDetail = ({
     return null;
   }
 
+  const sceneFields = selectTavernRuntimeActiveSceneFields(activeRoom);
   const avatar = resolveAvatar(character.avatar).src;
-  const publicStatus = activeRoom.characterPublicStatuses[character.id];
-  const privateStatus = activeRoom.characterPrivateStatuses[character.id];
+  const publicStatus = sceneFields.characterPublicStatuses[character.id];
+  const privateStatus = sceneFields.characterPrivateStatuses[character.id];
   const holding = trimArray(publicStatus?.holding);
   const privateKnowledge = trimArray(privateStatus?.privateKnowledge);
   const speakingPhrases = splitPhrases(character.speakingStyle);
@@ -146,7 +149,11 @@ const CharacterDetail = ({
   ].filter(Boolean);
   const relationshipSummary = formatTavernCharacterRelationshipSummary({
     character,
-    room: activeRoom,
+    characters: activeRoom.cast.characters,
+    room: {
+      userPersonaName: activeRoom.user.personaName,
+      relationshipOverrides: sceneFields.relationshipOverrides,
+    },
     maxItems: 4,
   });
   const relationshipLines = splitLines(relationshipSummary);
@@ -154,7 +161,7 @@ const CharacterDetail = ({
     trimText(memory),
     privateKnowledge.length > 0 ? `已知信息：${privateKnowledge.join("、")}` : "",
   ].filter(Boolean);
-  const visualPreset = getVisualPreset(activeRoom.scenePresetId);
+  const visualPreset = getVisualPreset(sceneFields.scenePresetId);
   const actionButtonClassName =
     "h-auto justify-start gap-3 border-current/15 bg-current/[0.055] px-3 py-2 text-left text-current hover:bg-current/10 hover:text-current dark:bg-current/[0.075]";
 
@@ -313,7 +320,9 @@ const CharacterDetail = ({
 const CharacterCardContent = ({ character, isActive }: { character: TavernCharacter; isActive: boolean }) => {
   const activeRoom = useTavernRoomContext((store) => store.activeRoom);
   const avatar = resolveAvatar(character.avatar).src;
-  const publicStatus = activeRoom?.characterPublicStatuses[character.id];
+  const publicStatus = activeRoom
+    ? selectTavernRuntimeActiveSceneFields(activeRoom).characterPublicStatuses[character.id]
+    : undefined;
   const chipTexts = unique([
     trimText(publicStatus?.visibleMood),
     trimText(publicStatus?.posture),
@@ -474,7 +483,11 @@ export const CharacterStatusSection = ({
               isCompacting={false}
               isRebuilding={false}
               isExtractingMemory={false}
-              onClick={() => patchRoom(activeRoom.id, { activeCharacterId: character.id })}
+              onClick={() =>
+                patchRoom(activeRoom.identity.id, (room) =>
+                  patchTavernRuntimeActiveSceneFields(room, { activeCharacterId: character.id }),
+                )
+              }
               onAddMemory={() => showRemovedActionToast("添加角色记忆")}
               onExtractMemory={() => showRemovedActionToast("从剧情整理角色记忆")}
               onCompact={() => showRemovedActionToast("压缩角色知识")}

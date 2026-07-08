@@ -1,16 +1,17 @@
 import { compact, uniq } from "lodash-es";
-import type { TavernActiveRoomView as TavernRoom } from "@/features/pages/taverns/room/model";
 import type {
   TavernCharacterMemoryLayers,
+  TavernRoomRuntime,
   TavernSceneInstance,
   TavernSceneMemoryLayers,
 } from "@/features/pages/taverns/room/model";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
+import { selectTavernRuntimeActiveSceneFields, selectTavernRuntimeActiveSceneInstance } from "../runtime/accessors";
 
 const trimmed = (value: string | undefined) => value?.trim() ?? "";
 
-const getActiveSceneInstance = (room: TavernRoom): TavernSceneInstance | null =>
-  room.sceneInstances.find((instance) => instance.id === room.activeSceneInstanceId) ?? room.sceneInstances[0] ?? null;
+const getActiveSceneInstance = (room: TavernRoomRuntime): TavernSceneInstance | null =>
+  selectTavernRuntimeActiveSceneInstance(room);
 
 const uniqueBlocks = (values: Array<string | undefined>) => uniq(compact(values.map(trimmed)));
 
@@ -45,7 +46,10 @@ const visibleCharacterLayerValues = (layers: TavernCharacterMemoryLayers | undef
   layers?.privateSelf,
 ];
 
-export const buildTavernCharacterMemoryText = (room: TavernRoom, character: Pick<TavernCharacter, "id" | "name">) => {
+export const buildTavernCharacterMemoryText = (
+  room: TavernRoomRuntime,
+  character: Pick<TavernCharacter, "id" | "name">,
+) => {
   const activeInstance = getActiveSceneInstance(room);
   const layers = activeInstance?.characterMemoryLayers?.[character.id];
 
@@ -58,17 +62,18 @@ export const buildTavernCharacterMemoryText = (room: TavernRoom, character: Pick
 };
 
 export const buildTavernMemoryOverviewSummary = (
-  room: TavernRoom,
+  room: TavernRoomRuntime,
   characters: Array<Pick<TavernCharacter, "id" | "name">>,
 ) => {
   const activeInstance = getActiveSceneInstance(room);
+  const sceneFields = selectTavernRuntimeActiveSceneFields(room);
   const sceneLayers = activeInstance?.memoryLayers;
   const characterValues = characters.flatMap((character) => [
     ...visibleCharacterLayerValues(activeInstance?.characterMemoryLayers?.[character.id]),
   ]);
   const lines = uniq(
     compact(
-      uniqueBlocks([room.memory, ...visibleSceneLayerValues(sceneLayers), ...characterValues])
+      uniqueBlocks([sceneFields.memory, ...visibleSceneLayerValues(sceneLayers), ...characterValues])
         .flatMap((block) => block.split(/\n+/))
         .map((line) =>
           line
