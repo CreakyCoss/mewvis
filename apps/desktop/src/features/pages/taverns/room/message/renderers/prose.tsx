@@ -1,9 +1,9 @@
 import { Loader2 } from "lucide-react";
-import { SmoothMarkdownContent } from "@/features/ai/components/markdown";
 import { cn } from "@/lib/utils";
 import { formatTavernMessageSegmentsForDisplay } from "../domain/segments";
 import type { TavernRenderableMessage } from "../domain/render-model";
 import { MessageControls } from "../components/message-controls";
+import { MessageSegmentsContent } from "../components/message-segments-content";
 import { formatTavernMessageTime } from "../components/message-time";
 import type { TavernConversationRenderer } from "./types";
 
@@ -26,10 +26,10 @@ const proseTextClassName: Record<TavernRenderableMessage["role"], string> = {
 };
 
 const ProseMessage = ({ message }: { message: TavernRenderableMessage }) => {
-  const content =
-    formatTavernMessageSegmentsForDisplay(message.segments, {
-      includeThoughts: false,
-    }).trim() || message.content.trim();
+  const contentSegments = message.segments.filter((segment) => segment.type !== "thought");
+  const content = formatTavernMessageSegmentsForDisplay(contentSegments, {
+    includeThoughts: false,
+  }).trim() || message.content.trim();
   const thought =
     message.segments
       .filter((segment) => segment.type === "thought")
@@ -54,18 +54,18 @@ const ProseMessage = ({ message }: { message: TavernRenderableMessage }) => {
         {message.status === "streaming" && <Loader2 className="size-3 animate-spin opacity-70" />}
       </header>
 
-      {content && (
-        <SmoothMarkdownContent
-          className={cn(
-            "tavern-immersive-markdown break-words font-serif text-sm leading-7 [&_p]:mb-1.5",
-            proseTextClassName[message.role],
-          )}
-          content={content}
-          emClassName="tavern-immersive-em"
-          isStreaming={message.status === "streaming"}
-          separateEmphasisBlocks
-          variant="tavern"
+      {contentSegments.length > 0 ? (
+        <MessageSegmentsContent
+          segments={contentSegments}
+          className={cn("break-words font-serif text-sm leading-7", proseTextClassName[message.role])}
+          actionClassName="tavern-immersive-em"
         />
+      ) : (
+        content && (
+          <div className={cn("whitespace-pre-wrap break-words font-serif text-sm leading-7", proseTextClassName[message.role])}>
+            {content}
+          </div>
+        )
       )}
 
       {thought && (

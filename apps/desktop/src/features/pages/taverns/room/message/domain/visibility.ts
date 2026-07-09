@@ -1,4 +1,5 @@
-import { cleanTavernThoughtText, parseTavernReplyText } from "../protocol/parse-reply";
+import { parseTavernAgentOutputText } from "../protocol/agent-output";
+import { cleanTavernThoughtText } from "../protocol/tavern-cleanup";
 import {
   getTavernProtocolFieldTagNames,
   getTavernProtocolVisiblePrivateThoughtTag,
@@ -30,6 +31,7 @@ export type TavernVisibleMessage = {
   content: string;
   segments: TavernMessageSegment[];
   thought?: string;
+  unwrappedText?: string;
   createdAt: number;
   status?: TavernMessage["status"];
   referencedFiles?: TavernMessage["referencedFiles"];
@@ -134,11 +136,12 @@ export const normalizeTavernMessageForAudience = ({
 
   const character = message.characterId ? characterById.get(message.characterId) : null;
   const parsed = character
-    ? parseTavernReplyText({
+    ? parseTavernAgentOutputText({
         text: message.content,
         activeCharacter: character,
         characters,
         userPersonaName,
+        preferredContentKind: message.kind === "narrative_beat" ? "narrative_beat" : "reply",
       })
     : null;
   const content = (parsed?.content || stripTavernPrivateThoughts(message.content)).trim();
@@ -160,6 +163,7 @@ export const normalizeTavernMessageForAudience = ({
       presentationProfileId: message.presentationProfileId,
     }),
     thought: visibleThought || undefined,
+    unwrappedText: parsed?.unwrappedText,
     createdAt: message.createdAt,
     status: message.status,
     referencedFiles: message.referencedFiles,

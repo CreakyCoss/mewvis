@@ -1,11 +1,13 @@
 import { Loader2 } from "lucide-react";
 import { resolveAvatar } from "@/assets/avatars";
-import { SmoothMarkdownContent } from "@/features/ai/components/markdown";
 import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets/types";
+import type { TavernMessageSegment } from "@/features/pages/taverns/tavern/types";
 import { cn } from "@/lib/utils";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
-import { stripTavernImmersiveDescriptionText } from "../protocol/parse-reply";
+import { stripTavernImmersiveDescriptionText } from "../protocol/tavern-cleanup";
+import { formatTavernMessageSegmentsForDisplay } from "../domain/segments";
 import { MessageControls } from "./message-controls";
+import { MessageSegmentsContent } from "./message-segments-content";
 import { formatTavernMessageTime } from "./message-time";
 
 type CharacterMessageProps = {
@@ -15,6 +17,7 @@ type CharacterMessageProps = {
   immersiveDescriptionEnabled: boolean;
   isError: boolean;
   isStreaming: boolean;
+  segments: TavernMessageSegment[];
   thought?: string;
   visualPreset: VisualPresetDefinition;
 };
@@ -25,12 +28,20 @@ export const CharacterMessage = ({
   immersiveDescriptionEnabled,
   isError,
   isStreaming,
+  segments,
   thought,
   visualPreset,
 }: CharacterMessageProps) => {
   const avatar = resolveAvatar(character?.avatar);
   const displayThought = immersiveDescriptionEnabled ? (thought?.trim() ?? "") : "";
-  const displayContent = immersiveDescriptionEnabled ? content : stripTavernImmersiveDescriptionText(content);
+  const displaySegments = immersiveDescriptionEnabled
+    ? segments.filter((segment) => segment.type !== "thought")
+    : segments.filter((segment) => segment.type !== "thought" && segment.type !== "action");
+  const segmentContent = formatTavernMessageSegmentsForDisplay(displaySegments, {
+    includeThoughts: false,
+  });
+  const displayContent =
+    segmentContent.trim() || (immersiveDescriptionEnabled ? content : stripTavernImmersiveDescriptionText(content));
   const copyContent = displayThought ? `心想：${displayThought}\n\n${displayContent}` : displayContent;
 
   if (!displayContent.trim() && !displayThought && !isError && !isStreaming) {
@@ -73,14 +84,15 @@ export const CharacterMessage = ({
                 </p>
               </div>
             )}
-            <SmoothMarkdownContent
-              className={immersiveDescriptionEnabled ? "tavern-immersive-markdown" : undefined}
-              content={displayContent}
-              emClassName={immersiveDescriptionEnabled ? "tavern-immersive-em" : undefined}
-              isStreaming={isStreaming}
-              separateEmphasisBlocks={immersiveDescriptionEnabled}
-              variant="tavern"
-            />
+            {displaySegments.length > 0 ? (
+              <MessageSegmentsContent
+                segments={displaySegments}
+                className={immersiveDescriptionEnabled ? "font-serif leading-7" : "leading-6"}
+                actionClassName={immersiveDescriptionEnabled ? "tavern-immersive-em" : undefined}
+              />
+            ) : (
+              <div className="whitespace-pre-wrap break-words">{displayContent}</div>
+            )}
           </div>
           <MessageControls content={copyContent} disabled={isStreaming} />
         </div>
