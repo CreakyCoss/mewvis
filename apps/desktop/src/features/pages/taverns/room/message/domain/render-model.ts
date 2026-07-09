@@ -1,26 +1,25 @@
-import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
-import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
-import { normalizeTavernMessageForAudience, type TavernVisibleMessage } from "./visibility";
+import { normalizeMessageForAudience, type MessageAudience } from "./visibility";
+import type { MessageCharacterProfile, MessageRenderInput, RenderableMessage } from "./types";
 
-export type TavernRenderableMessage = TavernVisibleMessage & {
-  source: TavernMessage;
-};
-
-export const createTavernRenderableMessages = ({
+export const createRenderableMessages = ({
   messages,
-  characters,
-  userPersonaName,
+  characterProfiles,
+  userName,
+  audience = { type: "ui", includeAllThoughts: true },
 }: {
-  messages: TavernMessage[];
-  characters: TavernCharacter[];
-  userPersonaName: string;
-}): TavernRenderableMessage[] =>
-  messages.map((message) => ({
-    ...normalizeTavernMessageForAudience({
+  messages: MessageRenderInput[];
+  characterProfiles: MessageCharacterProfile[];
+  userName: string;
+  audience?: MessageAudience;
+}): RenderableMessage[] => {
+  const characterById = new Map(characterProfiles.map((character) => [character.id, character]));
+
+  return messages.map((message) =>
+    normalizeMessageForAudience({
       message,
-      characters,
-      userPersonaName,
-      audience: { type: "ui", includeAllThoughts: true },
+      characterById,
+      userName,
+      audience,
     }),
-    source: message,
-  }));
+  );
+};

@@ -1,8 +1,11 @@
 import type { ReactNode, RefObject } from "react";
-import type { TavernRenderableMessage } from "../domain/render-model";
+import type { MessageVisualStyle, RenderableMessage } from "../domain/types";
 
-export type TavernConversationRendererProps = {
-  messages: TavernRenderableMessage[];
+export type ConversationRendererProps = {
+  messages: RenderableMessage[];
+  immersiveDescriptionEnabled: boolean;
+  isSending: boolean;
+  visualStyle: MessageVisualStyle;
   shouldShowExecutionTrace: boolean;
   executionTraceAnchorMessageId: string;
   hasExecutionTraceAnchor: boolean;
@@ -11,7 +14,7 @@ export type TavernConversationRendererProps = {
   messageEndRef: RefObject<HTMLDivElement | null>;
 };
 
-export type TavernConversationRenderer = {
+export type ConversationRenderer = {
   id: string;
-  Conversation: (props: TavernConversationRendererProps) => ReactNode;
+  Conversation: (props: ConversationRendererProps) => ReactNode;
 };

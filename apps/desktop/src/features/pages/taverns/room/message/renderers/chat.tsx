@@ -1,11 +1,14 @@
 import { Fragment } from "react";
 import { MessageRow } from "../components/message-row";
-import type { TavernConversationRenderer } from "./types";
+import type { ConversationRenderer } from "./types";
 
-export const chatConversationRenderer: TavernConversationRenderer = {
+export const chatConversationRenderer: ConversationRenderer = {
   id: "chat",
   Conversation: ({
     messages,
+    immersiveDescriptionEnabled,
+    isSending,
+    visualStyle,
     shouldShowExecutionTrace,
     executionTraceAnchorMessageId,
     hasExecutionTraceAnchor,
@@ -15,7 +18,12 @@ export const chatConversationRenderer: TavernConversationRenderer = {
     <>
       {messages.map((message) => (
         <Fragment key={message.id}>
-          <MessageRow message={message} />
+          <MessageRow
+            message={message}
+            immersiveDescriptionEnabled={immersiveDescriptionEnabled}
+            isSending={isSending}
+            visualStyle={visualStyle}
+          />
           {shouldShowExecutionTrace && message.id === executionTraceAnchorMessageId && renderExecutionTrace()}
         </Fragment>
       ))}

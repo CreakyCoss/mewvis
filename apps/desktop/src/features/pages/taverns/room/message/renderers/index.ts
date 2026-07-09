@@ -1,12 +1,12 @@
-import type { TavernPresentationRenderStyle } from "@/features/pages/taverns/manage/model";
+import type { MessageRenderStyle } from "../domain/types";
 import { chatConversationRenderer } from "./chat";
 import { proseConversationRenderer } from "./prose";
-import type { TavernConversationRenderer } from "./types";
+import type { ConversationRenderer } from "./types";
 
-const conversationRenderers: Record<TavernPresentationRenderStyle, TavernConversationRenderer> = {
+const conversationRenderers: Record<MessageRenderStyle, ConversationRenderer> = {
   chat: chatConversationRenderer,
   prose: proseConversationRenderer,
 };
 
-export const resolveTavernConversationRenderer = (renderStyle: TavernPresentationRenderStyle) =>
+export const resolveConversationRenderer = (renderStyle: MessageRenderStyle) =>
   conversationRenderers[renderStyle] ?? chatConversationRenderer;

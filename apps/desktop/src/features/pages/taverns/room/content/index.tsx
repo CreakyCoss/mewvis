@@ -6,10 +6,11 @@ import { cn } from "@/lib/utils";
 import { getTavernPresentationProfile } from "@/features/pages/taverns/tavern/prompt-registry/presentation-rules";
 import { getTavernRoomSceneTitle } from "@/features/pages/taverns/room/model";
 import { Composer } from "../composer";
-import { useTavernRoomContext } from "../context";
+import { isTavernRoomSending, useTavernRoomContext } from "../context";
 import { ExecutionTrace } from "../execution-trace";
-import { createTavernRenderableMessages } from "../message/domain/render-model";
-import { resolveTavernConversationRenderer } from "../message/renderers";
+import { createRenderableMessages } from "../message/domain/render-model";
+import type { MessageCharacterProfile, MessageRenderInput } from "../message/domain/types";
+import { resolveConversationRenderer } from "../message/renderers";
 import { SceneBriefCard } from "../scene-brief-card";
 
 type TavernRoomContentProps = {
@@ -59,21 +60,58 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
   }, [tavernWorkspacePath, workspace.path]);
 
   const renderableRoomMessages = useMemo(
-    () =>
-      activeRoom
-        ? createTavernRenderableMessages({
-            messages: roomMessages,
-            characters: roomCharacters,
-            userPersonaName: activeRoom.user.personaName,
-          })
-        : [],
+    () => {
+      if (!activeRoom) {
+        return [];
+      }
+
+      const characterProfiles: MessageCharacterProfile[] = roomCharacters.map((character) => ({
+        id: character.id,
+        name: character.name,
+        avatar: character.avatar,
+      }));
+      const messages: MessageRenderInput[] = roomMessages.map((message) => {
+        const profile = getTavernPresentationProfile(message.presentationProfileId);
+        const baseMessage = {
+          id: message.id,
+          body: message.body,
+          createdAt: message.createdAt,
+          status: message.status,
+          referencedFiles: message.referencedFiles,
+          presentation: {
+            profileId: profile.id,
+            userInputMode: profile.userInputMode,
+          },
+        };
+
+        if (message.role === "character") {
+          return {
+            ...baseMessage,
+            role: message.role,
+            characterId: message.characterId ?? "",
+          };
+        }
+
+        return {
+          ...baseMessage,
+          role: message.role,
+        };
+      });
+
+      return createRenderableMessages({
+        messages,
+        characterProfiles,
+        userName: activeRoom.user.personaName,
+      });
+    },
     [activeRoom, roomCharacters, roomMessages],
   );
   const latestMessage = renderableRoomMessages[renderableRoomMessages.length - 1] ?? null;
   const presentationProfile = getTavernPresentationProfile(activeRoom?.presentation.profile?.profileId);
-  const conversationRenderer = resolveTavernConversationRenderer(presentationProfile.renderStyle);
+  const conversationRenderer = resolveConversationRenderer(presentationProfile.renderStyle);
   const Conversation = conversationRenderer.Conversation;
   const executionTraceStatusText = busy.kind === "sending" ? busy.status : "";
+  const isSending = isTavernRoomSending(busy);
   const shouldShowExecutionTrace = executionSteps.length > 0;
   const hasExecutionTraceAnchor =
     shouldShowExecutionTrace && renderableRoomMessages.some((message) => message.id === executionTraceAnchorMessageId);
@@ -178,6 +216,9 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
           />
           <Conversation
             messages={renderableRoomMessages}
+            immersiveDescriptionEnabled={activeRoom.presentation.settings.immersiveDescriptionEnabled}
+            isSending={isSending}
+            visualStyle={visualPreset.tavern}
             shouldShowExecutionTrace={shouldShowExecutionTrace}
             executionTraceAnchorMessageId={executionTraceAnchorMessageId}
             hasExecutionTraceAnchor={hasExecutionTraceAnchor}

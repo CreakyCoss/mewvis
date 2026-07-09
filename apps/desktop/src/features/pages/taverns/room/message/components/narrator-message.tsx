@@ -1,18 +1,18 @@
-import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets/types";
 import { cn } from "@/lib/utils";
+import type { MessageVisualStyle } from "../domain/types";
 import { MessageControls } from "./message-controls";
 
 type NarratorMessageProps = {
   content: string;
   isStreaming: boolean;
-  visualPreset: VisualPresetDefinition;
+  visualStyle: MessageVisualStyle;
 };
-export const NarratorMessage = ({ content, isStreaming, visualPreset }: NarratorMessageProps) => (
+export const NarratorMessage = ({ content, isStreaming, visualStyle }: NarratorMessageProps) => (
   <div className="group/message mx-auto flex max-w-xl flex-col items-center gap-1">
     <div
       className={cn(
         "rounded-md border px-3 py-2 text-center text-sm leading-6 text-muted-foreground shadow-sm",
-        visualPreset.tavern.narratorBubble,
+        visualStyle.narratorBubble,
       )}
     >
       {content}

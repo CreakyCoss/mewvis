@@ -1,12 +1,10 @@
 import { AgentProtocol } from "@/features/pages/taverns/room/agent-protocol";
 import type { AgentProtocolParseResult } from "@/features/pages/taverns/room/agent-protocol/types";
-import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
-import type { TavernMessage, TavernMessageKind, TavernMessageSegment } from "@/features/pages/taverns/tavern/types";
-import { cleanTavernAgentOutputContent, cleanTavernThoughtText } from "../protocol/tavern-cleanup";
-import { getTavernMessageRawText } from "../../model/message-body";
-import { buildTavernMessageSegments } from "./segments";
+import { cleanAgentOutputContent, cleanThoughtText } from "../protocol/cleanup";
+import { buildMessageSegments } from "./segments";
+import type { MessageCharacterProfile, MessageRenderInput, MessageSegment, RenderableMessage } from "./types";
 
-export type TavernMessageAudience =
+export type MessageAudience =
   | { type: "ui"; characterId?: string | null; includeAllThoughts?: boolean }
   | { type: "public" }
   | { type: "character"; characterId: string }
@@ -14,35 +12,23 @@ export type TavernMessageAudience =
   | { type: "user_proxy" }
   | { type: "archivist" };
 
-export type TavernVisibleMessage = {
-  id: string;
-  kind: TavernMessageKind;
-  role: TavernMessage["role"];
-  characterId?: string;
-  speakerName: string;
-  content: string;
-  segments: TavernMessageSegment[];
-  thought?: string;
-  rawText: string;
-  createdAt: number;
-  status?: TavernMessage["status"];
-  referencedFiles?: TavernMessage["referencedFiles"];
-};
-
 const firstText = (...values: Array<string | undefined>) => values.find((value) => value?.trim())?.trim() ?? "";
+
+const getMessageRawText = (message: MessageRenderInput) =>
+  message.body.type === "agent_output" ? message.body.rawText : message.body.text;
 
 const getParsedPublicText = ({
   message,
   parsed,
 }: {
-  message: TavernMessage;
+  message: MessageRenderInput;
   parsed: AgentProtocolParseResult;
 }) => {
   if (message.role === "narrator") {
     return firstText(parsed.data.narrative, parsed.data.publicReply, parsed.unwrappedText);
   }
 
-  if (message.presentationProfileId === "novel-prose") {
+  if (message.presentation?.profileId === "novel-prose") {
     return firstText(parsed.data.narrative, parsed.data.publicReply, parsed.unwrappedText);
   }
 
@@ -51,7 +37,7 @@ const getParsedPublicText = ({
 
 const getParsedActionText = (parsed: AgentProtocolParseResult | null) => firstText(parsed?.data.action);
 
-const canAudienceSeeThought = (audience: TavernMessageAudience, characterId?: string) => {
+const canAudienceSeeThought = (audience: MessageAudience, characterId?: string) => {
   if (!characterId) {
     return false;
   }
@@ -71,72 +57,59 @@ const canAudienceSeeThought = (audience: TavernMessageAudience, characterId?: st
   return false;
 };
 
-const fallbackSpeakerName = (
-  message: TavernMessage,
-  characterById: Map<string, TavernCharacter>,
-  userPersonaName: string,
-) => {
+const fallbackSpeakerName = ({
+  message,
+  character,
+  userName,
+}: {
+  message: MessageRenderInput;
+  character?: MessageCharacterProfile;
+  userName: string;
+}) => {
   if (message.role === "user") {
-    return userPersonaName || "我";
+    return userName || "我";
   }
   if (message.role === "narrator") {
     return "旁白";
   }
-  return message.characterId ? (characterById.get(message.characterId)?.name ?? "角色") : "角色";
+  return character?.name ?? "角色";
 };
 
-export const normalizeTavernMessageForAudience = ({
+export const normalizeMessageForAudience = ({
   message,
-  characters,
-  userPersonaName,
+  characterById,
+  userName,
   audience,
 }: {
-  message: TavernMessage;
-  characters: TavernCharacter[];
-  userPersonaName: string;
-  audience: TavernMessageAudience;
-}): TavernVisibleMessage => {
-  const characterById = new Map(characters.map((character) => [character.id, character]));
-  const speakerName = fallbackSpeakerName(message, characterById, userPersonaName);
-  const rawText = getTavernMessageRawText(message);
+  message: MessageRenderInput;
+  characterById: Map<string, MessageCharacterProfile>;
+  userName: string;
+  audience: MessageAudience;
+}): RenderableMessage => {
+  const rawText = getMessageRawText(message);
   const parsed = message.body.type === "agent_output" ? AgentProtocol.parse(rawText, message.body.format) : null;
-  const character = message.characterId ? characterById.get(message.characterId) : null;
+  const character = message.role === "character" ? characterById.get(message.characterId) : undefined;
+  const speakerName = fallbackSpeakerName({ message, character, userName });
   const parsedContent = parsed ? getParsedPublicText({ message, parsed }) : rawText.trim();
   const parsedAction = message.role === "character" ? getParsedActionText(parsed) : "";
-  const content =
-    parsedContent && message.role === "character" && character
-      ? cleanTavernAgentOutputContent({
-          text: parsedContent,
-          activeCharacter: character,
-          characters,
-          userPersonaName,
-        })
-      : parsedContent;
-  const action =
-    parsedAction && character
-      ? cleanTavernAgentOutputContent({
-          text: parsedAction,
-          activeCharacter: character,
-          characters,
-          userPersonaName,
-        })
-      : parsedAction;
-  const thought = cleanTavernThoughtText(parsed?.data.privateThought ?? "");
+  const content = parsedContent ? cleanAgentOutputContent({ text: parsedContent }) : parsedContent;
+  const action = parsedAction ? cleanAgentOutputContent({ text: parsedAction }) : parsedAction;
+  const thought = cleanThoughtText(parsed?.data.privateThought ?? "");
   const visibleThought = canAudienceSeeThought(audience, message.characterId) ? thought : "";
-  const segments = buildTavernMessageSegments({
+  const segments: MessageSegment[] = buildMessageSegments({
     role: message.role,
     characterId: message.characterId,
     content,
     actions: action ? [action] : undefined,
     thought: visibleThought,
-    presentationProfileId: message.presentationProfileId,
+    presentation: message.presentation,
   });
 
   return {
     id: message.id,
-    kind: message.kind,
     role: message.role,
     characterId: message.characterId,
+    character,
     speakerName,
     content,
     segments,

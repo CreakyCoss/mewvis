@@ -1,12 +1,11 @@
-import { getTavernPresentationProfile } from "@/features/pages/taverns/tavern/prompt-registry/presentation-rules";
 import type {
-  TavernMessage,
-  TavernMessageActorRef,
-  TavernMessageSegment,
-} from "@/features/pages/taverns/tavern/types";
-import type { TavernPresentationProfileId } from "@/features/pages/taverns/manage/model";
+  MessageActorRef,
+  MessagePresentationConfig,
+  MessageRole,
+  MessageSegment,
+} from "./types";
 
-const createActorForMessage = (message: Pick<TavernMessage, "role" | "characterId">): TavernMessageActorRef => {
+const createActorForMessage = (message: { role: MessageRole; characterId?: string }): MessageActorRef => {
   if (message.role === "user") {
     return { type: "user" };
   }
@@ -95,8 +94,8 @@ const parseStandaloneActionLine = (line: string) => {
   return null;
 };
 
-const mergeAdjacentSegments = (segments: TavernMessageSegment[]): TavernMessageSegment[] => {
-  const merged: TavernMessageSegment[] = [];
+const mergeAdjacentSegments = (segments: MessageSegment[]): MessageSegment[] => {
+  const merged: MessageSegment[] = [];
 
   for (const segment of segments) {
     const previous = merged[merged.length - 1];
@@ -121,10 +120,10 @@ const buildDialogueAndActionSegments = ({
   actor,
   content,
 }: {
-  actor: TavernMessageActorRef;
+  actor: MessageActorRef;
   content: string;
-}): TavernMessageSegment[] => {
-  const segments: TavernMessageSegment[] = [];
+}): MessageSegment[] => {
+  const segments: MessageSegment[] = [];
   const pendingDialogueLines: string[] = [];
 
   const flushDialogue = () => {
@@ -160,28 +159,28 @@ const buildDialogueAndActionSegments = ({
   return mergeAdjacentSegments(segments);
 };
 
-type TavernMessageSegmentBuildInput = {
-  role: TavernMessage["role"];
+type MessageSegmentBuildInput = {
+  role: MessageRole;
   characterId?: string;
   content: string;
   actions?: string[];
   thought?: string;
-  presentationProfileId?: TavernPresentationProfileId;
+  presentation?: MessagePresentationConfig;
 };
 
-export const buildTavernMessageSegments = ({
+export const buildMessageSegments = ({
   role,
   characterId,
   content,
   actions,
   thought,
-  presentationProfileId,
-}: TavernMessageSegmentBuildInput): TavernMessageSegment[] => {
+  presentation,
+}: MessageSegmentBuildInput): MessageSegment[] => {
   const actor = createActorForMessage({ role, characterId });
   const trimmedContent = content.trim();
-  const segments: TavernMessageSegment[] = [];
-  const profile = getTavernPresentationProfile(presentationProfileId);
-  const isNarrativeCharacterMessage = role === "character" && presentationProfileId === "novel-prose";
+  const segments: MessageSegment[] = [];
+  const userInputMode = presentation?.userInputMode ?? "text";
+  const isNarrativeCharacterMessage = role === "character" && presentation?.profileId === "novel-prose";
 
   if (trimmedContent) {
     if (role === "narrator") {
@@ -192,10 +191,10 @@ export const buildTavernMessageSegments = ({
       });
     } else if (role === "user") {
       segments.push({
-        type: profile.userInputMode === "speech" ? "dialogue" : "text",
-        ...(profile.userInputMode === "speech" ? { speaker: actor } : {}),
+        type: userInputMode === "speech" ? "dialogue" : "text",
+        ...(userInputMode === "speech" ? { speaker: actor } : {}),
         text: trimmedContent,
-      } as TavernMessageSegment);
+      } as MessageSegment);
     } else if (isNarrativeCharacterMessage) {
       segments.push({
         type: "narration",
@@ -234,8 +233,8 @@ export const buildTavernMessageSegments = ({
   return segments;
 };
 
-export const formatTavernMessageSegmentsForDisplay = (
-  segments: TavernMessageSegment[],
+export const formatMessageSegmentsForDisplay = (
+  segments: MessageSegment[],
   {
     includeThoughts = true,
   }: {

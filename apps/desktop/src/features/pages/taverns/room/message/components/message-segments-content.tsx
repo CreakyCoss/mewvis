@@ -1,8 +1,8 @@
-import type { TavernMessageSegment } from "@/features/pages/taverns/tavern/types";
 import { cn } from "@/lib/utils";
+import type { MessageSegment } from "../domain/types";
 
 type MessageSegmentsContentProps = {
-  segments: TavernMessageSegment[];
+  segments: MessageSegment[];
   className?: string;
   dialogueClassName?: string;
   actionClassName?: string;

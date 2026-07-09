@@ -1,33 +1,33 @@
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatTavernMessageSegmentsForDisplay } from "../domain/segments";
-import type { TavernRenderableMessage } from "../domain/render-model";
+import { formatMessageSegmentsForDisplay } from "../domain/segments";
+import type { RenderableMessage } from "../domain/types";
 import { MessageControls } from "../components/message-controls";
 import { MessageSegmentsContent } from "../components/message-segments-content";
-import { formatTavernMessageTime } from "../components/message-time";
-import type { TavernConversationRenderer } from "./types";
+import { formatMessageTime } from "../components/message-time";
+import type { ConversationRenderer } from "./types";
 
-const roleLabel: Record<TavernRenderableMessage["role"], string> = {
+const roleLabel: Record<RenderableMessage["role"], string> = {
   narrator: "旁白",
   character: "片段",
   user: "用户意图",
 };
 
-const proseBlockClassName: Record<TavernRenderableMessage["role"], string> = {
+const proseBlockClassName: Record<RenderableMessage["role"], string> = {
   narrator: "",
   character: "",
   user: "rounded-md bg-current/[0.045] ring-1 ring-current/10",
 };
 
-const proseTextClassName: Record<TavernRenderableMessage["role"], string> = {
+const proseTextClassName: Record<RenderableMessage["role"], string> = {
   narrator: "text-current opacity-90",
   character: "text-current opacity-95",
   user: "text-current opacity-80",
 };
 
-const ProseMessage = ({ message }: { message: TavernRenderableMessage }) => {
+const ProseMessage = ({ message }: { message: RenderableMessage }) => {
   const contentSegments = message.segments.filter((segment) => segment.type !== "thought");
-  const content = formatTavernMessageSegmentsForDisplay(contentSegments, {
+  const content = formatMessageSegmentsForDisplay(contentSegments, {
     includeThoughts: false,
   }).trim() || message.content.trim();
   const thought =
@@ -50,7 +50,7 @@ const ProseMessage = ({ message }: { message: TavernRenderableMessage }) => {
         <span className="shrink-0 font-medium">
           {message.role === "character" ? message.speakerName : roleLabel[message.role]}
         </span>
-        <span className="truncate tabular-nums">{formatTavernMessageTime(message.createdAt)}</span>
+        <span className="truncate tabular-nums">{formatMessageTime(message.createdAt)}</span>
         {message.status === "streaming" && <Loader2 className="size-3 animate-spin opacity-70" />}
       </header>
 
@@ -83,7 +83,7 @@ const ProseMessage = ({ message }: { message: TavernRenderableMessage }) => {
   );
 };
 
-export const proseConversationRenderer: TavernConversationRenderer = {
+export const proseConversationRenderer: ConversationRenderer = {
   id: "prose",
   Conversation: ({
     messages,

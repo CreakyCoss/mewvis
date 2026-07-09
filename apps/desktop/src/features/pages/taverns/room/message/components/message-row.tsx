@@ -1,78 +1,64 @@
-import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
 import type { ReactElement } from "react";
-import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
-import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
-import { isTavernRoomSending, useTavernRoomContext } from "@/features/pages/taverns/room/context";
-import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets/types";
-import type { TavernRenderableMessage } from "../domain/render-model";
+import type { RenderableMessage, MessageRole, MessageVisualStyle } from "../domain/types";
 import { CharacterMessage } from "./character-message";
 import { NarratorMessage } from "./narrator-message";
 import { UserMessage } from "./user-message";
 
 type MessageRowProps = {
-  message: TavernRenderableMessage;
+  message: RenderableMessage;
+  immersiveDescriptionEnabled: boolean;
+  isSending: boolean;
+  visualStyle: MessageVisualStyle;
 };
 
 type MessageRoleRendererContext = {
-  activeRoom: TavernRoomRuntime;
-  character: TavernCharacter | null;
+  immersiveDescriptionEnabled: boolean;
   isSending: boolean;
-  message: TavernRenderableMessage;
-  visualPreset: VisualPresetDefinition;
+  message: RenderableMessage;
+  visualStyle: MessageVisualStyle;
 };
 
-const messageRoleRenderers: Record<TavernMessage["role"], (context: MessageRoleRendererContext) => ReactElement> = {
-  narrator: ({ message, visualPreset }) => (
+const messageRoleRenderers: Record<MessageRole, (context: MessageRoleRendererContext) => ReactElement> = {
+  narrator: ({ message, visualStyle }) => (
     <NarratorMessage
       content={message.content}
       isStreaming={message.status === "streaming"}
-      visualPreset={visualPreset}
+      visualStyle={visualStyle}
     />
   ),
-  user: ({ activeRoom, isSending, message, visualPreset }) => (
+  user: ({ isSending, message, visualStyle }) => (
     <UserMessage
       content={message.content}
       createdAt={message.createdAt}
       isSending={isSending}
       isStreaming={message.status === "streaming"}
       referencedFiles={message.referencedFiles}
-      userPersonaName={activeRoom.user.personaName}
-      visualPreset={visualPreset}
+      speakerName={message.speakerName}
+      visualStyle={visualStyle}
     />
   ),
-  character: ({ activeRoom, character, message, visualPreset }) => (
+  character: ({ immersiveDescriptionEnabled, message, visualStyle }) => (
     <CharacterMessage
-      character={character}
+      character={message.character}
       content={message.content}
       createdAt={message.createdAt}
-      immersiveDescriptionEnabled={activeRoom.presentation.settings.immersiveDescriptionEnabled}
+      immersiveDescriptionEnabled={immersiveDescriptionEnabled}
       isError={message.status === "error"}
       isStreaming={message.status === "streaming"}
       segments={message.segments}
       thought={message.thought}
-      visualPreset={visualPreset}
+      visualStyle={visualStyle}
     />
   ),
 };
 
-export const MessageRow = ({ message }: MessageRowProps) => {
-  const activeRoom = useTavernRoomContext((store) => store.activeRoom);
-  const characterById = useTavernRoomContext((store) => store.characterById);
-  const busy = useTavernRoomContext((store) => store.busy);
-  const visualPreset = useTavernRoomContext((store) => store.visualPreset);
-  if (!activeRoom) {
-    return null;
-  }
-
-  const isSending = isTavernRoomSending(busy);
-  const character = message.characterId ? (characterById.get(message.characterId) ?? null) : null;
+export const MessageRow = ({ message, immersiveDescriptionEnabled, isSending, visualStyle }: MessageRowProps) => {
   const renderMessage = messageRoleRenderers[message.role];
 
   return renderMessage({
-    activeRoom,
-    character,
+    immersiveDescriptionEnabled,
     isSending,
     message,
-    visualPreset,
+    visualStyle,
   });
 };

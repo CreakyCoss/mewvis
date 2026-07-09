@@ -1,25 +1,23 @@
 import { Loader2 } from "lucide-react";
 import { resolveAvatar } from "@/assets/avatars";
-import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets/types";
-import type { TavernMessageSegment } from "@/features/pages/taverns/tavern/types";
 import { cn } from "@/lib/utils";
-import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
-import { stripTavernImmersiveDescriptionText } from "../protocol/tavern-cleanup";
-import { formatTavernMessageSegmentsForDisplay } from "../domain/segments";
+import { stripImmersiveDescriptionText } from "../protocol/cleanup";
+import { formatMessageSegmentsForDisplay } from "../domain/segments";
+import type { MessageCharacterProfile, MessageSegment, MessageVisualStyle } from "../domain/types";
 import { MessageControls } from "./message-controls";
 import { MessageSegmentsContent } from "./message-segments-content";
-import { formatTavernMessageTime } from "./message-time";
+import { formatMessageTime } from "./message-time";
 
 type CharacterMessageProps = {
-  character?: TavernCharacter | null;
+  character?: MessageCharacterProfile | null;
   content: string;
   createdAt: number;
   immersiveDescriptionEnabled: boolean;
   isError: boolean;
   isStreaming: boolean;
-  segments: TavernMessageSegment[];
+  segments: MessageSegment[];
   thought?: string;
-  visualPreset: VisualPresetDefinition;
+  visualStyle: MessageVisualStyle;
 };
 export const CharacterMessage = ({
   character,
@@ -30,18 +28,18 @@ export const CharacterMessage = ({
   isStreaming,
   segments,
   thought,
-  visualPreset,
+  visualStyle,
 }: CharacterMessageProps) => {
   const avatar = resolveAvatar(character?.avatar);
   const displayThought = immersiveDescriptionEnabled ? (thought?.trim() ?? "") : "";
   const displaySegments = immersiveDescriptionEnabled
     ? segments.filter((segment) => segment.type !== "thought")
     : segments.filter((segment) => segment.type !== "thought" && segment.type !== "action");
-  const segmentContent = formatTavernMessageSegmentsForDisplay(displaySegments, {
+  const segmentContent = formatMessageSegmentsForDisplay(displaySegments, {
     includeThoughts: false,
   });
   const displayContent =
-    segmentContent.trim() || (immersiveDescriptionEnabled ? content : stripTavernImmersiveDescriptionText(content));
+    segmentContent.trim() || (immersiveDescriptionEnabled ? content : stripImmersiveDescriptionText(content));
   const copyContent = displayThought ? `心想：${displayThought}\n\n${displayContent}` : displayContent;
 
   if (!displayContent.trim() && !displayThought && !isError && !isStreaming) {
@@ -55,13 +53,13 @@ export const CharacterMessage = ({
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex items-center gap-2 text-xs text-current">
             <span className="font-medium">{character?.name ?? "角色"}</span>
-            <span className="opacity-70">{formatTavernMessageTime(createdAt)}</span>
+            <span className="opacity-70">{formatMessageTime(createdAt)}</span>
             {isStreaming && <Loader2 className="size-3 animate-spin" />}
           </div>
           <div
             className={cn(
               "relative overflow-visible rounded-md border px-3.5 py-2.5 text-sm leading-6 shadow-sm",
-              visualPreset.tavern.characterBubble,
+              visualStyle.characterBubble,
               isError && "border-destructive/30 bg-destructive/10 text-destructive",
             )}
           >
@@ -69,7 +67,7 @@ export const CharacterMessage = ({
               <span
                 className={cn(
                   "pointer-events-none absolute top-4 -left-1 size-2.5 rotate-45 border-b border-l",
-                  visualPreset.tavern.characterBubbleTail,
+                  visualStyle.characterBubbleTail,
                 )}
                 aria-hidden
               />

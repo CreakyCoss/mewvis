@@ -1,18 +1,17 @@
 import { FileText, UserRound } from "lucide-react";
-import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets/types";
 import { cn } from "@/lib/utils";
-import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
+import type { MessageReferencedFile, MessageVisualStyle } from "../domain/types";
 import { MessageControls } from "./message-controls";
-import { formatTavernMessageTime } from "./message-time";
+import { formatMessageTime } from "./message-time";
 
 type UserMessageProps = {
   content: string;
   createdAt: number;
   isSending: boolean;
   isStreaming: boolean;
-  referencedFiles?: TavernMessage["referencedFiles"];
-  userPersonaName: string;
-  visualPreset: VisualPresetDefinition;
+  referencedFiles?: MessageReferencedFile[];
+  speakerName: string;
+  visualStyle: MessageVisualStyle;
 };
 export const UserMessage = ({
   content,
@@ -20,25 +19,25 @@ export const UserMessage = ({
   isSending,
   isStreaming,
   referencedFiles,
-  userPersonaName,
-  visualPreset,
+  speakerName,
+  visualStyle,
 }: UserMessageProps) => (
   <div className="group/message flex justify-end">
     <div className="flex max-w-[min(80%,680px)] flex-col items-end gap-1">
       <div className="flex items-center gap-1.5 text-xs text-current opacity-75">
-        <span>{userPersonaName || "我"}</span>
+        <span>{speakerName || "我"}</span>
         <UserRound className="size-3.5" />
       </div>
       <div
         className={cn(
           "relative overflow-visible rounded-md border px-3.5 py-2.5 text-sm leading-6 shadow-sm",
-          visualPreset.tavern.userBubble,
+          visualStyle.userBubble,
         )}
       >
         <span
           className={cn(
             "pointer-events-none absolute top-4 -right-1 size-2.5 rotate-45 border-t border-r",
-            visualPreset.tavern.userBubbleTail,
+            visualStyle.userBubbleTail,
           )}
           aria-hidden
         />
@@ -58,7 +57,7 @@ export const UserMessage = ({
           </div>
         )}
       </div>
-      <span className="text-[11px] text-current opacity-70">{formatTavernMessageTime(createdAt)}</span>
+      <span className="text-[11px] text-current opacity-70">{formatMessageTime(createdAt)}</span>
       <MessageControls content={content} disabled={isSending || isStreaming} />
     </div>
   </div>
