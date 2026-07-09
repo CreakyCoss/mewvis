@@ -6,11 +6,10 @@ import { resolveAvatar } from "@/assets/avatars";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { cn } from "@/lib/utils";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
-import { formatTavernCharacterRelationshipSummary } from "@/features/pages/taverns/tavern/core/relationships";
 import { isTavernRoomBusy, useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import { getVisualPreset } from "@/features/pages/taverns/tavern/visual-presets";
 import { getCurrentTimestamp } from "@/utils/time";
-import { getTavernRoomCharacterMemoryLayers, getTavernRoomCharacters, getTavernRoomSceneFields } from "../../model";
+import { getTavernRoomCharacterMemoryLayers } from "../../model";
 import { EmptyPanelCard, emptyValueText } from "../shared";
 
 const trimText = (value: string | undefined) => value?.trim() ?? "";
@@ -72,11 +71,11 @@ const CharacterDetail = ({ character }: { character: TavernCharacter }) => {
     return null;
   }
 
-  const sceneFields = getTavernRoomSceneFields(activeRoom);
+  const scene = activeRoom.scene;
   const characterMemoryLayers = getTavernRoomCharacterMemoryLayers(activeRoom, character.id);
   const avatar = resolveAvatar(character.avatar).src;
-  const publicStatus = sceneFields.characterPublicStatuses[character.id];
-  const privateStatus = sceneFields.characterPrivateStatuses[character.id];
+  const publicStatus = scene.characterPublicStatuses?.[character.id];
+  const privateStatus = scene.characterPrivateStatuses?.[character.id];
   const holding = trimArray(publicStatus?.holding);
   const privateKnowledge = trimArray(privateStatus?.privateKnowledge);
   const speakingPhrases = splitPhrases(character.speakingStyle);
@@ -110,25 +109,16 @@ const CharacterDetail = ({ character }: { character: TavernCharacter }) => {
     character.writingStyle ? `叙述：${character.writingStyle}` : "",
     character.replyStylePrompt ? `回复约束：${character.replyStylePrompt}` : "",
   ].filter(Boolean);
-  const relationshipSummary = formatTavernCharacterRelationshipSummary({
-    character,
-    characters: getTavernRoomCharacters(activeRoom),
-    room: {
-      userPersonaName: activeRoom.user.personaName,
-      relationshipOverrides: sceneFields.relationshipOverrides,
-    },
-    maxItems: 4,
-  });
-  const relationshipLines = splitLines(relationshipSummary);
+  const relationshipLines: string[] = [];
   const memoryLines = unique([
-    trimText(sceneFields.characterMemories[character.id]),
+    trimText(scene.characterMemories?.[character.id]),
     trimText(characterMemoryLayers?.required),
     trimText(characterMemoryLayers?.public),
     trimText(characterMemoryLayers?.known),
     trimText(characterMemoryLayers?.privateSelf),
     privateKnowledge.length > 0 ? `已知信息：${privateKnowledge.join("、")}` : "",
   ]);
-  const visualPreset = getVisualPreset(sceneFields.scenePresetId);
+  const visualPreset = getVisualPreset(scene.scenePresetId);
 
   return (
     <HoverCardContent
@@ -198,9 +188,7 @@ const CharacterDetail = ({ character }: { character: TavernCharacter }) => {
 const CharacterCardContent = ({ character, isActive }: { character: TavernCharacter; isActive: boolean }) => {
   const activeRoom = useTavernRoomContext((store) => store.activeRoom);
   const avatar = resolveAvatar(character.avatar).src;
-  const publicStatus = activeRoom
-    ? getTavernRoomSceneFields(activeRoom).characterPublicStatuses[character.id]
-    : undefined;
+  const publicStatus = activeRoom?.scene.characterPublicStatuses?.[character.id];
   const chipTexts = unique([
     trimText(publicStatus?.visibleMood),
     trimText(publicStatus?.posture),

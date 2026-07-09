@@ -23,7 +23,6 @@ import {
   isTavernRoomSending,
   useTavernRoomContext,
 } from "@/features/pages/taverns/room/context";
-import { getTavernRoomSceneFields } from "./model";
 import { getTavernAgentFlowErrorMessage, submitTavernAgentFlow } from "./agent-flow/submit";
 
 const REFERENCE_SUGGESTION_LIMIT = 8;
@@ -183,7 +182,7 @@ export const Composer = ({ bind, files }: ComposerProps) => {
   }, [composerHandle, setComposerHandle]);
 
   useEffect(() => {
-    setReplyOptions(activeRoom ? getTavernRoomSceneFields(activeRoom).replyOptions : []);
+    setReplyOptions(activeRoom?.scene.replyOptions ?? []);
     clearDraft();
   }, [activeRoom?.identity.id, clearDraft]);
 

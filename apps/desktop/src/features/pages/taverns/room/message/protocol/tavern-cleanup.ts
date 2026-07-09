@@ -50,7 +50,7 @@ const stripUnpairedMarkdownMarker = (text: string, marker: "*" | "_") => {
 const normalizeMarkdownMarkers = (text: string) =>
   stripUnpairedMarkdownMarker(stripUnpairedMarkdownMarker(stripDanglingMarkdownMarkers(text), "*"), "_");
 
-export const stripTavernStandaloneActionBlocks = (text: string) =>
+const stripTavernStandaloneActionBlocks = (text: string) =>
   text.replace(/(^|\n)\s*[*_][^*_\n]+[*_]\s*(?=\n|$)/g, "\n").trim();
 
 export const stripTavernImmersiveDescriptionText = (text: string) =>
@@ -60,8 +60,6 @@ export const stripTavernImmersiveDescriptionText = (text: string) =>
     .replace(/\n[ \t]+/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
-
-export const hasTavernReplyDialogueText = (text: string) => stripTavernStandaloneActionBlocks(text).trim().length > 0;
 
 const speakerPrefixPattern = (labels: string[]) => {
   const unique = uniqueLabels(labels);

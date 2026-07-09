@@ -2,11 +2,9 @@ import { getTavernPresentationProfile } from "@/features/pages/taverns/tavern/pr
 import type {
   TavernMessage,
   TavernMessageActorRef,
-  TavernMessageKind,
   TavernMessageSegment,
 } from "@/features/pages/taverns/tavern/types";
 import type { TavernPresentationProfileId } from "@/features/pages/taverns/manage/model";
-import { getTavernMessageRawText } from "../../model/message-body";
 
 const createActorForMessage = (message: Pick<TavernMessage, "role" | "characterId">): TavernMessageActorRef => {
   if (message.role === "user") {
@@ -162,23 +160,6 @@ const buildDialogueAndActionSegments = ({
   return mergeAdjacentSegments(segments);
 };
 
-export const inferTavernMessageKind = ({
-  role,
-}: {
-  role: TavernMessage["role"];
-  presentationProfileId?: TavernPresentationProfileId;
-}): TavernMessageKind => {
-  if (role === "user") {
-    return "user_text";
-  }
-
-  if (role === "narrator") {
-    return "director_narration";
-  }
-
-  return "character_agent_output";
-};
-
 type TavernMessageSegmentBuildInput = {
   role: TavernMessage["role"];
   characterId?: string;
@@ -253,80 +234,6 @@ export const buildTavernMessageSegments = ({
   return segments;
 };
 
-export const normalizeTavernMessageSegments = (value: unknown): TavernMessageSegment[] => {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.flatMap((segment): TavernMessageSegment[] => {
-    if (!segment || typeof segment !== "object") {
-      return [];
-    }
-
-    const candidate = segment as Partial<TavernMessageSegment>;
-    const text = typeof candidate.text === "string" ? candidate.text.trim() : "";
-    if (!text) {
-      return [];
-    }
-
-    if (candidate.type === "narration") {
-      return [
-        {
-          type: "narration",
-          text,
-          actor: candidate.actor,
-        },
-      ];
-    }
-
-    if (candidate.type === "dialogue" && candidate.speaker) {
-      return [
-        {
-          type: "dialogue",
-          text,
-          speaker: candidate.speaker,
-        },
-      ];
-    }
-
-    if (candidate.type === "action") {
-      return [
-        {
-          type: "action",
-          text,
-          actor: candidate.actor,
-        },
-      ];
-    }
-
-    if (candidate.type === "thought" && candidate.owner) {
-      return [
-        {
-          type: "thought",
-          text,
-          owner: candidate.owner,
-          visibility: candidate.visibility === "public" ? "public" : "private",
-        },
-      ];
-    }
-
-    if (candidate.type === "text") {
-      return [{ type: "text", text }];
-    }
-
-    return [];
-  });
-};
-
-export const resolveTavernMessageSegments = (message: TavernMessage): TavernMessageSegment[] => {
-  return buildTavernMessageSegments({
-    role: message.role,
-    characterId: message.characterId,
-    content: getTavernMessageRawText(message),
-    presentationProfileId: message.presentationProfileId,
-  });
-};
-
 export const formatTavernMessageSegmentsForDisplay = (
   segments: TavernMessageSegment[],
   {
@@ -350,33 +257,3 @@ export const formatTavernMessageSegmentsForDisplay = (
     })
     .filter(Boolean)
     .join("\n\n");
-
-export const formatTavernMessageSegmentsForPrompt = (
-  segments: TavernMessageSegment[],
-  {
-    escapeText = (text: string) => text,
-    includeThoughts = false,
-  }: {
-    escapeText?: (text: string) => string;
-    includeThoughts?: boolean;
-  } = {},
-) =>
-  segments
-    .filter((segment) => includeThoughts || segment.type !== "thought")
-    .map((segment) => {
-      const text = escapeText(segment.text);
-      if (segment.type === "dialogue") {
-        return `<dialogue>${text}</dialogue>`;
-      }
-      if (segment.type === "action") {
-        return `<action>${text}</action>`;
-      }
-      if (segment.type === "thought") {
-        return `<thought visibility="${segment.visibility}">${text}</thought>`;
-      }
-      if (segment.type === "narration") {
-        return `<narration>${text}</narration>`;
-      }
-      return `<text>${text}</text>`;
-    })
-    .join("\n");

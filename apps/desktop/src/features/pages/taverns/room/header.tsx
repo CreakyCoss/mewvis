@@ -12,7 +12,7 @@ import {
   isTavernRoomSending,
   useTavernRoomContext,
 } from "@/features/pages/taverns/room/context";
-import { getTavernRoomSceneFields, getTavernRoomSceneTitle, type TavernRoomRuntime } from "./model";
+import { getTavernRoomSceneTitle, type TavernRoomRuntime } from "./model";
 import { createEmptyComposerSubmitPayload } from "./composer";
 import { deleteTavernRoomSessionState } from "./storage";
 import { getTavernAgentFlowErrorMessage, submitTavernAgentFlow } from "./agent-flow/submit";
@@ -29,7 +29,7 @@ const tavernHeaderActionButtonClassName =
   "h-9 shrink-0 gap-1.5 border border-current/15 bg-current/5 px-2.5 text-current hover:border-current/25 hover:bg-current/10 hover:text-current focus-visible:border-current/30 focus-visible:text-current focus-visible:ring-current/20 aria-expanded:bg-current/10 aria-expanded:text-current dark:hover:bg-current/10 dark:hover:text-current";
 
 const getSceneDriveAutoPauseReason = (room: TavernRoomRuntime) => {
-  const hasUserTargetedInteraction = getTavernRoomSceneFields(room).pendingInteractions.some(
+  const hasUserTargetedInteraction = (room.scene.pendingInteractions ?? []).some(
     (interaction) =>
       interaction.status === "open" && interaction.requiresResponse && interaction.target.type === "user",
   );
@@ -63,7 +63,6 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
 
   const isBusy = isTavernRoomBusy(busy);
   const isSending = isTavernRoomSending(busy);
-  const activeSceneFields = activeRoom ? getTavernRoomSceneFields(activeRoom) : null;
   const clearSceneDriveAutoTimer = useCallback(() => {
     if (sceneDriveAutoTimerRef.current !== null) {
       window.clearTimeout(sceneDriveAutoTimerRef.current);
@@ -310,7 +309,7 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
             <div className="flex min-w-0 items-center gap-1.5">
               <h2 className="truncate text-base font-semibold leading-5">{activeRoom.identity.title}</h2>
             </div>
-            <p className="line-clamp-1 text-sm text-muted-foreground">{compactScene(activeSceneFields?.scene ?? "")}</p>
+            <p className="line-clamp-1 text-sm text-muted-foreground">{compactScene(activeRoom.scene.scene ?? "")}</p>
           </div>
         </div>
         <Button

@@ -30,6 +30,3 @@ export const getTavernAgentFlowPublicOutputKey = (
   presentation: TavernAgentFlowPresentation,
 ): Extract<AgentProtocolOutputKey, "publicReply" | "narrative"> =>
   presentation.id === "novel-prose" ? "narrative" : "publicReply";
-
-export const getTavernAgentFlowMessageKind = (presentation: TavernAgentFlowPresentation) =>
-  presentation.id === "novel-prose" ? "narrative_beat" : "character_reply";

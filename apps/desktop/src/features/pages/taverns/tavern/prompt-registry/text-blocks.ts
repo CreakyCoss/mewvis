@@ -241,7 +241,7 @@ const createRuleGroupPromptBlocks = ({
   return blocks;
 };
 
-export const createRuleCompositionPromptBlocks = ({
+const createRuleCompositionPromptBlocks = ({
   compositionId = DEFAULT_TAVERN_RULE_COMPOSITION_ID,
   qualityRuleIds = [],
   order = 300,
@@ -362,31 +362,4 @@ export const normalizeTavernPromptSettings = (
       ? blocks.sort((left, right) => left.order - right.order || left.label.localeCompare(right.label))
       : cloneDeep(fallback.blocks),
   };
-};
-
-export const formatTavernPromptBlocksForTarget = ({
-  prompt,
-  target,
-  publicContentTag,
-}: {
-  prompt?: { blocks: TavernPromptBlock[] } | null;
-  target: TavernPromptBlockTarget;
-  publicContentTag?: string;
-}) => {
-  const blocks = (prompt?.blocks ?? [])
-    .filter((block) => block.enabled && block.target === target && block.text.trim())
-    .sort((left, right) => left.order - right.order || left.label.localeCompare(right.label));
-
-  return blocks
-    .map((block) => {
-      const text = block.text.split("{publicContentTag}").join(publicContentTag ?? "reply");
-      const escapeText = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-      const escapeAttribute = (value: string) => escapeText(value).replace(/"/g, "&quot;");
-      return [
-        `<prompt_block id="${escapeAttribute(block.id)}" label="${escapeAttribute(block.label)}" target="${escapeAttribute(block.target)}">`,
-        escapeText(text),
-        "</prompt_block>",
-      ].join("\n");
-    })
-    .join("\n\n");
 };

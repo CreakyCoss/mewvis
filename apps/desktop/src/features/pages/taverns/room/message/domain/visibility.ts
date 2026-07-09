@@ -85,11 +85,6 @@ const fallbackSpeakerName = (
   return message.characterId ? (characterById.get(message.characterId)?.name ?? "角色") : "角色";
 };
 
-export const stripTavernPrivateThoughts = (text: string) => {
-  const parsed = AgentProtocol.parse(text);
-  return firstText(parsed.data.publicReply, parsed.data.narrative, parsed.unwrappedText, text);
-};
-
 export const normalizeTavernMessageForAudience = ({
   message,
   characters,
@@ -152,16 +147,3 @@ export const normalizeTavernMessageForAudience = ({
     referencedFiles: message.referencedFiles,
   };
 };
-
-export const normalizeTavernMessagesForAudience = (input: {
-  messages: TavernMessage[];
-  characters: TavernCharacter[];
-  userPersonaName: string;
-  audience: TavernMessageAudience;
-}) =>
-  input.messages.map((message) =>
-    normalizeTavernMessageForAudience({
-      ...input,
-      message,
-    }),
-  );

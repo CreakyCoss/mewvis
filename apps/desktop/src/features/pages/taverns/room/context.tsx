@@ -1,7 +1,6 @@
 import {
   getTavernRoomActiveCharacter,
   getTavernRoomCharacters,
-  getTavernRoomSceneFields,
   type TavernRoomRuntime,
   type TavernRoomSessionState,
 } from "@/features/pages/taverns/room/model";
@@ -72,8 +71,7 @@ type TavernRoomDerivedState = {
 
 const deriveTavernRoomState = ({ state }: { state: TavernRoomSessionState }): TavernRoomDerivedState => {
   const activeRoom = state.runtime;
-  const activeSceneFields = activeRoom ? getTavernRoomSceneFields(activeRoom) : null;
-  const visualPreset = getVisualPreset(activeSceneFields?.scenePresetId);
+  const visualPreset = getVisualPreset(activeRoom?.scene.scenePresetId);
   const roomCharacters = activeRoom ? getTavernRoomCharacters(activeRoom) : [];
   const characterById = new Map((activeRoom?.cast.characters ?? []).map((character) => [character.id, character]));
   const roomMessages = activeRoom ? state.messages : [];

@@ -4,7 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { listWorkspaceFiles, type WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import { cn } from "@/lib/utils";
 import { getTavernPresentationProfile } from "@/features/pages/taverns/tavern/prompt-registry/presentation-rules";
-import { getTavernRoomSceneFields, getTavernRoomSceneTitle } from "@/features/pages/taverns/room/model";
+import { getTavernRoomSceneTitle } from "@/features/pages/taverns/room/model";
 import { Composer } from "../composer";
 import { useTavernRoomContext } from "../context";
 import { ExecutionTrace } from "../execution-trace";
@@ -16,8 +16,6 @@ type TavernRoomContentProps = {
   isOpen: boolean;
   isSidePanelOpen: boolean;
 };
-
-const getTavernSceneText = (value: string, fallback: string) => value.trim() || fallback;
 
 export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContentProps) => {
   const workspace = useTavernRoomContext((store) => store.workspace);
@@ -136,23 +134,17 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
     backgroundRepeat: "no-repeat",
     backgroundSize: visualPreset.tavern.backgroundSize,
   } satisfies CSSProperties;
-  const activeSceneFields = getTavernRoomSceneFields(activeRoom);
-  const activeSceneTitle = getTavernRoomSceneTitle(activeRoom);
-  const sceneDescription = getTavernSceneText(activeSceneFields.scene, "这个房间还没有场景描述。");
-  const sceneMechanism = getTavernSceneText(
-    activeSceneFields.scenePlot,
-    getTavernSceneText(activeRoom.story.outline, "剧情会根据角色行动与明确事件推进。"),
-  );
-  const sceneGoal = getTavernSceneText(
-    activeSceneFields.sceneGoal,
-    getTavernSceneText(activeRoom.story.goal, "完成当前场景目标。"),
-  );
-  const sceneEnding = getTavernSceneText(activeSceneFields.sceneTransition, "达成目标或触发关键条件时结算。");
+  const scene = activeRoom.scene;
+  const activeSceneTitle = getTavernRoomSceneTitle(activeRoom, "");
+  const sceneDescription = scene.scene?.trim() ?? "";
+  const sceneMechanism = scene.plot?.trim() || activeRoom.story.outline.trim();
+  const sceneGoal = scene.sceneGoal?.trim() || activeRoom.story.goal.trim();
+  const sceneEnding = scene.transition?.trim() ?? "";
   const sceneBriefLines = Array.from(
     new Set(
       [
         activeRoom.story.outline.trim() || sceneDescription,
-        activeRoom.story.goal.trim() || activeSceneFields.sceneGoal.trim(),
+        activeRoom.story.goal.trim() || scene.sceneGoal.trim(),
       ].filter(Boolean),
     ),
   );
@@ -165,7 +157,7 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
     mechanism: sceneMechanism,
     goal: sceneGoal,
     ending: sceneEnding,
-    footerNote: activeSceneFields.sceneDirection.trim(),
+    footerNote: scene.storyDirection.trim(),
   };
 
   return (
