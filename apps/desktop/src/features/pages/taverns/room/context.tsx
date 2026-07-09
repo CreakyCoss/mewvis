@@ -13,10 +13,6 @@ import { getVisualPreset } from "@/features/pages/taverns/tavern/visual-presets"
 import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets/types";
 import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
-import {
-  buildTavernMessageSegments,
-  inferTavernMessageKind,
-} from "@/features/pages/taverns/room/message/domain/segments";
 import { getCurrentTimestamp } from "@/utils/time";
 import type { ComposerHandle } from "./composer";
 import type { ExecutionStep } from "./execution-trace";
@@ -95,6 +91,7 @@ const deriveTavernRoomState = ({ state }: { state: TavernRoomSessionState }): Ta
 
 type TavernRoomStoreBase = {
   workspace: Workspace;
+  tavernWorkspacePath: string;
   runtimeModel: RuntimeModelOption | null;
   state: TavernRoomSessionState;
   initialRuntime: TavernRoomRuntime | null;
@@ -109,6 +106,7 @@ type TavernRoomStoreBase = {
 type TavernRoomStoreActions = {
   resetRoomStore: (input?: {
     workspace?: Workspace;
+    tavernWorkspacePath?: string;
     runtimeModel?: RuntimeModelOption | null;
     initialRuntime?: TavernRoomRuntime | null;
     initialMessages?: TavernMessage[];
@@ -139,6 +137,7 @@ export type TavernRoomStoreState = TavernRoomStoreBase & TavernRoomStoreActions;
 const createBaseStoreState = (
   input: {
     workspace?: Workspace;
+    tavernWorkspacePath?: string;
     runtimeModel?: RuntimeModelOption | null;
     initialRuntime?: TavernRoomRuntime | null;
     initialMessages?: TavernMessage[];
@@ -149,6 +148,7 @@ const createBaseStoreState = (
 
   return {
     workspace: input.workspace ?? EMPTY_WORKSPACE,
+    tavernWorkspacePath: input.tavernWorkspacePath?.trim() || input.workspace?.path.trim() || "",
     runtimeModel: input.runtimeModel ?? null,
     state,
     initialRuntime,
@@ -168,7 +168,7 @@ export const useTavernRoomContext = create<TavernRoomStoreState>((set) => ({
     set(createBaseStoreState(input));
   },
   setWorkspace: (workspace) => {
-    set({ workspace });
+    set({ workspace, tavernWorkspacePath: workspace.path.trim() });
   },
   setRuntimeModel: (runtimeModel) => {
     set({ runtimeModel });
@@ -295,26 +295,9 @@ export const useTavernRoomContext = create<TavernRoomStoreState>((set) => ({
         }
 
         didPatch = true;
-        const nextMessage = {
+        return {
           ...message,
           ...patch,
-        };
-        const shouldRebuildSegments =
-          !patch.segments &&
-          (patch.content !== undefined ||
-            patch.thought !== undefined ||
-            patch.presentationProfileId !== undefined ||
-            patch.role !== undefined ||
-            patch.characterId !== undefined);
-        return {
-          ...nextMessage,
-          kind:
-            nextMessage.kind ??
-            inferTavernMessageKind({
-              role: nextMessage.role,
-              presentationProfileId: nextMessage.presentationProfileId,
-            }),
-          segments: shouldRebuildSegments ? buildTavernMessageSegments(nextMessage) : nextMessage.segments,
         };
       });
 

@@ -1,4 +1,5 @@
 import type { TavernPresentationProfileId, TavernRoom } from "../manage/model";
+import type { AgentProtocolFormat, AgentProtocolOutputKey } from "@/features/pages/taverns/room/agent-protocol/types";
 
 export type TavernMessageActorRef =
   { type: "user" } | { type: "character"; characterId: string } | { type: "narrator" };
@@ -30,22 +31,30 @@ export type TavernMessageSegment =
       actor?: TavernMessageActorRef;
     };
 
-export type TavernMessageKind = "user_input" | "character_reply" | "narration" | "narrative_beat";
+export type TavernMessageKind = "user_text" | "director_narration" | "character_agent_output";
+
+export type TavernMessageBody =
+  | {
+      type: "text";
+      text: string;
+    }
+  | {
+      type: "agent_output";
+      format: AgentProtocolFormat;
+      rawText: string;
+      output?: AgentProtocolOutputKey[];
+    };
 
 export type TavernMessage = {
   id: string;
   roomId: string;
   turnId?: string;
-  kind?: TavernMessageKind;
+  kind: TavernMessageKind;
   role: "user" | "character" | "narrator";
   characterId?: string;
   presentationProfileId?: TavernPresentationProfileId;
-  content: string;
-  segments?: TavernMessageSegment[];
-  thought?: string;
+  body: TavernMessageBody;
   targetCharacterIds?: string[];
-  respondsToInteractionIds?: string[];
-  generatedInteractionIds?: string[];
   createdAt: number;
   status?: "streaming" | "done" | "error";
   referencedFiles?: Array<{ path: string }>;

@@ -43,5 +43,12 @@ export type TavernRoomOpeningInput = {
     replyMode?: TavernRoomConfig["replyMode"];
     creationSource?: TavernRoomConfig["creationSource"];
   };
-  openingMessages?: Array<Partial<TavernMessage> & Pick<TavernMessage, "role" | "content">>;
+  openingMessages?: Array<{
+    id?: string;
+    role: TavernMessage["role"];
+    characterId?: string;
+    text: string;
+    createdAt?: number;
+    status?: TavernMessage["status"];
+  }>;
 };

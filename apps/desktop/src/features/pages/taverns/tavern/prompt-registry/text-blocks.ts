@@ -13,7 +13,6 @@ import {
   getTavernSystemNarrativePreset,
 } from "./system-narrative-styles";
 import { DEFAULT_TAVERN_PROMPT_STYLE_ID, getTavernPromptStylePreset } from "../presentation/prompt-styles";
-import { formatTavernRoomPromptXml, TAVERN_ROOM_PROMPT_XML_TAGS } from "@/features/pages/taverns/room/prompt-xml";
 import type {
   TavernPresentationProfileId,
   TavernPromptBlock,
@@ -378,19 +377,16 @@ export const formatTavernPromptBlocksForTarget = ({
     .filter((block) => block.enabled && block.target === target && block.text.trim())
     .sort((left, right) => left.order - right.order || left.label.localeCompare(right.label));
 
-  return formatTavernRoomPromptXml(
-    blocks.flatMap((block, index) => [
-      {
-        tag: TAVERN_ROOM_PROMPT_XML_TAGS.promptBlock,
-        attributes: {
-          id: block.id,
-          label: block.label,
-          target: block.target,
-        },
-        text: block.text.split("{publicContentTag}").join(publicContentTag ?? "reply"),
-        emptyText: "",
-      },
-      index < blocks.length - 1 ? { text: "" } : undefined,
-    ]),
-  );
+  return blocks
+    .map((block) => {
+      const text = block.text.split("{publicContentTag}").join(publicContentTag ?? "reply");
+      const escapeText = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const escapeAttribute = (value: string) => escapeText(value).replace(/"/g, "&quot;");
+      return [
+        `<prompt_block id="${escapeAttribute(block.id)}" label="${escapeAttribute(block.label)}" target="${escapeAttribute(block.target)}">`,
+        escapeText(text),
+        "</prompt_block>",
+      ].join("\n");
+    })
+    .join("\n\n");
 };

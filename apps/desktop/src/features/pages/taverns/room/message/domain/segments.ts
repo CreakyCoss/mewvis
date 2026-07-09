@@ -1,5 +1,4 @@
 import { getTavernPresentationProfile } from "@/features/pages/taverns/tavern/prompt-registry/presentation-rules";
-import { getTavernPresentationOutputContract } from "@/features/pages/taverns/room/prompt-xml/presentation-output-contract";
 import type {
   TavernMessage,
   TavernMessageActorRef,
@@ -7,6 +6,7 @@ import type {
   TavernMessageSegment,
 } from "@/features/pages/taverns/tavern/types";
 import type { TavernPresentationProfileId } from "@/features/pages/taverns/manage/model";
+import { getTavernMessageRawText } from "../../model/message-body";
 
 const createActorForMessage = (message: Pick<TavernMessage, "role" | "characterId">): TavernMessageActorRef => {
   if (message.role === "user") {
@@ -20,16 +20,82 @@ const createActorForMessage = (message: Pick<TavernMessage, "role" | "characterI
   return { type: "narrator" };
 };
 
-const isStandaloneActionLine = (line: string) => {
-  const trimmed = line.trim();
-  if (trimmed.length < 3 || trimmed.startsWith("**") || trimmed.startsWith("__")) {
-    return false;
+const actionPrefixPattern = /^\s*(?:动作|行动|神态|表情|姿态|可见动作|肢体动作)\s*[:：]\s*(.+?)\s*$/;
+const actionTagPattern = /^\s*<action(?:\s[^>]*)?>([\s\S]*?)<\/action>\s*$/i;
+
+const stripPairedActionMarkers = (text: string, includeBrackets = false) => {
+  const trimmed = text.trim();
+  const markerPairs = [
+    ["**", "**"],
+    ["__", "__"],
+    ["*", "*"],
+    ["_", "_"],
+    ...(includeBrackets
+      ? ([
+          ["（", "）"],
+          ["(", ")"],
+        ] as const)
+      : []),
+  ] as const;
+
+  for (const [open, close] of markerPairs) {
+    if (trimmed.startsWith(open) && trimmed.endsWith(close) && trimmed.length > open.length + close.length) {
+      return trimmed.slice(open.length, trimmed.length - close.length).trim();
+    }
   }
 
-  return (trimmed.startsWith("*") && trimmed.endsWith("*")) || (trimmed.startsWith("_") && trimmed.endsWith("_"));
+  return trimmed;
 };
 
-const stripActionMarkers = (line: string) => line.trim().slice(1, -1).trim();
+const normalizeActionText = (text: string, includeBrackets = true) => {
+  const trimmed = text.trim();
+  const prefixedText = actionPrefixPattern.exec(trimmed)?.[1]?.trim();
+  return stripPairedActionMarkers(prefixedText || trimmed, includeBrackets);
+};
+
+const stripStandaloneActionMarkers = (text: string) => {
+  const trimmed = text.trim();
+  if (trimmed.startsWith("**") || trimmed.startsWith("__")) {
+    return trimmed;
+  }
+
+  for (const marker of ["*", "_"] as const) {
+    if (trimmed.startsWith(marker) && trimmed.endsWith(marker) && trimmed.length > marker.length * 2) {
+      return trimmed.slice(marker.length, trimmed.length - marker.length).trim();
+    }
+  }
+
+  return trimmed;
+};
+
+const parseStandaloneActionLine = (line: string) => {
+  const trimmed = line.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  const tagText = actionTagPattern.exec(trimmed)?.[1]?.trim();
+  if (tagText) {
+    return normalizeActionText(tagText, true);
+  }
+
+  const prefixedText = actionPrefixPattern.exec(trimmed)?.[1]?.trim();
+  if (prefixedText) {
+    return normalizeActionText(prefixedText, true);
+  }
+
+  if (trimmed.length < 3) {
+    return null;
+  }
+
+  const markedText = stripStandaloneActionMarkers(trimmed);
+  if (markedText !== trimmed) {
+    return markedText;
+  }
+
+  return null;
+};
 
 const mergeAdjacentSegments = (segments: TavernMessageSegment[]): TavernMessageSegment[] => {
   const merged: TavernMessageSegment[] = [];
@@ -78,16 +144,14 @@ const buildDialogueAndActionSegments = ({
   };
 
   for (const line of content.split("\n")) {
-    if (isStandaloneActionLine(line)) {
+    const actionText = parseStandaloneActionLine(line);
+    if (actionText) {
       flushDialogue();
-      const actionText = stripActionMarkers(line);
-      if (actionText) {
-        segments.push({
-          type: "action",
-          actor,
-          text: actionText,
-        });
-      }
+      segments.push({
+        type: "action",
+        actor,
+        text: actionText,
+      });
       continue;
     }
 
@@ -100,38 +164,43 @@ const buildDialogueAndActionSegments = ({
 
 export const inferTavernMessageKind = ({
   role,
-  presentationProfileId,
 }: {
   role: TavernMessage["role"];
   presentationProfileId?: TavernPresentationProfileId;
 }): TavernMessageKind => {
   if (role === "user") {
-    return "user_input";
+    return "user_text";
   }
 
   if (role === "narrator") {
-    return "narration";
+    return "director_narration";
   }
 
-  const profile = getTavernPresentationProfile(presentationProfileId);
-  return getTavernPresentationOutputContract(profile).characterMessageKind;
+  return "character_agent_output";
+};
+
+type TavernMessageSegmentBuildInput = {
+  role: TavernMessage["role"];
+  characterId?: string;
+  content: string;
+  actions?: string[];
+  thought?: string;
+  presentationProfileId?: TavernPresentationProfileId;
 };
 
 export const buildTavernMessageSegments = ({
   role,
   characterId,
   content,
+  actions,
   thought,
   presentationProfileId,
-}: Pick<
-  TavernMessage,
-  "role" | "characterId" | "content" | "thought" | "presentationProfileId"
->): TavernMessageSegment[] => {
+}: TavernMessageSegmentBuildInput): TavernMessageSegment[] => {
   const actor = createActorForMessage({ role, characterId });
   const trimmedContent = content.trim();
   const segments: TavernMessageSegment[] = [];
   const profile = getTavernPresentationProfile(presentationProfileId);
-  const presentationContract = getTavernPresentationOutputContract(profile);
+  const isNarrativeCharacterMessage = role === "character" && presentationProfileId === "novel-prose";
 
   if (trimmedContent) {
     if (role === "narrator") {
@@ -146,7 +215,7 @@ export const buildTavernMessageSegments = ({
         ...(profile.userInputMode === "speech" ? { speaker: actor } : {}),
         text: trimmedContent,
       } as TavernMessageSegment);
-    } else if (presentationContract.characterMessageKind === "narrative_beat") {
+    } else if (isNarrativeCharacterMessage) {
       segments.push({
         type: "narration",
         actor,
@@ -160,6 +229,15 @@ export const buildTavernMessageSegments = ({
         }),
       );
     }
+  }
+
+  const explicitActionTexts = (actions ?? []).map((action) => normalizeActionText(action, true)).filter(Boolean);
+  for (const actionText of explicitActionTexts) {
+    segments.push({
+      type: "action",
+      actor,
+      text: actionText,
+    });
   }
 
   const trimmedThought = thought?.trim();
@@ -241,8 +319,12 @@ export const normalizeTavernMessageSegments = (value: unknown): TavernMessageSeg
 };
 
 export const resolveTavernMessageSegments = (message: TavernMessage): TavernMessageSegment[] => {
-  const normalizedSegments = normalizeTavernMessageSegments(message.segments);
-  return normalizedSegments.length > 0 ? normalizedSegments : buildTavernMessageSegments(message);
+  return buildTavernMessageSegments({
+    role: message.role,
+    characterId: message.characterId,
+    content: getTavernMessageRawText(message),
+    presentationProfileId: message.presentationProfileId,
+  });
 };
 
 export const formatTavernMessageSegmentsForDisplay = (

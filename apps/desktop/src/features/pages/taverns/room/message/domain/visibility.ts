@@ -1,18 +1,10 @@
-import { parseTavernAgentOutputText } from "../protocol/agent-output";
-import { cleanTavernThoughtText } from "../protocol/tavern-cleanup";
-import {
-  getTavernProtocolFieldTagNames,
-  getTavernProtocolVisiblePrivateThoughtTag,
-  TAVERN_PROTOCOL_CONTEXT_WRAPPER_TAGS,
-} from "../protocol/schema";
-import { getTavernPresentationOutputContractForMessageKind } from "@/features/pages/taverns/room/prompt-xml/presentation-output-contract";
-import {
-  buildTavernMessageSegments,
-  formatTavernMessageSegmentsForPrompt,
-  resolveTavernMessageSegments,
-} from "./segments";
-import type { TavernMessage, TavernMessageKind, TavernMessageSegment } from "@/features/pages/taverns/tavern/types";
+import { AgentProtocol } from "@/features/pages/taverns/room/agent-protocol";
+import type { AgentProtocolParseResult } from "@/features/pages/taverns/room/agent-protocol/types";
 import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
+import type { TavernMessage, TavernMessageKind, TavernMessageSegment } from "@/features/pages/taverns/tavern/types";
+import { cleanTavernAgentOutputContent, cleanTavernThoughtText } from "../protocol/tavern-cleanup";
+import { getTavernMessageRawText } from "../../model/message-body";
+import { buildTavernMessageSegments } from "./segments";
 
 export type TavernMessageAudience =
   | { type: "ui"; characterId?: string | null; includeAllThoughts?: boolean }
@@ -24,48 +16,40 @@ export type TavernMessageAudience =
 
 export type TavernVisibleMessage = {
   id: string;
-  kind?: TavernMessageKind;
+  kind: TavernMessageKind;
   role: TavernMessage["role"];
   characterId?: string;
   speakerName: string;
   content: string;
   segments: TavernMessageSegment[];
   thought?: string;
-  unwrappedText?: string;
+  rawText: string;
   createdAt: number;
   status?: TavernMessage["status"];
   referencedFiles?: TavernMessage["referencedFiles"];
 };
 
-const privateThoughtTagNames = getTavernProtocolFieldTagNames("privateThought");
-const replyWrapperTagNames = getTavernProtocolFieldTagNames("publicReply");
-const narrativeBeatWrapperTagNames = getTavernProtocolFieldTagNames("narrativeBeat");
+const firstText = (...values: Array<string | undefined>) => values.find((value) => value?.trim())?.trim() ?? "";
 
-const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const getParsedPublicText = ({
+  message,
+  parsed,
+}: {
+  message: TavernMessage;
+  parsed: AgentProtocolParseResult;
+}) => {
+  if (message.role === "narrator") {
+    return firstText(parsed.data.narrative, parsed.data.publicReply, parsed.unwrappedText);
+  }
 
-const tagNamePattern = (tagNames: readonly string[]) => tagNames.map(escapeRegExp).join("|");
+  if (message.presentationProfileId === "novel-prose") {
+    return firstText(parsed.data.narrative, parsed.data.publicReply, parsed.unwrappedText);
+  }
 
-const stripKnownTagBlocks = (text: string, tagNames: readonly string[]) => {
-  const pattern = tagNamePattern(tagNames);
-  return text.replace(
-    new RegExp(`<\\s*(?:${pattern})(?:\\s+[^>]*)?\\s*>[\\s\\S]*?<\\s*/\\s*(?:${pattern})\\s*>`, "gi"),
-    "",
-  );
+  return firstText(parsed.data.publicReply, parsed.data.narrative, parsed.unwrappedText);
 };
 
-const stripKnownWrapperTags = (text: string, tagNames: readonly string[]) => {
-  const pattern = tagNamePattern(tagNames);
-  return text.replace(new RegExp(`<\\s*/?\\s*(?:${pattern})(?:\\s+[^>]*)?\\s*>`, "gi"), "");
-};
-
-export const stripTavernPrivateThoughts = (text: string) => {
-  const withoutPrivateBlocks = stripKnownTagBlocks(text, privateThoughtTagNames);
-  return stripKnownWrapperTags(withoutPrivateBlocks, [
-    ...TAVERN_PROTOCOL_CONTEXT_WRAPPER_TAGS,
-    ...narrativeBeatWrapperTagNames,
-    ...replyWrapperTagNames,
-  ]).trim();
-};
+const getParsedActionText = (parsed: AgentProtocolParseResult | null) => firstText(parsed?.data.action);
 
 const canAudienceSeeThought = (audience: TavernMessageAudience, characterId?: string) => {
   if (!characterId) {
@@ -101,6 +85,11 @@ const fallbackSpeakerName = (
   return message.characterId ? (characterById.get(message.characterId)?.name ?? "角色") : "角色";
 };
 
+export const stripTavernPrivateThoughts = (text: string) => {
+  const parsed = AgentProtocol.parse(text);
+  return firstText(parsed.data.publicReply, parsed.data.narrative, parsed.unwrappedText, text);
+};
+
 export const normalizeTavernMessageForAudience = ({
   message,
   characters,
@@ -114,39 +103,39 @@ export const normalizeTavernMessageForAudience = ({
 }): TavernVisibleMessage => {
   const characterById = new Map(characters.map((character) => [character.id, character]));
   const speakerName = fallbackSpeakerName(message, characterById, userPersonaName);
-
-  if (message.role !== "character") {
-    const content = stripTavernPrivateThoughts(message.content);
-    return {
-      id: message.id,
-      kind: message.kind,
-      role: message.role,
-      speakerName,
-      content,
-      segments: resolveTavernMessageSegments({
-        ...message,
-        content,
-        thought: undefined,
-      }),
-      createdAt: message.createdAt,
-      status: message.status,
-      referencedFiles: message.referencedFiles,
-    };
-  }
-
+  const rawText = getTavernMessageRawText(message);
+  const parsed = message.body.type === "agent_output" ? AgentProtocol.parse(rawText, message.body.format) : null;
   const character = message.characterId ? characterById.get(message.characterId) : null;
-  const parsed = character
-    ? parseTavernAgentOutputText({
-        text: message.content,
-        activeCharacter: character,
-        characters,
-        userPersonaName,
-        preferredContentKind: message.kind === "narrative_beat" ? "narrative_beat" : "reply",
-      })
-    : null;
-  const content = (parsed?.content || stripTavernPrivateThoughts(message.content)).trim();
-  const thought = cleanTavernThoughtText(message.thought?.trim() || parsed?.thought?.trim() || "");
+  const parsedContent = parsed ? getParsedPublicText({ message, parsed }) : rawText.trim();
+  const parsedAction = message.role === "character" ? getParsedActionText(parsed) : "";
+  const content =
+    parsedContent && message.role === "character" && character
+      ? cleanTavernAgentOutputContent({
+          text: parsedContent,
+          activeCharacter: character,
+          characters,
+          userPersonaName,
+        })
+      : parsedContent;
+  const action =
+    parsedAction && character
+      ? cleanTavernAgentOutputContent({
+          text: parsedAction,
+          activeCharacter: character,
+          characters,
+          userPersonaName,
+        })
+      : parsedAction;
+  const thought = cleanTavernThoughtText(parsed?.data.privateThought ?? "");
   const visibleThought = canAudienceSeeThought(audience, message.characterId) ? thought : "";
+  const segments = buildTavernMessageSegments({
+    role: message.role,
+    characterId: message.characterId,
+    content,
+    actions: action ? [action] : undefined,
+    thought: visibleThought,
+    presentationProfileId: message.presentationProfileId,
+  });
 
   return {
     id: message.id,
@@ -155,15 +144,9 @@ export const normalizeTavernMessageForAudience = ({
     characterId: message.characterId,
     speakerName,
     content,
-    segments: buildTavernMessageSegments({
-      role: message.role,
-      characterId: message.characterId,
-      content,
-      thought: visibleThought,
-      presentationProfileId: message.presentationProfileId,
-    }),
+    segments,
     thought: visibleThought || undefined,
-    unwrappedText: parsed?.unwrappedText,
+    rawText,
     createdAt: message.createdAt,
     status: message.status,
     referencedFiles: message.referencedFiles,
@@ -182,43 +165,3 @@ export const normalizeTavernMessagesForAudience = (input: {
       message,
     }),
   );
-
-const escapePromptXmlText = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-const escapePromptXmlAttribute = (text: string) => escapePromptXmlText(text).replace(/"/g, "&quot;");
-
-export const formatTavernVisibleMessagesForRequestContext = (messages: TavernVisibleMessage[]) =>
-  messages
-    .filter((message) => message.content.trim() || message.thought?.trim() || message.segments.length > 0)
-    .map((message) => {
-      const publicSegments = formatTavernMessageSegmentsForPrompt(message.segments, {
-        escapeText: escapePromptXmlText,
-        includeThoughts: false,
-      });
-      if (message.role === "narrator") {
-        return [
-          '<message role="narrator" speaker="旁白">',
-          publicSegments || escapePromptXmlText(message.content),
-          "</message>",
-        ].join("\n");
-      }
-
-      const publicContentTag = getTavernPresentationOutputContractForMessageKind(message.kind).visibleContentTag;
-      const lines = [
-        `<message role="${message.role}" speaker="${escapePromptXmlAttribute(message.speakerName)}">`,
-        `<${publicContentTag}>`,
-        publicSegments || escapePromptXmlText(message.content),
-        `</${publicContentTag}>`,
-      ];
-      if (message.thought?.trim()) {
-        const privateThoughtTag = getTavernProtocolVisiblePrivateThoughtTag();
-        lines.push(
-          `<${privateThoughtTag} visibility="self_only">`,
-          escapePromptXmlText(message.thought),
-          `</${privateThoughtTag}>`,
-        );
-      }
-      lines.push("</message>");
-      return lines.join("\n");
-    })
-    .join("\n\n");

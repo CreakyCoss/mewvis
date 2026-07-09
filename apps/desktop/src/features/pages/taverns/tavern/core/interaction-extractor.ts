@@ -1,25 +1,21 @@
 import type { TavernMessage } from "../types";
 import type { TavernCharacter, TavernPendingInteraction } from "@/features/pages/taverns/manage/model";
-import { getTavernProtocolFieldTagNames } from "@/features/pages/taverns/room/message/protocol/schema";
+import { AgentProtocol } from "@/features/pages/taverns/room/agent-protocol";
+import { getTavernMessageRawText } from "@/features/pages/taverns/room/model/message-body";
 
 const questionPattern = /[?？]|(?:吗|么|呢|哪|谁|什么|为何|为什么|怎么|如何)(?:[。！？!?」”']|$)/;
 
 const containsQuestion = (text: string) => questionPattern.test(text.trim());
 
-const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const privateThoughtTagPattern = getTavernProtocolFieldTagNames("privateThought").map(escapeRegExp).join("|");
+const trimMessageText = (message: TavernMessage) => {
+  const rawText = getTavernMessageRawText(message);
+  if (message.body.type === "text") {
+    return rawText.trim();
+  }
 
-const trimMessageText = (text: string) =>
-  text
-    .replace(
-      new RegExp(
-        `<\\s*(?:${privateThoughtTagPattern})(?:\\s+[^>]*)?\\s*>[\\s\\S]*?<\\s*/\\s*(?:${privateThoughtTagPattern})\\s*>`,
-        "gi",
-      ),
-      "",
-    )
-    .replace(/<[^>]+>/g, "")
-    .trim();
+  const parsed = AgentProtocol.parse(rawText, message.body.format);
+  return (parsed.data.publicReply || parsed.data.narrative || parsed.unwrappedText || "").trim();
+};
 
 const characterMentions = (text: string, characters: TavernCharacter[], excludedCharacterId?: string) =>
   characters.filter(
@@ -51,7 +47,7 @@ const extractTavernPendingInteractions = ({
     return [];
   }
 
-  const text = trimMessageText(message.content);
+  const text = trimMessageText(message);
   if (!text || !containsQuestion(text)) {
     return [];
   }
@@ -128,7 +124,7 @@ export const extractTavernPendingInteractionsFromMessages = ({
             targetCharacterIds.has(laterMessage.characterId) &&
             laterMessage.status !== "streaming" &&
             laterMessage.status !== "error" &&
-            trimMessageText(laterMessage.content),
+            trimMessageText(laterMessage),
         );
       }
 
@@ -138,7 +134,7 @@ export const extractTavernPendingInteractionsFromMessages = ({
             laterMessage.role === "user" &&
             laterMessage.status !== "streaming" &&
             laterMessage.status !== "error" &&
-            trimMessageText(laterMessage.content),
+            trimMessageText(laterMessage),
         );
       }
 
@@ -148,7 +144,7 @@ export const extractTavernPendingInteractionsFromMessages = ({
             laterMessage.role === "character" &&
             laterMessage.status !== "streaming" &&
             laterMessage.status !== "error" &&
-            trimMessageText(laterMessage.content),
+            trimMessageText(laterMessage),
         );
       }
 

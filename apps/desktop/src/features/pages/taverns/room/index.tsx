@@ -71,6 +71,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       setOpenOptions(options);
       resetRoomStore({
         workspace,
+        tavernWorkspacePath: options.tavernWorkspacePath,
         runtimeModel,
         initialRuntime: initialState.runtime,
         initialMessages: initialState.messages,

@@ -98,11 +98,19 @@ const normalizeTavernRuntimeMessages = (value: unknown): TavernMessage[] | null 
     }
 
     const candidate = message as Partial<TavernMessage>;
+    const body = candidate.body;
+    const hasValidTextBody =
+      body?.type === "text" && typeof body.text === "string";
+    const hasValidAgentOutputBody =
+      body?.type === "agent_output" && body.format === "xml" && typeof body.rawText === "string";
     if (
       typeof candidate.id !== "string" ||
       typeof candidate.roomId !== "string" ||
-      typeof candidate.content !== "string" ||
+      (candidate.kind !== "user_text" &&
+        candidate.kind !== "director_narration" &&
+        candidate.kind !== "character_agent_output") ||
       typeof candidate.createdAt !== "number" ||
+      (!hasValidTextBody && !hasValidAgentOutputBody) ||
       (candidate.role !== "user" && candidate.role !== "character" && candidate.role !== "narrator")
     ) {
       return [];

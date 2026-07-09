@@ -124,7 +124,7 @@ const createInputFromNodeContext = (nodeContext: StoryNodeProjection): TavernRoo
     openingMessages: [
       {
         role: "narrator",
-        content: `已从故事「${nodeContext.background.title}」进入酒馆演绎。`,
+        text: `已从故事「${nodeContext.background.title}」进入酒馆演绎。`,
       },
     ],
   };

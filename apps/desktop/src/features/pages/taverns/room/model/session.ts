@@ -1,9 +1,12 @@
 import { uniq } from "lodash-es";
 import type { VisualPresetId } from "@/features/pages/taverns/tavern/visual-presets/types";
-import { materializeTavernMessage } from "@/features/pages/taverns/room/message/domain/factory";
 import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
 import { createTimestampId } from "@/utils/ids";
 import { getCurrentTimestamp } from "@/utils/time";
+import {
+  createTavernAgentOutputFieldMessageBody,
+  createTavernTextMessageBody,
+} from "@/features/pages/taverns/room/model/message-body";
 import type {
   TavernCharacter,
   TavernLorebookEntry,
@@ -387,11 +390,18 @@ const createOpeningMessage = ({
   room,
   createdAt,
 }: {
-  input: Partial<TavernMessage> & Pick<TavernMessage, "role" | "content">;
+  input: {
+    id?: string;
+    role: TavernMessage["role"];
+    characterId?: string;
+    text: string;
+    createdAt?: number;
+    status?: TavernMessage["status"];
+  };
   room: TavernRoomRuntime;
   createdAt: number;
 }): TavernMessage | null => {
-  const content = trimText(input.content);
+  const content = trimText(input.text);
   if (!content) {
     return null;
   }
@@ -402,31 +412,43 @@ const createOpeningMessage = ({
       return null;
     }
 
-    return materializeTavernMessage(
-      {
-        id: trimText(input.id) || createTimestampId("message"),
-        roomId: room.identity.id,
-        role: "character",
-        characterId,
-        content,
-        createdAt: numberOrDefault(input.createdAt, createdAt),
-        status: input.status === "error" ? "error" : "done",
-      },
-      room.presentation.profile.profileId,
-    );
-  }
+    const publicField = room.presentation.profile.profileId === "novel-prose" ? "narrative" : "publicReply";
 
-  return materializeTavernMessage(
-    {
+    return {
       id: trimText(input.id) || createTimestampId("message"),
       roomId: room.identity.id,
-      role: input.role === "user" ? "user" : "narrator",
-      content,
+      kind: "character_agent_output",
+      role: "character",
+      characterId,
+      presentationProfileId: room.presentation.profile.profileId,
+      body: createTavernAgentOutputFieldMessageBody({
+        field: publicField,
+        text: content,
+      }),
       createdAt: numberOrDefault(input.createdAt, createdAt),
       status: input.status === "error" ? "error" : "done",
-    },
-    room.presentation.profile.profileId,
-  );
+    };
+  }
+
+  const role = input.role === "user" ? "user" : "narrator";
+  const body =
+    role === "user"
+      ? createTavernTextMessageBody(content)
+      : createTavernAgentOutputFieldMessageBody({
+          field: "narrative",
+          text: content,
+        });
+
+  return {
+    id: trimText(input.id) || createTimestampId("message"),
+    roomId: room.identity.id,
+    kind: role === "user" ? "user_text" : "director_narration",
+    role,
+    presentationProfileId: room.presentation.profile.profileId,
+    body,
+    createdAt: numberOrDefault(input.createdAt, createdAt),
+    status: input.status === "error" ? "error" : "done",
+  };
 };
 
 const createRuntimeFromOpeningInput = ({
@@ -553,7 +575,16 @@ export const createTavernRoomSessionState = ({
     createdAt,
   });
   const messages = (openingInput.openingMessages ?? [])
-    .map((message) => createOpeningMessage({ input: message, room, createdAt }))
+    .map((message) =>
+      createOpeningMessage({
+        input: {
+          ...message,
+          text: message.text,
+        },
+        room,
+        createdAt,
+      }),
+    )
     .filter((message): message is TavernMessage => Boolean(message));
 
   return {
@@ -562,18 +593,19 @@ export const createTavernRoomSessionState = ({
       messages.length > 0
         ? messages
         : [
-            materializeTavernMessage(
-              {
-                id: createTimestampId("message"),
-                roomId: room.identity.id,
-                role: "narrator",
-                presentationProfileId: room.presentation.profile.profileId,
-                content: "故事演绎已经准备好。",
-                createdAt,
-                status: "done",
-              },
-              room.presentation.profile.profileId,
-            ),
+            {
+              id: createTimestampId("message"),
+              roomId: room.identity.id,
+              kind: "director_narration",
+              role: "narrator",
+              presentationProfileId: room.presentation.profile.profileId,
+              body: createTavernAgentOutputFieldMessageBody({
+                field: "narrative",
+                text: "故事演绎已经准备好。",
+              }),
+              createdAt,
+              status: "done",
+            },
           ],
   };
 };

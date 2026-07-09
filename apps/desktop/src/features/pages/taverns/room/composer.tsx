@@ -24,8 +24,7 @@ import {
   useTavernRoomContext,
 } from "@/features/pages/taverns/room/context";
 import { getTavernRoomSceneFields } from "./model";
-import { submitRoomTurn } from "./turn/submit";
-import { getErrorMessage } from "./turn/submit-flow/shared";
+import { getTavernAgentFlowErrorMessage, submitTavernAgentFlow } from "./agent-flow/submit";
 
 const REFERENCE_SUGGESTION_LIMIT = 8;
 
@@ -68,6 +67,7 @@ export const Composer = ({ bind, files }: ComposerProps) => {
   const setError = useTavernRoomContext((store) => store.setError);
   const visualPreset = useTavernRoomContext((store) => store.visualPreset);
   const workspace = useTavernRoomContext((store) => store.workspace);
+  const tavernWorkspacePath = useTavernRoomContext((store) => store.tavernWorkspacePath);
   const [draft, setDraft] = useState("");
   const [draftCursor, setDraftCursor] = useState(0);
   const [replyOptions, setReplyOptions] = useState<TavernReplyOption[]>([]);
@@ -75,10 +75,7 @@ export const Composer = ({ bind, files }: ComposerProps) => {
   const isSending = isTavernRoomSending(busy);
   const isBusy = isTavernRoomBusy(busy);
   const presentationProfile = getTavernPresentationProfile(activeRoom?.presentation.profile?.profileId);
-  const placeholder =
-    presentationProfile.userInputMode !== "speech"
-      ? presentationProfile.composerPlaceholder
-      : "写给导演的方向，或留空点自推...";
+  const placeholder = presentationProfile.composerPlaceholder;
   const canSubmit = Boolean(draft.trim());
   const selectableFiles = useMemo(() => files.filter((file) => !file.isDirectory), [files]);
   const activeReferenceToken = useMemo(() => getActiveReferenceToken(draft, draftCursor), [draft, draftCursor]);
@@ -124,10 +121,11 @@ export const Composer = ({ bind, files }: ComposerProps) => {
   }, []);
 
   const readReferencedFiles = useCallback(async (): Promise<TavernReferencedFile[]> => {
+    const workspacePath = tavernWorkspacePath.trim() || workspace.path.trim();
     const resources = await loadContextResources({
       references: referencedFilePreviews.map((file) => ({ path: file.path })),
       loadFile: async ({ path }) => {
-        const workspaceFile = await readWorkspaceFile(workspace.path, path);
+        const workspaceFile = await readWorkspaceFile(workspacePath, path);
         return {
           path: workspaceFile.path,
           content: workspaceFile.content,
@@ -139,7 +137,7 @@ export const Composer = ({ bind, files }: ComposerProps) => {
       path: file.path,
       content: file.content,
     }));
-  }, [referencedFilePreviews, workspace.path]);
+  }, [referencedFilePreviews, tavernWorkspacePath, workspace.path]);
 
   const createSubmitPayload = useCallback(
     (
@@ -192,7 +190,7 @@ export const Composer = ({ bind, files }: ComposerProps) => {
   const submitPayload = useCallback(
     async (payload: ComposerSubmitPayload) => {
       try {
-        await submitRoomTurn({
+        await submitTavernAgentFlow({
           submittedText: payload.text,
           selectedReplyOption: payload.selectedReplyOption,
           ambiguousFileReferences: payload.ambiguousFileReferences,
@@ -206,7 +204,7 @@ export const Composer = ({ bind, files }: ComposerProps) => {
         });
       } catch (submitError) {
         console.error("Failed to submit tavern room turn", submitError);
-        setError(`酒馆回应失败：${getErrorMessage(submitError)}`);
+        setError(`酒馆回应失败：${getTavernAgentFlowErrorMessage(submitError)}`);
         setBusy(createIdleTavernRoomBusyState());
       }
     },

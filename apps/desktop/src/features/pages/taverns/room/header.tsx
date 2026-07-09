@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { WindowDragRegion } from "@/components/window-drag-region";
 import { cn } from "@/lib/utils";
 import { compactScene } from "@/features/pages/taverns/tavern/utils";
-import { deleteTavernBridgeSession } from "@/features/pages/taverns/room/turn/session/bridge-session";
+import { deleteTavernAgentFlowSession } from "@/features/pages/taverns/room/agent-flow/session";
 import {
   createIdleTavernRoomBusyState,
   isTavernRoomBusy,
@@ -15,8 +15,7 @@ import {
 import { getTavernRoomSceneFields, getTavernRoomSceneTitle, type TavernRoomRuntime } from "./model";
 import { createEmptyComposerSubmitPayload } from "./composer";
 import { deleteTavernRoomSessionState } from "./storage";
-import { submitRoomTurn } from "./turn/submit";
-import { getErrorMessage } from "./turn/submit-flow/shared";
+import { getTavernAgentFlowErrorMessage, submitTavernAgentFlow } from "./agent-flow/submit";
 
 type HeaderProps = {
   isSidePanelOpen: boolean;
@@ -43,6 +42,7 @@ const getSceneDriveAutoPauseReason = (room: TavernRoomRuntime) => {
 
 export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderProps) => {
   const workspace = useTavernRoomContext((store) => store.workspace);
+  const tavernWorkspacePath = useTavernRoomContext((store) => store.tavernWorkspacePath);
   const activeRoom = useTavernRoomContext((store) => store.activeRoom);
   const runtime = useTavernRoomContext((store) => store.state.runtime);
   const initialRuntime = useTavernRoomContext((store) => store.initialRuntime);
@@ -76,7 +76,7 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
     const payload = composerHandle?.getSubmitPayload() ?? createEmptyComposerSubmitPayload();
 
     try {
-      await submitRoomTurn({
+      await submitTavernAgentFlow({
         submittedText: undefined,
         selectedReplyOption: payload.selectedReplyOption,
         trigger: { type: "scene_drive", directive: payload.text },
@@ -91,7 +91,7 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
       });
     } catch (submitError) {
       console.error("Failed to submit tavern room turn", submitError);
-      setError(`酒馆回应失败：${getErrorMessage(submitError)}`);
+      setError(`酒馆回应失败：${getTavernAgentFlowErrorMessage(submitError)}`);
       setBusy(createIdleTavernRoomBusyState());
     }
   }, [setBusy, setError]);
@@ -113,6 +113,13 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
       return;
     }
 
+    const sessionWorkspacePath = tavernWorkspacePath.trim() || workspace.path.trim();
+    if (!sessionWorkspacePath) {
+      setError("酒馆会话路径为空，请重新打开当前酒馆房间。");
+      toast.error("清空当前节点失败");
+      return;
+    }
+
     const sceneTitle = getTavernRoomSceneTitle(activeRoom, "当前场景");
     const confirmed = window.confirm(
       `清空当前节点「${sceneTitle}」的酒馆运行数据？下次会按故事页传入的最新数据重新初始化。`,
@@ -123,9 +130,9 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
 
     if (runtime) {
       try {
-        await deleteTavernBridgeSession({ workspacePath: workspace.path, room: runtime });
+        await deleteTavernAgentFlowSession({ workspacePath: sessionWorkspacePath, room: runtime });
       } catch (deleteError) {
-        const message = getErrorMessage(deleteError);
+        const message = getTavernAgentFlowErrorMessage(deleteError);
         setError(`无法清理当前节点底层会话：${message}`);
         toast.error("清空当前节点失败");
         return;
@@ -133,9 +140,9 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
     }
 
     try {
-      await deleteTavernRoomSessionState(workspace.path);
+      await deleteTavernRoomSessionState(sessionWorkspacePath);
     } catch (deleteError) {
-      const message = getErrorMessage(deleteError);
+      const message = getTavernAgentFlowErrorMessage(deleteError);
       setError(`无法清理当前节点运行文件：${message}`);
       toast.error("清空当前节点失败");
       return;
@@ -165,6 +172,7 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
     setError,
     setExecutionTraceAnchorMessageId,
     setRoomState,
+    tavernWorkspacePath,
     workspace.path,
   ]);
 

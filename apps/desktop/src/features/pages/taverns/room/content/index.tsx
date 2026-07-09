@@ -21,6 +21,7 @@ const getTavernSceneText = (value: string, fallback: string) => value.trim() || 
 
 export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContentProps) => {
   const workspace = useTavernRoomContext((store) => store.workspace);
+  const tavernWorkspacePath = useTavernRoomContext((store) => store.tavernWorkspacePath);
   const activeRoom = useTavernRoomContext((store) => store.activeRoom);
   const visualPreset = useTavernRoomContext((store) => store.visualPreset);
   const roomCharacters = useTavernRoomContext((store) => store.roomCharacters);
@@ -34,14 +35,15 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
   const messageEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!workspace.path) {
+    const workspacePath = tavernWorkspacePath.trim() || workspace.path.trim();
+    if (!workspacePath) {
       setFiles([]);
       return;
     }
 
     let isCancelled = false;
 
-    void listWorkspaceFiles(workspace.path)
+    void listWorkspaceFiles(workspacePath)
       .then((nextFiles) => {
         if (!isCancelled) {
           setFiles(nextFiles);
@@ -56,7 +58,7 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
     return () => {
       isCancelled = true;
     };
-  }, [workspace.path]);
+  }, [tavernWorkspacePath, workspace.path]);
 
   const renderableRoomMessages = useMemo(
     () =>
