@@ -1,4 +1,4 @@
-import type { AgentProtocolParseResult, AgentProtocolPrepared } from "../../types";
+import type { AgentProtocolParseResult } from "../../types";
 import type { AgentProtocolCodec, AgentProtocolCodecRenderInput } from "../registry";
 import { parseXmlOutput } from "./parse";
 import { renderXmlPrompt } from "./render";
@@ -10,8 +10,8 @@ class XmlAgentProtocolCodec implements AgentProtocolCodec {
     return renderXmlPrompt(input);
   }
 
-  parseOutput(text: string, prepared: AgentProtocolPrepared): AgentProtocolParseResult {
-    return parseXmlOutput(text, prepared);
+  parseOutput(text: string): AgentProtocolParseResult {
+    return parseXmlOutput(text);
   }
 }
 

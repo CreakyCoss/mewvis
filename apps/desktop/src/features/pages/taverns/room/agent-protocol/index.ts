@@ -2,6 +2,7 @@ import { uniq } from "lodash-es";
 import { getAgentProtocolCodec } from "./codecs/registry";
 import { AGENT_PROTOCOL_OUTPUT_FIELDS } from "./fields";
 import type {
+  AgentProtocolFormat,
   AgentProtocolOptions,
   AgentProtocolOutputKey,
   AgentProtocolParseResult,
@@ -11,15 +12,15 @@ import type {
 
 export type AgentProtocol = {
   prepare(request: AgentProtocolRequest): AgentProtocolPrepared;
-  parse(text: string, prepared: AgentProtocolPrepared): AgentProtocolParseResult;
+  parse(text: string, format?: AgentProtocolFormat): AgentProtocolParseResult;
 };
 
 export const AgentProtocol: AgentProtocol = {
   prepare(request: AgentProtocolRequest): AgentProtocolPrepared {
     return prepare(request);
   },
-  parse(text: string, prepared: AgentProtocolPrepared): AgentProtocolParseResult {
-    return getAgentProtocolCodec(prepared.format).parseOutput(text, prepared);
+  parse(text: string, format: AgentProtocolFormat = "xml"): AgentProtocolParseResult {
+    return getAgentProtocolCodec(format).parseOutput(text);
   },
 } as const;
 
@@ -30,9 +31,6 @@ const prepare = (request: AgentProtocolRequest): AgentProtocolPrepared => {
   const output: AgentProtocolOutputKey[] = requestedOutput.length > 0 ? requestedOutput : ["publicReply"];
   const options: Required<AgentProtocolOptions> = {
     format: "xml",
-    strict: false,
-    allowPartial: false,
-    recoverUnwrappedText: true,
     ...request.options,
   };
   const codec = getAgentProtocolCodec(options.format);

@@ -53,9 +53,6 @@ export type AgentProtocolReference = {
 
 export type AgentProtocolOptions = {
   format?: AgentProtocolFormat;
-  strict?: boolean;
-  allowPartial?: boolean;
-  recoverUnwrappedText?: boolean;
 };
 
 export type AgentProtocolRequest = {
@@ -77,13 +74,10 @@ export type AgentProtocolPrepared = {
 };
 
 export type AgentProtocolIssueCode =
-  | "missing_output"
   | "empty_output"
   | "duplicate_output_dropped"
-  | "unknown_output_dropped"
-  | "outside_text_dropped"
   | "malformed_output_recovered"
-  | "unwrapped_text_recovered";
+  | "unwrapped_text_captured";
 
 export type AgentProtocolIssue = {
   code: AgentProtocolIssueCode;
@@ -96,7 +90,7 @@ export type AgentProtocolIssue = {
 export type AgentProtocolParseResult = {
   ok: boolean;
   data: Partial<Record<AgentProtocolOutputKey, string>>;
+  unwrappedText?: string;
   normalizedText: string;
   issues: AgentProtocolIssue[];
-  missing: AgentProtocolOutputKey[];
 };

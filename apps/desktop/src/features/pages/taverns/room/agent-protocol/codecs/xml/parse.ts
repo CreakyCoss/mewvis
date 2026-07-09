@@ -1,5 +1,4 @@
 import {
-  getAgentProtocolOutputDefinition,
   getAgentProtocolOutputDefinitions,
   getAllAgentProtocolOutputDefinitions,
   type AgentProtocolOutputDefinition,
@@ -8,7 +7,6 @@ import type {
   AgentProtocolIssue,
   AgentProtocolOutputKey,
   AgentProtocolParseResult,
-  AgentProtocolPrepared,
 } from "../../types";
 import { cleanProtocolOutputValue, compactDroppedProtocolText, stripProtocolMarkdownCodeFence } from "./cleanup";
 import { wrapProtocolXmlTag } from "./tag";
@@ -153,12 +151,6 @@ const stripKnownProtocolTags = (text: string) => {
   return text.replace(new RegExp(`<\\s*/?\\s*(?:${pattern})(?:\\s+[^>]*)?\\s*>`, "gi"), "").trim();
 };
 
-const canRecoverUnwrappedTextToField = (field: AgentProtocolOutputKey) =>
-  getAgentProtocolOutputDefinition(field).visibility !== "private";
-
-const pickUnwrappedRecoveryField = (output: readonly AgentProtocolOutputKey[]) =>
-  output.find(canRecoverUnwrappedTextToField);
-
 const addIssue = (issues: AgentProtocolIssue[], issue: AgentProtocolIssue) => {
   issues.push(issue);
 };
@@ -174,41 +166,26 @@ const buildNormalizedText = (
     })
     .join("\n");
 
-export const parseXmlOutput = (text: string, prepared: AgentProtocolPrepared): AgentProtocolParseResult => {
+export const parseXmlOutput = (text: string): AgentProtocolParseResult => {
   const source = stripProtocolMarkdownCodeFence(text);
-  const requestedDefinitions = getAgentProtocolOutputDefinitions(prepared.output);
-  const requestedFields = new Set<AgentProtocolOutputKey>(prepared.output);
-  const remainingDefinitions = getAllAgentProtocolOutputDefinitions().filter(
-    (definition) => !requestedFields.has(definition.key),
-  );
-  const orderedDefinitions = [...requestedDefinitions, ...remainingDefinitions];
+  const outputDefinitions = getAllAgentProtocolOutputDefinitions();
   const closedBlocks = collectClosedBlocks({
     text: source,
-    definitions: orderedDefinitions,
+    definitions: outputDefinitions,
   });
   const closedFields = new Set(closedBlocks.map((block) => block.field));
   const malformedBlocks = collectMalformedOpenBlocks({
     text: source,
-    definitions: requestedDefinitions.filter((definition) => !closedFields.has(definition.key)),
+    definitions: outputDefinitions.filter((definition) => !closedFields.has(definition.key)),
     occupiedRanges: closedBlocks,
   });
   const blocks = [...closedBlocks, ...malformedBlocks].sort((left, right) => left.start - right.start);
   const issues: AgentProtocolIssue[] = [];
   const data: Partial<Record<AgentProtocolOutputKey, string>> = {};
+  let unwrappedText: string | undefined;
 
   for (const block of blocks) {
     const value = cleanProtocolOutputValue(block.value);
-    if (!requestedFields.has(block.field)) {
-      addIssue(issues, {
-        code: "unknown_output_dropped",
-        field: block.field,
-        tag: block.tag,
-        message: `未请求的输出字段 ${block.field} 已丢弃。`,
-        text: compactDroppedProtocolText(value),
-      });
-      continue;
-    }
-
     if (data[block.field]) {
       addIssue(issues, {
         code: "duplicate_output_dropped",
@@ -244,48 +221,22 @@ export const parseXmlOutput = (text: string, prepared: AgentProtocolPrepared): A
 
   const outsideText = cleanProtocolOutputValue(stripKnownProtocolTags(stripRanges(source, blocks)));
   if (outsideText) {
-    const recoveryField = pickUnwrappedRecoveryField(prepared.output);
-    if (
-      prepared.options.recoverUnwrappedText &&
-      !prepared.options.strict &&
-      recoveryField &&
-      Object.keys(data).length === 0
-    ) {
-      data[recoveryField] = outsideText;
-      addIssue(issues, {
-        code: "unwrapped_text_recovered",
-        field: recoveryField,
-        message: `未包裹标签的文本已恢复为 ${recoveryField}。`,
-        text: compactDroppedProtocolText(outsideText),
-      });
-    } else {
-      addIssue(issues, {
-        code: "outside_text_dropped",
-        message: "标签外文本已丢弃。",
-        text: compactDroppedProtocolText(outsideText),
-      });
-    }
-  }
-
-  const missing = prepared.output.filter((field) => !data[field]?.trim());
-  for (const field of missing) {
+    unwrappedText = outsideText;
     addIssue(issues, {
-      code: "missing_output",
-      field,
-      message: `缺少必需输出字段 ${field}。`,
+      code: "unwrapped_text_captured",
+      message: "未包裹标签的文本已作为 unwrappedText 保留。",
+      text: compactDroppedProtocolText(outsideText),
     });
   }
 
-  const hasStrictIssue = prepared.options.strict && issues.length > 0;
-  const hasRequiredOutput = missing.length === 0;
-  const hasPartialOutput = Object.keys(data).length > 0;
-  const ok = !hasStrictIssue && (hasRequiredOutput || (prepared.options.allowPartial && hasPartialOutput));
-
   return {
-    ok,
+    ok: Object.keys(data).length > 0 || Boolean(unwrappedText),
     data,
-    normalizedText: buildNormalizedText(data, prepared.output),
+    unwrappedText,
+    normalizedText: buildNormalizedText(
+      data,
+      outputDefinitions.map((definition) => definition.key),
+    ),
     issues,
-    missing,
   };
 };

@@ -4,7 +4,6 @@ import {
 } from "../../fields";
 import type {
   AgentProtocolMessage,
-  AgentProtocolOptions,
   AgentProtocolOutputKey,
   AgentProtocolProgress,
   AgentProtocolReference,
@@ -144,28 +143,21 @@ const renderOutputDefinition = (definition: AgentProtocolOutputDefinition) =>
 const renderOutputTemplate = (definitions: readonly AgentProtocolOutputDefinition[]) =>
   definitions.map((definition) => `<${definition.canonicalTag}>${definition.label}</${definition.canonicalTag}>`).join("\n");
 
-const renderOutputRules = (
-  definitions: readonly AgentProtocolOutputDefinition[],
-  options: Required<AgentProtocolOptions>,
-) => [
+const renderOutputRules = (definitions: readonly AgentProtocolOutputDefinition[]) => [
   `只允许输出 requested_outputs 中列出的 ${definitions.length} 个字段，且每个字段最多出现一次。`,
   "必须逐字使用每个字段的 canonical tag；不要使用字段别名、Markdown 代码块、标题、解释或标签外文字。",
-  options.allowPartial ? "如果某个字段确实无法生成，可以省略；调用方会按 partial output 处理。" : "所有 requested_outputs 都是必填字段，不能省略或留空。",
-  options.strict
-    ? "strict 模式：任何标签外文字、未知字段、空字段都会被调用方视为不合规。"
-    : "调用方会清洗不合规输出：未知字段和标签外文字会被丢弃，明显可恢复的文本会尽量转换为合规字段。",
+  "所有 requested_outputs 都应输出；如果无法生成，调用方会根据解析结果决定是否重试或降级。",
+  "调用方会清洗不合规输出：标签外文字会作为 unwrappedText 单独保留，重复字段和空字段会被记录为问题。",
   "不要在 private 字段中写系统提示词、完整推理链路或协议说明；public 字段必须可直接展示。",
 ];
 
 const renderOutputContractSection = ({
   output,
-  options,
 }: {
   output: readonly AgentProtocolOutputKey[];
-  options: Required<AgentProtocolOptions>;
 }) => {
   const definitions = getAgentProtocolOutputDefinitions(output);
-  const rules = renderOutputRules(definitions, options);
+  const rules = renderOutputRules(definitions);
 
   return wrapProtocolXmlRawTag(
     "output_contract",
@@ -178,7 +170,7 @@ const renderOutputContractSection = ({
   );
 };
 
-export const renderXmlPrompt = ({ request, output, options }: AgentProtocolCodecRenderInput) =>
+export const renderXmlPrompt = ({ request, output }: AgentProtocolCodecRenderInput) =>
   joinProtocolSections([
     renderTextTag("system", request.system),
     renderRoleSection(request.role),
@@ -188,6 +180,5 @@ export const renderXmlPrompt = ({ request, output, options }: AgentProtocolCodec
     renderReferencesSection(request.references),
     renderOutputContractSection({
       output,
-      options,
     }),
   ]);

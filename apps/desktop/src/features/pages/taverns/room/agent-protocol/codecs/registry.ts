@@ -3,7 +3,6 @@ import type {
   AgentProtocolOptions,
   AgentProtocolOutputKey,
   AgentProtocolParseResult,
-  AgentProtocolPrepared,
   AgentProtocolRequest,
 } from "../types";
 import { xmlAgentProtocolCodec } from "./xml/index";
@@ -17,7 +16,7 @@ export type AgentProtocolCodecRenderInput = {
 export type AgentProtocolCodec = {
   id: AgentProtocolFormat;
   renderPrompt(input: AgentProtocolCodecRenderInput): string;
-  parseOutput(text: string, prepared: AgentProtocolPrepared): AgentProtocolParseResult;
+  parseOutput(text: string): AgentProtocolParseResult;
 };
 
 const agentProtocolCodecs = {
