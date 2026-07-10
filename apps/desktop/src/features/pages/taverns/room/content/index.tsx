@@ -8,9 +8,8 @@ import { getTavernRoomSceneTitle } from "@/features/pages/taverns/room/model";
 import { Composer } from "../composer";
 import { isTavernRoomSending, useTavernRoomContext } from "../context";
 import { ExecutionTrace } from "../execution-trace";
-import { createRenderableMessages } from "../message/domain/render-model";
-import type { MessageCharacterProfile, MessageRenderInput } from "../message/domain/types";
-import { resolveConversationRenderer } from "../message/renderers";
+import { Message } from "../message";
+import type { MessageCharacterProfile, MessageRenderInput } from "../message/types";
 import { SceneBriefCard } from "../scene-brief-card";
 
 type TavernRoomContentProps = {
@@ -98,7 +97,7 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
         };
       });
 
-      return createRenderableMessages({
+      return Message.normalize({
         messages,
         characterProfiles,
         userName: activeRoom.user.personaName,
@@ -108,7 +107,7 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
   );
   const latestMessage = renderableRoomMessages[renderableRoomMessages.length - 1] ?? null;
   const presentationProfile = getTavernPresentationProfile(activeRoom?.presentation.profile?.profileId);
-  const conversationRenderer = resolveConversationRenderer(presentationProfile.renderStyle);
+  const conversationRenderer = Message.resolveRenderer(presentationProfile.renderStyle);
   const Conversation = conversationRenderer.Conversation;
   const executionTraceStatusText = busy.kind === "sending" ? busy.status : "";
   const isSending = isTavernRoomSending(busy);

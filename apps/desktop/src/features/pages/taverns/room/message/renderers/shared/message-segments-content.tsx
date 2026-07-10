@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { MessageSegment } from "../domain/types";
+import type { MessageSegment } from "../../types";
 
 type MessageSegmentsContentProps = {
   segments: MessageSegment[];

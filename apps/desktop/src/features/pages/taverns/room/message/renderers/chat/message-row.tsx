@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import type { RenderableMessage, MessageRole, MessageVisualStyle } from "../domain/types";
+import type { MessageRole, MessageVisualStyle, RenderableMessage } from "../../types";
 import { CharacterMessage } from "./character-message";
 import { NarratorMessage } from "./narrator-message";
 import { UserMessage } from "./user-message";
@@ -20,11 +20,7 @@ type MessageRoleRendererContext = {
 
 const messageRoleRenderers: Record<MessageRole, (context: MessageRoleRendererContext) => ReactElement> = {
   narrator: ({ message, visualStyle }) => (
-    <NarratorMessage
-      content={message.content}
-      isStreaming={message.status === "streaming"}
-      visualStyle={visualStyle}
-    />
+    <NarratorMessage content={message.content} isStreaming={message.status === "streaming"} visualStyle={visualStyle} />
   ),
   user: ({ isSending, message, visualStyle }) => (
     <UserMessage

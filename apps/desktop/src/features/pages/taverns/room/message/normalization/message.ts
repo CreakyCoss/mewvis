@@ -1,16 +1,14 @@
 import { AgentProtocol } from "@/features/pages/taverns/room/agent-protocol";
 import type { AgentProtocolParseResult } from "@/features/pages/taverns/room/agent-protocol/types";
-import { cleanAgentOutputContent, cleanThoughtText } from "../protocol/cleanup";
+import type {
+  MessageAudience,
+  MessageCharacterProfile,
+  MessageRenderInput,
+  MessageSegment,
+  RenderableMessage,
+} from "../types";
+import { cleanAgentOutputContent, cleanThoughtText } from "./cleanup";
 import { buildMessageSegments } from "./segments";
-import type { MessageCharacterProfile, MessageRenderInput, MessageSegment, RenderableMessage } from "./types";
-
-export type MessageAudience =
-  | { type: "ui"; characterId?: string | null; includeAllThoughts?: boolean }
-  | { type: "public" }
-  | { type: "character"; characterId: string }
-  | { type: "director"; includeThoughts?: boolean }
-  | { type: "user_proxy" }
-  | { type: "archivist" };
 
 const firstText = (...values: Array<string | undefined>) => values.find((value) => value?.trim())?.trim() ?? "";
 

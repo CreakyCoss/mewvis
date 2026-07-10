@@ -1,7 +1,5 @@
-import type {
-  AgentProtocolFormat,
-  AgentProtocolOutputKey,
-} from "@/features/pages/taverns/room/agent-protocol/types";
+import type { ReactNode, RefObject } from "react";
+import type { AgentProtocolFormat, AgentProtocolOutputKey } from "@/features/pages/taverns/room/agent-protocol/types";
 
 export type MessageRole = "user" | "character" | "narrator";
 
@@ -28,6 +26,21 @@ export type MessageBody =
 export type MessagePresentationConfig = {
   profileId?: string;
   userInputMode?: string;
+};
+
+export type MessageAudience =
+  | { type: "ui"; characterId?: string | null; includeAllThoughts?: boolean }
+  | { type: "public" }
+  | { type: "character"; characterId: string }
+  | { type: "director"; includeThoughts?: boolean }
+  | { type: "user_proxy" }
+  | { type: "archivist" };
+
+export type MessageNormalizationRequest = {
+  messages: MessageRenderInput[];
+  characterProfiles: MessageCharacterProfile[];
+  userName: string;
+  audience?: MessageAudience;
 };
 
 type BaseMessageRenderInput = {
@@ -109,4 +122,22 @@ export type RenderableMessage = {
   createdAt: number;
   status?: MessageStatus;
   referencedFiles?: MessageReferencedFile[];
+};
+
+export type ConversationRendererProps = {
+  messages: RenderableMessage[];
+  immersiveDescriptionEnabled: boolean;
+  isSending: boolean;
+  visualStyle: MessageVisualStyle;
+  shouldShowExecutionTrace: boolean;
+  executionTraceAnchorMessageId: string;
+  hasExecutionTraceAnchor: boolean;
+  isSidePanelOpen?: boolean;
+  renderExecutionTrace: () => ReactNode;
+  messageEndRef: RefObject<HTMLDivElement | null>;
+};
+
+export type ConversationRenderer = {
+  id: MessageRenderStyle;
+  Conversation: (props: ConversationRendererProps) => ReactNode;
 };

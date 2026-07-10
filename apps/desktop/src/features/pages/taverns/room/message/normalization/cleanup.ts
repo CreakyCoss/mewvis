@@ -32,19 +32,4 @@ const stripErroneousOutputTags = (text: string) =>
 
 export const cleanThoughtText = (text: string) => stripErroneousOutputTags(text);
 
-const stripStandaloneActionBlocks = (text: string) =>
-  text.replace(/(^|\n)\s*[*_][^*_\n]+[*_]\s*(?=\n|$)/g, "\n").trim();
-
-export const stripImmersiveDescriptionText = (text: string) =>
-  stripStandaloneActionBlocks(text)
-    .replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, "$1")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n[ \t]+/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-
-export const cleanAgentOutputContent = ({
-  text,
-}: {
-  text: string;
-}) => stripErroneousOutputTags(text);
+export const cleanAgentOutputContent = ({ text }: { text: string }) => stripErroneousOutputTags(text);

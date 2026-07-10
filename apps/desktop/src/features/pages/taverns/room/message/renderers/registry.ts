@@ -1,7 +1,6 @@
-import type { MessageRenderStyle } from "../domain/types";
+import type { ConversationRenderer, MessageRenderStyle } from "../types";
 import { chatConversationRenderer } from "./chat";
 import { proseConversationRenderer } from "./prose";
-import type { ConversationRenderer } from "./types";
 
 const conversationRenderers: Record<MessageRenderStyle, ConversationRenderer> = {
   chat: chatConversationRenderer,

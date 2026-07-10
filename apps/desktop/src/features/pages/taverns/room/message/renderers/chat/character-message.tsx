@@ -1,12 +1,11 @@
 import { Loader2 } from "lucide-react";
 import { resolveAvatar } from "@/assets/avatars";
 import { cn } from "@/lib/utils";
-import { stripImmersiveDescriptionText } from "../protocol/cleanup";
-import { formatMessageSegmentsForDisplay } from "../domain/segments";
-import type { MessageCharacterProfile, MessageSegment, MessageVisualStyle } from "../domain/types";
-import { MessageControls } from "./message-controls";
-import { MessageSegmentsContent } from "./message-segments-content";
-import { formatMessageTime } from "./message-time";
+import { formatTime } from "@/utils/time";
+import type { MessageCharacterProfile, MessageSegment, MessageVisualStyle } from "../../types";
+import { MessageControls } from "../shared/message-controls";
+import { formatMessageSegmentsForDisplay, stripImmersiveDescriptionText } from "../shared/message-content";
+import { MessageSegmentsContent } from "../shared/message-segments-content";
 
 type CharacterMessageProps = {
   character?: MessageCharacterProfile | null;
@@ -53,7 +52,7 @@ export const CharacterMessage = ({
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex items-center gap-2 text-xs text-current">
             <span className="font-medium">{character?.name ?? "角色"}</span>
-            <span className="opacity-70">{formatMessageTime(createdAt)}</span>
+            <span className="opacity-70">{formatTime(createdAt)}</span>
             {isStreaming && <Loader2 className="size-3 animate-spin" />}
           </div>
           <div

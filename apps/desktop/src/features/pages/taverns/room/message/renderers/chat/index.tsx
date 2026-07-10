@@ -1,6 +1,6 @@
 import { Fragment } from "react";
-import { MessageRow } from "../components/message-row";
-import type { ConversationRenderer } from "./types";
+import type { ConversationRenderer } from "../../types";
+import { MessageRow } from "./message-row";
 
 export const chatConversationRenderer: ConversationRenderer = {
   id: "chat",

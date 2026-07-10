@@ -1,8 +1,8 @@
 import { FileText, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { MessageReferencedFile, MessageVisualStyle } from "../domain/types";
-import { MessageControls } from "./message-controls";
-import { formatMessageTime } from "./message-time";
+import { formatTime } from "@/utils/time";
+import type { MessageReferencedFile, MessageVisualStyle } from "../../types";
+import { MessageControls } from "../shared/message-controls";
 
 type UserMessageProps = {
   content: string;
@@ -57,7 +57,7 @@ export const UserMessage = ({
           </div>
         )}
       </div>
-      <span className="text-[11px] text-current opacity-70">{formatMessageTime(createdAt)}</span>
+      <span className="text-[11px] text-current opacity-70">{formatTime(createdAt)}</span>
       <MessageControls content={content} disabled={isSending || isStreaming} />
     </div>
   </div>

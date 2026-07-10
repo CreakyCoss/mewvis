@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
-import type { MessageVisualStyle } from "../domain/types";
-import { MessageControls } from "./message-controls";
+import type { MessageVisualStyle } from "../../types";
+import { MessageControls } from "../shared/message-controls";
 
 type NarratorMessageProps = {
   content: string;

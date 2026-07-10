@@ -1,11 +1,10 @@
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatMessageSegmentsForDisplay } from "../domain/segments";
-import type { RenderableMessage } from "../domain/types";
-import { MessageControls } from "../components/message-controls";
-import { MessageSegmentsContent } from "../components/message-segments-content";
-import { formatMessageTime } from "../components/message-time";
-import type { ConversationRenderer } from "./types";
+import { formatTime } from "@/utils/time";
+import type { RenderableMessage } from "../../types";
+import { MessageControls } from "../shared/message-controls";
+import { formatMessageSegmentsForDisplay } from "../shared/message-content";
+import { MessageSegmentsContent } from "../shared/message-segments-content";
 
 const roleLabel: Record<RenderableMessage["role"], string> = {
   narrator: "旁白",
@@ -25,11 +24,12 @@ const proseTextClassName: Record<RenderableMessage["role"], string> = {
   user: "text-current opacity-80",
 };
 
-const ProseMessage = ({ message }: { message: RenderableMessage }) => {
+export const ProseMessage = ({ message }: { message: RenderableMessage }) => {
   const contentSegments = message.segments.filter((segment) => segment.type !== "thought");
-  const content = formatMessageSegmentsForDisplay(contentSegments, {
-    includeThoughts: false,
-  }).trim() || message.content.trim();
+  const content =
+    formatMessageSegmentsForDisplay(contentSegments, {
+      includeThoughts: false,
+    }).trim() || message.content.trim();
   const thought =
     message.segments
       .filter((segment) => segment.type === "thought")
@@ -50,7 +50,7 @@ const ProseMessage = ({ message }: { message: RenderableMessage }) => {
         <span className="shrink-0 font-medium">
           {message.role === "character" ? message.speakerName : roleLabel[message.role]}
         </span>
-        <span className="truncate tabular-nums">{formatMessageTime(message.createdAt)}</span>
+        <span className="truncate tabular-nums">{formatTime(message.createdAt)}</span>
         {message.status === "streaming" && <Loader2 className="size-3 animate-spin opacity-70" />}
       </header>
 
@@ -62,7 +62,12 @@ const ProseMessage = ({ message }: { message: RenderableMessage }) => {
         />
       ) : (
         content && (
-          <div className={cn("whitespace-pre-wrap break-words font-serif text-sm leading-7", proseTextClassName[message.role])}>
+          <div
+            className={cn(
+              "whitespace-pre-wrap break-words font-serif text-sm leading-7",
+              proseTextClassName[message.role],
+            )}
+          >
             {content}
           </div>
         )
@@ -81,28 +86,4 @@ const ProseMessage = ({ message }: { message: RenderableMessage }) => {
       </div>
     </article>
   );
-};
-
-export const proseConversationRenderer: ConversationRenderer = {
-  id: "prose",
-  Conversation: ({
-    messages,
-    shouldShowExecutionTrace,
-    executionTraceAnchorMessageId,
-    hasExecutionTraceAnchor,
-    isSidePanelOpen,
-    renderExecutionTrace,
-    messageEndRef,
-  }) => (
-    <div className={cn("mx-auto flex w-full flex-col gap-1 py-1", isSidePanelOpen ? "max-w-[44rem]" : "max-w-[46rem]")}>
-      {messages.map((message) => (
-        <div key={message.id} className="contents">
-          <ProseMessage message={message} />
-          {shouldShowExecutionTrace && message.id === executionTraceAnchorMessageId && renderExecutionTrace()}
-        </div>
-      ))}
-      {shouldShowExecutionTrace && !hasExecutionTraceAnchor && renderExecutionTrace()}
-      <div ref={messageEndRef} />
-    </div>
-  ),
 };
