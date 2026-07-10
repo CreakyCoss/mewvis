@@ -7,7 +7,6 @@ import { KnowledgePage } from "@/features/pages/knowledge";
 import { StoriesPage } from "@/features/pages/stories";
 import { AgentPage, LlmPage, SettingsPage, WorkflowPage } from "@/features/pages/settings";
 import { SkillsPage } from "@/features/pages/skills";
-import { TavernPage } from "@/features/pages/taverns";
 
 const IndexRoute = () => {
   const { activeWorkspace, defaultWorkspace, overview, isLoading } = useWorkspaceOverview();
@@ -34,8 +33,6 @@ export const AppRoutes = () => (
       <Route path="skills" element={<SkillsPage />} />
       <Route path="knowledge" element={<KnowledgePage />} />
       <Route path="stories" element={<StoriesPage />} />
-      <Route path="tavern" element={<TavernPage />} />
-      <Route path="tavern/:workspaceId" element={<TavernPage />} />
       <Route path="hub" element={<HubPage />} />
       <Route path="settings" element={<SettingsPage />} />
       <Route path="settings/llm" element={<LlmPage />} />

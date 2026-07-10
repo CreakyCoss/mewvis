@@ -2,18 +2,13 @@ import { BookOpen } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import type { TavernRoomConfig } from "@/features/pages/taverns/manage/model";
+import { loadOrCreateStoryTavernConfig } from "@/features/pages/stories/tavern/manage/storage";
 import { buildStoryNodeScene } from "@/features/pages/stories/story/model/node";
-import { TavernRoomDialog, type TavernRoomHandle } from "@/features/pages/taverns/room";
-import type { TavernStoryData } from "@/features/pages/taverns/room/model";
+import { TavernRoomDialog, type TavernRoomHandle } from "@/features/pages/stories/tavern/room";
+import type { TavernStoryData } from "@/features/pages/stories/tavern/room/model";
 import { editorHeaderActionButtonClassName } from "../../../components/story-primitives";
 import { useStoryState } from "../../use-story-state";
 import { StoryTavernSelectDialog } from "./dialog";
-
-type OpenStoryTavernInput = {
-  nodeId: string;
-  roomConfig: TavernRoomConfig;
-};
 
 export const TavernStoryAction = () => {
   const buildNodeOptions = useStoryState((state) => state.buildNodeOptions);
@@ -28,13 +23,18 @@ export const TavernStoryAction = () => {
     setIsNodeSelectOpen(false);
   }, [story?.id]);
 
-  const openStoryTavern = async ({ nodeId, roomConfig }: OpenStoryTavernInput) => {
+  const openStoryTavern = async (nodeId: string) => {
     if (!story || !storyWorkspace) {
       toast.error("找不到故事工作区，无法打开酒馆。");
       return;
     }
 
     try {
+      const roomConfig = await loadOrCreateStoryTavernConfig({
+        id: story.id,
+        story,
+        workspace: storyWorkspace,
+      });
       const storyNodeScene = buildStoryNodeScene(story, nodeId);
       const tavernStory: TavernStoryData = {
         ...storyNodeScene,
@@ -42,7 +42,7 @@ export const TavernStoryAction = () => {
       };
 
       roomDialogRef.current?.({
-        workspacePath: getTavernWorkspacePath(nodeId, roomConfig.id),
+        workspacePath: getTavernWorkspacePath(nodeId),
         story: tavernStory,
       });
     } catch (error) {
@@ -71,7 +71,7 @@ export const TavernStoryAction = () => {
             setIsNodeSelectOpen(false);
           }
         }}
-        onConfirm={(input) => openStoryTavern(input)}
+        onConfirm={openStoryTavern}
       />
       <TavernRoomDialog bind={roomDialogRef} />
     </>

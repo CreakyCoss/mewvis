@@ -1,4 +1,4 @@
-import { BookOpen, Bot, Database, MessageSquarePlus, Settings, Wine, Wrench } from "lucide-react";
+import { BookOpen, Bot, Database, MessageSquarePlus, Settings, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { To } from "react-router";
 import { NavLink } from "react-router";
@@ -24,12 +24,6 @@ const navItems: NavItem[] = [
     to: "/stories",
     label: "故事",
     icon: BookOpen,
-  },
-  {
-    id: "tavern",
-    to: "/tavern",
-    label: "酒馆",
-    icon: Wine,
   },
 ];
 

@@ -9,12 +9,14 @@ import { StoryCard } from "./components/story-card";
 import { StoryCreateDialog, type StoryCreateDialogHandle } from "./components/story-create-dialog";
 import { StoryModulesContent, type StoryModulesHandle } from "./story";
 import { StoryManuscriptsPage, type StoryManuscriptsHandle } from "./manuscripts";
+import { TavernManageContent, type TavernManageHandle } from "./tavern/manage";
 
 export const StoriesPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const modulesRef = useRef<StoryModulesHandle>(null);
   const manuscriptsRef = useRef<StoryManuscriptsHandle>(null);
+  const tavernManageRef = useRef<TavernManageHandle>(null);
   const createDialogRef = useRef<StoryCreateDialogHandle>(null);
   const [storyItems, setStoryItems] = useState<StoryLibraryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,6 +52,7 @@ export const StoriesPage = () => {
   const closeStoryViews = () => {
     modulesRef.current?.close();
     manuscriptsRef.current?.close();
+    tavernManageRef.current?.close();
   };
 
   const backToStoryHome = () => {
@@ -60,12 +63,20 @@ export const StoriesPage = () => {
 
   const openStoryEditor = (item: StoryLibraryItem) => {
     manuscriptsRef.current?.close();
+    tavernManageRef.current?.close();
     modulesRef.current?.open(item);
   };
 
   const openStoryManuscripts = (item: StoryLibraryItem) => {
     modulesRef.current?.close();
+    tavernManageRef.current?.close();
     manuscriptsRef.current?.open(item);
+  };
+
+  const openStoryTavern = (item: StoryLibraryItem) => {
+    modulesRef.current?.close();
+    manuscriptsRef.current?.close();
+    tavernManageRef.current?.open(item);
   };
 
   const openCreateStoryDialog = () => {
@@ -113,6 +124,7 @@ export const StoriesPage = () => {
                 story={item.story}
                 onEdit={() => openStoryEditor(item)}
                 onManuscripts={() => openStoryManuscripts(item)}
+                onTavern={() => openStoryTavern(item)}
                 onDelete={() => handleDeleteStory(item)}
               />
             ))}
@@ -149,6 +161,7 @@ export const StoriesPage = () => {
 
       <StoryModulesContent bind={modulesRef} onBack={backToStoryHome} onOpenManuscripts={openStoryManuscripts} />
       <StoryManuscriptsPage bind={manuscriptsRef} onBack={backToStoryHome} onOpenStoryEditor={openStoryEditor} />
+      <TavernManageContent bind={tavernManageRef} onBack={backToStoryHome} />
       <StoryCreateDialog bind={createDialogRef} onCreated={handleStoryCreated} />
     </section>
   );

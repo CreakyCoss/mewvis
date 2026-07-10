@@ -1,4 +1,4 @@
-import { BookOpen, FileText, GitBranch, Pencil, Target, Trash2, UsersRound } from "lucide-react";
+import { BookOpen, FileText, GitBranch, Pencil, Target, Trash2, UsersRound, Wine } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { resolveAvatar } from "@/assets/avatars";
@@ -28,11 +28,13 @@ export const StoryCard = ({
   story,
   onEdit,
   onManuscripts,
+  onTavern,
   onDelete,
 }: {
   story: StoryJson;
   onEdit: () => void;
   onManuscripts: () => void;
+  onTavern: () => void;
   onDelete: () => void | Promise<void>;
 }) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -126,7 +128,7 @@ export const StoryCard = ({
         </button>
 
         <div className="border-t bg-background/80 p-2.5">
-          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2">
+          <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_auto] gap-2">
             <Button
               type="button"
               size="sm"
@@ -146,6 +148,16 @@ export const StoryCard = ({
             >
               <FileText className="size-4 shrink-0" />
               <span className="truncate">稿件</span>
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-9 min-w-0 whitespace-nowrap bg-background/80 text-sm"
+              onClick={onTavern}
+            >
+              <Wine className="size-4 shrink-0" />
+              <span className="truncate">酒馆</span>
             </Button>
             <Button
               type="button"

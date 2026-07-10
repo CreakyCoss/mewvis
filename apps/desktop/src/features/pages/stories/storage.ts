@@ -4,9 +4,10 @@ import type { StoryJson } from "./story/model/types";
 import { normalizeStoryJson } from "./story/model/normalizer";
 import { readJsonWorkspaceFile, writeJsonWorkspaceFile } from "@/utils/files";
 
-const STORY_SOURCE_DIR = "story";
+export const STORY_SOURCE_DIR = "story";
 const STORY_MANIFEST_FILE = `${STORY_SOURCE_DIR}/manifest.json`;
 const STORY_JSON_FILE = `${STORY_SOURCE_DIR}/story.json`;
+export const STORY_TAVERN_FILE = `${STORY_SOURCE_DIR}/tavern.json`;
 
 export type StoryRecord = {
   id: string;
