@@ -2,7 +2,7 @@ import { MessageSquareText, PanelTop, ScrollText, UsersRound } from "lucide-reac
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getVisualPreset } from "../../../tavern/visual-presets";
-import type { TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernRoomConfig } from "@/features/pages/taverns/manage/model";
 import { getReplyModeLabel } from "../../utils";
 
 const MetricCard = ({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) => (
@@ -19,7 +19,7 @@ const MetricCard = ({ icon: Icon, label, value }: { icon: LucideIcon; label: str
   </div>
 );
 
-export const BasicSummaryContent = ({ data, className }: { data: TavernRoom; className?: string }) => {
+export const BasicSummaryContent = ({ data, className }: { data: TavernRoomConfig; className?: string }) => {
   const visualPreset = getVisualPreset(data.scenePresetId);
   const enabledPromptBlockCount = data.prompt.blocks.filter((block) => block.enabled && block.text.trim()).length;
 

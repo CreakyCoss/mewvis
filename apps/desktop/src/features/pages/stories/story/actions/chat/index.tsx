@@ -7,7 +7,6 @@ import { editorHeaderActionButtonClassName } from "../../../components/story-pri
 import { useStoryState } from "../../use-story-state";
 import { StoryChatSelectDialog } from "./dialog";
 import { createChatPayload } from "./payload";
-import { getDefaultNodeId, resolveNodeId } from "../node";
 
 export const ChatStoryAction = () => {
   const navigate = useNavigate();
@@ -16,11 +15,11 @@ export const ChatStoryAction = () => {
   const buildNodeOptions = useStoryState((state) => state.buildNodeOptions);
   const getChatWorkspacePath = useStoryState((state) => state.getChatWorkspacePath);
   const story = useStoryState((state) => state.story);
-  const [chatSelectNodeId, setChatSelectNodeId] = useState<string | null | undefined>(undefined);
+  const [isNodeSelectOpen, setIsNodeSelectOpen] = useState(false);
   const storyNodeOptions = useMemo(() => buildNodeOptions(story), [buildNodeOptions, story]);
 
   useEffect(() => {
-    setChatSelectNodeId(undefined);
+    setIsNodeSelectOpen(false);
   }, [story?.id]);
 
   const openStoryChat = (nodeId: string) => {
@@ -28,11 +27,10 @@ export const ChatStoryAction = () => {
       return;
     }
 
-    const storyNodeId = resolveNodeId(story, nodeId);
     navigate(getChatWorkspacePath(chatWorkspace.id), {
       state: {
         storyChatSeed: createChatPayload(story, {
-          nodeId: storyNodeId,
+          nodeId,
         }),
       },
     });
@@ -44,19 +42,18 @@ export const ChatStoryAction = () => {
         type="button"
         variant="outline"
         className={`${editorHeaderActionButtonClassName} h-9`}
-        onClick={() => setChatSelectNodeId(getDefaultNodeId(story))}
+        onClick={() => setIsNodeSelectOpen(true)}
         disabled={!story}
       >
         <MessageSquareText className="size-3.5" />
         聊天
       </Button>
       <StoryChatSelectDialog
-        open={chatSelectNodeId !== undefined}
-        initialNodeId={chatSelectNodeId ?? undefined}
+        open={isNodeSelectOpen}
         nodeOptions={storyNodeOptions}
         onOpenChange={(nextOpen) => {
           if (!nextOpen) {
-            setChatSelectNodeId(undefined);
+            setIsNodeSelectOpen(false);
           }
         }}
         onConfirm={openStoryChat}

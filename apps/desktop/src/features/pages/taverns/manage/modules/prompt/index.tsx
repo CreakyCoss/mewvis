@@ -19,7 +19,7 @@ import type {
   TavernPromptBlock,
   TavernPromptBlockSourceType,
   TavernPromptBlockTarget,
-  TavernRoom,
+  TavernRoomConfig,
 } from "@/features/pages/taverns/manage/model";
 import {
   EditorMetricStrip,
@@ -31,7 +31,7 @@ import { PromptEdit, type PromptEditHandle } from "./edit";
 import type { ModuleSave } from "../types";
 
 type PromptSectionProps = {
-  data: TavernRoom;
+  data: TavernRoomConfig;
   onSave: ModuleSave;
 };
 
@@ -70,7 +70,7 @@ const writingRuleSourceTypes: TavernPromptBlockSourceType[] = [
   "taboo_rule",
 ];
 
-const getPresentationContractLabel = (room: TavernRoom) => {
+const getPresentationContractLabel = (room: TavernRoomConfig) => {
   const presentationProfile = getTavernPresentationProfile(room.presentation?.profileId);
 
   if (presentationProfile.generationContract === "character_narrative_beat") {
@@ -134,7 +134,7 @@ const PromptHierarchy = ({ steps }: { steps: PromptHierarchyStep[] }) => (
   </div>
 );
 
-export const PromptSummaryContent = ({ data }: { data: TavernRoom }) => {
+export const PromptSummaryContent = ({ data }: { data: TavernRoomConfig }) => {
   const presentationProfile = getTavernPresentationProfile(data.presentation?.profileId);
   const blocks = data.prompt.blocks;
   const enabledBlocks = getEnabledPromptBlocks(blocks);

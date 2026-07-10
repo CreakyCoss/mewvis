@@ -2,6 +2,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { createDefaultStoryJson } from "./story/model/state";
 import type { StoryJson } from "./story/model/types";
 import { normalizeStoryJson } from "./story/model/normalizer";
+import { readJsonWorkspaceFile, writeJsonWorkspaceFile } from "@/utils/files";
 
 const STORY_SOURCE_DIR = "story";
 const STORY_MANIFEST_FILE = `${STORY_SOURCE_DIR}/manifest.json`;
@@ -33,12 +34,9 @@ export type CreateStoryInput = {
 };
 
 type StoryManifest = {
-  version: 1;
   id: string;
   name: string;
   updatedAt: number;
-  entryNodeId?: string;
-  activeNodeId?: string;
 };
 
 const storyWorkspaceFromRecord = (record: StoryRecord): StoryWorkspace => ({
@@ -92,34 +90,10 @@ const normalizeStoryJsonForRecord = (record: StoryRecord, value: unknown): Story
 };
 
 const createStoryManifest = (story: StoryJson): StoryManifest => ({
-  version: 1,
   id: story.id,
   name: story.title,
   updatedAt: story.updatedAt,
-  entryNodeId: story.graph.entryNodeId,
-  activeNodeId: story.graph.activeNodeId,
 });
-
-const readJsonWorkspaceFile = async (workspacePath: string, relativePath: string): Promise<unknown | null> => {
-  try {
-    const file = await invoke<{ content: string }>("read_workspace_file", {
-      input: { workspacePath, relativePath },
-    });
-    return JSON.parse(file.content);
-  } catch {
-    return null;
-  }
-};
-
-const writeJsonWorkspaceFile = async (workspacePath: string, relativePath: string, value: unknown) => {
-  await invoke("write_workspace_file", {
-    input: {
-      workspacePath,
-      relativePath,
-      content: JSON.stringify(value, null, 2),
-    },
-  });
-};
 
 const createDesktopOnlyStoryStorageError = () => new Error("故事文件存储仅支持桌面环境。");
 

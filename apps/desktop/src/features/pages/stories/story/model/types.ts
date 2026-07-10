@@ -1,5 +1,3 @@
-export type StoryJsonVersion = 1;
-
 export type StoryLorebookEntryJson = {
   id: string;
   title: string;
@@ -72,19 +70,16 @@ export type StoryEdgeJson = {
 };
 
 export type StoryGraphJson = {
-  entryNodeId: string;
-  activeNodeId: string;
   nodes: StoryNodeJson[];
   edges: StoryEdgeJson[];
 };
 
 export type StoryJson = {
-  version: StoryJsonVersion;
   id: string;
   title: string;
-  outline: string;
+  premise: string;
   goal: string;
-  userPersonaName: string;
+  playerName: string;
   characters: StoryCharacterJson[];
   lorebookEntries: StoryLorebookEntryJson[];
   scenes: StorySceneJson[];

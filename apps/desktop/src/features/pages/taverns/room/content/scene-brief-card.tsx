@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import { Feather, Landmark, Scale, Swords, Target } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { Feather, Landmark, Scale, Swords, Target, type LucideIcon } from "lucide-react";
 import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets/types";
 import { cn } from "@/lib/utils";
 

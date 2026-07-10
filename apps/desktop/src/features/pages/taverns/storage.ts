@@ -1,136 +1,48 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type { TavernState } from "./tavern/types";
-import type { TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernRoomConfig } from "@/features/pages/taverns/manage/model";
+import { readJsonWorkspaceFile, writeJsonWorkspaceFile } from "@/utils/files";
 
 const TAVERN_SOURCE_DIR = "tavern";
 const TAVERN_MANIFEST_FILE_NAME = "manifest.json";
 const STORAGE_PREFIX = "novel-claw:tavern";
 
-type TavernRuntimeScope = {
-  storyId?: string;
-  storyNodeId?: string;
-  tavernId?: string;
-  runtimePath?: string;
-};
-
 type TavernManifestRoom = {
   id: string;
   title: string;
   roomPath: string;
-  createdAt: number;
-  updatedAt: number;
 };
 
 type TavernManifest = {
   rooms: TavernManifestRoom[];
 };
 
-const createEmptyTavernState = (): TavernState => ({
-  rooms: [],
-});
+const storageKeyForWorkspace = (workspaceId: string) => `${STORAGE_PREFIX}:${workspaceId}`;
 
-const isStoryTavernScope = (scope: TavernRuntimeScope = {}) => Boolean(scope.storyId && scope.tavernId);
-
-const createFallbackTavernState = () => createEmptyTavernState();
-
-const normalizeTavernState = (workspaceId: string, value: unknown): TavernState | null => {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-
-  const candidate = value as Partial<TavernState>;
-  if (!Array.isArray(candidate.rooms)) {
-    return null;
-  }
-
-  const rooms = candidate.rooms
-    .map((room) => {
-      const source = room as TavernRoom;
-      return source.id && source.workspaceId === workspaceId && source.title ? source : null;
-    })
-    .filter((room): room is TavernRoom => Boolean(room));
-
-  return rooms.length > 0 ? { rooms } : null;
-};
-
-const selectStateForScope = (state: TavernState, scope?: TavernRuntimeScope): TavernState => {
-  if (!isStoryTavernScope(scope)) {
-    return state;
-  }
-
-  const rooms = state.rooms.filter((room) => room.id === scope?.tavernId);
-  if (rooms.length === 0) {
-    return state;
-  }
-
-  return {
-    rooms,
-  };
-};
-
-const storageKeyForWorkspace = (workspaceId: string, scope: TavernRuntimeScope = {}) =>
-  [STORAGE_PREFIX, workspaceId, scope.storyId, scope.tavernId, scope.runtimePath].filter(Boolean).join(":");
-
-const loadTavernStateFromLocalStorage = async (
-  workspaceId: string,
-  scope?: TavernRuntimeScope,
-): Promise<TavernState> => {
+const loadTavernRoomsFromLocalStorage = (workspaceId: string): TavernRoomConfig[] => {
   if (typeof window === "undefined") {
-    return createFallbackTavernState();
+    return [];
   }
 
   try {
-    const raw = window.localStorage.getItem(storageKeyForWorkspace(workspaceId, scope));
-    const parsed = raw ? JSON.parse(raw) : null;
-    const normalizedState = normalizeTavernState(workspaceId, parsed);
-    return normalizedState ? selectStateForScope(normalizedState, scope) : createFallbackTavernState();
+    const raw = window.localStorage.getItem(storageKeyForWorkspace(workspaceId));
+    const rooms = raw ? JSON.parse(raw) : [];
+    return Array.isArray(rooms) ? rooms : [];
   } catch {
-    return createFallbackTavernState();
+    return [];
   }
 };
 
-const saveTavernStateToLocalStorage = (workspaceId: string, state: TavernState, scope?: TavernRuntimeScope) => {
-  if (typeof window === "undefined") {
-    return;
+const saveTavernRoomsToLocalStorage = (workspaceId: string, rooms: TavernRoomConfig[]) => {
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(storageKeyForWorkspace(workspaceId), JSON.stringify(rooms));
   }
-
-  const normalizedState = normalizeTavernState(workspaceId, state) ?? state;
-  window.localStorage.setItem(
-    storageKeyForWorkspace(workspaceId, scope),
-    JSON.stringify(selectStateForScope(normalizedState, scope)),
-  );
 };
 
-const deleteTavernStateFromLocalStorage = (workspaceId: string, scope?: TavernRuntimeScope) => {
-  if (typeof window === "undefined") {
-    return;
+const deleteTavernRoomsFromLocalStorage = (workspaceId: string) => {
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(storageKeyForWorkspace(workspaceId));
   }
-
-  window.localStorage.removeItem(storageKeyForWorkspace(workspaceId, scope));
 };
-
-const normalizeSlashes = (value: string) => value.trim().replace(/\\/g, "/").replace(/\/+$/g, "");
-
-const runtimePathToWorkspaceRelativePath = (workspacePath: string, runtimePath: string) => {
-  const workspaceRoot = normalizeSlashes(workspacePath);
-  const runtimeRoot = normalizeSlashes(runtimePath);
-  if (!runtimeRoot) {
-    return TAVERN_SOURCE_DIR;
-  }
-
-  if (runtimeRoot === workspaceRoot) {
-    return TAVERN_SOURCE_DIR;
-  }
-
-  if (runtimeRoot.startsWith(`${workspaceRoot}/`)) {
-    return runtimeRoot.slice(workspaceRoot.length + 1);
-  }
-
-  return runtimeRoot.replace(/^\/+/g, "");
-};
-
-const tavernBaseDir = (workspacePath: string, scope: TavernRuntimeScope = {}) =>
-  scope.runtimePath?.trim() ? runtimePathToWorkspaceRelativePath(workspacePath, scope.runtimePath) : TAVERN_SOURCE_DIR;
 
 const joinPath = (...parts: string[]) =>
   parts
@@ -140,30 +52,9 @@ const joinPath = (...parts: string[]) =>
 
 const roomFileToken = (roomId: string) => encodeURIComponent(roomId.trim() || "room");
 
-const tavernManifestPath = (baseDir: string) => joinPath(baseDir, TAVERN_MANIFEST_FILE_NAME);
+const tavernManifestPath = () => joinPath(TAVERN_SOURCE_DIR, TAVERN_MANIFEST_FILE_NAME);
 
-const tavernRoomPath = (baseDir: string, roomId: string) => joinPath(baseDir, "rooms", `${roomFileToken(roomId)}.json`);
-
-const readJsonWorkspaceFile = async (workspacePath: string, relativePath: string): Promise<unknown | null> => {
-  try {
-    const file = await invoke<{ content: string }>("read_workspace_file", {
-      input: { workspacePath, relativePath },
-    });
-    return JSON.parse(file.content);
-  } catch {
-    return null;
-  }
-};
-
-const writeJsonWorkspaceFile = async (workspacePath: string, relativePath: string, value: unknown) => {
-  await invoke("write_workspace_file", {
-    input: {
-      workspacePath,
-      relativePath,
-      content: JSON.stringify(value, null, 2),
-    },
-  });
-};
+const tavernRoomPath = (roomId: string) => joinPath(TAVERN_SOURCE_DIR, "rooms", `${roomFileToken(roomId)}.json`);
 
 const deleteWorkspaceFileIfExists = async (workspacePath: string, relativePath: string) => {
   try {
@@ -175,105 +66,49 @@ const deleteWorkspaceFileIfExists = async (workspacePath: string, relativePath: 
   }
 };
 
-const readTavernManifest = (value: unknown): TavernManifest | null => {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-
-  const candidate = value as Partial<TavernManifest>;
-  if (!Array.isArray(candidate.rooms)) {
-    return null;
-  }
-
-  return { rooms: candidate.rooms as TavernManifestRoom[] };
-};
-
-const roomManifestById = (manifest: TavernManifest) => new Map(manifest.rooms.map((room) => [room.id, room] as const));
-
-const createTavernManifestRoom = (baseDir: string, room: TavernRoom): TavernManifestRoom => ({
+const createTavernManifestRoom = (room: TavernRoomConfig): TavernManifestRoom => ({
   id: room.id,
   title: room.title || "未命名酒馆",
-  roomPath: tavernRoomPath(baseDir, room.id),
-  createdAt: room.createdAt,
-  updatedAt: room.updatedAt,
+  roomPath: tavernRoomPath(room.id),
 });
 
-const createTavernManifest = (baseDir: string, state: TavernState): TavernManifest => ({
-  rooms: state.rooms.map((room) => createTavernManifestRoom(baseDir, room)),
+const createTavernManifest = (rooms: TavernRoomConfig[]): TavernManifest => ({
+  rooms: rooms.map(createTavernManifestRoom),
 });
 
-export const loadTavernState = async (
-  workspacePath: string,
-  workspaceId: string,
-  scope: TavernRuntimeScope = {},
-): Promise<TavernState> => {
+export const loadTavernRooms = async (workspacePath: string, workspaceId: string): Promise<TavernRoomConfig[]> => {
   if (!isTauri()) {
-    return loadTavernStateFromLocalStorage(workspaceId, scope);
+    return loadTavernRoomsFromLocalStorage(workspaceId);
   }
 
-  deleteTavernStateFromLocalStorage(workspaceId, scope);
+  deleteTavernRoomsFromLocalStorage(workspaceId);
 
-  const baseDir = tavernBaseDir(workspacePath, scope);
-  const manifest = readTavernManifest(await readJsonWorkspaceFile(workspacePath, tavernManifestPath(baseDir)));
+  const manifest = await readJsonWorkspaceFile<TavernManifest>(workspacePath, tavernManifestPath());
   if (!manifest) {
-    return createFallbackTavernState();
+    return [];
   }
 
-  const rooms: unknown[] = [];
-
-  for (const manifestRoom of manifest.rooms) {
-    const room = await readJsonWorkspaceFile(
-      workspacePath,
-      manifestRoom.roomPath || tavernRoomPath(baseDir, manifestRoom.id),
-    );
-    if (room && typeof room === "object") {
-      rooms.push(room);
-    }
-  }
-
-  const normalizedState = normalizeTavernState(workspaceId, { rooms });
-  return normalizedState ? selectStateForScope(normalizedState, scope) : createFallbackTavernState();
+  const rooms = await Promise.all(
+    manifest.rooms.map((manifestRoom) => readJsonWorkspaceFile<TavernRoomConfig>(workspacePath, manifestRoom.roomPath)),
+  );
+  return rooms.filter((room): room is TavernRoomConfig => room !== null);
 };
 
-export const saveTavernState = async (
-  workspacePath: string,
-  workspaceId: string,
-  state: TavernState,
-  scope: TavernRuntimeScope = {},
-) => {
-  const normalizedState = normalizeTavernState(workspaceId, state) ?? state;
-  const stateForStorage = selectStateForScope(normalizedState, scope);
-
+export const saveTavernRooms = async (workspacePath: string, workspaceId: string, rooms: TavernRoomConfig[]) => {
   if (!isTauri()) {
-    saveTavernStateToLocalStorage(workspaceId, stateForStorage, scope);
-    return stateForStorage;
+    saveTavernRoomsToLocalStorage(workspaceId, rooms);
+    return rooms;
   }
 
-  deleteTavernStateFromLocalStorage(workspaceId, scope);
+  deleteTavernRoomsFromLocalStorage(workspaceId);
 
-  const baseDir = tavernBaseDir(workspacePath, scope);
-  const previousManifest = readTavernManifest(await readJsonWorkspaceFile(workspacePath, tavernManifestPath(baseDir)));
-  const nextRoomIds = new Set(stateForStorage.rooms.map((room) => room.id));
-  const staleRoomIds = (previousManifest?.rooms.map((room) => room.id) ?? []).filter(
-    (roomId) => !nextRoomIds.has(roomId),
-  );
-  const previousRooms = previousManifest ? roomManifestById(previousManifest) : new Map<string, TavernManifestRoom>();
+  const previousManifest = await readJsonWorkspaceFile<TavernManifest>(workspacePath, tavernManifestPath());
+  const nextRoomIds = new Set(rooms.map((room) => room.id));
+  const staleRooms = previousManifest?.rooms.filter((room) => !nextRoomIds.has(room.id)) ?? [];
 
-  await Promise.all(
-    staleRoomIds.map((roomId) => {
-      const manifestRoom = previousRooms.get(roomId);
-      return deleteWorkspaceFileIfExists(workspacePath, manifestRoom?.roomPath || tavernRoomPath(baseDir, roomId));
-    }),
-  );
+  await Promise.all(staleRooms.map((room) => deleteWorkspaceFileIfExists(workspacePath, room.roomPath)));
+  await Promise.all(rooms.map((room) => writeJsonWorkspaceFile(workspacePath, tavernRoomPath(room.id), room)));
+  await writeJsonWorkspaceFile(workspacePath, tavernManifestPath(), createTavernManifest(rooms));
 
-  await Promise.all(
-    stateForStorage.rooms.map((room) => writeJsonWorkspaceFile(workspacePath, tavernRoomPath(baseDir, room.id), room)),
-  );
-
-  await writeJsonWorkspaceFile(
-    workspacePath,
-    tavernManifestPath(baseDir),
-    createTavernManifest(baseDir, stateForStorage),
-  );
-  return stateForStorage;
+  return rooms;
 };

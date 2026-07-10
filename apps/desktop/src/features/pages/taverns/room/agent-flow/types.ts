@@ -1,11 +1,8 @@
 import type { RuntimeModelInput, RuntimeSessionRecordRef } from "@/agent-client/types";
-import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
-import type {
-  TavernCharacter,
-  TavernPresentationProfile,
-  TavernPresentationProfileId,
-} from "@/features/pages/taverns/manage/model";
-import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
+import type { PromptFileReference } from "@/features/ai/components/context-tools";
+import type { TavernCharacter, TavernStoryData } from "@/features/pages/taverns/room/model";
+import type { TavernPresentationProfile, TavernPresentationProfileId } from "@/features/pages/taverns/manage/model";
+import type { TavernMessage } from "@/features/pages/taverns/room/model/message";
 import type {
   AgentProtocolMessage,
   AgentProtocolParseResult,
@@ -66,10 +63,10 @@ export type TavernAgentFlowInput = {
   orchestration?: TavernAgentFlowOrchestrationId;
   workspacePath: string;
   runtimeModel: RuntimeModelInput;
-  room: TavernRoomRuntime;
-  characters: TavernCharacter[];
+  story: TavernStoryData;
   messages: TavernMessage[];
-  references?: TavernReferencedFile[];
+  characters: TavernCharacter[];
+  references?: PromptFileReference[];
   currentUserText: string;
   trigger?: TavernAgentFlowTrigger;
   turnId?: string;
@@ -81,16 +78,16 @@ export type TavernAgentFlowInput = {
 
 export type TavernAgentFlowSessionInput = {
   workspacePath: string;
-  room: TavernRoomRuntime;
+  story: TavernStoryData;
 };
 
 export type TavernAgentFlowContext = {
   presentation: TavernAgentFlowPresentation;
   candidateCharacters: TavernCharacter[];
-  userPersonaName: string;
+  playerName: string;
   currentInstruction: string;
   historyMessages: AgentProtocolMessage[];
-  references: TavernReferencedFile[];
+  references: PromptFileReference[];
   maxSpeakers: number;
 };
 

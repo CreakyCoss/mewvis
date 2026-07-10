@@ -1,6 +1,5 @@
 import type { VisualPresetId } from "@/features/pages/taverns/tavern/visual-presets/types";
 import { createTimestampId } from "@/utils/ids";
-import { getCurrentTimestamp } from "@/utils/time";
 
 export type TavernReplyMode = "director";
 
@@ -40,7 +39,6 @@ export type TavernPresentationProfile = {
 
 export type TavernPresentationSettings = {
   profileId: TavernPresentationProfileId;
-  profileVersion: 1;
 };
 
 export type TavernPromptBlockTarget = "bridge" | "director" | "character";
@@ -71,12 +69,6 @@ export type TavernPromptBlock = {
 };
 
 export type TavernRoomPromptSettings = {
-  version: 1;
-  blocks: TavernPromptBlock[];
-};
-
-export type TavernScenePromptOverrides = {
-  version: 1;
   blocks: TavernPromptBlock[];
 };
 
@@ -89,60 +81,6 @@ export type TavernPromptStylePreset = {
   bridgeSystemAddendum: string;
   directorAddendum: string;
   characterAddendum: string;
-};
-
-export type TavernRoomCharacterConfig = {
-  characterId: string;
-  memory?: string;
-};
-
-export type TavernRelationshipTarget = { type: "user" } | { type: "character"; characterId: string };
-
-export type TavernCharacterRelationship = {
-  id: string;
-  target: TavernRelationshipTarget;
-  label?: string;
-  attitude?: string;
-  publicNote?: string;
-  privateNote?: string;
-  tags: string[];
-  updatedAt: number;
-};
-
-export type TavernSceneRelationshipOverride = {
-  id: string;
-  subjectCharacterId: string;
-  target: TavernRelationshipTarget;
-  label?: string;
-  publicNote?: string;
-  privateNote?: string;
-  tags: string[];
-  updatedAt: number;
-};
-
-export type TavernCharacter = {
-  id: string;
-  name: string;
-  avatar: string;
-  description: string;
-  speakingStyle: string;
-  writingStyle?: string;
-  replyStylePrompt?: string;
-  goals?: string;
-  relationships: TavernCharacterRelationship[];
-  createdAt: number;
-  updatedAt: number;
-};
-
-export type TavernLorebookEntry = {
-  id: string;
-  title: string;
-  content: string;
-  keywords: string[];
-  enabled: boolean;
-  alwaysOn: boolean;
-  createdAt: number;
-  updatedAt: number;
 };
 
 export type TavernRoomSettings = {
@@ -158,109 +96,37 @@ export type TavernRoomSettings = {
   };
 };
 
-export type TavernSceneStatus = {
-  location?: string;
-  timeLabel?: string;
-  weather?: string;
-  atmosphere?: string;
-  scenePhase?: string;
-  immediateThreat?: string;
-  updatedAt: number;
-};
-
-export type TavernCharacterPublicStatus = {
-  characterId: string;
-  location?: string;
-  posture?: string;
-  visibleMood?: string;
-  outfit?: string;
-  visibleInjury?: string;
-  holding?: string[];
-  publicGoal?: string;
-  updatedAt: number;
-};
-
-export type TavernCharacterPrivateStatus = {
-  characterId: string;
-  privateMood?: string;
-  suspicion?: string;
-  hiddenGoal?: string;
-  privateKnowledge?: string[];
-  relationshipNotes?: Record<string, string>;
-  updatedAt: number;
-};
-
-export type TavernPendingInteraction = {
+export type TavernRoomConfig = {
   id: string;
-  sourceMessageId: string;
-  source: {
-    type: "user" | "character";
-    characterId?: string;
-  };
-  target: {
-    type: "user" | "character" | "group" | "unknown";
-    characterIds?: string[];
-  };
-  kind: "question" | "request" | "challenge" | "invitation" | "answer";
-  text: string;
-  requiresResponse: boolean;
-  status: "open" | "answered" | "expired";
-  createdTurnId: string;
-};
-
-export type TavernReplyOption = {
-  id: string;
-  text: string;
-  respondsToInteractionId?: string;
-  targetCharacterIds: string[];
-  intent: "answer" | "ask" | "act" | "interrupt" | "wait" | "inspect";
-};
-
-export type TavernRoom = {
-  id: string;
-  workspaceId: string;
   title: string;
   presentation: TavernPresentationSettings;
   prompt: TavernRoomPromptSettings;
-  creationSource?: "manual" | "quick" | "imported" | "agent_generated";
   scenePresetId: VisualPresetId;
   replyMode: TavernReplyMode;
   settings: TavernRoomSettings;
-  createdAt: number;
-  updatedAt: number;
 };
 
-export const createEmptyManualTavernRoom = (workspaceId: string, index: number): TavernRoom => {
-  const createdAt = getCurrentTimestamp();
-
-  return {
-    id: createTimestampId("room"),
-    workspaceId,
-    title: `新酒馆 ${index}`,
-    creationSource: "manual",
-    scenePresetId: "general",
-    presentation: {
-      profileId: "dialogue-chat",
-      profileVersion: 1,
+export const createEmptyManualTavernRoom = (index: number): TavernRoomConfig => ({
+  id: createTimestampId("room"),
+  title: `新酒馆 ${index}`,
+  scenePresetId: "general",
+  presentation: {
+    profileId: "dialogue-chat",
+  },
+  prompt: {
+    blocks: [],
+  },
+  replyMode: "director",
+  settings: {
+    immersiveDescriptionEnabled: true,
+    directorMaxSpeakers: 3,
+    directorLoop: {
+      maxRounds: 2,
     },
-    prompt: {
-      version: 1,
-      blocks: [],
+    directorNarrativeControl: {
+      agencyMode: "player_protagonist",
+      responseScale: "balanced",
+      narratorPressure: "balanced",
     },
-    replyMode: "director",
-    settings: {
-      immersiveDescriptionEnabled: true,
-      directorMaxSpeakers: 3,
-      directorLoop: {
-        maxRounds: 2,
-      },
-      directorNarrativeControl: {
-        agencyMode: "player_protagonist",
-        responseScale: "balanced",
-        narratorPressure: "balanced",
-      },
-    },
-    createdAt,
-    updatedAt: createdAt,
-  };
-};
+  },
+});

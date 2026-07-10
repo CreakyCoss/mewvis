@@ -1,5 +1,5 @@
 import { BookOpen, Map as MapIcon, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,7 +64,7 @@ type StoryGraphRouteCandidate = {
 
 type StoryGraphPreviousRouteCandidate = {
   edgeIds: string[];
-  reachesEntry: boolean;
+  reachesRoot: boolean;
 };
 
 const nodeMinWidth = 100;
@@ -76,7 +76,6 @@ const graphPaddingX = 48;
 const graphPaddingY = 24;
 const graphMinHeight = 280;
 
-const entryStoryBadgeClassName = "border-emerald-400/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
 const storyDetailMetaClassName = "text-[11px] font-medium leading-4 text-muted-foreground";
 const storyDetailTitleClassName = "truncate text-[13px] font-semibold leading-5 text-foreground";
 const storyDetailBadgeClassName = "rounded-sm border px-1 py-0.5 text-[9px] font-medium leading-3.5";
@@ -139,14 +138,12 @@ const getStoryTextVisualWidth = (text: string, unitWidth: number) =>
     0,
   );
 
-const getStoryNodeCardWidth = (graph: StoryGraph, node: StoryNodeJson) => {
+const getStoryNodeCardWidth = (node: StoryNodeJson) => {
   const title = node.title.trim() || emptyValueText;
   const titleWidth = 64 + getStoryTextVisualWidth(title, 13);
-  const badgeLabels = [
-    node.id === graph.entryNodeId ? "入口" : "",
-    getStoryPathRoleLabel(node),
-    node.type !== "normal" ? getStoryNodeTypeLabel(node) : "",
-  ].filter(Boolean);
+  const badgeLabels = [getStoryPathRoleLabel(node), node.type !== "normal" ? getStoryNodeTypeLabel(node) : ""].filter(
+    Boolean,
+  );
   const badgeWidth =
     36 +
     badgeLabels.reduce(
@@ -217,8 +214,8 @@ const isBetterPreviousStoryRouteCandidate = (
   if (!current) {
     return true;
   }
-  if (candidate.reachesEntry !== current.reachesEntry) {
-    return candidate.reachesEntry;
+  if (candidate.reachesRoot !== current.reachesRoot) {
+    return candidate.reachesRoot;
   }
 
   return candidate.edgeIds.length > current.edgeIds.length;
@@ -256,15 +253,12 @@ const buildSelectedStoryRouteEdgeIds = (graph: StoryGraph, startNodeId: string |
     edgeIds: string[],
   ): StoryGraphPreviousRouteCandidate => {
     if (visitedNodeIds.has(nodeId)) {
-      return { edgeIds, reachesEntry: false };
-    }
-    if (nodeId === graph.entryNodeId) {
-      return { edgeIds, reachesEntry: true };
+      return { edgeIds, reachesRoot: false };
     }
 
     const incomingEdges = edgesByTargetNodeId.get(nodeId) ?? [];
     if (incomingEdges.length === 0) {
-      return { edgeIds, reachesEntry: false };
+      return { edgeIds, reachesRoot: true };
     }
 
     const nextVisitedNodeIds = new Set(visitedNodeIds);
@@ -278,7 +272,7 @@ const buildSelectedStoryRouteEdgeIds = (graph: StoryGraph, startNodeId: string |
       }
     });
 
-    return bestCandidate ?? { edgeIds, reachesEntry: false };
+    return bestCandidate ?? { edgeIds, reachesRoot: false };
   };
 
   const walkRoute = (nodeId: string, visitedNodeIds: Set<string>, edgeIds: string[]): StoryGraphRouteCandidate => {
@@ -323,11 +317,12 @@ const buildSelectedStoryRouteEdgeIds = (graph: StoryGraph, startNodeId: string |
 };
 
 const canNodeUseMainPathRole = (graph: StoryGraph, node: StoryNodeJson) => {
-  if (node.id === graph.entryNodeId) {
+  const incomingEdges = graph.edges.filter((edge) => edge.toNodeId === node.id);
+  if (incomingEdges.length === 0) {
     return true;
   }
 
-  const parentEdge = sortEdgesForRoute(graph.edges.filter((edge) => edge.toNodeId === node.id))[0];
+  const parentEdge = sortEdgesForRoute(incomingEdges)[0];
   const parentNode = parentEdge ? graph.nodes.find((item) => item.id === parentEdge.fromNodeId) : null;
   if (!parentNode || parentNode.pathRole !== "main") {
     return false;
@@ -343,9 +338,14 @@ const buildStoryGraphLayout = (graph: StoryGraph): StoryGraphLayout => {
     (left, right) => left.priority - right.priority || left.label.localeCompare(right.label),
   );
   const depthByNodeId = new Map<string, number>();
-  const entryNode = graph.nodes.find((node) => node.id === graph.entryNodeId) ?? graph.nodes[0];
-  if (entryNode) {
-    depthByNodeId.set(entryNode.id, 0);
+  const targetNodeIds = new Set(graph.edges.map((edge) => edge.toNodeId));
+  graph.nodes.forEach((node) => {
+    if (!targetNodeIds.has(node.id)) {
+      depthByNodeId.set(node.id, 0);
+    }
+  });
+  if (depthByNodeId.size === 0 && graph.nodes[0]) {
+    depthByNodeId.set(graph.nodes[0].id, 0);
   }
 
   for (let index = 0; index < graph.nodes.length; index += 1) {
@@ -390,7 +390,7 @@ const buildStoryGraphLayout = (graph: StoryGraph): StoryGraphLayout => {
     .forEach((node) => {
       const depth = depthByNodeId.get(node.id) ?? 0;
       const lane = laneCountByDepth.get(depth) ?? 0;
-      const width = getStoryNodeCardWidth(graph, node);
+      const width = getStoryNodeCardWidth(node);
       const x = graphPaddingX + depth * nodeColumnGap;
       const y = graphPaddingY + lane * (nodeHeight + nodeLaneGap);
       laneCountByDepth.set(depth, lane + 1);
@@ -432,15 +432,18 @@ const createSceneForStoryNode = (story: StoryJson, title: string): StorySceneJso
 
 export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModuleProps) => {
   const graph = story.graph;
-  const activeNode =
-    graph.nodes.find((node) => node.id === graph.activeNodeId) ??
-    graph.nodes.find((node) => node.id === graph.entryNodeId) ??
-    graph.nodes[0] ??
-    null;
-  const activeNodeScene = getNodeScene(story, activeNode);
+  const [selectedNodeId, setSelectedNodeId] = useState(() => graph.nodes[0]?.id ?? "");
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [pendingDeleteNode, setPendingDeleteNode] = useState<StoryNodeJson | null>(null);
+  const selectedNode = graph.nodes.find((node) => node.id === selectedNodeId) ?? graph.nodes[0] ?? null;
+  const selectedNodeScene = getNodeScene(story, selectedNode);
   const editingNode = editingNodeId ? (graph.nodes.find((node) => node.id === editingNodeId) ?? null) : null;
+
+  useEffect(() => {
+    setSelectedNodeId((currentNodeId) =>
+      graph.nodes.some((node) => node.id === currentNodeId) ? currentNodeId : (graph.nodes[0]?.id ?? ""),
+    );
+  }, [graph.nodes]);
 
   const saveStory = (nextStory: StoryJson) => {
     onSave({
@@ -461,10 +464,10 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
   };
 
   const createInitialNode = () => {
-    const scene = createSceneForStoryNode(story, "入口节点");
+    const scene = createSceneForStoryNode(story, "起始节点");
     const node = createStoryNode(story, {
       sceneId: scene.id,
-      title: "入口节点",
+      title: "起始节点",
       status: "ready",
     });
 
@@ -474,10 +477,9 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
       graph: {
         ...graph,
         nodes: [...graph.nodes, node],
-        entryNodeId: graph.entryNodeId || node.id,
-        activeNodeId: node.id,
       },
     });
+    setSelectedNodeId(node.id);
   };
 
   const createNextNode = (sourceNode: StoryNodeJson | null) => {
@@ -519,9 +521,9 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
         ...graph,
         nodes: [...graph.nodes, node],
         edges: [...graph.edges, edge],
-        activeNodeId: node.id,
       },
     });
+    setSelectedNodeId(node.id);
   };
 
   const updateNode = (nodeId: string, patch: Partial<StoryNodeJson>) => {
@@ -560,7 +562,6 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
       scenes: [...story.scenes, scene],
       graph: {
         ...graph,
-        activeNodeId: node.id,
         nodes: graph.nodes.map((item) =>
           item.id === node.id
             ? {
@@ -583,14 +584,12 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
   };
 
   const deleteNode = (nodeId: string) => {
-    if (graph.nodes.length <= 1 || nodeId === graph.entryNodeId) {
+    if (graph.nodes.length <= 1) {
       return;
     }
 
     const deletedNode = graph.nodes.find((node) => node.id === nodeId);
     const nextNodes = graph.nodes.filter((node) => node.id !== nodeId);
-    const nextActiveNodeId =
-      graph.activeNodeId === nodeId ? (nextNodes[0]?.id ?? graph.entryNodeId) : graph.activeNodeId;
     const shouldRemoveScene = deletedNode?.sceneId
       ? !nextNodes.some((node) => node.sceneId === deletedNode.sceneId)
       : false;
@@ -606,13 +605,15 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
         ...graph,
         nodes: nextNodes,
         edges: graph.edges.filter((edge) => edge.fromNodeId !== nodeId && edge.toNodeId !== nodeId),
-        activeNodeId: nextActiveNodeId,
       },
     });
+    if (selectedNodeId === nodeId) {
+      setSelectedNodeId(nextNodes[0]?.id ?? "");
+    }
   };
 
   const requestDeleteNode = (node: StoryNodeJson) => {
-    if (node.id === graph.entryNodeId || graph.nodes.length <= 1) {
+    if (graph.nodes.length <= 1) {
       return;
     }
 
@@ -685,22 +686,22 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
   };
 
   const selectStoryNode = (nodeId: string) => {
-    saveGraph({ activeNodeId: nodeId });
+    setSelectedNodeId(nodeId);
   };
 
-  const outgoingEdges = activeNode ? graph.edges.filter((edge) => edge.fromNodeId === activeNode.id) : [];
-  const incomingEdges = activeNode ? graph.edges.filter((edge) => edge.toNodeId === activeNode.id) : [];
+  const outgoingEdges = selectedNode ? graph.edges.filter((edge) => edge.fromNodeId === selectedNode.id) : [];
+  const incomingEdges = selectedNode ? graph.edges.filter((edge) => edge.toNodeId === selectedNode.id) : [];
   const incomingReasonText =
-    activeNode?.id === graph.entryNodeId || incomingEdges.length === 0
-      ? "默认进入"
+    incomingEdges.length === 0
+      ? "无前置节点"
       : incomingEdges
           .map((edge) => edge.reason?.trim() || edge.label?.trim())
           .filter((text): text is string => Boolean(text))
-          .join(" / ") || "默认进入";
+          .join(" / ") || "未设置";
   const graphLayout = useMemo(() => buildStoryGraphLayout(graph), [graph]);
   const selectedRouteEdgeIds = useMemo(
-    () => buildSelectedStoryRouteEdgeIds(graph, activeNode?.id),
-    [activeNode?.id, graph],
+    () => buildSelectedStoryRouteEdgeIds(graph, selectedNode?.id),
+    [selectedNode?.id, graph],
   );
   const canEditingNodeChooseMain = editingNode
     ? editingNode.pathRole === "main" || canNodeUseMainPathRole(graph, editingNode)
@@ -723,7 +724,7 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
               onClick={createInitialNode}
             >
               <Plus className="size-3.5" />
-              新增入口节点
+              新增节点
             </Button>
           ) : null
         }
@@ -871,7 +872,7 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
 
                   {graphLayout.nodes.map((layoutNode, index) => {
                     const node = layoutNode.node;
-                    const isActive = activeNode?.id === node.id;
+                    const isSelected = selectedNode?.id === node.id;
 
                     return (
                       <div
@@ -881,7 +882,7 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
                         className={cn(
                           "absolute z-30 flex cursor-pointer flex-col overflow-hidden rounded-md border px-2 py-1.5 text-left shadow-sm transition-colors hover:bg-background",
                           getNodeTone(node),
-                          isActive && "ring-2 ring-primary/45",
+                          isSelected && "ring-2 ring-primary/45",
                         )}
                         style={{
                           height: nodeHeight,
@@ -935,7 +936,7 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
                                   className="flex size-7 items-center justify-center rounded-md p-0"
                                   title="删除节点"
                                   aria-label="删除节点"
-                                  disabled={node.id === graph.entryNodeId || graph.nodes.length <= 1}
+                                  disabled={graph.nodes.length <= 1}
                                   onSelect={() => requestDeleteNode(node)}
                                 >
                                   <Trash2 className="size-3.5" />
@@ -944,16 +945,6 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
                             </DropdownMenu>
                           </div>
                           <div className="flex flex-wrap gap-1 pl-5">
-                            {node.id === graph.entryNodeId ? (
-                              <span
-                                className={cn(
-                                  "shrink-0 rounded-sm border px-1 py-0.5 text-[9px] font-medium",
-                                  entryStoryBadgeClassName,
-                                )}
-                              >
-                                入口
-                              </span>
-                            ) : null}
                             <span
                               className={cn(
                                 "shrink-0 rounded-sm border px-1 py-0.5 text-[9px] font-medium",
@@ -982,29 +973,26 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
             </div>
 
             <aside className="min-h-[18rem] rounded-lg border bg-background/70 p-3">
-              {activeNode ? (
+              {selectedNode ? (
                 <div className="flex h-full min-h-0 flex-col">
                   <div className="min-w-0">
                     <div className={storyDetailMetaClassName}>节点详情</div>
                     <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5">
                       <h3 className={cn("max-w-40", storyDetailTitleClassName)}>
-                        {activeNode.title || emptyValueText}
+                        {selectedNode.title || emptyValueText}
                       </h3>
-                      {activeNode.id === graph.entryNodeId ? (
-                        <span className={cn(storyDetailBadgeClassName, entryStoryBadgeClassName)}>入口</span>
-                      ) : null}
                       {outgoingEdges.length > 1 ? (
                         <span className={cn(storyDetailBadgeClassName, "border-primary/25 bg-primary/10 text-primary")}>
                           分支点
                         </span>
                       ) : (
-                        <span className={cn(storyDetailBadgeClassName, getStoryPathRoleBadgeClassName(activeNode))}>
-                          {getStoryPathRoleLabel(activeNode)}
+                        <span className={cn(storyDetailBadgeClassName, getStoryPathRoleBadgeClassName(selectedNode))}>
+                          {getStoryPathRoleLabel(selectedNode)}
                         </span>
                       )}
-                      {activeNode.type !== "normal" ? (
-                        <span className={cn(storyDetailBadgeClassName, getStoryNodeTypeBadgeClassName(activeNode))}>
-                          {getStoryNodeTypeLabel(activeNode)}
+                      {selectedNode.type !== "normal" ? (
+                        <span className={cn(storyDetailBadgeClassName, getStoryNodeTypeBadgeClassName(selectedNode))}>
+                          {getStoryNodeTypeLabel(selectedNode)}
                         </span>
                       ) : null}
                     </div>
@@ -1014,13 +1002,13 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
                     <div className={storyDetailCardClassName}>
                       <div className={storyDetailMetaClassName}>场景描述</div>
                       <div className={cn("line-clamp-4", storyDetailBodyClassName)}>
-                        {activeNodeScene?.scene?.trim() || emptyValueText}
+                        {selectedNodeScene?.scene?.trim() || emptyValueText}
                       </div>
                     </div>
                     <div className={storyDetailCardClassName}>
                       <div className={storyDetailMetaClassName}>场景目标</div>
                       <div className={cn("line-clamp-3", storyDetailBodyClassName)}>
-                        {activeNodeScene?.goal?.trim() || emptyValueText}
+                        {selectedNodeScene?.goal?.trim() || emptyValueText}
                       </div>
                     </div>
                     <div className={storyDetailCardClassName}>
@@ -1052,7 +1040,7 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
                         size="sm"
                         variant="outline"
                         className={editorPrimaryActionButtonClassName}
-                        onClick={() => openSceneEditorForNode(activeNode)}
+                        onClick={() => openSceneEditorForNode(selectedNode)}
                       >
                         <BookOpen className="size-3.5" />
                         场景
@@ -1062,8 +1050,8 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
                         size="sm"
                         variant="outline"
                         className={editorQuietActionButtonClassName}
-                        disabled={!isNormalNode(activeNode)}
-                        onClick={() => createNextNode(activeNode)}
+                        disabled={!isNormalNode(selectedNode)}
+                        onClick={() => createNextNode(selectedNode)}
                       >
                         <Plus className="size-3.5" />
                         新增
@@ -1076,7 +1064,7 @@ export const StoryGraphModule = ({ story, onSave, onOpenScenes }: StoryGraphModu
                   <MapIcon className="size-7 text-muted-foreground" />
                   <div className="mt-3 text-sm font-medium">还没有选中节点</div>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    新建入口节点，或在结构图中点击一个节点查看详情。
+                    新建节点，或在结构图中点击一个节点查看详情。
                   </p>
                 </div>
               )}

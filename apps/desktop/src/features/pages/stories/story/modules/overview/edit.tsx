@@ -31,9 +31,9 @@ type StoryOverviewEditProps = {
 
 const createDraft = (story: StoryJson): StoryDraft => ({
   title: story.title,
-  outline: story.outline,
+  premise: story.premise,
   goal: story.goal,
-  userPersonaName: story.userPersonaName,
+  playerName: story.playerName,
 });
 
 export const StoryOverviewEdit = ({ bind, story, onSave }: StoryOverviewEditProps) => {
@@ -66,7 +66,7 @@ export const StoryOverviewEdit = ({ bind, story, onSave }: StoryOverviewEditProp
     >
       {draft ? (
         <StoryFormDialogContent className="sm:max-w-4xl">
-          <StoryFormHeader icon={ScrollText} title="编辑基础信息" description="维护故事整体定位、目标和用户称呼。" />
+          <StoryFormHeader icon={ScrollText} title="编辑基础信息" description="维护故事整体设定、目标和玩家称呼。" />
           <form
             className="contents"
             onSubmit={(event) => {
@@ -88,7 +88,7 @@ export const StoryOverviewEdit = ({ bind, story, onSave }: StoryOverviewEditProp
                     }
                   >
                     <p className="line-clamp-5 text-xs leading-5 text-muted-foreground">
-                      {draft.outline.trim() || "还没有填写故事定位。"}
+                      {draft.premise.trim() || "还没有填写故事设定。"}
                     </p>
                   </StoryFormSidebarCard>
                   <StoryFormSidebarPanel title="故事目标">
@@ -99,7 +99,7 @@ export const StoryOverviewEdit = ({ bind, story, onSave }: StoryOverviewEditProp
                   <StoryFormNav
                     items={[
                       { href: "#story-overview-basic-section", icon: ScrollText, label: "基础信息" },
-                      { href: "#story-overview-outline-section", icon: FileText, label: "故事定位" },
+                      { href: "#story-overview-premise-section", icon: FileText, label: "故事设定" },
                       { href: "#story-overview-goal-section", icon: Target, label: "故事目标" },
                     ]}
                   />
@@ -120,27 +120,27 @@ export const StoryOverviewEdit = ({ bind, story, onSave }: StoryOverviewEditProp
                       onChange={(event) => setDraft({ ...draft, title: event.target.value })}
                     />
                   </EditorField>
-                  <EditorField label="用户称呼" htmlFor="story-overview-user">
+                  <EditorField label="玩家称呼" htmlFor="story-overview-player">
                     <Input
-                      id="story-overview-user"
-                      value={draft.userPersonaName}
-                      onChange={(event) => setDraft({ ...draft, userPersonaName: event.target.value })}
+                      id="story-overview-player"
+                      value={draft.playerName}
+                      onChange={(event) => setDraft({ ...draft, playerName: event.target.value })}
                     />
                   </EditorField>
                 </div>
               </StoryFormCard>
               <StoryFormCard
-                id="story-overview-outline-section"
+                id="story-overview-premise-section"
                 icon={FileText}
-                title="故事定位"
-                description="描述故事整体定位、年代风格和核心背景。"
+                title="故事设定"
+                description="描述故事的核心前提、年代风格和背景。"
               >
-                <EditorField label="故事定位" htmlFor="story-overview-outline">
+                <EditorField label="故事设定" htmlFor="story-overview-premise">
                   <Textarea
-                    id="story-overview-outline"
+                    id="story-overview-premise"
                     className="min-h-[132px] resize-none text-sm leading-6"
-                    value={draft.outline}
-                    onChange={(event) => setDraft({ ...draft, outline: event.target.value })}
+                    value={draft.premise}
+                    onChange={(event) => setDraft({ ...draft, premise: event.target.value })}
                   />
                 </EditorField>
               </StoryFormCard>

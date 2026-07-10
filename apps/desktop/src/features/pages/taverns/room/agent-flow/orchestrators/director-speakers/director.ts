@@ -16,7 +16,7 @@ const buildCurrentInstructionMessage = (
   context: TavernAgentFlowContext,
 ): AgentProtocolMessage => ({
   role: input.trigger?.type === "scene_drive" ? "system" : "user",
-  speaker: input.trigger?.type === "scene_drive" ? "场景推进指令" : context.userPersonaName,
+  speaker: input.trigger?.type === "scene_drive" ? "场景推进指令" : context.playerName,
   content: context.currentInstruction,
   visibility: "public",
 });
@@ -39,7 +39,7 @@ const buildCurrentInputModeInstruction = (input: TavernAgentFlowInput, context: 
   }
 
   if (context.presentation.userInputMode === "speech") {
-    return `当前输入是${context.userPersonaName}在场内说出口的话或可见动作；不要把它当成幕后剧情指令，调度应优先安排被问到、被影响或最该现场回应的角色。`;
+    return `当前输入是${context.playerName}在场内说出口的话或可见动作；不要把它当成幕后剧情指令，调度应优先安排被问到、被影响或最该现场回应的角色。`;
   }
 
   if (context.presentation.userInputMode === "story_directive") {
@@ -76,10 +76,10 @@ const prepareDirectorRequest = (input: TavernAgentFlowInput, context: TavernAgen
       successCriteria: ["decision 是可解析 JSON", "speakerIds 非空", "角色顺序符合当前互动压力"],
       constraints: [`最多调度 ${context.maxSpeakers} 个角色`, "旁白只写可见场景变化，不替角色完成回应"],
     },
-    progress: buildTavernAgentFlowProgress(input.room),
+    progress: buildTavernAgentFlowProgress(input.story),
     messages: [...context.historyMessages, buildCurrentInstructionMessage(input, context)],
     references: buildTavernAgentFlowReferences({
-      room: input.room,
+      story: input.story,
       characters: context.candidateCharacters,
       presentation: context.presentation,
       target: "director",
@@ -102,8 +102,8 @@ export const runTavernAgentFlowDirector = async ({
 
   const output = await runAgent({
     workspacePath: input.workspacePath,
-    sessionRootDir: tavernAgentFlowSessionRootDir(input.room),
-    agentRoleId: tavernAgentFlowDirectorRoleId(input.room),
+    sessionRootDir: tavernAgentFlowSessionRootDir(input.story),
+    agentRoleId: tavernAgentFlowDirectorRoleId(input.story),
     runtimeModel: input.runtimeModel,
     userMessage: prepared.prompt,
     systemPrompt: "你正在执行酒馆互动导演任务。必须遵守用户消息里的结构化输入和输出协议。",

@@ -153,8 +153,6 @@ export const createDefaultStoryJson = ({
     includeStatus: false,
   });
   const graphSeed: StoryGraphJson = {
-    entryNodeId: nodeId,
-    activeNodeId: nodeId,
     nodes: [],
     edges: [],
   };
@@ -171,12 +169,11 @@ export const createDefaultStoryJson = ({
   );
 
   return {
-    version: 1,
     id,
     title: title.trim() || "未命名故事",
-    outline: "",
+    premise: "",
     goal: "",
-    userPersonaName: "我",
+    playerName: "我",
     characters: [],
     lorebookEntries: [],
     scenes: [scene],

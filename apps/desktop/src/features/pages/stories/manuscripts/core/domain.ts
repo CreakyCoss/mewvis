@@ -29,9 +29,9 @@ export const manuscriptSourceLabels: Record<StoryManuscriptSource, string> = {
 export const createStorySnapshot = (story: StoryJson): StoryManuscriptStorySnapshot => ({
   id: story.id,
   title: story.title,
-  outline: story.outline,
+  premise: story.premise,
   goal: story.goal,
-  userPersonaName: story.userPersonaName,
+  playerName: story.playerName,
   updatedAt: story.updatedAt,
 });
 
@@ -78,7 +78,6 @@ export const createStoryManuscript = (
 
   const createdAt = input.createdAt ?? timestamp;
   const manuscript: StoryManuscript = {
-    version: 1,
     id,
     storyId: story.id,
     nodeId: trimText(input.nodeId),

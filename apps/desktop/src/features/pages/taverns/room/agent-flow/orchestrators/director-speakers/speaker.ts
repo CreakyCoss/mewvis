@@ -1,10 +1,9 @@
 import { AgentProtocol } from "@/features/pages/taverns/room/agent-protocol";
 import type { AgentProtocolMessage, AgentProtocolOutputKey } from "@/features/pages/taverns/room/agent-protocol/types";
-import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
-import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
+import type { TavernCharacter } from "@/features/pages/taverns/room/model";
 import { createTimestampId } from "@/utils/ids";
 import { getCurrentTimestamp } from "@/utils/time";
-import { createTavernAgentOutputMessageBody } from "@/features/pages/taverns/room/model/message-body";
+import { createTavernAgentOutputMessageBody, type TavernMessage } from "@/features/pages/taverns/room/model/message";
 import { createTavernAgentFlowPublicMessage } from "./context";
 import { getTavernAgentFlowPublicOutputKey } from "./presentation";
 import { getTavernAgentFlowPublicText } from "./output";
@@ -30,7 +29,7 @@ const buildCurrentInstructionMessage = (
   context: TavernAgentFlowContext,
 ): AgentProtocolMessage => ({
   role: input.trigger?.type === "scene_drive" ? "system" : "user",
-  speaker: input.trigger?.type === "scene_drive" ? "场景推进指令" : context.userPersonaName,
+  speaker: input.trigger?.type === "scene_drive" ? "场景推进指令" : context.playerName,
   content: context.currentInstruction,
   visibility: "public",
 });
@@ -54,7 +53,7 @@ const buildSpeakerInstruction = ({
     }
 
     if (context.presentation.userInputMode === "speech") {
-      return `当前输入是${context.userPersonaName}在场内说出口的话或可见动作；你的公开输出应像现场对话一样直接回应这句话或动作。`;
+      return `当前输入是${context.playerName}在场内说出口的话或可见动作；你的公开输出应像现场对话一样直接回应这句话或动作。`;
     }
 
     if (context.presentation.userInputMode === "story_directive") {
@@ -113,10 +112,10 @@ const prepareSpeakerRequest = ({
       instruction: buildSpeakerInstruction({ input, context, character }),
       successCriteria: ["公开输出可直接渲染给用户", "内容承接当前用户输入或场景推进", "没有协议说明或字段解释混入正文"],
     },
-    progress: buildTavernAgentFlowProgress(input.room),
+    progress: buildTavernAgentFlowProgress(input.story),
     messages: [...context.historyMessages, buildCurrentInstructionMessage(input, context), ...previousPublicMessages],
     references: buildTavernAgentFlowReferences({
-      room: input.room,
+      story: input.story,
       characters: input.characters,
       presentation: context.presentation,
       target: "character",
@@ -139,7 +138,7 @@ const createSpeakerMessage = ({
   rawText: string;
 }): TavernMessage => ({
   id: createTimestampId("msg"),
-  roomId: input.room.identity.id,
+  roomId: input.story.roomConfig.id,
   turnId: input.turnId,
   role: "character",
   characterId: character.id,
@@ -178,8 +177,8 @@ export const runTavernAgentFlowSpeaker = async ({
 
   const output = await runAgent({
     workspacePath: input.workspacePath,
-    sessionRootDir: tavernAgentFlowSessionRootDir(input.room),
-    agentRoleId: tavernAgentFlowCharacterRoleId(input.room, character),
+    sessionRootDir: tavernAgentFlowSessionRootDir(input.story),
+    agentRoleId: tavernAgentFlowCharacterRoleId(input.story, character),
     runtimeModel: input.runtimeModel,
     userMessage: prepared.prompt,
     systemPrompt: `你正在扮演 ${character.name}。必须遵守用户消息里的结构化输入和输出协议。`,

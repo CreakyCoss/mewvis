@@ -23,10 +23,6 @@ type StoryScenesModuleProps = {
 
 export const StoryScenesModule = ({ story, onSave }: StoryScenesModuleProps) => {
   const editRef = useRef<StoryScenesEditHandle>(null);
-  const activeNodeSceneId =
-    story.graph.nodes.find((node) => node.id === story.graph.activeNodeId)?.sceneId ??
-    story.graph.nodes.find((node) => node.id === story.graph.entryNodeId)?.sceneId ??
-    story.scenes[0]?.id;
   const moveScene = (index: number, direction: -1 | 1) => {
     onSave({
       ...story,
@@ -76,15 +72,8 @@ export const StoryScenesModule = ({ story, onSave }: StoryScenesModuleProps) => 
         ) : (
           <div className="grid gap-2">
             {story.scenes.map((scene, index) => {
-              const isActiveScene = scene.id === activeNodeSceneId;
               return (
-                <div
-                  key={scene.id}
-                  className={[
-                    "rounded-md border bg-background/80 p-3",
-                    isActiveScene ? "border-primary/45 bg-primary/[0.06] ring-1 ring-primary/10" : "",
-                  ].join(" ")}
-                >
+                <div key={scene.id} className="rounded-md border bg-background/80 p-3">
                   <div className="flex min-w-0 items-start gap-3">
                     <span className="flex size-8 shrink-0 items-center justify-center rounded-md border bg-muted/50 text-xs font-medium text-muted-foreground">
                       {index + 1}
@@ -94,11 +83,6 @@ export const StoryScenesModule = ({ story, onSave }: StoryScenesModuleProps) => 
                         <div className="min-w-0 truncate text-sm font-medium leading-5">
                           {scene.title || emptyValueText}
                         </div>
-                        {isActiveScene ? (
-                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-                            当前
-                          </span>
-                        ) : null}
                       </div>
                       <div className={["mt-1 line-clamp-2", editorListEntryBodyClassName].join(" ")}>
                         {scene.plot.trim() || scene.scene.trim() || emptyValueText}

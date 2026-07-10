@@ -291,7 +291,6 @@ export const createDefaultTavernPromptSettings = ({
   qualityRuleIds?: TavernQualityRuleId[];
   immersiveDescriptionEnabled?: boolean;
 }): TavernRoomPromptSettings => ({
-  version: 1,
   blocks: [
     ...createSystemNarrativePromptBlocks({
       presetId: systemNarrativePresetId,
@@ -357,7 +356,6 @@ export const normalizeTavernPromptSettings = (
     : [];
 
   return {
-    version: 1,
     blocks: hasBlockArray
       ? blocks.sort((left, right) => left.order - right.order || left.label.localeCompare(right.label))
       : cloneDeep(fallback.blocks),

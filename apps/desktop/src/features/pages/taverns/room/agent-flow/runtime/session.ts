@@ -1,5 +1,5 @@
 import { deleteLedger } from "@/features/ai/components/conversation-ledger/api";
-import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
+import type { TavernStoryData } from "@/features/pages/taverns/room/model";
 import type { TavernAgentFlowSessionInput } from "../types";
 
 const sanitizeSessionSegment = (value: string) => {
@@ -12,14 +12,14 @@ const sanitizeSessionSegment = (value: string) => {
   return segment;
 };
 
-export const tavernAgentFlowSessionRootDir = (room: TavernRoomRuntime) =>
-  `tavern/${sanitizeSessionSegment(room.identity.id)}/agent-flow`;
+export const tavernAgentFlowSessionRootDir = (story: TavernStoryData) =>
+  `tavern/${sanitizeSessionSegment(story.id)}/${sanitizeSessionSegment(story.roomConfig.id)}/agent-flow`;
 
-export const deleteTavernAgentFlowSession = async ({ workspacePath, room }: TavernAgentFlowSessionInput) => {
+export const deleteTavernAgentFlowSession = async ({ workspacePath, story }: TavernAgentFlowSessionInput) => {
   const results = await Promise.allSettled([
     deleteLedger({
       workspacePath,
-      sessionRootDir: tavernAgentFlowSessionRootDir(room),
+      sessionRootDir: tavernAgentFlowSessionRootDir(story),
     }),
   ]);
   const failed = results.find((result): result is PromiseRejectedResult => result.status === "rejected");

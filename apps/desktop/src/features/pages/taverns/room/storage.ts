@@ -1,12 +1,18 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type { TavernMessage } from "../tavern/types";
-import type { TavernRoomRuntime, TavernRoomSessionState } from "./model";
+import type { TavernMessage } from "./model/message";
+import type { TavernStoryData } from "./model";
+import { readJsonWorkspaceFile, writeJsonWorkspaceFile } from "@/utils/files";
 
 const TAVERN_ROOM_FILE_NAME = "room.json";
 const TAVERN_MESSAGES_FILE_NAME = "messages.json";
 const TAVERN_WORKSPACE_PATH_MARKER = "/.tavern/";
 const TAVERN_WORKSPACE_INIT_FILE_PREFIX = ".__tavern_workspace_init";
-const ensuredSessionPaths = new Set<string>();
+const ensuredRoomPaths = new Set<string>();
+
+type TavernStoryFiles = {
+  story: TavernStoryData;
+  messages: TavernMessage[];
+};
 
 const normalizePathSeparators = (value: string) => value.trim().replace(/\\/g, "/").replace(/\/+$/, "");
 
@@ -23,20 +29,6 @@ const resolveTavernWorkspaceBackingPath = (workspacePath: string) => {
   };
 };
 
-const readJsonWorkspaceFile = async <T>(workspacePath: string, relativePath: string): Promise<T | null> => {
-  let content: string;
-  try {
-    const file = await invoke<{ content: string }>("read_workspace_file", {
-      input: { workspacePath, relativePath },
-    });
-    content = file.content;
-  } catch {
-    return null;
-  }
-
-  return JSON.parse(content) as T;
-};
-
 const writeTextWorkspaceFile = async (workspacePath: string, relativePath: string, content: string) => {
   await invoke("write_workspace_file", {
     input: {
@@ -47,33 +39,29 @@ const writeTextWorkspaceFile = async (workspacePath: string, relativePath: strin
   });
 };
 
-const writeJsonWorkspaceFile = async (workspacePath: string, relativePath: string, value: unknown) => {
-  await writeTextWorkspaceFile(workspacePath, relativePath, JSON.stringify(value, null, 2));
-};
-
 const deleteWorkspaceFileIfExists = async (workspacePath: string, relativePath: string) => {
   try {
     await invoke("delete_workspace_file", {
       input: { workspacePath, relativePath },
     });
   } catch {
-    // Missing runtime files are already equivalent to a cleared room session.
+    // A missing file already represents an empty room.
   }
 };
 
-const ensureTavernRoomSessionDirectory = async (workspacePath: string) => {
+const ensureTavernRoomDirectory = async (workspacePath: string) => {
   if (!workspacePath.trim() || !isTauri()) {
     return;
   }
 
   const normalizedPath = normalizePathSeparators(workspacePath);
-  if (ensuredSessionPaths.has(normalizedPath)) {
+  if (ensuredRoomPaths.has(normalizedPath)) {
     return;
   }
 
   const backingPath = resolveTavernWorkspaceBackingPath(workspacePath);
   if (!backingPath) {
-    ensuredSessionPaths.add(normalizedPath);
+    ensuredRoomPaths.add(normalizedPath);
     return;
   }
 
@@ -81,49 +69,36 @@ const ensureTavernRoomSessionDirectory = async (workspacePath: string) => {
   const initFilePath = `${backingPath.relativePath}/${initFileName}`;
   await writeTextWorkspaceFile(backingPath.workspacePath, initFilePath, "");
   await deleteWorkspaceFileIfExists(backingPath.workspacePath, initFilePath);
-  ensuredSessionPaths.add(normalizedPath);
+  ensuredRoomPaths.add(normalizedPath);
 };
 
-export const loadTavernRoomSessionState = async (workspacePath: string): Promise<TavernRoomSessionState | null> => {
+export const loadTavernRoom = async (workspacePath: string): Promise<TavernStoryFiles | null> => {
   if (!workspacePath.trim() || !isTauri()) {
     return null;
   }
 
-  const runtime = await readJsonWorkspaceFile<TavernRoomRuntime>(workspacePath, TAVERN_ROOM_FILE_NAME);
+  const story = await readJsonWorkspaceFile<TavernStoryData>(workspacePath, TAVERN_ROOM_FILE_NAME);
   const messages = await readJsonWorkspaceFile<TavernMessage[]>(workspacePath, TAVERN_MESSAGES_FILE_NAME);
-  if (!runtime || !messages) {
+  if (!story || !messages) {
     return null;
   }
 
-  return {
-    runtime,
-    messages,
-  };
+  return { story, messages };
 };
 
-export const openTavernRoomSessionState = async (
-  workspacePath: string,
-  initialState: TavernRoomSessionState,
-): Promise<TavernRoomSessionState> => (await loadTavernRoomSessionState(workspacePath)) ?? initialState;
-
-export const saveTavernRoomSessionState = async (workspacePath: string, state: TavernRoomSessionState) => {
+export const saveTavernRoom = async (workspacePath: string, story: TavernStoryData, messages: TavernMessage[]) => {
   if (!workspacePath.trim() || !isTauri()) {
     return;
   }
 
-  const runtime = state.runtime;
-  if (!runtime) {
-    return;
-  }
-
-  await ensureTavernRoomSessionDirectory(workspacePath);
+  await ensureTavernRoomDirectory(workspacePath);
   await Promise.all([
-    writeJsonWorkspaceFile(workspacePath, TAVERN_ROOM_FILE_NAME, runtime),
-    writeJsonWorkspaceFile(workspacePath, TAVERN_MESSAGES_FILE_NAME, state.messages),
+    writeJsonWorkspaceFile(workspacePath, TAVERN_ROOM_FILE_NAME, story),
+    writeJsonWorkspaceFile(workspacePath, TAVERN_MESSAGES_FILE_NAME, messages),
   ]);
 };
 
-export const deleteTavernRoomSessionState = async (workspacePath: string) => {
+export const deleteTavernRoom = async (workspacePath: string) => {
   if (!workspacePath.trim() || !isTauri()) {
     return;
   }

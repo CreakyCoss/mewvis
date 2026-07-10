@@ -34,15 +34,13 @@ const dedupeById = <T extends { id: string }>(items: T[]) => [
 const mergeStoryJsonIntoStory = (story: StoryJson, incoming: StoryJson): StoryJson => ({
   ...story,
   title: incoming.title.trim() || story.title,
-  outline: incoming.outline.trim() || story.outline,
+  premise: incoming.premise.trim() || story.premise,
   goal: incoming.goal.trim() || story.goal,
-  userPersonaName: incoming.userPersonaName.trim() || story.userPersonaName,
+  playerName: incoming.playerName.trim() || story.playerName,
   characters: dedupeById([...story.characters, ...incoming.characters]),
   lorebookEntries: dedupeById([...story.lorebookEntries, ...incoming.lorebookEntries]),
   scenes: dedupeById([...story.scenes, ...incoming.scenes]),
   graph: {
-    entryNodeId: story.graph.entryNodeId || incoming.graph.entryNodeId,
-    activeNodeId: story.graph.activeNodeId || incoming.graph.activeNodeId,
     nodes: dedupeById([...story.graph.nodes, ...incoming.graph.nodes]),
     edges: dedupeById([...story.graph.edges, ...incoming.graph.edges]),
   },

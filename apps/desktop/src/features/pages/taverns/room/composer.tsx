@@ -1,6 +1,7 @@
 import type { FormEvent, Ref } from "react";
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { FileText, Loader2, PencilLine, Send } from "lucide-react";
+import { FileText, Loader2, Send } from "lucide-react";
+import { uniqBy } from "lodash-es";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -9,14 +10,11 @@ import {
   quoteReferencePath,
   resolveFileReferenceMatches,
   summarizeReferenceMatches,
+  type PromptFileReference,
 } from "@/features/ai/components/context-tools";
 import { readWorkspaceFile, type WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import { cn } from "@/lib/utils";
-import type { TavernReplyOption } from "@/features/pages/taverns/manage/model";
 import { getTavernPresentationProfile } from "@/features/pages/taverns/tavern/prompt-registry/presentation-rules";
-import type { TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
-import { uniqueFilesByPath } from "@/features/pages/taverns/tavern/utils";
-import { getCurrentTimestamp } from "@/utils/time";
 import {
   createIdleTavernRoomBusyState,
   isTavernRoomBusy,
@@ -29,18 +27,16 @@ const REFERENCE_SUGGESTION_LIMIT = 8;
 
 export type ComposerSubmitPayload = {
   text: string;
-  selectedReplyOption?: TavernReplyOption;
   referencedFilePreviews: WorkspaceFileEntry[];
   unresolvedFileReferences: Array<{ token: string }>;
   ambiguousFileReferences: Array<{ token: string }>;
-  readReferencedFiles: () => Promise<TavernReferencedFile[]>;
+  readReferencedFiles: () => Promise<PromptFileReference[]>;
 };
 
 export type ComposerHandle = {
   getDraft: () => string;
   getSubmitPayload: () => ComposerSubmitPayload;
   clearDraft: () => void;
-  clearReplyOptions: () => void;
 };
 
 type ComposerProps = {
@@ -57,10 +53,9 @@ export const createEmptyComposerSubmitPayload = (): ComposerSubmitPayload => ({
 });
 
 export const Composer = ({ bind, files }: ComposerProps) => {
-  const activeRoom = useTavernRoomContext((store) => store.activeRoom);
+  const story = useTavernRoomContext((store) => store.story);
   const busy = useTavernRoomContext((store) => store.busy);
   const error = useTavernRoomContext((store) => store.error);
-  const patchRoom = useTavernRoomContext((store) => store.patchRoom);
   const setBusy = useTavernRoomContext((store) => store.setBusy);
   const setComposerHandle = useTavernRoomContext((store) => store.setComposerHandle);
   const setError = useTavernRoomContext((store) => store.setError);
@@ -68,11 +63,10 @@ export const Composer = ({ bind, files }: ComposerProps) => {
   const workspacePath = useTavernRoomContext((store) => store.workspacePath);
   const [draft, setDraft] = useState("");
   const [draftCursor, setDraftCursor] = useState(0);
-  const [replyOptions, setReplyOptions] = useState<TavernReplyOption[]>([]);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const isSending = isTavernRoomSending(busy);
   const isBusy = isTavernRoomBusy(busy);
-  const presentationProfile = getTavernPresentationProfile(activeRoom?.presentation.profile?.profileId);
+  const presentationProfile = getTavernPresentationProfile(story?.roomConfig.presentation.profileId);
   const placeholder = presentationProfile.composerPlaceholder;
   const canSubmit = Boolean(draft.trim());
   const selectableFiles = useMemo(() => files.filter((file) => !file.isDirectory), [files]);
@@ -97,7 +91,7 @@ export const Composer = ({ bind, files }: ComposerProps) => {
   }, [activeReferenceToken, selectableFiles]);
   const fileReferenceMatches = useMemo(() => resolveFileReferenceMatches(draft, files), [draft, files]);
   const referencedFilePreviews = useMemo(
-    () => uniqueFilesByPath(summarizeReferenceMatches(fileReferenceMatches)),
+    () => uniqBy(summarizeReferenceMatches(fileReferenceMatches), "path"),
     [fileReferenceMatches],
   );
   const unresolvedFileReferences = useMemo(
@@ -109,16 +103,12 @@ export const Composer = ({ bind, files }: ComposerProps) => {
     [fileReferenceMatches],
   );
 
-  const clearReplyOptions = useCallback(() => {
-    setReplyOptions([]);
-  }, []);
-
   const clearDraft = useCallback(() => {
     setDraft("");
     setDraftCursor(0);
   }, []);
 
-  const readReferencedFiles = useCallback(async (): Promise<TavernReferencedFile[]> => {
+  const readReferencedFiles = useCallback(async (): Promise<PromptFileReference[]> => {
     const resources = await loadContextResources({
       references: referencedFilePreviews.map((file) => ({ path: file.path })),
       loadFile: async ({ path }) => {
@@ -130,25 +120,12 @@ export const Composer = ({ bind, files }: ComposerProps) => {
         };
       },
     });
-    return resources.references.map((file) => ({
-      path: file.path,
-      content: file.content,
-    }));
+    return resources.references;
   }, [referencedFilePreviews, workspacePath]);
 
   const createSubmitPayload = useCallback(
-    (
-      text: string,
-      {
-        selectedReplyOption,
-        includeReferences,
-      }: {
-        selectedReplyOption?: TavernReplyOption;
-        includeReferences: boolean;
-      },
-    ): ComposerSubmitPayload => ({
+    (text: string, { includeReferences }: { includeReferences: boolean }): ComposerSubmitPayload => ({
       text,
-      selectedReplyOption,
       referencedFilePreviews: includeReferences ? referencedFilePreviews : [],
       unresolvedFileReferences: includeReferences ? unresolvedFileReferences : [],
       ambiguousFileReferences: includeReferences ? ambiguousFileReferences : [],
@@ -162,9 +139,8 @@ export const Composer = ({ bind, files }: ComposerProps) => {
       getDraft: () => draft,
       getSubmitPayload: () => createSubmitPayload(draft, { includeReferences: true }),
       clearDraft,
-      clearReplyOptions,
     }),
-    [clearDraft, clearReplyOptions, createSubmitPayload, draft],
+    [clearDraft, createSubmitPayload, draft],
   );
 
   useImperativeHandle(bind, () => composerHandle, [bind, composerHandle]);
@@ -180,32 +156,29 @@ export const Composer = ({ bind, files }: ComposerProps) => {
   }, [composerHandle, setComposerHandle]);
 
   useEffect(() => {
-    setReplyOptions(activeRoom?.scene.replyOptions ?? []);
     clearDraft();
-  }, [activeRoom?.identity.id, clearDraft]);
+  }, [story?.id, clearDraft]);
 
   const submitPayload = useCallback(
     async (payload: ComposerSubmitPayload) => {
       try {
         await submitTavernAgentFlow({
           submittedText: payload.text,
-          selectedReplyOption: payload.selectedReplyOption,
           ambiguousFileReferences: payload.ambiguousFileReferences,
           readReferencedFiles: payload.readReferencedFiles,
           referencedFilePreviews: payload.referencedFilePreviews,
           unresolvedFileReferences: payload.unresolvedFileReferences,
           onCommitted: () => {
             clearDraft();
-            clearReplyOptions();
           },
         });
       } catch (submitError) {
-        console.error("Failed to submit tavern room turn", submitError);
+        console.error("Failed to submit tavern story turn", submitError);
         setError(`酒馆回应失败：${getTavernAgentFlowErrorMessage(submitError)}`);
         setBusy(createIdleTavernRoomBusyState());
       }
     },
-    [clearDraft, clearReplyOptions, setBusy, setError],
+    [clearDraft, setBusy, setError],
   );
 
   const insertReference = useCallback(
@@ -238,60 +211,6 @@ export const Composer = ({ bind, files }: ComposerProps) => {
     [createSubmitPayload, draft, isBusy, submitPayload],
   );
 
-  const submitReplyOption = useCallback(
-    (option: TavernReplyOption) => {
-      if (isBusy) {
-        return;
-      }
-
-      void submitPayload(
-        createSubmitPayload(option.text.trim(), { selectedReplyOption: option, includeReferences: false }),
-      );
-    },
-    [createSubmitPayload, isBusy, submitPayload],
-  );
-
-  const fillReplyOption = useCallback(
-    (option: TavernReplyOption) => {
-      const nextDraft = option.text.trim();
-      if (!nextDraft) {
-        return;
-      }
-
-      setDraft(nextDraft);
-      setDraftCursor(nextDraft.length);
-      clearReplyOptions();
-      if (activeRoom) {
-        patchRoom(activeRoom.identity.id, (room) => {
-          const updatedAt = getCurrentTimestamp();
-          return {
-            ...room,
-            identity: {
-              ...room.identity,
-              updatedAt,
-            },
-            config: {
-              room: {
-                ...room.config.room,
-                updatedAt,
-              },
-            },
-            scene: {
-              ...room.scene,
-              replyOptions: [],
-              updatedAt,
-            },
-          };
-        });
-      }
-      window.setTimeout(() => {
-        inputRef.current?.focus();
-        inputRef.current?.setSelectionRange(nextDraft.length, nextDraft.length);
-      }, 0);
-    },
-    [activeRoom, clearReplyOptions, patchRoom],
-  );
-
   return (
     <form className={cn("border-t px-4 py-3 sm:px-5", visualPreset.tavern.composer)} onSubmit={submitDraft}>
       <div className="mx-auto max-w-3xl space-y-2">
@@ -312,49 +231,6 @@ export const Composer = ({ bind, files }: ComposerProps) => {
                 <span className="truncate">{file.path}</span>
               </span>
             ))}
-          </div>
-        )}
-        {replyOptions.length > 0 && (
-          <div
-            className={cn("space-y-2 rounded-md border p-2.5 text-current shadow-sm", visualPreset.tavern.sceneCard)}
-            role="list"
-            aria-label="候选回复"
-          >
-            <div className="flex items-center gap-2 text-xs font-medium">
-              <PencilLine className="size-3.5 text-primary" />
-              <span>候选回复</span>
-            </div>
-            <div className="grid gap-1.5">
-              {replyOptions.map((option) => (
-                <div
-                  key={option.id}
-                  className="flex min-h-10 overflow-hidden rounded-md border border-current/10 bg-current/5 text-sm leading-5 transition-colors focus-within:ring-2 focus-within:ring-ring"
-                >
-                  <button
-                    type="button"
-                    className="min-w-0 flex-1 px-3 py-2 text-left transition-colors hover:bg-current/10 focus-visible:outline-none"
-                    title="直接发送"
-                    aria-label={`直接发送候选回复：${option.text}`}
-                    disabled={isBusy}
-                    onClick={() => submitReplyOption(option)}
-                  >
-                    {option.text}
-                  </button>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="outline"
-                    className="h-auto min-h-10 w-10 shrink-0 rounded-none border-0 border-l border-current/10 bg-transparent text-current hover:bg-current/10 hover:text-current focus-visible:text-current dark:hover:bg-current/10 dark:hover:text-current"
-                    title="填入输入框后编辑"
-                    aria-label={`填入输入框编辑候选回复：${option.text}`}
-                    disabled={isBusy}
-                    onClick={() => fillReplyOption(option)}
-                  >
-                    <PencilLine className="size-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
           </div>
         )}
         <div className="relative">

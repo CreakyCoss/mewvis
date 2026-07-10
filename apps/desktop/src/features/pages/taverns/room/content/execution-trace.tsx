@@ -2,13 +2,7 @@ import { ListChecks, Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ExecutionChain, type ExecutionChainGroup } from "@/features/ai/components/execution-chain";
-
-export type ExecutionStep = {
-  id: string;
-  label: string;
-  detail?: string;
-  status: "pending" | "running" | "done" | "skipped" | "error";
-};
+import type { ExecutionStep } from "../context";
 
 type ExecutionTraceProps = {
   steps: ExecutionStep[];

@@ -4,10 +4,10 @@ import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import { CharacterStatusSection } from "./characters/section";
 
 export const SidePanel = ({ isOpen }: { isOpen: boolean }) => {
-  const activeRoom = useTavernRoomContext((store) => store.activeRoom);
+  const story = useTavernRoomContext((store) => store.story);
   const visualPreset = useTavernRoomContext((store) => store.visualPreset);
 
-  if (!isOpen || !activeRoom) {
+  if (!isOpen || !story) {
     return null;
   }
 

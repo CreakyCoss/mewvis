@@ -211,14 +211,7 @@ const normalizeGraph = ({
         return normalized && nodeIds.has(normalized.fromNodeId) && nodeIds.has(normalized.toNodeId) ? [normalized] : [];
       })
     : [];
-  const entryNodeId = nodeIds.has(trimText(value.entryNodeId))
-    ? trimText(value.entryNodeId)
-    : (resolvedNodes[0]?.id ?? fallback.entryNodeId);
-  const activeNodeId = nodeIds.has(trimText(value.activeNodeId)) ? trimText(value.activeNodeId) : entryNodeId;
-
   return {
-    entryNodeId,
-    activeNodeId,
     nodes: resolvedNodes,
     edges,
   };
@@ -257,19 +250,18 @@ export const normalizeStoryJson = (value: unknown, options: NormalizeStoryJsonOp
           index === 0
             ? {
                 ...scene,
-                scene: trimText(value.outline),
+                scene: trimText(value.premise),
                 goal: trimText(value.goal),
               }
             : scene,
         );
 
   return {
-    version: defaultStory.version,
     id,
     title,
-    outline: trimText(value.outline),
+    premise: trimText(value.premise),
     goal: trimText(value.goal),
-    userPersonaName: trimText(value.userPersonaName) || defaultStory.userPersonaName,
+    playerName: trimText(value.playerName) || defaultStory.playerName,
     characters: Array.isArray(value.characters)
       ? value.characters.flatMap((character, index) => {
           const normalized = normalizeCharacter(character, index);

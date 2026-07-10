@@ -3,8 +3,7 @@ import { runTavernAgentFlowDirector } from "./director";
 import { appendSpeakerPublicMessage, runTavernAgentFlowSpeaker } from "./speaker";
 import { createTimestampId } from "@/utils/ids";
 import { getCurrentTimestamp } from "@/utils/time";
-import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
-import { createTavernAgentOutputMessageBody } from "@/features/pages/taverns/room/model/message-body";
+import { createTavernAgentOutputMessageBody, type TavernMessage } from "@/features/pages/taverns/room/model/message";
 import { runTavernAgentFlowRuntimeAgent } from "../../runtime/agent";
 import type {
   TavernAgentFlowDirectorSpeakersResult,
@@ -40,7 +39,7 @@ const createDirectorNarratorMessage = ({
 
   return {
     id: createTimestampId("msg"),
-    roomId: input.room.identity.id,
+    roomId: input.story.roomConfig.id,
     turnId: input.turnId,
     role: "narrator",
     kind: "director_narration",

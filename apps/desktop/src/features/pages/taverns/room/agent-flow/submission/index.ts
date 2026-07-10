@@ -1,17 +1,16 @@
 import type { FormEvent } from "react";
+import type { PromptFileReference } from "@/features/ai/components/context-tools";
 import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
-import type { TavernReplyOption } from "@/features/pages/taverns/manage/model";
-import type { TavernMessage, TavernReferencedFile } from "@/features/pages/taverns/tavern/types";
+import { createTavernTextMessageBody, type TavernMessage } from "@/features/pages/taverns/room/model/message";
 import { requireRuntimeModelInput } from "@/features/pages/settings/llm/store";
 import {
   createIdleTavernRoomBusyState,
   isTavernRoomBusy,
   useTavernRoomContext,
-  type TavernRoomStoreState,
+  type TavernRoomStore,
 } from "@/features/pages/taverns/room/context";
 import { createTimestampId } from "@/utils/ids";
 import { getCurrentTimestamp } from "@/utils/time";
-import { createTavernTextMessageBody } from "@/features/pages/taverns/room/model/message-body";
 import { TavernAgentFlow } from "..";
 import type { TavernAgentFlowTrigger } from "../types";
 
@@ -20,10 +19,9 @@ export type SubmitTavernAgentFlowTrigger = TavernAgentFlowTrigger;
 type SubmitTavernAgentFlowParams = {
   event?: FormEvent;
   submittedText?: string;
-  selectedReplyOption?: TavernReplyOption;
   trigger?: SubmitTavernAgentFlowTrigger;
   ambiguousFileReferences: Array<{ token: string }>;
-  readReferencedFiles: () => Promise<TavernReferencedFile[]>;
+  readReferencedFiles: () => Promise<PromptFileReference[]>;
   referencedFilePreviews: WorkspaceFileEntry[];
   unresolvedFileReferences: Array<{ token: string }>;
   onCommitted?: () => void;
@@ -60,13 +58,11 @@ const createUserMessage = ({
   text,
   turnId,
   referencedFilePreviews,
-  selectedReplyOption,
 }: {
   roomId: string;
   text: string;
   turnId: string;
   referencedFilePreviews: WorkspaceFileEntry[];
-  selectedReplyOption?: TavernReplyOption;
 }): TavernMessage => ({
   id: createTimestampId("msg"),
   roomId,
@@ -74,21 +70,12 @@ const createUserMessage = ({
   kind: "user_text",
   role: "user",
   body: createTavernTextMessageBody(text),
-  targetCharacterIds: selectedReplyOption?.targetCharacterIds,
   referencedFiles: referencedFilePreviews.map((file) => ({ path: file.path })),
   createdAt: getCurrentTimestamp(),
   status: "done",
 });
 
-const beginSubmission = ({
-  ctx,
-  roomId,
-  isSceneDrive,
-}: {
-  ctx: TavernRoomStoreState;
-  roomId: string;
-  isSceneDrive: boolean;
-}) => {
+const beginSubmission = ({ ctx, isSceneDrive }: { ctx: TavernRoomStore; isSceneDrive: boolean }) => {
   ctx.setBusy({
     kind: "sending",
     status: isSceneDrive ? "导演正在自推动场景..." : "导演正在调度角色...",
@@ -101,27 +88,6 @@ const beginSubmission = ({
       status: "pending",
     },
   ]);
-  ctx.patchRoom(roomId, (runtime) => {
-    const updatedAt = getCurrentTimestamp();
-    return {
-      ...runtime,
-      identity: {
-        ...runtime.identity,
-        updatedAt,
-      },
-      config: {
-        room: {
-          ...runtime.config.room,
-          updatedAt,
-        },
-      },
-      scene: {
-        ...runtime.scene,
-        replyOptions: [],
-        updatedAt,
-      },
-    };
-  });
 };
 
 const readSubmitReferences = async ({
@@ -129,9 +95,9 @@ const readSubmitReferences = async ({
   referencedFilePreviews,
   readReferencedFiles,
 }: {
-  ctx: TavernRoomStoreState;
+  ctx: TavernRoomStore;
   referencedFilePreviews: WorkspaceFileEntry[];
-  readReferencedFiles: () => Promise<TavernReferencedFile[]>;
+  readReferencedFiles: () => Promise<PromptFileReference[]>;
 }) => {
   if (referencedFilePreviews.length === 0) {
     return [];
@@ -144,7 +110,6 @@ const readSubmitReferences = async ({
 export const submitTavernAgentFlow = async ({
   event,
   submittedText,
-  selectedReplyOption,
   trigger = { type: "user" },
   ambiguousFileReferences,
   readReferencedFiles,
@@ -155,7 +120,7 @@ export const submitTavernAgentFlow = async ({
   event?.preventDefault();
 
   const ctx = useTavernRoomContext.getState();
-  const { activeRoom, busy, roomCharacters, roomMessages, runtimeModel, setError } = ctx;
+  const { story, messages, busy, runtimeModel, setError } = ctx;
   const isSceneDrive = trigger.type === "scene_drive";
   const text = (isSceneDrive ? (trigger.directive ?? submittedText ?? "") : (submittedText ?? "")).trim();
   const workspacePath = ctx.workspacePath.trim();
@@ -169,7 +134,7 @@ export const submitTavernAgentFlow = async ({
     return;
   }
 
-  if (!activeRoom || roomCharacters.length === 0) {
+  if (!story || story.characters.length === 0) {
     setError("当前房间还没有可回应的角色。");
     return;
   }
@@ -201,21 +166,18 @@ export const submitTavernAgentFlow = async ({
   }
 
   const turnId = createTimestampId("turn");
-  const previousMessages = roomMessages;
   const userMessage = isSceneDrive
     ? null
     : createUserMessage({
-        roomId: activeRoom.identity.id,
+        roomId: story.roomConfig.id,
         text,
         turnId,
         referencedFilePreviews,
-        selectedReplyOption,
       });
 
   try {
     beginSubmission({
       ctx,
-      roomId: activeRoom.identity.id,
       isSceneDrive,
     });
 
@@ -226,7 +188,7 @@ export const submitTavernAgentFlow = async ({
     });
 
     if (userMessage) {
-      ctx.appendMessagesToRoom(activeRoom.identity.id, [userMessage]);
+      ctx.appendMessages(story.roomConfig.id, [userMessage]);
       ctx.setExecutionTraceAnchorMessageId(userMessage.id);
     }
     onCommitted?.();
@@ -234,15 +196,14 @@ export const submitTavernAgentFlow = async ({
     const result = await TavernAgentFlow.run({
       workspacePath,
       runtimeModel: runtimeModelInput,
-      room: activeRoom,
-      characters: roomCharacters,
-      messages: previousMessages,
+      story,
+      messages,
+      characters: story.characters,
       references,
       currentUserText: text,
       trigger,
       turnId,
-      selectedCharacterIds: selectedReplyOption?.targetCharacterIds,
-      maxSpeakers: activeRoom.presentation.settings.directorMaxSpeakers,
+      maxSpeakers: story.roomConfig.settings.directorMaxSpeakers,
       onEvent: (event) => {
         if (event.type === "director_start") {
           ctx.setBusyStatus("导演正在调度角色...");
@@ -256,7 +217,7 @@ export const submitTavernAgentFlow = async ({
             detail: event.decision.reason,
           });
           event.decision.speakerIds.forEach((speakerId, index) => {
-            const speaker = roomCharacters.find((character) => character.id === speakerId);
+            const speaker = story.characters.find((character) => character.id === speakerId);
             ctx.upsertExecutionStep({
               id: `speaker-${speakerId}`,
               label: speaker ? `${speaker.name}回应` : `角色 ${index + 1} 回应`,
@@ -286,7 +247,7 @@ export const submitTavernAgentFlow = async ({
     });
 
     if (result.messages.length > 0) {
-      ctx.appendMessagesToRoom(activeRoom.identity.id, result.messages);
+      ctx.appendMessages(story.roomConfig.id, result.messages);
       const anchorMessage = userMessage ?? result.messages[0];
       if (anchorMessage) {
         ctx.setExecutionTraceAnchorMessageId(anchorMessage.id);

@@ -4,12 +4,12 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
-import type { TavernRoom, TavernRoomSettings } from "@/features/pages/taverns/manage/model";
+import type { TavernRoomConfig, TavernRoomSettings } from "@/features/pages/taverns/manage/model";
 import { EditorField, EditorMetricStrip, EditorSection, EditorSettingGroup } from "../../primitives";
 import type { ModuleSave } from "../types";
 
 type SettingsSectionProps = {
-  data: TavernRoom;
+  data: TavernRoomConfig;
   globalRuntimeModel: RuntimeModelOption | null;
   onSave: ModuleSave;
 };

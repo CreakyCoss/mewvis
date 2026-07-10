@@ -8,7 +8,13 @@ import {
   type StoryLibraryItem,
   type StoryWorkspace,
 } from "../storage";
-import type { StoryNodeSelectOption } from "./actions/node";
+
+export type StoryNodeSelectOption = {
+  description?: string;
+  id: string;
+  label: string;
+  meta?: string;
+};
 
 type StoryStore = {
   buildNodeOptions: (story: StoryJson | null) => StoryNodeSelectOption[];
@@ -58,13 +64,7 @@ export const useStoryState = create<StoryStore>((set, get) => ({
       return {
         id: node.id,
         label: node.title.trim() || node.id,
-        meta: [
-          node.id === story.graph.entryNodeId ? "入口" : "",
-          node.id === story.graph.activeNodeId ? "当前" : "",
-          node.pathRole === "main" ? "主线" : "支线",
-        ]
-          .filter(Boolean)
-          .join(" · "),
+        meta: node.pathRole === "main" ? "主线" : "支线",
         description: scene?.title || scene?.plot || scene?.scene || node.status || "",
       };
     });

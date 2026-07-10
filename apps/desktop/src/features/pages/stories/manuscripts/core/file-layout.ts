@@ -16,7 +16,6 @@ export const storyManuscriptMetaPath = (manuscript: Pick<StoryManuscript, "id" |
 export const storyManuscriptToMeta = ({ content: _content, ...meta }: StoryManuscript): StoryManuscriptMeta => meta;
 
 export const createEmptyStoryManuscriptsManifest = (storyId: string): StoryManuscriptsManifest => ({
-  version: 1,
   storyId,
   updatedAt: Date.now(),
   nodes: [],
@@ -47,7 +46,6 @@ export const createStoryManuscriptsManifest = (
   }
 
   return {
-    version: 1,
     storyId,
     updatedAt: manuscripts.reduce((latest, item) => Math.max(latest, item.updatedAt), Date.now()),
     nodes: [...nodesById.values()].sort((left, right) => left.nodeId.localeCompare(right.nodeId)),

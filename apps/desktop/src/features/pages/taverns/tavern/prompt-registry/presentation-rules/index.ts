@@ -35,7 +35,6 @@ export const normalizeTavernPresentation = (value: unknown): TavernPresentationS
 
   return {
     profileId: normalizeTavernPresentationProfileId(candidate.profileId),
-    profileVersion: 1,
   };
 };
 

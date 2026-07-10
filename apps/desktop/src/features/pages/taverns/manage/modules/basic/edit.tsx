@@ -6,7 +6,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { TAVERN_SCENE_PRESET_OPTIONS } from "@/features/pages/taverns/tavern/visual-presets";
-import type { TavernReplyMode, TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernReplyMode, TavernRoomConfig } from "@/features/pages/taverns/manage/model";
 import {
   EditorField,
   EditorFormCard,
@@ -22,11 +22,11 @@ import {
 import { editorControlClassName, emptyValueText, replyModeOptions } from "../../utils";
 import type { ModuleEditProps } from "../types";
 
-export type BasicEditHandle = (data?: TavernRoom) => void;
+export type BasicEditHandle = (data?: TavernRoomConfig) => void;
 
 type BasicDraft = {
   title: string;
-  scenePresetId: TavernRoom["scenePresetId"];
+  scenePresetId: TavernRoomConfig["scenePresetId"];
   replyMode: TavernReplyMode;
 };
 
@@ -110,7 +110,7 @@ export const BasicEdit = ({ bind, data, onSave }: BasicEditProps) => {
                   </EditorFormSidebarCard>
                   <EditorFormSidebarPanel title="故事配置">
                     <div className="text-xs leading-5 text-muted-foreground">
-                      需要修改故事总纲、用户称呼或角色设定时，请返回故事配置入口。
+                      需要修改故事设定、玩家称呼或角色设定时，请返回故事配置入口。
                     </div>
                   </EditorFormSidebarPanel>
                   <EditorFormNav
@@ -151,7 +151,7 @@ export const BasicEdit = ({ bind, data, onSave }: BasicEditProps) => {
                       onChange={(event) =>
                         setDraft({
                           ...draft,
-                          scenePresetId: event.target.value as TavernRoom["scenePresetId"],
+                          scenePresetId: event.target.value as TavernRoomConfig["scenePresetId"],
                         })
                       }
                     >

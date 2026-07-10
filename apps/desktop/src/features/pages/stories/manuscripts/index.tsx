@@ -103,7 +103,7 @@ const StoryManuscriptsContent = ({
 }) => {
   const { story, workspace } = item;
   const editRef = useRef<StoryManuscriptEditHandle>(null);
-  const [selectedNodeId, setSelectedNodeId] = useState(story.graph.activeNodeId || story.graph.entryNodeId || "");
+  const [selectedNodeId, setSelectedNodeId] = useState(story.graph.nodes[0]?.id ?? "");
   const manuscriptActions = useStoryManuscripts({ story, workspace });
   const groupedManuscripts = useMemo(
     () => groupStoryManuscriptsByNode(story, manuscriptActions.manuscripts),
@@ -114,8 +114,10 @@ const StoryManuscriptsContent = ({
   const pendingCount = manuscriptActions.manuscripts.filter((manuscript) => manuscript.status === "pending").length;
 
   useEffect(() => {
-    setSelectedNodeId(story.graph.activeNodeId || story.graph.entryNodeId || story.graph.nodes[0]?.id || "");
-  }, [story.graph.activeNodeId, story.graph.entryNodeId, story.graph.nodes]);
+    setSelectedNodeId((currentNodeId) =>
+      story.graph.nodes.some((node) => node.id === currentNodeId) ? currentNodeId : (story.graph.nodes[0]?.id ?? ""),
+    );
+  }, [story.graph.nodes]);
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">

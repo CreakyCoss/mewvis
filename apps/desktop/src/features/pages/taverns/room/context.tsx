@@ -1,19 +1,18 @@
 import type { SetStateAction } from "react";
 import { create } from "zustand";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
-import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
-import {
-  getTavernRoomActiveCharacter,
-  getTavernRoomCharacters,
-  type TavernRoomRuntime,
-  type TavernRoomSessionState,
-} from "@/features/pages/taverns/room/model";
+import type { TavernStoryData } from "@/features/pages/taverns/room/model";
 import { getVisualPreset } from "@/features/pages/taverns/tavern/visual-presets";
 import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets/types";
-import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
-import { getCurrentTimestamp } from "@/utils/time";
+import type { TavernMessage } from "@/features/pages/taverns/room/model/message";
 import type { ComposerHandle } from "./composer";
-import type { ExecutionStep } from "./execution-trace";
+
+export type ExecutionStep = {
+  id: string;
+  label: string;
+  detail?: string;
+  status: "pending" | "running" | "done" | "skipped" | "error";
+};
 
 export type TavernRoomBusyKind = "idle" | "sending";
 
@@ -32,18 +31,14 @@ export const isTavernRoomBusy = (busy: TavernRoomBusyState) => busy.kind !== "id
 export const isTavernRoomSending = (busy: TavernRoomBusyState) => busy.kind === "sending";
 
 type TavernRoomDerivedState = {
-  activeRoom: TavernRoomRuntime | null;
   visualPreset: VisualPresetDefinition;
-  roomCharacters: TavernCharacter[];
-  roomMessages: TavernMessage[];
-  activeCharacter: TavernCharacter | null;
 };
 
 type TavernRoomStoreBase = {
   workspacePath: string;
   runtimeModel: RuntimeModelOption | null;
-  state: TavernRoomSessionState;
-  initialState: TavernRoomSessionState;
+  story: TavernStoryData | null;
+  messages: TavernMessage[];
   composerHandle: ComposerHandle | null;
   error: string;
   busy: TavernRoomBusyState;
@@ -53,15 +48,16 @@ type TavernRoomStoreBase = {
 
 type TavernRoomStoreInitialization = {
   workspacePath: string;
-  state: TavernRoomSessionState;
-  initialState: TavernRoomSessionState;
+  story: TavernStoryData;
+  messages: TavernMessage[];
 };
 
 type TavernRoomStoreActions = {
   initializeRoom: (input: TavernRoomStoreInitialization) => void;
   setRuntimeModel: (runtimeModel: RuntimeModelOption | null) => void;
   setComposerHandle: (composerHandle: ComposerHandle | null) => void;
-  setSession: (state: TavernRoomSessionState) => void;
+  setStory: (story: TavernStoryData) => void;
+  setMessages: (messages: TavernMessage[]) => void;
   setError: (error: string) => void;
   setBusy: (busy: TavernRoomBusyState) => void;
   setBusyStatus: (status: string) => void;
@@ -69,58 +65,35 @@ type TavernRoomStoreActions = {
   setExecutionTraceAnchorMessageId: (messageId: string) => void;
   patchExecutionStep: (stepId: string, patch: Partial<Omit<ExecutionStep, "id">>) => void;
   upsertExecutionStep: (step: ExecutionStep) => void;
-  patchRoom: (roomId: string, updater: (room: TavernRoomRuntime) => TavernRoomRuntime) => void;
-  appendMessagesToRoom: (roomId: string, messages: TavernMessage[]) => void;
+  appendMessages: (roomConfigId: string, messages: TavernMessage[]) => void;
 };
 
-export type TavernRoomStoreState = TavernRoomStoreBase & TavernRoomStoreActions;
+export type TavernRoomStore = TavernRoomStoreBase & TavernRoomStoreActions;
 
-const createEmptySessionState = (): TavernRoomSessionState => ({
-  runtime: null,
-  messages: [],
+const deriveStoryState = (story: TavernStoryData | null): TavernRoomDerivedState => ({
+  visualPreset: getVisualPreset(story?.roomConfig.scenePresetId),
 });
-
-const deriveRoomState = (state: TavernRoomSessionState): TavernRoomDerivedState => {
-  const activeRoom = state.runtime;
-  return {
-    activeRoom,
-    visualPreset: getVisualPreset(activeRoom?.scene.scenePresetId),
-    roomCharacters: activeRoom ? getTavernRoomCharacters(activeRoom) : [],
-    roomMessages: activeRoom ? state.messages : [],
-    activeCharacter: activeRoom ? getTavernRoomActiveCharacter(activeRoom) : null,
-  };
-};
 
 const createBaseStoreState = (
   input?: TavernRoomStoreInitialization,
   runtimeModel: RuntimeModelOption | null = null,
 ): TavernRoomStoreBase => {
-  const state = input?.state ?? createEmptySessionState();
+  const story = input?.story ?? null;
   return {
     workspacePath: input?.workspacePath.trim() ?? "",
     runtimeModel,
-    state,
-    initialState: input?.initialState ?? createEmptySessionState(),
+    story,
+    messages: input?.messages ?? [],
     composerHandle: null,
     error: "",
     busy: createIdleTavernRoomBusyState(),
     executionSteps: [],
     executionTraceAnchorMessageId: "",
-    ...deriveRoomState(state),
+    ...deriveStoryState(story),
   };
 };
 
-const getSessionRoom = (state: TavernRoomSessionState, roomId: string) => {
-  const room = state.runtime;
-  return room?.identity.id === roomId ? room : null;
-};
-
-const replaceSessionRoom = (state: TavernRoomSessionState, room: TavernRoomRuntime): TavernRoomSessionState => ({
-  ...state,
-  runtime: room,
-});
-
-export const useTavernRoomContext = create<TavernRoomStoreState>((set) => ({
+export const useTavernRoomContext = create<TavernRoomStore>((set) => ({
   ...createBaseStoreState(),
   initializeRoom: (input) => {
     set((current) => createBaseStoreState(input, current.runtimeModel));
@@ -131,8 +104,11 @@ export const useTavernRoomContext = create<TavernRoomStoreState>((set) => ({
   setComposerHandle: (composerHandle) => {
     set({ composerHandle });
   },
-  setSession: (state) => {
-    set({ state, ...deriveRoomState(state) });
+  setStory: (story) => {
+    set({ story, ...deriveStoryState(story) });
+  },
+  setMessages: (messages) => {
+    set({ messages });
   },
   setError: (error) => {
     set({ error });
@@ -163,43 +139,14 @@ export const useTavernRoomContext = create<TavernRoomStoreState>((set) => ({
         : [...current.executionSteps, step],
     }));
   },
-  patchRoom: (roomId, updater) => {
+  appendMessages: (roomConfigId, messages) => {
     set((current) => {
-      const room = getSessionRoom(current.state, roomId);
-      if (!room) {
+      const currentStory = current.story;
+      if (!currentStory || currentStory.roomConfig.id !== roomConfigId) {
         return current;
       }
 
-      const state = replaceSessionRoom(current.state, updater(room));
-      return { state, ...deriveRoomState(state) };
-    });
-  },
-  appendMessagesToRoom: (roomId, messages) => {
-    set((current) => {
-      const room = getSessionRoom(current.state, roomId);
-      if (!room) {
-        return current;
-      }
-
-      const updatedAt = getCurrentTimestamp();
-      const state = {
-        ...replaceSessionRoom(current.state, {
-          ...room,
-          identity: {
-            ...room.identity,
-            updatedAt,
-          },
-          config: {
-            room: {
-              ...room.config.room,
-              updatedAt,
-            },
-          },
-        }),
-        messages: [...current.state.messages, ...messages],
-      };
-
-      return { state, ...deriveRoomState(state) };
+      return { messages: [...current.messages, ...messages] };
     });
   },
 }));

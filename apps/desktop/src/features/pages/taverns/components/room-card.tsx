@@ -1,13 +1,4 @@
-import {
-  Copy,
-  Download,
-  MoreHorizontal,
-  Pencil,
-  ScrollText,
-  Trash2,
-  TriangleAlertIcon,
-  Wine,
-} from "lucide-react";
+import { Copy, Download, MoreHorizontal, Pencil, ScrollText, Trash2, TriangleAlertIcon, Wine } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -28,7 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { TavernManagementValue } from "../store";
-import type { TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernRoomConfig } from "@/features/pages/taverns/manage/model";
 import { getVisualPreset } from "../tavern/visual-presets";
 
 type PendingDangerAction = {
@@ -41,8 +32,8 @@ type PendingDangerAction = {
 
 type RoomCardProps = {
   management: Pick<TavernManagementValue, "copyRoom" | "deleteRoom" | "exportRoom">;
-  room: TavernRoom;
-  openRoomEditor: (room: TavernRoom) => void;
+  room: TavernRoomConfig;
+  openRoomEditor: (room: TavernRoomConfig) => void;
   onOperationStatusChange?: (status: string) => void;
 };
 

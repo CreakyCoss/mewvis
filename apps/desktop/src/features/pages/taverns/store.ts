@@ -2,10 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo } from "react";
 import { cloneDeep } from "lodash-es";
 import { type RuntimeModelOption, useLlmSettingsStore } from "@/features/pages/settings/llm/store";
-import type { Workspace } from "@/features/pages/workspace/types";
-import type { TavernState } from "./tavern/types";
-import { createEmptyManualTavernRoom, type TavernRoom } from "@/features/pages/taverns/manage/model";
-import { getCurrentTimestamp } from "@/utils/time";
+import { createEmptyManualTavernRoom, type TavernRoomConfig } from "@/features/pages/taverns/manage/model";
 
 const createLocalId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
@@ -17,9 +14,9 @@ const sanitizeFileName = (value: string) =>
     .slice(0, 96) || "untitled";
 
 export type TavernManagementValue = {
-  rooms: TavernRoom[];
-  createRoom: () => TavernRoom | void;
-  patchRoom: (roomId: string, patch: Partial<TavernRoom>) => void;
+  rooms: TavernRoomConfig[];
+  createRoom: () => TavernRoomConfig | void;
+  patchRoom: (roomId: string, patch: Partial<TavernRoomConfig>) => void;
   copyRoom: (roomId: string) => boolean;
   deleteRoom: (roomId: string) => boolean;
   exportRoom: (roomId: string) => boolean;
@@ -27,13 +24,11 @@ export type TavernManagementValue = {
 };
 
 type TavernManagementOptions = {
-  workspace: Workspace;
-  state: TavernState;
-  setState: Dispatch<SetStateAction<TavernState>>;
-  onError?: (message: string) => void;
+  rooms: TavernRoomConfig[];
+  setRooms: Dispatch<SetStateAction<TavernRoomConfig[]>>;
 };
 
-export const useTavernManagement = ({ workspace, state, setState }: TavernManagementOptions) => {
+export const useTavernManagement = ({ rooms, setRooms }: TavernManagementOptions) => {
   const runtimeModels = useLlmSettingsStore((store) => store.runtimeModels);
   const loadSettings = useLlmSettingsStore((store) => store.loadSettings);
   const runtimeModel = runtimeModels[0] ?? null;
@@ -43,10 +38,10 @@ export const useTavernManagement = ({ workspace, state, setState }: TavernManage
   }, [loadSettings]);
 
   const patchRoom = useCallback(
-    (roomId: string, patch: Partial<TavernRoom>) => {
-      setState((current) => {
-        let patchedRoom: TavernRoom | null = null;
-        const nextRooms = current.rooms.map((room) => {
+    (roomId: string, patch: Partial<TavernRoomConfig>) => {
+      setRooms((currentRooms) => {
+        let patchedRoom: TavernRoomConfig | null = null;
+        const nextRooms = currentRooms.map((room) => {
           if (room.id !== roomId) {
             return room;
           }
@@ -54,84 +49,69 @@ export const useTavernManagement = ({ workspace, state, setState }: TavernManage
           patchedRoom = {
             ...room,
             ...patch,
-            updatedAt: getCurrentTimestamp(),
           };
           return patchedRoom;
         });
 
         if (!patchedRoom) {
-          return current;
+          return currentRooms;
         }
 
-        return {
-          ...current,
-          rooms: nextRooms,
-        };
+        return nextRooms;
       });
     },
-    [setState],
+    [setRooms],
   );
   const deleteRoom = useCallback(
     (roomId: string) => {
-      const targetRoom = state.rooms.find((room) => room.id === roomId);
+      const targetRoom = rooms.find((room) => room.id === roomId);
       if (!targetRoom) {
         return false;
       }
 
-      setState((current) => {
-        const currentTargetRoom = current.rooms.find((room) => room.id === roomId);
+      setRooms((currentRooms) => {
+        const currentTargetRoom = currentRooms.find((room) => room.id === roomId);
         if (!currentTargetRoom) {
-          return current;
+          return currentRooms;
         }
 
-        const nextRooms = current.rooms.filter((room) => room.id !== roomId);
-        return {
-          ...current,
-          rooms: nextRooms,
-        };
+        return currentRooms.filter((room) => room.id !== roomId);
       });
       return true;
     },
-    [setState, state.rooms],
+    [rooms, setRooms],
   );
 
   const copyRoom = useCallback(
     (roomId: string) => {
-      const sourceRoom = state.rooms.find((room) => room.id === roomId);
+      const sourceRoom = rooms.find((room) => room.id === roomId);
       if (!sourceRoom) {
         return false;
       }
 
-      setState((current) => {
-        const currentSourceRoom = current.rooms.find((room) => room.id === roomId);
+      setRooms((currentRooms) => {
+        const currentSourceRoom = currentRooms.find((room) => room.id === roomId);
         if (!currentSourceRoom) {
-          return current;
+          return currentRooms;
         }
 
-        const createdAt = getCurrentTimestamp();
-        const copiedRoom: TavernRoom = {
+        const copiedRoom: TavernRoomConfig = {
           ...cloneDeep(currentSourceRoom),
           id: createLocalId("room"),
-          workspaceId: workspace.id,
           presentation: { ...sourceRoom.presentation },
           title: `${currentSourceRoom.title}（副本）`,
-          createdAt,
-          updatedAt: createdAt,
         };
 
-        return {
-          ...current,
-          rooms: [...current.rooms, copiedRoom],
-        };
+        return [...currentRooms, copiedRoom];
       });
       return true;
     },
-    [setState, state.rooms, workspace.id],
+    [rooms, setRooms],
   );
 
   const exportRoom = useCallback(
     (roomId: string) => {
-      const targetRoom = state.rooms.find((room) => room.id === roomId);
+      const targetRoom = rooms.find((room) => room.id === roomId);
       if (!targetRoom) {
         return false;
       }
@@ -153,24 +133,21 @@ export const useTavernManagement = ({ workspace, state, setState }: TavernManage
         return false;
       }
     },
-    [state.rooms],
+    [rooms],
   );
 
   const createRoom = useCallback(() => {
     const nextRoom = {
-      ...createEmptyManualTavernRoom(workspace.id, state.rooms.length + 1),
+      ...createEmptyManualTavernRoom(rooms.length + 1),
     };
 
-    setState((current) => ({
-      ...current,
-      rooms: [...current.rooms, nextRoom],
-    }));
+    setRooms((currentRooms) => [...currentRooms, nextRoom]);
     return nextRoom;
-  }, [setState, state.rooms.length, workspace.id]);
+  }, [rooms.length, setRooms]);
 
   return useMemo<TavernManagementValue>(
     () => ({
-      rooms: state.rooms,
+      rooms,
       createRoom,
       patchRoom,
       copyRoom,
@@ -178,6 +155,6 @@ export const useTavernManagement = ({ workspace, state, setState }: TavernManage
       exportRoom,
       globalRuntimeModel: runtimeModel,
     }),
-    [copyRoom, createRoom, deleteRoom, exportRoom, patchRoom, runtimeModel, state.rooms],
+    [copyRoom, createRoom, deleteRoom, exportRoom, patchRoom, rooms, runtimeModel],
   );
 };

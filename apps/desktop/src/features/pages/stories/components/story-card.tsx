@@ -37,11 +37,6 @@ export const StoryCard = ({
 }) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const activeNode =
-    story.graph.nodes.find((node) => node.id === story.graph.activeNodeId) ??
-    story.graph.nodes.find((node) => node.id === story.graph.entryNodeId) ??
-    story.graph.nodes[0] ??
-    null;
   const visibleCharacters = story.characters.slice(0, 4);
   const hiddenCharacterCount = Math.max(0, story.characters.length - visibleCharacters.length);
 
@@ -104,7 +99,7 @@ export const StoryCard = ({
           <div className="flex flex-col px-3.5 pt-8 pb-3">
             <h3 className="min-w-0 text-xl font-semibold leading-7 line-clamp-2">{story.title}</h3>
             <p className="mt-1.5 min-h-5 line-clamp-1 text-xs leading-5 text-muted-foreground">
-              {story.outline || "暂无故事定位。"}
+              {story.premise || "暂无故事设定。"}
             </p>
 
             <div className="mt-2.5 grid grid-cols-3 gap-2">
@@ -122,7 +117,7 @@ export const StoryCard = ({
                   </span>
                   <div className="min-w-0">
                     <div className="text-sm font-semibold leading-5 text-foreground">当前目标</div>
-                    <div className="line-clamp-1">{story.goal || activeNode?.title || "暂无整体目标。"}</div>
+                    <div className="line-clamp-1">{story.goal || "暂无整体目标。"}</div>
                   </div>
                 </div>
               </div>

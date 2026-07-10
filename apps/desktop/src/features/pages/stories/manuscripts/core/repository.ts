@@ -13,17 +13,7 @@ import {
 } from "../model/normalizer";
 import { storyManuscriptStatusOptions } from "../model/status";
 import type { StoryManuscript } from "../model/types";
-
-const readJsonWorkspaceFile = async (workspacePath: string, relativePath: string): Promise<unknown | null> => {
-  try {
-    const file = await invoke<{ content: string }>("read_workspace_file", {
-      input: { workspacePath, relativePath },
-    });
-    return JSON.parse(file.content);
-  } catch {
-    return null;
-  }
-};
+import { readJsonWorkspaceFile, writeJsonWorkspaceFile } from "@/utils/files";
 
 const readTextWorkspaceFile = async (workspacePath: string, relativePath: string): Promise<string> => {
   try {
@@ -44,10 +34,6 @@ const writeTextWorkspaceFile = async (workspacePath: string, relativePath: strin
       content,
     },
   });
-};
-
-const writeJsonWorkspaceFile = async (workspacePath: string, relativePath: string, value: unknown) => {
-  await writeTextWorkspaceFile(workspacePath, relativePath, JSON.stringify(value, null, 2));
 };
 
 const deleteWorkspaceFileIfExists = async (workspacePath: string, relativePath: string) => {

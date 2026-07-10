@@ -5,16 +5,12 @@ import type { LucideIcon } from "lucide-react";
 import { resolveAvatar } from "@/assets/avatars";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { cn } from "@/lib/utils";
-import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
-import { isTavernRoomBusy, useTavernRoomContext } from "@/features/pages/taverns/room/context";
+import type { TavernCharacter } from "@/features/pages/taverns/room/model";
+import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
 import { getVisualPreset } from "@/features/pages/taverns/tavern/visual-presets";
-import { getCurrentTimestamp } from "@/utils/time";
-import { getTavernRoomCharacterMemoryLayers } from "../../model";
 import { EmptyPanelCard, emptyValueText } from "../shared";
 
 const trimText = (value: string | undefined) => value?.trim() ?? "";
-
-const trimArray = (values: string[] | undefined) => compact(values?.map((value) => value.trim()) ?? []);
 
 const splitLines = (value: string | undefined) =>
   compact(
@@ -66,58 +62,34 @@ const LineList = ({ lines, empty = emptyValueText }: { lines: string[]; empty?: 
 };
 
 const CharacterDetail = ({ character }: { character: TavernCharacter }) => {
-  const activeRoom = useTavernRoomContext((store) => store.activeRoom);
-  if (!activeRoom) {
+  const story = useTavernRoomContext((store) => store.story);
+  if (!story) {
     return null;
   }
 
-  const scene = activeRoom.scene;
-  const characterMemoryLayers = getTavernRoomCharacterMemoryLayers(activeRoom, character.id);
   const avatar = resolveAvatar(character.avatar).src;
-  const publicStatus = scene.characterPublicStatuses[character.id];
-  const privateStatus = scene.characterPrivateStatuses[character.id];
-  const holding = trimArray(publicStatus?.holding);
-  const privateKnowledge = trimArray(privateStatus?.privateKnowledge);
   const speakingPhrases = splitPhrases(character.speakingStyle);
-  const headerPills = unique([
-    trimText(publicStatus?.visibleMood),
-    trimText(publicStatus?.posture),
-    ...speakingPhrases,
-  ]).slice(0, 4);
+  const headerPills = unique(speakingPhrases).slice(0, 4);
   const profileSummary =
-    trimText(character.description) ||
-    trimText(publicStatus?.publicGoal) ||
-    trimText(character.goals) ||
-    trimText(character.speakingStyle);
-  const stanceLines = [
-    publicStatus?.location ? `位置：${publicStatus.location}` : "",
-    publicStatus?.posture ? `姿态：${publicStatus.posture}` : "",
-    publicStatus?.visibleMood ? `外显情绪：${publicStatus.visibleMood}` : "",
-    publicStatus?.outfit ? `装束：${publicStatus.outfit}` : "",
-    publicStatus?.visibleInjury ? `可见伤势：${publicStatus.visibleInjury}` : "",
-    holding.length > 0 ? `持有：${holding.join("、")}` : "",
-    privateStatus?.privateMood ? `私下情绪：${privateStatus.privateMood}` : "",
-    privateStatus?.suspicion ? `疑虑：${privateStatus.suspicion}` : "",
-  ].filter(Boolean);
-  const goalLines = [
-    ...splitLines(character.goals),
-    publicStatus?.publicGoal ? `公开目标：${publicStatus.publicGoal}` : "",
-    privateStatus?.hiddenGoal ? `隐藏目标：${privateStatus.hiddenGoal}` : "",
-  ].filter(Boolean);
+    trimText(character.description) || trimText(character.goals) || trimText(character.speakingStyle);
+  const stanceLines = splitLines(character.publicRelationshipSummary);
+  const goalLines = splitLines(character.goals);
   const styleLines = [
     trimText(character.speakingStyle),
     character.writingStyle ? `叙述：${character.writingStyle}` : "",
     character.replyStylePrompt ? `回复约束：${character.replyStylePrompt}` : "",
   ].filter(Boolean);
-  const relationshipLines: string[] = [];
-  const memoryLines = unique([
-    trimText(characterMemoryLayers?.required),
-    trimText(characterMemoryLayers?.public),
-    trimText(characterMemoryLayers?.known),
-    trimText(characterMemoryLayers?.privateSelf),
-    privateKnowledge.length > 0 ? `已知信息：${privateKnowledge.join("、")}` : "",
+  const relationshipLines = unique([
+    ...splitLines(character.publicRelationshipSummary),
+    ...splitLines(character.relationshipSummary),
   ]);
-  const visualPreset = getVisualPreset(scene.scenePresetId);
+  const memoryLines = unique([
+    trimText(character.memory?.required),
+    trimText(character.memory?.public),
+    trimText(character.memory?.known),
+    trimText(character.memory?.privateSelf),
+  ]);
+  const visualPreset = getVisualPreset(story.roomConfig.scenePresetId);
 
   return (
     <HoverCardContent
@@ -155,8 +127,8 @@ const CharacterDetail = ({ character }: { character: TavernCharacter }) => {
         </div>
 
         <div className="grid gap-2.5 md:grid-cols-2">
-          <DetailSection icon={Shield} title="当前立场">
-            <LineList lines={stanceLines} empty="暂无公开状态" />
+          <DetailSection icon={Shield} title="公开立场">
+            <LineList lines={stanceLines} empty="暂无公开立场" />
           </DetailSection>
           <DetailSection icon={Target} title="目标">
             <LineList lines={goalLines} empty="暂无目标" />
@@ -184,48 +156,8 @@ const CharacterDetail = ({ character }: { character: TavernCharacter }) => {
   );
 };
 
-const CharacterCardContent = ({ character, isActive }: { character: TavernCharacter; isActive: boolean }) => {
-  const activeRoom = useTavernRoomContext((store) => store.activeRoom);
+const CharacterCardContent = ({ character }: { character: TavernCharacter }) => {
   const avatar = resolveAvatar(character.avatar).src;
-  const publicStatus = activeRoom?.scene.characterPublicStatuses[character.id];
-  const chipTexts = unique([
-    trimText(publicStatus?.visibleMood),
-    trimText(publicStatus?.posture),
-    trimText(publicStatus?.location),
-  ]).slice(0, 2);
-
-  if (isActive) {
-    return (
-      <span className="block space-y-3">
-        <span className="flex min-w-0 items-center gap-3">
-          <img
-            src={avatar}
-            alt=""
-            className="size-12 shrink-0 rounded-lg border border-current/15 bg-current/[0.045] object-cover shadow-sm dark:bg-current/[0.065]"
-          />
-          <span className="min-w-0 flex-1">
-            <span className="flex min-w-0 items-center">
-              <span className="truncate text-sm font-semibold leading-tight">{character.name}</span>
-            </span>
-            <span className="mt-1 line-clamp-2 block text-[11px] leading-4 text-current/65">
-              {character.speakingStyle || character.description || "当前默认发言角色"}
-            </span>
-          </span>
-        </span>
-        {chipTexts.length > 0 ? (
-          <span className="flex flex-wrap gap-1.5">
-            {chipTexts.map((chip) => (
-              <Pill key={chip}>{chip}</Pill>
-            ))}
-          </span>
-        ) : (
-          <span className="block rounded-lg border border-current/10 bg-current/[0.06] px-3 py-2.5 text-xs text-current/65 dark:bg-current/[0.085]">
-            暂无公开状态
-          </span>
-        )}
-      </span>
-    );
-  }
 
   return (
     <span className="flex min-w-0 items-center gap-2.5">
@@ -238,53 +170,30 @@ const CharacterCardContent = ({ character, isActive }: { character: TavernCharac
         {character.name}
       </span>
       <span className="min-w-0 flex-1 truncate text-[11px] text-current/65">
-        {publicStatus?.publicGoal || publicStatus?.visibleMood || character.description || "入席角色"}
+        {character.description || character.goals || "入席角色"}
       </span>
       <ChevronRight className="size-4 shrink-0 text-current/60" />
     </span>
   );
 };
 
-const CharacterCard = ({
-  character,
-  isActive,
-  disabled,
-  onClick,
-}: {
-  character: TavernCharacter;
-  isActive: boolean;
-  disabled: boolean;
-  onClick: () => void;
-}) => (
+const CharacterCard = ({ character }: { character: TavernCharacter }) => (
   <HoverCard openDelay={120} closeDelay={120}>
     <HoverCardTrigger asChild>
-      <button
-        type="button"
-        className={cn(
-          "w-full min-w-0 rounded-xl border border-current/10 bg-current/[0.055] p-2.5 text-left text-current shadow-sm transition-colors hover:bg-current/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 dark:bg-current/[0.075]",
-          isActive && "border-primary/30 bg-primary/10 ring-1 ring-primary/10",
-        )}
-        disabled={disabled}
-        onClick={onClick}
-      >
-        <CharacterCardContent character={character} isActive={isActive} />
-      </button>
+      <div className="w-full min-w-0 rounded-xl border border-current/10 bg-current/[0.055] p-2.5 text-left text-current shadow-sm transition-colors hover:bg-current/10 dark:bg-current/[0.075]">
+        <CharacterCardContent character={character} />
+      </div>
     </HoverCardTrigger>
     <CharacterDetail character={character} />
   </HoverCard>
 );
 
 export const CharacterStatusSection = () => {
-  const activeRoom = useTavernRoomContext((store) => store.activeRoom);
-  const activeCharacter = useTavernRoomContext((store) => store.activeCharacter);
-  const roomCharacters = useTavernRoomContext((store) => store.roomCharacters);
-  const busy = useTavernRoomContext((store) => store.busy);
-  const patchRoom = useTavernRoomContext((store) => store.patchRoom);
+  const story = useTavernRoomContext((store) => store.story);
 
-  if (!activeRoom) {
+  if (!story) {
     return null;
   }
-  const isBusy = isTavernRoomBusy(busy);
 
   return (
     <section className="space-y-3">
@@ -293,44 +202,10 @@ export const CharacterStatusSection = () => {
         <span className="truncate">入席角色</span>
       </div>
       <div className="space-y-2">
-        {roomCharacters.map((character) => {
-          return (
-            <CharacterCard
-              key={character.id}
-              character={character}
-              isActive={character.id === activeCharacter?.id}
-              disabled={isBusy}
-              onClick={() =>
-                patchRoom(activeRoom.identity.id, (room) => {
-                  const updatedAt = getCurrentTimestamp();
-                  return {
-                    ...room,
-                    identity: {
-                      ...room.identity,
-                      updatedAt,
-                    },
-                    config: {
-                      room: {
-                        ...room.config.room,
-                        updatedAt,
-                      },
-                    },
-                    cast: {
-                      ...room.cast,
-                      activeCharacterId: character.id,
-                    },
-                    scene: {
-                      ...room.scene,
-                      activeCharacterId: character.id,
-                      updatedAt,
-                    },
-                  };
-                })
-              }
-            />
-          );
-        })}
-        {roomCharacters.length === 0 && <EmptyPanelCard>还没有角色入席。</EmptyPanelCard>}
+        {story.characters.map((character) => (
+          <CharacterCard key={character.id} character={character} />
+        ))}
+        {story.characters.length === 0 && <EmptyPanelCard>还没有角色入席。</EmptyPanelCard>}
       </div>
     </section>
   );

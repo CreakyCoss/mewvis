@@ -9,9 +9,9 @@ export type StoryManuscriptSource = "tavern" | "chat" | "manual" | "aiPolish" | 
 export type StoryManuscriptStorySnapshot = {
   id: string;
   title: string;
-  outline: string;
+  premise: string;
   goal: string;
-  userPersonaName: string;
+  playerName: string;
   updatedAt: number;
 };
 
@@ -52,7 +52,6 @@ export type StoryManuscriptUpdateInput = {
 };
 
 export type StoryManuscriptMeta = {
-  version: 1;
   id: string;
   storyId: string;
   nodeId: string;
@@ -83,7 +82,6 @@ export type StoryManuscriptsNodeManifest = {
 } & Record<StoryManuscriptManifestIdsKey, string[]>;
 
 export type StoryManuscriptsManifest = {
-  version: 1;
   storyId: string;
   updatedAt: number;
   nodes: StoryManuscriptsNodeManifest[];

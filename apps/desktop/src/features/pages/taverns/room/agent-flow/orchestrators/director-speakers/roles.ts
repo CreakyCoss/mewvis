@@ -1,5 +1,4 @@
-import type { TavernRoomRuntime } from "@/features/pages/taverns/room/model";
-import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
+import type { TavernCharacter, TavernStoryData } from "@/features/pages/taverns/room/model";
 
 const sanitizeAgentRoleSegment = (value: string) => {
   const segment = value
@@ -11,12 +10,11 @@ const sanitizeAgentRoleSegment = (value: string) => {
   return segment;
 };
 
-const tavernAgentScopeSegment = (room: TavernRoomRuntime) => sanitizeAgentRoleSegment(room.identity.id);
+const tavernAgentScopeSegment = (story: TavernStoryData) =>
+  `${sanitizeAgentRoleSegment(story.id)}-${sanitizeAgentRoleSegment(story.roomConfig.id)}`;
 
-export const tavernAgentFlowDirectorRoleId = (room: TavernRoomRuntime) =>
-  `tavern-${sanitizeAgentRoleSegment(room.identity.id)}-${tavernAgentScopeSegment(room)}-flow-director`;
+export const tavernAgentFlowDirectorRoleId = (story: TavernStoryData) =>
+  `tavern-${tavernAgentScopeSegment(story)}-flow-director`;
 
-export const tavernAgentFlowCharacterRoleId = (room: TavernRoomRuntime, character: Pick<TavernCharacter, "id">) =>
-  `tavern-${sanitizeAgentRoleSegment(room.identity.id)}-${tavernAgentScopeSegment(
-    room,
-  )}-flow-character-${sanitizeAgentRoleSegment(character.id)}`;
+export const tavernAgentFlowCharacterRoleId = (story: TavernStoryData, character: Pick<TavernCharacter, "id">) =>
+  `tavern-${tavernAgentScopeSegment(story)}-flow-character-${sanitizeAgentRoleSegment(character.id)}`;

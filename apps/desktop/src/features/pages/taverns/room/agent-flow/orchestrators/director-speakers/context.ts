@@ -1,8 +1,7 @@
 import type { AgentProtocolMessage } from "@/features/pages/taverns/room/agent-protocol/types";
 import { AgentProtocol } from "@/features/pages/taverns/room/agent-protocol";
-import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
-import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
-import { getTavernMessageRawText } from "@/features/pages/taverns/room/model/message-body";
+import type { TavernCharacter } from "@/features/pages/taverns/room/model";
+import { getTavernMessageRawText, type TavernMessage } from "@/features/pages/taverns/room/model/message";
 import { getTavernAgentFlowPublicText } from "./output";
 import { getTavernAgentFlowPublicOutputKey, resolveTavernAgentFlowPresentation } from "./presentation";
 import type { TavernAgentFlowContext, TavernAgentFlowInput, TavernAgentFlowPresentation } from "../../types";
@@ -57,12 +56,12 @@ const toAgentProtocolHistoryMessage = ({
   message,
   characterById,
   presentation,
-  userPersonaName,
+  playerName,
 }: {
   message: TavernMessage;
   characterById: Map<string, TavernCharacter>;
   presentation: TavernAgentFlowPresentation;
-  userPersonaName: string;
+  playerName: string;
 }): AgentProtocolMessage | null => {
   const content = extractStoredMessagePublicText({ message, presentation }).trim();
   if (!content) {
@@ -72,7 +71,7 @@ const toAgentProtocolHistoryMessage = ({
   if (message.role === "user") {
     return {
       role: "user",
-      speaker: userPersonaName,
+      speaker: playerName,
       content,
       visibility: "public",
       createdAt: message.createdAt,
@@ -114,14 +113,14 @@ export const createTavernAgentFlowPublicMessage = ({
 
 export const buildTavernAgentFlowContext = (input: TavernAgentFlowInput): TavernAgentFlowContext => {
   const presentation = resolveTavernAgentFlowPresentation(
-    input.room.presentation.profile.profileId as TavernAgentFlowPresentation["id"],
+    input.story.roomConfig.presentation.profileId as TavernAgentFlowPresentation["id"],
   );
   const candidateCharacters = resolveCandidateCharacters({
     characters: input.characters,
     selectedCharacterIds: input.selectedCharacterIds,
   });
   const characterById = new Map(input.characters.map((character) => [character.id, character]));
-  const userPersonaName = input.room.user.personaName;
+  const playerName = input.story.playerName;
   const currentInstruction =
     (input.trigger?.type === "scene_drive"
       ? input.trigger.directive || input.currentUserText
@@ -131,12 +130,12 @@ export const buildTavernAgentFlowContext = (input: TavernAgentFlowInput): Tavern
   return {
     presentation,
     candidateCharacters,
-    userPersonaName,
+    playerName,
     currentInstruction,
     references: input.references ?? [],
     maxSpeakers: resolveMaxSpeakers({
       maxSpeakers: input.maxSpeakers,
-      configuredMaxSpeakers: input.room.presentation.settings.directorMaxSpeakers,
+      configuredMaxSpeakers: input.story.roomConfig.settings.directorMaxSpeakers,
       candidateCount: candidateCharacters.length,
     }),
     historyMessages: input.messages.flatMap((message) => {
@@ -144,7 +143,7 @@ export const buildTavernAgentFlowContext = (input: TavernAgentFlowInput): Tavern
         message,
         characterById,
         presentation,
-        userPersonaName,
+        playerName,
       });
       return historyMessage ? [historyMessage] : [];
     }),

@@ -1,6 +1,6 @@
 import type { StoryJson } from "../model/types";
 
-export type StoryDraft = Pick<StoryJson, "title" | "outline" | "goal" | "userPersonaName">;
+export type StoryDraft = Pick<StoryJson, "title" | "premise" | "goal" | "playerName">;
 
 export const formatCount = (count: number, label: string) => `${count} ${label}`;
 

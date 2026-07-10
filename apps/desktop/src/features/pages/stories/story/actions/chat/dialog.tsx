@@ -11,23 +11,16 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import type { StoryNodeSelectOption } from "../node";
+import type { StoryNodeSelectOption } from "../../use-story-state";
 
 type StoryChatSelectDialogProps = {
-  initialNodeId?: string | null;
   nodeOptions: StoryNodeSelectOption[];
   onConfirm: (nodeId: string) => void | Promise<void>;
   onOpenChange: (open: boolean) => void;
   open: boolean;
 };
 
-export const StoryChatSelectDialog = ({
-  initialNodeId,
-  nodeOptions,
-  onConfirm,
-  onOpenChange,
-  open,
-}: StoryChatSelectDialogProps) => {
+export const StoryChatSelectDialog = ({ nodeOptions, onConfirm, onOpenChange, open }: StoryChatSelectDialogProps) => {
   const [selectedNodeId, setSelectedNodeId] = useState("");
   const [isConfirming, setIsConfirming] = useState(false);
   const selectedOption = useMemo(
@@ -40,12 +33,8 @@ export const StoryChatSelectDialog = ({
       return;
     }
 
-    setSelectedNodeId(
-      initialNodeId && nodeOptions.some((option) => option.id === initialNodeId)
-        ? initialNodeId
-        : (nodeOptions[0]?.id ?? ""),
-    );
-  }, [initialNodeId, nodeOptions, open]);
+    setSelectedNodeId("");
+  }, [open]);
 
   const confirm = async () => {
     if (!selectedNodeId) {

@@ -1,23 +1,9 @@
-export type {
-  TavernCharacterMemoryLayers,
-  TavernRoomRuntime,
-  TavernRoomSessionState,
-  TavernScene,
-  TavernSceneMemoryLayers,
-  TavernStoryBinding,
-  TavernStoryEdge,
-  TavernStoryGraph,
-  TavernStoryNode,
-  TavernStoryNodeStatus,
-  TavernStoryNodeType,
-  TavernStoryPathRole,
-} from "./standard";
-export type { TavernRoomOpeningInput } from "./opening-input";
-export { createTavernRoomSessionState } from "./session";
-export {
-  getTavernRoomActiveCharacter,
-  getTavernRoomCharacterMemoryLayers,
-  getTavernRoomCharacters,
-  getTavernRoomSceneTitle,
-  getTavernRoomStoryNode,
-} from "./room-info";
+import type { StoryNodeScene } from "@/features/pages/stories/story/model/node";
+import type { StoryCharacterJson } from "@/features/pages/stories/story/model/types";
+import type { TavernRoomConfig } from "@/features/pages/taverns/manage/model";
+
+export type TavernCharacter = StoryCharacterJson;
+
+export type TavernStoryData = StoryNodeScene & {
+  roomConfig: TavernRoomConfig;
+};

@@ -9,14 +9,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { WindowDragRegion } from "@/components/window-drag-region";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import { cn } from "@/lib/utils";
-import type { TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernRoomConfig } from "@/features/pages/taverns/manage/model";
 import { Header } from "./header";
 import { BasicSection } from "./modules/basic";
 import { PromptSection } from "./modules/prompt";
 import { SettingsSection } from "./modules/settings";
 import { cloneTavernRoom, prepareTavernRoomForSave } from "./utils";
 
-export type RoomEditorHandle = (room: TavernRoom) => void;
+export type RoomEditorHandle = (room: TavernRoomConfig) => void;
 
 type EditorModuleId = "basic" | "prompt" | "settings";
 
@@ -70,15 +70,15 @@ const fullScreenDialogContentClassName =
 type RoomEditorProps = {
   bind: Ref<RoomEditorHandle>;
   globalRuntimeModel: RuntimeModelOption | null;
-  onPatchRoom: (roomId: string, patch: Partial<TavernRoom>) => void;
+  onPatchRoom: (roomId: string, patch: Partial<TavernRoomConfig>) => void;
 };
 
 export const RoomEditor = ({ bind, globalRuntimeModel, onPatchRoom }: RoomEditorProps) => {
   const navigate = useNavigate();
-  const [data, setData] = useState<TavernRoom | null>(null);
+  const [data, setData] = useState<TavernRoomConfig | null>(null);
   const [activeModuleId, setActiveModuleId] = useState<EditorModuleId>("basic");
 
-  const open = useCallback((room: TavernRoom) => {
+  const open = useCallback((room: TavernRoomConfig) => {
     setData(cloneTavernRoom(room));
     setActiveModuleId("basic");
   }, []);
@@ -89,14 +89,14 @@ export const RoomEditor = ({ bind, globalRuntimeModel, onPatchRoom }: RoomEditor
     setData(null);
   };
 
-  const persistRoom = (room: TavernRoom) => {
+  const persistRoom = (room: TavernRoomConfig) => {
     const nextRoom = prepareTavernRoomForSave(room);
     setData(cloneTavernRoom(nextRoom));
     onPatchRoom(nextRoom.id, nextRoom);
     return nextRoom;
   };
 
-  const onModuleSave = (patch: Partial<TavernRoom>) => {
+  const onModuleSave = (patch: Partial<TavernRoomConfig>) => {
     if (!data) {
       return;
     }

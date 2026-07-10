@@ -1,60 +1,43 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Eraser, PanelRightClose, PanelRightOpen, Pause, Sparkles, Wine } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { WindowDragRegion } from "@/components/window-drag-region";
 import { cn } from "@/lib/utils";
-import { compactScene } from "@/features/pages/taverns/tavern/utils";
-import { TavernAgentFlow } from "@/features/pages/taverns/room/agent-flow";
 import {
   createIdleTavernRoomBusyState,
   isTavernRoomBusy,
   isTavernRoomSending,
   useTavernRoomContext,
 } from "@/features/pages/taverns/room/context";
-import { getTavernRoomSceneTitle, type TavernRoomRuntime } from "./model";
 import { createEmptyComposerSubmitPayload } from "./composer";
-import { deleteTavernRoomSessionState } from "./storage";
 import { getTavernAgentFlowErrorMessage, submitTavernAgentFlow } from "./agent-flow/submission";
 
 type HeaderProps = {
   isSidePanelOpen: boolean;
+  isResetting: boolean;
   onBack?: () => void;
+  onReset: () => void | Promise<void>;
   onToggleSidePanel: () => void;
 };
 
 const TAVERN_SCENE_DRIVE_AUTO_INTERVAL_MS = 900;
 const TAVERN_SCENE_DRIVE_AUTO_MAX_TURNS = 20;
+const compactScene = (scene: string) => {
+  const trimmed = scene.trim();
+  return trimmed.length > 88 ? `${trimmed.slice(0, 88)}...` : trimmed;
+};
 const tavernHeaderActionButtonClassName =
   "h-9 shrink-0 gap-1.5 border border-current/15 bg-current/5 px-2.5 text-current hover:border-current/25 hover:bg-current/10 hover:text-current focus-visible:border-current/30 focus-visible:text-current focus-visible:ring-current/20 aria-expanded:bg-current/10 aria-expanded:text-current dark:hover:bg-current/10 dark:hover:text-current";
 
-const getSceneDriveAutoPauseReason = (room: TavernRoomRuntime) => {
-  const hasUserTargetedInteraction = room.scene.pendingInteractions.some(
-    (interaction) =>
-      interaction.status === "open" && interaction.requiresResponse && interaction.target.type === "user",
-  );
-  if (hasUserTargetedInteraction) {
-    return "自动自推已暂停：有角色正在等待你的回应。";
-  }
-
-  return "";
-};
-
-export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderProps) => {
-  const workspacePath = useTavernRoomContext((store) => store.workspacePath);
-  const activeRoom = useTavernRoomContext((store) => store.activeRoom);
-  const runtime = useTavernRoomContext((store) => store.state.runtime);
-  const initialState = useTavernRoomContext((store) => store.initialState);
-  const roomMessages = useTavernRoomContext((store) => store.roomMessages);
+export const Header = ({ isSidePanelOpen, isResetting, onBack, onReset, onToggleSidePanel }: HeaderProps) => {
+  const story = useTavernRoomContext((store) => store.story);
+  const messages = useTavernRoomContext((store) => store.messages);
   const visualPreset = useTavernRoomContext((store) => store.visualPreset);
   const busy = useTavernRoomContext((store) => store.busy);
   const error = useTavernRoomContext((store) => store.error);
-  const setSession = useTavernRoomContext((store) => store.setSession);
   const setBusy = useTavernRoomContext((store) => store.setBusy);
   const setBusyStatus = useTavernRoomContext((store) => store.setBusyStatus);
   const setError = useTavernRoomContext((store) => store.setError);
-  const setExecutionSteps = useTavernRoomContext((store) => store.setExecutionSteps);
-  const setExecutionTraceAnchorMessageId = useTavernRoomContext((store) => store.setExecutionTraceAnchorMessageId);
   const [isSceneDriveAutoRunning, setIsSceneDriveAutoRunning] = useState(false);
   const sceneDriveAutoTimerRef = useRef<number | null>(null);
   const sceneDriveAutoRunCountRef = useRef(0);
@@ -75,7 +58,6 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
     try {
       await submitTavernAgentFlow({
         submittedText: undefined,
-        selectedReplyOption: payload.selectedReplyOption,
         trigger: { type: "scene_drive", directive: payload.text },
         ambiguousFileReferences: payload.ambiguousFileReferences,
         readReferencedFiles: payload.readReferencedFiles,
@@ -83,11 +65,10 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
         unresolvedFileReferences: payload.unresolvedFileReferences,
         onCommitted: () => {
           composerHandle?.clearDraft();
-          composerHandle?.clearReplyOptions();
         },
       });
     } catch (submitError) {
-      console.error("Failed to submit tavern room turn", submitError);
+      console.error("Failed to submit tavern story turn", submitError);
       setError(`酒馆回应失败：${getTavernAgentFlowErrorMessage(submitError)}`);
       setBusy(createIdleTavernRoomBusyState());
     }
@@ -105,69 +86,6 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
     [clearSceneDriveAutoTimer, setBusyStatus],
   );
 
-  const clearActiveSceneMessages = useCallback(async () => {
-    if (!activeRoom) {
-      return;
-    }
-
-    const sessionWorkspacePath = workspacePath.trim();
-    if (!sessionWorkspacePath) {
-      setError("酒馆会话路径为空，请重新打开当前酒馆房间。");
-      toast.error("清空当前节点失败");
-      return;
-    }
-
-    const sceneTitle = getTavernRoomSceneTitle(activeRoom);
-    const confirmed = window.confirm(
-      `清空当前节点「${sceneTitle}」的酒馆运行数据？下次会按故事页传入的最新数据重新初始化。`,
-    );
-    if (!confirmed) {
-      return;
-    }
-
-    if (runtime) {
-      try {
-        await TavernAgentFlow.deleteSession({ workspacePath: sessionWorkspacePath, room: runtime });
-      } catch (deleteError) {
-        const message = getTavernAgentFlowErrorMessage(deleteError);
-        setError(`无法清理当前节点底层会话：${message}`);
-        toast.error("清空当前节点失败");
-        return;
-      }
-    }
-
-    try {
-      await deleteTavernRoomSessionState(sessionWorkspacePath);
-    } catch (deleteError) {
-      const message = getTavernAgentFlowErrorMessage(deleteError);
-      setError(`无法清理当前节点运行文件：${message}`);
-      toast.error("清空当前节点失败");
-      return;
-    }
-
-    setSession(initialState);
-    useTavernRoomContext.getState().composerHandle?.clearReplyOptions();
-    setIsSceneDriveAutoRunning(false);
-    clearSceneDriveAutoTimer();
-    sceneDriveAutoRunCountRef.current = 0;
-    setBusy(createIdleTavernRoomBusyState());
-    setError("");
-    setExecutionSteps([]);
-    setExecutionTraceAnchorMessageId("");
-    toast.success("已按最新故事数据重建当前节点酒馆");
-  }, [
-    activeRoom,
-    runtime,
-    clearSceneDriveAutoTimer,
-    initialState,
-    setBusy,
-    setError,
-    setExecutionTraceAnchorMessageId,
-    setExecutionSteps,
-    setSession,
-    workspacePath,
-  ]);
-
   const handleToggleSceneDriveAuto = useCallback(() => {
     if (isSceneDriveAutoRunning) {
       stopSceneDriveAuto("自动自推已停止。");
@@ -178,14 +96,8 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
       return;
     }
 
-    if (!activeRoom) {
+    if (!story) {
       setError("当前房间还没有可推进的场景。");
-      return;
-    }
-
-    const pauseReason = getSceneDriveAutoPauseReason(activeRoom);
-    if (pauseReason) {
-      setBusyStatus(pauseReason);
       return;
     }
 
@@ -193,7 +105,7 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
     setIsSceneDriveAutoRunning(true);
     sceneDriveAutoRunCountRef.current = 1;
     void handleSceneDriveTurn();
-  }, [activeRoom, handleSceneDriveTurn, isBusy, isSceneDriveAutoRunning, setError, setBusyStatus, stopSceneDriveAuto]);
+  }, [story, handleSceneDriveTurn, isBusy, isSceneDriveAutoRunning, setError, setBusyStatus, stopSceneDriveAuto]);
 
   useEffect(() => {
     return () => {
@@ -205,7 +117,7 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
     setIsSceneDriveAutoRunning(false);
     clearSceneDriveAutoTimer();
     sceneDriveAutoRunCountRef.current = 0;
-  }, [activeRoom?.identity.id, clearSceneDriveAutoTimer]);
+  }, [story?.id, clearSceneDriveAutoTimer]);
 
   useEffect(() => {
     if (!isSceneDriveAutoRunning) {
@@ -213,7 +125,7 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
       return;
     }
 
-    if (!activeRoom) {
+    if (!story) {
       stopSceneDriveAuto();
       return;
     }
@@ -228,19 +140,13 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
       return;
     }
 
-    const latestRoomMessage = roomMessages[roomMessages.length - 1] ?? null;
+    const latestRoomMessage = messages[messages.length - 1] ?? null;
     if (latestRoomMessage?.status === "streaming") {
       return;
     }
 
     if (latestRoomMessage?.status === "error") {
       stopSceneDriveAuto("自动自推已暂停：上一轮回应失败。");
-      return;
-    }
-
-    const pauseReason = getSceneDriveAutoPauseReason(activeRoom);
-    if (pauseReason) {
-      stopSceneDriveAuto(pauseReason);
       return;
     }
 
@@ -258,17 +164,17 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
 
     return clearSceneDriveAutoTimer;
   }, [
-    activeRoom,
+    story,
+    messages,
     clearSceneDriveAutoTimer,
     error,
     handleSceneDriveTurn,
     isBusy,
     isSceneDriveAutoRunning,
-    roomMessages,
     stopSceneDriveAuto,
   ]);
 
-  if (!activeRoom) {
+  if (!story) {
     return null;
   }
 
@@ -300,9 +206,9 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
           </div>
           <div className="min-w-0">
             <div className="flex min-w-0 items-center gap-1.5">
-              <h2 className="truncate text-base font-semibold leading-5">{activeRoom.identity.title}</h2>
+              <h2 className="truncate text-base font-semibold leading-5">{story.title}</h2>
             </div>
-            <p className="line-clamp-1 text-sm text-muted-foreground">{compactScene(activeRoom.scene.scene)}</p>
+            <p className="line-clamp-1 text-sm text-muted-foreground">{compactScene(story.scene.scene)}</p>
           </div>
         </div>
         <Button
@@ -344,9 +250,9 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
           className={tavernHeaderActionButtonClassName}
           title="清空当前节点对话"
           aria-label="清空当前节点对话"
-          disabled={isBusy || isSceneDriveAutoRunning}
+          disabled={isBusy || isSceneDriveAutoRunning || isResetting}
           onClick={() => {
-            void clearActiveSceneMessages();
+            void onReset();
           }}
         >
           <Eraser className="size-4" />

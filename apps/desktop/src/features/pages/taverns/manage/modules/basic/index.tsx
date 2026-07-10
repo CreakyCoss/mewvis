@@ -1,14 +1,14 @@
 import { Pencil, Wine } from "lucide-react";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
-import type { TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernRoomConfig } from "@/features/pages/taverns/manage/model";
 import { EditorSection, editorHeaderActionButtonClassName } from "../../primitives";
 import { BasicEdit, type BasicEditHandle } from "./edit";
 import { BasicSummaryContent } from "./summary";
 import type { ModuleSave } from "../types";
 
 type BasicSectionProps = {
-  data: TavernRoom;
+  data: TavernRoomConfig;
   onSave: ModuleSave;
 };
 

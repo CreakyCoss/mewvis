@@ -58,7 +58,7 @@ import type {
   TavernPromptBlockSourceType,
   TavernPromptBlockTarget,
   TavernPromptStyleId,
-  TavernRoom,
+  TavernRoomConfig,
   TavernRoomPromptSettings,
   TavernSystemNarrativePresetId,
 } from "@/features/pages/taverns/manage/model";
@@ -77,7 +77,7 @@ import {
 import { editorControlClassName, emptyValueText } from "../../utils";
 import type { ModuleSave } from "../types";
 
-export type PromptEditHandle = (data?: TavernRoom) => void;
+export type PromptEditHandle = (data?: TavernRoomConfig) => void;
 
 type PromptPresetDraft = {
   stylePackageId: TavernPromptStylePackageId;
@@ -93,7 +93,7 @@ type PromptDraft = {
 
 type PromptEditProps = {
   bind: Ref<PromptEditHandle>;
-  data: TavernRoom;
+  data: TavernRoomConfig;
   onSave: ModuleSave;
 };
 
@@ -149,7 +149,6 @@ const sortPromptBlocks = (blocks: TavernPromptBlock[]) =>
 const clonePromptBlock = (block: TavernPromptBlock): TavernPromptBlock => cloneDeep(block);
 
 const clonePromptSettings = (prompt: TavernRoomPromptSettings): TavernRoomPromptSettings => ({
-  version: 1,
   blocks: sortPromptBlocks(prompt.blocks.map(clonePromptBlock)),
 });
 
@@ -185,7 +184,6 @@ const replaceBlocksBySourceTypes = ({
   sourceTypes: TavernPromptBlockSourceType[];
   nextBlocks: TavernPromptBlock[];
 }): TavernRoomPromptSettings => ({
-  version: 1,
   blocks: sortPromptBlocks([
     ...prompt.blocks.filter((block) => !block.source || !sourceTypes.includes(block.source.type)),
     ...nextBlocks.map(clonePromptBlock),
@@ -197,14 +195,12 @@ const updatePromptBlock = (
   blockId: string,
   updater: (block: TavernPromptBlock) => TavernPromptBlock,
 ): TavernRoomPromptSettings => ({
-  version: 1,
   blocks: sortPromptBlocks(
     prompt.blocks.map((block) => (block.id === blockId ? updater(clonePromptBlock(block)) : clonePromptBlock(block))),
   ),
 });
 
 const removePromptBlock = (prompt: TavernRoomPromptSettings, blockId: string): TavernRoomPromptSettings => ({
-  version: 1,
   blocks: prompt.blocks.filter((block) => block.id !== blockId).map(clonePromptBlock),
 });
 
@@ -231,9 +227,9 @@ const createCustomPromptBlock = (
   };
 };
 
-const isImmersiveDescriptionEnabled = (room: TavernRoom) => room.settings.immersiveDescriptionEnabled !== false;
+const isImmersiveDescriptionEnabled = (room: TavernRoomConfig) => room.settings.immersiveDescriptionEnabled !== false;
 
-const createPromptFallback = (room: TavernRoom, presentationProfileId: TavernPresentationProfileId) =>
+const createPromptFallback = (room: TavernRoomConfig, presentationProfileId: TavernPresentationProfileId) =>
   createDefaultTavernPromptSettings({
     presentationProfileId,
     immersiveDescriptionEnabled: isImmersiveDescriptionEnabled(room),
@@ -329,7 +325,6 @@ export const PromptEdit = ({ bind, data, onSave }: PromptEditProps) => {
 
   const addCustomBlock = (target: TavernPromptBlockTarget) => {
     patchDraftPrompt((prompt) => ({
-      version: 1,
       blocks: sortPromptBlocks([...prompt.blocks.map(clonePromptBlock), createCustomPromptBlock(prompt, target)]),
     }));
   };
@@ -343,14 +338,12 @@ export const PromptEdit = ({ bind, data, onSave }: PromptEditProps) => {
     const nextPresentation = {
       ...basePresentation,
       profileId: normalizeTavernPresentationProfileId(draft.presentationProfileId),
-      profileVersion: 1 as const,
     };
 
     onSave({
       presentation: nextPresentation,
       prompt: normalizeTavernPromptSettings(
         {
-          version: 1,
           blocks: sortPromptBlocks(draft.prompt.blocks).map(clonePromptBlock),
         },
         createPromptFallback(data, nextPresentation.profileId),

@@ -32,9 +32,9 @@ export const StoryModules = ({ onOpenManuscripts }: StoryModulesProps) => {
     void saveStory({
       ...story,
       title: draft.title.trim() || story.title,
-      outline: draft.outline,
+      premise: draft.premise,
       goal: draft.goal,
-      userPersonaName: draft.userPersonaName.trim() || "我",
+      playerName: draft.playerName.trim() || "我",
     });
   };
 

@@ -1,6 +1,6 @@
 import { createAgentClient } from "@/agent-client/runtime";
 import type { RuntimeModelInput } from "@/agent-client/types";
-import { buildStoryNodeProjection } from "../story/model/projection";
+import { buildStoryNodeScene } from "../story/model/node";
 import type { StoryJson } from "../story/model/types";
 
 export type StoryWriterAgentMode = "polish" | "expand";
@@ -34,19 +34,22 @@ const buildStoryWriterSystemPrompt = () =>
   ].join("\n");
 
 const buildStoryWriterRequestContext = (input: StoryWriterAgentInput) => {
-  const nodeContext = buildStoryNodeProjection(input.story, input.nodeId);
+  const nodeScene = buildStoryNodeScene(input.story, input.nodeId);
 
   return JSON.stringify(
     {
       mode: input.mode,
-      story: nodeContext.background,
-      currentNode: nodeContext.current.node,
-      currentScene: nodeContext.current.scene,
-      graph: {
-        outgoingEdges: nodeContext.branch.outgoingEdges,
+      story: {
+        id: nodeScene.id,
+        title: nodeScene.title,
+        premise: nodeScene.premise,
+        goal: nodeScene.goal,
+        playerName: nodeScene.playerName,
       },
-      characters: nodeContext.characters,
-      lorebookEntries: nodeContext.world.lorebookEntries.filter((entry) => entry.enabled),
+      node: nodeScene.node,
+      scene: nodeScene.scene,
+      characters: nodeScene.characters,
+      lorebookEntries: nodeScene.lorebookEntries.filter((entry) => entry.enabled),
       manuscript: {
         title: input.title,
         summary: input.summary ?? "",

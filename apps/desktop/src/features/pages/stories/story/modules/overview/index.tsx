@@ -134,13 +134,9 @@ const MetricCard = ({ icon: Icon, label, value }: { icon: LucideIcon; label: str
 
 export const StoryOverviewModule = ({ story, onOpenManuscripts, onOpenModule, onSave }: StoryOverviewModuleProps) => {
   const editRef = useRef<StoryOverviewEditHandle>(null);
-  const activeNode =
-    story.graph.nodes.find((node) => node.id === story.graph.activeNodeId) ??
-    story.graph.nodes.find((node) => node.id === story.graph.entryNodeId) ??
-    story.graph.nodes[0] ??
-    null;
-  const activeScene = activeNode?.sceneId
-    ? (story.scenes.find((scene) => scene.id === activeNode.sceneId) ?? null)
+  const representativeNode = story.graph.nodes[0] ?? null;
+  const representativeScene = representativeNode?.sceneId
+    ? (story.scenes.find((scene) => scene.id === representativeNode.sceneId) ?? null)
     : (story.scenes[0] ?? null);
   const lorebookEntry = story.lorebookEntries[0] ?? null;
 
@@ -150,7 +146,7 @@ export const StoryOverviewModule = ({ story, onOpenManuscripts, onOpenModule, on
         <div className="space-y-1 px-0.5">
           <h2 className="text-lg font-semibold leading-7">故事资源总览</h2>
           <p className="text-sm leading-6 text-muted-foreground">
-            集中查看故事定位、角色、剧情结构、场景内容和稿件状态，快速判断这个故事是否已经可进入呈现端。
+            集中查看故事设定、角色、剧情结构、场景内容和稿件状态，快速判断这个故事是否已经可进入呈现端。
           </p>
         </div>
 
@@ -158,20 +154,20 @@ export const StoryOverviewModule = ({ story, onOpenManuscripts, onOpenModule, on
           <OverviewCard
             icon={ScrollText}
             title="基础信息"
-            meta={story.userPersonaName.trim() || "我"}
+            meta={story.playerName.trim() || "我"}
             actionLabel="编辑"
             onAction={() => editRef.current?.(story)}
             className="xl:col-span-2"
           >
             <div className="grid gap-3 xl:grid-cols-[minmax(0,0.95fr)_minmax(20rem,1fr)]">
               <div className="grid gap-2">
-                <LongTextCard icon={FileText} title="故事定位" value={story.outline} />
+                <LongTextCard icon={FileText} title="故事设定" value={story.premise} />
                 <LongTextCard icon={Target} title="整体目标" value={story.goal} />
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
-                <MetricCard icon={Clapperboard} label="当前场景" value={activeScene?.title ?? emptyValueText} />
-                <MetricCard icon={GitBranch} label="当前节点" value={activeNode?.title ?? emptyValueText} />
-                <MetricCard icon={UserRound} label="用户称呼" value={story.userPersonaName.trim() || emptyValueText} />
+                <MetricCard icon={Clapperboard} label="场景示例" value={representativeScene?.title ?? emptyValueText} />
+                <MetricCard icon={GitBranch} label="节点示例" value={representativeNode?.title ?? emptyValueText} />
+                <MetricCard icon={UserRound} label="玩家称呼" value={story.playerName.trim() || emptyValueText} />
                 <MetricCard icon={BookOpen} label="故事场景" value={formatCount(story.scenes.length, "场景")} />
               </div>
             </div>
@@ -229,15 +225,19 @@ export const StoryOverviewModule = ({ story, onOpenManuscripts, onOpenModule, on
             actionLabel="管理结构"
             onAction={() => onOpenModule("graph")}
           >
-            {activeNode ? (
+            {representativeNode ? (
               <div className="grid min-h-36 grid-cols-[auto_minmax(0,1fr)] items-center gap-4 rounded-lg bg-muted/10 px-5 py-5">
                 <span className="flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary">
                   <GitBranch className="size-8" />
                 </span>
                 <div className="min-w-0">
-                  <div className="truncate text-base font-semibold leading-6">{activeNode.title || emptyValueText}</div>
+                  <div className="truncate text-base font-semibold leading-6">
+                    {representativeNode.title || emptyValueText}
+                  </div>
                   <div className="mt-1 line-clamp-3 text-sm leading-6 text-muted-foreground">
-                    {activeScene?.scene?.trim() || activeScene?.goal?.trim() || "当前节点的场景内容在场景编辑中维护。"}
+                    {representativeScene?.scene?.trim() ||
+                      representativeScene?.goal?.trim() ||
+                      "节点的场景内容在场景编辑中维护。"}
                   </div>
                 </div>
               </div>
@@ -293,7 +293,7 @@ export const StoryOverviewModule = ({ story, onOpenManuscripts, onOpenModule, on
             onAction={() => onOpenModule("scenes")}
             contentClassName="p-5"
           >
-            {activeScene ? (
+            {representativeScene ? (
               <div className="rounded-xl border border-primary/35 bg-primary/[0.06] p-4 ring-1 ring-primary/10">
                 <div className="flex min-w-0 items-start gap-3">
                   <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
@@ -301,20 +301,20 @@ export const StoryOverviewModule = ({ story, onOpenManuscripts, onOpenModule, on
                   </span>
                   <div className="min-w-0">
                     <div className="truncate text-base font-semibold leading-6">
-                      {activeScene.title || emptyValueText}
+                      {representativeScene.title || emptyValueText}
                     </div>
                     <div className="mt-2 space-y-1.5 text-sm leading-6 text-muted-foreground">
                       <div className="line-clamp-2">
                         <span className="font-medium text-foreground/70">描述：</span>
-                        {activeScene.scene || emptyValueText}
+                        {representativeScene.scene || emptyValueText}
                       </div>
                       <div className="line-clamp-2">
                         <span className="font-medium text-foreground/70">目标：</span>
-                        {activeScene.goal || emptyValueText}
+                        {representativeScene.goal || emptyValueText}
                       </div>
                       <div className="line-clamp-2">
                         <span className="font-medium text-foreground/70">推进：</span>
-                        {activeScene.direction || emptyValueText}
+                        {representativeScene.direction || emptyValueText}
                       </div>
                     </div>
                   </div>
@@ -336,15 +336,18 @@ export const StoryOverviewModule = ({ story, onOpenManuscripts, onOpenModule, on
             actionLabel={onOpenManuscripts ? "打开稿件" : undefined}
             onAction={onOpenManuscripts}
           >
-            {activeNode ? (
+            {representativeNode ? (
               <div className="rounded-lg bg-muted/10 px-5 py-5">
-                <div className="text-xs font-medium text-muted-foreground">当前节点</div>
-                <div className="mt-1 truncate text-base font-semibold leading-6">{activeNode.title}</div>
+                <div className="text-xs font-medium text-muted-foreground">节点示例</div>
+                <div className="mt-1 truncate text-base font-semibold leading-6">{representativeNode.title}</div>
                 <div className="mt-2 line-clamp-3 text-sm leading-6 text-muted-foreground">
-                  {activeScene?.plot || activeScene?.goal || activeScene?.scene || "暂无节点进展。"}
+                  {representativeScene?.plot ||
+                    representativeScene?.goal ||
+                    representativeScene?.scene ||
+                    "暂无节点进展。"}
                 </div>
                 <Badge variant="outline" className="mt-3">
-                  {activeNode.id}
+                  {representativeNode.id}
                 </Badge>
               </div>
             ) : (

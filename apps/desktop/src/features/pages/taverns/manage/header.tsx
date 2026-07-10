@@ -2,13 +2,13 @@ import { BookOpen, Palette, ScrollText } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { TavernRoom } from "@/features/pages/taverns/manage/model";
+import type { TavernRoomConfig } from "@/features/pages/taverns/manage/model";
 import { emptyValueText } from "./utils";
 import { editorHeaderActionButtonClassName } from "./primitives";
 import { getVisualPreset } from "../tavern/visual-presets";
 
 type HeaderProps = {
-  data: TavernRoom;
+  data: TavernRoomConfig;
   onOpenStoryConfig: () => void;
 };
 

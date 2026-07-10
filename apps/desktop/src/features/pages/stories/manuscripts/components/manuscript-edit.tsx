@@ -219,7 +219,7 @@ export const StoryManuscriptEdit = ({
   const [isPolishing, setIsPolishing] = useState(false);
   const [error, setError] = useState("");
 
-  const defaultNodeId = story.graph.activeNodeId || story.graph.entryNodeId || story.graph.nodes[0]?.id || "";
+  const defaultNodeId = story.graph.nodes[0]?.id ?? "";
 
   const create = (nodeId = defaultNodeId) => {
     setEditor({

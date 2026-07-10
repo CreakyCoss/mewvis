@@ -1,5 +1,5 @@
 import { Loader2, Plus, Wine } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate, useParams } from "react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -8,9 +8,8 @@ import { RoomCard } from "@/features/pages/taverns/components/room-card";
 import { RoomEditor, type RoomEditorHandle } from "@/features/pages/taverns/manage";
 import { formatCount } from "@/features/pages/taverns/manage/utils";
 import { useTavernManagement } from "@/features/pages/taverns/store";
-import { loadTavernState, saveTavernState } from "@/features/pages/taverns/storage";
-import type { TavernState } from "@/features/pages/taverns/tavern/types";
-import type { TavernRoom } from "@/features/pages/taverns/manage/model";
+import { loadTavernRooms, saveTavernRooms } from "@/features/pages/taverns/storage";
+import type { TavernRoomConfig } from "@/features/pages/taverns/manage/model";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
 import type { Workspace } from "@/features/pages/workspace/types";
 
@@ -46,47 +45,31 @@ type TavernsPageRuntimeProps = {
 };
 
 const TavernsPageRuntime = ({ workspace }: TavernsPageRuntimeProps) => {
-  return <TavernsPageContent workspace={workspace} />;
+  return <TavernsPageContent key={workspace.id} workspace={workspace} />;
 };
 
 type TavernsPageContentProps = {
   workspace: Workspace;
 };
 
-const createEmptyTavernState = (): TavernState => ({
-  rooms: [],
-});
-
 const TavernsPageContent = ({ workspace }: TavernsPageContentProps) => {
-  const [state, setState] = useState<TavernState>(() => createEmptyTavernState());
-  const [isTavernStateHydrated, setIsTavernStateHydrated] = useState(false);
+  const [rooms, setRooms] = useState<TavernRoomConfig[]>([]);
+  const [areTavernRoomsLoaded, setAreTavernRoomsLoaded] = useState(false);
   const roomEditorRef = useRef<RoomEditorHandle>(null);
-  const workspaceIdRef = useRef(workspace.id);
   const [roomOperationStatus, setRoomOperationStatus] = useState("");
 
   useEffect(() => {
-    const didWorkspaceChange = workspaceIdRef.current !== workspace.id;
-    if (!didWorkspaceChange) {
-      return;
-    }
-
-    workspaceIdRef.current = workspace.id;
-    setState(createEmptyTavernState());
-    setIsTavernStateHydrated(false);
-  }, [setState, workspace.id]);
-
-  useEffect(() => {
     let isCancelled = false;
-    setIsTavernStateHydrated(false);
+    setAreTavernRoomsLoaded(false);
 
-    loadTavernState(workspace.path, workspace.id)
-      .then((nextState) => {
+    loadTavernRooms(workspace.path, workspace.id)
+      .then((nextRooms) => {
         if (isCancelled) {
           return;
         }
 
-        setState(nextState);
-        setIsTavernStateHydrated(true);
+        setRooms(nextRooms);
+        setAreTavernRoomsLoaded(true);
       })
       .catch((loadError) => {
         if (isCancelled) {
@@ -95,38 +78,30 @@ const TavernsPageContent = ({ workspace }: TavernsPageContentProps) => {
 
         console.error("Failed to load tavern state", loadError);
         toast.error("无法加载酒馆记录，已使用空酒馆列表。");
-        setState(createEmptyTavernState());
-        setIsTavernStateHydrated(true);
+        setRooms([]);
+        setAreTavernRoomsLoaded(true);
       });
 
     return () => {
       isCancelled = true;
     };
-  }, [setState, workspace.id, workspace.path]);
+  }, [workspace.id, workspace.path]);
 
   useEffect(() => {
-    if (isTavernStateHydrated && state.rooms.some((room) => room.workspaceId === workspace.id)) {
-      void saveTavernState(workspace.path, workspace.id, state).catch((saveError) => {
+    if (areTavernRoomsLoaded) {
+      void saveTavernRooms(workspace.path, workspace.id, rooms).catch((saveError) => {
         console.error("Failed to save tavern state", saveError);
       });
     }
-  }, [isTavernStateHydrated, state, workspace.id, workspace.path]);
-
-  const reportManagementError = useCallback((message: string) => {
-    if (message) {
-      toast.error(message);
-    }
-  }, []);
+  }, [areTavernRoomsLoaded, rooms, workspace.id, workspace.path]);
 
   const management = useTavernManagement({
-    workspace,
-    state,
-    setState,
-    onError: reportManagementError,
+    rooms,
+    setRooms,
   });
-  const { rooms, createRoom, patchRoom, globalRuntimeModel } = management;
+  const { createRoom, patchRoom, globalRuntimeModel } = management;
 
-  const openRoomEditor = (room: TavernRoom) => {
+  const openRoomEditor = (room: TavernRoomConfig) => {
     roomEditorRef.current?.(room);
   };
 
@@ -143,7 +118,7 @@ const TavernsPageContent = ({ workspace }: TavernsPageContentProps) => {
     }, 0);
   };
 
-  if (!isTavernStateHydrated) {
+  if (!areTavernRoomsLoaded) {
     return (
       <div className="flex h-full min-h-0 flex-1 items-center justify-center bg-background px-6 text-sm text-muted-foreground">
         正在加载酒馆

@@ -44,9 +44,9 @@ const normalizeStorySnapshot = (
   return {
     id: trimText(source.id) || fallback.storyId,
     title: trimText(source.title) || "未命名故事",
-    outline: trimText(source.outline),
+    premise: trimText(source.premise),
     goal: trimText(source.goal),
-    userPersonaName: trimText(source.userPersonaName) || "我",
+    playerName: trimText(source.playerName) || "我",
     updatedAt: numberValue(source.updatedAt, fallback.timestamp),
   };
 };
@@ -88,7 +88,6 @@ export const normalizeStoryManuscriptMeta = (value: unknown): StoryManuscriptMet
   const manuscriptForPath = { id, nodeId, status };
 
   return {
-    version: 1,
     id,
     storyId,
     nodeId,
@@ -121,12 +120,11 @@ export const normalizeStoryManuscript = (metaValue: unknown, content: string): S
 };
 
 export const normalizeStoryManuscriptsManifest = (value: unknown, storyId: string): StoryManuscriptsManifest => {
-  if (!isRecord(value) || value.version !== 1) {
+  if (!isRecord(value)) {
     return createEmptyStoryManuscriptsManifest(storyId);
   }
 
   return {
-    version: 1,
     storyId: trimText(value.storyId) || storyId,
     updatedAt: numberValue(value.updatedAt, Date.now()),
     nodes: Array.isArray(value.nodes)

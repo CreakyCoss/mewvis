@@ -11,21 +11,19 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
-import { loadTavernState } from "@/features/pages/taverns/storage";
-import type { TavernRoom } from "@/features/pages/taverns/manage/model";
+import { loadTavernRooms } from "@/features/pages/taverns/storage";
+import type { TavernRoomConfig } from "@/features/pages/taverns/manage/model";
 import { cn } from "@/lib/utils";
-import type { StoryNodeSelectOption } from "../node";
+import type { StoryNodeSelectOption } from "../../use-story-state";
 
 type StoryTavernSelectDialogProps = {
-  initialNodeId?: string | null;
   nodeOptions: StoryNodeSelectOption[];
-  onConfirm: (input: { nodeId: string; tavernRoom: TavernRoom }) => void | Promise<void>;
+  onConfirm: (input: { nodeId: string; roomConfig: TavernRoomConfig }) => void | Promise<void>;
   onOpenChange: (open: boolean) => void;
   open: boolean;
 };
 
 export const StoryTavernSelectDialog = ({
-  initialNodeId,
   nodeOptions,
   onConfirm,
   onOpenChange,
@@ -33,7 +31,7 @@ export const StoryTavernSelectDialog = ({
 }: StoryTavernSelectDialogProps) => {
   const { activeWorkspace, defaultWorkspace, overview } = useWorkspaceOverview();
   const carrierWorkspace = activeWorkspace ?? defaultWorkspace ?? overview?.workspaces[0] ?? null;
-  const [rooms, setRooms] = useState<TavernRoom[]>([]);
+  const [rooms, setRooms] = useState<TavernRoomConfig[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState("");
   const [selectedRoomId, setSelectedRoomId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -45,12 +43,8 @@ export const StoryTavernSelectDialog = ({
       return;
     }
 
-    setSelectedNodeId(
-      initialNodeId && nodeOptions.some((option) => option.id === initialNodeId)
-        ? initialNodeId
-        : (nodeOptions[0]?.id ?? ""),
-    );
-  }, [initialNodeId, nodeOptions, open]);
+    setSelectedNodeId("");
+  }, [open]);
 
   useEffect(() => {
     if (!open || !carrierWorkspace) {
@@ -62,13 +56,13 @@ export const StoryTavernSelectDialog = ({
     setRooms([]);
     setSelectedRoomId("");
 
-    loadTavernState(carrierWorkspace.path, carrierWorkspace.id)
-      .then((state) => {
+    loadTavernRooms(carrierWorkspace.path, carrierWorkspace.id)
+      .then((rooms) => {
         if (isCancelled) {
           return;
         }
-        setRooms(state.rooms);
-        setSelectedRoomId(state.rooms[0]?.id ?? "");
+        setRooms(rooms);
+        setSelectedRoomId(rooms[0]?.id ?? "");
       })
       .catch((error) => {
         console.error("Failed to load tavern rooms for story carrier", error);
@@ -96,7 +90,7 @@ export const StoryTavernSelectDialog = ({
     try {
       await onConfirm({
         nodeId: selectedNodeId,
-        tavernRoom: selectedRoom,
+        roomConfig: selectedRoom,
       });
       onOpenChange(false);
     } finally {
