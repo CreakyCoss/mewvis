@@ -1,17 +1,16 @@
+import type { SetStateAction } from "react";
+import { create } from "zustand";
+import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
+import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import {
   getTavernRoomActiveCharacter,
   getTavernRoomCharacters,
   type TavernRoomRuntime,
   type TavernRoomSessionState,
 } from "@/features/pages/taverns/room/model";
-import type { Dispatch, SetStateAction } from "react";
-import { create } from "zustand";
-import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
-import type { Workspace } from "@/features/pages/workspace/types";
 import { getVisualPreset } from "@/features/pages/taverns/tavern/visual-presets";
 import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets/types";
 import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
-import type { TavernCharacter } from "@/features/pages/taverns/manage/model";
 import { getCurrentTimestamp } from "@/utils/time";
 import type { ComposerHandle } from "./composer";
 import type { ExecutionStep } from "./execution-trace";
@@ -32,68 +31,19 @@ export const isTavernRoomBusy = (busy: TavernRoomBusyState) => busy.kind !== "id
 
 export const isTavernRoomSending = (busy: TavernRoomBusyState) => busy.kind === "sending";
 
-const EMPTY_WORKSPACE: Workspace = {
-  id: "",
-  name: "",
-  description: null,
-  path: "",
-  isDefault: false,
-  isPinned: false,
-  order: 0,
-  groupId: null,
-  createdAt: 0,
-  updatedAt: 0,
-};
-
-const createEmptyTavernSessionState = (): TavernRoomSessionState => ({
-  runtime: null,
-  messages: [],
-});
-
-const getSessionStateRoom = (state: TavernRoomSessionState, roomId?: string) => {
-  const room = state.runtime;
-  return room && (!roomId || room.identity.id === roomId) ? room : null;
-};
-
-const replaceSessionStateRoom = (state: TavernRoomSessionState, room: TavernRoomRuntime): TavernRoomSessionState => ({
-  ...state,
-  runtime: room,
-});
-
 type TavernRoomDerivedState = {
   activeRoom: TavernRoomRuntime | null;
   visualPreset: VisualPresetDefinition;
-  characterById: Map<string, TavernCharacter>;
   roomCharacters: TavernCharacter[];
   roomMessages: TavernMessage[];
   activeCharacter: TavernCharacter | null;
 };
 
-const deriveTavernRoomState = ({ state }: { state: TavernRoomSessionState }): TavernRoomDerivedState => {
-  const activeRoom = state.runtime;
-  const visualPreset = getVisualPreset(activeRoom?.scene.scenePresetId);
-  const roomCharacters = activeRoom ? getTavernRoomCharacters(activeRoom) : [];
-  const characterById = new Map((activeRoom?.cast.characters ?? []).map((character) => [character.id, character]));
-  const roomMessages = activeRoom ? state.messages : [];
-  const activeCharacter = activeRoom ? getTavernRoomActiveCharacter(activeRoom) : null;
-
-  return {
-    activeRoom,
-    visualPreset,
-    characterById,
-    roomCharacters,
-    roomMessages,
-    activeCharacter,
-  };
-};
-
 type TavernRoomStoreBase = {
-  workspace: Workspace;
-  tavernWorkspacePath: string;
+  workspacePath: string;
   runtimeModel: RuntimeModelOption | null;
   state: TavernRoomSessionState;
-  initialRuntime: TavernRoomRuntime | null;
-  initialMessages: TavernMessage[];
+  initialState: TavernRoomSessionState;
   composerHandle: ComposerHandle | null;
   error: string;
   busy: TavernRoomBusyState;
@@ -101,134 +51,109 @@ type TavernRoomStoreBase = {
   executionTraceAnchorMessageId: string;
 } & TavernRoomDerivedState;
 
+type TavernRoomStoreInitialization = {
+  workspacePath: string;
+  state: TavernRoomSessionState;
+  initialState: TavernRoomSessionState;
+};
+
 type TavernRoomStoreActions = {
-  resetRoomStore: (input?: {
-    workspace?: Workspace;
-    tavernWorkspacePath?: string;
-    runtimeModel?: RuntimeModelOption | null;
-    initialRuntime?: TavernRoomRuntime | null;
-    initialMessages?: TavernMessage[];
-  }) => void;
-  setWorkspace: (workspace: Workspace) => void;
+  initializeRoom: (input: TavernRoomStoreInitialization) => void;
   setRuntimeModel: (runtimeModel: RuntimeModelOption | null) => void;
-  setInitialRuntime: (runtime: TavernRoomRuntime | null) => void;
   setComposerHandle: (composerHandle: ComposerHandle | null) => void;
-  setState: Dispatch<SetStateAction<TavernRoomSessionState>>;
-  setError: Dispatch<SetStateAction<string>>;
-  setBusy: Dispatch<SetStateAction<TavernRoomBusyState>>;
+  setSession: (state: TavernRoomSessionState) => void;
+  setError: (error: string) => void;
+  setBusy: (busy: TavernRoomBusyState) => void;
   setBusyStatus: (status: string) => void;
-  setExecutionSteps: Dispatch<SetStateAction<ExecutionStep[]>>;
-  setExecutionTraceAnchorMessageId: Dispatch<SetStateAction<string>>;
-  resetExecutionTrace: (steps: ExecutionStep[]) => void;
+  setExecutionSteps: (updater: SetStateAction<ExecutionStep[]>) => void;
+  setExecutionTraceAnchorMessageId: (messageId: string) => void;
   patchExecutionStep: (stepId: string, patch: Partial<Omit<ExecutionStep, "id">>) => void;
-  appendExecutionStep: (step: ExecutionStep) => void;
   upsertExecutionStep: (step: ExecutionStep) => void;
   patchRoom: (roomId: string, updater: (room: TavernRoomRuntime) => TavernRoomRuntime) => void;
   appendMessagesToRoom: (roomId: string, messages: TavernMessage[]) => void;
-  patchMessage: (messageId: string, patch: Partial<TavernMessage>) => void;
-  removeMessage: (messageId: string) => void;
-  reportError: (message: string) => void;
 };
 
 export type TavernRoomStoreState = TavernRoomStoreBase & TavernRoomStoreActions;
 
-const createBaseStoreState = (
-  input: {
-    workspace?: Workspace;
-    tavernWorkspacePath?: string;
-    runtimeModel?: RuntimeModelOption | null;
-    initialRuntime?: TavernRoomRuntime | null;
-    initialMessages?: TavernMessage[];
-  } = {},
-): TavernRoomStoreBase => {
-  const state = createEmptyTavernSessionState();
-  const initialRuntime = input.initialRuntime ?? null;
+const createEmptySessionState = (): TavernRoomSessionState => ({
+  runtime: null,
+  messages: [],
+});
 
+const deriveRoomState = (state: TavernRoomSessionState): TavernRoomDerivedState => {
+  const activeRoom = state.runtime;
   return {
-    workspace: input.workspace ?? EMPTY_WORKSPACE,
-    tavernWorkspacePath: input.tavernWorkspacePath?.trim() || input.workspace?.path.trim() || "",
-    runtimeModel: input.runtimeModel ?? null,
+    activeRoom,
+    visualPreset: getVisualPreset(activeRoom?.scene.scenePresetId),
+    roomCharacters: activeRoom ? getTavernRoomCharacters(activeRoom) : [],
+    roomMessages: activeRoom ? state.messages : [],
+    activeCharacter: activeRoom ? getTavernRoomActiveCharacter(activeRoom) : null,
+  };
+};
+
+const createBaseStoreState = (
+  input?: TavernRoomStoreInitialization,
+  runtimeModel: RuntimeModelOption | null = null,
+): TavernRoomStoreBase => {
+  const state = input?.state ?? createEmptySessionState();
+  return {
+    workspacePath: input?.workspacePath.trim() ?? "",
+    runtimeModel,
     state,
-    initialRuntime,
-    initialMessages: input.initialMessages ?? [],
+    initialState: input?.initialState ?? createEmptySessionState(),
     composerHandle: null,
     error: "",
     busy: createIdleTavernRoomBusyState(),
     executionSteps: [],
     executionTraceAnchorMessageId: "",
-    ...deriveTavernRoomState({ state }),
+    ...deriveRoomState(state),
   };
 };
 
+const getSessionRoom = (state: TavernRoomSessionState, roomId: string) => {
+  const room = state.runtime;
+  return room?.identity.id === roomId ? room : null;
+};
+
+const replaceSessionRoom = (state: TavernRoomSessionState, room: TavernRoomRuntime): TavernRoomSessionState => ({
+  ...state,
+  runtime: room,
+});
+
 export const useTavernRoomContext = create<TavernRoomStoreState>((set) => ({
   ...createBaseStoreState(),
-  resetRoomStore: (input) => {
-    set(createBaseStoreState(input));
-  },
-  setWorkspace: (workspace) => {
-    set({ workspace, tavernWorkspacePath: workspace.path.trim() });
+  initializeRoom: (input) => {
+    set((current) => createBaseStoreState(input, current.runtimeModel));
   },
   setRuntimeModel: (runtimeModel) => {
     set({ runtimeModel });
   },
-  setInitialRuntime: (initialRuntime) => {
-    set((current) => ({
-      initialRuntime,
-      ...deriveTavernRoomState({ state: current.state }),
-    }));
-  },
   setComposerHandle: (composerHandle) => {
     set({ composerHandle });
   },
-  setState: (updater) => {
-    set((current) => {
-      const state = typeof updater === "function" ? updater(current.state) : updater;
-      return {
-        state,
-        ...deriveTavernRoomState({ state }),
-      };
-    });
+  setSession: (state) => {
+    set({ state, ...deriveRoomState(state) });
   },
-  setError: (updater) => {
-    set((current) => ({
-      error: typeof updater === "function" ? updater(current.error) : updater,
-    }));
+  setError: (error) => {
+    set({ error });
   },
-  setBusy: (updater) => {
-    set((current) => ({
-      busy: typeof updater === "function" ? updater(current.busy) : updater,
-    }));
+  setBusy: (busy) => {
+    set({ busy });
   },
   setBusyStatus: (status) => {
-    set((current) => ({
-      busy: {
-        ...current.busy,
-        status,
-      },
-    }));
+    set((current) => ({ busy: { ...current.busy, status } }));
   },
   setExecutionSteps: (updater) => {
     set((current) => ({
       executionSteps: typeof updater === "function" ? updater(current.executionSteps) : updater,
     }));
   },
-  setExecutionTraceAnchorMessageId: (updater) => {
-    set((current) => ({
-      executionTraceAnchorMessageId:
-        typeof updater === "function" ? updater(current.executionTraceAnchorMessageId) : updater,
-    }));
-  },
-  resetExecutionTrace: (executionSteps) => {
-    set({ executionSteps });
+  setExecutionTraceAnchorMessageId: (executionTraceAnchorMessageId) => {
+    set({ executionTraceAnchorMessageId });
   },
   patchExecutionStep: (stepId, patch) => {
     set((current) => ({
       executionSteps: current.executionSteps.map((step) => (step.id === stepId ? { ...step, ...patch } : step)),
-    }));
-  },
-  appendExecutionStep: (step) => {
-    set((current) => ({
-      executionSteps: [...current.executionSteps, step],
     }));
   },
   upsertExecutionStep: (step) => {
@@ -240,29 +165,25 @@ export const useTavernRoomContext = create<TavernRoomStoreState>((set) => ({
   },
   patchRoom: (roomId, updater) => {
     set((current) => {
-      const room = getSessionStateRoom(current.state, roomId);
+      const room = getSessionRoom(current.state, roomId);
       if (!room) {
         return current;
       }
 
-      const state = replaceSessionStateRoom(current.state, updater(room));
-
-      return {
-        state,
-        ...deriveTavernRoomState({ state }),
-      };
+      const state = replaceSessionRoom(current.state, updater(room));
+      return { state, ...deriveRoomState(state) };
     });
   },
   appendMessagesToRoom: (roomId, messages) => {
     set((current) => {
-      const room = getSessionStateRoom(current.state, roomId);
+      const room = getSessionRoom(current.state, roomId);
       if (!room) {
         return current;
       }
 
       const updatedAt = getCurrentTimestamp();
       const state = {
-        ...replaceSessionStateRoom(current.state, {
+        ...replaceSessionRoom(current.state, {
           ...room,
           identity: {
             ...room.identity,
@@ -278,77 +199,7 @@ export const useTavernRoomContext = create<TavernRoomStoreState>((set) => ({
         messages: [...current.state.messages, ...messages],
       };
 
-      return {
-        state,
-        ...deriveTavernRoomState({ state }),
-      };
+      return { state, ...deriveRoomState(state) };
     });
-  },
-  patchMessage: (messageId, patch) => {
-    set((current) => {
-      let didPatch = false;
-      const nextMessages = current.state.messages.map((message) => {
-        if (message.id !== messageId) {
-          return message;
-        }
-
-        didPatch = true;
-        return {
-          ...message,
-          ...patch,
-        };
-      });
-
-      if (!didPatch) {
-        return current;
-      }
-
-      const state = {
-        ...current.state,
-        messages: nextMessages,
-      };
-
-      return {
-        state,
-        ...deriveTavernRoomState({ state }),
-      };
-    });
-  },
-  removeMessage: (messageId) => {
-    set((current) => {
-      let didRemove = false;
-      const nextMessages = current.state.messages.filter((message) => {
-        const shouldKeep = message.id !== messageId;
-        if (!shouldKeep) {
-          didRemove = true;
-        }
-        return shouldKeep;
-      });
-
-      if (!didRemove) {
-        return current;
-      }
-
-      const state = {
-        ...(current.state.runtime
-          ? replaceSessionStateRoom(current.state, {
-              ...current.state.runtime,
-              identity: {
-                ...current.state.runtime.identity,
-                updatedAt: getCurrentTimestamp(),
-              },
-            })
-          : current.state),
-        messages: nextMessages,
-      };
-
-      return {
-        state,
-        ...deriveTavernRoomState({ state }),
-      };
-    });
-  },
-  reportError: (message) => {
-    set({ error: message });
   },
 }));

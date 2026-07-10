@@ -94,7 +94,7 @@ const beginSubmission = ({
     status: isSceneDrive ? "导演正在自推动场景..." : "导演正在调度角色...",
   });
   ctx.setError("");
-  ctx.resetExecutionTrace([
+  ctx.setExecutionSteps([
     {
       id: "director",
       label: "导演调度",
@@ -158,7 +158,7 @@ export const submitTavernAgentFlow = async ({
   const { activeRoom, busy, roomCharacters, roomMessages, runtimeModel, setError } = ctx;
   const isSceneDrive = trigger.type === "scene_drive";
   const text = (isSceneDrive ? (trigger.directive ?? submittedText ?? "") : (submittedText ?? "")).trim();
-  const workspacePath = ctx.tavernWorkspacePath.trim() || ctx.workspace.path.trim();
+  const workspacePath = ctx.workspacePath.trim();
 
   if (isTavernRoomBusy(busy)) {
     return;
@@ -246,7 +246,7 @@ export const submitTavernAgentFlow = async ({
       onEvent: (event) => {
         if (event.type === "director_start") {
           ctx.setBusyStatus("导演正在调度角色...");
-          ctx.resetExecutionTrace([{ id: "director", label: "导演调度", status: "running" }]);
+          ctx.setExecutionSteps([{ id: "director", label: "导演调度", status: "running" }]);
           return;
         }
 

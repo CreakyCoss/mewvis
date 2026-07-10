@@ -23,7 +23,10 @@ export const buildTavernAgentFlowProgress = (room: TavernRoomRuntime): AgentProt
       labelValue("当前场景", room.scene.scene),
       labelValue("场景目标", room.scene.sceneGoal),
       labelValue("剧情方向", room.scene.storyDirection),
-      labelValue("当前剧情节点", room.story.graph.nodes.find((node) => node.id === room.story.activeNodeId)?.title),
+      labelValue(
+        "当前剧情节点",
+        room.story.graph.nodes.find((node) => node.id === room.story.graph.activeNodeId)!.title,
+      ),
     ]),
     facts: compact([
       labelValue("地点", sceneStatus?.location),
@@ -38,7 +41,7 @@ export const buildTavernAgentFlowProgress = (room: TavernRoomRuntime): AgentProt
     recentEvents: compact([
       labelValue("最近情节", room.scene.plot),
       labelValue("转场/承接", room.scene.transition),
-      labelValue("公开记忆", room.scene.memoryLayers.public || room.scene.memory),
+      labelValue("公开记忆", room.scene.memoryLayers.public),
     ]),
   };
 };
@@ -71,14 +74,14 @@ export const buildTavernAgentFlowReferences = ({
     source: "room_runtime",
     content: joinLines([
       labelValue("房间", room.identity.title),
-      labelValue("用户身份", room.user.personaName || "用户"),
+      labelValue("用户身份", room.user.personaName),
       labelValue("场景", room.scene.scene),
       labelValue("场景目标", room.scene.sceneGoal),
       labelValue("剧情", room.scene.plot),
       labelValue("推进方向", room.scene.storyDirection),
       labelValue("转场", room.scene.transition),
       labelValue("必要记忆", room.scene.memoryLayers.required),
-      labelValue("公开记忆", room.scene.memoryLayers.public || room.scene.memory),
+      labelValue("公开记忆", room.scene.memoryLayers.public),
       target === "director" ? labelValue("导演秘密", room.scene.memoryLayers.directorSecret) : "",
     ]),
   },
@@ -123,7 +126,6 @@ const formatCharacterBrief = ({
   const publicStatus = room.scene.characterPublicStatuses[character.id];
   const privateStatus = room.scene.characterPrivateStatuses[character.id];
   const memoryLayers = room.scene.characterMemoryLayers[character.id];
-  const roomMemory = room.cast.characterMemories[character.id];
   const canSeePrivate = target === "director" || speaker?.id === character.id;
 
   return joinLines([
@@ -141,7 +143,8 @@ const formatCharacterBrief = ({
         labelValue("公开目标", publicStatus?.publicGoal),
       ]),
     ),
-    labelValue("角色公开记忆", memoryLayers?.public || roomMemory),
+    labelValue("角色必要记忆", memoryLayers?.required),
+    labelValue("角色公开记忆", memoryLayers?.public),
     canSeePrivate ? labelValue("角色已知信息", memoryLayers?.known) : "",
     canSeePrivate
       ? labelValue(

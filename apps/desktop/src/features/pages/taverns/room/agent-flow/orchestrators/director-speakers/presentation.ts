@@ -18,13 +18,8 @@ const supportedPresentations = {
   "novel-prose": novelProsePresentation,
 } satisfies Record<TavernAgentFlowSupportedPresentationId, TavernAgentFlowPresentation>;
 
-export const resolveTavernAgentFlowPresentation = (value: unknown): TavernAgentFlowPresentation => {
-  if (typeof value === "string" && value in supportedPresentations) {
-    return supportedPresentations[value as TavernAgentFlowSupportedPresentationId];
-  }
-
-  return supportedPresentations["dialogue-chat"];
-};
+export const resolveTavernAgentFlowPresentation = (value: TavernAgentFlowSupportedPresentationId) =>
+  supportedPresentations[value];
 
 export const getTavernAgentFlowPublicOutputKey = (
   presentation: TavernAgentFlowPresentation,

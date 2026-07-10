@@ -1,7 +1,6 @@
 import { AgentProtocol } from "@/features/pages/taverns/room/agent-protocol";
 import type { AgentProtocolMessage } from "@/features/pages/taverns/room/agent-protocol/types";
 import { parseTavernAgentFlowDirectorDecision } from "./decision";
-import { parseTavernAgentFlowOutput } from "./output";
 import { buildTavernAgentFlowProgress, buildTavernAgentFlowReferences } from "./prompt-context";
 import { tavernAgentFlowSessionRootDir } from "../../runtime/session";
 import { tavernAgentFlowDirectorRoleId } from "./roles";
@@ -110,10 +109,9 @@ export const runTavernAgentFlowDirector = async ({
     systemPrompt: "你正在执行酒馆互动导演任务。必须遵守用户消息里的结构化输入和输出协议。",
     onTextDelta: (delta) => input.onEvent?.({ type: "director_delta", delta }),
   });
-  const parsed = parseTavernAgentFlowOutput(output.text);
+  const parsed = AgentProtocol.parse(output.text);
   const decision = parseTavernAgentFlowDirectorDecision({
     parsed,
-    characters: context.candidateCharacters,
     maxSpeakers: context.maxSpeakers,
   });
 

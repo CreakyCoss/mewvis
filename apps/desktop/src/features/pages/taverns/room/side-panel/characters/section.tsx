@@ -74,8 +74,8 @@ const CharacterDetail = ({ character }: { character: TavernCharacter }) => {
   const scene = activeRoom.scene;
   const characterMemoryLayers = getTavernRoomCharacterMemoryLayers(activeRoom, character.id);
   const avatar = resolveAvatar(character.avatar).src;
-  const publicStatus = scene.characterPublicStatuses?.[character.id];
-  const privateStatus = scene.characterPrivateStatuses?.[character.id];
+  const publicStatus = scene.characterPublicStatuses[character.id];
+  const privateStatus = scene.characterPrivateStatuses[character.id];
   const holding = trimArray(publicStatus?.holding);
   const privateKnowledge = trimArray(privateStatus?.privateKnowledge);
   const speakingPhrases = splitPhrases(character.speakingStyle);
@@ -111,7 +111,6 @@ const CharacterDetail = ({ character }: { character: TavernCharacter }) => {
   ].filter(Boolean);
   const relationshipLines: string[] = [];
   const memoryLines = unique([
-    trimText(scene.characterMemories?.[character.id]),
     trimText(characterMemoryLayers?.required),
     trimText(characterMemoryLayers?.public),
     trimText(characterMemoryLayers?.known),
@@ -188,7 +187,7 @@ const CharacterDetail = ({ character }: { character: TavernCharacter }) => {
 const CharacterCardContent = ({ character, isActive }: { character: TavernCharacter; isActive: boolean }) => {
   const activeRoom = useTavernRoomContext((store) => store.activeRoom);
   const avatar = resolveAvatar(character.avatar).src;
-  const publicStatus = activeRoom?.scene.characterPublicStatuses?.[character.id];
+  const publicStatus = activeRoom?.scene.characterPublicStatuses[character.id];
   const chipTexts = unique([
     trimText(publicStatus?.visibleMood),
     trimText(publicStatus?.posture),

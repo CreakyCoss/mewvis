@@ -7,7 +7,7 @@ import { getCurrentTimestamp } from "@/utils/time";
 import { createTavernAgentOutputMessageBody } from "@/features/pages/taverns/room/model/message-body";
 import { createTavernAgentFlowPublicMessage } from "./context";
 import { getTavernAgentFlowPublicOutputKey } from "./presentation";
-import { getTavernAgentFlowPublicText, parseTavernAgentFlowOutput } from "./output";
+import { getTavernAgentFlowPublicText } from "./output";
 import { buildTavernAgentFlowProgress, buildTavernAgentFlowReferences } from "./prompt-context";
 import { tavernAgentFlowSessionRootDir } from "../../runtime/session";
 import { tavernAgentFlowCharacterRoleId } from "./roles";
@@ -185,7 +185,7 @@ export const runTavernAgentFlowSpeaker = async ({
     systemPrompt: `你正在扮演 ${character.name}。必须遵守用户消息里的结构化输入和输出协议。`,
     onTextDelta: (delta) => input.onEvent?.({ type: "speaker_delta", character, index, delta }),
   });
-  const parsed = parseTavernAgentFlowOutput(output.text);
+  const parsed = AgentProtocol.parse(output.text);
   const publicText = getTavernAgentFlowPublicText({
     parsed,
     preferredOutput: getTavernAgentFlowPublicOutputKey(context.presentation),

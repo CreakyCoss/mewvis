@@ -2,8 +2,7 @@ import type { AgentProtocolOutputKey } from "@/features/pages/taverns/room/agent
 import { getAgentProtocolOutputDefinition } from "@/features/pages/taverns/room/agent-protocol/fields";
 import type { TavernMessage, TavernMessageBody } from "@/features/pages/taverns/tavern/types";
 
-const escapeProtocolXmlText = (text: string) =>
-  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const escapeProtocolXmlText = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 export const createTavernTextMessageBody = (text: string): TavernMessageBody => ({
   type: "text",

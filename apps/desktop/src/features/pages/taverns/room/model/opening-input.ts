@@ -11,21 +11,19 @@ import type { TavernCharacterMemoryLayers, TavernScene, TavernSceneMemoryLayers,
 
 export type TavernRoomOpeningInput = {
   version?: 1;
-  source?: {
-    type: "story" | "manual" | "import";
-    id?: string;
-    label?: string;
-  };
+  source?: { label?: string } & ({ type: "story"; id: string } | { type: "manual" | "import"; id?: string });
   title?: string;
   userPersonaName?: string;
   story?: {
     outline?: string;
     goal?: string;
-    graph?: Partial<TavernStoryGraph>;
-    activeNodeId?: string;
+    graph?: TavernStoryGraph;
   };
   cast?: {
-    characters?: Array<Partial<TavernCharacter> & { memory?: string }>;
+    characters?: Array<
+      Partial<TavernCharacter> &
+        Pick<TavernCharacter, "id" | "name"> & { memoryLayers?: Partial<TavernCharacterMemoryLayers> }
+    >;
     characterIds?: string[];
     activeCharacterId?: string;
   };
@@ -43,12 +41,12 @@ export type TavernRoomOpeningInput = {
     replyMode?: TavernRoomConfig["replyMode"];
     creationSource?: TavernRoomConfig["creationSource"];
   };
-  openingMessages?: Array<{
-    id?: string;
-    role: TavernMessage["role"];
-    characterId?: string;
-    text: string;
-    createdAt?: number;
-    status?: TavernMessage["status"];
-  }>;
+  openingMessages?: Array<
+    {
+      id?: string;
+      text: string;
+      createdAt?: number;
+      status?: Exclude<TavernMessage["status"], "streaming">;
+    } & ({ role: "character"; characterId: string } | { role: "user" | "narrator"; characterId?: never })
+  >;
 };

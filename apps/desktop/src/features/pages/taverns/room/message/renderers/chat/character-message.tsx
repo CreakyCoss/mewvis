@@ -4,12 +4,11 @@ import { cn } from "@/lib/utils";
 import { formatTime } from "@/utils/time";
 import type { MessageCharacterProfile, MessageSegment, MessageVisualStyle } from "../../types";
 import { MessageControls } from "../shared/message-controls";
-import { formatMessageSegmentsForDisplay, stripImmersiveDescriptionText } from "../shared/message-content";
+import { formatMessageSegmentsForDisplay } from "../shared/message-content";
 import { MessageSegmentsContent } from "../shared/message-segments-content";
 
 type CharacterMessageProps = {
-  character?: MessageCharacterProfile | null;
-  content: string;
+  character: MessageCharacterProfile;
   createdAt: number;
   immersiveDescriptionEnabled: boolean;
   isError: boolean;
@@ -20,7 +19,6 @@ type CharacterMessageProps = {
 };
 export const CharacterMessage = ({
   character,
-  content,
   createdAt,
   immersiveDescriptionEnabled,
   isError,
@@ -29,7 +27,7 @@ export const CharacterMessage = ({
   thought,
   visualStyle,
 }: CharacterMessageProps) => {
-  const avatar = resolveAvatar(character?.avatar);
+  const avatar = resolveAvatar(character.avatar);
   const displayThought = immersiveDescriptionEnabled ? (thought?.trim() ?? "") : "";
   const displaySegments = immersiveDescriptionEnabled
     ? segments.filter((segment) => segment.type !== "thought")
@@ -37,8 +35,7 @@ export const CharacterMessage = ({
   const segmentContent = formatMessageSegmentsForDisplay(displaySegments, {
     includeThoughts: false,
   });
-  const displayContent =
-    segmentContent.trim() || (immersiveDescriptionEnabled ? content : stripImmersiveDescriptionText(content));
+  const displayContent = segmentContent.trim();
   const copyContent = displayThought ? `心想：${displayThought}\n\n${displayContent}` : displayContent;
 
   if (!displayContent.trim() && !displayThought && !isError && !isStreaming) {
@@ -51,7 +48,7 @@ export const CharacterMessage = ({
         <img src={avatar.src} alt="" className="size-10 shrink-0 rounded-md" />
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex items-center gap-2 text-xs text-current">
-            <span className="font-medium">{character?.name ?? "角色"}</span>
+            <span className="font-medium">{character.name}</span>
             <span className="opacity-70">{formatTime(createdAt)}</span>
             {isStreaming && <Loader2 className="size-3 animate-spin" />}
           </div>

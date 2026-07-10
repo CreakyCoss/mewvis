@@ -26,18 +26,14 @@ const proseTextClassName: Record<RenderableMessage["role"], string> = {
 
 export const ProseMessage = ({ message }: { message: RenderableMessage }) => {
   const contentSegments = message.segments.filter((segment) => segment.type !== "thought");
-  const content =
-    formatMessageSegmentsForDisplay(contentSegments, {
-      includeThoughts: false,
-    }).trim() || message.content.trim();
-  const thought =
-    message.segments
-      .filter((segment) => segment.type === "thought")
-      .map((segment) => segment.text.trim())
-      .filter(Boolean)
-      .join("\n\n") ||
-    message.thought?.trim() ||
-    "";
+  const content = formatMessageSegmentsForDisplay(contentSegments, {
+    includeThoughts: false,
+  }).trim();
+  const thought = message.segments
+    .filter((segment) => segment.type === "thought")
+    .map((segment) => segment.text.trim())
+    .filter(Boolean)
+    .join("\n\n");
   const copyContent = thought ? `${content}\n\n（${thought}）` : content;
 
   if (!content && !thought && message.status !== "streaming") {

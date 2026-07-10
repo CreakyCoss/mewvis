@@ -8,7 +8,6 @@ import type {
   TavernPendingInteraction,
   TavernReplyOption,
   TavernRoom as TavernRoomConfig,
-  TavernRoomCharacterConfig,
   TavernScenePromptOverrides,
   TavernSceneRelationshipOverride,
   TavernSceneStatus,
@@ -86,15 +85,12 @@ export type TavernScene = {
   plot: string;
   storyDirection: string;
   transition: string;
-  memory: string;
   relationshipOverrides: TavernSceneRelationshipOverride[];
   sceneStatus?: TavernSceneStatus;
   characterPublicStatuses: Record<string, TavernCharacterPublicStatus>;
   characterPrivateStatuses: Record<string, TavernCharacterPrivateStatus>;
   pendingInteractions: TavernPendingInteraction[];
   replyOptions: TavernReplyOption[];
-  characterConfigs?: Record<string, TavernRoomCharacterConfig>;
-  characterMemories: Record<string, string>;
   characterIds: string[];
   activeCharacterId: string;
   promptOverrides: TavernScenePromptOverrides;
@@ -129,14 +125,11 @@ export type TavernRoomRuntime = {
     outline: string;
     goal: string;
     graph: TavernStoryGraph;
-    activeNodeId: string;
   };
   cast: {
     characters: TavernCharacter[];
     characterIds: string[];
     activeCharacterId: string;
-    characterConfigs?: Record<string, TavernRoomCharacterConfig>;
-    characterMemories: Record<string, string>;
   };
   scene: TavernScene;
   world: {

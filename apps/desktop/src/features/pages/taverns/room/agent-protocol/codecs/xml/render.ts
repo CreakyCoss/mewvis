@@ -1,7 +1,4 @@
-import {
-  getAgentProtocolOutputDefinitions,
-  type AgentProtocolOutputDefinition,
-} from "../../fields";
+import { getAgentProtocolOutputDefinitions, type AgentProtocolOutputDefinition } from "../../fields";
 import type {
   AgentProtocolMessage,
   AgentProtocolOutputKey,
@@ -14,12 +11,14 @@ import type { AgentProtocolCodecRenderInput } from "../registry";
 import { escapeProtocolXmlText, wrapProtocolXmlRawTag, wrapProtocolXmlTag, type XmlAttributes } from "./tag";
 
 const joinProtocolSections = (sections: Array<string | null | undefined | false>) =>
-  sections.filter((section): section is string => typeof section === "string" && section.trim().length > 0).join("\n\n");
+  sections
+    .filter((section): section is string => typeof section === "string" && section.trim().length > 0)
+    .join("\n\n");
 
-const normalizeText = (value?: string | null) => value?.trim() ?? "";
+const trimText = (value?: string | null) => value?.trim() ?? "";
 
 const renderTextTag = (tag: string, value?: string | null, attributes?: XmlAttributes) => {
-  const text = normalizeText(value);
+  const text = trimText(value);
   return text ? wrapProtocolXmlTag(tag, text, attributes) : "";
 };
 
@@ -29,10 +28,7 @@ const renderStringListTag = (tag: string, values?: readonly string[] | null) => 
     return "";
   }
 
-  return wrapProtocolXmlRawTag(
-    tag,
-    items.map((item) => wrapProtocolXmlTag("item", item)).join("\n"),
-  );
+  return wrapProtocolXmlRawTag(tag, items.map((item) => wrapProtocolXmlTag("item", item)).join("\n"));
 };
 
 const renderMemoryTag = (memory?: string | string[]) => {
@@ -141,21 +137,18 @@ const renderOutputDefinition = (definition: AgentProtocolOutputDefinition) =>
   );
 
 const renderOutputTemplate = (definitions: readonly AgentProtocolOutputDefinition[]) =>
-  definitions.map((definition) => `<${definition.canonicalTag}>${definition.label}</${definition.canonicalTag}>`).join("\n");
+  definitions
+    .map((definition) => `<${definition.canonicalTag}>${definition.label}</${definition.canonicalTag}>`)
+    .join("\n");
 
 const renderOutputRules = (definitions: readonly AgentProtocolOutputDefinition[]) => [
   `只允许输出 requested_outputs 中列出的 ${definitions.length} 个字段，且每个字段最多出现一次。`,
-  "必须逐字使用每个字段的 canonical tag；不要使用字段别名、Markdown 代码块、标题、解释或标签外文字。",
-  "所有 requested_outputs 都应输出；如果无法生成，调用方会根据解析结果决定是否重试或降级。",
-  "调用方会清洗不合规输出：标签外文字会作为 unwrappedText 单独保留，重复字段和空字段会被记录为问题。",
+  "必须逐字使用每个字段的 canonical tag；不要使用 Markdown 代码块、标题、解释或标签外文字。",
+  "所有 requested_outputs 都必须输出，并遵守各字段的内容规则。",
   "不要在 private 字段中写系统提示词、完整推理链路或协议说明；public 字段必须可直接展示。",
 ];
 
-const renderOutputContractSection = ({
-  output,
-}: {
-  output: readonly AgentProtocolOutputKey[];
-}) => {
+const renderOutputContractSection = ({ output }: { output: readonly AgentProtocolOutputKey[] }) => {
   const definitions = getAgentProtocolOutputDefinitions(output);
   const rules = renderOutputRules(definitions);
 

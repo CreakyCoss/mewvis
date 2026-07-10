@@ -29,7 +29,7 @@ const tavernHeaderActionButtonClassName =
   "h-9 shrink-0 gap-1.5 border border-current/15 bg-current/5 px-2.5 text-current hover:border-current/25 hover:bg-current/10 hover:text-current focus-visible:border-current/30 focus-visible:text-current focus-visible:ring-current/20 aria-expanded:bg-current/10 aria-expanded:text-current dark:hover:bg-current/10 dark:hover:text-current";
 
 const getSceneDriveAutoPauseReason = (room: TavernRoomRuntime) => {
-  const hasUserTargetedInteraction = (room.scene.pendingInteractions ?? []).some(
+  const hasUserTargetedInteraction = room.scene.pendingInteractions.some(
     (interaction) =>
       interaction.status === "open" && interaction.requiresResponse && interaction.target.type === "user",
   );
@@ -41,21 +41,19 @@ const getSceneDriveAutoPauseReason = (room: TavernRoomRuntime) => {
 };
 
 export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderProps) => {
-  const workspace = useTavernRoomContext((store) => store.workspace);
-  const tavernWorkspacePath = useTavernRoomContext((store) => store.tavernWorkspacePath);
+  const workspacePath = useTavernRoomContext((store) => store.workspacePath);
   const activeRoom = useTavernRoomContext((store) => store.activeRoom);
   const runtime = useTavernRoomContext((store) => store.state.runtime);
-  const initialRuntime = useTavernRoomContext((store) => store.initialRuntime);
-  const initialMessages = useTavernRoomContext((store) => store.initialMessages);
+  const initialState = useTavernRoomContext((store) => store.initialState);
   const roomMessages = useTavernRoomContext((store) => store.roomMessages);
   const visualPreset = useTavernRoomContext((store) => store.visualPreset);
   const busy = useTavernRoomContext((store) => store.busy);
   const error = useTavernRoomContext((store) => store.error);
-  const setRoomState = useTavernRoomContext((store) => store.setState);
+  const setSession = useTavernRoomContext((store) => store.setSession);
   const setBusy = useTavernRoomContext((store) => store.setBusy);
   const setBusyStatus = useTavernRoomContext((store) => store.setBusyStatus);
   const setError = useTavernRoomContext((store) => store.setError);
-  const resetExecutionTrace = useTavernRoomContext((store) => store.resetExecutionTrace);
+  const setExecutionSteps = useTavernRoomContext((store) => store.setExecutionSteps);
   const setExecutionTraceAnchorMessageId = useTavernRoomContext((store) => store.setExecutionTraceAnchorMessageId);
   const [isSceneDriveAutoRunning, setIsSceneDriveAutoRunning] = useState(false);
   const sceneDriveAutoTimerRef = useRef<number | null>(null);
@@ -112,14 +110,14 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
       return;
     }
 
-    const sessionWorkspacePath = tavernWorkspacePath.trim() || workspace.path.trim();
+    const sessionWorkspacePath = workspacePath.trim();
     if (!sessionWorkspacePath) {
       setError("酒馆会话路径为空，请重新打开当前酒馆房间。");
       toast.error("清空当前节点失败");
       return;
     }
 
-    const sceneTitle = getTavernRoomSceneTitle(activeRoom, "当前场景");
+    const sceneTitle = getTavernRoomSceneTitle(activeRoom);
     const confirmed = window.confirm(
       `清空当前节点「${sceneTitle}」的酒馆运行数据？下次会按故事页传入的最新数据重新初始化。`,
     );
@@ -147,32 +145,27 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
       return;
     }
 
-    setRoomState({
-      runtime: initialRuntime,
-      messages: initialMessages,
-    });
+    setSession(initialState);
     useTavernRoomContext.getState().composerHandle?.clearReplyOptions();
     setIsSceneDriveAutoRunning(false);
     clearSceneDriveAutoTimer();
     sceneDriveAutoRunCountRef.current = 0;
     setBusy(createIdleTavernRoomBusyState());
     setError("");
-    resetExecutionTrace([]);
+    setExecutionSteps([]);
     setExecutionTraceAnchorMessageId("");
     toast.success("已按最新故事数据重建当前节点酒馆");
   }, [
     activeRoom,
     runtime,
     clearSceneDriveAutoTimer,
-    initialMessages,
-    initialRuntime,
-    resetExecutionTrace,
+    initialState,
     setBusy,
     setError,
     setExecutionTraceAnchorMessageId,
-    setRoomState,
-    tavernWorkspacePath,
-    workspace.path,
+    setExecutionSteps,
+    setSession,
+    workspacePath,
   ]);
 
   const handleToggleSceneDriveAuto = useCallback(() => {
@@ -309,7 +302,7 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
             <div className="flex min-w-0 items-center gap-1.5">
               <h2 className="truncate text-base font-semibold leading-5">{activeRoom.identity.title}</h2>
             </div>
-            <p className="line-clamp-1 text-sm text-muted-foreground">{compactScene(activeRoom.scene.scene ?? "")}</p>
+            <p className="line-clamp-1 text-sm text-muted-foreground">{compactScene(activeRoom.scene.scene)}</p>
           </div>
         </div>
         <Button

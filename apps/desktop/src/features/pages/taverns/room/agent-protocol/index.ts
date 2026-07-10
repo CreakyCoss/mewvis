@@ -1,10 +1,7 @@
-import { uniq } from "lodash-es";
 import { getAgentProtocolCodec } from "./codecs/registry";
-import { AGENT_PROTOCOL_OUTPUT_FIELDS } from "./fields";
 import type {
   AgentProtocolFormat,
   AgentProtocolOptions,
-  AgentProtocolOutputKey,
   AgentProtocolParseResult,
   AgentProtocolPrepared,
   AgentProtocolRequest,
@@ -25,10 +22,7 @@ export const AgentProtocol: AgentProtocol = {
 } as const;
 
 const prepare = (request: AgentProtocolRequest): AgentProtocolPrepared => {
-  const requestedOutput = uniq(request.output).filter(
-    (output): output is AgentProtocolOutputKey => output in AGENT_PROTOCOL_OUTPUT_FIELDS,
-  );
-  const output: AgentProtocolOutputKey[] = requestedOutput.length > 0 ? requestedOutput : ["publicReply"];
+  const output = request.output;
   const options: Required<AgentProtocolOptions> = {
     format: "xml",
     ...request.options,

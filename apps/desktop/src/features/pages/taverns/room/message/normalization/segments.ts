@@ -1,5 +1,4 @@
 import type { MessageActorRef, MessagePresentationConfig, MessageRole, MessageSegment } from "../types";
-import { buildDialogueAndActionSegments, normalizeActionText } from "./actions";
 
 type MessageSegmentBuildInput = {
   role: MessageRole;
@@ -44,16 +43,15 @@ export const buildMessageSegments = ({
         text: trimmedContent,
       });
     } else {
-      segments.push(
-        ...buildDialogueAndActionSegments({
-          actor,
-          content: trimmedContent,
-        }),
-      );
+      segments.push({
+        type: "dialogue",
+        speaker: actor,
+        text: trimmedContent,
+      });
     }
   }
 
-  const explicitActionTexts = (actions ?? []).map((action) => normalizeActionText(action, true)).filter(Boolean);
+  const explicitActionTexts = (actions ?? []).map((action) => action.trim()).filter(Boolean);
   for (const actionText of explicitActionTexts) {
     segments.push({
       type: "action",

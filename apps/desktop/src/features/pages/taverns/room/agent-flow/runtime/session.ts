@@ -9,7 +9,7 @@ const sanitizeSessionSegment = (value: string) => {
     .replace(/[^a-zA-Z0-9_-]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-  return segment || "room";
+  return segment;
 };
 
 export const tavernAgentFlowSessionRootDir = (room: TavernRoomRuntime) =>

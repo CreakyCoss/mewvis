@@ -20,10 +20,7 @@ export const directorSpeakersOrchestrator: TavernAgentFlowOrchestrator = {
 
 const resolveScheduledCharacters = (input: TavernAgentFlowInput, speakerIds: string[]) => {
   const characterById = new Map(input.characters.map((character) => [character.id, character]));
-  return speakerIds.flatMap((speakerId) => {
-    const character = characterById.get(speakerId);
-    return character ? [character] : [];
-  });
+  return speakerIds.map((speakerId) => characterById.get(speakerId)!);
 };
 
 const createDirectorNarratorMessage = ({

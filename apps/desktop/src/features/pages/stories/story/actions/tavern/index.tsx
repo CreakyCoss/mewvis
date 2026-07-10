@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { TavernRoom } from "@/features/pages/taverns/manage/model";
 import { TavernRoomDialog, type TavernRoomHandle } from "@/features/pages/taverns/room";
+import { createTavernRoomSessionState } from "@/features/pages/taverns/room/model";
 import { editorHeaderActionButtonClassName } from "../../../components/story-primitives";
 import { useStoryState } from "../../use-story-state";
 import { StoryTavernSelectDialog } from "./dialog";
@@ -37,11 +38,13 @@ export const TavernStoryAction = () => {
     const storyNodeId = resolveNodeId(story, nodeId);
     try {
       roomDialogRef.current?.({
-        tavernRoom,
-        openingInput: createTavernPayload(story, {
-          nodeId: storyNodeId,
+        workspacePath: getTavernWorkspacePath(storyNodeId, tavernRoom.id),
+        initialState: createTavernRoomSessionState({
+          tavernRoom,
+          openingInput: createTavernPayload(story, {
+            nodeId: storyNodeId,
+          }),
         }),
-        tavernWorkspacePath: getTavernWorkspacePath(storyNodeId, tavernRoom.id),
       });
     } catch (error) {
       console.error("Failed to open story in tavern", error);

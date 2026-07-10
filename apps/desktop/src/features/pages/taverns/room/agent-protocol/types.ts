@@ -3,14 +3,7 @@ export type AgentProtocolFormat = "xml";
 export type AgentProtocolVisibility = "public" | "private" | "self";
 
 export type AgentProtocolOutputKey =
-  | "privateThought"
-  | "publicReply"
-  | "narrative"
-  | "action"
-  | "decision"
-  | "summary"
-  | "statePatch"
-  | "memoryPatch";
+  "privateThought" | "publicReply" | "narrative" | "action" | "decision" | "summary" | "statePatch" | "memoryPatch";
 
 export type AgentProtocolRole = {
   name?: string;
@@ -73,24 +66,6 @@ export type AgentProtocolPrepared = {
   options: Required<AgentProtocolOptions>;
 };
 
-export type AgentProtocolIssueCode =
-  | "empty_output"
-  | "duplicate_output_dropped"
-  | "malformed_output_recovered"
-  | "unwrapped_text_captured";
-
-export type AgentProtocolIssue = {
-  code: AgentProtocolIssueCode;
-  message: string;
-  field?: AgentProtocolOutputKey;
-  tag?: string;
-  text?: string;
-};
-
 export type AgentProtocolParseResult = {
-  ok: boolean;
   data: Partial<Record<AgentProtocolOutputKey, string>>;
-  unwrappedText?: string;
-  normalizedText: string;
-  issues: AgentProtocolIssue[];
 };

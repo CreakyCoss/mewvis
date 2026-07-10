@@ -18,8 +18,7 @@ type TavernRoomContentProps = {
 };
 
 export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContentProps) => {
-  const workspace = useTavernRoomContext((store) => store.workspace);
-  const tavernWorkspacePath = useTavernRoomContext((store) => store.tavernWorkspacePath);
+  const workspacePath = useTavernRoomContext((store) => store.workspacePath);
   const activeRoom = useTavernRoomContext((store) => store.activeRoom);
   const visualPreset = useTavernRoomContext((store) => store.visualPreset);
   const roomCharacters = useTavernRoomContext((store) => store.roomCharacters);
@@ -33,7 +32,6 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
   const messageEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const workspacePath = tavernWorkspacePath.trim() || workspace.path.trim();
     if (!workspacePath) {
       setFiles([]);
       return;
@@ -56,55 +54,52 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
     return () => {
       isCancelled = true;
     };
-  }, [tavernWorkspacePath, workspace.path]);
+  }, [workspacePath]);
 
-  const renderableRoomMessages = useMemo(
-    () => {
-      if (!activeRoom) {
-        return [];
-      }
+  const renderableRoomMessages = useMemo(() => {
+    if (!activeRoom) {
+      return [];
+    }
 
-      const characterProfiles: MessageCharacterProfile[] = roomCharacters.map((character) => ({
-        id: character.id,
-        name: character.name,
-        avatar: character.avatar,
-      }));
-      const messages: MessageRenderInput[] = roomMessages.map((message) => {
-        const profile = getTavernPresentationProfile(message.presentationProfileId);
-        const baseMessage = {
-          id: message.id,
-          body: message.body,
-          createdAt: message.createdAt,
-          status: message.status,
-          referencedFiles: message.referencedFiles,
-          presentation: {
-            profileId: profile.id,
-            userInputMode: profile.userInputMode,
-          },
-        };
+    const characterProfiles: MessageCharacterProfile[] = roomCharacters.map((character) => ({
+      id: character.id,
+      name: character.name,
+      avatar: character.avatar,
+    }));
+    const messages: MessageRenderInput[] = roomMessages.map((message) => {
+      const profile = getTavernPresentationProfile(message.presentationProfileId);
+      const baseMessage = {
+        id: message.id,
+        body: message.body,
+        createdAt: message.createdAt,
+        status: message.status,
+        referencedFiles: message.referencedFiles,
+        presentation: {
+          profileId: profile.id,
+          userInputMode: profile.userInputMode,
+        },
+      };
 
-        if (message.role === "character") {
-          return {
-            ...baseMessage,
-            role: message.role,
-            characterId: message.characterId ?? "",
-          };
-        }
-
+      if (message.role === "character") {
         return {
           ...baseMessage,
           role: message.role,
+          characterId: message.characterId!,
         };
-      });
+      }
 
-      return Message.normalize({
-        messages,
-        characterProfiles,
-        userName: activeRoom.user.personaName,
-      });
-    },
-    [activeRoom, roomCharacters, roomMessages],
-  );
+      return {
+        ...baseMessage,
+        role: message.role,
+      };
+    });
+
+    return Message.normalize({
+      messages,
+      characterProfiles,
+      userName: activeRoom.user.personaName,
+    });
+  }, [activeRoom, roomCharacters, roomMessages]);
   const latestMessage = renderableRoomMessages[renderableRoomMessages.length - 1] ?? null;
   const presentationProfile = getTavernPresentationProfile(activeRoom?.presentation.profile?.profileId);
   const conversationRenderer = Message.resolveRenderer(presentationProfile.renderStyle);
@@ -172,11 +167,11 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
     backgroundSize: visualPreset.tavern.backgroundSize,
   } satisfies CSSProperties;
   const scene = activeRoom.scene;
-  const activeSceneTitle = getTavernRoomSceneTitle(activeRoom, "");
-  const sceneDescription = scene.scene?.trim() ?? "";
-  const sceneMechanism = scene.plot?.trim() || activeRoom.story.outline.trim();
-  const sceneGoal = scene.sceneGoal?.trim() || activeRoom.story.goal.trim();
-  const sceneEnding = scene.transition?.trim() ?? "";
+  const activeSceneTitle = getTavernRoomSceneTitle(activeRoom);
+  const sceneDescription = scene.scene.trim();
+  const sceneMechanism = scene.plot.trim() || activeRoom.story.outline.trim();
+  const sceneGoal = scene.sceneGoal.trim() || activeRoom.story.goal.trim();
+  const sceneEnding = scene.transition.trim();
   const sceneBriefLines = Array.from(
     new Set(
       [

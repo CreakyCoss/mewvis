@@ -23,7 +23,7 @@ const getStepDetail = (step: ExecutionStep) => {
   return step.detail ?? "";
 };
 
-const getStepFallbackDetail = (step: ExecutionStep) => {
+const getStepStatusDetail = (step: ExecutionStep) => {
   if (step.status === "pending") {
     return "等待前置步骤完成。";
   }
@@ -61,7 +61,7 @@ export const ExecutionTrace = ({ steps, statusText }: ExecutionTraceProps) => {
           events: [
             {
               id: `${step.id}:detail`,
-              content: detail || getStepFallbackDetail(step),
+              content: detail || getStepStatusDetail(step),
             },
           ],
         };

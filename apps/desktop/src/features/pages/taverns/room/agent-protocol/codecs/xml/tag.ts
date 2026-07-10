@@ -19,7 +19,9 @@ export const wrapProtocolXmlTag = (tag: string, content: string, attributes?: Xm
   const attributeText = renderProtocolXmlAttributes(attributes);
   const body = escapeProtocolXmlText(content);
 
-  return body.includes("\n") ? `<${tag}${attributeText}>\n${body}\n</${tag}>` : `<${tag}${attributeText}>${body}</${tag}>`;
+  return body.includes("\n")
+    ? `<${tag}${attributeText}>\n${body}\n</${tag}>`
+    : `<${tag}${attributeText}>${body}</${tag}>`;
 };
 
 export const wrapProtocolXmlRawTag = (tag: string, content: string, attributes?: XmlAttributes) => {

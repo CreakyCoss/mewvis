@@ -4,15 +4,6 @@ import type { StoryJson } from "../../model/types";
 
 const trimText = (value: string | undefined | null) => value?.trim() ?? "";
 
-const normalizeTavernNodeType = (value: string): TavernStoryNode["type"] =>
-  value === "failure" || value === "ending" ? value : "normal";
-
-const normalizeTavernPathRole = (value: string): TavernStoryNode["pathRole"] =>
-  value === "branch" ? "branch" : "main";
-
-const normalizeTavernNodeStatus = (value: string | undefined): TavernStoryNode["status"] =>
-  value === "ready" || value === "played" || value === "draft" ? value : "draft";
-
 const createTavernGraph = (nodeContext: StoryNodeProjection): TavernStoryGraph => ({
   version: 1,
   entryNodeId: nodeContext.graph.entryNodeId,
@@ -20,45 +11,32 @@ const createTavernGraph = (nodeContext: StoryNodeProjection): TavernStoryGraph =
   nodes: nodeContext.graph.nodes.map((node, index) => ({
     id: node.id,
     title: node.title,
-    type: normalizeTavernNodeType(node.type),
-    pathRole: normalizeTavernPathRole(node.pathRole),
+    type: node.type as TavernStoryNode["type"],
+    pathRole: node.pathRole as TavernStoryNode["pathRole"],
     position: {
       x: 120 + index * 240,
       y: 160,
     },
-    status: normalizeTavernNodeStatus(node.status),
+    status: node.status as TavernStoryNode["status"],
     createdAt: nodeContext.timestamps.createdAt,
     updatedAt: nodeContext.timestamps.updatedAt,
   })),
-  edges: nodeContext.graph.edges.map((edge, index) => ({
+  edges: nodeContext.graph.edges.map((edge) => ({
     id: edge.id,
     fromNodeId: edge.fromNodeId,
     toNodeId: edge.toNodeId,
     label: edge.label,
     reason: edge.reason,
     isDefault: edge.isDefault,
-    priority: typeof edge.priority === "number" ? edge.priority : index,
+    priority: edge.priority,
     createdAt: nodeContext.timestamps.createdAt,
     updatedAt: nodeContext.timestamps.updatedAt,
   })),
 });
 
-const formatCharacterMemory = (character: StoryNodeProjection["characters"][number]) =>
-  [character.memory?.required, character.memory?.public, character.memory?.known, character.memory?.privateSelf]
-    .map(trimText)
-    .filter(Boolean)
-    .join("\n\n");
-
 const createInputFromNodeContext = (nodeContext: StoryNodeProjection): TavernRoomOpeningInput => {
-  const activeNodeId = nodeContext.graph.activeNodeId || nodeContext.nodeId;
-  const activeNode =
-    nodeContext.graph.nodes.find((node) => node.id === activeNodeId) ??
-    nodeContext.current.node ??
-    nodeContext.graph.nodes.find((node) => node.id === nodeContext.graph.entryNodeId) ??
-    nodeContext.graph.nodes[0];
   const characterIds = nodeContext.characters.map((character) => character.id);
-
-  const activeScene = nodeContext.current.scene ?? nodeContext.scenes[0] ?? null;
+  const activeScene = nodeContext.current.scene!;
 
   return {
     version: 1,
@@ -73,7 +51,6 @@ const createInputFromNodeContext = (nodeContext: StoryNodeProjection): TavernRoo
       outline: nodeContext.background.outline,
       goal: nodeContext.background.goal,
       graph: createTavernGraph(nodeContext),
-      activeNodeId,
     },
     world: {
       lorebookEntries: nodeContext.world.lorebookEntries.map((entry) => ({
@@ -97,20 +74,28 @@ const createInputFromNodeContext = (nodeContext: StoryNodeProjection): TavernRoo
         writingStyle: character.writingStyle,
         replyStylePrompt: character.replyStylePrompt,
         goals: character.goals,
-        memory: formatCharacterMemory(character),
+        memoryLayers: {
+          required: trimText(character.memory?.required),
+          public: trimText(character.memory?.public),
+          known: trimText(character.memory?.known),
+          privateSelf: trimText(character.memory?.privateSelf),
+          directorSecret: trimText(character.memory?.directorSecret),
+        },
       })),
       characterIds,
       activeCharacterId: characterIds[0],
     },
     scene: {
-      title: activeScene?.title ?? activeNode?.title ?? "当前场景",
-      scene: activeScene?.scene,
-      sceneGoal: activeScene?.goal,
-      plot: activeScene?.plot,
-      storyDirection: activeScene?.direction,
-      transition: activeScene?.transition,
-      memory: activeScene?.memory,
-      sceneStatus: activeScene?.status
+      title: activeScene.title,
+      scene: activeScene.scene,
+      sceneGoal: activeScene.goal,
+      plot: activeScene.plot,
+      storyDirection: activeScene.direction,
+      transition: activeScene.transition,
+      memoryLayers: {
+        required: trimText(activeScene.memory),
+      },
+      sceneStatus: activeScene.status
         ? {
             ...activeScene.status,
             updatedAt: nodeContext.timestamps.updatedAt,

@@ -20,6 +20,4 @@ export {
   getTavernRoomCharacters,
   getTavernRoomSceneTitle,
   getTavernRoomStoryNode,
-  isTavernRoomRuntime,
-  materializeTavernRoomMessages,
 } from "./room-info";

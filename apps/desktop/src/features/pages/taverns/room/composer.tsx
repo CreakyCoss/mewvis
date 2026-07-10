@@ -65,8 +65,7 @@ export const Composer = ({ bind, files }: ComposerProps) => {
   const setComposerHandle = useTavernRoomContext((store) => store.setComposerHandle);
   const setError = useTavernRoomContext((store) => store.setError);
   const visualPreset = useTavernRoomContext((store) => store.visualPreset);
-  const workspace = useTavernRoomContext((store) => store.workspace);
-  const tavernWorkspacePath = useTavernRoomContext((store) => store.tavernWorkspacePath);
+  const workspacePath = useTavernRoomContext((store) => store.workspacePath);
   const [draft, setDraft] = useState("");
   const [draftCursor, setDraftCursor] = useState(0);
   const [replyOptions, setReplyOptions] = useState<TavernReplyOption[]>([]);
@@ -120,7 +119,6 @@ export const Composer = ({ bind, files }: ComposerProps) => {
   }, []);
 
   const readReferencedFiles = useCallback(async (): Promise<TavernReferencedFile[]> => {
-    const workspacePath = tavernWorkspacePath.trim() || workspace.path.trim();
     const resources = await loadContextResources({
       references: referencedFilePreviews.map((file) => ({ path: file.path })),
       loadFile: async ({ path }) => {
@@ -136,7 +134,7 @@ export const Composer = ({ bind, files }: ComposerProps) => {
       path: file.path,
       content: file.content,
     }));
-  }, [referencedFilePreviews, tavernWorkspacePath, workspace.path]);
+  }, [referencedFilePreviews, workspacePath]);
 
   const createSubmitPayload = useCallback(
     (

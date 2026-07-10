@@ -7,5 +7,4 @@ const conversationRenderers: Record<MessageRenderStyle, ConversationRenderer> = 
   prose: proseConversationRenderer,
 };
 
-export const resolveConversationRenderer = (renderStyle: MessageRenderStyle) =>
-  conversationRenderers[renderStyle] ?? chatConversationRenderer;
+export const resolveConversationRenderer = (renderStyle: MessageRenderStyle) => conversationRenderers[renderStyle];

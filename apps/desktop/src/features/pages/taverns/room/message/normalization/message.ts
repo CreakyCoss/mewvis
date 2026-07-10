@@ -7,10 +7,7 @@ import type {
   MessageSegment,
   RenderableMessage,
 } from "../types";
-import { cleanAgentOutputContent, cleanThoughtText } from "./cleanup";
 import { buildMessageSegments } from "./segments";
-
-const firstText = (...values: Array<string | undefined>) => values.find((value) => value?.trim())?.trim() ?? "";
 
 const getMessageRawText = (message: MessageRenderInput) =>
   message.body.type === "agent_output" ? message.body.rawText : message.body.text;
@@ -22,18 +19,12 @@ const getParsedPublicText = ({
   message: MessageRenderInput;
   parsed: AgentProtocolParseResult;
 }) => {
-  if (message.role === "narrator") {
-    return firstText(parsed.data.narrative, parsed.data.publicReply, parsed.unwrappedText);
-  }
-
-  if (message.presentation?.profileId === "novel-prose") {
-    return firstText(parsed.data.narrative, parsed.data.publicReply, parsed.unwrappedText);
-  }
-
-  return firstText(parsed.data.publicReply, parsed.data.narrative, parsed.unwrappedText);
+  const outputKey =
+    message.role === "narrator" || message.presentation?.profileId === "novel-prose" ? "narrative" : "publicReply";
+  return parsed.data[outputKey]!.trim();
 };
 
-const getParsedActionText = (parsed: AgentProtocolParseResult | null) => firstText(parsed?.data.action);
+const getParsedActionText = (parsed: AgentProtocolParseResult | null) => parsed?.data.action?.trim() ?? "";
 
 const canAudienceSeeThought = (audience: MessageAudience, characterId?: string) => {
   if (!characterId) {
@@ -55,7 +46,7 @@ const canAudienceSeeThought = (audience: MessageAudience, characterId?: string) 
   return false;
 };
 
-const fallbackSpeakerName = ({
+const getSpeakerName = ({
   message,
   character,
   userName,
@@ -65,12 +56,12 @@ const fallbackSpeakerName = ({
   userName: string;
 }) => {
   if (message.role === "user") {
-    return userName || "我";
+    return userName;
   }
   if (message.role === "narrator") {
     return "旁白";
   }
-  return character?.name ?? "角色";
+  return character!.name;
 };
 
 export const normalizeMessageForAudience = ({
@@ -87,18 +78,16 @@ export const normalizeMessageForAudience = ({
   const rawText = getMessageRawText(message);
   const parsed = message.body.type === "agent_output" ? AgentProtocol.parse(rawText, message.body.format) : null;
   const character = message.role === "character" ? characterById.get(message.characterId) : undefined;
-  const speakerName = fallbackSpeakerName({ message, character, userName });
+  const speakerName = getSpeakerName({ message, character, userName });
   const parsedContent = parsed ? getParsedPublicText({ message, parsed }) : rawText.trim();
   const parsedAction = message.role === "character" ? getParsedActionText(parsed) : "";
-  const content = parsedContent ? cleanAgentOutputContent({ text: parsedContent }) : parsedContent;
-  const action = parsedAction ? cleanAgentOutputContent({ text: parsedAction }) : parsedAction;
-  const thought = cleanThoughtText(parsed?.data.privateThought ?? "");
+  const thought = parsed?.data.privateThought?.trim() ?? "";
   const visibleThought = canAudienceSeeThought(audience, message.characterId) ? thought : "";
   const segments: MessageSegment[] = buildMessageSegments({
     role: message.role,
     characterId: message.characterId,
-    content,
-    actions: action ? [action] : undefined,
+    content: parsedContent,
+    actions: parsedAction ? [parsedAction] : undefined,
     thought: visibleThought,
     presentation: message.presentation,
   });
@@ -109,7 +98,7 @@ export const normalizeMessageForAudience = ({
     characterId: message.characterId,
     character,
     speakerName,
-    content,
+    content: parsedContent,
     segments,
     thought: visibleThought || undefined,
     rawText,

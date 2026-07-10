@@ -25,7 +25,7 @@ export const UserMessage = ({
   <div className="group/message flex justify-end">
     <div className="flex max-w-[min(80%,680px)] flex-col items-end gap-1">
       <div className="flex items-center gap-1.5 text-xs text-current opacity-75">
-        <span>{speakerName || "我"}</span>
+        <span>{speakerName}</span>
         <UserRound className="size-3.5" />
       </div>
       <div

@@ -35,8 +35,7 @@ const messageRoleRenderers: Record<MessageRole, (context: MessageRoleRendererCon
   ),
   character: ({ immersiveDescriptionEnabled, message, visualStyle }) => (
     <CharacterMessage
-      character={message.character}
-      content={message.content}
+      character={message.character!}
       createdAt={message.createdAt}
       immersiveDescriptionEnabled={immersiveDescriptionEnabled}
       isError={message.status === "error"}
