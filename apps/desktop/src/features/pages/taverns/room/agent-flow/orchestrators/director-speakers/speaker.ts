@@ -5,20 +5,18 @@ import type { TavernMessage } from "@/features/pages/taverns/tavern/types";
 import { createTimestampId } from "@/utils/ids";
 import { getCurrentTimestamp } from "@/utils/time";
 import { createTavernAgentOutputMessageBody } from "@/features/pages/taverns/room/model/message-body";
-import {
-  buildTavernAgentFlowProgress,
-  buildTavernAgentFlowReferences,
-  createTavernAgentFlowPublicMessage,
-} from "./context";
+import { createTavernAgentFlowPublicMessage } from "./context";
 import { getTavernAgentFlowPublicOutputKey } from "./presentation";
-import { getTavernAgentFlowPublicText, parseTavernAgentFlowOutput } from "./parse";
-import { tavernAgentFlowCharacterRoleId, tavernAgentFlowSessionRootDir } from "./roles";
+import { getTavernAgentFlowPublicText, parseTavernAgentFlowOutput } from "./output";
+import { buildTavernAgentFlowProgress, buildTavernAgentFlowReferences } from "./prompt-context";
+import { tavernAgentFlowSessionRootDir } from "../../runtime/session";
+import { tavernAgentFlowCharacterRoleId } from "./roles";
 import type {
   TavernAgentFlowContext,
   TavernAgentFlowInput,
   TavernAgentFlowSpeakerResult,
   TavernAgentFlowRunAgent,
-} from "./types";
+} from "../../types";
 
 const getSpeakerOutputKeys = (context: TavernAgentFlowContext): AgentProtocolOutputKey[] => {
   const publicOutputKey = getTavernAgentFlowPublicOutputKey(context.presentation);
@@ -27,7 +25,10 @@ const getSpeakerOutputKeys = (context: TavernAgentFlowContext): AgentProtocolOut
     : ["privateThought", publicOutputKey];
 };
 
-const buildCurrentInstructionMessage = (input: TavernAgentFlowInput, context: TavernAgentFlowContext): AgentProtocolMessage => ({
+const buildCurrentInstructionMessage = (
+  input: TavernAgentFlowInput,
+  context: TavernAgentFlowContext,
+): AgentProtocolMessage => ({
   role: input.trigger?.type === "scene_drive" ? "system" : "user",
   speaker: input.trigger?.type === "scene_drive" ? "场景推进指令" : context.userPersonaName,
   content: context.currentInstruction,
@@ -44,7 +45,9 @@ const buildSpeakerInstruction = ({
   character: TavernCharacter;
 }) => {
   const publicOutputKey = getTavernAgentFlowPublicOutputKey(context.presentation);
-  const outputNames = getSpeakerOutputKeys(context).filter((key) => key !== "privateThought").join("、");
+  const outputNames = getSpeakerOutputKeys(context)
+    .filter((key) => key !== "privateThought")
+    .join("、");
   const currentInputInstruction = (() => {
     if (input.trigger?.type === "scene_drive") {
       return "当前输入是系统场景推进指令，不是用户角色说出口的话；你应根据场景变化自然行动或回应。";
@@ -102,21 +105,13 @@ const prepareSpeakerRequest = ({
       description: character.description,
       speakingStyle: character.speakingStyle,
       goals: character.goals ? [character.goals] : undefined,
-      constraints: [
-        "只代表当前角色行动或回应",
-        "不得替其他角色生成私有心理",
-        "不得泄露导演秘密或其他角色私有信息",
-      ],
+      constraints: ["只代表当前角色行动或回应", "不得替其他角色生成私有心理", "不得泄露导演秘密或其他角色私有信息"],
       memory: character.replyStylePrompt || character.writingStyle,
     },
     task: {
       goal: "基于当前输入和本轮前序公开发言，生成当前角色的一次自然回应或叙事片段。",
       instruction: buildSpeakerInstruction({ input, context, character }),
-      successCriteria: [
-        "公开输出可直接渲染给用户",
-        "内容承接当前用户输入或场景推进",
-        "没有协议说明或字段解释混入正文",
-      ],
+      successCriteria: ["公开输出可直接渲染给用户", "内容承接当前用户输入或场景推进", "没有协议说明或字段解释混入正文"],
     },
     progress: buildTavernAgentFlowProgress(input.room),
     messages: [...context.historyMessages, buildCurrentInstructionMessage(input, context), ...previousPublicMessages],

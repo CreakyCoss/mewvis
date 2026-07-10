@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { WindowDragRegion } from "@/components/window-drag-region";
 import { cn } from "@/lib/utils";
 import { compactScene } from "@/features/pages/taverns/tavern/utils";
-import { deleteTavernAgentFlowSession } from "@/features/pages/taverns/room/agent-flow/session";
+import { TavernAgentFlow } from "@/features/pages/taverns/room/agent-flow";
 import {
   createIdleTavernRoomBusyState,
   isTavernRoomBusy,
@@ -15,7 +15,7 @@ import {
 import { getTavernRoomSceneTitle, type TavernRoomRuntime } from "./model";
 import { createEmptyComposerSubmitPayload } from "./composer";
 import { deleteTavernRoomSessionState } from "./storage";
-import { getTavernAgentFlowErrorMessage, submitTavernAgentFlow } from "./agent-flow/submit";
+import { getTavernAgentFlowErrorMessage, submitTavernAgentFlow } from "./agent-flow/submission";
 
 type HeaderProps = {
   isSidePanelOpen: boolean;
@@ -129,7 +129,7 @@ export const Header = ({ isSidePanelOpen, onBack, onToggleSidePanel }: HeaderPro
 
     if (runtime) {
       try {
-        await deleteTavernAgentFlowSession({ workspacePath: sessionWorkspacePath, room: runtime });
+        await TavernAgentFlow.deleteSession({ workspacePath: sessionWorkspacePath, room: runtime });
       } catch (deleteError) {
         const message = getTavernAgentFlowErrorMessage(deleteError);
         setError(`无法清理当前节点底层会话：${message}`);

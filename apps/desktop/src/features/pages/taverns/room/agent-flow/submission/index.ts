@@ -11,9 +11,9 @@ import {
 } from "@/features/pages/taverns/room/context";
 import { createTimestampId } from "@/utils/ids";
 import { getCurrentTimestamp } from "@/utils/time";
-import { createTavernTextMessageBody } from "../model/message-body";
-import { runTavernAgentFlow } from ".";
-import type { TavernAgentFlowTrigger } from "./types";
+import { createTavernTextMessageBody } from "@/features/pages/taverns/room/model/message-body";
+import { TavernAgentFlow } from "..";
+import type { TavernAgentFlowTrigger } from "../types";
 
 export type SubmitTavernAgentFlowTrigger = TavernAgentFlowTrigger;
 
@@ -202,16 +202,15 @@ export const submitTavernAgentFlow = async ({
 
   const turnId = createTimestampId("turn");
   const previousMessages = roomMessages;
-  const userMessage =
-    isSceneDrive
-      ? null
-      : createUserMessage({
-          roomId: activeRoom.identity.id,
-          text,
-          turnId,
-          referencedFilePreviews,
-          selectedReplyOption,
-        });
+  const userMessage = isSceneDrive
+    ? null
+    : createUserMessage({
+        roomId: activeRoom.identity.id,
+        text,
+        turnId,
+        referencedFilePreviews,
+        selectedReplyOption,
+      });
 
   try {
     beginSubmission({
@@ -232,7 +231,7 @@ export const submitTavernAgentFlow = async ({
     }
     onCommitted?.();
 
-    const result = await runTavernAgentFlow({
+    const result = await TavernAgentFlow.run({
       workspacePath,
       runtimeModel: runtimeModelInput,
       room: activeRoom,

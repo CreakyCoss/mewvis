@@ -1,7 +1,7 @@
 import type { AgentProtocolOutputKey } from "@/features/pages/taverns/room/agent-protocol/types";
 import { dialogueChatPresentationRule } from "@/features/pages/taverns/tavern/prompt-registry/presentation-rules/rules/dialogue-chat";
 import { novelProsePresentationRule } from "@/features/pages/taverns/tavern/prompt-registry/presentation-rules/rules/novel-prose";
-import type { TavernAgentFlowPresentation, TavernAgentFlowSupportedPresentationId } from "./types";
+import type { TavernAgentFlowPresentation, TavernAgentFlowSupportedPresentationId } from "../../types";
 
 const dialogueChatPresentation: TavernAgentFlowPresentation = {
   ...dialogueChatPresentationRule,

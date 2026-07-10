@@ -1,16 +1,21 @@
 import { AgentProtocol } from "@/features/pages/taverns/room/agent-protocol";
 import type { AgentProtocolMessage } from "@/features/pages/taverns/room/agent-protocol/types";
-import { buildTavernAgentFlowProgress, buildTavernAgentFlowReferences } from "./context";
-import { parseTavernAgentFlowDirectorDecision, parseTavernAgentFlowOutput } from "./parse";
-import { tavernAgentFlowDirectorRoleId, tavernAgentFlowSessionRootDir } from "./roles";
+import { parseTavernAgentFlowDirectorDecision } from "./decision";
+import { parseTavernAgentFlowOutput } from "./output";
+import { buildTavernAgentFlowProgress, buildTavernAgentFlowReferences } from "./prompt-context";
+import { tavernAgentFlowSessionRootDir } from "../../runtime/session";
+import { tavernAgentFlowDirectorRoleId } from "./roles";
 import type {
   TavernAgentFlowContext,
   TavernAgentFlowDirectorResult,
   TavernAgentFlowInput,
   TavernAgentFlowRunAgent,
-} from "./types";
+} from "../../types";
 
-const buildCurrentInstructionMessage = (input: TavernAgentFlowInput, context: TavernAgentFlowContext): AgentProtocolMessage => ({
+const buildCurrentInstructionMessage = (
+  input: TavernAgentFlowInput,
+  context: TavernAgentFlowContext,
+): AgentProtocolMessage => ({
   role: input.trigger?.type === "scene_drive" ? "system" : "user",
   speaker: input.trigger?.type === "scene_drive" ? "场景推进指令" : context.userPersonaName,
   content: context.currentInstruction,

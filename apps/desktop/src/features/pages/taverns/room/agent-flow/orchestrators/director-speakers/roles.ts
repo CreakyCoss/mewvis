@@ -13,16 +13,10 @@ const sanitizeAgentRoleSegment = (value: string, fallback: string) => {
 
 const tavernAgentScopeSegment = (room: TavernRoomRuntime) => sanitizeAgentRoleSegment(room.identity.id, "room");
 
-export const tavernAgentFlowSessionRootDir = (room: TavernRoomRuntime) =>
-  `tavern/${sanitizeAgentRoleSegment(room.identity.id, "room")}/agent-flow`;
-
 export const tavernAgentFlowDirectorRoleId = (room: TavernRoomRuntime) =>
   `tavern-${sanitizeAgentRoleSegment(room.identity.id, "room")}-${tavernAgentScopeSegment(room)}-flow-director`;
 
-export const tavernAgentFlowCharacterRoleId = (
-  room: TavernRoomRuntime,
-  character: Pick<TavernCharacter, "id">,
-) =>
+export const tavernAgentFlowCharacterRoleId = (room: TavernRoomRuntime, character: Pick<TavernCharacter, "id">) =>
   `tavern-${sanitizeAgentRoleSegment(room.identity.id, "room")}-${tavernAgentScopeSegment(
     room,
   )}-flow-character-${sanitizeAgentRoleSegment(character.id, "character")}`;

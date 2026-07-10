@@ -23,7 +23,7 @@ import {
   isTavernRoomSending,
   useTavernRoomContext,
 } from "@/features/pages/taverns/room/context";
-import { getTavernAgentFlowErrorMessage, submitTavernAgentFlow } from "./agent-flow/submit";
+import { getTavernAgentFlowErrorMessage, submitTavernAgentFlow } from "./agent-flow/submission";
 
 const REFERENCE_SUGGESTION_LIMIT = 8;
 

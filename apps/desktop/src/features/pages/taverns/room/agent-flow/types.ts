@@ -17,6 +17,8 @@ export type TavernAgentFlowTrigger = {
   directive?: string;
 };
 
+export type TavernAgentFlowOrchestrationId = "director-speakers";
+
 export type TavernAgentFlowSupportedPresentationId = Extract<
   TavernPresentationProfileId,
   "dialogue-chat" | "novel-prose"
@@ -49,9 +51,7 @@ export type TavernAgentFlowRunAgentOutput = {
   taskId: string;
 };
 
-export type TavernAgentFlowRunAgent = (
-  input: TavernAgentFlowRunAgentInput,
-) => Promise<TavernAgentFlowRunAgentOutput>;
+export type TavernAgentFlowRunAgent = (input: TavernAgentFlowRunAgentInput) => Promise<TavernAgentFlowRunAgentOutput>;
 
 export type TavernAgentFlowEvent =
   | { type: "director_start" }
@@ -63,6 +63,7 @@ export type TavernAgentFlowEvent =
   | { type: "speaker_done"; character: TavernCharacter; index: number; rawText: string; publicText: string };
 
 export type TavernAgentFlowInput = {
+  orchestration?: TavernAgentFlowOrchestrationId;
   workspacePath: string;
   runtimeModel: RuntimeModelInput;
   room: TavernRoomRuntime;
@@ -76,6 +77,11 @@ export type TavernAgentFlowInput = {
   maxSpeakers?: number;
   runAgent?: TavernAgentFlowRunAgent;
   onEvent?: (event: TavernAgentFlowEvent) => void;
+};
+
+export type TavernAgentFlowSessionInput = {
+  workspacePath: string;
+  room: TavernRoomRuntime;
 };
 
 export type TavernAgentFlowContext = {
@@ -114,7 +120,8 @@ export type TavernAgentFlowSpeakerResult = {
   taskId: string;
 };
 
-export type TavernAgentFlowResult = {
+export type TavernAgentFlowDirectorSpeakersResult = {
+  orchestration: "director-speakers";
   presentation: TavernAgentFlowPresentation;
   director: TavernAgentFlowDirectorResult;
   narratorMessage?: TavernMessage;
@@ -122,3 +129,5 @@ export type TavernAgentFlowResult = {
   messages: TavernMessage[];
   publicMessages: AgentProtocolMessage[];
 };
+
+export type TavernAgentFlowResult = TavernAgentFlowDirectorSpeakersResult;
