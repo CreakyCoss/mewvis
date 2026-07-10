@@ -17,6 +17,7 @@
     "test:agent-runtime:collaboration:stdio": "node scripts/agent-runtime/collaboration-stdio-e2e.mjs",
     "test:story:core": "node scripts/business/story/core-e2e.mjs",
     "test:story:import-bridge": "node scripts/business/story/import-bridge-e2e.mjs",
+    "test:story:tavern-protocol": "node scripts/business/story/tavern-agent-protocol-e2e.mjs",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,mjs,cjs,json,md,css}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mjs,cjs,json,md,css}\"",
     "build:mac": "node scripts/packaging/build-macos.mjs",

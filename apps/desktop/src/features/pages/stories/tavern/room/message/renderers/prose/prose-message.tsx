@@ -25,18 +25,11 @@ const proseTextClassName: Record<RenderableMessage["role"], string> = {
 };
 
 export const ProseMessage = ({ message }: { message: RenderableMessage }) => {
-  const contentSegments = message.segments.filter((segment) => segment.type !== "thought");
-  const content = formatMessageSegmentsForDisplay(contentSegments, {
-    includeThoughts: false,
+  const content = formatMessageSegmentsForDisplay(message.segments, {
+    includeThoughts: true,
   }).trim();
-  const thought = message.segments
-    .filter((segment) => segment.type === "thought")
-    .map((segment) => segment.text.trim())
-    .filter(Boolean)
-    .join("\n\n");
-  const copyContent = thought ? `${content}\n\n（${thought}）` : content;
 
-  if (!content && !thought && message.status !== "streaming") {
+  if (!content && message.status !== "streaming") {
     return null;
   }
 
@@ -50,11 +43,12 @@ export const ProseMessage = ({ message }: { message: RenderableMessage }) => {
         {message.status === "streaming" && <Loader2 className="size-3 animate-spin opacity-70" />}
       </header>
 
-      {contentSegments.length > 0 ? (
+      {message.segments.length > 0 ? (
         <MessageSegmentsContent
-          segments={contentSegments}
+          segments={message.segments}
           className={cn("break-words font-serif text-sm leading-7", proseTextClassName[message.role])}
           actionClassName="tavern-immersive-em"
+          includeThoughts
         />
       ) : (
         content && (
@@ -69,16 +63,8 @@ export const ProseMessage = ({ message }: { message: RenderableMessage }) => {
         )
       )}
 
-      {thought && (
-        <div className="mt-2 border-l border-dashed border-current/25 pl-3">
-          <p className="whitespace-pre-wrap break-words font-serif text-xs leading-6 text-current opacity-70 italic">
-            {thought}
-          </p>
-        </div>
-      )}
-
       <div className="absolute right-1 top-1">
-        <MessageControls content={copyContent} disabled={message.status === "streaming"} />
+        <MessageControls content={content} disabled={message.status === "streaming"} />
       </div>
     </article>
   );

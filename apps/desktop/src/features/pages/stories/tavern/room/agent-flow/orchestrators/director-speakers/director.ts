@@ -109,9 +109,9 @@ export const runTavernAgentFlowDirector = async ({
     systemPrompt: "你正在执行酒馆互动导演任务。必须遵守用户消息里的结构化输入和输出协议。",
     onTextDelta: (delta) => input.onEvent?.({ type: "director_delta", delta }),
   });
-  const parsed = AgentProtocol.parse(output.text);
+  const protocolData = AgentProtocol.parse(output.text, prepared.format);
   const decision = parseTavernAgentFlowDirectorDecision({
-    parsed,
+    protocolData,
     maxSpeakers: context.maxSpeakers,
   });
 
@@ -119,7 +119,7 @@ export const runTavernAgentFlowDirector = async ({
 
   return {
     rawText: output.text,
-    parsed,
+    protocolData,
     prepared,
     decision,
     agentSession: output.agentSession,

@@ -1,5 +1,5 @@
 import { AgentProtocol } from "@/features/pages/stories/tavern/room/agent-protocol";
-import type { AgentProtocolParseResult } from "@/features/pages/stories/tavern/room/agent-protocol/types";
+import type { AgentProtocolData } from "@/features/pages/stories/tavern/room/agent-protocol/types";
 import type {
   MessageAudience,
   MessageCharacterProfile,
@@ -7,24 +7,11 @@ import type {
   MessageSegment,
   RenderableMessage,
 } from "../types";
+import { cleanAgentOutputContent, cleanThoughtText } from "./cleanup";
 import { buildMessageSegments } from "./segments";
 
 const getMessageRawText = (message: MessageRenderInput) =>
   message.body.type === "agent_output" ? message.body.rawText : message.body.text;
-
-const getParsedPublicText = ({
-  message,
-  parsed,
-}: {
-  message: MessageRenderInput;
-  parsed: AgentProtocolParseResult;
-}) => {
-  const outputKey =
-    message.role === "narrator" || message.presentation?.profileId === "novel-prose" ? "narrative" : "publicReply";
-  return parsed.data[outputKey]!.trim();
-};
-
-const getParsedActionText = (parsed: AgentProtocolParseResult | null) => parsed?.data.action?.trim() ?? "";
 
 const canAudienceSeeThought = (audience: MessageAudience, characterId?: string) => {
   if (!characterId) {
@@ -61,8 +48,71 @@ const getSpeakerName = ({
   if (message.role === "narrator") {
     return "旁白";
   }
-  return character!.name;
+  return character?.name ?? "角色";
 };
+
+const buildProtocolDataSegments = ({
+  data,
+  message,
+  audience,
+}: {
+  data: AgentProtocolData[];
+  message: MessageRenderInput;
+  audience: MessageAudience;
+}) =>
+  data.flatMap<MessageSegment>((item) => {
+    if (item.type === "unwrappedText") {
+      return buildMessageSegments({
+        role: message.role,
+        characterId: message.characterId,
+        content: cleanAgentOutputContent(item.content),
+        presentation: message.presentation,
+      });
+    }
+
+    if (item.type === "privateThought") {
+      if (!canAudienceSeeThought(audience, message.characterId)) {
+        return [];
+      }
+
+      return buildMessageSegments({
+        role: message.role,
+        characterId: message.characterId,
+        content: "",
+        thought: cleanThoughtText(item.content),
+        presentation: message.presentation,
+      });
+    }
+
+    if (item.type === "action") {
+      return buildMessageSegments({
+        role: message.role,
+        characterId: message.characterId,
+        content: "",
+        actions: [cleanAgentOutputContent(item.content)],
+        presentation: message.presentation,
+      });
+    }
+
+    if (item.type === "publicReply" || item.type === "narrative") {
+      return buildMessageSegments({
+        role: message.role,
+        characterId: message.characterId,
+        content: cleanAgentOutputContent(item.content),
+        contentKind: item.type === "narrative" ? "narrative" : "default",
+        presentation: message.presentation,
+      });
+    }
+
+    return [];
+  });
+
+const buildRenderableContent = (segments: MessageSegment[]) =>
+  segments
+    .filter((segment) => segment.type !== "thought")
+    .map((segment) => segment.text.trim())
+    .filter(Boolean)
+    .join("\n\n");
 
 export const normalizeMessageForAudience = ({
   message,
@@ -76,21 +126,17 @@ export const normalizeMessageForAudience = ({
   audience: MessageAudience;
 }): RenderableMessage => {
   const rawText = getMessageRawText(message);
-  const parsed = message.body.type === "agent_output" ? AgentProtocol.parse(rawText, message.body.format) : null;
+  const protocolData = message.body.type === "agent_output" ? AgentProtocol.parse(rawText, message.body.format) : null;
   const character = message.role === "character" ? characterById.get(message.characterId) : undefined;
   const speakerName = getSpeakerName({ message, character, userName });
-  const parsedContent = parsed ? getParsedPublicText({ message, parsed }) : rawText.trim();
-  const parsedAction = message.role === "character" ? getParsedActionText(parsed) : "";
-  const thought = parsed?.data.privateThought?.trim() ?? "";
-  const visibleThought = canAudienceSeeThought(audience, message.characterId) ? thought : "";
-  const segments: MessageSegment[] = buildMessageSegments({
-    role: message.role,
-    characterId: message.characterId,
-    content: parsedContent,
-    actions: parsedAction ? [parsedAction] : undefined,
-    thought: visibleThought,
-    presentation: message.presentation,
-  });
+  const segments = protocolData
+    ? buildProtocolDataSegments({ data: protocolData, message, audience })
+    : buildMessageSegments({
+        role: message.role,
+        characterId: message.characterId,
+        content: rawText.trim(),
+        presentation: message.presentation,
+      });
 
   return {
     id: message.id,
@@ -98,9 +144,8 @@ export const normalizeMessageForAudience = ({
     characterId: message.characterId,
     character,
     speakerName,
-    content: parsedContent,
+    content: buildRenderableContent(segments),
     segments,
-    thought: visibleThought || undefined,
     rawText,
     createdAt: message.createdAt,
     status: message.status,

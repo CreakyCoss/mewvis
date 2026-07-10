@@ -14,7 +14,6 @@ type CharacterMessageProps = {
   isError: boolean;
   isStreaming: boolean;
   segments: MessageSegment[];
-  thought?: string;
   visualStyle: MessageVisualStyle;
 };
 export const CharacterMessage = ({
@@ -24,21 +23,18 @@ export const CharacterMessage = ({
   isError,
   isStreaming,
   segments,
-  thought,
   visualStyle,
 }: CharacterMessageProps) => {
   const avatar = resolveAvatar(character.avatar);
-  const displayThought = immersiveDescriptionEnabled ? (thought?.trim() ?? "") : "";
   const displaySegments = immersiveDescriptionEnabled
-    ? segments.filter((segment) => segment.type !== "thought")
+    ? segments
     : segments.filter((segment) => segment.type !== "thought" && segment.type !== "action");
   const segmentContent = formatMessageSegmentsForDisplay(displaySegments, {
-    includeThoughts: false,
+    includeThoughts: immersiveDescriptionEnabled,
   });
   const displayContent = segmentContent.trim();
-  const copyContent = displayThought ? `心想：${displayThought}\n\n${displayContent}` : displayContent;
 
-  if (!displayContent.trim() && !displayThought && !isError && !isStreaming) {
+  if (!displayContent.trim() && !isError && !isStreaming) {
     return null;
   }
 
@@ -68,27 +64,18 @@ export const CharacterMessage = ({
                 aria-hidden
               />
             )}
-            {displayThought && !isError && (
-              <div
-                className="mb-3 ml-1 w-fit max-w-[94%] rounded-[9px] rounded-tl-[3px] border border-dashed border-current/28 bg-current/[0.085] px-3.5 py-2 text-current shadow-[inset_0_1px_12px_rgba(255,255,255,0.09)] opacity-90"
-                aria-label="角色内心想法"
-              >
-                <p className="whitespace-pre-wrap break-words font-serif text-[12.5px] leading-6 italic opacity-95">
-                  （{displayThought}）
-                </p>
-              </div>
-            )}
             {displaySegments.length > 0 ? (
               <MessageSegmentsContent
                 segments={displaySegments}
                 className={immersiveDescriptionEnabled ? "font-serif leading-7" : "leading-6"}
                 actionClassName={immersiveDescriptionEnabled ? "tavern-immersive-em" : undefined}
+                includeThoughts={immersiveDescriptionEnabled}
               />
             ) : (
               <div className="whitespace-pre-wrap break-words">{displayContent}</div>
             )}
           </div>
-          <MessageControls content={copyContent} disabled={isStreaming} />
+          <MessageControls content={displayContent} disabled={isStreaming} />
         </div>
       </div>
     </div>

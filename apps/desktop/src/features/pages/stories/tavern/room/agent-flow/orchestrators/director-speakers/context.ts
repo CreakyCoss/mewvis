@@ -3,8 +3,8 @@ import { AgentProtocol } from "@/features/pages/stories/tavern/room/agent-protoc
 import type { TavernCharacter } from "@/features/pages/stories/tavern/room/model";
 import { getTavernMessageRawText, type TavernMessage } from "@/features/pages/stories/tavern/room/model/message";
 import { getTavernAgentFlowPublicText } from "./output";
-import { getTavernAgentFlowPublicOutputKey, resolveTavernAgentFlowPresentation } from "./presentation";
-import type { TavernAgentFlowContext, TavernAgentFlowInput, TavernAgentFlowPresentation } from "../../types";
+import { resolveTavernAgentFlowPresentation } from "./presentation";
+import type { TavernAgentFlowContext, TavernAgentFlowInput } from "../../types";
 
 const resolveMaxSpeakers = ({
   maxSpeakers,
@@ -30,40 +30,25 @@ const resolveCandidateCharacters = ({
   return selectedIds.size > 0 ? characters.filter((character) => selectedIds.has(character.id)) : characters;
 };
 
-const extractStoredMessagePublicText = ({
-  message,
-  presentation,
-}: {
-  message: TavernMessage;
-  presentation: TavernAgentFlowPresentation;
-}) => {
+const extractStoredMessagePublicText = ({ message }: { message: TavernMessage }) => {
   if (message.body.type === "text") {
     return getTavernMessageRawText(message).trim();
   }
 
-  const parsed = AgentProtocol.parse(getTavernMessageRawText(message));
-  if (message.role === "narrator") {
-    return parsed.data.narrative!.trim();
-  }
-
-  return getTavernAgentFlowPublicText({
-    parsed,
-    preferredOutput: getTavernAgentFlowPublicOutputKey(presentation),
-  });
+  const protocolData = AgentProtocol.parse(getTavernMessageRawText(message));
+  return getTavernAgentFlowPublicText(protocolData);
 };
 
 const toAgentProtocolHistoryMessage = ({
   message,
   characterById,
-  presentation,
   playerName,
 }: {
   message: TavernMessage;
   characterById: Map<string, TavernCharacter>;
-  presentation: TavernAgentFlowPresentation;
   playerName: string;
 }): AgentProtocolMessage | null => {
-  const content = extractStoredMessagePublicText({ message, presentation }).trim();
+  const content = extractStoredMessagePublicText({ message }).trim();
   if (!content) {
     return null;
   }
@@ -140,7 +125,6 @@ export const buildTavernAgentFlowContext = (input: TavernAgentFlowInput): Tavern
       const historyMessage = toAgentProtocolHistoryMessage({
         message,
         characterById,
-        presentation,
         playerName,
       });
       return historyMessage ? [historyMessage] : [];

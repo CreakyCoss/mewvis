@@ -4,6 +4,7 @@ type MessageSegmentBuildInput = {
   role: MessageRole;
   characterId?: string;
   content: string;
+  contentKind?: "default" | "narrative";
   actions?: string[];
   thought?: string;
   presentation?: MessagePresentationConfig;
@@ -13,6 +14,7 @@ export const buildMessageSegments = ({
   role,
   characterId,
   content,
+  contentKind = "default",
   actions,
   thought,
   presentation,
@@ -24,7 +26,7 @@ export const buildMessageSegments = ({
   const isNarrativeCharacterMessage = role === "character" && presentation?.profileId === "novel-prose";
 
   if (trimmedContent) {
-    if (role === "narrator") {
+    if (contentKind === "narrative" || role === "narrator") {
       segments.push({
         type: "narration",
         actor,

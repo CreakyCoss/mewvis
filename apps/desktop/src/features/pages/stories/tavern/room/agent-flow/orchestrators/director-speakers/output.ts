@@ -1,21 +1,29 @@
-import type {
-  AgentProtocolOutputKey,
-  AgentProtocolParseResult,
-} from "@/features/pages/stories/tavern/room/agent-protocol/types";
+import type { AgentProtocolData } from "@/features/pages/stories/tavern/room/agent-protocol/types";
 
-export const getTavernAgentFlowPublicText = ({
-  parsed,
-  preferredOutput,
-}: {
-  parsed: AgentProtocolParseResult;
-  preferredOutput: Extract<AgentProtocolOutputKey, "publicReply" | "narrative">;
-}) => {
-  const publicText = parsed.data[preferredOutput]!.trim();
-  const actionText = parsed.data.action?.trim() ?? "";
+const normalizeTavernAgentFlowText = (text: string) =>
+  text
+    .replace(/\r\n?/g, "\n")
+    .replace(/^\s*```(?:json|xml|text)?\s*/i, "")
+    .replace(/\s*```\s*$/i, "")
+    .trim();
 
-  if (preferredOutput !== "publicReply" || !actionText) {
-    return publicText;
-  }
+export const getTavernAgentFlowPublicText = (data: AgentProtocolData[]) =>
+  data
+    .flatMap((item) => {
+      if (item.type === "unwrappedText") {
+        return [normalizeTavernAgentFlowText(item.content)];
+      }
 
-  return publicText ? `动作：${actionText}\n${publicText}` : `动作：${actionText}`;
-};
+      if (item.type === "action") {
+        const action = normalizeTavernAgentFlowText(item.content);
+        return action ? [`动作：${action}`] : [];
+      }
+
+      if (item.type === "publicReply" || item.type === "narrative") {
+        return [normalizeTavernAgentFlowText(item.content)];
+      }
+
+      return [];
+    })
+    .filter(Boolean)
+    .join("\n");

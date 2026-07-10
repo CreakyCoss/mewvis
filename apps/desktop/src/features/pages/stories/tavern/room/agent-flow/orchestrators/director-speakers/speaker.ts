@@ -190,11 +190,8 @@ export const runTavernAgentFlowSpeaker = async ({
     systemPrompt: `你正在扮演 ${character.name}。必须遵守用户消息里的结构化输入和输出协议。`,
     onTextDelta: (delta) => input.onEvent?.({ type: "speaker_delta", character, index, delta }),
   });
-  const parsed = AgentProtocol.parse(output.text);
-  const publicText = getTavernAgentFlowPublicText({
-    parsed,
-    preferredOutput: getTavernAgentFlowPublicOutputKey(context.presentation),
-  });
+  const protocolData = AgentProtocol.parse(output.text, prepared.format);
+  const publicText = getTavernAgentFlowPublicText(protocolData);
   const message = createSpeakerMessage({
     input,
     context,
@@ -207,7 +204,7 @@ export const runTavernAgentFlowSpeaker = async ({
   return {
     character,
     rawText: output.text,
-    parsed,
+    protocolData,
     prepared,
     publicText,
     message,

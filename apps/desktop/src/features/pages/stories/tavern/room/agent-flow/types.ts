@@ -4,8 +4,8 @@ import type { TavernCharacter, TavernStoryData } from "@/features/pages/stories/
 import type { TavernPresentationProfile } from "@/features/pages/stories/tavern/manage/model";
 import type { TavernMessage } from "@/features/pages/stories/tavern/room/model/message";
 import type {
+  AgentProtocolData,
   AgentProtocolMessage,
-  AgentProtocolParseResult,
   AgentProtocolPrepared,
 } from "@/features/pages/stories/tavern/room/agent-protocol/types";
 
@@ -92,7 +92,7 @@ export type TavernAgentFlowDirectorDecision = {
 
 export type TavernAgentFlowDirectorResult = {
   rawText: string;
-  parsed: AgentProtocolParseResult;
+  protocolData: AgentProtocolData[];
   prepared: AgentProtocolPrepared;
   decision: TavernAgentFlowDirectorDecision;
   agentSession?: RuntimeSessionRecordRef | null;
@@ -102,7 +102,7 @@ export type TavernAgentFlowDirectorResult = {
 export type TavernAgentFlowSpeakerResult = {
   character: TavernCharacter;
   rawText: string;
-  parsed: AgentProtocolParseResult;
+  protocolData: AgentProtocolData[];
   prepared: AgentProtocolPrepared;
   publicText: string;
   message: TavernMessage;

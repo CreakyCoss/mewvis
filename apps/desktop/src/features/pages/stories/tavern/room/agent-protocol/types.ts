@@ -66,6 +66,13 @@ export type AgentProtocolPrepared = {
   options: Required<AgentProtocolOptions>;
 };
 
-export type AgentProtocolParseResult = {
-  data: Partial<Record<AgentProtocolOutputKey, string>>;
-};
+export type AgentProtocolData =
+  | {
+      type: AgentProtocolOutputKey;
+      tag: string;
+      content: string;
+    }
+  | {
+      type: "unwrappedText";
+      content: string;
+    };

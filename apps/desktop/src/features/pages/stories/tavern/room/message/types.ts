@@ -120,7 +120,6 @@ export type RenderableMessage = {
   speakerName: string;
   content: string;
   segments: MessageSegment[];
-  thought?: string;
   rawText: string;
   createdAt: number;
   status?: MessageStatus;

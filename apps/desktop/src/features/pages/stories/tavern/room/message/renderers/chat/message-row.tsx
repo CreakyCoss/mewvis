@@ -20,7 +20,12 @@ type MessageRoleRendererContext = {
 
 const messageRoleRenderers: Record<MessageRole, (context: MessageRoleRendererContext) => ReactElement> = {
   narrator: ({ message, visualStyle }) => (
-    <NarratorMessage content={message.content} isStreaming={message.status === "streaming"} visualStyle={visualStyle} />
+    <NarratorMessage
+      content={message.content}
+      isStreaming={message.status === "streaming"}
+      segments={message.segments}
+      visualStyle={visualStyle}
+    />
   ),
   user: ({ isSending, message, visualStyle }) => (
     <UserMessage
@@ -41,7 +46,6 @@ const messageRoleRenderers: Record<MessageRole, (context: MessageRoleRendererCon
       isError={message.status === "error"}
       isStreaming={message.status === "streaming"}
       segments={message.segments}
-      thought={message.thought}
       visualStyle={visualStyle}
     />
   ),

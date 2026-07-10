@@ -1,22 +1,22 @@
 import { getAgentProtocolCodec } from "./codecs/registry";
 import type {
+  AgentProtocolData,
   AgentProtocolFormat,
   AgentProtocolOptions,
-  AgentProtocolParseResult,
   AgentProtocolPrepared,
   AgentProtocolRequest,
 } from "./types";
 
 export type AgentProtocol = {
   prepare(request: AgentProtocolRequest): AgentProtocolPrepared;
-  parse(text: string, format?: AgentProtocolFormat): AgentProtocolParseResult;
+  parse(text: string, format?: AgentProtocolFormat): AgentProtocolData[];
 };
 
 export const AgentProtocol: AgentProtocol = {
   prepare(request: AgentProtocolRequest): AgentProtocolPrepared {
     return prepare(request);
   },
-  parse(text: string, format: AgentProtocolFormat = "xml"): AgentProtocolParseResult {
+  parse(text: string, format: AgentProtocolFormat = "xml"): AgentProtocolData[] {
     return getAgentProtocolCodec(format).parseOutput(text);
   },
 } as const;
