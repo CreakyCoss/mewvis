@@ -1,4 +1,4 @@
-import type { VisualPresetId } from "@/features/pages/taverns/tavern/visual-presets/types";
+import type { VisualPresetId } from "@/features/pages/taverns/presets/visual-presets/types";
 import { createTimestampId } from "@/utils/ids";
 
 export type TavernReplyMode = "director";
@@ -15,12 +15,14 @@ export type TavernPresentationUserInputMode = "speech" | "intent" | "story_direc
 
 export type TavernPresentationGenerationContract = "character_reply_xml" | "character_narrative_beat";
 
-export type TavernSystemNarrativePresetId = "balanced" | "restrained" | "dramatic";
+export type TavernSystemNarrativeStyleId = "balanced" | "restrained" | "dramatic";
 
-export type TavernSystemNarrativePresetSettings = {
-  presetId: TavernSystemNarrativePresetId;
+export type TavernSystemNarrativeSettings = {
+  styleId: TavernSystemNarrativeStyleId;
   customInstructions?: string;
 };
+
+export type TavernRoomStyleId = "silent-law" | "novel" | "wuxia" | "light-novel" | "dramatic" | "grounded";
 
 export type TavernPresentationProfile = {
   id: TavernPresentationProfileId;
@@ -31,7 +33,6 @@ export type TavernPresentationProfile = {
   userInputMode: TavernPresentationUserInputMode;
   renderStyle: TavernPresentationRenderStyle;
   generationContract: TavernPresentationGenerationContract;
-  bridgeSystemAddendum: string;
   directorAddendum: string;
   characterAddendum: string;
   composerPlaceholder: string;
@@ -39,48 +40,6 @@ export type TavernPresentationProfile = {
 
 export type TavernPresentationSettings = {
   profileId: TavernPresentationProfileId;
-};
-
-export type TavernPromptBlockTarget = "bridge" | "director" | "character";
-
-export type TavernPromptBlockSourceType =
-  | "system_narrative"
-  | "room_style"
-  | "platform_style"
-  | "quality_rule"
-  | "narrative_style"
-  | "genre_rule"
-  | "hook_rule"
-  | "taboo_rule"
-  | "custom";
-
-export type TavernPromptBlock = {
-  id: string;
-  target: TavernPromptBlockTarget;
-  label: string;
-  text: string;
-  enabled: boolean;
-  order: number;
-  source?: {
-    type: TavernPromptBlockSourceType;
-    id: string;
-    label: string;
-  };
-};
-
-export type TavernRoomPromptSettings = {
-  blocks: TavernPromptBlock[];
-};
-
-export type TavernPromptStyleId = "silent-law" | "novel" | "wuxia" | "light-novel" | "dramatic" | "grounded";
-
-export type TavernPromptStylePreset = {
-  id: TavernPromptStyleId;
-  label: string;
-  description: string;
-  bridgeSystemAddendum: string;
-  directorAddendum: string;
-  characterAddendum: string;
 };
 
 export type TavernRoomSettings = {
@@ -100,7 +59,8 @@ export type TavernRoomConfig = {
   id: string;
   title: string;
   presentation: TavernPresentationSettings;
-  prompt: TavernRoomPromptSettings;
+  systemNarrative: TavernSystemNarrativeSettings;
+  roomStyleId: TavernRoomStyleId;
   scenePresetId: VisualPresetId;
   replyMode: TavernReplyMode;
   settings: TavernRoomSettings;
@@ -113,9 +73,11 @@ export const createEmptyManualTavernRoom = (index: number): TavernRoomConfig => 
   presentation: {
     profileId: "dialogue-chat",
   },
-  prompt: {
-    blocks: [],
+  systemNarrative: {
+    styleId: "balanced",
+    customInstructions: "",
   },
+  roomStyleId: "novel",
   replyMode: "director",
   settings: {
     immersiveDescriptionEnabled: true,

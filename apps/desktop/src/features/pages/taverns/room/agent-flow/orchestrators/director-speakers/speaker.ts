@@ -19,7 +19,7 @@ import type {
 
 const getSpeakerOutputKeys = (context: TavernAgentFlowContext): AgentProtocolOutputKey[] => {
   const publicOutputKey = getTavernAgentFlowPublicOutputKey(context.presentation);
-  return context.presentation.id === "dialogue-chat"
+  return context.presentation.renderStyle === "chat"
     ? ["privateThought", "action", "publicReply"]
     : ["privateThought", publicOutputKey];
 };

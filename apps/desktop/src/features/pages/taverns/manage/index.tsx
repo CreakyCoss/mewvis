@@ -39,8 +39,8 @@ const editorModules: Array<{
   {
     id: "prompt",
     group: "runtime",
-    label: "提示词",
-    description: "酒馆呈现结构和写作规则",
+    label: "呈现与叙事",
+    description: "呈现规则、系统叙事和房间文风",
     icon: ScrollText,
   },
   {

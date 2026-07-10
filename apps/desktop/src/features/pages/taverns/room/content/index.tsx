@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { listWorkspaceFiles, type WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
 import { cn } from "@/lib/utils";
-import { getTavernPresentationProfile } from "@/features/pages/taverns/tavern/prompt-registry/presentation-rules";
+import { getTavernPresentationProfile } from "@/features/pages/taverns/presets/prompts/presentation-rules";
 import { Composer } from "../composer";
 import { isTavernRoomSending, useTavernRoomContext } from "../context";
 import { ExecutionTrace } from "./execution-trace";

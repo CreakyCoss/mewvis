@@ -112,9 +112,7 @@ export const createTavernAgentFlowPublicMessage = ({
 });
 
 export const buildTavernAgentFlowContext = (input: TavernAgentFlowInput): TavernAgentFlowContext => {
-  const presentation = resolveTavernAgentFlowPresentation(
-    input.story.roomConfig.presentation.profileId as TavernAgentFlowPresentation["id"],
-  );
+  const presentation = resolveTavernAgentFlowPresentation(input.story.roomConfig);
   const candidateCharacters = resolveCandidateCharacters({
     characters: input.characters,
     selectedCharacterIds: input.selectedCharacterIds,

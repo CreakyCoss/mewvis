@@ -5,7 +5,8 @@ import { cn } from "@/lib/utils";
 import type { TavernRoomConfig } from "@/features/pages/taverns/manage/model";
 import { emptyValueText } from "./utils";
 import { editorHeaderActionButtonClassName } from "./primitives";
-import { getVisualPreset } from "../tavern/visual-presets";
+import { getVisualPreset } from "../presets/visual-presets";
+import { getTavernRoomStyle } from "../presets/prompts/room-styles";
 
 type HeaderProps = {
   data: TavernRoomConfig;
@@ -14,6 +15,7 @@ type HeaderProps = {
 
 export const Header = ({ data, onOpenStoryConfig }: HeaderProps) => {
   const visualPreset = getVisualPreset(data.scenePresetId);
+  const roomStyle = getTavernRoomStyle(data.roomStyleId);
   const headerStats: Array<{
     icon: LucideIcon;
     value: number | string;
@@ -26,8 +28,8 @@ export const Header = ({ data, onOpenStoryConfig }: HeaderProps) => {
     },
     {
       icon: ScrollText,
-      value: data.prompt.blocks.filter((block) => block.enabled && block.text.trim()).length,
-      label: "启用提示词",
+      value: roomStyle.label,
+      label: "房间文风",
     },
   ];
 
@@ -40,7 +42,7 @@ export const Header = ({ data, onOpenStoryConfig }: HeaderProps) => {
               <h1 className="truncate text-xl font-semibold leading-7">{data.title.trim() || emptyValueText}</h1>
             </div>
             <p className="line-clamp-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              编辑酒馆呈现、提示词和调度策略；故事资产在独立故事页维护。
+              编辑酒馆呈现、系统叙事和调度策略；故事资产在独立故事页维护。
             </p>
           </div>
 

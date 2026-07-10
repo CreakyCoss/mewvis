@@ -1,7 +1,8 @@
 import { MessageSquareText, PanelTop, ScrollText, UsersRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getVisualPreset } from "../../../tavern/visual-presets";
+import { getVisualPreset } from "../../../presets/visual-presets";
+import { getTavernRoomStyle } from "../../../presets/prompts/room-styles";
 import type { TavernRoomConfig } from "@/features/pages/taverns/manage/model";
 import { getReplyModeLabel } from "../../utils";
 
@@ -21,13 +22,13 @@ const MetricCard = ({ icon: Icon, label, value }: { icon: LucideIcon; label: str
 
 export const BasicSummaryContent = ({ data, className }: { data: TavernRoomConfig; className?: string }) => {
   const visualPreset = getVisualPreset(data.scenePresetId);
-  const enabledPromptBlockCount = data.prompt.blocks.filter((block) => block.enabled && block.text.trim()).length;
+  const roomStyle = getTavernRoomStyle(data.roomStyleId);
 
   return (
     <div className={cn("grid gap-2 sm:grid-cols-2 xl:grid-cols-4", className)}>
       <MetricCard icon={PanelTop} label="默认视觉" value={visualPreset.label} />
       <MetricCard icon={MessageSquareText} label="回复模式" value={getReplyModeLabel(data.replyMode ?? "director")} />
-      <MetricCard icon={ScrollText} label="启用提示词" value={`${enabledPromptBlockCount} 块`} />
+      <MetricCard icon={ScrollText} label="房间文风" value={roomStyle.label} />
       <MetricCard icon={UsersRound} label="导演人数" value={`${data.settings.directorMaxSpeakers} 人`} />
     </div>
   );

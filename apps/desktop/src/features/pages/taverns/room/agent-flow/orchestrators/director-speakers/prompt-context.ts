@@ -1,6 +1,12 @@
 import type { AgentProtocolProgress, AgentProtocolReference } from "@/features/pages/taverns/room/agent-protocol/types";
 import type { PromptFileReference } from "@/features/ai/components/context-tools";
 import type { TavernCharacter, TavernStoryData } from "@/features/pages/taverns/room/model";
+import {
+  formatTavernSystemNarrativeCharacterRules,
+  formatTavernSystemNarrativeStyleForPrompt,
+  getTavernSystemNarrativeStyle,
+} from "@/features/pages/taverns/presets/prompts/system-narrative-styles";
+import { getTavernRoomStyle } from "@/features/pages/taverns/presets/prompts/room-styles";
 import type { TavernAgentFlowPresentation } from "../../types";
 
 const compact = (values: Array<string | null | undefined>) =>
@@ -63,6 +69,8 @@ export const buildTavernAgentFlowReferences = ({
       target === "director" ? presentation.directorAddendum : presentation.characterAddendum,
     ]),
   },
+  ...buildSystemNarrativeReference({ story, presentation, target }),
+  ...buildRoomStyleReference({ story, target }),
   {
     title: "房间与场景",
     source: "room_runtime",
@@ -95,7 +103,6 @@ export const buildTavernAgentFlowReferences = ({
         },
       ]
     : []),
-  ...buildPromptBlockReference({ story, target }),
   ...files.map((file): AgentProtocolReference => ({
     title: file.path,
     source: "referenced_file",
@@ -131,26 +138,54 @@ const formatCharacterBrief = ({
   ]);
 };
 
-const buildPromptBlockReference = ({
+const buildSystemNarrativeReference = ({
+  story,
+  presentation,
+  target,
+}: {
+  story: TavernStoryData;
+  presentation: TavernAgentFlowPresentation;
+  target: "director" | "character";
+}): AgentProtocolReference[] => {
+  const settings = story.roomConfig.systemNarrative;
+  const style = getTavernSystemNarrativeStyle(settings.styleId);
+  const characterRules =
+    target === "character"
+      ? formatTavernSystemNarrativeCharacterRules({
+          style,
+          publicContentTag: presentation.renderStyle === "chat" ? "public_reply" : "narrative",
+          usesNarrativeBeat: presentation.generationContract === "character_narrative_beat",
+          immersiveDescriptionEnabled: story.roomConfig.settings.immersiveDescriptionEnabled,
+        })
+      : [];
+
+  return [
+    {
+      title: "系统叙事",
+      source: `system_narrative:${style.id}`,
+      content: [formatTavernSystemNarrativeStyleForPrompt({ settings, style, target }), ...characterRules]
+        .filter(Boolean)
+        .join("\n"),
+    },
+  ];
+};
+
+const buildRoomStyleReference = ({
   story,
   target,
 }: {
   story: TavernStoryData;
   target: "director" | "character";
 }): AgentProtocolReference[] => {
-  const blocks = story.roomConfig.prompt.blocks
-    .filter((block) => block.enabled && (block.target === target || block.target === "bridge"))
-    .sort((left, right) => left.order - right.order);
-
-  if (blocks.length === 0) {
-    return [];
-  }
-
+  const style = getTavernRoomStyle(story.roomConfig.roomStyleId);
   return [
     {
-      title: `${target === "director" ? "导演" : "角色"}可用业务提示`,
-      source: "tavern_prompt_blocks",
-      content: blocks.map((block) => `## ${block.label}\n${block.text.trim()}`).join("\n\n"),
+      title: "房间文风",
+      source: `room_style:${style.id}`,
+      content: joinLines([
+        `文风：${style.label}。${style.description}`,
+        target === "director" ? style.directorAddendum : style.characterAddendum,
+      ]),
     },
   ];
 };

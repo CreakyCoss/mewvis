@@ -7,7 +7,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import { cn } from "@/lib/utils";
 import type { TavernCharacter } from "@/features/pages/taverns/room/model";
 import { useTavernRoomContext } from "@/features/pages/taverns/room/context";
-import { getVisualPreset } from "@/features/pages/taverns/tavern/visual-presets";
+import { getVisualPreset } from "@/features/pages/taverns/presets/visual-presets";
 import { EmptyPanelCard, emptyValueText } from "../shared";
 
 const trimText = (value: string | undefined) => value?.trim() ?? "";

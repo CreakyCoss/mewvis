@@ -20,7 +20,8 @@ import {
 import { cn } from "@/lib/utils";
 import type { TavernManagementValue } from "../store";
 import type { TavernRoomConfig } from "@/features/pages/taverns/manage/model";
-import { getVisualPreset } from "../tavern/visual-presets";
+import { getVisualPreset } from "../presets/visual-presets";
+import { getTavernRoomStyle } from "../presets/prompts/room-styles";
 
 type PendingDangerAction = {
   title: string;
@@ -41,7 +42,7 @@ export const RoomCard = ({ management, room, openRoomEditor, onOperationStatusCh
   const [pendingDangerAction, setPendingDangerAction] = useState<PendingDangerAction | null>(null);
   const { copyRoom, deleteRoom, exportRoom } = management;
   const visualPreset = getVisualPreset(room.scenePresetId);
-  const enabledPromptBlockCount = room.prompt.blocks.filter((block) => block.enabled && block.text.trim()).length;
+  const roomStyle = getTavernRoomStyle(room.roomStyleId);
   const roomBadgeClassName =
     "border border-teal-100/30 bg-slate-950/65 text-teal-50 ring-teal-100/24 shadow-[0_12px_28px_-18px_rgb(15_23_42_/_0.9)]";
   const coverStyle = {
@@ -148,7 +149,7 @@ export const RoomCard = ({ management, room, openRoomEditor, onOperationStatusCh
             </span>
             <span className="inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border bg-muted/20 px-1.5">
               <ScrollText className="size-3.5 shrink-0" />
-              <span className="truncate">{enabledPromptBlockCount} 提示词</span>
+              <span className="truncate">{roomStyle.label}</span>
             </span>
           </div>
         </div>

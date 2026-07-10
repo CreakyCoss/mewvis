@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-import { TAVERN_SCENE_PRESET_OPTIONS } from "@/features/pages/taverns/tavern/visual-presets";
+import { TAVERN_SCENE_PRESET_OPTIONS } from "@/features/pages/taverns/presets/visual-presets";
 import type { TavernReplyMode, TavernRoomConfig } from "@/features/pages/taverns/manage/model";
 import {
   EditorField,
@@ -169,7 +169,7 @@ export const BasicEdit = ({ bind, data, onSave }: BasicEditProps) => {
                 id="tavern-basic-mode-section"
                 icon={MessageSquareText}
                 title="互动方式"
-                description="选择房间里的角色响应方式；提示词结构请到提示词模块调整。"
+                description="选择房间里的角色响应方式；呈现方式与系统叙事请到呈现与叙事模块调整。"
               >
                 <div className="grid gap-3 sm:grid-cols-2">
                   <EditorField label="发言模式" htmlFor="tavern-basic-reply-mode">

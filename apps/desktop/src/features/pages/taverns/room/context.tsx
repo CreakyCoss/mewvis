@@ -2,8 +2,8 @@ import type { SetStateAction } from "react";
 import { create } from "zustand";
 import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { TavernStoryData } from "@/features/pages/taverns/room/model";
-import { getVisualPreset } from "@/features/pages/taverns/tavern/visual-presets";
-import type { VisualPresetDefinition } from "@/features/pages/taverns/tavern/visual-presets/types";
+import { getVisualPreset } from "@/features/pages/taverns/presets/visual-presets";
+import type { VisualPresetDefinition } from "@/features/pages/taverns/presets/visual-presets/types";
 import type { TavernMessage } from "@/features/pages/taverns/room/model/message";
 import type { ComposerHandle } from "./composer";
 

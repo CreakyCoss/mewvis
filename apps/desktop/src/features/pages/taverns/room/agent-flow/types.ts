@@ -1,7 +1,7 @@
 import type { RuntimeModelInput, RuntimeSessionRecordRef } from "@/agent-client/types";
 import type { PromptFileReference } from "@/features/ai/components/context-tools";
 import type { TavernCharacter, TavernStoryData } from "@/features/pages/taverns/room/model";
-import type { TavernPresentationProfile, TavernPresentationProfileId } from "@/features/pages/taverns/manage/model";
+import type { TavernPresentationProfile } from "@/features/pages/taverns/manage/model";
 import type { TavernMessage } from "@/features/pages/taverns/room/model/message";
 import type {
   AgentProtocolMessage,
@@ -16,14 +16,7 @@ export type TavernAgentFlowTrigger = {
 
 export type TavernAgentFlowOrchestrationId = "director-speakers";
 
-export type TavernAgentFlowSupportedPresentationId = Extract<
-  TavernPresentationProfileId,
-  "dialogue-chat" | "novel-prose"
->;
-
-export type TavernAgentFlowPresentation = TavernPresentationProfile & {
-  id: TavernAgentFlowSupportedPresentationId;
-};
+export type TavernAgentFlowPresentation = TavernPresentationProfile;
 
 export type TavernAgentFlowRunAgentInput = {
   workspacePath: string;
