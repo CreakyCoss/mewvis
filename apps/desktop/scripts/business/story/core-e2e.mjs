@@ -8,24 +8,25 @@ const workspaceRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-story-core-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
-const statePath = resolve(workspaceRoot, "src/features/pages/stories/story/model/state.ts");
-const contractPath = resolve(workspaceRoot, "src/features/pages/stories/story-contract/index.ts");
+const changeSetPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/change-set.ts");
+const projectPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/project.ts");
+const validationPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/validation.ts");
+const contractEncodingPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/contract.ts");
+const documentModelPath = resolve(workspaceRoot, "src/features/pages/stories/documents/model.ts");
 
 writeFileSync(
   entryPath,
   `
-  import { createDefaultStoryJson } from ${JSON.stringify(statePath)};
   import {
     applyStoryChangeSet,
     STORY_CHANGE_SET_MAX_BYTES,
     STORY_CHANGE_SET_MAX_OPERATIONS,
     storyChangeSetSchema,
-    storyJsonToProject,
-    storyProjectFiles,
-    storyProjectToStoryJson,
-    validateStoryProject,
-    withRebuiltManifest,
-  } from ${JSON.stringify(contractPath)};
+  } from ${JSON.stringify(changeSetPath)};
+  import { createEmptyStoryProject, storyProjectFiles, withRebuiltManifest } from ${JSON.stringify(projectPath)};
+  import { validateStoryProject } from ${JSON.stringify(validationPath)};
+  import { encodeStoryDocument } from ${JSON.stringify(contractEncodingPath)};
+  import { inspectStructuredJsonDocument, storyDocumentsToStoryJson } from ${JSON.stringify(documentModelPath)};
 
   const assert = (condition: unknown, message: string, details?: unknown) => {
     if (!condition) {
@@ -36,8 +37,26 @@ writeFileSync(
 
   const timestamp = 1_800_000_000_000;
   const changeSetContract = { contractId: "novel-claw.story-authoring" as const, contractVersion: 1 as const };
-  const story = createDefaultStoryJson({ id: "story-contract", title: "雾港档案", timestamp });
-  const initial = storyJsonToProject(story);
+  const initial = createEmptyStoryProject({ id: "story-contract", title: "雾港档案", timestamp });
+  const frontendDocument = {
+    path: "story/book.json",
+    updatedAt: timestamp,
+    value: {
+      $document: { kind: "story-book", label: "作品核心", path: "story/book.json" },
+      $schema: { fields: { "/title": { type: "text", label: "书名", required: true } } },
+      data: { kind: "story-book", id: "story-contract", title: "雾港档案", premise: "港口迷雾中的调查。", goal: "查明真相", playerName: "我", createdAt: timestamp },
+    },
+  };
+  assert(inspectStructuredJsonDocument(frontendDocument)?.fields["/title"]?.label === "书名", "通用编辑器应直接读取 JSON 内嵌字段元数据。");
+  const encodedGraph = encodeStoryDocument(initial.graph, "story/interactive/graph.json");
+  const inspectedGraph = inspectStructuredJsonDocument({ path: "story/interactive/graph.json", value: encodedGraph, updatedAt: timestamp });
+  assert(
+    inspectedGraph?.fields["/nodes"]?.itemDefinition === "graph-node" && inspectedGraph.definitions["graph-node"]?.fields["/title"]?.label === "节点标题",
+    "通用编辑器应读取嵌套对象定义并递归生成集合表单。",
+    inspectedGraph,
+  );
+  const frontendStory = storyDocumentsToStoryJson({ id: "story-contract", name: "回退标题", createdAt: timestamp, updatedAt: timestamp }, [frontendDocument]);
+  assert(frontendStory.title === "雾港档案" && frontendStory.scenes.length === 0, "前端只能尽力投影 JSON，不得创建未落库的故事内容。", frontendStory);
   const initialValidation = validateStoryProject(initial, "draft");
   assert(initialValidation.valid, "新故事应满足 draft 结构校验。", initialValidation);
   assert(
@@ -134,7 +153,6 @@ writeFileSync(
     operations: [{ type: "upsert", path: "story/book.json", value: nextBook }],
   });
   assert(changed.book.title === "谎言留痕" && changed.manifest.revision === ready.manifest.revision + 1, "ChangeSet 应更新内容和 revision。", changed.manifest);
-  assert(storyProjectToStoryJson(changed).title === "谎言留痕", "页面投影应读取 v1 项目。");
 
   const patched = applyStoryChangeSet(changed, {
     ...changeSetContract,

@@ -60,12 +60,12 @@ export const StoryCreateDialog = ({ bind, onCreated }: StoryCreateDialogProps) =
   const createStory = async (input: CreateStoryInput) => {
     setIsSaving(true);
     try {
-      const { project, story, workspace } = await createStoryInWorkspace(input);
+      const { documents, story, workspace } = await createStoryInWorkspace(input);
       toast.success("故事已创建。");
       setIsOpen(false);
       onCreated({
         id: story.id,
-        project,
+        documents,
         story,
         workspace,
       });
@@ -88,7 +88,7 @@ export const StoryCreateDialog = ({ bind, onCreated }: StoryCreateDialogProps) =
         <DialogHeader>
           <DialogTitle className="text-lg">新建故事</DialogTitle>
           <DialogDescription>
-            创建后，会在所选父目录下按故事名创建独立子目录；删除故事时只删除这个子目录。
+            创建独立的空故事工作区；之后可以手动新增 JSON，或由创作助手初始化结构化故事文件。
           </DialogDescription>
         </DialogHeader>
 

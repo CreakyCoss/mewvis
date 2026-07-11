@@ -63,7 +63,7 @@ export const StoryCard = ({
           <div className="relative">
             <div className="h-[clamp(6.25rem,9vw,7.5rem)] w-full overflow-hidden rounded-t-lg bg-gradient-to-br from-primary/15 via-muted to-background shadow-inner" />
             <span className="absolute left-3 top-3 max-w-[calc(100%-1.5rem)] truncate rounded-full border border-teal-100/30 bg-slate-950/65 px-2.5 py-1 text-xs font-semibold leading-4 text-teal-50 shadow-[0_12px_28px_-18px_rgb(15_23_42_/_0.9)] ring-1 ring-teal-100/24 backdrop-blur-md">
-              标准故事
+              JSON 故事
             </span>
             <div className="absolute inset-x-0 -bottom-6 flex justify-start px-4">
               <div className="flex min-w-0 items-end overflow-hidden pb-px">

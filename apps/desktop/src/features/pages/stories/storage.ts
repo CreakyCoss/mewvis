@@ -1,19 +1,11 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { listWorkspaceFiles } from "../workspace/files-api";
-import { createDefaultStoryJson } from "./story/model/state";
+import { storyDocumentsToStoryJson } from "./documents/model";
+import { loadStoryDocuments } from "./documents/repository";
+import type { StoryJsonDocument } from "./documents/types";
 import type { StoryJson } from "./story/model/types";
-import {
-  storyJsonToProject,
-  loadStoryProject,
-  saveStoryProject as saveStoryProjectFiles,
-  storyProjectToStoryJson,
-  type StoryProject,
-  type StoryValidationProfile,
-} from "./story-contract";
 
 export const STORY_SOURCE_DIR = "story";
 export const STORY_TAVERN_FILE = `${STORY_SOURCE_DIR}/tavern.json`;
-const REMOVED_STORY_JSON_PATH = `${STORY_SOURCE_DIR}/story.json`;
 
 export type StoryRecord = {
   id: string;
@@ -31,7 +23,7 @@ export type StoryWorkspace = {
 
 export type StoryLibraryItem = {
   id: string;
-  project: StoryProject;
+  documents: StoryJsonDocument[];
   story: StoryJson;
   workspace: StoryWorkspace;
 };
@@ -48,11 +40,11 @@ const storyWorkspaceFromRecord = (record: StoryRecord): StoryWorkspace => ({
 });
 
 const storyLibraryItemFromRecord = async (record: StoryRecord): Promise<StoryLibraryItem> => {
-  const project = await loadStoryProject(record.workspacePath);
+  const documents = await loadStoryDocuments(record.workspacePath);
   return {
     id: record.id,
-    project,
-    story: storyProjectToStoryJson(project),
+    documents,
+    story: storyDocumentsToStoryJson(record, documents),
     workspace: storyWorkspaceFromRecord(record),
   };
 };
@@ -136,65 +128,23 @@ export const deleteStoryRecord = async (storyId: string) => {
   });
 };
 
-export const loadStoryJson = async (record: StoryRecord): Promise<StoryJson> => {
-  if (!isTauri()) {
-    throw createDesktopOnlyStoryStorageError();
-  }
-
-  return storyProjectToStoryJson(await loadStoryProject(record.workspacePath));
-};
-
-export const saveStoryJson = async (workspace: StoryWorkspace, story: StoryJson): Promise<StoryJson> => {
-  if (!isTauri()) {
-    throw createDesktopOnlyStoryStorageError();
-  }
-  const existingProject = await loadStoryProject(workspace.path);
-  const project = storyJsonToProject({ ...story, id: workspace.id }, existingProject);
-  const savedProject = await saveStoryProjectFiles(workspace.path, project, "draft");
-  return storyProjectToStoryJson(savedProject);
-};
-
-export const saveStoryProject = async (
-  workspace: StoryWorkspace,
-  project: StoryProject,
-  profile: StoryValidationProfile = "draft",
-) => {
-  if (!isTauri()) {
-    throw createDesktopOnlyStoryStorageError();
-  }
-  if (project.manifest.storyId !== workspace.id) {
-    throw new Error("故事项目 ID 与工作区记录不一致。");
-  }
-  return saveStoryProjectFiles(workspace.path, project, profile);
-};
-
 export const createStory = async (
   input: CreateStoryInput,
 ): Promise<{
   record: StoryRecord;
   workspace: StoryWorkspace;
-  project: StoryProject;
+  documents: StoryJsonDocument[];
   story: StoryJson;
 }> => {
   const record = await createStoryRecord(input);
   const workspace = storyWorkspaceFromRecord(record);
-  const story = createDefaultStoryJson({
-    id: record.id,
-    title: record.name,
-  });
-  const project = storyJsonToProject(story);
-  try {
-    const savedProject = await saveStoryProjectFiles(workspace.path, project, "draft");
-    return {
-      record,
-      workspace,
-      project: savedProject,
-      story: storyProjectToStoryJson(savedProject),
-    };
-  } catch (error) {
-    await deleteStoryRecord(record.id).catch(() => undefined);
-    throw error;
-  }
+  const documents: StoryJsonDocument[] = [];
+  return {
+    record,
+    workspace,
+    documents,
+    story: storyDocumentsToStoryJson(record, documents),
+  };
 };
 
 export const loadStoryLibrary = async (): Promise<StoryLibraryItem[]> => {
@@ -204,45 +154,15 @@ export const loadStoryLibrary = async (): Promise<StoryLibraryItem[]> => {
       try {
         return await storyLibraryItemFromRecord(record);
       } catch (error) {
-        const files = await listWorkspaceFiles(record.workspacePath).catch(() => []);
-        if (files.some((file) => !file.isDirectory && file.path === REMOVED_STORY_JSON_PATH)) {
-          await deleteStoryRecord(record.id).catch((deleteError) => {
-            console.error("Failed to remove old story project", deleteError);
-          });
-          console.info("Removed unsupported story.json project", record.id);
-          return null;
-        }
-        console.warn("Skipping invalid structured story project", error);
+        console.warn("Skipping unreadable JSON story workspace", record.id, error);
         return null;
       }
     }),
   );
-  return results.flatMap((result) => {
-    if (result) {
-      return [result];
-    }
-    return [];
-  });
+  return results.flatMap((result) => (result ? [result] : []));
 };
 
-export const loadStoryById = async (
-  storyId: string,
-): Promise<{
-  record: StoryRecord;
-  workspace: StoryWorkspace;
-  story: StoryJson;
-  project: StoryProject;
-} | null> => {
+export const loadStoryById = async (storyId: string): Promise<StoryLibraryItem | null> => {
   const record = (await listStoryRecords()).find((item) => item.id === storyId);
-  if (!record) {
-    return null;
-  }
-
-  const project = await loadStoryProject(record.workspacePath);
-  return {
-    record,
-    workspace: storyWorkspaceFromRecord(record),
-    project,
-    story: storyProjectToStoryJson(project),
-  };
+  return record ? storyLibraryItemFromRecord(record) : null;
 };

@@ -9,8 +9,7 @@ const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-story-commit-tool-"));
 const storyWorkspace = join(tempDir, "workspace");
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
-const statePath = resolve(workspaceRoot, "src/features/pages/stories/story/model/state.ts");
-const contractPath = resolve(workspaceRoot, "src/features/pages/stories/story-contract/index.ts");
+const projectPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/project.ts");
 const toolPath = resolve(
   workspaceRoot,
   "agent-runtime/src/engines/drivers/native/agent/runtimes/pi/tools/builtin-tool.ts",
@@ -24,8 +23,7 @@ writeFileSync(
   `
   import { mkdir, readFile, stat, utimes, writeFile } from "node:fs/promises";
   import { dirname, join } from "node:path";
-  import { createDefaultStoryJson } from ${JSON.stringify(statePath)};
-  import { storyJsonToProject, storyProjectFiles, STORY_PROJECT_MANIFEST_PATH } from ${JSON.stringify(contractPath)};
+  import { createEmptyStoryProject, storyProjectFiles, STORY_PROJECT_MANIFEST_PATH } from ${JSON.stringify(projectPath)};
   import { registerPiBuiltinTool } from ${JSON.stringify(toolPath)};
   import { STORY_TOOL, createStoryToolPackage } from ${JSON.stringify(storyBuiltinPath)};
   import { encodeStoryDocument } from ${JSON.stringify(storyContractPath)};
@@ -36,7 +34,7 @@ writeFileSync(
   };
   const root = ${JSON.stringify(storyWorkspace)};
   const changeSetContract = { contractId: "novel-claw.story-authoring", contractVersion: 1 };
-  const project = storyJsonToProject(createDefaultStoryJson({ id: "story-commit-tool", title: "提交工具测试", timestamp: 1_800_000_000_000 }));
+  const project = createEmptyStoryProject({ id: "story-commit-tool", title: "提交工具测试", timestamp: 1_800_000_000_000 });
   for (const entry of [...storyProjectFiles(project), { path: STORY_PROJECT_MANIFEST_PATH, value: project.manifest }]) {
     const path = join(root, entry.path);
     await mkdir(dirname(path), { recursive: true });

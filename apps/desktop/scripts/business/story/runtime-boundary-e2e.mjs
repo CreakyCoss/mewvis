@@ -8,7 +8,7 @@ const collectTypeScriptFiles = (directory) =>
   readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) return collectTypeScriptFiles(path);
-    return entry.isFile() && path.endsWith(".ts") ? [path] : [];
+    return entry.isFile() && /\.tsx?$/.test(path) ? [path] : [];
   });
 
 const violations = collectTypeScriptFiles(runtimeRoot).flatMap((path) => {
@@ -19,6 +19,25 @@ const violations = collectTypeScriptFiles(runtimeRoot).flatMap((path) => {
 
 if (violations.length > 0) {
   throw new Error(`agent-runtime 不得反向引用 desktop 前端：\n${violations.join("\n")}`);
+}
+
+const frontendStoryRoot = resolve(root, "src/features/pages/stories");
+const frontendContractImports = collectTypeScriptFiles(frontendStoryRoot).flatMap((path) => {
+  const source = readFileSync(path, "utf8");
+  return source.includes("@agent-runtime/engines/builtins/story") || source.includes("story-contract")
+    ? [relative(root, path)]
+    : [];
+});
+if (frontendContractImports.length > 0) {
+  throw new Error(`故事前端不得依赖 agent-runtime 故事协议：\n${frontendContractImports.join("\n")}`);
+}
+try {
+  const legacyFrontendContract = readdirSync(resolve(frontendStoryRoot, "story-contract"));
+  if (legacyFrontendContract.length > 0) {
+    throw new Error("前端 story-contract 边界必须移除。");
+  }
+} catch (error) {
+  if (error?.code !== "ENOENT") throw error;
 }
 
 const builtinsIndex = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/index.ts"), "utf8");

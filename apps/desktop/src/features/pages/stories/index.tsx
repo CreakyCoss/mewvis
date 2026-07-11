@@ -159,7 +159,7 @@ export const StoriesPage = () => {
         )}
       </div>
 
-      <StoryModulesContent bind={modulesRef} onBack={backToStoryHome} onOpenManuscripts={openStoryManuscripts} />
+      <StoryModulesContent bind={modulesRef} onBack={backToStoryHome} />
       <StoryManuscriptsPage bind={manuscriptsRef} onBack={backToStoryHome} onOpenStoryEditor={openStoryEditor} />
       <TavernManageContent bind={tavernManageRef} onBack={backToStoryHome} />
       <StoryCreateDialog bind={createDialogRef} onCreated={handleStoryCreated} />

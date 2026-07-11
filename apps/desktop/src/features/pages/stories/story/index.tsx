@@ -15,13 +15,12 @@ export type StoryModulesHandle = {
 type StoryModulesContentProps = {
   bind: Ref<StoryModulesHandle>;
   onBack: () => void;
-  onOpenManuscripts: (item: StoryLibraryItem) => void;
 };
 
 const fullScreenDialogContentClassName =
   "!fixed !inset-0 !left-0 !top-0 !flex !h-screen !max-h-none !w-screen !max-w-none !translate-x-0 !translate-y-0 flex-col gap-0 overflow-hidden !rounded-none !bg-background p-0 text-foreground !ring-0";
 
-export const StoryModulesContent = ({ bind, onBack, onOpenManuscripts }: StoryModulesContentProps) => {
+export const StoryModulesContent = ({ bind, onBack }: StoryModulesContentProps) => {
   const story = useStoryState((state) => state.story);
   const closeStory = useStoryState((state) => state.closeStory);
   const openStory = useStoryState((state) => state.openStory);
@@ -58,7 +57,7 @@ export const StoryModulesContent = ({ bind, onBack, onOpenManuscripts }: StoryMo
         {story ? (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
             <StoryHeader onBack={handleBack} />
-            <StoryModules onOpenManuscripts={onOpenManuscripts} />
+            <StoryModules />
           </div>
         ) : null}
       </DialogContent>

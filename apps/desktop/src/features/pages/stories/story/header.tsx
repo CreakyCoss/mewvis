@@ -32,7 +32,7 @@ export const StoryHeader = ({ onBack }: StoryHeaderProps) => {
             <div className="min-w-0">
               <h2 className="truncate text-xl font-semibold leading-7">{story?.title ?? "故事"}</h2>
               <p className="line-clamp-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                编辑故事内容、结构、场景和可被呈现端读取的标准数据。
+                按 JSON 文件内嵌的字段信息阅读和维护故事内容。
               </p>
             </div>
           </div>
