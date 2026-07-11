@@ -1,15 +1,96 @@
-import { useEffect, useState } from "react";
-import { Braces, FileJson, Plus } from "lucide-react";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
+import { BookOpenText, Boxes, FileJson2, GitBranch, Globe2, ListTree, Plus, Search, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { storyDocumentLabel } from "../../documents/model";
+import { inspectStructuredJsonDocument, storyDocumentLabel } from "../../documents/model";
+import type { StoryJsonDocument } from "../../documents/types";
 import { useStoryState } from "../use-story-state";
 import { CreateJsonDocumentDialog } from "./documents/create-dialog";
 import { StoryDocumentEditor } from "./documents/document-editor";
 
+type DocumentGroup = {
+  icon: ComponentType<{ className?: string }>;
+  id: string;
+  label: string;
+  documents: StoryJsonDocument[];
+};
+
+const groupHints = [
+  {
+    id: "people",
+    label: "人物与关系",
+    icon: UsersRound,
+    keywords: ["character", "relationship", "角色", "人物", "关系"],
+  },
+  {
+    id: "world",
+    label: "世界设定",
+    icon: Globe2,
+    keywords: ["world", "setting", "faction", "location", "世界", "设定", "势力", "地点"],
+  },
+  {
+    id: "outline",
+    label: "大纲与章节",
+    icon: ListTree,
+    keywords: ["outline", "chapter", "volume", "arc", "大纲", "章节", "分卷", "主线"],
+  },
+  {
+    id: "continuity",
+    label: "伏笔与连续性",
+    icon: GitBranch,
+    keywords: ["tracking", "foreshadow", "continuity", "progress", "伏笔", "连续", "进度"],
+  },
+  {
+    id: "interactive",
+    label: "互动叙事",
+    icon: Boxes,
+    keywords: ["interactive", "graph", "scene", "互动", "剧情图", "场景"],
+  },
+] as const;
+
+const documentSearchText = (document: StoryJsonDocument) => {
+  const inspected = inspectStructuredJsonDocument(document);
+  return `${document.path} ${inspected?.kind ?? ""} ${inspected?.label ?? storyDocumentLabel(document)}`.toLowerCase();
+};
+
+const groupForDocument = (document: StoryJsonDocument) => {
+  const searchable = documentSearchText(document);
+  return (
+    groupHints.find((group) => group.keywords.some((keyword) => searchable.includes(keyword))) ?? {
+      id: "work",
+      label: "作品",
+      icon: BookOpenText,
+      keywords: [],
+    }
+  );
+};
+
+const buildDocumentGroups = (documents: StoryJsonDocument[], query: string): DocumentGroup[] => {
+  const normalizedQuery = query.trim().toLowerCase();
+  const visible = normalizedQuery
+    ? documents.filter((document) => documentSearchText(document).includes(normalizedQuery))
+    : documents;
+  const groups = new Map<string, DocumentGroup>();
+  for (const document of visible) {
+    const group = groupForDocument(document);
+    const current: DocumentGroup = groups.get(group.id) ?? {
+      icon: group.icon,
+      id: group.id,
+      label: group.label,
+      documents: [],
+    };
+    current.documents.push(document);
+    groups.set(group.id, current);
+  }
+  const order = ["work", "people", "world", "outline", "continuity", "interactive"];
+  return [...groups.values()].sort((left, right) => order.indexOf(left.id) - order.indexOf(right.id));
+};
+
 export const StoryModules = () => {
   const documents = useStoryState((state) => state.documents);
   const [selectedPath, setSelectedPath] = useState("");
+  const [query, setQuery] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   useEffect(() => {
@@ -19,58 +100,97 @@ export const StoryModules = () => {
   }, [documents]);
 
   const selected = documents.find((document) => document.path === selectedPath) ?? null;
+  const groups = useMemo(() => buildDocumentGroups(documents, query), [documents, query]);
+  const selectedGroup = selected ? groupForDocument(selected) : null;
 
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-[17rem_minmax(0,1fr)] overflow-hidden bg-muted/10">
-      <aside className="flex min-h-0 flex-col border-r bg-background/80">
-        <div className="flex items-center justify-between gap-2 border-b px-3 py-3">
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <Braces className="size-4 text-primary" />
-            JSON 文档
+    <div className="grid min-h-0 flex-1 grid-cols-[14.5rem_minmax(0,1fr)] overflow-hidden bg-background xl:grid-cols-[16.5rem_minmax(0,1fr)]">
+      <aside className="flex min-h-0 flex-col border-r bg-sidebar/55">
+        <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-3">
+          <div>
+            <h2 className="text-sm font-semibold">故事资料</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">按内容组织，而不是按文件浏览</p>
           </div>
           <Button
             type="button"
             size="icon-sm"
             variant="outline"
-            title="新增 JSON"
+            title="新增 JSON 文档"
+            aria-label="新增 JSON 文档"
             onClick={() => setIsCreateOpen(true)}
           >
             <Plus className="size-4" />
           </Button>
         </div>
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="space-y-1.5 p-2">
-            {documents.map((document) => (
-              <button
-                key={document.path}
-                type="button"
-                className={[
-                  "flex w-full min-w-0 items-start gap-2 rounded-md border px-2.5 py-2 text-left transition-colors hover:bg-muted/50",
-                  selectedPath === document.path ? "border-primary/35 bg-primary/10" : "bg-background",
-                ].join(" ")}
-                onClick={() => setSelectedPath(document.path)}
-              >
-                <FileJson className="mt-0.5 size-4 shrink-0 text-primary" />
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium">{storyDocumentLabel(document)}</span>
-                  <span className="mt-0.5 block truncate font-mono text-[10px] text-muted-foreground">
-                    {document.path}
-                  </span>
-                </span>
-              </button>
-            ))}
+        <div className="px-3 pb-3">
+          <div className="relative">
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              className="h-8 bg-background pl-8 text-xs shadow-none"
+              placeholder="搜索资料"
+              aria-label="搜索故事资料"
+              onChange={(event) => setQuery(event.currentTarget.value)}
+            />
           </div>
+        </div>
+        <ScrollArea className="min-h-0 flex-1">
+          <nav className="space-y-5 px-3 pb-5" aria-label="故事资料导航">
+            {groups.map((group) => {
+              const GroupIcon = group.icon;
+              return (
+                <section key={group.id}>
+                  <div className="mb-1.5 flex items-center gap-2 px-2 text-xs font-semibold text-muted-foreground">
+                    <GroupIcon className="size-3.5" />
+                    <span>{group.label}</span>
+                    <span className="ml-auto tabular-nums opacity-70">{group.documents.length}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    {group.documents.map((document) => {
+                      const active = selectedPath === document.path;
+                      return (
+                        <button
+                          key={document.path}
+                          type="button"
+                          title={document.path}
+                          aria-current={active ? "page" : undefined}
+                          className={[
+                            "group flex w-full min-w-0 items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors",
+                            active
+                              ? "bg-primary/10 font-medium text-primary ring-1 ring-inset ring-primary/20"
+                              : "text-foreground/80 hover:bg-muted/70 hover:text-foreground",
+                          ].join(" ")}
+                          onClick={() => setSelectedPath(document.path)}
+                        >
+                          <FileJson2 className="size-4 shrink-0 opacity-80" />
+                          <span className="min-w-0 truncate">{storyDocumentLabel(document)}</span>
+                          {active ? <span className="ml-auto size-1.5 shrink-0 rounded-full bg-primary" /> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
+            {query && groups.length === 0 ? (
+              <div className="px-2 py-10 text-center text-xs leading-5 text-muted-foreground">没有匹配的故事资料</div>
+            ) : null}
+          </nav>
         </ScrollArea>
       </aside>
       {selected ? (
-        <StoryDocumentEditor key={selected.path} document={selected} />
+        <StoryDocumentEditor
+          key={selected.path}
+          categoryLabel={selectedGroup?.label ?? "故事资料"}
+          document={selected}
+        />
       ) : (
         <div className="flex min-h-0 flex-1 items-center justify-center p-8">
           <div className="max-w-md text-center">
-            <FileJson className="mx-auto size-10 text-muted-foreground" />
-            <h3 className="mt-3 text-base font-semibold">暂无故事 JSON</h3>
+            <FileJson2 className="mx-auto size-9 text-muted-foreground" />
+            <h3 className="mt-3 text-base font-semibold">暂无故事资料</h3>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              可以手动创建任意 JSON，或打开创作助手，让内置故事技能生成带字段描述的结构化文档。
+              可以手动创建 JSON，或打开创作助手生成带字段说明的结构化文档。
             </p>
             <Button type="button" className="mt-4" onClick={() => setIsCreateOpen(true)}>
               <Plus className="size-4" />

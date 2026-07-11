@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,12 +42,24 @@ const fieldDefaultValue = (field: JsonFieldMetadata, definitions: Record<string,
   return "";
 };
 
+const shortSummary = (value: JsonValue, fallback: string) => {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (isJsonObject(value)) {
+    const first = Object.values(value).find((item) => typeof item === "string" && item.trim());
+    if (typeof first === "string") return first;
+  }
+  return fallback;
+};
+
 const GenericObjectEditor = ({
   disabled,
+  nested = false,
   onChange,
   value,
 }: {
   disabled?: boolean;
+  nested?: boolean;
   onChange: (value: JsonObject) => void;
   value: JsonObject;
 }) => {
@@ -60,32 +72,35 @@ const GenericObjectEditor = ({
   };
 
   return (
-    <div className="space-y-3 rounded-md border bg-muted/10 p-3">
-      {Object.entries(value).map(([key, child]) => (
-        <div key={key} className="space-y-2 rounded-md border bg-background p-3">
-          <div className="flex items-center justify-between gap-2">
-            <Label className="min-w-0 truncate font-mono text-xs">{key}</Label>
-            {!disabled ? (
-              <Button
-                type="button"
-                size="icon-xs"
-                variant="ghost"
-                title={`删除 ${key}`}
-                onClick={() => onChange(Object.fromEntries(Object.entries(value).filter(([name]) => name !== key)))}
-              >
-                <Trash2 className="size-3" />
-              </Button>
-            ) : null}
+    <div className={nested ? "border-l-2 border-muted pl-4" : "border-y"}>
+      <div className="divide-y">
+        {Object.entries(value).map(([key, child]) => (
+          <div key={key} className="py-4 first:pt-0 last:pb-0">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <Label className="min-w-0 truncate font-mono text-xs text-muted-foreground">{key}</Label>
+              {!disabled ? (
+                <Button
+                  type="button"
+                  size="icon-xs"
+                  variant="ghost"
+                  title={`删除 ${key}`}
+                  onClick={() => onChange(Object.fromEntries(Object.entries(value).filter(([name]) => name !== key)))}
+                >
+                  <Trash2 className="size-3" />
+                </Button>
+              ) : null}
+            </div>
+            <GenericJsonValueEditor
+              nested
+              value={child}
+              disabled={disabled}
+              onChange={(next) => onChange({ ...value, [key]: next })}
+            />
           </div>
-          <GenericJsonValueEditor
-            value={child}
-            disabled={disabled}
-            onChange={(next) => onChange({ ...value, [key]: next })}
-          />
-        </div>
-      ))}
+        ))}
+      </div>
       {!disabled ? (
-        <div className="flex gap-2">
+        <div className="flex gap-2 py-4">
           <Input
             value={newKey}
             className="h-8 font-mono text-xs"
@@ -117,30 +132,47 @@ const GenericArrayEditor = ({
   onChange: (value: JsonValue[]) => void;
   value: JsonValue[];
 }) => (
-  <div className="space-y-3 rounded-md border bg-muted/10 p-3">
-    {value.map((item, index) => (
-      <div key={index} className="space-y-2 rounded-md border bg-background p-3">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-medium text-muted-foreground">第 {index + 1} 项</span>
-          {!disabled ? (
-            <Button
-              type="button"
-              size="icon-xs"
-              variant="ghost"
-              title="删除此项"
-              onClick={() => onChange(value.filter((_, itemIndex) => itemIndex !== index))}
-            >
-              <Trash2 className="size-3" />
-            </Button>
-          ) : null}
-        </div>
-        <GenericJsonValueEditor
-          value={item}
-          disabled={disabled}
-          onChange={(next) => onChange(value.map((current, itemIndex) => (itemIndex === index ? next : current)))}
-        />
-      </div>
-    ))}
+  <div className="space-y-3">
+    {value.length > 0 ? (
+      <Accordion type="multiple" defaultValue={value.length === 1 ? ["item-0"] : []} className="rounded-md border px-3">
+        {value.map((item, index) => (
+          <AccordionItem key={index} value={`item-${index}`}>
+            <AccordionTrigger className="hover:no-underline">
+              <span className="min-w-0 truncate">
+                <span className="mr-2 text-muted-foreground">{index + 1}.</span>
+                {shortSummary(item, `第 ${index + 1} 项`)}
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-3">
+                <GenericJsonValueEditor
+                  nested
+                  value={item}
+                  disabled={disabled}
+                  onChange={(next) =>
+                    onChange(value.map((current, itemIndex) => (itemIndex === index ? next : current)))
+                  }
+                />
+                {!disabled ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive"
+                    onClick={() => onChange(value.filter((_, itemIndex) => itemIndex !== index))}
+                  >
+                    <Trash2 className="size-3.5" />
+                    删除此项
+                  </Button>
+                ) : null}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
+    ) : (
+      <p className="rounded-md border border-dashed px-3 py-5 text-center text-xs text-muted-foreground">暂无内容</p>
+    )}
     {!disabled ? (
       <Button
         type="button"
@@ -157,10 +189,12 @@ const GenericArrayEditor = ({
 
 export const GenericJsonValueEditor = ({
   disabled,
+  nested = false,
   onChange,
   value,
 }: {
   disabled?: boolean;
+  nested?: boolean;
   onChange: (value: JsonValue) => void;
   value: JsonValue;
 }) => {
@@ -168,10 +202,15 @@ export const GenericJsonValueEditor = ({
     return <GenericArrayEditor value={value} disabled={disabled} onChange={onChange} />;
   }
   if (isJsonObject(value)) {
-    return <GenericObjectEditor value={value} disabled={disabled} onChange={onChange} />;
+    return <GenericObjectEditor nested={nested} value={value} disabled={disabled} onChange={onChange} />;
   }
   if (typeof value === "boolean") {
-    return <Switch checked={value} disabled={disabled} onCheckedChange={onChange} />;
+    return (
+      <div className="flex h-9 items-center gap-2">
+        <Switch checked={value} disabled={disabled} onCheckedChange={onChange} />
+        <span className="text-xs text-muted-foreground">{value ? "已启用" : "未启用"}</span>
+      </div>
+    );
   }
   if (typeof value === "number") {
     return (
@@ -183,14 +222,18 @@ export const GenericJsonValueEditor = ({
       />
     );
   }
-  return (
-    <Textarea
-      value={value === null ? "" : value}
-      disabled={disabled}
-      className="min-h-20"
-      onChange={(event) => onChange(event.currentTarget.value)}
-    />
-  );
+  const stringValue = value === null ? "" : value;
+  if (stringValue.length > 100 || stringValue.includes("\n")) {
+    return (
+      <Textarea
+        value={stringValue}
+        disabled={disabled}
+        className="min-h-24"
+        onChange={(event) => onChange(event.currentTarget.value)}
+      />
+    );
+  }
+  return <Input value={stringValue} disabled={disabled} onChange={(event) => onChange(event.currentTarget.value)} />;
 };
 
 const MetadataObjectEditor = ({
@@ -206,20 +249,26 @@ const MetadataObjectEditor = ({
   onChange: (value: JsonObject) => void;
   value: JsonObject;
 }) => (
-  <div className="grid gap-3 rounded-md border bg-muted/10 p-3">
-    {definition.label ? <div className="text-xs font-semibold text-muted-foreground">{definition.label}</div> : null}
+  <div className="grid gap-x-5 gap-y-1 border-l-2 border-primary/15 pl-4 md:grid-cols-2">
+    {definition.label ? (
+      <div className="pb-2 text-xs font-medium text-muted-foreground md:col-span-2">{definition.label}</div>
+    ) : null}
     {Object.entries(definition.fields).map(([pointer, field]) => {
       const key = pointerKey(pointer);
+      const wide = ["textarea", "content", "object", "collection", "string-list", "reference-list"].includes(
+        field.type,
+      );
       return (
-        <MetadataFieldEditor
-          key={pointer}
-          compact
-          field={field}
-          definitions={definitions}
-          disabled={disabled}
-          value={value[key]}
-          onChange={(next) => onChange({ ...value, [key]: next })}
-        />
+        <div key={pointer} className={wide ? "md:col-span-2" : undefined}>
+          <MetadataFieldEditor
+            compact
+            field={field}
+            definitions={definitions}
+            disabled={disabled}
+            value={value[key]}
+            onChange={(next) => onChange({ ...value, [key]: next })}
+          />
+        </div>
       );
     })}
   </div>
@@ -239,35 +288,48 @@ const MetadataCollectionEditor = ({
   value: JsonValue[];
 }) => (
   <div className="space-y-3">
-    {value.map((item, index) => {
-      const object = isJsonObject(item) ? item : {};
-      return (
-        <div key={index} className="rounded-md border bg-background p-3">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold text-muted-foreground">
-              {definition.label ?? "项目"} {index + 1}
-            </span>
-            {!disabled ? (
-              <Button
-                type="button"
-                size="icon-xs"
-                variant="ghost"
-                onClick={() => onChange(value.filter((_, itemIndex) => itemIndex !== index))}
-              >
-                <Trash2 className="size-3" />
-              </Button>
-            ) : null}
-          </div>
-          <MetadataObjectEditor
-            definition={definition}
-            definitions={definitions}
-            disabled={disabled}
-            value={object}
-            onChange={(next) => onChange(value.map((current, itemIndex) => (itemIndex === index ? next : current)))}
-          />
-        </div>
-      );
-    })}
+    {value.length > 0 ? (
+      <Accordion type="multiple" defaultValue={value.length === 1 ? ["item-0"] : []} className="rounded-md border px-3">
+        {value.map((item, index) => {
+          const object = isJsonObject(item) ? item : {};
+          return (
+            <AccordionItem key={index} value={`item-${index}`}>
+              <AccordionTrigger className="hover:no-underline">
+                <span className="min-w-0 truncate">
+                  <span className="mr-2 text-muted-foreground">{index + 1}.</span>
+                  {shortSummary(object, `${definition.label ?? "项目"} ${index + 1}`)}
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <MetadataObjectEditor
+                  definition={definition}
+                  definitions={definitions}
+                  disabled={disabled}
+                  value={object}
+                  onChange={(next) =>
+                    onChange(value.map((current, itemIndex) => (itemIndex === index ? next : current)))
+                  }
+                />
+                {!disabled ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="mt-3 text-destructive"
+                    onClick={() => onChange(value.filter((_, itemIndex) => itemIndex !== index))}
+                  >
+                    <Trash2 className="size-3.5" />
+                    删除此项
+                  </Button>
+                ) : null}
+              </AccordionContent>
+            </AccordionItem>
+          );
+        })}
+      </Accordion>
+    ) : (
+      <p className="rounded-md border border-dashed px-3 py-5 text-center text-xs text-muted-foreground">暂无内容</p>
+    )}
     {!disabled ? (
       <Button
         type="button"
@@ -292,6 +354,48 @@ const MetadataCollectionEditor = ({
   </div>
 );
 
+const StringListEditor = ({
+  disabled,
+  onChange,
+  value,
+}: {
+  disabled: boolean;
+  onChange: (value: JsonValue) => void;
+  value: string[];
+}) => (
+  <div className="space-y-2">
+    {value.map((item, index) => (
+      <div key={index} className="flex items-center gap-2">
+        <span className="w-5 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{index + 1}</span>
+        <Input
+          value={item}
+          disabled={disabled}
+          onChange={(event) =>
+            onChange(value.map((current, itemIndex) => (itemIndex === index ? event.currentTarget.value : current)))
+          }
+        />
+        {!disabled ? (
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            title="删除此项"
+            onClick={() => onChange(value.filter((_, itemIndex) => itemIndex !== index))}
+          >
+            <Trash2 className="size-3.5" />
+          </Button>
+        ) : null}
+      </div>
+    ))}
+    {!disabled ? (
+      <Button type="button" size="sm" variant="outline" onClick={() => onChange([...value, ""])}>
+        <Plus className="size-3.5" />
+        新增一项
+      </Button>
+    ) : null}
+  </div>
+);
+
 export const MetadataFieldEditor = ({
   compact = false,
   definitions,
@@ -307,14 +411,21 @@ export const MetadataFieldEditor = ({
   onChange: (value: JsonValue) => void;
   value: JsonValue | undefined;
 }) => {
-  const disabled = parentDisabled || Boolean(field.readOnly || field.generated);
+  const disabled =
+    parentDisabled || Boolean(field.readOnly || field.generated || field.immutable || field.const !== undefined);
   const actualValue = value ?? fieldDefaultValue(field, definitions);
   const definition = field.definition ? definitions[field.definition] : undefined;
   const itemDefinition = field.itemDefinition ? definitions[field.itemDefinition] : undefined;
   let editor;
 
   if (field.type === "boolean") {
-    editor = <Switch checked={actualValue === true} disabled={disabled} onCheckedChange={onChange} />;
+    const checked = actualValue === true;
+    editor = (
+      <div className="flex h-9 items-center gap-2">
+        <Switch checked={checked} disabled={disabled} onCheckedChange={onChange} />
+        <span className="text-xs text-muted-foreground">{checked ? "已启用" : "未启用"}</span>
+      </div>
+    );
   } else if (field.type === "enum" && field.options?.length) {
     editor = (
       <Select value={typeof actualValue === "string" ? actualValue : ""} disabled={disabled} onValueChange={onChange}>
@@ -330,6 +441,11 @@ export const MetadataFieldEditor = ({
         </SelectContent>
       </Select>
     );
+  } else if (field.type === "timestamp" && disabled) {
+    const timestamp = typeof actualValue === "number" ? actualValue : 0;
+    editor = (
+      <Input value={timestamp ? new Date(timestamp).toLocaleString("zh-CN", { hour12: false }) : "尚未生成"} disabled />
+    );
   } else if (["integer", "number", "timestamp"].includes(field.type)) {
     editor = (
       <Input
@@ -344,7 +460,7 @@ export const MetadataFieldEditor = ({
       <Textarea
         value={typeof actualValue === "string" ? actualValue : ""}
         disabled={disabled}
-        className={field.type === "content" ? "min-h-64" : "min-h-24"}
+        className={field.type === "content" ? "min-h-64 leading-6" : "min-h-24 leading-6"}
         onChange={(event) => onChange(event.currentTarget.value)}
       />
     );
@@ -352,15 +468,7 @@ export const MetadataFieldEditor = ({
     const items = Array.isArray(actualValue)
       ? actualValue.filter((item): item is string => typeof item === "string")
       : [];
-    editor = (
-      <Textarea
-        value={items.join("\n")}
-        disabled={disabled}
-        className="min-h-24"
-        placeholder="每行一项"
-        onChange={(event) => onChange(event.currentTarget.value.split("\n").filter((item) => item.trim()))}
-      />
-    );
+    editor = <StringListEditor value={items} disabled={disabled} onChange={onChange} />;
   } else if (field.type === "object" && definition) {
     editor = (
       <MetadataObjectEditor
@@ -381,16 +489,26 @@ export const MetadataFieldEditor = ({
         onChange={onChange}
       />
     );
+  } else if (["text", "reference"].includes(field.type) || typeof actualValue === "string") {
+    editor = (
+      <Input
+        value={typeof actualValue === "string" ? actualValue : ""}
+        disabled={disabled}
+        onChange={(event) => onChange(event.currentTarget.value)}
+      />
+    );
   } else {
     editor = <GenericJsonValueEditor value={actualValue} disabled={disabled} onChange={onChange} />;
   }
 
   return (
-    <div className={compact ? "space-y-2" : "space-y-2 rounded-lg border bg-background p-4"}>
-      <div className="flex flex-wrap items-center gap-2">
-        <Label className="text-sm font-semibold">{field.label}</Label>
-        {field.required ? <Badge variant="secondary">必填</Badge> : null}
-        {disabled ? <Badge variant="outline">只读</Badge> : null}
+    <div className={compact ? "space-y-2 py-3" : "space-y-2 py-4"}>
+      <div className="flex min-w-0 items-center gap-2">
+        <Label className="text-sm font-medium">
+          {field.label}
+          {field.required && !disabled ? <span className="ml-0.5 text-destructive">*</span> : null}
+        </Label>
+        {disabled ? <span className="text-[11px] text-muted-foreground">只读</span> : null}
       </div>
       {field.description ? <p className="text-xs leading-5 text-muted-foreground">{field.description}</p> : null}
       {editor}
