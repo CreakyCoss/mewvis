@@ -4,6 +4,7 @@ use std::{
     path::{Component, Path, PathBuf},
     time::UNIX_EPOCH,
 };
+use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -24,6 +25,29 @@ pub struct WriteWorkspaceFileInput {
     pub workspace_path: String,
     pub relative_path: String,
     pub content: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AtomicWorkspaceFileWrite {
+    pub relative_path: String,
+    pub content: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WriteWorkspaceFilesAtomicInput {
+    pub workspace_path: String,
+    pub files: Vec<AtomicWorkspaceFileWrite>,
+    #[serde(default)]
+    pub delete_paths: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AtomicWorkspaceFilesResult {
+    pub written_paths: Vec<String>,
+    pub deleted_paths: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -124,6 +148,132 @@ pub fn write_workspace_file(input: WriteWorkspaceFileInput) -> Result<WorkspaceF
     })
 }
 
+pub fn write_workspace_files_atomic(
+    input: WriteWorkspaceFilesAtomicInput,
+) -> Result<AtomicWorkspaceFilesResult, String> {
+    let root = workspace_root(&input.workspace_path)?;
+    if input.files.is_empty() && input.delete_paths.is_empty() {
+        return Ok(AtomicWorkspaceFilesResult {
+            written_paths: Vec::new(),
+            deleted_paths: Vec::new(),
+        });
+    }
+
+    let transaction_root = root.join(format!(".novel-claw-txn-{}", Uuid::now_v7()));
+    let staged_root = transaction_root.join("staged");
+    let backup_root = transaction_root.join("backup");
+    fs::create_dir_all(&staged_root)
+        .map_err(|error| format!("无法创建故事事务临时目录：{error}"))?;
+
+    let result = (|| {
+        let mut normalized_write_paths = Vec::new();
+        let mut normalized_delete_paths = Vec::new();
+        let mut seen_paths = std::collections::HashSet::new();
+
+        for file in &input.files {
+            let normalized = normalize_relative_path(&file.relative_path);
+            if !seen_paths.insert(normalized.clone()) {
+                return Err(format!("事务包含重复文件路径：{normalized}"));
+            }
+            let target = resolve_workspace_path(&root, &normalized)?;
+            ensure_safe_target_parent(&root, &target)?;
+            let staged = staged_root.join(&normalized);
+            if let Some(parent) = staged.parent() {
+                fs::create_dir_all(parent)
+                    .map_err(|error| format!("无法创建临时文件目录：{error}"))?;
+            }
+            fs::write(&staged, &file.content)
+                .map_err(|error| format!("无法写入临时文件 {normalized}：{error}"))?;
+            normalized_write_paths.push(normalized);
+        }
+
+        for raw_path in &input.delete_paths {
+            let normalized = normalize_relative_path(raw_path);
+            if !seen_paths.insert(normalized.clone()) {
+                return Err(format!("事务包含重复文件路径：{normalized}"));
+            }
+            let target = resolve_workspace_path(&root, &normalized)?;
+            ensure_safe_target_parent(&root, &target)?;
+            normalized_delete_paths.push(normalized);
+        }
+
+        for normalized in normalized_write_paths
+            .iter()
+            .chain(normalized_delete_paths.iter())
+        {
+            let target = resolve_workspace_path(&root, normalized)?;
+            if target.exists() {
+                let metadata = target
+                    .symlink_metadata()
+                    .map_err(|error| format!("无法读取待备份文件 {normalized}：{error}"))?;
+                if !metadata.is_file() || metadata.file_type().is_symlink() {
+                    return Err(format!("事务只能覆盖普通文件：{normalized}"));
+                }
+                let backup = backup_root.join(normalized);
+                if let Some(parent) = backup.parent() {
+                    fs::create_dir_all(parent)
+                        .map_err(|error| format!("无法创建备份目录：{error}"))?;
+                }
+                fs::copy(&target, &backup)
+                    .map_err(|error| format!("无法备份文件 {normalized}：{error}"))?;
+            }
+        }
+
+        let mut applied_paths = Vec::new();
+        let apply_result = (|| {
+            for normalized in &normalized_write_paths {
+                let target = resolve_workspace_path(&root, normalized)?;
+                let staged = staged_root.join(normalized);
+                if let Some(parent) = target.parent() {
+                    fs::create_dir_all(parent)
+                        .map_err(|error| format!("无法创建目标目录：{error}"))?;
+                }
+                if target.exists() {
+                    fs::remove_file(&target)
+                        .map_err(|error| format!("无法替换文件 {normalized}：{error}"))?;
+                }
+                fs::rename(&staged, &target)
+                    .map_err(|error| format!("无法提交文件 {normalized}：{error}"))?;
+                applied_paths.push(normalized.clone());
+            }
+            for normalized in &normalized_delete_paths {
+                let target = resolve_workspace_path(&root, normalized)?;
+                if target.exists() {
+                    fs::remove_file(&target)
+                        .map_err(|error| format!("无法删除文件 {normalized}：{error}"))?;
+                    applied_paths.push(normalized.clone());
+                }
+            }
+            Ok::<(), String>(())
+        })();
+
+        if let Err(error) = apply_result {
+            for normalized in applied_paths.iter().rev() {
+                let target = resolve_workspace_path(&root, normalized)?;
+                let backup = backup_root.join(normalized);
+                if target.exists() {
+                    let _ = fs::remove_file(&target);
+                }
+                if backup.exists() {
+                    if let Some(parent) = target.parent() {
+                        let _ = fs::create_dir_all(parent);
+                    }
+                    let _ = fs::copy(&backup, &target);
+                }
+            }
+            return Err(error);
+        }
+
+        Ok(AtomicWorkspaceFilesResult {
+            written_paths: normalized_write_paths,
+            deleted_paths: normalized_delete_paths,
+        })
+    })();
+
+    let _ = fs::remove_dir_all(&transaction_root);
+    result
+}
+
 pub fn delete_workspace_file(input: WorkspaceFilePathInput) -> Result<(), String> {
     let root = workspace_root(&input.workspace_path)?;
     let path = resolve_workspace_path(&root, &input.relative_path)?;
@@ -168,6 +318,26 @@ fn resolve_workspace_path(root: &Path, relative_path: &str) -> Result<PathBuf, S
     }
 
     Ok(root.join(relative))
+}
+
+fn ensure_safe_target_parent(root: &Path, target: &Path) -> Result<(), String> {
+    if target.exists() {
+        let canonical = target
+            .canonicalize()
+            .map_err(|error| format!("无法定位目标文件：{error}"))?;
+        ensure_under_root(root, &canonical)?;
+    }
+    let mut parent = target.parent();
+    while let Some(candidate) = parent {
+        if candidate.exists() {
+            let canonical = candidate
+                .canonicalize()
+                .map_err(|error| format!("无法定位目标目录：{error}"))?;
+            return ensure_under_root(root, &canonical);
+        }
+        parent = candidate.parent();
+    }
+    Err("无法定位目标文件父目录".to_string())
 }
 
 fn collect_entries(
@@ -250,7 +420,9 @@ mod tests {
     };
 
     use super::{
-        delete_workspace_file, list_workspace_files, WorkspaceFilePathInput, WorkspacePathInput,
+        delete_workspace_file, list_workspace_files, write_workspace_files_atomic,
+        AtomicWorkspaceFileWrite, WorkspaceFilePathInput, WorkspacePathInput,
+        WriteWorkspaceFilesAtomicInput,
     };
 
     struct TestWorkspace {
@@ -321,6 +493,34 @@ mod tests {
             .any(|file| file.path.starts_with("node_modules")));
         assert!(!files.iter().any(|file| file.path.starts_with("dist")));
         assert!(!files.iter().any(|file| file.path.starts_with("target")));
+    }
+
+    #[test]
+    fn atomic_write_updates_multiple_files_and_deletes_stale_file() {
+        let workspace = TestWorkspace::new("atomic-write");
+        fs::create_dir_all(workspace.path.join("story")).expect("create story dir");
+        fs::write(workspace.path.join("story/stale.json"), "{}\n").expect("write stale file");
+
+        let result = write_workspace_files_atomic(WriteWorkspaceFilesAtomicInput {
+            workspace_path: workspace.path_string(),
+            files: vec![
+                AtomicWorkspaceFileWrite {
+                    relative_path: "story/book.json".to_string(),
+                    content: "{\"kind\":\"story-book\"}\n".to_string(),
+                },
+                AtomicWorkspaceFileWrite {
+                    relative_path: "story/manifest.json".to_string(),
+                    content: "{\"revision\":1}\n".to_string(),
+                },
+            ],
+            delete_paths: vec!["story/stale.json".to_string()],
+        })
+        .expect("atomic write");
+
+        assert_eq!(result.written_paths.len(), 2);
+        assert!(workspace.path.join("story/book.json").is_file());
+        assert!(workspace.path.join("story/manifest.json").is_file());
+        assert!(!workspace.path.join("story/stale.json").exists());
     }
 
     #[test]

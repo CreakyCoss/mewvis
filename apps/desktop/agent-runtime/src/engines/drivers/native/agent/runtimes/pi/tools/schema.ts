@@ -1,5 +1,5 @@
 import { Type, type TSchema } from "@earendil-works/pi-ai";
-import type { ToolParameterDefinition } from "../../../tools/types.js";
+import type { ToolParameterDefinition } from "../../../../../../builtins/types.js";
 
 export const toPiToolParameters = (definition: ToolParameterDefinition): TSchema => {
   let schema: TSchema;
@@ -7,6 +7,12 @@ export const toPiToolParameters = (definition: ToolParameterDefinition): TSchema
   switch (definition.type) {
     case "string":
       schema = Type.String({ description: definition.description }) as TSchema;
+      break;
+    case "boolean":
+      schema = Type.Boolean({ description: definition.description }) as TSchema;
+      break;
+    case "json":
+      schema = Type.Any({ description: definition.description }) as TSchema;
       break;
     case "literal":
       schema = Type.Literal(definition.value) as TSchema;

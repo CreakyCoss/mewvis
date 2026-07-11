@@ -1,6 +1,6 @@
 use crate::services::workspace_files::{
-    self, WorkspaceFile, WorkspaceFileEntry, WorkspaceFilePathInput, WorkspacePathInput,
-    WriteWorkspaceFileInput,
+    self, AtomicWorkspaceFilesResult, WorkspaceFile, WorkspaceFileEntry, WorkspaceFilePathInput,
+    WorkspacePathInput, WriteWorkspaceFileInput, WriteWorkspaceFilesAtomicInput,
 };
 
 #[tauri::command]
@@ -16,6 +16,13 @@ pub fn read_workspace_file(input: WorkspaceFilePathInput) -> Result<WorkspaceFil
 #[tauri::command]
 pub fn write_workspace_file(input: WriteWorkspaceFileInput) -> Result<WorkspaceFile, String> {
     workspace_files::write_workspace_file(input)
+}
+
+#[tauri::command]
+pub fn write_workspace_files_atomic(
+    input: WriteWorkspaceFilesAtomicInput,
+) -> Result<AtomicWorkspaceFilesResult, String> {
+    workspace_files::write_workspace_files_atomic(input)
 }
 
 #[tauri::command]

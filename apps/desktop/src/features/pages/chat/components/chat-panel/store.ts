@@ -50,6 +50,7 @@ const emptyChatPanelState: ChatPanelViewModel = {
   defaultSkillGroupId: ALL_SKILLS_GROUP_ID,
   selectedSkillGroupIds: [ALL_SKILLS_GROUP_ID],
   selectedSkillGroupLabel: "全部",
+  isResourceSelectionLocked: false,
   onEditHistoryMessage: noop,
   onDeleteHistoryMessage: noop,
   onMoveHistoryMessage: noop,

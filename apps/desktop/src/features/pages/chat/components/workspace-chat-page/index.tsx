@@ -65,6 +65,10 @@ type WorkspaceChatPageProps = {
   onOpenWorkspace: (workspace: Workspace) => void;
   onCreateWorkspace: () => void;
   storyChatSeed?: StoryChatSeed | null;
+  builtinSkillNames?: string[];
+  forcedSkillNames?: string[];
+  forcedAllowedTools?: string[];
+  hideContextTools?: boolean;
 };
 
 const resolveStringStateAction = (action: SetStateAction<string>, previous: string) =>
@@ -128,6 +132,10 @@ export const WorkspaceChatPage = ({
   onOpenWorkspace,
   onCreateWorkspace,
   storyChatSeed = null,
+  builtinSkillNames,
+  forcedSkillNames,
+  forcedAllowedTools,
+  hideContextTools = false,
 }: WorkspaceChatPageProps) => {
   const agentClient = useMemo(() => createAgentClient(), []);
   const activeAgentTaskIdRef = useRef("");
@@ -197,6 +205,7 @@ export const WorkspaceChatPage = ({
     agentClient,
   });
   const { skills, skillGroups, skillsError, defaultSkillGroupId } = useWorkspaceSkills({
+    enabled: !builtinSkillNames,
     workspaceId: workspace.id,
   });
   useEffect(() => {
@@ -213,7 +222,8 @@ export const WorkspaceChatPage = ({
           if (next.length > 0) {
             return uniq(next);
           }
-          return result.defaultToolNames.filter((toolName) => availableToolNames.has(toolName));
+          const preferredTools = forcedAllowedTools ?? result.defaultToolNames;
+          return preferredTools.filter((toolName) => availableToolNames.has(toolName));
         });
       })
       .catch((error) => {
@@ -227,7 +237,7 @@ export const WorkspaceChatPage = ({
     return () => {
       cancelled = true;
     };
-  }, [agentClient]);
+  }, [agentClient, forcedAllowedTools]);
   const availableSkillGroupIds = useMemo(() => new Set(skillGroups.map((group) => group.id)), [skillGroups]);
   const resolvedDefaultSkillGroupIds = useMemo(() => {
     const defaultSelection = defaultSkillGroupSelection(defaultSkillGroupId);
@@ -277,6 +287,17 @@ export const WorkspaceChatPage = ({
     [storyChatSeed],
   );
   const activeSkills = useMemo(() => {
+    if (builtinSkillNames) {
+      return builtinSkillNames.map((name) => ({
+        name,
+        description: "agent-runtime 内置技能",
+        content: "该技能由 agent-runtime 可信内置能力包加载；严格遵循运行时提供的 SKILL.md。",
+      }));
+    }
+    if (forcedSkillNames) {
+      const names = new Set(forcedSkillNames);
+      return skills.filter((skill) => names.has(skill.name));
+    }
     if (selectedSkillGroupIds.includes(NO_SKILLS_GROUP_ID)) {
       return [];
     }
@@ -289,7 +310,7 @@ export const WorkspaceChatPage = ({
       ),
     );
     return skills.filter((skill) => skillKeys.has(skill.key));
-  }, [selectedSkillGroupIds, selectedSkillGroups, skills]);
+  }, [builtinSkillNames, forcedSkillNames, selectedSkillGroupIds, selectedSkillGroups, skills]);
   useEffect(() => {
     if (skillGroupWorkspaceRef.current !== workspace.id) {
       skillGroupWorkspaceRef.current = workspace.id;
@@ -567,15 +588,21 @@ export const WorkspaceChatPage = ({
     };
   }, [getChatScrollViewport, messages.length, pendingAgentQuestion, scrollActiveThinkingToBottom]);
 
-  const toggleAllowedAgentTool = useCallback((toolId: string, enabled: boolean) => {
-    setAllowedAgentTools((current) => {
-      if (enabled) {
-        return current.includes(toolId) ? current : uniq([...current, toolId]);
+  const toggleAllowedAgentTool = useCallback(
+    (toolId: string, enabled: boolean) => {
+      if (forcedAllowedTools) {
+        return;
       }
+      setAllowedAgentTools((current) => {
+        if (enabled) {
+          return current.includes(toolId) ? current : uniq([...current, toolId]);
+        }
 
-      return current.filter((item) => item !== toolId);
-    });
-  }, []);
+        return current.filter((item) => item !== toolId);
+      });
+    },
+    [forcedAllowedTools],
+  );
 
   const { sessionsError, setSessionsError } = useWorkspaceChatSessions({
     workspace,
@@ -1059,6 +1086,7 @@ export const WorkspaceChatPage = ({
     defaultSkillGroupId,
     selectedSkillGroupIds,
     selectedSkillGroupLabel,
+    isResourceSelectionLocked: Boolean(builtinSkillNames || forcedAllowedTools),
     onEditHistoryMessage: editHistoryMessage,
     onDeleteHistoryMessage: deleteHistoryMessage,
     onMoveHistoryMessage: moveHistoryMessage,
@@ -1094,7 +1122,8 @@ export const WorkspaceChatPage = ({
     </aside>
   );
 
-  const contextPanel = isContextPanelOpen ? (contextPanelTool === "ledger" ? ledgerPanel : fileManagePanel) : null;
+  const contextPanel =
+    !hideContextTools && isContextPanelOpen ? (contextPanelTool === "ledger" ? ledgerPanel : fileManagePanel) : null;
   const contextRail = (
     <nav
       className="flex w-10 shrink-0 flex-col items-center gap-1.5 border-l border-border/60 bg-muted/35 px-1 py-2.5"
@@ -1137,5 +1166,7 @@ export const WorkspaceChatPage = ({
     </nav>
   );
 
-  return <ChatLayout content={chatPanel} contextPanel={contextPanel} contextRail={contextRail} />;
+  return (
+    <ChatLayout content={chatPanel} contextPanel={contextPanel} contextRail={hideContextTools ? null : contextRail} />
+  );
 };

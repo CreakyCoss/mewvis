@@ -23,3 +23,20 @@ export const writeJsonWorkspaceFile = async (workspacePath: string, relativePath
     },
   });
 };
+
+export const writeJsonWorkspaceFilesAtomic = async (
+  workspacePath: string,
+  files: Array<{ relativePath: string; value: unknown }>,
+  deletePaths: string[] = [],
+) => {
+  await invoke("write_workspace_files_atomic", {
+    input: {
+      workspacePath,
+      files: files.map(({ relativePath, value }) => ({
+        relativePath,
+        content: `${JSON.stringify(value, null, 2)}\n`,
+      })),
+      deletePaths,
+    },
+  });
+};

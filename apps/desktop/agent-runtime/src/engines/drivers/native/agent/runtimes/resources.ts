@@ -1,5 +1,7 @@
 import { uniq } from "lodash-es";
 import type { AgentRuntimeResources } from "../../../../protocol/index.js";
+import { isBuiltinPrivateToolName, resolveBuiltinCombinations } from "../../../../builtins/resolve.js";
+import { DEFAULT_ALLOWED_AGENT_TOOLS } from "../tools/definitions.js";
 import type { AgentRunCommand } from "./types.js";
 
 type RuntimeResourceCommand = Pick<AgentRunCommand, "resources">;
@@ -18,11 +20,20 @@ export const runtimeResourcesFor = (command: RuntimeResourceCommand): AgentRunti
   },
 });
 
-export const allowedRuntimeTools = (command: RuntimeResourceCommand) =>
-  runtimeResourcesFor(command).tools?.allowed ?? undefined;
-
-export const enabledRuntimeSkillNames = (command: RuntimeResourceCommand) =>
-  runtimeResourcesFor(command).skills?.enabled ?? [];
+export const allowedRuntimeTools = (command: RuntimeResourceCommand) => {
+  const resources = runtimeResourcesFor(command);
+  const configured = resources.tools?.allowed ?? undefined;
+  const builtin = resolveBuiltinCombinations(resources.skills?.enabled ?? []);
+  if (builtin.requiredTools.internal.length === 0 && builtin.requiredTools.external.length === 0) {
+    return configured?.filter((name) => !isBuiltinPrivateToolName(name));
+  }
+  const publicTools = (configured ?? DEFAULT_ALLOWED_AGENT_TOOLS).filter((name) => !isBuiltinPrivateToolName(name));
+  return uniq([
+    ...publicTools,
+    ...builtin.requiredTools.external,
+    ...builtin.requiredTools.internal.map((tool) => tool.name),
+  ]);
+};
 
 export const runtimeSkillSourcePaths = (command: RuntimeResourceCommand) => {
   const skills = runtimeResourcesFor(command).skills;

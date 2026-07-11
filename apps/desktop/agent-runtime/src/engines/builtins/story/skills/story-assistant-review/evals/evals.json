@@ -1,0 +1,19 @@
+{
+  "skill_name": "story-assistant-review",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "full 审查第 1 到 3 章，先只给问题不要修改。",
+      "expected_output": "提交包含多视角 findings 的 review JSON。",
+      "files": [],
+      "expectations": ["覆盖结构、角色、文字和一致性", "默认不修改章节", "findings 每 5-10 条一批增量提交"]
+    },
+    {
+      "id": 2,
+      "prompt": "lean 看一下第 20 章有没有结构和设定冲突。",
+      "expected_output": "只做结构和一致性审查。",
+      "files": [],
+      "expectations": ["mode 为 lean", "不对文字自然度下结论", "已有 review 不整份 upsert 覆盖"]
+    }
+  ]
+}

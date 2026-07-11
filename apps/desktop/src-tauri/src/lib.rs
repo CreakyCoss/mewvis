@@ -43,7 +43,7 @@ use commands::{
         restore_workspace_version, save_chat_session, save_tavern_state, save_workspace_skills,
         search_skill_marketplace, search_workspace_knowledge, set_chat_session_unread,
         switch_workspace_version_branch, update_story_record, update_workspace,
-        write_workspace_file,
+        write_workspace_file, write_workspace_files_atomic,
     },
 };
 
@@ -130,6 +130,7 @@ pub fn run() {
             list_workspace_files,
             read_workspace_file,
             write_workspace_file,
+            write_workspace_files_atomic,
             delete_workspace_file,
             get_workspace_version_control_status,
             initialize_workspace_version_control,

@@ -1,13 +1,19 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { listWorkspaceFiles } from "../workspace/files-api";
 import { createDefaultStoryJson } from "./story/model/state";
 import type { StoryJson } from "./story/model/types";
-import { normalizeStoryJson } from "./story/model/normalizer";
-import { readJsonWorkspaceFile, writeJsonWorkspaceFile } from "@/utils/files";
+import {
+  storyJsonToProject,
+  loadStoryProject,
+  saveStoryProject as saveStoryProjectFiles,
+  storyProjectToStoryJson,
+  type StoryProject,
+  type StoryValidationProfile,
+} from "./story-contract";
 
 export const STORY_SOURCE_DIR = "story";
-const STORY_MANIFEST_FILE = `${STORY_SOURCE_DIR}/manifest.json`;
-const STORY_JSON_FILE = `${STORY_SOURCE_DIR}/story.json`;
 export const STORY_TAVERN_FILE = `${STORY_SOURCE_DIR}/tavern.json`;
+const REMOVED_STORY_JSON_PATH = `${STORY_SOURCE_DIR}/story.json`;
 
 export type StoryRecord = {
   id: string;
@@ -25,6 +31,7 @@ export type StoryWorkspace = {
 
 export type StoryLibraryItem = {
   id: string;
+  project: StoryProject;
   story: StoryJson;
   workspace: StoryWorkspace;
 };
@@ -34,23 +41,21 @@ export type CreateStoryInput = {
   workspaceParentPath: string;
 };
 
-type StoryManifest = {
-  id: string;
-  name: string;
-  updatedAt: number;
-};
-
 const storyWorkspaceFromRecord = (record: StoryRecord): StoryWorkspace => ({
   id: record.id,
   name: record.name,
   path: record.workspacePath,
 });
 
-const storyLibraryItemFromRecord = async (record: StoryRecord): Promise<StoryLibraryItem> => ({
-  id: record.id,
-  story: await loadStoryJson(record),
-  workspace: storyWorkspaceFromRecord(record),
-});
+const storyLibraryItemFromRecord = async (record: StoryRecord): Promise<StoryLibraryItem> => {
+  const project = await loadStoryProject(record.workspacePath);
+  return {
+    id: record.id,
+    project,
+    story: storyProjectToStoryJson(project),
+    workspace: storyWorkspaceFromRecord(record),
+  };
+};
 
 const normalizeStoryRecord = (value: unknown): StoryRecord | null => {
   if (!value || typeof value !== "object") {
@@ -73,28 +78,6 @@ const normalizeStoryRecord = (value: unknown): StoryRecord | null => {
     updatedAt: typeof candidate.updatedAt === "number" ? candidate.updatedAt : Date.now(),
   };
 };
-
-const normalizeStoryJsonForRecord = (record: StoryRecord, value: unknown): StoryJson | null => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-
-  const candidate = {
-    ...(value as Record<string, unknown>),
-    id: record.id,
-    title: typeof (value as { title?: unknown }).title === "string" ? (value as { title: string }).title : record.name,
-  };
-  return normalizeStoryJson(candidate, {
-    id: record.id,
-    title: record.name,
-  });
-};
-
-const createStoryManifest = (story: StoryJson): StoryManifest => ({
-  id: story.id,
-  name: story.title,
-  updatedAt: story.updatedAt,
-});
 
 const createDesktopOnlyStoryStorageError = () => new Error("故事文件存储仅支持桌面环境。");
 
@@ -158,39 +141,31 @@ export const loadStoryJson = async (record: StoryRecord): Promise<StoryJson> => 
     throw createDesktopOnlyStoryStorageError();
   }
 
-  const parsed = await readJsonWorkspaceFile(record.workspacePath, STORY_JSON_FILE);
-  const story =
-    normalizeStoryJsonForRecord(record, parsed) ??
-    createDefaultStoryJson({
-      id: record.id,
-      title: record.name,
-    });
-  return story;
+  return storyProjectToStoryJson(await loadStoryProject(record.workspacePath));
 };
 
 export const saveStoryJson = async (workspace: StoryWorkspace, story: StoryJson): Promise<StoryJson> => {
-  const normalized =
-    normalizeStoryJsonForRecord(
-      {
-        id: workspace.id,
-        name: story.title,
-        workspacePath: workspace.path,
-        createdAt: story.createdAt,
-        updatedAt: story.updatedAt,
-      },
-      {
-        ...story,
-        id: workspace.id,
-      },
-    ) ?? story;
-
   if (!isTauri()) {
     throw createDesktopOnlyStoryStorageError();
   }
+  const existingProject = await loadStoryProject(workspace.path);
+  const project = storyJsonToProject({ ...story, id: workspace.id }, existingProject);
+  const savedProject = await saveStoryProjectFiles(workspace.path, project, "draft");
+  return storyProjectToStoryJson(savedProject);
+};
 
-  await writeJsonWorkspaceFile(workspace.path, STORY_MANIFEST_FILE, createStoryManifest(normalized));
-  await writeJsonWorkspaceFile(workspace.path, STORY_JSON_FILE, normalized);
-  return normalized;
+export const saveStoryProject = async (
+  workspace: StoryWorkspace,
+  project: StoryProject,
+  profile: StoryValidationProfile = "draft",
+) => {
+  if (!isTauri()) {
+    throw createDesktopOnlyStoryStorageError();
+  }
+  if (project.manifest.storyId !== workspace.id) {
+    throw new Error("故事项目 ID 与工作区记录不一致。");
+  }
+  return saveStoryProjectFiles(workspace.path, project, profile);
 };
 
 export const createStory = async (
@@ -198,6 +173,7 @@ export const createStory = async (
 ): Promise<{
   record: StoryRecord;
   workspace: StoryWorkspace;
+  project: StoryProject;
   story: StoryJson;
 }> => {
   const record = await createStoryRecord(input);
@@ -206,18 +182,47 @@ export const createStory = async (
     id: record.id,
     title: record.name,
   });
-  const savedStory = await saveStoryJson(workspace, story);
-
-  return {
-    record,
-    workspace,
-    story: savedStory,
-  };
+  const project = storyJsonToProject(story);
+  try {
+    const savedProject = await saveStoryProjectFiles(workspace.path, project, "draft");
+    return {
+      record,
+      workspace,
+      project: savedProject,
+      story: storyProjectToStoryJson(savedProject),
+    };
+  } catch (error) {
+    await deleteStoryRecord(record.id).catch(() => undefined);
+    throw error;
+  }
 };
 
 export const loadStoryLibrary = async (): Promise<StoryLibraryItem[]> => {
   const records = await listStoryRecords();
-  return Promise.all(records.map(storyLibraryItemFromRecord));
+  const results = await Promise.all(
+    records.map(async (record) => {
+      try {
+        return await storyLibraryItemFromRecord(record);
+      } catch (error) {
+        const files = await listWorkspaceFiles(record.workspacePath).catch(() => []);
+        if (files.some((file) => !file.isDirectory && file.path === REMOVED_STORY_JSON_PATH)) {
+          await deleteStoryRecord(record.id).catch((deleteError) => {
+            console.error("Failed to remove old story project", deleteError);
+          });
+          console.info("Removed unsupported story.json project", record.id);
+          return null;
+        }
+        console.warn("Skipping invalid structured story project", error);
+        return null;
+      }
+    }),
+  );
+  return results.flatMap((result) => {
+    if (result) {
+      return [result];
+    }
+    return [];
+  });
 };
 
 export const loadStoryById = async (
@@ -226,15 +231,18 @@ export const loadStoryById = async (
   record: StoryRecord;
   workspace: StoryWorkspace;
   story: StoryJson;
+  project: StoryProject;
 } | null> => {
   const record = (await listStoryRecords()).find((item) => item.id === storyId);
   if (!record) {
     return null;
   }
 
+  const project = await loadStoryProject(record.workspacePath);
   return {
     record,
     workspace: storyWorkspaceFromRecord(record),
-    story: await loadStoryJson(record),
+    project,
+    story: storyProjectToStoryJson(project),
   };
 };

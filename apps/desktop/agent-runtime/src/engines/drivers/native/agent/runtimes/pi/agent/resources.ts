@@ -1,10 +1,14 @@
 import { DefaultResourceLoader, getAgentDir, loadSkillsFromDir, type Skill } from "@earendil-works/pi-coding-agent";
+import { resolveBuiltinCombinations, type ResolvedBuiltinCombinations } from "../../../../../../builtins/resolve.js";
 import type { AgentRuntimeCallbacks, RuntimeAgentCommand } from "../../types.js";
-import { enabledRuntimeSkillNames, runtimeSkillSourcePaths } from "../../resources.js";
+import { runtimeResourcesFor, runtimeSkillSourcePaths } from "../../resources.js";
 import { registerPiAskUserTool } from "../tools/ask-user-tool.js";
+import { registerPiBuiltinTool } from "../tools/builtin-tool.js";
 
 export const createPiResourceLoader = async (command: RuntimeAgentCommand, callbacks: AgentRuntimeCallbacks) => {
-  const enabledSkills = loadEnabledPiSkills(command);
+  const enabledSkills = runtimeResourcesFor(command).skills?.enabled ?? [];
+  const builtins = resolveBuiltinCombinations(enabledSkills);
+  const skills = loadPiSkills(command, builtins);
   const loader = new DefaultResourceLoader({
     cwd: command.workspacePath,
     agentDir: getAgentDir(),
@@ -13,10 +17,13 @@ export const createPiResourceLoader = async (command: RuntimeAgentCommand, callb
     extensionFactories: [
       (pi) => {
         registerPiAskUserTool(pi, command.taskId, callbacks.requestUserInput);
+        for (const tool of builtins.requiredTools.internal) {
+          registerPiBuiltinTool(pi, tool, { workspacePath: command.workspacePath });
+        }
       },
     ],
     skillsOverride: () => ({
-      skills: enabledSkills,
+      skills,
       diagnostics: [],
     }),
   });
@@ -25,14 +32,27 @@ export const createPiResourceLoader = async (command: RuntimeAgentCommand, callb
   return loader;
 };
 
-const loadEnabledPiSkills = (command: RuntimeAgentCommand): Skill[] => {
-  const enabledNames = new Set(enabledRuntimeSkillNames(command));
-  const paths = runtimeSkillSourcePaths(command);
-  if (paths.length === 0 || enabledNames.size === 0) {
+const loadPiSkills = (command: RuntimeAgentCommand, builtins: ResolvedBuiltinCombinations): Skill[] => {
+  const enabledNames = new Set(builtins.skillNames);
+  if (enabledNames.size === 0) {
     return [];
   }
 
-  const skills = paths.flatMap(
+  const builtinSkills = builtins.sourcePaths.flatMap(
+    (dir) =>
+      loadSkillsFromDir({
+        dir,
+        source: "runtime-builtin",
+      }).skills,
+  );
+  const reservedNames = builtins.reservedSkillNames;
+  const loadedBuiltinNames = new Set(builtinSkills.map((skill) => skill.name));
+  const missingBuiltinNames = builtins.internalSkillNames.filter((name) => !loadedBuiltinNames.has(name));
+  if (missingBuiltinNames.length > 0) {
+    throw new Error(`内置技能包不完整：${missingBuiltinNames.join(", ")}`);
+  }
+
+  const externalSkills = runtimeSkillSourcePaths(command).flatMap(
     (dir) =>
       loadSkillsFromDir({
         dir,
@@ -40,5 +60,8 @@ const loadEnabledPiSkills = (command: RuntimeAgentCommand): Skill[] => {
       }).skills,
   );
 
-  return skills.filter((skill) => enabledNames.has(skill.name));
+  return [
+    ...builtinSkills.filter((skill) => enabledNames.has(skill.name)),
+    ...externalSkills.filter((skill) => enabledNames.has(skill.name) && !reservedNames.has(skill.name)),
+  ];
 };

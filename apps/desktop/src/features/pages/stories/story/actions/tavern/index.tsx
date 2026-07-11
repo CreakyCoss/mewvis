@@ -14,6 +14,7 @@ export const TavernStoryAction = () => {
   const buildNodeOptions = useStoryState((state) => state.buildNodeOptions);
   const getTavernWorkspacePath = useStoryState((state) => state.getTavernWorkspacePath);
   const story = useStoryState((state) => state.story);
+  const storyProject = useStoryState((state) => state.storyProject);
   const storyWorkspace = useStoryState((state) => state.storyWorkspace);
   const [isNodeSelectOpen, setIsNodeSelectOpen] = useState(false);
   const roomDialogRef = useRef<TavernRoomHandle>(null);
@@ -24,7 +25,7 @@ export const TavernStoryAction = () => {
   }, [story?.id]);
 
   const openStoryTavern = async (nodeId: string) => {
-    if (!story || !storyWorkspace) {
+    if (!story || !storyProject || !storyWorkspace) {
       toast.error("找不到故事工作区，无法打开酒馆。");
       return;
     }
@@ -32,6 +33,7 @@ export const TavernStoryAction = () => {
     try {
       const roomConfig = await loadOrCreateStoryTavernConfig({
         id: story.id,
+        project: storyProject,
         story,
         workspace: storyWorkspace,
       });

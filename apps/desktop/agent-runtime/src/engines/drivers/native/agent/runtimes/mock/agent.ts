@@ -1,4 +1,5 @@
 import { AgentEventType, AgentResultType, type SessionMutationResult } from "../../../../../protocol/index.js";
+import { resolveBuiltinCombinations } from "../../../../../builtins/resolve.js";
 import type {
   AgentRunResult,
   AgentRuntime,
@@ -9,11 +10,17 @@ import type {
   RuntimeAgentSummarizeCommand,
 } from "../types.js";
 import { chunkText, createMockAgentText, sleep } from "./response.js";
+import { runtimeResourcesFor } from "../resources.js";
 
 export class MockAgent implements AgentRuntime {
   readonly id = "mock";
 
   async run(command: RuntimeAgentCommand, { emit }: AgentRuntimeContext): Promise<AgentRunResult> {
+    const privateTools = resolveBuiltinCombinations(runtimeResourcesFor(command).skills?.enabled ?? []).requiredTools
+      .internal;
+    if (privateTools.length > 0) {
+      throw new Error(`Mock agent 不支持内置私有工具：${privateTools.map((tool) => tool.name).join(", ")}`);
+    }
     const text = createMockAgentText(command);
 
     emit({ type: AgentEventType.Started, taskId: command.taskId });

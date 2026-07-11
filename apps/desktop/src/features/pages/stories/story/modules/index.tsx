@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { BookOpen, FileText, GitBranch, House, UsersRound, type LucideIcon } from "lucide-react";
+import { BookOpen, BookOpenText, FileText, GitBranch, House, UsersRound, type LucideIcon } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { StoryJson } from "../model/types";
 import type { StoryDraft } from "./utils";
@@ -11,6 +11,7 @@ import { StoryGraphModule } from "./graph";
 import { StoryOverviewModule } from "./overview";
 import { StoryScenesModule } from "./scenes";
 import { StoryWorldModule } from "./world";
+import { StoryStructureModule } from "./structure";
 import type { StoryLibraryItem } from "../../storage";
 
 type StoryModulesProps = {
@@ -19,8 +20,10 @@ type StoryModulesProps = {
 
 export const StoryModules = ({ onOpenManuscripts }: StoryModulesProps) => {
   const story = useStoryState((state) => state.story);
+  const storyProject = useStoryState((state) => state.storyProject);
   const storyWorkspace = useStoryState((state) => state.storyWorkspace);
   const saveStory = useStoryState((state) => state.saveStory);
+  const saveProject = useStoryState((state) => state.saveProject);
   const [activeTab, setActiveTab] = useState<StoryConfigTab>("overview");
   const storyId = story?.id ?? "";
 
@@ -64,10 +67,11 @@ export const StoryModules = ({ onOpenManuscripts }: StoryModulesProps) => {
         <StoryOverviewModule
           story={targetStory}
           onOpenManuscripts={
-            storyWorkspace
+            storyWorkspace && storyProject
               ? () =>
                   onOpenManuscripts({
                     id: targetStory.id,
+                    project: storyProject,
                     story: targetStory,
                     workspace: storyWorkspace,
                   })
@@ -77,6 +81,13 @@ export const StoryModules = ({ onOpenManuscripts }: StoryModulesProps) => {
           onSave={saveOverviewDraft}
         />
       ),
+    },
+    {
+      id: "structure",
+      label: "创作结构",
+      description: "作品定位、三级大纲与连续性",
+      icon: BookOpenText,
+      render: () => (storyProject ? <StoryStructureModule project={storyProject} onSave={saveProject} /> : null),
     },
     {
       id: "characters",
@@ -98,8 +109,8 @@ export const StoryModules = ({ onOpenManuscripts }: StoryModulesProps) => {
     },
     {
       id: "graph",
-      label: "剧情结构",
-      description: "节点和分支",
+      label: "互动图",
+      description: "互动节点和分支",
       icon: GitBranch,
       render: (targetStory) => (
         <StoryGraphModule
@@ -124,7 +135,7 @@ export const StoryModules = ({ onOpenManuscripts }: StoryModulesProps) => {
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
       <aside className="flex w-20 shrink-0 flex-col border-r bg-muted/10 px-2 py-4">
-        <nav className="flex min-h-0 flex-1 flex-col gap-1">
+        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
           {storyConfigTabs.map(({ id, label, description, icon: Icon }) => (
             <button
               key={id}

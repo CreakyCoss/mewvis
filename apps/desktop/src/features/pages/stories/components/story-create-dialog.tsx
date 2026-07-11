@@ -60,11 +60,12 @@ export const StoryCreateDialog = ({ bind, onCreated }: StoryCreateDialogProps) =
   const createStory = async (input: CreateStoryInput) => {
     setIsSaving(true);
     try {
-      const { story, workspace } = await createStoryInWorkspace(input);
+      const { project, story, workspace } = await createStoryInWorkspace(input);
       toast.success("故事已创建。");
       setIsOpen(false);
       onCreated({
         id: story.id,
+        project,
         story,
         workspace,
       });

@@ -118,6 +118,20 @@ export async function writeWorkspaceFile(workspacePath: string, relativePath: st
   });
 }
 
+export async function writeWorkspaceFilesAtomic(
+  workspacePath: string,
+  files: Array<{ relativePath: string; content: string }>,
+  deletePaths: string[] = [],
+) {
+  if (!isTauri()) {
+    throw new Error("Web 预览模式暂不支持批量保存工作区文件");
+  }
+
+  return invoke<{ writtenPaths: string[]; deletedPaths: string[] }>("write_workspace_files_atomic", {
+    input: { workspacePath, files, deletePaths },
+  });
+}
+
 export async function deleteWorkspaceFile(workspacePath: string, relativePath: string) {
   if (!isTauri()) {
     throw new Error("Web 预览模式暂不支持删除工作区文件");

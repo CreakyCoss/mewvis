@@ -51,6 +51,7 @@ type ComposerProps = {
   defaultSkillGroupId: string;
   selectedSkillGroupIds: string[];
   selectedSkillGroupLabel: string;
+  isResourceSelectionLocked: boolean;
   onShowThinkingProcessChange: (value: boolean) => void;
   onShowToolCallProcessChange: (value: boolean) => void;
   onSelectedAgentChange: (agentId: string) => void;
@@ -87,6 +88,7 @@ export const Composer = memo(
     defaultSkillGroupId,
     selectedSkillGroupIds,
     selectedSkillGroupLabel,
+    isResourceSelectionLocked,
     onShowThinkingProcessChange,
     onShowToolCallProcessChange,
     onSelectedAgentChange,
@@ -407,105 +409,135 @@ export const Composer = memo(
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 min-w-0 max-w-[13rem] px-2 text-xs"
-                      title={`技能组：${selectedSkillGroupLabel}`}
-                    >
-                      <Sparkles className="size-3.5 shrink-0" />
-                      <span>技能组</span>
-                      <span className="min-w-0 truncate text-muted-foreground">{selectedSkillGroupLabel}</span>
-                      <ChevronDown className="size-3 shrink-0" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-60">
-                    <DropdownMenuLabel>技能组（当前对话）</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuCheckboxItem
-                      checked={selectedSkillGroupIds.includes(ALL_SKILLS_GROUP_ID)}
-                      onSelect={(event) => event.preventDefault()}
-                      onCheckedChange={(checked) => onSkillGroupChange(ALL_SKILLS_GROUP_ID, checked)}
-                    >
-                      <span className="min-w-0">
-                        <span className="flex min-w-0 items-center gap-1.5">
-                          <span className="truncate">全部</span>
-                          {defaultSkillGroupId === ALL_SKILLS_GROUP_ID && <DefaultSkillGroupBadge />}
+                {isResourceSelectionLocked ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-xs text-primary"
+                    title="当前对话固定使用故事创作助手专属技能"
+                    disabled
+                  >
+                    <Sparkles className="size-3.5" />
+                    <span>故事专属技能</span>
+                  </Button>
+                ) : (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 min-w-0 max-w-[13rem] px-2 text-xs"
+                        title={`技能组：${selectedSkillGroupLabel}`}
+                      >
+                        <Sparkles className="size-3.5 shrink-0" />
+                        <span>技能组</span>
+                        <span className="min-w-0 truncate text-muted-foreground">{selectedSkillGroupLabel}</span>
+                        <ChevronDown className="size-3 shrink-0" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-60">
+                      <DropdownMenuLabel>技能组（当前对话）</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuCheckboxItem
+                        checked={selectedSkillGroupIds.includes(ALL_SKILLS_GROUP_ID)}
+                        onSelect={(event) => event.preventDefault()}
+                        onCheckedChange={(checked) => onSkillGroupChange(ALL_SKILLS_GROUP_ID, checked)}
+                      >
+                        <span className="min-w-0">
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            <span className="truncate">全部</span>
+                            {defaultSkillGroupId === ALL_SKILLS_GROUP_ID && <DefaultSkillGroupBadge />}
+                          </span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            使用 Skill 库中的全部技能
+                          </span>
                         </span>
-                        <span className="block truncate text-xs text-muted-foreground">使用 Skill 库中的全部技能</span>
-                      </span>
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={selectedSkillGroupIds.includes(NO_SKILLS_GROUP_ID)}
-                      onSelect={(event) => event.preventDefault()}
-                      onCheckedChange={(checked) => onSkillGroupChange(NO_SKILLS_GROUP_ID, checked)}
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate">不使用技能</span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          本次对话不注入 Skill 上下文
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={selectedSkillGroupIds.includes(NO_SKILLS_GROUP_ID)}
+                        onSelect={(event) => event.preventDefault()}
+                        onCheckedChange={(checked) => onSkillGroupChange(NO_SKILLS_GROUP_ID, checked)}
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate">不使用技能</span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            本次对话不注入 Skill 上下文
+                          </span>
                         </span>
-                      </span>
-                    </DropdownMenuCheckboxItem>
-                    {skillGroups.length > 0 && (
-                      <>
-                        <DropdownMenuSeparator />
-                        {skillGroups.map((group) => (
-                          <DropdownMenuCheckboxItem
-                            key={group.id}
-                            checked={selectedSkillGroupIds.includes(group.id)}
-                            onSelect={(event) => event.preventDefault()}
-                            onCheckedChange={(checked) => onSkillGroupChange(group.id, checked)}
-                            title={group.description ?? undefined}
-                          >
-                            <span className="min-w-0">
-                              <span className="flex min-w-0 items-center gap-1.5">
-                                <span className="truncate">{group.name}</span>
-                                {group.id === defaultSkillGroupId && <DefaultSkillGroupBadge />}
+                      </DropdownMenuCheckboxItem>
+                      {skillGroups.length > 0 && (
+                        <>
+                          <DropdownMenuSeparator />
+                          {skillGroups.map((group) => (
+                            <DropdownMenuCheckboxItem
+                              key={group.id}
+                              checked={selectedSkillGroupIds.includes(group.id)}
+                              onSelect={(event) => event.preventDefault()}
+                              onCheckedChange={(checked) => onSkillGroupChange(group.id, checked)}
+                              title={group.description ?? undefined}
+                            >
+                              <span className="min-w-0">
+                                <span className="flex min-w-0 items-center gap-1.5">
+                                  <span className="truncate">{group.name}</span>
+                                  {group.id === defaultSkillGroupId && <DefaultSkillGroupBadge />}
+                                </span>
+                                <span className="block truncate text-xs text-muted-foreground">
+                                  {group.skills.length} 个 Skill
+                                </span>
                               </span>
-                              <span className="block truncate text-xs text-muted-foreground">
-                                {group.skills.length} 个 Skill
-                              </span>
-                            </span>
-                          </DropdownMenuCheckboxItem>
-                        ))}
-                      </>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                            </DropdownMenuCheckboxItem>
+                          ))}
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs">
-                      <Wrench className="size-3.5" />
-                      <span>工具</span>
-                      <span className="text-muted-foreground">{visibleAllowedAgentTools.length}</span>
-                      <ChevronDown className="size-3" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-44">
-                    <DropdownMenuLabel>工具</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {agentTools.length === 0 ? (
-                      <DropdownMenuItem disabled>暂无工具</DropdownMenuItem>
-                    ) : (
-                      agentTools.map((tool) => (
-                        <DropdownMenuCheckboxItem
-                          key={tool.name}
-                          checked={allowedAgentTools.includes(tool.name)}
-                          onSelect={(event) => event.preventDefault()}
-                          onCheckedChange={(checked) => onToggleAllowedAgentTool(tool.name, checked)}
-                          title={tool.description ?? undefined}
-                        >
-                          {tool.label}
-                        </DropdownMenuCheckboxItem>
-                      ))
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                {isResourceSelectionLocked ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-xs"
+                    title="故事工具已锁定，正式数据只能校验后提交"
+                    disabled
+                  >
+                    <Wrench className="size-3.5" />
+                    <span>结构化工具</span>
+                  </Button>
+                ) : (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs">
+                        <Wrench className="size-3.5" />
+                        <span>工具</span>
+                        <span className="text-muted-foreground">{visibleAllowedAgentTools.length}</span>
+                        <ChevronDown className="size-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-44">
+                      <DropdownMenuLabel>工具</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {agentTools.length === 0 ? (
+                        <DropdownMenuItem disabled>暂无工具</DropdownMenuItem>
+                      ) : (
+                        agentTools.map((tool) => (
+                          <DropdownMenuCheckboxItem
+                            key={tool.name}
+                            checked={allowedAgentTools.includes(tool.name)}
+                            onSelect={(event) => event.preventDefault()}
+                            onCheckedChange={(checked) => onToggleAllowedAgentTool(tool.name, checked)}
+                            title={tool.description ?? undefined}
+                          >
+                            {tool.label}
+                          </DropdownMenuCheckboxItem>
+                        ))
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
 
               <Button

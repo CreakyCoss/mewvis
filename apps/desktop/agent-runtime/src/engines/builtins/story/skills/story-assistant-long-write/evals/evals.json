@@ -1,0 +1,19 @@
+{
+  "skill_name": "story-assistant-long-write",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "开一本 80 万字都市异能长篇，先做开书和前十章细纲，不写正文。",
+      "expected_output": "分批提交结构化长篇并在最终批通过 openBook。",
+      "files": [],
+      "expectations": ["positioning.lengthType 为 long", "前十章细纲每批 3-5 章", "每批不超过限制且最终 openBook 校验"]
+    },
+    {
+      "id": 2,
+      "prompt": "按现有细纲继续写第 6 章，同时更新伏笔和角色状态。",
+      "expected_output": "读取章节上下文并按单章增量提交正文与连续性。",
+      "files": [],
+      "expectations": ["使用 chapter scope 读取上下文", "已有正文只 patch 变化字段", "最终批使用 chapterWrite 校验"]
+    }
+  ]
+}

@@ -18,10 +18,11 @@ import type {
 } from "@/features/pages/skills/types";
 
 type UseWorkspaceSkillsInput = {
+  enabled?: boolean;
   workspaceId: string;
 };
 
-export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => {
+export const useWorkspaceSkills = ({ enabled = true, workspaceId }: UseWorkspaceSkillsInput) => {
   const [skillsError, setSkillsError] = useState("");
   const [isSkillsLoading, setIsSkillsLoading] = useState(false);
   const [isSkillsSaving, setIsSkillsSaving] = useState(false);
@@ -64,6 +65,11 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
   );
 
   const loadWorkspaceSkills = useCallback(async () => {
+    if (!enabled) {
+      setSkillsError("");
+      setIsSkillsLoading(false);
+      return;
+    }
     setIsSkillsLoading(true);
     setSkillsError("");
 
@@ -75,7 +81,7 @@ export const useWorkspaceSkills = ({ workspaceId }: UseWorkspaceSkillsInput) => 
     } finally {
       setIsSkillsLoading(false);
     }
-  }, [setWorkspaceSkillSettings, workspaceId]);
+  }, [enabled, setWorkspaceSkillSettings, workspaceId]);
 
   useEffect(() => {
     void loadWorkspaceSkills();

@@ -9,28 +9,23 @@ const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-story-core-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
 const statePath = resolve(workspaceRoot, "src/features/pages/stories/story/model/state.ts");
-const manuscriptOperationsPath = resolve(workspaceRoot, "src/features/pages/stories/manuscripts/model/operations.ts");
-const nodeProjectionPath = resolve(workspaceRoot, "src/features/pages/stories/story/model/projection.ts");
-const normalizePath = resolve(workspaceRoot, "src/features/pages/stories/story/model/normalizer.ts");
+const contractPath = resolve(workspaceRoot, "src/features/pages/stories/story-contract/index.ts");
 
 writeFileSync(
   entryPath,
   `
+  import { createDefaultStoryJson } from ${JSON.stringify(statePath)};
   import {
-    createDefaultStoryJson,
-  } from ${JSON.stringify(statePath)};
-  import {
-    acceptStoryManuscript,
-    createStoryManuscript,
-    groupStoryManuscriptsByNode,
-    updateStoryManuscript,
-  } from ${JSON.stringify(manuscriptOperationsPath)};
-  import {
-    buildStoryNodeProjection,
-  } from ${JSON.stringify(nodeProjectionPath)};
-  import {
-    normalizeStoryJson,
-  } from ${JSON.stringify(normalizePath)};
+    applyStoryChangeSet,
+    STORY_CHANGE_SET_MAX_BYTES,
+    STORY_CHANGE_SET_MAX_OPERATIONS,
+    storyChangeSetSchema,
+    storyJsonToProject,
+    storyProjectFiles,
+    storyProjectToStoryJson,
+    validateStoryProject,
+    withRebuiltManifest,
+  } from ${JSON.stringify(contractPath)};
 
   const assert = (condition: unknown, message: string, details?: unknown) => {
     if (!condition) {
@@ -39,182 +34,257 @@ writeFileSync(
     }
   };
 
-  const baseStory = createDefaultStoryJson({
-    id: "story-fog-archive",
-    title: "雾港档案",
-    timestamp: 1_800_000_000_000,
-  });
-  const entryNode = baseStory.graph.nodes[0];
-  assert(entryNode, "独立故事应创建起始节点。", baseStory);
+  const timestamp = 1_800_000_000_000;
+  const changeSetContract = { contractId: "novel-claw.story-authoring" as const, contractVersion: 1 as const };
+  const story = createDefaultStoryJson({ id: "story-contract", title: "雾港档案", timestamp });
+  const initial = storyJsonToProject(story);
+  const initialValidation = validateStoryProject(initial, "draft");
+  assert(initialValidation.valid, "新故事应满足 draft 结构校验。", initialValidation);
+  assert(
+    storyProjectFiles(initial).some((file) => file.path === "story/book.json") &&
+      storyProjectFiles(initial).some((file) => file.path === "story/interactive/graph.json") &&
+      !storyProjectFiles(initial).some((file) => file.path === "story/story.json"),
+    "故事应拆分为 v1 JSON 文件，不能继续生成 story.json。",
+    storyProjectFiles(initial).map((file) => file.path),
+  );
 
-  const ledgerScene = {
-    id: "scene-ledger",
-    title: "巡检室",
-    scene: "巡检表上缺了一页。",
-    goal: "核对巡检表。",
-    plot: "发现缺页。",
-    direction: "把注意力落在证据上。",
-    transition: "回到潮汐钟。",
-    memory: "缺页边缘有盐渍。",
+  const character = {
+    schemaVersion: 1 as const,
+    kind: "story-character" as const,
+    id: "char-protagonist",
+    name: "林砚",
+    role: "protagonist" as const,
+    avatar: "blank-avatar",
+    age: "24",
+    description: "能看见谎言颜色的调查员。",
+    traits: ["克制", "执拗"],
+    speakingStyle: "简短，先问证据。",
+    writingStyle: "",
+    replyStylePrompt: "",
+    goals: "找出导师隐瞒的真相。",
+    motivation: "洗清父亲的嫌疑。",
+    flaw: "不信任任何人。",
+    coreAbility: "看见谎言颜色。",
+    relationshipSummary: "",
+    publicRelationshipSummary: "",
+    arcSummary: "从孤立调查到学会合作。",
+    memory: { required: "", public: "", known: "", privateSelf: "", directorSecret: "" },
+    updatedAt: timestamp,
   };
-  const ledgerNode = {
-    id: "node-ledger",
-    sceneId: ledgerScene.id,
-    title: "巡检表缺页",
-    type: "normal",
-    pathRole: "main",
-    status: "draft",
-  };
-  const ledgerEdge = {
-    id: "edge-entry-ledger",
-    fromNodeId: entryNode.id,
-    toNodeId: ledgerNode.id,
-    label: "进入巡检室",
-    reason: "完成入口检查",
-    priority: 0,
-  };
-  const story = {
-    ...baseStory,
-    outline: "潮汐钟停在三点十七分。",
-    goal: "找出停摆原因。",
-    userPersonaName: "调查人",
-    characters: [
+  const plans = Array.from({ length: 10 }, (_, index) => {
+    const number = index + 1;
+    const id = "ch-" + String(number).padStart(3, "0");
+    return {
+      schemaVersion: 1 as const,
+      kind: "story-chapter-plan" as const,
+      id,
+      number,
+      volumeId: "vol-001",
+      title: "第 " + number + " 章",
+      phase: "opening" as const,
+      phasePosition: "开篇期第 " + number + " 章",
+      chapterRole: "progress" as const,
+      targetWords: 1000,
+      targetEmotion: "压迫后的期待",
+      coreEvent: "林砚获得一条新的调查线索。",
+      structureFormula: "发现 + 试探 + 受阻 + 新线索",
+      openingHook: "异常颜色",
+      payoff: "确认线索有效",
+      releaseGuards: ["不揭示幕后主使"],
+      summary: { cause: "调查推进", development: "试探证人", turn: "证词冲突", climax: "颜色暴露", ending: "获得新线索" },
+      plotLines: { main: "调查推进", secondary: "", event: "证词核对", relationship: "", logic: "发现→试探→证实" },
+      participantIds: [character.id],
+      appearanceOrder: [character.id],
+      worldRefIds: [],
+      pointOfView: "第三人称限知",
+      informationGap: "读者知道证人在说谎，林砚不知道原因。",
+      relationshipChanges: [],
+      beats: [{ id: "beat-" + id, summary: "林砚识别谎言", function: "information-reveal" as const, density: "dense" as const, wordBudget: 1000, participantIds: [character.id], worldRefIds: [] }],
+      costAndPayoff: "暴露能力风险，换取线索。",
+      ending: { resolvedState: "确认说谎", unresolvedQuestion: "为何说谎", nextDrive: "追查证词来源", hookType: "information-gap", hookStrength: "medium" as const },
+      status: "ready" as const,
+      updatedAt: timestamp,
+    };
+  });
+  const ready = withRebuiltManifest({
+    ...initial,
+    book: { ...initial.book, logline: "能看见谎言颜色的调查员追查导师秘密。", centralConflict: "真相与信任冲突", protagonistId: character.id },
+    positioning: { ...initial.positioning, primaryGenre: "都市异能", targetPlatform: "番茄", emotionalPromise: "压迫后反杀", targetWords: 800000 },
+    characters: [character],
+    bookArc: {
+      ...initial.bookArc,
+      totalChapters: 10,
+      targetWords: 800000,
+      emotionalArc: "压迫→试探→反杀→余韵",
+      stages: [{ id: "stage-opening", name: "开篇期", phase: "opening" as const, startChapter: 1, endChapter: 10, purpose: "建立能力与主线", emotionalTone: "压迫与期待", expectedReaderState: "期待反杀", allowedReveals: [], prohibitedReveals: ["幕后主使"] }],
+      volumeIds: ["vol-001"],
+    },
+    volumes: [{ schemaVersion: 1 as const, kind: "story-volume" as const, id: "vol-001", number: 1, title: "谎言之色", startChapter: 1, endChapter: 10, targetWords: 30000, phase: "opening" as const, purpose: "建立能力", coreConflict: "导师隐瞒真相", coreEvent: "主角确认导师说谎", startState: "孤立", endState: "掌握线索", emotionalArc: "压迫到反击", allowedReveals: [], prohibitedReveals: ["幕后主使"], chapterIds: plans.map((plan) => plan.id), updatedAt: timestamp }],
+    chapterPlans: plans,
+  }, { revision: initial.manifest.revision + 1, timestamp });
+  const openingValidation = validateStoryProject(ready, "openBook");
+  assert(openingValidation.valid, "完整开书项目应通过 openBook 校验。", openingValidation);
+
+  const nextBook = { ...ready.book, title: "谎言留痕", updatedAt: timestamp + 1 };
+  const changed = applyStoryChangeSet(ready, {
+    ...changeSetContract,
+    storyId: ready.manifest.storyId,
+    baseRevision: ready.manifest.revision,
+    validationProfile: "draft",
+    operations: [{ type: "upsert", path: "story/book.json", value: nextBook }],
+  });
+  assert(changed.book.title === "谎言留痕" && changed.manifest.revision === ready.manifest.revision + 1, "ChangeSet 应更新内容和 revision。", changed.manifest);
+  assert(storyProjectToStoryJson(changed).title === "谎言留痕", "页面投影应读取 v1 项目。");
+
+  const patched = applyStoryChangeSet(changed, {
+    ...changeSetContract,
+    storyId: changed.manifest.storyId,
+    baseRevision: changed.manifest.revision,
+    validationProfile: "draft",
+    batch: { workflowId: "open-book-test", index: 1, total: 2, label: "更新核心设定", final: false },
+    operations: [
+      { type: "patch", path: "story/book.json", value: { premise: "一条只更新局部字段的新前提。" } },
+      { type: "append-text", path: "story/book.json", field: "premise", value: "后续只追加这一句。", separator: "\\n" },
+      { type: "replace-text", path: "story/book.json", field: "premise", oldText: "新前提", newText: "新设定" },
+      { type: "add-values", path: "story/outline/book-arc.json", field: "volumeIds", values: ["vol-001"] },
+    ],
+  });
+  assert(
+    patched.book.title === changed.book.title && patched.book.premise === "一条只更新局部字段的新设定。\\n后续只追加这一句。",
+    "patch/append-text/replace-text 应保留未提交字段，并支持局部追加与替换。",
+    patched.book,
+  );
+  assert(patched.bookArc.volumeIds.length === 1, "add-values 应去重，不能重复追加引用。", patched.bookArc);
+
+  const tooManyOperations = storyChangeSetSchema.safeParse({
+    ...changeSetContract,
+    storyId: patched.manifest.storyId,
+    baseRevision: patched.manifest.revision,
+    validationProfile: "draft",
+    operations: Array.from({ length: STORY_CHANGE_SET_MAX_OPERATIONS + 1 }, () => ({
+      type: "patch",
+      path: "story/book.json",
+      value: { premise: "拆批" },
+    })),
+  });
+  assert(!tooManyOperations.success, "超出单批操作上限的 ChangeSet 必须被拒绝并要求拆批。");
+  const oversizedChangeSet = storyChangeSetSchema.safeParse({
+    ...changeSetContract,
+    storyId: patched.manifest.storyId,
+    baseRevision: patched.manifest.revision,
+    validationProfile: "draft",
+    operations: [{ type: "append-text", path: "story/book.json", field: "premise", value: "字".repeat(STORY_CHANGE_SET_MAX_BYTES) }],
+  });
+  assert(!oversizedChangeSet.success, "超出字节上限的 ChangeSet 必须被拒绝并要求拆批。");
+
+  const assistantArtifacts = applyStoryChangeSet(patched, {
+    ...changeSetContract,
+    storyId: patched.manifest.storyId,
+    baseRevision: patched.manifest.revision,
+    validationProfile: "draft",
+    operations: [
       {
-        id: "archivist",
-        name: "穆青檐",
-        avatar: "blank-avatar",
-        description: "档案馆管理员。",
-        speakingStyle: "克制，先问证据。",
-        memory: {
-          required: "",
-          public: "知道三点十七分前后巡检表被改过。",
-          known: "",
-          privateSelf: "",
-          directorSecret: "",
+        type: "upsert",
+        path: "story/analysis/analysis-benchmark.json",
+        value: {
+          schemaVersion: 1,
+          kind: "story-analysis",
+          id: "analysis-benchmark",
+          analysisType: "long",
+          target: "benchmark",
+          status: "complete",
+          source: { title: "对标样本", platform: "番茄", wordCount: 30000, chapterCount: 10 },
+          summary: "分析摘要",
+          storyCore: "谎言能力驱动的调查反杀",
+          structureStages: [],
+          turningPoints: [],
+          emotionalArc: [],
+          plotModules: [],
+          styleProfile: { pointOfView: "第三人称限知", tone: "克制", sentenceRhythm: "短句", dialogue: "信息差", proseRules: [], anchorExcerpts: [] },
+          characterInsights: [],
+          worldInsights: [],
+          reusableTechniques: [],
+          gaps: [],
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        },
+      },
+      {
+        type: "upsert",
+        path: "story/reviews/review-opening.json",
+        value: {
+          schemaVersion: 1,
+          kind: "story-review",
+          id: "review-opening",
+          reviewType: "review",
+          mode: "lean",
+          rubric: "fanqie",
+          scopePaths: ["story/outline/chapters/ch-001.json"],
+          summary: "开篇结构可继续优化。",
+          verdict: "concerns",
+          findings: [{ id: "finding-001", severity: "S3", category: "structure", scopePath: "story/outline/chapters/ch-001.json", evidence: "章尾期待偏弱", issue: "下一章驱动力不够具体", fix: "明确下一步调查对象", status: "open" }],
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        },
+      },
+      {
+        type: "upsert",
+        path: "story/imports/import-source.json",
+        value: {
+          schemaVersion: 1,
+          kind: "story-import",
+          id: "import-source",
+          sourceTitle: "对标样本",
+          lengthType: "long",
+          status: "committed",
+          wordCount: 30000,
+          chapterCount: 10,
+          lastCompleteChapterNumber: 10,
+          analysisId: "analysis-benchmark",
+          generatedFileIds: [patched.book.id],
+          warnings: [],
+          createdAt: timestamp,
+          updatedAt: timestamp,
         },
       },
     ],
-    lorebookEntries: [
-      {
-        id: "lore-clock",
-        title: "潮汐钟",
-        content: "潮汐钟只会在潮差异常时停摆。",
-        keywords: ["潮汐钟"],
-        enabled: true,
-        alwaysOn: true,
-      },
-    ],
-    scenes: [
-      {
-        ...baseStory.scenes[0],
-        id: "scene-entry",
-        title: "档案馆入口",
-        scene: "雨夜，档案馆的潮汐钟停止。",
-        goal: "进入档案馆。",
-        plot: "调查人抵达入口。",
-        direction: "克制悬疑。",
-        transition: "进入巡检室。",
-        memory: "入口潮气很重。",
-      },
-      ledgerScene,
-    ],
-    graph: {
-      entryNodeId: entryNode.id,
-      activeNodeId: ledgerNode.id,
-      nodes: [
-        { ...entryNode, sceneId: "scene-entry", title: "入口节点" },
-        ledgerNode,
-      ],
-      edges: [ledgerEdge],
-    },
-  };
-
-  assert(
-    story.id === "story-fog-archive" &&
-      story.graph.nodes.length === 2,
-    "独立故事应维护单个 StoryJson。",
-    story,
-  );
-
-  const submitted = createStoryManuscript(story, {
-    storyId: story.id,
-    nodeId: ledgerNode.id,
-    source: "chat",
-    sourceRunId: "chat-run-1",
-    sourceMessageIds: ["message-1"],
-    title: "巡检表稿件",
-    content: "调查人发现巡检表缺页，盐渍说明它曾被带到潮边。",
-    summary: "发现巡检表缺页。",
-    metadata: { channel: "chat" },
-  }, {
-    id: "story-manuscript-draft-1",
-    timestamp: 1_800_000_000_200,
   });
-  const updatedDraft = updateStoryManuscript(
-    submitted,
-    {
-      title: "巡检表缺页稿",
-      summary: "确认巡检表缺页。",
-      updatedAt: 1_800_000_000_250,
-    },
-  );
-  const groupedDrafts = groupStoryManuscriptsByNode(story, [updatedDraft]);
-  const pendingDrafts = groupedDrafts[ledgerNode.id]?.pending ?? [];
-  assert(
-    pendingDrafts.length === 1 &&
-      pendingDrafts[0]?.title === "巡检表缺页稿",
-    "稿件模型应支持按节点查询和编辑未收稿。",
-    pendingDrafts,
-  );
+  assert(assistantArtifacts.analyses.length === 1 && assistantArtifacts.reviews.length === 1 && assistantArtifacts.imports.length === 1, "故事助手分析、审查和导入记录应进入结构化项目。", assistantArtifacts);
+  assert(storyProjectFiles(assistantArtifacts).some((file) => file.path === "story/analysis/analysis-benchmark.json"), "故事助手产物应生成独立 JSON 文件。");
 
-  const acceptedManuscript = acceptStoryManuscript(
-    updatedDraft,
-    { acceptedAt: 1_800_000_000_300 },
-  );
-  assert(
-    acceptedManuscript.status === "accepted" &&
-      acceptedManuscript.acceptedAt === 1_800_000_000_300,
-    "稿件模型应支持将未收稿转为已收稿。",
-    acceptedManuscript,
-  );
-  const nodeContext = buildStoryNodeProjection(story, ledgerNode.id);
-  assert(
-    nodeContext.scope === "node" &&
-      nodeContext.current.node?.id === ledgerNode.id &&
-      nodeContext.current.scene?.id === ledgerScene.id &&
-      nodeContext.current.progress.includes("发现缺页") &&
-      !nodeContext.current.progress.includes("确认巡检表缺页") &&
-      nodeContext.graph.activeNodeId === ledgerNode.id &&
-      nodeContext.scenes.some((scene) => scene.id === ledgerScene.id) &&
-      !("acceptedManuscripts" in nodeContext.memory) &&
-      nodeContext.memory.characterPublicMemories[0]?.memory.includes("巡检表被改过"),
-    "节点运行上下文应包含背景、结构、场景、当前节点进展和角色记忆，不包含稿件内容。",
-    nodeContext,
-  );
-
-  assert(
-    nodeContext.branch.incomingEdges[0]?.id === ledgerEdge.id &&
-      nodeContext.branch.outgoingEdges.length === 0,
-    "节点公开上下文应保留当前节点入边和出边。",
-    nodeContext.branch,
-  );
-
-  const normalizedStory = normalizeStoryJson({
-    ...story,
-    id: "story-normalized",
-  }, {
-    id: "story-normalized",
+  const incrementallyReviewed = applyStoryChangeSet(assistantArtifacts, {
+    ...changeSetContract,
+    storyId: assistantArtifacts.manifest.storyId,
+    baseRevision: assistantArtifacts.manifest.revision,
+    validationProfile: "draft",
+    batch: { workflowId: "review-test", index: 2, total: 2, label: "追加审查问题", final: true },
+    operations: [{
+      type: "upsert-items",
+      path: "story/reviews/review-opening.json",
+      field: "findings",
+      items: [{ id: "finding-001", severity: "S2", fix: "在章尾明确下一位调查对象与期限" }],
+    }],
   });
   assert(
-    normalizedStory?.id === "story-normalized" &&
-      !("workspaceId" in normalizedStory),
-    "故事归一化应返回单个 StoryJson 且不包含 workspaceId。",
-    normalizedStory,
+    incrementallyReviewed.reviews[0]?.findings[0]?.severity === "S2" &&
+      incrementallyReviewed.reviews[0]?.findings[0]?.issue === "下一章驱动力不够具体",
+    "upsert-items 应按 id 合并数组条目并保留未提交字段。",
+    incrementallyReviewed.reviews[0],
   );
-  assert(
-    normalizeStoryJson(null) === null,
-    "故事归一化应保留空输入返回 null 的语义。",
-  );
+
+  let rejected = false;
+  try {
+    applyStoryChangeSet(incrementallyReviewed, {
+      ...changeSetContract,
+      storyId: incrementallyReviewed.manifest.storyId,
+      baseRevision: incrementallyReviewed.manifest.revision - 1,
+      validationProfile: "draft",
+      operations: [],
+    });
+  } catch {
+    rejected = true;
+  }
+  assert(rejected, "过期 revision 的 ChangeSet 必须被拒绝。");
 `,
 );
 

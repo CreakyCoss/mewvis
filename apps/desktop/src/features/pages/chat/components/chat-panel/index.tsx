@@ -51,6 +51,7 @@ export type ChatPanelViewModel = {
   defaultSkillGroupId: string;
   selectedSkillGroupIds: string[];
   selectedSkillGroupLabel: string;
+  isResourceSelectionLocked: boolean;
   onEditHistoryMessage: (messageId: string, nextText: string) => void;
   onDeleteHistoryMessage: (messageId: string) => void;
   onMoveHistoryMessage: (messageId: string, direction: "up" | "down") => void;
@@ -231,6 +232,7 @@ export const ChatPanel = () => {
     defaultSkillGroupId,
     selectedSkillGroupIds,
     selectedSkillGroupLabel,
+    isResourceSelectionLocked,
     onOpenWorkspace,
     onCreateWorkspace,
     setAgentQuestionAnswer,
@@ -280,6 +282,7 @@ export const ChatPanel = () => {
       defaultSkillGroupId={defaultSkillGroupId}
       selectedSkillGroupIds={selectedSkillGroupIds}
       selectedSkillGroupLabel={selectedSkillGroupLabel}
+      isResourceSelectionLocked={isResourceSelectionLocked}
       onShowThinkingProcessChange={setShowThinkingProcess}
       onShowToolCallProcessChange={setShowToolCallProcess}
       onSelectedAgentChange={setSelectedAgentId}

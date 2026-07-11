@@ -1,0 +1,169 @@
+import { build } from "esbuild";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+
+const workspaceRoot = process.cwd();
+const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-story-commit-tool-"));
+const storyWorkspace = join(tempDir, "workspace");
+const entryPath = join(tempDir, "runner.ts");
+const bundledPath = join(tempDir, "runner.mjs");
+const statePath = resolve(workspaceRoot, "src/features/pages/stories/story/model/state.ts");
+const contractPath = resolve(workspaceRoot, "src/features/pages/stories/story-contract/index.ts");
+const toolPath = resolve(
+  workspaceRoot,
+  "agent-runtime/src/engines/drivers/native/agent/runtimes/pi/tools/builtin-tool.ts",
+);
+const storyBuiltinPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/definition.ts");
+const storyContractPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/contract.ts");
+const nodeRepositoryPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/node-repository.ts");
+
+writeFileSync(
+  entryPath,
+  `
+  import { mkdir, readFile, stat, utimes, writeFile } from "node:fs/promises";
+  import { dirname, join } from "node:path";
+  import { createDefaultStoryJson } from ${JSON.stringify(statePath)};
+  import { storyJsonToProject, storyProjectFiles, STORY_PROJECT_MANIFEST_PATH } from ${JSON.stringify(contractPath)};
+  import { registerPiBuiltinTool } from ${JSON.stringify(toolPath)};
+  import { STORY_TOOL, createStoryToolPackage } from ${JSON.stringify(storyBuiltinPath)};
+  import { encodeStoryDocument } from ${JSON.stringify(storyContractPath)};
+  import { createNodeStoryProjectRepository } from ${JSON.stringify(nodeRepositoryPath)};
+
+  const assert = (condition: unknown, message: string, details?: unknown) => {
+    if (!condition) throw new Error(message + (details === undefined ? "" : "\\n" + JSON.stringify(details, null, 2)));
+  };
+  const root = ${JSON.stringify(storyWorkspace)};
+  const changeSetContract = { contractId: "novel-claw.story-authoring", contractVersion: 1 };
+  const project = storyJsonToProject(createDefaultStoryJson({ id: "story-commit-tool", title: "提交工具测试", timestamp: 1_800_000_000_000 }));
+  for (const entry of [...storyProjectFiles(project), { path: STORY_PROJECT_MANIFEST_PATH, value: project.manifest }]) {
+    const path = join(root, entry.path);
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, JSON.stringify(encodeStoryDocument(entry.value, entry.path), null, 2) + "\\n", "utf8");
+  }
+
+  const tools = new Map<string, any>();
+  registerPiBuiltinTool(
+    { registerTool: (tool: any) => tools.set(tool.name, tool) } as any,
+    STORY_TOOL,
+    { workspacePath: root },
+  );
+  assert(tools.size === 1, "完整故事能力应只注册一个 PI 工具。", [...tools.keys()]);
+  const storyTool = tools.get("story");
+  assert(storyTool, "story 工具应成功注册。");
+  const described = await storyTool.execute("describe", { action: "describe_structure" }, undefined, undefined, undefined);
+  assert(
+    described.details.structure.contract.contractId === "novel-claw.story-authoring",
+    "故事工具必须直接返回随技能打包的 contract。",
+    described.details,
+  );
+
+  const invalid = await storyTool.execute("invalid", { action: "commit_changes", changeSet: {
+    ...changeSetContract,
+    storyId: project.manifest.storyId,
+    baseRevision: 999,
+    validationProfile: "draft",
+    operations: [{ type: "patch", path: "story/book.json", value: { title: "不应写入" } }],
+  } }, undefined, undefined, undefined);
+  assert(invalid.details.committed === false && invalid.details.valid === false, "非法 ChangeSet 应返回结构化失败结果。", invalid.details);
+  const afterInvalid = JSON.parse(await readFile(join(root, "story/book.json"), "utf8"));
+  assert(afterInvalid.data.title === "提交工具测试", "校验失败不得写入正式文件。", afterInvalid);
+
+  const untouchedPath = join(root, "story/style.json");
+  await utimes(untouchedPath, new Date(1_000), new Date(1_000));
+  const untouchedBefore = (await stat(untouchedPath)).mtimeMs;
+  const valid = await storyTool.execute("valid", { action: "commit_changes", changeSet: {
+    ...changeSetContract,
+    storyId: project.manifest.storyId,
+    baseRevision: project.manifest.revision,
+    validationProfile: "draft",
+    batch: { workflowId: "commit-tool-test", index: 1, total: 1, label: "局部标题", final: true },
+    operations: [{ type: "patch", path: "story/book.json", value: { title: "原子提交成功" } }],
+  } }, undefined, undefined, undefined);
+  assert(valid.details.committed === true && valid.details.revision === project.manifest.revision + 1, "合法 ChangeSet 应一次调用完成校验与提交。", valid.details);
+  const afterValid = JSON.parse(await readFile(join(root, "story/book.json"), "utf8"));
+  assert(afterValid.data.title === "原子提交成功", "合法 ChangeSet 应写入变化文件。", afterValid);
+  assert(
+    afterValid.$document.label === "作品核心" && afterValid.$schema.fields["/title"].label === "书名",
+    "落盘 JSON 必须携带文档与字段可读元数据。",
+    afterValid,
+  );
+  assert((await stat(untouchedPath)).mtimeMs === untouchedBefore, "原子提交不应重写本批未变化的 JSON 文件。");
+
+  const fallbackRoot = join(${JSON.stringify(tempDir)}, "fallback-workspace");
+  await mkdir(join(fallbackRoot, "story/fallback"), { recursive: true });
+  await writeFile(join(fallbackRoot, "story/fallback/index.json"), JSON.stringify({ format: "story-assistant-fallback-json" }), "utf8");
+  const fallbackPackage = createStoryToolPackage(createNodeStoryProjectRepository(fallbackRoot));
+  const refused: any = await fallbackPackage.execute({ action: "initialize", storyId: "fallback-story", title: "兜底迁移" });
+  assert(refused.initialized === false && refused.issues[0]?.code === "initialize.existing-json", "初始化默认不得覆盖兜底 JSON。", refused);
+  assert(await stat(join(fallbackRoot, "story/fallback/index.json")), "初始化被拒绝时兜底 JSON 必须保留。");
+  const initialized: any = await fallbackPackage.execute({ action: "initialize", storyId: "fallback-story", title: "兜底迁移", replaceExistingJson: true });
+  assert(initialized.initialized === true && initialized.revision === 0, "明确允许后应创建唯一合法结构。", initialized);
+  const initializedManifest = JSON.parse(await readFile(join(fallbackRoot, "story/manifest.json"), "utf8"));
+  assert(initializedManifest.data.storyId === "fallback-story", "初始化应写入经过校验的 manifest。", initializedManifest);
+  const materialized: any = await fallbackPackage.execute({
+    action: "commit_changes",
+    changeSet: {
+      ...changeSetContract,
+      storyId: "fallback-story",
+      baseRevision: 0,
+      validationProfile: "draft",
+      operations: [{
+        type: "upsert",
+        path: "story/world/world-background.json",
+        value: { kind: "story-world-entry", id: "world-background", category: "background", title: "故事背景" },
+      }],
+    },
+  });
+  assert(materialized.committed === true && materialized.revision === 1, "普通 data 对象应由 contract 补齐后提交。", materialized);
+  const encodedWorld = JSON.parse(await readFile(join(fallbackRoot, "story/world/world-background.json"), "utf8"));
+  assert(
+    encodedWorld.data.schemaVersion === 1 && encodedWorld.data.summary === "" && encodedWorld.$schema.fields["/content"].label === "详细内容",
+    "contract 应补齐默认字段并将字段定义编码进落盘 JSON。",
+    encodedWorld,
+  );
+  const rejectedContract: any = await fallbackPackage.execute({
+    action: "commit_changes",
+    changeSet: {
+      ...changeSetContract,
+      contractVersion: 2,
+      storyId: "fallback-story",
+      baseRevision: 1,
+      validationProfile: "draft",
+      operations: [{ type: "patch", path: "story/book.json", value: { title: "错误协议" } }],
+    },
+  });
+  assert(
+    rejectedContract.committed === false && rejectedContract.issues[0]?.code === "changeset.invalid",
+    "工具必须在写入前拒绝错误 contract 版本。",
+    rejectedContract,
+  );
+  console.log("[story-commit-tool] ok");
+`,
+);
+
+try {
+  await build({
+    entryPoints: [entryPath],
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    outfile: bundledPath,
+    target: "node22",
+    alias: {
+      "@": resolve(workspaceRoot, "src"),
+      "@engines/native/agent": resolve(workspaceRoot, "agent-runtime/src/engines/drivers/native/agent"),
+    },
+    loader: {
+      ".jpg": "dataurl",
+      ".jpeg": "dataurl",
+      ".png": "dataurl",
+      ".svg": "dataurl",
+      ".webp": "dataurl",
+    },
+  });
+  await import(pathToFileURL(bundledPath).href);
+} finally {
+  rmSync(tempDir, { recursive: true, force: true });
+}
