@@ -117,8 +117,8 @@ export const useStoryState = create<StoryStore>((set, get) => ({
       set({ documents: nextDocuments, story: nextStory, storyWorkspace: nextWorkspace });
       return saved;
     } catch (error) {
-      console.error("Failed to save story JSON document", error);
-      toast.error(error instanceof Error ? error.message : "JSON 保存失败。");
+      console.error("Failed to save story document", error);
+      toast.error(error instanceof Error ? error.message : "故事资料保存失败。");
       return null;
     } finally {
       set({ isSaving: false });
@@ -143,8 +143,8 @@ export const useStoryState = create<StoryStore>((set, get) => ({
       set({ documents: nextDocuments, story: nextStoryView(story, storyWorkspace, nextDocuments) });
       return true;
     } catch (error) {
-      console.error("Failed to delete story JSON document", error);
-      toast.error(error instanceof Error ? error.message : "JSON 删除失败。");
+      console.error("Failed to delete story document", error);
+      toast.error(error instanceof Error ? error.message : "故事资料删除失败。");
       return false;
     } finally {
       set({ isSaving: false });

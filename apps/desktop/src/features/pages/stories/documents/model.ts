@@ -87,6 +87,16 @@ const normalizeObjectDefinitions = (value: JsonValue | undefined): Record<string
 };
 
 export const inspectStructuredJsonDocument = (document: StoryJsonDocument): StructuredJsonDocument | null => {
+  if (document.definition && isJsonObject(document.value)) {
+    return {
+      data: document.value,
+      definitions: document.definition.definitions,
+      fields: document.definition.fields,
+      kind: document.definition.kind,
+      label: document.definition.label,
+      path: document.path,
+    };
+  }
   if (!isJsonObject(document.value)) {
     return null;
   }

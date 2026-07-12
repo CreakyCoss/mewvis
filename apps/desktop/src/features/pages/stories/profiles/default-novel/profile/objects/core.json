@@ -1,0 +1,166 @@
+{
+  "manifest-file-entry": {
+    "label": "清单文件项",
+    "fields": {
+      "/kind": {
+        "type": "text",
+        "label": "文档类型",
+        "required": true,
+        "readOnly": true
+      },
+      "/id": {
+        "type": "id",
+        "label": "对象 ID",
+        "required": true,
+        "readOnly": true
+      },
+      "/path": {
+        "type": "path",
+        "label": "文件路径",
+        "required": true,
+        "readOnly": true
+      }
+    }
+  },
+  "arc-stage": {
+    "label": "全书阶段",
+    "identityPointer": "/id",
+    "fields": {
+      "/id": {
+        "type": "id",
+        "label": "阶段 ID",
+        "required": true,
+        "immutable": true
+      },
+      "/name": {
+        "type": "text",
+        "label": "阶段名称",
+        "required": true
+      },
+      "/phase": {
+        "type": "enum",
+        "label": "阶段类型",
+        "required": true,
+        "options": [
+          {
+            "value": "opening",
+            "label": "开篇"
+          },
+          {
+            "value": "development",
+            "label": "发展"
+          },
+          {
+            "value": "climax",
+            "label": "高潮"
+          },
+          {
+            "value": "ending",
+            "label": "结局"
+          },
+          {
+            "value": "custom",
+            "label": "自定义"
+          }
+        ]
+      },
+      "/startChapter": {
+        "type": "integer",
+        "label": "起始章节",
+        "required": true,
+        "minimum": 1
+      },
+      "/endChapter": {
+        "type": "integer",
+        "label": "结束章节",
+        "required": true,
+        "minimum": 1
+      },
+      "/purpose": {
+        "type": "textarea",
+        "label": "阶段目的",
+        "required": true
+      },
+      "/emotionalTone": {
+        "type": "textarea",
+        "label": "情绪基调",
+        "required": true
+      },
+      "/expectedReaderState": {
+        "type": "textarea",
+        "label": "期望读者状态",
+        "required": true
+      },
+      "/allowedReveals": {
+        "type": "string-list",
+        "label": "允许揭示",
+        "required": true,
+        "default": []
+      },
+      "/prohibitedReveals": {
+        "type": "string-list",
+        "label": "禁止揭示",
+        "required": true,
+        "default": []
+      }
+    }
+  },
+  "turning-point": {
+    "label": "关键转折",
+    "fields": {
+      "/chapterId": {
+        "type": "reference",
+        "label": "章节",
+        "required": true,
+        "targetKinds": ["story-chapter-plan", "story-chapter"]
+      },
+      "/function": {
+        "type": "textarea",
+        "label": "结构功能",
+        "required": true
+      },
+      "/emotionalEffect": {
+        "type": "textarea",
+        "label": "情绪效果",
+        "required": true
+      }
+    }
+  },
+  "style-profile": {
+    "label": "文风画像",
+    "fields": {
+      "/pointOfView": {
+        "type": "text",
+        "label": "视角",
+        "required": true
+      },
+      "/tone": {
+        "type": "textarea",
+        "label": "语气",
+        "required": true
+      },
+      "/sentenceRhythm": {
+        "type": "textarea",
+        "label": "句式节奏",
+        "required": true
+      },
+      "/dialogue": {
+        "type": "textarea",
+        "label": "对话特征",
+        "required": true
+      },
+      "/proseRules": {
+        "type": "string-list",
+        "label": "表达规则",
+        "required": true,
+        "default": []
+      },
+      "/anchorExcerpts": {
+        "type": "string-list",
+        "label": "短证据锚点",
+        "required": true,
+        "default": []
+      }
+    }
+  }
+}

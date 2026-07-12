@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useState, type ComponentType } from "react";
-import { BookOpenText, Boxes, FileJson2, GitBranch, Globe2, ListTree, Plus, Search, UsersRound } from "lucide-react";
+import {
+  BookOpenText,
+  Boxes,
+  FileJson2,
+  FileText,
+  GitBranch,
+  Globe2,
+  ListTree,
+  Plus,
+  Search,
+  UsersRound,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -148,6 +159,7 @@ export const StoryModules = () => {
                   <div className="space-y-0.5">
                     {group.documents.map((document) => {
                       const active = selectedPath === document.path;
+                      const DocumentIcon = document.path.endsWith(".md") ? FileText : FileJson2;
                       return (
                         <button
                           key={document.path}
@@ -162,7 +174,7 @@ export const StoryModules = () => {
                           ].join(" ")}
                           onClick={() => setSelectedPath(document.path)}
                         >
-                          <FileJson2 className="size-4 shrink-0 opacity-80" />
+                          <DocumentIcon className="size-4 shrink-0 opacity-80" />
                           <span className="min-w-0 truncate">{storyDocumentLabel(document)}</span>
                           {active ? <span className="ml-auto size-1.5 shrink-0 rounded-full bg-primary" /> : null}
                         </button>
@@ -190,7 +202,7 @@ export const StoryModules = () => {
             <FileJson2 className="mx-auto size-9 text-muted-foreground" />
             <h3 className="mt-3 text-base font-semibold">暂无故事资料</h3>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              可以手动创建 JSON，或打开创作助手生成带字段说明的结构化文档。
+              可以手动创建 JSON，或打开创作助手生成 Profile 管理的故事资料与章节 Markdown。
             </p>
             <Button type="button" className="mt-4" onClick={() => setIsCreateOpen(true)}>
               <Plus className="size-4" />

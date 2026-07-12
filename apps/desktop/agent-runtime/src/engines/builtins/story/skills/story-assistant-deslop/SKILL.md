@@ -57,7 +57,7 @@ metadata:
 
 - `reviewType="deslop"`；
 - mode 为 detect 或 rewrite；
-- scopePaths 指向 `story/chapters/{id}.json`；
+- scopePaths 指向 `story/chapters/{id}.md`；
 - rubric 写 `oh-story-claudecode 7 Gate @ 2e9cbac`；
 - findings 每项记录 severity、category=`prose|format`、scopePath、短证据、问题、修法和状态；
 - verdict 检测无问题为 approve，有问题为 concerns，正文严重退化/截断为 reject。
@@ -69,7 +69,7 @@ metadata:
 改写模式按单章拆批：
 
 - 先提交 review findings；
-- 对已有 `story/chapters/{id}.json` 优先用唯一锚点 replace-text 局部改写，再 patch wordCount、summary 以及确实变化的引用；保持 id、planId、number 和事件事实；
+- 对已有 `story/chapters/{id}.md` 优先用 field=`content` 的唯一锚点 replace-text 局部改写，再 patch 对应章节结果 JSON 的 wordCount、summary 以及确实变化的引用；保持 id、planId、number 和事件事实；
 - 再用 upsert-items 按 finding id patch status：已修标 resolved，无法确定项保持 open；
 - 一批只含一章正文，超 192 KiB 时按用户指定片段处理，不能截断正文后提交。
 

@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 
 const root = process.cwd();
@@ -44,10 +44,17 @@ const builtinsIndex = readFileSync(resolve(root, "agent-runtime/src/engines/buil
 const builtinDefinition = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/definition.ts"), "utf8");
 const storyBuiltin = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/index.ts"), "utf8");
 const storySkill = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/skills/definition.ts"), "utf8");
-const storyContract = readFileSync(
-  resolve(root, "src/features/pages/stories/contracts/default-novel/contract.json"),
-  "utf8",
-);
+const storyProfileRoot = resolve(root, "src/features/pages/stories/profiles/default-novel/profile");
+const storyProfile = [
+  readFileSync(resolve(storyProfileRoot, "metadata.json"), "utf8"),
+  ...readdirSync(resolve(storyProfileRoot, "objects"))
+    .filter((name) => name.endsWith(".json"))
+    .map((name) => readFileSync(resolve(storyProfileRoot, "objects", name), "utf8")),
+  ...readdirSync(resolve(storyProfileRoot, "documents"))
+    .filter((name) => name.endsWith(".json"))
+    .map((name) => readFileSync(resolve(storyProfileRoot, "documents", name), "utf8")),
+].join("\n");
+const storyLayout = readFileSync(resolve(root, "src/features/pages/stories/layouts/default-novel/layout.json"), "utf8");
 const storyTool = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/tool/definition.ts"), "utf8");
 const storyProtocol = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/protocol.ts"), "utf8");
 const storyService = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/tool/service.ts"), "utf8");
@@ -59,17 +66,25 @@ const storyToolCore = collectTypeScriptFiles(resolve(root, "agent-runtime/src/en
   .map((path) => readFileSync(path, "utf8"))
   .join("\n");
 const frontendWorkspaceContract = readFileSync(
-  resolve(root, "src/features/pages/stories/contracts/workspace.ts"),
+  resolve(root, "src/features/pages/stories/project-workspace.ts"),
   "utf8",
 );
+const frontendDocumentRepository = readFileSync(
+  resolve(root, "src/features/pages/stories/documents/repository.ts"),
+  "utf8",
+);
+const frontendStoryStorage = readFileSync(resolve(root, "src/features/pages/stories/storage.ts"), "utf8");
 const protocolDefinition = readFileSync(resolve(root, "protocols/definition.ts"), "utf8");
 const storyProjectProtocol = readFileSync(resolve(root, "protocols/story-project/protocol.ts"), "utf8");
-const storyContractCompiler = readFileSync(resolve(root, "protocols/story-project/compiler.ts"), "utf8");
-const storyContractRegistry = readFileSync(resolve(root, "protocols/story-project/registry.ts"), "utf8");
+const storyProfileCompiler = readFileSync(resolve(root, "protocols/story-project/compiler.ts"), "utf8");
+const storyProfileRegistry = readFileSync(resolve(root, "protocols/story-project/registry.ts"), "utf8");
 const structuredNovelCompiler = readFileSync(
-  resolve(root, "protocols/story-project/formats/structured-novel-v1/compiler.ts"),
+  resolve(root, "protocols/story-project/runtime.ts"),
   "utf8",
 );
+if (existsSync(resolve(root, "protocols/story-project/profiles"))) {
+  throw new Error("共享 story-project 协议层不得继续持有具体小说 Profile。");
+}
 if (
   !builtinsIndex.includes("const builtinRegistry") ||
   !builtinsIndex.includes("STORY_BUILTIN") ||
@@ -99,12 +114,14 @@ if (
   throw new Error("story-authoring 技能必须依赖强类型 Tool Contract，Story Tool 必须显式实现该契约。");
 }
 if (
-  storyContract.includes('"capabilities"') ||
-  storyContract.includes('"capability"') ||
-  storyContract.includes("novel-claw.story-project.default-novel@1") ||
-  storyContract.includes("skillBindings") ||
+  storyProfile.includes('"capabilities"') ||
+  storyProfile.includes('"capability"') ||
+  storyProfile.includes("novel-claw.structured-document") ||
+  storyProfile.includes("skillBindings") ||
+  storyLayout.includes('"fields"') ||
+  !storyLayout.includes('"profile"') ||
   storySkill.includes("contract.json") ||
-  storyContractCompiler.includes("STORY_PROJECT_CONTRACT_TOOL_CAPABILITY") ||
+  storyProfileCompiler.includes("STORY_PROJECT_CONTRACT_TOOL_CAPABILITY") ||
   !storyProtocol.includes("interface StoryToolApi") ||
   !storyProtocol.includes("defineBuiltinToolContract") ||
   storyProtocol.includes("STORY_TOOL_REQUIRED_STORY_CONTRACT_CAPABILITIES") ||
@@ -116,30 +133,41 @@ if (
   storyService.includes("requiredContractCapabilities") ||
   !storyService.includes("repository.loadProjectApi") ||
   !storyService.includes("StoryProjectApi") ||
-  !storyRepository.includes("createStoryContractCompilerRegistry") ||
-  !storyRepository.includes("STORY_PROJECT_CONTRACT_PATH") ||
-  !storyContractCompiler.includes("interface StoryContractCompiler") ||
+  !storyRepository.includes("createStoryProjectCompilerRegistry") ||
+  !storyRepository.includes("STORY_PROJECT_CONFIG_PATH") ||
+  !storyRepository.includes("STORY_PROJECT_PROFILE_PATH") ||
+  !storyProfileCompiler.includes("interface StoryProjectCompiler") ||
   !storyProjectProtocol.includes("interface StoryProjectApi") ||
   !storyProjectProtocol.includes("STORY_PROJECT_PROTOCOL") ||
   !storyProjectProtocol.includes("defineProtocol<StoryProjectApi>") ||
   !storyProjectProtocol.includes("createProject(input:") ||
   !storyProjectProtocol.includes("projectManifestPath():") ||
   !storyProjectProtocol.includes("applyChanges(project:") ||
-  !storyProjectProtocol.includes("readContext(project:") ||
+  !storyProjectProtocol.includes("readContext(") ||
+  !storyProjectProtocol.includes("StoryContextBundle") ||
   storyProjectProtocol.includes("formats/structured-novel-v1") ||
-  storyProjectProtocol.includes("declarative-contract") ||
-  storyProjectProtocol.includes("StoryProjectContract") ||
-  !storyProjectProtocol.includes("STORY_PROJECT_CONTRACT_PATH") ||
-  storyContractCompiler.includes("formats/structured-novel-v1") ||
-  storyContractCompiler.includes("declarative-contract") ||
-  storyContractCompiler.includes("StoryProjectContract") ||
-  !storyContractRegistry.includes("class StoryContractCompilerRegistry") ||
-  !storyContractRegistry.includes("assertProtocolImplementation") ||
-  !storyContractRegistry.includes("STORY_PROJECT_PROTOCOL") ||
-  !structuredNovelCompiler.includes("StoryContractCompiler") ||
+  storyProjectProtocol.includes("declarative-profile") ||
+  !storyProjectProtocol.includes("STORY_PROJECT_CONFIG_PATH") ||
+  storyProfileCompiler.includes("formats/structured-novel-v1") ||
+  storyProfileCompiler.includes("declarative-profile") ||
+  storyProfileCompiler.includes("StoryProfile") ||
+  !storyProfileRegistry.includes("class StoryProjectCompilerRegistry") ||
+  !storyProfileRegistry.includes("assertProtocolImplementation") ||
+  !storyProfileRegistry.includes("STORY_PROJECT_PROTOCOL") ||
+  !structuredNovelCompiler.includes("StoryProjectCompiler") ||
   !structuredNovelCompiler.includes("StoryProjectApi") ||
-  !frontendWorkspaceContract.includes("createStoryContractCompilerRegistry") ||
-  !frontendWorkspaceContract.includes("installDefaultStoryProjectContract") ||
+  !structuredNovelCompiler.includes("DECLARATIVE_STORY_PROJECT_COMPILER") ||
+  structuredNovelCompiler.includes("standard-novel") ||
+  !frontendWorkspaceContract.includes("createStoryProjectCompilerRegistry") ||
+  !frontendWorkspaceContract.includes("DEFAULT_STORY_PROFILE_SOURCE") ||
+  !frontendWorkspaceContract.includes("STORY_PROJECT_PROFILE_PATH") ||
+  !frontendWorkspaceContract.includes("installDefaultStoryProject") ||
+  !frontendWorkspaceContract.includes("initializeDefaultStoryProject") ||
+  !frontendDocumentRepository.includes("projectApi.applyChanges") ||
+  !frontendDocumentRepository.includes("writeWorkspaceFilesAtomic") ||
+  frontendDocumentRepository.includes("writeWorkspaceFile(") ||
+  frontendDocumentRepository.includes("deleteWorkspaceFile(") ||
+  !frontendStoryStorage.includes("initializeDefaultStoryProject") ||
   frontendWorkspaceContract.includes("compiled.describe()") ||
   !builtinDefinition.includes("type BuiltinDefinition") ||
   !builtinDefinition.includes("assertBuiltinDefinition") ||

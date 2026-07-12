@@ -1,0 +1,523 @@
+{
+  "story-book-arc": {
+    "label": "全书主线",
+    "pathPattern": "story/outline/book-arc.json",
+    "cardinality": "one",
+    "fieldSets": ["entity-document"],
+    "constFields": {
+      "/kind": "story-book-arc"
+    },
+    "fields": {
+      "/totalChapters": {
+        "type": "integer",
+        "label": "总章节数",
+        "required": true,
+        "minimum": 0,
+        "default": 0
+      },
+      "/targetWords": {
+        "type": "integer",
+        "label": "目标字数",
+        "required": true,
+        "minimum": 0,
+        "default": 0
+      },
+      "/emotionalArc": {
+        "type": "textarea",
+        "label": "全书情绪弧",
+        "required": true,
+        "default": ""
+      },
+      "/stages": {
+        "type": "collection",
+        "label": "全书阶段",
+        "required": true,
+        "itemDefinition": "arc-stage",
+        "default": []
+      },
+      "/volumeIds": {
+        "type": "reference-list",
+        "label": "分卷",
+        "required": true,
+        "targetKinds": ["story-volume"],
+        "default": []
+      },
+      "/keyTurningPoints": {
+        "type": "collection",
+        "label": "关键转折",
+        "required": true,
+        "itemDefinition": "turning-point",
+        "default": []
+      }
+    },
+    "ruleIds": ["opening.stage", "reference.missing"]
+  },
+  "story-volume": {
+    "label": "分卷",
+    "pathPattern": "story/outline/volumes/{id}.json",
+    "cardinality": "many",
+    "titlePointer": "/title",
+    "fieldSets": ["entity-document"],
+    "constFields": {
+      "/kind": "story-volume"
+    },
+    "fields": {
+      "/number": {
+        "type": "integer",
+        "label": "卷号",
+        "required": true,
+        "minimum": 1
+      },
+      "/title": {
+        "type": "text",
+        "label": "卷名",
+        "required": true
+      },
+      "/startChapter": {
+        "type": "integer",
+        "label": "起始章节",
+        "required": true,
+        "minimum": 1
+      },
+      "/endChapter": {
+        "type": "integer",
+        "label": "结束章节",
+        "required": true,
+        "minimum": 1
+      },
+      "/targetWords": {
+        "type": "integer",
+        "label": "目标字数",
+        "required": true,
+        "minimum": 0
+      },
+      "/phase": {
+        "type": "enum",
+        "label": "全书阶段",
+        "required": true,
+        "options": [
+          {
+            "value": "opening",
+            "label": "开篇"
+          },
+          {
+            "value": "development",
+            "label": "发展"
+          },
+          {
+            "value": "climax",
+            "label": "高潮"
+          },
+          {
+            "value": "ending",
+            "label": "结局"
+          },
+          {
+            "value": "mixed",
+            "label": "混合"
+          },
+          {
+            "value": "custom",
+            "label": "自定义"
+          }
+        ]
+      },
+      "/purpose": {
+        "type": "textarea",
+        "label": "本卷目的",
+        "required": true
+      },
+      "/coreConflict": {
+        "type": "textarea",
+        "label": "核心冲突",
+        "required": true
+      },
+      "/coreEvent": {
+        "type": "textarea",
+        "label": "核心事件",
+        "required": true
+      },
+      "/startState": {
+        "type": "textarea",
+        "label": "起始状态",
+        "required": true
+      },
+      "/endState": {
+        "type": "textarea",
+        "label": "结束状态",
+        "required": true
+      },
+      "/emotionalArc": {
+        "type": "textarea",
+        "label": "情绪弧",
+        "required": true
+      },
+      "/allowedReveals": {
+        "type": "string-list",
+        "label": "允许揭示",
+        "required": true,
+        "default": []
+      },
+      "/prohibitedReveals": {
+        "type": "string-list",
+        "label": "禁止揭示",
+        "required": true,
+        "default": []
+      },
+      "/chapterIds": {
+        "type": "reference-list",
+        "label": "章节细纲",
+        "required": true,
+        "targetKinds": ["story-chapter-plan"],
+        "default": []
+      }
+    },
+    "ruleIds": ["range.invalid", "range.overlap", "volumes.number"]
+  },
+  "story-chapter-plan": {
+    "label": "章节细纲",
+    "pathPattern": "story/outline/chapters/{id}.json",
+    "cardinality": "many",
+    "titlePointer": "/title",
+    "fieldSets": ["entity-document"],
+    "constFields": {
+      "/kind": "story-chapter-plan"
+    },
+    "fields": {
+      "/number": {
+        "type": "integer",
+        "label": "章节号",
+        "required": true,
+        "minimum": 1
+      },
+      "/volumeId": {
+        "type": "reference",
+        "label": "所属分卷",
+        "required": true,
+        "targetKinds": ["story-volume"]
+      },
+      "/title": {
+        "type": "text",
+        "label": "章节标题",
+        "required": true
+      },
+      "/phase": {
+        "type": "enum",
+        "label": "阶段",
+        "required": true,
+        "options": [
+          {
+            "value": "opening",
+            "label": "开篇"
+          },
+          {
+            "value": "development",
+            "label": "发展"
+          },
+          {
+            "value": "climax",
+            "label": "高潮"
+          },
+          {
+            "value": "ending",
+            "label": "结局"
+          },
+          {
+            "value": "custom",
+            "label": "自定义"
+          }
+        ]
+      },
+      "/phasePosition": {
+        "type": "text",
+        "label": "阶段位置",
+        "required": true
+      },
+      "/chapterRole": {
+        "type": "enum",
+        "label": "章节功能",
+        "required": true,
+        "options": [
+          {
+            "value": "high-pressure",
+            "label": "高压"
+          },
+          {
+            "value": "progress",
+            "label": "推进"
+          },
+          {
+            "value": "training",
+            "label": "成长训练"
+          },
+          {
+            "value": "relationship",
+            "label": "关系"
+          },
+          {
+            "value": "low-pressure",
+            "label": "低压"
+          },
+          {
+            "value": "information",
+            "label": "信息"
+          },
+          {
+            "value": "transition",
+            "label": "过渡"
+          },
+          {
+            "value": "custom",
+            "label": "自定义"
+          }
+        ]
+      },
+      "/targetWords": {
+        "type": "integer",
+        "label": "目标字数",
+        "required": true,
+        "minimum": 0
+      },
+      "/targetEmotion": {
+        "type": "textarea",
+        "label": "目标情绪",
+        "required": true
+      },
+      "/coreEvent": {
+        "type": "textarea",
+        "label": "核心事件",
+        "required": true
+      },
+      "/structureFormula": {
+        "type": "textarea",
+        "label": "结构公式",
+        "required": true
+      },
+      "/openingHook": {
+        "type": "textarea",
+        "label": "开篇钩子",
+        "required": true
+      },
+      "/payoff": {
+        "type": "textarea",
+        "label": "本章兑现",
+        "required": true
+      },
+      "/releaseGuards": {
+        "type": "string-list",
+        "label": "禁止提前释放",
+        "required": true,
+        "default": []
+      },
+      "/summary": {
+        "type": "object",
+        "label": "五段摘要",
+        "required": true,
+        "definition": "chapter-plan-summary"
+      },
+      "/plotLines": {
+        "type": "object",
+        "label": "剧情线",
+        "required": true,
+        "definition": "plot-lines"
+      },
+      "/participantIds": {
+        "type": "reference-list",
+        "label": "参与角色",
+        "required": true,
+        "targetKinds": ["story-character"],
+        "default": []
+      },
+      "/appearanceOrder": {
+        "type": "reference-list",
+        "label": "出场顺序",
+        "required": true,
+        "targetKinds": ["story-character"],
+        "default": []
+      },
+      "/worldRefIds": {
+        "type": "reference-list",
+        "label": "相关设定",
+        "required": true,
+        "targetKinds": ["story-world-entry"],
+        "default": []
+      },
+      "/pointOfView": {
+        "type": "text",
+        "label": "本章视角",
+        "required": true
+      },
+      "/informationGap": {
+        "type": "textarea",
+        "label": "信息差",
+        "required": true
+      },
+      "/relationshipChanges": {
+        "type": "string-list",
+        "label": "关系变化",
+        "required": true,
+        "default": []
+      },
+      "/beats": {
+        "type": "collection",
+        "label": "章节节拍",
+        "required": true,
+        "itemDefinition": "chapter-beat",
+        "default": []
+      },
+      "/costAndPayoff": {
+        "type": "textarea",
+        "label": "代价与回报",
+        "required": true
+      },
+      "/ending": {
+        "type": "object",
+        "label": "结尾设计",
+        "required": true,
+        "definition": "chapter-ending"
+      },
+      "/status": {
+        "type": "enum",
+        "label": "细纲状态",
+        "required": true,
+        "options": [
+          {
+            "value": "draft",
+            "label": "草稿"
+          },
+          {
+            "value": "locked",
+            "label": "已锁定"
+          },
+          {
+            "value": "ready",
+            "label": "可写作"
+          },
+          {
+            "value": "written",
+            "label": "已成文"
+          }
+        ]
+      }
+    },
+    "ruleIds": ["chapters.number", "chapter.budget", "reference.missing"]
+  },
+  "story-chapter": {
+    "label": "章节结果",
+    "description": "正文完成后的摘要、引用与状态变化；章节正文单独保存为 Markdown。",
+    "pathPattern": "story/tracking/chapter-results/{id}.json",
+    "cardinality": "many",
+    "companionKinds": ["story-chapter-content"],
+    "titlePointer": "/title",
+    "fieldSets": ["entity-document"],
+    "constFields": {
+      "/kind": "story-chapter"
+    },
+    "fields": {
+      "/planId": {
+        "type": "reference",
+        "label": "章节细纲",
+        "required": true,
+        "targetKinds": ["story-chapter-plan"]
+      },
+      "/number": {
+        "type": "integer",
+        "label": "章节号",
+        "required": true,
+        "minimum": 1
+      },
+      "/title": {
+        "type": "text",
+        "label": "章节标题",
+        "required": true
+      },
+      "/status": {
+        "type": "enum",
+        "label": "正文状态",
+        "required": true,
+        "options": [
+          {
+            "value": "draft",
+            "label": "草稿"
+          },
+          {
+            "value": "review",
+            "label": "审查中"
+          },
+          {
+            "value": "accepted",
+            "label": "已接受"
+          },
+          {
+            "value": "published",
+            "label": "已发布"
+          }
+        ]
+      },
+      "/summary": {
+        "type": "textarea",
+        "label": "章节摘要",
+        "required": true,
+        "default": ""
+      },
+      "/wordCount": {
+        "type": "integer",
+        "label": "字数",
+        "required": true,
+        "minimum": 0
+      },
+      "/participantIds": {
+        "type": "reference-list",
+        "label": "出场角色",
+        "required": true,
+        "targetKinds": ["story-character"],
+        "default": []
+      },
+      "/worldRefIds": {
+        "type": "reference-list",
+        "label": "相关设定",
+        "required": true,
+        "targetKinds": ["story-world-entry"],
+        "default": []
+      },
+      "/stateChanges": {
+        "type": "object",
+        "label": "状态变化",
+        "required": true,
+        "definition": "chapter-state-changes"
+      }
+    },
+    "ruleIds": ["reference.missing"]
+  },
+  "story-chapter-content": {
+    "label": "章节正文",
+    "description": "可直接阅读、编辑和发布的 Markdown 正文。",
+    "contentType": "markdown",
+    "pathPattern": "story/chapters/{id}.md",
+    "cardinality": "many",
+    "companionKinds": ["story-chapter"],
+    "titlePointer": "/id",
+    "fields": {
+      "/kind": {
+        "type": "text",
+        "label": "文档类型",
+        "required": true,
+        "readOnly": true,
+        "const": "story-chapter-content"
+      },
+      "/id": {
+        "type": "id",
+        "label": "章节 ID",
+        "required": true,
+        "immutable": true
+      },
+      "/content": {
+        "type": "content",
+        "label": "正文 Markdown",
+        "required": true,
+        "default": ""
+      }
+    },
+    "ruleIds": []
+  }
+}

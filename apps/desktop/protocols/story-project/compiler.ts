@@ -1,7 +1,12 @@
 import type { StoryProjectApi } from "./protocol.js";
 
-export interface StoryContractCompiler {
+export type StoryProjectCompilerSource = Readonly<{
+  profile: unknown;
+  layout: unknown;
+}>;
+
+export interface StoryProjectCompiler {
   readonly format: string;
   readonly compilerVersion: number;
-  compile(source: unknown): StoryProjectApi;
+  compile(source: StoryProjectCompilerSource): StoryProjectApi;
 }

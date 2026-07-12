@@ -6,6 +6,7 @@ export type JsonObject = {
 };
 
 export type StoryJsonDocument = {
+  definition?: StoryJsonDocumentDefinition;
   path: string;
   value: JsonValue;
   updatedAt: number | null;
@@ -34,6 +35,13 @@ export type JsonFieldMetadata = {
 export type JsonObjectDefinition = {
   label?: string;
   fields: Record<string, JsonFieldMetadata>;
+};
+
+export type StoryJsonDocumentDefinition = {
+  definitions: Record<string, JsonObjectDefinition>;
+  fields: Record<string, JsonFieldMetadata>;
+  kind: string;
+  label: string;
 };
 
 export type StructuredJsonDocument = {

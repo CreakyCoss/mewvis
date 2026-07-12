@@ -99,7 +99,7 @@ beats 预算合计必须在 `[targetWords, targetWords×1.1]`。低压章可没�
 1. `story(action="read_context", scope="chapter", targetId="章节 ID 或章节号")`。
 2. 检查细纲已 ready/locked，beats 预算合法，并形成一句本章意图：目标情绪 + 节奏 + 核心事件 + release guards。
 3. 展开正文，保留自然段落与角色声线；工程词、细纲说明、读者说明不能进入正文。
-4. 新章 upsert `story/chapters/{id}.json`；续写已有章用 append-text，局部重写用唯一锚点 replace-text，再 patch summary、wordCount 与实际变化的引用字段，保持稳定身份。只有用户要求完整重写该章时才 patch 整个 content。
+4. 新章在同一 ChangeSet 中 upsert `story/chapters/{id}.md` 的正文字符串，并 upsert `story/tracking/chapter-results/{id}.json` 的摘要、wordCount、引用和状态变化；续写或局部重写 Markdown 时用 field=`content` 的 append-text/replace-text，再 patch 章节结果。只有用户要求完整重写该章时才完整替换 Markdown。
 5. 正文单章为一个工作流；追踪字段较多时可在正文批后按依赖拆小批更新：
    - `tracking/character-states/*.json`；
    - `relationships.json`；

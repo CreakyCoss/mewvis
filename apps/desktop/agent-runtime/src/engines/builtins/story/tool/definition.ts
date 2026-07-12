@@ -104,7 +104,7 @@ export const STORY_TOOL = Object.freeze({
   label: "Story",
   contract: STORY_TOOL_CONTRACT,
   description:
-    "Read and modify a structured story through a trusted StoryContractCompiler. This tool implements the versioned story project tool contract and always verifies its fixed story contract requirements before exposing describe_structure, initialize, read_context, validate_changes, and atomic commit_changes.",
+    "Read and modify a story project through a trusted StoryProjectCompiler. It exposes the active profile and layout, readable writing context, validation, and atomic incremental commits.",
   parameters: STORY_TOOL_PARAMETERS,
   createImplementation: ({ workspacePath }) => createStoryToolPackage(createNodeStoryToolRepository(workspacePath)),
 }) satisfies BuiltinToolDefinition<typeof STORY_TOOL_CONTRACT>;

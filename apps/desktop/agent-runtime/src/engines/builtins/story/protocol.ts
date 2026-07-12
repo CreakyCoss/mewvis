@@ -1,5 +1,6 @@
 import type {
-  CompiledStoryContractDescription,
+  StoryProfileDescription,
+  StoryContextBundle,
   StoryValidationIssue,
   StoryValidationResult,
 } from "../../../../../protocols/story-project/index.js";
@@ -17,7 +18,7 @@ export type StoryToolAction = (typeof STORY_TOOL_ACTIONS)[keyof typeof STORY_TOO
 
 export type StoryStructureDescription = {
   compiler: { format: string; version: number };
-  contract: CompiledStoryContractDescription;
+  profile: StoryProfileDescription;
   changeSet: {
     maxOperations: number;
     maxBytes: number;
@@ -89,7 +90,7 @@ export type StoryCommitChangesResult = {
 export interface StoryToolApi {
   describeStructure(): Promise<StoryDescribeStructureResult>;
   initialize(input: StoryInitializeRequest): Promise<StoryInitializeResult>;
-  readContext(input: StoryReadContextRequest): Promise<unknown>;
+  readContext(input: StoryReadContextRequest): Promise<StoryContextBundle>;
   validateChanges(input: StoryChangeSetRequest): Promise<StoryValidateChangesResult>;
   commitChanges(input: StoryChangeSetRequest): Promise<StoryCommitChangesResult>;
 }

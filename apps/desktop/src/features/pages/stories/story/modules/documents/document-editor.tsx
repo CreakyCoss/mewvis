@@ -25,6 +25,7 @@ import {
   inspectStructuredJsonDocument,
   isJsonObject,
   replaceStructuredDocumentData,
+  storyDocumentData,
   storyDocumentLabel,
 } from "../../../documents/model";
 import type { JsonFieldMetadata, JsonValue, StoryJsonDocument } from "../../../documents/types";
@@ -97,7 +98,15 @@ export const StoryDocumentEditor = ({
   const saveDocument = useStoryState((state) => state.saveDocument);
   const deleteDocument = useStoryState((state) => state.deleteDocument);
   const isSaving = useStoryState((state) => state.isSaving);
-  const canonicalText = useMemo(() => JSON.stringify(document.value, null, 2), [document.value]);
+  const isMarkdown = document.path.endsWith(".md");
+  const sourceText = (value: JsonValue) => {
+    if (isMarkdown) {
+      const data = storyDocumentData({ ...document, value });
+      return typeof data?.content === "string" ? data.content : "";
+    }
+    return JSON.stringify(value, null, 2);
+  };
+  const canonicalText = useMemo(() => sourceText(document.value), [document.value, isMarkdown]);
   const [rawText, setRawText] = useState(canonicalText);
   const [draft, setDraft] = useState<JsonValue>(document.value);
   const [rawError, setRawError] = useState("");
@@ -107,7 +116,7 @@ export const StoryDocumentEditor = ({
 
   useEffect(() => {
     setDraft(document.value);
-    setRawText(JSON.stringify(document.value, null, 2));
+    setRawText(sourceText(document.value));
     setRawError("");
   }, [document]);
 
@@ -126,16 +135,23 @@ export const StoryDocumentEditor = ({
     if (!inspected) return;
     const next = replaceStructuredDocumentData(draft, { ...inspected.data, [key]: value });
     setDraft(next);
-    setRawText(JSON.stringify(next, null, 2));
+    setRawText(sourceText(next));
   };
 
   const updateFriendlyValue = (value: JsonValue) => {
     const next = inspected && isJsonObject(value) ? replaceStructuredDocumentData(draft, value) : value;
     setDraft(next);
-    setRawText(JSON.stringify(next, null, 2));
+    setRawText(sourceText(next));
   };
 
   const parseRaw = () => {
+    if (isMarkdown) {
+      const data = storyDocumentData({ ...document, value: draft });
+      const value = { ...(data ?? {}), content: rawText } as JsonValue;
+      setDraft(value);
+      setRawError("");
+      return { valid: true as const, value };
+    }
     try {
       const value = JSON.parse(rawText) as JsonValue;
       setDraft(value);
@@ -191,7 +207,7 @@ export const StoryDocumentEditor = ({
               {viewMode === "form" ? (
                 <DropdownMenuItem onSelect={() => setViewMode("source")}>
                   <FileCode2 className="size-4" />
-                  查看 JSON 源码
+                  查看{isMarkdown ? " Markdown" : " JSON"}源码
                 </DropdownMenuItem>
               ) : (
                 <DropdownMenuItem onSelect={switchToForm}>
@@ -241,7 +257,7 @@ export const StoryDocumentEditor = ({
         {viewMode === "source" ? (
           <div className="flex h-full min-h-0 flex-col">
             <div className="px-5 pt-5 xl:px-7">
-              <h2 className="text-lg font-semibold">JSON 源码</h2>
+              <h2 className="text-lg font-semibold">{isMarkdown ? "Markdown 正文" : "JSON 源码"}</h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 高级编辑模式 · <span className="font-mono">{document.path}</span>
               </p>

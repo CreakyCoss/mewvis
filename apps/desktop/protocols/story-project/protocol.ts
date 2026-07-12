@@ -1,12 +1,13 @@
 import { defineProtocol } from "../definition.js";
 
-export const STORY_PROJECT_CONTRACT_PATH = "story/.novel-claw/contract.json" as const;
-export const STORY_PROJECT_CONTRACT_LOCK_PATH = "story/.novel-claw/contract.lock.json" as const;
+export const STORY_PROJECT_CONFIG_PATH = "story/.novel-claw/project.json" as const;
+export const STORY_PROJECT_PROFILE_PATH = "story/.novel-claw/profile.json" as const;
+export const STORY_PROJECT_LOCK_PATH = "story/.novel-claw/project.lock.json" as const;
 
-export type StoryContractIdentity = Readonly<{
+export type StoryProfileIdentity = Readonly<{
   format: string;
-  contractId: string;
-  contractVersion: number;
+  profileId: string;
+  profileVersion: number;
 }>;
 
 /**
@@ -36,11 +37,13 @@ export type CompiledStoryFieldDescription = Readonly<{
 export type CompiledStoryDocumentDescription = Readonly<{
   label: string;
   description?: string;
+  contentType?: "json" | "markdown";
   pathPattern: string;
   cardinality: "one" | "many";
   fields: Readonly<Record<string, CompiledStoryFieldDescription>>;
   fieldSets?: readonly string[];
   constFields?: Readonly<Record<string, unknown>>;
+  companionKinds?: readonly string[];
   ruleIds?: readonly string[];
   [key: string]: unknown;
 }>;
@@ -55,12 +58,14 @@ export type CompiledStoryContextViewDescription = Readonly<{
   [key: string]: unknown;
 }>;
 
-export type CompiledStoryContractDescription = Readonly<{
+export type StoryProfileDescription = Readonly<{
   $format: string;
-  contractId: string;
-  contractVersion: number;
+  profileId: string;
+  profileVersion: number;
   schemaVersion: number;
   rootPath: string;
+  manifestKind: string;
+  primaryKind?: string;
   commonFieldSets: Readonly<Record<string, Readonly<Record<string, CompiledStoryFieldDescription>>>>;
   objectDefinitions: Readonly<
     Record<
@@ -74,17 +79,7 @@ export type CompiledStoryContractDescription = Readonly<{
   [key: string]: unknown;
 }>;
 
-export type CompiledStructuredStoryDocument = Readonly<{
-  $format: string;
-  $formatVersion: number;
-  $contract: Readonly<{ id: string; version: number }>;
-  $document: Readonly<{ kind: string; label: string; path: string }>;
-  $schema: Readonly<{
-    fields: Readonly<Record<string, CompiledStoryFieldDescription>>;
-    objectDefinitions: Readonly<Record<string, unknown>>;
-  }>;
-  data: Record<string, unknown>;
-}>;
+export type SerializedStoryDocument = Record<string, unknown> | string;
 
 export type StoryValidationIssue = Readonly<{
   severity: "error" | "warning";
@@ -98,7 +93,35 @@ export type StoryValidationResult = Readonly<{
   issues: StoryValidationIssue[];
 }>;
 
-export type StoryCompiledProject = unknown;
+export type StoryContextSource = Readonly<{
+  kind: string;
+  label: string;
+  path: string;
+  id?: string;
+}>;
+
+export type StoryContextSection = Readonly<{
+  id: string;
+  label: string;
+  priority: number;
+  required: boolean;
+  content: string;
+  sources: readonly StoryContextSource[];
+}>;
+
+export type StoryContextBundle = Readonly<{
+  scope: "project" | "chapter";
+  revision: number;
+  target: Readonly<{ kind: string; id: string; label: string }> | null;
+  text: string;
+  sections: readonly StoryContextSection[];
+  sources: readonly StoryContextSource[];
+}>;
+
+export type StoryCompiledProject = Readonly<{
+  manifest: Readonly<Record<string, unknown>>;
+  documents: readonly CompiledStoryProjectFileEntry[];
+}>;
 
 export type CompiledStoryProjectFileEntry = Readonly<{
   path: string;
@@ -131,17 +154,17 @@ export type StoryChangeSetDescription = Readonly<{
 
 export interface StoryProjectApi {
   readonly compiler: Readonly<{ format: string; version: number }>;
-  readonly identity: StoryContractIdentity;
+  readonly identity: StoryProfileIdentity;
   readonly changeSet: StoryChangeSetDescription;
 
-  describe(): CompiledStoryContractDescription;
+  describe(): StoryProfileDescription;
   document(kind: string): CompiledStoryDocumentDescription;
   documentFields(kind: string): Readonly<Record<string, CompiledStoryFieldDescription>>;
   contextView(scope: CompiledStoryContextViewDescription["scope"]): CompiledStoryContextViewDescription;
   resolveDocument(kind: string, parameters?: Readonly<Record<string, string>>): string;
   kindForPath(path: string): string;
-  materializeDocument(input: unknown, expectedKind: string, timestamp?: number): Record<string, unknown>;
-  encodeDocument(input: unknown, path: string): CompiledStructuredStoryDocument;
+  materializeDocument(input: unknown, path: string, timestamp?: number): Record<string, unknown>;
+  encodeDocument(input: unknown, path: string): SerializedStoryDocument;
   decodeDocument(input: unknown, path: string): Record<string, unknown>;
 
   projectManifestPath(): string;
@@ -153,7 +176,10 @@ export interface StoryProjectApi {
   projectInfo(project: StoryCompiledProject): { storyId: string; revision: number };
   validateProject(project: StoryCompiledProject, profile: string): StoryValidationResult;
   applyChanges(project: StoryCompiledProject, changeSet: unknown): AppliedStoryChanges;
-  readContext(project: StoryCompiledProject, input: { scope: "project" | "chapter"; targetId?: string }): unknown;
+  readContext(
+    project: StoryCompiledProject,
+    input: { scope: "project" | "chapter"; targetId?: string },
+  ): StoryContextBundle;
 }
 
 export const STORY_PROJECT_PROTOCOL = defineProtocol<StoryProjectApi>()({

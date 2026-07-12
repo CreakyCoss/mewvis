@@ -61,7 +61,7 @@ metadata:
 - 一个 book arc、一个 volume、一个 chapter plan、一个 chapter；
 - 功能段/数字小节映射为 plan.beats；
 - 核心反转、情绪设计和人设映射到 book、positioning、plan 与 characters；
-- 正文完整放入 chapter.content，不额外创建 `正文.md`。
+- 正文完整写入 `story/chapters/{id}.md`；章节摘要、字数、引用和状态变化写入对应的 `story/tracking/chapter-results/{id}.json`。
 
 细节参考最新上游 `references/structure-mapping-short.md` 与 `format-and-structure.md`，但存储格式以 Story Contract 为准。
 

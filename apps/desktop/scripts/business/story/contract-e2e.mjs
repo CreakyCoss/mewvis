@@ -1,12 +1,25 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = process.cwd();
-const contractPath = resolve(root, "src/features/pages/stories/contracts/default-novel/contract.json");
-const schemaPath = resolve(root, "protocols/story-project/formats/structured-novel-v1/schema.ts");
-const contract = JSON.parse(readFileSync(contractPath, "utf8"));
-const schemaSource = readFileSync(schemaPath, "utf8");
+const profilePath = resolve(root, "src/features/pages/stories/profiles/default-novel/profile");
+const layoutPath = resolve(root, "src/features/pages/stories/layouts/default-novel/layout.json");
+const metadata = JSON.parse(readFileSync(resolve(profilePath, "metadata.json"), "utf8"));
+const objectDefinitionSource = Object.assign(
+  {},
+  ...readdirSync(resolve(profilePath, "objects"))
+    .filter((name) => name.endsWith(".json"))
+    .map((name) => JSON.parse(readFileSync(resolve(profilePath, "objects", name), "utf8"))),
+);
+const documents = Object.assign(
+  {},
+  ...readdirSync(resolve(profilePath, "documents"))
+    .filter((name) => name.endsWith(".json"))
+    .map((name) => JSON.parse(readFileSync(resolve(profilePath, "documents", name), "utf8"))),
+);
+const contract = { ...metadata, objectDefinitions: objectDefinitionSource, documents };
+const layout = JSON.parse(readFileSync(layoutPath, "utf8"));
 
 const expectedDocumentPaths = {
   "story-manifest": "story/manifest.json",
@@ -19,7 +32,8 @@ const expectedDocumentPaths = {
   "story-book-arc": "story/outline/book-arc.json",
   "story-volume": "story/outline/volumes/{id}.json",
   "story-chapter-plan": "story/outline/chapters/{id}.json",
-  "story-chapter": "story/chapters/{id}.json",
+  "story-chapter": "story/tracking/chapter-results/{id}.json",
+  "story-chapter-content": "story/chapters/{id}.md",
   "story-character-state": "story/tracking/character-states/{characterId}.json",
   "story-foreshadows": "story/tracking/foreshadows.json",
   "story-timeline": "story/tracking/timeline/{id}.json",
@@ -30,13 +44,14 @@ const expectedDocumentPaths = {
   "story-review": "story/reviews/{id}.json",
   "story-import": "story/imports/{id}.json",
 };
-assert.equal(contract.$format, "novel-claw.structured-document-contract");
-assert.equal(contract.contractId, "novel-claw.story.default-novel");
-assert.equal(contract.contractVersion, 1);
+assert.equal(contract.$format, "novel-claw.story-profile");
+assert.equal(contract.profileId, "novel-claw.story.default-novel");
+assert.equal(contract.profileVersion, 1);
 assert.equal(contract.schemaVersion, 1);
 assert.equal(contract.rootPath, "story");
-assert.equal(contract.documentEncoding.format, "novel-claw.structured-document");
-assert.equal(contract.documentEncoding.dataPointer, "/data");
+assert.equal(contract.documentEncoding, undefined, "标准 Profile 不应声明持久化信封格式");
+assert.equal(layout.profile.id, contract.profileId);
+assert.equal(layout.profile.version, contract.profileVersion);
 assert.deepEqual(
   Object.keys(contract.documents).sort(),
   Object.keys(expectedDocumentPaths).sort(),
@@ -51,13 +66,6 @@ for (const view of Object.values(contract.contextViews)) {
     assert.ok(contract.documents[kind], `${view.label} 引用了未知文档类型 ${kind}`);
   }
 }
-
-const schemaMapSource = schemaSource
-  .split("export const storyProjectFileSchemasByKind = {")[1]
-  ?.split("} as const;")[0];
-assert.ok(schemaMapSource, "无法定位 storyProjectFileSchemasByKind");
-const schemaKinds = [...schemaMapSource.matchAll(/"(story-[a-z-]+)"\s*:/g)].map((match) => match[1]).sort();
-assert.deepEqual(schemaKinds, Object.keys(expectedDocumentPaths).sort(), "contract 文档类型必须与 Zod schema 同步");
 
 const fieldTypes = new Set(Object.keys(contract.fieldTypes));
 const objectDefinitions = new Set(Object.keys(contract.objectDefinitions));
@@ -106,7 +114,7 @@ for (const [name, fieldSet] of Object.entries(contract.commonFieldSets)) {
 }
 
 for (const [kind, document] of Object.entries(contract.documents)) {
-  assert.equal(document.pathPattern, expectedDocumentPaths[kind], `${kind} 的文件路径与 toolkit 不一致`);
+  assert.equal(layout.documents[kind]?.pathPattern, expectedDocumentPaths[kind], `${kind} 的布局路径不一致`);
   assert.ok(["one", "many"].includes(document.cardinality), `${kind} 必须定义合法 cardinality`);
   validateFields(`documents.${kind}`, document.fields);
   for (const fieldSet of document.fieldSets ?? []) {
@@ -117,6 +125,17 @@ for (const [kind, document] of Object.entries(contract.documents)) {
   const inheritedKind = document.constFields?.["/kind"];
   assert.equal(directKind ?? inheritedKind, kind, `${kind} 必须稳定声明自身 kind`);
 }
+
+assert.deepEqual(
+  contract.documents["story-chapter"].companionKinds,
+  ["story-chapter-content"],
+  "章节结果应声明配套 Markdown 正文",
+);
+assert.deepEqual(
+  contract.documents["story-chapter-content"].companionKinds,
+  ["story-chapter"],
+  "Markdown 正文应声明配套章节结果",
+);
 
 for (const [name, profile] of Object.entries(contract.validationProfiles)) {
   validateRuleIds(`validationProfiles.${name}`, profile.ruleIds);

@@ -1,0 +1,321 @@
+{
+  "chapter-beat": {
+    "label": "章节节拍",
+    "identityPointer": "/id",
+    "fields": {
+      "/id": {
+        "type": "id",
+        "label": "节拍 ID",
+        "required": true,
+        "immutable": true
+      },
+      "/summary": {
+        "type": "textarea",
+        "label": "事件摘要",
+        "required": true
+      },
+      "/function": {
+        "type": "enum",
+        "label": "叙事功能",
+        "required": true,
+        "options": [
+          {
+            "value": "setup",
+            "label": "铺垫"
+          },
+          {
+            "value": "progress",
+            "label": "推进"
+          },
+          {
+            "value": "information-reveal",
+            "label": "信息揭示"
+          },
+          {
+            "value": "characterization",
+            "label": "人物塑造"
+          },
+          {
+            "value": "relationship-change",
+            "label": "关系变化"
+          },
+          {
+            "value": "foreshadow",
+            "label": "伏笔埋设"
+          },
+          {
+            "value": "payoff",
+            "label": "伏笔回收"
+          },
+          {
+            "value": "reversal",
+            "label": "反转"
+          },
+          {
+            "value": "climax",
+            "label": "高潮"
+          },
+          {
+            "value": "transition",
+            "label": "过渡"
+          },
+          {
+            "value": "other",
+            "label": "其他"
+          }
+        ]
+      },
+      "/density": {
+        "type": "enum",
+        "label": "信息密度",
+        "required": true,
+        "options": [
+          {
+            "value": "dense",
+            "label": "高"
+          },
+          {
+            "value": "medium",
+            "label": "中"
+          },
+          {
+            "value": "sparse",
+            "label": "低"
+          }
+        ]
+      },
+      "/wordBudget": {
+        "type": "integer",
+        "label": "字数预算",
+        "required": true,
+        "minimum": 0
+      },
+      "/participantIds": {
+        "type": "reference-list",
+        "label": "参与角色",
+        "required": true,
+        "targetKinds": ["story-character"],
+        "default": []
+      },
+      "/worldRefIds": {
+        "type": "reference-list",
+        "label": "相关设定",
+        "required": true,
+        "targetKinds": ["story-world-entry"],
+        "default": []
+      }
+    }
+  },
+  "chapter-ending": {
+    "label": "章节结尾设计",
+    "fields": {
+      "/resolvedState": {
+        "type": "textarea",
+        "label": "已解决状态",
+        "required": true
+      },
+      "/unresolvedQuestion": {
+        "type": "textarea",
+        "label": "未解决问题",
+        "required": true
+      },
+      "/nextDrive": {
+        "type": "textarea",
+        "label": "下一章驱动力",
+        "required": true
+      },
+      "/hookType": {
+        "type": "text",
+        "label": "钩子类型",
+        "required": true
+      },
+      "/hookStrength": {
+        "type": "enum",
+        "label": "钩子强度",
+        "required": true,
+        "options": [
+          {
+            "value": "strong",
+            "label": "强"
+          },
+          {
+            "value": "medium",
+            "label": "中"
+          },
+          {
+            "value": "weak",
+            "label": "弱"
+          },
+          {
+            "value": "none",
+            "label": "无"
+          }
+        ]
+      }
+    }
+  },
+  "chapter-plan-summary": {
+    "label": "章节五段摘要",
+    "fields": {
+      "/cause": {
+        "type": "textarea",
+        "label": "起因",
+        "required": true
+      },
+      "/development": {
+        "type": "textarea",
+        "label": "发展",
+        "required": true
+      },
+      "/turn": {
+        "type": "textarea",
+        "label": "转折",
+        "required": true
+      },
+      "/climax": {
+        "type": "textarea",
+        "label": "高潮",
+        "required": true
+      },
+      "/ending": {
+        "type": "textarea",
+        "label": "结尾",
+        "required": true
+      }
+    }
+  },
+  "chapter-state-changes": {
+    "label": "章节状态变化",
+    "fields": {
+      "/characterIds": {
+        "type": "reference-list",
+        "label": "变化角色",
+        "required": true,
+        "targetKinds": ["story-character"],
+        "default": []
+      },
+      "/relationshipIds": {
+        "type": "reference-list",
+        "label": "变化关系",
+        "required": true,
+        "targetObjectDefinitions": ["relationship"],
+        "default": []
+      },
+      "/foreshadowIds": {
+        "type": "reference-list",
+        "label": "变化伏笔",
+        "required": true,
+        "targetObjectDefinitions": ["foreshadow"],
+        "default": []
+      },
+      "/timelineEntryIds": {
+        "type": "reference-list",
+        "label": "时间线事件",
+        "required": true,
+        "targetObjectDefinitions": ["timeline-entry"],
+        "default": []
+      }
+    }
+  },
+  "plot-lines": {
+    "label": "剧情线",
+    "fields": {
+      "/main": {
+        "type": "textarea",
+        "label": "主线",
+        "required": true
+      },
+      "/secondary": {
+        "type": "textarea",
+        "label": "副线",
+        "required": true
+      },
+      "/event": {
+        "type": "textarea",
+        "label": "事件线",
+        "required": true
+      },
+      "/relationship": {
+        "type": "textarea",
+        "label": "关系线",
+        "required": true
+      },
+      "/logic": {
+        "type": "textarea",
+        "label": "因果链",
+        "required": true
+      }
+    }
+  },
+  "emotional-arc-point": {
+    "label": "情绪节点",
+    "fields": {
+      "/label": {
+        "type": "text",
+        "label": "节点名称",
+        "required": true
+      },
+      "/intensity": {
+        "type": "number",
+        "label": "情绪强度",
+        "required": true,
+        "minimum": 0,
+        "maximum": 10
+      },
+      "/chapterRef": {
+        "type": "reference",
+        "label": "章节引用",
+        "required": false,
+        "targetKinds": ["story-chapter-plan", "story-chapter"]
+      },
+      "/cause": {
+        "type": "textarea",
+        "label": "形成原因",
+        "required": true
+      }
+    }
+  },
+  "plot-module": {
+    "label": "剧情模块",
+    "identityPointer": "/id",
+    "fields": {
+      "/id": {
+        "type": "id",
+        "label": "模块 ID",
+        "required": true,
+        "immutable": true
+      },
+      "/name": {
+        "type": "text",
+        "label": "模块名称",
+        "required": true
+      },
+      "/function": {
+        "type": "textarea",
+        "label": "叙事功能",
+        "required": true
+      },
+      "/setup": {
+        "type": "textarea",
+        "label": "铺垫方式",
+        "required": true
+      },
+      "/payoff": {
+        "type": "textarea",
+        "label": "兑现方式",
+        "required": true
+      },
+      "/reusablePattern": {
+        "type": "textarea",
+        "label": "可复用模式",
+        "required": true
+      },
+      "/evidence": {
+        "type": "string-list",
+        "label": "证据",
+        "required": true,
+        "default": []
+      }
+    }
+  }
+}

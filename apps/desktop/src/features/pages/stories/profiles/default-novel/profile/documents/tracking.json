@@ -1,0 +1,181 @@
+{
+  "story-character-state": {
+    "label": "角色状态",
+    "pathPattern": "story/tracking/character-states/{characterId}.json",
+    "cardinality": "many",
+    "fieldSets": ["entity-document"],
+    "constFields": {
+      "/kind": "story-character-state"
+    },
+    "fields": {
+      "/characterId": {
+        "type": "reference",
+        "label": "角色",
+        "required": true,
+        "targetKinds": ["story-character"]
+      },
+      "/asOfChapterId": {
+        "type": "reference",
+        "label": "截至章节",
+        "required": false,
+        "targetKinds": ["story-chapter"]
+      },
+      "/identity": {
+        "type": "textarea",
+        "label": "当前身份",
+        "required": true
+      },
+      "/location": {
+        "type": "text",
+        "label": "当前位置",
+        "required": true
+      },
+      "/physicalState": {
+        "type": "textarea",
+        "label": "身体状态",
+        "required": true
+      },
+      "/abilities": {
+        "type": "string-list",
+        "label": "当前能力",
+        "required": true,
+        "default": []
+      },
+      "/relationshipStates": {
+        "type": "string-list",
+        "label": "关系状态",
+        "required": true,
+        "default": []
+      },
+      "/knowledge": {
+        "type": "string-list",
+        "label": "已知信息",
+        "required": true,
+        "default": []
+      },
+      "/publicImage": {
+        "type": "textarea",
+        "label": "公开形象",
+        "required": true
+      },
+      "/openThreads": {
+        "type": "string-list",
+        "label": "未解决事项",
+        "required": true,
+        "default": []
+      },
+      "/recentChanges": {
+        "type": "collection",
+        "label": "近期变化",
+        "required": true,
+        "itemDefinition": "recent-character-change",
+        "default": []
+      }
+    },
+    "ruleIds": ["reference.missing"]
+  },
+  "story-foreshadows": {
+    "label": "伏笔追踪",
+    "description": "统一维护伏笔的计划、埋设、推进、回收和放弃状态",
+    "pathPattern": "story/tracking/foreshadows.json",
+    "cardinality": "one",
+    "fieldSets": ["entity-document"],
+    "constFields": {
+      "/kind": "story-foreshadows"
+    },
+    "fields": {
+      "/foreshadows": {
+        "type": "collection",
+        "label": "伏笔",
+        "required": true,
+        "itemDefinition": "foreshadow",
+        "default": []
+      }
+    },
+    "ruleIds": ["foreshadow.resolution", "reference.missing"]
+  },
+  "story-timeline": {
+    "label": "时间线",
+    "pathPattern": "story/tracking/timeline/{id}.json",
+    "cardinality": "many",
+    "fieldSets": ["entity-document"],
+    "constFields": {
+      "/kind": "story-timeline"
+    },
+    "fields": {
+      "/calendar": {
+        "type": "textarea",
+        "label": "历法说明",
+        "required": true
+      },
+      "/openingTime": {
+        "type": "text",
+        "label": "故事开场时间",
+        "required": true
+      },
+      "/currentTime": {
+        "type": "text",
+        "label": "当前时间",
+        "required": true
+      },
+      "/entries": {
+        "type": "collection",
+        "label": "时间线事件",
+        "required": true,
+        "itemDefinition": "timeline-entry",
+        "default": []
+      }
+    },
+    "ruleIds": ["reference.missing"]
+  },
+  "story-progress": {
+    "label": "创作进度",
+    "pathPattern": "story/tracking/progress.json",
+    "cardinality": "one",
+    "fieldSets": ["entity-document"],
+    "constFields": {
+      "/kind": "story-progress"
+    },
+    "fields": {
+      "/lastCompletedChapterId": {
+        "type": "reference",
+        "label": "最后完成章节",
+        "required": false,
+        "targetKinds": ["story-chapter"]
+      },
+      "/totalWrittenWords": {
+        "type": "integer",
+        "label": "累计字数",
+        "required": true,
+        "minimum": 0,
+        "default": 0
+      },
+      "/currentVolumeId": {
+        "type": "reference",
+        "label": "当前分卷",
+        "required": false,
+        "targetKinds": ["story-volume"]
+      },
+      "/nextChapterPlanId": {
+        "type": "reference",
+        "label": "下一章细纲",
+        "required": false,
+        "targetKinds": ["story-chapter-plan"]
+      },
+      "/recentChapterIds": {
+        "type": "reference-list",
+        "label": "最近章节",
+        "required": true,
+        "targetKinds": ["story-chapter"],
+        "default": []
+      },
+      "/notes": {
+        "type": "string-list",
+        "label": "进度备注",
+        "required": true,
+        "default": []
+      }
+    },
+    "ruleIds": ["reference.missing"]
+  }
+}

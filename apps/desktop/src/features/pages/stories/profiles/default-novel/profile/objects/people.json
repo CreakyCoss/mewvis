@@ -1,0 +1,128 @@
+{
+  "character-memory": {
+    "label": "角色记忆分层",
+    "fields": {
+      "/required": {
+        "type": "textarea",
+        "label": "必要记忆",
+        "description": "任何场景都必须保持一致的核心事实",
+        "required": true,
+        "default": ""
+      },
+      "/public": {
+        "type": "textarea",
+        "label": "公开信息",
+        "required": true,
+        "default": ""
+      },
+      "/known": {
+        "type": "textarea",
+        "label": "角色已知信息",
+        "required": true,
+        "default": ""
+      },
+      "/privateSelf": {
+        "type": "textarea",
+        "label": "角色私密认知",
+        "required": true,
+        "default": ""
+      },
+      "/directorSecret": {
+        "type": "textarea",
+        "label": "创作者秘密",
+        "description": "角色本人未必知道、仅供创作控制的信息",
+        "required": true,
+        "default": ""
+      }
+    }
+  },
+  "relationship": {
+    "label": "角色关系",
+    "identityPointer": "/id",
+    "fields": {
+      "/id": {
+        "type": "id",
+        "label": "关系 ID",
+        "required": true,
+        "immutable": true
+      },
+      "/fromCharacterId": {
+        "type": "reference",
+        "label": "起始角色",
+        "required": true,
+        "targetKinds": ["story-character"]
+      },
+      "/toCharacterId": {
+        "type": "reference",
+        "label": "目标角色",
+        "required": true,
+        "targetKinds": ["story-character"]
+      },
+      "/type": {
+        "type": "text",
+        "label": "关系类型",
+        "required": true
+      },
+      "/emotionalDirection": {
+        "type": "textarea",
+        "label": "情感方向",
+        "required": true
+      },
+      "/currentState": {
+        "type": "textarea",
+        "label": "当前状态",
+        "required": true
+      },
+      "/conflict": {
+        "type": "textarea",
+        "label": "关系冲突",
+        "required": true
+      },
+      "/startedAtChapterId": {
+        "type": "reference",
+        "label": "关系起始章节",
+        "required": false,
+        "targetKinds": ["story-chapter"]
+      },
+      "/evolution": {
+        "type": "collection",
+        "label": "关系演变",
+        "required": true,
+        "itemDefinition": "relationship-evolution",
+        "default": []
+      }
+    }
+  },
+  "relationship-evolution": {
+    "label": "关系变化记录",
+    "fields": {
+      "/chapterId": {
+        "type": "reference",
+        "label": "发生章节",
+        "required": true,
+        "targetKinds": ["story-chapter"]
+      },
+      "/summary": {
+        "type": "textarea",
+        "label": "变化摘要",
+        "required": true
+      }
+    }
+  },
+  "recent-character-change": {
+    "label": "角色近期变化",
+    "fields": {
+      "/chapterId": {
+        "type": "reference",
+        "label": "章节",
+        "required": true,
+        "targetKinds": ["story-chapter"]
+      },
+      "/summary": {
+        "type": "textarea",
+        "label": "变化摘要",
+        "required": true
+      }
+    }
+  }
+}
