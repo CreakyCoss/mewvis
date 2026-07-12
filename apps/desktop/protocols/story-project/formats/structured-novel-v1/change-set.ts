@@ -26,7 +26,7 @@ import {
 } from "./schema.js";
 import { storyProjectFiles, withRebuiltManifest, type StoryProjectFileEntry } from "./project.js";
 import { type StoryValidationProfile, validateStoryProject } from "./validation.js";
-import type { CompiledStoryContract } from "../../compiler.js";
+import type { StoryProjectApi } from "../../protocol.js";
 
 export const STORY_CHANGE_SET_MAX_OPERATIONS = 16;
 export const STORY_CHANGE_SET_MAX_BYTES = 192 * 1024;
@@ -151,7 +151,7 @@ const canonicalStoryPath = (value: string) =>
     .replace(/\\/g, "/")
     .replace(/^\/+|\/+$/g, "");
 
-const assertWritableStoryPath = (contract: CompiledStoryContract, value: string) => {
+const assertWritableStoryPath = (contract: StoryProjectApi, value: string) => {
   const path = canonicalStoryPath(value);
   if (
     !path.startsWith(`${contract.describe().rootPath}/`) ||
@@ -310,7 +310,7 @@ export const assembleStoryProject = (entries: StoryProjectFileEntry[]): StoryPro
 export const applyStoryChangeSet = (
   current: StoryProject,
   input: StoryChangeSet,
-  contract: CompiledStoryContract,
+  contract: StoryProjectApi,
 ): StoryProject => {
   const changeSet = storyChangeSetSchema.parse(input);
   if (

@@ -30,7 +30,6 @@ export type StoryContractDocument = Readonly<{
 
 export type StoryContractContextView = Readonly<{
   label: string;
-  capability: string;
   scope: "project" | "chapter";
   targetKind?: string;
   targetSelectors?: readonly string[];
@@ -42,7 +41,6 @@ export type StoryProjectContract = Readonly<{
   $format: "novel-claw.structured-document-contract";
   contractId: string;
   contractVersion: number;
-  capabilities: readonly string[];
   schemaVersion: number;
   rootPath: string;
   commonFieldSets: Readonly<Record<string, Readonly<Record<string, StoryContractField>>>>;
@@ -89,10 +87,6 @@ export const parseStoryProjectContract = (input: unknown): StoryProjectContract 
   if (value.$format !== "novel-claw.structured-document-contract") {
     throw new Error("故事项目协议 $format 无效。");
   }
-  const capabilities = value.capabilities;
-  if (!Array.isArray(capabilities) || capabilities.some((item) => typeof item !== "string" || !item.trim())) {
-    throw new Error("故事项目协议 capabilities 必须是非空字符串数组。");
-  }
   const documents = objectFromUnknown(value.documents, "故事项目协议 documents");
   if (Object.keys(documents).length === 0) throw new Error("故事项目协议至少需要定义一种文档。");
   for (const [kind, documentInput] of Object.entries(documents)) {
@@ -108,10 +102,6 @@ export const parseStoryProjectContract = (input: unknown): StoryProjectContract 
   for (const [name, viewInput] of Object.entries(contextViews)) {
     const view = objectFromUnknown(viewInput, `故事项目协议 contextViews.${name}`);
     nonEmptyString(view.label, `contextViews.${name}.label`);
-    const capability = nonEmptyString(view.capability, `contextViews.${name}.capability`);
-    if (!capabilities.includes(capability)) {
-      throw new Error(`contextViews.${name} 声明的能力未出现在 capabilities：${capability}`);
-    }
     if (!Array.isArray(view.documentKinds) || view.documentKinds.length === 0) {
       throw new Error(`contextViews.${name}.documentKinds 必须是非空数组。`);
     }
@@ -134,7 +124,6 @@ export const parseStoryProjectContract = (input: unknown): StoryProjectContract 
     contractVersion: positiveInteger(value.contractVersion, "contractVersion"),
     schemaVersion: positiveInteger(value.schemaVersion, "schemaVersion"),
     rootPath: nonEmptyString(value.rootPath, "rootPath"),
-    capabilities: [...capabilities] as string[],
     commonFieldSets: objectFromUnknown(value.commonFieldSets, "commonFieldSets"),
     objectDefinitions: objectFromUnknown(value.objectDefinitions, "objectDefinitions"),
     documents,
@@ -142,22 +131,6 @@ export const parseStoryProjectContract = (input: unknown): StoryProjectContract 
     validationProfiles: objectFromUnknown(value.validationProfiles, "validationProfiles"),
   };
   return contract as unknown as StoryProjectContract;
-};
-
-export const assertStoryContractCapability = (contract: StoryProjectContract, capability: string) => {
-  if (!contract.capabilities.includes(capability)) {
-    throw new Error(`工作区故事协议不支持所需语义能力：${capability}`);
-  }
-};
-
-export const assertStoryContractCapabilities = (contract: StoryProjectContract, capabilities: readonly string[]) => {
-  for (const capability of capabilities) assertStoryContractCapability(contract, capability);
-};
-
-export const storyContractContextView = (contract: StoryProjectContract, capability: string) => {
-  const entry = Object.entries(contract.contextViews).find(([, view]) => view.capability === capability);
-  if (!entry) throw new Error(`工作区故事协议缺少能力对应的 context view：${capability}`);
-  return { name: entry[0], ...entry[1] };
 };
 
 export const storyContractContextViewForScope = (

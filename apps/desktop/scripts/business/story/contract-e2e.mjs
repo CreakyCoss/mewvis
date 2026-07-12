@@ -33,12 +33,6 @@ const expectedDocumentPaths = {
 assert.equal(contract.$format, "novel-claw.structured-document-contract");
 assert.equal(contract.contractId, "novel-claw.story.default-novel");
 assert.equal(contract.contractVersion, 1);
-assert.deepEqual(contract.capabilities, [
-  "novel-claw.story.documents@1",
-  "novel-claw.story.context.project@1",
-  "novel-claw.story.context.chapter-writing@1",
-  "novel-claw.story.changes.atomic@1",
-]);
 assert.equal(contract.schemaVersion, 1);
 assert.equal(contract.rootPath, "story");
 assert.equal(contract.documentEncoding.format, "novel-claw.structured-document");
@@ -53,7 +47,6 @@ assert.equal(contract.contextViews["project-summary"].scope, "project");
 assert.equal(contract.contextViews["chapter-writing"].scope, "chapter");
 assert.equal(contract.contextViews["chapter-writing"].targetKind, "story-chapter-plan");
 for (const view of Object.values(contract.contextViews)) {
-  assert.ok(contract.capabilities.includes(view.capability), `${view.label} 的 capability 必须由协议公开声明`);
   for (const kind of view.documentKinds) {
     assert.ok(contract.documents[kind], `${view.label} 引用了未知文档类型 ${kind}`);
   }

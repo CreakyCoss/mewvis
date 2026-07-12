@@ -1,4 +1,6 @@
-import type { CompiledStoryContract, StoryContractCompiler } from "./compiler.js";
+import { assertProtocolImplementation } from "../definition.js";
+import type { StoryContractCompiler } from "./compiler.js";
+import { STORY_PROJECT_PROTOCOL, type StoryProjectApi } from "./protocol.js";
 import { STRUCTURED_NOVEL_STORY_CONTRACT_COMPILER } from "./formats/structured-novel-v1/compiler.js";
 
 const contractFormat = (source: unknown) => {
@@ -31,8 +33,10 @@ export class StoryContractCompilerRegistry {
     return compiler;
   }
 
-  compile(source: unknown): CompiledStoryContract {
-    return this.resolve(contractFormat(source)).compile(source);
+  compile(source: unknown): StoryProjectApi {
+    const project = this.resolve(contractFormat(source)).compile(source);
+    assertProtocolImplementation(STORY_PROJECT_PROTOCOL, project);
+    return project;
   }
 }
 

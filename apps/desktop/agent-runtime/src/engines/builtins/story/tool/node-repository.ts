@@ -5,7 +5,7 @@ import {
   STORY_PROJECT_CONTRACT_LOCK_PATH,
   STORY_PROJECT_CONTRACT_PATH,
   createStoryContractCompilerRegistry,
-  type CompiledStoryContract,
+  type StoryProjectApi,
   type CompiledStoryProjectFileEntry,
   type StoryCompiledProject,
   type StoryContractCompilerRegistry,
@@ -35,7 +35,7 @@ const readJson = async (workspacePath: string, path: string) => {
   return JSON.parse(await readFile(target, "utf8")) as unknown;
 };
 
-const loadContract = async (workspacePath: string, compilers: StoryContractCompilerRegistry) => {
+const loadProjectApi = async (workspacePath: string, compilers: StoryContractCompilerRegistry) => {
   const contractTarget = safeWorkspacePath(workspacePath, STORY_PROJECT_CONTRACT_PATH).target;
   const [contractText, lockInput] = await Promise.all([
     readFile(contractTarget, "utf8"),
@@ -63,7 +63,7 @@ const loadContract = async (workspacePath: string, compilers: StoryContractCompi
   return contract;
 };
 
-const loadProject = async (workspacePath: string, contract: CompiledStoryContract) => {
+const loadProject = async (workspacePath: string, contract: StoryProjectApi) => {
   const manifestPath = contract.projectManifestPath();
   const manifest = contract.parseManifest(
     contract.decodeDocument(await readJson(workspacePath, manifestPath), manifestPath),
@@ -96,7 +96,7 @@ const collectJsonFiles = async (root: string, current = root): Promise<string[]>
   return paths.flat();
 };
 
-const inspectProject = async (workspacePath: string, contract: CompiledStoryContract) => {
+const inspectProject = async (workspacePath: string, contract: StoryProjectApi) => {
   const manifestPath = contract.projectManifestPath();
   const jsonPaths = (await collectJsonFiles(join(workspacePath, "story")))
     .map((path) => `story/${path}`)
@@ -119,7 +119,7 @@ const canonicalChangedPath = (path: string) =>
 
 const writeProject = async (
   workspacePath: string,
-  contract: CompiledStoryContract,
+  contract: StoryProjectApi,
   project: StoryCompiledProject,
   changedPaths: string[],
 ) => {
@@ -203,7 +203,7 @@ export const createNodeStoryToolRepository = (
   workspacePath: string,
   compilers: StoryContractCompilerRegistry = createStoryContractCompilerRegistry(),
 ): StoryToolRepository => ({
-  loadContract: () => loadContract(workspacePath, compilers),
+  loadProjectApi: () => loadProjectApi(workspacePath, compilers),
   inspect: (contract) => inspectProject(workspacePath, contract),
   load: (contract) => loadProject(workspacePath, contract),
   initialize: async (contract, project, replaceExistingJson) => {

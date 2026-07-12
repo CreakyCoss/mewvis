@@ -2,12 +2,6 @@
   "$format": "novel-claw.structured-document-contract",
   "contractId": "novel-claw.story.default-novel",
   "contractVersion": 1,
-  "capabilities": [
-    "novel-claw.story.documents@1",
-    "novel-claw.story.context.project@1",
-    "novel-claw.story.context.chapter-writing@1",
-    "novel-claw.story.changes.atomic@1"
-  ],
   "schemaVersion": 1,
   "title": "Novel Claw 故事创作结构",
   "description": "由故事产品维护的默认小说项目协议。目录布局、字段、引用、展示元数据与校验规则随工作区固定保存；技能和工具只读取并执行协议。",
@@ -3011,7 +3005,6 @@
   "contextViews": {
     "project-summary": {
       "label": "故事项目摘要",
-      "capability": "novel-claw.story.context.project@1",
       "scope": "project",
       "documentKinds": [
         "story-manifest",
@@ -3031,7 +3024,6 @@
     },
     "chapter-writing": {
       "label": "章节写作上下文",
-      "capability": "novel-claw.story.context.chapter-writing@1",
       "scope": "chapter",
       "targetKind": "story-chapter-plan",
       "targetSelectors": ["/id", "/number"],

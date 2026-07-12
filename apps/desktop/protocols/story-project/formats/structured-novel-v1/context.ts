@@ -1,15 +1,11 @@
-import type { CompiledStoryContract } from "../../compiler.js";
+import type { StoryProjectApi } from "../../protocol.js";
 import type { StoryProject } from "./schema.js";
 import { validateStoryProject } from "./validation.js";
 
-type ResolvedContextView = ReturnType<CompiledStoryContract["contextView"]>;
+type ResolvedContextView = ReturnType<StoryProjectApi["contextView"]>;
 
-export const buildProjectSummary = (
-  project: StoryProject,
-  contract: CompiledStoryContract,
-  view: ResolvedContextView,
-) => ({
-  contextView: { name: view.name, capability: view.capability },
+export const buildProjectSummary = (project: StoryProject, contract: StoryProjectApi, view: ResolvedContextView) => ({
+  contextView: { name: view.name },
   revision: project.manifest.revision,
   book: project.book,
   positioning: project.positioning,
@@ -71,7 +67,7 @@ export const buildProjectSummary = (
 
 export const buildChapterContext = (
   project: StoryProject,
-  contract: CompiledStoryContract,
+  contract: StoryProjectApi,
   view: ResolvedContextView,
   targetId: string,
 ) => {
@@ -98,7 +94,7 @@ export const buildChapterContext = (
   );
 
   return {
-    contextView: { name: view.name, capability: view.capability },
+    contextView: { name: view.name },
     revision: project.manifest.revision,
     book: project.book,
     positioning: project.positioning,

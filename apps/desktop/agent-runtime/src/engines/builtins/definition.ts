@@ -1,3 +1,15 @@
+import {
+  assertProtocolImplementation,
+  defineProtocol,
+  missingProtocolMembers,
+  protocolKey,
+  protocolSatisfies,
+  type AnyProtocolDefinition,
+  type ProtocolApi,
+  type ProtocolDefinition,
+  type ProtocolMemberDefinition,
+} from "../../../../protocols/definition.js";
+
 export type ToolParameterDefinition =
   | {
       type: "string";
@@ -42,35 +54,11 @@ export type BuiltinToolContext = Readonly<{
   workspacePath: string;
 }>;
 
-type BuiltinToolMethodName<TApi extends object> = Extract<
-  {
-    [TKey in keyof TApi]-?: TApi[TKey] extends (...args: never[]) => unknown ? TKey : never;
-  }[keyof TApi],
-  string
->;
-
-export type BuiltinToolMethodContract = Readonly<{
-  description?: string;
-}>;
-
-declare const BUILTIN_TOOL_CONTRACT_API: unique symbol;
-
-export type BuiltinToolContract<TApi extends object = object> = Readonly<{
-  id: string;
-  version: number;
-  methods: Readonly<Record<BuiltinToolMethodName<TApi>, BuiltinToolMethodContract>>;
-  [BUILTIN_TOOL_CONTRACT_API]?: TApi;
-}>;
-
-export type AnyBuiltinToolContract = BuiltinToolContract<object>;
-
-export type BuiltinToolApi<TContract extends AnyBuiltinToolContract> =
-  TContract extends BuiltinToolContract<infer TApi> ? TApi : never;
-
-export const defineBuiltinToolContract =
-  <TApi extends object>() =>
-  <const TContract extends BuiltinToolContract<TApi>>(contract: TContract) =>
-    Object.freeze(contract) as TContract & BuiltinToolContract<TApi>;
+export type BuiltinToolMethodContract = ProtocolMemberDefinition;
+export type BuiltinToolContract<TApi extends object = object> = ProtocolDefinition<TApi>;
+export type AnyBuiltinToolContract = AnyProtocolDefinition;
+export type BuiltinToolApi<TContract extends AnyBuiltinToolContract> = ProtocolApi<TContract>;
+export const defineBuiltinToolContract = defineProtocol;
 
 export type BuiltinToolImplementation<TApi extends object> = Readonly<{
   api: TApi;
@@ -103,25 +91,24 @@ export type BuiltinDefinition = Readonly<{
   tools: readonly BuiltinToolDefinition[];
 }>;
 
-const contractKey = (contract: AnyBuiltinToolContract) => `${contract.id}@${contract.version}`;
-
-const missingContractMethods = (provided: AnyBuiltinToolContract, required: AnyBuiltinToolContract) =>
-  Object.keys(required.methods).filter((method) => !(method in provided.methods));
-
 export const assertBuiltinDefinition = (builtin: BuiltinDefinition) => {
   for (const required of builtin.skill.requiredToolContracts) {
     const candidates = builtin.tools.filter(
       (tool) => tool.contract.id === required.id && tool.contract.version === required.version,
     );
     if (candidates.length === 0) {
-      throw new Error(`内置技能 ${builtin.skill.id} 缺少工具协议：${contractKey(required)}`);
+      throw new Error(`内置技能 ${builtin.skill.id} 缺少工具协议：${protocolKey(required)}`);
     }
-    const compatible = candidates.some((tool) => missingContractMethods(tool.contract, required).length === 0);
+    const compatible = candidates.some((tool) => protocolSatisfies(tool.contract, required));
     if (!compatible) {
-      const missing = [...new Set(candidates.flatMap((tool) => missingContractMethods(tool.contract, required)))];
-      throw new Error(
-        `内置技能 ${builtin.skill.id} 的工具协议 ${contractKey(required)} 缺少方法：${missing.join(", ")}`,
-      );
+      const missing = candidates.map((tool) => missingProtocolMembers(tool.contract, required));
+      const methods = [...new Set(missing.flatMap((entry) => entry.methods))];
+      const properties = [...new Set(missing.flatMap((entry) => entry.properties))];
+      const details = [
+        ...(methods.length > 0 ? [`方法：${methods.join(", ")}`] : []),
+        ...(properties.length > 0 ? [`属性：${properties.join(", ")}`] : []),
+      ];
+      throw new Error(`内置技能 ${builtin.skill.id} 的工具协议 ${protocolKey(required)} 缺少${details.join("；")}`);
     }
   }
 };
@@ -138,10 +125,11 @@ export const assertBuiltinToolImplementation = (
   tool: BuiltinToolDefinition,
   implementation: BuiltinToolImplementation<object>,
 ) => {
-  const missing = Object.keys(tool.contract.methods).filter(
-    (method) => typeof (implementation.api as Record<string, unknown>)[method] !== "function",
-  );
-  if (missing.length > 0) {
-    throw new Error(`内置工具 ${tool.name} 未实现协议 ${contractKey(tool.contract)} 的方法：${missing.join(", ")}`);
+  try {
+    assertProtocolImplementation(tool.contract, implementation.api);
+  } catch (error) {
+    throw new Error(
+      `内置工具 ${tool.name} 未实现协议 ${protocolKey(tool.contract)}：${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 };

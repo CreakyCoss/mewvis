@@ -1,10 +1,4 @@
-import {
-  STORY_ATOMIC_CHANGES_CAPABILITY,
-  STORY_CHAPTER_CONTEXT_CAPABILITY,
-  STORY_DOCUMENT_MODEL_CAPABILITY,
-  STORY_PROJECT_CONTEXT_CAPABILITY,
-  type CompiledStoryContract,
-} from "../../../../../../protocols/story-project/index.js";
+import type { StoryProjectApi } from "../../../../../../protocols/story-project/index.js";
 import type { StoryToolRepository } from "./repository.js";
 import {
   type StoryCommitChangesResult,
@@ -14,20 +8,13 @@ import {
   type StoryValidateChangesResult,
 } from "../protocol.js";
 
-export const STORY_TOOL_REQUIRED_STORY_CONTRACT_CAPABILITIES = Object.freeze([
-  STORY_DOCUMENT_MODEL_CAPABILITY,
-  STORY_PROJECT_CONTEXT_CAPABILITY,
-  STORY_CHAPTER_CONTEXT_CAPABILITY,
-  STORY_ATOMIC_CHANGES_CAPABILITY,
-] as const);
-
-const storyToolStructure = (contract: CompiledStoryContract): StoryStructureDescription => ({
+const storyToolStructure = (contract: StoryProjectApi): StoryStructureDescription => ({
   compiler: contract.compiler,
   contract: contract.describe(),
   changeSet: contract.changeSet,
   rules: [
     "工具只消费受信任 StoryContractCompiler 的编译结果；工作区 story/.novel-claw/contract.json 只提供协议数据。",
-    "Story Tool 固定要求项目文档、项目摘要、章节写作上下文与原子变更能力，但不绑定默认协议身份。",
+    "Story Tool 只依赖版本化 Story Project Protocol，不绑定具体 Compiler、存储方式或默认协议身份。",
     "Compiler 负责初始化、项目装配、上下文、ChangeSet 规划和业务校验；工具只负责安全 IO 与原子提交。",
     "正式写入必须通过 story(action=commit_changes)；校验失败时不得修改磁盘。",
     "每批提交成功后必须重新读取 revision，再构造下一批 ChangeSet。",
@@ -42,21 +29,17 @@ const invalidIssue = (error: unknown) => ({
 });
 
 export const createStoryToolService = (repository: StoryToolRepository): StoryToolApi => {
-  const loadCompatibleContract = async () => {
-    const contract = await repository.loadContract();
-    contract.assertCapabilities(STORY_TOOL_REQUIRED_STORY_CONTRACT_CAPABILITIES);
-    return contract;
-  };
+  const loadProjectApi = () => repository.loadProjectApi();
 
   return {
     async describeStructure() {
-      const contract = await loadCompatibleContract();
+      const contract = await loadProjectApi();
       return { available: true, structure: storyToolStructure(contract) };
     },
 
     async initialize(input): Promise<StoryInitializeResult> {
       try {
-        const contract = await loadCompatibleContract();
+        const contract = await loadProjectApi();
         const manifestPath = contract.projectManifestPath();
         const status = await repository.inspect(contract);
         if (status.initialized) {
@@ -118,13 +101,13 @@ export const createStoryToolService = (repository: StoryToolRepository): StoryTo
     },
 
     async readContext(input) {
-      const contract = await loadCompatibleContract();
+      const contract = await loadProjectApi();
       return contract.readContext(await repository.load(contract), input);
     },
 
     async validateChanges(input): Promise<StoryValidateChangesResult> {
       try {
-        const contract = await loadCompatibleContract();
+        const contract = await loadProjectApi();
         const applied = contract.applyChanges(await repository.load(contract), input.changeSet);
         return {
           valid: applied.validation.valid,
@@ -148,7 +131,7 @@ export const createStoryToolService = (repository: StoryToolRepository): StoryTo
 
     async commitChanges(input): Promise<StoryCommitChangesResult> {
       try {
-        const contract = await loadCompatibleContract();
+        const contract = await loadProjectApi();
         const applied = contract.applyChanges(await repository.load(contract), input.changeSet);
         await repository.writeChanges(contract, applied.project, applied.changedPaths);
         return {

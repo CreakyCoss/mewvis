@@ -62,6 +62,8 @@ const frontendWorkspaceContract = readFileSync(
   resolve(root, "src/features/pages/stories/contracts/workspace.ts"),
   "utf8",
 );
+const protocolDefinition = readFileSync(resolve(root, "protocols/definition.ts"), "utf8");
+const storyProjectProtocol = readFileSync(resolve(root, "protocols/story-project/protocol.ts"), "utf8");
 const storyContractCompiler = readFileSync(resolve(root, "protocols/story-project/compiler.ts"), "utf8");
 const storyContractRegistry = readFileSync(resolve(root, "protocols/story-project/registry.ts"), "utf8");
 const structuredNovelCompiler = readFileSync(
@@ -97,7 +99,8 @@ if (
   throw new Error("story-authoring 技能必须依赖强类型 Tool Contract，Story Tool 必须显式实现该契约。");
 }
 if (
-  !storyContract.includes("novel-claw.story.context.chapter-writing@1") ||
+  storyContract.includes('"capabilities"') ||
+  storyContract.includes('"capability"') ||
   storyContract.includes("novel-claw.story-project.default-novel@1") ||
   storyContract.includes("skillBindings") ||
   storySkill.includes("contract.json") ||
@@ -105,39 +108,51 @@ if (
   !storyProtocol.includes("interface StoryToolApi") ||
   !storyProtocol.includes("defineBuiltinToolContract") ||
   storyProtocol.includes("STORY_TOOL_REQUIRED_STORY_CONTRACT_CAPABILITIES") ||
-  !storyService.includes("STORY_TOOL_REQUIRED_STORY_CONTRACT_CAPABILITIES") ||
-  !storyService.includes("STORY_DOCUMENT_MODEL_CAPABILITY") ||
-  !storyService.includes("STORY_PROJECT_CONTEXT_CAPABILITY") ||
-  !storyService.includes("STORY_CHAPTER_CONTEXT_CAPABILITY") ||
-  !storyService.includes("STORY_ATOMIC_CHANGES_CAPABILITY") ||
+  storyService.includes("STORY_TOOL_REQUIRED_STORY_CONTRACT_CAPABILITIES") ||
+  storyService.includes("STORY_DOCUMENT_MODEL_CAPABILITY") ||
+  storyService.includes("STORY_PROJECT_CONTEXT_CAPABILITY") ||
+  storyService.includes("STORY_CHAPTER_CONTEXT_CAPABILITY") ||
+  storyService.includes("STORY_ATOMIC_CHANGES_CAPABILITY") ||
   storyService.includes("requiredContractCapabilities") ||
-  !storyService.includes("repository.loadContract") ||
-  !storyService.includes("CompiledStoryContract") ||
+  !storyService.includes("repository.loadProjectApi") ||
+  !storyService.includes("StoryProjectApi") ||
   !storyRepository.includes("createStoryContractCompilerRegistry") ||
   !storyRepository.includes("STORY_PROJECT_CONTRACT_PATH") ||
   !storyContractCompiler.includes("interface StoryContractCompiler") ||
-  !storyContractCompiler.includes("interface CompiledStoryContract") ||
-  !storyContractCompiler.includes("createProject(input:") ||
-  !storyContractCompiler.includes("projectManifestPath():") ||
-  !storyContractCompiler.includes("applyChanges(project:") ||
-  !storyContractCompiler.includes("readContext(project:") ||
+  !storyProjectProtocol.includes("interface StoryProjectApi") ||
+  !storyProjectProtocol.includes("STORY_PROJECT_PROTOCOL") ||
+  !storyProjectProtocol.includes("defineProtocol<StoryProjectApi>") ||
+  !storyProjectProtocol.includes("createProject(input:") ||
+  !storyProjectProtocol.includes("projectManifestPath():") ||
+  !storyProjectProtocol.includes("applyChanges(project:") ||
+  !storyProjectProtocol.includes("readContext(project:") ||
+  storyProjectProtocol.includes("formats/structured-novel-v1") ||
+  storyProjectProtocol.includes("declarative-contract") ||
+  storyProjectProtocol.includes("StoryProjectContract") ||
+  !storyProjectProtocol.includes("STORY_PROJECT_CONTRACT_PATH") ||
   storyContractCompiler.includes("formats/structured-novel-v1") ||
   storyContractCompiler.includes("declarative-contract") ||
   storyContractCompiler.includes("StoryProjectContract") ||
-  !storyContractCompiler.includes("STORY_PROJECT_CONTRACT_PATH") ||
   !storyContractRegistry.includes("class StoryContractCompilerRegistry") ||
+  !storyContractRegistry.includes("assertProtocolImplementation") ||
+  !storyContractRegistry.includes("STORY_PROJECT_PROTOCOL") ||
   !structuredNovelCompiler.includes("StoryContractCompiler") ||
+  !structuredNovelCompiler.includes("StoryProjectApi") ||
   !frontendWorkspaceContract.includes("createStoryContractCompilerRegistry") ||
   !frontendWorkspaceContract.includes("installDefaultStoryProjectContract") ||
   frontendWorkspaceContract.includes("compiled.describe()") ||
   !builtinDefinition.includes("type BuiltinDefinition") ||
   !builtinDefinition.includes("assertBuiltinDefinition") ||
   !builtinDefinition.includes("assertBuiltinToolImplementation") ||
+  !protocolDefinition.includes("defineProtocol") ||
+  !protocolDefinition.includes("assertProtocolImplementation") ||
   !builtinsIndex.includes("assertBuiltinDefinition") ||
   builtinsIndex.includes("BUILTIN_COMBINATIONS") ||
   builtinsIndex.includes("requiredContractCapabilities")
 ) {
-  throw new Error("故事侧必须拥有默认协议；技能与工具只能通过通用执行能力组合，并从工作区加载协议。");
+  throw new Error(
+    "技能必须依赖 Story Tool Protocol，Story Tool 必须依赖 Story Project Protocol，Compiler 必须实现该协议。",
+  );
 }
 if (
   storyToolCore.includes('from "./schema.js"') ||

@@ -29,7 +29,7 @@ writeFileSync(
   import { registerPiBuiltinTool } from ${JSON.stringify(toolPath)};
   import { STORY_TOOL, createStoryToolPackage } from ${JSON.stringify(storyBuiltinPath)};
   import defaultContractJson from ${JSON.stringify(defaultContractPath)};
-  import { createStoryContractCompilerRegistry } from ${JSON.stringify(storyContractPath)};
+  import { StoryContractCompilerRegistry, createStoryContractCompilerRegistry } from ${JSON.stringify(storyContractPath)};
   import { createNodeStoryToolRepository } from ${JSON.stringify(nodeRepositoryPath)};
 
   const assert = (condition: unknown, message: string, details?: unknown) => {
@@ -201,21 +201,19 @@ writeFileSync(
   const customBook = JSON.parse(await readFile(join(customRoot, "story/project/book.json"), "utf8"));
   assert(customBook.data.title === "自定义目录", "工具必须按工作区协议决定文档落盘路径。", customBook);
 
-  const incompatibleRoot = join(${JSON.stringify(tempDir)}, "incompatible-contract-workspace");
-  const incompatibleContract = structuredClone(defaultContractJson);
-  incompatibleContract.contractId = "example.missing-atomic-change";
-  incompatibleContract.capabilities = incompatibleContract.capabilities.filter(
-    (capability: string) => capability !== "novel-claw.story.changes.atomic@1",
-  );
-  await installContract(incompatibleRoot, incompatibleContract);
-  const incompatiblePackage = createStoryToolPackage(createNodeStoryToolRepository(incompatibleRoot));
-  let incompatibleRejected = false;
+  const incompleteRegistry = new StoryContractCompilerRegistry([{
+    format: "example.incomplete-story-project",
+    compilerVersion: 1,
+    compile: () => ({}) as any,
+  }]);
+  let incompleteProjectApiRejected = false;
   try {
-    await incompatiblePackage.execute({ action: "describe_structure" });
+    incompleteRegistry.compile({ $format: "example.incomplete-story-project" });
   } catch (error) {
-    incompatibleRejected = String(error).includes("novel-claw.story.changes.atomic@1");
+    incompleteProjectApiRejected =
+      String(error).includes("novel-claw.story-project@1") && String(error).includes("readContext");
   }
-  assert(incompatibleRejected, "Story Tool 必须按自身固定要求拒绝不兼容协议。");
+  assert(incompleteProjectApiRejected, "Compiler Registry 必须拒绝未完整实现 Story Project Protocol 的 Compiler。");
 
   const untrustedRoot = join(${JSON.stringify(tempDir)}, "untrusted-contract-workspace");
   const untrustedContract = structuredClone(defaultContractJson);

@@ -4,7 +4,7 @@ import {
   type StoryProject,
   type StoryProjectFile,
 } from "./schema.js";
-import type { CompiledStoryContract } from "../../compiler.js";
+import type { StoryProjectApi } from "../../protocol.js";
 
 export type StoryProjectFileEntry = {
   path: string;
@@ -30,7 +30,7 @@ export const createEmptyStoryProject = ({
 }: {
   id: string;
   title: string;
-  contract: CompiledStoryContract;
+  contract: StoryProjectApi;
   timestamp?: number;
 }): StoryProject => {
   const storyId = canonicalId(id, "story");
@@ -157,7 +157,7 @@ export const createEmptyStoryProject = ({
   return withRebuiltManifest(project, contract, { revision: 0, timestamp });
 };
 
-export const storyProjectFiles = (project: StoryProject, contract: CompiledStoryContract): StoryProjectFileEntry[] => {
+export const storyProjectFiles = (project: StoryProject, contract: StoryProjectApi): StoryProjectFileEntry[] => {
   const entries: StoryProjectFileEntry[] = [
     { path: contract.resolveDocument("story-book"), value: project.book },
     { path: contract.resolveDocument("story-positioning"), value: project.positioning },
@@ -217,7 +217,7 @@ export const storyProjectFiles = (project: StoryProject, contract: CompiledStory
 
 export const withRebuiltManifest = (
   project: StoryProject,
-  contract: CompiledStoryContract,
+  contract: StoryProjectApi,
   { revision = project.manifest.revision, timestamp = Date.now() }: { revision?: number; timestamp?: number } = {},
 ): StoryProject => {
   const projectWithoutManifest = {

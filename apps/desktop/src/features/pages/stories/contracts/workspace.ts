@@ -3,7 +3,7 @@ import {
   STORY_PROJECT_CONTRACT_LOCK_PATH,
   STORY_PROJECT_CONTRACT_PATH,
   createStoryContractCompilerRegistry,
-  type CompiledStoryContract,
+  type StoryProjectApi,
 } from "../../../../../protocols/story-project";
 import { DEFAULT_STORY_PROJECT_CONTRACT_SOURCE } from "./default-novel";
 
@@ -14,7 +14,7 @@ const sha256 = async (content: string) => {
   return [...new Uint8Array(digest)].map((item) => item.toString(16).padStart(2, "0")).join("");
 };
 
-const contractLockText = async (contractText: string, contract: CompiledStoryContract) =>
+const contractLockText = async (contractText: string, contract: StoryProjectApi) =>
   `${JSON.stringify(
     {
       $format: "novel-claw.story-project-contract-lock",
@@ -45,7 +45,7 @@ export const installStoryProjectContract = async (workspacePath: string, input: 
 export const installDefaultStoryProjectContract = (workspacePath: string) =>
   installStoryProjectContract(workspacePath, DEFAULT_STORY_PROJECT_CONTRACT_SOURCE);
 
-export const loadStoryProjectContract = async (workspacePath: string): Promise<CompiledStoryContract> => {
+export const loadStoryProjectContract = async (workspacePath: string): Promise<StoryProjectApi> => {
   const entries = await listWorkspaceFiles(workspacePath);
   const paths = new Set(entries.filter((entry) => !entry.isDirectory).map((entry) => entry.path));
   if (!paths.has(STORY_PROJECT_CONTRACT_PATH)) return installDefaultStoryProjectContract(workspacePath);

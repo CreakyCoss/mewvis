@@ -1,7 +1,7 @@
 import type { ZodIssue } from "zod";
 import { storyProjectSchema, type StoryProject } from "./schema.js";
 import { storyProjectFiles } from "./project.js";
-import type { CompiledStoryContract } from "../../compiler.js";
+import type { StoryProjectApi } from "../../protocol.js";
 
 export type StoryValidationProfile = "draft" | "openBook" | "chapterWrite";
 
@@ -57,7 +57,7 @@ const addDuplicateIssues = (issues: StoryValidationIssue[], values: string[], pa
   }
 };
 
-const validateManifest = (project: StoryProject, contract: CompiledStoryContract, issues: StoryValidationIssue[]) => {
+const validateManifest = (project: StoryProject, contract: StoryProjectApi, issues: StoryValidationIssue[]) => {
   if (project.manifest.storyId !== project.book.id) {
     issues.push(issue("error", "manifest.story_id", "manifest.storyId", "manifest storyId 必须与 book.id 一致。"));
   }
@@ -94,7 +94,7 @@ const validateManifest = (project: StoryProject, contract: CompiledStoryContract
   }
 };
 
-const validateReferences = (project: StoryProject, contract: CompiledStoryContract, issues: StoryValidationIssue[]) => {
+const validateReferences = (project: StoryProject, contract: StoryProjectApi, issues: StoryValidationIssue[]) => {
   const characterIds = new Set(project.characters.map((item) => item.id));
   const worldIds = new Set(project.worldEntries.map((item) => item.id));
   const volumeIds = new Set(project.volumes.map((item) => item.id));
@@ -477,7 +477,7 @@ const validateChapterWriteReadiness = (project: StoryProject, issues: StoryValid
 
 export const validateStoryProject = (
   value: unknown,
-  contract: CompiledStoryContract,
+  contract: StoryProjectApi,
   profile: StoryValidationProfile = "draft",
 ): StoryValidationResult => {
   const parsed = storyProjectSchema.safeParse(value);
@@ -514,7 +514,7 @@ export const validateStoryProject = (
 
 export const assertValidStoryProject = (
   project: StoryProject,
-  contract: CompiledStoryContract,
+  contract: StoryProjectApi,
   profile: StoryValidationProfile = "draft",
 ) => {
   const validation = validateStoryProject(project, contract, profile);

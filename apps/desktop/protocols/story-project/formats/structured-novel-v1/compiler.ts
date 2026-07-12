@@ -1,5 +1,4 @@
 import {
-  assertStoryContractCapabilities,
   decodeStructuredStoryDocument,
   encodeStructuredStoryDocument,
   materializeStoryDocument,
@@ -10,7 +9,8 @@ import {
   storyContractDocumentFields,
   storyContractKindForPath,
 } from "../../declarative-contract.js";
-import type { CompiledStoryContract, StoryCompiledProject, StoryContractCompiler } from "../../compiler.js";
+import type { StoryContractCompiler } from "../../compiler.js";
+import type { StoryProjectApi, StoryCompiledProject } from "../../protocol.js";
 import {
   STORY_CHANGE_SET_MAX_BYTES,
   STORY_CHANGE_SET_MAX_OPERATIONS,
@@ -40,22 +40,20 @@ const storyValidationProfile = (value: string): StoryValidationProfile => {
 export const STRUCTURED_NOVEL_STORY_CONTRACT_COMPILER: StoryContractCompiler = Object.freeze({
   format: STRUCTURED_NOVEL_STORY_CONTRACT_FORMAT,
   compilerVersion: STRUCTURED_NOVEL_STORY_CONTRACT_COMPILER_VERSION,
-  compile(source: unknown): CompiledStoryContract {
+  compile(source: unknown): StoryProjectApi {
     const definition = parseStoryProjectContract(source);
     const identity = Object.freeze({
       format: definition.$format,
       contractId: definition.contractId,
       contractVersion: definition.contractVersion,
     });
-    const capabilities = new Set(definition.capabilities);
-    let compiled: CompiledStoryContract;
+    let compiled: StoryProjectApi;
     compiled = {
       compiler: Object.freeze({
         format: STRUCTURED_NOVEL_STORY_CONTRACT_FORMAT,
         version: STRUCTURED_NOVEL_STORY_CONTRACT_COMPILER_VERSION,
       }),
       identity,
-      capabilities,
       changeSet: Object.freeze({
         maxOperations: STORY_CHANGE_SET_MAX_OPERATIONS,
         maxBytes: STORY_CHANGE_SET_MAX_BYTES,
@@ -74,7 +72,6 @@ export const STRUCTURED_NOVEL_STORY_CONTRACT_COMPILER: StoryContractCompiler = O
         revisionRequired: true,
       }),
       describe: () => definition,
-      assertCapabilities: (required) => assertStoryContractCapabilities(definition, required),
       document: (kind) => storyContractDocument(definition, kind),
       documentFields: (kind) => storyContractDocumentFields(definition, kind),
       contextView: (scope) => storyContractContextViewForScope(definition, scope),

@@ -97,6 +97,7 @@ export interface StoryToolApi {
 export const STORY_TOOL_CONTRACT = defineBuiltinToolContract<StoryToolApi>()({
   id: "novel-claw.story-project-tool",
   version: 1,
+  properties: {},
   methods: {
     describeStructure: { description: "返回 Compiler 标准化后的故事结构与 ChangeSet 约束" },
     initialize: { description: "按当前故事协议初始化项目" },
