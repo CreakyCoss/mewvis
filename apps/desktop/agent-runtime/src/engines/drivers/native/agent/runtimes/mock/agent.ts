@@ -19,7 +19,7 @@ export class MockAgent implements AgentRuntime {
     const privateTools = resolveBuiltinCombinations(runtimeResourcesFor(command).skills?.enabled ?? []).requiredTools
       .internal;
     if (privateTools.length > 0) {
-      throw new Error(`Mock agent 不支持内置私有工具：${privateTools.map((tool) => tool.name).join(", ")}`);
+      throw new Error(`Mock agent 不支持内置私有工具：${privateTools.map((item) => item.definition.name).join(", ")}`);
     }
     const text = createMockAgentText(command);
 

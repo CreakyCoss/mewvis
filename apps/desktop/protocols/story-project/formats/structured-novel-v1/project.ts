@@ -4,9 +4,7 @@ import {
   type StoryProject,
   type StoryProjectFile,
 } from "./schema.js";
-
-export const STORY_PROJECT_ROOT = "story";
-export const STORY_PROJECT_MANIFEST_PATH = `${STORY_PROJECT_ROOT}/manifest.json`;
+import type { CompiledStoryContract } from "../../compiler.js";
 
 export type StoryProjectFileEntry = {
   path: string;
@@ -27,10 +25,12 @@ const sortById = <T extends { id: string }>(items: T[]) =>
 export const createEmptyStoryProject = ({
   id,
   title,
+  contract,
   timestamp = Date.now(),
 }: {
   id: string;
   title: string;
+  contract: CompiledStoryContract;
   timestamp?: number;
 }): StoryProject => {
   const storyId = canonicalId(id, "story");
@@ -154,61 +154,61 @@ export const createEmptyStoryProject = ({
     imports: [],
   };
 
-  return withRebuiltManifest(project, { revision: 0, timestamp });
+  return withRebuiltManifest(project, contract, { revision: 0, timestamp });
 };
 
-export const storyProjectFiles = (project: StoryProject): StoryProjectFileEntry[] => {
+export const storyProjectFiles = (project: StoryProject, contract: CompiledStoryContract): StoryProjectFileEntry[] => {
   const entries: StoryProjectFileEntry[] = [
-    { path: `${STORY_PROJECT_ROOT}/book.json`, value: project.book },
-    { path: `${STORY_PROJECT_ROOT}/positioning.json`, value: project.positioning },
-    { path: `${STORY_PROJECT_ROOT}/style.json`, value: project.style },
-    { path: `${STORY_PROJECT_ROOT}/relationships.json`, value: project.relationships },
-    { path: `${STORY_PROJECT_ROOT}/outline/book-arc.json`, value: project.bookArc },
-    { path: `${STORY_PROJECT_ROOT}/tracking/foreshadows.json`, value: project.foreshadows },
-    { path: `${STORY_PROJECT_ROOT}/tracking/progress.json`, value: project.progress },
-    { path: `${STORY_PROJECT_ROOT}/interactive/graph.json`, value: project.graph },
+    { path: contract.resolveDocument("story-book"), value: project.book },
+    { path: contract.resolveDocument("story-positioning"), value: project.positioning },
+    { path: contract.resolveDocument("story-style"), value: project.style },
+    { path: contract.resolveDocument("story-relationships"), value: project.relationships },
+    { path: contract.resolveDocument("story-book-arc"), value: project.bookArc },
+    { path: contract.resolveDocument("story-foreshadows"), value: project.foreshadows },
+    { path: contract.resolveDocument("story-progress"), value: project.progress },
+    { path: contract.resolveDocument("story-graph"), value: project.graph },
     ...sortById(project.characters).map((value) => ({
-      path: `${STORY_PROJECT_ROOT}/characters/${value.id}.json`,
+      path: contract.resolveDocument("story-character", { id: value.id }),
       value,
     })),
     ...sortById(project.worldEntries).map((value) => ({
-      path: `${STORY_PROJECT_ROOT}/world/${value.id}.json`,
+      path: contract.resolveDocument("story-world-entry", { id: value.id }),
       value,
     })),
     ...project.volumes
       .slice()
       .sort((left, right) => left.number - right.number)
-      .map((value) => ({ path: `${STORY_PROJECT_ROOT}/outline/volumes/${value.id}.json`, value })),
+      .map((value) => ({ path: contract.resolveDocument("story-volume", { id: value.id }), value })),
     ...project.chapterPlans
       .slice()
       .sort((left, right) => left.number - right.number)
-      .map((value) => ({ path: `${STORY_PROJECT_ROOT}/outline/chapters/${value.id}.json`, value })),
+      .map((value) => ({ path: contract.resolveDocument("story-chapter-plan", { id: value.id }), value })),
     ...project.chapters
       .slice()
       .sort((left, right) => left.number - right.number)
-      .map((value) => ({ path: `${STORY_PROJECT_ROOT}/chapters/${value.id}.json`, value })),
+      .map((value) => ({ path: contract.resolveDocument("story-chapter", { id: value.id }), value })),
     ...sortById(project.characterStates).map((value) => ({
-      path: `${STORY_PROJECT_ROOT}/tracking/character-states/${value.characterId}.json`,
+      path: contract.resolveDocument("story-character-state", { characterId: value.characterId }),
       value,
     })),
     ...sortById(project.timelines).map((value) => ({
-      path: `${STORY_PROJECT_ROOT}/tracking/timeline/${value.id}.json`,
+      path: contract.resolveDocument("story-timeline", { id: value.id }),
       value,
     })),
     ...sortById(project.scenes).map((value) => ({
-      path: `${STORY_PROJECT_ROOT}/interactive/scenes/${value.id}.json`,
+      path: contract.resolveDocument("story-scene", { id: value.id }),
       value,
     })),
     ...sortById(project.analyses).map((value) => ({
-      path: `${STORY_PROJECT_ROOT}/analysis/${value.id}.json`,
+      path: contract.resolveDocument("story-analysis", { id: value.id }),
       value,
     })),
     ...sortById(project.reviews).map((value) => ({
-      path: `${STORY_PROJECT_ROOT}/reviews/${value.id}.json`,
+      path: contract.resolveDocument("story-review", { id: value.id }),
       value,
     })),
     ...sortById(project.imports).map((value) => ({
-      path: `${STORY_PROJECT_ROOT}/imports/${value.id}.json`,
+      path: contract.resolveDocument("story-import", { id: value.id }),
       value,
     })),
   ];
@@ -217,6 +217,7 @@ export const storyProjectFiles = (project: StoryProject): StoryProjectFileEntry[
 
 export const withRebuiltManifest = (
   project: StoryProject,
+  contract: CompiledStoryContract,
   { revision = project.manifest.revision, timestamp = Date.now() }: { revision?: number; timestamp?: number } = {},
 ): StoryProject => {
   const projectWithoutManifest = {
@@ -229,7 +230,7 @@ export const withRebuiltManifest = (
       files: [],
     },
   };
-  const files = storyProjectFiles(projectWithoutManifest).map(({ path, value }) => ({
+  const files = storyProjectFiles(projectWithoutManifest, contract).map(({ path, value }) => ({
     kind: value.kind,
     id: value.kind === "story-manifest" ? value.storyId : value.id,
     path,

@@ -1,0 +1,3069 @@
+{
+  "$format": "novel-claw.structured-document-contract",
+  "contractId": "novel-claw.story.default-novel",
+  "contractVersion": 1,
+  "capabilities": [
+    "novel-claw.story.documents@1",
+    "novel-claw.story.context.project@1",
+    "novel-claw.story.context.chapter-writing@1",
+    "novel-claw.story.changes.atomic@1"
+  ],
+  "schemaVersion": 1,
+  "title": "Novel Claw 故事创作结构",
+  "description": "由故事产品维护的默认小说项目协议。目录布局、字段、引用、展示元数据与校验规则随工作区固定保存；技能和工具只读取并执行协议。",
+  "rootPath": "story",
+  "documentEncoding": {
+    "format": "novel-claw.structured-document",
+    "formatVersion": 1,
+    "contractPointer": "/$contract",
+    "documentPointer": "/$document",
+    "schemaPointer": "/$schema",
+    "dataPointer": "/data",
+    "description": "每个落盘 JSON 都携带 contract 身份、文档标签、字段定义与普通业务数据；Agent 只提交 data 对象，工具负责稳定编码。"
+  },
+  "documentDiscriminator": "/kind",
+  "schemaVersionPointer": "/schemaVersion",
+  "identityPointer": "/id",
+  "fieldTypes": {
+    "id": {
+      "label": "稳定 ID",
+      "editor": "text",
+      "valueType": "string"
+    },
+    "text": {
+      "label": "单行文本",
+      "editor": "text",
+      "valueType": "string"
+    },
+    "textarea": {
+      "label": "多行文本",
+      "editor": "textarea",
+      "valueType": "string"
+    },
+    "content": {
+      "label": "长内容",
+      "editor": "content",
+      "valueType": "string"
+    },
+    "integer": {
+      "label": "整数",
+      "editor": "number",
+      "valueType": "integer"
+    },
+    "number": {
+      "label": "数值",
+      "editor": "number",
+      "valueType": "number"
+    },
+    "boolean": {
+      "label": "开关",
+      "editor": "switch",
+      "valueType": "boolean"
+    },
+    "timestamp": {
+      "label": "时间",
+      "editor": "datetime",
+      "valueType": "integer"
+    },
+    "enum": {
+      "label": "枚举",
+      "editor": "select",
+      "valueType": "string"
+    },
+    "string-list": {
+      "label": "文本列表",
+      "editor": "tags",
+      "valueType": "array"
+    },
+    "reference": {
+      "label": "对象引用",
+      "editor": "reference",
+      "valueType": "string"
+    },
+    "reference-list": {
+      "label": "对象引用列表",
+      "editor": "reference-list",
+      "valueType": "array"
+    },
+    "object": {
+      "label": "对象",
+      "editor": "field-group",
+      "valueType": "object"
+    },
+    "collection": {
+      "label": "对象集合",
+      "editor": "card-list",
+      "valueType": "array"
+    },
+    "path": {
+      "label": "文件路径",
+      "editor": "path",
+      "valueType": "string"
+    }
+  },
+  "commonFieldSets": {
+    "entity-document": {
+      "/schemaVersion": {
+        "type": "integer",
+        "label": "结构版本",
+        "required": true,
+        "readOnly": true,
+        "const": 1
+      },
+      "/kind": {
+        "type": "text",
+        "label": "文档类型",
+        "required": true,
+        "readOnly": true
+      },
+      "/id": {
+        "type": "id",
+        "label": "文档 ID",
+        "description": "跨文件引用使用的稳定身份，创建后不可修改",
+        "required": true,
+        "immutable": true
+      },
+      "/updatedAt": {
+        "type": "timestamp",
+        "label": "更新时间",
+        "required": true,
+        "generated": true,
+        "readOnly": true
+      }
+    }
+  },
+  "objectDefinitions": {
+    "manifest-file-entry": {
+      "label": "清单文件项",
+      "fields": {
+        "/kind": {
+          "type": "text",
+          "label": "文档类型",
+          "required": true,
+          "readOnly": true
+        },
+        "/id": {
+          "type": "id",
+          "label": "对象 ID",
+          "required": true,
+          "readOnly": true
+        },
+        "/path": {
+          "type": "path",
+          "label": "文件路径",
+          "required": true,
+          "readOnly": true
+        }
+      }
+    },
+    "character-memory": {
+      "label": "角色记忆分层",
+      "fields": {
+        "/required": {
+          "type": "textarea",
+          "label": "必要记忆",
+          "description": "任何场景都必须保持一致的核心事实",
+          "required": true,
+          "default": ""
+        },
+        "/public": {
+          "type": "textarea",
+          "label": "公开信息",
+          "required": true,
+          "default": ""
+        },
+        "/known": {
+          "type": "textarea",
+          "label": "角色已知信息",
+          "required": true,
+          "default": ""
+        },
+        "/privateSelf": {
+          "type": "textarea",
+          "label": "角色私密认知",
+          "required": true,
+          "default": ""
+        },
+        "/directorSecret": {
+          "type": "textarea",
+          "label": "创作者秘密",
+          "description": "角色本人未必知道、仅供创作控制的信息",
+          "required": true,
+          "default": ""
+        }
+      }
+    },
+    "relationship-evolution": {
+      "label": "关系变化记录",
+      "fields": {
+        "/chapterId": {
+          "type": "reference",
+          "label": "发生章节",
+          "required": true,
+          "targetKinds": ["story-chapter"]
+        },
+        "/summary": {
+          "type": "textarea",
+          "label": "变化摘要",
+          "required": true
+        }
+      }
+    },
+    "relationship": {
+      "label": "角色关系",
+      "identityPointer": "/id",
+      "fields": {
+        "/id": {
+          "type": "id",
+          "label": "关系 ID",
+          "required": true,
+          "immutable": true
+        },
+        "/fromCharacterId": {
+          "type": "reference",
+          "label": "起始角色",
+          "required": true,
+          "targetKinds": ["story-character"]
+        },
+        "/toCharacterId": {
+          "type": "reference",
+          "label": "目标角色",
+          "required": true,
+          "targetKinds": ["story-character"]
+        },
+        "/type": {
+          "type": "text",
+          "label": "关系类型",
+          "required": true
+        },
+        "/emotionalDirection": {
+          "type": "textarea",
+          "label": "情感方向",
+          "required": true
+        },
+        "/currentState": {
+          "type": "textarea",
+          "label": "当前状态",
+          "required": true
+        },
+        "/conflict": {
+          "type": "textarea",
+          "label": "关系冲突",
+          "required": true
+        },
+        "/startedAtChapterId": {
+          "type": "reference",
+          "label": "关系起始章节",
+          "required": false,
+          "targetKinds": ["story-chapter"]
+        },
+        "/evolution": {
+          "type": "collection",
+          "label": "关系演变",
+          "required": true,
+          "itemDefinition": "relationship-evolution",
+          "default": []
+        }
+      }
+    },
+    "arc-stage": {
+      "label": "全书阶段",
+      "identityPointer": "/id",
+      "fields": {
+        "/id": {
+          "type": "id",
+          "label": "阶段 ID",
+          "required": true,
+          "immutable": true
+        },
+        "/name": {
+          "type": "text",
+          "label": "阶段名称",
+          "required": true
+        },
+        "/phase": {
+          "type": "enum",
+          "label": "阶段类型",
+          "required": true,
+          "options": [
+            {
+              "value": "opening",
+              "label": "开篇"
+            },
+            {
+              "value": "development",
+              "label": "发展"
+            },
+            {
+              "value": "climax",
+              "label": "高潮"
+            },
+            {
+              "value": "ending",
+              "label": "结局"
+            },
+            {
+              "value": "custom",
+              "label": "自定义"
+            }
+          ]
+        },
+        "/startChapter": {
+          "type": "integer",
+          "label": "起始章节",
+          "required": true,
+          "minimum": 1
+        },
+        "/endChapter": {
+          "type": "integer",
+          "label": "结束章节",
+          "required": true,
+          "minimum": 1
+        },
+        "/purpose": {
+          "type": "textarea",
+          "label": "阶段目的",
+          "required": true
+        },
+        "/emotionalTone": {
+          "type": "textarea",
+          "label": "情绪基调",
+          "required": true
+        },
+        "/expectedReaderState": {
+          "type": "textarea",
+          "label": "期望读者状态",
+          "required": true
+        },
+        "/allowedReveals": {
+          "type": "string-list",
+          "label": "允许揭示",
+          "required": true,
+          "default": []
+        },
+        "/prohibitedReveals": {
+          "type": "string-list",
+          "label": "禁止揭示",
+          "required": true,
+          "default": []
+        }
+      }
+    },
+    "turning-point": {
+      "label": "关键转折",
+      "fields": {
+        "/chapterId": {
+          "type": "reference",
+          "label": "章节",
+          "required": true,
+          "targetKinds": ["story-chapter-plan", "story-chapter"]
+        },
+        "/function": {
+          "type": "textarea",
+          "label": "结构功能",
+          "required": true
+        },
+        "/emotionalEffect": {
+          "type": "textarea",
+          "label": "情绪效果",
+          "required": true
+        }
+      }
+    },
+    "chapter-beat": {
+      "label": "章节节拍",
+      "identityPointer": "/id",
+      "fields": {
+        "/id": {
+          "type": "id",
+          "label": "节拍 ID",
+          "required": true,
+          "immutable": true
+        },
+        "/summary": {
+          "type": "textarea",
+          "label": "事件摘要",
+          "required": true
+        },
+        "/function": {
+          "type": "enum",
+          "label": "叙事功能",
+          "required": true,
+          "options": [
+            {
+              "value": "setup",
+              "label": "铺垫"
+            },
+            {
+              "value": "progress",
+              "label": "推进"
+            },
+            {
+              "value": "information-reveal",
+              "label": "信息揭示"
+            },
+            {
+              "value": "characterization",
+              "label": "人物塑造"
+            },
+            {
+              "value": "relationship-change",
+              "label": "关系变化"
+            },
+            {
+              "value": "foreshadow",
+              "label": "伏笔埋设"
+            },
+            {
+              "value": "payoff",
+              "label": "伏笔回收"
+            },
+            {
+              "value": "reversal",
+              "label": "反转"
+            },
+            {
+              "value": "climax",
+              "label": "高潮"
+            },
+            {
+              "value": "transition",
+              "label": "过渡"
+            },
+            {
+              "value": "other",
+              "label": "其他"
+            }
+          ]
+        },
+        "/density": {
+          "type": "enum",
+          "label": "信息密度",
+          "required": true,
+          "options": [
+            {
+              "value": "dense",
+              "label": "高"
+            },
+            {
+              "value": "medium",
+              "label": "中"
+            },
+            {
+              "value": "sparse",
+              "label": "低"
+            }
+          ]
+        },
+        "/wordBudget": {
+          "type": "integer",
+          "label": "字数预算",
+          "required": true,
+          "minimum": 0
+        },
+        "/participantIds": {
+          "type": "reference-list",
+          "label": "参与角色",
+          "required": true,
+          "targetKinds": ["story-character"],
+          "default": []
+        },
+        "/worldRefIds": {
+          "type": "reference-list",
+          "label": "相关设定",
+          "required": true,
+          "targetKinds": ["story-world-entry"],
+          "default": []
+        }
+      }
+    },
+    "chapter-plan-summary": {
+      "label": "章节五段摘要",
+      "fields": {
+        "/cause": {
+          "type": "textarea",
+          "label": "起因",
+          "required": true
+        },
+        "/development": {
+          "type": "textarea",
+          "label": "发展",
+          "required": true
+        },
+        "/turn": {
+          "type": "textarea",
+          "label": "转折",
+          "required": true
+        },
+        "/climax": {
+          "type": "textarea",
+          "label": "高潮",
+          "required": true
+        },
+        "/ending": {
+          "type": "textarea",
+          "label": "结尾",
+          "required": true
+        }
+      }
+    },
+    "plot-lines": {
+      "label": "剧情线",
+      "fields": {
+        "/main": {
+          "type": "textarea",
+          "label": "主线",
+          "required": true
+        },
+        "/secondary": {
+          "type": "textarea",
+          "label": "副线",
+          "required": true
+        },
+        "/event": {
+          "type": "textarea",
+          "label": "事件线",
+          "required": true
+        },
+        "/relationship": {
+          "type": "textarea",
+          "label": "关系线",
+          "required": true
+        },
+        "/logic": {
+          "type": "textarea",
+          "label": "因果链",
+          "required": true
+        }
+      }
+    },
+    "chapter-ending": {
+      "label": "章节结尾设计",
+      "fields": {
+        "/resolvedState": {
+          "type": "textarea",
+          "label": "已解决状态",
+          "required": true
+        },
+        "/unresolvedQuestion": {
+          "type": "textarea",
+          "label": "未解决问题",
+          "required": true
+        },
+        "/nextDrive": {
+          "type": "textarea",
+          "label": "下一章驱动力",
+          "required": true
+        },
+        "/hookType": {
+          "type": "text",
+          "label": "钩子类型",
+          "required": true
+        },
+        "/hookStrength": {
+          "type": "enum",
+          "label": "钩子强度",
+          "required": true,
+          "options": [
+            {
+              "value": "strong",
+              "label": "强"
+            },
+            {
+              "value": "medium",
+              "label": "中"
+            },
+            {
+              "value": "weak",
+              "label": "弱"
+            },
+            {
+              "value": "none",
+              "label": "无"
+            }
+          ]
+        }
+      }
+    },
+    "chapter-state-changes": {
+      "label": "章节状态变化",
+      "fields": {
+        "/characterIds": {
+          "type": "reference-list",
+          "label": "变化角色",
+          "required": true,
+          "targetKinds": ["story-character"],
+          "default": []
+        },
+        "/relationshipIds": {
+          "type": "reference-list",
+          "label": "变化关系",
+          "required": true,
+          "targetObjectDefinitions": ["relationship"],
+          "default": []
+        },
+        "/foreshadowIds": {
+          "type": "reference-list",
+          "label": "变化伏笔",
+          "required": true,
+          "targetObjectDefinitions": ["foreshadow"],
+          "default": []
+        },
+        "/timelineEntryIds": {
+          "type": "reference-list",
+          "label": "时间线事件",
+          "required": true,
+          "targetObjectDefinitions": ["timeline-entry"],
+          "default": []
+        }
+      }
+    },
+    "recent-character-change": {
+      "label": "角色近期变化",
+      "fields": {
+        "/chapterId": {
+          "type": "reference",
+          "label": "章节",
+          "required": true,
+          "targetKinds": ["story-chapter"]
+        },
+        "/summary": {
+          "type": "textarea",
+          "label": "变化摘要",
+          "required": true
+        }
+      }
+    },
+    "foreshadow": {
+      "label": "伏笔",
+      "description": "同一记录覆盖计划、埋设、推进和回收，避免伏笔与回收记录失去同步",
+      "identityPointer": "/id",
+      "fields": {
+        "/id": {
+          "type": "id",
+          "label": "伏笔 ID",
+          "required": true,
+          "immutable": true
+        },
+        "/content": {
+          "type": "textarea",
+          "label": "伏笔内容",
+          "description": "要埋设的事实、意象、信息差或未兑现承诺",
+          "required": true
+        },
+        "/status": {
+          "type": "enum",
+          "label": "生命周期状态",
+          "required": true,
+          "options": [
+            {
+              "value": "planned",
+              "label": "已计划"
+            },
+            {
+              "value": "planted",
+              "label": "已埋设"
+            },
+            {
+              "value": "advanced",
+              "label": "已推进"
+            },
+            {
+              "value": "resolved",
+              "label": "已回收"
+            },
+            {
+              "value": "expired",
+              "label": "已失效"
+            },
+            {
+              "value": "abandoned",
+              "label": "已放弃"
+            }
+          ]
+        },
+        "/importance": {
+          "type": "enum",
+          "label": "重要程度",
+          "required": true,
+          "options": [
+            {
+              "value": "high",
+              "label": "高"
+            },
+            {
+              "value": "medium",
+              "label": "中"
+            },
+            {
+              "value": "low",
+              "label": "低"
+            }
+          ]
+        },
+        "/plannedPlantChapterId": {
+          "type": "reference",
+          "label": "计划埋设章节",
+          "required": false,
+          "targetKinds": ["story-chapter-plan"]
+        },
+        "/plantedChapterId": {
+          "type": "reference",
+          "label": "实际埋设章节",
+          "required": false,
+          "targetKinds": ["story-chapter"]
+        },
+        "/expectedResolveChapterId": {
+          "type": "reference",
+          "label": "预计回收章节",
+          "required": false,
+          "targetKinds": ["story-chapter-plan"]
+        },
+        "/resolvedChapterId": {
+          "type": "reference",
+          "label": "实际回收章节",
+          "required": false,
+          "targetKinds": ["story-chapter"]
+        },
+        "/relatedEntityIds": {
+          "type": "reference-list",
+          "label": "关联对象",
+          "required": true,
+          "targetKinds": ["story-character", "story-world-entry", "story-chapter-plan", "story-chapter"],
+          "default": []
+        },
+        "/resolution": {
+          "type": "textarea",
+          "label": "回收结果",
+          "description": "伏笔如何兑现、改变了什么认知或剧情状态",
+          "required": true,
+          "default": ""
+        }
+      },
+      "ruleIds": ["foreshadow.resolution"]
+    },
+    "timeline-entry": {
+      "label": "时间线事件",
+      "identityPointer": "/id",
+      "fields": {
+        "/id": {
+          "type": "id",
+          "label": "事件 ID",
+          "required": true,
+          "immutable": true
+        },
+        "/chapterId": {
+          "type": "reference",
+          "label": "发生章节",
+          "required": true,
+          "targetKinds": ["story-chapter"]
+        },
+        "/storyTime": {
+          "type": "text",
+          "label": "故事内时间",
+          "required": true
+        },
+        "/event": {
+          "type": "textarea",
+          "label": "事件",
+          "required": true
+        },
+        "/participantIds": {
+          "type": "reference-list",
+          "label": "参与角色",
+          "required": true,
+          "targetKinds": ["story-character"],
+          "default": []
+        },
+        "/worldRefIds": {
+          "type": "reference-list",
+          "label": "相关设定",
+          "required": true,
+          "targetKinds": ["story-world-entry"],
+          "default": []
+        },
+        "/plotLine": {
+          "type": "text",
+          "label": "所属剧情线",
+          "required": true
+        }
+      }
+    },
+    "scene-status": {
+      "label": "场景状态",
+      "fields": {
+        "/location": {
+          "type": "text",
+          "label": "地点",
+          "required": false
+        },
+        "/timeLabel": {
+          "type": "text",
+          "label": "时间",
+          "required": false
+        },
+        "/weather": {
+          "type": "text",
+          "label": "天气",
+          "required": false
+        },
+        "/atmosphere": {
+          "type": "textarea",
+          "label": "氛围",
+          "required": false
+        },
+        "/scenePhase": {
+          "type": "text",
+          "label": "场景阶段",
+          "required": false
+        },
+        "/immediateThreat": {
+          "type": "textarea",
+          "label": "即时威胁",
+          "required": false
+        }
+      }
+    },
+    "graph-node": {
+      "label": "剧情节点",
+      "identityPointer": "/id",
+      "fields": {
+        "/id": {
+          "type": "id",
+          "label": "节点 ID",
+          "required": true,
+          "immutable": true
+        },
+        "/sceneId": {
+          "type": "reference",
+          "label": "场景",
+          "required": false,
+          "targetKinds": ["story-scene"]
+        },
+        "/title": {
+          "type": "text",
+          "label": "节点标题",
+          "required": true
+        },
+        "/type": {
+          "type": "text",
+          "label": "节点类型",
+          "required": true
+        },
+        "/pathRole": {
+          "type": "text",
+          "label": "路径作用",
+          "required": true
+        },
+        "/status": {
+          "type": "text",
+          "label": "状态",
+          "required": false
+        }
+      }
+    },
+    "graph-edge": {
+      "label": "剧情连接",
+      "identityPointer": "/id",
+      "fields": {
+        "/id": {
+          "type": "id",
+          "label": "连接 ID",
+          "required": true,
+          "immutable": true
+        },
+        "/fromNodeId": {
+          "type": "reference",
+          "label": "起点",
+          "required": true,
+          "targetObjectDefinitions": ["graph-node"]
+        },
+        "/toNodeId": {
+          "type": "reference",
+          "label": "终点",
+          "required": true,
+          "targetObjectDefinitions": ["graph-node"]
+        },
+        "/label": {
+          "type": "text",
+          "label": "选项文本",
+          "required": true
+        },
+        "/reason": {
+          "type": "textarea",
+          "label": "连接原因",
+          "required": false
+        },
+        "/isDefault": {
+          "type": "boolean",
+          "label": "默认路径",
+          "required": false,
+          "default": false
+        },
+        "/priority": {
+          "type": "integer",
+          "label": "优先级",
+          "required": true
+        }
+      }
+    },
+    "analysis-source": {
+      "label": "分析来源",
+      "fields": {
+        "/title": {
+          "type": "text",
+          "label": "来源标题",
+          "required": true
+        },
+        "/platform": {
+          "type": "text",
+          "label": "来源平台",
+          "required": true
+        },
+        "/path": {
+          "type": "path",
+          "label": "来源路径",
+          "required": false
+        },
+        "/wordCount": {
+          "type": "integer",
+          "label": "字数",
+          "required": true,
+          "minimum": 0
+        },
+        "/chapterCount": {
+          "type": "integer",
+          "label": "章节数",
+          "required": true,
+          "minimum": 0
+        }
+      }
+    },
+    "analysis-stage": {
+      "label": "结构分析阶段",
+      "fields": {
+        "/name": {
+          "type": "text",
+          "label": "阶段名称",
+          "required": true
+        },
+        "/range": {
+          "type": "text",
+          "label": "范围",
+          "required": true
+        },
+        "/function": {
+          "type": "textarea",
+          "label": "结构功能",
+          "required": true
+        },
+        "/emotion": {
+          "type": "textarea",
+          "label": "情绪作用",
+          "required": true
+        },
+        "/evidence": {
+          "type": "string-list",
+          "label": "证据",
+          "required": true,
+          "default": []
+        }
+      }
+    },
+    "emotional-arc-point": {
+      "label": "情绪节点",
+      "fields": {
+        "/label": {
+          "type": "text",
+          "label": "节点名称",
+          "required": true
+        },
+        "/intensity": {
+          "type": "number",
+          "label": "情绪强度",
+          "required": true,
+          "minimum": 0,
+          "maximum": 10
+        },
+        "/chapterRef": {
+          "type": "reference",
+          "label": "章节引用",
+          "required": false,
+          "targetKinds": ["story-chapter-plan", "story-chapter"]
+        },
+        "/cause": {
+          "type": "textarea",
+          "label": "形成原因",
+          "required": true
+        }
+      }
+    },
+    "plot-module": {
+      "label": "剧情模块",
+      "identityPointer": "/id",
+      "fields": {
+        "/id": {
+          "type": "id",
+          "label": "模块 ID",
+          "required": true,
+          "immutable": true
+        },
+        "/name": {
+          "type": "text",
+          "label": "模块名称",
+          "required": true
+        },
+        "/function": {
+          "type": "textarea",
+          "label": "叙事功能",
+          "required": true
+        },
+        "/setup": {
+          "type": "textarea",
+          "label": "铺垫方式",
+          "required": true
+        },
+        "/payoff": {
+          "type": "textarea",
+          "label": "兑现方式",
+          "required": true
+        },
+        "/reusablePattern": {
+          "type": "textarea",
+          "label": "可复用模式",
+          "required": true
+        },
+        "/evidence": {
+          "type": "string-list",
+          "label": "证据",
+          "required": true,
+          "default": []
+        }
+      }
+    },
+    "style-profile": {
+      "label": "文风画像",
+      "fields": {
+        "/pointOfView": {
+          "type": "text",
+          "label": "视角",
+          "required": true
+        },
+        "/tone": {
+          "type": "textarea",
+          "label": "语气",
+          "required": true
+        },
+        "/sentenceRhythm": {
+          "type": "textarea",
+          "label": "句式节奏",
+          "required": true
+        },
+        "/dialogue": {
+          "type": "textarea",
+          "label": "对话特征",
+          "required": true
+        },
+        "/proseRules": {
+          "type": "string-list",
+          "label": "表达规则",
+          "required": true,
+          "default": []
+        },
+        "/anchorExcerpts": {
+          "type": "string-list",
+          "label": "短证据锚点",
+          "required": true,
+          "default": []
+        }
+      }
+    },
+    "character-insight": {
+      "label": "人物分析",
+      "fields": {
+        "/name": {
+          "type": "text",
+          "label": "人物",
+          "required": true
+        },
+        "/role": {
+          "type": "text",
+          "label": "角色功能",
+          "required": true
+        },
+        "/function": {
+          "type": "textarea",
+          "label": "叙事作用",
+          "required": true
+        },
+        "/arc": {
+          "type": "textarea",
+          "label": "人物弧",
+          "required": true
+        },
+        "/evidence": {
+          "type": "string-list",
+          "label": "证据",
+          "required": true,
+          "default": []
+        }
+      }
+    },
+    "review-finding": {
+      "label": "审查问题",
+      "identityPointer": "/id",
+      "fields": {
+        "/id": {
+          "type": "id",
+          "label": "问题 ID",
+          "required": true,
+          "immutable": true
+        },
+        "/severity": {
+          "type": "enum",
+          "label": "严重级别",
+          "required": true,
+          "options": [
+            {
+              "value": "S1",
+              "label": "S1 严重"
+            },
+            {
+              "value": "S2",
+              "label": "S2 重要"
+            },
+            {
+              "value": "S3",
+              "label": "S3 局部"
+            },
+            {
+              "value": "S4",
+              "label": "S4 建议"
+            }
+          ]
+        },
+        "/category": {
+          "type": "enum",
+          "label": "问题类别",
+          "required": true,
+          "options": [
+            {
+              "value": "structure",
+              "label": "结构"
+            },
+            {
+              "value": "character",
+              "label": "人物"
+            },
+            {
+              "value": "prose",
+              "label": "文字"
+            },
+            {
+              "value": "consistency",
+              "label": "一致性"
+            },
+            {
+              "value": "platform",
+              "label": "平台"
+            },
+            {
+              "value": "factual",
+              "label": "事实"
+            },
+            {
+              "value": "format",
+              "label": "格式"
+            },
+            {
+              "value": "causal",
+              "label": "因果"
+            },
+            {
+              "value": "rule-boundary",
+              "label": "规则边界"
+            }
+          ]
+        },
+        "/scopePath": {
+          "type": "path",
+          "label": "问题位置",
+          "required": true
+        },
+        "/evidence": {
+          "type": "textarea",
+          "label": "证据",
+          "required": true
+        },
+        "/issue": {
+          "type": "textarea",
+          "label": "问题说明",
+          "required": true
+        },
+        "/fix": {
+          "type": "textarea",
+          "label": "修复建议",
+          "required": true
+        },
+        "/status": {
+          "type": "enum",
+          "label": "处理状态",
+          "required": true,
+          "options": [
+            {
+              "value": "open",
+              "label": "待处理"
+            },
+            {
+              "value": "accepted",
+              "label": "已接受"
+            },
+            {
+              "value": "resolved",
+              "label": "已解决"
+            },
+            {
+              "value": "dismissed",
+              "label": "已忽略"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "documents": {
+    "story-manifest": {
+      "label": "故事清单",
+      "description": "索引所有正式故事文件并维护 revision",
+      "pathPattern": "story/manifest.json",
+      "cardinality": "one",
+      "titlePointer": "/title",
+      "fields": {
+        "/schemaVersion": {
+          "type": "integer",
+          "label": "结构版本",
+          "required": true,
+          "readOnly": true,
+          "const": 1
+        },
+        "/kind": {
+          "type": "text",
+          "label": "文档类型",
+          "required": true,
+          "readOnly": true,
+          "const": "story-manifest"
+        },
+        "/storyId": {
+          "type": "id",
+          "label": "故事 ID",
+          "required": true,
+          "immutable": true
+        },
+        "/title": {
+          "type": "text",
+          "label": "故事标题",
+          "required": true,
+          "generatedFrom": "story-book:/title"
+        },
+        "/revision": {
+          "type": "integer",
+          "label": "数据版本",
+          "required": true,
+          "generated": true,
+          "readOnly": true,
+          "minimum": 0
+        },
+        "/createdAt": {
+          "type": "timestamp",
+          "label": "创建时间",
+          "required": true,
+          "generated": true,
+          "readOnly": true
+        },
+        "/updatedAt": {
+          "type": "timestamp",
+          "label": "更新时间",
+          "required": true,
+          "generated": true,
+          "readOnly": true
+        },
+        "/files": {
+          "type": "collection",
+          "label": "文件索引",
+          "required": true,
+          "generated": true,
+          "readOnly": true,
+          "itemDefinition": "manifest-file-entry"
+        }
+      },
+      "ruleIds": ["manifest.files", "manifest.title"]
+    },
+    "story-book": {
+      "label": "作品核心",
+      "description": "书名、故事前提、目标、核心冲突与终局阻碍",
+      "pathPattern": "story/book.json",
+      "cardinality": "one",
+      "titlePointer": "/title",
+      "fieldSets": ["entity-document"],
+      "constFields": {
+        "/kind": "story-book"
+      },
+      "fields": {
+        "/title": {
+          "type": "text",
+          "label": "书名",
+          "required": true,
+          "default": ""
+        },
+        "/premise": {
+          "type": "textarea",
+          "label": "故事前提",
+          "required": true,
+          "default": ""
+        },
+        "/goal": {
+          "type": "textarea",
+          "label": "全书目标",
+          "required": true,
+          "default": ""
+        },
+        "/logline": {
+          "type": "textarea",
+          "label": "一句话梗概",
+          "required": true,
+          "default": ""
+        },
+        "/centralConflict": {
+          "type": "textarea",
+          "label": "核心冲突",
+          "required": true,
+          "default": ""
+        },
+        "/finalObstacle": {
+          "type": "textarea",
+          "label": "终极阻碍",
+          "required": true,
+          "default": ""
+        },
+        "/protagonistId": {
+          "type": "reference",
+          "label": "主角",
+          "required": false,
+          "targetKinds": ["story-character"]
+        },
+        "/playerName": {
+          "type": "text",
+          "label": "玩家称呼",
+          "required": true,
+          "default": "我"
+        },
+        "/mode": {
+          "type": "enum",
+          "label": "故事模式",
+          "required": true,
+          "default": "hybrid",
+          "options": [
+            {
+              "value": "serial",
+              "label": "连载"
+            },
+            {
+              "value": "interactive",
+              "label": "互动"
+            },
+            {
+              "value": "hybrid",
+              "label": "混合"
+            }
+          ]
+        },
+        "/createdAt": {
+          "type": "timestamp",
+          "label": "创建时间",
+          "required": true,
+          "generated": true,
+          "readOnly": true
+        }
+      },
+      "ruleIds": ["book.title", "book.logline", "opening.protagonist"]
+    },
+    "story-positioning": {
+      "label": "作品定位",
+      "pathPattern": "story/positioning.json",
+      "cardinality": "one",
+      "fieldSets": ["entity-document"],
+      "constFields": {
+        "/kind": "story-positioning"
+      },
+      "fields": {
+        "/lengthType": {
+          "type": "enum",
+          "label": "篇幅类型",
+          "required": true,
+          "options": [
+            {
+              "value": "long",
+              "label": "长篇"
+            },
+            {
+              "value": "short",
+              "label": "短篇"
+            }
+          ]
+        },
+        "/primaryGenre": {
+          "type": "text",
+          "label": "主类型",
+          "required": true,
+          "default": ""
+        },
+        "/secondaryGenres": {
+          "type": "string-list",
+          "label": "副类型",
+          "required": true,
+          "default": []
+        },
+        "/targetPlatform": {
+          "type": "text",
+          "label": "目标平台",
+          "required": true,
+          "default": ""
+        },
+        "/targetAudience": {
+          "type": "textarea",
+          "label": "目标读者",
+          "required": true,
+          "default": ""
+        },
+        "/targetWords": {
+          "type": "integer",
+          "label": "目标字数",
+          "required": true,
+          "minimum": 0,
+          "default": 0
+        },
+        "/emotionalPromise": {
+          "type": "textarea",
+          "label": "情绪承诺",
+          "required": true,
+          "default": ""
+        },
+        "/surfaceHook": {
+          "type": "textarea",
+          "label": "表层卖点",
+          "required": true,
+          "default": ""
+        },
+        "/deepPayoff": {
+          "type": "textarea",
+          "label": "深层满足",
+          "required": true,
+          "default": ""
+        },
+        "/longTermHook": {
+          "type": "textarea",
+          "label": "长期钩子",
+          "required": true,
+          "default": ""
+        },
+        "/differentiation": {
+          "type": "textarea",
+          "label": "差异化",
+          "required": true,
+          "default": ""
+        },
+        "/benchmarkTitles": {
+          "type": "string-list",
+          "label": "对标作品",
+          "required": true,
+          "default": []
+        }
+      }
+    },
+    "story-style": {
+      "label": "文风约束",
+      "pathPattern": "story/style.json",
+      "cardinality": "one",
+      "fieldSets": ["entity-document"],
+      "constFields": {
+        "/kind": "story-style"
+      },
+      "fields": {
+        "/tone": {
+          "type": "textarea",
+          "label": "整体语气",
+          "required": true,
+          "default": ""
+        },
+        "/pointOfView": {
+          "type": "text",
+          "label": "叙事视角",
+          "required": true,
+          "default": ""
+        },
+        "/tense": {
+          "type": "text",
+          "label": "叙事时态",
+          "required": true,
+          "default": ""
+        },
+        "/sentenceRhythm": {
+          "type": "textarea",
+          "label": "句式节奏",
+          "required": true,
+          "default": ""
+        },
+        "/dialogueGuidance": {
+          "type": "textarea",
+          "label": "对话指导",
+          "required": true,
+          "default": ""
+        },
+        "/punctuationGuidance": {
+          "type": "textarea",
+          "label": "标点指导",
+          "required": true,
+          "default": ""
+        },
+        "/forbiddenPatterns": {
+          "type": "string-list",
+          "label": "禁止表达",
+          "required": true,
+          "default": []
+        }
+      },
+      "ruleIds": ["style.tone"]
+    },
+    "story-character": {
+      "label": "角色档案",
+      "pathPattern": "story/characters/{id}.json",
+      "cardinality": "many",
+      "titlePointer": "/name",
+      "fieldSets": ["entity-document"],
+      "constFields": {
+        "/kind": "story-character"
+      },
+      "fields": {
+        "/name": {
+          "type": "text",
+          "label": "姓名",
+          "required": true
+        },
+        "/role": {
+          "type": "enum",
+          "label": "角色定位",
+          "required": true,
+          "options": [
+            {
+              "value": "protagonist",
+              "label": "主角"
+            },
+            {
+              "value": "deuteragonist",
+              "label": "第二主角"
+            },
+            {
+              "value": "antagonist",
+              "label": "对手"
+            },
+            {
+              "value": "supporting",
+              "label": "配角"
+            },
+            {
+              "value": "minor",
+              "label": "次要角色"
+            }
+          ]
+        },
+        "/avatar": {
+          "type": "text",
+          "label": "头像标识",
+          "required": true,
+          "default": "blank-avatar"
+        },
+        "/age": {
+          "type": "text",
+          "label": "年龄",
+          "required": true,
+          "default": ""
+        },
+        "/description": {
+          "type": "textarea",
+          "label": "角色简介",
+          "required": true,
+          "default": ""
+        },
+        "/traits": {
+          "type": "string-list",
+          "label": "性格特征",
+          "required": true,
+          "default": []
+        },
+        "/speakingStyle": {
+          "type": "textarea",
+          "label": "说话风格",
+          "required": true,
+          "default": ""
+        },
+        "/writingStyle": {
+          "type": "textarea",
+          "label": "书写风格",
+          "required": true,
+          "default": ""
+        },
+        "/replyStylePrompt": {
+          "type": "textarea",
+          "label": "回复风格提示",
+          "required": true,
+          "default": ""
+        },
+        "/goals": {
+          "type": "textarea",
+          "label": "角色目标",
+          "required": true,
+          "default": ""
+        },
+        "/motivation": {
+          "type": "textarea",
+          "label": "核心动机",
+          "required": true,
+          "default": ""
+        },
+        "/flaw": {
+          "type": "textarea",
+          "label": "缺陷",
+          "required": true,
+          "default": ""
+        },
+        "/coreAbility": {
+          "type": "textarea",
+          "label": "核心能力",
+          "required": true,
+          "default": ""
+        },
+        "/relationshipSummary": {
+          "type": "textarea",
+          "label": "关系摘要",
+          "required": true,
+          "default": ""
+        },
+        "/publicRelationshipSummary": {
+          "type": "textarea",
+          "label": "公开关系摘要",
+          "required": true,
+          "default": ""
+        },
+        "/arcSummary": {
+          "type": "textarea",
+          "label": "人物弧",
+          "required": true,
+          "default": ""
+        },
+        "/memory": {
+          "type": "object",
+          "label": "记忆分层",
+          "required": true,
+          "definition": "character-memory"
+        }
+      }
+    },
+    "story-relationships": {
+      "label": "角色关系网",
+      "pathPattern": "story/relationships.json",
+      "cardinality": "one",
+      "fieldSets": ["entity-document"],
+      "constFields": {
+        "/kind": "story-relationships"
+      },
+      "fields": {
+        "/relationships": {
+          "type": "collection",
+          "label": "关系",
+          "required": true,
+          "itemDefinition": "relationship",
+          "default": []
+        }
+      },
+      "ruleIds": ["identity.duplicate", "reference.missing"]
+    },
+    "story-world-entry": {
+      "label": "世界设定",
+      "description": "背景、力量体系、地理、社会、势力、物品和规则等可召回设定",
+      "pathPattern": "story/world/{id}.json",
+      "cardinality": "many",
+      "titlePointer": "/title",
+      "fieldSets": ["entity-document"],
+      "constFields": {
+        "/kind": "story-world-entry"
+      },
+      "fields": {
+        "/category": {
+          "type": "enum",
+          "label": "设定类别",
+          "required": true,
+          "options": [
+            {
+              "value": "background",
+              "label": "时代与故事背景"
+            },
+            {
+              "value": "power-system",
+              "label": "力量体系"
+            },
+            {
+              "value": "geography",
+              "label": "地理"
+            },
+            {
+              "value": "society",
+              "label": "社会结构"
+            },
+            {
+              "value": "faction",
+              "label": "势力组织"
+            },
+            {
+              "value": "object",
+              "label": "关键物品"
+            },
+            {
+              "value": "rule",
+              "label": "世界规则"
+            },
+            {
+              "value": "other",
+              "label": "其他"
+            }
+          ]
+        },
+        "/title": {
+          "type": "text",
+          "label": "设定名称",
+          "required": true
+        },
+        "/summary": {
+          "type": "textarea",
+          "label": "设定摘要",
+          "required": true,
+          "default": ""
+        },
+        "/content": {
+          "type": "content",
+          "label": "详细内容",
+          "required": true,
+          "default": ""
+        },
+        "/rules": {
+          "type": "string-list",
+          "label": "明确规则",
+          "required": true,
+          "default": []
+        },
+        "/constraints": {
+          "type": "string-list",
+          "label": "限制条件",
+          "required": true,
+          "default": []
+        },
+        "/keywords": {
+          "type": "string-list",
+          "label": "召回关键词",
+          "required": true,
+          "default": []
+        },
+        "/relatedEntityIds": {
+          "type": "reference-list",
+          "label": "关联对象",
+          "required": true,
+          "targetKinds": ["story-character", "story-world-entry"],
+          "default": []
+        },
+        "/enabled": {
+          "type": "boolean",
+          "label": "启用",
+          "required": true,
+          "default": true
+        },
+        "/alwaysOn": {
+          "type": "boolean",
+          "label": "始终召回",
+          "required": true,
+          "default": false
+        }
+      }
+    },
+    "story-book-arc": {
+      "label": "全书主线",
+      "pathPattern": "story/outline/book-arc.json",
+      "cardinality": "one",
+      "fieldSets": ["entity-document"],
+      "constFields": {
+        "/kind": "story-book-arc"
+      },
+      "fields": {
+        "/totalChapters": {
+          "type": "integer",
+          "label": "总章节数",
+          "required": true,
+          "minimum": 0,
+          "default": 0
+        },
+        "/targetWords": {
+          "type": "integer",
+          "label": "目标字数",
+          "required": true,
+          "minimum": 0,
+          "default": 0
+        },
+        "/emotionalArc": {
+          "type": "textarea",
+          "label": "全书情绪弧",
+          "required": true,
+          "default": ""
+        },
+        "/stages": {
+          "type": "collection",
+          "label": "全书阶段",
+          "required": true,
+          "itemDefinition": "arc-stage",
+          "default": []
+        },
+        "/volumeIds": {
+          "type": "reference-list",
+          "label": "分卷",
+          "required": true,
+          "targetKinds": ["story-volume"],
+          "default": []
+        },
+        "/keyTurningPoints": {
+          "type": "collection",
+          "label": "关键转折",
+          "required": true,
+          "itemDefinition": "turning-point",
+          "default": []
+        }
+      },
+      "ruleIds": ["opening.stage", "reference.missing"]
+    },
+    "story-volume": {
+      "label": "分卷",
+      "pathPattern": "story/outline/volumes/{id}.json",
+      "cardinality": "many",
+      "titlePointer": "/title",
+      "fieldSets": ["entity-document"],
+      "constFields": {
+        "/kind": "story-volume"
+      },
+      "fields": {
+        "/number": {
+          "type": "integer",
+          "label": "卷号",
+          "required": true,
+          "minimum": 1
+        },
+        "/title": {
+          "type": "text",
+          "label": "卷名",
+          "required": true
+        },
+        "/startChapter": {
+          "type": "integer",
+          "label": "起始章节",
+          "required": true,
+          "minimum": 1
+        },
+        "/endChapter": {
+          "type": "integer",
+          "label": "结束章节",
+          "required": true,
+          "minimum": 1
+        },
+        "/targetWords": {
+          "type": "integer",
+          "label": "目标字数",
+          "required": true,
+          "minimum": 0
+        },
+        "/phase": {
+          "type": "enum",
+          "label": "全书阶段",
+          "required": true,
+          "options": [
+            {
+              "value": "opening",
+              "label": "开篇"
+            },
+            {
+              "value": "development",
+              "label": "发展"
+            },
+            {
+              "value": "climax",
+              "label": "高潮"
+            },
+            {
+              "value": "ending",
+              "label": "结局"
+            },
+            {
+              "value": "mixed",
+              "label": "混合"
+            },
+            {
+              "value": "custom",
+              "label": "自定义"
+            }
+          ]
+        },
+        "/purpose": {
+          "type": "textarea",
+          "label": "本卷目的",
+          "required": true
+        },
+        "/coreConflict": {
+          "type": "textarea",
+          "label": "核心冲突",
+          "required": true
+        },
+        "/coreEvent": {
+          "type": "textarea",
+          "label": "核心事件",
+          "required": true
+        },
+        "/startState": {
+          "type": "textarea",
+          "label": "起始状态",
+          "required": true
+        },
+        "/endState": {
+          "type": "textarea",
+          "label": "结束状态",
+          "required": true
+        },
+        "/emotionalArc": {
+          "type": "textarea",
+          "label": "情绪弧",
+          "required": true
+        },
+        "/allowedReveals": {
+          "type": "string-list",
+          "label": "允许揭示",
+          "required": true,
+          "default": []
+        },
+        "/prohibitedReveals": {
+          "type": "string-list",
+          "label": "禁止揭示",
+          "required": true,
+          "default": []
+        },
+        "/chapterIds": {
+          "type": "reference-list",
+          "label": "章节细纲",
+          "required": true,
+          "targetKinds": ["story-chapter-plan"],
+          "default": []
+        }
+      },
+      "ruleIds": ["range.invalid", "range.overlap", "volumes.number"]
+    },
+    "story-chapter-plan": {
+      "label": "章节细纲",
+      "pathPattern": "story/outline/chapters/{id}.json",
+      "cardinality": "many",
+      "titlePointer": "/title",
+      "fieldSets": ["entity-document"],
+      "constFields": {
+        "/kind": "story-chapter-plan"
+      },
+      "fields": {
+        "/number": {
+          "type": "integer",
+          "label": "章节号",
+          "required": true,
+          "minimum": 1
+        },
+        "/volumeId": {
+          "type": "reference",
+          "label": "所属分卷",
+          "required": true,
+          "targetKinds": ["story-volume"]
+        },
+        "/title": {
+          "type": "text",
+          "label": "章节标题",
+          "required": true
+        },
+        "/phase": {
+          "type": "enum",
+          "label": "阶段",
+          "required": true,
+          "options": [
+            {
+              "value": "opening",
+              "label": "开篇"
+            },
+            {
+              "value": "development",
+              "label": "发展"
+            },
+            {
+              "value": "climax",
+              "label": "高潮"
+            },
+            {
+              "value": "ending",
+              "label": "结局"
+            },
+            {
+              "value": "custom",
+              "label": "自定义"
+            }
+          ]
+        },
+        "/phasePosition": {
+          "type": "text",
+          "label": "阶段位置",
+          "required": true
+        },
+        "/chapterRole": {
+          "type": "enum",
+          "label": "章节功能",
+          "required": true,
+          "options": [
+            {
+              "value": "high-pressure",
+              "label": "高压"
+            },
+            {
+              "value": "progress",
+              "label": "推进"
+            },
+            {
+              "value": "training",
+              "label": "成长训练"
+            },
+            {
+              "value": "relationship",
+              "label": "关系"
+            },
+            {
+              "value": "low-pressure",
+              "label": "低压"
+            },
+            {
+              "value": "information",
+              "label": "信息"
+            },
+            {
+              "value": "transition",
+              "label": "过渡"
+            },
+            {
+              "value": "custom",
+              "label": "自定义"
+            }
+          ]
+        },
+        "/targetWords": {
+          "type": "integer",
+          "label": "目标字数",
+          "required": true,
+          "minimum": 0
+        },
+        "/targetEmotion": {
+          "type": "textarea",
+          "label": "目标情绪",
+          "required": true
+        },
+        "/coreEvent": {
+          "type": "textarea",
+          "label": "核心事件",
+          "required": true
+        },
+        "/structureFormula": {
+          "type": "textarea",
+          "label": "结构公式",
+          "required": true
+        },
+        "/openingHook": {
+          "type": "textarea",
+          "label": "开篇钩子",
+          "required": true
+        },
+        "/payoff": {
+          "type": "textarea",
+          "label": "本章兑现",
+          "required": true
+        },
+        "/releaseGuards": {
+          "type": "string-list",
+          "label": "禁止提前释放",
+          "required": true,
+          "default": []
+        },
+        "/summary": {
+          "type": "object",
+          "label": "五段摘要",
+          "required": true,
+          "definition": "chapter-plan-summary"
+        },
+        "/plotLines": {
+          "type": "object",
+          "label": "剧情线",
+          "required": true,
+          "definition": "plot-lines"
+        },
+        "/participantIds": {
+          "type": "reference-list",
+          "label": "参与角色",
+          "required": true,
+          "targetKinds": ["story-character"],
+          "default": []
+        },
+        "/appearanceOrder": {
+          "type": "reference-list",
+          "label": "出场顺序",
+          "required": true,
+          "targetKinds": ["story-character"],
+          "default": []
+        },
+        "/worldRefIds": {
+          "type": "reference-list",
+          "label": "相关设定",
+          "required": true,
+          "targetKinds": ["story-world-entry"],
+          "default": []
+        },
+        "/pointOfView": {
+          "type": "text",
+          "label": "本章视角",
+          "required": true
+        },
+        "/informationGap": {
+          "type": "textarea",
+          "label": "信息差",
+          "required": true
+        },
+        "/relationshipChanges": {
+          "type": "string-list",
+          "label": "关系变化",
+          "required": true,
+          "default": []
+        },
+        "/beats": {
+          "type": "collection",
+          "label": "章节节拍",
+          "required": true,
+          "itemDefinition": "chapter-beat",
+          "default": []
+        },
+        "/costAndPayoff": {
+          "type": "textarea",
+          "label": "代价与回报",
+          "required": true
+        },
+        "/ending": {
+          "type": "object",
+          "label": "结尾设计",
+          "required": true,
+          "definition": "chapter-ending"
+        },
+        "/status": {
+          "type": "enum",
+          "label": "细纲状态",
+          "required": true,
+          "options": [
+            {
+              "value": "draft",
+              "label": "草稿"
+            },
+            {
+              "value": "locked",
+              "label": "已锁定"
+            },
+            {
+              "value": "ready",
+              "label": "可写作"
+            },
+            {
+              "value": "written",
+              "label": "已成文"
+            }
+          ]
+        }
+      },
+      "ruleIds": ["chapters.number", "chapter.budget", "reference.missing"]
+    },
+    "story-chapter": {
+      "label": "章节正文",
+      "pathPattern": "story/chapters/{id}.json",
+      "cardinality": "many",
+      "titlePointer": "/title",
+      "fieldSets": ["entity-document"],
+      "constFields": {
+        "/kind": "story-chapter"
+      },
+      "fields": {
+        "/planId": {
+          "type": "reference",
+          "label": "章节细纲",
+          "required": true,
+          "targetKinds": ["story-chapter-plan"]
+        },
+        "/number": {
+          "type": "integer",
+          "label": "章节号",
+          "required": true,
+          "minimum": 1
+        },
+        "/title": {
+          "type": "text",
+          "label": "章节标题",
+          "required": true
+        },
+        "/status": {
+          "type": "enum",
+          "label": "正文状态",
+          "required": true,
+          "options": [
+            {
+              "value": "draft",
+              "label": "草稿"
+            },
+            {
+              "value": "review",
+              "label": "审查中"
+            },
+            {
+              "value": "accepted",
+              "label": "已接受"
+            },
+            {
+              "value": "published",
+              "label": "已发布"
+            }
+          ]
+        },
+        "/content": {
+          "type": "content",
+          "label": "正文",
+          "required": true,
+          "default": ""
+        },
+        "/summary": {
+          "type": "textarea",
+          "label": "章节摘要",
+          "required": true,
+          "default": ""
+        },
+        "/wordCount": {
+          "type": "integer",
+          "label": "字数",
+          "required": true,
+          "minimum": 0
+        },
+        "/participantIds": {
+          "type": "reference-list",
+          "label": "出场角色",
+          "required": true,
+          "targetKinds": ["story-character"],
+          "default": []
+        },
+        "/worldRefIds": {
+          "type": "reference-list",
+          "label": "相关设定",
+          "required": true,
+          "targetKinds": ["story-world-entry"],
+          "default": []
+        },
+        "/stateChanges": {
+          "type": "object",
+          "label": "状态变化",
+          "required": true,
+          "definition": "chapter-state-changes"
+        }
+      },
+      "ruleIds": ["reference.missing"]
+    },
+    "story-character-state": {
+      "label": "角色状态",
+      "pathPattern": "story/tracking/character-states/{characterId}.json",
+      "cardinality": "many",
+      "fieldSets": ["entity-document"],
+      "constFields": {
+        "/kind": "story-character-state"
+      },
+      "fields": {
+        "/characterId": {
+          "type": "reference",
+          "label": "角色",
+          "required": true,
+          "targetKinds": ["story-character"]
+        },
+        "/asOfChapterId": {
+          "type": "reference",
+          "label": "截至章节",
+          "required": false,
+          "targetKinds": ["story-chapter"]
+        },
+        "/identity": {
+          "type": "textarea",
+          "label": "当前身份",
+          "required": true
+        },
+        "/location": {
+          "type": "text",
+          "label": "当前位置",
+          "required": true
+        },
+        "/physicalState": {
+          "type": "textarea",
+          "label": "身体状态",
+          "required": true
+        },
+        "/abilities": {
+          "type": "string-list",
+          "label": "当前能力",
+          "required": true,
+          "default": []
+        },
+        "/relationshipStates": {
+          "type": "string-list",
+          "label": "关系状态",
+          "required": true,
+          "default": []
+        },
+        "/knowledge": {
+          "type": "string-list",
+          "label": "已知信息",
+          "required": true,
+          "default": []
+        },
+        "/publicImage": {
+          "type": "textarea",
+          "label": "公开形象",
+          "required": true
+        },
+        "/openThreads": {
+          "type": "string-list",
+          "label": "未解决事项",
+          "required": true,
+          "default": []
+        },
+        "/recentChanges": {
+          "type": "collection",
+          "label": "近期变化",
+          "required": true,
+          "itemDefinition": "recent-character-change",
+          "default": []
+        }
+      },
+      "ruleIds": ["reference.missing"]
+    },
+    "story-foreshadows": {
+      "label": "伏笔追踪",
+      "description": "统一维护伏笔的计划、埋设、推进、回收和放弃状态",
+      "pathPattern": "story/tracking/foreshadows.json",
+      "cardinality": "one",
+      "fieldSets": ["entity-document"],
+      "constFields": {
+        "/kind": "story-foreshadows"
+      },
+      "fields": {
+        "/foreshadows": {
+          "type": "collection",
+          "label": "伏笔",
+          "required": true,
+          "itemDefinition": "foreshadow",
+          "default": []
+        }
+      },
+      "ruleIds": ["foreshadow.resolution", "reference.missing"]
+    },
+    "story-timeline": {
+      "label": "时间线",
+      "pathPattern": "story/tracking/timeline/{id}.json",
+      "cardinality": "many",
+      "fieldSets": ["entity-document"],
+      "constFields": {
+        "/kind": "story-timeline"
+      },
+      "fields": {
+        "/calendar": {
+          "type": "textarea",
+          "label": "历法说明",
+          "required": true
+        },
+        "/openingTime": {
+          "type": "text",
+          "label": "故事开场时间",
+          "required": true
+        },
+        "/currentTime": {
+          "type": "text",
+          "label": "当前时间",
+          "required": true
+        },
+        "/entries": {
+          "type": "collection",
+          "label": "时间线事件",
+          "required": true,
+          "itemDefinition": "timeline-entry",
+          "default": []
+        }
+      },
+      "ruleIds": ["reference.missing"]
+    },
+    "story-progress": {
+      "label": "创作进度",
+      "pathPattern": "story/tracking/progress.json",
+      "cardinality": "one",
+      "fieldSets": ["entity-document"],
+      "constFields": {
+        "/kind": "story-progress"
+      },
+      "fields": {
+        "/lastCompletedChapterId": {
+          "type": "reference",
+          "label": "最后完成章节",
+          "required": false,
+          "targetKinds": ["story-chapter"]
+        },
+        "/totalWrittenWords": {
+          "type": "integer",
+          "label": "累计字数",
+          "required": true,
+          "minimum": 0,
+          "default": 0
+        },
+        "/currentVolumeId": {
+          "type": "reference",
+          "label": "当前分卷",
+          "required": false,
+          "targetKinds": ["story-volume"]
+        },
+        "/nextChapterPlanId": {
+          "type": "reference",
+          "label": "下一章细纲",
+          "required": false,
+          "targetKinds": ["story-chapter-plan"]
+        },
+        "/recentChapterIds": {
+          "type": "reference-list",
+          "label": "最近章节",
+          "required": true,
+          "targetKinds": ["story-chapter"],
+          "default": []
+        },
+        "/notes": {
+          "type": "string-list",
+          "label": "进度备注",
+          "required": true,
+          "default": []
+        }
+      },
+      "ruleIds": ["reference.missing"]
+    },
+    "story-scene": {
+      "label": "互动场景",
+      "pathPattern": "story/interactive/scenes/{id}.json",
+      "cardinality": "many",
+      "titlePointer": "/title",
+      "fieldSets": ["entity-document"],
+      "constFields": {
+        "/kind": "story-scene"
+      },
+      "fields": {
+        "/title": {
+          "type": "text",
+          "label": "场景标题",
+          "required": true
+        },
+        "/scene": {
+          "type": "textarea",
+          "label": "场景描述",
+          "required": true
+        },
+        "/goal": {
+          "type": "textarea",
+          "label": "场景目标",
+          "required": true
+        },
+        "/plot": {
+          "type": "textarea",
+          "label": "剧情内容",
+          "required": true
+        },
+        "/direction": {
+          "type": "textarea",
+          "label": "推进方向",
+          "required": true
+        },
+        "/transition": {
+          "type": "textarea",
+          "label": "转场",
+          "required": true
+        },
+        "/memory": {
+          "type": "textarea",
+          "label": "场景记忆",
+          "required": true
+        },
+        "/status": {
+          "type": "object",
+          "label": "场景状态",
+          "required": false,
+          "definition": "scene-status"
+        }
+      }
+    },
+    "story-graph": {
+      "label": "互动剧情图",
+      "pathPattern": "story/interactive/graph.json",
+      "cardinality": "one",
+      "fieldSets": ["entity-document"],
+      "constFields": {
+        "/kind": "story-graph"
+      },
+      "fields": {
+        "/nodes": {
+          "type": "collection",
+          "label": "节点",
+          "required": true,
+          "itemDefinition": "graph-node",
+          "default": []
+        },
+        "/edges": {
+          "type": "collection",
+          "label": "连接",
+          "required": true,
+          "itemDefinition": "graph-edge",
+          "default": []
+        }
+      },
+      "ruleIds": ["graph.nodes", "graph.edges", "reference.missing"]
+    },
+    "story-analysis": {
+      "label": "故事分析",
+      "pathPattern": "story/analysis/{id}.json",
+      "cardinality": "many",
+      "fieldSets": ["entity-document"],
+      "constFields": {
+        "/kind": "story-analysis"
+      },
+      "fields": {
+        "/analysisType": {
+          "type": "enum",
+          "label": "分析篇幅",
+          "required": true,
+          "options": [
+            {
+              "value": "long",
+              "label": "长篇"
+            },
+            {
+              "value": "short",
+              "label": "短篇"
+            }
+          ]
+        },
+        "/target": {
+          "type": "enum",
+          "label": "分析目标",
+          "required": true,
+          "options": [
+            {
+              "value": "current-story",
+              "label": "当前故事"
+            },
+            {
+              "value": "benchmark",
+              "label": "对标作品"
+            },
+            {
+              "value": "import-source",
+              "label": "导入来源"
+            }
+          ]
+        },
+        "/status": {
+          "type": "enum",
+          "label": "分析状态",
+          "required": true,
+          "options": [
+            {
+              "value": "draft",
+              "label": "草稿"
+            },
+            {
+              "value": "partial",
+              "label": "部分完成"
+            },
+            {
+              "value": "complete",
+              "label": "已完成"
+            }
+          ]
+        },
+        "/source": {
+          "type": "object",
+          "label": "分析来源",
+          "required": true,
+          "definition": "analysis-source"
+        },
+        "/summary": {
+          "type": "textarea",
+          "label": "分析摘要",
+          "required": true
+        },
+        "/storyCore": {
+          "type": "textarea",
+          "label": "故事核",
+          "required": true
+        },
+        "/structureStages": {
+          "type": "collection",
+          "label": "结构阶段",
+          "required": true,
+          "itemDefinition": "analysis-stage",
+          "default": []
+        },
+        "/turningPoints": {
+          "type": "string-list",
+          "label": "关键转折",
+          "required": true,
+          "default": []
+        },
+        "/emotionalArc": {
+          "type": "collection",
+          "label": "情绪弧",
+          "required": true,
+          "itemDefinition": "emotional-arc-point",
+          "default": []
+        },
+        "/plotModules": {
+          "type": "collection",
+          "label": "剧情模块",
+          "required": true,
+          "itemDefinition": "plot-module",
+          "default": []
+        },
+        "/styleProfile": {
+          "type": "object",
+          "label": "文风画像",
+          "required": true,
+          "definition": "style-profile"
+        },
+        "/characterInsights": {
+          "type": "collection",
+          "label": "人物分析",
+          "required": true,
+          "itemDefinition": "character-insight",
+          "default": []
+        },
+        "/worldInsights": {
+          "type": "string-list",
+          "label": "世界观分析",
+          "required": true,
+          "default": []
+        },
+        "/reusableTechniques": {
+          "type": "string-list",
+          "label": "可复用技巧",
+          "required": true,
+          "default": []
+        },
+        "/gaps": {
+          "type": "string-list",
+          "label": "证据缺口",
+          "required": true,
+          "default": []
+        },
+        "/createdAt": {
+          "type": "timestamp",
+          "label": "创建时间",
+          "required": true,
+          "generated": true,
+          "readOnly": true
+        }
+      }
+    },
+    "story-review": {
+      "label": "审稿记录",
+      "pathPattern": "story/reviews/{id}.json",
+      "cardinality": "many",
+      "fieldSets": ["entity-document"],
+      "constFields": {
+        "/kind": "story-review"
+      },
+      "fields": {
+        "/reviewType": {
+          "type": "enum",
+          "label": "记录类型",
+          "required": true,
+          "options": [
+            {
+              "value": "review",
+              "label": "故事审查"
+            },
+            {
+              "value": "deslop",
+              "label": "去 AI 味"
+            }
+          ]
+        },
+        "/mode": {
+          "type": "enum",
+          "label": "审查模式",
+          "required": true,
+          "options": [
+            {
+              "value": "full",
+              "label": "完整"
+            },
+            {
+              "value": "lean",
+              "label": "精简"
+            },
+            {
+              "value": "solo",
+              "label": "单章"
+            },
+            {
+              "value": "detect",
+              "label": "仅检测"
+            },
+            {
+              "value": "rewrite",
+              "label": "检测并改写"
+            }
+          ]
+        },
+        "/rubric": {
+          "type": "text",
+          "label": "审查标准",
+          "required": true
+        },
+        "/scopePaths": {
+          "type": "string-list",
+          "label": "审查范围",
+          "required": true,
+          "default": []
+        },
+        "/summary": {
+          "type": "textarea",
+          "label": "审查摘要",
+          "required": true
+        },
+        "/verdict": {
+          "type": "enum",
+          "label": "结论",
+          "required": true,
+          "options": [
+            {
+              "value": "approve",
+              "label": "通过"
+            },
+            {
+              "value": "concerns",
+              "label": "存在问题"
+            },
+            {
+              "value": "reject",
+              "label": "需要重写"
+            },
+            {
+              "value": "not-applicable",
+              "label": "不适用"
+            }
+          ]
+        },
+        "/findings": {
+          "type": "collection",
+          "label": "问题列表",
+          "required": true,
+          "itemDefinition": "review-finding",
+          "default": []
+        },
+        "/createdAt": {
+          "type": "timestamp",
+          "label": "创建时间",
+          "required": true,
+          "generated": true,
+          "readOnly": true
+        }
+      }
+    },
+    "story-import": {
+      "label": "导入记录",
+      "pathPattern": "story/imports/{id}.json",
+      "cardinality": "many",
+      "titlePointer": "/sourceTitle",
+      "fieldSets": ["entity-document"],
+      "constFields": {
+        "/kind": "story-import"
+      },
+      "fields": {
+        "/sourceTitle": {
+          "type": "text",
+          "label": "来源标题",
+          "required": true
+        },
+        "/sourcePath": {
+          "type": "path",
+          "label": "来源路径",
+          "required": false
+        },
+        "/lengthType": {
+          "type": "enum",
+          "label": "篇幅类型",
+          "required": true,
+          "options": [
+            {
+              "value": "long",
+              "label": "长篇"
+            },
+            {
+              "value": "short",
+              "label": "短篇"
+            }
+          ]
+        },
+        "/status": {
+          "type": "enum",
+          "label": "导入状态",
+          "required": true,
+          "options": [
+            {
+              "value": "detected",
+              "label": "已检测"
+            },
+            {
+              "value": "analyzing",
+              "label": "分析中"
+            },
+            {
+              "value": "ready",
+              "label": "可提交"
+            },
+            {
+              "value": "committed",
+              "label": "已落库"
+            },
+            {
+              "value": "partial",
+              "label": "部分完成"
+            },
+            {
+              "value": "failed",
+              "label": "失败"
+            }
+          ]
+        },
+        "/wordCount": {
+          "type": "integer",
+          "label": "字数",
+          "required": true,
+          "minimum": 0
+        },
+        "/chapterCount": {
+          "type": "integer",
+          "label": "章节数",
+          "required": true,
+          "minimum": 0
+        },
+        "/lastCompleteChapterNumber": {
+          "type": "integer",
+          "label": "最后完整章号",
+          "required": true,
+          "minimum": 0
+        },
+        "/analysisId": {
+          "type": "reference",
+          "label": "分析记录",
+          "required": false,
+          "targetKinds": ["story-analysis"]
+        },
+        "/generatedFileIds": {
+          "type": "reference-list",
+          "label": "生成对象",
+          "required": true,
+          "targetKinds": [
+            "story-book",
+            "story-character",
+            "story-world-entry",
+            "story-volume",
+            "story-chapter-plan",
+            "story-chapter",
+            "story-scene",
+            "story-analysis",
+            "story-review",
+            "story-import"
+          ],
+          "targetObjectDefinitions": ["relationship", "foreshadow", "timeline-entry", "graph-node"],
+          "default": []
+        },
+        "/warnings": {
+          "type": "string-list",
+          "label": "警告与缺口",
+          "required": true,
+          "default": []
+        },
+        "/createdAt": {
+          "type": "timestamp",
+          "label": "创建时间",
+          "required": true,
+          "generated": true,
+          "readOnly": true
+        }
+      }
+    }
+  },
+  "validationRules": {
+    "identity.duplicate": {
+      "severity": "error",
+      "label": "ID 唯一",
+      "description": "同类实体和嵌套对象的稳定 ID 不得重复"
+    },
+    "reference.missing": {
+      "severity": "error",
+      "label": "引用存在",
+      "description": "reference 和 reference-list 必须指向已存在的目标"
+    },
+    "manifest.files": {
+      "severity": "error",
+      "label": "清单完整",
+      "description": "manifest 文件索引必须与正式故事文件完全一致"
+    },
+    "manifest.title": {
+      "severity": "error",
+      "label": "标题同步",
+      "description": "manifest.title 必须与 story-book.title 一致"
+    },
+    "range.invalid": {
+      "severity": "error",
+      "label": "范围有效",
+      "description": "起始章节不得晚于结束章节"
+    },
+    "range.overlap": {
+      "severity": "error",
+      "label": "范围不重叠",
+      "description": "分卷和全书阶段范围不得非法重叠"
+    },
+    "volumes.number": {
+      "severity": "error",
+      "label": "卷号唯一",
+      "description": "分卷编号不得重复"
+    },
+    "chapters.number": {
+      "severity": "error",
+      "label": "章节号唯一",
+      "description": "章节细纲和正文编号不得重复"
+    },
+    "chapter.budget": {
+      "severity": "error",
+      "label": "字数预算",
+      "description": "章节节拍预算总和必须满足章节目标范围"
+    },
+    "foreshadow.resolution": {
+      "severity": "error",
+      "label": "伏笔回收完整",
+      "description": "resolved 状态必须提供实际回收章节和回收结果"
+    },
+    "graph.nodes": {
+      "severity": "error",
+      "label": "节点有效",
+      "description": "互动剧情节点 ID 必须唯一且关联场景存在"
+    },
+    "graph.edges": {
+      "severity": "error",
+      "label": "连接有效",
+      "description": "互动剧情连接必须引用已存在节点"
+    },
+    "book.title": {
+      "severity": "error",
+      "label": "书名必填",
+      "profiles": ["openBook"]
+    },
+    "book.logline": {
+      "severity": "error",
+      "label": "一句话梗概必填",
+      "profiles": ["openBook"]
+    },
+    "style.tone": {
+      "severity": "error",
+      "label": "文风语气必填",
+      "profiles": ["openBook"]
+    },
+    "opening.protagonist": {
+      "severity": "error",
+      "label": "主角完整",
+      "profiles": ["openBook"]
+    },
+    "opening.stage": {
+      "severity": "error",
+      "label": "开篇阶段完整",
+      "profiles": ["openBook"]
+    }
+  },
+  "contextViews": {
+    "project-summary": {
+      "label": "故事项目摘要",
+      "capability": "novel-claw.story.context.project@1",
+      "scope": "project",
+      "documentKinds": [
+        "story-manifest",
+        "story-book",
+        "story-positioning",
+        "story-style",
+        "story-character",
+        "story-world-entry",
+        "story-book-arc",
+        "story-volume",
+        "story-chapter-plan",
+        "story-analysis",
+        "story-review",
+        "story-import",
+        "story-progress"
+      ]
+    },
+    "chapter-writing": {
+      "label": "章节写作上下文",
+      "capability": "novel-claw.story.context.chapter-writing@1",
+      "scope": "chapter",
+      "targetKind": "story-chapter-plan",
+      "targetSelectors": ["/id", "/number"],
+      "documentKinds": [
+        "story-manifest",
+        "story-book",
+        "story-positioning",
+        "story-style",
+        "story-volume",
+        "story-chapter-plan",
+        "story-chapter",
+        "story-character",
+        "story-character-state",
+        "story-world-entry",
+        "story-relationships",
+        "story-foreshadows",
+        "story-progress"
+      ]
+    }
+  },
+  "validationProfiles": {
+    "draft": {
+      "label": "增量草稿",
+      "description": "允许内容未完成，但已存在字段、文档和引用必须合法"
+    },
+    "openBook": {
+      "label": "开书完成",
+      "description": "要求核心定位、主角、文风、开篇阶段和分卷达到可写作状态"
+    },
+    "chapterWrite": {
+      "label": "章节写作",
+      "description": "要求章节正文与细纲、角色、设定和状态引用一致"
+    }
+  }
+}

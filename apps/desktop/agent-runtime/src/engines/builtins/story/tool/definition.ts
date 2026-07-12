@@ -1,8 +1,8 @@
 import { z } from "zod";
 import type { BuiltinToolDefinition, ToolParameterDefinition } from "../../types.js";
-import { STORY_AUTHORING_CONTRACT } from "./contract.js";
-import { createNodeStoryProjectRepository } from "./node-repository.js";
-import type { StoryProjectRepository } from "./repository.js";
+import { STORY_PROJECT_CONTRACT_TOOL_CAPABILITY } from "../../../../../../protocols/story-project/index.js";
+import { createNodeStoryToolRepository } from "./node-repository.js";
+import type { StoryToolRepository } from "./repository.js";
 import { createStoryToolService } from "./service.js";
 import { STORY_TOOL_ACTIONS, type StoryToolRequest, type StoryToolService } from "./tools.js";
 
@@ -45,8 +45,11 @@ export type StoryToolPackage = Readonly<{
   execute(input: unknown): Promise<unknown>;
 }>;
 
-export const createStoryToolPackage = (repository: StoryProjectRepository): StoryToolPackage => {
-  const service = createStoryToolService(repository);
+export const createStoryToolPackage = (
+  repository: StoryToolRepository,
+  options: Readonly<{ requiredContractCapabilities?: readonly string[] }> = {},
+): StoryToolPackage => {
+  const service = createStoryToolService(repository, options);
   return {
     id: "novel-claw.story",
     service,
@@ -104,10 +107,10 @@ const STORY_TOOL_PARAMETERS = {
 export const STORY_TOOL = Object.freeze({
   name: STORY_TOOL_NAME,
   label: "Story",
-  capabilities: Object.freeze([STORY_AUTHORING_CONTRACT.capability]),
+  capabilities: Object.freeze([STORY_PROJECT_CONTRACT_TOOL_CAPABILITY]),
   description:
-    "Read and modify the structured story through the story-authoring contract. describe_structure returns the complete contract; initialize creates it; read_context recalls project or chapter context; validate_changes previews one small ChangeSet; commit_changes validates and atomically persists it. Call describe_structure before the first write. Formal story files must never be edited with ordinary file tools.",
+    "Read and modify a structured story through a trusted StoryContractCompiler. The tool compiles the contract pinned at story/.novel-claw/contract.json, verifies its lock and required capabilities, then exposes describe_structure, initialize, read_context, validate_changes, and atomic commit_changes. Call describe_structure before the first write.",
   parameters: STORY_TOOL_PARAMETERS,
-  createExecutor: ({ workspacePath }) =>
-    createStoryToolPackage(createNodeStoryProjectRepository(workspacePath)).execute,
+  createExecutor: ({ workspacePath, requiredContractCapabilities }) =>
+    createStoryToolPackage(createNodeStoryToolRepository(workspacePath), { requiredContractCapabilities }).execute,
 }) satisfies BuiltinToolDefinition;

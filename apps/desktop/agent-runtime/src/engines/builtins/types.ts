@@ -40,6 +40,7 @@ export type ToolParameterDefinition =
 
 export type BuiltinToolContext = Readonly<{
   workspacePath: string;
+  requiredContractCapabilities: readonly string[];
 }>;
 
 export type BuiltinToolDefinition = Readonly<{
@@ -59,6 +60,7 @@ export type BuiltinSkillDefinition = Readonly<{
     resolveSourcePath(): string;
   }>;
   requiredToolCapabilities: readonly string[];
+  requiredContractCapabilities: readonly string[];
   requiredExternalTools: readonly string[];
 }>;
 

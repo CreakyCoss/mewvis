@@ -11,5 +11,5 @@
     "rootDir": "..",
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "../product.config.json"]
+  "include": ["src/**/*.ts", "../protocols/story-project/**/*.ts", "../product.config.json"]
 }

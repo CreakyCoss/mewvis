@@ -15,7 +15,7 @@ metadata:
 
 审查的职责是找问题，不是证明作品正确。当前故事弹窗不 spawn 外部 reviewer；用同一上下文依次执行结构、人物、文字和一致性视角，结果统一落为 JSON。
 
-开始前完整读取 `../story-assistant/references/story-tool-binding.md` 并完成启动门禁，再用 `story(action="describe_structure")` 获取唯一结构并据此读写。私有工具缺失时停止，不得用普通文件工具生成审查兜底。
+开始前完整读取 `../story-assistant/references/story-tool-binding.md` 并完成启动门禁，再用 `story(action="describe_structure")` 获取工作区协议并据此读写。私有工具缺失或工作区协议不兼容时停止，不得用普通文件工具生成审查兜底。
 
 ## 模式
 

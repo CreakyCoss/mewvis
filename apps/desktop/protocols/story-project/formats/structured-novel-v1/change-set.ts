@@ -24,15 +24,9 @@ import {
   type StoryProject,
   type StoryProjectFile,
 } from "./schema.js";
-import {
-  STORY_PROJECT_MANIFEST_PATH,
-  STORY_PROJECT_ROOT,
-  storyProjectFiles,
-  withRebuiltManifest,
-  type StoryProjectFileEntry,
-} from "./project.js";
+import { storyProjectFiles, withRebuiltManifest, type StoryProjectFileEntry } from "./project.js";
 import { type StoryValidationProfile, validateStoryProject } from "./validation.js";
-import { materializeStoryDocument, STORY_AUTHORING_CONTRACT, storyContractKindForPath } from "./contract.js";
+import type { CompiledStoryContract } from "../../compiler.js";
 
 export const STORY_CHANGE_SET_MAX_OPERATIONS = 16;
 export const STORY_CHANGE_SET_MAX_BYTES = 192 * 1024;
@@ -122,8 +116,8 @@ const storyChangeSetOperationSchema = z.discriminatedUnion("type", [
 
 export const storyChangeSetSchema = z
   .object({
-    contractId: z.literal(STORY_AUTHORING_CONTRACT.contractId),
-    contractVersion: z.literal(STORY_AUTHORING_CONTRACT.contractVersion),
+    contractId: z.string().trim().min(1),
+    contractVersion: z.number().int().positive(),
     storyId: z.string().trim().min(1),
     baseRevision: z.number().int().nonnegative(),
     validationProfile: z.enum(["draft", "openBook", "chapterWrite"]),
@@ -157,13 +151,13 @@ const canonicalStoryPath = (value: string) =>
     .replace(/\\/g, "/")
     .replace(/^\/+|\/+$/g, "");
 
-const assertWritableStoryPath = (value: string) => {
+const assertWritableStoryPath = (contract: CompiledStoryContract, value: string) => {
   const path = canonicalStoryPath(value);
   if (
-    !path.startsWith(`${STORY_PROJECT_ROOT}/`) ||
+    !path.startsWith(`${contract.describe().rootPath}/`) ||
     !path.endsWith(".json") ||
     path.includes("../") ||
-    path === STORY_PROJECT_MANIFEST_PATH
+    path === contract.resolveDocument("story-manifest")
   ) {
     throw new Error(`不允许通过 ChangeSet 修改路径：${value}`);
   }
@@ -313,8 +307,20 @@ export const assembleStoryProject = (entries: StoryProjectFileEntry[]): StoryPro
   return storyProjectSchema.parse(project);
 };
 
-export const applyStoryChangeSet = (current: StoryProject, input: StoryChangeSet): StoryProject => {
+export const applyStoryChangeSet = (
+  current: StoryProject,
+  input: StoryChangeSet,
+  contract: CompiledStoryContract,
+): StoryProject => {
   const changeSet = storyChangeSetSchema.parse(input);
+  if (
+    changeSet.contractId !== contract.identity.contractId ||
+    changeSet.contractVersion !== contract.identity.contractVersion
+  ) {
+    throw new Error(
+      `ChangeSet 协议身份与工作区不一致：期望 ${contract.identity.contractId}@${contract.identity.contractVersion}。`,
+    );
+  }
   if (changeSet.storyId !== current.manifest.storyId) {
     throw new Error("ChangeSet storyId 与当前故事不一致。");
   }
@@ -324,10 +330,10 @@ export const applyStoryChangeSet = (current: StoryProject, input: StoryChangeSet
     );
   }
 
-  const files = new Map(storyProjectFiles(current).map(({ path, value }) => [path, value]));
+  const files = new Map(storyProjectFiles(current, contract).map(({ path, value }) => [path, value]));
   const timestamp = Date.now();
   for (const operation of changeSet.operations) {
-    const path = assertWritableStoryPath(operation.path);
+    const path = assertWritableStoryPath(contract, operation.path);
     switch (operation.type) {
       case "delete":
         files.delete(path);
@@ -335,7 +341,7 @@ export const applyStoryChangeSet = (current: StoryProject, input: StoryChangeSet
       case "upsert":
         files.set(
           path,
-          parseStoryProjectFile(materializeStoryDocument(operation.value, storyContractKindForPath(path), timestamp)),
+          parseStoryProjectFile(contract.materializeDocument(operation.value, contract.kindForPath(path), timestamp)),
         );
         break;
       case "patch": {
@@ -444,23 +450,23 @@ export const applyStoryChangeSet = (current: StoryProject, input: StoryChangeSet
     files: [],
   };
   const next = assembleStoryProject([
-    { path: STORY_PROJECT_MANIFEST_PATH, value: provisionalManifest },
+    { path: contract.resolveDocument("story-manifest"), value: provisionalManifest },
     ...[...files.entries()].map(([path, value]) => ({ path, value })),
   ]);
-  const rebuilt = withRebuiltManifest(next, {
+  const rebuilt = withRebuiltManifest(next, contract, {
     revision: current.manifest.revision + 1,
     timestamp,
   });
-  const rebuiltPaths = new Set(storyProjectFiles(rebuilt).map((entry) => entry.path));
+  const rebuiltPaths = new Set(storyProjectFiles(rebuilt, contract).map((entry) => entry.path));
   for (const operation of changeSet.operations) {
     if (operation.type !== "delete") {
-      const path = assertWritableStoryPath(operation.path);
+      const path = assertWritableStoryPath(contract, operation.path);
       if (!rebuiltPaths.has(path)) {
         throw new Error(`ChangeSet 路径与文件身份不匹配：${path}`);
       }
     }
   }
-  const validation = validateStoryProject(rebuilt, changeSet.validationProfile as StoryValidationProfile);
+  const validation = validateStoryProject(rebuilt, contract, changeSet.validationProfile as StoryValidationProfile);
   if (!validation.valid) {
     const details = validation.issues
       .filter((item) => item.severity === "error")

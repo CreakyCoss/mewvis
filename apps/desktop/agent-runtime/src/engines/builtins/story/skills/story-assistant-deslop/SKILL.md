@@ -15,7 +15,7 @@ metadata:
 
 目标是用最小修改降低过度圆滑、工整、解释充分和模板化的读感，同时保留剧情事实、角色声线、伏笔、钩子、关系、时间线和章节功能。
 
-开始前完整读取 `../story-assistant/references/story-tool-binding.md` 并完成启动门禁，再用 `story(action="describe_structure")` 获取唯一结构并据此读写。私有工具缺失时停止，不得用普通文件工具修改章节或审查记录。
+开始前完整读取 `../story-assistant/references/story-tool-binding.md` 并完成启动门禁，再用 `story(action="describe_structure")` 获取工作区协议并据此读写。私有工具缺失或工作区协议不兼容时停止，不得用普通文件工具修改章节或审查记录。
 
 ## 模式
 

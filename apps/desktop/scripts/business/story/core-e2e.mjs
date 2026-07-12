@@ -8,10 +8,11 @@ const workspaceRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-story-core-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
-const changeSetPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/change-set.ts");
-const projectPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/project.ts");
-const validationPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/validation.ts");
-const contractEncodingPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/contract.ts");
+const changeSetPath = resolve(workspaceRoot, "protocols/story-project/formats/structured-novel-v1/change-set.ts");
+const projectPath = resolve(workspaceRoot, "protocols/story-project/formats/structured-novel-v1/project.ts");
+const validationPath = resolve(workspaceRoot, "protocols/story-project/formats/structured-novel-v1/validation.ts");
+const contractCompilerPath = resolve(workspaceRoot, "protocols/story-project/index.ts");
+const defaultContractPath = resolve(workspaceRoot, "src/features/pages/stories/contracts/default-novel/contract.json");
 const documentModelPath = resolve(workspaceRoot, "src/features/pages/stories/documents/model.ts");
 
 writeFileSync(
@@ -25,7 +26,8 @@ writeFileSync(
   } from ${JSON.stringify(changeSetPath)};
   import { createEmptyStoryProject, storyProjectFiles, withRebuiltManifest } from ${JSON.stringify(projectPath)};
   import { validateStoryProject } from ${JSON.stringify(validationPath)};
-  import { encodeStoryDocument } from ${JSON.stringify(contractEncodingPath)};
+  import defaultContractJson from ${JSON.stringify(defaultContractPath)};
+  import { createStoryContractCompilerRegistry } from ${JSON.stringify(contractCompilerPath)};
   import { inspectStructuredJsonDocument, storyDocumentsToStoryJson } from ${JSON.stringify(documentModelPath)};
 
   const assert = (condition: unknown, message: string, details?: unknown) => {
@@ -36,8 +38,9 @@ writeFileSync(
   };
 
   const timestamp = 1_800_000_000_000;
-  const changeSetContract = { contractId: "novel-claw.story-authoring" as const, contractVersion: 1 as const };
-  const initial = createEmptyStoryProject({ id: "story-contract", title: "雾港档案", timestamp });
+  const contract = createStoryContractCompilerRegistry().compile(defaultContractJson);
+  const changeSetContract = { contractId: "novel-claw.story.default-novel" as const, contractVersion: 1 as const };
+  const initial = createEmptyStoryProject({ id: "story-contract", title: "雾港档案", timestamp, contract });
   const frontendDocument = {
     path: "story/book.json",
     updatedAt: timestamp,
@@ -48,7 +51,7 @@ writeFileSync(
     },
   };
   assert(inspectStructuredJsonDocument(frontendDocument)?.fields["/title"]?.label === "书名", "通用编辑器应直接读取 JSON 内嵌字段元数据。");
-  const encodedGraph = encodeStoryDocument(initial.graph, "story/interactive/graph.json");
+  const encodedGraph = contract.encodeDocument(initial.graph, "story/interactive/graph.json");
   const inspectedGraph = inspectStructuredJsonDocument({ path: "story/interactive/graph.json", value: encodedGraph, updatedAt: timestamp });
   assert(
     inspectedGraph?.fields["/nodes"]?.itemDefinition === "graph-node" && inspectedGraph.definitions["graph-node"]?.fields["/title"]?.label === "节点标题",
@@ -57,14 +60,14 @@ writeFileSync(
   );
   const frontendStory = storyDocumentsToStoryJson({ id: "story-contract", name: "回退标题", createdAt: timestamp, updatedAt: timestamp }, [frontendDocument]);
   assert(frontendStory.title === "雾港档案" && frontendStory.scenes.length === 0, "前端只能尽力投影 JSON，不得创建未落库的故事内容。", frontendStory);
-  const initialValidation = validateStoryProject(initial, "draft");
+  const initialValidation = validateStoryProject(initial, contract, "draft");
   assert(initialValidation.valid, "新故事应满足 draft 结构校验。", initialValidation);
   assert(
-    storyProjectFiles(initial).some((file) => file.path === "story/book.json") &&
-      storyProjectFiles(initial).some((file) => file.path === "story/interactive/graph.json") &&
-      !storyProjectFiles(initial).some((file) => file.path === "story/story.json"),
+    storyProjectFiles(initial, contract).some((file) => file.path === "story/book.json") &&
+      storyProjectFiles(initial, contract).some((file) => file.path === "story/interactive/graph.json") &&
+      !storyProjectFiles(initial, contract).some((file) => file.path === "story/story.json"),
     "故事应拆分为 v1 JSON 文件，不能继续生成 story.json。",
-    storyProjectFiles(initial).map((file) => file.path),
+    storyProjectFiles(initial, contract).map((file) => file.path),
   );
 
   const character = {
@@ -140,8 +143,8 @@ writeFileSync(
     },
     volumes: [{ schemaVersion: 1 as const, kind: "story-volume" as const, id: "vol-001", number: 1, title: "谎言之色", startChapter: 1, endChapter: 10, targetWords: 30000, phase: "opening" as const, purpose: "建立能力", coreConflict: "导师隐瞒真相", coreEvent: "主角确认导师说谎", startState: "孤立", endState: "掌握线索", emotionalArc: "压迫到反击", allowedReveals: [], prohibitedReveals: ["幕后主使"], chapterIds: plans.map((plan) => plan.id), updatedAt: timestamp }],
     chapterPlans: plans,
-  }, { revision: initial.manifest.revision + 1, timestamp });
-  const openingValidation = validateStoryProject(ready, "openBook");
+  }, contract, { revision: initial.manifest.revision + 1, timestamp });
+  const openingValidation = validateStoryProject(ready, contract, "openBook");
   assert(openingValidation.valid, "完整开书项目应通过 openBook 校验。", openingValidation);
 
   const nextBook = { ...ready.book, title: "谎言留痕", updatedAt: timestamp + 1 };
@@ -151,7 +154,7 @@ writeFileSync(
     baseRevision: ready.manifest.revision,
     validationProfile: "draft",
     operations: [{ type: "upsert", path: "story/book.json", value: nextBook }],
-  });
+  }, contract);
   assert(changed.book.title === "谎言留痕" && changed.manifest.revision === ready.manifest.revision + 1, "ChangeSet 应更新内容和 revision。", changed.manifest);
 
   const patched = applyStoryChangeSet(changed, {
@@ -166,7 +169,7 @@ writeFileSync(
       { type: "replace-text", path: "story/book.json", field: "premise", oldText: "新前提", newText: "新设定" },
       { type: "add-values", path: "story/outline/book-arc.json", field: "volumeIds", values: ["vol-001"] },
     ],
-  });
+  }, contract);
   assert(
     patched.book.title === changed.book.title && patched.book.premise === "一条只更新局部字段的新设定。\\n后续只追加这一句。",
     "patch/append-text/replace-text 应保留未提交字段，并支持局部追加与替换。",
@@ -266,9 +269,9 @@ writeFileSync(
         },
       },
     ],
-  });
+  }, contract);
   assert(assistantArtifacts.analyses.length === 1 && assistantArtifacts.reviews.length === 1 && assistantArtifacts.imports.length === 1, "故事助手分析、审查和导入记录应进入结构化项目。", assistantArtifacts);
-  assert(storyProjectFiles(assistantArtifacts).some((file) => file.path === "story/analysis/analysis-benchmark.json"), "故事助手产物应生成独立 JSON 文件。");
+  assert(storyProjectFiles(assistantArtifacts, contract).some((file) => file.path === "story/analysis/analysis-benchmark.json"), "故事助手产物应生成独立 JSON 文件。");
 
   const incrementallyReviewed = applyStoryChangeSet(assistantArtifacts, {
     ...changeSetContract,
@@ -282,7 +285,7 @@ writeFileSync(
       field: "findings",
       items: [{ id: "finding-001", severity: "S2", fix: "在章尾明确下一位调查对象与期限" }],
     }],
-  });
+  }, contract);
   assert(
     incrementallyReviewed.reviews[0]?.findings[0]?.severity === "S2" &&
       incrementallyReviewed.reviews[0]?.findings[0]?.issue === "下一章驱动力不够具体",
@@ -298,7 +301,7 @@ writeFileSync(
       baseRevision: incrementallyReviewed.manifest.revision - 1,
       validationProfile: "draft",
       operations: [],
-    });
+    }, contract);
   } catch {
     rejected = true;
   }

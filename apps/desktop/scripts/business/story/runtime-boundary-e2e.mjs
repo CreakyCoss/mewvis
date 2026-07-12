@@ -43,9 +43,29 @@ try {
 const builtinsIndex = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/index.ts"), "utf8");
 const builtinResolver = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/resolve.ts"), "utf8");
 const storySkill = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/skills/definition.ts"), "utf8");
-const storyContract = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/contract.json"), "utf8");
+const storyContract = readFileSync(
+  resolve(root, "src/features/pages/stories/contracts/default-novel/contract.json"),
+  "utf8",
+);
 const storyTool = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/tool/definition.ts"), "utf8");
 const storyService = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/tool/service.ts"), "utf8");
+const storyRepository = readFileSync(
+  resolve(root, "agent-runtime/src/engines/builtins/story/tool/node-repository.ts"),
+  "utf8",
+);
+const storyToolCore = collectTypeScriptFiles(resolve(root, "agent-runtime/src/engines/builtins/story/tool"))
+  .map((path) => readFileSync(path, "utf8"))
+  .join("\n");
+const frontendWorkspaceContract = readFileSync(
+  resolve(root, "src/features/pages/stories/contracts/workspace.ts"),
+  "utf8",
+);
+const storyContractCompiler = readFileSync(resolve(root, "protocols/story-project/compiler.ts"), "utf8");
+const storyContractRegistry = readFileSync(resolve(root, "protocols/story-project/registry.ts"), "utf8");
+const structuredNovelCompiler = readFileSync(
+  resolve(root, "protocols/story-project/formats/structured-novel-v1/compiler.ts"),
+  "utf8",
+);
 if (
   !builtinsIndex.includes("BUILTIN_COMBINATIONS") ||
   !builtinsIndex.includes("STORY_AUTHORING_SKILL") ||
@@ -64,13 +84,45 @@ if (
   throw new Error("story-authoring 技能与 story 工具必须独立定义，只通过 contract capability 组合。");
 }
 if (
-  !storyContract.includes("novel-claw.structured-story@1") ||
-  !storySkill.includes("../contract.json") ||
-  !storyTool.includes("STORY_AUTHORING_CONTRACT.capability") ||
-  !storyService.includes("STORY_AUTHORING_CONTRACT") ||
+  !storyContract.includes("novel-claw.story.context.chapter-writing@1") ||
+  storyContract.includes("novel-claw.story-project.default-novel@1") ||
+  storyContract.includes("skillBindings") ||
+  storySkill.includes("contract.json") ||
+  !storyTool.includes("STORY_PROJECT_CONTRACT_TOOL_CAPABILITY") ||
+  storyTool.includes("STORY_CHAPTER_CONTEXT_CAPABILITY") ||
+  !storySkill.includes("requiredContractCapabilities") ||
+  !storyService.includes("repository.loadContract") ||
+  !storyService.includes("CompiledStoryContract") ||
+  !storyRepository.includes("createStoryContractCompilerRegistry") ||
+  !storyRepository.includes("STORY_PROJECT_CONTRACT_PATH") ||
+  !storyContractCompiler.includes("interface StoryContractCompiler") ||
+  !storyContractCompiler.includes("interface CompiledStoryContract") ||
+  !storyContractCompiler.includes("createProject(input:") ||
+  !storyContractCompiler.includes("projectManifestPath():") ||
+  !storyContractCompiler.includes("applyChanges(project:") ||
+  !storyContractCompiler.includes("readContext(project:") ||
+  storyContractCompiler.includes("formats/structured-novel-v1") ||
+  storyContractCompiler.includes("declarative-contract") ||
+  storyContractCompiler.includes("StoryProjectContract") ||
+  !storyContractCompiler.includes("STORY_PROJECT_CONTRACT_PATH") ||
+  !storyContractRegistry.includes("class StoryContractCompilerRegistry") ||
+  !structuredNovelCompiler.includes("StoryContractCompiler") ||
+  !frontendWorkspaceContract.includes("createStoryContractCompilerRegistry") ||
+  !frontendWorkspaceContract.includes("installDefaultStoryProjectContract") ||
+  frontendWorkspaceContract.includes("compiled.describe()") ||
   !builtinResolver.includes("missingCapabilities")
 ) {
-  throw new Error("contract 必须是技能与可替换工具之间经过运行时检查的兼容边界。");
+  throw new Error("故事侧必须拥有默认协议；技能与工具只能通过通用执行能力组合，并从工作区加载协议。");
+}
+if (
+  storyToolCore.includes('from "./schema.js"') ||
+  storyToolCore.includes('from "./project.js"') ||
+  storyToolCore.includes('from "./validation.js"') ||
+  storyToolCore.includes('from "./change-set.js"') ||
+  storyToolCore.includes("formats/structured-novel-v1") ||
+  storyToolCore.includes('resolveDocument("story-manifest")')
+) {
+  throw new Error("Story Tool 不得依赖具体故事 Schema、项目模型、上下文或 ChangeSet 实现。");
 }
 if (storyTool.includes("@earendil-works/pi") || storyService.includes("@earendil-works/pi")) {
   throw new Error("story 工具核心不得依赖 PI。");
@@ -106,6 +158,7 @@ if (
   throw new Error("私有 story 工具不得出现在 AGENT_TOOL_DEFINITIONS 公共工具目录中。");
 }
 for (const removedPath of [
+  "story-project-contract",
   "agent-runtime/resources/builtin-skills/story-authoring",
   "agent-runtime/src/engines/builtins/story-authoring",
   "agent-runtime/src/engines/builtins/contracts",
@@ -114,6 +167,11 @@ for (const removedPath of [
   "agent-runtime/src/engines/toolkits/story",
   "agent-runtime/src/engines/drivers/native/agent/runtimes/pi/tools/story-tool.ts",
   "agent-runtime/src/engines/drivers/native/agent/tools/story.ts",
+  "agent-runtime/src/engines/builtins/story/tool/contract.ts",
+  "agent-runtime/src/engines/builtins/story/tool/schema.ts",
+  "agent-runtime/src/engines/builtins/story/tool/project.ts",
+  "agent-runtime/src/engines/builtins/story/tool/validation.ts",
+  "agent-runtime/src/engines/builtins/story/tool/change-set.ts",
   "agent-runtime/src/engines/protocol/story-project",
   "agent-runtime/src/engines/features/story-project",
   "agent-runtime/src/engines/drivers/native/story-project",

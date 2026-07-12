@@ -1,12 +1,16 @@
 import { cp, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
-import { randomUUID } from "node:crypto";
-import { STORY_PROJECT_MANIFEST_PATH, storyProjectFiles, type StoryProjectFileEntry } from "./project.js";
-import { assembleStoryProject, parseStoryProjectFile } from "./change-set.js";
-import { decodeStoryDocument, encodeStoryDocument } from "./contract.js";
-import { storyManifestFileSchema, type StoryProject } from "./schema.js";
-import { validateStoryProject } from "./validation.js";
-import type { StoryProjectRepository } from "./repository.js";
+import { createHash, randomUUID } from "node:crypto";
+import {
+  STORY_PROJECT_CONTRACT_LOCK_PATH,
+  STORY_PROJECT_CONTRACT_PATH,
+  createStoryContractCompilerRegistry,
+  type CompiledStoryContract,
+  type CompiledStoryProjectFileEntry,
+  type StoryCompiledProject,
+  type StoryContractCompilerRegistry,
+} from "../../../../../../protocols/story-project/index.js";
+import type { StoryToolRepository } from "./repository.js";
 
 const jsonText = (value: unknown) => JSON.stringify(value, null, 2);
 
@@ -31,18 +35,47 @@ const readJson = async (workspacePath: string, path: string) => {
   return JSON.parse(await readFile(target, "utf8")) as unknown;
 };
 
-const loadProject = async (workspacePath: string): Promise<StoryProject> => {
-  const manifest = storyManifestFileSchema.parse(
-    decodeStoryDocument(await readJson(workspacePath, STORY_PROJECT_MANIFEST_PATH), STORY_PROJECT_MANIFEST_PATH),
+const loadContract = async (workspacePath: string, compilers: StoryContractCompilerRegistry) => {
+  const contractTarget = safeWorkspacePath(workspacePath, STORY_PROJECT_CONTRACT_PATH).target;
+  const [contractText, lockInput] = await Promise.all([
+    readFile(contractTarget, "utf8"),
+    readJson(workspacePath, STORY_PROJECT_CONTRACT_LOCK_PATH),
+  ]);
+  const contract = compilers.compile(JSON.parse(contractText) as unknown);
+  if (!lockInput || typeof lockInput !== "object" || Array.isArray(lockInput)) {
+    throw new Error("工作区故事协议锁文件必须是 JSON 对象。");
+  }
+  const lock = lockInput as Record<string, unknown>;
+  const compiler = lock.compiler as Record<string, unknown> | undefined;
+  const digest = createHash("sha256").update(contractText).digest("hex");
+  if (
+    lock.$format !== "novel-claw.story-project-contract-lock" ||
+    lock.formatVersion !== 1 ||
+    lock.contractPath !== STORY_PROJECT_CONTRACT_PATH ||
+    lock.contractId !== contract.identity.contractId ||
+    lock.contractVersion !== contract.identity.contractVersion ||
+    compiler?.format !== contract.compiler.format ||
+    compiler?.version !== contract.compiler.version ||
+    lock.sha256 !== digest
+  ) {
+    throw new Error("contract.lock.json 与工作区故事协议不一致。");
+  }
+  return contract;
+};
+
+const loadProject = async (workspacePath: string, contract: CompiledStoryContract) => {
+  const manifestPath = contract.projectManifestPath();
+  const manifest = contract.parseManifest(
+    contract.decodeDocument(await readJson(workspacePath, manifestPath), manifestPath),
   );
   const contentEntries = await Promise.all(
-    manifest.files.map(async (file): Promise<StoryProjectFileEntry> => ({
+    manifest.files.map(async (file): Promise<CompiledStoryProjectFileEntry> => ({
       path: file.path,
-      value: parseStoryProjectFile(decodeStoryDocument(await readJson(workspacePath, file.path), file.path)),
+      value: contract.decodeDocument(await readJson(workspacePath, file.path), file.path),
     })),
   );
-  const project = assembleStoryProject([{ path: STORY_PROJECT_MANIFEST_PATH, value: manifest }, ...contentEntries]);
-  const validation = validateStoryProject(project, "draft");
+  const project = contract.assembleProject([{ path: manifestPath, value: manifest.value }, ...contentEntries]);
+  const validation = contract.validateProject(project, "draft");
   if (!validation.valid) {
     throw new Error(validation.issues.map((issue) => `${issue.path}：${issue.message}`).join("\n"));
   }
@@ -63,13 +96,17 @@ const collectJsonFiles = async (root: string, current = root): Promise<string[]>
   return paths.flat();
 };
 
-const inspectProject = async (workspacePath: string) => {
+const inspectProject = async (workspacePath: string, contract: CompiledStoryContract) => {
+  const manifestPath = contract.projectManifestPath();
   const jsonPaths = (await collectJsonFiles(join(workspacePath, "story")))
     .map((path) => `story/${path}`)
-    .filter((path) => path !== "story/tavern.json" && !path.startsWith("story/runtime/"))
+    .filter(
+      (path) =>
+        path !== "story/tavern.json" && !path.startsWith("story/runtime/") && !path.startsWith("story/.novel-claw/"),
+    )
     .sort();
   return {
-    initialized: jsonPaths.includes(STORY_PROJECT_MANIFEST_PATH),
+    initialized: jsonPaths.includes(manifestPath),
     jsonPaths,
   };
 };
@@ -80,23 +117,36 @@ const canonicalChangedPath = (path: string) =>
     .replace(/\\/g, "/")
     .replace(/^\/+|\/+$/g, "");
 
-const writeProject = async (workspacePath: string, project: StoryProject, changedPaths: string[]) => {
-  const contentFiles = storyProjectFiles(project);
+const writeProject = async (
+  workspacePath: string,
+  contract: CompiledStoryContract,
+  project: StoryCompiledProject,
+  changedPaths: string[],
+) => {
+  const manifestPath = contract.projectManifestPath();
+  const contentFiles = contract.projectFiles(project);
+  const manifest = contract.projectManifest(project);
   const changedPathSet = new Set(changedPaths.map(canonicalChangedPath));
   const writeEntries = [
     ...contentFiles
       .filter(({ path }) => changedPathSet.has(path))
-      .map(({ path, value }) => ({ path, content: `${jsonText(encodeStoryDocument(value, path))}\n` })),
+      .map(({ path, value }) => ({ path, content: `${jsonText(contract.encodeDocument(value, path))}\n` })),
     {
-      path: STORY_PROJECT_MANIFEST_PATH,
-      content: `${jsonText(encodeStoryDocument(project.manifest, STORY_PROJECT_MANIFEST_PATH))}\n`,
+      path: manifestPath,
+      content: `${jsonText(contract.encodeDocument(manifest, manifestPath))}\n`,
     },
   ];
-  const nextPaths = new Set([STORY_PROJECT_MANIFEST_PATH, ...contentFiles.map((entry) => entry.path)]);
+  const nextPaths = new Set([manifestPath, ...contentFiles.map((entry) => entry.path)]);
   const existingStoryFiles = await collectJsonFiles(join(workspacePath, "story"));
   const deletePaths = existingStoryFiles
     .map((path) => `story/${path}`)
-    .filter((path) => !nextPaths.has(path) && path !== "story/tavern.json" && !path.startsWith("story/runtime/"));
+    .filter(
+      (path) =>
+        !nextPaths.has(path) &&
+        path !== "story/tavern.json" &&
+        !path.startsWith("story/runtime/") &&
+        !path.startsWith("story/.novel-claw/"),
+    );
   const transactionRoot = join(workspacePath, `.novel-claw-story-${randomUUID()}`);
   const stagedRoot = join(transactionRoot, "staged");
   const backupRoot = join(transactionRoot, "backup");
@@ -149,11 +199,15 @@ const writeProject = async (workspacePath: string, project: StoryProject, change
   }
 };
 
-export const createNodeStoryProjectRepository = (workspacePath: string): StoryProjectRepository => ({
-  inspect: () => inspectProject(workspacePath),
-  load: () => loadProject(workspacePath),
-  initialize: async (project, replaceExistingJson) => {
-    const status = await inspectProject(workspacePath);
+export const createNodeStoryToolRepository = (
+  workspacePath: string,
+  compilers: StoryContractCompilerRegistry = createStoryContractCompilerRegistry(),
+): StoryToolRepository => ({
+  loadContract: () => loadContract(workspacePath, compilers),
+  inspect: (contract) => inspectProject(workspacePath, contract),
+  load: (contract) => loadProject(workspacePath, contract),
+  initialize: async (contract, project, replaceExistingJson) => {
+    const status = await inspectProject(workspacePath, contract);
     if (status.initialized) {
       throw new Error("故事工具结构已经初始化。请读取上下文后使用增量提交。");
     }
@@ -162,9 +216,10 @@ export const createNodeStoryProjectRepository = (workspacePath: string): StoryPr
     }
     await writeProject(
       workspacePath,
+      contract,
       project,
-      storyProjectFiles(project).map((entry) => entry.path),
+      contract.projectFiles(project).map((entry) => entry.path),
     );
   },
-  writeChanges: (project, changedPaths) => writeProject(workspacePath, project, changedPaths),
+  writeChanges: (contract, project, changedPaths) => writeProject(workspacePath, contract, project, changedPaths),
 });

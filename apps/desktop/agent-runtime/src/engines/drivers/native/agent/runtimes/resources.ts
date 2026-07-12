@@ -31,7 +31,7 @@ export const allowedRuntimeTools = (command: RuntimeResourceCommand) => {
   return uniq([
     ...publicTools,
     ...builtin.requiredTools.external,
-    ...builtin.requiredTools.internal.map((tool) => tool.name),
+    ...builtin.requiredTools.internal.map((requirement) => requirement.definition.name),
   ]);
 };
 

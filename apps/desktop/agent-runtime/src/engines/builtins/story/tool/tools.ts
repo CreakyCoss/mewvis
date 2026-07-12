@@ -1,24 +1,8 @@
-import type { StoryChangeSet } from "./change-set.js";
-import type { StoryAuthoringContract } from "./contract.js";
 import type {
-  StoryBookArcFile,
-  StoryBookFile,
-  StoryAnalysisFile,
-  StoryChapterFile,
-  StoryChapterPlanFile,
-  StoryCharacterFile,
-  StoryCharacterStateFile,
-  StoryForeshadowsFile,
-  StoryPositioningFile,
-  StoryProgressFile,
-  StoryImportFile,
-  StoryRelationshipsFile,
-  StoryReviewFile,
-  StoryStyleFile,
-  StoryVolumeFile,
-  StoryWorldEntryFile,
-} from "./schema.js";
-import type { StoryValidationIssue, StoryValidationResult } from "./validation.js";
+  CompiledStoryContractDescription,
+  StoryValidationIssue,
+  StoryValidationResult,
+} from "../../../../../../protocols/story-project/index.js";
 
 export const STORY_TOOL_ACTIONS = {
   describeStructure: "describe_structure",
@@ -31,11 +15,12 @@ export const STORY_TOOL_ACTIONS = {
 export type StoryToolAction = (typeof STORY_TOOL_ACTIONS)[keyof typeof STORY_TOOL_ACTIONS];
 
 export type StoryStructureDescription = {
-  contract: StoryAuthoringContract;
+  compiler: { format: string; version: number };
+  contract: CompiledStoryContractDescription;
   changeSet: {
     maxOperations: number;
     maxBytes: number;
-    operations: string[];
+    operations: readonly string[];
     atomicCommit: true;
     revisionRequired: true;
   };
@@ -57,7 +42,7 @@ export type StoryInitializeResult = {
   initialized: boolean;
   alreadyInitialized: boolean;
   revision: number | null;
-  manifestPath: string;
+  manifestPath: string | null;
   existingJsonPaths: string[];
   issues: StoryValidationIssue[];
   hint: string | null;
@@ -68,52 +53,8 @@ export type StoryReadContextRequest = {
   targetId?: string;
 };
 
-export type StoryProjectSummary = {
-  revision: number;
-  book: StoryBookFile;
-  positioning: StoryPositioningFile;
-  style: StoryStyleFile;
-  arc: StoryBookArcFile;
-  volumes: Array<
-    Pick<
-      StoryVolumeFile,
-      "id" | "number" | "title" | "startChapter" | "endChapter" | "phase" | "purpose" | "coreConflict"
-    >
-  >;
-  chapters: Array<
-    Pick<StoryChapterPlanFile, "id" | "number" | "title" | "volumeId" | "targetEmotion" | "coreEvent" | "status">
-  >;
-  characters: Array<Pick<StoryCharacterFile, "id" | "name" | "role" | "goals">>;
-  worldEntries: Array<Pick<StoryWorldEntryFile, "id" | "title" | "category" | "keywords">>;
-  analyses: Array<Pick<StoryAnalysisFile, "id" | "analysisType" | "target" | "status"> & { sourceTitle: string }>;
-  reviews: Array<Pick<StoryReviewFile, "id" | "reviewType" | "verdict"> & { openFindings: number }>;
-  imports: Array<Pick<StoryImportFile, "id" | "sourceTitle" | "lengthType" | "status">>;
-  progress: StoryProgressFile;
-  validation: StoryValidationResult;
-};
-
-export type StoryChapterContext = {
-  revision: number;
-  book: StoryBookFile;
-  positioning: StoryPositioningFile;
-  style: StoryStyleFile;
-  volume: StoryVolumeFile | null;
-  plan: StoryChapterPlanFile;
-  chapter: StoryChapterFile | null;
-  previousChapter: Pick<StoryChapterFile, "id" | "title" | "summary" | "content"> | null;
-  characters: StoryCharacterFile[];
-  characterStates: StoryCharacterStateFile[];
-  worldEntries: StoryWorldEntryFile[];
-  relationships: StoryRelationshipsFile["relationships"];
-  foreshadows: StoryForeshadowsFile["foreshadows"];
-  progress: StoryProgressFile;
-  sources: string[];
-};
-
-export type StoryReadContextResult = StoryProjectSummary | StoryChapterContext;
-
 export type StoryChangeSetRequest = {
-  changeSet: StoryChangeSet;
+  changeSet: unknown;
 };
 
 export type StoryToolRequest =
@@ -127,7 +68,7 @@ export type StoryValidateChangesResult = {
   valid: boolean;
   nextRevision: number | null;
   issues: StoryValidationIssue[];
-  batch: StoryChangeSet["batch"] | null;
+  batch: unknown | null;
   operationTypes: string[];
   changedPaths: string[];
 };
@@ -136,7 +77,7 @@ export type StoryCommitChangesResult = {
   committed: boolean;
   valid: boolean;
   revision: number | null;
-  batch: StoryChangeSet["batch"] | null;
+  batch: unknown | null;
   operationTypes: string[];
   changedPaths: string[];
   validation: StoryValidationResult | null;
@@ -147,7 +88,7 @@ export type StoryCommitChangesResult = {
 export interface StoryToolService {
   describeStructure(): Promise<StoryDescribeStructureResult>;
   initialize(input: StoryInitializeRequest): Promise<StoryInitializeResult>;
-  readContext(input: StoryReadContextRequest): Promise<StoryReadContextResult>;
+  readContext(input: StoryReadContextRequest): Promise<unknown>;
   validateChanges(input: StoryChangeSetRequest): Promise<StoryValidateChangesResult>;
   commitChanges(input: StoryChangeSetRequest): Promise<StoryCommitChangesResult>;
 }

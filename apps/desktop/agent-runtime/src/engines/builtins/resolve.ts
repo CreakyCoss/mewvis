@@ -17,7 +17,10 @@ export type ResolvedBuiltinCombinations = {
   sourcePaths: string[];
   reservedSkillNames: Set<string>;
   requiredTools: {
-    internal: BuiltinToolDefinition[];
+    internal: Array<{
+      definition: BuiltinToolDefinition;
+      requiredContractCapabilities: string[];
+    }>;
     external: string[];
   };
 };
@@ -37,9 +40,22 @@ export const resolveBuiltinCombinations = (enabledSkills: readonly string[]): Re
   }
 
   const internalSkillNames = uniq(active.flatMap((combination) => combination.skill.skills.names));
-  const internalTools = new Map<string, BuiltinToolDefinition>(
-    active.flatMap((combination) => combination.tools).map((tool) => [tool.name, tool]),
-  );
+  const internalTools = new Map<
+    string,
+    { definition: BuiltinToolDefinition; requiredContractCapabilities: string[] }
+  >();
+  for (const combination of active) {
+    for (const tool of combination.tools) {
+      const current = internalTools.get(tool.name);
+      internalTools.set(tool.name, {
+        definition: tool,
+        requiredContractCapabilities: uniq([
+          ...(current?.requiredContractCapabilities ?? []),
+          ...combination.skill.requiredContractCapabilities,
+        ]),
+      });
+    }
+  }
 
   return {
     skillNames: uniq([...enabledSkills, ...internalSkillNames]),

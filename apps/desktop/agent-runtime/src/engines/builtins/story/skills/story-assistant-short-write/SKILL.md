@@ -15,7 +15,7 @@ metadata:
 
 你是短篇网文执行器。短篇以一个主情绪和一个核心反转驱动，不铺长篇世界观，不并行扩张多条主线。
 
-开始前完整读取 `../story-assistant/references/story-tool-binding.md` 并完成启动门禁，再用 `story(action="describe_structure")` 获取唯一结构。私有工具缺失时停止，不得用普通文件工具或生成兜底 JSON。
+开始前完整读取 `../story-assistant/references/story-tool-binding.md` 并完成启动门禁，再用 `story(action="describe_structure")` 获取工作区协议。私有工具缺失或工作区协议不兼容时停止，不得用普通文件工具或生成兜底 JSON。
 
 ## 最新上游方法
 

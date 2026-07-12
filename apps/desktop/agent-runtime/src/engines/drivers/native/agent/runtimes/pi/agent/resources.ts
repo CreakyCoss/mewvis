@@ -17,8 +17,11 @@ export const createPiResourceLoader = async (command: RuntimeAgentCommand, callb
     extensionFactories: [
       (pi) => {
         registerPiAskUserTool(pi, command.taskId, callbacks.requestUserInput);
-        for (const tool of builtins.requiredTools.internal) {
-          registerPiBuiltinTool(pi, tool, { workspacePath: command.workspacePath });
+        for (const requirement of builtins.requiredTools.internal) {
+          registerPiBuiltinTool(pi, requirement.definition, {
+            workspacePath: command.workspacePath,
+            requiredContractCapabilities: requirement.requiredContractCapabilities,
+          });
         }
       },
     ],

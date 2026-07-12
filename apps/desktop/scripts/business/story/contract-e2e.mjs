@@ -3,8 +3,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = process.cwd();
-const contractPath = resolve(root, "agent-runtime/src/engines/builtins/story/contract.json");
-const schemaPath = resolve(root, "agent-runtime/src/engines/builtins/story/tool/schema.ts");
+const contractPath = resolve(root, "src/features/pages/stories/contracts/default-novel/contract.json");
+const schemaPath = resolve(root, "protocols/story-project/formats/structured-novel-v1/schema.ts");
 const contract = JSON.parse(readFileSync(contractPath, "utf8"));
 const schemaSource = readFileSync(schemaPath, "utf8");
 
@@ -30,21 +30,15 @@ const expectedDocumentPaths = {
   "story-review": "story/reviews/{id}.json",
   "story-import": "story/imports/{id}.json",
 };
-const expectedSkillNames = [
-  "story-assistant",
-  "story-assistant-long-write",
-  "story-assistant-long-analyze",
-  "story-assistant-short-write",
-  "story-assistant-short-analyze",
-  "story-assistant-deslop",
-  "story-assistant-import",
-  "story-assistant-review",
-];
-
 assert.equal(contract.$format, "novel-claw.structured-document-contract");
-assert.equal(contract.contractId, "novel-claw.story-authoring");
+assert.equal(contract.contractId, "novel-claw.story.default-novel");
 assert.equal(contract.contractVersion, 1);
-assert.equal(contract.capability, "novel-claw.structured-story@1");
+assert.deepEqual(contract.capabilities, [
+  "novel-claw.story.documents@1",
+  "novel-claw.story.context.project@1",
+  "novel-claw.story.context.chapter-writing@1",
+  "novel-claw.story.changes.atomic@1",
+]);
 assert.equal(contract.schemaVersion, 1);
 assert.equal(contract.rootPath, "story");
 assert.equal(contract.documentEncoding.format, "novel-claw.structured-document");
@@ -54,11 +48,16 @@ assert.deepEqual(
   Object.keys(expectedDocumentPaths).sort(),
   "contract 必须且只能覆盖故事 toolkit 的全部文档类型",
 );
-assert.deepEqual(
-  Object.keys(contract.skillBindings).sort(),
-  expectedSkillNames.sort(),
-  "contract 必须映射完整的 story-authoring 专属技能集合",
-);
+assert.equal(contract.skillBindings, undefined, "故事产品协议不得绑定某个技能集合");
+assert.equal(contract.contextViews["project-summary"].scope, "project");
+assert.equal(contract.contextViews["chapter-writing"].scope, "chapter");
+assert.equal(contract.contextViews["chapter-writing"].targetKind, "story-chapter-plan");
+for (const view of Object.values(contract.contextViews)) {
+  assert.ok(contract.capabilities.includes(view.capability), `${view.label} 的 capability 必须由协议公开声明`);
+  for (const kind of view.documentKinds) {
+    assert.ok(contract.documents[kind], `${view.label} 引用了未知文档类型 ${kind}`);
+  }
+}
 
 const schemaMapSource = schemaSource
   .split("export const storyProjectFileSchemasByKind = {")[1]
@@ -128,15 +127,6 @@ for (const [kind, document] of Object.entries(contract.documents)) {
 
 for (const [name, profile] of Object.entries(contract.validationProfiles)) {
   validateRuleIds(`validationProfiles.${name}`, profile.ruleIds);
-}
-
-for (const [skillName, binding] of Object.entries(contract.skillBindings)) {
-  for (const kind of binding.documentKinds) {
-    assert.ok(documentKinds.has(kind), `${skillName} 映射了未知文档类型 ${kind}`);
-  }
-  for (const profile of binding.validationProfiles) {
-    assert.ok(contract.validationProfiles[profile], `${skillName} 映射了未知校验阶段 ${profile}`);
-  }
 }
 
 const backgroundOption = contract.documents["story-world-entry"].fields["/category"].options.find(

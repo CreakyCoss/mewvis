@@ -2,7 +2,13 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { BuiltinSkillDefinition } from "../../types.js";
-import contract from "../contract.json" with { type: "json" };
+import {
+  STORY_ATOMIC_CHANGES_CAPABILITY,
+  STORY_CHAPTER_CONTEXT_CAPABILITY,
+  STORY_DOCUMENT_MODEL_CAPABILITY,
+  STORY_PROJECT_CONTEXT_CAPABILITY,
+  STORY_PROJECT_CONTRACT_TOOL_CAPABILITY,
+} from "../../../../../../protocols/story-project/index.js";
 
 const resolveStoryAuthoringResourcePath = () => {
   const moduleDir = dirname(fileURLToPath(import.meta.url));
@@ -31,12 +37,6 @@ export const STORY_AUTHORING_SKILL_NAMES = Object.freeze([
   "story-assistant-review",
 ] as const);
 
-const contractSkillNames = Object.keys(contract.skillBindings).sort();
-const builtinSkillNames = [...STORY_AUTHORING_SKILL_NAMES].sort();
-if (JSON.stringify(contractSkillNames) !== JSON.stringify(builtinSkillNames)) {
-  throw new Error("story-authoring 的技能注册与 contract.skillBindings 不一致。");
-}
-
 export const STORY_AUTHORING_SKILL = Object.freeze({
   id: "story-authoring",
   referenceName: STORY_AUTHORING_ENTRY_SKILL_NAME,
@@ -44,6 +44,12 @@ export const STORY_AUTHORING_SKILL = Object.freeze({
     names: STORY_AUTHORING_SKILL_NAMES,
     resolveSourcePath: resolveStoryAuthoringResourcePath,
   }),
-  requiredToolCapabilities: Object.freeze([contract.capability]),
+  requiredToolCapabilities: Object.freeze([STORY_PROJECT_CONTRACT_TOOL_CAPABILITY]),
+  requiredContractCapabilities: Object.freeze([
+    STORY_DOCUMENT_MODEL_CAPABILITY,
+    STORY_PROJECT_CONTEXT_CAPABILITY,
+    STORY_CHAPTER_CONTEXT_CAPABILITY,
+    STORY_ATOMIC_CHANGES_CAPABILITY,
+  ]),
   requiredExternalTools: Object.freeze(["read", "ls", "find", "grep", "ask_user"]),
 }) satisfies BuiltinSkillDefinition;

@@ -15,7 +15,7 @@ metadata:
 
 交付物是可续写的 Story Project，而不是一份分析报告。先分析，再把有证据的内容迁移成结构文件；不能为了填 Schema 编造原文没有的信息。
 
-开始前完整读取 `../story-assistant/references/story-tool-binding.md` 并完成启动门禁，再用 `story(action="describe_structure")` 读取唯一结构要求，项目不存在时用 `action="initialize"`。私有工具缺失时停止，不得用普通文件工具生成导入兜底。
+开始前完整读取 `../story-assistant/references/story-tool-binding.md` 并完成启动门禁，再用 `story(action="describe_structure")` 读取工作区协议，项目不存在时用 `action="initialize"`。私有工具缺失或工作区协议不兼容时停止，不得用普通文件工具生成导入兜底。
 
 ## Phase 1：识别导入源
 

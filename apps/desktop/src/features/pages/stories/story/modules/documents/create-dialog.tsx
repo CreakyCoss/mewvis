@@ -54,7 +54,7 @@ export const CreateJsonDocumentDialog = ({
         <DialogHeader>
           <DialogTitle>新增 JSON 文档</DialogTitle>
           <DialogDescription>
-            可以创建任意 JSON。若文件带有 $document、$schema 和 data，编辑器会自动生成友好表单。
+            路径必须匹配当前工作区协议；这里只填写普通业务数据，保存时会自动补齐字段定义并校验。
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -68,7 +68,7 @@ export const CreateJsonDocumentDialog = ({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="story-json-content">初始 JSON</Label>
+            <Label htmlFor="story-json-content">初始业务数据</Label>
             <Textarea
               id="story-json-content"
               value={content}

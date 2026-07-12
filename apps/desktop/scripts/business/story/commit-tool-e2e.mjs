@@ -9,51 +9,82 @@ const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-story-commit-tool-"));
 const storyWorkspace = join(tempDir, "workspace");
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
-const projectPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/project.ts");
+const projectPath = resolve(workspaceRoot, "protocols/story-project/formats/structured-novel-v1/project.ts");
 const toolPath = resolve(
   workspaceRoot,
   "agent-runtime/src/engines/drivers/native/agent/runtimes/pi/tools/builtin-tool.ts",
 );
 const storyBuiltinPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/definition.ts");
-const storyContractPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/contract.ts");
+const storyContractPath = resolve(workspaceRoot, "protocols/story-project/index.ts");
 const nodeRepositoryPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/node-repository.ts");
+const defaultContractPath = resolve(workspaceRoot, "src/features/pages/stories/contracts/default-novel/contract.json");
 
 writeFileSync(
   entryPath,
   `
+  import { createHash } from "node:crypto";
   import { mkdir, readFile, stat, utimes, writeFile } from "node:fs/promises";
   import { dirname, join } from "node:path";
-  import { createEmptyStoryProject, storyProjectFiles, STORY_PROJECT_MANIFEST_PATH } from ${JSON.stringify(projectPath)};
+  import { createEmptyStoryProject, storyProjectFiles } from ${JSON.stringify(projectPath)};
   import { registerPiBuiltinTool } from ${JSON.stringify(toolPath)};
   import { STORY_TOOL, createStoryToolPackage } from ${JSON.stringify(storyBuiltinPath)};
-  import { encodeStoryDocument } from ${JSON.stringify(storyContractPath)};
-  import { createNodeStoryProjectRepository } from ${JSON.stringify(nodeRepositoryPath)};
+  import defaultContractJson from ${JSON.stringify(defaultContractPath)};
+  import { createStoryContractCompilerRegistry } from ${JSON.stringify(storyContractPath)};
+  import { createNodeStoryToolRepository } from ${JSON.stringify(nodeRepositoryPath)};
 
   const assert = (condition: unknown, message: string, details?: unknown) => {
     if (!condition) throw new Error(message + (details === undefined ? "" : "\\n" + JSON.stringify(details, null, 2)));
   };
   const root = ${JSON.stringify(storyWorkspace)};
-  const changeSetContract = { contractId: "novel-claw.story-authoring", contractVersion: 1 };
-  const project = createEmptyStoryProject({ id: "story-commit-tool", title: "提交工具测试", timestamp: 1_800_000_000_000 });
-  for (const entry of [...storyProjectFiles(project), { path: STORY_PROJECT_MANIFEST_PATH, value: project.manifest }]) {
+  const contract = createStoryContractCompilerRegistry().compile(defaultContractJson);
+  const manifestPath = contract.resolveDocument("story-manifest");
+  const changeSetContract = { contractId: "novel-claw.story.default-novel", contractVersion: 1 };
+  const installContract = async (workspace: string, contractInput: any = defaultContractJson) => {
+    const path = join(workspace, "story/.novel-claw/contract.json");
+    const contractText = JSON.stringify(contractInput, null, 2) + "\\n";
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, contractText, "utf8");
+    await writeFile(
+      join(workspace, "story/.novel-claw/contract.lock.json"),
+      JSON.stringify({
+        $format: "novel-claw.story-project-contract-lock",
+        formatVersion: 1,
+        contractPath: "story/.novel-claw/contract.json",
+        contractId: contractInput.contractId,
+        contractVersion: contractInput.contractVersion,
+        compiler: { format: contractInput.$format, version: 1 },
+        sha256: createHash("sha256").update(contractText).digest("hex"),
+      }, null, 2) + "\\n",
+      "utf8",
+    );
+  };
+  await installContract(root);
+  const project = createEmptyStoryProject({ id: "story-commit-tool", title: "提交工具测试", timestamp: 1_800_000_000_000, contract });
+  for (const entry of [...storyProjectFiles(project, contract), { path: manifestPath, value: project.manifest }]) {
     const path = join(root, entry.path);
     await mkdir(dirname(path), { recursive: true });
-    await writeFile(path, JSON.stringify(encodeStoryDocument(entry.value, entry.path), null, 2) + "\\n", "utf8");
+    await writeFile(path, JSON.stringify(contract.encodeDocument(entry.value, entry.path), null, 2) + "\\n", "utf8");
   }
 
   const tools = new Map<string, any>();
   registerPiBuiltinTool(
     { registerTool: (tool: any) => tools.set(tool.name, tool) } as any,
     STORY_TOOL,
-    { workspacePath: root },
+    { workspacePath: root, requiredContractCapabilities: defaultContractJson.capabilities },
   );
   assert(tools.size === 1, "完整故事能力应只注册一个 PI 工具。", [...tools.keys()]);
   const storyTool = tools.get("story");
   assert(storyTool, "story 工具应成功注册。");
   const described = await storyTool.execute("describe", { action: "describe_structure" }, undefined, undefined, undefined);
   assert(
-    described.details.structure.contract.contractId === "novel-claw.story-authoring",
-    "故事工具必须直接返回随技能打包的 contract。",
+    described.details.structure.contract.contractId === "novel-claw.story.default-novel",
+    "故事工具必须返回工作区固定保存的 contract。",
+    described.details,
+  );
+  assert(
+    described.details.structure.compiler.format === "novel-claw.structured-document-contract" &&
+      described.details.structure.compiler.version === 1,
+    "describe_structure 必须返回实际使用的受信任 Compiler 身份。",
     described.details,
   );
 
@@ -90,9 +121,10 @@ writeFileSync(
   assert((await stat(untouchedPath)).mtimeMs === untouchedBefore, "原子提交不应重写本批未变化的 JSON 文件。");
 
   const fallbackRoot = join(${JSON.stringify(tempDir)}, "fallback-workspace");
+  await installContract(fallbackRoot);
   await mkdir(join(fallbackRoot, "story/fallback"), { recursive: true });
   await writeFile(join(fallbackRoot, "story/fallback/index.json"), JSON.stringify({ format: "story-assistant-fallback-json" }), "utf8");
-  const fallbackPackage = createStoryToolPackage(createNodeStoryProjectRepository(fallbackRoot));
+  const fallbackPackage = createStoryToolPackage(createNodeStoryToolRepository(fallbackRoot));
   const refused: any = await fallbackPackage.execute({ action: "initialize", storyId: "fallback-story", title: "兜底迁移" });
   assert(refused.initialized === false && refused.issues[0]?.code === "initialize.existing-json", "初始化默认不得覆盖兜底 JSON。", refused);
   assert(await stat(join(fallbackRoot, "story/fallback/index.json")), "初始化被拒绝时兜底 JSON 必须保留。");
@@ -137,6 +169,58 @@ writeFileSync(
     "工具必须在写入前拒绝错误 contract 版本。",
     rejectedContract,
   );
+
+  const customRoot = join(${JSON.stringify(tempDir)}, "custom-layout-workspace");
+  const customContract = structuredClone(defaultContractJson);
+  customContract.contractId = "example.custom-layout";
+  customContract.documents["story-manifest"].pathPattern = "story/project/index.json";
+  customContract.documents["story-book"].pathPattern = "story/project/book.json";
+  await installContract(customRoot, customContract);
+  const customPackage = createStoryToolPackage(createNodeStoryToolRepository(customRoot));
+  const customInitialized: any = await customPackage.execute({
+    action: "initialize",
+    storyId: "custom-layout",
+    title: "自定义目录",
+  });
+  assert(
+    customInitialized.initialized === true && customInitialized.manifestPath === "story/project/index.json",
+    "工具必须按工作区协议决定 manifest 路径。",
+    customInitialized,
+  );
+  const customBook = JSON.parse(await readFile(join(customRoot, "story/project/book.json"), "utf8"));
+  assert(customBook.data.title === "自定义目录", "工具必须按工作区协议决定文档落盘路径。", customBook);
+
+  const incompatibleRoot = join(${JSON.stringify(tempDir)}, "incompatible-contract-workspace");
+  const incompatibleContract = structuredClone(defaultContractJson);
+  incompatibleContract.contractId = "example.missing-atomic-change";
+  incompatibleContract.capabilities = incompatibleContract.capabilities.filter(
+    (capability: string) => capability !== "novel-claw.story.changes.atomic@1",
+  );
+  await installContract(incompatibleRoot, incompatibleContract);
+  const incompatiblePackage = createStoryToolPackage(createNodeStoryToolRepository(incompatibleRoot), {
+    requiredContractCapabilities: defaultContractJson.capabilities,
+  });
+  let incompatibleRejected = false;
+  try {
+    await incompatiblePackage.execute({ action: "describe_structure" });
+  } catch (error) {
+    incompatibleRejected = String(error).includes("novel-claw.story.changes.atomic@1");
+  }
+  assert(incompatibleRejected, "工具必须按技能传入的抽象能力要求拒绝不兼容协议。");
+
+  const untrustedRoot = join(${JSON.stringify(tempDir)}, "untrusted-contract-workspace");
+  const untrustedContract = structuredClone(defaultContractJson);
+  untrustedContract.$format = "example.untrusted-contract";
+  untrustedContract.contractId = "example.untrusted-contract";
+  await installContract(untrustedRoot, untrustedContract);
+  const untrustedPackage = createStoryToolPackage(createNodeStoryToolRepository(untrustedRoot));
+  let untrustedRejected = false;
+  try {
+    await untrustedPackage.execute({ action: "describe_structure" });
+  } catch (error) {
+    untrustedRejected = String(error).includes("StoryContractCompiler");
+  }
+  assert(untrustedRejected, "未注册的协议格式必须在读取工作区文件前被拒绝。");
   console.log("[story-commit-tool] ok");
 `,
 );

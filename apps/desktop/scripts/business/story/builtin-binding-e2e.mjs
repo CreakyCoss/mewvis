@@ -48,7 +48,17 @@ writeFileSync(
   const story = command(["story-assistant"], ["read"]);
   const bundle = resolveBuiltinCombinations(["story-assistant"]);
   assert(bundle.skillNames.length === 8 && bundle.skillNames.includes("story-assistant-review"), "对外引用名应展开完整内置技能列表。", bundle);
-  assert(bundle.requiredTools.internal.map((tool) => tool.name).join(",") === "story", "内置故事技能必须强制绑定内部 story 工具。", bundle);
+  assert(bundle.requiredTools.internal.map((item) => item.definition.name).join(",") === "story", "内置故事技能必须强制绑定内部 story 工具。", bundle);
+  assert(
+    bundle.requiredTools.internal[0]?.requiredContractCapabilities.join(",") === [
+      "novel-claw.story.documents@1",
+      "novel-claw.story.context.project@1",
+      "novel-claw.story.context.chapter-writing@1",
+      "novel-claw.story.changes.atomic@1",
+    ].join(","),
+    "故事技能必须声明抽象工作区协议能力，不得绑定默认协议 ID。",
+    bundle,
+  );
   assert(bundle.requiredTools.external.join(",") === "read,ls,find,grep,ask_user", "内置故事技能包必须声明外部必需工具。", bundle);
   assert(bundle.sourcePaths.length === 1, "内置技能路径必须由 bundle 自己解析。", bundle);
   assert(bundle.reservedSkillNames.size === 8, "内置故事技能名必须保留，防止外部同名覆盖。");

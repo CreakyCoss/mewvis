@@ -1,6 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { storyDocumentsToStoryJson } from "./documents/model";
 import { loadStoryDocuments } from "./documents/repository";
+import { installDefaultStoryProjectContract } from "./contracts/workspace";
 import type { StoryJsonDocument } from "./documents/types";
 import type { StoryJson } from "./story/model/types";
 
@@ -138,6 +139,12 @@ export const createStory = async (
 }> => {
   const record = await createStoryRecord(input);
   const workspace = storyWorkspaceFromRecord(record);
+  try {
+    await installDefaultStoryProjectContract(workspace.path);
+  } catch (error) {
+    await deleteStoryRecord(record.id).catch(() => undefined);
+    throw error;
+  }
   const documents: StoryJsonDocument[] = [];
   return {
     record,

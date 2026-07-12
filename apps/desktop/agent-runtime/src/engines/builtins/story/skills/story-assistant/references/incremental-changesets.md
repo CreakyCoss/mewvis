@@ -26,7 +26,7 @@
 
 ```json
 {
-  "contractId": "novel-claw.story-authoring",
+  "contractId": "<describe_structure 返回的工作区 contractId>",
   "contractVersion": 1,
   "storyId": "story-1",
   "baseRevision": 7,

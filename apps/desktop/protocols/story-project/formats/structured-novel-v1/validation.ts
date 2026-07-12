@@ -1,6 +1,7 @@
 import type { ZodIssue } from "zod";
 import { storyProjectSchema, type StoryProject } from "./schema.js";
 import { storyProjectFiles } from "./project.js";
+import type { CompiledStoryContract } from "../../compiler.js";
 
 export type StoryValidationProfile = "draft" | "openBook" | "chapterWrite";
 
@@ -56,7 +57,7 @@ const addDuplicateIssues = (issues: StoryValidationIssue[], values: string[], pa
   }
 };
 
-const validateManifest = (project: StoryProject, issues: StoryValidationIssue[]) => {
+const validateManifest = (project: StoryProject, contract: CompiledStoryContract, issues: StoryValidationIssue[]) => {
   if (project.manifest.storyId !== project.book.id) {
     issues.push(issue("error", "manifest.story_id", "manifest.storyId", "manifest storyId 必须与 book.id 一致。"));
   }
@@ -64,7 +65,7 @@ const validateManifest = (project: StoryProject, issues: StoryValidationIssue[])
     issues.push(issue("error", "manifest.title", "manifest.title", "manifest title 必须与 book.title 一致。"));
   }
 
-  const expectedFiles = storyProjectFiles(project).map(
+  const expectedFiles = storyProjectFiles(project, contract).map(
     ({ path, value }) =>
       `${value.kind}\u0000${value.kind === "story-manifest" ? value.storyId : value.id}\u0000${path}`,
   );
@@ -93,7 +94,7 @@ const validateManifest = (project: StoryProject, issues: StoryValidationIssue[])
   }
 };
 
-const validateReferences = (project: StoryProject, issues: StoryValidationIssue[]) => {
+const validateReferences = (project: StoryProject, contract: CompiledStoryContract, issues: StoryValidationIssue[]) => {
   const characterIds = new Set(project.characters.map((item) => item.id));
   const worldIds = new Set(project.worldEntries.map((item) => item.id));
   const volumeIds = new Set(project.volumes.map((item) => item.id));
@@ -124,7 +125,7 @@ const validateReferences = (project: StoryProject, issues: StoryValidationIssue[
     ...nodeIds,
   ]);
 
-  const allFileIds = storyProjectFiles(project).map(({ value }) =>
+  const allFileIds = storyProjectFiles(project, contract).map(({ value }) =>
     value.kind === "story-manifest" ? value.storyId : value.id,
   );
   addDuplicateIssues(issues, allFileIds, "project", "文件 ID");
@@ -476,6 +477,7 @@ const validateChapterWriteReadiness = (project: StoryProject, issues: StoryValid
 
 export const validateStoryProject = (
   value: unknown,
+  contract: CompiledStoryContract,
   profile: StoryValidationProfile = "draft",
 ): StoryValidationResult => {
   const parsed = storyProjectSchema.safeParse(value);
@@ -486,8 +488,8 @@ export const validateStoryProject = (
 
   const project = parsed.data;
   const issues: StoryValidationIssue[] = [];
-  validateManifest(project, issues);
-  validateReferences(project, issues);
+  validateManifest(project, contract, issues);
+  validateReferences(project, contract, issues);
   if (!project.book.title.trim()) {
     issues.push(issue("error", "book.title", "book.title", "故事标题不能为空。"));
   }
@@ -510,8 +512,12 @@ export const validateStoryProject = (
   };
 };
 
-export const assertValidStoryProject = (project: StoryProject, profile: StoryValidationProfile = "draft") => {
-  const validation = validateStoryProject(project, profile);
+export const assertValidStoryProject = (
+  project: StoryProject,
+  contract: CompiledStoryContract,
+  profile: StoryValidationProfile = "draft",
+) => {
+  const validation = validateStoryProject(project, contract, profile);
   if (!validation.valid) {
     const message = validation.issues
       .filter((item) => item.severity === "error")
