@@ -41,13 +41,15 @@ try {
 }
 
 const builtinsIndex = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/index.ts"), "utf8");
-const builtinResolver = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/resolve.ts"), "utf8");
+const builtinDefinition = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/definition.ts"), "utf8");
+const storyBuiltin = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/index.ts"), "utf8");
 const storySkill = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/skills/definition.ts"), "utf8");
 const storyContract = readFileSync(
   resolve(root, "src/features/pages/stories/contracts/default-novel/contract.json"),
   "utf8",
 );
 const storyTool = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/tool/definition.ts"), "utf8");
+const storyProtocol = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/protocol.ts"), "utf8");
 const storyService = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/tool/service.ts"), "utf8");
 const storyRepository = readFileSync(
   resolve(root, "agent-runtime/src/engines/builtins/story/tool/node-repository.ts"),
@@ -67,30 +69,48 @@ const structuredNovelCompiler = readFileSync(
   "utf8",
 );
 if (
-  !builtinsIndex.includes("BUILTIN_COMBINATIONS") ||
-  !builtinsIndex.includes("STORY_AUTHORING_SKILL") ||
-  !builtinsIndex.includes("STORY_TOOL") ||
-  builtinsIndex.includes("resolveBuiltin") ||
-  builtinsIndex.includes("createExecutor")
+  !builtinsIndex.includes("const builtinRegistry") ||
+  !builtinsIndex.includes("STORY_BUILTIN") ||
+  !builtinsIndex.includes("resolveBuiltins") ||
+  !builtinsIndex.includes("isBuiltinPrivateToolName") ||
+  builtinsIndex.includes("export const BUILTINS") ||
+  builtinsIndex.includes("export const builtinRegistry") ||
+  builtinsIndex.includes("STORY_AUTHORING_SKILL") ||
+  builtinsIndex.includes("STORY_TOOL") ||
+  builtinsIndex.includes("defineBuiltin") ||
+  !storyBuiltin.includes("defineBuiltin") ||
+  !storyBuiltin.includes("STORY_AUTHORING_SKILL") ||
+  !storyBuiltin.includes("STORY_TOOL")
 ) {
-  throw new Error("builtins/index.ts 只能暴露技能与工具的组合列表。");
+  throw new Error("根 builtins/index.ts 只能收集业务模块导出的成品；Story 必须在自己的 index 中完成组装。");
 }
 if (
-  !storySkill.includes("requiredToolCapabilities") ||
+  !storySkill.includes("requiredToolContracts") ||
   storySkill.includes("createStoryToolPackage") ||
-  !storyTool.includes("capabilities") ||
+  !storySkill.includes("STORY_TOOL_CONTRACT") ||
+  storySkill.includes("STORY_DOCUMENT_MODEL_CAPABILITY") ||
+  !storyTool.includes("contract: STORY_TOOL_CONTRACT") ||
+  !storyTool.includes("createImplementation") ||
+  storyTool.includes("capabilities") ||
   storyTool.includes("resolveStoryAuthoringResourcePath")
 ) {
-  throw new Error("story-authoring 技能与 story 工具必须独立定义，只通过 contract capability 组合。");
+  throw new Error("story-authoring 技能必须依赖强类型 Tool Contract，Story Tool 必须显式实现该契约。");
 }
 if (
   !storyContract.includes("novel-claw.story.context.chapter-writing@1") ||
   storyContract.includes("novel-claw.story-project.default-novel@1") ||
   storyContract.includes("skillBindings") ||
   storySkill.includes("contract.json") ||
-  !storyTool.includes("STORY_PROJECT_CONTRACT_TOOL_CAPABILITY") ||
-  storyTool.includes("STORY_CHAPTER_CONTEXT_CAPABILITY") ||
-  !storySkill.includes("requiredContractCapabilities") ||
+  storyContractCompiler.includes("STORY_PROJECT_CONTRACT_TOOL_CAPABILITY") ||
+  !storyProtocol.includes("interface StoryToolApi") ||
+  !storyProtocol.includes("defineBuiltinToolContract") ||
+  storyProtocol.includes("STORY_TOOL_REQUIRED_STORY_CONTRACT_CAPABILITIES") ||
+  !storyService.includes("STORY_TOOL_REQUIRED_STORY_CONTRACT_CAPABILITIES") ||
+  !storyService.includes("STORY_DOCUMENT_MODEL_CAPABILITY") ||
+  !storyService.includes("STORY_PROJECT_CONTEXT_CAPABILITY") ||
+  !storyService.includes("STORY_CHAPTER_CONTEXT_CAPABILITY") ||
+  !storyService.includes("STORY_ATOMIC_CHANGES_CAPABILITY") ||
+  storyService.includes("requiredContractCapabilities") ||
   !storyService.includes("repository.loadContract") ||
   !storyService.includes("CompiledStoryContract") ||
   !storyRepository.includes("createStoryContractCompilerRegistry") ||
@@ -110,7 +130,12 @@ if (
   !frontendWorkspaceContract.includes("createStoryContractCompilerRegistry") ||
   !frontendWorkspaceContract.includes("installDefaultStoryProjectContract") ||
   frontendWorkspaceContract.includes("compiled.describe()") ||
-  !builtinResolver.includes("missingCapabilities")
+  !builtinDefinition.includes("type BuiltinDefinition") ||
+  !builtinDefinition.includes("assertBuiltinDefinition") ||
+  !builtinDefinition.includes("assertBuiltinToolImplementation") ||
+  !builtinsIndex.includes("assertBuiltinDefinition") ||
+  builtinsIndex.includes("BUILTIN_COMBINATIONS") ||
+  builtinsIndex.includes("requiredContractCapabilities")
 ) {
   throw new Error("故事侧必须拥有默认协议；技能与工具只能通过通用执行能力组合，并从工作区加载协议。");
 }
@@ -138,12 +163,14 @@ const piBuiltinAdapter = readFileSync(
 );
 if (
   !piResources.includes("registerPiBuiltinTool") ||
-  !piResources.includes("resolveBuiltinCombinations") ||
+  !piResources.includes("resolveBuiltins") ||
   !piResources.includes("builtins.requiredTools.internal") ||
+  piResources.includes("requiredContractCapabilities") ||
   piResources.includes("privateRuntimeTools") ||
   piResources.includes("STORY_TOOL") ||
   piResources.includes("registerPiStory") ||
-  piBuiltinAdapter.includes("story-authoring")
+  piBuiltinAdapter.includes("story-authoring") ||
+  !piBuiltinAdapter.includes("assertBuiltinToolImplementation")
 ) {
   throw new Error("PI 只能按标准内置能力协议注册工具，不得知道 story-authoring 的身份。");
 }
@@ -172,6 +199,10 @@ for (const removedPath of [
   "agent-runtime/src/engines/builtins/story/tool/project.ts",
   "agent-runtime/src/engines/builtins/story/tool/validation.ts",
   "agent-runtime/src/engines/builtins/story/tool/change-set.ts",
+  "agent-runtime/src/engines/builtins/story/tool/tools.ts",
+  "agent-runtime/src/engines/builtins/story/tool/api.ts",
+  "agent-runtime/src/engines/builtins/types.ts",
+  "agent-runtime/src/engines/builtins/resolve.ts",
   "agent-runtime/src/engines/protocol/story-project",
   "agent-runtime/src/engines/features/story-project",
   "agent-runtime/src/engines/drivers/native/story-project",

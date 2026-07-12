@@ -1,6 +1,6 @@
 # Story 私有工具绑定
 
-本技能属于 agent-runtime 的 `story-authoring` 内置能力包。运行时会加载完整的 `story-assistant-*` 技能集合，并强制注入单一私有 `story` 工具。这个工具不会出现在前端公共工具目录中，也不由用户单独启用或关闭。
+本技能属于 agent-runtime 的 `story-authoring` 内置能力包。技能依赖版本化的 Story Tool Contract；Story 模块只在私有 `story` 工具实现完整接口时才会导出 `STORY_BUILTIN` 成品。运行时会加载完整的 `story-assistant-*` 技能集合并注入该工具。这个工具不会出现在前端公共工具目录中，也不由用户单独启用或关闭。
 
 ## 启动门禁
 
@@ -13,7 +13,7 @@
 ## 写入边界
 
 - 所有正式变更使用小批次 `story(action="commit_changes", changeSet={...})`。
-- 本技能依赖的是项目文档、项目摘要、章节写作上下文和原子变更等抽象能力，不依赖 `default-novel` 之类的具体协议名称，也不直接读取原始 contract。`describe_structure` 成功即表示受信任 Compiler 已证明当前工作区满足这些能力；失败时报告 Compiler、协议格式或缺少的 capability，不要猜测目录或字段。
+- 本技能只依赖 Story Tool Contract 中稳定的结构描述、初始化、上下文读取、变更校验和原子提交方法。项目文档、项目摘要、章节写作上下文和原子变更等底层协议能力由 Story Tool 固定要求，不由技能动态传入。`describe_structure` 成功即表示工具与受信任 Compiler 已证明当前工作区满足这些能力；失败时报告工具接口、Compiler、协议格式或缺少的 capability，不要猜测目录或字段。
 - `read_context` 返回 `contextView`，说明本次数据由协议中的哪个视图组合。只使用返回的数据和 `sources`，不要额外按默认目录猜测并读取遗漏内容。
 - 每个 ChangeSet 必须原样携带本轮 `describe_structure` 返回的 `contractId` 与 `contractVersion`。不要记忆、猜测或自行升级版本；版本不匹配时重新 describe 并按新 contract 构造当前批。
 - 创建文档前按 kind 查 `structure.contract.documents[kind]`，只提交其中声明的普通数据字段；嵌套对象按 `definition` / `itemDefinition` 查 `objectDefinitions`。字段 label、描述、路径、默认值、只读字段和校验规则由工具及 contract 维护，技能不得另造一套 Schema。

@@ -1,5 +1,5 @@
 import type { ChatRunCommand, RuntimeAgentCommand } from "../types.js";
-import { resolveBuiltinCombinations } from "../../../../../builtins/resolve.js";
+import { resolveBuiltins } from "../../../../../builtins/index.js";
 import { allowedRuntimeTools, runtimeResourcesFor } from "../resources.js";
 
 const compact = (value: string, maxLength = 180) => {
@@ -38,7 +38,7 @@ export const createMockChatText = (command: ChatRunCommand) => {
 
 export const createMockAgentText = (command: RuntimeAgentCommand) => {
   const allowedTools = allowedRuntimeTools(command);
-  const enabledSkillNames = resolveBuiltinCombinations(runtimeResourcesFor(command).skills?.enabled ?? []).skillNames;
+  const enabledSkillNames = resolveBuiltins(runtimeResourcesFor(command).skills?.enabled ?? []).skillNames;
   const enabledTools = allowedTools?.length ? allowedTools.join(", ") : "未传入工具列表";
   const activeSkills = enabledSkillNames.length ? enabledSkillNames.join(", ") : "不使用技能";
   const bootstrapSummary = command.sessionBootstrapContext?.trim() ? compact(command.sessionBootstrapContext) : "无";

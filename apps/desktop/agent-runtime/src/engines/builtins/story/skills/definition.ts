@@ -1,14 +1,8 @@
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { BuiltinSkillDefinition } from "../../types.js";
-import {
-  STORY_ATOMIC_CHANGES_CAPABILITY,
-  STORY_CHAPTER_CONTEXT_CAPABILITY,
-  STORY_DOCUMENT_MODEL_CAPABILITY,
-  STORY_PROJECT_CONTEXT_CAPABILITY,
-  STORY_PROJECT_CONTRACT_TOOL_CAPABILITY,
-} from "../../../../../../protocols/story-project/index.js";
+import type { BuiltinSkillDefinition } from "../../definition.js";
+import { STORY_TOOL_CONTRACT } from "../protocol.js";
 
 const resolveStoryAuthoringResourcePath = () => {
   const moduleDir = dirname(fileURLToPath(import.meta.url));
@@ -44,12 +38,6 @@ export const STORY_AUTHORING_SKILL = Object.freeze({
     names: STORY_AUTHORING_SKILL_NAMES,
     resolveSourcePath: resolveStoryAuthoringResourcePath,
   }),
-  requiredToolCapabilities: Object.freeze([STORY_PROJECT_CONTRACT_TOOL_CAPABILITY]),
-  requiredContractCapabilities: Object.freeze([
-    STORY_DOCUMENT_MODEL_CAPABILITY,
-    STORY_PROJECT_CONTEXT_CAPABILITY,
-    STORY_CHAPTER_CONTEXT_CAPABILITY,
-    STORY_ATOMIC_CHANGES_CAPABILITY,
-  ]),
+  requiredToolContracts: Object.freeze([STORY_TOOL_CONTRACT]),
   requiredExternalTools: Object.freeze(["read", "ls", "find", "grep", "ask_user"]),
 }) satisfies BuiltinSkillDefinition;

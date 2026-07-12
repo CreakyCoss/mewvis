@@ -1,5 +1,5 @@
 import { DefaultResourceLoader, getAgentDir, loadSkillsFromDir, type Skill } from "@earendil-works/pi-coding-agent";
-import { resolveBuiltinCombinations, type ResolvedBuiltinCombinations } from "../../../../../../builtins/resolve.js";
+import { resolveBuiltins, type ResolvedBuiltins } from "../../../../../../builtins/index.js";
 import type { AgentRuntimeCallbacks, RuntimeAgentCommand } from "../../types.js";
 import { runtimeResourcesFor, runtimeSkillSourcePaths } from "../../resources.js";
 import { registerPiAskUserTool } from "../tools/ask-user-tool.js";
@@ -7,7 +7,7 @@ import { registerPiBuiltinTool } from "../tools/builtin-tool.js";
 
 export const createPiResourceLoader = async (command: RuntimeAgentCommand, callbacks: AgentRuntimeCallbacks) => {
   const enabledSkills = runtimeResourcesFor(command).skills?.enabled ?? [];
-  const builtins = resolveBuiltinCombinations(enabledSkills);
+  const builtins = resolveBuiltins(enabledSkills);
   const skills = loadPiSkills(command, builtins);
   const loader = new DefaultResourceLoader({
     cwd: command.workspacePath,
@@ -17,11 +17,8 @@ export const createPiResourceLoader = async (command: RuntimeAgentCommand, callb
     extensionFactories: [
       (pi) => {
         registerPiAskUserTool(pi, command.taskId, callbacks.requestUserInput);
-        for (const requirement of builtins.requiredTools.internal) {
-          registerPiBuiltinTool(pi, requirement.definition, {
-            workspacePath: command.workspacePath,
-            requiredContractCapabilities: requirement.requiredContractCapabilities,
-          });
+        for (const tool of builtins.requiredTools.internal) {
+          registerPiBuiltinTool(pi, tool, { workspacePath: command.workspacePath });
         }
       },
     ],
@@ -35,7 +32,7 @@ export const createPiResourceLoader = async (command: RuntimeAgentCommand, callb
   return loader;
 };
 
-const loadPiSkills = (command: RuntimeAgentCommand, builtins: ResolvedBuiltinCombinations): Skill[] => {
+const loadPiSkills = (command: RuntimeAgentCommand, builtins: ResolvedBuiltins): Skill[] => {
   const enabledNames = new Set(builtins.skillNames);
   if (enabledNames.size === 0) {
     return [];

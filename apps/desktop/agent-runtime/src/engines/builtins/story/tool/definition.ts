@@ -1,10 +1,9 @@
 import { z } from "zod";
-import type { BuiltinToolDefinition, ToolParameterDefinition } from "../../types.js";
-import { STORY_PROJECT_CONTRACT_TOOL_CAPABILITY } from "../../../../../../protocols/story-project/index.js";
+import type { BuiltinToolDefinition, BuiltinToolImplementation, ToolParameterDefinition } from "../../definition.js";
 import { createNodeStoryToolRepository } from "./node-repository.js";
 import type { StoryToolRepository } from "./repository.js";
 import { createStoryToolService } from "./service.js";
-import { STORY_TOOL_ACTIONS, type StoryToolRequest, type StoryToolService } from "./tools.js";
+import { STORY_TOOL_ACTIONS, STORY_TOOL_CONTRACT, type StoryToolRequest, type StoryToolApi } from "../protocol.js";
 
 export const STORY_TOOL_NAME = "story" as const;
 
@@ -39,33 +38,29 @@ const storyToolRequestSchema = z.discriminatedUnion("action", [
     .strict(),
 ]);
 
-export type StoryToolPackage = Readonly<{
-  id: "novel-claw.story";
-  service: StoryToolService;
-  execute(input: unknown): Promise<unknown>;
-}>;
+export type StoryToolPackage = BuiltinToolImplementation<StoryToolApi> &
+  Readonly<{
+    id: "novel-claw.story";
+  }>;
 
-export const createStoryToolPackage = (
-  repository: StoryToolRepository,
-  options: Readonly<{ requiredContractCapabilities?: readonly string[] }> = {},
-): StoryToolPackage => {
-  const service = createStoryToolService(repository, options);
+export const createStoryToolPackage = (repository: StoryToolRepository): StoryToolPackage => {
+  const api = createStoryToolService(repository);
   return {
     id: "novel-claw.story",
-    service,
+    api,
     execute: async (input) => {
       const request = storyToolRequestSchema.parse(input) as StoryToolRequest;
       switch (request.action) {
         case STORY_TOOL_ACTIONS.describeStructure:
-          return service.describeStructure();
+          return api.describeStructure();
         case STORY_TOOL_ACTIONS.initialize:
-          return service.initialize(request);
+          return api.initialize(request);
         case STORY_TOOL_ACTIONS.readContext:
-          return service.readContext(request);
+          return api.readContext(request);
         case STORY_TOOL_ACTIONS.validateChanges:
-          return service.validateChanges(request);
+          return api.validateChanges(request);
         case STORY_TOOL_ACTIONS.commitChanges:
-          return service.commitChanges(request);
+          return api.commitChanges(request);
       }
     },
   };
@@ -107,10 +102,9 @@ const STORY_TOOL_PARAMETERS = {
 export const STORY_TOOL = Object.freeze({
   name: STORY_TOOL_NAME,
   label: "Story",
-  capabilities: Object.freeze([STORY_PROJECT_CONTRACT_TOOL_CAPABILITY]),
+  contract: STORY_TOOL_CONTRACT,
   description:
-    "Read and modify a structured story through a trusted StoryContractCompiler. The tool compiles the contract pinned at story/.novel-claw/contract.json, verifies its lock and required capabilities, then exposes describe_structure, initialize, read_context, validate_changes, and atomic commit_changes. Call describe_structure before the first write.",
+    "Read and modify a structured story through a trusted StoryContractCompiler. This tool implements the versioned story project tool contract and always verifies its fixed story contract requirements before exposing describe_structure, initialize, read_context, validate_changes, and atomic commit_changes.",
   parameters: STORY_TOOL_PARAMETERS,
-  createExecutor: ({ workspacePath, requiredContractCapabilities }) =>
-    createStoryToolPackage(createNodeStoryToolRepository(workspacePath), { requiredContractCapabilities }).execute,
-}) satisfies BuiltinToolDefinition;
+  createImplementation: ({ workspacePath }) => createStoryToolPackage(createNodeStoryToolRepository(workspacePath)),
+}) satisfies BuiltinToolDefinition<typeof STORY_TOOL_CONTRACT>;

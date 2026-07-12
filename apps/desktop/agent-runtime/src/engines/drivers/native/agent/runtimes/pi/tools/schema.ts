@@ -1,5 +1,5 @@
 import { Type, type TSchema } from "@earendil-works/pi-ai";
-import type { ToolParameterDefinition } from "../../../../../../builtins/types.js";
+import type { ToolParameterDefinition } from "../../../../../../builtins/definition.js";
 
 export const toPiToolParameters = (definition: ToolParameterDefinition): TSchema => {
   let schema: TSchema;

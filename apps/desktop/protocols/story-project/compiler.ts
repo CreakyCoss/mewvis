@@ -1,6 +1,5 @@
 export const STORY_PROJECT_CONTRACT_PATH = "story/.novel-claw/contract.json" as const;
 export const STORY_PROJECT_CONTRACT_LOCK_PATH = "story/.novel-claw/contract.lock.json" as const;
-export const STORY_PROJECT_CONTRACT_TOOL_CAPABILITY = "novel-claw.story-project-contract-tool@1" as const;
 export const STORY_DOCUMENT_MODEL_CAPABILITY = "novel-claw.story.documents@1" as const;
 export const STORY_PROJECT_CONTEXT_CAPABILITY = "novel-claw.story.context.project@1" as const;
 export const STORY_CHAPTER_CONTEXT_CAPABILITY = "novel-claw.story.context.chapter-writing@1" as const;

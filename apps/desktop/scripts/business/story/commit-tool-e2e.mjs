@@ -70,8 +70,19 @@ writeFileSync(
   registerPiBuiltinTool(
     { registerTool: (tool: any) => tools.set(tool.name, tool) } as any,
     STORY_TOOL,
-    { workspacePath: root, requiredContractCapabilities: defaultContractJson.capabilities },
+    { workspacePath: root },
   );
+  let incompleteImplementationRejected = false;
+  try {
+    registerPiBuiltinTool(
+      { registerTool: () => undefined } as any,
+      { ...STORY_TOOL, createImplementation: () => ({ api: {}, execute: async () => null }) } as any,
+      { workspacePath: root },
+    );
+  } catch (error) {
+    incompleteImplementationRejected = String(error).includes("未实现协议") && String(error).includes("commitChanges");
+  }
+  assert(incompleteImplementationRejected, "PI 注册必须拒绝谎报 Tool Contract 的不完整实现。");
   assert(tools.size === 1, "完整故事能力应只注册一个 PI 工具。", [...tools.keys()]);
   const storyTool = tools.get("story");
   assert(storyTool, "story 工具应成功注册。");
@@ -197,16 +208,14 @@ writeFileSync(
     (capability: string) => capability !== "novel-claw.story.changes.atomic@1",
   );
   await installContract(incompatibleRoot, incompatibleContract);
-  const incompatiblePackage = createStoryToolPackage(createNodeStoryToolRepository(incompatibleRoot), {
-    requiredContractCapabilities: defaultContractJson.capabilities,
-  });
+  const incompatiblePackage = createStoryToolPackage(createNodeStoryToolRepository(incompatibleRoot));
   let incompatibleRejected = false;
   try {
     await incompatiblePackage.execute({ action: "describe_structure" });
   } catch (error) {
     incompatibleRejected = String(error).includes("novel-claw.story.changes.atomic@1");
   }
-  assert(incompatibleRejected, "工具必须按技能传入的抽象能力要求拒绝不兼容协议。");
+  assert(incompatibleRejected, "Story Tool 必须按自身固定要求拒绝不兼容协议。");
 
   const untrustedRoot = join(${JSON.stringify(tempDir)}, "untrusted-contract-workspace");
   const untrustedContract = structuredClone(defaultContractJson);

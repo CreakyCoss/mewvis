@@ -1,16 +1,25 @@
-import type { CompiledStoryContract } from "../../../../../../protocols/story-project/index.js";
+import {
+  STORY_ATOMIC_CHANGES_CAPABILITY,
+  STORY_CHAPTER_CONTEXT_CAPABILITY,
+  STORY_DOCUMENT_MODEL_CAPABILITY,
+  STORY_PROJECT_CONTEXT_CAPABILITY,
+  type CompiledStoryContract,
+} from "../../../../../../protocols/story-project/index.js";
 import type { StoryToolRepository } from "./repository.js";
-import type {
-  StoryCommitChangesResult,
-  StoryInitializeResult,
-  StoryStructureDescription,
-  StoryToolService,
-  StoryValidateChangesResult,
-} from "./tools.js";
+import {
+  type StoryCommitChangesResult,
+  type StoryInitializeResult,
+  type StoryStructureDescription,
+  type StoryToolApi,
+  type StoryValidateChangesResult,
+} from "../protocol.js";
 
-export type StoryToolServiceOptions = Readonly<{
-  requiredContractCapabilities?: readonly string[];
-}>;
+export const STORY_TOOL_REQUIRED_STORY_CONTRACT_CAPABILITIES = Object.freeze([
+  STORY_DOCUMENT_MODEL_CAPABILITY,
+  STORY_PROJECT_CONTEXT_CAPABILITY,
+  STORY_CHAPTER_CONTEXT_CAPABILITY,
+  STORY_ATOMIC_CHANGES_CAPABILITY,
+] as const);
 
 const storyToolStructure = (contract: CompiledStoryContract): StoryStructureDescription => ({
   compiler: contract.compiler,
@@ -18,7 +27,7 @@ const storyToolStructure = (contract: CompiledStoryContract): StoryStructureDesc
   changeSet: contract.changeSet,
   rules: [
     "工具只消费受信任 StoryContractCompiler 的编译结果；工作区 story/.novel-claw/contract.json 只提供协议数据。",
-    "启用技能所需的抽象协议能力由运行时传入；工具不绑定默认协议身份。",
+    "Story Tool 固定要求项目文档、项目摘要、章节写作上下文与原子变更能力，但不绑定默认协议身份。",
     "Compiler 负责初始化、项目装配、上下文、ChangeSet 规划和业务校验；工具只负责安全 IO 与原子提交。",
     "正式写入必须通过 story(action=commit_changes)；校验失败时不得修改磁盘。",
     "每批提交成功后必须重新读取 revision，再构造下一批 ChangeSet。",
@@ -32,13 +41,10 @@ const invalidIssue = (error: unknown) => ({
   message: error instanceof Error ? error.message : String(error),
 });
 
-export const createStoryToolService = (
-  repository: StoryToolRepository,
-  options: StoryToolServiceOptions = {},
-): StoryToolService => {
+export const createStoryToolService = (repository: StoryToolRepository): StoryToolApi => {
   const loadCompatibleContract = async () => {
     const contract = await repository.loadContract();
-    contract.assertCapabilities(options.requiredContractCapabilities ?? []);
+    contract.assertCapabilities(STORY_TOOL_REQUIRED_STORY_CONTRACT_CAPABILITIES);
     return contract;
   };
 

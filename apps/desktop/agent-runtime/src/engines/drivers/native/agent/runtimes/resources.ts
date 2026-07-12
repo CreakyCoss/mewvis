@@ -1,6 +1,6 @@
 import { uniq } from "lodash-es";
 import type { AgentRuntimeResources } from "../../../../protocol/index.js";
-import { isBuiltinPrivateToolName, resolveBuiltinCombinations } from "../../../../builtins/resolve.js";
+import { isBuiltinPrivateToolName, resolveBuiltins } from "../../../../builtins/index.js";
 import { DEFAULT_ALLOWED_AGENT_TOOLS } from "../tools/definitions.js";
 import type { AgentRunCommand } from "./types.js";
 
@@ -23,7 +23,7 @@ export const runtimeResourcesFor = (command: RuntimeResourceCommand): AgentRunti
 export const allowedRuntimeTools = (command: RuntimeResourceCommand) => {
   const resources = runtimeResourcesFor(command);
   const configured = resources.tools?.allowed ?? undefined;
-  const builtin = resolveBuiltinCombinations(resources.skills?.enabled ?? []);
+  const builtin = resolveBuiltins(resources.skills?.enabled ?? []);
   if (builtin.requiredTools.internal.length === 0 && builtin.requiredTools.external.length === 0) {
     return configured?.filter((name) => !isBuiltinPrivateToolName(name));
   }
@@ -31,7 +31,7 @@ export const allowedRuntimeTools = (command: RuntimeResourceCommand) => {
   return uniq([
     ...publicTools,
     ...builtin.requiredTools.external,
-    ...builtin.requiredTools.internal.map((requirement) => requirement.definition.name),
+    ...builtin.requiredTools.internal.map((tool) => tool.name),
   ]);
 };
 

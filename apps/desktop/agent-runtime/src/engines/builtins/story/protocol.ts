@@ -2,7 +2,8 @@ import type {
   CompiledStoryContractDescription,
   StoryValidationIssue,
   StoryValidationResult,
-} from "../../../../../../protocols/story-project/index.js";
+} from "../../../../../protocols/story-project/index.js";
+import { defineBuiltinToolContract } from "../definition.js";
 
 export const STORY_TOOL_ACTIONS = {
   describeStructure: "describe_structure",
@@ -85,10 +86,22 @@ export type StoryCommitChangesResult = {
   hint: string | null;
 };
 
-export interface StoryToolService {
+export interface StoryToolApi {
   describeStructure(): Promise<StoryDescribeStructureResult>;
   initialize(input: StoryInitializeRequest): Promise<StoryInitializeResult>;
   readContext(input: StoryReadContextRequest): Promise<unknown>;
   validateChanges(input: StoryChangeSetRequest): Promise<StoryValidateChangesResult>;
   commitChanges(input: StoryChangeSetRequest): Promise<StoryCommitChangesResult>;
 }
+
+export const STORY_TOOL_CONTRACT = defineBuiltinToolContract<StoryToolApi>()({
+  id: "novel-claw.story-project-tool",
+  version: 1,
+  methods: {
+    describeStructure: { description: "返回 Compiler 标准化后的故事结构与 ChangeSet 约束" },
+    initialize: { description: "按当前故事协议初始化项目" },
+    readContext: { description: "读取项目摘要或章节写作上下文" },
+    validateChanges: { description: "校验小批次 ChangeSet，但不写入" },
+    commitChanges: { description: "校验并原子提交小批次 ChangeSet" },
+  },
+});

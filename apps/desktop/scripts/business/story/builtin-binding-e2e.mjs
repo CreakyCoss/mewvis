@@ -10,30 +10,56 @@ const entryPath = join(tempDir, "runner.ts");
 const bundlePath = join(tempDir, "runner.mjs");
 const resourcesPath = resolve(root, "agent-runtime/src/engines/drivers/native/agent/runtimes/resources.ts");
 const builtinsIndexPath = resolve(root, "agent-runtime/src/engines/builtins/index.ts");
-const builtinResolverPath = resolve(root, "agent-runtime/src/engines/builtins/resolve.ts");
+const builtinDefinitionPath = resolve(root, "agent-runtime/src/engines/builtins/definition.ts");
+const storyBuiltinPath = resolve(root, "agent-runtime/src/engines/builtins/story/index.ts");
 const builtinSkillsPath = resolve(root, "agent-runtime/src/engines/builtins/story/skills");
 
 writeFileSync(
   entryPath,
   `
   import { allowedRuntimeTools } from ${JSON.stringify(resourcesPath)};
-  import { BUILTIN_COMBINATIONS } from ${JSON.stringify(builtinsIndexPath)};
-  import { resolveBuiltinCombinations } from ${JSON.stringify(builtinResolverPath)};
+  import { resolveBuiltins } from ${JSON.stringify(builtinsIndexPath)};
+  import { defineBuiltin } from ${JSON.stringify(builtinDefinitionPath)};
+  import { STORY_BUILTIN } from ${JSON.stringify(storyBuiltinPath)};
 
   const assert = (condition: unknown, message: string, details?: unknown) => {
     if (!condition) throw new Error(message + (details === undefined ? "" : "\\n" + JSON.stringify(details, null, 2)));
   };
 
   process.env.AGENT_RUNTIME_BUILTIN_SKILLS_DIR = ${JSON.stringify(builtinSkillsPath)};
-  const storyCombination = BUILTIN_COMBINATIONS[0];
-  assert(storyCombination.skill.id === "story-authoring" && storyCombination.tools[0]?.name === "story", "index 应只组合一个 story-authoring 技能与一个 story 工具。", storyCombination);
+  const storyBuiltin = STORY_BUILTIN;
+  assert(storyBuiltin.id === "story" && storyBuiltin.skill.id === "story-authoring" && storyBuiltin.tools[0]?.name === "story", "根 index 应只收集 Story 模块导出的完整成品。", storyBuiltin);
+  const requiredContract = storyBuiltin.skill.requiredToolContracts[0];
+  const providedContract = storyBuiltin.tools[0]?.contract;
   assert(
-    storyCombination.skill.requiredToolCapabilities.every((capability) =>
-      storyCombination.tools.some((tool) => tool.capabilities.includes(capability))
-    ),
-    "组合中的工具必须满足技能声明的 capability。",
-    storyCombination,
+    requiredContract.id === providedContract?.id &&
+      requiredContract.version === providedContract?.version &&
+      Object.keys(requiredContract.methods).every((method) => method in providedContract.methods),
+    "组合中的工具必须实现技能声明的完整 Tool Contract。",
+    storyBuiltin,
   );
+  let incompatibleBuiltinRejected = false;
+  try {
+    defineBuiltin({
+      ...storyBuiltin,
+      tools: [{ ...storyBuiltin.tools[0], contract: { ...providedContract, methods: {} } }],
+    });
+  } catch (error) {
+    incompatibleBuiltinRejected = String(error).includes("缺少方法");
+  }
+  assert(incompatibleBuiltinRejected, "defineBuiltin 必须拒绝缺少接口方法的工具实现。");
+  const skillOnlyBuiltin = defineBuiltin({
+    id: "skill-only-test",
+    skill: {
+      id: "skill-only-test",
+      referenceName: "skill-only-test",
+      skills: { names: ["skill-only-test"], resolveSourcePath: () => "/tmp/skill-only-test" },
+      requiredToolContracts: [],
+      requiredExternalTools: [],
+    },
+    tools: [],
+  });
+  assert(skillOnlyBuiltin.tools.length === 0, "通用 BuiltinDefinition 必须支持无需内部工具的纯技能。");
   const command = (enabled: string[], allowed = ["read", "story"]) => ({
     resources: {
       tools: { allowed },
@@ -43,22 +69,12 @@ writeFileSync(
 
   const ordinary = command([]);
   assert(!allowedRuntimeTools(ordinary)?.includes("story"), "前端显式传入 story 也不得启用私有工具。", allowedRuntimeTools(ordinary));
-  assert(resolveBuiltinCombinations([]).requiredTools.internal.length === 0, "普通技能不得获得私有故事工具。");
+  assert(resolveBuiltins([]).requiredTools.internal.length === 0, "普通技能不得获得私有故事工具。");
 
   const story = command(["story-assistant"], ["read"]);
-  const bundle = resolveBuiltinCombinations(["story-assistant"]);
+  const bundle = resolveBuiltins(["story-assistant"]);
   assert(bundle.skillNames.length === 8 && bundle.skillNames.includes("story-assistant-review"), "对外引用名应展开完整内置技能列表。", bundle);
-  assert(bundle.requiredTools.internal.map((item) => item.definition.name).join(",") === "story", "内置故事技能必须强制绑定内部 story 工具。", bundle);
-  assert(
-    bundle.requiredTools.internal[0]?.requiredContractCapabilities.join(",") === [
-      "novel-claw.story.documents@1",
-      "novel-claw.story.context.project@1",
-      "novel-claw.story.context.chapter-writing@1",
-      "novel-claw.story.changes.atomic@1",
-    ].join(","),
-    "故事技能必须声明抽象工作区协议能力，不得绑定默认协议 ID。",
-    bundle,
-  );
+  assert(bundle.requiredTools.internal.map((tool) => tool.name).join(",") === "story", "内置故事技能必须强制绑定内部 story 工具。", bundle);
   assert(bundle.requiredTools.external.join(",") === "read,ls,find,grep,ask_user", "内置故事技能包必须声明外部必需工具。", bundle);
   assert(bundle.sourcePaths.length === 1, "内置技能路径必须由 bundle 自己解析。", bundle);
   assert(bundle.reservedSkillNames.size === 8, "内置故事技能名必须保留，防止外部同名覆盖。");
