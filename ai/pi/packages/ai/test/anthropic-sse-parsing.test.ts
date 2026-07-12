@@ -186,4 +186,30 @@ describe("Anthropic raw SSE parsing", () => {
 		expect(result.errorMessage).toBeUndefined();
 		expect(result.content).toEqual([{ type: "text", text: "Hello" }]);
 	});
+
+	it("accepts Anthropic-compatible streams that omit usage", async () => {
+		const model = getModel("anthropic", "claude-haiku-4-5");
+		const context: Context = {
+			messages: [{ role: "user", content: "Say hello.", timestamp: Date.now() }],
+		};
+		const response = createSseResponse(
+			minimalAnthropicEvents.map((event) => {
+				const data = JSON.parse(event.data) as Record<string, unknown>;
+				if (data.type === "message_start") {
+					delete (data.message as Record<string, unknown>).usage;
+				}
+				if (data.type === "message_delta") delete data.usage;
+				return { ...event, data: JSON.stringify(data) };
+			}),
+		);
+
+		const result = await streamAnthropic(model, context, {
+			client: createFakeAnthropicClient(response),
+		}).result();
+
+		expect(result.stopReason).toBe("stop");
+		expect(result.errorMessage).toBeUndefined();
+		expect(result.content).toEqual([{ type: "text", text: "Hello" }]);
+		expect(result.usage).toMatchObject({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0 });
+	});
 });

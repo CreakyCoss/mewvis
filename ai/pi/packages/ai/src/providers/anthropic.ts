@@ -505,12 +505,15 @@ export const streamAnthropic: StreamFunction<"anthropic-messages", AnthropicOpti
 			for await (const event of iterateAnthropicEvents(response, options?.signal)) {
 				if (event.type === "message_start") {
 					output.responseId = event.message.id;
-					// Capture initial token usage from message_start event
-					// This ensures we have input token counts even if the stream is aborted early
-					output.usage.input = event.message.usage.input_tokens || 0;
-					output.usage.output = event.message.usage.output_tokens || 0;
-					output.usage.cacheRead = event.message.usage.cache_read_input_tokens || 0;
-					output.usage.cacheWrite = event.message.usage.cache_creation_input_tokens || 0;
+					// Anthropic declares usage as required, but compatible providers may omit it.
+					// Preserve the initialized zero usage instead of failing the whole stream.
+					const usage = event.message.usage;
+					if (usage) {
+						output.usage.input = usage.input_tokens || 0;
+						output.usage.output = usage.output_tokens || 0;
+						output.usage.cacheRead = usage.cache_read_input_tokens || 0;
+						output.usage.cacheWrite = usage.cache_creation_input_tokens || 0;
+					}
 					// Anthropic doesn't provide total_tokens, compute from components
 					output.usage.totalTokens =
 						output.usage.input + output.usage.output + output.usage.cacheRead + output.usage.cacheWrite;
@@ -639,19 +642,15 @@ export const streamAnthropic: StreamFunction<"anthropic-messages", AnthropicOpti
 					if (event.delta.stop_reason) {
 						output.stopReason = mapStopReason(event.delta.stop_reason);
 					}
-					// Only update usage fields if present (not null).
-					// Preserves input_tokens from message_start when proxies omit it in message_delta.
-					if (event.usage.input_tokens != null) {
-						output.usage.input = event.usage.input_tokens;
-					}
-					if (event.usage.output_tokens != null) {
-						output.usage.output = event.usage.output_tokens;
-					}
-					if (event.usage.cache_read_input_tokens != null) {
-						output.usage.cacheRead = event.usage.cache_read_input_tokens;
-					}
-					if (event.usage.cache_creation_input_tokens != null) {
-						output.usage.cacheWrite = event.usage.cache_creation_input_tokens;
+					// Preserve message_start usage when compatible providers omit message_delta usage.
+					const usage = event.usage;
+					if (usage) {
+						if (usage.input_tokens != null) output.usage.input = usage.input_tokens;
+						if (usage.output_tokens != null) output.usage.output = usage.output_tokens;
+						if (usage.cache_read_input_tokens != null) output.usage.cacheRead = usage.cache_read_input_tokens;
+						if (usage.cache_creation_input_tokens != null) {
+							output.usage.cacheWrite = usage.cache_creation_input_tokens;
+						}
 					}
 					// Anthropic doesn't provide total_tokens, compute from components
 					output.usage.totalTokens =
