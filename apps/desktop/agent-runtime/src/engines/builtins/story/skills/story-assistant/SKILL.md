@@ -44,4 +44,4 @@ metadata:
 - 每个小批次直接用 `story(action="commit_changes", changeSet={...})` 原子校验并提交；它会先完整校验，失败绝不写盘。`action="validate_changes"` 只用于用户明确要求预览或诊断失败，不得作为每批固定前置步骤。提交后重读新 revision 再开始下一批。
 - 禁止把整本书、完整导入、几十章细纲或全部审查结果放进一个 ChangeSet，也禁止为改一个字段而 upsert 整个已有文件。
 - 不使用 `write`、`edit`、`bash` 直接改故事目录，不创建 Markdown 故事资产，也不提供无工具兜底格式。
-- analyze/review/import 的结果分别写入 `story/analysis/`、`story/reviews/`、`story/imports/`。
+- analyze/review/import 的结果分别写入 `analysis`、`review`、`import` 角色对应的文档；角色未启用时对应流程不可用。

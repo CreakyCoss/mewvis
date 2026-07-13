@@ -1,10 +1,6 @@
-import type { StoryProjectLayout } from "../../../../../../protocols/story-project";
+import { DEFAULT_STORY_PROFILE } from "../profiles/default-novel";
 
-export const DEFAULT_STORY_PROJECT_LAYOUT: StoryProjectLayout = {
-  profile: {
-    id: "novel-claw.story.default-novel",
-    version: 1,
-  },
+export const DEFAULT_STORY_PROJECT_LAYOUT = DEFAULT_STORY_PROFILE.defineLayout({
   layoutVersion: 1,
   rootPath: "story",
   documents: {
@@ -30,4 +26,4 @@ export const DEFAULT_STORY_PROJECT_LAYOUT: StoryProjectLayout = {
     "story-review": { pathPattern: "story/reviews/{id}.json" },
     "story-import": { pathPattern: "story/imports/{id}.json" },
   },
-};
+});

@@ -1,7 +1,7 @@
 ---
 name: story-assistant-long-analyze
 description: >-
-  Novel Claw 故事创作助手专属的结构化长篇拆文技能。用户要求分析黄金三章、完整拆解长篇、研究对标书、人设架构、节奏、爽点、情绪模块或文风时必须使用。继承 oh-story-claudecode 最新 Stage 0-6 方法，但结果写入 story/analysis/*.json，不创建拆文库 Markdown 树，也不修改普通 story-long-analyze 技能。
+  Novel Claw 故事创作助手专属的结构化长篇拆文技能。用户要求分析黄金三章、完整拆解长篇、研究对标书、人设架构、节奏、爽点、情绪模块或文风时必须使用。继承 oh-story-claudecode 最新 Stage 0-6 方法，但结果写入当前 Profile 的 analysis 角色文档，不创建拆文库 Markdown 树，也不修改普通 story-long-analyze 技能。
 metadata:
   novel-claw:
     assistant-only: true
@@ -19,7 +19,7 @@ metadata:
 
 ## 输出契约
 
-每个分析对象对应 `story/analysis/{analysisId}.json`，kind 为 `story-analysis`：
+每个分析对象对应一份 `analysis` 角色文档；实际 kind 与路径从 `documentRoles.analysis` 和对应文档定义解析：
 
 - `analysisType="long"`；
 - `target`：当前故事用 `current-story`，对标作品用 `benchmark`，导入源用 `import-source`；

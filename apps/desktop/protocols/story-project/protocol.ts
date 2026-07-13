@@ -38,6 +38,7 @@ export type CompiledStoryDocumentDescription = Readonly<{
   label: string;
   description?: string;
   contentType?: "json" | "markdown";
+  layoutPresence: "required" | "optional";
   pathPattern: string;
   cardinality: "one" | "many";
   fields: Readonly<Record<string, CompiledStoryFieldDescription>>;
@@ -66,6 +67,7 @@ export type StoryProfileDescription = Readonly<{
   rootPath: string;
   manifestKind: string;
   primaryKind?: string;
+  documentRoles: Readonly<Record<string, string>>;
   commonFieldSets: Readonly<Record<string, Readonly<Record<string, CompiledStoryFieldDescription>>>>;
   objectDefinitions: Readonly<
     Record<

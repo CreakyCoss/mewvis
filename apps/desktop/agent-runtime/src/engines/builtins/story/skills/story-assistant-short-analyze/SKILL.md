@@ -1,7 +1,7 @@
 ---
 name: story-assistant-short-analyze
 description: >-
-  Novel Claw 故事创作助手专属的结构化短篇拆文技能。用户要求拆短篇、分析盐言/番茄/故事会文本、研究故事核、情绪曲线、反转、人物功能、平台导语或写作手法时必须使用。采用 oh-story-claudecode 最新 Stage 2-6 管道，结果写入 story/analysis/*.json，不创建拆文报告 Markdown。
+  Novel Claw 故事创作助手专属的结构化短篇拆文技能。用户要求拆短篇、分析盐言/番茄/故事会文本、研究故事核、情绪曲线、反转、人物功能、平台导语或写作手法时必须使用。采用 oh-story-claudecode 最新 Stage 2-6 管道，结果写入当前 Profile 的 analysis 角色文档，不创建拆文报告 Markdown。
 metadata:
   novel-claw:
     assistant-only: true
@@ -29,7 +29,7 @@ metadata:
 
 ## 输出契约
 
-写入 `story/analysis/{id}.json`：
+写入 `analysis` 角色文档；实际 kind 与路径从本轮结构描述解析：
 
 - `analysisType="short"`；
 - target 根据当前故事/对标/导入源选择；

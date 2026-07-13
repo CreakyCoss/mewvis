@@ -1,8 +1,23 @@
+export type StoryProjectLayoutDocument = Readonly<{ pathPattern: string }>;
+
 export type StoryProjectLayout = Readonly<{
   profile: Readonly<{ id: string; version: number }>;
   layoutVersion: number;
   rootPath: string;
-  documents: Readonly<Record<string, Readonly<{ pathPattern: string }>>>;
+  documents: Readonly<Record<string, StoryProjectLayoutDocument>>;
+}>;
+
+export type StoryProjectLayoutInput<TRequiredKind extends string, TOptionalKind extends string> = Readonly<{
+  layoutVersion: number;
+  rootPath: string;
+  documents: Readonly<Record<TRequiredKind, StoryProjectLayoutDocument>> &
+    Readonly<Partial<Record<TOptionalKind, StoryProjectLayoutDocument>>>;
+}>;
+
+export type StoryProjectLayoutProfile<TRequiredKind extends string, TOptionalKind extends string> = Readonly<{
+  identity: Readonly<{ id: string; version: number }>;
+  requiredDocumentKinds: readonly TRequiredKind[];
+  optionalDocumentKinds: readonly TOptionalKind[];
 }>;
 
 const objectValue = (input: unknown, owner: string): Record<string, unknown> => {
@@ -39,4 +54,23 @@ export const parseStoryProjectLayout = (input: unknown): StoryProjectLayout => {
       }),
     ),
   };
+};
+
+export const defineStoryProjectLayout = <TRequiredKind extends string, TOptionalKind extends string>(
+  profile: StoryProjectLayoutProfile<TRequiredKind, TOptionalKind>,
+  input: StoryProjectLayoutInput<TRequiredKind, TOptionalKind>,
+): StoryProjectLayout => {
+  const knownKinds = new Set<string>([...profile.requiredDocumentKinds, ...profile.optionalDocumentKinds]);
+  const actualKinds = Object.keys(input.documents);
+  const missingKinds = profile.requiredDocumentKinds.filter((kind) => !actualKinds.includes(kind));
+  const unknownKinds = actualKinds.filter((kind) => !knownKinds.has(kind));
+  if (missingKinds.length > 0 || unknownKinds.length > 0) {
+    throw new Error(
+      `Layout 文档映射与 Profile 定义不一致；缺少必需文档：${missingKinds.join("、") || "无"}；未知文档：${unknownKinds.join("、") || "无"}。`,
+    );
+  }
+  return parseStoryProjectLayout({
+    ...input,
+    profile: profile.identity,
+  });
 };

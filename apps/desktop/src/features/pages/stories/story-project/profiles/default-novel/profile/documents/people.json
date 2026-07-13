@@ -1,7 +1,7 @@
 {
   "story-character": {
     "label": "角色档案",
-    "pathPattern": "story/characters/{id}.json",
+    "layoutPresence": "required",
     "cardinality": "many",
     "titlePointer": "/name",
     "fieldSets": ["entity-document"],
@@ -135,7 +135,7 @@
   },
   "story-relationships": {
     "label": "角色关系网",
-    "pathPattern": "story/relationships.json",
+    "layoutPresence": "required",
     "cardinality": "one",
     "fieldSets": ["entity-document"],
     "constFields": {
@@ -155,7 +155,7 @@
   "story-world-entry": {
     "label": "世界设定",
     "description": "背景、力量体系、地理、社会、势力、物品和规则等可召回设定",
-    "pathPattern": "story/world/{id}.json",
+    "layoutPresence": "required",
     "cardinality": "many",
     "titlePointer": "/title",
     "fieldSets": ["entity-document"],

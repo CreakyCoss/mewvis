@@ -1,7 +1,7 @@
 {
   "story-scene": {
     "label": "互动场景",
-    "pathPattern": "story/interactive/scenes/{id}.json",
+    "layoutPresence": "required",
     "cardinality": "many",
     "titlePointer": "/title",
     "fieldSets": ["entity-document"],
@@ -54,7 +54,7 @@
   },
   "story-graph": {
     "label": "互动剧情图",
-    "pathPattern": "story/interactive/graph.json",
+    "layoutPresence": "required",
     "cardinality": "one",
     "fieldSets": ["entity-document"],
     "constFields": {

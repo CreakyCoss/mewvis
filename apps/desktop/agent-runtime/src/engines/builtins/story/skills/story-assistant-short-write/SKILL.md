@@ -29,13 +29,13 @@ metadata:
 
 短篇不创建 Markdown 单文件，使用统一结构表达：
 
-- `story/positioning.json`：`lengthType="short"`、平台、题材、目标字数、情绪承诺；
-- `story/book.json`：一句话梗概、核心冲突、最终阻碍、主角；
-- `story/characters/*.json` 与 `relationships.json`：只保留核心人物；
-- `story/outline/book-arc.json`：`totalChapters=1`，阶段表示开头/铺垫/升级/反转/结尾；
-- 一个 `story/outline/volumes/{id}.json`：短篇整体结构；
-- 一个 `story/outline/chapters/{planId}.json`：beats 对应数字小节/戏剧单元；
-- 一个 `story/chapters/{chapterId}.md`：完整短篇正文，beat 之间用自然段或统一小节标记组织；对应章节结果保存为结构化 JSON。
+- `positioning` 角色文档：`lengthType="short"`、平台、题材、目标字数、情绪承诺；
+- `primary` 角色文档：一句话梗概、核心冲突、最终阻碍、主角；
+- `character` 与 `relationships` 角色文档：只保留核心人物；
+- `bookArc` 角色文档：`totalChapters=1`，阶段表示开头/铺垫/升级/反转/结尾；
+- 一个 `volume` 角色文档：短篇整体结构；
+- 一个 `chapterPlan` 角色文档：beats 对应数字小节/戏剧单元；
+- 一个 `chapterContent` 角色文档：完整短篇正文，beat 之间用自然段或统一小节标记组织；对应 `chapterResult` 角色文档保存结构化章节结果。
 
 ## 开篇构思
 
@@ -77,7 +77,7 @@ metadata:
 1. `story(action="read_context", scope="chapter", targetId="短篇 plan ID")`。
 2. 按 beats 写完整正文；发生、感知、反应揉进同一连续场景，不写成提纲腔。
 3. 检查节数/beat 守恒、情绪递增、反转证据、字数和结尾余韵。
-4. 新正文在同一 ChangeSet 中 upsert `story/chapters/{id}.md` 的正文字符串和 `story/tracking/chapter-results/{id}.json` 的章节结果；已有正文续写或局部改写时对 Markdown 使用 field=`content` 的 append-text/replace-text，再 patch summary、wordCount。按需要小批更新 plan、角色状态、关系、伏笔、时间线与 progress。
+4. 新正文在同一 ChangeSet 中 upsert `chapterContent` 角色文档的正文字符串和 `chapterResult` 角色文档的章节结果；已有正文续写或局部改写时对 Markdown 使用 field=`content` 的 append-text/replace-text，再 patch summary、wordCount。按需要小批更新 chapterPlan、characterState、relationships、foreshadows、timeline 与 progress 角色文档。
 5. 最终正文批 `batch.final=true`，用 `validationProfile="chapterWrite"` 校验提交。不要把超长正文和全部追踪对象塞进同一 ChangeSet。
 
 ## 正文门槛

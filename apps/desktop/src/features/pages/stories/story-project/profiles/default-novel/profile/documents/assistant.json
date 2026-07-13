@@ -1,7 +1,7 @@
 {
   "story-analysis": {
     "label": "故事分析",
-    "pathPattern": "story/analysis/{id}.json",
+    "layoutPresence": "optional",
     "cardinality": "many",
     "fieldSets": ["entity-document"],
     "constFields": {
@@ -146,7 +146,7 @@
   },
   "story-review": {
     "label": "审稿记录",
-    "pathPattern": "story/reviews/{id}.json",
+    "layoutPresence": "optional",
     "cardinality": "many",
     "fieldSets": ["entity-document"],
     "constFields": {
@@ -252,7 +252,7 @@
   },
   "story-import": {
     "label": "导入记录",
-    "pathPattern": "story/imports/{id}.json",
+    "layoutPresence": "optional",
     "cardinality": "many",
     "titlePointer": "/sourceTitle",
     "fieldSets": ["entity-document"],

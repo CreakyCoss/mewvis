@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { transform } from "esbuild";
+import { build } from "esbuild";
 
 const root = process.cwd();
 const profilePath = resolve(root, "src/features/pages/stories/story-project/profiles/default-novel/profile");
@@ -20,9 +20,16 @@ const documents = Object.assign(
     .map((name) => JSON.parse(readFileSync(resolve(profilePath, "documents", name), "utf8"))),
 );
 const contract = { ...metadata, objectDefinitions: objectDefinitionSource, documents };
-const layoutModule = await transform(readFileSync(layoutPath, "utf8"), { format: "esm", loader: "ts" });
+const layoutModule = await build({
+  entryPoints: [layoutPath],
+  bundle: true,
+  format: "esm",
+  platform: "node",
+  target: "node22",
+  write: false,
+});
 const layout = (
-  await import(`data:text/javascript;base64,${Buffer.from(layoutModule.code).toString("base64")}`)
+  await import(`data:text/javascript;base64,${Buffer.from(layoutModule.outputFiles[0].text).toString("base64")}`)
 ).DEFAULT_STORY_PROJECT_LAYOUT;
 
 const expectedDocumentPaths = {
@@ -52,7 +59,7 @@ assert.equal(contract.$format, "novel-claw.story-profile");
 assert.equal(contract.profileId, "novel-claw.story.default-novel");
 assert.equal(contract.profileVersion, 1);
 assert.equal(contract.schemaVersion, 1);
-assert.equal(contract.rootPath, "story");
+assert.equal(contract.rootPath, undefined, "Profile 不应决定文件根目录");
 assert.equal(contract.documentEncoding, undefined, "标准 Profile 不应声明持久化信封格式");
 assert.equal(layout.profile.id, contract.profileId);
 assert.equal(layout.profile.version, contract.profileVersion);
@@ -65,6 +72,14 @@ assert.equal(contract.skillBindings, undefined, "故事产品协议不得绑定�
 assert.equal(contract.contextViews["project-summary"].scope, "project");
 assert.equal(contract.contextViews["chapter-writing"].scope, "chapter");
 assert.equal(contract.contextViews["chapter-writing"].targetKind, "story-chapter-plan");
+assert.equal(contract.documentRoles.manifest, contract.manifestKind);
+assert.equal(contract.documentRoles.primary, contract.primaryKind);
+assert.equal(contract.documentRoles.chapterPlan, "story-chapter-plan");
+assert.equal(contract.documentRoles.chapterContent, "story-chapter-content");
+assert.equal(contract.documentRoles.chapterResult, "story-chapter");
+for (const [role, kind] of Object.entries(contract.documentRoles)) {
+  assert.ok(contract.documents[kind], `文档角色 ${role} 引用了未知文档类型 ${kind}`);
+}
 for (const view of Object.values(contract.contextViews)) {
   for (const kind of view.documentKinds) {
     assert.ok(contract.documents[kind], `${view.label} 引用了未知文档类型 ${kind}`);
@@ -119,6 +134,8 @@ for (const [name, fieldSet] of Object.entries(contract.commonFieldSets)) {
 
 for (const [kind, document] of Object.entries(contract.documents)) {
   assert.equal(layout.documents[kind]?.pathPattern, expectedDocumentPaths[kind], `${kind} 的布局路径不一致`);
+  assert.equal(document.pathPattern, undefined, `${kind} 的 Profile 不应决定文件路径`);
+  assert.ok(["required", "optional"].includes(document.layoutPresence), `${kind} 必须声明布局必要性`);
   assert.ok(["one", "many"].includes(document.cardinality), `${kind} 必须定义合法 cardinality`);
   validateFields(`documents.${kind}`, document.fields);
   for (const fieldSet of document.fieldSets ?? []) {
@@ -129,6 +146,15 @@ for (const [kind, document] of Object.entries(contract.documents)) {
   const inheritedKind = document.constFields?.["/kind"];
   assert.equal(directKind ?? inheritedKind, kind, `${kind} 必须稳定声明自身 kind`);
 }
+
+assert.deepEqual(
+  Object.entries(contract.documents)
+    .filter(([, document]) => document.layoutPresence === "optional")
+    .map(([kind]) => kind)
+    .sort(),
+  ["story-analysis", "story-import", "story-review"],
+  "辅助产物应作为可被 Layout 关闭的可选文档",
+);
 
 assert.deepEqual(
   contract.documents["story-chapter"].companionKinds,

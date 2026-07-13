@@ -57,32 +57,73 @@ const documentId = (value: unknown) => {
 const documentKind = (value: unknown) => (isObject(value) && typeof value.kind === "string" ? value.kind : "");
 
 const compiledProfile = (profileInput: unknown, layoutInput: unknown): StoryProfile => {
-  const profile = parseStoryProfile(profileInput);
+  const source = parseStoryProfile(profileInput);
   const layout = parseStoryProjectLayout(layoutInput);
-  if (layout.profile.id !== profile.profileId || layout.profile.version !== profile.profileVersion) {
+  if (layout.profile.id !== source.profileId || layout.profile.version !== source.profileVersion) {
     throw new Error(
-      `Layout 选择的 Profile 与快照不一致：${layout.profile.id}@${layout.profile.version} / ${profile.profileId}@${profile.profileVersion}`,
+      `Layout 选择的 Profile 与快照不一致：${layout.profile.id}@${layout.profile.version} / ${source.profileId}@${source.profileVersion}`,
     );
   }
-  const expectedKinds = Object.keys(profile.documents).sort();
   const actualKinds = Object.keys(layout.documents).sort();
-  if (JSON.stringify(expectedKinds) !== JSON.stringify(actualKinds)) {
-    const missing = expectedKinds.filter((kind) => !actualKinds.includes(kind));
-    const extra = actualKinds.filter((kind) => !expectedKinds.includes(kind));
-    throw new Error(`Layout 文档映射与 Profile 不一致；缺少：${missing.join("、") || "无"}；多余：${extra.join("、") || "无"}。`);
+  const knownKinds = Object.keys(source.documents).sort();
+  const missingKinds = knownKinds.filter(
+    (kind) => source.documents[kind]!.layoutPresence === "required" && !actualKinds.includes(kind),
+  );
+  const unknownKinds = actualKinds.filter((kind) => !source.documents[kind]);
+  if (missingKinds.length > 0 || unknownKinds.length > 0) {
+    throw new Error(
+      `Layout 文档映射与 Profile 不一致；缺少必需文档：${missingKinds.join("、") || "无"}；未知文档：${unknownKinds.join("、") || "无"}。`,
+    );
   }
-  for (const [kind, document] of Object.entries(profile.documents)) {
+  const enabledKinds = new Set(actualKinds);
+  for (const [kind, document] of Object.entries(source.documents)) {
+    if (!enabledKinds.has(kind)) continue;
     for (const companionKind of document.companionKinds ?? []) {
-      if (!profile.documents[companionKind]) throw new Error(`${kind} 引用了未知 companionKind：${companionKind}`);
+      if (!source.documents[companionKind]) throw new Error(`${kind} 引用了未知 companionKind：${companionKind}`);
+      if (!enabledKinds.has(companionKind)) {
+        throw new Error(`Layout 启用了 ${kind}，但未启用其配套文档 ${companionKind}。`);
+      }
     }
   }
+
+  const rootPath = canonicalPath(layout.rootPath);
+  const paths = new Map<string, string>();
+  for (const [kind, document] of Object.entries(layout.documents)) {
+    const pathPattern = canonicalPath(document.pathPattern);
+    if (
+      !pathPattern.startsWith(`${rootPath}/`) ||
+      pathPattern.split("/").some((segment) => !segment || segment === "." || segment === "..")
+    ) {
+      throw new Error(`Layout 的 ${kind} 路径必须位于 ${rootPath}/ 下：${document.pathPattern}`);
+    }
+    const owner = paths.get(pathPattern);
+    if (owner) throw new Error(`Layout 文档路径重复：${owner} 与 ${kind} 都使用 ${pathPattern}。`);
+    paths.set(pathPattern, kind);
+  }
+
+  const contextViews = Object.fromEntries(
+    Object.entries(source.contextViews).map(([name, view]) => {
+      if (view.targetKind && !enabledKinds.has(view.targetKind)) {
+        throw new Error(`Layout 未启用 contextViews.${name}.targetKind：${view.targetKind}`);
+      }
+      const documentKinds = view.documentKinds.filter((kind) => enabledKinds.has(kind));
+      if (documentKinds.length === 0) throw new Error(`Layout 使 contextViews.${name} 不再包含任何文档。`);
+      return [name, { ...view, documentKinds }];
+    }),
+  );
+  const documentRoles = Object.fromEntries(
+    Object.entries(source.documentRoles).filter(([, kind]) => enabledKinds.has(kind)),
+  );
+
   return {
-    ...profile,
-    rootPath: layout.rootPath,
+    ...source,
+    rootPath,
+    documentRoles,
+    contextViews,
     documents: Object.fromEntries(
-      Object.entries(profile.documents).map(([kind, document]) => [
+      actualKinds.map((kind) => [
         kind,
-        { ...document, pathPattern: layout.documents[kind]!.pathPattern },
+        { ...source.documents[kind]!, pathPattern: layout.documents[kind]!.pathPattern },
       ]),
     ),
   };
@@ -120,7 +161,8 @@ const initialDocumentInput = (
   for (const [pointer, field] of Object.entries(fields)) {
     const key = pointerKey(pointer);
     if (key === "storyId") result[key] = storyId;
-    else if (key === "id") result[key] = kind === profile.primaryKind ? storyId : `${storyId}-${kind.replace(/^story-/, "")}`;
+    else if (key === "id")
+      result[key] = kind === profile.primaryKind ? storyId : `${storyId}-${kind.replace(/^story-/, "")}`;
     else if (key === "title") result[key] = title;
     else if (key === "revision") result[key] = 0;
     else if (key === "files") result[key] = [];
@@ -145,13 +187,59 @@ const storyChangeSetBatchSchema = z
 const storyChangeSetOperationSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("upsert"), path: z.string().trim().min(1), value: z.unknown() }).strict(),
   z.object({ type: z.literal("delete"), path: z.string().trim().min(1) }).strict(),
-  z.object({ type: z.literal("patch"), path: z.string().trim().min(1), value: z.record(z.string(), z.unknown()) }).strict(),
-  z.object({ type: z.literal("upsert-items"), path: z.string().trim().min(1), field: z.string().trim().min(1), items: z.array(z.record(z.string(), z.unknown())).min(1) }).strict(),
-  z.object({ type: z.literal("remove-items"), path: z.string().trim().min(1), field: z.string().trim().min(1), ids: z.array(z.string().trim().min(1)).min(1) }).strict(),
-  z.object({ type: z.literal("add-values"), path: z.string().trim().min(1), field: z.string().trim().min(1), values: z.array(z.string()).min(1) }).strict(),
-  z.object({ type: z.literal("remove-values"), path: z.string().trim().min(1), field: z.string().trim().min(1), values: z.array(z.string()).min(1) }).strict(),
-  z.object({ type: z.literal("append-text"), path: z.string().trim().min(1), field: z.string().trim().min(1), value: z.string().min(1), separator: z.string().optional() }).strict(),
-  z.object({ type: z.literal("replace-text"), path: z.string().trim().min(1), field: z.string().trim().min(1), oldText: z.string().min(1), newText: z.string() }).strict(),
+  z
+    .object({ type: z.literal("patch"), path: z.string().trim().min(1), value: z.record(z.string(), z.unknown()) })
+    .strict(),
+  z
+    .object({
+      type: z.literal("upsert-items"),
+      path: z.string().trim().min(1),
+      field: z.string().trim().min(1),
+      items: z.array(z.record(z.string(), z.unknown())).min(1),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("remove-items"),
+      path: z.string().trim().min(1),
+      field: z.string().trim().min(1),
+      ids: z.array(z.string().trim().min(1)).min(1),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("add-values"),
+      path: z.string().trim().min(1),
+      field: z.string().trim().min(1),
+      values: z.array(z.string()).min(1),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("remove-values"),
+      path: z.string().trim().min(1),
+      field: z.string().trim().min(1),
+      values: z.array(z.string()).min(1),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("append-text"),
+      path: z.string().trim().min(1),
+      field: z.string().trim().min(1),
+      value: z.string().min(1),
+      separator: z.string().optional(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("replace-text"),
+      path: z.string().trim().min(1),
+      field: z.string().trim().min(1),
+      oldText: z.string().min(1),
+      newText: z.string(),
+    })
+    .strict(),
 ]);
 
 export const storyChangeSetSchema = z
@@ -167,7 +255,11 @@ export const storyChangeSetSchema = z
   .strict()
   .superRefine((value, context) => {
     if (value.batch?.total !== undefined && value.batch.index > value.batch.total) {
-      context.addIssue({ code: z.ZodIssueCode.custom, path: ["batch", "index"], message: "批次 index 不能大于 total。" });
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["batch", "index"],
+        message: "批次 index 不能大于 total。",
+      });
     }
     const bytes = new TextEncoder().encode(JSON.stringify(value)).byteLength;
     if (bytes > STORY_CHANGE_SET_MAX_BYTES) {
@@ -226,7 +318,8 @@ const assembleProject = (
   manifestPath: string,
 ): StoryCompiledProject => {
   const manifestEntries = entries.filter((entry) => canonicalPath(entry.path) === manifestPath);
-  if (manifestEntries.length !== 1) throw new Error(`故事项目必须且只能包含一个 Manifest，当前为 ${manifestEntries.length} 个。`);
+  if (manifestEntries.length !== 1)
+    throw new Error(`故事项目必须且只能包含一个 Manifest，当前为 ${manifestEntries.length} 个。`);
   const documents = entries
     .filter((entry) => canonicalPath(entry.path) !== manifestPath)
     .map((entry) => {
@@ -290,15 +383,12 @@ const definitionIds = (project: StoryCompiledProject, profile: StoryProfile, iss
   const collect = (definitionName: string, value: unknown, path: string) => {
     if (!isObject(value) || typeof value.id !== "string" || !value.id) return;
     const ids = result.get(definitionName) ?? new Set<string>();
-    if (ids.has(value.id)) issues.push(issue("identity.duplicate", path, `${definitionName} 的 ID「${value.id}」重复。`));
+    if (ids.has(value.id))
+      issues.push(issue("identity.duplicate", path, `${definitionName} 的 ID「${value.id}」重复。`));
     ids.add(value.id);
     result.set(definitionName, ids);
   };
-  const visit = (
-    fields: Readonly<Record<string, StoryProfileField>>,
-    value: JsonObject,
-    basePath: string,
-  ) => {
+  const visit = (fields: Readonly<Record<string, StoryProfileField>>, value: JsonObject, basePath: string) => {
     for (const [pointer, field] of Object.entries(fields)) {
       const key = pointerKey(pointer);
       const item = value[key];
@@ -323,13 +413,22 @@ const definitionIds = (project: StoryCompiledProject, profile: StoryProfile, iss
   return result;
 };
 
-const validateProject = (project: StoryCompiledProject, profile: StoryProfile, validationProfile: string): StoryValidationResult => {
+const validateProject = (
+  project: StoryCompiledProject,
+  profile: StoryProfile,
+  validationProfile: string,
+): StoryValidationResult => {
   if (!profile.validationProfiles[validationProfile]) throw new Error(`Profile 不支持校验模式：${validationProfile}`);
   const issues: StoryValidationIssue[] = [];
   const info = projectInfo(project);
   const declared = manifestFiles(project.manifest);
-  const actual = project.documents.map(({ path, value }) => ({ path, kind: documentKind(value), id: documentId(value) }));
-  if (new Set(actual.map((item) => item.path)).size !== actual.length) issues.push(issue("identity.duplicate", "project", "文件路径重复。"));
+  const actual = project.documents.map(({ path, value }) => ({
+    path,
+    kind: documentKind(value),
+    id: documentId(value),
+  }));
+  if (new Set(actual.map((item) => item.path)).size !== actual.length)
+    issues.push(issue("identity.duplicate", "project", "文件路径重复。"));
   for (const entry of actual) {
     if (!declared.some((item) => item.path === entry.path && item.kind === entry.kind && item.id === entry.id)) {
       issues.push(issue("manifest.file_missing", "manifest.files", `Manifest 缺少文件：${entry.path}`));
@@ -362,16 +461,21 @@ const validateProject = (project: StoryCompiledProject, profile: StoryProfile, v
           (!field.targetKinds?.length && !field.targetObjectDefinitions?.length) ||
           fieldValue === undefined ||
           fieldValue === ""
-        ) return;
+        )
+          return;
         const references = Array.isArray(fieldValue) ? fieldValue : [fieldValue];
         for (const reference of references) {
           if (typeof reference !== "string") continue;
-          const matchedKind = field.targetKinds?.some((targetKind) => idsByKind.get(targetKind)?.has(reference)) ?? false;
+          const matchedKind =
+            field.targetKinds?.some((targetKind) => idsByKind.get(targetKind)?.has(reference)) ?? false;
           const matchedDefinition =
-            field.targetObjectDefinitions?.some((definition) => idsByDefinition.get(definition)?.has(reference)) ?? false;
+            field.targetObjectDefinitions?.some((definition) => idsByDefinition.get(definition)?.has(reference)) ??
+            false;
           if (!matchedKind && !matchedDefinition) {
             const targets = [...(field.targetKinds ?? []), ...(field.targetObjectDefinitions ?? [])];
-            issues.push(issue("reference.missing", path, `引用「${reference}」未指向 ${targets.join("、")} 中的现有对象。`));
+            issues.push(
+              issue("reference.missing", path, `引用「${reference}」未指向 ${targets.join("、")} 中的现有对象。`),
+            );
           }
         }
       },
@@ -423,7 +527,9 @@ const applyChangeSet = (
 ): AppliedStoryChanges => {
   const changeSet = storyChangeSetSchema.parse(input);
   if (changeSet.profileId !== api.identity.profileId || changeSet.profileVersion !== api.identity.profileVersion) {
-    throw new Error(`ChangeSet Profile 与工作区不一致：期望 ${api.identity.profileId}@${api.identity.profileVersion}。`);
+    throw new Error(
+      `ChangeSet Profile 与工作区不一致：期望 ${api.identity.profileId}@${api.identity.profileVersion}。`,
+    );
   }
   const info = projectInfo(current);
   if (changeSet.storyId !== info.storyId) throw new Error("ChangeSet storyId 与当前故事不一致。");
@@ -452,7 +558,10 @@ const applyChangeSet = (
       case "patch": {
         if (definition.contentType === "markdown") throw new Error("Markdown 文档不支持 patch，请使用文本操作。");
         assertPatchFields(profile, kind, operation.value);
-        files.set(path, api.materializeDocument(deepMerge(requireObjectDocument(files, path), operation.value), path, timestamp));
+        files.set(
+          path,
+          api.materializeDocument(deepMerge(requireObjectDocument(files, path), operation.value), path, timestamp),
+        );
         break;
       }
       case "upsert-items": {
@@ -478,7 +587,12 @@ const applyChangeSet = (
         files.set(
           path,
           api.materializeDocument(
-            { ...file, [operation.field]: currentItems.filter((item) => !isObject(item) || typeof item.id !== "string" || !operation.ids.includes(item.id)) },
+            {
+              ...file,
+              [operation.field]: currentItems.filter(
+                (item) => !isObject(item) || typeof item.id !== "string" || !operation.ids.includes(item.id),
+              ),
+            },
             path,
             timestamp,
           ),
@@ -508,7 +622,7 @@ const applyChangeSet = (
         if (typeof file[field] !== "string") throw new Error(`${path}.${field} 必须是字符串。`);
         const next =
           operation.type === "append-text"
-            ? `${file[field]}${file[field] ? operation.separator ?? "\n" : ""}${operation.value}`
+            ? `${file[field]}${file[field] ? (operation.separator ?? "\n") : ""}${operation.value}`
             : (() => {
                 if (!file[field].includes(operation.oldText)) throw new Error(`${path}.${field} 未找到待替换文本。`);
                 return file[field].replace(operation.oldText, operation.newText);
@@ -541,7 +655,12 @@ const displayScalar = (field: StoryProfileField, value: unknown) => {
   return String(value ?? "");
 };
 
-const renderFields = (profile: StoryProfile, fields: Readonly<Record<string, StoryProfileField>>, value: JsonObject, indent = "") =>
+const renderFields = (
+  profile: StoryProfile,
+  fields: Readonly<Record<string, StoryProfileField>>,
+  value: JsonObject,
+  indent = "",
+) =>
   Object.entries(fields).flatMap(([pointer, field]): string[] => {
     const key = pointerKey(pointer);
     const item = value[key];
@@ -550,7 +669,9 @@ const renderFields = (profile: StoryProfile, fields: Readonly<Record<string, Sto
     const prefix = `${indent}- ${field.label}：`;
     if (field.definition && isObject(item)) {
       const definition = profile.objectDefinitions[field.definition];
-      return definition ? [`${prefix}`, ...renderFields(profile, definition.fields, item, `${indent}  `)] : [`${prefix}${JSON.stringify(item)}`];
+      return definition
+        ? [`${prefix}`, ...renderFields(profile, definition.fields, item, `${indent}  `)]
+        : [`${prefix}${JSON.stringify(item)}`];
     }
     if (field.itemDefinition && Array.isArray(item)) {
       const definition = profile.objectDefinitions[field.itemDefinition];
@@ -582,7 +703,9 @@ const readContext = (
       ? candidates.find((entry) => {
           if (documentKind(entry.value) !== view.targetKind || !isObject(entry.value)) return false;
           const value = entry.value;
-          return (view.targetSelectors ?? ["/id"]).some((pointer) => String(value[pointerKey(pointer)] ?? "") === input.targetId);
+          return (view.targetSelectors ?? ["/id"]).some(
+            (pointer) => String(value[pointerKey(pointer)] ?? "") === input.targetId,
+          );
         })
       : undefined;
   if (input.scope === "chapter" && !target) throw new Error(`找不到章节上下文目标：${input.targetId ?? ""}`);
@@ -601,14 +724,28 @@ const readContext = (
     const content = entries
       .map((entry) => {
         if (!isObject(entry.value)) return String(entry.value);
-        const heading = typeof entry.value.title === "string" ? entry.value.title : typeof entry.value.name === "string" ? entry.value.name : documentId(entry.value);
+        const heading =
+          typeof entry.value.title === "string"
+            ? entry.value.title
+            : typeof entry.value.name === "string"
+              ? entry.value.name
+              : documentId(entry.value);
         const body = renderFields(profile, storyProfileDocumentFields(profile, kind), entry.value).join("\n");
         return entries.length > 1 && heading ? `### ${heading}\n\n${body}` : body;
       })
       .filter(Boolean)
       .join("\n\n");
     return content
-      ? [{ id: kind, label: api.document(kind).label, priority: 100 - index, required: entryIsTarget(entries, target), content, sources }]
+      ? [
+          {
+            id: kind,
+            label: api.document(kind).label,
+            priority: 100 - index,
+            required: entryIsTarget(entries, target),
+            content,
+            sources,
+          },
+        ]
       : [];
   });
   const targetValue = target && isObject(target.value) ? target.value : undefined;
@@ -619,14 +756,19 @@ const readContext = (
         : targetValue.title
       : documentId(targetValue)
     : "";
-  const sources = [...new Map(sections.flatMap((section) => section.sources).map((source) => [source.path, source])).values()];
+  const sources = [
+    ...new Map(sections.flatMap((section) => section.sources).map((source) => [source.path, source])).values(),
+  ];
   return {
     scope: input.scope,
     revision: projectInfo(project).revision,
     target: target ? { kind: documentKind(target.value), id: documentId(target.value), label: targetLabel } : null,
     sections,
     sources,
-    text: [`# ${view.label}${targetLabel ? `：${targetLabel}` : ""}`, ...sections.map((section) => `## ${section.label}\n\n${section.content}`)].join("\n\n"),
+    text: [
+      `# ${view.label}${targetLabel ? `：${targetLabel}` : ""}`,
+      ...sections.map((section) => `## ${section.label}\n\n${section.content}`),
+    ].join("\n\n"),
   };
 };
 
@@ -641,7 +783,17 @@ const createApi = (profile: StoryProfile): StoryProjectApi => {
     changeSet: {
       maxOperations: STORY_CHANGE_SET_MAX_OPERATIONS,
       maxBytes: STORY_CHANGE_SET_MAX_BYTES,
-      operations: ["upsert", "delete", "patch", "upsert-items", "remove-items", "add-values", "remove-values", "append-text", "replace-text"],
+      operations: [
+        "upsert",
+        "delete",
+        "patch",
+        "upsert-items",
+        "remove-items",
+        "add-values",
+        "remove-values",
+        "append-text",
+        "replace-text",
+      ],
       atomicCommit: true,
       revisionRequired: true,
     },
@@ -657,14 +809,23 @@ const createApi = (profile: StoryProfile): StoryProjectApi => {
     projectManifestPath: () => resolveStoryProfilePath(profile, profile.manifestKind),
     createProject: ({ storyId, title, timestamp = Date.now() }) => {
       const normalizedStoryId = storyId.trim();
-      if (!normalizedStoryId || !/^[A-Za-z0-9_-]+$/.test(normalizedStoryId)) throw new Error("storyId 必须是安全稳定 ID。");
+      if (!normalizedStoryId || !/^[A-Za-z0-9_-]+$/.test(normalizedStoryId))
+        throw new Error("storyId 必须是安全稳定 ID。");
       const normalizedTitle = title.trim() || "未命名故事";
       const manifestPath = resolveStoryProfilePath(profile, profile.manifestKind);
       const documents = Object.entries(profile.documents)
         .filter(([kind, definition]) => kind !== profile.manifestKind && definition.cardinality === "one")
         .map(([kind]) => {
           const path = resolveStoryProfilePath(profile, kind);
-          return { path, value: parseStoryDocument(profile, initialDocumentInput(profile, kind, normalizedStoryId, normalizedTitle, timestamp), path, timestamp) };
+          return {
+            path,
+            value: parseStoryDocument(
+              profile,
+              initialDocumentInput(profile, kind, normalizedStoryId, normalizedTitle, timestamp),
+              path,
+              timestamp,
+            ),
+          };
         });
       const manifest = parseStoryDocument(
         profile,
@@ -674,7 +835,8 @@ const createApi = (profile: StoryProfile): StoryProjectApi => {
       );
       const project = rebuildManifest({ manifest, documents }, profile, 0, timestamp);
       const validation = validateProject(project, profile, "draft");
-      if (!validation.valid) throw new Error(validation.issues.map((item) => `${item.path}：${item.message}`).join("\n"));
+      if (!validation.valid)
+        throw new Error(validation.issues.map((item) => `${item.path}：${item.message}`).join("\n"));
       return project;
     },
     parseManifest: (input) => {

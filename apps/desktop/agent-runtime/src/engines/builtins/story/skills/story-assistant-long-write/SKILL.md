@@ -44,7 +44,7 @@ metadata:
 
 1. 调用 `story(action="read_context", ...)`；记录返回的 `revision`。
 2. 每个 ChangeSet 只做一个小批次，带 batch 元数据；最多 16 个 operations / 192 KiB。
-3. 新文件用 upsert；已有文件优先 patch、数组增量操作、append-text/replace-text。不能直接改 `story/manifest.json`。
+3. 新文件用 upsert；已有文件优先 patch、数组增量操作、append-text/replace-text。不能直接修改 `manifest` 角色文档。
 4. 每批只调用一次 `story(action="commit_changes", changeSet={...})` 原子校验并提交，再重读 revision。失败时根据返回 issues 修当前批；仅在用户要求预览时调用 `action="validate_changes"`。
 5. 中间批用 draft 保持结构与引用有效，工作流最后一批才使用 openBook 或 chapterWrite 完整校验。
 6. 不使用 `write`、`edit`、`bash` 修改故事文件，不创建 Markdown 正文、设定、大纲或追踪文件。
@@ -59,24 +59,24 @@ metadata:
 
 按依赖拆成多个批次准备，不能一次生成全部：
 
-- `story/book.json`：书名、logline、前提、目标、核心冲突、终极阻碍、主角 ID；
-- `story/positioning.json`：`lengthType="long"`、题材、平台、读者、目标字数、情绪承诺、表层卖点、深层满足、长线钩子、差异化；
-- `story/style.json`：视角、时态、语气、句式节奏、对话与标点边界；
-- `story/characters/{id}.json`：至少主角，包含动机、缺陷、能力、角色弧与声线；
-- `story/world/{id}.json`：只记录会影响多章的规则、势力、地理、力量体系和关键物件；
-- `story/relationships.json`：核心关系边。
+- `primary` 角色文档：书名、logline、前提、目标、核心冲突、终极阻碍、主角 ID；
+- `positioning` 角色文档：`lengthType="long"`、题材、平台、读者、目标字数、情绪承诺、表层卖点、深层满足、长线钩子、差异化；
+- `style` 角色文档：视角、时态、语气、句式节奏、对话与标点边界；
+- `character` 角色文档：至少主角，包含动机、缺陷、能力、角色弧与声线；
+- `worldEntry` 角色文档：只记录会影响多章的规则、势力、地理、力量体系和关键物件；
+- `relationships` 角色文档：核心关系边。
 
 未确定字段保留空字符串/空数组，optional ID 省略；不要用“待补充”伪装事实。
 
 ### 3. 全书与卷纲
 
-建立 `story/outline/book-arc.json`：总章数、目标字数、情绪曲线、开篇/发展/高潮/收尾阶段范围、阶段任务、允许释放和禁止释放、关键转折。
+建立 `bookArc` 角色文档：总章数、目标字数、情绪曲线、开篇/发展/高潮/收尾阶段范围、阶段任务、允许释放和禁止释放、关键转折。
 
-建立至少一个 `story/outline/volumes/{id}.json`：功能、核心冲突与事件、起止状态、情绪弧线、release guards、章节 ID。
+建立至少一个 `volume` 角色文档：功能、核心冲突与事件、起止状态、情绪弧线、release guards、章节 ID。
 
 ### 4. 前十章细纲
 
-默认生成第 1-10 章 `story/outline/chapters/{id}.json`；总章数不足 10 时生成全部。每章包含：
+默认生成第 1-10 章 `chapterPlan` 角色文档；总章数不足 10 时生成全部。每章包含：
 
 - 阶段位置、章节定位、目标字数/情绪、核心事件和结构公式；
 - 章首钩子、payoff、禁止提前释放；
@@ -99,14 +99,14 @@ beats 预算合计必须在 `[targetWords, targetWords×1.1]`。低压章可没�
 1. `story(action="read_context", scope="chapter", targetId="章节 ID 或章节号")`。
 2. 检查细纲已 ready/locked，beats 预算合法，并形成一句本章意图：目标情绪 + 节奏 + 核心事件 + release guards。
 3. 展开正文，保留自然段落与角色声线；工程词、细纲说明、读者说明不能进入正文。
-4. 新章在同一 ChangeSet 中 upsert `story/chapters/{id}.md` 的正文字符串，并 upsert `story/tracking/chapter-results/{id}.json` 的摘要、wordCount、引用和状态变化；续写或局部重写 Markdown 时用 field=`content` 的 append-text/replace-text，再 patch 章节结果。只有用户要求完整重写该章时才完整替换 Markdown。
+4. 新章在同一 ChangeSet 中 upsert `chapterContent` 角色文档的正文字符串，并 upsert `chapterResult` 角色文档的摘要、wordCount、引用和状态变化；续写或局部重写 Markdown 时用 field=`content` 的 append-text/replace-text，再 patch 章节结果。只有用户要求完整重写该章时才完整替换 Markdown。
 5. 正文单章为一个工作流；追踪字段较多时可在正文批后按依赖拆小批更新：
-   - `tracking/character-states/*.json`；
-   - `relationships.json`；
-   - `tracking/foreshadows.json`；
-   - `tracking/timeline/*.json`；
-   - `tracking/progress.json`；
-   - 当前 chapter plan 的 status。
+   - `characterState` 角色文档；
+   - `relationships` 角色文档；
+   - `foreshadows` 角色文档；
+   - `timeline` 角色文档；
+   - `progress` 角色文档；
+   - 当前 `chapterPlan` 角色文档的 status。
 6. 最终批用 `validationProfile="chapterWrite"` 校验并提交。不要在一个 ChangeSet 聚合多章正文。
 
 日更必须逐章串行：上一章提交成功后重新读取下一章上下文。大修先读原章，保持未被用户点名的情节事实和稳定 ID，并同步重算后续状态风险。

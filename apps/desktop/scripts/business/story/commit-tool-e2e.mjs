@@ -16,10 +16,7 @@ const toolPath = resolve(
 const storyBuiltinPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/definition.ts");
 const storyProfilePath = resolve(workspaceRoot, "protocols/story-project/index.ts");
 const nodeRepositoryPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/node-repository.ts");
-const defaultLayoutPath = resolve(
-  workspaceRoot,
-  "src/features/pages/stories/story-project/layouts/default-layout.ts",
-);
+const defaultLayoutPath = resolve(workspaceRoot, "src/features/pages/stories/story-project/layouts/default-layout.ts");
 const defaultProfilePath = resolve(
   workspaceRoot,
   "src/features/pages/stories/story-project/profiles/default-novel/index.ts",
@@ -141,6 +138,12 @@ writeFileSync(
     described.details.structure.profile.documents["story-book"].label === "作品核心" &&
       described.details.structure.profile.documents["story-book"].fields["/title"].label === "书名",
     "字段可读元数据必须由 Profile 提供，而不是复制进落盘 JSON。",
+    described.details,
+  );
+  assert(
+    described.details.structure.profile.documentRoles.chapterContent === "story-chapter-content" &&
+      described.details.structure.profile.documentRoles.chapterResult === "story-chapter",
+    "describe_structure 必须把 Compiler 解析后的文档语义角色传给技能。",
     described.details,
   );
   assert((await stat(untouchedPath)).mtimeMs === untouchedBefore, "原子提交不应重写本批未变化的 JSON 文件。");

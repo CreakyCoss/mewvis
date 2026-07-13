@@ -1,7 +1,7 @@
 {
   "story-book-arc": {
     "label": "全书主线",
-    "pathPattern": "story/outline/book-arc.json",
+    "layoutPresence": "required",
     "cardinality": "one",
     "fieldSets": ["entity-document"],
     "constFields": {
@@ -54,7 +54,7 @@
   },
   "story-volume": {
     "label": "分卷",
-    "pathPattern": "story/outline/volumes/{id}.json",
+    "layoutPresence": "required",
     "cardinality": "many",
     "titlePointer": "/title",
     "fieldSets": ["entity-document"],
@@ -176,7 +176,7 @@
   },
   "story-chapter-plan": {
     "label": "章节细纲",
-    "pathPattern": "story/outline/chapters/{id}.json",
+    "layoutPresence": "required",
     "cardinality": "many",
     "titlePointer": "/title",
     "fieldSets": ["entity-document"],
@@ -405,7 +405,7 @@
   "story-chapter": {
     "label": "章节结果",
     "description": "正文完成后的摘要、引用与状态变化；章节正文单独保存为 Markdown。",
-    "pathPattern": "story/tracking/chapter-results/{id}.json",
+    "layoutPresence": "required",
     "cardinality": "many",
     "companionKinds": ["story-chapter-content"],
     "titlePointer": "/title",
@@ -493,7 +493,7 @@
     "label": "章节正文",
     "description": "可直接阅读、编辑和发布的 Markdown 正文。",
     "contentType": "markdown",
-    "pathPattern": "story/chapters/{id}.md",
+    "layoutPresence": "required",
     "cardinality": "many",
     "companionKinds": ["story-chapter"],
     "titlePointer": "/id",

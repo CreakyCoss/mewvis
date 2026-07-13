@@ -1,3 +1,4 @@
+import { defineStoryProfile } from "../../../../../../../protocols/story-project";
 import metadata from "./profile/metadata.json";
 import assistantObjects from "./profile/objects/assistant.json";
 import coreObjects from "./profile/objects/core.json";
@@ -12,7 +13,7 @@ import outlineDocuments from "./profile/documents/outline.json";
 import peopleDocuments from "./profile/documents/people.json";
 import trackingDocuments from "./profile/documents/tracking.json";
 
-export const DEFAULT_STORY_PROFILE_SOURCE: unknown = {
+const source = {
   ...metadata,
   objectDefinitions: {
     ...coreObjects,
@@ -31,3 +32,9 @@ export const DEFAULT_STORY_PROFILE_SOURCE: unknown = {
     ...assistantDocuments,
   },
 };
+
+export const DEFAULT_STORY_PROFILE = defineStoryProfile(source, {
+  optionalDocumentKinds: ["story-analysis", "story-review", "story-import"],
+});
+
+export const DEFAULT_STORY_PROFILE_SOURCE = DEFAULT_STORY_PROFILE.source;

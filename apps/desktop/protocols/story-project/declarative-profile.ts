@@ -1,3 +1,5 @@
+import { defineStoryProjectLayout, type StoryProjectLayout, type StoryProjectLayoutInput } from "./layout.js";
+
 export type StoryProfileField = Readonly<{
   type: string;
   label: string;
@@ -16,11 +18,11 @@ export type StoryProfileField = Readonly<{
   [key: string]: unknown;
 }>;
 
-export type StoryProfileDocument = Readonly<{
+export type StoryProfileDocumentSource = Readonly<{
   label: string;
   description?: string;
   contentType?: "json" | "markdown";
-  pathPattern: string;
+  layoutPresence: "required" | "optional";
   cardinality: "one" | "many";
   fields: Readonly<Record<string, StoryProfileField>>;
   fieldSets?: readonly string[];
@@ -29,6 +31,8 @@ export type StoryProfileDocument = Readonly<{
   ruleIds?: readonly string[];
   [key: string]: unknown;
 }>;
+
+export type StoryProfileDocument = StoryProfileDocumentSource & Readonly<{ pathPattern: string }>;
 
 export type StoryProfileContextView = Readonly<{
   label: string;
@@ -39,22 +43,39 @@ export type StoryProfileContextView = Readonly<{
   [key: string]: unknown;
 }>;
 
-export type StoryProfile = Readonly<{
+export type StoryProfileSource = Readonly<{
   $format: "novel-claw.story-profile";
   profileId: string;
   profileVersion: number;
   schemaVersion: number;
-  rootPath: string;
   manifestKind: string;
   primaryKind?: string;
+  documentRoles: Readonly<Record<string, string>>;
   commonFieldSets: Readonly<Record<string, Readonly<Record<string, StoryProfileField>>>>;
   objectDefinitions: Readonly<
     Record<string, Readonly<{ fields: Readonly<Record<string, StoryProfileField>>; [key: string]: unknown }>>
   >;
-  documents: Readonly<Record<string, StoryProfileDocument>>;
+  documents: Readonly<Record<string, StoryProfileDocumentSource>>;
   contextViews: Readonly<Record<string, StoryProfileContextView>>;
   validationProfiles: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   [key: string]: unknown;
+}>;
+
+export type StoryProfile = StoryProfileSource &
+  Readonly<{
+    rootPath: string;
+    documents: Readonly<Record<string, StoryProfileDocument>>;
+  }>;
+
+export type DefinedStoryProfile<TDocumentKind extends string, TOptionalKind extends TDocumentKind> = Readonly<{
+  identity: Readonly<{ id: string; version: number }>;
+  source: StoryProfileSource;
+  documentKinds: readonly TDocumentKind[];
+  requiredDocumentKinds: readonly Exclude<TDocumentKind, TOptionalKind>[];
+  optionalDocumentKinds: readonly TOptionalKind[];
+  defineLayout(
+    input: StoryProjectLayoutInput<Exclude<TDocumentKind, TOptionalKind>, TOptionalKind>,
+  ): StoryProjectLayout;
 }>;
 
 const objectFromUnknown = (value: unknown, owner: string): Record<string, unknown> => {
@@ -74,17 +95,25 @@ const positiveInteger = (value: unknown, owner: string) => {
   return Number(value);
 };
 
-export const parseStoryProfile = (input: unknown): StoryProfile => {
+export const parseStoryProfile = (input: unknown): StoryProfileSource => {
   const value = objectFromUnknown(input, "故事 Profile");
   if (value.$format !== "novel-claw.story-profile") {
     throw new Error("故事 Profile $format 无效。");
+  }
+  if (value.rootPath !== undefined) {
+    throw new Error("故事 Profile 不得声明 rootPath；实际根目录必须由 Layout 决定。");
   }
   const documents = objectFromUnknown(value.documents, "故事 Profile documents");
   if (Object.keys(documents).length === 0) throw new Error("故事 Profile 至少需要定义一种文档。");
   for (const [kind, documentInput] of Object.entries(documents)) {
     const document = objectFromUnknown(documentInput, `故事 Profile documents.${kind}`);
     nonEmptyString(document.label, `documents.${kind}.label`);
-    nonEmptyString(document.pathPattern, `documents.${kind}.pathPattern`);
+    if (document.pathPattern !== undefined) {
+      throw new Error(`documents.${kind} 不得声明 pathPattern；实际文件路径必须由 Layout 决定。`);
+    }
+    if (document.layoutPresence !== "required" && document.layoutPresence !== "optional") {
+      throw new Error(`documents.${kind}.layoutPresence 必须是 required 或 optional。`);
+    }
     if (document.contentType !== undefined && document.contentType !== "json" && document.contentType !== "markdown") {
       throw new Error(`documents.${kind}.contentType 必须是 json 或 markdown。`);
     }
@@ -100,6 +129,16 @@ export const parseStoryProfile = (input: unknown): StoryProfile => {
       throw new Error(`documents.${kind}.companionKinds 必须是字符串数组。`);
     }
   }
+  const rawDocumentRoles = objectFromUnknown(value.documentRoles, "故事 Profile documentRoles");
+  if (Object.keys(rawDocumentRoles).length === 0) throw new Error("故事 Profile 至少需要定义一种文档角色。");
+  const documentRoles = Object.fromEntries(
+    Object.entries(rawDocumentRoles).map(([role, inputKind]) => {
+      const normalizedRole = nonEmptyString(role, "documentRoles 角色名");
+      const kind = nonEmptyString(inputKind, `documentRoles.${role}`);
+      if (!documents[kind]) throw new Error(`documentRoles.${role} 引用了未知文档类型：${kind}`);
+      return [normalizedRole, kind];
+    }),
+  );
   const contextViews = objectFromUnknown(value.contextViews, "故事 Profile contextViews");
   for (const [name, viewInput] of Object.entries(contextViews)) {
     const view = objectFromUnknown(viewInput, `故事项目协议 contextViews.${name}`);
@@ -125,22 +164,81 @@ export const parseStoryProfile = (input: unknown): StoryProfile => {
     profileId: nonEmptyString(value.profileId, "profileId"),
     profileVersion: positiveInteger(value.profileVersion, "profileVersion"),
     schemaVersion: positiveInteger(value.schemaVersion, "schemaVersion"),
-    rootPath: nonEmptyString(value.rootPath, "rootPath"),
     manifestKind: nonEmptyString(value.manifestKind, "manifestKind"),
     ...(value.primaryKind === undefined ? {} : { primaryKind: nonEmptyString(value.primaryKind, "primaryKind") }),
+    documentRoles,
     commonFieldSets: objectFromUnknown(value.commonFieldSets, "commonFieldSets"),
     objectDefinitions: objectFromUnknown(value.objectDefinitions, "objectDefinitions"),
     documents,
     contextViews,
     validationProfiles: objectFromUnknown(value.validationProfiles, "validationProfiles"),
   };
-  if (!documents[contract.manifestKind] || (documents[contract.manifestKind] as StoryProfileDocument).cardinality !== "one") {
-    throw new Error("manifestKind 必须指向 cardinality=one 的文档类型。");
+  const manifestDocument = documents[contract.manifestKind] as StoryProfileDocumentSource | undefined;
+  if (!manifestDocument || manifestDocument.cardinality !== "one" || manifestDocument.layoutPresence !== "required") {
+    throw new Error("manifestKind 必须指向 layoutPresence=required、cardinality=one 的文档类型。");
   }
-  if (contract.primaryKind && !documents[contract.primaryKind]) {
-    throw new Error("primaryKind 指向了未知文档类型。");
+  if (documentRoles.manifest !== contract.manifestKind) {
+    throw new Error("documentRoles.manifest 必须指向 manifestKind。");
   }
-  return contract as unknown as StoryProfile;
+  if (contract.primaryKind) {
+    const primaryDocument = documents[contract.primaryKind] as StoryProfileDocumentSource | undefined;
+    if (!primaryDocument || primaryDocument.layoutPresence !== "required") {
+      throw new Error("primaryKind 必须指向 layoutPresence=required 的文档类型。");
+    }
+    if (documentRoles.primary !== contract.primaryKind) {
+      throw new Error("documentRoles.primary 必须指向 primaryKind。");
+    }
+  }
+  return contract as unknown as StoryProfileSource;
+};
+
+export const defineStoryProfile = <
+  const TDocuments extends Readonly<Record<string, Readonly<Record<string, unknown>>>>,
+  const TOptionalKinds extends readonly Extract<keyof TDocuments, string>[],
+>(
+  input: Readonly<Record<string, unknown>> & {
+    readonly profileId: string;
+    readonly profileVersion: number;
+    readonly documents: TDocuments;
+  },
+  options: Readonly<{ optionalDocumentKinds: TOptionalKinds }>,
+): DefinedStoryProfile<Extract<keyof TDocuments, string>, TOptionalKinds[number]> => {
+  type DocumentKind = Extract<keyof TDocuments, string>;
+  type OptionalKind = TOptionalKinds[number];
+  type RequiredKind = Exclude<DocumentKind, OptionalKind>;
+
+  const source = parseStoryProfile(input);
+  const documentKinds = Object.keys(source.documents) as DocumentKind[];
+  const declaredOptionalKinds = documentKinds.filter(
+    (kind): kind is OptionalKind => source.documents[kind]?.layoutPresence === "optional",
+  );
+  const configuredOptionalKinds = [...options.optionalDocumentKinds];
+  const missingOptionalKinds = declaredOptionalKinds.filter((kind) => !configuredOptionalKinds.includes(kind));
+  const incorrectlyOptionalKinds = configuredOptionalKinds.filter(
+    (kind) => source.documents[kind]?.layoutPresence !== "optional",
+  );
+  if (missingOptionalKinds.length > 0 || incorrectlyOptionalKinds.length > 0) {
+    throw new Error(
+      `Profile 可选文档类型声明不一致；未登记：${missingOptionalKinds.join("、") || "无"}；错误登记：${incorrectlyOptionalKinds.join("、") || "无"}。`,
+    );
+  }
+
+  const identity = Object.freeze({ id: source.profileId, version: source.profileVersion });
+  const optionalDocumentKinds = Object.freeze(configuredOptionalKinds) as readonly OptionalKind[];
+  const requiredDocumentKinds = Object.freeze(
+    documentKinds.filter((kind): kind is RequiredKind => !configuredOptionalKinds.includes(kind as OptionalKind)),
+  );
+  const layoutProfile = Object.freeze({ identity, requiredDocumentKinds, optionalDocumentKinds });
+
+  return Object.freeze({
+    identity,
+    source,
+    documentKinds: Object.freeze(documentKinds),
+    requiredDocumentKinds,
+    optionalDocumentKinds,
+    defineLayout: (layout: StoryProjectLayoutInput<RequiredKind, OptionalKind>) =>
+      defineStoryProjectLayout(layoutProfile, layout),
+  });
 };
 
 export const storyProfileContextViewForScope = (contract: StoryProfile, scope: StoryProfileContextView["scope"]) => {
@@ -352,5 +450,3 @@ export const parseStoryDocument = (contract: StoryProfile, input: unknown, path:
   }
   return materializeStoryDocument(contract, input, kind, timestamp);
 };
-
-export const stringifyStoryProfile = (contract: StoryProfile) => `${JSON.stringify(contract, null, 2)}\n`;

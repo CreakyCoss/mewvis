@@ -1,7 +1,7 @@
 ---
 name: story-assistant-deslop
 description: >-
-  Novel Claw 故事创作助手专属的结构化去 AI 味技能。用户要求检测 AI 腔、自然化、润色指定章节、去模板感或只标注问题时必须使用。继承 oh-story-claudecode 最新 7 Gate 方法，只修改 Story Project 中指定章节的 content，并将诊断写入 story/reviews/*.json；不修改普通 story-deslop 技能或 Markdown 文件。
+  Novel Claw 故事创作助手专属的结构化去 AI 味技能。用户要求检测 AI 腔、自然化、润色指定章节、去模板感或只标注问题时必须使用。继承 oh-story-claudecode 最新 7 Gate 方法，只修改 Story Project 中 chapterContent 角色文档的 content，并将诊断写入 review 角色文档；不修改普通 story-deslop 技能或 Markdown 文件。
 metadata:
   novel-claw:
     assistant-only: true
@@ -53,11 +53,11 @@ metadata:
 
 ## Review JSON
 
-写入 `story/reviews/{reviewId}.json`：
+写入 `review` 角色文档；实际 kind 与路径从本轮结构描述解析：
 
 - `reviewType="deslop"`；
 - mode 为 detect 或 rewrite；
-- scopePaths 指向 `story/chapters/{id}.md`；
+- scopePaths 指向 `chapterContent` 角色文档的实际路径；
 - rubric 写 `oh-story-claudecode 7 Gate @ 2e9cbac`；
 - findings 每项记录 severity、category=`prose|format`、scopePath、短证据、问题、修法和状态；
 - verdict 检测无问题为 approve，有问题为 concerns，正文严重退化/截断为 reject。
@@ -69,7 +69,7 @@ metadata:
 改写模式按单章拆批：
 
 - 先提交 review findings；
-- 对已有 `story/chapters/{id}.md` 优先用 field=`content` 的唯一锚点 replace-text 局部改写，再 patch 对应章节结果 JSON 的 wordCount、summary 以及确实变化的引用；保持 id、planId、number 和事件事实；
+- 对已有 `chapterContent` 角色文档优先用 field=`content` 的唯一锚点 replace-text 局部改写，再 patch 对应 `chapterResult` 角色文档的 wordCount、summary 以及确实变化的引用；保持 id、planId、number 和事件事实；
 - 再用 upsert-items 按 finding id patch status：已修标 resolved，无法确定项保持 open；
 - 一批只含一章正文，超 192 KiB 时按用户指定片段处理，不能截断正文后提交。
 

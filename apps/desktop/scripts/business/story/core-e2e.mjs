@@ -23,7 +23,7 @@ writeFileSync(
     createStoryProjectCompilerRegistry,
     storyChangeSetSchema,
   } from ${JSON.stringify(protocolPath)};
-  import { DEFAULT_STORY_PROFILE_SOURCE } from ${JSON.stringify(profilePath)};
+  import { DEFAULT_STORY_PROFILE, DEFAULT_STORY_PROFILE_SOURCE } from ${JSON.stringify(profilePath)};
   import { DEFAULT_STORY_PROJECT_LAYOUT as defaultLayout } from ${JSON.stringify(layoutPath)};
   import { inspectStructuredJsonDocument, storyDocumentsToStoryJson } from ${JSON.stringify(documentModelPath)};
 
@@ -44,6 +44,17 @@ writeFileSync(
   assert(api.validateProject(project, "draft").valid, "新故事应通过 draft 校验。", api.validateProject(project, "draft"));
   assert(file("story/book.json")?.title === "雾港档案", "默认 Profile 应创建作品核心。", api.projectFiles(project));
   assert(file("story/interactive/graph.json")?.kind === "story-graph", "默认 Profile 应创建互动剧情图。", api.projectFiles(project));
+  assert(
+    api.describe().documentRoles.chapterContent === "story-chapter-content" &&
+      api.describe().documents[api.describe().documentRoles.chapterContent]?.contentType === "markdown",
+    "调用方应通过 Profile 文档角色定位章节正文，而不是硬编码 kind。",
+    api.describe().documentRoles,
+  );
+  assert(
+    DEFAULT_STORY_PROFILE.optionalDocumentKinds.join(",") === "story-analysis,story-review,story-import",
+    "默认 Profile 应显式声明可由 Layout 关闭的文档类型。",
+    DEFAULT_STORY_PROFILE.optionalDocumentKinds,
+  );
   const encodedBook = api.encodeDocument(file("story/book.json"), "story/book.json") as any;
   assert(encodedBook.kind === "story-book" && !("$format" in encodedBook), "JSON 应保存为普通业务对象。", encodedBook);
 
@@ -126,7 +137,7 @@ writeFileSync(
   const customProfile: any = structuredClone(DEFAULT_STORY_PROFILE_SOURCE);
   const customLayout: any = structuredClone(defaultLayout);
   customProfile.documents["story-research-note"] = {
-    label: "研究笔记", cardinality: "many", pathPattern: "story/research/{id}.json", fieldSets: ["entity-document"],
+    label: "研究笔记", layoutPresence: "required", cardinality: "many", fieldSets: ["entity-document"],
     constFields: { "/kind": "story-research-note" }, fields: { "/title": { type: "text", label: "标题", required: true }, "/content": { type: "content", label: "内容", required: true, default: "" } },
   };
   customProfile.contextViews["project-summary"].documentKinds.push("story-research-note");
@@ -139,12 +150,45 @@ writeFileSync(
   }).project;
   assert(customApi.projectFiles(customProject).some((entry) => entry.path === "story/materials/research/note-001.json"), "Profile 新增文档类型后，通用运行时应自动支持校验与落盘。", customApi.projectFiles(customProject));
   assert(customApi.readContext(customProject, { scope: "project" }).text.includes("港口资料"), "加入 context view 的自定义文档应自动进入召回文本。");
+
+  const leanLayout: any = structuredClone(defaultLayout);
+  delete leanLayout.documents["story-analysis"];
+  delete leanLayout.documents["story-review"];
+  delete leanLayout.documents["story-import"];
+  const leanApi = compiler.compile(DECLARATIVE_STORY_PROJECT_COMPILER_ID, {
+    profile: DEFAULT_STORY_PROFILE_SOURCE,
+    layout: leanLayout,
+  });
+  const leanProject = leanApi.createProject({ storyId: "lean", title: "精简故事", timestamp });
+  assert(!leanApi.describe().documents["story-analysis"], "Layout 关闭的可选文档不应暴露给调用方。", leanApi.describe());
+  assert(!leanApi.describe().documentRoles.analysis, "Layout 关闭可选文档后也应关闭对应语义角色。", leanApi.describe());
+  assert(
+    !leanApi.contextView("project").documentKinds.includes("story-analysis"),
+    "上下文视图应自动过滤 Layout 关闭的可选文档。",
+    leanApi.contextView("project"),
+  );
+  let disabledDocumentRejected = false;
+  try {
+    leanApi.resolveDocument("story-analysis", { id: "disabled" });
+  } catch (error) {
+    disabledDocumentRejected = String(error).includes("未定义故事文档类型");
+  }
+  assert(disabledDocumentRejected, "关闭的可选文档不能再解析文件路径。");
+  assert(leanApi.validateProject(leanProject, "draft").valid, "关闭可选文档后的故事项目仍应通过校验。", leanApi.validateProject(leanProject, "draft"));
   console.log("[story-core] ok");
   `,
 );
 
 try {
-  await build({ entryPoints: [entryPath], bundle: true, platform: "node", format: "esm", outfile: bundledPath, target: "node22", alias: { "@": resolve(root, "src") } });
+  await build({
+    entryPoints: [entryPath],
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    outfile: bundledPath,
+    target: "node22",
+    alias: { "@": resolve(root, "src") },
+  });
   await import(pathToFileURL(bundledPath).href);
 } finally {
   rmSync(tempDir, { recursive: true, force: true });

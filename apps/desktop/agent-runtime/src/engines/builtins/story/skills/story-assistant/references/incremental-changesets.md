@@ -13,13 +13,13 @@
 
 ## 操作选择
 
-- `upsert`：只用于创建新文件，或用户明确要求完整替换单个文件。JSON value 是符合当前 Profile 的普通业务对象；章节正文 Markdown 的 value 直接使用正文字符串。工具补齐 JSON 的 const、generated、default，校验 Markdown 路径与章节 ID，并执行引用和完整度校验。不得自行提交字段 label/描述，也不得提交 Profile 未声明字段。
+- `upsert`：只用于创建新文件，或用户明确要求完整替换单个文件。JSON value 是符合当前 Profile 的普通业务对象；`chapterContent` 角色文档为 Markdown 时，value 直接使用正文字符串。工具补齐 JSON 的 const、generated、default，校验路径与章节 ID，并执行引用和完整度校验。不得自行提交字段 label/描述，也不得提交 Profile 未声明字段。
 - `patch`：深合并已有文件的少数字段；未出现字段保持原值，`null` 表示删除可选字段。禁止修改 `schemaVersion/kind/id/storyId/revision/files`。
 - `upsert-items`：更新已有文件中的顶层对象数组，按条目 `id` 合并；适合 review.findings、analysis.plotModules、relationships.relationships、foreshadows.foreshadows、timeline.entries、graph.nodes/edges 等带 id 数组。
 - `remove-items`：从顶层对象数组按 ids 删除。
 - `add-values` / `remove-values`：增删顶层字符串数组并自动去重；适合 volumeIds、chapterIds、notes、gaps 等。对象数组不能使用这两个操作。
-- `append-text`：向已有顶层字符串字段末尾追加新内容，可传 separator；续写章节 Markdown 时路径指向 `story/chapters/{id}.md` 且 field 使用 `content`。
-- `replace-text`：用唯一 oldText 锚点替换顶层字符串字段中的局部文本；修订章节 Markdown 时同样使用 field=`content`。oldText 不存在或出现多次会拒绝，必须提供更长且唯一的上下文锚点。
+- `append-text`：向已有顶层字符串字段末尾追加新内容，可传 separator；续写章节时使用 `chapterContent` 角色文档的实际路径，且 field 使用 `content`。
+- `replace-text`：用唯一 oldText 锚点替换顶层字符串字段中的局部文本；修订 `chapterContent` 角色文档时同样使用 field=`content`。oldText 不存在或出现多次会拒绝，必须提供更长且唯一的上下文锚点。
 - `delete`：只删除明确指定的非 manifest 文件；删除前同批或更早批次必须清理对它的引用。
 
 示例：
@@ -41,12 +41,12 @@
   "operations": [
     {
       "type": "patch",
-      "path": "story/book.json",
+      "path": "<primary 角色文档的实际路径>",
       "value": { "protagonistId": "char-protagonist" }
     },
     {
       "type": "upsert-items",
-      "path": "story/relationships.json",
+      "path": "<relationships 角色文档的实际路径>",
       "field": "relationships",
       "items": [
         {
@@ -78,22 +78,22 @@
 
 开书：
 
-1. book/positioning/style 核心字段，book 暂不引用未创建主角；
-2. characters/world；
-3. patch book.protagonistId，补 relationships；
-4. volumes；
-5. patch book-arc 并引用已存在 volumes；
-6. chapter plans 每批 3-5 章；
-7. patch volumes.chapterIds 与 progress，最终用 openBook 校验。
+1. `primary/positioning/style` 角色文档的核心字段，primary 暂不引用未创建主角；
+2. `character/worldEntry` 角色文档；
+3. patch primary.protagonistId，补 `relationships` 角色文档；
+4. `volume` 角色文档；
+5. patch `bookArc` 角色文档并引用已存在 volume；
+6. `chapterPlan` 角色文档每批 3-5 章；
+7. patch volume.chapterIds 与 `progress` 角色文档，最终用 openBook 校验。
 
 导入：
 
-1. 创建 partial analysis 与 import 跟踪记录；
+1. 创建 `analysis` 与 `import` 角色对应的 partial 跟踪记录；
 2. 核心设定；
 3. 角色、关系、世界；
 4. 卷和全书结构；
-5. 章节 plan、正文 Markdown 和章节结果 JSON 按 1-3 章一批；
+5. `chapterPlan/chapterContent/chapterResult` 角色文档按 1-3 章一批；
 6. tracking；
-7. patch analysis/import 为 complete/committed，最终用 openBook 校验。
+7. patch analysis/import 角色文档为 complete/committed，最终用 openBook 校验。
 
-分析/审查：先 upsert 一个合法的 draft 壳，再用 patch、upsert-items、add-values 按阶段或 finding 小组补充；最后 patch status/verdict/summary。去 AI 味用 replace-text 修改 Markdown 的 `content`；续写用 append-text 添加正文，同时 patch 章节结果的 wordCount/summary。正文按单章提交，不跨章聚合超长文本。
+分析/审查：先在对应语义角色文档中 upsert 一个合法的 draft 壳，再用 patch、upsert-items、add-values 按阶段或 finding 小组补充；最后 patch status/verdict/summary。去 AI 味用 replace-text 修改 `chapterContent` 的 `content`；续写用 append-text 添加正文，同时 patch `chapterResult` 的 wordCount/summary。正文按单章提交，不跨章聚合超长文本。

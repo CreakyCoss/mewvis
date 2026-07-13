@@ -1,7 +1,7 @@
 ---
 name: story-assistant-import
 description: >-
-  Novel Claw 故事创作助手专属的结构化小说导入技能。用户要求导入已有小说、反向解析半成品/完本、把旧稿变成可续写项目时必须使用。继承 oh-story-claudecode 最新长短篇分流和逆向工程方法，直接生成 Story Project JSON、analysis 与 import 记录，不创建 Markdown 项目树，也不修改普通 story-import 技能。
+  Novel Claw 故事创作助手专属的结构化小说导入技能。用户要求导入已有小说、反向解析半成品/完本、把旧稿变成可续写项目时必须使用。继承 oh-story-claudecode 最新长短篇分流和逆向工程方法，按当前 Profile 的语义角色生成 Story Project、analysis 与 import 记录，不创建 Markdown 项目树，也不修改普通 story-import 技能。
 metadata:
   novel-claw:
     assistant-only: true
@@ -29,7 +29,7 @@ metadata:
 
 - 长篇采用 `story-assistant-long-analyze` Stage 0-6 方法；
 - 短篇采用 `story-assistant-short-analyze` Stage 2-6 方法；
-- 分析结果写入 `story/analysis/{analysisId}.json`，target=`import-source`；
+- 分析结果写入 `analysis` 角色文档，target=`import-source`；
 - 不创建原文备份或拆文库文件；源路径只记录在 import.sourcePath。
 
 如果文本过大无法在当前轮可靠完成，提交 status=`partial` 的 import/analysis 记录与 gaps，不生成看似完整的故事结构。
@@ -38,11 +38,11 @@ metadata:
 
 从原文和 analysis 构造：
 
-- `book.json`、`positioning.json(lengthType="long")`、`style.json`；
-- 主要 `characters/*.json`、`relationships.json`、`world/*.json`；
-- `outline/book-arc.json`、按原卷界或证据充分的候选卷生成 `outline/volumes/*.json`；
-- 每个完整原文章节对应一个 `outline/chapters/{planId}.json` 与 `chapters/{chapterId}.json`；
-- `tracking/character-states/*.json`、`foreshadows.json`、`timeline/*.json`、`progress.json`。
+- `primary`、`positioning(lengthType="long")`、`style` 角色文档；
+- 主要 `character`、`relationships`、`worldEntry` 角色文档；
+- `bookArc` 角色文档，以及按原卷界或证据充分的候选卷生成的 `volume` 角色文档；
+- 每个完整原文章节对应一份 `chapterPlan`、`chapterContent` 与 `chapterResult` 角色文档；
+- `characterState`、`foreshadows`、`timeline`、`progress` 角色文档。
 
 迁移规则按需读取最新上游 `references/structure-mapping-long.md`、`character-state-reverse.md`、`state-tracking.md`。
 
@@ -61,13 +61,13 @@ metadata:
 - 一个 book arc、一个 volume、一个 chapter plan、一个 chapter；
 - 功能段/数字小节映射为 plan.beats；
 - 核心反转、情绪设计和人设映射到 book、positioning、plan 与 characters；
-- 正文完整写入 `story/chapters/{id}.md`；章节摘要、字数、引用和状态变化写入对应的 `story/tracking/chapter-results/{id}.json`。
+- 正文完整写入 `chapterContent` 角色文档；章节摘要、字数、引用和状态变化写入对应的 `chapterResult` 角色文档。
 
 细节参考最新上游 `references/structure-mapping-short.md` 与 `format-and-structure.md`，但存储格式以 Story Contract 为准。
 
 ## Import JSON
 
-写入 `story/imports/{importId}.json`：sourceTitle/sourcePath、lengthType、status、wordCount、chapterCount、lastCompleteChapterNumber、analysisId、generatedFileIds、warnings。
+写入 `import` 角色文档：sourceTitle/sourcePath、lengthType、status、wordCount、chapterCount、lastCompleteChapterNumber、analysisId、generatedFileIds、warnings。
 
 状态含义：检测完成 detected，分析中 analyzing，结构可提交 ready，已落库 committed，未完成 partial，失败 failed。
 

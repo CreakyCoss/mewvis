@@ -44,6 +44,17 @@ const builtinsIndex = readFileSync(resolve(root, "agent-runtime/src/engines/buil
 const builtinDefinition = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/definition.ts"), "utf8");
 const storyBuiltin = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/index.ts"), "utf8");
 const storySkill = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/skills/definition.ts"), "utf8");
+const storySkillsRoot = resolve(root, "agent-runtime/src/engines/builtins/story/skills");
+const activeStorySkillInstructions = [
+  ...readdirSync(storySkillsRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith("story-assistant"))
+    .flatMap((entry) => {
+      const path = resolve(storySkillsRoot, entry.name, "SKILL.md");
+      return existsSync(path) ? [readFileSync(path, "utf8")] : [];
+    }),
+  readFileSync(resolve(storySkillsRoot, "story-assistant/references/story-tool-binding.md"), "utf8"),
+  readFileSync(resolve(storySkillsRoot, "story-assistant/references/incremental-changesets.md"), "utf8"),
+].join("\n");
 const storyProfileRoot = resolve(root, "src/features/pages/stories/story-project/profiles/default-novel/profile");
 const storyProfile = [
   readFileSync(resolve(storyProfileRoot, "metadata.json"), "utf8"),
@@ -81,12 +92,18 @@ const protocolDefinition = readFileSync(resolve(root, "protocols/definition.ts")
 const storyProjectProtocol = readFileSync(resolve(root, "protocols/story-project/protocol.ts"), "utf8");
 const storyProfileCompiler = readFileSync(resolve(root, "protocols/story-project/compiler.ts"), "utf8");
 const storyProfileRegistry = readFileSync(resolve(root, "protocols/story-project/registry.ts"), "utf8");
-const structuredNovelCompiler = readFileSync(
-  resolve(root, "protocols/story-project/runtime.ts"),
-  "utf8",
-);
+const structuredNovelCompiler = readFileSync(resolve(root, "protocols/story-project/runtime.ts"), "utf8");
 if (existsSync(resolve(root, "protocols/story-project/profiles"))) {
   throw new Error("共享 story-project 协议层不得继续持有具体小说 Profile。");
+}
+if (
+  !activeStorySkillInstructions.includes("structure.profile.documentRoles[role]") ||
+  activeStorySkillInstructions.includes("`story-chapter-content`") ||
+  /story\/(?:book|positioning|style|characters|world|relationships|outline|tracking|chapters|analysis|reviews|imports)(?:\/|\.|`)/.test(
+    activeStorySkillInstructions,
+  )
+) {
+  throw new Error("Story Skill 必须通过 documentRoles 解析语义文档，不得硬编码默认 Profile kind 或业务路径。");
 }
 if (
   !builtinsIndex.includes("const builtinRegistry") ||
@@ -121,8 +138,12 @@ if (
   storyProfile.includes('"capability"') ||
   storyProfile.includes("novel-claw.structured-document") ||
   storyProfile.includes("skillBindings") ||
+  storyProfile.includes('"pathPattern"') ||
+  !storyProfile.includes('"layoutPresence"') ||
+  !storyProfile.includes('"documentRoles"') ||
   storyLayout.includes('"fields"') ||
-  !storyLayout.includes("profile:") ||
+  !storyLayout.includes("DEFAULT_STORY_PROFILE.defineLayout") ||
+  storyLayout.includes("novel-claw.story.default-novel") ||
   storySkill.includes("contract.json") ||
   storyProfileCompiler.includes("STORY_PROJECT_CONTRACT_TOOL_CAPABILITY") ||
   !storyProtocol.includes("interface StoryToolApi") ||
@@ -148,6 +169,7 @@ if (
   !storyProjectProtocol.includes("applyChanges(project:") ||
   !storyProjectProtocol.includes("readContext(") ||
   !storyProjectProtocol.includes("StoryContextBundle") ||
+  !storyProjectProtocol.includes("documentRoles") ||
   storyProjectProtocol.includes("formats/structured-novel-v1") ||
   storyProjectProtocol.includes("declarative-profile") ||
   !storyProjectProtocol.includes("STORY_PROJECT_CONFIG_PATH") ||

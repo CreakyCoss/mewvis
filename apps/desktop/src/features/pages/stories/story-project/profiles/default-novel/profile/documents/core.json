@@ -2,7 +2,7 @@
   "story-manifest": {
     "label": "故事清单",
     "description": "索引所有正式故事文件并维护 revision",
-    "pathPattern": "story/manifest.json",
+    "layoutPresence": "required",
     "cardinality": "one",
     "titlePointer": "/title",
     "fields": {
@@ -68,7 +68,7 @@
   "story-book": {
     "label": "作品核心",
     "description": "书名、故事前提、目标、核心冲突与终局阻碍",
-    "pathPattern": "story/book.json",
+    "layoutPresence": "required",
     "cardinality": "one",
     "titlePointer": "/title",
     "fieldSets": ["entity-document"],
@@ -156,7 +156,7 @@
   },
   "story-positioning": {
     "label": "作品定位",
-    "pathPattern": "story/positioning.json",
+    "layoutPresence": "required",
     "cardinality": "one",
     "fieldSets": ["entity-document"],
     "constFields": {
@@ -249,7 +249,7 @@
   },
   "story-style": {
     "label": "文风约束",
-    "pathPattern": "story/style.json",
+    "layoutPresence": "required",
     "cardinality": "one",
     "fieldSets": ["entity-document"],
     "constFields": {

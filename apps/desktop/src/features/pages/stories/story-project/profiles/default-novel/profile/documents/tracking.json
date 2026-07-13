@@ -1,7 +1,7 @@
 {
   "story-character-state": {
     "label": "角色状态",
-    "pathPattern": "story/tracking/character-states/{characterId}.json",
+    "layoutPresence": "required",
     "cardinality": "many",
     "fieldSets": ["entity-document"],
     "constFields": {
@@ -77,7 +77,7 @@
   "story-foreshadows": {
     "label": "伏笔追踪",
     "description": "统一维护伏笔的计划、埋设、推进、回收和放弃状态",
-    "pathPattern": "story/tracking/foreshadows.json",
+    "layoutPresence": "required",
     "cardinality": "one",
     "fieldSets": ["entity-document"],
     "constFields": {
@@ -96,7 +96,7 @@
   },
   "story-timeline": {
     "label": "时间线",
-    "pathPattern": "story/tracking/timeline/{id}.json",
+    "layoutPresence": "required",
     "cardinality": "many",
     "fieldSets": ["entity-document"],
     "constFields": {
@@ -130,7 +130,7 @@
   },
   "story-progress": {
     "label": "创作进度",
-    "pathPattern": "story/tracking/progress.json",
+    "layoutPresence": "required",
     "cardinality": "one",
     "fieldSets": ["entity-document"],
     "constFields": {
