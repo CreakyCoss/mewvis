@@ -7,7 +7,7 @@ import {
   createStoryProjectCompilerRegistry,
   type StoryProjectApi,
 } from "../../../../../protocols/story-project";
-import { DEFAULT_STORY_PROJECT_LAYOUT_SOURCE } from "./layouts/default-novel";
+import { DEFAULT_STORY_PROJECT_LAYOUT } from "./layouts/default-layout";
 import { DEFAULT_STORY_PROFILE_SOURCE } from "./profiles/default-novel";
 
 const compilers = createStoryProjectCompilerRegistry();
@@ -55,7 +55,7 @@ export const installStoryProject = async (
 };
 
 export const installDefaultStoryProject = (workspacePath: string) =>
-  installStoryProject(workspacePath, DEFAULT_STORY_PROJECT_LAYOUT_SOURCE, DEFAULT_STORY_PROFILE_SOURCE);
+  installStoryProject(workspacePath, DEFAULT_STORY_PROJECT_LAYOUT, DEFAULT_STORY_PROFILE_SOURCE);
 
 export const initializeDefaultStoryProject = async (
   workspacePath: string,

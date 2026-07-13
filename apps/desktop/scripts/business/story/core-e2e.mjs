@@ -10,7 +10,7 @@ const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
 const protocolPath = resolve(root, "protocols/story-project/index.ts");
 const profilePath = resolve(root, "src/features/pages/stories/story-project/profiles/default-novel/index.ts");
-const layoutPath = resolve(root, "src/features/pages/stories/story-project/layouts/default-novel/layout.json");
+const layoutPath = resolve(root, "src/features/pages/stories/story-project/layouts/default-layout.ts");
 const documentModelPath = resolve(root, "src/features/pages/stories/story-project/documents/model.ts");
 
 writeFileSync(
@@ -24,7 +24,7 @@ writeFileSync(
     storyChangeSetSchema,
   } from ${JSON.stringify(protocolPath)};
   import { DEFAULT_STORY_PROFILE_SOURCE } from ${JSON.stringify(profilePath)};
-  import defaultLayout from ${JSON.stringify(layoutPath)};
+  import { DEFAULT_STORY_PROJECT_LAYOUT as defaultLayout } from ${JSON.stringify(layoutPath)};
   import { inspectStructuredJsonDocument, storyDocumentsToStoryJson } from ${JSON.stringify(documentModelPath)};
 
   const assert = (condition: unknown, message: string, details?: unknown) => {

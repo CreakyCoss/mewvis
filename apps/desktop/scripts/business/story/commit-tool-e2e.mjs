@@ -18,7 +18,7 @@ const storyProfilePath = resolve(workspaceRoot, "protocols/story-project/index.t
 const nodeRepositoryPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/node-repository.ts");
 const defaultLayoutPath = resolve(
   workspaceRoot,
-  "src/features/pages/stories/story-project/layouts/default-novel/layout.json",
+  "src/features/pages/stories/story-project/layouts/default-layout.ts",
 );
 const defaultProfilePath = resolve(
   workspaceRoot,
@@ -33,7 +33,7 @@ writeFileSync(
   import { dirname, join } from "node:path";
   import { registerPiBuiltinTool } from ${JSON.stringify(toolPath)};
   import { STORY_TOOL, createStoryToolPackage } from ${JSON.stringify(storyBuiltinPath)};
-  import defaultLayoutJson from ${JSON.stringify(defaultLayoutPath)};
+  import { DEFAULT_STORY_PROJECT_LAYOUT as defaultLayoutJson } from ${JSON.stringify(defaultLayoutPath)};
   import { DEFAULT_STORY_PROFILE_SOURCE } from ${JSON.stringify(defaultProfilePath)};
   import { DECLARATIVE_STORY_PROJECT_COMPILER_ID, StoryProjectCompilerRegistry, createStoryProjectCompilerRegistry } from ${JSON.stringify(storyProfilePath)};
   import { createNodeStoryToolRepository } from ${JSON.stringify(nodeRepositoryPath)};

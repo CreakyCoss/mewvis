@@ -55,7 +55,7 @@ const storyProfile = [
     .map((name) => readFileSync(resolve(storyProfileRoot, "documents", name), "utf8")),
 ].join("\n");
 const storyLayout = readFileSync(
-  resolve(root, "src/features/pages/stories/story-project/layouts/default-novel/layout.json"),
+  resolve(root, "src/features/pages/stories/story-project/layouts/default-layout.ts"),
   "utf8",
 );
 const storyTool = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/tool/definition.ts"), "utf8");
@@ -122,7 +122,7 @@ if (
   storyProfile.includes("novel-claw.structured-document") ||
   storyProfile.includes("skillBindings") ||
   storyLayout.includes('"fields"') ||
-  !storyLayout.includes('"profile"') ||
+  !storyLayout.includes("profile:") ||
   storySkill.includes("contract.json") ||
   storyProfileCompiler.includes("STORY_PROJECT_CONTRACT_TOOL_CAPABILITY") ||
   !storyProtocol.includes("interface StoryToolApi") ||

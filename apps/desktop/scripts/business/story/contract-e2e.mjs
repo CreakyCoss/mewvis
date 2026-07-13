@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
+import { transform } from "esbuild";
 
 const root = process.cwd();
 const profilePath = resolve(root, "src/features/pages/stories/story-project/profiles/default-novel/profile");
-const layoutPath = resolve(root, "src/features/pages/stories/story-project/layouts/default-novel/layout.json");
+const layoutPath = resolve(root, "src/features/pages/stories/story-project/layouts/default-layout.ts");
 const metadata = JSON.parse(readFileSync(resolve(profilePath, "metadata.json"), "utf8"));
 const objectDefinitionSource = Object.assign(
   {},
@@ -19,7 +20,10 @@ const documents = Object.assign(
     .map((name) => JSON.parse(readFileSync(resolve(profilePath, "documents", name), "utf8"))),
 );
 const contract = { ...metadata, objectDefinitions: objectDefinitionSource, documents };
-const layout = JSON.parse(readFileSync(layoutPath, "utf8"));
+const layoutModule = await transform(readFileSync(layoutPath, "utf8"), { format: "esm", loader: "ts" });
+const layout = (
+  await import(`data:text/javascript;base64,${Buffer.from(layoutModule.code).toString("base64")}`)
+).DEFAULT_STORY_PROJECT_LAYOUT;
 
 const expectedDocumentPaths = {
   "story-manifest": "story/manifest.json",
