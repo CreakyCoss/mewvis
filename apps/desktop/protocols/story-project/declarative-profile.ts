@@ -331,6 +331,65 @@ export const resolveStoryProfilePath = (
 
 const cloneJson = (value: unknown) => JSON.parse(JSON.stringify(value)) as unknown;
 
+const parseCompatibleJson = (value: unknown) => {
+  if (typeof value !== "string") return value;
+  const text = value.trim();
+  if (!text || (!text.startsWith("{") && !text.startsWith("["))) return value;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return value;
+  }
+};
+
+const compatibleArray = (value: unknown) => {
+  if (typeof value === "string" && !value.trim()) return [];
+  const parsed = parseCompatibleJson(value);
+  if (Array.isArray(parsed)) return parsed;
+  if (parsed && typeof parsed === "object" && Object.keys(parsed).length === 1 && "item" in parsed) {
+    const item = (parsed as Record<string, unknown>).item;
+    return Array.isArray(item) ? item : [item];
+  }
+  return parsed;
+};
+
+const compatibleInteger = (value: unknown) => {
+  if (typeof value !== "string" || !value.trim()) return value;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) ? parsed : value;
+};
+
+const compatibleNumber = (value: unknown) => {
+  if (typeof value !== "string" || !value.trim()) return value;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : value;
+};
+
+const compatibleBoolean = (value: unknown) => {
+  if (typeof value !== "string") return value;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true") return true;
+  if (normalized === "false") return false;
+  return value;
+};
+
+const compatiblePrimitive = (field: StoryProfileField, value: unknown) => {
+  const stringTypes = new Set(["id", "text", "textarea", "content", "enum", "reference", "path"]);
+  if (stringTypes.has(field.type) && (typeof value === "number" || typeof value === "boolean")) {
+    return String(value);
+  }
+  if (field.type === "integer" || field.type === "timestamp") return compatibleInteger(value);
+  if (field.type === "number") return compatibleNumber(value);
+  if (field.type === "boolean") return compatibleBoolean(value);
+  if (field.type === "string-list" || field.type === "reference-list") {
+    const array = compatibleArray(value);
+    return Array.isArray(array)
+      ? array.map((item) => (typeof item === "number" || typeof item === "boolean" ? String(item) : item))
+      : array;
+  }
+  return value;
+};
+
 const assertPrimitiveType = (field: StoryProfileField, value: unknown, owner: string) => {
   const type = field.type;
   const stringTypes = new Set(["id", "text", "textarea", "content", "enum", "reference", "path"]);
@@ -371,6 +430,7 @@ const materializeFields = (
   fields: Readonly<Record<string, StoryProfileField>>,
   input: unknown,
   timestamp: number,
+  coerce: boolean,
 ) => {
   const source = objectFromUnknown(input, owner);
   const allowed = new Set(Object.keys(fields).map(fieldName));
@@ -390,15 +450,31 @@ const materializeFields = (
     if (field.definition) {
       const definition = contract.objectDefinitions[field.definition];
       if (!definition) throw new Error(`工作区协议缺少对象定义：${field.definition}`);
-      value = materializeFields(contract, `${owner}.${key}`, definition.fields, value, timestamp);
+      value = materializeFields(
+        contract,
+        `${owner}.${key}`,
+        definition.fields,
+        coerce ? parseCompatibleJson(value) : value,
+        timestamp,
+        coerce,
+      );
     } else if (field.itemDefinition) {
+      if (coerce) value = compatibleArray(value);
       if (!Array.isArray(value)) throw new Error(`${owner}.${key} 必须是数组。`);
       const definition = contract.objectDefinitions[field.itemDefinition];
       if (!definition) throw new Error(`工作区协议缺少对象定义：${field.itemDefinition}`);
       value = value.map((item, index) =>
-        materializeFields(contract, `${owner}.${key}[${index}]`, definition.fields, item, timestamp),
+        materializeFields(
+          contract,
+          `${owner}.${key}[${index}]`,
+          definition.fields,
+          coerce ? parseCompatibleJson(item) : item,
+          timestamp,
+          coerce,
+        ),
       );
     } else {
+      if (coerce) value = compatiblePrimitive(field, value);
       assertPrimitiveType(field, value, `${owner}.${key}`);
     }
     result[key] = value;
@@ -411,6 +487,7 @@ export const materializeStoryDocument = (
   input: unknown,
   expectedKind: string,
   timestamp = Date.now(),
+  options: Readonly<{ coerce?: boolean }> = {},
 ) => {
   const value = materializeFields(
     contract,
@@ -418,6 +495,7 @@ export const materializeStoryDocument = (
     storyProfileDocumentFields(contract, expectedKind),
     input,
     timestamp,
+    options.coerce === true,
   );
   if (value.kind !== expectedKind) {
     throw new Error(`故事文档 kind 与目标路径不一致：期望 ${expectedKind}，收到 ${String(value.kind)}`);
@@ -442,7 +520,13 @@ export const serializeStoryDocument = (
   );
 };
 
-export const parseStoryDocument = (contract: StoryProfile, input: unknown, path: string, timestamp = Date.now()) => {
+export const parseStoryDocument = (
+  contract: StoryProfile,
+  input: unknown,
+  path: string,
+  timestamp = Date.now(),
+  options: Readonly<{ coerce?: boolean }> = {},
+) => {
   const kind = storyProfileKindForPath(contract, path);
   const document = storyProfileDocument(contract, kind);
   if (document.contentType === "markdown") {
@@ -453,5 +537,5 @@ export const parseStoryDocument = (contract: StoryProfile, input: unknown, path:
     if (!id) throw new Error(`${kind} 的 Markdown 路径必须包含 {id} 参数。`);
     return { kind, id, content };
   }
-  return materializeStoryDocument(contract, input, kind, timestamp);
+  return materializeStoryDocument(contract, input, kind, timestamp, options);
 };

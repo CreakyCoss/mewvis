@@ -8,6 +8,12 @@ export const toPiToolParameters = (definition: ToolParameterDefinition): TSchema
     case "string":
       schema = Type.String({ description: definition.description }) as TSchema;
       break;
+    case "number":
+      schema = Type.Number({ description: definition.description }) as TSchema;
+      break;
+    case "integer":
+      schema = Type.Integer({ description: definition.description }) as TSchema;
+      break;
     case "boolean":
       schema = Type.Boolean({ description: definition.description }) as TSchema;
       break;

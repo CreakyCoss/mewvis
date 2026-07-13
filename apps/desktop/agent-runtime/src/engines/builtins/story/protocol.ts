@@ -1,4 +1,6 @@
 import type {
+  CompiledStoryContextViewDescription,
+  CompiledStoryDocumentDescription,
   StoryProfileDescription,
   StoryContextBundle,
   StoryValidationIssue,
@@ -29,9 +31,37 @@ export const STORY_TOOL_ACTIONS = {
 
 export type StoryToolAction = (typeof STORY_TOOL_ACTIONS)[keyof typeof STORY_TOOL_ACTIONS];
 
+export type StoryDescribeStructureRequest = {
+  documentKinds?: string[];
+};
+
+export type StoryStructureProfileDescription = Pick<
+  StoryProfileDescription,
+  "$format" | "profileId" | "profileVersion" | "schemaVersion" | "rootPath" | "manifestKind" | "primaryKind"
+> & {
+  documentRoles: StoryProfileDescription["documentRoles"];
+  documents: Readonly<
+    Record<
+      string,
+      Pick<
+        CompiledStoryDocumentDescription,
+        "label" | "description" | "contentType" | "layoutPresence" | "pathPattern" | "cardinality"
+      >
+    >
+  >;
+  contextViews: Readonly<
+    Record<string, Pick<CompiledStoryContextViewDescription, "label" | "scope" | "targetKind" | "documentKinds">>
+  >;
+  validationProfiles: readonly string[];
+};
+
 export type StoryStructureDescription = {
   compiler: { format: string; version: number };
-  profile: StoryProfileDescription;
+  profile: StoryStructureProfileDescription;
+  schemas: {
+    documents: Readonly<Record<string, CompiledStoryDocumentDescription>>;
+    objectDefinitions: StoryProfileDescription["objectDefinitions"];
+  };
   changeSet: {
     maxOperations: number;
     maxBytes: number;
@@ -73,7 +103,7 @@ export type StoryChangeSetRequest = {
 };
 
 export type StoryToolRequest =
-  | { action: typeof STORY_TOOL_ACTIONS.describeStructure }
+  | ({ action: typeof STORY_TOOL_ACTIONS.describeStructure } & StoryDescribeStructureRequest)
   | ({ action: typeof STORY_TOOL_ACTIONS.initialize } & StoryInitializeRequest)
   | ({ action: typeof STORY_TOOL_ACTIONS.readContext } & StoryReadContextRequest)
   | ({ action: typeof STORY_TOOL_ACTIONS.validateChanges } & StoryChangeSetRequest)
@@ -101,7 +131,7 @@ export type StoryCommitChangesResult = {
 };
 
 export interface StoryToolApi {
-  describeStructure(): Promise<StoryDescribeStructureResult>;
+  describeStructure(input?: StoryDescribeStructureRequest): Promise<StoryDescribeStructureResult>;
   initialize(input: StoryInitializeRequest): Promise<StoryInitializeResult>;
   readContext(input: StoryReadContextRequest): Promise<StoryContextBundle>;
   validateChanges(input: StoryChangeSetRequest): Promise<StoryValidateChangesResult>;

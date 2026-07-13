@@ -17,6 +17,11 @@ export type ToolParameterDefinition =
       optional?: boolean;
     }
   | {
+      type: "number" | "integer";
+      description: string;
+      optional?: boolean;
+    }
+  | {
       type: "boolean";
       description: string;
       optional?: boolean;

@@ -16,6 +16,7 @@ const toolPath = resolve(
 const storyBuiltinPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/definition.ts");
 const storyProfilePath = resolve(workspaceRoot, "protocols/story-project/index.ts");
 const nodeRepositoryPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/node-repository.ts");
+const piValidationPath = resolve(workspaceRoot, "../../ai/pi/packages/ai/src/utils/validation.ts");
 const defaultLayoutPath = resolve(workspaceRoot, "src/features/pages/stories/story-project/layouts/default-layout.ts");
 const defaultProfilePath = resolve(
   workspaceRoot,
@@ -28,6 +29,7 @@ writeFileSync(
   import { createHash } from "node:crypto";
   import { mkdir, readFile, stat, utimes, writeFile } from "node:fs/promises";
   import { dirname, join } from "node:path";
+  import { validateToolArguments } from ${JSON.stringify(piValidationPath)};
   import { registerPiBuiltinTool } from ${JSON.stringify(toolPath)};
   import { STORY_TOOL, createStoryToolPackage } from ${JSON.stringify(storyBuiltinPath)};
   import { DEFAULT_STORY_PROJECT_LAYOUT as defaultLayoutJson } from ${JSON.stringify(defaultLayoutPath)};
@@ -99,11 +101,36 @@ writeFileSync(
   assert(tools.size === 1, "完整故事能力应只注册一个 PI 工具。", [...tools.keys()]);
   const storyTool = tools.get("story");
   assert(storyTool, "story 工具应成功注册。");
+  assert(
+    storyTool.parameters.properties.changeSet.type === "object" &&
+      storyTool.parameters.properties.changeSet.properties.profileVersion.type === "integer" &&
+      storyTool.parameters.properties.changeSet.properties.batch.properties.final.type === "boolean" &&
+      storyTool.parameters.properties.changeSet.properties.operations.type === "array" &&
+      storyTool.parameters.properties.changeSet.properties.operations.items.anyOf.some(
+        (operation: any) =>
+          operation.properties.type.const === "upsert-items" && operation.properties.items.type === "array",
+      ),
+    "Story Tool 必须向模型暴露完整的 ChangeSet 数字、布尔和数组类型。",
+    storyTool.parameters,
+  );
   const described = await storyTool.execute("describe", { action: "describe_structure" }, undefined, undefined, undefined);
   assert(
     described.details.structure.profile.profileId === DEFAULT_STORY_PROFILE_SOURCE.profileId,
     "故事工具必须返回工作区选择的 Profile。",
     described.details,
+  );
+  assert(
+    Object.keys(described.details.structure.schemas.documents).length === 0 &&
+      JSON.stringify(described.details).length < 20_000,
+    "首次 describe_structure 应返回轻量目录，不应一次注入完整 Profile。",
+    { length: JSON.stringify(described.details).length },
+  );
+  const describedSchemas = await storyTool.execute(
+    "describe-schema",
+    { action: "describe_structure", documentKinds: ["story-book", "story-relationships"] },
+    undefined,
+    undefined,
+    undefined,
   );
   assert(
     described.details.structure.compiler.format === STORY_PROJECT_IDENTIFIERS.declarativeCompiler.format &&
@@ -139,15 +166,100 @@ writeFileSync(
   assert(afterValid.title === "原子提交成功", "合法 ChangeSet 应写入变化文件。", afterValid);
   assert(
     described.details.structure.profile.documents["story-book"].label === "作品核心" &&
-      described.details.structure.profile.documents["story-book"].fields["/title"].label === "书名",
+      describedSchemas.details.structure.schemas.documents["story-book"].fields["/title"].label === "书名" &&
+      describedSchemas.details.structure.schemas.objectDefinitions.relationship,
     "字段可读元数据必须由 Profile 提供，而不是复制进落盘 JSON。",
-    described.details,
+    describedSchemas.details,
   );
   assert(
     described.details.structure.profile.documentRoles.chapterContent === "story-chapter-content" &&
       described.details.structure.profile.documentRoles.chapterResult === "story-chapter",
     "describe_structure 必须把 Compiler 解析后的文档语义角色传给技能。",
     described.details,
+  );
+  const miniMaxArguments = validateToolArguments(storyTool, {
+    type: "toolCall",
+    id: "minimax-compatible-values",
+    name: "story",
+    arguments: {
+      action: "commit_changes",
+      changeSet: {
+        profileId: DEFAULT_STORY_PROFILE_SOURCE.profileId,
+        profileVersion: "1",
+        storyId: projectInfo.storyId,
+        baseRevision: String(valid.details.revision),
+        validationProfile: "draft",
+        batch: {
+          workflowId: "minimax-compatible-values",
+          index: "2",
+          total: "2",
+          label: "字符串基础类型与关系数组",
+          final: "false",
+        },
+        operations: [
+          {
+            type: "upsert",
+            path: "story/characters/char-compatible-a.json",
+            value: { id: "char-compatible-a", name: "兼容甲", role: "protagonist", age: 28, memory: {} },
+          },
+          {
+            type: "upsert",
+            path: "story/characters/char-compatible-b.json",
+            value: { id: "char-compatible-b", name: "兼容乙", role: "supporting", age: "26", memory: {} },
+          },
+          { type: "patch", path: "story/positioning.json", value: { targetWords: "2500000" } },
+          {
+            type: "upsert-items",
+            path: "story/relationships.json",
+            field: "relationships",
+            items: [
+              {
+                id: "rel-compatible-a-b",
+                fromCharacterId: "char-compatible-a",
+                toCharacterId: "char-compatible-b",
+                type: "搭档",
+                emotionalDirection: "从试探到信任",
+                currentState: "刚开始合作",
+                conflict: "做事方式不同",
+                evolution: "",
+              },
+            ],
+          },
+        ],
+      },
+    },
+  } as any);
+  assert(
+    typeof miniMaxArguments.changeSet.profileVersion === "number" &&
+      typeof miniMaxArguments.changeSet.baseRevision === "number" &&
+      typeof miniMaxArguments.changeSet.batch.index === "number" &&
+      miniMaxArguments.changeSet.batch.final === false,
+    "PI 注册层应按 Story Tool schema 转换 MiniMax 返回的字符串基础类型。",
+    miniMaxArguments,
+  );
+  const miniMaxCompatible = await storyTool.execute(
+    "minimax-compatible-values",
+    miniMaxArguments,
+    undefined,
+    undefined,
+    undefined,
+  );
+  assert(
+    miniMaxCompatible.details.committed === true && miniMaxCompatible.details.revision === valid.details.revision + 1,
+    "内容正确但基础类型字符串化的 MiniMax ChangeSet 应一次提交成功。",
+    miniMaxCompatible.details,
+  );
+  const compatibleCharacter = JSON.parse(
+    await readFile(join(root, "story/characters/char-compatible-a.json"), "utf8"),
+  );
+  const compatiblePositioning = JSON.parse(await readFile(join(root, "story/positioning.json"), "utf8"));
+  const compatibleRelationships = JSON.parse(await readFile(join(root, "story/relationships.json"), "utf8"));
+  assert(
+    compatibleCharacter.age === "28" &&
+      compatiblePositioning.targetWords === 2_500_000 &&
+      Array.isArray(compatibleRelationships.relationships[0].evolution),
+    "Profile 必须在写盘前把可无歧义转换的业务字段编码为规范类型。",
+    { compatibleCharacter, compatiblePositioning, compatibleRelationships },
   );
   assert((await stat(untouchedPath)).mtimeMs === untouchedBefore, "原子提交不应重写本批未变化的 JSON 文件。");
 
@@ -199,6 +311,26 @@ writeFileSync(
     rejectedContract.committed === false && rejectedContract.issues[0]?.code === "changeset.invalid",
     "工具必须在写入前拒绝错误 contract 版本。",
     rejectedContract,
+  );
+  const rejectedTransport: any = await fallbackPackage.execute({
+    action: "commit_changes",
+    changeSet: {
+      ...changeSetContract,
+      profileVersion: "not-a-number",
+      storyId: "fallback-story",
+      baseRevision: "1",
+      validationProfile: "draft",
+      batch: { workflowId: "invalid-conversion", index: "1", label: "非法转换", final: "false" },
+      operations: [{ type: "patch", path: "story/book.json", value: { title: "不应写入" } }],
+    },
+  });
+  assert(
+    rejectedTransport.committed === false &&
+      rejectedTransport.issues.some(
+        (issue: any) => issue.path === "changeSet.profileVersion" && issue.code.includes("invalid_type"),
+      ),
+    "无法安全转换的值必须返回逐字段结构化错误。",
+    rejectedTransport,
   );
 
   const customRoot = join(${JSON.stringify(tempDir)}, "custom-layout-workspace");

@@ -805,7 +805,8 @@ const createApi = (profile: StoryProfile): StoryProjectApi => {
     contextView: (scope) => storyProfileContextViewForScope(profile, scope),
     resolveDocument: (kind, parameters) => resolveStoryProfilePath(profile, kind, parameters),
     kindForPath: (path) => storyProfileKindForPath(profile, path),
-    materializeDocument: (input, path, timestamp) => parseStoryDocument(profile, input, path, timestamp),
+    materializeDocument: (input, path, timestamp) =>
+      parseStoryDocument(profile, input, path, timestamp, { coerce: true }),
     encodeDocument: (input, path) => serializeStoryDocument(profile, input, path),
     decodeDocument: (input, path) => parseStoryDocument(profile, input, path),
     projectManifestPath: () => resolveStoryProfilePath(profile, profile.manifestKind),

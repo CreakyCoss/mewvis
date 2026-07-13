@@ -3,6 +3,7 @@ import type { BuiltinToolDefinition, BuiltinToolImplementation, ToolParameterDef
 import { createNodeStoryToolRepository } from "./node-repository.js";
 import type { StoryToolRepository } from "./repository.js";
 import { createStoryToolService } from "./service.js";
+import { STORY_CHANGE_SET_PARAMETERS } from "./request.js";
 import {
   STORY_BUILTIN_IDENTIFIERS,
   STORY_TOOL_ACTIONS,
@@ -14,7 +15,12 @@ import {
 export const STORY_TOOL_NAME = "story" as const;
 
 const storyToolRequestSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal(STORY_TOOL_ACTIONS.describeStructure) }).strict(),
+  z
+    .object({
+      action: z.literal(STORY_TOOL_ACTIONS.describeStructure),
+      documentKinds: z.array(z.string().trim().min(1)).optional(),
+    })
+    .strict(),
   z
     .object({
       action: z.literal(STORY_TOOL_ACTIONS.initialize),
@@ -58,7 +64,7 @@ export const createStoryToolPackage = (repository: StoryToolRepository): StoryTo
       const request = storyToolRequestSchema.parse(input) as StoryToolRequest;
       switch (request.action) {
         case STORY_TOOL_ACTIONS.describeStructure:
-          return api.describeStructure();
+          return api.describeStructure(request);
         case STORY_TOOL_ACTIONS.initialize:
           return api.initialize(request);
         case STORY_TOOL_ACTIONS.readContext:
@@ -74,6 +80,13 @@ export const createStoryToolPackage = (repository: StoryToolRepository): StoryTo
 
 const literalParam = (value: string) => ({ type: "literal", value }) as const;
 const optionalString = (description: string) => ({ type: "string", description, optional: true }) as const;
+const optionalStringArray = (description: string) =>
+  ({
+    type: "array",
+    description,
+    items: { type: "string", description: "文档 kind" },
+    optional: true,
+  }) as const;
 
 const STORY_TOOL_PARAMETERS = {
   type: "object",
@@ -83,6 +96,9 @@ const STORY_TOOL_PARAMETERS = {
       description: "要执行的故事操作",
       anyOf: Object.values(STORY_TOOL_ACTIONS).map(literalParam),
     },
+    documentKinds: optionalStringArray(
+      "describe_structure 时可选：只返回这些文档的完整字段与递归对象定义；省略时返回轻量目录",
+    ),
     storyId: optionalString("initialize 时必填：故事稳定 ID"),
     title: optionalString("initialize 时必填：故事标题"),
     replaceExistingJson: {
@@ -97,11 +113,7 @@ const STORY_TOOL_PARAMETERS = {
       optional: true,
     },
     targetId: optionalString("read_context 且 scope=chapter 时必填：章节计划 ID 或章节号"),
-    changeSet: {
-      type: "json",
-      description: "validate_changes 或 commit_changes 时必填：小批次 Story ChangeSet JSON 对象",
-      optional: true,
-    },
+    changeSet: { ...STORY_CHANGE_SET_PARAMETERS, optional: true },
   },
 } as const satisfies ToolParameterDefinition;
 

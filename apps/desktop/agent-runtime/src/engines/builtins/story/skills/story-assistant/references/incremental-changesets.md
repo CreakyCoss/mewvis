@@ -1,6 +1,6 @@
 # Story ChangeSet 增量批次协议
 
-本协议适用于 `story-authoring` 内置能力包。进入协议前先完成 `story-tool-binding.md` 的启动门禁并调用 `story(action="describe_structure")`；其返回的限制与结构高于本文示例。目标是让模型只提交本次真正变化的字段，让工具只重写本批变化的 JSON 或 Markdown 文件，并用 revision 防止并发覆盖。
+本协议适用于 `story-authoring` 内置能力包。进入协议前先完成 `story-tool-binding.md` 的启动门禁并调用 `story(action="describe_structure")`；构造批次前再用 `documentKinds` 请求本批需要的完整字段，其返回的限制与结构高于本文示例。目标是让模型只提交本次真正变化的字段，让工具只重写本批变化的 JSON 或 Markdown 文件，并用 revision 防止并发覆盖。
 
 ## 单批限制
 
