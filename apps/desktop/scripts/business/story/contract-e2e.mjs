@@ -1,25 +1,33 @@
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { build } from "esbuild";
 
 const root = process.cwd();
-const profilePath = resolve(root, "src/features/pages/stories/story-project/profiles/default-novel/profile");
+const profilePath = resolve(root, "src/features/pages/stories/story-project/profiles/default-novel/index.ts");
 const layoutPath = resolve(root, "src/features/pages/stories/story-project/layouts/default-layout.ts");
-const metadata = JSON.parse(readFileSync(resolve(profilePath, "metadata.json"), "utf8"));
-const objectDefinitionSource = Object.assign(
-  {},
-  ...readdirSync(resolve(profilePath, "objects"))
-    .filter((name) => name.endsWith(".json"))
-    .map((name) => JSON.parse(readFileSync(resolve(profilePath, "objects", name), "utf8"))),
+const identifiersPath = resolve(root, "protocols/story-project/identifiers.ts");
+const profileModule = await build({
+  entryPoints: [profilePath],
+  bundle: true,
+  format: "esm",
+  platform: "node",
+  target: "node22",
+  write: false,
+});
+const { DEFAULT_STORY_PROFILE_SOURCE: contract } = await import(
+  `data:text/javascript;base64,${Buffer.from(profileModule.outputFiles[0].text).toString("base64")}`
 );
-const documents = Object.assign(
-  {},
-  ...readdirSync(resolve(profilePath, "documents"))
-    .filter((name) => name.endsWith(".json"))
-    .map((name) => JSON.parse(readFileSync(resolve(profilePath, "documents", name), "utf8"))),
+const identifiersModule = await build({
+  entryPoints: [identifiersPath],
+  bundle: true,
+  format: "esm",
+  platform: "node",
+  target: "node22",
+  write: false,
+});
+const { STORY_PROJECT_IDENTIFIERS: identifiers } = await import(
+  `data:text/javascript;base64,${Buffer.from(identifiersModule.outputFiles[0].text).toString("base64")}`
 );
-const contract = { ...metadata, objectDefinitions: objectDefinitionSource, documents };
 const layoutModule = await build({
   entryPoints: [layoutPath],
   bundle: true,
@@ -55,10 +63,10 @@ const expectedDocumentPaths = {
   "story-review": "story/reviews/{id}.json",
   "story-import": "story/imports/{id}.json",
 };
-assert.equal(contract.$format, "novel-claw.story-profile");
+assert.equal(contract.$format, identifiers.declarativeProfile.format);
 assert.equal(contract.profileId, "novel-claw.story.default-novel");
 assert.equal(contract.profileVersion, 1);
-assert.equal(contract.schemaVersion, 1);
+assert.equal(contract.schemaVersion, identifiers.declarativeProfile.schemaVersion);
 assert.equal(contract.rootPath, undefined, "Profile 不应决定文件根目录");
 assert.equal(contract.documentEncoding, undefined, "标准 Profile 不应声明持久化信封格式");
 assert.equal(layout.profile.id, contract.profileId);

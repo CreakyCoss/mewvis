@@ -6,6 +6,19 @@ import type {
 } from "../../../../../protocols/story-project/index.js";
 import { defineBuiltinToolContract } from "../definition.js";
 
+/** Story 内置能力自身使用的稳定身份，不属于工作区 Story Project 协议。 */
+export const STORY_BUILTIN_IDENTIFIERS = Object.freeze({
+  /** 技能依赖的 Story Tool Contract；实现可以替换，但必须满足这组方法。 */
+  toolContract: Object.freeze({
+    id: "novel-claw.story-project-tool",
+    version: 1,
+  }),
+  /** agent-runtime 创建的默认 Story Tool 实现包身份。 */
+  toolPackage: Object.freeze({
+    id: "novel-claw.story",
+  }),
+});
+
 export const STORY_TOOL_ACTIONS = {
   describeStructure: "describe_structure",
   initialize: "initialize",
@@ -96,8 +109,8 @@ export interface StoryToolApi {
 }
 
 export const STORY_TOOL_CONTRACT = defineBuiltinToolContract<StoryToolApi>()({
-  id: "novel-claw.story-project-tool",
-  version: 1,
+  id: STORY_BUILTIN_IDENTIFIERS.toolContract.id,
+  version: STORY_BUILTIN_IDENTIFIERS.toolContract.version,
   properties: {},
   methods: {
     describeStructure: { description: "返回 Compiler 标准化后的故事结构与 ChangeSet 约束" },

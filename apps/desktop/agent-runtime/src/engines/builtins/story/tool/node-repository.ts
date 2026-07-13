@@ -2,6 +2,7 @@ import { cp, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import {
+  STORY_PROJECT_IDENTIFIERS,
   STORY_PROJECT_CONFIG_PATH,
   STORY_PROJECT_LOCK_PATH,
   STORY_PROJECT_PROFILE_PATH,
@@ -62,8 +63,8 @@ const loadProjectApi = async (workspacePath: string, compilers: StoryProjectComp
   const projectDigest = createHash("sha256").update(projectText).digest("hex");
   const profileDigest = createHash("sha256").update(profileText).digest("hex");
   if (
-    lock.$format !== "novel-claw.story-project-lock" ||
-    lock.version !== 1 ||
+    lock.$format !== STORY_PROJECT_IDENTIFIERS.projectLock.format ||
+    lock.version !== STORY_PROJECT_IDENTIFIERS.projectLock.version ||
     lock.projectPath !== STORY_PROJECT_CONFIG_PATH ||
     lock.profilePath !== STORY_PROJECT_PROFILE_PATH ||
     lock.profileId !== projectApi.identity.profileId ||

@@ -1,4 +1,5 @@
 import { defineProtocol } from "../definition.js";
+import { STORY_PROJECT_IDENTIFIERS } from "./identifiers.js";
 
 export const STORY_PROJECT_CONFIG_PATH = "story/.novel-claw/project.json" as const;
 export const STORY_PROJECT_PROFILE_PATH = "story/.novel-claw/profile.json" as const;
@@ -185,8 +186,8 @@ export interface StoryProjectApi {
 }
 
 export const STORY_PROJECT_PROTOCOL = defineProtocol<StoryProjectApi>()({
-  id: "novel-claw.story-project",
-  version: 1,
+  id: STORY_PROJECT_IDENTIFIERS.projectApi.id,
+  version: STORY_PROJECT_IDENTIFIERS.projectApi.version,
   properties: {
     compiler: { description: "实际编译工作区 contract 的受信任 Compiler 身份" },
     identity: { description: "当前故事项目 contract 的稳定身份" },

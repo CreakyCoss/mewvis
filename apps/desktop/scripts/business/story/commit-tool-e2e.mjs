@@ -32,16 +32,19 @@ writeFileSync(
   import { STORY_TOOL, createStoryToolPackage } from ${JSON.stringify(storyBuiltinPath)};
   import { DEFAULT_STORY_PROJECT_LAYOUT as defaultLayoutJson } from ${JSON.stringify(defaultLayoutPath)};
   import { DEFAULT_STORY_PROFILE_SOURCE } from ${JSON.stringify(defaultProfilePath)};
-  import { DECLARATIVE_STORY_PROJECT_COMPILER_ID, StoryProjectCompilerRegistry, createStoryProjectCompilerRegistry } from ${JSON.stringify(storyProfilePath)};
+  import { STORY_PROJECT_IDENTIFIERS, StoryProjectCompilerRegistry, createStoryProjectCompilerRegistry } from ${JSON.stringify(storyProfilePath)};
   import { createNodeStoryToolRepository } from ${JSON.stringify(nodeRepositoryPath)};
 
   const assert = (condition: unknown, message: string, details?: unknown) => {
     if (!condition) throw new Error(message + (details === undefined ? "" : "\\n" + JSON.stringify(details, null, 2)));
   };
   const root = ${JSON.stringify(storyWorkspace)};
-  const contract = createStoryProjectCompilerRegistry().compile(DECLARATIVE_STORY_PROJECT_COMPILER_ID, { profile: DEFAULT_STORY_PROFILE_SOURCE, layout: defaultLayoutJson });
+  const contract = createStoryProjectCompilerRegistry().compile(STORY_PROJECT_IDENTIFIERS.declarativeCompiler.format, { profile: DEFAULT_STORY_PROFILE_SOURCE, layout: defaultLayoutJson });
   const manifestPath = contract.resolveDocument("story-manifest");
-  const changeSetContract = { profileId: "novel-claw.story.default-novel", profileVersion: 1 };
+  const changeSetContract = {
+    profileId: DEFAULT_STORY_PROFILE_SOURCE.profileId,
+    profileVersion: DEFAULT_STORY_PROFILE_SOURCE.profileVersion,
+  };
   const installProject = async (workspace: string, layoutInput: any = defaultLayoutJson) => {
     const path = join(workspace, "story/.novel-claw/project.json");
     const profilePath = join(workspace, "story/.novel-claw/profile.json");
@@ -53,13 +56,13 @@ writeFileSync(
     await writeFile(
       join(workspace, "story/.novel-claw/project.lock.json"),
       JSON.stringify({
-        $format: "novel-claw.story-project-lock",
-        version: 1,
+        $format: STORY_PROJECT_IDENTIFIERS.projectLock.format,
+        version: STORY_PROJECT_IDENTIFIERS.projectLock.version,
         projectPath: "story/.novel-claw/project.json",
         profilePath: "story/.novel-claw/profile.json",
         profileId: layoutInput.profile.id,
         profileVersion: layoutInput.profile.version,
-        compiler: { format: DECLARATIVE_STORY_PROJECT_COMPILER_ID, version: 1 },
+        compiler: STORY_PROJECT_IDENTIFIERS.declarativeCompiler,
         projectSha256: createHash("sha256").update(projectText).digest("hex"),
         profileSha256: createHash("sha256").update(profileText).digest("hex"),
       }, null, 2) + "\\n",
@@ -98,13 +101,13 @@ writeFileSync(
   assert(storyTool, "story 工具应成功注册。");
   const described = await storyTool.execute("describe", { action: "describe_structure" }, undefined, undefined, undefined);
   assert(
-    described.details.structure.profile.profileId === "novel-claw.story.default-novel",
+    described.details.structure.profile.profileId === DEFAULT_STORY_PROFILE_SOURCE.profileId,
     "故事工具必须返回工作区选择的 Profile。",
     described.details,
   );
   assert(
-    described.details.structure.compiler.format === DECLARATIVE_STORY_PROJECT_COMPILER_ID &&
-      described.details.structure.compiler.version === 1,
+    described.details.structure.compiler.format === STORY_PROJECT_IDENTIFIERS.declarativeCompiler.format &&
+      described.details.structure.compiler.version === STORY_PROJECT_IDENTIFIERS.declarativeCompiler.version,
     "describe_structure 必须返回实际使用的受信任 Compiler 身份。",
     described.details,
   );
@@ -227,7 +230,9 @@ writeFileSync(
     incompleteRegistry.compile("example.incomplete-story-project", {});
   } catch (error) {
     incompleteProjectApiRejected =
-      String(error).includes("novel-claw.story-project@1") && String(error).includes("readContext");
+      String(error).includes(
+        STORY_PROJECT_IDENTIFIERS.projectApi.id + "@" + STORY_PROJECT_IDENTIFIERS.projectApi.version,
+      ) && String(error).includes("readContext");
   }
   assert(incompleteProjectApiRejected, "Compiler Registry 必须拒绝未完整实现 Story Project Protocol 的 Compiler。");
 

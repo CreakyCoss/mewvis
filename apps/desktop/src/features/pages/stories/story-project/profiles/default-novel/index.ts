@@ -1,4 +1,4 @@
-import { defineStoryProfile } from "../../../../../../../protocols/story-project";
+import { STORY_PROJECT_IDENTIFIERS, defineStoryProfile } from "../../../../../../../protocols/story-project";
 import metadata from "./profile/metadata.json";
 import assistantObjects from "./profile/objects/assistant.json";
 import coreObjects from "./profile/objects/core.json";
@@ -14,6 +14,8 @@ import peopleDocuments from "./profile/documents/people.json";
 import trackingDocuments from "./profile/documents/tracking.json";
 
 const source = {
+  $format: STORY_PROJECT_IDENTIFIERS.declarativeProfile.format,
+  schemaVersion: STORY_PROJECT_IDENTIFIERS.declarativeProfile.schemaVersion,
   ...metadata,
   objectDefinitions: {
     ...coreObjects,

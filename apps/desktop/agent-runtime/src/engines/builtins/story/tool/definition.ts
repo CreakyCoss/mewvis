@@ -3,7 +3,13 @@ import type { BuiltinToolDefinition, BuiltinToolImplementation, ToolParameterDef
 import { createNodeStoryToolRepository } from "./node-repository.js";
 import type { StoryToolRepository } from "./repository.js";
 import { createStoryToolService } from "./service.js";
-import { STORY_TOOL_ACTIONS, STORY_TOOL_CONTRACT, type StoryToolRequest, type StoryToolApi } from "../protocol.js";
+import {
+  STORY_BUILTIN_IDENTIFIERS,
+  STORY_TOOL_ACTIONS,
+  STORY_TOOL_CONTRACT,
+  type StoryToolRequest,
+  type StoryToolApi,
+} from "../protocol.js";
 
 export const STORY_TOOL_NAME = "story" as const;
 
@@ -40,13 +46,13 @@ const storyToolRequestSchema = z.discriminatedUnion("action", [
 
 export type StoryToolPackage = BuiltinToolImplementation<StoryToolApi> &
   Readonly<{
-    id: "novel-claw.story";
+    id: (typeof STORY_BUILTIN_IDENTIFIERS.toolPackage)["id"];
   }>;
 
 export const createStoryToolPackage = (repository: StoryToolRepository): StoryToolPackage => {
   const api = createStoryToolService(repository);
   return {
-    id: "novel-claw.story",
+    id: STORY_BUILTIN_IDENTIFIERS.toolPackage.id,
     api,
     execute: async (input) => {
       const request = storyToolRequestSchema.parse(input) as StoryToolRequest;

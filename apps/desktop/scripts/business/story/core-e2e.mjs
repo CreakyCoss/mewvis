@@ -17,7 +17,7 @@ writeFileSync(
   entryPath,
   `
   import {
-    DECLARATIVE_STORY_PROJECT_COMPILER_ID,
+    STORY_PROJECT_IDENTIFIERS,
     STORY_CHANGE_SET_MAX_BYTES,
     STORY_CHANGE_SET_MAX_OPERATIONS,
     createStoryProjectCompilerRegistry,
@@ -31,7 +31,7 @@ writeFileSync(
     if (!condition) throw new Error(message + (details === undefined ? "" : "\\n" + JSON.stringify(details, null, 2)));
   };
   const compiler = createStoryProjectCompilerRegistry();
-  const api = compiler.compile(DECLARATIVE_STORY_PROJECT_COMPILER_ID, {
+  const api = compiler.compile(STORY_PROJECT_IDENTIFIERS.declarativeCompiler.format, {
     profile: DEFAULT_STORY_PROFILE_SOURCE,
     layout: defaultLayout,
   });
@@ -142,7 +142,7 @@ writeFileSync(
   };
   customProfile.contextViews["project-summary"].documentKinds.push("story-research-note");
   customLayout.documents["story-research-note"] = { pathPattern: "story/materials/research/{id}.json" };
-  const customApi = compiler.compile(DECLARATIVE_STORY_PROJECT_COMPILER_ID, { profile: customProfile, layout: customLayout });
+  const customApi = compiler.compile(STORY_PROJECT_IDENTIFIERS.declarativeCompiler.format, { profile: customProfile, layout: customLayout });
   let customProject = customApi.createProject({ storyId: "custom", title: "可扩展故事", timestamp });
   customProject = customApi.applyChanges(customProject, {
     profileId: customApi.identity.profileId, profileVersion: customApi.identity.profileVersion, storyId: "custom", baseRevision: 0, validationProfile: "draft",
@@ -155,7 +155,7 @@ writeFileSync(
   delete leanLayout.documents["story-analysis"];
   delete leanLayout.documents["story-review"];
   delete leanLayout.documents["story-import"];
-  const leanApi = compiler.compile(DECLARATIVE_STORY_PROJECT_COMPILER_ID, {
+  const leanApi = compiler.compile(STORY_PROJECT_IDENTIFIERS.declarativeCompiler.format, {
     profile: DEFAULT_STORY_PROFILE_SOURCE,
     layout: leanLayout,
   });

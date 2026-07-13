@@ -1,6 +1,6 @@
 import { listWorkspaceFiles, readWorkspaceFile, writeWorkspaceFilesAtomic } from "@/features/pages/workspace/files-api";
 import {
-  DECLARATIVE_STORY_PROJECT_COMPILER_ID,
+  STORY_PROJECT_IDENTIFIERS,
   STORY_PROJECT_CONFIG_PATH,
   STORY_PROJECT_LOCK_PATH,
   STORY_PROJECT_PROFILE_PATH,
@@ -23,8 +23,8 @@ const sha256 = async (content: string) => {
 const lockText = async (projectText: string, profileText: string, project: StoryProjectApi) =>
   `${JSON.stringify(
     {
-      $format: "novel-claw.story-project-lock",
-      version: 1,
+      $format: STORY_PROJECT_IDENTIFIERS.projectLock.format,
+      version: STORY_PROJECT_IDENTIFIERS.projectLock.version,
       projectPath: STORY_PROJECT_CONFIG_PATH,
       profilePath: STORY_PROJECT_PROFILE_PATH,
       profileId: project.identity.profileId,
@@ -41,7 +41,7 @@ export const installStoryProject = async (
   workspacePath: string,
   layout: unknown,
   profile: unknown,
-  compilerId = DECLARATIVE_STORY_PROJECT_COMPILER_ID,
+  compilerId = STORY_PROJECT_IDENTIFIERS.declarativeCompiler.format,
 ) => {
   const compiled = compilers.compile(compilerId, { profile, layout });
   const projectText = `${JSON.stringify(layout, null, 2)}\n`;
@@ -86,7 +86,8 @@ export const loadStoryProjectApi = async (workspacePath: string): Promise<StoryP
   const entries = await listWorkspaceFiles(workspacePath);
   const paths = new Set(entries.filter((entry) => !entry.isDirectory).map((entry) => entry.path));
   if (!paths.has(STORY_PROJECT_CONFIG_PATH)) return installDefaultStoryProject(workspacePath);
-  if (!paths.has(STORY_PROJECT_PROFILE_PATH)) throw new Error(`故事项目缺少 Profile 快照：${STORY_PROJECT_PROFILE_PATH}`);
+  if (!paths.has(STORY_PROJECT_PROFILE_PATH))
+    throw new Error(`故事项目缺少 Profile 快照：${STORY_PROJECT_PROFILE_PATH}`);
   if (!paths.has(STORY_PROJECT_LOCK_PATH)) throw new Error(`故事项目缺少锁文件：${STORY_PROJECT_LOCK_PATH}`);
   try {
     const [projectFile, profileFile, lockFile] = await Promise.all([
@@ -102,8 +103,8 @@ export const loadStoryProjectApi = async (workspacePath: string): Promise<StoryP
       profile: JSON.parse(profileFile.content) as unknown,
     });
     if (
-      lock.$format !== "novel-claw.story-project-lock" ||
-      lock.version !== 1 ||
+      lock.$format !== STORY_PROJECT_IDENTIFIERS.projectLock.format ||
+      lock.version !== STORY_PROJECT_IDENTIFIERS.projectLock.version ||
       lock.projectPath !== STORY_PROJECT_CONFIG_PATH ||
       lock.profilePath !== STORY_PROJECT_PROFILE_PATH ||
       lock.profileId !== project.identity.profileId ||

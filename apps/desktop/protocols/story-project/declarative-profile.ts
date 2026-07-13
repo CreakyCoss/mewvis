@@ -1,4 +1,5 @@
 import { defineStoryProjectLayout, type StoryProjectLayout, type StoryProjectLayoutInput } from "./layout.js";
+import { STORY_PROJECT_IDENTIFIERS } from "./identifiers.js";
 
 export type StoryProfileField = Readonly<{
   type: string;
@@ -44,7 +45,7 @@ export type StoryProfileContextView = Readonly<{
 }>;
 
 export type StoryProfileSource = Readonly<{
-  $format: "novel-claw.story-profile";
+  $format: (typeof STORY_PROJECT_IDENTIFIERS.declarativeProfile)["format"];
   profileId: string;
   profileVersion: number;
   schemaVersion: number;
@@ -97,7 +98,7 @@ const positiveInteger = (value: unknown, owner: string) => {
 
 export const parseStoryProfile = (input: unknown): StoryProfileSource => {
   const value = objectFromUnknown(input, "故事 Profile");
-  if (value.$format !== "novel-claw.story-profile") {
+  if (value.$format !== STORY_PROJECT_IDENTIFIERS.declarativeProfile.format) {
     throw new Error("故事 Profile $format 无效。");
   }
   if (value.rootPath !== undefined) {
@@ -158,12 +159,16 @@ export const parseStoryProfile = (input: unknown): StoryProfileSource => {
       throw new Error(`contextViews.${name}.targetKind 引用了未知文档类型。`);
     }
   }
+  const schemaVersion = positiveInteger(value.schemaVersion, "schemaVersion");
+  if (schemaVersion !== STORY_PROJECT_IDENTIFIERS.declarativeProfile.schemaVersion) {
+    throw new Error(`故事 Profile schemaVersion 暂不支持：${schemaVersion}`);
+  }
   const contract = {
     ...value,
-    $format: "novel-claw.story-profile" as const,
+    $format: STORY_PROJECT_IDENTIFIERS.declarativeProfile.format,
     profileId: nonEmptyString(value.profileId, "profileId"),
     profileVersion: positiveInteger(value.profileVersion, "profileVersion"),
-    schemaVersion: positiveInteger(value.schemaVersion, "schemaVersion"),
+    schemaVersion,
     manifestKind: nonEmptyString(value.manifestKind, "manifestKind"),
     ...(value.primaryKind === undefined ? {} : { primaryKind: nonEmptyString(value.primaryKind, "primaryKind") }),
     documentRoles,

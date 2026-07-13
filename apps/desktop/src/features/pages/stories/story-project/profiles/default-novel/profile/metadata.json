@@ -1,8 +1,6 @@
 {
-  "$format": "novel-claw.story-profile",
   "profileId": "novel-claw.story.default-novel",
   "profileVersion": 1,
-  "schemaVersion": 1,
   "title": "Novel Claw 故事创作结构",
   "description": "由 Stories 维护的默认小说 Profile，集中定义字段、引用、展示元数据、上下文和校验规则；工作区保存可独立编译的 Profile 快照与目录布局。",
   "manifestKind": "story-manifest",

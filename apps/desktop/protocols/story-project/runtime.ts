@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { StoryProjectCompiler, StoryProjectCompilerSource } from "./compiler.js";
+import { STORY_PROJECT_IDENTIFIERS } from "./identifiers.js";
 import {
   parseStoryDocument,
   parseStoryProfile,
@@ -26,8 +27,6 @@ import type {
   StoryValidationResult,
 } from "./protocol.js";
 
-export const DECLARATIVE_STORY_PROJECT_COMPILER_ID = "novel-claw.declarative-story-project" as const;
-export const DECLARATIVE_STORY_PROJECT_COMPILER_VERSION = 1 as const;
 export const STORY_CHANGE_SET_MAX_OPERATIONS = 16;
 export const STORY_CHANGE_SET_MAX_BYTES = 192 * 1024;
 
@@ -778,7 +777,10 @@ const entryIsTarget = (entries: readonly CompiledStoryProjectFileEntry[], target
 const createApi = (profile: StoryProfile): StoryProjectApi => {
   let api: StoryProjectApi;
   api = {
-    compiler: { format: DECLARATIVE_STORY_PROJECT_COMPILER_ID, version: DECLARATIVE_STORY_PROJECT_COMPILER_VERSION },
+    compiler: {
+      format: STORY_PROJECT_IDENTIFIERS.declarativeCompiler.format,
+      version: STORY_PROJECT_IDENTIFIERS.declarativeCompiler.version,
+    },
     identity: { format: profile.$format, profileId: profile.profileId, profileVersion: profile.profileVersion },
     changeSet: {
       maxOperations: STORY_CHANGE_SET_MAX_OPERATIONS,
@@ -856,8 +858,8 @@ const createApi = (profile: StoryProfile): StoryProjectApi => {
 };
 
 export const DECLARATIVE_STORY_PROJECT_COMPILER: StoryProjectCompiler = Object.freeze({
-  format: DECLARATIVE_STORY_PROJECT_COMPILER_ID,
-  compilerVersion: DECLARATIVE_STORY_PROJECT_COMPILER_VERSION,
+  format: STORY_PROJECT_IDENTIFIERS.declarativeCompiler.format,
+  compilerVersion: STORY_PROJECT_IDENTIFIERS.declarativeCompiler.version,
   compile(source: StoryProjectCompilerSource) {
     return createApi(compiledProfile(source.profile, source.layout));
   },
