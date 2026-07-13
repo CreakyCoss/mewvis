@@ -12,6 +12,7 @@
     "build:agent-runtime:darwin-arm64": "pnpm build:agent-runtime && node agent-runtime/scripts/copy-node-runtime.mjs --target darwin-arm64",
     "build:agent-runtime:darwin-x64": "pnpm build:agent-runtime && node agent-runtime/scripts/copy-node-runtime.mjs --target darwin-x64",
     "test:agent-runtime:e2e": "node scripts/agent-runtime/single-agent-e2e.mjs",
+    "test:agent-runtime:idle-timeout": "node scripts/agent-runtime/idle-timeout-e2e.mjs",
     "test:agent-runtime:live": "node scripts/agent-runtime/single-agent-live-e2e.mjs",
     "test:agent-runtime:collaboration": "node scripts/agent-runtime/collaboration-smoke.mjs",
     "test:agent-runtime:collaboration:stdio": "node scripts/agent-runtime/collaboration-stdio-e2e.mjs",

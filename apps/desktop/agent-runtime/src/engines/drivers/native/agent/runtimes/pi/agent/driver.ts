@@ -10,8 +10,10 @@ import { throwPiSessionError, type PiAgentRunState } from "./events.js";
 import { createPiAskUserContinuationPrompt, createPiInitialPrompt } from "./prompts.js";
 import type { PiAgentSession } from "./session.js";
 import { parsePiAskUserFunctionCall } from "../tools/ask-user-parser.js";
+import { withIdleTimeout } from "./idle-timeout.js";
 
-const PROMPT_TIMEOUT_MS = 30 * 60 * 1000;
+// 这是连续无事件的失联保护，不是单次开书或 Agent 任务的总时长上限。
+const PROMPT_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
 
 type DrivePiAgentSessionInput = {
   command: RuntimeAgentCommand;
@@ -37,7 +39,7 @@ export const drivePiAgentSession = async ({
     state.assistantText = "";
     state.streamedText = "";
     state.sessionError = null;
-    await runPromptWithTimeout(session, nextPrompt);
+    await runPromptWithIdleTimeout(session, nextPrompt, state);
     throwPiSessionError(state);
 
     nextPrompt = await nextPromptFromAskUserToolCall(command, callbacks, emit, state);
@@ -73,31 +75,16 @@ const nextPromptFromAskUserToolCall = async (
   return createPiAskUserContinuationPrompt(answer);
 };
 
-const runPromptWithTimeout = async (session: PiAgentSession, prompt: string) => {
-  await withTimeout(
-    session.prompt(prompt),
-    PROMPT_TIMEOUT_MS,
-    `Agent session 执行超时（${formatTimeout(PROMPT_TIMEOUT_MS)}）`,
-  );
-};
-
-const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> => {
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<never>((_, reject) => {
-        timeout = setTimeout(() => {
-          reject(new Error(message));
-        }, timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timeout) {
-      clearTimeout(timeout);
-    }
-  }
-};
+const runPromptWithIdleTimeout = async (session: PiAgentSession, prompt: string, state: PiAgentRunState) =>
+  withIdleTimeout(() => session.prompt(prompt), {
+    timeoutMs: PROMPT_IDLE_TIMEOUT_MS,
+    message: `Agent session 连续 ${formatTimeout(PROMPT_IDLE_TIMEOUT_MS)}无活动，已中止`,
+    subscribe: (onActivity) => session.subscribe(() => onActivity()),
+    onTimeout: async (error) => {
+      state.sessionError ??= error;
+      await session.abort();
+    },
+  });
 
 const formatTimeout = (timeoutMs: number) => {
   const minutes = Math.round(timeoutMs / 60_000);
