@@ -94,6 +94,8 @@ beats 预算合计必须在 `[targetWords, targetWords×1.1]`。低压章可没�
 
 最后一批 `batch.final=true` 并使用 `validationProfile="openBook"`。最终校验不通过时只修复报错批次或字段，不回传/覆盖已经正确落库的全项目。
 
+在宣告“开书完成”前必须再读取一次项目上下文并完成收尾核对：默认前 10 个 `chapterPlan` 角色文档均已存在（总章数不足 10 时为全部章节）；本次创建的章节 ID 都已进入所属 `volume` 角色文档的章节引用；`progress` 角色文档已同步；并且最后一次成功提交同时使用了 `batch.final=true` 与 `validationProfile="openBook"`。缺少任一项都只能继续补交或明确报告“部分完成”，不能把 draft 批次成功描述为完整开书。若会话中止，报告最后成功 revision 和未完成项，从该 revision 继续，不能重放已成功批次。
+
 ## 单章写作
 
 1. `story(action="read_context", scope="chapter", targetId="章节 ID 或章节号")`。

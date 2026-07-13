@@ -96,6 +96,14 @@ export type StoryValidationResult = Readonly<{
   issues: StoryValidationIssue[];
 }>;
 
+/** Preserves compiler validation issues across the StoryProjectApi boundary. */
+export class StoryProjectValidationError extends Error {
+  constructor(readonly issues: StoryValidationIssue[]) {
+    super(issues.map((item) => `${item.path}：${item.message}`).join("\n"));
+    this.name = "StoryProjectValidationError";
+  }
+}
+
 export type StoryContextSource = Readonly<{
   kind: string;
   label: string;

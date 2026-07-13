@@ -16,11 +16,21 @@ const parseJson = (value: unknown) => {
   }
 };
 
+const isEmptyArrayValue = (value: unknown) =>
+  value === null || (typeof value === "string" && (!value.trim() || value.trim() === "null"));
+
+const arrayFromItem = (item: unknown) => {
+  if (isEmptyArrayValue(item)) return [];
+  return Array.isArray(item) ? item : [item];
+};
+
 const arrayValue = (value: unknown) => {
+  if (isEmptyArrayValue(value)) return [];
   const parsed = parseJson(value);
+  if (isEmptyArrayValue(parsed)) return [];
   if (Array.isArray(parsed)) return parsed;
   if (isObject(parsed) && Object.keys(parsed).length === 1 && "item" in parsed) {
-    return Array.isArray(parsed.item) ? parsed.item : [parsed.item];
+    return arrayFromItem(parsed.item);
   }
   return parsed;
 };

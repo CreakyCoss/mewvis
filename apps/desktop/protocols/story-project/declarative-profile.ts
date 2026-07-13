@@ -1,5 +1,6 @@
 import { defineStoryProjectLayout, type StoryProjectLayout, type StoryProjectLayoutInput } from "./layout.js";
 import { STORY_PROJECT_IDENTIFIERS } from "./identifiers.js";
+import { StoryProjectValidationError, type StoryValidationIssue } from "./protocol.js";
 
 export type StoryProfileField = Readonly<{
   type: string;
@@ -342,13 +343,22 @@ const parseCompatibleJson = (value: unknown) => {
   }
 };
 
+const isEmptyCompatibleArrayValue = (value: unknown) =>
+  value === null || (typeof value === "string" && (!value.trim() || value.trim() === "null"));
+
+const compatibleArrayFromItem = (item: unknown) => {
+  if (isEmptyCompatibleArrayValue(item)) return [];
+  return Array.isArray(item) ? item : [item];
+};
+
 const compatibleArray = (value: unknown) => {
-  if (typeof value === "string" && !value.trim()) return [];
+  if (isEmptyCompatibleArrayValue(value)) return [];
   const parsed = parseCompatibleJson(value);
+  if (isEmptyCompatibleArrayValue(parsed)) return [];
   if (Array.isArray(parsed)) return parsed;
   if (parsed && typeof parsed === "object" && Object.keys(parsed).length === 1 && "item" in parsed) {
     const item = (parsed as Record<string, unknown>).item;
-    return Array.isArray(item) ? item : [item];
+    return compatibleArrayFromItem(item);
   }
   return parsed;
 };
@@ -431,53 +441,90 @@ const materializeFields = (
   input: unknown,
   timestamp: number,
   coerce: boolean,
+  issues: StoryValidationIssue[],
 ) => {
-  const source = objectFromUnknown(input, owner);
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    issues.push({
+      severity: "error",
+      code: "document.invalid_type",
+      path: owner,
+      message: `${owner} 必须是普通 JSON 对象。`,
+    });
+    return {};
+  }
+  const source = input as Record<string, unknown>;
   const allowed = new Set(Object.keys(fields).map(fieldName));
   const unknownKeys = Object.keys(source).filter((key) => !allowed.has(key));
-  if (unknownKeys.length > 0) throw new Error(`${owner} 包含协议未声明的字段：${unknownKeys.join(", ")}`);
+  for (const key of unknownKeys) {
+    issues.push({
+      severity: "error",
+      code: "document.unknown_field",
+      path: `${owner}.${key}`,
+      message: `${owner} 包含协议未声明的字段：${key}`,
+    });
+  }
+  if (unknownKeys.length === Object.keys(source).length && unknownKeys.length > 0) return {};
   const result: Record<string, unknown> = {};
   for (const [pointer, field] of Object.entries(fields)) {
     const key = fieldName(pointer);
+    const path = `${owner}.${key}`;
     let value = source[key];
     if (field.const !== undefined) value = field.const;
     else if (field.generated && (key === "updatedAt" || key === "createdAt")) value = timestamp;
     else if (value === undefined && field.default !== undefined) value = cloneJson(field.default);
     if (value === undefined) {
-      if (field.required) throw new Error(`${owner}.${key} 是协议声明的必填字段。`);
+      if (field.required) {
+        issues.push({
+          severity: "error",
+          code: "document.required",
+          path,
+          message: `${path} 是协议声明的必填字段。`,
+        });
+      }
       continue;
     }
-    if (field.definition) {
-      const definition = contract.objectDefinitions[field.definition];
-      if (!definition) throw new Error(`工作区协议缺少对象定义：${field.definition}`);
-      value = materializeFields(
-        contract,
-        `${owner}.${key}`,
-        definition.fields,
-        coerce ? parseCompatibleJson(value) : value,
-        timestamp,
-        coerce,
-      );
-    } else if (field.itemDefinition) {
-      if (coerce) value = compatibleArray(value);
-      if (!Array.isArray(value)) throw new Error(`${owner}.${key} 必须是数组。`);
-      const definition = contract.objectDefinitions[field.itemDefinition];
-      if (!definition) throw new Error(`工作区协议缺少对象定义：${field.itemDefinition}`);
-      value = value.map((item, index) =>
-        materializeFields(
+    try {
+      if (field.definition) {
+        const definition = contract.objectDefinitions[field.definition];
+        if (!definition) throw new Error(`工作区协议缺少对象定义：${field.definition}`);
+        value = materializeFields(
           contract,
-          `${owner}.${key}[${index}]`,
+          path,
           definition.fields,
-          coerce ? parseCompatibleJson(item) : item,
+          coerce ? parseCompatibleJson(value) : value,
           timestamp,
           coerce,
-        ),
-      );
-    } else {
-      if (coerce) value = compatiblePrimitive(field, value);
-      assertPrimitiveType(field, value, `${owner}.${key}`);
+          issues,
+        );
+      } else if (field.itemDefinition) {
+        if (coerce) value = compatibleArray(value);
+        if (!Array.isArray(value)) throw new Error(`${path} 必须是数组。`);
+        const definition = contract.objectDefinitions[field.itemDefinition];
+        if (!definition) throw new Error(`工作区协议缺少对象定义：${field.itemDefinition}`);
+        value = value.map((item, index) =>
+          materializeFields(
+            contract,
+            `${path}[${index}]`,
+            definition.fields,
+            coerce ? parseCompatibleJson(item) : item,
+            timestamp,
+            coerce,
+            issues,
+          ),
+        );
+      } else {
+        if (coerce) value = compatiblePrimitive(field, value);
+        assertPrimitiveType(field, value, path);
+      }
+      result[key] = value;
+    } catch (error) {
+      issues.push({
+        severity: "error",
+        code: "document.invalid",
+        path,
+        message: error instanceof Error ? error.message : String(error),
+      });
     }
-    result[key] = value;
   }
   return result;
 };
@@ -489,6 +536,7 @@ export const materializeStoryDocument = (
   timestamp = Date.now(),
   options: Readonly<{ coerce?: boolean }> = {},
 ) => {
+  const issues: StoryValidationIssue[] = [];
   const value = materializeFields(
     contract,
     expectedKind,
@@ -496,10 +544,17 @@ export const materializeStoryDocument = (
     input,
     timestamp,
     options.coerce === true,
+    issues,
   );
   if (value.kind !== expectedKind) {
-    throw new Error(`故事文档 kind 与目标路径不一致：期望 ${expectedKind}，收到 ${String(value.kind)}`);
+    issues.push({
+      severity: "error",
+      code: "document.kind_mismatch",
+      path: `${expectedKind}.kind`,
+      message: `故事文档 kind 与目标路径不一致：期望 ${expectedKind}，收到 ${String(value.kind)}`,
+    });
   }
+  if (issues.length > 0) throw new StoryProjectValidationError(issues);
   return value;
 };
 

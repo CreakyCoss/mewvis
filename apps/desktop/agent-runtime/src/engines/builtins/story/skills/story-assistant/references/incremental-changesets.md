@@ -10,6 +10,7 @@
 - 每批都带 `batch={workflowId,index,total?,label,final}`。同一工作流保持 workflowId 不变；最后一批 `final=true`。
 - 每批直接调用一次 `story(action="commit_changes", changeSet={...})`：工具内部先执行与预检相同的完整校验，只有通过才事务性写盘。`action="validate_changes"` 只用于用户明确要求预览或定位失败，不作为固定前置步骤。
 - 每次提交成功后重新调用 `story(action="read_context", ...)`，下一批必须使用返回的新 revision。revision 过期时重读并基于最新内容重建该批，不能改 baseRevision 后盲重放。
+- 数组字段始终提交原生 JSON 数组，空数组使用 `[]`。不得主动构造 `{ "item": ... }` 信封；工具对单层信封、字符串化 JSON 和空值的接收只用于容忍传输偏差，嵌套信封或带其他字段的对象会被协议拒绝。
 
 ## 操作选择
 
@@ -73,6 +74,13 @@
 - 最终批使用目标场景的完整 profile：开书/导入为 `openBook`，正文落库为 `chapterWrite`，纯分析/审查/检测为 `draft`。
 - `final=true` 不是跳过校验的标志。最终批必须包含真实的收尾变更，并通过目标 profile 后提交。
 - 不把超长正文、完整分析和几十章细纲塞进同一 ChangeSet；按章节、实体组或分析阶段分批。
+
+## 失败恢复
+
+- 一次提交可能返回多个 `issues`；先按 `path` 阅读并同时修正本批列出的全部字段，不要只修第一条后立即重试。
+- 同一批首次出现结构错误时，重新调用 `describe_structure` 并用 `documentKinds` 只获取受影响文档的字段定义，然后仅重建失败批次；已经成功的批次不得重放。
+- 同一路径连续两次出现结构错误时，将失败批拆成单文档 ChangeSet。每个拆分批成功后重读 revision，并为后续批使用新的唯一 `batch.index`；拆批后 `total` 不确定时可以省略，最后实际收尾批才设置 `final=true`。
+- 单文档批再次出现相同结构错误时停止自动重试，向用户报告当前 revision、已落库范围及完整 issues。禁止无上限盲重试，也不能把失败内容包装成更深层对象尝试绕过校验。
 
 ## 推荐依赖顺序
 

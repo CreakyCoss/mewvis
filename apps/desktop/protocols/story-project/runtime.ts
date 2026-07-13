@@ -14,6 +14,7 @@ import {
   type StoryProfileField,
 } from "./declarative-profile.js";
 import { parseStoryProjectLayout } from "./layout.js";
+import { StoryProjectValidationError } from "./protocol.js";
 import type {
   AppliedStoryChanges,
   CompiledStoryProjectFileEntry,
@@ -541,103 +542,118 @@ const applyChangeSet = (
   const manifestPath = api.projectManifestPath();
   const files = new Map(current.documents.map((entry) => [entry.path, clone(entry.value)]));
   const timestamp = Date.now();
-  for (const operation of changeSet.operations) {
-    const path = canonicalPath(operation.path);
-    if (path === manifestPath) throw new Error("Manifest 只能由故事运行时生成，不能直接修改。");
-    const kind = api.kindForPath(path);
-    const definition = api.document(kind);
-    switch (operation.type) {
-      case "delete":
-        if (definition.cardinality === "one") throw new Error(`${definition.label} 必须保留一份，不能删除。`);
-        files.delete(path);
-        break;
-      case "upsert":
-        files.set(path, api.materializeDocument(operation.value, path, timestamp));
-        break;
-      case "patch": {
-        if (definition.contentType === "markdown") throw new Error("Markdown 文档不支持 patch，请使用文本操作。");
-        assertPatchFields(profile, kind, operation.value);
-        files.set(
-          path,
-          api.materializeDocument(deepMerge(requireObjectDocument(files, path), operation.value), path, timestamp),
-        );
-        break;
-      }
-      case "upsert-items": {
-        const file = requireObjectDocument(files, path);
-        assertPatchFields(profile, kind, { [operation.field]: operation.items });
-        const currentItems = file[operation.field];
-        if (!Array.isArray(currentItems)) throw new Error(`${path}.${operation.field} 必须是数组。`);
-        const next = [...currentItems];
-        for (const item of operation.items) {
-          if (typeof item.id !== "string") throw new Error("upsert-items 的每个对象必须包含字符串 id。");
-          const index = next.findIndex((candidate) => isObject(candidate) && candidate.id === item.id);
-          if (index >= 0) next[index] = deepMerge(next[index], item);
-          else next.push(item);
-        }
-        files.set(path, api.materializeDocument({ ...file, [operation.field]: next }, path, timestamp));
-        break;
-      }
-      case "remove-items": {
-        const file = requireObjectDocument(files, path);
-        assertPatchFields(profile, kind, { [operation.field]: [] });
-        const currentItems = file[operation.field];
-        if (!Array.isArray(currentItems)) throw new Error(`${path}.${operation.field} 必须是数组。`);
-        files.set(
-          path,
-          api.materializeDocument(
-            {
-              ...file,
-              [operation.field]: currentItems.filter(
-                (item) => !isObject(item) || typeof item.id !== "string" || !operation.ids.includes(item.id),
-              ),
-            },
+  const operationIssues: StoryValidationIssue[] = [];
+  for (const [operationIndex, operation] of changeSet.operations.entries()) {
+    try {
+      const path = canonicalPath(operation.path);
+      if (path === manifestPath) throw new Error("Manifest 只能由故事运行时生成，不能直接修改。");
+      const kind = api.kindForPath(path);
+      const definition = api.document(kind);
+      switch (operation.type) {
+        case "delete":
+          if (definition.cardinality === "one") throw new Error(`${definition.label} 必须保留一份，不能删除。`);
+          files.delete(path);
+          break;
+        case "upsert":
+          files.set(path, api.materializeDocument(operation.value, path, timestamp));
+          break;
+        case "patch": {
+          if (definition.contentType === "markdown") throw new Error("Markdown 文档不支持 patch，请使用文本操作。");
+          assertPatchFields(profile, kind, operation.value);
+          files.set(
             path,
-            timestamp,
+            api.materializeDocument(deepMerge(requireObjectDocument(files, path), operation.value), path, timestamp),
+          );
+          break;
+        }
+        case "upsert-items": {
+          const file = requireObjectDocument(files, path);
+          assertPatchFields(profile, kind, { [operation.field]: operation.items });
+          const currentItems = file[operation.field];
+          if (!Array.isArray(currentItems)) throw new Error(`${path}.${operation.field} 必须是数组。`);
+          const next = [...currentItems];
+          for (const item of operation.items) {
+            if (typeof item.id !== "string") throw new Error("upsert-items 的每个对象必须包含字符串 id。");
+            const index = next.findIndex((candidate) => isObject(candidate) && candidate.id === item.id);
+            if (index >= 0) next[index] = deepMerge(next[index], item);
+            else next.push(item);
+          }
+          files.set(path, api.materializeDocument({ ...file, [operation.field]: next }, path, timestamp));
+          break;
+        }
+        case "remove-items": {
+          const file = requireObjectDocument(files, path);
+          assertPatchFields(profile, kind, { [operation.field]: [] });
+          const currentItems = file[operation.field];
+          if (!Array.isArray(currentItems)) throw new Error(`${path}.${operation.field} 必须是数组。`);
+          files.set(
+            path,
+            api.materializeDocument(
+              {
+                ...file,
+                [operation.field]: currentItems.filter(
+                  (item) => !isObject(item) || typeof item.id !== "string" || !operation.ids.includes(item.id),
+                ),
+              },
+              path,
+              timestamp,
+            ),
+          );
+          break;
+        }
+        case "add-values":
+        case "remove-values": {
+          const file = requireObjectDocument(files, path);
+          assertPatchFields(profile, kind, { [operation.field]: operation.values });
+          const currentValues = file[operation.field];
+          if (!Array.isArray(currentValues) || currentValues.some((item) => typeof item !== "string")) {
+            throw new Error(`${path}.${operation.field} 必须是字符串数组。`);
+          }
+          const next =
+            operation.type === "add-values"
+              ? [...new Set([...currentValues, ...operation.values])]
+              : currentValues.filter((item) => !operation.values.includes(item));
+          files.set(path, api.materializeDocument({ ...file, [operation.field]: next }, path, timestamp));
+          break;
+        }
+        case "append-text":
+        case "replace-text": {
+          const file = requireObjectDocument(files, path);
+          const field = operation.field;
+          if (definition.contentType !== "markdown") assertPatchFields(profile, kind, { [field]: "" });
+          if (typeof file[field] !== "string") throw new Error(`${path}.${field} 必须是字符串。`);
+          const next =
+            operation.type === "append-text"
+              ? `${file[field]}${file[field] ? (operation.separator ?? "\n") : ""}${operation.value}`
+              : (() => {
+                  if (!file[field].includes(operation.oldText)) throw new Error(`${path}.${field} 未找到待替换文本。`);
+                  return file[field].replace(operation.oldText, operation.newText);
+                })();
+          files.set(path, api.materializeDocument({ ...file, [field]: next }, path, timestamp));
+          break;
+        }
+      }
+    } catch (error) {
+      if (error instanceof StoryProjectValidationError) operationIssues.push(...error.issues);
+      else {
+        operationIssues.push(
+          issue(
+            "changeset.operation.invalid",
+            `changeSet.operations[${operationIndex}]`,
+            error instanceof Error ? error.message : String(error),
           ),
         );
-        break;
-      }
-      case "add-values":
-      case "remove-values": {
-        const file = requireObjectDocument(files, path);
-        assertPatchFields(profile, kind, { [operation.field]: operation.values });
-        const currentValues = file[operation.field];
-        if (!Array.isArray(currentValues) || currentValues.some((item) => typeof item !== "string")) {
-          throw new Error(`${path}.${operation.field} 必须是字符串数组。`);
-        }
-        const next =
-          operation.type === "add-values"
-            ? [...new Set([...currentValues, ...operation.values])]
-            : currentValues.filter((item) => !operation.values.includes(item));
-        files.set(path, api.materializeDocument({ ...file, [operation.field]: next }, path, timestamp));
-        break;
-      }
-      case "append-text":
-      case "replace-text": {
-        const file = requireObjectDocument(files, path);
-        const field = operation.field;
-        if (definition.contentType !== "markdown") assertPatchFields(profile, kind, { [field]: "" });
-        if (typeof file[field] !== "string") throw new Error(`${path}.${field} 必须是字符串。`);
-        const next =
-          operation.type === "append-text"
-            ? `${file[field]}${file[field] ? (operation.separator ?? "\n") : ""}${operation.value}`
-            : (() => {
-                if (!file[field].includes(operation.oldText)) throw new Error(`${path}.${field} 未找到待替换文本。`);
-                return file[field].replace(operation.oldText, operation.newText);
-              })();
-        files.set(path, api.materializeDocument({ ...file, [field]: next }, path, timestamp));
-        break;
       }
     }
   }
+  if (operationIssues.length > 0) throw new StoryProjectValidationError(operationIssues);
   const nextBase: StoryCompiledProject = {
     manifest: current.manifest,
     documents: [...files].map(([path, value]) => ({ path, value })),
   };
   const next = rebuildManifest(nextBase, profile, info.revision + 1, timestamp);
   const validation = validateProject(next, profile, changeSet.validationProfile);
-  if (!validation.valid) throw new Error(validation.issues.map((item) => `${item.path}：${item.message}`).join("\n"));
+  if (!validation.valid) throw new StoryProjectValidationError(validation.issues);
   return {
     project: next,
     nextRevision: info.revision + 1,

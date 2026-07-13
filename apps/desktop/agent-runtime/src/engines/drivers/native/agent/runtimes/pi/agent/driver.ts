@@ -10,6 +10,7 @@ import { throwPiSessionError, type PiAgentRunState } from "./events.js";
 import { createPiAskUserContinuationPrompt, createPiInitialPrompt } from "./prompts.js";
 import type { PiAgentSession } from "./session.js";
 import { parsePiAskUserFunctionCall } from "../tools/ask-user-parser.js";
+import { isPiAbortError, normalizePiAbortError } from "./abort.js";
 import { withIdleTimeout } from "./idle-timeout.js";
 
 // 这是连续无事件的失联保护，不是单次开书或 Agent 任务的总时长上限。
@@ -75,16 +76,25 @@ const nextPromptFromAskUserToolCall = async (
   return createPiAskUserContinuationPrompt(answer);
 };
 
-const runPromptWithIdleTimeout = async (session: PiAgentSession, prompt: string, state: PiAgentRunState) =>
-  withIdleTimeout(() => session.prompt(prompt), {
-    timeoutMs: PROMPT_IDLE_TIMEOUT_MS,
-    message: `Agent session 连续 ${formatTimeout(PROMPT_IDLE_TIMEOUT_MS)}无活动，已中止`,
-    subscribe: (onActivity) => session.subscribe(() => onActivity()),
-    onTimeout: async (error) => {
-      state.sessionError ??= error;
-      await session.abort();
-    },
-  });
+const runPromptWithIdleTimeout = async (session: PiAgentSession, prompt: string, state: PiAgentRunState) => {
+  try {
+    await withIdleTimeout(() => session.prompt(prompt), {
+      timeoutMs: PROMPT_IDLE_TIMEOUT_MS,
+      message: `Agent session 连续 ${formatTimeout(PROMPT_IDLE_TIMEOUT_MS)}无活动，已中止`,
+      subscribe: (onActivity) => session.subscribe(() => onActivity()),
+      onTimeout: async (error) => {
+        state.sessionError ??= error;
+        try {
+          await session.abort();
+        } catch (abortError) {
+          if (!isPiAbortError(abortError)) throw abortError;
+        }
+      },
+    });
+  } catch (error) {
+    throw normalizePiAbortError(error);
+  }
+};
 
 const formatTimeout = (timeoutMs: number) => {
   const minutes = Math.round(timeoutMs / 60_000);

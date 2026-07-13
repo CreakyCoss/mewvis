@@ -1,5 +1,5 @@
 import { ZodError } from "zod";
-import type { StoryProjectApi } from "../../../../../../protocols/story-project/index.js";
+import { StoryProjectValidationError, type StoryProjectApi } from "../../../../../../protocols/story-project/index.js";
 import type { StoryToolRepository } from "./repository.js";
 import { normalizeStoryChangeSet } from "./request.js";
 import {
@@ -112,6 +112,7 @@ const zodPath = (owner: string, path: PropertyKey[]) =>
   );
 
 const invalidIssues = (error: unknown, owner = "changeSet", code = "changeset.invalid") => {
+  if (error instanceof StoryProjectValidationError) return [...error.issues];
   if (error instanceof ZodError) {
     return error.issues.map((item) => ({
       severity: "error" as const,

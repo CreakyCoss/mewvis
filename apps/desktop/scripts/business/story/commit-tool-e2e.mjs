@@ -263,6 +263,100 @@ writeFileSync(
   );
   assert((await stat(untouchedPath)).mtimeMs === untouchedBefore, "原子提交不应重写本批未变化的 JSON 文件。");
 
+  const singleItemEnvelope = await storyTool.execute("single-item-envelope", { action: "commit_changes", changeSet: {
+    ...changeSetContract,
+    storyId: projectInfo.storyId,
+    baseRevision: miniMaxCompatible.details.revision,
+    validationProfile: "draft",
+    operations: { item: [
+      {
+        type: "patch",
+        path: "story/positioning.json",
+        value: { secondaryGenres: { item: "都市逆袭" }, benchmarkTitles: "" },
+      },
+      {
+        type: "patch",
+        path: "story/style.json",
+        value: { forbiddenPatterns: { item: ["机械总结", "空洞升华"] } },
+      },
+      {
+        type: "patch",
+        path: "story/tracking/foreshadows.json",
+        value: { foreshadows: null },
+      },
+      {
+        type: "patch",
+        path: "story/relationships.json",
+        value: { relationships: { item: {
+          id: "rel-compatible-a-b",
+          fromCharacterId: "char-compatible-a",
+          toCharacterId: "char-compatible-b",
+          type: "搭档",
+          emotionalDirection: "从试探到信任",
+          currentState: "互相托底",
+          conflict: "做事方式不同",
+          evolution: "",
+        } } },
+      },
+    ] },
+  } }, undefined, undefined, undefined);
+  assert(
+    singleItemEnvelope.details.committed === true &&
+      singleItemEnvelope.details.revision === miniMaxCompatible.details.revision + 1,
+    "单层 item 信封、空字符串和 null 应能按目标数组类型安全归一化。",
+    singleItemEnvelope.details,
+  );
+  const envelopePositioning = JSON.parse(await readFile(join(root, "story/positioning.json"), "utf8"));
+  const envelopeStyle = JSON.parse(await readFile(join(root, "story/style.json"), "utf8"));
+  const envelopeForeshadows = JSON.parse(await readFile(join(root, "story/tracking/foreshadows.json"), "utf8"));
+  const envelopeRelationships = JSON.parse(await readFile(join(root, "story/relationships.json"), "utf8"));
+  assert(
+    JSON.stringify(envelopePositioning.secondaryGenres) === JSON.stringify(["都市逆袭"]) &&
+      JSON.stringify(envelopePositioning.benchmarkTitles) === JSON.stringify([]) &&
+      JSON.stringify(envelopeStyle.forbiddenPatterns) === JSON.stringify(["机械总结", "空洞升华"]) &&
+      JSON.stringify(envelopeForeshadows.foreshadows) === JSON.stringify([]) &&
+      envelopeRelationships.relationships.length === 1 &&
+      JSON.stringify(envelopeRelationships.relationships[0].evolution) === JSON.stringify([]),
+    "兼容输入必须以 Profile 声明的规范数组类型落盘。",
+    { envelopePositioning, envelopeStyle, envelopeForeshadows, envelopeRelationships },
+  );
+
+  const nestedItemEnvelope = await storyTool.execute("nested-item-envelope", { action: "commit_changes", changeSet: {
+    ...changeSetContract,
+    storyId: projectInfo.storyId,
+    baseRevision: singleItemEnvelope.details.revision,
+    validationProfile: "draft",
+    operations: [
+      {
+        type: "patch",
+        path: "story/style.json",
+        value: { forbiddenPatterns: { item: { item: ["不应通过"] } } },
+      },
+      {
+        type: "patch",
+        path: "story/positioning.json",
+        value: {
+          secondaryGenres: { item: { item: ["错误副类型"] } },
+          benchmarkTitles: { item: { item: ["错误对标"] } },
+        },
+      },
+    ],
+  } }, undefined, undefined, undefined);
+  assert(
+    nestedItemEnvelope.details.committed === false &&
+      nestedItemEnvelope.details.issues.some((issue: any) => issue.path === "story-style.forbiddenPatterns") &&
+      nestedItemEnvelope.details.issues.some((issue: any) => issue.path === "story-positioning.secondaryGenres") &&
+      nestedItemEnvelope.details.issues.some((issue: any) => issue.path === "story-positioning.benchmarkTitles"),
+    "嵌套 item 信封不得递归恢复，且单次响应必须返回本批全部字段错误。",
+    nestedItemEnvelope.details,
+  );
+  const styleAfterNestedEnvelope = JSON.parse(await readFile(join(root, "story/style.json"), "utf8"));
+  assert(
+    JSON.stringify(styleAfterNestedEnvelope.forbiddenPatterns) === JSON.stringify(["机械总结", "空洞升华"]),
+    "嵌套 item 信封校验失败后不得修改正式文件。",
+    styleAfterNestedEnvelope,
+  );
+
   const fallbackRoot = join(${JSON.stringify(tempDir)}, "fallback-workspace");
   await installProject(fallbackRoot);
   await mkdir(join(fallbackRoot, "story/fallback"), { recursive: true });

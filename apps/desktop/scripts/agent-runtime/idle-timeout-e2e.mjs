@@ -3,6 +3,10 @@ import {
   IdleTimeoutError,
   withIdleTimeout,
 } from "../../agent-runtime/src/engines/drivers/native/agent/runtimes/pi/agent/idle-timeout.ts";
+import {
+  isPiAbortError,
+  normalizePiAbortError,
+} from "../../agent-runtime/src/engines/drivers/native/agent/runtimes/pi/agent/abort.ts";
 
 const wait = (durationMs) => new Promise((resolve) => setTimeout(resolve, durationMs));
 
@@ -74,6 +78,19 @@ const testIdleTimeoutAwaitsAbort = async () => {
   assert.equal(listener, null);
 };
 
+const testPiAbortNormalization = () => {
+  const rawAbort = new Error("Unhandled stop reason: abort");
+  const normalized = normalizePiAbortError(rawAbort);
+  assert.equal(isPiAbortError(rawAbort), true);
+  assert.equal(normalized.name, "AbortError");
+  assert.equal(normalized.message, "Agent session 已中止");
+
+  const unrelated = new Error("network unavailable");
+  assert.equal(isPiAbortError(unrelated), false);
+  assert.equal(normalizePiAbortError(unrelated), unrelated);
+};
+
 await testActivityExtendsLongOperation();
 await testIdleTimeoutAwaitsAbort();
+testPiAbortNormalization();
 console.log("agent idle timeout e2e passed");
