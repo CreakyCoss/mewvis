@@ -1,6 +1,6 @@
 import { readWorkspaceFile, writeWorkspaceFilesAtomic } from "@/features/pages/workspace/files-api";
-import type { StoryProjectApi } from "../../../../../protocols/story-project";
-import { loadStoryProjectApi } from "../project-workspace";
+import type { StoryProjectApi } from "../../../../../../protocols/story-project";
+import { loadStoryProjectApi } from "../workspace";
 import { storyDocumentData } from "./model";
 import type { JsonValue, StoryJsonDocument, StoryJsonDocumentDefinition } from "./types";
 

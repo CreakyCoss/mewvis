@@ -3,8 +3,8 @@ import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = process.cwd();
-const profilePath = resolve(root, "src/features/pages/stories/profiles/default-novel/profile");
-const layoutPath = resolve(root, "src/features/pages/stories/layouts/default-novel/layout.json");
+const profilePath = resolve(root, "src/features/pages/stories/story-project/profiles/default-novel/profile");
+const layoutPath = resolve(root, "src/features/pages/stories/story-project/layouts/default-novel/layout.json");
 const metadata = JSON.parse(readFileSync(resolve(profilePath, "metadata.json"), "utf8"));
 const objectDefinitionSource = Object.assign(
   {},

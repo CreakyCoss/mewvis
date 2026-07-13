@@ -7,7 +7,7 @@ import type {
   StoryNodeJson,
   StorySceneJson,
   StorySceneStatusJson,
-} from "../story/model/types";
+} from "../../story/model/types";
 import type {
   JsonFieldMetadata,
   JsonObject,

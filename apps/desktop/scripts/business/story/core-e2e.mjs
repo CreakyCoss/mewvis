@@ -9,9 +9,9 @@ const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-story-core-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
 const protocolPath = resolve(root, "protocols/story-project/index.ts");
-const profilePath = resolve(root, "src/features/pages/stories/profiles/default-novel/index.ts");
-const layoutPath = resolve(root, "src/features/pages/stories/layouts/default-novel/layout.json");
-const documentModelPath = resolve(root, "src/features/pages/stories/documents/model.ts");
+const profilePath = resolve(root, "src/features/pages/stories/story-project/profiles/default-novel/index.ts");
+const layoutPath = resolve(root, "src/features/pages/stories/story-project/layouts/default-novel/layout.json");
+const documentModelPath = resolve(root, "src/features/pages/stories/story-project/documents/model.ts");
 
 writeFileSync(
   entryPath,

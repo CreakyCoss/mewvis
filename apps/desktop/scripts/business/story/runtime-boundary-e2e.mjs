@@ -44,7 +44,7 @@ const builtinsIndex = readFileSync(resolve(root, "agent-runtime/src/engines/buil
 const builtinDefinition = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/definition.ts"), "utf8");
 const storyBuiltin = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/index.ts"), "utf8");
 const storySkill = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/skills/definition.ts"), "utf8");
-const storyProfileRoot = resolve(root, "src/features/pages/stories/profiles/default-novel/profile");
+const storyProfileRoot = resolve(root, "src/features/pages/stories/story-project/profiles/default-novel/profile");
 const storyProfile = [
   readFileSync(resolve(storyProfileRoot, "metadata.json"), "utf8"),
   ...readdirSync(resolve(storyProfileRoot, "objects"))
@@ -54,7 +54,10 @@ const storyProfile = [
     .filter((name) => name.endsWith(".json"))
     .map((name) => readFileSync(resolve(storyProfileRoot, "documents", name), "utf8")),
 ].join("\n");
-const storyLayout = readFileSync(resolve(root, "src/features/pages/stories/layouts/default-novel/layout.json"), "utf8");
+const storyLayout = readFileSync(
+  resolve(root, "src/features/pages/stories/story-project/layouts/default-novel/layout.json"),
+  "utf8",
+);
 const storyTool = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/tool/definition.ts"), "utf8");
 const storyProtocol = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/protocol.ts"), "utf8");
 const storyService = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/tool/service.ts"), "utf8");
@@ -66,11 +69,11 @@ const storyToolCore = collectTypeScriptFiles(resolve(root, "agent-runtime/src/en
   .map((path) => readFileSync(path, "utf8"))
   .join("\n");
 const frontendWorkspaceContract = readFileSync(
-  resolve(root, "src/features/pages/stories/project-workspace.ts"),
+  resolve(root, "src/features/pages/stories/story-project/workspace.ts"),
   "utf8",
 );
 const frontendDocumentRepository = readFileSync(
-  resolve(root, "src/features/pages/stories/documents/repository.ts"),
+  resolve(root, "src/features/pages/stories/story-project/documents/repository.ts"),
   "utf8",
 );
 const frontendStoryStorage = readFileSync(resolve(root, "src/features/pages/stories/storage.ts"), "utf8");

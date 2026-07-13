@@ -6,8 +6,8 @@ import { WorkspaceChatPage } from "@/features/pages/chat/components/workspace-ch
 import type { StoryChatSeed } from "@/features/pages/chat/components/workspace-chat-page/story-seed";
 import { createMessageId } from "@/features/pages/chat/utils/sessions";
 import type { Workspace } from "@/features/pages/workspace/types";
-import { storyDocumentData } from "../../../documents/model";
-import type { StoryJsonDocument } from "../../../documents/types";
+import { storyDocumentData } from "../../../story-project/documents/model";
+import type { StoryJsonDocument } from "../../../story-project/documents/types";
 import type { StoryJson } from "../../model/types";
 import type { StoryWorkspace } from "../../../storage";
 

@@ -14,8 +14,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { inspectStructuredJsonDocument, storyDocumentLabel } from "../../documents/model";
-import type { StoryJsonDocument } from "../../documents/types";
+import { inspectStructuredJsonDocument, storyDocumentLabel } from "../../story-project/documents/model";
+import type { StoryJsonDocument } from "../../story-project/documents/types";
 import { useStoryState } from "../use-story-state";
 import { CreateJsonDocumentDialog } from "./documents/create-dialog";
 import { StoryDocumentEditor } from "./documents/document-editor";

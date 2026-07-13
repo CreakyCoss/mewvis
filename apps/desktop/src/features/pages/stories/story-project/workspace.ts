@@ -6,7 +6,7 @@ import {
   STORY_PROJECT_PROFILE_PATH,
   createStoryProjectCompilerRegistry,
   type StoryProjectApi,
-} from "../../../../protocols/story-project";
+} from "../../../../../protocols/story-project";
 import { DEFAULT_STORY_PROJECT_LAYOUT_SOURCE } from "./layouts/default-novel";
 import { DEFAULT_STORY_PROFILE_SOURCE } from "./profiles/default-novel";
 

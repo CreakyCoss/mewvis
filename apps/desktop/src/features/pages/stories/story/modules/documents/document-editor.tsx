@@ -27,8 +27,8 @@ import {
   replaceStructuredDocumentData,
   storyDocumentData,
   storyDocumentLabel,
-} from "../../../documents/model";
-import type { JsonFieldMetadata, JsonValue, StoryJsonDocument } from "../../../documents/types";
+} from "../../../story-project/documents/model";
+import type { JsonFieldMetadata, JsonValue, StoryJsonDocument } from "../../../story-project/documents/types";
 import { useStoryState } from "../../use-story-state";
 import { GenericJsonValueEditor, MetadataFieldEditor } from "./field-editor";
 

@@ -16,8 +16,14 @@ const toolPath = resolve(
 const storyBuiltinPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/definition.ts");
 const storyProfilePath = resolve(workspaceRoot, "protocols/story-project/index.ts");
 const nodeRepositoryPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/node-repository.ts");
-const defaultLayoutPath = resolve(workspaceRoot, "src/features/pages/stories/layouts/default-novel/layout.json");
-const defaultProfilePath = resolve(workspaceRoot, "src/features/pages/stories/profiles/default-novel/index.ts");
+const defaultLayoutPath = resolve(
+  workspaceRoot,
+  "src/features/pages/stories/story-project/layouts/default-novel/layout.json",
+);
+const defaultProfilePath = resolve(
+  workspaceRoot,
+  "src/features/pages/stories/story-project/profiles/default-novel/index.ts",
+);
 
 writeFileSync(
   entryPath,

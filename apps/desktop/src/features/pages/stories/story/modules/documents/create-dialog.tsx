@@ -12,8 +12,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { normalizeStoryDocumentPath } from "../../../documents/repository";
-import type { JsonValue } from "../../../documents/types";
+import { normalizeStoryDocumentPath } from "../../../story-project/documents/repository";
+import type { JsonValue } from "../../../story-project/documents/types";
 import { useStoryState } from "../../use-story-state";
 
 export const CreateJsonDocumentDialog = ({

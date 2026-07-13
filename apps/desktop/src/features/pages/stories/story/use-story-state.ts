@@ -1,8 +1,8 @@
 import { toast } from "sonner";
 import { create } from "zustand";
-import { storyDocumentsToStoryJson } from "../documents/model";
-import { removeStoryDocument, saveStoryDocument } from "../documents/repository";
-import type { JsonValue, StoryJsonDocument } from "../documents/types";
+import { storyDocumentsToStoryJson } from "../story-project/documents/model";
+import { removeStoryDocument, saveStoryDocument } from "../story-project/documents/repository";
+import type { JsonValue, StoryJsonDocument } from "../story-project/documents/types";
 import type { StoryJson } from "./model/types";
 import { loadStoryById, updateStoryRecordName, type StoryLibraryItem, type StoryWorkspace } from "../storage";
 

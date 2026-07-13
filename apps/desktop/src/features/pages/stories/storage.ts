@@ -1,8 +1,8 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { storyDocumentsToStoryJson } from "./documents/model";
-import { loadStoryDocuments } from "./documents/repository";
-import { initializeDefaultStoryProject } from "./project-workspace";
-import type { StoryJsonDocument } from "./documents/types";
+import { storyDocumentsToStoryJson } from "./story-project/documents/model";
+import { loadStoryDocuments } from "./story-project/documents/repository";
+import type { StoryJsonDocument } from "./story-project/documents/types";
+import { initializeDefaultStoryProject } from "./story-project/workspace";
 import type { StoryJson } from "./story/model/types";
 
 export const STORY_SOURCE_DIR = "story";
