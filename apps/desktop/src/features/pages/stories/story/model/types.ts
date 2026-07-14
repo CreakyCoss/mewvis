@@ -74,6 +74,7 @@ export type StoryGraphJson = {
   edges: StoryEdgeJson[];
 };
 
+/** @deprecated 仅供尚未迁移的故事 UI 使用；故事上下文必须通过 StoryProjectApi 读取。 */
 export type StoryJson = {
   id: string;
   title: string;

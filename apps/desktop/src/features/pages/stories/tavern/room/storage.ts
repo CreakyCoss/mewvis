@@ -1,16 +1,13 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { TavernMessage } from "./model/message";
-import type { TavernStoryData } from "./model";
 import { readJsonWorkspaceFile, writeJsonWorkspaceFile } from "@/utils/files";
 
-const TAVERN_ROOM_FILE_NAME = "room.json";
 const TAVERN_MESSAGES_FILE_NAME = "messages.json";
 const TAVERN_WORKSPACE_PATH_MARKER = "/.tavern/";
 const TAVERN_WORKSPACE_INIT_FILE_PREFIX = ".__tavern_workspace_init";
 const ensuredRoomPaths = new Set<string>();
 
-type TavernStoryFiles = {
-  story: TavernStoryData;
+type TavernRoomFiles = {
   messages: TavernMessage[];
 };
 
@@ -72,30 +69,26 @@ const ensureTavernRoomDirectory = async (workspacePath: string) => {
   ensuredRoomPaths.add(normalizedPath);
 };
 
-export const loadTavernRoom = async (workspacePath: string): Promise<TavernStoryFiles | null> => {
+export const loadTavernRoom = async (workspacePath: string): Promise<TavernRoomFiles | null> => {
   if (!workspacePath.trim() || !isTauri()) {
     return null;
   }
 
-  const story = await readJsonWorkspaceFile<TavernStoryData>(workspacePath, TAVERN_ROOM_FILE_NAME);
   const messages = await readJsonWorkspaceFile<TavernMessage[]>(workspacePath, TAVERN_MESSAGES_FILE_NAME);
-  if (!story || !messages) {
+  if (!messages) {
     return null;
   }
 
-  return { story, messages };
+  return { messages };
 };
 
-export const saveTavernRoom = async (workspacePath: string, story: TavernStoryData, messages: TavernMessage[]) => {
+export const saveTavernRoom = async (workspacePath: string, messages: TavernMessage[]) => {
   if (!workspacePath.trim() || !isTauri()) {
     return;
   }
 
   await ensureTavernRoomDirectory(workspacePath);
-  await Promise.all([
-    writeJsonWorkspaceFile(workspacePath, TAVERN_ROOM_FILE_NAME, story),
-    writeJsonWorkspaceFile(workspacePath, TAVERN_MESSAGES_FILE_NAME, messages),
-  ]);
+  await writeJsonWorkspaceFile(workspacePath, TAVERN_MESSAGES_FILE_NAME, messages);
 };
 
 export const deleteTavernRoom = async (workspacePath: string) => {
@@ -103,8 +96,5 @@ export const deleteTavernRoom = async (workspacePath: string) => {
     return;
   }
 
-  await Promise.all([
-    deleteWorkspaceFileIfExists(workspacePath, TAVERN_ROOM_FILE_NAME),
-    deleteWorkspaceFileIfExists(workspacePath, TAVERN_MESSAGES_FILE_NAME),
-  ]);
+  await deleteWorkspaceFileIfExists(workspacePath, TAVERN_MESSAGES_FILE_NAME);
 };

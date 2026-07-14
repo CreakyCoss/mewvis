@@ -198,7 +198,6 @@ export const submitTavernAgentFlow = async ({
       runtimeModel: runtimeModelInput,
       story,
       messages,
-      characters: story.characters,
       references,
       currentUserText: text,
       trigger,

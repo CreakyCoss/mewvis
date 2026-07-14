@@ -1,9 +1,32 @@
-import type { StoryNodeScene } from "@/features/pages/stories/story/model/node";
-import type { StoryCharacterJson } from "@/features/pages/stories/story/model/types";
 import type { TavernRoomConfig } from "@/features/pages/stories/tavern/manage/model";
+import type { StoryContextBundle } from "../../../../../../../protocols/story-project/types";
 
-export type TavernCharacter = StoryCharacterJson;
+export type TavernCharacterMemory = {
+  required: string;
+  public: string;
+  known: string;
+  privateSelf: string;
+  directorSecret: string;
+};
 
-export type TavernStoryData = StoryNodeScene & {
+export type TavernCharacter = {
+  id: string;
+  name: string;
+  avatar: string;
+  description: string;
+  speakingStyle: string;
+  writingStyle?: string;
+  replyStylePrompt?: string;
+  goals?: string;
+  relationshipSummary?: string;
+  publicRelationshipSummary?: string;
+  memory?: TavernCharacterMemory;
+};
+
+export type TavernStoryData = {
+  /** 酒馆只绑定稳定章节 ID；章节号和标题由 context 提供。 */
+  chapterId: string;
+  context: StoryContextBundle;
+  characters: TavernCharacter[];
   roomConfig: TavernRoomConfig;
 };

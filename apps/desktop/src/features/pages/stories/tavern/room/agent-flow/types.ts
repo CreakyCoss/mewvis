@@ -58,7 +58,6 @@ export type TavernAgentFlowInput = {
   runtimeModel: RuntimeModelInput;
   story: TavernStoryData;
   messages: TavernMessage[];
-  characters: TavernCharacter[];
   references?: PromptFileReference[];
   currentUserText: string;
   trigger?: TavernAgentFlowTrigger;
@@ -71,7 +70,6 @@ export type TavernAgentFlowInput = {
 
 export type TavernAgentFlowSessionInput = {
   workspacePath: string;
-  story: TavernStoryData;
 };
 
 export type TavernAgentFlowContext = {

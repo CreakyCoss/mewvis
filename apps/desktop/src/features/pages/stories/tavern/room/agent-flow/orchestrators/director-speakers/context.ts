@@ -99,11 +99,11 @@ export const createTavernAgentFlowPublicMessage = ({
 export const buildTavernAgentFlowContext = (input: TavernAgentFlowInput): TavernAgentFlowContext => {
   const presentation = resolveTavernAgentFlowPresentation(input.story.roomConfig);
   const candidateCharacters = resolveCandidateCharacters({
-    characters: input.characters,
+    characters: input.story.characters,
     selectedCharacterIds: input.selectedCharacterIds,
   });
-  const characterById = new Map(input.characters.map((character) => [character.id, character]));
-  const playerName = input.story.playerName;
+  const characterById = new Map(input.story.characters.map((character) => [character.id, character]));
+  const playerName = "我";
   const currentInstruction =
     (input.trigger?.type === "scene_drive"
       ? input.trigger.directive || input.currentUserText

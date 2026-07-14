@@ -63,15 +63,15 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       setIsSidePanelOpen(false);
 
       void loadTavernRoom(nextWorkspacePath)
-        .then((storedStory) => {
+        .then((storedRoom) => {
           if (requestId !== openRequestIdRef.current) {
             return;
           }
 
           initializeRoom({
             workspacePath: nextWorkspacePath,
-            story: storedStory?.story ?? options.story,
-            messages: storedStory?.messages ?? [],
+            story: options.story,
+            messages: storedRoom?.messages ?? [],
           });
           setIsRoomLoaded(true);
         })
@@ -102,7 +102,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       return;
     }
 
-    void saveTavernRoom(workspacePath, story, messages).catch((saveError) => {
+    void saveTavernRoom(workspacePath, messages).catch((saveError) => {
       console.error("Failed to save tavern room", saveError);
     });
   }, [story, messages, isRoomLoaded, workspacePath]);
@@ -112,7 +112,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     if (
       !openOptions ||
       !window.confirm(
-        `清空当前节点「${openOptions.story.scene.title}」的酒馆运行数据？下次会按故事页传入的最新数据重新初始化。`,
+        `清空章节「${openOptions.story.context.target?.label || openOptions.story.chapterId}」的酒馆运行数据？下次会按故事页传入的最新上下文重新初始化。`,
       )
     ) {
       return;
@@ -126,7 +126,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     try {
       await TavernAgentFlow.deleteSession({
         workspacePath: openOptions.workspacePath,
-        story: openOptions.story,
       });
       await deleteTavernRoom(openOptions.workspacePath);
       if (requestId !== openRequestIdRef.current) {
@@ -140,7 +139,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       });
       setOpenError("");
       setIsRoomLoaded(true);
-      toast.success("已按最新故事数据重建当前节点酒馆");
+      toast.success("已按最新故事数据重建当前章节酒馆");
     } catch (resetError) {
       if (requestId !== openRequestIdRef.current) {
         return;
@@ -149,8 +148,8 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       console.error("Failed to reset tavern room", resetError);
       if (wasRoomLoaded) {
         const message = resetError instanceof Error ? resetError.message : "未知错误";
-        useTavernRoomContext.getState().setError(`无法清理当前节点运行数据：${message}`);
-        toast.error("清空当前节点失败");
+        useTavernRoomContext.getState().setError(`无法清理当前章节运行数据：${message}`);
+        toast.error("清空当前章节失败");
       } else {
         setOpenError("酒馆房间数据重置失败，请重试。");
         toast.error("重置酒馆房间数据失败");
@@ -191,7 +190,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
           <DialogTitle className="sr-only">酒馆房间</DialogTitle>
           <div className="flex max-w-md flex-col items-center gap-4 rounded-md border bg-card px-6 py-5 text-center text-sm text-muted-foreground">
             <p>
-              {openError || (!isRoomLoaded ? "正在加载酒馆房间" : "当前没有可进入的酒馆房间，请先从故事节点打开酒馆。")}
+              {openError || (!isRoomLoaded ? "正在加载酒馆房间" : "当前没有可进入的酒馆房间，请先从故事章节打开酒馆。")}
             </p>
             {openError ? (
               <Button type="button" disabled={isResetting} onClick={() => void resetRoomData()}>
@@ -219,7 +218,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
         overlayClassName="bg-black/5 backdrop-blur-none"
         className={cn(fullScreenDialogContentClassName, "text-foreground", visualPreset.tavern.page)}
       >
-        <DialogTitle className="sr-only">{story.title ? `${story.title} · 酒馆` : "酒馆房间"}</DialogTitle>
+        <DialogTitle className="sr-only">{story.roomConfig.title || "酒馆房间"}</DialogTitle>
         <WindowDragRegion className="h-10 shrink-0" />
         <div
           className={[

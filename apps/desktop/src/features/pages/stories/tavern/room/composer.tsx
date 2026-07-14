@@ -157,7 +157,7 @@ export const Composer = ({ bind, files }: ComposerProps) => {
 
   useEffect(() => {
     clearDraft();
-  }, [story?.id, clearDraft]);
+  }, [story?.chapterId, clearDraft]);
 
   const submitPayload = useCallback(
     async (payload: ComposerSubmitPayload) => {

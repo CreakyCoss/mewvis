@@ -189,7 +189,7 @@ export const TavernManageContent = ({ bind, onBack }: TavernManageContentProps) 
         className={fullScreenDialogContentClassName}
       >
         <DialogTitle className="sr-only">
-          {item?.story.title ? `${item.story.title} · 酒馆配置` : "故事酒馆配置"}
+          {item?.workspace.name ? `${item.workspace.name} · 酒馆配置` : "故事酒馆配置"}
         </DialogTitle>
         <WindowDragRegion className="h-10 shrink-0" />
         {isLoading || !data ? (

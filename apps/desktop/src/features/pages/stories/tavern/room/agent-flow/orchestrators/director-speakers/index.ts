@@ -21,7 +21,7 @@ export const directorSpeakersOrchestrator: TavernAgentFlowOrchestrator = {
 };
 
 const resolveScheduledCharacters = (input: TavernAgentFlowInput, speakerIds: string[]) => {
-  const characterById = new Map(input.characters.map((character) => [character.id, character]));
+  const characterById = new Map(input.story.characters.map((character) => [character.id, character]));
   return speakerIds.map((speakerId) => characterById.get(speakerId)!);
 };
 

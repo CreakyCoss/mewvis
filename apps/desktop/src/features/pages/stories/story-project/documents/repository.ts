@@ -48,6 +48,12 @@ const loadProjectState = async (workspacePath: string, projectApi: StoryProjectA
   return { manifest, manifestPath, project };
 };
 
+export const loadStoryProject = async (workspacePath: string) => {
+  const projectApi = await loadStoryProjectApi(workspacePath);
+  const { project } = await loadProjectState(workspacePath, projectApi);
+  return { projectApi, project };
+};
+
 const persistAppliedProject = async (
   workspacePath: string,
   projectApi: StoryProjectApi,

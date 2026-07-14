@@ -22,30 +22,21 @@ const labelValue = (label: string, value?: string | null) => {
   return text ? `${label}: ${text}` : "";
 };
 
+const truncate = (value: string, maxLength = 600) =>
+  value.length > maxLength ? `${value.slice(0, maxLength).trimEnd()}...` : value;
+
 export const buildTavernAgentFlowProgress = (story: TavernStoryData): AgentProtocolProgress => {
-  const sceneStatus = story.scene.status;
+  const targetLabel = story.context.target?.label || story.chapterId;
+  const requiredSections = story.context.sections.filter((section) => section.required);
 
   return {
     summary: joinLines([
-      labelValue("房间", story.title),
-      labelValue("当前场景", story.scene.scene),
-      labelValue("场景目标", story.scene.goal),
-      labelValue("剧情方向", story.scene.direction),
-      labelValue("当前剧情节点", story.node.title),
+      labelValue("房间", story.roomConfig.title),
+      labelValue("当前章节", targetLabel),
+      ...requiredSections.map((section) => labelValue(section.label, truncate(section.content))),
     ]),
-    facts: compact([
-      labelValue("地点", sceneStatus?.location),
-      labelValue("时间", sceneStatus?.timeLabel),
-      labelValue("天气", sceneStatus?.weather),
-      labelValue("氛围", sceneStatus?.atmosphere),
-      labelValue("阶段", sceneStatus?.scenePhase),
-      labelValue("即时威胁", sceneStatus?.immediateThreat),
-    ]),
-    recentEvents: compact([
-      labelValue("最近情节", story.scene.plot),
-      labelValue("转场/承接", story.scene.transition),
-      labelValue("场景记忆", story.scene.memory),
-    ]),
+    facts: story.context.sections.map((section) => `${section.label}（${section.sources.length} 个来源）`),
+    recentEvents: requiredSections.map((section) => truncate(section.content)),
   };
 };
 
@@ -75,18 +66,9 @@ export const buildTavernAgentFlowReferences = ({
   ...buildSystemNarrativeReference({ story, presentation, target }),
   ...buildRoomStyleReference({ story, target }),
   {
-    title: "房间与场景",
-    source: "room_runtime",
-    content: joinLines([
-      labelValue("房间", story.title),
-      labelValue("玩家身份", story.playerName),
-      labelValue("场景", story.scene.scene),
-      labelValue("场景目标", story.scene.goal),
-      labelValue("剧情", story.scene.plot),
-      labelValue("推进方向", story.scene.direction),
-      labelValue("转场", story.scene.transition),
-      labelValue("场景记忆", story.scene.memory),
-    ]),
+    title: story.context.target?.label || "章节写作上下文",
+    source: `story_context:${story.chapterId}`,
+    content: story.context.text,
   },
   {
     title: target === "director" ? "候选角色" : "在场角色",

@@ -6,6 +6,7 @@ import type { JsonValue, StoryJsonDocument } from "../story-project/documents/ty
 import type { StoryJson } from "./model/types";
 import { loadStoryById, updateStoryRecordName, type StoryLibraryItem, type StoryWorkspace } from "../storage";
 
+/** @deprecated 仅供尚未迁移的剧情梳理聊天使用。 */
 export type StoryNodeSelectOption = {
   description?: string;
   id: string;
@@ -20,7 +21,6 @@ type StoryStore = {
   deleteDocument: (path: string) => Promise<boolean>;
   documents: StoryJsonDocument[];
   getChatWorkspacePath: (chatWorkspaceId: string) => string;
-  getTavernWorkspacePath: (nodeId: string) => string;
   isSaving: boolean;
   openStory: (item: StoryLibraryItem) => void;
   reloadStory: () => Promise<StoryLibraryItem | null>;
@@ -28,11 +28,6 @@ type StoryStore = {
   story: StoryJson | null;
   storyWorkspace: StoryWorkspace | null;
 };
-
-const trimPathEnd = (value: string) => value.trim().replace(/[\\/]+$/, "");
-
-const safePathSegment = (value: string, fallback: string) =>
-  value.trim().replace(/[\\/]/g, "-").replace(/\.\./g, "").replace(/^\.+/, "").trim() || fallback;
 
 const nextStoryView = (story: StoryJson, workspace: StoryWorkspace, documents: StoryJsonDocument[]) =>
   storyDocumentsToStoryJson(
@@ -74,17 +69,6 @@ export const useStoryState = create<StoryStore>((set, get) => ({
   },
 
   getChatWorkspacePath: (chatWorkspaceId) => `/chat/${chatWorkspaceId}/new`,
-
-  getTavernWorkspacePath: (nodeId) => {
-    const { story, storyWorkspace } = get();
-    if (!story || !storyWorkspace) return "";
-    return [
-      trimPathEnd(storyWorkspace.path),
-      ".tavern",
-      safePathSegment(story.id, "story"),
-      safePathSegment(nodeId, "node"),
-    ].join("/");
-  },
 
   openStory: (item) => {
     set({ documents: item.documents, story: item.story, storyWorkspace: item.workspace });

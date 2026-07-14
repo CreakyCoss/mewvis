@@ -1,20 +1,25 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { readJsonWorkspaceFile, writeJsonWorkspaceFile } from "@/utils/files";
-import { STORY_TAVERN_FILE, type StoryLibraryItem, type StoryWorkspace } from "../../storage";
+import { STORY_TAVERN_FILE, type StoryWorkspace } from "../../storage";
 import { createEmptyManualTavernRoom, type TavernRoomConfig } from "./model";
+
+type StoryTavernOwner = {
+  id: string;
+  workspace: StoryWorkspace;
+};
 
 const createDesktopOnlyTavernStorageError = () => new Error("故事酒馆文件存储仅支持桌面环境。");
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
-const createStoryTavernConfig = (item: StoryLibraryItem): TavernRoomConfig => ({
+const createStoryTavernConfig = (item: StoryTavernOwner): TavernRoomConfig => ({
   ...createEmptyManualTavernRoom(1),
   id: `tavern-${item.id}`,
-  title: `${item.story.title || item.workspace.name} · 酒馆`,
+  title: `${item.workspace.name} · 酒馆`,
 });
 
-const normalizeStoryTavernConfig = (item: StoryLibraryItem, value: unknown): TavernRoomConfig | null => {
+const normalizeStoryTavernConfig = (item: StoryTavernOwner, value: unknown): TavernRoomConfig | null => {
   if (!isRecord(value)) {
     return null;
   }
@@ -66,7 +71,7 @@ export const saveStoryTavernConfig = async (
   return config;
 };
 
-export const loadStoryTavernConfig = async (item: StoryLibraryItem): Promise<TavernRoomConfig | null> => {
+export const loadStoryTavernConfig = async (item: StoryTavernOwner): Promise<TavernRoomConfig | null> => {
   if (!isTauri()) {
     throw createDesktopOnlyTavernStorageError();
   }
@@ -75,7 +80,7 @@ export const loadStoryTavernConfig = async (item: StoryLibraryItem): Promise<Tav
   return normalizeStoryTavernConfig(item, parsed);
 };
 
-export const loadOrCreateStoryTavernConfig = async (item: StoryLibraryItem): Promise<TavernRoomConfig> => {
+export const loadOrCreateStoryTavernConfig = async (item: StoryTavernOwner): Promise<TavernRoomConfig> => {
   const existing = await loadStoryTavernConfig(item);
   if (existing) {
     return existing;

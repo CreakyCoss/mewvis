@@ -22,8 +22,8 @@ type HeaderProps = {
 
 const TAVERN_SCENE_DRIVE_AUTO_INTERVAL_MS = 900;
 const TAVERN_SCENE_DRIVE_AUTO_MAX_TURNS = 20;
-const compactScene = (scene: string) => {
-  const trimmed = scene.trim();
+const compactContextLabel = (label: string) => {
+  const trimmed = label.trim();
   return trimmed.length > 88 ? `${trimmed.slice(0, 88)}...` : trimmed;
 };
 const tavernHeaderActionButtonClassName =
@@ -117,7 +117,7 @@ export const Header = ({ isSidePanelOpen, isResetting, onBack, onReset, onToggle
     setIsSceneDriveAutoRunning(false);
     clearSceneDriveAutoTimer();
     sceneDriveAutoRunCountRef.current = 0;
-  }, [story?.id, clearSceneDriveAutoTimer]);
+  }, [story?.chapterId, clearSceneDriveAutoTimer]);
 
   useEffect(() => {
     if (!isSceneDriveAutoRunning) {
@@ -206,9 +206,11 @@ export const Header = ({ isSidePanelOpen, isResetting, onBack, onReset, onToggle
           </div>
           <div className="min-w-0">
             <div className="flex min-w-0 items-center gap-1.5">
-              <h2 className="truncate text-base font-semibold leading-5">{story.title}</h2>
+              <h2 className="truncate text-base font-semibold leading-5">{story.roomConfig.title}</h2>
             </div>
-            <p className="line-clamp-1 text-sm text-muted-foreground">{compactScene(story.scene.scene)}</p>
+            <p className="line-clamp-1 text-sm text-muted-foreground">
+              {compactContextLabel(story.context.target?.label || story.chapterId)}
+            </p>
           </div>
         </div>
         <Button
@@ -248,8 +250,8 @@ export const Header = ({ isSidePanelOpen, isResetting, onBack, onReset, onToggle
           size="sm"
           variant="ghost"
           className={tavernHeaderActionButtonClassName}
-          title="清空当前节点对话"
-          aria-label="清空当前节点对话"
+          title="清空当前章节对话"
+          aria-label="清空当前章节对话"
           disabled={isBusy || isSceneDriveAutoRunning || isResetting}
           onClick={() => {
             void onReset();

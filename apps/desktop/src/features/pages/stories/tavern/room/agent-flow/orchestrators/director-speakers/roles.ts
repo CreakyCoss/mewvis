@@ -11,7 +11,7 @@ const sanitizeAgentRoleSegment = (value: string) => {
 };
 
 const tavernAgentScopeSegment = (story: TavernStoryData) =>
-  `${sanitizeAgentRoleSegment(story.id)}-${sanitizeAgentRoleSegment(story.roomConfig.id)}`;
+  `${sanitizeAgentRoleSegment(story.chapterId)}-${sanitizeAgentRoleSegment(story.roomConfig.id)}`;
 
 export const tavernAgentFlowDirectorRoleId = (story: TavernStoryData) =>
   `tavern-${tavernAgentScopeSegment(story)}-flow-director`;

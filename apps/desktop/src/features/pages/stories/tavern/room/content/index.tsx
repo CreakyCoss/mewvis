@@ -10,7 +10,7 @@ import { ExecutionTrace } from "./execution-trace";
 import { Message } from "../message";
 import type { MessageCharacterProfile, MessageRenderInput } from "../message/types";
 import { createTavernAgentOutputFieldMessageBody } from "../model/message";
-import { SceneBriefCard } from "./scene-brief-card";
+import { ChapterContextCard } from "./chapter-context-card";
 
 type TavernRoomContentProps = {
   isOpen: boolean;
@@ -29,7 +29,7 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
   const messageListRef = useRef<HTMLDivElement | null>(null);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
-  const openingMessageCreatedAt = useMemo(() => Date.now(), [story?.id, story?.node.id, story?.roomConfig.id]);
+  const openingMessageCreatedAt = useMemo(() => Date.now(), [story?.chapterId, story?.roomConfig.id]);
 
   useEffect(() => {
     if (!workspacePath) {
@@ -68,11 +68,11 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
     }));
     const openingProfile = getTavernPresentationProfile(story.roomConfig.presentation.profileId);
     const openingMessage: MessageRenderInput = {
-      id: `tavern-opening:${story.id}:${story.node.id}:${story.roomConfig.id}`,
+      id: `tavern-opening:${story.chapterId}:${story.roomConfig.id}`,
       role: "narrator",
       body: createTavernAgentOutputFieldMessageBody({
         field: "narrative",
-        text: `已从故事「${story.title}」进入酒馆演绎。`,
+        text: `已进入「${story.context.target?.label || story.chapterId}」的酒馆演绎。`,
       }),
       createdAt: openingMessageCreatedAt,
       status: "done",
@@ -115,7 +115,7 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
     return Message.normalize({
       messages: renderInputs,
       characterProfiles,
-      userName: story.playerName,
+      userName: "我",
     });
   }, [messages, openingMessageCreatedAt, story]);
   const latestMessage = renderableRoomMessages[renderableRoomMessages.length - 1] ?? null;
@@ -150,7 +150,7 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
 
     return () => window.cancelAnimationFrame(firstFrame);
   }, [
-    story?.id,
+    story?.chapterId,
     latestMessage?.content,
     latestMessage?.id,
     renderableRoomMessages.length,
@@ -172,7 +172,7 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
     resizeObserver.observe(messageList);
 
     return () => resizeObserver.disconnect();
-  }, [story?.id, scrollMessagesToBottom, isOpen]);
+  }, [story?.chapterId, scrollMessagesToBottom, isOpen]);
 
   if (!story) {
     return null;
@@ -184,22 +184,16 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
     backgroundRepeat: "no-repeat",
     backgroundSize: visualPreset.tavern.backgroundSize,
   } satisfies CSSProperties;
-  const scene = story.scene;
-  const sceneDescription = scene.scene.trim();
-  const sceneMechanism = scene.plot.trim();
-  const sceneGoal = scene.goal.trim();
-  const sceneEnding = scene.transition.trim();
-  const sceneBriefLines = [sceneDescription, sceneGoal].filter(Boolean);
-  const sceneBriefContent = {
+  const chapterContextContent = {
     themeLabel: visualPreset.label,
-    title: story.title,
-    sceneTitle: scene.title,
-    briefLines: sceneBriefLines,
-    description: sceneDescription,
-    mechanism: sceneMechanism,
-    goal: sceneGoal,
-    ending: sceneEnding,
-    footerNote: scene.direction.trim(),
+    title: story.roomConfig.title,
+    chapterLabel: story.context.target?.label || story.chapterId,
+    sections: story.context.sections.slice(0, 4).map((section) => ({
+      id: section.id,
+      label: section.label,
+      content: section.content,
+    })),
+    footerNote: `上下文版本 ${story.context.revision} · ${story.context.sources.length} 个来源`,
   };
 
   return (
@@ -213,10 +207,10 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
           ref={messageListRef}
           className={cn("mx-auto flex w-full flex-col gap-4 px-4 py-6 sm:px-5", visualPreset.tavern.messageList)}
         >
-          <SceneBriefCard
+          <ChapterContextCard
             className={cn("w-full self-center", isSidePanelOpen ? "max-w-[44rem]" : "max-w-[46rem]")}
             visualPreset={visualPreset}
-            content={sceneBriefContent}
+            content={chapterContextContent}
           />
           <Conversation
             messages={renderableRoomMessages}

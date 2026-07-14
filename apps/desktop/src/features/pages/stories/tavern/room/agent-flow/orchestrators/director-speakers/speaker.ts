@@ -122,7 +122,7 @@ const prepareSpeakerRequest = ({
     messages: [...context.historyMessages, buildCurrentInstructionMessage(input, context), ...previousPublicMessages],
     references: buildTavernAgentFlowReferences({
       story: input.story,
-      characters: input.characters,
+      characters: input.story.characters,
       presentation: context.presentation,
       target: "character",
       speaker: character,

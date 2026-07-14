@@ -211,6 +211,7 @@ const asEdge = (value: JsonObject): StoryEdgeJson => ({
   priority: numberValue(value.priority, 0),
 });
 
+/** @deprecated 仅供尚未迁移的故事 UI 使用；业务上下文请通过 StoryProjectApi.readContext 读取。 */
 export const storyDocumentsToStoryJson = (
   input: { id: string; name: string; createdAt: number; updatedAt: number },
   documents: StoryJsonDocument[],
