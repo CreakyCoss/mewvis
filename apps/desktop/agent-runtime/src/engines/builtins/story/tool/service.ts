@@ -1,5 +1,5 @@
 import { ZodError } from "zod";
-import { StoryProjectValidationError, type StoryProjectApi } from "../../../../../../protocols/story-project/index.js";
+import type { StoryProjectApi } from "../../../../../../protocols/story-project/index.js";
 import type { StoryToolRepository } from "./repository.js";
 import { normalizeStoryChangeSet } from "./request.js";
 import {
@@ -111,8 +111,30 @@ const zodPath = (owner: string, path: PropertyKey[]) =>
     owner,
   );
 
+type StoryValidationIssue = ReturnType<StoryProjectApi["validateProject"]>["issues"][number];
+
+const validationIssues = (error: unknown): StoryValidationIssue[] | null => {
+  if (!error || typeof error !== "object" || !("issues" in error) || !Array.isArray(error.issues)) return null;
+  return error.issues.every(
+    (issue): issue is StoryValidationIssue =>
+      Boolean(issue) &&
+      typeof issue === "object" &&
+      "severity" in issue &&
+      (issue.severity === "error" || issue.severity === "warning") &&
+      "code" in issue &&
+      typeof issue.code === "string" &&
+      "path" in issue &&
+      typeof issue.path === "string" &&
+      "message" in issue &&
+      typeof issue.message === "string",
+  )
+    ? [...error.issues]
+    : null;
+};
+
 const invalidIssues = (error: unknown, owner = "changeSet", code = "changeset.invalid") => {
-  if (error instanceof StoryProjectValidationError) return [...error.issues];
+  const structuredIssues = validationIssues(error);
+  if (structuredIssues) return structuredIssues;
   if (error instanceof ZodError) {
     return error.issues.map((item) => ({
       severity: "error" as const,

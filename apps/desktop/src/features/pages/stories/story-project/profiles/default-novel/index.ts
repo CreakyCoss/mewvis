@@ -1,4 +1,5 @@
-import { STORY_PROJECT_IDENTIFIERS, defineStoryProfile } from "../../../../../../../protocols/story-project";
+import { STORY_PROJECT_IDENTIFIERS } from "../../../../../../../protocols/story-project/identifiers";
+import { defineStoryProfile } from "../../../../../../../protocols/story-project/declarative/profile";
 import metadata from "./profile/metadata.json";
 import assistantObjects from "./profile/objects/assistant.json";
 import coreObjects from "./profile/objects/core.json";

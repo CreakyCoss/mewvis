@@ -8,7 +8,10 @@ const root = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-story-core-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
-const protocolPath = resolve(root, "protocols/story-project/index.ts");
+const identifiersPath = resolve(root, "protocols/story-project/identifiers.ts");
+const compilerRegistryPath = resolve(root, "protocols/story-project/registry.ts");
+const declarativeCompilerPath = resolve(root, "protocols/story-project/declarative/compiler.ts");
+const changeSetPath = resolve(root, "protocols/story-project/declarative/changes.ts");
 const profilePath = resolve(root, "src/features/pages/stories/story-project/profiles/default-novel/index.ts");
 const layoutPath = resolve(root, "src/features/pages/stories/story-project/layouts/default-layout.ts");
 const documentModelPath = resolve(root, "src/features/pages/stories/story-project/documents/model.ts");
@@ -18,11 +21,14 @@ writeFileSync(
   `
   import {
     STORY_PROJECT_IDENTIFIERS,
+  } from ${JSON.stringify(identifiersPath)};
+  import { createStoryProjectCompilerRegistry } from ${JSON.stringify(compilerRegistryPath)};
+  import { DECLARATIVE_STORY_PROJECT_COMPILER } from ${JSON.stringify(declarativeCompilerPath)};
+  import {
     STORY_CHANGE_SET_MAX_BYTES,
     STORY_CHANGE_SET_MAX_OPERATIONS,
-    createStoryProjectCompilerRegistry,
     storyChangeSetSchema,
-  } from ${JSON.stringify(protocolPath)};
+  } from ${JSON.stringify(changeSetPath)};
   import { DEFAULT_STORY_PROFILE, DEFAULT_STORY_PROFILE_SOURCE } from ${JSON.stringify(profilePath)};
   import { DEFAULT_STORY_PROJECT_LAYOUT as defaultLayout } from ${JSON.stringify(layoutPath)};
   import { inspectStructuredJsonDocument, storyDocumentsToStoryJson } from ${JSON.stringify(documentModelPath)};
@@ -30,7 +36,14 @@ writeFileSync(
   const assert = (condition: unknown, message: string, details?: unknown) => {
     if (!condition) throw new Error(message + (details === undefined ? "" : "\\n" + JSON.stringify(details, null, 2)));
   };
-  const compiler = createStoryProjectCompilerRegistry();
+  const compiler = createStoryProjectCompilerRegistry([DECLARATIVE_STORY_PROJECT_COMPILER]);
+  const dynamicCompiler = createStoryProjectCompilerRegistry();
+  assert(
+    dynamicCompiler.register(DECLARATIVE_STORY_PROJECT_COMPILER) === dynamicCompiler &&
+      dynamicCompiler.resolve(STORY_PROJECT_IDENTIFIERS.declarativeCompiler.format) ===
+        DECLARATIVE_STORY_PROJECT_COMPILER,
+    "Compiler Registry 应通过稳定接口支持注册和解析 Compiler。",
+  );
   const api = compiler.compile(STORY_PROJECT_IDENTIFIERS.declarativeCompiler.format, {
     profile: DEFAULT_STORY_PROFILE_SOURCE,
     layout: defaultLayout,

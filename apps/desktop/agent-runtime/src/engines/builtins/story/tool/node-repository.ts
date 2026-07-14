@@ -2,17 +2,18 @@ import { cp, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import {
-  STORY_PROJECT_IDENTIFIERS,
+  compileStoryProjectWorkspace,
   STORY_PROJECT_CONFIG_PATH,
   STORY_PROJECT_LOCK_PATH,
   STORY_PROJECT_PROFILE_PATH,
-  createStoryProjectCompilerRegistry,
-  type StoryProjectApi,
-  type CompiledStoryProjectFileEntry,
-  type StoryCompiledProject,
-  type StoryProjectCompilerRegistry,
-} from "../../../../../../protocols/story-project/index.js";
+} from "../../../../../../protocols/story-project/workspace.js";
+import type { StoryProjectApi, StoryProjectCompilerRegistry } from "../../../../../../protocols/story-project/index.js";
+import { createStoryProjectCompilerRegistry } from "../../../../../../protocols/story-project/registry.js";
+import { DECLARATIVE_STORY_PROJECT_COMPILER } from "../../../../../../protocols/story-project/declarative/compiler.js";
 import type { StoryToolRepository } from "./repository.js";
+
+type StoryCompiledProject = ReturnType<StoryProjectApi["createProject"]>;
+type CompiledStoryProjectFileEntry = ReturnType<StoryProjectApi["projectFiles"]>[number];
 
 const jsonText = (value: unknown) => JSON.stringify(value, null, 2);
 
@@ -50,32 +51,13 @@ const loadProjectApi = async (workspacePath: string, compilers: StoryProjectComp
     readFile(profileTarget, "utf8"),
     readJson(workspacePath, STORY_PROJECT_LOCK_PATH),
   ]);
-  if (!lockInput || typeof lockInput !== "object" || Array.isArray(lockInput)) {
-    throw new Error("故事项目锁文件必须是 JSON 对象。");
-  }
-  const lock = lockInput as Record<string, unknown>;
-  const compiler = lock.compiler as Record<string, unknown> | undefined;
-  if (typeof compiler?.format !== "string") throw new Error("故事项目锁文件缺少 Compiler 身份。 ");
-  const projectApi = compilers.compile(compiler.format, {
+  return compileStoryProjectWorkspace(compilers, {
     layout: JSON.parse(projectText) as unknown,
     profile: JSON.parse(profileText) as unknown,
+    lock: lockInput,
+    projectSha256: createHash("sha256").update(projectText).digest("hex"),
+    profileSha256: createHash("sha256").update(profileText).digest("hex"),
   });
-  const projectDigest = createHash("sha256").update(projectText).digest("hex");
-  const profileDigest = createHash("sha256").update(profileText).digest("hex");
-  if (
-    lock.$format !== STORY_PROJECT_IDENTIFIERS.projectLock.format ||
-    lock.version !== STORY_PROJECT_IDENTIFIERS.projectLock.version ||
-    lock.projectPath !== STORY_PROJECT_CONFIG_PATH ||
-    lock.profilePath !== STORY_PROJECT_PROFILE_PATH ||
-    lock.profileId !== projectApi.identity.profileId ||
-    lock.profileVersion !== projectApi.identity.profileVersion ||
-    compiler?.version !== projectApi.compiler.version ||
-    lock.projectSha256 !== projectDigest ||
-    lock.profileSha256 !== profileDigest
-  ) {
-    throw new Error("project.lock.json 与故事项目配置不一致。 ");
-  }
-  return projectApi;
 };
 
 const loadProject = async (workspacePath: string, projectApi: StoryProjectApi) => {
@@ -224,7 +206,7 @@ const writeProject = async (
 
 export const createNodeStoryToolRepository = (
   workspacePath: string,
-  compilers: StoryProjectCompilerRegistry = createStoryProjectCompilerRegistry(),
+  compilers: StoryProjectCompilerRegistry = createStoryProjectCompilerRegistry([DECLARATIVE_STORY_PROJECT_COMPILER]),
 ): StoryToolRepository => ({
   loadProjectApi: () => loadProjectApi(workspacePath, compilers),
   inspect: (projectApi) => inspectProject(workspacePath, projectApi),

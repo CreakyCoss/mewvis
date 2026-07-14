@@ -1,4 +1,6 @@
-import type { StoryProjectApi, StoryCompiledProject } from "../../../../../../protocols/story-project/index.js";
+import type { StoryProjectApi } from "../../../../../../protocols/story-project/index.js";
+
+type StoryCompiledProject = ReturnType<StoryProjectApi["createProject"]>;
 
 /** Story Tool persistence port; agent drivers do not depend on a frontend filesystem implementation. */
 export interface StoryToolRepository {

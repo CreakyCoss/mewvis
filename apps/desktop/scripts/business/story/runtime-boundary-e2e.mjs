@@ -89,10 +89,14 @@ const frontendDocumentRepository = readFileSync(
 );
 const frontendStoryStorage = readFileSync(resolve(root, "src/features/pages/stories/storage.ts"), "utf8");
 const protocolDefinition = readFileSync(resolve(root, "protocols/definition.ts"), "utf8");
-const storyProjectProtocol = readFileSync(resolve(root, "protocols/story-project/protocol.ts"), "utf8");
-const storyProfileCompiler = readFileSync(resolve(root, "protocols/story-project/compiler.ts"), "utf8");
+const storyProjectIndex = readFileSync(resolve(root, "protocols/story-project/index.ts"), "utf8");
+const storyProjectTypes = readFileSync(resolve(root, "protocols/story-project/types.ts"), "utf8");
+const storyProjectWorkspace = readFileSync(resolve(root, "protocols/story-project/workspace.ts"), "utf8");
 const storyProfileRegistry = readFileSync(resolve(root, "protocols/story-project/registry.ts"), "utf8");
-const structuredNovelCompiler = readFileSync(resolve(root, "protocols/story-project/runtime.ts"), "utf8");
+const structuredNovelCompiler = readFileSync(resolve(root, "protocols/story-project/declarative/compiler.ts"), "utf8");
+const publicStoryProjectExports = [
+  ...storyProjectIndex.matchAll(/^export\s+(?:interface|type|class|const|function)\s+(\w+)/gm),
+].map((match) => match[1]);
 if (existsSync(resolve(root, "protocols/story-project/profiles"))) {
   throw new Error("共享 story-project 协议层不得继续持有具体小说 Profile。");
 }
@@ -145,7 +149,6 @@ if (
   !storyLayout.includes("DEFAULT_STORY_PROFILE.defineLayout") ||
   storyLayout.includes("novel-claw.story.default-novel") ||
   storySkill.includes("contract.json") ||
-  storyProfileCompiler.includes("STORY_PROJECT_CONTRACT_TOOL_CAPABILITY") ||
   !storyProtocol.includes("interface StoryToolApi") ||
   !storyProtocol.includes("defineBuiltinToolContract") ||
   storyProtocol.includes("STORY_TOOL_REQUIRED_STORY_CONTRACT_CAPABILITIES") ||
@@ -160,28 +163,33 @@ if (
   !storyRepository.includes("createStoryProjectCompilerRegistry") ||
   !storyRepository.includes("STORY_PROJECT_CONFIG_PATH") ||
   !storyRepository.includes("STORY_PROJECT_PROFILE_PATH") ||
-  !storyProfileCompiler.includes("interface StoryProjectCompiler") ||
-  !storyProjectProtocol.includes("interface StoryProjectApi") ||
-  !storyProjectProtocol.includes("STORY_PROJECT_PROTOCOL") ||
-  !storyProjectProtocol.includes("defineProtocol<StoryProjectApi>") ||
-  !storyProjectProtocol.includes("createProject(input:") ||
-  !storyProjectProtocol.includes("projectManifestPath():") ||
-  !storyProjectProtocol.includes("applyChanges(project:") ||
-  !storyProjectProtocol.includes("readContext(") ||
-  !storyProjectProtocol.includes("StoryContextBundle") ||
-  !storyProjectProtocol.includes("documentRoles") ||
-  storyProjectProtocol.includes("formats/structured-novel-v1") ||
-  storyProjectProtocol.includes("declarative-profile") ||
-  !storyProjectProtocol.includes("STORY_PROJECT_CONFIG_PATH") ||
-  storyProfileCompiler.includes("formats/structured-novel-v1") ||
-  storyProfileCompiler.includes("declarative-profile") ||
-  storyProfileCompiler.includes("StoryProfile") ||
-  !storyProfileRegistry.includes("class StoryProjectCompilerRegistry") ||
+  !storyProjectIndex.includes("interface StoryProjectApi") ||
+  !storyProjectIndex.includes("createProject(input:") ||
+  !storyProjectIndex.includes("projectManifestPath():") ||
+  !storyProjectIndex.includes("applyChanges(project:") ||
+  !storyProjectIndex.includes("readContext(") ||
+  !storyProjectIndex.includes("StoryContextBundle") ||
+  !storyProjectTypes.includes("documentRoles") ||
+  !storyProjectWorkspace.includes("STORY_PROJECT_CONFIG_PATH") ||
+  !storyProjectWorkspace.includes("compileStoryProjectWorkspace") ||
+  !storyProjectIndex.includes("interface StoryProjectCompilerRegistry") ||
+  !storyProjectIndex.includes("register(compiler:") ||
+  !storyProjectIndex.includes("resolve(format:") ||
+  publicStoryProjectExports.join(",") !== "StoryProjectApi,StoryProjectCompilerRegistry" ||
+  !storyProfileRegistry.includes("implements StoryProjectCompilerRegistry") ||
+  !storyProfileRegistry.includes("STORY_PROJECT_API_DEFINITION") ||
+  !storyProfileRegistry.includes("defineProtocol<StoryProjectApi>") ||
+  storyProfileRegistry.includes("DECLARATIVE_STORY_PROJECT_COMPILER") ||
   !storyProfileRegistry.includes("assertProtocolImplementation") ||
-  !storyProfileRegistry.includes("STORY_PROJECT_PROTOCOL") ||
+  !structuredNovelCompiler.includes('Parameters<StoryProjectCompilerRegistry["register"]>') ||
   !structuredNovelCompiler.includes("StoryProjectCompiler") ||
   !structuredNovelCompiler.includes("StoryProjectApi") ||
   !structuredNovelCompiler.includes("DECLARATIVE_STORY_PROJECT_COMPILER") ||
+  storyProjectIndex.includes("export *") ||
+  storyProjectIndex.includes("export {") ||
+  storyProjectIndex.includes("export type {") ||
+  storyProjectIndex.includes("declarative/") ||
+  storyProjectIndex.includes("compiler/registry") ||
   structuredNovelCompiler.includes("standard-novel") ||
   !frontendWorkspaceContract.includes("createStoryProjectCompilerRegistry") ||
   !frontendWorkspaceContract.includes("DEFAULT_STORY_PROFILE_SOURCE") ||
@@ -274,6 +282,8 @@ for (const removedPath of [
   "agent-runtime/src/engines/protocol/story-project",
   "agent-runtime/src/engines/features/story-project",
   "agent-runtime/src/engines/drivers/native/story-project",
+  "protocols/story-project/api",
+  "protocols/story-project/compiler",
 ]) {
   try {
     const files = collectTypeScriptFiles(resolve(root, removedPath));
@@ -281,6 +291,18 @@ for (const removedPath of [
   } catch (error) {
     if (error?.code !== "ENOENT") throw error;
   }
+}
+
+for (const removedFile of [
+  "protocols/story-project/compiler.ts",
+  "protocols/story-project/declarative-profile.ts",
+  "protocols/story-project/layout.ts",
+  "protocols/story-project/protocol.ts",
+  "protocols/story-project/model.ts",
+  "protocols/story-project/validation.ts",
+  "protocols/story-project/runtime.ts",
+]) {
+  if (existsSync(resolve(root, removedFile))) throw new Error(`故事协议根目录不应保留平铺实现：${removedFile}`);
 }
 
 console.log("[story-runtime-boundary] ok");

@@ -14,7 +14,9 @@ const toolPath = resolve(
   "agent-runtime/src/engines/drivers/native/agent/runtimes/pi/tools/builtin-tool.ts",
 );
 const storyBuiltinPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/definition.ts");
-const storyProfilePath = resolve(workspaceRoot, "protocols/story-project/index.ts");
+const storyIdentifiersPath = resolve(workspaceRoot, "protocols/story-project/identifiers.ts");
+const compilerRegistryPath = resolve(workspaceRoot, "protocols/story-project/registry.ts");
+const declarativeCompilerPath = resolve(workspaceRoot, "protocols/story-project/declarative/compiler.ts");
 const nodeRepositoryPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/node-repository.ts");
 const piValidationPath = resolve(workspaceRoot, "../../ai/pi/packages/ai/src/utils/validation.ts");
 const defaultLayoutPath = resolve(workspaceRoot, "src/features/pages/stories/story-project/layouts/default-layout.ts");
@@ -34,14 +36,16 @@ writeFileSync(
   import { STORY_TOOL, createStoryToolPackage } from ${JSON.stringify(storyBuiltinPath)};
   import { DEFAULT_STORY_PROJECT_LAYOUT as defaultLayoutJson } from ${JSON.stringify(defaultLayoutPath)};
   import { DEFAULT_STORY_PROFILE_SOURCE } from ${JSON.stringify(defaultProfilePath)};
-  import { STORY_PROJECT_IDENTIFIERS, StoryProjectCompilerRegistry, createStoryProjectCompilerRegistry } from ${JSON.stringify(storyProfilePath)};
+  import { STORY_PROJECT_IDENTIFIERS } from ${JSON.stringify(storyIdentifiersPath)};
+  import { createStoryProjectCompilerRegistry } from ${JSON.stringify(compilerRegistryPath)};
+  import { DECLARATIVE_STORY_PROJECT_COMPILER } from ${JSON.stringify(declarativeCompilerPath)};
   import { createNodeStoryToolRepository } from ${JSON.stringify(nodeRepositoryPath)};
 
   const assert = (condition: unknown, message: string, details?: unknown) => {
     if (!condition) throw new Error(message + (details === undefined ? "" : "\\n" + JSON.stringify(details, null, 2)));
   };
   const root = ${JSON.stringify(storyWorkspace)};
-  const contract = createStoryProjectCompilerRegistry().compile(STORY_PROJECT_IDENTIFIERS.declarativeCompiler.format, { profile: DEFAULT_STORY_PROFILE_SOURCE, layout: defaultLayoutJson });
+  const contract = createStoryProjectCompilerRegistry([DECLARATIVE_STORY_PROJECT_COMPILER]).compile(STORY_PROJECT_IDENTIFIERS.declarativeCompiler.format, { profile: DEFAULT_STORY_PROFILE_SOURCE, layout: defaultLayoutJson });
   const manifestPath = contract.resolveDocument("story-manifest");
   const changeSetContract = {
     profileId: DEFAULT_STORY_PROFILE_SOURCE.profileId,
@@ -446,7 +450,7 @@ writeFileSync(
   const customBook = JSON.parse(await readFile(join(customRoot, "story/project/book.json"), "utf8"));
   assert(customBook.title === "自定义目录", "工具必须按工作区布局决定文档落盘路径。", customBook);
 
-  const incompleteRegistry = new StoryProjectCompilerRegistry([{
+  const incompleteRegistry = createStoryProjectCompilerRegistry([{
     format: "example.incomplete-story-project",
     compilerVersion: 1,
     compile: () => ({}) as any,
@@ -464,7 +468,7 @@ writeFileSync(
 
   let untrustedRejected = false;
   try {
-    createStoryProjectCompilerRegistry().compile("example.untrusted-project", { profile: DEFAULT_STORY_PROFILE_SOURCE, layout: defaultLayoutJson });
+    createStoryProjectCompilerRegistry([DECLARATIVE_STORY_PROJECT_COMPILER]).compile("example.untrusted-project", { profile: DEFAULT_STORY_PROFILE_SOURCE, layout: defaultLayoutJson });
   } catch (error) {
     untrustedRejected = String(error).includes("StoryProjectCompiler");
   }

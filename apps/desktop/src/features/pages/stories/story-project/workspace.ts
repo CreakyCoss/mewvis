@@ -1,16 +1,19 @@
 import { listWorkspaceFiles, readWorkspaceFile, writeWorkspaceFilesAtomic } from "@/features/pages/workspace/files-api";
+import { STORY_PROJECT_IDENTIFIERS } from "../../../../../protocols/story-project/identifiers";
 import {
-  STORY_PROJECT_IDENTIFIERS,
+  compileStoryProjectWorkspace,
+  createStoryProjectLock,
   STORY_PROJECT_CONFIG_PATH,
   STORY_PROJECT_LOCK_PATH,
   STORY_PROJECT_PROFILE_PATH,
-  createStoryProjectCompilerRegistry,
-  type StoryProjectApi,
-} from "../../../../../protocols/story-project";
+} from "../../../../../protocols/story-project/workspace";
+import type { StoryProjectApi } from "../../../../../protocols/story-project";
+import { createStoryProjectCompilerRegistry } from "../../../../../protocols/story-project/registry";
+import { DECLARATIVE_STORY_PROJECT_COMPILER } from "../../../../../protocols/story-project/declarative/compiler";
 import { DEFAULT_STORY_PROJECT_LAYOUT } from "./layouts/default-layout";
 import { DEFAULT_STORY_PROFILE_SOURCE } from "./profiles/default-novel";
 
-const compilers = createStoryProjectCompilerRegistry();
+const compilers = createStoryProjectCompilerRegistry([DECLARATIVE_STORY_PROJECT_COMPILER]);
 
 const serializedContent = (value: ReturnType<StoryProjectApi["encodeDocument"]>) =>
   typeof value === "string" ? `${value.replace(/\s+$/, "")}\n` : `${JSON.stringify(value, null, 2)}\n`;
@@ -22,17 +25,10 @@ const sha256 = async (content: string) => {
 
 const lockText = async (projectText: string, profileText: string, project: StoryProjectApi) =>
   `${JSON.stringify(
-    {
-      $format: STORY_PROJECT_IDENTIFIERS.projectLock.format,
-      version: STORY_PROJECT_IDENTIFIERS.projectLock.version,
-      projectPath: STORY_PROJECT_CONFIG_PATH,
-      profilePath: STORY_PROJECT_PROFILE_PATH,
-      profileId: project.identity.profileId,
-      profileVersion: project.identity.profileVersion,
-      compiler: project.compiler,
+    createStoryProjectLock(project, {
       projectSha256: await sha256(projectText),
       profileSha256: await sha256(profileText),
-    },
+    }),
     null,
     2,
   )}\n`;
@@ -95,27 +91,13 @@ export const loadStoryProjectApi = async (workspacePath: string): Promise<StoryP
       readWorkspaceFile(workspacePath, STORY_PROJECT_PROFILE_PATH),
       readWorkspaceFile(workspacePath, STORY_PROJECT_LOCK_PATH),
     ]);
-    const lock = JSON.parse(lockFile.content) as Record<string, unknown>;
-    const compiler = lock.compiler as Record<string, unknown> | undefined;
-    if (typeof compiler?.format !== "string") throw new Error("项目锁文件缺少 Compiler 身份。 ");
-    const project = compilers.compile(compiler.format, {
+    return compileStoryProjectWorkspace(compilers, {
       layout: JSON.parse(projectFile.content) as unknown,
       profile: JSON.parse(profileFile.content) as unknown,
+      lock: JSON.parse(lockFile.content) as unknown,
+      projectSha256: await sha256(projectFile.content),
+      profileSha256: await sha256(profileFile.content),
     });
-    if (
-      lock.$format !== STORY_PROJECT_IDENTIFIERS.projectLock.format ||
-      lock.version !== STORY_PROJECT_IDENTIFIERS.projectLock.version ||
-      lock.projectPath !== STORY_PROJECT_CONFIG_PATH ||
-      lock.profilePath !== STORY_PROJECT_PROFILE_PATH ||
-      lock.profileId !== project.identity.profileId ||
-      lock.profileVersion !== project.identity.profileVersion ||
-      compiler.version !== project.compiler.version ||
-      lock.projectSha256 !== (await sha256(projectFile.content)) ||
-      lock.profileSha256 !== (await sha256(profileFile.content))
-    ) {
-      throw new Error("project.lock.json 与故事项目配置不一致。 ");
-    }
-    return project;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`故事项目配置无效：${message}`);

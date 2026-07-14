@@ -1,12 +1,12 @@
-import type {
-  CompiledStoryContextViewDescription,
-  CompiledStoryDocumentDescription,
-  StoryProfileDescription,
-  StoryContextBundle,
-  StoryValidationIssue,
-  StoryValidationResult,
-} from "../../../../../protocols/story-project/index.js";
+import type { StoryProjectApi } from "../../../../../protocols/story-project/index.js";
 import { defineBuiltinToolContract } from "../definition.js";
+
+type StoryProfileDescription = ReturnType<StoryProjectApi["describe"]>;
+type CompiledStoryDocumentDescription = ReturnType<StoryProjectApi["document"]>;
+type CompiledStoryContextViewDescription = ReturnType<StoryProjectApi["contextView"]>;
+type StoryContextBundle = ReturnType<StoryProjectApi["readContext"]>;
+type StoryValidationResult = ReturnType<StoryProjectApi["validateProject"]>;
+type StoryValidationIssue = StoryValidationResult["issues"][number];
 
 /** Story 内置能力自身使用的稳定身份，不属于工作区 Story Project 协议。 */
 export const STORY_BUILTIN_IDENTIFIERS = Object.freeze({
