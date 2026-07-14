@@ -610,7 +610,7 @@ export const WorkspaceChatPage = ({
       sessionId: routeSessionId,
       isNewSession: isRouteNewSession,
       onSessionCreated,
-      newSessionSeed: isRouteNewSession ? newSessionSeed : null,
+      sessionSeed: newSessionSeed,
     },
     navigation: {
       closePanels: closeContextPanels,

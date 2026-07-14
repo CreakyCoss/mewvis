@@ -1,7 +1,8 @@
-import { useMemo } from "react";
-import { Bot, ShieldCheck } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Bot, Plus, ShieldCheck } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { WorkspaceChatPage } from "@/features/pages/chat/components/workspace-chat-page";
 import type { StoryChatSeed } from "@/features/pages/chat/components/workspace-chat-page/story-seed";
 import { createMessageId } from "@/features/pages/chat/utils/sessions";
@@ -21,6 +22,12 @@ type StoryAssistantDialogProps = {
   documents: StoryJsonDocument[];
   story: StoryJson;
   workspace: StoryWorkspace;
+};
+
+type StoryAssistantConversation = {
+  instance: number;
+  sessionId: string | null;
+  isNew: boolean;
 };
 
 const toChatWorkspace = (workspace: StoryWorkspace, story: StoryJson): Workspace => ({
@@ -80,6 +87,19 @@ export const StoryAssistantDialog = ({
   const chatWorkspace = useMemo(() => toChatWorkspace(workspace, story), [story, workspace]);
   const seed = useMemo(() => createStoryAssistantSeed(story, documents), [documents, story]);
   const revision = resolveRevision(documents);
+  const [conversation, setConversation] = useState<StoryAssistantConversation>({
+    instance: 0,
+    sessionId: null,
+    isNew: false,
+  });
+
+  const createConversation = () => {
+    setConversation((current) => ({
+      instance: current.instance + 1,
+      sessionId: null,
+      isNew: true,
+    }));
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -100,20 +120,38 @@ export const StoryAssistantDialog = ({
                 </DialogDescription>
               </div>
             </div>
-            <Badge
-              variant="outline"
-              className="gap-1.5 border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-            >
-              <ShieldCheck className="size-3.5" />
-              校验后落库 · {revision === null ? "待初始化" : `revision ${revision}`}
-            </Badge>
+            <div className="flex shrink-0 items-center gap-2">
+              <Badge
+                variant="outline"
+                className="gap-1.5 border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+              >
+                <ShieldCheck className="size-3.5" />
+                校验后落库 · {revision === null ? "待初始化" : `revision ${revision}`}
+              </Badge>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                title="保留当前对话并开始新会话"
+                onClick={createConversation}
+              >
+                <Plus className="size-3.5" />
+                新建会话
+              </Button>
+            </div>
           </div>
         </DialogHeader>
         <div className="min-h-0 flex-1 overflow-hidden">
           <WorkspaceChatPage
+            key={`${story.id}:${conversation.instance}`}
             workspace={chatWorkspace}
             workspaceSections={[]}
-            isRouteNewSession
+            routeSessionId={conversation.sessionId}
+            isRouteNewSession={conversation.isNew}
+            onSessionCreated={(sessionId) => {
+              setConversation((current) => ({ ...current, sessionId, isNew: false }));
+            }}
             onOpenWorkspace={() => undefined}
             onCreateWorkspace={() => undefined}
             storyChatSeed={seed}

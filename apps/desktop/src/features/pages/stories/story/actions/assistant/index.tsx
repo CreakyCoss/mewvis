@@ -12,6 +12,7 @@ export const StoryAssistantAction = () => {
   const workspace = useStoryState((state) => state.storyWorkspace);
   const reloadStory = useStoryState((state) => state.reloadStory);
   const [open, setOpen] = useState(false);
+  const [dialogInstance, setDialogInstance] = useState(0);
 
   const handleOpenChange = async (nextOpen: boolean) => {
     setOpen(nextOpen);
@@ -31,7 +32,10 @@ export const StoryAssistantAction = () => {
         type="button"
         variant="outline"
         className={`${editorHeaderActionButtonClassName} h-9`}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setDialogInstance((current) => current + 1);
+          setOpen(true);
+        }}
         disabled={!story || !workspace}
       >
         <Sparkles className="size-3.5" />
@@ -39,6 +43,7 @@ export const StoryAssistantAction = () => {
       </Button>
       {story && workspace ? (
         <StoryAssistantDialog
+          key={`${story.id}:${dialogInstance}`}
           documents={documents}
           open={open}
           onOpenChange={(nextOpen) => void handleOpenChange(nextOpen)}

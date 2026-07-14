@@ -21,7 +21,7 @@ type UseWorkspaceChatSessionsInput = {
     sessionId: string | null;
     isNewSession: boolean;
     onSessionCreated?: (sessionId: string) => void;
-    newSessionSeed?: HydratableChatSession | null;
+    sessionSeed?: HydratableChatSession | null;
   };
   navigation: {
     closePanels: () => void;
@@ -56,7 +56,7 @@ export const useWorkspaceChatSessions = ({
   chat,
   agentTasks,
 }: UseWorkspaceChatSessionsInput) => {
-  const { sessionId: routeSessionId, isNewSession: isRouteNewSession, onSessionCreated, newSessionSeed = null } = route;
+  const { sessionId: routeSessionId, isNewSession: isRouteNewSession, onSessionCreated, sessionSeed = null } = route;
   const { closePanels } = navigation;
   const { setComposerResetKey, clearAgentQuestionDraft } = ui;
   const {
@@ -166,11 +166,11 @@ export const useWorkspaceChatSessions = ({
         setSessionsError("");
         setComposerResetKey((current) => current + 1);
         clearAgentQuestionDraft();
-        hydrateSession(newSessionSeed);
+        hydrateSession(sessionSeed);
         return;
       }
 
-      hydrateSession(toHydratableSession(targetSession));
+      hydrateSession(toHydratableSession(targetSession) ?? sessionSeed);
       if (targetSession?.id) {
         markSessionRead(workspace.path, targetSession.id);
       }
@@ -193,7 +193,7 @@ export const useWorkspaceChatSessions = ({
     hydrateSession,
     isRouteNewSession,
     markSessionRead,
-    newSessionSeed,
+    sessionSeed,
     routeSessionId,
     setComposerResetKey,
     setWorkspaceSessions,
