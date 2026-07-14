@@ -7,10 +7,14 @@ import { WorkspaceChatPage } from "@/features/pages/chat/components/workspace-ch
 import type { StoryChatSeed } from "@/features/pages/chat/components/workspace-chat-page/story-seed";
 import { createMessageId } from "@/features/pages/chat/utils/sessions";
 import type { Workspace } from "@/features/pages/workspace/types";
-import { storyDocumentData } from "../../../story-project/documents/model";
-import type { StoryJsonDocument } from "../../../story-project/documents/types";
-import type { StoryJson } from "../../model/types";
+import {
+  StoryProjectDocuments,
+  type StoryProjectDocument,
+  type StoryProjectOverview,
+} from "../../../../../../../core/story-project";
 import type { StoryWorkspace } from "../../../storage";
+
+const storyDocumentData = StoryProjectDocuments.data;
 
 const STORY_AUTHORING_ENTRY_SKILL_NAME = "story-assistant";
 const storyAssistantTools = ["read", "ls", "find", "grep", "ask_user"];
@@ -19,8 +23,8 @@ const storyAssistantBuiltinSkills = [STORY_AUTHORING_ENTRY_SKILL_NAME];
 type StoryAssistantDialogProps = {
   onOpenChange: (open: boolean) => void;
   open: boolean;
-  documents: StoryJsonDocument[];
-  story: StoryJson;
+  documents: StoryProjectDocument[];
+  overview: StoryProjectOverview;
   workspace: StoryWorkspace;
 };
 
@@ -30,28 +34,29 @@ type StoryAssistantConversation = {
   isNew: boolean;
 };
 
-const toChatWorkspace = (workspace: StoryWorkspace, story: StoryJson): Workspace => ({
+const toChatWorkspace = (workspace: StoryWorkspace, overview: StoryProjectOverview): Workspace => ({
   id: workspace.id,
-  name: story.title,
+  name: overview.title,
   description: "结构化故事创作工作区",
   path: workspace.path,
   isDefault: false,
   isPinned: true,
   order: 0,
   groupId: null,
-  createdAt: story.createdAt,
-  updatedAt: story.updatedAt,
+  createdAt: overview.createdAt,
+  updatedAt: overview.updatedAt,
 });
 
-const resolveRevision = (documents: StoryJsonDocument[]) => {
+const resolveRevision = (documents: StoryProjectDocument[]) => {
   const manifest = documents.map(storyDocumentData).find((data) => data?.kind === "story-manifest");
   return typeof manifest?.revision === "number" ? manifest.revision : null;
 };
 
-const createStoryAssistantSeed = (story: StoryJson, documents: StoryJsonDocument[]): StoryChatSeed => ({
-  storyId: story.id,
-  nodeId: story.graph.nodes[0]?.id ?? `${story.id}-root`,
-  title: `${story.title} · 结构化创作`,
+const createStoryAssistantSeed = (
+  overview: StoryProjectOverview,
+  documents: StoryProjectDocument[],
+): StoryChatSeed => ({
+  title: `${overview.title} · 结构化创作`,
   runtimeInstruction: [
     "你正在 Novel Claw 的结构化故事创作弹窗中协作。",
     "必须先使用 story-assistant 专属路由，再按意图选择对应的 story-assistant-* 技能。不要调用普通 story-* 技能。",
@@ -59,7 +64,7 @@ const createStoryAssistantSeed = (story: StoryJson, documents: StoryJsonDocument
     "若 story(action=read_context) 报项目尚未初始化，调用 story(action=initialize)；已有普通 JSON 时未经用户确认不得 replaceExistingJson。",
     "正式故事文件只能通过 story(action=commit_changes) 原子校验并提交：工具会先完整校验，只有通过才写入。不要在每次提交前额外调用 action=validate_changes；该动作只用于用户明确要求预览或排查校验错误。",
     "不要使用 write、edit 或 bash 修改 story 目录。不要创建 Markdown 故事资产。",
-    `当前故事 ID：${story.id}`,
+    `当前故事 ID：${overview.id}`,
     `当前 revision：${resolveRevision(documents) ?? "尚未初始化"}`,
   ].join("\n"),
   messages: [
@@ -67,7 +72,7 @@ const createStoryAssistantSeed = (story: StoryJson, documents: StoryJsonDocument
       id: createMessageId(),
       role: "assistant",
       text: [
-        `已连接「${story.title}」的结构化故事项目。`,
+        `已连接「${overview.title}」的结构化故事项目。`,
         "",
         "我可以帮你开书、完善作品定位、设计卷纲和章节细纲，也可以按细纲写作。所有变更会先校验，只有通过后才会写入故事。",
       ].join("\n"),
@@ -81,11 +86,11 @@ export const StoryAssistantDialog = ({
   documents,
   open,
   onOpenChange,
-  story,
+  overview,
   workspace,
 }: StoryAssistantDialogProps) => {
-  const chatWorkspace = useMemo(() => toChatWorkspace(workspace, story), [story, workspace]);
-  const seed = useMemo(() => createStoryAssistantSeed(story, documents), [documents, story]);
+  const chatWorkspace = useMemo(() => toChatWorkspace(workspace, overview), [overview, workspace]);
+  const seed = useMemo(() => createStoryAssistantSeed(overview, documents), [documents, overview]);
   const revision = resolveRevision(documents);
   const [conversation, setConversation] = useState<StoryAssistantConversation>({
     instance: 0,
@@ -116,7 +121,7 @@ export const StoryAssistantDialog = ({
               <div className="min-w-0">
                 <DialogTitle className="truncate text-base">故事创作助手</DialogTitle>
                 <DialogDescription className="mt-1 line-clamp-1">
-                  使用结构化写作技能维护「{story.title}」
+                  使用结构化写作技能维护「{overview.title}」
                 </DialogDescription>
               </div>
             </div>
@@ -144,7 +149,7 @@ export const StoryAssistantDialog = ({
         </DialogHeader>
         <div className="min-h-0 flex-1 overflow-hidden">
           <WorkspaceChatPage
-            key={`${story.id}:${conversation.instance}`}
+            key={`${overview.id}:${conversation.instance}`}
             workspace={chatWorkspace}
             workspaceSections={[]}
             routeSessionId={conversation.sessionId}

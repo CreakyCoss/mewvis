@@ -1,0 +1,286 @@
+{
+  "profileId": "novel-claw.story.long-novel",
+  "profileVersion": 1,
+  "title": "Novel Claw 长篇小说结构",
+  "description": "由 Story Project 维护的内置长篇小说 Profile，集中定义字段、引用、展示元数据、上下文和校验规则；工作区保存可独立编译的 Profile 快照与目录布局。",
+  "manifestKind": "story-manifest",
+  "primaryKind": "story-book",
+  "documentRoles": {
+    "manifest": "story-manifest",
+    "primary": "story-book",
+    "positioning": "story-positioning",
+    "style": "story-style",
+    "character": "story-character",
+    "relationships": "story-relationships",
+    "worldEntry": "story-world-entry",
+    "bookArc": "story-book-arc",
+    "volume": "story-volume",
+    "chapterPlan": "story-chapter-plan",
+    "chapterResult": "story-chapter",
+    "chapterContent": "story-chapter-content",
+    "characterState": "story-character-state",
+    "foreshadows": "story-foreshadows",
+    "timeline": "story-timeline",
+    "progress": "story-progress",
+    "scene": "story-scene",
+    "graph": "story-graph",
+    "analysis": "story-analysis",
+    "review": "story-review",
+    "import": "story-import"
+  },
+  "documentDiscriminator": "/kind",
+  "schemaVersionPointer": "/schemaVersion",
+  "identityPointer": "/id",
+  "fieldTypes": {
+    "id": {
+      "label": "稳定 ID",
+      "editor": "text",
+      "valueType": "string"
+    },
+    "text": {
+      "label": "单行文本",
+      "editor": "text",
+      "valueType": "string"
+    },
+    "textarea": {
+      "label": "多行文本",
+      "editor": "textarea",
+      "valueType": "string"
+    },
+    "content": {
+      "label": "长内容",
+      "editor": "content",
+      "valueType": "string"
+    },
+    "integer": {
+      "label": "整数",
+      "editor": "number",
+      "valueType": "integer"
+    },
+    "number": {
+      "label": "数值",
+      "editor": "number",
+      "valueType": "number"
+    },
+    "boolean": {
+      "label": "开关",
+      "editor": "switch",
+      "valueType": "boolean"
+    },
+    "timestamp": {
+      "label": "时间",
+      "editor": "datetime",
+      "valueType": "integer"
+    },
+    "enum": {
+      "label": "枚举",
+      "editor": "select",
+      "valueType": "string"
+    },
+    "string-list": {
+      "label": "文本列表",
+      "editor": "tags",
+      "valueType": "array"
+    },
+    "reference": {
+      "label": "对象引用",
+      "editor": "reference",
+      "valueType": "string"
+    },
+    "reference-list": {
+      "label": "对象引用列表",
+      "editor": "reference-list",
+      "valueType": "array"
+    },
+    "object": {
+      "label": "对象",
+      "editor": "field-group",
+      "valueType": "object"
+    },
+    "collection": {
+      "label": "对象集合",
+      "editor": "card-list",
+      "valueType": "array"
+    },
+    "path": {
+      "label": "文件路径",
+      "editor": "path",
+      "valueType": "string"
+    }
+  },
+  "commonFieldSets": {
+    "entity-document": {
+      "/schemaVersion": {
+        "type": "integer",
+        "label": "结构版本",
+        "required": true,
+        "readOnly": true,
+        "const": 1
+      },
+      "/kind": {
+        "type": "text",
+        "label": "文档类型",
+        "required": true,
+        "readOnly": true
+      },
+      "/id": {
+        "type": "id",
+        "label": "文档 ID",
+        "description": "跨文件引用使用的稳定身份，创建后不可修改",
+        "required": true,
+        "immutable": true
+      },
+      "/updatedAt": {
+        "type": "timestamp",
+        "label": "更新时间",
+        "required": true,
+        "generated": true,
+        "readOnly": true
+      }
+    }
+  },
+  "validationRules": {
+    "identity.duplicate": {
+      "severity": "error",
+      "label": "ID 唯一",
+      "description": "同类实体和嵌套对象的稳定 ID 不得重复"
+    },
+    "reference.missing": {
+      "severity": "error",
+      "label": "引用存在",
+      "description": "reference 和 reference-list 必须指向已存在的目标"
+    },
+    "manifest.files": {
+      "severity": "error",
+      "label": "清单完整",
+      "description": "manifest 文件索引必须与正式故事文件完全一致"
+    },
+    "manifest.title": {
+      "severity": "error",
+      "label": "标题同步",
+      "description": "manifest.title 必须与 story-book.title 一致"
+    },
+    "range.invalid": {
+      "severity": "error",
+      "label": "范围有效",
+      "description": "起始章节不得晚于结束章节"
+    },
+    "range.overlap": {
+      "severity": "error",
+      "label": "范围不重叠",
+      "description": "分卷和全书阶段范围不得非法重叠"
+    },
+    "volumes.number": {
+      "severity": "error",
+      "label": "卷号唯一",
+      "description": "分卷编号不得重复"
+    },
+    "chapters.number": {
+      "severity": "error",
+      "label": "章节号唯一",
+      "description": "章节细纲和正文编号不得重复"
+    },
+    "chapter.budget": {
+      "severity": "error",
+      "label": "字数预算",
+      "description": "章节节拍预算总和必须满足章节目标范围"
+    },
+    "foreshadow.resolution": {
+      "severity": "error",
+      "label": "伏笔回收完整",
+      "description": "resolved 状态必须提供实际回收章节和回收结果"
+    },
+    "graph.nodes": {
+      "severity": "error",
+      "label": "节点有效",
+      "description": "互动剧情节点 ID 必须唯一且关联场景存在"
+    },
+    "graph.edges": {
+      "severity": "error",
+      "label": "连接有效",
+      "description": "互动剧情连接必须引用已存在节点"
+    },
+    "book.title": {
+      "severity": "error",
+      "label": "书名必填",
+      "profiles": ["openBook"]
+    },
+    "book.logline": {
+      "severity": "error",
+      "label": "一句话梗概必填",
+      "profiles": ["openBook"]
+    },
+    "style.tone": {
+      "severity": "error",
+      "label": "文风语气必填",
+      "profiles": ["openBook"]
+    },
+    "opening.protagonist": {
+      "severity": "error",
+      "label": "主角完整",
+      "profiles": ["openBook"]
+    },
+    "opening.stage": {
+      "severity": "error",
+      "label": "开篇阶段完整",
+      "profiles": ["openBook"]
+    }
+  },
+  "contextViews": {
+    "project-summary": {
+      "label": "故事项目摘要",
+      "scope": "project",
+      "documentKinds": [
+        "story-manifest",
+        "story-book",
+        "story-positioning",
+        "story-style",
+        "story-character",
+        "story-world-entry",
+        "story-book-arc",
+        "story-volume",
+        "story-chapter-plan",
+        "story-analysis",
+        "story-review",
+        "story-import",
+        "story-progress"
+      ]
+    },
+    "chapter-writing": {
+      "label": "章节写作上下文",
+      "scope": "chapter",
+      "targetKind": "story-chapter-plan",
+      "targetSelectors": ["/id", "/number"],
+      "documentKinds": [
+        "story-manifest",
+        "story-book",
+        "story-positioning",
+        "story-style",
+        "story-volume",
+        "story-chapter-plan",
+        "story-chapter",
+        "story-chapter-content",
+        "story-character",
+        "story-character-state",
+        "story-world-entry",
+        "story-relationships",
+        "story-foreshadows",
+        "story-progress"
+      ]
+    }
+  },
+  "validationProfiles": {
+    "draft": {
+      "label": "增量草稿",
+      "description": "允许内容未完成，但已存在字段、文档和引用必须合法"
+    },
+    "openBook": {
+      "label": "开书完成",
+      "description": "要求核心定位、主角、文风、开篇阶段和分卷达到可写作状态"
+    },
+    "chapterWrite": {
+      "label": "章节写作",
+      "description": "要求章节正文与细纲、角色、设定和状态引用一致"
+    }
+  }
+}

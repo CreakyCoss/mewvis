@@ -7,7 +7,7 @@ import { useStoryState } from "../../use-story-state";
 import { StoryAssistantDialog } from "./dialog";
 
 export const StoryAssistantAction = () => {
-  const story = useStoryState((state) => state.story);
+  const overview = useStoryState((state) => state.overview);
   const documents = useStoryState((state) => state.documents);
   const workspace = useStoryState((state) => state.storyWorkspace);
   const reloadStory = useStoryState((state) => state.reloadStory);
@@ -16,7 +16,7 @@ export const StoryAssistantAction = () => {
 
   const handleOpenChange = async (nextOpen: boolean) => {
     setOpen(nextOpen);
-    if (!nextOpen && story) {
+    if (!nextOpen && overview) {
       try {
         await reloadStory();
       } catch (error) {
@@ -36,18 +36,18 @@ export const StoryAssistantAction = () => {
           setDialogInstance((current) => current + 1);
           setOpen(true);
         }}
-        disabled={!story || !workspace}
+        disabled={!overview || !workspace}
       >
         <Sparkles className="size-3.5" />
         创作助手
       </Button>
-      {story && workspace ? (
+      {overview && workspace ? (
         <StoryAssistantDialog
-          key={`${story.id}:${dialogInstance}`}
+          key={`${overview.id}:${dialogInstance}`}
           documents={documents}
           open={open}
           onOpenChange={(nextOpen) => void handleOpenChange(nextOpen)}
-          story={story}
+          overview={overview}
           workspace={workspace}
         />
       ) : null}

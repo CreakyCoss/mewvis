@@ -12,8 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { normalizeStoryDocumentPath } from "../../../story-project/documents/repository";
-import type { JsonValue } from "../../../story-project/documents/types";
+import { StoryProjectDocuments, type JsonValue } from "../../../../../../../core/story-project";
 import { useStoryState } from "../../use-story-state";
 
 export const CreateJsonDocumentDialog = ({
@@ -37,7 +36,7 @@ export const CreateJsonDocumentDialog = ({
 
   const create = async () => {
     try {
-      const normalizedPath = normalizeStoryDocumentPath(path);
+      const normalizedPath = StoryProjectDocuments.normalizePath(path);
       const value = JSON.parse(content) as JsonValue;
       if (await createDocument(normalizedPath, value)) {
         onOpenChange(false);

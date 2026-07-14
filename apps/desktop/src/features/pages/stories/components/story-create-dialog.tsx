@@ -14,12 +14,15 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { StoryProjects } from "../../../../../core/story-project";
 import { createStory as createStoryInWorkspace, type CreateStoryInput, type StoryLibraryItem } from "../storage";
 
 export type StoryCreateDialogHandle = () => void;
 
 type StoryCreateForm = {
   name: string;
+  storyTypeId: string;
   workspaceParentPath: string;
 };
 
@@ -28,8 +31,11 @@ type StoryCreateDialogProps = {
   onCreated: (item: StoryLibraryItem) => void;
 };
 
+const storyTypes = StoryProjects.listTypes();
+
 const emptyForm = (): StoryCreateForm => ({
   name: "",
+  storyTypeId: storyTypes[0]?.id ?? "",
   workspaceParentPath: "",
 });
 
@@ -60,13 +66,13 @@ export const StoryCreateDialog = ({ bind, onCreated }: StoryCreateDialogProps) =
   const createStory = async (input: CreateStoryInput) => {
     setIsSaving(true);
     try {
-      const { documents, story, workspace } = await createStoryInWorkspace(input);
+      const { documents, overview, workspace } = await createStoryInWorkspace(input);
       toast.success("故事已创建。");
       setIsOpen(false);
       onCreated({
-        id: story.id,
+        id: overview.id,
         documents,
-        story,
+        overview,
         workspace,
       });
     } catch (error) {
@@ -125,6 +131,30 @@ export const StoryCreateDialog = ({ bind, onCreated }: StoryCreateDialogProps) =
                 <span>选择</span>
               </Button>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="story-create-type">故事类型</Label>
+            <Select
+              value={form.storyTypeId}
+              onValueChange={(storyTypeId) => setForm((current) => ({ ...current, storyTypeId }))}
+              disabled={isSaving}
+              required
+            >
+              <SelectTrigger id="story-create-type" className="w-full">
+                <SelectValue placeholder="选择故事类型" />
+              </SelectTrigger>
+              <SelectContent>
+                {storyTypes.map((storyType) => (
+                  <SelectItem key={storyType.id} value={storyType.id}>
+                    {storyType.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs leading-5 text-muted-foreground">
+              {storyTypes.find((storyType) => storyType.id === form.storyTypeId)?.description}
+            </p>
           </div>
 
           <DialogFooter>

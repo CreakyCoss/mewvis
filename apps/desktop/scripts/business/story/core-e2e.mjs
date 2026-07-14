@@ -8,13 +8,15 @@ const root = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-story-core-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
-const identifiersPath = resolve(root, "protocols/story-project/identifiers.ts");
-const compilerRegistryPath = resolve(root, "protocols/story-project/registry.ts");
-const declarativeCompilerPath = resolve(root, "protocols/story-project/declarative/compiler.ts");
-const changeSetPath = resolve(root, "protocols/story-project/declarative/changes.ts");
-const profilePath = resolve(root, "src/features/pages/stories/story-project/profiles/default-novel/index.ts");
-const layoutPath = resolve(root, "src/features/pages/stories/story-project/layouts/default-layout.ts");
-const documentModelPath = resolve(root, "src/features/pages/stories/story-project/documents/model.ts");
+const identifiersPath = resolve(root, "core/story-project/identifiers.ts");
+const compilerRegistryPath = resolve(root, "core/story-project/project/registry.ts");
+const declarativeCompilerPath = resolve(root, "core/story-project/compiler/compiler.ts");
+const changeSetPath = resolve(root, "core/story-project/compiler/changes.ts");
+const profilePath = resolve(root, "core/story-project/story-types/long-novel/profile.ts");
+const layoutPath = resolve(root, "core/story-project/story-types/long-novel/layout.ts");
+const storyTypeCatalogPath = resolve(root, "core/story-project/story-types/index.ts");
+const shortStoryTypePath = resolve(root, "core/story-project/story-types/short-novel/index.ts");
+const documentModelPath = resolve(root, "core/story-project/documents/model.ts");
 
 writeFileSync(
   entryPath,
@@ -29,9 +31,11 @@ writeFileSync(
     STORY_CHANGE_SET_MAX_OPERATIONS,
     storyChangeSetSchema,
   } from ${JSON.stringify(changeSetPath)};
-  import { DEFAULT_STORY_PROFILE, DEFAULT_STORY_PROFILE_SOURCE } from ${JSON.stringify(profilePath)};
-  import { DEFAULT_STORY_PROJECT_LAYOUT as defaultLayout } from ${JSON.stringify(layoutPath)};
-  import { inspectStructuredJsonDocument, storyDocumentsToStoryJson } from ${JSON.stringify(documentModelPath)};
+  import { LONG_NOVEL_PROFILE, LONG_NOVEL_PROFILE_SOURCE } from ${JSON.stringify(profilePath)};
+  import { LONG_NOVEL_LAYOUT as defaultLayout } from ${JSON.stringify(layoutPath)};
+  import { listStoryProjectTypes } from ${JSON.stringify(storyTypeCatalogPath)};
+  import { SHORT_NOVEL_STORY_TYPE } from ${JSON.stringify(shortStoryTypePath)};
+  import { inspectStructuredJsonDocument } from ${JSON.stringify(documentModelPath)};
 
   const assert = (condition: unknown, message: string, details?: unknown) => {
     if (!condition) throw new Error(message + (details === undefined ? "" : "\\n" + JSON.stringify(details, null, 2)));
@@ -45,9 +49,14 @@ writeFileSync(
     "Compiler Registry 应通过稳定接口支持注册和解析 Compiler。",
   );
   const api = compiler.compile(STORY_PROJECT_IDENTIFIERS.declarativeCompiler.format, {
-    profile: DEFAULT_STORY_PROFILE_SOURCE,
+    profile: LONG_NOVEL_PROFILE_SOURCE,
     layout: defaultLayout,
   });
+  assert(
+    listStoryProjectTypes().map((storyType) => storyType.id).join(",") === "long-novel,short-novel",
+    "Story Project 应统一暴露可供前端选择的长篇与短篇故事类型。",
+    listStoryProjectTypes(),
+  );
   const timestamp = 1_800_000_000_000;
   let project = api.createProject({ storyId: "story-contract", title: "雾港档案", timestamp });
   const info = () => api.projectInfo(project);
@@ -55,6 +64,15 @@ writeFileSync(
   const file = (path: string) => api.projectFiles(project).find((entry) => entry.path === path)?.value as any;
 
   assert(api.validateProject(project, "draft").valid, "新故事应通过 draft 校验。", api.validateProject(project, "draft"));
+  const shortProject = SHORT_NOVEL_STORY_TYPE.initialize(
+    api,
+    api.createProject({ storyId: "short-story", title: "雾港一夜", timestamp }),
+  );
+  assert(
+    (api.projectFiles(shortProject).find((entry) => entry.path === "story/positioning.json")?.value as any)
+      ?.lengthType === "short",
+    "短篇故事类型应通过统一初始化流程写入短篇默认值。",
+  );
   assert(file("story/book.json")?.title === "雾港档案", "默认 Profile 应创建作品核心。", api.projectFiles(project));
   assert(file("story/interactive/graph.json")?.kind === "story-graph", "默认 Profile 应创建互动剧情图。", api.projectFiles(project));
   assert(
@@ -64,9 +82,9 @@ writeFileSync(
     api.describe().documentRoles,
   );
   assert(
-    DEFAULT_STORY_PROFILE.optionalDocumentKinds.join(",") === "story-analysis,story-review,story-import",
+    LONG_NOVEL_PROFILE.optionalDocumentKinds.join(",") === "story-analysis,story-review,story-import",
     "默认 Profile 应显式声明可由 Layout 关闭的文档类型。",
-    DEFAULT_STORY_PROFILE.optionalDocumentKinds,
+    LONG_NOVEL_PROFILE.optionalDocumentKinds,
   );
   const encodedBook = api.encodeDocument(file("story/book.json"), "story/book.json") as any;
   assert(encodedBook.kind === "story-book" && !("$format" in encodedBook), "JSON 应保存为普通业务对象。", encodedBook);
@@ -83,7 +101,6 @@ writeFileSync(
     value: file("story/book.json"),
   };
   assert(inspectStructuredJsonDocument(frontendDocument)?.fields["/title"]?.label === "书名", "编辑器应读取 Profile 字段元数据。");
-  assert(storyDocumentsToStoryJson({ id: "story-contract", name: "回退", createdAt: timestamp, updatedAt: timestamp }, [frontendDocument]).title === "雾港档案", "前端投影应读取业务 JSON。");
 
   project = api.applyChanges(project, {
     ...changes,
@@ -147,7 +164,7 @@ writeFileSync(
   });
   assert(!oversized.success, "ChangeSet 应限制字节数。");
 
-  const customProfile: any = structuredClone(DEFAULT_STORY_PROFILE_SOURCE);
+  const customProfile: any = structuredClone(LONG_NOVEL_PROFILE_SOURCE);
   const customLayout: any = structuredClone(defaultLayout);
   customProfile.documents["story-research-note"] = {
     label: "研究笔记", layoutPresence: "required", cardinality: "many", fieldSets: ["entity-document"],
@@ -169,7 +186,7 @@ writeFileSync(
   delete leanLayout.documents["story-review"];
   delete leanLayout.documents["story-import"];
   const leanApi = compiler.compile(STORY_PROJECT_IDENTIFIERS.declarativeCompiler.format, {
-    profile: DEFAULT_STORY_PROFILE_SOURCE,
+    profile: LONG_NOVEL_PROFILE_SOURCE,
     layout: leanLayout,
   });
   const leanProject = leanApi.createProject({ storyId: "lean", title: "精简故事", timestamp });

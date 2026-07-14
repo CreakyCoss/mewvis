@@ -2,7 +2,6 @@ import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { uniq } from "lodash-es";
 import { Activity, Folder, PanelRight } from "lucide-react";
-import { toast } from "sonner";
 import type { AgentToolSummary } from "@/agent-client/types";
 import { createAgentClient } from "@/agent-client/runtime";
 import { ConversationLedger } from "@/features/ai/components/conversation-ledger";
@@ -12,7 +11,6 @@ import { ALL_SKILLS_GROUP_ID, NO_SKILLS_GROUP_ID } from "@/features/pages/skills
 import { useWorkspaceSkills } from "@/features/pages/skills/use-workspace-skills";
 import type { Workspace, WorkspaceSection } from "@/features/pages/workspace/types";
 import { listWorkspaceFiles } from "@/features/pages/workspace/files-api";
-import { submitStoryManuscript } from "@/features/pages/stories/manuscripts/core/use-cases";
 import { saveChatSession } from "../../api";
 import type { ChatMessage, ComposerSubmitInput, PendingAgentQuestion } from "../../types";
 import { useChatSessionsStore } from "../../session-store";
@@ -103,21 +101,6 @@ const toggleSkillGroupSelection = (current: string[], skillGroupId: string, chec
   return normalizeSkillGroupSelection(next);
 };
 
-const getMessageTextForStorySubmission = (message: ChatMessage) => {
-  const blockText = message.agentBlocks
-    ?.flatMap((block) => (block.type === "text" ? [block.content] : []))
-    .join("\n\n")
-    .trim();
-
-  return message.text.trim() || blockText || "";
-};
-
-const createStorySubmissionTitle = (message: ChatMessage, fallbackTitle: string) => {
-  const text = getMessageTextForStorySubmission(message).replace(/\s+/g, " ").trim();
-  const prefix = message.role === "user" ? "用户稿件" : "助手稿件";
-  return text ? `${prefix}：${text.slice(0, 28)}` : fallbackTitle;
-};
-
 type CommitChatTurnDraftInput = Pick<ChatTurnDraft, "userUiMessage"> & {
   assistantUiMessage?: ChatMessage | null;
   nextSessionId: string | null;
@@ -181,7 +164,6 @@ export const WorkspaceChatPage = ({
   const [activeFile, setActiveFile] = useState<WorkspaceFile | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [currentSessionTitle, setCurrentSessionTitle] = useState(DEFAULT_SESSION_TITLE);
-  const [storySubmittingMessageIds, setStorySubmittingMessageIds] = useState<string[]>([]);
   const upsertSession = useChatSessionsStore((store) => store.upsertSession);
   const upsertSessionMeta = useChatSessionsStore((store) => store.upsertSessionMeta);
   const setSessionRunning = useChatSessionsStore((store) => store.setSessionRunning);
@@ -1009,54 +991,6 @@ export const WorkspaceChatPage = ({
     }
   };
 
-  const submitMessageToStory = useCallback(
-    async (message: ChatMessage) => {
-      if (!storyChatSeed) {
-        return;
-      }
-
-      if (storyChatSeed.messages.some((seedMessage) => seedMessage.id === message.id)) {
-        setChatError("引导消息不需要收稿。");
-        return;
-      }
-
-      const content = getMessageTextForStorySubmission(message);
-      if (!content) {
-        setChatError("没有可收稿的消息内容。");
-        return;
-      }
-
-      setStorySubmittingMessageIds((current) => (current.includes(message.id) ? current : [...current, message.id]));
-      try {
-        await submitStoryManuscript(storyChatSeed.storyId, {
-          storyId: storyChatSeed.storyId,
-          nodeId: storyChatSeed.nodeId,
-          source: "chat",
-          sourceRunId: currentSessionId ?? undefined,
-          sourceMessageIds: [message.id],
-          title: createStorySubmissionTitle(message, storyChatSeed.title),
-          content,
-          summary: content.replace(/\s+/g, " ").trim().slice(0, 160),
-          metadata: {
-            channel: "workspace-chat",
-            role: message.role,
-            sessionId: currentSessionId,
-          },
-        });
-        setChatError("");
-        toast.success("已发送到故事收稿箱。");
-      } catch (error) {
-        console.error("Failed to submit chat message to story", error);
-        const messageText = error instanceof Error ? error.message : "收稿失败。";
-        setChatError(`收稿失败：${messageText}`);
-        toast.error("收稿失败。");
-      } finally {
-        setStorySubmittingMessageIds((current) => current.filter((id) => id !== message.id));
-      }
-    },
-    [currentSessionId, storyChatSeed],
-  );
-
   useChatPanelStoreBridge({
     chatScrollAreaRef,
     workspace,
@@ -1090,8 +1024,6 @@ export const WorkspaceChatPage = ({
     onEditHistoryMessage: editHistoryMessage,
     onDeleteHistoryMessage: deleteHistoryMessage,
     onMoveHistoryMessage: moveHistoryMessage,
-    onSubmitMessageToStory: storyChatSeed ? submitMessageToStory : null,
-    storySubmittingMessageIds,
     onOpenWorkspace,
     onCreateWorkspace,
     setAgentQuestionAnswer: setAgentQuestionAnswerDraft,

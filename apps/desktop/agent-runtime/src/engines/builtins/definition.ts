@@ -8,7 +8,7 @@ import {
   type ProtocolApi,
   type ProtocolDefinition,
   type ProtocolMemberDefinition,
-} from "../../../../protocols/definition.js";
+} from "../../../../core/protocol.js";
 
 export type ToolParameterDefinition =
   | {

@@ -54,8 +54,6 @@ const emptyChatPanelState: ChatPanelViewModel = {
   onEditHistoryMessage: noop,
   onDeleteHistoryMessage: noop,
   onMoveHistoryMessage: noop,
-  onSubmitMessageToStory: null,
-  storySubmittingMessageIds: [],
   onOpenWorkspace: noop,
   onCreateWorkspace: noop,
   setAgentQuestionAnswer: noopDispatch,

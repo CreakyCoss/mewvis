@@ -22,15 +22,21 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  inspectStructuredJsonDocument,
-  isJsonObject,
-  replaceStructuredDocumentData,
-  storyDocumentData,
-  storyDocumentLabel,
-} from "../../../story-project/documents/model";
-import type { JsonFieldMetadata, JsonValue, StoryJsonDocument } from "../../../story-project/documents/types";
+  StoryProjectDocuments,
+  type JsonFieldMetadata,
+  type JsonValue,
+  type StoryProjectDocument,
+} from "../../../../../../../core/story-project";
 import { useStoryState } from "../../use-story-state";
 import { GenericJsonValueEditor, MetadataFieldEditor } from "./field-editor";
+
+const {
+  inspect: inspectStructuredJsonDocument,
+  isObject: isJsonObject,
+  replaceData: replaceStructuredDocumentData,
+  data: storyDocumentData,
+  label: storyDocumentLabel,
+} = StoryProjectDocuments;
 
 const pointerKey = (pointer: string) => (pointer.startsWith("/") ? pointer.slice(1) : pointer);
 
@@ -93,7 +99,7 @@ export const StoryDocumentEditor = ({
   document,
 }: {
   categoryLabel: string;
-  document: StoryJsonDocument;
+  document: StoryProjectDocument;
 }) => {
   const saveDocument = useStoryState((state) => state.saveDocument);
   const deleteDocument = useStoryState((state) => state.deleteDocument);

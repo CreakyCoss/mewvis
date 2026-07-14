@@ -14,16 +14,13 @@ const toolPath = resolve(
   "agent-runtime/src/engines/drivers/native/agent/runtimes/pi/tools/builtin-tool.ts",
 );
 const storyBuiltinPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/definition.ts");
-const storyIdentifiersPath = resolve(workspaceRoot, "protocols/story-project/identifiers.ts");
-const compilerRegistryPath = resolve(workspaceRoot, "protocols/story-project/registry.ts");
-const declarativeCompilerPath = resolve(workspaceRoot, "protocols/story-project/declarative/compiler.ts");
+const storyIdentifiersPath = resolve(workspaceRoot, "core/story-project/identifiers.ts");
+const compilerRegistryPath = resolve(workspaceRoot, "core/story-project/project/registry.ts");
+const declarativeCompilerPath = resolve(workspaceRoot, "core/story-project/compiler/compiler.ts");
 const nodeRepositoryPath = resolve(workspaceRoot, "agent-runtime/src/engines/builtins/story/tool/node-repository.ts");
 const piValidationPath = resolve(workspaceRoot, "../../ai/pi/packages/ai/src/utils/validation.ts");
-const defaultLayoutPath = resolve(workspaceRoot, "src/features/pages/stories/story-project/layouts/default-layout.ts");
-const defaultProfilePath = resolve(
-  workspaceRoot,
-  "src/features/pages/stories/story-project/profiles/default-novel/index.ts",
-);
+const defaultLayoutPath = resolve(workspaceRoot, "core/story-project/story-types/long-novel/layout.ts");
+const defaultProfilePath = resolve(workspaceRoot, "core/story-project/story-types/long-novel/profile.ts");
 
 writeFileSync(
   entryPath,
@@ -34,8 +31,8 @@ writeFileSync(
   import { validateToolArguments } from ${JSON.stringify(piValidationPath)};
   import { registerPiBuiltinTool } from ${JSON.stringify(toolPath)};
   import { STORY_TOOL, createStoryToolPackage } from ${JSON.stringify(storyBuiltinPath)};
-  import { DEFAULT_STORY_PROJECT_LAYOUT as defaultLayoutJson } from ${JSON.stringify(defaultLayoutPath)};
-  import { DEFAULT_STORY_PROFILE_SOURCE } from ${JSON.stringify(defaultProfilePath)};
+  import { LONG_NOVEL_LAYOUT as defaultLayoutJson } from ${JSON.stringify(defaultLayoutPath)};
+  import { LONG_NOVEL_PROFILE_SOURCE } from ${JSON.stringify(defaultProfilePath)};
   import { STORY_PROJECT_IDENTIFIERS } from ${JSON.stringify(storyIdentifiersPath)};
   import { createStoryProjectCompilerRegistry } from ${JSON.stringify(compilerRegistryPath)};
   import { DECLARATIVE_STORY_PROJECT_COMPILER } from ${JSON.stringify(declarativeCompilerPath)};
@@ -45,17 +42,17 @@ writeFileSync(
     if (!condition) throw new Error(message + (details === undefined ? "" : "\\n" + JSON.stringify(details, null, 2)));
   };
   const root = ${JSON.stringify(storyWorkspace)};
-  const contract = createStoryProjectCompilerRegistry([DECLARATIVE_STORY_PROJECT_COMPILER]).compile(STORY_PROJECT_IDENTIFIERS.declarativeCompiler.format, { profile: DEFAULT_STORY_PROFILE_SOURCE, layout: defaultLayoutJson });
+  const contract = createStoryProjectCompilerRegistry([DECLARATIVE_STORY_PROJECT_COMPILER]).compile(STORY_PROJECT_IDENTIFIERS.declarativeCompiler.format, { profile: LONG_NOVEL_PROFILE_SOURCE, layout: defaultLayoutJson });
   const manifestPath = contract.resolveDocument("story-manifest");
   const changeSetContract = {
-    profileId: DEFAULT_STORY_PROFILE_SOURCE.profileId,
-    profileVersion: DEFAULT_STORY_PROFILE_SOURCE.profileVersion,
+    profileId: LONG_NOVEL_PROFILE_SOURCE.profileId,
+    profileVersion: LONG_NOVEL_PROFILE_SOURCE.profileVersion,
   };
   const installProject = async (workspace: string, layoutInput: any = defaultLayoutJson) => {
     const path = join(workspace, "story/.novel-claw/project.json");
     const profilePath = join(workspace, "story/.novel-claw/profile.json");
     const projectText = JSON.stringify(layoutInput, null, 2) + "\\n";
-    const profileText = JSON.stringify(DEFAULT_STORY_PROFILE_SOURCE, null, 2) + "\\n";
+    const profileText = JSON.stringify(LONG_NOVEL_PROFILE_SOURCE, null, 2) + "\\n";
     await mkdir(dirname(path), { recursive: true });
     await writeFile(path, projectText, "utf8");
     await writeFile(profilePath, profileText, "utf8");
@@ -119,7 +116,7 @@ writeFileSync(
   );
   const described = await storyTool.execute("describe", { action: "describe_structure" }, undefined, undefined, undefined);
   assert(
-    described.details.structure.profile.profileId === DEFAULT_STORY_PROFILE_SOURCE.profileId,
+    described.details.structure.profile.profileId === LONG_NOVEL_PROFILE_SOURCE.profileId,
     "故事工具必须返回工作区选择的 Profile。",
     described.details,
   );
@@ -188,7 +185,7 @@ writeFileSync(
     arguments: {
       action: "commit_changes",
       changeSet: {
-        profileId: DEFAULT_STORY_PROFILE_SOURCE.profileId,
+        profileId: LONG_NOVEL_PROFILE_SOURCE.profileId,
         profileVersion: "1",
         storyId: projectInfo.storyId,
         baseRevision: String(valid.details.revision),
@@ -468,7 +465,7 @@ writeFileSync(
 
   let untrustedRejected = false;
   try {
-    createStoryProjectCompilerRegistry([DECLARATIVE_STORY_PROJECT_COMPILER]).compile("example.untrusted-project", { profile: DEFAULT_STORY_PROFILE_SOURCE, layout: defaultLayoutJson });
+    createStoryProjectCompilerRegistry([DECLARATIVE_STORY_PROJECT_COMPILER]).compile("example.untrusted-project", { profile: LONG_NOVEL_PROFILE_SOURCE, layout: defaultLayoutJson });
   } catch (error) {
     untrustedRejected = String(error).includes("StoryProjectCompiler");
   }

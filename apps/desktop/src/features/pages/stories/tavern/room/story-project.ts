@@ -1,6 +1,4 @@
-import type { StoryProjectApi } from "../../../../../../protocols/story-project";
-import type { StoryCompiledProject } from "../../../../../../protocols/story-project/types";
-import { loadStoryProject } from "../../story-project/documents/repository";
+import { StoryProjectDocuments, StoryProjects, type StoryProjectDocument } from "../../../../../../core/story-project";
 import type { StoryWorkspace } from "../../storage";
 import type { TavernRoomConfig } from "../manage/model";
 import type { TavernCharacter, TavernCharacterMemory, TavernStoryData } from "./model";
@@ -26,19 +24,11 @@ const trimPathEnd = (value: string) => value.trim().replace(/[\\/]+$/, "");
 const safePathSegment = (value: string, fallback: string) =>
   value.trim().replace(/[\\/]/g, "-").replace(/\.\./g, "").replace(/^\.+/, "").trim() || fallback;
 
-const roleKind = (projectApi: StoryProjectApi, role: string) => {
-  const kind = projectApi.describe().documentRoles[role];
-  if (!kind) {
-    throw new Error(`当前故事 Profile 没有提供 ${role} 文档角色。`);
-  }
-  return kind;
-};
-
-const documentsByKind = (projectApi: StoryProjectApi, project: StoryCompiledProject, kind: string) =>
-  projectApi
-    .projectFiles(project)
-    .filter((entry) => projectApi.kindForPath(entry.path) === kind)
-    .flatMap((entry) => (isObject(entry.value) ? [entry.value] : []));
+const documentValues = (documents: StoryProjectDocument[]) =>
+  documents.flatMap((document) => {
+    const value = StoryProjectDocuments.data(document);
+    return value ? [value] : [];
+  });
 
 const characterMemory = (value: unknown): TavernCharacterMemory | undefined => {
   if (!isObject(value)) return undefined;
@@ -79,9 +69,8 @@ export const tavernChapterWorkspacePath = (workspace: StoryWorkspace, chapterId:
   ].join("/");
 
 export const loadTavernChapterOptions = async (workspacePath: string): Promise<TavernChapterOption[]> => {
-  const { projectApi, project } = await loadStoryProject(workspacePath);
-  const chapterKind = roleKind(projectApi, "chapterPlan");
-  return documentsByKind(projectApi, project, chapterKind)
+  const project = await StoryProjects.open(workspacePath);
+  return documentValues(await project.listDocuments({ role: "chapterPlan" }))
     .flatMap((chapter) => {
       const id = stringValue(chapter.id);
       if (!id) return [];
@@ -112,13 +101,12 @@ export const loadTavernStoryData = async ({
   roomConfig: TavernRoomConfig;
   workspacePath: string;
 }): Promise<TavernStoryData> => {
-  const { projectApi, project } = await loadStoryProject(workspacePath);
-  const context = projectApi.readContext(project, { scope: "chapter", targetId: chapterId });
+  const project = await StoryProjects.open(workspacePath);
+  const context = await project.readContext({ scope: "chapter", targetId: chapterId });
   if (context.target?.id !== chapterId) {
     throw new Error(`章节上下文目标不一致：${chapterId}`);
   }
-  const characterKind = roleKind(projectApi, "character");
-  const characters = documentsByKind(projectApi, project, characterKind).flatMap((value) => {
+  const characters = documentValues(await project.listDocuments({ role: "character" })).flatMap((value) => {
     const character = tavernCharacter(value);
     return character ? [character] : [];
   });

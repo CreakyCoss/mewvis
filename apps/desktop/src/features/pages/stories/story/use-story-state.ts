@@ -1,46 +1,28 @@
 import { toast } from "sonner";
 import { create } from "zustand";
-import { storyDocumentsToStoryJson } from "../story-project/documents/model";
-import { removeStoryDocument, saveStoryDocument } from "../story-project/documents/repository";
-import type { JsonValue, StoryJsonDocument } from "../story-project/documents/types";
-import type { StoryJson } from "./model/types";
+import {
+  StoryProjects,
+  type JsonValue,
+  type StoryProjectDocument,
+  type StoryProjectOverview,
+} from "../../../../../core/story-project";
 import { loadStoryById, updateStoryRecordName, type StoryLibraryItem, type StoryWorkspace } from "../storage";
 
-/** @deprecated 仅供尚未迁移的剧情梳理聊天使用。 */
-export type StoryNodeSelectOption = {
-  description?: string;
-  id: string;
-  label: string;
-  meta?: string;
-};
-
 type StoryStore = {
-  buildNodeOptions: (story: StoryJson | null) => StoryNodeSelectOption[];
   closeStory: () => void;
-  createDocument: (path: string, value: JsonValue) => Promise<StoryJsonDocument | null>;
+  createDocument: (path: string, value: JsonValue) => Promise<StoryProjectDocument | null>;
   deleteDocument: (path: string) => Promise<boolean>;
-  documents: StoryJsonDocument[];
+  documents: StoryProjectDocument[];
   getChatWorkspacePath: (chatWorkspaceId: string) => string;
   isSaving: boolean;
   openStory: (item: StoryLibraryItem) => void;
+  overview: StoryProjectOverview | null;
   reloadStory: () => Promise<StoryLibraryItem | null>;
-  saveDocument: (document: StoryJsonDocument) => Promise<StoryJsonDocument | null>;
-  story: StoryJson | null;
+  saveDocument: (document: StoryProjectDocument) => Promise<StoryProjectDocument | null>;
   storyWorkspace: StoryWorkspace | null;
 };
 
-const nextStoryView = (story: StoryJson, workspace: StoryWorkspace, documents: StoryJsonDocument[]) =>
-  storyDocumentsToStoryJson(
-    {
-      id: story.id,
-      name: workspace.name,
-      createdAt: story.createdAt,
-      updatedAt: Date.now(),
-    },
-    documents,
-  );
-
-const replaceDocument = (documents: StoryJsonDocument[], document: StoryJsonDocument) =>
+const replaceDocument = (documents: StoryProjectDocument[], document: StoryProjectDocument) =>
   [...documents.filter((item) => item.path !== document.path), document].sort((left, right) =>
     left.path.localeCompare(right.path),
   );
@@ -48,34 +30,21 @@ const replaceDocument = (documents: StoryJsonDocument[], document: StoryJsonDocu
 export const useStoryState = create<StoryStore>((set, get) => ({
   documents: [],
   isSaving: false,
-  story: null,
+  overview: null,
   storyWorkspace: null,
 
   closeStory: () => {
-    set({ documents: [], story: null, storyWorkspace: null });
-  },
-
-  buildNodeOptions: (story) => {
-    if (!story) return [];
-    return story.graph.nodes.map((node) => {
-      const scene = node.sceneId ? (story.scenes.find((item) => item.id === node.sceneId) ?? null) : null;
-      return {
-        id: node.id,
-        label: node.title.trim() || node.id,
-        meta: node.pathRole === "main" ? "主线" : "支线",
-        description: scene?.title || scene?.plot || scene?.scene || node.status || "",
-      };
-    });
+    set({ documents: [], overview: null, storyWorkspace: null });
   },
 
   getChatWorkspacePath: (chatWorkspaceId) => `/chat/${chatWorkspaceId}/new`,
 
   openStory: (item) => {
-    set({ documents: item.documents, story: item.story, storyWorkspace: item.workspace });
+    set({ documents: item.documents, overview: item.overview, storyWorkspace: item.workspace });
   },
 
   reloadStory: async () => {
-    const storyId = get().story?.id;
+    const storyId = get().overview?.id;
     if (!storyId) return null;
     const loaded = await loadStoryById(storyId);
     if (loaded) get().openStory(loaded);
@@ -83,22 +52,23 @@ export const useStoryState = create<StoryStore>((set, get) => ({
   },
 
   saveDocument: async (document) => {
-    const { documents, story, storyWorkspace } = get();
-    if (!story || !storyWorkspace) {
+    const { documents, overview, storyWorkspace } = get();
+    if (!overview || !storyWorkspace) {
       toast.error("找不到故事工作区，无法保存。");
       return null;
     }
     set({ isSaving: true });
     try {
-      const saved = await saveStoryDocument(storyWorkspace.path, document);
+      const project = await StoryProjects.open(storyWorkspace.path);
+      const saved = await project.saveDocument(document);
       const nextDocuments = replaceDocument(documents, saved);
-      const nextStory = nextStoryView(story, storyWorkspace, nextDocuments);
+      const nextOverview = await project.overview();
       let nextWorkspace = storyWorkspace;
-      if (nextStory.title && nextStory.title !== storyWorkspace.name) {
-        const record = await updateStoryRecordName(story.id, nextStory.title);
+      if (nextOverview.title && nextOverview.title !== storyWorkspace.name) {
+        const record = await updateStoryRecordName(overview.id, nextOverview.title);
         nextWorkspace = { id: record.id, name: record.name, path: record.workspacePath };
       }
-      set({ documents: nextDocuments, story: nextStory, storyWorkspace: nextWorkspace });
+      set({ documents: nextDocuments, overview: nextOverview, storyWorkspace: nextWorkspace });
       return saved;
     } catch (error) {
       console.error("Failed to save story document", error);
@@ -118,13 +88,14 @@ export const useStoryState = create<StoryStore>((set, get) => ({
   },
 
   deleteDocument: async (path) => {
-    const { documents, story, storyWorkspace } = get();
-    if (!story || !storyWorkspace) return false;
+    const { documents, overview, storyWorkspace } = get();
+    if (!overview || !storyWorkspace) return false;
     set({ isSaving: true });
     try {
-      await removeStoryDocument(storyWorkspace.path, path);
+      const project = await StoryProjects.open(storyWorkspace.path);
+      await project.removeDocument(path);
       const nextDocuments = documents.filter((document) => document.path !== path);
-      set({ documents: nextDocuments, story: nextStoryView(story, storyWorkspace, nextDocuments) });
+      set({ documents: nextDocuments, overview: await project.overview() });
       return true;
     } catch (error) {
       console.error("Failed to delete story document", error);

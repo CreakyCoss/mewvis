@@ -21,7 +21,7 @@ const fullScreenDialogContentClassName =
   "!fixed !inset-0 !left-0 !top-0 !flex !h-screen !max-h-none !w-screen !max-w-none !translate-x-0 !translate-y-0 flex-col gap-0 overflow-hidden !rounded-none !bg-background p-0 text-foreground !ring-0";
 
 export const StoryModulesContent = ({ bind, onBack }: StoryModulesContentProps) => {
-  const story = useStoryState((state) => state.story);
+  const overview = useStoryState((state) => state.overview);
   const closeStory = useStoryState((state) => state.closeStory);
   const openStory = useStoryState((state) => state.openStory);
 
@@ -46,15 +46,15 @@ export const StoryModulesContent = ({ bind, onBack }: StoryModulesContentProps) 
   );
 
   return (
-    <Dialog open={Boolean(story)} onOpenChange={handleOpenChange}>
+    <Dialog open={Boolean(overview)} onOpenChange={handleOpenChange}>
       <DialogContent
         showCloseButton={false}
         overlayClassName="bg-black/5 backdrop-blur-none"
         className={fullScreenDialogContentClassName}
       >
-        <DialogTitle className="sr-only">{story?.title ? `${story.title} · 编辑` : "故事编辑"}</DialogTitle>
+        <DialogTitle className="sr-only">{overview?.title ? `${overview.title} · 编辑` : "故事编辑"}</DialogTitle>
         <WindowDragRegion className="h-10 shrink-0" />
-        {story ? (
+        {overview ? (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
             <StoryHeader onBack={handleBack} />
             <StoryModules />

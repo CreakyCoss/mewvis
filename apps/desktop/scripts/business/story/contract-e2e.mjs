@@ -3,9 +3,9 @@ import { resolve } from "node:path";
 import { build } from "esbuild";
 
 const root = process.cwd();
-const profilePath = resolve(root, "src/features/pages/stories/story-project/profiles/default-novel/index.ts");
-const layoutPath = resolve(root, "src/features/pages/stories/story-project/layouts/default-layout.ts");
-const identifiersPath = resolve(root, "protocols/story-project/identifiers.ts");
+const profilePath = resolve(root, "core/story-project/story-types/long-novel/profile.ts");
+const layoutPath = resolve(root, "core/story-project/story-types/long-novel/layout.ts");
+const identifiersPath = resolve(root, "core/story-project/identifiers.ts");
 const profileModule = await build({
   entryPoints: [profilePath],
   bundle: true,
@@ -14,7 +14,7 @@ const profileModule = await build({
   target: "node22",
   write: false,
 });
-const { DEFAULT_STORY_PROFILE_SOURCE: contract } = await import(
+const { LONG_NOVEL_PROFILE_SOURCE: contract } = await import(
   `data:text/javascript;base64,${Buffer.from(profileModule.outputFiles[0].text).toString("base64")}`
 );
 const identifiersModule = await build({
@@ -38,7 +38,7 @@ const layoutModule = await build({
 });
 const layout = (
   await import(`data:text/javascript;base64,${Buffer.from(layoutModule.outputFiles[0].text).toString("base64")}`)
-).DEFAULT_STORY_PROJECT_LAYOUT;
+).LONG_NOVEL_LAYOUT;
 
 const expectedDocumentPaths = {
   "story-manifest": "story/manifest.json",
@@ -64,7 +64,7 @@ const expectedDocumentPaths = {
   "story-import": "story/imports/{id}.json",
 };
 assert.equal(contract.$format, identifiers.declarativeProfile.format);
-assert.equal(contract.profileId, "novel-claw.story.default-novel");
+assert.equal(contract.profileId, "novel-claw.story.long-novel");
 assert.equal(contract.profileVersion, 1);
 assert.equal(contract.schemaVersion, identifiers.declarativeProfile.schemaVersion);
 assert.equal(contract.rootPath, undefined, "Profile 不应决定文件根目录");

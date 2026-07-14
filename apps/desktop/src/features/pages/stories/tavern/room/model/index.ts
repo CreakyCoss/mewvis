@@ -1,5 +1,5 @@
 import type { TavernRoomConfig } from "@/features/pages/stories/tavern/manage/model";
-import type { StoryContextBundle } from "../../../../../../../protocols/story-project/types";
+import type { StoryContextBundle } from "../../../../../../../core/story-project";
 
 export type TavernCharacterMemory = {
   required: string;

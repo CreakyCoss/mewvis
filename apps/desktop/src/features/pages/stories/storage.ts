@@ -1,9 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { storyDocumentsToStoryJson } from "./story-project/documents/model";
-import { loadStoryDocuments } from "./story-project/documents/repository";
-import type { StoryJsonDocument } from "./story-project/documents/types";
-import { initializeDefaultStoryProject } from "./story-project/workspace";
-import type { StoryJson } from "./story/model/types";
+import { StoryProjects, type StoryProjectDocument, type StoryProjectOverview } from "../../../../core/story-project";
 
 export const STORY_SOURCE_DIR = "story";
 export const STORY_TAVERN_FILE = `${STORY_SOURCE_DIR}/tavern.json`;
@@ -24,13 +20,14 @@ export type StoryWorkspace = {
 
 export type StoryLibraryItem = {
   id: string;
-  documents: StoryJsonDocument[];
-  story: StoryJson;
+  documents: StoryProjectDocument[];
+  overview: StoryProjectOverview;
   workspace: StoryWorkspace;
 };
 
 export type CreateStoryInput = {
   name: string;
+  storyTypeId: string;
   workspaceParentPath: string;
 };
 
@@ -41,11 +38,12 @@ const storyWorkspaceFromRecord = (record: StoryRecord): StoryWorkspace => ({
 });
 
 const storyLibraryItemFromRecord = async (record: StoryRecord): Promise<StoryLibraryItem> => {
-  const documents = await loadStoryDocuments(record.workspacePath);
+  const project = await StoryProjects.open(record.workspacePath);
+  const [documents, overview] = await Promise.all([project.listDocuments(), project.overview()]);
   return {
     id: record.id,
     documents,
-    story: storyDocumentsToStoryJson(record, documents),
+    overview,
     workspace: storyWorkspaceFromRecord(record),
   };
 };
@@ -134,24 +132,28 @@ export const createStory = async (
 ): Promise<{
   record: StoryRecord;
   workspace: StoryWorkspace;
-  documents: StoryJsonDocument[];
-  story: StoryJson;
+  documents: StoryProjectDocument[];
+  overview: StoryProjectOverview;
 }> => {
   const record = await createStoryRecord(input);
   const workspace = storyWorkspaceFromRecord(record);
   try {
-    await initializeDefaultStoryProject(workspace.path, { storyId: record.id, title: record.name });
+    const project = await StoryProjects.create(workspace.path, {
+      storyTypeId: input.storyTypeId,
+      storyId: record.id,
+      title: record.name,
+    });
+    const [documents, overview] = await Promise.all([project.listDocuments(), project.overview()]);
+    return {
+      record,
+      workspace,
+      documents,
+      overview,
+    };
   } catch (error) {
     await deleteStoryRecord(record.id).catch(() => undefined);
     throw error;
   }
-  const documents: StoryJsonDocument[] = await loadStoryDocuments(workspace.path);
-  return {
-    record,
-    workspace,
-    documents,
-    story: storyDocumentsToStoryJson(record, documents),
-  };
 };
 
 export const loadStoryLibrary = async (): Promise<StoryLibraryItem[]> => {

@@ -1,5 +1,5 @@
 import { ZodError } from "zod";
-import type { StoryProjectApi } from "../../../../../../protocols/story-project/index.js";
+import type { StoryProjectApi } from "../../../../../../core/story-project/api.js";
 import type { StoryToolRepository } from "./repository.js";
 import { normalizeStoryChangeSet } from "./request.js";
 import {

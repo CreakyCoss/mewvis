@@ -14,17 +14,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { inspectStructuredJsonDocument, storyDocumentLabel } from "../../story-project/documents/model";
-import type { StoryJsonDocument } from "../../story-project/documents/types";
+import { StoryProjectDocuments, type StoryProjectDocument } from "../../../../../../core/story-project";
 import { useStoryState } from "../use-story-state";
 import { CreateJsonDocumentDialog } from "./documents/create-dialog";
 import { StoryDocumentEditor } from "./documents/document-editor";
+
+const { inspect: inspectStructuredJsonDocument, label: storyDocumentLabel } = StoryProjectDocuments;
 
 type DocumentGroup = {
   icon: ComponentType<{ className?: string }>;
   id: string;
   label: string;
-  documents: StoryJsonDocument[];
+  documents: StoryProjectDocument[];
 };
 
 const groupHints = [
@@ -60,12 +61,12 @@ const groupHints = [
   },
 ] as const;
 
-const documentSearchText = (document: StoryJsonDocument) => {
+const documentSearchText = (document: StoryProjectDocument) => {
   const inspected = inspectStructuredJsonDocument(document);
   return `${document.path} ${inspected?.kind ?? ""} ${inspected?.label ?? storyDocumentLabel(document)}`.toLowerCase();
 };
 
-const groupForDocument = (document: StoryJsonDocument) => {
+const groupForDocument = (document: StoryProjectDocument) => {
   const searchable = documentSearchText(document);
   return (
     groupHints.find((group) => group.keywords.some((keyword) => searchable.includes(keyword))) ?? {
@@ -77,7 +78,7 @@ const groupForDocument = (document: StoryJsonDocument) => {
   );
 };
 
-const buildDocumentGroups = (documents: StoryJsonDocument[], query: string): DocumentGroup[] => {
+const buildDocumentGroups = (documents: StoryProjectDocument[], query: string): DocumentGroup[] => {
   const normalizedQuery = query.trim().toLowerCase();
   const visible = normalizedQuery
     ? documents.filter((document) => documentSearchText(document).includes(normalizedQuery))

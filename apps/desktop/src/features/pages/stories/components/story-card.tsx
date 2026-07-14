@@ -1,4 +1,4 @@
-import { BookOpen, FileText, GitBranch, Pencil, Target, Trash2, UsersRound, Wine } from "lucide-react";
+import { BookOpen, FileText, Globe2, Pencil, Target, Trash2, UsersRound, Wine } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { resolveAvatar } from "@/assets/avatars";
@@ -13,7 +13,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import type { StoryJson } from "../story/model/types";
+import type { StoryProjectOverview } from "../../../../../core/story-project";
 
 const StoryCardMetric = ({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: number }) => (
   <span className="inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border bg-muted/20 px-1.5 text-[11px] text-foreground/80">
@@ -25,22 +25,20 @@ const StoryCardMetric = ({ icon: Icon, label, value }: { icon: LucideIcon; label
 );
 
 export const StoryCard = ({
-  story,
+  overview,
   onEdit,
-  onManuscripts,
   onTavern,
   onDelete,
 }: {
-  story: StoryJson;
+  overview: StoryProjectOverview;
   onEdit: () => void;
-  onManuscripts: () => void;
   onTavern: () => void;
   onDelete: () => void | Promise<void>;
 }) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const visibleCharacters = story.characters.slice(0, 4);
-  const hiddenCharacterCount = Math.max(0, story.characters.length - visibleCharacters.length);
+  const visibleCharacters = overview.characters.slice(0, 4);
+  const hiddenCharacterCount = Math.max(0, overview.characters.length - visibleCharacters.length);
 
   const confirmDelete = async () => {
     setIsDeleting(true);
@@ -99,15 +97,15 @@ export const StoryCard = ({
           </div>
 
           <div className="flex flex-col px-3.5 pt-8 pb-3">
-            <h3 className="min-w-0 text-xl font-semibold leading-7 line-clamp-2">{story.title}</h3>
+            <h3 className="min-w-0 text-xl font-semibold leading-7 line-clamp-2">{overview.title}</h3>
             <p className="mt-1.5 min-h-5 line-clamp-1 text-xs leading-5 text-muted-foreground">
-              {story.premise || "暂无故事设定。"}
+              {overview.description || "暂无故事设定。"}
             </p>
 
             <div className="mt-2.5 grid grid-cols-3 gap-2">
-              <StoryCardMetric icon={UsersRound} label="角色" value={story.characters.length} />
-              <StoryCardMetric icon={GitBranch} label="节点" value={story.graph.nodes.length} />
-              <StoryCardMetric icon={BookOpen} label="场景" value={story.scenes.length} />
+              <StoryCardMetric icon={UsersRound} label="角色" value={overview.resourceCounts.characters} />
+              <StoryCardMetric icon={FileText} label="章节" value={overview.resourceCounts.chapters} />
+              <StoryCardMetric icon={Globe2} label="设定" value={overview.resourceCounts.worldEntries} />
             </div>
 
             <div className="mt-2.5">
@@ -119,7 +117,7 @@ export const StoryCard = ({
                   </span>
                   <div className="min-w-0">
                     <div className="text-sm font-semibold leading-5 text-foreground">当前目标</div>
-                    <div className="line-clamp-1">{story.goal || "暂无整体目标。"}</div>
+                    <div className="line-clamp-1">{overview.goal || "暂无整体目标。"}</div>
                   </div>
                 </div>
               </div>
@@ -128,7 +126,7 @@ export const StoryCard = ({
         </button>
 
         <div className="border-t bg-background/80 p-2.5">
-          <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_auto] gap-2">
+          <div className="grid grid-cols-[repeat(2,minmax(0,1fr))_auto] gap-2">
             <Button
               type="button"
               size="sm"
@@ -138,16 +136,6 @@ export const StoryCard = ({
             >
               <Pencil className="size-4 shrink-0" />
               <span className="truncate">编辑</span>
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-9 min-w-0 whitespace-nowrap bg-background/80 text-sm"
-              onClick={onManuscripts}
-            >
-              <FileText className="size-4 shrink-0" />
-              <span className="truncate">稿件</span>
             </Button>
             <Button
               type="button"
@@ -180,7 +168,8 @@ export const StoryCard = ({
           <AlertDialogHeader>
             <AlertDialogTitle>删除故事？</AlertDialogTitle>
             <AlertDialogDescription>
-              删除「{story.title || "当前故事"}」及其整个故事工作区？这个操作会同时删除 story/ 和 .tavern/ 运行时数据。
+              删除「{overview.title || "当前故事"}」及其整个故事工作区？这个操作会同时删除 story/ 和 .tavern/
+              运行时数据。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -31,6 +31,41 @@ const frontendContractImports = collectTypeScriptFiles(frontendStoryRoot).flatMa
 if (frontendContractImports.length > 0) {
   throw new Error(`故事前端不得依赖 agent-runtime 故事协议：\n${frontendContractImports.join("\n")}`);
 }
+const frontendStoryProjectInternalImports = collectTypeScriptFiles(frontendStoryRoot).flatMap((path) => {
+  const source = readFileSync(path, "utf8");
+  return /story-project\/(?:api|types|compiler|project|documents|story-types)/.test(source)
+    ? [relative(root, path)]
+    : [];
+});
+if (frontendStoryProjectInternalImports.length > 0) {
+  throw new Error(`故事前端只能使用 story-project 公共入口：\n${frontendStoryProjectInternalImports.join("\n")}`);
+}
+if (existsSync(resolve(frontendStoryRoot, "story-project"))) {
+  throw new Error("故事前端不得继续维护第二套 story-project 实现目录。");
+}
+const frontendStorySource = collectTypeScriptFiles(frontendStoryRoot)
+  .map((path) => readFileSync(path, "utf8"))
+  .join("\n");
+if (
+  frontendStorySource.includes("@deprecated") ||
+  frontendStorySource.includes("StoryJson") ||
+  frontendStorySource.includes("storyDocumentsToStoryJson") ||
+  existsSync(resolve(frontendStoryRoot, "manuscripts")) ||
+  existsSync(resolve(frontendStoryRoot, "story/actions/chat")) ||
+  existsSync(resolve(frontendStoryRoot, "story/model"))
+) {
+  throw new Error("故事前端不得保留 StoryJson、旧节点聊天或独立稿件系统等废弃实现。");
+}
+const workspaceChatSource = readFileSync(
+  resolve(root, "src/features/pages/chat/components/workspace-chat-page/index.tsx"),
+  "utf8",
+);
+if (
+  workspaceChatSource.includes("submitStoryManuscript") ||
+  workspaceChatSource.includes("storySubmittingMessageIds")
+) {
+  throw new Error("通用聊天页面不得保留已移除稿件系统的收稿入口。");
+}
 try {
   const legacyFrontendContract = readdirSync(resolve(frontendStoryRoot, "story-contract"));
   if (legacyFrontendContract.length > 0) {
@@ -55,7 +90,7 @@ const activeStorySkillInstructions = [
   readFileSync(resolve(storySkillsRoot, "story-assistant/references/story-tool-binding.md"), "utf8"),
   readFileSync(resolve(storySkillsRoot, "story-assistant/references/incremental-changesets.md"), "utf8"),
 ].join("\n");
-const storyProfileRoot = resolve(root, "src/features/pages/stories/story-project/profiles/default-novel/profile");
+const storyProfileRoot = resolve(root, "core/story-project/story-types/long-novel/profile");
 const storyProfile = [
   readFileSync(resolve(storyProfileRoot, "metadata.json"), "utf8"),
   ...readdirSync(resolve(storyProfileRoot, "objects"))
@@ -65,10 +100,7 @@ const storyProfile = [
     .filter((name) => name.endsWith(".json"))
     .map((name) => readFileSync(resolve(storyProfileRoot, "documents", name), "utf8")),
 ].join("\n");
-const storyLayout = readFileSync(
-  resolve(root, "src/features/pages/stories/story-project/layouts/default-layout.ts"),
-  "utf8",
-);
+const storyLayout = readFileSync(resolve(root, "core/story-project/story-types/long-novel/layout.ts"), "utf8");
 const storyTool = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/tool/definition.ts"), "utf8");
 const storyProtocol = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/protocol.ts"), "utf8");
 const storyService = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/tool/service.ts"), "utf8");
@@ -79,26 +111,19 @@ const storyRepository = readFileSync(
 const storyToolCore = collectTypeScriptFiles(resolve(root, "agent-runtime/src/engines/builtins/story/tool"))
   .map((path) => readFileSync(path, "utf8"))
   .join("\n");
-const frontendWorkspaceContract = readFileSync(
-  resolve(root, "src/features/pages/stories/story-project/workspace.ts"),
-  "utf8",
-);
-const frontendDocumentRepository = readFileSync(
-  resolve(root, "src/features/pages/stories/story-project/documents/repository.ts"),
-  "utf8",
-);
+const storyProjectWorkspace = readFileSync(resolve(root, "core/story-project/project/workspace.ts"), "utf8");
+const frontendDocumentRepository = readFileSync(resolve(root, "core/story-project/documents/repository.ts"), "utf8");
 const frontendStoryStorage = readFileSync(resolve(root, "src/features/pages/stories/storage.ts"), "utf8");
-const protocolDefinition = readFileSync(resolve(root, "protocols/definition.ts"), "utf8");
-const storyProjectIndex = readFileSync(resolve(root, "protocols/story-project/index.ts"), "utf8");
-const storyProjectTypes = readFileSync(resolve(root, "protocols/story-project/types.ts"), "utf8");
-const storyProjectWorkspace = readFileSync(resolve(root, "protocols/story-project/workspace.ts"), "utf8");
-const storyProfileRegistry = readFileSync(resolve(root, "protocols/story-project/registry.ts"), "utf8");
-const structuredNovelCompiler = readFileSync(resolve(root, "protocols/story-project/declarative/compiler.ts"), "utf8");
-const publicStoryProjectExports = [
-  ...storyProjectIndex.matchAll(/^export\s+(?:interface|type|class|const|function)\s+(\w+)/gm),
-].map((match) => match[1]);
-if (existsSync(resolve(root, "protocols/story-project/profiles"))) {
-  throw new Error("共享 story-project 协议层不得继续持有具体小说 Profile。");
+const protocolDefinition = readFileSync(resolve(root, "core/protocol.ts"), "utf8");
+const storyProjectIndex = readFileSync(resolve(root, "core/story-project/index.ts"), "utf8");
+const storyProjectApi = readFileSync(resolve(root, "core/story-project/api.ts"), "utf8");
+const storyProjectTypes = readFileSync(resolve(root, "core/story-project/types.ts"), "utf8");
+const storyProjectMetadata = readFileSync(resolve(root, "core/story-project/project/metadata.ts"), "utf8");
+const storyProfileRegistry = readFileSync(resolve(root, "core/story-project/project/registry.ts"), "utf8");
+const structuredNovelCompiler = readFileSync(resolve(root, "core/story-project/compiler/compiler.ts"), "utf8");
+const storyTypeCatalog = readFileSync(resolve(root, "core/story-project/story-types/index.ts"), "utf8");
+if (existsSync(resolve(root, "story-project")) || existsSync(resolve(root, "protocols"))) {
+  throw new Error("Story Project 与通用协议必须统一归入 core，根目录不得保留旧实现。");
 }
 if (
   !activeStorySkillInstructions.includes("structure.profile.documentRoles[role]") ||
@@ -146,7 +171,7 @@ if (
   !storyProfile.includes('"layoutPresence"') ||
   !storyProfile.includes('"documentRoles"') ||
   storyLayout.includes('"fields"') ||
-  !storyLayout.includes("DEFAULT_STORY_PROFILE.defineLayout") ||
+  !storyLayout.includes("LONG_NOVEL_PROFILE.defineLayout") ||
   storyLayout.includes("novel-claw.story.default-novel") ||
   storySkill.includes("contract.json") ||
   !storyProtocol.includes("interface StoryToolApi") ||
@@ -163,19 +188,18 @@ if (
   !storyRepository.includes("createStoryProjectCompilerRegistry") ||
   !storyRepository.includes("STORY_PROJECT_CONFIG_PATH") ||
   !storyRepository.includes("STORY_PROJECT_PROFILE_PATH") ||
-  !storyProjectIndex.includes("interface StoryProjectApi") ||
-  !storyProjectIndex.includes("createProject(input:") ||
-  !storyProjectIndex.includes("projectManifestPath():") ||
-  !storyProjectIndex.includes("applyChanges(project:") ||
-  !storyProjectIndex.includes("readContext(") ||
-  !storyProjectIndex.includes("StoryContextBundle") ||
+  !storyProjectApi.includes("interface StoryProjectApi") ||
+  !storyProjectApi.includes("createProject(input:") ||
+  !storyProjectApi.includes("projectManifestPath():") ||
+  !storyProjectApi.includes("applyChanges(project:") ||
+  !storyProjectApi.includes("readContext(") ||
+  !storyProjectApi.includes("StoryContextBundle") ||
   !storyProjectTypes.includes("documentRoles") ||
-  !storyProjectWorkspace.includes("STORY_PROJECT_CONFIG_PATH") ||
-  !storyProjectWorkspace.includes("compileStoryProjectWorkspace") ||
-  !storyProjectIndex.includes("interface StoryProjectCompilerRegistry") ||
-  !storyProjectIndex.includes("register(compiler:") ||
-  !storyProjectIndex.includes("resolve(format:") ||
-  publicStoryProjectExports.join(",") !== "StoryProjectApi,StoryProjectCompilerRegistry" ||
+  !storyProjectMetadata.includes("STORY_PROJECT_CONFIG_PATH") ||
+  !storyProjectMetadata.includes("compileStoryProjectWorkspace") ||
+  !storyProjectApi.includes("interface StoryProjectCompilerRegistry") ||
+  !storyProjectApi.includes("register(compiler:") ||
+  !storyProjectApi.includes("resolve(format:") ||
   !storyProfileRegistry.includes("implements StoryProjectCompilerRegistry") ||
   !storyProfileRegistry.includes("STORY_PROJECT_API_DEFINITION") ||
   !storyProfileRegistry.includes("defineProtocol<StoryProjectApi>") ||
@@ -186,22 +210,28 @@ if (
   !structuredNovelCompiler.includes("StoryProjectApi") ||
   !structuredNovelCompiler.includes("DECLARATIVE_STORY_PROJECT_COMPILER") ||
   storyProjectIndex.includes("export *") ||
-  storyProjectIndex.includes("export {") ||
-  storyProjectIndex.includes("export type {") ||
-  storyProjectIndex.includes("declarative/") ||
-  storyProjectIndex.includes("compiler/registry") ||
+  !storyProjectIndex.includes("StoryProjects") ||
+  !storyProjectIndex.includes("listTypes:") ||
+  !storyProjectIndex.includes("create:") ||
+  !storyProjectIndex.includes("open:") ||
+  storyProjectIndex.includes("LONG_NOVEL_PROFILE") ||
+  storyProjectIndex.includes("LONG_NOVEL_LAYOUT") ||
+  !storyTypeCatalog.includes("LONG_NOVEL_STORY_TYPE") ||
+  !storyTypeCatalog.includes("SHORT_NOVEL_STORY_TYPE") ||
   structuredNovelCompiler.includes("standard-novel") ||
-  !frontendWorkspaceContract.includes("createStoryProjectCompilerRegistry") ||
-  !frontendWorkspaceContract.includes("DEFAULT_STORY_PROFILE_SOURCE") ||
-  !frontendWorkspaceContract.includes("STORY_PROJECT_PROFILE_PATH") ||
-  !frontendWorkspaceContract.includes("installDefaultStoryProject") ||
-  !frontendWorkspaceContract.includes("initializeDefaultStoryProject") ||
+  !storyProjectWorkspace.includes("createStoryProjectCompilerRegistry") ||
+  !storyProjectWorkspace.includes("resolveStoryProjectType") ||
+  !storyProjectWorkspace.includes("STORY_PROJECT_PROFILE_PATH") ||
+  !storyProjectWorkspace.includes("createStoryProject") ||
   !frontendDocumentRepository.includes("projectApi.applyChanges") ||
+  !frontendDocumentRepository.includes("loadStoryProjectApi") ||
   !frontendDocumentRepository.includes("writeWorkspaceFilesAtomic") ||
   frontendDocumentRepository.includes("writeWorkspaceFile(") ||
   frontendDocumentRepository.includes("deleteWorkspaceFile(") ||
-  !frontendStoryStorage.includes("initializeDefaultStoryProject") ||
-  frontendWorkspaceContract.includes("compiled.describe()") ||
+  !frontendStoryStorage.includes("StoryProjects.create") ||
+  frontendStoryStorage.includes("LONG_NOVEL_PROFILE") ||
+  frontendStoryStorage.includes("LONG_NOVEL_LAYOUT") ||
+  storyProjectWorkspace.includes("compiled.describe()") ||
   !builtinDefinition.includes("type BuiltinDefinition") ||
   !builtinDefinition.includes("assertBuiltinDefinition") ||
   !builtinDefinition.includes("assertBuiltinToolImplementation") ||

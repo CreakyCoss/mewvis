@@ -1,4 +1,4 @@
-import type { StoryProjectApi } from "../../../../../protocols/story-project/index.js";
+import type { StoryProjectApi } from "../../../../../core/story-project/api.js";
 import { defineBuiltinToolContract } from "../definition.js";
 
 type StoryProfileDescription = ReturnType<StoryProjectApi["describe"]>;

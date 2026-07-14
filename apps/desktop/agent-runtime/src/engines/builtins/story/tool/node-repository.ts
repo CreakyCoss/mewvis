@@ -6,10 +6,10 @@ import {
   STORY_PROJECT_CONFIG_PATH,
   STORY_PROJECT_LOCK_PATH,
   STORY_PROJECT_PROFILE_PATH,
-} from "../../../../../../protocols/story-project/workspace.js";
-import type { StoryProjectApi, StoryProjectCompilerRegistry } from "../../../../../../protocols/story-project/index.js";
-import { createStoryProjectCompilerRegistry } from "../../../../../../protocols/story-project/registry.js";
-import { DECLARATIVE_STORY_PROJECT_COMPILER } from "../../../../../../protocols/story-project/declarative/compiler.js";
+} from "../../../../../../core/story-project/project/metadata.js";
+import type { StoryProjectApi, StoryProjectCompilerRegistry } from "../../../../../../core/story-project/api.js";
+import { createStoryProjectCompilerRegistry } from "../../../../../../core/story-project/project/registry.js";
+import { DECLARATIVE_STORY_PROJECT_COMPILER } from "../../../../../../core/story-project/compiler/compiler.js";
 import type { StoryToolRepository } from "./repository.js";
 
 type StoryCompiledProject = ReturnType<StoryProjectApi["createProject"]>;

@@ -7,13 +7,15 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { isJsonObject } from "../../../story-project/documents/model";
+import { StoryProjectDocuments } from "../../../../../../../core/story-project";
 import type {
   JsonFieldMetadata,
   JsonObject,
   JsonObjectDefinition,
   JsonValue,
-} from "../../../story-project/documents/types";
+} from "../../../../../../../core/story-project";
+
+const isJsonObject = StoryProjectDocuments.isObject;
 
 const pointerKey = (pointer: string) => (pointer.startsWith("/") ? pointer.slice(1) : pointer);
 

@@ -8,7 +8,6 @@ import {
   ChevronDown,
   ChevronRight,
   Copy,
-  FilePlus2,
   Link,
   Loader2,
   MoreHorizontal,
@@ -49,16 +48,8 @@ type MessageListProps = {
 };
 
 export const MessageList = ({ showThinkingProcess, showToolCallProcess }: MessageListProps) => {
-  const {
-    messages,
-    isSending,
-    activeAgentTaskId,
-    onEditHistoryMessage,
-    onDeleteHistoryMessage,
-    onMoveHistoryMessage,
-    onSubmitMessageToStory,
-    storySubmittingMessageIds,
-  } = useChatPanelStore();
+  const { messages, isSending, activeAgentTaskId, onEditHistoryMessage, onDeleteHistoryMessage, onMoveHistoryMessage } =
+    useChatPanelStore();
   const [expandedThinkingIds, setExpandedThinkingIds] = useState<Set<string>>(() => new Set());
   const [expandedAgentEventIds, setExpandedAgentEventIds] = useState<Set<string>>(() => new Set());
   const [collapsedAgentBlockIds, setCollapsedAgentBlockIds] = useState<Set<string>>(() => new Set());
@@ -304,9 +295,6 @@ export const MessageList = ({ showThinkingProcess, showToolCallProcess }: Messag
         });
         const messageActionText = getMessageTextForAction(message);
         const canCopyMessage = messageActionText.length > 0;
-        const isSubmittingStoryMessage = storySubmittingMessageIds.includes(message.id);
-        const canSubmitMessageToStory =
-          Boolean(onSubmitMessageToStory) && canCopyMessage && canChangeHistory && !isSubmittingStoryMessage;
         const advancedHistoryActions = canChangeHistory ? (
           <DropdownMenuContent
             align={message.role === "user" ? "end" : "start"}
@@ -432,25 +420,6 @@ export const MessageList = ({ showThinkingProcess, showToolCallProcess }: Messag
               {copiedMessageId === message.id ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
               <span className="sr-only">复制</span>
             </Button>
-            {onSubmitMessageToStory ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className={historyActionButtonClass}
-                title="收为故事稿件"
-                aria-label="收为故事稿件"
-                disabled={!canSubmitMessageToStory}
-                onClick={() => void onSubmitMessageToStory(message)}
-              >
-                {isSubmittingStoryMessage ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <FilePlus2 className="size-3.5" />
-                )}
-                <span className="sr-only">收稿</span>
-              </Button>
-            ) : null}
             <DropdownMenu
               modal={false}
               open={areHistoryActionsExpanded}

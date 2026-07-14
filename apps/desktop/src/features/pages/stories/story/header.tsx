@@ -8,7 +8,7 @@ type StoryHeaderProps = {
 };
 
 export const StoryHeader = ({ onBack }: StoryHeaderProps) => {
-  const story = useStoryState((state) => state.story);
+  const overview = useStoryState((state) => state.overview);
 
   return (
     <header className="shrink-0 border-b bg-background px-5 py-4 shadow-sm lg:px-7">
@@ -30,7 +30,7 @@ export const StoryHeader = ({ onBack }: StoryHeaderProps) => {
               <BookOpen className="size-5" />
             </span>
             <div className="min-w-0">
-              <h2 className="truncate text-xl font-semibold leading-7">{story?.title ?? "故事"}</h2>
+              <h2 className="truncate text-xl font-semibold leading-7">{overview?.title ?? "故事"}</h2>
               <p className="line-clamp-2 max-w-2xl text-sm leading-6 text-muted-foreground">
                 专注创作，打磨你的故事世界与人物命运。
               </p>

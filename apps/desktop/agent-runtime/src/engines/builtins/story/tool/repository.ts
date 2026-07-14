@@ -1,4 +1,4 @@
-import type { StoryProjectApi } from "../../../../../../protocols/story-project/index.js";
+import type { StoryProjectApi } from "../../../../../../core/story-project/api.js";
 
 type StoryCompiledProject = ReturnType<StoryProjectApi["createProject"]>;
 
