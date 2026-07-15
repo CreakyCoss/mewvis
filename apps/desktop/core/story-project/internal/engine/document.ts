@@ -1,12 +1,12 @@
-import type { StoryValidationIssue } from "../types.js";
+import type { StoryValidationIssue } from "../../types.js";
 import { StoryProjectValidationError } from "./issues.js";
 import {
   storyTypeDocument,
   storyTypeFields,
   storyTypeKindForPath,
   storyTypeObjectFields,
-} from "../definitions/definition.js";
-import type { StoryFieldDefinition, StoryTypeDefinition } from "../definitions/types.js";
+} from "../../definitions/definition.js";
+import type { StoryFieldDefinition, StoryTypeDefinition } from "../../definitions/types.js";
 
 const objectFromUnknown = (value: unknown, owner: string): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {

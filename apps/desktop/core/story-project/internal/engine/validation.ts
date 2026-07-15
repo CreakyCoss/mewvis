@@ -1,8 +1,8 @@
-import type { StoryProjectState, StoryValidationIssue, StoryValidationResult } from "../types.js";
+import type { StoryProjectState, StoryValidationIssue, StoryValidationResult } from "../../types.js";
 import { storyValidationIssue } from "./issues.js";
 import { manifestFiles, projectInfo } from "./project.js";
-import { storyTypeDocument, storyTypeFields, storyTypeObjectFields } from "../definitions/definition.js";
-import type { StoryFieldDefinition, StoryTypeDefinition } from "../definitions/types.js";
+import { storyTypeDocument, storyTypeFields, storyTypeObjectFields } from "../../definitions/definition.js";
+import type { StoryFieldDefinition, StoryTypeDefinition } from "../../definitions/types.js";
 
 type JsonObject = Record<string, unknown>;
 

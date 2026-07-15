@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { StoryProjectAppliedChanges, StoryProjectState, StoryValidationIssue } from "../types.js";
+import type { StoryProjectAppliedChanges, StoryProjectState, StoryValidationIssue } from "../../types.js";
 import { StoryProjectValidationError, storyValidationIssue } from "./issues.js";
 import { projectInfo, rebuildManifest } from "./project.js";
 import {
@@ -7,8 +7,8 @@ import {
   storyTypeDocument,
   storyTypeFields,
   storyTypeKindForPath,
-} from "../definitions/definition.js";
-import type { StoryTypeDefinition } from "../definitions/types.js";
+} from "../../definitions/definition.js";
+import type { StoryTypeDefinition } from "../../definitions/types.js";
 import { materializeStoryDocument } from "./document.js";
 import { validateProject } from "./validation.js";
 

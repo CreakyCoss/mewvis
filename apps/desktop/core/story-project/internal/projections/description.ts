@@ -1,11 +1,11 @@
-import type { StoryFieldDefinition, StoryTypeDefinition } from "../definitions/types.js";
+import type { StoryFieldDefinition, StoryTypeDefinition } from "../../definitions/types.js";
 import type {
   JsonFieldMetadata,
   JsonObjectDefinition,
   StoryChangeSetDescription,
   StoryProjectStructure,
-} from "../types.js";
-import { STORY_CHANGE_SET_MAX_BYTES, STORY_CHANGE_SET_MAX_OPERATIONS } from "./changes.js";
+} from "../../types.js";
+import { STORY_CHANGE_SET_MAX_BYTES, STORY_CHANGE_SET_MAX_OPERATIONS } from "../engine/changes.js";
 
 const CHANGE_SET: StoryChangeSetDescription = Object.freeze({
   maxOperations: STORY_CHANGE_SET_MAX_OPERATIONS,

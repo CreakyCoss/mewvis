@@ -49,6 +49,8 @@ for (const removed of [
   "story-types/long-novel/schema",
   "store.ts",
   "file-store.ts",
+  "internal/runtime.ts",
+  "internal/application/api.ts",
 ]) {
   if (existsSync(resolve(coreRoot, removed))) throw new Error(`旧 Story Project 边界仍存在：${removed}`);
 }
@@ -61,6 +63,8 @@ if (
   !publicIndex.includes("workspace(projectKey") ||
   !publicIndex.includes("open(projectKey") ||
   !publicIndex.includes("commitChanges(changeSet") ||
+  !publicIndex.includes("./internal/application/workspace.js") ||
+  !publicIndex.includes("./internal/application/project-repository.js") ||
   publicIndex.includes("StoryProjects") ||
   publicIndex.includes("export type {") ||
   publicIndex.includes("documents:") ||
@@ -68,18 +72,62 @@ if (
 ) {
   throw new Error("Story Project 公共入口应只暴露明确的 API 工厂和公共类型，不得混入文档辅助层。");
 }
-const runtime = readFileSync(resolve(coreRoot, "internal/runtime.ts"), "utf8");
+const internalRoot = resolve(coreRoot, "internal");
+const engineRoot = resolve(internalRoot, "engine");
+const projectionsRoot = resolve(internalRoot, "projections");
+const applicationRoot = resolve(internalRoot, "application");
+for (const directory of [engineRoot, projectionsRoot, applicationRoot]) {
+  if (!existsSync(directory)) throw new Error(`Story Project 缺少内部层：${relative(coreRoot, directory)}`);
+}
+const sourceText = (directory) =>
+  tsFiles(directory)
+    .map((path) => readFileSync(path, "utf8"))
+    .join("\n");
+const engineSource = sourceText(engineRoot);
+const projectionsSource = sourceText(projectionsRoot);
+const applicationSource = sourceText(applicationRoot);
+const forbiddenImports = (directory, forbidden) =>
+  tsFiles(directory).flatMap((path) => {
+    const source = readFileSync(path, "utf8");
+    const imports = [...source.matchAll(/from\s+["']([^"']+)["']/g)].map((match) => match[1]);
+    return imports.some((specifier) => forbidden.some((segment) => specifier.includes(segment))) ? [path] : [];
+  });
+const invalidEngineImports = forbiddenImports(engineRoot, [
+  "/application/",
+  "/projections/",
+  "/storage/",
+  "/story-types/",
+  "../../index.js",
+]);
+const invalidProjectionImports = forbiddenImports(projectionsRoot, [
+  "/application/",
+  "/storage/",
+  "/story-types/",
+  "../../index.js",
+]);
+if (invalidEngineImports.length || invalidProjectionImports.length) {
+  throw new Error(
+    `Story Project 内部依赖必须保持 application -> projections -> engine：\n${[
+      ...invalidEngineImports,
+      ...invalidProjectionImports,
+    ]
+      .map((path) => relative(root, path))
+      .join("\n")}`,
+  );
+}
 const storeContract = readFileSync(resolve(coreRoot, "storage/index.ts"), "utf8");
 const fileStore = readFileSync(resolve(coreRoot, "storage/file.ts"), "utf8");
 const memoryStore = readFileSync(resolve(coreRoot, "storage/memory.ts"), "utf8");
 if (
-  !runtime.includes('PROJECT_CONFIG_PATH = "story/.novel-claw/project.json"') ||
-  runtime.includes("writeAtomic(") ||
-  runtime.includes("JSON.parse(") ||
-  runtime.includes("profile.json") ||
-  runtime.includes("project.lock.json")
+  !applicationSource.includes('PROJECT_CONFIG_PATH = "story/.novel-claw/project.json"') ||
+  applicationSource.includes("writeAtomic(") ||
+  applicationSource.includes("JSON.parse(") ||
+  applicationSource.includes("profile.json") ||
+  applicationSource.includes("project.lock.json") ||
+  engineSource.includes("StoryProjectStore") ||
+  projectionsSource.includes("StoryProjectStore")
 ) {
-  throw new Error("Story Runtime 必须只消费结构化 Store，不得处理物理文件编码或旧工作区协议。");
+  throw new Error("Story Application 必须只消费结构化 Store，Engine/Projections 不得依赖存储。");
 }
 if (
   !storeContract.includes("interface StoryProjectStore") ||

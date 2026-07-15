@@ -1,4 +1,4 @@
-import type { StoryValidationIssue } from "../types.js";
+import type { StoryValidationIssue } from "../../types.js";
 
 export const storyValidationIssue = (code: string, path: string, message: string): StoryValidationIssue => ({
   severity: "error",

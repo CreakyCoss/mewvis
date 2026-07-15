@@ -1,5 +1,5 @@
-import { buildStoryProjectApi } from "./internal/runtime.js";
 import type { StoryTypeSummary } from "./definitions/types.js";
+import { listStoryTypes } from "./story-types/index.js";
 import type {
   StoryChangeResult,
   StoryChangeValidation,
@@ -10,6 +10,9 @@ import type {
   StoryProjectStructure,
 } from "./types.js";
 import type { StoryProjectStore } from "./storage/index.js";
+import { StoryProjectValidationError } from "./internal/engine/issues.js";
+import { readDefinition } from "./internal/application/project-repository.js";
+import { createWorkspace } from "./internal/application/workspace.js";
 
 /** 一个已绑定 projectKey 的故事工作区，统一处理文档、上下文、校验与事务。 */
 export interface StoryWorkspace {
@@ -44,4 +47,22 @@ export interface StoryProjectApi {
  *
  * 调用方只提供结构化 StoryProjectStore；文件、数据库等持久化方式由 Store 实现决定。
  */
-export const createStoryProjectApi = (store: StoryProjectStore): StoryProjectApi => buildStoryProjectApi(store);
+export const createStoryProjectApi = (store: StoryProjectStore): StoryProjectApi => {
+  const client: StoryProjectApi = {
+    listStoryTypes,
+    workspace: (projectKey: string) => createWorkspace(store, projectKey),
+    async open(projectKey: string) {
+      await readDefinition(store, projectKey);
+      return createWorkspace(store, projectKey);
+    },
+    async create(projectKey, input) {
+      const workspace = createWorkspace(store, projectKey, { fallbackStoryTypeId: input.storyTypeId });
+      const result = await workspace.initialize({ ...input, storyTypeId: input.storyTypeId });
+      if (!result.initialized && !result.alreadyInitialized) {
+        throw new StoryProjectValidationError(result.issues);
+      }
+      return workspace;
+    },
+  };
+  return Object.freeze(client);
+};

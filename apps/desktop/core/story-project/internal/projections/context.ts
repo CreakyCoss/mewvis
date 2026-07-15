@@ -4,14 +4,14 @@ import type {
   StoryContext,
   StoryContextSection,
   StoryContextSource,
-} from "../types.js";
+} from "../../types.js";
 import {
   storyTypeContext,
   storyTypeDocument,
   storyTypeFields,
   storyTypeObjectFields,
-} from "../definitions/definition.js";
-import type { StoryFieldDefinition, StoryTypeDefinition } from "../definitions/types.js";
+} from "../../definitions/definition.js";
+import type { StoryFieldDefinition, StoryTypeDefinition } from "../../definitions/types.js";
 
 type JsonObject = Record<string, unknown>;
 
