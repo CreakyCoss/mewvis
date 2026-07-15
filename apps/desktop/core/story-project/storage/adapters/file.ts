@@ -1,11 +1,12 @@
 import {
   assertStoryProjectRevision,
   type StoryProjectRecord,
+  type StoryProjectRecordBackend,
   type StoryProjectRecordWrite,
   type StoryProjectRevisionCondition,
-  type StoryProjectStore,
-} from "./index.js";
-import type { StoryValue } from "../types.js";
+} from "../core/backend.js";
+import { createStoryProjectStorage } from "../core/project-storage.js";
+import type { StoryValue } from "../../types.js";
 
 export type StoryFileEntry = Readonly<{
   path: string;
@@ -72,8 +73,7 @@ export const assertStoryFileRevision = (condition: StoryProjectRevisionCondition
     currentContent === null ? null : parseFile({ path: condition.key, content: currentContent, updatedAt: null }),
   );
 
-/** 将文本文件后端转换成结构化 StoryProjectStore。 */
-export const createStoryFileStore = (backend: StoryFileBackend): StoryProjectStore => ({
+const createStoryFileRecordBackend = (backend: StoryFileBackend): StoryProjectRecordBackend => ({
   async list(projectKey) {
     return (await backend.list(projectKey)).flatMap((entry) => {
       const contentType = entry.isDirectory ? null : contentTypeForPath(entry.path);
@@ -98,3 +98,7 @@ export const createStoryFileStore = (backend: StoryFileBackend): StoryProjectSto
     );
   },
 });
+
+/** 创建由文本文件后端驱动的领域级 Story Project Storage。 */
+export const createStoryFileStorage = (backend: StoryFileBackend) =>
+  createStoryProjectStorage(createStoryFileRecordBackend(backend));

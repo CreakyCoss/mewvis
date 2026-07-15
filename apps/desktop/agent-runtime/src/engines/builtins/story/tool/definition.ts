@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { BuiltinToolDefinition, BuiltinToolImplementation, ToolParameterDefinition } from "../../definition.js";
-import { createNodeStoryToolRepository } from "./node-repository.js";
+import { createNodeStoryToolRepository } from "./repository.js";
 import type { StoryToolRepository } from "./repository.js";
 import { createStoryToolService } from "./service.js";
 import { STORY_CHANGE_SET_PARAMETERS } from "./request.js";

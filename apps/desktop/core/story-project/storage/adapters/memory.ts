@@ -1,14 +1,19 @@
-import { assertStoryProjectRevision, type StoryProjectRecord, type StoryProjectStore } from "./index.js";
+import {
+  assertStoryProjectRevision,
+  type StoryProjectRecord,
+  type StoryProjectRecordBackend,
+} from "../core/backend.js";
+import { createStoryProjectStorage } from "../core/project-storage.js";
 
 /**
- * 创建一个初始为空的内存 Store。
+ * 创建一个初始为空的内存 Storage。
  *
  * 用于测试、预览和新存储实现的参考；数据不会跨进程持久化。
  */
-export const createMemoryStoryProjectStore = (): StoryProjectStore => {
+export const createMemoryStoryProjectStorage = () => {
   const projects = new Map<string, Map<string, StoryProjectRecord>>();
 
-  return {
+  const backend: StoryProjectRecordBackend = {
     async list(projectKey) {
       return [...(projects.get(projectKey)?.values() ?? [])]
         .map(({ key, contentType, updatedAt }) => ({ key, contentType, updatedAt }))
@@ -32,4 +37,5 @@ export const createMemoryStoryProjectStore = (): StoryProjectStore => {
       projects.set(projectKey, records);
     },
   };
+  return createStoryProjectStorage(backend);
 };

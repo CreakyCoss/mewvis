@@ -50,7 +50,9 @@ for (const removed of [
   "store.ts",
   "file-store.ts",
   "internal/runtime.ts",
-  "internal/application/api.ts",
+  "internal/application",
+  "storage/file.ts",
+  "storage/memory.ts",
 ]) {
   if (existsSync(resolve(coreRoot, removed))) throw new Error(`旧 Story Project 边界仍存在：${removed}`);
 }
@@ -63,8 +65,8 @@ if (
   !publicIndex.includes("workspace(projectKey") ||
   !publicIndex.includes("open(projectKey") ||
   !publicIndex.includes("commitChanges(changeSet") ||
-  !publicIndex.includes("./internal/application/workspace.js") ||
-  !publicIndex.includes("./internal/application/project-repository.js") ||
+  !publicIndex.includes("./application/workspace.js") ||
+  !publicIndex.includes("./storage/index.js") ||
   publicIndex.includes("StoryProjects") ||
   publicIndex.includes("export type {") ||
   publicIndex.includes("documents:") ||
@@ -75,8 +77,11 @@ if (
 const internalRoot = resolve(coreRoot, "internal");
 const engineRoot = resolve(internalRoot, "engine");
 const projectionsRoot = resolve(internalRoot, "projections");
-const applicationRoot = resolve(internalRoot, "application");
-for (const directory of [engineRoot, projectionsRoot, applicationRoot]) {
+const applicationRoot = resolve(coreRoot, "application");
+const storageRoot = resolve(coreRoot, "storage");
+const storageCoreRoot = resolve(storageRoot, "core");
+const storageAdaptersRoot = resolve(storageRoot, "adapters");
+for (const directory of [engineRoot, projectionsRoot, applicationRoot, storageCoreRoot, storageAdaptersRoot]) {
   if (!existsSync(directory)) throw new Error(`Story Project 缺少内部层：${relative(coreRoot, directory)}`);
 }
 const sourceText = (directory) =>
@@ -86,6 +91,8 @@ const sourceText = (directory) =>
 const engineSource = sourceText(engineRoot);
 const projectionsSource = sourceText(projectionsRoot);
 const applicationSource = sourceText(applicationRoot);
+const storageCoreSource = sourceText(storageCoreRoot);
+const storageAdaptersSource = sourceText(storageAdaptersRoot);
 const forbiddenImports = (directory, forbidden) =>
   tsFiles(directory).flatMap((path) => {
     const source = readFileSync(path, "utf8");
@@ -107,7 +114,7 @@ const invalidProjectionImports = forbiddenImports(projectionsRoot, [
 ]);
 if (invalidEngineImports.length || invalidProjectionImports.length) {
   throw new Error(
-    `Story Project 内部依赖必须保持 application -> projections -> engine：\n${[
+    `Story Project internal 必须保持纯净且只能由 projections -> engine：\n${[
       ...invalidEngineImports,
       ...invalidProjectionImports,
     ]
@@ -115,39 +122,55 @@ if (invalidEngineImports.length || invalidProjectionImports.length) {
       .join("\n")}`,
   );
 }
-const storeContract = readFileSync(resolve(coreRoot, "storage/index.ts"), "utf8");
-const fileStore = readFileSync(resolve(coreRoot, "storage/file.ts"), "utf8");
-const memoryStore = readFileSync(resolve(coreRoot, "storage/memory.ts"), "utf8");
+const storageContract = readFileSync(resolve(storageRoot, "index.ts"), "utf8");
+const backendContract = readFileSync(resolve(storageCoreRoot, "backend.ts"), "utf8");
+const projectStorage = readFileSync(resolve(storageCoreRoot, "project-storage.ts"), "utf8");
+const fileStorage = readFileSync(resolve(storageAdaptersRoot, "file.ts"), "utf8");
+const memoryStorage = readFileSync(resolve(storageAdaptersRoot, "memory.ts"), "utf8");
 if (
-  !applicationSource.includes('PROJECT_CONFIG_PATH = "story/.novel-claw/project.json"') ||
   applicationSource.includes("writeAtomic(") ||
   applicationSource.includes("JSON.parse(") ||
+  applicationSource.includes("PROJECT_CONFIG_PATH") ||
+  applicationSource.includes("StoryProjectRecord") ||
   applicationSource.includes("profile.json") ||
   applicationSource.includes("project.lock.json") ||
-  engineSource.includes("StoryProjectStore") ||
-  projectionsSource.includes("StoryProjectStore")
+  engineSource.includes("StoryProjectStorage") ||
+  projectionsSource.includes("StoryProjectStorage") ||
+  engineSource.includes("StoryProjectRecord") ||
+  projectionsSource.includes("StoryProjectRecord")
 ) {
-  throw new Error("Story Application 必须只消费结构化 Store，Engine/Projections 不得依赖存储。");
+  throw new Error("Story Application 只能消费领域级 Storage，internal 不得依赖任何存储协议。");
 }
 if (
-  !storeContract.includes("interface StoryProjectStore") ||
-  !storeContract.includes("list(projectKey") ||
-  !storeContract.includes("read(projectKey") ||
-  !storeContract.includes("commit(projectKey") ||
-  !storeContract.includes("StoryProjectRevisionCondition") ||
-  storeContract.includes('from "./file.js"') ||
-  !fileStore.includes("createStoryFileStore") ||
-  !memoryStore.includes("createMemoryStoryProjectStore")
+  !storageContract.includes("interface StoryProjectStorage") ||
+  !storageContract.includes("normalizeDocumentPath(path") ||
+  !storageContract.includes("loadDefinition(projectKey") ||
+  !storageContract.includes("loadProject(projectKey") ||
+  !storageContract.includes("initializeProject(") ||
+  !storageContract.includes("persistAppliedProject(") ||
+  storageContract.includes("list(projectKey") ||
+  storageContract.includes("read(projectKey") ||
+  storageContract.includes("commit(projectKey") ||
+  !backendContract.includes("interface StoryProjectRecordBackend") ||
+  !backendContract.includes("list(projectKey") ||
+  !backendContract.includes("read(projectKey") ||
+  !backendContract.includes("commit(projectKey") ||
+  !projectStorage.includes('PROJECT_CONFIG_PATH = "story/.novel-claw/project.json"') ||
+  !projectStorage.includes("createStoryProjectStorage") ||
+  projectStorage.includes("writeAtomic(") ||
+  projectStorage.includes("JSON.parse(") ||
+  !fileStorage.includes("createStoryFileStorage") ||
+  !fileStorage.includes("writeAtomic(") ||
+  !memoryStorage.includes("createMemoryStoryProjectStorage") ||
+  !storageCoreSource.includes("StoryProjectRecordBackend") ||
+  !storageAdaptersSource.includes("createStoryProjectStorage")
 ) {
-  throw new Error("Story Project 必须分离稳定 Store 协议与文件、内存等具体持久化实现。");
+  throw new Error("Story Storage 必须分离领域契约、共享 Core、低层 Backend 与具体 Adapters。");
 }
 
 const protocol = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/protocol.ts"), "utf8");
 const service = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/tool/service.ts"), "utf8");
-const repository = readFileSync(
-  resolve(root, "agent-runtime/src/engines/builtins/story/tool/node-repository.ts"),
-  "utf8",
-);
+const repository = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/tool/repository.ts"), "utf8");
 if (
   protocol.includes("core/story-project") ||
   protocol.includes("StoryProjectApi") ||
@@ -161,8 +184,9 @@ if (
   !service.includes("repository.project.describe") ||
   service.includes("StoryProjectApi") ||
   !repository.includes('from "../../../../../../core/story-project/index.js"') ||
-  !repository.includes('from "../../../../../../core/story-project/storage/file.js"') ||
-  !repository.includes("createStoryFileStore") ||
+  !repository.includes('from "../../../../../../core/story-project/storage/adapters/file.js"') ||
+  !repository.includes("interface StoryToolRepository") ||
+  !repository.includes("createStoryFileStorage") ||
   !repository.includes("withWorkspaceWriteLock") ||
   repository.includes("core/story-project/internal")
 ) {

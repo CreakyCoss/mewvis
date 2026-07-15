@@ -9,38 +9,27 @@ const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-story-core-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
 const publicEntry = resolve(root, "core/story-project/index.ts");
-const publicStore = resolve(root, "core/story-project/storage/index.ts");
-const memoryStoreEntry = resolve(root, "core/story-project/storage/memory.ts");
+const publicStorage = resolve(root, "core/story-project/storage/index.ts");
+const memoryStorageEntry = resolve(root, "core/story-project/storage/adapters/memory.ts");
 
 writeFileSync(
   entryPath,
   `
   import { createStoryProjectApi } from ${JSON.stringify(publicEntry)};
   import {
-    type StoryProjectStore,
-  } from ${JSON.stringify(publicStore)};
-  import { createMemoryStoryProjectStore } from ${JSON.stringify(memoryStoreEntry)};
+    type StoryProjectStorage,
+  } from ${JSON.stringify(publicStorage)};
+  import { createMemoryStoryProjectStorage } from ${JSON.stringify(memoryStorageEntry)};
 
   const assert = (condition: unknown, message: string, details?: unknown) => {
     if (!condition) throw new Error(message + (details === undefined ? "" : "\\n" + JSON.stringify(details, null, 2)));
   };
-  const revisions: Array<number | null> = [];
-  const memoryStore = createMemoryStoryProjectStore();
-  const store: StoryProjectStore = {
-    list: (projectKey) => memoryStore.list(projectKey),
-    read: (projectKey, key) => memoryStore.read(projectKey, key),
-    commit: async (projectKey, transaction) => {
-      revisions.push(transaction.revision.expected);
-      await memoryStore.commit(projectKey, transaction);
-    },
-  };
+  const storage: StoryProjectStorage = createMemoryStoryProjectStorage();
+  assert(!("list" in storage) && !("read" in storage) && !("commit" in storage), "领域 Storage 不得暴露低层记录操作。", storage);
 
-  const projects = createStoryProjectApi(store);
+  const projects = createStoryProjectApi(storage);
   assert(projects.listStoryTypes().map((item) => item.id).join(",") === "long-novel,short-novel", "应提供长篇与短篇故事类型。", projects.listStoryTypes());
   const project = await projects.create("/memory/long", { storyTypeId: "long-novel", storyId: "story-1", title: "雾港档案" });
-  assert(revisions[0] === null, "初始化应要求 Manifest 尚不存在。", revisions);
-  const storedBook = await store.read("/memory/long", "story/book.json");
-  assert(storedBook.contentType === "json", "Store 应接收结构化 JSON，而不是序列化文本。", storedBook);
   const description = await project.describe({ documentKinds: ["story-book", "story-character"] });
   assert(description.storyType.id === "long-novel" && description.storyType.version === 1, "公开描述应返回故事类型身份。", description.storyType);
   assert(description.roles.chapterContent === "story-chapter-content", "语义角色应由故事类型提供。", description.roles);
@@ -65,7 +54,6 @@ writeFileSync(
     operations: [{ type: "patch", path: "story/book.json", value: { premise: "港口迷雾中的调查。" } }],
   });
   assert(result.committed && result.revision === 1, "合法 ChangeSet 应原子提交。", result);
-  assert(revisions.at(-1) === 0, "增量提交应携带旧 revision 条件。", revisions);
   assert((await project.readContext({ scope: "project" })).text.includes("港口迷雾中的调查"), "召回文本应使用字段 label 和最新数据。" );
 
   const short = await projects.create("/memory/short", { storyTypeId: "short-novel", storyId: "story-2", title: "雾港一夜" });

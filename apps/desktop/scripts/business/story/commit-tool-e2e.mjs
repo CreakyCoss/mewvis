@@ -10,7 +10,7 @@ const workspace = join(tempDir, "workspace");
 const entryPath = join(tempDir, "runner.ts");
 const bundlePath = join(tempDir, "runner.mjs");
 const definitionPath = resolve(root, "agent-runtime/src/engines/builtins/story/tool/definition.ts");
-const repositoryPath = resolve(root, "agent-runtime/src/engines/builtins/story/tool/node-repository.ts");
+const repositoryPath = resolve(root, "agent-runtime/src/engines/builtins/story/tool/repository.ts");
 
 writeFileSync(
   entryPath,
