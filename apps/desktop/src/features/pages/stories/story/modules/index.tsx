@@ -1,16 +1,5 @@
 import { useEffect, useMemo, useState, type ComponentType } from "react";
-import {
-  BookOpenText,
-  Boxes,
-  FileJson2,
-  FileText,
-  GitBranch,
-  Globe2,
-  ListTree,
-  Plus,
-  Search,
-  UsersRound,
-} from "lucide-react";
+import { BookOpenText, FileJson2, FileText, GitBranch, Globe2, ListTree, Plus, Search, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -52,12 +41,6 @@ const groupHints = [
     icon: GitBranch,
     keywords: ["tracking", "foreshadow", "continuity", "progress", "伏笔", "连续", "进度"],
   },
-  {
-    id: "interactive",
-    label: "互动叙事",
-    icon: Boxes,
-    keywords: ["interactive", "graph", "scene", "互动", "剧情图", "场景"],
-  },
 ] as const;
 
 const documentSearchText = (document: StoryDocument) => {
@@ -94,7 +77,7 @@ const buildDocumentGroups = (documents: StoryDocument[], query: string): Documen
     current.documents.push(document);
     groups.set(group.id, current);
   }
-  const order = ["work", "people", "world", "outline", "continuity", "interactive"];
+  const order = ["work", "people", "world", "outline", "continuity"];
   return [...groups.values()].sort((left, right) => order.indexOf(left.id) - order.indexOf(right.id));
 };
 

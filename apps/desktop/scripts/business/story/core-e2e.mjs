@@ -37,13 +37,14 @@ writeFileSync(
   assert(projects.listStoryTypes().map((item) => item.id).join(",") === "long-novel,short-novel", "应提供长篇与短篇故事类型。", projects.listStoryTypes());
   const project = await projects.create("/memory/long", { storyTypeId: "long-novel", storyId: "story-1", title: "雾港档案" });
   const description = await project.describe({ documentKinds: ["story-book", "story-character"] });
-  assert(description.storyType.id === "long-novel" && description.storyType.version === 2, "公开描述应返回故事类型身份。", description.storyType);
+  assert(description.storyType.id === "long-novel" && description.storyType.version === 3, "公开描述应返回故事类型身份。", description.storyType);
   assert(description.roles.chapterContent === "story-chapter-content", "语义角色应由故事类型提供。", description.roles);
   assert(description.documents["story-chapter-content"]?.contentType === "markdown", "章节正文应声明 Markdown。", description.documents);
   assert(description.schemas.documents["story-book"]?.fields.title?.label === "书名", "按需 Schema 应提供可读字段信息。", description.schemas);
   assert(!("compiler" in description) && !("profile" in description), "公开边界不得泄露旧 Compiler/Profile。", description);
 
   const documents = await project.listDocuments();
+  assert(!documents.some((item) => item.path.startsWith("story/interactive/")), "新项目不应初始化旧互动剧情文件。", documents);
   const book = documents.find((item) => item.path === "story/book.json");
   assert(book?.value && typeof book.value === "object" && !Array.isArray(book.value), "应初始化作品核心。", book);
   const bookValue = book?.value as Record<string, unknown>;

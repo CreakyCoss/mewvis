@@ -453,12 +453,11 @@ export const ASSISTANT_DOCUMENTS = defineDocumentModels([
           "story-volume",
           "story-chapter-plan",
           "story-chapter",
-          "story-scene",
           "story-analysis",
           "story-review",
           "story-import",
         ],
-        targetObjectDefinitions: ["relationship", "foreshadow", "timeline-entry", "graph-node"],
+        targetObjectDefinitions: ["relationship", "foreshadow", "timeline-entry"],
         default: [],
       }),
       field.stringList("warnings", "警告与缺口", {

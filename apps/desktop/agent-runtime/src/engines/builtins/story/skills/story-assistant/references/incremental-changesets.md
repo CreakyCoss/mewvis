@@ -16,7 +16,7 @@
 
 - `upsert`：只用于创建新文件，或用户明确要求完整替换单个文件。JSON value 是符合当前故事类型的普通业务对象；`chapterContent` 角色文档为 Markdown 时，value 直接使用正文字符串。工具补齐 JSON 的 const、generated、default，校验路径与章节 ID，并执行引用和完整度校验。不得自行提交字段 label/描述，也不得提交未声明字段。
 - `patch`：深合并已有文件的少数字段；未出现字段保持原值，`null` 表示删除可选字段。禁止修改 `schemaVersion/kind/id/storyId/revision/files`。
-- `upsert-items`：更新已有文件中的顶层对象数组，按条目 `id` 合并；适合 review.findings、analysis.plotModules、relationships.relationships、foreshadows.foreshadows、timeline.entries、graph.nodes/edges 等带 id 数组。
+- `upsert-items`：更新已有文件中的顶层对象数组，按条目 `id` 合并；适合 review.findings、analysis.plotModules、relationships.relationships、foreshadows.foreshadows、timeline.entries 等带 id 数组。
 - `remove-items`：从顶层对象数组按 ids 删除。
 - `add-values` / `remove-values`：增删顶层字符串数组并自动去重；适合 volumeIds、chapterIds、notes、gaps 等。对象数组不能使用这两个操作。
 - `append-text`：向已有顶层字符串字段末尾追加新内容，可传 separator；续写章节时使用 `chapterContent` 角色文档的实际路径，且 field 使用 `content`。

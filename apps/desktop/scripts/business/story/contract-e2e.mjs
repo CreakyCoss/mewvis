@@ -45,8 +45,6 @@ const expectedPaths = {
   "story-foreshadows": "story/tracking/foreshadows.json",
   "story-timeline": "story/tracking/timeline/{id}.json",
   "story-progress": "story/tracking/progress.json",
-  "story-scene": "story/interactive/scenes/{id}.json",
-  "story-graph": "story/interactive/graph.json",
   "story-analysis": "story/analysis/{id}.json",
   "story-review": "story/reviews/{id}.json",
   "story-import": "story/imports/{id}.json",
@@ -55,7 +53,7 @@ const expectedPaths = {
 assert.equal(storyType.$format, "novel-claw.story-project");
 assert.equal(storyType.formatVersion, 1);
 assert.equal(storyType.id, "long-novel");
-assert.equal(storyType.version, 2);
+assert.equal(storyType.version, 3);
 assert.equal(storyType.rootPath, "story");
 assert.deepEqual(
   Object.fromEntries(storyType.documents.map((document) => [document.kind, document.pathPattern])),
@@ -69,6 +67,14 @@ assert.ok(primaryDocument);
 assert.ok(
   !primaryDocument.fields.some((field) => field.key === "playerName" || field.key === "mode"),
   "作品核心不应声明玩家称呼或故事模式",
+);
+assert.ok(
+  !storyType.documents.some((document) => document.kind === "story-scene" || document.kind === "story-graph"),
+  "小说故事类型不应包含旧互动剧情文档",
+);
+assert.ok(
+  !storyType.objects.some((object) => ["graph-node", "graph-edge", "scene-status"].includes(object.id)),
+  "小说故事类型不应包含旧互动剧情对象",
 );
 for (const [role, kind] of Object.entries(storyType.roles)) {
   assert.ok(
