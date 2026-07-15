@@ -11,6 +11,7 @@ const entryPath = join(tempDir, "runner.ts");
 const bundlePath = join(tempDir, "runner.mjs");
 const definitionPath = resolve(root, "agent-runtime/src/engines/builtins/story/tool/definition.ts");
 const repositoryPath = resolve(root, "agent-runtime/src/engines/builtins/story/tool/repository.ts");
+const piSchemaPath = resolve(root, "agent-runtime/src/engines/drivers/native/agent/runtimes/pi/tools/schema.ts");
 
 writeFileSync(
   entryPath,
@@ -18,6 +19,7 @@ writeFileSync(
   import { mkdir, readFile, writeFile } from "node:fs/promises";
   import { STORY_TOOL, createStoryToolPackage } from ${JSON.stringify(definitionPath)};
   import { createNodeStoryToolRepository } from ${JSON.stringify(repositoryPath)};
+  import { toPiToolParameters } from ${JSON.stringify(piSchemaPath)};
 
   const assert = (condition: unknown, message: string, details?: unknown) => {
     if (!condition) throw new Error(message + (details === undefined ? "" : "\\n" + JSON.stringify(details, null, 2)));
@@ -29,6 +31,12 @@ writeFileSync(
   assert(STORY_TOOL.contract.version === 1, "Story Tool Contract 版本不应变化。");
   assert(STORY_TOOL.parameters.properties.changeSet.properties.storyTypeVersion.type === "integer", "工具参数应公开 storyTypeVersion。", STORY_TOOL.parameters);
   assert(!("profileVersion" in STORY_TOOL.parameters.properties.changeSet.properties), "工具参数不得再泄露 Profile。", STORY_TOOL.parameters);
+  const operationParameters = STORY_TOOL.parameters.properties.changeSet.properties.operations.items;
+  assert(operationParameters.type === "object", "operation 模型参数必须使用扁平对象，避免 array.items.anyOf 兼容问题。", operationParameters);
+  assert(operationParameters.properties.type.type === "string" && operationParameters.properties.path.type === "string", "扁平 operation 必须要求 type/path。", operationParameters);
+  assert(operationParameters.properties.value.optional && operationParameters.properties.items.optional, "不同 operation 的专属字段应保持可选，由 Story Project 严格校验。", operationParameters);
+  const piOperationParameters = toPiToolParameters(STORY_TOOL.parameters).properties.changeSet.properties.operations.items;
+  assert(!("anyOf" in piOperationParameters), "发送给模型的 operation schema 不得重新生成 anyOf。", piOperationParameters);
 
   const described = await tool.api.describeStructure();
   assert(described.structure.storyType.id === "long-novel", "空工作区 describe 应使用技能兜底故事类型。", described);
@@ -46,6 +54,17 @@ writeFileSync(
   const detailed = await tool.api.describeStructure({ documentKinds: ["story-book", "story-relationships"] });
   assert(detailed.structure.schemas.documents["story-book"].fields.title.label === "书名", "按需 describe 应返回字段 label。", detailed);
   const context = await tool.api.readContext({ scope: "project" });
+  const malformed = await tool.api.validateChanges({
+    changeSet: {
+      storyTypeId: detailed.structure.storyType.id,
+      storyTypeVersion: detailed.structure.storyType.version,
+      storyId: "story-tool",
+      baseRevision: context.revision,
+      validationMode: "draft",
+      operations: [{ type: "patch", path: "story/book.json" }],
+    },
+  });
+  assert(!malformed.valid, "模型 schema 扁平化后，Story Project 仍必须拒绝缺少 operation 专属字段的变更。", malformed);
   const committed = await tool.api.commitChanges({
     changeSet: {
       storyTypeId: detailed.structure.storyType.id,

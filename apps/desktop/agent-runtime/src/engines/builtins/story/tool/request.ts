@@ -88,74 +88,38 @@ export const normalizeStoryChangeSet = (input: unknown): unknown => {
   return changeSet;
 };
 
-const literalParam = (value: string) => ({ type: "literal", value }) as const;
 const optionalString = (description: string) => ({ type: "string", description, optional: true }) as const;
+const optionalJson = (description: string) => ({ type: "json", description, optional: true }) as const;
 const stringParam = (description: string) => ({ type: "string", description }) as const;
-const jsonParam = (description: string) => ({ type: "json", description }) as const;
-const stringArray = (description: string) =>
+const optionalStringArray = (description: string) =>
   ({
     type: "array",
     description,
     items: { type: "string", description: "字符串值" },
-  }) as const;
-
-const operationParameters = (
-  type: string,
-  description: string,
-  properties: Record<string, ToolParameterDefinition> = {},
-) =>
-  ({
-    type: "object",
-    description,
-    properties: {
-      type: literalParam(type),
-      path: stringParam("当前故事类型允许的故事文件路径"),
-      ...properties,
-    },
+    optional: true,
   }) as const;
 
 const STORY_CHANGE_SET_OPERATION_PARAMETERS = {
-  type: "union",
-  description: "单个原子变更；按 type 使用对应的必填字段",
-  anyOf: [
-    operationParameters("upsert", "创建新文件或完整替换单个文件", {
-      value: jsonParam("符合当前文档 schema 的 JSON 对象，或 Markdown 正文字符串"),
-    }),
-    operationParameters("delete", "删除非 manifest 文件"),
-    operationParameters("patch", "深合并已有 JSON 文件的少数字段", {
-      value: jsonParam("只包含需修改字段的 JSON 对象"),
-    }),
-    operationParameters("upsert-items", "按稳定 id 合并顶层对象数组", {
-      field: stringParam("顶层对象数组字段名"),
-      items: {
-        type: "array",
-        description: "要新增或更新的对象数组，每项必须包含稳定 id",
-        items: { type: "json", description: "带稳定 id 的普通 JSON 对象" },
-      },
-    }),
-    operationParameters("remove-items", "按稳定 id 删除顶层对象数组条目", {
-      field: stringParam("顶层对象数组字段名"),
-      ids: stringArray("要删除的对象 ID 数组"),
-    }),
-    operationParameters("add-values", "向顶层字符串数组追加并去重", {
-      field: stringParam("顶层字符串数组字段名"),
-      values: stringArray("要追加的字符串数组"),
-    }),
-    operationParameters("remove-values", "从顶层字符串数组移除值", {
-      field: stringParam("顶层字符串数组字段名"),
-      values: stringArray("要移除的字符串数组"),
-    }),
-    operationParameters("append-text", "向已有文本字段末尾追加内容", {
-      field: stringParam("顶层文本字段名；Markdown 正文使用 content"),
-      value: stringParam("要追加的文本"),
-      separator: optionalString("可选分隔符"),
-    }),
-    operationParameters("replace-text", "用唯一原文锚点替换局部文本", {
-      field: stringParam("顶层文本字段名；Markdown 正文使用 content"),
-      oldText: stringParam("必须只出现一次的原文锚点"),
-      newText: stringParam("替换后的文本，可为空字符串"),
-    }),
-  ],
+  type: "object",
+  description:
+    "单个原子变更。type 可选 upsert、delete、patch、upsert-items、remove-items、add-values、remove-values、append-text、replace-text；不同 type 的必填字段由 Story Project 严格校验",
+  properties: {
+    type: stringParam("原子操作类型"),
+    path: stringParam("当前故事类型允许的故事文件路径"),
+    value: optionalJson("upsert/patch 的 JSON 值，或 append-text/replace-text 使用的文本值"),
+    field: optionalString("数组或文本操作使用的顶层字段名；Markdown 正文使用 content"),
+    items: {
+      type: "array",
+      description: "upsert-items 要新增或更新的对象数组，每项必须包含稳定 id",
+      items: { type: "json", description: "带稳定 id 的普通 JSON 对象" },
+      optional: true,
+    },
+    ids: optionalStringArray("remove-items 要删除的对象 ID 数组"),
+    values: optionalStringArray("add-values/remove-values 使用的字符串数组"),
+    separator: optionalString("append-text 使用的可选分隔符"),
+    oldText: optionalString("replace-text 使用且必须只出现一次的原文锚点"),
+    newText: optionalString("replace-text 的替换文本，可为空字符串"),
+  },
 } as const satisfies ToolParameterDefinition;
 
 /** Driver-neutral model schema. Business document fields remain story-type-driven. */
