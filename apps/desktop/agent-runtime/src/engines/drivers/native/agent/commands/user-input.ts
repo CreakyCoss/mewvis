@@ -1,12 +1,20 @@
 import { randomUUID } from "node:crypto";
 import { AgentEventType, type AnswerQuestionCommand } from "../../../../protocol/index.js";
-import type { AgentRuntimeCallbacks, EmitAgentEvent, UserInputHandler } from "../runtimes/types.js";
+import type { AgentRuntimeCallbacks, EmitAgentEvent, UserInputHandler, UserInputRequest } from "../runtimes/types.js";
 
 const ASK_USER_TIMEOUT_MS = 10 * 60 * 1000;
 
 type PendingQuestion = {
+  taskId: string;
   resolve: (answer: string) => void;
+  reject: (error: Error) => void;
   timeout: ReturnType<typeof setTimeout>;
+};
+
+type QueuedQuestion = UserInputRequest & {
+  questionId: string;
+  resolve: (answer: string) => void;
+  reject: (error: Error) => void;
 };
 
 export type UserInputManager = {
@@ -16,39 +24,76 @@ export type UserInputManager = {
 
 export const createUserInputManager = (emit: EmitAgentEvent): UserInputManager => {
   const pendingQuestions = new Map<string, PendingQuestion>();
+  const activeQuestionIds = new Map<string, string>();
+  const queuedQuestions = new Map<string, QueuedQuestion[]>();
 
-  const requestUserInput: UserInputHandler = ({ taskId, question, context, input }) => {
-    const questionId = randomUUID();
+  const emitNextQuestion = (taskId: string) => {
+    if (activeQuestionIds.has(taskId)) {
+      return;
+    }
+
+    const queue = queuedQuestions.get(taskId);
+    if (!queue) {
+      return;
+    }
+
+    const nextQuestion = queue.shift();
+    if (!nextQuestion) {
+      queuedQuestions.delete(taskId);
+      return;
+    }
+    if (queue.length === 0) {
+      queuedQuestions.delete(taskId);
+    }
+
+    const timeout = setTimeout(() => {
+      pendingQuestions.delete(nextQuestion.questionId);
+      activeQuestionIds.delete(taskId);
+      nextQuestion.reject(new Error(`等待用户回答超时：${nextQuestion.questionId}`));
+      emitNextQuestion(taskId);
+    }, ASK_USER_TIMEOUT_MS);
+
+    activeQuestionIds.set(taskId, nextQuestion.questionId);
+    pendingQuestions.set(nextQuestion.questionId, {
+      taskId,
+      resolve: nextQuestion.resolve,
+      reject: nextQuestion.reject,
+      timeout,
+    });
 
     emit({
       type: AgentEventType.Question,
       taskId,
-      questionId,
-      question,
-      context: context ?? null,
-      input,
+      questionId: nextQuestion.questionId,
+      question: nextQuestion.question,
+      context: nextQuestion.context ?? null,
+      input: nextQuestion.input,
     });
+  };
 
+  const requestUserInput: UserInputHandler = (request) => {
     return new Promise<string>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        pendingQuestions.delete(questionId);
-        reject(new Error(`等待用户回答超时：${questionId}`));
-      }, ASK_USER_TIMEOUT_MS);
-
-      pendingQuestions.set(questionId, {
+      const question: QueuedQuestion = {
+        ...request,
+        questionId: randomUUID(),
         resolve,
-        timeout,
-      });
+        reject,
+      };
+      const queue = queuedQuestions.get(request.taskId) ?? [];
+      queue.push(question);
+      queuedQuestions.set(request.taskId, queue);
+      emitNextQuestion(request.taskId);
     });
   };
 
   const handleAnswer = (command: AnswerQuestionCommand) => {
     const pendingQuestion = pendingQuestions.get(command.questionId);
-    if (!pendingQuestion) {
+    if (!pendingQuestion || pendingQuestion.taskId !== command.taskId) {
       return;
     }
 
     pendingQuestions.delete(command.questionId);
+    activeQuestionIds.delete(command.taskId);
     clearTimeout(pendingQuestion.timeout);
     emit({
       type: AgentEventType.QuestionAnswered,
@@ -57,6 +102,7 @@ export const createUserInputManager = (emit: EmitAgentEvent): UserInputManager =
       answer: command.answer,
     });
     pendingQuestion.resolve(command.answer);
+    emitNextQuestion(command.taskId);
   };
 
   return {
