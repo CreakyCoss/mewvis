@@ -204,25 +204,3 @@ export type StoryChangeResult = Readonly<{
   issues: StoryValidationIssue[];
   hint: string | null;
 }>;
-
-export type StoryStorageEntry = Readonly<{
-  path: string;
-  isDirectory: boolean;
-  updatedAt: number | null;
-}>;
-
-export type StoryStoredFile = Readonly<{
-  path: string;
-  content: string;
-  updatedAt: number | null;
-}>;
-
-export interface StoryStorage {
-  list(workspacePath: string): Promise<readonly StoryStorageEntry[]>;
-  read(workspacePath: string, path: string): Promise<StoryStoredFile>;
-  writeAtomic(
-    workspacePath: string,
-    writes: readonly Readonly<{ path: string; content: string }>[],
-    deletes?: readonly string[],
-  ): Promise<void>;
-}

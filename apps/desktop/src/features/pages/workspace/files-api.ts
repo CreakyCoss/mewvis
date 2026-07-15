@@ -14,6 +14,11 @@ export type WorkspaceFile = {
   updatedAt: number | null;
 };
 
+export type WorkspaceFileRevisionCondition = {
+  relativePath: string;
+  expectedRevision: number | null;
+};
+
 export type WorkspaceVersionFileStatusKind =
   "added" | "modified" | "deleted" | "renamed" | "typechange" | "conflicted" | "untracked";
 
@@ -122,13 +127,14 @@ export async function writeWorkspaceFilesAtomic(
   workspacePath: string,
   files: Array<{ relativePath: string; content: string }>,
   deletePaths: string[] = [],
+  revisionCondition?: WorkspaceFileRevisionCondition,
 ) {
   if (!isTauri()) {
     throw new Error("Web 预览模式暂不支持批量保存工作区文件");
   }
 
   return invoke<{ writtenPaths: string[]; deletedPaths: string[] }>("write_workspace_files_atomic", {
-    input: { workspacePath, files, deletePaths },
+    input: { workspacePath, files, deletePaths, revisionCondition },
   });
 }
 

@@ -47,6 +47,8 @@ for (const removed of [
   "story-types/long-novel/layout.ts",
   "story-types/long-novel/profile",
   "story-types/long-novel/schema",
+  "store.ts",
+  "file-store.ts",
 ]) {
   if (existsSync(resolve(coreRoot, removed))) throw new Error(`旧 Story Project 边界仍存在：${removed}`);
 }
@@ -56,8 +58,8 @@ if (
   !publicIndex.includes("createStoryProjectApi") ||
   !publicIndex.includes("StoryProjectApi") ||
   !publicIndex.includes("listStoryTypes()") ||
-  !publicIndex.includes("workspace(workspacePath") ||
-  !publicIndex.includes("open(workspacePath") ||
+  !publicIndex.includes("workspace(projectKey") ||
+  !publicIndex.includes("open(projectKey") ||
   !publicIndex.includes("commitChanges(changeSet") ||
   publicIndex.includes("StoryProjects") ||
   publicIndex.includes("export type {") ||
@@ -67,12 +69,29 @@ if (
   throw new Error("Story Project 公共入口应只暴露明确的 API 工厂和公共类型，不得混入文档辅助层。");
 }
 const runtime = readFileSync(resolve(coreRoot, "internal/runtime.ts"), "utf8");
+const storeContract = readFileSync(resolve(coreRoot, "storage/index.ts"), "utf8");
+const fileStore = readFileSync(resolve(coreRoot, "storage/file.ts"), "utf8");
+const memoryStore = readFileSync(resolve(coreRoot, "storage/memory.ts"), "utf8");
 if (
   !runtime.includes('PROJECT_CONFIG_PATH = "story/.novel-claw/project.json"') ||
+  runtime.includes("writeAtomic(") ||
+  runtime.includes("JSON.parse(") ||
   runtime.includes("profile.json") ||
   runtime.includes("project.lock.json")
 ) {
-  throw new Error("工作区应只保存一份完整故事类型定义，不得恢复 Profile/Layout/Lock 三文件协议。");
+  throw new Error("Story Runtime 必须只消费结构化 Store，不得处理物理文件编码或旧工作区协议。");
+}
+if (
+  !storeContract.includes("interface StoryProjectStore") ||
+  !storeContract.includes("list(projectKey") ||
+  !storeContract.includes("read(projectKey") ||
+  !storeContract.includes("commit(projectKey") ||
+  !storeContract.includes("StoryProjectRevisionCondition") ||
+  storeContract.includes('from "./file.js"') ||
+  !fileStore.includes("createStoryFileStore") ||
+  !memoryStore.includes("createMemoryStoryProjectStore")
+) {
+  throw new Error("Story Project 必须分离稳定 Store 协议与文件、内存等具体持久化实现。");
 }
 
 const protocol = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/protocol.ts"), "utf8");
@@ -94,6 +113,9 @@ if (
   !service.includes("repository.project.describe") ||
   service.includes("StoryProjectApi") ||
   !repository.includes('from "../../../../../../core/story-project/index.js"') ||
+  !repository.includes('from "../../../../../../core/story-project/storage/file.js"') ||
+  !repository.includes("createStoryFileStore") ||
+  !repository.includes("withWorkspaceWriteLock") ||
   repository.includes("core/story-project/internal")
 ) {
   throw new Error("Story Tool 应仅通过公共 StoryWorkspace 绑定 Node 存储适配器。");

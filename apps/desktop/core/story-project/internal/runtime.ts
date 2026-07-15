@@ -18,9 +18,15 @@ import type {
   StoryDocumentDefinition,
   StoryInitialization,
   StoryOverview,
-  StoryStorage,
+  StoryValue,
   StoryValidationIssue,
 } from "../types.js";
+import {
+  StoryProjectRevisionConflictError,
+  type StoryProjectRecord,
+  type StoryProjectRecordWrite,
+  type StoryProjectStore,
+} from "../storage/index.js";
 import type { StoryProjectApi, StoryWorkspace } from "../index.js";
 import { applyChangeSet } from "./changes.js";
 import { readStoryProjectContext } from "./context.js";
@@ -47,18 +53,6 @@ const canonicalPath = (value: string) =>
     .replace(/\\/g, "/")
     .replace(/^\/+|\/+$/g, "");
 
-const serializedContent = (value: Record<string, unknown> | string) =>
-  typeof value === "string" ? `${value.replace(/\s+$/, "")}\n` : `${JSON.stringify(value, null, 2)}\n`;
-
-const parseStoredContent = (path: string, content: string) => {
-  if (path.endsWith(".md")) return content;
-  try {
-    return JSON.parse(content) as unknown;
-  } catch {
-    throw new Error(`故事 JSON 无法解析：${path}`);
-  }
-};
-
 const zodPath = (owner: string, path: PropertyKey[]) =>
   path.reduce<string>(
     (result, segment) =>
@@ -68,6 +62,9 @@ const zodPath = (owner: string, path: PropertyKey[]) =>
 
 const errorIssues = (error: unknown, owner = "changeSet", code = "changeset.invalid"): StoryValidationIssue[] => {
   if (error instanceof StoryProjectValidationError) return [...error.issues];
+  if (error instanceof StoryProjectRevisionConflictError) {
+    return [{ severity: "error", code: "store.revision_conflict", path: error.key, message: error.message }];
+  }
   if (error instanceof ZodError) {
     return error.issues.map((issue) => ({
       severity: "error",
@@ -86,14 +83,14 @@ const errorIssues = (error: unknown, owner = "changeSet", code = "changeset.inva
   ];
 };
 
-const ordinaryStoryPaths = (paths: readonly string[]) =>
-  paths.filter(
-    (path) =>
-      path.startsWith(STORY_ROOT) &&
-      !path.startsWith("story/.novel-claw/") &&
-      !path.startsWith("story/runtime/") &&
-      path !== "story/tavern.json" &&
-      (path.endsWith(".json") || path.endsWith(".md")),
+const ordinaryStoryKeys = (keys: readonly string[]) =>
+  keys.filter(
+    (key) =>
+      key.startsWith(STORY_ROOT) &&
+      !key.startsWith("story/.novel-claw/") &&
+      !key.startsWith("story/runtime/") &&
+      key !== "story/tavern.json" &&
+      (key.endsWith(".json") || key.endsWith(".md")),
   );
 
 const normalizeDocumentPath = (input: string) => {
@@ -110,15 +107,29 @@ const normalizeDocumentPath = (input: string) => {
   return rooted;
 };
 
-const definitionText = (definition: StoryTypeDefinition) => `${JSON.stringify(definition, null, 2)}\n`;
-
-const readDefinition = async (storage: StoryStorage, workspacePath: string) => {
-  const file = await storage.read(workspacePath, PROJECT_CONFIG_PATH);
+const readDefinition = async (store: StoryProjectStore, projectKey: string) => {
+  const record = await store.read(projectKey, PROJECT_CONFIG_PATH);
   try {
-    return parseStoryTypeDefinition(JSON.parse(file.content) as unknown);
+    if (record.contentType !== "json") throw new Error("故事项目定义必须是 JSON 记录。");
+    return parseStoryTypeDefinition(record.value);
   } catch (error) {
     throw new Error(`故事项目定义无效：${error instanceof Error ? error.message : String(error)}`);
   }
+};
+
+const storedDocument = (definition: StoryTypeDefinition, path: string, value: unknown): StoryProjectRecordWrite => {
+  const serialized = serializeStoryDocument(definition, value, path);
+  return typeof serialized === "string"
+    ? { key: path, contentType: "markdown", value: serialized }
+    : { key: path, contentType: "json", value: serialized as StoryValue };
+};
+
+const storedDocumentValue = (definition: StoryTypeDefinition, path: string, record: StoryProjectRecord) => {
+  const expected = storyTypeDocument(definition, storyTypeKindForPath(definition, path)).contentType;
+  if (record.contentType !== expected) {
+    throw new Error(`故事记录类型不一致：${path} 期望 ${expected}，实际为 ${record.contentType}。`);
+  }
+  return record.value;
 };
 
 const editorDefinition = (definition: StoryTypeDefinition, path: string): StoryDocumentDefinition => {
@@ -142,22 +153,22 @@ const editorDefinition = (definition: StoryTypeDefinition, path: string): StoryD
 };
 
 const loadProject = async (
-  storage: StoryStorage,
-  workspacePath: string,
+  store: StoryProjectStore,
+  projectKey: string,
   definition: StoryTypeDefinition,
 ): Promise<StoryProjectState> => {
   const manifestPath = resolveStoryTypePath(definition, definition.manifestKind);
-  const manifestFile = await storage.read(workspacePath, manifestPath);
+  const manifestRecord = await store.read(projectKey, manifestPath);
   const manifestValue = parseStoryDocument(
     definition,
-    parseStoredContent(manifestPath, manifestFile.content),
+    storedDocumentValue(definition, manifestPath, manifestRecord),
     manifestPath,
   );
   if (!isObject(manifestValue)) throw new Error("故事 Manifest 必须是 JSON 对象。");
   const entries = await Promise.all(
     manifestFiles(manifestValue).map(async ({ path }) => {
-      const file = await storage.read(workspacePath, path);
-      return { path, value: parseStoredContent(path, file.content) };
+      const record = await store.read(projectKey, path);
+      return { path, value: storedDocumentValue(definition, path, record) };
     }),
   );
   const project = assembleProject([{ path: manifestPath, value: manifestValue }, ...entries], definition, manifestPath);
@@ -167,29 +178,24 @@ const loadProject = async (
 };
 
 const persistAppliedProject = async (
-  storage: StoryStorage,
-  workspacePath: string,
+  store: StoryProjectStore,
+  projectKey: string,
   definition: StoryTypeDefinition,
   applied: StoryProjectAppliedChanges,
 ) => {
   const manifestPath = resolveStoryTypePath(definition, definition.manifestKind);
   const files = new Map(applied.project.documents.map((entry) => [entry.path, entry.value]));
   const changed = [...new Set(applied.changedPaths)];
-  const writes = changed.flatMap((path) => {
+  const writes: StoryProjectRecordWrite[] = changed.flatMap((path) => {
     const value = files.get(path);
-    return value === undefined
-      ? []
-      : [{ path, content: serializedContent(serializeStoryDocument(definition, value, path)) }];
+    return value === undefined ? [] : [storedDocument(definition, path, value)];
   });
-  writes.push({
-    path: manifestPath,
-    content: serializedContent(serializeStoryDocument(definition, applied.project.manifest, manifestPath)),
-  });
-  await storage.writeAtomic(
-    workspacePath,
+  writes.push(storedDocument(definition, manifestPath, applied.project.manifest));
+  await store.commit(projectKey, {
+    revision: { key: manifestPath, expected: applied.nextRevision - 1 },
     writes,
-    changed.filter((path) => !files.has(path)),
-  );
+    deletes: changed.filter((path) => !files.has(path)),
+  });
 };
 
 const createInitialProject = (definition: StoryTypeDefinition, input: { storyId: string; title: string }) => {
@@ -221,44 +227,42 @@ const createInitialProject = (definition: StoryTypeDefinition, input: { storyId:
 };
 
 const persistInitialProject = async (
-  storage: StoryStorage,
-  workspacePath: string,
+  store: StoryProjectStore,
+  projectKey: string,
   definition: StoryTypeDefinition,
   project: StoryProjectState,
   deletes: readonly string[],
 ) => {
   const manifestPath = resolveStoryTypePath(definition, definition.manifestKind);
-  const writes = [
-    { path: PROJECT_CONFIG_PATH, content: definitionText(definition) },
-    ...project.documents.map(({ path, value }) => ({
-      path,
-      content: serializedContent(serializeStoryDocument(definition, value, path)),
-    })),
-    {
-      path: manifestPath,
-      content: serializedContent(serializeStoryDocument(definition, project.manifest, manifestPath)),
-    },
+  const writes: StoryProjectRecordWrite[] = [
+    { key: PROJECT_CONFIG_PATH, contentType: "json", value: definition as unknown as StoryValue },
+    ...project.documents.map(({ path, value }) => storedDocument(definition, path, value)),
+    storedDocument(definition, manifestPath, project.manifest),
   ];
-  const writePaths = new Set(writes.map(({ path }) => path));
-  await storage.writeAtomic(
-    workspacePath,
+  const writeKeys = new Set(writes.map(({ key }) => key));
+  await store.commit(projectKey, {
+    revision: { key: manifestPath, expected: null },
     writes,
-    deletes.filter((path) => !writePaths.has(path)),
-  );
+    deletes: deletes.filter((key) => !writeKeys.has(key)),
+  });
 };
 
 const editableDocument = async (
-  storage: StoryStorage,
-  workspacePath: string,
+  store: StoryProjectStore,
+  projectKey: string,
   definition: StoryTypeDefinition,
   path: string,
 ): Promise<StoryDocument> => {
-  const file = await storage.read(workspacePath, path);
+  const record = await store.read(projectKey, path);
   return {
     path,
-    value: parseStoryDocument(definition, parseStoredContent(path, file.content), path) as StoryDocument["value"],
+    value: parseStoryDocument(
+      definition,
+      storedDocumentValue(definition, path, record),
+      path,
+    ) as StoryDocument["value"],
     definition: editorDefinition(definition, path),
-    updatedAt: file.updatedAt,
+    updatedAt: record.updatedAt,
   };
 };
 
@@ -298,27 +302,24 @@ const overview = (project: StoryProjectState, definition: StoryTypeDefinition): 
 };
 
 const createWorkspace = (
-  storage: StoryStorage,
-  workspacePath: string,
+  store: StoryProjectStore,
+  projectKey: string,
   options: Readonly<{ fallbackStoryTypeId?: string }> = {},
 ): StoryWorkspace => {
-  const loadDefinition = () => readDefinition(storage, workspacePath);
+  const loadDefinition = () => readDefinition(store, projectKey);
   const describeDefinition = async () => {
-    const paths = new Set(
-      (await storage.list(workspacePath)).filter((entry) => !entry.isDirectory).map((entry) => entry.path),
-    );
-    return paths.has(PROJECT_CONFIG_PATH)
+    const keys = new Set((await store.list(projectKey)).map((entry) => entry.key));
+    return keys.has(PROJECT_CONFIG_PATH)
       ? loadDefinition()
       : resolveStoryType(options.fallbackStoryTypeId ?? DEFAULT_STORY_TYPE_ID);
   };
   const workspace: StoryWorkspace = {
-    workspacePath,
+    projectKey,
 
     async initialize(input): Promise<StoryInitialization> {
       try {
-        const entries = await storage.list(workspacePath);
-        const paths = entries.filter((entry) => !entry.isDirectory).map((entry) => canonicalPath(entry.path));
-        const configured = paths.includes(PROJECT_CONFIG_PATH);
+        const keys = (await store.list(projectKey)).map((entry) => canonicalPath(entry.key));
+        const configured = keys.includes(PROJECT_CONFIG_PATH);
         const definition = configured
           ? await loadDefinition()
           : resolveStoryType(input.storyTypeId ?? options.fallbackStoryTypeId ?? DEFAULT_STORY_TYPE_ID);
@@ -326,9 +327,9 @@ const createWorkspace = (
           throw new Error(`工作区故事类型为 ${definition.id}，不能按 ${input.storyTypeId} 初始化。`);
         }
         const manifestPath = resolveStoryTypePath(definition, definition.manifestKind);
-        const existingPaths = ordinaryStoryPaths(paths);
-        if (paths.includes(manifestPath)) {
-          const current = await loadProject(storage, workspacePath, definition);
+        const existingPaths = ordinaryStoryKeys(keys);
+        if (keys.includes(manifestPath)) {
+          const current = await loadProject(store, projectKey, definition);
           return {
             initialized: false,
             alreadyInitialized: true,
@@ -361,8 +362,8 @@ const createWorkspace = (
         const validation = validateProject(project, definition, "draft");
         if (!validation.valid) throw new StoryProjectValidationError(validation.issues);
         await persistInitialProject(
-          storage,
-          workspacePath,
+          store,
+          projectKey,
           definition,
           project,
           input.replaceExistingJson ? existingPaths : [],
@@ -395,26 +396,26 @@ const createWorkspace = (
 
     async overview() {
       const definition = await loadDefinition();
-      return overview(await loadProject(storage, workspacePath, definition), definition);
+      return overview(await loadProject(store, projectKey, definition), definition);
     },
 
     async listDocuments(input = {}) {
       const definition = await loadDefinition();
-      const project = await loadProject(storage, workspacePath, definition);
+      const project = await loadProject(store, projectKey, definition);
       const kind = input.role ? definition.roles[input.role] : undefined;
       if (input.role && !kind) throw new Error(`当前故事类型没有提供 ${input.role} 文档角色。`);
       const paths = project.documents
         .filter((entry) => !kind || storyTypeKindForPath(definition, entry.path) === kind)
         .map((entry) => entry.path)
         .sort((left, right) => left.localeCompare(right));
-      return Promise.all(paths.map((path) => editableDocument(storage, workspacePath, definition, path)));
+      return Promise.all(paths.map((path) => editableDocument(store, projectKey, definition, path)));
     },
 
     async saveDocument(document) {
       const definition = await loadDefinition();
       const path = normalizeDocumentPath(document.path);
       storyTypeKindForPath(definition, path);
-      const project = await loadProject(storage, workspacePath, definition);
+      const project = await loadProject(store, projectKey, definition);
       const info = projectInfo(project);
       const applied = applyChangeSet(
         project,
@@ -428,8 +429,8 @@ const createWorkspace = (
         },
         definition,
       );
-      await persistAppliedProject(storage, workspacePath, definition, applied);
-      return editableDocument(storage, workspacePath, definition, path);
+      await persistAppliedProject(store, projectKey, definition, applied);
+      return editableDocument(store, projectKey, definition, path);
     },
 
     async removeDocument(inputPath) {
@@ -438,7 +439,7 @@ const createWorkspace = (
       const kind = storyTypeKindForPath(definition, path);
       const document = storyTypeDocument(definition, kind);
       if (document.cardinality === "one") throw new Error(`「${document.label}」必须保留一份，不能删除。`);
-      const project = await loadProject(storage, workspacePath, definition);
+      const project = await loadProject(store, projectKey, definition);
       const current = project.documents.find((entry) => entry.path === path)?.value;
       const id = isObject(current) && typeof current.id === "string" ? current.id : "";
       const companionPaths = id
@@ -467,20 +468,20 @@ const createWorkspace = (
         },
         definition,
       );
-      await persistAppliedProject(storage, workspacePath, definition, applied);
+      await persistAppliedProject(store, projectKey, definition, applied);
     },
 
     normalizeDocumentPath,
 
     async readContext(input) {
       const definition = await loadDefinition();
-      return readStoryProjectContext(await loadProject(storage, workspacePath, definition), definition, input);
+      return readStoryProjectContext(await loadProject(store, projectKey, definition), definition, input);
     },
 
     async validateChanges(changeSet): Promise<StoryChangeValidation> {
       try {
         const definition = await loadDefinition();
-        const applied = applyChangeSet(await loadProject(storage, workspacePath, definition), changeSet, definition);
+        const applied = applyChangeSet(await loadProject(store, projectKey, definition), changeSet, definition);
         return {
           valid: applied.validation.valid,
           nextRevision: applied.nextRevision,
@@ -504,8 +505,8 @@ const createWorkspace = (
     async commitChanges(changeSet): Promise<StoryChangeResult> {
       try {
         const definition = await loadDefinition();
-        const applied = applyChangeSet(await loadProject(storage, workspacePath, definition), changeSet, definition);
-        await persistAppliedProject(storage, workspacePath, definition, applied);
+        const applied = applyChangeSet(await loadProject(store, projectKey, definition), changeSet, definition);
+        await persistAppliedProject(store, projectKey, definition, applied);
         return {
           committed: true,
           valid: true,
@@ -535,16 +536,16 @@ const createWorkspace = (
   return Object.freeze(workspace);
 };
 
-export const buildStoryProjectApi = (storage: StoryStorage): StoryProjectApi => {
+export const buildStoryProjectApi = (store: StoryProjectStore): StoryProjectApi => {
   const client: StoryProjectApi = {
     listStoryTypes,
-    workspace: (workspacePath: string) => createWorkspace(storage, workspacePath),
-    async open(workspacePath: string) {
-      await readDefinition(storage, workspacePath);
-      return createWorkspace(storage, workspacePath);
+    workspace: (projectKey: string) => createWorkspace(store, projectKey),
+    async open(projectKey: string) {
+      await readDefinition(store, projectKey);
+      return createWorkspace(store, projectKey);
     },
-    async create(workspacePath, input) {
-      const workspace = createWorkspace(storage, workspacePath, { fallbackStoryTypeId: input.storyTypeId });
+    async create(projectKey, input) {
+      const workspace = createWorkspace(store, projectKey, { fallbackStoryTypeId: input.storyTypeId });
       const result = await workspace.initialize({ ...input, storyTypeId: input.storyTypeId });
       if (!result.initialized && !result.alreadyInitialized) {
         throw new StoryProjectValidationError(result.issues);

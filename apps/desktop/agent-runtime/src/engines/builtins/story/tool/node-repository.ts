@@ -2,10 +2,13 @@ import { cp, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { createStoryProjectApi } from "../../../../../../core/story-project/index.js";
-import type { StoryStorage } from "../../../../../../core/story-project/types.js";
+import {
+  assertStoryFileRevision,
+  createStoryFileStore,
+  type StoryFileBackend,
+  type StoryFileEntry,
+} from "../../../../../../core/story-project/storage/file.js";
 import type { StoryToolRepository } from "./repository.js";
-
-type StoryStorageEntry = Awaited<ReturnType<StoryStorage["list"]>>[number];
 
 const safeWorkspacePath = (workspacePath: string, relativePath: string) => {
   const normalized = relativePath
@@ -23,13 +26,33 @@ const safeWorkspacePath = (workspacePath: string, relativePath: string) => {
   return { normalized, target };
 };
 
-const listFiles = async (workspacePath: string): Promise<StoryStorageEntry[]> => {
+const workspaceWriteQueues = new Map<string, Promise<void>>();
+
+const withWorkspaceWriteLock = async <T>(workspacePath: string, operation: () => Promise<T>): Promise<T> => {
+  const key = resolve(workspacePath);
+  const previous = workspaceWriteQueues.get(key) ?? Promise.resolve();
+  let release = () => {};
+  const gate = new Promise<void>((resolveGate) => {
+    release = resolveGate;
+  });
+  const current = previous.catch(() => undefined).then(() => gate);
+  workspaceWriteQueues.set(key, current);
+  await previous.catch(() => undefined);
+  try {
+    return await operation();
+  } finally {
+    release();
+    if (workspaceWriteQueues.get(key) === current) workspaceWriteQueues.delete(key);
+  }
+};
+
+const listFiles = async (workspacePath: string): Promise<StoryFileEntry[]> => {
   const storyRoot = join(workspacePath, "story");
-  const walk = async (current: string): Promise<StoryStorageEntry[]> => {
+  const walk = async (current: string): Promise<StoryFileEntry[]> => {
     const entries = await readdir(current, { withFileTypes: true }).catch(() => []);
     return (
       await Promise.all(
-        entries.map(async (entry): Promise<StoryStorageEntry[]> => {
+        entries.map(async (entry): Promise<StoryFileEntry[]> => {
           const path = join(current, entry.name);
           const relativePath = relative(workspacePath, path).replace(/\\/g, "/");
           if (entry.isDirectory()) {
@@ -45,13 +68,19 @@ const listFiles = async (workspacePath: string): Promise<StoryStorageEntry[]> =>
   return walk(storyRoot);
 };
 
-const writeAtomic: StoryStorage["writeAtomic"] = async (workspacePath, writes, deletes = []) => {
+const writeAtomicUnlocked: StoryFileBackend["writeAtomic"] = async (workspacePath, writes, deletes, revision) => {
   const transactionRoot = join(workspacePath, `.novel-claw-story-${randomUUID()}`);
   const stagedRoot = join(transactionRoot, "staged");
   const backupRoot = join(transactionRoot, "backup");
   const touchedPaths = [...new Set([...writes.map((entry) => entry.path), ...deletes])];
   const applied: string[] = [];
   try {
+    const revisionTarget = safeWorkspacePath(workspacePath, revision.key).target;
+    const currentRevisionContent = await readFile(revisionTarget, "utf8").catch((error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    });
+    assertStoryFileRevision(revision, currentRevisionContent);
     for (const entry of writes) {
       const staged = safeWorkspacePath(stagedRoot, entry.path).target;
       await mkdir(dirname(staged), { recursive: true });
@@ -97,7 +126,10 @@ const writeAtomic: StoryStorage["writeAtomic"] = async (workspacePath, writes, d
   }
 };
 
-const nodeStoryStorage: StoryStorage = {
+const writeAtomic: StoryFileBackend["writeAtomic"] = (workspacePath, writes, deletes, revision) =>
+  withWorkspaceWriteLock(workspacePath, () => writeAtomicUnlocked(workspacePath, writes, deletes, revision));
+
+const nodeStoryFileBackend: StoryFileBackend = {
   list: listFiles,
   async read(workspacePath, path) {
     const target = safeWorkspacePath(workspacePath, path).target;
@@ -107,7 +139,7 @@ const nodeStoryStorage: StoryStorage = {
   writeAtomic,
 };
 
-const storyProjectApi = createStoryProjectApi(nodeStoryStorage);
+const storyProjectApi = createStoryProjectApi(createStoryFileStore(nodeStoryFileBackend));
 
 export const createNodeStoryToolRepository = (workspacePath: string): StoryToolRepository => ({
   project: storyProjectApi.workspace(workspacePath),

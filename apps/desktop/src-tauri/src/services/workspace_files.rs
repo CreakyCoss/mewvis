@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs,
     path::{Component, Path, PathBuf},
+    sync::Mutex,
     time::UNIX_EPOCH,
 };
 use uuid::Uuid;
@@ -36,11 +37,20 @@ pub struct AtomicWorkspaceFileWrite {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct WorkspaceFileRevisionCondition {
+    pub relative_path: String,
+    pub expected_revision: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WriteWorkspaceFilesAtomicInput {
     pub workspace_path: String,
     pub files: Vec<AtomicWorkspaceFileWrite>,
     #[serde(default)]
     pub delete_paths: Vec<String>,
+    #[serde(default)]
+    pub revision_condition: Option<WorkspaceFileRevisionCondition>,
 }
 
 #[derive(Debug, Serialize)]
@@ -78,6 +88,8 @@ const SKIPPED_WORKSPACE_DIRECTORY_NAMES: &[&str] = &[
     "venv",
     "__pycache__",
 ];
+
+static ATOMIC_WORKSPACE_WRITE_LOCK: Mutex<()> = Mutex::new(());
 
 pub fn list_workspace_files(input: WorkspacePathInput) -> Result<Vec<WorkspaceFileEntry>, String> {
     let root = workspace_root(&input.workspace_path)?;
@@ -151,7 +163,13 @@ pub fn write_workspace_file(input: WriteWorkspaceFileInput) -> Result<WorkspaceF
 pub fn write_workspace_files_atomic(
     input: WriteWorkspaceFilesAtomicInput,
 ) -> Result<AtomicWorkspaceFilesResult, String> {
+    let _write_guard = ATOMIC_WORKSPACE_WRITE_LOCK
+        .lock()
+        .map_err(|_| "无法获取工作区原子写入锁".to_string())?;
     let root = workspace_root(&input.workspace_path)?;
+    if let Some(condition) = &input.revision_condition {
+        verify_revision_condition(&root, condition)?;
+    }
     if input.files.is_empty() && input.delete_paths.is_empty() {
         return Ok(AtomicWorkspaceFilesResult {
             written_paths: Vec::new(),
@@ -272,6 +290,42 @@ pub fn write_workspace_files_atomic(
 
     let _ = fs::remove_dir_all(&transaction_root);
     result
+}
+
+fn verify_revision_condition(
+    root: &Path,
+    condition: &WorkspaceFileRevisionCondition,
+) -> Result<(), String> {
+    let normalized = normalize_relative_path(&condition.relative_path);
+    let target = resolve_workspace_path(root, &normalized)?;
+    match condition.expected_revision {
+        None => {
+            if target.exists() {
+                return Err(format!("故事项目版本冲突：{normalized} 应当尚不存在"));
+            }
+        }
+        Some(expected) => {
+            if !target.is_file() {
+                return Err(format!(
+                    "故事项目版本冲突：{normalized} 缺失，期望 revision {expected}"
+                ));
+            }
+            let content = fs::read_to_string(&target)
+                .map_err(|error| format!("无法读取 revision 文件 {normalized}：{error}"))?;
+            let value: serde_json::Value = serde_json::from_str(&content)
+                .map_err(|error| format!("revision 文件不是合法 JSON：{normalized}：{error}"))?;
+            let actual = value.get("revision").and_then(serde_json::Value::as_i64);
+            if actual != Some(expected) {
+                return Err(format!(
+                    "故事项目版本冲突：{normalized} 期望 revision {expected}，实际为 {}",
+                    actual
+                        .map(|revision| revision.to_string())
+                        .unwrap_or_else(|| "无有效 revision".to_string())
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 pub fn delete_workspace_file(input: WorkspaceFilePathInput) -> Result<(), String> {
@@ -421,8 +475,8 @@ mod tests {
 
     use super::{
         delete_workspace_file, list_workspace_files, write_workspace_files_atomic,
-        AtomicWorkspaceFileWrite, WorkspaceFilePathInput, WorkspacePathInput,
-        WriteWorkspaceFilesAtomicInput,
+        AtomicWorkspaceFileWrite, WorkspaceFilePathInput, WorkspaceFileRevisionCondition,
+        WorkspacePathInput, WriteWorkspaceFilesAtomicInput,
     };
 
     struct TestWorkspace {
@@ -514,6 +568,7 @@ mod tests {
                 },
             ],
             delete_paths: vec!["story/stale.json".to_string()],
+            revision_condition: None,
         })
         .expect("atomic write");
 
@@ -521,6 +576,34 @@ mod tests {
         assert!(workspace.path.join("story/book.json").is_file());
         assert!(workspace.path.join("story/manifest.json").is_file());
         assert!(!workspace.path.join("story/stale.json").exists());
+    }
+
+    #[test]
+    fn atomic_write_rejects_stale_story_revision() {
+        let workspace = TestWorkspace::new("revision-conflict");
+        fs::create_dir_all(workspace.path.join("story")).expect("create story dir");
+        fs::write(
+            workspace.path.join("story/manifest.json"),
+            "{\"revision\":2}\n",
+        )
+        .expect("write manifest");
+
+        let error = write_workspace_files_atomic(WriteWorkspaceFilesAtomicInput {
+            workspace_path: workspace.path_string(),
+            files: vec![AtomicWorkspaceFileWrite {
+                relative_path: "story/book.json".to_string(),
+                content: "{}\n".to_string(),
+            }],
+            delete_paths: Vec::new(),
+            revision_condition: Some(WorkspaceFileRevisionCondition {
+                relative_path: "story/manifest.json".to_string(),
+                expected_revision: Some(1),
+            }),
+        })
+        .expect_err("stale revision must fail");
+
+        assert!(error.contains("版本冲突"));
+        assert!(!workspace.path.join("story/book.json").exists());
     }
 
     #[test]
