@@ -104,8 +104,10 @@ class TauriAgentClientAgent implements AgentClientAgent {
   }
 
   async run(input: AgentClientAgentInput): Promise<AgentClientAgentTask> {
+    const taskId = input.taskId?.trim() || crypto.randomUUID();
     const result = await invoke<RunAgentOutput>(TAURI_AGENT_CLIENT_COMMANDS.runAgent, {
       input: {
+        taskId,
         workspacePath: input.workspacePath,
         sessionRootDir: input.sessionRootDir,
         agentRoleId: input.agentRoleId,
@@ -119,6 +121,10 @@ class TauriAgentClientAgent implements AgentClientAgent {
         enabledSkills: enabledSkillsFor(input),
       },
     });
+
+    if (result.taskId !== taskId) {
+      throw new Error(`Agent runtime 返回了不匹配的任务 ID：${result.taskId}`);
+    }
 
     return {
       taskId: result.taskId,

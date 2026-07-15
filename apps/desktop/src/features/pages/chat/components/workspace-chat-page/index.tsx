@@ -965,6 +965,7 @@ export const WorkspaceChatPage = ({
             didStartAgentTask = true;
             addRunningAgentTask(task);
           },
+          removeRunningAgentTask,
           activateAgentTaskId,
           handledAgentDoneTaskIdsRef,
           effectiveRuntimeModel,

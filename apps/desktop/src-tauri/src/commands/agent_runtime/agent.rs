@@ -16,6 +16,7 @@ use uuid::Uuid;
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RunAgentRuntimeAgentInput {
+    task_id: Option<String>,
     workspace_path: String,
     chat_session_id: Option<String>,
     session_root_dir: Option<String>,
@@ -52,7 +53,13 @@ pub fn run_agent_runtime_agent(
 ) -> Result<RunAgentRuntimeAgentOutput, String> {
     validate_agent_input(&input)?;
 
-    let task_id = Uuid::now_v7().to_string();
+    let task_id = input
+        .task_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| Uuid::now_v7().to_string());
     let bundled_skills_path = bundled_skills_path_for_runtime(&app)?;
     let mut skill_paths = app_skill_paths_for_runtime(&app)?;
     skill_paths.extend(workspace_skill_paths_for_runtime(&input.workspace_path));

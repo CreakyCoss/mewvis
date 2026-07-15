@@ -3,7 +3,7 @@ import type {
   RuntimeSessionDebugQuery,
   RuntimeSessionQuery,
 } from "@agent-runtime/engines/protocol";
-import type { AgentClientAgentTask, AgentClientChatResult } from "../contracts/inputs";
+import type { AgentClientAgentInput, AgentClientAgentTask, AgentClientChatResult } from "../contracts/inputs";
 import type {
   AgentClientCollaborationTimelineResult,
   AgentClientRuntimeSessionDebugSnapshot,
@@ -49,8 +49,8 @@ class WebPreviewAgentClientAgent implements AgentClientAgent {
     };
   }
 
-  async run(): Promise<AgentClientAgentTask> {
-    return { taskId: crypto.randomUUID() };
+  async run(input: AgentClientAgentInput): Promise<AgentClientAgentTask> {
+    return { taskId: input.taskId?.trim() || crypto.randomUUID() };
   }
 }
 

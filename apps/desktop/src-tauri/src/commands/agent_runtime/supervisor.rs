@@ -28,6 +28,10 @@ const AGENT_WORKER_HEARTBEAT_TIMEOUT: Duration = Duration::from_secs(10);
 const AGENT_WORKER_HEARTBEAT_MAX_MISSES: u8 = 2;
 const AGENT_WORKER_DISPOSE_TIMEOUT: Duration = Duration::from_secs(5);
 
+fn worker_heartbeat_is_unhealthy(missed_heartbeats: u8) -> bool {
+    missed_heartbeats >= AGENT_WORKER_HEARTBEAT_MAX_MISSES
+}
+
 fn exit_status_label(status: &ExitStatus) -> String {
     if let Some(code) = status.code() {
         return code.to_string();
@@ -245,11 +249,14 @@ impl AgentRuntimeSupervisor {
     }
 
     fn index_task(&self, task_id: &str, worker: &Arc<AgentRuntimeWorker>) -> Result<(), String> {
-        self.inner
+        let mut inner = self
+            .inner
             .lock()
-            .map_err(|_| "Agent runtime supervisor 状态已损坏".to_string())?
-            .task_index
-            .insert(task_id.to_string(), worker.clone());
+            .map_err(|_| "Agent runtime supervisor 状态已损坏".to_string())?;
+        if inner.task_index.contains_key(task_id) {
+            return Err(format!("Agent runtime taskId 已存在：{task_id}"));
+        }
+        inner.task_index.insert(task_id.to_string(), worker.clone());
         Ok(())
     }
 
@@ -744,28 +751,13 @@ impl AgentRuntimeWorker {
                 ),
             );
 
-            if state.missed_heartbeats >= AGENT_WORKER_HEARTBEAT_MAX_MISSES {
-                if state.current_task_id.is_some() {
-                    append_agent_diagnostic(
-                        &self.app,
-                        format!(
-                            "worker heartbeat deferred worker={} session_key={} active_task={:?} misses={}",
-                            self.id,
-                            self.session_key,
-                            state.current_task_id,
-                            state.missed_heartbeats,
-                        ),
-                    );
-                    state.pending_ping = None;
-                    state.missed_heartbeats = 0;
-                } else {
-                    state.lifecycle = WorkerLifecycle::Unhealthy;
-                    state.stop_reason = Some(WorkerStopReason::Unhealthy);
-                    return HeartbeatAction::Kill(format!(
-                        "Agent worker 心跳超时，连续 {} 次未响应",
-                        state.missed_heartbeats
-                    ));
-                }
+            if worker_heartbeat_is_unhealthy(state.missed_heartbeats) {
+                state.lifecycle = WorkerLifecycle::Unhealthy;
+                state.stop_reason = Some(WorkerStopReason::Unhealthy);
+                return HeartbeatAction::Kill(format!(
+                    "Agent worker 心跳超时，连续 {} 次未响应",
+                    state.missed_heartbeats
+                ));
             }
         }
 
@@ -1288,4 +1280,19 @@ fn session_key_matches(session_key: &str, workspace_path: &str, session_root_dir
     };
     rest.rsplit_once('|')
         .is_some_and(|(_, scope)| scope == session_root_dir)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn heartbeat_limit_marks_worker_unhealthy_even_during_active_tasks() {
+        assert!(!worker_heartbeat_is_unhealthy(
+            AGENT_WORKER_HEARTBEAT_MAX_MISSES - 1
+        ));
+        assert!(worker_heartbeat_is_unhealthy(
+            AGENT_WORKER_HEARTBEAT_MAX_MISSES
+        ));
+    }
 }

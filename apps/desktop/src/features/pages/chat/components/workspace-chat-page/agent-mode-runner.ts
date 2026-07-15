@@ -35,6 +35,7 @@ type RunAgentTurnDeps = {
   setChatError: (message: string) => void;
   prepareActiveAgentRun: PrepareActiveAgentRun;
   addRunningAgentTask: (task: RunningAgentTaskContext) => void;
+  removeRunningAgentTask: (taskId: string) => void;
   activateAgentTaskId: (taskId: string) => void;
   handledAgentDoneTaskIdsRef: MutableRefObject<Set<string>>;
   effectiveRuntimeModel: RuntimeModelOption | null;
@@ -52,6 +53,7 @@ export const runAgentTurn = async (
     setChatError,
     prepareActiveAgentRun,
     addRunningAgentTask,
+    removeRunningAgentTask,
     activateAgentTaskId,
     handledAgentDoneTaskIdsRef,
     effectiveRuntimeModel,
@@ -66,26 +68,14 @@ export const runAgentTurn = async (
   }
 
   const agentRoleId = agentPromptPayload.agentRoleId;
+  const taskId = crypto.randomUUID();
   prepareActiveAgentRun({
     messageId: assistantMessageId,
   });
   const allowedToolsForRun = uniq(allowedAgentTools);
-  const task = await agentClient.agent.run({
-    workspacePath: workspace.path,
-    sessionRootDir: createAgentSessionRootDir(nextSessionId),
-    agentRoleId,
-    userMessage: agentPromptPayload.userMessage,
-    systemPrompt: agentPromptPayload.systemPrompt,
-    requestContext: agentPromptPayload.requestContext,
-    runtimeInstruction: agentPromptPayload.runtimeInstruction,
-    bootstrapInstruction: agentPromptPayload.bootstrapInstruction ?? null,
-    runtimeModel: runtimeModelInput ?? undefined,
-    allowedTools: allowedToolsForRun,
-    enabledSkills: activeSkills.map((skill) => skill.name),
-  });
-  handledAgentDoneTaskIdsRef.current.delete(task.taskId);
+  handledAgentDoneTaskIdsRef.current.delete(taskId);
   addRunningAgentTask({
-    taskId: task.taskId,
+    taskId,
     workspacePath: workspace.path,
     sessionId: nextSessionId,
     title: currentSessionTitle,
@@ -99,9 +89,29 @@ export const runAgentTurn = async (
     lastStderr: "",
     handledTerminal: false,
   });
-  activateAgentTaskId(task.taskId);
+  activateAgentTaskId(taskId);
   updateMessage(assistantMessageId, (message) => ({
     ...message,
     status: "streaming",
   }));
+
+  try {
+    await agentClient.agent.run({
+      taskId,
+      workspacePath: workspace.path,
+      sessionRootDir: createAgentSessionRootDir(nextSessionId),
+      agentRoleId,
+      userMessage: agentPromptPayload.userMessage,
+      systemPrompt: agentPromptPayload.systemPrompt,
+      requestContext: agentPromptPayload.requestContext,
+      runtimeInstruction: agentPromptPayload.runtimeInstruction,
+      bootstrapInstruction: agentPromptPayload.bootstrapInstruction ?? null,
+      runtimeModel: runtimeModelInput ?? undefined,
+      allowedTools: allowedToolsForRun,
+      enabledSkills: activeSkills.map((skill) => skill.name),
+    });
+  } catch (error) {
+    removeRunningAgentTask(taskId);
+    throw error;
+  }
 };

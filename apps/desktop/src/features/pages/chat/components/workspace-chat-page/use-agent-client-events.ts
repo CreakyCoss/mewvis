@@ -2,6 +2,7 @@ import { useCallback, useEffect, type MutableRefObject } from "react";
 import type { AgentClient, AgentClientAgentEvent } from "@/agent-client/types";
 import type { ChatMessage, PendingAgentQuestion } from "../../types";
 import { applyAgentEventToMessage, isAgentMessageStreamEvent, isTimelineEvent } from "../../utils/agent-blocks";
+import { settleAgentMessage, terminalAgentTaskFromEvent } from "../../utils/agent-task-lifecycle";
 import type { RunningAgentTaskContext } from "./use-running-agent-tasks";
 
 type ResetActiveAgentTaskState = (options?: { clearQuestion?: boolean; clearTerminalState?: boolean }) => void;
@@ -130,6 +131,23 @@ export const useAgentClientEvents = ({
       if (event.type === "question_answered") {
         clearPendingAgentQuestion(event.questionId);
         return;
+      }
+
+      if (event.type === "state") {
+        const terminal = terminalAgentTaskFromEvent(event, task.lastError, task.lastStderr);
+        if (terminal) {
+          if (task.handledTerminal) {
+            return;
+          }
+          task.handledTerminal = true;
+          if (task.pendingQuestion) {
+            clearPendingAgentQuestion(task.pendingQuestion.questionId);
+          }
+          updateRunningAgentTaskMessage(task, (message) => settleAgentMessage(message, terminal));
+          removeRunningAgentTask(task.taskId);
+          void persistRunningAgentTask(task);
+          return;
+        }
       }
 
       if (event.type === "error") {
@@ -288,6 +306,33 @@ export const useAgentClientEvents = ({
         if (event.type === "question_answered") {
           clearPendingAgentQuestion(event.questionId);
           return;
+        }
+
+        if (event.type === "state") {
+          const terminal = terminalAgentTaskFromEvent(event, lastAgentErrorRef.current, lastAgentStderrRef.current);
+          if (terminal) {
+            if (handledAgentDoneTaskIdsRef.current.has(event.taskId)) {
+              return;
+            }
+            handledAgentDoneTaskIdsRef.current.add(event.taskId);
+            if (taskContext) {
+              taskContext.handledTerminal = true;
+              if (taskContext.pendingQuestion) {
+                clearPendingAgentQuestion(taskContext.pendingQuestion.questionId);
+              }
+            }
+            updateMessage(messageId, (message) => settleAgentMessage(message, terminal));
+            if (terminal.status === "error") {
+              setChatError(terminal.message);
+            } else {
+              void loadFiles();
+            }
+            removeRunningAgentTask(event.taskId);
+            resetActiveAgentTaskState();
+            lastAgentErrorRef.current = "";
+            lastAgentStderrRef.current = "";
+            return;
+          }
         }
 
         if (event.type === "done") {

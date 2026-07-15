@@ -11,6 +11,7 @@ import type { Workspace } from "@/features/pages/workspace/types";
 import { listChatSessions, loadChatSession, saveChatSession, setChatSessionUnread } from "../../api";
 import { useChatSessionsStore } from "../../session-store";
 import type { ChatMessage } from "../../types";
+import { settleOrphanedAgentMessages } from "../../utils/agent-task-lifecycle";
 import { toHydratableSession, type HydratableChatSession } from "./history";
 import type { RunningAgentTaskContext } from "./use-running-agent-tasks";
 import { DEFAULT_SESSION_TITLE, deriveSessionTitle } from "../../utils/sessions";
@@ -108,7 +109,8 @@ export const useWorkspaceChatSessions = ({
             (task) => task.workspacePath === workspace.path && task.sessionId === session.id,
           )
         : null;
-      const hydratedMessages = runningTask?.messages ?? session?.messages ?? [];
+      const storedMessages = session?.messages ?? [];
+      const hydratedMessages = runningTask?.messages ?? settleOrphanedAgentMessages(storedMessages);
       messagesRef.current = hydratedMessages;
       setMessages(hydratedMessages);
       const nextSessionId = session?.id ?? null;
@@ -119,6 +121,16 @@ export const useWorkspaceChatSessions = ({
       setCurrentSessionTitle(nextSessionTitle);
       if (runningTask) {
         applyActiveAgentTaskState(runningTask, { restoreTerminalState: false });
+      } else if (session?.id && hydratedMessages !== storedMessages) {
+        void saveChatSession({
+          workspacePath: workspace.path,
+          sessionId: session.id,
+          title: session.title,
+          messages: hydratedMessages,
+          isUnread: false,
+        })
+          .then((savedSession) => upsertSession(workspace.id, savedSession))
+          .catch((caught) => setSessionsError(String(caught)));
       }
       window.setTimeout(() => {
         isHydratingSessionRef.current = false;
@@ -134,6 +146,9 @@ export const useWorkspaceChatSessions = ({
       setCurrentSessionId,
       setCurrentSessionTitle,
       setMessages,
+      setSessionsError,
+      upsertSession,
+      workspace.id,
       workspace.path,
     ],
   );

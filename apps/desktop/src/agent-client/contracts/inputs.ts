@@ -25,7 +25,9 @@ export type AgentClientAgentInput = Pick<
   | "bootstrapInstruction"
   | "runtimeModel"
 > &
-  AgentClientResourceInput;
+  AgentClientResourceInput & {
+    taskId?: string;
+  };
 
 export type AgentClientAgentTask = Pick<TaskResult, "taskId">;
 
