@@ -213,28 +213,6 @@ export const CORE_DOCUMENTS = defineDocumentModels([
         required: false,
         targetKinds: ["story-character"],
       }),
-      field.text("playerName", "玩家称呼", {
-        required: true,
-        default: "我",
-      }),
-      field.select("mode", "故事模式", {
-        required: true,
-        default: "hybrid",
-        options: [
-          {
-            value: "serial",
-            label: "连载",
-          },
-          {
-            value: "interactive",
-            label: "互动",
-          },
-          {
-            value: "hybrid",
-            label: "混合",
-          },
-        ],
-      }),
       field.timestamp("createdAt", "创建时间", {
         required: true,
         generated: true,

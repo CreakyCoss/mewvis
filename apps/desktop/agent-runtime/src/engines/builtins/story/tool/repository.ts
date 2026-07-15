@@ -140,6 +140,16 @@ const nodeStoryFileBackend: StoryFileBackend = {
     const [content, metadata] = await Promise.all([readFile(target, "utf8"), stat(target)]);
     return { path, content, updatedAt: metadata.mtimeMs };
   },
+  async readOptional(workspacePath, path) {
+    const target = safeWorkspacePath(workspacePath, path).target;
+    try {
+      const [content, metadata] = await Promise.all([readFile(target, "utf8"), stat(target)]);
+      return { path, content, updatedAt: metadata.mtimeMs };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw error;
+    }
+  },
   writeAtomic,
 };
 

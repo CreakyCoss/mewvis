@@ -24,6 +24,7 @@ export type StoryTextFile = Readonly<{
 export interface StoryFileBackend {
   list(root: string): Promise<readonly StoryFileEntry[]>;
   read(root: string, path: string): Promise<StoryTextFile>;
+  readOptional(root: string, path: string): Promise<StoryTextFile | null>;
   writeAtomic(
     root: string,
     writes: readonly Readonly<{ path: string; content: string }>[],
@@ -83,6 +84,11 @@ const createStoryFileRecordBackend = (backend: StoryFileBackend): StoryProjectRe
 
   async read(projectKey, key) {
     return parseFile(await backend.read(projectKey, key));
+  },
+
+  async readOptional(projectKey, key) {
+    const file = await backend.readOptional(projectKey, key);
+    return file ? parseFile(file) : null;
   },
 
   async commit(projectKey, transaction) {

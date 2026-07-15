@@ -16,8 +16,8 @@ pub use chat_sessions::{
     set_chat_session_unread,
 };
 pub use files::{
-    delete_workspace_file, list_workspace_files, read_workspace_file, write_workspace_file,
-    write_workspace_files_atomic,
+    delete_workspace_file, list_workspace_files, read_workspace_file, read_workspace_file_optional,
+    write_workspace_file, write_workspace_files_atomic,
 };
 pub use knowledge::search_workspace_knowledge;
 pub use overview::{create_workspace, delete_workspace, get_workspace_overview, update_workspace};

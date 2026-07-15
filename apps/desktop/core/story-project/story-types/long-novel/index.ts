@@ -36,7 +36,7 @@ export const LONG_NOVEL_STORY_TYPE = defineStoryType({
   $format: "novel-claw.story-project",
   formatVersion: 1,
   id: "long-novel",
-  version: 1,
+  version: 2,
   label: "长篇小说",
   description: "按全书大纲、分卷、章节细纲、角色状态和伏笔连续维护的长篇故事。",
   rootPath: "story",

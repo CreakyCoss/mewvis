@@ -26,6 +26,11 @@ export const createMemoryStoryProjectStorage = () => {
       return structuredClone(record);
     },
 
+    async readOptional(projectKey, key) {
+      const record = projects.get(projectKey)?.get(key);
+      return record ? structuredClone(record) : null;
+    },
+
     async commit(projectKey, transaction) {
       const records = projects.get(projectKey) ?? new Map<string, StoryProjectRecord>();
       assertStoryProjectRevision(transaction.revision, records.get(transaction.revision.key) ?? null);

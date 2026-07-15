@@ -113,6 +113,16 @@ export async function readWorkspaceFile(workspacePath: string, relativePath: str
   });
 }
 
+export async function readWorkspaceFileOptional(workspacePath: string, relativePath: string) {
+  if (!isTauri()) {
+    return null;
+  }
+
+  return invoke<WorkspaceFile | null>("read_workspace_file_optional", {
+    input: { workspacePath, relativePath },
+  });
+}
+
 export async function writeWorkspaceFile(workspacePath: string, relativePath: string, content: string) {
   if (!isTauri()) {
     throw new Error("Web 预览模式暂不支持保存工作区文件");

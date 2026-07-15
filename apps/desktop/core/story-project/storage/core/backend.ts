@@ -56,5 +56,6 @@ export const assertStoryProjectRevision = (
 export interface StoryProjectRecordBackend {
   list(projectKey: string): Promise<readonly StoryProjectRecordInfo[]>;
   read(projectKey: string, key: string): Promise<StoryProjectRecord>;
+  readOptional(projectKey: string, key: string): Promise<StoryProjectRecord | null>;
   commit(projectKey: string, transaction: StoryProjectRecordTransaction): Promise<void>;
 }

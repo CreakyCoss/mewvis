@@ -55,7 +55,7 @@ const expectedPaths = {
 assert.equal(storyType.$format, "novel-claw.story-project");
 assert.equal(storyType.formatVersion, 1);
 assert.equal(storyType.id, "long-novel");
-assert.equal(storyType.version, 1);
+assert.equal(storyType.version, 2);
 assert.equal(storyType.rootPath, "story");
 assert.deepEqual(
   Object.fromEntries(storyType.documents.map((document) => [document.kind, document.pathPattern])),
@@ -64,6 +64,12 @@ assert.deepEqual(
 );
 assert.equal(storyType.roles.manifest, storyType.manifestKind);
 assert.equal(storyType.roles.primary, storyType.primaryKind);
+const primaryDocument = storyType.documents.find((document) => document.kind === storyType.roles.primary);
+assert.ok(primaryDocument);
+assert.ok(
+  !primaryDocument.fields.some((field) => field.key === "playerName" || field.key === "mode"),
+  "作品核心不应声明玩家称呼或故事模式",
+);
 for (const [role, kind] of Object.entries(storyType.roles)) {
   assert.ok(
     storyType.documents.some((document) => document.kind === kind),

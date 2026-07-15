@@ -11,6 +11,7 @@ const bundledPath = join(tempDir, "runner.mjs");
 const publicEntry = resolve(root, "core/story-project/index.ts");
 const publicStorage = resolve(root, "core/story-project/storage/index.ts");
 const memoryStorageEntry = resolve(root, "core/story-project/storage/adapters/memory.ts");
+const fileStorageEntry = resolve(root, "core/story-project/storage/adapters/file.ts");
 
 writeFileSync(
   entryPath,
@@ -20,6 +21,11 @@ writeFileSync(
     type StoryProjectStorage,
   } from ${JSON.stringify(publicStorage)};
   import { createMemoryStoryProjectStorage } from ${JSON.stringify(memoryStorageEntry)};
+  import {
+    assertStoryFileRevision,
+    createStoryFileStorage,
+    type StoryFileBackend,
+  } from ${JSON.stringify(fileStorageEntry)};
 
   const assert = (condition: unknown, message: string, details?: unknown) => {
     if (!condition) throw new Error(message + (details === undefined ? "" : "\\n" + JSON.stringify(details, null, 2)));
@@ -31,7 +37,7 @@ writeFileSync(
   assert(projects.listStoryTypes().map((item) => item.id).join(",") === "long-novel,short-novel", "应提供长篇与短篇故事类型。", projects.listStoryTypes());
   const project = await projects.create("/memory/long", { storyTypeId: "long-novel", storyId: "story-1", title: "雾港档案" });
   const description = await project.describe({ documentKinds: ["story-book", "story-character"] });
-  assert(description.storyType.id === "long-novel" && description.storyType.version === 1, "公开描述应返回故事类型身份。", description.storyType);
+  assert(description.storyType.id === "long-novel" && description.storyType.version === 2, "公开描述应返回故事类型身份。", description.storyType);
   assert(description.roles.chapterContent === "story-chapter-content", "语义角色应由故事类型提供。", description.roles);
   assert(description.documents["story-chapter-content"]?.contentType === "markdown", "章节正文应声明 Markdown。", description.documents);
   assert(description.schemas.documents["story-book"]?.fields.title?.label === "书名", "按需 Schema 应提供可读字段信息。", description.schemas);
@@ -40,6 +46,8 @@ writeFileSync(
   const documents = await project.listDocuments();
   const book = documents.find((item) => item.path === "story/book.json");
   assert(book?.value && typeof book.value === "object" && !Array.isArray(book.value), "应初始化作品核心。", book);
+  const bookValue = book?.value as Record<string, unknown>;
+  assert(!("playerName" in bookValue) && !("mode" in bookValue), "作品核心不应包含玩家称呼或故事模式。", bookValue);
   assert(book?.definition?.fields.title?.label === "书名", "通用编辑器应直接读取文档字段定义。", book?.definition);
   const overview = await project.overview();
   assert(overview.title === "雾港档案" && overview.id === "story-1", "概览应来自统一工作区处理器。", overview);
@@ -59,6 +67,39 @@ writeFileSync(
   const short = await projects.create("/memory/short", { storyTypeId: "short-novel", storyId: "story-2", title: "雾港一夜" });
   const positioning = (await short.listDocuments()).find((item) => item.path === "story/positioning.json")?.value as Record<string, unknown>;
   assert(positioning.lengthType === "short", "短篇类型应组合基础定义并覆写篇幅默认值。", positioning);
+
+  const fileContents = new Map<string, string>();
+  const fileKey = (root: string, path: string) => root + "::" + path;
+  const fileBackend: StoryFileBackend = {
+    async list(root) {
+      const prefix = root + "::";
+      return [...fileContents.keys()].flatMap((key) => {
+        if (!key.startsWith(prefix)) return [];
+        const path = key.slice(prefix.length);
+        return path.split("/").some((segment) => segment.startsWith("."))
+          ? []
+          : [{ path, isDirectory: false, updatedAt: null }];
+      });
+    },
+    async read(root, path) {
+      const content = fileContents.get(fileKey(root, path));
+      if (content === undefined) throw new Error("missing file: " + path);
+      return { path, content, updatedAt: null };
+    },
+    async readOptional(root, path) {
+      const content = fileContents.get(fileKey(root, path));
+      return content === undefined ? null : { path, content, updatedAt: null };
+    },
+    async writeAtomic(root, writes, deletes, revision) {
+      assertStoryFileRevision(revision, fileContents.get(fileKey(root, revision.key)) ?? null);
+      for (const path of deletes) fileContents.delete(fileKey(root, path));
+      for (const write of writes) fileContents.set(fileKey(root, write.path), write.content);
+    },
+  };
+  const fileProjects = createStoryProjectApi(createStoryFileStorage(fileBackend));
+  await fileProjects.create("/file/hidden", { storyTypeId: "long-novel", storyId: "story-3", title: "隐藏配置" });
+  const reopened = await fileProjects.open("/file/hidden");
+  assert((await reopened.overview()).title === "隐藏配置", "隐藏配置目录不得导致已初始化项目被误判。" );
   console.log("[story-core] ok");
   `,
 );

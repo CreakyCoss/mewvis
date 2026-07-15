@@ -49,11 +49,8 @@ const storedDocumentValue = (definition: StoryTypeDefinition, path: string, reco
 };
 
 const loadDefinition = async (backend: StoryProjectRecordBackend, projectKey: string) => {
-  const entry = (await backend.list(projectKey)).find(
-    (candidate) => canonicalStoryPath(candidate.key) === PROJECT_CONFIG_PATH,
-  );
-  if (!entry) return null;
-  const record = await backend.read(projectKey, entry.key);
+  const record = await backend.readOptional(projectKey, PROJECT_CONFIG_PATH);
+  if (!record) return null;
   try {
     if (record.contentType !== "json") throw new Error("故事项目定义必须是 JSON 记录。");
     return parseStoryTypeDefinition(record.value);

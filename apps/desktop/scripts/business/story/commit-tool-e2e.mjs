@@ -49,7 +49,7 @@ writeFileSync(
   const committed = await tool.api.commitChanges({
     changeSet: {
       storyTypeId: detailed.structure.storyType.id,
-      storyTypeVersion: "1",
+      storyTypeVersion: String(detailed.structure.storyType.version),
       storyId: "story-tool",
       baseRevision: String(context.revision),
       validationMode: "draft",
@@ -64,7 +64,7 @@ writeFileSync(
   const invalid = await tool.api.commitChanges({
     changeSet: {
       storyTypeId: detailed.structure.storyType.id,
-      storyTypeVersion: 1,
+      storyTypeVersion: detailed.structure.storyType.version,
       storyId: "story-tool",
       baseRevision: 1,
       validationMode: "draft",
@@ -78,7 +78,7 @@ writeFileSync(
   const mismatch = await tool.api.validateChanges({
     changeSet: {
       storyTypeId: detailed.structure.storyType.id,
-      storyTypeVersion: 2,
+      storyTypeVersion: detailed.structure.storyType.version + 1,
       storyId: "story-tool",
       baseRevision: 1,
       validationMode: "draft",

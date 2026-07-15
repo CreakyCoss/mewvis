@@ -154,8 +154,10 @@ if (
   !backendContract.includes("interface StoryProjectRecordBackend") ||
   !backendContract.includes("list(projectKey") ||
   !backendContract.includes("read(projectKey") ||
+  !backendContract.includes("readOptional(projectKey") ||
   !backendContract.includes("commit(projectKey") ||
   !projectStorage.includes('PROJECT_CONFIG_PATH = "story/.novel-claw/project.json"') ||
+  !projectStorage.includes("backend.readOptional(projectKey, PROJECT_CONFIG_PATH)") ||
   !projectStorage.includes("createStoryProjectStorage") ||
   projectStorage.includes("writeAtomic(") ||
   projectStorage.includes("JSON.parse(") ||

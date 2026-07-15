@@ -14,6 +14,13 @@ pub fn read_workspace_file(input: WorkspaceFilePathInput) -> Result<WorkspaceFil
 }
 
 #[tauri::command]
+pub fn read_workspace_file_optional(
+    input: WorkspaceFilePathInput,
+) -> Result<Option<WorkspaceFile>, String> {
+    workspace_files::read_workspace_file_optional(input)
+}
+
+#[tauri::command]
 pub fn write_workspace_file(input: WriteWorkspaceFileInput) -> Result<WorkspaceFile, String> {
     workspace_files::write_workspace_file(input)
 }

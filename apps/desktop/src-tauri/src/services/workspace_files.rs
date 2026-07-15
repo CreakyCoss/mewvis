@@ -128,6 +128,17 @@ pub fn read_workspace_file(input: WorkspaceFilePathInput) -> Result<WorkspaceFil
     })
 }
 
+pub fn read_workspace_file_optional(
+    input: WorkspaceFilePathInput,
+) -> Result<Option<WorkspaceFile>, String> {
+    let root = workspace_root(&input.workspace_path)?;
+    let path = resolve_workspace_path(&root, &input.relative_path)?;
+    if !path.exists() {
+        return Ok(None);
+    }
+    read_workspace_file(input).map(Some)
+}
+
 pub fn write_workspace_file(input: WriteWorkspaceFileInput) -> Result<WorkspaceFile, String> {
     let root = workspace_root(&input.workspace_path)?;
     let path = resolve_workspace_path(&root, &input.relative_path)?;
@@ -474,9 +485,9 @@ mod tests {
     };
 
     use super::{
-        delete_workspace_file, list_workspace_files, write_workspace_files_atomic,
-        AtomicWorkspaceFileWrite, WorkspaceFilePathInput, WorkspaceFileRevisionCondition,
-        WorkspacePathInput, WriteWorkspaceFilesAtomicInput,
+        delete_workspace_file, list_workspace_files, read_workspace_file_optional,
+        write_workspace_files_atomic, AtomicWorkspaceFileWrite, WorkspaceFilePathInput,
+        WorkspaceFileRevisionCondition, WorkspacePathInput, WriteWorkspaceFilesAtomicInput,
     };
 
     struct TestWorkspace {
@@ -522,6 +533,21 @@ mod tests {
         assert!(files.iter().any(|file| file.path == "draft.md"));
         assert!(!files.iter().any(|file| file.path == ".hidden.md"));
         assert!(!files.iter().any(|file| file.path == "workspace.db"));
+
+        let hidden = read_workspace_file_optional(WorkspaceFilePathInput {
+            workspace_path: workspace.path_string(),
+            relative_path: ".hidden.md".to_string(),
+        })
+        .expect("read optional hidden file")
+        .expect("hidden file exists");
+        assert_eq!(hidden.content, "hidden\n");
+
+        let missing = read_workspace_file_optional(WorkspaceFilePathInput {
+            workspace_path: workspace.path_string(),
+            relative_path: ".missing.md".to_string(),
+        })
+        .expect("read optional missing file");
+        assert!(missing.is_none());
     }
 
     #[test]
