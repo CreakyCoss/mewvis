@@ -13,7 +13,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import type { StoryProjectOverview } from "../../../../../core/story-project";
+import type { StoryOverview } from "../../../../../core/story-project/types";
 
 const StoryCardMetric = ({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: number }) => (
   <span className="inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border bg-muted/20 px-1.5 text-[11px] text-foreground/80">
@@ -30,7 +30,7 @@ export const StoryCard = ({
   onTavern,
   onDelete,
 }: {
-  overview: StoryProjectOverview;
+  overview: StoryOverview;
   onEdit: () => void;
   onTavern: () => void;
   onDelete: () => void | Promise<void>;

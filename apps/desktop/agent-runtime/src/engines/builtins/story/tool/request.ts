@@ -67,13 +67,13 @@ const normalizeOperation = (input: unknown) => {
 
 /**
  * Normalizes unambiguous transport mistakes made by compatible model providers.
- * The Story Project compiler still performs the authoritative strict validation.
+ * Story Project still performs the authoritative strict validation.
  */
 export const normalizeStoryChangeSet = (input: unknown): unknown => {
   const parsed = parseJson(input);
   if (!isObject(parsed)) return parsed;
   const changeSet = { ...parsed };
-  if ("profileVersion" in changeSet) changeSet.profileVersion = integerValue(changeSet.profileVersion);
+  if ("storyTypeVersion" in changeSet) changeSet.storyTypeVersion = integerValue(changeSet.storyTypeVersion);
   if ("baseRevision" in changeSet) changeSet.baseRevision = integerValue(changeSet.baseRevision);
   if (isObject(changeSet.batch)) {
     changeSet.batch = {
@@ -109,7 +109,7 @@ const operationParameters = (
     description,
     properties: {
       type: literalParam(type),
-      path: stringParam("当前 Layout 允许的故事文件路径"),
+      path: stringParam("当前故事类型允许的故事文件路径"),
       ...properties,
     },
   }) as const;
@@ -158,16 +158,16 @@ const STORY_CHANGE_SET_OPERATION_PARAMETERS = {
   ],
 } as const satisfies ToolParameterDefinition;
 
-/** Driver-neutral model schema. Business document fields remain profile-driven. */
+/** Driver-neutral model schema. Business document fields remain story-type-driven. */
 export const STORY_CHANGE_SET_PARAMETERS = {
   type: "object",
   description: "小批次 Story ChangeSet；数字和布尔值应使用原生 JSON 类型",
   properties: {
-    profileId: { type: "string", description: "describe_structure 返回的 profileId" },
-    profileVersion: { type: "integer", description: "describe_structure 返回的 profileVersion" },
+    storyTypeId: { type: "string", description: "describe_structure 返回的 storyType.id" },
+    storyTypeVersion: { type: "integer", description: "describe_structure 返回的 storyType.version" },
     storyId: { type: "string", description: "当前故事稳定 ID" },
     baseRevision: { type: "integer", description: "read_context 返回的当前 revision" },
-    validationProfile: { type: "string", description: "当前 Profile 声明的校验模式" },
+    validationMode: { type: "string", description: "当前故事类型声明的校验模式" },
     batch: {
       type: "object",
       description: "可选的小批次工作流元数据",

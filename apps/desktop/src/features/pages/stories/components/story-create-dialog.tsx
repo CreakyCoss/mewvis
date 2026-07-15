@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { StoryProjects } from "../../../../../core/story-project";
+import { storyProjectApi } from "../project-client";
 import { createStory as createStoryInWorkspace, type CreateStoryInput, type StoryLibraryItem } from "../storage";
 
 export type StoryCreateDialogHandle = () => void;
@@ -31,7 +31,7 @@ type StoryCreateDialogProps = {
   onCreated: (item: StoryLibraryItem) => void;
 };
 
-const storyTypes = StoryProjects.listTypes();
+const storyTypes = storyProjectApi.listStoryTypes();
 
 const emptyForm = (): StoryCreateForm => ({
   name: "",

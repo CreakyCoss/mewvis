@@ -26,6 +26,7 @@ const storyToolRequestSchema = z.discriminatedUnion("action", [
       action: z.literal(STORY_TOOL_ACTIONS.initialize),
       storyId: z.string().trim().min(1),
       title: z.string().trim().min(1),
+      storyTypeId: z.string().trim().min(1).optional(),
       replaceExistingJson: z.boolean().optional(),
     })
     .strict(),
@@ -101,6 +102,7 @@ const STORY_TOOL_PARAMETERS = {
     ),
     storyId: optionalString("initialize 时必填：故事稳定 ID"),
     title: optionalString("initialize 时必填：故事标题"),
+    storyTypeId: optionalString("initialize 时可选：未配置工作区时选择故事类型，默认 long-novel"),
     replaceExistingJson: {
       type: "boolean",
       description: "initialize 时可选；是否替换 story 目录中已有的普通 JSON，默认 false",
@@ -122,7 +124,7 @@ export const STORY_TOOL = Object.freeze({
   label: "Story",
   contract: STORY_TOOL_CONTRACT,
   description:
-    "Read and modify a story project through a trusted StoryProjectCompiler. It exposes the active profile and layout, readable writing context, validation, and atomic incremental commits.",
+    "Read and modify a typed story project. It exposes the active document structure, readable writing context, validation, and atomic incremental commits.",
   parameters: STORY_TOOL_PARAMETERS,
   createImplementation: ({ workspacePath }) => createStoryToolPackage(createNodeStoryToolRepository(workspacePath)),
 }) satisfies BuiltinToolDefinition<typeof STORY_TOOL_CONTRACT>;

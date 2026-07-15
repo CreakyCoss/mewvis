@@ -1,19 +1,13 @@
-import type { StoryCompiledProject, StoryValidationIssue, StoryValidationResult } from "../types.js";
+import type { StoryProjectState, StoryValidationIssue, StoryValidationResult } from "../types.js";
 import { storyValidationIssue } from "./issues.js";
 import { manifestFiles, projectInfo } from "./project.js";
-import {
-  storyProfileDocument,
-  storyProfileDocumentFields,
-  type StoryProfile,
-  type StoryProfileField,
-} from "./profile.js";
+import { storyTypeDocument, storyTypeFields, storyTypeObjectFields } from "../definitions/definition.js";
+import type { StoryFieldDefinition, StoryTypeDefinition } from "../definitions/types.js";
 
 type JsonObject = Record<string, unknown>;
 
 const isObject = (value: unknown): value is JsonObject =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
-
-const pointerKey = (pointer: string) => (pointer.startsWith("/") ? pointer.slice(1) : pointer);
 
 const documentId = (value: unknown) => {
   if (!isObject(value)) return "";
@@ -23,32 +17,28 @@ const documentId = (value: unknown) => {
 const documentKind = (value: unknown) => (isObject(value) && typeof value.kind === "string" ? value.kind : "");
 
 const walkFields = (
-  profile: StoryProfile,
-  fields: Readonly<Record<string, StoryProfileField>>,
+  definition: StoryTypeDefinition,
+  fields: Readonly<Record<string, StoryFieldDefinition>>,
   value: JsonObject,
-  visitor: (field: StoryProfileField, value: unknown, path: string) => void,
+  visitor: (field: StoryFieldDefinition, value: unknown, path: string) => void,
   basePath: string,
 ) => {
-  for (const [pointer, field] of Object.entries(fields)) {
-    const key = pointerKey(pointer);
+  for (const [key, field] of Object.entries(fields)) {
     const item = value[key];
     visitor(field, item, `${basePath}.${key}`);
     if (field.definition && isObject(item)) {
-      const definition = profile.objectDefinitions[field.definition];
-      if (definition) walkFields(profile, definition.fields, item, visitor, `${basePath}.${key}`);
+      walkFields(definition, storyTypeObjectFields(definition, field.definition), item, visitor, `${basePath}.${key}`);
     }
     if (field.itemDefinition && Array.isArray(item)) {
-      const definition = profile.objectDefinitions[field.itemDefinition];
-      if (definition) {
-        item.forEach((child, index) => {
-          if (isObject(child)) walkFields(profile, definition.fields, child, visitor, `${basePath}.${key}[${index}]`);
-        });
-      }
+      const objectFields = storyTypeObjectFields(definition, field.itemDefinition);
+      item.forEach((child, index) => {
+        if (isObject(child)) walkFields(definition, objectFields, child, visitor, `${basePath}.${key}[${index}]`);
+      });
     }
   }
 };
 
-const definitionIds = (project: StoryCompiledProject, profile: StoryProfile, issues: StoryValidationIssue[]) => {
+const definitionIds = (project: StoryProjectState, definition: StoryTypeDefinition, issues: StoryValidationIssue[]) => {
   const result = new Map<string, Set<string>>();
   const collect = (definitionName: string, value: unknown, path: string) => {
     if (!isObject(value) || typeof value.id !== "string" || !value.id) return;
@@ -58,37 +48,35 @@ const definitionIds = (project: StoryCompiledProject, profile: StoryProfile, iss
     ids.add(value.id);
     result.set(definitionName, ids);
   };
-  const visit = (fields: Readonly<Record<string, StoryProfileField>>, value: JsonObject, basePath: string) => {
-    for (const [pointer, field] of Object.entries(fields)) {
-      const key = pointerKey(pointer);
+  const visit = (fields: Readonly<Record<string, StoryFieldDefinition>>, value: JsonObject, basePath: string) => {
+    for (const [key, field] of Object.entries(fields)) {
       const item = value[key];
       if (field.definition && isObject(item)) {
         collect(field.definition, item, `${basePath}.${key}`);
-        const definition = profile.objectDefinitions[field.definition];
-        if (definition) visit(definition.fields, item, `${basePath}.${key}`);
+        visit(storyTypeObjectFields(definition, field.definition), item, `${basePath}.${key}`);
       }
       if (field.itemDefinition && Array.isArray(item)) {
-        const definition = profile.objectDefinitions[field.itemDefinition];
+        const objectFields = storyTypeObjectFields(definition, field.itemDefinition);
         item.forEach((child, index) => {
           collect(field.itemDefinition!, child, `${basePath}.${key}[${index}]`);
-          if (definition && isObject(child)) visit(definition.fields, child, `${basePath}.${key}[${index}]`);
+          if (isObject(child)) visit(objectFields, child, `${basePath}.${key}[${index}]`);
         });
       }
     }
   };
   for (const entry of project.documents) {
     const kind = documentKind(entry.value);
-    if (isObject(entry.value)) visit(storyProfileDocumentFields(profile, kind), entry.value, entry.path);
+    if (isObject(entry.value)) visit(storyTypeFields(definition, kind), entry.value, entry.path);
   }
   return result;
 };
 
 export const validateProject = (
-  project: StoryCompiledProject,
-  profile: StoryProfile,
-  validationProfile: string,
+  project: StoryProjectState,
+  definition: StoryTypeDefinition,
+  validationMode: string,
 ): StoryValidationResult => {
-  if (!profile.validationProfiles[validationProfile]) throw new Error(`Profile 不支持校验模式：${validationProfile}`);
+  if (!definition.validationModes[validationMode]) throw new Error(`故事类型不支持校验模式：${validationMode}`);
   const issues: StoryValidationIssue[] = [];
   const info = projectInfo(project);
   const declared = manifestFiles(project.manifest);
@@ -121,13 +109,13 @@ export const validateProject = (
     if (id) ids.add(id);
     idsByKind.set(kind, ids);
   }
-  const idsByDefinition = definitionIds(project, profile, issues);
+  const idsByDefinition = definitionIds(project, definition, issues);
   for (const entry of project.documents) {
     const kind = documentKind(entry.value);
     if (!isObject(entry.value)) continue;
     walkFields(
-      profile,
-      storyProfileDocumentFields(profile, kind),
+      definition,
+      storyTypeFields(definition, kind),
       entry.value,
       (field, fieldValue, path) => {
         if (
@@ -158,7 +146,7 @@ export const validateProject = (
       },
       entry.path,
     );
-    for (const companionKind of storyProfileDocument(profile, kind).companionKinds ?? []) {
+    for (const companionKind of storyTypeDocument(definition, kind).companionKinds ?? []) {
       const id = documentId(entry.value);
       if (id && !idsByKind.get(companionKind)?.has(id)) {
         issues.push(

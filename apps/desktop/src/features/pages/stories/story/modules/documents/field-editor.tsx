@@ -7,21 +7,19 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { StoryProjectDocuments } from "../../../../../../../core/story-project";
-import type {
-  JsonFieldMetadata,
-  JsonObject,
-  JsonObjectDefinition,
-  JsonValue,
-} from "../../../../../../../core/story-project";
-
-const isJsonObject = StoryProjectDocuments.isObject;
+import type { StoryValue } from "../../../../../../../core/story-project/types";
+import {
+  isJsonObject,
+  type JsonFieldMetadata,
+  type JsonObject,
+  type JsonObjectDefinition,
+} from "../../../story-document";
 
 const pointerKey = (pointer: string) => (pointer.startsWith("/") ? pointer.slice(1) : pointer);
 
-const cloneJson = (value: JsonValue): JsonValue => JSON.parse(JSON.stringify(value)) as JsonValue;
+const cloneJson = (value: StoryValue): StoryValue => JSON.parse(JSON.stringify(value)) as StoryValue;
 
-const inferredEmptyValue = (value: JsonValue | undefined): JsonValue => {
+const inferredEmptyValue = (value: StoryValue | undefined): StoryValue => {
   if (Array.isArray(value)) return [];
   if (isJsonObject(value)) return {};
   if (typeof value === "boolean") return false;
@@ -29,7 +27,7 @@ const inferredEmptyValue = (value: JsonValue | undefined): JsonValue => {
   return "";
 };
 
-const fieldDefaultValue = (field: JsonFieldMetadata, definitions: Record<string, JsonObjectDefinition>): JsonValue => {
+const fieldDefaultValue = (field: JsonFieldMetadata, definitions: Record<string, JsonObjectDefinition>): StoryValue => {
   if (field.const !== undefined) return cloneJson(field.const);
   if (field.default !== undefined) return cloneJson(field.default);
   if (field.type === "boolean") return false;
@@ -49,7 +47,7 @@ const fieldDefaultValue = (field: JsonFieldMetadata, definitions: Record<string,
   return "";
 };
 
-const shortSummary = (value: JsonValue, fallback: string) => {
+const shortSummary = (value: StoryValue, fallback: string) => {
   if (typeof value === "string" && value.trim()) return value.trim();
   if (typeof value === "number" || typeof value === "boolean") return String(value);
   if (isJsonObject(value)) {
@@ -136,8 +134,8 @@ const GenericArrayEditor = ({
   value,
 }: {
   disabled?: boolean;
-  onChange: (value: JsonValue[]) => void;
-  value: JsonValue[];
+  onChange: (value: StoryValue[]) => void;
+  value: StoryValue[];
 }) => (
   <div className="space-y-3">
     {value.length > 0 ? (
@@ -202,8 +200,8 @@ export const GenericJsonValueEditor = ({
 }: {
   disabled?: boolean;
   nested?: boolean;
-  onChange: (value: JsonValue) => void;
-  value: JsonValue;
+  onChange: (value: StoryValue) => void;
+  value: StoryValue;
 }) => {
   if (Array.isArray(value)) {
     return <GenericArrayEditor value={value} disabled={disabled} onChange={onChange} />;
@@ -291,8 +289,8 @@ const MetadataCollectionEditor = ({
   definition: JsonObjectDefinition;
   definitions: Record<string, JsonObjectDefinition>;
   disabled: boolean;
-  onChange: (value: JsonValue[]) => void;
-  value: JsonValue[];
+  onChange: (value: StoryValue[]) => void;
+  value: StoryValue[];
 }) => (
   <div className="space-y-3">
     {value.length > 0 ? (
@@ -367,7 +365,7 @@ const StringListEditor = ({
   value,
 }: {
   disabled: boolean;
-  onChange: (value: JsonValue) => void;
+  onChange: (value: StoryValue) => void;
   value: string[];
 }) => (
   <div className="space-y-2">
@@ -415,8 +413,8 @@ export const MetadataFieldEditor = ({
   definitions: Record<string, JsonObjectDefinition>;
   disabled?: boolean;
   field: JsonFieldMetadata;
-  onChange: (value: JsonValue) => void;
-  value: JsonValue | undefined;
+  onChange: (value: StoryValue) => void;
+  value: StoryValue | undefined;
 }) => {
   const disabled =
     parentDisabled || Boolean(field.readOnly || field.generated || field.immutable || field.const !== undefined);

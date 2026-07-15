@@ -14,18 +14,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { StoryProjectDocuments, type StoryProjectDocument } from "../../../../../../core/story-project";
+import type { StoryDocument } from "../../../../../../core/story-project/types";
+import { inspectStoryDocument, storyDocumentLabel } from "../../story-document";
 import { useStoryState } from "../use-story-state";
 import { CreateJsonDocumentDialog } from "./documents/create-dialog";
 import { StoryDocumentEditor } from "./documents/document-editor";
-
-const { inspect: inspectStructuredJsonDocument, label: storyDocumentLabel } = StoryProjectDocuments;
 
 type DocumentGroup = {
   icon: ComponentType<{ className?: string }>;
   id: string;
   label: string;
-  documents: StoryProjectDocument[];
+  documents: StoryDocument[];
 };
 
 const groupHints = [
@@ -61,12 +60,12 @@ const groupHints = [
   },
 ] as const;
 
-const documentSearchText = (document: StoryProjectDocument) => {
-  const inspected = inspectStructuredJsonDocument(document);
+const documentSearchText = (document: StoryDocument) => {
+  const inspected = inspectStoryDocument(document);
   return `${document.path} ${inspected?.kind ?? ""} ${inspected?.label ?? storyDocumentLabel(document)}`.toLowerCase();
 };
 
-const groupForDocument = (document: StoryProjectDocument) => {
+const groupForDocument = (document: StoryDocument) => {
   const searchable = documentSearchText(document);
   return (
     groupHints.find((group) => group.keywords.some((keyword) => searchable.includes(keyword))) ?? {
@@ -78,7 +77,7 @@ const groupForDocument = (document: StoryProjectDocument) => {
   );
 };
 
-const buildDocumentGroups = (documents: StoryProjectDocument[], query: string): DocumentGroup[] => {
+const buildDocumentGroups = (documents: StoryDocument[], query: string): DocumentGroup[] => {
   const normalizedQuery = query.trim().toLowerCase();
   const visible = normalizedQuery
     ? documents.filter((document) => documentSearchText(document).includes(normalizedQuery))
@@ -203,7 +202,7 @@ export const StoryModules = () => {
             <FileJson2 className="mx-auto size-9 text-muted-foreground" />
             <h3 className="mt-3 text-base font-semibold">暂无故事资料</h3>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              可以手动创建 JSON，或打开创作助手生成 Profile 管理的故事资料与章节 Markdown。
+              可以手动创建 JSON，或打开创作助手生成当前故事类型管理的资料与章节 Markdown。
             </p>
             <Button type="button" className="mt-4" onClick={() => setIsCreateOpen(true)}>
               <Plus className="size-4" />

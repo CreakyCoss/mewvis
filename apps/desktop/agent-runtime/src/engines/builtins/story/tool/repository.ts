@@ -1,12 +1,6 @@
-import type { StoryProjectApi } from "../../../../../../core/story-project/api.js";
+import type { StoryWorkspace } from "../../../../../../core/story-project/index.js";
 
-type StoryCompiledProject = ReturnType<StoryProjectApi["createProject"]>;
-
-/** Story Tool persistence port; agent drivers do not depend on a frontend filesystem implementation. */
+/** Story Tool 只消费绑定后的标准故事工作区，不感知文件系统或故事类型实现。 */
 export interface StoryToolRepository {
-  loadProjectApi(): Promise<StoryProjectApi>;
-  inspect(projectApi: StoryProjectApi): Promise<{ initialized: boolean; jsonPaths: string[] }>;
-  load(projectApi: StoryProjectApi): Promise<StoryCompiledProject>;
-  initialize(projectApi: StoryProjectApi, project: StoryCompiledProject, replaceExistingJson: boolean): Promise<void>;
-  writeChanges(projectApi: StoryProjectApi, project: StoryCompiledProject, changedPaths: string[]): Promise<void>;
+  readonly project: StoryWorkspace;
 }

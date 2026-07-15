@@ -1,23 +1,18 @@
 import type { StoryValidationIssue } from "../types.js";
-import { DeclarativeStoryValidationError } from "./issues.js";
+import { StoryProjectValidationError } from "./issues.js";
 import {
-  storyProfileDocument,
-  storyProfileDocumentFields,
-  storyProfileKindForPath,
-  type StoryProfile,
-  type StoryProfileField,
-} from "./profile.js";
+  storyTypeDocument,
+  storyTypeFields,
+  storyTypeKindForPath,
+  storyTypeObjectFields,
+} from "../definitions/definition.js";
+import type { StoryFieldDefinition, StoryTypeDefinition } from "../definitions/types.js";
 
 const objectFromUnknown = (value: unknown, owner: string): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(`${owner} 必须是普通 JSON 对象。`);
   }
   return value as Record<string, unknown>;
-};
-
-const fieldName = (pointer: string) => {
-  if (!pointer.startsWith("/") || pointer.slice(1).includes("/")) throw new Error(`仅支持顶层字段：${pointer}`);
-  return pointer.slice(1);
 };
 
 const canonicalPath = (input: string) =>
@@ -90,7 +85,7 @@ const compatibleBoolean = (value: unknown) => {
   return value;
 };
 
-const compatiblePrimitive = (field: StoryProfileField, value: unknown) => {
+const compatiblePrimitive = (field: StoryFieldDefinition, value: unknown) => {
   const stringTypes = new Set(["id", "text", "textarea", "content", "enum", "reference", "path"]);
   if (stringTypes.has(field.type) && (typeof value === "number" || typeof value === "boolean")) {
     return String(value);
@@ -107,7 +102,7 @@ const compatiblePrimitive = (field: StoryProfileField, value: unknown) => {
   return value;
 };
 
-const assertPrimitiveType = (field: StoryProfileField, value: unknown, owner: string) => {
+const assertPrimitiveType = (field: StoryFieldDefinition, value: unknown, owner: string) => {
   const type = field.type;
   const stringTypes = new Set(["id", "text", "textarea", "content", "enum", "reference", "path"]);
   if (stringTypes.has(type) && typeof value !== "string") throw new Error(`${owner} 必须是字符串。`);
@@ -142,12 +137,13 @@ const assertPrimitiveType = (field: StoryProfileField, value: unknown, owner: st
 };
 
 const materializeFields = (
-  contract: StoryProfile,
+  definition: StoryTypeDefinition,
   owner: string,
-  fields: Readonly<Record<string, StoryProfileField>>,
+  fields: Readonly<Record<string, StoryFieldDefinition>>,
   input: unknown,
   timestamp: number,
   coerce: boolean,
+  refreshGenerated: boolean,
   issues: StoryValidationIssue[],
 ) => {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
@@ -160,7 +156,7 @@ const materializeFields = (
     return {};
   }
   const source = input as Record<string, unknown>;
-  const allowed = new Set(Object.keys(fields).map(fieldName));
+  const allowed = new Set(Object.keys(fields));
   const unknownKeys = Object.keys(source).filter((key) => !allowed.has(key));
   for (const key of unknownKeys) {
     issues.push({
@@ -172,13 +168,17 @@ const materializeFields = (
   }
   if (unknownKeys.length === Object.keys(source).length && unknownKeys.length > 0) return {};
   const result: Record<string, unknown> = {};
-  for (const [pointer, field] of Object.entries(fields)) {
-    const key = fieldName(pointer);
+  for (const [key, field] of Object.entries(fields)) {
     const path = `${owner}.${key}`;
     let value = source[key];
     if (field.const !== undefined) value = field.const;
-    else if (field.generated && (key === "updatedAt" || key === "createdAt")) value = timestamp;
-    else if (value === undefined && field.default !== undefined) value = cloneJson(field.default);
+    else if (
+      field.generated &&
+      (key === "updatedAt" || key === "createdAt") &&
+      (value === undefined || (refreshGenerated && key === "updatedAt"))
+    ) {
+      value = timestamp;
+    } else if (value === undefined && field.default !== undefined) value = cloneJson(field.default);
     if (value === undefined) {
       if (field.required) {
         issues.push({
@@ -192,30 +192,30 @@ const materializeFields = (
     }
     try {
       if (field.definition) {
-        const definition = contract.objectDefinitions[field.definition];
-        if (!definition) throw new Error(`工作区协议缺少对象定义：${field.definition}`);
+        const objectFields = storyTypeObjectFields(definition, field.definition);
         value = materializeFields(
-          contract,
+          definition,
           path,
-          definition.fields,
+          objectFields,
           coerce ? parseCompatibleJson(value) : value,
           timestamp,
           coerce,
+          refreshGenerated,
           issues,
         );
       } else if (field.itemDefinition) {
         if (coerce) value = compatibleArray(value);
         if (!Array.isArray(value)) throw new Error(`${path} 必须是数组。`);
-        const definition = contract.objectDefinitions[field.itemDefinition];
-        if (!definition) throw new Error(`工作区协议缺少对象定义：${field.itemDefinition}`);
+        const objectFields = storyTypeObjectFields(definition, field.itemDefinition);
         value = value.map((item, index) =>
           materializeFields(
-            contract,
+            definition,
             `${path}[${index}]`,
-            definition.fields,
+            objectFields,
             coerce ? parseCompatibleJson(item) : item,
             timestamp,
             coerce,
+            refreshGenerated,
             issues,
           ),
         );
@@ -237,20 +237,21 @@ const materializeFields = (
 };
 
 export const materializeStoryDocument = (
-  contract: StoryProfile,
+  definition: StoryTypeDefinition,
   input: unknown,
   expectedKind: string,
   timestamp = Date.now(),
-  options: Readonly<{ coerce?: boolean }> = {},
+  options: Readonly<{ coerce?: boolean; refreshGenerated?: boolean }> = {},
 ) => {
   const issues: StoryValidationIssue[] = [];
   const value = materializeFields(
-    contract,
+    definition,
     expectedKind,
-    storyProfileDocumentFields(contract, expectedKind),
+    storyTypeFields(definition, expectedKind),
     input,
     timestamp,
     options.coerce === true,
+    options.refreshGenerated !== false,
     issues,
   );
   if (value.kind !== expectedKind) {
@@ -261,36 +262,38 @@ export const materializeStoryDocument = (
       message: `故事文档 kind 与目标路径不一致：期望 ${expectedKind}，收到 ${String(value.kind)}`,
     });
   }
-  if (issues.length > 0) throw new DeclarativeStoryValidationError(issues);
+  if (issues.length > 0) throw new StoryProjectValidationError(issues);
   return value;
 };
 
 export const serializeStoryDocument = (
-  contract: StoryProfile,
+  definition: StoryTypeDefinition,
   input: unknown,
   path: string,
 ): Record<string, unknown> | string => {
-  const kind = storyProfileKindForPath(contract, path);
-  const document = storyProfileDocument(contract, kind);
-  if (document.contentType === "markdown") return parseStoryDocument(contract, input, path).content as string;
+  const kind = storyTypeKindForPath(definition, path);
+  const document = storyTypeDocument(definition, kind);
+  if (document.contentType === "markdown") return parseStoryDocument(definition, input, path).content as string;
   const source = objectFromUnknown(input, path);
-  const allowed = new Set(Object.keys(storyProfileDocumentFields(contract, kind)).map(fieldName));
+  const allowed = new Set(Object.keys(storyTypeFields(definition, kind)));
   return materializeStoryDocument(
-    contract,
+    definition,
     Object.fromEntries(Object.entries(source).filter(([key]) => allowed.has(key))),
     kind,
+    Date.now(),
+    { refreshGenerated: false },
   );
 };
 
 export const parseStoryDocument = (
-  contract: StoryProfile,
+  definition: StoryTypeDefinition,
   input: unknown,
   path: string,
   timestamp = Date.now(),
   options: Readonly<{ coerce?: boolean }> = {},
 ) => {
-  const kind = storyProfileKindForPath(contract, path);
-  const document = storyProfileDocument(contract, kind);
+  const kind = storyTypeKindForPath(definition, path);
+  const document = storyTypeDocument(definition, kind);
   if (document.contentType === "markdown") {
     const content = typeof input === "string" ? input : objectFromUnknown(input, path).content;
     if (typeof content !== "string") throw new Error(`${path} 的 Markdown 内容必须是字符串。`);
@@ -299,5 +302,8 @@ export const parseStoryDocument = (
     if (!id) throw new Error(`${kind} 的 Markdown 路径必须包含 {id} 参数。`);
     return { kind, id, content };
   }
-  return materializeStoryDocument(contract, input, kind, timestamp, options);
+  return materializeStoryDocument(definition, input, kind, timestamp, {
+    ...options,
+    refreshGenerated: false,
+  });
 };

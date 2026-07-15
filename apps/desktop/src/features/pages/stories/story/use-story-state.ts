@@ -1,28 +1,24 @@
 import { toast } from "sonner";
 import { create } from "zustand";
-import {
-  StoryProjects,
-  type JsonValue,
-  type StoryProjectDocument,
-  type StoryProjectOverview,
-} from "../../../../../core/story-project";
+import type { StoryDocument, StoryOverview, StoryValue } from "../../../../../core/story-project/types";
+import { storyProjectApi } from "../project-client";
 import { loadStoryById, updateStoryRecordName, type StoryLibraryItem, type StoryWorkspace } from "../storage";
 
 type StoryStore = {
   closeStory: () => void;
-  createDocument: (path: string, value: JsonValue) => Promise<StoryProjectDocument | null>;
+  createDocument: (path: string, value: StoryValue) => Promise<StoryDocument | null>;
   deleteDocument: (path: string) => Promise<boolean>;
-  documents: StoryProjectDocument[];
+  documents: StoryDocument[];
   getChatWorkspacePath: (chatWorkspaceId: string) => string;
   isSaving: boolean;
   openStory: (item: StoryLibraryItem) => void;
-  overview: StoryProjectOverview | null;
+  overview: StoryOverview | null;
   reloadStory: () => Promise<StoryLibraryItem | null>;
-  saveDocument: (document: StoryProjectDocument) => Promise<StoryProjectDocument | null>;
+  saveDocument: (document: StoryDocument) => Promise<StoryDocument | null>;
   storyWorkspace: StoryWorkspace | null;
 };
 
-const replaceDocument = (documents: StoryProjectDocument[], document: StoryProjectDocument) =>
+const replaceDocument = (documents: StoryDocument[], document: StoryDocument) =>
   [...documents.filter((item) => item.path !== document.path), document].sort((left, right) =>
     left.path.localeCompare(right.path),
   );
@@ -59,7 +55,7 @@ export const useStoryState = create<StoryStore>((set, get) => ({
     }
     set({ isSaving: true });
     try {
-      const project = await StoryProjects.open(storyWorkspace.path);
+      const project = await storyProjectApi.open(storyWorkspace.path);
       const saved = await project.saveDocument(document);
       const nextDocuments = replaceDocument(documents, saved);
       const nextOverview = await project.overview();
@@ -92,7 +88,7 @@ export const useStoryState = create<StoryStore>((set, get) => ({
     if (!overview || !storyWorkspace) return false;
     set({ isSaving: true });
     try {
-      const project = await StoryProjects.open(storyWorkspace.path);
+      const project = await storyProjectApi.open(storyWorkspace.path);
       await project.removeDocument(path);
       const nextDocuments = documents.filter((document) => document.path !== path);
       set({ documents: nextDocuments, overview: await project.overview() });

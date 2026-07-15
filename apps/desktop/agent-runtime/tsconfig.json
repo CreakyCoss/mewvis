@@ -13,12 +13,8 @@
   },
   "include": [
     "src/**/*.ts",
-    "../core/story-project/api.ts",
-    "../core/story-project/identifiers.ts",
-    "../core/story-project/types.ts",
-    "../core/story-project/compiler/**/*.ts",
-    "../core/story-project/project/metadata.ts",
-    "../core/story-project/project/registry.ts",
+    "../core/story-project/**/*.ts",
+    "../core/story-project/**/*.json",
     "../core/protocol.ts",
     "../product.config.json"
   ]

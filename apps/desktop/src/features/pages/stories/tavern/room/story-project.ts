@@ -1,4 +1,6 @@
-import { StoryProjectDocuments, StoryProjects, type StoryProjectDocument } from "../../../../../../core/story-project";
+import type { StoryDocument } from "../../../../../../core/story-project/types";
+import { storyProjectApi } from "../../project-client";
+import { storyDocumentData } from "../../story-document";
 import type { StoryWorkspace } from "../../storage";
 import type { TavernRoomConfig } from "../manage/model";
 import type { TavernCharacter, TavernCharacterMemory, TavernStoryData } from "./model";
@@ -24,9 +26,9 @@ const trimPathEnd = (value: string) => value.trim().replace(/[\\/]+$/, "");
 const safePathSegment = (value: string, fallback: string) =>
   value.trim().replace(/[\\/]/g, "-").replace(/\.\./g, "").replace(/^\.+/, "").trim() || fallback;
 
-const documentValues = (documents: StoryProjectDocument[]) =>
+const documentValues = (documents: StoryDocument[]) =>
   documents.flatMap((document) => {
-    const value = StoryProjectDocuments.data(document);
+    const value = storyDocumentData(document);
     return value ? [value] : [];
   });
 
@@ -69,7 +71,7 @@ export const tavernChapterWorkspacePath = (workspace: StoryWorkspace, chapterId:
   ].join("/");
 
 export const loadTavernChapterOptions = async (workspacePath: string): Promise<TavernChapterOption[]> => {
-  const project = await StoryProjects.open(workspacePath);
+  const project = await storyProjectApi.open(workspacePath);
   return documentValues(await project.listDocuments({ role: "chapterPlan" }))
     .flatMap((chapter) => {
       const id = stringValue(chapter.id);
@@ -101,7 +103,7 @@ export const loadTavernStoryData = async ({
   roomConfig: TavernRoomConfig;
   workspacePath: string;
 }): Promise<TavernStoryData> => {
-  const project = await StoryProjects.open(workspacePath);
+  const project = await storyProjectApi.open(workspacePath);
   const context = await project.readContext({ scope: "chapter", targetId: chapterId });
   if (context.target?.id !== chapterId) {
     throw new Error(`章节上下文目标不一致：${chapterId}`);

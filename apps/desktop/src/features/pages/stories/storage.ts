@@ -1,5 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { StoryProjects, type StoryProjectDocument, type StoryProjectOverview } from "../../../../core/story-project";
+import type { StoryDocument, StoryOverview } from "../../../../core/story-project/types";
+import { storyProjectApi } from "./project-client";
 
 export const STORY_SOURCE_DIR = "story";
 export const STORY_TAVERN_FILE = `${STORY_SOURCE_DIR}/tavern.json`;
@@ -20,8 +21,8 @@ export type StoryWorkspace = {
 
 export type StoryLibraryItem = {
   id: string;
-  documents: StoryProjectDocument[];
-  overview: StoryProjectOverview;
+  documents: StoryDocument[];
+  overview: StoryOverview;
   workspace: StoryWorkspace;
 };
 
@@ -38,7 +39,7 @@ const storyWorkspaceFromRecord = (record: StoryRecord): StoryWorkspace => ({
 });
 
 const storyLibraryItemFromRecord = async (record: StoryRecord): Promise<StoryLibraryItem> => {
-  const project = await StoryProjects.open(record.workspacePath);
+  const project = await storyProjectApi.open(record.workspacePath);
   const [documents, overview] = await Promise.all([project.listDocuments(), project.overview()]);
   return {
     id: record.id,
@@ -132,13 +133,13 @@ export const createStory = async (
 ): Promise<{
   record: StoryRecord;
   workspace: StoryWorkspace;
-  documents: StoryProjectDocument[];
-  overview: StoryProjectOverview;
+  documents: StoryDocument[];
+  overview: StoryOverview;
 }> => {
   const record = await createStoryRecord(input);
   const workspace = storyWorkspaceFromRecord(record);
   try {
-    const project = await StoryProjects.create(workspace.path, {
+    const project = await storyProjectApi.create(workspace.path, {
       storyTypeId: input.storyTypeId,
       storyId: record.id,
       title: record.name,

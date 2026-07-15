@@ -1,5 +1,5 @@
 import type { TavernRoomConfig } from "@/features/pages/stories/tavern/manage/model";
-import type { StoryContextBundle } from "../../../../../../../core/story-project";
+import type { StoryContext } from "../../../../../../../core/story-project/types";
 
 export type TavernCharacterMemory = {
   required: string;
@@ -26,7 +26,7 @@ export type TavernCharacter = {
 export type TavernStoryData = {
   /** 酒馆只绑定稳定章节 ID；章节号和标题由 context 提供。 */
   chapterId: string;
-  context: StoryContextBundle;
+  context: StoryContext;
   characters: TavernCharacter[];
   roomConfig: TavernRoomConfig;
 };

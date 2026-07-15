@@ -1,7 +1,7 @@
 ---
 name: story-assistant-import
 description: >-
-  Novel Claw 故事创作助手专属的结构化小说导入技能。用户要求导入已有小说、反向解析半成品/完本、把旧稿变成可续写项目时必须使用。继承 oh-story-claudecode 最新长短篇分流和逆向工程方法，按当前 Profile 的语义角色生成 Story Project、analysis 与 import 记录，不创建 Markdown 项目树，也不修改普通 story-import 技能。
+  Novel Claw 故事创作助手专属的结构化小说导入技能。用户要求导入已有小说、反向解析半成品/完本、把旧稿变成可续写项目时必须使用。继承 oh-story-claudecode 最新长短篇分流和逆向工程方法，按当前故事类型的语义角色生成 Story Project、analysis 与 import 记录，不创建 Markdown 项目树，也不修改普通 story-import 技能。
 metadata:
   novel-claw:
     assistant-only: true
@@ -83,7 +83,7 @@ metadata:
 6. 分批补 character states、伏笔、时间线和 progress；
 7. 最后 patch analysis/import 为 complete/committed，并补全 generatedFileIds。
 
-每批最多 16 operations / 192 KiB，只调用一次 `story(action="commit_changes", changeSet={...})` 原子校验提交后重读 revision。`action="validate_changes"` 仅作可选预览。中间批使用 draft 且任何引用都必须指向已落库对象；最后一批 `batch.final=true` 并用 `validationProfile="openBook"`。某批失败只修该批，不得重放已提交批次或全量覆盖项目。
+每批最多 16 operations / 192 KiB，只调用一次 `story(action="commit_changes", changeSet={...})` 原子校验提交后重读 revision。`action="validate_changes"` 仅作可选预览。中间批使用 draft 且任何引用都必须指向已落库对象；最后一批 `batch.final=true` 并用 `validationMode="openBook"`。某批失败只修该批，不得重放已提交批次或全量覆盖项目。
 
 提交后报告篇幅分流、完成批次、生成文件数、最后完整章、warnings、import ID、analysis ID 和 revision。partial 工作流必须在 import.warnings/gaps 标明未完成范围，后续从该批继续。
 

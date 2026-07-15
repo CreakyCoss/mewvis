@@ -1,9 +1,15 @@
 import { z } from "zod";
-import type { StoryProjectApi } from "../api.js";
-import type { AppliedStoryChanges, StoryCompiledProject, StoryValidationIssue } from "../types.js";
-import { DeclarativeStoryValidationError, storyValidationIssue } from "./issues.js";
+import type { StoryProjectAppliedChanges, StoryProjectState, StoryValidationIssue } from "../types.js";
+import { StoryProjectValidationError, storyValidationIssue } from "./issues.js";
 import { projectInfo, rebuildManifest } from "./project.js";
-import { storyProfileDocumentFields, type StoryProfile } from "./profile.js";
+import {
+  resolveStoryTypePath,
+  storyTypeDocument,
+  storyTypeFields,
+  storyTypeKindForPath,
+} from "../definitions/definition.js";
+import type { StoryTypeDefinition } from "../definitions/types.js";
+import { materializeStoryDocument } from "./document.js";
 import { validateProject } from "./validation.js";
 
 type JsonObject = Record<string, unknown>;
@@ -91,11 +97,11 @@ const storyChangeSetOperationSchema = z.discriminatedUnion("type", [
 
 export const storyChangeSetSchema = z
   .object({
-    profileId: z.string().trim().min(1),
-    profileVersion: z.number().int().positive(),
+    storyTypeId: z.string().trim().min(1),
+    storyTypeVersion: z.number().int().positive(),
     storyId: z.string().trim().min(1),
     baseRevision: z.number().int().nonnegative(),
-    validationProfile: z.string().trim().min(1),
+    validationMode: z.string().trim().min(1),
     batch: storyChangeSetBatchSchema.optional(),
     operations: z.array(storyChangeSetOperationSchema).min(1).max(STORY_CHANGE_SET_MAX_OPERATIONS),
   })
@@ -130,10 +136,10 @@ const deepMerge = (current: unknown, patch: JsonObject): JsonObject => {
   return result;
 };
 
-const assertPatchFields = (profile: StoryProfile, kind: string, patch: JsonObject) => {
-  const fields = storyProfileDocumentFields(profile, kind);
+const assertPatchFields = (definition: StoryTypeDefinition, kind: string, patch: JsonObject) => {
+  const fields = storyTypeFields(definition, kind);
   for (const key of Object.keys(patch)) {
-    const field = fields[`/${key}`];
+    const field = fields[key];
     if (!field) throw new Error(`${kind} 未声明字段：${key}`);
     if (field.readOnly || field.immutable || field.generated || field.const !== undefined) {
       throw new Error(`patch 不允许修改受保护字段：${key}`);
@@ -148,26 +154,23 @@ const requireObjectDocument = (files: Map<string, unknown>, path: string) => {
 };
 
 export const applyChangeSet = (
-  current: StoryCompiledProject,
+  current: StoryProjectState,
   input: unknown,
-  api: StoryProjectApi,
-  profile: StoryProfile,
-): AppliedStoryChanges => {
+  definition: StoryTypeDefinition,
+): StoryProjectAppliedChanges => {
   const changeSet = storyChangeSetSchema.parse(input);
-  if (changeSet.profileId !== api.identity.profileId || changeSet.profileVersion !== api.identity.profileVersion) {
-    throw new Error(
-      `ChangeSet Profile 与工作区不一致：期望 ${api.identity.profileId}@${api.identity.profileVersion}。`,
-    );
+  if (changeSet.storyTypeId !== definition.id || changeSet.storyTypeVersion !== definition.version) {
+    throw new Error(`ChangeSet 故事类型与工作区不一致：期望 ${definition.id}@${definition.version}。`);
   }
   const info = projectInfo(current);
   if (changeSet.storyId !== info.storyId) throw new Error("ChangeSet storyId 与当前故事不一致。");
   if (changeSet.baseRevision !== info.revision) {
     throw new Error(`故事已被更新：期望 revision ${changeSet.baseRevision}，当前为 ${info.revision}。`);
   }
-  if (!profile.validationProfiles[changeSet.validationProfile]) {
-    throw new Error(`Profile 不支持校验模式：${changeSet.validationProfile}`);
+  if (!definition.validationModes[changeSet.validationMode]) {
+    throw new Error(`故事类型不支持校验模式：${changeSet.validationMode}`);
   }
-  const manifestPath = api.projectManifestPath();
+  const manifestPath = resolveStoryTypePath(definition, definition.manifestKind);
   const files = new Map(current.documents.map((entry) => [entry.path, clone(entry.value)]));
   const timestamp = Date.now();
   const operationIssues: StoryValidationIssue[] = [];
@@ -175,28 +178,34 @@ export const applyChangeSet = (
     try {
       const path = canonicalPath(operation.path);
       if (path === manifestPath) throw new Error("Manifest 只能由故事运行时生成，不能直接修改。");
-      const kind = api.kindForPath(path);
-      const definition = api.document(kind);
+      const kind = storyTypeKindForPath(definition, path);
+      const document = storyTypeDocument(definition, kind);
       switch (operation.type) {
         case "delete":
-          if (definition.cardinality === "one") throw new Error(`${definition.label} 必须保留一份，不能删除。`);
+          if (document.cardinality === "one") throw new Error(`${document.label} 必须保留一份，不能删除。`);
           files.delete(path);
           break;
         case "upsert":
-          files.set(path, api.materializeDocument(operation.value, path, timestamp));
+          files.set(path, materializeStoryDocument(definition, operation.value, kind, timestamp, { coerce: true }));
           break;
         case "patch": {
-          if (definition.contentType === "markdown") throw new Error("Markdown 文档不支持 patch，请使用文本操作。");
-          assertPatchFields(profile, kind, operation.value);
+          if (document.contentType === "markdown") throw new Error("Markdown 文档不支持 patch，请使用文本操作。");
+          assertPatchFields(definition, kind, operation.value);
           files.set(
             path,
-            api.materializeDocument(deepMerge(requireObjectDocument(files, path), operation.value), path, timestamp),
+            materializeStoryDocument(
+              definition,
+              deepMerge(requireObjectDocument(files, path), operation.value),
+              kind,
+              timestamp,
+              { coerce: true },
+            ),
           );
           break;
         }
         case "upsert-items": {
           const file = requireObjectDocument(files, path);
-          assertPatchFields(profile, kind, { [operation.field]: operation.items });
+          assertPatchFields(definition, kind, { [operation.field]: operation.items });
           const currentItems = file[operation.field];
           if (!Array.isArray(currentItems)) throw new Error(`${path}.${operation.field} 必须是数组。`);
           const next = [...currentItems];
@@ -206,25 +215,32 @@ export const applyChangeSet = (
             if (index >= 0) next[index] = deepMerge(next[index], item);
             else next.push(item);
           }
-          files.set(path, api.materializeDocument({ ...file, [operation.field]: next }, path, timestamp));
+          files.set(
+            path,
+            materializeStoryDocument(definition, { ...file, [operation.field]: next }, kind, timestamp, {
+              coerce: true,
+            }),
+          );
           break;
         }
         case "remove-items": {
           const file = requireObjectDocument(files, path);
-          assertPatchFields(profile, kind, { [operation.field]: [] });
+          assertPatchFields(definition, kind, { [operation.field]: [] });
           const currentItems = file[operation.field];
           if (!Array.isArray(currentItems)) throw new Error(`${path}.${operation.field} 必须是数组。`);
           files.set(
             path,
-            api.materializeDocument(
+            materializeStoryDocument(
+              definition,
               {
                 ...file,
                 [operation.field]: currentItems.filter(
                   (item) => !isObject(item) || typeof item.id !== "string" || !operation.ids.includes(item.id),
                 ),
               },
-              path,
+              kind,
               timestamp,
+              { coerce: true },
             ),
           );
           break;
@@ -232,7 +248,7 @@ export const applyChangeSet = (
         case "add-values":
         case "remove-values": {
           const file = requireObjectDocument(files, path);
-          assertPatchFields(profile, kind, { [operation.field]: operation.values });
+          assertPatchFields(definition, kind, { [operation.field]: operation.values });
           const currentValues = file[operation.field];
           if (!Array.isArray(currentValues) || currentValues.some((item) => typeof item !== "string")) {
             throw new Error(`${path}.${operation.field} 必须是字符串数组。`);
@@ -241,14 +257,19 @@ export const applyChangeSet = (
             operation.type === "add-values"
               ? [...new Set([...currentValues, ...operation.values])]
               : currentValues.filter((item) => !operation.values.includes(item));
-          files.set(path, api.materializeDocument({ ...file, [operation.field]: next }, path, timestamp));
+          files.set(
+            path,
+            materializeStoryDocument(definition, { ...file, [operation.field]: next }, kind, timestamp, {
+              coerce: true,
+            }),
+          );
           break;
         }
         case "append-text":
         case "replace-text": {
           const file = requireObjectDocument(files, path);
           const field = operation.field;
-          if (definition.contentType !== "markdown") assertPatchFields(profile, kind, { [field]: "" });
+          if (document.contentType !== "markdown") assertPatchFields(definition, kind, { [field]: "" });
           if (typeof file[field] !== "string") throw new Error(`${path}.${field} 必须是字符串。`);
           const next =
             operation.type === "append-text"
@@ -257,12 +278,15 @@ export const applyChangeSet = (
                   if (!file[field].includes(operation.oldText)) throw new Error(`${path}.${field} 未找到待替换文本。`);
                   return file[field].replace(operation.oldText, operation.newText);
                 })();
-          files.set(path, api.materializeDocument({ ...file, [field]: next }, path, timestamp));
+          files.set(
+            path,
+            materializeStoryDocument(definition, { ...file, [field]: next }, kind, timestamp, { coerce: true }),
+          );
           break;
         }
       }
     } catch (error) {
-      if (error instanceof DeclarativeStoryValidationError) operationIssues.push(...error.issues);
+      if (error instanceof StoryProjectValidationError) operationIssues.push(...error.issues);
       else {
         operationIssues.push(
           storyValidationIssue(
@@ -274,14 +298,14 @@ export const applyChangeSet = (
       }
     }
   }
-  if (operationIssues.length > 0) throw new DeclarativeStoryValidationError(operationIssues);
-  const nextBase: StoryCompiledProject = {
+  if (operationIssues.length > 0) throw new StoryProjectValidationError(operationIssues);
+  const nextBase: StoryProjectState = {
     manifest: current.manifest,
     documents: [...files].map(([path, value]) => ({ path, value })),
   };
-  const next = rebuildManifest(nextBase, profile, info.revision + 1, timestamp);
-  const validation = validateProject(next, profile, changeSet.validationProfile);
-  if (!validation.valid) throw new DeclarativeStoryValidationError(validation.issues);
+  const next = rebuildManifest(nextBase, definition, info.revision + 1, timestamp);
+  const validation = validateProject(next, definition, changeSet.validationMode);
+  if (!validation.valid) throw new StoryProjectValidationError(validation.issues);
   return {
     project: next,
     nextRevision: info.revision + 1,

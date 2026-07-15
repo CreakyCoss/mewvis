@@ -1,76 +1,50 @@
-export type StoryProfileIdentity = Readonly<{
-  format: string;
-  profileId: string;
-  profileVersion: number;
-}>;
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
+export type JsonObject = { [key: string]: JsonValue };
+export type StoryValue = JsonValue;
 
-/** Compiler 标准化后供 StoryProjectApi 内部使用的字段描述。 */
-export type CompiledStoryFieldDescription = Readonly<{
+export type JsonFieldOption = Readonly<{ label: string; value: string }>;
+
+export type JsonFieldMetadata = Readonly<{
   type: string;
   label: string;
   description?: string;
+  const?: JsonValue;
+  default?: JsonValue;
   required?: boolean;
   readOnly?: boolean;
   immutable?: boolean;
   generated?: boolean;
-  const?: unknown;
-  default?: unknown;
   definition?: string;
   itemDefinition?: string;
   targetKinds?: readonly string[];
   targetObjectDefinitions?: readonly string[];
-  options?: readonly Readonly<{ value: string; label: string }>[];
-  [key: string]: unknown;
+  options?: readonly JsonFieldOption[];
+  minimum?: number;
+  maximum?: number;
+  minLength?: number;
+  minItems?: number;
+  maxItems?: number;
 }>;
 
-export type CompiledStoryDocumentDescription = Readonly<{
+export type JsonObjectDefinition = Readonly<{
+  label?: string;
+  fields: Readonly<Record<string, JsonFieldMetadata>>;
+}>;
+
+export type StoryDocumentDefinition = Readonly<{
+  definitions: Readonly<Record<string, JsonObjectDefinition>>;
+  fields: Readonly<Record<string, JsonFieldMetadata>>;
+  kind: string;
   label: string;
-  description?: string;
-  contentType?: "json" | "markdown";
-  layoutPresence: "required" | "optional";
-  pathPattern: string;
-  cardinality: "one" | "many";
-  fields: Readonly<Record<string, CompiledStoryFieldDescription>>;
-  fieldSets?: readonly string[];
-  constFields?: Readonly<Record<string, unknown>>;
-  companionKinds?: readonly string[];
-  ruleIds?: readonly string[];
-  [key: string]: unknown;
 }>;
 
-export type CompiledStoryContextViewDescription = Readonly<{
-  name: string;
-  label: string;
-  scope: "project" | "chapter";
-  targetKind?: string;
-  targetSelectors?: readonly string[];
-  documentKinds: readonly string[];
-  [key: string]: unknown;
+export type StoryDocument = Readonly<{
+  definition?: StoryDocumentDefinition;
+  path: string;
+  value: StoryValue;
+  updatedAt: number | null;
 }>;
-
-export type StoryProfileDescription = Readonly<{
-  $format: string;
-  profileId: string;
-  profileVersion: number;
-  schemaVersion: number;
-  rootPath: string;
-  manifestKind: string;
-  primaryKind?: string;
-  documentRoles: Readonly<Record<string, string>>;
-  commonFieldSets: Readonly<Record<string, Readonly<Record<string, CompiledStoryFieldDescription>>>>;
-  objectDefinitions: Readonly<
-    Record<
-      string,
-      Readonly<{ fields: Readonly<Record<string, CompiledStoryFieldDescription>>; [key: string]: unknown }>
-    >
-  >;
-  documents: Readonly<Record<string, CompiledStoryDocumentDescription>>;
-  contextViews: Readonly<Record<string, Omit<CompiledStoryContextViewDescription, "name">>>;
-  validationProfiles: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
-  [key: string]: unknown;
-}>;
-
-export type SerializedStoryDocument = Record<string, unknown> | string;
 
 export type StoryValidationIssue = Readonly<{
   severity: "error" | "warning";
@@ -100,7 +74,7 @@ export type StoryContextSection = Readonly<{
   sources: readonly StoryContextSource[];
 }>;
 
-export type StoryContextBundle = Readonly<{
+export type StoryContext = Readonly<{
   scope: "project" | "chapter";
   revision: number;
   target: Readonly<{ kind: string; id: string; label: string }> | null;
@@ -109,25 +83,15 @@ export type StoryContextBundle = Readonly<{
   sources: readonly StoryContextSource[];
 }>;
 
-export type StoryCompiledProject = Readonly<{
+export type StoryProjectState = Readonly<{
   manifest: Readonly<Record<string, unknown>>;
-  documents: readonly CompiledStoryProjectFileEntry[];
+  documents: readonly StoryProjectFileEntry[];
 }>;
 
-export type CompiledStoryProjectFileEntry = Readonly<{
-  path: string;
-  value: unknown;
-}>;
+export type StoryProjectFileEntry = Readonly<{ path: string; value: unknown }>;
 
-export type CompiledStoryManifest = Readonly<{
-  value: unknown;
-  storyId: string;
-  revision: number;
-  files: readonly Readonly<{ path: string; kind: string; id: string }>[];
-}>;
-
-export type AppliedStoryChanges = Readonly<{
-  project: StoryCompiledProject;
+export type StoryProjectAppliedChanges = Readonly<{
+  project: StoryProjectState;
   nextRevision: number;
   validation: StoryValidationResult;
   batch: unknown | null;
@@ -142,3 +106,123 @@ export type StoryChangeSetDescription = Readonly<{
   atomicCommit: true;
   revisionRequired: true;
 }>;
+
+export type StoryProjectStructure = Readonly<{
+  storyType: Readonly<{
+    id: string;
+    version: number;
+    label: string;
+    description: string;
+    rootPath: string;
+    manifestKind: string;
+    primaryKind?: string;
+  }>;
+  roles: Readonly<Record<string, string>>;
+  documents: Readonly<
+    Record<
+      string,
+      Readonly<{
+        label: string;
+        description?: string;
+        contentType: "json" | "markdown";
+        pathPattern: string;
+        cardinality: "one" | "many";
+      }>
+    >
+  >;
+  contexts: Readonly<
+    Record<
+      string,
+      Readonly<{
+        label: string;
+        scope: "project" | "chapter";
+        targetKind?: string;
+        documentKinds: readonly string[];
+      }>
+    >
+  >;
+  validationModes: readonly string[];
+  schemas: Readonly<{
+    documents: Readonly<
+      Record<
+        string,
+        Readonly<{
+          label: string;
+          description?: string;
+          contentType: "json" | "markdown";
+          pathPattern: string;
+          cardinality: "one" | "many";
+          fields: Readonly<Record<string, JsonFieldMetadata>>;
+        }>
+      >
+    >;
+    objectDefinitions: Readonly<Record<string, JsonObjectDefinition>>;
+  }>;
+  changes: StoryChangeSetDescription;
+  rules: readonly string[];
+}>;
+
+export type StoryOverview = Readonly<{
+  id: string;
+  title: string;
+  description: string;
+  goal: string;
+  lengthType: string;
+  createdAt: number;
+  updatedAt: number;
+  characters: readonly Readonly<{ id: string; name: string; avatar: string }>[];
+  resourceCounts: Readonly<{ characters: number; chapters: number; worldEntries: number }>;
+}>;
+
+export type StoryInitialization = Readonly<{
+  initialized: boolean;
+  alreadyInitialized: boolean;
+  revision: number | null;
+  manifestPath: string | null;
+  existingJsonPaths: string[];
+  issues: StoryValidationIssue[];
+  hint: string | null;
+}>;
+
+export type StoryChangeValidation = Readonly<{
+  valid: boolean;
+  nextRevision: number | null;
+  issues: StoryValidationIssue[];
+  batch: unknown | null;
+  operationTypes: string[];
+  changedPaths: string[];
+}>;
+
+export type StoryChangeResult = Readonly<{
+  committed: boolean;
+  valid: boolean;
+  revision: number | null;
+  batch: unknown | null;
+  operationTypes: string[];
+  changedPaths: string[];
+  validation: StoryValidationResult | null;
+  issues: StoryValidationIssue[];
+  hint: string | null;
+}>;
+
+export type StoryStorageEntry = Readonly<{
+  path: string;
+  isDirectory: boolean;
+  updatedAt: number | null;
+}>;
+
+export type StoryStoredFile = Readonly<{
+  path: string;
+  content: string;
+  updatedAt: number | null;
+}>;
+
+export interface StoryStorage {
+  list(workspacePath: string): Promise<readonly StoryStorageEntry[]>;
+  read(workspacePath: string, path: string): Promise<StoryStoredFile>;
+  writeAtomic(
+    workspacePath: string,
+    writes: readonly Readonly<{ path: string; content: string }>[],
+    deletes?: readonly string[],
+  ): Promise<void>;
+}

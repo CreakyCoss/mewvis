@@ -1,24 +1,68 @@
-import type { StoryProjectApi } from "../../../../../core/story-project/api.js";
 import { defineBuiltinToolContract } from "../definition.js";
 
-type StoryProfileDescription = ReturnType<StoryProjectApi["describe"]>;
-type CompiledStoryDocumentDescription = ReturnType<StoryProjectApi["document"]>;
-type CompiledStoryContextViewDescription = ReturnType<StoryProjectApi["contextView"]>;
-type StoryContextBundle = ReturnType<StoryProjectApi["readContext"]>;
-type StoryValidationResult = ReturnType<StoryProjectApi["validateProject"]>;
-type StoryValidationIssue = StoryValidationResult["issues"][number];
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
-/** Story 内置能力自身使用的稳定身份，不属于工作区 Story Project 协议。 */
+type StoryFieldDescription = Readonly<{
+  type: string;
+  label: string;
+  description?: string;
+  const?: JsonValue;
+  default?: JsonValue;
+  required?: boolean;
+  readOnly?: boolean;
+  immutable?: boolean;
+  generated?: boolean;
+  definition?: string;
+  itemDefinition?: string;
+  targetKinds?: readonly string[];
+  targetObjectDefinitions?: readonly string[];
+  options?: readonly Readonly<{ label: string; value: string }>[];
+  minimum?: number;
+  maximum?: number;
+  minLength?: number;
+  minItems?: number;
+  maxItems?: number;
+}>;
+
+type StoryObjectDescription = Readonly<{
+  label?: string;
+  fields: Readonly<Record<string, StoryFieldDescription>>;
+}>;
+
+export type StoryValidationIssue = Readonly<{
+  severity: "error" | "warning";
+  code: string;
+  path: string;
+  message: string;
+}>;
+
+export type StoryValidationResult = Readonly<{
+  valid: boolean;
+  issues: StoryValidationIssue[];
+}>;
+
+export type StoryContextBundle = Readonly<{
+  scope: "project" | "chapter";
+  revision: number;
+  target: Readonly<{ kind: string; id: string; label: string }> | null;
+  text: string;
+  sections: readonly Readonly<{
+    id: string;
+    label: string;
+    priority: number;
+    required: boolean;
+    content: string;
+    sources: readonly Readonly<{ kind: string; label: string; path: string; id?: string }>[];
+  }>[];
+  sources: readonly Readonly<{ kind: string; label: string; path: string; id?: string }>[];
+}>;
+
+/** Story 内置能力自身使用的稳定身份，不属于具体工作区故事类型。 */
 export const STORY_BUILTIN_IDENTIFIERS = Object.freeze({
   /** 技能依赖的 Story Tool Contract；实现可以替换，但必须满足这组方法。 */
-  toolContract: Object.freeze({
-    id: "novel-claw.story-project-tool",
-    version: 1,
-  }),
+  toolContract: Object.freeze({ id: "novel-claw.story-project-tool", version: 1 }),
   /** agent-runtime 创建的默认 Story Tool 实现包身份。 */
-  toolPackage: Object.freeze({
-    id: "novel-claw.story",
-  }),
+  toolPackage: Object.freeze({ id: "novel-claw.story" }),
 });
 
 export const STORY_TOOL_ACTIONS = {
@@ -31,55 +75,75 @@ export const STORY_TOOL_ACTIONS = {
 
 export type StoryToolAction = (typeof STORY_TOOL_ACTIONS)[keyof typeof STORY_TOOL_ACTIONS];
 
-export type StoryDescribeStructureRequest = {
-  documentKinds?: string[];
-};
+export type StoryDescribeStructureRequest = { documentKinds?: string[] };
 
-export type StoryStructureProfileDescription = Pick<
-  StoryProfileDescription,
-  "$format" | "profileId" | "profileVersion" | "schemaVersion" | "rootPath" | "manifestKind" | "primaryKind"
-> & {
-  documentRoles: StoryProfileDescription["documentRoles"];
+export type StoryStructureDescription = Readonly<{
+  storyType: Readonly<{
+    id: string;
+    version: number;
+    label: string;
+    description: string;
+    rootPath: string;
+    manifestKind: string;
+    primaryKind?: string;
+  }>;
+  roles: Readonly<Record<string, string>>;
   documents: Readonly<
     Record<
       string,
-      Pick<
-        CompiledStoryDocumentDescription,
-        "label" | "description" | "contentType" | "layoutPresence" | "pathPattern" | "cardinality"
-      >
+      Readonly<{
+        label: string;
+        description?: string;
+        contentType: "json" | "markdown";
+        pathPattern: string;
+        cardinality: "one" | "many";
+      }>
     >
   >;
-  contextViews: Readonly<
-    Record<string, Pick<CompiledStoryContextViewDescription, "label" | "scope" | "targetKind" | "documentKinds">>
+  contexts: Readonly<
+    Record<
+      string,
+      Readonly<{
+        label: string;
+        scope: "project" | "chapter";
+        targetKind?: string;
+        documentKinds: readonly string[];
+      }>
+    >
   >;
-  validationProfiles: readonly string[];
-};
-
-export type StoryStructureDescription = {
-  compiler: { format: string; version: number };
-  profile: StoryStructureProfileDescription;
-  schemas: {
-    documents: Readonly<Record<string, CompiledStoryDocumentDescription>>;
-    objectDefinitions: StoryProfileDescription["objectDefinitions"];
-  };
-  changeSet: {
+  validationModes: readonly string[];
+  schemas: Readonly<{
+    documents: Readonly<
+      Record<
+        string,
+        Readonly<{
+          label: string;
+          description?: string;
+          contentType: "json" | "markdown";
+          pathPattern: string;
+          cardinality: "one" | "many";
+          fields: Readonly<Record<string, StoryFieldDescription>>;
+        }>
+      >
+    >;
+    objectDefinitions: Readonly<Record<string, StoryObjectDescription>>;
+  }>;
+  changes: Readonly<{
     maxOperations: number;
     maxBytes: number;
     operations: readonly string[];
     atomicCommit: true;
     revisionRequired: true;
-  };
-  rules: string[];
-};
+  }>;
+  rules: readonly string[];
+}>;
 
-export type StoryDescribeStructureResult = {
-  available: true;
-  structure: StoryStructureDescription;
-};
+export type StoryDescribeStructureResult = { available: true; structure: StoryStructureDescription };
 
 export type StoryInitializeRequest = {
   storyId: string;
   title: string;
+  storyTypeId?: string;
   replaceExistingJson?: boolean;
 };
 
@@ -93,14 +157,8 @@ export type StoryInitializeResult = {
   hint: string | null;
 };
 
-export type StoryReadContextRequest = {
-  scope: "project" | "chapter";
-  targetId?: string;
-};
-
-export type StoryChangeSetRequest = {
-  changeSet: unknown;
-};
+export type StoryReadContextRequest = { scope: "project" | "chapter"; targetId?: string };
+export type StoryChangeSetRequest = { changeSet: unknown };
 
 export type StoryToolRequest =
   | ({ action: typeof STORY_TOOL_ACTIONS.describeStructure } & StoryDescribeStructureRequest)
@@ -143,8 +201,8 @@ export const STORY_TOOL_CONTRACT = defineBuiltinToolContract<StoryToolApi>()({
   version: STORY_BUILTIN_IDENTIFIERS.toolContract.version,
   properties: {},
   methods: {
-    describeStructure: { description: "返回 Compiler 标准化后的故事结构与 ChangeSet 约束" },
-    initialize: { description: "按当前故事协议初始化项目" },
+    describeStructure: { description: "返回当前故事类型的文档目录、字段结构与 ChangeSet 约束" },
+    initialize: { description: "按当前故事类型初始化项目" },
     readContext: { description: "读取项目摘要或章节写作上下文" },
     validateChanges: { description: "校验小批次 ChangeSet，但不写入" },
     commitChanges: { description: "校验并原子提交小批次 ChangeSet" },

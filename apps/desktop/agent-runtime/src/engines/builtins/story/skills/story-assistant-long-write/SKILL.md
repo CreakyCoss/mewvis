@@ -92,9 +92,9 @@ beats 预算合计必须在 `[targetWords, targetWords×1.1]`。低压章可没�
 
 按共享增量协议依次提交：核心定位；角色/世界；主角引用与关系；卷；全书阶段；每批 3-5 章细纲；最后补 volume.chapterIds 与 progress。中间批使用 draft 且不得产生悬空引用；每批成功后已有内容立即可继续维护。
 
-最后一批 `batch.final=true` 并使用 `validationProfile="openBook"`。最终校验不通过时只修复报错批次或字段，不回传/覆盖已经正确落库的全项目。
+最后一批 `batch.final=true` 并使用 `validationMode="openBook"`。最终校验不通过时只修复报错批次或字段，不回传/覆盖已经正确落库的全项目。
 
-在宣告“开书完成”前必须再读取一次项目上下文并完成收尾核对：默认前 10 个 `chapterPlan` 角色文档均已存在（总章数不足 10 时为全部章节）；本次创建的章节 ID 都已进入所属 `volume` 角色文档的章节引用；`progress` 角色文档已同步；并且最后一次成功提交同时使用了 `batch.final=true` 与 `validationProfile="openBook"`。缺少任一项都只能继续补交或明确报告“部分完成”，不能把 draft 批次成功描述为完整开书。若会话中止，报告最后成功 revision 和未完成项，从该 revision 继续，不能重放已成功批次。
+在宣告“开书完成”前必须再读取一次项目上下文并完成收尾核对：默认前 10 个 `chapterPlan` 角色文档均已存在（总章数不足 10 时为全部章节）；本次创建的章节 ID 都已进入所属 `volume` 角色文档的章节引用；`progress` 角色文档已同步；并且最后一次成功提交同时使用了 `batch.final=true` 与 `validationMode="openBook"`。缺少任一项都只能继续补交或明确报告“部分完成”，不能把 draft 批次成功描述为完整开书。若会话中止，报告最后成功 revision 和未完成项，从该 revision 继续，不能重放已成功批次。
 
 ## 单章写作
 
@@ -109,7 +109,7 @@ beats 预算合计必须在 `[targetWords, targetWords×1.1]`。低压章可没�
    - `timeline` 角色文档；
    - `progress` 角色文档；
    - 当前 `chapterPlan` 角色文档的 status。
-6. 最终批用 `validationProfile="chapterWrite"` 校验并提交。不要在一个 ChangeSet 聚合多章正文。
+6. 最终批用 `validationMode="chapterWrite"` 校验并提交。不要在一个 ChangeSet 聚合多章正文。
 
 日更必须逐章串行：上一章提交成功后重新读取下一章上下文。大修先读原章，保持未被用户点名的情节事实和稳定 ID，并同步重算后续状态风险。
 

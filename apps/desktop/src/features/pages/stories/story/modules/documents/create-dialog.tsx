@@ -12,7 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { StoryProjectDocuments, type JsonValue } from "../../../../../../../core/story-project";
+import type { StoryValue } from "../../../../../../../core/story-project/types";
 import { useStoryState } from "../../use-story-state";
 
 export const CreateJsonDocumentDialog = ({
@@ -36,9 +36,8 @@ export const CreateJsonDocumentDialog = ({
 
   const create = async () => {
     try {
-      const normalizedPath = StoryProjectDocuments.normalizePath(path);
-      const value = JSON.parse(content) as JsonValue;
-      if (await createDocument(normalizedPath, value)) {
+      const value = JSON.parse(content) as StoryValue;
+      if (await createDocument(path.trim(), value)) {
         onOpenChange(false);
         toast.success("JSON 文件已创建。");
       }

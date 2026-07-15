@@ -70,7 +70,7 @@ metadata:
 
 1. `story(action="read_context", scope="project")` 获取 revision。
 2. 依次提交核心定位；核心角色与关系；单卷；book arc；单章细纲；最后 patch volume.chapterIds 与 progress。中间批用 draft，不能引用尚未创建的 ID。
-3. 最终结构批 `batch.final=true` 且使用 `validationProfile="openBook"`；只完成构思时到此停止。
+3. 最终结构批 `batch.final=true` 且使用 `validationMode="openBook"`；只完成构思时到此停止。
 
 ### 正文提交
 
@@ -78,7 +78,7 @@ metadata:
 2. 按 beats 写完整正文；发生、感知、反应揉进同一连续场景，不写成提纲腔。
 3. 检查节数/beat 守恒、情绪递增、反转证据、字数和结尾余韵。
 4. 新正文在同一 ChangeSet 中 upsert `chapterContent` 角色文档的正文字符串和 `chapterResult` 角色文档的章节结果；已有正文续写或局部改写时对 Markdown 使用 field=`content` 的 append-text/replace-text，再 patch summary、wordCount。按需要小批更新 chapterPlan、characterState、relationships、foreshadows、timeline 与 progress 角色文档。
-5. 最终正文批 `batch.final=true`，用 `validationProfile="chapterWrite"` 校验提交。不要把超长正文和全部追踪对象塞进同一 ChangeSet。
+5. 最终正文批 `batch.final=true`，用 `validationMode="chapterWrite"` 校验提交。不要把超长正文和全部追踪对象塞进同一 ChangeSet。
 
 ## 正文门槛
 

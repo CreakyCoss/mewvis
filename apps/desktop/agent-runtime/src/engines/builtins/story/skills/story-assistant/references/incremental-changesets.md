@@ -5,7 +5,7 @@
 ## 单批限制
 
 - 单个 ChangeSet 最多 16 个 operations，序列化后最多 192 KiB；接近任一上限就提前拆批。
-- 每个 ChangeSet 必须包含 `profileId` 与 `profileVersion`，值取自当前会话 `describe_structure` 返回的 `structure.profile`；工具会在解析 ChangeSet 时强制校验。
+- 每个 ChangeSet 必须包含 `storyTypeId` 与 `storyTypeVersion`，值取自当前会话 `describe_structure` 返回的 `structure.storyType`；工具会在解析 ChangeSet 时强制校验。
 - 每批只承担一个可命名目的，例如“核心定位”“主要角色 1-4”“第 1-3 章细纲”。
 - 每批都带 `batch={workflowId,index,total?,label,final}`。同一工作流保持 workflowId 不变；最后一批 `final=true`。
 - 每批直接调用一次 `story(action="commit_changes", changeSet={...})`：工具内部先执行与预检相同的完整校验，只有通过才事务性写盘。`action="validate_changes"` 只用于用户明确要求预览或定位失败，不作为固定前置步骤。
@@ -14,7 +14,7 @@
 
 ## 操作选择
 
-- `upsert`：只用于创建新文件，或用户明确要求完整替换单个文件。JSON value 是符合当前 Profile 的普通业务对象；`chapterContent` 角色文档为 Markdown 时，value 直接使用正文字符串。工具补齐 JSON 的 const、generated、default，校验路径与章节 ID，并执行引用和完整度校验。不得自行提交字段 label/描述，也不得提交 Profile 未声明字段。
+- `upsert`：只用于创建新文件，或用户明确要求完整替换单个文件。JSON value 是符合当前故事类型的普通业务对象；`chapterContent` 角色文档为 Markdown 时，value 直接使用正文字符串。工具补齐 JSON 的 const、generated、default，校验路径与章节 ID，并执行引用和完整度校验。不得自行提交字段 label/描述，也不得提交未声明字段。
 - `patch`：深合并已有文件的少数字段；未出现字段保持原值，`null` 表示删除可选字段。禁止修改 `schemaVersion/kind/id/storyId/revision/files`。
 - `upsert-items`：更新已有文件中的顶层对象数组，按条目 `id` 合并；适合 review.findings、analysis.plotModules、relationships.relationships、foreshadows.foreshadows、timeline.entries、graph.nodes/edges 等带 id 数组。
 - `remove-items`：从顶层对象数组按 ids 删除。
@@ -27,11 +27,11 @@
 
 ```json
 {
-  "profileId": "<describe_structure 返回的工作区 profileId>",
-  "profileVersion": 1,
+  "storyTypeId": "<describe_structure 返回的 storyType.id>",
+  "storyTypeVersion": 1,
   "storyId": "story-1",
   "baseRevision": 7,
-  "validationProfile": "draft",
+  "validationMode": "draft",
   "batch": {
     "workflowId": "open-book-20260711",
     "index": 3,
@@ -70,9 +70,9 @@
 
 ## 校验策略
 
-- 中间批次用 `validationProfile="draft"`，但每一批原子提交后都必须保持 Schema 与引用有效，不能留下引用尚未创建对象的悬空 ID。
-- 最终批使用目标场景的完整 profile：开书/导入为 `openBook`，正文落库为 `chapterWrite`，纯分析/审查/检测为 `draft`。
-- `final=true` 不是跳过校验的标志。最终批必须包含真实的收尾变更，并通过目标 profile 后提交。
+- 中间批次用 `validationMode="draft"`，但每一批原子提交后都必须保持 Schema 与引用有效，不能留下引用尚未创建对象的悬空 ID。
+- 最终批使用目标场景的校验模式：开书/导入为 `openBook`，正文落库为 `chapterWrite`，纯分析/审查/检测为 `draft`。
+- `final=true` 不是跳过校验的标志。最终批必须包含真实的收尾变更，并通过目标校验模式 后提交。
 - 不把超长正文、完整分析和几十章细纲塞进同一 ChangeSet；按章节、实体组或分析阶段分批。
 
 ## 失败恢复

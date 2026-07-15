@@ -21,22 +21,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import type { StoryDocument, StoryValue } from "../../../../../../../core/story-project/types";
 import {
-  StoryProjectDocuments,
+  inspectStoryDocument,
+  storyDocumentData,
+  storyDocumentLabel,
   type JsonFieldMetadata,
-  type JsonValue,
-  type StoryProjectDocument,
-} from "../../../../../../../core/story-project";
+} from "../../../story-document";
 import { useStoryState } from "../../use-story-state";
 import { GenericJsonValueEditor, MetadataFieldEditor } from "./field-editor";
-
-const {
-  inspect: inspectStructuredJsonDocument,
-  isObject: isJsonObject,
-  replaceData: replaceStructuredDocumentData,
-  data: storyDocumentData,
-  label: storyDocumentLabel,
-} = StoryProjectDocuments;
 
 const pointerKey = (pointer: string) => (pointer.startsWith("/") ? pointer.slice(1) : pointer);
 
@@ -99,13 +92,13 @@ export const StoryDocumentEditor = ({
   document,
 }: {
   categoryLabel: string;
-  document: StoryProjectDocument;
+  document: StoryDocument;
 }) => {
   const saveDocument = useStoryState((state) => state.saveDocument);
   const deleteDocument = useStoryState((state) => state.deleteDocument);
   const isSaving = useStoryState((state) => state.isSaving);
   const isMarkdown = document.path.endsWith(".md");
-  const sourceText = (value: JsonValue) => {
+  const sourceText = (value: StoryValue) => {
     if (isMarkdown) {
       const data = storyDocumentData({ ...document, value });
       return typeof data?.content === "string" ? data.content : "";
@@ -114,7 +107,7 @@ export const StoryDocumentEditor = ({
   };
   const canonicalText = useMemo(() => sourceText(document.value), [document.value, isMarkdown]);
   const [rawText, setRawText] = useState(canonicalText);
-  const [draft, setDraft] = useState<JsonValue>(document.value);
+  const [draft, setDraft] = useState<StoryValue>(document.value);
   const [rawError, setRawError] = useState("");
   const [viewMode, setViewMode] = useState<"form" | "source">("form");
   const [activeSectionId, setActiveSectionId] = useState("");
@@ -126,7 +119,7 @@ export const StoryDocumentEditor = ({
     setRawError("");
   }, [document]);
 
-  const inspected = useMemo(() => inspectStructuredJsonDocument({ ...document, value: draft }), [document, draft]);
+  const inspected = useMemo(() => inspectStoryDocument({ ...document, value: draft }), [document, draft]);
   const sections = useMemo(() => (inspected ? buildSections(inspected.fields) : []), [inspected]);
   const activeSection = sections.find((section) => section.id === activeSectionId) ?? sections[0] ?? null;
   const isDirty = rawText !== canonicalText;
@@ -137,29 +130,28 @@ export const StoryDocumentEditor = ({
     }
   }, [activeSectionId, sections]);
 
-  const updateData = (key: string, value: JsonValue) => {
+  const updateData = (key: string, value: StoryValue) => {
     if (!inspected) return;
-    const next = replaceStructuredDocumentData(draft, { ...inspected.data, [key]: value });
+    const next = { ...inspected.data, [key]: value };
     setDraft(next);
     setRawText(sourceText(next));
   };
 
-  const updateFriendlyValue = (value: JsonValue) => {
-    const next = inspected && isJsonObject(value) ? replaceStructuredDocumentData(draft, value) : value;
-    setDraft(next);
-    setRawText(sourceText(next));
+  const updateFriendlyValue = (value: StoryValue) => {
+    setDraft(value);
+    setRawText(sourceText(value));
   };
 
   const parseRaw = () => {
     if (isMarkdown) {
       const data = storyDocumentData({ ...document, value: draft });
-      const value = { ...(data ?? {}), content: rawText } as JsonValue;
+      const value = { ...(data ?? {}), content: rawText } as StoryValue;
       setDraft(value);
       setRawError("");
       return { valid: true as const, value };
     }
     try {
-      const value = JSON.parse(rawText) as JsonValue;
+      const value = JSON.parse(rawText) as StoryValue;
       setDraft(value);
       setRawError("");
       return { valid: true as const, value };
