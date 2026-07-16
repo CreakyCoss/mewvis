@@ -131,6 +131,51 @@ writeFileSync(
   await fileProjects.create("/file/hidden", { storyTypeId: "long-novel", storyId: "story-3", title: "隐藏配置" });
   const reopened = await fileProjects.open("/file/hidden");
   assert((await reopened.overview()).title === "隐藏配置", "隐藏配置目录不得导致已初始化项目被误判。" );
+  const hiddenDefinitionKey = fileKey("/file/hidden", "story/.novel-claw/project.json");
+  const oldDefinition = JSON.parse(fileContents.get(hiddenDefinitionKey)!);
+  fileContents.set(hiddenDefinitionKey, JSON.stringify({ ...oldDefinition, formatVersion: 2 }, null, 2) + "\\n");
+  const upgradeable = await fileProjects.checkCompatibility("/file/hidden");
+  assert(
+    upgradeable.status === "upgrade-available" &&
+      upgradeable.current?.formatVersion === 2 &&
+      upgradeable.target?.formatVersion === 3,
+    "旧 Definition format 的文档若能通过当前定义校验，应允许升级。",
+    upgradeable,
+  );
+  const upgraded = await fileProjects.upgrade("/file/hidden");
+  assert(upgraded.upgraded && upgraded.compatibility.status === "compatible", "兼容升级应原子替换项目定义。", upgraded);
+  assert(
+    JSON.parse(fileContents.get(hiddenDefinitionKey)!).formatVersion === 3,
+    "升级完成后应写入当前 Definition format。",
+  );
+  assert((await (await fileProjects.open("/file/hidden")).overview()).title === "隐藏配置", "升级后项目应可正常打开。" );
+
+  await fileProjects.create("/file/incompatible", {
+    storyTypeId: "long-novel",
+    storyId: "story-incompatible",
+    title: "不可升级项目",
+  });
+  const incompatibleDefinitionKey = fileKey("/file/incompatible", "story/.novel-claw/project.json");
+  const incompatibleDefinition = JSON.parse(fileContents.get(incompatibleDefinitionKey)!);
+  fileContents.set(
+    incompatibleDefinitionKey,
+    JSON.stringify({ ...incompatibleDefinition, formatVersion: 2 }, null, 2) + "\\n",
+  );
+  const incompatibleBookKey = fileKey("/file/incompatible", "story/book.json");
+  const incompatibleBook = JSON.parse(fileContents.get(incompatibleBookKey)!);
+  fileContents.set(incompatibleBookKey, JSON.stringify({ ...incompatibleBook, legacyField: true }, null, 2) + "\\n");
+  const incompatible = await fileProjects.checkCompatibility("/file/incompatible");
+  assert(
+    incompatible.status === "incompatible" && incompatible.reason?.includes("legacyField"),
+    "不满足当前文档结构的项目必须明确返回不可升级原因。",
+    incompatible,
+  );
+  const rejectedUpgrade = await fileProjects.upgrade("/file/incompatible");
+  assert(!rejectedUpgrade.upgraded, "不兼容项目不得写入任何升级结果。", rejectedUpgrade);
+  assert(
+    JSON.parse(fileContents.get(incompatibleDefinitionKey)!).formatVersion === 2,
+    "升级被拒绝后必须保留原项目定义。",
+  );
   await fileProjects.create("/file/short", { storyTypeId: "short-novel", storyId: "story-4", title: "短篇独立布局" });
   const reopenedShort = await fileProjects.open("/file/short");
   const shortDescription = await reopenedShort.describe({ documentKinds: ["story-positioning"] });

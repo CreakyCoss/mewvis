@@ -50,6 +50,25 @@ export type StoryDocument = Readonly<{
   updatedAt: number | null;
 }>;
 
+export type StoryProjectVersion = Readonly<{
+  format: string;
+  formatVersion: number;
+  storyTypeId: string;
+  storyTypeVersion: number;
+}>;
+
+export type StoryProjectCompatibility = Readonly<{
+  status: "compatible" | "upgrade-available" | "incompatible";
+  current: StoryProjectVersion | null;
+  target: StoryProjectVersion | null;
+  reason: string | null;
+}>;
+
+export type StoryProjectUpgradeResult = Readonly<{
+  upgraded: boolean;
+  compatibility: StoryProjectCompatibility;
+}>;
+
 export type StoryValidationIssue = Readonly<{
   severity: "error" | "warning";
   code: string;

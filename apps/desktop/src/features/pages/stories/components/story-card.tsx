@@ -1,4 +1,16 @@
-import { BookOpen, FileText, Globe2, Pencil, Target, Trash2, UsersRound, Wine } from "lucide-react";
+import {
+  AlertTriangle,
+  BookOpen,
+  FileText,
+  Globe2,
+  Loader2,
+  Pencil,
+  RefreshCw,
+  Target,
+  Trash2,
+  UsersRound,
+  Wine,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { resolveAvatar } from "@/assets/avatars";
@@ -13,7 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import type { StoryOverview } from "../../../../../core/story-project/types";
+import type { StoryOverview, StoryProjectCompatibility } from "../../../../../core/story-project/types";
 
 const StoryCardMetric = ({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: number }) => (
   <span className="inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border bg-muted/20 px-1.5 text-[11px] text-foreground/80">
@@ -170,6 +182,126 @@ export const StoryCard = ({
             <AlertDialogDescription>
               删除「{overview.title || "当前故事"}」及其整个故事工作区？这个操作会同时删除 story/ 和 .tavern/
               运行时数据。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={isDeleting}
+              onClick={(event) => {
+                event.preventDefault();
+                void confirmDelete();
+              }}
+            >
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+};
+
+const projectVersionLabel = (version: StoryProjectCompatibility["current"]) =>
+  version
+    ? `${version.storyTypeId}@${version.storyTypeVersion} · Definition v${version.formatVersion}`
+    : "无法识别项目版本";
+
+const targetVersionLabel = (version: StoryProjectCompatibility["target"]) =>
+  version
+    ? `${version.storyTypeId}@${version.storyTypeVersion} · Definition v${version.formatVersion}`
+    : "无可用目标版本";
+
+export const StoryUnavailableCard = ({
+  name,
+  workspacePath,
+  compatibility,
+  isUpgrading,
+  onUpgrade,
+  onDelete,
+}: {
+  name: string;
+  workspacePath: string;
+  compatibility: StoryProjectCompatibility;
+  isUpgrading: boolean;
+  onUpgrade: () => void | Promise<void>;
+  onDelete: () => void | Promise<void>;
+}) => {
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const confirmDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await onDelete();
+      setIsDeleteDialogOpen(false);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  return (
+    <>
+      <article className="flex flex-col overflow-hidden rounded-lg border border-amber-500/25 bg-card shadow-[0_18px_50px_-42px_rgb(15_23_42_/_0.55)]">
+        <div className="relative h-[clamp(6.25rem,9vw,7.5rem)] overflow-hidden bg-gradient-to-br from-amber-500/15 via-muted to-background">
+          <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-amber-300/30 bg-slate-950/70 px-2.5 py-1 text-xs font-semibold text-amber-50 shadow-sm backdrop-blur-md">
+            <AlertTriangle className="size-3.5" />
+            版本不兼容
+          </span>
+          <span className="absolute inset-x-4 bottom-3 line-clamp-2 text-xs leading-5 text-muted-foreground">
+            {workspacePath}
+          </span>
+        </div>
+
+        <div className="flex flex-1 flex-col px-3.5 py-3">
+          <h3 className="min-w-0 text-xl font-semibold leading-7 line-clamp-2">{name}</h3>
+          <div className="mt-3 rounded-md border border-amber-500/20 bg-amber-500/[0.06] px-3 py-2.5 text-xs leading-5">
+            <div className="font-medium text-foreground">{projectVersionLabel(compatibility.current)}</div>
+            <div className="text-muted-foreground">目标：{targetVersionLabel(compatibility.target)}</div>
+          </div>
+          <p className="mt-3 line-clamp-3 min-h-[3.75rem] text-xs leading-5 text-muted-foreground">
+            {compatibility.status === "upgrade-available"
+              ? "项目文档已通过当前版本校验，可以安全升级项目定义。"
+              : compatibility.reason || "当前版本无法读取这个故事项目。"}
+          </p>
+        </div>
+
+        <div className="border-t bg-background/80 p-2.5">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-9 min-w-0 bg-background/80"
+              disabled={isUpgrading || isDeleting}
+              onClick={() => void onUpgrade()}
+            >
+              {isUpgrading ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+              {isUpgrading ? "正在升级" : "升级版本"}
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              className="size-9 shrink-0 bg-background/80 text-destructive hover:text-destructive"
+              title="删除故事及工作区"
+              aria-label="删除故事及工作区"
+              disabled={isUpgrading || isDeleting}
+              onClick={() => setIsDeleteDialogOpen(true)}
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          </div>
+        </div>
+      </article>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => !isDeleting && setIsDeleteDialogOpen(open)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>删除不兼容的故事？</AlertDialogTitle>
+            <AlertDialogDescription>
+              删除「{name || "当前故事"}」及其整个故事工作区？版本不兼容不会自动删除任何数据，只有确认后才会执行删除。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

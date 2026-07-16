@@ -4,8 +4,14 @@ import { useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { deleteStoryRecord, loadStoryLibrary, type StoryLibraryItem } from "./storage";
-import { StoryCard } from "./components/story-card";
+import {
+  deleteStoryRecord,
+  loadStoryLibrary,
+  upgradeStoryProject,
+  type StoryLibraryEntry,
+  type StoryLibraryItem,
+} from "./storage";
+import { StoryCard, StoryUnavailableCard } from "./components/story-card";
 import { StoryCreateDialog, type StoryCreateDialogHandle } from "./components/story-create-dialog";
 import { StoryModulesContent, type StoryModulesHandle } from "./story";
 import { TavernManageContent, type TavernManageHandle } from "./tavern/manage";
@@ -16,8 +22,9 @@ export const StoriesPage = () => {
   const modulesRef = useRef<StoryModulesHandle>(null);
   const tavernManageRef = useRef<TavernManageHandle>(null);
   const createDialogRef = useRef<StoryCreateDialogHandle>(null);
-  const [storyItems, setStoryItems] = useState<StoryLibraryItem[]>([]);
+  const [storyItems, setStoryItems] = useState<StoryLibraryEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [upgradingStoryId, setUpgradingStoryId] = useState("");
 
   const replaceStorySearch = (search: string) => {
     navigate(
@@ -73,11 +80,14 @@ export const StoriesPage = () => {
   };
 
   const handleStoryCreated = (item: StoryLibraryItem) => {
-    setStoryItems((current) => [item, ...current.filter((currentItem) => currentItem.id !== item.id)]);
+    setStoryItems((current) => [
+      { ...item, status: "ready" },
+      ...current.filter((currentItem) => currentItem.id !== item.id),
+    ]);
     openStoryEditor(item);
   };
 
-  const handleDeleteStory = async (item: StoryLibraryItem) => {
+  const handleDeleteStory = async (item: Pick<StoryLibraryEntry, "id">) => {
     try {
       await deleteStoryRecord(item.id);
       setStoryItems((current) => current.filter((currentItem) => currentItem.id !== item.id));
@@ -85,6 +95,24 @@ export const StoriesPage = () => {
     } catch (error) {
       console.error("Failed to delete story", error);
       toast.error(error instanceof Error ? error.message : "故事删除失败。");
+    }
+  };
+
+  const handleUpgradeStory = async (item: Extract<StoryLibraryEntry, { status: "unavailable" }>) => {
+    setUpgradingStoryId(item.id);
+    try {
+      const result = await upgradeStoryProject(item.workspace);
+      if (!result.upgraded) {
+        toast.error(result.compatibility.reason || "当前项目无法升级到应用支持的版本。");
+        return;
+      }
+      toast.success("故事项目版本已升级。");
+      await refreshStories();
+    } catch (error) {
+      console.error("Failed to upgrade story project", error);
+      toast.error(error instanceof Error ? error.message : "故事项目升级失败。");
+    } finally {
+      setUpgradingStoryId("");
     }
   };
 
@@ -107,15 +135,27 @@ export const StoriesPage = () => {
           </header>
 
           <section className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] items-start gap-5">
-            {storyItems.map((item) => (
-              <StoryCard
-                key={item.id}
-                overview={item.overview}
-                onEdit={() => openStoryEditor(item)}
-                onTavern={() => openStoryTavern(item)}
-                onDelete={() => handleDeleteStory(item)}
-              />
-            ))}
+            {storyItems.map((item) =>
+              item.status === "ready" ? (
+                <StoryCard
+                  key={item.id}
+                  overview={item.overview}
+                  onEdit={() => openStoryEditor(item)}
+                  onTavern={() => openStoryTavern(item)}
+                  onDelete={() => handleDeleteStory(item)}
+                />
+              ) : (
+                <StoryUnavailableCard
+                  key={item.id}
+                  name={item.workspace.name}
+                  workspacePath={item.workspace.path}
+                  compatibility={item.compatibility}
+                  isUpgrading={upgradingStoryId === item.id}
+                  onUpgrade={() => handleUpgradeStory(item)}
+                  onDelete={() => handleDeleteStory(item)}
+                />
+              ),
+            )}
           </section>
         </div>
       </ScrollArea>

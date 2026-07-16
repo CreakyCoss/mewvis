@@ -1,5 +1,10 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type { StoryDocument, StoryOverview } from "../../../../core/story-project/types";
+import type {
+  StoryDocument,
+  StoryOverview,
+  StoryProjectCompatibility,
+  StoryProjectUpgradeResult,
+} from "../../../../core/story-project/types";
 import { storyProjectApi } from "./project-client";
 
 export const STORY_SOURCE_DIR = "story";
@@ -25,6 +30,15 @@ export type StoryLibraryItem = {
   overview: StoryOverview;
   workspace: StoryWorkspace;
 };
+
+export type StoryLibraryEntry =
+  | (StoryLibraryItem & Readonly<{ status: "ready" }>)
+  | Readonly<{
+      status: "unavailable";
+      id: string;
+      workspace: StoryWorkspace;
+      compatibility: StoryProjectCompatibility;
+    }>;
 
 export type CreateStoryInput = {
   name: string;
@@ -157,20 +171,33 @@ export const createStory = async (
   }
 };
 
-export const loadStoryLibrary = async (): Promise<StoryLibraryItem[]> => {
+export const loadStoryLibrary = async (): Promise<StoryLibraryEntry[]> => {
   const records = await listStoryRecords();
-  const results = await Promise.all(
+  return Promise.all(
     records.map(async (record) => {
       try {
-        return await storyLibraryItemFromRecord(record);
+        return { ...(await storyLibraryItemFromRecord(record)), status: "ready" as const };
       } catch (error) {
-        console.warn("Skipping unreadable JSON story workspace", record.id, error);
-        return null;
+        console.warn("Story workspace is unavailable", record.id, error);
+        const compatibility = await storyProjectApi.checkCompatibility(record.workspacePath).catch((checkError) => ({
+          status: "incompatible" as const,
+          current: null,
+          target: null,
+          reason: checkError instanceof Error ? checkError.message : String(checkError),
+        }));
+        return {
+          status: "unavailable" as const,
+          id: record.id,
+          workspace: storyWorkspaceFromRecord(record),
+          compatibility,
+        };
       }
     }),
   );
-  return results.flatMap((result) => (result ? [result] : []));
 };
+
+export const upgradeStoryProject = (workspace: StoryWorkspace): Promise<StoryProjectUpgradeResult> =>
+  storyProjectApi.upgrade(workspace.path);
 
 export const loadStoryById = async (storyId: string): Promise<StoryLibraryItem | null> => {
   const record = (await listStoryRecords()).find((item) => item.id === storyId);

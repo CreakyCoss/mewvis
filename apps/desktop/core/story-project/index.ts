@@ -9,7 +9,9 @@ import type {
   StoryDocumentIdentity,
   StoryInitialization,
   StoryOverview,
+  StoryProjectCompatibility,
   StoryProjectStructure,
+  StoryProjectUpgradeResult,
 } from "./types.js";
 import { createStoryProjectStorage } from "./storage/index.js";
 import type { StoryFileBackend } from "./storage/types.js";
@@ -45,6 +47,8 @@ export interface StoryWorkspace {
 /** Story Project 的稳定公共能力；存储、故事类型与内部处理器均隐藏在实现之后。 */
 export interface StoryProjectApi {
   listStoryTypes(): readonly StoryTypeSummary[];
+  checkCompatibility(projectKey: string): Promise<StoryProjectCompatibility>;
+  upgrade(projectKey: string): Promise<StoryProjectUpgradeResult>;
   workspace(projectKey: string): StoryWorkspace;
   open(projectKey: string): Promise<StoryWorkspace>;
   create(projectKey: string, input: { storyTypeId: string; storyId: string; title: string }): Promise<StoryWorkspace>;
@@ -56,11 +60,16 @@ export interface StoryProjectApi {
  * 调用方只提供底层存储能力；Story Type、文件布局和领域 Storage 的组装均隐藏在 Facade 内。
  */
 export const createStoryProjectApi = (options: StoryProjectApiOptions): StoryProjectApi => {
+  const bindings = storyFileStorageBindings();
   const storage = createStoryProjectStorage(
-    options.kind === "file" ? { ...options, bindings: storyFileStorageBindings() } : options,
+    options.kind === "file"
+      ? { ...options, bindings }
+      : { ...options, definitions: bindings.map(({ definition }) => definition) },
   );
   const client: StoryProjectApi = {
     listStoryTypes,
+    checkCompatibility: (projectKey) => storage.checkCompatibility(projectKey),
+    upgrade: (projectKey) => storage.upgradeProject(projectKey),
     workspace: (projectKey: string) => createWorkspace(storage, projectKey),
     async open(projectKey: string) {
       if (!(await storage.loadDefinition(projectKey))) throw new Error("故事项目尚未初始化。");
