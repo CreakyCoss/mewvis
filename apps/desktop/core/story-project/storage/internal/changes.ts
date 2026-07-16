@@ -1,15 +1,15 @@
 import { z } from "zod";
 import type {
   StoryDocumentIdentity,
+  StoryChangeSetDescription,
   StoryProjectAppliedChanges,
   StoryProjectState,
   StoryValidationIssue,
 } from "../../types.js";
-import { StoryProjectValidationError, storyValidationIssue } from "./issues.js";
+import { StoryProjectValidationError, storyValidationIssue } from "../../errors.js";
 import { projectInfo, rebuildManifest } from "./project.js";
 import { StoryDefinition } from "../../definitions/index.js";
 import type { StoryTypeDefinition } from "../../definitions/types.js";
-import { materializeStoryDocument, parseStoryDocument } from "./document.js";
 import { validateProject } from "./validation.js";
 
 type JsonObject = Record<string, unknown>;
@@ -17,9 +17,26 @@ type JsonObject = Record<string, unknown>;
 const isObject = (value: unknown): value is JsonObject =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
-const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+const clone = <T>(value: T): T => structuredClone(value);
 export const STORY_CHANGE_SET_MAX_OPERATIONS = 16;
 export const STORY_CHANGE_SET_MAX_BYTES = 192 * 1024;
+export const STORY_CHANGE_SET_DESCRIPTION: StoryChangeSetDescription = Object.freeze({
+  maxOperations: STORY_CHANGE_SET_MAX_OPERATIONS,
+  maxBytes: STORY_CHANGE_SET_MAX_BYTES,
+  operations: [
+    "upsert",
+    "delete",
+    "patch",
+    "upsert-items",
+    "remove-items",
+    "add-values",
+    "remove-values",
+    "append-text",
+    "replace-text",
+  ],
+  atomicCommit: true,
+  revisionRequired: true,
+});
 
 const storyChangeSetBatchSchema = z
   .object({
@@ -195,7 +212,7 @@ export const applyChangeSet = (
         case "upsert":
           documents.set(key, {
             ref,
-            value: parseStoryDocument(definition, operation.value, ref, timestamp, { coerce: true }),
+            value: StoryDefinition.parseDocument(definition, operation.value, ref, timestamp, { coerce: true }),
           });
           break;
         case "patch": {
@@ -203,7 +220,7 @@ export const applyChangeSet = (
           assertPatchFields(definition, ref.kind, operation.value);
           documents.set(key, {
             ref,
-            value: materializeStoryDocument(
+            value: StoryDefinition.materializeDocument(
               definition,
               deepMerge(requireObjectDocument(documents, key), operation.value),
               ref,
@@ -227,9 +244,15 @@ export const applyChangeSet = (
           }
           documents.set(key, {
             ref,
-            value: materializeStoryDocument(definition, { ...value, [operation.field]: next }, ref, timestamp, {
-              coerce: true,
-            }),
+            value: StoryDefinition.materializeDocument(
+              definition,
+              { ...value, [operation.field]: next },
+              ref,
+              timestamp,
+              {
+                coerce: true,
+              },
+            ),
           });
           break;
         }
@@ -240,7 +263,7 @@ export const applyChangeSet = (
           if (!Array.isArray(currentItems)) throw new Error(`${key}.${operation.field} 必须是数组。`);
           documents.set(key, {
             ref,
-            value: materializeStoryDocument(
+            value: StoryDefinition.materializeDocument(
               definition,
               {
                 ...value,
@@ -269,9 +292,15 @@ export const applyChangeSet = (
               : currentValues.filter((item) => !operation.values.includes(item));
           documents.set(key, {
             ref,
-            value: materializeStoryDocument(definition, { ...value, [operation.field]: next }, ref, timestamp, {
-              coerce: true,
-            }),
+            value: StoryDefinition.materializeDocument(
+              definition,
+              { ...value, [operation.field]: next },
+              ref,
+              timestamp,
+              {
+                coerce: true,
+              },
+            ),
           });
           break;
         }
@@ -290,7 +319,7 @@ export const applyChangeSet = (
                 })();
           documents.set(key, {
             ref,
-            value: materializeStoryDocument(definition, { ...value, [field]: next }, ref, timestamp, {
+            value: StoryDefinition.materializeDocument(definition, { ...value, [field]: next }, ref, timestamp, {
               coerce: true,
             }),
           });

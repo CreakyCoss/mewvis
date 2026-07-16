@@ -1,5 +1,5 @@
 import type { StoryProjectState, StoryValidationIssue, StoryValidationResult } from "../../types.js";
-import { storyValidationIssue } from "./issues.js";
+import { storyValidationIssue } from "../../errors.js";
 import { projectInfo } from "./project.js";
 import { StoryDefinition } from "../../definitions/index.js";
 import type { StoryFieldDefinition } from "../../definitions/model/types.js";

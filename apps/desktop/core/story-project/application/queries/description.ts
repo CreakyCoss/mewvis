@@ -6,25 +6,6 @@ import type {
   StoryChangeSetDescription,
   StoryProjectStructure,
 } from "../../types.js";
-import { STORY_CHANGE_SET_MAX_BYTES, STORY_CHANGE_SET_MAX_OPERATIONS } from "../engine/changes.js";
-
-const CHANGE_SET: StoryChangeSetDescription = Object.freeze({
-  maxOperations: STORY_CHANGE_SET_MAX_OPERATIONS,
-  maxBytes: STORY_CHANGE_SET_MAX_BYTES,
-  operations: [
-    "upsert",
-    "delete",
-    "patch",
-    "upsert-items",
-    "remove-items",
-    "add-values",
-    "remove-values",
-    "append-text",
-    "replace-text",
-  ],
-  atomicCommit: true,
-  revisionRequired: true,
-});
 
 const fieldMetadata = ({ key: _key, ...field }: StoryFieldDefinition): JsonFieldMetadata => field as JsonFieldMetadata;
 
@@ -56,6 +37,7 @@ const referencedObjects = (definition: StoryTypeDefinition, fields: readonly Sto
 
 export const describeStoryProject = (
   definition: StoryTypeDefinition,
+  changeSet: StoryChangeSetDescription,
   input: { documentKinds?: readonly string[] } = {},
 ): StoryProjectStructure => {
   const requested = [...new Set(input.documentKinds ?? [])];
@@ -115,7 +97,7 @@ export const describeStoryProject = (
       ),
       objectDefinitions: referencedObjects(definition, schemaFields),
     },
-    changes: CHANGE_SET,
+    changes: changeSet,
     rules: Object.keys(definition.rules),
   };
 };

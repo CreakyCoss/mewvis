@@ -6,7 +6,6 @@ const root = process.cwd();
 const entry = resolve(root, "core/story-project/story-types/long-novel/index.ts");
 const fileLayoutEntry = resolve(root, "core/story-project/story-types/long-novel/file-layout.ts");
 const definitionEntry = resolve(root, "core/story-project/definitions/index.ts");
-const documentEngineEntry = resolve(root, "core/story-project/internal/engine/document.ts");
 const output = await build({
   entryPoints: [entry],
   bundle: true,
@@ -40,18 +39,6 @@ const definitionOutput = await build({
 const { StoryDefinition } = await import(
   `data:text/javascript;base64,${Buffer.from(definitionOutput.outputFiles[0].text).toString("base64")}`
 );
-const documentEngineOutput = await build({
-  entryPoints: [documentEngineEntry],
-  bundle: true,
-  platform: "node",
-  format: "esm",
-  target: "node22",
-  write: false,
-});
-const { parseStoryDocument } = await import(
-  `data:text/javascript;base64,${Buffer.from(documentEngineOutput.outputFiles[0].text).toString("base64")}`
-);
-
 const expectedPaths = {
   "story-manifest": "story/manifest.json",
   "story-book": "story/book.json",
@@ -127,7 +114,10 @@ const chapterContent = storyType.documents.find((document) => document.kind === 
 assert.equal(chapterContent.contentFormat, "markdown");
 assert.deepEqual(chapterContent.companionKinds, [storyType.roles.chapterResult]);
 assert.deepEqual(
-  parseStoryDocument(storyType, "# 第一章", { kind: chapterContent.kind, identity: { id: "chapter-1" } }),
+  StoryDefinition.parseDocument(storyType, "# 第一章", {
+    kind: chapterContent.kind,
+    identity: { id: "chapter-1" },
+  }),
   { kind: chapterContent.kind, id: "chapter-1", content: "# 第一章" },
   "Markdown 文档应由逻辑引用提供身份，不依赖文件路径",
 );

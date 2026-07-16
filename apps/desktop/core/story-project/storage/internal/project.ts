@@ -1,5 +1,4 @@
 import type { StoryProjectDocumentEntry, StoryProjectState } from "../../types.js";
-import { parseStoryDocument } from "./document.js";
 import { StoryDefinition } from "../../definitions/index.js";
 import type { StoryFieldDefinition } from "../../definitions/model/types.js";
 import type { StoryTypeDefinition } from "../../definitions/types.js";
@@ -61,7 +60,7 @@ export const createInitialProject = (
   timestamp = Date.now(),
 ) => {
   const manifestRef = StoryDefinition.identity(definition, definition.manifestKind);
-  const manifest = parseStoryDocument(
+  const manifest = StoryDefinition.parseDocument(
     definition,
     initialDocumentInput(definition, definition.manifestKind, input.storyId, input.title, timestamp),
     manifestRef,
@@ -74,7 +73,7 @@ export const createInitialProject = (
     return [
       {
         ref,
-        value: parseStoryDocument(
+        value: StoryDefinition.parseDocument(
           definition,
           initialDocumentInput(definition, document.kind, input.storyId, input.title, timestamp),
           ref,
@@ -130,7 +129,7 @@ export const assembleProject = (
   const documents = normalized
     .filter((entry) => entry.ref.kind !== definition.manifestKind)
     .map((entry) => {
-      const value = parseStoryDocument(definition, entry.value, entry.ref);
+      const value = StoryDefinition.parseDocument(definition, entry.value, entry.ref);
       if (documentKind(value) !== entry.ref.kind) {
         throw new Error(`${StoryDefinition.identityKey(entry.ref)} 的 kind 与故事类型不一致。`);
       }
@@ -147,7 +146,7 @@ export const assembleProject = (
   }
   const manifestEntry = manifestEntries[0]!;
   return {
-    manifest: parseStoryDocument(definition, manifestEntry.value, manifestEntry.ref),
+    manifest: StoryDefinition.parseDocument(definition, manifestEntry.value, manifestEntry.ref),
     documents: documents.sort((left, right) =>
       StoryDefinition.identityKey(left.ref).localeCompare(StoryDefinition.identityKey(right.ref)),
     ),

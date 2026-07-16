@@ -26,6 +26,7 @@ const editorDefinition = (
   };
 };
 
+/** 为领域文档附加编辑器需要的结构描述。 */
 export const editableStoryDocument = (
   definition: StoryTypeDefinition,
   document: Pick<StoryDocument, "ref" | "value" | "updatedAt">,

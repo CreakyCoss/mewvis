@@ -51,6 +51,8 @@ for (const removed of [
   "file-store.ts",
   "internal/runtime.ts",
   "internal/application",
+  "internal/engine",
+  "internal/projections",
   "storage/file.ts",
   "storage/memory.ts",
   "storage/core",
@@ -92,21 +94,20 @@ if (
 ) {
   throw new Error("Story Project 公共入口应只暴露明确的 API 工厂和公共类型，不得混入文档辅助层。");
 }
-const internalRoot = resolve(coreRoot, "internal");
-const engineRoot = resolve(internalRoot, "engine");
-const projectionsRoot = resolve(internalRoot, "projections");
 const applicationRoot = resolve(coreRoot, "application");
+const queriesRoot = resolve(applicationRoot, "queries");
 const definitionsRoot = resolve(coreRoot, "definitions");
 const documentModelRoot = resolve(coreRoot, "definitions/model");
 const documentDefinitionsRoot = resolve(coreRoot, "definitions/documents");
 const storageRoot = resolve(coreRoot, "storage");
+const storageInternalRoot = resolve(storageRoot, "internal");
 const storageAdaptersRoot = resolve(storageRoot, "adapters");
 for (const directory of [
-  engineRoot,
-  projectionsRoot,
   applicationRoot,
+  queriesRoot,
   documentModelRoot,
   documentDefinitionsRoot,
+  storageInternalRoot,
   storageAdaptersRoot,
 ]) {
   if (!existsSync(directory)) throw new Error(`Story Project 缺少内部层：${relative(coreRoot, directory)}`);
@@ -118,7 +119,10 @@ if (
   !definitionFacade.includes("interface StoryDefinitionApi") ||
   !definitionFacade.includes("const StoryDefinition") ||
   !definitionFacade.includes("identityKey(identity") ||
+  !definitionFacade.includes("parseDocument(") ||
+  !definitionFacade.includes("materializeDocument(") ||
   !definitionFacade.includes('from "./internal/parser.js"') ||
+  !definitionFacade.includes('from "./internal/document.js"') ||
   !definitionFacade.includes('from "./internal/resolver.js"') ||
   definitionFacade.includes("export *") ||
   definitionFacade.includes("export {")
@@ -191,9 +195,9 @@ const sourceText = (directory) =>
   tsFiles(directory)
     .map((path) => readFileSync(path, "utf8"))
     .join("\n");
-const engineSource = sourceText(engineRoot);
-const projectionsSource = sourceText(projectionsRoot);
 const applicationSource = sourceText(applicationRoot);
+const queriesSource = sourceText(queriesRoot);
+const storageInternalSource = sourceText(storageInternalRoot);
 const storageAdaptersSource = sourceText(storageAdaptersRoot);
 const forbiddenImports = (directory, forbidden) =>
   tsFiles(directory).flatMap((path) => {
@@ -201,24 +205,23 @@ const forbiddenImports = (directory, forbidden) =>
     const imports = [...source.matchAll(/from\s+["']([^"']+)["']/g)].map((match) => match[1]);
     return imports.some((specifier) => forbidden.some((segment) => specifier.includes(segment))) ? [path] : [];
   });
-const invalidEngineImports = forbiddenImports(engineRoot, [
+const invalidStorageInternalImports = forbiddenImports(storageInternalRoot, [
   "/application/",
-  "/projections/",
+  "/queries/",
+  "/story-types/",
+  "../../index.js",
+]);
+const invalidQueryImports = forbiddenImports(queriesRoot, [
+  "/application/",
   "/storage/",
   "/story-types/",
   "../../index.js",
 ]);
-const invalidProjectionImports = forbiddenImports(projectionsRoot, [
-  "/application/",
-  "/storage/",
-  "/story-types/",
-  "../../index.js",
-]);
-if (invalidEngineImports.length || invalidProjectionImports.length) {
+if (invalidStorageInternalImports.length || invalidQueryImports.length) {
   throw new Error(
-    `Story Project internal 必须保持纯净且只能由 projections -> engine：\n${[
-      ...invalidEngineImports,
-      ...invalidProjectionImports,
+    `Story Project 内部实现必须遵守 Application Query 与 Storage 的单向依赖：\n${[
+      ...invalidStorageInternalImports,
+      ...invalidQueryImports,
     ]
       .map((path) => relative(root, path))
       .join("\n")}`,
@@ -236,20 +239,23 @@ if (
   applicationSource.includes("StoryProjectRecord") ||
   applicationSource.includes("profile.json") ||
   applicationSource.includes("project.lock.json") ||
-  engineSource.includes("StoryProjectStorage") ||
-  projectionsSource.includes("StoryProjectStorage") ||
-  engineSource.includes("StoryProjectRecord") ||
-  projectionsSource.includes("StoryProjectRecord")
+  queriesSource.includes("StoryProjectStorage") ||
+  queriesSource.includes("StoryProjectRecord") ||
+  storageInternalSource.includes("StoryProjectRecordBackend")
 ) {
-  throw new Error("Story Application 只能消费领域级 Storage，internal 不得依赖任何存储协议。");
+  throw new Error("Story Application Query 必须保持纯投影，Storage 业务规则不得依赖底层 Record Backend。");
 }
 if (
   !storageContract.includes("interface StoryProjectStorage") ||
   !storageContract.includes("loadDefinition(projectKey") ||
   !storageContract.includes("loadProject(projectKey") ||
   !storageContract.includes("ref: StoryDocumentIdentity") ||
+  !storageContract.includes("readonly changeSet") ||
   !storageContract.includes("initializeProject(") ||
-  !storageContract.includes("persistAppliedProject(") ||
+  !storageContract.includes("saveDocument(") ||
+  !storageContract.includes("removeDocument(") ||
+  !storageContract.includes("validateChanges(") ||
+  !storageContract.includes("commitChanges(") ||
   !storageContract.includes("createStoryFileRecordBackend(options)") ||
   !storageContract.includes("createMemoryStoryProjectRecordBackend()") ||
   storageContract.includes("normalizeDocumentPath") ||
@@ -273,6 +279,19 @@ if (
   storageAdaptersSource.includes("createStoryProjectStorage =")
 ) {
   throw new Error("Story Storage 必须由公共 Facade 直接分发具体 Adapter，不得引入 Registry 或 barrel 隐藏依赖。");
+}
+const queryFacade = readFileSync(resolve(queriesRoot, "index.ts"), "utf8");
+if (
+  !queryFacade.includes("interface StoryProjectQueryApi") ||
+  !queryFacade.includes("const StoryProjectQuery") ||
+  !queryFacade.includes("describe:") ||
+  !queryFacade.includes("overview:") ||
+  !queryFacade.includes("document:") ||
+  !queryFacade.includes("context:") ||
+  queryFacade.includes("export *") ||
+  queryFacade.includes("export {")
+) {
+  throw new Error("Application Queries index 必须提供实际 Facade，不得退化为 re-export barrel。");
 }
 
 const protocol = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/protocol.ts"), "utf8");

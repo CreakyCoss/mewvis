@@ -1,24 +1,17 @@
 import { StoryDefinition } from "../definitions/index.js";
 import { resolveStoryType } from "../story-types/index.js";
-import type { StoryChangeResult, StoryChangeValidation, StoryDocumentIdentity, StoryInitialization } from "../types.js";
+import type { StoryChangeResult, StoryChangeValidation, StoryInitialization, StoryProjectState } from "../types.js";
 import type { StoryProjectStorage } from "../storage/index.js";
 import type { StoryWorkspace } from "../index.js";
-import { applyChangeSet } from "../internal/engine/changes.js";
-import { StoryProjectValidationError } from "../internal/engine/issues.js";
-import { createInitialProject, projectInfo } from "../internal/engine/project.js";
-import { validateProject } from "../internal/engine/validation.js";
-import { readStoryProjectContext } from "../internal/projections/context.js";
-import { describeStoryProject } from "../internal/projections/description.js";
-import { editableStoryDocument } from "../internal/projections/document.js";
-import { projectOverview } from "../internal/projections/overview.js";
 import { errorIssues } from "./errors.js";
-
-type JsonObject = Record<string, unknown>;
+import { StoryProjectQuery } from "./queries/index.js";
 
 const DEFAULT_STORY_TYPE_ID = "long-novel";
 
-const isObject = (value: unknown): value is JsonObject =>
-  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+const projectRevision = (project: StoryProjectState) => {
+  if (!Number.isInteger(project.manifest.revision)) throw new Error("故事 Manifest 缺少 revision。");
+  return Number(project.manifest.revision);
+};
 
 export const createWorkspace = (
   storage: StoryProjectStorage,
@@ -53,7 +46,7 @@ export const createWorkspace = (
           return {
             initialized: false,
             alreadyInitialized: true,
-            revision: projectInfo(current).revision,
+            revision: projectRevision(current),
             manifestRef,
             existingEntryCount: inventory.replaceableKeys.length,
             issues: [],
@@ -78,22 +71,19 @@ export const createWorkspace = (
             hint: "确认现有存储记录可以被替换后，将 replaceExisting 设为 true 重试。",
           };
         }
-        const project = createInitialProject(definition, input);
-        const validation = validateProject(project, definition, "draft");
-        if (!validation.valid) throw new StoryProjectValidationError(validation.issues);
-        await storage.initializeProject(
+        const project = await storage.initializeProject(
           projectKey,
           definition,
-          project,
+          input,
           input.replaceExisting ? inventory.replaceableKeys : [],
         );
         return {
           initialized: true,
           alreadyInitialized: false,
-          revision: projectInfo(project).revision,
+          revision: projectRevision(project),
           manifestRef,
           existingEntryCount: inventory.replaceableKeys.length,
-          issues: validation.issues,
+          issues: [],
           hint: null,
         };
       } catch (error) {
@@ -110,12 +100,12 @@ export const createWorkspace = (
     },
 
     async describe(input = {}) {
-      return describeStoryProject(await describeDefinition(), input);
+      return StoryProjectQuery.describe(await describeDefinition(), storage.changeSet, input);
     },
 
     async overview() {
       const definition = await loadDefinition();
-      return projectOverview(await storage.loadProject(projectKey, definition), definition);
+      return StoryProjectQuery.overview(await storage.loadProject(projectKey, definition), definition);
     },
 
     async listDocuments(input = {}) {
@@ -129,95 +119,30 @@ export const createWorkspace = (
         .sort((left, right) => StoryDefinition.identityKey(left).localeCompare(StoryDefinition.identityKey(right)));
       return Promise.all(
         refs.map(async (ref) =>
-          editableStoryDocument(definition, await storage.loadDocument(projectKey, definition, ref)),
+          StoryProjectQuery.document(definition, await storage.loadDocument(projectKey, definition, ref)),
         ),
       );
     },
 
     async saveDocument(document) {
       const definition = await loadDefinition();
-      const ref = StoryDefinition.identity(definition, document.ref.kind, document.ref.identity);
-      const project = await storage.loadProject(projectKey, definition);
-      const info = projectInfo(project);
-      const applied = applyChangeSet(
-        project,
-        {
-          storyTypeId: definition.id,
-          storyTypeVersion: definition.version,
-          storyId: info.storyId,
-          baseRevision: info.revision,
-          validationMode: "draft",
-          operations: [{ type: "upsert", ref, value: document.value }],
-        },
-        definition,
-      );
-      await storage.persistAppliedProject(projectKey, definition, applied);
-      return editableStoryDocument(definition, await storage.loadDocument(projectKey, definition, ref));
+      return StoryProjectQuery.document(definition, await storage.saveDocument(projectKey, definition, document));
     },
 
     async removeDocument(inputRef) {
       const definition = await loadDefinition();
-      const ref = StoryDefinition.identity(definition, inputRef.kind, inputRef.identity);
-      const document = StoryDefinition.document(definition, ref.kind);
-      if (document.cardinality === "one") throw new Error(`「${document.label}」必须保留一份，不能删除。`);
-      const project = await storage.loadProject(projectKey, definition);
-      const refKey = StoryDefinition.identityKey(ref);
-      const current = project.documents.find((entry) => StoryDefinition.identityKey(entry.ref) === refKey)?.value;
-      const id = isObject(current) && typeof current.id === "string" ? current.id : "";
-      const companionRefs: StoryDocumentIdentity[] = id
-        ? (document.companionKinds ?? []).flatMap((companionKind) => {
-            const companion = StoryDefinition.document(definition, companionKind);
-            if (companion.cardinality !== "many") return [];
-            try {
-              const identity = Object.fromEntries(
-                companion.identityFields.map((field) => [
-                  field,
-                  isObject(current) && typeof current[field] === "string" ? current[field] : id,
-                ]),
-              );
-              return [StoryDefinition.identity(definition, companionKind, identity)];
-            } catch {
-              return [];
-            }
-          })
-        : [];
-      const info = projectInfo(project);
-      const applied = applyChangeSet(
-        project,
-        {
-          storyTypeId: definition.id,
-          storyTypeVersion: definition.version,
-          storyId: info.storyId,
-          baseRevision: info.revision,
-          validationMode: "draft",
-          operations: [ref, ...companionRefs]
-            .filter(
-              (targetRef, index, refs) =>
-                refs.findIndex(
-                  (candidate) => StoryDefinition.identityKey(candidate) === StoryDefinition.identityKey(targetRef),
-                ) === index,
-            )
-            .filter((targetRef) =>
-              project.documents.some(
-                (entry) => StoryDefinition.identityKey(entry.ref) === StoryDefinition.identityKey(targetRef),
-              ),
-            )
-            .map((targetRef) => ({ type: "delete" as const, ref: targetRef })),
-        },
-        definition,
-      );
-      await storage.persistAppliedProject(projectKey, definition, applied);
+      await storage.removeDocument(projectKey, definition, inputRef);
     },
 
     async readContext(input) {
       const definition = await loadDefinition();
-      return readStoryProjectContext(await storage.loadProject(projectKey, definition), definition, input);
+      return StoryProjectQuery.context(await storage.loadProject(projectKey, definition), definition, input);
     },
 
     async validateChanges(changeSet): Promise<StoryChangeValidation> {
       try {
         const definition = await loadDefinition();
-        const applied = applyChangeSet(await storage.loadProject(projectKey, definition), changeSet, definition);
+        const applied = await storage.validateChanges(projectKey, definition, changeSet);
         return {
           valid: applied.validation.valid,
           nextRevision: applied.nextRevision,
@@ -241,8 +166,7 @@ export const createWorkspace = (
     async commitChanges(changeSet): Promise<StoryChangeResult> {
       try {
         const definition = await loadDefinition();
-        const applied = applyChangeSet(await storage.loadProject(projectKey, definition), changeSet, definition);
-        await storage.persistAppliedProject(projectKey, definition, applied);
+        const applied = await storage.commitChanges(projectKey, definition, changeSet);
         return {
           committed: true,
           valid: true,

@@ -1,4 +1,5 @@
 import { defineStoryType, parseStoryTypeDefinition } from "./internal/parser.js";
+import { materializeStoryDocument, parseStoryDocument } from "./internal/document.js";
 import {
   storyTypeContext,
   storyTypeDocument,
@@ -27,6 +28,20 @@ export interface StoryDefinitionApi {
   readonly formatVersion: typeof STORY_TYPE_DEFINITION_FORMAT_VERSION;
   define(input: StoryTypeDefinition): StoryTypeDefinition;
   parse(input: unknown): StoryTypeDefinition;
+  parseDocument(
+    definition: StoryTypeDefinition,
+    input: unknown,
+    identity: StoryDocumentIdentity,
+    timestamp?: number,
+    options?: Readonly<{ coerce?: boolean }>,
+  ): Record<string, unknown>;
+  materializeDocument(
+    definition: StoryTypeDefinition,
+    input: unknown,
+    identity: StoryDocumentIdentity,
+    timestamp?: number,
+    options?: Readonly<{ coerce?: boolean; refreshGenerated?: boolean }>,
+  ): Record<string, unknown>;
   document(definition: StoryTypeDefinition, kind: string): StoryDocumentDefinition;
   object(definition: StoryTypeDefinition, id: string): StoryObjectDefinition;
   objectFields(definition: StoryTypeDefinition, id: string): Readonly<Record<string, StoryFieldDefinition>>;
@@ -45,6 +60,8 @@ export const StoryDefinition: StoryDefinitionApi = Object.freeze({
   formatVersion: STORY_TYPE_DEFINITION_FORMAT_VERSION,
   define: defineStoryType,
   parse: parseStoryTypeDefinition,
+  parseDocument: parseStoryDocument,
+  materializeDocument: materializeStoryDocument,
   document: storyTypeDocument,
   object: storyTypeObject,
   objectFields: storyTypeObjectFields,

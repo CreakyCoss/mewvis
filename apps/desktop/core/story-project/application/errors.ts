@@ -1,7 +1,7 @@
 import { ZodError } from "zod";
 import { StoryProjectRevisionConflictError } from "../storage/errors.js";
 import type { StoryValidationIssue } from "../types.js";
-import { StoryProjectValidationError } from "../internal/engine/issues.js";
+import { StoryProjectValidationError } from "../errors.js";
 
 const zodPath = (owner: string, path: PropertyKey[]) =>
   path.reduce<string>(

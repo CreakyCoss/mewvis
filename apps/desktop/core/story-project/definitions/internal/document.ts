@@ -1,8 +1,14 @@
 import type { StoryValidationIssue } from "../../types.js";
-import { StoryProjectValidationError } from "./issues.js";
-import { StoryDefinition } from "../../definitions/index.js";
-import type { StoryDocumentIdentity, StoryFieldDefinition } from "../../definitions/model/types.js";
-import type { StoryTypeDefinition } from "../../definitions/types.js";
+import { StoryProjectValidationError } from "../../errors.js";
+import type { StoryDocumentIdentity, StoryFieldDefinition } from "../model/types.js";
+import type { StoryTypeDefinition } from "../types.js";
+import {
+  storyTypeDocument,
+  storyTypeFields,
+  storyTypeIdentity,
+  storyTypeIdentityKey,
+  storyTypeObjectFields,
+} from "./resolver.js";
 
 const objectFromUnknown = (value: unknown, owner: string): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -11,37 +17,11 @@ const objectFromUnknown = (value: unknown, owner: string): Record<string, unknow
   return value as Record<string, unknown>;
 };
 
-const cloneJson = (value: unknown) => JSON.parse(JSON.stringify(value)) as unknown;
-
-const parseCompatibleJson = (value: unknown) => {
-  if (typeof value !== "string") return value;
-  const text = value.trim();
-  if (!text || (!text.startsWith("{") && !text.startsWith("["))) return value;
-  try {
-    return JSON.parse(text) as unknown;
-  } catch {
-    return value;
-  }
-};
-
-const isEmptyCompatibleArrayValue = (value: unknown) =>
-  value === null || (typeof value === "string" && (!value.trim() || value.trim() === "null"));
-
-const compatibleArrayFromItem = (item: unknown) => {
-  if (isEmptyCompatibleArrayValue(item)) return [];
-  return Array.isArray(item) ? item : [item];
-};
+const cloneJson = (value: unknown) => structuredClone(value);
 
 const compatibleArray = (value: unknown) => {
-  if (isEmptyCompatibleArrayValue(value)) return [];
-  const parsed = parseCompatibleJson(value);
-  if (isEmptyCompatibleArrayValue(parsed)) return [];
-  if (Array.isArray(parsed)) return parsed;
-  if (parsed && typeof parsed === "object" && Object.keys(parsed).length === 1 && "item" in parsed) {
-    const item = (parsed as Record<string, unknown>).item;
-    return compatibleArrayFromItem(item);
-  }
-  return parsed;
+  if (value === null) return [];
+  return value;
 };
 
 const compatibleInteger = (value: unknown) => {
@@ -171,27 +151,18 @@ const materializeFields = (
     }
     try {
       if (field.definition) {
-        const objectFields = StoryDefinition.objectFields(definition, field.definition);
-        value = materializeFields(
-          definition,
-          path,
-          objectFields,
-          coerce ? parseCompatibleJson(value) : value,
-          timestamp,
-          coerce,
-          refreshGenerated,
-          issues,
-        );
+        const objectFields = storyTypeObjectFields(definition, field.definition);
+        value = materializeFields(definition, path, objectFields, value, timestamp, coerce, refreshGenerated, issues);
       } else if (field.itemDefinition) {
         if (coerce) value = compatibleArray(value);
         if (!Array.isArray(value)) throw new Error(`${path} 必须是数组。`);
-        const objectFields = StoryDefinition.objectFields(definition, field.itemDefinition);
+        const objectFields = storyTypeObjectFields(definition, field.itemDefinition);
         value = value.map((item, index) =>
           materializeFields(
             definition,
             `${path}[${index}]`,
             objectFields,
-            coerce ? parseCompatibleJson(item) : item,
+            item,
             timestamp,
             coerce,
             refreshGenerated,
@@ -222,8 +193,8 @@ export const materializeStoryDocument = (
   timestamp = Date.now(),
   options: Readonly<{ coerce?: boolean; refreshGenerated?: boolean }> = {},
 ) => {
-  const ref = StoryDefinition.identity(definition, inputRef.kind, inputRef.identity);
-  const owner = StoryDefinition.identityKey(ref);
+  const ref = storyTypeIdentity(definition, inputRef.kind, inputRef.identity);
+  const owner = storyTypeIdentityKey(ref);
   const issues: StoryValidationIssue[] = [];
   const source =
     input && typeof input === "object" && !Array.isArray(input) ? (input as Record<string, unknown>) : null;
@@ -244,7 +215,7 @@ export const materializeStoryDocument = (
   const value = materializeFields(
     definition,
     owner,
-    StoryDefinition.fields(definition, ref.kind),
+    storyTypeFields(definition, ref.kind),
     materializationInput,
     timestamp,
     options.coerce === true,
@@ -263,26 +234,6 @@ export const materializeStoryDocument = (
   return value;
 };
 
-export const serializeStoryDocument = (
-  definition: StoryTypeDefinition,
-  input: unknown,
-  inputRef: StoryDocumentIdentity,
-): Record<string, unknown> | string => {
-  const ref = StoryDefinition.identity(definition, inputRef.kind, inputRef.identity);
-  const document = StoryDefinition.document(definition, ref.kind);
-  if (document.contentFormat === "markdown") return parseStoryDocument(definition, input, ref).content as string;
-  const owner = StoryDefinition.identityKey(ref);
-  const source = objectFromUnknown(input, owner);
-  const allowed = new Set(Object.keys(StoryDefinition.fields(definition, ref.kind)));
-  return materializeStoryDocument(
-    definition,
-    Object.fromEntries(Object.entries(source).filter(([key]) => allowed.has(key))),
-    ref,
-    Date.now(),
-    { refreshGenerated: false },
-  );
-};
-
 export const parseStoryDocument = (
   definition: StoryTypeDefinition,
   input: unknown,
@@ -290,9 +241,9 @@ export const parseStoryDocument = (
   timestamp = Date.now(),
   options: Readonly<{ coerce?: boolean }> = {},
 ) => {
-  const ref = StoryDefinition.identity(definition, inputRef.kind, inputRef.identity);
-  const owner = StoryDefinition.identityKey(ref);
-  const document = StoryDefinition.document(definition, ref.kind);
+  const ref = storyTypeIdentity(definition, inputRef.kind, inputRef.identity);
+  const owner = storyTypeIdentityKey(ref);
+  const document = storyTypeDocument(definition, ref.kind);
   if (document.contentFormat === "markdown") {
     const content = typeof input === "string" ? input : objectFromUnknown(input, owner).content;
     if (typeof content !== "string") throw new Error(`${owner} 的 Markdown 内容必须是字符串。`);

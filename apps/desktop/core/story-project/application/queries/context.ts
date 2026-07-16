@@ -67,6 +67,7 @@ const entryIsTarget = (entries: readonly StoryProjectDocumentEntry[], target?: S
     entries.some((entry) => StoryDefinition.identityKey(entry.ref) === StoryDefinition.identityKey(target.ref)),
   );
 
+/** 将项目快照投影为 Agent 可消费的写作上下文。 */
 export const readStoryProjectContext = (
   project: StoryProjectState,
   definition: StoryTypeDefinition,

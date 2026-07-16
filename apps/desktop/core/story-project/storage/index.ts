@@ -1,15 +1,22 @@
 import { StoryDefinition } from "../definitions/index.js";
 import type { StoryDocumentIdentity } from "../definitions/model/types.js";
 import type { StoryTypeDefinition } from "../definitions/types.js";
-import type { StoryDocument, StoryProjectAppliedChanges, StoryProjectState, StoryValue } from "../types.js";
-import { parseStoryDocument, serializeStoryDocument } from "../internal/engine/document.js";
-import { StoryProjectValidationError } from "../internal/engine/issues.js";
-import { assembleProject } from "../internal/engine/project.js";
-import { validateProject } from "../internal/engine/validation.js";
+import type {
+  StoryChangeSetDescription,
+  StoryDocument,
+  StoryProjectAppliedChanges,
+  StoryProjectState,
+  StoryValue,
+} from "../types.js";
+import { StoryProjectValidationError } from "../errors.js";
 import { createStoryFileRecordBackend } from "./adapters/file/index.js";
 import { assertStoryFileLayout } from "./adapters/file/layout.js";
 import { createMemoryStoryProjectRecordBackend } from "./adapters/memory/index.js";
 import type { StoryProjectRecord, StoryProjectRecordBackend, StoryProjectRecordWrite } from "./adapters/record.js";
+import { applyChangeSet, STORY_CHANGE_SET_DESCRIPTION } from "./internal/changes.js";
+import { serializeStoryDocument } from "./internal/codec.js";
+import { assembleProject, createInitialProject, projectInfo } from "./internal/project.js";
+import { validateProject } from "./internal/validation.js";
 import type { StoryProjectInventory, StoryProjectStorageOptions } from "./types.js";
 
 type JsonObject = Record<string, unknown>;
@@ -19,6 +26,7 @@ const isObject = (value: unknown): value is JsonObject =>
 
 /** Story Project 的领域级持久化边界；调用方只使用文档身份，不感知 Adapter 的物理定位。 */
 export interface StoryProjectStorage {
+  readonly changeSet: StoryChangeSetDescription;
   loadDefinition(projectKey: string): Promise<StoryTypeDefinition | null>;
   inspect(projectKey: string, definition: StoryTypeDefinition): Promise<StoryProjectInventory>;
   loadProject(projectKey: string, definition: StoryTypeDefinition): Promise<StoryProjectState>;
@@ -30,14 +38,25 @@ export interface StoryProjectStorage {
   initializeProject(
     projectKey: string,
     definition: StoryTypeDefinition,
-    project: StoryProjectState,
+    input: Readonly<{ storyId: string; title: string }>,
     replaceKeys: readonly string[],
-  ): Promise<void>;
-  persistAppliedProject(
+  ): Promise<StoryProjectState>;
+  saveDocument(
     projectKey: string,
     definition: StoryTypeDefinition,
-    applied: StoryProjectAppliedChanges,
-  ): Promise<void>;
+    document: Pick<StoryDocument, "ref" | "value">,
+  ): Promise<Pick<StoryDocument, "ref" | "value" | "updatedAt">>;
+  removeDocument(projectKey: string, definition: StoryTypeDefinition, identity: StoryDocumentIdentity): Promise<void>;
+  validateChanges(
+    projectKey: string,
+    definition: StoryTypeDefinition,
+    changeSet: unknown,
+  ): Promise<StoryProjectAppliedChanges>;
+  commitChanges(
+    projectKey: string,
+    definition: StoryTypeDefinition,
+    changeSet: unknown,
+  ): Promise<StoryProjectAppliedChanges>;
 }
 
 const storedDocument = (
@@ -96,7 +115,7 @@ const loadProject = async (
 ): Promise<StoryProjectState> => {
   const manifestRef = StoryDefinition.identity(definition, definition.manifestKind);
   const manifestRecord = await backend.read(projectKey, backend.documentKey(manifestRef));
-  const manifestValue = parseStoryDocument(
+  const manifestValue = StoryDefinition.parseDocument(
     definition,
     storedDocumentValue(definition, manifestRef, manifestRecord),
     manifestRef,
@@ -128,12 +147,16 @@ const loadDocument = async (
   const record = await backend.read(projectKey, backend.documentKey(ref));
   return {
     ref,
-    value: parseStoryDocument(definition, storedDocumentValue(definition, ref, record), ref) as StoryDocument["value"],
+    value: StoryDefinition.parseDocument(
+      definition,
+      storedDocumentValue(definition, ref, record),
+      ref,
+    ) as StoryDocument["value"],
     updatedAt: record.updatedAt,
   };
 };
 
-const initializeProject = async (
+const persistInitialProject = async (
   backend: StoryProjectRecordBackend,
   projectKey: string,
   definition: StoryTypeDefinition,
@@ -177,6 +200,108 @@ const persistAppliedProject = async (
   });
 };
 
+const initializeProject = async (
+  backend: StoryProjectRecordBackend,
+  projectKey: string,
+  definition: StoryTypeDefinition,
+  input: Readonly<{ storyId: string; title: string }>,
+  replaceKeys: readonly string[],
+) => {
+  const project = createInitialProject(definition, input);
+  const validation = validateProject(project, definition, "draft");
+  if (!validation.valid) throw new StoryProjectValidationError(validation.issues);
+  await persistInitialProject(backend, projectKey, definition, project, replaceKeys);
+  return project;
+};
+
+const saveDocument = async (
+  backend: StoryProjectRecordBackend,
+  projectKey: string,
+  definition: StoryTypeDefinition,
+  document: Pick<StoryDocument, "ref" | "value">,
+) => {
+  const ref = StoryDefinition.identity(definition, document.ref.kind, document.ref.identity);
+  const project = await loadProject(backend, projectKey, definition);
+  const info = projectInfo(project);
+  const applied = applyChangeSet(
+    project,
+    {
+      storyTypeId: definition.id,
+      storyTypeVersion: definition.version,
+      storyId: info.storyId,
+      baseRevision: info.revision,
+      validationMode: "draft",
+      operations: [{ type: "upsert", ref, value: document.value }],
+    },
+    definition,
+  );
+  await persistAppliedProject(backend, projectKey, definition, applied);
+  return loadDocument(backend, projectKey, definition, ref);
+};
+
+const removeDocument = async (
+  backend: StoryProjectRecordBackend,
+  projectKey: string,
+  definition: StoryTypeDefinition,
+  inputIdentity: StoryDocumentIdentity,
+) => {
+  const identity = StoryDefinition.identity(definition, inputIdentity.kind, inputIdentity.identity);
+  const document = StoryDefinition.document(definition, identity.kind);
+  if (document.cardinality === "one") throw new Error(`「${document.label}」必须保留一份，不能删除。`);
+  const project = await loadProject(backend, projectKey, definition);
+  const identityKey = StoryDefinition.identityKey(identity);
+  const current = project.documents.find((entry) => StoryDefinition.identityKey(entry.ref) === identityKey)?.value;
+  const id = isObject(current) && typeof current.id === "string" ? current.id : "";
+  const companionIdentities: StoryDocumentIdentity[] = id
+    ? (document.companionKinds ?? []).flatMap((companionKind) => {
+        const companion = StoryDefinition.document(definition, companionKind);
+        if (companion.cardinality !== "many") return [];
+        try {
+          return [
+            StoryDefinition.identity(
+              definition,
+              companionKind,
+              Object.fromEntries(
+                companion.identityFields.map((field) => [
+                  field,
+                  isObject(current) && typeof current[field] === "string" ? current[field] : id,
+                ]),
+              ),
+            ),
+          ];
+        } catch {
+          return [];
+        }
+      })
+    : [];
+  const info = projectInfo(project);
+  const applied = applyChangeSet(
+    project,
+    {
+      storyTypeId: definition.id,
+      storyTypeVersion: definition.version,
+      storyId: info.storyId,
+      baseRevision: info.revision,
+      validationMode: "draft",
+      operations: [identity, ...companionIdentities]
+        .filter(
+          (target, index, identities) =>
+            identities.findIndex(
+              (candidate) => StoryDefinition.identityKey(candidate) === StoryDefinition.identityKey(target),
+            ) === index,
+        )
+        .filter((target) =>
+          project.documents.some(
+            (entry) => StoryDefinition.identityKey(entry.ref) === StoryDefinition.identityKey(target),
+          ),
+        )
+        .map((target) => ({ type: "delete" as const, ref: target })),
+    },
+    definition,
+  );
+  await persistAppliedProject(backend, projectKey, definition, applied);
+};
+
 /** 根据 Storage 类型分发具体 Adapter，并返回统一的领域级 Storage。 */
 export const createStoryProjectStorage = (options: StoryProjectStorageOptions): StoryProjectStorage => {
   const backend =
@@ -185,6 +310,7 @@ export const createStoryProjectStorage = (options: StoryProjectStorageOptions): 
     if (options.kind === "file") assertStoryFileLayout(options.layout, definition);
   };
   const storage: StoryProjectStorage = {
+    changeSet: STORY_CHANGE_SET_DESCRIPTION,
     async loadDefinition(projectKey) {
       const definition = await loadDefinition(backend, projectKey);
       if (definition) assertDefinition(definition);
@@ -202,13 +328,27 @@ export const createStoryProjectStorage = (options: StoryProjectStorageOptions): 
       assertDefinition(definition);
       return loadDocument(backend, projectKey, definition, ref);
     },
-    initializeProject(projectKey, definition, project, replaceKeys) {
+    initializeProject(projectKey, definition, input, replaceKeys) {
       assertDefinition(definition);
-      return initializeProject(backend, projectKey, definition, project, replaceKeys);
+      return initializeProject(backend, projectKey, definition, input, replaceKeys);
     },
-    persistAppliedProject(projectKey, definition, applied) {
+    saveDocument(projectKey, definition, document) {
       assertDefinition(definition);
-      return persistAppliedProject(backend, projectKey, definition, applied);
+      return saveDocument(backend, projectKey, definition, document);
+    },
+    removeDocument(projectKey, definition, identity) {
+      assertDefinition(definition);
+      return removeDocument(backend, projectKey, definition, identity);
+    },
+    async validateChanges(projectKey, definition, changeSet) {
+      assertDefinition(definition);
+      return applyChangeSet(await loadProject(backend, projectKey, definition), changeSet, definition);
+    },
+    async commitChanges(projectKey, definition, changeSet) {
+      assertDefinition(definition);
+      const applied = applyChangeSet(await loadProject(backend, projectKey, definition), changeSet, definition);
+      await persistAppliedProject(backend, projectKey, definition, applied);
+      return applied;
     },
   };
   return Object.freeze(storage);

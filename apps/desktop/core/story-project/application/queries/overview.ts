@@ -1,6 +1,5 @@
 import type { StoryTypeDefinition } from "../../definitions/types.js";
 import type { StoryOverview, StoryProjectState } from "../../types.js";
-import { projectInfo } from "../engine/project.js";
 
 type JsonObject = Record<string, unknown>;
 
@@ -10,6 +9,10 @@ const isObject = (value: unknown): value is JsonObject =>
 const stringValue = (value: unknown, fallback = "") => (typeof value === "string" ? value : fallback);
 const numberValue = (value: unknown, fallback: number) =>
   typeof value === "number" && Number.isFinite(value) ? value : fallback;
+const storyId = (project: StoryProjectState) => {
+  if (typeof project.manifest.storyId !== "string") throw new Error("故事 Manifest 缺少 storyId。");
+  return project.manifest.storyId;
+};
 
 export const projectOverview = (project: StoryProjectState, definition: StoryTypeDefinition): StoryOverview => {
   const documents = project.documents;
@@ -28,7 +31,7 @@ export const projectOverview = (project: StoryProjectState, definition: StoryTyp
     avatar: stringValue(character.avatar, "blank-avatar"),
   }));
   return {
-    id: projectInfo(project).storyId,
+    id: storyId(project),
     title: stringValue(primary.title, stringValue(manifest.title, "未命名故事")),
     description: stringValue(primary.premise),
     goal: stringValue(primary.goal),
