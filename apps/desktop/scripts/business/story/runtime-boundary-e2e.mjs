@@ -65,6 +65,7 @@ for (const removed of [
   "definitions/parser.ts",
   "definitions/path.ts",
   "definitions/internal/path.ts",
+  "definitions/model/reference.ts",
   "definitions/people.ts",
   "definitions/resolver.ts",
   "definitions/tracking.ts",
@@ -76,7 +77,7 @@ const publicIndex = readFileSync(resolve(coreRoot, "index.ts"), "utf8");
 if (
   !publicIndex.includes("createStoryProjectApi") ||
   !publicIndex.includes("BUILTIN_STORY_FILE_LAYOUT") ||
-  !publicIndex.includes("storyDocumentRefKey") ||
+  !publicIndex.includes("storyDocumentIdentityKey") ||
   !publicIndex.includes("StoryProjectApi") ||
   !publicIndex.includes("listStoryTypes()") ||
   !publicIndex.includes("workspace(projectKey") ||
@@ -116,6 +117,7 @@ const definitionTypes = readFileSync(resolve(definitionsRoot, "types.ts"), "utf8
 if (
   !definitionFacade.includes("interface StoryDefinitionApi") ||
   !definitionFacade.includes("const StoryDefinition") ||
+  !definitionFacade.includes("identityKey(identity") ||
   !definitionFacade.includes('from "./internal/parser.js"') ||
   !definitionFacade.includes('from "./internal/resolver.js"') ||
   definitionFacade.includes("export *") ||
@@ -165,7 +167,7 @@ if (invalidDefinitionImplementationImports.length > 0) {
       .join("\n")}`,
   );
 }
-for (const component of ["document.ts", "fields.ts"]) {
+for (const component of ["document.ts", "fields.ts", "identity.ts"]) {
   if (!existsSync(resolve(documentModelRoot, component))) {
     throw new Error(`Story Project 缺少文档模型组件：definitions/model/${component}`);
   }
@@ -179,7 +181,7 @@ if (
   !documentModelTypes.includes("StoryFieldDefinition") ||
   !documentModelTypes.includes("StoryObjectDefinition") ||
   !documentModelTypes.includes("StoryDocumentDefinition") ||
-  !documentModelTypes.includes("StoryDocumentRef") ||
+  !documentModelTypes.includes("StoryDocumentIdentity") ||
   !documentModelTypes.includes("identityFields") ||
   !documentModelTypes.includes("StoryDocumentModelDefinition")
 ) {
@@ -245,7 +247,7 @@ if (
   !storageContract.includes("interface StoryProjectStorage") ||
   !storageContract.includes("loadDefinition(projectKey") ||
   !storageContract.includes("loadProject(projectKey") ||
-  !storageContract.includes("ref: StoryDocumentRef") ||
+  !storageContract.includes("ref: StoryDocumentIdentity") ||
   !storageContract.includes("initializeProject(") ||
   !storageContract.includes("persistAppliedProject(") ||
   !storageContract.includes("createStoryFileRecordBackend(options)") ||
@@ -257,8 +259,8 @@ if (
   !storageTypes.includes('kind: "file"') ||
   !storageTypes.includes('kind: "memory"') ||
   !backendContract.includes("interface StoryProjectRecordBackend") ||
-  !backendContract.includes("documentKey(ref") ||
-  !backendContract.includes("documentRef(key") ||
+  !backendContract.includes("documentKey(identity") ||
+  !backendContract.includes("documentIdentity(key") ||
   !backendContract.includes("list(projectKey") ||
   !backendContract.includes("read(projectKey") ||
   !backendContract.includes("readOptional(projectKey") ||

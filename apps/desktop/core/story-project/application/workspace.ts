@@ -1,6 +1,6 @@
 import { StoryDefinition } from "../definitions/index.js";
 import { resolveStoryType } from "../story-types/index.js";
-import type { StoryChangeResult, StoryChangeValidation, StoryDocumentRef, StoryInitialization } from "../types.js";
+import type { StoryChangeResult, StoryChangeValidation, StoryDocumentIdentity, StoryInitialization } from "../types.js";
 import type { StoryProjectStorage } from "../storage/index.js";
 import type { StoryWorkspace } from "../index.js";
 import { applyChangeSet } from "../internal/engine/changes.js";
@@ -46,7 +46,7 @@ export const createWorkspace = (
         if (input.storyTypeId && input.storyTypeId !== definition.id) {
           throw new Error(`工作区故事类型为 ${definition.id}，不能按 ${input.storyTypeId} 初始化。`);
         }
-        const manifestRef = StoryDefinition.reference(definition, definition.manifestKind);
+        const manifestRef = StoryDefinition.identity(definition, definition.manifestKind);
         const inventory = await storage.inspect(projectKey, definition);
         if (inventory.initialized) {
           const current = await storage.loadProject(projectKey, definition);
@@ -126,7 +126,7 @@ export const createWorkspace = (
       const refs = project.documents
         .filter((entry) => !kind || entry.ref.kind === kind)
         .map((entry) => entry.ref)
-        .sort((left, right) => StoryDefinition.referenceKey(left).localeCompare(StoryDefinition.referenceKey(right)));
+        .sort((left, right) => StoryDefinition.identityKey(left).localeCompare(StoryDefinition.identityKey(right)));
       return Promise.all(
         refs.map(async (ref) =>
           editableStoryDocument(definition, await storage.loadDocument(projectKey, definition, ref)),
@@ -136,7 +136,7 @@ export const createWorkspace = (
 
     async saveDocument(document) {
       const definition = await loadDefinition();
-      const ref = StoryDefinition.reference(definition, document.ref.kind, document.ref.identity);
+      const ref = StoryDefinition.identity(definition, document.ref.kind, document.ref.identity);
       const project = await storage.loadProject(projectKey, definition);
       const info = projectInfo(project);
       const applied = applyChangeSet(
@@ -157,14 +157,14 @@ export const createWorkspace = (
 
     async removeDocument(inputRef) {
       const definition = await loadDefinition();
-      const ref = StoryDefinition.reference(definition, inputRef.kind, inputRef.identity);
+      const ref = StoryDefinition.identity(definition, inputRef.kind, inputRef.identity);
       const document = StoryDefinition.document(definition, ref.kind);
       if (document.cardinality === "one") throw new Error(`「${document.label}」必须保留一份，不能删除。`);
       const project = await storage.loadProject(projectKey, definition);
-      const refKey = StoryDefinition.referenceKey(ref);
-      const current = project.documents.find((entry) => StoryDefinition.referenceKey(entry.ref) === refKey)?.value;
+      const refKey = StoryDefinition.identityKey(ref);
+      const current = project.documents.find((entry) => StoryDefinition.identityKey(entry.ref) === refKey)?.value;
       const id = isObject(current) && typeof current.id === "string" ? current.id : "";
-      const companionRefs: StoryDocumentRef[] = id
+      const companionRefs: StoryDocumentIdentity[] = id
         ? (document.companionKinds ?? []).flatMap((companionKind) => {
             const companion = StoryDefinition.document(definition, companionKind);
             if (companion.cardinality !== "many") return [];
@@ -175,7 +175,7 @@ export const createWorkspace = (
                   isObject(current) && typeof current[field] === "string" ? current[field] : id,
                 ]),
               );
-              return [StoryDefinition.reference(definition, companionKind, identity)];
+              return [StoryDefinition.identity(definition, companionKind, identity)];
             } catch {
               return [];
             }
@@ -194,12 +194,12 @@ export const createWorkspace = (
             .filter(
               (targetRef, index, refs) =>
                 refs.findIndex(
-                  (candidate) => StoryDefinition.referenceKey(candidate) === StoryDefinition.referenceKey(targetRef),
+                  (candidate) => StoryDefinition.identityKey(candidate) === StoryDefinition.identityKey(targetRef),
                 ) === index,
             )
             .filter((targetRef) =>
               project.documents.some(
-                (entry) => StoryDefinition.referenceKey(entry.ref) === StoryDefinition.referenceKey(targetRef),
+                (entry) => StoryDefinition.identityKey(entry.ref) === StoryDefinition.identityKey(targetRef),
               ),
             )
             .map((targetRef) => ({ type: "delete" as const, ref: targetRef })),

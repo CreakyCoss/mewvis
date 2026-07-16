@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type {
-  StoryDocumentRef,
+  StoryDocumentIdentity,
   StoryProjectAppliedChanges,
   StoryProjectState,
   StoryValidationIssue,
@@ -148,7 +148,7 @@ const assertPatchFields = (definition: StoryTypeDefinition, kind: string, patch:
   }
 };
 
-type MutableStoryDocument = { ref: StoryDocumentRef; value: unknown };
+type MutableStoryDocument = { ref: StoryDocumentIdentity; value: unknown };
 
 const requireObjectDocument = (documents: Map<string, MutableStoryDocument>, key: string) => {
   const value = documents.get(key)?.value;
@@ -175,7 +175,7 @@ export const applyChangeSet = (
   }
   const documents = new Map(
     current.documents.map((entry) => [
-      StoryDefinition.referenceKey(entry.ref),
+      StoryDefinition.identityKey(entry.ref),
       { ref: entry.ref, value: clone(entry.value) },
     ]),
   );
@@ -183,8 +183,8 @@ export const applyChangeSet = (
   const operationIssues: StoryValidationIssue[] = [];
   for (const [operationIndex, operation] of changeSet.operations.entries()) {
     try {
-      const ref = StoryDefinition.reference(definition, operation.ref.kind, operation.ref.identity ?? {});
-      const key = StoryDefinition.referenceKey(ref);
+      const ref = StoryDefinition.identity(definition, operation.ref.kind, operation.ref.identity ?? {});
+      const key = StoryDefinition.identityKey(ref);
       if (ref.kind === definition.manifestKind) throw new Error("Manifest 只能由故事运行时生成，不能直接修改。");
       const document = StoryDefinition.document(definition, ref.kind);
       switch (operation.type) {
@@ -327,8 +327,8 @@ export const applyChangeSet = (
     changedDocuments: [
       ...new Map(
         changeSet.operations.map((item) => {
-          const ref = StoryDefinition.reference(definition, item.ref.kind, item.ref.identity ?? {});
-          return [StoryDefinition.referenceKey(ref), ref];
+          const ref = StoryDefinition.identity(definition, item.ref.kind, item.ref.identity ?? {});
+          return [StoryDefinition.identityKey(ref), ref];
         }),
       ).values(),
     ],

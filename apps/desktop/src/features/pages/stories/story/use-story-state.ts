@@ -2,7 +2,7 @@ import { toast } from "sonner";
 import { create } from "zustand";
 import type {
   StoryDocument,
-  StoryDocumentRef,
+  StoryDocumentIdentity,
   StoryOverview,
   StoryValue,
 } from "../../../../../core/story-project/types";
@@ -12,8 +12,8 @@ import { storyDocumentKey } from "../story-document";
 
 type StoryStore = {
   closeStory: () => void;
-  createDocument: (ref: StoryDocumentRef, value: StoryValue) => Promise<StoryDocument | null>;
-  deleteDocument: (ref: StoryDocumentRef) => Promise<boolean>;
+  createDocument: (ref: StoryDocumentIdentity, value: StoryValue) => Promise<StoryDocument | null>;
+  deleteDocument: (ref: StoryDocumentIdentity) => Promise<boolean>;
   documents: StoryDocument[];
   getChatWorkspacePath: (chatWorkspaceId: string) => string;
   isSaving: boolean;

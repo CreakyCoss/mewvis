@@ -5,12 +5,12 @@ import {
   storyTypeFields,
   storyTypeObject,
   storyTypeObjectFields,
-  storyTypeReference,
-  storyTypeReferenceKey,
+  storyTypeIdentity,
+  storyTypeIdentityKey,
 } from "./internal/resolver.js";
 import type {
   StoryDocumentDefinition,
-  StoryDocumentRef,
+  StoryDocumentIdentity,
   StoryFieldDefinition,
   StoryObjectDefinition,
 } from "./model/types.js";
@@ -31,12 +31,12 @@ export interface StoryDefinitionApi {
   object(definition: StoryTypeDefinition, id: string): StoryObjectDefinition;
   objectFields(definition: StoryTypeDefinition, id: string): Readonly<Record<string, StoryFieldDefinition>>;
   fields(definition: StoryTypeDefinition, kind: string): Readonly<Record<string, StoryFieldDefinition>>;
-  reference(
+  identity(
     definition: StoryTypeDefinition,
     kind: string,
     identity?: Readonly<Record<string, string>>,
-  ): StoryDocumentRef;
-  referenceKey(ref: StoryDocumentRef): string;
+  ): StoryDocumentIdentity;
+  identityKey(identity: StoryDocumentIdentity): string;
   context(definition: StoryTypeDefinition, scope: "project" | "chapter"): StoryContextDefinition;
 }
 
@@ -49,7 +49,7 @@ export const StoryDefinition: StoryDefinitionApi = Object.freeze({
   object: storyTypeObject,
   objectFields: storyTypeObjectFields,
   fields: storyTypeFields,
-  reference: storyTypeReference,
-  referenceKey: storyTypeReferenceKey,
+  identity: storyTypeIdentity,
+  identityKey: storyTypeIdentityKey,
   context: storyTypeContext,
 });

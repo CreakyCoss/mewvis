@@ -9,8 +9,8 @@ import type { StoryProjectRevisionCondition, StoryProjectStorageOptions, StoryTe
 import {
   normalizeStoryFilePath,
   replaceableStoryFilePaths,
-  storyDocumentRefForFilePath,
-  storyFilePathForRef,
+  storyDocumentIdentityForFilePath,
+  storyFilePathForIdentity,
 } from "./layout.js";
 
 type FileStorageOptions = Extract<StoryProjectStorageOptions, { kind: "file" }>;
@@ -58,8 +58,8 @@ export const assertStoryFileRevision = (condition: StoryProjectRevisionCondition
 
 export const createStoryFileRecordBackend = (options: FileStorageOptions): StoryProjectRecordBackend => ({
   definitionKey: normalizeStoryFilePath(options.layout.definitionPath),
-  documentKey: (ref) => storyFilePathForRef(options.layout, ref),
-  documentRef: (key) => storyDocumentRefForFilePath(options.layout, key),
+  documentKey: (identity) => storyFilePathForIdentity(options.layout, identity),
+  documentIdentity: (key) => storyDocumentIdentityForFilePath(options.layout, key),
   replaceableKeys: (keys) => replaceableStoryFilePaths(options.layout, keys),
   async list(projectKey) {
     return (await options.backend.list(projectKey)).flatMap((entry) => {

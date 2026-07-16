@@ -71,7 +71,7 @@ const definitionIds = (project: StoryProjectState, definition: StoryTypeDefiniti
   };
   for (const entry of project.documents) {
     if (isObject(entry.value)) {
-      visit(StoryDefinition.fields(definition, entry.ref.kind), entry.value, StoryDefinition.referenceKey(entry.ref));
+      visit(StoryDefinition.fields(definition, entry.ref.kind), entry.value, StoryDefinition.identityKey(entry.ref));
     }
   }
   return result;
@@ -85,7 +85,7 @@ export const validateProject = (
   if (!definition.validationModes[validationMode]) throw new Error(`故事类型不支持校验模式：${validationMode}`);
   const issues: StoryValidationIssue[] = [];
   const info = projectInfo(project);
-  const documentKeys = project.documents.map((entry) => StoryDefinition.referenceKey(entry.ref));
+  const documentKeys = project.documents.map((entry) => StoryDefinition.identityKey(entry.ref));
   if (new Set(documentKeys).size !== documentKeys.length) {
     issues.push(storyValidationIssue("identity.duplicate", "project", "文档引用重复。"));
   }
@@ -98,7 +98,7 @@ export const validateProject = (
       issues.push(
         storyValidationIssue(
           "identity.duplicate",
-          StoryDefinition.referenceKey(entry.ref),
+          StoryDefinition.identityKey(entry.ref),
           `${kind} 的 ID「${id}」重复。`,
         ),
       );
@@ -140,7 +140,7 @@ export const validateProject = (
           }
         }
       },
-      StoryDefinition.referenceKey(entry.ref),
+      StoryDefinition.identityKey(entry.ref),
     );
     for (const companionKind of StoryDefinition.document(definition, kind).companionKinds ?? []) {
       const id = documentId(entry.value);
@@ -148,7 +148,7 @@ export const validateProject = (
         issues.push(
           storyValidationIssue(
             "companion.missing",
-            StoryDefinition.referenceKey(entry.ref),
+            StoryDefinition.identityKey(entry.ref),
             `${kind}「${id}」缺少配套文档 ${companionKind}。`,
           ),
         );

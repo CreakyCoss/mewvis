@@ -1,7 +1,7 @@
 import type { StoryValidationIssue } from "../../types.js";
 import { StoryProjectValidationError } from "./issues.js";
 import { StoryDefinition } from "../../definitions/index.js";
-import type { StoryDocumentRef, StoryFieldDefinition } from "../../definitions/model/types.js";
+import type { StoryDocumentIdentity, StoryFieldDefinition } from "../../definitions/model/types.js";
 import type { StoryTypeDefinition } from "../../definitions/types.js";
 
 const objectFromUnknown = (value: unknown, owner: string): Record<string, unknown> => {
@@ -218,12 +218,12 @@ const materializeFields = (
 export const materializeStoryDocument = (
   definition: StoryTypeDefinition,
   input: unknown,
-  inputRef: StoryDocumentRef,
+  inputRef: StoryDocumentIdentity,
   timestamp = Date.now(),
   options: Readonly<{ coerce?: boolean; refreshGenerated?: boolean }> = {},
 ) => {
-  const ref = StoryDefinition.reference(definition, inputRef.kind, inputRef.identity);
-  const owner = StoryDefinition.referenceKey(ref);
+  const ref = StoryDefinition.identity(definition, inputRef.kind, inputRef.identity);
+  const owner = StoryDefinition.identityKey(ref);
   const issues: StoryValidationIssue[] = [];
   const source =
     input && typeof input === "object" && !Array.isArray(input) ? (input as Record<string, unknown>) : null;
@@ -266,12 +266,12 @@ export const materializeStoryDocument = (
 export const serializeStoryDocument = (
   definition: StoryTypeDefinition,
   input: unknown,
-  inputRef: StoryDocumentRef,
+  inputRef: StoryDocumentIdentity,
 ): Record<string, unknown> | string => {
-  const ref = StoryDefinition.reference(definition, inputRef.kind, inputRef.identity);
+  const ref = StoryDefinition.identity(definition, inputRef.kind, inputRef.identity);
   const document = StoryDefinition.document(definition, ref.kind);
   if (document.contentFormat === "markdown") return parseStoryDocument(definition, input, ref).content as string;
-  const owner = StoryDefinition.referenceKey(ref);
+  const owner = StoryDefinition.identityKey(ref);
   const source = objectFromUnknown(input, owner);
   const allowed = new Set(Object.keys(StoryDefinition.fields(definition, ref.kind)));
   return materializeStoryDocument(
@@ -286,12 +286,12 @@ export const serializeStoryDocument = (
 export const parseStoryDocument = (
   definition: StoryTypeDefinition,
   input: unknown,
-  inputRef: StoryDocumentRef,
+  inputRef: StoryDocumentIdentity,
   timestamp = Date.now(),
   options: Readonly<{ coerce?: boolean }> = {},
 ) => {
-  const ref = StoryDefinition.reference(definition, inputRef.kind, inputRef.identity);
-  const owner = StoryDefinition.referenceKey(ref);
+  const ref = StoryDefinition.identity(definition, inputRef.kind, inputRef.identity);
+  const owner = StoryDefinition.identityKey(ref);
   const document = StoryDefinition.document(definition, ref.kind);
   if (document.contentFormat === "markdown") {
     const content = typeof input === "string" ? input : objectFromUnknown(input, owner).content;

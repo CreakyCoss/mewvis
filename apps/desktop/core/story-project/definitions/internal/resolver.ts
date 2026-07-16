@@ -1,5 +1,5 @@
-import { createStoryDocumentRef, storyDocumentRefKey } from "../model/reference.js";
-import type { StoryDocumentRef } from "../model/types.js";
+import { createStoryDocumentIdentity, storyDocumentIdentityKey } from "../model/identity.js";
+import type { StoryDocumentIdentity } from "../model/types.js";
 import type { StoryTypeDefinition } from "../types.js";
 
 export const storyTypeDocument = (definition: StoryTypeDefinition, kind: string) => {
@@ -20,22 +20,23 @@ export const storyTypeObjectFields = (definition: StoryTypeDefinition, id: strin
 export const storyTypeFields = (definition: StoryTypeDefinition, kind: string) =>
   Object.fromEntries(storyTypeDocument(definition, kind).fields.map((field) => [field.key, field]));
 
-export const storyTypeReference = (
+export const storyTypeIdentity = (
   definition: StoryTypeDefinition,
   kind: string,
   identity: Readonly<Record<string, string>> = {},
 ) => {
   const document = storyTypeDocument(definition, kind);
-  const ref = createStoryDocumentRef(kind, identity);
-  const actual = Object.keys(ref.identity).sort();
+  const documentIdentity = createStoryDocumentIdentity(kind, identity);
+  const actual = Object.keys(documentIdentity.identity).sort();
   const expected = [...document.identityFields].sort();
   if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
     throw new Error(`${kind} 文档身份字段必须是：${expected.join("、") || "无"}。`);
   }
-  return ref;
+  return documentIdentity;
 };
 
-export const storyTypeReferenceKey = (ref: StoryDocumentRef) => storyDocumentRefKey(ref);
+export const storyTypeIdentityKey = (documentIdentity: StoryDocumentIdentity) =>
+  storyDocumentIdentityKey(documentIdentity);
 
 export const storyTypeContext = (definition: StoryTypeDefinition, scope: "project" | "chapter") => {
   const context = definition.contexts.find((candidate) => candidate.scope === scope);

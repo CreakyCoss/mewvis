@@ -60,7 +60,7 @@ export const createInitialProject = (
   input: { storyId: string; title: string },
   timestamp = Date.now(),
 ) => {
-  const manifestRef = StoryDefinition.reference(definition, definition.manifestKind);
+  const manifestRef = StoryDefinition.identity(definition, definition.manifestKind);
   const manifest = parseStoryDocument(
     definition,
     initialDocumentInput(definition, definition.manifestKind, input.storyId, input.title, timestamp),
@@ -70,7 +70,7 @@ export const createInitialProject = (
   if (!isObject(manifest)) throw new Error("故事 Manifest 必须是结构化对象。");
   const documents = definition.documents.flatMap((document): StoryProjectDocumentEntry[] => {
     if (document.kind === definition.manifestKind || document.cardinality !== "one") return [];
-    const ref = StoryDefinition.reference(definition, document.kind);
+    const ref = StoryDefinition.identity(definition, document.kind);
     return [
       {
         ref,
@@ -101,7 +101,7 @@ export const rebuildManifest = (
   timestamp = Date.now(),
 ): StoryProjectState => {
   const documents = [...project.documents].sort((left, right) =>
-    StoryDefinition.referenceKey(left.ref).localeCompare(StoryDefinition.referenceKey(right.ref)),
+    StoryDefinition.identityKey(left.ref).localeCompare(StoryDefinition.identityKey(right.ref)),
   );
   const primary = definition.primaryKind
     ? documents.find((entry) => entry.ref.kind === definition.primaryKind)?.value
@@ -120,7 +120,7 @@ export const assembleProject = (
   definition: StoryTypeDefinition,
 ): StoryProjectState => {
   const normalized = entries.map((entry) => ({
-    ref: StoryDefinition.reference(definition, entry.ref.kind, entry.ref.identity),
+    ref: StoryDefinition.identity(definition, entry.ref.kind, entry.ref.identity),
     value: entry.value,
   }));
   const manifestEntries = normalized.filter((entry) => entry.ref.kind === definition.manifestKind);
@@ -132,11 +132,11 @@ export const assembleProject = (
     .map((entry) => {
       const value = parseStoryDocument(definition, entry.value, entry.ref);
       if (documentKind(value) !== entry.ref.kind) {
-        throw new Error(`${StoryDefinition.referenceKey(entry.ref)} 的 kind 与故事类型不一致。`);
+        throw new Error(`${StoryDefinition.identityKey(entry.ref)} 的 kind 与故事类型不一致。`);
       }
       return { ref: entry.ref, value };
     });
-  const keys = documents.map((entry) => StoryDefinition.referenceKey(entry.ref));
+  const keys = documents.map((entry) => StoryDefinition.identityKey(entry.ref));
   if (new Set(keys).size !== keys.length) throw new Error("故事项目包含重复文档引用。");
   for (const document of definition.documents) {
     if (document.kind === definition.manifestKind) continue;
@@ -149,7 +149,7 @@ export const assembleProject = (
   return {
     manifest: parseStoryDocument(definition, manifestEntry.value, manifestEntry.ref),
     documents: documents.sort((left, right) =>
-      StoryDefinition.referenceKey(left.ref).localeCompare(StoryDefinition.referenceKey(right.ref)),
+      StoryDefinition.identityKey(left.ref).localeCompare(StoryDefinition.identityKey(right.ref)),
     ),
   };
 };

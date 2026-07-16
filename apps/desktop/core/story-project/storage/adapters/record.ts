@@ -1,5 +1,5 @@
 import type { StoryValue } from "../../types.js";
-import type { StoryDocumentRef } from "../../definitions/model/types.js";
+import type { StoryDocumentIdentity } from "../../definitions/model/types.js";
 import { StoryProjectRevisionConflictError } from "../errors.js";
 import type { StoryProjectRevisionCondition } from "../types.js";
 
@@ -52,8 +52,8 @@ export const assertStoryProjectRevision = (
 /** Adapter 向 Storage Facade 提供的统一结构化记录接口。 */
 export interface StoryProjectRecordBackend {
   readonly definitionKey: string;
-  documentKey(ref: StoryDocumentRef): string;
-  documentRef(key: string): StoryDocumentRef | null;
+  documentKey(identity: StoryDocumentIdentity): string;
+  documentIdentity(key: string): StoryDocumentIdentity | null;
   replaceableKeys(keys: readonly string[]): readonly string[];
   list(projectKey: string): Promise<readonly StoryProjectRecordInfo[]>;
   read(projectKey: string, key: string): Promise<StoryProjectRecord>;

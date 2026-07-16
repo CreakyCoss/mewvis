@@ -1,4 +1,4 @@
-import type { StoryDocumentRef as DefinitionStoryDocumentRef } from "./definitions/model/types.js";
+import type { StoryDocumentIdentity as DefinitionStoryDocumentIdentity } from "./definitions/model/types.js";
 
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
@@ -44,7 +44,7 @@ export type StoryDocumentDefinition = Readonly<{
 
 export type StoryDocument = Readonly<{
   definition?: StoryDocumentDefinition;
-  ref: StoryDocumentRef;
+  ref: StoryDocumentIdentity;
   value: StoryValue;
   updatedAt: number | null;
 }>;
@@ -64,7 +64,7 @@ export type StoryValidationResult = Readonly<{
 export type StoryContextSource = Readonly<{
   kind: string;
   label: string;
-  ref: StoryDocumentRef;
+  ref: StoryDocumentIdentity;
   id?: string;
 }>;
 
@@ -91,7 +91,7 @@ export type StoryProjectState = Readonly<{
   documents: readonly StoryProjectDocumentEntry[];
 }>;
 
-export type StoryProjectDocumentEntry = Readonly<{ ref: StoryDocumentRef; value: unknown }>;
+export type StoryProjectDocumentEntry = Readonly<{ ref: StoryDocumentIdentity; value: unknown }>;
 
 export type StoryProjectAppliedChanges = Readonly<{
   project: StoryProjectState;
@@ -99,7 +99,7 @@ export type StoryProjectAppliedChanges = Readonly<{
   validation: StoryValidationResult;
   batch: unknown | null;
   operationTypes: string[];
-  changedDocuments: StoryDocumentRef[];
+  changedDocuments: StoryDocumentIdentity[];
 }>;
 
 export type StoryChangeSetDescription = Readonly<{
@@ -180,7 +180,7 @@ export type StoryInitialization = Readonly<{
   initialized: boolean;
   alreadyInitialized: boolean;
   revision: number | null;
-  manifestRef: StoryDocumentRef | null;
+  manifestRef: StoryDocumentIdentity | null;
   existingEntryCount: number;
   issues: StoryValidationIssue[];
   hint: string | null;
@@ -192,7 +192,7 @@ export type StoryChangeValidation = Readonly<{
   issues: StoryValidationIssue[];
   batch: unknown | null;
   operationTypes: string[];
-  changedDocuments: StoryDocumentRef[];
+  changedDocuments: StoryDocumentIdentity[];
 }>;
 
 export type StoryChangeResult = Readonly<{
@@ -201,10 +201,10 @@ export type StoryChangeResult = Readonly<{
   revision: number | null;
   batch: unknown | null;
   operationTypes: string[];
-  changedDocuments: StoryDocumentRef[];
+  changedDocuments: StoryDocumentIdentity[];
   validation: StoryValidationResult | null;
   issues: StoryValidationIssue[];
   hint: string | null;
 }>;
 
-export type StoryDocumentRef = DefinitionStoryDocumentRef;
+export type StoryDocumentIdentity = DefinitionStoryDocumentIdentity;

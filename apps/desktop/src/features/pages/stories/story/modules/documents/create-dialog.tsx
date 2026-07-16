@@ -12,7 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { StoryDocumentRef, StoryValue } from "../../../../../../../core/story-project/types";
+import type { StoryDocumentIdentity, StoryValue } from "../../../../../../../core/story-project/types";
 import { useStoryState } from "../../use-story-state";
 
 export const CreateJsonDocumentDialog = ({
@@ -39,7 +39,7 @@ export const CreateJsonDocumentDialog = ({
   const create = async () => {
     try {
       const value = JSON.parse(content) as StoryValue;
-      const parsedIdentity = JSON.parse(identity) as StoryDocumentRef["identity"];
+      const parsedIdentity = JSON.parse(identity) as StoryDocumentIdentity["identity"];
       if (await createDocument({ kind: kind.trim(), identity: parsedIdentity }, value)) {
         onOpenChange(false);
         toast.success("结构化文档已创建。");

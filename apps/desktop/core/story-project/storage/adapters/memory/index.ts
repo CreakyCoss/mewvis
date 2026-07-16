@@ -1,5 +1,5 @@
 import { assertStoryProjectRevision, type StoryProjectRecord, type StoryProjectRecordBackend } from "../record.js";
-import { parseStoryDocumentRefKey, storyDocumentRefKey } from "../../../definitions/model/reference.js";
+import { parseStoryDocumentIdentityKey, storyDocumentIdentityKey } from "../../../definitions/model/identity.js";
 
 export const createMemoryStoryProjectRecordBackend = (): StoryProjectRecordBackend => {
   const projects = new Map<string, Map<string, StoryProjectRecord>>();
@@ -7,9 +7,9 @@ export const createMemoryStoryProjectRecordBackend = (): StoryProjectRecordBacke
 
   return {
     definitionKey: "definition:story-project",
-    documentKey: (ref) => `${documentPrefix}${storyDocumentRefKey(ref)}`,
-    documentRef: (key) =>
-      key.startsWith(documentPrefix) ? parseStoryDocumentRefKey(key.slice(documentPrefix.length)) : null,
+    documentKey: (identity) => `${documentPrefix}${storyDocumentIdentityKey(identity)}`,
+    documentIdentity: (key) =>
+      key.startsWith(documentPrefix) ? parseStoryDocumentIdentityKey(key.slice(documentPrefix.length)) : null,
     replaceableKeys: () => [],
     async list(projectKey) {
       return [...(projects.get(projectKey)?.values() ?? [])]

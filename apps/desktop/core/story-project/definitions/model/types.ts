@@ -17,7 +17,7 @@ export type StoryFieldType =
   | "collection"
   | "path";
 
-export type StoryDocumentRef = Readonly<{
+export type StoryDocumentIdentity = Readonly<{
   kind: string;
   identity: Readonly<Record<string, string>>;
 }>;

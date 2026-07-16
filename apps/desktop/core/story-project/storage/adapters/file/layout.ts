@@ -1,5 +1,5 @@
-import { createStoryDocumentRef } from "../../../definitions/model/reference.js";
-import type { StoryDocumentRef } from "../../../definitions/model/types.js";
+import { createStoryDocumentIdentity } from "../../../definitions/model/identity.js";
+import type { StoryDocumentIdentity } from "../../../definitions/model/types.js";
 import type { StoryTypeDefinition } from "../../../definitions/types.js";
 import type { StoryFileLayout } from "../../types.js";
 
@@ -84,30 +84,35 @@ export const assertStoryFileLayout = (layout: StoryFileLayout, definition: Story
   }
 };
 
-export const storyFilePathForRef = (layout: StoryFileLayout, ref: StoryDocumentRef) => {
-  const pattern = layout.documentPaths[ref.kind];
-  if (!pattern) throw new Error(`文件布局未定义文档：${ref.kind}`);
+export const storyFilePathForIdentity = (layout: StoryFileLayout, identity: StoryDocumentIdentity) => {
+  const pattern = layout.documentPaths[identity.kind];
+  if (!pattern) throw new Error(`文件布局未定义文档：${identity.kind}`);
   const expectedFields = patternFields(pattern);
-  const actualFields = Object.keys(ref.identity);
+  const actualFields = Object.keys(identity.identity);
   if (actualFields.length !== expectedFields.length || actualFields.some((field) => !expectedFields.includes(field))) {
-    throw new Error(`${ref.kind} 的文件布局身份字段必须是：${expectedFields.join("、") || "无"}。`);
+    throw new Error(`${identity.kind} 的文件布局身份字段必须是：${expectedFields.join("、") || "无"}。`);
   }
   return normalizeStoryFilePath(
     pattern.replace(/\{([^}]+)\}/g, (_match, field: string) => {
-      const value = ref.identity[field];
-      if (!value || !/^[A-Za-z0-9_-]+$/.test(value)) throw new Error(`${ref.kind}.${field} 不是安全文件名。`);
+      const value = identity.identity[field];
+      if (!value || !/^[A-Za-z0-9_-]+$/.test(value)) {
+        throw new Error(`${identity.kind}.${field} 不是安全文件名。`);
+      }
       return value;
     }),
   );
 };
 
-export const storyDocumentRefForFilePath = (layout: StoryFileLayout, input: string): StoryDocumentRef | null => {
+export const storyDocumentIdentityForFilePath = (
+  layout: StoryFileLayout,
+  input: string,
+): StoryDocumentIdentity | null => {
   const path = normalizeStoryFilePath(input);
   for (const [kind, pattern] of Object.entries(layout.documentPaths)) {
     const matcher = patternMatcher(pattern);
     const match = matcher.regex.exec(path);
     if (!match) continue;
-    return createStoryDocumentRef(
+    return createStoryDocumentIdentity(
       kind,
       Object.fromEntries(matcher.fields.map((field, index) => [field, match[index + 1]!])),
     );

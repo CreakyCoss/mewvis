@@ -1,5 +1,5 @@
 import { StoryDefinition } from "../definitions/index.js";
-import type { StoryDocumentRef } from "../definitions/model/types.js";
+import type { StoryDocumentIdentity } from "../definitions/model/types.js";
 import type { StoryTypeDefinition } from "../definitions/types.js";
 import type { StoryDocument, StoryProjectAppliedChanges, StoryProjectState, StoryValue } from "../types.js";
 import { parseStoryDocument, serializeStoryDocument } from "../internal/engine/document.js";
@@ -17,7 +17,7 @@ type JsonObject = Record<string, unknown>;
 const isObject = (value: unknown): value is JsonObject =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
-/** Story Project 的领域级持久化边界；调用方只使用文档引用，不感知 Adapter 的物理定位。 */
+/** Story Project 的领域级持久化边界；调用方只使用文档身份，不感知 Adapter 的物理定位。 */
 export interface StoryProjectStorage {
   loadDefinition(projectKey: string): Promise<StoryTypeDefinition | null>;
   inspect(projectKey: string, definition: StoryTypeDefinition): Promise<StoryProjectInventory>;
@@ -25,7 +25,7 @@ export interface StoryProjectStorage {
   loadDocument(
     projectKey: string,
     definition: StoryTypeDefinition,
-    ref: StoryDocumentRef,
+    ref: StoryDocumentIdentity,
   ): Promise<Pick<StoryDocument, "ref" | "value" | "updatedAt">>;
   initializeProject(
     projectKey: string,
@@ -43,10 +43,10 @@ export interface StoryProjectStorage {
 const storedDocument = (
   backend: StoryProjectRecordBackend,
   definition: StoryTypeDefinition,
-  inputRef: StoryDocumentRef,
+  inputRef: StoryDocumentIdentity,
   value: unknown,
 ): StoryProjectRecordWrite => {
-  const ref = StoryDefinition.reference(definition, inputRef.kind, inputRef.identity);
+  const ref = StoryDefinition.identity(definition, inputRef.kind, inputRef.identity);
   const serialized = serializeStoryDocument(definition, value, ref);
   const key = backend.documentKey(ref);
   return typeof serialized === "string"
@@ -54,11 +54,15 @@ const storedDocument = (
     : { key, contentFormat: "structured", value: serialized as StoryValue };
 };
 
-const storedDocumentValue = (definition: StoryTypeDefinition, ref: StoryDocumentRef, record: StoryProjectRecord) => {
+const storedDocumentValue = (
+  definition: StoryTypeDefinition,
+  ref: StoryDocumentIdentity,
+  record: StoryProjectRecord,
+) => {
   const expected = StoryDefinition.document(definition, ref.kind).contentFormat;
   if (record.contentFormat !== expected) {
     throw new Error(
-      `故事记录格式不一致：${StoryDefinition.referenceKey(ref)} 期望 ${expected}，实际为 ${record.contentFormat}。`,
+      `故事记录格式不一致：${StoryDefinition.identityKey(ref)} 期望 ${expected}，实际为 ${record.contentFormat}。`,
     );
   }
   return record.value;
@@ -77,7 +81,7 @@ const loadDefinition = async (backend: StoryProjectRecordBackend, projectKey: st
 
 const inspect = async (backend: StoryProjectRecordBackend, projectKey: string, definition: StoryTypeDefinition) => {
   const keys = (await backend.list(projectKey)).map((entry) => entry.key);
-  const manifestRef = StoryDefinition.reference(definition, definition.manifestKind);
+  const manifestRef = StoryDefinition.identity(definition, definition.manifestKind);
   const replaceableKeys = [...backend.replaceableKeys(keys)];
   return {
     initialized: keys.includes(backend.documentKey(manifestRef)),
@@ -90,7 +94,7 @@ const loadProject = async (
   projectKey: string,
   definition: StoryTypeDefinition,
 ): Promise<StoryProjectState> => {
-  const manifestRef = StoryDefinition.reference(definition, definition.manifestKind);
+  const manifestRef = StoryDefinition.identity(definition, definition.manifestKind);
   const manifestRecord = await backend.read(projectKey, backend.documentKey(manifestRef));
   const manifestValue = parseStoryDocument(
     definition,
@@ -99,7 +103,7 @@ const loadProject = async (
   );
   if (!isObject(manifestValue)) throw new Error("故事 Manifest 必须是结构化对象。");
   const refs = (await backend.list(projectKey)).flatMap((entry) => {
-    const ref = backend.documentRef(entry.key);
+    const ref = backend.documentIdentity(entry.key);
     return ref && ref.kind !== definition.manifestKind ? [ref] : [];
   });
   const entries = await Promise.all(
@@ -118,9 +122,9 @@ const loadDocument = async (
   backend: StoryProjectRecordBackend,
   projectKey: string,
   definition: StoryTypeDefinition,
-  inputRef: StoryDocumentRef,
+  inputRef: StoryDocumentIdentity,
 ): Promise<Pick<StoryDocument, "ref" | "value" | "updatedAt">> => {
-  const ref = StoryDefinition.reference(definition, inputRef.kind, inputRef.identity);
+  const ref = StoryDefinition.identity(definition, inputRef.kind, inputRef.identity);
   const record = await backend.read(projectKey, backend.documentKey(ref));
   return {
     ref,
@@ -136,7 +140,7 @@ const initializeProject = async (
   project: StoryProjectState,
   replaceKeys: readonly string[],
 ) => {
-  const manifestRef = StoryDefinition.reference(definition, definition.manifestKind);
+  const manifestRef = StoryDefinition.identity(definition, definition.manifestKind);
   const writes: StoryProjectRecordWrite[] = [
     { key: backend.definitionKey, contentFormat: "structured", value: definition as unknown as StoryValue },
     ...project.documents.map(({ ref, value }) => storedDocument(backend, definition, ref, value)),
@@ -156,9 +160,9 @@ const persistAppliedProject = async (
   definition: StoryTypeDefinition,
   applied: StoryProjectAppliedChanges,
 ) => {
-  const manifestRef = StoryDefinition.reference(definition, definition.manifestKind);
-  const documents = new Map(applied.project.documents.map((entry) => [StoryDefinition.referenceKey(entry.ref), entry]));
-  const changed = new Map(applied.changedDocuments.map((ref) => [StoryDefinition.referenceKey(ref), ref]));
+  const manifestRef = StoryDefinition.identity(definition, definition.manifestKind);
+  const documents = new Map(applied.project.documents.map((entry) => [StoryDefinition.identityKey(entry.ref), entry]));
+  const changed = new Map(applied.changedDocuments.map((ref) => [StoryDefinition.identityKey(ref), ref]));
   const writes: StoryProjectRecordWrite[] = [...changed].flatMap(([key, ref]) => {
     const document = documents.get(key);
     return document ? [storedDocument(backend, definition, ref, document.value)] : [];
@@ -168,7 +172,7 @@ const persistAppliedProject = async (
     revision: { key: backend.documentKey(manifestRef), expected: applied.nextRevision - 1 },
     writes,
     deletes: [...changed.values()]
-      .filter((ref) => !documents.has(StoryDefinition.referenceKey(ref)))
+      .filter((ref) => !documents.has(StoryDefinition.identityKey(ref)))
       .map((ref) => backend.documentKey(ref)),
   });
 };

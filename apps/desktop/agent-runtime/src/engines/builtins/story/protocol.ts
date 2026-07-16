@@ -41,7 +41,7 @@ export type StoryValidationResult = Readonly<{
   issues: StoryValidationIssue[];
 }>;
 
-export type StoryDocumentRef = Readonly<{
+export type StoryDocumentIdentity = Readonly<{
   kind: string;
   identity: Readonly<Record<string, string>>;
 }>;
@@ -57,9 +57,9 @@ export type StoryContextBundle = Readonly<{
     priority: number;
     required: boolean;
     content: string;
-    sources: readonly Readonly<{ kind: string; label: string; ref: StoryDocumentRef; id?: string }>[];
+    sources: readonly Readonly<{ kind: string; label: string; ref: StoryDocumentIdentity; id?: string }>[];
   }>[];
-  sources: readonly Readonly<{ kind: string; label: string; ref: StoryDocumentRef; id?: string }>[];
+  sources: readonly Readonly<{ kind: string; label: string; ref: StoryDocumentIdentity; id?: string }>[];
 }>;
 
 /** Story 内置能力自身使用的稳定身份，不属于具体工作区故事类型。 */
@@ -155,7 +155,7 @@ export type StoryInitializeResult = {
   initialized: boolean;
   alreadyInitialized: boolean;
   revision: number | null;
-  manifestRef: StoryDocumentRef | null;
+  manifestRef: StoryDocumentIdentity | null;
   existingEntryCount: number;
   issues: StoryValidationIssue[];
   hint: string | null;
@@ -177,7 +177,7 @@ export type StoryValidateChangesResult = {
   issues: StoryValidationIssue[];
   batch: unknown | null;
   operationTypes: string[];
-  changedDocuments: StoryDocumentRef[];
+  changedDocuments: StoryDocumentIdentity[];
 };
 
 export type StoryCommitChangesResult = {
@@ -186,7 +186,7 @@ export type StoryCommitChangesResult = {
   revision: number | null;
   batch: unknown | null;
   operationTypes: string[];
-  changedDocuments: StoryDocumentRef[];
+  changedDocuments: StoryDocumentIdentity[];
   validation: StoryValidationResult | null;
   issues: StoryValidationIssue[];
   hint: string | null;

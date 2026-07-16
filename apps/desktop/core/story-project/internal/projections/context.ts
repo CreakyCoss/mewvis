@@ -64,7 +64,7 @@ const renderFields = (
 const entryIsTarget = (entries: readonly StoryProjectDocumentEntry[], target?: StoryProjectDocumentEntry) =>
   Boolean(
     target &&
-    entries.some((entry) => StoryDefinition.referenceKey(entry.ref) === StoryDefinition.referenceKey(target.ref)),
+    entries.some((entry) => StoryDefinition.identityKey(entry.ref) === StoryDefinition.identityKey(target.ref)),
   );
 
 export const readStoryProjectContext = (
@@ -132,9 +132,7 @@ export const readStoryProjectContext = (
     : "";
   const sources = [
     ...new Map(
-      sections
-        .flatMap((section) => section.sources)
-        .map((source) => [StoryDefinition.referenceKey(source.ref), source]),
+      sections.flatMap((section) => section.sources).map((source) => [StoryDefinition.identityKey(source.ref), source]),
     ).values(),
   ];
   return {

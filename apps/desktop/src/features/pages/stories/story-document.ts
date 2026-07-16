@@ -1,5 +1,5 @@
-import { storyDocumentRefKey } from "../../../../core/story-project";
-import type { StoryDocument, StoryDocumentRef, StoryValue } from "../../../../core/story-project/types";
+import { storyDocumentIdentityKey } from "../../../../core/story-project";
+import type { StoryDocument, StoryDocumentIdentity, StoryValue } from "../../../../core/story-project/types";
 
 export type JsonObject = { [key: string]: StoryValue };
 type StoryDocumentDefinition = NonNullable<StoryDocument["definition"]>;
@@ -12,10 +12,10 @@ export type EditableStoryDocument = Readonly<{
   fields: Readonly<Record<string, JsonFieldMetadata>>;
   kind: string;
   label: string;
-  ref: StoryDocumentRef;
+  ref: StoryDocumentIdentity;
 }>;
 
-export const storyDocumentKey = (document: Pick<StoryDocument, "ref">) => storyDocumentRefKey(document.ref);
+export const storyDocumentKey = (document: Pick<StoryDocument, "ref">) => storyDocumentIdentityKey(document.ref);
 
 export const isJsonObject = (value: unknown): value is JsonObject =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);

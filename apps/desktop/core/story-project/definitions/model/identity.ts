@@ -1,4 +1,4 @@
-import type { StoryDocumentRef } from "./types.js";
+import type { StoryDocumentIdentity } from "./types.js";
 
 const nonEmpty = (value: string, owner: string) => {
   const normalized = value.trim();
@@ -6,10 +6,10 @@ const nonEmpty = (value: string, owner: string) => {
   return normalized;
 };
 
-export const createStoryDocumentRef = (
+export const createStoryDocumentIdentity = (
   kind: string,
   identity: Readonly<Record<string, string>> = {},
-): StoryDocumentRef => ({
+): StoryDocumentIdentity => ({
   kind: nonEmpty(kind, "文档 kind"),
   identity: Object.freeze(
     Object.fromEntries(
@@ -20,15 +20,15 @@ export const createStoryDocumentRef = (
   ),
 });
 
-export const storyDocumentRefKey = (ref: StoryDocumentRef) => {
-  const normalized = createStoryDocumentRef(ref.kind, ref.identity);
+export const storyDocumentIdentityKey = (documentIdentity: StoryDocumentIdentity) => {
+  const normalized = createStoryDocumentIdentity(documentIdentity.kind, documentIdentity.identity);
   const query = Object.entries(normalized.identity)
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
     .join("&");
   return query ? `${encodeURIComponent(normalized.kind)}?${query}` : encodeURIComponent(normalized.kind);
 };
 
-export const parseStoryDocumentRefKey = (input: string): StoryDocumentRef => {
+export const parseStoryDocumentIdentityKey = (input: string): StoryDocumentIdentity => {
   const [encodedKind, query = ""] = input.split("?", 2);
   const identity = Object.fromEntries(
     query
@@ -38,5 +38,5 @@ export const parseStoryDocumentRefKey = (input: string): StoryDocumentRef => {
         })
       : [],
   );
-  return createStoryDocumentRef(decodeURIComponent(encodedKind ?? ""), identity);
+  return createStoryDocumentIdentity(decodeURIComponent(encodedKind ?? ""), identity);
 };
