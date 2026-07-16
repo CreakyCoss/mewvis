@@ -5,11 +5,9 @@ import type {
   StoryFieldType,
   StoryObjectDefinition,
 } from "../model/types.js";
-import { normalizeStoryTypePath } from "./path.js";
 import {
   STORY_TYPE_DEFINITION_FORMAT,
   STORY_TYPE_DEFINITION_FORMAT_VERSION,
-  STORY_TYPE_DEFINITION_LEGACY_FORMATS,
   type StoryContextDefinition,
   type StoryTypeDefinition,
 } from "../types.js";
@@ -17,7 +15,7 @@ import {
 type JsonObject = Record<string, unknown>;
 
 const objectValue = (value: unknown, owner: string): JsonObject => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${owner} 必须是 JSON 对象。`);
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${owner} 必须是对象。`);
   return value as JsonObject;
 };
 
@@ -58,7 +56,7 @@ const optionalNumber = (value: unknown, owner: string) => {
 const optionalString = (value: unknown, owner: string) =>
   value === undefined ? undefined : nonEmptyString(value, owner);
 
-const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+const clone = <T>(value: T): T => structuredClone(value);
 const keyFromPointer = (pointer: string) => (pointer.startsWith("/") ? pointer.slice(1) : pointer);
 const FIELD_TYPES: readonly StoryFieldType[] = [
   "id",
@@ -184,19 +182,46 @@ const parseDocumentDefinition = (input: unknown, owner: string): StoryDocumentDe
     "kind",
     "label",
     "description",
-    "contentType",
-    "pathPattern",
+    "contentFormat",
     "cardinality",
+    "identityFields",
     "fields",
     "companionKinds",
     "ruleIds",
   ]);
-  const contentType = value.contentType ?? "json";
-  if (contentType !== "json" && contentType !== "markdown") {
-    throw new Error(`${owner}.contentType 必须是 json 或 markdown。`);
+  const contentFormat = value.contentFormat ?? "structured";
+  if (contentFormat !== "structured" && contentFormat !== "markdown") {
+    throw new Error(`${owner}.contentFormat 必须是 structured 或 markdown。`);
   }
   if (value.cardinality !== "one" && value.cardinality !== "many") {
     throw new Error(`${owner}.cardinality 必须是 one 或 many。`);
+  }
+  const identityFields =
+    value.identityFields === undefined
+      ? value.cardinality === "many"
+        ? ["id"]
+        : []
+      : stringArray(value.identityFields, `${owner}.identityFields`);
+  if (new Set(identityFields).size !== identityFields.length) {
+    throw new Error(`${owner}.identityFields 不得重复。`);
+  }
+  if (
+    (value.cardinality === "one" && identityFields.length > 0) ||
+    (value.cardinality === "many" && identityFields.length === 0)
+  ) {
+    throw new Error(`${owner}.identityFields 必须与 cardinality 一致。`);
+  }
+  const fields = parseFields(value.fields, `${owner}.fields`);
+  if (identityFields.some((key) => !fields.some((field) => field.key === key))) {
+    throw new Error(`${owner}.identityFields 引用了未定义字段。`);
+  }
+  if (
+    identityFields.some((key) => {
+      const field = fields.find((candidate) => candidate.key === key);
+      return !field?.required || !field.immutable;
+    })
+  ) {
+    throw new Error(`${owner}.identityFields 必须引用 required 且 immutable 的字段。`);
   }
   return {
     kind: nonEmptyString(value.kind, `${owner}.kind`),
@@ -204,10 +229,10 @@ const parseDocumentDefinition = (input: unknown, owner: string): StoryDocumentDe
     ...(typeof value.description === "string" && value.description.trim()
       ? { description: value.description.trim() }
       : {}),
-    contentType,
-    pathPattern: normalizeStoryTypePath(nonEmptyString(value.pathPattern, `${owner}.pathPattern`)),
+    contentFormat,
     cardinality: value.cardinality,
-    fields: parseFields(value.fields, `${owner}.fields`),
+    identityFields,
+    fields,
     ...(value.companionKinds === undefined
       ? {}
       : { companionKinds: stringArray(value.companionKinds, `${owner}.companionKinds`) }),
@@ -244,7 +269,6 @@ export const defineStoryType = (input: StoryTypeDefinition): StoryTypeDefinition
     "version",
     "label",
     "description",
-    "rootPath",
     "manifestKind",
     "primaryKind",
     "roles",
@@ -254,13 +278,9 @@ export const defineStoryType = (input: StoryTypeDefinition): StoryTypeDefinition
     "validationModes",
     "rules",
   ]);
-  const compatibleFormat =
-    value.$format === STORY_TYPE_DEFINITION_FORMAT ||
-    STORY_TYPE_DEFINITION_LEGACY_FORMATS.some((format) => value.$format === format);
-  if (!compatibleFormat || value.formatVersion !== STORY_TYPE_DEFINITION_FORMAT_VERSION) {
+  if (value.$format !== STORY_TYPE_DEFINITION_FORMAT || value.formatVersion !== STORY_TYPE_DEFINITION_FORMAT_VERSION) {
     throw new Error("故事类型定义格式无效。 ");
   }
-  const rootPath = normalizeStoryTypePath(nonEmptyString(value.rootPath, "rootPath"));
   if (!Array.isArray(value.objects) || !Array.isArray(value.documents) || !Array.isArray(value.contexts)) {
     throw new Error("故事类型定义的 objects、documents 和 contexts 必须是数组。 ");
   }
@@ -270,7 +290,6 @@ export const defineStoryType = (input: StoryTypeDefinition): StoryTypeDefinition
   if (documents.length === 0) throw new Error("故事类型至少需要一个文档定义。 ");
   const objectIds = objects.map((item) => item.id);
   const kinds = documents.map((item) => item.kind);
-  const paths = documents.map((item) => item.pathPattern);
   const contextNames = contexts.map((item) => item.name);
   const validationModes = objectValue(
     value.validationModes,
@@ -280,12 +299,8 @@ export const defineStoryType = (input: StoryTypeDefinition): StoryTypeDefinition
   if (Object.keys(validationModes).length === 0) throw new Error("故事类型至少需要一个校验模式。 ");
   if (new Set(objectIds).size !== objectIds.length) throw new Error("故事对象定义 ID 不得重复。 ");
   if (new Set(kinds).size !== kinds.length) throw new Error("故事文档 kind 不得重复。 ");
-  if (new Set(paths).size !== paths.length) throw new Error("故事文档路径模板不得重复。 ");
   if (new Set(contextNames).size !== contextNames.length) throw new Error("故事上下文名称不得重复。 ");
   for (const document of documents) {
-    if (!document.pathPattern.startsWith(`${rootPath}/`)) {
-      throw new Error(`${document.kind} 的路径必须位于 ${rootPath}/ 下。`);
-    }
     for (const field of document.fields) {
       if (field.definition && !objectIds.includes(field.definition)) {
         throw new Error(`${document.kind}.${field.key} 引用了未知对象定义：${field.definition}`);
@@ -348,7 +363,6 @@ export const defineStoryType = (input: StoryTypeDefinition): StoryTypeDefinition
     version: positiveInteger(value.version, "version"),
     label: nonEmptyString(value.label, "label"),
     description: nonEmptyString(value.description, "description"),
-    rootPath,
     manifestKind,
     ...(primaryKind ? { primaryKind } : {}),
     roles: Object.fromEntries(Object.entries(roles).map(([role, kind]) => [role, String(kind)])),

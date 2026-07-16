@@ -67,7 +67,7 @@ metadata:
 
 ## Import JSON
 
-写入 `import` 角色文档：sourceTitle/sourcePath、lengthType、status、wordCount、chapterCount、lastCompleteChapterNumber、analysisId、generatedFileIds、warnings。
+写入 `import` 角色文档：sourceTitle/sourcePath、lengthType、status、wordCount、chapterCount、lastCompleteChapterNumber、analysisId、generatedIds、warnings。
 
 状态含义：检测完成 detected，分析中 analyzing，结构可提交 ready，已落库 committed，未完成 partial，失败 failed。
 
@@ -81,7 +81,7 @@ metadata:
 4. 提交卷，再 patch book arc 建立有效引用；
 5. 长篇按 1-3 个完整原文章节一批提交 plan/chapter，短篇正文独立一批；
 6. 分批补 character states、伏笔、时间线和 progress；
-7. 最后 patch analysis/import 为 complete/committed，并补全 generatedFileIds。
+7. 最后 patch analysis/import 为 complete/committed，并补全 generatedIds。
 
 每批最多 16 operations / 192 KiB，只调用一次 `story(action="commit_changes", changeSet={...})` 原子校验提交后重读 revision。`action="validate_changes"` 仅作可选预览。中间批使用 draft 且任何引用都必须指向已落库对象；最后一批 `batch.final=true` 并用 `validationMode="openBook"`。某批失败只修该批，不得重放已提交批次或全量覆盖项目。
 

@@ -12,7 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { StoryValue } from "../../../../../../../core/story-project/types";
+import type { StoryDocumentRef, StoryValue } from "../../../../../../../core/story-project/types";
 import { useStoryState } from "../../use-story-state";
 
 export const CreateJsonDocumentDialog = ({
@@ -24,12 +24,14 @@ export const CreateJsonDocumentDialog = ({
 }) => {
   const createDocument = useStoryState((state) => state.createDocument);
   const isSaving = useStoryState((state) => state.isSaving);
-  const [path, setPath] = useState("");
+  const [kind, setKind] = useState("");
+  const [identity, setIdentity] = useState('{\n  "id": ""\n}\n');
   const [content, setContent] = useState("{}\n");
 
   useEffect(() => {
     if (open) {
-      setPath("");
+      setKind("");
+      setIdentity('{\n  "id": ""\n}\n');
       setContent("{}\n");
     }
   }, [open]);
@@ -37,12 +39,13 @@ export const CreateJsonDocumentDialog = ({
   const create = async () => {
     try {
       const value = JSON.parse(content) as StoryValue;
-      if (await createDocument(path.trim(), value)) {
+      const parsedIdentity = JSON.parse(identity) as StoryDocumentRef["identity"];
+      if (await createDocument({ kind: kind.trim(), identity: parsedIdentity }, value)) {
         onOpenChange(false);
-        toast.success("JSON 文件已创建。");
+        toast.success("结构化文档已创建。");
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "无法创建 JSON 文件。");
+      toast.error(error instanceof Error ? error.message : "无法创建结构化文档。");
     }
   };
 
@@ -50,19 +53,26 @@ export const CreateJsonDocumentDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>新增 JSON 文档</DialogTitle>
-          <DialogDescription>
-            路径必须匹配当前工作区协议；这里只填写普通业务数据，保存时会自动补齐字段定义并校验。
-          </DialogDescription>
+          <DialogTitle>新增结构化文档</DialogTitle>
+          <DialogDescription>填写文档 kind 和领域身份；保存时会按当前故事类型补齐并校验字段。</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="story-json-path">文件路径</Label>
+            <Label htmlFor="story-document-kind">文档 kind</Label>
             <Input
-              id="story-json-path"
-              value={path}
-              placeholder="story/notes/idea.json"
-              onChange={(event) => setPath(event.currentTarget.value)}
+              id="story-document-kind"
+              value={kind}
+              placeholder="story-character"
+              onChange={(event) => setKind(event.currentTarget.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="story-document-identity">领域身份</Label>
+            <Textarea
+              id="story-document-identity"
+              value={identity}
+              className="min-h-24 font-mono text-xs"
+              onChange={(event) => setIdentity(event.currentTarget.value)}
             />
           </div>
           <div className="space-y-2">
@@ -79,7 +89,7 @@ export const CreateJsonDocumentDialog = ({
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             取消
           </Button>
-          <Button type="button" disabled={isSaving || !path.trim()} onClick={() => void create()}>
+          <Button type="button" disabled={isSaving || !kind.trim()} onClick={() => void create()}>
             {isSaving ? "创建中" : "创建"}
           </Button>
         </DialogFooter>

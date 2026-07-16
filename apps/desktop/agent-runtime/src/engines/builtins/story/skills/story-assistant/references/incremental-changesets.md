@@ -1,6 +1,6 @@
 # Story ChangeSet 增量批次协议
 
-本协议适用于 `story-authoring` 内置能力包。进入协议前先完成 `story-tool-binding.md` 的启动门禁并调用 `story(action="describe_structure")`；构造批次前再用 `documentKinds` 请求本批需要的完整字段，其返回的限制与结构高于本文示例。目标是让模型只提交本次真正变化的字段，让工具只重写本批变化的 JSON 或 Markdown 文件，并用 revision 防止并发覆盖。
+本协议适用于 `story-authoring` 内置能力包。进入协议前先完成 `story-tool-binding.md` 的启动门禁并调用 `story(action="describe_structure")`；构造批次前再用 `documentKinds` 请求本批需要的完整字段，其返回的限制与结构高于本文示例。目标是让模型只提交本次真正变化的字段，让工具只更新本批变化的结构化或 Markdown 文档，并用 revision 防止并发覆盖。
 
 ## 单批限制
 
@@ -14,21 +14,22 @@
 
 ## 操作选择
 
-- `upsert`：只用于创建新文件，或用户明确要求完整替换单个文件。JSON value 是符合当前故事类型的普通业务对象；`chapterContent` 角色文档为 Markdown 时，value 直接使用正文字符串。工具补齐 JSON 的 const、generated、default，校验路径与章节 ID，并执行引用和完整度校验。不得自行提交字段 label/描述，也不得提交未声明字段。
-- `patch`：深合并已有文件的少数字段；未出现字段保持原值，`null` 表示删除可选字段。禁止修改 `schemaVersion/kind/id/storyId/revision/files`。
-- `upsert-items`：更新已有文件中的顶层对象数组，按条目 `id` 合并；适合 review.findings、analysis.plotModules、relationships.relationships、foreshadows.foreshadows、timeline.entries 等带 id 数组。
+- 每个 operation 都使用 `ref={kind,identity}` 定位逻辑文档；单例文档的 identity 为 `{}`，多例文档的 identity 字段取自 `describe_structure.documents[kind].identityFields`。不得猜测或提交文件路径。
+- `upsert`：只用于创建新文档，或用户明确要求完整替换单个文档。structured value 是符合当前故事类型的普通业务对象；`chapterContent` 角色文档为 Markdown 时，value 直接使用正文字符串。工具补齐 const、generated、default，校验文档身份与章节 ID，并执行引用和完整度校验。不得自行提交字段 label/描述，也不得提交未声明字段。
+- `patch`：深合并已有文档的少数字段；未出现字段保持原值，`null` 表示删除可选字段。禁止修改 `schemaVersion/kind/id/storyId/revision`。
+- `upsert-items`：更新已有文档中的顶层对象数组，按条目 `id` 合并；适合 review.findings、analysis.plotModules、relationships.relationships、foreshadows.foreshadows、timeline.entries 等带 id 数组。
 - `remove-items`：从顶层对象数组按 ids 删除。
 - `add-values` / `remove-values`：增删顶层字符串数组并自动去重；适合 volumeIds、chapterIds、notes、gaps 等。对象数组不能使用这两个操作。
-- `append-text`：向已有顶层字符串字段末尾追加新内容，可传 separator；续写章节时使用 `chapterContent` 角色文档的实际路径，且 field 使用 `content`。
+- `append-text`：向已有顶层字符串字段末尾追加新内容，可传 separator；续写章节时使用 `chapterContent` 角色文档的 ref，且 field 使用 `content`。
 - `replace-text`：用唯一 oldText 锚点替换顶层字符串字段中的局部文本；修订 `chapterContent` 角色文档时同样使用 field=`content`。oldText 不存在或出现多次会拒绝，必须提供更长且唯一的上下文锚点。
-- `delete`：只删除明确指定的非 manifest 文件；删除前同批或更早批次必须清理对它的引用。
+- `delete`：只删除明确指定的非 manifest 文档；删除前同批或更早批次必须清理对它的引用。
 
 示例：
 
 ```json
 {
   "storyTypeId": "<describe_structure 返回的 storyType.id>",
-  "storyTypeVersion": 1,
+  "storyTypeVersion": 4,
   "storyId": "story-1",
   "baseRevision": 7,
   "validationMode": "draft",
@@ -42,12 +43,12 @@
   "operations": [
     {
       "type": "patch",
-      "path": "<primary 角色文档的实际路径>",
+      "ref": { "kind": "story-book", "identity": {} },
       "value": { "protagonistId": "char-protagonist" }
     },
     {
       "type": "upsert-items",
-      "path": "<relationships 角色文档的实际路径>",
+      "ref": { "kind": "story-relationships", "identity": {} },
       "field": "relationships",
       "items": [
         {
@@ -79,7 +80,7 @@
 
 - 一次提交可能返回多个 `issues`；先按 `path` 阅读并同时修正本批列出的全部字段，不要只修第一条后立即重试。
 - 同一批首次出现结构错误时，重新调用 `describe_structure` 并用 `documentKinds` 只获取受影响文档的字段定义，然后仅重建失败批次；已经成功的批次不得重放。
-- 同一路径连续两次出现结构错误时，将失败批拆成单文档 ChangeSet。每个拆分批成功后重读 revision，并为后续批使用新的唯一 `batch.index`；拆批后 `total` 不确定时可以省略，最后实际收尾批才设置 `final=true`。
+- 同一文档连续两次出现结构错误时，将失败批拆成单文档 ChangeSet。每个拆分批成功后重读 revision，并为后续批使用新的唯一 `batch.index`；拆批后 `total` 不确定时可以省略，最后实际收尾批才设置 `final=true`。
 - 单文档批再次出现相同结构错误时停止自动重试，向用户报告当前 revision、已落库范围及完整 issues。禁止无上限盲重试，也不能把失败内容包装成更深层对象尝试绕过校验。
 
 ## 推荐依赖顺序

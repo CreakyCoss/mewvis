@@ -1,10 +1,15 @@
 import { z } from "zod";
-import type { StoryProjectAppliedChanges, StoryProjectState, StoryValidationIssue } from "../../types.js";
+import type {
+  StoryDocumentRef,
+  StoryProjectAppliedChanges,
+  StoryProjectState,
+  StoryValidationIssue,
+} from "../../types.js";
 import { StoryProjectValidationError, storyValidationIssue } from "./issues.js";
 import { projectInfo, rebuildManifest } from "./project.js";
 import { StoryDefinition } from "../../definitions/index.js";
 import type { StoryTypeDefinition } from "../../definitions/types.js";
-import { materializeStoryDocument } from "./document.js";
+import { materializeStoryDocument, parseStoryDocument } from "./document.js";
 import { validateProject } from "./validation.js";
 
 type JsonObject = Record<string, unknown>;
@@ -13,12 +18,6 @@ const isObject = (value: unknown): value is JsonObject =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
-const canonicalPath = (value: string) =>
-  value
-    .trim()
-    .replace(/\\/g, "/")
-    .replace(/^\/+|\/+$/g, "");
-
 export const STORY_CHANGE_SET_MAX_OPERATIONS = 16;
 export const STORY_CHANGE_SET_MAX_BYTES = 192 * 1024;
 
@@ -32,16 +31,23 @@ const storyChangeSetBatchSchema = z
   })
   .strict();
 
+const storyDocumentRefSchema = z
+  .object({
+    kind: z.string().trim().min(1),
+    identity: z.record(z.string(), z.string().trim().min(1)).optional(),
+  })
+  .strict();
+
 const storyChangeSetOperationSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("upsert"), path: z.string().trim().min(1), value: z.unknown() }).strict(),
-  z.object({ type: z.literal("delete"), path: z.string().trim().min(1) }).strict(),
+  z.object({ type: z.literal("upsert"), ref: storyDocumentRefSchema, value: z.unknown() }).strict(),
+  z.object({ type: z.literal("delete"), ref: storyDocumentRefSchema }).strict(),
   z
-    .object({ type: z.literal("patch"), path: z.string().trim().min(1), value: z.record(z.string(), z.unknown()) })
+    .object({ type: z.literal("patch"), ref: storyDocumentRefSchema, value: z.record(z.string(), z.unknown()) })
     .strict(),
   z
     .object({
       type: z.literal("upsert-items"),
-      path: z.string().trim().min(1),
+      ref: storyDocumentRefSchema,
       field: z.string().trim().min(1),
       items: z.array(z.record(z.string(), z.unknown())).min(1),
     })
@@ -49,7 +55,7 @@ const storyChangeSetOperationSchema = z.discriminatedUnion("type", [
   z
     .object({
       type: z.literal("remove-items"),
-      path: z.string().trim().min(1),
+      ref: storyDocumentRefSchema,
       field: z.string().trim().min(1),
       ids: z.array(z.string().trim().min(1)).min(1),
     })
@@ -57,7 +63,7 @@ const storyChangeSetOperationSchema = z.discriminatedUnion("type", [
   z
     .object({
       type: z.literal("add-values"),
-      path: z.string().trim().min(1),
+      ref: storyDocumentRefSchema,
       field: z.string().trim().min(1),
       values: z.array(z.string()).min(1),
     })
@@ -65,7 +71,7 @@ const storyChangeSetOperationSchema = z.discriminatedUnion("type", [
   z
     .object({
       type: z.literal("remove-values"),
-      path: z.string().trim().min(1),
+      ref: storyDocumentRefSchema,
       field: z.string().trim().min(1),
       values: z.array(z.string()).min(1),
     })
@@ -73,7 +79,7 @@ const storyChangeSetOperationSchema = z.discriminatedUnion("type", [
   z
     .object({
       type: z.literal("append-text"),
-      path: z.string().trim().min(1),
+      ref: storyDocumentRefSchema,
       field: z.string().trim().min(1),
       value: z.string().min(1),
       separator: z.string().optional(),
@@ -82,7 +88,7 @@ const storyChangeSetOperationSchema = z.discriminatedUnion("type", [
   z
     .object({
       type: z.literal("replace-text"),
-      path: z.string().trim().min(1),
+      ref: storyDocumentRefSchema,
       field: z.string().trim().min(1),
       oldText: z.string().min(1),
       newText: z.string(),
@@ -142,9 +148,11 @@ const assertPatchFields = (definition: StoryTypeDefinition, kind: string, patch:
   }
 };
 
-const requireObjectDocument = (files: Map<string, unknown>, path: string) => {
-  const value = files.get(path);
-  if (!isObject(value)) throw new Error(`增量操作要求 JSON 文件已存在：${path}`);
+type MutableStoryDocument = { ref: StoryDocumentRef; value: unknown };
+
+const requireObjectDocument = (documents: Map<string, MutableStoryDocument>, key: string) => {
+  const value = documents.get(key)?.value;
+  if (!isObject(value)) throw new Error(`增量操作要求结构化文档已存在：${key}`);
   return value;
 };
 
@@ -165,44 +173,51 @@ export const applyChangeSet = (
   if (!definition.validationModes[changeSet.validationMode]) {
     throw new Error(`故事类型不支持校验模式：${changeSet.validationMode}`);
   }
-  const manifestPath = StoryDefinition.resolvePath(definition, definition.manifestKind);
-  const files = new Map(current.documents.map((entry) => [entry.path, clone(entry.value)]));
+  const documents = new Map(
+    current.documents.map((entry) => [
+      StoryDefinition.referenceKey(entry.ref),
+      { ref: entry.ref, value: clone(entry.value) },
+    ]),
+  );
   const timestamp = Date.now();
   const operationIssues: StoryValidationIssue[] = [];
   for (const [operationIndex, operation] of changeSet.operations.entries()) {
     try {
-      const path = canonicalPath(operation.path);
-      if (path === manifestPath) throw new Error("Manifest 只能由故事运行时生成，不能直接修改。");
-      const kind = StoryDefinition.kindForPath(definition, path);
-      const document = StoryDefinition.document(definition, kind);
+      const ref = StoryDefinition.reference(definition, operation.ref.kind, operation.ref.identity ?? {});
+      const key = StoryDefinition.referenceKey(ref);
+      if (ref.kind === definition.manifestKind) throw new Error("Manifest 只能由故事运行时生成，不能直接修改。");
+      const document = StoryDefinition.document(definition, ref.kind);
       switch (operation.type) {
         case "delete":
           if (document.cardinality === "one") throw new Error(`${document.label} 必须保留一份，不能删除。`);
-          files.delete(path);
+          documents.delete(key);
           break;
         case "upsert":
-          files.set(path, materializeStoryDocument(definition, operation.value, kind, timestamp, { coerce: true }));
+          documents.set(key, {
+            ref,
+            value: parseStoryDocument(definition, operation.value, ref, timestamp, { coerce: true }),
+          });
           break;
         case "patch": {
-          if (document.contentType === "markdown") throw new Error("Markdown 文档不支持 patch，请使用文本操作。");
-          assertPatchFields(definition, kind, operation.value);
-          files.set(
-            path,
-            materializeStoryDocument(
+          if (document.contentFormat === "markdown") throw new Error("Markdown 文档不支持 patch，请使用文本操作。");
+          assertPatchFields(definition, ref.kind, operation.value);
+          documents.set(key, {
+            ref,
+            value: materializeStoryDocument(
               definition,
-              deepMerge(requireObjectDocument(files, path), operation.value),
-              kind,
+              deepMerge(requireObjectDocument(documents, key), operation.value),
+              ref,
               timestamp,
               { coerce: true },
             ),
-          );
+          });
           break;
         }
         case "upsert-items": {
-          const file = requireObjectDocument(files, path);
-          assertPatchFields(definition, kind, { [operation.field]: operation.items });
-          const currentItems = file[operation.field];
-          if (!Array.isArray(currentItems)) throw new Error(`${path}.${operation.field} 必须是数组。`);
+          const value = requireObjectDocument(documents, key);
+          assertPatchFields(definition, ref.kind, { [operation.field]: operation.items });
+          const currentItems = value[operation.field];
+          if (!Array.isArray(currentItems)) throw new Error(`${key}.${operation.field} 必须是数组。`);
           const next = [...currentItems];
           for (const item of operation.items) {
             if (typeof item.id !== "string") throw new Error("upsert-items 的每个对象必须包含字符串 id。");
@@ -210,73 +225,75 @@ export const applyChangeSet = (
             if (index >= 0) next[index] = deepMerge(next[index], item);
             else next.push(item);
           }
-          files.set(
-            path,
-            materializeStoryDocument(definition, { ...file, [operation.field]: next }, kind, timestamp, {
+          documents.set(key, {
+            ref,
+            value: materializeStoryDocument(definition, { ...value, [operation.field]: next }, ref, timestamp, {
               coerce: true,
             }),
-          );
+          });
           break;
         }
         case "remove-items": {
-          const file = requireObjectDocument(files, path);
-          assertPatchFields(definition, kind, { [operation.field]: [] });
-          const currentItems = file[operation.field];
-          if (!Array.isArray(currentItems)) throw new Error(`${path}.${operation.field} 必须是数组。`);
-          files.set(
-            path,
-            materializeStoryDocument(
+          const value = requireObjectDocument(documents, key);
+          assertPatchFields(definition, ref.kind, { [operation.field]: [] });
+          const currentItems = value[operation.field];
+          if (!Array.isArray(currentItems)) throw new Error(`${key}.${operation.field} 必须是数组。`);
+          documents.set(key, {
+            ref,
+            value: materializeStoryDocument(
               definition,
               {
-                ...file,
+                ...value,
                 [operation.field]: currentItems.filter(
                   (item) => !isObject(item) || typeof item.id !== "string" || !operation.ids.includes(item.id),
                 ),
               },
-              kind,
+              ref,
               timestamp,
               { coerce: true },
             ),
-          );
+          });
           break;
         }
         case "add-values":
         case "remove-values": {
-          const file = requireObjectDocument(files, path);
-          assertPatchFields(definition, kind, { [operation.field]: operation.values });
-          const currentValues = file[operation.field];
+          const value = requireObjectDocument(documents, key);
+          assertPatchFields(definition, ref.kind, { [operation.field]: operation.values });
+          const currentValues = value[operation.field];
           if (!Array.isArray(currentValues) || currentValues.some((item) => typeof item !== "string")) {
-            throw new Error(`${path}.${operation.field} 必须是字符串数组。`);
+            throw new Error(`${key}.${operation.field} 必须是字符串数组。`);
           }
           const next =
             operation.type === "add-values"
               ? [...new Set([...currentValues, ...operation.values])]
               : currentValues.filter((item) => !operation.values.includes(item));
-          files.set(
-            path,
-            materializeStoryDocument(definition, { ...file, [operation.field]: next }, kind, timestamp, {
+          documents.set(key, {
+            ref,
+            value: materializeStoryDocument(definition, { ...value, [operation.field]: next }, ref, timestamp, {
               coerce: true,
             }),
-          );
+          });
           break;
         }
         case "append-text":
         case "replace-text": {
-          const file = requireObjectDocument(files, path);
+          const value = requireObjectDocument(documents, key);
           const field = operation.field;
-          if (document.contentType !== "markdown") assertPatchFields(definition, kind, { [field]: "" });
-          if (typeof file[field] !== "string") throw new Error(`${path}.${field} 必须是字符串。`);
+          if (document.contentFormat !== "markdown") assertPatchFields(definition, ref.kind, { [field]: "" });
+          if (typeof value[field] !== "string") throw new Error(`${key}.${field} 必须是字符串。`);
           const next =
             operation.type === "append-text"
-              ? `${file[field]}${file[field] ? (operation.separator ?? "\n") : ""}${operation.value}`
+              ? `${value[field]}${value[field] ? (operation.separator ?? "\n") : ""}${operation.value}`
               : (() => {
-                  if (!file[field].includes(operation.oldText)) throw new Error(`${path}.${field} 未找到待替换文本。`);
-                  return file[field].replace(operation.oldText, operation.newText);
+                  if (!value[field].includes(operation.oldText)) throw new Error(`${key}.${field} 未找到待替换文本。`);
+                  return value[field].replace(operation.oldText, operation.newText);
                 })();
-          files.set(
-            path,
-            materializeStoryDocument(definition, { ...file, [field]: next }, kind, timestamp, { coerce: true }),
-          );
+          documents.set(key, {
+            ref,
+            value: materializeStoryDocument(definition, { ...value, [field]: next }, ref, timestamp, {
+              coerce: true,
+            }),
+          });
           break;
         }
       }
@@ -296,7 +313,7 @@ export const applyChangeSet = (
   if (operationIssues.length > 0) throw new StoryProjectValidationError(operationIssues);
   const nextBase: StoryProjectState = {
     manifest: current.manifest,
-    documents: [...files].map(([path, value]) => ({ path, value })),
+    documents: [...documents.values()],
   };
   const next = rebuildManifest(nextBase, definition, info.revision + 1, timestamp);
   const validation = validateProject(next, definition, changeSet.validationMode);
@@ -307,6 +324,13 @@ export const applyChangeSet = (
     validation,
     batch: changeSet.batch ?? null,
     operationTypes: [...new Set(changeSet.operations.map((item) => item.type))],
-    changedPaths: [...new Set(changeSet.operations.map((item) => canonicalPath(item.path)))],
+    changedDocuments: [
+      ...new Map(
+        changeSet.operations.map((item) => {
+          const ref = StoryDefinition.reference(definition, item.ref.kind, item.ref.identity ?? {});
+          return [StoryDefinition.referenceKey(ref), ref];
+        }),
+      ).values(),
+    ],
   };
 };

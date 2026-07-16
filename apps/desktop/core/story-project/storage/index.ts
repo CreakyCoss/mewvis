@@ -1,38 +1,37 @@
 import { StoryDefinition } from "../definitions/index.js";
+import type { StoryDocumentRef } from "../definitions/model/types.js";
 import type { StoryTypeDefinition } from "../definitions/types.js";
 import type { StoryDocument, StoryProjectAppliedChanges, StoryProjectState, StoryValue } from "../types.js";
 import { parseStoryDocument, serializeStoryDocument } from "../internal/engine/document.js";
 import { StoryProjectValidationError } from "../internal/engine/issues.js";
-import { assembleProject, manifestFiles } from "../internal/engine/project.js";
+import { assembleProject } from "../internal/engine/project.js";
 import { validateProject } from "../internal/engine/validation.js";
-import { createStoryProjectRecordBackend } from "./adapters/registry.js";
+import { createStoryFileRecordBackend } from "./adapters/file/index.js";
+import { assertStoryFileLayout } from "./adapters/file/layout.js";
+import { createMemoryStoryProjectRecordBackend } from "./adapters/memory/index.js";
 import type { StoryProjectRecord, StoryProjectRecordBackend, StoryProjectRecordWrite } from "./adapters/record.js";
-import { canonicalStoryPath, normalizeStoryDocumentPath } from "./path.js";
 import type { StoryProjectInventory, StoryProjectStorageOptions } from "./types.js";
 
 type JsonObject = Record<string, unknown>;
 
-const PROJECT_CONFIG_PATH = "story/.novel-claw/project.json";
-
 const isObject = (value: unknown): value is JsonObject =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
-/** Story Project 的领域级持久化边界；调用方无需感知文件、数据库或低层记录事务。 */
+/** Story Project 的领域级持久化边界；调用方只使用文档引用，不感知 Adapter 的物理定位。 */
 export interface StoryProjectStorage {
-  normalizeDocumentPath(path: string): string;
   loadDefinition(projectKey: string): Promise<StoryTypeDefinition | null>;
   inspect(projectKey: string, definition: StoryTypeDefinition): Promise<StoryProjectInventory>;
   loadProject(projectKey: string, definition: StoryTypeDefinition): Promise<StoryProjectState>;
   loadDocument(
     projectKey: string,
     definition: StoryTypeDefinition,
-    path: string,
-  ): Promise<Pick<StoryDocument, "path" | "value" | "updatedAt">>;
+    ref: StoryDocumentRef,
+  ): Promise<Pick<StoryDocument, "ref" | "value" | "updatedAt">>;
   initializeProject(
     projectKey: string,
     definition: StoryTypeDefinition,
     project: StoryProjectState,
-    replacePaths: readonly string[],
+    replaceKeys: readonly string[],
   ): Promise<void>;
   persistAppliedProject(
     projectKey: string,
@@ -41,38 +40,35 @@ export interface StoryProjectStorage {
   ): Promise<void>;
 }
 
-const replaceableStoryKeys = (keys: readonly string[], definition: StoryTypeDefinition) => {
-  const root = `${canonicalStoryPath(definition.rootPath)}/`;
-  return keys.filter(
-    (key) =>
-      key.startsWith(root) &&
-      !key.startsWith(`${root}.novel-claw/`) &&
-      !key.startsWith(`${root}runtime/`) &&
-      key !== `${root}tavern.json` &&
-      (key.endsWith(".json") || key.endsWith(".md")),
-  );
-};
-
-const storedDocument = (definition: StoryTypeDefinition, path: string, value: unknown): StoryProjectRecordWrite => {
-  const serialized = serializeStoryDocument(definition, value, path);
+const storedDocument = (
+  backend: StoryProjectRecordBackend,
+  definition: StoryTypeDefinition,
+  inputRef: StoryDocumentRef,
+  value: unknown,
+): StoryProjectRecordWrite => {
+  const ref = StoryDefinition.reference(definition, inputRef.kind, inputRef.identity);
+  const serialized = serializeStoryDocument(definition, value, ref);
+  const key = backend.documentKey(ref);
   return typeof serialized === "string"
-    ? { key: path, contentType: "markdown", value: serialized }
-    : { key: path, contentType: "json", value: serialized as StoryValue };
+    ? { key, contentFormat: "markdown", value: serialized }
+    : { key, contentFormat: "structured", value: serialized as StoryValue };
 };
 
-const storedDocumentValue = (definition: StoryTypeDefinition, path: string, record: StoryProjectRecord) => {
-  const expected = StoryDefinition.document(definition, StoryDefinition.kindForPath(definition, path)).contentType;
-  if (record.contentType !== expected) {
-    throw new Error(`故事记录类型不一致：${path} 期望 ${expected}，实际为 ${record.contentType}。`);
+const storedDocumentValue = (definition: StoryTypeDefinition, ref: StoryDocumentRef, record: StoryProjectRecord) => {
+  const expected = StoryDefinition.document(definition, ref.kind).contentFormat;
+  if (record.contentFormat !== expected) {
+    throw new Error(
+      `故事记录格式不一致：${StoryDefinition.referenceKey(ref)} 期望 ${expected}，实际为 ${record.contentFormat}。`,
+    );
   }
   return record.value;
 };
 
 const loadDefinition = async (backend: StoryProjectRecordBackend, projectKey: string) => {
-  const record = await backend.readOptional(projectKey, PROJECT_CONFIG_PATH);
+  const record = await backend.readOptional(projectKey, backend.definitionKey);
   if (!record) return null;
   try {
-    if (record.contentType !== "json") throw new Error("故事项目定义必须是 JSON 记录。");
+    if (record.contentFormat !== "structured") throw new Error("故事项目定义必须是结构化记录。");
     return StoryDefinition.parse(record.value);
   } catch (error) {
     throw new Error(`故事项目定义无效：${error instanceof Error ? error.message : String(error)}`);
@@ -80,13 +76,12 @@ const loadDefinition = async (backend: StoryProjectRecordBackend, projectKey: st
 };
 
 const inspect = async (backend: StoryProjectRecordBackend, projectKey: string, definition: StoryTypeDefinition) => {
-  const keys = (await backend.list(projectKey)).map((entry) => canonicalStoryPath(entry.key));
-  const manifestPath = StoryDefinition.resolvePath(definition, definition.manifestKind);
-  const replaceablePaths = replaceableStoryKeys(keys, definition);
+  const keys = (await backend.list(projectKey)).map((entry) => entry.key);
+  const manifestRef = StoryDefinition.reference(definition, definition.manifestKind);
+  const replaceableKeys = [...backend.replaceableKeys(keys)];
   return {
-    initialized: keys.includes(manifestPath),
-    replaceablePaths,
-    existingJsonPaths: replaceablePaths.filter((path) => path.endsWith(".json")),
+    initialized: keys.includes(backend.documentKey(manifestRef)),
+    replaceableKeys,
   };
 };
 
@@ -95,21 +90,25 @@ const loadProject = async (
   projectKey: string,
   definition: StoryTypeDefinition,
 ): Promise<StoryProjectState> => {
-  const manifestPath = StoryDefinition.resolvePath(definition, definition.manifestKind);
-  const manifestRecord = await backend.read(projectKey, manifestPath);
+  const manifestRef = StoryDefinition.reference(definition, definition.manifestKind);
+  const manifestRecord = await backend.read(projectKey, backend.documentKey(manifestRef));
   const manifestValue = parseStoryDocument(
     definition,
-    storedDocumentValue(definition, manifestPath, manifestRecord),
-    manifestPath,
+    storedDocumentValue(definition, manifestRef, manifestRecord),
+    manifestRef,
   );
-  if (!isObject(manifestValue)) throw new Error("故事 Manifest 必须是 JSON 对象。");
+  if (!isObject(manifestValue)) throw new Error("故事 Manifest 必须是结构化对象。");
+  const refs = (await backend.list(projectKey)).flatMap((entry) => {
+    const ref = backend.documentRef(entry.key);
+    return ref && ref.kind !== definition.manifestKind ? [ref] : [];
+  });
   const entries = await Promise.all(
-    manifestFiles(manifestValue).map(async ({ path }) => {
-      const record = await backend.read(projectKey, path);
-      return { path, value: storedDocumentValue(definition, path, record) };
+    refs.map(async (ref) => {
+      const record = await backend.read(projectKey, backend.documentKey(ref));
+      return { ref, value: storedDocumentValue(definition, ref, record) };
     }),
   );
-  const project = assembleProject([{ path: manifestPath, value: manifestValue }, ...entries], definition, manifestPath);
+  const project = assembleProject([{ ref: manifestRef, value: manifestValue }, ...entries], definition);
   const validation = validateProject(project, definition, "draft");
   if (!validation.valid) throw new StoryProjectValidationError(validation.issues);
   return project;
@@ -119,16 +118,13 @@ const loadDocument = async (
   backend: StoryProjectRecordBackend,
   projectKey: string,
   definition: StoryTypeDefinition,
-  path: string,
-): Promise<Pick<StoryDocument, "path" | "value" | "updatedAt">> => {
-  const record = await backend.read(projectKey, path);
+  inputRef: StoryDocumentRef,
+): Promise<Pick<StoryDocument, "ref" | "value" | "updatedAt">> => {
+  const ref = StoryDefinition.reference(definition, inputRef.kind, inputRef.identity);
+  const record = await backend.read(projectKey, backend.documentKey(ref));
   return {
-    path,
-    value: parseStoryDocument(
-      definition,
-      storedDocumentValue(definition, path, record),
-      path,
-    ) as StoryDocument["value"],
+    ref,
+    value: parseStoryDocument(definition, storedDocumentValue(definition, ref, record), ref) as StoryDocument["value"],
     updatedAt: record.updatedAt,
   };
 };
@@ -138,19 +134,19 @@ const initializeProject = async (
   projectKey: string,
   definition: StoryTypeDefinition,
   project: StoryProjectState,
-  replacePaths: readonly string[],
+  replaceKeys: readonly string[],
 ) => {
-  const manifestPath = StoryDefinition.resolvePath(definition, definition.manifestKind);
+  const manifestRef = StoryDefinition.reference(definition, definition.manifestKind);
   const writes: StoryProjectRecordWrite[] = [
-    { key: PROJECT_CONFIG_PATH, contentType: "json", value: definition as unknown as StoryValue },
-    ...project.documents.map(({ path, value }) => storedDocument(definition, path, value)),
-    storedDocument(definition, manifestPath, project.manifest),
+    { key: backend.definitionKey, contentFormat: "structured", value: definition as unknown as StoryValue },
+    ...project.documents.map(({ ref, value }) => storedDocument(backend, definition, ref, value)),
+    storedDocument(backend, definition, manifestRef, project.manifest),
   ];
   const writeKeys = new Set(writes.map(({ key }) => key));
   await backend.commit(projectKey, {
-    revision: { key: manifestPath, expected: null },
+    revision: { key: backend.documentKey(manifestRef), expected: null },
     writes,
-    deletes: replacePaths.filter((key) => !writeKeys.has(key)),
+    deletes: replaceKeys.filter((key) => !writeKeys.has(key)),
   });
 };
 
@@ -160,34 +156,56 @@ const persistAppliedProject = async (
   definition: StoryTypeDefinition,
   applied: StoryProjectAppliedChanges,
 ) => {
-  const manifestPath = StoryDefinition.resolvePath(definition, definition.manifestKind);
-  const files = new Map(applied.project.documents.map((entry) => [entry.path, entry.value]));
-  const changed = [...new Set(applied.changedPaths)];
-  const writes: StoryProjectRecordWrite[] = changed.flatMap((path) => {
-    const value = files.get(path);
-    return value === undefined ? [] : [storedDocument(definition, path, value)];
+  const manifestRef = StoryDefinition.reference(definition, definition.manifestKind);
+  const documents = new Map(applied.project.documents.map((entry) => [StoryDefinition.referenceKey(entry.ref), entry]));
+  const changed = new Map(applied.changedDocuments.map((ref) => [StoryDefinition.referenceKey(ref), ref]));
+  const writes: StoryProjectRecordWrite[] = [...changed].flatMap(([key, ref]) => {
+    const document = documents.get(key);
+    return document ? [storedDocument(backend, definition, ref, document.value)] : [];
   });
-  writes.push(storedDocument(definition, manifestPath, applied.project.manifest));
+  writes.push(storedDocument(backend, definition, manifestRef, applied.project.manifest));
   await backend.commit(projectKey, {
-    revision: { key: manifestPath, expected: applied.nextRevision - 1 },
+    revision: { key: backend.documentKey(manifestRef), expected: applied.nextRevision - 1 },
     writes,
-    deletes: changed.filter((path) => !files.has(path)),
+    deletes: [...changed.values()]
+      .filter((ref) => !documents.has(StoryDefinition.referenceKey(ref)))
+      .map((ref) => backend.documentKey(ref)),
   });
 };
 
 /** 根据 Storage 类型分发具体 Adapter，并返回统一的领域级 Storage。 */
 export const createStoryProjectStorage = (options: StoryProjectStorageOptions): StoryProjectStorage => {
-  const backend = createStoryProjectRecordBackend(options);
+  const backend =
+    options.kind === "file" ? createStoryFileRecordBackend(options) : createMemoryStoryProjectRecordBackend();
+  const assertDefinition = (definition: StoryTypeDefinition) => {
+    if (options.kind === "file") assertStoryFileLayout(options.layout, definition);
+  };
   const storage: StoryProjectStorage = {
-    normalizeDocumentPath: normalizeStoryDocumentPath,
-    loadDefinition: (projectKey) => loadDefinition(backend, projectKey),
-    inspect: (projectKey, definition) => inspect(backend, projectKey, definition),
-    loadProject: (projectKey, definition) => loadProject(backend, projectKey, definition),
-    loadDocument: (projectKey, definition, path) => loadDocument(backend, projectKey, definition, path),
-    initializeProject: (projectKey, definition, project, replacePaths) =>
-      initializeProject(backend, projectKey, definition, project, replacePaths),
-    persistAppliedProject: (projectKey, definition, applied) =>
-      persistAppliedProject(backend, projectKey, definition, applied),
+    async loadDefinition(projectKey) {
+      const definition = await loadDefinition(backend, projectKey);
+      if (definition) assertDefinition(definition);
+      return definition;
+    },
+    inspect(projectKey, definition) {
+      assertDefinition(definition);
+      return inspect(backend, projectKey, definition);
+    },
+    loadProject(projectKey, definition) {
+      assertDefinition(definition);
+      return loadProject(backend, projectKey, definition);
+    },
+    loadDocument(projectKey, definition, ref) {
+      assertDefinition(definition);
+      return loadDocument(backend, projectKey, definition, ref);
+    },
+    initializeProject(projectKey, definition, project, replaceKeys) {
+      assertDefinition(definition);
+      return initializeProject(backend, projectKey, definition, project, replaceKeys);
+    },
+    persistAppliedProject(projectKey, definition, applied) {
+      assertDefinition(definition);
+      return persistAppliedProject(backend, projectKey, definition, applied);
+    },
   };
   return Object.freeze(storage);
 };

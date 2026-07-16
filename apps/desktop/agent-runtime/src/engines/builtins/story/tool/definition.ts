@@ -27,7 +27,7 @@ const storyToolRequestSchema = z.discriminatedUnion("action", [
       storyId: z.string().trim().min(1),
       title: z.string().trim().min(1),
       storyTypeId: z.string().trim().min(1).optional(),
-      replaceExistingJson: z.boolean().optional(),
+      replaceExisting: z.boolean().optional(),
     })
     .strict(),
   z
@@ -103,9 +103,9 @@ const STORY_TOOL_PARAMETERS = {
     storyId: optionalString("initialize 时必填：故事稳定 ID"),
     title: optionalString("initialize 时必填：故事标题"),
     storyTypeId: optionalString("initialize 时可选：未配置工作区时选择故事类型，默认 long-novel"),
-    replaceExistingJson: {
+    replaceExisting: {
       type: "boolean",
-      description: "initialize 时可选；是否替换 story 目录中已有的普通 JSON，默认 false",
+      description: "initialize 时可选；是否替换存储中已有的普通故事记录，默认 false",
       optional: true,
     },
     scope: {

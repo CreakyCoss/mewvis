@@ -3,24 +3,6 @@ import { field } from "../model/fields.js";
 
 export const CORE_OBJECTS = defineObjectModels([
   {
-    id: "manifest-file-entry",
-    label: "清单文件项",
-    fields: [
-      field.text("kind", "文档类型", {
-        required: true,
-        readOnly: true,
-      }),
-      field.id("id", "对象 ID", {
-        required: true,
-        readOnly: true,
-      }),
-      field.path("path", "文件路径", {
-        required: true,
-        readOnly: true,
-      }),
-    ],
-  },
-  {
     id: "arc-stage",
     label: "全书阶段",
     fields: [
@@ -131,14 +113,14 @@ export const CORE_DOCUMENTS = defineDocumentModels([
   documentModel({
     kind: "story-manifest",
     label: "故事清单",
-    description: "索引所有正式故事文件并维护 revision",
-    contentType: "json",
+    description: "维护故事身份和 revision",
+    contentFormat: "structured",
     cardinality: "one",
     fields: [
       field.integer("schemaVersion", "结构版本", {
         required: true,
         readOnly: true,
-        const: 1,
+        const: 2,
       }),
       field.text("kind", "文档类型", {
         required: true,
@@ -169,20 +151,14 @@ export const CORE_DOCUMENTS = defineDocumentModels([
         generated: true,
         readOnly: true,
       }),
-      field.collection("files", "文件索引", {
-        required: true,
-        generated: true,
-        readOnly: true,
-        itemDefinition: "manifest-file-entry",
-      }),
     ],
-    ruleIds: ["manifest.files", "manifest.title"],
+    ruleIds: ["manifest.title"],
   }),
   entityDocument({
     kind: "story-book",
     label: "作品核心",
     description: "书名、故事前提、目标、核心冲突与终局阻碍",
-    contentType: "json",
+    contentFormat: "structured",
     cardinality: "one",
     fields: [
       field.text("title", "书名", {
@@ -224,7 +200,7 @@ export const CORE_DOCUMENTS = defineDocumentModels([
   entityDocument({
     kind: "story-positioning",
     label: "作品定位",
-    contentType: "json",
+    contentFormat: "structured",
     cardinality: "one",
     fields: [
       field.select("lengthType", "篇幅类型", {
@@ -290,7 +266,7 @@ export const CORE_DOCUMENTS = defineDocumentModels([
   entityDocument({
     kind: "story-style",
     label: "文风约束",
-    contentType: "json",
+    contentFormat: "structured",
     cardinality: "one",
     fields: [
       field.textarea("tone", "整体语气", {

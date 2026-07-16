@@ -1,5 +1,5 @@
 import type {
-  StoryProjectFileEntry,
+  StoryProjectDocumentEntry,
   StoryProjectState,
   StoryContext,
   StoryContextSection,
@@ -18,8 +18,6 @@ const documentId = (value: unknown) => {
   if (!isObject(value)) return "";
   return typeof value.id === "string" ? value.id : typeof value.storyId === "string" ? value.storyId : "";
 };
-const documentKind = (value: unknown) => (isObject(value) && typeof value.kind === "string" ? value.kind : "");
-
 const projectRevision = (project: StoryProjectState) => {
   if (!Number.isInteger(project.manifest.revision)) throw new Error("故事 Manifest 缺少 revision。");
   return Number(project.manifest.revision);
@@ -40,7 +38,7 @@ const renderFields = (
   Object.entries(fields).flatMap(([key, field]): string[] => {
     const item = value[key];
     if (item === undefined || item === null || item === "" || (Array.isArray(item) && item.length === 0)) return [];
-    if (["schemaVersion", "kind", "updatedAt", "createdAt", "files"].includes(key)) return [];
+    if (["schemaVersion", "kind", "updatedAt", "createdAt"].includes(key)) return [];
     const prefix = `${indent}- ${field.label}：`;
     if (field.definition && isObject(item)) {
       return [
@@ -63,8 +61,11 @@ const renderFields = (
     return [`${prefix}${displayScalar(field, item)}`];
   });
 
-const entryIsTarget = (entries: readonly StoryProjectFileEntry[], target?: StoryProjectFileEntry) =>
-  Boolean(target && entries.some((entry) => entry.path === target.path));
+const entryIsTarget = (entries: readonly StoryProjectDocumentEntry[], target?: StoryProjectDocumentEntry) =>
+  Boolean(
+    target &&
+    entries.some((entry) => StoryDefinition.referenceKey(entry.ref) === StoryDefinition.referenceKey(target.ref)),
+  );
 
 export const readStoryProjectContext = (
   project: StoryProjectState,
@@ -72,26 +73,26 @@ export const readStoryProjectContext = (
   input: { scope: "project" | "chapter"; targetId?: string },
 ): StoryContext => {
   const view = StoryDefinition.context(definition, input.scope);
-  const candidates = project.documents.filter((entry) => view.documentKinds.includes(documentKind(entry.value)));
+  const candidates = project.documents.filter((entry) => view.documentKinds.includes(entry.ref.kind));
   const target =
     input.scope === "chapter" && view.targetKind
       ? candidates.find((entry) => {
-          if (documentKind(entry.value) !== view.targetKind || !isObject(entry.value)) return false;
+          if (entry.ref.kind !== view.targetKind || !isObject(entry.value)) return false;
           const value = entry.value;
           return (view.targetSelectors ?? ["id"]).some((key) => String(value[key] ?? "") === input.targetId);
         })
       : undefined;
   if (input.scope === "chapter" && !target) throw new Error(`找不到章节上下文目标：${input.targetId ?? ""}`);
-  const orderedKinds = [target ? documentKind(target.value) : "", ...view.documentKinds].filter(
+  const orderedKinds = [target?.ref.kind ?? "", ...view.documentKinds].filter(
     (kind, index, all) => kind && all.indexOf(kind) === index,
   );
   const sections = orderedKinds.flatMap((kind, index): StoryContextSection[] => {
-    const entries = candidates.filter((entry) => documentKind(entry.value) === kind);
+    const entries = candidates.filter((entry) => entry.ref.kind === kind);
     if (entries.length === 0) return [];
     const sources: StoryContextSource[] = entries.map((entry) => ({
       kind,
       label: StoryDefinition.document(definition, kind).label,
-      path: entry.path,
+      ref: entry.ref,
       ...(documentId(entry.value) ? { id: documentId(entry.value) } : {}),
     }));
     const content = entries
@@ -130,12 +131,16 @@ export const readStoryProjectContext = (
       : documentId(targetValue)
     : "";
   const sources = [
-    ...new Map(sections.flatMap((section) => section.sources).map((source) => [source.path, source])).values(),
+    ...new Map(
+      sections
+        .flatMap((section) => section.sources)
+        .map((source) => [StoryDefinition.referenceKey(source.ref), source]),
+    ).values(),
   ];
   return {
     scope: input.scope,
     revision: projectRevision(project),
-    target: target ? { kind: documentKind(target.value), id: documentId(target.value), label: targetLabel } : null,
+    target: target ? { kind: target.ref.kind, id: documentId(target.value), label: targetLabel } : null,
     sections,
     sources,
     text: [

@@ -1,4 +1,4 @@
-import { createStoryProjectApi } from "../../../../core/story-project";
+import { BUILTIN_STORY_FILE_LAYOUT, createStoryProjectApi } from "../../../../core/story-project";
 import { createStoryProjectStorage } from "../../../../core/story-project/storage";
 import type { StoryFileBackend } from "../../../../core/story-project/storage/types";
 import {
@@ -22,5 +22,5 @@ const desktopStoryFileBackend: StoryFileBackend = {
 };
 
 export const storyProjectApi = createStoryProjectApi(
-  createStoryProjectStorage({ kind: "file", backend: desktopStoryFileBackend }),
+  createStoryProjectStorage({ kind: "file", backend: desktopStoryFileBackend, layout: BUILTIN_STORY_FILE_LAYOUT }),
 );

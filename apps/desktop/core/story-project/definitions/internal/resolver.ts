@@ -1,4 +1,5 @@
-import { normalizeStoryTypePath } from "./path.js";
+import { createStoryDocumentRef, storyDocumentRefKey } from "../model/reference.js";
+import type { StoryDocumentRef } from "../model/types.js";
 import type { StoryTypeDefinition } from "../types.js";
 
 export const storyTypeDocument = (definition: StoryTypeDefinition, kind: string) => {
@@ -19,32 +20,22 @@ export const storyTypeObjectFields = (definition: StoryTypeDefinition, id: strin
 export const storyTypeFields = (definition: StoryTypeDefinition, kind: string) =>
   Object.fromEntries(storyTypeDocument(definition, kind).fields.map((field) => [field.key, field]));
 
-const patternRegex = (pattern: string) => {
-  const escaped = normalizeStoryTypePath(pattern).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`^${escaped.replace(/\\\{[^}]+\\\}/g, "[A-Za-z0-9_-]+")}$`);
-};
-
-export const storyTypeKindForPath = (definition: StoryTypeDefinition, input: string) => {
-  const path = normalizeStoryTypePath(input);
-  const document = definition.documents.find((candidate) => patternRegex(candidate.pathPattern).test(path));
-  if (!document) throw new Error(`故事类型不允许文件路径：${path}`);
-  return document.kind;
-};
-
-export const resolveStoryTypePath = (
+export const storyTypeReference = (
   definition: StoryTypeDefinition,
   kind: string,
-  parameters: Readonly<Record<string, string>> = {},
+  identity: Readonly<Record<string, string>> = {},
 ) => {
-  const pattern = storyTypeDocument(definition, kind).pathPattern;
-  const path = pattern.replace(/\{([^}]+)\}/g, (_match, name: string) => {
-    const value = parameters[name]?.trim();
-    if (!value || !/^[A-Za-z0-9_-]+$/.test(value)) throw new Error(`${kind} 路径缺少合法参数：${name}`);
-    return value;
-  });
-  if (path.includes("{")) throw new Error(`${kind} 路径仍包含未解析参数：${path}`);
-  return normalizeStoryTypePath(path);
+  const document = storyTypeDocument(definition, kind);
+  const ref = createStoryDocumentRef(kind, identity);
+  const actual = Object.keys(ref.identity).sort();
+  const expected = [...document.identityFields].sort();
+  if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
+    throw new Error(`${kind} 文档身份字段必须是：${expected.join("、") || "无"}。`);
+  }
+  return ref;
 };
+
+export const storyTypeReferenceKey = (ref: StoryDocumentRef) => storyDocumentRefKey(ref);
 
 export const storyTypeContext = (definition: StoryTypeDefinition, scope: "project" | "chapter") => {
   const context = definition.contexts.find((candidate) => candidate.scope === scope);

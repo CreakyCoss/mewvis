@@ -1,4 +1,4 @@
-import type { StoryProjectFileEntry, StoryProjectState } from "../../types.js";
+import type { StoryProjectDocumentEntry, StoryProjectState } from "../../types.js";
 import { parseStoryDocument } from "./document.js";
 import { StoryDefinition } from "../../definitions/index.js";
 import type { StoryFieldDefinition } from "../../definitions/model/types.js";
@@ -9,22 +9,7 @@ type JsonObject = Record<string, unknown>;
 const isObject = (value: unknown): value is JsonObject =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
-const objectValue = (value: unknown, owner: string): JsonObject => {
-  if (!isObject(value)) throw new Error(`${owner} 必须是 JSON 对象。`);
-  return value;
-};
-
-const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
-const canonicalPath = (value: string) =>
-  value
-    .trim()
-    .replace(/\\/g, "/")
-    .replace(/^\/+|\/+$/g, "");
-
-const documentId = (value: unknown) => {
-  if (!isObject(value)) return "";
-  return typeof value.id === "string" ? value.id : typeof value.storyId === "string" ? value.storyId : "";
-};
+const clone = <T>(value: T): T => structuredClone(value);
 
 const documentKind = (value: unknown) => (isObject(value) && typeof value.kind === "string" ? value.kind : "");
 
@@ -62,7 +47,6 @@ export const initialDocumentInput = (
       result[key] = kind === definition.primaryKind ? storyId : `${storyId}-${kind.replace(/^story-/, "")}`;
     else if (key === "title") result[key] = title;
     else if (key === "revision") result[key] = 0;
-    else if (key === "files") result[key] = [];
     else if (key === "createdAt" || key === "updatedAt") result[key] = timestamp;
     else if (field.required || field.default !== undefined || field.const !== undefined) {
       result[key] = emptyFieldValue(definition, field, timestamp);
@@ -76,24 +60,24 @@ export const createInitialProject = (
   input: { storyId: string; title: string },
   timestamp = Date.now(),
 ) => {
-  const manifestPath = StoryDefinition.resolvePath(definition, definition.manifestKind);
+  const manifestRef = StoryDefinition.reference(definition, definition.manifestKind);
   const manifest = parseStoryDocument(
     definition,
     initialDocumentInput(definition, definition.manifestKind, input.storyId, input.title, timestamp),
-    manifestPath,
+    manifestRef,
     timestamp,
   );
-  if (!isObject(manifest)) throw new Error("故事 Manifest 必须是 JSON 对象。");
-  const documents = definition.documents.flatMap((document) => {
+  if (!isObject(manifest)) throw new Error("故事 Manifest 必须是结构化对象。");
+  const documents = definition.documents.flatMap((document): StoryProjectDocumentEntry[] => {
     if (document.kind === definition.manifestKind || document.cardinality !== "one") return [];
-    const path = StoryDefinition.resolvePath(definition, document.kind);
+    const ref = StoryDefinition.reference(definition, document.kind);
     return [
       {
-        path,
+        ref,
         value: parseStoryDocument(
           definition,
           initialDocumentInput(definition, document.kind, input.storyId, input.title, timestamp),
-          path,
+          ref,
           timestamp,
         ),
       },
@@ -102,21 +86,8 @@ export const createInitialProject = (
   return rebuildManifest({ manifest, documents }, definition, 0, timestamp);
 };
 
-const projectValue = (input: StoryProjectState) => input;
-
-export const manifestFiles = (manifest: JsonObject) => {
-  if (!Array.isArray(manifest.files)) throw new Error("故事 Manifest files 必须是数组。");
-  return manifest.files.map((item, index) => {
-    const value = objectValue(item, `manifest.files[${index}]`);
-    if (typeof value.path !== "string" || typeof value.kind !== "string" || typeof value.id !== "string") {
-      throw new Error(`manifest.files[${index}] 缺少 path、kind 或 id。`);
-    }
-    return { path: value.path, kind: value.kind, id: value.id };
-  });
-};
-
 export const projectInfo = (project: StoryProjectState) => {
-  const manifest = projectValue(project).manifest;
+  const manifest = project.manifest;
   if (typeof manifest.storyId !== "string" || !Number.isInteger(manifest.revision)) {
     throw new Error("故事 Manifest 缺少 storyId 或 revision。");
   }
@@ -129,50 +100,56 @@ export const rebuildManifest = (
   revision: number,
   timestamp = Date.now(),
 ): StoryProjectState => {
-  const documents = [...project.documents].sort((left, right) => left.path.localeCompare(right.path));
+  const documents = [...project.documents].sort((left, right) =>
+    StoryDefinition.referenceKey(left.ref).localeCompare(StoryDefinition.referenceKey(right.ref)),
+  );
   const primary = definition.primaryKind
-    ? documents.find((entry) => documentKind(entry.value) === definition.primaryKind)?.value
+    ? documents.find((entry) => entry.ref.kind === definition.primaryKind)?.value
     : undefined;
   const manifest = {
     ...project.manifest,
     ...(isObject(primary) && typeof primary.title === "string" ? { title: primary.title } : {}),
     revision,
     updatedAt: timestamp,
-    files: documents.map(({ path, value }) => ({ kind: documentKind(value), id: documentId(value), path })),
   };
   return { manifest, documents };
 };
 
 export const assembleProject = (
-  entries: readonly StoryProjectFileEntry[],
+  entries: readonly StoryProjectDocumentEntry[],
   definition: StoryTypeDefinition,
-  manifestPath: string,
 ): StoryProjectState => {
-  const manifestEntries = entries.filter((entry) => canonicalPath(entry.path) === manifestPath);
-  if (manifestEntries.length !== 1)
+  const normalized = entries.map((entry) => ({
+    ref: StoryDefinition.reference(definition, entry.ref.kind, entry.ref.identity),
+    value: entry.value,
+  }));
+  const manifestEntries = normalized.filter((entry) => entry.ref.kind === definition.manifestKind);
+  if (manifestEntries.length !== 1) {
     throw new Error(`故事项目必须且只能包含一个 Manifest，当前为 ${manifestEntries.length} 个。`);
-  const documents = entries
-    .filter((entry) => canonicalPath(entry.path) !== manifestPath)
+  }
+  const documents = normalized
+    .filter((entry) => entry.ref.kind !== definition.manifestKind)
     .map((entry) => {
-      const path = canonicalPath(entry.path);
-      const kind = StoryDefinition.kindForPath(definition, path);
-      if (kind === definition.manifestKind) throw new Error("Manifest 不得出现在普通文档集合中。");
-      const value = parseStoryDocument(definition, entry.value, path);
-      if (documentKind(value) !== kind) throw new Error(`${path} 的 kind 与故事类型不一致。`);
-      return { path, value };
+      const value = parseStoryDocument(definition, entry.value, entry.ref);
+      if (documentKind(value) !== entry.ref.kind) {
+        throw new Error(`${StoryDefinition.referenceKey(entry.ref)} 的 kind 与故事类型不一致。`);
+      }
+      return { ref: entry.ref, value };
     });
-  const paths = documents.map((entry) => entry.path);
-  if (new Set(paths).size !== paths.length) throw new Error("故事项目包含重复文件路径。");
+  const keys = documents.map((entry) => StoryDefinition.referenceKey(entry.ref));
+  if (new Set(keys).size !== keys.length) throw new Error("故事项目包含重复文档引用。");
   for (const document of definition.documents) {
-    const kind = document.kind;
-    if (kind === definition.manifestKind) continue;
-    const count = documents.filter((entry) => documentKind(entry.value) === kind).length;
+    if (document.kind === definition.manifestKind) continue;
+    const count = documents.filter((entry) => entry.ref.kind === document.kind).length;
     if (document.cardinality === "one" && count !== 1) {
-      throw new Error(`故事项目必须且只能包含一个 ${kind}，当前为 ${count} 个。`);
+      throw new Error(`故事项目必须且只能包含一个 ${document.kind}，当前为 ${count} 个。`);
     }
   }
+  const manifestEntry = manifestEntries[0]!;
   return {
-    manifest: parseStoryDocument(definition, manifestEntries[0]!.value, manifestPath),
-    documents: documents.sort((left, right) => left.path.localeCompare(right.path)),
+    manifest: parseStoryDocument(definition, manifestEntry.value, manifestEntry.ref),
+    documents: documents.sort((left, right) =>
+      StoryDefinition.referenceKey(left.ref).localeCompare(StoryDefinition.referenceKey(right.ref)),
+    ),
   };
 };

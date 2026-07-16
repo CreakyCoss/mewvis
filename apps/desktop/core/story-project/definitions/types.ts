@@ -4,10 +4,7 @@ import type { StoryDocumentDefinition, StoryObjectDefinition } from "./model/typ
 export const STORY_TYPE_DEFINITION_FORMAT = "novel-claw.story-type-definition";
 
 /** Story Type Definition 持久化结构的版本。 */
-export const STORY_TYPE_DEFINITION_FORMAT_VERSION = 1;
-
-/** 仅用于读取改名前已经持久化的 Story Project。 */
-export const STORY_TYPE_DEFINITION_LEGACY_FORMATS = ["novel-claw.story-project"] as const;
+export const STORY_TYPE_DEFINITION_FORMAT_VERSION = 2;
 
 export type StoryContextDefinition = Readonly<{
   name: string;
@@ -25,7 +22,6 @@ export type StoryTypeDefinition = Readonly<{
   version: number;
   label: string;
   description: string;
-  rootPath: string;
   manifestKind: string;
   primaryKind?: string;
   roles: Readonly<Record<string, string>>;

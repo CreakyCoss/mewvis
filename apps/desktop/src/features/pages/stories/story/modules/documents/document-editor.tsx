@@ -25,6 +25,7 @@ import type { StoryDocument, StoryValue } from "../../../../../../../core/story-
 import {
   inspectStoryDocument,
   storyDocumentData,
+  storyDocumentKey,
   storyDocumentLabel,
   type JsonFieldMetadata,
 } from "../../../story-document";
@@ -97,7 +98,8 @@ export const StoryDocumentEditor = ({
   const saveDocument = useStoryState((state) => state.saveDocument);
   const deleteDocument = useStoryState((state) => state.deleteDocument);
   const isSaving = useStoryState((state) => state.isSaving);
-  const isMarkdown = document.path.endsWith(".md");
+  const isMarkdown = document.definition?.contentFormat === "markdown";
+  const documentKey = storyDocumentKey(document);
   const sourceText = (value: StoryValue) => {
     if (isMarkdown) {
       const data = storyDocumentData({ ...document, value });
@@ -174,7 +176,7 @@ export const StoryDocumentEditor = ({
   };
 
   const remove = async () => {
-    if (await deleteDocument(document.path)) {
+    if (await deleteDocument(document.ref)) {
       setIsDeleteOpen(false);
       toast.success("故事资料已删除。 ");
     }
@@ -257,7 +259,7 @@ export const StoryDocumentEditor = ({
             <div className="px-5 pt-5 xl:px-7">
               <h2 className="text-lg font-semibold">{isMarkdown ? "Markdown 正文" : "JSON 源码"}</h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                高级编辑模式 · <span className="font-mono">{document.path}</span>
+                高级编辑模式 · <span className="font-mono">{documentKey}</span>
               </p>
             </div>
             <div className="flex min-h-0 flex-1 flex-col gap-2 p-5 xl:px-7">
@@ -319,7 +321,7 @@ export const StoryDocumentEditor = ({
           <AlertDialogHeader>
             <AlertDialogTitle>删除“{title}”？</AlertDialogTitle>
             <AlertDialogDescription>
-              将永久删除 {document.path}。编辑器不会自动修复其他文件中的引用。
+              将永久删除 {documentKey}。编辑器不会自动修复其他文档中的引用。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

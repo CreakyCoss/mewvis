@@ -1,25 +1,3 @@
-export const LONG_NOVEL_PATHS = {
-  "story-manifest": "story/manifest.json",
-  "story-book": "story/book.json",
-  "story-positioning": "story/positioning.json",
-  "story-style": "story/style.json",
-  "story-character": "story/characters/{id}.json",
-  "story-relationships": "story/relationships.json",
-  "story-world-entry": "story/world/{id}.json",
-  "story-book-arc": "story/outline/book-arc.json",
-  "story-volume": "story/outline/volumes/{id}.json",
-  "story-chapter-plan": "story/outline/chapters/{id}.json",
-  "story-chapter": "story/tracking/chapter-results/{id}.json",
-  "story-chapter-content": "story/chapters/{id}.md",
-  "story-character-state": "story/tracking/character-states/{characterId}.json",
-  "story-foreshadows": "story/tracking/foreshadows.json",
-  "story-timeline": "story/tracking/timeline/{id}.json",
-  "story-progress": "story/tracking/progress.json",
-  "story-analysis": "story/analysis/{id}.json",
-  "story-review": "story/reviews/{id}.json",
-  "story-import": "story/imports/{id}.json",
-} as const;
-
 export const LONG_NOVEL_ROLES = {
   manifest: "story-manifest",
   primary: "story-book",
@@ -113,11 +91,6 @@ export const LONG_NOVEL_RULES = {
     severity: "error",
     label: "引用存在",
     description: "reference 和 reference-list 必须指向已存在的目标",
-  },
-  "manifest.files": {
-    severity: "error",
-    label: "清单完整",
-    description: "manifest 文件索引必须与正式故事文件完全一致",
   },
   "manifest.title": {
     severity: "error",

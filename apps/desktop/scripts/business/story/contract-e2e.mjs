@@ -4,7 +4,9 @@ import { resolve } from "node:path";
 
 const root = process.cwd();
 const entry = resolve(root, "core/story-project/story-types/long-novel/index.ts");
+const fileLayoutEntry = resolve(root, "core/story-project/story-types/long-novel/file-layout.ts");
 const definitionEntry = resolve(root, "core/story-project/definitions/index.ts");
+const documentEngineEntry = resolve(root, "core/story-project/internal/engine/document.ts");
 const output = await build({
   entryPoints: [entry],
   bundle: true,
@@ -16,6 +18,17 @@ const output = await build({
 const { LONG_NOVEL_STORY_TYPE: storyType } = await import(
   `data:text/javascript;base64,${Buffer.from(output.outputFiles[0].text).toString("base64")}`
 );
+const fileLayoutOutput = await build({
+  entryPoints: [fileLayoutEntry],
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  target: "node22",
+  write: false,
+});
+const { LONG_NOVEL_FILE_LAYOUT: fileLayout } = await import(
+  `data:text/javascript;base64,${Buffer.from(fileLayoutOutput.outputFiles[0].text).toString("base64")}`
+);
 const definitionOutput = await build({
   entryPoints: [definitionEntry],
   bundle: true,
@@ -26,6 +39,17 @@ const definitionOutput = await build({
 });
 const { StoryDefinition } = await import(
   `data:text/javascript;base64,${Buffer.from(definitionOutput.outputFiles[0].text).toString("base64")}`
+);
+const documentEngineOutput = await build({
+  entryPoints: [documentEngineEntry],
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  target: "node22",
+  write: false,
+});
+const { parseStoryDocument } = await import(
+  `data:text/javascript;base64,${Buffer.from(documentEngineOutput.outputFiles[0].text).toString("base64")}`
 );
 
 const expectedPaths = {
@@ -51,20 +75,15 @@ const expectedPaths = {
 };
 
 assert.equal(StoryDefinition.format, "novel-claw.story-type-definition");
-assert.equal(StoryDefinition.formatVersion, 1);
+assert.equal(StoryDefinition.formatVersion, 2);
 assert.equal(storyType.$format, StoryDefinition.format);
 assert.equal(storyType.formatVersion, StoryDefinition.formatVersion);
-const legacyStoryType = structuredClone(storyType);
-legacyStoryType.$format = "novel-claw.story-project";
-assert.equal(StoryDefinition.parse(legacyStoryType).$format, StoryDefinition.format);
 assert.equal(storyType.id, "long-novel");
-assert.equal(storyType.version, 3);
-assert.equal(storyType.rootPath, "story");
-assert.deepEqual(
-  Object.fromEntries(storyType.documents.map((document) => [document.kind, document.pathPattern])),
-  expectedPaths,
-  "故事类型应在一个定义中组合文档结构与实际路径",
-);
+assert.equal(storyType.version, 4);
+assert.ok(!("rootPath" in storyType));
+assert.ok(storyType.documents.every((document) => !("pathPattern" in document)));
+assert.deepEqual(fileLayout.documentPaths, expectedPaths, "文件路径映射应由 File Storage Layout 独立配置");
+assert.deepEqual(fileLayout.managedRoots, ["story"]);
 assert.equal(storyType.roles.manifest, storyType.manifestKind);
 assert.equal(storyType.roles.primary, storyType.primaryKind);
 const primaryDocument = storyType.documents.find((document) => document.kind === storyType.roles.primary);
@@ -97,15 +116,21 @@ for (const context of storyType.contexts) {
 }
 for (const document of storyType.documents) {
   assert.ok(["one", "many"].includes(document.cardinality));
-  assert.ok(["json", "markdown"].includes(document.contentType));
+  assert.ok(["structured", "markdown"].includes(document.contentFormat));
+  assert.equal(document.identityFields.length > 0, document.cardinality === "many");
   assert.ok(
     document.fields.every((field) => field.key && field.label && field.type),
     `${document.kind} 字段定义不完整`,
   );
 }
 const chapterContent = storyType.documents.find((document) => document.kind === storyType.roles.chapterContent);
-assert.equal(chapterContent.contentType, "markdown");
+assert.equal(chapterContent.contentFormat, "markdown");
 assert.deepEqual(chapterContent.companionKinds, [storyType.roles.chapterResult]);
+assert.deepEqual(
+  parseStoryDocument(storyType, "# 第一章", { kind: chapterContent.kind, identity: { id: "chapter-1" } }),
+  { kind: chapterContent.kind, id: "chapter-1", content: "# 第一章" },
+  "Markdown 文档应由逻辑引用提供身份，不依赖文件路径",
+);
 assert.ok(
   storyType.objects.find((object) => object.id === "foreshadow")?.fields.some((field) => field.key === "resolution"),
 );
@@ -113,6 +138,11 @@ assert.deepEqual(Object.keys(storyType.validationModes), ["draft", "openBook", "
 const brokenType = structuredClone(storyType);
 brokenType.roles.primary = "story-book-typo";
 assert.throws(() => StoryDefinition.define(brokenType), /未知文档/, "故事类型组合时应立即拒绝拼错的语义角色");
+const mutableIdentityType = structuredClone(storyType);
+mutableIdentityType.documents
+  .find((document) => document.kind === "story-character")
+  .fields.find((field) => field.key === "id").immutable = false;
+assert.throws(() => StoryDefinition.define(mutableIdentityType), /required 且 immutable/, "文档身份字段必须保持不可变");
 console.log(
   `[story-contract] ok (${storyType.documents.length} documents, ${storyType.objects.length} object definitions)`,
 );

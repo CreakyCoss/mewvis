@@ -41,6 +41,11 @@ export type StoryValidationResult = Readonly<{
   issues: StoryValidationIssue[];
 }>;
 
+export type StoryDocumentRef = Readonly<{
+  kind: string;
+  identity: Readonly<Record<string, string>>;
+}>;
+
 export type StoryContextBundle = Readonly<{
   scope: "project" | "chapter";
   revision: number;
@@ -52,15 +57,15 @@ export type StoryContextBundle = Readonly<{
     priority: number;
     required: boolean;
     content: string;
-    sources: readonly Readonly<{ kind: string; label: string; path: string; id?: string }>[];
+    sources: readonly Readonly<{ kind: string; label: string; ref: StoryDocumentRef; id?: string }>[];
   }>[];
-  sources: readonly Readonly<{ kind: string; label: string; path: string; id?: string }>[];
+  sources: readonly Readonly<{ kind: string; label: string; ref: StoryDocumentRef; id?: string }>[];
 }>;
 
 /** Story 内置能力自身使用的稳定身份，不属于具体工作区故事类型。 */
 export const STORY_BUILTIN_IDENTIFIERS = Object.freeze({
   /** 技能依赖的 Story Tool Contract；实现可以替换，但必须满足这组方法。 */
-  toolContract: Object.freeze({ id: "novel-claw.story-project-tool", version: 1 }),
+  toolContract: Object.freeze({ id: "novel-claw.story-project-tool", version: 2 }),
   /** agent-runtime 创建的默认 Story Tool 实现包身份。 */
   toolPackage: Object.freeze({ id: "novel-claw.story" }),
 });
@@ -83,7 +88,6 @@ export type StoryStructureDescription = Readonly<{
     version: number;
     label: string;
     description: string;
-    rootPath: string;
     manifestKind: string;
     primaryKind?: string;
   }>;
@@ -94,9 +98,9 @@ export type StoryStructureDescription = Readonly<{
       Readonly<{
         label: string;
         description?: string;
-        contentType: "json" | "markdown";
-        pathPattern: string;
+        contentFormat: "structured" | "markdown";
         cardinality: "one" | "many";
+        identityFields: readonly string[];
       }>
     >
   >;
@@ -119,9 +123,9 @@ export type StoryStructureDescription = Readonly<{
         Readonly<{
           label: string;
           description?: string;
-          contentType: "json" | "markdown";
-          pathPattern: string;
+          contentFormat: "structured" | "markdown";
           cardinality: "one" | "many";
+          identityFields: readonly string[];
           fields: Readonly<Record<string, StoryFieldDescription>>;
         }>
       >
@@ -144,15 +148,15 @@ export type StoryInitializeRequest = {
   storyId: string;
   title: string;
   storyTypeId?: string;
-  replaceExistingJson?: boolean;
+  replaceExisting?: boolean;
 };
 
 export type StoryInitializeResult = {
   initialized: boolean;
   alreadyInitialized: boolean;
   revision: number | null;
-  manifestPath: string | null;
-  existingJsonPaths: string[];
+  manifestRef: StoryDocumentRef | null;
+  existingEntryCount: number;
   issues: StoryValidationIssue[];
   hint: string | null;
 };
@@ -173,7 +177,7 @@ export type StoryValidateChangesResult = {
   issues: StoryValidationIssue[];
   batch: unknown | null;
   operationTypes: string[];
-  changedPaths: string[];
+  changedDocuments: StoryDocumentRef[];
 };
 
 export type StoryCommitChangesResult = {
@@ -182,7 +186,7 @@ export type StoryCommitChangesResult = {
   revision: number | null;
   batch: unknown | null;
   operationTypes: string[];
-  changedPaths: string[];
+  changedDocuments: StoryDocumentRef[];
   validation: StoryValidationResult | null;
   issues: StoryValidationIssue[];
   hint: string | null;

@@ -39,7 +39,7 @@ export const STORY_ENTITY_FIELDS = defineFields([
   field.integer("schemaVersion", "结构版本", { required: true, readOnly: true, const: 1 }),
   field.text("kind", "文档类型", { required: true, readOnly: true }),
   field.id("id", "文档 ID", {
-    description: "跨文件引用使用的稳定身份，创建后不可修改",
+    description: "跨文档引用使用的稳定身份，创建后不可修改",
     required: true,
     immutable: true,
   }),

@@ -1,3 +1,5 @@
+import type { StoryDocumentRef as DefinitionStoryDocumentRef } from "./definitions/model/types.js";
+
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
 export type JsonObject = { [key: string]: JsonValue };
@@ -37,11 +39,12 @@ export type StoryDocumentDefinition = Readonly<{
   fields: Readonly<Record<string, JsonFieldMetadata>>;
   kind: string;
   label: string;
+  contentFormat: "structured" | "markdown";
 }>;
 
 export type StoryDocument = Readonly<{
   definition?: StoryDocumentDefinition;
-  path: string;
+  ref: StoryDocumentRef;
   value: StoryValue;
   updatedAt: number | null;
 }>;
@@ -61,7 +64,7 @@ export type StoryValidationResult = Readonly<{
 export type StoryContextSource = Readonly<{
   kind: string;
   label: string;
-  path: string;
+  ref: StoryDocumentRef;
   id?: string;
 }>;
 
@@ -85,10 +88,10 @@ export type StoryContext = Readonly<{
 
 export type StoryProjectState = Readonly<{
   manifest: Readonly<Record<string, unknown>>;
-  documents: readonly StoryProjectFileEntry[];
+  documents: readonly StoryProjectDocumentEntry[];
 }>;
 
-export type StoryProjectFileEntry = Readonly<{ path: string; value: unknown }>;
+export type StoryProjectDocumentEntry = Readonly<{ ref: StoryDocumentRef; value: unknown }>;
 
 export type StoryProjectAppliedChanges = Readonly<{
   project: StoryProjectState;
@@ -96,7 +99,7 @@ export type StoryProjectAppliedChanges = Readonly<{
   validation: StoryValidationResult;
   batch: unknown | null;
   operationTypes: string[];
-  changedPaths: string[];
+  changedDocuments: StoryDocumentRef[];
 }>;
 
 export type StoryChangeSetDescription = Readonly<{
@@ -113,7 +116,6 @@ export type StoryProjectStructure = Readonly<{
     version: number;
     label: string;
     description: string;
-    rootPath: string;
     manifestKind: string;
     primaryKind?: string;
   }>;
@@ -124,9 +126,9 @@ export type StoryProjectStructure = Readonly<{
       Readonly<{
         label: string;
         description?: string;
-        contentType: "json" | "markdown";
-        pathPattern: string;
+        contentFormat: "structured" | "markdown";
         cardinality: "one" | "many";
+        identityFields: readonly string[];
       }>
     >
   >;
@@ -149,9 +151,9 @@ export type StoryProjectStructure = Readonly<{
         Readonly<{
           label: string;
           description?: string;
-          contentType: "json" | "markdown";
-          pathPattern: string;
+          contentFormat: "structured" | "markdown";
           cardinality: "one" | "many";
+          identityFields: readonly string[];
           fields: Readonly<Record<string, JsonFieldMetadata>>;
         }>
       >
@@ -178,8 +180,8 @@ export type StoryInitialization = Readonly<{
   initialized: boolean;
   alreadyInitialized: boolean;
   revision: number | null;
-  manifestPath: string | null;
-  existingJsonPaths: string[];
+  manifestRef: StoryDocumentRef | null;
+  existingEntryCount: number;
   issues: StoryValidationIssue[];
   hint: string | null;
 }>;
@@ -190,7 +192,7 @@ export type StoryChangeValidation = Readonly<{
   issues: StoryValidationIssue[];
   batch: unknown | null;
   operationTypes: string[];
-  changedPaths: string[];
+  changedDocuments: StoryDocumentRef[];
 }>;
 
 export type StoryChangeResult = Readonly<{
@@ -199,8 +201,10 @@ export type StoryChangeResult = Readonly<{
   revision: number | null;
   batch: unknown | null;
   operationTypes: string[];
-  changedPaths: string[];
+  changedDocuments: StoryDocumentRef[];
   validation: StoryValidationResult | null;
   issues: StoryValidationIssue[];
   hint: string | null;
 }>;
+
+export type StoryDocumentRef = DefinitionStoryDocumentRef;

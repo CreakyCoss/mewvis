@@ -1,4 +1,5 @@
-import type { StoryDocument, StoryValue } from "../../../../core/story-project/types";
+import { storyDocumentRefKey } from "../../../../core/story-project";
+import type { StoryDocument, StoryDocumentRef, StoryValue } from "../../../../core/story-project/types";
 
 export type JsonObject = { [key: string]: StoryValue };
 type StoryDocumentDefinition = NonNullable<StoryDocument["definition"]>;
@@ -11,8 +12,10 @@ export type EditableStoryDocument = Readonly<{
   fields: Readonly<Record<string, JsonFieldMetadata>>;
   kind: string;
   label: string;
-  path: string;
+  ref: StoryDocumentRef;
 }>;
+
+export const storyDocumentKey = (document: Pick<StoryDocument, "ref">) => storyDocumentRefKey(document.ref);
 
 export const isJsonObject = (value: unknown): value is JsonObject =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -25,11 +28,10 @@ export const inspectStoryDocument = (document: StoryDocument): EditableStoryDocu
         fields: document.definition.fields,
         kind: document.definition.kind,
         label: document.definition.label,
-        path: document.path,
+        ref: document.ref,
       }
     : null;
 
 export const storyDocumentData = (document: StoryDocument) => (isJsonObject(document.value) ? document.value : null);
 
-export const storyDocumentLabel = (document: StoryDocument) =>
-  document.definition?.label ?? document.path.split("/").at(-1) ?? document.path;
+export const storyDocumentLabel = (document: StoryDocument) => document.definition?.label ?? storyDocumentKey(document);

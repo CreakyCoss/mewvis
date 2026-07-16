@@ -1,6 +1,6 @@
 import type { StoryProjectState, StoryValidationIssue, StoryValidationResult } from "../../types.js";
 import { storyValidationIssue } from "./issues.js";
-import { manifestFiles, projectInfo } from "./project.js";
+import { projectInfo } from "./project.js";
 import { StoryDefinition } from "../../definitions/index.js";
 import type { StoryFieldDefinition } from "../../definitions/model/types.js";
 import type { StoryTypeDefinition } from "../../definitions/types.js";
@@ -14,8 +14,6 @@ const documentId = (value: unknown) => {
   if (!isObject(value)) return "";
   return typeof value.id === "string" ? value.id : typeof value.storyId === "string" ? value.storyId : "";
 };
-
-const documentKind = (value: unknown) => (isObject(value) && typeof value.kind === "string" ? value.kind : "");
 
 const walkFields = (
   definition: StoryTypeDefinition,
@@ -72,8 +70,9 @@ const definitionIds = (project: StoryProjectState, definition: StoryTypeDefiniti
     }
   };
   for (const entry of project.documents) {
-    const kind = documentKind(entry.value);
-    if (isObject(entry.value)) visit(StoryDefinition.fields(definition, kind), entry.value, entry.path);
+    if (isObject(entry.value)) {
+      visit(StoryDefinition.fields(definition, entry.ref.kind), entry.value, StoryDefinition.referenceKey(entry.ref));
+    }
   }
   return result;
 };
@@ -86,39 +85,29 @@ export const validateProject = (
   if (!definition.validationModes[validationMode]) throw new Error(`故事类型不支持校验模式：${validationMode}`);
   const issues: StoryValidationIssue[] = [];
   const info = projectInfo(project);
-  const declared = manifestFiles(project.manifest);
-  const actual = project.documents.map(({ path, value }) => ({
-    path,
-    kind: documentKind(value),
-    id: documentId(value),
-  }));
-  if (new Set(actual.map((item) => item.path)).size !== actual.length)
-    issues.push(storyValidationIssue("identity.duplicate", "project", "文件路径重复。"));
-  for (const entry of actual) {
-    if (!declared.some((item) => item.path === entry.path && item.kind === entry.kind && item.id === entry.id)) {
-      issues.push(storyValidationIssue("manifest.file_missing", "manifest.files", `Manifest 缺少文件：${entry.path}`));
-    }
-  }
-  for (const entry of declared) {
-    if (!actual.some((item) => item.path === entry.path && item.kind === entry.kind && item.id === entry.id)) {
-      issues.push(
-        storyValidationIssue("manifest.file_stale", "manifest.files", `Manifest 包含不存在的文件：${entry.path}`),
-      );
-    }
+  const documentKeys = project.documents.map((entry) => StoryDefinition.referenceKey(entry.ref));
+  if (new Set(documentKeys).size !== documentKeys.length) {
+    issues.push(storyValidationIssue("identity.duplicate", "project", "文档引用重复。"));
   }
   const idsByKind = new Map<string, Set<string>>();
   for (const entry of project.documents) {
-    const kind = documentKind(entry.value);
+    const kind = entry.ref.kind;
     const id = documentId(entry.value);
     const ids = idsByKind.get(kind) ?? new Set<string>();
     if (id && ids.has(id))
-      issues.push(storyValidationIssue("identity.duplicate", entry.path, `${kind} 的 ID「${id}」重复。`));
+      issues.push(
+        storyValidationIssue(
+          "identity.duplicate",
+          StoryDefinition.referenceKey(entry.ref),
+          `${kind} 的 ID「${id}」重复。`,
+        ),
+      );
     if (id) ids.add(id);
     idsByKind.set(kind, ids);
   }
   const idsByDefinition = definitionIds(project, definition, issues);
   for (const entry of project.documents) {
-    const kind = documentKind(entry.value);
+    const kind = entry.ref.kind;
     if (!isObject(entry.value)) continue;
     walkFields(
       definition,
@@ -151,13 +140,17 @@ export const validateProject = (
           }
         }
       },
-      entry.path,
+      StoryDefinition.referenceKey(entry.ref),
     );
     for (const companionKind of StoryDefinition.document(definition, kind).companionKinds ?? []) {
       const id = documentId(entry.value);
       if (id && !idsByKind.get(companionKind)?.has(id)) {
         issues.push(
-          storyValidationIssue("companion.missing", entry.path, `${kind}「${id}」缺少配套文档 ${companionKind}。`),
+          storyValidationIssue(
+            "companion.missing",
+            StoryDefinition.referenceKey(entry.ref),
+            `${kind}「${id}」缺少配套文档 ${companionKind}。`,
+          ),
         );
       }
     }

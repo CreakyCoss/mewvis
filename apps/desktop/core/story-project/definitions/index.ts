@@ -1,14 +1,19 @@
 import { defineStoryType, parseStoryTypeDefinition } from "./internal/parser.js";
 import {
-  resolveStoryTypePath,
   storyTypeContext,
   storyTypeDocument,
   storyTypeFields,
-  storyTypeKindForPath,
   storyTypeObject,
   storyTypeObjectFields,
+  storyTypeReference,
+  storyTypeReferenceKey,
 } from "./internal/resolver.js";
-import type { StoryDocumentDefinition, StoryFieldDefinition, StoryObjectDefinition } from "./model/types.js";
+import type {
+  StoryDocumentDefinition,
+  StoryDocumentRef,
+  StoryFieldDefinition,
+  StoryObjectDefinition,
+} from "./model/types.js";
 import {
   STORY_TYPE_DEFINITION_FORMAT,
   STORY_TYPE_DEFINITION_FORMAT_VERSION,
@@ -26,8 +31,12 @@ export interface StoryDefinitionApi {
   object(definition: StoryTypeDefinition, id: string): StoryObjectDefinition;
   objectFields(definition: StoryTypeDefinition, id: string): Readonly<Record<string, StoryFieldDefinition>>;
   fields(definition: StoryTypeDefinition, kind: string): Readonly<Record<string, StoryFieldDefinition>>;
-  kindForPath(definition: StoryTypeDefinition, path: string): string;
-  resolvePath(definition: StoryTypeDefinition, kind: string, parameters?: Readonly<Record<string, string>>): string;
+  reference(
+    definition: StoryTypeDefinition,
+    kind: string,
+    identity?: Readonly<Record<string, string>>,
+  ): StoryDocumentRef;
+  referenceKey(ref: StoryDocumentRef): string;
   context(definition: StoryTypeDefinition, scope: "project" | "chapter"): StoryContextDefinition;
 }
 
@@ -40,7 +49,7 @@ export const StoryDefinition: StoryDefinitionApi = Object.freeze({
   object: storyTypeObject,
   objectFields: storyTypeObjectFields,
   fields: storyTypeFields,
-  kindForPath: storyTypeKindForPath,
-  resolvePath: resolveStoryTypePath,
+  reference: storyTypeReference,
+  referenceKey: storyTypeReferenceKey,
   context: storyTypeContext,
 });

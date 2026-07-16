@@ -1,13 +1,19 @@
 import { toast } from "sonner";
 import { create } from "zustand";
-import type { StoryDocument, StoryOverview, StoryValue } from "../../../../../core/story-project/types";
+import type {
+  StoryDocument,
+  StoryDocumentRef,
+  StoryOverview,
+  StoryValue,
+} from "../../../../../core/story-project/types";
 import { storyProjectApi } from "../project-client";
 import { loadStoryById, updateStoryRecordName, type StoryLibraryItem, type StoryWorkspace } from "../storage";
+import { storyDocumentKey } from "../story-document";
 
 type StoryStore = {
   closeStory: () => void;
-  createDocument: (path: string, value: StoryValue) => Promise<StoryDocument | null>;
-  deleteDocument: (path: string) => Promise<boolean>;
+  createDocument: (ref: StoryDocumentRef, value: StoryValue) => Promise<StoryDocument | null>;
+  deleteDocument: (ref: StoryDocumentRef) => Promise<boolean>;
   documents: StoryDocument[];
   getChatWorkspacePath: (chatWorkspaceId: string) => string;
   isSaving: boolean;
@@ -19,8 +25,8 @@ type StoryStore = {
 };
 
 const replaceDocument = (documents: StoryDocument[], document: StoryDocument) =>
-  [...documents.filter((item) => item.path !== document.path), document].sort((left, right) =>
-    left.path.localeCompare(right.path),
+  [...documents.filter((item) => storyDocumentKey(item) !== storyDocumentKey(document)), document].sort((left, right) =>
+    storyDocumentKey(left).localeCompare(storyDocumentKey(right)),
   );
 
 export const useStoryState = create<StoryStore>((set, get) => ({
@@ -75,22 +81,23 @@ export const useStoryState = create<StoryStore>((set, get) => ({
     }
   },
 
-  createDocument: async (path, value) => {
-    if (get().documents.some((document) => document.path === path)) {
-      toast.error("同路径 JSON 文件已经存在。");
+  createDocument: async (ref, value) => {
+    if (get().documents.some((document) => storyDocumentKey(document) === storyDocumentKey({ ref }))) {
+      toast.error("相同引用的故事文档已经存在。");
       return null;
     }
-    return get().saveDocument({ path, value, updatedAt: null });
+    return get().saveDocument({ ref, value, updatedAt: null });
   },
 
-  deleteDocument: async (path) => {
+  deleteDocument: async (ref) => {
     const { documents, overview, storyWorkspace } = get();
     if (!overview || !storyWorkspace) return false;
     set({ isSaving: true });
     try {
       const project = await storyProjectApi.open(storyWorkspace.path);
-      await project.removeDocument(path);
-      const nextDocuments = documents.filter((document) => document.path !== path);
+      await project.removeDocument(ref);
+      const key = storyDocumentKey({ ref });
+      const nextDocuments = documents.filter((document) => storyDocumentKey(document) !== key);
       set({ documents: nextDocuments, overview: await project.overview() });
       return true;
     } catch (error) {

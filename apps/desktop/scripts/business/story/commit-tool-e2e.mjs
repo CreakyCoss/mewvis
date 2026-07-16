@@ -28,12 +28,12 @@ writeFileSync(
   await mkdir(workspace, { recursive: true });
   const tool = createStoryToolPackage(createNodeStoryToolRepository(workspace));
 
-  assert(STORY_TOOL.contract.version === 1, "Story Tool Contract 版本不应变化。");
+  assert(STORY_TOOL.contract.version === 2, "Story Tool Contract 应使用文档引用协议版本。");
   assert(STORY_TOOL.parameters.properties.changeSet.properties.storyTypeVersion.type === "integer", "工具参数应公开 storyTypeVersion。", STORY_TOOL.parameters);
   assert(!("profileVersion" in STORY_TOOL.parameters.properties.changeSet.properties), "工具参数不得再泄露 Profile。", STORY_TOOL.parameters);
   const operationParameters = STORY_TOOL.parameters.properties.changeSet.properties.operations.items;
   assert(operationParameters.type === "object", "operation 模型参数必须使用扁平对象，避免 array.items.anyOf 兼容问题。", operationParameters);
-  assert(operationParameters.properties.type.type === "string" && operationParameters.properties.path.type === "string", "扁平 operation 必须要求 type/path。", operationParameters);
+  assert(operationParameters.properties.type.type === "string" && operationParameters.properties.ref.type === "object", "扁平 operation 必须要求 type/ref。", operationParameters);
   assert(operationParameters.properties.value.optional && operationParameters.properties.items.optional, "不同 operation 的专属字段应保持可选，由 Story Project 严格校验。", operationParameters);
   const piOperationParameters = toPiToolParameters(STORY_TOOL.parameters).properties.changeSet.properties.operations.items;
   assert(!("anyOf" in piOperationParameters), "发送给模型的 operation schema 不得重新生成 anyOf。", piOperationParameters);
@@ -61,7 +61,7 @@ writeFileSync(
       storyId: "story-tool",
       baseRevision: context.revision,
       validationMode: "draft",
-      operations: [{ type: "patch", path: "story/book.json" }],
+      operations: [{ type: "patch", ref: { kind: "story-book", identity: {} } }],
     },
   });
   assert(!malformed.valid, "模型 schema 扁平化后，Story Project 仍必须拒绝缺少 operation 专属字段的变更。", malformed);
@@ -73,7 +73,7 @@ writeFileSync(
       baseRevision: String(context.revision),
       validationMode: "draft",
       batch: { workflowId: "open-book", index: "1", label: "核心设定", final: "false" },
-      operations: { item: { type: "patch", path: "story/book.json", value: { premise: "潮汐掩盖了真相。" } } },
+      operations: { item: { type: "patch", ref: { kind: "story-book", identity: {} }, value: { premise: "潮汐掩盖了真相。" } } },
     },
   });
   assert(committed.committed && committed.revision === 1, "工具应兼容无歧义的字符串数字、布尔值与单层数组信封。", committed);
@@ -87,7 +87,7 @@ writeFileSync(
       storyId: "story-tool",
       baseRevision: 1,
       validationMode: "draft",
-      operations: [{ type: "patch", path: "story/book.json", value: { unknownField: "拒绝" } }],
+      operations: [{ type: "patch", ref: { kind: "story-book", identity: {} }, value: { unknownField: "拒绝" } }],
     },
   });
   assert(!invalid.committed && invalid.issues.some((issue) => issue.message.includes("unknownField")), "未声明字段必须在写盘前拒绝。", invalid);
@@ -101,7 +101,7 @@ writeFileSync(
       storyId: "story-tool",
       baseRevision: 1,
       validationMode: "draft",
-      operations: [{ type: "patch", path: "story/book.json", value: { premise: "不应接受" } }],
+      operations: [{ type: "patch", ref: { kind: "story-book", identity: {} }, value: { premise: "不应接受" } }],
     },
   });
   assert(!mismatch.valid && mismatch.issues[0]?.message.includes("故事类型"), "故事类型版本不匹配必须拒绝。", mismatch);
@@ -114,7 +114,7 @@ writeFileSync(
   const replaced = await replacementTool.api.initialize({
     storyId: "replacement",
     title: "替换后的故事",
-    replaceExistingJson: true,
+    replaceExisting: true,
   });
   assert(replaced.initialized, "明确允许后应替换未受管理的旧故事文件。", replaced);
   const replacedBook = JSON.parse(await readFile(replacementWorkspace + "/story/book.json", "utf8"));

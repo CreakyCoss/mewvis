@@ -54,6 +54,7 @@ for (const removed of [
   "storage/file.ts",
   "storage/memory.ts",
   "storage/core",
+  "storage/adapters/registry.ts",
   "definitions/assistant.ts",
   "definitions/core.ts",
   "definitions/definition.ts",
@@ -63,6 +64,7 @@ for (const removed of [
   "definitions/outline.ts",
   "definitions/parser.ts",
   "definitions/path.ts",
+  "definitions/internal/path.ts",
   "definitions/people.ts",
   "definitions/resolver.ts",
   "definitions/tracking.ts",
@@ -73,6 +75,8 @@ for (const removed of [
 const publicIndex = readFileSync(resolve(coreRoot, "index.ts"), "utf8");
 if (
   !publicIndex.includes("createStoryProjectApi") ||
+  !publicIndex.includes("BUILTIN_STORY_FILE_LAYOUT") ||
+  !publicIndex.includes("storyDocumentRefKey") ||
   !publicIndex.includes("StoryProjectApi") ||
   !publicIndex.includes("listStoryTypes()") ||
   !publicIndex.includes("workspace(projectKey") ||
@@ -121,12 +125,22 @@ if (
 }
 if (
   !definitionTypes.includes('STORY_TYPE_DEFINITION_FORMAT = "novel-claw.story-type-definition"') ||
-  !definitionTypes.includes("STORY_TYPE_DEFINITION_FORMAT_VERSION = 1") ||
-  !definitionTypes.includes('STORY_TYPE_DEFINITION_LEGACY_FORMATS = ["novel-claw.story-project"]') ||
+  !definitionTypes.includes("STORY_TYPE_DEFINITION_FORMAT_VERSION = 2") ||
   !definitionFacade.includes("format: STORY_TYPE_DEFINITION_FORMAT") ||
   !definitionFacade.includes("formatVersion: STORY_TYPE_DEFINITION_FORMAT_VERSION")
 ) {
   throw new Error("Story Type Definition 的持久化格式必须集中定义，并由 Definitions Facade 暴露。");
+}
+const definitionSources = tsFiles(definitionsRoot).map((path) => readFileSync(path, "utf8"));
+if (
+  definitionSources.some(
+    (source) =>
+      source.includes("contentType") ||
+      /JSON\.(?:parse|stringify)/.test(source) ||
+      /\b(?:rootPath|pathPattern|kindForPath|resolvePath)\b/.test(source),
+  )
+) {
+  throw new Error("Definitions 只能声明领域结构和文档身份，不得依赖存储格式、路径布局或 JSON 编解码。");
 }
 const duplicatedDefinitionFormatLiterals = tsFiles(coreRoot).filter(
   (path) =>
@@ -142,7 +156,7 @@ if (duplicatedDefinitionFormatLiterals.length > 0) {
 }
 const invalidDefinitionImplementationImports = tsFiles(coreRoot).filter((path) => {
   if (path.startsWith(`${definitionsRoot}/`)) return false;
-  return /definitions\/internal\/(?:parser|resolver|path)\.js/.test(readFileSync(path, "utf8"));
+  return /definitions\/internal\/(?:parser|resolver)\.js/.test(readFileSync(path, "utf8"));
 });
 if (invalidDefinitionImplementationImports.length > 0) {
   throw new Error(
@@ -165,6 +179,8 @@ if (
   !documentModelTypes.includes("StoryFieldDefinition") ||
   !documentModelTypes.includes("StoryObjectDefinition") ||
   !documentModelTypes.includes("StoryDocumentDefinition") ||
+  !documentModelTypes.includes("StoryDocumentRef") ||
+  !documentModelTypes.includes("identityFields") ||
   !documentModelTypes.includes("StoryDocumentModelDefinition")
 ) {
   throw new Error("Story Document 的模型基础必须位于 definitions/model，具体实现必须位于 definitions/documents。");
@@ -209,7 +225,6 @@ if (invalidEngineImports.length || invalidProjectionImports.length) {
 const storageContract = readFileSync(resolve(storageRoot, "index.ts"), "utf8");
 const storageTypes = readFileSync(resolve(storageRoot, "types.ts"), "utf8");
 const backendContract = readFileSync(resolve(storageAdaptersRoot, "record.ts"), "utf8");
-const storageRegistry = readFileSync(resolve(storageAdaptersRoot, "registry.ts"), "utf8");
 const fileStorage = readFileSync(resolve(storageAdaptersRoot, "file/index.ts"), "utf8");
 const memoryStorage = readFileSync(resolve(storageAdaptersRoot, "memory/index.ts"), "utf8");
 if (
@@ -228,32 +243,34 @@ if (
 }
 if (
   !storageContract.includes("interface StoryProjectStorage") ||
-  !storageContract.includes("normalizeDocumentPath(path") ||
   !storageContract.includes("loadDefinition(projectKey") ||
   !storageContract.includes("loadProject(projectKey") ||
+  !storageContract.includes("ref: StoryDocumentRef") ||
   !storageContract.includes("initializeProject(") ||
   !storageContract.includes("persistAppliedProject(") ||
-  !storageContract.includes('PROJECT_CONFIG_PATH = "story/.novel-claw/project.json"') ||
-  !storageContract.includes("createStoryProjectRecordBackend(options)") ||
+  !storageContract.includes("createStoryFileRecordBackend(options)") ||
+  !storageContract.includes("createMemoryStoryProjectRecordBackend()") ||
+  storageContract.includes("normalizeDocumentPath") ||
+  storageContract.includes("PROJECT_CONFIG_PATH") ||
   storageContract.includes("writeAtomic(") ||
   storageContract.includes("JSON.parse(") ||
   !storageTypes.includes('kind: "file"') ||
   !storageTypes.includes('kind: "memory"') ||
   !backendContract.includes("interface StoryProjectRecordBackend") ||
+  !backendContract.includes("documentKey(ref") ||
+  !backendContract.includes("documentRef(key") ||
   !backendContract.includes("list(projectKey") ||
   !backendContract.includes("read(projectKey") ||
   !backendContract.includes("readOptional(projectKey") ||
   !backendContract.includes("commit(projectKey") ||
-  !storageRegistry.includes("StoryProjectStorageAdapter") ||
-  !storageRegistry.includes("fileStoryProjectStorageAdapter") ||
-  !storageRegistry.includes("memoryStoryProjectStorageAdapter") ||
-  !storageRegistry.includes("switch (options.kind)") ||
-  !fileStorage.includes('id: "file"') ||
+  fileStorage.includes("StoryProjectStorageAdapter") ||
+  memoryStorage.includes("StoryProjectStorageAdapter") ||
+  !fileStorage.includes("createStoryFileRecordBackend") ||
   !fileStorage.includes("writeAtomic(") ||
-  !memoryStorage.includes('id: "memory"') ||
+  !memoryStorage.includes("createMemoryStoryProjectRecordBackend") ||
   storageAdaptersSource.includes("createStoryProjectStorage =")
 ) {
-  throw new Error("Story Storage 必须由公共 Facade 通过 Registry 分发具体 Adapter，且不得使用 barrel 入口隐藏依赖。");
+  throw new Error("Story Storage 必须由公共 Facade 直接分发具体 Adapter，不得引入 Registry 或 barrel 隐藏依赖。");
 }
 
 const protocol = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/protocol.ts"), "utf8");
@@ -274,6 +291,7 @@ if (
   !repository.includes('from "../../../../../../core/story-project/index.js"') ||
   !repository.includes('from "../../../../../../core/story-project/storage/index.js"') ||
   !repository.includes('from "../../../../../../core/story-project/storage/adapters/file/index.js"') ||
+  repository.includes("core/story-project/story-types") ||
   !repository.includes("interface StoryToolRepository") ||
   !repository.includes("createStoryProjectStorage") ||
   !repository.includes("withWorkspaceWriteLock") ||
@@ -283,6 +301,10 @@ if (
 }
 
 const skillRoot = resolve(root, "agent-runtime/src/engines/builtins/story/skills");
+const incrementalChangeSetGuide = readFileSync(
+  resolve(skillRoot, "story-assistant/references/incremental-changesets.md"),
+  "utf8",
+);
 const skillText = collect(skillRoot)
   .filter((path) => /\.(?:md|json)$/.test(path))
   .map((path) => readFileSync(path, "utf8"))
@@ -291,6 +313,9 @@ if (
   !skillText.includes("structure.roles[role]") ||
   !skillText.includes("storyTypeId") ||
   !skillText.includes("validationMode") ||
+  !incrementalChangeSetGuide.includes('"ref":') ||
+  incrementalChangeSetGuide.includes('"path":') ||
+  incrementalChangeSetGuide.includes("实际路径") ||
   /profileId|profileVersion|validationProfile|structure\.profile/.test(skillText)
 ) {
   throw new Error("Story Skill 必须只消费 Story Tool 的故事类型、语义角色和稳定 ChangeSet 字段。");

@@ -1,4 +1,3 @@
-import { StoryDefinition } from "../../definitions/index.js";
 import type { StoryTypeDefinition } from "../../definitions/types.js";
 import type { StoryOverview, StoryProjectState } from "../../types.js";
 import { projectInfo } from "../engine/project.js";
@@ -17,9 +16,7 @@ export const projectOverview = (project: StoryProjectState, definition: StoryTyp
   const valuesForRole = (role: string) => {
     const kind = definition.roles[role];
     return kind
-      ? documents.flatMap((entry) =>
-          StoryDefinition.kindForPath(definition, entry.path) === kind && isObject(entry.value) ? [entry.value] : [],
-        )
+      ? documents.flatMap((entry) => (entry.ref.kind === kind && isObject(entry.value) ? [entry.value] : []))
       : [];
   };
   const primary = valuesForRole("primary")[0] ?? {};

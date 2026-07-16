@@ -74,19 +74,19 @@ metadata:
 
 - severity：S1 破坏主线/规则/信任；S2 明显影响效果；S3 局部问题；S4 建议；
 - category：structure/character/prose/consistency/platform/factual/format/causal/rule-boundary；
-- scopePath：对应 JSON 文件路径或字段；
+- scopeRef：对应 `kind?identityField=value` 形式的逻辑文档引用；fieldPath 可进一步指出字段；
 - evidence：短而具体的正文/结构证据；
 - issue 与 fix：可执行；事实类 fix 只写统一方向，不代写剧情；
 - status 默认 open。
 
 ## Review JSON
 
-写入 `review` 角色文档；实际 kind 与路径从本轮结构描述解析：
+写入 `review` 角色文档；实际 kind 与身份字段从本轮结构描述解析：
 
 - `reviewType="review"`；
 - mode full/lean/solo；
 - rubric 为 fanqie/qidian/zhihu/generic web-fiction；
-- scopePaths、summary、verdict 和 findings；
+- scopeRefs、summary、verdict 和 findings；
 - verdict：无 S1/S2 且无关键 S3 为 approve，有问题为 concerns，需要重写/裁决为 reject。
 
 ## 落库与边界

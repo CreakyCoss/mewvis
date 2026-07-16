@@ -1,10 +1,12 @@
+import { StoryDefinition } from "./definitions/index.js";
 import type { StoryTypeSummary } from "./definitions/types.js";
-import { listStoryTypes } from "./story-types/index.js";
+import { BUILTIN_STORY_FILE_LAYOUT as builtinStoryFileLayout, listStoryTypes } from "./story-types/index.js";
 import type {
   StoryChangeResult,
   StoryChangeValidation,
   StoryContext,
   StoryDocument,
+  StoryDocumentRef,
   StoryInitialization,
   StoryOverview,
   StoryProjectStructure,
@@ -13,6 +15,12 @@ import type { StoryProjectStorage } from "./storage/index.js";
 import { StoryProjectValidationError } from "./internal/engine/issues.js";
 import { createWorkspace } from "./application/workspace.js";
 
+/** 内置 Story Types 对应的文件布局配置；仅用于组装 File Storage。 */
+export const BUILTIN_STORY_FILE_LAYOUT = builtinStoryFileLayout;
+
+/** 将领域文档引用编码为稳定 key；不包含任何存储路径语义。 */
+export const storyDocumentRefKey = StoryDefinition.referenceKey;
+
 /** 一个已绑定 projectKey 的故事工作区，统一处理文档、上下文、校验与事务。 */
 export interface StoryWorkspace {
   readonly projectKey: string;
@@ -20,14 +28,13 @@ export interface StoryWorkspace {
     storyId: string;
     title: string;
     storyTypeId?: string;
-    replaceExistingJson?: boolean;
+    replaceExisting?: boolean;
   }): Promise<StoryInitialization>;
   describe(input?: { documentKinds?: readonly string[] }): Promise<StoryProjectStructure>;
   overview(): Promise<StoryOverview>;
   listDocuments(input?: { role?: string }): Promise<StoryDocument[]>;
-  saveDocument(document: Pick<StoryDocument, "path" | "value">): Promise<StoryDocument>;
-  removeDocument(path: string): Promise<void>;
-  normalizeDocumentPath(path: string): string;
+  saveDocument(document: Pick<StoryDocument, "ref" | "value">): Promise<StoryDocument>;
+  removeDocument(ref: StoryDocumentRef): Promise<void>;
   readContext(input: { scope: "project" | "chapter"; targetId?: string }): Promise<StoryContext>;
   validateChanges(changeSet: unknown): Promise<StoryChangeValidation>;
   commitChanges(changeSet: unknown): Promise<StoryChangeResult>;

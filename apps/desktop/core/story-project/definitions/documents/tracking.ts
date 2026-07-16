@@ -127,11 +127,13 @@ export const TRACKING_DOCUMENTS = defineDocumentModels([
   entityDocument({
     kind: "story-character-state",
     label: "角色状态",
-    contentType: "json",
+    contentFormat: "structured",
     cardinality: "many",
+    identityFields: ["characterId"],
     fields: [
       field.reference("characterId", "角色", {
         required: true,
+        immutable: true,
         targetKinds: ["story-character"],
       }),
       field.reference("asOfChapterId", "截至章节", {
@@ -178,7 +180,7 @@ export const TRACKING_DOCUMENTS = defineDocumentModels([
     kind: "story-foreshadows",
     label: "伏笔追踪",
     description: "统一维护伏笔的计划、埋设、推进、回收和放弃状态",
-    contentType: "json",
+    contentFormat: "structured",
     cardinality: "one",
     fields: [
       field.collection("foreshadows", "伏笔", {
@@ -192,7 +194,7 @@ export const TRACKING_DOCUMENTS = defineDocumentModels([
   entityDocument({
     kind: "story-timeline",
     label: "时间线",
-    contentType: "json",
+    contentFormat: "structured",
     cardinality: "many",
     fields: [
       field.textarea("calendar", "历法说明", {
@@ -215,7 +217,7 @@ export const TRACKING_DOCUMENTS = defineDocumentModels([
   entityDocument({
     kind: "story-progress",
     label: "创作进度",
-    contentType: "json",
+    contentFormat: "structured",
     cardinality: "one",
     fields: [
       field.reference("lastCompletedChapterId", "最后完成章节", {

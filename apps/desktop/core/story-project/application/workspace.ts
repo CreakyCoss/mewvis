@@ -1,6 +1,6 @@
 import { StoryDefinition } from "../definitions/index.js";
 import { resolveStoryType } from "../story-types/index.js";
-import type { StoryChangeResult, StoryChangeValidation, StoryInitialization } from "../types.js";
+import type { StoryChangeResult, StoryChangeValidation, StoryDocumentRef, StoryInitialization } from "../types.js";
 import type { StoryProjectStorage } from "../storage/index.js";
 import type { StoryWorkspace } from "../index.js";
 import { applyChangeSet } from "../internal/engine/changes.js";
@@ -46,7 +46,7 @@ export const createWorkspace = (
         if (input.storyTypeId && input.storyTypeId !== definition.id) {
           throw new Error(`工作区故事类型为 ${definition.id}，不能按 ${input.storyTypeId} 初始化。`);
         }
-        const manifestPath = StoryDefinition.resolvePath(definition, definition.manifestKind);
+        const manifestRef = StoryDefinition.reference(definition, definition.manifestKind);
         const inventory = await storage.inspect(projectKey, definition);
         if (inventory.initialized) {
           const current = await storage.loadProject(projectKey, definition);
@@ -54,28 +54,28 @@ export const createWorkspace = (
             initialized: false,
             alreadyInitialized: true,
             revision: projectInfo(current).revision,
-            manifestPath,
-            existingJsonPaths: [...inventory.existingJsonPaths],
+            manifestRef,
+            existingEntryCount: inventory.replaceableKeys.length,
             issues: [],
             hint: "故事项目已经初始化，请先读取上下文再增量提交。",
           };
         }
-        if (inventory.replaceablePaths.length > 0 && !input.replaceExistingJson) {
+        if (inventory.replaceableKeys.length > 0 && !input.replaceExisting) {
           return {
             initialized: false,
             alreadyInitialized: false,
             revision: null,
-            manifestPath,
-            existingJsonPaths: [...inventory.existingJsonPaths],
+            manifestRef,
+            existingEntryCount: inventory.replaceableKeys.length,
             issues: [
               {
                 severity: "error",
-                code: "initialize.existing-files",
-                path: definition.rootPath,
-                message: `${definition.rootPath} 目录已有不受当前故事类型管理的文件；明确允许替换后才能初始化。`,
+                code: "initialize.existing-records",
+                path: "initialize",
+                message: "存储中已有不受当前故事项目管理的记录；明确允许替换后才能初始化。",
               },
             ],
-            hint: "确认现有故事文件可以被替换后，将 replaceExistingJson 设为 true 重试。",
+            hint: "确认现有存储记录可以被替换后，将 replaceExisting 设为 true 重试。",
           };
         }
         const project = createInitialProject(definition, input);
@@ -85,14 +85,14 @@ export const createWorkspace = (
           projectKey,
           definition,
           project,
-          input.replaceExistingJson ? inventory.replaceablePaths : [],
+          input.replaceExisting ? inventory.replaceableKeys : [],
         );
         return {
           initialized: true,
           alreadyInitialized: false,
           revision: projectInfo(project).revision,
-          manifestPath,
-          existingJsonPaths: [...inventory.existingJsonPaths],
+          manifestRef,
+          existingEntryCount: inventory.replaceableKeys.length,
           issues: validation.issues,
           hint: null,
         };
@@ -101,10 +101,10 @@ export const createWorkspace = (
           initialized: false,
           alreadyInitialized: false,
           revision: null,
-          manifestPath: null,
-          existingJsonPaths: [],
+          manifestRef: null,
+          existingEntryCount: 0,
           issues: errorIssues(error, "initialize", "initialize.invalid"),
-          hint: "未创建任何正式故事文件。请修正故事类型或初始化参数后重试。",
+          hint: "未创建任何正式故事文档。请修正故事类型或初始化参数后重试。",
         };
       }
     },
@@ -123,21 +123,20 @@ export const createWorkspace = (
       const project = await storage.loadProject(projectKey, definition);
       const kind = input.role ? definition.roles[input.role] : undefined;
       if (input.role && !kind) throw new Error(`当前故事类型没有提供 ${input.role} 文档角色。`);
-      const paths = project.documents
-        .filter((entry) => !kind || StoryDefinition.kindForPath(definition, entry.path) === kind)
-        .map((entry) => entry.path)
-        .sort((left, right) => left.localeCompare(right));
+      const refs = project.documents
+        .filter((entry) => !kind || entry.ref.kind === kind)
+        .map((entry) => entry.ref)
+        .sort((left, right) => StoryDefinition.referenceKey(left).localeCompare(StoryDefinition.referenceKey(right)));
       return Promise.all(
-        paths.map(async (path) =>
-          editableStoryDocument(definition, await storage.loadDocument(projectKey, definition, path)),
+        refs.map(async (ref) =>
+          editableStoryDocument(definition, await storage.loadDocument(projectKey, definition, ref)),
         ),
       );
     },
 
     async saveDocument(document) {
       const definition = await loadDefinition();
-      const path = storage.normalizeDocumentPath(document.path);
-      StoryDefinition.kindForPath(definition, path);
+      const ref = StoryDefinition.reference(definition, document.ref.kind, document.ref.identity);
       const project = await storage.loadProject(projectKey, definition);
       const info = projectInfo(project);
       const applied = applyChangeSet(
@@ -148,29 +147,35 @@ export const createWorkspace = (
           storyId: info.storyId,
           baseRevision: info.revision,
           validationMode: "draft",
-          operations: [{ type: "upsert", path, value: document.value }],
+          operations: [{ type: "upsert", ref, value: document.value }],
         },
         definition,
       );
       await storage.persistAppliedProject(projectKey, definition, applied);
-      return editableStoryDocument(definition, await storage.loadDocument(projectKey, definition, path));
+      return editableStoryDocument(definition, await storage.loadDocument(projectKey, definition, ref));
     },
 
-    async removeDocument(inputPath) {
+    async removeDocument(inputRef) {
       const definition = await loadDefinition();
-      const path = storage.normalizeDocumentPath(inputPath);
-      const kind = StoryDefinition.kindForPath(definition, path);
-      const document = StoryDefinition.document(definition, kind);
+      const ref = StoryDefinition.reference(definition, inputRef.kind, inputRef.identity);
+      const document = StoryDefinition.document(definition, ref.kind);
       if (document.cardinality === "one") throw new Error(`「${document.label}」必须保留一份，不能删除。`);
       const project = await storage.loadProject(projectKey, definition);
-      const current = project.documents.find((entry) => entry.path === path)?.value;
+      const refKey = StoryDefinition.referenceKey(ref);
+      const current = project.documents.find((entry) => StoryDefinition.referenceKey(entry.ref) === refKey)?.value;
       const id = isObject(current) && typeof current.id === "string" ? current.id : "";
-      const companionPaths = id
+      const companionRefs: StoryDocumentRef[] = id
         ? (document.companionKinds ?? []).flatMap((companionKind) => {
             const companion = StoryDefinition.document(definition, companionKind);
             if (companion.cardinality !== "many") return [];
             try {
-              return [StoryDefinition.resolvePath(definition, companionKind, { id, characterId: id })];
+              const identity = Object.fromEntries(
+                companion.identityFields.map((field) => [
+                  field,
+                  isObject(current) && typeof current[field] === "string" ? current[field] : id,
+                ]),
+              );
+              return [StoryDefinition.reference(definition, companionKind, identity)];
             } catch {
               return [];
             }
@@ -185,16 +190,24 @@ export const createWorkspace = (
           storyId: info.storyId,
           baseRevision: info.revision,
           validationMode: "draft",
-          operations: [...new Set([path, ...companionPaths])]
-            .filter((targetPath) => project.documents.some((entry) => entry.path === targetPath))
-            .map((targetPath) => ({ type: "delete", path: targetPath })),
+          operations: [ref, ...companionRefs]
+            .filter(
+              (targetRef, index, refs) =>
+                refs.findIndex(
+                  (candidate) => StoryDefinition.referenceKey(candidate) === StoryDefinition.referenceKey(targetRef),
+                ) === index,
+            )
+            .filter((targetRef) =>
+              project.documents.some(
+                (entry) => StoryDefinition.referenceKey(entry.ref) === StoryDefinition.referenceKey(targetRef),
+              ),
+            )
+            .map((targetRef) => ({ type: "delete" as const, ref: targetRef })),
         },
         definition,
       );
       await storage.persistAppliedProject(projectKey, definition, applied);
     },
-
-    normalizeDocumentPath: (path) => storage.normalizeDocumentPath(path),
 
     async readContext(input) {
       const definition = await loadDefinition();
@@ -211,7 +224,7 @@ export const createWorkspace = (
           issues: applied.validation.issues,
           batch: applied.batch,
           operationTypes: applied.operationTypes,
-          changedPaths: applied.changedPaths,
+          changedDocuments: applied.changedDocuments,
         };
       } catch (error) {
         return {
@@ -220,7 +233,7 @@ export const createWorkspace = (
           issues: errorIssues(error),
           batch: null,
           operationTypes: [],
-          changedPaths: [],
+          changedDocuments: [],
         };
       }
     },
@@ -236,7 +249,7 @@ export const createWorkspace = (
           revision: applied.nextRevision,
           batch: applied.batch,
           operationTypes: applied.operationTypes,
-          changedPaths: applied.changedPaths,
+          changedDocuments: applied.changedDocuments,
           validation: applied.validation,
           issues: applied.validation.issues,
           hint: null,
@@ -248,10 +261,10 @@ export const createWorkspace = (
           revision: null,
           batch: null,
           operationTypes: [],
-          changedPaths: [],
+          changedDocuments: [],
           validation: null,
           issues: errorIssues(error),
-          hint: "正式文件未修改。请读取最新 revision，并只修正当前小批次后重新提交。",
+          hint: "正式故事文档未修改。请读取最新 revision，并只修正当前小批次后重新提交。",
         };
       }
     },

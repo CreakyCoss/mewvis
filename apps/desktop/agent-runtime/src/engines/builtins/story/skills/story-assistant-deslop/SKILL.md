@@ -53,13 +53,13 @@ metadata:
 
 ## Review JSON
 
-写入 `review` 角色文档；实际 kind 与路径从本轮结构描述解析：
+写入 `review` 角色文档；实际 kind 与身份字段从本轮结构描述解析：
 
 - `reviewType="deslop"`；
 - mode 为 detect 或 rewrite；
-- scopePaths 指向 `chapterContent` 角色文档的实际路径；
+- scopeRefs 使用 `kind?identityField=value` 形式指向 `chapterContent` 角色文档；
 - rubric 写 `oh-story-claudecode 7 Gate @ 2e9cbac`；
-- findings 每项记录 severity、category=`prose|format`、scopePath、短证据、问题、修法和状态；
+- findings 每项记录 severity、category=`prose|format`、scopeRef、可选 fieldPath、短证据、问题、修法和状态；
 - verdict 检测无问题为 approve，有问题为 concerns，正文严重退化/截断为 reject。
 
 ## 提交

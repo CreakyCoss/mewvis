@@ -258,7 +258,7 @@ export const OUTLINE_DOCUMENTS = defineDocumentModels([
   entityDocument({
     kind: "story-book-arc",
     label: "全书主线",
-    contentType: "json",
+    contentFormat: "structured",
     cardinality: "one",
     fields: [
       field.integer("totalChapters", "总章节数", {
@@ -296,7 +296,7 @@ export const OUTLINE_DOCUMENTS = defineDocumentModels([
   entityDocument({
     kind: "story-volume",
     label: "分卷",
-    contentType: "json",
+    contentFormat: "structured",
     cardinality: "many",
     fields: [
       field.integer("number", "卷号", {
@@ -384,7 +384,7 @@ export const OUTLINE_DOCUMENTS = defineDocumentModels([
   entityDocument({
     kind: "story-chapter-plan",
     label: "章节细纲",
-    contentType: "json",
+    contentFormat: "structured",
     cardinality: "many",
     fields: [
       field.integer("number", "章节号", {
@@ -559,7 +559,7 @@ export const OUTLINE_DOCUMENTS = defineDocumentModels([
     kind: "story-chapter",
     label: "章节结果",
     description: "正文完成后的摘要、引用与状态变化；章节正文单独保存为 Markdown。",
-    contentType: "json",
+    contentFormat: "structured",
     cardinality: "many",
     fields: [
       field.reference("planId", "章节细纲", {
@@ -624,7 +624,7 @@ export const OUTLINE_DOCUMENTS = defineDocumentModels([
     kind: "story-chapter-content",
     label: "章节正文",
     description: "可直接阅读、编辑和发布的 Markdown 正文。",
-    contentType: "markdown",
+    contentFormat: "markdown",
     cardinality: "many",
     fields: [
       field.text("kind", "文档类型", {

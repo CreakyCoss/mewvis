@@ -139,8 +139,11 @@ export const ASSISTANT_OBJECTS = defineObjectModels([
           },
         ],
       }),
-      field.path("scopePath", "问题位置", {
+      field.text("scopeRef", "问题文档", {
         required: true,
+      }),
+      field.text("fieldPath", "字段位置", {
+        required: false,
       }),
       field.textarea("evidence", "证据", {
         required: true,
@@ -180,7 +183,7 @@ export const ASSISTANT_DOCUMENTS = defineDocumentModels([
   entityDocument({
     kind: "story-analysis",
     label: "故事分析",
-    contentType: "json",
+    contentFormat: "structured",
     cardinality: "many",
     fields: [
       field.select("analysisType", "分析篇幅", {
@@ -290,7 +293,7 @@ export const ASSISTANT_DOCUMENTS = defineDocumentModels([
   entityDocument({
     kind: "story-review",
     label: "审稿记录",
-    contentType: "json",
+    contentFormat: "structured",
     cardinality: "many",
     fields: [
       field.select("reviewType", "记录类型", {
@@ -334,7 +337,7 @@ export const ASSISTANT_DOCUMENTS = defineDocumentModels([
       field.text("rubric", "审查标准", {
         required: true,
       }),
-      field.stringList("scopePaths", "审查范围", {
+      field.stringList("scopeRefs", "审查范围", {
         required: true,
         default: [],
       }),
@@ -377,7 +380,7 @@ export const ASSISTANT_DOCUMENTS = defineDocumentModels([
   entityDocument({
     kind: "story-import",
     label: "导入记录",
-    contentType: "json",
+    contentFormat: "structured",
     cardinality: "many",
     fields: [
       field.text("sourceTitle", "来源标题", {
@@ -444,7 +447,7 @@ export const ASSISTANT_DOCUMENTS = defineDocumentModels([
         required: false,
         targetKinds: ["story-analysis"],
       }),
-      field.referenceList("generatedFileIds", "生成对象", {
+      field.referenceList("generatedIds", "生成对象", {
         required: true,
         targetKinds: [
           "story-book",

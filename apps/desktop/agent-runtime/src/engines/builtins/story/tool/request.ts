@@ -59,9 +59,10 @@ const normalizeOperation = (input: unknown) => {
   }
   if ("ids" in operation) operation.ids = arrayValue(operation.ids);
   if ("values" in operation) operation.values = arrayValue(operation.values);
-  if (typeof operation.path === "string" && operation.path.endsWith(".json") && "value" in operation) {
-    operation.value = parseJson(operation.value);
+  if (isObject(operation.ref) && "identity" in operation.ref) {
+    operation.ref = { ...operation.ref, identity: parseJson(operation.ref.identity) };
   }
+  if ("value" in operation) operation.value = parseJson(operation.value);
   return operation;
 };
 
@@ -105,7 +106,14 @@ const STORY_CHANGE_SET_OPERATION_PARAMETERS = {
     "单个原子变更。type 可选 upsert、delete、patch、upsert-items、remove-items、add-values、remove-values、append-text、replace-text；不同 type 的必填字段由 Story Project 严格校验",
   properties: {
     type: stringParam("原子操作类型"),
-    path: stringParam("当前故事类型允许的故事文件路径"),
+    ref: {
+      type: "object",
+      description: "领域文档引用；kind 来自 describe_structure，many 文档按 identityFields 填写 identity",
+      properties: {
+        kind: stringParam("文档 kind"),
+        identity: optionalJson("文档身份字段；one 文档传空对象，many 文档按 identityFields 填写"),
+      },
+    },
     value: optionalJson("upsert/patch 的 JSON 值，或 append-text/replace-text 使用的文本值"),
     field: optionalString("数组或文本操作使用的顶层字段名；Markdown 正文使用 content"),
     items: {

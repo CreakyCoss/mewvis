@@ -1,16 +1,19 @@
-import type { StoryProjectStorageAdapter } from "../registry.js";
 import { assertStoryProjectRevision, type StoryProjectRecord, type StoryProjectRecordBackend } from "../record.js";
-import type { StoryProjectStorageOptions } from "../../types.js";
+import { parseStoryDocumentRefKey, storyDocumentRefKey } from "../../../definitions/model/reference.js";
 
-type MemoryStorageOptions = Extract<StoryProjectStorageOptions, { kind: "memory" }>;
-
-const createMemoryStoryProjectRecordBackend = (): StoryProjectRecordBackend => {
+export const createMemoryStoryProjectRecordBackend = (): StoryProjectRecordBackend => {
   const projects = new Map<string, Map<string, StoryProjectRecord>>();
+  const documentPrefix = "document:";
 
   return {
+    definitionKey: "definition:story-project",
+    documentKey: (ref) => `${documentPrefix}${storyDocumentRefKey(ref)}`,
+    documentRef: (key) =>
+      key.startsWith(documentPrefix) ? parseStoryDocumentRefKey(key.slice(documentPrefix.length)) : null,
+    replaceableKeys: () => [],
     async list(projectKey) {
       return [...(projects.get(projectKey)?.values() ?? [])]
-        .map(({ key, contentType, updatedAt }) => ({ key, contentType, updatedAt }))
+        .map(({ key, contentFormat, updatedAt }) => ({ key, contentFormat, updatedAt }))
         .sort((left, right) => left.key.localeCompare(right.key));
     },
 
@@ -36,9 +39,4 @@ const createMemoryStoryProjectRecordBackend = (): StoryProjectRecordBackend => {
       projects.set(projectKey, records);
     },
   };
-};
-
-export const memoryStoryProjectStorageAdapter: StoryProjectStorageAdapter<MemoryStorageOptions> = {
-  id: "memory",
-  create: createMemoryStoryProjectRecordBackend,
 };

@@ -1,7 +1,7 @@
 import type { StoryValidationIssue } from "../../types.js";
 import { StoryProjectValidationError } from "./issues.js";
 import { StoryDefinition } from "../../definitions/index.js";
-import type { StoryFieldDefinition } from "../../definitions/model/types.js";
+import type { StoryDocumentRef, StoryFieldDefinition } from "../../definitions/model/types.js";
 import type { StoryTypeDefinition } from "../../definitions/types.js";
 
 const objectFromUnknown = (value: unknown, owner: string): Record<string, unknown> => {
@@ -9,23 +9,6 @@ const objectFromUnknown = (value: unknown, owner: string): Record<string, unknow
     throw new Error(`${owner} 必须是普通 JSON 对象。`);
   }
   return value as Record<string, unknown>;
-};
-
-const canonicalPath = (input: string) =>
-  input
-    .trim()
-    .replace(/\\/g, "/")
-    .replace(/^\/+|\/+$/g, "");
-
-const patternRegex = (pattern: string) => {
-  const escaped = canonicalPath(pattern).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`^${escaped.replace(/\\\{([a-zA-Z][a-zA-Z0-9]*)\\\}/g, "(?<$1>[^/]+)")}$`);
-};
-
-const pathParameters = (pattern: string, input: string) => {
-  const match = patternRegex(pattern).exec(canonicalPath(input));
-  if (!match) throw new Error(`路径不符合协议：${input}`);
-  return match.groups ?? {};
 };
 
 const cloneJson = (value: unknown) => JSON.parse(JSON.stringify(value)) as unknown;
@@ -235,27 +218,45 @@ const materializeFields = (
 export const materializeStoryDocument = (
   definition: StoryTypeDefinition,
   input: unknown,
-  expectedKind: string,
+  inputRef: StoryDocumentRef,
   timestamp = Date.now(),
   options: Readonly<{ coerce?: boolean; refreshGenerated?: boolean }> = {},
 ) => {
+  const ref = StoryDefinition.reference(definition, inputRef.kind, inputRef.identity);
+  const owner = StoryDefinition.referenceKey(ref);
   const issues: StoryValidationIssue[] = [];
+  const source =
+    input && typeof input === "object" && !Array.isArray(input) ? (input as Record<string, unknown>) : null;
+  if (source) {
+    for (const [field, identity] of Object.entries(ref.identity)) {
+      const actual = source[field];
+      if (actual !== undefined && actual !== identity) {
+        issues.push({
+          severity: "error",
+          code: "document.identity_mismatch",
+          path: `${owner}.${field}`,
+          message: `${owner}.${field} 与文档身份不一致：期望 ${identity}，收到 ${String(actual)}`,
+        });
+      }
+    }
+  }
+  const materializationInput = source ? { ...source, ...ref.identity } : input;
   const value = materializeFields(
     definition,
-    expectedKind,
-    StoryDefinition.fields(definition, expectedKind),
-    input,
+    owner,
+    StoryDefinition.fields(definition, ref.kind),
+    materializationInput,
     timestamp,
     options.coerce === true,
     options.refreshGenerated !== false,
     issues,
   );
-  if (value.kind !== expectedKind) {
+  if (value.kind !== ref.kind) {
     issues.push({
       severity: "error",
       code: "document.kind_mismatch",
-      path: `${expectedKind}.kind`,
-      message: `故事文档 kind 与目标路径不一致：期望 ${expectedKind}，收到 ${String(value.kind)}`,
+      path: `${owner}.kind`,
+      message: `故事文档 kind 与文档引用不一致：期望 ${ref.kind}，收到 ${String(value.kind)}`,
     });
   }
   if (issues.length > 0) throw new StoryProjectValidationError(issues);
@@ -265,17 +266,18 @@ export const materializeStoryDocument = (
 export const serializeStoryDocument = (
   definition: StoryTypeDefinition,
   input: unknown,
-  path: string,
+  inputRef: StoryDocumentRef,
 ): Record<string, unknown> | string => {
-  const kind = StoryDefinition.kindForPath(definition, path);
-  const document = StoryDefinition.document(definition, kind);
-  if (document.contentType === "markdown") return parseStoryDocument(definition, input, path).content as string;
-  const source = objectFromUnknown(input, path);
-  const allowed = new Set(Object.keys(StoryDefinition.fields(definition, kind)));
+  const ref = StoryDefinition.reference(definition, inputRef.kind, inputRef.identity);
+  const document = StoryDefinition.document(definition, ref.kind);
+  if (document.contentFormat === "markdown") return parseStoryDocument(definition, input, ref).content as string;
+  const owner = StoryDefinition.referenceKey(ref);
+  const source = objectFromUnknown(input, owner);
+  const allowed = new Set(Object.keys(StoryDefinition.fields(definition, ref.kind)));
   return materializeStoryDocument(
     definition,
     Object.fromEntries(Object.entries(source).filter(([key]) => allowed.has(key))),
-    kind,
+    ref,
     Date.now(),
     { refreshGenerated: false },
   );
@@ -284,21 +286,19 @@ export const serializeStoryDocument = (
 export const parseStoryDocument = (
   definition: StoryTypeDefinition,
   input: unknown,
-  path: string,
+  inputRef: StoryDocumentRef,
   timestamp = Date.now(),
   options: Readonly<{ coerce?: boolean }> = {},
 ) => {
-  const kind = StoryDefinition.kindForPath(definition, path);
-  const document = StoryDefinition.document(definition, kind);
-  if (document.contentType === "markdown") {
-    const content = typeof input === "string" ? input : objectFromUnknown(input, path).content;
-    if (typeof content !== "string") throw new Error(`${path} 的 Markdown 内容必须是字符串。`);
-    const parameters = pathParameters(document.pathPattern, path);
-    const id = parameters.id;
-    if (!id) throw new Error(`${kind} 的 Markdown 路径必须包含 {id} 参数。`);
-    return { kind, id, content };
+  const ref = StoryDefinition.reference(definition, inputRef.kind, inputRef.identity);
+  const owner = StoryDefinition.referenceKey(ref);
+  const document = StoryDefinition.document(definition, ref.kind);
+  if (document.contentFormat === "markdown") {
+    const content = typeof input === "string" ? input : objectFromUnknown(input, owner).content;
+    if (typeof content !== "string") throw new Error(`${owner} 的 Markdown 内容必须是字符串。`);
+    return { kind: ref.kind, ...ref.identity, content };
   }
-  return materializeStoryDocument(definition, input, kind, timestamp, {
+  return materializeStoryDocument(definition, input, ref, timestamp, {
     ...options,
     refreshGenerated: false,
   });

@@ -1,7 +1,13 @@
 export type StoryProjectInventory = Readonly<{
   initialized: boolean;
-  replaceablePaths: readonly string[];
-  existingJsonPaths: readonly string[];
+  replaceableKeys: readonly string[];
+}>;
+
+export type StoryFileLayout = Readonly<{
+  definitionPath: string;
+  documentPaths: Readonly<Record<string, string>>;
+  managedRoots: readonly string[];
+  preservedPaths?: readonly string[];
 }>;
 
 export type StoryProjectRevisionCondition = Readonly<{
@@ -36,4 +42,4 @@ export interface StoryFileBackend {
 }
 
 export type StoryProjectStorageOptions =
-  Readonly<{ kind: "file"; backend: StoryFileBackend }> | Readonly<{ kind: "memory" }>;
+  Readonly<{ kind: "file"; backend: StoryFileBackend; layout: StoryFileLayout }> | Readonly<{ kind: "memory" }>;

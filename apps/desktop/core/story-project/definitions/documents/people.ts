@@ -101,7 +101,7 @@ export const PEOPLE_DOCUMENTS = defineDocumentModels([
   entityDocument({
     kind: "story-character",
     label: "角色档案",
-    contentType: "json",
+    contentFormat: "structured",
     cardinality: "many",
     fields: [
       field.text("name", "姓名", {
@@ -197,7 +197,7 @@ export const PEOPLE_DOCUMENTS = defineDocumentModels([
   entityDocument({
     kind: "story-relationships",
     label: "角色关系网",
-    contentType: "json",
+    contentFormat: "structured",
     cardinality: "one",
     fields: [
       field.collection("relationships", "关系", {
@@ -212,7 +212,7 @@ export const PEOPLE_DOCUMENTS = defineDocumentModels([
     kind: "story-world-entry",
     label: "世界设定",
     description: "背景、力量体系、地理、社会、势力、物品和规则等可召回设定",
-    contentType: "json",
+    contentFormat: "structured",
     cardinality: "many",
     fields: [
       field.select("category", "设定类别", {

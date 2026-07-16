@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { StoryDocument } from "../../../../../../core/story-project/types";
-import { inspectStoryDocument, storyDocumentLabel } from "../../story-document";
+import { inspectStoryDocument, storyDocumentKey, storyDocumentLabel } from "../../story-document";
 import { useStoryState } from "../use-story-state";
 import { CreateJsonDocumentDialog } from "./documents/create-dialog";
 import { StoryDocumentEditor } from "./documents/document-editor";
@@ -45,7 +45,7 @@ const groupHints = [
 
 const documentSearchText = (document: StoryDocument) => {
   const inspected = inspectStoryDocument(document);
-  return `${document.path} ${inspected?.kind ?? ""} ${inspected?.label ?? storyDocumentLabel(document)}`.toLowerCase();
+  return `${storyDocumentKey(document)} ${inspected?.kind ?? ""} ${inspected?.label ?? storyDocumentLabel(document)}`.toLowerCase();
 };
 
 const groupForDocument = (document: StoryDocument) => {
@@ -83,17 +83,21 @@ const buildDocumentGroups = (documents: StoryDocument[], query: string): Documen
 
 export const StoryModules = () => {
   const documents = useStoryState((state) => state.documents);
-  const [selectedPath, setSelectedPath] = useState("");
+  const [selectedKey, setSelectedKey] = useState("");
   const [query, setQuery] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   useEffect(() => {
-    setSelectedPath((current) =>
-      documents.some((document) => document.path === current) ? current : (documents[0]?.path ?? ""),
+    setSelectedKey((current) =>
+      documents.some((document) => storyDocumentKey(document) === current)
+        ? current
+        : documents[0]
+          ? storyDocumentKey(documents[0])
+          : "",
     );
   }, [documents]);
 
-  const selected = documents.find((document) => document.path === selectedPath) ?? null;
+  const selected = documents.find((document) => storyDocumentKey(document) === selectedKey) ?? null;
   const groups = useMemo(() => buildDocumentGroups(documents, query), [documents, query]);
   const selectedGroup = selected ? groupForDocument(selected) : null;
 
@@ -141,13 +145,14 @@ export const StoryModules = () => {
                   </div>
                   <div className="space-y-0.5">
                     {group.documents.map((document) => {
-                      const active = selectedPath === document.path;
-                      const DocumentIcon = document.path.endsWith(".md") ? FileText : FileJson2;
+                      const key = storyDocumentKey(document);
+                      const active = selectedKey === key;
+                      const DocumentIcon = document.definition?.contentFormat === "markdown" ? FileText : FileJson2;
                       return (
                         <button
-                          key={document.path}
+                          key={key}
                           type="button"
-                          title={document.path}
+                          title={key}
                           aria-current={active ? "page" : undefined}
                           className={[
                             "group flex w-full min-w-0 items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors",
@@ -155,7 +160,7 @@ export const StoryModules = () => {
                               ? "bg-primary/10 font-medium text-primary ring-1 ring-inset ring-primary/20"
                               : "text-foreground/80 hover:bg-muted/70 hover:text-foreground",
                           ].join(" ")}
-                          onClick={() => setSelectedPath(document.path)}
+                          onClick={() => setSelectedKey(key)}
                         >
                           <DocumentIcon className="size-4 shrink-0 opacity-80" />
                           <span className="min-w-0 truncate">{storyDocumentLabel(document)}</span>
@@ -175,7 +180,7 @@ export const StoryModules = () => {
       </aside>
       {selected ? (
         <StoryDocumentEditor
-          key={selected.path}
+          key={storyDocumentKey(selected)}
           categoryLabel={selectedGroup?.label ?? "故事资料"}
           document={selected}
         />

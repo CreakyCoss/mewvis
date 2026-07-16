@@ -17,6 +17,11 @@ export type StoryFieldType =
   | "collection"
   | "path";
 
+export type StoryDocumentRef = Readonly<{
+  kind: string;
+  identity: Readonly<Record<string, string>>;
+}>;
+
 export type StoryFieldDefinition = Readonly<{
   key: string;
   type: StoryFieldType;
@@ -51,13 +56,12 @@ export type StoryDocumentDefinition = Readonly<{
   kind: string;
   label: string;
   description?: string;
-  contentType: "json" | "markdown";
-  pathPattern: string;
+  contentFormat: "structured" | "markdown";
   cardinality: "one" | "many";
+  identityFields: readonly string[];
   fields: readonly StoryFieldDefinition[];
   companionKinds?: readonly string[];
   ruleIds?: readonly string[];
 }>;
 
-/** 可被多个故事类型复用的文档结构；文件路径由具体故事类型绑定。 */
-export type StoryDocumentModelDefinition = Omit<StoryDocumentDefinition, "pathPattern">;
+export type StoryDocumentModelDefinition = StoryDocumentDefinition;
