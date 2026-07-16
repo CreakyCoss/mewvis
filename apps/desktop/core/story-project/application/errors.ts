@@ -1,5 +1,5 @@
 import { ZodError } from "zod";
-import { StoryProjectRevisionConflictError } from "../storage/index.js";
+import { StoryProjectRevisionConflictError } from "../storage/errors.js";
 import type { StoryValidationIssue } from "../types.js";
 import { StoryProjectValidationError } from "../internal/engine/issues.js";
 

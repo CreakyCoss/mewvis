@@ -1,37 +1,19 @@
+import type { StoryValue } from "../../../types.js";
+import type { StoryProjectStorageAdapter } from "../registry.js";
 import {
   assertStoryProjectRevision,
   type StoryProjectRecord,
   type StoryProjectRecordBackend,
   type StoryProjectRecordWrite,
-  type StoryProjectRevisionCondition,
-} from "../core/backend.js";
-import { createStoryProjectStorage } from "../core/project-storage.js";
-import type { StoryValue } from "../../types.js";
+} from "../record.js";
+import type {
+  StoryFileBackend,
+  StoryProjectRevisionCondition,
+  StoryProjectStorageOptions,
+  StoryTextFile,
+} from "../../types.js";
 
-export type StoryFileEntry = Readonly<{
-  path: string;
-  isDirectory: boolean;
-  updatedAt: number | null;
-}>;
-
-export type StoryTextFile = Readonly<{
-  path: string;
-  content: string;
-  updatedAt: number | null;
-}>;
-
-/** 文件系统实现只需提供文本文件能力；结构化记录编码由通用适配器统一完成。 */
-export interface StoryFileBackend {
-  list(root: string): Promise<readonly StoryFileEntry[]>;
-  read(root: string, path: string): Promise<StoryTextFile>;
-  readOptional(root: string, path: string): Promise<StoryTextFile | null>;
-  writeAtomic(
-    root: string,
-    writes: readonly Readonly<{ path: string; content: string }>[],
-    deletes: readonly string[],
-    revision: StoryProjectRevisionCondition,
-  ): Promise<void>;
-}
+type FileStorageOptions = Extract<StoryProjectStorageOptions, { kind: "file" }>;
 
 const contentTypeForPath = (path: string) => {
   if (path.endsWith(".json")) return "json" as const;
@@ -105,6 +87,7 @@ const createStoryFileRecordBackend = (backend: StoryFileBackend): StoryProjectRe
   },
 });
 
-/** 创建由文本文件后端驱动的领域级 Story Project Storage。 */
-export const createStoryFileStorage = (backend: StoryFileBackend) =>
-  createStoryProjectStorage(createStoryFileRecordBackend(backend));
+export const fileStoryProjectStorageAdapter: StoryProjectStorageAdapter<FileStorageOptions> = {
+  id: "file",
+  create: ({ backend }) => createStoryFileRecordBackend(backend),
+};

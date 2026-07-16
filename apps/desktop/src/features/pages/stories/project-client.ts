@@ -1,5 +1,6 @@
 import { createStoryProjectApi } from "../../../../core/story-project";
-import { createStoryFileStorage, type StoryFileBackend } from "../../../../core/story-project/storage/adapters/file";
+import { createStoryProjectStorage } from "../../../../core/story-project/storage";
+import type { StoryFileBackend } from "../../../../core/story-project/storage/types";
 import {
   listWorkspaceFiles,
   readWorkspaceFile,
@@ -20,4 +21,6 @@ const desktopStoryFileBackend: StoryFileBackend = {
     ).then(() => undefined),
 };
 
-export const storyProjectApi = createStoryProjectApi(createStoryFileStorage(desktopStoryFileBackend));
+export const storyProjectApi = createStoryProjectApi(
+  createStoryProjectStorage({ kind: "file", backend: desktopStoryFileBackend }),
+);

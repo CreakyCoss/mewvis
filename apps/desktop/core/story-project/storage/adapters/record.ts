@@ -1,5 +1,6 @@
 import type { StoryValue } from "../../types.js";
-import { StoryProjectRevisionConflictError } from "../index.js";
+import { StoryProjectRevisionConflictError } from "../errors.js";
+import type { StoryProjectRevisionCondition } from "../types.js";
 
 export type StoryProjectRecordInfo = Readonly<{
   key: string;
@@ -25,12 +26,6 @@ export type StoryProjectRecordWrite =
   | Readonly<{ key: string; contentType: "json"; value: StoryValue }>
   | Readonly<{ key: string; contentType: "markdown"; value: string }>;
 
-export type StoryProjectRevisionCondition = Readonly<{
-  key: string;
-  /** null 表示提交时该 revision 记录必须尚不存在。 */
-  expected: number | null;
-}>;
-
 export type StoryProjectRecordTransaction = Readonly<{
   revision: StoryProjectRevisionCondition;
   writes: readonly StoryProjectRecordWrite[];
@@ -52,7 +47,7 @@ export const assertStoryProjectRevision = (
   if (!matched) throw new StoryProjectRevisionConflictError(condition.key, condition.expected, actual);
 };
 
-/** Storage 内部使用的结构化记录 Backend；应用层不得直接依赖。 */
+/** Adapter 向 Storage Facade 提供的统一结构化记录接口。 */
 export interface StoryProjectRecordBackend {
   list(projectKey: string): Promise<readonly StoryProjectRecordInfo[]>;
   read(projectKey: string, key: string): Promise<StoryProjectRecord>;

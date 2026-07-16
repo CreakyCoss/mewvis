@@ -10,27 +10,21 @@ const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
 const publicEntry = resolve(root, "core/story-project/index.ts");
 const publicStorage = resolve(root, "core/story-project/storage/index.ts");
-const memoryStorageEntry = resolve(root, "core/story-project/storage/adapters/memory.ts");
-const fileStorageEntry = resolve(root, "core/story-project/storage/adapters/file.ts");
+const storageTypesEntry = resolve(root, "core/story-project/storage/types.ts");
+const fileStorageEntry = resolve(root, "core/story-project/storage/adapters/file/index.ts");
 
 writeFileSync(
   entryPath,
   `
   import { createStoryProjectApi } from ${JSON.stringify(publicEntry)};
-  import {
-    type StoryProjectStorage,
-  } from ${JSON.stringify(publicStorage)};
-  import { createMemoryStoryProjectStorage } from ${JSON.stringify(memoryStorageEntry)};
-  import {
-    assertStoryFileRevision,
-    createStoryFileStorage,
-    type StoryFileBackend,
-  } from ${JSON.stringify(fileStorageEntry)};
+  import { createStoryProjectStorage, type StoryProjectStorage } from ${JSON.stringify(publicStorage)};
+  import type { StoryFileBackend } from ${JSON.stringify(storageTypesEntry)};
+  import { assertStoryFileRevision } from ${JSON.stringify(fileStorageEntry)};
 
   const assert = (condition: unknown, message: string, details?: unknown) => {
     if (!condition) throw new Error(message + (details === undefined ? "" : "\\n" + JSON.stringify(details, null, 2)));
   };
-  const storage: StoryProjectStorage = createMemoryStoryProjectStorage();
+  const storage: StoryProjectStorage = createStoryProjectStorage({ kind: "memory" });
   assert(!("list" in storage) && !("read" in storage) && !("commit" in storage), "领域 Storage 不得暴露低层记录操作。", storage);
 
   const projects = createStoryProjectApi(storage);
@@ -97,7 +91,7 @@ writeFileSync(
       for (const write of writes) fileContents.set(fileKey(root, write.path), write.content);
     },
   };
-  const fileProjects = createStoryProjectApi(createStoryFileStorage(fileBackend));
+  const fileProjects = createStoryProjectApi(createStoryProjectStorage({ kind: "file", backend: fileBackend }));
   await fileProjects.create("/file/hidden", { storyTypeId: "long-novel", storyId: "story-3", title: "隐藏配置" });
   const reopened = await fileProjects.open("/file/hidden");
   assert((await reopened.overview()).title === "隐藏配置", "隐藏配置目录不得导致已初始化项目被误判。" );

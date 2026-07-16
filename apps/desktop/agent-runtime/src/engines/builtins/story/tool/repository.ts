@@ -2,12 +2,9 @@ import { cp, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { createStoryProjectApi, type StoryWorkspace } from "../../../../../../core/story-project/index.js";
-import {
-  assertStoryFileRevision,
-  createStoryFileStorage,
-  type StoryFileBackend,
-  type StoryFileEntry,
-} from "../../../../../../core/story-project/storage/adapters/file.js";
+import { createStoryProjectStorage } from "../../../../../../core/story-project/storage/index.js";
+import { assertStoryFileRevision } from "../../../../../../core/story-project/storage/adapters/file/index.js";
+import type { StoryFileBackend, StoryFileEntry } from "../../../../../../core/story-project/storage/types.js";
 
 /** Story Tool 只消费绑定后的标准故事工作区，不感知文件系统或故事类型实现。 */
 export interface StoryToolRepository {
@@ -153,7 +150,9 @@ const nodeStoryFileBackend: StoryFileBackend = {
   writeAtomic,
 };
 
-const storyProjectApi = createStoryProjectApi(createStoryFileStorage(nodeStoryFileBackend));
+const storyProjectApi = createStoryProjectApi(
+  createStoryProjectStorage({ kind: "file", backend: nodeStoryFileBackend }),
+);
 
 export const createNodeStoryToolRepository = (workspacePath: string): StoryToolRepository => ({
   project: storyProjectApi.workspace(workspacePath),

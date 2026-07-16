@@ -53,6 +53,7 @@ for (const removed of [
   "internal/application",
   "storage/file.ts",
   "storage/memory.ts",
+  "storage/core",
 ]) {
   if (existsSync(resolve(coreRoot, removed))) throw new Error(`旧 Story Project 边界仍存在：${removed}`);
 }
@@ -79,9 +80,8 @@ const engineRoot = resolve(internalRoot, "engine");
 const projectionsRoot = resolve(internalRoot, "projections");
 const applicationRoot = resolve(coreRoot, "application");
 const storageRoot = resolve(coreRoot, "storage");
-const storageCoreRoot = resolve(storageRoot, "core");
 const storageAdaptersRoot = resolve(storageRoot, "adapters");
-for (const directory of [engineRoot, projectionsRoot, applicationRoot, storageCoreRoot, storageAdaptersRoot]) {
+for (const directory of [engineRoot, projectionsRoot, applicationRoot, storageAdaptersRoot]) {
   if (!existsSync(directory)) throw new Error(`Story Project 缺少内部层：${relative(coreRoot, directory)}`);
 }
 const sourceText = (directory) =>
@@ -91,7 +91,6 @@ const sourceText = (directory) =>
 const engineSource = sourceText(engineRoot);
 const projectionsSource = sourceText(projectionsRoot);
 const applicationSource = sourceText(applicationRoot);
-const storageCoreSource = sourceText(storageCoreRoot);
 const storageAdaptersSource = sourceText(storageAdaptersRoot);
 const forbiddenImports = (directory, forbidden) =>
   tsFiles(directory).flatMap((path) => {
@@ -123,10 +122,11 @@ if (invalidEngineImports.length || invalidProjectionImports.length) {
   );
 }
 const storageContract = readFileSync(resolve(storageRoot, "index.ts"), "utf8");
-const backendContract = readFileSync(resolve(storageCoreRoot, "backend.ts"), "utf8");
-const projectStorage = readFileSync(resolve(storageCoreRoot, "project-storage.ts"), "utf8");
-const fileStorage = readFileSync(resolve(storageAdaptersRoot, "file.ts"), "utf8");
-const memoryStorage = readFileSync(resolve(storageAdaptersRoot, "memory.ts"), "utf8");
+const storageTypes = readFileSync(resolve(storageRoot, "types.ts"), "utf8");
+const backendContract = readFileSync(resolve(storageAdaptersRoot, "record.ts"), "utf8");
+const storageRegistry = readFileSync(resolve(storageAdaptersRoot, "registry.ts"), "utf8");
+const fileStorage = readFileSync(resolve(storageAdaptersRoot, "file/index.ts"), "utf8");
+const memoryStorage = readFileSync(resolve(storageAdaptersRoot, "memory/index.ts"), "utf8");
 if (
   applicationSource.includes("writeAtomic(") ||
   applicationSource.includes("JSON.parse(") ||
@@ -148,26 +148,27 @@ if (
   !storageContract.includes("loadProject(projectKey") ||
   !storageContract.includes("initializeProject(") ||
   !storageContract.includes("persistAppliedProject(") ||
-  storageContract.includes("list(projectKey") ||
-  storageContract.includes("read(projectKey") ||
-  storageContract.includes("commit(projectKey") ||
+  !storageContract.includes('PROJECT_CONFIG_PATH = "story/.novel-claw/project.json"') ||
+  !storageContract.includes("createStoryProjectRecordBackend(options)") ||
+  storageContract.includes("writeAtomic(") ||
+  storageContract.includes("JSON.parse(") ||
+  !storageTypes.includes('kind: "file"') ||
+  !storageTypes.includes('kind: "memory"') ||
   !backendContract.includes("interface StoryProjectRecordBackend") ||
   !backendContract.includes("list(projectKey") ||
   !backendContract.includes("read(projectKey") ||
   !backendContract.includes("readOptional(projectKey") ||
   !backendContract.includes("commit(projectKey") ||
-  !projectStorage.includes('PROJECT_CONFIG_PATH = "story/.novel-claw/project.json"') ||
-  !projectStorage.includes("backend.readOptional(projectKey, PROJECT_CONFIG_PATH)") ||
-  !projectStorage.includes("createStoryProjectStorage") ||
-  projectStorage.includes("writeAtomic(") ||
-  projectStorage.includes("JSON.parse(") ||
-  !fileStorage.includes("createStoryFileStorage") ||
+  !storageRegistry.includes("StoryProjectStorageAdapter") ||
+  !storageRegistry.includes("fileStoryProjectStorageAdapter") ||
+  !storageRegistry.includes("memoryStoryProjectStorageAdapter") ||
+  !storageRegistry.includes("switch (options.kind)") ||
+  !fileStorage.includes('id: "file"') ||
   !fileStorage.includes("writeAtomic(") ||
-  !memoryStorage.includes("createMemoryStoryProjectStorage") ||
-  !storageCoreSource.includes("StoryProjectRecordBackend") ||
-  !storageAdaptersSource.includes("createStoryProjectStorage")
+  !memoryStorage.includes('id: "memory"') ||
+  storageAdaptersSource.includes("createStoryProjectStorage =")
 ) {
-  throw new Error("Story Storage 必须分离领域契约、共享 Core、低层 Backend 与具体 Adapters。");
+  throw new Error("Story Storage 必须由公共 Facade 通过 Registry 分发具体 Adapter，且不得使用 barrel 入口隐藏依赖。");
 }
 
 const protocol = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/protocol.ts"), "utf8");
@@ -186,9 +187,10 @@ if (
   !service.includes("repository.project.describe") ||
   service.includes("StoryProjectApi") ||
   !repository.includes('from "../../../../../../core/story-project/index.js"') ||
-  !repository.includes('from "../../../../../../core/story-project/storage/adapters/file.js"') ||
+  !repository.includes('from "../../../../../../core/story-project/storage/index.js"') ||
+  !repository.includes('from "../../../../../../core/story-project/storage/adapters/file/index.js"') ||
   !repository.includes("interface StoryToolRepository") ||
-  !repository.includes("createStoryFileStorage") ||
+  !repository.includes("createStoryProjectStorage") ||
   !repository.includes("withWorkspaceWriteLock") ||
   repository.includes("core/story-project/internal")
 ) {
