@@ -1,4 +1,4 @@
-import { resolveStoryTypePath, storyTypeDocument, storyTypeKindForPath } from "../definitions/definition.js";
+import { StoryDefinition } from "../definitions/index.js";
 import { resolveStoryType } from "../story-types/index.js";
 import type { StoryChangeResult, StoryChangeValidation, StoryInitialization } from "../types.js";
 import type { StoryProjectStorage } from "../storage/index.js";
@@ -46,7 +46,7 @@ export const createWorkspace = (
         if (input.storyTypeId && input.storyTypeId !== definition.id) {
           throw new Error(`工作区故事类型为 ${definition.id}，不能按 ${input.storyTypeId} 初始化。`);
         }
-        const manifestPath = resolveStoryTypePath(definition, definition.manifestKind);
+        const manifestPath = StoryDefinition.resolvePath(definition, definition.manifestKind);
         const inventory = await storage.inspect(projectKey, definition);
         if (inventory.initialized) {
           const current = await storage.loadProject(projectKey, definition);
@@ -124,7 +124,7 @@ export const createWorkspace = (
       const kind = input.role ? definition.roles[input.role] : undefined;
       if (input.role && !kind) throw new Error(`当前故事类型没有提供 ${input.role} 文档角色。`);
       const paths = project.documents
-        .filter((entry) => !kind || storyTypeKindForPath(definition, entry.path) === kind)
+        .filter((entry) => !kind || StoryDefinition.kindForPath(definition, entry.path) === kind)
         .map((entry) => entry.path)
         .sort((left, right) => left.localeCompare(right));
       return Promise.all(
@@ -137,7 +137,7 @@ export const createWorkspace = (
     async saveDocument(document) {
       const definition = await loadDefinition();
       const path = storage.normalizeDocumentPath(document.path);
-      storyTypeKindForPath(definition, path);
+      StoryDefinition.kindForPath(definition, path);
       const project = await storage.loadProject(projectKey, definition);
       const info = projectInfo(project);
       const applied = applyChangeSet(
@@ -159,18 +159,18 @@ export const createWorkspace = (
     async removeDocument(inputPath) {
       const definition = await loadDefinition();
       const path = storage.normalizeDocumentPath(inputPath);
-      const kind = storyTypeKindForPath(definition, path);
-      const document = storyTypeDocument(definition, kind);
+      const kind = StoryDefinition.kindForPath(definition, path);
+      const document = StoryDefinition.document(definition, kind);
       if (document.cardinality === "one") throw new Error(`「${document.label}」必须保留一份，不能删除。`);
       const project = await storage.loadProject(projectKey, definition);
       const current = project.documents.find((entry) => entry.path === path)?.value;
       const id = isObject(current) && typeof current.id === "string" ? current.id : "";
       const companionPaths = id
         ? (document.companionKinds ?? []).flatMap((companionKind) => {
-            const companion = storyTypeDocument(definition, companionKind);
+            const companion = StoryDefinition.document(definition, companionKind);
             if (companion.cardinality !== "many") return [];
             try {
-              return [resolveStoryTypePath(definition, companionKind, { id, characterId: id })];
+              return [StoryDefinition.resolvePath(definition, companionKind, { id, characterId: id })];
             } catch {
               return [];
             }

@@ -54,6 +54,18 @@ for (const removed of [
   "storage/file.ts",
   "storage/memory.ts",
   "storage/core",
+  "definitions/assistant.ts",
+  "definitions/core.ts",
+  "definitions/definition.ts",
+  "definitions/fields.ts",
+  "definitions/format.ts",
+  "definitions/model.ts",
+  "definitions/outline.ts",
+  "definitions/parser.ts",
+  "definitions/path.ts",
+  "definitions/people.ts",
+  "definitions/resolver.ts",
+  "definitions/tracking.ts",
 ]) {
   if (existsSync(resolve(coreRoot, removed))) throw new Error(`旧 Story Project 边界仍存在：${removed}`);
 }
@@ -79,10 +91,83 @@ const internalRoot = resolve(coreRoot, "internal");
 const engineRoot = resolve(internalRoot, "engine");
 const projectionsRoot = resolve(internalRoot, "projections");
 const applicationRoot = resolve(coreRoot, "application");
+const definitionsRoot = resolve(coreRoot, "definitions");
+const documentModelRoot = resolve(coreRoot, "definitions/model");
+const documentDefinitionsRoot = resolve(coreRoot, "definitions/documents");
 const storageRoot = resolve(coreRoot, "storage");
 const storageAdaptersRoot = resolve(storageRoot, "adapters");
-for (const directory of [engineRoot, projectionsRoot, applicationRoot, storageAdaptersRoot]) {
+for (const directory of [
+  engineRoot,
+  projectionsRoot,
+  applicationRoot,
+  documentModelRoot,
+  documentDefinitionsRoot,
+  storageAdaptersRoot,
+]) {
   if (!existsSync(directory)) throw new Error(`Story Project 缺少内部层：${relative(coreRoot, directory)}`);
+}
+const documentModelTypes = readFileSync(resolve(documentModelRoot, "types.ts"), "utf8");
+const definitionFacade = readFileSync(resolve(definitionsRoot, "index.ts"), "utf8");
+const definitionTypes = readFileSync(resolve(definitionsRoot, "types.ts"), "utf8");
+if (
+  !definitionFacade.includes("interface StoryDefinitionApi") ||
+  !definitionFacade.includes("const StoryDefinition") ||
+  !definitionFacade.includes('from "./internal/parser.js"') ||
+  !definitionFacade.includes('from "./internal/resolver.js"') ||
+  definitionFacade.includes("export *") ||
+  definitionFacade.includes("export {")
+) {
+  throw new Error("Definitions index 必须提供实际 Facade，不得退化为 re-export barrel。");
+}
+if (
+  !definitionTypes.includes('STORY_TYPE_DEFINITION_FORMAT = "novel-claw.story-type-definition"') ||
+  !definitionTypes.includes("STORY_TYPE_DEFINITION_FORMAT_VERSION = 1") ||
+  !definitionTypes.includes('STORY_TYPE_DEFINITION_LEGACY_FORMATS = ["novel-claw.story-project"]') ||
+  !definitionFacade.includes("format: STORY_TYPE_DEFINITION_FORMAT") ||
+  !definitionFacade.includes("formatVersion: STORY_TYPE_DEFINITION_FORMAT_VERSION")
+) {
+  throw new Error("Story Type Definition 的持久化格式必须集中定义，并由 Definitions Facade 暴露。");
+}
+const duplicatedDefinitionFormatLiterals = tsFiles(coreRoot).filter(
+  (path) =>
+    path !== resolve(definitionsRoot, "types.ts") &&
+    readFileSync(path, "utf8").includes("novel-claw.story-type-definition"),
+);
+if (duplicatedDefinitionFormatLiterals.length > 0) {
+  throw new Error(
+    `Story Type Definition 格式标识不得重复硬编码：\n${duplicatedDefinitionFormatLiterals
+      .map((path) => relative(root, path))
+      .join("\n")}`,
+  );
+}
+const invalidDefinitionImplementationImports = tsFiles(coreRoot).filter((path) => {
+  if (path.startsWith(`${definitionsRoot}/`)) return false;
+  return /definitions\/internal\/(?:parser|resolver|path)\.js/.test(readFileSync(path, "utf8"));
+});
+if (invalidDefinitionImplementationImports.length > 0) {
+  throw new Error(
+    `Definitions 外部只能依赖 index Facade：\n${invalidDefinitionImplementationImports
+      .map((path) => relative(root, path))
+      .join("\n")}`,
+  );
+}
+for (const component of ["document.ts", "fields.ts"]) {
+  if (!existsSync(resolve(documentModelRoot, component))) {
+    throw new Error(`Story Project 缺少文档模型组件：definitions/model/${component}`);
+  }
+}
+for (const group of ["assistant", "core", "outline", "people", "tracking"]) {
+  if (!existsSync(resolve(documentDefinitionsRoot, `${group}.ts`))) {
+    throw new Error(`Story Project 缺少分组文档定义：definitions/documents/${group}.ts`);
+  }
+}
+if (
+  !documentModelTypes.includes("StoryFieldDefinition") ||
+  !documentModelTypes.includes("StoryObjectDefinition") ||
+  !documentModelTypes.includes("StoryDocumentDefinition") ||
+  !documentModelTypes.includes("StoryDocumentModelDefinition")
+) {
+  throw new Error("Story Document 的模型基础必须位于 definitions/model，具体实现必须位于 definitions/documents。");
 }
 const sourceText = (directory) =>
   tsFiles(directory)

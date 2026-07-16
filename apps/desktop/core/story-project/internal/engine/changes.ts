@@ -2,12 +2,7 @@ import { z } from "zod";
 import type { StoryProjectAppliedChanges, StoryProjectState, StoryValidationIssue } from "../../types.js";
 import { StoryProjectValidationError, storyValidationIssue } from "./issues.js";
 import { projectInfo, rebuildManifest } from "./project.js";
-import {
-  resolveStoryTypePath,
-  storyTypeDocument,
-  storyTypeFields,
-  storyTypeKindForPath,
-} from "../../definitions/definition.js";
+import { StoryDefinition } from "../../definitions/index.js";
 import type { StoryTypeDefinition } from "../../definitions/types.js";
 import { materializeStoryDocument } from "./document.js";
 import { validateProject } from "./validation.js";
@@ -137,7 +132,7 @@ const deepMerge = (current: unknown, patch: JsonObject): JsonObject => {
 };
 
 const assertPatchFields = (definition: StoryTypeDefinition, kind: string, patch: JsonObject) => {
-  const fields = storyTypeFields(definition, kind);
+  const fields = StoryDefinition.fields(definition, kind);
   for (const key of Object.keys(patch)) {
     const field = fields[key];
     if (!field) throw new Error(`${kind} 未声明字段：${key}`);
@@ -170,7 +165,7 @@ export const applyChangeSet = (
   if (!definition.validationModes[changeSet.validationMode]) {
     throw new Error(`故事类型不支持校验模式：${changeSet.validationMode}`);
   }
-  const manifestPath = resolveStoryTypePath(definition, definition.manifestKind);
+  const manifestPath = StoryDefinition.resolvePath(definition, definition.manifestKind);
   const files = new Map(current.documents.map((entry) => [entry.path, clone(entry.value)]));
   const timestamp = Date.now();
   const operationIssues: StoryValidationIssue[] = [];
@@ -178,8 +173,8 @@ export const applyChangeSet = (
     try {
       const path = canonicalPath(operation.path);
       if (path === manifestPath) throw new Error("Manifest 只能由故事运行时生成，不能直接修改。");
-      const kind = storyTypeKindForPath(definition, path);
-      const document = storyTypeDocument(definition, kind);
+      const kind = StoryDefinition.kindForPath(definition, path);
+      const document = StoryDefinition.document(definition, kind);
       switch (operation.type) {
         case "delete":
           if (document.cardinality === "one") throw new Error(`${document.label} 必须保留一份，不能删除。`);

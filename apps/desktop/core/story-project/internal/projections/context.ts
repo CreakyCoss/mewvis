@@ -5,13 +5,9 @@ import type {
   StoryContextSection,
   StoryContextSource,
 } from "../../types.js";
-import {
-  storyTypeContext,
-  storyTypeDocument,
-  storyTypeFields,
-  storyTypeObjectFields,
-} from "../../definitions/definition.js";
-import type { StoryFieldDefinition, StoryTypeDefinition } from "../../definitions/types.js";
+import { StoryDefinition } from "../../definitions/index.js";
+import type { StoryFieldDefinition } from "../../definitions/model/types.js";
+import type { StoryTypeDefinition } from "../../definitions/types.js";
 
 type JsonObject = Record<string, unknown>;
 
@@ -49,11 +45,11 @@ const renderFields = (
     if (field.definition && isObject(item)) {
       return [
         `${prefix}`,
-        ...renderFields(definition, storyTypeObjectFields(definition, field.definition), item, `${indent}  `),
+        ...renderFields(definition, StoryDefinition.objectFields(definition, field.definition), item, `${indent}  `),
       ];
     }
     if (field.itemDefinition && Array.isArray(item)) {
-      const objectFields = storyTypeObjectFields(definition, field.itemDefinition);
+      const objectFields = StoryDefinition.objectFields(definition, field.itemDefinition);
       return [
         `${prefix}`,
         ...item.flatMap((child, index) =>
@@ -75,7 +71,7 @@ export const readStoryProjectContext = (
   definition: StoryTypeDefinition,
   input: { scope: "project" | "chapter"; targetId?: string },
 ): StoryContext => {
-  const view = storyTypeContext(definition, input.scope);
+  const view = StoryDefinition.context(definition, input.scope);
   const candidates = project.documents.filter((entry) => view.documentKinds.includes(documentKind(entry.value)));
   const target =
     input.scope === "chapter" && view.targetKind
@@ -94,7 +90,7 @@ export const readStoryProjectContext = (
     if (entries.length === 0) return [];
     const sources: StoryContextSource[] = entries.map((entry) => ({
       kind,
-      label: storyTypeDocument(definition, kind).label,
+      label: StoryDefinition.document(definition, kind).label,
       path: entry.path,
       ...(documentId(entry.value) ? { id: documentId(entry.value) } : {}),
     }));
@@ -107,7 +103,7 @@ export const readStoryProjectContext = (
             : typeof entry.value.name === "string"
               ? entry.value.name
               : documentId(entry.value);
-        const body = renderFields(definition, storyTypeFields(definition, kind), entry.value).join("\n");
+        const body = renderFields(definition, StoryDefinition.fields(definition, kind), entry.value).join("\n");
         return entries.length > 1 && heading ? `### ${heading}\n\n${body}` : body;
       })
       .filter(Boolean)
@@ -116,7 +112,7 @@ export const readStoryProjectContext = (
       ? [
           {
             id: kind,
-            label: storyTypeDocument(definition, kind).label,
+            label: StoryDefinition.document(definition, kind).label,
             priority: 100 - index,
             required: entryIsTarget(entries, target),
             content,

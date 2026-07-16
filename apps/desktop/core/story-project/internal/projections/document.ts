@@ -1,10 +1,10 @@
-import { storyTypeDocument, storyTypeKindForPath } from "../../definitions/definition.js";
+import { StoryDefinition } from "../../definitions/index.js";
 import type { StoryTypeDefinition } from "../../definitions/types.js";
 import type { JsonFieldMetadata, JsonObjectDefinition, StoryDocument } from "../../types.js";
 
 const editorDefinition = (definition: StoryTypeDefinition, path: string): NonNullable<StoryDocument["definition"]> => {
-  const kind = storyTypeKindForPath(definition, path);
-  const document = storyTypeDocument(definition, kind);
+  const kind = StoryDefinition.kindForPath(definition, path);
+  const document = StoryDefinition.document(definition, kind);
   const definitions: Record<string, JsonObjectDefinition> = Object.fromEntries(
     definition.objects.map((object) => [
       object.id,

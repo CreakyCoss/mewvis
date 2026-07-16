@@ -1,5 +1,5 @@
-import { field } from "./fields.js";
-import { defineDocumentModels, defineObjectModels, entityDocument } from "./model.js";
+import { defineDocumentModels, defineObjectModels, entityDocument } from "../model/document.js";
+import { field } from "../model/fields.js";
 
 export const PEOPLE_OBJECTS = defineObjectModels([
   {

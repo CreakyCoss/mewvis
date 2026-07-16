@@ -1,5 +1,5 @@
-import { field } from "./fields.js";
-import { defineDocumentModels, defineObjectModels, documentModel, entityDocument } from "./model.js";
+import { defineDocumentModels, defineObjectModels, documentModel, entityDocument } from "../model/document.js";
+import { field } from "../model/fields.js";
 
 export const OUTLINE_OBJECTS = defineObjectModels([
   {

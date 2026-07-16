@@ -1,7 +1,7 @@
-import { defineStoryType } from "../../definitions/definition.js";
+import { StoryDefinition } from "../../definitions/index.js";
 import { LONG_NOVEL_STORY_TYPE } from "../long-novel/index.js";
 
-export const SHORT_NOVEL_STORY_TYPE = defineStoryType({
+export const SHORT_NOVEL_STORY_TYPE = StoryDefinition.define({
   ...LONG_NOVEL_STORY_TYPE,
   id: "short-novel",
   label: "短篇小说",

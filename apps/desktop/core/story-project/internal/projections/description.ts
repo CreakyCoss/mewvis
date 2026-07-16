@@ -1,4 +1,5 @@
-import type { StoryFieldDefinition, StoryTypeDefinition } from "../../definitions/types.js";
+import type { StoryFieldDefinition } from "../../definitions/model/types.js";
+import type { StoryTypeDefinition } from "../../definitions/types.js";
 import type {
   JsonFieldMetadata,
   JsonObjectDefinition,

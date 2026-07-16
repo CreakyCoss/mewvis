@@ -1,12 +1,8 @@
 import type { StoryValidationIssue } from "../../types.js";
 import { StoryProjectValidationError } from "./issues.js";
-import {
-  storyTypeDocument,
-  storyTypeFields,
-  storyTypeKindForPath,
-  storyTypeObjectFields,
-} from "../../definitions/definition.js";
-import type { StoryFieldDefinition, StoryTypeDefinition } from "../../definitions/types.js";
+import { StoryDefinition } from "../../definitions/index.js";
+import type { StoryFieldDefinition } from "../../definitions/model/types.js";
+import type { StoryTypeDefinition } from "../../definitions/types.js";
 
 const objectFromUnknown = (value: unknown, owner: string): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -192,7 +188,7 @@ const materializeFields = (
     }
     try {
       if (field.definition) {
-        const objectFields = storyTypeObjectFields(definition, field.definition);
+        const objectFields = StoryDefinition.objectFields(definition, field.definition);
         value = materializeFields(
           definition,
           path,
@@ -206,7 +202,7 @@ const materializeFields = (
       } else if (field.itemDefinition) {
         if (coerce) value = compatibleArray(value);
         if (!Array.isArray(value)) throw new Error(`${path} 必须是数组。`);
-        const objectFields = storyTypeObjectFields(definition, field.itemDefinition);
+        const objectFields = StoryDefinition.objectFields(definition, field.itemDefinition);
         value = value.map((item, index) =>
           materializeFields(
             definition,
@@ -247,7 +243,7 @@ export const materializeStoryDocument = (
   const value = materializeFields(
     definition,
     expectedKind,
-    storyTypeFields(definition, expectedKind),
+    StoryDefinition.fields(definition, expectedKind),
     input,
     timestamp,
     options.coerce === true,
@@ -271,11 +267,11 @@ export const serializeStoryDocument = (
   input: unknown,
   path: string,
 ): Record<string, unknown> | string => {
-  const kind = storyTypeKindForPath(definition, path);
-  const document = storyTypeDocument(definition, kind);
+  const kind = StoryDefinition.kindForPath(definition, path);
+  const document = StoryDefinition.document(definition, kind);
   if (document.contentType === "markdown") return parseStoryDocument(definition, input, path).content as string;
   const source = objectFromUnknown(input, path);
-  const allowed = new Set(Object.keys(storyTypeFields(definition, kind)));
+  const allowed = new Set(Object.keys(StoryDefinition.fields(definition, kind)));
   return materializeStoryDocument(
     definition,
     Object.fromEntries(Object.entries(source).filter(([key]) => allowed.has(key))),
@@ -292,8 +288,8 @@ export const parseStoryDocument = (
   timestamp = Date.now(),
   options: Readonly<{ coerce?: boolean }> = {},
 ) => {
-  const kind = storyTypeKindForPath(definition, path);
-  const document = storyTypeDocument(definition, kind);
+  const kind = StoryDefinition.kindForPath(definition, path);
+  const document = StoryDefinition.document(definition, kind);
   if (document.contentType === "markdown") {
     const content = typeof input === "string" ? input : objectFromUnknown(input, path).content;
     if (typeof content !== "string") throw new Error(`${path} 的 Markdown 内容必须是字符串。`);

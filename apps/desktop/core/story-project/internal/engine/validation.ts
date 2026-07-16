@@ -1,8 +1,9 @@
 import type { StoryProjectState, StoryValidationIssue, StoryValidationResult } from "../../types.js";
 import { storyValidationIssue } from "./issues.js";
 import { manifestFiles, projectInfo } from "./project.js";
-import { storyTypeDocument, storyTypeFields, storyTypeObjectFields } from "../../definitions/definition.js";
-import type { StoryFieldDefinition, StoryTypeDefinition } from "../../definitions/types.js";
+import { StoryDefinition } from "../../definitions/index.js";
+import type { StoryFieldDefinition } from "../../definitions/model/types.js";
+import type { StoryTypeDefinition } from "../../definitions/types.js";
 
 type JsonObject = Record<string, unknown>;
 
@@ -27,10 +28,16 @@ const walkFields = (
     const item = value[key];
     visitor(field, item, `${basePath}.${key}`);
     if (field.definition && isObject(item)) {
-      walkFields(definition, storyTypeObjectFields(definition, field.definition), item, visitor, `${basePath}.${key}`);
+      walkFields(
+        definition,
+        StoryDefinition.objectFields(definition, field.definition),
+        item,
+        visitor,
+        `${basePath}.${key}`,
+      );
     }
     if (field.itemDefinition && Array.isArray(item)) {
-      const objectFields = storyTypeObjectFields(definition, field.itemDefinition);
+      const objectFields = StoryDefinition.objectFields(definition, field.itemDefinition);
       item.forEach((child, index) => {
         if (isObject(child)) walkFields(definition, objectFields, child, visitor, `${basePath}.${key}[${index}]`);
       });
@@ -53,10 +60,10 @@ const definitionIds = (project: StoryProjectState, definition: StoryTypeDefiniti
       const item = value[key];
       if (field.definition && isObject(item)) {
         collect(field.definition, item, `${basePath}.${key}`);
-        visit(storyTypeObjectFields(definition, field.definition), item, `${basePath}.${key}`);
+        visit(StoryDefinition.objectFields(definition, field.definition), item, `${basePath}.${key}`);
       }
       if (field.itemDefinition && Array.isArray(item)) {
-        const objectFields = storyTypeObjectFields(definition, field.itemDefinition);
+        const objectFields = StoryDefinition.objectFields(definition, field.itemDefinition);
         item.forEach((child, index) => {
           collect(field.itemDefinition!, child, `${basePath}.${key}[${index}]`);
           if (isObject(child)) visit(objectFields, child, `${basePath}.${key}[${index}]`);
@@ -66,7 +73,7 @@ const definitionIds = (project: StoryProjectState, definition: StoryTypeDefiniti
   };
   for (const entry of project.documents) {
     const kind = documentKind(entry.value);
-    if (isObject(entry.value)) visit(storyTypeFields(definition, kind), entry.value, entry.path);
+    if (isObject(entry.value)) visit(StoryDefinition.fields(definition, kind), entry.value, entry.path);
   }
   return result;
 };
@@ -115,7 +122,7 @@ export const validateProject = (
     if (!isObject(entry.value)) continue;
     walkFields(
       definition,
-      storyTypeFields(definition, kind),
+      StoryDefinition.fields(definition, kind),
       entry.value,
       (field, fieldValue, path) => {
         if (
@@ -146,7 +153,7 @@ export const validateProject = (
       },
       entry.path,
     );
-    for (const companionKind of storyTypeDocument(definition, kind).companionKinds ?? []) {
+    for (const companionKind of StoryDefinition.document(definition, kind).companionKinds ?? []) {
       const id = documentId(entry.value);
       if (id && !idsByKind.get(companionKind)?.has(id)) {
         issues.push(

@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 
 const root = process.cwd();
 const entry = resolve(root, "core/story-project/story-types/long-novel/index.ts");
-const definitionEntry = resolve(root, "core/story-project/definitions/definition.ts");
+const definitionEntry = resolve(root, "core/story-project/definitions/index.ts");
 const output = await build({
   entryPoints: [entry],
   bundle: true,
@@ -24,7 +24,7 @@ const definitionOutput = await build({
   target: "node22",
   write: false,
 });
-const { defineStoryType } = await import(
+const { StoryDefinition } = await import(
   `data:text/javascript;base64,${Buffer.from(definitionOutput.outputFiles[0].text).toString("base64")}`
 );
 
@@ -50,8 +50,13 @@ const expectedPaths = {
   "story-import": "story/imports/{id}.json",
 };
 
-assert.equal(storyType.$format, "novel-claw.story-project");
-assert.equal(storyType.formatVersion, 1);
+assert.equal(StoryDefinition.format, "novel-claw.story-type-definition");
+assert.equal(StoryDefinition.formatVersion, 1);
+assert.equal(storyType.$format, StoryDefinition.format);
+assert.equal(storyType.formatVersion, StoryDefinition.formatVersion);
+const legacyStoryType = structuredClone(storyType);
+legacyStoryType.$format = "novel-claw.story-project";
+assert.equal(StoryDefinition.parse(legacyStoryType).$format, StoryDefinition.format);
 assert.equal(storyType.id, "long-novel");
 assert.equal(storyType.version, 3);
 assert.equal(storyType.rootPath, "story");
@@ -107,7 +112,7 @@ assert.ok(
 assert.deepEqual(Object.keys(storyType.validationModes), ["draft", "openBook", "chapterWrite"]);
 const brokenType = structuredClone(storyType);
 brokenType.roles.primary = "story-book-typo";
-assert.throws(() => defineStoryType(brokenType), /未知文档/, "故事类型组合时应立即拒绝拼错的语义角色");
+assert.throws(() => StoryDefinition.define(brokenType), /未知文档/, "故事类型组合时应立即拒绝拼错的语义角色");
 console.log(
   `[story-contract] ok (${storyType.documents.length} documents, ${storyType.objects.length} object definitions)`,
 );

@@ -1,12 +1,18 @@
-import { defineFields } from "./fields.js";
+import { defineFields } from "../model/fields.js";
 import type {
-  StoryContextDefinition,
   StoryDocumentDefinition,
   StoryFieldDefinition,
   StoryFieldType,
   StoryObjectDefinition,
-  StoryTypeDefinition,
-} from "./types.js";
+} from "../model/types.js";
+import { normalizeStoryTypePath } from "./path.js";
+import {
+  STORY_TYPE_DEFINITION_FORMAT,
+  STORY_TYPE_DEFINITION_FORMAT_VERSION,
+  STORY_TYPE_DEFINITION_LEGACY_FORMATS,
+  type StoryContextDefinition,
+  type StoryTypeDefinition,
+} from "../types.js";
 
 type JsonObject = Record<string, unknown>;
 
@@ -71,17 +77,6 @@ const FIELD_TYPES: readonly StoryFieldType[] = [
   "collection",
   "path",
 ];
-
-const canonicalPath = (input: string) => {
-  const path = input
-    .trim()
-    .replace(/\\/g, "/")
-    .replace(/^\/+|\/+$/g, "");
-  if (!path || path.split("/").some((part) => !part || part === "." || part === "..")) {
-    throw new Error(`非法故事文件路径：${input}`);
-  }
-  return path;
-};
 
 const parseField = (input: unknown, owner: string): StoryFieldDefinition => {
   const value = objectValue(input, owner);
@@ -210,7 +205,7 @@ const parseDocumentDefinition = (input: unknown, owner: string): StoryDocumentDe
       ? { description: value.description.trim() }
       : {}),
     contentType,
-    pathPattern: canonicalPath(nonEmptyString(value.pathPattern, `${owner}.pathPattern`)),
+    pathPattern: normalizeStoryTypePath(nonEmptyString(value.pathPattern, `${owner}.pathPattern`)),
     cardinality: value.cardinality,
     fields: parseFields(value.fields, `${owner}.fields`),
     ...(value.companionKinds === undefined
@@ -259,10 +254,13 @@ export const defineStoryType = (input: StoryTypeDefinition): StoryTypeDefinition
     "validationModes",
     "rules",
   ]);
-  if (value.$format !== "novel-claw.story-project" || value.formatVersion !== 1) {
+  const compatibleFormat =
+    value.$format === STORY_TYPE_DEFINITION_FORMAT ||
+    STORY_TYPE_DEFINITION_LEGACY_FORMATS.some((format) => value.$format === format);
+  if (!compatibleFormat || value.formatVersion !== STORY_TYPE_DEFINITION_FORMAT_VERSION) {
     throw new Error("故事类型定义格式无效。 ");
   }
-  const rootPath = canonicalPath(nonEmptyString(value.rootPath, "rootPath"));
+  const rootPath = normalizeStoryTypePath(nonEmptyString(value.rootPath, "rootPath"));
   if (!Array.isArray(value.objects) || !Array.isArray(value.documents) || !Array.isArray(value.contexts)) {
     throw new Error("故事类型定义的 objects、documents 和 contexts 必须是数组。 ");
   }
@@ -344,8 +342,8 @@ export const defineStoryType = (input: StoryTypeDefinition): StoryTypeDefinition
   const primaryKind = value.primaryKind === undefined ? undefined : nonEmptyString(value.primaryKind, "primaryKind");
   if (primaryKind && !kinds.includes(primaryKind)) throw new Error("primaryKind 引用了未知文档。 ");
   const definition: StoryTypeDefinition = {
-    $format: "novel-claw.story-project",
-    formatVersion: 1,
+    $format: STORY_TYPE_DEFINITION_FORMAT,
+    formatVersion: STORY_TYPE_DEFINITION_FORMAT_VERSION,
     id: nonEmptyString(value.id, "id"),
     version: positiveInteger(value.version, "version"),
     label: nonEmptyString(value.label, "label"),
@@ -364,54 +362,3 @@ export const defineStoryType = (input: StoryTypeDefinition): StoryTypeDefinition
 };
 
 export const parseStoryTypeDefinition = (input: unknown) => defineStoryType(input as StoryTypeDefinition);
-
-export const storyTypeDocument = (definition: StoryTypeDefinition, kind: string) => {
-  const document = definition.documents.find((candidate) => candidate.kind === kind);
-  if (!document) throw new Error(`故事类型未定义文档：${kind}`);
-  return document;
-};
-
-export const storyTypeObject = (definition: StoryTypeDefinition, id: string) => {
-  const object = definition.objects.find((candidate) => candidate.id === id);
-  if (!object) throw new Error(`故事类型未定义对象：${id}`);
-  return object;
-};
-
-export const storyTypeObjectFields = (definition: StoryTypeDefinition, id: string) =>
-  Object.fromEntries(storyTypeObject(definition, id).fields.map((field) => [field.key, field]));
-
-export const storyTypeFields = (definition: StoryTypeDefinition, kind: string) =>
-  Object.fromEntries(storyTypeDocument(definition, kind).fields.map((field) => [field.key, field]));
-
-const patternRegex = (pattern: string) => {
-  const escaped = canonicalPath(pattern).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`^${escaped.replace(/\\\{[^}]+\\\}/g, "[A-Za-z0-9_-]+")}$`);
-};
-
-export const storyTypeKindForPath = (definition: StoryTypeDefinition, input: string) => {
-  const path = canonicalPath(input);
-  const document = definition.documents.find((candidate) => patternRegex(candidate.pathPattern).test(path));
-  if (!document) throw new Error(`故事类型不允许文件路径：${path}`);
-  return document.kind;
-};
-
-export const resolveStoryTypePath = (
-  definition: StoryTypeDefinition,
-  kind: string,
-  parameters: Readonly<Record<string, string>> = {},
-) => {
-  const pattern = storyTypeDocument(definition, kind).pathPattern;
-  const path = pattern.replace(/\{([^}]+)\}/g, (_match, name: string) => {
-    const value = parameters[name]?.trim();
-    if (!value || !/^[A-Za-z0-9_-]+$/.test(value)) throw new Error(`${kind} 路径缺少合法参数：${name}`);
-    return value;
-  });
-  if (path.includes("{")) throw new Error(`${kind} 路径仍包含未解析参数：${path}`);
-  return canonicalPath(path);
-};
-
-export const storyTypeContext = (definition: StoryTypeDefinition, scope: "project" | "chapter") => {
-  const context = definition.contexts.find((candidate) => candidate.scope === scope);
-  if (!context) throw new Error(`故事类型缺少 ${scope} 上下文定义。`);
-  return context;
-};

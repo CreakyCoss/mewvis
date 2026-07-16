@@ -1,12 +1,8 @@
 import type { StoryProjectFileEntry, StoryProjectState } from "../../types.js";
 import { parseStoryDocument } from "./document.js";
-import {
-  resolveStoryTypePath,
-  storyTypeFields,
-  storyTypeKindForPath,
-  storyTypeObjectFields,
-} from "../../definitions/definition.js";
-import type { StoryFieldDefinition, StoryTypeDefinition } from "../../definitions/types.js";
+import { StoryDefinition } from "../../definitions/index.js";
+import type { StoryFieldDefinition } from "../../definitions/model/types.js";
+import type { StoryTypeDefinition } from "../../definitions/types.js";
 
 type JsonObject = Record<string, unknown>;
 
@@ -37,7 +33,7 @@ const emptyFieldValue = (definition: StoryTypeDefinition, field: StoryFieldDefin
   if (field.default !== undefined) return clone(field.default);
   if (field.generated && field.type === "timestamp") return timestamp;
   if (field.definition) {
-    const fields = storyTypeObjectFields(definition, field.definition);
+    const fields = StoryDefinition.objectFields(definition, field.definition);
     return Object.fromEntries(
       Object.entries(fields)
         .filter(([, child]) => child.required || child.default !== undefined || child.const !== undefined)
@@ -58,7 +54,7 @@ export const initialDocumentInput = (
   title: string,
   timestamp: number,
 ) => {
-  const fields = storyTypeFields(definition, kind);
+  const fields = StoryDefinition.fields(definition, kind);
   const result: JsonObject = {};
   for (const [key, field] of Object.entries(fields)) {
     if (key === "storyId") result[key] = storyId;
@@ -80,7 +76,7 @@ export const createInitialProject = (
   input: { storyId: string; title: string },
   timestamp = Date.now(),
 ) => {
-  const manifestPath = resolveStoryTypePath(definition, definition.manifestKind);
+  const manifestPath = StoryDefinition.resolvePath(definition, definition.manifestKind);
   const manifest = parseStoryDocument(
     definition,
     initialDocumentInput(definition, definition.manifestKind, input.storyId, input.title, timestamp),
@@ -90,7 +86,7 @@ export const createInitialProject = (
   if (!isObject(manifest)) throw new Error("故事 Manifest 必须是 JSON 对象。");
   const documents = definition.documents.flatMap((document) => {
     if (document.kind === definition.manifestKind || document.cardinality !== "one") return [];
-    const path = resolveStoryTypePath(definition, document.kind);
+    const path = StoryDefinition.resolvePath(definition, document.kind);
     return [
       {
         path,
@@ -159,7 +155,7 @@ export const assembleProject = (
     .filter((entry) => canonicalPath(entry.path) !== manifestPath)
     .map((entry) => {
       const path = canonicalPath(entry.path);
-      const kind = storyTypeKindForPath(definition, path);
+      const kind = StoryDefinition.kindForPath(definition, path);
       if (kind === definition.manifestKind) throw new Error("Manifest 不得出现在普通文档集合中。");
       const value = parseStoryDocument(definition, entry.value, path);
       if (documentKind(value) !== kind) throw new Error(`${path} 的 kind 与故事类型不一致。`);

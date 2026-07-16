@@ -1,10 +1,10 @@
-import { ASSISTANT_DOCUMENTS, ASSISTANT_OBJECTS } from "../../definitions/assistant.js";
-import { CORE_DOCUMENTS, CORE_OBJECTS } from "../../definitions/core.js";
-import { defineStoryType } from "../../definitions/definition.js";
-import { bindDocumentModels } from "../../definitions/model.js";
-import { OUTLINE_DOCUMENTS, OUTLINE_OBJECTS } from "../../definitions/outline.js";
-import { PEOPLE_DOCUMENTS, PEOPLE_OBJECTS } from "../../definitions/people.js";
-import { TRACKING_DOCUMENTS, TRACKING_OBJECTS } from "../../definitions/tracking.js";
+import { StoryDefinition } from "../../definitions/index.js";
+import { ASSISTANT_DOCUMENTS, ASSISTANT_OBJECTS } from "../../definitions/documents/assistant.js";
+import { CORE_DOCUMENTS, CORE_OBJECTS } from "../../definitions/documents/core.js";
+import { OUTLINE_DOCUMENTS, OUTLINE_OBJECTS } from "../../definitions/documents/outline.js";
+import { PEOPLE_DOCUMENTS, PEOPLE_OBJECTS } from "../../definitions/documents/people.js";
+import { TRACKING_DOCUMENTS, TRACKING_OBJECTS } from "../../definitions/documents/tracking.js";
+import { bindDocumentModels } from "../../definitions/model/document.js";
 import {
   LONG_NOVEL_CONTEXTS,
   LONG_NOVEL_PATHS,
@@ -23,9 +23,9 @@ const documentModels = [
   ...ASSISTANT_DOCUMENTS,
 ];
 
-export const LONG_NOVEL_STORY_TYPE = defineStoryType({
-  $format: "novel-claw.story-project",
-  formatVersion: 1,
+export const LONG_NOVEL_STORY_TYPE = StoryDefinition.define({
+  $format: StoryDefinition.format,
+  formatVersion: StoryDefinition.formatVersion,
   id: "long-novel",
   version: 3,
   label: "长篇小说",

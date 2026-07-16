@@ -1,9 +1,4 @@
-import {
-  parseStoryTypeDefinition,
-  resolveStoryTypePath,
-  storyTypeDocument,
-  storyTypeKindForPath,
-} from "../definitions/definition.js";
+import { StoryDefinition } from "../definitions/index.js";
 import type { StoryTypeDefinition } from "../definitions/types.js";
 import type { StoryDocument, StoryProjectAppliedChanges, StoryProjectState, StoryValue } from "../types.js";
 import { parseStoryDocument, serializeStoryDocument } from "../internal/engine/document.js";
@@ -66,7 +61,7 @@ const storedDocument = (definition: StoryTypeDefinition, path: string, value: un
 };
 
 const storedDocumentValue = (definition: StoryTypeDefinition, path: string, record: StoryProjectRecord) => {
-  const expected = storyTypeDocument(definition, storyTypeKindForPath(definition, path)).contentType;
+  const expected = StoryDefinition.document(definition, StoryDefinition.kindForPath(definition, path)).contentType;
   if (record.contentType !== expected) {
     throw new Error(`故事记录类型不一致：${path} 期望 ${expected}，实际为 ${record.contentType}。`);
   }
@@ -78,7 +73,7 @@ const loadDefinition = async (backend: StoryProjectRecordBackend, projectKey: st
   if (!record) return null;
   try {
     if (record.contentType !== "json") throw new Error("故事项目定义必须是 JSON 记录。");
-    return parseStoryTypeDefinition(record.value);
+    return StoryDefinition.parse(record.value);
   } catch (error) {
     throw new Error(`故事项目定义无效：${error instanceof Error ? error.message : String(error)}`);
   }
@@ -86,7 +81,7 @@ const loadDefinition = async (backend: StoryProjectRecordBackend, projectKey: st
 
 const inspect = async (backend: StoryProjectRecordBackend, projectKey: string, definition: StoryTypeDefinition) => {
   const keys = (await backend.list(projectKey)).map((entry) => canonicalStoryPath(entry.key));
-  const manifestPath = resolveStoryTypePath(definition, definition.manifestKind);
+  const manifestPath = StoryDefinition.resolvePath(definition, definition.manifestKind);
   const replaceablePaths = replaceableStoryKeys(keys, definition);
   return {
     initialized: keys.includes(manifestPath),
@@ -100,7 +95,7 @@ const loadProject = async (
   projectKey: string,
   definition: StoryTypeDefinition,
 ): Promise<StoryProjectState> => {
-  const manifestPath = resolveStoryTypePath(definition, definition.manifestKind);
+  const manifestPath = StoryDefinition.resolvePath(definition, definition.manifestKind);
   const manifestRecord = await backend.read(projectKey, manifestPath);
   const manifestValue = parseStoryDocument(
     definition,
@@ -145,7 +140,7 @@ const initializeProject = async (
   project: StoryProjectState,
   replacePaths: readonly string[],
 ) => {
-  const manifestPath = resolveStoryTypePath(definition, definition.manifestKind);
+  const manifestPath = StoryDefinition.resolvePath(definition, definition.manifestKind);
   const writes: StoryProjectRecordWrite[] = [
     { key: PROJECT_CONFIG_PATH, contentType: "json", value: definition as unknown as StoryValue },
     ...project.documents.map(({ path, value }) => storedDocument(definition, path, value)),
@@ -165,7 +160,7 @@ const persistAppliedProject = async (
   definition: StoryTypeDefinition,
   applied: StoryProjectAppliedChanges,
 ) => {
-  const manifestPath = resolveStoryTypePath(definition, definition.manifestKind);
+  const manifestPath = StoryDefinition.resolvePath(definition, definition.manifestKind);
   const files = new Map(applied.project.documents.map((entry) => [entry.path, entry.value]));
   const changed = [...new Set(applied.changedPaths)];
   const writes: StoryProjectRecordWrite[] = changed.flatMap((path) => {
