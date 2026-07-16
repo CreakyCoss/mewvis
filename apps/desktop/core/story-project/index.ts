@@ -13,7 +13,7 @@ import type {
 } from "./types.js";
 import type { StoryProjectStorage } from "./storage/index.js";
 import { StoryProjectValidationError } from "./errors.js";
-import { createWorkspace } from "./application/workspace.js";
+import { createWorkspace } from "./application/index.js";
 
 /** 内置 Story Types 对应的文件布局配置；仅用于组装 File Storage。 */
 export const BUILTIN_STORY_FILE_LAYOUT = builtinStoryFileLayout;

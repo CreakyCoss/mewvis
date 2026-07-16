@@ -4,7 +4,10 @@ import type { StoryChangeResult, StoryChangeValidation, StoryInitialization, Sto
 import type { StoryProjectStorage } from "../storage/index.js";
 import type { StoryWorkspace } from "../index.js";
 import { errorIssues } from "./errors.js";
-import { StoryProjectQuery } from "./queries/index.js";
+import { readStoryProjectContext } from "./queries/context.js";
+import { describeStoryProject } from "./queries/description.js";
+import { editableStoryDocument } from "./queries/document.js";
+import { projectOverview } from "./queries/overview.js";
 
 const DEFAULT_STORY_TYPE_ID = "long-novel";
 
@@ -100,12 +103,12 @@ export const createWorkspace = (
     },
 
     async describe(input = {}) {
-      return StoryProjectQuery.describe(await describeDefinition(), storage.changeSet, input);
+      return describeStoryProject(await describeDefinition(), storage.changeSet, input);
     },
 
     async overview() {
       const definition = await loadDefinition();
-      return StoryProjectQuery.overview(await storage.loadProject(projectKey, definition), definition);
+      return projectOverview(await storage.loadProject(projectKey, definition), definition);
     },
 
     async listDocuments(input = {}) {
@@ -119,14 +122,14 @@ export const createWorkspace = (
         .sort((left, right) => StoryDefinition.identityKey(left).localeCompare(StoryDefinition.identityKey(right)));
       return Promise.all(
         refs.map(async (ref) =>
-          StoryProjectQuery.document(definition, await storage.loadDocument(projectKey, definition, ref)),
+          editableStoryDocument(definition, await storage.loadDocument(projectKey, definition, ref)),
         ),
       );
     },
 
     async saveDocument(document) {
       const definition = await loadDefinition();
-      return StoryProjectQuery.document(definition, await storage.saveDocument(projectKey, definition, document));
+      return editableStoryDocument(definition, await storage.saveDocument(projectKey, definition, document));
     },
 
     async removeDocument(inputRef) {
@@ -136,7 +139,7 @@ export const createWorkspace = (
 
     async readContext(input) {
       const definition = await loadDefinition();
-      return StoryProjectQuery.context(await storage.loadProject(projectKey, definition), definition, input);
+      return readStoryProjectContext(await storage.loadProject(projectKey, definition), definition, input);
     },
 
     async validateChanges(changeSet): Promise<StoryChangeValidation> {

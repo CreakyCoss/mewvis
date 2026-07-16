@@ -53,6 +53,8 @@ for (const removed of [
   "internal/application",
   "internal/engine",
   "internal/projections",
+  "application/workspace.ts",
+  "application/queries/index.ts",
   "storage/file.ts",
   "storage/memory.ts",
   "storage/core",
@@ -85,7 +87,7 @@ if (
   !publicIndex.includes("workspace(projectKey") ||
   !publicIndex.includes("open(projectKey") ||
   !publicIndex.includes("commitChanges(changeSet") ||
-  !publicIndex.includes("./application/workspace.js") ||
+  !publicIndex.includes("./application/index.js") ||
   !publicIndex.includes("./storage/index.js") ||
   publicIndex.includes("StoryProjects") ||
   publicIndex.includes("export type {") ||
@@ -280,18 +282,18 @@ if (
 ) {
   throw new Error("Story Storage 必须由公共 Facade 直接分发具体 Adapter，不得引入 Registry 或 barrel 隐藏依赖。");
 }
-const queryFacade = readFileSync(resolve(queriesRoot, "index.ts"), "utf8");
+const applicationFacade = readFileSync(resolve(applicationRoot, "index.ts"), "utf8");
 if (
-  !queryFacade.includes("interface StoryProjectQueryApi") ||
-  !queryFacade.includes("const StoryProjectQuery") ||
-  !queryFacade.includes("describe:") ||
-  !queryFacade.includes("overview:") ||
-  !queryFacade.includes("document:") ||
-  !queryFacade.includes("context:") ||
-  queryFacade.includes("export *") ||
-  queryFacade.includes("export {")
+  !applicationFacade.includes("export const createWorkspace") ||
+  !applicationFacade.includes('from "./queries/context.js"') ||
+  !applicationFacade.includes('from "./queries/description.js"') ||
+  !applicationFacade.includes('from "./queries/document.js"') ||
+  !applicationFacade.includes('from "./queries/overview.js"') ||
+  applicationFacade.includes("StoryProjectQuery") ||
+  applicationFacade.includes("export *") ||
+  applicationFacade.includes("export {")
 ) {
-  throw new Error("Application Queries index 必须提供实际 Facade，不得退化为 re-export barrel。");
+  throw new Error("Application index 必须直接组装 Workspace 与 Query 实现，不得增加二级 Facade 或 re-export barrel。");
 }
 
 const protocol = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/protocol.ts"), "utf8");
