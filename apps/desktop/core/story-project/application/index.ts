@@ -120,16 +120,15 @@ export const createWorkspace = (
         .filter((entry) => !kind || entry.ref.kind === kind)
         .map((entry) => entry.ref)
         .sort((left, right) => StoryDefinition.identityKey(left).localeCompare(StoryDefinition.identityKey(right)));
-      return Promise.all(
-        refs.map(async (ref) =>
-          editableStoryDocument(definition, await storage.loadDocument(projectKey, definition, ref)),
-        ),
-      );
+      const documents = await Promise.all(refs.map((ref) => storage.loadDocument(projectKey, definition, ref)));
+      return documents.map((document) => editableStoryDocument(definition, document, project.documents));
     },
 
     async saveDocument(document) {
       const definition = await loadDefinition();
-      return editableStoryDocument(definition, await storage.saveDocument(projectKey, definition, document));
+      const saved = await storage.saveDocument(projectKey, definition, document);
+      const project = await storage.loadProject(projectKey, definition);
+      return editableStoryDocument(definition, saved, project.documents);
     },
 
     async removeDocument(inputRef) {

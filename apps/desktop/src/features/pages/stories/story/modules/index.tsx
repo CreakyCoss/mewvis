@@ -45,7 +45,7 @@ const groupHints = [
 
 const documentSearchText = (document: StoryDocument) => {
   const inspected = inspectStoryDocument(document);
-  return `${storyDocumentKey(document)} ${inspected?.kind ?? ""} ${inspected?.label ?? storyDocumentLabel(document)}`.toLowerCase();
+  return `${storyDocumentKey(document)} ${inspected?.kind ?? ""} ${inspected?.label ?? ""} ${storyDocumentLabel(document)}`.toLowerCase();
 };
 
 const groupForDocument = (document: StoryDocument) => {
@@ -152,7 +152,7 @@ export const StoryModules = () => {
                         <button
                           key={key}
                           type="button"
-                          title={key}
+                          title={`${storyDocumentLabel(document)} · ${document.definition?.label ?? key}`}
                           aria-current={active ? "page" : undefined}
                           className={[
                             "group flex w-full min-w-0 items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors",

@@ -4,7 +4,7 @@ import type { StoryDocumentDefinition, StoryObjectDefinition } from "./model/typ
 export const STORY_TYPE_DEFINITION_FORMAT = "novel-claw.story-type-definition";
 
 /** Story Type Definition 持久化结构的版本。 */
-export const STORY_TYPE_DEFINITION_FORMAT_VERSION = 2;
+export const STORY_TYPE_DEFINITION_FORMAT_VERSION = 3;
 
 export type StoryContextDefinition = Readonly<{
   name: string;

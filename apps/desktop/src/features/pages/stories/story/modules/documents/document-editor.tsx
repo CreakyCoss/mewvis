@@ -182,7 +182,7 @@ export const StoryDocumentEditor = ({
     }
   };
 
-  const title = inspected?.label ?? storyDocumentLabel(document);
+  const title = storyDocumentLabel(document);
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">

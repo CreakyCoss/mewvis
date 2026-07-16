@@ -44,6 +44,7 @@ export type StoryDocumentDefinition = Readonly<{
 
 export type StoryDocument = Readonly<{
   definition?: StoryDocumentDefinition;
+  displayName: string;
   ref: StoryDocumentIdentity;
   value: StoryValue;
   updatedAt: number | null;

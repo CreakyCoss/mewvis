@@ -12,6 +12,8 @@ const publicEntry = resolve(root, "core/story-project/index.ts");
 const publicStorage = resolve(root, "core/story-project/storage/index.ts");
 const storageTypesEntry = resolve(root, "core/story-project/storage/types.ts");
 const fileStorageEntry = resolve(root, "core/story-project/storage/adapters/file/index.ts");
+const documentQueryEntry = resolve(root, "core/story-project/application/queries/document.ts");
+const longNovelEntry = resolve(root, "core/story-project/story-types/long-novel/index.ts");
 
 writeFileSync(
   entryPath,
@@ -20,6 +22,8 @@ writeFileSync(
   import { createStoryProjectStorage, type StoryProjectStorage } from ${JSON.stringify(publicStorage)};
   import type { StoryFileBackend } from ${JSON.stringify(storageTypesEntry)};
   import { assertStoryFileRevision } from ${JSON.stringify(fileStorageEntry)};
+  import { editableStoryDocument } from ${JSON.stringify(documentQueryEntry)};
+  import { LONG_NOVEL_STORY_TYPE } from ${JSON.stringify(longNovelEntry)};
 
   const assert = (condition: unknown, message: string, details?: unknown) => {
     if (!condition) throw new Error(message + (details === undefined ? "" : "\\n" + JSON.stringify(details, null, 2)));
@@ -45,6 +49,7 @@ writeFileSync(
   const bookValue = book?.value as Record<string, unknown>;
   assert(!("playerName" in bookValue) && !("mode" in bookValue), "作品核心不应包含玩家称呼或故事模式。", bookValue);
   assert(book?.definition?.fields.title?.label === "书名", "通用编辑器应直接读取文档字段定义。", book?.definition);
+  assert(book?.displayName === "作品核心", "未声明实例显示规则的单例文档应使用类型名称。", book);
   const overview = await project.overview();
   assert(overview.title === "雾港档案" && overview.id === "story-1", "概览应来自统一工作区处理器。", overview);
 
@@ -59,6 +64,36 @@ writeFileSync(
   });
   assert(result.committed && result.revision === 1, "合法 ChangeSet 应原子提交。", result);
   assert((await project.readContext({ scope: "project" })).text.includes("港口迷雾中的调查"), "召回文本应使用字段 label 和最新数据。" );
+
+  const character = await project.saveDocument({
+    ref: { kind: "story-character", identity: { id: "character-1" } },
+    value: { name: "沈砚", role: "protagonist", memory: {} },
+  });
+  assert(character.displayName === "沈砚", "多实例文档应按 definitions 声明生成显示名称。", character);
+  assert(
+    (await project.listDocuments()).find((item) => item.ref.kind === "story-character")?.displayName === "沈砚",
+    "文档列表应返回 application 解析后的显示名称。",
+  );
+  const chapterEntries = [
+    {
+      ref: { kind: "story-chapter", identity: { id: "chapter-1" } },
+      value: { number: 1, title: "谷底激活" },
+    },
+    {
+      ref: { kind: "story-chapter-content", identity: { id: "chapter-1" } },
+      value: { kind: "story-chapter-content", id: "chapter-1", content: "# 第一章" },
+    },
+  ];
+  const chapterContent = editableStoryDocument(
+    LONG_NOVEL_STORY_TYPE.definition,
+    { ...chapterEntries[1], updatedAt: null },
+    chapterEntries,
+  );
+  assert(
+    chapterContent.displayName === "第1章 · 谷底激活（正文）",
+    "Markdown 正文应从同 identity 的 companion 文档解析章号与标题。",
+    chapterContent,
+  );
 
   const short = await projects.create("/memory/short", { storyTypeId: "short-novel", storyId: "story-2", title: "雾港一夜" });
   const positioning = (await short.listDocuments()).find((item) => item.ref.kind === "story-positioning")?.value as Record<string, unknown>;

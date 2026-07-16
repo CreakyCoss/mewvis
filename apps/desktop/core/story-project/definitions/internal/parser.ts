@@ -1,6 +1,7 @@
 import { defineFields } from "../model/fields.js";
 import type {
   StoryDocumentDefinition,
+  StoryDocumentDisplayDefinition,
   StoryFieldDefinition,
   StoryFieldType,
   StoryObjectDefinition,
@@ -176,6 +177,18 @@ const parseObjectDefinition = (input: unknown, owner: string): StoryObjectDefini
   };
 };
 
+const parseDocumentDisplay = (input: unknown, owner: string): StoryDocumentDisplayDefinition => {
+  const value = objectValue(input, owner);
+  assertOnlyKeys(value, owner, ["template", "sourceKind", "suffix"]);
+  const sourceKind = optionalString(value.sourceKind, `${owner}.sourceKind`);
+  const suffix = optionalString(value.suffix, `${owner}.suffix`);
+  return {
+    template: nonEmptyString(value.template, `${owner}.template`),
+    ...(sourceKind ? { sourceKind } : {}),
+    ...(suffix ? { suffix } : {}),
+  };
+};
+
 const parseDocumentDefinition = (input: unknown, owner: string): StoryDocumentDefinition => {
   const value = objectValue(input, owner);
   assertOnlyKeys(value, owner, [
@@ -186,6 +199,7 @@ const parseDocumentDefinition = (input: unknown, owner: string): StoryDocumentDe
     "cardinality",
     "identityFields",
     "fields",
+    "display",
     "companionKinds",
     "ruleIds",
   ]);
@@ -233,6 +247,7 @@ const parseDocumentDefinition = (input: unknown, owner: string): StoryDocumentDe
     cardinality: value.cardinality,
     identityFields,
     fields,
+    ...(value.display === undefined ? {} : { display: parseDocumentDisplay(value.display, `${owner}.display`) }),
     ...(value.companionKinds === undefined
       ? {}
       : { companionKinds: stringArray(value.companionKinds, `${owner}.companionKinds`) }),
@@ -317,6 +332,34 @@ export const defineStoryType = (input: StoryTypeDefinition): StoryTypeDefinition
     }
     for (const companionKind of document.companionKinds ?? []) {
       if (!kinds.includes(companionKind)) throw new Error(`${document.kind} 引用了未知配套文档：${companionKind}`);
+    }
+    if (document.display) {
+      const source = document.display.sourceKind
+        ? documents.find((candidate) => candidate.kind === document.display?.sourceKind)
+        : document;
+      if (!source) throw new Error(`${document.kind}.display 引用了未知来源文档：${document.display.sourceKind}`);
+      if (document.display.sourceKind && !(document.companionKinds ?? []).includes(document.display.sourceKind)) {
+        throw new Error(`${document.kind}.display.sourceKind 必须引用配套文档。`);
+      }
+      if (
+        document.display.sourceKind &&
+        (source.identityFields.length !== document.identityFields.length ||
+          source.identityFields.some((field, index) => field !== document.identityFields[index]))
+      ) {
+        throw new Error(`${document.kind}.display.sourceKind 必须与当前文档使用相同身份字段。`);
+      }
+      const placeholders = [...document.display.template.matchAll(/\{([^{}]+)\}/g)].map((match) => match[1]!);
+      const remainder = document.display.template.replace(/\{[^{}]+\}/g, "");
+      if (remainder.includes("{") || remainder.includes("}")) {
+        throw new Error(`${document.kind}.display.template 包含无效占位符。`);
+      }
+      const sourceFields = new Set(source.fields.map((field) => field.key));
+      const unknownPlaceholders = placeholders.filter((field) => !sourceFields.has(field));
+      if (unknownPlaceholders.length > 0) {
+        throw new Error(
+          `${document.kind}.display.template 引用了来源文档未定义的字段：${unknownPlaceholders.join("、")}`,
+        );
+      }
     }
     for (const ruleId of document.ruleIds ?? []) {
       if (!rules[ruleId]) throw new Error(`${document.kind} 引用了未知校验规则：${ruleId}`);

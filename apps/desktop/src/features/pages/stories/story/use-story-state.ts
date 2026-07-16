@@ -20,14 +20,9 @@ type StoryStore = {
   openStory: (item: StoryLibraryItem) => void;
   overview: StoryOverview | null;
   reloadStory: () => Promise<StoryLibraryItem | null>;
-  saveDocument: (document: StoryDocument) => Promise<StoryDocument | null>;
+  saveDocument: (document: Pick<StoryDocument, "ref" | "value">) => Promise<StoryDocument | null>;
   storyWorkspace: StoryWorkspace | null;
 };
-
-const replaceDocument = (documents: StoryDocument[], document: StoryDocument) =>
-  [...documents.filter((item) => storyDocumentKey(item) !== storyDocumentKey(document)), document].sort((left, right) =>
-    storyDocumentKey(left).localeCompare(storyDocumentKey(right)),
-  );
 
 export const useStoryState = create<StoryStore>((set, get) => ({
   documents: [],
@@ -54,7 +49,7 @@ export const useStoryState = create<StoryStore>((set, get) => ({
   },
 
   saveDocument: async (document) => {
-    const { documents, overview, storyWorkspace } = get();
+    const { overview, storyWorkspace } = get();
     if (!overview || !storyWorkspace) {
       toast.error("找不到故事工作区，无法保存。");
       return null;
@@ -63,15 +58,14 @@ export const useStoryState = create<StoryStore>((set, get) => ({
     try {
       const project = await storyProjectApi.open(storyWorkspace.path);
       const saved = await project.saveDocument(document);
-      const nextDocuments = replaceDocument(documents, saved);
-      const nextOverview = await project.overview();
+      const [nextDocuments, nextOverview] = await Promise.all([project.listDocuments(), project.overview()]);
       let nextWorkspace = storyWorkspace;
       if (nextOverview.title && nextOverview.title !== storyWorkspace.name) {
         const record = await updateStoryRecordName(overview.id, nextOverview.title);
         nextWorkspace = { id: record.id, name: record.name, path: record.workspacePath };
       }
       set({ documents: nextDocuments, overview: nextOverview, storyWorkspace: nextWorkspace });
-      return saved;
+      return nextDocuments.find((item) => storyDocumentKey(item) === storyDocumentKey(saved)) ?? saved;
     } catch (error) {
       console.error("Failed to save story document", error);
       toast.error(error instanceof Error ? error.message : "故事资料保存失败。");
@@ -86,19 +80,18 @@ export const useStoryState = create<StoryStore>((set, get) => ({
       toast.error("相同引用的故事文档已经存在。");
       return null;
     }
-    return get().saveDocument({ ref, value, updatedAt: null });
+    return get().saveDocument({ ref, value });
   },
 
   deleteDocument: async (ref) => {
-    const { documents, overview, storyWorkspace } = get();
+    const { overview, storyWorkspace } = get();
     if (!overview || !storyWorkspace) return false;
     set({ isSaving: true });
     try {
       const project = await storyProjectApi.open(storyWorkspace.path);
       await project.removeDocument(ref);
-      const key = storyDocumentKey({ ref });
-      const nextDocuments = documents.filter((document) => storyDocumentKey(document) !== key);
-      set({ documents: nextDocuments, overview: await project.overview() });
+      const [nextDocuments, nextOverview] = await Promise.all([project.listDocuments(), project.overview()]);
+      set({ documents: nextDocuments, overview: nextOverview });
       return true;
     } catch (error) {
       console.error("Failed to delete story document", error);

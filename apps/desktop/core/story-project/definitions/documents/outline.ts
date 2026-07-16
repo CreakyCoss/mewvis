@@ -298,6 +298,9 @@ export const OUTLINE_DOCUMENTS = defineDocumentModels([
     label: "分卷",
     contentFormat: "structured",
     cardinality: "many",
+    display: {
+      template: "第{number}卷 · {title}",
+    },
     fields: [
       field.integer("number", "卷号", {
         required: true,
@@ -386,6 +389,10 @@ export const OUTLINE_DOCUMENTS = defineDocumentModels([
     label: "章节细纲",
     contentFormat: "structured",
     cardinality: "many",
+    display: {
+      template: "第{number}章 · {title}",
+      suffix: "细纲",
+    },
     fields: [
       field.integer("number", "章节号", {
         required: true,
@@ -561,6 +568,10 @@ export const OUTLINE_DOCUMENTS = defineDocumentModels([
     description: "正文完成后的摘要、引用与状态变化；章节正文单独保存为 Markdown。",
     contentFormat: "structured",
     cardinality: "many",
+    display: {
+      template: "第{number}章 · {title}",
+      suffix: "记录",
+    },
     fields: [
       field.reference("planId", "章节细纲", {
         required: true,
@@ -626,6 +637,11 @@ export const OUTLINE_DOCUMENTS = defineDocumentModels([
     description: "可直接阅读、编辑和发布的 Markdown 正文。",
     contentFormat: "markdown",
     cardinality: "many",
+    display: {
+      template: "第{number}章 · {title}",
+      sourceKind: "story-chapter",
+      suffix: "正文",
+    },
     fields: [
       field.text("kind", "文档类型", {
         required: true,

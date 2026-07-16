@@ -34,4 +34,4 @@ export const inspectStoryDocument = (document: StoryDocument): EditableStoryDocu
 
 export const storyDocumentData = (document: StoryDocument) => (isJsonObject(document.value) ? document.value : null);
 
-export const storyDocumentLabel = (document: StoryDocument) => document.definition?.label ?? storyDocumentKey(document);
+export const storyDocumentLabel = (document: StoryDocument) => document.displayName;

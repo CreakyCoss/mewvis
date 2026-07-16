@@ -64,7 +64,7 @@ const expectedPaths = {
 };
 
 assert.equal(StoryDefinition.format, "novel-claw.story-type-definition");
-assert.equal(StoryDefinition.formatVersion, 2);
+assert.equal(StoryDefinition.formatVersion, 3);
 assert.equal(storyType.$format, StoryDefinition.format);
 assert.equal(storyType.formatVersion, StoryDefinition.formatVersion);
 assert.equal(storyType.id, "long-novel");
@@ -125,6 +125,11 @@ for (const document of storyType.documents) {
 const chapterContent = storyType.documents.find((document) => document.kind === storyType.roles.chapterContent);
 assert.equal(chapterContent.contentFormat, "markdown");
 assert.deepEqual(chapterContent.companionKinds, [storyType.roles.chapterResult]);
+assert.deepEqual(chapterContent.display, {
+  template: "第{number}章 · {title}",
+  sourceKind: storyType.roles.chapterResult,
+  suffix: "正文",
+});
 assert.deepEqual(
   StoryDefinition.parseDocument(storyType, "# 第一章", {
     kind: chapterContent.kind,
@@ -145,6 +150,14 @@ mutableIdentityType.documents
   .find((document) => document.kind === "story-character")
   .fields.find((field) => field.key === "id").immutable = false;
 assert.throws(() => StoryDefinition.define(mutableIdentityType), /required 且 immutable/, "文档身份字段必须保持不可变");
+const unknownDisplayFieldType = structuredClone(storyType);
+unknownDisplayFieldType.documents.find((document) => document.kind === "story-character").display.template =
+  "{nickname}";
+assert.throws(
+  () => StoryDefinition.define(unknownDisplayFieldType),
+  /未定义的字段.*nickname/,
+  "实例显示规则只能引用来源文档已定义的字段",
+);
 console.log(
   `[story-contract] ok (${storyType.documents.length} documents, ${storyType.objects.length} object definitions)`,
 );

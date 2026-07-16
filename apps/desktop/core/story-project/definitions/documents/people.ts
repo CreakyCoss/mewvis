@@ -103,6 +103,9 @@ export const PEOPLE_DOCUMENTS = defineDocumentModels([
     label: "角色档案",
     contentFormat: "structured",
     cardinality: "many",
+    display: {
+      template: "{name}",
+    },
     fields: [
       field.text("name", "姓名", {
         required: true,
@@ -214,6 +217,9 @@ export const PEOPLE_DOCUMENTS = defineDocumentModels([
     description: "背景、力量体系、地理、社会、势力、物品和规则等可召回设定",
     contentFormat: "structured",
     cardinality: "many",
+    display: {
+      template: "{title}",
+    },
     fields: [
       field.select("category", "设定类别", {
         required: true,

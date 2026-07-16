@@ -135,7 +135,7 @@ if (
 }
 if (
   !definitionTypes.includes('STORY_TYPE_DEFINITION_FORMAT = "novel-claw.story-type-definition"') ||
-  !definitionTypes.includes("STORY_TYPE_DEFINITION_FORMAT_VERSION = 2") ||
+  !definitionTypes.includes("STORY_TYPE_DEFINITION_FORMAT_VERSION = 3") ||
   !definitionFacade.includes("format: STORY_TYPE_DEFINITION_FORMAT") ||
   !definitionFacade.includes("formatVersion: STORY_TYPE_DEFINITION_FORMAT_VERSION")
 ) {

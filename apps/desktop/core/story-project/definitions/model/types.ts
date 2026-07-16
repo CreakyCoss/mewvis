@@ -52,6 +52,13 @@ export type StoryObjectDefinition = Readonly<{
   fields: readonly StoryFieldDefinition[];
 }>;
 
+/** 文档实例在应用层的显示名称规则；不包含任何存储或路径语义。 */
+export type StoryDocumentDisplayDefinition = Readonly<{
+  template: string;
+  sourceKind?: string;
+  suffix?: string;
+}>;
+
 export type StoryDocumentDefinition = Readonly<{
   kind: string;
   label: string;
@@ -60,6 +67,7 @@ export type StoryDocumentDefinition = Readonly<{
   cardinality: "one" | "many";
   identityFields: readonly string[];
   fields: readonly StoryFieldDefinition[];
+  display?: StoryDocumentDisplayDefinition;
   companionKinds?: readonly string[];
   ruleIds?: readonly string[];
 }>;
