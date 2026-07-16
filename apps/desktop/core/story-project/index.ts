@@ -1,6 +1,6 @@
 import { StoryDefinition } from "./definitions/index.js";
 import type { StoryTypeSummary } from "./definitions/types.js";
-import { BUILTIN_STORY_FILE_LAYOUT as builtinStoryFileLayout, listStoryTypes } from "./story-types/index.js";
+import { listStoryTypes, storyFileStorageBindings } from "./story-types/index.js";
 import type {
   StoryChangeResult,
   StoryChangeValidation,
@@ -11,15 +11,17 @@ import type {
   StoryOverview,
   StoryProjectStructure,
 } from "./types.js";
-import type { StoryProjectStorage } from "./storage/index.js";
+import { createStoryProjectStorage } from "./storage/index.js";
+import type { StoryFileBackend } from "./storage/types.js";
 import { StoryProjectValidationError } from "./errors.js";
 import { createWorkspace } from "./application/index.js";
 
-/** 内置 Story Types 对应的文件布局配置；仅用于组装 File Storage。 */
-export const BUILTIN_STORY_FILE_LAYOUT = builtinStoryFileLayout;
-
 /** 将领域文档身份编码为稳定 key；不包含任何存储路径语义。 */
 export const storyDocumentIdentityKey = StoryDefinition.identityKey;
+
+/** 公共 Facade 的存储选项；Story Type 与物理布局绑定由 Facade 内部完成。 */
+export type StoryProjectApiOptions =
+  Readonly<{ kind: "file"; backend: StoryFileBackend }> | Readonly<{ kind: "memory" }>;
 
 /** 一个已绑定 projectKey 的故事工作区，统一处理文档、上下文、校验与事务。 */
 export interface StoryWorkspace {
@@ -51,9 +53,12 @@ export interface StoryProjectApi {
 /**
  * 故事项目的唯一公共入口。
  *
- * 调用方只提供领域级 StoryProjectStorage；文件、数据库等实现细节由 Storage 隐藏。
+ * 调用方只提供底层存储能力；Story Type、文件布局和领域 Storage 的组装均隐藏在 Facade 内。
  */
-export const createStoryProjectApi = (storage: StoryProjectStorage): StoryProjectApi => {
+export const createStoryProjectApi = (options: StoryProjectApiOptions): StoryProjectApi => {
+  const storage = createStoryProjectStorage(
+    options.kind === "file" ? { ...options, bindings: storyFileStorageBindings() } : options,
+  );
   const client: StoryProjectApi = {
     listStoryTypes,
     workspace: (projectKey: string) => createWorkspace(storage, projectKey),

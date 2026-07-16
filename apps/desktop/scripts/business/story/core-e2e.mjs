@@ -16,7 +16,7 @@ const fileStorageEntry = resolve(root, "core/story-project/storage/adapters/file
 writeFileSync(
   entryPath,
   `
-  import { BUILTIN_STORY_FILE_LAYOUT, createStoryProjectApi, storyDocumentIdentityKey } from ${JSON.stringify(publicEntry)};
+  import { createStoryProjectApi, storyDocumentIdentityKey } from ${JSON.stringify(publicEntry)};
   import { createStoryProjectStorage, type StoryProjectStorage } from ${JSON.stringify(publicStorage)};
   import type { StoryFileBackend } from ${JSON.stringify(storageTypesEntry)};
   import { assertStoryFileRevision } from ${JSON.stringify(fileStorageEntry)};
@@ -28,7 +28,7 @@ writeFileSync(
   assert(storyDocumentIdentityKey({ kind: "story-character", identity: { id: "character-1" } }) === "story-character?id=character-1", "公共 Facade 应提供不含路径语义的稳定文档 key。");
   assert(!("list" in storage) && !("read" in storage) && !("commit" in storage), "领域 Storage 不得暴露低层记录操作。", storage);
 
-  const projects = createStoryProjectApi(storage);
+  const projects = createStoryProjectApi({ kind: "memory" });
   assert(projects.listStoryTypes().map((item) => item.id).join(",") === "long-novel,short-novel", "应提供长篇与短篇故事类型。", projects.listStoryTypes());
   const project = await projects.create("/memory/long", { storyTypeId: "long-novel", storyId: "story-1", title: "雾港档案" });
   const description = await project.describe({ documentKinds: ["story-book", "story-character"] });
@@ -92,10 +92,16 @@ writeFileSync(
       for (const write of writes) fileContents.set(fileKey(root, write.path), write.content);
     },
   };
-  const fileProjects = createStoryProjectApi(createStoryProjectStorage({ kind: "file", backend: fileBackend, layout: BUILTIN_STORY_FILE_LAYOUT }));
+  const fileProjects = createStoryProjectApi({ kind: "file", backend: fileBackend });
   await fileProjects.create("/file/hidden", { storyTypeId: "long-novel", storyId: "story-3", title: "隐藏配置" });
   const reopened = await fileProjects.open("/file/hidden");
   assert((await reopened.overview()).title === "隐藏配置", "隐藏配置目录不得导致已初始化项目被误判。" );
+  await fileProjects.create("/file/short", { storyTypeId: "short-novel", storyId: "story-4", title: "短篇独立布局" });
+  const reopenedShort = await fileProjects.open("/file/short");
+  const shortDescription = await reopenedShort.describe({ documentKinds: ["story-positioning"] });
+  const shortPositioning = (await reopenedShort.listDocuments()).find((item) => item.ref.kind === "story-positioning")?.value as Record<string, unknown>;
+  assert(shortDescription.storyType.version === 1, "File Storage 应按短篇自身版本重新分发布局。", shortDescription.storyType);
+  assert(shortPositioning.lengthType === "short", "重新打开短篇项目后应保持短篇自身定义。", shortPositioning);
   console.log("[story-core] ok");
   `,
 );

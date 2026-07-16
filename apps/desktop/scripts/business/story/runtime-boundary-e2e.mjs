@@ -80,8 +80,9 @@ for (const removed of [
 const publicIndex = readFileSync(resolve(coreRoot, "index.ts"), "utf8");
 if (
   !publicIndex.includes("createStoryProjectApi") ||
-  !publicIndex.includes("BUILTIN_STORY_FILE_LAYOUT") ||
+  publicIndex.includes("BUILTIN_STORY_FILE_LAYOUT") ||
   !publicIndex.includes("storyDocumentIdentityKey") ||
+  !publicIndex.includes("storyFileStorageBindings()") ||
   !publicIndex.includes("StoryProjectApi") ||
   !publicIndex.includes("listStoryTypes()") ||
   !publicIndex.includes("workspace(projectKey") ||
@@ -104,6 +105,7 @@ const documentDefinitionsRoot = resolve(coreRoot, "definitions/documents");
 const storageRoot = resolve(coreRoot, "storage");
 const storageInternalRoot = resolve(storageRoot, "internal");
 const storageAdaptersRoot = resolve(storageRoot, "adapters");
+const storyTypesRoot = resolve(coreRoot, "story-types");
 for (const directory of [
   applicationRoot,
   queriesRoot,
@@ -183,6 +185,21 @@ for (const group of ["assistant", "core", "outline", "people", "tracking"]) {
     throw new Error(`Story Project 缺少分组文档定义：definitions/documents/${group}.ts`);
   }
 }
+const storyTypesFacade = readFileSync(resolve(storyTypesRoot, "index.ts"), "utf8");
+const longStoryType = readFileSync(resolve(storyTypesRoot, "long-novel/index.ts"), "utf8");
+const shortStoryType = readFileSync(resolve(storyTypesRoot, "short-novel/index.ts"), "utf8");
+if (
+  !existsSync(resolve(storyTypesRoot, "types.ts")) ||
+  !existsSync(resolve(storyTypesRoot, "short-novel/settings.ts")) ||
+  !existsSync(resolve(storyTypesRoot, "short-novel/file-layout.ts")) ||
+  !longStoryType.includes("LONG_NOVEL_FILE_LAYOUT") ||
+  !shortStoryType.includes("SHORT_NOVEL_FILE_LAYOUT") ||
+  shortStoryType.includes("LONG_NOVEL") ||
+  storyTypesFacade.includes('from "./long-novel/file-layout.js"') ||
+  storyTypesFacade.includes("BUILTIN_STORY_FILE_LAYOUT")
+) {
+  throw new Error("每个 Story Type 必须独立组装 definition 与 file layout，Facade 不得指定全局默认布局。");
+}
 if (
   !documentModelTypes.includes("StoryFieldDefinition") ||
   !documentModelTypes.includes("StoryObjectDefinition") ||
@@ -258,7 +275,7 @@ if (
   !storageContract.includes("removeDocument(") ||
   !storageContract.includes("validateChanges(") ||
   !storageContract.includes("commitChanges(") ||
-  !storageContract.includes("createStoryFileRecordBackend(options)") ||
+  !storageContract.includes("createStoryFileRecordBackend(options.backend, binding.layout)") ||
   !storageContract.includes("createMemoryStoryProjectRecordBackend()") ||
   storageContract.includes("normalizeDocumentPath") ||
   storageContract.includes("PROJECT_CONFIG_PATH") ||
@@ -312,11 +329,10 @@ if (
   !service.includes("repository.project.describe") ||
   service.includes("StoryProjectApi") ||
   !repository.includes('from "../../../../../../core/story-project/index.js"') ||
-  !repository.includes('from "../../../../../../core/story-project/storage/index.js"') ||
   !repository.includes('from "../../../../../../core/story-project/storage/adapters/file/index.js"') ||
   repository.includes("core/story-project/story-types") ||
   !repository.includes("interface StoryToolRepository") ||
-  !repository.includes("createStoryProjectStorage") ||
+  repository.includes("createStoryProjectStorage") ||
   !repository.includes("withWorkspaceWriteLock") ||
   repository.includes("core/story-project/internal")
 ) {

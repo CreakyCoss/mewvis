@@ -1,3 +1,5 @@
+import type { StoryTypeDefinition } from "../definitions/types.js";
+
 export type StoryProjectInventory = Readonly<{
   initialized: boolean;
   replaceableKeys: readonly string[];
@@ -8,6 +10,12 @@ export type StoryFileLayout = Readonly<{
   documentPaths: Readonly<Record<string, string>>;
   managedRoots: readonly string[];
   preservedPaths?: readonly string[];
+}>;
+
+/** File Storage 需要的 Story Type 绑定；具体 Story Type 模块负责组装 definition 与 layout。 */
+export type StoryFileStorageBinding = Readonly<{
+  definition: StoryTypeDefinition;
+  layout: StoryFileLayout;
 }>;
 
 export type StoryProjectRevisionCondition = Readonly<{
@@ -42,4 +50,5 @@ export interface StoryFileBackend {
 }
 
 export type StoryProjectStorageOptions =
-  Readonly<{ kind: "file"; backend: StoryFileBackend; layout: StoryFileLayout }> | Readonly<{ kind: "memory" }>;
+  | Readonly<{ kind: "file"; backend: StoryFileBackend; bindings: readonly StoryFileStorageBinding[] }>
+  | Readonly<{ kind: "memory" }>;

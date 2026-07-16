@@ -1,12 +1,7 @@
 import { cp, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
-import {
-  BUILTIN_STORY_FILE_LAYOUT,
-  createStoryProjectApi,
-  type StoryWorkspace,
-} from "../../../../../../core/story-project/index.js";
-import { createStoryProjectStorage } from "../../../../../../core/story-project/storage/index.js";
+import { createStoryProjectApi, type StoryWorkspace } from "../../../../../../core/story-project/index.js";
 import { assertStoryFileRevision } from "../../../../../../core/story-project/storage/adapters/file/index.js";
 import type { StoryFileBackend, StoryFileEntry } from "../../../../../../core/story-project/storage/types.js";
 
@@ -154,9 +149,7 @@ const nodeStoryFileBackend: StoryFileBackend = {
   writeAtomic,
 };
 
-const storyProjectApi = createStoryProjectApi(
-  createStoryProjectStorage({ kind: "file", backend: nodeStoryFileBackend, layout: BUILTIN_STORY_FILE_LAYOUT }),
-);
+const storyProjectApi = createStoryProjectApi({ kind: "file", backend: nodeStoryFileBackend });
 
 export const createNodeStoryToolRepository = (workspacePath: string): StoryToolRepository => ({
   project: storyProjectApi.workspace(workspacePath),

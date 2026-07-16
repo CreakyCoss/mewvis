@@ -4,6 +4,8 @@ import { CORE_DOCUMENTS, CORE_OBJECTS } from "../../definitions/documents/core.j
 import { OUTLINE_DOCUMENTS, OUTLINE_OBJECTS } from "../../definitions/documents/outline.js";
 import { PEOPLE_DOCUMENTS, PEOPLE_OBJECTS } from "../../definitions/documents/people.js";
 import { TRACKING_DOCUMENTS, TRACKING_OBJECTS } from "../../definitions/documents/tracking.js";
+import type { StoryTypeOptions } from "../types.js";
+import { LONG_NOVEL_FILE_LAYOUT } from "./file-layout.js";
 import { LONG_NOVEL_CONTEXTS, LONG_NOVEL_ROLES, LONG_NOVEL_RULES, LONG_NOVEL_VALIDATION_MODES } from "./settings.js";
 
 const objects = [...CORE_OBJECTS, ...PEOPLE_OBJECTS, ...OUTLINE_OBJECTS, ...TRACKING_OBJECTS, ...ASSISTANT_OBJECTS];
@@ -16,7 +18,7 @@ const documentModels = [
   ...ASSISTANT_DOCUMENTS,
 ];
 
-export const LONG_NOVEL_STORY_TYPE = StoryDefinition.define({
+const definition = StoryDefinition.define({
   $format: StoryDefinition.format,
   formatVersion: StoryDefinition.formatVersion,
   id: "long-novel",
@@ -31,4 +33,11 @@ export const LONG_NOVEL_STORY_TYPE = StoryDefinition.define({
   contexts: LONG_NOVEL_CONTEXTS,
   validationModes: LONG_NOVEL_VALIDATION_MODES,
   rules: LONG_NOVEL_RULES,
+});
+
+export const LONG_NOVEL_STORY_TYPE: StoryTypeOptions = Object.freeze({
+  definition,
+  storage: Object.freeze({
+    file: Object.freeze({ layout: LONG_NOVEL_FILE_LAYOUT }),
+  }),
 });

@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 
 const root = process.cwd();
 const entry = resolve(root, "core/story-project/story-types/long-novel/index.ts");
-const fileLayoutEntry = resolve(root, "core/story-project/story-types/long-novel/file-layout.ts");
+const shortEntry = resolve(root, "core/story-project/story-types/short-novel/index.ts");
 const definitionEntry = resolve(root, "core/story-project/definitions/index.ts");
 const output = await build({
   entryPoints: [entry],
@@ -14,20 +14,22 @@ const output = await build({
   target: "node22",
   write: false,
 });
-const { LONG_NOVEL_STORY_TYPE: storyType } = await import(
+const { LONG_NOVEL_STORY_TYPE: longStoryType } = await import(
   `data:text/javascript;base64,${Buffer.from(output.outputFiles[0].text).toString("base64")}`
 );
-const fileLayoutOutput = await build({
-  entryPoints: [fileLayoutEntry],
+const shortOutput = await build({
+  entryPoints: [shortEntry],
   bundle: true,
   platform: "node",
   format: "esm",
   target: "node22",
   write: false,
 });
-const { LONG_NOVEL_FILE_LAYOUT: fileLayout } = await import(
-  `data:text/javascript;base64,${Buffer.from(fileLayoutOutput.outputFiles[0].text).toString("base64")}`
+const { SHORT_NOVEL_STORY_TYPE: shortStoryType } = await import(
+  `data:text/javascript;base64,${Buffer.from(shortOutput.outputFiles[0].text).toString("base64")}`
 );
+const storyType = longStoryType.definition;
+const fileLayout = longStoryType.storage.file.layout;
 const definitionOutput = await build({
   entryPoints: [definitionEntry],
   bundle: true,
@@ -67,6 +69,16 @@ assert.equal(storyType.$format, StoryDefinition.format);
 assert.equal(storyType.formatVersion, StoryDefinition.formatVersion);
 assert.equal(storyType.id, "long-novel");
 assert.equal(storyType.version, 4);
+assert.equal(shortStoryType.definition.id, "short-novel");
+assert.equal(shortStoryType.definition.version, 1);
+assert.notEqual(shortStoryType.definition, storyType, "短篇必须拥有独立的 Story Type Definition");
+assert.notEqual(shortStoryType.storage.file.layout, fileLayout, "短篇必须拥有独立的 File Layout");
+assert.equal(
+  shortStoryType.definition.documents
+    .find((document) => document.kind === shortStoryType.definition.roles.positioning)
+    .fields.find((field) => field.key === "lengthType").default,
+  "short",
+);
 assert.ok(!("rootPath" in storyType));
 assert.ok(storyType.documents.every((document) => !("pathPattern" in document)));
 assert.deepEqual(fileLayout.documentPaths, expectedPaths, "文件路径映射应由 File Storage Layout 独立配置");
