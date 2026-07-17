@@ -116,6 +116,7 @@ export const StoryDocumentDialog = ({
       .filter(
         ([kind, definition]) =>
           kind !== documentStructure.storyType.manifestKind &&
+          kind !== documentStructure.roles.import &&
           (definition.cardinality === "many" || !documents.some((item) => item.ref.kind === kind)),
       )
       .sort(([, left], [, right]) => left.label.localeCompare(right.label, "zh-CN"));
