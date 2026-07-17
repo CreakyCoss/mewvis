@@ -4,6 +4,7 @@ import type {
   StoryDocument,
   StoryDocumentIdentity,
   StoryOverview,
+  StoryProjectStructure,
   StoryValue,
 } from "../../../../../core/story-project/types";
 import { storyProjectApi } from "../project-client";
@@ -14,9 +15,12 @@ type StoryStore = {
   closeStory: () => void;
   createDocument: (ref: StoryDocumentIdentity, value: StoryValue) => Promise<StoryDocument | null>;
   deleteDocument: (ref: StoryDocumentIdentity) => Promise<boolean>;
+  documentStructure: StoryProjectStructure | null;
   documents: StoryDocument[];
   getChatWorkspacePath: (chatWorkspaceId: string) => string;
+  isLoadingDocumentStructure: boolean;
   isSaving: boolean;
+  loadDocumentStructure: () => Promise<StoryProjectStructure | null>;
   openStory: (item: StoryLibraryItem) => void;
   overview: StoryOverview | null;
   reloadStory: () => Promise<StoryLibraryItem | null>;
@@ -26,18 +30,58 @@ type StoryStore = {
 
 export const useStoryState = create<StoryStore>((set, get) => ({
   documents: [],
+  documentStructure: null,
+  isLoadingDocumentStructure: false,
   isSaving: false,
   overview: null,
   storyWorkspace: null,
 
   closeStory: () => {
-    set({ documents: [], overview: null, storyWorkspace: null });
+    set({
+      documents: [],
+      documentStructure: null,
+      isLoadingDocumentStructure: false,
+      overview: null,
+      storyWorkspace: null,
+    });
   },
 
   getChatWorkspacePath: (chatWorkspaceId) => `/chat/${chatWorkspaceId}/new`,
 
   openStory: (item) => {
-    set({ documents: item.documents, overview: item.overview, storyWorkspace: item.workspace });
+    const workspaceChanged = get().storyWorkspace?.path !== item.workspace.path;
+    set({
+      documents: item.documents,
+      ...(workspaceChanged ? { documentStructure: null, isLoadingDocumentStructure: false } : {}),
+      overview: item.overview,
+      storyWorkspace: item.workspace,
+    });
+  },
+
+  loadDocumentStructure: async () => {
+    const current = get();
+    if (current.documentStructure) return current.documentStructure;
+    if (current.isLoadingDocumentStructure || !current.storyWorkspace) return null;
+
+    const workspacePath = current.storyWorkspace.path;
+    set({ isLoadingDocumentStructure: true });
+    try {
+      const project = await storyProjectApi.open(workspacePath);
+      const summary = await project.describe();
+      const structure = await project.describe({ documentKinds: Object.keys(summary.documents) });
+      if (get().storyWorkspace?.path === workspacePath) {
+        set({ documentStructure: structure });
+      }
+      return structure;
+    } catch (error) {
+      console.error("Failed to load story document structure", error);
+      toast.error(error instanceof Error ? error.message : "无法读取当前故事的文档结构。");
+      return null;
+    } finally {
+      if (get().storyWorkspace?.path === workspacePath) {
+        set({ isLoadingDocumentStructure: false });
+      }
+    }
   },
 
   reloadStory: async () => {

@@ -6,8 +6,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import type { StoryDocument } from "../../../../../../core/story-project/types";
 import { inspectStoryDocument, storyDocumentKey, storyDocumentLabel } from "../../story-document";
 import { useStoryState } from "../use-story-state";
-import { CreateJsonDocumentDialog } from "./documents/create-dialog";
-import { StoryDocumentEditor } from "./documents/document-editor";
+import { StoryDocumentDetail } from "./documents/detail";
+import { StoryDocumentDialog } from "./documents/dialog";
 
 type DocumentGroup = {
   icon: ComponentType<{ className?: string }>;
@@ -85,7 +85,8 @@ export const StoryModules = () => {
   const documents = useStoryState((state) => state.documents);
   const [selectedKey, setSelectedKey] = useState("");
   const [query, setQuery] = useState("");
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [dialogDocument, setDialogDocument] = useState<StoryDocument | null>(null);
+  const [isDocumentDialogOpen, setIsDocumentDialogOpen] = useState(false);
 
   useEffect(() => {
     setSelectedKey((current) =>
@@ -100,6 +101,15 @@ export const StoryModules = () => {
   const selected = documents.find((document) => storyDocumentKey(document) === selectedKey) ?? null;
   const groups = useMemo(() => buildDocumentGroups(documents, query), [documents, query]);
   const selectedGroup = selected ? groupForDocument(selected) : null;
+  const openCreateDialog = () => {
+    setDialogDocument(null);
+    setIsDocumentDialogOpen(true);
+  };
+  const openEditDialog = () => {
+    if (!selected) return;
+    setDialogDocument(selected);
+    setIsDocumentDialogOpen(true);
+  };
 
   return (
     <div className="grid min-h-0 flex-1 grid-cols-[14.5rem_minmax(0,1fr)] overflow-hidden bg-background xl:grid-cols-[16.5rem_minmax(0,1fr)]">
@@ -113,9 +123,9 @@ export const StoryModules = () => {
             type="button"
             size="icon-sm"
             variant="outline"
-            title="新增 JSON 文档"
-            aria-label="新增 JSON 文档"
-            onClick={() => setIsCreateOpen(true)}
+            title="新增故事资料"
+            aria-label="新增故事资料"
+            onClick={openCreateDialog}
           >
             <Plus className="size-4" />
           </Button>
@@ -179,10 +189,11 @@ export const StoryModules = () => {
         </ScrollArea>
       </aside>
       {selected ? (
-        <StoryDocumentEditor
+        <StoryDocumentDetail
           key={storyDocumentKey(selected)}
           categoryLabel={selectedGroup?.label ?? "故事资料"}
           document={selected}
+          onEdit={openEditDialog}
         />
       ) : (
         <div className="flex min-h-0 flex-1 items-center justify-center p-8">
@@ -190,16 +201,21 @@ export const StoryModules = () => {
             <FileJson2 className="mx-auto size-9 text-muted-foreground" />
             <h3 className="mt-3 text-base font-semibold">暂无故事资料</h3>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              可以手动创建 JSON，或打开创作助手生成当前故事类型管理的资料与章节 Markdown。
+              从当前故事支持的标准文档中选择类型，或打开创作助手生成资料与章节正文。
             </p>
-            <Button type="button" className="mt-4" onClick={() => setIsCreateOpen(true)}>
+            <Button type="button" className="mt-4" onClick={openCreateDialog}>
               <Plus className="size-4" />
-              新增 JSON
+              新增资料
             </Button>
           </div>
         </div>
       )}
-      <CreateJsonDocumentDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
+      <StoryDocumentDialog
+        open={isDocumentDialogOpen}
+        document={dialogDocument}
+        onOpenChange={setIsDocumentDialogOpen}
+        onSaved={(saved) => setSelectedKey(storyDocumentKey(saved))}
+      />
     </div>
   );
 };

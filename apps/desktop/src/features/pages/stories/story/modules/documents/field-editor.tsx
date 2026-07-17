@@ -14,36 +14,13 @@ import {
   type JsonObject,
   type JsonObjectDefinition,
 } from "../../../story-document";
-
-const pointerKey = (pointer: string) => (pointer.startsWith("/") ? pointer.slice(1) : pointer);
-
-const cloneJson = (value: StoryValue): StoryValue => JSON.parse(JSON.stringify(value)) as StoryValue;
+import { documentPointerKey, fieldDefaultValue } from "./structure";
 
 const inferredEmptyValue = (value: StoryValue | undefined): StoryValue => {
   if (Array.isArray(value)) return [];
   if (isJsonObject(value)) return {};
   if (typeof value === "boolean") return false;
   if (typeof value === "number") return 0;
-  return "";
-};
-
-const fieldDefaultValue = (field: JsonFieldMetadata, definitions: Record<string, JsonObjectDefinition>): StoryValue => {
-  if (field.const !== undefined) return cloneJson(field.const);
-  if (field.default !== undefined) return cloneJson(field.default);
-  if (field.type === "boolean") return false;
-  if (["integer", "number", "timestamp"].includes(field.type)) return 0;
-  if (["string-list", "reference-list", "collection"].includes(field.type)) return [];
-  if (field.type === "object") {
-    const definition = field.definition ? definitions[field.definition] : undefined;
-    return definition
-      ? Object.fromEntries(
-          Object.entries(definition.fields).map(([pointer, child]) => [
-            pointerKey(pointer),
-            fieldDefaultValue(child, definitions),
-          ]),
-        )
-      : {};
-  }
   return "";
 };
 
@@ -259,7 +236,7 @@ const MetadataObjectEditor = ({
       <div className="pb-2 text-xs font-medium text-muted-foreground md:col-span-2">{definition.label}</div>
     ) : null}
     {Object.entries(definition.fields).map(([pointer, field]) => {
-      const key = pointerKey(pointer);
+      const key = documentPointerKey(pointer);
       const wide = ["textarea", "content", "object", "collection", "string-list", "reference-list"].includes(
         field.type,
       );
@@ -345,7 +322,7 @@ const MetadataCollectionEditor = ({
             ...value,
             Object.fromEntries(
               Object.entries(definition.fields).map(([pointer, field]) => [
-                pointerKey(pointer),
+                documentPointerKey(pointer),
                 fieldDefaultValue(field, definitions),
               ]),
             ),
