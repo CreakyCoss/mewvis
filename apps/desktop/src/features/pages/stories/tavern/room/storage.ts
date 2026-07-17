@@ -1,6 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { TavernMessage } from "./model/message";
-import { readJsonWorkspaceFile, writeJsonWorkspaceFile } from "@/utils/files";
+import { workspaceFile } from "@/utils/files";
 
 const TAVERN_MESSAGES_FILE_NAME = "messages.json";
 const TAVERN_WORKSPACE_PATH_MARKER = "/.tavern/";
@@ -74,7 +74,7 @@ export const loadTavernRoom = async (workspacePath: string): Promise<TavernRoomF
     return null;
   }
 
-  const messages = await readJsonWorkspaceFile<TavernMessage[]>(workspacePath, TAVERN_MESSAGES_FILE_NAME);
+  const messages = await workspaceFile(workspacePath, TAVERN_MESSAGES_FILE_NAME).readJson<TavernMessage[]>();
   if (!messages) {
     return null;
   }
@@ -88,7 +88,7 @@ export const saveTavernRoom = async (workspacePath: string, messages: TavernMess
   }
 
   await ensureTavernRoomDirectory(workspacePath);
-  await writeJsonWorkspaceFile(workspacePath, TAVERN_MESSAGES_FILE_NAME, messages);
+  await workspaceFile(workspacePath, TAVERN_MESSAGES_FILE_NAME).writeJson(messages);
 };
 
 export const deleteTavernRoom = async (workspacePath: string) => {

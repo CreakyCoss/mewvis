@@ -1,5 +1,5 @@
 import { isTauri } from "@tauri-apps/api/core";
-import { readJsonWorkspaceFile, writeJsonWorkspaceFile } from "@/utils/files";
+import { workspaceFile } from "@/utils/files";
 import { STORY_TAVERN_FILE, type StoryWorkspace } from "../../storage";
 import { createEmptyManualTavernRoom, type TavernRoomConfig } from "./model";
 
@@ -67,7 +67,7 @@ export const saveStoryTavernConfig = async (
     throw createDesktopOnlyTavernStorageError();
   }
 
-  await writeJsonWorkspaceFile(workspace.path, STORY_TAVERN_FILE, config);
+  await workspaceFile(workspace.path, STORY_TAVERN_FILE).writeJson(config);
   return config;
 };
 
@@ -76,7 +76,7 @@ export const loadStoryTavernConfig = async (item: StoryTavernOwner): Promise<Tav
     throw createDesktopOnlyTavernStorageError();
   }
 
-  const parsed = await readJsonWorkspaceFile(item.workspace.path, STORY_TAVERN_FILE);
+  const parsed = await workspaceFile(item.workspace.path, STORY_TAVERN_FILE).readJson();
   return normalizeStoryTavernConfig(item, parsed);
 };
 
