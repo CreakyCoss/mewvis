@@ -1,5 +1,5 @@
-import type { StoryValue } from "../../../../../../../core/story-project/types";
-import type { JsonFieldMetadata, JsonObjectDefinition } from "../../../story-document";
+import type { StoryValue } from "../../../../../../core/story-project/types";
+import type { JsonFieldMetadata, JsonObjectDefinition } from "../../story-document";
 
 export type DocumentSection = Readonly<{
   description: string;

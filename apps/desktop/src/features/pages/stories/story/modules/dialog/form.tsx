@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { StoryDocument, StoryValue } from "../../../../../../../core/story-project/types";
 import { inspectStoryDocument } from "../../../story-document";
-import { buildDocumentSections, documentPointerKey } from "./structure";
+import { buildDocumentSections, documentPointerKey } from "../structure";
 import { GenericJsonValueEditor, MetadataFieldEditor } from "./field-editor";
 
 export const StoryDocumentForm = ({

@@ -14,7 +14,7 @@ import {
   type JsonObject,
   type JsonObjectDefinition,
 } from "../../../story-document";
-import { documentPointerKey, fieldDefaultValue } from "./structure";
+import { documentPointerKey, fieldDefaultValue } from "../structure";
 
 const inferredEmptyValue = (value: StoryValue | undefined): StoryValue => {
   if (Array.isArray(value)) return [];

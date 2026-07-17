@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useImperativeHandle, useMemo, useState, type Ref } from "react";
 import { Braces, FileCode2, LoaderCircle, Save, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -33,7 +33,7 @@ import type {
 import { isJsonObject, storyDocumentData, storyDocumentKey, storyDocumentLabel } from "../../../story-document";
 import { useStoryState } from "../../use-story-state";
 import { StoryDocumentForm } from "./form";
-import { createDocumentValue } from "./structure";
+import { createDocumentValue } from "../structure";
 
 type DocumentSchema = StoryProjectStructure["schemas"]["documents"][string];
 
@@ -74,16 +74,14 @@ const editorDocumentForSchema = (
 const draftSnapshot = (kind: string, identity: StoryDocumentIdentity["identity"], rawText: string) =>
   JSON.stringify({ kind, identity, rawText });
 
+export type StoryDocumentDialogHandle = (document?: StoryDocument) => void;
+
 export const StoryDocumentDialog = ({
-  document,
-  onOpenChange,
+  bind,
   onSaved,
-  open,
 }: {
-  document: StoryDocument | null;
-  onOpenChange: (open: boolean) => void;
-  onSaved: (document: StoryDocument) => void;
-  open: boolean;
+  bind: Ref<StoryDocumentDialogHandle>;
+  onSaved?: (document: StoryDocument) => void;
 }) => {
   const createDocument = useStoryState((state) => state.createDocument);
   const documents = useStoryState((state) => state.documents);
@@ -92,6 +90,8 @@ export const StoryDocumentDialog = ({
   const isSaving = useStoryState((state) => state.isSaving);
   const loadDocumentStructure = useStoryState((state) => state.loadDocumentStructure);
   const saveDocument = useStoryState((state) => state.saveDocument);
+  const [isOpen, setIsOpen] = useState(false);
+  const [document, setDocument] = useState<StoryDocument | null>(null);
   const [selectedKind, setSelectedKind] = useState("");
   const [identity, setIdentity] = useState<StoryDocumentIdentity["identity"]>({});
   const [draft, setDraft] = useState<StoryValue>({});
@@ -102,6 +102,13 @@ export const StoryDocumentDialog = ({
   const [baseline, setBaseline] = useState("");
   const [isDiscardOpen, setIsDiscardOpen] = useState(false);
   const [pendingKind, setPendingKind] = useState("");
+
+  const open = (nextDocument?: StoryDocument) => {
+    setDocument(nextDocument ?? null);
+    setIsOpen(true);
+  };
+
+  useImperativeHandle(bind, () => open);
 
   const availableKinds = useMemo(() => {
     if (!documentStructure) return [];
@@ -115,11 +122,11 @@ export const StoryDocumentDialog = ({
   }, [documentStructure, documents]);
 
   useEffect(() => {
-    if (open && !document && !documentStructure) void loadDocumentStructure();
-  }, [document, documentStructure, loadDocumentStructure, open]);
+    if (isOpen && !document && !documentStructure) void loadDocumentStructure();
+  }, [document, documentStructure, isOpen, loadDocumentStructure]);
 
   useEffect(() => {
-    if (!open) {
+    if (!isOpen) {
       setSelectedKind("");
       setBaseline("");
       setRawError("");
@@ -138,7 +145,7 @@ export const StoryDocumentDialog = ({
     setIdentityError("");
     setViewMode("form");
     setBaseline(draftSnapshot(document.ref.kind, document.ref.identity, nextRawText));
-  }, [document, open]);
+  }, [document, isOpen]);
 
   const initializeCreateKind = (kind: string) => {
     if (!documentStructure) return;
@@ -160,10 +167,10 @@ export const StoryDocumentDialog = ({
   };
 
   useEffect(() => {
-    if (open && !document && documentStructure && !selectedKind && availableKinds[0]) {
+    if (isOpen && !document && documentStructure && !selectedKind && availableKinds[0]) {
       initializeCreateKind(availableKinds[0][0]);
     }
-  }, [availableKinds, document, documentStructure, open, selectedKind]);
+  }, [availableKinds, document, documentStructure, isOpen, selectedKind]);
 
   const schema = !document && documentStructure ? documentStructure.schemas.documents[selectedKind] : null;
   const editorDocument =
@@ -247,13 +254,13 @@ export const StoryDocumentDialog = ({
       : await createDocument({ kind: selectedKind, identity }, result.value);
     if (!saved) return;
     toast.success(document ? "故事资料已保存。" : "故事资料已创建。");
-    onSaved(saved);
-    onOpenChange(false);
+    onSaved?.(saved);
+    setIsOpen(false);
   };
 
   const requestOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
-      onOpenChange(true);
+      setIsOpen(true);
       return;
     }
     if (isSaving) return;
@@ -261,12 +268,12 @@ export const StoryDocumentDialog = ({
       setIsDiscardOpen(true);
       return;
     }
-    onOpenChange(false);
+    setIsOpen(false);
   };
 
   return (
     <>
-      <Dialog open={open} onOpenChange={requestOpenChange}>
+      <Dialog open={isOpen} onOpenChange={requestOpenChange}>
         <DialogContent
           className="!flex h-[min(90vh,52rem)] max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl"
           overlayClassName="bg-black/45"
@@ -423,7 +430,7 @@ export const StoryDocumentDialog = ({
               variant="destructive"
               onClick={() => {
                 setIsDiscardOpen(false);
-                onOpenChange(false);
+                setIsOpen(false);
               }}
             >
               放弃修改

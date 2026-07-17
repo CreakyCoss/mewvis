@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { BookOpenText, FileJson2, FileText, GitBranch, Globe2, ListTree, Plus, Search, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,8 +6,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import type { StoryDocument } from "../../../../../../core/story-project/types";
 import { inspectStoryDocument, storyDocumentKey, storyDocumentLabel } from "../../story-document";
 import { useStoryState } from "../use-story-state";
-import { StoryDocumentDetail } from "./documents/detail";
-import { StoryDocumentDialog } from "./documents/dialog";
+import { StoryDocumentDetail } from "./detail";
+import { StoryDocumentDialog, type StoryDocumentDialogHandle } from "./dialog";
 
 type DocumentGroup = {
   icon: ComponentType<{ className?: string }>;
@@ -83,10 +83,9 @@ const buildDocumentGroups = (documents: StoryDocument[], query: string): Documen
 
 export const StoryModules = () => {
   const documents = useStoryState((state) => state.documents);
+  const createDialogRef = useRef<StoryDocumentDialogHandle>(null);
   const [selectedKey, setSelectedKey] = useState("");
   const [query, setQuery] = useState("");
-  const [dialogDocument, setDialogDocument] = useState<StoryDocument | null>(null);
-  const [isDocumentDialogOpen, setIsDocumentDialogOpen] = useState(false);
 
   useEffect(() => {
     setSelectedKey((current) =>
@@ -101,15 +100,7 @@ export const StoryModules = () => {
   const selected = documents.find((document) => storyDocumentKey(document) === selectedKey) ?? null;
   const groups = useMemo(() => buildDocumentGroups(documents, query), [documents, query]);
   const selectedGroup = selected ? groupForDocument(selected) : null;
-  const openCreateDialog = () => {
-    setDialogDocument(null);
-    setIsDocumentDialogOpen(true);
-  };
-  const openEditDialog = () => {
-    if (!selected) return;
-    setDialogDocument(selected);
-    setIsDocumentDialogOpen(true);
-  };
+  const openCreateDialog = () => createDialogRef.current?.();
 
   return (
     <div className="grid min-h-0 flex-1 grid-cols-[14.5rem_minmax(0,1fr)] overflow-hidden bg-background xl:grid-cols-[16.5rem_minmax(0,1fr)]">
@@ -193,7 +184,6 @@ export const StoryModules = () => {
           key={storyDocumentKey(selected)}
           categoryLabel={selectedGroup?.label ?? "故事资料"}
           document={selected}
-          onEdit={openEditDialog}
         />
       ) : (
         <div className="flex min-h-0 flex-1 items-center justify-center p-8">
@@ -210,12 +200,7 @@ export const StoryModules = () => {
           </div>
         </div>
       )}
-      <StoryDocumentDialog
-        open={isDocumentDialogOpen}
-        document={dialogDocument}
-        onOpenChange={setIsDocumentDialogOpen}
-        onSaved={(saved) => setSelectedKey(storyDocumentKey(saved))}
-      />
+      <StoryDocumentDialog bind={createDialogRef} onSaved={(saved) => setSelectedKey(storyDocumentKey(saved))} />
     </div>
   );
 };

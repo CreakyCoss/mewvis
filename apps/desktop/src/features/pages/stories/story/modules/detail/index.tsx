@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Braces,
   CalendarClock,
@@ -43,7 +43,8 @@ import {
   type JsonObjectDefinition,
 } from "../../../story-document";
 import { useStoryState } from "../../use-story-state";
-import { buildDocumentSections, documentPointerKey, updatedDocumentLabel } from "./structure";
+import { StoryDocumentDialog, type StoryDocumentDialogHandle } from "../dialog";
+import { buildDocumentSections, documentPointerKey, updatedDocumentLabel } from "../structure";
 
 const EmptyValue = () => <span className="text-sm text-muted-foreground/75">未填写</span>;
 
@@ -167,14 +168,13 @@ const DocumentField = ({
 export const StoryDocumentDetail = ({
   categoryLabel,
   document,
-  onEdit,
 }: {
   categoryLabel: string;
   document: StoryDocument;
-  onEdit: () => void;
 }) => {
   const deleteDocument = useStoryState((state) => state.deleteDocument);
   const isSaving = useStoryState((state) => state.isSaving);
+  const editDialogRef = useRef<StoryDocumentDialogHandle>(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const inspected = useMemo(() => inspectStoryDocument(document), [document]);
   const sections = useMemo(() => (inspected ? buildDocumentSections(inspected.fields) : []), [inspected]);
@@ -216,7 +216,7 @@ export const StoryDocumentDetail = ({
               </DropdownMenuContent>
             </DropdownMenu>
           ) : null}
-          <Button type="button" size="sm" onClick={onEdit}>
+          <Button type="button" size="sm" onClick={() => editDialogRef.current?.(document)}>
             <Pencil className="size-4" />
             编辑
           </Button>
@@ -323,6 +323,8 @@ export const StoryDocumentDetail = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <StoryDocumentDialog bind={editDialogRef} />
     </div>
   );
 };
