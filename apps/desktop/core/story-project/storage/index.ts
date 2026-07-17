@@ -12,15 +12,13 @@ import type {
   StoryValue,
 } from "../types.js";
 import { StoryProjectValidationError } from "../errors.js";
-import { createStoryFileRecordBackend } from "./adapters/file/index.js";
-import { assertStoryFileLayout } from "./adapters/file/layout.js";
-import { createMemoryStoryProjectRecordBackend } from "./adapters/memory/index.js";
+import { createStoryProjectBackendProvider } from "./adapters/index.js";
 import type { StoryProjectRecord, StoryProjectRecordBackend, StoryProjectRecordWrite } from "./adapters/record.js";
 import { applyChangeSet, STORY_CHANGE_SET_DESCRIPTION } from "./internal/changes.js";
 import { serializeStoryDocument } from "./internal/codec.js";
 import { assembleProject, createInitialProject, projectInfo } from "./internal/project.js";
 import { validateProject } from "./internal/validation.js";
-import type { StoryFileStorageBinding, StoryProjectInventory, StoryProjectStorageOptions } from "./types.js";
+import type { StoryProjectInventory, StoryProjectStorageOptions } from "./types.js";
 
 type JsonObject = Record<string, unknown>;
 
@@ -347,66 +345,21 @@ const removeDocument = async (
   await persistAppliedProject(backend, projectKey, definition, applied);
 };
 
-/** 根据 Storage 类型分发具体 Adapter，并返回统一的领域级 Storage。 */
+/** 基于统一 Backend Provider 组装领域级 Storage。 */
 export const createStoryProjectStorage = (options: StoryProjectStorageOptions): StoryProjectStorage => {
-  const bindingKey = (definition: Pick<StoryTypeDefinition, "id" | "version">) =>
-    `${definition.id}@${definition.version}`;
-  const fileBindings = new Map<string, StoryFileStorageBinding>();
-  const fileBindingsById = new Map<string, StoryFileStorageBinding>();
-  const fileBackends = new Map<string, StoryProjectRecordBackend>();
-  const definitions =
-    options.kind === "file" ? options.bindings.map(({ definition }) => definition) : (options.definitions ?? []);
+  const definitions = options.bindings.map(({ definition }) => definition);
   const definitionsById = new Map<string, StoryTypeDefinition>();
 
   for (const definition of definitions) {
     if (definitionsById.has(definition.id)) throw new Error(`Storage 重复配置 Story Type：${definition.id}`);
     definitionsById.set(definition.id, definition);
   }
-
-  if (options.kind === "file") {
-    if (options.bindings.length === 0) throw new Error("File Storage 至少需要绑定一个 Story Type。");
-    const definitionPaths = new Set(options.bindings.map(({ layout }) => layout.definitionPath));
-    if (definitionPaths.size !== 1) throw new Error("File Storage 的 Story Type 必须使用相同的定义文件路径。");
-    for (const binding of options.bindings) {
-      const key = bindingKey(binding.definition);
-      if (fileBindings.has(key)) throw new Error(`File Storage 重复绑定 Story Type：${key}`);
-      assertStoryFileLayout(binding.layout, binding.definition);
-      fileBindings.set(key, binding);
-      fileBindingsById.set(binding.definition.id, binding);
-    }
-  }
-
-  const memoryBackend = options.kind === "memory" ? createMemoryStoryProjectRecordBackend() : null;
-  const fileBackend = (binding: StoryFileStorageBinding) => {
-    const key = bindingKey(binding.definition);
-    const current = fileBackends.get(key);
-    if (current) return current;
-    if (options.kind !== "file") throw new Error("当前 Storage 不是文件存储。");
-    const created = createStoryFileRecordBackend(options.backend, binding.layout);
-    fileBackends.set(key, created);
-    return created;
-  };
-  const backendForDefinition = (definition: StoryTypeDefinition) => {
-    if (memoryBackend) return memoryBackend;
-    const key = bindingKey(definition);
-    const binding = fileBindings.get(key);
-    if (!binding) throw new Error(`File Storage 未绑定 Story Type：${key}`);
-    assertStoryFileLayout(binding.layout, definition);
-    return fileBackend(binding);
-  };
-  const definitionBackend = memoryBackend ?? fileBackend(fileBindings.values().next().value as StoryFileStorageBinding);
-
-  const targetBackend = (definition: StoryTypeDefinition) => {
-    if (memoryBackend) return memoryBackend;
-    const binding = fileBindingsById.get(definition.id);
-    if (!binding) throw new Error(`File Storage 未配置 Story Type：${definition.id}`);
-    return fileBackend(binding);
-  };
+  const provider = createStoryProjectBackendProvider(options);
 
   const checkCompatibility = async (projectKey: string): Promise<StoryProjectCompatibility> => {
     let record: StoryProjectRecord | null;
     try {
-      record = await definitionBackend.readOptional(projectKey, definitionBackend.definitionKey);
+      record = await provider.definitionBackend.readOptional(projectKey, provider.definitionBackend.definitionKey);
     } catch (error) {
       return incompatibleProject(`无法读取故事项目定义：${errorMessage(error)}`);
     }
@@ -429,7 +382,7 @@ export const createStoryProjectStorage = (options: StoryProjectStorageOptions): 
     }
 
     try {
-      await loadProject(targetBackend(targetDefinition), projectKey, targetDefinition);
+      await loadProject(provider.backendForDefinition(targetDefinition), projectKey, targetDefinition);
     } catch (error) {
       return incompatibleProject(`项目文档无法兼容升级：${errorMessage(error)}`, current, target);
     }
@@ -455,7 +408,7 @@ export const createStoryProjectStorage = (options: StoryProjectStorageOptions): 
       }
       const definition = definitionsById.get(compatibility.target.storyTypeId);
       if (!definition) return { upgraded: false, compatibility };
-      const backend = targetBackend(definition);
+      const backend = provider.backendForDefinition(definition);
       const project = await loadProject(backend, projectKey, definition);
       const manifestRef = StoryDefinition.identity(definition, definition.manifestKind);
       await backend.commit(projectKey, {
@@ -472,34 +425,34 @@ export const createStoryProjectStorage = (options: StoryProjectStorageOptions): 
       return { upgraded: true, compatibility: await checkCompatibility(projectKey) };
     },
     async loadDefinition(projectKey) {
-      const definition = await loadDefinition(definitionBackend, projectKey);
-      if (definition) backendForDefinition(definition);
+      const definition = await loadDefinition(provider.definitionBackend, projectKey);
+      if (definition) provider.backendForDefinition(definition);
       return definition;
     },
     inspect(projectKey, definition) {
-      return inspect(backendForDefinition(definition), projectKey, definition);
+      return inspect(provider.backendForDefinition(definition), projectKey, definition);
     },
     loadProject(projectKey, definition) {
-      return loadProject(backendForDefinition(definition), projectKey, definition);
+      return loadProject(provider.backendForDefinition(definition), projectKey, definition);
     },
     loadDocument(projectKey, definition, ref) {
-      return loadDocument(backendForDefinition(definition), projectKey, definition, ref);
+      return loadDocument(provider.backendForDefinition(definition), projectKey, definition, ref);
     },
     initializeProject(projectKey, definition, input, replaceKeys) {
-      return initializeProject(backendForDefinition(definition), projectKey, definition, input, replaceKeys);
+      return initializeProject(provider.backendForDefinition(definition), projectKey, definition, input, replaceKeys);
     },
     saveDocument(projectKey, definition, document) {
-      return saveDocument(backendForDefinition(definition), projectKey, definition, document);
+      return saveDocument(provider.backendForDefinition(definition), projectKey, definition, document);
     },
     removeDocument(projectKey, definition, identity) {
-      return removeDocument(backendForDefinition(definition), projectKey, definition, identity);
+      return removeDocument(provider.backendForDefinition(definition), projectKey, definition, identity);
     },
     async validateChanges(projectKey, definition, changeSet) {
-      const backend = backendForDefinition(definition);
+      const backend = provider.backendForDefinition(definition);
       return applyChangeSet(await loadProject(backend, projectKey, definition), changeSet, definition);
     },
     async commitChanges(projectKey, definition, changeSet) {
-      const backend = backendForDefinition(definition);
+      const backend = provider.backendForDefinition(definition);
       const applied = applyChangeSet(await loadProject(backend, projectKey, definition), changeSet, definition);
       await persistAppliedProject(backend, projectKey, definition, applied);
       return applied;

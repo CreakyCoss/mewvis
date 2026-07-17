@@ -51,4 +51,4 @@ export interface StoryFileBackend {
 
 export type StoryProjectStorageOptions =
   | Readonly<{ kind: "file"; backend: StoryFileBackend; bindings: readonly StoryFileStorageBinding[] }>
-  | Readonly<{ kind: "memory"; definitions?: readonly StoryTypeDefinition[] }>;
+  | Readonly<{ kind: "memory"; bindings: readonly StoryFileStorageBinding[] }>;

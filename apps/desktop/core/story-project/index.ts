@@ -61,11 +61,7 @@ export interface StoryProjectApi {
  */
 export const createStoryProjectApi = (options: StoryProjectApiOptions): StoryProjectApi => {
   const bindings = storyFileStorageBindings();
-  const storage = createStoryProjectStorage(
-    options.kind === "file"
-      ? { ...options, bindings }
-      : { ...options, definitions: bindings.map(({ definition }) => definition) },
-  );
+  const storage = createStoryProjectStorage({ ...options, bindings });
   const client: StoryProjectApi = {
     listStoryTypes,
     checkCompatibility: (projectKey) => storage.checkCompatibility(projectKey),

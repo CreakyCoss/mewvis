@@ -1,3 +1,4 @@
+import type { StoryTypeDefinition } from "../../definitions/types.js";
 import type { StoryValue } from "../../types.js";
 import type { StoryDocumentIdentity } from "../../definitions/model/types.js";
 import { StoryProjectRevisionConflictError } from "../errors.js";
@@ -59,4 +60,10 @@ export interface StoryProjectRecordBackend {
   read(projectKey: string, key: string): Promise<StoryProjectRecord>;
   readOptional(projectKey: string, key: string): Promise<StoryProjectRecord | null>;
   commit(projectKey: string, transaction: StoryProjectRecordTransaction): Promise<void>;
+}
+
+/** Storage Facade 使用的统一 Backend 提供者；具体存储模式负责初始化、校验和缓存。 */
+export interface StoryProjectBackendProvider {
+  readonly definitionBackend: StoryProjectRecordBackend;
+  backendForDefinition(definition: StoryTypeDefinition): StoryProjectRecordBackend;
 }

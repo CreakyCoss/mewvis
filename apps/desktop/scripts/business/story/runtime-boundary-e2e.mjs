@@ -59,6 +59,8 @@ for (const removed of [
   "storage/memory.ts",
   "storage/core",
   "storage/adapters/registry.ts",
+  "storage/adapters/dispatch.ts",
+  "storage/adapters/types.ts",
   "definitions/assistant.ts",
   "definitions/core.ts",
   "definitions/definition.ts",
@@ -249,6 +251,7 @@ if (invalidStorageInternalImports.length || invalidQueryImports.length) {
 const storageContract = readFileSync(resolve(storageRoot, "index.ts"), "utf8");
 const storageTypes = readFileSync(resolve(storageRoot, "types.ts"), "utf8");
 const backendContract = readFileSync(resolve(storageAdaptersRoot, "record.ts"), "utf8");
+const storageAdapterFacade = readFileSync(resolve(storageAdaptersRoot, "index.ts"), "utf8");
 const fileStorage = readFileSync(resolve(storageAdaptersRoot, "file/index.ts"), "utf8");
 const memoryStorage = readFileSync(resolve(storageAdaptersRoot, "memory/index.ts"), "utf8");
 if (
@@ -275,8 +278,8 @@ if (
   !storageContract.includes("removeDocument(") ||
   !storageContract.includes("validateChanges(") ||
   !storageContract.includes("commitChanges(") ||
-  !storageContract.includes("createStoryFileRecordBackend(options.backend, binding.layout)") ||
-  !storageContract.includes("createMemoryStoryProjectRecordBackend()") ||
+  !storageContract.includes("createStoryProjectBackendProvider(options)") ||
+  storageContract.includes("options.kind") ||
   storageContract.includes("normalizeDocumentPath") ||
   storageContract.includes("PROJECT_CONFIG_PATH") ||
   storageContract.includes("writeAtomic(") ||
@@ -290,14 +293,23 @@ if (
   !backendContract.includes("read(projectKey") ||
   !backendContract.includes("readOptional(projectKey") ||
   !backendContract.includes("commit(projectKey") ||
+  !backendContract.includes("interface StoryProjectBackendProvider") ||
+  !backendContract.includes("readonly definitionBackend") ||
+  !backendContract.includes("backendForDefinition(definition") ||
+  !storageAdapterFacade.includes('case "file"') ||
+  !storageAdapterFacade.includes('case "memory"') ||
+  !storageAdapterFacade.includes("createFileStoryProjectBackendProvider(options)") ||
+  !storageAdapterFacade.includes("createMemoryStoryProjectBackendProvider()") ||
   fileStorage.includes("StoryProjectStorageAdapter") ||
   memoryStorage.includes("StoryProjectStorageAdapter") ||
   !fileStorage.includes("createStoryFileRecordBackend") ||
+  !fileStorage.includes("createFileStoryProjectBackendProvider") ||
   !fileStorage.includes("writeAtomic(") ||
   !memoryStorage.includes("createMemoryStoryProjectRecordBackend") ||
+  !memoryStorage.includes("createMemoryStoryProjectBackendProvider") ||
   storageAdaptersSource.includes("createStoryProjectStorage =")
 ) {
-  throw new Error("Story Storage 必须由公共 Facade 直接分发具体 Adapter，不得引入 Registry 或 barrel 隐藏依赖。");
+  throw new Error("Story Storage 必须通过统一 Provider 分发具体 Adapter，不得让 Facade 判断模式或引入 Registry。");
 }
 const applicationFacade = readFileSync(resolve(applicationRoot, "index.ts"), "utf8");
 if (

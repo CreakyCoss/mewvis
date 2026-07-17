@@ -1,4 +1,9 @@
-import { assertStoryProjectRevision, type StoryProjectRecord, type StoryProjectRecordBackend } from "../record.js";
+import {
+  assertStoryProjectRevision,
+  type StoryProjectBackendProvider,
+  type StoryProjectRecord,
+  type StoryProjectRecordBackend,
+} from "../record.js";
 import { parseStoryDocumentIdentityKey, storyDocumentIdentityKey } from "../../../definitions/model/identity.js";
 
 export const createMemoryStoryProjectRecordBackend = (): StoryProjectRecordBackend => {
@@ -39,4 +44,13 @@ export const createMemoryStoryProjectRecordBackend = (): StoryProjectRecordBacke
       projects.set(projectKey, records);
     },
   };
+};
+
+/** Memory 模式的所有 Story Type 共用同一个 Record Backend。 */
+export const createMemoryStoryProjectBackendProvider = (): StoryProjectBackendProvider => {
+  const backend = createMemoryStoryProjectRecordBackend();
+  return Object.freeze({
+    definitionBackend: backend,
+    backendForDefinition: () => backend,
+  });
 };

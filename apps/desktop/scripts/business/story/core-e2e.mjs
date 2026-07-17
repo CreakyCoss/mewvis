@@ -28,7 +28,7 @@ writeFileSync(
   const assert = (condition: unknown, message: string, details?: unknown) => {
     if (!condition) throw new Error(message + (details === undefined ? "" : "\\n" + JSON.stringify(details, null, 2)));
   };
-  const storage: StoryProjectStorage = createStoryProjectStorage({ kind: "memory" });
+  const storage: StoryProjectStorage = createStoryProjectStorage({ kind: "memory", bindings: [] });
   assert(storyDocumentIdentityKey({ kind: "story-character", identity: { id: "character-1" } }) === "story-character?id=character-1", "公共 Facade 应提供不含路径语义的稳定文档 key。");
   assert(!("list" in storage) && !("read" in storage) && !("commit" in storage), "领域 Storage 不得暴露低层记录操作。", storage);
 

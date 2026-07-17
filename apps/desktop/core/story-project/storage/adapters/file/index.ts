@@ -1,12 +1,22 @@
+import type { StoryTypeDefinition } from "../../../definitions/types.js";
 import type { StoryValue } from "../../../types.js";
 import {
   assertStoryProjectRevision,
+  type StoryProjectBackendProvider,
   type StoryProjectRecord,
   type StoryProjectRecordBackend,
   type StoryProjectRecordWrite,
 } from "../record.js";
-import type { StoryFileBackend, StoryFileLayout, StoryProjectRevisionCondition, StoryTextFile } from "../../types.js";
+import type {
+  StoryFileBackend,
+  StoryFileLayout,
+  StoryFileStorageBinding,
+  StoryProjectRevisionCondition,
+  StoryProjectStorageOptions,
+  StoryTextFile,
+} from "../../types.js";
 import {
+  assertStoryFileLayout,
   normalizeStoryFilePath,
   replaceableStoryFilePaths,
   storyDocumentIdentityForFilePath,
@@ -91,3 +101,48 @@ export const createStoryFileRecordBackend = (
     );
   },
 });
+
+type FileStoryProjectStorageOptions = Extract<StoryProjectStorageOptions, { kind: "file" }>;
+
+const bindingKey = (definition: Pick<StoryTypeDefinition, "id" | "version">) =>
+  `${definition.id}@${definition.version}`;
+
+/** File 模式自行负责 Story Type 绑定校验与 Record Backend 缓存。 */
+export const createFileStoryProjectBackendProvider = (
+  options: FileStoryProjectStorageOptions,
+): StoryProjectBackendProvider => {
+  if (options.bindings.length === 0) throw new Error("File Storage 至少需要绑定一个 Story Type。");
+  const definitionPaths = new Set(options.bindings.map(({ layout }) => layout.definitionPath));
+  if (definitionPaths.size !== 1) throw new Error("File Storage 的 Story Type 必须使用相同的定义文件路径。");
+
+  const bindings = new Map<string, StoryFileStorageBinding>();
+  const backends = new Map<string, StoryProjectRecordBackend>();
+  for (const binding of options.bindings) {
+    const key = bindingKey(binding.definition);
+    if (bindings.has(key)) throw new Error(`File Storage 重复绑定 Story Type：${key}`);
+    assertStoryFileLayout(binding.layout, binding.definition);
+    bindings.set(key, binding);
+  }
+
+  const backendForBinding = (binding: StoryFileStorageBinding) => {
+    const key = bindingKey(binding.definition);
+    const current = backends.get(key);
+    if (current) return current;
+    const created = createStoryFileRecordBackend(options.backend, binding.layout);
+    backends.set(key, created);
+    return created;
+  };
+
+  const backendForDefinition = (definition: StoryTypeDefinition) => {
+    const key = bindingKey(definition);
+    const binding = bindings.get(key);
+    if (!binding) throw new Error(`File Storage 未绑定 Story Type：${key}`);
+    assertStoryFileLayout(binding.layout, definition);
+    return backendForBinding(binding);
+  };
+
+  return Object.freeze({
+    definitionBackend: backendForBinding(options.bindings[0]),
+    backendForDefinition,
+  });
+};
