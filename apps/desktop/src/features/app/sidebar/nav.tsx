@@ -1,4 +1,4 @@
-import { BookOpen, Bot, Database, MessageSquarePlus, Settings, Wrench } from "lucide-react";
+import { BookOpen, Bot, Database, MessageSquarePlus, Settings, Sparkles, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { To } from "react-router";
 import { NavLink } from "react-router";
@@ -35,6 +35,19 @@ const linkClassName = ({ isActive }: { isActive: boolean }) =>
 
 export const PrimaryNav = ({ chatPath }: NavProps) => (
   <nav className="space-y-1 px-2.5 pb-2.5 xl:px-3 xl:pb-3" aria-label="主导航">
+    <Button
+      asChild
+      type="button"
+      className="mb-2 h-11 w-full justify-start rounded-lg px-3 text-sm font-medium shadow-sm"
+    >
+      <NavLink to="/chat-next">
+        <Sparkles className="size-4" />
+        <span>新版对话</span>
+        <span className="ml-auto rounded-full bg-primary-foreground/15 px-2 py-0.5 text-[10px] font-semibold tracking-wide">
+          NEW
+        </span>
+      </NavLink>
+    </Button>
     <Button
       asChild
       type="button"
