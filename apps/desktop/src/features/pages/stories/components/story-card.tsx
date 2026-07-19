@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { StoryOverview, StoryProjectCompatibility } from "../../../../../core/story-project/types";
 
 const StoryCardMetric = ({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: number }) => (
@@ -38,16 +39,19 @@ const StoryCardMetric = ({ icon: Icon, label, value }: { icon: LucideIcon; label
 
 export const StoryCard = ({
   overview,
+  workspacePath,
   onEdit,
   onTavern,
   onDelete,
 }: {
   overview: StoryOverview;
+  workspacePath: string;
   onEdit: () => void;
   onTavern: () => void;
-  onDelete: () => void | Promise<void>;
+  onDelete: (deleteContent: boolean) => boolean | Promise<boolean>;
 }) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteContent, setDeleteContent] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const visibleCharacters = overview.characters.slice(0, 4);
   const hiddenCharacterCount = Math.max(0, overview.characters.length - visibleCharacters.length);
@@ -55,8 +59,10 @@ export const StoryCard = ({
   const confirmDelete = async () => {
     setIsDeleting(true);
     try {
-      await onDelete();
-      setIsDeleteDialogOpen(false);
+      if (await onDelete(deleteContent)) {
+        setIsDeleteDialogOpen(false);
+        setDeleteContent(false);
+      }
     } finally {
       setIsDeleting(false);
     }
@@ -164,8 +170,8 @@ export const StoryCard = ({
               size="icon"
               variant="outline"
               className="size-9 shrink-0 bg-background/80 text-destructive hover:text-destructive"
-              title="删除故事及工作区"
-              aria-label="删除故事及工作区"
+              title="删除故事"
+              aria-label="删除故事"
               onClick={() => setIsDeleteDialogOpen(true)}
               disabled={isDeleting}
             >
@@ -175,15 +181,35 @@ export const StoryCard = ({
         </div>
       </article>
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => !isDeleting && setIsDeleteDialogOpen(open)}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          if (isDeleting) return;
+          setIsDeleteDialogOpen(open);
+          if (!open) setDeleteContent(false);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>删除故事？</AlertDialogTitle>
             <AlertDialogDescription>
-              删除「{overview.title || "当前故事"}」及其整个故事工作区？这个操作会同时删除 story/ 和 .tavern/
-              运行时数据。
+              「{overview.title || "当前故事"}」将从故事列表中删除。默认会保留磁盘中的故事内容。
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <label className="flex cursor-pointer items-start gap-3 rounded-md border border-destructive/25 bg-destructive/[0.04] p-3">
+            <Checkbox
+              className="mt-0.5"
+              checked={deleteContent}
+              onCheckedChange={(checked) => setDeleteContent(checked === true)}
+              disabled={isDeleting}
+            />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-foreground">同时删除故事内容</span>
+              <span className="mt-1 block break-all text-xs leading-5 text-muted-foreground">
+                勾选后将永久删除整个工作区（包括 story/ 和 .tavern/）：{workspacePath}
+              </span>
+            </span>
+          </label>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>取消</AlertDialogCancel>
             <AlertDialogAction
@@ -194,7 +220,8 @@ export const StoryCard = ({
                 void confirmDelete();
               }}
             >
-              删除
+              {isDeleting ? <Loader2 className="size-4 animate-spin" /> : null}
+              {isDeleting ? "正在删除" : "删除"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -226,16 +253,19 @@ export const StoryUnavailableCard = ({
   compatibility: StoryProjectCompatibility;
   isUpgrading: boolean;
   onUpgrade: () => void | Promise<void>;
-  onDelete: () => void | Promise<void>;
+  onDelete: (deleteContent: boolean) => boolean | Promise<boolean>;
 }) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteContent, setDeleteContent] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const confirmDelete = async () => {
     setIsDeleting(true);
     try {
-      await onDelete();
-      setIsDeleteDialogOpen(false);
+      if (await onDelete(deleteContent)) {
+        setIsDeleteDialogOpen(false);
+        setDeleteContent(false);
+      }
     } finally {
       setIsDeleting(false);
     }
@@ -285,8 +315,8 @@ export const StoryUnavailableCard = ({
               size="icon"
               variant="outline"
               className="size-9 shrink-0 bg-background/80 text-destructive hover:text-destructive"
-              title="删除故事及工作区"
-              aria-label="删除故事及工作区"
+              title="删除故事"
+              aria-label="删除故事"
               disabled={isUpgrading || isDeleting}
               onClick={() => setIsDeleteDialogOpen(true)}
             >
@@ -296,14 +326,35 @@ export const StoryUnavailableCard = ({
         </div>
       </article>
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => !isDeleting && setIsDeleteDialogOpen(open)}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          if (isDeleting) return;
+          setIsDeleteDialogOpen(open);
+          if (!open) setDeleteContent(false);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>删除不兼容的故事？</AlertDialogTitle>
             <AlertDialogDescription>
-              删除「{name || "当前故事"}」及其整个故事工作区？版本不兼容不会自动删除任何数据，只有确认后才会执行删除。
+              「{name || "当前故事"}」将从故事列表中删除。默认会保留磁盘中的故事内容。
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <label className="flex cursor-pointer items-start gap-3 rounded-md border border-destructive/25 bg-destructive/[0.04] p-3">
+            <Checkbox
+              className="mt-0.5"
+              checked={deleteContent}
+              onCheckedChange={(checked) => setDeleteContent(checked === true)}
+              disabled={isDeleting}
+            />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-foreground">同时删除故事内容</span>
+              <span className="mt-1 block break-all text-xs leading-5 text-muted-foreground">
+                勾选后将永久删除整个工作区（包括 story/ 和 .tavern/）：{workspacePath}
+              </span>
+            </span>
+          </label>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>取消</AlertDialogCancel>
             <AlertDialogAction
@@ -314,7 +365,8 @@ export const StoryUnavailableCard = ({
                 void confirmDelete();
               }}
             >
-              删除
+              {isDeleting ? <Loader2 className="size-4 animate-spin" /> : null}
+              {isDeleting ? "正在删除" : "删除"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

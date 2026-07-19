@@ -1,5 +1,6 @@
 use crate::db::config_db::{
-    self, CreateStoryRecordInput, DeleteStoryRecordInput, StoryRecord, UpdateStoryRecordInput,
+    self, CreateStoryRecordInput, DeleteStoryRecordInput, ImportStoryRecordInput, StoryRecord,
+    UpdateStoryRecordInput,
 };
 use tauri::AppHandle;
 
@@ -14,6 +15,14 @@ pub fn create_story_record(
     input: CreateStoryRecordInput,
 ) -> Result<StoryRecord, String> {
     config_db::create_story_record(&app, input)
+}
+
+#[tauri::command]
+pub fn import_story_record(
+    app: AppHandle,
+    input: ImportStoryRecordInput,
+) -> Result<StoryRecord, String> {
+    config_db::import_story_record(&app, input)
 }
 
 #[tauri::command]

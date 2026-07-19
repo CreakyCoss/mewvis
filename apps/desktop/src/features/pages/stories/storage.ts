@@ -117,6 +117,21 @@ export const createStoryRecord = async (input: CreateStoryInput): Promise<StoryR
   return normalized;
 };
 
+export const importStoryRecord = async (name: string, workspacePath: string): Promise<StoryRecord> => {
+  if (!isTauri()) {
+    throw createDesktopOnlyStoryStorageError();
+  }
+
+  const record = await invoke<unknown>("import_story_record", {
+    input: { name, workspacePath },
+  });
+  const normalized = normalizeStoryRecord(record);
+  if (!normalized) {
+    throw new Error("故事记录导入后无法读取。");
+  }
+  return normalized;
+};
+
 export const updateStoryRecordName = async (storyId: string, name: string): Promise<StoryRecord> => {
   if (!isTauri()) {
     throw createDesktopOnlyStoryStorageError();
@@ -132,13 +147,13 @@ export const updateStoryRecordName = async (storyId: string, name: string): Prom
   return normalized;
 };
 
-export const deleteStoryRecord = async (storyId: string) => {
+export const deleteStoryRecord = async (storyId: string, deleteContent = false) => {
   if (!isTauri()) {
     throw createDesktopOnlyStoryStorageError();
   }
 
   await invoke("delete_story_record", {
-    input: { id: storyId },
+    input: { id: storyId, deleteContent },
   });
 };
 
@@ -166,9 +181,46 @@ export const createStory = async (
       overview,
     };
   } catch (error) {
-    await deleteStoryRecord(record.id).catch(() => undefined);
+    await deleteStoryRecord(record.id, true).catch(() => undefined);
     throw error;
   }
+};
+
+const importWorkspaceCandidates = (selectedPath: string) => {
+  const normalized = selectedPath.trim().replace(/[\\/]+$/, "");
+  if (!normalized) return [];
+
+  const candidates = [normalized];
+  if (/[\\/]story$/i.test(normalized)) {
+    candidates.push(normalized.replace(/[\\/]story$/i, ""));
+  }
+  return [...new Set(candidates.filter(Boolean))];
+};
+
+export const importStory = async (selectedPath: string): Promise<StoryLibraryItem> => {
+  const candidates = importWorkspaceCandidates(selectedPath);
+  let reason = "所选目录不是 Novel Claw 故事工作区。";
+
+  for (const workspacePath of candidates) {
+    const compatibility = await storyProjectApi.checkCompatibility(workspacePath);
+    if (compatibility.status !== "compatible") {
+      reason = compatibility.reason || reason;
+      continue;
+    }
+
+    const project = await storyProjectApi.open(workspacePath);
+    const [documents, overview] = await Promise.all([project.listDocuments(), project.overview()]);
+    const fallbackName = workspacePath.split(/[\\/]/).filter(Boolean).at(-1) || "未命名故事";
+    const record = await importStoryRecord(overview.title.trim() || fallbackName, workspacePath);
+    return {
+      id: record.id,
+      documents,
+      overview,
+      workspace: storyWorkspaceFromRecord(record),
+    };
+  }
+
+  throw new Error(`无法导入故事：${reason}`);
 };
 
 export const loadStoryLibrary = async (): Promise<StoryLibraryEntry[]> => {

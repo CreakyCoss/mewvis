@@ -8,7 +8,10 @@ use tauri::AppHandle;
 use super::{
     common::now_millis,
     connection::open_config_connection,
-    inputs::{CreateStoryRecordInput, DeleteStoryRecordInput, UpdateStoryRecordInput},
+    inputs::{
+        CreateStoryRecordInput, DeleteStoryRecordInput, ImportStoryRecordInput,
+        UpdateStoryRecordInput,
+    },
     models::StoryRecord,
 };
 use crate::db::id::new_record_id;
@@ -71,6 +74,43 @@ pub fn create_story_record(
     load_story_record(&conn, &id)?.ok_or_else(|| "故事记录保存后未能读取".to_string())
 }
 
+pub fn import_story_record(
+    app: &AppHandle,
+    input: ImportStoryRecordInput,
+) -> Result<StoryRecord, String> {
+    let name = input.name.trim();
+    if name.is_empty() {
+        return Err("故事名不能为空".to_string());
+    }
+
+    let workspace_path = normalize_import_story_workspace_path(&input.workspace_path)?;
+    let path = workspace_path.to_string_lossy().to_string();
+    let conn = open_config_connection(app)?;
+    let exists = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM stories WHERE workspace_path = ?1)",
+            params![path],
+            |row| row.get::<_, bool>(0),
+        )
+        .map_err(|error| format!("无法检查故事记录：{error}"))?;
+    if exists {
+        return Err("这个故事工作区已经在故事列表中".to_string());
+    }
+
+    let now = now_millis()?;
+    let id = new_record_id();
+    conn.execute(
+        r#"
+        INSERT INTO stories (id, name, workspace_path, created_at, updated_at)
+        VALUES (?1, ?2, ?3, ?4, ?5)
+        "#,
+        params![id, name, path, now, now],
+    )
+    .map_err(|error| format!("无法导入故事记录：{error}"))?;
+
+    load_story_record(&conn, &id)?.ok_or_else(|| "故事记录导入后未能读取".to_string())
+}
+
 pub fn update_story_record(
     app: &AppHandle,
     input: UpdateStoryRecordInput,
@@ -110,7 +150,7 @@ pub fn delete_story_record(app: &AppHandle, input: DeleteStoryRecordInput) -> Re
     let record = load_story_record(&conn, id)?.ok_or_else(|| "故事记录不存在".to_string())?;
 
     let workspace_path = PathBuf::from(record.workspace_path);
-    if workspace_path.exists() {
+    if input.delete_content && workspace_path.exists() {
         ensure_removable_story_workspace(&workspace_path)?;
         fs::remove_dir_all(&workspace_path)
             .map_err(|error| format!("无法删除故事工作区：{error}"))?;
@@ -153,6 +193,30 @@ fn normalize_story_workspace_parent_path(value: &str) -> Result<PathBuf, String>
     }
 
     Ok(PathBuf::from(trimmed))
+}
+
+fn normalize_import_story_workspace_path(value: &str) -> Result<PathBuf, String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err("请选择故事工作区目录".to_string());
+    }
+
+    let path = PathBuf::from(trimmed)
+        .canonicalize()
+        .map_err(|error| format!("无法定位故事工作区：{error}"))?;
+    if !path.is_dir() {
+        return Err("请选择故事工作区目录".to_string());
+    }
+
+    let definition_path = path.join("story").join(".novel-claw").join("project.json");
+    if !definition_path.is_file() {
+        return Err(
+            "所选目录不是 Novel Claw 故事工作区；请选择包含 story/.novel-claw/project.json 的目录"
+                .to_string(),
+        );
+    }
+
+    Ok(path)
 }
 
 fn create_story_workspace_path(parent_path: &Path, name: &str) -> Result<PathBuf, String> {
@@ -228,5 +292,28 @@ mod tests {
         let result = create_story_workspace_path(Path::new("/tmp/stories"), " /\\:*?\"<>| ");
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn normalize_import_story_workspace_path_requires_project_definition() {
+        let workspace_path =
+            std::env::temp_dir().join(format!("novel-claw-story-{}", new_record_id()));
+        let definition_dir = workspace_path.join("story").join(".novel-claw");
+        fs::create_dir_all(&definition_dir).expect("create story definition directory");
+
+        let missing_definition =
+            normalize_import_story_workspace_path(workspace_path.to_string_lossy().as_ref());
+        assert!(missing_definition.is_err());
+
+        fs::write(definition_dir.join("project.json"), "{}").expect("write project definition");
+        let normalized =
+            normalize_import_story_workspace_path(workspace_path.to_string_lossy().as_ref())
+                .expect("normalize story workspace");
+        assert_eq!(
+            normalized,
+            workspace_path.canonicalize().expect("canonical path")
+        );
+
+        fs::remove_dir_all(workspace_path).expect("remove story workspace");
     }
 }

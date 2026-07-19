@@ -34,6 +34,13 @@ pub struct CreateStoryRecordInput {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ImportStoryRecordInput {
+    pub name: String,
+    pub workspace_path: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateStoryRecordInput {
     pub id: String,
     pub name: String,
@@ -43,6 +50,8 @@ pub struct UpdateStoryRecordInput {
 #[serde(rename_all = "camelCase")]
 pub struct DeleteStoryRecordInput {
     pub id: String,
+    #[serde(default)]
+    pub delete_content: bool,
 }
 
 #[derive(Debug, Deserialize)]

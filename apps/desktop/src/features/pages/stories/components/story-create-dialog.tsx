@@ -70,7 +70,7 @@ export const StoryCreateDialog = ({ bind, onCreated }: StoryCreateDialogProps) =
       toast.success("故事已创建。");
       setIsOpen(false);
       onCreated({
-        id: overview.id,
+        id: workspace.id,
         documents,
         overview,
         workspace,

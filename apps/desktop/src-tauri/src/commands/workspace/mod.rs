@@ -26,7 +26,8 @@ pub use skills::{
     search_skill_marketplace,
 };
 pub use stories::{
-    create_story_record, delete_story_record, list_story_records, update_story_record,
+    create_story_record, delete_story_record, import_story_record, list_story_records,
+    update_story_record,
 };
 pub use tavern_sessions::{clear_tavern_state, load_tavern_state, save_tavern_state};
 pub use version_control::{

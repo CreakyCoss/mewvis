@@ -85,7 +85,7 @@ export const useStoryState = create<StoryStore>((set, get) => ({
   },
 
   reloadStory: async () => {
-    const storyId = get().overview?.id;
+    const storyId = get().storyWorkspace?.id;
     if (!storyId) return null;
     const loaded = await loadStoryById(storyId);
     if (loaded) get().openStory(loaded);
@@ -105,7 +105,7 @@ export const useStoryState = create<StoryStore>((set, get) => ({
       const [nextDocuments, nextOverview] = await Promise.all([project.listDocuments(), project.overview()]);
       let nextWorkspace = storyWorkspace;
       if (nextOverview.title && nextOverview.title !== storyWorkspace.name) {
-        const record = await updateStoryRecordName(overview.id, nextOverview.title);
+        const record = await updateStoryRecordName(storyWorkspace.id, nextOverview.title);
         nextWorkspace = { id: record.id, name: record.name, path: record.workspacePath };
       }
       set({ documents: nextDocuments, overview: nextOverview, storyWorkspace: nextWorkspace });

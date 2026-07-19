@@ -1,4 +1,5 @@
-import { BookOpen, Plus } from "lucide-react";
+import { open as openDirectoryDialog } from "@tauri-apps/plugin-dialog";
+import { BookOpen, FolderInput, Loader2, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   deleteStoryRecord,
+  importStory,
   loadStoryLibrary,
   upgradeStoryProject,
   type StoryLibraryEntry,
@@ -24,6 +26,7 @@ export const StoriesPage = () => {
   const createDialogRef = useRef<StoryCreateDialogHandle>(null);
   const [storyItems, setStoryItems] = useState<StoryLibraryEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isImporting, setIsImporting] = useState(false);
   const [upgradingStoryId, setUpgradingStoryId] = useState("");
 
   const replaceStorySearch = (search: string) => {
@@ -79,6 +82,31 @@ export const StoriesPage = () => {
     createDialogRef.current?.();
   };
 
+  const handleImportStory = async () => {
+    setIsImporting(true);
+    try {
+      const selected = await openDirectoryDialog({
+        directory: true,
+        multiple: false,
+        title: "选择已有故事工作区",
+      });
+      if (typeof selected !== "string") return;
+
+      const item = await importStory(selected);
+      setStoryItems((current) => [
+        { ...item, status: "ready" },
+        ...current.filter((currentItem) => currentItem.id !== item.id),
+      ]);
+      toast.success("故事已导入。");
+      openStoryEditor(item);
+    } catch (error) {
+      console.error("Failed to import story", error);
+      toast.error(error instanceof Error ? error.message : "故事导入失败。");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const handleStoryCreated = (item: StoryLibraryItem) => {
     setStoryItems((current) => [
       { ...item, status: "ready" },
@@ -87,14 +115,16 @@ export const StoriesPage = () => {
     openStoryEditor(item);
   };
 
-  const handleDeleteStory = async (item: Pick<StoryLibraryEntry, "id">) => {
+  const handleDeleteStory = async (item: Pick<StoryLibraryEntry, "id">, deleteContent: boolean) => {
     try {
-      await deleteStoryRecord(item.id);
+      await deleteStoryRecord(item.id, deleteContent);
       setStoryItems((current) => current.filter((currentItem) => currentItem.id !== item.id));
-      toast.success("故事及子工作区已删除。");
+      toast.success(deleteContent ? "故事及工作区内容已删除。" : "故事已从列表删除，工作区内容已保留。");
+      return true;
     } catch (error) {
       console.error("Failed to delete story", error);
       toast.error(error instanceof Error ? error.message : "故事删除失败。");
+      return false;
     }
   };
 
@@ -127,6 +157,17 @@ export const StoriesPage = () => {
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-9 gap-1.5 bg-background"
+                onClick={() => void handleImportStory()}
+                disabled={isImporting}
+              >
+                {isImporting ? <Loader2 className="size-4 animate-spin" /> : <FolderInput className="size-4" />}
+                {isImporting ? "正在导入" : "导入故事"}
+              </Button>
               <Button type="button" size="sm" className="h-9 gap-1.5" onClick={openCreateStoryDialog}>
                 <Plus className="size-4" />
                 新建故事
@@ -140,9 +181,10 @@ export const StoriesPage = () => {
                 <StoryCard
                   key={item.id}
                   overview={item.overview}
+                  workspacePath={item.workspace.path}
                   onEdit={() => openStoryEditor(item)}
                   onTavern={() => openStoryTavern(item)}
-                  onDelete={() => handleDeleteStory(item)}
+                  onDelete={(deleteContent) => handleDeleteStory(item, deleteContent)}
                 />
               ) : (
                 <StoryUnavailableCard
@@ -152,7 +194,7 @@ export const StoriesPage = () => {
                   compatibility={item.compatibility}
                   isUpgrading={upgradingStoryId === item.id}
                   onUpgrade={() => handleUpgradeStory(item)}
-                  onDelete={() => handleDeleteStory(item)}
+                  onDelete={(deleteContent) => handleDeleteStory(item, deleteContent)}
                 />
               ),
             )}
@@ -175,10 +217,22 @@ export const StoriesPage = () => {
               <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
                 <BookOpen className="size-10 text-muted-foreground" />
                 <div className="text-base font-medium">暂无故事</div>
-                <Button type="button" className="gap-2" onClick={openCreateStoryDialog}>
-                  <Plus className="size-4" />
-                  新建故事
-                </Button>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="gap-2 bg-background"
+                    onClick={() => void handleImportStory()}
+                    disabled={isImporting}
+                  >
+                    {isImporting ? <Loader2 className="size-4 animate-spin" /> : <FolderInput className="size-4" />}
+                    {isImporting ? "正在导入" : "导入故事"}
+                  </Button>
+                  <Button type="button" className="gap-2" onClick={openCreateStoryDialog}>
+                    <Plus className="size-4" />
+                    新建故事
+                  </Button>
+                </div>
               </div>
             </div>
           </ScrollArea>
