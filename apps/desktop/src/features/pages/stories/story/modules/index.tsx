@@ -171,8 +171,8 @@ export const StoryModules = () => {
     <div className="grid min-h-0 flex-1 grid-cols-[14.5rem_minmax(0,1fr)] overflow-hidden bg-background xl:grid-cols-[16.5rem_minmax(0,1fr)]">
       <aside className="flex min-h-0 flex-col border-r bg-sidebar/55">
         <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-3">
-          <div>
-            <h2 className="text-sm font-semibold">故事资料</h2>
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold tracking-tight">故事资料</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">按内容组织，而不是按文件浏览</p>
           </div>
           <Button
@@ -211,10 +211,10 @@ export const StoryModules = () => {
                       <button
                         type="button"
                         className={[
-                          "flex h-9 w-full items-center gap-2 rounded-md px-2 text-left text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+                          "flex h-10 w-full items-center gap-2 rounded-md px-2.5 text-left text-sm font-semibold text-foreground transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
                           containsSelectedDocument
-                            ? "bg-muted/70 text-foreground"
-                            : "text-muted-foreground hover:bg-muted/55 hover:text-foreground",
+                            ? "bg-primary/[0.07] ring-1 ring-inset ring-primary/15"
+                            : "hover:bg-muted/55",
                         ].join(" ")}
                       >
                         <ChevronRight
@@ -223,12 +223,14 @@ export const StoryModules = () => {
                             isOpen ? "rotate-90" : "",
                           ].join(" ")}
                         />
-                        <GroupIcon className="size-3.5 shrink-0" />
+                        <GroupIcon className="size-4 shrink-0 text-primary/80" />
                         <span className="min-w-0 truncate">{group.label}</span>
-                        <span className="ml-auto shrink-0 tabular-nums opacity-70">{group.documents.length}</span>
+                        <span className="ml-auto shrink-0 rounded-full bg-background/80 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground ring-1 ring-inset ring-border/70">
+                          {group.documents.length}
+                        </span>
                       </button>
                     </CollapsibleTrigger>
-                    <CollapsibleContent className="space-y-0.5 pt-0.5 pb-2">
+                    <CollapsibleContent className="relative ml-4 space-y-0.5 border-l border-border/70 pt-0.5 pb-2 pl-2">
                       {group.documents.map((document) => {
                         const key = storyDocumentKey(document);
                         const active = selectedKey === key;
@@ -240,14 +242,14 @@ export const StoryModules = () => {
                             title={`${storyDocumentLabel(document)} · ${document.definition?.label ?? key}`}
                             aria-current={active ? "page" : undefined}
                             className={[
-                              "group flex w-full min-w-0 items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors",
+                              "group flex min-h-8 w-full min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] leading-5 transition-colors",
                               active
                                 ? "bg-primary/10 font-medium text-primary ring-1 ring-inset ring-primary/20"
                                 : "text-foreground/80 hover:bg-muted/70 hover:text-foreground",
                             ].join(" ")}
                             onClick={() => setSelectedKey(key)}
                           >
-                            <DocumentIcon className="size-4 shrink-0 opacity-80" />
+                            <DocumentIcon className="size-3.5 shrink-0 opacity-65" />
                             <span className="min-w-0 truncate">{storyDocumentLabel(document)}</span>
                             {active ? <span className="ml-auto size-1.5 shrink-0 rounded-full bg-primary" /> : null}
                           </button>
