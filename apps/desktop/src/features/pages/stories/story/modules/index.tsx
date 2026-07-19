@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
-import { BookOpenText, FileJson2, FileText, GitBranch, Globe2, ListTree, Plus, Search, UsersRound } from "lucide-react";
+import {
+  BookOpenText,
+  ChevronRight,
+  FileJson2,
+  FileText,
+  GitBranch,
+  Globe2,
+  ListTree,
+  Plus,
+  Search,
+  UsersRound,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { StoryDocument } from "../../../../../../core/story-project/types";
@@ -31,17 +43,48 @@ const groupHints = [
   },
   {
     id: "outline",
-    label: "大纲与章节",
+    label: "大纲与卷纲",
+    icon: BookOpenText,
+    keywords: ["outline", "volume", "book-arc", "arc", "大纲", "卷纲", "分卷", "主线"],
+  },
+  {
+    id: "chapter-plan",
+    label: "细纲",
     icon: ListTree,
-    keywords: ["outline", "chapter", "volume", "arc", "大纲", "章节", "分卷", "主线"],
+    keywords: ["chapter-plan", "chapter-outline", "细纲"],
+  },
+  {
+    id: "chapter-content",
+    label: "正文",
+    icon: FileText,
+    keywords: ["chapter-content", "章节正文", "正文"],
   },
   {
     id: "continuity",
     label: "伏笔与连续性",
     icon: GitBranch,
-    keywords: ["tracking", "foreshadow", "continuity", "progress", "伏笔", "连续", "进度"],
+    keywords: [
+      "tracking",
+      "chapter-result",
+      "foreshadow",
+      "continuity",
+      "progress",
+      "章节结果",
+      "章节记录",
+      "伏笔",
+      "连续",
+      "进度",
+    ],
   },
 ] as const;
+
+const exactGroupIdsByKind: Readonly<Record<string, string>> = {
+  "story-book-arc": "outline",
+  "story-volume": "outline",
+  "story-chapter-plan": "chapter-plan",
+  "story-chapter-content": "chapter-content",
+  "story-chapter": "continuity",
+};
 
 const documentSearchText = (document: StoryDocument) => {
   const inspected = inspectStoryDocument(document);
@@ -49,6 +92,10 @@ const documentSearchText = (document: StoryDocument) => {
 };
 
 const groupForDocument = (document: StoryDocument) => {
+  const exactGroupId = exactGroupIdsByKind[document.ref.kind];
+  const exactGroup = exactGroupId ? groupHints.find((group) => group.id === exactGroupId) : null;
+  if (exactGroup) return exactGroup;
+
   const searchable = documentSearchText(document);
   return (
     groupHints.find((group) => group.keywords.some((keyword) => searchable.includes(keyword))) ?? {
@@ -77,13 +124,16 @@ const buildDocumentGroups = (documents: StoryDocument[], query: string): Documen
     current.documents.push(document);
     groups.set(group.id, current);
   }
-  const order = ["work", "people", "world", "outline", "continuity"];
+  const order = ["work", "people", "world", "outline", "chapter-plan", "chapter-content", "continuity"];
   return [...groups.values()].sort((left, right) => order.indexOf(left.id) - order.indexOf(right.id));
 };
 
 export const StoryModules = () => {
   const documents = useStoryState((state) => state.documents);
   const createDialogRef = useRef<StoryDocumentDialogHandle>(null);
+  const [collapsedGroupIds, setCollapsedGroupIds] = useState<Set<string>>(
+    () => new Set(["chapter-plan", "chapter-content"]),
+  );
   const [selectedKey, setSelectedKey] = useState("");
   const [query, setQuery] = useState("");
 
@@ -101,6 +151,21 @@ export const StoryModules = () => {
   const groups = useMemo(() => buildDocumentGroups(documents, query), [documents, query]);
   const selectedGroup = selected ? groupForDocument(selected) : null;
   const openCreateDialog = () => createDialogRef.current?.();
+  const setGroupOpen = (groupId: string, open: boolean) => {
+    setCollapsedGroupIds((current) => {
+      const isOpen = !current.has(groupId);
+      if (isOpen === open) return current;
+
+      const next = new Set(current);
+      if (open) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
+  const handleDocumentSaved = (saved: StoryDocument) => {
+    setSelectedKey(storyDocumentKey(saved));
+    setGroupOpen(groupForDocument(saved).id, true);
+  };
 
   return (
     <div className="grid min-h-0 flex-1 grid-cols-[14.5rem_minmax(0,1fr)] overflow-hidden bg-background xl:grid-cols-[16.5rem_minmax(0,1fr)]">
@@ -134,43 +199,63 @@ export const StoryModules = () => {
           </div>
         </div>
         <ScrollArea className="min-h-0 flex-1">
-          <nav className="space-y-5 px-3 pb-5" aria-label="故事资料导航">
+          <nav className="space-y-1 px-3 pb-5" aria-label="故事资料导航">
             {groups.map((group) => {
               const GroupIcon = group.icon;
+              const isOpen = !collapsedGroupIds.has(group.id);
+              const containsSelectedDocument = selectedGroup?.id === group.id;
               return (
-                <section key={group.id}>
-                  <div className="mb-1.5 flex items-center gap-2 px-2 text-xs font-semibold text-muted-foreground">
-                    <GroupIcon className="size-3.5" />
-                    <span>{group.label}</span>
-                    <span className="ml-auto tabular-nums opacity-70">{group.documents.length}</span>
-                  </div>
-                  <div className="space-y-0.5">
-                    {group.documents.map((document) => {
-                      const key = storyDocumentKey(document);
-                      const active = selectedKey === key;
-                      const DocumentIcon = document.definition?.contentFormat === "markdown" ? FileText : FileJson2;
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          title={`${storyDocumentLabel(document)} · ${document.definition?.label ?? key}`}
-                          aria-current={active ? "page" : undefined}
+                <Collapsible key={group.id} open={isOpen} onOpenChange={(open) => setGroupOpen(group.id, open)}>
+                  <section>
+                    <CollapsibleTrigger asChild>
+                      <button
+                        type="button"
+                        className={[
+                          "flex h-9 w-full items-center gap-2 rounded-md px-2 text-left text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+                          containsSelectedDocument
+                            ? "bg-muted/70 text-foreground"
+                            : "text-muted-foreground hover:bg-muted/55 hover:text-foreground",
+                        ].join(" ")}
+                      >
+                        <ChevronRight
                           className={[
-                            "group flex w-full min-w-0 items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors",
-                            active
-                              ? "bg-primary/10 font-medium text-primary ring-1 ring-inset ring-primary/20"
-                              : "text-foreground/80 hover:bg-muted/70 hover:text-foreground",
+                            "size-3.5 shrink-0 transition-transform duration-200 motion-reduce:transition-none",
+                            isOpen ? "rotate-90" : "",
                           ].join(" ")}
-                          onClick={() => setSelectedKey(key)}
-                        >
-                          <DocumentIcon className="size-4 shrink-0 opacity-80" />
-                          <span className="min-w-0 truncate">{storyDocumentLabel(document)}</span>
-                          {active ? <span className="ml-auto size-1.5 shrink-0 rounded-full bg-primary" /> : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </section>
+                        />
+                        <GroupIcon className="size-3.5 shrink-0" />
+                        <span className="min-w-0 truncate">{group.label}</span>
+                        <span className="ml-auto shrink-0 tabular-nums opacity-70">{group.documents.length}</span>
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-0.5 pt-0.5 pb-2">
+                      {group.documents.map((document) => {
+                        const key = storyDocumentKey(document);
+                        const active = selectedKey === key;
+                        const DocumentIcon = document.definition?.contentFormat === "markdown" ? FileText : FileJson2;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            title={`${storyDocumentLabel(document)} · ${document.definition?.label ?? key}`}
+                            aria-current={active ? "page" : undefined}
+                            className={[
+                              "group flex w-full min-w-0 items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors",
+                              active
+                                ? "bg-primary/10 font-medium text-primary ring-1 ring-inset ring-primary/20"
+                                : "text-foreground/80 hover:bg-muted/70 hover:text-foreground",
+                            ].join(" ")}
+                            onClick={() => setSelectedKey(key)}
+                          >
+                            <DocumentIcon className="size-4 shrink-0 opacity-80" />
+                            <span className="min-w-0 truncate">{storyDocumentLabel(document)}</span>
+                            {active ? <span className="ml-auto size-1.5 shrink-0 rounded-full bg-primary" /> : null}
+                          </button>
+                        );
+                      })}
+                    </CollapsibleContent>
+                  </section>
+                </Collapsible>
               );
             })}
             {query && groups.length === 0 ? (
@@ -200,7 +285,7 @@ export const StoryModules = () => {
           </div>
         </div>
       )}
-      <StoryDocumentDialog bind={createDialogRef} onSaved={(saved) => setSelectedKey(storyDocumentKey(saved))} />
+      <StoryDocumentDialog bind={createDialogRef} onSaved={handleDocumentSaved} />
     </div>
   );
 };

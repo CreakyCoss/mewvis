@@ -65,7 +65,9 @@ const PrimitiveValue = ({ field, value }: { field: JsonFieldMetadata; value: Sto
   return (
     <p
       className={
-        field.type === "textarea" || field.type === "content" ? "whitespace-pre-wrap text-sm leading-7" : "text-sm"
+        field.type === "textarea" || field.type === "content"
+          ? "max-w-[78ch] whitespace-pre-wrap text-sm leading-6"
+          : "text-sm leading-6"
       }
     >
       {option?.label ?? String(value)}
@@ -157,10 +159,19 @@ const DocumentField = ({
     content = <PrimitiveValue field={field} value={value} />;
   }
 
+  const spansFullWidth =
+    !compact && ["textarea", "content", "object", "collection", "string-list", "reference-list"].includes(field.type);
+
   return (
-    <div className={compact ? "min-w-0" : "py-4 first:pt-0 last:pb-0"}>
+    <div
+      className={
+        compact
+          ? "min-w-0"
+          : ["min-w-0 rounded-lg bg-muted/25 px-4 py-3", spansFullWidth ? "sm:col-span-2" : ""].join(" ")
+      }
+    >
       <dt className="text-xs font-medium text-muted-foreground">{field.label}</dt>
-      <dd className="mt-1.5 min-w-0">{content}</dd>
+      <dd className="mt-1 min-w-0">{content}</dd>
     </div>
   );
 };
@@ -261,7 +272,7 @@ export const StoryDocumentDetail = ({
                     </h2>
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">{section.description}</p>
                   </div>
-                  <dl className="divide-y border-t">
+                  <dl className="grid items-start gap-3 sm:grid-cols-2">
                     {section.fields.map(([pointer, field]) => (
                       <DocumentField
                         key={pointer}
@@ -279,7 +290,7 @@ export const StoryDocumentDetail = ({
                     技术信息
                     <span className="ml-2 text-xs font-normal opacity-70">文档标识与系统维护字段</span>
                   </summary>
-                  <dl className="divide-y border-t">
+                  <dl className="grid items-start gap-3 border-t py-4 sm:grid-cols-2">
                     {technicalSection.fields.map(([pointer, field]) => (
                       <DocumentField
                         key={pointer}
