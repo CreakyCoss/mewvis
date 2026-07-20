@@ -13,14 +13,14 @@ import {
 } from "@/components/ui/combobox";
 import { InputGroupAddon } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
-import { useChatNextWorkspaceStore, type Workspace } from "../workspace-store";
+import { useWorkspaceStore, type Workspace } from "../home/workspace-store";
 
 type WorkspacePickerProps = {
   onCreateWorkspace: () => void;
 };
 
 export const WorkspacePicker = ({ onCreateWorkspace }: WorkspacePickerProps) => {
-  const workspaceStore = useChatNextWorkspaceStore();
+  const workspaceStore = useWorkspaceStore();
   const [workspaceSearch, setWorkspaceSearch] = useState("");
   const [isOpen, setIsOpen] = useState(false);
 
@@ -101,11 +101,11 @@ export const WorkspacePicker = ({ onCreateWorkspace }: WorkspacePickerProps) => 
           aria-label="选择工作区"
           className="w-[min(22rem,calc(100vw-2rem))] min-w-0 rounded-2xl border border-border/80 p-2 shadow-xl"
         >
-          <label htmlFor="chat-next-workspace-search" className="sr-only">
+          <label htmlFor="chat-home-workspace-search" className="sr-only">
             搜索工作区
           </label>
           <ComboboxInput
-            id="chat-next-workspace-search"
+            id="chat-home-workspace-search"
             autoFocus
             showTrigger={false}
             placeholder="搜索工作区"

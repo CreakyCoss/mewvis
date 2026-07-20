@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { useChatNextWorkspaceStore, type Workspace } from "../workspace-store";
+import { useWorkspaceStore, type Workspace } from "../home/workspace-store";
 
 export type WorkspaceDialogHandle = (workspace?: Workspace) => void;
 
@@ -30,7 +30,7 @@ const emptyWorkspaceForm = {
 };
 
 export const WorkspaceDialog = ({ bind }: WorkspaceDialogProps) => {
-  const workspaceStore = useChatNextWorkspaceStore();
+  const workspaceStore = useWorkspaceStore();
   const [isOpen, setIsOpen] = useState(false);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [form, setForm] = useState(emptyWorkspaceForm);
@@ -127,9 +127,9 @@ export const WorkspaceDialog = ({ bind }: WorkspaceDialogProps) => {
           }}
         >
           <div className="space-y-2">
-            <Label htmlFor="chat-next-workspace-dialog-name">工作区名称</Label>
+            <Label htmlFor="chat-home-workspace-dialog-name">工作区名称</Label>
             <Input
-              id="chat-next-workspace-dialog-name"
+              id="chat-home-workspace-dialog-name"
               value={form.name}
               placeholder="例如：长篇小说项目"
               disabled={isSaving}
@@ -139,9 +139,9 @@ export const WorkspaceDialog = ({ bind }: WorkspaceDialogProps) => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="chat-next-workspace-dialog-description">工作区描述</Label>
+            <Label htmlFor="chat-home-workspace-dialog-description">工作区描述</Label>
             <Textarea
-              id="chat-next-workspace-dialog-description"
+              id="chat-home-workspace-dialog-description"
               value={form.description}
               placeholder="可填写项目主题、目标或备注"
               rows={3}
@@ -151,15 +151,15 @@ export const WorkspaceDialog = ({ bind }: WorkspaceDialogProps) => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="chat-next-workspace-dialog-path">工作区目录</Label>
+            <Label htmlFor="chat-home-workspace-dialog-path">工作区目录</Label>
             <div className="flex gap-2">
               <Input
-                id="chat-next-workspace-dialog-path"
+                id="chat-home-workspace-dialog-path"
                 value={form.path}
                 placeholder="请选择目录"
                 disabled={isSaving}
                 readOnly={Boolean(workspace)}
-                aria-describedby={workspace ? "chat-next-workspace-dialog-path-help" : undefined}
+                aria-describedby={workspace ? "chat-home-workspace-dialog-path-help" : undefined}
                 className={workspace ? "bg-muted/50 text-muted-foreground" : undefined}
                 required
                 onChange={(event) => setForm((current) => ({ ...current, path: event.currentTarget.value }))}
@@ -178,7 +178,7 @@ export const WorkspaceDialog = ({ bind }: WorkspaceDialogProps) => {
               )}
             </div>
             {workspace && (
-              <p id="chat-next-workspace-dialog-path-help" className="text-xs text-muted-foreground">
+              <p id="chat-home-workspace-dialog-path-help" className="text-xs text-muted-foreground">
                 如需使用其他目录，请新建工作区。
               </p>
             )}

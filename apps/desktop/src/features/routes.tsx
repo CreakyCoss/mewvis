@@ -2,7 +2,7 @@ import { Navigate, Route, Routes } from "react-router";
 import { AppLayout } from "@/features/app/layout";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
 import { ChatPage } from "@/features/pages/chat";
-import { ChatNextPage } from "@/features/pages/chat-next";
+import { ChatHomePage } from "@/features/pages/chats/home";
 import { HubPage } from "@/features/pages/hub";
 import { KnowledgePage } from "@/features/pages/knowledge";
 import { StoriesPage } from "@/features/pages/stories";
@@ -31,7 +31,7 @@ export const AppRoutes = () => (
       <Route path="chat/:workspaceId" element={<ChatPage />} />
       <Route path="chat/:workspaceId/new" element={<ChatPage />} />
       <Route path="chat/:workspaceId/session/:sessionId" element={<ChatPage />} />
-      <Route path="chat-next" element={<ChatNextPage />} />
+      <Route path="chat-next" element={<ChatHomePage />} />
       <Route path="skills" element={<SkillsPage />} />
       <Route path="knowledge" element={<KnowledgePage />} />
       <Route path="stories" element={<StoriesPage />} />

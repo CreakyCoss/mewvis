@@ -8,8 +8,8 @@ import {
   listWorkspaces,
   updateWorkspace as updateWorkspaceApi,
 } from "@/api/workspace";
-import type { WorkspaceSkill } from "@/features/pages/skills/types";
-import { buildRuntimeModelOptions } from "@/features/pages/settings/llm/store/model";
+import { buildRuntimeModelInputs, buildRuntimeModelOptions } from "@/features/pages/settings/llm/store/model";
+import type { ChatInputResources } from "../components/chat-input/type";
 
 export type Workspace = {
   id: string;
@@ -22,32 +22,6 @@ export type Workspace = {
   groupId: string | null;
   createdAt: number;
   updatedAt: number;
-};
-
-export type ChatInputResourceOption = {
-  value: string;
-  label: string;
-  description: string;
-  isDefault: boolean;
-};
-
-export type ChatInputSkillOption = WorkspaceSkill & {
-  label: string;
-};
-
-export type ChatInputSkillGroupOption = ChatInputResourceOption & {
-  skills: ChatInputSkillOption[];
-};
-
-export type ChatInputAgentOption = ChatInputResourceOption & {
-  avatar: string;
-};
-
-export type ChatInputResources = {
-  models?: ChatInputResourceOption[];
-  agents?: ChatInputAgentOption[];
-  skillGroups?: ChatInputSkillGroupOption[];
-  tools?: ChatInputResourceOption[];
 };
 
 type WorkspaceStore = {
@@ -96,21 +70,31 @@ const loadResources = async (workspaceId: string): Promise<ChatInputResources> =
     ]);
     const defaultToolNames = new Set(toolSettings.defaultToolNames);
     const models = buildRuntimeModelOptions(llmSettings);
+    const runtimeModels = buildRuntimeModelInputs(llmSettings);
     const skillsByKey = new Map(skillSettings.skills.map((skill) => [skill.key, { ...skill, label: skill.name }]));
 
     return {
-      models: models.map((model, index) => ({
-        value: model.id,
-        label: `${model.provider.name}/${model.modelName}`,
-        description: `${model.provider.name} / ${model.modelName}`,
-        isDefault: index === 0,
-      })),
+      models: models.flatMap((model, index) => {
+        const runtimeModel = runtimeModels[model.id];
+
+        return runtimeModel
+          ? [
+              {
+                value: model.id,
+                label: `${model.provider.name}/${model.modelName}`,
+                description: `${model.provider.name} / ${model.modelName}`,
+                isDefault: index === 0,
+                runtimeModel,
+              },
+            ]
+          : [];
+      }),
       agents: agentSettings.agents.map((agent) => ({
         value: agent.id,
         label: agent.name,
         description: agent.description ?? "",
         isDefault: false,
-        avatar: agent.avatar,
+        agent,
       })),
       skillGroups: skillSettings.groups.map((group) => ({
         value: group.id,
@@ -153,7 +137,7 @@ const fetchWorkspaces = async (currentWorkspace: Workspace | null, previousWorks
   };
 };
 
-export const useChatNextWorkspaceStore = create<WorkspaceStore>((set, get) => ({
+export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
   workspaces: [],
   currentWorkspace: null,
   resources: {},

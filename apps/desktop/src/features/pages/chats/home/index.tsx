@@ -1,11 +1,12 @@
 import { useEffect, useRef } from "react";
-import { ChatInput, type ChatInputSubmitPayload } from "./components/chat-input";
-import { WorkspaceDialog, type WorkspaceDialogHandle } from "./components/workspace-dialog";
-import { WorkspacePicker } from "./components/workspace-picker";
-import { useChatNextWorkspaceStore } from "./workspace-store";
+import { ChatInput } from "../components/chat-input";
+import type { ChatInputSubmitPayload } from "../components/chat-input/type";
+import { WorkspaceDialog, type WorkspaceDialogHandle } from "../components/workspace-dialog";
+import { WorkspacePicker } from "../components/workspace-picker";
+import { useWorkspaceStore } from "./workspace-store";
 
-export const ChatNextPage = () => {
-  const workspaceStore = useChatNextWorkspaceStore();
+export const ChatHomePage = () => {
+  const workspaceStore = useWorkspaceStore();
   const workspaceDialogRef = useRef<WorkspaceDialogHandle>(null);
 
   useEffect(() => {
@@ -17,14 +18,14 @@ export const ChatNextPage = () => {
   return (
     <main className="relative flex h-full min-h-0 overflow-hidden bg-background text-foreground">
       <section
-        aria-labelledby="chat-next-title"
+        aria-labelledby="chat-home-title"
         className="flex min-h-0 w-full flex-1 items-center justify-center overflow-y-auto px-4 py-8 sm:px-8"
       >
         <div className="mx-auto w-full max-w-5xl">
           <div className="flex min-h-[calc(100vh-9rem)] flex-col items-center justify-center py-10">
             <div className="w-full space-y-7">
               <h1
-                id="chat-next-title"
+                id="chat-home-title"
                 className="mx-auto flex w-full max-w-[42rem] min-w-0 flex-wrap items-baseline justify-center text-center text-2xl font-semibold leading-tight tracking-normal text-foreground sm:text-3xl xl:text-4xl"
                 title={
                   workspaceStore.currentWorkspace
@@ -45,6 +46,7 @@ export const ChatNextPage = () => {
 
               <div className="space-y-3">
                 <ChatInput
+                  resources={workspaceStore.resources}
                   placeholder={
                     workspaceStore.currentWorkspace
                       ? `询问关于 ${workspaceStore.currentWorkspace.name} 的任何问题`
