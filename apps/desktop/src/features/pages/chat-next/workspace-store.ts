@@ -21,6 +21,8 @@ type WorkspaceStore = {
   error: string;
   loadWorkspaces: () => Promise<void>;
   refreshWorkspaces: () => Promise<void>;
+  createWorkspace: (input: { name: string; description: string; path: string }) => Promise<void>;
+  updateWorkspace: (workspaceId: string, input: { name: string; description: string }) => Promise<void>;
   setCurrentWorkspace: (workspace: Workspace | null) => void;
 };
 
@@ -108,6 +110,42 @@ export const useChatNextWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     } finally {
       set({ isLoading: false });
     }
+  },
+  createWorkspace: async (input) => {
+    if (!isTauri()) {
+      throw new Error("Web 预览模式暂不支持创建工作区");
+    }
+
+    await invoke<Workspace>("create_workspace", {
+      input: {
+        name: input.name.trim(),
+        description: input.description.trim(),
+        path: input.path.trim(),
+        groupId: null,
+      },
+    });
+    await get().refreshWorkspaces();
+  },
+  updateWorkspace: async (workspaceId, input) => {
+    if (!isTauri()) {
+      throw new Error("Web 预览模式暂不支持保存工作区");
+    }
+
+    const workspace = get().workspaces.find((item) => item.id === workspaceId);
+    if (!workspace) {
+      throw new Error("工作区不存在");
+    }
+
+    await invoke<Workspace>("update_workspace", {
+      input: {
+        id: workspaceId,
+        name: input.name.trim(),
+        description: input.description.trim(),
+        path: workspace.path,
+        groupId: workspace.groupId,
+      },
+    });
+    await get().refreshWorkspaces();
   },
   setCurrentWorkspace: (workspace) => {
     set({ currentWorkspace: workspace });

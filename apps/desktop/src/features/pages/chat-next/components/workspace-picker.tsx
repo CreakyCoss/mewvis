@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { FolderIcon, FolderXIcon, SearchIcon } from "lucide-react";
+import { FolderIcon, FolderPlusIcon, FolderXIcon, SearchIcon } from "lucide-react";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,9 +13,13 @@ import {
 } from "@/components/ui/combobox";
 import { InputGroupAddon } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
-import { useChatNextWorkspaceStore, type Workspace } from "../../workspace-store";
+import { useChatNextWorkspaceStore, type Workspace } from "../workspace-store";
 
-export const WorkspacePicker = () => {
+type WorkspacePickerProps = {
+  onCreateWorkspace: () => void;
+};
+
+export const WorkspacePicker = ({ onCreateWorkspace }: WorkspacePickerProps) => {
   const workspaceStore = useChatNextWorkspaceStore();
   const [workspaceSearch, setWorkspaceSearch] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -136,6 +140,19 @@ export const WorkspacePicker = () => {
             )}
 
             <ComboboxSeparator className="mx-0 my-2" />
+            <Button
+              type="button"
+              variant="ghost"
+              className="min-h-11 w-full cursor-pointer justify-start gap-3 rounded-lg px-2.5 py-2 font-medium"
+              onClick={() => {
+                setIsOpen(false);
+                setWorkspaceSearch("");
+                onCreateWorkspace();
+              }}
+            >
+              <FolderPlusIcon className="size-4 text-muted-foreground" aria-hidden="true" />
+              <span className="min-w-0 flex-1 truncate text-left">新建工作区</span>
+            </Button>
             <ComboboxItem
               value=""
               index={visibleWorkspaces.length}

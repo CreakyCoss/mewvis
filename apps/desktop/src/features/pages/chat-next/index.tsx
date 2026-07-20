@@ -1,12 +1,14 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { SendIcon } from "lucide-react";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from "@/components/ui/input-group";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { WorkspaceDialog, type WorkspaceDialogHandle } from "./components/workspace-dialog";
 import { WorkspacePicker } from "./components/workspace-picker";
 import { useChatNextWorkspaceStore } from "./workspace-store";
 
 export const ChatNextPage = () => {
   const workspaceStore = useChatNextWorkspaceStore();
+  const workspaceDialogRef = useRef<WorkspaceDialogHandle>(null);
   const [prompt, setPrompt] = useState("");
 
   useEffect(() => {
@@ -100,12 +102,13 @@ export const ChatNextPage = () => {
                   </InputGroup>
                 </form>
 
-                <WorkspacePicker />
+                <WorkspacePicker onCreateWorkspace={() => workspaceDialogRef.current?.()} />
               </div>
             </div>
           </div>
         </div>
       </section>
+      <WorkspaceDialog bind={workspaceDialogRef} />
     </main>
   );
 };
