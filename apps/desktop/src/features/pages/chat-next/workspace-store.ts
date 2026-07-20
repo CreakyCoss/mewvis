@@ -1,5 +1,9 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { create } from "zustand";
+import { createAgentClient } from "@/agent-client/runtime";
+import { getWorkspaceSkills } from "@/features/pages/skills/api";
+import { getLlmSettings } from "@/features/pages/settings/llm/api";
+import { buildRuntimeModelOptions } from "@/features/pages/settings/llm/store/model";
 
 export type Workspace = {
   id: string;
@@ -14,9 +18,27 @@ export type Workspace = {
   updatedAt: number;
 };
 
+export type ChatInputResourceOption = {
+  value: string;
+  label: string;
+  description: string;
+  isDefault: boolean;
+};
+
+export type ChatInputSkillGroupOption = ChatInputResourceOption & {
+  skillKeys: string[];
+};
+
+export type ChatInputResources = {
+  models?: ChatInputResourceOption[];
+  skillGroups?: ChatInputSkillGroupOption[];
+  tools?: ChatInputResourceOption[];
+};
+
 type WorkspaceStore = {
   workspaces: Workspace[];
   currentWorkspace: Workspace | null;
+  resources: ChatInputResources;
   isLoading: boolean;
   error: string;
   loadWorkspaces: () => Promise<void>;
@@ -35,12 +57,12 @@ const getWorkspaceOverview = async (): Promise<Workspace[]> => {
   return response.workspaces;
 };
 
-const getErrorMessage = (error: unknown) => {
+const getErrorMessage = (error: unknown, fallback: string) => {
   if (error instanceof Error) {
     return error.message;
   }
 
-  return typeof error === "string" ? error : "工作区列表加载失败，请重试。";
+  return typeof error === "string" ? error : fallback;
 };
 
 const sortWorkspaces = (workspaces: Workspace[]) =>
@@ -51,43 +73,92 @@ const sortWorkspaces = (workspaces: Workspace[]) =>
       left.name.localeCompare(right.name, "zh-CN"),
   );
 
-const fetchWorkspaces = async () => {
-  const workspaces = await getWorkspaceOverview();
-
-  return sortWorkspaces(
-    workspaces.map((workspace) => (workspace.isDefault ? { ...workspace, name: "默认工作区" } : workspace)),
-  );
-};
-
 const resolveCurrentWorkspace = (workspaces: Workspace[], currentWorkspace: Workspace | null) =>
   workspaces.find((workspace) => workspace.id === currentWorkspace?.id) ??
   workspaces.find((workspace) => workspace.isDefault) ??
   null;
 
+const loadResources = async (workspaceId: string): Promise<ChatInputResources> => {
+  const agentClient = createAgentClient();
+
+  try {
+    const [llmSettings, skillSettings, toolSettings] = await Promise.all([
+      getLlmSettings(),
+      workspaceId ? getWorkspaceSkills(workspaceId) : Promise.resolve({ skills: [], groups: [], defaultGroupId: "" }),
+      agentClient.capabilities.listAgentTools(),
+    ]);
+    const defaultToolNames = new Set(toolSettings.defaultToolNames);
+    const models = buildRuntimeModelOptions(llmSettings);
+
+    return {
+      models: models.map((model, index) => ({
+        value: model.id,
+        label: `${model.provider.name}/${model.modelName}`,
+        description: `${model.provider.name} / ${model.modelName}`,
+        isDefault: index === 0,
+      })),
+      skillGroups: skillSettings.groups.map((group) => ({
+        value: group.id,
+        label: group.name,
+        description: group.description ?? "",
+        isDefault: group.id === skillSettings.defaultGroupId,
+        skillKeys: group.skills.filter((skill) => skill.disabled !== true).map((skill) => skill.key),
+      })),
+      tools: toolSettings.tools.map((tool) => ({
+        value: tool.name,
+        label: tool.label,
+        description: tool.description ?? "",
+        isDefault: defaultToolNames.has(tool.name),
+      })),
+    };
+  } catch {
+    return {};
+  }
+};
+
+const fetchWorkspaces = async (currentWorkspace: Workspace | null, previousWorkspaceIds?: ReadonlySet<string>) => {
+  const overview = await getWorkspaceOverview();
+  const workspaces = sortWorkspaces(
+    overview.map((workspace) => (workspace.isDefault ? { ...workspace, name: "默认工作区" } : workspace)),
+  );
+  const createdWorkspace = previousWorkspaceIds
+    ? workspaces
+        .filter((workspace) => !workspace.isDefault && !previousWorkspaceIds.has(workspace.id))
+        .sort((left, right) => right.createdAt - left.createdAt)[0]
+    : null;
+  const nextWorkspace = createdWorkspace ?? resolveCurrentWorkspace(workspaces, currentWorkspace);
+
+  return {
+    workspaces,
+    currentWorkspace: nextWorkspace,
+    resources: await loadResources(nextWorkspace?.id ?? ""),
+  };
+};
+
 export const useChatNextWorkspaceStore = create<WorkspaceStore>((set, get) => ({
   workspaces: [],
   currentWorkspace: null,
+  resources: {},
   isLoading: true,
   error: "",
   loadWorkspaces: async () => {
     set({ isLoading: true, error: "" });
 
     try {
-      const workspaces = await fetchWorkspaces();
-      const currentWorkspace = resolveCurrentWorkspace(workspaces, get().currentWorkspace);
+      const result = await fetchWorkspaces(get().currentWorkspace);
 
       set({
-        workspaces,
-        currentWorkspace,
+        ...result,
+        isLoading: false,
       });
     } catch (error) {
       set({
         workspaces: [],
         currentWorkspace: null,
-        error: getErrorMessage(error),
+        resources: {},
+        isLoading: false,
+        error: getErrorMessage(error, "工作区列表加载失败，请重试。"),
       });
-    } finally {
-      set({ isLoading: false });
     }
   },
   refreshWorkspaces: async () => {
@@ -95,20 +166,17 @@ export const useChatNextWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     set({ isLoading: true, error: "" });
 
     try {
-      const workspaces = await fetchWorkspaces();
-      const createdWorkspace = workspaces
-        .filter((workspace) => !workspace.isDefault && !previousWorkspaceIds.has(workspace.id))
-        .sort((left, right) => right.createdAt - left.createdAt)[0];
-      const currentWorkspace = createdWorkspace ?? resolveCurrentWorkspace(workspaces, get().currentWorkspace);
+      const result = await fetchWorkspaces(get().currentWorkspace, previousWorkspaceIds);
 
       set({
-        workspaces,
-        currentWorkspace,
+        ...result,
+        isLoading: false,
       });
     } catch (error) {
-      set({ error: getErrorMessage(error) });
-    } finally {
-      set({ isLoading: false });
+      set({
+        isLoading: false,
+        error: getErrorMessage(error, "工作区列表刷新失败，请重试。"),
+      });
     }
   },
   createWorkspace: async (input) => {
@@ -148,6 +216,15 @@ export const useChatNextWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     await get().refreshWorkspaces();
   },
   setCurrentWorkspace: (workspace) => {
-    set({ currentWorkspace: workspace });
+    set({
+      currentWorkspace: workspace,
+      resources: {},
+      error: "",
+    });
+    void loadResources(workspace?.id ?? "").then((resources) => {
+      if (get().currentWorkspace?.id === workspace?.id) {
+        set({ resources });
+      }
+    });
   },
 }));
