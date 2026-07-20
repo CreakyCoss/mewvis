@@ -1,4 +1,4 @@
-import type { WorkspaceVersionFileStatus } from "@/features/pages/workspace/files-api";
+import type { WorkspaceVersionFileStatus } from "@/api/workspace-files";
 
 export const versionStatusLabels: Record<WorkspaceVersionFileStatus["status"], string> = {
   added: "A",

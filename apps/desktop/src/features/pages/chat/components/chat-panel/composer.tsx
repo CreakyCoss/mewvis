@@ -30,7 +30,7 @@ import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import { ALL_SKILLS_GROUP_ID, NO_SKILLS_GROUP_ID } from "@/features/pages/skills/constants";
 import type { WorkspaceSkillGroup } from "@/features/pages/skills/types";
 import type { ComposerSubmitInput } from "../../types";
-import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
+import type { WorkspaceFileEntry } from "@/api/workspace-files";
 
 type ComposerProps = {
   files: WorkspaceFileEntry[];

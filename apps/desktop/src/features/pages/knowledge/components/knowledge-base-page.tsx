@@ -1,6 +1,20 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { ArrowLeft, Database, Loader2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  deleteKnowledgeCollection,
+  deleteKnowledgeSource,
+  getKnowledgeIndexStatus,
+  getKnowledgeSettings,
+  importKnowledgeFiles,
+  listEmbeddingProfiles,
+  listKnowledgeLibrary,
+  rebuildKnowledgeIndex,
+  saveEmbeddingProfile,
+  saveKnowledgeCollection,
+  saveKnowledgeSettings,
+  setKnowledgeCollectionSources,
+} from "@/api/knowledge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CollectionDetailsDialog, CollectionFormDialog } from "./collection-dialogs";
@@ -9,20 +23,6 @@ import { DeleteConfirmDialog, KnowledgeActionConfirmDialog } from "./confirm-dia
 import { EmbeddingConfigDialog } from "./embedding-config-dialog";
 import { FilesView } from "./files-view";
 import { OverviewView } from "./overview-view";
-import {
-  deleteKnowledgeCollection,
-  deleteKnowledgeSource,
-  listEmbeddingProfiles,
-  getKnowledgeSettings,
-  getKnowledgeIndexStatus,
-  importKnowledgeFiles,
-  listKnowledgeLibrary,
-  rebuildKnowledgeIndex,
-  saveEmbeddingProfile,
-  saveKnowledgeCollection,
-  saveKnowledgeSettings,
-  setKnowledgeCollectionSources,
-} from "../api";
 import type {
   EmbeddingProfile,
   KnowledgeCollection,

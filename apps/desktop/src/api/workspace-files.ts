@@ -93,6 +93,16 @@ export type CreateWorkspaceVersionResult = {
   status: WorkspaceVersionControlStatus;
 };
 
+export type WorkspaceFileWrite = {
+  relativePath: string;
+  content: string;
+};
+
+export type WorkspaceFileWriteResult = {
+  writtenPaths: string[];
+  deletedPaths: string[];
+};
+
 export async function listWorkspaceFiles(workspacePath: string) {
   if (!isTauri()) {
     return [];
@@ -135,7 +145,7 @@ export async function writeWorkspaceFile(workspacePath: string, relativePath: st
 
 export async function writeWorkspaceFilesAtomic(
   workspacePath: string,
-  files: Array<{ relativePath: string; content: string }>,
+  files: WorkspaceFileWrite[],
   deletePaths: string[] = [],
   revisionCondition?: WorkspaceFileRevisionCondition,
 ) {
@@ -143,7 +153,7 @@ export async function writeWorkspaceFilesAtomic(
     throw new Error("Web 预览模式暂不支持批量保存工作区文件");
   }
 
-  return invoke<{ writtenPaths: string[]; deletedPaths: string[] }>("write_workspace_files_atomic", {
+  return invoke<WorkspaceFileWriteResult>("write_workspace_files_atomic", {
     input: { workspacePath, files, deletePaths, revisionCondition },
   });
 }

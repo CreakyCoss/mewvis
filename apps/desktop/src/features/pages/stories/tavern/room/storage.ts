@@ -1,4 +1,5 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { isTauri } from "@tauri-apps/api/core";
+import { deleteWorkspaceFile, writeWorkspaceFile } from "@/api/workspace-files";
 import type { TavernMessage } from "./model/message";
 import { workspaceFile } from "@/utils/files";
 
@@ -27,20 +28,12 @@ const resolveTavernWorkspaceBackingPath = (workspacePath: string) => {
 };
 
 const writeTextWorkspaceFile = async (workspacePath: string, relativePath: string, content: string) => {
-  await invoke("write_workspace_file", {
-    input: {
-      workspacePath,
-      relativePath,
-      content,
-    },
-  });
+  await writeWorkspaceFile(workspacePath, relativePath, content);
 };
 
 const deleteWorkspaceFileIfExists = async (workspacePath: string, relativePath: string) => {
   try {
-    await invoke("delete_workspace_file", {
-      input: { workspacePath, relativePath },
-    });
+    await deleteWorkspaceFile(workspacePath, relativePath);
   } catch {
     // A missing file already represents an empty room.
   }

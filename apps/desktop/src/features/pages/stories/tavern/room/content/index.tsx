@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { listWorkspaceFiles, type WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
+import { listWorkspaceFiles, type WorkspaceFileEntry } from "@/api/workspace-files";
 import { cn } from "@/lib/utils";
 import { getTavernPresentationProfile } from "@/features/pages/stories/tavern/presets/prompts/presentation-rules";
 import { Composer } from "../composer";

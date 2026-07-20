@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
+import { initializeConfigDatabase } from "@/api/recovery";
 import { APP_DISPLAY_NAME } from "@/product-config";
-import { initializeConfigDatabase } from "./recovery/api";
 
 type StartupGateProps = {
   children: ReactNode;

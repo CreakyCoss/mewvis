@@ -1,6 +1,6 @@
 import { create } from "zustand";
+import { deleteChatSession, listChatSessions } from "@/api/chat";
 import type { Workspace } from "@/features/pages/workspace/types";
-import { deleteChatSession, listChatSessions } from "./api";
 import type { ChatSession, ChatSessionMeta } from "./types";
 
 const chatSessionRequestIds = new Map<string, number>();

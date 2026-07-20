@@ -7,8 +7,8 @@ import {
   type SetStateAction,
   type MutableRefObject,
 } from "react";
+import { listChatSessions, loadChatSession, saveChatSession, setChatSessionUnread } from "@/api/chat";
 import type { Workspace } from "@/features/pages/workspace/types";
-import { listChatSessions, loadChatSession, saveChatSession, setChatSessionUnread } from "../../api";
 import { useChatSessionsStore } from "../../session-store";
 import type { ChatMessage } from "../../types";
 import { settleOrphanedAgentMessages } from "../../utils/agent-task-lifecycle";

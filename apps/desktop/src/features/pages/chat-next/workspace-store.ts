@@ -1,10 +1,14 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import { createAgentClient } from "@/agent-client/runtime";
-import { getWorkspaceSkills } from "@/features/pages/skills/api";
+import { getAiAgentSettings } from "@/api/agents";
+import { getLlmSettings } from "@/api/llm";
+import { getWorkspaceSkills } from "@/api/skills";
+import {
+  createWorkspace as createWorkspaceApi,
+  listWorkspaces,
+  updateWorkspace as updateWorkspaceApi,
+} from "@/api/workspace";
 import type { WorkspaceSkill } from "@/features/pages/skills/types";
-import { getAiAgentSettings } from "@/features/pages/settings/agent/api";
-import { getLlmSettings } from "@/features/pages/settings/llm/api";
 import { buildRuntimeModelOptions } from "@/features/pages/settings/llm/store/model";
 
 export type Workspace = {
@@ -57,15 +61,6 @@ type WorkspaceStore = {
   createWorkspace: (input: { name: string; description: string; path: string }) => Promise<void>;
   updateWorkspace: (workspaceId: string, input: { name: string; description: string }) => Promise<void>;
   setCurrentWorkspace: (workspace: Workspace | null) => void;
-};
-
-const getWorkspaceOverview = async (): Promise<Workspace[]> => {
-  if (!isTauri()) {
-    return [];
-  }
-
-  const response = await invoke<{ workspaces: Workspace[] }>("get_workspace_overview");
-  return response.workspaces;
 };
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -140,7 +135,7 @@ const loadResources = async (workspaceId: string): Promise<ChatInputResources> =
 };
 
 const fetchWorkspaces = async (currentWorkspace: Workspace | null, previousWorkspaceIds?: ReadonlySet<string>) => {
-  const overview = await getWorkspaceOverview();
+  const overview = await listWorkspaces();
   const workspaces = sortWorkspaces(
     overview.map((workspace) => (workspace.isDefault ? { ...workspace, name: "默认工作区" } : workspace)),
   );
@@ -203,38 +198,25 @@ export const useChatNextWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     }
   },
   createWorkspace: async (input) => {
-    if (!isTauri()) {
-      throw new Error("Web 预览模式暂不支持创建工作区");
-    }
-
-    await invoke<Workspace>("create_workspace", {
-      input: {
-        name: input.name.trim(),
-        description: input.description.trim(),
-        path: input.path.trim(),
-        groupId: null,
-      },
+    await createWorkspaceApi({
+      name: input.name.trim(),
+      description: input.description.trim(),
+      path: input.path.trim(),
+      groupId: "",
     });
     await get().refreshWorkspaces();
   },
   updateWorkspace: async (workspaceId, input) => {
-    if (!isTauri()) {
-      throw new Error("Web 预览模式暂不支持保存工作区");
-    }
-
     const workspace = get().workspaces.find((item) => item.id === workspaceId);
     if (!workspace) {
       throw new Error("工作区不存在");
     }
 
-    await invoke<Workspace>("update_workspace", {
-      input: {
-        id: workspaceId,
-        name: input.name.trim(),
-        description: input.description.trim(),
-        path: workspace.path,
-        groupId: workspace.groupId,
-      },
+    await updateWorkspaceApi(workspaceId, {
+      name: input.name.trim(),
+      description: input.description.trim(),
+      path: workspace.path,
+      groupId: workspace.groupId ?? "",
     });
     await get().refreshWorkspaces();
   },

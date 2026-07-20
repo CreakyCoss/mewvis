@@ -43,7 +43,7 @@ import {
   type WorkspaceVersionFileDiff,
   type WorkspaceVersionFileEntry,
   writeWorkspaceFile,
-} from "@/features/pages/workspace/files-api";
+} from "@/api/workspace-files";
 import { cn } from "@/lib/utils";
 import type { FileManageTool } from "../types";
 import { VersionControlHistoryPanel } from "./history-panel";

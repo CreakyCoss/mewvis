@@ -1,9 +1,5 @@
 import { useCallback, useImperativeHandle, useRef, useState, type Ref } from "react";
-import type {
-  WorkspaceFile,
-  WorkspaceFileEntry,
-  WorkspaceVersionControlStatus,
-} from "@/features/pages/workspace/files-api";
+import type { WorkspaceFile, WorkspaceFileEntry, WorkspaceVersionControlStatus } from "@/api/workspace-files";
 import { FilesSection, type FilesSectionHandle } from "./files-section";
 import type { FileManageTool } from "./types";
 import { VersionControlSection, type VersionControlSectionHandle } from "./version-control/section";

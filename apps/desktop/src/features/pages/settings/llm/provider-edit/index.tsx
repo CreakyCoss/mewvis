@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { getProviderOption, getProviderOptions } from "../options";
-import { saveLlmSettings } from "../api";
+import { saveLlmSettings } from "@/api/llm";
 import type { LlmProvider, LlmProviderConfig, ProviderModelConfig } from "../types";
 import { getProviderApiFormatOptions, getProviderModelOptions } from "./form";
 import {

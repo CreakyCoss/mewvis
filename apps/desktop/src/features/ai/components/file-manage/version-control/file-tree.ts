@@ -1,4 +1,4 @@
-import type { WorkspaceVersionFileEntry } from "@/features/pages/workspace/files-api";
+import type { WorkspaceVersionFileEntry } from "@/api/workspace-files";
 import { VERSION_RULE_FILE_PATH } from "../constants";
 import type { VersionFileTreeNode } from "./types";
 

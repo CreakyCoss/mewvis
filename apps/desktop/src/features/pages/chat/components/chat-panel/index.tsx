@@ -16,7 +16,7 @@ import type { WorkspaceSkillGroup } from "@/features/pages/skills/types";
 import { isDefaultWorkspace } from "@/features/pages/workspace/default";
 import type { Workspace } from "@/features/pages/workspace/types";
 import type { ChatMessage, ComposerSubmitInput, PendingAgentQuestion } from "../../types";
-import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
+import type { WorkspaceFileEntry } from "@/api/workspace-files";
 import { Composer } from "./composer";
 import { MessageList } from "./message-list";
 import { PendingAgentQuestionForm } from "./pending-agent-question-form";

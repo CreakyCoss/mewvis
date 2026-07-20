@@ -1,12 +1,25 @@
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import type {
   AnswerQuestionInput,
   CollaborationTimelineQuery,
   RuntimeSessionDebugQuery,
   RuntimeSessionQuery,
 } from "@agent-runtime/engines/protocol";
-import type { AgentClientAgentEvent, AgentClientChatEvent } from "../contracts/events";
+import {
+  abortAgentRuntimeTask,
+  answerAgentRuntimeQuestion,
+  getAgentRuntimeCollaborationTimeline,
+  getAgentRuntimeSession,
+  getAgentRuntimeSessionDebug,
+  listenAgentRuntimeAgentEvents,
+  listenAgentRuntimeChatEvents,
+  listAgentRuntimeSessions,
+  listAgentRuntimeTools,
+  runAgentRuntimeAgent,
+  runAgentRuntimeChat,
+  runAgentRuntimeCollaboration,
+  runAgentRuntimeCollaborationMode,
+} from "@/api/agent-runtime";
+import type { AgentClientAgentEvent } from "../contracts/events";
 import type {
   AgentClientAgentInput,
   AgentClientAgentTask,
@@ -35,30 +48,6 @@ import type {
   AgentClientTasks,
 } from "../runtime";
 
-// These names must match the Rust Tauri command and event names exactly.
-const TAURI_AGENT_CLIENT_COMMANDS = {
-  listAgentTools: "list_agent_runtime_tools",
-  runAgent: "run_agent_runtime_agent",
-  chat: "run_agent_runtime_chat",
-  runCollaboration: "run_agent_runtime_collaboration",
-  runCollaborationMode: "run_agent_runtime_collaboration_mode",
-  listRuntimeSessions: "list_agent_runtime_sessions",
-  getRuntimeSession: "get_agent_runtime_session",
-  getRuntimeSessionDebug: "get_agent_runtime_session_debug",
-  getCollaborationTimeline: "get_agent_runtime_collaboration_timeline",
-  answerQuestion: "answer_agent_runtime_question",
-  abortTask: "abort_agent_runtime_agent",
-} as const;
-
-const TAURI_AGENT_CLIENT_EVENTS = {
-  agent: "agent_runtime_agent_event",
-  chat: "agent_runtime_chat_event",
-} as const;
-
-type RunAgentOutput = {
-  taskId: string;
-};
-
 type AgentClientResourceFields = {
   allowedTools?: string[];
   enabledSkills?: string[];
@@ -70,7 +59,7 @@ const enabledSkillsFor = (input: AgentClientResourceFields) => input.enabledSkil
 
 class TauriAgentClientCapabilities implements AgentClientCapabilities {
   async listAgentTools(): Promise<AgentClientAgentToolsResult> {
-    return invoke<AgentClientAgentToolsResult>(TAURI_AGENT_CLIENT_COMMANDS.listAgentTools, { input: {} });
+    return listAgentRuntimeTools();
   }
 }
 
@@ -82,22 +71,20 @@ class TauriAgentClientAgent implements AgentClientAgent {
       shouldStream && (hasOutputHandlers || input.streamId) ? (input.streamId ?? crypto.randomUUID()) : undefined;
     const unlisten =
       streamId && hasOutputHandlers
-        ? await listen<AgentClientChatEvent>(TAURI_AGENT_CLIENT_EVENTS.chat, (event) => {
-            if (event.payload.streamId !== streamId) {
+        ? await listenAgentRuntimeChatEvents((event) => {
+            if (event.streamId !== streamId) {
               return;
             }
-            dispatchAgentClientOutputEvent(event.payload, input);
+            dispatchAgentClientOutputEvent(event, input);
           })
         : undefined;
 
-    return invoke<AgentClientChatResult>(TAURI_AGENT_CLIENT_COMMANDS.chat, {
-      input: {
-        streamId,
-        stream: shouldStream,
-        runtimeModel: input.runtimeModel,
-        systemPrompt: input.systemPrompt ?? "",
-        messages: input.messages,
-      },
+    return runAgentRuntimeChat({
+      streamId,
+      stream: shouldStream,
+      runtimeModel: input.runtimeModel,
+      systemPrompt: input.systemPrompt ?? "",
+      messages: input.messages,
     }).finally(() => {
       unlisten?.();
     });
@@ -105,21 +92,19 @@ class TauriAgentClientAgent implements AgentClientAgent {
 
   async run(input: AgentClientAgentInput): Promise<AgentClientAgentTask> {
     const taskId = input.taskId?.trim() || crypto.randomUUID();
-    const result = await invoke<RunAgentOutput>(TAURI_AGENT_CLIENT_COMMANDS.runAgent, {
-      input: {
-        taskId,
-        workspacePath: input.workspacePath,
-        sessionRootDir: input.sessionRootDir,
-        agentRoleId: input.agentRoleId,
-        userMessage: input.userMessage,
-        systemPrompt: input.systemPrompt,
-        requestContext: input.requestContext,
-        runtimeInstruction: input.runtimeInstruction,
-        bootstrapInstruction: input.bootstrapInstruction,
-        runtimeModel: input.runtimeModel,
-        allowedTools: allowedToolsFor(input),
-        enabledSkills: enabledSkillsFor(input),
-      },
+    const result = await runAgentRuntimeAgent({
+      taskId,
+      workspacePath: input.workspacePath,
+      sessionRootDir: input.sessionRootDir,
+      agentRoleId: input.agentRoleId,
+      userMessage: input.userMessage,
+      systemPrompt: input.systemPrompt,
+      requestContext: input.requestContext,
+      runtimeInstruction: input.runtimeInstruction,
+      bootstrapInstruction: input.bootstrapInstruction,
+      runtimeModel: input.runtimeModel,
+      allowedTools: allowedToolsFor(input),
+      enabledSkills: enabledSkillsFor(input),
     });
 
     if (result.taskId !== taskId) {
@@ -134,9 +119,7 @@ class TauriAgentClientAgent implements AgentClientAgent {
 
 class TauriAgentClientSessionDebug implements AgentClientSessionDebug {
   async read(input: RuntimeSessionDebugQuery): Promise<AgentClientRuntimeSessionDebugSnapshot> {
-    return invoke<AgentClientRuntimeSessionDebugSnapshot>(TAURI_AGENT_CLIENT_COMMANDS.getRuntimeSessionDebug, {
-      input,
-    });
+    return getAgentRuntimeSessionDebug(input);
   }
 }
 
@@ -144,26 +127,24 @@ class TauriAgentClientSession implements AgentClientSession {
   readonly debug: AgentClientSessionDebug = new TauriAgentClientSessionDebug();
 
   async list(input: AgentClientListRuntimeSessionsInput): Promise<AgentClientRuntimeSessionsResult> {
-    return invoke<AgentClientRuntimeSessionsResult>(TAURI_AGENT_CLIENT_COMMANDS.listRuntimeSessions, { input });
+    return listAgentRuntimeSessions(input);
   }
 
   async read(input: RuntimeSessionQuery): Promise<AgentClientRuntimeSessionSnapshot> {
-    return invoke<AgentClientRuntimeSessionSnapshot>(TAURI_AGENT_CLIENT_COMMANDS.getRuntimeSession, { input });
+    return getAgentRuntimeSession(input);
   }
 }
 
 class TauriAgentClientCollaboration implements AgentClientCollaboration {
   async run(input: AgentClientCollaborationInput): Promise<AgentClientAgentTask> {
-    const result = await invoke<RunAgentOutput>(TAURI_AGENT_CLIENT_COMMANDS.runCollaboration, {
-      input: {
-        workspacePath: input.workspacePath,
-        sessionRootDir: input.sessionRootDir,
-        workflow: input.workflow,
-        agents: input.agents,
-        input: input.input,
-        allowedTools: allowedToolsFor(input),
-        enabledSkills: enabledSkillsFor(input),
-      },
+    const result = await runAgentRuntimeCollaboration({
+      workspacePath: input.workspacePath,
+      sessionRootDir: input.sessionRootDir,
+      workflow: input.workflow,
+      agents: input.agents,
+      input: input.input,
+      allowedTools: allowedToolsFor(input),
+      enabledSkills: enabledSkillsFor(input),
     });
 
     return {
@@ -172,17 +153,15 @@ class TauriAgentClientCollaboration implements AgentClientCollaboration {
   }
 
   async runMode(input: AgentClientCollaborationModeInput): Promise<AgentClientAgentTask> {
-    const result = await invoke<RunAgentOutput>(TAURI_AGENT_CLIENT_COMMANDS.runCollaborationMode, {
-      input: {
-        workspacePath: input.workspacePath,
-        sessionRootDir: input.sessionRootDir,
-        mode: input.mode,
-        participants: input.participants,
-        context: input.context,
-        options: input.options,
-        allowedTools: allowedToolsFor(input),
-        enabledSkills: enabledSkillsFor(input),
-      },
+    const result = await runAgentRuntimeCollaborationMode({
+      workspacePath: input.workspacePath,
+      sessionRootDir: input.sessionRootDir,
+      mode: input.mode,
+      participants: input.participants,
+      context: input.context,
+      options: input.options,
+      allowedTools: allowedToolsFor(input),
+      enabledSkills: enabledSkillsFor(input),
     });
 
     return {
@@ -191,27 +170,23 @@ class TauriAgentClientCollaboration implements AgentClientCollaboration {
   }
 
   async readTimeline(input: CollaborationTimelineQuery): Promise<AgentClientCollaborationTimelineResult> {
-    return invoke<AgentClientCollaborationTimelineResult>(TAURI_AGENT_CLIENT_COMMANDS.getCollaborationTimeline, {
-      input,
-    });
+    return getAgentRuntimeCollaborationTimeline(input);
   }
 }
 
 class TauriAgentClientEvents implements AgentClientEvents {
   async subscribe(listener: (event: AgentClientAgentEvent) => void) {
-    return listen<AgentClientAgentEvent>(TAURI_AGENT_CLIENT_EVENTS.agent, (event) => {
-      listener(event.payload);
-    });
+    return listenAgentRuntimeAgentEvents(listener);
   }
 }
 
 class TauriAgentClientTasks implements AgentClientTasks {
   async answerQuestion(input: AnswerQuestionInput): Promise<void> {
-    await invoke(TAURI_AGENT_CLIENT_COMMANDS.answerQuestion, { input });
+    await answerAgentRuntimeQuestion(input);
   }
 
   async abort(taskId: string): Promise<void> {
-    await invoke(TAURI_AGENT_CLIENT_COMMANDS.abortTask, { taskId });
+    await abortAgentRuntimeTask(taskId);
   }
 }
 

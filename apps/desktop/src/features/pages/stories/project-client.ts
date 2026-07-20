@@ -5,7 +5,7 @@ import {
   readWorkspaceFile,
   readWorkspaceFileOptional,
   writeWorkspaceFilesAtomic,
-} from "../workspace/files-api";
+} from "@/api/workspace-files";
 
 const desktopStoryFileBackend: StoryFileBackend = {
   list: (workspacePath) => listWorkspaceFiles(workspacePath),

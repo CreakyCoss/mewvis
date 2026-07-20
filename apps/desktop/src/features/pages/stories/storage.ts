@@ -1,4 +1,11 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import {
+  createStoryRecord as createStoryRecordApi,
+  deleteStoryRecord as deleteStoryRecordApi,
+  importStoryRecord as importStoryRecordApi,
+  listStoryRecords as listStoryRecordsApi,
+  updateStoryRecord as updateStoryRecordApi,
+  type StoryRecord,
+} from "@/api/stories";
 import type {
   StoryDocument,
   StoryOverview,
@@ -10,13 +17,7 @@ import { storyProjectApi } from "./project-client";
 export const STORY_SOURCE_DIR = "story";
 export const STORY_TAVERN_FILE = `${STORY_SOURCE_DIR}/tavern.json`;
 
-export type StoryRecord = {
-  id: string;
-  name: string;
-  workspacePath: string;
-  createdAt: number;
-  updatedAt: number;
-};
+export type { StoryRecord } from "@/api/stories";
 
 export type StoryWorkspace = {
   id: string;
@@ -63,99 +64,16 @@ const storyLibraryItemFromRecord = async (record: StoryRecord): Promise<StoryLib
   };
 };
 
-const normalizeStoryRecord = (value: unknown): StoryRecord | null => {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
+export const listStoryRecords = listStoryRecordsApi;
 
-  const candidate = value as Partial<StoryRecord>;
-  const id = typeof candidate.id === "string" ? candidate.id.trim() : "";
-  const name = typeof candidate.name === "string" ? candidate.name.trim() : "";
-  const workspacePath = typeof candidate.workspacePath === "string" ? candidate.workspacePath.trim() : "";
-  if (!id || !name || !workspacePath) {
-    return null;
-  }
+export const createStoryRecord = (input: CreateStoryInput) =>
+  createStoryRecordApi(input.name, input.workspaceParentPath);
 
-  return {
-    id,
-    name,
-    workspacePath,
-    createdAt: typeof candidate.createdAt === "number" ? candidate.createdAt : Date.now(),
-    updatedAt: typeof candidate.updatedAt === "number" ? candidate.updatedAt : Date.now(),
-  };
-};
+export const importStoryRecord = importStoryRecordApi;
 
-const createDesktopOnlyStoryStorageError = () => new Error("故事文件存储仅支持桌面环境。");
+export const updateStoryRecordName = updateStoryRecordApi;
 
-export const listStoryRecords = async (): Promise<StoryRecord[]> => {
-  if (!isTauri()) {
-    return [];
-  }
-
-  const records = await invoke<unknown[]>("list_story_records");
-  return records.flatMap((record) => {
-    const normalized = normalizeStoryRecord(record);
-    return normalized ? [normalized] : [];
-  });
-};
-
-export const createStoryRecord = async (input: CreateStoryInput): Promise<StoryRecord> => {
-  if (!isTauri()) {
-    throw createDesktopOnlyStoryStorageError();
-  }
-
-  const record = await invoke<unknown>("create_story_record", {
-    input: {
-      name: input.name,
-      workspacePath: input.workspaceParentPath,
-    },
-  });
-  const normalized = normalizeStoryRecord(record);
-  if (!normalized) {
-    throw new Error("故事记录创建后无法读取。");
-  }
-  return normalized;
-};
-
-export const importStoryRecord = async (name: string, workspacePath: string): Promise<StoryRecord> => {
-  if (!isTauri()) {
-    throw createDesktopOnlyStoryStorageError();
-  }
-
-  const record = await invoke<unknown>("import_story_record", {
-    input: { name, workspacePath },
-  });
-  const normalized = normalizeStoryRecord(record);
-  if (!normalized) {
-    throw new Error("故事记录导入后无法读取。");
-  }
-  return normalized;
-};
-
-export const updateStoryRecordName = async (storyId: string, name: string): Promise<StoryRecord> => {
-  if (!isTauri()) {
-    throw createDesktopOnlyStoryStorageError();
-  }
-
-  const record = await invoke<unknown>("update_story_record", {
-    input: { id: storyId, name },
-  });
-  const normalized = normalizeStoryRecord(record);
-  if (!normalized) {
-    throw new Error("故事记录更新后无法读取。");
-  }
-  return normalized;
-};
-
-export const deleteStoryRecord = async (storyId: string, deleteContent = false) => {
-  if (!isTauri()) {
-    throw createDesktopOnlyStoryStorageError();
-  }
-
-  await invoke("delete_story_record", {
-    input: { id: storyId, deleteContent },
-  });
-};
+export const deleteStoryRecord = deleteStoryRecordApi;
 
 export const createStory = async (
   input: CreateStoryInput,

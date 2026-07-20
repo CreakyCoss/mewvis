@@ -1,6 +1,10 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { RuntimeModelInput } from "@/agent-client/types";
-import type { CreateLedgerInput, LedgerMessageInput, LedgerResult } from "./types";
+import type {
+  CreateLedgerInput,
+  LedgerMessageInput,
+  LedgerResult,
+} from "@/features/ai/components/conversation-ledger/types";
 
 export async function createLedger(input: CreateLedgerInput) {
   if (!isTauri()) {

@@ -1,14 +1,36 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { emptyKnowledgeLibrary, emptyKnowledgeSettings } from "./api-preview";
 import type {
   EmbeddingProfile,
+  KnowledgeIndexStatus,
   KnowledgeLibrary,
+  KnowledgeSearchResult,
   KnowledgeSettings,
+  RebuildKnowledgeIndexResult,
   SaveEmbeddingProfileInput,
   SaveKnowledgeCollectionInput,
   SaveKnowledgeSettingsInput,
   SaveKnowledgeSourceInput,
-} from "./types";
+} from "@/features/pages/knowledge/types";
+
+const emptyKnowledgeLibrary = (): KnowledgeLibrary => ({
+  collections: [],
+  sources: [],
+});
+
+const emptyKnowledgeSettings = (): KnowledgeSettings => ({
+  storageDirectory: null,
+});
+
+const missingKnowledgeIndexStatus = (): KnowledgeIndexStatus => ({
+  indexId: "global",
+  version: 1,
+  status: "missing",
+  updatedAt: null,
+  sourceFingerprint: null,
+  documentCount: 0,
+  chunkCount: 0,
+  error: null,
+});
 
 export const listKnowledgeLibrary = () => {
   if (!isTauri()) {
@@ -115,5 +137,47 @@ export const setKnowledgeCollectionSources = (collectionId: string, sourceIds: s
 
   return invoke<KnowledgeLibrary>("set_knowledge_collection_sources", {
     input: { collectionId, sourceIds },
+  });
+};
+
+export const getKnowledgeIndexStatus = () => {
+  if (!isTauri()) {
+    return Promise.resolve(missingKnowledgeIndexStatus());
+  }
+
+  return invoke<KnowledgeIndexStatus>("get_knowledge_index_status");
+};
+
+export const rebuildKnowledgeIndex = (sourceIds?: string[]) => {
+  if (!isTauri()) {
+    return Promise.resolve<RebuildKnowledgeIndexResult>({
+      status: missingKnowledgeIndexStatus(),
+      sourceResults: [],
+    });
+  }
+
+  return invoke<RebuildKnowledgeIndexResult>("rebuild_knowledge_index", {
+    input: sourceIds ? { sourceIds } : null,
+  });
+};
+
+export const searchEnabledKnowledge = (input: {
+  workspaceId?: string | null;
+  query: string;
+  maxResults?: number;
+  minScore?: number;
+}) => {
+  if (!isTauri()) {
+    return Promise.resolve<KnowledgeSearchResult>({
+      matches: [],
+      enabledSourceIds: [],
+    });
+  }
+
+  return invoke<KnowledgeSearchResult>("search_workspace_knowledge", {
+    input: {
+      ...input,
+      workspaceId: input.workspaceId ?? "",
+    },
   });
 };

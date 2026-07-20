@@ -1,6 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { createWebDefaultWorkspaceOverview } from "./default";
-import type { Workspace, WorkspaceForm, WorkspaceOverview } from "./types";
+import { createWebDefaultWorkspaceOverview } from "@/features/pages/workspace/default";
+import type { Workspace, WorkspaceForm, WorkspaceOverview } from "@/features/pages/workspace/types";
 
 export async function getWorkspaceOverview() {
   if (!isTauri()) {
@@ -8,6 +8,15 @@ export async function getWorkspaceOverview() {
   }
 
   return invoke<WorkspaceOverview>("get_workspace_overview");
+}
+
+export async function listWorkspaces() {
+  if (!isTauri()) {
+    return [];
+  }
+
+  const overview = await invoke<WorkspaceOverview>("get_workspace_overview");
+  return overview.workspaces;
 }
 
 export async function createWorkspace(input: WorkspaceForm) {

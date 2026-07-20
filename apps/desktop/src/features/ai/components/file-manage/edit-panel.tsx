@@ -21,7 +21,7 @@ import {
   type WorkspaceFile,
   type WorkspaceVersionFileStatus,
   writeWorkspaceFile,
-} from "@/features/pages/workspace/files-api";
+} from "@/api/workspace-files";
 import { isMarkdownPath, MarkdownContent } from "@/features/ai/components/markdown";
 
 type EditPanelProps = {

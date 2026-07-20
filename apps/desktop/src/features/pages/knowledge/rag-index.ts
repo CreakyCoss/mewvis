@@ -1,4 +1,4 @@
-import { getKnowledgeIndexStatus, searchEnabledKnowledge } from "./api";
+import { getKnowledgeIndexStatus, searchEnabledKnowledge } from "@/api/knowledge";
 
 type KnowledgeRagIndexSnapshot = {
   indexId: string;

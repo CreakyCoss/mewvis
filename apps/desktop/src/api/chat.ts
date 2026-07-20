@@ -1,5 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type { ChatMessage, ChatSession, ChatSessionMeta } from "./types";
+import type { ChatMessage, ChatSession, ChatSessionMeta } from "@/features/pages/chat/types";
 import { getCurrentTimestamp } from "@/utils/time";
 
 export async function listChatSessions(workspacePath: string) {

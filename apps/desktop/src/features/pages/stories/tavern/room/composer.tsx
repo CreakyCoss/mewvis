@@ -12,7 +12,7 @@ import {
   summarizeReferenceMatches,
   type PromptFileReference,
 } from "@/features/ai/components/context-tools";
-import { readWorkspaceFile, type WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
+import { readWorkspaceFile, type WorkspaceFileEntry } from "@/api/workspace-files";
 import { cn } from "@/lib/utils";
 import { getTavernPresentationProfile } from "@/features/pages/stories/tavern/presets/prompts/presentation-rules";
 import {

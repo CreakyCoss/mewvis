@@ -3,7 +3,7 @@ import type {
   WorkspaceVersionControlStatus,
   WorkspaceVersionFileDiff,
   WorkspaceVersionFileEntry,
-} from "@/features/pages/workspace/files-api";
+} from "@/api/workspace-files";
 
 export type VersionFileTreeNode = {
   path: string;

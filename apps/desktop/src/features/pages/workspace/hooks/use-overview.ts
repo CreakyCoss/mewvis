@@ -4,7 +4,7 @@ import {
   deleteWorkspace as deleteWorkspaceRecord,
   getWorkspaceOverview,
   updateWorkspace,
-} from "../api";
+} from "@/api/workspace";
 import { isDefaultWorkspace } from "../default";
 import { defaultWorkspaceForm, type Workspace, type WorkspaceForm, type WorkspaceOverview } from "../types";
 import { buildSections } from "../utils/sections";

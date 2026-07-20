@@ -6,7 +6,7 @@ import {
   getAiAgentSettings,
   saveAiAgent,
   saveCollaborationWorkflow,
-} from "../api";
+} from "@/api/agents";
 import type { AiAgent, CollaborationWorkflow, SaveAiAgentInput, SaveCollaborationWorkflowInput } from "../types";
 import { agentToDraft, createAgentDraft, createCollaborationWorkflowDraft, resolveAgentProfiles } from "../utils";
 

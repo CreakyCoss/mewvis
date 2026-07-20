@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Database, FolderOpen, Loader2, Trash2 } from "lucide-react";
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { isTauri } from "@tauri-apps/api/core";
+import { getConfigDatabaseStatus, rebuildConfigDatabase, revealItemInDirectory } from "@/api/recovery";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -11,18 +12,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { getConfigDatabaseStatus, rebuildConfigDatabase } from "./api";
 import type { ConfigDatabaseStatus } from "./types";
 
 type ConfigDatabaseDialogProps = {
   onRecovered: () => void | Promise<void>;
 };
-
-function revealItemInDir(path: string) {
-  return invoke("plugin:opener|reveal_item_in_dir", {
-    paths: [path],
-  });
-}
 
 export const ConfigDatabaseDialog = ({ onRecovered }: ConfigDatabaseDialogProps) => {
   const shouldCheckConfigDatabase = isTauri();
@@ -55,7 +49,7 @@ export const ConfigDatabaseDialog = ({ onRecovered }: ConfigDatabaseDialogProps)
 
     try {
       setActionError("");
-      await revealItemInDir(status.configDbPath);
+      await revealItemInDirectory(status.configDbPath);
     } catch (caught) {
       setActionError(String(caught));
     }

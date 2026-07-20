@@ -1,7 +1,7 @@
 import { ChevronRight, FileText, Folder, FolderOpen, GitBranch, Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { WorkspaceFile } from "@/features/pages/workspace/files-api";
+import type { WorkspaceFile } from "@/api/workspace-files";
 import { cn } from "@/lib/utils";
 import { VERSION_RULE_FILE_PATH } from "./constants";
 import type { FileTreeNode } from "./file-tree";

@@ -18,7 +18,7 @@ import {
   type WorkspaceFileEntry,
   type WorkspaceVersionControlStatus,
   writeWorkspaceFile,
-} from "@/features/pages/workspace/files-api";
+} from "@/api/workspace-files";
 import { buildFileTree, type FileTreeNode, getParentDirectoryPaths } from "./file-tree";
 import { EditPanel } from "./edit-panel";
 import { FilesPanel } from "./files-panel";

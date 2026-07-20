@@ -8,7 +8,7 @@ import type {
   SearchSkillMarketplaceInput,
   SkillMarketplaceSearchResult,
   WorkspaceSkillSettings,
-} from "./types";
+} from "@/features/pages/skills/types";
 
 export async function getWorkspaceSkills(workspaceId: string) {
   if (!isTauri()) {
