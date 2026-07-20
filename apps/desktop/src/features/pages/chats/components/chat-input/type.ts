@@ -36,7 +36,7 @@ export type ChatInputResources = {
 export type ChatInputOptionValues = {
   selectedModelId: string;
   selectedAgentId: string;
-  selectedSkillGroupIds: string[];
+  selectedSkillKeys: string[];
   selectedToolNames: string[];
   showThinkingProcess: boolean;
   showToolCallProcess: boolean;

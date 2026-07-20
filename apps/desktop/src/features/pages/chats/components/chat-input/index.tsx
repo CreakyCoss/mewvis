@@ -88,7 +88,7 @@ export const ChatInput = ({
               variant="outline"
               disabled={!canSubmit}
               aria-label="发送消息"
-              className="size-10 cursor-pointer rounded-lg shadow-xs"
+              className="size-10 cursor-pointer rounded-full shadow-xs"
             >
               <SendIcon aria-hidden="true" />
             </InputGroupButton>

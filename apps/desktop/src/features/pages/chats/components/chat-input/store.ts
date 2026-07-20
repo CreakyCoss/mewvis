@@ -9,7 +9,7 @@ import type {
 type ChatInputOptionValueSetters = {
   setSelectedModelId: (modelId: string) => void;
   setSelectedAgentId: (agentId: string) => void;
-  setSelectedSkillGroupIds: (skillGroupIds: string[]) => void;
+  setSelectedSkillKeys: (skillKeys: string[]) => void;
   setSelectedToolNames: (toolNames: string[]) => void;
   setShowThinkingProcess: (value: boolean) => void;
   setShowToolCallProcess: (value: boolean) => void;
@@ -53,12 +53,12 @@ const getInitialOptionValues = (
         : (agents.find((agent) => agent.value === defaultOptionValues.selectedAgentId)?.value ??
           defaultAgent?.value ??
           ""),
-    selectedSkillGroupIds:
-      defaultOptionValues.selectedSkillGroupIds === undefined
-        ? defaultSkillGroups.map((group) => group.value)
-        : skillGroups
-            .filter((group) => defaultOptionValues.selectedSkillGroupIds?.includes(group.value))
-            .map((group) => group.value),
+    selectedSkillKeys:
+      defaultOptionValues.selectedSkillKeys === undefined
+        ? collectSkills(defaultSkillGroups).map((skill) => skill.key)
+        : collectSkills(skillGroups)
+            .filter((skill) => defaultOptionValues.selectedSkillKeys?.includes(skill.key))
+            .map((skill) => skill.key),
     selectedToolNames:
       defaultOptionValues.selectedToolNames === undefined
         ? (resources.tools ?? []).filter((tool) => tool.isDefault).map((tool) => tool.value)
@@ -74,7 +74,7 @@ export const useChatInputStore = create<ChatInputStore>((set, get) => ({
   resources: {},
   selectedModelId: "",
   selectedAgentId: "",
-  selectedSkillGroupIds: [],
+  selectedSkillKeys: [],
   selectedToolNames: [],
   showThinkingProcess: true,
   showToolCallProcess: true,
@@ -94,11 +94,13 @@ export const useChatInputStore = create<ChatInputStore>((set, get) => ({
 
     set({ selectedAgentId: selectedAgent?.value ?? "" });
   },
-  setSelectedSkillGroupIds: (skillGroupIds) => {
-    const selectedIds = new Set(skillGroupIds);
-    const selectedSkillGroups = (get().resources.skillGroups ?? []).filter((group) => selectedIds.has(group.value));
+  setSelectedSkillKeys: (skillKeys) => {
+    const selectedKeys = new Set(skillKeys);
+    const selectedSkills = collectSkills(get().resources.skillGroups ?? []).filter((skill) =>
+      selectedKeys.has(skill.key),
+    );
 
-    set({ selectedSkillGroupIds: selectedSkillGroups.map((group) => group.value) });
+    set({ selectedSkillKeys: selectedSkills.map((skill) => skill.key) });
   },
   setSelectedToolNames: (toolNames) => {
     const selectedNames = new Set(toolNames);
@@ -117,8 +119,8 @@ export const useChatInputStore = create<ChatInputStore>((set, get) => ({
       return null;
     }
     const agent = state.resources.agents?.find((option) => option.value === state.selectedAgentId) ?? null;
-    const selectedSkillGroupIds = new Set(state.selectedSkillGroupIds);
-    const skillGroups = (state.resources.skillGroups ?? []).filter((group) => selectedSkillGroupIds.has(group.value));
+    const selectedSkillKeys = new Set(state.selectedSkillKeys);
+    const skills = collectSkills(state.resources.skillGroups ?? []).filter((skill) => selectedSkillKeys.has(skill.key));
     const selectedToolNames = new Set(state.selectedToolNames);
     const tools = (state.resources.tools ?? [])
       .filter((tool) => selectedToolNames.has(tool.value))
@@ -127,7 +129,7 @@ export const useChatInputStore = create<ChatInputStore>((set, get) => ({
     return {
       model: model.runtimeModel,
       agent: agent?.agent ?? null,
-      skills: collectSkills(skillGroups),
+      skills,
       tools,
       showThinkingProcess: state.showThinkingProcess,
       showToolCallProcess: state.showToolCallProcess,
