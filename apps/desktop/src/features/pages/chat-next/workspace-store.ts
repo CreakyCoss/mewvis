@@ -16,11 +16,12 @@ export type Workspace = {
 
 type WorkspaceStore = {
   workspaces: Workspace[];
-  selectedWorkspaceId: string | null;
+  currentWorkspace: Workspace | null;
   isLoading: boolean;
   error: string;
   loadWorkspaces: () => Promise<void>;
-  selectWorkspace: (workspace: Workspace | null) => void;
+  refreshWorkspaces: () => Promise<void>;
+  setCurrentWorkspace: (workspace: Workspace | null) => void;
 };
 
 const getWorkspaceOverview = async (): Promise<Workspace[]> => {
@@ -48,37 +49,67 @@ const sortWorkspaces = (workspaces: Workspace[]) =>
       left.name.localeCompare(right.name, "zh-CN"),
   );
 
+const fetchWorkspaces = async () => {
+  const workspaces = await getWorkspaceOverview();
+
+  return sortWorkspaces(
+    workspaces.map((workspace) => (workspace.isDefault ? { ...workspace, name: "默认工作区" } : workspace)),
+  );
+};
+
+const resolveCurrentWorkspace = (workspaces: Workspace[], currentWorkspace: Workspace | null) =>
+  workspaces.find((workspace) => workspace.id === currentWorkspace?.id) ??
+  workspaces.find((workspace) => workspace.isDefault) ??
+  null;
+
 export const useChatNextWorkspaceStore = create<WorkspaceStore>((set, get) => ({
   workspaces: [],
-  selectedWorkspaceId: null,
+  currentWorkspace: null,
   isLoading: true,
   error: "",
   loadWorkspaces: async () => {
     set({ isLoading: true, error: "" });
 
     try {
-      const responseWorkspaces = await getWorkspaceOverview();
-      const workspaces = sortWorkspaces(responseWorkspaces);
-      const currentWorkspaceId = get().selectedWorkspaceId;
-      const fallbackWorkspace = workspaces.find((workspace) => workspace.isDefault) ?? workspaces[0] ?? null;
-      const selectedWorkspace =
-        workspaces.find((workspace) => workspace.id === currentWorkspaceId) ?? fallbackWorkspace;
+      const workspaces = await fetchWorkspaces();
+      const currentWorkspace = resolveCurrentWorkspace(workspaces, get().currentWorkspace);
 
       set({
         workspaces,
-        selectedWorkspaceId: selectedWorkspace?.id ?? null,
+        currentWorkspace,
       });
     } catch (error) {
       set({
         workspaces: [],
-        selectedWorkspaceId: null,
+        currentWorkspace: null,
         error: getErrorMessage(error),
       });
     } finally {
       set({ isLoading: false });
     }
   },
-  selectWorkspace: (workspace) => {
-    set({ selectedWorkspaceId: workspace?.id ?? null });
+  refreshWorkspaces: async () => {
+    const previousWorkspaceIds = new Set(get().workspaces.map((workspace) => workspace.id));
+    set({ isLoading: true, error: "" });
+
+    try {
+      const workspaces = await fetchWorkspaces();
+      const createdWorkspace = workspaces
+        .filter((workspace) => !workspace.isDefault && !previousWorkspaceIds.has(workspace.id))
+        .sort((left, right) => right.createdAt - left.createdAt)[0];
+      const currentWorkspace = createdWorkspace ?? resolveCurrentWorkspace(workspaces, get().currentWorkspace);
+
+      set({
+        workspaces,
+        currentWorkspace,
+      });
+    } catch (error) {
+      set({ error: getErrorMessage(error) });
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+  setCurrentWorkspace: (workspace) => {
+    set({ currentWorkspace: workspace });
   },
 }));
