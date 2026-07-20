@@ -82,6 +82,7 @@ const loadResources = async (workspaceId: string): Promise<ChatInputResources> =
               {
                 value: model.id,
                 label: `${model.provider.name}/${model.modelName}`,
+                selectedLabel: model.modelName,
                 description: `${model.provider.name} / ${model.modelName}`,
                 isDefault: index === 0,
                 runtimeModel,

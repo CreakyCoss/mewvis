@@ -26,7 +26,7 @@ export const ModelMenu = ({ disabled }: ModelMenuProps) => {
   const agents = resourceStore.resources.agents ?? [];
   const selectedModel = models.find((model) => model.value === resourceStore.selectedModelId) ?? null;
   const selectedAgent = agents.find((agent) => agent.value === resourceStore.selectedAgentId) ?? null;
-  const selectedModelLabel = selectedModel?.label ?? "选择模型";
+  const selectedModelLabel = selectedModel?.selectedLabel ?? "选择模型";
   const selectedAgentLabel = selectedAgent?.label ?? "不使用角色";
   const menuLabel = selectedAgent ? `${selectedModelLabel} · ${selectedAgent.label}` : selectedModelLabel;
   const processLabel = [

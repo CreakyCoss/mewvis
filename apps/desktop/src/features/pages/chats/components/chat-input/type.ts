@@ -18,6 +18,7 @@ export type ChatInputSkillGroupOption = ChatInputResourceOption & {
 };
 
 export type ChatInputModelOption = ChatInputResourceOption & {
+  selectedLabel: string;
   runtimeModel: RuntimeModelInput;
 };
 
