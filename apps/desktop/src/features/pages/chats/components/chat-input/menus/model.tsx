@@ -24,14 +24,14 @@ export const ModelMenu = ({ disabled }: ModelMenuProps) => {
   const resourceStore = useChatInputStore();
   const models = resourceStore.resources.models ?? [];
   const agents = resourceStore.resources.agents ?? [];
-  const selectedModel = models.find((model) => model.value === resourceStore.selectedModelId) ?? null;
-  const selectedAgent = agents.find((agent) => agent.value === resourceStore.selectedAgentId) ?? null;
+  const selectedModel = models.find((model) => model.value === resourceStore.optionValues.selectedModelId) ?? null;
+  const selectedAgent = agents.find((agent) => agent.value === resourceStore.optionValues.selectedAgentId) ?? null;
   const selectedModelLabel = selectedModel?.selectedLabel ?? "选择模型";
   const selectedAgentLabel = selectedAgent?.label ?? "不使用角色";
   const menuLabel = selectedAgent ? `${selectedModelLabel} · ${selectedAgent.label}` : selectedModelLabel;
   const processLabel = [
-    resourceStore.showThinkingProcess ? "思考" : "",
-    resourceStore.showToolCallProcess ? "工具" : "",
+    resourceStore.optionValues.showThinkingProcess ? "思考" : "",
+    resourceStore.optionValues.showToolCallProcess ? "工具" : "",
   ]
     .filter(Boolean)
     .join("/");
@@ -112,13 +112,13 @@ export const ModelMenu = ({ disabled }: ModelMenuProps) => {
               className="flex items-center justify-between gap-3 py-2"
               onSelect={(event) => {
                 event.preventDefault();
-                resourceStore.setShowThinkingProcess(!resourceStore.showThinkingProcess);
+                resourceStore.setShowThinkingProcess(!resourceStore.optionValues.showThinkingProcess);
               }}
             >
               <span className="min-w-0 flex-1">思考过程</span>
               <Switch
                 size="sm"
-                checked={resourceStore.showThinkingProcess}
+                checked={resourceStore.optionValues.showThinkingProcess}
                 aria-label="思考过程"
                 onClick={(event) => event.stopPropagation()}
                 onCheckedChange={resourceStore.setShowThinkingProcess}
@@ -128,13 +128,13 @@ export const ModelMenu = ({ disabled }: ModelMenuProps) => {
               className="flex items-center justify-between gap-3 py-2"
               onSelect={(event) => {
                 event.preventDefault();
-                resourceStore.setShowToolCallProcess(!resourceStore.showToolCallProcess);
+                resourceStore.setShowToolCallProcess(!resourceStore.optionValues.showToolCallProcess);
               }}
             >
               <span className="min-w-0 flex-1">工具调用过程</span>
               <Switch
                 size="sm"
-                checked={resourceStore.showToolCallProcess}
+                checked={resourceStore.optionValues.showToolCallProcess}
                 aria-label="工具调用过程"
                 onClick={(event) => event.stopPropagation()}
                 onCheckedChange={resourceStore.setShowToolCallProcess}

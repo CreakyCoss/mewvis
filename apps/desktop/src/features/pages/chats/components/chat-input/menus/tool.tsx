@@ -18,7 +18,9 @@ type ToolMenuProps = {
 export const ToolMenu = ({ disabled }: ToolMenuProps) => {
   const resourceStore = useChatInputStore();
   const tools = resourceStore.resources.tools ?? [];
-  const selectedToolCount = tools.filter((tool) => resourceStore.selectedToolNames.includes(tool.value)).length;
+  const selectedToolCount = tools.filter((tool) =>
+    resourceStore.optionValues.selectedToolNames.includes(tool.value),
+  ).length;
 
   return (
     <DropdownMenu>
@@ -46,13 +48,13 @@ export const ToolMenu = ({ disabled }: ToolMenuProps) => {
           tools.map((tool) => (
             <DropdownMenuCheckboxItem
               key={tool.value}
-              checked={resourceStore.selectedToolNames.includes(tool.value)}
+              checked={resourceStore.optionValues.selectedToolNames.includes(tool.value)}
               onSelect={(event) => event.preventDefault()}
               onCheckedChange={(checked) =>
                 resourceStore.setSelectedToolNames(
                   checked
-                    ? [...new Set([...resourceStore.selectedToolNames, tool.value])]
-                    : resourceStore.selectedToolNames.filter((name) => name !== tool.value),
+                    ? [...new Set([...resourceStore.optionValues.selectedToolNames, tool.value])]
+                    : resourceStore.optionValues.selectedToolNames.filter((name) => name !== tool.value),
                 )
               }
               title={tool.description || undefined}

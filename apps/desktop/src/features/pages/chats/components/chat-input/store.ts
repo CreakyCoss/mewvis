@@ -1,3 +1,4 @@
+import { isEqual } from "lodash-es";
 import { create } from "zustand";
 import type {
   ChatInputOptionValues,
@@ -15,13 +16,12 @@ type ChatInputOptionValueSetters = {
   setShowToolCallProcess: (value: boolean) => void;
 };
 
-type ChatInputStore = ChatInputOptionValues &
-  ChatInputOptionValueSetters & {
-    resources: ChatInputResources;
-    initializeResources: (resources: ChatInputResources, defaultOptionValues?: Partial<ChatInputOptionValues>) => void;
-    getOptionValues: () => ChatInputOptionValues;
-    getSubmitResources: () => ChatInputSubmitResources | null;
-  };
+interface ChatInputStore extends ChatInputOptionValueSetters {
+  resources: ChatInputResources;
+  optionValues: ChatInputOptionValues;
+  submitResources: ChatInputSubmitResources | null;
+  initializeResources: (resources: ChatInputResources, defaultOptionValues?: Partial<ChatInputOptionValues>) => void;
+}
 
 const collectSkills = (skillGroups: ChatInputSkillGroupOption[]) => {
   const skillsByKey = new Map<string, ChatInputSubmitResources["skills"][number]>();
@@ -33,119 +33,97 @@ const collectSkills = (skillGroups: ChatInputSkillGroupOption[]) => {
   return [...skillsByKey.values()];
 };
 
-const getInitialOptionValues = (
+const resolveChatInputState = (
   resources: ChatInputResources,
-  defaultOptionValues: Partial<ChatInputOptionValues> = {},
-): ChatInputOptionValues => {
+  values: Partial<ChatInputOptionValues> = {},
+  fallbackToResourceDefaults = false,
+): Pick<ChatInputStore, "optionValues" | "submitResources"> => {
   const models = resources.models ?? [];
   const agents = resources.agents ?? [];
   const skillGroups = resources.skillGroups ?? [];
+  const tools = resources.tools ?? [];
   const defaultModel = models.find((model) => model.isDefault) ?? models[0] ?? null;
   const defaultAgent = agents.find((agent) => agent.isDefault) ?? null;
   const defaultSkillGroup = skillGroups.find((group) => group.isDefault);
   const defaultSkillGroups = defaultSkillGroup ? [defaultSkillGroup] : skillGroups;
+  const selectedModel =
+    models.find((model) => model.value === values.selectedModelId) ??
+    (fallbackToResourceDefaults ? defaultModel : null);
+  const selectedAgent =
+    values.selectedAgentId === ""
+      ? null
+      : (agents.find((agent) => agent.value === values.selectedAgentId) ??
+        (fallbackToResourceDefaults ? defaultAgent : null));
+  const availableSkills = collectSkills(skillGroups);
+  const selectedSkillKeys = values.selectedSkillKeys ? new Set(values.selectedSkillKeys) : null;
+  const selectedSkills = selectedSkillKeys
+    ? availableSkills.filter((skill) => selectedSkillKeys.has(skill.key))
+    : collectSkills(defaultSkillGroups);
+  const requestedToolNames = values.selectedToolNames ? new Set(values.selectedToolNames) : null;
+  const selectedTools = requestedToolNames
+    ? tools.filter((tool) => requestedToolNames.has(tool.value))
+    : tools.filter((tool) => tool.isDefault);
+  const optionValues: ChatInputOptionValues = {
+    selectedModelId: selectedModel?.value ?? "",
+    selectedAgentId: selectedAgent?.value ?? "",
+    selectedSkillKeys: selectedSkills.map((skill) => skill.key),
+    selectedToolNames: selectedTools.map((tool) => tool.value),
+    showThinkingProcess: values.showThinkingProcess ?? true,
+    showToolCallProcess: values.showToolCallProcess ?? true,
+  };
 
   return {
-    selectedModelId:
-      models.find((model) => model.value === defaultOptionValues.selectedModelId)?.value ?? defaultModel?.value ?? "",
-    selectedAgentId:
-      defaultOptionValues.selectedAgentId === ""
-        ? ""
-        : (agents.find((agent) => agent.value === defaultOptionValues.selectedAgentId)?.value ??
-          defaultAgent?.value ??
-          ""),
-    selectedSkillKeys:
-      defaultOptionValues.selectedSkillKeys === undefined
-        ? collectSkills(defaultSkillGroups).map((skill) => skill.key)
-        : collectSkills(skillGroups)
-            .filter((skill) => defaultOptionValues.selectedSkillKeys?.includes(skill.key))
-            .map((skill) => skill.key),
-    selectedToolNames:
-      defaultOptionValues.selectedToolNames === undefined
-        ? (resources.tools ?? []).filter((tool) => tool.isDefault).map((tool) => tool.value)
-        : (resources.tools ?? [])
-            .filter((tool) => defaultOptionValues.selectedToolNames?.includes(tool.value))
-            .map((tool) => tool.value),
-    showThinkingProcess: defaultOptionValues.showThinkingProcess ?? true,
-    showToolCallProcess: defaultOptionValues.showToolCallProcess ?? true,
+    optionValues,
+    submitResources: selectedModel
+      ? {
+          model: selectedModel.runtimeModel,
+          agent: selectedAgent?.agent ?? null,
+          skills: selectedSkills,
+          tools: optionValues.selectedToolNames,
+          showThinkingProcess: optionValues.showThinkingProcess,
+          showToolCallProcess: optionValues.showToolCallProcess,
+        }
+      : null,
   };
 };
 
-export const useChatInputStore = create<ChatInputStore>((set, get) => ({
-  resources: {},
-  selectedModelId: "",
-  selectedAgentId: "",
-  selectedSkillKeys: [],
-  selectedToolNames: [],
-  showThinkingProcess: true,
-  showToolCallProcess: true,
-  initializeResources: (resources, defaultOptionValues) => {
-    set({
-      resources,
-      ...getInitialOptionValues(resources, defaultOptionValues),
+export const useChatInputStore = create<ChatInputStore>((set, get) => {
+  const updateOptionValues = (updates: Partial<ChatInputOptionValues>) => {
+    const state = get();
+    const resolvedState = resolveChatInputState(state.resources, {
+      ...state.optionValues,
+      ...updates,
     });
-  },
-  setSelectedModelId: (modelId) => {
-    const selectedModel = get().resources.models?.find((model) => model.value === modelId) ?? null;
 
-    set({ selectedModelId: selectedModel?.value ?? "" });
-  },
-  setSelectedAgentId: (agentId) => {
-    const selectedAgent = get().resources.agents?.find((agent) => agent.value === agentId) ?? null;
-
-    set({ selectedAgentId: selectedAgent?.value ?? "" });
-  },
-  setSelectedSkillKeys: (skillKeys) => {
-    const selectedKeys = new Set(skillKeys);
-    const selectedSkills = collectSkills(get().resources.skillGroups ?? []).filter((skill) =>
-      selectedKeys.has(skill.key),
-    );
-
-    set({ selectedSkillKeys: selectedSkills.map((skill) => skill.key) });
-  },
-  setSelectedToolNames: (toolNames) => {
-    const selectedNames = new Set(toolNames);
-    const selectedToolNames = (get().resources.tools ?? [])
-      .filter((tool) => selectedNames.has(tool.value))
-      .map((tool) => tool.value);
-
-    set({ selectedToolNames });
-  },
-  setShowThinkingProcess: (showThinkingProcess) => set({ showThinkingProcess }),
-  setShowToolCallProcess: (showToolCallProcess) => set({ showToolCallProcess }),
-  getOptionValues: () => {
-    const state = get();
-
-    return {
-      selectedModelId: state.selectedModelId,
-      selectedAgentId: state.selectedAgentId,
-      selectedSkillKeys: [...state.selectedSkillKeys],
-      selectedToolNames: [...state.selectedToolNames],
-      showThinkingProcess: state.showThinkingProcess,
-      showToolCallProcess: state.showToolCallProcess,
-    };
-  },
-  getSubmitResources: () => {
-    const state = get();
-    const model = state.resources.models?.find((option) => option.value === state.selectedModelId) ?? null;
-    if (!model) {
-      return null;
+    if (isEqual(state.optionValues, resolvedState.optionValues)) {
+      return;
     }
-    const agent = state.resources.agents?.find((option) => option.value === state.selectedAgentId) ?? null;
-    const selectedSkillKeys = new Set(state.selectedSkillKeys);
-    const skills = collectSkills(state.resources.skillGroups ?? []).filter((skill) => selectedSkillKeys.has(skill.key));
-    const selectedToolNames = new Set(state.selectedToolNames);
-    const tools = (state.resources.tools ?? [])
-      .filter((tool) => selectedToolNames.has(tool.value))
-      .map((tool) => tool.value);
 
-    return {
-      model: model.runtimeModel,
-      agent: agent?.agent ?? null,
-      skills,
-      tools,
-      showThinkingProcess: state.showThinkingProcess,
-      showToolCallProcess: state.showToolCallProcess,
-    };
-  },
-}));
+    set(resolvedState);
+  };
+
+  return {
+    resources: {},
+    optionValues: {
+      selectedModelId: "",
+      selectedAgentId: "",
+      selectedSkillKeys: [],
+      selectedToolNames: [],
+      showThinkingProcess: true,
+      showToolCallProcess: true,
+    },
+    submitResources: null,
+    initializeResources: (resources, defaultOptionValues) => {
+      set({
+        resources,
+        ...resolveChatInputState(resources, defaultOptionValues, true),
+      });
+    },
+    setSelectedModelId: (selectedModelId) => updateOptionValues({ selectedModelId }),
+    setSelectedAgentId: (selectedAgentId) => updateOptionValues({ selectedAgentId }),
+    setSelectedSkillKeys: (selectedSkillKeys) => updateOptionValues({ selectedSkillKeys }),
+    setSelectedToolNames: (selectedToolNames) => updateOptionValues({ selectedToolNames }),
+    setShowThinkingProcess: (showThinkingProcess) => updateOptionValues({ showThinkingProcess }),
+    setShowToolCallProcess: (showToolCallProcess) => updateOptionValues({ showToolCallProcess }),
+  };
+});

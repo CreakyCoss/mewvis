@@ -26,7 +26,7 @@ export const SkillMenu = ({ disabled }: SkillMenuProps) => {
   const skills = [
     ...new Map(skillGroups.flatMap((group) => group.skills.map((skill) => [skill.key, skill] as const))).values(),
   ];
-  const selectedSkillKeys = new Set(resourceStore.selectedSkillKeys);
+  const selectedSkillKeys = new Set(resourceStore.optionValues.selectedSkillKeys);
   const selectedSkills = skills.filter((skill) => selectedSkillKeys.has(skill.key));
   const areAllSkillsSelected = skills.length > 0 && selectedSkills.length === skills.length;
   const hasSelectedSkills = selectedSkills.length > 0;
@@ -34,7 +34,7 @@ export const SkillMenu = ({ disabled }: SkillMenuProps) => {
   const selectedSkillTitle = hasSelectedSkills ? selectedSkills.map((skill) => skill.label).join("、") : "未选择技能";
 
   const setSkillKeysSelected = (skillKeys: string[], selected: boolean) => {
-    const nextSelectedSkillKeys = new Set(resourceStore.selectedSkillKeys);
+    const nextSelectedSkillKeys = new Set(resourceStore.optionValues.selectedSkillKeys);
 
     skillKeys.forEach((skillKey) => {
       if (selected) {

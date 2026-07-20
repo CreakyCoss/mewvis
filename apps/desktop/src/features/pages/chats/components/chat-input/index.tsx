@@ -20,7 +20,7 @@ export const ChatInput = ({
   const resourceStore = useChatInputStore();
   const [value, setValue] = useState(defaultValue);
 
-  const canSubmit = !disabled && Boolean(value.trim()) && Boolean(resourceStore.selectedModelId);
+  const canSubmit = !disabled && Boolean(value.trim()) && Boolean(resourceStore.optionValues.selectedModelId);
 
   useEffect(() => {
     resourceStore.initializeResources(resources, defaultOptionValues);
@@ -28,15 +28,14 @@ export const ChatInput = ({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const submitResources = resourceStore.getSubmitResources();
-    if (!canSubmit || !submitResources) {
+    if (!canSubmit || !resourceStore.submitResources) {
       return;
     }
 
     onSubmit({
       text: value.trim(),
-      optionValues: resourceStore.getOptionValues(),
-      ...submitResources,
+      optionValues: resourceStore.optionValues,
+      ...resourceStore.submitResources,
     });
     setValue("");
   };
