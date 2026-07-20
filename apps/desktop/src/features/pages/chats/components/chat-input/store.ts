@@ -19,6 +19,7 @@ type ChatInputStore = ChatInputOptionValues &
   ChatInputOptionValueSetters & {
     resources: ChatInputResources;
     initializeResources: (resources: ChatInputResources, defaultOptionValues?: Partial<ChatInputOptionValues>) => void;
+    getOptionValues: () => ChatInputOptionValues;
     getSubmitResources: () => ChatInputSubmitResources | null;
   };
 
@@ -112,6 +113,18 @@ export const useChatInputStore = create<ChatInputStore>((set, get) => ({
   },
   setShowThinkingProcess: (showThinkingProcess) => set({ showThinkingProcess }),
   setShowToolCallProcess: (showToolCallProcess) => set({ showToolCallProcess }),
+  getOptionValues: () => {
+    const state = get();
+
+    return {
+      selectedModelId: state.selectedModelId,
+      selectedAgentId: state.selectedAgentId,
+      selectedSkillKeys: [...state.selectedSkillKeys],
+      selectedToolNames: [...state.selectedToolNames],
+      showThinkingProcess: state.showThinkingProcess,
+      showToolCallProcess: state.showToolCallProcess,
+    };
+  },
   getSubmitResources: () => {
     const state = get();
     const model = state.resources.models?.find((option) => option.value === state.selectedModelId) ?? null;

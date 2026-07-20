@@ -35,6 +35,7 @@ export const ChatInput = ({
 
     onSubmit({
       text: value.trim(),
+      optionValues: resourceStore.getOptionValues(),
       ...submitResources,
     });
     setValue("");

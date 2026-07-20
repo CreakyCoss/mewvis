@@ -1,19 +1,30 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChatInput } from "../components/chat-input";
 import type { ChatInputSubmitPayload } from "../components/chat-input/type";
 import { WorkspaceDialog, type WorkspaceDialogHandle } from "../components/workspace-dialog";
 import { WorkspacePicker } from "../components/workspace-picker";
+import { HomeChat, type HomeChatProps } from "./chat";
 import { useWorkspaceStore } from "./workspace-store";
 
 export const ChatHomePage = () => {
   const workspaceStore = useWorkspaceStore();
   const workspaceDialogRef = useRef<WorkspaceDialogHandle>(null);
+  const [chat, setChat] = useState<HomeChatProps | null>(null);
 
   useEffect(() => {
     void workspaceStore.loadWorkspaces();
   }, [workspaceStore.loadWorkspaces]);
 
-  const submitPrompt = (_payload: ChatInputSubmitPayload) => {};
+  const submitPrompt = (initialMessage: ChatInputSubmitPayload) => {
+    setChat({
+      initialMessage,
+      inputResources: workspaceStore.resources,
+    });
+  };
+
+  if (chat) {
+    return <HomeChat {...chat} />;
+  }
 
   return (
     <main className="relative flex h-full min-h-0 overflow-hidden bg-background text-foreground">

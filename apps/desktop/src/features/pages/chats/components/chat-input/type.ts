@@ -53,6 +53,7 @@ export type ChatInputSubmitResources = {
 
 export type ChatInputSubmitPayload = ChatInputSubmitResources & {
   text: string;
+  optionValues: ChatInputOptionValues;
 };
 
 export type ChatInputProps = {
