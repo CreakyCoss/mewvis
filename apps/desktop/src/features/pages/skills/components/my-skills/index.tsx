@@ -94,13 +94,6 @@ export const MySkillsTab = ({
     ? existingGroupSkillNames(selectedGroup, skillsByKey)
     : skills.map((skill) => skill.key);
   const selectedGroupName = selectedGroup?.name ?? "全部技能";
-  const selectedGroupSkillDisabledByKey = useMemo(
-    () => new Map(selectedGroup?.skills.map((skill) => [skill.key, skill.disabled === true]) ?? []),
-    [selectedGroup],
-  );
-  const disabledMemberCount = selectedGroup
-    ? selectedGroup.skills.filter((skill) => skill.disabled === true).length
-    : 0;
   const visibleSkills = selectedGroup ? skills.filter((skill) => selectedGroupSkillKeys.includes(skill.key)) : skills;
   const displayedSkills = useMemo(
     () => filterSkills(visibleSkills, skillSearchQuery),
@@ -251,33 +244,6 @@ export const MySkillsTab = ({
         : current,
     );
   }, [defaultSkillGroupId, groups, isSaving, onGroupsChange, pendingDeleteGroup]);
-
-  const toggleSelectedGroupSkillDisabled = useCallback(
-    (skill: WorkspaceSkill) => {
-      if (!selectedGroup || isSaving) {
-        return;
-      }
-
-      const nextGroups = groups.map((group) =>
-        group.id === selectedGroup.id
-          ? {
-              ...group,
-              skills: group.skills.map((member) =>
-                member.key === skill.key
-                  ? {
-                      ...member,
-                      disabled: member.disabled !== true,
-                    }
-                  : member,
-              ),
-            }
-          : group,
-      );
-
-      onGroupsChange(nextGroups, defaultSkillGroupId);
-    },
-    [defaultSkillGroupId, groups, isSaving, onGroupsChange, selectedGroup],
-  );
 
   const closeQuickActionsOnBlur = useCallback((event: FocusEvent<HTMLDivElement>) => {
     const nextTarget = event.relatedTarget;
@@ -455,10 +421,7 @@ export const MySkillsTab = ({
                 )}
               </div>
               <div className="flex items-center">
-                <span>
-                  共 {visibleSkills.length} 个 Skill
-                  {disabledMemberCount > 0 ? `，${disabledMemberCount} 个已禁用` : ""}
-                </span>
+                <span>共 {visibleSkills.length} 个 Skill</span>
               </div>
             </div>
           </div>
@@ -504,9 +467,6 @@ export const MySkillsTab = ({
                                   disabled={isSaving || isRemoving}
                                   removable={skill.source === "app" || skill.source === "upload"}
                                   removing={removingSkillKey === skill.key}
-                                  skillDisabled={selectedGroupSkillDisabledByKey.get(skill.key) === true}
-                                  canToggleSkillDisabled={selectedGroup !== null}
-                                  onToggleSkillDisabled={toggleSelectedGroupSkillDisabled}
                                   onRemove={setPendingRemoveSkill}
                                 />
                               ))}

@@ -2,6 +2,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import { createAgentClient } from "@/agent-client/runtime";
 import { getWorkspaceSkills } from "@/features/pages/skills/api";
+import type { WorkspaceSkill } from "@/features/pages/skills/types";
 import { getLlmSettings } from "@/features/pages/settings/llm/api";
 import { buildRuntimeModelOptions } from "@/features/pages/settings/llm/store/model";
 
@@ -25,8 +26,12 @@ export type ChatInputResourceOption = {
   isDefault: boolean;
 };
 
+export type ChatInputSkillOption = WorkspaceSkill & {
+  label: string;
+};
+
 export type ChatInputSkillGroupOption = ChatInputResourceOption & {
-  skillKeys: string[];
+  skills: ChatInputSkillOption[];
 };
 
 export type ChatInputResources = {
@@ -89,6 +94,7 @@ const loadResources = async (workspaceId: string): Promise<ChatInputResources> =
     ]);
     const defaultToolNames = new Set(toolSettings.defaultToolNames);
     const models = buildRuntimeModelOptions(llmSettings);
+    const skillsByKey = new Map(skillSettings.skills.map((skill) => [skill.key, { ...skill, label: skill.name }]));
 
     return {
       models: models.map((model, index) => ({
@@ -102,7 +108,10 @@ const loadResources = async (workspaceId: string): Promise<ChatInputResources> =
         label: group.name,
         description: group.description ?? "",
         isDefault: group.id === skillSettings.defaultGroupId,
-        skillKeys: group.skills.filter((skill) => skill.disabled !== true).map((skill) => skill.key),
+        skills: group.skills.flatMap((skill) => {
+          const definition = skillsByKey.get(skill.key);
+          return definition ? [definition] : [];
+        }),
       })),
       tools: toolSettings.tools.map((tool) => ({
         value: tool.name,

@@ -32,8 +32,8 @@ pub use llm::{llm_settings, save_llm_settings};
 pub use models::{
     AiAgent, AiAgentSettings, CollaborationWorkflow, EmbeddingProfile, KnowledgeCollection,
     KnowledgeLibrary, KnowledgeSettings, KnowledgeSource, LlmProvider, LlmSettings, ProviderModel,
-    ReadonlySkillGroupMembers, SkillGroup, SkillGroupSkill, StoryRecord, Workspace, WorkspaceGroup,
-    WorkspaceOverview, WorkspaceSkillSettings,
+    SkillGroup, SkillGroupSkill, StoryRecord, Workspace, WorkspaceGroup, WorkspaceOverview,
+    WorkspaceSkillSettings,
 };
 pub use skills::{save_workspace_skill_settings, workspace_skill_settings};
 pub use stories::{

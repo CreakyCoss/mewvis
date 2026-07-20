@@ -167,9 +167,6 @@ export const GroupDialog = ({
 
     const id = state.group?.id ?? `draft-${crypto.randomUUID()}`;
     const nextDefaultGroupId = isDefaultGroup ? id : id === defaultGroupId ? ALL_SKILLS_GROUP_ID : defaultGroupId;
-    const previousSkillDisabledByKey = new Map(
-      state.group?.skills.map((skill) => [skill.key, skill.disabled === true]) ?? [],
-    );
     const nextGroup: WorkspaceSkillGroup = {
       id,
       name,
@@ -178,10 +175,7 @@ export const GroupDialog = ({
       readonly: false,
       isDefault: id === nextDefaultGroupId,
       order: state.group?.order ?? nextCustomGroupOrder(groups),
-      skills: [...selectedSkillNames].sort().map((key) => ({
-        key,
-        disabled: previousSkillDisabledByKey.get(key) === true,
-      })),
+      skills: [...selectedSkillNames].sort().map((key) => ({ key })),
     };
     const nextGroups = (
       state.group ? groups.map((group) => (group.id === state.group?.id ? nextGroup : group)) : [...groups, nextGroup]

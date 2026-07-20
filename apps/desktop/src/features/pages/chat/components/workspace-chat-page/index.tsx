@@ -286,11 +286,7 @@ export const WorkspaceChatPage = ({
     if (selectedSkillGroupIds.includes(ALL_SKILLS_GROUP_ID)) {
       return skills;
     }
-    const skillKeys = new Set(
-      selectedSkillGroups.flatMap((group) =>
-        group.skills.filter((skill) => skill.disabled !== true).map((skill) => skill.key),
-      ),
-    );
+    const skillKeys = new Set(selectedSkillGroups.flatMap((group) => group.skills.map((skill) => skill.key)));
     return skills.filter((skill) => skillKeys.has(skill.key));
   }, [builtinSkillNames, forcedSkillNames, selectedSkillGroupIds, selectedSkillGroups, skills]);
   useEffect(() => {

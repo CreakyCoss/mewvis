@@ -249,6 +249,5 @@ const toSaveSkillGroups = (groups: WorkspaceSkillGroup[]): SaveWorkspaceSkillGro
     readonly: group.readonly,
     skills: group.skills.map((skill) => ({
       key: skill.key,
-      disabled: skill.disabled === true,
     })),
   }));

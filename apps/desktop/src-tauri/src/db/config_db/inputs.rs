@@ -95,8 +95,6 @@ pub struct SaveWorkspaceSkillsInput {
 #[serde(rename_all = "camelCase")]
 pub struct SaveSkillGroupSkillInput {
     pub key: String,
-    #[serde(default)]
-    pub disabled: bool,
 }
 
 #[derive(Debug, Deserialize)]
