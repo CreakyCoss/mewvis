@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { createAgentClient } from "@/agent-client/runtime";
 import { getWorkspaceSkills } from "@/features/pages/skills/api";
 import type { WorkspaceSkill } from "@/features/pages/skills/types";
+import { getAiAgentSettings } from "@/features/pages/settings/agent/api";
 import { getLlmSettings } from "@/features/pages/settings/llm/api";
 import { buildRuntimeModelOptions } from "@/features/pages/settings/llm/store/model";
 
@@ -34,8 +35,13 @@ export type ChatInputSkillGroupOption = ChatInputResourceOption & {
   skills: ChatInputSkillOption[];
 };
 
+export type ChatInputAgentOption = ChatInputResourceOption & {
+  avatar: string;
+};
+
 export type ChatInputResources = {
   models?: ChatInputResourceOption[];
+  agents?: ChatInputAgentOption[];
   skillGroups?: ChatInputSkillGroupOption[];
   tools?: ChatInputResourceOption[];
 };
@@ -87,8 +93,9 @@ const loadResources = async (workspaceId: string): Promise<ChatInputResources> =
   const agentClient = createAgentClient();
 
   try {
-    const [llmSettings, skillSettings, toolSettings] = await Promise.all([
+    const [llmSettings, agentSettings, skillSettings, toolSettings] = await Promise.all([
       getLlmSettings(),
+      getAiAgentSettings(),
       workspaceId ? getWorkspaceSkills(workspaceId) : Promise.resolve({ skills: [], groups: [], defaultGroupId: "" }),
       agentClient.capabilities.listAgentTools(),
     ]);
@@ -102,6 +109,13 @@ const loadResources = async (workspaceId: string): Promise<ChatInputResources> =
         label: `${model.provider.name}/${model.modelName}`,
         description: `${model.provider.name} / ${model.modelName}`,
         isDefault: index === 0,
+      })),
+      agents: agentSettings.agents.map((agent) => ({
+        value: agent.id,
+        label: agent.name,
+        description: agent.description ?? "",
+        isDefault: false,
+        avatar: agent.avatar,
       })),
       skillGroups: skillSettings.groups.map((group) => ({
         value: group.id,
