@@ -5,10 +5,10 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { ModelMenu } from "./menus/model";
 import { SkillMenu } from "./menus/skill";
 import { ToolMenu } from "./menus/tool";
-import { useChatInputStore } from "./store";
+import { ChatInputStoreProvider, useChatInputStore } from "./store";
 import type { ChatInputProps } from "./type";
 
-export const ChatInput = ({
+const ChatInputContent = ({
   resources,
   defaultValue = "",
   defaultOptionValues,
@@ -115,3 +115,9 @@ export const ChatInput = ({
     </form>
   );
 };
+
+export const ChatInput = (props: ChatInputProps) => (
+  <ChatInputStoreProvider>
+    <ChatInputContent {...props} />
+  </ChatInputStoreProvider>
+);

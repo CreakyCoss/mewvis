@@ -6,6 +6,11 @@ export type ChatInitialData = {
   resources: ChatInputResources;
 };
 
+export type ChatStatus = {
+  chatId: string;
+  isRunning: boolean;
+};
+
 export type ChatToolCall = {
   id: string;
   name: string;
@@ -38,4 +43,5 @@ export type ChatProps = {
   chatId: string;
   workspacePath: string;
   initialData: ChatInitialData;
+  onStatusChange?: (status: ChatStatus) => void;
 };

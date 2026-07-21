@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { create } from "zustand";
+import { useStore } from "zustand";
+import { createStore } from "zustand/vanilla";
 import { createAgentClient } from "@/agent-client/runtime";
 import type { AgentClientAgentEvent } from "@/agent-client/types";
 import { loadChatSession, saveChatSession } from "@/api/chat";
 import type { ChatInputSubmitPayload } from "../components/chat-input/type";
-import type { ChatMessage, ChatPendingQuestion } from "./type";
+import type { ChatMessage, ChatPendingQuestion, ChatStatus } from "./type";
 
 type ChatActiveTurn = {
   taskId: string;
@@ -29,34 +30,35 @@ type ChatStore = {
   setError: (error: string) => void;
 };
 
-const useChatStore = create<ChatStore>((set) => ({
-  chatId: "",
-  messages: [],
-  activeTurn: null,
-  pendingQuestion: null,
-  isInitializing: true,
-  error: "",
-  initialize: (chatId) =>
-    set({
-      chatId,
-      messages: [],
-      activeTurn: null,
-      pendingQuestion: null,
-      isInitializing: true,
-      error: "",
-    }),
-  hydrateMessages: (messages) => set({ messages }),
-  setInitializing: (isInitializing) => set({ isInitializing }),
-  addMessages: (messages) => set((state) => ({ messages: [...state.messages, ...messages] })),
-  updateMessage: (messageId, update) =>
-    set((state) => ({
-      messages: state.messages.map((message) => (message.id === messageId ? update(message) : message)),
-    })),
-  startTurn: (activeTurn) => set({ activeTurn, pendingQuestion: null, error: "" }),
-  finishTurn: () => set({ activeTurn: null, pendingQuestion: null }),
-  setPendingQuestion: (pendingQuestion) => set({ pendingQuestion }),
-  setError: (error) => set({ error }),
-}));
+const createChatStore = () =>
+  createStore<ChatStore>()((set) => ({
+    chatId: "",
+    messages: [],
+    activeTurn: null,
+    pendingQuestion: null,
+    isInitializing: true,
+    error: "",
+    initialize: (chatId) =>
+      set({
+        chatId,
+        messages: [],
+        activeTurn: null,
+        pendingQuestion: null,
+        isInitializing: true,
+        error: "",
+      }),
+    hydrateMessages: (messages) => set({ messages }),
+    setInitializing: (isInitializing) => set({ isInitializing }),
+    addMessages: (messages) => set((state) => ({ messages: [...state.messages, ...messages] })),
+    updateMessage: (messageId, update) =>
+      set((state) => ({
+        messages: state.messages.map((message) => (message.id === messageId ? update(message) : message)),
+      })),
+    startTurn: (activeTurn) => set({ activeTurn, pendingQuestion: null, error: "" }),
+    finishTurn: () => set({ activeTurn: null, pendingQuestion: null }),
+    setPendingQuestion: (pendingQuestion) => set({ pendingQuestion }),
+    setError: (error) => set({ error }),
+  }));
 
 type StreamEvent = Extract<
   AgentClientAgentEvent,
@@ -67,6 +69,7 @@ type UseChatInput = {
   chatId: string;
   workspacePath: string;
   initialRequest?: ChatInputSubmitPayload;
+  onStatusChange?: (status: ChatStatus) => void;
 };
 
 const createMessageId = () => crypto.randomUUID();
@@ -145,8 +148,9 @@ const buildAgentPrompt = (workspacePath: string, payload: ChatInputSubmitPayload
   };
 };
 
-export const useChat = ({ chatId, workspacePath, initialRequest }: UseChatInput) => {
-  const chatStore = useChatStore();
+export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange }: UseChatInput) => {
+  const [chatStore] = useState(() => createChatStore());
+  const chatState = useStore(chatStore);
   const [agentClient] = useState(createAgentClient);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const streamEventsRef = useRef<StreamEvent[]>([]);
@@ -154,7 +158,7 @@ export const useChat = ({ chatId, workspacePath, initialRequest }: UseChatInput)
   const lastStderrRef = useRef("");
 
   const persistMessages = useCallback(() => {
-    const state = useChatStore.getState();
+    const state = chatStore.getState();
     if (state.chatId !== chatId || state.messages.length === 0) {
       return Promise.resolve();
     }
@@ -171,11 +175,11 @@ export const useChat = ({ chatId, workspacePath, initialRequest }: UseChatInput)
 
     saveQueueRef.current = save.catch((error) => {
       const message = error instanceof Error ? error.message : "聊天记录保存失败";
-      useChatStore.getState().setError(`回复已保留在当前页面，但保存失败：${message}`);
+      chatStore.getState().setError(`回复已保留在当前页面，但保存失败：${message}`);
     });
 
     return save;
-  }, [chatId, workspacePath]);
+  }, [chatId, chatStore, workspacePath]);
 
   const flushStreamEvents = useCallback(() => {
     if (streamFrameRef.current !== null) {
@@ -189,12 +193,12 @@ export const useChat = ({ chatId, workspacePath, initialRequest }: UseChatInput)
       return;
     }
 
-    const state = useChatStore.getState();
+    const state = chatStore.getState();
     const messageId = state.activeTurn?.messageId;
     if (messageId) {
       state.updateMessage(messageId, (message) => applyStreamEvents(message, events));
     }
-  }, []);
+  }, [chatStore]);
 
   const enqueueStreamEvent = useCallback(
     (event: StreamEvent) => {
@@ -209,7 +213,7 @@ export const useChat = ({ chatId, workspacePath, initialRequest }: UseChatInput)
   const finishWithError = useCallback(
     (message: string) => {
       flushStreamEvents();
-      const state = useChatStore.getState();
+      const state = chatStore.getState();
       const messageId = state.activeTurn?.messageId;
       if (!messageId) {
         return;
@@ -224,12 +228,12 @@ export const useChat = ({ chatId, workspacePath, initialRequest }: UseChatInput)
       state.finishTurn();
       void persistMessages();
     },
-    [flushStreamEvents, persistMessages],
+    [chatStore, flushStreamEvents, persistMessages],
   );
 
   const handleAgentEvent = useCallback(
     (event: AgentClientAgentEvent) => {
-      const state = useChatStore.getState();
+      const state = chatStore.getState();
       const activeTurn = state.activeTurn;
       if (!activeTurn || (event.taskId && event.taskId !== activeTurn.taskId)) {
         return;
@@ -350,12 +354,12 @@ export const useChat = ({ chatId, workspacePath, initialRequest }: UseChatInput)
         }
       }
     },
-    [enqueueStreamEvent, finishWithError, flushStreamEvents, persistMessages],
+    [chatStore, enqueueStreamEvent, finishWithError, flushStreamEvents, persistMessages],
   );
 
   const runTurn = useCallback(
     async (payload: ChatInputSubmitPayload) => {
-      const state = useChatStore.getState();
+      const state = chatStore.getState();
       if (state.chatId !== chatId || state.activeTurn) {
         return;
       }
@@ -407,29 +411,29 @@ export const useChat = ({ chatId, workspacePath, initialRequest }: UseChatInput)
         finishWithError(message);
       }
     },
-    [agentClient, chatId, finishWithError, persistMessages, workspacePath],
+    [agentClient, chatId, chatStore, finishWithError, persistMessages, workspacePath],
   );
 
   const stopGenerating = useCallback(async () => {
-    const activeTurn = useChatStore.getState().activeTurn;
+    const activeTurn = chatStore.getState().activeTurn;
     if (!activeTurn) {
       return;
     }
 
     try {
       await agentClient.tasks.abort(activeTurn.taskId);
-      if (useChatStore.getState().activeTurn?.taskId === activeTurn.taskId) {
+      if (chatStore.getState().activeTurn?.taskId === activeTurn.taskId) {
         finishWithError("已停止生成");
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "停止生成失败";
-      useChatStore.getState().setError(message);
+      chatStore.getState().setError(message);
     }
-  }, [agentClient, finishWithError]);
+  }, [agentClient, chatStore, finishWithError]);
 
   const answerQuestion = useCallback(
     async (answer: string) => {
-      const question = useChatStore.getState().pendingQuestion;
+      const question = chatStore.getState().pendingQuestion;
       if (!question) {
         return;
       }
@@ -440,22 +444,33 @@ export const useChat = ({ chatId, workspacePath, initialRequest }: UseChatInput)
           questionId: question.questionId,
           answer,
         });
-        if (useChatStore.getState().pendingQuestion?.questionId === question.questionId) {
-          useChatStore.getState().setPendingQuestion(null);
+        if (chatStore.getState().pendingQuestion?.questionId === question.questionId) {
+          chatStore.getState().setPendingQuestion(null);
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : "回答发送失败，请重试";
-        useChatStore.getState().setError(message);
+        chatStore.getState().setError(message);
       }
     },
-    [agentClient],
+    [agentClient, chatStore],
+  );
+
+  useEffect(
+    () =>
+      chatStore.subscribe((state, previousState) => {
+        const isRunning = Boolean(state.activeTurn);
+        if (isRunning !== Boolean(previousState.activeTurn)) {
+          onStatusChange?.({ chatId, isRunning });
+        }
+      }),
+    [chatId, chatStore, onStatusChange],
   );
 
   useEffect(() => {
     let disposed = false;
     let unsubscribe: (() => void) | undefined;
     saveQueueRef.current = Promise.resolve();
-    useChatStore.getState().initialize(chatId);
+    chatStore.getState().initialize(chatId);
 
     const initialize = async () => {
       try {
@@ -471,9 +486,9 @@ export const useChat = ({ chatId, workspacePath, initialRequest }: UseChatInput)
         }
 
         if (session) {
-          useChatStore.getState().hydrateMessages(normalizeLoadedMessages(session.messages as ChatMessage[]));
+          chatStore.getState().hydrateMessages(normalizeLoadedMessages(session.messages as ChatMessage[]));
         }
-        useChatStore.getState().setInitializing(false);
+        chatStore.getState().setInitializing(false);
 
         if (!session && initialRequest) {
           await runTurn(initialRequest);
@@ -483,8 +498,8 @@ export const useChat = ({ chatId, workspacePath, initialRequest }: UseChatInput)
           return;
         }
         const message = error instanceof Error ? error.message : "聊天初始化失败，请重试";
-        useChatStore.getState().setError(message);
-        useChatStore.getState().setInitializing(false);
+        chatStore.getState().setError(message);
+        chatStore.getState().setInitializing(false);
       }
     };
 
@@ -495,14 +510,14 @@ export const useChat = ({ chatId, workspacePath, initialRequest }: UseChatInput)
       flushStreamEvents();
       unsubscribe?.();
     };
-  }, [agentClient, chatId, flushStreamEvents, handleAgentEvent, initialRequest, runTurn, workspacePath]);
+  }, [agentClient, chatId, chatStore, flushStreamEvents, handleAgentEvent, initialRequest, runTurn, workspacePath]);
 
   return {
-    messages: chatStore.messages,
-    pendingQuestion: chatStore.pendingQuestion,
-    isInitializing: chatStore.isInitializing,
-    isRunning: Boolean(chatStore.activeTurn),
-    error: chatStore.error,
+    messages: chatState.messages,
+    pendingQuestion: chatState.pendingQuestion,
+    isInitializing: chatState.isInitializing,
+    isRunning: Boolean(chatState.activeTurn),
+    error: chatState.error,
     runTurn,
     stopGenerating,
     answerQuestion,

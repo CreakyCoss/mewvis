@@ -5,11 +5,12 @@ import { ChatQuestion } from "./question";
 import type { ChatProps } from "./type";
 import { useChat } from "./use-chat";
 
-export const Chat = ({ chatId, workspacePath, initialData }: ChatProps) => {
+export const Chat = ({ chatId, workspacePath, initialData, onStatusChange }: ChatProps) => {
   const chat = useChat({
     chatId,
     workspacePath,
     initialRequest: initialData.request,
+    onStatusChange,
   });
 
   return (

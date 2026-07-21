@@ -1,5 +1,7 @@
+import { createContext, useContext, useState, type PropsWithChildren } from "react";
 import { isEqual } from "lodash-es";
-import { create } from "zustand";
+import { useStore } from "zustand";
+import { createStore } from "zustand/vanilla";
 import type {
   ChatInputOptionValues,
   ChatInputResources,
@@ -87,43 +89,61 @@ const resolveChatInputState = (
   };
 };
 
-export const useChatInputStore = create<ChatInputStore>((set, get) => {
-  const updateOptionValues = (updates: Partial<ChatInputOptionValues>) => {
-    const state = get();
-    const resolvedState = resolveChatInputState(state.resources, {
-      ...state.optionValues,
-      ...updates,
-    });
-
-    if (isEqual(state.optionValues, resolvedState.optionValues)) {
-      return;
-    }
-
-    set(resolvedState);
-  };
-
-  return {
-    resources: {},
-    optionValues: {
-      selectedModelId: "",
-      selectedAgentId: "",
-      selectedSkillKeys: [],
-      selectedToolNames: [],
-      showThinkingProcess: true,
-      showToolCallProcess: true,
-    },
-    submitResources: null,
-    initializeResources: (resources, defaultOptionValues) => {
-      set({
-        resources,
-        ...resolveChatInputState(resources, defaultOptionValues, true),
+const createChatInputStore = () =>
+  createStore<ChatInputStore>()((set, get) => {
+    const updateOptionValues = (updates: Partial<ChatInputOptionValues>) => {
+      const state = get();
+      const resolvedState = resolveChatInputState(state.resources, {
+        ...state.optionValues,
+        ...updates,
       });
-    },
-    setSelectedModelId: (selectedModelId) => updateOptionValues({ selectedModelId }),
-    setSelectedAgentId: (selectedAgentId) => updateOptionValues({ selectedAgentId }),
-    setSelectedSkillKeys: (selectedSkillKeys) => updateOptionValues({ selectedSkillKeys }),
-    setSelectedToolNames: (selectedToolNames) => updateOptionValues({ selectedToolNames }),
-    setShowThinkingProcess: (showThinkingProcess) => updateOptionValues({ showThinkingProcess }),
-    setShowToolCallProcess: (showToolCallProcess) => updateOptionValues({ showToolCallProcess }),
-  };
-});
+
+      if (isEqual(state.optionValues, resolvedState.optionValues)) {
+        return;
+      }
+
+      set(resolvedState);
+    };
+
+    return {
+      resources: {},
+      optionValues: {
+        selectedModelId: "",
+        selectedAgentId: "",
+        selectedSkillKeys: [],
+        selectedToolNames: [],
+        showThinkingProcess: true,
+        showToolCallProcess: true,
+      },
+      submitResources: null,
+      initializeResources: (resources, defaultOptionValues) => {
+        set({
+          resources,
+          ...resolveChatInputState(resources, defaultOptionValues, true),
+        });
+      },
+      setSelectedModelId: (selectedModelId) => updateOptionValues({ selectedModelId }),
+      setSelectedAgentId: (selectedAgentId) => updateOptionValues({ selectedAgentId }),
+      setSelectedSkillKeys: (selectedSkillKeys) => updateOptionValues({ selectedSkillKeys }),
+      setSelectedToolNames: (selectedToolNames) => updateOptionValues({ selectedToolNames }),
+      setShowThinkingProcess: (showThinkingProcess) => updateOptionValues({ showThinkingProcess }),
+      setShowToolCallProcess: (showToolCallProcess) => updateOptionValues({ showToolCallProcess }),
+    };
+  });
+
+const ChatInputStoreContext = createContext<ReturnType<typeof createChatInputStore> | null>(null);
+
+export const ChatInputStoreProvider = ({ children }: PropsWithChildren) => {
+  const [store] = useState(() => createChatInputStore());
+
+  return <ChatInputStoreContext.Provider value={store}>{children}</ChatInputStoreContext.Provider>;
+};
+
+export const useChatInputStore = () => {
+  const store = useContext(ChatInputStoreContext);
+  if (!store) {
+    throw new Error("useChatInputStore 必须在 ChatInputStoreProvider 内使用");
+  }
+
+  return useStore(store);
+};
