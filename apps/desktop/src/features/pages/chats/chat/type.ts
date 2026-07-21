@@ -34,11 +34,6 @@ export type ChatPendingQuestion = {
   input?: AskUserInput;
 };
 
-export type ChatActiveTurn = {
-  taskId: string;
-  messageId: string;
-};
-
 export type ChatProps = {
   chatId: string;
   workspacePath: string;

@@ -1,17 +1,69 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { create } from "zustand";
 import { createAgentClient } from "@/agent-client/runtime";
 import type { AgentClientAgentEvent } from "@/agent-client/types";
 import { loadChatSession, saveChatSession } from "@/api/chat";
 import type { ChatInputSubmitPayload } from "../components/chat-input/type";
-import { useChatStore } from "./store";
-import type { ChatMessage } from "./type";
+import type { ChatMessage, ChatPendingQuestion } from "./type";
+
+type ChatActiveTurn = {
+  taskId: string;
+  messageId: string;
+};
+
+type ChatStore = {
+  chatId: string;
+  messages: ChatMessage[];
+  activeTurn: ChatActiveTurn | null;
+  pendingQuestion: ChatPendingQuestion | null;
+  isInitializing: boolean;
+  error: string;
+  initialize: (chatId: string) => void;
+  hydrateMessages: (messages: ChatMessage[]) => void;
+  setInitializing: (isInitializing: boolean) => void;
+  addMessages: (messages: ChatMessage[]) => void;
+  updateMessage: (messageId: string, update: (message: ChatMessage) => ChatMessage) => void;
+  startTurn: (turn: ChatActiveTurn) => void;
+  finishTurn: () => void;
+  setPendingQuestion: (question: ChatPendingQuestion | null) => void;
+  setError: (error: string) => void;
+};
+
+const useChatStore = create<ChatStore>((set) => ({
+  chatId: "",
+  messages: [],
+  activeTurn: null,
+  pendingQuestion: null,
+  isInitializing: true,
+  error: "",
+  initialize: (chatId) =>
+    set({
+      chatId,
+      messages: [],
+      activeTurn: null,
+      pendingQuestion: null,
+      isInitializing: true,
+      error: "",
+    }),
+  hydrateMessages: (messages) => set({ messages }),
+  setInitializing: (isInitializing) => set({ isInitializing }),
+  addMessages: (messages) => set((state) => ({ messages: [...state.messages, ...messages] })),
+  updateMessage: (messageId, update) =>
+    set((state) => ({
+      messages: state.messages.map((message) => (message.id === messageId ? update(message) : message)),
+    })),
+  startTurn: (activeTurn) => set({ activeTurn, pendingQuestion: null, error: "" }),
+  finishTurn: () => set({ activeTurn: null, pendingQuestion: null }),
+  setPendingQuestion: (pendingQuestion) => set({ pendingQuestion }),
+  setError: (error) => set({ error }),
+}));
 
 type StreamEvent = Extract<
   AgentClientAgentEvent,
   { type: "text_delta" | "thinking_delta" | "thinking_end" | "replace_text" }
 >;
 
-type UseChatRuntimeInput = {
+type UseChatInput = {
   chatId: string;
   workspacePath: string;
   initialRequest?: ChatInputSubmitPayload;
@@ -93,7 +145,8 @@ const buildAgentPrompt = (workspacePath: string, payload: ChatInputSubmitPayload
   };
 };
 
-export const useChatRuntime = ({ chatId, workspacePath, initialRequest }: UseChatRuntimeInput) => {
+export const useChat = ({ chatId, workspacePath, initialRequest }: UseChatInput) => {
+  const chatStore = useChatStore();
   const [agentClient] = useState(createAgentClient);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const streamEventsRef = useRef<StreamEvent[]>([]);
@@ -445,6 +498,11 @@ export const useChatRuntime = ({ chatId, workspacePath, initialRequest }: UseCha
   }, [agentClient, chatId, flushStreamEvents, handleAgentEvent, initialRequest, runTurn, workspacePath]);
 
   return {
+    messages: chatStore.messages,
+    pendingQuestion: chatStore.pendingQuestion,
+    isInitializing: chatStore.isInitializing,
+    isRunning: Boolean(chatStore.activeTurn),
+    error: chatStore.error,
     runTurn,
     stopGenerating,
     answerQuestion,

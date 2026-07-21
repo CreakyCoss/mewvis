@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { MessageSquareIcon, SendIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -38,15 +38,13 @@ export const ChatQuestion = ({ question, onAnswer }: ChatQuestionProps) => {
     }
   };
 
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    void submitAnswer(answerValue);
-  };
-
   return (
     <form
       className="mx-auto w-full max-w-[69rem] rounded-xl border border-primary/25 bg-primary/5 p-4 shadow-xs"
-      onSubmit={submit}
+      onSubmit={(event) => {
+        event.preventDefault();
+        void submitAnswer(answerValue);
+      }}
     >
       <div className="flex items-start gap-3">
         <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
