@@ -1,15 +1,12 @@
 import { Chat } from "../chat";
-import type { ChatInputResources, ChatInputSubmitPayload } from "../components/chat-input/type";
+import type { ChatInitialData } from "../chat/type";
 
 export type HomeChatProps = {
-  initialMessage: ChatInputSubmitPayload;
-  inputResources: ChatInputResources;
+  chatId: string;
+  workspacePath: string;
+  initialData: ChatInitialData;
 };
 
-export const HomeChat = ({ initialMessage, inputResources }: HomeChatProps) => (
-  <Chat
-    initialMessages={[initialMessage]}
-    inputResources={inputResources}
-    inputDefaultOptionValues={initialMessage.optionValues}
-  />
+export const HomeChat = ({ chatId, workspacePath, initialData }: HomeChatProps) => (
+  <Chat chatId={chatId} workspacePath={workspacePath} initialData={initialData} />
 );

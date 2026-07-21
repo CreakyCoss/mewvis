@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createTimestampId } from "@/utils/ids";
 import { ChatInput } from "../components/chat-input";
 import type { ChatInputSubmitPayload } from "../components/chat-input/type";
 import { WorkspaceDialog, type WorkspaceDialogHandle } from "../components/workspace-dialog";
@@ -15,10 +16,18 @@ export const ChatHomePage = () => {
     void workspaceStore.loadWorkspaces();
   }, [workspaceStore.loadWorkspaces]);
 
-  const submitPrompt = (initialMessage: ChatInputSubmitPayload) => {
+  const submitPrompt = (initialRequest: ChatInputSubmitPayload) => {
+    if (!workspaceStore.currentWorkspace) {
+      return;
+    }
+
     setChat({
-      initialMessage,
-      inputResources: workspaceStore.resources,
+      chatId: createTimestampId("chat"),
+      workspacePath: workspaceStore.currentWorkspace.path,
+      initialData: {
+        request: initialRequest,
+        resources: workspaceStore.resources,
+      },
     });
   };
 
@@ -58,6 +67,7 @@ export const ChatHomePage = () => {
               <div className="space-y-3">
                 <ChatInput
                   resources={workspaceStore.resources}
+                  disabled={workspaceStore.isLoading || !workspaceStore.currentWorkspace}
                   placeholder={
                     workspaceStore.currentWorkspace
                       ? `询问关于 ${workspaceStore.currentWorkspace.name} 的任何问题`

@@ -62,5 +62,7 @@ export type ChatInputProps = {
   defaultOptionValues?: Partial<ChatInputOptionValues>;
   placeholder?: string;
   disabled?: boolean;
+  isRunning?: boolean;
+  onStop?: () => void | Promise<void>;
   onSubmit: (payload: ChatInputSubmitPayload) => void;
 };

@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type FormEvent } from "react";
-import { SendIcon } from "lucide-react";
+import { SendIcon, SquareIcon } from "lucide-react";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from "@/components/ui/input-group";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { ModelMenu } from "./menus/model";
@@ -14,13 +14,16 @@ export const ChatInput = ({
   defaultOptionValues,
   placeholder = "输入问题",
   disabled = false,
+  isRunning = false,
+  onStop,
   onSubmit,
 }: ChatInputProps) => {
   const inputId = useId();
   const resourceStore = useChatInputStore();
   const [value, setValue] = useState(defaultValue);
 
-  const canSubmit = !disabled && Boolean(value.trim()) && Boolean(resourceStore.optionValues.selectedModelId);
+  const controlsDisabled = disabled || isRunning;
+  const canSubmit = !controlsDisabled && Boolean(value.trim()) && Boolean(resourceStore.optionValues.selectedModelId);
 
   useEffect(() => {
     resourceStore.initializeResources(resources, defaultOptionValues);
@@ -51,7 +54,7 @@ export const ChatInput = ({
           value={value}
           rows={3}
           placeholder={placeholder}
-          disabled={disabled}
+          disabled={controlsDisabled}
           className="max-h-48 min-h-28 w-full px-4 py-4 text-base leading-6 placeholder:text-muted-foreground/70"
           onChange={(event) => setValue(event.currentTarget.value)}
           onKeyDown={(event) => {
@@ -67,9 +70,9 @@ export const ChatInput = ({
           className="min-h-12 flex-wrap justify-between gap-2 px-3 pt-0 pb-3 font-normal"
         >
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-            <ModelMenu disabled={disabled} />
-            <SkillMenu disabled={disabled} />
-            <ToolMenu disabled={disabled} />
+            <ModelMenu disabled={controlsDisabled} />
+            <SkillMenu disabled={controlsDisabled} />
+            <ToolMenu disabled={controlsDisabled} />
           </div>
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
@@ -82,16 +85,30 @@ export const ChatInput = ({
               </KbdGroup>
               <span>发送</span>
             </span>
-            <InputGroupButton
-              type="submit"
-              size="icon-sm"
-              variant="outline"
-              disabled={!canSubmit}
-              aria-label="发送消息"
-              className="size-10 cursor-pointer rounded-full shadow-xs"
-            >
-              <SendIcon aria-hidden="true" />
-            </InputGroupButton>
+            {isRunning ? (
+              <InputGroupButton
+                type="button"
+                size="icon-sm"
+                variant="default"
+                disabled={!onStop}
+                aria-label="停止生成"
+                className="size-10 cursor-pointer rounded-full shadow-xs"
+                onClick={() => void onStop?.()}
+              >
+                <SquareIcon aria-hidden="true" className="size-3 fill-current" />
+              </InputGroupButton>
+            ) : (
+              <InputGroupButton
+                type="submit"
+                size="icon-sm"
+                variant="outline"
+                disabled={!canSubmit}
+                aria-label="发送消息"
+                className="size-10 cursor-pointer rounded-full shadow-xs"
+              >
+                <SendIcon aria-hidden="true" />
+              </InputGroupButton>
+            )}
           </div>
         </InputGroupAddon>
       </InputGroup>
