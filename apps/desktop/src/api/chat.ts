@@ -1,6 +1,10 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type { ChatMessage, ChatSession, ChatSessionMeta } from "@/features/pages/chat/types";
+import type { ChatMessage as LegacyChatMessage, ChatSession, ChatSessionMeta } from "@/features/pages/chat/types";
 import { getCurrentTimestamp } from "@/utils/time";
+
+type ChatSessionData<TMessage> = Omit<ChatSession, "messages"> & {
+  messages: TMessage[];
+};
 
 export async function listChatSessions(workspacePath: string) {
   if (!isTauri()) {
@@ -12,21 +16,21 @@ export async function listChatSessions(workspacePath: string) {
   });
 }
 
-export async function loadChatSession(workspacePath: string, sessionId?: string | null) {
+export async function loadChatSession<TMessage = LegacyChatMessage>(workspacePath: string, sessionId?: string | null) {
   if (!isTauri()) {
     return null;
   }
 
-  return invoke<ChatSession | null>("load_chat_session", {
+  return invoke<ChatSessionData<TMessage> | null>("load_chat_session", {
     input: { workspacePath, sessionId },
   });
 }
 
-export async function saveChatSession(input: {
+export async function saveChatSession<TMessage = LegacyChatMessage>(input: {
   workspacePath: string;
   sessionId?: string | null;
   title?: string | null;
-  messages: ChatMessage[];
+  messages: TMessage[];
   isUnread?: boolean;
 }) {
   if (!isTauri()) {
@@ -38,10 +42,10 @@ export async function saveChatSession(input: {
       updatedAt: now,
       messages: input.messages,
       isUnread: input.isUnread ?? false,
-    } satisfies ChatSession;
+    } satisfies ChatSessionData<TMessage>;
   }
 
-  return invoke<ChatSession>("save_chat_session", {
+  return invoke<ChatSessionData<TMessage>>("save_chat_session", {
     input: {
       workspacePath: input.workspacePath,
       sessionId: input.sessionId,

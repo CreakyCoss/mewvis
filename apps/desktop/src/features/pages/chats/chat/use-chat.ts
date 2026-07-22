@@ -5,7 +5,8 @@ import { createAgentClient } from "@/agent-client/runtime";
 import type { AgentClientAgentEvent } from "@/agent-client/types";
 import { loadChatSession, saveChatSession } from "@/api/chat";
 import type { ChatInputSubmitPayload } from "../components/chat-input/type";
-import type { ChatMessage, ChatPendingQuestion, ChatStatus } from "./type";
+import { applyChatMessageEvent, failChatMessage } from "./reducer";
+import type { ChatAssistantMessage, ChatMessage, ChatPendingQuestion, ChatStatus, ChatUserMessage } from "./type";
 
 type ChatActiveTurn = {
   taskId: string;
@@ -74,57 +75,33 @@ type UseChatInput = {
 
 const createMessageId = () => crypto.randomUUID();
 
+const getUserMessageText = (message: ChatUserMessage) =>
+  message.blocks
+    .filter((block) => block.type === "text")
+    .map((block) => block.content)
+    .join(" ")
+    .trim();
+
 const sessionTitle = (messages: ChatMessage[]) => {
-  const firstUserMessage = messages.find((message) => message.role === "user")?.text.trim();
-  return firstUserMessage ? firstUserMessage.replace(/\s+/g, " ").slice(0, 36) : "新的聊天";
+  const firstUserMessage = messages.find((message): message is ChatUserMessage => message.role === "user");
+  const text = firstUserMessage ? getUserMessageText(firstUserMessage) : "";
+  return text ? text.replace(/\s+/g, " ").slice(0, 36) : "新的聊天";
 };
 
-const normalizeLoadedMessages = (messages: ChatMessage[]) =>
-  messages.map<ChatMessage>((message) => {
-    const didStopUnexpectedly =
-      message.role === "assistant" && (message.status === "loading" || message.status === "streaming");
+const updateAssistantMessage =
+  (update: (message: ChatAssistantMessage) => ChatAssistantMessage) =>
+  (message: ChatMessage): ChatMessage =>
+    message.role === "assistant" ? update(message) : message;
 
-    return {
-      ...message,
-      id: message.id || createMessageId(),
-      createdAt: message.createdAt || Date.now(),
-      text: didStopUnexpectedly && !message.text.trim() ? "Agent 任务未正常结束。" : message.text,
-      status: didStopUnexpectedly ? "error" : message.status,
-    };
-  });
+const restoreMessages = (messages: ChatMessage[]) =>
+  messages.map((message) =>
+    message.role === "assistant" && (message.status === "loading" || message.status === "streaming")
+      ? failChatMessage(message, "Agent 任务未正常结束。")
+      : message,
+  );
 
-const applyStreamEvents = (message: ChatMessage, events: StreamEvent[]) =>
-  events.reduce<ChatMessage>((currentMessage, event) => {
-    if (event.type === "text_delta") {
-      return {
-        ...currentMessage,
-        text: `${currentMessage.text}${event.delta}`,
-        status: "streaming",
-      };
-    }
-
-    if (event.type === "replace_text") {
-      return {
-        ...currentMessage,
-        text: event.text,
-        status: "streaming",
-      };
-    }
-
-    if (event.type === "thinking_delta") {
-      return {
-        ...currentMessage,
-        thinking: `${currentMessage.thinking ?? ""}${event.delta}`,
-        status: "streaming",
-      };
-    }
-
-    return {
-      ...currentMessage,
-      thinking: event.content || currentMessage.thinking,
-      status: "streaming",
-    };
-  }, message);
+const applyStreamEvents = (message: ChatAssistantMessage, events: StreamEvent[]) =>
+  events.reduce<ChatAssistantMessage>(applyChatMessageEvent, message);
 
 const buildAgentPrompt = (workspacePath: string, payload: ChatInputSubmitPayload) => {
   const selectedAgent = payload.agent
@@ -196,7 +173,10 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
     const state = chatStore.getState();
     const messageId = state.activeTurn?.messageId;
     if (messageId) {
-      state.updateMessage(messageId, (message) => applyStreamEvents(message, events));
+      state.updateMessage(
+        messageId,
+        updateAssistantMessage((message) => applyStreamEvents(message, events)),
+      );
     }
   }, [chatStore]);
 
@@ -219,11 +199,10 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
         return;
       }
 
-      state.updateMessage(messageId, (currentMessage) => ({
-        ...currentMessage,
-        text: currentMessage.text.trim() || message,
-        status: "error",
-      }));
+      state.updateMessage(
+        messageId,
+        updateAssistantMessage((currentMessage) => failChatMessage(currentMessage, message)),
+      );
       state.setError(message);
       state.finishTurn();
       void persistMessages();
@@ -252,34 +231,18 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
       flushStreamEvents();
 
       if (event.type === "started") {
-        state.updateMessage(activeTurn.messageId, (message) => ({ ...message, status: "streaming" }));
+        state.updateMessage(
+          activeTurn.messageId,
+          updateAssistantMessage((message) => ({ ...message, status: "streaming" })),
+        );
         return;
       }
 
-      if (event.type === "tool_start") {
-        state.updateMessage(activeTurn.messageId, (message) => ({
-          ...message,
-          status: "streaming",
-          toolCalls: [...(message.toolCalls ?? []), { id: createMessageId(), name: event.toolName, status: "running" }],
-        }));
-        return;
-      }
-
-      if (event.type === "tool_end") {
-        state.updateMessage(activeTurn.messageId, (message) => {
-          const toolCalls = [...(message.toolCalls ?? [])];
-          let index = toolCalls.length - 1;
-          while (index >= 0 && (toolCalls[index].name !== event.toolName || toolCalls[index].status !== "running")) {
-            index -= 1;
-          }
-          if (index >= 0) {
-            toolCalls[index] = {
-              ...toolCalls[index],
-              status: event.isError ? "error" : "done",
-            };
-          }
-          return { ...message, toolCalls };
-        });
+      if (event.type === "tool_start" || event.type === "tool_update" || event.type === "tool_end") {
+        state.updateMessage(
+          activeTurn.messageId,
+          updateAssistantMessage((message) => applyChatMessageEvent(message, event)),
+        );
         return;
       }
 
@@ -307,11 +270,10 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
       }
 
       if (event.type === "done") {
-        state.updateMessage(activeTurn.messageId, (message) => ({
-          ...message,
-          text: event.text.trim() || message.text.trim() || "Agent 任务已完成。",
-          status: "done",
-        }));
+        state.updateMessage(
+          activeTurn.messageId,
+          updateAssistantMessage((message) => applyChatMessageEvent(message, event)),
+        );
         state.finishTurn();
         lastStderrRef.current = "";
         void persistMessages();
@@ -333,11 +295,16 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
         const taskState = event.taskState.toLowerCase();
         const workerState = event.workerState.toLowerCase();
         if (taskState === "done") {
-          state.updateMessage(activeTurn.messageId, (message) => ({
-            ...message,
-            text: message.text.trim() || "Agent 任务已完成。",
-            status: "done",
-          }));
+          state.updateMessage(
+            activeTurn.messageId,
+            updateAssistantMessage((message) =>
+              applyChatMessageEvent(message, {
+                type: "done",
+                taskId: activeTurn.taskId,
+                text: "",
+              }),
+            ),
+          );
           state.finishTurn();
           lastStderrRef.current = "";
           void persistMessages();
@@ -371,16 +338,22 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
         {
           id: createMessageId(),
           role: "user",
-          text: payload.text,
           createdAt,
           status: "done",
+          blocks: [
+            {
+              id: createMessageId(),
+              type: "text",
+              content: payload.text,
+            },
+          ],
         },
         {
           id: assistantMessageId,
           role: "assistant",
-          text: "",
           createdAt: createdAt + 1,
           status: "loading",
+          blocks: [],
           agentAvatar: payload.agent?.avatar,
           agentName: payload.agent?.name,
           showThinkingProcess: payload.showThinkingProcess,
@@ -480,13 +453,13 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
           return;
         }
 
-        const session = await loadChatSession(workspacePath, chatId);
+        const session = await loadChatSession<ChatMessage>(workspacePath, chatId);
         if (disposed) {
           return;
         }
 
         if (session) {
-          chatStore.getState().hydrateMessages(normalizeLoadedMessages(session.messages as ChatMessage[]));
+          chatStore.getState().hydrateMessages(restoreMessages(session.messages));
         }
         chatStore.getState().setInitializing(false);
 

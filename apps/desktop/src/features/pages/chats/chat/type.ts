@@ -11,25 +11,73 @@ export type ChatStatus = {
   isRunning: boolean;
 };
 
-export type ChatToolCall = {
+export type ChatToolEvent = {
   id: string;
-  name: string;
-  status: "running" | "done" | "error";
+  kind: "input" | "update" | "output";
+  content: string;
+  isError?: boolean;
 };
 
-export type ChatMessage = {
+export type ChatAssistantMessageBlock =
+  | {
+      id: string;
+      type: "thinking";
+      content: string;
+      isCollapsed?: boolean;
+    }
+  | {
+      id: string;
+      type: "text";
+      content: string;
+    }
+  | {
+      id: string;
+      type: "tool";
+      name: string;
+      events: ChatToolEvent[];
+      isCollapsed?: boolean;
+      status: "running" | "done" | "error";
+    };
+
+export type ChatUserMessageBlock =
+  | {
+      id: string;
+      type: "text";
+      content: string;
+    }
+  | {
+      id: string;
+      type: "file-reference";
+      path: string;
+    }
+  | {
+      id: string;
+      type: "skill-reference";
+      skillKey: string;
+      name: string;
+    };
+
+type ChatMessageBase = {
   id: string;
-  role: "user" | "assistant";
-  text: string;
   createdAt: number;
   status?: "loading" | "streaming" | "done" | "error";
-  thinking?: string;
-  toolCalls?: ChatToolCall[];
+};
+
+export type ChatUserMessage = ChatMessageBase & {
+  role: "user";
+  blocks: ChatUserMessageBlock[];
+};
+
+export type ChatAssistantMessage = ChatMessageBase & {
+  role: "assistant";
+  blocks: ChatAssistantMessageBlock[];
   agentAvatar?: string;
   agentName?: string;
   showThinkingProcess?: boolean;
   showToolCallProcess?: boolean;
 };
+
+export type ChatMessage = ChatUserMessage | ChatAssistantMessage;
 
 export type ChatPendingQuestion = {
   taskId: string;
