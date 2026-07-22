@@ -1,6 +1,6 @@
 import { CircleAlertIcon } from "lucide-react";
 import { ChatInput } from "../components/chat-input";
-import { ChatMessages } from "./messages";
+import { ChatMessages } from "./message";
 import { ChatQuestion } from "./question";
 import type { ChatProps } from "./type";
 import { useChat } from "./use-chat";
