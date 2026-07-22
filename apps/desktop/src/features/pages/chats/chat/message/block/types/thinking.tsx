@@ -1,6 +1,7 @@
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { BrainIcon, ChevronDownIcon, Loader2Icon } from "lucide-react";
 import type { ChatAssistantMessageBlock } from "../../../type";
+import { BLOCK_AUTO_COLLAPSE_DELAY } from "../constants";
 
 type ThinkingBlockProps = {
   block: Extract<ChatAssistantMessageBlock, { type: "thinking" }>;
@@ -9,7 +10,18 @@ type ThinkingBlockProps = {
 
 const ThinkingBlockComponent = ({ block, isActive }: ThinkingBlockProps) => {
   const [manualExpanded, setManualExpanded] = useState<boolean>();
-  const isExpanded = manualExpanded ?? !block.isCollapsed;
+  const [autoExpanded, setAutoExpanded] = useState(isActive);
+  const isExpanded = manualExpanded ?? autoExpanded;
+
+  useEffect(() => {
+    if (isActive) {
+      setAutoExpanded(true);
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => setAutoExpanded(false), BLOCK_AUTO_COLLAPSE_DELAY);
+    return () => window.clearTimeout(timer);
+  }, [isActive]);
 
   return (
     <div className="overflow-hidden rounded-md bg-muted/35 shadow-xs">

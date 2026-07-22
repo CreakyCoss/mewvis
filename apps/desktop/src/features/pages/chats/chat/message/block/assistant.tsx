@@ -8,16 +8,16 @@ type AssistantBlocksProps = {
   blocks: ChatAssistantMessageBlock[];
   isRunning: boolean;
   agentName?: string;
-  showThinkingProcess?: boolean;
-  showToolCallProcess?: boolean;
+  showThinkingProcess: boolean;
+  showToolCallProcess: boolean;
 };
 
 export const AssistantBlocks = ({
   blocks,
   isRunning,
   agentName,
-  showThinkingProcess = true,
-  showToolCallProcess = true,
+  showThinkingProcess,
+  showToolCallProcess,
 }: AssistantBlocksProps) => {
   const visibleBlocks = blocks.filter(
     (block) =>

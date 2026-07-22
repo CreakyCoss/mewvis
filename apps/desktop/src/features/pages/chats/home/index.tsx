@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createTimestampId } from "@/utils/ids";
 import { ChatInput } from "../components/chat-input";
-import type { ChatInputSubmitPayload } from "../components/chat-input/type";
+import type { ChatDisplayOptions, ChatInputSubmitPayload } from "../components/chat-input/type";
 import { WorkspaceDialog, type WorkspaceDialogHandle } from "../components/workspace-dialog";
 import { WorkspacePicker } from "../components/workspace-picker";
 import { HomeChat, type HomeChatProps } from "./chat";
@@ -11,6 +11,10 @@ export const ChatHomePage = () => {
   const workspaceStore = useWorkspaceStore();
   const workspaceDialogRef = useRef<WorkspaceDialogHandle>(null);
   const [chat, setChat] = useState<HomeChatProps | null>(null);
+  const [displayOptions, setDisplayOptions] = useState<ChatDisplayOptions>({
+    showThinkingProcess: true,
+    showToolCallProcess: true,
+  });
 
   useEffect(() => {
     void workspaceStore.loadWorkspaces();
@@ -27,6 +31,7 @@ export const ChatHomePage = () => {
       initialData: {
         request: initialRequest,
         resources: workspaceStore.resources,
+        displayOptions,
       },
     });
   };
@@ -67,12 +72,14 @@ export const ChatHomePage = () => {
               <div className="space-y-3">
                 <ChatInput
                   resources={workspaceStore.resources}
+                  displayOptions={displayOptions}
                   disabled={workspaceStore.isLoading || !workspaceStore.currentWorkspace}
                   placeholder={
                     workspaceStore.currentWorkspace
                       ? `询问关于 ${workspaceStore.currentWorkspace.name} 的任何问题`
                       : "输入问题"
                   }
+                  onDisplayOptionsChange={setDisplayOptions}
                   onSubmit={submitPrompt}
                 />
 

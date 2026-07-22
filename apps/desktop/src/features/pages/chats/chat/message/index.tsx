@@ -2,6 +2,7 @@ import { memo, useEffect, useRef } from "react";
 import { BotIcon, CircleAlertIcon } from "lucide-react";
 import { resolveAvatar } from "@/assets/avatars";
 import { Spinner } from "@/components/ui/spinner";
+import type { ChatDisplayOptions } from "../../components/chat-input/type";
 import type { ChatMessage } from "../type";
 import { MessageBlocks } from "./block";
 
@@ -9,6 +10,7 @@ type ChatMessagesProps = {
   messages: ChatMessage[];
   isInitializing: boolean;
   pendingQuestionId?: string;
+  displayOptions: ChatDisplayOptions;
 };
 
 const formatMessageTime = (createdAt: number) =>
@@ -17,7 +19,13 @@ const formatMessageTime = (createdAt: number) =>
     minute: "2-digit",
   });
 
-const MessageItemComponent = ({ message }: { message: ChatMessage }) => {
+const MessageItemComponent = ({
+  message,
+  displayOptions,
+}: {
+  message: ChatMessage;
+  displayOptions: ChatDisplayOptions;
+}) => {
   const isAssistant = message.role === "assistant";
   const agentAvatar = isAssistant && message.agentAvatar ? resolveAvatar(message.agentAvatar) : undefined;
 
@@ -58,7 +66,7 @@ const MessageItemComponent = ({ message }: { message: ChatMessage }) => {
           className="relative min-w-0 max-w-full overflow-hidden rounded-md px-3.5 py-2.5 text-sm leading-6 shadow-xs data-[role=assistant]:w-full data-[role=assistant]:bg-card data-[role=user]:bg-primary data-[role=user]:text-primary-foreground"
           data-role={message.role}
         >
-          <MessageBlocks message={message} />
+          <MessageBlocks message={message} displayOptions={displayOptions} />
 
           {message.status === "error" ? (
             <div role="alert" className="mt-2 flex items-center gap-1.5 text-xs text-destructive">
@@ -74,7 +82,7 @@ const MessageItemComponent = ({ message }: { message: ChatMessage }) => {
 
 const MessageItem = memo(MessageItemComponent);
 
-export const ChatMessages = ({ messages, isInitializing, pendingQuestionId }: ChatMessagesProps) => {
+export const ChatMessages = ({ messages, isInitializing, pendingQuestionId, displayOptions }: ChatMessagesProps) => {
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -98,7 +106,7 @@ export const ChatMessages = ({ messages, isInitializing, pendingQuestionId }: Ch
         ) : null}
 
         {messages.map((message) => (
-          <MessageItem key={message.id} message={message} />
+          <MessageItem key={message.id} message={message} displayOptions={displayOptions} />
         ))}
         <div ref={endRef} />
       </div>

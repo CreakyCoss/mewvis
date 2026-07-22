@@ -356,8 +356,6 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
           blocks: [],
           agentAvatar: payload.agent?.avatar,
           agentName: payload.agent?.name,
-          showThinkingProcess: payload.showThinkingProcess,
-          showToolCallProcess: payload.showToolCallProcess,
         },
       ]);
       state.startTurn({ taskId, messageId: assistantMessageId });

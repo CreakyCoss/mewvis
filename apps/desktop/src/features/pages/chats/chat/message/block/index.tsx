@@ -1,12 +1,14 @@
+import type { ChatDisplayOptions } from "../../../components/chat-input/type";
 import type { ChatMessage } from "../../type";
 import { AssistantBlocks } from "./assistant";
 import { UserBlocks } from "./user";
 
 type MessageBlocksProps = {
   message: ChatMessage;
+  displayOptions: ChatDisplayOptions;
 };
 
-export const MessageBlocks = ({ message }: MessageBlocksProps) => {
+export const MessageBlocks = ({ message, displayOptions }: MessageBlocksProps) => {
   if (message.role === "user") {
     return <UserBlocks blocks={message.blocks} />;
   }
@@ -16,8 +18,8 @@ export const MessageBlocks = ({ message }: MessageBlocksProps) => {
       blocks={message.blocks}
       isRunning={message.status === "loading" || message.status === "streaming"}
       agentName={message.agentName}
-      showThinkingProcess={message.showThinkingProcess}
-      showToolCallProcess={message.showToolCallProcess}
+      showThinkingProcess={displayOptions.showThinkingProcess}
+      showToolCallProcess={displayOptions.showToolCallProcess}
     />
   );
 };

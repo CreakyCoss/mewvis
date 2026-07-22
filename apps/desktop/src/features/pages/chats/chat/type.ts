@@ -1,9 +1,10 @@
 import type { AskUserInput } from "@/agent-client/types";
-import type { ChatInputResources, ChatInputSubmitPayload } from "../components/chat-input/type";
+import type { ChatDisplayOptions, ChatInputResources, ChatInputSubmitPayload } from "../components/chat-input/type";
 
 export type ChatInitialData = {
   request?: ChatInputSubmitPayload;
   resources: ChatInputResources;
+  displayOptions: ChatDisplayOptions;
 };
 
 export type ChatStatus = {
@@ -23,7 +24,6 @@ export type ChatAssistantMessageBlock =
       id: string;
       type: "thinking";
       content: string;
-      isCollapsed?: boolean;
     }
   | {
       id: string;
@@ -35,7 +35,6 @@ export type ChatAssistantMessageBlock =
       type: "tool";
       name: string;
       events: ChatToolEvent[];
-      isCollapsed?: boolean;
       status: "running" | "done" | "error";
     };
 
@@ -73,8 +72,6 @@ export type ChatAssistantMessage = ChatMessageBase & {
   blocks: ChatAssistantMessageBlock[];
   agentAvatar?: string;
   agentName?: string;
-  showThinkingProcess?: boolean;
-  showToolCallProcess?: boolean;
 };
 
 export type ChatMessage = ChatUserMessage | ChatAssistantMessage;

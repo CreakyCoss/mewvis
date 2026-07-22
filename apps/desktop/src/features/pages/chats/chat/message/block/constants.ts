@@ -1,0 +1,1 @@
+export const BLOCK_AUTO_COLLAPSE_DELAY = 2500;

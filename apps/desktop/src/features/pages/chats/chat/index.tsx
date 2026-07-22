@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { CircleAlertIcon } from "lucide-react";
 import { ChatInput } from "../components/chat-input";
 import { ChatMessages } from "./message";
@@ -6,12 +7,17 @@ import type { ChatProps } from "./type";
 import { useChat } from "./use-chat";
 
 export const Chat = ({ chatId, workspacePath, initialData, onStatusChange }: ChatProps) => {
+  const [displayOptions, setDisplayOptions] = useState(initialData.displayOptions);
   const chat = useChat({
     chatId,
     workspacePath,
     initialRequest: initialData.request,
     onStatusChange,
   });
+
+  useEffect(() => {
+    setDisplayOptions(initialData.displayOptions);
+  }, [chatId, initialData.displayOptions]);
 
   return (
     <main className="flex h-full min-h-0 bg-background text-foreground">
@@ -20,6 +26,7 @@ export const Chat = ({ chatId, workspacePath, initialData, onStatusChange }: Cha
           messages={chat.messages}
           isInitializing={chat.isInitializing}
           pendingQuestionId={chat.pendingQuestion?.questionId}
+          displayOptions={displayOptions}
         />
 
         <div className="shrink-0 space-y-3 bg-background/95 px-4 py-4 backdrop-blur sm:px-8">
@@ -39,11 +46,13 @@ export const Chat = ({ chatId, workspacePath, initialData, onStatusChange }: Cha
 
           <ChatInput
             resources={initialData.resources}
+            displayOptions={displayOptions}
             defaultOptionValues={initialData.request?.optionValues}
             placeholder="继续输入消息"
             disabled={chat.isInitializing}
             isRunning={chat.isRunning}
             onStop={chat.stopGenerating}
+            onDisplayOptionsChange={setDisplayOptions}
             onSubmit={chat.runTurn}
           />
         </div>

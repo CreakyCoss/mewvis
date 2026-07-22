@@ -15,12 +15,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
 import { useChatInputStore } from "../store";
+import type { ChatDisplayOptions } from "../type";
 
 type ModelMenuProps = {
   disabled: boolean;
+  selectionDisabled: boolean;
+  displayOptions: ChatDisplayOptions;
+  onDisplayOptionsChange: (options: ChatDisplayOptions) => void;
 };
 
-export const ModelMenu = ({ disabled }: ModelMenuProps) => {
+export const ModelMenu = ({ disabled, selectionDisabled, displayOptions, onDisplayOptionsChange }: ModelMenuProps) => {
   const resourceStore = useChatInputStore();
   const models = resourceStore.resources.models ?? [];
   const agents = resourceStore.resources.agents ?? [];
@@ -30,8 +34,8 @@ export const ModelMenu = ({ disabled }: ModelMenuProps) => {
   const selectedAgentLabel = selectedAgent?.label ?? "不使用角色";
   const menuLabel = selectedAgent ? `${selectedModelLabel} · ${selectedAgent.label}` : selectedModelLabel;
   const processLabel = [
-    resourceStore.optionValues.showThinkingProcess ? "思考" : "",
-    resourceStore.optionValues.showToolCallProcess ? "工具" : "",
+    displayOptions.showThinkingProcess ? "思考" : "",
+    displayOptions.showToolCallProcess ? "工具" : "",
   ]
     .filter(Boolean)
     .join("/");
@@ -56,7 +60,7 @@ export const ModelMenu = ({ disabled }: ModelMenuProps) => {
         <DropdownMenuLabel>模型与角色</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger title={selectedModel?.description || selectedModelLabel}>
+          <DropdownMenuSubTrigger disabled={selectionDisabled} title={selectedModel?.description || selectedModelLabel}>
             <Orbit className="size-3.5" aria-hidden="true" />
             <span className="min-w-0 flex-1 truncate">模型</span>
             <span className="max-w-32 truncate text-xs text-muted-foreground">{selectedModelLabel}</span>
@@ -80,7 +84,7 @@ export const ModelMenu = ({ disabled }: ModelMenuProps) => {
         </DropdownMenuSub>
 
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger title={selectedAgent?.description || selectedAgentLabel}>
+          <DropdownMenuSubTrigger disabled={selectionDisabled} title={selectedAgent?.description || selectedAgentLabel}>
             <Bot className="size-3.5" aria-hidden="true" />
             <span className="min-w-0 flex-1 truncate">角色</span>
             <span className="max-w-32 truncate text-xs text-muted-foreground">{selectedAgentLabel}</span>
@@ -112,32 +116,42 @@ export const ModelMenu = ({ disabled }: ModelMenuProps) => {
               className="flex items-center justify-between gap-3 py-2"
               onSelect={(event) => {
                 event.preventDefault();
-                resourceStore.setShowThinkingProcess(!resourceStore.optionValues.showThinkingProcess);
+                onDisplayOptionsChange({
+                  ...displayOptions,
+                  showThinkingProcess: !displayOptions.showThinkingProcess,
+                });
               }}
             >
               <span className="min-w-0 flex-1">思考过程</span>
               <Switch
                 size="sm"
-                checked={resourceStore.optionValues.showThinkingProcess}
+                checked={displayOptions.showThinkingProcess}
                 aria-label="思考过程"
                 onClick={(event) => event.stopPropagation()}
-                onCheckedChange={resourceStore.setShowThinkingProcess}
+                onCheckedChange={(showThinkingProcess) =>
+                  onDisplayOptionsChange({ ...displayOptions, showThinkingProcess })
+                }
               />
             </DropdownMenuItem>
             <DropdownMenuItem
               className="flex items-center justify-between gap-3 py-2"
               onSelect={(event) => {
                 event.preventDefault();
-                resourceStore.setShowToolCallProcess(!resourceStore.optionValues.showToolCallProcess);
+                onDisplayOptionsChange({
+                  ...displayOptions,
+                  showToolCallProcess: !displayOptions.showToolCallProcess,
+                });
               }}
             >
               <span className="min-w-0 flex-1">工具调用过程</span>
               <Switch
                 size="sm"
-                checked={resourceStore.optionValues.showToolCallProcess}
+                checked={displayOptions.showToolCallProcess}
                 aria-label="工具调用过程"
                 onClick={(event) => event.stopPropagation()}
-                onCheckedChange={resourceStore.setShowToolCallProcess}
+                onCheckedChange={(showToolCallProcess) =>
+                  onDisplayOptionsChange({ ...displayOptions, showToolCallProcess })
+                }
               />
             </DropdownMenuItem>
           </DropdownMenuSubContent>

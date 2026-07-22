@@ -10,12 +10,14 @@ import type { ChatInputProps } from "./type";
 
 const ChatInputContent = ({
   resources,
+  displayOptions,
   defaultValue = "",
   defaultOptionValues,
   placeholder = "输入问题",
   disabled = false,
   isRunning = false,
   onStop,
+  onDisplayOptionsChange,
   onSubmit,
 }: ChatInputProps) => {
   const inputId = useId();
@@ -70,7 +72,12 @@ const ChatInputContent = ({
           className="min-h-12 flex-wrap justify-between gap-2 px-3 pt-0 pb-3 font-normal"
         >
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-            <ModelMenu disabled={controlsDisabled} />
+            <ModelMenu
+              disabled={disabled}
+              selectionDisabled={controlsDisabled}
+              displayOptions={displayOptions}
+              onDisplayOptionsChange={onDisplayOptionsChange}
+            />
             <SkillMenu disabled={controlsDisabled} />
             <ToolMenu disabled={controlsDisabled} />
           </div>

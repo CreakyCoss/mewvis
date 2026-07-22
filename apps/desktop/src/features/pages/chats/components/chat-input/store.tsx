@@ -14,8 +14,6 @@ type ChatInputOptionValueSetters = {
   setSelectedAgentId: (agentId: string) => void;
   setSelectedSkillKeys: (skillKeys: string[]) => void;
   setSelectedToolNames: (toolNames: string[]) => void;
-  setShowThinkingProcess: (value: boolean) => void;
-  setShowToolCallProcess: (value: boolean) => void;
 };
 
 interface ChatInputStore extends ChatInputOptionValueSetters {
@@ -70,8 +68,6 @@ const resolveChatInputState = (
     selectedAgentId: selectedAgent?.value ?? "",
     selectedSkillKeys: selectedSkills.map((skill) => skill.key),
     selectedToolNames: selectedTools.map((tool) => tool.value),
-    showThinkingProcess: values.showThinkingProcess ?? true,
-    showToolCallProcess: values.showToolCallProcess ?? true,
   };
 
   return {
@@ -82,8 +78,6 @@ const resolveChatInputState = (
           agent: selectedAgent?.agent ?? null,
           skills: selectedSkills,
           tools: optionValues.selectedToolNames,
-          showThinkingProcess: optionValues.showThinkingProcess,
-          showToolCallProcess: optionValues.showToolCallProcess,
         }
       : null,
   };
@@ -112,8 +106,6 @@ const createChatInputStore = () =>
         selectedAgentId: "",
         selectedSkillKeys: [],
         selectedToolNames: [],
-        showThinkingProcess: true,
-        showToolCallProcess: true,
       },
       submitResources: null,
       initializeResources: (resources, defaultOptionValues) => {
@@ -126,8 +118,6 @@ const createChatInputStore = () =>
       setSelectedAgentId: (selectedAgentId) => updateOptionValues({ selectedAgentId }),
       setSelectedSkillKeys: (selectedSkillKeys) => updateOptionValues({ selectedSkillKeys }),
       setSelectedToolNames: (selectedToolNames) => updateOptionValues({ selectedToolNames }),
-      setShowThinkingProcess: (showThinkingProcess) => updateOptionValues({ showThinkingProcess }),
-      setShowToolCallProcess: (showToolCallProcess) => updateOptionValues({ showToolCallProcess }),
     };
   });
 

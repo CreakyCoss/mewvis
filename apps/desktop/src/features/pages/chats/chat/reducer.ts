@@ -91,13 +91,7 @@ const appendThinking = (message: ChatAssistantMessage, content: string) => {
   if (lastBlock?.type === "thinking") {
     blocks[blocks.length - 1] = { ...lastBlock, content: `${lastBlock.content}${content}` };
   } else {
-    const hasPreviousThinking = blocks.some((block) => block.type === "thinking");
     blocks.push({ id: createBlockId(), type: "thinking", content });
-    if (hasPreviousThinking) {
-      return blocks.map((block, index) =>
-        block.type === "thinking" && index < blocks.length - 1 ? { ...block, isCollapsed: true } : block,
-      );
-    }
   }
 
   return blocks;

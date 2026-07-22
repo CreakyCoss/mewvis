@@ -38,6 +38,9 @@ export type ChatInputOptionValues = {
   selectedAgentId: string;
   selectedSkillKeys: string[];
   selectedToolNames: string[];
+};
+
+export type ChatDisplayOptions = {
   showThinkingProcess: boolean;
   showToolCallProcess: boolean;
 };
@@ -47,8 +50,6 @@ export type ChatInputSubmitResources = {
   agent: AiAgent | null;
   skills: WorkspaceSkill[];
   tools: string[];
-  showThinkingProcess: boolean;
-  showToolCallProcess: boolean;
 };
 
 export type ChatInputSubmitPayload = ChatInputSubmitResources & {
@@ -58,11 +59,13 @@ export type ChatInputSubmitPayload = ChatInputSubmitResources & {
 
 export type ChatInputProps = {
   resources: ChatInputResources;
+  displayOptions: ChatDisplayOptions;
   defaultValue?: string;
   defaultOptionValues?: Partial<ChatInputOptionValues>;
   placeholder?: string;
   disabled?: boolean;
   isRunning?: boolean;
   onStop?: () => void | Promise<void>;
+  onDisplayOptionsChange: (options: ChatDisplayOptions) => void;
   onSubmit: (payload: ChatInputSubmitPayload) => void;
 };

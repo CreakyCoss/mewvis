@@ -1,12 +1,12 @@
 import { memo, useEffect, useState } from "react";
 import { CheckIcon, ChevronDownIcon, CircleAlertIcon, Loader2Icon, WrenchIcon } from "lucide-react";
 import type { ChatAssistantMessageBlock, ChatToolEvent } from "../../../type";
+import { BLOCK_AUTO_COLLAPSE_DELAY } from "../constants";
 
 type ToolBlockProps = {
   block: Extract<ChatAssistantMessageBlock, { type: "tool" }>;
 };
 
-const TOOL_AUTO_COLLAPSE_DELAY = 2500;
 const TOOL_VISIBLE_EVENT_LIMIT = 8;
 
 const toolEventLabel = (event: ChatToolEvent) => {
@@ -33,7 +33,7 @@ const ToolBlockComponent = ({ block }: ToolBlockProps) => {
       return undefined;
     }
 
-    const timer = window.setTimeout(() => setAutoExpanded(false), TOOL_AUTO_COLLAPSE_DELAY);
+    const timer = window.setTimeout(() => setAutoExpanded(false), BLOCK_AUTO_COLLAPSE_DELAY);
     return () => window.clearTimeout(timer);
   }, [block.status]);
 
