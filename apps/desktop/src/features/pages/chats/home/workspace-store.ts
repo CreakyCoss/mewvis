@@ -24,13 +24,15 @@ type WorkspaceStore = {
   workspaces: Workspace[];
   currentWorkspace: Workspace | null;
   resources: ChatInputResources;
+  chatLoadingMap: Record<string, boolean>;
   isLoading: boolean;
   error: string;
+  setCurrentWorkspace: (workspace: Workspace | null) => void;
+  setChatLoading: (chatId: string, isLoading: boolean) => void;
   loadWorkspaces: () => Promise<void>;
   refreshWorkspaces: () => Promise<void>;
   createWorkspace: (input: { name: string; description: string; path: string }) => Promise<void>;
   updateWorkspace: (workspaceId: string, input: { name: string; description: string }) => Promise<void>;
-  setCurrentWorkspace: (workspace: Workspace | null) => void;
 };
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -77,8 +79,29 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
   workspaces: [],
   currentWorkspace: null,
   resources: {},
+  chatLoadingMap: {},
   isLoading: true,
   error: "",
+  setCurrentWorkspace: (workspace) => {
+    set({
+      currentWorkspace: workspace,
+      resources: {},
+      error: "",
+    });
+    void loadResources(workspace?.id ?? "").then((resources) => {
+      if (get().currentWorkspace?.id === workspace?.id) {
+        set({ resources });
+      }
+    });
+  },
+  setChatLoading: (chatId, isLoading) => {
+    set((state) => ({
+      chatLoadingMap: {
+        ...state.chatLoadingMap,
+        [chatId]: isLoading,
+      },
+    }));
+  },
   loadWorkspaces: async () => {
     set({ isLoading: true, error: "" });
 
@@ -139,17 +162,5 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
       groupId: workspace.groupId ?? "",
     });
     await get().refreshWorkspaces();
-  },
-  setCurrentWorkspace: (workspace) => {
-    set({
-      currentWorkspace: workspace,
-      resources: {},
-      error: "",
-    });
-    void loadResources(workspace?.id ?? "").then((resources) => {
-      if (get().currentWorkspace?.id === workspace?.id) {
-        set({ resources });
-      }
-    });
   },
 }));

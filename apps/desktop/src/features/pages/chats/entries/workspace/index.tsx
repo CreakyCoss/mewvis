@@ -105,5 +105,12 @@ export const WorkspaceChat = () => {
     );
   }
 
-  return <Chat chatId={chatId} workspacePath={state.workspace.path} initialData={initialData} />;
+  return (
+    <Chat
+      chatId={chatId}
+      workspacePath={state.workspace.path}
+      initialData={initialData}
+      onStatusChange={({ chatId: statusChatId, isRunning }) => workspaceStore.setChatLoading(statusChatId, isRunning)}
+    />
+  );
 };

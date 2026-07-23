@@ -27,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useWorkspaceStore } from "@/features/pages/chats/home/workspace-store";
 import { isDefaultWorkspace } from "@/features/pages/workspace/default";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
 import { chatSessionKey, useChatSessionsStore } from "@/features/pages/chat/session-store";
@@ -193,10 +194,10 @@ export const SidebarSessions = ({ workspaces, isLoading, error }: SessionsProps)
   const navigate = useNavigate();
   const params = useParams();
   const { openEditWorkspace, deleteWorkspace, deletingWorkspaceId } = useWorkspaceOverview();
+  const workspaceStore = useWorkspaceStore();
   const sessionsByWorkspaceId = useChatSessionsStore((store) => store.sessionsByWorkspaceId);
   const loadingWorkspaceIds = useChatSessionsStore((store) => store.loadingWorkspaceIds);
   const errorByWorkspaceId = useChatSessionsStore((store) => store.errorByWorkspaceId);
-  const runningSessionKeys = useChatSessionsStore((store) => store.runningSessionKeys);
   const deletingSessionKeys = useChatSessionsStore((store) => store.deletingSessionKeys);
   const loadWorkspaceSessions = useChatSessionsStore((store) => store.loadWorkspaceSessions);
   const deleteSession = useChatSessionsStore((store) => store.deleteSession);
@@ -229,8 +230,7 @@ export const SidebarSessions = ({ workspaces, isLoading, error }: SessionsProps)
     });
   }, [loadWorkspaceSessions, workspaceSessionLoadKey]);
 
-  const isSessionRunning = (workspace: Workspace, session: ChatSessionMeta) =>
-    Boolean(runningSessionKeys[chatSessionKey(workspace.path, session.id)]);
+  const isSessionRunning = (session: ChatSessionMeta) => Boolean(workspaceStore.chatLoadingMap[session.id]);
 
   const isSessionDeleting = (workspace: Workspace, session: ChatSessionMeta) =>
     Boolean(deletingSessionKeys[chatSessionKey(workspace.path, session.id)]);
@@ -353,7 +353,7 @@ export const SidebarSessions = ({ workspaces, isLoading, error }: SessionsProps)
                             workspace={workspace}
                             session={session}
                             isDeleting={isSessionDeleting(workspace, session)}
-                            isRunning={isSessionRunning(workspace, session)}
+                            isRunning={isSessionRunning(session)}
                             onConfirmDelete={confirmDeleteSession}
                           />
                         ))}
@@ -405,7 +405,7 @@ export const SidebarSessions = ({ workspaces, isLoading, error }: SessionsProps)
                       workspace={defaultWorkspace}
                       session={session}
                       isDeleting={isSessionDeleting(defaultWorkspace, session)}
-                      isRunning={isSessionRunning(defaultWorkspace, session)}
+                      isRunning={isSessionRunning(session)}
                       onConfirmDelete={confirmDeleteSession}
                     />
                   ))}
