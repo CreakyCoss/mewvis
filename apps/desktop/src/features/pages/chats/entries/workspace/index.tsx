@@ -6,6 +6,7 @@ import type { Workspace } from "@/features/pages/workspace/types";
 import { Chat } from "../../chat";
 import type { ChatInitialData } from "../../chat/type";
 import type { ChatInputResources } from "../../components/chat-input/type";
+import { useWorkspaceStore } from "../../home/workspace-store";
 import { loadResources } from "../../resources";
 
 const defaultDisplayOptions = {
@@ -44,6 +45,7 @@ const loadWorkspace = async (workspaceId: string) => {
 
 export const WorkspaceChat = () => {
   const { workspaceId = "", chatId = "" } = useParams();
+  const workspaceStore = useWorkspaceStore();
   const [state, setState] = useState(initialState);
   const initialData = useMemo<ChatInitialData>(
     () => ({
@@ -68,6 +70,7 @@ export const WorkspaceChat = () => {
       .then(({ workspace, resources }) => {
         if (!cancelled) {
           setState({ workspace, resources, isLoading: false, error: "" });
+          workspaceStore.setCurrentWorkspace(workspace);
         }
       })
       .catch((error) => {
@@ -83,7 +86,7 @@ export const WorkspaceChat = () => {
     return () => {
       cancelled = true;
     };
-  }, [workspaceId]);
+  }, [workspaceId, workspaceStore.setCurrentWorkspace]);
 
   if (!workspaceId || !chatId) {
     return (
