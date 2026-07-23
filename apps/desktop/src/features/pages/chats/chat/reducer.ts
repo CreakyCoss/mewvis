@@ -9,9 +9,12 @@ type ChatEvent = Extract<
       | "replace_text"
       | "thinking_delta"
       | "thinking_end"
-      | "tool_start"
-      | "tool_update"
-      | "tool_end"
+      | "tool_call_start"
+      | "tool_call_delta"
+      | "tool_call_end"
+      | "tool_execution_start"
+      | "tool_execution_update"
+      | "tool_execution_end"
       | "done";
   }
 >;
@@ -57,6 +60,21 @@ const createToolEvent = (kind: ChatToolEvent["kind"], value: unknown, isError = 
   content: limitToolEventContent(stringifyToolValue(value)),
   ...(isError ? { isError: true } : {}),
 });
+
+const updateToolInput = (events: ChatToolEvent[], update: (content: string) => string) => {
+  const inputIndex = events.findIndex((event) => event.kind === "input");
+  if (inputIndex < 0) {
+    return [createToolEvent("input", update("")), ...events];
+  }
+
+  const inputEvent = events[inputIndex];
+  const nextEvents = [...events];
+  nextEvents[inputIndex] = {
+    ...inputEvent,
+    content: limitToolEventContent(update(inputEvent.content)),
+  };
+  return nextEvents;
+};
 
 const appendText = (message: ChatAssistantMessage, content: string) => {
   const blocks = [...message.blocks];
@@ -120,35 +138,97 @@ const finalizeThinking = (message: ChatAssistantMessage, content: string) => {
 
 const appendToolEvent = (
   message: ChatAssistantMessage,
-  event: Extract<ChatEvent, { type: "tool_start" | "tool_update" | "tool_end" }>,
+  event: Extract<
+    ChatEvent,
+    {
+      type:
+        | "tool_call_start"
+        | "tool_call_delta"
+        | "tool_call_end"
+        | "tool_execution_start"
+        | "tool_execution_update"
+        | "tool_execution_end";
+    }
+  >,
 ) => {
   const blocks = [...message.blocks];
+  const toolIndex = findLastBlockIndex(
+    blocks,
+    (block) => block.type === "tool" && block.toolCallId === event.toolCallId,
+  );
 
-  if (event.type === "tool_start") {
+  if (event.type === "tool_call_start") {
+    if (toolIndex >= 0) {
+      return blocks;
+    }
+
     blocks.push({
       id: createBlockId(),
       type: "tool",
+      toolCallId: event.toolCallId,
       name: event.toolName,
       status: "running",
-      events: [createToolEvent("input", event.args)],
+      events: [createToolEvent("input", "")],
     });
     return blocks;
   }
 
-  const runningToolIndex = findLastBlockIndex(
-    blocks,
-    (block) => block.type === "tool" && block.name === event.toolName && block.status === "running",
-  );
-  const status = event.type === "tool_end" ? (event.isError ? "error" : "done") : "running";
+  if (event.type === "tool_call_delta") {
+    if (toolIndex >= 0) {
+      const block = blocks[toolIndex];
+      if (block.type === "tool") {
+        blocks[toolIndex] = {
+          ...block,
+          events: updateToolInput(block.events, (content) => `${content}${event.delta}`),
+        };
+      }
+    } else {
+      blocks.push({
+        id: createBlockId(),
+        type: "tool",
+        toolCallId: event.toolCallId,
+        name: event.toolName,
+        status: "running",
+        events: [createToolEvent("input", event.delta)],
+      });
+    }
+    return blocks;
+  }
+
+  if (event.type === "tool_call_end" || event.type === "tool_execution_start") {
+    if (toolIndex >= 0) {
+      const block = blocks[toolIndex];
+      if (block.type === "tool") {
+        blocks[toolIndex] = {
+          ...block,
+          name: event.toolName,
+          status: "running",
+          events: updateToolInput(block.events, () => stringifyToolValue(event.args)),
+        };
+      }
+    } else {
+      blocks.push({
+        id: createBlockId(),
+        type: "tool",
+        toolCallId: event.toolCallId,
+        name: event.toolName,
+        status: "running",
+        events: [createToolEvent("input", event.args)],
+      });
+    }
+    return blocks;
+  }
+
+  const status = event.type === "tool_execution_end" ? (event.isError ? "error" : "done") : "running";
   const toolEvent =
-    event.type === "tool_update"
+    event.type === "tool_execution_update"
       ? createToolEvent("update", event.partialResult)
       : createToolEvent("output", event.result, event.isError);
 
-  if (runningToolIndex >= 0) {
-    const block = blocks[runningToolIndex];
+  if (toolIndex >= 0) {
+    const block = blocks[toolIndex];
     if (block.type === "tool") {
-      blocks[runningToolIndex] = {
+      blocks[toolIndex] = {
         ...block,
         status,
         events: [...block.events, toolEvent].slice(-TOOL_EVENT_HISTORY_LIMIT),
@@ -158,6 +238,7 @@ const appendToolEvent = (
     blocks.push({
       id: createBlockId(),
       type: "tool",
+      toolCallId: event.toolCallId,
       name: event.toolName,
       status,
       events: [toolEvent],
@@ -200,7 +281,14 @@ export const applyChatMessageEvent = (message: ChatAssistantMessage, event: Chat
     };
   }
 
-  if (event.type === "tool_start" || event.type === "tool_update" || event.type === "tool_end") {
+  if (
+    event.type === "tool_call_start" ||
+    event.type === "tool_call_delta" ||
+    event.type === "tool_call_end" ||
+    event.type === "tool_execution_start" ||
+    event.type === "tool_execution_update" ||
+    event.type === "tool_execution_end"
+  ) {
     return {
       ...message,
       blocks: appendToolEvent(message, event),

@@ -139,14 +139,14 @@ const AgentBlockListComponent = ({
                       </div>
                     )}
                   </div>
-                  {latestEvent?.type === "tool_end" && latestEvent.isError && (
+                  {latestEvent?.type === "tool_execution_end" && latestEvent.isError && (
                     <div className="bg-destructive/10 px-2.5 py-1 text-[11px] text-destructive">
                       工具执行失败，请展开查看最后几条输出。
                     </div>
                   )}
                 </div>
               </div>
-              {isCollapsed && latestEvent?.type === "tool_end" && latestEvent.isError && (
+              {isCollapsed && latestEvent?.type === "tool_execution_end" && latestEvent.isError && (
                 <div className="bg-destructive/10 px-2.5 py-1 text-[11px] text-destructive">工具执行失败</div>
               )}
             </div>

@@ -33,6 +33,7 @@ export type ChatAssistantMessageBlock =
   | {
       id: string;
       type: "tool";
+      toolCallId: string;
       name: string;
       events: ChatToolEvent[];
       status: "running" | "done" | "error";

@@ -97,7 +97,7 @@ const ToolBlockComponent = ({ block }: ToolBlockProps) => {
                 >
                   <div className="mb-0.5 text-[11px] font-medium">{toolEventLabel(event)}</div>
                   <div className="break-words font-mono whitespace-pre-wrap [overflow-wrap:anywhere]">
-                    {event.content || "无内容"}
+                    {event.content || (block.status === "running" ? "正在执行…" : "无内容")}
                   </div>
                 </div>
               ))

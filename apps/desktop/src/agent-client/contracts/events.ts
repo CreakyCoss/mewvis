@@ -118,9 +118,25 @@ export type AgentClientRuntimeAgentEvent =
     }
   | { type: "question_answered"; taskId: string; questionId: string; answer: string }
   | (AgentClientOutputEvent & { taskId: string })
-  | { type: "tool_start"; taskId: string; toolName: string; args: unknown }
-  | { type: "tool_update"; taskId: string; toolName: string; partialResult: unknown }
-  | { type: "tool_end"; taskId: string; toolName: string; isError: boolean; result: unknown }
+  | { type: "tool_call_start"; taskId: string; toolCallId: string; toolName: string }
+  | { type: "tool_call_delta"; taskId: string; toolCallId: string; toolName: string; delta: string }
+  | { type: "tool_call_end"; taskId: string; toolCallId: string; toolName: string; args: unknown }
+  | { type: "tool_execution_start"; taskId: string; toolCallId: string; toolName: string; args: unknown }
+  | {
+      type: "tool_execution_update";
+      taskId: string;
+      toolCallId: string;
+      toolName: string;
+      partialResult: unknown;
+    }
+  | {
+      type: "tool_execution_end";
+      taskId: string;
+      toolCallId: string;
+      toolName: string;
+      isError: boolean;
+      result: unknown;
+    }
   | { type: "error"; taskId?: string; message: string; raw?: string };
 
 export type AgentClientAgentEvent =

@@ -29,23 +29,47 @@ export class MockAgent implements AgentRuntime {
       delta: "Mock agent 正在生成模拟结果...\n",
     });
     await sleep(30);
+    const toolCallId = crypto.randomUUID();
     emit({
-      type: AgentEventType.ToolStart,
+      type: AgentEventType.ToolCallStart,
       taskId: command.taskId,
+      toolCallId,
+      toolName: "mock_tool",
+    });
+    emit({
+      type: AgentEventType.ToolCallDelta,
+      taskId: command.taskId,
+      toolCallId,
+      toolName: "mock_tool",
+      delta: '{"promptLength":',
+    });
+    emit({
+      type: AgentEventType.ToolCallEnd,
+      taskId: command.taskId,
+      toolCallId,
+      toolName: "mock_tool",
+      args: { promptLength: command.agentTaskPrompt.length },
+    });
+    emit({
+      type: AgentEventType.ToolExecutionStart,
+      taskId: command.taskId,
+      toolCallId,
       toolName: "mock_tool",
       args: { promptLength: command.agentTaskPrompt.length },
     });
     await sleep(30);
     emit({
-      type: AgentEventType.ToolUpdate,
+      type: AgentEventType.ToolExecutionUpdate,
       taskId: command.taskId,
+      toolCallId,
       toolName: "mock_tool",
       partialResult: "模拟工具执行中",
     });
     await sleep(30);
     emit({
-      type: AgentEventType.ToolEnd,
+      type: AgentEventType.ToolExecutionEnd,
       taskId: command.taskId,
+      toolCallId,
       toolName: "mock_tool",
       isError: false,
       result: "模拟工具执行完成",

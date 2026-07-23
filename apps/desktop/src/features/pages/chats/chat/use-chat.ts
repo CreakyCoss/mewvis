@@ -63,7 +63,7 @@ const createChatStore = () =>
 
 type StreamEvent = Extract<
   AgentClientAgentEvent,
-  { type: "text_delta" | "thinking_delta" | "thinking_end" | "replace_text" }
+  { type: "text_delta" | "thinking_delta" | "thinking_end" | "replace_text" | "tool_call_delta" }
 >;
 
 type UseChatInput = {
@@ -222,7 +222,8 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
         event.type === "text_delta" ||
         event.type === "thinking_delta" ||
         event.type === "thinking_end" ||
-        event.type === "replace_text"
+        event.type === "replace_text" ||
+        event.type === "tool_call_delta"
       ) {
         enqueueStreamEvent(event);
         return;
@@ -238,7 +239,13 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
         return;
       }
 
-      if (event.type === "tool_start" || event.type === "tool_update" || event.type === "tool_end") {
+      if (
+        event.type === "tool_call_start" ||
+        event.type === "tool_call_end" ||
+        event.type === "tool_execution_start" ||
+        event.type === "tool_execution_update" ||
+        event.type === "tool_execution_end"
+      ) {
         state.updateMessage(
           activeTurn.messageId,
           updateAssistantMessage((message) => applyChatMessageEvent(message, event)),
