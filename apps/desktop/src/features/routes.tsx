@@ -3,6 +3,8 @@ import { AppLayout } from "@/features/app/layout";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
 import { ChatPage } from "@/features/pages/chat";
 import { ChatHomePage } from "@/features/pages/chats/home";
+import { StoryChat } from "@/features/pages/chats/entries/story";
+import { WorkspaceChat } from "@/features/pages/chats/entries/workspace";
 import { HubPage } from "@/features/pages/hub";
 import { KnowledgePage } from "@/features/pages/knowledge";
 import { StoriesPage } from "@/features/pages/stories";
@@ -32,6 +34,8 @@ export const AppRoutes = () => (
       <Route path="chat/:workspaceId/new" element={<ChatPage />} />
       <Route path="chat/:workspaceId/session/:sessionId" element={<ChatPage />} />
       <Route path="chat-next" element={<ChatHomePage />} />
+      <Route path="chats/:workspaceId/:chatId" element={<WorkspaceChat />} />
+      <Route path="chats/story/:storyId/:chatId" element={<StoryChat />} />
       <Route path="skills" element={<SkillsPage />} />
       <Route path="knowledge" element={<KnowledgePage />} />
       <Route path="stories" element={<StoriesPage />} />

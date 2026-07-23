@@ -272,8 +272,8 @@ export const SidebarSessions = ({ workspaces, isLoading, error }: SessionsProps)
 
   const confirmDeleteSession = async (workspace: Workspace, session: ChatSessionMeta) => {
     await deleteSession(workspace, session.id);
-    if (params.workspaceId === workspace.id && params.sessionId === session.id) {
-      navigate(`/chat/${workspace.id}/new`, { replace: true });
+    if (params.workspaceId === workspace.id && (params.chatId === session.id || params.sessionId === session.id)) {
+      navigate("/chat-next", { replace: true });
     }
   };
 
@@ -349,7 +349,7 @@ export const SidebarSessions = ({ workspaces, isLoading, error }: SessionsProps)
                         {visibleSessions.map((session) => (
                           <SessionRow
                             key={session.id}
-                            to={`/chat/${workspace.id}/session/${session.id}`}
+                            to={`/chats/${workspace.id}/${session.id}`}
                             workspace={workspace}
                             session={session}
                             isDeleting={isSessionDeleting(workspace, session)}
@@ -401,7 +401,7 @@ export const SidebarSessions = ({ workspaces, isLoading, error }: SessionsProps)
                   {visibleDefaultSessions.map((session) => (
                     <SessionRow
                       key={session.id}
-                      to={`/chat/${defaultWorkspace.id}/session/${session.id}`}
+                      to={`/chats/${defaultWorkspace.id}/${session.id}`}
                       workspace={defaultWorkspace}
                       session={session}
                       isDeleting={isSessionDeleting(defaultWorkspace, session)}
