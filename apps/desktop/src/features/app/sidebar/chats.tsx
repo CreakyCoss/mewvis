@@ -49,6 +49,7 @@ type ChatRowProps = {
   workspace: Workspace;
   chat: ChatMeta;
   isRunning: boolean;
+  onOpen: (workspace: Workspace, chat: ChatMeta) => void;
   onConfirmDelete: (workspace: Workspace, chat: ChatMeta) => void;
 };
 
@@ -68,7 +69,7 @@ const EmptyState = ({ children }: { children: string }) => (
   <div className="px-3 py-2 text-sm text-muted-foreground/75">{children}</div>
 );
 
-const ChatRow = ({ to, workspace, chat, isRunning, onConfirmDelete }: ChatRowProps) => {
+const ChatRow = ({ to, workspace, chat, isRunning, onOpen, onConfirmDelete }: ChatRowProps) => {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   return (
@@ -76,6 +77,7 @@ const ChatRow = ({ to, workspace, chat, isRunning, onConfirmDelete }: ChatRowPro
       <NavLink
         to={to}
         title={`${chat.title}\n${chat.path}`}
+        onClick={() => onOpen(workspace, chat)}
         className={({ isActive }) =>
           cn(
             "flex h-9 min-w-0 items-center overflow-hidden rounded-md py-1 pr-3 pl-8 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted/55 hover:text-foreground group-hover/chat:bg-muted/55 group-hover/chat:text-foreground",
@@ -190,7 +192,8 @@ export const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps
     void workspaceStore.loadWorkspaces();
   }, [workspaceStore.loadWorkspaces]);
 
-  const isChatRunning = (chat: ChatMeta) => Boolean(workspaceStore.chatLoadingMap[chat.id]);
+  const isChatRunning = (workspace: Workspace, chat: ChatMeta) =>
+    Boolean(workspaceStore.chatLoadingMap[workspace.id]?.[chat.id]);
 
   const toggleWorkspace = (workspaceId: string) => {
     setExpandedWorkspaceIds((current) => {
@@ -231,6 +234,13 @@ export const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps
     if (params.workspaceId === workspace.id && params.chatId === chat.id) {
       navigate("/chat-next", { replace: true });
     }
+  };
+
+  const openChat = (workspace: Workspace, chat: ChatMeta) => {
+    workspaceStore.setCurrentChat({
+      workspaceId: workspace.id,
+      chatId: chat.id,
+    });
   };
 
   return (
@@ -307,7 +317,8 @@ export const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps
                             to={`/chats/${workspace.id}/${chat.id}`}
                             workspace={workspace}
                             chat={chat}
-                            isRunning={isChatRunning(chat)}
+                            isRunning={isChatRunning(workspace, chat)}
+                            onOpen={openChat}
                             onConfirmDelete={confirmDeleteChat}
                           />
                         ))}
@@ -353,7 +364,8 @@ export const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps
                       to={`/chats/${defaultWorkspace.id}/${chat.id}`}
                       workspace={defaultWorkspace}
                       chat={chat}
-                      isRunning={isChatRunning(chat)}
+                      isRunning={isChatRunning(defaultWorkspace, chat)}
+                      onOpen={openChat}
                       onConfirmDelete={confirmDeleteChat}
                     />
                   ))}

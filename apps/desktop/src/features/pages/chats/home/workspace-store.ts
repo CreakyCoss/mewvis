@@ -3,6 +3,7 @@ import {
   deleteChat as deleteChatApi,
   listChats,
   saveChat as saveChatApi,
+  setChatUnread as setChatUnreadApi,
   type ChatMeta,
   type ChatRecord,
   type SaveChatInput,
@@ -29,17 +30,26 @@ export type Workspace = {
   updatedAt: number;
 };
 
+type CurrentChat = {
+  workspaceId: string;
+  chatId: string;
+};
+
+type ChatLoadingMap = Record<string, Record<string, boolean>>;
+
 type WorkspaceStore = {
   workspaces: Workspace[];
   currentWorkspace: Workspace | null;
+  currentChat: CurrentChat | null;
   resources: ChatInputResources;
   chatsByWorkspaceId: Record<string, ChatMeta[]>;
-  chatLoadingMap: Record<string, boolean>;
+  chatLoadingMap: ChatLoadingMap;
   isLoading: boolean;
   error: string;
   setCurrentWorkspace: (workspace: Workspace | null) => void;
+  setCurrentChat: (chat: CurrentChat | null) => void;
   saveChat: (workspace: Workspace, input: Omit<SaveChatInput, "workspacePath">) => Promise<ChatRecord>;
-  setChatLoading: (chatId: string, isLoading: boolean) => void;
+  setChatLoading: (workspaceId: string, chatId: string, isLoading: boolean) => void;
   deleteChat: (workspace: Workspace, chatId: string) => Promise<void>;
   loadWorkspaces: () => Promise<void>;
   refreshWorkspaces: () => Promise<void>;
@@ -88,6 +98,43 @@ const mergeChatMeta = (chats: ChatMeta[], chat: ChatMeta) => {
   return sortChats([nextChat, ...chats.filter((item) => item.id !== chat.id)]);
 };
 
+const updateChatUnread = (chats: ChatMeta[], chatId: string, isUnread: boolean) =>
+  chats.map((chat) => (chat.id === chatId ? { ...chat, isUnread } : chat));
+
+const updateChatLoading = (chatLoadingMap: ChatLoadingMap, workspaceId: string, chatId: string, isLoading: boolean) => {
+  const nextMap = { ...chatLoadingMap };
+  const workspaceChatLoadingMap = { ...nextMap[workspaceId] };
+
+  if (isLoading) {
+    workspaceChatLoadingMap[chatId] = true;
+  } else {
+    delete workspaceChatLoadingMap[chatId];
+  }
+
+  if (Object.keys(workspaceChatLoadingMap).length > 0) {
+    nextMap[workspaceId] = workspaceChatLoadingMap;
+  } else {
+    delete nextMap[workspaceId];
+  }
+
+  return nextMap;
+};
+
+const keepCurrentChatRead = (chatsByWorkspaceId: Record<string, ChatMeta[]>, currentChat: CurrentChat | null) => {
+  if (!currentChat) {
+    return chatsByWorkspaceId;
+  }
+
+  return {
+    ...chatsByWorkspaceId,
+    [currentChat.workspaceId]: updateChatUnread(
+      chatsByWorkspaceId[currentChat.workspaceId] ?? [],
+      currentChat.chatId,
+      false,
+    ),
+  };
+};
+
 const resolveCurrentWorkspace = (workspaces: Workspace[], currentWorkspace: Workspace | null) =>
   workspaces.find((workspace) => workspace.id === currentWorkspace?.id) ??
   workspaces.find((workspace) => workspace.isDefault) ??
@@ -119,6 +166,7 @@ const fetchWorkspaces = async (currentWorkspace: Workspace | null, previousWorks
 export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
   workspaces: [],
   currentWorkspace: null,
+  currentChat: null,
   resources: {},
   chatsByWorkspaceId: {},
   chatLoadingMap: {},
@@ -135,6 +183,36 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
         set({ resources });
       }
     });
+  },
+  setCurrentChat: (chat) => {
+    if (!chat) {
+      set({ currentChat: null });
+      return;
+    }
+
+    const workspace =
+      get().workspaces.find((item) => item.id === chat.workspaceId) ??
+      (get().currentWorkspace?.id === chat.workspaceId ? get().currentWorkspace : null);
+
+    set((state) => ({
+      currentChat: chat,
+      chatsByWorkspaceId: {
+        ...state.chatsByWorkspaceId,
+        [chat.workspaceId]: updateChatUnread(state.chatsByWorkspaceId[chat.workspaceId] ?? [], chat.chatId, false),
+      },
+    }));
+
+    if (workspace) {
+      void setChatUnreadApi({
+        workspacePath: workspace.path,
+        chatId: chat.chatId,
+        isUnread: false,
+      }).catch((error) => {
+        set({
+          error: getErrorMessage(error, "对话已读状态更新失败，请重试。"),
+        });
+      });
+    }
   },
   saveChat: async (workspace, input) => {
     set({ error: "" });
@@ -162,35 +240,58 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
       throw error;
     }
   },
-  setChatLoading: (chatId, isLoading) => {
-    set((state) => {
-      const chatLoadingMap = { ...state.chatLoadingMap };
-      if (isLoading) {
-        chatLoadingMap[chatId] = true;
-      } else {
-        delete chatLoadingMap[chatId];
+  setChatLoading: (workspaceId, chatId, isLoading) => {
+    const wasLoading = Boolean(get().chatLoadingMap[workspaceId]?.[chatId]);
+    const shouldMarkUnread =
+      wasLoading &&
+      !isLoading &&
+      (get().currentChat?.chatId !== chatId || get().currentChat?.workspaceId !== workspaceId);
+    const workspace =
+      get().workspaces.find((item) => item.id === workspaceId) ??
+      (get().currentWorkspace?.id === workspaceId ? get().currentWorkspace : null);
+
+    set((state) => ({
+      chatLoadingMap: updateChatLoading(state.chatLoadingMap, workspaceId, chatId, isLoading),
+      chatsByWorkspaceId: shouldMarkUnread
+        ? {
+            ...state.chatsByWorkspaceId,
+            [workspaceId]: updateChatUnread(state.chatsByWorkspaceId[workspaceId] ?? [], chatId, true),
+          }
+        : state.chatsByWorkspaceId,
+    }));
+
+    if (shouldMarkUnread) {
+      if (!workspace) {
+        return;
       }
 
-      return { chatLoadingMap };
-    });
+      void setChatUnreadApi({
+        workspacePath: workspace.path,
+        chatId,
+        isUnread: true,
+      }).catch((error) => {
+        set({
+          error: getErrorMessage(error, "对话未读状态更新失败，请重试。"),
+        });
+      });
+    }
   },
   deleteChat: async (workspace, chatId) => {
     const previousChats = get().chatsByWorkspaceId[workspace.id] ?? [];
     const deletedChat = previousChats.find((chat) => chat.id === chatId);
-    const wasLoading = Boolean(get().chatLoadingMap[chatId]);
-    set((state) => {
-      const chatLoadingMap = { ...state.chatLoadingMap };
-      delete chatLoadingMap[chatId];
-
-      return {
-        chatsByWorkspaceId: {
-          ...state.chatsByWorkspaceId,
-          [workspace.id]: previousChats.filter((chat) => chat.id !== chatId),
-        },
-        chatLoadingMap,
-        error: "",
-      };
-    });
+    const wasLoading = Boolean(get().chatLoadingMap[workspace.id]?.[chatId]);
+    set((state) => ({
+      chatsByWorkspaceId: {
+        ...state.chatsByWorkspaceId,
+        [workspace.id]: previousChats.filter((chat) => chat.id !== chatId),
+      },
+      chatLoadingMap: updateChatLoading(state.chatLoadingMap, workspace.id, chatId, false),
+      currentChat:
+        state.currentChat?.chatId === chatId && state.currentChat.workspaceId === workspace.id
+          ? null
+          : state.currentChat,
+      error: "",
+    }));
 
     try {
       await deleteChatApi(workspace.path, chatId);
@@ -203,10 +304,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
             : (state.chatsByWorkspaceId[workspace.id] ?? []),
         },
         chatLoadingMap: wasLoading
-          ? {
-              ...state.chatLoadingMap,
-              [chatId]: true,
-            }
+          ? updateChatLoading(state.chatLoadingMap, workspace.id, chatId, true)
           : state.chatLoadingMap,
         error: getErrorMessage(error, "对话删除失败，请重试。"),
       }));
@@ -224,12 +322,14 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 
       set({
         ...result,
+        chatsByWorkspaceId: keepCurrentChatRead(result.chatsByWorkspaceId, get().currentChat),
         isLoading: false,
       });
     } catch (error) {
       set({
         workspaces: [],
         currentWorkspace: null,
+        currentChat: null,
         resources: {},
         chatsByWorkspaceId: {},
         isLoading: false,
@@ -246,6 +346,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 
       set({
         ...result,
+        chatsByWorkspaceId: keepCurrentChatRead(result.chatsByWorkspaceId, get().currentChat),
         isLoading: false,
       });
     } catch (error) {
@@ -287,10 +388,14 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 
       set((state) => {
         const chatsByWorkspaceId = { ...state.chatsByWorkspaceId };
+        const chatLoadingMap = { ...state.chatLoadingMap };
         delete chatsByWorkspaceId[workspaceId];
+        delete chatLoadingMap[workspaceId];
         return {
           workspaces,
           chatsByWorkspaceId,
+          chatLoadingMap,
+          currentChat: state.currentChat?.workspaceId === workspaceId ? null : state.currentChat,
         };
       });
 

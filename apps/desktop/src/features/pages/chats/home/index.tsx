@@ -40,6 +40,7 @@ export const ChatHomePage = () => {
       });
       setChat({
         chatId: savedChat.id,
+        workspaceId: workspace.id,
         workspacePath: workspace.path,
         initialData: {
           request: initialRequest,
