@@ -49,7 +49,6 @@ type ChatRowProps = {
   workspace: Workspace;
   chat: ChatMeta;
   isRunning: boolean;
-  onOpen: (workspace: Workspace, chat: ChatMeta) => void;
   onConfirmDelete: (workspace: Workspace, chat: ChatMeta) => void;
 };
 
@@ -69,7 +68,7 @@ const EmptyState = ({ children }: { children: string }) => (
   <div className="px-3 py-2 text-sm text-muted-foreground/75">{children}</div>
 );
 
-const ChatRow = ({ to, workspace, chat, isRunning, onOpen, onConfirmDelete }: ChatRowProps) => {
+const ChatRow = ({ to, workspace, chat, isRunning, onConfirmDelete }: ChatRowProps) => {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   return (
@@ -77,7 +76,6 @@ const ChatRow = ({ to, workspace, chat, isRunning, onOpen, onConfirmDelete }: Ch
       <NavLink
         to={to}
         title={`${chat.title}\n${chat.path}`}
-        onClick={() => onOpen(workspace, chat)}
         className={({ isActive }) =>
           cn(
             "flex h-9 min-w-0 items-center overflow-hidden rounded-md py-1 pr-3 pl-8 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted/55 hover:text-foreground group-hover/chat:bg-muted/55 group-hover/chat:text-foreground",
@@ -236,13 +234,6 @@ export const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps
     }
   };
 
-  const openChat = (workspace: Workspace, chat: ChatMeta) => {
-    workspaceStore.setCurrentChat({
-      workspaceId: workspace.id,
-      chatId: chat.id,
-    });
-  };
-
   return (
     <>
       <ScrollArea className="min-h-0 flex-1">
@@ -318,7 +309,6 @@ export const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps
                             workspace={workspace}
                             chat={chat}
                             isRunning={isChatRunning(workspace, chat)}
-                            onOpen={openChat}
                             onConfirmDelete={confirmDeleteChat}
                           />
                         ))}
@@ -365,7 +355,6 @@ export const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps
                       workspace={defaultWorkspace}
                       chat={chat}
                       isRunning={isChatRunning(defaultWorkspace, chat)}
-                      onOpen={openChat}
                       onConfirmDelete={confirmDeleteChat}
                     />
                   ))}

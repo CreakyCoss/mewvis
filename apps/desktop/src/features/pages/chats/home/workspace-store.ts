@@ -14,6 +14,7 @@ import {
   listWorkspaces,
   updateWorkspace as updateWorkspaceApi,
 } from "@/api/workspace";
+import type { ChatInitialData } from "../chat/type";
 import type { ChatInputResources } from "../components/chat-input/type";
 import { loadResources } from "../resources";
 
@@ -35,12 +36,17 @@ type CurrentChat = {
   chatId: string;
 };
 
+export type OpenChat = CurrentChat & {
+  initialData?: ChatInitialData;
+};
+
 type ChatLoadingMap = Record<string, Record<string, boolean>>;
 
 type WorkspaceStore = {
   workspaces: Workspace[];
   currentWorkspace: Workspace | null;
   currentChat: CurrentChat | null;
+  openChats: OpenChat[];
   resources: ChatInputResources;
   chatsByWorkspaceId: Record<string, ChatMeta[]>;
   chatLoadingMap: ChatLoadingMap;
@@ -48,6 +54,7 @@ type WorkspaceStore = {
   error: string;
   setCurrentWorkspace: (workspace: Workspace | null) => void;
   setCurrentChat: (chat: CurrentChat | null) => void;
+  openChat: (chat: OpenChat) => void;
   saveChat: (workspace: Workspace, input: Omit<SaveChatInput, "workspacePath">) => Promise<ChatRecord>;
   setChatLoading: (workspaceId: string, chatId: string, isLoading: boolean) => void;
   deleteChat: (workspace: Workspace, chatId: string) => Promise<void>;
@@ -100,6 +107,9 @@ const mergeChatMeta = (chats: ChatMeta[], chat: ChatMeta) => {
 
 const updateChatUnread = (chats: ChatMeta[], chatId: string, isUnread: boolean) =>
   chats.map((chat) => (chat.id === chatId ? { ...chat, isUnread } : chat));
+
+const isSameChat = (left: CurrentChat | null, right: CurrentChat) =>
+  left?.workspaceId === right.workspaceId && left.chatId === right.chatId;
 
 const updateChatLoading = (chatLoadingMap: ChatLoadingMap, workspaceId: string, chatId: string, isLoading: boolean) => {
   const nextMap = { ...chatLoadingMap };
@@ -167,6 +177,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
   workspaces: [],
   currentWorkspace: null,
   currentChat: null,
+  openChats: [],
   resources: {},
   chatsByWorkspaceId: {},
   chatLoadingMap: {},
@@ -214,6 +225,27 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
       });
     }
   },
+  openChat: (chat) => {
+    set((state) => {
+      const existingChat = state.openChats.find((item) => isSameChat(item, chat));
+      const openChats = state.openChats.filter(
+        (item) => isSameChat(item, chat) || state.chatLoadingMap[item.workspaceId]?.[item.chatId],
+      );
+
+      if (!existingChat) {
+        return { openChats: [...openChats, chat] };
+      }
+
+      return {
+        openChats: chat.initialData
+          ? openChats.map((item) => (isSameChat(item, chat) ? { ...item, initialData: chat.initialData } : item))
+          : openChats,
+      };
+    });
+    if (!isSameChat(get().currentChat, chat)) {
+      get().setCurrentChat(chat);
+    }
+  },
   saveChat: async (workspace, input) => {
     set({ error: "" });
     try {
@@ -250,15 +282,19 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
       get().workspaces.find((item) => item.id === workspaceId) ??
       (get().currentWorkspace?.id === workspaceId ? get().currentWorkspace : null);
 
-    set((state) => ({
-      chatLoadingMap: updateChatLoading(state.chatLoadingMap, workspaceId, chatId, isLoading),
-      chatsByWorkspaceId: shouldMarkUnread
-        ? {
-            ...state.chatsByWorkspaceId,
-            [workspaceId]: updateChatUnread(state.chatsByWorkspaceId[workspaceId] ?? [], chatId, true),
-          }
-        : state.chatsByWorkspaceId,
-    }));
+    set((state) => {
+      const chatLoadingMap = updateChatLoading(state.chatLoadingMap, workspaceId, chatId, isLoading);
+
+      return {
+        chatLoadingMap,
+        chatsByWorkspaceId: shouldMarkUnread
+          ? {
+              ...state.chatsByWorkspaceId,
+              [workspaceId]: updateChatUnread(state.chatsByWorkspaceId[workspaceId] ?? [], chatId, true),
+            }
+          : state.chatsByWorkspaceId,
+      };
+    });
 
     if (shouldMarkUnread) {
       if (!workspace) {
@@ -286,6 +322,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
         [workspace.id]: previousChats.filter((chat) => chat.id !== chatId),
       },
       chatLoadingMap: updateChatLoading(state.chatLoadingMap, workspace.id, chatId, false),
+      openChats: state.openChats.filter((chat) => chat.workspaceId !== workspace.id || chat.chatId !== chatId),
       currentChat:
         state.currentChat?.chatId === chatId && state.currentChat.workspaceId === workspace.id
           ? null
@@ -330,6 +367,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
         workspaces: [],
         currentWorkspace: null,
         currentChat: null,
+        openChats: [],
         resources: {},
         chatsByWorkspaceId: {},
         isLoading: false,
@@ -395,6 +433,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
           workspaces,
           chatsByWorkspaceId,
           chatLoadingMap,
+          openChats: state.openChats.filter((chat) => chat.workspaceId !== workspaceId),
           currentChat: state.currentChat?.workspaceId === workspaceId ? null : state.currentChat,
         };
       });
