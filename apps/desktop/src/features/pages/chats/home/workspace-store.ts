@@ -42,6 +42,8 @@ export type OpenChat = CurrentChat & {
 
 type ChatLoadingMap = Record<string, Record<string, boolean>>;
 
+const MAX_OPEN_CHAT_COUNT = 5;
+
 type WorkspaceStore = {
   workspaces: Workspace[];
   currentWorkspace: Workspace | null;
@@ -227,19 +229,32 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
   },
   openChat: (chat) => {
     set((state) => {
-      const existingChat = state.openChats.find((item) => isSameChat(item, chat));
-      const openChats = state.openChats.filter(
-        (item) => isSameChat(item, chat) || state.chatLoadingMap[item.workspaceId]?.[item.chatId],
-      );
+      const existingChatIndex = state.openChats.findIndex((item) => isSameChat(item, chat));
+      if (existingChatIndex >= 0) {
+        if (!chat.initialData) {
+          return state;
+        }
 
-      if (!existingChat) {
-        return { openChats: [...openChats, chat] };
+        return {
+          openChats: state.openChats.map((item, index) =>
+            index === existingChatIndex ? { ...item, initialData: chat.initialData } : item,
+          ),
+        };
       }
 
+      if (state.openChats.length < MAX_OPEN_CHAT_COUNT) {
+        return { openChats: [...state.openChats, chat] };
+      }
+
+      const removableChatIndex = state.openChats.findIndex(
+        (item) => !isSameChat(state.currentChat, item) && !state.chatLoadingMap[item.workspaceId]?.[item.chatId],
+      );
+
       return {
-        openChats: chat.initialData
-          ? openChats.map((item) => (isSameChat(item, chat) ? { ...item, initialData: chat.initialData } : item))
-          : openChats,
+        openChats:
+          removableChatIndex >= 0
+            ? [...state.openChats.filter((_, index) => index !== removableChatIndex), chat]
+            : [...state.openChats, chat],
       };
     });
     if (!isSameChat(get().currentChat, chat)) {
