@@ -1,54 +1,70 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type { ChatMessage as LegacyChatMessage, ChatSession, ChatSessionMeta } from "@/features/pages/chat/types";
 import { getCurrentTimestamp } from "@/utils/time";
 
-type ChatSessionData<TMessage> = Omit<ChatSession, "messages"> & {
-  messages: TMessage[];
+export type ChatMeta = {
+  id: string;
+  title: string;
+  path: string;
+  createdAt: number;
+  updatedAt: number;
+  messageCount: number;
+  isUnread?: boolean;
 };
 
-export async function listChatSessions(workspacePath: string) {
+export type ChatRecord<TMessage = unknown> = {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messages: TMessage[];
+  isUnread?: boolean;
+};
+
+export type SaveChatInput<TMessage = unknown> = {
+  workspacePath: string;
+  chatId?: string | null;
+  title?: string | null;
+  messages: TMessage[];
+  isUnread?: boolean;
+};
+
+export async function listChats(workspacePath: string) {
   if (!isTauri()) {
     return [];
   }
 
-  return invoke<ChatSessionMeta[]>("list_chat_sessions", {
+  return invoke<ChatMeta[]>("list_chats", {
     input: { workspacePath },
   });
 }
 
-export async function loadChatSession<TMessage = LegacyChatMessage>(workspacePath: string, sessionId?: string | null) {
+export async function loadChat<TMessage = unknown>(workspacePath: string, chatId?: string | null) {
   if (!isTauri()) {
     return null;
   }
 
-  return invoke<ChatSessionData<TMessage> | null>("load_chat_session", {
-    input: { workspacePath, sessionId },
+  return invoke<ChatRecord<TMessage> | null>("load_chat", {
+    input: { workspacePath, chatId },
   });
 }
 
-export async function saveChatSession<TMessage = LegacyChatMessage>(input: {
-  workspacePath: string;
-  sessionId?: string | null;
-  title?: string | null;
-  messages: TMessage[];
-  isUnread?: boolean;
-}) {
+export async function saveChat<TMessage = unknown>(input: SaveChatInput<TMessage>) {
   if (!isTauri()) {
     const now = getCurrentTimestamp();
     return {
-      id: input.sessionId ?? crypto.randomUUID(),
+      id: input.chatId ?? crypto.randomUUID(),
       title: input.title ?? "新的聊天",
       createdAt: now,
       updatedAt: now,
       messages: input.messages,
       isUnread: input.isUnread ?? false,
-    } satisfies ChatSessionData<TMessage>;
+    } satisfies ChatRecord<TMessage>;
   }
 
-  return invoke<ChatSessionData<TMessage>>("save_chat_session", {
+  return invoke<ChatRecord<TMessage>>("save_chat", {
     input: {
       workspacePath: input.workspacePath,
-      sessionId: input.sessionId,
+      chatId: input.chatId,
       title: input.title,
       messages: input.messages,
       isUnread: input.isUnread,
@@ -56,20 +72,20 @@ export async function saveChatSession<TMessage = LegacyChatMessage>(input: {
   });
 }
 
-export async function setChatSessionUnread(input: { workspacePath: string; sessionId: string; isUnread: boolean }) {
+export async function setChatUnread(input: { workspacePath: string; chatId: string; isUnread: boolean }) {
   if (!isTauri()) {
     return null;
   }
 
-  return invoke<ChatSessionMeta>("set_chat_session_unread", { input });
+  return invoke<ChatMeta>("set_chat_unread", { input });
 }
 
-export async function deleteChatSession(workspacePath: string, sessionId: string) {
+export async function deleteChat(workspacePath: string, chatId: string) {
   if (!isTauri()) {
     return [];
   }
 
-  return invoke<ChatSessionMeta[]>("delete_chat_session", {
-    input: { workspacePath, sessionId },
+  return invoke<ChatMeta[]>("delete_chat", {
+    input: { workspacePath, chatId },
   });
 }

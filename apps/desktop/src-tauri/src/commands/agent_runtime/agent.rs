@@ -18,7 +18,7 @@ use uuid::Uuid;
 pub struct RunAgentRuntimeAgentInput {
     task_id: Option<String>,
     workspace_path: String,
-    chat_session_id: Option<String>,
+    chat_id: Option<String>,
     session_root_dir: Option<String>,
     agent_role_id: Option<String>,
     user_message: String,
@@ -164,7 +164,7 @@ fn session_key_for_task(
     let session_scope = session_root_dir
         .or_else(|| {
             input
-                .chat_session_id
+                .chat_id
                 .as_deref()
                 .filter(|value| !value.trim().is_empty())
         })

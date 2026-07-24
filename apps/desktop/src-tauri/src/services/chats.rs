@@ -20,26 +20,26 @@ const MESSAGES_FILE_NAME: &str = "messages.json";
 const LEGACY_CONVERSATION_FILE_NAME: &str = "conversation.json";
 const LEGACY_CONTEXT_FILE_NAME: &str = "context.json";
 const LEGACY_TRACE_FILE_NAME: &str = "trace.json";
-static SESSION_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
+static CHAT_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ChatSessionPathInput {
+pub struct ChatPathInput {
     pub workspace_path: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LoadChatSessionInput {
+pub struct LoadChatInput {
     pub workspace_path: String,
-    pub session_id: Option<String>,
+    pub chat_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SaveChatSessionInput {
+pub struct SaveChatInput {
     pub workspace_path: String,
-    pub session_id: Option<String>,
+    pub chat_id: Option<String>,
     pub title: Option<String>,
     pub messages: Value,
     #[serde(default)]
@@ -48,22 +48,22 @@ pub struct SaveChatSessionInput {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DeleteChatSessionInput {
+pub struct DeleteChatInput {
     pub workspace_path: String,
-    pub session_id: String,
+    pub chat_id: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SetChatSessionUnreadInput {
+pub struct SetChatUnreadInput {
     pub workspace_path: String,
-    pub session_id: String,
+    pub chat_id: String,
     pub is_unread: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ChatSessionMeta {
+pub struct ChatMeta {
     pub id: String,
     pub title: String,
     pub path: String,
@@ -75,7 +75,7 @@ pub struct ChatSessionMeta {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ChatSession {
+pub struct ChatRecord {
     pub id: String,
     pub title: String,
     pub created_at: i64,
@@ -85,13 +85,13 @@ pub struct ChatSession {
     pub is_unread: bool,
 }
 
-pub fn list_chat_sessions(input: ChatSessionPathInput) -> Result<Vec<ChatSessionMeta>, String> {
+pub fn list_chats(input: ChatPathInput) -> Result<Vec<ChatMeta>, String> {
     let dir = chat_dir(&input.workspace_path)?;
     if !dir.exists() {
         return Ok(Vec::new());
     }
 
-    let mut sessions = Vec::new();
+    let mut chats = Vec::new();
     for entry in fs::read_dir(&dir).map_err(|error| format!("无法读取聊天记录：{error}"))?
     {
         let entry = entry.map_err(|error| format!("无法读取聊天记录项：{error}"))?;
@@ -103,72 +103,66 @@ pub fn list_chat_sessions(input: ChatSessionPathInput) -> Result<Vec<ChatSession
         if !path.is_dir() {
             continue;
         }
-        if is_legacy_session_dir(&path) {
+        if is_legacy_chat_dir(&path) {
             fs::remove_dir_all(&path).map_err(|error| format!("无法删除旧聊天记录：{error}"))?;
             continue;
         }
 
         let meta_path = path.join(META_FILE_NAME);
-        let meta = match read_json_file::<ChatSessionMeta>(&meta_path) {
+        let meta = match read_json_file::<ChatMeta>(&meta_path) {
             Ok(meta) => meta,
             Err(_) => continue,
         };
-        sessions.push(meta);
+        chats.push(meta);
     }
 
-    sessions.sort_by(|left, right| {
+    chats.sort_by(|left, right| {
         right
             .created_at
             .cmp(&left.created_at)
             .then_with(|| right.id.cmp(&left.id))
     });
-    Ok(sessions)
+    Ok(chats)
 }
 
-pub fn load_chat_session(input: LoadChatSessionInput) -> Result<Option<ChatSession>, String> {
-    let session_id =
-        if let Some(session_id) = input.session_id.filter(|value| !value.trim().is_empty()) {
-            Some(session_id)
-        } else {
-            list_chat_sessions(ChatSessionPathInput {
-                workspace_path: input.workspace_path.clone(),
-            })?
-            .first()
-            .map(|session| session.id.clone())
-        };
-    let Some(session_id) = session_id else {
+pub fn load_chat(input: LoadChatInput) -> Result<Option<ChatRecord>, String> {
+    let chat_id = if let Some(chat_id) = input.chat_id.filter(|value| !value.trim().is_empty()) {
+        Some(chat_id)
+    } else {
+        list_chats(ChatPathInput {
+            workspace_path: input.workspace_path.clone(),
+        })?
+        .first()
+        .map(|chat| chat.id.clone())
+    };
+    let Some(chat_id) = chat_id else {
         return Ok(None);
     };
 
-    load_session_from_dir(&input.workspace_path, &session_id)
+    load_chat_from_dir(&input.workspace_path, &chat_id)
 }
 
-pub fn save_chat_session(input: SaveChatSessionInput) -> Result<ChatSession, String> {
+pub fn save_chat(input: SaveChatInput) -> Result<ChatRecord, String> {
     let dir = chat_dir(&input.workspace_path)?;
     fs::create_dir_all(&dir).map_err(|error| format!("无法创建聊天记录目录：{error}"))?;
 
     let now = now_millis()?;
     let title = normalize_title(input.title.as_deref(), &input.messages);
     let requested_id = input
-        .session_id
+        .chat_id
         .as_deref()
         .map(sanitize_session_id)
         .transpose()?;
-    let existing = requested_id.as_deref().and_then(|id| {
-        load_existing_session(&input.workspace_path, id)
-            .ok()
-            .flatten()
-    });
-    let created_at = existing
-        .as_ref()
-        .map(|session| session.created_at)
-        .unwrap_or(now);
+    let existing = requested_id
+        .as_deref()
+        .and_then(|id| load_existing_chat(&input.workspace_path, id).ok().flatten());
+    let created_at = existing.as_ref().map(|chat| chat.created_at).unwrap_or(now);
     let id = existing
         .as_ref()
-        .map(|session| session.id.clone())
+        .map(|chat| chat.id.clone())
         .or(requested_id)
-        .unwrap_or_else(|| create_fallback_session_id(created_at, &title));
-    let session = ChatSession {
+        .unwrap_or_else(|| create_fallback_chat_id(created_at, &title));
+    let chat = ChatRecord {
         id,
         title,
         created_at,
@@ -176,62 +170,57 @@ pub fn save_chat_session(input: SaveChatSessionInput) -> Result<ChatSession, Str
         messages: input.messages,
         is_unread: input.is_unread.unwrap_or(false),
     };
-    write_session_files(&input.workspace_path, &session)?;
-    Ok(session)
+    write_chat_files(&input.workspace_path, &chat)?;
+    Ok(chat)
 }
 
-pub fn delete_chat_session(input: DeleteChatSessionInput) -> Result<Vec<ChatSessionMeta>, String> {
-    let path = session_dir(&input.workspace_path, &input.session_id)?;
+pub fn delete_chat(input: DeleteChatInput) -> Result<Vec<ChatMeta>, String> {
+    let path = chat_record_dir(&input.workspace_path, &input.chat_id)?;
     if path.exists() {
         fs::remove_dir_all(path).map_err(|error| format!("无法删除聊天记录：{error}"))?;
     }
 
-    agent_sessions::delete_agent_sessions_for_chat(&input.workspace_path, &input.session_id)?;
+    agent_sessions::delete_agent_sessions_for_chat(&input.workspace_path, &input.chat_id)?;
 
-    list_chat_sessions(ChatSessionPathInput {
+    list_chats(ChatPathInput {
         workspace_path: input.workspace_path,
     })
 }
 
-pub fn set_chat_session_unread(
-    input: SetChatSessionUnreadInput,
-) -> Result<ChatSessionMeta, String> {
-    let session_dir = session_dir(&input.workspace_path, &input.session_id)?;
-    let meta_path = session_dir.join(META_FILE_NAME);
+pub fn set_chat_unread(input: SetChatUnreadInput) -> Result<ChatMeta, String> {
+    let chat_record_dir = chat_record_dir(&input.workspace_path, &input.chat_id)?;
+    let meta_path = chat_record_dir.join(META_FILE_NAME);
     if !meta_path.exists() {
         return Err("未找到这条聊天记录".to_string());
     }
 
-    let mut meta = read_json_file::<ChatSessionMeta>(&meta_path)
+    let mut meta = read_json_file::<ChatMeta>(&meta_path)
         .map_err(|error| format!("无法解析聊天记录元数据：{error}"))?;
     meta.is_unread = input.is_unread;
     write_json_file(&meta_path, &meta)?;
     Ok(meta)
 }
 
-fn load_existing_session(
-    workspace_path: &str,
-    session_id: &str,
-) -> Result<Option<ChatSession>, String> {
-    load_chat_session(LoadChatSessionInput {
+fn load_existing_chat(workspace_path: &str, chat_id: &str) -> Result<Option<ChatRecord>, String> {
+    load_chat(LoadChatInput {
         workspace_path: workspace_path.to_string(),
-        session_id: Some(session_id.to_string()),
+        chat_id: Some(chat_id.to_string()),
     })
 }
 
-fn session_meta(session: &ChatSession) -> ChatSessionMeta {
-    ChatSessionMeta {
-        id: session.id.clone(),
-        title: session.title.clone(),
-        path: format!("{}/{}/{}", chat_dir_display(), session.id, META_FILE_NAME),
-        created_at: session.created_at,
-        updated_at: session.updated_at,
-        message_count: session
+fn chat_meta(chat: &ChatRecord) -> ChatMeta {
+    ChatMeta {
+        id: chat.id.clone(),
+        title: chat.title.clone(),
+        path: format!("{}/{}/{}", chat_dir_display(), chat.id, META_FILE_NAME),
+        created_at: chat.created_at,
+        updated_at: chat.updated_at,
+        message_count: chat
             .messages
             .as_array()
             .map(|items| items.len())
             .unwrap_or(0),
-        is_unread: session.is_unread,
+        is_unread: chat.is_unread,
     }
 }
 
@@ -247,23 +236,20 @@ fn chat_dir_display() -> String {
     )
 }
 
-fn session_dir(workspace_path: &str, session_id: &str) -> Result<PathBuf, String> {
-    let id = sanitize_session_id(session_id)?;
+fn chat_record_dir(workspace_path: &str, chat_id: &str) -> Result<PathBuf, String> {
+    let id = sanitize_session_id(chat_id)?;
     let dir = chat_dir(workspace_path)?;
     let path = dir.join(id);
     ensure_under_root(&dir, &path)?;
     Ok(path)
 }
 
-fn load_session_from_dir(
-    workspace_path: &str,
-    session_id: &str,
-) -> Result<Option<ChatSession>, String> {
-    let dir = session_dir(workspace_path, session_id)?;
+fn load_chat_from_dir(workspace_path: &str, chat_id: &str) -> Result<Option<ChatRecord>, String> {
+    let dir = chat_record_dir(workspace_path, chat_id)?;
     if !dir.exists() {
         return Ok(None);
     }
-    if is_legacy_session_dir(&dir) {
+    if is_legacy_chat_dir(&dir) {
         fs::remove_dir_all(&dir).map_err(|error| format!("无法删除旧聊天记录：{error}"))?;
         return Ok(None);
     }
@@ -273,12 +259,12 @@ fn load_session_from_dir(
         return Ok(None);
     }
 
-    let meta = read_json_file::<ChatSessionMeta>(&meta_path)
+    let meta = read_json_file::<ChatMeta>(&meta_path)
         .map_err(|error| format!("无法解析聊天记录元数据：{error}"))?;
     let messages = read_json_file::<Value>(&dir.join(MESSAGES_FILE_NAME))
         .map_err(|error| format!("无法读取聊天消息：{error}"))?;
 
-    Ok(Some(ChatSession {
+    Ok(Some(ChatRecord {
         id: meta.id,
         title: meta.title,
         created_at: meta.created_at,
@@ -288,23 +274,23 @@ fn load_session_from_dir(
     }))
 }
 
-fn write_session_files(workspace_path: &str, session: &ChatSession) -> Result<(), String> {
-    let dir = session_dir(workspace_path, &session.id)?;
+fn write_chat_files(workspace_path: &str, chat: &ChatRecord) -> Result<(), String> {
+    let dir = chat_record_dir(workspace_path, &chat.id)?;
     fs::create_dir_all(&dir).map_err(|error| format!("无法创建聊天记录目录：{error}"))?;
 
-    write_json_file(&dir.join(MESSAGES_FILE_NAME), &session.messages)?;
-    remove_legacy_session_files(&dir)?;
-    write_json_file(&dir.join(META_FILE_NAME), &session_meta(session))?;
+    write_json_file(&dir.join(MESSAGES_FILE_NAME), &chat.messages)?;
+    remove_legacy_chat_files(&dir)?;
+    write_json_file(&dir.join(META_FILE_NAME), &chat_meta(chat))?;
     Ok(())
 }
 
-fn is_legacy_session_dir(dir: &Path) -> bool {
+fn is_legacy_chat_dir(dir: &Path) -> bool {
     dir.join(LEGACY_CONVERSATION_FILE_NAME).exists()
         || dir.join(LEGACY_CONTEXT_FILE_NAME).exists()
         || dir.join(LEGACY_TRACE_FILE_NAME).exists()
 }
 
-fn remove_legacy_session_files(dir: &Path) -> Result<(), String> {
+fn remove_legacy_chat_files(dir: &Path) -> Result<(), String> {
     for file_name in [
         LEGACY_CONVERSATION_FILE_NAME,
         LEGACY_CONTEXT_FILE_NAME,
@@ -375,8 +361,8 @@ fn slugify_title(title: &str) -> String {
     }
 }
 
-fn create_fallback_session_id(created_at: i64, title: &str) -> String {
-    let sequence = SESSION_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+fn create_fallback_chat_id(created_at: i64, title: &str) -> String {
+    let sequence = CHAT_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
     format!("chat-{created_at}-{sequence:04}-{}", slugify_title(title))
 }
 
@@ -412,8 +398,8 @@ mod tests {
             self.path.to_string_lossy().to_string()
         }
 
-        fn chat_session_dir(&self, session_id: &str) -> PathBuf {
-            workspace_app_data_dir(&self.path).join(session_id)
+        fn agent_session_dir(&self, session_root_dir: &str) -> PathBuf {
+            workspace_app_data_dir(&self.path).join(session_root_dir)
         }
     }
 
@@ -423,10 +409,10 @@ mod tests {
         }
     }
 
-    fn save_test_session(workspace: &TestWorkspace, session_id: &str) -> ChatSession {
-        save_chat_session(SaveChatSessionInput {
+    fn save_test_chat(workspace: &TestWorkspace, chat_id: &str) -> ChatRecord {
+        save_chat(SaveChatInput {
             workspace_path: workspace.path_string(),
-            session_id: Some(session_id.to_string()),
+            chat_id: Some(chat_id.to_string()),
             title: Some("测试聊天".to_string()),
             messages: json!([
                 {
@@ -436,59 +422,59 @@ mod tests {
             ]),
             is_unread: None,
         })
-        .expect("save chat session")
+        .expect("save chat")
     }
 
     #[test]
-    fn save_chat_session_uses_requested_session_id() {
+    fn save_chat_uses_requested_chat_id() {
         let workspace = TestWorkspace::new("save-requested-id");
-        let session = save_test_session(&workspace, "chat-test");
+        let chat = save_test_chat(&workspace, "chat-test");
 
-        assert_eq!(session.id, "chat-test");
-        let session_dir = workspace.path.join(chat_dir_display()).join("chat-test");
-        assert!(session_dir.join(META_FILE_NAME).exists());
-        assert!(session_dir.join(MESSAGES_FILE_NAME).exists());
-        assert!(!session_dir.join(LEGACY_CONVERSATION_FILE_NAME).exists());
+        assert_eq!(chat.id, "chat-test");
+        let chat_dir = workspace.path.join(chat_dir_display()).join("chat-test");
+        assert!(chat_dir.join(META_FILE_NAME).exists());
+        assert!(chat_dir.join(MESSAGES_FILE_NAME).exists());
+        assert!(!chat_dir.join(LEGACY_CONVERSATION_FILE_NAME).exists());
     }
 
     #[test]
-    fn delete_chat_session_removes_agent_session_dir() {
+    fn delete_chat_removes_agent_session_dir() {
         let workspace = TestWorkspace::new("delete-agent-session");
-        save_test_session(&workspace, "chat-delete");
+        save_test_chat(&workspace, "chat-delete");
         let agent_dir =
-            workspace.chat_session_dir("chats/chat-delete/sessions/writer-agent/session-test");
+            workspace.agent_session_dir("chats/chat-delete/sessions/writer-agent/session-test");
         fs::create_dir_all(&agent_dir).expect("create agent session dir");
         fs::write(agent_dir.join("session.jsonl"), "{}\n").expect("write agent session");
 
-        delete_chat_session(DeleteChatSessionInput {
+        delete_chat(DeleteChatInput {
             workspace_path: workspace.path_string(),
-            session_id: "chat-delete".to_string(),
+            chat_id: "chat-delete".to_string(),
         })
-        .expect("delete chat session");
+        .expect("delete chat");
 
         assert!(!agent_dir.exists());
     }
 
     #[test]
-    fn set_chat_session_unread_keeps_updated_at() {
+    fn set_chat_unread_keeps_updated_at() {
         let workspace = TestWorkspace::new("set-unread");
-        let session = save_test_session(&workspace, "chat-unread");
-        let meta = set_chat_session_unread(SetChatSessionUnreadInput {
+        let chat = save_test_chat(&workspace, "chat-unread");
+        let meta = set_chat_unread(SetChatUnreadInput {
             workspace_path: workspace.path_string(),
-            session_id: session.id.clone(),
+            chat_id: chat.id.clone(),
             is_unread: true,
         })
         .expect("set unread");
 
         assert!(meta.is_unread);
-        assert_eq!(meta.updated_at, session.updated_at);
+        assert_eq!(meta.updated_at, chat.updated_at);
 
-        let loaded = load_chat_session(LoadChatSessionInput {
+        let loaded = load_chat(LoadChatInput {
             workspace_path: workspace.path_string(),
-            session_id: Some(session.id),
+            chat_id: Some(chat.id),
         })
-        .expect("load session")
-        .expect("session exists");
+        .expect("load chat")
+        .expect("chat exists");
         assert!(loaded.is_unread);
         assert_eq!(loaded.updated_at, meta.updated_at);
     }

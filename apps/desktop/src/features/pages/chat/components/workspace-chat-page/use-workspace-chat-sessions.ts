@@ -7,7 +7,7 @@ import {
   type SetStateAction,
   type MutableRefObject,
 } from "react";
-import { listChatSessions, loadChatSession, saveChatSession, setChatSessionUnread } from "@/api/chat";
+import { listChats, loadChat, saveChat, setChatUnread } from "@/api/chat";
 import type { Workspace } from "@/features/pages/workspace/types";
 import { useChatSessionsStore } from "../../session-store";
 import type { ChatMessage } from "../../types";
@@ -84,9 +84,9 @@ export const useWorkspaceChatSessions = ({
   const markSessionRead = useCallback(
     (workspacePath: string, sessionId: string) => {
       setSessionUnread(workspace.id, sessionId, false);
-      void setChatSessionUnread({
+      void setChatUnread({
         workspacePath,
-        sessionId,
+        chatId: sessionId,
         isUnread: false,
       }).catch((caught) => {
         setSessionsError(String(caught));
@@ -122,9 +122,9 @@ export const useWorkspaceChatSessions = ({
       if (runningTask) {
         applyActiveAgentTaskState(runningTask, { restoreTerminalState: false });
       } else if (session?.id && hydratedMessages !== storedMessages) {
-        void saveChatSession({
+        void saveChat({
           workspacePath: workspace.path,
-          sessionId: session.id,
+          chatId: session.id,
           title: session.title,
           messages: hydratedMessages,
           isUnread: false,
@@ -168,10 +168,12 @@ export const useWorkspaceChatSessions = ({
     const shouldStartEmptySession = isRouteNewSession;
 
     try {
-      const sessions = await listChatSessions(workspace.path);
+      const sessions = await listChats(workspace.path);
       const targetSessionId = sessionIdToLoad ?? sessions[0]?.id ?? null;
       const targetSession =
-        shouldStartEmptySession || !targetSessionId ? null : await loadChatSession(workspace.path, targetSessionId);
+        shouldStartEmptySession || !targetSessionId
+          ? null
+          : await loadChat<ChatMessage>(workspace.path, targetSessionId);
       if (sessionsRequestIdRef.current !== requestId) {
         return;
       }
@@ -261,9 +263,9 @@ export const useWorkspaceChatSessions = ({
     saveSessionTimerRef.current = window.setTimeout(() => {
       setSessionsError("");
 
-      void saveChatSession({
+      void saveChat({
         workspacePath: workspace.path,
-        sessionId: currentSessionId,
+        chatId: currentSessionId,
         title,
         messages,
         isUnread: false,

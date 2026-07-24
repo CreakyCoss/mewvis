@@ -11,6 +11,8 @@ export const ChatHomePage = () => {
   const workspaceStore = useWorkspaceStore();
   const workspaceDialogRef = useRef<WorkspaceDialogHandle>(null);
   const [chat, setChat] = useState<HomeChatProps | null>(null);
+  const [createChatError, setCreateChatError] = useState("");
+  const [isCreatingChat, setIsCreatingChat] = useState(false);
   const [displayOptions, setDisplayOptions] = useState<ChatDisplayOptions>({
     showThinkingProcess: true,
     showToolCallProcess: true,
@@ -20,20 +22,36 @@ export const ChatHomePage = () => {
     void workspaceStore.loadWorkspaces();
   }, [workspaceStore.loadWorkspaces]);
 
-  const submitPrompt = (initialRequest: ChatInputSubmitPayload) => {
+  const submitPrompt = async (initialRequest: ChatInputSubmitPayload) => {
     if (!workspaceStore.currentWorkspace) {
       return;
     }
 
-    setChat({
-      chatId: createTimestampId("chat"),
-      workspacePath: workspaceStore.currentWorkspace.path,
-      initialData: {
-        request: initialRequest,
-        resources: workspaceStore.resources,
-        displayOptions,
-      },
-    });
+    const workspace = workspaceStore.currentWorkspace;
+    const chatId = createTimestampId("chat");
+    setCreateChatError("");
+    setIsCreatingChat(true);
+
+    try {
+      const savedChat = await workspaceStore.saveChat(workspace, {
+        chatId,
+        title: initialRequest.text,
+        messages: [],
+      });
+      setChat({
+        chatId: savedChat.id,
+        workspacePath: workspace.path,
+        initialData: {
+          request: initialRequest,
+          resources: workspaceStore.resources,
+          displayOptions,
+        },
+      });
+    } catch (error) {
+      setCreateChatError(error instanceof Error ? error.message : "新建对话失败，请重试。");
+    } finally {
+      setIsCreatingChat(false);
+    }
   };
 
   if (chat) {
@@ -73,7 +91,7 @@ export const ChatHomePage = () => {
                 <ChatInput
                   resources={workspaceStore.resources}
                   displayOptions={displayOptions}
-                  disabled={workspaceStore.isLoading || !workspaceStore.currentWorkspace}
+                  disabled={workspaceStore.isLoading || isCreatingChat || !workspaceStore.currentWorkspace}
                   placeholder={
                     workspaceStore.currentWorkspace
                       ? `询问关于 ${workspaceStore.currentWorkspace.name} 的任何问题`
@@ -82,6 +100,10 @@ export const ChatHomePage = () => {
                   onDisplayOptionsChange={setDisplayOptions}
                   onSubmit={submitPrompt}
                 />
+
+                {createChatError ? (
+                  <div className="mx-auto w-full max-w-[69rem] px-1 text-sm text-destructive">{createChatError}</div>
+                ) : null}
 
                 <WorkspacePicker onCreateWorkspace={() => workspaceDialogRef.current?.()} />
               </div>

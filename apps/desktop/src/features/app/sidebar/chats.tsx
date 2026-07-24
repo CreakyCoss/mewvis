@@ -8,7 +8,7 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useNavigate, useParams } from "react-router";
 import {
   AlertDialog,
@@ -27,36 +27,33 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { WorkspaceDialog, type WorkspaceDialogHandle } from "@/features/pages/chats/components/workspace-dialog";
 import { useWorkspaceStore } from "@/features/pages/chats/home/workspace-store";
 import { isDefaultWorkspace } from "@/features/pages/workspace/default";
-import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
-import { chatSessionKey, useChatSessionsStore } from "@/features/pages/chat/session-store";
-import type { ChatSessionMeta } from "@/features/pages/chat/types";
-import { formatSessionTime } from "@/features/pages/chat/utils/sessions";
+import type { ChatMeta } from "@/api/chat";
 import type { Workspace } from "@/features/pages/workspace/types";
 import { cn } from "@/lib/utils";
+import { formatRelativeTime } from "@/utils/time";
 
-const DEFAULT_VISIBLE_SESSION_LIMIT = 5;
-const WORKSPACE_VISIBLE_SESSION_LIMIT = 4;
+const DEFAULT_VISIBLE_CHAT_LIMIT = 5;
+const WORKSPACE_VISIBLE_CHAT_LIMIT = 4;
 
-type SessionsProps = {
+type SidebarChatsProps = {
   workspaces: Workspace[];
   isLoading: boolean;
   error: string;
 };
 
-type SessionRowProps = {
+type ChatRowProps = {
   to: string;
   workspace: Workspace;
-  session: ChatSessionMeta;
-  isDeleting: boolean;
+  chat: ChatMeta;
   isRunning: boolean;
-  onConfirmDelete: (workspace: Workspace, session: ChatSessionMeta) => Promise<void>;
+  onConfirmDelete: (workspace: Workspace, chat: ChatMeta) => void;
 };
 
 type WorkspaceActionsProps = {
   workspace: Workspace;
-  isDeleting: boolean;
   onEdit: (workspace: Workspace) => void;
   onRequestDelete: (workspace: Workspace) => void;
 };
@@ -71,73 +68,58 @@ const EmptyState = ({ children }: { children: string }) => (
   <div className="px-3 py-2 text-sm text-muted-foreground/75">{children}</div>
 );
 
-const SessionRow = ({ to, workspace, session, isDeleting, isRunning, onConfirmDelete }: SessionRowProps) => {
+const ChatRow = ({ to, workspace, chat, isRunning, onConfirmDelete }: ChatRowProps) => {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   return (
-    <div
-      className="group/session relative min-w-0"
-      onMouseLeave={() => {
-        if (!isDeleting) {
-          setIsConfirmingDelete(false);
-        }
-      }}
-    >
+    <div className="group/chat relative min-w-0" onMouseLeave={() => setIsConfirmingDelete(false)}>
       <NavLink
         to={to}
-        title={`${session.title}\n${session.path}`}
+        title={`${chat.title}\n${chat.path}`}
         className={({ isActive }) =>
           cn(
-            "flex h-9 min-w-0 items-center overflow-hidden rounded-md py-1 pr-3 pl-8 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted/55 hover:text-foreground group-hover/session:bg-muted/55 group-hover/session:text-foreground",
+            "flex h-9 min-w-0 items-center overflow-hidden rounded-md py-1 pr-3 pl-8 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted/55 hover:text-foreground group-hover/chat:bg-muted/55 group-hover/chat:text-foreground",
             isActive && "bg-muted/55 text-foreground",
           )
         }
       >
-        <span className="min-w-0 flex-1 truncate">{session.title}</span>
-        <span className="ml-2 flex h-7 w-12 shrink-0 items-center justify-end whitespace-nowrap text-xs font-medium tabular-nums text-muted-foreground/80 group-hover/session:opacity-0 group-focus-within/session:opacity-0">
+        <span className="min-w-0 flex-1 truncate">{chat.title}</span>
+        <span className="ml-2 flex h-7 w-12 shrink-0 items-center justify-end whitespace-nowrap text-xs font-medium tabular-nums text-muted-foreground/80 group-hover/chat:opacity-0 group-focus-within/chat:opacity-0">
           {isRunning ? (
             <LoaderCircle className="size-3.5 animate-spin" aria-label="处理中" />
-          ) : session.isUnread ? (
+          ) : chat.isUnread ? (
             <span className="mt-1 block size-2 rounded-full bg-primary" aria-label="未读消息" />
           ) : (
-            formatSessionTime(session.updatedAt)
+            formatRelativeTime(chat.updatedAt)
           )}
         </span>
       </NavLink>
       <button
         type="button"
         className={cn(
-          "absolute top-1/2 right-2 z-10 flex -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none select-none hover:bg-background/75 hover:text-destructive focus-visible:ring-2 focus-visible:ring-primary/25 group-hover/session:opacity-100 focus-visible:opacity-100 disabled:cursor-default",
+          "absolute top-1/2 right-2 z-10 flex -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none select-none hover:bg-background/75 hover:text-destructive focus-visible:ring-2 focus-visible:ring-primary/25 group-hover/chat:opacity-100 focus-visible:opacity-100 disabled:cursor-default",
           isConfirmingDelete
             ? "h-5 w-8 rounded-sm bg-destructive/10 px-1 py-0 text-[11px] font-semibold leading-none text-destructive opacity-100 hover:bg-destructive/15 hover:text-destructive"
             : "size-7",
-          isDeleting && "size-7 opacity-100",
         )}
         title={isConfirmingDelete ? "确认删除对话" : "删除对话"}
-        aria-label={`${isConfirmingDelete ? "确认删除对话" : "删除对话"} ${session.title}`}
-        disabled={isDeleting}
+        aria-label={`${isConfirmingDelete ? "确认删除对话" : "删除对话"} ${chat.title}`}
         onClick={() => {
           if (!isConfirmingDelete) {
             setIsConfirmingDelete(true);
             return;
           }
 
-          void onConfirmDelete(workspace, session);
+          onConfirmDelete(workspace, chat);
         }}
       >
-        {isDeleting ? (
-          <LoaderCircle className="size-3.5 animate-spin" />
-        ) : isConfirmingDelete ? (
-          "确定"
-        ) : (
-          <Trash2 className="size-3.5" />
-        )}
+        {isConfirmingDelete ? "确定" : <Trash2 className="size-3.5" />}
       </button>
     </div>
   );
 };
 
-const WorkspaceActions = ({ workspace, isDeleting, onEdit, onRequestDelete }: WorkspaceActionsProps) => {
+const WorkspaceActions = ({ workspace, onEdit, onRequestDelete }: WorkspaceActionsProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -145,13 +127,9 @@ const WorkspaceActions = ({ workspace, isDeleting, onEdit, onRequestDelete }: Wo
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className={cn(
-            "absolute top-1/2 right-1.5 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none select-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/25 data-[state=open]:text-foreground data-[state=open]:opacity-100 group-hover/workspace:opacity-100 focus-visible:opacity-100 disabled:cursor-default",
-            isDeleting && "opacity-100",
-          )}
+          className="absolute top-1/2 right-1.5 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none select-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/25 data-[state=open]:text-foreground data-[state=open]:opacity-100 group-hover/workspace:opacity-100 focus-visible:opacity-100"
           title="工作区操作"
           aria-label={`${workspace.name} 操作`}
-          disabled={isDeleting}
         >
           <MoreHorizontal className="size-4" />
         </button>
@@ -177,7 +155,6 @@ const WorkspaceActions = ({ workspace, isDeleting, onEdit, onRequestDelete }: Wo
           className="flex size-8 items-center justify-center rounded-md p-0"
           title="删除工作区"
           aria-label="删除工作区"
-          disabled={isDeleting}
           onSelect={() => {
             setIsOpen(false);
             onRequestDelete(workspace);
@@ -190,50 +167,30 @@ const WorkspaceActions = ({ workspace, isDeleting, onEdit, onRequestDelete }: Wo
   );
 };
 
-export const SidebarSessions = ({ workspaces, isLoading, error }: SessionsProps) => {
+export const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps) => {
   const navigate = useNavigate();
   const params = useParams();
-  const { openEditWorkspace, deleteWorkspace, deletingWorkspaceId } = useWorkspaceOverview();
   const workspaceStore = useWorkspaceStore();
-  const sessionsByWorkspaceId = useChatSessionsStore((store) => store.sessionsByWorkspaceId);
-  const loadingWorkspaceIds = useChatSessionsStore((store) => store.loadingWorkspaceIds);
-  const errorByWorkspaceId = useChatSessionsStore((store) => store.errorByWorkspaceId);
-  const deletingSessionKeys = useChatSessionsStore((store) => store.deletingSessionKeys);
-  const loadWorkspaceSessions = useChatSessionsStore((store) => store.loadWorkspaceSessions);
-  const deleteSession = useChatSessionsStore((store) => store.deleteSession);
+  const workspaceDialogRef = useRef<WorkspaceDialogHandle>(null);
   const [expandedWorkspaceIds, setExpandedWorkspaceIds] = useState<Set<string>>(() => new Set());
   const [collapsedWorkspaceIds, setCollapsedWorkspaceIds] = useState<Set<string>>(() => new Set());
-  const [showAllDefaultSessions, setShowAllDefaultSessions] = useState(false);
+  const [showAllDefaultChats, setShowAllDefaultChats] = useState(false);
   const [workspacePendingDelete, setWorkspacePendingDelete] = useState<Workspace | null>(null);
   const defaultWorkspace = useMemo(() => workspaces.find(isDefaultWorkspace) ?? null, [workspaces]);
   const projectWorkspaces = useMemo(
     () => workspaces.filter((workspace) => !isDefaultWorkspace(workspace)),
     [workspaces],
   );
-  const defaultSessions = defaultWorkspace ? (sessionsByWorkspaceId[defaultWorkspace.id] ?? []) : [];
-  const workspaceSessionLoadKey = useMemo(
-    () => workspaces.map((workspace) => `${workspace.id}:${workspace.path}`).join("\u0000"),
-    [workspaces],
-  );
-  const isSessionsLoading = workspaces.some((workspace) => loadingWorkspaceIds[workspace.id]);
-  const sessionsError = defaultWorkspace
-    ? (errorByWorkspaceId[defaultWorkspace.id] ?? "")
-    : (Object.values(errorByWorkspaceId).find(Boolean) ?? "");
-  const visibleDefaultSessions = showAllDefaultSessions
-    ? defaultSessions
-    : defaultSessions.slice(0, DEFAULT_VISIBLE_SESSION_LIMIT);
-  const hiddenDefaultSessionCount = Math.max(defaultSessions.length - visibleDefaultSessions.length, 0);
+  const defaultChats = defaultWorkspace ? (workspaceStore.chatsByWorkspaceId[defaultWorkspace.id] ?? []) : [];
+  const isChatsLoading = workspaceStore.isLoading;
+  const visibleDefaultChats = showAllDefaultChats ? defaultChats : defaultChats.slice(0, DEFAULT_VISIBLE_CHAT_LIMIT);
+  const hiddenDefaultChatCount = Math.max(defaultChats.length - visibleDefaultChats.length, 0);
 
   useEffect(() => {
-    workspaces.forEach((workspace) => {
-      void loadWorkspaceSessions(workspace);
-    });
-  }, [loadWorkspaceSessions, workspaceSessionLoadKey]);
+    void workspaceStore.loadWorkspaces();
+  }, [workspaceStore.loadWorkspaces]);
 
-  const isSessionRunning = (session: ChatSessionMeta) => Boolean(workspaceStore.chatLoadingMap[session.id]);
-
-  const isSessionDeleting = (workspace: Workspace, session: ChatSessionMeta) =>
-    Boolean(deletingSessionKeys[chatSessionKey(workspace.path, session.id)]);
+  const isChatRunning = (chat: ChatMeta) => Boolean(workspaceStore.chatLoadingMap[chat.id]);
 
   const toggleWorkspace = (workspaceId: string) => {
     setExpandedWorkspaceIds((current) => {
@@ -247,7 +204,7 @@ export const SidebarSessions = ({ workspaces, isLoading, error }: SessionsProps)
     });
   };
 
-  const toggleWorkspaceSessions = (workspaceId: string) => {
+  const toggleWorkspaceChats = (workspaceId: string) => {
     setCollapsedWorkspaceIds((current) => {
       const next = new Set(current);
       if (next.has(workspaceId)) {
@@ -259,20 +216,19 @@ export const SidebarSessions = ({ workspaces, isLoading, error }: SessionsProps)
     });
   };
 
-  const confirmDeleteWorkspace = async () => {
+  const confirmDeleteWorkspace = () => {
     if (!workspacePendingDelete) {
       return;
     }
 
-    const deleted = await deleteWorkspace(workspacePendingDelete);
-    if (deleted) {
-      setWorkspacePendingDelete(null);
-    }
+    const workspaceId = workspacePendingDelete.id;
+    setWorkspacePendingDelete(null);
+    void workspaceStore.deleteWorkspace(workspaceId);
   };
 
-  const confirmDeleteSession = async (workspace: Workspace, session: ChatSessionMeta) => {
-    await deleteSession(workspace, session.id);
-    if (params.workspaceId === workspace.id && (params.chatId === session.id || params.sessionId === session.id)) {
+  const confirmDeleteChat = (workspace: Workspace, chat: ChatMeta) => {
+    void workspaceStore.deleteChat(workspace, chat.id);
+    if (params.workspaceId === workspace.id && params.chatId === chat.id) {
       navigate("/chat-next", { replace: true });
     }
   };
@@ -296,15 +252,15 @@ export const SidebarSessions = ({ workspaces, isLoading, error }: SessionsProps)
                 </div>
               ) : projectWorkspaces.length ? (
                 projectWorkspaces.map((workspace) => {
-                  const sessions = sessionsByWorkspaceId[workspace.id] ?? [];
+                  const chats = workspaceStore.chatsByWorkspaceId[workspace.id] ?? [];
                   const isExpanded = expandedWorkspaceIds.has(workspace.id);
                   const isCollapsed = collapsedWorkspaceIds.has(workspace.id);
-                  const visibleSessions = isCollapsed
+                  const visibleChats = isCollapsed
                     ? []
                     : isExpanded
-                      ? sessions
-                      : sessions.slice(0, WORKSPACE_VISIBLE_SESSION_LIMIT);
-                  const hiddenCount = Math.max(sessions.length - visibleSessions.length, 0);
+                      ? chats
+                      : chats.slice(0, WORKSPACE_VISIBLE_CHAT_LIMIT);
+                  const hiddenCount = Math.max(chats.length - visibleChats.length, 0);
 
                   return (
                     <div key={workspace.id} className="min-w-0 space-y-1">
@@ -322,7 +278,7 @@ export const SidebarSessions = ({ workspaces, isLoading, error }: SessionsProps)
                           <Folder className="size-4 shrink-0 text-muted-foreground" />
                           <span className="block min-w-0 flex-1 truncate text-base font-medium">{workspace.name}</span>
                         </NavLink>
-                        {sessions.length > 0 && (
+                        {chats.length > 0 && (
                           <button
                             type="button"
                             className={cn(
@@ -332,32 +288,30 @@ export const SidebarSessions = ({ workspaces, isLoading, error }: SessionsProps)
                             title={isCollapsed ? "展开会话" : "折叠会话"}
                             aria-label={`${workspace.name} ${isCollapsed ? "展开会话" : "折叠会话"}`}
                             aria-expanded={!isCollapsed}
-                            onClick={() => toggleWorkspaceSessions(workspace.id)}
+                            onClick={() => toggleWorkspaceChats(workspace.id)}
                           >
                             {isCollapsed ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
                           </button>
                         )}
                         <WorkspaceActions
                           workspace={workspace}
-                          isDeleting={deletingWorkspaceId === workspace.id}
-                          onEdit={openEditWorkspace}
+                          onEdit={(targetWorkspace) => workspaceDialogRef.current?.(targetWorkspace)}
                           onRequestDelete={setWorkspacePendingDelete}
                         />
                       </div>
 
                       <div className="space-y-0.5">
-                        {visibleSessions.map((session) => (
-                          <SessionRow
-                            key={session.id}
-                            to={`/chats/${workspace.id}/${session.id}`}
+                        {visibleChats.map((chat) => (
+                          <ChatRow
+                            key={chat.id}
+                            to={`/chats/${workspace.id}/${chat.id}`}
                             workspace={workspace}
-                            session={session}
-                            isDeleting={isSessionDeleting(workspace, session)}
-                            isRunning={isSessionRunning(session)}
-                            onConfirmDelete={confirmDeleteSession}
+                            chat={chat}
+                            isRunning={isChatRunning(chat)}
+                            onConfirmDelete={confirmDeleteChat}
                           />
                         ))}
-                        {!isCollapsed && sessions.length > WORKSPACE_VISIBLE_SESSION_LIMIT && (
+                        {!isCollapsed && chats.length > WORKSPACE_VISIBLE_CHAT_LIMIT && (
                           <button
                             type="button"
                             className="flex h-8 w-full items-center gap-1.5 rounded-md py-1 pr-3 pl-9 text-left text-xs font-medium text-muted-foreground/75 transition-colors hover:bg-muted/55 hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:outline-none"
@@ -386,39 +340,33 @@ export const SidebarSessions = ({ workspaces, isLoading, error }: SessionsProps)
           <section className="space-y-3">
             <SectionHeader label="对话" />
             <div className="space-y-2">
-              {sessionsError && (
-                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
-                  {sessionsError}
-                </div>
-              )}
-              {isSessionsLoading && defaultSessions.length === 0 ? (
+              {isChatsLoading && defaultChats.length === 0 ? (
                 <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
                   <LoaderCircle className="size-4 animate-spin" />
                   <span>正在读取对话</span>
                 </div>
-              ) : visibleDefaultSessions.length && defaultWorkspace ? (
+              ) : visibleDefaultChats.length && defaultWorkspace ? (
                 <>
-                  {visibleDefaultSessions.map((session) => (
-                    <SessionRow
-                      key={session.id}
-                      to={`/chats/${defaultWorkspace.id}/${session.id}`}
+                  {visibleDefaultChats.map((chat) => (
+                    <ChatRow
+                      key={chat.id}
+                      to={`/chats/${defaultWorkspace.id}/${chat.id}`}
                       workspace={defaultWorkspace}
-                      session={session}
-                      isDeleting={isSessionDeleting(defaultWorkspace, session)}
-                      isRunning={isSessionRunning(session)}
-                      onConfirmDelete={confirmDeleteSession}
+                      chat={chat}
+                      isRunning={isChatRunning(chat)}
+                      onConfirmDelete={confirmDeleteChat}
                     />
                   ))}
-                  {defaultSessions.length > DEFAULT_VISIBLE_SESSION_LIMIT && (
+                  {defaultChats.length > DEFAULT_VISIBLE_CHAT_LIMIT && (
                     <button
                       type="button"
                       className="group flex h-8 w-full items-center gap-1.5 rounded-md px-3 py-1 text-left text-xs font-medium text-muted-foreground/70 transition-colors hover:bg-muted/55 hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:outline-none"
-                      onClick={() => setShowAllDefaultSessions((current) => !current)}
+                      onClick={() => setShowAllDefaultChats((current) => !current)}
                     >
                       <span className="min-w-0 truncate">
-                        {showAllDefaultSessions ? "收起较早对话" : `展开更多 ${hiddenDefaultSessionCount} 条`}
+                        {showAllDefaultChats ? "收起较早对话" : `展开更多 ${hiddenDefaultChatCount} 条`}
                       </span>
-                      {showAllDefaultSessions ? (
+                      {showAllDefaultChats ? (
                         <ChevronUp className="size-3.5 shrink-0" />
                       ) : (
                         <ChevronDown className="size-3.5 shrink-0" />
@@ -436,7 +384,7 @@ export const SidebarSessions = ({ workspaces, isLoading, error }: SessionsProps)
       <AlertDialog
         open={Boolean(workspacePendingDelete)}
         onOpenChange={(open) => {
-          if (!open && !deletingWorkspaceId) {
+          if (!open) {
             setWorkspacePendingDelete(null);
           }
         }}
@@ -449,20 +397,20 @@ export const SidebarSessions = ({ workspaces, isLoading, error }: SessionsProps)
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={Boolean(deletingWorkspaceId)}>取消</AlertDialogCancel>
+            <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              disabled={Boolean(deletingWorkspaceId)}
               onClick={(event) => {
                 event.preventDefault();
-                void confirmDeleteWorkspace();
+                confirmDeleteWorkspace();
               }}
             >
-              {deletingWorkspaceId ? "正在删除" : "删除"}
+              删除
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <WorkspaceDialog bind={workspaceDialogRef} />
     </>
   );
 };

@@ -1,16 +1,16 @@
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
+import { useWorkspaceStore } from "@/features/pages/chats/home/workspace-store";
 import { isDefaultWorkspace } from "@/features/pages/workspace/default";
 import { APP_DISPLAY_NAME } from "@/product-config";
 import { PrimaryNav, UtilityNav } from "./nav";
-import { SidebarSessions } from "./sessions";
+import { SidebarChats } from "./chats";
 
 export const AppSidebar = () => {
-  const { overview, isLoading, error, activeWorkspace, defaultWorkspace } = useWorkspaceOverview();
+  const workspaceStore = useWorkspaceStore();
   const [query, setQuery] = useState("");
-  const workspaces = overview?.workspaces ?? [];
-  const chatWorkspace = activeWorkspace ?? defaultWorkspace ?? workspaces[0] ?? null;
+  const workspaces = workspaceStore.workspaces;
+  const chatWorkspace = workspaceStore.currentWorkspace ?? workspaces.find(isDefaultWorkspace) ?? workspaces[0] ?? null;
   const chatPath = chatWorkspace ? `/chat/${chatWorkspace.id}/new` : "/";
   const filteredWorkspaces = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -51,7 +51,7 @@ export const AppSidebar = () => {
       </div>
 
       <PrimaryNav chatPath={chatPath} />
-      <SidebarSessions workspaces={filteredWorkspaces} isLoading={isLoading} error={error} />
+      <SidebarChats workspaces={filteredWorkspaces} isLoading={workspaceStore.isLoading} error={workspaceStore.error} />
       <UtilityNav />
     </aside>
   );

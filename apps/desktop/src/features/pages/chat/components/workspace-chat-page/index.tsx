@@ -4,7 +4,7 @@ import { uniq } from "lodash-es";
 import { Activity, Folder, PanelRight } from "lucide-react";
 import type { AgentToolSummary } from "@/agent-client/types";
 import { createAgentClient } from "@/agent-client/runtime";
-import { saveChatSession } from "@/api/chat";
+import { saveChat } from "@/api/chat";
 import { ConversationLedger } from "@/features/ai/components/conversation-ledger";
 import { FileManage, type FileManageHandle } from "@/features/ai/components/file-manage";
 import type { WorkspaceFile, WorkspaceFileEntry } from "@/api/workspace-files";
@@ -692,9 +692,9 @@ export const WorkspaceChatPage = ({
       const title = deriveSessionTitle(task.messages);
       const isUnread = task.workspacePath !== workspace.path || task.sessionId !== currentSessionIdRef.current;
       task.title = title;
-      const session = await saveChatSession({
+      const session = await saveChat({
         workspacePath: task.workspacePath,
-        sessionId: task.sessionId,
+        chatId: task.sessionId,
         title,
         messages: task.messages,
         isUnread,

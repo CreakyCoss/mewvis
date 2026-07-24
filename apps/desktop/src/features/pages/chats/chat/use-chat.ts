@@ -3,7 +3,7 @@ import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
 import { createAgentClient } from "@/agent-client/runtime";
 import type { AgentClientAgentEvent } from "@/agent-client/types";
-import { loadChatSession, saveChatSession } from "@/api/chat";
+import { loadChat, saveChat } from "@/api/chat";
 import type { ChatInputSubmitPayload } from "../components/chat-input/type";
 import { applyChatMessageEvent, failChatMessage } from "./reducer";
 import type { ChatAssistantMessage, ChatMessage, ChatPendingQuestion, ChatStatus, ChatUserMessage } from "./type";
@@ -82,7 +82,7 @@ const getUserMessageText = (message: ChatUserMessage) =>
     .join(" ")
     .trim();
 
-const sessionTitle = (messages: ChatMessage[]) => {
+const chatTitle = (messages: ChatMessage[]) => {
   const firstUserMessage = messages.find((message): message is ChatUserMessage => message.role === "user");
   const text = firstUserMessage ? getUserMessageText(firstUserMessage) : "";
   return text ? text.replace(/\s+/g, " ").slice(0, 36) : "新的聊天";
@@ -133,6 +133,7 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
   const streamEventsRef = useRef<StreamEvent[]>([]);
   const streamFrameRef = useRef<number | null>(null);
   const lastStderrRef = useRef("");
+  const initialRequestChatIdRef = useRef("");
 
   const persistMessages = useCallback(() => {
     const state = chatStore.getState();
@@ -142,10 +143,10 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
 
     const messages = state.messages;
     const save = saveQueueRef.current.then(async () => {
-      await saveChatSession({
+      await saveChat({
         workspacePath,
-        sessionId: chatId,
-        title: sessionTitle(messages),
+        chatId,
+        title: chatTitle(messages),
         messages,
       });
     });
@@ -458,17 +459,22 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
           return;
         }
 
-        const session = await loadChatSession<ChatMessage>(workspacePath, chatId);
+        const savedChat = await loadChat<ChatMessage>(workspacePath, chatId);
         if (disposed) {
           return;
         }
 
-        if (session) {
-          chatStore.getState().hydrateMessages(restoreMessages(session.messages));
+        if (savedChat) {
+          chatStore.getState().hydrateMessages(restoreMessages(savedChat.messages));
         }
         chatStore.getState().setInitializing(false);
 
-        if (!session && initialRequest) {
+        if (
+          initialRequest &&
+          (!savedChat || savedChat.messages.length === 0) &&
+          initialRequestChatIdRef.current !== chatId
+        ) {
+          initialRequestChatIdRef.current = chatId;
           await runTurn(initialRequest);
         }
       } catch (error) {

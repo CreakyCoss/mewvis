@@ -1,5 +1,5 @@
 pub(crate) mod agent_sessions;
-pub(crate) mod chat_sessions;
+pub(crate) mod chats;
 pub(crate) mod embeddings;
 pub(crate) mod knowledge;
 pub(crate) mod skills;

@@ -157,11 +157,8 @@ pub fn cleanup_orphan_agent_sessions(
     })
 }
 
-pub fn delete_agent_sessions_for_chat(
-    workspace_path: &str,
-    chat_session_id: &str,
-) -> Result<(), String> {
-    let chat_id = sanitize_session_id(chat_session_id)?;
+pub fn delete_agent_sessions_for_chat(workspace_path: &str, chat_id: &str) -> Result<(), String> {
+    let chat_id = sanitize_session_id(chat_id)?;
     let root = workspace_root(workspace_path)?;
     let app_root = workspace_app_data_dir(&root);
     let sessions_dir = app_root
