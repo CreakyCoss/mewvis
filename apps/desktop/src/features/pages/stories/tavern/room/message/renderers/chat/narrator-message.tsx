@@ -12,10 +12,7 @@ type NarratorMessageProps = {
 export const NarratorMessage = ({ content, isStreaming, segments, visualStyle }: NarratorMessageProps) => (
   <div className="group/message mx-auto flex max-w-xl flex-col items-center gap-1">
     <div
-      className={cn(
-        "rounded-md border px-3 py-2 text-center text-sm leading-6 text-muted-foreground shadow-sm",
-        visualStyle.narratorBubble,
-      )}
+      className={cn("border px-3 py-2 text-center text-sm leading-6 text-muted-foreground", visualStyle.narratorBubble)}
     >
       {segments.length > 0 ? <MessageSegmentsContent segments={segments} /> : content}
     </div>

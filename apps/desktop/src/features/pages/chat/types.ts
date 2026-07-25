@@ -1,6 +1,6 @@
 import type { AgentClientAgentEvent, AskUserInput } from "@/agent-client/types";
 import type { FileReferenceMatch as ContextFileReferenceMatch } from "@/features/ai/components/context-tools";
-import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
+import type { WorkspaceFileEntry } from "@/api/workspace-files";
 
 export type FileReferenceMatch = ContextFileReferenceMatch<WorkspaceFileEntry>;
 

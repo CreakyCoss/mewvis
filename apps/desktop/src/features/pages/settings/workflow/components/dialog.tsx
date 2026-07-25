@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import type { SaveCollaborationWorkflowInput } from "../../agent/types";
 import { useAgentSettings } from "../../agent/hooks/use-agent";
@@ -104,11 +105,11 @@ export const CollaborationWorkflowSettingsDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden border-transparent p-0 shadow-lg sm:max-w-5xl">
+      <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden border-border/70 bg-popover p-0 shadow-[var(--shadow-floating)] sm:max-w-5xl">
         <DialogHeader>
-          <div className="px-6 pt-6 pb-4 shadow-[0_10px_30px_-30px_rgb(15_23_42_/_0.35)]">
+          <div className="border-b border-border/70 bg-card/35 px-6 pt-6 pb-4">
             <DialogTitle className="flex items-center gap-2 text-lg">
-              <span className="flex size-8 items-center justify-center rounded-md bg-accent text-primary shadow-xs">
+              <span className="flex size-9 items-center justify-center rounded-lg bg-accent text-primary">
                 <GitBranch className="size-4" />
               </span>
               <span>协作流程设置</span>
@@ -118,13 +119,13 @@ export const CollaborationWorkflowSettingsDialog = ({
         </DialogHeader>
 
         {error && (
-          <div className="mx-6 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <div className="mx-6 mt-4 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
             {error}
           </div>
         )}
 
         <div className="grid min-h-0 flex-1 gap-0 md:grid-cols-[260px_1fr]">
-          <aside className="flex min-h-0 flex-col gap-3 bg-muted/35 px-4 py-4 shadow-[10px_0_30px_-30px_rgb(15_23_42_/_0.35)]">
+          <aside className="flex min-h-0 flex-col gap-3 border-r border-border/70 bg-surface/60 px-4 py-4">
             <Button
               type="button"
               variant="outline"
@@ -142,7 +143,7 @@ export const CollaborationWorkflowSettingsDialog = ({
                   key={workflow.id}
                   type="button"
                   className={[
-                    "flex w-full items-center gap-2 rounded-md border px-3 py-2.5 text-left text-sm shadow-xs transition-all",
+                    "flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition-[color,background-color,border-color,box-shadow] motion-reduce:transition-none",
                     workflow.id === selectedWorkflowId
                       ? "border-primary/20 bg-card text-foreground ring-1 ring-primary/10"
                       : "border-transparent bg-card/65 hover:bg-card",
@@ -161,7 +162,7 @@ export const CollaborationWorkflowSettingsDialog = ({
                 </button>
               ))}
               {!workflows.length && !isLoading && (
-                <div className="rounded-md bg-card/65 px-3 py-8 text-center text-sm text-muted-foreground">
+                <div className="app-empty-state rounded-xl px-3 py-8 text-center text-sm text-muted-foreground">
                   暂无自定义协作流程
                 </div>
               )}
@@ -208,7 +209,6 @@ export const CollaborationWorkflowSettingsDialog = ({
                     <Button
                       type="button"
                       variant="outline"
-                      size="sm"
                       onClick={addWorkflowStep}
                       disabled={agentProfiles.length === 0}
                     >
@@ -219,7 +219,10 @@ export const CollaborationWorkflowSettingsDialog = ({
 
                   <div className="space-y-3">
                     {workflowSteps.map((step, index) => (
-                      <div key={step.id} className="space-y-3 rounded-md border bg-card px-3 py-3 shadow-xs">
+                      <div
+                        key={step.id}
+                        className="space-y-3 rounded-xl border border-border/60 bg-card/75 px-3 py-3 shadow-xs"
+                      >
                         <div className="flex items-center justify-between gap-2">
                           <div className="text-sm font-medium">步骤 {index + 1}</div>
                           <div className="flex shrink-0 items-center gap-1">
@@ -227,7 +230,7 @@ export const CollaborationWorkflowSettingsDialog = ({
                               type="button"
                               variant="ghost"
                               size="icon"
-                              className="size-8"
+                              className="size-9"
                               title="上移"
                               disabled={index === 0}
                               onClick={() => moveWorkflowStep(step.id ?? "", -1)}
@@ -238,7 +241,7 @@ export const CollaborationWorkflowSettingsDialog = ({
                               type="button"
                               variant="ghost"
                               size="icon"
-                              className="size-8"
+                              className="size-9"
                               title="下移"
                               disabled={index === workflowSteps.length - 1}
                               onClick={() => moveWorkflowStep(step.id ?? "", 1)}
@@ -249,7 +252,7 @@ export const CollaborationWorkflowSettingsDialog = ({
                               type="button"
                               variant="ghost"
                               size="icon"
-                              className="size-8"
+                              className="size-9"
                               title="删除步骤"
                               disabled={workflowSteps.length <= 1}
                               onClick={() => removeWorkflowStep(step.id ?? "")}
@@ -274,9 +277,9 @@ export const CollaborationWorkflowSettingsDialog = ({
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor={`workflow-step-agent-${step.id}`}>执行角色</Label>
-                            <select
+                            <NativeSelect
                               id={`workflow-step-agent-${step.id}`}
-                              className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                              className="w-full"
                               value={step.agentId}
                               disabled={agentProfiles.length === 0}
                               onChange={(event) => {
@@ -285,15 +288,15 @@ export const CollaborationWorkflowSettingsDialog = ({
                               }}
                             >
                               {agentProfiles.length === 0 ? (
-                                <option value="">请先创建角色</option>
+                                <NativeSelectOption value="">请先创建角色</NativeSelectOption>
                               ) : (
                                 agentProfiles.map((agent) => (
-                                  <option key={agent.id} value={agent.id}>
+                                  <NativeSelectOption key={agent.id} value={agent.id}>
                                     {agent.name}
-                                  </option>
+                                  </NativeSelectOption>
                                 ))
                               )}
-                            </select>
+                            </NativeSelect>
                           </div>
                         </div>
 
@@ -313,7 +316,7 @@ export const CollaborationWorkflowSettingsDialog = ({
                       </div>
                     ))}
                     {workflowSteps.length === 0 && (
-                      <div className="rounded-md bg-muted/35 px-3 py-8 text-center text-sm text-muted-foreground">
+                      <div className="app-empty-state rounded-xl px-3 py-8 text-center text-sm text-muted-foreground">
                         {agentProfiles.length === 0 ? "请先手动创建角色，再新增协作步骤" : "请新增至少一个协作步骤"}
                       </div>
                     )}
@@ -321,10 +324,10 @@ export const CollaborationWorkflowSettingsDialog = ({
                 </div>
 
                 {selectedWorkflowId && (
-                  <div className="flex justify-end rounded-md bg-muted/35 px-3 py-2.5">
+                  <div className="flex justify-end rounded-xl border border-border/60 bg-muted/25 px-3 py-2.5">
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="destructive"
                       onClick={() => void removeWorkflow(selectedWorkflowId)}
                       disabled={isSaving}
                     >
@@ -338,7 +341,7 @@ export const CollaborationWorkflowSettingsDialog = ({
           </section>
         </div>
 
-        <DialogFooter className="px-6 py-4 shadow-[0_-10px_30px_-32px_rgb(15_23_42_/_0.35)]">
+        <DialogFooter className="border-t border-border/70 bg-card/35 px-6 py-4">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             取消
           </Button>

@@ -1,6 +1,6 @@
 import { loadContextResources } from "@/features/ai/components/context-tools";
 import type { Workspace } from "@/features/pages/workspace/types";
-import { readWorkspaceFile } from "@/features/pages/workspace/files-api";
+import { readWorkspaceFile } from "@/api/workspace-files";
 import { buildWorkspacePromptContext } from "./prompt-context";
 
 export type ApplicationPromptAgent = {

@@ -193,11 +193,11 @@ export const TavernManageContent = ({ bind, onBack }: TavernManageContentProps) 
         </DialogTitle>
         <WindowDragRegion className="h-10 shrink-0" />
         {isLoading || !data ? (
-          <div className="flex min-h-0 flex-1 items-center justify-center bg-background px-6">
-            <div className="flex max-w-md flex-col items-center gap-4 rounded-md border bg-card px-6 py-5 text-center text-sm text-muted-foreground">
+          <div className="app-canvas flex min-h-0 flex-1 items-center justify-center px-6">
+            <div className="app-empty-state flex max-w-md flex-col items-center gap-4 rounded-2xl px-8 py-9 text-center text-sm text-muted-foreground">
               {isLoading ? (
                 <>
-                  <Loader2 className="size-5 animate-spin" />
+                  <Loader2 className="size-5 animate-spin motion-reduce:animate-none" />
                   <p>正在读取 story/tavern.json</p>
                 </>
               ) : (
@@ -219,16 +219,16 @@ export const TavernManageContent = ({ bind, onBack }: TavernManageContentProps) 
           </div>
         ) : (
           <div className="flex min-h-0 flex-1 overflow-hidden bg-background">
-            <aside className="hidden w-20 shrink-0 flex-col border-r bg-muted/10 px-2 py-4 md:flex">
-              <div className="mb-4 flex justify-center">
-                <span className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-                  <Wine className="size-5" />
+            <aside className="hidden w-60 shrink-0 flex-col border-r bg-surface/70 px-3 py-4 md:flex xl:w-64">
+              <div className="mb-5 flex items-center gap-3 px-2">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                  <Wine className="size-5" aria-hidden="true" />
                 </span>
               </div>
-              <nav className="flex min-h-0 flex-1 flex-col gap-1">
+              <nav className="flex min-h-0 flex-1 flex-col gap-2">
                 {editorModuleGroups.map((group) => (
                   <div key={group.id} className="flex flex-col gap-1">
-                    <div className="px-1 pt-2 pb-1 text-center text-[10px] font-medium leading-4 text-muted-foreground/75">
+                    <div className="px-2 pt-1 pb-1.5 text-xs font-semibold tracking-wide text-muted-foreground">
                       {group.label}
                     </div>
                     {editorModules
@@ -239,14 +239,23 @@ export const TavernManageContent = ({ bind, onBack }: TavernManageContentProps) 
                           type="button"
                           title={`${group.label} / ${label}：${description}`}
                           aria-label={`切换到${group.label}的${label}`}
+                          aria-current={activeModuleId === id ? "page" : undefined}
                           onClick={() => setActiveModuleId(id)}
                           className={cn(
-                            "flex flex-col items-center gap-1 rounded-md px-1.5 py-2 text-[11px] leading-4 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground",
-                            activeModuleId === id && "bg-primary/10 text-primary",
+                            "group flex min-h-14 items-center gap-3 rounded-xl border border-transparent px-3 py-2 text-left text-muted-foreground transition-colors hover:bg-background/80 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+                            activeModuleId === id &&
+                              "border-primary/20 bg-primary/10 text-foreground shadow-[var(--shadow-card)]",
                           )}
                         >
-                          <Icon className="size-4" />
-                          <span className="max-w-full truncate">{label}</span>
+                          <span
+                            className={cn(
+                              "flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/70 text-muted-foreground transition-colors group-hover:text-foreground",
+                              activeModuleId === id && "bg-primary/15 text-primary",
+                            )}
+                          >
+                            <Icon className="size-4" aria-hidden="true" />
+                          </span>
+                          <span className="min-w-0 truncate text-sm font-medium">{label}</span>
                         </button>
                       ))}
                   </div>
@@ -255,12 +264,12 @@ export const TavernManageContent = ({ bind, onBack }: TavernManageContentProps) 
               <div className="mt-3 border-t pt-3">
                 <button
                   type="button"
-                  className="flex h-12 w-full flex-col items-center justify-center gap-1 rounded-md px-1.5 text-[11px] leading-4 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                  className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm text-muted-foreground transition-colors hover:bg-background/80 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
                   title="返回故事"
                   aria-label="返回故事"
                   onClick={handleBack}
                 >
-                  <LogOut className="size-4 rotate-180" />
+                  <LogOut className="size-4 rotate-180" aria-hidden="true" />
                 </button>
               </div>
             </aside>
@@ -268,8 +277,8 @@ export const TavernManageContent = ({ bind, onBack }: TavernManageContentProps) 
             <div className="flex min-w-0 flex-1 flex-col">
               <Header data={data} onBack={handleBack} />
 
-              <ScrollArea className="min-h-0 flex-1 bg-muted/10">
-                <div className="flex w-full flex-col gap-4 px-4 py-4 lg:px-6">
+              <ScrollArea className="app-canvas min-h-0 flex-1">
+                <div className="flex w-full flex-col gap-4 px-4 py-5 lg:px-6 lg:py-6">
                   <nav className="flex gap-2 overflow-x-auto pb-1 md:hidden">
                     <Button
                       type="button"
@@ -284,7 +293,7 @@ export const TavernManageContent = ({ bind, onBack }: TavernManageContentProps) 
                     </Button>
                     {editorModuleGroups.map((group) => (
                       <div key={group.id} className="flex shrink-0 items-center gap-1">
-                        <span className="rounded-md border bg-muted/30 px-2 py-1 text-[11px] font-medium leading-5 text-muted-foreground">
+                        <span className="rounded-md border bg-muted/30 px-2 py-1 text-xs font-medium leading-5 text-muted-foreground">
                           {group.mobileLabel}
                         </span>
                         {editorModules
@@ -308,7 +317,7 @@ export const TavernManageContent = ({ bind, onBack }: TavernManageContentProps) 
                     ))}
                   </nav>
 
-                  <div className="mx-auto w-full max-w-7xl">{renderActiveModule()}</div>
+                  <div className="mx-auto w-full max-w-6xl">{renderActiveModule()}</div>
                 </div>
               </ScrollArea>
             </div>

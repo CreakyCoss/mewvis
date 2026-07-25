@@ -58,7 +58,7 @@ export const describeAgentEvent = (event: AgentClientAgentEvent) => {
     return "Agent 已启动";
   }
 
-  if (event.type === "tool_start") {
+  if (event.type === "tool_execution_start") {
     return `调用工具 ${event.toolName}: ${stringifyBrief(event.args)}`;
   }
 
@@ -70,11 +70,11 @@ export const describeAgentEvent = (event: AgentClientAgentEvent) => {
     return `用户已回答：${event.answer}`;
   }
 
-  if (event.type === "tool_update") {
+  if (event.type === "tool_execution_update") {
     return `工具更新 ${event.toolName}: ${stringifyBrief(event.partialResult)}`;
   }
 
-  if (event.type === "tool_end") {
+  if (event.type === "tool_execution_end") {
     return `${event.isError ? "工具失败" : "工具完成"} ${event.toolName}: ${stringifyBrief(event.result)}`;
   }
 
@@ -98,15 +98,15 @@ export const describeAgentEvent = (event: AgentClientAgentEvent) => {
 };
 
 export const describeAgentGroupEvent = (event: AgentClientAgentEvent) => {
-  if (event.type === "tool_start") {
+  if (event.type === "tool_execution_start") {
     return `开始：${stringifyBrief(event.args)}`;
   }
 
-  if (event.type === "tool_update") {
+  if (event.type === "tool_execution_update") {
     return `更新：${stringifyBrief(event.partialResult)}`;
   }
 
-  if (event.type === "tool_end") {
+  if (event.type === "tool_execution_end") {
     return `${event.isError ? "失败" : "完成"}：${stringifyBrief(event.result)}`;
   }
 
@@ -118,7 +118,7 @@ export const groupAgentEvents = (events: AgentClientAgentEvent[]) => {
   const lastToolGroupByName = new Map<string, AgentEventGroup>();
 
   events.forEach((event, index) => {
-    if (event.type === "tool_start") {
+    if (event.type === "tool_execution_start") {
       const group: AgentEventGroup = {
         id: `${index}-${event.toolName}`,
         title: event.toolName,
@@ -130,11 +130,11 @@ export const groupAgentEvents = (events: AgentClientAgentEvent[]) => {
       return;
     }
 
-    if (event.type === "tool_update" || event.type === "tool_end") {
+    if (event.type === "tool_execution_update" || event.type === "tool_execution_end") {
       const group = lastToolGroupByName.get(event.toolName);
       if (group) {
         group.events.push(event);
-        if (event.type === "tool_end") {
+        if (event.type === "tool_execution_end") {
           group.status = event.isError ? "error" : "done";
           lastToolGroupByName.delete(event.toolName);
         }
@@ -269,7 +269,10 @@ export const removeEmptyAgentThinkingBlocks = (blocks: AgentMessageBlock[] | und
 
 export const appendAgentToolEventBlock = (
   message: ChatMessage,
-  event: Extract<AgentClientAgentEvent, { type: "tool_start" | "tool_update" | "tool_end" }>,
+  event: Extract<
+    AgentClientAgentEvent,
+    { type: "tool_execution_start" | "tool_execution_update" | "tool_execution_end" }
+  >,
 ) => {
   const blocks = [...(message.agentBlocks ?? [])];
   const findRunningToolBlockIndex = () => {
@@ -282,8 +285,8 @@ export const appendAgentToolEventBlock = (
 
     return -1;
   };
-  const existingIndex = event.type === "tool_start" ? -1 : findRunningToolBlockIndex();
-  const status = event.type === "tool_end" ? (event.isError ? "error" : "done") : "running";
+  const existingIndex = event.type === "tool_execution_start" ? -1 : findRunningToolBlockIndex();
+  const status = event.type === "tool_execution_end" ? (event.isError ? "error" : "done") : "running";
   let blockId: string | null = null;
 
   if (existingIndex >= 0) {
@@ -315,6 +318,9 @@ export const isTimelineEvent = (event: AgentClientAgentEvent) =>
   event.type !== "thinking_delta" &&
   event.type !== "thinking_end" &&
   event.type !== "replace_text" &&
+  event.type !== "tool_call_start" &&
+  event.type !== "tool_call_delta" &&
+  event.type !== "tool_call_end" &&
   event.type !== "done";
 
 export type AppliedAgentMessageEvent = {
@@ -328,7 +334,10 @@ type AgentMessageStreamEvent = Extract<
   { type: "text_delta" | "thinking_delta" | "thinking_end" | "replace_text" }
 >;
 
-type AgentToolEvent = Extract<AgentClientAgentEvent, { type: "tool_start" | "tool_update" | "tool_end" }>;
+type AgentToolEvent = Extract<
+  AgentClientAgentEvent,
+  { type: "tool_execution_start" | "tool_execution_update" | "tool_execution_end" }
+>;
 
 export const isAgentMessageStreamEvent = (event: AgentClientAgentEvent): event is AgentMessageStreamEvent =>
   event.type === "text_delta" ||
@@ -337,7 +346,9 @@ export const isAgentMessageStreamEvent = (event: AgentClientAgentEvent): event i
   event.type === "replace_text";
 
 const isAgentToolEvent = (event: AgentClientAgentEvent): event is AgentToolEvent =>
-  event.type === "tool_start" || event.type === "tool_update" || event.type === "tool_end";
+  event.type === "tool_execution_start" ||
+  event.type === "tool_execution_update" ||
+  event.type === "tool_execution_end";
 
 const appliedAgentMessageEvent = (
   message: ChatMessage,
@@ -423,7 +434,7 @@ export const applyAgentEventToMessage = (
     if (isAgentToolEvent(event)) {
       const result = appendAgentToolEventBlock(message, event);
       agentBlocks = result.blocks;
-      completedToolBlockId = event.type === "tool_end" ? result.blockId : null;
+      completedToolBlockId = event.type === "tool_execution_end" ? result.blockId : null;
     }
 
     return appliedAgentMessageEvent(

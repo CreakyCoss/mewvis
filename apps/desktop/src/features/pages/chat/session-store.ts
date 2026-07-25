@@ -1,6 +1,6 @@
 import { create } from "zustand";
+import { deleteChat, listChats } from "@/api/chat";
 import type { Workspace } from "@/features/pages/workspace/types";
-import { deleteChatSession, listChatSessions } from "./api";
 import type { ChatSession, ChatSessionMeta } from "./types";
 
 const chatSessionRequestIds = new Map<string, number>();
@@ -67,7 +67,7 @@ export const useChatSessionsStore = create<ChatSessionsStore>((set, get) => ({
     }));
 
     try {
-      const sessions = await listChatSessions(workspace.path);
+      const sessions = await listChats(workspace.path);
       if (chatSessionRequestIds.get(workspace.id) !== requestId) {
         return;
       }
@@ -166,7 +166,7 @@ export const useChatSessionsStore = create<ChatSessionsStore>((set, get) => ({
     }));
 
     try {
-      const sessions = await deleteChatSession(workspace.path, sessionId);
+      const sessions = await deleteChat(workspace.path, sessionId);
       set((state) => {
         const nextRunningKeys = { ...state.runningSessionKeys };
         delete nextRunningKeys[key];

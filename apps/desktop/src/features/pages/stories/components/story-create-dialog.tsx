@@ -70,7 +70,7 @@ export const StoryCreateDialog = ({ bind, onCreated }: StoryCreateDialogProps) =
       toast.success("故事已创建。");
       setIsOpen(false);
       onCreated({
-        id: overview.id,
+        id: workspace.id,
         documents,
         overview,
         workspace,
@@ -90,7 +90,7 @@ export const StoryCreateDialog = ({ bind, onCreated }: StoryCreateDialogProps) =
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !isSaving && setIsOpen(open)}>
-      <DialogContent className="border-transparent shadow-lg sm:max-w-xl">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="text-lg">新建故事</DialogTitle>
           <DialogDescription>

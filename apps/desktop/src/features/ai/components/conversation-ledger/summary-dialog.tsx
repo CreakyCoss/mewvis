@@ -42,13 +42,13 @@ export const LedgerSummaryDialog = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-h-[min(740px,84vh)] max-w-[calc(100vw-2rem)] overflow-hidden p-0 sm:max-w-3xl lg:max-w-4xl"
+        className="!flex h-[min(640px,calc(100vh-2rem))] max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl lg:max-w-4xl"
         showCloseButton={false}
       >
-        <DialogHeader className="border-b border-border/60 px-5 py-4">
+        <DialogHeader className="border-b border-border/60 bg-surface-raised/85 px-5 py-4 text-left">
           <div className="flex min-w-0 items-center gap-2">
             <DialogTitle className="min-w-0 flex-1 truncate text-base">会话摘要</DialogTitle>
-            <span className="shrink-0 rounded-sm bg-muted/70 px-1.5 py-0.5 text-[11px] text-muted-foreground">
+            <span className="shrink-0 rounded-md bg-muted/70 px-2 py-0.5 text-xs text-muted-foreground">
               {summaryCount} 条
             </span>
             <Button
@@ -59,7 +59,9 @@ export const LedgerSummaryDialog = ({
               disabled={!ledger || isRefreshing}
               onClick={onRefreshSummary}
             >
-              <RefreshCw className={["size-4", isRefreshing ? "animate-spin" : ""].join(" ")} />
+              <RefreshCw
+                className={["size-4", isRefreshing ? "animate-spin motion-reduce:animate-none" : ""].join(" ")}
+              />
             </Button>
             <Button type="button" size="icon-sm" variant="ghost" title="关闭摘要" onClick={() => onOpenChange(false)}>
               <X className="size-4" />
@@ -74,11 +76,11 @@ export const LedgerSummaryDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[calc(min(740px,84vh)-96px)] min-h-0">
+        <ScrollArea className="app-canvas min-h-0 flex-1 overflow-hidden">
           <div className="min-w-0 px-5 pt-4 pb-6">
             {displaySummary ? (
-              <div className="min-w-0 space-y-3">
-                <div className="flex min-w-0 flex-wrap gap-1.5 text-[11px] text-muted-foreground">
+              <div className="app-panel min-w-0 space-y-4 rounded-xl px-5 py-5">
+                <div className="flex min-w-0 flex-wrap gap-1.5 text-xs text-muted-foreground">
                   {displaySummary.modelId && (
                     <span className="max-w-full truncate rounded-sm bg-muted/60 px-1.5 py-1">
                       {displaySummary.modelId}
@@ -94,8 +96,8 @@ export const LedgerSummaryDialog = ({
                 <MarkdownContent content={displaySummary.summary} className="text-sm leading-7 text-foreground" />
               </div>
             ) : (
-              <div className="rounded-md bg-muted/25 px-3 py-10 text-center text-sm text-muted-foreground">
-                {isRefreshing ? "正在生成摘要..." : "暂无摘要"}
+              <div className="app-empty-state flex min-h-64 flex-col items-center justify-center rounded-2xl px-6 text-center">
+                <div className="text-sm text-muted-foreground">{isRefreshing ? "正在生成摘要..." : "暂无摘要"}</div>
               </div>
             )}
           </div>

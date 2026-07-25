@@ -54,8 +54,14 @@ const GenericObjectEditor = ({
   };
 
   return (
-    <div className={nested ? "border-l-2 border-muted pl-4" : "border-y"}>
-      <div className="divide-y">
+    <div
+      className={
+        nested
+          ? "rounded-r-xl border-l-2 border-primary/15 bg-surface/30 px-3"
+          : "rounded-xl border border-border/65 bg-surface/35 px-3"
+      }
+    >
+      <div className="divide-y divide-border/60">
         {Object.entries(value).map(([key, child]) => (
           <div key={key} className="py-4 first:pt-0 last:pb-0">
             <div className="mb-2 flex items-center justify-between gap-2">
@@ -63,9 +69,10 @@ const GenericObjectEditor = ({
               {!disabled ? (
                 <Button
                   type="button"
-                  size="icon-xs"
+                  size="icon"
                   variant="ghost"
                   title={`删除 ${key}`}
+                  className="size-9 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                   onClick={() => onChange(Object.fromEntries(Object.entries(value).filter(([name]) => name !== key)))}
                 >
                   <Trash2 className="size-3" />
@@ -85,7 +92,7 @@ const GenericObjectEditor = ({
         <div className="flex gap-2 py-4">
           <Input
             value={newKey}
-            className="h-8 font-mono text-xs"
+            className="font-mono text-xs"
             placeholder="新增字段名"
             onChange={(event) => setNewKey(event.currentTarget.value)}
             onKeyDown={(event) => {
@@ -95,7 +102,7 @@ const GenericObjectEditor = ({
               }
             }}
           />
-          <Button type="button" size="sm" variant="outline" disabled={!newKey.trim()} onClick={addKey}>
+          <Button type="button" variant="outline" disabled={!newKey.trim()} onClick={addKey}>
             <Plus className="size-3.5" />
             字段
           </Button>
@@ -116,7 +123,11 @@ const GenericArrayEditor = ({
 }) => (
   <div className="space-y-3">
     {value.length > 0 ? (
-      <Accordion type="multiple" defaultValue={value.length === 1 ? ["item-0"] : []} className="rounded-md border px-3">
+      <Accordion
+        type="multiple"
+        defaultValue={value.length === 1 ? ["item-0"] : []}
+        className="rounded-xl border border-border/65 bg-card/55 px-3"
+      >
         {value.map((item, index) => (
           <AccordionItem key={index} value={`item-${index}`}>
             <AccordionTrigger className="hover:no-underline">
@@ -138,9 +149,9 @@ const GenericArrayEditor = ({
                 {!disabled ? (
                   <Button
                     type="button"
-                    size="sm"
+                    size="default"
                     variant="ghost"
-                    className="text-destructive"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                     onClick={() => onChange(value.filter((_, itemIndex) => itemIndex !== index))}
                   >
                     <Trash2 className="size-3.5" />
@@ -153,12 +164,14 @@ const GenericArrayEditor = ({
         ))}
       </Accordion>
     ) : (
-      <p className="rounded-md border border-dashed px-3 py-5 text-center text-xs text-muted-foreground">暂无内容</p>
+      <p className="rounded-xl border border-dashed border-border/70 bg-surface/35 px-3 py-5 text-center text-xs text-muted-foreground">
+        暂无内容
+      </p>
     )}
     {!disabled ? (
       <Button
         type="button"
-        size="sm"
+        size="default"
         variant="outline"
         onClick={() => onChange([...value, inferredEmptyValue(value.at(-1))])}
       >
@@ -271,7 +284,11 @@ const MetadataCollectionEditor = ({
 }) => (
   <div className="space-y-3">
     {value.length > 0 ? (
-      <Accordion type="multiple" defaultValue={value.length === 1 ? ["item-0"] : []} className="rounded-md border px-3">
+      <Accordion
+        type="multiple"
+        defaultValue={value.length === 1 ? ["item-0"] : []}
+        className="rounded-xl border border-border/65 bg-card/55 px-3"
+      >
         {value.map((item, index) => {
           const object = isJsonObject(item) ? item : {};
           return (
@@ -295,9 +312,9 @@ const MetadataCollectionEditor = ({
                 {!disabled ? (
                   <Button
                     type="button"
-                    size="sm"
+                    size="default"
                     variant="ghost"
-                    className="mt-3 text-destructive"
+                    className="mt-3 text-destructive hover:bg-destructive/10 hover:text-destructive"
                     onClick={() => onChange(value.filter((_, itemIndex) => itemIndex !== index))}
                   >
                     <Trash2 className="size-3.5" />
@@ -310,12 +327,14 @@ const MetadataCollectionEditor = ({
         })}
       </Accordion>
     ) : (
-      <p className="rounded-md border border-dashed px-3 py-5 text-center text-xs text-muted-foreground">暂无内容</p>
+      <p className="rounded-xl border border-dashed border-border/70 bg-surface/35 px-3 py-5 text-center text-xs text-muted-foreground">
+        暂无内容
+      </p>
     )}
     {!disabled ? (
       <Button
         type="button"
-        size="sm"
+        size="default"
         variant="outline"
         onClick={() =>
           onChange([
@@ -347,7 +366,7 @@ const StringListEditor = ({
 }) => (
   <div className="space-y-2">
     {value.map((item, index) => (
-      <div key={index} className="flex items-center gap-2">
+      <div key={index} className="flex items-center gap-2 rounded-xl border border-border/60 bg-card/55 p-2">
         <span className="w-5 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{index + 1}</span>
         <Input
           value={item}
@@ -359,9 +378,10 @@ const StringListEditor = ({
         {!disabled ? (
           <Button
             type="button"
-            size="icon-sm"
+            size="icon"
             variant="ghost"
             title="删除此项"
+            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
             onClick={() => onChange(value.filter((_, itemIndex) => itemIndex !== index))}
           >
             <Trash2 className="size-3.5" />
@@ -370,7 +390,7 @@ const StringListEditor = ({
       </div>
     ))}
     {!disabled ? (
-      <Button type="button" size="sm" variant="outline" onClick={() => onChange([...value, ""])}>
+      <Button type="button" variant="outline" onClick={() => onChange([...value, ""])}>
         <Plus className="size-3.5" />
         新增一项
       </Button>
@@ -490,7 +510,9 @@ export const MetadataFieldEditor = ({
           {field.label}
           {field.required && !disabled ? <span className="ml-0.5 text-destructive">*</span> : null}
         </Label>
-        {disabled ? <span className="text-[11px] text-muted-foreground">只读</span> : null}
+        {disabled ? (
+          <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs leading-4 text-muted-foreground">只读</span>
+        ) : null}
       </div>
       {field.description ? <p className="text-xs leading-5 text-muted-foreground">{field.description}</p> : null}
       {editor}

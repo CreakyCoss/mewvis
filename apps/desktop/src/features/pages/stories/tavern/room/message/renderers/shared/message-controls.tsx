@@ -29,11 +29,12 @@ export const MessageControls = ({ content, disabled }: MessageControlsProps) => 
   };
 
   return (
-    <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100">
+    <div className="flex items-center gap-1 opacity-0 transition-opacity motion-reduce:transition-none group-hover/message:opacity-100 focus-within:opacity-100">
       <Button
         type="button"
-        size="icon-xs"
+        size="icon"
         variant="ghost"
+        className="text-current opacity-65 hover:bg-current/10 hover:text-current hover:opacity-100"
         title={didCopy ? "已复制" : "复制"}
         aria-label={didCopy ? "已复制" : "复制"}
         disabled={!canCopy}

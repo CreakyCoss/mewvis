@@ -885,7 +885,9 @@ export const MewvisOffice = ({ isWorking = false }: MewvisOfficeProps) => {
 
   return (
     <div className="mewvis-office-shell">
-      <h2 className="mewvis-office-title">{OFFICE_TITLE}</h2>
+      <div className="mewvis-office-heading">
+        <h2 className="mewvis-office-title">{OFFICE_TITLE}</h2>
+      </div>
 
       <section
         ref={boardRef}

@@ -127,21 +127,27 @@ export const LedgerList = ({
                 disabled={isLoading}
                 onClick={onRefresh}
               >
-                <RefreshCw className={["size-4", isLoading ? "animate-spin" : ""].join(" ")} />
+                <RefreshCw
+                  className={["size-4", isLoading ? "animate-spin motion-reduce:animate-none" : ""].join(" ")}
+                />
               </Button>
             </div>
           </div>
 
           {error && (
-            <div className="mb-3 rounded-md bg-sidebar-primary/10 px-3 py-2 text-xs leading-5 text-sidebar-primary">
+            <div className="mb-3 flex items-start gap-2 rounded-lg border border-destructive/25 bg-destructive/8 px-3 py-2.5 text-xs leading-5 text-destructive">
               {error}
             </div>
           )}
 
           {isLoading && links.length === 0 ? (
-            <div className="px-2 py-8 text-center text-sm text-muted-foreground">正在读取链路...</div>
+            <div className="app-empty-state flex min-h-36 items-center justify-center rounded-xl px-4 text-center text-sm text-muted-foreground">
+              正在读取链路...
+            </div>
           ) : links.length === 0 ? (
-            <div className="px-2 py-8 text-center text-sm text-muted-foreground">暂无运行链路</div>
+            <div className="app-empty-state flex min-h-36 items-center justify-center rounded-xl px-4 text-center text-sm text-muted-foreground">
+              暂无运行链路
+            </div>
           ) : (
             <div className="min-w-0 space-y-1 overflow-hidden">
               {links.map((link, linkIndex) => {
@@ -158,7 +164,7 @@ export const LedgerList = ({
                   <button
                     key={link.linkId}
                     type="button"
-                    className="flex min-h-16 w-full min-w-0 items-center gap-2 rounded-md border border-transparent px-2 py-2 text-left transition-colors hover:bg-muted/45 data-[selected=true]:border-primary/20 data-[selected=true]:bg-primary/5"
+                    className="flex min-h-16 w-full min-w-0 items-center gap-2 rounded-lg border border-transparent px-2.5 py-2 text-left transition-colors hover:border-border/70 hover:bg-muted/45 focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:outline-none data-[selected=true]:border-primary/25 data-[selected=true]:bg-primary/5"
                     data-selected={isSelected}
                     title="查看链路详情"
                     aria-label="查看链路详情"
@@ -168,9 +174,9 @@ export const LedgerList = ({
                     <span className="min-w-0 flex-1">
                       <span className="flex min-w-0 items-center gap-1.5 text-xs">
                         <span className="min-w-0 flex-1 truncate font-medium">{display.title}</span>
-                        <span className="shrink-0 text-[10px] text-muted-foreground">{ledgerStatusLabels[status]}</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">{ledgerStatusLabels[status]}</span>
                       </span>
-                      <span className="mt-1 block truncate text-[11px] leading-4 text-muted-foreground">
+                      <span className="mt-1 block truncate text-xs leading-4 text-muted-foreground">
                         {display.subtitle}
                       </span>
                       {display.metaItems.length > 0 && (
@@ -178,7 +184,7 @@ export const LedgerList = ({
                           {display.metaItems.map((item) => (
                             <span
                               key={item}
-                              className="rounded-sm bg-muted/50 px-1.5 py-0.5 text-[10px] leading-4 text-muted-foreground"
+                              className="rounded-sm bg-muted/50 px-1.5 py-0.5 text-xs leading-4 text-muted-foreground"
                             >
                               {item}
                             </span>

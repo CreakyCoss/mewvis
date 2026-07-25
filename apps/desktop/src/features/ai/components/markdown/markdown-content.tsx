@@ -104,7 +104,7 @@ const MarkdownContentComponent = (props: MarkdownContentProps) => {
           },
           pre: ({ children }) => (
             <pre
-              className={`mb-2 min-w-0 max-w-full overflow-x-auto rounded-md border px-3 py-2.5 shadow-xs last:mb-0 ${
+              className={`mb-3 min-w-0 max-w-full overflow-x-auto rounded-xl border px-3.5 py-3 last:mb-0 ${
                 inverted ? "border-primary-foreground/20 bg-primary-foreground/10" : "border-border/80 bg-muted/45"
               }`}
             >

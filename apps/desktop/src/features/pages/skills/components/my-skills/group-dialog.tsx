@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, ChevronRight, FolderPlus, Search, Sparkles, X } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -167,9 +168,6 @@ export const GroupDialog = ({
 
     const id = state.group?.id ?? `draft-${crypto.randomUUID()}`;
     const nextDefaultGroupId = isDefaultGroup ? id : id === defaultGroupId ? ALL_SKILLS_GROUP_ID : defaultGroupId;
-    const previousSkillDisabledByKey = new Map(
-      state.group?.skills.map((skill) => [skill.key, skill.disabled === true]) ?? [],
-    );
     const nextGroup: WorkspaceSkillGroup = {
       id,
       name,
@@ -178,10 +176,7 @@ export const GroupDialog = ({
       readonly: false,
       isDefault: id === nextDefaultGroupId,
       order: state.group?.order ?? nextCustomGroupOrder(groups),
-      skills: [...selectedSkillNames].sort().map((key) => ({
-        key,
-        disabled: previousSkillDisabledByKey.get(key) === true,
-      })),
+      skills: [...selectedSkillNames].sort().map((key) => ({ key })),
     };
     const nextGroups = (
       state.group ? groups.map((group) => (group.id === state.group?.id ? nextGroup : group)) : [...groups, nextGroup]
@@ -198,18 +193,20 @@ export const GroupDialog = ({
   return (
     <Dialog open={state.open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="flex h-[calc(100vh-2rem)] max-h-[760px] flex-col gap-0 overflow-hidden border-transparent bg-[#f6f6f5] p-0 shadow-xl sm:max-w-5xl"
+        className="flex h-[calc(100vh-2rem)] max-h-[760px] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl"
         showCloseButton={false}
       >
-        <DialogHeader className="shrink-0 px-5 pt-5 pb-3">
-          <div className="flex items-start justify-between gap-4 pr-9">
+        <DialogHeader className="shrink-0 border-b border-border/60 bg-surface-raised/85 px-5 py-4 pr-14 text-left">
+          <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
               <DialogTitle className="sr-only">{dialogTitle}</DialogTitle>
               <div className="flex min-w-0 items-center gap-2">
-                <FolderPlus className="size-4 shrink-0 text-sidebar-primary/90" />
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent text-primary">
+                  <FolderPlus className="size-4" aria-hidden="true" />
+                </span>
                 {isEditable ? (
                   <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                    <div className="flex h-10 w-full max-w-[520px] min-w-[220px] flex-1 items-center rounded-xl bg-white px-3 shadow-xs ring-1 ring-black/[0.03] focus-within:ring-sidebar-primary/25">
+                    <div className="flex h-10 w-full max-w-[520px] min-w-[220px] flex-1 items-center rounded-xl border border-border/75 bg-card px-3 shadow-xs focus-within:ring-3 focus-within:ring-sidebar-primary/20">
                       <Input
                         id="skill-group-name"
                         aria-label="分组名称"
@@ -220,7 +217,7 @@ export const GroupDialog = ({
                         disabled={!isEditable}
                       />
                     </div>
-                    <label className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-full bg-white px-3 text-xs font-medium text-foreground/80 shadow-xs ring-1 ring-black/[0.03] transition-colors hover:bg-white/90">
+                    <label className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-border/75 bg-card px-3 text-xs font-medium text-foreground shadow-xs transition-colors hover:bg-accent/55">
                       <Checkbox
                         checked={isDefaultGroup}
                         onCheckedChange={(checked) => setIsDefaultGroup(checked === true)}
@@ -238,7 +235,7 @@ export const GroupDialog = ({
                         </span>
                       )}
                     </div>
-                    <label className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-full bg-white px-3 text-xs font-medium text-foreground/80 shadow-xs ring-1 ring-black/[0.03] transition-colors hover:bg-white/90">
+                    <label className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-border/75 bg-card px-3 text-xs font-medium text-foreground shadow-xs transition-colors hover:bg-accent/55">
                       <Checkbox
                         checked={isDefaultGroup}
                         onCheckedChange={(checked) => setIsDefaultGroup(checked === true)}
@@ -267,11 +264,11 @@ export const GroupDialog = ({
           </div>
         </DialogHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-3 px-5 pb-5">
+        <div className="app-canvas flex min-h-0 flex-1 flex-col gap-3 px-5 py-4">
           {error && (
-            <div className="shrink-0 rounded-2xl border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs leading-5 text-destructive">
-              {error}
-            </div>
+            <Alert variant="destructive" className="shrink-0">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
 
           <section className="flex min-h-0 flex-col overflow-hidden">
@@ -282,7 +279,7 @@ export const GroupDialog = ({
                   已选 {selectedSkillNames.length} 个，共 {skills.length} 个
                 </span>
               </div>
-              <div className="flex h-9 w-full items-center gap-2 rounded-full bg-white px-3 shadow-xs ring-1 ring-black/[0.03] sm:w-[260px]">
+              <div className="flex h-9 w-full items-center gap-2 rounded-lg border border-border/75 bg-card px-3 shadow-xs sm:w-[260px]">
                 <Search className="size-4 shrink-0 text-muted-foreground/45" />
                 <Input
                   className="h-8 border-0 bg-transparent px-0 text-sm shadow-none focus-visible:ring-0"
@@ -327,7 +324,7 @@ export const GroupDialog = ({
                               type="button"
                               size="xs"
                               variant="ghost"
-                              className="h-7 rounded-full px-2 text-xs text-muted-foreground hover:bg-white/70"
+                              className="h-7 rounded-lg px-2 text-xs text-muted-foreground hover:bg-accent/55"
                               disabled={!isEditable || skillKeys.length === 0}
                               onClick={() => toggleSkillGroup(skillKeys, !allSelected)}
                             >
@@ -348,16 +345,14 @@ export const GroupDialog = ({
                                     aria-label={`${checked ? "取消选择" : "选择"} ${skill.name}`}
                                     onClick={() => toggleSkill(skill.key, !checked)}
                                     className={[
-                                      "group relative grid min-h-[92px] min-w-0 grid-cols-[44px_minmax(0,1fr)] items-center gap-3 rounded-[18px] bg-white p-3 text-left shadow-[0_1px_0_rgb(15_23_42_/_0.03)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/40",
-                                      checked
-                                        ? "bg-sidebar-primary/[0.04] ring-2 ring-sidebar-primary/45"
-                                        : "ring-1 ring-black/[0.03]",
+                                      "group app-interactive-card relative grid min-h-[92px] min-w-0 grid-cols-[44px_minmax(0,1fr)] items-center gap-3 rounded-xl p-3 text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-sidebar-primary/25",
+                                      checked ? "bg-sidebar-primary/[0.04] ring-2 ring-sidebar-primary/45" : "",
                                       isEditable
-                                        ? "cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_32px_-28px_rgb(15_23_42_/_0.35)]"
+                                        ? "cursor-pointer transition-[background-color,border-color,box-shadow] motion-reduce:transition-none"
                                         : "cursor-default opacity-80",
                                     ].join(" ")}
                                   >
-                                    <span className="flex size-11 items-center justify-center rounded-2xl bg-[#ececec] text-violet-500">
+                                    <span className="flex size-11 items-center justify-center rounded-xl bg-accent text-primary">
                                       <Sparkles className="size-5" />
                                     </span>
 
@@ -392,12 +387,12 @@ export const GroupDialog = ({
           </section>
         </div>
 
-        <DialogFooter className="shrink-0 border-t border-black/[0.04] bg-white/70 px-5 py-4">
-          <Button type="button" variant="outline" className="rounded-full" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="shrink-0 border-t border-border/60 bg-surface-raised/85 px-5 py-4">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             {isEditable ? "取消" : "关闭"}
           </Button>
           {(isEditable || isDefaultGroup !== (targetGroupId === defaultGroupId)) && (
-            <Button type="button" className="rounded-full" onClick={saveGroup}>
+            <Button type="button" onClick={saveGroup}>
               <CheckCircle2 className="size-4" />
               <span>{isEditable ? "保存分组" : "保存默认"}</span>
             </Button>

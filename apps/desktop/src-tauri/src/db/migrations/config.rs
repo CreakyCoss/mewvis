@@ -104,6 +104,11 @@ const CONFIG_MIGRATIONS: &[ConfigMigrationStep] = &[
         name: "clear_legacy_story_registry",
         run: clear_legacy_story_registry,
     },
+    ConfigMigrationStep {
+        target_version: 22,
+        name: "remove_readonly_skill_group_members",
+        run: remove_readonly_skill_group_members,
+    },
 ];
 
 fn add_story_registry(conn: &Connection) -> Result<(), String> {
@@ -124,6 +129,15 @@ fn add_story_registry(conn: &Connection) -> Result<(), String> {
 fn clear_legacy_story_registry(conn: &Connection) -> Result<(), String> {
     conn.execute("DELETE FROM stories", [])
         .map_err(|error| format!("无法清理旧故事索引：{error}"))?;
+    Ok(())
+}
+
+fn remove_readonly_skill_group_members(conn: &Connection) -> Result<(), String> {
+    conn.execute(
+        "DELETE FROM skill_settings WHERE key = 'readonly_skill_group_members'",
+        [],
+    )
+    .map_err(|error| format!("无法删除旧版内置 Skill 分组成员设置：{error}"))?;
     Ok(())
 }
 
@@ -551,6 +565,7 @@ pub(crate) fn run_config_migrations(
     if current_version == 0 {
         validate_config_schema(conn)?;
         clear_legacy_story_registry(conn)?;
+        remove_readonly_skill_group_members(conn)?;
         set_database_user_version(conn, CONFIG_SCHEMA_VERSION)?;
         return Ok(());
     }
@@ -964,5 +979,44 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM stories", [], |row| row.get(0))
             .expect("count story records");
         assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn remove_readonly_skill_group_members_deletes_legacy_setting() {
+        let conn = Connection::open_in_memory().expect("open database");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE skill_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            INSERT INTO skill_settings (key, value, updated_at)
+            VALUES ('readonly_skill_group_members', '[]', 1);
+            INSERT INTO skill_settings (key, value, updated_at)
+            VALUES ('default_group_id', 'all', 1);
+            "#,
+        )
+        .expect("create skill settings");
+
+        remove_readonly_skill_group_members(&conn).expect("remove legacy setting");
+
+        let legacy_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM skill_settings WHERE key = 'readonly_skill_group_members'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("count legacy settings");
+        let default_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM skill_settings WHERE key = 'default_group_id'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("count default settings");
+
+        assert_eq!(legacy_count, 0);
+        assert_eq!(default_count, 1);
     }
 }

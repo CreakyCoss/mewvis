@@ -7,7 +7,7 @@ import {
   removeAppSkill,
   saveWorkspaceSkills,
   searchSkillMarketplace,
-} from "@/features/pages/skills/api";
+} from "@/api/skills";
 import { useSkillsStore } from "@/features/pages/skills/store";
 import type {
   InstallSkillInput,
@@ -249,6 +249,5 @@ const toSaveSkillGroups = (groups: WorkspaceSkillGroup[]): SaveWorkspaceSkillGro
     readonly: group.readonly,
     skills: group.skills.map((skill) => ({
       key: skill.key,
-      disabled: skill.disabled === true,
     })),
   }));

@@ -1,4 +1,4 @@
-import { deleteLedger } from "@/features/ai/components/conversation-ledger/api";
+import { deleteLedger } from "@/api/conversation-ledger";
 import type { TavernAgentFlowSessionInput } from "../types";
 
 export const tavernAgentFlowSessionRootDir = () => "session";

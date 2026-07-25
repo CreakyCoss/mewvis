@@ -88,24 +88,27 @@ const handlePiSessionEvent = (
       return;
     case "tool_execution_start":
       emit({
-        type: AgentEventType.ToolStart,
+        type: AgentEventType.ToolExecutionStart,
         taskId: command.taskId,
+        toolCallId: event.toolCallId,
         toolName: event.toolName,
         args: event.args,
       });
       return;
     case "tool_execution_update":
       emit({
-        type: AgentEventType.ToolUpdate,
+        type: AgentEventType.ToolExecutionUpdate,
         taskId: command.taskId,
+        toolCallId: event.toolCallId,
         toolName: event.toolName,
         partialResult: event.partialResult,
       });
       return;
     case "tool_execution_end":
       emit({
-        type: AgentEventType.ToolEnd,
+        type: AgentEventType.ToolExecutionEnd,
         taskId: command.taskId,
+        toolCallId: event.toolCallId,
         toolName: event.toolName,
         isError: event.isError,
         result: event.result,
@@ -146,6 +149,40 @@ const handlePiMessageUpdate = (
         content: event.assistantMessageEvent.content,
       });
       return;
+    case "toolcall_start": {
+      const toolCall = getPiMessageUpdateToolCall(event);
+      if (toolCall) {
+        emit({
+          type: AgentEventType.ToolCallStart,
+          taskId: command.taskId,
+          toolCallId: toolCall.id,
+          toolName: toolCall.name,
+        });
+      }
+      return;
+    }
+    case "toolcall_delta": {
+      const toolCall = getPiMessageUpdateToolCall(event);
+      if (toolCall) {
+        emit({
+          type: AgentEventType.ToolCallDelta,
+          taskId: command.taskId,
+          toolCallId: toolCall.id,
+          toolName: toolCall.name,
+          delta: event.assistantMessageEvent.delta,
+        });
+      }
+      return;
+    }
+    case "toolcall_end":
+      emit({
+        type: AgentEventType.ToolCallEnd,
+        taskId: command.taskId,
+        toolCallId: event.assistantMessageEvent.toolCall.id,
+        toolName: event.assistantMessageEvent.toolCall.name,
+        args: event.assistantMessageEvent.toolCall.arguments,
+      });
+      return;
     case "error":
       setPiSessionError(command, emit, state, piMessageError(event.assistantMessageEvent.error));
       return;
@@ -153,14 +190,21 @@ const handlePiMessageUpdate = (
     case "text_start":
     case "text_end":
     case "thinking_start":
-    case "toolcall_start":
-    case "toolcall_delta":
-    case "toolcall_end":
     case "done":
       return;
     default:
       assertNever(event.assistantMessageEvent);
   }
+};
+
+const getPiMessageUpdateToolCall = (event: Extract<AgentSessionEvent, { type: "message_update" }>) => {
+  const assistantEvent = event.assistantMessageEvent;
+  if (assistantEvent.type !== "toolcall_start" && assistantEvent.type !== "toolcall_delta") {
+    return null;
+  }
+
+  const content = assistantEvent.partial.content[assistantEvent.contentIndex];
+  return content?.type === "toolCall" ? content : null;
 };
 
 const handlePiMessageEnd = (

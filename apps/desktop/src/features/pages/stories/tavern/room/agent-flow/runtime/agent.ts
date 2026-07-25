@@ -6,7 +6,7 @@ import {
 } from "@/agent-client/output";
 import { createAgentClient } from "@/agent-client/runtime";
 import type { AgentClientAgentEvent } from "@/agent-client/types";
-import { readLedger } from "@/features/ai/components/conversation-ledger/api";
+import { readLedger } from "@/api/conversation-ledger";
 import type { TavernAgentFlowRunAgentInput, TavernAgentFlowRunAgentOutput } from "../types";
 
 const tavernAgentFlowClient = createAgentClient();

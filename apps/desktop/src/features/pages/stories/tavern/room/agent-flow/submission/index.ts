@@ -1,6 +1,6 @@
 import type { FormEvent } from "react";
 import type { PromptFileReference } from "@/features/ai/components/context-tools";
-import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
+import type { WorkspaceFileEntry } from "@/api/workspace-files";
 import { createTavernTextMessageBody, type TavernMessage } from "@/features/pages/stories/tavern/room/model/message";
 import { requireRuntimeModelInput } from "@/features/pages/settings/llm/store";
 import {

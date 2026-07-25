@@ -43,7 +43,7 @@ export const StoryDocumentForm = ({
                 role="tab"
                 aria-selected={active}
                 className={[
-                  "relative h-12 shrink-0 text-sm font-medium transition-colors",
+                  "relative h-12 shrink-0 rounded-t-lg px-1 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground",
                 ].join(" ")}
                 onClick={() => setActiveSectionId(section.id)}

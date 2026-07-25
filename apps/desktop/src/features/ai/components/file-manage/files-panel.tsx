@@ -1,7 +1,7 @@
 import { ChevronRight, FileText, Folder, FolderOpen, GitBranch, Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { WorkspaceFile } from "@/features/pages/workspace/files-api";
+import type { WorkspaceFile } from "@/api/workspace-files";
 import { cn } from "@/lib/utils";
 import { VERSION_RULE_FILE_PATH } from "./constants";
 import type { FileTreeNode } from "./file-tree";
@@ -60,7 +60,7 @@ export const FilesPanel = ({
             )}
             <span className="min-w-0 flex-1 truncate font-medium">{node.name}</span>
             {node.children.length > 0 && (
-              <span className="rounded-sm bg-muted/70 px-1.5 py-0.5 text-[11px] text-muted-foreground">
+              <span className="rounded-sm bg-muted/70 px-1.5 py-0.5 text-xs text-muted-foreground">
                 {node.children.length}
               </span>
             )}
@@ -95,7 +95,7 @@ export const FilesPanel = ({
           onClick={() => onOpenFile(node.path)}
         >
           {isVersionRuleFile ? (
-            <GitBranch className="size-4 shrink-0 text-sky-700" />
+            <GitBranch className="size-4 shrink-0 text-primary" />
           ) : (
             <FileText className="size-4 shrink-0 text-muted-foreground" />
           )}
@@ -105,7 +105,7 @@ export const FilesPanel = ({
         {fileStatus && (
           <span
             className={cn(
-              "shrink-0 rounded-sm px-1.5 py-0.5 text-[11px] font-medium ring-1",
+              "shrink-0 rounded-sm px-1.5 py-0.5 text-xs font-medium ring-1",
               fileStatusBadgeClasses[fileStatus.status],
             )}
             title={fileStatusTitle}
@@ -119,9 +119,11 @@ export const FilesPanel = ({
 
   return (
     <>
-      <div className="flex min-w-0 items-center justify-between gap-2 bg-transparent px-3 py-3 xl:px-4">
+      <div className="flex min-w-0 items-center justify-between gap-2 px-3 py-3.5 xl:px-4">
         <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
-          <Folder className="size-4" />
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Folder className="size-4" aria-hidden="true" />
+          </span>
           <span className="shrink-0">文件</span>
           <span className="rounded-md bg-muted/70 px-2 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">
             {selectableFileCount}
@@ -142,11 +144,15 @@ export const FilesPanel = ({
           <section className="min-w-0 space-y-2 overflow-hidden">
             <div className="min-w-0 space-y-0.5 overflow-hidden">
               {isFilesLoading ? (
-                <div className="px-2 py-8 text-center text-sm text-muted-foreground">正在读取文件</div>
+                <div className="app-empty-state rounded-xl px-4 py-8 text-center text-sm text-muted-foreground">
+                  正在读取文件
+                </div>
               ) : selectableFileCount ? (
                 fileTree.map((node) => renderFileTreeNode(node, 0))
               ) : (
-                <div className="px-2 py-8 text-center text-sm text-muted-foreground">暂无可编辑文件</div>
+                <div className="app-empty-state rounded-xl px-4 py-8 text-center text-sm text-muted-foreground">
+                  暂无可编辑文件
+                </div>
               )}
             </div>
           </section>

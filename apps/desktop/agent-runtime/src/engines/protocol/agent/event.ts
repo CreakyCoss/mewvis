@@ -21,9 +21,12 @@ export enum AgentEventType {
   TextDelta = "text_delta",
   ThinkingDelta = "thinking_delta",
   ThinkingEnd = "thinking_end",
-  ToolStart = "tool_start",
-  ToolUpdate = "tool_update",
-  ToolEnd = "tool_end",
+  ToolCallStart = "tool_call_start",
+  ToolCallDelta = "tool_call_delta",
+  ToolCallEnd = "tool_call_end",
+  ToolExecutionStart = "tool_execution_start",
+  ToolExecutionUpdate = "tool_execution_update",
+  ToolExecutionEnd = "tool_execution_end",
   Done = "done",
   Error = "error",
 }
@@ -51,8 +54,47 @@ export type AgentEvent =
   | { type: AgentEventType.TextDelta; taskId: string; delta: string }
   | { type: AgentEventType.ThinkingDelta; taskId: string; delta: string }
   | { type: AgentEventType.ThinkingEnd; taskId: string; content: string }
-  | { type: AgentEventType.ToolStart; taskId: string; toolName: string; args: unknown }
-  | { type: AgentEventType.ToolUpdate; taskId: string; toolName: string; partialResult: unknown }
-  | { type: AgentEventType.ToolEnd; taskId: string; toolName: string; isError: boolean; result: unknown }
+  | {
+      type: AgentEventType.ToolCallStart;
+      taskId: string;
+      toolCallId: string;
+      toolName: string;
+    }
+  | {
+      type: AgentEventType.ToolCallDelta;
+      taskId: string;
+      toolCallId: string;
+      toolName: string;
+      delta: string;
+    }
+  | {
+      type: AgentEventType.ToolCallEnd;
+      taskId: string;
+      toolCallId: string;
+      toolName: string;
+      args: unknown;
+    }
+  | {
+      type: AgentEventType.ToolExecutionStart;
+      taskId: string;
+      toolCallId: string;
+      toolName: string;
+      args: unknown;
+    }
+  | {
+      type: AgentEventType.ToolExecutionUpdate;
+      taskId: string;
+      toolCallId: string;
+      toolName: string;
+      partialResult: unknown;
+    }
+  | {
+      type: AgentEventType.ToolExecutionEnd;
+      taskId: string;
+      toolCallId: string;
+      toolName: string;
+      isError: boolean;
+      result: unknown;
+    }
   | { type: AgentEventType.Done; taskId: string; text: string; runtimeSession?: RuntimeSessionRecordRef | null }
   | { type: AgentEventType.Error; taskId?: string; message: string };

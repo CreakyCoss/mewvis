@@ -1,33 +1,12 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
-
-type FileEntry = {
-  path: string;
-  name: string;
-  isDirectory: boolean;
-  size: number | null;
-  updatedAt: number | null;
-};
-
-type StoredFile = {
-  path: string;
-  content: string;
-  updatedAt: number | null;
-};
-
-type RevisionCondition = {
-  relativePath: string;
-  expectedRevision: number | null;
-};
-
-type FileWrite = {
-  relativePath: string;
-  content: string;
-};
-
-type FileWriteResult = {
-  writtenPaths: string[];
-  deletedPaths: string[];
-};
+import {
+  deleteWorkspaceFile,
+  listWorkspaceFiles,
+  readWorkspaceFileOptional,
+  writeWorkspaceFile,
+  writeWorkspaceFilesAtomic,
+  type WorkspaceFileRevisionCondition as RevisionCondition,
+  type WorkspaceFileWrite as FileWrite,
+} from "@/api/workspace-files";
 
 export type WorkspaceFileFormat<T> = Readonly<{
   parse: (content: string) => T;
@@ -80,63 +59,6 @@ const jsonLinesFileFormat = <T = unknown>() =>
     },
   });
 
-const createDesktopOnlyFileError = () => new Error("工作区文件保存仅支持桌面环境");
-
-const readStoredWorkspaceFile = async (workspacePath: string, relativePath: string) => {
-  if (!isTauri()) {
-    return null;
-  }
-
-  return invoke<StoredFile | null>("read_workspace_file_optional", {
-    input: { workspacePath, relativePath },
-  });
-};
-
-const writeStoredWorkspaceFile = async (workspacePath: string, relativePath: string, content: string) => {
-  if (!isTauri()) {
-    throw createDesktopOnlyFileError();
-  }
-
-  return invoke<StoredFile>("write_workspace_file", {
-    input: { workspacePath, relativePath, content },
-  });
-};
-
-const removeStoredWorkspaceFile = async (workspacePath: string, relativePath: string) => {
-  if (!isTauri()) {
-    throw createDesktopOnlyFileError();
-  }
-
-  return invoke<void>("delete_workspace_file", {
-    input: { workspacePath, relativePath },
-  });
-};
-
-const listStoredWorkspaceFiles = async (workspacePath: string) => {
-  if (!isTauri()) {
-    return [];
-  }
-
-  return invoke<FileEntry[]>("list_workspace_files", {
-    input: { workspacePath },
-  });
-};
-
-const writeStoredWorkspaceFilesAtomic = async (
-  workspacePath: string,
-  files: FileWrite[],
-  deletePaths: string[],
-  revisionCondition?: RevisionCondition,
-) => {
-  if (!isTauri()) {
-    throw createDesktopOnlyFileError();
-  }
-
-  return invoke<FileWriteResult>("write_workspace_files_atomic", {
-    input: { workspacePath, files, deletePaths, revisionCondition },
-  });
-};
-
 const serializeFile = <T>(relativePath: string, value: T, format: WorkspaceFileFormat<T>): FileWrite => ({
   relativePath,
   content: format.serialize(value),
@@ -144,12 +66,12 @@ const serializeFile = <T>(relativePath: string, value: T, format: WorkspaceFileF
 
 export const workspaceFile = (workspacePath: string, relativePath: string) => {
   const read = async <T>(format: WorkspaceFileFormat<T>) => {
-    const file = await readStoredWorkspaceFile(workspacePath, relativePath);
+    const file = await readWorkspaceFileOptional(workspacePath, relativePath);
     return file ? format.parse(file.content) : null;
   };
 
   const write = <T>(value: T, format: WorkspaceFileFormat<T>) =>
-    writeStoredWorkspaceFile(workspacePath, relativePath, format.serialize(value));
+    writeWorkspaceFile(workspacePath, relativePath, format.serialize(value));
 
   return {
     read,
@@ -166,13 +88,13 @@ export const workspaceFile = (workspacePath: string, relativePath: string) => {
     writeText: (content: string) => write(content, textFileFormat),
     writeJson: (value: unknown) => write(value, jsonFileFormat()),
     writeJsonLines: <T = unknown>(values: readonly T[]) => write(values, jsonLinesFileFormat<T>()),
-    remove: () => removeStoredWorkspaceFile(workspacePath, relativePath),
+    remove: () => deleteWorkspaceFile(workspacePath, relativePath),
   };
 };
 
 export const workspaceFileSystem = (workspacePath: string) => {
   const writeAtomic = (files: FileWrite[], deletePaths: string[] = [], revisionCondition?: RevisionCondition) =>
-    writeStoredWorkspaceFilesAtomic(workspacePath, files, deletePaths, revisionCondition);
+    writeWorkspaceFilesAtomic(workspacePath, files, deletePaths, revisionCondition);
 
   const writeWithFormatAtomic = <T>(
     files: Array<{ relativePath: string; value: T }>,
@@ -188,7 +110,7 @@ export const workspaceFileSystem = (workspacePath: string) => {
 
   return {
     file: (relativePath: string) => workspaceFile(workspacePath, relativePath),
-    list: () => listStoredWorkspaceFiles(workspacePath),
+    list: () => listWorkspaceFiles(workspacePath),
     writeAtomic,
     writeWithFormatAtomic,
     writeJsonAtomic: (

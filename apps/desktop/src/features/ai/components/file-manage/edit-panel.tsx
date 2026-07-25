@@ -21,7 +21,7 @@ import {
   type WorkspaceFile,
   type WorkspaceVersionFileStatus,
   writeWorkspaceFile,
-} from "@/features/pages/workspace/files-api";
+} from "@/api/workspace-files";
 import { isMarkdownPath, MarkdownContent } from "@/features/ai/components/markdown";
 
 type EditPanelProps = {
@@ -131,22 +131,25 @@ export const EditPanel = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="grid h-[min(84vh,760px)] max-w-[min(96vw,1080px)] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0">
-        <DialogHeader className="flex min-w-0 flex-row flex-wrap items-start gap-3 overflow-hidden bg-card/70 px-5 py-3 pr-14 shadow-[0_10px_28px_-30px_rgb(15_23_42_/_0.35)]">
+      <DialogContent className="grid h-[min(88vh,800px)] max-w-[min(96vw,1120px)] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0">
+        <DialogHeader className="flex min-w-0 flex-row flex-wrap items-start gap-3 overflow-hidden border-b border-border/60 bg-surface-raised/85 px-5 py-4">
           <div className="flex min-w-48 flex-1 basis-56 items-center gap-3 overflow-hidden">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-accent text-primary shadow-xs">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <FileText className="size-4" />
             </div>
             <div className="min-w-0 flex-1 overflow-hidden">
-              <DialogTitle className="whitespace-nowrap text-sm font-semibold">编辑文件</DialogTitle>
-              <DialogDescription className="truncate text-xs text-muted-foreground" title={filePath || undefined}>
+              <DialogTitle className="whitespace-nowrap text-base font-semibold">编辑文件</DialogTitle>
+              <DialogDescription
+                className="mt-0.5 truncate text-xs text-muted-foreground"
+                title={filePath || undefined}
+              >
                 {filePath || "选择或新建一个文件"}
               </DialogDescription>
             </div>
           </div>
           <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2">
             {isMarkdownFile && (
-              <div className="flex h-9 rounded-md bg-muted/70 p-0.5 shadow-xs">
+              <div className="flex h-9 rounded-lg border bg-background/55 p-0.5">
                 <Button
                   type="button"
                   size="sm"
@@ -169,7 +172,7 @@ export const EditPanel = ({
                 </Button>
               </div>
             )}
-            <div className="flex h-9 rounded-md bg-muted/70 p-0.5 shadow-xs">
+            <div className="flex h-9 rounded-lg border bg-background/55 p-0.5">
               <Button
                 type="button"
                 size="icon-sm"
@@ -184,14 +187,14 @@ export const EditPanel = ({
           </div>
         </DialogHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-5">
+        <div className="app-canvas flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-5">
           <Input
             value={filePath}
             onChange={(event) => setFilePath(event.currentTarget.value)}
             placeholder="例如：章节/第一章.md"
           />
           {isMarkdownFile && fileViewMode === "preview" ? (
-            <ScrollArea className="h-full min-h-0 flex-1 overflow-hidden rounded-md bg-card shadow-xs">
+            <ScrollArea className="app-panel h-full min-h-0 flex-1 overflow-hidden rounded-xl">
               <div className="mx-auto w-full max-w-4xl p-6">
                 {fileContent.trim() ? (
                   <MarkdownContent content={fileContent} />
@@ -207,7 +210,7 @@ export const EditPanel = ({
               value={fileContent}
               onChange={(event) => setFileContent(event.currentTarget.value)}
               placeholder="选择文件或输入新文件内容"
-              className="min-h-0 flex-1 resize-none overflow-auto bg-card font-mono text-sm leading-6 shadow-xs"
+              className="min-h-0 flex-1 resize-none overflow-auto bg-card font-mono text-sm leading-6"
             />
           )}
           {fileError && (
@@ -217,18 +220,22 @@ export const EditPanel = ({
           )}
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 bg-card/80 px-5 py-3 shadow-[0_-10px_28px_-30px_rgb(15_23_42_/_0.35)]">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 bg-surface-raised/85 px-5 py-3">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             {fileVersionStatus && (
               <Button
                 type="button"
                 variant="outline"
-                className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800"
+                className="border-warning/35 bg-warning/10 text-foreground hover:bg-warning/15 hover:text-foreground"
                 title={isNewVersionFile ? "撤销新增：删除这个未提交文件" : `${discardLabel}：恢复到当前提交状态`}
                 onClick={() => void onDiscardFileChanges()}
                 disabled={isBusy}
               >
-                {isFileDiscarding ? <Loader2 className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}
+                {isFileDiscarding ? (
+                  <Loader2 className="size-4 animate-spin text-warning motion-reduce:animate-none" />
+                ) : (
+                  <RotateCcw className="size-4 text-warning" />
+                )}
                 <span>{discardLabel}</span>
               </Button>
             )}
@@ -241,7 +248,11 @@ export const EditPanel = ({
                   title="从工作区删除当前文件"
                   disabled={!activeFile || isBusy}
                 >
-                  {isFileDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                  {isFileDeleting ? (
+                    <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+                  ) : (
+                    <Trash2 className="size-4" />
+                  )}
                   <span>删除文件</span>
                 </Button>
               </AlertDialogTrigger>
@@ -269,7 +280,11 @@ export const EditPanel = ({
             onClick={() => void saveFile()}
             disabled={isBusy || !filePath.trim()}
           >
-            {isFileSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+            {isFileSaving ? (
+              <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+            ) : (
+              <Save className="size-4" />
+            )}
             <span>{saveLabel}</span>
           </Button>
         </div>

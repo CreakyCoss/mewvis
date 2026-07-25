@@ -135,7 +135,6 @@ const normalizeSkillGroups = (groups: WorkspaceSkillGroup[]) =>
       skills: group.skills
         .map((skill) => ({
           key: skill.key,
-          disabled: skill.disabled === true,
         }))
         .sort((left, right) => left.key.localeCompare(right.key)),
     }))

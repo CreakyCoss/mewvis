@@ -18,7 +18,7 @@ import {
   type WorkspaceFileEntry,
   type WorkspaceVersionControlStatus,
   writeWorkspaceFile,
-} from "@/features/pages/workspace/files-api";
+} from "@/api/workspace-files";
 import { buildFileTree, type FileTreeNode, getParentDirectoryPaths } from "./file-tree";
 import { EditPanel } from "./edit-panel";
 import { FilesPanel } from "./files-panel";
@@ -309,7 +309,11 @@ export const FilesSection = ({
               取消
             </Button>
             <Button type="button" onClick={() => void createNewFile()} disabled={isCreatingFile || !newFilePath.trim()}>
-              {isCreatingFile ? <LoaderCircle className="size-4 animate-spin" /> : <FileText className="size-4" />}
+              {isCreatingFile ? (
+                <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />
+              ) : (
+                <FileText className="size-4" />
+              )}
               创建文件
             </Button>
           </DialogFooter>

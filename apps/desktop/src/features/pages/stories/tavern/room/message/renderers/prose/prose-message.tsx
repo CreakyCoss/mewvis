@@ -15,7 +15,7 @@ const roleLabel: Record<RenderableMessage["role"], string> = {
 const proseBlockClassName: Record<RenderableMessage["role"], string> = {
   narrator: "",
   character: "",
-  user: "rounded-md bg-current/[0.045] ring-1 ring-current/10",
+  user: "rounded-xl bg-current/[0.045] ring-1 ring-current/10",
 };
 
 const proseTextClassName: Record<RenderableMessage["role"], string> = {
@@ -34,13 +34,17 @@ export const ProseMessage = ({ message }: { message: RenderableMessage }) => {
   }
 
   return (
-    <article className={cn("group/message relative w-full py-2 pl-0 pr-9 sm:pr-12", proseBlockClassName[message.role])}>
-      <header className="pointer-events-none absolute left-0 top-0 z-10 flex min-w-0 -translate-y-1/2 items-center gap-2 rounded-sm bg-background/80 px-1 text-[11px] leading-4 text-current opacity-0 shadow-sm backdrop-blur transition-opacity duration-150 group-hover/message:opacity-70 group-focus-within/message:opacity-70">
+    <article
+      className={cn("group/message relative w-full py-3 pl-0 pr-10 sm:pr-12", proseBlockClassName[message.role])}
+    >
+      <header className="pointer-events-none absolute top-0 left-0 z-10 flex min-w-0 -translate-y-1/2 items-center gap-2 rounded-md bg-current/[0.06] px-1.5 py-0.5 text-xs leading-4 text-current opacity-[0.58] backdrop-blur transition-opacity duration-150 motion-reduce:transition-none group-hover/message:opacity-80 group-focus-within/message:opacity-80">
         <span className="shrink-0 font-medium">
           {message.role === "character" ? message.speakerName : roleLabel[message.role]}
         </span>
         <span className="truncate tabular-nums">{formatTime(message.createdAt)}</span>
-        {message.status === "streaming" && <Loader2 className="size-3 animate-spin opacity-70" />}
+        {message.status === "streaming" && (
+          <Loader2 className="size-3 animate-spin opacity-70 motion-reduce:animate-none" />
+        )}
       </header>
 
       {message.segments.length > 0 ? (

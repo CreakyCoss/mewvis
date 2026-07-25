@@ -1,4 +1,4 @@
-import type { WorkspaceVersionFileStatus } from "@/features/pages/workspace/files-api";
+import type { WorkspaceVersionFileStatus } from "@/api/workspace-files";
 
 export type FileManageTool = "files" | "version" | "history";
 

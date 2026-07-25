@@ -9,7 +9,6 @@ export type WorkspaceSkill = {
 
 export type WorkspaceSkillGroupSkill = {
   key: string;
-  disabled?: boolean;
 };
 
 export type WorkspaceSkillGroup = {

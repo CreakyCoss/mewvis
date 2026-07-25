@@ -44,11 +44,11 @@ export const AgentSettingsDialog = ({ open, onOpenChange }: AgentSettingsDialogP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden border-transparent p-0 shadow-lg sm:max-w-5xl">
+      <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden border-border/70 bg-popover p-0 shadow-[var(--shadow-floating)] sm:max-w-5xl">
         <DialogHeader>
-          <div className="px-6 pt-6 pb-4 shadow-[0_10px_30px_-30px_rgb(15_23_42_/_0.35)]">
+          <div className="border-b border-border/70 bg-card/35 px-6 pt-6 pb-4">
             <DialogTitle className="flex items-center gap-2 text-lg">
-              <span className="flex size-8 items-center justify-center rounded-md bg-accent text-primary shadow-xs">
+              <span className="flex size-9 items-center justify-center rounded-lg bg-accent text-primary">
                 <Bot className="size-4" />
               </span>
               <span>角色设置</span>
@@ -58,13 +58,13 @@ export const AgentSettingsDialog = ({ open, onOpenChange }: AgentSettingsDialogP
         </DialogHeader>
 
         {error && (
-          <div className="mx-6 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <div className="mx-6 mt-4 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
             {error}
           </div>
         )}
 
         <div className="grid min-h-0 flex-1 gap-0 md:grid-cols-[260px_1fr]">
-          <aside className="flex min-h-0 flex-col gap-3 bg-muted/35 px-4 py-4 shadow-[10px_0_30px_-30px_rgb(15_23_42_/_0.35)]">
+          <aside className="flex min-h-0 flex-col gap-3 border-r border-border/70 bg-surface/60 px-4 py-4">
             <Button
               type="button"
               variant="outline"
@@ -84,7 +84,7 @@ export const AgentSettingsDialog = ({ open, onOpenChange }: AgentSettingsDialogP
                     key={agent.id}
                     type="button"
                     className={[
-                      "flex w-full items-center gap-2 rounded-md border px-3 py-2.5 text-left text-sm shadow-xs transition-all",
+                      "flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition-[color,background-color,border-color,box-shadow] motion-reduce:transition-none",
                       agent.id === selectedAgentId
                         ? "border-primary/20 bg-card text-foreground ring-1 ring-primary/10"
                         : "border-transparent bg-card/65 hover:bg-card",
@@ -102,7 +102,7 @@ export const AgentSettingsDialog = ({ open, onOpenChange }: AgentSettingsDialogP
                 );
               })}
               {!agents.length && !isLoading && (
-                <div className="rounded-md bg-card/65 px-3 py-8 text-center text-sm text-muted-foreground">
+                <div className="app-empty-state rounded-xl px-3 py-8 text-center text-sm text-muted-foreground">
                   暂无角色，请手动创建
                 </div>
               )}
@@ -133,7 +133,7 @@ export const AgentSettingsDialog = ({ open, onOpenChange }: AgentSettingsDialogP
                     <Label htmlFor="agent-avatar-preview">头像预览</Label>
                     <div
                       id="agent-avatar-preview"
-                      className="flex h-9 items-center gap-2 rounded-md bg-background px-2 shadow-xs"
+                      className="flex h-9 items-center gap-2 rounded-lg border border-border/70 bg-card px-2 shadow-xs"
                     >
                       <img src={draftAvatar.src} alt="" className="size-7 rounded-md" />
                       <span className="truncate text-sm">{draftAvatar.label}</span>
@@ -148,7 +148,7 @@ export const AgentSettingsDialog = ({ open, onOpenChange }: AgentSettingsDialogP
                       <section key={group.id} className="space-y-2">
                         <div>
                           <div className="text-xs font-medium text-foreground">{group.label}</div>
-                          <div className="text-[11px] leading-4 text-muted-foreground">{group.description}</div>
+                          <div className="text-xs leading-4 text-muted-foreground">{group.description}</div>
                         </div>
                         <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
                           {group.options.map((avatar) => (
@@ -156,7 +156,7 @@ export const AgentSettingsDialog = ({ open, onOpenChange }: AgentSettingsDialogP
                               key={avatar.id}
                               type="button"
                               className={[
-                                "rounded-md border bg-card p-1 text-center shadow-xs transition-all hover:bg-accent/35 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+                                "rounded-lg border bg-card p-1 text-center transition-[background-color,border-color,box-shadow] motion-reduce:transition-none hover:bg-accent/35 focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:outline-none",
                                 normalizeAgentAvatarId(draft.avatar) === avatar.id
                                   ? "border-primary/50 ring-1 ring-primary/20"
                                   : "border-transparent",
@@ -169,9 +169,7 @@ export const AgentSettingsDialog = ({ open, onOpenChange }: AgentSettingsDialogP
                                 alt={avatar.label}
                                 className="aspect-square w-full rounded-md object-cover"
                               />
-                              <span className="mt-1 block truncate text-[10px] text-muted-foreground">
-                                {avatar.label}
-                              </span>
+                              <span className="mt-1 block truncate text-xs text-muted-foreground">{avatar.label}</span>
                             </button>
                           ))}
                         </div>
@@ -195,10 +193,10 @@ export const AgentSettingsDialog = ({ open, onOpenChange }: AgentSettingsDialogP
                 </div>
 
                 {selectedAgentId && (
-                  <div className="flex justify-end rounded-md bg-muted/35 px-3 py-2.5">
+                  <div className="flex justify-end rounded-xl border border-border/60 bg-muted/25 px-3 py-2.5">
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="destructive"
                       onClick={() => void remove(selectedAgentId)}
                       disabled={isSaving}
                     >
@@ -212,7 +210,7 @@ export const AgentSettingsDialog = ({ open, onOpenChange }: AgentSettingsDialogP
           </section>
         </div>
 
-        <DialogFooter className="px-6 py-4 shadow-[0_-10px_30px_-32px_rgb(15_23_42_/_0.35)]">
+        <DialogFooter className="border-t border-border/70 bg-card/35 px-6 py-4">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             取消
           </Button>

@@ -24,10 +24,10 @@ const ProviderTile = ({ provider, onOpen }: { provider: LlmProvider; onOpen: () 
   return (
     <button
       type="button"
-      className="group flex w-full min-w-0 items-center gap-4 rounded-md border border-border bg-card px-4 py-4 text-left shadow-xs transition-all hover:border-primary/35 hover:bg-accent/25 hover:shadow-sm focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+      className="app-interactive-card group flex w-full min-w-0 items-center gap-4 rounded-xl px-4 py-4 text-left focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:outline-none"
       onClick={onOpen}
     >
-      <span className="flex size-11 shrink-0 items-center justify-center rounded-md border bg-background text-primary shadow-xs">
+      <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent text-primary">
         <ServerCog className="size-5" />
       </span>
 
@@ -58,7 +58,7 @@ const ProviderTile = ({ provider, onOpen }: { provider: LlmProvider; onOpen: () 
         </span>
       </span>
 
-      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none group-hover:translate-x-0.5 group-hover:text-primary motion-reduce:group-hover:translate-x-0" />
     </button>
   );
 };
@@ -94,13 +94,13 @@ export const LlmSettingsPage = ({ onBack, onSettingsSaved }: LlmSettingsPageProp
 
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
-      <header className="flex min-h-14 items-center justify-between gap-3 bg-card/80 px-5 py-3 shadow-[0_10px_30px_-30px_rgb(15_23_42_/_0.35)] backdrop-blur">
+      <header className="app-page-header flex min-h-16 items-center justify-between gap-3 px-5 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="rounded-md"
+            className="rounded-lg"
             title="返回"
             aria-label="返回"
             onClick={onBack}
@@ -108,24 +108,26 @@ export const LlmSettingsPage = ({ onBack, onSettingsSaved }: LlmSettingsPageProp
             <ArrowLeft className="size-5" />
           </Button>
           <div className="min-w-0">
-            <h2 className="text-base font-semibold">LLM 设置</h2>
-            <p className="truncate text-xs text-muted-foreground">
+            <h2 className="text-xl font-semibold tracking-[-0.02em]">LLM 设置</h2>
+            <p className="mt-0.5 truncate text-sm text-muted-foreground">
               管理 Provider、API Endpoint、API Key 和可暴露模型。
             </p>
           </div>
         </div>
 
-        <Button type="button" onClick={openCreateProvider}>
-          <Plus className="size-4" />
-          <span>添加 LLM</span>
-        </Button>
+        {providers.length > 0 ? (
+          <Button type="button" onClick={openCreateProvider}>
+            <Plus className="size-4" />
+            <span>添加 LLM</span>
+          </Button>
+        ) : null}
       </header>
 
-      <ScrollArea className="min-h-0 flex-1">
+      <ScrollArea className="min-h-0 flex-1 bg-surface/45">
         <div className="mx-auto w-full max-w-6xl px-6 py-7">
           <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
             <div className="space-y-2">
-              <h3 className="text-2xl font-semibold">已配置 LLM</h3>
+              <h3 className="text-lg font-semibold">已配置 LLM</h3>
               <p className="max-w-2xl text-sm text-muted-foreground">
                 已保存的 Provider 会在这里平铺展示，聊天、角色和酒馆会从启用模型中选择。
               </p>
@@ -147,7 +149,7 @@ export const LlmSettingsPage = ({ onBack, onSettingsSaved }: LlmSettingsPageProp
           </div>
 
           {error && (
-            <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
               {error}
             </div>
           )}
@@ -159,8 +161,8 @@ export const LlmSettingsPage = ({ onBack, onSettingsSaved }: LlmSettingsPageProp
               ))}
             </div>
           ) : (
-            <div className="flex min-h-[320px] flex-col items-center justify-center gap-4 rounded-md border border-dashed bg-card px-6 text-center shadow-xs">
-              <span className="flex size-12 items-center justify-center rounded-md bg-accent text-primary">
+            <div className="app-empty-state flex min-h-[320px] flex-col items-center justify-center gap-4 rounded-2xl px-6 text-center">
+              <span className="flex size-12 items-center justify-center rounded-xl bg-accent text-primary">
                 <Sparkles className="size-6" />
               </span>
               <div className="space-y-1">

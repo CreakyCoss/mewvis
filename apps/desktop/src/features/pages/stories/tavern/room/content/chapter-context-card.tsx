@@ -28,7 +28,7 @@ export const ChapterContextCard = ({
   >
     <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 px-0.5">
       <span
-        className={cn("rounded-full px-2.5 py-0.5 text-[11px] font-semibold leading-4", visualPreset.tavern.sceneBadge)}
+        className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold leading-4", visualPreset.tavern.sceneBadge)}
       >
         {content.themeLabel}
       </span>
@@ -37,29 +37,31 @@ export const ChapterContextCard = ({
     </div>
 
     <div className="mt-3 overflow-hidden rounded-lg border border-current/12 bg-current/[0.018]">
-      <div className="grid lg:grid-cols-2">
-        {content.sections.map((section, index) => (
-          <div
-            key={section.id}
-            className={cn(
-              "min-w-0 px-3 py-3",
-              index > 0 && "border-t border-current/10",
-              index % 2 === 1 && "lg:border-l",
-              index > 1 && "lg:border-t",
-            )}
-          >
-            <div className="flex min-w-0 items-center gap-2">
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-current/[0.07] ring-1 ring-current/10">
-                <BookOpenText className="size-3.5 opacity-75" />
-              </span>
-              <div className="truncate text-[12.5px] font-semibold leading-4 opacity-80">{section.label}</div>
+      {content.sections.length > 0 ? (
+        <div className="grid lg:grid-cols-2">
+          {content.sections.map((section, index) => (
+            <div
+              key={section.id}
+              className={cn(
+                "min-w-0 px-3 py-3",
+                index > 0 && "border-t border-current/10",
+                index % 2 === 1 && "lg:border-l",
+                index > 1 && "lg:border-t",
+              )}
+            >
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-current/[0.07] ring-1 ring-current/10">
+                  <BookOpenText className="size-3.5 opacity-75" />
+                </span>
+                <div className="truncate text-[12.5px] font-semibold leading-4 opacity-80">{section.label}</div>
+              </div>
+              <p className="mt-1.5 line-clamp-4 whitespace-pre-wrap break-words text-[12px] leading-5 opacity-[0.76]">
+                {section.content}
+              </p>
             </div>
-            <p className="mt-1.5 line-clamp-4 whitespace-pre-wrap break-words text-[12px] leading-5 opacity-[0.76]">
-              {section.content}
-            </p>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : null}
     </div>
 
     {content.footerNote ? (

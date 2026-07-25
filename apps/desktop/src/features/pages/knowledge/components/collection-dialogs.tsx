@@ -43,8 +43,8 @@ export const CollectionDetailsDialog = ({
   onSaveCollectionSources,
 }: CollectionDetailsDialogProps) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="sm:max-w-2xl">
-      <DialogHeader>
+    <DialogContent className="!flex h-[min(720px,calc(100vh-2rem))] max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+      <DialogHeader className="border-b border-border/60 bg-surface-raised/85 px-6 py-5 pr-14 text-left">
         <div className="flex flex-wrap items-center gap-2">
           <DialogTitle>{activeCollection?.name ?? "集合详情"}</DialogTitle>
           {activeCollection && (
@@ -56,22 +56,25 @@ export const CollectionDetailsDialog = ({
         </div>
         <DialogDescription>勾选这个集合包含的文件，保存后启用集合即可参与知识检索。</DialogDescription>
       </DialogHeader>
-      <div className="space-y-4">
+      <div className="app-canvas flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-6 py-5">
         {activeCollection?.description && (
-          <div className="rounded-md bg-muted/35 px-3 py-2 text-sm leading-6 text-muted-foreground">
+          <div className="app-panel rounded-xl px-4 py-3 text-sm leading-6 text-muted-foreground">
             {activeCollection.description}
           </div>
         )}
-        <div>
+        <div className="flex min-h-0 flex-1 flex-col">
           <div className="mb-2 flex items-center justify-between gap-3">
             <div className="text-sm font-medium">集合来源</div>
             <span className="text-xs text-muted-foreground">已保存 {activeCollectionSources.length} 个</span>
           </div>
-          <ScrollArea className="max-h-[420px]">
+          <ScrollArea className="min-h-0 flex-1 overflow-hidden">
             <div className="space-y-2 pr-3">
               {sources.length ? (
                 sources.map((source) => (
-                  <label key={source.id} className="flex min-w-0 items-start gap-3 rounded-md bg-muted/35 px-3 py-2">
+                  <label
+                    key={source.id}
+                    className="app-interactive-card flex min-h-14 min-w-0 cursor-pointer items-start gap-3 rounded-xl px-3.5 py-3"
+                  >
                     <Checkbox
                       className="mt-0.5"
                       checked={collectionSourceIds.has(source.id)}
@@ -86,7 +89,7 @@ export const CollectionDetailsDialog = ({
                   </label>
                 ))
               ) : (
-                <div className="flex min-h-32 items-center justify-center rounded-md bg-muted/25 text-sm text-muted-foreground">
+                <div className="app-empty-state flex min-h-40 items-center justify-center rounded-xl px-5 text-sm text-muted-foreground">
                   先上传文本文件
                 </div>
               )}
@@ -94,12 +97,16 @@ export const CollectionDetailsDialog = ({
           </ScrollArea>
         </div>
       </div>
-      <DialogFooter>
+      <DialogFooter className="border-t border-border/60 bg-surface-raised/85 px-6 py-4">
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSavingMembership}>
           取消
         </Button>
         <Button type="button" onClick={onSaveCollectionSources} disabled={!activeCollection || isSavingMembership}>
-          {isSavingMembership ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+          {isSavingMembership ? (
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+          ) : (
+            <Save className="size-4" />
+          )}
           <span>保存来源</span>
         </Button>
       </DialogFooter>
@@ -125,40 +132,50 @@ export const CollectionFormDialog = ({
   onSaveCollection,
 }: CollectionFormDialogProps) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="sm:max-w-md">
-      <DialogHeader>
+    <DialogContent className="!flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-md">
+      <DialogHeader className="border-b border-border/60 bg-surface-raised/85 px-6 py-5 pr-14 text-left">
         <DialogTitle>新建集合</DialogTitle>
         <DialogDescription>创建后可在右侧为它分配已上传文件。</DialogDescription>
       </DialogHeader>
-      <div className="space-y-3">
-        <Input
-          value={collectionDraft.name}
-          placeholder="集合名称"
-          onChange={(event) =>
-            setCollectionDraft((current) => ({
-              ...current,
-              name: event.target.value,
-            }))
-          }
-        />
-        <Textarea
-          value={collectionDraft.description}
-          placeholder="集合描述"
-          className="min-h-24 resize-none"
-          onChange={(event) =>
-            setCollectionDraft((current) => ({
-              ...current,
-              description: event.target.value,
-            }))
-          }
-        />
+      <div className="app-canvas min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+        <div>
+          <Input
+            id="knowledge-collection-name"
+            value={collectionDraft.name}
+            placeholder="集合名称"
+            onChange={(event) =>
+              setCollectionDraft((current) => ({
+                ...current,
+                name: event.target.value,
+              }))
+            }
+          />
+        </div>
+        <div>
+          <Textarea
+            id="knowledge-collection-description"
+            value={collectionDraft.description}
+            placeholder="集合描述"
+            className="min-h-24 resize-none"
+            onChange={(event) =>
+              setCollectionDraft((current) => ({
+                ...current,
+                description: event.target.value,
+              }))
+            }
+          />
+        </div>
       </div>
-      <DialogFooter>
+      <DialogFooter className="border-t border-border/60 bg-surface-raised/85 px-6 py-4">
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSavingCollection}>
           取消
         </Button>
         <Button type="button" onClick={onSaveCollection} disabled={isSavingCollection}>
-          {isSavingCollection ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+          {isSavingCollection ? (
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+          ) : (
+            <Save className="size-4" />
+          )}
           <span>创建集合</span>
         </Button>
       </DialogFooter>

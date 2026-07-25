@@ -35,7 +35,9 @@ export const AgentEventTimeline = ({
         content: describeAgentGroupEvent(event),
       })),
       footer:
-        latestEvent?.type === "tool_end" && latestEvent.isError ? "工具执行失败，请展开查看最后几条输出。" : undefined,
+        latestEvent?.type === "tool_execution_end" && latestEvent.isError
+          ? "工具执行失败，请展开查看最后几条输出。"
+          : undefined,
     };
   });
 

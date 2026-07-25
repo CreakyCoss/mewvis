@@ -44,7 +44,7 @@ export const VersionFileTree = ({
               <Folder className="size-4 shrink-0 text-muted-foreground" />
             )}
             <span className="min-w-0 flex-1 truncate font-medium">{node.name}</span>
-            <span className="rounded-sm bg-muted/70 px-1.5 py-0.5 text-[11px] tabular-nums text-muted-foreground">
+            <span className="rounded-sm bg-muted/70 px-1.5 py-0.5 text-xs tabular-nums text-muted-foreground">
               {node.fileCount}
             </span>
           </button>
@@ -72,14 +72,14 @@ export const VersionFileTree = ({
         onClick={() => onSelectFile(node.path)}
       >
         {isVersionRuleFile ? (
-          <GitBranch className="size-4 shrink-0 text-sky-700" />
+          <GitBranch className="size-4 shrink-0 text-primary" />
         ) : (
           <FileText className="size-4 shrink-0 text-muted-foreground" />
         )}
         {fileStatus && (
           <span
             className={cn(
-              "inline-flex h-5 min-w-0 shrink-0 items-center justify-center rounded-sm border border-current/25 px-1 font-mono text-[11px] font-semibold leading-none",
+              "inline-flex h-5 min-w-0 shrink-0 items-center justify-center rounded-sm border border-current/25 px-1 font-mono text-xs font-semibold leading-none",
               versionStatusTextClasses[fileStatus],
             )}
             title={versionStatusTitles[fileStatus]}

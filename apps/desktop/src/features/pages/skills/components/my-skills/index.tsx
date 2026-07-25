@@ -49,7 +49,7 @@ type MySkillsTabProps = {
 };
 
 const QUICK_ACTION_BUTTON_CLASS =
-  "size-10 rounded-full bg-white text-foreground/70 shadow-xs ring-1 ring-black/[0.03] hover:bg-white hover:text-foreground focus-visible:ring-sidebar-primary/25";
+  "size-10 rounded-xl border border-border/75 bg-card text-muted-foreground shadow-xs hover:bg-accent/60 hover:text-accent-foreground focus-visible:ring-sidebar-primary/25";
 
 export const MySkillsTab = ({
   isLoading,
@@ -94,13 +94,6 @@ export const MySkillsTab = ({
     ? existingGroupSkillNames(selectedGroup, skillsByKey)
     : skills.map((skill) => skill.key);
   const selectedGroupName = selectedGroup?.name ?? "全部技能";
-  const selectedGroupSkillDisabledByKey = useMemo(
-    () => new Map(selectedGroup?.skills.map((skill) => [skill.key, skill.disabled === true]) ?? []),
-    [selectedGroup],
-  );
-  const disabledMemberCount = selectedGroup
-    ? selectedGroup.skills.filter((skill) => skill.disabled === true).length
-    : 0;
   const visibleSkills = selectedGroup ? skills.filter((skill) => selectedGroupSkillKeys.includes(skill.key)) : skills;
   const displayedSkills = useMemo(
     () => filterSkills(visibleSkills, skillSearchQuery),
@@ -252,33 +245,6 @@ export const MySkillsTab = ({
     );
   }, [defaultSkillGroupId, groups, isSaving, onGroupsChange, pendingDeleteGroup]);
 
-  const toggleSelectedGroupSkillDisabled = useCallback(
-    (skill: WorkspaceSkill) => {
-      if (!selectedGroup || isSaving) {
-        return;
-      }
-
-      const nextGroups = groups.map((group) =>
-        group.id === selectedGroup.id
-          ? {
-              ...group,
-              skills: group.skills.map((member) =>
-                member.key === skill.key
-                  ? {
-                      ...member,
-                      disabled: member.disabled !== true,
-                    }
-                  : member,
-              ),
-            }
-          : group,
-      );
-
-      onGroupsChange(nextGroups, defaultSkillGroupId);
-    },
-    [defaultSkillGroupId, groups, isSaving, onGroupsChange, selectedGroup],
-  );
-
   const closeQuickActionsOnBlur = useCallback((event: FocusEvent<HTMLDivElement>) => {
     const nextTarget = event.relatedTarget;
     if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
@@ -297,8 +263,8 @@ export const MySkillsTab = ({
   return (
     <TooltipProvider delayDuration={220}>
       <>
-        <div className="flex h-full min-h-0 flex-1 flex-col bg-[#f6f6f5]">
-          <div className="shrink-0 px-5 pb-4 lg:px-10">
+        <div className="flex h-full min-h-0 flex-1 flex-col bg-background">
+          <div className="shrink-0 px-5 pt-4 pb-4 lg:px-8">
             <section className="flex min-w-0 items-center gap-3">
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <div
@@ -327,7 +293,7 @@ export const MySkillsTab = ({
                 {groupScrollState.canScroll && (
                   <button
                     type="button"
-                    className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-black/[0.04] text-foreground/65 transition-colors hover:bg-black/[0.06] hover:text-foreground/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/25"
+                    className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-muted/65 text-muted-foreground transition-colors hover:bg-accent/70 hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/25"
                     onClick={handleGroupScroll}
                     aria-label={groupScrollState.atEnd ? "向左查看更多分组" : "向右查看更多分组"}
                   >
@@ -337,7 +303,7 @@ export const MySkillsTab = ({
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
-                <div className="flex h-10 w-[200px] items-center gap-2 rounded-full bg-white px-3 shadow-xs ring-1 ring-black/[0.03]">
+                <div className="flex h-10 w-[220px] items-center gap-2 rounded-xl border border-border/75 bg-card px-3 shadow-xs">
                   <Input
                     className="h-8 border-0 bg-transparent px-0 text-sm shadow-none focus-visible:ring-0"
                     value={skillSearchQuery}
@@ -427,7 +393,7 @@ export const MySkillsTab = ({
                 <div className="flex min-w-0 items-center gap-1">
                   <button
                     type="button"
-                    className="-ml-1 inline-flex min-w-0 items-center gap-1.5 rounded-full px-1.5 py-1 font-medium text-foreground transition-colors hover:bg-black/[0.04] hover:text-sidebar-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/25"
+                    className="-ml-1 inline-flex min-h-9 min-w-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-medium text-foreground transition-colors hover:bg-accent/60 hover:text-sidebar-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/25"
                     onClick={openSelectedGroupDetails}
                     aria-label={
                       selectedGroup && !selectedGroup.readonly
@@ -444,7 +410,7 @@ export const MySkillsTab = ({
                       type="button"
                       size="xs"
                       variant="ghost"
-                      className="h-7 rounded-full bg-white px-2.5 text-xs text-destructive shadow-xs ring-1 ring-destructive/10 hover:bg-destructive/10 hover:text-destructive"
+                      className="h-9 rounded-lg bg-card px-3 text-xs text-destructive shadow-xs ring-1 ring-destructive/10 hover:bg-destructive/10 hover:text-destructive"
                       aria-label={`删除分组：${selectedGroupName}`}
                       disabled={isSaving}
                       onClick={() => setPendingDeleteGroup(selectedGroup)}
@@ -455,19 +421,19 @@ export const MySkillsTab = ({
                 )}
               </div>
               <div className="flex items-center">
-                <span>
-                  共 {visibleSkills.length} 个 Skill
-                  {disabledMemberCount > 0 ? `，${disabledMemberCount} 个已禁用` : ""}
-                </span>
+                <span>共 {visibleSkills.length} 个 Skill</span>
               </div>
             </div>
           </div>
 
           <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
             <ScrollArea className="h-full min-h-0">
-              <div className="px-5 pt-1 pb-8 lg:px-10">
+              <div className="px-5 pt-1 pb-8 lg:px-8">
                 {isLoading ? (
-                  <EmptyState icon={<Loader2 className="size-4 animate-spin" />} text="正在读取 Skills" />
+                  <EmptyState
+                    icon={<Loader2 className="size-4 animate-spin motion-reduce:animate-none" />}
+                    text="正在读取 Skills"
+                  />
                 ) : displayedSkills.length > 0 ? (
                   <div className="space-y-5">
                     {displayedSkillGroups.map((skillGroup) => {
@@ -504,9 +470,6 @@ export const MySkillsTab = ({
                                   disabled={isSaving || isRemoving}
                                   removable={skill.source === "app" || skill.source === "upload"}
                                   removing={removingSkillKey === skill.key}
-                                  skillDisabled={selectedGroupSkillDisabledByKey.get(skill.key) === true}
-                                  canToggleSkillDisabled={selectedGroup !== null}
-                                  onToggleSkillDisabled={toggleSelectedGroupSkillDisabled}
                                   onRemove={setPendingRemoveSkill}
                                 />
                               ))}
@@ -627,18 +590,18 @@ const CategoryPill = ({ id, name, selected, isDefault = false, onSelect }: Categ
   <button
     type="button"
     className={[
-      "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-all",
+      "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-[color,background-color,border-color,box-shadow] motion-reduce:transition-none",
       id === ALL_SKILLS_GROUP_ID ? "min-w-[108px] justify-center" : "",
       selected
-        ? "bg-white text-foreground shadow-xs ring-1 ring-black/[0.03]"
-        : "bg-black/[0.04] text-foreground/75 hover:bg-white/80",
+        ? "border border-border/75 bg-card text-foreground shadow-xs"
+        : "border border-transparent bg-muted/70 text-muted-foreground hover:border-border/60 hover:bg-card hover:text-foreground",
     ].join(" ")}
     onClick={() => onSelect(id)}
   >
     <CategoryIcon name={name} />
     <span>{name}</span>
     {isDefault && (
-      <span className="rounded-full bg-sidebar-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-sidebar-primary">
+      <span className="rounded-full bg-sidebar-primary/10 px-1.5 py-0.5 text-xs font-medium text-sidebar-primary">
         默认
       </span>
     )}

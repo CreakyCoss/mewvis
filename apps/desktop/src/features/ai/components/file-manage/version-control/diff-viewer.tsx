@@ -22,7 +22,7 @@ export const SideBySideDiffViewer = ({ rows, activeRowIndex = -1, rowRefs }: Sid
           return (
             <div
               key={`${row.kind}-${index}`}
-              className="border-b border-border/50 bg-muted/45 px-3 py-1.5 font-mono text-[11px] text-muted-foreground last:border-b-0"
+              className="border-b border-border/50 bg-muted/45 px-3 py-1.5 font-mono text-xs text-muted-foreground last:border-b-0"
             >
               {row.text}
             </div>
@@ -55,7 +55,7 @@ export const SideBySideDiffViewer = ({ rows, activeRowIndex = -1, rowRefs }: Sid
           >
             <div
               className={cn(
-                "border-r border-border/50 px-2 py-1 text-right font-mono text-[11px] text-muted-foreground",
+                "border-r border-border/50 px-2 py-1 text-right font-mono text-xs text-muted-foreground",
                 oldChanged && "bg-destructive/10 text-destructive",
                 oldEmpty && "bg-muted/25",
               )}
@@ -64,7 +64,7 @@ export const SideBySideDiffViewer = ({ rows, activeRowIndex = -1, rowRefs }: Sid
             </div>
             <pre
               className={cn(
-                "min-h-5 whitespace-pre-wrap break-words border-r border-border/50 px-3 py-1 font-mono text-[11px] text-foreground",
+                "min-h-5 whitespace-pre-wrap break-words border-r border-border/50 px-3 py-1 font-mono text-xs text-foreground",
                 oldChanged && "bg-destructive/10 text-destructive",
                 oldEmpty && "bg-muted/25 text-muted-foreground",
               )}
@@ -74,8 +74,8 @@ export const SideBySideDiffViewer = ({ rows, activeRowIndex = -1, rowRefs }: Sid
             </pre>
             <div
               className={cn(
-                "border-r border-border/50 px-2 py-1 text-right font-mono text-[11px] text-muted-foreground",
-                newChanged && "bg-emerald-500/10 text-emerald-800",
+                "border-r border-border/50 px-2 py-1 text-right font-mono text-xs text-muted-foreground",
+                newChanged && "bg-success/10 text-success",
                 newEmpty && "bg-muted/25",
               )}
             >
@@ -83,8 +83,8 @@ export const SideBySideDiffViewer = ({ rows, activeRowIndex = -1, rowRefs }: Sid
             </div>
             <pre
               className={cn(
-                "min-h-5 whitespace-pre-wrap break-words px-3 py-1 font-mono text-[11px] text-foreground",
-                newChanged && "bg-emerald-500/10 text-emerald-800",
+                "min-h-5 whitespace-pre-wrap break-words px-3 py-1 font-mono text-xs text-foreground",
+                newChanged && "bg-success/10 text-success",
                 newEmpty && "bg-muted/25 text-muted-foreground",
               )}
             >

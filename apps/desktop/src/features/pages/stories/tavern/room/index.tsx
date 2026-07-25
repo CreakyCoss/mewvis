@@ -188,7 +188,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
           className={cn(fullScreenDialogContentClassName, "items-center justify-center bg-background text-foreground")}
         >
           <DialogTitle className="sr-only">酒馆房间</DialogTitle>
-          <div className="flex max-w-md flex-col items-center gap-4 rounded-md border bg-card px-6 py-5 text-center text-sm text-muted-foreground">
+          <div className="app-empty-state flex max-w-md flex-col items-center gap-4 rounded-2xl px-6 py-5 text-center text-sm text-muted-foreground">
             <p>
               {openError || (!isRoomLoaded ? "正在加载酒馆房间" : "当前没有可进入的酒馆房间，请先从故事章节打开酒馆。")}
             </p>

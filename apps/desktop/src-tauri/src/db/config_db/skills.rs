@@ -1,18 +1,17 @@
 use rusqlite::{params, Connection, OptionalExtension, Transaction};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use tauri::AppHandle;
 
 use super::{
     common::{normalize_optional_text, normalize_record_id, now_millis},
     connection::open_config_connection,
     inputs::{SaveSkillGroupInput, SaveWorkspaceSkillsInput},
-    models::{ReadonlySkillGroupMembers, SkillGroup, SkillGroupSkill, WorkspaceSkillSettings},
+    models::{SkillGroup, SkillGroupSkill, WorkspaceSkillSettings},
     workspace::ensure_workspace_exists,
 };
 
 struct NormalizedSkillGroups {
     custom: Vec<NormalizedSkillGroup>,
-    readonly: Vec<ReadonlySkillGroupMembers>,
 }
 
 struct NormalizedSkillGroup {
@@ -23,7 +22,6 @@ struct NormalizedSkillGroup {
 }
 
 const DEFAULT_SKILL_GROUP_SETTING_KEY: &str = "default_group_id";
-const READONLY_SKILL_GROUP_MEMBERS_SETTING_KEY: &str = "readonly_skill_group_members";
 
 pub fn workspace_skill_settings(
     app: &AppHandle,
@@ -35,7 +33,6 @@ pub fn workspace_skill_settings(
     Ok(WorkspaceSkillSettings {
         default_group_id: load_default_skill_group_id(&conn)?,
         skill_groups: load_skill_groups(&conn)?,
-        readonly_skill_groups: load_readonly_skill_groups(&conn)?,
     })
 }
 
@@ -59,7 +56,6 @@ pub fn save_workspace_skill_settings(
 
     if let Some(skill_groups) = skill_groups {
         save_skill_groups(&tx, skill_groups.custom, now)?;
-        save_readonly_skill_groups(&tx, skill_groups.readonly, now)?;
     }
     if let Some(default_group_id) = input.default_group_id {
         save_default_skill_group_id(&tx, default_group_id, now)?;
@@ -127,28 +123,6 @@ fn load_skill_groups(conn: &Connection) -> Result<Vec<SkillGroup>, String> {
         .collect()
 }
 
-fn load_readonly_skill_groups(conn: &Connection) -> Result<Vec<ReadonlySkillGroupMembers>, String> {
-    let raw = conn
-        .query_row(
-            r#"
-            SELECT value
-            FROM skill_settings
-            WHERE key = ?1
-            "#,
-            params![READONLY_SKILL_GROUP_MEMBERS_SETTING_KEY],
-            |row| row.get::<_, String>(0),
-        )
-        .optional()
-        .map_err(|error| format!("无法读取内置 Skill 分组成员设置：{error}"))?;
-
-    let Some(raw) = raw else {
-        return Ok(Vec::new());
-    };
-
-    serde_json::from_str::<Vec<ReadonlySkillGroupMembers>>(&raw)
-        .map_err(|error| format!("无法解析内置 Skill 分组成员设置：{error}"))
-}
-
 fn save_default_skill_group_id(
     tx: &Transaction<'_>,
     default_group_id: String,
@@ -186,7 +160,7 @@ fn load_skill_group_skills(
     let mut statement = conn
         .prepare(
             r#"
-            SELECT skill_name, disabled
+            SELECT skill_name
             FROM skill_group_skills
             WHERE group_id = ?1
             ORDER BY created_at ASC, skill_name ASC
@@ -198,7 +172,6 @@ fn load_skill_group_skills(
         .query_map(params![group_id], |row| {
             Ok(SkillGroupSkill {
                 key: row.get::<_, String>(0)?,
-                disabled: row.get::<_, i64>(1)? != 0,
             })
         })
         .map_err(|error| format!("无法读取 Skill 分组成员：{error}"))?
@@ -238,10 +211,10 @@ fn save_skill_groups(
         for skill in group.skills {
             tx.execute(
                 r#"
-                INSERT INTO skill_group_skills (group_id, skill_name, disabled, created_at)
-                VALUES (?1, ?2, ?3, ?4)
+                INSERT INTO skill_group_skills (group_id, skill_name, created_at)
+                VALUES (?1, ?2, ?3)
                 "#,
-                params![&group.id, &skill.key, skill.disabled, now],
+                params![&group.id, &skill.key, now],
             )
             .map_err(|error| format!("无法保存 Skill 分组成员：{error}"))?;
         }
@@ -250,72 +223,21 @@ fn save_skill_groups(
     Ok(())
 }
 
-fn save_readonly_skill_groups(
-    tx: &Transaction<'_>,
-    skill_groups: Vec<ReadonlySkillGroupMembers>,
-    now: i64,
-) -> Result<(), String> {
-    let disabled_skill_groups = skill_groups
-        .into_iter()
-        .filter_map(|group| {
-            let skills = group
-                .skills
-                .into_iter()
-                .filter(|skill| skill.disabled)
-                .collect::<Vec<_>>();
-            if skills.is_empty() {
-                None
-            } else {
-                Some(ReadonlySkillGroupMembers {
-                    id: group.id,
-                    skills,
-                })
-            }
-        })
-        .collect::<Vec<_>>();
-
-    if disabled_skill_groups.is_empty() {
-        tx.execute(
-            "DELETE FROM skill_settings WHERE key = ?1",
-            params![READONLY_SKILL_GROUP_MEMBERS_SETTING_KEY],
-        )
-        .map_err(|error| format!("无法清空内置 Skill 分组成员设置：{error}"))?;
-        return Ok(());
-    }
-
-    let value = serde_json::to_string(&disabled_skill_groups)
-        .map_err(|error| format!("无法序列化内置 Skill 分组成员设置：{error}"))?;
-    tx.execute(
-        r#"
-        INSERT INTO skill_settings (key, value, updated_at)
-        VALUES (?1, ?2, ?3)
-        ON CONFLICT(key) DO UPDATE SET
-            value = excluded.value,
-            updated_at = excluded.updated_at
-        "#,
-        params![READONLY_SKILL_GROUP_MEMBERS_SETTING_KEY, value, now],
-    )
-    .map_err(|error| format!("无法保存内置 Skill 分组成员设置：{error}"))?;
-
-    Ok(())
-}
-
 fn normalize_skill_members(
     skills: Vec<super::inputs::SaveSkillGroupSkillInput>,
 ) -> Vec<SkillGroupSkill> {
-    let mut normalized = BTreeMap::<String, bool>::new();
+    let mut normalized = BTreeSet::new();
     for skill in skills {
         let key = skill.key.trim().to_string();
         if key.is_empty() {
             continue;
         }
-        let disabled = normalized.entry(key).or_insert(false);
-        *disabled = *disabled || skill.disabled;
+        normalized.insert(key);
     }
 
     normalized
         .into_iter()
-        .map(|(key, disabled)| SkillGroupSkill { key, disabled })
+        .map(|key| SkillGroupSkill { key })
         .collect()
 }
 
@@ -324,7 +246,6 @@ fn normalize_skill_groups(
 ) -> Result<NormalizedSkillGroups, String> {
     let mut names = BTreeSet::new();
     let mut custom = Vec::new();
-    let mut readonly = Vec::new();
 
     for group in skill_groups {
         let source = group.source.as_deref().map(str::trim).unwrap_or("");
@@ -337,10 +258,6 @@ fn normalize_skill_groups(
             if id.is_empty() {
                 return Err("内置 Skill 分组 ID 不能为空".to_string());
             }
-            readonly.push(ReadonlySkillGroupMembers {
-                id: id.to_string(),
-                skills,
-            });
             continue;
         }
 
@@ -364,5 +281,5 @@ fn normalize_skill_groups(
         });
     }
 
-    Ok(NormalizedSkillGroups { custom, readonly })
+    Ok(NormalizedSkillGroups { custom })
 }

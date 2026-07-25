@@ -137,21 +137,12 @@ pub struct AiAgentSettings {
 pub struct WorkspaceSkillSettings {
     pub default_group_id: Option<String>,
     pub skill_groups: Vec<SkillGroup>,
-    pub readonly_skill_groups: Vec<ReadonlySkillGroupMembers>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SkillGroupSkill {
     pub key: String,
-    pub disabled: bool,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ReadonlySkillGroupMembers {
-    pub id: String,
-    pub skills: Vec<SkillGroupSkill>,
 }
 
 #[derive(Debug, Serialize)]

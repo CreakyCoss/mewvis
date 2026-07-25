@@ -188,7 +188,7 @@ export const Header = ({ isSidePanelOpen, isResetting, onBack, onReset, onToggle
               type="button"
               size="icon"
               variant="ghost"
-              className="size-8 shrink-0"
+              className="size-9 shrink-0"
               title="返回管理"
               aria-label="返回管理"
               onClick={onBack}
@@ -198,7 +198,7 @@ export const Header = ({ isSidePanelOpen, isResetting, onBack, onReset, onToggle
           )}
           <div
             className={cn(
-              "flex size-9 shrink-0 items-center justify-center rounded-md border",
+              "flex size-10 shrink-0 items-center justify-center rounded-xl border",
               visualPreset.tavern.headerIcon,
             )}
           >

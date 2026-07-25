@@ -2,7 +2,9 @@ import { Navigate, Route, Routes } from "react-router";
 import { AppLayout } from "@/features/app/layout";
 import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
 import { ChatPage } from "@/features/pages/chat";
-import { ChatNextPage } from "@/features/pages/chat-next";
+import { ChatHomePage } from "@/features/pages/chats/home";
+import { StoryChat } from "@/features/pages/chats/entries/story";
+import { WorkspaceChatRoute } from "@/features/pages/chats/entries/workspace";
 import { HubPage } from "@/features/pages/hub";
 import { KnowledgePage } from "@/features/pages/knowledge";
 import { StoriesPage } from "@/features/pages/stories";
@@ -27,20 +29,24 @@ const IndexRoute = () => {
 export const AppRoutes = () => (
   <Routes>
     <Route element={<AppLayout />}>
-      <Route index element={<IndexRoute />} />
-      <Route path="chat/:workspaceId" element={<ChatPage />} />
-      <Route path="chat/:workspaceId/new" element={<ChatPage />} />
-      <Route path="chat/:workspaceId/session/:sessionId" element={<ChatPage />} />
-      <Route path="chat-next" element={<ChatNextPage />} />
-      <Route path="skills" element={<SkillsPage />} />
-      <Route path="knowledge" element={<KnowledgePage />} />
-      <Route path="stories" element={<StoriesPage />} />
-      <Route path="hub" element={<HubPage />} />
-      <Route path="settings" element={<SettingsPage />} />
-      <Route path="settings/llm" element={<LlmPage />} />
-      <Route path="settings/agent" element={<AgentPage />} />
-      <Route path="settings/workflow" element={<WorkflowPage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route element={<WorkspaceChatRoute />}>
+        <Route index element={<IndexRoute />} />
+        <Route path="chat/:workspaceId" element={<ChatPage />} />
+        <Route path="chat/:workspaceId/new" element={<ChatPage />} />
+        <Route path="chat/:workspaceId/session/:sessionId" element={<ChatPage />} />
+        <Route path="chat-next" element={<ChatHomePage />} />
+        <Route path="chats/:workspaceId/:chatId" />
+        <Route path="chats/story/:storyId/:chatId" element={<StoryChat />} />
+        <Route path="skills" element={<SkillsPage />} />
+        <Route path="knowledge" element={<KnowledgePage />} />
+        <Route path="stories" element={<StoriesPage />} />
+        <Route path="hub" element={<HubPage />} />
+        <Route path="settings" element={<SettingsPage />} />
+        <Route path="settings/llm" element={<LlmPage />} />
+        <Route path="settings/agent" element={<AgentPage />} />
+        <Route path="settings/workflow" element={<WorkflowPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
     </Route>
   </Routes>
 );

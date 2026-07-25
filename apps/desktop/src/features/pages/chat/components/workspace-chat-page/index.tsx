@@ -4,14 +4,14 @@ import { uniq } from "lodash-es";
 import { Activity, Folder, PanelRight } from "lucide-react";
 import type { AgentToolSummary } from "@/agent-client/types";
 import { createAgentClient } from "@/agent-client/runtime";
+import { saveChat } from "@/api/chat";
 import { ConversationLedger } from "@/features/ai/components/conversation-ledger";
 import { FileManage, type FileManageHandle } from "@/features/ai/components/file-manage";
-import type { WorkspaceFile, WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
+import type { WorkspaceFile, WorkspaceFileEntry } from "@/api/workspace-files";
 import { ALL_SKILLS_GROUP_ID, NO_SKILLS_GROUP_ID } from "@/features/pages/skills/constants";
 import { useWorkspaceSkills } from "@/features/pages/skills/use-workspace-skills";
 import type { Workspace, WorkspaceSection } from "@/features/pages/workspace/types";
-import { listWorkspaceFiles } from "@/features/pages/workspace/files-api";
-import { saveChatSession } from "../../api";
+import { listWorkspaceFiles } from "@/api/workspace-files";
 import type { ChatMessage, ComposerSubmitInput, PendingAgentQuestion } from "../../types";
 import { useChatSessionsStore } from "../../session-store";
 import { keepHistoryThroughMessage, moveHistoryItem, removeHistoryMessageSegment } from "./history";
@@ -41,10 +41,13 @@ const contextPanelTools: Array<{
 ];
 
 const contextPanelToolButtonClass =
-  "flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:ring-3 focus-visible:ring-primary/20 focus-visible:outline-none data-[active=true]:bg-primary data-[active=true]:text-primary-foreground";
+  "flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:ring-3 focus-visible:ring-primary/20 focus-visible:outline-none data-[active=true]:bg-primary data-[active=true]:text-primary-foreground";
 
 const contextPanelToggleButtonClass =
-  "flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:ring-3 focus-visible:ring-primary/20 focus-visible:outline-none data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:hover:bg-primary/15";
+  "flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:ring-3 focus-visible:ring-primary/20 focus-visible:outline-none data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:hover:bg-primary/15";
+
+const responsiveContextPanelClassName =
+  "max-[1099px]:absolute max-[1099px]:inset-y-0 max-[1099px]:right-10 max-[1099px]:z-30 max-[1099px]:w-[min(360px,calc(100%_-_3.5rem))] max-[1099px]:bg-surface/95 max-[1099px]:shadow-[var(--shadow-floating)]";
 
 const workspaceAgentInteractionInstructions = [
   "交互规则：",
@@ -167,6 +170,7 @@ export const WorkspaceChatPage = ({
   const upsertSession = useChatSessionsStore((store) => store.upsertSession);
   const upsertSessionMeta = useChatSessionsStore((store) => store.upsertSessionMeta);
   const setSessionRunning = useChatSessionsStore((store) => store.setSessionRunning);
+
   const workspaceOptions = useMemo(
     () => workspaceSections.flatMap((section) => section.workspaces),
     [workspaceSections],
@@ -286,11 +290,7 @@ export const WorkspaceChatPage = ({
     if (selectedSkillGroupIds.includes(ALL_SKILLS_GROUP_ID)) {
       return skills;
     }
-    const skillKeys = new Set(
-      selectedSkillGroups.flatMap((group) =>
-        group.skills.filter((skill) => skill.disabled !== true).map((skill) => skill.key),
-      ),
-    );
+    const skillKeys = new Set(selectedSkillGroups.flatMap((group) => group.skills.map((skill) => skill.key)));
     return skills.filter((skill) => skillKeys.has(skill.key));
   }, [builtinSkillNames, forcedSkillNames, selectedSkillGroupIds, selectedSkillGroups, skills]);
   useEffect(() => {
@@ -696,9 +696,9 @@ export const WorkspaceChatPage = ({
       const title = deriveSessionTitle(task.messages);
       const isUnread = task.workspacePath !== workspace.path || task.sessionId !== currentSessionIdRef.current;
       task.title = title;
-      const session = await saveChatSession({
+      const session = await saveChat({
         workspacePath: task.workspacePath,
-        sessionId: task.sessionId,
+        chatId: task.sessionId,
         title,
         messages: task.messages,
         isUnread,
@@ -1043,6 +1043,7 @@ export const WorkspaceChatPage = ({
   const fileManagePanel = (
     <FileManage
       bind={fileManageRef}
+      className={responsiveContextPanelClassName}
       workspacePath={workspace.path}
       workspaceKey={workspace.id}
       onFilesChange={setFiles}
@@ -1050,7 +1051,9 @@ export const WorkspaceChatPage = ({
     />
   );
   const ledgerPanel = (
-    <aside className="flex min-w-0 w-[clamp(240px,20vw,340px)] shrink-0 overflow-hidden bg-background/90 text-foreground shadow-[-8px_0_28px_-30px_rgb(15_23_42_/_0.38)] backdrop-blur">
+    <aside
+      className={`flex w-[clamp(280px,22vw,360px)] min-w-0 shrink-0 overflow-hidden border-l border-border/70 bg-surface/70 text-foreground backdrop-blur-xl ${responsiveContextPanelClassName}`}
+    >
       <ConversationLedger workspacePath={workspace.path} chatId={currentSessionId} />
     </aside>
   );
@@ -1059,7 +1062,7 @@ export const WorkspaceChatPage = ({
     !hideContextTools && isContextPanelOpen ? (contextPanelTool === "ledger" ? ledgerPanel : fileManagePanel) : null;
   const contextRail = (
     <nav
-      className="flex w-10 shrink-0 flex-col items-center gap-1.5 border-l border-border/60 bg-muted/35 px-1 py-2.5"
+      className="relative z-40 flex w-10 shrink-0 flex-col items-center gap-1.5 border-l border-border/60 bg-surface/70 px-1 py-2.5"
       aria-label="右侧工具"
     >
       <button

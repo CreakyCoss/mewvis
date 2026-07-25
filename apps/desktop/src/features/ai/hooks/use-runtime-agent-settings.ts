@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getAiAgentSettings } from "@/features/pages/settings/agent/api";
+import { getAiAgentSettings } from "@/api/agents";
 import type { AiAgent } from "@/features/pages/settings/agent/types";
 import { resolveAgentProfiles } from "@/features/pages/settings/agent/utils";
 import { useLlmSettingsStore } from "@/features/pages/settings/llm/store";

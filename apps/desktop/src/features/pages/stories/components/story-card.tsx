@@ -25,12 +25,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { StoryOverview, StoryProjectCompatibility } from "../../../../../core/story-project/types";
 
 const StoryCardMetric = ({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: number }) => (
-  <span className="inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border bg-muted/20 px-1.5 text-[11px] text-foreground/80">
+  <span className="inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-lg bg-muted/65 px-2 text-xs text-muted-foreground">
     <Icon className="size-3.5 shrink-0" />
-    <span className="truncate">
+    <span className="truncate tabular-nums">
       {value} {label}
     </span>
   </span>
@@ -38,16 +39,19 @@ const StoryCardMetric = ({ icon: Icon, label, value }: { icon: LucideIcon; label
 
 export const StoryCard = ({
   overview,
+  workspacePath,
   onEdit,
   onTavern,
   onDelete,
 }: {
   overview: StoryOverview;
+  workspacePath: string;
   onEdit: () => void;
   onTavern: () => void;
-  onDelete: () => void | Promise<void>;
+  onDelete: (deleteContent: boolean) => boolean | Promise<boolean>;
 }) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteContent, setDeleteContent] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const visibleCharacters = overview.characters.slice(0, 4);
   const hiddenCharacterCount = Math.max(0, overview.characters.length - visibleCharacters.length);
@@ -55,8 +59,10 @@ export const StoryCard = ({
   const confirmDelete = async () => {
     setIsDeleting(true);
     try {
-      await onDelete();
-      setIsDeleteDialogOpen(false);
+      if (await onDelete(deleteContent)) {
+        setIsDeleteDialogOpen(false);
+        setDeleteContent(false);
+      }
     } finally {
       setIsDeleting(false);
     }
@@ -64,15 +70,17 @@ export const StoryCard = ({
 
   return (
     <>
-      <article className="flex flex-col overflow-hidden rounded-lg border bg-card shadow-[0_18px_50px_-42px_rgb(15_23_42_/_0.55)] transition-colors hover:border-primary/20">
+      <article className="app-interactive-card flex flex-col overflow-hidden rounded-2xl">
         <button
           type="button"
-          className="flex min-w-0 flex-col text-left transition-colors hover:bg-accent/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          className="flex min-w-0 flex-col cursor-pointer text-left transition-colors hover:bg-accent/15 focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:outline-none"
           onClick={onEdit}
         >
           <div className="relative">
-            <div className="h-[clamp(6.25rem,9vw,7.5rem)] w-full overflow-hidden rounded-t-lg bg-gradient-to-br from-primary/15 via-muted to-background shadow-inner" />
-            <span className="absolute left-3 top-3 max-w-[calc(100%-1.5rem)] truncate rounded-full border border-teal-100/30 bg-slate-950/65 px-2.5 py-1 text-xs font-semibold leading-4 text-teal-50 shadow-[0_12px_28px_-18px_rgb(15_23_42_/_0.9)] ring-1 ring-teal-100/24 backdrop-blur-md">
+            <div className="relative h-[clamp(6.5rem,9vw,7.75rem)] w-full overflow-hidden rounded-t-2xl bg-gradient-to-br from-accent via-surface to-background">
+              <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+            </div>
+            <span className="absolute top-3 left-3 max-w-[calc(100%-1.5rem)] truncate rounded-full border border-border/70 bg-card/80 px-2.5 py-1 text-xs font-medium leading-4 text-foreground shadow-xs backdrop-blur-md">
               JSON 故事
             </span>
             <div className="absolute inset-x-0 -bottom-6 flex justify-start px-4">
@@ -85,7 +93,7 @@ export const StoryCard = ({
                         <span
                           key={character.id}
                           className={[
-                            "flex size-12 items-center justify-center overflow-hidden rounded-lg border-2 border-background bg-background shadow-[0_10px_26px_-18px_rgb(15_23_42_/_0.8)]",
+                            "flex size-12 items-center justify-center overflow-hidden rounded-xl border-2 border-background bg-background shadow-md",
                             index > 0 ? "-ml-3" : "",
                           ].join(" ")}
                         >
@@ -94,13 +102,13 @@ export const StoryCard = ({
                       );
                     })}
                     {hiddenCharacterCount > 0 ? (
-                      <span className="-ml-3 flex size-12 shrink-0 items-center justify-center rounded-lg border-2 border-background bg-background/95 text-sm font-semibold text-muted-foreground shadow-[0_10px_26px_-18px_rgb(15_23_42_/_0.8)]">
+                      <span className="-ml-3 flex size-12 shrink-0 items-center justify-center rounded-xl border-2 border-background bg-background/95 text-sm font-semibold text-muted-foreground shadow-md">
                         +{hiddenCharacterCount}
                       </span>
                     ) : null}
                   </div>
                 ) : (
-                  <span className="flex size-12 items-center justify-center rounded-lg border-2 border-background bg-background/90 text-primary shadow-[0_10px_26px_-18px_rgb(15_23_42_/_0.8)]">
+                  <span className="flex size-12 items-center justify-center rounded-xl border-2 border-background bg-background/90 text-primary shadow-md">
                     <BookOpen className="size-5" />
                   </span>
                 )}
@@ -109,8 +117,10 @@ export const StoryCard = ({
           </div>
 
           <div className="flex flex-col px-3.5 pt-8 pb-3">
-            <h3 className="min-w-0 text-xl font-semibold leading-7 line-clamp-2">{overview.title}</h3>
-            <p className="mt-1.5 min-h-5 line-clamp-1 text-xs leading-5 text-muted-foreground">
+            <h3 className="min-w-0 text-lg font-semibold leading-7 tracking-[-0.015em] line-clamp-2">
+              {overview.title}
+            </h3>
+            <p className="mt-1 min-h-5 line-clamp-1 text-sm leading-5 text-muted-foreground">
               {overview.description || "暂无故事设定。"}
             </p>
 
@@ -122,7 +132,7 @@ export const StoryCard = ({
 
             <div className="mt-2.5">
               <div className="border-t pt-2.5">
-                <div className="relative flex h-14 items-center gap-2.5 overflow-hidden rounded-lg border border-primary/15 bg-primary/[0.055] px-3 py-2 text-xs leading-5 text-muted-foreground">
+                <div className="relative flex h-14 items-center gap-2.5 overflow-hidden rounded-xl bg-accent/50 px-3 py-2 text-xs leading-5 text-muted-foreground">
                   <Target className="absolute -right-3 -bottom-4 size-14 text-primary/5" />
                   <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                     <Target className="size-4" />
@@ -164,8 +174,8 @@ export const StoryCard = ({
               size="icon"
               variant="outline"
               className="size-9 shrink-0 bg-background/80 text-destructive hover:text-destructive"
-              title="删除故事及工作区"
-              aria-label="删除故事及工作区"
+              title="删除故事"
+              aria-label="删除故事"
               onClick={() => setIsDeleteDialogOpen(true)}
               disabled={isDeleting}
             >
@@ -175,15 +185,35 @@ export const StoryCard = ({
         </div>
       </article>
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => !isDeleting && setIsDeleteDialogOpen(open)}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          if (isDeleting) return;
+          setIsDeleteDialogOpen(open);
+          if (!open) setDeleteContent(false);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>删除故事？</AlertDialogTitle>
             <AlertDialogDescription>
-              删除「{overview.title || "当前故事"}」及其整个故事工作区？这个操作会同时删除 story/ 和 .tavern/
-              运行时数据。
+              「{overview.title || "当前故事"}」将从故事列表中删除。默认会保留磁盘中的故事内容。
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <label className="flex cursor-pointer items-start gap-3 rounded-md border border-destructive/25 bg-destructive/[0.04] p-3">
+            <Checkbox
+              className="mt-0.5"
+              checked={deleteContent}
+              onCheckedChange={(checked) => setDeleteContent(checked === true)}
+              disabled={isDeleting}
+            />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-foreground">同时删除故事内容</span>
+              <span className="mt-1 block break-all text-xs leading-5 text-muted-foreground">
+                勾选后将永久删除整个工作区（包括 story/ 和 .tavern/）：{workspacePath}
+              </span>
+            </span>
+          </label>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>取消</AlertDialogCancel>
             <AlertDialogAction
@@ -194,7 +224,8 @@ export const StoryCard = ({
                 void confirmDelete();
               }}
             >
-              删除
+              {isDeleting ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> : null}
+              {isDeleting ? "正在删除" : "删除"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -226,16 +257,19 @@ export const StoryUnavailableCard = ({
   compatibility: StoryProjectCompatibility;
   isUpgrading: boolean;
   onUpgrade: () => void | Promise<void>;
-  onDelete: () => void | Promise<void>;
+  onDelete: (deleteContent: boolean) => boolean | Promise<boolean>;
 }) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteContent, setDeleteContent] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const confirmDelete = async () => {
     setIsDeleting(true);
     try {
-      await onDelete();
-      setIsDeleteDialogOpen(false);
+      if (await onDelete(deleteContent)) {
+        setIsDeleteDialogOpen(false);
+        setDeleteContent(false);
+      }
     } finally {
       setIsDeleting(false);
     }
@@ -243,9 +277,9 @@ export const StoryUnavailableCard = ({
 
   return (
     <>
-      <article className="flex flex-col overflow-hidden rounded-lg border border-amber-500/25 bg-card shadow-[0_18px_50px_-42px_rgb(15_23_42_/_0.55)]">
-        <div className="relative h-[clamp(6.25rem,9vw,7.5rem)] overflow-hidden bg-gradient-to-br from-amber-500/15 via-muted to-background">
-          <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-amber-300/30 bg-slate-950/70 px-2.5 py-1 text-xs font-semibold text-amber-50 shadow-sm backdrop-blur-md">
+      <article className="app-panel flex flex-col overflow-hidden rounded-2xl border-warning/25">
+        <div className="relative h-[clamp(6.25rem,9vw,7.5rem)] overflow-hidden bg-gradient-to-br from-warning/15 via-muted to-background">
+          <span className="absolute top-3 left-3 inline-flex items-center gap-1.5 rounded-full border border-warning/25 bg-card/85 px-2.5 py-1 text-xs font-semibold text-warning backdrop-blur-md">
             <AlertTriangle className="size-3.5" />
             版本不兼容
           </span>
@@ -256,7 +290,7 @@ export const StoryUnavailableCard = ({
 
         <div className="flex flex-1 flex-col px-3.5 py-3">
           <h3 className="min-w-0 text-xl font-semibold leading-7 line-clamp-2">{name}</h3>
-          <div className="mt-3 rounded-md border border-amber-500/20 bg-amber-500/[0.06] px-3 py-2.5 text-xs leading-5">
+          <div className="mt-3 rounded-lg border border-warning/20 bg-warning/[0.06] px-3 py-2.5 text-xs leading-5">
             <div className="font-medium text-foreground">{projectVersionLabel(compatibility.current)}</div>
             <div className="text-muted-foreground">目标：{targetVersionLabel(compatibility.target)}</div>
           </div>
@@ -277,7 +311,11 @@ export const StoryUnavailableCard = ({
               disabled={isUpgrading || isDeleting}
               onClick={() => void onUpgrade()}
             >
-              {isUpgrading ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+              {isUpgrading ? (
+                <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+              ) : (
+                <RefreshCw className="size-4" />
+              )}
               {isUpgrading ? "正在升级" : "升级版本"}
             </Button>
             <Button
@@ -285,8 +323,8 @@ export const StoryUnavailableCard = ({
               size="icon"
               variant="outline"
               className="size-9 shrink-0 bg-background/80 text-destructive hover:text-destructive"
-              title="删除故事及工作区"
-              aria-label="删除故事及工作区"
+              title="删除故事"
+              aria-label="删除故事"
               disabled={isUpgrading || isDeleting}
               onClick={() => setIsDeleteDialogOpen(true)}
             >
@@ -296,14 +334,35 @@ export const StoryUnavailableCard = ({
         </div>
       </article>
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => !isDeleting && setIsDeleteDialogOpen(open)}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          if (isDeleting) return;
+          setIsDeleteDialogOpen(open);
+          if (!open) setDeleteContent(false);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>删除不兼容的故事？</AlertDialogTitle>
             <AlertDialogDescription>
-              删除「{name || "当前故事"}」及其整个故事工作区？版本不兼容不会自动删除任何数据，只有确认后才会执行删除。
+              「{name || "当前故事"}」将从故事列表中删除。默认会保留磁盘中的故事内容。
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <label className="flex cursor-pointer items-start gap-3 rounded-md border border-destructive/25 bg-destructive/[0.04] p-3">
+            <Checkbox
+              className="mt-0.5"
+              checked={deleteContent}
+              onCheckedChange={(checked) => setDeleteContent(checked === true)}
+              disabled={isDeleting}
+            />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-foreground">同时删除故事内容</span>
+              <span className="mt-1 block break-all text-xs leading-5 text-muted-foreground">
+                勾选后将永久删除整个工作区（包括 story/ 和 .tavern/）：{workspacePath}
+              </span>
+            </span>
+          </label>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>取消</AlertDialogCancel>
             <AlertDialogAction
@@ -314,7 +373,8 @@ export const StoryUnavailableCard = ({
                 void confirmDelete();
               }}
             >
-              删除
+              {isDeleting ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> : null}
+              {isDeleting ? "正在删除" : "删除"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

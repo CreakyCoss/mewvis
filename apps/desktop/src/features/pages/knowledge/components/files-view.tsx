@@ -24,7 +24,7 @@ export const FilesView = ({
   onRequestRemoveSource,
 }: FilesViewProps) => (
   <div className="space-y-4">
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-card px-4 py-4 shadow-xs">
+    <div className="app-panel flex flex-wrap items-center justify-between gap-3 rounded-xl px-5 py-4">
       <div className="min-w-0">
         <h3 className="text-sm font-semibold">上传文本文件</h3>
         <p className="mt-1 text-sm text-muted-foreground">文件会导入到一级页设置的知识库目录中。</p>
@@ -34,13 +34,17 @@ export const FilesView = ({
           {settings.storageDirectory ? "目录已设置" : "目录未设置"}
         </Badge>
         <Button type="button" onClick={onAddTextFiles} disabled={isAdding || isLoading}>
-          {isAdding ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+          {isAdding ? (
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+          ) : (
+            <Upload className="size-4" />
+          )}
           <span>上传文本文件</span>
         </Button>
       </div>
     </div>
 
-    <section className="rounded-md bg-background p-4 shadow-xs">
+    <section className="app-panel rounded-xl p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-sm font-semibold">已上传文件</h3>
         <span className="text-xs text-muted-foreground">{sources.length} 个</span>
@@ -54,7 +58,7 @@ export const FilesView = ({
             return (
               <article
                 key={source.id}
-                className="flex min-w-0 items-start justify-between gap-3 rounded-md bg-card px-4 py-3 shadow-xs"
+                className="app-interactive-card flex min-w-0 items-start justify-between gap-3 rounded-xl px-4 py-3"
               >
                 <div className="flex min-w-0 gap-3">
                   <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
@@ -86,7 +90,7 @@ export const FilesView = ({
             );
           })
         ) : (
-          <div className="flex min-h-[320px] items-center justify-center rounded-md bg-muted/25 text-sm text-muted-foreground">
+          <div className="app-empty-state flex min-h-[320px] items-center justify-center rounded-2xl px-6 text-sm text-muted-foreground">
             暂无文件，先设置目录并上传文本文件
           </div>
         )}

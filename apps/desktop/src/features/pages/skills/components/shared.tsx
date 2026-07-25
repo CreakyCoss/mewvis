@@ -21,9 +21,9 @@ type EmptyStateProps = {
 };
 
 export const EmptyState = ({ icon, text }: EmptyStateProps) => (
-  <div className="flex min-h-[260px] items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/15 text-sm text-muted-foreground">
-    {icon}
-    <span>{text}</span>
+  <div className="app-empty-state flex min-h-[260px] flex-col items-center justify-center gap-3 rounded-2xl px-6 text-center">
+    <span className="flex size-11 items-center justify-center rounded-xl bg-accent text-primary">{icon}</span>
+    <div className="text-sm font-semibold text-foreground">{text}</div>
   </div>
 );
 
@@ -42,7 +42,7 @@ export const SkillSourceBadge = ({ source, readonly = true, systemOnly = false }
     <Badge
       variant="outline"
       className={cn(
-        "h-5 min-w-[68px] border px-2 text-center text-[11px] font-medium whitespace-nowrap",
+        "h-5 min-w-[68px] border px-2 text-center text-xs font-medium whitespace-nowrap",
         sourceBadgeClassName(source, readonly),
       )}
     >
@@ -53,15 +53,15 @@ export const SkillSourceBadge = ({ source, readonly = true, systemOnly = false }
 
 const sourceBadgeClassName = (source: string | undefined, readonly: boolean) => {
   if (!readonly) {
-    return "border-amber-300/90 bg-amber-100 text-amber-800 dark:border-amber-300/35 dark:bg-amber-400/20 dark:text-amber-100";
+    return "border-warning/25 bg-warning/10 text-warning";
   }
 
   if (source === "app") {
-    return "border-emerald-300/90 bg-emerald-100 text-emerald-800 dark:border-emerald-300/35 dark:bg-emerald-400/20 dark:text-emerald-100";
+    return "border-success/25 bg-success/10 text-success";
   }
   if (source === "upload") {
-    return "border-violet-300/90 bg-violet-100 text-violet-800 dark:border-violet-300/35 dark:bg-violet-400/20 dark:text-violet-100";
+    return "border-chart-3/25 bg-chart-3/10 text-chart-3";
   }
 
-  return "border-slate-200/80 bg-slate-100/80 text-slate-600 dark:border-slate-400/20 dark:bg-slate-500/15 dark:text-slate-200";
+  return "border-border/80 bg-muted/70 text-muted-foreground";
 };

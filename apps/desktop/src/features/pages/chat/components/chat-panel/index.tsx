@@ -16,7 +16,7 @@ import type { WorkspaceSkillGroup } from "@/features/pages/skills/types";
 import { isDefaultWorkspace } from "@/features/pages/workspace/default";
 import type { Workspace } from "@/features/pages/workspace/types";
 import type { ChatMessage, ComposerSubmitInput, PendingAgentQuestion } from "../../types";
-import type { WorkspaceFileEntry } from "@/features/pages/workspace/files-api";
+import type { WorkspaceFileEntry } from "@/api/workspace-files";
 import { Composer } from "./composer";
 import { MessageList } from "./message-list";
 import { PendingAgentQuestionForm } from "./pending-agent-question-form";
@@ -78,7 +78,7 @@ const StatusBanner = ({ message }: StatusBannerProps) => {
   }
 
   return (
-    <div className="mx-auto mb-3 max-w-5xl rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+    <div className="mx-auto mb-3 max-w-5xl rounded-xl border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm leading-6 text-destructive">
       {message}
     </div>
   );
@@ -305,7 +305,7 @@ export const ChatPanel = () => {
                     title={`我们应该在 ${workspace.name} 中构建什么？`}
                   >
                     <span className="shrink-0">我们应该在&nbsp;</span>
-                    <span className="min-w-0 truncate" title={workspace.name}>
+                    <span className="min-w-0 truncate text-primary" title={workspace.name}>
                       {workspace.name}
                     </span>
                     <span className="shrink-0">&nbsp;中构建什么？</span>
@@ -325,7 +325,7 @@ export const ChatPanel = () => {
       </ScrollArea>
 
       {!isEmptyConversation && (
-        <div className="min-w-0 bg-background/90 px-4 py-3 shadow-[0_-10px_28px_-30px_rgb(15_23_42_/_0.32)] backdrop-blur lg:px-6 xl:px-7 xl:py-4">
+        <div className="min-w-0 border-t border-border/60 bg-background/90 px-4 py-3 backdrop-blur lg:px-6 xl:px-7 xl:py-4">
           {statusBanner}
           {pendingAgentQuestion && (
             <PendingAgentQuestionForm

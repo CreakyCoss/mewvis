@@ -41,16 +41,20 @@ export const CharacterMessage = ({
   return (
     <div className="group/message flex justify-start">
       <div className="flex w-full max-w-[min(84%,720px)] gap-3">
-        <img src={avatar.src} alt="" className="size-10 shrink-0 rounded-md" />
+        <img
+          src={avatar.src}
+          alt=""
+          className="size-10 shrink-0 rounded-xl border border-current/15 object-cover shadow-[var(--shadow-card)]"
+        />
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex items-center gap-2 text-xs text-current">
             <span className="font-medium">{character.name}</span>
             <span className="opacity-70">{formatTime(createdAt)}</span>
-            {isStreaming && <Loader2 className="size-3 animate-spin" />}
+            {isStreaming && <Loader2 className="size-3 animate-spin motion-reduce:animate-none" />}
           </div>
           <div
             className={cn(
-              "relative overflow-visible rounded-md border px-3.5 py-2.5 text-sm leading-6 shadow-sm",
+              "relative overflow-visible border px-3.5 py-2.5 text-sm leading-6",
               visualStyle.characterBubble,
               isError && "border-destructive/30 bg-destructive/10 text-destructive",
             )}
