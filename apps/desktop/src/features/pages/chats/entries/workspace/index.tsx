@@ -133,7 +133,7 @@ const WorkspaceChat = ({ workspaceId, chatId, initialData: providedInitialData, 
         />
       </div>
       {isActive ? (
-        <WorkspaceChatSidebar workspacePath={workspace.path} chatId={chatId} panels={["files", "ledger"]} />
+        <WorkspaceChatSidebar workspacePath={workspace.path} chatId={chatId} panels={["files", "version", "ledger"]} />
       ) : null}
     </div>
   );

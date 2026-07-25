@@ -3,6 +3,7 @@ import {
   ChevronDownIcon,
   FileDiffIcon,
   GitBranchIcon,
+  HistoryIcon,
   LoaderCircleIcon,
   PlusIcon,
   RefreshCwIcon,
@@ -37,6 +38,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   createWorkspaceVersion,
   createWorkspaceVersionBranch,
@@ -49,10 +51,18 @@ import {
   type WorkspaceVersionFileDiff,
   type WorkspaceVersionFileStatus,
 } from "@/api/workspace-files";
+import { WorkspaceVersionHistory } from "./history";
 
 type WorkspaceVersionControlProps = {
   workspacePath: string;
 };
+
+type WorkspaceVersionTool = "version" | "history";
+
+const versionTools = [
+  { value: "version", label: "版本", icon: GitBranchIcon },
+  { value: "history", label: "历史", icon: HistoryIcon },
+] satisfies Array<{ value: WorkspaceVersionTool; label: string; icon: typeof GitBranchIcon }>;
 
 const fileStatusLabel: Record<WorkspaceVersionFileStatus["status"], string> = {
   added: "新增",
@@ -65,6 +75,7 @@ const fileStatusLabel: Record<WorkspaceVersionFileStatus["status"], string> = {
 };
 
 export const WorkspaceVersionControl = ({ workspacePath }: WorkspaceVersionControlProps) => {
+  const [activeTool, setActiveTool] = useState<WorkspaceVersionTool>("version");
   const [status, setStatus] = useState<WorkspaceVersionControlStatus | null>(null);
   const [selectedFilePath, setSelectedFilePath] = useState("");
   const [fileDiff, setFileDiff] = useState<WorkspaceVersionFileDiff | null>(null);
@@ -108,6 +119,7 @@ export const WorkspaceVersionControl = ({ workspacePath }: WorkspaceVersionContr
   }, [applyStatus, workspacePath]);
 
   useEffect(() => {
+    setActiveTool("version");
     setStatus(null);
     setSelectedFilePath("");
     setFileDiff(null);
@@ -219,18 +231,22 @@ export const WorkspaceVersionControl = ({ workspacePath }: WorkspaceVersionContr
           type="button"
           size="sm"
           variant="ghost"
-          className={`h-8 max-w-52 min-w-0 bg-background/70 px-2 text-xs ${
+          className={`h-8 w-full min-w-0 bg-background/70 px-2 text-xs ${
             status?.isEnabled ? "bg-primary/10 text-primary hover:bg-primary/15" : "text-muted-foreground"
           }`}
         >
           {isLoading || isInitializing ? (
-            <LoaderCircleIcon className="size-3.5 animate-spin motion-reduce:animate-none" />
+            <LoaderCircleIcon className="size-3.5 shrink-0 animate-spin motion-reduce:animate-none" />
           ) : (
-            <GitBranchIcon className="size-3.5" />
+            <GitBranchIcon className="size-3.5 shrink-0" />
           )}
-          <span className="min-w-0 truncate">{status?.isEnabled ? currentBranch || "HEAD" : "版本"}</span>
-          {status?.head ? <span className="font-mono text-xs text-muted-foreground">{status.head}</span> : null}
-          <ChevronDownIcon className="size-3" />
+          <span className="min-w-0 flex-auto truncate text-left">
+            {status?.isEnabled ? currentBranch || "HEAD" : "版本"}
+          </span>
+          {status?.head ? (
+            <span className="min-w-0 shrink-[10] truncate font-mono text-xs text-muted-foreground">{status.head}</span>
+          ) : null}
+          <ChevronDownIcon className="size-3 shrink-0" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="z-[100] w-80">
@@ -331,10 +347,38 @@ export const WorkspaceVersionControl = ({ workspacePath }: WorkspaceVersionContr
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <div className="border-b border-border/55 bg-surface-raised/55 px-3 py-3">
-        <div className="min-w-0">{versionMenu}</div>
+        <div className="flex min-w-0 items-center gap-2">
+          <ToggleGroup
+            type="single"
+            value={activeTool}
+            className="grid w-32 shrink-0 grid-cols-2 rounded-lg border bg-background/55 p-1"
+            aria-label="版本管理视图"
+            onValueChange={(value) => {
+              if (value) {
+                setActiveTool(value as WorkspaceVersionTool);
+              }
+            }}
+          >
+            {versionTools.map((tool) => {
+              const Icon = tool.icon;
+              return (
+                <ToggleGroupItem
+                  key={tool.value}
+                  value={tool.value}
+                  size="sm"
+                  className="h-8 min-w-0 gap-1 rounded-md px-1.5 text-xs text-muted-foreground data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-[var(--shadow-card)]"
+                >
+                  <Icon className="size-3.5" />
+                  <span className="truncate">{tool.label}</span>
+                </ToggleGroupItem>
+              );
+            })}
+          </ToggleGroup>
+          <div className="min-w-0 flex-1">{versionMenu}</div>
+        </div>
       </div>
 
-      <ScrollArea className="min-h-0 flex-1">
+      <ScrollArea className={activeTool === "version" ? "min-h-0 flex-1" : "hidden"}>
         <section className="space-y-3 p-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-sm font-medium">
@@ -438,6 +482,9 @@ export const WorkspaceVersionControl = ({ workspacePath }: WorkspaceVersionContr
           )}
         </section>
       </ScrollArea>
+      <div className={activeTool === "history" ? "min-h-0 flex-1" : "hidden"}>
+        <WorkspaceVersionHistory workspacePath={workspacePath} />
+      </div>
 
       <Dialog
         open={Boolean(selectedFilePath)}

@@ -35,10 +35,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import {
   deleteWorkspaceFile,
+  getWorkspaceVersionControlStatus,
   listWorkspaceFiles,
   readWorkspaceFile,
   type WorkspaceFile,
   type WorkspaceFileEntry,
+  type WorkspaceVersionControlStatus,
+  type WorkspaceVersionFileStatusKind,
   writeWorkspaceFile,
 } from "@/api/workspace-files";
 
@@ -87,8 +90,29 @@ const getWorkspaceFileParentPaths = (path: string) => {
   return segments.slice(0, -1).map((_, index) => segments.slice(0, index + 1).join("/"));
 };
 
+const versionStatusLabels: Record<WorkspaceVersionFileStatusKind, string> = {
+  added: "新增",
+  modified: "修改",
+  deleted: "删除",
+  renamed: "重命名",
+  typechange: "类型",
+  conflicted: "冲突",
+  untracked: "未跟踪",
+};
+
+const versionStatusClasses: Record<WorkspaceVersionFileStatusKind, string> = {
+  added: "bg-emerald-500/10 text-emerald-700 ring-emerald-500/20 dark:text-emerald-400",
+  modified: "bg-amber-500/10 text-amber-700 ring-amber-500/20 dark:text-amber-400",
+  deleted: "bg-destructive/10 text-destructive ring-destructive/20",
+  renamed: "bg-sky-500/10 text-sky-700 ring-sky-500/20 dark:text-sky-400",
+  typechange: "bg-violet-500/10 text-violet-700 ring-violet-500/20 dark:text-violet-400",
+  conflicted: "bg-destructive/10 text-destructive ring-destructive/20",
+  untracked: "bg-muted text-muted-foreground ring-border",
+};
+
 export const WorkspaceFiles = ({ workspacePath }: WorkspaceFilesProps) => {
   const [files, setFiles] = useState<WorkspaceFileEntry[]>([]);
+  const [versionStatus, setVersionStatus] = useState<WorkspaceVersionControlStatus | null>(null);
   const [activeFile, setActiveFile] = useState<WorkspaceFile | null>(null);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set());
   const [isLoading, setIsLoading] = useState(false);
@@ -101,14 +125,22 @@ export const WorkspaceFiles = ({ workspacePath }: WorkspaceFilesProps) => {
 
   const fileTree = useMemo(() => buildWorkspaceFileTree(files), [files]);
   const fileCount = useMemo(() => files.filter((file) => !file.isDirectory).length, [files]);
+  const versionStatusByPath = useMemo(
+    () => new Map((versionStatus?.files ?? []).map((file) => [file.path, file])),
+    [versionStatus?.files],
+  );
 
   const loadFiles = useCallback(async () => {
     setIsLoading(true);
     setError("");
 
     try {
-      const nextFiles = await listWorkspaceFiles(workspacePath);
+      const [nextFiles, nextVersionStatus] = await Promise.all([
+        listWorkspaceFiles(workspacePath),
+        getWorkspaceVersionControlStatus(workspacePath).catch(() => null),
+      ]);
       setFiles(nextFiles);
+      setVersionStatus(nextVersionStatus);
       setExpandedPaths((current) => {
         const next = new Set(current);
         nextFiles.forEach((file) => {
@@ -120,6 +152,7 @@ export const WorkspaceFiles = ({ workspacePath }: WorkspaceFilesProps) => {
       });
     } catch (caught) {
       setFiles([]);
+      setVersionStatus(null);
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
       setIsLoading(false);
@@ -128,6 +161,7 @@ export const WorkspaceFiles = ({ workspacePath }: WorkspaceFilesProps) => {
 
   useEffect(() => {
     setFiles([]);
+    setVersionStatus(null);
     setActiveFile(null);
     setExpandedPaths(new Set());
     setIsEditorOpen(false);
@@ -240,6 +274,8 @@ export const WorkspaceFiles = ({ workspacePath }: WorkspaceFilesProps) => {
       );
     }
 
+    const fileStatus = versionStatusByPath.get(node.path);
+
     return (
       <button
         key={node.path}
@@ -250,6 +286,14 @@ export const WorkspaceFiles = ({ workspacePath }: WorkspaceFilesProps) => {
       >
         <FileTextIcon className="size-4 shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1 truncate">{node.name}</span>
+        {fileStatus ? (
+          <span
+            className={`shrink-0 rounded-sm px-1.5 py-0.5 text-xs font-medium ring-1 ${versionStatusClasses[fileStatus.status]}`}
+            title={fileStatus.previousPath ? `${fileStatus.previousPath} → ${fileStatus.path}` : undefined}
+          >
+            {versionStatusLabels[fileStatus.status]}
+          </span>
+        ) : null}
       </button>
     );
   };
