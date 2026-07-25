@@ -38,12 +38,12 @@ const ToolBlockComponent = ({ block }: ToolBlockProps) => {
   }, [block.status]);
 
   return (
-    <div className="overflow-hidden rounded-md bg-muted/35 shadow-xs">
+    <div className="app-process-block overflow-hidden rounded-xl">
       <button
         type="button"
         aria-expanded={isExpanded}
         aria-label={`${block.name}，${statusLabel}，${block.events.length} 条记录`}
-        className="flex w-full min-w-0 cursor-pointer items-center gap-2 px-2.5 py-1.5 text-left text-xs text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        className="app-process-trigger flex w-full min-w-0 cursor-pointer items-center gap-2 px-3 text-left text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:ring-inset"
         onClick={() => setManualExpanded(!isExpanded)}
       >
         <ChevronDownIcon
@@ -57,12 +57,12 @@ const ToolBlockComponent = ({ block }: ToolBlockProps) => {
           {block.name}
         </span>
         <span
-          className={`flex shrink-0 items-center gap-1 rounded-sm px-1.5 py-0.5 text-[11px] ${
+          className={`flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-xs ${
             block.status === "error"
               ? "bg-destructive/10 text-destructive"
               : block.status === "running"
                 ? "bg-primary/10 text-primary"
-                : "bg-background text-muted-foreground"
+                : "border border-border/60 bg-background/70 text-muted-foreground"
           }`}
         >
           {block.status === "running" ? (
@@ -74,7 +74,7 @@ const ToolBlockComponent = ({ block }: ToolBlockProps) => {
           )}
           {statusLabel}
         </span>
-        <span className="shrink-0 text-[11px]">{block.events.length} 条</span>
+        <span className="shrink-0 text-xs">{block.events.length} 条</span>
       </button>
 
       <div
@@ -83,27 +83,31 @@ const ToolBlockComponent = ({ block }: ToolBlockProps) => {
         }`}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="max-h-72 space-y-1 overflow-auto bg-background/45 px-2.5 py-2 text-xs leading-5 text-muted-foreground">
+          <div className="app-process-content max-h-72 space-y-1.5 overflow-auto px-3 py-2.5 text-xs leading-5 text-muted-foreground">
             {hiddenEventCount > 0 ? (
-              <div className="rounded-sm bg-background/70 px-2 py-1 text-[11px]">
+              <div className="rounded-lg border border-border/55 bg-surface-raised/70 px-2.5 py-1.5 text-xs">
                 已省略较早的 {hiddenEventCount} 条更新。
               </div>
-            ) : null}
-            {visibleEvents.length > 0 ? (
-              visibleEvents.map((event) => (
-                <div
-                  key={event.id}
-                  className={`rounded-sm bg-background/70 px-2 py-1 ${event.isError ? "text-destructive" : ""}`}
-                >
-                  <div className="mb-0.5 text-[11px] font-medium">{toolEventLabel(event)}</div>
-                  <div className="break-words font-mono whitespace-pre-wrap [overflow-wrap:anywhere]">
-                    {event.content || (block.status === "running" ? "正在执行…" : "无内容")}
-                  </div>
-                </div>
-              ))
             ) : (
-              <div className="rounded-sm bg-background/70 px-2 py-1 text-[11px]">没有可展示的执行详情</div>
+              <div className="rounded-lg border border-border/55 bg-surface-raised/70 px-2.5 py-1.5 text-xs">
+                没有可展示的执行详情
+              </div>
             )}
+            {visibleEvents.length > 0
+              ? visibleEvents.map((event) => (
+                  <div
+                    key={event.id}
+                    className={`rounded-lg border border-border/55 bg-surface-raised/70 px-2.5 py-1.5 ${
+                      event.isError ? "border-destructive/25 bg-destructive/8 text-destructive" : ""
+                    }`}
+                  >
+                    <div className="mb-0.5 text-xs font-medium">{toolEventLabel(event)}</div>
+                    <div className="break-words font-mono whitespace-pre-wrap [overflow-wrap:anywhere]">
+                      {event.content || (block.status === "running" ? "正在执行…" : "无内容")}
+                    </div>
+                  </div>
+                ))
+              : null}
           </div>
         </div>
       </div>

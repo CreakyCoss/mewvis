@@ -15,6 +15,7 @@ import {
   saveKnowledgeSettings,
   setKnowledgeCollectionSources,
 } from "@/api/knowledge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CollectionDetailsDialog, CollectionFormDialog } from "./collection-dialogs";
@@ -502,7 +503,7 @@ export const KnowledgeBasePage = ({ onBack }: KnowledgeBasePageProps) => {
 
   return (
     <section className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
-      <header className="flex min-h-16 items-center justify-between bg-card/80 px-6 py-4 shadow-[0_10px_30px_-30px_rgb(15_23_42_/_0.35)] backdrop-blur">
+      <header className="app-page-header flex min-h-16 items-center justify-between px-6 py-4">
         <div className="flex min-w-0 items-center gap-3">
           {view !== "overview" && (
             <Button
@@ -518,13 +519,13 @@ export const KnowledgeBasePage = ({ onBack }: KnowledgeBasePageProps) => {
             </Button>
           )}
           <div className="min-w-0">
-            <h2 className="flex items-center gap-2 text-xl font-semibold">
-              <span className="flex size-8 items-center justify-center rounded-md bg-accent text-primary shadow-xs">
-                <Database className="size-4" />
+            <h2 className="flex items-center gap-3 text-xl font-semibold tracking-[-0.02em]">
+              <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-primary">
+                <Database className="size-5" />
               </span>
               <span>{viewTitle}</span>
             </h2>
-            <p className="mt-1 truncate text-xs text-muted-foreground">{viewDescription}</p>
+            <p className="mt-0.5 truncate text-sm text-muted-foreground">{viewDescription}</p>
           </div>
         </div>
         {onBack && (
@@ -544,14 +545,14 @@ export const KnowledgeBasePage = ({ onBack }: KnowledgeBasePageProps) => {
 
       {isRebuilding && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-sm">
-          <div className="w-[min(420px,calc(100%-2rem))] rounded-md border bg-card px-5 py-4 shadow-lg">
+          <div className="app-panel w-[min(440px,calc(100%-2rem))] rounded-2xl px-5 py-5 shadow-[var(--shadow-floating)]">
             <div className="flex items-center gap-3">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent text-primary">
-                <Loader2 className="size-5 animate-spin" />
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent text-primary">
+                <Loader2 className="size-5 animate-spin motion-reduce:animate-none" />
               </span>
               <div className="min-w-0">
                 <div className="text-sm font-semibold">正在重建知识库索引</div>
-                <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                <div className="mt-1 text-sm leading-6 text-muted-foreground">
                   正在重新读取文件、生成向量并写入 sqlite-vec。资料较多时可能需要几分钟。
                 </div>
               </div>
@@ -560,24 +561,26 @@ export const KnowledgeBasePage = ({ onBack }: KnowledgeBasePageProps) => {
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-hidden bg-muted/25">
+      <div className="min-h-0 flex-1 overflow-hidden bg-surface/45">
         <ScrollArea className="h-full">
-          <div className="mx-auto w-full max-w-6xl p-5">
+          <div className="mx-auto w-full max-w-6xl p-6">
             {error && (
-              <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {error}
-              </div>
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
             {status.error && (
-              <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs leading-5 text-destructive">
-                {status.error}
-              </div>
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>{status.error}</AlertDescription>
+              </Alert>
             )}
 
             {isLoading ? (
-              <div className="flex min-h-[360px] items-center justify-center gap-2 rounded-md bg-muted/25 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" />
-                <span>正在读取知识库</span>
+              <div className="app-empty-state flex min-h-[360px] flex-col items-center justify-center rounded-2xl px-6 text-center">
+                <span className="flex size-11 items-center justify-center rounded-xl bg-accent text-primary">
+                  <Loader2 className="size-5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                </span>
+                <div className="mt-3 text-sm font-semibold">正在读取知识库</div>
               </div>
             ) : view === "overview" ? (
               <OverviewView

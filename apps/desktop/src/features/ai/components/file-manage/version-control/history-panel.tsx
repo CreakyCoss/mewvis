@@ -103,7 +103,7 @@ export const VersionControlHistoryPanel = ({
           <History className="size-4 shrink-0" />
           <span className="shrink-0">提交历史</span>
           <span
-            className="inline-flex h-5 shrink-0 items-center rounded-sm bg-muted/70 px-1.5 text-[11px] font-medium text-muted-foreground tabular-nums"
+            className="inline-flex h-5 shrink-0 items-center rounded-sm bg-muted/70 px-1.5 text-xs font-medium text-muted-foreground tabular-nums"
             title="提交数"
           >
             {versionHistoryCountLabel}
@@ -139,9 +139,9 @@ export const VersionControlHistoryPanel = ({
                     <DropdownMenuRadioItem key={branch.name} value={branch.name} className="min-w-0">
                       <span className="min-w-0 flex-1 truncate">{branch.name}</span>
                       {branch.isCurrent ? (
-                        <span className="shrink-0 text-[11px] text-muted-foreground">当前</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">当前</span>
                       ) : branch.shortHead ? (
-                        <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{branch.shortHead}</span>
+                        <span className="shrink-0 font-mono text-xs text-muted-foreground">{branch.shortHead}</span>
                       ) : null}
                     </DropdownMenuRadioItem>
                   ))}
@@ -159,7 +159,7 @@ export const VersionControlHistoryPanel = ({
           disabled={isVersionControlLoading || isVersionControlInitializing}
         >
           {isVersionControlLoading || isVersionHistoryLoading ? (
-            <LoaderCircle className="size-3 animate-spin" />
+            <LoaderCircle className="size-3 animate-spin motion-reduce:animate-none" />
           ) : (
             <RefreshCw className="size-3" />
           )}
@@ -167,13 +167,13 @@ export const VersionControlHistoryPanel = ({
       </div>
 
       {!isVersionControlEnabled ? (
-        <div className="px-2 py-8 text-sm text-muted-foreground">还没有提交历史</div>
+        <div className="app-empty-state rounded-xl px-4 py-8 text-sm text-muted-foreground">还没有提交历史</div>
       ) : (
         <>
           <div className="min-w-0 space-y-1.5">
             {isVersionHistoryLoading ? (
-              <div className="flex items-center gap-2 px-2 py-6 text-sm text-muted-foreground">
-                <LoaderCircle className="size-4 animate-spin" />
+              <div className="app-empty-state flex items-center justify-center gap-2 rounded-xl px-3 py-8 text-sm text-muted-foreground">
+                <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />
                 正在读取提交历史
               </div>
             ) : versions.length ? (
@@ -181,13 +181,13 @@ export const VersionControlHistoryPanel = ({
                 <button
                   type="button"
                   key={version.id}
-                  className="flex w-full min-w-0 items-start gap-2 overflow-hidden rounded-md border border-border/55 bg-background/60 px-2.5 py-2.5 text-left shadow-xs transition-colors hover:border-border hover:bg-muted/35 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none data-[active=true]:border-primary/35 data-[active=true]:bg-primary/10"
+                  className="flex w-full min-w-0 items-start gap-2 overflow-hidden rounded-xl border border-border/60 bg-card/70 px-3 py-3 text-left transition-colors hover:border-primary/25 hover:bg-card focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none data-[active=true]:border-primary/35 data-[active=true]:bg-primary/10"
                   data-active={version.id === selectedHistoryVersionId}
                   onClick={() => openCommitDetails(version)}
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex min-w-0 items-center gap-1.5">
-                      <span className="shrink-0 rounded-sm bg-muted/70 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+                      <span className="shrink-0 rounded-sm bg-muted/70 px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
                         {version.shortId}
                       </span>
                       <span className="min-w-0 truncate text-sm font-medium" title={version.summary}>
@@ -201,14 +201,14 @@ export const VersionControlHistoryPanel = ({
                 </button>
               ))
             ) : (
-              <div className="px-2 py-8 text-sm text-muted-foreground">还没有提交历史</div>
+              <div className="app-empty-state rounded-xl px-4 py-8 text-sm text-muted-foreground">还没有提交历史</div>
             )}
           </div>
 
           <Dialog open={isCommitDetailsDialogOpen} onOpenChange={setIsCommitDetailsDialogOpen}>
             <DialogContent
               overlayClassName="pointer-events-none !top-12 !right-0 !bottom-0 !left-0 bg-transparent supports-backdrop-filter:backdrop-blur-0 min-[720px]:!left-[clamp(216px,22vw,288px)]"
-              className="!top-12 !right-0 !bottom-0 !left-0 h-auto w-auto max-w-none !translate-x-0 !translate-y-0 grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-none bg-background p-0 ring-0 shadow-[-10px_0_32px_-28px_rgb(15_23_42_/_0.45)] sm:w-auto sm:max-w-none min-[720px]:!left-[clamp(216px,22vw,288px)]"
+              className="!top-12 !right-0 !bottom-0 !left-0 h-auto w-auto max-w-none !translate-x-0 !translate-y-0 grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-none border-l border-border/70 bg-background p-0 ring-0 shadow-none sm:w-auto sm:max-w-none min-[720px]:!left-[clamp(216px,22vw,288px)]"
             >
               <DialogHeader className="min-w-0 border-b border-border/60 px-5 py-4 pr-16">
                 <div className="flex min-w-0 items-start justify-between gap-3">
@@ -266,7 +266,7 @@ export const VersionControlHistoryPanel = ({
                         disabled={isVersionFileContentLoading || Boolean(restoringVersionFilePath)}
                       >
                         {restoringVersionFilePath === selectedHistoryVersionFile.path ? (
-                          <LoaderCircle className="size-3.5 animate-spin" />
+                          <LoaderCircle className="size-3.5 animate-spin motion-reduce:animate-none" />
                         ) : (
                           <RotateCcw className="size-3.5" />
                         )}
@@ -281,7 +281,7 @@ export const VersionControlHistoryPanel = ({
                       <div className="p-4 text-sm text-muted-foreground">正在读取提交文件</div>
                     ) : isVersionFileContentLoading ? (
                       <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
-                        <LoaderCircle className="size-4 animate-spin" />
+                        <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />
                         正在读取文件差异
                       </div>
                     ) : selectedVersionSnapshotFilePath ? (

@@ -4,7 +4,7 @@ import { DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTit
 import { cn } from "@/lib/utils";
 
 export const selectClassName =
-  "h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
+  "h-9 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
 
 export const emptyValueText = "未填写";
 
@@ -14,7 +14,7 @@ export const StoryMetric = ({ icon: Icon, label, value }: { icon: LucideIcon; la
       <Icon className="size-4" />
     </span>
     <div className="min-w-0">
-      <div className="truncate text-[11px] font-medium text-muted-foreground">{label}</div>
+      <div className="truncate text-xs font-medium text-muted-foreground">{label}</div>
       <div className="mt-0.5 truncate text-sm font-medium leading-5 text-foreground">{value}</div>
     </div>
   </div>
@@ -43,7 +43,7 @@ export const StorySection = ({
   className?: string;
   contentClassName?: string;
 }) => (
-  <section id={id} className={cn("overflow-hidden rounded-lg border bg-card shadow-sm", className)}>
+  <section id={id} className={cn("app-panel overflow-hidden rounded-xl", className)}>
     <div
       className={cn(
         "flex justify-between gap-3 border-b bg-muted/10 px-4 py-3",
@@ -65,7 +65,7 @@ export const StorySection = ({
             {meta ? (
               <span
                 className={cn(
-                  "rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground",
+                  "rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground",
                   metaClassName,
                 )}
               >
@@ -108,40 +108,38 @@ export const EditorField = ({
 );
 
 export const EmptyBlock = ({ text }: { text: string }) => (
-  <div className="rounded-md border border-dashed bg-background/45 px-3 py-6 text-center text-sm text-muted-foreground">
-    {text}
-  </div>
+  <div className="app-empty-state rounded-xl px-3 py-7 text-center text-sm text-muted-foreground">{text}</div>
 );
 
 export const editorHeaderActionButtonClassName =
   "h-8 gap-1.5 rounded-md border-primary/15 bg-primary/[0.06] px-2.5 text-xs font-medium text-primary shadow-none hover:border-primary/25 hover:bg-primary/10 hover:text-primary focus-visible:ring-primary/20 dark:border-primary/20 dark:bg-primary/12 dark:hover:bg-primary/18";
 
 export const editorQuietActionButtonClassName =
-  "h-7 gap-1 rounded-md border-border/60 bg-background/55 px-2 text-[11px] font-medium text-muted-foreground shadow-none hover:border-primary/20 hover:bg-primary/[0.06] hover:text-primary focus-visible:ring-primary/20 disabled:bg-transparent disabled:text-muted-foreground/45";
+  "h-8 gap-1 rounded-md border-border/60 bg-background/55 px-2.5 text-xs font-medium text-muted-foreground shadow-none hover:border-primary/20 hover:bg-primary/[0.06] hover:text-primary focus-visible:ring-primary/20 disabled:bg-transparent disabled:text-muted-foreground/45";
 
 export const editorPrimaryActionButtonClassName =
-  "h-7 gap-1 rounded-md border-primary/20 bg-primary/[0.08] px-2 text-[11px] font-medium text-primary shadow-none hover:border-primary/30 hover:bg-primary/12 hover:text-primary focus-visible:ring-primary/20 disabled:border-primary/15 disabled:bg-primary/[0.06] disabled:text-primary/70 disabled:opacity-100";
+  "h-8 gap-1 rounded-md border-primary/20 bg-primary/[0.08] px-2.5 text-xs font-medium text-primary shadow-none hover:border-primary/30 hover:bg-primary/12 hover:text-primary focus-visible:ring-primary/20 disabled:border-primary/15 disabled:bg-primary/[0.06] disabled:text-primary/70 disabled:opacity-100";
 
 export const editorDangerActionButtonClassName =
-  "h-7 gap-1 rounded-md border-transparent bg-transparent px-2 text-[11px] font-medium text-muted-foreground shadow-none hover:border-destructive/15 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/20";
+  "h-8 gap-1 rounded-md border-transparent bg-transparent px-2.5 text-xs font-medium text-muted-foreground shadow-none hover:border-destructive/15 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/20";
 
 export const editorIconActionButtonClassName =
-  "size-7 rounded-md border border-transparent bg-transparent text-muted-foreground shadow-none hover:border-primary/15 hover:bg-primary/[0.07] hover:text-primary focus-visible:ring-primary/20";
+  "size-8 rounded-md border border-transparent bg-transparent text-muted-foreground shadow-none hover:border-primary/15 hover:bg-primary/[0.07] hover:text-primary focus-visible:ring-primary/20";
 
 export const editorDangerIconActionButtonClassName =
-  "size-7 rounded-md border border-transparent bg-transparent text-muted-foreground shadow-none hover:border-destructive/15 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/20";
+  "size-8 rounded-md border border-transparent bg-transparent text-muted-foreground shadow-none hover:border-destructive/15 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/20";
 
 export const editorListEntryTitleClassName = "min-w-0 truncate text-[13px] font-semibold leading-5 text-foreground/90";
 
 export const editorListEntryBodyClassName = "whitespace-pre-wrap text-[13px] leading-5 text-muted-foreground";
 
-export const editorListBadgeClassName = "h-[18px] px-1.5 text-[11px] font-medium leading-4";
+export const editorListBadgeClassName = "h-[18px] px-1.5 text-xs font-medium leading-4";
 
 export const editorListKeywordClassName =
-  "rounded-full bg-muted/70 px-2 py-0.5 text-[11px] leading-4 text-muted-foreground";
+  "rounded-full bg-muted/70 px-2 py-0.5 text-xs leading-4 text-muted-foreground";
 
 export const editorControlClassName =
-  "h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
+  "h-9 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
 
 export const StoryFormDialogContent = ({ children, className }: { children: ReactNode; className?: string }) => (
   <DialogContent
@@ -163,7 +161,7 @@ export const StoryFormHeader = ({
   title: ReactNode;
   description?: ReactNode;
 }) => (
-  <DialogHeader className="shrink-0 border-b px-5 py-4 pr-12 sm:px-6">
+  <DialogHeader className="shrink-0 border-b bg-surface-raised/85 px-5 py-4 pr-12 sm:px-6">
     <div className="flex min-w-0 items-start gap-3">
       <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15">
         <Icon className="size-4" />
@@ -187,13 +185,13 @@ export const StoryFormLayout = ({
 }) => (
   <div
     className={cn(
-      "grid min-h-0 flex-1 overflow-hidden bg-muted/10",
+      "app-canvas grid min-h-0 flex-1 overflow-hidden",
       sidebar && "md:grid-cols-[260px_minmax(0,1fr)]",
       className,
     )}
   >
     {sidebar ? (
-      <aside className="hidden min-h-0 border-r bg-background/88 p-4 md:block">
+      <aside className="hidden min-h-0 border-r bg-surface/70 p-4 md:block">
         <div className="flex h-full min-h-0 flex-col gap-3">{sidebar}</div>
       </aside>
     ) : null}
@@ -214,7 +212,7 @@ export const StoryFormFooter = ({
 }) => (
   <DialogFooter
     className={cn(
-      "relative z-10 shrink-0 border-t bg-background/96 px-5 py-4 shadow-[0_-12px_24px_-24px_rgb(15_23_42_/_0.45)] sm:items-center sm:justify-between sm:px-6",
+      "relative z-10 shrink-0 border-t bg-surface-raised/92 px-5 py-4 backdrop-blur-xl sm:items-center sm:justify-between sm:px-6",
       className,
     )}
   >
@@ -242,16 +240,16 @@ export const StoryFormSidebarCard = ({
   image?: ReactNode;
   children?: ReactNode;
 }) => (
-  <section className="rounded-xl border border-primary/18 bg-[linear-gradient(135deg,hsl(var(--primary)/0.08),hsl(var(--background))_58%)] p-4 shadow-xs">
+  <section className="app-panel rounded-xl bg-card/90 p-4">
     <div className="flex items-start gap-3">
       {image ?? (
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
           <Icon className="size-5" />
         </span>
       )}
       <div className="min-w-0">
         <div className="truncate text-lg font-semibold leading-7">{title}</div>
-        {meta ? <div className="mt-1 flex flex-wrap gap-1.5 text-[11px] leading-4">{meta}</div> : null}
+        {meta ? <div className="mt-1 flex flex-wrap gap-1.5 text-xs leading-4">{meta}</div> : null}
       </div>
     </div>
     {children ? <div className="mt-4">{children}</div> : null}
@@ -267,14 +265,11 @@ export const StoryStatusPill = ({
 }) => (
   <span
     className={cn(
-      "inline-flex h-5 min-w-10 items-center justify-center rounded-full px-2 text-[11px] font-medium leading-4 ring-1",
-      tone === "active" &&
-        "bg-teal-500/10 text-teal-700 ring-teal-500/12 dark:bg-teal-400/14 dark:text-teal-200 dark:ring-teal-300/16",
+      "inline-flex h-5 min-w-10 items-center justify-center rounded-full px-2 text-xs font-medium leading-4 ring-1",
+      tone === "active" && "bg-primary/10 text-primary ring-primary/20",
       tone === "muted" && "bg-muted text-muted-foreground ring-border/55 dark:bg-muted/55",
-      tone === "info" &&
-        "bg-sky-500/10 text-sky-700 ring-sky-500/14 dark:bg-sky-400/14 dark:text-sky-200 dark:ring-sky-300/16",
-      tone === "warning" &&
-        "bg-amber-500/12 text-amber-700 ring-amber-500/16 dark:bg-amber-400/14 dark:text-amber-200 dark:ring-amber-300/18",
+      tone === "info" && "bg-accent text-accent-foreground ring-primary/15",
+      tone === "warning" && "bg-warning/10 text-warning ring-warning/20",
     )}
   >
     {children}
@@ -282,7 +277,7 @@ export const StoryStatusPill = ({
 );
 
 export const StoryFormSidebarPanel = ({ title, children }: { title: ReactNode; children: ReactNode }) => (
-  <section className="rounded-lg border bg-background/74 p-3 shadow-xs">
+  <section className="app-panel rounded-xl p-3">
     <div className="text-xs font-medium text-muted-foreground">{title}</div>
     <div className="mt-2">{children}</div>
   </section>
@@ -297,13 +292,13 @@ export const StoryFormNav = ({
     label: string;
   }>;
 }) => (
-  <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto rounded-lg border bg-background/74 p-2 shadow-xs">
+  <nav className="app-panel min-h-0 flex-1 space-y-1 overflow-y-auto rounded-xl p-2">
     <div className="px-2 pb-1.5 text-xs font-medium text-muted-foreground">快速定位</div>
     {items.map(({ href, icon: Icon, label }) => (
       <button
         key={href}
         type="button"
-        className="group flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-primary/[0.06] hover:text-foreground"
+        className="group flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-primary/[0.06] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
         onClick={() => {
           const targetId = href.startsWith("#") ? href.slice(1) : href;
           document.getElementById(targetId)?.scrollIntoView({
@@ -343,7 +338,7 @@ export const StoryFormCard = ({
   const hasDescription = Boolean(description);
 
   return (
-    <section id={id} className={cn("overflow-hidden rounded-lg border bg-card shadow-xs", className)}>
+    <section id={id} className={cn("app-panel overflow-hidden rounded-xl", className)}>
       <div className={cn("flex justify-between gap-3 px-4 py-3", hasDescription ? "items-start" : "items-center")}>
         <div className={cn("flex min-w-0 gap-2.5", hasDescription ? "items-start" : "items-center")}>
           <span

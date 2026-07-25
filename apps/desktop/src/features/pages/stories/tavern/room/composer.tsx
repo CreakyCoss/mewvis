@@ -215,7 +215,7 @@ export const Composer = ({ bind, files }: ComposerProps) => {
     <form className={cn("border-t px-4 py-3 sm:px-5", visualPreset.tavern.composer)} onSubmit={submitDraft}>
       <div className="mx-auto max-w-3xl space-y-2">
         {error && (
-          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm leading-6 text-destructive">
             {error}
           </div>
         )}
@@ -224,10 +224,10 @@ export const Composer = ({ bind, files }: ComposerProps) => {
             {referencedFilePreviews.map((file) => (
               <span
                 key={file.path}
-                className="inline-flex max-w-full items-center gap-1 rounded-md border bg-muted/35 px-2 py-1 text-xs text-muted-foreground"
+                className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-current/15 bg-current/[0.045] px-2.5 py-1 text-xs text-current/75"
                 title={file.path}
               >
-                <FileText className="size-3 shrink-0" />
+                <FileText className="size-3.5 shrink-0" aria-hidden="true" />
                 <span className="truncate">{file.path}</span>
               </span>
             ))}
@@ -235,13 +235,13 @@ export const Composer = ({ bind, files }: ComposerProps) => {
         )}
         <div className="relative">
           {referenceSuggestions.length > 0 && (
-            <div className="absolute right-0 bottom-full left-0 z-10 mb-2 overflow-hidden rounded-md border bg-popover shadow-lg">
-              <div className="max-h-56 overflow-y-auto p-1">
+            <div className="absolute right-0 bottom-full left-0 z-10 mb-2 overflow-hidden rounded-xl border border-border/75 bg-popover/95 shadow-xl ring-1 ring-foreground/5 backdrop-blur">
+              <div className="max-h-56 overflow-y-auto p-1.5">
                 {referenceSuggestions.map((file) => (
                   <button
                     key={file.path}
                     type="button"
-                    className="flex w-full min-w-0 items-center gap-2 rounded-[5px] px-2.5 py-2 text-left text-sm hover:bg-muted"
+                    className="flex min-h-10 w-full min-w-0 items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors hover:bg-accent/65 focus-visible:bg-accent/65 focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:outline-none"
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => insertReference(file)}
                     title={file.path}
@@ -280,7 +280,11 @@ export const Composer = ({ bind, files }: ComposerProps) => {
             aria-label={isSending ? "正在回应" : "发送"}
             disabled={isBusy || !canSubmit}
           >
-            {isSending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+            {isSending ? (
+              <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+            ) : (
+              <Send className="size-4" />
+            )}
           </Button>
         </div>
       </div>

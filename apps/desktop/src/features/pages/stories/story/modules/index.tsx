@@ -168,9 +168,9 @@ export const StoryModules = () => {
   };
 
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-[14.5rem_minmax(0,1fr)] overflow-hidden bg-background xl:grid-cols-[16.5rem_minmax(0,1fr)]">
-      <aside className="flex min-h-0 flex-col border-r bg-sidebar/55">
-        <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-3">
+    <div className="grid min-h-0 flex-1 grid-cols-[15.5rem_minmax(0,1fr)] overflow-hidden bg-background xl:grid-cols-[17rem_minmax(0,1fr)]">
+      <aside className="flex min-h-0 flex-col border-r bg-surface/65">
+        <div className="flex items-center justify-between gap-2 px-4 pt-5 pb-3">
           <div className="min-w-0">
             <h2 className="text-base font-semibold tracking-tight">故事资料</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">按内容组织，而不是按文件浏览</p>
@@ -191,7 +191,7 @@ export const StoryModules = () => {
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={query}
-              className="h-8 bg-background pl-8 text-xs shadow-none"
+              className="h-9 bg-background pl-8 text-sm shadow-none"
               placeholder="搜索资料"
               aria-label="搜索故事资料"
               onChange={(event) => setQuery(event.currentTarget.value)}
@@ -225,7 +225,7 @@ export const StoryModules = () => {
                         />
                         <GroupIcon className="size-4 shrink-0 text-primary/80" />
                         <span className="min-w-0 truncate">{group.label}</span>
-                        <span className="ml-auto shrink-0 rounded-full bg-background/80 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground ring-1 ring-inset ring-border/70">
+                        <span className="ml-auto shrink-0 rounded-full bg-background/80 px-1.5 py-0.5 text-xs font-medium tabular-nums text-muted-foreground ring-1 ring-inset ring-border/70">
                           {group.documents.length}
                         </span>
                       </button>
@@ -261,7 +261,9 @@ export const StoryModules = () => {
               );
             })}
             {query && groups.length === 0 ? (
-              <div className="px-2 py-10 text-center text-xs leading-5 text-muted-foreground">没有匹配的故事资料</div>
+              <div className="app-empty-state mx-1 rounded-xl px-3 py-8 text-center text-xs leading-5 text-muted-foreground">
+                没有匹配的故事资料
+              </div>
             ) : null}
           </nav>
         </ScrollArea>
@@ -273,11 +275,13 @@ export const StoryModules = () => {
           document={selected}
         />
       ) : (
-        <div className="flex min-h-0 flex-1 items-center justify-center p-8">
-          <div className="max-w-md text-center">
-            <FileJson2 className="mx-auto size-9 text-muted-foreground" />
-            <h3 className="mt-3 text-base font-semibold">暂无故事资料</h3>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+        <div className="app-canvas flex min-h-0 flex-1 items-center justify-center p-8">
+          <div className="app-empty-state max-w-md rounded-2xl px-8 py-10 text-center">
+            <span className="mx-auto flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <FileJson2 className="size-5" aria-hidden="true" />
+            </span>
+            <h3 className="mt-4 text-base font-semibold">暂无故事资料</h3>
+            <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
               从当前故事支持的标准文档中选择类型，或打开创作助手生成资料与章节正文。
             </p>
             <Button type="button" className="mt-4" onClick={openCreateDialog}>

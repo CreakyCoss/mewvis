@@ -194,7 +194,7 @@ export const VersionControlWorktreePanel = ({
           disabled={isVersionControlLoading || isVersionControlInitializing}
         >
           {isVersionControlLoading ? (
-            <LoaderCircle className="size-3 animate-spin" />
+            <LoaderCircle className="size-3 animate-spin motion-reduce:animate-none" />
           ) : (
             <RefreshCw className="size-3" />
           )}
@@ -202,7 +202,7 @@ export const VersionControlWorktreePanel = ({
       </div>
 
       {!isVersionControlEnabled ? (
-        <div className="rounded-md bg-muted/45 px-2.5 py-2 text-sm text-muted-foreground">
+        <div className="app-empty-state rounded-xl px-4 py-8 text-sm text-muted-foreground">
           {isVersionStatusPending ? "正在读取版本状态" : "未初始化版本仓库，请在顶部版本菜单中初始化。"}
         </div>
       ) : (
@@ -235,7 +235,7 @@ export const VersionControlWorktreePanel = ({
                     return (
                       <div
                         key={file.path}
-                        className="grid h-8 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5 overflow-hidden rounded-md px-2 transition-colors hover:bg-muted/55 data-[active=true]:bg-muted/70"
+                        className="grid min-h-9 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5 overflow-hidden rounded-md px-2 transition-colors hover:bg-muted/55 data-[active=true]:bg-primary/10"
                         data-active={file.path === selectedVersionFilePath}
                       >
                         <Checkbox
@@ -251,7 +251,7 @@ export const VersionControlWorktreePanel = ({
                         >
                           <span
                             className={cn(
-                              "inline-flex h-5 min-w-0 items-center justify-center rounded-sm border border-current/25 px-1 font-mono text-[11px] font-semibold leading-none",
+                              "inline-flex h-5 min-w-0 items-center justify-center rounded-sm border border-current/25 px-1 font-mono text-xs font-semibold leading-none",
                               versionStatusTextClasses[file.status],
                             )}
                             title={versionStatusTitles[file.status]}
@@ -271,7 +271,7 @@ export const VersionControlWorktreePanel = ({
                               disabled={Boolean(discardingVersionFilePath)}
                             >
                               {isDiscardingThisFile ? (
-                                <LoaderCircle className="size-3 animate-spin" />
+                                <LoaderCircle className="size-3 animate-spin motion-reduce:animate-none" />
                               ) : (
                                 <RotateCcw className="size-3" />
                               )}
@@ -304,7 +304,7 @@ export const VersionControlWorktreePanel = ({
                     );
                   })
                 ) : (
-                  <div className="px-2 py-3 text-sm text-muted-foreground">没有变更</div>
+                  <div className="app-empty-state rounded-xl px-3 py-7 text-sm text-muted-foreground">没有变更</div>
                 )}
               </div>
             </ScrollArea>
@@ -313,7 +313,7 @@ export const VersionControlWorktreePanel = ({
           <Dialog open={isDiffDialogOpen} onOpenChange={setIsDiffDialogOpen}>
             <DialogContent
               overlayClassName="pointer-events-none !top-12 !right-0 !bottom-0 !left-0 bg-transparent supports-backdrop-filter:backdrop-blur-0 min-[720px]:!left-[clamp(216px,22vw,288px)]"
-              className="!top-12 !right-0 !bottom-0 !left-0 h-auto w-auto max-w-none !translate-x-0 !translate-y-0 grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-none bg-background p-0 ring-0 shadow-[-10px_0_32px_-28px_rgb(15_23_42_/_0.45)] sm:w-auto sm:max-w-none min-[720px]:!left-[clamp(216px,22vw,288px)]"
+              className="!top-12 !right-0 !bottom-0 !left-0 h-auto w-auto max-w-none !translate-x-0 !translate-y-0 grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-none border-l border-border/70 bg-background p-0 ring-0 shadow-none sm:w-auto sm:max-w-none min-[720px]:!left-[clamp(216px,22vw,288px)]"
             >
               <DialogHeader className="min-w-0 border-b border-border/60 px-5 py-4 pr-16">
                 <div className="flex min-w-0 items-start justify-between gap-3">
@@ -355,7 +355,7 @@ export const VersionControlWorktreePanel = ({
               <div className="min-h-0 min-w-0 overflow-auto">
                 {isVersionDiffLoading ? (
                   <div className="flex min-h-[360px] items-center gap-2 p-4 text-sm text-muted-foreground">
-                    <LoaderCircle className="size-4 animate-spin" />
+                    <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />
                     正在读取差异
                   </div>
                 ) : sideBySideDiffRows.length ? (
@@ -371,15 +371,16 @@ export const VersionControlWorktreePanel = ({
             </DialogContent>
           </Dialog>
 
-          <div className="shrink-0 space-y-2 rounded-md border border-border/50 bg-background/45 p-2">
+          <div className="app-panel shrink-0 space-y-2 rounded-xl p-3">
             <div className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">
               <div className="flex min-w-0 items-center gap-1.5">
                 <GitCommitHorizontal className="size-3.5" />
-                <span>提交</span>
+                <label htmlFor="workspace-version-message">提交</label>
               </div>
               <span className="shrink-0 tabular-nums">{selectedPathsForCommit.length} 个文件</span>
             </div>
             <Textarea
+              id="workspace-version-message"
               value={versionMessage}
               placeholder="填写提交说明，例如这次改动的目的和范围"
               onChange={(event) => onVersionMessageChange(event.target.value)}
@@ -395,7 +396,7 @@ export const VersionControlWorktreePanel = ({
               disabled={!canCreateVersion}
             >
               {isCreatingVersion ? (
-                <LoaderCircle className="size-4 animate-spin" />
+                <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />
               ) : (
                 <GitCommitHorizontal className="size-4" />
               )}

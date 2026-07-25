@@ -326,7 +326,7 @@ export const StoryDocumentDialog = ({
                 </div>
               ) : isLoadingStructure ? (
                 <div className="flex h-10 items-center gap-2 text-sm text-muted-foreground">
-                  <LoaderCircle className="size-4 animate-spin" />
+                  <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />
                   正在读取标准文档结构…
                 </div>
               ) : documentStructure ? (
@@ -412,7 +412,11 @@ export const StoryDocumentDialog = ({
               disabled={isSaving || !editorDocument || (!document && !selectedKind) || (document ? !isDirty : false)}
               onClick={() => void save()}
             >
-              {isSaving ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
+              {isSaving ? (
+                <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />
+              ) : (
+                <Save className="size-4" />
+              )}
               {isSaving ? (document ? "保存中" : "创建中") : document ? "保存修改" : "创建资料"}
             </Button>
           </DialogFooter>

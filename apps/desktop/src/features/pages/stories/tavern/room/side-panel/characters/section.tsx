@@ -29,13 +29,13 @@ const splitPhrases = (value: string | undefined) =>
 const unique = (values: string[]) => uniq(values.filter(Boolean));
 
 const Pill = ({ children }: { children: ReactNode }) => (
-  <span className="max-w-full truncate rounded-md bg-primary/10 px-1.5 py-1 text-[11px] font-medium leading-none text-primary">
+  <span className="max-w-full truncate rounded-md bg-primary/10 px-1.5 py-1 text-xs font-medium leading-none text-primary">
     {children}
   </span>
 );
 
 const DetailSection = ({ icon: Icon, title, children }: { icon: LucideIcon; title: string; children: ReactNode }) => (
-  <section className="rounded-lg border border-current/10 bg-current/[0.06] p-2.5 shadow-sm dark:bg-current/[0.085]">
+  <section className="rounded-xl border border-current/10 bg-current/[0.06] p-3 dark:bg-current/[0.085]">
     <div className="mb-2 flex min-w-0 items-center gap-2 text-[12px] font-semibold text-current">
       <Icon className="size-4 shrink-0 text-primary" />
       <span className="truncate">{title}</span>
@@ -105,7 +105,7 @@ const CharacterDetail = ({ character }: { character: TavernCharacter }) => {
           visualPreset.tavern.sidePanel,
         )}
       >
-        <div className="overflow-hidden rounded-lg border border-current/10 bg-current/[0.075] shadow-sm dark:bg-current/[0.1]">
+        <div className="overflow-hidden rounded-xl border border-current/10 bg-current/[0.075] dark:bg-current/[0.1]">
           <div className="grid min-h-36 md:grid-cols-[10.5rem_minmax(0,1fr)]">
             <div className="min-h-36 bg-current/10">
               <img src={avatar} alt="" className="size-full object-cover" />
@@ -164,12 +164,12 @@ const CharacterCardContent = ({ character }: { character: TavernCharacter }) => 
       <img
         src={avatar}
         alt=""
-        className="size-10 shrink-0 rounded-lg border border-current/15 bg-current/[0.045] object-cover shadow-sm dark:bg-current/[0.065]"
+        className="size-10 shrink-0 rounded-xl border border-current/15 bg-current/[0.045] object-cover shadow-[var(--shadow-card)] dark:bg-current/[0.065]"
       />
       <span className="min-w-[4.5rem] max-w-[5.5rem] truncate text-[13px] font-semibold leading-tight">
         {character.name}
       </span>
-      <span className="min-w-0 flex-1 truncate text-[11px] text-current/65">
+      <span className="min-w-0 flex-1 truncate text-xs text-current/65">
         {character.description || character.goals || "入席角色"}
       </span>
       <ChevronRight className="size-4 shrink-0 text-current/60" />
@@ -180,7 +180,7 @@ const CharacterCardContent = ({ character }: { character: TavernCharacter }) => 
 const CharacterCard = ({ character }: { character: TavernCharacter }) => (
   <HoverCard openDelay={120} closeDelay={120}>
     <HoverCardTrigger asChild>
-      <div className="w-full min-w-0 rounded-xl border border-current/10 bg-current/[0.055] p-2.5 text-left text-current shadow-sm transition-colors hover:bg-current/10 dark:bg-current/[0.075]">
+      <div className="w-full min-w-0 rounded-xl border border-current/10 bg-current/[0.055] p-2.5 text-left text-current transition-colors hover:border-current/20 hover:bg-current/10 dark:bg-current/[0.075]">
         <CharacterCardContent character={character} />
       </div>
     </HoverCardTrigger>

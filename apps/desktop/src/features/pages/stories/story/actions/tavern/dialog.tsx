@@ -70,7 +70,7 @@ export const StoryTavernSelectDialog = ({
               故事章节
             </div>
             {selectedOption?.meta ? (
-              <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+              <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">
                 {selectedOption.meta}
               </span>
             ) : null}
@@ -79,7 +79,7 @@ export const StoryTavernSelectDialog = ({
             <div className="space-y-2 p-3">
               {isLoading ? (
                 <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" />
+                  <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
                   正在读取章节
                 </div>
               ) : chapterOptions.length === 0 ? (

@@ -31,9 +31,9 @@ export const SkillListItem = ({ skill, disabled, removable, removing, onRemove }
               activeElement.blur();
             }
           }}
-          className="group relative grid min-h-[112px] min-w-0 grid-cols-[56px_minmax(0,1fr)] items-center gap-3 rounded-[22px] bg-white p-4 shadow-[0_1px_0_rgb(15_23_42_/_0.03)] ring-1 ring-black/[0.03] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/35 hover:-translate-y-0.5 hover:shadow-[0_14px_32px_-28px_rgb(15_23_42_/_0.35)]"
+          className="app-interactive-card group relative grid min-h-[112px] min-w-0 grid-cols-[56px_minmax(0,1fr)] items-center gap-3 rounded-2xl p-4 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-sidebar-primary/25"
         >
-          <div className="flex size-14 items-center justify-center rounded-2xl bg-[#ececec] text-muted-foreground">
+          <div className="flex size-14 items-center justify-center rounded-xl bg-muted text-muted-foreground">
             <SkillCardIcon name={skill.name} />
           </div>
 
@@ -60,7 +60,13 @@ export const SkillListItem = ({ skill, disabled, removable, removing, onRemove }
                 variant="destructive"
                 disabled={disabled || removing}
                 onClick={() => onRemove(skill)}
-                icon={removing ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                icon={
+                  removing ? (
+                    <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+                  ) : (
+                    <Trash2 className="size-4" />
+                  )
+                }
               />
             </div>
           )}
@@ -125,16 +131,16 @@ const SkillCardIcon = ({ name }: { name: string }) => {
     return <Palette className="size-7 text-pink-500" />;
   }
   if (lowerName.includes("search") || lowerName.includes("research")) {
-    return <Search className="size-7 text-sky-500" />;
+    return <Search className="size-7 text-chart-1" />;
   }
   if (lowerName.includes("brain") || lowerName.includes("idea")) {
-    return <Brain className="size-7 text-amber-500" />;
+    return <Brain className="size-7 text-chart-2" />;
   }
   if (lowerName.includes("web") || lowerName.includes("browser")) {
     return <Globe2 className="size-7 text-blue-500" />;
   }
   if (lowerName.includes("code") || lowerName.includes("script")) {
-    return <Code2 className="size-7 text-emerald-600" />;
+    return <Code2 className="size-7 text-success" />;
   }
-  return <Sparkles className="size-7 text-violet-500" />;
+  return <Sparkles className="size-7 text-chart-3" />;
 };

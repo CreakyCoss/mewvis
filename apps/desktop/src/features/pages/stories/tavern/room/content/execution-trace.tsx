@@ -75,22 +75,20 @@ export const ExecutionTrace = ({ steps, statusText }: ExecutionTraceProps) => {
           <div className="min-w-0 flex-1 overflow-hidden">
             <button
               type="button"
-              className="flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-md bg-muted/35 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground shadow-xs transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="app-process-block app-process-trigger flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-xl px-3 text-left text-xs font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/25"
               onClick={() => setIsDialogOpen(true)}
             >
               <ListChecks className="size-3.5 shrink-0" />
               <span className="shrink-0">生成过程</span>
-              <span className="shrink-0 rounded-sm bg-background px-1.5 py-0.5 text-[11px]">{steps.length} 段</span>
-              <span className="min-w-0 flex-1 truncate rounded-sm bg-background/70 px-1.5 py-0.5 text-[11px]">
-                {summary}
+              <span className="shrink-0 rounded-md border border-border/60 bg-background/70 px-2 py-0.5 text-xs">
+                {steps.length} 段
               </span>
+              <span className="min-w-0 flex-1 truncate rounded-md bg-background/70 px-2 py-0.5 text-xs">{summary}</span>
               {errorStep ? (
-                <span className="shrink-0 rounded-sm bg-destructive/10 px-1.5 py-0.5 text-[11px] text-destructive">
-                  异常
-                </span>
+                <span className="shrink-0 rounded-md bg-destructive/10 px-2 py-0.5 text-xs text-destructive">异常</span>
               ) : null}
-              {runningStep ? <Loader2 className="size-3 shrink-0 animate-spin" /> : null}
-              <span className="shrink-0 rounded-sm bg-background px-1.5 py-0.5 text-[11px]">查看</span>
+              {runningStep ? <Loader2 className="size-3.5 shrink-0 animate-spin motion-reduce:animate-none" /> : null}
+              <span className="shrink-0 text-xs">查看</span>
             </button>
           </div>
         </div>

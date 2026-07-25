@@ -15,7 +15,7 @@ type ChatLocationState = {
 const LoadingState = ({ error }: { error: string }) => (
   <main className="flex h-full min-h-0 items-center justify-center bg-background px-6 text-foreground">
     <div className="max-w-md space-y-3 text-center">
-      <Loader2 className="mx-auto size-6 animate-spin text-muted-foreground" />
+      <Loader2 className="mx-auto size-6 animate-spin text-muted-foreground motion-reduce:animate-none" />
       <h1 className="text-lg font-semibold">正在准备默认工作区</h1>
       <p className="text-sm text-muted-foreground">
         {error

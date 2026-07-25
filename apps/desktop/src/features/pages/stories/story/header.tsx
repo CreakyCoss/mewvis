@@ -11,7 +11,7 @@ export const StoryHeader = ({ onBack }: StoryHeaderProps) => {
   const overview = useStoryState((state) => state.overview);
 
   return (
-    <header className="shrink-0 border-b bg-background px-5 py-4 shadow-sm lg:px-7">
+    <header className="app-page-header shrink-0 px-5 py-4 lg:px-7">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 space-y-1.5">
           <div className="flex min-w-0 items-center gap-3">
@@ -19,14 +19,14 @@ export const StoryHeader = ({ onBack }: StoryHeaderProps) => {
               type="button"
               size="icon"
               variant="ghost"
-              className="size-9 shrink-0"
+              className="size-10 shrink-0"
               title="返回故事入口"
               aria-label="返回故事入口"
               onClick={onBack}
             >
               <ArrowLeft className="size-4" />
             </Button>
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-muted/35 text-primary">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border bg-primary/10 text-primary">
               <BookOpen className="size-5" />
             </span>
             <div className="min-w-0">

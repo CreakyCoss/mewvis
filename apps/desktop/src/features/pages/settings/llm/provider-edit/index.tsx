@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { getProviderOption, getProviderOptions } from "../options";
 import { saveLlmSettings } from "@/api/llm";
@@ -43,9 +44,6 @@ type ProviderEditDialogProps = {
   providers: LlmProvider[];
   onSaved?: () => void | Promise<void>;
 };
-
-const selectClassName =
-  "h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDialogProps) => {
   const [open, setOpen] = useState(false);
@@ -193,11 +191,11 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[calc(100vh-4rem)] gap-0 overflow-hidden border-transparent p-0 shadow-lg sm:max-w-4xl">
+      <DialogContent className="max-h-[calc(100vh-4rem)] gap-0 overflow-hidden border-border/70 bg-popover p-0 shadow-[var(--shadow-floating)] sm:max-w-4xl">
         <DialogHeader>
-          <div className="px-6 pt-6 pb-4 shadow-[0_10px_30px_-30px_rgb(15_23_42_/_0.35)]">
+          <div className="border-b border-border/70 bg-card/35 px-6 pt-6 pb-4">
             <DialogTitle className="flex items-center gap-2 text-lg">
-              <span className="flex size-8 items-center justify-center rounded-md bg-accent text-primary shadow-xs">
+              <span className="flex size-9 items-center justify-center rounded-lg bg-accent text-primary">
                 <ServerCog className="size-4" />
               </span>
               <span>{mode === "create" ? "新增 LLM" : "编辑 LLM"}</span>
@@ -217,7 +215,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
             }}
           >
             {error && (
-              <div className="mx-6 mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <div className="mx-6 mt-4 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
                 {error}
               </div>
             )}
@@ -242,9 +240,9 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
 
                 <div className="space-y-2">
                   <Label htmlFor="llm-provider">供应商</Label>
-                  <select
+                  <NativeSelect
                     id="llm-provider"
-                    className={selectClassName}
+                    className="w-full"
                     value={providerDraft.provider}
                     onChange={(event) => {
                       const value = event.currentTarget.value;
@@ -252,18 +250,18 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                     }}
                   >
                     {getProviderOptions().map((providerOption) => (
-                      <option key={providerOption.value} value={providerOption.value}>
+                      <NativeSelectOption key={providerOption.value} value={providerOption.value}>
                         {providerOption.label}
-                      </option>
+                      </NativeSelectOption>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="llm-api-format">API Format</Label>
-                  <select
+                  <NativeSelect
                     id="llm-api-format"
-                    className={selectClassName}
+                    className="w-full"
                     value={providerDraft.apiFormat}
                     onChange={(event) => {
                       const value = selectedApiFormatOptions.find(
@@ -275,11 +273,11 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                     }}
                   >
                     {selectedApiFormatOptions.map((apiFormat) => (
-                      <option key={apiFormat.value} value={apiFormat.value}>
+                      <NativeSelectOption key={apiFormat.value} value={apiFormat.value}>
                         {apiFormat.label}
-                      </option>
+                      </NativeSelectOption>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </div>
 
                 <div className="space-y-2">
@@ -315,7 +313,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                 </div>
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/35 px-3 py-2.5">
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/25 px-3 py-2.5">
                 <div className="flex items-center gap-2 text-sm">
                   <Switch
                     checked={providerDraft.isDefault}
@@ -338,7 +336,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                 )}
               </div>
 
-              <div className="mt-5 space-y-3 rounded-md bg-muted/20 p-3">
+              <div className="mt-5 space-y-3 rounded-xl border border-border/60 bg-muted/15 p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-semibold">模型</h3>
@@ -362,7 +360,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                   {providerDraft.models.map((model) => (
                     <div
                       key={model.id}
-                      className="grid gap-3 rounded-md bg-card p-3 shadow-xs md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto_auto]"
+                      className="grid gap-3 rounded-xl border border-border/60 bg-card/75 p-3 shadow-xs md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto_auto]"
                     >
                       <div className="space-y-2">
                         <Label htmlFor={`${model.id}-model-id`}>模型 ID</Label>
@@ -440,12 +438,16 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
               </div>
             </div>
 
-            <DialogFooter className="px-6 pb-6 pt-4 shadow-[0_-10px_30px_-32px_rgb(15_23_42_/_0.35)]">
+            <DialogFooter className="border-t border-border/70 bg-card/35 px-6 pt-4 pb-6">
               <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} disabled={isSaving}>
                 取消
               </Button>
               <Button type="submit" disabled={isSaving}>
-                {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                {isSaving ? (
+                  <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+                ) : (
+                  <Save className="size-4" />
+                )}
                 <span>{isSaving ? "正在保存" : "保存配置"}</span>
               </Button>
             </DialogFooter>

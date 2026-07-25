@@ -47,7 +47,7 @@ export const WorkspacePicker = ({ onCreateWorkspace }: WorkspacePickerProps) => 
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-[69rem] flex-wrap items-start gap-3 px-1">
+    <div className="mx-auto flex w-full max-w-[69rem] flex-wrap items-start gap-3">
       <DropdownMenu
         onOpenChange={(open) => {
           if (!open) {

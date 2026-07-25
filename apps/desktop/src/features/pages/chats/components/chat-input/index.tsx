@@ -47,7 +47,7 @@ const ChatInputContent = ({
 
   return (
     <form className="mx-auto w-full max-w-[69rem]" onSubmit={submit}>
-      <InputGroup className="h-auto flex-col items-stretch overflow-hidden rounded-xl border-0 bg-card shadow-[0_14px_34px_-30px_rgb(15_23_42_/_0.34),0_2px_8px_-7px_rgb(15_23_42_/_0.18),0_1px_2px_rgb(15_23_42_/_0.06)] ring-1 ring-border/50 transition-shadow duration-200 has-[[data-slot=input-group-control]:focus-visible]:border-transparent has-[[data-slot=input-group-control]:focus-visible]:ring-3 has-[[data-slot=input-group-control]:focus-visible]:ring-ring/20 dark:bg-card">
+      <InputGroup className="h-auto flex-col items-stretch overflow-hidden rounded-xl border border-border/80 bg-card shadow-[var(--shadow-composer)] transition-[border-color,box-shadow] duration-200 ease-out has-[[data-slot=input-group-control]:focus-visible]:border-ring/55 has-[[data-slot=input-group-control]:focus-visible]:shadow-[var(--shadow-floating)] has-[[data-slot=input-group-control]:focus-visible]:ring-3 has-[[data-slot=input-group-control]:focus-visible]:ring-ring/15 dark:bg-card">
         <label htmlFor={inputId} className="sr-only">
           对话内容
         </label>
@@ -108,7 +108,7 @@ const ChatInputContent = ({
               <InputGroupButton
                 type="submit"
                 size="icon-sm"
-                variant="outline"
+                variant="default"
                 disabled={!canSubmit}
                 aria-label="发送消息"
                 className="size-10 cursor-pointer rounded-full shadow-xs"

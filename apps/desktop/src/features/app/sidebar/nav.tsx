@@ -29,21 +29,22 @@ const navItems: NavItem[] = [
 
 const linkClassName = ({ isActive }: { isActive: boolean }) =>
   cn(
-    "flex h-10 w-full items-center gap-2 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/55 hover:text-foreground",
-    isActive && "bg-muted/55 text-foreground",
+    "relative flex h-9 w-full items-center gap-2.5 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring/25 focus-visible:outline-none",
+    isActive &&
+      "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:top-2 before:bottom-2 before:left-0 before:w-0.5 before:rounded-full before:bg-sidebar-primary",
   );
 
 export const PrimaryNav = ({ chatPath }: NavProps) => (
-  <nav className="space-y-1 px-2.5 pb-2.5 xl:px-3 xl:pb-3" aria-label="主导航">
+  <nav className="space-y-1 px-2.5 pb-3 xl:px-3" aria-label="主导航">
     <Button
       asChild
       type="button"
-      className="mb-2 h-11 w-full justify-start rounded-lg px-3 text-sm font-medium shadow-sm"
+      className="mb-2 h-10 w-full justify-start rounded-lg px-3 text-sm font-medium shadow-sm"
     >
       <NavLink to="/chat-next">
         <Sparkles className="size-4" />
         <span>新版对话</span>
-        <span className="ml-auto rounded-full bg-primary-foreground/15 px-2 py-0.5 text-[10px] font-semibold tracking-wide">
+        <span className="ml-auto rounded-full bg-brand-pop px-1.5 py-0.5 text-xs font-semibold tracking-wide text-white">
           NEW
         </span>
       </NavLink>
@@ -52,7 +53,7 @@ export const PrimaryNav = ({ chatPath }: NavProps) => (
       asChild
       type="button"
       variant="ghost"
-      className="h-10 w-full justify-start rounded-md px-3 text-sm font-medium text-foreground hover:bg-muted/55"
+      className="h-9 w-full justify-start rounded-lg px-3 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/70"
     >
       <NavLink to={chatPath}>
         <MessageSquarePlus className="size-4" />
@@ -73,7 +74,7 @@ export const PrimaryNav = ({ chatPath }: NavProps) => (
 );
 
 export const UtilityNav = () => (
-  <nav className="space-y-1 bg-transparent p-2.5" aria-label="辅助导航">
+  <nav className="space-y-1 border-t border-sidebar-border bg-transparent p-2.5 xl:p-3" aria-label="辅助导航">
     <NavLink to="/hub" className={linkClassName}>
       <Bot className="size-4" />
       <span>中枢</span>

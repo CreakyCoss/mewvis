@@ -40,7 +40,7 @@ export const OverviewView = ({
 }: OverviewViewProps) => (
   <div className="space-y-4">
     <div className="grid gap-4">
-      <div className="rounded-md bg-card px-4 py-4 shadow-xs">
+      <div className="app-panel rounded-xl px-5 py-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="text-xs font-medium text-muted-foreground">当前目录</div>
@@ -58,12 +58,16 @@ export const OverviewView = ({
               onClick={onChooseStorageDirectory}
               disabled={isSavingSettings || isLoading}
             >
-              {isSavingSettings ? <Loader2 className="size-4 animate-spin" /> : <Settings2 className="size-4" />}
+              {isSavingSettings ? (
+                <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+              ) : (
+                <Settings2 className="size-4" />
+              )}
               <span>{settings.storageDirectory ? "修改目录" : "设置目录"}</span>
             </Button>
           </div>
         </div>
-        <div className="mt-3 rounded-md border bg-muted/35 px-3 py-2">
+        <div className="mt-4 rounded-lg border bg-muted/35 px-3 py-2.5">
           <div className="break-all font-mono text-xs leading-5 text-muted-foreground">
             {settings.storageDirectory ?? "未选择"}
           </div>
@@ -71,10 +75,10 @@ export const OverviewView = ({
       </div>
     </div>
 
-    <div className="rounded-md bg-card px-4 py-4 shadow-xs">
+    <div className="app-panel rounded-xl px-5 py-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-accent text-primary shadow-xs">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent text-primary">
             <Layers3 className="size-4" />
           </span>
           <div className="min-w-0">
@@ -98,26 +102,30 @@ export const OverviewView = ({
             onClick={onRequestRebuild}
             disabled={isRebuilding || isLoading || library.sources.length === 0}
           >
-            {isRebuilding ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+            {isRebuilding ? (
+              <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+            ) : (
+              <RefreshCw className="size-4" />
+            )}
             <span>重建索引</span>
           </Button>
         </div>
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_160px]">
-        <div className="rounded-md border bg-muted/25 px-3 py-2">
+        <div className="rounded-lg border bg-muted/25 px-3 py-2.5">
           <div className="text-xs text-muted-foreground">模型与地址</div>
           <div className="mt-1 truncate text-sm font-medium">{embeddingSummary}</div>
           <div className="mt-1 truncate font-mono text-xs text-muted-foreground">
             {defaultEmbeddingBaseUrl || "未设置"}
           </div>
         </div>
-        <div className="rounded-md border bg-muted/25 px-3 py-2">
+        <div className="rounded-lg border bg-muted/25 px-3 py-2.5">
           <div className="text-xs text-muted-foreground">索引状态</div>
           <div className="mt-1 text-sm font-medium">{statusLabel(status.status)}</div>
           <div className="mt-0.5 text-xs text-muted-foreground">{formatTime(status.updatedAt)}</div>
         </div>
-        <div className="rounded-md border bg-muted/25 px-3 py-2">
+        <div className="rounded-lg border bg-muted/25 px-3 py-2.5">
           <div className="text-xs text-muted-foreground">向量后端</div>
           <div className="mt-1 text-sm font-medium">sqlite-vec</div>
           <div className="mt-0.5 text-xs text-muted-foreground">{isRebuilding ? "重建中" : "就绪后参与检索"}</div>
@@ -126,19 +134,19 @@ export const OverviewView = ({
     </div>
 
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      <div className="rounded-md bg-card px-4 py-3 shadow-xs">
+      <div className="app-panel rounded-xl px-4 py-3">
         <div className="text-xs text-muted-foreground">来源</div>
         <div className="mt-2 text-2xl font-semibold">{library.sources.length}</div>
       </div>
-      <div className="rounded-md bg-card px-4 py-3 shadow-xs">
+      <div className="app-panel rounded-xl px-4 py-3">
         <div className="text-xs text-muted-foreground">启用集合</div>
         <div className="mt-2 text-2xl font-semibold">{enabledCollectionCount}</div>
       </div>
-      <div className="rounded-md bg-card px-4 py-3 shadow-xs">
+      <div className="app-panel rounded-xl px-4 py-3">
         <div className="text-xs text-muted-foreground">文档</div>
         <div className="mt-2 text-2xl font-semibold">{status.documentCount}</div>
       </div>
-      <div className="rounded-md bg-card px-4 py-3 shadow-xs">
+      <div className="app-panel rounded-xl px-4 py-3">
         <div className="text-xs text-muted-foreground">片段</div>
         <div className="mt-2 text-2xl font-semibold">{status.chunkCount}</div>
       </div>
@@ -147,11 +155,11 @@ export const OverviewView = ({
     <div className="grid gap-4 lg:grid-cols-2">
       <button
         type="button"
-        className="group flex min-h-32 items-start justify-between gap-4 rounded-md bg-card p-4 text-left shadow-xs transition-colors hover:bg-accent/35 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+        className="app-interactive-card group flex min-h-36 items-start justify-between gap-4 rounded-2xl p-5 text-left focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:outline-none"
         onClick={() => onViewChange("files")}
       >
         <span className="min-w-0">
-          <span className="mb-3 flex size-9 items-center justify-center rounded-md bg-accent text-primary shadow-xs">
+          <span className="mb-4 flex size-10 items-center justify-center rounded-xl bg-accent text-primary">
             <FileText className="size-4" />
           </span>
           <span className="block text-base font-semibold">上传文件</span>
@@ -165,11 +173,11 @@ export const OverviewView = ({
 
       <button
         type="button"
-        className="group flex min-h-32 items-start justify-between gap-4 rounded-md bg-card p-4 text-left shadow-xs transition-colors hover:bg-accent/35 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+        className="app-interactive-card group flex min-h-36 items-start justify-between gap-4 rounded-2xl p-5 text-left focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:outline-none"
         onClick={() => onViewChange("collections")}
       >
         <span className="min-w-0">
-          <span className="mb-3 flex size-9 items-center justify-center rounded-md bg-accent text-primary shadow-xs">
+          <span className="mb-4 flex size-10 items-center justify-center rounded-xl bg-accent text-primary">
             <Tags className="size-4" />
           </span>
           <span className="block text-base font-semibold">集合管理</span>

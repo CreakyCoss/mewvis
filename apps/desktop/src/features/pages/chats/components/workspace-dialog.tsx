@@ -109,8 +109,11 @@ export const WorkspaceDialog = ({ bind }: WorkspaceDialogProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="border-transparent shadow-lg sm:max-w-xl" showCloseButton={!isSaving}>
-        <DialogHeader>
+      <DialogContent
+        className="!flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
+        showCloseButton={!isSaving}
+      >
+        <DialogHeader className="border-b border-border/60 bg-surface-raised/85 px-6 py-5 pr-14 text-left">
           <DialogTitle className="text-lg">{workspace ? "修改工作区" : "新建工作区"}</DialogTitle>
           <DialogDescription>
             {workspace
@@ -120,77 +123,79 @@ export const WorkspaceDialog = ({ bind }: WorkspaceDialogProps) => {
         </DialogHeader>
 
         <form
-          className="space-y-4"
+          className="flex min-h-0 flex-1 flex-col"
           onSubmit={(event) => {
             event.preventDefault();
             void saveWorkspace();
           }}
         >
-          <div className="space-y-2">
-            <Label htmlFor="chat-home-workspace-dialog-name">工作区名称</Label>
-            <Input
-              id="chat-home-workspace-dialog-name"
-              value={form.name}
-              placeholder="例如：长篇小说项目"
-              disabled={isSaving}
-              required
-              onChange={(event) => setForm((current) => ({ ...current, name: event.currentTarget.value }))}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="chat-home-workspace-dialog-description">工作区描述</Label>
-            <Textarea
-              id="chat-home-workspace-dialog-description"
-              value={form.description}
-              placeholder="可填写项目主题、目标或备注"
-              rows={3}
-              disabled={isSaving}
-              onChange={(event) => setForm((current) => ({ ...current, description: event.currentTarget.value }))}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="chat-home-workspace-dialog-path">工作区目录</Label>
-            <div className="flex gap-2">
+          <div className="app-canvas min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+            <div className="space-y-2">
+              <Label htmlFor="chat-home-workspace-dialog-name">工作区名称</Label>
               <Input
-                id="chat-home-workspace-dialog-path"
-                value={form.path}
-                placeholder="请选择目录"
+                id="chat-home-workspace-dialog-name"
+                value={form.name}
+                placeholder="例如：长篇小说项目"
                 disabled={isSaving}
-                readOnly={Boolean(workspace)}
-                aria-describedby={workspace ? "chat-home-workspace-dialog-path-help" : undefined}
-                className={workspace ? "bg-muted/50 text-muted-foreground" : undefined}
                 required
-                onChange={(event) => setForm((current) => ({ ...current, path: event.currentTarget.value }))}
+                onChange={(event) => setForm((current) => ({ ...current, name: event.currentTarget.value }))}
               />
-              {!workspace && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  title="选择目录"
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="chat-home-workspace-dialog-description">工作区描述</Label>
+              <Textarea
+                id="chat-home-workspace-dialog-description"
+                value={form.description}
+                placeholder="可填写项目主题、目标或备注"
+                rows={3}
+                disabled={isSaving}
+                onChange={(event) => setForm((current) => ({ ...current, description: event.currentTarget.value }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="chat-home-workspace-dialog-path">工作区目录</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="chat-home-workspace-dialog-path"
+                  value={form.path}
+                  placeholder="请选择目录"
                   disabled={isSaving}
-                  onClick={() => void chooseDirectory()}
-                >
-                  <FolderOpenIcon aria-hidden="true" />
-                  <span>选择</span>
-                </Button>
+                  readOnly={Boolean(workspace)}
+                  aria-describedby={workspace ? "chat-home-workspace-dialog-path-help" : undefined}
+                  className={workspace ? "bg-muted/50 text-muted-foreground" : undefined}
+                  required
+                  onChange={(event) => setForm((current) => ({ ...current, path: event.currentTarget.value }))}
+                />
+                {!workspace && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    title="选择目录"
+                    disabled={isSaving}
+                    onClick={() => void chooseDirectory()}
+                  >
+                    <FolderOpenIcon aria-hidden="true" />
+                    <span>选择</span>
+                  </Button>
+                )}
+              </div>
+              {workspace && (
+                <p id="chat-home-workspace-dialog-path-help" className="text-xs leading-5 text-muted-foreground">
+                  如需使用其他目录，请新建工作区。
+                </p>
               )}
             </div>
-            {workspace && (
-              <p id="chat-home-workspace-dialog-path-help" className="text-xs text-muted-foreground">
-                如需使用其他目录，请新建工作区。
-              </p>
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
           </div>
 
-          {error && (
-            <Alert variant="destructive" className="py-2">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          <DialogFooter>
+          <DialogFooter className="border-t border-border/60 bg-surface-raised/85 px-6 py-4">
             <Button type="submit" disabled={isSaving || !form.name.trim() || !form.path.trim()}>
               {isSaving && <Spinner aria-hidden="true" className="motion-reduce:animate-none" />}
               {isSaving ? "正在保存" : workspace ? "保存修改" : "创建工作区"}

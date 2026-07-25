@@ -40,14 +40,14 @@ export const ChatQuestion = ({ question, onAnswer }: ChatQuestionProps) => {
 
   return (
     <form
-      className="mx-auto w-full max-w-[69rem] rounded-xl border border-primary/25 bg-primary/5 p-4 shadow-xs"
+      className="app-panel mx-auto w-full max-w-[69rem] overflow-hidden rounded-2xl border-primary/25"
       onSubmit={(event) => {
         event.preventDefault();
         void submitAnswer(answerValue);
       }}
     >
-      <div className="flex items-start gap-3">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+      <div className="flex items-start gap-3 border-b border-border/60 bg-primary/5 px-4 py-3.5">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-primary">
           <MessageSquareIcon aria-hidden="true" className="size-4" />
         </div>
         <div className="min-w-0 flex-1">
@@ -57,52 +57,60 @@ export const ChatQuestion = ({ question, onAnswer }: ChatQuestionProps) => {
         </div>
       </div>
 
-      {options.length > 0 ? (
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          {options.map((option) => (
-            <Button
-              key={option.value}
-              type="button"
-              variant={answer === option.value ? "secondary" : "outline"}
-              disabled={isAnswering}
-              className="h-auto min-h-11 justify-start px-3 py-2 text-left whitespace-normal"
-              onClick={() => {
-                setAnswer(option.value);
-                if (option.value !== "other") {
-                  void submitAnswer(option.value);
-                }
-              }}
-            >
-              <span className="min-w-0">
-                <span className="block font-medium">{option.label}</span>
-                {option.description ? (
-                  <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{option.description}</span>
-                ) : null}
-              </span>
-            </Button>
-          ))}
-        </div>
-      ) : null}
+      <div className="app-canvas px-4 py-4">
+        {options.length > 0 ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {options.map((option) => (
+              <Button
+                key={option.value}
+                type="button"
+                variant={answer === option.value ? "secondary" : "outline"}
+                disabled={isAnswering}
+                className={[
+                  "h-auto min-h-11 justify-start rounded-xl px-3 py-2.5 text-left whitespace-normal",
+                  answer === option.value ? "border-primary/35 bg-primary/10 ring-2 ring-primary/20" : "",
+                ].join(" ")}
+                onClick={() => {
+                  setAnswer(option.value);
+                  if (option.value !== "other") {
+                    void submitAnswer(option.value);
+                  }
+                }}
+              >
+                <span className="min-w-0">
+                  <span className="block font-medium">{option.label}</span>
+                  {option.description ? (
+                    <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{option.description}</span>
+                  ) : null}
+                </span>
+              </Button>
+            ))}
+          </div>
+        ) : null}
 
-      {options.length === 0 || isCustomAnswer ? (
-        <div className="mt-3 flex items-end gap-2">
-          <Textarea
-            value={isCustomAnswer ? customAnswer : answer}
-            rows={2}
-            disabled={isAnswering}
-            aria-label="回复 Agent 的问题"
-            placeholder="输入回答"
-            className="min-h-16 flex-1 resize-none bg-background"
-            onChange={(event) =>
-              isCustomAnswer ? setCustomAnswer(event.currentTarget.value) : setAnswer(event.currentTarget.value)
-            }
-          />
-          <Button type="submit" disabled={isAnswering || !answerValue.trim()} className="min-h-11">
-            {isAnswering ? <Spinner /> : <SendIcon aria-hidden="true" />}
-            回复
-          </Button>
-        </div>
-      ) : null}
+        {options.length === 0 || isCustomAnswer ? (
+          <div className={["space-y-2", options.length > 0 ? "mt-3" : ""].join(" ")}>
+            <div className="flex items-end gap-2">
+              <Textarea
+                id="legacy-agent-question-answer"
+                value={isCustomAnswer ? customAnswer : answer}
+                rows={2}
+                disabled={isAnswering}
+                aria-label="回复 Agent 的问题"
+                placeholder="输入回答"
+                className="min-h-16 flex-1 resize-none bg-surface-raised"
+                onChange={(event) =>
+                  isCustomAnswer ? setCustomAnswer(event.currentTarget.value) : setAnswer(event.currentTarget.value)
+                }
+              />
+              <Button type="submit" disabled={isAnswering || !answerValue.trim()} className="min-h-11">
+                {isAnswering ? <Spinner className="motion-reduce:animate-none" /> : <SendIcon aria-hidden="true" />}
+                回复
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </div>
     </form>
   );
 };

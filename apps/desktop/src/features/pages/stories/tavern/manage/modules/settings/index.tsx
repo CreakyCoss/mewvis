@@ -106,7 +106,7 @@ export const SettingsSection = ({ data, globalRuntimeModel, onSave }: SettingsSe
         ]}
       />
 
-      <div className="rounded-lg border border-border/70 bg-background/72 px-3.5 py-3.5 shadow-xs">
+      <div className="app-panel rounded-xl px-3.5 py-3.5">
         <EditorSettingGroup title="核心策略" className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <EditorField label="用户控制权" htmlFor="tavern-settings-agency-mode">

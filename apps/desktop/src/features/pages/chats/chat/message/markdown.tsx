@@ -45,7 +45,7 @@ const MessageMarkdownComponent = ({ content }: MessageMarkdownProps) => (
           );
         },
         pre: ({ children }) => (
-          <pre className="mb-2 min-w-0 max-w-full overflow-x-auto rounded-md border border-border/80 bg-muted/45 px-3 py-2.5 shadow-xs last:mb-0">
+          <pre className="mb-3 min-w-0 max-w-full overflow-x-auto rounded-xl border border-border/75 bg-surface/65 px-3.5 py-3 last:mb-0">
             {children}
           </pre>
         ),
@@ -62,7 +62,12 @@ const MessageMarkdownComponent = ({ content }: MessageMarkdownProps) => (
         h4: ({ children }) => <h4 className="mb-2 text-sm font-medium last:mb-0">{children}</h4>,
         hr: () => <hr className="my-3 border-border" />,
         img: ({ alt, src }) => (
-          <img src={src} alt={alt ?? ""} loading="lazy" className="my-2 h-auto max-w-full rounded-md" />
+          <img
+            src={src}
+            alt={alt ?? ""}
+            loading="lazy"
+            className="my-3 h-auto max-w-full rounded-xl border border-border/60"
+          />
         ),
       }}
     >

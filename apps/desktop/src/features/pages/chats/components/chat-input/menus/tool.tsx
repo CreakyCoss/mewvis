@@ -30,7 +30,7 @@ export const ToolMenu = ({ disabled }: ToolMenuProps) => {
           variant="ghost"
           size="sm"
           disabled={disabled}
-          className="h-8 cursor-pointer px-2 text-xs"
+          className="h-9 cursor-pointer px-2 text-xs"
           title={`已选择 ${selectedToolCount} 个工具`}
         >
           <Wrench className="size-3.5" aria-hidden="true" />

@@ -59,7 +59,7 @@ export const ChatHomePage = () => {
   }
 
   return (
-    <main className="relative flex h-full min-h-0 overflow-hidden bg-background text-foreground">
+    <main className="app-canvas relative flex h-full min-h-0 overflow-hidden text-foreground">
       <section
         aria-labelledby="chat-home-title"
         className="flex min-h-0 w-full flex-1 items-center justify-center overflow-y-auto px-4 py-8 sm:px-8"
@@ -79,7 +79,9 @@ export const ChatHomePage = () => {
                 {workspaceStore.currentWorkspace ? (
                   <>
                     <span className="shrink-0">我们应该在&nbsp;</span>
-                    <span className="max-w-full min-w-0 truncate">{workspaceStore.currentWorkspace.name}</span>
+                    <span className="max-w-full min-w-0 truncate text-primary">
+                      {workspaceStore.currentWorkspace.name}
+                    </span>
                     <span className="shrink-0">&nbsp;中构建什么？</span>
                   </>
                 ) : (

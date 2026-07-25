@@ -50,12 +50,7 @@ const loadWorkspace = async (workspaceId: string, initialResources?: ChatInputRe
   };
 };
 
-const WorkspaceChat = ({
-  workspaceId,
-  chatId,
-  initialData: providedInitialData,
-  isActive,
-}: WorkspaceChatProps) => {
+const WorkspaceChat = ({ workspaceId, chatId, initialData: providedInitialData, isActive }: WorkspaceChatProps) => {
   const workspaceStore = useWorkspaceStore();
   const [state, setState] = useState(initialState);
   const initialData = useMemo<ChatInitialData>(

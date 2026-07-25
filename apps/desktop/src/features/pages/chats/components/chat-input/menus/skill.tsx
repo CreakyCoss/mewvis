@@ -55,7 +55,7 @@ export const SkillMenu = ({ disabled }: SkillMenuProps) => {
           variant="ghost"
           size="sm"
           disabled={disabled}
-          className="h-8 min-w-0 max-w-[13rem] cursor-pointer px-2 text-xs"
+          className="h-9 min-w-0 max-w-[13rem] cursor-pointer px-2 text-xs"
           title={`技能：${selectedSkillTitle}`}
         >
           <Sparkles className="size-3.5 shrink-0" aria-hidden="true" />
@@ -168,7 +168,7 @@ const SkillSelectionIndicator = ({ selected, indeterminate }: SkillSelectionIndi
 );
 
 const DefaultBadge = () => (
-  <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium leading-none text-muted-foreground">
+  <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium leading-none text-muted-foreground">
     默认
   </span>
 );

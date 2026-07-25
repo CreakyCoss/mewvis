@@ -86,7 +86,7 @@ const ObjectValue = ({
 }) => {
   const object = isJsonObject(value) ? value : {};
   return (
-    <dl className="grid gap-x-6 gap-y-4 rounded-lg border bg-muted/15 p-4 sm:grid-cols-2">
+    <dl className="grid gap-x-6 gap-y-4 rounded-xl border bg-surface/45 p-4 sm:grid-cols-2">
       {Object.entries(definition.fields).map(([pointer, field]) => (
         <DocumentField
           key={pointer}
@@ -167,7 +167,10 @@ const DocumentField = ({
       className={
         compact
           ? "min-w-0"
-          : ["min-w-0 rounded-lg bg-muted/25 px-4 py-3", spansFullWidth ? "sm:col-span-2" : ""].join(" ")
+          : [
+              "min-w-0 rounded-xl border border-border/55 bg-card/75 px-4 py-3",
+              spansFullWidth ? "sm:col-span-2" : "",
+            ].join(" ")
       }
     >
       <dt className="text-xs font-medium text-muted-foreground">{field.label}</dt>
@@ -204,8 +207,8 @@ export const StoryDocumentDetail = ({
   };
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
-      <header className="flex min-h-14 shrink-0 items-center justify-between gap-4 border-b px-5 py-2.5 xl:px-7">
+    <div className="app-canvas flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <header className="flex min-h-14 shrink-0 items-center justify-between gap-4 border-b bg-surface-raised/80 px-5 py-2.5 backdrop-blur-xl xl:px-7">
         <div className="flex min-w-0 items-center gap-2 text-sm">
           <span className="truncate text-muted-foreground">{categoryLabel}</span>
           <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/60" />
@@ -258,8 +261,8 @@ export const StoryDocumentDetail = ({
             typeof content === "string" && content.trim() ? (
               <MarkdownContent content={content} className="text-[15px] leading-7" />
             ) : (
-              <div className="rounded-lg border border-dashed px-5 py-12 text-center text-sm text-muted-foreground">
-                暂无正文内容，点击“编辑”开始写作。
+              <div className="app-empty-state rounded-2xl px-6 py-14 text-center">
+                <p className="text-sm text-muted-foreground">暂无正文内容，点击“编辑”开始写作。</p>
               </div>
             )
           ) : inspected ? (
@@ -285,7 +288,7 @@ export const StoryDocumentDetail = ({
                 </section>
               ))}
               {technicalSection ? (
-                <details className="group rounded-lg border bg-muted/15 px-4">
+                <details className="group rounded-xl border bg-card/65 px-4">
                   <summary className="cursor-pointer list-none py-3 text-sm font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
                     技术信息
                     <span className="ml-2 text-xs font-normal opacity-70">文档标识与系统维护字段</span>
@@ -304,7 +307,7 @@ export const StoryDocumentDetail = ({
               ) : null}
             </div>
           ) : (
-            <pre className="max-w-full overflow-x-auto rounded-lg border bg-muted/20 p-4 font-mono text-xs leading-5">
+            <pre className="max-w-full overflow-x-auto rounded-xl border bg-card/75 p-4 font-mono text-xs leading-5">
               {JSON.stringify(document.value, null, 2)}
             </pre>
           )}

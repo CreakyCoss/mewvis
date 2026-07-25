@@ -29,9 +29,9 @@ export const MarketplaceResult = ({
         <article
           tabIndex={0}
           aria-label={`查看 ${skill.name} 详情`}
-          className="group relative grid min-h-[104px] min-w-0 grid-cols-[56px_minmax(0,1fr)] items-center gap-3 rounded-[22px] bg-white p-4 shadow-[0_1px_0_rgb(15_23_42_/_0.03)] ring-1 ring-black/[0.03] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/35 hover:-translate-y-0.5 hover:shadow-[0_14px_32px_-28px_rgb(15_23_42_/_0.35)]"
+          className="app-interactive-card group relative grid min-h-[104px] min-w-0 grid-cols-[56px_minmax(0,1fr)] items-center gap-3 rounded-2xl p-4 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-sidebar-primary/25"
         >
-          <div className="flex size-14 items-center justify-center rounded-2xl bg-[#ececec] text-muted-foreground">
+          <div className="flex size-14 items-center justify-center rounded-xl bg-muted text-muted-foreground">
             <MarketplaceIcon name={skill.name} />
           </div>
 
@@ -55,7 +55,7 @@ export const MarketplaceResult = ({
           </div>
 
           {installed && (
-            <span className="pointer-events-none absolute top-3 right-3 z-10 inline-flex h-5 items-center rounded-full bg-emerald-50/95 px-2 text-[10px] font-medium text-emerald-700 shadow-[0_1px_0_rgb(16_185_129_/_0.08)] ring-1 ring-emerald-200/80 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/20">
+            <span className="pointer-events-none absolute top-3 right-3 z-10 inline-flex h-5 items-center rounded-full bg-success/10 px-2 text-xs font-medium text-success ring-1 ring-success/20">
               已添加
             </span>
           )}
@@ -74,7 +74,11 @@ export const MarketplaceResult = ({
               onClick={onInstall}
               disabled={installing}
             >
-              {installing ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+              {installing ? (
+                <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+              ) : (
+                <Download className="size-4" />
+              )}
               <span>{actionLabel}</span>
             </Button>
           )}
@@ -90,15 +94,15 @@ export const MarketplaceResult = ({
         <div className="space-y-2">
           <div className="flex min-w-0 items-center gap-2">
             <span className="truncate text-sm font-semibold">{skill.name}</span>
-            {installed && <span className="rounded-full bg-background/15 px-2 py-0.5 text-[11px]">已添加</span>}
+            {installed && <span className="rounded-full bg-background/15 px-2 py-0.5 text-xs">已添加</span>}
           </div>
           <p className="text-xs text-background/75">{skill.description || "暂无描述"}</p>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-background/60">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-background/60">
             <span>{skill.author || "未知作者"}</span>
             <span>{formatStars(skill.stars)}</span>
             <MarketplaceUpdatedAt value={skill.updatedAt} />
           </div>
-          <p className="break-all text-[11px] text-background/60">{skill.githubUrl || skill.skillUrl}</p>
+          <p className="break-all text-xs text-background/60">{skill.githubUrl || skill.skillUrl}</p>
         </div>
       </TooltipContent>
     </Tooltip>
@@ -116,16 +120,16 @@ const MarketplaceIcon = ({ name }: { name: string }) => {
     return <Palette className="size-7 text-pink-500" />;
   }
   if (lowerName.includes("search") || lowerName.includes("research")) {
-    return <Search className="size-7 text-sky-500" />;
+    return <Search className="size-7 text-chart-1" />;
   }
   if (lowerName.includes("brain") || lowerName.includes("idea")) {
-    return <Brain className="size-7 text-amber-500" />;
+    return <Brain className="size-7 text-chart-2" />;
   }
   if (lowerName.includes("web") || lowerName.includes("browser")) {
     return <Globe2 className="size-7 text-blue-500" />;
   }
   if (lowerName.includes("code") || lowerName.includes("script")) {
-    return <Code2 className="size-7 text-emerald-600" />;
+    return <Code2 className="size-7 text-success" />;
   }
-  return <Sparkles className="size-7 text-violet-500" />;
+  return <Sparkles className="size-7 text-chart-3" />;
 };

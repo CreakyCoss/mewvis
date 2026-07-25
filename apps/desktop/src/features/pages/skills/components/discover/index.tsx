@@ -247,8 +247,8 @@ export const DiscoverSkillsTab = ({
   }, [updateCategoryScrollState]);
 
   return (
-    <ScrollArea viewportRef={viewportRef} className="h-full bg-[#f6f6f5]">
-      <div className="space-y-4 px-5 pb-8 lg:px-10">
+    <ScrollArea viewportRef={viewportRef} className="h-full bg-background">
+      <div className="space-y-4 px-5 pt-4 pb-8 lg:px-8">
         <section className="flex min-w-0 items-center gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <div
@@ -260,11 +260,11 @@ export const DiscoverSkillsTab = ({
                   key={category.label}
                   type="button"
                   className={[
-                    "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/25",
+                    "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-[color,background-color,border-color,box-shadow] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/25",
                     category.label === "全部" ? "min-w-[108px] justify-center" : "",
                     selectedCategory === category.label
-                      ? "bg-white text-foreground shadow-xs ring-1 ring-black/[0.03]"
-                      : "bg-black/[0.04] text-foreground/75 hover:bg-white/80",
+                      ? "border border-border/75 bg-card text-foreground shadow-xs"
+                      : "border border-transparent bg-muted/70 text-muted-foreground hover:border-border/60 hover:bg-card hover:text-foreground",
                   ].join(" ")}
                   onClick={() => handleCategorySearch(category)}
                 >
@@ -277,7 +277,7 @@ export const DiscoverSkillsTab = ({
             {categoryScrollState.canScroll && (
               <button
                 type="button"
-                className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-black/[0.04] text-foreground/65 transition-colors hover:bg-black/[0.06] hover:text-foreground/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/25"
+                className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-muted/65 text-muted-foreground transition-colors hover:bg-accent/70 hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/25"
                 onClick={handleCategoryScroll}
                 aria-label={categoryScrollState.atEnd ? "向左查看更多分类" : "向右查看更多分类"}
               >
@@ -287,7 +287,7 @@ export const DiscoverSkillsTab = ({
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            <div className="flex h-10 w-[200px] items-center gap-2 rounded-full bg-white py-1 pr-1 pl-3 shadow-xs ring-1 ring-black/[0.03]">
+            <div className="flex h-10 w-[220px] items-center gap-2 rounded-xl border border-border/75 bg-card py-1 pr-1 pl-3 shadow-xs">
               <Input
                 className="h-8 border-0 bg-transparent px-0 text-sm shadow-none focus-visible:ring-0"
                 value={marketplaceQuery}
@@ -309,7 +309,11 @@ export const DiscoverSkillsTab = ({
                 disabled={isMarketplaceSearching || isInstalling}
                 aria-label="搜索技能"
               >
-                {isMarketplaceSearching ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
+                {isMarketplaceSearching ? (
+                  <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+                ) : (
+                  <Search className="size-4" />
+                )}
               </Button>
             </div>
 
@@ -317,7 +321,7 @@ export const DiscoverSkillsTab = ({
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="group inline-flex h-10 w-[116px] items-center justify-center gap-2 rounded-full bg-black/[0.04] px-4 text-sm font-medium whitespace-nowrap text-foreground/75 shadow-none outline-none transition-colors hover:bg-black/[0.055] hover:text-foreground/85 focus-visible:ring-2 focus-visible:ring-sidebar-primary/30 disabled:pointer-events-none disabled:opacity-50 data-[state=open]:bg-black/[0.055] data-[state=open]:text-foreground/85"
+                  className="group inline-flex h-10 w-[116px] items-center justify-center gap-2 rounded-xl border border-border/70 bg-muted/65 px-4 text-sm font-medium whitespace-nowrap text-muted-foreground shadow-none outline-none transition-colors hover:bg-accent/70 hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-primary/30 disabled:pointer-events-none disabled:opacity-50 data-[state=open]:bg-accent data-[state=open]:text-accent-foreground"
                   disabled={isMarketplaceSearching || isInstalling}
                 >
                   <ListFilter className="size-4 text-foreground/65 transition-colors group-hover:text-foreground/75 group-data-[state=open]:text-foreground/75" />
@@ -328,18 +332,18 @@ export const DiscoverSkillsTab = ({
               <DropdownMenuContent
                 align="end"
                 sideOffset={8}
-                className="w-30 min-w-30 rounded-[22px] border-0 bg-white p-2 shadow-[0_18px_45px_-28px_rgb(15_23_42_/_0.42)] ring-0"
+                className="w-30 min-w-30 rounded-xl border border-border/70 bg-popover p-2 shadow-[var(--shadow-floating)] ring-0"
               >
                 <DropdownMenuRadioGroup value={selectedSortBy} onValueChange={handleSortChange}>
                   <DropdownMenuRadioItem
                     value="stars"
-                    className="h-11 rounded-2xl px-4 pr-10 text-sm font-medium text-foreground/72 focus:bg-black/[0.035] focus:text-foreground/85 data-[state=checked]:bg-black/[0.035] data-[state=checked]:text-foreground/85 [&_[data-slot=dropdown-menu-radio-item-indicator]]:text-foreground/70"
+                    className="h-10 rounded-lg px-4 pr-10 text-sm font-medium text-muted-foreground focus:bg-accent/60 focus:text-accent-foreground data-[state=checked]:bg-accent/60 data-[state=checked]:text-accent-foreground [&_[data-slot=dropdown-menu-radio-item-indicator]]:text-primary"
                   >
                     最热
                   </DropdownMenuRadioItem>
                   <DropdownMenuRadioItem
                     value="updatedAt"
-                    className="h-11 rounded-2xl px-4 pr-10 text-sm font-medium text-foreground/72 focus:bg-black/[0.035] focus:text-foreground/85 data-[state=checked]:bg-black/[0.035] data-[state=checked]:text-foreground/85 [&_[data-slot=dropdown-menu-radio-item-indicator]]:text-foreground/70"
+                    className="h-10 rounded-lg px-4 pr-10 text-sm font-medium text-muted-foreground focus:bg-accent/60 focus:text-accent-foreground data-[state=checked]:bg-accent/60 data-[state=checked]:text-accent-foreground [&_[data-slot=dropdown-menu-radio-item-indicator]]:text-primary"
                   >
                     最新
                   </DropdownMenuRadioItem>
@@ -401,13 +405,13 @@ const marketplaceSkillKey = (skill: MarketplaceSkill) => skill.githubUrl || skil
 
 const SearchLoadingState = () => (
   <div className="flex min-h-[220px] items-center justify-center gap-2 text-sm text-muted-foreground">
-    <Loader2 className="size-4 animate-spin" />
+    <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
     <span>正在搜索技能</span>
   </div>
 );
 
 const DiscoverEmptyState = () => (
-  <div className="flex min-h-[220px] items-center justify-center gap-2 rounded-[22px] bg-white/45 text-sm text-muted-foreground ring-1 ring-black/[0.03]">
+  <div className="app-empty-state flex min-h-[220px] items-center justify-center gap-2 rounded-2xl text-sm text-muted-foreground">
     <Search className="size-4" />
     <span>输入关键词搜索可安装的技能</span>
   </div>
@@ -423,7 +427,7 @@ const LoadMoreState = ({ isLoading, hasNext, onLoadMore }: LoadMoreStateProps) =
   if (isLoading) {
     return (
       <div className="flex items-center justify-center gap-2 py-5 text-sm text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" />
+        <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
         <span>正在加载更多</span>
       </div>
     );

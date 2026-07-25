@@ -48,7 +48,7 @@ export const ModelMenu = ({ disabled, selectionDisabled, displayOptions, onDispl
           variant="ghost"
           size="sm"
           disabled={disabled}
-          className="h-8 min-w-0 max-w-[18rem] cursor-pointer px-2 text-xs"
+          className="h-9 min-w-0 max-w-[18rem] cursor-pointer px-2 text-xs"
           title={`模型：${selectedModel?.description || selectedModelLabel}；角色：${selectedAgentLabel}`}
         >
           <Orbit className="size-3.5 shrink-0" aria-hidden="true" />

@@ -153,7 +153,7 @@ export const Composer = memo(
     const canSubmit = Boolean(prompt.trim()) && !isSending && !activeAgentTaskId;
     const submitButtonClassName = [
       "size-9 shrink-0 rounded-full bg-background shadow-[0_6px_18px_oklch(0_0_0_/_10%)] disabled:opacity-100",
-      "transition-all hover:-translate-y-px focus-visible:ring-primary/25 active:translate-y-px",
+      "transition-[color,background-color,transform,box-shadow] hover:-translate-y-px focus-visible:ring-primary/25 active:translate-y-px motion-reduce:transform-none motion-reduce:transition-none",
       isAgentRunning || isSending || canSubmit
         ? "text-primary hover:bg-primary/5 hover:text-primary"
         : "text-muted-foreground/45 shadow-xs hover:bg-background",
@@ -243,7 +243,7 @@ export const Composer = memo(
         <div className="relative z-10 mx-auto w-full max-w-[69rem] px-3">
           <form
             action="#"
-            className="relative flex w-full flex-col overflow-hidden rounded-xl bg-card shadow-[0_14px_34px_-30px_rgb(15_23_42_/_0.34),0_2px_8px_-7px_rgb(15_23_42_/_0.18),0_1px_2px_rgb(15_23_42_/_0.06)] ring-1 ring-border/40 focus-within:ring-3 focus-within:ring-ring/20"
+            className="relative flex w-full flex-col overflow-hidden rounded-xl border border-border/80 bg-card shadow-[var(--shadow-composer)] transition-[border-color,box-shadow] duration-200 ease-out focus-within:border-ring/55 focus-within:shadow-[var(--shadow-floating)] focus-within:ring-3 focus-within:ring-ring/15"
             onSubmit={submitPrompt}
           >
             <div className="relative min-w-0">
@@ -300,7 +300,7 @@ export const Composer = memo(
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-8 min-w-0 max-w-[18rem] px-2 text-xs"
+                      className="h-9 min-w-0 max-w-[18rem] px-2 text-xs"
                       title={`模型：${selectedModelTitle}；角色：${selectedAgentLabel}`}
                     >
                       <Orbit className="size-3.5 shrink-0" />
@@ -414,7 +414,7 @@ export const Composer = memo(
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-8 px-2 text-xs text-primary"
+                    className="h-9 px-2 text-xs text-primary"
                     title="当前对话固定使用故事创作助手专属技能"
                     disabled
                   >
@@ -428,7 +428,7 @@ export const Composer = memo(
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-8 min-w-0 max-w-[13rem] px-2 text-xs"
+                        className="h-9 min-w-0 max-w-[13rem] px-2 text-xs"
                         title={`技能组：${selectedSkillGroupLabel}`}
                       >
                         <Sparkles className="size-3.5 shrink-0" />
@@ -500,7 +500,7 @@ export const Composer = memo(
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-8 px-2 text-xs"
+                    className="h-9 px-2 text-xs"
                     title="故事工具已锁定，正式数据只能校验后提交"
                     disabled
                   >
@@ -510,7 +510,7 @@ export const Composer = memo(
                 ) : (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs">
+                      <Button type="button" variant="ghost" size="sm" className="h-9 px-2 text-xs">
                         <Wrench className="size-3.5" />
                         <span>工具</span>
                         <span className="text-muted-foreground">{visibleAllowedAgentTools.length}</span>
@@ -552,7 +552,7 @@ export const Composer = memo(
                 {isAgentRunning ? (
                   <Square className="size-3.5 fill-current" />
                 ) : isSending ? (
-                  <Loader2 className="size-4 animate-spin" />
+                  <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
                 ) : (
                   <Send className="size-4" />
                 )}
@@ -568,7 +568,7 @@ export const Composer = memo(
 Composer.displayName = "Composer";
 
 const DefaultSkillGroupBadge = () => (
-  <span className="shrink-0 rounded-full bg-sidebar-primary/10 px-1.5 py-0.5 text-[10px] font-medium leading-none text-sidebar-primary">
+  <span className="shrink-0 rounded-full bg-sidebar-primary/10 px-1.5 py-0.5 text-xs font-medium leading-none text-sidebar-primary">
     默认
   </span>
 );

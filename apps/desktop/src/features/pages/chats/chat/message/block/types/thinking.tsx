@@ -24,11 +24,11 @@ const ThinkingBlockComponent = ({ block, isActive }: ThinkingBlockProps) => {
   }, [isActive]);
 
   return (
-    <div className="overflow-hidden rounded-md bg-muted/35 shadow-xs">
+    <div className="app-process-block overflow-hidden rounded-xl">
       <button
         type="button"
         aria-expanded={isExpanded}
-        className="flex w-full cursor-pointer items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        className="app-process-trigger flex w-full cursor-pointer items-center gap-2 px-3 text-left text-xs font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:ring-inset"
         onClick={() => setManualExpanded(!isExpanded)}
       >
         <ChevronDownIcon
@@ -40,7 +40,7 @@ const ThinkingBlockComponent = ({ block, isActive }: ThinkingBlockProps) => {
         <BrainIcon aria-hidden="true" className="size-3.5 shrink-0" />
         <span>思考过程</span>
         {isActive ? (
-          <Loader2Icon aria-hidden="true" className="ml-auto size-3 animate-spin motion-reduce:animate-none" />
+          <Loader2Icon aria-hidden="true" className="ml-auto size-3.5 animate-spin motion-reduce:animate-none" />
         ) : null}
       </button>
       <div
@@ -49,7 +49,7 @@ const ThinkingBlockComponent = ({ block, isActive }: ThinkingBlockProps) => {
         }`}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="max-h-48 overflow-auto bg-background/45 px-2.5 py-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
+          <div className="app-process-content max-h-56 overflow-auto px-3 py-2.5 text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
             {block.content}
           </div>
         </div>

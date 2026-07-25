@@ -118,8 +118,8 @@ const toolBlocksFor = (messages: LedgerMessage[]) =>
 const DetailRows = ({ rows }: { rows: Array<[string, string | number | null | undefined]> }) => (
   <div className="grid grid-cols-4 gap-2 max-lg:grid-cols-2 max-sm:grid-cols-1">
     {rows.map(([label, value]) => (
-      <div key={label} className="min-w-0 rounded-md bg-muted/30 px-3 py-2">
-        <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div key={label} className="min-w-0 rounded-lg border border-border/60 bg-surface-raised/70 px-3 py-2.5">
+        <div className="text-xs text-muted-foreground">{label}</div>
         <div className="mt-0.5 truncate text-xs font-medium" title={String(value ?? "")}>
           {value || "未记录"}
         </div>
@@ -139,24 +139,21 @@ const CollapsibleSection = ({
   defaultOpen?: boolean;
   title: string;
 }) => (
-  <details
-    className="group min-w-0 overflow-hidden rounded-md border border-border/60 bg-background/70"
-    open={defaultOpen}
-  >
-    <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 px-3 text-xs transition-colors hover:bg-muted/35 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none">
+  <details className="app-panel group min-w-0 overflow-hidden rounded-xl" open={defaultOpen}>
+    <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3.5 text-xs transition-colors hover:bg-muted/35 focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:outline-none">
       <span className="min-w-0 flex-1 truncate font-medium">{title}</span>
       {count !== undefined && (
-        <span className="shrink-0 rounded-sm bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{count}</span>
+        <span className="shrink-0 rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{count}</span>
       )}
-      <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
+      <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none group-open:rotate-90" />
     </summary>
-    <div className="min-w-0 space-y-2 border-t border-border/50 p-3">{children}</div>
+    <div className="min-w-0 space-y-2 border-t border-border/50 bg-surface/30 p-3">{children}</div>
   </details>
 );
 
 const MessageCard = ({ message }: { message: LedgerMessage }) => (
-  <div className="min-w-0 rounded-md bg-muted/25 p-3">
-    <div className="mb-2 flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
+  <div className="min-w-0 rounded-lg border border-border/55 bg-surface-raised/60 p-3">
+    <div className="mb-2 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
       <span className="shrink-0 rounded-sm bg-background/80 px-1.5 py-0.5 font-medium">
         {formatLedgerRole(message.role)}
       </span>
@@ -191,12 +188,12 @@ const TextBlockSection = ({
     {blocks.length ? (
       <div className="min-w-0 space-y-2">
         {blocks.map((block) => (
-          <div key={block.id} className="min-w-0 rounded-md bg-muted/25 p-3">
-            <div className="mb-2 text-[11px] font-medium text-muted-foreground">{block.title}</div>
+          <div key={block.id} className="min-w-0 rounded-lg border border-border/55 bg-surface-raised/60 p-3">
+            <div className="mb-2 text-xs font-medium text-muted-foreground">{block.title}</div>
             {markdown ? (
               <MarkdownContent content={block.content} className="text-xs leading-6 text-foreground" />
             ) : (
-              <pre className="max-h-80 min-w-0 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] leading-5 text-foreground">
+              <pre className="max-h-80 min-w-0 overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-5 text-foreground">
                 {block.content}
               </pre>
             )}
@@ -204,7 +201,7 @@ const TextBlockSection = ({
         ))}
       </div>
     ) : (
-      <div className="rounded-md bg-muted/25 px-3 py-6 text-center text-xs text-muted-foreground">{emptyText}</div>
+      <div className="app-empty-state rounded-lg px-3 py-6 text-center text-xs text-muted-foreground">{emptyText}</div>
     )}
   </CollapsibleSection>
 );
@@ -224,20 +221,20 @@ const AuxiliaryEntrySection = ({
     {entries.length ? (
       <div className="min-w-0 space-y-2">
         {entries.map((entry, index) => (
-          <div key={entry.recordId} className="min-w-0 rounded-md bg-muted/25 p-3">
-            <div className="mb-2 flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
+          <div key={entry.recordId} className="min-w-0 rounded-lg border border-border/55 bg-surface-raised/60 p-3">
+            <div className="mb-2 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
               <span className="shrink-0 rounded-sm bg-background/80 px-1.5 py-0.5 font-medium">#{index + 1}</span>
               <span className="shrink-0">{formatLedgerDateTime(entry.timestamp)}</span>
               <span className="min-w-0 truncate font-mono">{formatLedgerId(entry.recordId)}</span>
             </div>
-            <pre className="max-h-96 min-w-0 overflow-auto whitespace-pre-wrap break-words rounded-md bg-background/50 px-3 py-2.5 font-mono text-[11px] leading-5 text-foreground">
+            <pre className="max-h-96 min-w-0 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border/45 bg-background/50 px-3 py-2.5 font-mono text-xs leading-5 text-foreground">
               {entry.content || "（空）"}
             </pre>
           </div>
         ))}
       </div>
     ) : (
-      <div className="rounded-md bg-muted/25 px-3 py-6 text-center text-xs text-muted-foreground">{emptyText}</div>
+      <div className="app-empty-state rounded-lg px-3 py-6 text-center text-xs text-muted-foreground">{emptyText}</div>
     )}
   </CollapsibleSection>
 );
@@ -261,18 +258,18 @@ const MessageSection = ({
         ))}
       </div>
     ) : (
-      <div className="rounded-md bg-muted/25 px-3 py-6 text-center text-xs text-muted-foreground">{emptyText}</div>
+      <div className="app-empty-state rounded-lg px-3 py-6 text-center text-xs text-muted-foreground">{emptyText}</div>
     )}
   </CollapsibleSection>
 );
 
 const DebugIdList = ({ title, ids }: { title: string; ids: string[] }) => (
-  <div className="min-w-0 rounded-md bg-muted/25 px-3 py-2">
-    <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+  <div className="min-w-0 rounded-lg border border-border/55 bg-surface-raised/60 px-3 py-2">
+    <div className="mb-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
       <span>{title}</span>
       <span>{ids.length}</span>
     </div>
-    <pre className="min-w-0 whitespace-pre-wrap break-words font-mono text-[11px] leading-5 text-muted-foreground">
+    <pre className="min-w-0 whitespace-pre-wrap break-words font-mono text-xs leading-5 text-muted-foreground">
       {ids.length ? ids.map(formatLedgerId).join("\n") : "（空）"}
     </pre>
   </div>
@@ -313,14 +310,14 @@ export const LedgerDetail = ({ selectedLink, ledger, onClose }: LedgerDetailProp
       }}
     >
       <DialogContent
-        className="flex h-[min(780px,86vh)] max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:max-w-4xl lg:max-w-5xl"
+        className="flex h-[min(780px,86vh)] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl lg:max-w-5xl"
         showCloseButton={false}
       >
-        <DialogHeader className="shrink-0 border-b border-border/60 px-5 py-4">
+        <DialogHeader className="shrink-0 border-b border-border/60 bg-surface-raised/85 px-5 py-4 text-left">
           <div className="flex min-w-0 items-center gap-2">
             <span className={["size-2 shrink-0 rounded-full", ledgerStatusClasses[status]].join(" ")} />
             <DialogTitle className="min-w-0 flex-1 truncate text-base">链路详情</DialogTitle>
-            <span className="shrink-0 rounded-sm bg-muted/70 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+            <span className="shrink-0 rounded-md bg-muted/70 px-2 py-0.5 text-xs font-medium text-muted-foreground">
               {ledgerStatusLabels[status]}
             </span>
             <Button type="button" size="icon-sm" variant="ghost" title="关闭详情" onClick={onClose}>
@@ -330,7 +327,7 @@ export const LedgerDetail = ({ selectedLink, ledger, onClose }: LedgerDetailProp
           <DialogDescription className="truncate">{titlePreview || "本次运行没有记录用户消息"}</DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="min-h-0 flex-1 overflow-hidden">
+        <ScrollArea className="app-canvas min-h-0 flex-1 overflow-hidden">
           <div className="min-w-0 space-y-4 px-5 pt-4 pb-10">
             <DetailRows
               rows={[
@@ -392,7 +389,7 @@ export const LedgerDetail = ({ selectedLink, ledger, onClose }: LedgerDetailProp
                 <DebugIdList title="请求上下文" ids={selectedLink.requestContextRecordIds} />
                 <DebugIdList title="运行指令" ids={selectedLink.runtimeInstructionRecordIds} />
               </div>
-              <pre className="min-w-0 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted/25 px-3 py-2 font-mono text-[11px] leading-5 text-muted-foreground">
+              <pre className="min-w-0 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border/55 bg-surface-raised/60 px-3 py-2 font-mono text-xs leading-5 text-muted-foreground">
                 {ledgerJson(selectedLink)}
               </pre>
             </CollapsibleSection>

@@ -1,5 +1,6 @@
 import { useCallback, useImperativeHandle, useRef, useState, type Ref } from "react";
 import type { WorkspaceFile, WorkspaceFileEntry, WorkspaceVersionControlStatus } from "@/api/workspace-files";
+import { cn } from "@/lib/utils";
 import { FilesSection, type FilesSectionHandle } from "./files-section";
 import type { FileManageTool } from "./types";
 import { VersionControlSection, type VersionControlSectionHandle } from "./version-control/section";
@@ -13,6 +14,7 @@ export type FileManageProps = {
   bind?: Ref<FileManageHandle>;
   workspacePath: string;
   workspaceKey?: string;
+  className?: string;
   onFilesChange?: (files: WorkspaceFileEntry[]) => void;
   onActiveFileChange?: (file: WorkspaceFile | null) => void;
 };
@@ -21,6 +23,7 @@ export const FileManage = ({
   bind,
   workspacePath,
   workspaceKey = workspacePath,
+  className,
   onFilesChange,
   onActiveFileChange,
 }: FileManageProps) => {
@@ -76,7 +79,12 @@ export const FileManage = ({
   );
 
   return (
-    <aside className="flex min-w-0 w-[clamp(240px,20vw,340px)] shrink-0 overflow-hidden bg-background/90 text-foreground shadow-[-8px_0_28px_-30px_rgb(15_23_42_/_0.38)] backdrop-blur">
+    <aside
+      className={cn(
+        "flex w-[clamp(280px,22vw,360px)] min-w-0 shrink-0 overflow-hidden border-l border-border/70 bg-surface/70 text-foreground backdrop-blur-xl",
+        className,
+      )}
+    >
       <VersionControlSection
         bind={versionControlRef}
         workspacePath={workspacePath}

@@ -96,12 +96,12 @@ export const PendingAgentQuestionForm = ({
   return (
     <form
       action="#"
-      className="mx-auto mb-3 w-full max-w-5xl overflow-hidden rounded-md border border-primary/25 bg-primary/10 p-3 shadow-xs"
+      className="app-panel mx-auto mb-3 w-full max-w-5xl overflow-hidden rounded-2xl border-primary/25"
       onSubmit={submitAnswer}
     >
-      <div className="mb-2 flex items-start gap-2">
-        <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-background text-primary">
-          <MessageSquare className="size-4" />
+      <div className="flex items-start gap-3 border-b border-border/60 bg-primary/5 px-4 py-3.5">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-primary">
+          <MessageSquare className="size-4" aria-hidden="true" />
         </div>
         <div className="min-w-0 flex-1 overflow-hidden">
           <div className="text-sm font-medium text-foreground">
@@ -117,82 +117,102 @@ export const PendingAgentQuestionForm = ({
           </div>
         </div>
       </div>
-      {hasSelectOptions ? (
-        <div className="space-y-2">
-          <div className="grid gap-2 sm:grid-cols-2">
-            {selectOptions.map((option) => {
-              const isSelected = agentQuestionAnswer === option.value;
-              const isOther = option.value === "other";
 
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  className={[
-                    "min-w-0 rounded-md border bg-background px-3 py-2 text-left text-sm shadow-xs transition-colors hover:border-primary/45 hover:bg-primary/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
-                    isSelected ? "border-primary bg-primary/10 text-primary" : "border-border",
-                  ].join(" ")}
-                  disabled={isAnsweringAgentQuestion}
-                  onClick={() => {
-                    onAgentQuestionAnswerChange(option.value);
-                    if (!isOther) {
-                      void onSubmitAgentQuestionAnswer(option.value);
-                    }
-                  }}
-                >
-                  <span className="block break-words font-medium [overflow-wrap:anywhere]">{option.label}</span>
-                  {option.description && (
-                    <span className="mt-1 block break-words text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere]">
-                      {option.description}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+      <div className="app-canvas px-4 py-4">
+        {hasSelectOptions ? (
+          <div className="space-y-3">
+            <div className="grid gap-2 sm:grid-cols-2">
+              {selectOptions.map((option) => {
+                const isSelected = agentQuestionAnswer === option.value;
+                const isOther = option.value === "other";
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={[
+                      "min-h-11 min-w-0 rounded-xl border bg-surface-raised px-3 py-2.5 text-left text-sm transition-colors hover:border-primary/45 hover:bg-primary/10 focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:outline-none",
+                      isSelected
+                        ? "border-primary/40 bg-primary/10 text-primary ring-2 ring-primary/20"
+                        : "border-border",
+                    ].join(" ")}
+                    disabled={isAnsweringAgentQuestion}
+                    onClick={() => {
+                      onAgentQuestionAnswerChange(option.value);
+                      if (!isOther) {
+                        void onSubmitAgentQuestionAnswer(option.value);
+                      }
+                    }}
+                  >
+                    <span className="block break-words font-medium [overflow-wrap:anywhere]">{option.label}</span>
+                    {option.description && (
+                      <span className="mt-1 block break-words text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere]">
+                        {option.description}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {agentQuestionAnswer === "other" && (
+              <div className="space-y-2">
+                <div className="flex min-w-0 items-end gap-2">
+                  <Textarea
+                    id="agent-question-custom-answer"
+                    value={customAnswerDraft.draft}
+                    onChange={customAnswerDraft.handleChange}
+                    onCompositionStart={customAnswerDraft.handleCompositionStart}
+                    onCompositionEnd={customAnswerDraft.handleCompositionEnd}
+                    placeholder="请输入自定义答案"
+                    rows={2}
+                    className="min-h-14 min-w-0 flex-1 resize-none bg-surface-raised"
+                    onKeyDown={requestSubmitFromTextarea}
+                  />
+                  <Button
+                    type="submit"
+                    disabled={isAnsweringAgentQuestion || isAnyAnswerComposing || !customAnswerDraft.draft.trim()}
+                  >
+                    {isAnsweringAgentQuestion ? (
+                      <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+                    ) : (
+                      <Send className="size-4" />
+                    )}
+                    <span>回复</span>
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
-          {agentQuestionAnswer === "other" && (
+        ) : (
+          <div className="space-y-2">
             <div className="flex min-w-0 items-end gap-2">
               <Textarea
-                value={customAnswerDraft.draft}
-                onChange={customAnswerDraft.handleChange}
-                onCompositionStart={customAnswerDraft.handleCompositionStart}
-                onCompositionEnd={customAnswerDraft.handleCompositionEnd}
-                placeholder="请输入自定义答案"
+                id="agent-question-answer"
+                value={answerDraft.draft}
+                onChange={answerDraft.handleChange}
+                onCompositionStart={answerDraft.handleCompositionStart}
+                onCompositionEnd={answerDraft.handleCompositionEnd}
+                placeholder="直接回答这个问题，Agent 会继续执行"
                 rows={2}
-                className="min-h-14 min-w-0 flex-1 resize-none bg-background shadow-xs"
+                className="min-h-14 min-w-0 flex-1 resize-none bg-surface-raised"
                 onKeyDown={requestSubmitFromTextarea}
               />
               <Button
                 type="submit"
-                disabled={isAnsweringAgentQuestion || isAnyAnswerComposing || !customAnswerDraft.draft.trim()}
+                disabled={isAnsweringAgentQuestion || isAnyAnswerComposing || !answerDraft.draft.trim()}
               >
-                {isAnsweringAgentQuestion ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                {isAnsweringAgentQuestion ? (
+                  <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+                ) : (
+                  <Send className="size-4" />
+                )}
                 <span>回复</span>
               </Button>
             </div>
-          )}
-        </div>
-      ) : (
-        <div className="flex min-w-0 items-end gap-2">
-          <Textarea
-            value={answerDraft.draft}
-            onChange={answerDraft.handleChange}
-            onCompositionStart={answerDraft.handleCompositionStart}
-            onCompositionEnd={answerDraft.handleCompositionEnd}
-            placeholder="直接回答这个问题，Agent 会继续执行"
-            rows={2}
-            className="min-h-14 min-w-0 flex-1 resize-none bg-background shadow-xs"
-            onKeyDown={requestSubmitFromTextarea}
-          />
-          <Button
-            type="submit"
-            disabled={isAnsweringAgentQuestion || isAnyAnswerComposing || !answerDraft.draft.trim()}
-          >
-            {isAnsweringAgentQuestion ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-            <span>回复</span>
-          </Button>
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </form>
   );
 };

@@ -9,14 +9,35 @@
     <link rel="preload" as="image" href="/assets/startup-cats/portraits/orange.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mewvis</title>
+    <script>
+      try {
+        const storedTheme = window.localStorage.getItem("theme");
+        const followsDarkSystem = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.startupTheme =
+          storedTheme === "dark" || (storedTheme !== "light" && followsDarkSystem) ? "dark" : "light";
+      } catch {
+        document.documentElement.dataset.startupTheme = "light";
+      }
+    </script>
     <style>
       :root {
         color-scheme: light;
-        --startup-bg: #fbf7ee;
-        --startup-ink: #172433;
-        --startup-muted: #5e6871;
-        --startup-teal: #429893;
-        --startup-shadow: rgb(83 65 36 / 10%);
+        --startup-bg: #f7f8fc;
+        --startup-ink: #23232d;
+        --startup-muted: #656978;
+        --startup-overlay: rgb(247 248 252 / 84%);
+        --startup-teal: #5a56d6;
+        --startup-shadow: rgb(70 65 160 / 14%);
+      }
+
+      :root[data-startup-theme="dark"] {
+        color-scheme: dark;
+        --startup-bg: #171720;
+        --startup-ink: #f4f4f8;
+        --startup-muted: #a9abb7;
+        --startup-overlay: rgb(23 23 32 / 90%);
+        --startup-teal: #a8a4ff;
+        --startup-shadow: rgb(0 0 0 / 30%);
       }
 
       html,
@@ -48,7 +69,8 @@
         place-items: center;
         overflow: hidden;
         background-color: var(--startup-bg);
-        background-image: url("/assets/startup/startup-paper-bg.png");
+        background-image:
+          linear-gradient(var(--startup-overlay), var(--startup-overlay)), url("/assets/startup/startup-paper-bg.png");
         background-position: center;
         background-size: cover;
         color: var(--startup-ink);
@@ -79,7 +101,7 @@
 
       .startup-welcome__brand-name {
         margin: 0;
-        color: var(--startup-ink);
+        color: var(--startup-teal);
         font-size: clamp(52px, 8.44vw, 108px);
         line-height: 0.9;
         font-weight: 790;

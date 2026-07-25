@@ -21,11 +21,11 @@ export const versionStatusTitles: Record<WorkspaceVersionFileStatus["status"], s
 };
 
 export const versionStatusTextClasses: Record<WorkspaceVersionFileStatus["status"], string> = {
-  added: "text-emerald-700",
-  modified: "text-amber-700",
+  added: "text-success",
+  modified: "text-warning",
   deleted: "text-destructive",
-  renamed: "text-sky-700",
-  typechange: "text-violet-700",
+  renamed: "text-primary",
+  typechange: "text-accent-foreground",
   conflicted: "text-destructive",
   untracked: "text-muted-foreground",
 };
@@ -51,13 +51,13 @@ export const fileStatusTitles: Record<WorkspaceVersionFileStatus["status"], stri
 };
 
 export const fileStatusBadgeClasses: Record<WorkspaceVersionFileStatus["status"], string> = {
-  added: "bg-emerald-100 text-emerald-700 ring-emerald-200",
-  modified: "bg-amber-100 text-amber-700 ring-amber-200",
+  added: "bg-success/10 text-success ring-success/20",
+  modified: "bg-warning/10 text-warning ring-warning/20",
   deleted: "bg-destructive/10 text-destructive ring-destructive/20",
-  renamed: "bg-sky-100 text-sky-700 ring-sky-200",
-  typechange: "bg-violet-100 text-violet-700 ring-violet-200",
+  renamed: "bg-primary/10 text-primary ring-primary/20",
+  typechange: "bg-accent text-accent-foreground ring-primary/15",
   conflicted: "bg-destructive/10 text-destructive ring-destructive/20",
-  untracked: "bg-emerald-100 text-emerald-700 ring-emerald-200",
+  untracked: "bg-success/10 text-success ring-success/20",
 };
 
 export const getDiscardVersionFileLabel = (status: WorkspaceVersionFileStatus["status"]) =>

@@ -92,11 +92,7 @@ export const ConfigDatabaseDialog = ({ onRecovered }: ConfigDatabaseDialogProps)
       <AlertDialogContent className="sm:max-w-xl">
         <AlertDialogHeader>
           <AlertDialogMedia
-            className={
-              setupError
-                ? "bg-destructive/10 text-destructive"
-                : "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200"
-            }
+            className={setupError ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning"}
           >
             <Database className="size-8" />
           </AlertDialogMedia>
@@ -111,22 +107,22 @@ export const ConfigDatabaseDialog = ({ onRecovered }: ConfigDatabaseDialogProps)
                 <p>配置数据库已完成重建，过程中有需要注意的信息。</p>
               )}
               {status?.configDbPath && (
-                <div className="rounded-md border bg-muted/40 px-3 py-2 font-mono text-xs break-all text-foreground">
+                <div className="rounded-xl border border-border/60 bg-muted/35 px-3 py-2.5 font-mono text-xs break-all text-foreground">
                   {status.configDbPath}
                 </div>
               )}
               {setupError && (
-                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">
                   {setupError}
                 </div>
               )}
               {actionError && (
-                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">
                   {actionError}
                 </div>
               )}
               {rebuildWarnings.length > 0 && (
-                <div className="rounded-md border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                <div className="rounded-xl border border-warning/25 bg-warning/10 px-3 py-2.5 text-xs text-foreground">
                   <div className="mb-1 font-medium">重建提示</div>
                   <ul className="list-disc space-y-1 pl-4">
                     {rebuildWarnings.map((warning) => (
@@ -150,7 +146,11 @@ export const ConfigDatabaseDialog = ({ onRecovered }: ConfigDatabaseDialogProps)
               disabled={!status?.canRebuild || isRebuilding}
               onClick={handleRebuild}
             >
-              {isRebuilding ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+              {isRebuilding ? (
+                <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+              ) : (
+                <Trash2 className="size-4" />
+              )}
               <span>{isRebuilding ? "正在重建" : "删除并重建"}</span>
             </Button>
           ) : (

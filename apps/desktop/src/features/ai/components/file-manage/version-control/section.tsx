@@ -575,13 +575,13 @@ export const VersionControlSection = ({
           aria-label="版本管理"
         >
           {isVersionControlLoading || isVersionControlInitializing ? (
-            <LoaderCircle className="size-3.5 animate-spin" />
+            <LoaderCircle className="size-3.5 animate-spin motion-reduce:animate-none" />
           ) : (
             <GitBranch className="size-3.5" />
           )}
           <span className="min-w-0 truncate">{isVersionControlEnabled ? currentBranchName || "HEAD" : "版本"}</span>
           {isVersionControlEnabled && versionStatus?.head && (
-            <span className="hidden shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground sm:inline">
+            <span className="hidden shrink-0 font-mono text-xs tabular-nums text-muted-foreground sm:inline">
               {versionStatus.head}
             </span>
           )}
@@ -604,7 +604,7 @@ export const VersionControlSection = ({
               disabled={isVersionControlInitializing || isVersionControlLoading}
             >
               {isVersionControlInitializing ? (
-                <LoaderCircle className="size-4 animate-spin" />
+                <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />
               ) : (
                 <GitBranch className="size-4" />
               )}
@@ -616,7 +616,7 @@ export const VersionControlSection = ({
             <DropdownMenuItem disabled className="flex-col items-start gap-1">
               <span className="max-w-full truncate font-medium">当前分支：{currentBranchName || "HEAD"}</span>
               {versionStatus?.head ? (
-                <span className="font-mono text-[11px] text-muted-foreground">当前提交 {versionStatus.head}</span>
+                <span className="font-mono text-xs text-muted-foreground">当前提交 {versionStatus.head}</span>
               ) : (
                 <span className="text-xs text-muted-foreground">还没有提交</span>
               )}
@@ -649,9 +649,9 @@ export const VersionControlSection = ({
                     >
                       <span className="min-w-0 flex-1 truncate">{branch.name}</span>
                       {switchingVersionBranchName === branch.name ? (
-                        <LoaderCircle className="size-3.5 animate-spin text-muted-foreground" />
+                        <LoaderCircle className="size-3.5 animate-spin text-muted-foreground motion-reduce:animate-none" />
                       ) : branch.shortHead ? (
-                        <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{branch.shortHead}</span>
+                        <span className="shrink-0 font-mono text-xs text-muted-foreground">{branch.shortHead}</span>
                       ) : null}
                     </DropdownMenuRadioItem>
                   ))}
@@ -697,7 +697,7 @@ export const VersionControlSection = ({
                     disabled={!canCreateBranch}
                   >
                     {isCreatingVersionBranch ? (
-                      <LoaderCircle className="size-4 animate-spin" />
+                      <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />
                     ) : (
                       <Plus className="size-4" />
                     )}
@@ -711,7 +711,7 @@ export const VersionControlSection = ({
               disabled={isVersionControlLoading || isVersionControlInitializing}
             >
               {isVersionControlLoading ? (
-                <LoaderCircle className="size-4 animate-spin" />
+                <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />
               ) : (
                 <RefreshCw className="size-4" />
               )}
@@ -758,8 +758,10 @@ export const VersionControlSection = ({
 
   return (
     <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-      <div className="flex min-w-0 items-center justify-between gap-2 border-b border-border/55 px-3 py-2.5">
-        <div className="min-w-0">{versionMenu}</div>
+      <div className="border-b border-border/55 bg-surface-raised/55 px-3 py-3">
+        <div className="mb-2.5 flex min-w-0 items-center justify-between gap-2">
+          <div className="min-w-0">{versionMenu}</div>
+        </div>
         <ToggleGroup
           type="single"
           value={activeTool}
@@ -768,7 +770,7 @@ export const VersionControlSection = ({
               onToolChange(value as FileManageTool);
             }
           }}
-          className="shrink-0 rounded-md bg-muted/60 p-0.5"
+          className="grid w-full grid-cols-3 rounded-lg border bg-background/55 p-1"
           aria-label="文件管理视图"
         >
           {toolItems.map((item) => {
@@ -778,11 +780,12 @@ export const VersionControlSection = ({
                 key={item.value}
                 value={item.value}
                 size="sm"
-                className="size-7 rounded-sm p-0 data-[state=on]:bg-background data-[state=on]:shadow-xs"
+                className="h-8 min-w-0 gap-1.5 rounded-md px-2 text-xs text-muted-foreground data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-[var(--shadow-card)]"
                 aria-label={item.label}
                 title={item.label}
               >
                 <Icon className="size-3.5" />
+                <span className="truncate">{item.label}</span>
               </ToggleGroupItem>
             );
           })}

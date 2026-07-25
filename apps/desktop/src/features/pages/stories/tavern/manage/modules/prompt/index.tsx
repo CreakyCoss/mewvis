@@ -58,7 +58,7 @@ export const PromptSummaryContent = ({ data }: { data: TavernRoomConfig }) => {
       />
 
       <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_18rem]">
-        <div className="overflow-hidden rounded-lg border border-border/70 bg-background/72 shadow-xs">
+        <div className="app-panel overflow-hidden rounded-xl">
           <div className="grid gap-3 px-3.5 py-3 sm:grid-cols-[2rem_8rem_minmax(0,1fr)_auto] sm:items-center">
             <span className="flex size-8 items-center justify-center rounded-md bg-primary/8 text-primary ring-1 ring-primary/10">
               <MessageSquareText className="size-4" />
@@ -95,7 +95,7 @@ export const PromptSummaryContent = ({ data }: { data: TavernRoomConfig }) => {
           </div>
         </div>
 
-        <aside className="rounded-lg border border-border/70 bg-background/72 p-3.5 shadow-xs">
+        <aside className="app-panel rounded-xl p-3.5">
           <div className="flex items-center gap-2 text-sm font-semibold leading-5">
             <span className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
               <Eye className="size-3.5" />

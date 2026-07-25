@@ -146,34 +146,39 @@ export const StoriesPage = () => {
     }
   };
 
+  const renderLibraryHeader = () => (
+    <header className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-primary">
+        <BookOpen className="size-5" />
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          className="h-10 gap-1.5"
+          onClick={() => void handleImportStory()}
+          disabled={isImporting}
+        >
+          {isImporting ? (
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+          ) : (
+            <FolderInput className="size-4" />
+          )}
+          {isImporting ? "正在导入" : "导入故事"}
+        </Button>
+        <Button type="button" className="h-10 gap-1.5" onClick={openCreateStoryDialog}>
+          <Plus className="size-4" />
+          新建故事
+        </Button>
+      </div>
+    </header>
+  );
+
   const renderStoryList = () => {
     return (
       <ScrollArea className="min-h-0 flex-1 bg-background">
-        <div className="flex w-full flex-col gap-5 px-5 py-5 lg:px-7">
-          <header className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-md border bg-muted/35">
-                <BookOpen className="size-5 text-primary" />
-              </div>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-9 gap-1.5 bg-background"
-                onClick={() => void handleImportStory()}
-                disabled={isImporting}
-              >
-                {isImporting ? <Loader2 className="size-4 animate-spin" /> : <FolderInput className="size-4" />}
-                {isImporting ? "正在导入" : "导入故事"}
-              </Button>
-              <Button type="button" size="sm" className="h-9 gap-1.5" onClick={openCreateStoryDialog}>
-                <Plus className="size-4" />
-                新建故事
-              </Button>
-            </div>
-          </header>
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-5 py-6 lg:px-8">
+          {renderLibraryHeader()}
 
           <section className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] items-start gap-5">
             {storyItems.map((item) =>
@@ -205,34 +210,40 @@ export const StoriesPage = () => {
   };
 
   const content = (
-    <section className="flex h-full min-h-0 flex-1 overflow-hidden bg-muted/20 text-foreground">
+    <section className="flex h-full min-h-0 flex-1 overflow-hidden bg-background text-foreground">
       <div className="relative flex min-w-0 flex-1 flex-col">
         {isLoading ? (
           <ScrollArea className="min-h-0 flex-1">
-            <div className="p-6 text-sm text-muted-foreground">加载中...</div>
+            <div className="app-empty-state m-6 flex min-h-[320px] items-center justify-center rounded-2xl text-sm text-muted-foreground">
+              加载中...
+            </div>
           </ScrollArea>
         ) : storyItems.length === 0 ? (
           <ScrollArea className="min-h-0 flex-1">
-            <div className="flex min-h-[320px] flex-col px-6 py-5">
-              <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
-                <BookOpen className="size-10 text-muted-foreground" />
-                <div className="text-base font-medium">暂无故事</div>
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="gap-2 bg-background"
-                    onClick={() => void handleImportStory()}
-                    disabled={isImporting}
-                  >
-                    {isImporting ? <Loader2 className="size-4 animate-spin" /> : <FolderInput className="size-4" />}
-                    {isImporting ? "正在导入" : "导入故事"}
-                  </Button>
-                  <Button type="button" className="gap-2" onClick={openCreateStoryDialog}>
-                    <Plus className="size-4" />
-                    新建故事
-                  </Button>
-                </div>
+            <div className="app-empty-state m-6 flex min-h-[360px] flex-col items-center justify-center gap-4 rounded-2xl px-6 text-center">
+              <span className="flex size-14 items-center justify-center rounded-2xl bg-accent text-primary">
+                <BookOpen className="size-7" />
+              </span>
+              <div className="text-base font-semibold">暂无故事</div>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2 bg-background"
+                  onClick={() => void handleImportStory()}
+                  disabled={isImporting}
+                >
+                  {isImporting ? (
+                    <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+                  ) : (
+                    <FolderInput className="size-4" />
+                  )}
+                  {isImporting ? "正在导入" : "导入故事"}
+                </Button>
+                <Button type="button" className="gap-2" onClick={openCreateStoryDialog}>
+                  <Plus className="size-4" />
+                  新建故事
+                </Button>
               </div>
             </div>
           </ScrollArea>

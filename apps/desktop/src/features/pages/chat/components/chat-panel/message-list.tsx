@@ -284,7 +284,7 @@ export const MessageList = ({ showThinkingProcess, showToolCallProcess }: Messag
         const areHistoryActionsExpanded = expandedHistoryActionsMessageId === message.id;
         const isConfirmingDelete = confirmingDeleteMessageId === message.id;
         const historyActionButtonClass =
-          "size-7 rounded-md bg-transparent text-muted-foreground hover:bg-muted/45 hover:text-foreground";
+          "size-8 rounded-lg bg-transparent text-muted-foreground hover:bg-muted/45 hover:text-foreground";
         const historyMenuItemClass =
           "flex size-8 items-center justify-center rounded-lg p-0 text-muted-foreground focus:bg-muted/70 focus:text-foreground";
         const messageAuthorLabel = message.agentName ?? (isAgentBackedMessage ? "Agent" : "助手");
@@ -397,7 +397,7 @@ export const MessageList = ({ showThinkingProcess, showToolCallProcess }: Messag
         const messageToolbar = canChangeHistory ? (
           <div
             className={[
-              "relative flex h-7 items-center gap-0.5 rounded-md bg-transparent px-0.5 text-[11px] text-muted-foreground transition-opacity duration-150",
+              "relative flex h-7 items-center gap-0.5 rounded-md bg-transparent px-0.5 text-xs text-muted-foreground transition-opacity duration-150",
               message.role === "user" ? "self-end" : "self-start",
               isHistoryActionsVisible ? "opacity-100" : "pointer-events-none opacity-0",
             ].join(" ")}
@@ -461,7 +461,7 @@ export const MessageList = ({ showThinkingProcess, showToolCallProcess }: Messag
           >
             {message.role === "assistant" && (
               <div
-                className="mt-1 flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-primary/15 bg-accent text-primary shadow-xs"
+                className="mt-1 flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-primary/15 bg-accent text-primary shadow-[var(--shadow-card)]"
                 title={message.agentName}
               >
                 {isAgentBackedMessage || message.agentAvatar ? (
@@ -490,7 +490,7 @@ export const MessageList = ({ showThinkingProcess, showToolCallProcess }: Messag
             >
               {message.role === "assistant" && (
                 <div
-                  className="relative flex h-6 w-fit items-center rounded-sm text-[11px] leading-none text-muted-foreground"
+                  className="relative flex min-h-6 w-fit items-center rounded-md text-xs leading-none text-muted-foreground"
                   onMouseEnter={() => setActiveHistoryActionsMessageId(message.id)}
                   onFocusCapture={() => setActiveHistoryActionsMessageId(message.id)}
                 >
@@ -502,7 +502,12 @@ export const MessageList = ({ showThinkingProcess, showToolCallProcess }: Messag
                 </div>
               )}
               <div
-                className="relative min-w-0 max-w-full overflow-hidden rounded-md px-3.5 py-2.5 text-sm leading-6 shadow-xs data-[role=assistant]:w-full data-[role=assistant]:bg-card data-[role=user]:bg-primary data-[role=user]:text-primary-foreground"
+                className={[
+                  "relative min-w-0 max-w-full overflow-hidden rounded-xl px-4 py-3 text-sm leading-6",
+                  message.role === "assistant"
+                    ? "app-message-surface w-full"
+                    : "bg-primary text-primary-foreground shadow-[var(--shadow-card)]",
+                ].join(" ")}
                 data-role={message.role}
                 onMouseEnter={() => setActiveHistoryActionsMessageId(message.id)}
                 onFocusCapture={() => setActiveHistoryActionsMessageId(message.id)}
@@ -563,10 +568,10 @@ export const MessageList = ({ showThinkingProcess, showToolCallProcess }: Messag
                   message.role === "assistant" &&
                   !hasAgentBlocks &&
                   thinking && (
-                    <div className="mb-2 overflow-hidden rounded-md bg-muted/35 shadow-xs">
+                    <div className="app-process-block mb-3 overflow-hidden rounded-xl">
                       <button
                         type="button"
-                        className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
+                        className="app-process-trigger flex w-full items-center gap-2 px-3 text-left text-xs font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:ring-inset"
                         onClick={() => toggleThinking(message.id)}
                       >
                         {isThinkingCollapsed ? (
@@ -576,10 +581,12 @@ export const MessageList = ({ showThinkingProcess, showToolCallProcess }: Messag
                         )}
                         <Brain className="size-3.5" />
                         <span>Thinking</span>
-                        {message.status !== "done" && <Loader2 className="ml-auto size-3 animate-spin" />}
+                        {message.status !== "done" && (
+                          <Loader2 className="ml-auto size-3.5 animate-spin motion-reduce:animate-none" />
+                        )}
                       </button>
                       {!isThinkingCollapsed && (
-                        <div className="max-h-48 overflow-auto bg-background/45 px-2.5 py-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
+                        <div className="app-process-content max-h-56 overflow-auto px-3 py-2.5 text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
                           <SmoothPlainText content={thinking} isStreaming={isMessageStreaming} />
                         </div>
                       )}
@@ -613,7 +620,7 @@ export const MessageList = ({ showThinkingProcess, showToolCallProcess }: Messag
                     />
                   ) : isAssistantLoading ? (
                     <div className="flex items-center gap-2 text-muted-foreground">
-                      <Loader2 className="size-4 animate-spin" />
+                      <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
                       <span>{assistantLoadingLabel}</span>
                     </div>
                   ) : message.role === "assistant" ? (
@@ -625,7 +632,8 @@ export const MessageList = ({ showThinkingProcess, showToolCallProcess }: Messag
                           {message.referencedFiles.map((file) => (
                             <span
                               key={file.path}
-                              className="inline-flex min-w-0 max-w-full items-center gap-1 overflow-hidden rounded-sm bg-primary-foreground/15 px-1.5 py-0.5 text-xs"
+                              className="inline-flex min-w-0 max-w-full items-center gap-1 overflow-hidden rounded-md border border-primary-foreground/15 bg-primary-foreground/15 px-2 py-0.5 text-xs"
+                              title={file.path}
                             >
                               <Link className="size-3 shrink-0" />
                               <span className="min-w-0 flex-1 truncate">{file.path}</span>

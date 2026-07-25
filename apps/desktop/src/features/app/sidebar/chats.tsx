@@ -59,13 +59,15 @@ type WorkspaceActionsProps = {
 };
 
 const SectionHeader = ({ label }: { label: string }) => (
-  <div className="flex items-center justify-between px-3 pt-1">
-    <span className="text-sm font-semibold text-muted-foreground">{label}</span>
+  <div className="flex items-center justify-between px-2.5 pt-1">
+    <span className="text-xs font-semibold tracking-[0.08em] text-muted-foreground/85">{label}</span>
   </div>
 );
 
 const EmptyState = ({ children }: { children: string }) => (
-  <div className="px-3 py-2 text-sm text-muted-foreground/75">{children}</div>
+  <div className="rounded-lg border border-dashed border-sidebar-border/80 bg-sidebar-accent/25 px-3 py-2 text-xs text-muted-foreground/75">
+    {children}
+  </div>
 );
 
 const ChatRow = ({ to, workspace, chat, isRunning, onConfirmDelete }: ChatRowProps) => {
@@ -78,15 +80,15 @@ const ChatRow = ({ to, workspace, chat, isRunning, onConfirmDelete }: ChatRowPro
         title={`${chat.title}\n${chat.path}`}
         className={({ isActive }) =>
           cn(
-            "flex h-9 min-w-0 items-center overflow-hidden rounded-md py-1 pr-3 pl-8 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted/55 hover:text-foreground group-hover/chat:bg-muted/55 group-hover/chat:text-foreground",
-            isActive && "bg-muted/55 text-foreground",
+            "flex h-9 min-w-0 items-center overflow-hidden rounded-lg py-1 pr-3 pl-8 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground group-hover/chat:bg-sidebar-accent/70 group-hover/chat:text-sidebar-foreground",
+            isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
           )
         }
       >
         <span className="min-w-0 flex-1 truncate">{chat.title}</span>
         <span className="ml-2 flex h-7 w-12 shrink-0 items-center justify-end whitespace-nowrap text-xs font-medium tabular-nums text-muted-foreground/80 group-hover/chat:opacity-0 group-focus-within/chat:opacity-0">
           {isRunning ? (
-            <LoaderCircle className="size-3.5 animate-spin" aria-label="处理中" />
+            <LoaderCircle className="size-3.5 animate-spin motion-reduce:animate-none" aria-label="处理中" />
           ) : chat.isUnread ? (
             <span className="mt-1 block size-2 rounded-full bg-primary" aria-label="未读消息" />
           ) : (
@@ -99,7 +101,7 @@ const ChatRow = ({ to, workspace, chat, isRunning, onConfirmDelete }: ChatRowPro
         className={cn(
           "absolute top-1/2 right-2 z-10 flex -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none select-none hover:bg-background/75 hover:text-destructive focus-visible:ring-2 focus-visible:ring-primary/25 group-hover/chat:opacity-100 focus-visible:opacity-100 disabled:cursor-default",
           isConfirmingDelete
-            ? "h-5 w-8 rounded-sm bg-destructive/10 px-1 py-0 text-[11px] font-semibold leading-none text-destructive opacity-100 hover:bg-destructive/15 hover:text-destructive"
+            ? "h-5 w-8 rounded-sm bg-destructive/10 px-1 py-0 text-xs font-semibold leading-none text-destructive opacity-100 hover:bg-destructive/15 hover:text-destructive"
             : "size-7",
         )}
         title={isConfirmingDelete ? "确认删除对话" : "删除对话"}
@@ -237,8 +239,8 @@ export const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps
   return (
     <>
       <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-7 px-2.5 py-3 xl:px-3">
-          <section className="space-y-3">
+        <div className="space-y-5 px-2.5 py-3 xl:px-3">
+          <section className="space-y-2">
             <SectionHeader label="工作区" />
             <div className="space-y-2">
               {error && (
@@ -248,7 +250,7 @@ export const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps
               )}
               {isLoading ? (
                 <div className="flex items-center gap-2 rounded-md px-3 py-4 text-sm text-muted-foreground">
-                  <LoaderCircle className="size-4 animate-spin" />
+                  <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />
                   <span>正在读取工作区</span>
                 </div>
               ) : projectWorkspaces.length ? (
@@ -271,13 +273,13 @@ export const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps
                           title={workspace.path}
                           className={({ isActive }) =>
                             cn(
-                              "flex h-9 min-w-0 items-center gap-2 overflow-hidden rounded-md py-1 pr-[4.75rem] pl-3 text-muted-foreground transition-colors hover:bg-muted/55 hover:text-foreground group-hover/workspace:bg-muted/55 group-hover/workspace:text-foreground group-has-[button[data-state=open]]/workspace:bg-muted/55 group-has-[button[data-state=open]]/workspace:text-foreground",
-                              isActive && "bg-muted/55 text-foreground",
+                              "flex h-9 min-w-0 items-center gap-2 overflow-hidden rounded-lg py-1 pr-[4.75rem] pl-3 text-muted-foreground transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground group-hover/workspace:bg-sidebar-accent/70 group-hover/workspace:text-sidebar-foreground group-has-[button[data-state=open]]/workspace:bg-sidebar-accent/70 group-has-[button[data-state=open]]/workspace:text-sidebar-foreground",
+                              isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
                             )
                           }
                         >
                           <Folder className="size-4 shrink-0 text-muted-foreground" />
-                          <span className="block min-w-0 flex-1 truncate text-base font-medium">{workspace.name}</span>
+                          <span className="block min-w-0 flex-1 truncate text-sm font-medium">{workspace.name}</span>
                         </NavLink>
                         {chats.length > 0 && (
                           <button
@@ -338,12 +340,12 @@ export const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps
             </div>
           </section>
 
-          <section className="space-y-3">
+          <section className="space-y-2">
             <SectionHeader label="对话" />
             <div className="space-y-2">
               {isChatsLoading && defaultChats.length === 0 ? (
                 <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
-                  <LoaderCircle className="size-4 animate-spin" />
+                  <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />
                   <span>正在读取对话</span>
                 </div>
               ) : visibleDefaultChats.length && defaultWorkspace ? (

@@ -40,19 +40,19 @@ export const SkillsPage = ({
   const [activeTab, setActiveTab] = useState<SkillsTab>("mine");
 
   return (
-    <section className="flex h-full min-h-0 flex-1 overflow-hidden bg-[#f6f6f5]">
+    <section className="flex h-full min-h-0 flex-1 overflow-hidden bg-background">
       <Tabs
         value={activeTab}
         onValueChange={(value) => setActiveTab(value as SkillsTab)}
         className="flex h-full min-h-0 flex-1 flex-col gap-0"
       >
-        <header className="shrink-0 bg-[#f6f6f5] px-5 pt-6 pb-4 lg:px-10 lg:pt-8">
+        <header className="app-page-header shrink-0 px-5 pt-6 pb-4 lg:px-8 lg:pt-8">
           <div className="flex min-w-0 items-center gap-8">
             <button
               type="button"
               className={[
-                "rounded-md text-2xl font-semibold tracking-normal transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/30 focus-visible:ring-offset-4 focus-visible:ring-offset-[#f6f6f5]",
-                activeTab === "discover" ? "text-foreground" : "text-muted-foreground/45",
+                "rounded-md text-2xl font-semibold tracking-[-0.02em] transition-colors focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none",
+                activeTab === "discover" ? "text-foreground" : "text-muted-foreground/55",
               ].join(" ")}
               onClick={() => setActiveTab("discover")}
             >
@@ -61,8 +61,8 @@ export const SkillsPage = ({
             <button
               type="button"
               className={[
-                "rounded-md text-2xl font-semibold tracking-normal transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/30 focus-visible:ring-offset-4 focus-visible:ring-offset-[#f6f6f5]",
-                activeTab === "mine" ? "text-foreground" : "text-muted-foreground/45",
+                "rounded-md text-2xl font-semibold tracking-[-0.02em] transition-colors focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none",
+                activeTab === "mine" ? "text-foreground" : "text-muted-foreground/55",
               ].join(" ")}
               onClick={() => setActiveTab("mine")}
             >

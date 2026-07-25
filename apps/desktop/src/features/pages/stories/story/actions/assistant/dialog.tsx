@@ -104,7 +104,7 @@ export const StoryAssistantDialog = ({
         showCloseButton
         className="!flex h-[calc(100vh-1.5rem)] max-h-[calc(100vh-1.5rem)] w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[calc(100vw-1.5rem)]"
       >
-        <DialogHeader className="shrink-0 border-b bg-background px-5 py-4 text-left">
+        <DialogHeader className="shrink-0 border-b bg-surface-raised/85 px-5 py-4 text-left">
           <div className="flex flex-wrap items-start justify-between gap-3 pr-8">
             <div className="flex min-w-0 items-start gap-3">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -118,10 +118,7 @@ export const StoryAssistantDialog = ({
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <Badge
-                variant="outline"
-                className="gap-1.5 border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-              >
+              <Badge variant="outline" className="gap-1.5 border-success/25 bg-success/10 text-success">
                 <ShieldCheck className="size-3.5" />
                 校验后落库 · {revision === null ? "待初始化" : `revision ${revision}`}
               </Badge>

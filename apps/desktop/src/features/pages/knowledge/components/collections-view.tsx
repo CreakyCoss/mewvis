@@ -24,7 +24,7 @@ export const CollectionsView = ({
   onRequestRemoveCollection,
 }: CollectionsViewProps) => (
   <div className="space-y-4">
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-card px-4 py-4 shadow-xs">
+    <div className="app-panel flex flex-wrap items-center justify-between gap-3 rounded-xl px-5 py-4">
       <div className="min-w-0">
         <h3 className="text-sm font-semibold">集合</h3>
         <p className="mt-1 text-sm text-muted-foreground">启用的集合会参与知识检索，集合详情中可分配来源。</p>
@@ -35,7 +35,7 @@ export const CollectionsView = ({
       </Button>
     </div>
 
-    <section className="rounded-md bg-background p-4 shadow-xs">
+    <section className="app-panel rounded-xl p-4">
       <div className="mb-3 text-xs text-muted-foreground">
         {collections.length} 个集合，{enabledCollectionCount} 个参与检索
       </div>
@@ -45,13 +45,13 @@ export const CollectionsView = ({
             <article
               key={collection.id}
               className={[
-                "flex min-w-0 items-start justify-between gap-3 rounded-md px-3 py-3 shadow-xs transition-colors",
-                collection.id === activeCollectionId ? "bg-primary/10" : "bg-card",
+                "app-interactive-card flex min-w-0 items-start justify-between gap-3 rounded-xl px-4 py-3",
+                collection.id === activeCollectionId ? "border-primary/30 bg-primary/5" : "",
               ].join(" ")}
             >
               <button
                 type="button"
-                className="min-w-0 flex-1 text-left"
+                className="min-h-11 min-w-0 flex-1 text-left focus-visible:rounded-lg focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:outline-none"
                 onClick={() => onOpenCollectionDetails(collection)}
               >
                 <div className="truncate text-sm font-medium">{collection.name}</div>
@@ -84,7 +84,7 @@ export const CollectionsView = ({
             </article>
           ))
         ) : (
-          <div className="flex min-h-[320px] items-center justify-center rounded-md bg-muted/25 text-sm text-muted-foreground">
+          <div className="app-empty-state flex min-h-[320px] items-center justify-center rounded-2xl px-6 text-sm text-muted-foreground">
             暂无集合
           </div>
         )}
