@@ -1,5 +1,5 @@
 use reqwest::blocking::Client;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::{
     fs,
     io::{Read, Seek, Write},
@@ -44,6 +44,7 @@ pub(crate) struct MarketplaceSkill {
     pub github_url: String,
     pub skill_url: String,
     pub stars: i64,
+    #[serde(default, deserialize_with = "deserialize_optional_string")]
     pub updated_at: Option<String>,
 }
 
@@ -804,9 +805,10 @@ where
             truncate(&body, 240)
         ));
     }
-    response
-        .json::<T>()
-        .map_err(|error| format!("{label}响应解析失败：{error}"))
+    let body = response
+        .text()
+        .map_err(|error| format!("{label}响应读取失败：{error}"))?;
+    serde_json::from_str::<T>(&body).map_err(|error| format!("{label}响应解析失败：{error}"))
 }
 
 fn get_text(client: &Client, url: &str, label: &str) -> Result<String, String> {
@@ -853,6 +855,21 @@ fn http_client() -> Result<Client, String> {
         .timeout(std::time::Duration::from_secs(45))
         .build()
         .map_err(|error| format!("无法创建网络客户端：{error}"))
+}
+
+fn deserialize_optional_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
+    match value {
+        None | Some(serde_json::Value::Null) => Ok(None),
+        Some(serde_json::Value::String(value)) => Ok(Some(value)),
+        Some(serde_json::Value::Number(value)) => Ok(Some(value.to_string())),
+        Some(value) => Err(serde::de::Error::custom(format!(
+            "expected a string, number, or null, got {value}"
+        ))),
+    }
 }
 
 fn is_skillsmp_url(value: &str) -> bool {
@@ -1026,4 +1043,47 @@ fn set_executable_if_needed(path: &Path, entry: &GitTreeEntry) -> Result<(), Str
 #[cfg(not(unix))]
 fn set_executable_if_needed(_path: &Path, _entry: &GitTreeEntry) -> Result<(), String> {
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SkillsMpSearchResponse;
+
+    fn response_with_updated_at(updated_at: &str) -> SkillsMpSearchResponse {
+        serde_json::from_str(&format!(
+            r#"{{
+                "success": true,
+                "data": {{
+                    "skills": [{{
+                        "name": "example",
+                        "description": "Example skill",
+                        "author": "example-author",
+                        "githubUrl": "https://github.com/example/skill",
+                        "skillUrl": "https://skillsmp.com/example/skill",
+                        "stars": 1,
+                        "updatedAt": {updated_at}
+                    }}],
+                    "pagination": null
+                }},
+                "error": null
+            }}"#
+        ))
+        .expect("SkillsMP response should deserialize")
+    }
+
+    #[test]
+    fn skillsmp_updated_at_accepts_unix_timestamp() {
+        let response = response_with_updated_at("1784420837");
+        let skill = &response.data.expect("response data").skills[0];
+
+        assert_eq!(skill.updated_at.as_deref(), Some("1784420837"));
+    }
+
+    #[test]
+    fn skillsmp_updated_at_accepts_string() {
+        let response = response_with_updated_at(r#""2026-07-25T00:00:00Z""#);
+        let skill = &response.data.expect("response data").skills[0];
+
+        assert_eq!(skill.updated_at.as_deref(), Some("2026-07-25T00:00:00Z"));
+    }
 }
