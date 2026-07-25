@@ -8,6 +8,7 @@ import type { ChatInitialData } from "../../chat/type";
 import type { ChatInputResources } from "../../components/chat-input/type";
 import { useWorkspaceStore } from "../../home/workspace-store";
 import { loadResources } from "../../resources";
+import { WorkspaceChatSidebar } from "./sidebar";
 
 const defaultDisplayOptions = {
   showThinkingProcess: true,
@@ -120,14 +121,21 @@ const WorkspaceChat = ({ workspaceId, chatId, initialData: providedInitialData, 
   const workspace = state.workspace;
 
   return (
-    <Chat
-      chatId={chatId}
-      workspacePath={workspace.path}
-      initialData={initialData}
-      onStatusChange={({ chatId: statusChatId, isRunning }) =>
-        workspaceStore.setChatLoading(workspaceId, statusChatId, isRunning)
-      }
-    />
+    <div className="relative flex h-full min-h-0 flex-1 overflow-hidden bg-surface/45">
+      <div className="min-w-0 flex-1 overflow-hidden bg-background/95">
+        <Chat
+          chatId={chatId}
+          workspacePath={workspace.path}
+          initialData={initialData}
+          onStatusChange={({ chatId: statusChatId, isRunning }) =>
+            workspaceStore.setChatLoading(workspaceId, statusChatId, isRunning)
+          }
+        />
+      </div>
+      {isActive ? (
+        <WorkspaceChatSidebar workspacePath={workspace.path} chatId={chatId} panels={["files", "ledger"]} />
+      ) : null}
+    </div>
   );
 };
 
