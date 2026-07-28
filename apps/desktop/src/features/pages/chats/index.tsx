@@ -3,11 +3,11 @@ import { Outlet, useMatch } from "react-router";
 import { listWorkspaces } from "@/api/workspace";
 import { Spinner } from "@/components/ui/spinner";
 import type { Workspace } from "@/features/pages/workspace/types";
-import { Chat } from "../../chat";
-import type { ChatInitialData } from "../../chat/type";
-import type { ChatInputResources } from "../../components/chat-input/type";
-import { useWorkspaceStore } from "../../home/workspace-store";
-import { loadResources } from "../../resources";
+import { Chat } from "./chat";
+import type { ChatInitialData } from "./chat/type";
+import type { ChatInputResources } from "./components/chat-input/type";
+import { useWorkspaceStore } from "./workspace-store";
+import { loadResources } from "./resources";
 import { WorkspaceChatSidebar } from "./sidebar";
 
 const defaultDisplayOptions = {

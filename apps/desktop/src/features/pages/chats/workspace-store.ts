@@ -14,9 +14,9 @@ import {
   listWorkspaces,
   updateWorkspace as updateWorkspaceApi,
 } from "@/api/workspace";
-import type { ChatInitialData } from "../chat/type";
-import type { ChatInputResources } from "../components/chat-input/type";
-import { loadResources } from "../resources";
+import type { ChatInitialData } from "./chat/type";
+import type { ChatInputResources } from "./components/chat-input/type";
+import { loadResources } from "./resources";
 
 export type Workspace = {
   id: string;

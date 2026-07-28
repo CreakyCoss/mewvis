@@ -1,6 +1,6 @@
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useWorkspaceStore } from "@/features/pages/chats/home/workspace-store";
+import { useWorkspaceStore } from "@/features/pages/chats/workspace-store";
 import { isDefaultWorkspace } from "@/features/pages/workspace/default";
 import { APP_DISPLAY_NAME } from "@/product-config";
 import { PrimaryNav, UtilityNav } from "./nav";

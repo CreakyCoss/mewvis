@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
-import { useWorkspaceStore, type Workspace } from "../home/workspace-store";
+import { useWorkspaceStore, type Workspace } from "../workspace-store";
 
 type WorkspacePickerProps = {
   onCreateWorkspace: () => void;

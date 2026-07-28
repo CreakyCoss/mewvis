@@ -5,7 +5,7 @@ import type { ChatDisplayOptions, ChatInputSubmitPayload } from "../components/c
 import { WorkspaceDialog, type WorkspaceDialogHandle } from "../components/workspace-dialog";
 import { WorkspacePicker } from "../components/workspace-picker";
 import { HomeChat, type HomeChatProps } from "./chat";
-import { useWorkspaceStore } from "./workspace-store";
+import { useWorkspaceStore } from "../workspace-store";
 
 export const ChatHomePage = () => {
   const workspaceStore = useWorkspaceStore();

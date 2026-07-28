@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIcon, ArrowLeftIcon, ChevronRightIcon, EyeIcon, RefreshCwIcon } from "lucide-react";
+import { ActivityIcon, ChevronRightIcon, EyeIcon, RefreshCwIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -11,6 +11,7 @@ import {
   type LedgerRuntimeLink,
 } from "@/api/conversation-ledger";
 import { resolveRuntimeModelInput, useLlmSettingsStore } from "@/features/pages/settings/llm/store";
+import { LedgerDialog } from "./dialog";
 
 const summaryInstruction = [
   "请生成当前会话的前端展示摘要。",
@@ -59,20 +60,6 @@ const preview = (content: string | undefined, limit: number) => {
 
 const findMessage = (messageById: Map<string, LedgerMessage>, ids: Array<string | null | undefined>, role: string) =>
   ids.map((id) => (id ? messageById.get(id) : null)).find((message) => message?.role === role) ?? null;
-
-const linkMessages = (ledger: LedgerResult, link: LedgerRuntimeLink) => {
-  const messageIds = new Set(
-    [
-      link.userMessageRecordId,
-      ...link.assistantMessageRecordIds,
-      ...link.messageRecordIds,
-      ...link.requestContextRecordIds,
-      ...link.runtimeInstructionRecordIds,
-    ].filter((id): id is string => Boolean(id)),
-  );
-
-  return ledger.messages.filter((message) => messageIds.has(message.messageRecordId));
-};
 
 type ChatLedgerProps = {
   workspacePath: string;
@@ -149,54 +136,9 @@ export const ChatLedger = ({ workspacePath, chatId }: ChatLedgerProps) => {
     }
   };
 
-  if (selectedLink && ledger) {
-    const messages = linkMessages(ledger, selectedLink);
-    const status = selectedLink.status ?? "done";
-
-    return (
-      <div className="flex h-full min-h-0 flex-col">
-        <header className="flex min-w-0 items-center gap-2 border-b border-border/70 px-3 py-3">
-          <Button type="button" size="icon" variant="ghost" title="返回链路列表" onClick={() => setSelectedLinkId("")}>
-            <ArrowLeftIcon className="size-4" />
-          </Button>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium">运行详情</div>
-            <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-              <span className={`size-2 rounded-full ${statusClass[status]}`} />
-              <span>{statusLabel[status]}</span>
-              {formatDuration(selectedLink) ? <span>{formatDuration(selectedLink)}</span> : null}
-            </div>
-          </div>
-        </header>
-
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="space-y-3 p-3">
-            {messages.length > 0 ? (
-              messages.map((message) => (
-                <section
-                  key={message.messageRecordId}
-                  className="rounded-xl border border-border/70 bg-background/70 p-3"
-                >
-                  <div className="mb-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                    <span className="font-medium uppercase">{message.role}</span>
-                    <span>{formatTime(message.timestamp)}</span>
-                  </div>
-                  <div className="whitespace-pre-wrap break-words text-xs leading-6">{message.content}</div>
-                </section>
-              ))
-            ) : (
-              <div className="app-empty-state rounded-xl px-4 py-8 text-center text-sm text-muted-foreground">
-                当前链路没有可展示的消息
-              </div>
-            )}
-          </div>
-        </ScrollArea>
-      </div>
-    );
-  }
-
   return (
     <>
+      <LedgerDialog ledger={ledger} link={selectedLink} onClose={() => setSelectedLinkId("")} />
       <div className="flex h-full min-h-0 flex-col">
         <header className="flex min-w-0 items-center justify-between gap-2 px-3 py-3">
           <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
