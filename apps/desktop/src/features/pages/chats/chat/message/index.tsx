@@ -4,6 +4,7 @@ import { resolveAvatar } from "@/assets/avatars";
 import { Spinner } from "@/components/ui/spinner";
 import type { ChatDisplayOptions } from "../../components/chat-input/type";
 import type { ChatMessage } from "../type";
+import { MessageActions } from "./actions";
 import { MessageBlocks } from "./block";
 
 type ChatMessagesProps = {
@@ -48,7 +49,7 @@ const MessageItemComponent = ({
       ) : null}
 
       <div
-        className="flex min-w-0 max-w-[88%] flex-col gap-1 lg:max-w-[82%] xl:max-w-[78%] data-[role=assistant]:items-start data-[role=user]:items-end"
+        className="group/message flex min-w-0 max-w-[88%] flex-col gap-1 lg:max-w-[82%] xl:max-w-[78%] data-[role=assistant]:items-start data-[role=user]:items-end"
         data-role={message.role}
       >
         {isAssistant ? (
@@ -80,6 +81,7 @@ const MessageItemComponent = ({
             </div>
           ) : null}
         </article>
+        <MessageActions message={message} />
       </div>
     </div>
   );
