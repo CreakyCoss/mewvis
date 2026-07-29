@@ -42,8 +42,9 @@ use commands::{
         read_workspace_file_optional, read_workspace_version_file, remove_app_skill,
         reset_agent_sessions_for_chat, restore_workspace_version, save_chat, save_tavern_state,
         save_workspace_skills, search_skill_marketplace, search_workspace_knowledge,
-        set_chat_unread, switch_workspace_version_branch, update_story_record, update_workspace,
-        write_workspace_file, write_workspace_files_atomic,
+        set_chat_unread, switch_workspace_version_branch, unwatch_workspace_files,
+        update_story_record, update_workspace, watch_workspace_files, write_workspace_file,
+        write_workspace_files_atomic, WorkspaceFileWatchers,
     },
 };
 
@@ -52,6 +53,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(AgentRuntimeSupervisor::default())
         .manage(AppStartupState::default())
+        .manage(WorkspaceFileWatchers::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
@@ -128,6 +130,8 @@ pub fn run() {
             get_agent_session_status,
             cleanup_orphan_agent_sessions,
             reset_agent_sessions_for_chat,
+            watch_workspace_files,
+            unwatch_workspace_files,
             list_workspace_files,
             read_workspace_file,
             read_workspace_file_optional,

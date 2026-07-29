@@ -51,6 +51,7 @@ import {
   type WorkspaceVersionFileDiff,
   type WorkspaceVersionFileStatus,
 } from "@/api/workspace-files";
+import { subscribeWorkspaceFileChanges } from "../../workspace-files";
 import { WorkspaceVersionHistory } from "./history";
 
 type WorkspaceVersionControlProps = {
@@ -126,7 +127,13 @@ export const WorkspaceVersionControl = ({ workspacePath }: WorkspaceVersionContr
     setVersionMessage("");
     setError("");
     void loadStatus();
-  }, [loadStatus]);
+
+    return subscribeWorkspaceFileChanges((changedWorkspacePath) => {
+      if (changedWorkspacePath === workspacePath) {
+        void loadStatus();
+      }
+    });
+  }, [loadStatus, workspacePath]);
 
   const initializeVersionControl = async () => {
     setIsInitializing(true);

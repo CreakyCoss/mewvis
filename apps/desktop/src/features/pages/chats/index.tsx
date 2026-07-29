@@ -7,6 +7,7 @@ import { Chat } from "./chat";
 import type { ChatInitialData } from "./chat/type";
 import type { ChatInputResources } from "./components/chat-input/type";
 import { useWorkspaceStore } from "./workspace-store";
+import { WorkspaceFileWatcher } from "./workspace-files";
 import { loadResources } from "./resources";
 import { WorkspaceChatSidebar } from "./sidebar";
 
@@ -159,6 +160,7 @@ export const WorkspaceChatRoute = () => {
 
   return (
     <>
+      <WorkspaceFileWatcher workspacePath={workspaceStore.currentWorkspace?.path ?? ""} />
       {openChats.map((chat) => {
         const isActive = workspaceId === chat.workspaceId && chatId === chat.chatId;
 

@@ -29,6 +29,7 @@ import {
   type WorkspaceVersionFileEntry,
   writeWorkspaceFile,
 } from "@/api/workspace-files";
+import { subscribeWorkspaceFileChanges } from "../../workspace-files";
 
 type WorkspaceVersionHistoryProps = {
   workspacePath: string;
@@ -96,6 +97,16 @@ export const WorkspaceVersionHistory = ({ workspacePath }: WorkspaceVersionHisto
     setFileDiff(null);
     void loadVersionControl();
   }, [loadVersionControl]);
+
+  useEffect(
+    () =>
+      subscribeWorkspaceFileChanges((changedWorkspacePath) => {
+        if (changedWorkspacePath === workspacePath) {
+          void loadVersionControl(branchName || undefined);
+        }
+      }),
+    [branchName, loadVersionControl, workspacePath],
+  );
 
   const selectVersion = async (version: WorkspaceVersion) => {
     setSelectedVersion(version);
