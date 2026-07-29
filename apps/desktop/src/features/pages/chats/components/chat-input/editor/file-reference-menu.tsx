@@ -94,51 +94,67 @@ export const FileReferenceMenu = ({ files }: FileReferenceMenuProps) => {
       options={options}
       onQueryChange={setQuery}
       onSelectOption={selectOption}
-      menuRenderFn={(anchorElementRef, { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex }) =>
-        anchorElementRef.current
-          ? createPortal(
-              <div
-                role="listbox"
-                aria-label="工作区文件"
-                className="z-50 w-[min(30rem,calc(100vw-2rem))] -translate-y-[calc(100%+0.5rem)] overflow-hidden rounded-xl border border-border/80 bg-popover text-popover-foreground shadow-[var(--shadow-floating)]"
-              >
-                <div className="border-b border-border/70 px-3 py-2 text-xs font-medium text-muted-foreground">
-                  引用工作区文件
-                </div>
-                <div className="max-h-72 overflow-y-auto p-1.5">
-                  {options.length ? (
-                    options.map((option, index) => (
-                      <button
-                        key={option.key}
-                        ref={option.setRefElement}
-                        type="button"
-                        role="option"
-                        aria-selected={selectedIndex === index}
-                        className="flex w-full min-w-0 items-center gap-2 rounded-lg px-2.5 py-2 text-left outline-none transition-colors hover:bg-accent data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
-                        data-selected={selectedIndex === index}
-                        title={option.file.path}
-                        onMouseEnter={() => setHighlightedIndex(index)}
-                        onMouseDown={(event) => {
-                          event.preventDefault();
-                          selectOptionAndCleanUp(option);
-                        }}
-                      >
-                        <FileTextIcon aria-hidden="true" className="size-4 shrink-0 text-primary" />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium">{option.file.name}</span>
-                          <span className="block truncate text-xs text-muted-foreground">{option.file.path}</span>
-                        </span>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="px-3 py-6 text-center text-sm text-muted-foreground">没有匹配的文件</div>
-                  )}
-                </div>
-              </div>,
-              anchorElementRef.current,
-            )
-          : null
-      }
+      menuRenderFn={(anchorElementRef, { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex }) => {
+        const editorElement = editor.getRootElement();
+        if (!anchorElementRef.current || !editorElement) {
+          return null;
+        }
+
+        const editorRect = editorElement.getBoundingClientRect();
+        const viewportPadding = 16;
+        const menuWidth = Math.min(480, editorRect.width, window.innerWidth - viewportPadding * 2);
+        const menuLeft = Math.min(
+          Math.max(viewportPadding, editorRect.left),
+          window.innerWidth - menuWidth - viewportPadding,
+        );
+
+        return createPortal(
+          <div
+            role="listbox"
+            aria-label="工作区文件"
+            className="fixed z-50 overflow-hidden rounded-xl border border-border/80 bg-popover text-popover-foreground shadow-[var(--shadow-floating)]"
+            style={{
+              bottom: window.innerHeight - editorRect.top + 8,
+              left: menuLeft,
+              width: menuWidth,
+            }}
+          >
+            <div className="border-b border-border/70 px-3 py-2 text-xs font-medium text-muted-foreground">
+              引用工作区文件
+            </div>
+            <div className="max-h-72 overflow-y-auto p-1.5">
+              {options.length ? (
+                options.map((option, index) => (
+                  <button
+                    key={option.key}
+                    ref={option.setRefElement}
+                    type="button"
+                    role="option"
+                    aria-selected={selectedIndex === index}
+                    className="flex w-full min-w-0 items-center gap-2 rounded-lg px-2.5 py-2 text-left outline-none transition-colors hover:bg-accent data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
+                    data-selected={selectedIndex === index}
+                    title={option.file.path}
+                    onMouseEnter={() => setHighlightedIndex(index)}
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      selectOptionAndCleanUp(option);
+                    }}
+                  >
+                    <FileTextIcon aria-hidden="true" className="size-4 shrink-0 text-primary" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{option.file.name}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{option.file.path}</span>
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <div className="px-3 py-6 text-center text-sm text-muted-foreground">没有匹配的文件</div>
+              )}
+            </div>
+          </div>,
+          anchorElementRef.current,
+        );
+      }}
     />
   );
 };
