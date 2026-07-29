@@ -100,7 +100,7 @@ export const FileReferenceMenu = ({ files }: FileReferenceMenuProps) => {
               <div
                 role="listbox"
                 aria-label="工作区文件"
-                className="z-50 mt-2 w-[min(30rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border/80 bg-popover text-popover-foreground shadow-[var(--shadow-floating)]"
+                className="z-50 w-[min(30rem,calc(100vw-2rem))] -translate-y-[calc(100%+0.5rem)] overflow-hidden rounded-xl border border-border/80 bg-popover text-popover-foreground shadow-[var(--shadow-floating)]"
               >
                 <div className="border-b border-border/70 px-3 py-2 text-xs font-medium text-muted-foreground">
                   引用工作区文件
