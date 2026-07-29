@@ -8,7 +8,7 @@ type UserBlocksProps = {
 };
 
 export const UserBlocks = ({ blocks }: UserBlocksProps) => (
-  <div className="flex min-w-0 max-w-full flex-wrap gap-1.5">
+  <div className="min-w-0 max-w-full break-words whitespace-pre-wrap [overflow-wrap:anywhere]">
     {blocks.map((block) => {
       if (block.type === "file-reference") {
         return <FileReferenceBlock key={block.id} block={block} />;
@@ -18,7 +18,7 @@ export const UserBlocks = ({ blocks }: UserBlocksProps) => (
         return <SkillReferenceBlock key={block.id} block={block} />;
       }
 
-      return <TextBlock key={block.id} block={block} role="user" />;
+      return <TextBlock key={block.id} block={block} />;
     })}
   </div>
 );

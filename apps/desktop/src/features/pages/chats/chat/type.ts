@@ -1,5 +1,10 @@
 import type { AskUserInput } from "@/agent-client/types";
-import type { ChatDisplayOptions, ChatInputResources, ChatInputSubmitPayload } from "../components/chat-input/type";
+import type {
+  ChatDisplayOptions,
+  ChatInputFile,
+  ChatInputResources,
+  ChatInputSubmitPayload,
+} from "../components/chat-input/type";
 
 export type ChatInitialData = {
   request?: ChatInputSubmitPayload;
@@ -88,6 +93,7 @@ export type ChatPendingQuestion = {
 export type ChatProps = {
   chatId: string;
   workspacePath: string;
+  files?: ChatInputFile[];
   initialData: ChatInitialData;
   onStatusChange?: (status: ChatStatus) => void;
 };

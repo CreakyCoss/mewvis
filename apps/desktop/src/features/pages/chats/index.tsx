@@ -7,7 +7,7 @@ import { Chat } from "./chat";
 import type { ChatInitialData } from "./chat/type";
 import type { ChatInputResources } from "./components/chat-input/type";
 import { useWorkspaceStore } from "./workspace-store";
-import { WorkspaceFileWatcher } from "./workspace-files";
+import { useWorkspaceFileStore, WorkspaceFileWatcher } from "./workspace-files";
 import { loadResources } from "./resources";
 import { WorkspaceChatSidebar } from "./sidebar";
 
@@ -54,6 +54,7 @@ const loadWorkspace = async (workspaceId: string, initialResources?: ChatInputRe
 
 const WorkspaceChat = ({ workspaceId, chatId, initialData: providedInitialData, isActive }: WorkspaceChatProps) => {
   const workspaceStore = useWorkspaceStore();
+  const fileStore = useWorkspaceFileStore();
   const [state, setState] = useState(initialState);
   const initialData = useMemo<ChatInitialData>(
     () =>
@@ -127,6 +128,7 @@ const WorkspaceChat = ({ workspaceId, chatId, initialData: providedInitialData, 
         <Chat
           chatId={chatId}
           workspacePath={workspace.path}
+          files={fileStore.workspacePath === workspace.path ? fileStore.files : []}
           initialData={initialData}
           onStatusChange={({ chatId: statusChatId, isRunning }) =>
             workspaceStore.setChatLoading(workspaceId, statusChatId, isRunning)

@@ -3,12 +3,28 @@ import { CheckIcon, CopyIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ChatMessage } from "../type";
 
-const getMessageText = (message: ChatMessage) =>
-  message.blocks
-    .filter((block) => block.type === "text")
-    .map((block) => block.content)
-    .join("\n\n")
+const getMessageText = (message: ChatMessage) => {
+  if (message.role === "assistant") {
+    return message.blocks
+      .filter((block) => block.type === "text")
+      .map((block) => block.content)
+      .join("\n\n")
+      .trim();
+  }
+
+  return message.blocks
+    .map((block) => {
+      if (block.type === "skill-reference") {
+        return `/${block.name}`;
+      }
+      if (block.type === "file-reference") {
+        return /[\s，。；,;]/.test(block.path) ? `@"${block.path}"` : `@${block.path}`;
+      }
+      return block.content;
+    })
+    .join("")
     .trim();
+};
 
 const formatMessageTime = (createdAt: number) =>
   new Date(createdAt).toLocaleTimeString("zh-CN", {

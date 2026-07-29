@@ -77,9 +77,16 @@ const createMessageId = () => crypto.randomUUID();
 
 const getUserMessageText = (message: ChatUserMessage) =>
   message.blocks
-    .filter((block) => block.type === "text")
-    .map((block) => block.content)
-    .join(" ")
+    .map((block) => {
+      if (block.type === "skill-reference") {
+        return `/${block.name}`;
+      }
+      if (block.type === "file-reference") {
+        return `@${block.path}`;
+      }
+      return block.content;
+    })
+    .join("")
     .trim();
 
 const chatTitle = (messages: ChatMessage[]) => {
@@ -348,13 +355,7 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
           role: "user",
           createdAt,
           status: "done",
-          blocks: [
-            {
-              id: createMessageId(),
-              type: "text",
-              content: payload.text,
-            },
-          ],
+          blocks: payload.blocks.map((block) => ({ ...block, id: createMessageId() })),
         },
         {
           id: assistantMessageId,
