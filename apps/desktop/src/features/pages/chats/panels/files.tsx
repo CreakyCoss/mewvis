@@ -36,7 +36,6 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   deleteWorkspaceFile,
   getWorkspaceVersionControlStatus,
-  listWorkspaceFiles,
   readWorkspaceFile,
   type WorkspaceFile,
   type WorkspaceFileEntry,
@@ -44,6 +43,7 @@ import {
   type WorkspaceVersionFileStatusKind,
   writeWorkspaceFile,
 } from "@/api/workspace-files";
+import { subscribeWorkspaceFileChanges, useWorkspaceFileStore } from "../workspace-files";
 
 type WorkspaceFilesProps = {
   workspacePath: string;
@@ -111,11 +111,10 @@ const versionStatusClasses: Record<WorkspaceVersionFileStatusKind, string> = {
 };
 
 export const WorkspaceFiles = ({ workspacePath }: WorkspaceFilesProps) => {
-  const [files, setFiles] = useState<WorkspaceFileEntry[]>([]);
+  const fileStore = useWorkspaceFileStore();
   const [versionStatus, setVersionStatus] = useState<WorkspaceVersionControlStatus | null>(null);
   const [activeFile, setActiveFile] = useState<WorkspaceFile | null>(null);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set());
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [filePath, setFilePath] = useState("");
@@ -123,51 +122,57 @@ export const WorkspaceFiles = ({ workspacePath }: WorkspaceFilesProps) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const fileTree = useMemo(() => buildWorkspaceFileTree(files), [files]);
-  const fileCount = useMemo(() => files.filter((file) => !file.isDirectory).length, [files]);
+  const fileTree = useMemo(
+    () => buildWorkspaceFileTree(fileStore.workspacePath === workspacePath ? fileStore.files : []),
+    [fileStore.files, fileStore.workspacePath, workspacePath],
+  );
+  const fileCount = useMemo(
+    () => (fileStore.workspacePath === workspacePath ? fileStore.files.filter((file) => !file.isDirectory).length : 0),
+    [fileStore.files, fileStore.workspacePath, workspacePath],
+  );
   const versionStatusByPath = useMemo(
     () => new Map((versionStatus?.files ?? []).map((file) => [file.path, file])),
     [versionStatus?.files],
   );
 
-  const loadFiles = useCallback(async () => {
-    setIsLoading(true);
-    setError("");
-
+  const loadVersionStatus = useCallback(async () => {
     try {
-      const [nextFiles, nextVersionStatus] = await Promise.all([
-        listWorkspaceFiles(workspacePath),
-        getWorkspaceVersionControlStatus(workspacePath).catch(() => null),
-      ]);
-      setFiles(nextFiles);
-      setVersionStatus(nextVersionStatus);
-      setExpandedPaths((current) => {
-        const next = new Set(current);
-        nextFiles.forEach((file) => {
-          if (file.isDirectory && !file.path.includes("/")) {
-            next.add(file.path);
-          }
-        });
-        return next;
-      });
-    } catch (caught) {
-      setFiles([]);
+      setVersionStatus(await getWorkspaceVersionControlStatus(workspacePath));
+    } catch {
       setVersionStatus(null);
-      setError(caught instanceof Error ? caught.message : String(caught));
-    } finally {
-      setIsLoading(false);
     }
   }, [workspacePath]);
 
   useEffect(() => {
-    setFiles([]);
     setVersionStatus(null);
     setActiveFile(null);
     setExpandedPaths(new Set());
     setIsEditorOpen(false);
     setError("");
-    void loadFiles();
-  }, [loadFiles]);
+    void loadVersionStatus();
+
+    return subscribeWorkspaceFileChanges((changedWorkspacePath) => {
+      if (changedWorkspacePath === workspacePath) {
+        void loadVersionStatus();
+      }
+    });
+  }, [loadVersionStatus, workspacePath]);
+
+  useEffect(() => {
+    if (fileStore.workspacePath !== workspacePath) {
+      return;
+    }
+
+    setExpandedPaths((current) => {
+      const next = new Set(current);
+      fileStore.files.forEach((file) => {
+        if (file.isDirectory && !file.path.includes("/")) {
+          next.add(file.path);
+        }
+      });
+      return next;
+    });
+  }, [fileStore.files, fileStore.workspacePath, workspacePath]);
 
   const openFile = async (path: string) => {
     setError("");
@@ -205,7 +210,7 @@ export const WorkspaceFiles = ({ workspacePath }: WorkspaceFilesProps) => {
       setActiveFile(savedFile);
       setFilePath(savedFile.path);
       setFileContent(savedFile.content);
-      await loadFiles();
+      await Promise.all([fileStore.refreshFiles(), loadVersionStatus()]);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -226,7 +231,7 @@ export const WorkspaceFiles = ({ workspacePath }: WorkspaceFilesProps) => {
       setFilePath("");
       setFileContent("");
       setIsEditorOpen(false);
-      await loadFiles();
+      await Promise.all([fileStore.refreshFiles(), loadVersionStatus()]);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -310,8 +315,16 @@ export const WorkspaceFiles = ({ workspacePath }: WorkspaceFilesProps) => {
             </span>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <Button type="button" size="icon" variant="ghost" title="刷新文件" onClick={() => void loadFiles()}>
-              <RefreshCwIcon className={`size-4 ${isLoading ? "animate-spin motion-reduce:animate-none" : ""}`} />
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              title="刷新文件"
+              onClick={() => void Promise.all([fileStore.refreshFiles(), loadVersionStatus()])}
+            >
+              <RefreshCwIcon
+                className={`size-4 ${fileStore.isLoading ? "animate-spin motion-reduce:animate-none" : ""}`}
+              />
             </Button>
             <Button type="button" size="icon" variant="ghost" title="新建文件" onClick={openNewFile}>
               <PlusIcon className="size-4" />
@@ -319,15 +332,15 @@ export const WorkspaceFiles = ({ workspacePath }: WorkspaceFilesProps) => {
           </div>
         </header>
 
-        {error && !isEditorOpen ? (
+        {(error || (fileStore.workspacePath === workspacePath ? fileStore.error : "")) && !isEditorOpen ? (
           <div className="mx-3 mb-3 rounded-lg bg-destructive/10 px-3 py-2 text-xs leading-5 text-destructive">
-            {error}
+            {error || fileStore.error}
           </div>
         ) : null}
 
         <ScrollArea className="min-h-0 flex-1">
           <div className="min-w-0 px-2 pb-3">
-            {isLoading && files.length === 0 ? (
+            {(fileStore.workspacePath !== workspacePath || fileStore.isLoading) && fileTree.length === 0 ? (
               <div className="app-empty-state rounded-xl px-4 py-8 text-center text-sm text-muted-foreground">
                 正在读取文件
               </div>

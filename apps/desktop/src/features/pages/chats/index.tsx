@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Outlet, useMatch } from "react-router";
 import { listWorkspaces } from "@/api/workspace";
 import { Spinner } from "@/components/ui/spinner";
 import type { Workspace } from "@/features/pages/workspace/types";
-import { Chat } from "../../chat";
-import type { ChatInitialData } from "../../chat/type";
-import type { ChatInputResources } from "../../components/chat-input/type";
-import { useWorkspaceStore } from "../../home/workspace-store";
-import { loadResources } from "../../resources";
+import { Chat } from "./chat";
+import type { ChatInitialData, ChatSaveInput } from "./chat/type";
+import type { ChatInputResources } from "./components/chat-input/type";
+import { useWorkspaceStore } from "./workspace-store";
+import { useWorkspaceFileStore, WorkspaceFileWatcher } from "./workspace-files";
+import { loadResources } from "./resources";
 import { WorkspaceChatSidebar } from "./sidebar";
 
 const defaultDisplayOptions = {
@@ -53,6 +54,7 @@ const loadWorkspace = async (workspaceId: string, initialResources?: ChatInputRe
 
 const WorkspaceChat = ({ workspaceId, chatId, initialData: providedInitialData, isActive }: WorkspaceChatProps) => {
   const workspaceStore = useWorkspaceStore();
+  const fileStore = useWorkspaceFileStore();
   const [state, setState] = useState(initialState);
   const initialData = useMemo<ChatInitialData>(
     () =>
@@ -101,6 +103,17 @@ const WorkspaceChat = ({ workspaceId, chatId, initialData: providedInitialData, 
     }
   }, [isActive, state.workspace, workspaceStore.setCurrentWorkspace]);
 
+  const saveWorkspaceChat = useCallback(
+    (input: ChatSaveInput) => {
+      if (!state.workspace) {
+        return Promise.reject(new Error("工作区尚未加载完成"));
+      }
+
+      return workspaceStore.saveChat(state.workspace, input);
+    },
+    [state.workspace, workspaceStore.saveChat],
+  );
+
   if (!workspaceId || !chatId) {
     return (
       <main className="flex h-full min-h-0 items-center justify-center bg-background px-6 text-sm text-destructive">
@@ -126,7 +139,9 @@ const WorkspaceChat = ({ workspaceId, chatId, initialData: providedInitialData, 
         <Chat
           chatId={chatId}
           workspacePath={workspace.path}
+          files={fileStore.workspacePath === workspace.path ? fileStore.files : []}
           initialData={initialData}
+          saveChat={saveWorkspaceChat}
           onStatusChange={({ chatId: statusChatId, isRunning }) =>
             workspaceStore.setChatLoading(workspaceId, statusChatId, isRunning)
           }
@@ -159,6 +174,7 @@ export const WorkspaceChatRoute = () => {
 
   return (
     <>
+      <WorkspaceFileWatcher workspacePath={workspaceStore.currentWorkspace?.path ?? ""} />
       {openChats.map((chat) => {
         const isActive = workspaceId === chat.workspaceId && chatId === chat.chatId;
 

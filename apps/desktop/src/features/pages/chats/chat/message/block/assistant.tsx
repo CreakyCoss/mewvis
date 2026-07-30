@@ -1,6 +1,6 @@
 import { Spinner } from "@/components/ui/spinner";
 import type { ChatAssistantMessageBlock } from "../../type";
-import { TextBlock } from "./types/text";
+import { MarkdownTextBlock } from "./types/markdown-text";
 import { ThinkingBlock } from "./types/thinking";
 import { ToolBlock } from "./types/tool";
 
@@ -47,7 +47,7 @@ export const AssistantBlocks = ({
           return <ToolBlock key={block.id} block={block} />;
         }
 
-        return <TextBlock key={block.id} block={block} role="assistant" />;
+        return <MarkdownTextBlock key={block.id} block={block} />;
       })}
     </div>
   );

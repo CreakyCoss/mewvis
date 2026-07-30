@@ -1,6 +1,7 @@
 import { memo, useEffect, useState } from "react";
 import { CheckIcon, ChevronDownIcon, CircleAlertIcon, Loader2Icon, WrenchIcon } from "lucide-react";
 import type { ChatAssistantMessageBlock, ChatToolEvent } from "../../../type";
+import { useFollowBottom } from "../../follow-bottom";
 import { BLOCK_AUTO_COLLAPSE_DELAY } from "../constants";
 
 type ToolBlockProps = {
@@ -26,6 +27,7 @@ const ToolBlockComponent = ({ block }: ToolBlockProps) => {
   const hiddenEventCount = Math.max(0, block.events.length - TOOL_VISIBLE_EVENT_LIMIT);
   const visibleEvents = block.events.slice(-TOOL_VISIBLE_EVENT_LIMIT);
   const statusLabel = block.status === "running" ? "执行中" : block.status === "done" ? "已完成" : "执行异常";
+  const { scrollRef, handleScroll } = useFollowBottom(block.events, isExpanded);
 
   useEffect(() => {
     if (block.status === "running" || block.status === "error") {
@@ -83,7 +85,11 @@ const ToolBlockComponent = ({ block }: ToolBlockProps) => {
         }`}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="app-process-content max-h-72 space-y-1.5 overflow-auto px-3 py-2.5 text-xs leading-5 text-muted-foreground">
+          <div
+            ref={scrollRef}
+            className="app-process-content max-h-72 space-y-1.5 overflow-auto px-3 py-2.5 text-xs leading-5 text-muted-foreground"
+            onScroll={handleScroll}
+          >
             {hiddenEventCount > 0 ? (
               <div className="rounded-lg border border-border/55 bg-surface-raised/70 px-2.5 py-1.5 text-xs">
                 已省略较早的 {hiddenEventCount} 条更新。

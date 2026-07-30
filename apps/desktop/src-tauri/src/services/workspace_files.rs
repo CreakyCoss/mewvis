@@ -357,7 +357,7 @@ pub fn delete_workspace_file(input: WorkspaceFilePathInput) -> Result<(), String
     fs::remove_file(&canonical_path).map_err(|error| format!("无法删除文件：{error}"))
 }
 
-fn workspace_root(path: &str) -> Result<PathBuf, String> {
+pub(crate) fn workspace_root(path: &str) -> Result<PathBuf, String> {
     PathBuf::from(path.trim())
         .canonicalize()
         .map_err(|error| format!("无法定位工作区目录：{error}"))

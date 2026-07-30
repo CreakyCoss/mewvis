@@ -6,12 +6,13 @@ import { ChatQuestion } from "./question";
 import type { ChatProps } from "./type";
 import { useChat } from "./use-chat";
 
-export const Chat = ({ chatId, workspacePath, initialData, onStatusChange }: ChatProps) => {
+export const Chat = ({ chatId, workspacePath, files = [], initialData, saveChat, onStatusChange }: ChatProps) => {
   const [displayOptions, setDisplayOptions] = useState(initialData.displayOptions);
   const chat = useChat({
     chatId,
     workspacePath,
     initialRequest: initialData.request,
+    saveChat,
     onStatusChange,
   });
 
@@ -46,6 +47,7 @@ export const Chat = ({ chatId, workspacePath, initialData, onStatusChange }: Cha
 
           <ChatInput
             resources={initialData.resources}
+            files={files}
             displayOptions={displayOptions}
             defaultOptionValues={initialData.request?.optionValues}
             placeholder="继续输入消息"

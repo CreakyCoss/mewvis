@@ -1,15 +1,18 @@
-import { useEffect, useId, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { SendIcon, SquareIcon } from "lucide-react";
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from "@/components/ui/input-group";
+import { InputGroup, InputGroupAddon, InputGroupButton } from "@/components/ui/input-group";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { ChatEditor, type ChatEditorHandle } from "./editor";
+import { emptyChatEditorValue, type ChatEditorValue } from "./editor/serialize";
 import { ModelMenu } from "./menus/model";
 import { SkillMenu } from "./menus/skill";
 import { ToolMenu } from "./menus/tool";
 import { ChatInputStoreProvider, useChatInputStore } from "./store";
-import type { ChatInputProps } from "./type";
+import type { ChatInputProps, ChatInputSkillOption } from "./type";
 
 const ChatInputContent = ({
   resources,
+  files = [],
   displayOptions,
   defaultValue = "",
   defaultOptionValues,
@@ -20,12 +23,30 @@ const ChatInputContent = ({
   onDisplayOptionsChange,
   onSubmit,
 }: ChatInputProps) => {
-  const inputId = useId();
   const resourceStore = useChatInputStore();
-  const [value, setValue] = useState(defaultValue);
+  const editorRef = useRef<ChatEditorHandle>(null);
+  const [editorValue, setEditorValue] = useState<ChatEditorValue>(() => ({
+    text: defaultValue.trim(),
+    blocks: defaultValue.trim() ? [{ type: "text" as const, content: defaultValue.trim() }] : [],
+  }));
 
   const controlsDisabled = disabled || isRunning;
-  const canSubmit = !controlsDisabled && Boolean(value.trim()) && Boolean(resourceStore.optionValues.selectedModelId);
+  const canSubmit =
+    !controlsDisabled && Boolean(editorValue.text.trim()) && Boolean(resourceStore.optionValues.selectedModelId);
+  const referenceSkills = useMemo(() => {
+    const selectedSkillKeys = new Set(resourceStore.optionValues.selectedSkillKeys);
+    const skillsByKey = new Map<string, ChatInputSkillOption>();
+
+    resourceStore.resources.skillGroups?.forEach((group) => {
+      group.skills.forEach((skill) => {
+        if (selectedSkillKeys.has(skill.key)) {
+          skillsByKey.set(skill.key, skill);
+        }
+      });
+    });
+
+    return [...skillsByKey.values()];
+  }, [resourceStore.optionValues.selectedSkillKeys, resourceStore.resources.skillGroups]);
 
   useEffect(() => {
     resourceStore.initializeResources(resources, defaultOptionValues);
@@ -33,38 +54,37 @@ const ChatInputContent = ({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!canSubmit || !resourceStore.submitResources) {
+    const editor = editorRef.current;
+    if (!editor) {
+      return;
+    }
+
+    const submittedValue = editor.getValue();
+    if (!canSubmit || !resourceStore.submitResources || !submittedValue?.text.trim()) {
       return;
     }
 
     onSubmit({
-      text: value.trim(),
+      text: submittedValue.text,
+      blocks: submittedValue.blocks,
       optionValues: resourceStore.optionValues,
       ...resourceStore.submitResources,
     });
-    setValue("");
+    editor.clear();
+    setEditorValue(emptyChatEditorValue);
   };
 
   return (
     <form className="mx-auto w-full max-w-[69rem]" onSubmit={submit}>
       <InputGroup className="h-auto flex-col items-stretch overflow-hidden rounded-xl border border-border/80 bg-card shadow-[var(--shadow-composer)] transition-[border-color,box-shadow] duration-200 ease-out has-[[data-slot=input-group-control]:focus-visible]:border-ring/55 has-[[data-slot=input-group-control]:focus-visible]:shadow-[var(--shadow-floating)] has-[[data-slot=input-group-control]:focus-visible]:ring-3 has-[[data-slot=input-group-control]:focus-visible]:ring-ring/15 dark:bg-card">
-        <label htmlFor={inputId} className="sr-only">
-          对话内容
-        </label>
-        <InputGroupTextarea
-          id={inputId}
-          value={value}
-          rows={3}
+        <ChatEditor
+          ref={editorRef}
+          files={files}
+          skills={referenceSkills}
+          defaultValue={defaultValue}
           placeholder={placeholder}
           disabled={controlsDisabled}
-          className="max-h-48 min-h-28 w-full px-4 py-4 text-base leading-6 placeholder:text-muted-foreground/70"
-          onChange={(event) => setValue(event.currentTarget.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-              event.preventDefault();
-              event.currentTarget.form?.requestSubmit();
-            }
-          }}
+          onChange={setEditorValue}
         />
 
         <InputGroupAddon

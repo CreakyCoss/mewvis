@@ -14,7 +14,8 @@ pub use agent_sessions::{
 pub use chats::{delete_chat, list_chats, load_chat, save_chat, set_chat_unread};
 pub use files::{
     delete_workspace_file, list_workspace_files, read_workspace_file, read_workspace_file_optional,
-    write_workspace_file, write_workspace_files_atomic,
+    unwatch_workspace_files, watch_workspace_files, write_workspace_file,
+    write_workspace_files_atomic, WorkspaceFileWatchers,
 };
 pub use knowledge::search_workspace_knowledge;
 pub use overview::{create_workspace, delete_workspace, get_workspace_overview, update_workspace};

@@ -1,4 +1,4 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
 
 export type WorkspaceFileEntry = {
   path: string;
@@ -102,6 +102,25 @@ export type WorkspaceFileWriteResult = {
   writtenPaths: string[];
   deletedPaths: string[];
 };
+
+export async function watchWorkspaceFiles(workspacePath: string, onChange: () => void): Promise<() => void> {
+  if (!isTauri()) {
+    return () => undefined;
+  }
+
+  const channel = new Channel<null>();
+  channel.onmessage = onChange;
+  const watchId = await invoke<string>("watch_workspace_files", {
+    input: { workspacePath },
+    onChange: channel,
+  });
+
+  return () => {
+    void invoke("unwatch_workspace_files", {
+      input: { watchId },
+    }).catch(() => undefined);
+  };
+}
 
 export async function listWorkspaceFiles(workspacePath: string) {
   if (!isTauri()) {

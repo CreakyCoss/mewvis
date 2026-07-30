@@ -1,6 +1,7 @@
 import { memo, useEffect, useState } from "react";
 import { BrainIcon, ChevronDownIcon, Loader2Icon } from "lucide-react";
 import type { ChatAssistantMessageBlock } from "../../../type";
+import { useFollowBottom } from "../../follow-bottom";
 import { BLOCK_AUTO_COLLAPSE_DELAY } from "../constants";
 
 type ThinkingBlockProps = {
@@ -12,6 +13,7 @@ const ThinkingBlockComponent = ({ block, isActive }: ThinkingBlockProps) => {
   const [manualExpanded, setManualExpanded] = useState<boolean>();
   const [autoExpanded, setAutoExpanded] = useState(isActive);
   const isExpanded = manualExpanded ?? autoExpanded;
+  const { scrollRef, handleScroll } = useFollowBottom(block.content, isExpanded);
 
   useEffect(() => {
     if (isActive) {
@@ -49,7 +51,11 @@ const ThinkingBlockComponent = ({ block, isActive }: ThinkingBlockProps) => {
         }`}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="app-process-content max-h-56 overflow-auto px-3 py-2.5 text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
+          <div
+            ref={scrollRef}
+            className="app-process-content max-h-56 overflow-auto px-3 py-2.5 text-xs leading-5 whitespace-pre-wrap text-muted-foreground"
+            onScroll={handleScroll}
+          >
             {block.content}
           </div>
         </div>

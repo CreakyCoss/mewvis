@@ -3,10 +3,19 @@ import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
 import { createAgentClient } from "@/agent-client/runtime";
 import type { AgentClientAgentEvent } from "@/agent-client/types";
-import { loadChat, saveChat } from "@/api/chat";
+import { loadChat, saveChat as saveChatApi } from "@/api/chat";
 import type { ChatInputSubmitPayload } from "../components/chat-input/type";
+import { buildAgentPrompt } from "./prompt";
 import { applyChatMessageEvent, failChatMessage } from "./reducer";
-import type { ChatAssistantMessage, ChatMessage, ChatPendingQuestion, ChatStatus, ChatUserMessage } from "./type";
+import { useSaveScheduler } from "./save-scheduler";
+import type {
+  ChatAssistantMessage,
+  ChatMessage,
+  ChatPendingQuestion,
+  ChatSaveInput,
+  ChatStatus,
+  ChatUserMessage,
+} from "./type";
 
 type ChatActiveTurn = {
   taskId: string;
@@ -70,6 +79,7 @@ type UseChatInput = {
   chatId: string;
   workspacePath: string;
   initialRequest?: ChatInputSubmitPayload;
+  saveChat?: (input: ChatSaveInput) => Promise<unknown>;
   onStatusChange?: (status: ChatStatus) => void;
 };
 
@@ -77,9 +87,16 @@ const createMessageId = () => crypto.randomUUID();
 
 const getUserMessageText = (message: ChatUserMessage) =>
   message.blocks
-    .filter((block) => block.type === "text")
-    .map((block) => block.content)
-    .join(" ")
+    .map((block) => {
+      if (block.type === "skill-reference") {
+        return `/${block.name}`;
+      }
+      if (block.type === "file-reference") {
+        return `@${block.path}`;
+      }
+      return block.content;
+    })
+    .join("")
     .trim();
 
 const chatTitle = (messages: ChatMessage[]) => {
@@ -103,29 +120,7 @@ const restoreMessages = (messages: ChatMessage[]) =>
 const applyStreamEvents = (message: ChatAssistantMessage, events: StreamEvent[]) =>
   events.reduce<ChatAssistantMessage>(applyChatMessageEvent, message);
 
-const buildAgentPrompt = (workspacePath: string, payload: ChatInputSubmitPayload) => {
-  const selectedAgent = payload.agent
-    ? [`当前角色：${payload.agent.name}`, payload.agent.description?.trim()].filter(Boolean).join("\n")
-    : "";
-  const activeSkills = payload.skills
-    .map((skill) => [`### ${skill.name}`, skill.description, skill.content].filter(Boolean).join("\n"))
-    .join("\n\n");
-
-  return {
-    systemPrompt: [
-      "你是 Mewvis 的工作区 AI 助手。",
-      `工作区路径：${workspacePath}`,
-      "你可以帮助用户规划、写作、分析和修改工作区文件。",
-      selectedAgent,
-    ]
-      .filter(Boolean)
-      .join("\n"),
-    requestContext: activeSkills ? `[active_skills]\n${activeSkills}\n[/active_skills]` : "",
-    runtimeInstruction: "优先完成用户当前请求；需要使用工具时，只使用本次允许的工具。",
-  };
-};
-
-export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange }: UseChatInput) => {
+export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onStatusChange }: UseChatInput) => {
   const [chatStore] = useState(() => createChatStore());
   const chatState = useStore(chatStore);
   const [agentClient] = useState(createAgentClient);
@@ -143,12 +138,17 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
 
     const messages = state.messages;
     const save = saveQueueRef.current.then(async () => {
-      await saveChat({
-        workspacePath,
+      const input: ChatSaveInput = {
         chatId,
         title: chatTitle(messages),
         messages,
-      });
+      };
+
+      if (saveChat) {
+        await saveChat(input);
+      } else {
+        await saveChatApi({ ...input, workspacePath });
+      }
     });
 
     saveQueueRef.current = save.catch((error) => {
@@ -157,7 +157,9 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
     });
 
     return save;
-  }, [chatId, chatStore, workspacePath]);
+  }, [chatId, chatStore, saveChat, workspacePath]);
+
+  const { saveImmediately, nodeCompleted, streamChanged, flush } = useSaveScheduler(persistMessages);
 
   const flushStreamEvents = useCallback(() => {
     if (streamFrameRef.current !== null) {
@@ -206,9 +208,9 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
       );
       state.setError(message);
       state.finishTurn();
-      void persistMessages();
+      void saveImmediately();
     },
-    [chatStore, flushStreamEvents, persistMessages],
+    [chatStore, flushStreamEvents, saveImmediately],
   );
 
   const handleAgentEvent = useCallback(
@@ -227,6 +229,10 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
         event.type === "tool_call_delta"
       ) {
         enqueueStreamEvent(event);
+        streamChanged();
+        if (event.type === "thinking_end") {
+          nodeCompleted();
+        }
         return;
       }
 
@@ -251,6 +257,11 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
           activeTurn.messageId,
           updateAssistantMessage((message) => applyChatMessageEvent(message, event)),
         );
+        if (event.type === "tool_execution_end") {
+          nodeCompleted();
+        } else {
+          streamChanged();
+        }
         return;
       }
 
@@ -284,7 +295,7 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
         );
         state.finishTurn();
         lastStderrRef.current = "";
-        void persistMessages();
+        void saveImmediately();
         return;
       }
 
@@ -315,7 +326,7 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
           );
           state.finishTurn();
           lastStderrRef.current = "";
-          void persistMessages();
+          void saveImmediately();
         } else if (taskState === "cancelled" || taskState === "canceled") {
           finishWithError("已停止生成");
         } else if (
@@ -329,7 +340,7 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
         }
       }
     },
-    [chatStore, enqueueStreamEvent, finishWithError, flushStreamEvents, persistMessages],
+    [chatStore, enqueueStreamEvent, finishWithError, flushStreamEvents, saveImmediately, nodeCompleted, streamChanged],
   );
 
   const runTurn = useCallback(
@@ -348,13 +359,7 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
           role: "user",
           createdAt,
           status: "done",
-          blocks: [
-            {
-              id: createMessageId(),
-              type: "text",
-              content: payload.text,
-            },
-          ],
+          blocks: payload.blocks.map((block) => ({ ...block, id: createMessageId() })),
         },
         {
           id: assistantMessageId,
@@ -368,7 +373,7 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
       ]);
       state.startTurn({ taskId, messageId: assistantMessageId });
       lastStderrRef.current = "";
-      void persistMessages();
+      void saveImmediately();
 
       const prompt = buildAgentPrompt(workspacePath, payload);
       try {
@@ -390,7 +395,7 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
         finishWithError(message);
       }
     },
-    [agentClient, chatId, chatStore, finishWithError, persistMessages, workspacePath],
+    [agentClient, chatId, chatStore, finishWithError, saveImmediately, workspacePath],
   );
 
   const stopGenerating = useCallback(async () => {
@@ -492,9 +497,20 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
     return () => {
       disposed = true;
       flushStreamEvents();
+      void flush();
       unsubscribe?.();
     };
-  }, [agentClient, chatId, chatStore, flushStreamEvents, handleAgentEvent, initialRequest, runTurn, workspacePath]);
+  }, [
+    agentClient,
+    chatId,
+    chatStore,
+    flush,
+    flushStreamEvents,
+    handleAgentEvent,
+    initialRequest,
+    runTurn,
+    workspacePath,
+  ]);
 
   return {
     messages: chatState.messages,

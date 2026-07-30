@@ -1,5 +1,11 @@
 import type { AskUserInput } from "@/agent-client/types";
-import type { ChatDisplayOptions, ChatInputResources, ChatInputSubmitPayload } from "../components/chat-input/type";
+import type { SaveChatInput } from "@/api/chat";
+import type {
+  ChatDisplayOptions,
+  ChatInputFile,
+  ChatInputResources,
+  ChatInputSubmitPayload,
+} from "../components/chat-input/type";
 
 export type ChatInitialData = {
   request?: ChatInputSubmitPayload;
@@ -11,6 +17,8 @@ export type ChatStatus = {
   chatId: string;
   isRunning: boolean;
 };
+
+export type ChatSaveInput = Omit<SaveChatInput<ChatMessage>, "workspacePath">;
 
 export type ChatToolEvent = {
   id: string;
@@ -88,6 +96,8 @@ export type ChatPendingQuestion = {
 export type ChatProps = {
   chatId: string;
   workspacePath: string;
+  files?: ChatInputFile[];
   initialData: ChatInitialData;
+  saveChat?: (input: ChatSaveInput) => Promise<unknown>;
   onStatusChange?: (status: ChatStatus) => void;
 };

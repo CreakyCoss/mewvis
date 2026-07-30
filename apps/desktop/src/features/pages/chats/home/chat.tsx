@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import type { ChatInitialData } from "../chat/type";
-import { useWorkspaceStore } from "./workspace-store";
+import { useWorkspaceStore } from "../workspace-store";
 
 export type HomeChatProps = {
   chatId: string;

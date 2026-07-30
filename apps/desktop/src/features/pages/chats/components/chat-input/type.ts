@@ -33,6 +33,27 @@ export type ChatInputResources = {
   tools?: ChatInputResourceOption[];
 };
 
+export type ChatInputFile = {
+  path: string;
+  name: string;
+  isDirectory: boolean;
+};
+
+export type ChatInputSubmitBlock =
+  | {
+      type: "text";
+      content: string;
+    }
+  | {
+      type: "file-reference";
+      path: string;
+    }
+  | {
+      type: "skill-reference";
+      skillKey: string;
+      name: string;
+    };
+
 export type ChatInputOptionValues = {
   selectedModelId: string;
   selectedAgentId: string;
@@ -54,11 +75,13 @@ export type ChatInputSubmitResources = {
 
 export type ChatInputSubmitPayload = ChatInputSubmitResources & {
   text: string;
+  blocks: ChatInputSubmitBlock[];
   optionValues: ChatInputOptionValues;
 };
 
 export type ChatInputProps = {
   resources: ChatInputResources;
+  files?: ChatInputFile[];
   displayOptions: ChatDisplayOptions;
   defaultValue?: string;
   defaultOptionValues?: Partial<ChatInputOptionValues>;

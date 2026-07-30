@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { WorkspaceDialog, type WorkspaceDialogHandle } from "@/features/pages/chats/components/workspace-dialog";
-import { useWorkspaceStore } from "@/features/pages/chats/home/workspace-store";
+import { useWorkspaceStore } from "@/features/pages/chats/workspace-store";
 import { isDefaultWorkspace } from "@/features/pages/workspace/default";
 import type { ChatMeta } from "@/api/chat";
 import type { Workspace } from "@/features/pages/workspace/types";
