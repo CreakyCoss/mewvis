@@ -159,8 +159,7 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
     return save;
   }, [chatId, chatStore, saveChat, workspacePath]);
 
-  const { saveImmediately, scheduleNodeSave, scheduleStreamSave, flushScheduledSave } =
-    useSaveScheduler(persistMessages);
+  const { saveImmediately, nodeCompleted, streamChanged, flush } = useSaveScheduler(persistMessages);
 
   const flushStreamEvents = useCallback(() => {
     if (streamFrameRef.current !== null) {
@@ -230,9 +229,9 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
         event.type === "tool_call_delta"
       ) {
         enqueueStreamEvent(event);
-        scheduleStreamSave();
+        streamChanged();
         if (event.type === "thinking_end") {
-          scheduleNodeSave();
+          nodeCompleted();
         }
         return;
       }
@@ -259,9 +258,9 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
           updateAssistantMessage((message) => applyChatMessageEvent(message, event)),
         );
         if (event.type === "tool_execution_end") {
-          scheduleNodeSave();
+          nodeCompleted();
         } else {
-          scheduleStreamSave();
+          streamChanged();
         }
         return;
       }
@@ -341,15 +340,7 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
         }
       }
     },
-    [
-      chatStore,
-      enqueueStreamEvent,
-      finishWithError,
-      flushStreamEvents,
-      saveImmediately,
-      scheduleNodeSave,
-      scheduleStreamSave,
-    ],
+    [chatStore, enqueueStreamEvent, finishWithError, flushStreamEvents, saveImmediately, nodeCompleted, streamChanged],
   );
 
   const runTurn = useCallback(
@@ -506,14 +497,14 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
     return () => {
       disposed = true;
       flushStreamEvents();
-      void flushScheduledSave();
+      void flush();
       unsubscribe?.();
     };
   }, [
     agentClient,
     chatId,
     chatStore,
-    flushScheduledSave,
+    flush,
     flushStreamEvents,
     handleAgentEvent,
     initialRequest,

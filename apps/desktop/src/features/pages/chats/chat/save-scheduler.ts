@@ -23,7 +23,7 @@ export const useSaveScheduler = (save: () => Promise<void>) => {
     return save();
   }, [cancelScheduledSave, save]);
 
-  const scheduleNodeSave = useCallback(() => {
+  const nodeCompleted = useCallback(() => {
     if (nodeSaveTimerRef.current !== null) {
       window.clearTimeout(nodeSaveTimerRef.current);
     }
@@ -33,7 +33,7 @@ export const useSaveScheduler = (save: () => Promise<void>) => {
     }, NODE_SAVE_DEBOUNCE_DELAY);
   }, [saveImmediately]);
 
-  const scheduleStreamSave = useCallback(() => {
+  const streamChanged = useCallback(() => {
     if (streamSaveTimerRef.current !== null) {
       return;
     }
@@ -43,7 +43,7 @@ export const useSaveScheduler = (save: () => Promise<void>) => {
     }, STREAM_SAVE_THROTTLE_DELAY);
   }, [saveImmediately]);
 
-  const flushScheduledSave = useCallback(() => {
+  const flush = useCallback(() => {
     const hasScheduledSave = nodeSaveTimerRef.current !== null || streamSaveTimerRef.current !== null;
     cancelScheduledSave();
     return hasScheduledSave ? save() : Promise.resolve();
@@ -51,8 +51,8 @@ export const useSaveScheduler = (save: () => Promise<void>) => {
 
   return {
     saveImmediately,
-    scheduleNodeSave,
-    scheduleStreamSave,
-    flushScheduledSave,
+    nodeCompleted,
+    streamChanged,
+    flush,
   };
 };
