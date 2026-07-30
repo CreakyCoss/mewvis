@@ -7,6 +7,7 @@ import { loadChat, saveChat as saveChatApi } from "@/api/chat";
 import type { ChatInputSubmitPayload } from "../components/chat-input/type";
 import { buildAgentPrompt } from "./prompt";
 import { applyChatMessageEvent, failChatMessage } from "./reducer";
+import { useSaveScheduler } from "./save-scheduler";
 import type {
   ChatAssistantMessage,
   ChatMessage,
@@ -158,6 +159,9 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
     return save;
   }, [chatId, chatStore, saveChat, workspacePath]);
 
+  const { saveImmediately, scheduleNodeSave, scheduleStreamSave, flushScheduledSave } =
+    useSaveScheduler(persistMessages);
+
   const flushStreamEvents = useCallback(() => {
     if (streamFrameRef.current !== null) {
       window.cancelAnimationFrame(streamFrameRef.current);
@@ -205,9 +209,9 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
       );
       state.setError(message);
       state.finishTurn();
-      void persistMessages();
+      void saveImmediately();
     },
-    [chatStore, flushStreamEvents, persistMessages],
+    [chatStore, flushStreamEvents, saveImmediately],
   );
 
   const handleAgentEvent = useCallback(
@@ -226,6 +230,10 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
         event.type === "tool_call_delta"
       ) {
         enqueueStreamEvent(event);
+        scheduleStreamSave();
+        if (event.type === "thinking_end") {
+          scheduleNodeSave();
+        }
         return;
       }
 
@@ -250,6 +258,11 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
           activeTurn.messageId,
           updateAssistantMessage((message) => applyChatMessageEvent(message, event)),
         );
+        if (event.type === "tool_execution_end") {
+          scheduleNodeSave();
+        } else {
+          scheduleStreamSave();
+        }
         return;
       }
 
@@ -283,7 +296,7 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
         );
         state.finishTurn();
         lastStderrRef.current = "";
-        void persistMessages();
+        void saveImmediately();
         return;
       }
 
@@ -314,7 +327,7 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
           );
           state.finishTurn();
           lastStderrRef.current = "";
-          void persistMessages();
+          void saveImmediately();
         } else if (taskState === "cancelled" || taskState === "canceled") {
           finishWithError("已停止生成");
         } else if (
@@ -328,7 +341,15 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
         }
       }
     },
-    [chatStore, enqueueStreamEvent, finishWithError, flushStreamEvents, persistMessages],
+    [
+      chatStore,
+      enqueueStreamEvent,
+      finishWithError,
+      flushStreamEvents,
+      saveImmediately,
+      scheduleNodeSave,
+      scheduleStreamSave,
+    ],
   );
 
   const runTurn = useCallback(
@@ -361,7 +382,7 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
       ]);
       state.startTurn({ taskId, messageId: assistantMessageId });
       lastStderrRef.current = "";
-      void persistMessages();
+      void saveImmediately();
 
       const prompt = buildAgentPrompt(workspacePath, payload);
       try {
@@ -383,7 +404,7 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
         finishWithError(message);
       }
     },
-    [agentClient, chatId, chatStore, finishWithError, persistMessages, workspacePath],
+    [agentClient, chatId, chatStore, finishWithError, saveImmediately, workspacePath],
   );
 
   const stopGenerating = useCallback(async () => {
@@ -485,9 +506,20 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
     return () => {
       disposed = true;
       flushStreamEvents();
+      void flushScheduledSave();
       unsubscribe?.();
     };
-  }, [agentClient, chatId, chatStore, flushStreamEvents, handleAgentEvent, initialRequest, runTurn, workspacePath]);
+  }, [
+    agentClient,
+    chatId,
+    chatStore,
+    flushScheduledSave,
+    flushStreamEvents,
+    handleAgentEvent,
+    initialRequest,
+    runTurn,
+    workspacePath,
+  ]);
 
   return {
     messages: chatState.messages,
