@@ -47,6 +47,11 @@ export type ChatInputSubmitBlock =
   | {
       type: "file-reference";
       path: string;
+    }
+  | {
+      type: "skill-reference";
+      skillKey: string;
+      name: string;
     };
 
 export type ChatInputOptionValues = {

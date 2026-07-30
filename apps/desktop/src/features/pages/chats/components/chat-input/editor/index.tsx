@@ -8,9 +8,11 @@ import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { PlainTextPlugin } from "@lexical/react/LexicalPlainTextPlugin";
 import { $createParagraphNode, $createTextNode, $getRoot, CLEAR_EDITOR_COMMAND } from "lexical";
-import type { ChatInputFile } from "../type";
-import { FileReferenceMenu } from "./file-reference-menu";
-import { FileReferenceNode } from "./file-reference-node";
+import type { ChatInputFile, ChatInputSkillOption } from "../type";
+import { FileReferenceMenu } from "./reference/file";
+import { FileReferenceNode } from "./reference/file/node";
+import { SkillReferenceMenu } from "./reference/skill";
+import { SkillReferenceNode } from "./reference/skill/node";
 import { serializeChatEditorState, type ChatEditorValue } from "./serialize";
 
 export type ChatEditorHandle = {
@@ -20,6 +22,7 @@ export type ChatEditorHandle = {
 
 type ChatEditorProps = {
   files: ChatInputFile[];
+  skills: ChatInputSkillOption[];
   defaultValue: string;
   placeholder: string;
   disabled: boolean;
@@ -48,13 +51,13 @@ const EditorBridge = ({ bind, disabled }: { bind: Ref<ChatEditorHandle>; disable
 };
 
 const ChatEditorComponent = (
-  { files, defaultValue, placeholder, disabled, onChange }: ChatEditorProps,
+  { files, skills, defaultValue, placeholder, disabled, onChange }: ChatEditorProps,
   bind: Ref<ChatEditorHandle>,
 ) => {
   const initialConfig = useMemo(
     () => ({
       namespace: "MewvisChatInput",
-      nodes: [FileReferenceNode],
+      nodes: [FileReferenceNode, SkillReferenceNode],
       editable: !disabled,
       theme: {
         paragraph: "m-0",
@@ -109,6 +112,7 @@ const ChatEditorComponent = (
         <ClearEditorPlugin />
         <OnChangePlugin ignoreSelectionChange ignoreHistoryMergeTagChange={false} onChange={handleChange} />
         <FileReferenceMenu files={files} />
+        <SkillReferenceMenu skills={skills} />
         <EditorBridge bind={bind} disabled={disabled} />
       </div>
     </LexicalComposer>

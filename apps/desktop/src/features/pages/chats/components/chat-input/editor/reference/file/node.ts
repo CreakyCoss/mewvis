@@ -17,7 +17,7 @@ export type SerializedFileReferenceNode = Spread<
   SerializedTextNode
 >;
 
-// 基于 Lexical 官方 MentionNode：路径是引用身份，文本只负责编辑器内展示。
+// 基于 Lexical 官方 MentionNode：完整路径是引用身份，文件名只负责编辑器内展示。
 export class FileReferenceNode extends TextNode {
   __path: string;
   __name: string;

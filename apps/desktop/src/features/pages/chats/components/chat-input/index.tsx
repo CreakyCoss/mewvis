@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { SendIcon, SquareIcon } from "lucide-react";
 import { InputGroup, InputGroupAddon, InputGroupButton } from "@/components/ui/input-group";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
@@ -8,7 +8,7 @@ import { ModelMenu } from "./menus/model";
 import { SkillMenu } from "./menus/skill";
 import { ToolMenu } from "./menus/tool";
 import { ChatInputStoreProvider, useChatInputStore } from "./store";
-import type { ChatInputProps } from "./type";
+import type { ChatInputProps, ChatInputSkillOption } from "./type";
 
 const ChatInputContent = ({
   resources,
@@ -33,6 +33,20 @@ const ChatInputContent = ({
   const controlsDisabled = disabled || isRunning;
   const canSubmit =
     !controlsDisabled && Boolean(editorValue.text.trim()) && Boolean(resourceStore.optionValues.selectedModelId);
+  const referenceSkills = useMemo(() => {
+    const selectedSkillKeys = new Set(resourceStore.optionValues.selectedSkillKeys);
+    const skillsByKey = new Map<string, ChatInputSkillOption>();
+
+    resourceStore.resources.skillGroups?.forEach((group) => {
+      group.skills.forEach((skill) => {
+        if (selectedSkillKeys.has(skill.key)) {
+          skillsByKey.set(skill.key, skill);
+        }
+      });
+    });
+
+    return [...skillsByKey.values()];
+  }, [resourceStore.optionValues.selectedSkillKeys, resourceStore.resources.skillGroups]);
 
   useEffect(() => {
     resourceStore.initializeResources(resources, defaultOptionValues);
@@ -66,6 +80,7 @@ const ChatInputContent = ({
         <ChatEditor
           ref={editorRef}
           files={files}
+          skills={referenceSkills}
           defaultValue={defaultValue}
           placeholder={placeholder}
           disabled={controlsDisabled}

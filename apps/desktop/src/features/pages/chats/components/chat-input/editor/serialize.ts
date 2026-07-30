@@ -1,6 +1,7 @@
 import { $getRoot, $isElementNode, $isLineBreakNode, $isTextNode, type EditorState, type LexicalNode } from "lexical";
 import type { ChatInputSubmitBlock } from "../type";
-import { $isFileReferenceNode } from "./file-reference-node";
+import { $isFileReferenceNode } from "./reference/file/node";
+import { $isSkillReferenceNode } from "./reference/skill/node";
 
 export type ChatEditorValue = {
   text: string;
@@ -26,6 +27,11 @@ const appendText = (blocks: ChatInputSubmitBlock[], content: string) => {
 const serializeNode = (node: LexicalNode, blocks: ChatInputSubmitBlock[]) => {
   if ($isFileReferenceNode(node)) {
     blocks.push({ type: "file-reference", path: node.getPath() });
+    return;
+  }
+
+  if ($isSkillReferenceNode(node)) {
+    blocks.push({ type: "skill-reference", skillKey: node.getSkillKey(), name: node.getName() });
     return;
   }
 
@@ -75,7 +81,15 @@ export const serializeChatEditorState = (editorState: EditorState): ChatEditorVa
     return {
       blocks: normalizedBlocks,
       text: normalizedBlocks
-        .map((block) => (block.type === "text" ? block.content : formatFileReference(block.path)))
+        .map((block) => {
+          if (block.type === "file-reference") {
+            return formatFileReference(block.path);
+          }
+          if (block.type === "skill-reference") {
+            return `/${block.name}`;
+          }
+          return block.content;
+        })
         .join(""),
     };
   });
