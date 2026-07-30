@@ -1,4 +1,5 @@
 import type { AskUserInput } from "@/agent-client/types";
+import type { SaveChatInput } from "@/api/chat";
 import type {
   ChatDisplayOptions,
   ChatInputFile,
@@ -16,6 +17,8 @@ export type ChatStatus = {
   chatId: string;
   isRunning: boolean;
 };
+
+export type ChatSaveInput = Omit<SaveChatInput<ChatMessage>, "workspacePath">;
 
 export type ChatToolEvent = {
   id: string;
@@ -95,5 +98,6 @@ export type ChatProps = {
   workspacePath: string;
   files?: ChatInputFile[];
   initialData: ChatInitialData;
+  saveChat?: (input: ChatSaveInput) => Promise<unknown>;
   onStatusChange?: (status: ChatStatus) => void;
 };

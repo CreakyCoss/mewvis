@@ -3,11 +3,18 @@ import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
 import { createAgentClient } from "@/agent-client/runtime";
 import type { AgentClientAgentEvent } from "@/agent-client/types";
-import { loadChat, saveChat } from "@/api/chat";
+import { loadChat, saveChat as saveChatApi } from "@/api/chat";
 import type { ChatInputSubmitPayload } from "../components/chat-input/type";
 import { buildAgentPrompt } from "./prompt";
 import { applyChatMessageEvent, failChatMessage } from "./reducer";
-import type { ChatAssistantMessage, ChatMessage, ChatPendingQuestion, ChatStatus, ChatUserMessage } from "./type";
+import type {
+  ChatAssistantMessage,
+  ChatMessage,
+  ChatPendingQuestion,
+  ChatSaveInput,
+  ChatStatus,
+  ChatUserMessage,
+} from "./type";
 
 type ChatActiveTurn = {
   taskId: string;
@@ -71,6 +78,7 @@ type UseChatInput = {
   chatId: string;
   workspacePath: string;
   initialRequest?: ChatInputSubmitPayload;
+  saveChat?: (input: ChatSaveInput) => Promise<unknown>;
   onStatusChange?: (status: ChatStatus) => void;
 };
 
@@ -111,7 +119,7 @@ const restoreMessages = (messages: ChatMessage[]) =>
 const applyStreamEvents = (message: ChatAssistantMessage, events: StreamEvent[]) =>
   events.reduce<ChatAssistantMessage>(applyChatMessageEvent, message);
 
-export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange }: UseChatInput) => {
+export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onStatusChange }: UseChatInput) => {
   const [chatStore] = useState(() => createChatStore());
   const chatState = useStore(chatStore);
   const [agentClient] = useState(createAgentClient);
@@ -129,12 +137,17 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
 
     const messages = state.messages;
     const save = saveQueueRef.current.then(async () => {
-      await saveChat({
-        workspacePath,
+      const input: ChatSaveInput = {
         chatId,
         title: chatTitle(messages),
         messages,
-      });
+      };
+
+      if (saveChat) {
+        await saveChat(input);
+      } else {
+        await saveChatApi({ ...input, workspacePath });
+      }
     });
 
     saveQueueRef.current = save.catch((error) => {
@@ -143,7 +156,7 @@ export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange 
     });
 
     return save;
-  }, [chatId, chatStore, workspacePath]);
+  }, [chatId, chatStore, saveChat, workspacePath]);
 
   const flushStreamEvents = useCallback(() => {
     if (streamFrameRef.current !== null) {

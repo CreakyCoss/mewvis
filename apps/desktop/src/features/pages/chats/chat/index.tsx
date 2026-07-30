@@ -6,12 +6,13 @@ import { ChatQuestion } from "./question";
 import type { ChatProps } from "./type";
 import { useChat } from "./use-chat";
 
-export const Chat = ({ chatId, workspacePath, files = [], initialData, onStatusChange }: ChatProps) => {
+export const Chat = ({ chatId, workspacePath, files = [], initialData, saveChat, onStatusChange }: ChatProps) => {
   const [displayOptions, setDisplayOptions] = useState(initialData.displayOptions);
   const chat = useChat({
     chatId,
     workspacePath,
     initialRequest: initialData.request,
+    saveChat,
     onStatusChange,
   });
 
