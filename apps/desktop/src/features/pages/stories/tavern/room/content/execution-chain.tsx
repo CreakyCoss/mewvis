@@ -65,7 +65,7 @@ export const ExecutionChain = ({
   showHeader = true,
   onToggle,
 }: ExecutionChainProps) => {
-  if (groups.length === 0) {
+  if (!groups.length) {
     return null;
   }
 

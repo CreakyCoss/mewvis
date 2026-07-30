@@ -2,66 +2,21 @@ import { memo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-type MarkdownContentProps = {
+type MarkdownProps = {
   content: string;
   className?: string;
-  emClassName?: string;
   inverted?: boolean;
-  separateEmphasisBlocks?: boolean;
-  variant?: "chat" | "tavern";
 };
 
-const paragraphClassName = "mb-2 last:mb-0";
-
-type MarkdownAstNode = {
-  children?: MarkdownAstNode[];
-  tagName?: string;
-  type?: string;
-  value?: string;
-};
-
-const normalizeSeparatedEmphasisBlocks = (content: string) =>
-  content
-    .replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, "$1\n\n*$2*\n\n")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n[ \t]+/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-
-const isMeaningfulAstNode = (node: MarkdownAstNode) => node.type !== "text" || Boolean(node.value?.trim());
-
-const isEmphasisAstNode = (node: MarkdownAstNode) => node.type === "element" && node.tagName === "em";
-
-const isEmphasisOnlyParagraph = (node: MarkdownAstNode | undefined) => {
-  const meaningfulChildren = node?.children?.filter(isMeaningfulAstNode) ?? [];
-
-  return meaningfulChildren.length === 1 && isEmphasisAstNode(meaningfulChildren[0]);
-};
-
-const getParagraphClassName = (isDescriptionBlock: boolean) =>
-  isDescriptionBlock ? `${paragraphClassName} tavern-immersive-description-block` : paragraphClassName;
-
-const MarkdownContentComponent = (props: MarkdownContentProps) => {
-  const { content, className, emClassName, inverted = false, separateEmphasisBlocks = false, variant = "chat" } = props;
-  const renderedContent = separateEmphasisBlocks ? normalizeSeparatedEmphasisBlocks(content) : content;
-
+const MarkdownComponent = ({ content, className, inverted = false }: MarkdownProps) => {
   return (
     <div
       className={`min-w-0 overflow-hidden break-words text-sm leading-6 [overflow-wrap:anywhere] ${className ?? ""}`}
-      data-markdown-variant={variant}
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          p: ({ children, node }) => (
-            <p
-              className={getParagraphClassName(
-                separateEmphasisBlocks && isEmphasisOnlyParagraph(node as MarkdownAstNode | undefined),
-              )}
-            >
-              {children}
-            </p>
-          ),
+          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
           a: ({ children, href }) => (
             <a
               href={href}
@@ -79,7 +34,6 @@ const MarkdownContentComponent = (props: MarkdownContentProps) => {
           ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>,
           ol: ({ children }) => <ol className="mb-2 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>,
           li: ({ children }) => <li className="pl-1">{children}</li>,
-          em: ({ children }) => <em className={emClassName}>{children}</em>,
           blockquote: ({ children }) => (
             <blockquote
               className={`mb-2 border-l-2 pl-3 last:mb-0 ${
@@ -90,7 +44,7 @@ const MarkdownContentComponent = (props: MarkdownContentProps) => {
             </blockquote>
           ),
           code: ({ children, className }) => {
-            const isBlock = Boolean(className);
+            const isBlock = Boolean(className) || String(children).includes("\n");
 
             if (!isBlock) {
               return (
@@ -127,13 +81,22 @@ const MarkdownContentComponent = (props: MarkdownContentProps) => {
           h1: ({ children }) => <h1 className="mb-2 text-lg font-semibold last:mb-0">{children}</h1>,
           h2: ({ children }) => <h2 className="mb-2 text-base font-semibold last:mb-0">{children}</h2>,
           h3: ({ children }) => <h3 className="mb-2 text-sm font-semibold last:mb-0">{children}</h3>,
+          h4: ({ children }) => <h4 className="mb-2 text-sm font-medium last:mb-0">{children}</h4>,
           hr: () => <hr className={inverted ? "my-3 border-primary-foreground/25" : "my-3 border-border"} />,
+          img: ({ alt, src }) => (
+            <img
+              src={src}
+              alt={alt ?? ""}
+              loading="lazy"
+              className="my-3 h-auto max-w-full rounded-xl border border-border/60"
+            />
+          ),
         }}
       >
-        {renderedContent}
+        {content}
       </ReactMarkdown>
     </div>
   );
 };
 
-export const MarkdownContent = memo(MarkdownContentComponent);
+export const Markdown = memo(MarkdownComponent);

@@ -33,7 +33,6 @@ const messageRoleRenderers: Record<MessageRole, (context: MessageRoleRendererCon
       createdAt={message.createdAt}
       isSending={isSending}
       isStreaming={message.status === "streaming"}
-      referencedFiles={message.referencedFiles}
       speakerName={message.speakerName}
       visualStyle={visualStyle}
     />

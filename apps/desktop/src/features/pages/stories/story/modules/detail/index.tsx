@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Markdown } from "@/components/markdown";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,7 +32,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MarkdownContent } from "@/features/ai/components/markdown";
 import type { StoryDocument, StoryValue } from "../../../../../../../core/story-project/types";
 import {
   inspectStoryDocument,
@@ -259,7 +259,7 @@ export const StoryDocumentDetail = ({
 
           {isMarkdown ? (
             typeof content === "string" && content.trim() ? (
-              <MarkdownContent content={content} className="text-[15px] leading-7" />
+              <Markdown content={content} className="text-[15px] leading-7" />
             ) : (
               <div className="app-empty-state rounded-2xl px-6 py-14 text-center">
                 <p className="text-sm text-muted-foreground">暂无正文内容，点击“编辑”开始写作。</p>

@@ -10,10 +10,6 @@ export type MessageStatus = "streaming" | "done" | "error";
 
 export type MessageRenderStyle = "chat" | "prose";
 
-export type MessageReferencedFile = {
-  path: string;
-};
-
 export type MessageBody =
   | {
       type: "text";
@@ -51,7 +47,6 @@ type BaseMessageRenderInput = {
   body: MessageBody;
   createdAt: number;
   status?: MessageStatus;
-  referencedFiles?: MessageReferencedFile[];
   presentation?: MessagePresentationConfig;
 };
 
@@ -123,7 +118,6 @@ export type RenderableMessage = {
   rawText: string;
   createdAt: number;
   status?: MessageStatus;
-  referencedFiles?: MessageReferencedFile[];
 };
 
 export type ConversationRendererProps = {

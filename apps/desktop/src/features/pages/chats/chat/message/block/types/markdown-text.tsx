@@ -1,4 +1,4 @@
-import { MessageMarkdown } from "../../markdown";
+import { Markdown } from "@/components/markdown";
 import type { TextBlockValue } from "./text";
 
 type MarkdownTextBlockProps = {
@@ -7,6 +7,6 @@ type MarkdownTextBlockProps = {
 
 export const MarkdownTextBlock = ({ block }: MarkdownTextBlockProps) => (
   <div className="min-w-0 max-w-full overflow-hidden">
-    <MessageMarkdown content={block.content} />
+    <Markdown content={block.content} />
   </div>
 );

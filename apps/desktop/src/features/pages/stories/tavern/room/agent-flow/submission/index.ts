@@ -1,6 +1,4 @@
 import type { FormEvent } from "react";
-import type { PromptFileReference } from "@/features/ai/components/context-tools";
-import type { WorkspaceFileEntry } from "@/api/workspace-files";
 import { createTavernTextMessageBody, type TavernMessage } from "@/features/pages/stories/tavern/room/model/message";
 import { requireRuntimeModelInput } from "@/features/pages/settings/llm/store";
 import {
@@ -20,10 +18,6 @@ type SubmitTavernAgentFlowParams = {
   event?: FormEvent;
   submittedText?: string;
   trigger?: SubmitTavernAgentFlowTrigger;
-  ambiguousFileReferences: Array<{ token: string }>;
-  readReferencedFiles: () => Promise<PromptFileReference[]>;
-  referencedFilePreviews: WorkspaceFileEntry[];
-  unresolvedFileReferences: Array<{ token: string }>;
   onCommitted?: () => void;
 };
 
@@ -35,34 +29,14 @@ export const getTavernAgentFlowErrorMessage = (error: unknown) => {
   return typeof error === "string" ? error : "未知错误";
 };
 
-const validateSubmitReferences = ({
-  unresolvedFileReferences,
-  ambiguousFileReferences,
-}: {
-  unresolvedFileReferences: Array<{ token: string }>;
-  ambiguousFileReferences: Array<{ token: string }>;
-}) => {
-  if (unresolvedFileReferences.length > 0) {
-    return `未找到引用文件：${unresolvedFileReferences.map((match) => `@${match.token}`).join("、")}`;
-  }
-
-  if (ambiguousFileReferences.length > 0) {
-    return `引用文件不唯一：${ambiguousFileReferences.map((match) => `@${match.token}`).join("、")}`;
-  }
-
-  return "";
-};
-
 const createUserMessage = ({
   roomId,
   text,
   turnId,
-  referencedFilePreviews,
 }: {
   roomId: string;
   text: string;
   turnId: string;
-  referencedFilePreviews: WorkspaceFileEntry[];
 }): TavernMessage => ({
   id: createTimestampId("msg"),
   roomId,
@@ -70,7 +44,6 @@ const createUserMessage = ({
   kind: "user_text",
   role: "user",
   body: createTavernTextMessageBody(text),
-  referencedFiles: referencedFilePreviews.map((file) => ({ path: file.path })),
   createdAt: getCurrentTimestamp(),
   status: "done",
 });
@@ -90,31 +63,10 @@ const beginSubmission = ({ ctx, isSceneDrive }: { ctx: TavernRoomStore; isSceneD
   ]);
 };
 
-const readSubmitReferences = async ({
-  ctx,
-  referencedFilePreviews,
-  readReferencedFiles,
-}: {
-  ctx: TavernRoomStore;
-  referencedFilePreviews: WorkspaceFileEntry[];
-  readReferencedFiles: () => Promise<PromptFileReference[]>;
-}) => {
-  if (referencedFilePreviews.length === 0) {
-    return [];
-  }
-
-  ctx.setBusyStatus("正在读取引用文件...");
-  return readReferencedFiles();
-};
-
 export const submitTavernAgentFlow = async ({
   event,
   submittedText,
   trigger = { type: "user" },
-  ambiguousFileReferences,
-  readReferencedFiles,
-  referencedFilePreviews,
-  unresolvedFileReferences,
   onCommitted,
 }: SubmitTavernAgentFlowParams) => {
   event?.preventDefault();
@@ -148,15 +100,6 @@ export const submitTavernAgentFlow = async ({
     return;
   }
 
-  const referenceError = validateSubmitReferences({
-    unresolvedFileReferences,
-    ambiguousFileReferences,
-  });
-  if (referenceError) {
-    setError(referenceError);
-    return;
-  }
-
   let runtimeModelInput;
   try {
     runtimeModelInput = requireRuntimeModelInput(runtimeModel);
@@ -172,19 +115,12 @@ export const submitTavernAgentFlow = async ({
         roomId: story.roomConfig.id,
         text,
         turnId,
-        referencedFilePreviews,
       });
 
   try {
     beginSubmission({
       ctx,
       isSceneDrive,
-    });
-
-    const references = await readSubmitReferences({
-      ctx,
-      referencedFilePreviews,
-      readReferencedFiles,
     });
 
     if (userMessage) {
@@ -198,7 +134,6 @@ export const submitTavernAgentFlow = async ({
       runtimeModel: runtimeModelInput,
       story,
       messages,
-      references,
       currentUserText: text,
       trigger,
       turnId,

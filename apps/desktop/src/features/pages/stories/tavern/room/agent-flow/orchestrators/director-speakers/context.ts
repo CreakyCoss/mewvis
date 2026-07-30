@@ -115,7 +115,6 @@ export const buildTavernAgentFlowContext = (input: TavernAgentFlowInput): Tavern
     candidateCharacters,
     playerName,
     currentInstruction,
-    references: input.references ?? [],
     maxSpeakers: resolveMaxSpeakers({
       maxSpeakers: input.maxSpeakers,
       configuredMaxSpeakers: input.story.roomConfig.settings.directorMaxSpeakers,

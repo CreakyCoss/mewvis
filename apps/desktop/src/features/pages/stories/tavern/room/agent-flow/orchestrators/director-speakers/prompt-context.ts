@@ -2,7 +2,6 @@ import type {
   AgentProtocolProgress,
   AgentProtocolReference,
 } from "@/features/pages/stories/tavern/room/agent-protocol/types";
-import type { PromptFileReference } from "@/features/ai/components/context-tools";
 import type { TavernCharacter, TavernStoryData } from "@/features/pages/stories/tavern/room/model";
 import {
   formatTavernSystemNarrativeCharacterRules,
@@ -46,14 +45,12 @@ export const buildTavernAgentFlowReferences = ({
   presentation,
   target,
   speaker,
-  files,
 }: {
   story: TavernStoryData;
   characters: TavernCharacter[];
   presentation: TavernAgentFlowPresentation;
   target: "director" | "character";
   speaker?: TavernCharacter;
-  files: PromptFileReference[];
 }): AgentProtocolReference[] => [
   {
     title: "呈现规则",
@@ -88,11 +85,6 @@ export const buildTavernAgentFlowReferences = ({
         },
       ]
     : []),
-  ...files.map((file): AgentProtocolReference => ({
-    title: file.path,
-    source: "referenced_file",
-    content: file.content,
-  })),
 ];
 
 const formatCharacterBrief = ({

@@ -274,14 +274,4 @@
     font-weight: 430;
     line-height: 1.8;
   }
-
-  .tavern-immersive-markdown .tavern-immersive-description-block {
-    margin: 0.22rem 0 0.58rem;
-    border-left: 2px solid color-mix(in oklab, currentColor 20%, transparent);
-    padding-left: 0.72rem;
-  }
-
-  .tavern-immersive-markdown .tavern-immersive-description-block .tavern-immersive-em {
-    color: color-mix(in oklab, currentColor 84%, transparent);
-  }
 }

@@ -83,7 +83,6 @@ const prepareDirectorRequest = (input: TavernAgentFlowInput, context: TavernAgen
       characters: context.candidateCharacters,
       presentation: context.presentation,
       target: "director",
-      files: context.references,
     }),
     output: ["privateThought", "decision", "narrative", "summary"],
   });

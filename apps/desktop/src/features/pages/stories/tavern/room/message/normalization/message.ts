@@ -149,6 +149,5 @@ export const normalizeMessageForAudience = ({
     rawText,
     createdAt: message.createdAt,
     status: message.status,
-    referencedFiles: message.referencedFiles,
   };
 };
