@@ -12,8 +12,8 @@ export const AppRoutes = () => (
   <Routes>
     <Route element={<AppLayout />}>
       <Route element={<WorkspaceChatRoute />}>
-        <Route index element={<Navigate to="/chat-next" replace />} />
-        <Route path="chat-next" element={<ChatHomePage />} />
+        <Route index element={<Navigate to="/chat" replace />} />
+        <Route path="chat" element={<ChatHomePage />} />
         <Route path="chats/:workspaceId/:chatId" />
         <Route path="skills" element={<SkillsPage />} />
         <Route path="knowledge" element={<KnowledgePage />} />

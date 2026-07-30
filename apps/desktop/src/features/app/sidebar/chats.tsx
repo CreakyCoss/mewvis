@@ -228,7 +228,7 @@ export const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps
   const confirmDeleteChat = (workspace: Workspace, chat: ChatMeta) => {
     void workspaceStore.deleteChat(workspace, chat.id);
     if (params.workspaceId === workspace.id && params.chatId === chat.id) {
-      navigate("/chat-next", { replace: true });
+      navigate("/chat", { replace: true });
     }
   };
 
@@ -265,7 +265,7 @@ export const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps
                     <div key={workspace.id} className="min-w-0 space-y-1">
                       <div className="group/workspace relative min-w-0">
                         <Link
-                          to="/chat-next"
+                          to="/chat"
                           title={workspace.path}
                           className={cn(
                             "flex h-9 min-w-0 items-center gap-2 overflow-hidden rounded-lg py-1 pr-[4.75rem] pl-3 text-muted-foreground transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground group-hover/workspace:bg-sidebar-accent/70 group-hover/workspace:text-sidebar-foreground group-has-[button[data-state=open]]/workspace:bg-sidebar-accent/70 group-has-[button[data-state=open]]/workspace:text-sidebar-foreground",

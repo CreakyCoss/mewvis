@@ -1,8 +1,7 @@
-import { BookOpen, Bot, Database, Settings, Sparkles, Wrench } from "lucide-react";
+import { BookOpen, Bot, Database, MessageSquarePlus, Settings, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { To } from "react-router";
 import { NavLink } from "react-router";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
@@ -32,16 +31,10 @@ const linkClassName = ({ isActive }: { isActive: boolean }) =>
 
 export const PrimaryNav = () => (
   <nav className="space-y-1 px-2.5 pb-3 xl:px-3" aria-label="主导航">
-    <Button
-      asChild
-      type="button"
-      className="mb-2 h-10 w-full justify-start rounded-lg px-3 text-sm font-medium shadow-sm"
-    >
-      <NavLink to="/chat-next">
-        <Sparkles className="size-4" />
-        <span>新建对话</span>
-      </NavLink>
-    </Button>
+    <NavLink to="/chat" end className={linkClassName}>
+      <MessageSquarePlus className="size-4" />
+      <span>新建对话</span>
+    </NavLink>
     {navItems.map((item) => {
       const Icon = item.icon;
 
