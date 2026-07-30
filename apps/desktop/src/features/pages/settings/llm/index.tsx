@@ -1,6 +1,6 @@
-import { useMemo, useRef } from "react";
+import { useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { ArrowLeft, Bot, CheckCircle2, ChevronRight, KeyRound, Plus, ServerCog, Sparkles } from "lucide-react";
+import { Plus, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,54 +16,57 @@ type LlmSettingsPageProps = {
 
 const countEnabledModels = (provider: LlmProvider) => provider.models.filter((model) => model.isEnabled).length;
 
-const ProviderTile = ({ provider, onOpen }: { provider: LlmProvider; onOpen: () => void }) => {
-  const apiEndpoint = provider.apiEndpoint?.trim() ?? "";
-  const websiteUrl = getProviderWebsiteUrl(provider.provider).trim();
+const Status = ({ children }: { children: string }) => (
+  <span className="inline-flex items-center gap-2 text-sm text-success">
+    <span className="size-1.5 shrink-0 rounded-full bg-success" aria-hidden="true" />
+    {children}
+  </span>
+);
+
+const ProviderRow = ({ provider, onOpen }: { provider: LlmProvider; onOpen: () => void }) => {
+  const apiEndpoint = provider.apiEndpoint?.trim() || getProviderWebsiteUrl(provider.provider).trim();
   const enabledModelCount = countEnabledModels(provider);
 
   return (
     <button
       type="button"
-      className="app-interactive-card group flex w-full min-w-0 items-center gap-4 rounded-xl px-4 py-4 text-left focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:outline-none"
+      className="group grid min-h-15 w-full min-w-0 grid-cols-[minmax(160px,1.15fr)_minmax(140px,0.85fr)_minmax(200px,1.35fr)_110px_120px_72px] items-center gap-4 border-b border-border/70 px-4 text-left transition-colors hover:bg-accent/20 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/20 max-lg:grid-cols-[minmax(160px,1.15fr)_minmax(130px,0.9fr)_100px_116px]"
       onClick={onOpen}
+      aria-label={`编辑 ${provider.name || "未命名 Provider"}`}
     >
-      <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent text-primary">
-        <ServerCog className="size-5" />
+      <span className="flex min-w-0 items-center gap-2.5">
+        <span className="truncate text-sm font-medium">{provider.name || "未命名 Provider"}</span>
+        {provider.isDefault && (
+          <Badge variant="secondary" className="shrink-0 bg-primary/9 px-2 py-0.5 text-xs font-medium text-primary">
+            默认
+          </Badge>
+        )}
       </span>
 
-      <span className="min-w-0 flex-1">
-        <span className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="truncate text-base font-semibold">{provider.name || "未命名 Provider"}</span>
-          {provider.isDefault && (
-            <Badge variant="secondary" className="bg-primary/10 text-primary">
-              默认
-            </Badge>
-          )}
-          <Badge variant="outline">{getApiFormatLabel(provider.apiFormat)}</Badge>
-        </span>
-        <span
-          className={[
-            "mt-1 block truncate text-sm",
-            apiEndpoint || websiteUrl ? "text-primary" : "text-muted-foreground",
-          ].join(" ")}
-        >
-          {apiEndpoint || websiteUrl || "未设置 API Endpoint"}
-        </span>
-        <span className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span>
-            {enabledModelCount}/{provider.models.length} 个模型启用
-          </span>
-          <span>·</span>
-          <span>{provider.apiKey?.trim() ? "API Key 已配置" : "API Key 未配置"}</span>
-        </span>
+      <span className="truncate text-sm text-muted-foreground">{getApiFormatLabel(provider.apiFormat)}</span>
+      <span className="truncate text-sm text-muted-foreground max-lg:hidden">{apiEndpoint || "未设置 Endpoint"}</span>
+      <span className="text-sm text-foreground">{enabledModelCount} 个模型</span>
+      {provider.apiKey?.trim() ? <Status>凭据已配置</Status> : <span className="text-sm text-warning">缺少凭据</span>}
+      <span className="inline-flex items-center gap-2 text-sm text-foreground max-lg:hidden">
+        <span className="size-1.5 shrink-0 rounded-full bg-success" aria-hidden="true" />
+        可用
       </span>
-
-      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none group-hover:translate-x-0.5 group-hover:text-primary motion-reduce:group-hover:translate-x-0" />
     </button>
   );
 };
 
-export const LlmSettingsPage = ({ onBack, onSettingsSaved }: LlmSettingsPageProps) => {
+const ProviderTableHeader = () => (
+  <div className="grid min-h-15 grid-cols-[minmax(160px,1.15fr)_minmax(140px,0.85fr)_minmax(200px,1.35fr)_110px_120px_72px] items-center gap-4 border-b border-border/70 px-4 text-xs font-medium text-muted-foreground max-lg:grid-cols-[minmax(160px,1.15fr)_minmax(130px,0.9fr)_100px_116px]">
+    <span>Provider</span>
+    <span>API 格式</span>
+    <span className="max-lg:hidden">Endpoint</span>
+    <span>已启用模型</span>
+    <span>凭据状态</span>
+    <span className="max-lg:hidden">状态</span>
+  </div>
+);
+
+export const LlmSettingsPage = ({ onSettingsSaved }: LlmSettingsPageProps) => {
   const providerEditDialogRef = useRef<ProviderEditDialogHandle>(null);
   const { settings, error, loadSettings } = useLlmSettingsStore(
     useShallow((store) => ({
@@ -73,11 +76,6 @@ export const LlmSettingsPage = ({ onBack, onSettingsSaved }: LlmSettingsPageProp
     })),
   );
   const providers = settings.providers;
-  const providerCount = providers.length;
-  const enabledModelCount = useMemo(
-    () => providers.reduce((total, provider) => total + countEnabledModels(provider), 0),
-    [providers],
-  );
 
   const openCreateProvider = () => {
     providerEditDialogRef.current?.open({ mode: "create" });
@@ -93,87 +91,53 @@ export const LlmSettingsPage = ({ onBack, onSettingsSaved }: LlmSettingsPageProp
   };
 
   return (
-    <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
-      <header className="app-page-header flex min-h-16 items-center justify-between gap-3 px-5 py-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="rounded-lg"
-            title="返回"
-            aria-label="返回"
-            onClick={onBack}
-          >
-            <ArrowLeft className="size-5" />
-          </Button>
-          <div className="min-w-0">
-            <h2 className="text-xl font-semibold tracking-[-0.02em]">LLM 设置</h2>
-            <p className="mt-0.5 truncate text-sm text-muted-foreground">
-              管理 Provider、API Endpoint、API Key 和可暴露模型。
-            </p>
-          </div>
+    <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface/45">
+      <header className="app-page-header -mt-10 flex min-h-30 items-center justify-between gap-4 bg-transparent px-6 py-5 lg:px-8">
+        <div className="min-w-0">
+          <h2 className="text-xl font-semibold tracking-[-0.02em]">LLM 设置</h2>
+          <p className="mt-1 truncate text-sm text-muted-foreground">管理模型服务、凭据与可用模型</p>
         </div>
 
-        {providers.length > 0 ? (
-          <Button type="button" onClick={openCreateProvider}>
-            <Plus className="size-4" />
-            <span>添加 LLM</span>
-          </Button>
-        ) : null}
+        <Button type="button" onClick={openCreateProvider}>
+          <Plus className="size-4" />
+          <span>添加 Provider</span>
+        </Button>
       </header>
 
-      <ScrollArea className="min-h-0 flex-1 bg-surface/45">
-        <div className="mx-auto w-full max-w-6xl px-6 py-7">
-          <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold">已配置 LLM</h3>
-              <p className="max-w-2xl text-sm text-muted-foreground">
-                已保存的 Provider 会在这里平铺展示，聊天、角色和酒馆会从启用模型中选择。
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-              <Badge variant="outline">
-                <Bot className="size-3" />
-                {providerCount} 个 Provider
-              </Badge>
-              <Badge variant="outline">
-                <CheckCircle2 className="size-3" />
-                {enabledModelCount} 个启用模型
-              </Badge>
-              <Badge variant="outline">
-                <KeyRound className="size-3" />
-                {providers.filter((provider) => provider.apiKey?.trim()).length} 个 Key
-              </Badge>
-            </div>
-          </div>
-
+      <ScrollArea className="min-h-0 flex-1 bg-transparent">
+        <div className="w-full px-6">
           {error && (
-            <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
+            <div
+              role="alert"
+              className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
+            >
               {error}
             </div>
           )}
 
           {providers.length > 0 ? (
-            <div className="space-y-3">
-              {providers.map((provider) => (
-                <ProviderTile key={provider.id} provider={provider} onOpen={() => openEditProvider(provider)} />
-              ))}
+            <div className="w-full">
+              <ProviderTableHeader />
+              <div aria-label="已配置的 Provider">
+                {providers.map((provider) => (
+                  <ProviderRow key={provider.id} provider={provider} onOpen={() => openEditProvider(provider)} />
+                ))}
+              </div>
             </div>
           ) : (
-            <div className="app-empty-state flex min-h-[320px] flex-col items-center justify-center gap-4 rounded-2xl px-6 text-center">
+            <div className="app-empty-state mt-8 flex min-h-[320px] flex-col items-center justify-center gap-4 rounded-2xl px-6 text-center">
               <span className="flex size-12 items-center justify-center rounded-xl bg-accent text-primary">
                 <Sparkles className="size-6" />
               </span>
               <div className="space-y-1">
-                <h3 className="font-semibold">还没有配置 LLM</h3>
+                <h3 className="font-semibold">还没有配置 Provider</h3>
                 <p className="text-sm text-muted-foreground">
-                  添加一个 Provider 后，就可以为聊天、角色和酒馆选择模型。
+                  添加模型服务后，就可以在聊天、角色和酒馆中选择启用的模型。
                 </p>
               </div>
               <Button type="button" onClick={openCreateProvider}>
                 <Plus className="size-4" />
-                <span>添加 LLM</span>
+                <span>添加 Provider</span>
               </Button>
             </div>
           )}
