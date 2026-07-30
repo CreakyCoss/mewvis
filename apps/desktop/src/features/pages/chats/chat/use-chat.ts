@@ -5,6 +5,7 @@ import { createAgentClient } from "@/agent-client/runtime";
 import type { AgentClientAgentEvent } from "@/agent-client/types";
 import { loadChat, saveChat } from "@/api/chat";
 import type { ChatInputSubmitPayload } from "../components/chat-input/type";
+import { buildAgentPrompt } from "./prompt";
 import { applyChatMessageEvent, failChatMessage } from "./reducer";
 import type { ChatAssistantMessage, ChatMessage, ChatPendingQuestion, ChatStatus, ChatUserMessage } from "./type";
 
@@ -109,28 +110,6 @@ const restoreMessages = (messages: ChatMessage[]) =>
 
 const applyStreamEvents = (message: ChatAssistantMessage, events: StreamEvent[]) =>
   events.reduce<ChatAssistantMessage>(applyChatMessageEvent, message);
-
-const buildAgentPrompt = (workspacePath: string, payload: ChatInputSubmitPayload) => {
-  const selectedAgent = payload.agent
-    ? [`当前角色：${payload.agent.name}`, payload.agent.description?.trim()].filter(Boolean).join("\n")
-    : "";
-  const activeSkills = payload.skills
-    .map((skill) => [`### ${skill.name}`, skill.description, skill.content].filter(Boolean).join("\n"))
-    .join("\n\n");
-
-  return {
-    systemPrompt: [
-      "你是 Mewvis 的工作区 AI 助手。",
-      `工作区路径：${workspacePath}`,
-      "你可以帮助用户规划、写作、分析和修改工作区文件。",
-      selectedAgent,
-    ]
-      .filter(Boolean)
-      .join("\n"),
-    requestContext: activeSkills ? `[active_skills]\n${activeSkills}\n[/active_skills]` : "",
-    runtimeInstruction: "优先完成用户当前请求；需要使用工具时，只使用本次允许的工具。",
-  };
-};
 
 export const useChat = ({ chatId, workspacePath, initialRequest, onStatusChange }: UseChatInput) => {
   const [chatStore] = useState(() => createChatStore());

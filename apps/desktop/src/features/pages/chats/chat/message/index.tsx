@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef } from "react";
+import { memo } from "react";
 import { BotIcon, CircleAlertIcon } from "lucide-react";
 import { resolveAvatar } from "@/assets/avatars";
 import { Spinner } from "@/components/ui/spinner";
@@ -6,6 +6,7 @@ import type { ChatDisplayOptions } from "../../components/chat-input/type";
 import type { ChatMessage } from "../type";
 import { MessageActions } from "./actions";
 import { MessageBlocks } from "./block";
+import { useFollowBottom } from "./follow-bottom";
 
 type ChatMessagesProps = {
   messages: ChatMessage[];
@@ -90,14 +91,10 @@ const MessageItemComponent = ({
 const MessageItem = memo(MessageItemComponent);
 
 export const ChatMessages = ({ messages, isInitializing, pendingQuestionId, displayOptions }: ChatMessagesProps) => {
-  const endRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "end" });
-  }, [messages, pendingQuestionId]);
+  const { scrollRef, handleScroll } = useFollowBottom(messages, true, pendingQuestionId);
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-8 sm:px-8">
+    <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-8 sm:px-8" onScroll={handleScroll}>
       <div className="mx-auto flex w-full max-w-[69rem] flex-col gap-6" aria-live="polite" aria-busy={isInitializing}>
         {isInitializing ? (
           <div className="app-empty-state flex min-h-44 flex-col items-center justify-center rounded-2xl px-6 text-center">
@@ -115,7 +112,6 @@ export const ChatMessages = ({ messages, isInitializing, pendingQuestionId, disp
         {messages.map((message) => (
           <MessageItem key={message.id} message={message} displayOptions={displayOptions} />
         ))}
-        <div ref={endRef} />
       </div>
     </div>
   );
