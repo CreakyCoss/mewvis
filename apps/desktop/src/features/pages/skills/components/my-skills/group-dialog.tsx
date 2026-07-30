@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ALL_SKILLS_GROUP_ID } from "../../constants";
-import type { WorkspaceSkill, WorkspaceSkillGroup } from "../../types";
+import type { Skill, SkillGroup } from "../../types";
 import { EmptyState } from "../shared";
 import {
   existingGroupSkillNames,
@@ -29,19 +29,19 @@ export type GroupDialogMode = "create" | "view" | "edit";
 export type GroupDialogState = {
   open: boolean;
   mode: GroupDialogMode;
-  group: WorkspaceSkillGroup | null;
+  group: SkillGroup | null;
   fallbackName?: string;
   fallbackSkillNames?: string[];
 };
 
 type GroupDialogProps = {
   state: GroupDialogState;
-  groups: WorkspaceSkillGroup[];
-  skills: WorkspaceSkill[];
-  skillsByKey: Map<string, WorkspaceSkill>;
+  groups: SkillGroup[];
+  skills: Skill[];
+  skillsByKey: Map<string, Skill>;
   defaultGroupId: string;
   onOpenChange: (open: boolean) => void;
-  onGroupsChange: (groups: WorkspaceSkillGroup[], defaultGroupId?: string) => void;
+  onGroupsChange: (groups: SkillGroup[], defaultGroupId?: string) => void;
   onDefaultGroupChange: (groupId: string) => void;
   onSelectedGroupChange: (groupId: string) => void;
 };
@@ -168,7 +168,7 @@ export const GroupDialog = ({
 
     const id = state.group?.id ?? `draft-${crypto.randomUUID()}`;
     const nextDefaultGroupId = isDefaultGroup ? id : id === defaultGroupId ? ALL_SKILLS_GROUP_ID : defaultGroupId;
-    const nextGroup: WorkspaceSkillGroup = {
+    const nextGroup: SkillGroup = {
       id,
       name,
       description: state.group?.description ?? null,
@@ -247,7 +247,7 @@ export const GroupDialog = ({
               </div>
               <DialogDescription className="mt-1.5 text-xs leading-5">
                 {isEditable
-                  ? "从当前技能广场中勾选技能，组成这个工作区可复用的技能分组。"
+                  ? "从当前技能广场中勾选技能，组成可复用的技能分组。"
                   : "查看这个分组包含的技能，系统分组不可直接修改。"}
               </DialogDescription>
             </div>

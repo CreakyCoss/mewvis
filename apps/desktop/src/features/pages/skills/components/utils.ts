@@ -1,10 +1,10 @@
-import type { WorkspaceSkill, WorkspaceSkillGroup } from "../types";
+import type { Skill, SkillGroup } from "../types";
 export { ALL_SKILLS_GROUP_ID, NO_SKILLS_GROUP_ID } from "../constants";
 
-export const existingGroupSkillNames = (group: WorkspaceSkillGroup, skillsByKey: Map<string, WorkspaceSkill>) =>
+export const existingGroupSkillNames = (group: SkillGroup, skillsByKey: Map<string, Skill>) =>
   group.skills.map((skill) => skill.key).filter((key) => skillsByKey.has(key));
 
-export const nextCustomGroupOrder = (groups: WorkspaceSkillGroup[]) => {
+export const nextCustomGroupOrder = (groups: SkillGroup[]) => {
   const maxOrder = groups
     .filter((group) => group.source === "custom")
     .reduce((current, group) => Math.max(current, group.order), 999);
@@ -29,8 +29,8 @@ export const sourceLabel = (source: string | undefined, readonly: boolean) => {
 
 const SOURCE_GROUP_ORDER = ["system", "app", "upload"];
 
-export const groupSkillsBySource = (skills: WorkspaceSkill[]) => {
-  const groupedSkills = new Map<string, WorkspaceSkill[]>();
+export const groupSkillsBySource = (skills: Skill[]) => {
+  const groupedSkills = new Map<string, Skill[]>();
   for (const skill of skills) {
     const source = skill.source || "system";
     const group = groupedSkills.get(source) ?? [];
@@ -60,7 +60,7 @@ export const groupSkillsBySource = (skills: WorkspaceSkill[]) => {
     }));
 };
 
-export const filterSkills = (skills: WorkspaceSkill[], query: string) => {
+export const filterSkills = (skills: Skill[], query: string) => {
   const normalized = query.trim().toLowerCase();
   if (!normalized) {
     return skills;

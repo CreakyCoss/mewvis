@@ -1,8 +1,5 @@
-use crate::services::{
-    agent_sessions,
-    workspace_paths::{
-        ensure_under_root, sanitize_session_id, workspace_app_data_dir, workspace_root,
-    },
+use crate::services::workspace_paths::{
+    ensure_under_root, sanitize_session_id, workspace_app_data_dir, workspace_root,
 };
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -179,8 +176,6 @@ pub fn delete_chat(input: DeleteChatInput) -> Result<Vec<ChatMeta>, String> {
     if path.exists() {
         fs::remove_dir_all(path).map_err(|error| format!("无法删除聊天记录：{error}"))?;
     }
-
-    agent_sessions::delete_agent_sessions_for_chat(&input.workspace_path, &input.chat_id)?;
 
     list_chats(ChatPathInput {
         workspace_path: input.workspace_path,

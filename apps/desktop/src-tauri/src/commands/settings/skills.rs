@@ -1,18 +1,19 @@
-use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
+
+use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
 
 use crate::{
     db::config_db::{
-        self, SaveWorkspaceSkillsInput, SkillGroup as DbSkillGroup,
-        SkillGroupSkill as DbSkillGroupSkill, WorkspaceSkillSettings as DbWorkspaceSkillSettings,
+        self, SaveSkillsInput, SkillGroup as DbSkillGroup, SkillGroupSkill as DbSkillGroupSkill,
+        SkillSettings as DbSkillSettings,
     },
     services::skills as skills_service,
 };
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WorkspaceSkill {
+pub struct Skill {
     pub key: String,
     pub name: String,
     pub description: String,
@@ -23,7 +24,7 @@ pub struct WorkspaceSkill {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WorkspaceSkillGroup {
+pub struct SkillGroup {
     pub id: String,
     pub name: String,
     pub description: Option<String>,
@@ -31,20 +32,20 @@ pub struct WorkspaceSkillGroup {
     pub readonly: bool,
     pub is_default: bool,
     pub order: i64,
-    pub skills: Vec<WorkspaceSkillGroupSkill>,
+    pub skills: Vec<SkillGroupSkill>,
 }
 
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct WorkspaceSkillGroupSkill {
+pub struct SkillGroupSkill {
     pub key: String,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WorkspaceSkillSettings {
-    pub skills: Vec<WorkspaceSkill>,
-    pub groups: Vec<WorkspaceSkillGroup>,
+pub struct SkillSettings {
+    pub skills: Vec<Skill>,
+    pub groups: Vec<SkillGroup>,
     pub default_group_id: String,
 }
 
@@ -75,21 +76,14 @@ pub struct SkillMarketplaceSearchResult {
 }
 
 #[tauri::command]
-pub fn get_workspace_skills(
-    app: AppHandle,
-    workspace_id: String,
-) -> Result<WorkspaceSkillSettings, String> {
-    load_workspace_skills(&app, &workspace_id)
+pub fn get_skills(app: AppHandle) -> Result<SkillSettings, String> {
+    load_skills(&app)
 }
 
 #[tauri::command]
-pub fn save_workspace_skills(
-    app: AppHandle,
-    input: SaveWorkspaceSkillsInput,
-) -> Result<WorkspaceSkillSettings, String> {
-    let workspace_id = input.workspace_id.clone();
-    config_db::save_workspace_skill_settings(&app, input)?;
-    load_workspace_skills(&app, &workspace_id)
+pub fn save_skills(app: AppHandle, input: SaveSkillsInput) -> Result<SkillSettings, String> {
+    config_db::save_skill_settings(&app, input)?;
+    load_skills(&app)
 }
 
 #[tauri::command]
@@ -141,14 +135,11 @@ pub async fn remove_app_skill(
     .map_err(|error| format!("Skill 移除任务失败：{error}"))?
 }
 
-fn load_workspace_skills(
-    app: &AppHandle,
-    workspace_id: &str,
-) -> Result<WorkspaceSkillSettings, String> {
-    let DbWorkspaceSkillSettings {
+fn load_skills(app: &AppHandle) -> Result<SkillSettings, String> {
+    let DbSkillSettings {
         default_group_id,
         skill_groups,
-    } = config_db::workspace_skill_settings(app, workspace_id)?;
+    } = config_db::skill_settings(app)?;
     let skill_definitions = skills_service::load_available_skills(app)?;
     let available_skill_keys = skill_definitions
         .iter()
@@ -157,7 +148,7 @@ fn load_workspace_skills(
     let legacy_skill_key_by_name = legacy_skill_key_by_name(&skill_definitions);
     let skills = skill_definitions
         .iter()
-        .map(|skill| WorkspaceSkill {
+        .map(|skill| Skill {
             key: skill.key.clone(),
             name: skill.name.clone(),
             description: skill.description.clone(),
@@ -182,15 +173,15 @@ fn load_workspace_skills(
         group.is_default = group.id == default_group_id;
     }
 
-    Ok(WorkspaceSkillSettings {
+    Ok(SkillSettings {
         skills,
         groups,
         default_group_id,
     })
 }
 
-fn default_skill_groups(skills: &[skills_service::SkillDefinition]) -> Vec<WorkspaceSkillGroup> {
-    let mut groups = BTreeMap::<String, WorkspaceSkillGroup>::new();
+fn default_skill_groups(skills: &[skills_service::SkillDefinition]) -> Vec<SkillGroup> {
+    let mut groups = BTreeMap::<String, SkillGroup>::new();
 
     for skill in skills {
         if skill.source.as_str() == "app" {
@@ -199,7 +190,7 @@ fn default_skill_groups(skills: &[skills_service::SkillDefinition]) -> Vec<Works
         let default_group = skills_service::default_group_for_skill(skill);
         let entry = groups
             .entry(default_group.id.to_string())
-            .or_insert_with(|| WorkspaceSkillGroup {
+            .or_insert_with(|| SkillGroup {
                 id: default_group.id.to_string(),
                 name: default_group.name.to_string(),
                 description: None,
@@ -209,7 +200,7 @@ fn default_skill_groups(skills: &[skills_service::SkillDefinition]) -> Vec<Works
                 order: default_group.order,
                 skills: Vec::new(),
             });
-        entry.skills.push(WorkspaceSkillGroupSkill {
+        entry.skills.push(SkillGroupSkill {
             key: skill.key.clone(),
         });
     }
@@ -228,10 +219,10 @@ fn custom_skill_groups(
     groups: Vec<DbSkillGroup>,
     available_skill_keys: &HashSet<String>,
     legacy_skill_key_by_name: &BTreeMap<String, String>,
-) -> Vec<WorkspaceSkillGroup> {
+) -> Vec<SkillGroup> {
     groups
         .into_iter()
-        .map(|group| WorkspaceSkillGroup {
+        .map(|group| SkillGroup {
             skills: resolve_skill_members(
                 group.skills,
                 available_skill_keys,
@@ -253,7 +244,7 @@ fn resolve_skill_members(
     members: Vec<DbSkillGroupSkill>,
     available_skill_keys: &HashSet<String>,
     legacy_skill_key_by_name: &BTreeMap<String, String>,
-) -> Vec<WorkspaceSkillGroupSkill> {
+) -> Vec<SkillGroupSkill> {
     let mut resolved = HashSet::new();
     for member in members {
         let resolved_key = if available_skill_keys.contains(&member.key) {
@@ -271,14 +262,11 @@ fn resolve_skill_members(
     resolved.sort();
     resolved
         .into_iter()
-        .map(|key| WorkspaceSkillGroupSkill { key })
+        .map(|key| SkillGroupSkill { key })
         .collect()
 }
 
-fn resolve_default_group_id(
-    default_group_id: Option<&str>,
-    groups: &[WorkspaceSkillGroup],
-) -> String {
+fn resolve_default_group_id(default_group_id: Option<&str>, groups: &[SkillGroup]) -> String {
     let Some(group_id) = default_group_id
         .map(str::trim)
         .filter(|value| !value.is_empty())

@@ -17,7 +17,6 @@ type StoryStore = {
   deleteDocument: (ref: StoryDocumentIdentity) => Promise<boolean>;
   documentStructure: StoryProjectStructure | null;
   documents: StoryDocument[];
-  getChatWorkspacePath: (chatWorkspaceId: string) => string;
   isLoadingDocumentStructure: boolean;
   isSaving: boolean;
   loadDocumentStructure: () => Promise<StoryProjectStructure | null>;
@@ -45,8 +44,6 @@ export const useStoryState = create<StoryStore>((set, get) => ({
       storyWorkspace: null,
     });
   },
-
-  getChatWorkspacePath: (chatWorkspaceId) => `/chat/${chatWorkspaceId}/new`,
 
   openStory: (item) => {
     const workspaceChanged = get().storyWorkspace?.path !== item.workspace.path;

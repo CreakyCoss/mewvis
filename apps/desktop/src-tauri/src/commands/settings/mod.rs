@@ -1,6 +1,7 @@
 mod agents;
 mod knowledge;
 mod llm;
+mod skills;
 
 pub use agents::{
     delete_ai_agent, delete_collaboration_workflow, get_ai_agent_settings, save_ai_agent,
@@ -14,3 +15,7 @@ pub use knowledge::{
     set_knowledge_collection_sources,
 };
 pub use llm::{get_llm_settings, save_llm_settings};
+pub use skills::{
+    get_skills, install_skill_from_marketplace, remove_app_skill, save_skills,
+    search_skill_marketplace,
+};

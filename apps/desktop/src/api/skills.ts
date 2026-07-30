@@ -4,31 +4,27 @@ import type {
   InstalledSkill,
   RemoveSkillInput,
   RemovedSkill,
-  SaveWorkspaceSkillGroupInput,
+  SaveSkillGroupInput,
   SearchSkillMarketplaceInput,
   SkillMarketplaceSearchResult,
-  WorkspaceSkillSettings,
+  SkillSettings,
 } from "@/features/pages/skills/types";
 
-export async function getWorkspaceSkills(workspaceId: string) {
+export async function getSkills() {
   if (!isTauri()) {
-    return { skills: [], groups: [], defaultGroupId: "all" } satisfies WorkspaceSkillSettings;
+    return { skills: [], groups: [], defaultGroupId: "all" } satisfies SkillSettings;
   }
 
-  return invoke<WorkspaceSkillSettings>("get_workspace_skills", { workspaceId });
+  return invoke<SkillSettings>("get_skills");
 }
 
-export async function saveWorkspaceSkills(
-  workspaceId: string,
-  skillGroups: SaveWorkspaceSkillGroupInput[],
-  defaultGroupId: string,
-) {
+export async function saveSkills(skillGroups: SaveSkillGroupInput[], defaultGroupId: string) {
   if (!isTauri()) {
-    return { skills: [], groups: [], defaultGroupId } satisfies WorkspaceSkillSettings;
+    return { skills: [], groups: [], defaultGroupId } satisfies SkillSettings;
   }
 
-  return invoke<WorkspaceSkillSettings>("save_workspace_skills", {
-    input: { workspaceId, skillGroups, defaultGroupId },
+  return invoke<SkillSettings>("save_skills", {
+    input: { skillGroups, defaultGroupId },
   });
 }
 

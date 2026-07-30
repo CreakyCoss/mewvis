@@ -1,12 +1,11 @@
 use crate::db::config_db::{
     self, CreateWorkspaceInput, DeleteWorkspaceInput, UpdateWorkspaceInput, Workspace,
-    WorkspaceOverview,
 };
 use tauri::AppHandle;
 
 #[tauri::command]
-pub fn get_workspace_overview(app: AppHandle) -> Result<WorkspaceOverview, String> {
-    config_db::overview(&app)
+pub fn list_workspaces(app: AppHandle) -> Result<Vec<Workspace>, String> {
+    config_db::list_workspaces(&app)
 }
 
 #[tauri::command]

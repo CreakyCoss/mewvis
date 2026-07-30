@@ -1,8 +1,15 @@
 import { memo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { getMarkdownInputContent } from "./message";
-import type { MarkdownContentProps } from "./types";
+
+type MarkdownContentProps = {
+  content: string;
+  className?: string;
+  emClassName?: string;
+  inverted?: boolean;
+  separateEmphasisBlocks?: boolean;
+  variant?: "chat" | "tavern";
+};
 
 const paragraphClassName = "mb-2 last:mb-0";
 
@@ -35,8 +42,7 @@ const getParagraphClassName = (isDescriptionBlock: boolean) =>
   isDescriptionBlock ? `${paragraphClassName} tavern-immersive-description-block` : paragraphClassName;
 
 const MarkdownContentComponent = (props: MarkdownContentProps) => {
-  const { className, emClassName, inverted = false, separateEmphasisBlocks = false, variant = "chat" } = props;
-  const content = getMarkdownInputContent(props);
+  const { content, className, emClassName, inverted = false, separateEmphasisBlocks = false, variant = "chat" } = props;
   const renderedContent = separateEmphasisBlocks ? normalizeSeparatedEmphasisBlocks(content) : content;
 
   return (

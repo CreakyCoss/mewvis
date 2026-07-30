@@ -5,9 +5,9 @@ import type {
   SkillMarketplacePagination,
   SkillMarketplaceSearchResult,
   SkillMarketplaceSort,
-  WorkspaceSkill,
-  WorkspaceSkillGroup,
-  WorkspaceSkillSettings,
+  Skill,
+  SkillGroup,
+  SkillSettings,
 } from "./types";
 import { ALL_SKILLS_GROUP_ID } from "./constants";
 
@@ -22,9 +22,9 @@ type MarketplaceCacheEntry = {
 };
 
 type SkillsStore = {
-  skills: WorkspaceSkill[];
-  skillGroups: WorkspaceSkillGroup[];
-  savedSkillGroups: WorkspaceSkillGroup[];
+  skills: Skill[];
+  skillGroups: SkillGroup[];
+  savedSkillGroups: SkillGroup[];
   defaultSkillGroupId: string;
   savedDefaultSkillGroupId: string;
   marketplaceResults: MarketplaceSkill[];
@@ -33,8 +33,8 @@ type SkillsStore = {
   marketplaceSortBy: SkillMarketplaceSort;
   marketplaceHasLoaded: boolean;
   marketplaceCache: Record<string, MarketplaceCacheEntry>;
-  setWorkspaceSkillSettings: (settings: WorkspaceSkillSettings) => void;
-  setSkillGroups: (groups: WorkspaceSkillGroup[]) => void;
+  setSkillSettings: (settings: SkillSettings) => void;
+  setSkillGroups: (groups: SkillGroup[]) => void;
   setDefaultSkillGroupId: (groupId: string) => void;
   setMarketplaceSearchResult: (input: SearchSkillMarketplaceInput, result: SkillMarketplaceSearchResult) => void;
   restoreMarketplaceCache: (input: SearchSkillMarketplaceInput) => boolean;
@@ -53,7 +53,7 @@ export const useSkillsStore = create<SkillsStore>((set, get) => ({
   marketplaceSortBy: DEFAULT_MARKETPLACE_SORT,
   marketplaceHasLoaded: false,
   marketplaceCache: {},
-  setWorkspaceSkillSettings: (settings) => {
+  setSkillSettings: (settings) => {
     const defaultSkillGroupId = settings.defaultGroupId || ALL_SKILLS_GROUP_ID;
     set({
       skills: settings.skills,
@@ -116,16 +116,16 @@ export const useSkillsStore = create<SkillsStore>((set, get) => ({
 }));
 
 export const hasSkillsDraftChanges = (
-  skillGroups: WorkspaceSkillGroup[],
-  savedSkillGroups: WorkspaceSkillGroup[],
+  skillGroups: SkillGroup[],
+  savedSkillGroups: SkillGroup[],
   defaultSkillGroupId: string,
   savedDefaultSkillGroupId: string,
 ) => defaultSkillGroupId !== savedDefaultSkillGroupId || !sameSkillGroups(skillGroups, savedSkillGroups);
 
-const sameSkillGroups = (left: WorkspaceSkillGroup[], right: WorkspaceSkillGroup[]) =>
+const sameSkillGroups = (left: SkillGroup[], right: SkillGroup[]) =>
   JSON.stringify(normalizeSkillGroups(left)) === JSON.stringify(normalizeSkillGroups(right));
 
-const normalizeSkillGroups = (groups: WorkspaceSkillGroup[]) =>
+const normalizeSkillGroups = (groups: SkillGroup[]) =>
   groups
     .filter((group) => group.source === "custom")
     .map((group) => ({

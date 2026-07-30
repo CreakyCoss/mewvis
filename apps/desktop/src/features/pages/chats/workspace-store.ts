@@ -13,23 +13,11 @@ import {
   deleteWorkspace as deleteWorkspaceApi,
   listWorkspaces,
   updateWorkspace as updateWorkspaceApi,
+  type Workspace,
 } from "@/api/workspace";
 import type { ChatInitialData } from "./chat/type";
 import type { ChatInputResources } from "./components/chat-input/type";
 import { loadResources } from "./resources";
-
-export type Workspace = {
-  id: string;
-  name: string;
-  description: string | null;
-  path: string;
-  isDefault: boolean;
-  isPinned: boolean;
-  order: number;
-  groupId: string | null;
-  createdAt: number;
-  updatedAt: number;
-};
 
 type CurrentChat = {
   workspaceId: string;
@@ -171,7 +159,7 @@ const fetchWorkspaces = async (currentWorkspace: Workspace | null, previousWorks
     workspaces,
     currentWorkspace: nextWorkspace,
     chatsByWorkspaceId,
-    resources: await loadResources(nextWorkspace?.id ?? ""),
+    resources: await loadResources(),
   };
 };
 
@@ -188,13 +176,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
   setCurrentWorkspace: (workspace) => {
     set({
       currentWorkspace: workspace,
-      resources: {},
       error: "",
-    });
-    void loadResources(workspace?.id ?? "").then((resources) => {
-      if (get().currentWorkspace?.id === workspace?.id) {
-        set({ resources });
-      }
     });
   },
   setCurrentChat: (chat) => {

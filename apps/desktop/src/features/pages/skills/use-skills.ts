@@ -2,27 +2,22 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 import {
-  getWorkspaceSkills,
+  getSkills,
   installSkillFromMarketplace,
   removeAppSkill,
-  saveWorkspaceSkills,
+  saveSkills,
   searchSkillMarketplace,
 } from "@/api/skills";
 import { useSkillsStore } from "@/features/pages/skills/store";
 import type {
   InstallSkillInput,
   RemoveSkillInput,
-  SaveWorkspaceSkillGroupInput,
+  SaveSkillGroupInput,
   SearchSkillMarketplaceInput,
-  WorkspaceSkillGroup,
+  SkillGroup,
 } from "@/features/pages/skills/types";
 
-type UseWorkspaceSkillsInput = {
-  enabled?: boolean;
-  workspaceId: string;
-};
-
-export const useWorkspaceSkills = ({ enabled = true, workspaceId }: UseWorkspaceSkillsInput) => {
+export const useSkills = () => {
   const [skillsError, setSkillsError] = useState("");
   const [isSkillsLoading, setIsSkillsLoading] = useState(false);
   const [isSkillsSaving, setIsSkillsSaving] = useState(false);
@@ -39,7 +34,7 @@ export const useWorkspaceSkills = ({ enabled = true, workspaceId }: UseWorkspace
     marketplaceQuery,
     marketplaceSortBy,
     marketplaceHasLoaded,
-    setWorkspaceSkillSettings,
+    setSkillSettings,
     setSkillGroups,
     setDefaultSkillGroupId,
     setMarketplaceSearchResult,
@@ -55,7 +50,7 @@ export const useWorkspaceSkills = ({ enabled = true, workspaceId }: UseWorkspace
       marketplaceQuery: store.marketplaceQuery,
       marketplaceSortBy: store.marketplaceSortBy,
       marketplaceHasLoaded: store.marketplaceHasLoaded,
-      setWorkspaceSkillSettings: store.setWorkspaceSkillSettings,
+      setSkillSettings: store.setSkillSettings,
       setSkillGroups: store.setSkillGroups,
       setDefaultSkillGroupId: store.setDefaultSkillGroupId,
       setMarketplaceSearchResult: store.setMarketplaceSearchResult,
@@ -64,41 +59,32 @@ export const useWorkspaceSkills = ({ enabled = true, workspaceId }: UseWorkspace
     })),
   );
 
-  const loadWorkspaceSkills = useCallback(async () => {
-    if (!enabled) {
-      setSkillsError("");
-      setIsSkillsLoading(false);
-      return;
-    }
+  const loadSkills = useCallback(async () => {
     setIsSkillsLoading(true);
     setSkillsError("");
 
     try {
-      const settings = await getWorkspaceSkills(workspaceId);
-      setWorkspaceSkillSettings(settings);
+      const settings = await getSkills();
+      setSkillSettings(settings);
     } catch (caught) {
       setSkillsError(String(caught));
     } finally {
       setIsSkillsLoading(false);
     }
-  }, [enabled, setWorkspaceSkillSettings, workspaceId]);
+  }, [setSkillSettings]);
 
   useEffect(() => {
-    void loadWorkspaceSkills();
-  }, [loadWorkspaceSkills]);
+    void loadSkills();
+  }, [loadSkills]);
 
   const persistSkillSettings = useCallback(
-    async (nextSkillGroups: WorkspaceSkillGroup[], nextDefaultSkillGroupId: string) => {
+    async (nextSkillGroups: SkillGroup[], nextDefaultSkillGroupId: string) => {
       setIsSkillsSaving(true);
       setSkillsError("");
 
       try {
-        const settings = await saveWorkspaceSkills(
-          workspaceId,
-          toSaveSkillGroups(nextSkillGroups),
-          nextDefaultSkillGroupId,
-        );
-        setWorkspaceSkillSettings(settings);
+        const settings = await saveSkills(toSaveSkillGroups(nextSkillGroups), nextDefaultSkillGroupId);
+        setSkillSettings(settings);
       } catch (caught) {
         setSkillsError(String(caught));
         resetDrafts();
@@ -106,11 +92,11 @@ export const useWorkspaceSkills = ({ enabled = true, workspaceId }: UseWorkspace
         setIsSkillsSaving(false);
       }
     },
-    [resetDrafts, setWorkspaceSkillSettings, workspaceId],
+    [resetDrafts, setSkillSettings],
   );
 
   const updateSkillGroups = useCallback(
-    (groups: WorkspaceSkillGroup[], nextDefaultSkillGroupId = defaultSkillGroupId) => {
+    (groups: SkillGroup[], nextDefaultSkillGroupId = defaultSkillGroupId) => {
       setSkillGroups(groups);
       setDefaultSkillGroupId(nextDefaultSkillGroupId);
       void persistSkillSettings(groups, nextDefaultSkillGroupId);
@@ -169,7 +155,7 @@ export const useWorkspaceSkills = ({ enabled = true, workspaceId }: UseWorkspace
 
       try {
         const installedSkill = await installSkillFromMarketplace(input);
-        await loadWorkspaceSkills();
+        await loadSkills();
         toast.success("技能导入成功", {
           description: `${installedSkill.name} 已添加到 Skill库`,
         });
@@ -179,7 +165,7 @@ export const useWorkspaceSkills = ({ enabled = true, workspaceId }: UseWorkspace
         setIsSkillInstalling(false);
       }
     },
-    [loadWorkspaceSkills],
+    [loadSkills],
   );
 
   const removeMarketplaceSkill = useCallback(
@@ -197,23 +183,19 @@ export const useWorkspaceSkills = ({ enabled = true, workspaceId }: UseWorkspace
               }
             : group,
         );
-        const settings = await saveWorkspaceSkills(
-          workspaceId,
-          toSaveSkillGroups(nextSkillGroups),
-          defaultSkillGroupId,
-        );
-        setWorkspaceSkillSettings(settings);
+        const settings = await saveSkills(toSaveSkillGroups(nextSkillGroups), defaultSkillGroupId);
+        setSkillSettings(settings);
         toast.success("技能已移除", {
           description: `${removedSkill.name} 已从 Skill库移除`,
         });
       } catch (caught) {
         setSkillsError(String(caught));
-        await loadWorkspaceSkills();
+        await loadSkills();
       } finally {
         setIsSkillRemoving(false);
       }
     },
-    [loadWorkspaceSkills, defaultSkillGroupId, setWorkspaceSkillSettings, skillGroups, workspaceId],
+    [loadSkills, defaultSkillGroupId, setSkillSettings, skillGroups],
   );
 
   return {
@@ -240,7 +222,7 @@ export const useWorkspaceSkills = ({ enabled = true, workspaceId }: UseWorkspace
   };
 };
 
-const toSaveSkillGroups = (groups: WorkspaceSkillGroup[]): SaveWorkspaceSkillGroupInput[] =>
+const toSaveSkillGroups = (groups: SkillGroup[]): SaveSkillGroupInput[] =>
   groups.map((group) => ({
     id: group.id,
     name: group.name,

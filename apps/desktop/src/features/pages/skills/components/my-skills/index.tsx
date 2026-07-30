@@ -29,7 +29,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useSkillsStore } from "../../store";
-import type { InstallSkillInput, RemoveSkillInput, WorkspaceSkill, WorkspaceSkillGroup } from "../../types";
+import type { InstallSkillInput, RemoveSkillInput, Skill, SkillGroup } from "../../types";
 import { EmptyState } from "../shared";
 import { ALL_SKILLS_GROUP_ID, existingGroupSkillNames, filterSkills, groupSkillsBySource } from "../utils";
 import { GroupDialog, type GroupDialogState } from "./group-dialog";
@@ -42,7 +42,7 @@ type MySkillsTabProps = {
   isInstalling: boolean;
   isRemoving: boolean;
   defaultSkillGroupId: string;
-  onGroupsChange: (groups: WorkspaceSkillGroup[], defaultGroupId?: string) => void;
+  onGroupsChange: (groups: SkillGroup[], defaultGroupId?: string) => void;
   onDefaultGroupChange: (groupId: string) => void;
   onInstallSkill: (input: InstallSkillInput) => Promise<void>;
   onRemoveSkill: (input: RemoveSkillInput) => Promise<void>;
@@ -77,8 +77,8 @@ export const MySkillsTab = ({
   });
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isQuickActionOpen, setIsQuickActionOpen] = useState(false);
-  const [pendingRemoveSkill, setPendingRemoveSkill] = useState<WorkspaceSkill | null>(null);
-  const [pendingDeleteGroup, setPendingDeleteGroup] = useState<WorkspaceSkillGroup | null>(null);
+  const [pendingRemoveSkill, setPendingRemoveSkill] = useState<Skill | null>(null);
+  const [pendingDeleteGroup, setPendingDeleteGroup] = useState<SkillGroup | null>(null);
   const [removingSkillKey, setRemovingSkillKey] = useState<string | null>(null);
   const [groupDialogState, setGroupDialogState] = useState<GroupDialogState>({
     open: false,
@@ -180,7 +180,7 @@ export const MySkillsTab = ({
   };
 
   const openViewGroup = (
-    group: WorkspaceSkillGroup | null,
+    group: SkillGroup | null,
     fallbackName = "全部技能",
     fallbackSkillNames = skills.map((skill) => skill.key),
   ) => {
@@ -193,7 +193,7 @@ export const MySkillsTab = ({
     });
   };
 
-  const openEditGroup = (group: WorkspaceSkillGroup) => {
+  const openEditGroup = (group: SkillGroup) => {
     if (group.readonly) {
       openViewGroup(group);
       return;

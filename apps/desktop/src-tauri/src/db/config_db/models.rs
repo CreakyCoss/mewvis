@@ -2,17 +2,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WorkspaceGroup {
-    pub id: String,
-    pub name: String,
-    pub order: i64,
-    pub is_default: bool,
-    pub created_at: i64,
-    pub updated_at: i64,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Workspace {
     pub id: String,
     pub name: String,
@@ -24,14 +13,6 @@ pub struct Workspace {
     pub group_id: Option<String>,
     pub created_at: i64,
     pub updated_at: i64,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WorkspaceOverview {
-    pub config_db_path: String,
-    pub groups: Vec<WorkspaceGroup>,
-    pub workspaces: Vec<Workspace>,
 }
 
 #[derive(Debug, Serialize)]
@@ -134,7 +115,7 @@ pub struct AiAgentSettings {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WorkspaceSkillSettings {
+pub struct SkillSettings {
     pub default_group_id: Option<String>,
     pub skill_groups: Vec<SkillGroup>,
 }

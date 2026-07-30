@@ -2,15 +2,15 @@ import { Brain, Code2, Globe2, Loader2, Palette, Search, Sparkles, Trash2 } from
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { WorkspaceSkill } from "../../types";
+import type { Skill } from "../../types";
 import { skillDescriptionPreview } from "../utils";
 
 type SkillListItemProps = {
-  skill: WorkspaceSkill;
+  skill: Skill;
   disabled: boolean;
   removable: boolean;
   removing: boolean;
-  onRemove: (skill: WorkspaceSkill) => void;
+  onRemove: (skill: Skill) => void;
 };
 
 export const SkillListItem = ({ skill, disabled, removable, removing, onRemove }: SkillListItemProps) => {

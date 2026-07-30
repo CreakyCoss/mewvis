@@ -1,7 +1,6 @@
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useWorkspaceStore } from "@/features/pages/chats/workspace-store";
-import { isDefaultWorkspace } from "@/features/pages/workspace/default";
 import { APP_DISPLAY_NAME } from "@/product-config";
 import { PrimaryNav, UtilityNav } from "./nav";
 import { SidebarChats } from "./chats";
@@ -10,8 +9,6 @@ export const AppSidebar = () => {
   const workspaceStore = useWorkspaceStore();
   const [query, setQuery] = useState("");
   const workspaces = workspaceStore.workspaces;
-  const chatWorkspace = workspaceStore.currentWorkspace ?? workspaces.find(isDefaultWorkspace) ?? workspaces[0] ?? null;
-  const chatPath = chatWorkspace ? `/chat/${chatWorkspace.id}/new` : "/";
   const filteredWorkspaces = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) {
@@ -23,7 +20,7 @@ export const AppSidebar = () => {
         workspace.name,
         workspace.path,
         workspace.description ?? "",
-        isDefaultWorkspace(workspace) ? "默认工作区" : "",
+        workspace.isDefault ? "默认工作区" : "",
       ]
         .join("\n")
         .toLowerCase();
@@ -48,7 +45,7 @@ export const AppSidebar = () => {
         </label>
       </div>
 
-      <PrimaryNav chatPath={chatPath} />
+      <PrimaryNav />
       <SidebarChats workspaces={filteredWorkspaces} isLoading={workspaceStore.isLoading} error={workspaceStore.error} />
       <UtilityNav />
     </aside>

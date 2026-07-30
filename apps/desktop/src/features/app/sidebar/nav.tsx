@@ -1,13 +1,9 @@
-import { BookOpen, Bot, Database, MessageSquarePlus, Settings, Sparkles, Wrench } from "lucide-react";
+import { BookOpen, Bot, Database, Settings, Sparkles, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { To } from "react-router";
 import { NavLink } from "react-router";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-type NavProps = {
-  chatPath: string;
-};
 
 type NavItem = {
   id: string;
@@ -34,7 +30,7 @@ const linkClassName = ({ isActive }: { isActive: boolean }) =>
       "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:top-2 before:bottom-2 before:left-0 before:w-0.5 before:rounded-full before:bg-sidebar-primary",
   );
 
-export const PrimaryNav = ({ chatPath }: NavProps) => (
+export const PrimaryNav = () => (
   <nav className="space-y-1 px-2.5 pb-3 xl:px-3" aria-label="主导航">
     <Button
       asChild
@@ -43,20 +39,6 @@ export const PrimaryNav = ({ chatPath }: NavProps) => (
     >
       <NavLink to="/chat-next">
         <Sparkles className="size-4" />
-        <span>新版对话</span>
-        <span className="ml-auto rounded-full bg-brand-pop px-1.5 py-0.5 text-xs font-semibold tracking-wide text-white">
-          NEW
-        </span>
-      </NavLink>
-    </Button>
-    <Button
-      asChild
-      type="button"
-      variant="ghost"
-      className="h-9 w-full justify-start rounded-lg px-3 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/70"
-    >
-      <NavLink to={chatPath}>
-        <MessageSquarePlus className="size-4" />
         <span>新建对话</span>
       </NavLink>
     </Button>

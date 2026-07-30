@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { CheckIcon, ChevronDownIcon, FolderIcon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
+import type { Workspace } from "@/api/workspace";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
-import { useWorkspaceStore, type Workspace } from "../workspace-store";
+import { useWorkspaceStore } from "../workspace-store";
 
 type WorkspacePickerProps = {
   onCreateWorkspace: () => void;

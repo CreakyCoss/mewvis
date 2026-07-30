@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Outlet, useMatch } from "react-router";
-import { listWorkspaces } from "@/api/workspace";
+import { listWorkspaces, type Workspace } from "@/api/workspace";
 import { Spinner } from "@/components/ui/spinner";
-import type { Workspace } from "@/features/pages/workspace/types";
 import { Chat } from "./chat";
 import type { ChatInitialData, ChatSaveInput } from "./chat/type";
 import type { ChatInputResources } from "./components/chat-input/type";
@@ -48,7 +47,7 @@ const loadWorkspace = async (workspaceId: string, initialResources?: ChatInputRe
 
   return {
     workspace,
-    resources: initialResources ?? (await loadResources(workspace.id)),
+    resources: initialResources ?? (await loadResources()),
   };
 };
 

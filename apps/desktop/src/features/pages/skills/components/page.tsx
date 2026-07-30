@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import type { InstallSkillInput, RemoveSkillInput, SearchSkillMarketplaceInput, WorkspaceSkillGroup } from "../types";
+import type { InstallSkillInput, RemoveSkillInput, SearchSkillMarketplaceInput, SkillGroup } from "../types";
 import { DiscoverSkillsTab } from "./discover";
 import { MySkillsTab } from "./my-skills";
 
@@ -13,7 +13,7 @@ type SkillsPageProps = {
   isRemoving: boolean;
   error: string;
   defaultSkillGroupId: string;
-  onGroupsChange: (groups: WorkspaceSkillGroup[], defaultGroupId?: string) => void;
+  onGroupsChange: (groups: SkillGroup[], defaultGroupId?: string) => void;
   onDefaultGroupChange: (groupId: string) => void;
   onSearchMarketplace: (input: SearchSkillMarketplaceInput) => Promise<void>;
   onInstallSkill: (input: InstallSkillInput) => Promise<void>;

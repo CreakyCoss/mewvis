@@ -1,4 +1,4 @@
-export type WorkspaceSkill = {
+export type Skill = {
   key: string;
   name: string;
   description: string;
@@ -7,11 +7,11 @@ export type WorkspaceSkill = {
   path: string;
 };
 
-export type WorkspaceSkillGroupSkill = {
+export type SkillGroupSkill = {
   key: string;
 };
 
-export type WorkspaceSkillGroup = {
+export type SkillGroup = {
   id: string;
   name: string;
   description?: string | null;
@@ -19,22 +19,22 @@ export type WorkspaceSkillGroup = {
   readonly: boolean;
   isDefault: boolean;
   order: number;
-  skills: WorkspaceSkillGroupSkill[];
+  skills: SkillGroupSkill[];
 };
 
-export type WorkspaceSkillSettings = {
-  skills: WorkspaceSkill[];
-  groups: WorkspaceSkillGroup[];
+export type SkillSettings = {
+  skills: Skill[];
+  groups: SkillGroup[];
   defaultGroupId: string;
 };
 
-export type SaveWorkspaceSkillGroupInput = {
+export type SaveSkillGroupInput = {
   id?: string;
   name: string;
   description?: string | null;
   source?: "system" | "app" | "custom" | string;
   readonly?: boolean;
-  skills: WorkspaceSkillGroupSkill[];
+  skills: SkillGroupSkill[];
 };
 
 export type MarketplaceSkill = {

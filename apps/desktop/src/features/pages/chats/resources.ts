@@ -1,18 +1,18 @@
 import { createAgentClient } from "@/agent-client/runtime";
 import { getAiAgentSettings } from "@/api/agents";
 import { getLlmSettings } from "@/api/llm";
-import { getWorkspaceSkills } from "@/api/skills";
+import { getSkills } from "@/api/skills";
 import { buildRuntimeModelInputs, buildRuntimeModelOptions } from "@/features/pages/settings/llm/store/model";
 import type { ChatInputResources } from "./components/chat-input/type";
 
-export const loadResources = async (workspaceId: string): Promise<ChatInputResources> => {
+export const loadResources = async (): Promise<ChatInputResources> => {
   const agentClient = createAgentClient();
 
   try {
     const [llmSettings, agentSettings, skillSettings, toolSettings] = await Promise.all([
       getLlmSettings(),
       getAiAgentSettings(),
-      workspaceId ? getWorkspaceSkills(workspaceId) : Promise.resolve({ skills: [], groups: [], defaultGroupId: "" }),
+      getSkills(),
       agentClient.capabilities.listAgentTools(),
     ]);
     const defaultToolNames = new Set(toolSettings.defaultToolNames);

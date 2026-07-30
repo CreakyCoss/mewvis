@@ -1,6 +1,6 @@
 import type { RuntimeModelInput } from "@/agent-client/types";
 import type { AiAgent } from "@/features/pages/settings/agent/types";
-import type { WorkspaceSkill } from "@/features/pages/skills/types";
+import type { Skill } from "@/features/pages/skills/types";
 
 export type ChatInputResourceOption = {
   value: string;
@@ -9,7 +9,7 @@ export type ChatInputResourceOption = {
   isDefault: boolean;
 };
 
-export type ChatInputSkillOption = WorkspaceSkill & {
+export type ChatInputSkillOption = Skill & {
   label: string;
 };
 
@@ -69,7 +69,7 @@ export type ChatDisplayOptions = {
 export type ChatInputSubmitResources = {
   model: RuntimeModelInput;
   agent: AiAgent | null;
-  skills: WorkspaceSkill[];
+  skills: Skill[];
   tools: string[];
 };
 

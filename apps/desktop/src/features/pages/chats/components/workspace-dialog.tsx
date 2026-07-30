@@ -1,6 +1,7 @@
 import { useImperativeHandle, useState, type Ref } from "react";
 import { open as openDirectoryDialog } from "@tauri-apps/plugin-dialog";
 import { FolderOpenIcon } from "lucide-react";
+import type { Workspace } from "@/api/workspace";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { useWorkspaceStore, type Workspace } from "../workspace-store";
+import { useWorkspaceStore } from "../workspace-store";
 
 export type WorkspaceDialogHandle = (workspace?: Workspace) => void;
 
