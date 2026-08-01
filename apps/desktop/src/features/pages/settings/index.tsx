@@ -2,9 +2,9 @@ import { Bot, ChevronRight, GitBranch, Settings, X } from "lucide-react";
 import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { AgentSettingsDialog } from "./agent/components/dialog";
+import { AgentSettingsPage } from "./agent";
 import { LlmSettingsPage } from "./llm";
-import { CollaborationWorkflowSettingsDialog } from "./workflow/components/dialog";
+import { WorkflowSettingsPage } from "./workflow";
 
 type SettingsPanelProps = {
   settingsError: string;
@@ -123,37 +123,9 @@ export const LlmPage = () => {
 };
 
 export const AgentPage = () => {
-  const navigate = useNavigate();
-
-  return (
-    <>
-      <SettingsPage />
-      <AgentSettingsDialog
-        open
-        onOpenChange={(open) => {
-          if (!open) {
-            navigate("/settings");
-          }
-        }}
-      />
-    </>
-  );
+  return <AgentSettingsPage />;
 };
 
 export const WorkflowPage = () => {
-  const navigate = useNavigate();
-
-  return (
-    <>
-      <SettingsPage />
-      <CollaborationWorkflowSettingsDialog
-        open
-        onOpenChange={(open) => {
-          if (!open) {
-            navigate("/settings");
-          }
-        }}
-      />
-    </>
-  );
+  return <WorkflowSettingsPage />;
 };
