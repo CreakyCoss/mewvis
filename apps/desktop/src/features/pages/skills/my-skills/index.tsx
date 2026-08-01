@@ -29,13 +29,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useSkillsStore } from "../../store";
-import { ALL_SKILLS_GROUP_ID, type SaveSkillGroupInput, type Skill, type SkillGroup } from "../../types";
-import { EmptyState } from "../shared";
-import { existingGroupSkillNames, filterSkills, groupSkillsBySource } from "../utils";
+import { useSkillsStore } from "../store";
+import { ALL_SKILLS_GROUP_ID, type SaveSkillGroupInput, type Skill, type SkillGroup } from "../types";
+import { EmptyState } from "./empty-state";
 import { GroupDialog, type GroupDialogState } from "./group-dialog";
 import { ImportSkillDialog } from "./import-skill-dialog";
 import { SkillListItem } from "./skill-list-item";
+import { existingGroupSkillNames, filterSkills, groupSkillsBySource } from "./utils";
 
 const QUICK_ACTION_BUTTON_CLASS =
   "size-10 rounded-xl border border-border/75 bg-card text-muted-foreground shadow-xs hover:bg-accent/60 hover:text-accent-foreground focus-visible:ring-sidebar-primary/25";

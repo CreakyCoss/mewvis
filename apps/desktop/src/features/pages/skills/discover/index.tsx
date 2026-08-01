@@ -25,8 +25,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useSkillsStore } from "../../store";
-import type { MarketplaceSkill, SearchSkillMarketplaceInput, SkillMarketplaceSort } from "../../types";
+import { useSkillsStore } from "../store";
+import type { MarketplaceSkill, SearchSkillMarketplaceInput, SkillMarketplaceSort } from "../types";
 import { MarketplaceResult } from "./marketplace";
 import { DEFAULT_MARKETPLACE_QUERY, DEFAULT_MARKETPLACE_SORT, useMarketplaceStore } from "./store";
 

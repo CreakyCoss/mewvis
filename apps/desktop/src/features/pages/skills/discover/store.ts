@@ -5,7 +5,7 @@ import type {
   SkillMarketplacePagination,
   SkillMarketplaceSearchResult,
   SkillMarketplaceSort,
-} from "../../types";
+} from "../types";
 
 export const DEFAULT_MARKETPLACE_QUERY = "小说";
 export const DEFAULT_MARKETPLACE_SORT: SkillMarketplaceSort = "stars";

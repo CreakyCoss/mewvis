@@ -13,15 +13,15 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ALL_SKILLS_GROUP_ID, type Skill, type SkillGroup } from "../../types";
-import { EmptyState } from "../shared";
+import { ALL_SKILLS_GROUP_ID, type Skill, type SkillGroup } from "../types";
+import { EmptyState } from "./empty-state";
 import {
   existingGroupSkillNames,
   filterSkills,
   groupSkillsBySource,
   nextCustomGroupOrder,
   skillDescriptionPreview,
-} from "../utils";
+} from "./utils";
 
 type GroupDialogMode = "create" | "view" | "edit";
 

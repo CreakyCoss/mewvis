@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { useSkillsStore } from "../../store";
+import { useSkillsStore } from "../store";
 
 type ImportMode = "remote" | "zip";
 
