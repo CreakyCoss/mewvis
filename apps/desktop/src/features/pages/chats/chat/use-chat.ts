@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { isEqual } from "lodash-es";
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
 import { createAgentClient } from "@/agent-client/runtime";
 import type { AgentClientAgentEvent } from "@/agent-client/types";
 import { loadChat, saveChat as saveChatApi } from "@/api/chat";
-import type { ChatTurnRequest } from "../components/chat-input/type";
+import type { ChatInputOptions, ChatTurnRequest } from "../components/chat-input/type";
 import { buildAgentPrompt } from "./prompt";
 import { applyChatMessageEvent, failChatMessage } from "./reducer";
 import { useSaveScheduler } from "./save-scheduler";
@@ -24,13 +25,17 @@ type ChatActiveTurn = {
 
 type ChatStore = {
   chatId: string;
+  title: string;
   messages: ChatMessage[];
+  options: ChatInputOptions | null;
   activeTurn: ChatActiveTurn | null;
   pendingQuestion: ChatPendingQuestion | null;
   isInitializing: boolean;
   error: string;
   initialize: (chatId: string) => void;
   hydrateMessages: (messages: ChatMessage[]) => void;
+  setTitle: (title: string) => void;
+  setOptions: (options: ChatInputOptions | null) => void;
   setInitializing: (isInitializing: boolean) => void;
   addMessages: (messages: ChatMessage[]) => void;
   updateMessage: (messageId: string, update: (message: ChatMessage) => ChatMessage) => void;
@@ -43,7 +48,9 @@ type ChatStore = {
 const createChatStore = () =>
   createStore<ChatStore>()((set) => ({
     chatId: "",
+    title: "",
     messages: [],
+    options: null,
     activeTurn: null,
     pendingQuestion: null,
     isInitializing: true,
@@ -51,13 +58,17 @@ const createChatStore = () =>
     initialize: (chatId) =>
       set({
         chatId,
+        title: "",
         messages: [],
+        options: null,
         activeTurn: null,
         pendingQuestion: null,
         isInitializing: true,
         error: "",
       }),
     hydrateMessages: (messages) => set({ messages }),
+    setTitle: (title) => set({ title }),
+    setOptions: (options) => set({ options }),
     setInitializing: (isInitializing) => set({ isInitializing }),
     addMessages: (messages) => set((state) => ({ messages: [...state.messages, ...messages] })),
     updateMessage: (messageId, update) =>
@@ -99,10 +110,10 @@ const getUserMessageText = (message: ChatUserMessage) =>
     .join("")
     .trim();
 
-const chatTitle = (messages: ChatMessage[]) => {
+const chatTitle = (messages: ChatMessage[], fallback = "新的聊天") => {
   const firstUserMessage = messages.find((message): message is ChatUserMessage => message.role === "user");
   const text = firstUserMessage ? getUserMessageText(firstUserMessage) : "";
-  return text ? text.replace(/\s+/g, " ").slice(0, 36) : "新的聊天";
+  return text ? text.replace(/\s+/g, " ").slice(0, 36) : fallback;
 };
 
 const updateAssistantMessage =
@@ -130,18 +141,20 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
   const lastStderrRef = useRef("");
   const initialRequestChatIdRef = useRef("");
 
-  const persistMessages = useCallback(() => {
+  const persistChat = useCallback(() => {
     const state = chatStore.getState();
-    if (state.chatId !== chatId || state.messages.length === 0) {
+    if (state.chatId !== chatId || state.isInitializing || (state.messages.length === 0 && !state.options)) {
       return Promise.resolve();
     }
 
     const messages = state.messages;
+    const options = state.options;
     const save = saveQueueRef.current.then(async () => {
       const input: ChatSaveInput = {
         chatId,
-        title: chatTitle(messages),
+        title: chatTitle(messages, state.title || "新的聊天"),
         messages,
+        options,
       };
 
       if (saveChat) {
@@ -159,7 +172,22 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
     return save;
   }, [chatId, chatStore, saveChat, workspacePath]);
 
-  const { saveImmediately, nodeCompleted, streamChanged, flush } = useSaveScheduler(persistMessages);
+  const { saveImmediately, nodeCompleted, streamChanged, flush } = useSaveScheduler(persistChat);
+
+  const updateOptions = useCallback(
+    (options: ChatInputOptions) => {
+      const state = chatStore.getState();
+      if (state.chatId !== chatId || isEqual(state.options, options)) {
+        return;
+      }
+
+      state.setOptions(options);
+      if (!state.isInitializing) {
+        void saveImmediately();
+      }
+    },
+    [chatId, chatStore, saveImmediately],
+  );
 
   const flushStreamEvents = useCallback(() => {
     if (streamFrameRef.current !== null) {
@@ -464,13 +492,15 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
           return;
         }
 
-        const savedChat = await loadChat<ChatMessage>(workspacePath, chatId);
+        const savedChat = await loadChat<ChatMessage, ChatInputOptions>(workspacePath, chatId);
         if (disposed) {
           return;
         }
 
         if (savedChat) {
+          chatStore.getState().setTitle(savedChat.title);
           chatStore.getState().hydrateMessages(restoreMessages(savedChat.messages));
+          chatStore.getState().setOptions(savedChat.options ?? null);
         }
         chatStore.getState().setInitializing(false);
 
@@ -514,10 +544,12 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
 
   return {
     messages: chatState.messages,
+    options: chatState.options,
     pendingQuestion: chatState.pendingQuestion,
     isInitializing: chatState.isInitializing,
     isRunning: Boolean(chatState.activeTurn),
     error: chatState.error,
+    updateOptions,
     runTurn,
     stopGenerating,
     answerQuestion,

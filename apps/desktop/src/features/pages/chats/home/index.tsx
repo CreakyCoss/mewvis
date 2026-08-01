@@ -40,6 +40,7 @@ export const ChatHomePage = () => {
         chatId,
         title: request.text,
         messages: [],
+        options,
       });
       setChat({
         chatId: savedChat.id,
@@ -47,7 +48,6 @@ export const ChatHomePage = () => {
         initialData: {
           initialRequest: request,
           resources: workspaceStore.resources,
-          options,
         },
       });
     } catch (error) {

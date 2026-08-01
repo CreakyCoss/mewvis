@@ -10,11 +10,6 @@ import { useWorkspaceFileStore, WorkspaceFileWatcher } from "./workspace-files";
 import { loadResources } from "./resources";
 import { WorkspaceChatSidebar } from "./sidebar";
 
-const defaultOptions = {
-  showThinkingProcess: true,
-  showToolCallProcess: true,
-};
-
 type WorkspaceChatState = {
   workspace: Workspace | null;
   resources: ChatInputResources;
@@ -60,7 +55,6 @@ const WorkspaceChat = ({ workspaceId, chatId, initialData: providedInitialData, 
     () =>
       providedInitialData ?? {
         resources: state.resources,
-        options: defaultOptions,
       },
     [providedInitialData, state.resources],
   );

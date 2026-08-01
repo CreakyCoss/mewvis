@@ -14,6 +14,7 @@ use std::{
 const CHAT_DIR_NAME: &str = "chats";
 const META_FILE_NAME: &str = "meta.json";
 const MESSAGES_FILE_NAME: &str = "messages.json";
+const OPTIONS_FILE_NAME: &str = "options.json";
 const LEGACY_CONVERSATION_FILE_NAME: &str = "conversation.json";
 const LEGACY_CONTEXT_FILE_NAME: &str = "context.json";
 const LEGACY_TRACE_FILE_NAME: &str = "trace.json";
@@ -39,6 +40,8 @@ pub struct SaveChatInput {
     pub chat_id: Option<String>,
     pub title: Option<String>,
     pub messages: Value,
+    #[serde(default)]
+    pub options: Option<Value>,
     #[serde(default)]
     pub is_unread: Option<bool>,
 }
@@ -78,6 +81,8 @@ pub struct ChatRecord {
     pub created_at: i64,
     pub updated_at: i64,
     pub messages: Value,
+    #[serde(default)]
+    pub options: Option<Value>,
     #[serde(default)]
     pub is_unread: bool,
 }
@@ -159,12 +164,18 @@ pub fn save_chat(input: SaveChatInput) -> Result<ChatRecord, String> {
         .map(|chat| chat.id.clone())
         .or(requested_id)
         .unwrap_or_else(|| create_fallback_chat_id(created_at, &title));
+    let options = input.options.or_else(|| {
+        existing
+            .as_ref()
+            .and_then(|chat| chat.options.as_ref().cloned())
+    });
     let chat = ChatRecord {
         id,
         title,
         created_at,
         updated_at: now,
         messages: input.messages,
+        options,
         is_unread: input.is_unread.unwrap_or(false),
     };
     write_chat_files(&input.workspace_path, &chat)?;
@@ -258,6 +269,15 @@ fn load_chat_from_dir(workspace_path: &str, chat_id: &str) -> Result<Option<Chat
         .map_err(|error| format!("无法解析聊天记录元数据：{error}"))?;
     let messages = read_json_file::<Value>(&dir.join(MESSAGES_FILE_NAME))
         .map_err(|error| format!("无法读取聊天消息：{error}"))?;
+    let options_path = dir.join(OPTIONS_FILE_NAME);
+    let options = if options_path.exists() {
+        Some(
+            read_json_file::<Value>(&options_path)
+                .map_err(|error| format!("无法读取聊天选项：{error}"))?,
+        )
+    } else {
+        None
+    };
 
     Ok(Some(ChatRecord {
         id: meta.id,
@@ -265,6 +285,7 @@ fn load_chat_from_dir(workspace_path: &str, chat_id: &str) -> Result<Option<Chat
         created_at: meta.created_at,
         updated_at: meta.updated_at,
         messages,
+        options,
         is_unread: meta.is_unread,
     }))
 }
@@ -274,6 +295,12 @@ fn write_chat_files(workspace_path: &str, chat: &ChatRecord) -> Result<(), Strin
     fs::create_dir_all(&dir).map_err(|error| format!("无法创建聊天记录目录：{error}"))?;
 
     write_json_file(&dir.join(MESSAGES_FILE_NAME), &chat.messages)?;
+    let options_path = dir.join(OPTIONS_FILE_NAME);
+    if let Some(options) = &chat.options {
+        write_json_file(&options_path, options)?;
+    } else if options_path.exists() {
+        fs::remove_file(&options_path).map_err(|error| format!("无法删除聊天选项：{error}"))?;
+    }
     remove_legacy_chat_files(&dir)?;
     write_json_file(&dir.join(META_FILE_NAME), &chat_meta(chat))?;
     Ok(())
@@ -415,6 +442,7 @@ mod tests {
                     "text": "长期协作者"
                 }
             ]),
+            options: None,
             is_unread: None,
         })
         .expect("save chat")
@@ -430,6 +458,41 @@ mod tests {
         assert!(chat_dir.join(META_FILE_NAME).exists());
         assert!(chat_dir.join(MESSAGES_FILE_NAME).exists());
         assert!(!chat_dir.join(LEGACY_CONVERSATION_FILE_NAME).exists());
+    }
+
+    #[test]
+    fn save_chat_persists_and_preserves_options() {
+        let workspace = TestWorkspace::new("save-options");
+        let options = json!({
+            "selectedModelId": "model-test",
+            "selectedSkillKeys": ["skill-test"],
+            "showThinkingProcess": false
+        });
+        let chat = save_chat(SaveChatInput {
+            workspace_path: workspace.path_string(),
+            chat_id: Some("chat-options".to_string()),
+            title: Some("选项测试".to_string()),
+            messages: json!([]),
+            options: Some(options.clone()),
+            is_unread: None,
+        })
+        .expect("save chat options");
+
+        let chat_dir = workspace.path.join(chat_dir_display()).join(&chat.id);
+        assert!(chat_dir.join(OPTIONS_FILE_NAME).exists());
+        assert_eq!(chat.options, Some(options.clone()));
+
+        let updated = save_chat(SaveChatInput {
+            workspace_path: workspace.path_string(),
+            chat_id: Some(chat.id),
+            title: Some("选项测试".to_string()),
+            messages: json!([{ "role": "user", "text": "保留选项" }]),
+            options: None,
+            is_unread: None,
+        })
+        .expect("update chat without options");
+
+        assert_eq!(updated.options, Some(options));
     }
 
     #[test]
