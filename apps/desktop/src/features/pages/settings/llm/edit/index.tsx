@@ -1,5 +1,6 @@
 import { useImperativeHandle, useState, type Ref } from "react";
 import { CheckCircle2, Eye, EyeOff, Loader2, Plus, Save, ServerCog, Trash2 } from "lucide-react";
+import type { LlmProvider, LlmProviderConfig, ProviderModelConfig } from "@/agent-client/runtime-model";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,9 +25,12 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { saveLlmSettings } from "@/api/llm";
-import { getProviderOption, getProviderOptions } from "../options";
-import type { LlmProvider, LlmProviderConfig, ProviderModelConfig } from "../types";
-import { getProviderApiFormatOptions, getProviderModelOptions } from "./form";
+import {
+  getProviderApiFormatOptions,
+  getProviderModelOptions,
+  getProviderOption,
+  getProviderOptions,
+} from "../options";
 import {
   applyApiFormatDefaults,
   applyModelDefaults,

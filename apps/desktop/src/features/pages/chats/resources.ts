@@ -1,8 +1,8 @@
 import { createAgentClient } from "@/agent-client/runtime";
+import { buildRuntimeModelInputs, buildRuntimeModelOptions } from "@/agent-client/runtime-model";
 import { getAiAgentSettings } from "@/api/agents";
 import { getLlmSettings } from "@/api/llm";
 import { getSkills } from "@/api/skills";
-import { buildRuntimeModelInputs, buildRuntimeModelOptions } from "@/features/pages/settings/llm/store/model";
 import type { ChatInputResources } from "./components/chat-input/type";
 
 export const loadResources = async (): Promise<ChatInputResources> => {

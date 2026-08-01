@@ -1,6 +1,6 @@
 import type { SetStateAction } from "react";
 import { create } from "zustand";
-import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
+import type { RuntimeModelInput } from "@/agent-client/types";
 import type { TavernStoryData } from "@/features/pages/stories/tavern/room/model";
 import { getVisualPreset } from "@/features/pages/stories/tavern/presets/visual-presets";
 import type { VisualPresetDefinition } from "@/features/pages/stories/tavern/presets/visual-presets/types";
@@ -36,7 +36,7 @@ type TavernRoomDerivedState = {
 
 type TavernRoomStoreBase = {
   workspacePath: string;
-  runtimeModel: RuntimeModelOption | null;
+  runtimeModel: RuntimeModelInput | null;
   story: TavernStoryData | null;
   messages: TavernMessage[];
   composerHandle: ComposerHandle | null;
@@ -54,7 +54,7 @@ type TavernRoomStoreInitialization = {
 
 type TavernRoomStoreActions = {
   initializeRoom: (input: TavernRoomStoreInitialization) => void;
-  setRuntimeModel: (runtimeModel: RuntimeModelOption | null) => void;
+  setRuntimeModel: (runtimeModel: RuntimeModelInput | null) => void;
   setComposerHandle: (composerHandle: ComposerHandle | null) => void;
   setStory: (story: TavernStoryData) => void;
   setMessages: (messages: TavernMessage[]) => void;
@@ -76,7 +76,7 @@ const deriveStoryState = (story: TavernStoryData | null): TavernRoomDerivedState
 
 const createBaseStoreState = (
   input?: TavernRoomStoreInitialization,
-  runtimeModel: RuntimeModelOption | null = null,
+  runtimeModel: RuntimeModelInput | null = null,
 ): TavernRoomStoreBase => {
   const story = input?.story ?? null;
   return {

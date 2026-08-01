@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AgentSettingsDialog } from "./agent/components/dialog";
 import { LlmSettingsPage } from "./llm";
-import { useLlmSettingsStore } from "./llm/store";
 import { CollaborationWorkflowSettingsDialog } from "./workflow/components/dialog";
 
 type SettingsPanelProps = {
@@ -120,14 +119,7 @@ export const SettingsPage = () => {
 };
 
 export const LlmPage = () => {
-  const navigate = useNavigate();
-
-  return (
-    <LlmSettingsPage
-      onBack={() => navigate("/settings")}
-      onSettingsSaved={() => void useLlmSettingsStore.getState().loadSettings()}
-    />
-  );
+  return <LlmSettingsPage />;
 };
 
 export const AgentPage = () => {

@@ -1,19 +1,24 @@
 import { cloneDeep } from "lodash-es";
 import type { RuntimeApiFormat } from "@/agent-client/types";
-import { getProviderApiFormats, getProviderOption, getProviderOptions } from "../options";
-import type { LlmProvider, LlmProviderConfig, LlmSettings, LlmSettingsConfig, ProviderModelConfig } from "../types";
-import { getDefaultApiFormat, getProviderModelOptions, inferApiEndpoint } from "./form";
-
-const createId = (prefix: string) => {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return `${prefix}-${crypto.randomUUID()}`;
-  }
-
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-};
+import type {
+  LlmProvider,
+  LlmProviderConfig,
+  LlmSettings,
+  LlmSettingsConfig,
+  ProviderModelConfig,
+} from "@/agent-client/runtime-model";
+import { createUuid } from "@/utils/ids";
+import {
+  getDefaultApiFormat,
+  getProviderApiFormats,
+  getProviderModelOptions,
+  getProviderOption,
+  getProviderOptions,
+  inferApiEndpoint,
+} from "../options";
 
 export const createModelConfig = (): ProviderModelConfig => ({
-  id: createId("model"),
+  id: createUuid(),
   modelId: "",
   modelName: "",
   isEnabled: true,
@@ -31,7 +36,7 @@ export const createProviderConfig = (isDefault: boolean): LlmProviderConfig => {
   const defaultModel = getProviderModelOptions(provider)[0];
 
   return {
-    id: createId("provider"),
+    id: createUuid(),
     name: providerOption.label,
     provider,
     apiFormat,

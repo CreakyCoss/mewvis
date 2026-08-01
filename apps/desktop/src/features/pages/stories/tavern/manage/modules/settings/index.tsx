@@ -1,9 +1,9 @@
 import { clamp } from "lodash-es";
 import { Box, Clapperboard, Eye, Gauge, Settings2, UsersRound } from "lucide-react";
+import type { RuntimeModelOption } from "@/agent-client/runtime-model";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
-import type { RuntimeModelOption } from "@/features/pages/settings/llm/store";
 import type { TavernRoomConfig, TavernRoomSettings } from "@/features/pages/stories/tavern/manage/model";
 import { EditorField, EditorMetricStrip, EditorSection, EditorSettingGroup } from "../../primitives";
 import type { ModuleSave } from "../types";

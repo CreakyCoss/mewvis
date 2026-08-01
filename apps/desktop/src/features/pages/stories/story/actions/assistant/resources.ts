@@ -1,8 +1,8 @@
 import { createAgentClient } from "@/agent-client/runtime";
+import { buildRuntimeModelInputs, buildRuntimeModelOptions } from "@/agent-client/runtime-model";
 import { getAiAgentSettings } from "@/api/agents";
 import { getLlmSettings } from "@/api/llm";
 import type { ChatInputResources, ChatInputSkillOption } from "@/features/pages/chats/components/chat-input/type";
-import { buildRuntimeModelInputs, buildRuntimeModelOptions } from "@/features/pages/settings/llm/store/model";
 import type { StoryLibraryItem } from "../../../storage";
 import { storyDocumentData } from "../../../story-document";
 

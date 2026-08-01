@@ -1,18 +1,13 @@
 import { useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Plus, Sparkles } from "lucide-react";
+import type { LlmProvider } from "@/agent-client/runtime-model";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getApiFormatLabel, getProviderWebsiteUrl } from "./options";
-import type { LlmProvider } from "./types";
-import { ProviderEditDialog, type ProviderEditDialogHandle } from "./provider-edit";
+import { ProviderEditDialog, type ProviderEditDialogHandle } from "./edit";
 import { useLlmSettingsStore } from "./store";
-
-type LlmSettingsPageProps = {
-  onBack: () => void;
-  onSettingsSaved?: () => void;
-};
 
 const countEnabledModels = (provider: LlmProvider) => provider.models.filter((model) => model.isEnabled).length;
 
@@ -66,7 +61,7 @@ const ProviderTableHeader = () => (
   </div>
 );
 
-export const LlmSettingsPage = ({ onSettingsSaved }: LlmSettingsPageProps) => {
+export const LlmSettingsPage = () => {
   const providerEditDialogRef = useRef<ProviderEditDialogHandle>(null);
   const { settings, error, loadSettings } = useLlmSettingsStore(
     useShallow((store) => ({
@@ -87,7 +82,6 @@ export const LlmSettingsPage = ({ onSettingsSaved }: LlmSettingsPageProps) => {
 
   const handleSettingsSaved = async () => {
     await loadSettings();
-    onSettingsSaved?.();
   };
 
   return (

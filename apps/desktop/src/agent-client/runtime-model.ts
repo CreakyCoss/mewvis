@@ -1,6 +1,45 @@
-import { MODEL_CATALOG } from "@/agent-client/model-catalog";
-import type { CatalogModel, RuntimeModelInput, RuntimeThinkingLevel } from "@/agent-client/types";
-import type { LlmProvider, LlmSettings, ProviderModel } from "../types";
+import { MODEL_CATALOG } from "./model-catalog";
+import type { CatalogModel, RuntimeApiFormat, RuntimeModelInput, RuntimeThinkingLevel } from "./types";
+
+export type ProviderModel = {
+  id: string;
+  providerId: string;
+  modelId: string;
+  modelName: string;
+  isEnabled: boolean;
+  isOneMillionContext: boolean;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type LlmProvider = {
+  id: string;
+  name: string;
+  provider: string;
+  apiFormat: RuntimeApiFormat;
+  apiKey?: string | null;
+  apiEndpoint?: string | null;
+  isDefault: boolean;
+  createdAt: number;
+  updatedAt: number;
+  models: ProviderModel[];
+};
+
+export type LlmSettings = {
+  providers: LlmProvider[];
+};
+
+export type ProviderModelConfig = Omit<ProviderModel, "createdAt" | "updatedAt" | "providerId">;
+
+export type LlmProviderConfig = Omit<LlmProvider, "apiEndpoint" | "apiKey" | "createdAt" | "updatedAt" | "models"> & {
+  apiKey: string;
+  apiEndpoint: string;
+  models: ProviderModelConfig[];
+};
+
+export type LlmSettingsConfig = {
+  providers: LlmProviderConfig[];
+};
 
 export type RuntimeModelOption = {
   id: string;
@@ -12,7 +51,8 @@ export type RuntimeModelOption = {
   modelName: string;
 };
 
-type RuntimeModelInputMap = Record<string, RuntimeModelInput>;
+export type RuntimeModelInputMap = Record<string, RuntimeModelInput>;
+
 type CatalogRuntimeModelInput = Pick<
   RuntimeModelInput,
   "reasoning" | "thinkingLevel" | "thinkingLevelMap" | "input" | "cost" | "contextWindow" | "maxTokens" | "headers"

@@ -1,6 +1,5 @@
 import type { FormEvent } from "react";
 import { createTavernTextMessageBody, type TavernMessage } from "@/features/pages/stories/tavern/room/model/message";
-import { requireRuntimeModelInput } from "@/features/pages/settings/llm/store";
 import {
   createIdleTavernRoomBusyState,
   isTavernRoomBusy,
@@ -100,14 +99,6 @@ export const submitTavernAgentFlow = async ({
     return;
   }
 
-  let runtimeModelInput;
-  try {
-    runtimeModelInput = requireRuntimeModelInput(runtimeModel);
-  } catch (error) {
-    setError(getTavernAgentFlowErrorMessage(error));
-    return;
-  }
-
   const turnId = createTimestampId("turn");
   const userMessage = isSceneDrive
     ? null
@@ -131,7 +122,7 @@ export const submitTavernAgentFlow = async ({
 
     const result = await TavernAgentFlow.run({
       workspacePath,
-      runtimeModel: runtimeModelInput,
+      runtimeModel,
       story,
       messages,
       currentUserText: text,

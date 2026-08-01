@@ -2,7 +2,8 @@ import type { Ref } from "react";
 import { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Loader2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
-import { useLlmSettingsStore } from "@/features/pages/settings/llm/store";
+import { buildRuntimeModelInputs, buildRuntimeModelOptions } from "@/agent-client/runtime-model";
+import { getLlmSettings } from "@/api/llm";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { WindowDragRegion } from "@/components/window-drag-region";
@@ -34,9 +35,6 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
   const [isRoomLoaded, setIsRoomLoaded] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [openError, setOpenError] = useState("");
-  const runtimeModels = useLlmSettingsStore((store) => store.runtimeModels);
-  const loadSettings = useLlmSettingsStore((store) => store.loadSettings);
-  const runtimeModel = runtimeModels[0] ?? null;
   const workspacePath = useTavernRoomContext((store) => store.workspacePath);
   const initializeRoom = useTavernRoomContext((store) => store.initializeRoom);
   const setRuntimeModel = useTavernRoomContext((store) => store.setRuntimeModel);
@@ -61,6 +59,24 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       setIsResetting(false);
       setOpenError("");
       setIsSidePanelOpen(false);
+      setRuntimeModel(null);
+
+      void getLlmSettings()
+        .then((settings) => {
+          if (requestId !== openRequestIdRef.current) {
+            return;
+          }
+
+          const defaultModel = buildRuntimeModelOptions(settings)[0];
+          const runtimeModelInputs = buildRuntimeModelInputs(settings);
+          setRuntimeModel(defaultModel ? (runtimeModelInputs[defaultModel.id] ?? null) : null);
+        })
+        .catch((error) => {
+          if (requestId === openRequestIdRef.current) {
+            console.error("Failed to load runtime model", error);
+            setRuntimeModel(null);
+          }
+        });
 
       void loadTavernRoom(nextWorkspacePath)
         .then((storedRoom) => {
@@ -84,18 +100,10 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
           setOpenError("酒馆房间数据加载失败，请检查运行文件后重试。");
         });
     },
-    [initializeRoom],
+    [initializeRoom, setRuntimeModel],
   );
 
   useImperativeHandle(bind, () => open, [bind, open]);
-
-  useEffect(() => {
-    void loadSettings();
-  }, [loadSettings]);
-
-  useEffect(() => {
-    setRuntimeModel(runtimeModel);
-  }, [runtimeModel, setRuntimeModel]);
 
   useEffect(() => {
     if (!workspacePath || !isRoomLoaded || !story) {
@@ -166,6 +174,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     setIsSidePanelOpen(false);
     setIsResetting(false);
     setIsOpen(false);
+    setRuntimeModel(null);
   };
 
   if (!isOpen) {
