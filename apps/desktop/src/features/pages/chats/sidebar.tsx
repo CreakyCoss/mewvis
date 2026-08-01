@@ -1,5 +1,6 @@
 import { useEffect, useState, type ComponentType } from "react";
 import { ActivityIcon, FolderIcon, GitBranchIcon, PanelRightIcon } from "lucide-react";
+import type { RuntimeModelInput } from "@/agent-client/types";
 import { WorkspaceFiles } from "./panels/files";
 import { ChatLedger } from "./panels/ledger";
 import { WorkspaceVersionControl } from "./panels/version-control";
@@ -9,6 +10,7 @@ export type WorkspaceChatPanel = "files" | "version" | "ledger";
 type WorkspaceChatSidebarProps = {
   workspacePath: string;
   chatId: string;
+  selectedModel: RuntimeModelInput | null;
   panels: WorkspaceChatPanel[];
 };
 
@@ -38,7 +40,7 @@ const toolButtonClass =
 const toggleButtonClass =
   "flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:ring-3 focus-visible:ring-primary/20 focus-visible:outline-none data-[active=true]:bg-primary/10 data-[active=true]:text-primary";
 
-export const WorkspaceChatSidebar = ({ workspacePath, chatId, panels }: WorkspaceChatSidebarProps) => {
+export const WorkspaceChatSidebar = ({ workspacePath, chatId, selectedModel, panels }: WorkspaceChatSidebarProps) => {
   const [activePanel, setActivePanel] = useState<WorkspaceChatPanel>(panels[0] ?? "files");
   const [isOpen, setIsOpen] = useState(true);
 
@@ -59,7 +61,9 @@ export const WorkspaceChatSidebar = ({ workspacePath, chatId, panels }: Workspac
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             {activePanel === "files" ? <WorkspaceFiles workspacePath={workspacePath} /> : null}
             {activePanel === "version" ? <WorkspaceVersionControl workspacePath={workspacePath} /> : null}
-            {activePanel === "ledger" ? <ChatLedger workspacePath={workspacePath} chatId={chatId} /> : null}
+            {activePanel === "ledger" ? (
+              <ChatLedger workspacePath={workspacePath} chatId={chatId} runtimeModel={selectedModel} />
+            ) : null}
           </div>
         </aside>
       ) : null}

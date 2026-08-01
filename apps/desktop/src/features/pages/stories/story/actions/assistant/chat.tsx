@@ -7,7 +7,7 @@ import type { ChatInputResources } from "@/features/pages/chats/components/chat-
 import type { StoryLibraryItem } from "../../../storage";
 import { prepareStoryChatResources } from "./resources";
 
-const defaultDisplayOptions = {
+const defaultOptions = {
   showThinkingProcess: true,
   showToolCallProcess: true,
 };
@@ -52,7 +52,7 @@ export const StoryChat = ({ story, chatId }: StoryChatProps) => {
   const initialData = useMemo<ChatInitialData>(
     () => ({
       resources: state.resources,
-      displayOptions: defaultDisplayOptions,
+      options: defaultOptions,
     }),
     [state.resources],
   );

@@ -66,6 +66,10 @@ export type ChatDisplayOptions = {
   showToolCallProcess: boolean;
 };
 
+export type ChatInputOptions = ChatInputOptionValues & ChatDisplayOptions;
+
+export type ChatInputInitialOptions = Partial<ChatInputOptions>;
+
 export type ChatInputSubmitResources = {
   model: RuntimeModelInput;
   agent: AiAgent | null;
@@ -73,22 +77,25 @@ export type ChatInputSubmitResources = {
   tools: string[];
 };
 
-export type ChatInputSubmitPayload = ChatInputSubmitResources & {
+export type ChatTurnRequest = ChatInputSubmitResources & {
   text: string;
   blocks: ChatInputSubmitBlock[];
-  optionValues: ChatInputOptionValues;
+};
+
+export type ChatInputSubmission = {
+  request: ChatTurnRequest;
+  options: ChatInputOptions;
 };
 
 export type ChatInputProps = {
   resources: ChatInputResources;
   files?: ChatInputFile[];
-  displayOptions: ChatDisplayOptions;
+  initialOptions?: ChatInputInitialOptions;
   defaultValue?: string;
-  defaultOptionValues?: Partial<ChatInputOptionValues>;
   placeholder?: string;
   disabled?: boolean;
   isRunning?: boolean;
   onStop?: () => void | Promise<void>;
-  onDisplayOptionsChange: (options: ChatDisplayOptions) => void;
-  onSubmit: (payload: ChatInputSubmitPayload) => void;
+  onOptionsChange?: (options: ChatInputOptions) => void;
+  onSubmit: (submission: ChatInputSubmission) => void;
 };

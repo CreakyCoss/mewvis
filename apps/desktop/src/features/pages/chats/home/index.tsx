@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { createTimestampId } from "@/utils/ids";
 import { ChatInput } from "../components/chat-input";
-import type { ChatDisplayOptions, ChatInputSubmitPayload } from "../components/chat-input/type";
+import type { ChatInputSubmission } from "../components/chat-input/type";
 import { WorkspaceDialog, type WorkspaceDialogHandle } from "../components/workspace-dialog";
 import { WorkspacePicker } from "../components/workspace-picker";
 import { HomeChat, type HomeChatProps } from "./chat";
 import { useWorkspaceFileStore } from "../workspace-files";
 import { useWorkspaceStore } from "../workspace-store";
+
+const defaultOptions = {
+  showThinkingProcess: true,
+  showToolCallProcess: true,
+};
 
 export const ChatHomePage = () => {
   const workspaceStore = useWorkspaceStore();
@@ -15,16 +20,12 @@ export const ChatHomePage = () => {
   const [chat, setChat] = useState<HomeChatProps | null>(null);
   const [createChatError, setCreateChatError] = useState("");
   const [isCreatingChat, setIsCreatingChat] = useState(false);
-  const [displayOptions, setDisplayOptions] = useState<ChatDisplayOptions>({
-    showThinkingProcess: true,
-    showToolCallProcess: true,
-  });
 
   useEffect(() => {
     void workspaceStore.loadWorkspaces();
   }, [workspaceStore.loadWorkspaces]);
 
-  const submitPrompt = async (initialRequest: ChatInputSubmitPayload) => {
+  const submitPrompt = async ({ request, options }: ChatInputSubmission) => {
     if (!workspaceStore.currentWorkspace) {
       return;
     }
@@ -37,16 +38,16 @@ export const ChatHomePage = () => {
     try {
       const savedChat = await workspaceStore.saveChat(workspace, {
         chatId,
-        title: initialRequest.text,
+        title: request.text,
         messages: [],
       });
       setChat({
         chatId: savedChat.id,
         workspaceId: workspace.id,
         initialData: {
-          request: initialRequest,
+          initialRequest: request,
           resources: workspaceStore.resources,
-          displayOptions,
+          options,
         },
       });
     } catch (error) {
@@ -95,14 +96,13 @@ export const ChatHomePage = () => {
                 <ChatInput
                   resources={workspaceStore.resources}
                   files={fileStore.workspacePath === workspaceStore.currentWorkspace?.path ? fileStore.files : []}
-                  displayOptions={displayOptions}
+                  initialOptions={defaultOptions}
                   disabled={workspaceStore.isLoading || isCreatingChat || !workspaceStore.currentWorkspace}
                   placeholder={
                     workspaceStore.currentWorkspace
                       ? `询问关于 ${workspaceStore.currentWorkspace.name} 的任何问题`
                       : "输入问题"
                   }
-                  onDisplayOptionsChange={setDisplayOptions}
                   onSubmit={submitPrompt}
                 />
 

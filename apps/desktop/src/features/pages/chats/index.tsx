@@ -4,13 +4,13 @@ import { listWorkspaces, type Workspace } from "@/api/workspace";
 import { Spinner } from "@/components/ui/spinner";
 import { Chat } from "./chat";
 import type { ChatInitialData, ChatSaveInput } from "./chat/type";
-import type { ChatInputResources } from "./components/chat-input/type";
+import type { ChatInputOptions, ChatInputResources } from "./components/chat-input/type";
 import { useWorkspaceStore } from "./workspace-store";
 import { useWorkspaceFileStore, WorkspaceFileWatcher } from "./workspace-files";
 import { loadResources } from "./resources";
 import { WorkspaceChatSidebar } from "./sidebar";
 
-const defaultDisplayOptions = {
+const defaultOptions = {
   showThinkingProcess: true,
   showToolCallProcess: true,
 };
@@ -55,13 +55,18 @@ const WorkspaceChat = ({ workspaceId, chatId, initialData: providedInitialData, 
   const workspaceStore = useWorkspaceStore();
   const fileStore = useWorkspaceFileStore();
   const [state, setState] = useState(initialState);
+  const [options, setOptions] = useState<ChatInputOptions | null>(null);
   const initialData = useMemo<ChatInitialData>(
     () =>
       providedInitialData ?? {
         resources: state.resources,
-        displayOptions: defaultDisplayOptions,
+        options: defaultOptions,
       },
     [providedInitialData, state.resources],
+  );
+  const selectedModel = useMemo(
+    () => initialData.resources.models?.find((model) => model.value === options?.selectedModelId)?.runtimeModel ?? null,
+    [initialData.resources.models, options?.selectedModelId],
   );
 
   useEffect(() => {
@@ -144,10 +149,16 @@ const WorkspaceChat = ({ workspaceId, chatId, initialData: providedInitialData, 
           onStatusChange={({ chatId: statusChatId, isRunning }) =>
             workspaceStore.setChatLoading(workspaceId, statusChatId, isRunning)
           }
+          onOptionsChange={setOptions}
         />
       </div>
       {isActive ? (
-        <WorkspaceChatSidebar workspacePath={workspace.path} chatId={chatId} panels={["files", "version", "ledger"]} />
+        <WorkspaceChatSidebar
+          workspacePath={workspace.path}
+          chatId={chatId}
+          selectedModel={selectedModel}
+          panels={["files", "version", "ledger"]}
+        />
       ) : null}
     </div>
   );

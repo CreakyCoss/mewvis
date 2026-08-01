@@ -1,6 +1,6 @@
-import type { ChatInputSubmitPayload } from "../components/chat-input/type";
+import type { ChatTurnRequest } from "../components/chat-input/type";
 
-const buildActiveSkillsContext = (payload: ChatInputSubmitPayload) => {
+const buildActiveSkillsContext = (payload: ChatTurnRequest) => {
   const activeSkills = payload.skills
     .map((skill) =>
       [`<skill name="${skill.name}">`, skill.description?.trim(), skill.content.trim(), "</skill>"]
@@ -20,7 +20,7 @@ const buildActiveSkillsContext = (payload: ChatInputSubmitPayload) => {
   ].join("\n");
 };
 
-export const buildAgentPrompt = (workspacePath: string, payload: ChatInputSubmitPayload) => {
+export const buildAgentPrompt = (workspacePath: string, payload: ChatTurnRequest) => {
   const selectedAgent = payload.agent
     ? [`当前角色：${payload.agent.name}`, payload.agent.description?.trim()].filter(Boolean).join("\n")
     : "";

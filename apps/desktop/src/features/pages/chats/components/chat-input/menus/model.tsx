@@ -15,27 +15,24 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
 import { useChatInputStore } from "../store";
-import type { ChatDisplayOptions } from "../type";
 
 type ModelMenuProps = {
   disabled: boolean;
   selectionDisabled: boolean;
-  displayOptions: ChatDisplayOptions;
-  onDisplayOptionsChange: (options: ChatDisplayOptions) => void;
 };
 
-export const ModelMenu = ({ disabled, selectionDisabled, displayOptions, onDisplayOptionsChange }: ModelMenuProps) => {
+export const ModelMenu = ({ disabled, selectionDisabled }: ModelMenuProps) => {
   const resourceStore = useChatInputStore();
   const models = resourceStore.resources.models ?? [];
   const agents = resourceStore.resources.agents ?? [];
-  const selectedModel = models.find((model) => model.value === resourceStore.optionValues.selectedModelId) ?? null;
-  const selectedAgent = agents.find((agent) => agent.value === resourceStore.optionValues.selectedAgentId) ?? null;
+  const selectedModel = models.find((model) => model.value === resourceStore.options.selectedModelId) ?? null;
+  const selectedAgent = agents.find((agent) => agent.value === resourceStore.options.selectedAgentId) ?? null;
   const selectedModelLabel = selectedModel?.selectedLabel ?? "选择模型";
   const selectedAgentLabel = selectedAgent?.label ?? "不使用角色";
   const menuLabel = selectedAgent ? `${selectedModelLabel} · ${selectedAgent.label}` : selectedModelLabel;
   const processLabel = [
-    displayOptions.showThinkingProcess ? "思考" : "",
-    displayOptions.showToolCallProcess ? "工具" : "",
+    resourceStore.options.showThinkingProcess ? "思考" : "",
+    resourceStore.options.showToolCallProcess ? "工具" : "",
   ]
     .filter(Boolean)
     .join("/");
@@ -71,7 +68,7 @@ export const ModelMenu = ({ disabled, selectionDisabled, displayOptions, onDispl
             ) : (
               <DropdownMenuRadioGroup
                 value={selectedModel?.value ?? ""}
-                onValueChange={resourceStore.setSelectedModelId}
+                onValueChange={(selectedModelId) => resourceStore.updateOptions({ selectedModelId })}
               >
                 {models.map((model) => (
                   <DropdownMenuRadioItem key={model.value} value={model.value} title={model.description}>
@@ -90,7 +87,10 @@ export const ModelMenu = ({ disabled, selectionDisabled, displayOptions, onDispl
             <span className="max-w-32 truncate text-xs text-muted-foreground">{selectedAgentLabel}</span>
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="w-56">
-            <DropdownMenuRadioGroup value={selectedAgent?.value ?? ""} onValueChange={resourceStore.setSelectedAgentId}>
+            <DropdownMenuRadioGroup
+              value={selectedAgent?.value ?? ""}
+              onValueChange={(selectedAgentId) => resourceStore.updateOptions({ selectedAgentId })}
+            >
               <DropdownMenuRadioItem value="">不使用角色</DropdownMenuRadioItem>
               {agents.length === 0 ? (
                 <DropdownMenuItem disabled>暂无角色</DropdownMenuItem>
@@ -116,42 +116,36 @@ export const ModelMenu = ({ disabled, selectionDisabled, displayOptions, onDispl
               className="flex items-center justify-between gap-3 py-2"
               onSelect={(event) => {
                 event.preventDefault();
-                onDisplayOptionsChange({
-                  ...displayOptions,
-                  showThinkingProcess: !displayOptions.showThinkingProcess,
+                resourceStore.updateOptions({
+                  showThinkingProcess: !resourceStore.options.showThinkingProcess,
                 });
               }}
             >
               <span className="min-w-0 flex-1">思考过程</span>
               <Switch
                 size="sm"
-                checked={displayOptions.showThinkingProcess}
+                checked={resourceStore.options.showThinkingProcess}
                 aria-label="思考过程"
                 onClick={(event) => event.stopPropagation()}
-                onCheckedChange={(showThinkingProcess) =>
-                  onDisplayOptionsChange({ ...displayOptions, showThinkingProcess })
-                }
+                onCheckedChange={(showThinkingProcess) => resourceStore.updateOptions({ showThinkingProcess })}
               />
             </DropdownMenuItem>
             <DropdownMenuItem
               className="flex items-center justify-between gap-3 py-2"
               onSelect={(event) => {
                 event.preventDefault();
-                onDisplayOptionsChange({
-                  ...displayOptions,
-                  showToolCallProcess: !displayOptions.showToolCallProcess,
+                resourceStore.updateOptions({
+                  showToolCallProcess: !resourceStore.options.showToolCallProcess,
                 });
               }}
             >
               <span className="min-w-0 flex-1">工具调用过程</span>
               <Switch
                 size="sm"
-                checked={displayOptions.showToolCallProcess}
+                checked={resourceStore.options.showToolCallProcess}
                 aria-label="工具调用过程"
                 onClick={(event) => event.stopPropagation()}
-                onCheckedChange={(showToolCallProcess) =>
-                  onDisplayOptionsChange({ ...displayOptions, showToolCallProcess })
-                }
+                onCheckedChange={(showToolCallProcess) => resourceStore.updateOptions({ showToolCallProcess })}
               />
             </DropdownMenuItem>
           </DropdownMenuSubContent>

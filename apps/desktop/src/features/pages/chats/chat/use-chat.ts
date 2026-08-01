@@ -4,7 +4,7 @@ import { createStore } from "zustand/vanilla";
 import { createAgentClient } from "@/agent-client/runtime";
 import type { AgentClientAgentEvent } from "@/agent-client/types";
 import { loadChat, saveChat as saveChatApi } from "@/api/chat";
-import type { ChatInputSubmitPayload } from "../components/chat-input/type";
+import type { ChatTurnRequest } from "../components/chat-input/type";
 import { buildAgentPrompt } from "./prompt";
 import { applyChatMessageEvent, failChatMessage } from "./reducer";
 import { useSaveScheduler } from "./save-scheduler";
@@ -78,7 +78,7 @@ type StreamEvent = Extract<
 type UseChatInput = {
   chatId: string;
   workspacePath: string;
-  initialRequest?: ChatInputSubmitPayload;
+  initialRequest?: ChatTurnRequest;
   saveChat?: (input: ChatSaveInput) => Promise<unknown>;
   onStatusChange?: (status: ChatStatus) => void;
 };
@@ -344,7 +344,7 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
   );
 
   const runTurn = useCallback(
-    async (payload: ChatInputSubmitPayload) => {
+    async (payload: ChatTurnRequest) => {
       const state = chatStore.getState();
       if (state.chatId !== chatId || state.activeTurn) {
         return;

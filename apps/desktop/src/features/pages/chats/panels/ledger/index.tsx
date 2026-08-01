@@ -3,6 +3,7 @@ import { ActivityIcon, ChevronRightIcon, EyeIcon, RefreshCwIcon } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import type { RuntimeModelInput } from "@/agent-client/types";
 import {
   readLedger,
   summarizeLedger,
@@ -10,7 +11,6 @@ import {
   type LedgerResult,
   type LedgerRuntimeLink,
 } from "@/api/conversation-ledger";
-import { resolveRuntimeModelInput, useLlmSettingsStore } from "@/features/pages/settings/llm/store";
 import { LedgerDialog } from "./dialog";
 
 const summaryInstruction = [
@@ -64,10 +64,10 @@ const findMessage = (messageById: Map<string, LedgerMessage>, ids: Array<string 
 type ChatLedgerProps = {
   workspacePath: string;
   chatId: string;
+  runtimeModel: RuntimeModelInput | null;
 };
 
-export const ChatLedger = ({ workspacePath, chatId }: ChatLedgerProps) => {
-  const loadLlmSettings = useLlmSettingsStore((store) => store.loadSettings);
+export const ChatLedger = ({ workspacePath, chatId, runtimeModel }: ChatLedgerProps) => {
   const [ledger, setLedger] = useState<LedgerResult | null>(null);
   const [selectedLinkId, setSelectedLinkId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -115,11 +115,8 @@ export const ChatLedger = ({ workspacePath, chatId }: ChatLedgerProps) => {
     setError("");
 
     try {
-      await loadLlmSettings();
-      const settings = useLlmSettingsStore.getState();
-      const runtimeModel = resolveRuntimeModelInput(settings.runtimeModels[0]?.id);
       if (!runtimeModel) {
-        throw new Error(settings.error || "请先在设置中配置可用的 LLM 模型。");
+        throw new Error("请先选择可用的 LLM 模型。");
       }
 
       const result = await summarizeLedger({

@@ -1,16 +1,17 @@
 import type { AskUserInput } from "@/agent-client/types";
 import type { SaveChatInput } from "@/api/chat";
 import type {
-  ChatDisplayOptions,
   ChatInputFile,
+  ChatInputInitialOptions,
+  ChatInputOptions,
   ChatInputResources,
-  ChatInputSubmitPayload,
+  ChatTurnRequest,
 } from "../components/chat-input/type";
 
 export type ChatInitialData = {
-  request?: ChatInputSubmitPayload;
+  initialRequest?: ChatTurnRequest;
   resources: ChatInputResources;
-  displayOptions: ChatDisplayOptions;
+  options: ChatInputInitialOptions;
 };
 
 export type ChatStatus = {
@@ -100,4 +101,5 @@ export type ChatProps = {
   initialData: ChatInitialData;
   saveChat?: (input: ChatSaveInput) => Promise<unknown>;
   onStatusChange?: (status: ChatStatus) => void;
+  onOptionsChange?: (options: ChatInputOptions) => void;
 };

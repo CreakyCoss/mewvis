@@ -1,24 +1,47 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CircleAlertIcon } from "lucide-react";
 import { ChatInput } from "../components/chat-input";
+import type { ChatInputOptions } from "../components/chat-input/type";
 import { ChatMessages } from "./message";
 import { ChatQuestion } from "./question";
 import type { ChatProps } from "./type";
 import { useChat } from "./use-chat";
 
-export const Chat = ({ chatId, workspacePath, files = [], initialData, saveChat, onStatusChange }: ChatProps) => {
-  const [displayOptions, setDisplayOptions] = useState(initialData.displayOptions);
+export const Chat = ({
+  chatId,
+  workspacePath,
+  files = [],
+  initialData,
+  saveChat,
+  onStatusChange,
+  onOptionsChange,
+}: ChatProps) => {
+  const [options, setOptions] = useState<ChatInputOptions | null>(null);
   const chat = useChat({
     chatId,
     workspacePath,
-    initialRequest: initialData.request,
+    initialRequest: initialData.initialRequest,
     saveChat,
     onStatusChange,
   });
+  const displayOptions = useMemo(
+    () => ({
+      showThinkingProcess: options?.showThinkingProcess ?? initialData.options.showThinkingProcess ?? true,
+      showToolCallProcess: options?.showToolCallProcess ?? initialData.options.showToolCallProcess ?? true,
+    }),
+    [initialData.options.showThinkingProcess, initialData.options.showToolCallProcess, options],
+  );
+  const handleOptionsChange = useCallback(
+    (nextOptions: ChatInputOptions) => {
+      setOptions(nextOptions);
+      onOptionsChange?.(nextOptions);
+    },
+    [onOptionsChange],
+  );
 
   useEffect(() => {
-    setDisplayOptions(initialData.displayOptions);
-  }, [chatId, initialData.displayOptions]);
+    setOptions(null);
+  }, [chatId]);
 
   return (
     <main className="flex h-full min-h-0 bg-background text-foreground">
@@ -46,16 +69,16 @@ export const Chat = ({ chatId, workspacePath, files = [], initialData, saveChat,
           ) : null}
 
           <ChatInput
+            key={chatId}
             resources={initialData.resources}
             files={files}
-            displayOptions={displayOptions}
-            defaultOptionValues={initialData.request?.optionValues}
+            initialOptions={initialData.options}
             placeholder="继续输入消息"
             disabled={chat.isInitializing}
             isRunning={chat.isRunning}
             onStop={chat.stopGenerating}
-            onDisplayOptionsChange={setDisplayOptions}
-            onSubmit={chat.runTurn}
+            onOptionsChange={handleOptionsChange}
+            onSubmit={({ request }) => chat.runTurn(request)}
           />
         </div>
       </section>
