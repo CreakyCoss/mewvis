@@ -1,18 +1,18 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { clamp, keyBy, shuffle } from "lodash-es";
 import { X } from "lucide-react";
-import catFurnitureStackImageUrl from "./assets/generated/cat-furniture-stack.png";
-import mewvisOfficeImageUrl from "./assets/mewvis-office.svg";
-import screenDashboardImageUrl from "./assets/screen-dashboard.png";
-import screenDesignImageUrl from "./assets/screen-design.png";
-import screenDocumentImageUrl from "./assets/screen-document.png";
-import screenGameImageUrl from "./assets/screen-game.png";
-import screenMediaImageUrl from "./assets/screen-media.png";
-import screenResearchImageUrl from "./assets/screen-research.png";
-import screenVideoImageUrl from "./assets/screen-video.png";
+import catFurnitureStackImageUrl from "./assets/cat-furniture-stack.png";
+import mewvisOfficeImageUrl from "./assets/background.svg";
+import screenDashboardImageUrl from "./assets/screens/dashboard.png";
+import screenDesignImageUrl from "./assets/screens/design.png";
+import screenDocumentImageUrl from "./assets/screens/document.png";
+import screenGameImageUrl from "./assets/screens/game.png";
+import screenMediaImageUrl from "./assets/screens/media.png";
+import screenResearchImageUrl from "./assets/screens/research.png";
+import screenVideoImageUrl from "./assets/screens/video.png";
 import { CatImage, type CatBreed } from "./cat-image";
 import { APP_DISPLAY_NAME } from "@/product-config";
-import "./mewvis-office.css";
+import "./index.css";
 
 type MewvisOfficeProps = {
   isWorking?: boolean;
