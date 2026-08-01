@@ -1,5 +1,4 @@
 import type { Skill, SkillGroup } from "../types";
-export { ALL_SKILLS_GROUP_ID, NO_SKILLS_GROUP_ID } from "../constants";
 
 export const existingGroupSkillNames = (group: SkillGroup, skillsByKey: Map<string, Skill>) =>
   group.skills.map((skill) => skill.key).filter((key) => skillsByKey.has(key));
@@ -11,7 +10,7 @@ export const nextCustomGroupOrder = (groups: SkillGroup[]) => {
   return maxOrder + 1;
 };
 
-export const sourceLabel = (source: string | undefined, readonly: boolean) => {
+const sourceLabel = (source: string | undefined, readonly: boolean) => {
   if (!readonly) {
     return "自定义";
   }
@@ -71,13 +70,6 @@ export const filterSkills = (skills: Skill[], query: string) => {
   });
 };
 
-export const isDirectImportInput = (value: string) => {
-  const normalized = value.trim().toLowerCase();
-  return (
-    normalized.includes("skills add") || normalized.includes("github.com/") || normalized.includes("skillsmp.com/")
-  );
-};
-
 export const formatStars = (stars: number) => {
   if (stars >= 1000) {
     return `${(stars / 1000).toFixed(1)}k`;
@@ -117,11 +109,7 @@ const extractFrontmatter = (content: string) => {
     return null;
   }
 
-  return {
-    bodyStart: endMatch[0].length,
-    frontmatter: endMatch[1],
-    source: normalized,
-  };
+  return endMatch[1];
 };
 
 const stripWrappingQuotes = (value: string) => {
@@ -133,7 +121,7 @@ const stripWrappingQuotes = (value: string) => {
 };
 
 const extractFrontmatterDescription = (value: string) => {
-  const frontmatter = extractFrontmatter(value)?.frontmatter;
+  const frontmatter = extractFrontmatter(value);
   if (!frontmatter) {
     return null;
   }
@@ -180,14 +168,4 @@ export const skillDescriptionPreview = (description?: string | null) => {
   }
 
   return normalized.length > 180 ? `${normalized.slice(0, 180)}...` : normalized;
-};
-
-export const skillContentPreview = (content: string) => {
-  const frontmatter = extractFrontmatter(content);
-  const contentWithoutFrontmatter = frontmatter ? frontmatter.source.slice(frontmatter.bodyStart) : content;
-  const normalized = contentWithoutFrontmatter.replace(/\s+/g, " ").trim();
-  if (!normalized) {
-    return "暂无技能内容";
-  }
-  return normalized.length > 240 ? `${normalized.slice(0, 240)}...` : normalized;
 };

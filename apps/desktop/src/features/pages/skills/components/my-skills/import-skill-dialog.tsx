@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { Download, FileArchive, Globe2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { getSkills, installSkillFromMarketplace } from "@/api/skills";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,22 +15,22 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import type { InstallSkillInput } from "../../types";
+import { useSkillsStore } from "../../store";
 
 type ImportMode = "remote" | "zip";
 
 type ImportSkillDialogProps = {
   open: boolean;
-  isInstalling: boolean;
   onOpenChange: (open: boolean) => void;
-  onInstallSkill: (input: InstallSkillInput) => Promise<void>;
 };
 
-export const ImportSkillDialog = ({ open, isInstalling, onOpenChange, onInstallSkill }: ImportSkillDialogProps) => {
+export const ImportSkillDialog = ({ open, onOpenChange }: ImportSkillDialogProps) => {
+  const skillsStore = useSkillsStore();
   const [importMode, setImportMode] = useState<ImportMode>("remote");
   const [source, setSource] = useState("");
   const [zipPath, setZipPath] = useState("");
   const [error, setError] = useState("");
+  const [isInstalling, setIsInstalling] = useState(false);
   const selectedZipFileName = zipPath.split(/[\\/]/).pop() ?? zipPath;
   const hasZipFile = Boolean(zipPath);
 
@@ -71,13 +73,27 @@ export const ImportSkillDialog = ({ open, isInstalling, onOpenChange, onInstallS
       return;
     }
 
+    setIsInstalling(true);
     setError("");
-    await onInstallSkill(
-      importMode === "zip" ? { source: nextZipPath, sourceKind: "zip" } : { source: nextSource, sourceKind: "remote" },
-    );
-    setSource("");
-    setZipPath("");
-    onOpenChange(false);
+    try {
+      const installedSkill = await installSkillFromMarketplace(
+        importMode === "zip"
+          ? { source: nextZipPath, sourceKind: "zip" }
+          : { source: nextSource, sourceKind: "remote" },
+      );
+      const settings = await getSkills();
+      skillsStore.setSkillSettings(settings);
+      toast.success("技能导入成功", {
+        description: `${installedSkill.name} 已添加到 Skill库`,
+      });
+      setSource("");
+      setZipPath("");
+      onOpenChange(false);
+    } catch (caught) {
+      setError(String(caught));
+    } finally {
+      setIsInstalling(false);
+    }
   };
 
   return (

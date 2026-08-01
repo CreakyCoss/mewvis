@@ -1,5 +1,5 @@
 import { type FocusEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useShallow } from "zustand/react/shallow";
+import { toast } from "sonner";
 import {
   ChevronLeft,
   ChevronRight,
@@ -14,6 +14,7 @@ import {
   Search,
   BriefcaseBusiness,
 } from "lucide-react";
+import { getSkills, removeAppSkill, saveSkills } from "@/api/skills";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,45 +30,22 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useSkillsStore } from "../../store";
-import type { InstallSkillInput, RemoveSkillInput, Skill, SkillGroup } from "../../types";
+import { ALL_SKILLS_GROUP_ID, type SaveSkillGroupInput, type Skill, type SkillGroup } from "../../types";
 import { EmptyState } from "../shared";
-import { ALL_SKILLS_GROUP_ID, existingGroupSkillNames, filterSkills, groupSkillsBySource } from "../utils";
+import { existingGroupSkillNames, filterSkills, groupSkillsBySource } from "../utils";
 import { GroupDialog, type GroupDialogState } from "./group-dialog";
 import { ImportSkillDialog } from "./import-skill-dialog";
 import { SkillListItem } from "./skill-list-item";
 
-type MySkillsTabProps = {
-  isLoading: boolean;
-  isSaving: boolean;
-  isInstalling: boolean;
-  isRemoving: boolean;
-  defaultSkillGroupId: string;
-  onGroupsChange: (groups: SkillGroup[], defaultGroupId?: string) => void;
-  onDefaultGroupChange: (groupId: string) => void;
-  onInstallSkill: (input: InstallSkillInput) => Promise<void>;
-  onRemoveSkill: (input: RemoveSkillInput) => Promise<void>;
-};
-
 const QUICK_ACTION_BUTTON_CLASS =
   "size-10 rounded-xl border border-border/75 bg-card text-muted-foreground shadow-xs hover:bg-accent/60 hover:text-accent-foreground focus-visible:ring-sidebar-primary/25";
 
-export const MySkillsTab = ({
-  isLoading,
-  isSaving,
-  isInstalling,
-  isRemoving,
-  defaultSkillGroupId,
-  onGroupsChange,
-  onDefaultGroupChange,
-  onInstallSkill,
-  onRemoveSkill,
-}: MySkillsTabProps) => {
-  const { skills, groups } = useSkillsStore(
-    useShallow((store) => ({
-      skills: store.skills,
-      groups: store.skillGroups,
-    })),
-  );
+export const MySkillsTab = () => {
+  const skillsStore = useSkillsStore();
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState(ALL_SKILLS_GROUP_ID);
   const [skillSearchQuery, setSkillSearchQuery] = useState("");
   const [collapsedSources, setCollapsedSources] = useState<Set<string>>(() => new Set());
@@ -87,14 +65,105 @@ export const MySkillsTab = ({
   });
   const groupScrollerRef = useRef<HTMLDivElement | null>(null);
 
-  const skillsByKey = useMemo(() => new Map(skills.map((skill) => [skill.key, skill])), [skills]);
+  const loadSkills = useCallback(async () => {
+    setIsLoading(true);
+    setError("");
+    try {
+      skillsStore.setSkillSettings(await getSkills());
+    } catch (caught) {
+      setError(String(caught));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [skillsStore.setSkillSettings]);
+
+  useEffect(() => {
+    void loadSkills();
+  }, [loadSkills]);
+
+  const persistSkillSettings = useCallback(
+    async (
+      nextGroups: SkillGroup[],
+      nextDefaultGroupId: string,
+      previousGroups: SkillGroup[],
+      previousDefaultGroupId: string,
+    ) => {
+      setIsSaving(true);
+      setError("");
+      try {
+        skillsStore.setSkillSettings(await saveSkills(toSaveSkillGroups(nextGroups), nextDefaultGroupId));
+      } catch (caught) {
+        setError(String(caught));
+        skillsStore.setSkillGroups(previousGroups);
+        skillsStore.setDefaultSkillGroupId(previousDefaultGroupId);
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [skillsStore.setDefaultSkillGroupId, skillsStore.setSkillGroups, skillsStore.setSkillSettings],
+  );
+
+  const updateSkillGroups = useCallback(
+    (nextGroups: SkillGroup[], nextDefaultGroupId = skillsStore.defaultSkillGroupId) => {
+      if (isSaving) {
+        return;
+      }
+
+      const previousGroups = skillsStore.skillGroups;
+      const previousDefaultGroupId = skillsStore.defaultSkillGroupId;
+      skillsStore.setSkillGroups(nextGroups);
+      skillsStore.setDefaultSkillGroupId(nextDefaultGroupId);
+      void persistSkillSettings(nextGroups, nextDefaultGroupId, previousGroups, previousDefaultGroupId);
+    },
+    [
+      isSaving,
+      persistSkillSettings,
+      skillsStore.defaultSkillGroupId,
+      skillsStore.setDefaultSkillGroupId,
+      skillsStore.setSkillGroups,
+      skillsStore.skillGroups,
+    ],
+  );
+
+  const updateDefaultSkillGroup = useCallback(
+    (nextDefaultGroupId: string) => {
+      if (isSaving) {
+        return;
+      }
+
+      const previousDefaultGroupId = skillsStore.defaultSkillGroupId;
+      skillsStore.setDefaultSkillGroupId(nextDefaultGroupId);
+      void persistSkillSettings(
+        skillsStore.skillGroups,
+        nextDefaultGroupId,
+        skillsStore.skillGroups,
+        previousDefaultGroupId,
+      );
+    },
+    [
+      isSaving,
+      persistSkillSettings,
+      skillsStore.defaultSkillGroupId,
+      skillsStore.setDefaultSkillGroupId,
+      skillsStore.skillGroups,
+    ],
+  );
+
+  const skillsByKey = useMemo(
+    () => new Map(skillsStore.skills.map((skill) => [skill.key, skill])),
+    [skillsStore.skills],
+  );
   const selectedGroup =
-    selectedGroupId === ALL_SKILLS_GROUP_ID ? null : (groups.find((group) => group.id === selectedGroupId) ?? null);
+    selectedGroupId === ALL_SKILLS_GROUP_ID
+      ? null
+      : (skillsStore.skillGroups.find((group) => group.id === selectedGroupId) ?? null);
   const selectedGroupSkillKeys = selectedGroup
     ? existingGroupSkillNames(selectedGroup, skillsByKey)
-    : skills.map((skill) => skill.key);
+    : skillsStore.skills.map((skill) => skill.key);
   const selectedGroupName = selectedGroup?.name ?? "全部技能";
-  const visibleSkills = selectedGroup ? skills.filter((skill) => selectedGroupSkillKeys.includes(skill.key)) : skills;
+  const visibleSkills = selectedGroup
+    ? skillsStore.skills.filter((skill) => selectedGroupSkillKeys.includes(skill.key))
+    : skillsStore.skills;
   const displayedSkills = useMemo(
     () => filterSkills(visibleSkills, skillSearchQuery),
     [visibleSkills, skillSearchQuery],
@@ -102,10 +171,13 @@ export const MySkillsTab = ({
   const displayedSkillGroups = useMemo(() => groupSkillsBySource(displayedSkills), [displayedSkills]);
 
   useEffect(() => {
-    if (selectedGroupId !== ALL_SKILLS_GROUP_ID && !groups.some((group) => group.id === selectedGroupId)) {
+    if (
+      selectedGroupId !== ALL_SKILLS_GROUP_ID &&
+      !skillsStore.skillGroups.some((group) => group.id === selectedGroupId)
+    ) {
       setSelectedGroupId(ALL_SKILLS_GROUP_ID);
     }
-  }, [groups, selectedGroupId]);
+  }, [selectedGroupId, skillsStore.skillGroups]);
 
   const updateGroupScrollState = useCallback(() => {
     const scroller = groupScrollerRef.current;
@@ -169,7 +241,7 @@ export const MySkillsTab = ({
       scroller.removeEventListener("scroll", handleScroll);
       resizeObserver?.disconnect();
     };
-  }, [groups.length, updateGroupScrollState]);
+  }, [skillsStore.skillGroups.length, updateGroupScrollState]);
 
   const openCreateGroup = () => {
     setGroupDialogState({
@@ -182,7 +254,7 @@ export const MySkillsTab = ({
   const openViewGroup = (
     group: SkillGroup | null,
     fallbackName = "全部技能",
-    fallbackSkillNames = skills.map((skill) => skill.key),
+    fallbackSkillNames = skillsStore.skills.map((skill) => skill.key),
   ) => {
     setGroupDialogState({
       open: true,
@@ -210,27 +282,55 @@ export const MySkillsTab = ({
       return;
     }
 
+    setIsRemoving(true);
+    setError("");
     setRemovingSkillKey(pendingRemoveSkill.key);
     try {
-      await onRemoveSkill({
+      const removedSkill = await removeAppSkill({
         key: pendingRemoveSkill.key,
         name: pendingRemoveSkill.name,
         path: pendingRemoveSkill.path,
       });
+      const nextGroups = skillsStore.skillGroups.map((group) =>
+        group.source === "custom"
+          ? {
+              ...group,
+              skills: group.skills.filter((skill) => skill.key !== removedSkill.key),
+            }
+          : group,
+      );
+      skillsStore.setSkillSettings(await saveSkills(toSaveSkillGroups(nextGroups), skillsStore.defaultSkillGroupId));
+      toast.success("技能已移除", {
+        description: `${removedSkill.name} 已从 Skill库移除`,
+      });
       setPendingRemoveSkill(null);
+    } catch (caught) {
+      setError(String(caught));
+      try {
+        skillsStore.setSkillSettings(await getSkills());
+      } catch {
+        // Keep the original operation error visible.
+      }
     } finally {
+      setIsRemoving(false);
       setRemovingSkillKey(null);
     }
-  }, [isRemoving, onRemoveSkill, pendingRemoveSkill]);
+  }, [
+    isRemoving,
+    pendingRemoveSkill,
+    skillsStore.defaultSkillGroupId,
+    skillsStore.setSkillSettings,
+    skillsStore.skillGroups,
+  ]);
 
   const handleConfirmDeleteGroup = useCallback(() => {
     if (!pendingDeleteGroup || pendingDeleteGroup.readonly || isSaving) {
       return;
     }
 
-    onGroupsChange(
-      groups.filter((group) => group.id !== pendingDeleteGroup.id),
-      pendingDeleteGroup.id === defaultSkillGroupId ? ALL_SKILLS_GROUP_ID : defaultSkillGroupId,
+    updateSkillGroups(
+      skillsStore.skillGroups.filter((group) => group.id !== pendingDeleteGroup.id),
+      pendingDeleteGroup.id === skillsStore.defaultSkillGroupId ? ALL_SKILLS_GROUP_ID : skillsStore.defaultSkillGroupId,
     );
     setSelectedGroupId(ALL_SKILLS_GROUP_ID);
     setPendingDeleteGroup(null);
@@ -243,7 +343,7 @@ export const MySkillsTab = ({
           }
         : current,
     );
-  }, [defaultSkillGroupId, groups, isSaving, onGroupsChange, pendingDeleteGroup]);
+  }, [isSaving, pendingDeleteGroup, skillsStore.defaultSkillGroupId, skillsStore.skillGroups, updateSkillGroups]);
 
   const closeQuickActionsOnBlur = useCallback((event: FocusEvent<HTMLDivElement>) => {
     const nextTarget = event.relatedTarget;
@@ -275,16 +375,16 @@ export const MySkillsTab = ({
                     id={ALL_SKILLS_GROUP_ID}
                     name="全部"
                     selected={selectedGroupId === ALL_SKILLS_GROUP_ID}
-                    isDefault={defaultSkillGroupId === ALL_SKILLS_GROUP_ID}
+                    isDefault={skillsStore.defaultSkillGroupId === ALL_SKILLS_GROUP_ID}
                     onSelect={setSelectedGroupId}
                   />
-                  {groups.map((group) => (
+                  {skillsStore.skillGroups.map((group) => (
                     <CategoryPill
                       key={group.id}
                       id={group.id}
                       name={group.name}
                       selected={selectedGroupId === group.id}
-                      isDefault={group.id === defaultSkillGroupId}
+                      isDefault={group.id === skillsStore.defaultSkillGroupId}
                       onSelect={setSelectedGroupId}
                     />
                   ))}
@@ -426,6 +526,12 @@ export const MySkillsTab = ({
             </div>
           </div>
 
+          {error && (
+            <div className="mx-5 mb-3 shrink-0 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive lg:mx-8">
+              {error}
+            </div>
+          )}
+
           <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
             <ScrollArea className="h-full min-h-0">
               <div className="px-5 pt-1 pb-8 lg:px-8">
@@ -492,26 +598,21 @@ export const MySkillsTab = ({
 
         <GroupDialog
           state={groupDialogState}
-          groups={groups}
-          skills={skills}
+          groups={skillsStore.skillGroups}
+          skills={skillsStore.skills}
           skillsByKey={skillsByKey}
-          defaultGroupId={defaultSkillGroupId}
+          defaultGroupId={skillsStore.defaultSkillGroupId}
           onOpenChange={(open) =>
             setGroupDialogState((current) => ({
               ...current,
               open,
             }))
           }
-          onGroupsChange={onGroupsChange}
-          onDefaultGroupChange={onDefaultGroupChange}
+          onGroupsChange={updateSkillGroups}
+          onDefaultGroupChange={updateDefaultSkillGroup}
           onSelectedGroupChange={setSelectedGroupId}
         />
-        <ImportSkillDialog
-          open={isImportDialogOpen}
-          isInstalling={isInstalling}
-          onOpenChange={setIsImportDialogOpen}
-          onInstallSkill={onInstallSkill}
-        />
+        <ImportSkillDialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen} />
         <AlertDialog
           open={pendingRemoveSkill !== null}
           onOpenChange={(open) => {
@@ -623,3 +724,13 @@ const CategoryIcon = ({ name }: { name: string }) => {
   }
   return null;
 };
+
+const toSaveSkillGroups = (groups: SkillGroup[]): SaveSkillGroupInput[] =>
+  groups.map((group) => ({
+    id: group.id,
+    name: group.name,
+    description: group.description,
+    source: group.source,
+    readonly: group.readonly,
+    skills: group.skills.map((skill) => ({ key: skill.key })),
+  }));

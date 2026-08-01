@@ -1,3 +1,5 @@
+export const ALL_SKILLS_GROUP_ID = "all";
+
 export type Skill = {
   key: string;
   name: string;

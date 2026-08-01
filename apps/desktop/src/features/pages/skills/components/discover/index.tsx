@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { useShallow } from "zustand/react/shallow";
+import { toast } from "sonner";
 import {
   BriefcaseBusiness,
   ChevronDown,
@@ -13,6 +13,7 @@ import {
   Monitor,
   Search,
 } from "lucide-react";
+import { getSkills, installSkillFromMarketplace, searchSkillMarketplace } from "@/api/skills";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -24,51 +25,23 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { DEFAULT_MARKETPLACE_QUERY, DEFAULT_MARKETPLACE_SORT, useSkillsStore } from "../../store";
-import type {
-  InstallSkillInput,
-  MarketplaceSkill,
-  SearchSkillMarketplaceInput,
-  SkillMarketplaceSort,
-} from "../../types";
-import { MarketplaceResult } from "./marketplace-result";
+import { useSkillsStore } from "../../store";
+import type { MarketplaceSkill, SearchSkillMarketplaceInput, SkillMarketplaceSort } from "../../types";
+import { MarketplaceResult } from "./marketplace";
+import { DEFAULT_MARKETPLACE_QUERY, DEFAULT_MARKETPLACE_SORT, useMarketplaceStore } from "./store";
 
-type DiscoverSkillsTabProps = {
-  isMarketplaceSearching: boolean;
-  isMarketplaceLoadingMore: boolean;
-  isInstalling: boolean;
-  onSearchMarketplace: (input: SearchSkillMarketplaceInput) => Promise<void>;
-  onInstallSkill: (input: InstallSkillInput) => Promise<void>;
-};
-
-export const DiscoverSkillsTab = ({
-  isMarketplaceSearching,
-  isMarketplaceLoadingMore,
-  isInstalling,
-  onSearchMarketplace,
-  onInstallSkill,
-}: DiscoverSkillsTabProps) => {
-  const {
-    skills,
-    marketplaceResults,
-    marketplacePagination,
-    marketplaceQuery: cachedQuery,
-    marketplaceSortBy: cachedSortBy,
-    marketplaceHasLoaded,
-  } = useSkillsStore(
-    useShallow((store) => ({
-      skills: store.skills,
-      marketplaceResults: store.marketplaceResults,
-      marketplacePagination: store.marketplacePagination,
-      marketplaceQuery: store.marketplaceQuery,
-      marketplaceSortBy: store.marketplaceSortBy,
-      marketplaceHasLoaded: store.marketplaceHasLoaded,
-    })),
-  );
+export const DiscoverSkillsTab = () => {
+  const skillsStore = useSkillsStore();
+  const marketplaceStore = useMarketplaceStore();
+  const [error, setError] = useState("");
+  const [isMarketplaceSearching, setIsMarketplaceSearching] = useState(false);
+  const [isMarketplaceLoadingMore, setIsMarketplaceLoadingMore] = useState(false);
   const [marketplaceQuery, setMarketplaceQuery] = useState(() =>
-    marketplaceHasLoaded && cachedQuery !== DEFAULT_MARKETPLACE_QUERY ? cachedQuery : "",
+    marketplaceStore.hasLoaded && marketplaceStore.query !== DEFAULT_MARKETPLACE_QUERY ? marketplaceStore.query : "",
   );
-  const [selectedSortBy, setSelectedSortBy] = useState<SkillMarketplaceSort>(cachedSortBy || DEFAULT_MARKETPLACE_SORT);
+  const [selectedSortBy, setSelectedSortBy] = useState<SkillMarketplaceSort>(
+    marketplaceStore.sortBy || DEFAULT_MARKETPLACE_SORT,
+  );
   const [selectedCategory, setSelectedCategory] = useState("全部");
   const [installingSkillKey, setInstallingSkillKey] = useState<string | null>(null);
   const [categoryScrollState, setCategoryScrollState] = useState({
@@ -78,10 +51,46 @@ export const DiscoverSkillsTab = ({
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const categoryScrollerRef = useRef<HTMLDivElement | null>(null);
   const hasRequestedInitialSearchRef = useRef(false);
+  const isInstalling = installingSkillKey !== null;
 
   const installedAppSkillNames = useMemo(
-    () => new Set(skills.filter((skill) => skill.source === "app").map((skill) => skill.name)),
-    [skills],
+    () => new Set(skillsStore.skills.filter((skill) => skill.source === "app").map((skill) => skill.name)),
+    [skillsStore.skills],
+  );
+
+  const searchMarketplace = useCallback(
+    async (input: SearchSkillMarketplaceInput) => {
+      const normalizedInput = {
+        ...input,
+        page: input.page ?? 1,
+        limit: input.limit ?? 12,
+      };
+      const isAppend = normalizedInput.append === true;
+
+      if (!isAppend && marketplaceStore.restoreCache(normalizedInput)) {
+        return;
+      }
+
+      if (isAppend) {
+        setIsMarketplaceLoadingMore(true);
+      } else {
+        setIsMarketplaceSearching(true);
+      }
+      setError("");
+
+      try {
+        marketplaceStore.setSearchResult(normalizedInput, await searchSkillMarketplace(normalizedInput));
+      } catch (caught) {
+        setError(String(caught));
+      } finally {
+        if (isAppend) {
+          setIsMarketplaceLoadingMore(false);
+        } else {
+          setIsMarketplaceSearching(false);
+        }
+      }
+    },
+    [marketplaceStore.restoreCache, marketplaceStore.setSearchResult],
   );
 
   const runSearch = useCallback(
@@ -92,19 +101,19 @@ export const DiscoverSkillsTab = ({
       append = false,
     }: Partial<SearchSkillMarketplaceInput> = {}) => {
       const nextQuery = query.trim() || DEFAULT_MARKETPLACE_QUERY;
-      await onSearchMarketplace({
+      await searchMarketplace({
         query: nextQuery,
         sortBy,
         page,
-        limit: marketplacePagination?.limit ?? 12,
+        limit: marketplaceStore.pagination?.limit ?? 12,
         append,
       });
     },
-    [marketplacePagination?.limit, marketplaceQuery, onSearchMarketplace, selectedSortBy],
+    [marketplaceQuery, marketplaceStore.pagination?.limit, searchMarketplace, selectedSortBy],
   );
 
   useEffect(() => {
-    if (hasRequestedInitialSearchRef.current || marketplaceHasLoaded || isMarketplaceSearching) {
+    if (hasRequestedInitialSearchRef.current || marketplaceStore.hasLoaded || isMarketplaceSearching) {
       return;
     }
     hasRequestedInitialSearchRef.current = true;
@@ -112,7 +121,7 @@ export const DiscoverSkillsTab = ({
       query: DEFAULT_MARKETPLACE_QUERY,
       sortBy: DEFAULT_MARKETPLACE_SORT,
     });
-  }, [isMarketplaceSearching, marketplaceHasLoaded, runSearch]);
+  }, [isMarketplaceSearching, marketplaceStore.hasLoaded, runSearch]);
 
   const handleCategorySearch = (category: DiscoverCategory) => {
     setSelectedCategory(category.label);
@@ -142,17 +151,24 @@ export const DiscoverSkillsTab = ({
       }
 
       setInstallingSkillKey(marketplaceSkillKey(skill));
+      setError("");
       try {
-        await onInstallSkill({
+        const installedSkill = await installSkillFromMarketplace({
           source: skill.githubUrl || skill.skillUrl,
           skillName: skill.name,
           sourceKind: "remote",
         });
+        skillsStore.setSkillSettings(await getSkills());
+        toast.success("技能导入成功", {
+          description: `${installedSkill.name} 已添加到 Skill库`,
+        });
+      } catch (caught) {
+        setError(String(caught));
       } finally {
         setInstallingSkillKey(null);
       }
     },
-    [installingSkillKey, isInstalling, onInstallSkill],
+    [installingSkillKey, isInstalling, skillsStore.setSkillSettings],
   );
 
   const updateCategoryScrollState = useCallback(() => {
@@ -188,23 +204,23 @@ export const DiscoverSkillsTab = ({
   };
 
   const handleLoadMore = useCallback(() => {
-    if (!marketplacePagination?.hasNext || isMarketplaceSearching || isMarketplaceLoadingMore) {
+    if (!marketplaceStore.pagination?.hasNext || isMarketplaceSearching || isMarketplaceLoadingMore) {
       return;
     }
 
     void runSearch({
-      query: cachedQuery || marketplaceQuery,
-      sortBy: cachedSortBy || selectedSortBy,
-      page: marketplacePagination.page + 1,
+      query: marketplaceStore.query || marketplaceQuery,
+      sortBy: marketplaceStore.sortBy || selectedSortBy,
+      page: marketplaceStore.pagination.page + 1,
       append: true,
     });
   }, [
-    cachedQuery,
-    cachedSortBy,
     isMarketplaceLoadingMore,
     isMarketplaceSearching,
-    marketplacePagination,
     marketplaceQuery,
+    marketplaceStore.pagination,
+    marketplaceStore.query,
+    marketplaceStore.sortBy,
     runSearch,
     selectedSortBy,
   ]);
@@ -353,13 +369,19 @@ export const DiscoverSkillsTab = ({
           </div>
         </section>
 
+        {error && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {error}
+          </div>
+        )}
+
         <section>
           {isMarketplaceSearching ? (
             <SearchLoadingState />
-          ) : marketplaceResults.length > 0 ? (
+          ) : marketplaceStore.results.length > 0 ? (
             <TooltipProvider delayDuration={220}>
               <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
-                {marketplaceResults.map((skill) => {
+                {marketplaceStore.results.map((skill) => {
                   const resultKey = marketplaceSkillKey(skill);
                   const installed = installedAppSkillNames.has(skill.name);
                   const installing = installingSkillKey === resultKey;
@@ -377,7 +399,7 @@ export const DiscoverSkillsTab = ({
               </div>
               <LoadMoreState
                 isLoading={isMarketplaceLoadingMore}
-                hasNext={marketplacePagination?.hasNext ?? false}
+                hasNext={marketplaceStore.pagination?.hasNext ?? false}
                 onLoadMore={handleLoadMore}
               />
             </TooltipProvider>

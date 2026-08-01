@@ -13,8 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ALL_SKILLS_GROUP_ID } from "../../constants";
-import type { Skill, SkillGroup } from "../../types";
+import { ALL_SKILLS_GROUP_ID, type Skill, type SkillGroup } from "../../types";
 import { EmptyState } from "../shared";
 import {
   existingGroupSkillNames,
@@ -24,7 +23,7 @@ import {
   skillDescriptionPreview,
 } from "../utils";
 
-export type GroupDialogMode = "create" | "view" | "edit";
+type GroupDialogMode = "create" | "view" | "edit";
 
 export type GroupDialogState = {
   open: boolean;

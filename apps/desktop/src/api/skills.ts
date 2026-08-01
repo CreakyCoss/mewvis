@@ -1,18 +1,19 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type {
-  InstallSkillInput,
-  InstalledSkill,
-  RemoveSkillInput,
-  RemovedSkill,
-  SaveSkillGroupInput,
-  SearchSkillMarketplaceInput,
-  SkillMarketplaceSearchResult,
-  SkillSettings,
+import {
+  ALL_SKILLS_GROUP_ID,
+  type InstallSkillInput,
+  type InstalledSkill,
+  type RemoveSkillInput,
+  type RemovedSkill,
+  type SaveSkillGroupInput,
+  type SearchSkillMarketplaceInput,
+  type SkillMarketplaceSearchResult,
+  type SkillSettings,
 } from "@/features/pages/skills/types";
 
 export async function getSkills() {
   if (!isTauri()) {
-    return { skills: [], groups: [], defaultGroupId: "all" } satisfies SkillSettings;
+    return { skills: [], groups: [], defaultGroupId: ALL_SKILLS_GROUP_ID } satisfies SkillSettings;
   }
 
   return invoke<SkillSettings>("get_skills");
