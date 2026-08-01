@@ -1,115 +1,52 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Outlet, useMatch } from "react-router";
-import { listWorkspaces, type Workspace } from "@/api/workspace";
 import { Spinner } from "@/components/ui/spinner";
 import { Chat } from "./chat";
-import type { ChatInitialData, ChatSaveInput } from "./chat/type";
-import type { ChatInputOptions, ChatInputResources } from "./components/chat-input/type";
+import type { ChatSaveInput } from "./chat/type";
+import type { ChatInputOptions, ChatTurnRequest } from "./components/chat-input/type";
 import { useWorkspaceStore } from "./workspace-store";
 import { useWorkspaceFileStore, WorkspaceFileWatcher } from "./workspace-files";
-import { loadResources } from "./resources";
 import { WorkspaceChatSidebar } from "./sidebar";
-
-type WorkspaceChatState = {
-  workspace: Workspace | null;
-  resources: ChatInputResources;
-  isLoading: boolean;
-  error: string;
-};
-
-const initialState: WorkspaceChatState = {
-  workspace: null,
-  resources: {},
-  isLoading: true,
-  error: "",
-};
 
 type WorkspaceChatProps = {
   workspaceId: string;
   chatId: string;
-  initialData?: ChatInitialData;
+  initialTurn?: ChatTurnRequest;
   isActive: boolean;
 };
 
-const loadWorkspace = async (workspaceId: string, initialResources?: ChatInputResources) => {
-  const workspace = (await listWorkspaces())
-    .map((item) => (item.isDefault ? { ...item, name: "默认工作区" } : item))
-    .find((item) => item.id === workspaceId);
-
-  if (!workspace) {
-    throw new Error("工作区不存在");
-  }
-
-  return {
-    workspace,
-    resources: initialResources ?? (await loadResources()),
-  };
-};
-
-const WorkspaceChat = ({ workspaceId, chatId, initialData: providedInitialData, isActive }: WorkspaceChatProps) => {
+const WorkspaceChat = ({ workspaceId, chatId, initialTurn, isActive }: WorkspaceChatProps) => {
   const workspaceStore = useWorkspaceStore();
   const fileStore = useWorkspaceFileStore();
-  const [state, setState] = useState(initialState);
   const [options, setOptions] = useState<ChatInputOptions | null>(null);
-  const initialData = useMemo<ChatInitialData>(
-    () =>
-      providedInitialData ?? {
-        resources: state.resources,
-      },
-    [providedInitialData, state.resources],
-  );
+  const workspace = workspaceStore.workspaces.find((item) => item.id === workspaceId) ?? null;
+  const resources = workspaceStore.resources;
   const selectedModel = useMemo(
-    () => initialData.resources.models?.find((model) => model.value === options?.selectedModelId)?.runtimeModel ?? null,
-    [initialData.resources.models, options?.selectedModelId],
+    () => resources.models?.find((model) => model.value === options?.selectedModelId)?.runtimeModel ?? null,
+    [options?.selectedModelId, resources.models],
   );
 
   useEffect(() => {
-    let cancelled = false;
-    setState(initialState);
-
-    if (!workspaceId) {
-      setState({ ...initialState, isLoading: false, error: "工作区地址无效" });
-      return () => {
-        cancelled = true;
-      };
+    if (workspaceStore.workspaces.length === 0 && !workspaceStore.isLoading && !workspaceStore.error) {
+      void workspaceStore.loadWorkspaces();
     }
-
-    void loadWorkspace(workspaceId, providedInitialData?.resources)
-      .then(({ workspace, resources }) => {
-        if (!cancelled) {
-          setState({ workspace, resources, isLoading: false, error: "" });
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setState({
-            ...initialState,
-            isLoading: false,
-            error: error instanceof Error ? error.message : "工作区会话加载失败",
-          });
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [providedInitialData?.resources, workspaceId]);
+  }, [workspaceStore.error, workspaceStore.isLoading, workspaceStore.loadWorkspaces, workspaceStore.workspaces.length]);
 
   useEffect(() => {
-    if (isActive && state.workspace) {
-      workspaceStore.setCurrentWorkspace(state.workspace);
+    if (isActive && workspace) {
+      workspaceStore.setCurrentWorkspace(workspace);
     }
-  }, [isActive, state.workspace, workspaceStore.setCurrentWorkspace]);
+  }, [isActive, workspace, workspaceStore.setCurrentWorkspace]);
 
   const saveWorkspaceChat = useCallback(
     (input: ChatSaveInput) => {
-      if (!state.workspace) {
+      if (!workspace) {
         return Promise.reject(new Error("工作区尚未加载完成"));
       }
 
-      return workspaceStore.saveChat(state.workspace, input);
+      return workspaceStore.saveChat(workspace, input);
     },
-    [state.workspace, workspaceStore.saveChat],
+    [workspace, workspaceStore.saveChat],
   );
 
   if (!workspaceId || !chatId) {
@@ -120,16 +57,17 @@ const WorkspaceChat = ({ workspaceId, chatId, initialData: providedInitialData, 
     );
   }
 
-  if (state.isLoading || !state.workspace) {
+  const isLoading = workspaceStore.isLoading || (workspaceStore.workspaces.length === 0 && !workspaceStore.error);
+  const error = isLoading ? "" : workspaceStore.error || (!workspace ? "工作区不存在" : "");
+
+  if (isLoading || !workspace) {
     return (
       <main className="flex h-full min-h-0 items-center justify-center gap-2 bg-background px-6 text-sm text-muted-foreground">
-        {state.error ? null : <Spinner />}
-        <span>{state.error || "正在加载工作区会话"}</span>
+        {error ? null : <Spinner />}
+        <span>{error || "正在加载工作区会话"}</span>
       </main>
     );
   }
-
-  const workspace = state.workspace;
 
   return (
     <div className="relative flex h-full min-h-0 flex-1 overflow-hidden bg-surface/45">
@@ -137,8 +75,9 @@ const WorkspaceChat = ({ workspaceId, chatId, initialData: providedInitialData, 
         <Chat
           chatId={chatId}
           workspacePath={workspace.path}
+          resources={resources}
           files={fileStore.workspacePath === workspace.path ? fileStore.files : []}
-          initialData={initialData}
+          initialTurn={initialTurn}
           saveChat={saveWorkspaceChat}
           onStatusChange={({ chatId: statusChatId, isRunning }) =>
             workspaceStore.setChatLoading(workspaceId, statusChatId, isRunning)
@@ -187,7 +126,7 @@ export const WorkspaceChatRoute = () => {
             <WorkspaceChat
               workspaceId={chat.workspaceId}
               chatId={chat.chatId}
-              initialData={chat.initialData}
+              initialTurn={chat.initialTurn}
               isActive={isActive}
             />
           </div>

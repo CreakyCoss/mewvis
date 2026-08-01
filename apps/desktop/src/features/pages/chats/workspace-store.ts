@@ -15,8 +15,7 @@ import {
   updateWorkspace as updateWorkspaceApi,
   type Workspace,
 } from "@/api/workspace";
-import type { ChatInitialData } from "./chat/type";
-import type { ChatInputResources } from "./components/chat-input/type";
+import type { ChatInputResources, ChatTurnRequest } from "./components/chat-input/type";
 import { loadResources } from "./resources";
 
 type CurrentChat = {
@@ -25,7 +24,7 @@ type CurrentChat = {
 };
 
 export type OpenChat = CurrentChat & {
-  initialData?: ChatInitialData;
+  initialTurn?: ChatTurnRequest;
 };
 
 type ChatLoadingMap = Record<string, Record<string, boolean>>;
@@ -213,13 +212,13 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     set((state) => {
       const existingChatIndex = state.openChats.findIndex((item) => isSameChat(item, chat));
       if (existingChatIndex >= 0) {
-        if (!chat.initialData) {
+        if (!chat.initialTurn) {
           return state;
         }
 
         return {
           openChats: state.openChats.map((item, index) =>
-            index === existingChatIndex ? { ...item, initialData: chat.initialData } : item,
+            index === existingChatIndex ? { ...item, initialTurn: chat.initialTurn } : item,
           ),
         };
       }

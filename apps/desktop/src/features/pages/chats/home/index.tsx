@@ -45,10 +45,7 @@ export const ChatHomePage = () => {
       setChat({
         chatId: savedChat.id,
         workspaceId: workspace.id,
-        initialData: {
-          initialRequest: request,
-          resources: workspaceStore.resources,
-        },
+        initialTurn: request,
       });
     } catch (error) {
       setCreateChatError(error instanceof Error ? error.message : "新建对话失败，请重试。");

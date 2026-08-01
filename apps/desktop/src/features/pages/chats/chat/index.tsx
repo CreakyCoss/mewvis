@@ -15,8 +15,9 @@ const defaultOptions = {
 export const Chat = ({
   chatId,
   workspacePath,
+  resources,
   files = [],
-  initialData,
+  initialTurn,
   saveChat,
   onStatusChange,
   onOptionsChange,
@@ -24,7 +25,7 @@ export const Chat = ({
   const chat = useChat({
     chatId,
     workspacePath,
-    initialRequest: initialData.initialRequest,
+    initialTurn,
     saveChat,
     onStatusChange,
   });
@@ -71,7 +72,7 @@ export const Chat = ({
           {chat.isInitializing ? null : (
             <ChatInput
               key={chatId}
-              resources={initialData.resources}
+              resources={resources}
               files={files}
               initialOptions={chat.options ?? defaultOptions}
               placeholder="继续输入消息"

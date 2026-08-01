@@ -7,11 +7,6 @@ import type {
   ChatTurnRequest,
 } from "../components/chat-input/type";
 
-export type ChatInitialData = {
-  initialRequest?: ChatTurnRequest;
-  resources: ChatInputResources;
-};
-
 export type ChatStatus = {
   chatId: string;
   isRunning: boolean;
@@ -95,8 +90,9 @@ export type ChatPendingQuestion = {
 export type ChatProps = {
   chatId: string;
   workspacePath: string;
+  resources: ChatInputResources;
   files?: ChatInputFile[];
-  initialData: ChatInitialData;
+  initialTurn?: ChatTurnRequest;
   saveChat?: (input: ChatSaveInput) => Promise<unknown>;
   onStatusChange?: (status: ChatStatus) => void;
   onOptionsChange?: (options: ChatInputOptions) => void;

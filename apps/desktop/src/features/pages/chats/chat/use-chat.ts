@@ -89,7 +89,7 @@ type StreamEvent = Extract<
 type UseChatInput = {
   chatId: string;
   workspacePath: string;
-  initialRequest?: ChatTurnRequest;
+  initialTurn?: ChatTurnRequest;
   saveChat?: (input: ChatSaveInput) => Promise<unknown>;
   onStatusChange?: (status: ChatStatus) => void;
 };
@@ -131,7 +131,7 @@ const restoreMessages = (messages: ChatMessage[]) =>
 const applyStreamEvents = (message: ChatAssistantMessage, events: StreamEvent[]) =>
   events.reduce<ChatAssistantMessage>(applyChatMessageEvent, message);
 
-export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onStatusChange }: UseChatInput) => {
+export const useChat = ({ chatId, workspacePath, initialTurn, saveChat, onStatusChange }: UseChatInput) => {
   const [chatStore] = useState(() => createChatStore());
   const chatState = useStore(chatStore);
   const [agentClient] = useState(createAgentClient);
@@ -139,7 +139,7 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
   const streamEventsRef = useRef<StreamEvent[]>([]);
   const streamFrameRef = useRef<number | null>(null);
   const lastStderrRef = useRef("");
-  const initialRequestChatIdRef = useRef("");
+  const initialTurnChatIdRef = useRef("");
 
   const persistChat = useCallback(() => {
     const state = chatStore.getState();
@@ -504,13 +504,9 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
         }
         chatStore.getState().setInitializing(false);
 
-        if (
-          initialRequest &&
-          (!savedChat || savedChat.messages.length === 0) &&
-          initialRequestChatIdRef.current !== chatId
-        ) {
-          initialRequestChatIdRef.current = chatId;
-          await runTurn(initialRequest);
+        if (initialTurn && (!savedChat || savedChat.messages.length === 0) && initialTurnChatIdRef.current !== chatId) {
+          initialTurnChatIdRef.current = chatId;
+          await runTurn(initialTurn);
         }
       } catch (error) {
         if (disposed) {
@@ -530,17 +526,7 @@ export const useChat = ({ chatId, workspacePath, initialRequest, saveChat, onSta
       void flush();
       unsubscribe?.();
     };
-  }, [
-    agentClient,
-    chatId,
-    chatStore,
-    flush,
-    flushStreamEvents,
-    handleAgentEvent,
-    initialRequest,
-    runTurn,
-    workspacePath,
-  ]);
+  }, [agentClient, chatId, chatStore, flush, flushStreamEvents, handleAgentEvent, initialTurn, runTurn, workspacePath]);
 
   return {
     messages: chatState.messages,
