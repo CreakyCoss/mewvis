@@ -15,7 +15,7 @@ export const SkillsPage = () => {
         onValueChange={(value) => setActiveTab(value as SkillsTab)}
         className="flex h-full min-h-0 flex-1 flex-col gap-0"
       >
-        <header className="app-page-header shrink-0 px-5 pt-6 pb-4 lg:px-8 lg:pt-8">
+        <header className="app-page-header shrink-0 bg-background px-5 pt-6 pb-4 lg:px-8 lg:pt-8">
           <div className="flex min-w-0 items-center gap-8">
             <button
               type="button"

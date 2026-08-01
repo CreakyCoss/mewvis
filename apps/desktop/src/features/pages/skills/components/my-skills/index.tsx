@@ -489,36 +489,19 @@ export const MySkillsTab = () => {
             </section>
 
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <div className="group/selected-group relative flex max-w-full items-center gap-1.5">
-                <div className="flex min-w-0 items-center gap-1">
-                  <button
-                    type="button"
-                    className="-ml-1 inline-flex min-h-9 min-w-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-medium text-foreground transition-colors hover:bg-accent/60 hover:text-sidebar-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/25"
-                    onClick={openSelectedGroupDetails}
-                    aria-label={
-                      selectedGroup && !selectedGroup.readonly
-                        ? `编辑分组：${selectedGroupName}`
-                        : `查看分组：${selectedGroupName}`
-                    }
-                  >
-                    <span className="max-w-[220px] truncate">{selectedGroupName}</span>
-                  </button>
-                </div>
-                {selectedGroup && !selectedGroup.readonly && (
-                  <div className="pointer-events-none absolute left-0 top-full z-20 pt-1 opacity-0 transition-opacity group-hover/selected-group:pointer-events-auto group-hover/selected-group:opacity-100 group-focus-within/selected-group:pointer-events-auto group-focus-within/selected-group:opacity-100">
-                    <Button
-                      type="button"
-                      size="xs"
-                      variant="ghost"
-                      className="h-9 rounded-lg bg-card px-3 text-xs text-destructive shadow-xs ring-1 ring-destructive/10 hover:bg-destructive/10 hover:text-destructive"
-                      aria-label={`删除分组：${selectedGroupName}`}
-                      disabled={isSaving}
-                      onClick={() => setPendingDeleteGroup(selectedGroup)}
-                    >
-                      删除分组
-                    </Button>
-                  </div>
-                )}
+              <div className="flex max-w-full items-center gap-1.5">
+                <button
+                  type="button"
+                  className="-ml-1 inline-flex min-h-9 min-w-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-medium text-foreground transition-colors hover:bg-accent/60 hover:text-sidebar-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary/25"
+                  onClick={openSelectedGroupDetails}
+                  aria-label={
+                    selectedGroup && !selectedGroup.readonly
+                      ? `编辑分组：${selectedGroupName}`
+                      : `查看分组：${selectedGroupName}`
+                  }
+                >
+                  <span className="max-w-[220px] truncate">{selectedGroupName}</span>
+                </button>
               </div>
               <div className="flex items-center">
                 <span>共 {visibleSkills.length} 个 Skill</span>
@@ -602,6 +585,7 @@ export const MySkillsTab = () => {
           skills={skillsStore.skills}
           skillsByKey={skillsByKey}
           defaultGroupId={skillsStore.defaultSkillGroupId}
+          isSaving={isSaving}
           onOpenChange={(open) =>
             setGroupDialogState((current) => ({
               ...current,
@@ -611,6 +595,7 @@ export const MySkillsTab = () => {
           onGroupsChange={updateSkillGroups}
           onDefaultGroupChange={updateDefaultSkillGroup}
           onSelectedGroupChange={setSelectedGroupId}
+          onDeleteGroup={setPendingDeleteGroup}
         />
         <ImportSkillDialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen} />
         <AlertDialog
@@ -654,9 +639,10 @@ export const MySkillsTab = () => {
         >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>删除分组？</AlertDialogTitle>
+              <AlertDialogTitle>删除“{pendingDeleteGroup?.name ?? ""}”分组？</AlertDialogTitle>
               <AlertDialogDescription>
-                将删除“{pendingDeleteGroup?.name ?? ""}”分组。分组内的 Skill 不会被删除， 仍会保留在 Skill库中。
+                只会删除分组，分组内的 Skill 仍会保留在 Skill库中。
+                {pendingDeleteGroup?.id === skillsStore.defaultSkillGroupId && " 删除后，新对话将改用“全部”分组。"}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -669,7 +655,7 @@ export const MySkillsTab = () => {
                   handleConfirmDeleteGroup();
                 }}
               >
-                {isSaving ? "正在删除" : "确认删除"}
+                {isSaving ? "正在删除" : "删除分组"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

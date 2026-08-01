@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, ChevronRight, FolderPlus, Search, Sparkles, X } from "lucide-react";
+import { CheckCircle2, ChevronRight, FolderPlus, Search, Sparkles, Trash2, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -39,10 +39,12 @@ type GroupDialogProps = {
   skills: Skill[];
   skillsByKey: Map<string, Skill>;
   defaultGroupId: string;
+  isSaving: boolean;
   onOpenChange: (open: boolean) => void;
   onGroupsChange: (groups: SkillGroup[], defaultGroupId?: string) => void;
   onDefaultGroupChange: (groupId: string) => void;
   onSelectedGroupChange: (groupId: string) => void;
+  onDeleteGroup: (group: SkillGroup) => void;
 };
 
 export const GroupDialog = ({
@@ -51,10 +53,12 @@ export const GroupDialog = ({
   skills,
   skillsByKey,
   defaultGroupId,
+  isSaving,
   onOpenChange,
   onGroupsChange,
   onDefaultGroupChange,
   onSelectedGroupChange,
+  onDeleteGroup,
 }: GroupDialogProps) => {
   const [groupName, setGroupName] = useState("");
   const [isDefaultGroup, setIsDefaultGroup] = useState(false);
@@ -69,6 +73,7 @@ export const GroupDialog = ({
   const visibleSkills = useMemo(() => filterSkills(skills, searchQuery), [skills, searchQuery]);
   const visibleSkillGroups = useMemo(() => groupSkillsBySource(visibleSkills), [visibleSkills]);
   const selectedSkillSet = useMemo(() => new Set(selectedSkillNames), [selectedSkillNames]);
+  const canDeleteGroup = state.mode === "edit" && state.group !== null && state.group.readonly !== true;
 
   useEffect(() => {
     if (!state.open) {
@@ -386,16 +391,35 @@ export const GroupDialog = ({
           </section>
         </div>
 
-        <DialogFooter className="shrink-0 border-t border-border/60 bg-surface-raised/85 px-5 py-4">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            {isEditable ? "取消" : "关闭"}
-          </Button>
-          {(isEditable || isDefaultGroup !== (targetGroupId === defaultGroupId)) && (
-            <Button type="button" onClick={saveGroup}>
-              <CheckCircle2 className="size-4" />
-              <span>{isEditable ? "保存分组" : "保存默认"}</span>
+        <DialogFooter
+          className={[
+            "shrink-0 border-t border-border/60 bg-surface-raised/85 px-5 py-4",
+            canDeleteGroup ? "sm:justify-between" : "",
+          ].join(" ")}
+        >
+          {canDeleteGroup && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:border-destructive/40 focus-visible:ring-destructive/20"
+              disabled={isSaving}
+              onClick={() => state.group && onDeleteGroup(state.group)}
+            >
+              <Trash2 className="size-4" />
+              <span>删除分组</span>
             </Button>
           )}
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              {isEditable ? "取消" : "关闭"}
+            </Button>
+            {(isEditable || isDefaultGroup !== (targetGroupId === defaultGroupId)) && (
+              <Button type="button" disabled={isSaving} onClick={saveGroup}>
+                <CheckCircle2 className="size-4" />
+                <span>{isEditable ? "保存分组" : "保存默认"}</span>
+              </Button>
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
