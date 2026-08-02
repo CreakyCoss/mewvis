@@ -1,16 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { loadChat, saveChat } from "@/api/chat";
 import { Spinner } from "@/components/ui/spinner";
 import { Chat } from "@/features/pages/chats/chat";
-import type { ChatInitialData, ChatMessage } from "@/features/pages/chats/chat/type";
+import type { ChatMessage } from "@/features/pages/chats/chat/type";
 import type { ChatInputResources } from "@/features/pages/chats/components/chat-input/type";
 import type { StoryLibraryItem } from "../../../storage";
 import { prepareStoryChatResources } from "./resources";
-
-const defaultDisplayOptions = {
-  showThinkingProcess: true,
-  showToolCallProcess: true,
-};
 
 type StoryChatState = {
   resources: ChatInputResources;
@@ -49,13 +44,6 @@ type StoryChatProps = {
 
 export const StoryChat = ({ story, chatId }: StoryChatProps) => {
   const [state, setState] = useState(initialState);
-  const initialData = useMemo<ChatInitialData>(
-    () => ({
-      resources: state.resources,
-      displayOptions: defaultDisplayOptions,
-    }),
-    [state.resources],
-  );
 
   useEffect(() => {
     let cancelled = false;
@@ -114,5 +102,5 @@ export const StoryChat = ({ story, chatId }: StoryChatProps) => {
     );
   }
 
-  return <Chat chatId={chatId} workspacePath={story.workspace.path} initialData={initialData} />;
+  return <Chat chatId={chatId} workspacePath={story.workspace.path} resources={state.resources} />;
 };

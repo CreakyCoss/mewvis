@@ -3,24 +3,20 @@ import { isEqual } from "lodash-es";
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
 import type {
-  ChatInputOptionValues,
+  ChatInputInitialOptions,
+  ChatInputOptions,
   ChatInputResources,
   ChatInputSkillGroupOption,
   ChatInputSubmitResources,
 } from "./type";
 
-type ChatInputOptionValueSetters = {
-  setSelectedModelId: (modelId: string) => void;
-  setSelectedAgentId: (agentId: string) => void;
-  setSelectedSkillKeys: (skillKeys: string[]) => void;
-  setSelectedToolNames: (toolNames: string[]) => void;
-};
-
-interface ChatInputStore extends ChatInputOptionValueSetters {
+interface ChatInputStore {
   resources: ChatInputResources;
-  optionValues: ChatInputOptionValues;
+  options: ChatInputOptions;
   submitResources: ChatInputSubmitResources | null;
-  initializeResources: (resources: ChatInputResources, defaultOptionValues?: Partial<ChatInputOptionValues>) => void;
+  isInitialized: boolean;
+  initializeResources: (resources: ChatInputResources, initialOptions?: ChatInputInitialOptions) => void;
+  updateOptions: (updates: Partial<ChatInputOptions>) => void;
 }
 
 const collectSkills = (skillGroups: ChatInputSkillGroupOption[]) => {
@@ -35,9 +31,9 @@ const collectSkills = (skillGroups: ChatInputSkillGroupOption[]) => {
 
 const resolveChatInputState = (
   resources: ChatInputResources,
-  values: Partial<ChatInputOptionValues> = {},
+  values: ChatInputInitialOptions = {},
   fallbackToResourceDefaults = false,
-): Pick<ChatInputStore, "optionValues" | "submitResources"> => {
+): Pick<ChatInputStore, "options" | "submitResources"> => {
   const models = resources.models ?? [];
   const agents = resources.agents ?? [];
   const skillGroups = resources.skillGroups ?? [];
@@ -63,21 +59,23 @@ const resolveChatInputState = (
   const selectedTools = requestedToolNames
     ? tools.filter((tool) => requestedToolNames.has(tool.value))
     : tools.filter((tool) => tool.isDefault);
-  const optionValues: ChatInputOptionValues = {
+  const options: ChatInputOptions = {
     selectedModelId: selectedModel?.value ?? "",
     selectedAgentId: selectedAgent?.value ?? "",
     selectedSkillKeys: selectedSkills.map((skill) => skill.key),
     selectedToolNames: selectedTools.map((tool) => tool.value),
+    showThinkingProcess: values.showThinkingProcess ?? true,
+    showToolCallProcess: values.showToolCallProcess ?? true,
   };
 
   return {
-    optionValues,
+    options,
     submitResources: selectedModel
       ? {
           model: selectedModel.runtimeModel,
           agent: selectedAgent?.agent ?? null,
           skills: selectedSkills,
-          tools: optionValues.selectedToolNames,
+          tools: options.selectedToolNames,
         }
       : null,
   };
@@ -85,14 +83,14 @@ const resolveChatInputState = (
 
 const createChatInputStore = () =>
   createStore<ChatInputStore>()((set, get) => {
-    const updateOptionValues = (updates: Partial<ChatInputOptionValues>) => {
+    const updateOptions = (updates: Partial<ChatInputOptions>) => {
       const state = get();
       const resolvedState = resolveChatInputState(state.resources, {
-        ...state.optionValues,
+        ...state.options,
         ...updates,
       });
 
-      if (isEqual(state.optionValues, resolvedState.optionValues)) {
+      if (isEqual(state.options, resolvedState.options)) {
         return;
       }
 
@@ -101,23 +99,24 @@ const createChatInputStore = () =>
 
     return {
       resources: {},
-      optionValues: {
+      options: {
         selectedModelId: "",
         selectedAgentId: "",
         selectedSkillKeys: [],
         selectedToolNames: [],
+        showThinkingProcess: true,
+        showToolCallProcess: true,
       },
       submitResources: null,
-      initializeResources: (resources, defaultOptionValues) => {
+      isInitialized: false,
+      initializeResources: (resources, initialOptions) => {
         set({
           resources,
-          ...resolveChatInputState(resources, defaultOptionValues, true),
+          ...resolveChatInputState(resources, initialOptions, true),
+          isInitialized: true,
         });
       },
-      setSelectedModelId: (selectedModelId) => updateOptionValues({ selectedModelId }),
-      setSelectedAgentId: (selectedAgentId) => updateOptionValues({ selectedAgentId }),
-      setSelectedSkillKeys: (selectedSkillKeys) => updateOptionValues({ selectedSkillKeys }),
-      setSelectedToolNames: (selectedToolNames) => updateOptionValues({ selectedToolNames }),
+      updateOptions,
     };
   });
 

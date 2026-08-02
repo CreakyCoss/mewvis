@@ -1,7 +1,7 @@
-import { FileText, UserRound } from "lucide-react";
+import { UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatTime } from "@/utils/time";
-import type { MessageReferencedFile, MessageVisualStyle } from "../../types";
+import type { MessageVisualStyle } from "../../types";
 import { MessageControls } from "../shared/message-controls";
 
 type UserMessageProps = {
@@ -9,7 +9,6 @@ type UserMessageProps = {
   createdAt: number;
   isSending: boolean;
   isStreaming: boolean;
-  referencedFiles?: MessageReferencedFile[];
   speakerName: string;
   visualStyle: MessageVisualStyle;
 };
@@ -18,7 +17,6 @@ export const UserMessage = ({
   createdAt,
   isSending,
   isStreaming,
-  referencedFiles,
   speakerName,
   visualStyle,
 }: UserMessageProps) => (
@@ -37,20 +35,6 @@ export const UserMessage = ({
           aria-hidden
         />
         <div className="whitespace-pre-wrap break-words">{content}</div>
-        {referencedFiles && referencedFiles.length > 0 && (
-          <div className="mt-2 flex flex-wrap justify-end gap-1">
-            {referencedFiles.map((file) => (
-              <span
-                key={file.path}
-                className="inline-flex max-w-full items-center gap-1 rounded-[5px] bg-primary-foreground/15 px-1.5 py-0.5 text-xs text-primary-foreground/85"
-                title={file.path}
-              >
-                <FileText className="size-3 shrink-0" />
-                <span className="truncate">{file.path}</span>
-              </span>
-            ))}
-          </div>
-        )}
       </div>
       <span className="text-xs text-current opacity-70">{formatTime(createdAt)}</span>
       <MessageControls content={content} disabled={isSending || isStreaming} />

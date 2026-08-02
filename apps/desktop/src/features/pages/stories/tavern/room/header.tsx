@@ -59,10 +59,6 @@ export const Header = ({ isSidePanelOpen, isResetting, onBack, onReset, onToggle
       await submitTavernAgentFlow({
         submittedText: undefined,
         trigger: { type: "scene_drive", directive: payload.text },
-        ambiguousFileReferences: payload.ambiguousFileReferences,
-        readReferencedFiles: payload.readReferencedFiles,
-        referencedFilePreviews: payload.referencedFilePreviews,
-        unresolvedFileReferences: payload.unresolvedFileReferences,
         onCommitted: () => {
           composerHandle?.clearDraft();
         },

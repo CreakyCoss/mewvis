@@ -1,13 +1,14 @@
 import { Loader2, LogOut, ScrollText, Settings2, Wine } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Ref } from "react";
-import { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { useCallback, useImperativeHandle, useRef, useState } from "react";
 import { toast } from "sonner";
+import { buildRuntimeModelOptions, type RuntimeModelOption } from "@/agent-client/runtime-model";
+import { getLlmSettings } from "@/api/llm";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { WindowDragRegion } from "@/components/window-drag-region";
-import { useLlmSettingsStore } from "@/features/pages/settings/llm/store";
 import type { StoryLibraryItem } from "../../storage";
 import { cn } from "@/lib/utils";
 import { Header } from "./header";
@@ -83,15 +84,9 @@ export const TavernManageContent = ({ bind, onBack }: TavernManageContentProps) 
   const [activeModuleId, setActiveModuleId] = useState<EditorModuleId>("basic");
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
-  const runtimeModels = useLlmSettingsStore((store) => store.runtimeModels);
-  const loadSettings = useLlmSettingsStore((store) => store.loadSettings);
-  const globalRuntimeModel = runtimeModels[0] ?? null;
+  const [globalRuntimeModel, setGlobalRuntimeModel] = useState<RuntimeModelOption | null>(null);
   const openRequestIdRef = useRef(0);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
-
-  useEffect(() => {
-    void loadSettings();
-  }, [loadSettings]);
 
   const close = useCallback(() => {
     openRequestIdRef.current += 1;
@@ -99,6 +94,7 @@ export const TavernManageContent = ({ bind, onBack }: TavernManageContentProps) 
     setData(null);
     setIsLoading(false);
     setLoadError("");
+    setGlobalRuntimeModel(null);
   }, []);
 
   const open = useCallback((nextItem: StoryLibraryItem) => {
@@ -109,6 +105,20 @@ export const TavernManageContent = ({ bind, onBack }: TavernManageContentProps) 
     setActiveModuleId("basic");
     setIsLoading(true);
     setLoadError("");
+    setGlobalRuntimeModel(null);
+
+    void getLlmSettings()
+      .then((settings) => {
+        if (requestId === openRequestIdRef.current) {
+          setGlobalRuntimeModel(buildRuntimeModelOptions(settings)[0] ?? null);
+        }
+      })
+      .catch((error) => {
+        if (requestId === openRequestIdRef.current) {
+          console.error("Failed to load runtime model options", error);
+          setGlobalRuntimeModel(null);
+        }
+      });
 
     void loadOrCreateStoryTavernConfig(nextItem)
       .then((config) => {

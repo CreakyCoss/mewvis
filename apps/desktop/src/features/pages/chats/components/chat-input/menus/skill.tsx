@@ -26,7 +26,7 @@ export const SkillMenu = ({ disabled }: SkillMenuProps) => {
   const skills = [
     ...new Map(skillGroups.flatMap((group) => group.skills.map((skill) => [skill.key, skill] as const))).values(),
   ];
-  const selectedSkillKeys = new Set(resourceStore.optionValues.selectedSkillKeys);
+  const selectedSkillKeys = new Set(resourceStore.options.selectedSkillKeys);
   const selectedSkills = skills.filter((skill) => selectedSkillKeys.has(skill.key));
   const areAllSkillsSelected = skills.length > 0 && selectedSkills.length === skills.length;
   const hasSelectedSkills = selectedSkills.length > 0;
@@ -34,7 +34,7 @@ export const SkillMenu = ({ disabled }: SkillMenuProps) => {
   const selectedSkillTitle = hasSelectedSkills ? selectedSkills.map((skill) => skill.label).join("、") : "未选择技能";
 
   const setSkillKeysSelected = (skillKeys: string[], selected: boolean) => {
-    const nextSelectedSkillKeys = new Set(resourceStore.optionValues.selectedSkillKeys);
+    const nextSelectedSkillKeys = new Set(resourceStore.options.selectedSkillKeys);
 
     skillKeys.forEach((skillKey) => {
       if (selected) {
@@ -44,7 +44,7 @@ export const SkillMenu = ({ disabled }: SkillMenuProps) => {
       }
     });
 
-    resourceStore.setSelectedSkillKeys([...nextSelectedSkillKeys]);
+    resourceStore.updateOptions({ selectedSkillKeys: [...nextSelectedSkillKeys] });
   };
 
   return (
@@ -80,7 +80,9 @@ export const SkillMenu = ({ disabled }: SkillMenuProps) => {
             aria-label="全选技能"
             className="[&_[data-slot=checkbox-indicator]_svg]:stroke-white"
             onCheckedChange={(checked) =>
-              resourceStore.setSelectedSkillKeys(checked === true ? skills.map((skill) => skill.key) : [])
+              resourceStore.updateOptions({
+                selectedSkillKeys: checked === true ? skills.map((skill) => skill.key) : [],
+              })
             }
           />
         </div>

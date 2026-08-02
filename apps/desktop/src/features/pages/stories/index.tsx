@@ -180,7 +180,7 @@ export const StoriesPage = () => {
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-5 py-6 lg:px-8">
           {renderLibraryHeader()}
 
-          <section className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] items-start gap-5">
+          <section className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] items-start gap-5">
             {storyItems.map((item) =>
               item.status === "ready" ? (
                 <StoryCard

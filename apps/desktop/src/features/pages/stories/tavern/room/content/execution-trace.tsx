@@ -1,8 +1,8 @@
 import { ListChecks, Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ExecutionChain, type ExecutionChainGroup } from "@/features/ai/components/execution-chain";
 import type { ExecutionStep } from "../context";
+import { ExecutionChain, type ExecutionChainGroup } from "./execution-chain";
 
 type ExecutionTraceProps = {
   steps: ExecutionStep[];

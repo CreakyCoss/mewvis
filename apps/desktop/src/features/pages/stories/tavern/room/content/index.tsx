@@ -1,7 +1,6 @@
 import type { CSSProperties } from "react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { listWorkspaceFiles, type WorkspaceFileEntry } from "@/api/workspace-files";
 import { cn } from "@/lib/utils";
 import { getTavernPresentationProfile } from "@/features/pages/stories/tavern/presets/prompts/presentation-rules";
 import { Composer } from "../composer";
@@ -18,43 +17,16 @@ type TavernRoomContentProps = {
 };
 
 export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContentProps) => {
-  const workspacePath = useTavernRoomContext((store) => store.workspacePath);
   const story = useTavernRoomContext((store) => store.story);
   const messages = useTavernRoomContext((store) => store.messages);
   const visualPreset = useTavernRoomContext((store) => store.visualPreset);
   const busy = useTavernRoomContext((store) => store.busy);
   const executionSteps = useTavernRoomContext((store) => store.executionSteps);
   const executionTraceAnchorMessageId = useTavernRoomContext((store) => store.executionTraceAnchorMessageId);
-  const [files, setFiles] = useState<WorkspaceFileEntry[]>([]);
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
   const messageListRef = useRef<HTMLDivElement | null>(null);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
   const openingMessageCreatedAt = useMemo(() => Date.now(), [story?.chapterId, story?.roomConfig.id]);
-
-  useEffect(() => {
-    if (!workspacePath) {
-      setFiles([]);
-      return;
-    }
-
-    let isCancelled = false;
-
-    void listWorkspaceFiles(workspacePath)
-      .then((nextFiles) => {
-        if (!isCancelled) {
-          setFiles(nextFiles);
-        }
-      })
-      .catch(() => {
-        if (!isCancelled) {
-          setFiles([]);
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [workspacePath]);
 
   const renderableRoomMessages = useMemo(() => {
     if (!story) {
@@ -90,7 +62,6 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
           body: message.body,
           createdAt: message.createdAt,
           status: message.status,
-          referencedFiles: message.referencedFiles,
           presentation: {
             profileId: profile.id,
             userInputMode: profile.userInputMode,
@@ -227,7 +198,7 @@ export const TavernRoomContent = ({ isOpen, isSidePanelOpen }: TavernRoomContent
         </div>
       </ScrollArea>
 
-      <Composer files={files} />
+      <Composer />
     </>
   );
 };

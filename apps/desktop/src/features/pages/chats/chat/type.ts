@@ -1,24 +1,18 @@
 import type { AskUserInput } from "@/agent-client/types";
 import type { SaveChatInput } from "@/api/chat";
 import type {
-  ChatDisplayOptions,
   ChatInputFile,
+  ChatInputOptions,
   ChatInputResources,
-  ChatInputSubmitPayload,
+  ChatTurnRequest,
 } from "../components/chat-input/type";
-
-export type ChatInitialData = {
-  request?: ChatInputSubmitPayload;
-  resources: ChatInputResources;
-  displayOptions: ChatDisplayOptions;
-};
 
 export type ChatStatus = {
   chatId: string;
   isRunning: boolean;
 };
 
-export type ChatSaveInput = Omit<SaveChatInput<ChatMessage>, "workspacePath">;
+export type ChatSaveInput = Omit<SaveChatInput<ChatMessage, ChatInputOptions>, "workspacePath">;
 
 export type ChatToolEvent = {
   id: string;
@@ -96,8 +90,10 @@ export type ChatPendingQuestion = {
 export type ChatProps = {
   chatId: string;
   workspacePath: string;
+  resources: ChatInputResources;
   files?: ChatInputFile[];
-  initialData: ChatInitialData;
+  initialTurn?: ChatTurnRequest;
   saveChat?: (input: ChatSaveInput) => Promise<unknown>;
   onStatusChange?: (status: ChatStatus) => void;
+  onOptionsChange?: (options: ChatInputOptions) => void;
 };

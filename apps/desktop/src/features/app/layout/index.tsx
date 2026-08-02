@@ -1,12 +1,12 @@
 import { Toaster } from "@/components/ui/sonner";
 import { WindowDragRegion } from "@/components/window-drag-region";
 import { ConfigDatabaseDialog } from "@/features/app/recovery";
-import { useWorkspaceOverview } from "@/features/pages/workspace/provider";
 import { AppSidebar } from "@/features/app/sidebar";
+import { useWorkspaceStore } from "@/features/pages/chats/workspace-store";
 import { MainOutlet } from "./outlet";
 
 export const AppLayout = () => {
-  const { loadOverview } = useWorkspaceOverview();
+  const refreshWorkspaces = useWorkspaceStore((store) => store.refreshWorkspaces);
 
   return (
     <>
@@ -15,7 +15,7 @@ export const AppLayout = () => {
         <AppSidebar />
         <MainOutlet />
       </main>
-      <ConfigDatabaseDialog onRecovered={loadOverview} />
+      <ConfigDatabaseDialog onRecovered={refreshWorkspaces} />
       <Toaster position="top-center" />
     </>
   );

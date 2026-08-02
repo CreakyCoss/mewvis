@@ -12,26 +12,9 @@ type StartupScreenProps = {
   statusText: string;
 };
 
-const MIN_STARTUP_DURATION_MS = 320;
-const STARTUP_COMPLETE_SETTLE_MS = 120;
+const STARTUP_PREVIEW_COMPLETE_DELAY_MS = 320;
 const STARTUP_PREVIEW_DURATION_MS = 10_000;
-const STARTUP_CATS = [
-  {
-    id: "mewvis",
-    image: "/assets/startup-cats/portraits/mewvis.png",
-    label: "喵维斯",
-  },
-  {
-    id: "lihua",
-    image: "/assets/startup-cats/portraits/lihua.png",
-    label: "狸花猫",
-  },
-  {
-    id: "orange",
-    image: "/assets/startup-cats/portraits/orange.png",
-    label: "橘猫",
-  },
-];
+const BRAND_I_DOT_IMAGE = "/assets/startup/mewvis-i-dot.png";
 
 let configDatabaseInitialization: Promise<void> | null = null;
 
@@ -54,6 +37,32 @@ function shouldHoldStartupLoadingPreview() {
   return new URLSearchParams(window.location.search).has("startup-loading");
 }
 
+const StartupBrandName = () => {
+  const dotIndex = APP_DISPLAY_NAME.lastIndexOf("i");
+
+  if (dotIndex < 0) {
+    return <h1 className="startup-welcome__brand-name">{APP_DISPLAY_NAME}</h1>;
+  }
+
+  return (
+    <h1 className="startup-welcome__brand-name" aria-label={APP_DISPLAY_NAME}>
+      <span aria-hidden="true">{APP_DISPLAY_NAME.slice(0, dotIndex)}</span>
+      <span className="startup-welcome__brand-i" aria-hidden="true">
+        <span className="startup-welcome__brand-i-letter">i</span>
+        <img
+          className="startup-welcome__brand-i-dot"
+          src={BRAND_I_DOT_IMAGE}
+          alt=""
+          width="256"
+          height="256"
+          decoding="sync"
+        />
+      </span>
+      <span aria-hidden="true">{APP_DISPLAY_NAME.slice(dotIndex + 1)}</span>
+    </h1>
+  );
+};
+
 export const StartupGate = ({ children }: StartupGateProps) => {
   const [isComplete, setIsComplete] = useState(false);
   const [isReady, setIsReady] = useState(false);
@@ -65,14 +74,14 @@ export const StartupGate = ({ children }: StartupGateProps) => {
     const initialize = async () => {
       if (shouldHoldStartupPreview()) {
         const holdLoadingState = shouldHoldStartupLoadingPreview();
-        await wait(MIN_STARTUP_DURATION_MS);
+        await wait(STARTUP_PREVIEW_COMPLETE_DELAY_MS);
 
         if (!isCancelled && !holdLoadingState) {
           setStatusText("准备好了");
           setIsComplete(true);
         }
 
-        await wait(Math.max(STARTUP_PREVIEW_DURATION_MS - MIN_STARTUP_DURATION_MS, 0));
+        await wait(Math.max(STARTUP_PREVIEW_DURATION_MS - STARTUP_PREVIEW_COMPLETE_DELAY_MS, 0));
 
         if (!isCancelled) {
           setIsReady(true);
@@ -87,19 +96,10 @@ export const StartupGate = ({ children }: StartupGateProps) => {
         return;
       }
 
-      const minimumDuration = wait(MIN_STARTUP_DURATION_MS);
-
       try {
-        setStatusText("正在准备创作空间");
-        await Promise.all([initializeConfigDatabaseOnce(), minimumDuration]);
+        await initializeConfigDatabaseOnce();
       } catch {
-        await minimumDuration;
-      }
-
-      if (!isCancelled) {
-        setStatusText("准备好了");
-        setIsComplete(true);
-        await wait(STARTUP_COMPLETE_SETTLE_MS);
+        // Recovery UI handles initialization failures after the application renders.
       }
 
       if (!isCancelled) {
@@ -130,24 +130,7 @@ const StartupScreen = ({ isComplete = false, statusText }: StartupScreenProps) =
     >
       <section className="startup-welcome__content">
         <header className="startup-welcome__brand">
-          <div className="startup-welcome__brand-lockup">
-            <h1 className="startup-welcome__brand-name">{APP_DISPLAY_NAME}</h1>
-            <div className="startup-welcome__cats" role="img" aria-label="喵维斯、狸花猫和橘猫">
-              {STARTUP_CATS.map((cat) => (
-                <span key={cat.id} className={`startup-welcome__cat startup-welcome__cat--${cat.id}`}>
-                  <img
-                    className="startup-welcome__cat-image"
-                    src={cat.image}
-                    alt=""
-                    width="512"
-                    height="512"
-                    decoding="sync"
-                    aria-hidden="true"
-                  />
-                </span>
-              ))}
-            </div>
-          </div>
+          <StartupBrandName />
           <p className="startup-welcome__tagline">你的 AI 故事创作伙伴</p>
         </header>
 

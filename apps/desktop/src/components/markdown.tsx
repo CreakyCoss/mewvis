@@ -1,0 +1,102 @@
+import { memo } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+type MarkdownProps = {
+  content: string;
+  className?: string;
+  inverted?: boolean;
+};
+
+const MarkdownComponent = ({ content, className, inverted = false }: MarkdownProps) => {
+  return (
+    <div
+      className={`min-w-0 overflow-hidden break-words text-sm leading-6 [overflow-wrap:anywhere] ${className ?? ""}`}
+    >
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+          a: ({ children, href }) => (
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className={
+                inverted
+                  ? "break-words underline underline-offset-2 [overflow-wrap:anywhere]"
+                  : "break-words text-primary underline underline-offset-2 [overflow-wrap:anywhere]"
+              }
+            >
+              {children}
+            </a>
+          ),
+          ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>,
+          ol: ({ children }) => <ol className="mb-2 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>,
+          li: ({ children }) => <li className="pl-1">{children}</li>,
+          blockquote: ({ children }) => (
+            <blockquote
+              className={`mb-2 border-l-2 pl-3 last:mb-0 ${
+                inverted ? "border-primary-foreground/50" : "border-border text-muted-foreground"
+              }`}
+            >
+              {children}
+            </blockquote>
+          ),
+          code: ({ children, className }) => {
+            const isBlock = Boolean(className) || String(children).includes("\n");
+
+            if (!isBlock) {
+              return (
+                <code
+                  className={`break-words rounded-sm border px-1 py-0.5 font-mono text-[0.88em] [overflow-wrap:anywhere] ${
+                    inverted
+                      ? "border-primary-foreground/20 bg-primary-foreground/15"
+                      : "border-border/60 bg-muted/60 text-foreground"
+                  }`}
+                >
+                  {children}
+                </code>
+              );
+            }
+
+            return <code className={`font-mono text-xs ${className ?? ""}`}>{children}</code>;
+          },
+          pre: ({ children }) => (
+            <pre
+              className={`mb-3 min-w-0 max-w-full overflow-x-auto rounded-xl border px-3.5 py-3 last:mb-0 ${
+                inverted ? "border-primary-foreground/20 bg-primary-foreground/10" : "border-border/80 bg-muted/45"
+              }`}
+            >
+              {children}
+            </pre>
+          ),
+          table: ({ children }) => (
+            <div className="mb-2 min-w-0 max-w-full overflow-x-auto last:mb-0">
+              <table className="w-full border-collapse text-left text-xs">{children}</table>
+            </div>
+          ),
+          th: ({ children }) => <th className="border border-border bg-muted/60 px-2 py-1 font-medium">{children}</th>,
+          td: ({ children }) => <td className="border border-border px-2 py-1 align-top">{children}</td>,
+          h1: ({ children }) => <h1 className="mb-2 text-lg font-semibold last:mb-0">{children}</h1>,
+          h2: ({ children }) => <h2 className="mb-2 text-base font-semibold last:mb-0">{children}</h2>,
+          h3: ({ children }) => <h3 className="mb-2 text-sm font-semibold last:mb-0">{children}</h3>,
+          h4: ({ children }) => <h4 className="mb-2 text-sm font-medium last:mb-0">{children}</h4>,
+          hr: () => <hr className={inverted ? "my-3 border-primary-foreground/25" : "my-3 border-border"} />,
+          img: ({ alt, src }) => (
+            <img
+              src={src}
+              alt={alt ?? ""}
+              loading="lazy"
+              className="my-3 h-auto max-w-full rounded-xl border border-border/60"
+            />
+          ),
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+};
+
+export const Markdown = memo(MarkdownComponent);

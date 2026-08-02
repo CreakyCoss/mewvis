@@ -59,36 +59,6 @@ pub struct GetAgentRuntimeCollaborationTimelineInput {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateAgentRuntimeSessionInput {
-    workspace_path: String,
-    session_root_dir: String,
-    system_prompt: Option<String>,
-    metadata: Option<Value>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CompactAgentRuntimeSessionInput {
-    workspace_path: String,
-    session_root_dir: String,
-    agent_role_id: String,
-    compact_instruction: Option<String>,
-    runtime_model: Option<AgentRuntimeModelInput>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RebuildAgentRuntimeAgentSessionInput {
-    workspace_path: String,
-    session_root_dir: String,
-    agent_role_id: String,
-    rebuild_instruction: Option<String>,
-    user_message: Option<String>,
-    runtime_model: Option<AgentRuntimeModelInput>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct SummarizeAgentRuntimeSessionInput {
     workspace_path: String,
     session_root_dir: String,
@@ -96,60 +66,6 @@ pub struct SummarizeAgentRuntimeSessionInput {
     summary_instruction: Option<String>,
     max_summary_chars: Option<u64>,
     runtime_model: Option<AgentRuntimeModelInput>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct EditAgentRuntimeSessionMessageInput {
-    workspace_path: String,
-    session_root_dir: String,
-    message_record_id: String,
-    content: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DeleteAgentRuntimeSessionMessageInput {
-    workspace_path: String,
-    session_root_dir: String,
-    message_record_id: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AppendAgentRuntimeSessionMessagesInput {
-    workspace_path: String,
-    session_root_dir: String,
-    messages: Value,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RebuildAgentRuntimeSessionInput {
-    workspace_path: String,
-    session_root_dir: String,
-    messages: Value,
-}
-
-#[tauri::command]
-pub async fn create_agent_runtime_session(
-    app: AppHandle,
-    input: CreateAgentRuntimeSessionInput,
-) -> Result<Value, String> {
-    let session_root_dir =
-        resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
-    call_session_runtime(
-        app,
-        json!({
-            "type": "create_session",
-            "workspacePath": input.workspace_path,
-            "sessionRootDir": session_root_dir,
-            "systemPrompt": input.system_prompt,
-            "metadata": input.metadata,
-        }),
-        &["session_mutation_result"],
-    )
-    .await
 }
 
 #[tauri::command]
@@ -256,16 +172,6 @@ pub async fn get_agent_runtime_collaboration_timeline(
     .await
 }
 
-#[tauri::command]
-pub fn dispose_agent_runtime_session_workers(
-    state: State<AgentRuntimeSupervisor>,
-    input: AgentRuntimeSessionInput,
-) -> Result<(), String> {
-    let session_root_dir =
-        resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
-    state.dispose_session(&input.workspace_path, &session_root_dir)
-}
-
 fn resolve_runtime_session_query_root_dir(
     workspace_path: &str,
     root_dir: Option<&str>,
@@ -301,65 +207,6 @@ pub fn delete_agent_runtime_session(
     }
 
     Ok(())
-}
-
-#[tauri::command]
-pub async fn compact_agent_runtime_session(
-    app: AppHandle,
-    input: CompactAgentRuntimeSessionInput,
-) -> Result<Value, String> {
-    let session_root_dir =
-        resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
-    call_session_runtime(
-        app,
-        json!({
-            "type": "compact_agent_session",
-            "workspacePath": input.workspace_path,
-            "sessionRootDir": session_root_dir,
-            "target": {
-                "scope": "agent",
-                "agentRoleId": input.agent_role_id,
-            },
-            "options": {
-                "compactInstruction": input.compact_instruction,
-            },
-            "runtime": {
-                "model": input.runtime_model,
-            },
-        }),
-        &["session_mutation_result"],
-    )
-    .await
-}
-
-#[tauri::command]
-pub async fn rebuild_agent_runtime_agent_session(
-    app: AppHandle,
-    input: RebuildAgentRuntimeAgentSessionInput,
-) -> Result<Value, String> {
-    let session_root_dir =
-        resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
-    call_session_runtime(
-        app,
-        json!({
-            "type": "rebuild_agent_session",
-            "workspacePath": input.workspace_path,
-            "sessionRootDir": session_root_dir,
-            "target": {
-                "scope": "agent",
-                "agentRoleId": input.agent_role_id,
-            },
-            "options": {
-                "rebuildInstruction": input.rebuild_instruction,
-                "userMessage": input.user_message,
-            },
-            "runtime": {
-                "model": input.runtime_model,
-            },
-        }),
-        &["session_mutation_result"],
-    )
-    .await
 }
 
 #[tauri::command]
@@ -412,87 +259,6 @@ pub async fn summarize_agent_runtime_session(
         })
     };
     call_session_runtime(app, command, &["session_mutation_result"]).await
-}
-
-#[tauri::command]
-pub async fn edit_agent_runtime_session_message(
-    app: AppHandle,
-    input: EditAgentRuntimeSessionMessageInput,
-) -> Result<Value, String> {
-    let session_root_dir =
-        resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
-    call_session_runtime(
-        app,
-        json!({
-            "type": "message_edit",
-            "workspacePath": input.workspace_path,
-            "sessionRootDir": session_root_dir,
-            "messageRecordId": input.message_record_id,
-            "content": input.content,
-        }),
-        &["session_mutation_result"],
-    )
-    .await
-}
-
-#[tauri::command]
-pub async fn delete_agent_runtime_session_message(
-    app: AppHandle,
-    input: DeleteAgentRuntimeSessionMessageInput,
-) -> Result<Value, String> {
-    let session_root_dir =
-        resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
-    call_session_runtime(
-        app,
-        json!({
-            "type": "message_delete",
-            "workspacePath": input.workspace_path,
-            "sessionRootDir": session_root_dir,
-            "messageRecordId": input.message_record_id,
-        }),
-        &["session_mutation_result"],
-    )
-    .await
-}
-
-#[tauri::command]
-pub async fn append_agent_runtime_session_messages(
-    app: AppHandle,
-    input: AppendAgentRuntimeSessionMessagesInput,
-) -> Result<Value, String> {
-    let session_root_dir =
-        resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
-    call_session_runtime(
-        app,
-        json!({
-            "type": "message_append",
-            "workspacePath": input.workspace_path,
-            "sessionRootDir": session_root_dir,
-            "messages": input.messages,
-        }),
-        &["session_mutation_result"],
-    )
-    .await
-}
-
-#[tauri::command]
-pub async fn rebuild_agent_runtime_session(
-    app: AppHandle,
-    input: RebuildAgentRuntimeSessionInput,
-) -> Result<Value, String> {
-    let session_root_dir =
-        resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
-    call_session_runtime(
-        app,
-        json!({
-            "type": "rebuild",
-            "workspacePath": input.workspace_path,
-            "sessionRootDir": session_root_dir,
-            "messages": input.messages,
-        }),
-        &["session_mutation_result"],
-    )
-    .await
 }
 
 async fn call_session_runtime(

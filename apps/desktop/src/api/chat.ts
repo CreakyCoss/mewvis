@@ -11,20 +11,22 @@ export type ChatMeta = {
   isUnread?: boolean;
 };
 
-export type ChatRecord<TMessage = unknown> = {
+export type ChatRecord<TMessage = unknown, TOptions = unknown> = {
   id: string;
   title: string;
   createdAt: number;
   updatedAt: number;
   messages: TMessage[];
+  options?: TOptions | null;
   isUnread?: boolean;
 };
 
-export type SaveChatInput<TMessage = unknown> = {
+export type SaveChatInput<TMessage = unknown, TOptions = unknown> = {
   workspacePath: string;
   chatId?: string | null;
   title?: string | null;
   messages: TMessage[];
+  options?: TOptions | null;
   isUnread?: boolean;
 };
 
@@ -38,17 +40,17 @@ export async function listChats(workspacePath: string) {
   });
 }
 
-export async function loadChat<TMessage = unknown>(workspacePath: string, chatId?: string | null) {
+export async function loadChat<TMessage = unknown, TOptions = unknown>(workspacePath: string, chatId?: string | null) {
   if (!isTauri()) {
     return null;
   }
 
-  return invoke<ChatRecord<TMessage> | null>("load_chat", {
+  return invoke<ChatRecord<TMessage, TOptions> | null>("load_chat", {
     input: { workspacePath, chatId },
   });
 }
 
-export async function saveChat<TMessage = unknown>(input: SaveChatInput<TMessage>) {
+export async function saveChat<TMessage = unknown, TOptions = unknown>(input: SaveChatInput<TMessage, TOptions>) {
   if (!isTauri()) {
     const now = getCurrentTimestamp();
     return {
@@ -57,16 +59,18 @@ export async function saveChat<TMessage = unknown>(input: SaveChatInput<TMessage
       createdAt: now,
       updatedAt: now,
       messages: input.messages,
+      options: input.options,
       isUnread: input.isUnread ?? false,
-    } satisfies ChatRecord<TMessage>;
+    } satisfies ChatRecord<TMessage, TOptions>;
   }
 
-  return invoke<ChatRecord<TMessage>>("save_chat", {
+  return invoke<ChatRecord<TMessage, TOptions>>("save_chat", {
     input: {
       workspacePath: input.workspacePath,
       chatId: input.chatId,
       title: input.title,
       messages: input.messages,
+      options: input.options,
       isUnread: input.isUnread,
     },
   });

@@ -13,18 +13,19 @@ import type { ChatInputProps, ChatInputSkillOption } from "./type";
 const ChatInputContent = ({
   resources,
   files = [],
-  displayOptions,
+  initialOptions,
   defaultValue = "",
-  defaultOptionValues,
   placeholder = "输入问题",
   disabled = false,
   isRunning = false,
   onStop,
-  onDisplayOptionsChange,
+  onOptionsChange,
   onSubmit,
 }: ChatInputProps) => {
   const resourceStore = useChatInputStore();
   const editorRef = useRef<ChatEditorHandle>(null);
+  const initialOptionsRef = useRef(initialOptions);
+  const onOptionsChangeRef = useRef(onOptionsChange);
   const [editorValue, setEditorValue] = useState<ChatEditorValue>(() => ({
     text: defaultValue.trim(),
     blocks: defaultValue.trim() ? [{ type: "text" as const, content: defaultValue.trim() }] : [],
@@ -32,9 +33,9 @@ const ChatInputContent = ({
 
   const controlsDisabled = disabled || isRunning;
   const canSubmit =
-    !controlsDisabled && Boolean(editorValue.text.trim()) && Boolean(resourceStore.optionValues.selectedModelId);
+    !controlsDisabled && Boolean(editorValue.text.trim()) && Boolean(resourceStore.options.selectedModelId);
   const referenceSkills = useMemo(() => {
-    const selectedSkillKeys = new Set(resourceStore.optionValues.selectedSkillKeys);
+    const selectedSkillKeys = new Set(resourceStore.options.selectedSkillKeys);
     const skillsByKey = new Map<string, ChatInputSkillOption>();
 
     resourceStore.resources.skillGroups?.forEach((group) => {
@@ -46,11 +47,25 @@ const ChatInputContent = ({
     });
 
     return [...skillsByKey.values()];
-  }, [resourceStore.optionValues.selectedSkillKeys, resourceStore.resources.skillGroups]);
+  }, [resourceStore.options.selectedSkillKeys, resourceStore.resources.skillGroups]);
 
   useEffect(() => {
-    resourceStore.initializeResources(resources, defaultOptionValues);
-  }, [resourceStore.initializeResources, resources, defaultOptionValues]);
+    initialOptionsRef.current = initialOptions;
+  }, [initialOptions]);
+
+  useEffect(() => {
+    onOptionsChangeRef.current = onOptionsChange;
+  }, [onOptionsChange]);
+
+  useEffect(() => {
+    resourceStore.initializeResources(resources, initialOptionsRef.current);
+  }, [resourceStore.initializeResources, resources]);
+
+  useEffect(() => {
+    if (resourceStore.isInitialized) {
+      onOptionsChangeRef.current?.(resourceStore.options);
+    }
+  }, [resourceStore.isInitialized, resourceStore.options]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -65,10 +80,12 @@ const ChatInputContent = ({
     }
 
     onSubmit({
-      text: submittedValue.text,
-      blocks: submittedValue.blocks,
-      optionValues: resourceStore.optionValues,
-      ...resourceStore.submitResources,
+      request: {
+        text: submittedValue.text,
+        blocks: submittedValue.blocks,
+        ...resourceStore.submitResources,
+      },
+      options: resourceStore.options,
     });
     editor.clear();
     setEditorValue(emptyChatEditorValue);
@@ -92,12 +109,7 @@ const ChatInputContent = ({
           className="min-h-12 flex-wrap justify-between gap-2 px-3 pt-0 pb-3 font-normal"
         >
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-            <ModelMenu
-              disabled={disabled}
-              selectionDisabled={controlsDisabled}
-              displayOptions={displayOptions}
-              onDisplayOptionsChange={onDisplayOptionsChange}
-            />
+            <ModelMenu disabled={disabled} selectionDisabled={controlsDisabled} />
             <SkillMenu disabled={controlsDisabled} />
             <ToolMenu disabled={controlsDisabled} />
           </div>

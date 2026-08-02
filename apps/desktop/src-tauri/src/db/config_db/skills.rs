@@ -5,9 +5,8 @@ use tauri::AppHandle;
 use super::{
     common::{normalize_optional_text, normalize_record_id, now_millis},
     connection::open_config_connection,
-    inputs::{SaveSkillGroupInput, SaveWorkspaceSkillsInput},
-    models::{SkillGroup, SkillGroupSkill, WorkspaceSkillSettings},
-    workspace::ensure_workspace_exists,
+    inputs::{SaveSkillGroupInput, SaveSkillsInput},
+    models::{SkillGroup, SkillGroupSkill, SkillSettings},
 };
 
 struct NormalizedSkillGroups {
@@ -23,36 +22,25 @@ struct NormalizedSkillGroup {
 
 const DEFAULT_SKILL_GROUP_SETTING_KEY: &str = "default_group_id";
 
-pub fn workspace_skill_settings(
-    app: &AppHandle,
-    workspace_id: &str,
-) -> Result<WorkspaceSkillSettings, String> {
+pub fn skill_settings(app: &AppHandle) -> Result<SkillSettings, String> {
     let conn = open_config_connection(app)?;
-    ensure_workspace_exists(&conn, workspace_id)?;
 
-    Ok(WorkspaceSkillSettings {
+    Ok(SkillSettings {
         default_group_id: load_default_skill_group_id(&conn)?,
         skill_groups: load_skill_groups(&conn)?,
     })
 }
 
-pub fn save_workspace_skill_settings(
+pub fn save_skill_settings(
     app: &AppHandle,
-    input: SaveWorkspaceSkillsInput,
-) -> Result<WorkspaceSkillSettings, String> {
-    let workspace_id = input.workspace_id.trim();
-    if workspace_id.is_empty() {
-        return Err("工作区 ID 不能为空".to_string());
-    }
-
+    input: SaveSkillsInput,
+) -> Result<SkillSettings, String> {
     let mut conn = open_config_connection(app)?;
-    ensure_workspace_exists(&conn, workspace_id)?;
-
     let skill_groups = input.skill_groups.map(normalize_skill_groups).transpose()?;
     let now = now_millis()?;
     let tx = conn
         .transaction()
-        .map_err(|error| format!("无法开始保存工作区 Skills：{error}"))?;
+        .map_err(|error| format!("无法开始保存 Skills：{error}"))?;
 
     if let Some(skill_groups) = skill_groups {
         save_skill_groups(&tx, skill_groups.custom, now)?;
@@ -62,9 +50,9 @@ pub fn save_workspace_skill_settings(
     }
 
     tx.commit()
-        .map_err(|error| format!("无法提交工作区 Skills：{error}"))?;
+        .map_err(|error| format!("无法提交 Skills：{error}"))?;
 
-    workspace_skill_settings(app, workspace_id)
+    skill_settings(app)
 }
 
 fn load_default_skill_group_id(conn: &Connection) -> Result<Option<String>, String> {

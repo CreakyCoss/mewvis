@@ -9,7 +9,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { NavLink, useNavigate, useParams } from "react-router";
+import { Link, NavLink, useNavigate, useParams } from "react-router";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,9 +29,8 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { WorkspaceDialog, type WorkspaceDialogHandle } from "@/features/pages/chats/components/workspace-dialog";
 import { useWorkspaceStore } from "@/features/pages/chats/workspace-store";
-import { isDefaultWorkspace } from "@/features/pages/workspace/default";
 import type { ChatMeta } from "@/api/chat";
-import type { Workspace } from "@/features/pages/workspace/types";
+import type { Workspace } from "@/api/workspace";
 import { cn } from "@/lib/utils";
 import { formatRelativeTime } from "@/utils/time";
 
@@ -178,11 +177,8 @@ export const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps
   const [collapsedWorkspaceIds, setCollapsedWorkspaceIds] = useState<Set<string>>(() => new Set());
   const [showAllDefaultChats, setShowAllDefaultChats] = useState(false);
   const [workspacePendingDelete, setWorkspacePendingDelete] = useState<Workspace | null>(null);
-  const defaultWorkspace = useMemo(() => workspaces.find(isDefaultWorkspace) ?? null, [workspaces]);
-  const projectWorkspaces = useMemo(
-    () => workspaces.filter((workspace) => !isDefaultWorkspace(workspace)),
-    [workspaces],
-  );
+  const defaultWorkspace = useMemo(() => workspaces.find((workspace) => workspace.isDefault) ?? null, [workspaces]);
+  const projectWorkspaces = useMemo(() => workspaces.filter((workspace) => !workspace.isDefault), [workspaces]);
   const defaultChats = defaultWorkspace ? (workspaceStore.chatsByWorkspaceId[defaultWorkspace.id] ?? []) : [];
   const isChatsLoading = workspaceStore.isLoading;
   const visibleDefaultChats = showAllDefaultChats ? defaultChats : defaultChats.slice(0, DEFAULT_VISIBLE_CHAT_LIMIT);
@@ -232,7 +228,7 @@ export const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps
   const confirmDeleteChat = (workspace: Workspace, chat: ChatMeta) => {
     void workspaceStore.deleteChat(workspace, chat.id);
     if (params.workspaceId === workspace.id && params.chatId === chat.id) {
-      navigate("/chat-next", { replace: true });
+      navigate("/chat", { replace: true });
     }
   };
 
@@ -268,19 +264,19 @@ export const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps
                   return (
                     <div key={workspace.id} className="min-w-0 space-y-1">
                       <div className="group/workspace relative min-w-0">
-                        <NavLink
-                          to={`/chat/${workspace.id}/new`}
+                        <Link
+                          to="/chat"
                           title={workspace.path}
-                          className={({ isActive }) =>
-                            cn(
-                              "flex h-9 min-w-0 items-center gap-2 overflow-hidden rounded-lg py-1 pr-[4.75rem] pl-3 text-muted-foreground transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground group-hover/workspace:bg-sidebar-accent/70 group-hover/workspace:text-sidebar-foreground group-has-[button[data-state=open]]/workspace:bg-sidebar-accent/70 group-has-[button[data-state=open]]/workspace:text-sidebar-foreground",
-                              isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
-                            )
-                          }
+                          className={cn(
+                            "flex h-9 min-w-0 items-center gap-2 overflow-hidden rounded-lg py-1 pr-[4.75rem] pl-3 text-muted-foreground transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground group-hover/workspace:bg-sidebar-accent/70 group-hover/workspace:text-sidebar-foreground group-has-[button[data-state=open]]/workspace:bg-sidebar-accent/70 group-has-[button[data-state=open]]/workspace:text-sidebar-foreground",
+                            workspaceStore.currentWorkspace?.id === workspace.id &&
+                              "bg-sidebar-accent text-sidebar-accent-foreground",
+                          )}
+                          onClick={() => workspaceStore.setCurrentWorkspace(workspace)}
                         >
                           <Folder className="size-4 shrink-0 text-muted-foreground" />
                           <span className="block min-w-0 flex-1 truncate text-sm font-medium">{workspace.name}</span>
-                        </NavLink>
+                        </Link>
                         {chats.length > 0 && (
                           <button
                             type="button"

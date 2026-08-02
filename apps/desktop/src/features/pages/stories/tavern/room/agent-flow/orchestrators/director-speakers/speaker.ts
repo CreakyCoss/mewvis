@@ -126,7 +126,6 @@ const prepareSpeakerRequest = ({
       presentation: context.presentation,
       target: "character",
       speaker: character,
-      files: context.references,
     }),
     output: getSpeakerOutputKeys(context),
   });

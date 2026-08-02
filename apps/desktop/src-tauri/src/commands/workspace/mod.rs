@@ -1,16 +1,11 @@
-mod agent_sessions;
 mod chats;
 mod files;
 mod knowledge;
-mod overview;
-mod skills;
 mod stories;
 mod tavern_sessions;
 mod version_control;
+mod workspaces;
 
-pub use agent_sessions::{
-    cleanup_orphan_agent_sessions, get_agent_session_status, reset_agent_sessions_for_chat,
-};
 pub use chats::{delete_chat, list_chats, load_chat, save_chat, set_chat_unread};
 pub use files::{
     delete_workspace_file, list_workspace_files, read_workspace_file, read_workspace_file_optional,
@@ -18,11 +13,6 @@ pub use files::{
     write_workspace_files_atomic, WorkspaceFileWatchers,
 };
 pub use knowledge::search_workspace_knowledge;
-pub use overview::{create_workspace, delete_workspace, get_workspace_overview, update_workspace};
-pub use skills::{
-    get_workspace_skills, install_skill_from_marketplace, remove_app_skill, save_workspace_skills,
-    search_skill_marketplace,
-};
 pub use stories::{
     create_story_record, delete_story_record, import_story_record, list_story_records,
     update_story_record,
@@ -35,3 +25,4 @@ pub use version_control::{
     initialize_workspace_version_control, list_workspace_version_files, list_workspace_versions,
     read_workspace_version_file, restore_workspace_version, switch_workspace_version_branch,
 };
+pub use workspaces::{create_workspace, delete_workspace, list_workspaces, update_workspace};

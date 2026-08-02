@@ -6,30 +6,22 @@ use super::{
     common::now_millis,
     connection::open_config_connection,
     inputs::{CreateWorkspaceInput, DeleteWorkspaceInput, UpdateWorkspaceInput},
-    models::{Workspace, WorkspaceGroup, WorkspaceOverview},
+    models::Workspace,
 };
-use crate::db::{
-    id::new_record_id,
-    paths::{config_db_path, default_workspace_path},
-};
+use crate::db::{id::new_record_id, paths::default_workspace_path};
 
 const DEFAULT_WORKSPACE_NAME: &str = "默认工作区";
 const DEFAULT_WORKSPACE_DESCRIPTION: &str = "用于未绑定具体工作区的会话";
 
-pub fn overview(app: &AppHandle) -> Result<WorkspaceOverview, String> {
-    let db_path = config_db_path(app)?;
+pub fn list_workspaces(app: &AppHandle) -> Result<Vec<Workspace>, String> {
     let conn = open_config_connection(app)?;
     ensure_default_workspace(app, &conn)?;
 
-    let groups = load_groups(&conn)?;
     let default_path = default_workspace_path(app)?;
-    let workspaces = mark_default_workspaces(load_workspaces(&conn)?, &default_path);
-
-    Ok(WorkspaceOverview {
-        config_db_path: db_path.to_string_lossy().to_string(),
-        groups,
-        workspaces,
-    })
+    Ok(mark_default_workspaces(
+        load_workspaces(&conn)?,
+        &default_path,
+    ))
 }
 
 pub fn create_workspace(app: &AppHandle, input: CreateWorkspaceInput) -> Result<Workspace, String> {
@@ -145,23 +137,6 @@ pub fn delete_workspace(app: &AppHandle, input: DeleteWorkspaceInput) -> Result<
     Ok(())
 }
 
-pub(super) fn ensure_workspace_exists(conn: &Connection, workspace_id: &str) -> Result<(), String> {
-    let exists = conn
-        .query_row(
-            "SELECT EXISTS(SELECT 1 FROM workspaces WHERE id = ?1)",
-            params![workspace_id],
-            |row| row.get::<_, i64>(0),
-        )
-        .map_err(|error| format!("无法读取工作区：{error}"))?
-        == 1;
-
-    if exists {
-        Ok(())
-    } else {
-        Err("工作区不存在".to_string())
-    }
-}
-
 fn ensure_default_workspace(app: &AppHandle, conn: &Connection) -> Result<Workspace, String> {
     let workspace_path = default_workspace_path(app)?;
     fs::create_dir_all(&workspace_path)
@@ -198,34 +173,6 @@ fn ensure_default_workspace(app: &AppHandle, conn: &Connection) -> Result<Worksp
     .map_err(|error| format!("无法保存默认工作区：{error}"))?;
 
     load_workspace(conn, &id)?.ok_or_else(|| "默认工作区保存后未能读取".to_string())
-}
-
-fn load_groups(conn: &Connection) -> Result<Vec<WorkspaceGroup>, String> {
-    let mut statement = conn
-        .prepare(
-            r#"
-            SELECT id, name, "order", is_default, created_at, updated_at
-            FROM workspace_groups
-            ORDER BY is_default DESC, "order" ASC, created_at ASC
-            "#,
-        )
-        .map_err(|error| format!("无法读取工作区分组：{error}"))?;
-
-    let rows = statement
-        .query_map([], |row| {
-            Ok(WorkspaceGroup {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                order: row.get(2)?,
-                is_default: row.get::<_, i64>(3)? == 1,
-                created_at: row.get(4)?,
-                updated_at: row.get(5)?,
-            })
-        })
-        .map_err(|error| format!("无法读取工作区分组：{error}"))?;
-
-    rows.collect::<Result<Vec<_>, _>>()
-        .map_err(|error| format!("无法解析工作区分组：{error}"))
 }
 
 fn load_workspaces(conn: &Connection) -> Result<Vec<Workspace>, String> {

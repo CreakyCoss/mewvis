@@ -1,22 +1,22 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
-import type { ChatInitialData } from "../chat/type";
+import type { ChatTurnRequest } from "../components/chat-input/type";
 import { useWorkspaceStore } from "../workspace-store";
 
 export type HomeChatProps = {
   chatId: string;
   workspaceId: string;
-  initialData: ChatInitialData;
+  initialTurn: ChatTurnRequest;
 };
 
-export const HomeChat = ({ chatId, workspaceId, initialData }: HomeChatProps) => {
+export const HomeChat = ({ chatId, workspaceId, initialTurn }: HomeChatProps) => {
   const navigate = useNavigate();
   const workspaceStore = useWorkspaceStore();
 
   useEffect(() => {
-    workspaceStore.openChat({ workspaceId, chatId, initialData });
+    workspaceStore.openChat({ workspaceId, chatId, initialTurn });
     navigate(`/chats/${workspaceId}/${chatId}`, { replace: true });
-  }, [chatId, initialData, navigate, workspaceId, workspaceStore.openChat]);
+  }, [chatId, initialTurn, navigate, workspaceId, workspaceStore.openChat]);
 
   return null;
 };

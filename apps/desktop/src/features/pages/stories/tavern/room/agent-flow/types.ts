@@ -1,5 +1,4 @@
 import type { RuntimeModelInput, RuntimeSessionRecordRef } from "@/agent-client/types";
-import type { PromptFileReference } from "@/features/ai/components/context-tools";
 import type { TavernCharacter, TavernStoryData } from "@/features/pages/stories/tavern/room/model";
 import type { TavernPresentationProfile } from "@/features/pages/stories/tavern/manage/model";
 import type { TavernMessage } from "@/features/pages/stories/tavern/room/model/message";
@@ -58,7 +57,6 @@ export type TavernAgentFlowInput = {
   runtimeModel: RuntimeModelInput;
   story: TavernStoryData;
   messages: TavernMessage[];
-  references?: PromptFileReference[];
   currentUserText: string;
   trigger?: TavernAgentFlowTrigger;
   turnId?: string;
@@ -78,7 +76,6 @@ export type TavernAgentFlowContext = {
   playerName: string;
   currentInstruction: string;
   historyMessages: AgentProtocolMessage[];
-  references: PromptFileReference[];
   maxSpeakers: number;
 };
 

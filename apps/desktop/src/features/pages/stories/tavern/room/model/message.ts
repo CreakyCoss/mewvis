@@ -29,7 +29,6 @@ export type TavernMessage = {
   targetCharacterIds?: string[];
   createdAt: number;
   status?: "streaming" | "done" | "error";
-  referencedFiles?: Array<{ path: string }>;
 };
 
 const escapeProtocolXmlText = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
