@@ -4,17 +4,20 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/assets/startup-cat-icon.png" />
     <link rel="preload" as="image" href="/assets/startup/startup-paper-bg.png" />
-    <link rel="preload" as="image" href="/assets/startup-cats/portraits/mewvis.png" />
-    <link rel="preload" as="image" href="/assets/startup-cats/portraits/lihua.png" />
-    <link rel="preload" as="image" href="/assets/startup-cats/portraits/orange.png" />
+    <link rel="preload" as="image" href="/assets/startup/mewvis-i-dot.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mewvis</title>
     <script>
       try {
+        const startupTheme = new URLSearchParams(window.location.search).get("startup-theme");
         const storedTheme = window.localStorage.getItem("theme");
         const followsDarkSystem = window.matchMedia("(prefers-color-scheme: dark)").matches;
         document.documentElement.dataset.startupTheme =
-          storedTheme === "dark" || (storedTheme !== "light" && followsDarkSystem) ? "dark" : "light";
+          startupTheme === "light" || startupTheme === "dark"
+            ? startupTheme
+            : storedTheme === "dark" || (storedTheme !== "light" && followsDarkSystem)
+              ? "dark"
+              : "light";
       } catch {
         document.documentElement.dataset.startupTheme = "light";
       }
@@ -27,7 +30,6 @@
         --startup-muted: #656978;
         --startup-overlay: rgb(247 248 252 / 84%);
         --startup-teal: #5a56d6;
-        --startup-shadow: rgb(70 65 160 / 14%);
       }
 
       :root[data-startup-theme="dark"] {
@@ -37,7 +39,6 @@
         --startup-muted: #a9abb7;
         --startup-overlay: rgb(23 23 32 / 90%);
         --startup-teal: #a8a4ff;
-        --startup-shadow: rgb(0 0 0 / 30%);
       }
 
       html,
@@ -92,13 +93,6 @@
         align-items: center;
       }
 
-      .startup-welcome__brand-lockup {
-        display: flex;
-        align-items: flex-end;
-        justify-content: center;
-        gap: 0;
-      }
-
       .startup-welcome__brand-name {
         margin: 0;
         color: var(--startup-teal);
@@ -108,31 +102,26 @@
         letter-spacing: -0.02em;
       }
 
-      .startup-welcome__cats {
-        display: flex;
-        height: clamp(50px, 6.72vw, 86px);
-        align-items: flex-end;
-        gap: 0;
-        margin-left: clamp(-5px, -0.39vw, -2px);
-        margin-bottom: -3px;
+      .startup-welcome__brand-i {
+        position: relative;
+        display: inline-block;
       }
 
-      .startup-welcome__cat {
+      .startup-welcome__brand-i-letter {
+        display: inline-block;
+        clip-path: inset(32% 0 0);
+      }
+
+      .startup-welcome__brand-i-dot {
+        position: absolute;
+        top: 0.035em;
+        left: 50%;
         display: block;
-        width: clamp(50px, 6.72vw, 86px);
-        height: clamp(50px, 6.72vw, 86px);
-      }
-
-      .startup-welcome__cat + .startup-welcome__cat {
-        margin-left: clamp(-20px, -1.56vw, -8px);
-      }
-
-      .startup-welcome__cat-image {
-        display: block;
-        width: 100%;
-        height: 100%;
+        width: 0.17em;
+        height: 0.17em;
+        transform: translateX(-50%);
         object-fit: contain;
-        filter: drop-shadow(0 4px 6px var(--startup-shadow));
+        pointer-events: none;
         user-select: none;
       }
 
@@ -202,15 +191,6 @@
           font-size: 48px;
         }
 
-        .startup-welcome__cats {
-          height: 44px;
-        }
-
-        .startup-welcome__cat {
-          width: 44px;
-          height: 44px;
-        }
-
         .startup-welcome__tagline {
           font-size: 14px;
         }
@@ -219,16 +199,6 @@
       @media (max-width: 420px) {
         .startup-welcome__brand-name {
           font-size: 42px;
-        }
-
-        .startup-welcome__cats {
-          height: 36px;
-          gap: 2px;
-        }
-
-        .startup-welcome__cat {
-          width: 36px;
-          height: 36px;
         }
 
         .startup-welcome__tagline {
@@ -272,44 +242,19 @@
       <main class="startup-welcome" aria-busy="true" aria-label="Mewvis 正在启动">
         <section class="startup-welcome__content">
           <header class="startup-welcome__brand">
-            <div class="startup-welcome__brand-lockup">
-              <h1 class="startup-welcome__brand-name">Mewvis</h1>
-              <div class="startup-welcome__cats" role="img" aria-label="喵维斯、狸花猫和橘猫">
-                <span class="startup-welcome__cat startup-welcome__cat--mewvis">
-                  <img
-                    class="startup-welcome__cat-image"
-                    src="/assets/startup-cats/portraits/mewvis.png"
-                    alt=""
-                    width="512"
-                    height="512"
-                    decoding="sync"
-                    aria-hidden="true"
-                  />
-                </span>
-                <span class="startup-welcome__cat startup-welcome__cat--lihua">
-                  <img
-                    class="startup-welcome__cat-image"
-                    src="/assets/startup-cats/portraits/lihua.png"
-                    alt=""
-                    width="512"
-                    height="512"
-                    decoding="sync"
-                    aria-hidden="true"
-                  />
-                </span>
-                <span class="startup-welcome__cat startup-welcome__cat--orange">
-                  <img
-                    class="startup-welcome__cat-image"
-                    src="/assets/startup-cats/portraits/orange.png"
-                    alt=""
-                    width="512"
-                    height="512"
-                    decoding="sync"
-                    aria-hidden="true"
-                  />
-                </span>
-              </div>
-            </div>
+            <h1 class="startup-welcome__brand-name" aria-label="Mewvis">
+              <span aria-hidden="true">Mewv</span
+              ><span class="startup-welcome__brand-i" aria-hidden="true"
+                ><span class="startup-welcome__brand-i-letter">i</span
+                ><img
+                  class="startup-welcome__brand-i-dot"
+                  src="/assets/startup/mewvis-i-dot.png"
+                  alt=""
+                  width="256"
+                  height="256"
+                  decoding="sync" /></span
+              ><span aria-hidden="true">s</span>
+            </h1>
             <p class="startup-welcome__tagline">你的 AI 故事创作伙伴</p>
           </header>
 
