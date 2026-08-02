@@ -55,6 +55,65 @@ final result: passed
 
 ---
 
+# Story Library Card Design QA
+
+## Evidence
+
+- Source visual truth: `/Users/haowen.zheng/.codex/generated_images/019fc141-08d5-7833-a15c-e8b3474fe838/exec-da726870-a91c-4415-9e59-0da9d3f02a4f.png`
+- Browser-rendered implementation: `/Users/haowen.zheng/.codex/visualizations/2026/08/02/019fc141-08d5-7833-a15c-e8b3474fe838/story-card-implementation.png`
+- Full-view comparison: `/Users/haowen.zheng/.codex/visualizations/2026/08/02/019fc141-08d5-7833-a15c-e8b3474fe838/story-card-comparison.png`
+- Focused card comparison: `/Users/haowen.zheng/.codex/visualizations/2026/08/02/019fc141-08d5-7833-a15c-e8b3474fe838/story-card-focused-comparison.png`
+- Responsive evidence: `/Users/haowen.zheng/.codex/visualizations/2026/08/02/019fc141-08d5-7833-a15c-e8b3474fe838/story-card-implementation-1266.png`
+- Browser route: `http://localhost:1420/story-card-qa.html`
+- State: light theme, populated story grid, no menu or dialog open.
+- Reference viewport: `1536 × 1024` CSS px at device scale factor 1.
+- Source pixels: `1538 × 1023`; normalized to `1536 × 1024` for comparison.
+- Implementation pixels: `1536 × 1024`; no implementation density normalization required.
+- Responsive viewport: `1266 × 801` CSS px at device scale factor 1.
+
+## Findings
+
+- No actionable P0, P1, or P2 differences remain.
+- Fonts and typography: the implementation uses the product's existing Inter Variable and Chinese system fallbacks. `JSON 故事`, title, synopsis, current-goal label, metrics, and actions preserve the selected hierarchy. A deliberately overlong QA title measured `638 px` of scroll width inside a `247 px` client width and renders with `overflow: hidden`, `white-space: nowrap`, and `text-overflow: ellipsis`. The overlong goal measured `492 px` inside `179 px` and uses the same ellipsis behavior. The synopsis is constrained to a visible `40 px` two-line region while its test content has `80 px` of scroll height.
+- Spacing and layout rhythm: the cover and avatar region is completely removed. The thin indigo top rule, compact type row, title/synopsis, highlighted goal block, divided metrics, and lightweight action footer follow the approved information order. Both action cells measure the same width and their icon-plus-label groups have a `0 px` center offset.
+- Colors and visual tokens: cards use the existing `background`, `card`, `accent`, `primary`, `border`, `foreground`, and `muted-foreground` tokens. No page-private color, decorative gradient, or image substitute was introduced.
+- Image quality and asset fidelity: the redesigned card intentionally contains no raster imagery, cover art, background image, avatar, fake thumbnail, or placeholder. Existing Lucide icons supply the file, goal, metric, action, overflow, and delete affordances.
+- Copy and content: existing story title, description, goal, resource counts, `编辑`, and `酒馆` content is preserved. Delete remains available as `删除故事` inside the overflow menu and continues to open the existing confirmation dialog.
+- Expected difference: the selected visual shows three tracks at the wide reference viewport, while the implementation uses the user's explicit `16rem` minimum. This intentionally produces four `281 px` tracks at `1536 px`; at the original `1266 px` app viewport it produces three `294.492 px` tracks with `923 px` client and scroll widths, confirming no horizontal overflow.
+
+## Comparison History
+
+1. Captured the implementation at the same `1536 × 1024` viewport as the selected visual and normalized the source's two-pixel size discrepancy.
+2. Compared the full screen and an equal-width focused first-card crop in combined images. The text-first hierarchy, indigo top rule, goal surface, metrics, centered lightweight actions, and overflow affordance matched the approved direction. The denser four-column state is the intentional result of the user-selected `16rem` grid minimum, so no visual correction was applied.
+3. Captured the original `1266 × 801` app viewport and verified a three-column grid without overflow. No P0/P1/P2 findings were introduced.
+
+## Primary Interactions Tested
+
+- `编辑` invokes the card edit callback with the correct story.
+- `酒馆` invokes the card tavern callback with the correct story.
+- The uniquely labelled more-actions button opens the card menu.
+- `删除故事` opens the existing delete confirmation dialog; `取消` closes it and returns to the card grid.
+- Browser console warnings/errors checked after the interaction and responsive passes: none.
+
+## Implementation Checklist
+
+- [x] Remove cover, background-image, avatar, and hidden-avatar-count rendering from ready story cards.
+- [x] Rebuild the card as a compact text-first project summary.
+- [x] Keep title and goal to one-line ellipsis and synopsis to a two-line clipped region.
+- [x] Render resource counts as an inline divided row that can truncate safely.
+- [x] Center `编辑` and `酒馆` in equal-width action cells.
+- [x] Move deletion into the top-right overflow menu while preserving confirmation behavior.
+- [x] Preserve the user's `16rem` grid minimum.
+- [x] Pass TypeScript, formatting, production build, browser interaction, console, and responsive checks.
+
+## Follow-up Polish
+
+- P3: native Tauri text rasterization may differ slightly from the in-app browser capture; no code change is required unless a native screenshot exposes a visible alignment regression.
+
+final result: passed
+
+---
+
 # Startup Screen Design QA
 
 ## Evidence

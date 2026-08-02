@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
-  BookOpen,
+  EllipsisVertical,
+  FileJson2,
   FileText,
   Globe2,
   Loader2,
@@ -13,7 +14,6 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
-import { resolveAvatar } from "@/assets/avatars";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,12 +26,18 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { StoryOverview, StoryProjectCompatibility } from "../../../../../core/story-project/types";
 
 const StoryCardMetric = ({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: number }) => (
-  <span className="inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-lg bg-muted/65 px-2 text-xs text-muted-foreground">
+  <span className="inline-flex min-w-0 items-center justify-center gap-1.5 px-1 text-xs text-muted-foreground">
     <Icon className="size-3.5 shrink-0" />
-    <span className="truncate tabular-nums">
+    <span className="truncate tabular-nums" title={`${value} ${label}`}>
       {value} {label}
     </span>
   </span>
@@ -53,8 +59,6 @@ export const StoryCard = ({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteContent, setDeleteContent] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const visibleCharacters = overview.characters.slice(0, 4);
-  const hiddenCharacterCount = Math.max(0, overview.characters.length - visibleCharacters.length);
 
   const confirmDelete = async () => {
     setIsDeleting(true);
@@ -70,118 +74,102 @@ export const StoryCard = ({
 
   return (
     <>
-      <article className="app-interactive-card flex flex-col overflow-hidden rounded-2xl">
+      <article className="app-interactive-card relative flex h-full flex-col overflow-hidden rounded-xl border-t-2 border-t-primary">
+        <div className="absolute top-2.5 right-2.5 z-10">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                className="text-muted-foreground hover:text-foreground"
+                title="更多操作"
+                aria-label={`更多故事操作：${overview.title || "当前故事"}`}
+                disabled={isDeleting}
+              >
+                <EllipsisVertical className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36">
+              <DropdownMenuItem
+                variant="destructive"
+                disabled={isDeleting}
+                onSelect={() => setIsDeleteDialogOpen(true)}
+              >
+                <Trash2 className="size-4" />
+                删除故事
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
         <button
           type="button"
-          className="flex min-w-0 flex-col cursor-pointer text-left transition-colors hover:bg-accent/15 focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:outline-none"
+          className="flex min-w-0 flex-1 cursor-pointer flex-col text-left transition-colors hover:bg-accent/15 focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:outline-none"
           onClick={onEdit}
         >
-          <div className="relative">
-            <div className="relative h-[clamp(6.5rem,9vw,7.75rem)] w-full overflow-hidden rounded-t-2xl bg-gradient-to-br from-accent via-surface to-background">
-              <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+          <div className="flex min-w-0 flex-1 flex-col px-4 pt-3.5 pb-3">
+            <div className="flex min-w-0 items-center gap-1.5 pr-8 text-xs font-semibold leading-5 text-primary">
+              <FileJson2 className="size-3.5 shrink-0" />
+              <span className="truncate" title="JSON 故事">
+                JSON 故事
+              </span>
             </div>
-            <span className="absolute top-3 left-3 max-w-[calc(100%-1.5rem)] truncate rounded-full border border-border/70 bg-card/80 px-2.5 py-1 text-xs font-medium leading-4 text-foreground shadow-xs backdrop-blur-md">
-              JSON 故事
-            </span>
-            <div className="absolute inset-x-0 -bottom-6 flex justify-start px-4">
-              <div className="flex min-w-0 items-end overflow-hidden pb-px">
-                {visibleCharacters.length > 0 ? (
-                  <div className="flex min-w-0 items-end">
-                    {visibleCharacters.map((character, index) => {
-                      const avatar = resolveAvatar(character.avatar);
-                      return (
-                        <span
-                          key={character.id}
-                          className={[
-                            "flex size-12 items-center justify-center overflow-hidden rounded-xl border-2 border-background bg-background shadow-md",
-                            index > 0 ? "-ml-3" : "",
-                          ].join(" ")}
-                        >
-                          <img src={avatar.src} alt={character.name} className="size-full object-cover" />
-                        </span>
-                      );
-                    })}
-                    {hiddenCharacterCount > 0 ? (
-                      <span className="-ml-3 flex size-12 shrink-0 items-center justify-center rounded-xl border-2 border-background bg-background/95 text-sm font-semibold text-muted-foreground shadow-md">
-                        +{hiddenCharacterCount}
-                      </span>
-                    ) : null}
-                  </div>
-                ) : (
-                  <span className="flex size-12 items-center justify-center rounded-xl border-2 border-background bg-background/90 text-primary shadow-md">
-                    <BookOpen className="size-5" />
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
 
-          <div className="flex flex-col px-3.5 pt-8 pb-3">
-            <h3 className="min-w-0 text-lg font-semibold leading-7 tracking-[-0.015em] line-clamp-2">
+            <h3
+              className="mt-3 min-w-0 truncate text-lg font-semibold leading-7 tracking-[-0.015em]"
+              title={overview.title}
+            >
               {overview.title}
             </h3>
-            <p className="mt-1 min-h-5 line-clamp-1 text-sm leading-5 text-muted-foreground">
+            <p
+              className="mt-1 min-h-10 text-sm leading-5 text-muted-foreground line-clamp-2"
+              title={overview.description || "暂无故事设定。"}
+            >
               {overview.description || "暂无故事设定。"}
             </p>
 
-            <div className="mt-2.5 grid grid-cols-3 gap-2">
+            <div className="mt-3 flex h-14 min-w-0 items-center gap-2.5 overflow-hidden rounded-lg border border-primary/10 bg-accent/45 px-3 py-2 text-xs leading-5 text-muted-foreground">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Target className="size-4" />
+              </span>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold leading-5 text-foreground">当前目标</div>
+                <div className="truncate" title={overview.goal || "暂无整体目标。"}>
+                  {overview.goal || "暂无整体目标。"}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-3 divide-x divide-border/70 overflow-hidden">
               <StoryCardMetric icon={UsersRound} label="角色" value={overview.resourceCounts.characters} />
               <StoryCardMetric icon={FileText} label="章节" value={overview.resourceCounts.chapters} />
               <StoryCardMetric icon={Globe2} label="设定" value={overview.resourceCounts.worldEntries} />
             </div>
-
-            <div className="mt-2.5">
-              <div className="border-t pt-2.5">
-                <div className="relative flex h-14 items-center gap-2.5 overflow-hidden rounded-xl bg-accent/50 px-3 py-2 text-xs leading-5 text-muted-foreground">
-                  <Target className="absolute -right-3 -bottom-4 size-14 text-primary/5" />
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <Target className="size-4" />
-                  </span>
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold leading-5 text-foreground">当前目标</div>
-                    <div className="line-clamp-1">{overview.goal || "暂无整体目标。"}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </button>
 
-        <div className="border-t bg-background/80 p-2.5">
-          <div className="grid grid-cols-[repeat(2,minmax(0,1fr))_auto] gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-9 min-w-0 whitespace-nowrap bg-background/80 text-sm"
-              onClick={onEdit}
-            >
-              <Pencil className="size-4 shrink-0" />
-              <span className="truncate">编辑</span>
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-9 min-w-0 whitespace-nowrap bg-background/80 text-sm"
-              onClick={onTavern}
-            >
-              <Wine className="size-4 shrink-0" />
-              <span className="truncate">酒馆</span>
-            </Button>
-            <Button
-              type="button"
-              size="icon"
-              variant="outline"
-              className="size-9 shrink-0 bg-background/80 text-destructive hover:text-destructive"
-              title="删除故事"
-              aria-label="删除故事"
-              onClick={() => setIsDeleteDialogOpen(true)}
-              disabled={isDeleting}
-            >
-              <Trash2 className="size-4" />
-            </Button>
-          </div>
+        <div className="grid grid-cols-2 border-t bg-background/55">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-10 min-w-0 justify-center rounded-none border-r border-border/70 text-sm text-muted-foreground hover:text-foreground"
+            onClick={onEdit}
+          >
+            <Pencil className="size-4 shrink-0" />
+            <span className="truncate">编辑</span>
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-10 min-w-0 justify-center rounded-none text-sm text-muted-foreground hover:text-foreground"
+            onClick={onTavern}
+          >
+            <Wine className="size-4 shrink-0" />
+            <span className="truncate">酒馆</span>
+          </Button>
         </div>
       </article>
 
