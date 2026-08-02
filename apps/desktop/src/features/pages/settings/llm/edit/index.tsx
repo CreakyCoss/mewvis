@@ -1,5 +1,5 @@
 import { useImperativeHandle, useState, type Ref } from "react";
-import { CheckCircle2, Eye, EyeOff, Loader2, Plus, Save, ServerCog, Trash2 } from "lucide-react";
+import { CheckCircle2, ChevronDown, Eye, EyeOff, Loader2, Plus, Save, ServerCog, Trash2 } from "lucide-react";
 import type { LlmProvider, LlmProviderConfig, ProviderModelConfig } from "@/agent-client/runtime-model";
 import {
   AlertDialog,
@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import {
   Dialog,
   DialogContent,
@@ -21,8 +22,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { saveLlmSettings } from "@/api/llm";
 import {
@@ -57,6 +60,82 @@ type ProviderEditDialogProps = {
   bind: Ref<ProviderEditDialogHandle>;
   providers: LlmProvider[];
   onSaved?: () => void | Promise<void>;
+};
+
+type ModelIdSelectorProps = {
+  id: string;
+  options: Array<{ id: string }>;
+  value: string;
+  onValueChange: (value: string) => void;
+};
+
+const ModelIdSelector = ({ id, options, value, onValueChange }: ModelIdSelectorProps) => {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (nextOpen) setQuery("");
+  };
+
+  return (
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverAnchor asChild>
+        <InputGroup className="rounded-lg bg-card/75 transition-[color,background-color,border-color,box-shadow] duration-150 ease-out hover:border-primary/30 has-[[data-slot=input-group-control]:focus-visible]:ring-ring/20">
+          <InputGroupInput
+            id={id}
+            className="focus-visible:bg-transparent"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-haspopup="listbox"
+            aria-expanded={open}
+            value={value}
+            onChange={(event) => onValueChange(event.currentTarget.value)}
+            onClick={() => handleOpenChange(true)}
+          />
+          <InputGroupAddon align="inline-end">
+            <PopoverTrigger asChild>
+              <InputGroupButton
+                size="icon-xs"
+                className="aria-expanded:bg-transparent aria-expanded:text-muted-foreground"
+                aria-label="选择模型 ID"
+                title="选择模型 ID"
+                aria-expanded={open}
+              >
+                <ChevronDown className="size-4" />
+              </InputGroupButton>
+            </PopoverTrigger>
+          </InputGroupAddon>
+        </InputGroup>
+      </PopoverAnchor>
+      <PopoverContent
+        align="start"
+        className="w-[var(--radix-popover-anchor-width)] min-w-64 gap-0 overflow-hidden p-0"
+      >
+        <Command>
+          <CommandInput value={query} onValueChange={setQuery} placeholder="搜索模型 ID" />
+          <CommandList>
+            <CommandEmpty>没有匹配的模型，可直接输入自定义 ID</CommandEmpty>
+            <CommandGroup>
+              {options.map((option) => (
+                <CommandItem
+                  key={option.id}
+                  value={option.id}
+                  data-checked={option.id === value}
+                  onSelect={() => {
+                    onValueChange(option.id);
+                    setOpen(false);
+                  }}
+                >
+                  {option.id}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
 };
 
 export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDialogProps) => {
@@ -114,7 +193,6 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
   const selectedProviderOption = providerDraft ? getProviderOption(providerDraft.provider) : undefined;
   const selectedApiFormatOptions = providerDraft ? getProviderApiFormatOptions(providerDraft.provider) : [];
   const selectedModelOptions = providerDraft ? getProviderModelOptions(providerDraft.provider) : [];
-  const modelOptionListId = providerDraft ? `${providerDraft.id}-model-options` : "";
   const canDelete = mode === "edit" && providers.length > 1;
 
   const updateProviderDraft = (updater: (provider: LlmProviderConfig) => LlmProviderConfig) => {
@@ -378,14 +456,6 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                     </Button>
                   </div>
 
-                  <datalist id={modelOptionListId}>
-                    {selectedModelOptions.map((model) => (
-                      <option key={model.id} value={model.id}>
-                        {model.name}
-                      </option>
-                    ))}
-                  </datalist>
-
                   <div className="overflow-hidden rounded-xl border border-border/70 bg-card/55">
                     <div className="hidden min-h-10 grid-cols-[minmax(150px,1fr)_minmax(140px,1fr)_92px_68px_36px] items-center gap-2 border-b border-border/70 bg-muted/25 px-3 text-xs font-medium text-muted-foreground md:grid">
                       <span>模型 ID</span>
@@ -404,13 +474,11 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                           <Label className="md:hidden" htmlFor={`${model.id}-model-id`}>
                             模型 ID
                           </Label>
-                          <Input
+                          <ModelIdSelector
                             id={`${model.id}-model-id`}
-                            className="border-transparent bg-transparent shadow-none hover:bg-card/80 focus-visible:bg-card"
-                            list={modelOptionListId}
+                            options={selectedModelOptions}
                             value={model.modelId}
-                            onChange={(event) => {
-                              const value = event.currentTarget.value;
+                            onValueChange={(value) => {
                               updateModel(model.id, (item) => applyModelDefaults(item, providerDraft.provider, value));
                             }}
                           />
@@ -422,7 +490,6 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                           </Label>
                           <Input
                             id={`${model.id}-model-name`}
-                            className="border-transparent bg-transparent shadow-none hover:bg-card/80 focus-visible:bg-card"
                             value={model.modelName}
                             onChange={(event) => {
                               const value = event.currentTarget.value;
