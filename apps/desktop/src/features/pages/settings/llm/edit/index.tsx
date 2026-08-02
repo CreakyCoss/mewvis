@@ -346,7 +346,8 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                         className="w-full"
                         value={providerDraft.provider}
                         onChange={(event) => {
-                          updateProviderDraft((current) => applyProviderDefaults(current, event.currentTarget.value));
+                          const provider = event.currentTarget.value;
+                          updateProviderDraft((current) => applyProviderDefaults(current, provider));
                         }}
                       >
                         {getProviderOptions().map((providerOption) => (
