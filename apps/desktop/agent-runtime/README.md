@@ -1,6 +1,6 @@
 # Agent Runtime
 
-`agent-runtime` is the reusable runtime boundary for Novel Claw agents. External
+`agent-runtime` is the reusable runtime boundary for Mewvis agents. External
 adapters choose CLI or SDK mode and normalize inputs; the engine layer owns the
 standard runtime protocol and can switch the concrete implementation behind it.
 

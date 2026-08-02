@@ -1,4 +1,4 @@
-import { useImperativeHandle, useState, type Ref } from "react";
+import { useImperativeHandle, useState, type ChangeEvent, type Ref } from "react";
 import { open as openDirectoryDialog } from "@tauri-apps/plugin-dialog";
 import { FolderOpenIcon } from "lucide-react";
 import type { Workspace } from "@/api/workspace";
@@ -89,6 +89,12 @@ export const WorkspaceDialog = ({ bind }: WorkspaceDialogProps) => {
     }
   };
 
+  const updateFormField =
+    (field: keyof typeof emptyWorkspaceForm) => (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const value = event.currentTarget.value;
+      setForm((current) => ({ ...current, [field]: value }));
+    };
+
   const saveWorkspace = async () => {
     setIsSaving(true);
     setError("");
@@ -139,7 +145,7 @@ export const WorkspaceDialog = ({ bind }: WorkspaceDialogProps) => {
                 placeholder="例如：长篇小说项目"
                 disabled={isSaving}
                 required
-                onChange={(event) => setForm((current) => ({ ...current, name: event.currentTarget.value }))}
+                onChange={updateFormField("name")}
               />
             </div>
 
@@ -151,7 +157,7 @@ export const WorkspaceDialog = ({ bind }: WorkspaceDialogProps) => {
                 placeholder="可填写项目主题、目标或备注"
                 rows={3}
                 disabled={isSaving}
-                onChange={(event) => setForm((current) => ({ ...current, description: event.currentTarget.value }))}
+                onChange={updateFormField("description")}
               />
             </div>
 
@@ -167,7 +173,7 @@ export const WorkspaceDialog = ({ bind }: WorkspaceDialogProps) => {
                   aria-describedby={workspace ? "chat-home-workspace-dialog-path-help" : undefined}
                   className={workspace ? "bg-muted/50 text-muted-foreground" : undefined}
                   required
-                  onChange={(event) => setForm((current) => ({ ...current, path: event.currentTarget.value }))}
+                  onChange={updateFormField("path")}
                 />
                 {!workspace && (
                   <Button

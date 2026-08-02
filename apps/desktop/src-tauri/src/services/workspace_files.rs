@@ -188,7 +188,7 @@ pub fn write_workspace_files_atomic(
         });
     }
 
-    let transaction_root = root.join(format!(".novel-claw-txn-{}", Uuid::now_v7()));
+    let transaction_root = root.join(format!(".isle-claw-txn-{}", Uuid::now_v7()));
     let staged_root = transaction_root.join("staged");
     let backup_root = transaction_root.join("backup");
     fs::create_dir_all(&staged_root)
@@ -500,7 +500,7 @@ mod tests {
                 .duration_since(UNIX_EPOCH)
                 .expect("system time")
                 .as_nanos();
-            let path = env::temp_dir().join(format!("novel-claw-files-{name}-{timestamp}"));
+            let path = env::temp_dir().join(format!("isle-claw-files-{name}-{timestamp}"));
             fs::create_dir_all(&path).expect("create test workspace");
             Self { path }
         }

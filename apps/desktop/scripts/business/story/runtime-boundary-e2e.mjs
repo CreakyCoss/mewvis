@@ -136,7 +136,7 @@ if (
   throw new Error("Definitions index 必须提供实际 Facade，不得退化为 re-export barrel。");
 }
 if (
-  !definitionTypes.includes('STORY_TYPE_DEFINITION_FORMAT = "novel-claw.story-type-definition"') ||
+  !definitionTypes.includes('STORY_TYPE_DEFINITION_FORMAT = "isle-claw.story-type-definition"') ||
   !definitionTypes.includes("STORY_TYPE_DEFINITION_FORMAT_VERSION = 3") ||
   !definitionFacade.includes("format: STORY_TYPE_DEFINITION_FORMAT") ||
   !definitionFacade.includes("formatVersion: STORY_TYPE_DEFINITION_FORMAT_VERSION")
@@ -157,7 +157,7 @@ if (
 const duplicatedDefinitionFormatLiterals = tsFiles(coreRoot).filter(
   (path) =>
     path !== resolve(definitionsRoot, "types.ts") &&
-    readFileSync(path, "utf8").includes("novel-claw.story-type-definition"),
+    readFileSync(path, "utf8").includes("isle-claw.story-type-definition"),
 );
 if (duplicatedDefinitionFormatLiterals.length > 0) {
   throw new Error(

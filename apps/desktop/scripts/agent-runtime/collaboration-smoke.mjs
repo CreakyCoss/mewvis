@@ -5,7 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-agent-runtime-collab-"));
+const tempDir = mkdtempSync(join(tmpdir(), "isle-claw-agent-runtime-collab-"));
 const entryPath = join(tempDir, "collaboration-smoke.ts");
 const bundlePath = join(tempDir, "collaboration-smoke.mjs");
 const packagePath = join(tempDir, "package.json");
@@ -46,7 +46,7 @@ writeFileSync(
     }
   };
 
-  const workspacePath = mkdtempSync(join(tmpdir(), "novel-claw-collab-sdk-"));
+  const workspacePath = mkdtempSync(join(tmpdir(), "isle-claw-collab-sdk-"));
   const events: unknown[] = [];
   const results: unknown[] = [];
 
@@ -942,7 +942,7 @@ try {
     packagePath,
     `${JSON.stringify(
       {
-        name: "novel-claw-agent-runtime-collaboration-smoke",
+        name: "isle-claw-agent-runtime-collaboration-smoke",
         version: "0.0.0",
         type: "module",
       },

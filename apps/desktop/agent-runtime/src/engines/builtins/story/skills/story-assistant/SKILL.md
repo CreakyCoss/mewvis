@@ -1,9 +1,9 @@
 ---
 name: story-assistant
 description: >-
-  Novel Claw 故事弹窗的专属路由技能。只在故事创作助手中使用；当用户提出开书、长短篇写作、拆文分析、导入、审稿或去 AI 味请求时，必须从 story-assistant-* 技能中选择匹配流程。不要路由到普通 story-* 技能，也不提供扫榜、扫版或浏览器采集。
+  Mewvis 故事弹窗的专属路由技能。只在故事创作助手中使用；当用户提出开书、长短篇写作、拆文分析、导入、审稿或去 AI 味请求时，必须从 story-assistant-* 技能中选择匹配流程。不要路由到普通 story-* 技能，也不提供扫榜、扫版或浏览器采集。
 metadata:
-  novel-claw:
+  isle-claw:
     assistant-only: true
     builtin-bundle: story-authoring
     required-private-tool: story
@@ -11,7 +11,7 @@ metadata:
     upstream-commit: 2e9cbac20201d616d7d6f8990060a9f1d206838f
 ---
 
-# Novel Claw 故事创作助手路由
+# Mewvis 故事创作助手路由
 
 本技能只负责判断意图和选择专属技能，不直接生成故事文件。路由前完整读取 `references/story-tool-binding.md` 并完成启动门禁；私有 `story` 工具缺失时停止，不得降级写入普通文件。
 

@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = process.cwd();
-const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-story-builtin-binding-"));
+const tempDir = mkdtempSync(join(tmpdir(), "isle-claw-story-builtin-binding-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundlePath = join(tempDir, "runner.mjs");
 const resourcesPath = resolve(root, "agent-runtime/src/engines/drivers/native/agent/runtimes/resources.ts");

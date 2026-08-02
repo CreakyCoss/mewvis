@@ -14,7 +14,7 @@ use super::{
     SkillDefinition, SkillSource,
 };
 
-const USER_AGENT: &str = "Novel-Claw Skills Importer";
+const USER_AGENT: &str = "Mewvis Skills Importer";
 const MAX_SKILL_FILES: usize = 500;
 const MAX_SKILL_BYTES: u64 = 50 * 1024 * 1024;
 

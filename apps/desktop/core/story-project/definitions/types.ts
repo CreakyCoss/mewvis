@@ -1,7 +1,7 @@
 import type { StoryDocumentDefinition, StoryObjectDefinition } from "./model/types.js";
 
 /** Story Type Definition 持久化格式的稳定标识。 */
-export const STORY_TYPE_DEFINITION_FORMAT = "novel-claw.story-type-definition";
+export const STORY_TYPE_DEFINITION_FORMAT = "isle-claw.story-type-definition";
 
 /** Story Type Definition 持久化结构的版本。 */
 export const STORY_TYPE_DEFINITION_FORMAT_VERSION = 3;

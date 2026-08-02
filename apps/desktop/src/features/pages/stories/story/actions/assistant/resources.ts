@@ -20,7 +20,7 @@ const storySkill = (story: StoryLibraryItem): ChatInputSkillOption => ({
   label: "故事创作助手",
   description: "使用结构化故事能力规划、分析和创作当前故事。",
   content: [
-    "你正在 Novel Claw 的结构化故事创作弹窗中协作。",
+    "你正在 Mewvis 的结构化故事创作弹窗中协作。",
     "必须先使用 story-assistant 专属路由，再按意图选择对应的 story-assistant-* 技能。不要调用普通 story-* 技能。",
     "story-authoring 内置能力已经强制绑定私有 story 工具。首次工作先调用 story(action=describe_structure) 获取完整故事类型定义。写作时优先使用 read_context 返回的可读 text，所有结构化或 Markdown 变更通过 ChangeSet 校验后落库。",
     "若 story(action=read_context) 报项目尚未初始化，调用 story(action=initialize)；存储中已有故事记录时未经用户确认不得 replaceExisting。",

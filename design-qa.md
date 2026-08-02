@@ -2,9 +2,9 @@
 
 - Source visual truth: `/Users/haowen.zheng/.codex/generated_images/019fb3b8-dc87-78e1-92d8-689f94ea1408/exec-27679986-a134-441a-aab4-1d9b62a872bb.png`
 - Latest user correction: `/var/folders/9y/fm57w30x4575__8ltjq_62q80000gn/T/codex-clipboard-9d75b21f-21b0-48e8-990e-a02faf63ed6c.png` plus the instruction to remove the highlighted LLM-only treatment
-- Implementation screenshot: `/tmp/novel-claw-settings-uniform-1248x783.png`
-- Full-view comparison: `/tmp/novel-claw-settings-uniform-comparison.png`
-- Focused comparison: `/tmp/novel-claw-settings-focus-comparison-v3.png`
+- Implementation screenshot: `/tmp/isle-claw-settings-uniform-1248x783.png`
+- Full-view comparison: `/tmp/isle-claw-settings-uniform-comparison.png`
+- Focused comparison: `/tmp/isle-claw-settings-focus-comparison-v3.png`
 - Browser route: `http://127.0.0.1:4173/#/settings`
 - State: light theme, Settings overview, no dialog open
 - Browser viewport: `1248 × 783` CSS px, device scale factor 1
@@ -119,11 +119,11 @@ final result: passed
 ## Evidence
 
 - Source visual truth: `/Users/haowen.zheng/.codex/generated_images/019fbe82-1ae1-7d92-b3b8-b96a34b6cc63/exec-2210ce97-de9f-45c0-ae23-f936adccdf47.png`
-- Browser-rendered implementation: `/Users/haowen.zheng/Development/projects/novel-claw/.codex/product-design/startup-implementation/02-startup-loading-light.png`
-- Full-view comparison: `/Users/haowen.zheng/Development/projects/novel-claw/.codex/product-design/startup-implementation/04-full-comparison.png`
-- Focused wordmark comparison: `/Users/haowen.zheng/Development/projects/novel-claw/.codex/product-design/startup-implementation/05-brand-comparison.png`
-- Dark-theme evidence: `/Users/haowen.zheng/Development/projects/novel-claw/.codex/product-design/startup-implementation/03-startup-loading-dark.png`
-- Narrow-window evidence: `/Users/haowen.zheng/Development/projects/novel-claw/.codex/product-design/startup-implementation/06-startup-loading-narrow.png`
+- Browser-rendered implementation: `/Users/haowen.zheng/Development/projects/isle-claw/.codex/product-design/startup-implementation/02-startup-loading-light.png`
+- Full-view comparison: `/Users/haowen.zheng/Development/projects/isle-claw/.codex/product-design/startup-implementation/04-full-comparison.png`
+- Focused wordmark comparison: `/Users/haowen.zheng/Development/projects/isle-claw/.codex/product-design/startup-implementation/05-brand-comparison.png`
+- Dark-theme evidence: `/Users/haowen.zheng/Development/projects/isle-claw/.codex/product-design/startup-implementation/03-startup-loading-dark.png`
+- Narrow-window evidence: `/Users/haowen.zheng/Development/projects/isle-claw/.codex/product-design/startup-implementation/06-startup-loading-narrow.png`
 - Desktop viewport: 1536 × 1024 CSS px at device scale factor 1.
 - Narrow viewport: 390 × 844 CSS px at device scale factor 1.
 - Source and desktop implementation are both 1536 × 1024 px, so no density normalization was required.

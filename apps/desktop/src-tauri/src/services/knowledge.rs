@@ -1281,7 +1281,7 @@ fn placeholders(count: usize) -> String {
 fn should_skip_path(path: &Path) -> bool {
     path.components().any(|component| {
         let name = component.as_os_str().to_string_lossy();
-        name == ".novel-claw"
+        name == ".isle-claw"
             || name == ".git"
             || name == "node_modules"
             || name == "dist"

@@ -1,9 +1,9 @@
 ---
 name: story-assistant-review
 description: >-
-  Novel Claw 故事创作助手专属的结构化审稿技能。用户要求审查章节、全书、结构、人物、平台适配、事实一致性、伏笔或文字质量时必须使用。采用 oh-story-claudecode 最新多视角 rubric，但在故事弹窗中直接完成审查并写入当前故事类型的 review 角色文档；默认只审不改，不调用普通 story-review 或外部 reviewer agents。
+  Mewvis 故事创作助手专属的结构化审稿技能。用户要求审查章节、全书、结构、人物、平台适配、事实一致性、伏笔或文字质量时必须使用。采用 oh-story-claudecode 最新多视角 rubric，但在故事弹窗中直接完成审查并写入当前故事类型的 review 角色文档；默认只审不改，不调用普通 story-review 或外部 reviewer agents。
 metadata:
-  novel-claw:
+  isle-claw:
     assistant-only: true
     builtin-bundle: story-authoring
     required-private-tool: story

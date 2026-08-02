@@ -208,10 +208,10 @@ fn normalize_import_story_workspace_path(value: &str) -> Result<PathBuf, String>
         return Err("请选择故事工作区目录".to_string());
     }
 
-    let definition_path = path.join("story").join(".novel-claw").join("project.json");
+    let definition_path = path.join("story").join(".isle-claw").join("project.json");
     if !definition_path.is_file() {
         return Err(
-            "所选目录不是 Novel Claw 故事工作区；请选择包含 story/.novel-claw/project.json 的目录"
+            "所选目录不是 Mewvis 故事工作区；请选择包含 story/.isle-claw/project.json 的目录"
                 .to_string(),
         );
     }
@@ -297,8 +297,8 @@ mod tests {
     #[test]
     fn normalize_import_story_workspace_path_requires_project_definition() {
         let workspace_path =
-            std::env::temp_dir().join(format!("novel-claw-story-{}", new_record_id()));
-        let definition_dir = workspace_path.join("story").join(".novel-claw");
+            std::env::temp_dir().join(format!("isle-claw-story-{}", new_record_id()));
+        let definition_dir = workspace_path.join("story").join(".isle-claw");
         fs::create_dir_all(&definition_dir).expect("create story definition directory");
 
         let missing_definition =

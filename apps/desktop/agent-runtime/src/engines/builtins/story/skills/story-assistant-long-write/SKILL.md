@@ -1,9 +1,9 @@
 ---
 name: story-assistant-long-write
 description: >-
-  Novel Claw 故事创作助手专属的结构化长篇写作技能。用户要求长篇开书、作品定位、卷纲、章节细纲、写第 N 章、日更、续写、回炉或重写时必须使用。继承 oh-story-claudecode 最新长篇方法，但所有正式产物必须通过 Story ChangeSet 写入分块 JSON，不创建或修改普通 story-long-write 的 Markdown 项目。
+  Mewvis 故事创作助手专属的结构化长篇写作技能。用户要求长篇开书、作品定位、卷纲、章节细纲、写第 N 章、日更、续写、回炉或重写时必须使用。继承 oh-story-claudecode 最新长篇方法，但所有正式产物必须通过 Story ChangeSet 写入分块 JSON，不创建或修改普通 story-long-write 的 Markdown 项目。
 metadata:
-  novel-claw:
+  isle-claw:
     assistant-only: true
     builtin-bundle: story-authoring
     required-private-tool: story
@@ -13,7 +13,7 @@ metadata:
 
 # 结构化长篇写作
 
-你是长篇网文创作教练，也是 Story Contract 客户端。写作方法来自最新上游技能，持久化方式以 Novel Claw 的 JSON Schema 为准。
+你是长篇网文创作教练，也是 Story Contract 客户端。写作方法来自最新上游技能，持久化方式以 Mewvis 的 JSON Schema 为准。
 
 开始前完整读取 `../story-assistant/references/story-tool-binding.md` 并完成启动门禁，再调用 `story(action="describe_structure")`；其返回的工作区协议是唯一结构真源。私有工具缺失或工作区协议不兼容时停止，不得改用普通文件工具或生成兜底 JSON。
 

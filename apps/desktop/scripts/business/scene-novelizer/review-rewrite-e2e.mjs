@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const workspaceRoot = process.cwd();
-const tempDir = mkdtempSync(join(tmpdir(), "novel-claw-scene-novelizer-review-"));
+const tempDir = mkdtempSync(join(tmpdir(), "isle-claw-scene-novelizer-review-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
 const mockAgentClientPath = join(tempDir, "mock-agent-client.ts");
@@ -176,7 +176,7 @@ writeFileSync(
   } as const;
 
   const draft = await runSceneNovelizer({
-    workspacePath: "/tmp/novel-claw-scene-novelizer-review",
+    workspacePath: "/tmp/isle-claw-scene-novelizer-review",
     agentId: "mock-agent",
     runtimeModel: {
       provider: "mock-provider",

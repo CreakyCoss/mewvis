@@ -1,4 +1,4 @@
-# Novel-Claw Tauri 客户端技术规格书
+# Mewvis Tauri 客户端技术规格书
 
 ## 1. Context
 
@@ -56,7 +56,7 @@
 - npm 会自动解析到本地 workspace 包
 
 ```json
-// novel-claw/package.json
+// isle-claw/package.json
 {
   "workspaces": [
     "ai/pi/packages/*"
@@ -102,7 +102,7 @@
 
 ### 4.2 数据库架构
 
-#### 全局数据库 (`~/.novel-claw/config.db`)
+#### 全局数据库 (`~/.isle-claw/config.db`)
 
 ```sql
 -- 工作区列表
@@ -297,7 +297,7 @@ src/                             # React 前端
 ## 7. 验证方案
 
 1. **数据库验证**
-   - 启动应用后检查 `~/.novel-claw/config.db` 是否创建
+   - 启动应用后检查 `~/.isle-claw/config.db` 是否创建
    - 创建工作区后检查指定目录下 `workspace.db` 是否创建
 
 2. **工作区目录验证**

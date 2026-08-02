@@ -1,16 +1,16 @@
 {
   "displayName": "Mewvis",
-  "bundleName": "novel-claw",
-  "windowTitle": "Novel-Claw",
-  "appDataDirName": ".novel-claw",
+  "bundleName": "Mewvis",
+  "windowTitle": "Mewvis",
+  "appDataDirName": ".isle-claw",
   "defaultWorkspaceDirName": "default-workspace",
-  "storageKeyPrefix": "novel-claw",
-  "envPrefix": "NOVEL_CLAW",
+  "storageKeyPrefix": "isle-claw",
+  "envPrefix": "ISLE_CLAW",
   "versionControl": {
-    "authorName": "Novel Claw",
-    "authorEmail": "novel-claw@local"
+    "authorName": "Mewvis",
+    "authorEmail": "isle-claw@local"
   },
-  "agentRuntimePackageName": "novel-claw-agent-runtime",
-  "bundleIdentifier": "com.novel-claw.desktop",
-  "description": "Novel-Claw Desktop Client"
+  "agentRuntimePackageName": "isle-claw-agent-runtime",
+  "bundleIdentifier": "com.isle-claw.desktop",
+  "description": "Mewvis Desktop Client"
 }

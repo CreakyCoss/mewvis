@@ -4,7 +4,7 @@
 
 | 远程仓库 | 地址 | 用途 |
 |---------|------|------|
-| `origin` | http://zhw:zhw89757.@localhost:9080/zhw/novel-claw.git | 你的主仓库 |
+| `origin` | https://gitee.com/creaky/isle.git | 你的主仓库 |
 | 上游 pi | https://github.com/earendil-works/pi.git | 外部依赖仓库 |
 
 ---
@@ -22,7 +22,7 @@ git remote add <name> <url>
 ```
 示例：
 ```bash
-git remote add origin http://zhw:zhw89757.@localhost:9080/zhw/novel-claw.git
+git remote add origin https://gitee.com/creaky/isle.git
 git remote add pi https://github.com/earendil-works/pi.git
 ```
 

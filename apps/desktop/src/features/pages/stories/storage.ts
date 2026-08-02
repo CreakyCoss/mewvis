@@ -117,7 +117,7 @@ const importWorkspaceCandidates = (selectedPath: string) => {
 
 export const importStory = async (selectedPath: string): Promise<StoryLibraryItem> => {
   const candidates = importWorkspaceCandidates(selectedPath);
-  let reason = "所选目录不是 Novel Claw 故事工作区。";
+  let reason = "所选目录不是 Mewvis 故事工作区。";
 
   for (const workspacePath of candidates) {
     const compatibility = await storyProjectApi.checkCompatibility(workspacePath);

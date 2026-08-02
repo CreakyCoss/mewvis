@@ -3,7 +3,7 @@
 ## 目录结构
 
 ```
-novel-claw/
+isle/
 ├── claw/          # 你的代码
 ├── ai/            # 外部依赖
 │   └── pi/        # 来自 https://github.com/earendil-works/pi.git
@@ -17,7 +17,7 @@ novel-claw/
 
 ### 远程仓库
 
-- `origin` → 你的仓库（http://zhw:zhw89757.@localhost:9080/zhw/novel-claw.git）
+- `origin` → 你的仓库（https://gitee.com/creaky/isle.git）
 - 上游 pi → https://github.com/earendil-works/pi.git
 
 详细操作说明请查看 [docs/git.md](git.md)

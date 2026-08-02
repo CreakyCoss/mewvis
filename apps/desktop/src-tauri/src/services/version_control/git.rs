@@ -990,7 +990,7 @@ fn ensure_git_ignore_rules(root: &Path) -> Result<(), String> {
     if !content.is_empty() {
         content.push('\n');
     }
-    content.push_str("# Novel Claw local data\n");
+    content.push_str("# Mewvis local data\n");
     for entry in missing {
         content.push_str(entry);
         content.push('\n');
@@ -1032,7 +1032,7 @@ mod tests {
                 .duration_since(UNIX_EPOCH)
                 .expect("system time")
                 .as_nanos();
-            let path = env::temp_dir().join(format!("novel-claw-git-{name}-{timestamp}"));
+            let path = env::temp_dir().join(format!("isle-claw-git-{name}-{timestamp}"));
             fs::create_dir_all(&path).expect("create test workspace");
             Self { path }
         }

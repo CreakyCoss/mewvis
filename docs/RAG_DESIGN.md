@@ -2,7 +2,7 @@
 
 ## 目标
 
-为 Novel-Claw 增加全局 RAG 知识库。用户在应用级别维护一套可复用资料库，并通过“启用集合”决定哪些知识内容参与检索。聊天、Agent 和协作模式只从已启用集合包含的知识内容中检索上下文，并以可追溯引用辅助回答、写作和分析。
+为 Mewvis 增加全局 RAG 知识库。用户在应用级别维护一套可复用资料库，并通过“启用集合”决定哪些知识内容参与检索。聊天、Agent 和协作模式只从已启用集合包含的知识内容中检索上下文，并以可追溯引用辅助回答、写作和分析。
 
 设计原则：
 
@@ -17,7 +17,7 @@
 已完成基础链路：
 
 - `config.db` 已增加全局知识库 catalog、集合、知识源和 embedding profile 表。
-- `~/.novel-claw/rag/index.sqlite` 已实现全局索引库初始化。
+- `~/.isle-claw/rag/index.sqlite` 已实现全局索引库初始化。
 - 已支持指定知识库目录；上传文本文件会复制到该目录，再作为全局知识源入库。
 - 当前 UI 以“文件导入到知识库目录”为主，不再暴露目录引用入口。
 - 已支持 `file` / `directory` 知识源的纯文本抽取、chunk、FTS5 全文索引和 sqlite-vec 向量索引。
@@ -108,7 +108,7 @@ UI 边界：
    - 底层仍兼容目录型知识源，但首版 UI 不暴露目录引用入口。
    - 支持创建知识集合，并把知识源加入一个或多个集合。
    - 支持启用/停用、删除、手动重建。
-   - 默认排除 `.novel-claw`、隐藏目录、二进制文件、超大文件、构建产物。
+   - 默认排除 `.isle-claw`、隐藏目录、二进制文件、超大文件、构建产物。
 
 2. 启用集合
    - 每个集合可启用或停用。
@@ -153,8 +153,8 @@ UI 边界：
 
 推荐拆成两层：
 
-- `~/.novel-claw/config.db`：保存全局知识库 catalog、集合、来源关系、embedding profile。
-- `~/.novel-claw/rag/index.sqlite`：保存可重建的全局索引产物，包括 documents、chunks、embeddings、FTS 和任务状态。
+- `~/.isle-claw/config.db`：保存全局知识库 catalog、集合、来源关系、embedding profile。
+- `~/.isle-claw/rag/index.sqlite`：保存可重建的全局索引产物，包括 documents、chunks、embeddings、FTS 和任务状态。
 
 不建议把全局知识库配置放到 `workspace.db`：
 
@@ -406,7 +406,7 @@ knowledge_index_error
 
 2. Discover documents
    - 目录源递归扫描。
-   - 排除 `.novel-claw`、`.git`、`node_modules`、`dist`、`build`、隐藏目录、二进制文件。
+   - 排除 `.isle-claw`、`.git`、`node_modules`、`dist`、`build`、隐藏目录、二进制文件。
    - 对文件记录 size、mtime、hash。
 
 3. Extract text
@@ -559,7 +559,7 @@ Agent 模式同理，把 `knowledgeMatches` 传给 `buildAgentPrompt` 或 `build
 ## 安全与边界
 
 - 全局 source path 必须 canonicalize，记录真实路径；删除或移动文件时 source 状态变为 stale/error。
-- 默认不索引 `.novel-claw`，避免聊天记录、Agent session、索引本身进入知识库。
+- 默认不索引 `.isle-claw`，避免聊天记录、Agent session、索引本身进入知识库。
 - 检索必须按已启用集合过滤，不能默认检索全局全部资料。
 - 检索内容必须作为 `data_only`，防 prompt injection。
 - 不自动上传文件内容；只有用户启用知识源并构建索引时才调用 embedding provider。
@@ -571,7 +571,7 @@ Agent 模式同理，把 `knowledgeMatches` 传给 `buildAgentPrompt` 或 `build
 ### Phase 1：全局 catalog 与集合启用
 
 1. 增加 config migration，创建 `knowledge_collections`、`knowledge_sources`、`knowledge_collection_sources`、`knowledge_settings`。
-2. 增加 `~/.novel-claw/rag/index.sqlite` 初始化。
+2. 增加 `~/.isle-claw/rag/index.sqlite` 初始化。
 3. 实现全局 library CRUD、collection-source 关系和集合启用状态。
 
 ### Phase 2：索引构建

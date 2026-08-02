@@ -69,7 +69,7 @@ const listFiles = async (workspacePath: string): Promise<StoryFileEntry[]> => {
 };
 
 const writeAtomicUnlocked: StoryFileBackend["writeAtomic"] = async (workspacePath, writes, deletes, revision) => {
-  const transactionRoot = join(workspacePath, `.novel-claw-story-${randomUUID()}`);
+  const transactionRoot = join(workspacePath, `.isle-claw-story-${randomUUID()}`);
   const stagedRoot = join(transactionRoot, "staged");
   const backupRoot = join(transactionRoot, "backup");
   const touchedPaths = [...new Set([...writes.map((entry) => entry.path), ...deletes])];

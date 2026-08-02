@@ -254,7 +254,7 @@ pub(crate) fn skill_key(source: &SkillSource, name: &str) -> String {
 }
 
 pub(crate) fn write_skill_source_marker(dir: &PathBuf, source: &SkillSource) -> Result<(), String> {
-    fs::write(dir.join(".novel-claw-skill-source"), source.as_str())
+    fs::write(dir.join(".isle-claw-skill-source"), source.as_str())
         .map_err(|error| format!("无法写入 Skill 来源标记：{error}"))
 }
 
@@ -263,7 +263,7 @@ fn effective_skill_source(base_dir: &PathBuf, fallback: SkillSource) -> SkillSou
         return fallback;
     }
 
-    let marker = base_dir.join(".novel-claw-skill-source");
+    let marker = base_dir.join(".isle-claw-skill-source");
     let Ok(value) = fs::read_to_string(marker) else {
         return fallback;
     };

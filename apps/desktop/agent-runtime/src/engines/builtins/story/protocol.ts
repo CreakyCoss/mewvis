@@ -65,9 +65,9 @@ export type StoryContextBundle = Readonly<{
 /** Story 内置能力自身使用的稳定身份，不属于具体工作区故事类型。 */
 export const STORY_BUILTIN_IDENTIFIERS = Object.freeze({
   /** 技能依赖的 Story Tool Contract；实现可以替换，但必须满足这组方法。 */
-  toolContract: Object.freeze({ id: "novel-claw.story-project-tool", version: 2 }),
+  toolContract: Object.freeze({ id: "isle-claw.story-project-tool", version: 2 }),
   /** agent-runtime 创建的默认 Story Tool 实现包身份。 */
-  toolPackage: Object.freeze({ id: "novel-claw.story" }),
+  toolPackage: Object.freeze({ id: "isle-claw.story" }),
 });
 
 export const STORY_TOOL_ACTIONS = {

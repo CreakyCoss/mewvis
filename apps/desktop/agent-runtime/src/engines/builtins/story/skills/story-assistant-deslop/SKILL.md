@@ -1,9 +1,9 @@
 ---
 name: story-assistant-deslop
 description: >-
-  Novel Claw 故事创作助手专属的结构化去 AI 味技能。用户要求检测 AI 腔、自然化、润色指定章节、去模板感或只标注问题时必须使用。继承 oh-story-claudecode 最新 7 Gate 方法，只修改 Story Project 中 chapterContent 角色文档的 content，并将诊断写入 review 角色文档；不修改普通 story-deslop 技能或 Markdown 文件。
+  Mewvis 故事创作助手专属的结构化去 AI 味技能。用户要求检测 AI 腔、自然化、润色指定章节、去模板感或只标注问题时必须使用。继承 oh-story-claudecode 最新 7 Gate 方法，只修改 Story Project 中 chapterContent 角色文档的 content，并将诊断写入 review 角色文档；不修改普通 story-deslop 技能或 Markdown 文件。
 metadata:
-  novel-claw:
+  isle-claw:
     assistant-only: true
     builtin-bundle: story-authoring
     required-private-tool: story

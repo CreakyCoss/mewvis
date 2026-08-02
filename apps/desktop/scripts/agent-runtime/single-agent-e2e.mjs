@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 const workspaceRoot = process.cwd();
 const runtimePath = join(workspaceRoot, "agent-runtime/dist/cli.js");
-const workspacePath = mkdtempSync(join(tmpdir(), "novel-claw-runtime-e2e-"));
+const workspacePath = mkdtempSync(join(tmpdir(), "isle-claw-runtime-e2e-"));
 const sessionRootDir = join(workspacePath, "standalone-session-store", "chats", "e2e-session", "session");
 const aliasSessionRootDir = join(workspacePath, "standalone-session-store", "chats", "alias-session", "session");
 const oversizedSummarySessionRootDir = join(
