@@ -17,7 +17,7 @@ use crate::services::{
     vector_store::{self, VectorEmbedding},
 };
 
-const INDEX_ID: &str = "global";
+const GLOBAL_INDEX_ID: &str = "global";
 const INDEX_VERSION: i64 = 1;
 const MAX_FILE_BYTES: u64 = 50 * 1024 * 1024;
 const CHUNK_TARGET_CHARS: usize = 1200;
@@ -51,6 +51,15 @@ pub struct KnowledgeSourceIndexResult {
     pub document_count: i64,
     pub chunk_count: i64,
     pub error: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KnowledgeCollectionFile {
+    pub name: String,
+    pub relative_path: String,
+    pub size_bytes: i64,
+    pub modified_at: Option<i64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -106,22 +115,77 @@ struct EmbeddingSourceGroup {
     source_ids: BTreeSet<String>,
 }
 
-pub fn knowledge_index_status(app: &AppHandle) -> Result<KnowledgeIndexStatus, String> {
+pub fn knowledge_index_status(
+    app: &AppHandle,
+    collection_id: Option<&str>,
+) -> Result<KnowledgeIndexStatus, String> {
     let conn = open_index_connection(app)?;
-    load_index_status(&conn)
+    load_index_status(&conn, normalized_index_id(collection_id))
 }
 
 pub fn mark_knowledge_index_stale(app: &AppHandle) -> Result<(), String> {
     let conn = open_index_connection(app)?;
-    let (document_count, chunk_count) = index_counts(&conn)?;
-    set_index_status(&conn, "stale", None, None, document_count, chunk_count)
+    conn.execute(
+        "UPDATE rag_index_state SET status = 'stale', source_fingerprint = NULL, updated_at = ?1",
+        params![now_millis()?],
+    )
+    .map_err(|error| format!("无法标记知识库索引待更新：{error}"))?;
+    Ok(())
+}
+
+pub fn mark_collection_index_stale(app: &AppHandle, collection_id: &str) -> Result<(), String> {
+    let conn = open_index_connection(app)?;
+    let index_id = normalized_index_id(Some(collection_id));
+    let current = load_index_status(&conn, index_id)?;
+    set_index_status(
+        &conn,
+        index_id,
+        "stale",
+        None,
+        None,
+        current.document_count,
+        current.chunk_count,
+    )
 }
 
 pub fn delete_source_index(app: &AppHandle, source_id: &str) -> Result<(), String> {
     let conn = open_index_connection(app)?;
     clear_source_index(&conn, source_id)?;
-    let (document_count, chunk_count) = index_counts(&conn)?;
-    set_index_status(&conn, "stale", None, None, document_count, chunk_count)
+    mark_knowledge_index_stale(app)
+}
+
+pub fn delete_collection_index(
+    app: &AppHandle,
+    collection_id: &str,
+    source_ids: &[String],
+) -> Result<(), String> {
+    let conn = open_index_connection(app)?;
+    for source_id in source_ids {
+        clear_source_index(&conn, source_id)?;
+    }
+    conn.execute(
+        "DELETE FROM rag_index_state WHERE id = ?1",
+        params![collection_id],
+    )
+    .map_err(|error| format!("无法删除知识库索引状态：{error}"))?;
+    Ok(())
+}
+
+pub fn list_knowledge_collection_files(
+    app: &AppHandle,
+    collection_id: &str,
+) -> Result<Vec<KnowledgeCollectionFile>, String> {
+    let library = config_db::knowledge_library(app)?;
+    let collection = library
+        .collections
+        .iter()
+        .find(|collection| collection.id == collection_id)
+        .ok_or_else(|| "知识库不存在".to_string())?;
+    let directory = collection
+        .source_directory
+        .as_deref()
+        .ok_or_else(|| "知识库尚未设置目录".to_string())?;
+    discover_collection_files(Path::new(directory))
 }
 
 pub fn import_knowledge_files(
@@ -174,33 +238,47 @@ pub fn import_knowledge_files(
 
 pub fn rebuild_knowledge_index(
     app: &AppHandle,
-    source_ids: Option<Vec<String>>,
+    collection_id: &str,
 ) -> Result<RebuildKnowledgeIndexResult, String> {
     let library = config_db::knowledge_library(app)?;
-    let embedding_groups = embedding_source_groups(app, &library, true)?;
-    let selected_source_ids = source_ids.map(normalize_ids).filter(|ids| !ids.is_empty());
+    let collection = library
+        .collections
+        .iter()
+        .find(|collection| collection.id == collection_id)
+        .cloned()
+        .ok_or_else(|| "知识库不存在".to_string())?;
+    let profile_id = collection
+        .embedding_profile_id
+        .as_deref()
+        .ok_or_else(|| "请先为知识库选择向量模型".to_string())?;
+    let profile = config_db::embedding_profile(app, profile_id)?
+        .ok_or_else(|| "知识库绑定的向量模型已失效，请先重新选择".to_string())?;
+    let selected_source_ids = collection
+        .source_ids
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    if selected_source_ids.is_empty() {
+        return Err("知识库目录尚未建立来源，请重新保存目录".to_string());
+    }
+    let embedding_groups = vec![EmbeddingSourceGroup {
+        profile: ResolvedEmbeddingProfile { profile },
+        source_ids: selected_source_ids.clone(),
+    }];
     let sources = library
         .sources
         .into_iter()
-        .filter(|source| source.enabled)
-        .filter(|source| match &selected_source_ids {
-            Some(ids) => ids.contains(&source.id),
-            None => true,
-        })
+        .filter(|source| source.enabled && selected_source_ids.contains(&source.id))
         .collect::<Vec<_>>();
 
     let mut conn = open_index_connection(app)?;
-    set_index_status(&conn, "building", None, None, 0, 0)?;
+    set_index_status(&conn, collection_id, "building", None, None, 0, 0)?;
 
     let tx = conn
         .transaction()
         .map_err(|error| format!("无法开始重建知识库索引：{error}"))?;
-    if selected_source_ids.is_none() {
-        clear_all_index(&tx)?;
-    } else if let Some(ids) = &selected_source_ids {
-        for source_id in ids {
-            clear_source_index(&tx, source_id)?;
-        }
+    for source_id in &selected_source_ids {
+        clear_source_index(&tx, source_id)?;
     }
 
     let mut source_results = Vec::new();
@@ -240,16 +318,16 @@ pub fn rebuild_knowledge_index(
         }
     }
 
-    let (document_count, chunk_count) = index_counts(&tx)?;
     let fingerprint = source_fingerprint(&source_results);
     let status = if errors.is_empty() { "ready" } else { "error" };
     set_index_status(
         &tx,
+        collection_id,
         status,
         Some(&fingerprint),
         (!errors.is_empty()).then(|| errors.join("\n")).as_deref(),
-        document_count,
-        chunk_count,
+        total_documents,
+        total_chunks,
     )?;
     tx.commit()
         .map_err(|error| format!("无法提交知识库索引：{error}"))?;
@@ -259,19 +337,19 @@ pub fn rebuild_knowledge_index(
             rebuild_vector_index(&mut conn, &chunks_for_embedding, &embedding_groups)
         {
             errors.push(format!("向量索引：{error}"));
-            let (document_count, chunk_count) = index_counts(&conn)?;
             set_index_status(
                 &conn,
-                "ready",
+                collection_id,
+                "error",
                 Some(&fingerprint),
                 Some(&errors.join("\n")),
-                document_count,
-                chunk_count,
+                total_documents,
+                total_chunks,
             )?;
         }
     }
 
-    let status = knowledge_index_status(app)?;
+    let status = knowledge_index_status(app, Some(collection_id))?;
     if status.document_count == 0 && total_documents > 0 {
         return Err("知识库索引重建后未能读取文档计数".to_string());
     }
@@ -316,13 +394,6 @@ pub fn search_enabled_knowledge(
     }
 
     let conn = open_index_connection(app)?;
-    let status = load_index_status(&conn)?;
-    if status.status != "ready" {
-        return Ok(KnowledgeSearchResult {
-            matches: Vec::new(),
-            enabled_source_ids,
-        });
-    }
     let max_results = max_results.clamp(1, 20);
     let fts_matches = search_fts(&conn, &enabled_source_ids, query, max_results, min_score)?;
     let vector_matches =
@@ -445,21 +516,22 @@ fn initialize_index_schema(conn: &Connection) -> Result<(), String> {
         ) VALUES (?1, ?2, 'missing', NULL, 0, 0, NULL, ?3)
         ON CONFLICT(id) DO NOTHING
         "#,
-        params![INDEX_ID, INDEX_VERSION, now],
+        params![GLOBAL_INDEX_ID, INDEX_VERSION, now],
     )
     .map_err(|error| format!("无法初始化知识库索引状态：{error}"))?;
 
     Ok(())
 }
 
-fn load_index_status(conn: &Connection) -> Result<KnowledgeIndexStatus, String> {
+fn load_index_status(conn: &Connection, index_id: &str) -> Result<KnowledgeIndexStatus, String> {
+    ensure_index_status(conn, index_id)?;
     conn.query_row(
         r#"
         SELECT id, version, status, updated_at, source_fingerprint, document_count, chunk_count, error
         FROM rag_index_state
         WHERE id = ?1
         "#,
-        params![INDEX_ID],
+        params![index_id],
         |row| {
             Ok(KnowledgeIndexStatus {
                 index_id: row.get(0)?,
@@ -478,6 +550,7 @@ fn load_index_status(conn: &Connection) -> Result<KnowledgeIndexStatus, String> 
 
 fn set_index_status(
     conn: &Connection,
+    index_id: &str,
     status: &str,
     source_fingerprint: Option<&str>,
     error: Option<&str>,
@@ -500,7 +573,7 @@ fn set_index_status(
             updated_at = excluded.updated_at
         "#,
         params![
-            INDEX_ID,
+            index_id,
             INDEX_VERSION,
             status,
             source_fingerprint,
@@ -512,6 +585,27 @@ fn set_index_status(
     )
     .map_err(|error| format!("无法保存知识库索引状态：{error}"))?;
     Ok(())
+}
+
+fn ensure_index_status(conn: &Connection, index_id: &str) -> Result<(), String> {
+    conn.execute(
+        r#"
+        INSERT INTO rag_index_state (
+            id, version, status, source_fingerprint, document_count, chunk_count, error, updated_at
+        ) VALUES (?1, ?2, 'missing', NULL, 0, 0, NULL, ?3)
+        ON CONFLICT(id) DO NOTHING
+        "#,
+        params![index_id, INDEX_VERSION, now_millis()?],
+    )
+    .map_err(|error| format!("无法初始化知识库索引状态：{error}"))?;
+    Ok(())
+}
+
+fn normalized_index_id(collection_id: Option<&str>) -> &str {
+    collection_id
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(GLOBAL_INDEX_ID)
 }
 
 fn set_source_status(
@@ -538,21 +632,6 @@ fn set_source_status(
         params![source_id, status, document_count, chunk_count, error, now],
     )
     .map_err(|error| format!("无法保存知识源索引状态：{error}"))?;
-    Ok(())
-}
-
-fn clear_all_index(conn: &Connection) -> Result<(), String> {
-    vector_store::default_vector_store().clear_all(conn)?;
-    conn.execute("DELETE FROM rag_chunks_fts", [])
-        .map_err(|error| format!("无法清空知识库 FTS：{error}"))?;
-    conn.execute("DELETE FROM rag_embeddings", [])
-        .map_err(|error| format!("无法清空知识库向量：{error}"))?;
-    conn.execute("DELETE FROM rag_chunks", [])
-        .map_err(|error| format!("无法清空知识库 chunk：{error}"))?;
-    conn.execute("DELETE FROM rag_documents", [])
-        .map_err(|error| format!("无法清空知识库文档：{error}"))?;
-    conn.execute("DELETE FROM rag_source_state", [])
-        .map_err(|error| format!("无法清空知识源索引状态：{error}"))?;
     Ok(())
 }
 
@@ -795,6 +874,60 @@ fn discover_directory_documents(root: &Path) -> Result<Vec<IndexedDocument>, Str
 
     documents.sort_by(|left, right| left.path.cmp(&right.path));
     Ok(documents)
+}
+
+fn discover_collection_files(root: &Path) -> Result<Vec<KnowledgeCollectionFile>, String> {
+    if !root.is_dir() {
+        return Err("知识库目录不存在".to_string());
+    }
+
+    let mut files = Vec::new();
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(path) = stack.pop() {
+        let entries = fs::read_dir(&path)
+            .map_err(|error| format!("无法读取知识库目录 {}：{error}", path.display()))?;
+        for entry in entries {
+            let entry = entry.map_err(|error| format!("无法读取知识库目录项：{error}"))?;
+            let path = entry.path();
+            if should_skip_path(&path) {
+                continue;
+            }
+            if path.is_dir() {
+                stack.push(path);
+                continue;
+            }
+            if !is_supported_text_path(&path) {
+                continue;
+            }
+            let metadata = fs::metadata(&path)
+                .map_err(|error| format!("无法读取知识库文件 {}：{error}", path.display()))?;
+            if metadata.len() > MAX_FILE_BYTES {
+                continue;
+            }
+            let modified_at = metadata
+                .modified()
+                .ok()
+                .and_then(|modified| modified.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|duration| duration.as_millis() as i64);
+            files.push(KnowledgeCollectionFile {
+                name: path
+                    .file_name()
+                    .and_then(|value| value.to_str())
+                    .unwrap_or("untitled")
+                    .to_string(),
+                relative_path: path
+                    .strip_prefix(root)
+                    .unwrap_or(&path)
+                    .to_string_lossy()
+                    .to_string(),
+                size_bytes: metadata.len() as i64,
+                modified_at,
+            });
+        }
+    }
+
+    files.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
+    Ok(files)
 }
 
 fn read_indexable_file(path: &Path) -> Result<Option<IndexedDocument>, String> {
@@ -1350,20 +1483,6 @@ fn search_like(
         .collect())
 }
 
-fn index_counts(conn: &Connection) -> Result<(i64, i64), String> {
-    let document_count = conn
-        .query_row("SELECT COUNT(*) FROM rag_documents", [], |row| {
-            row.get::<_, i64>(0)
-        })
-        .map_err(|error| format!("无法统计知识库文档：{error}"))?;
-    let chunk_count = conn
-        .query_row("SELECT COUNT(*) FROM rag_chunks", [], |row| {
-            row.get::<_, i64>(0)
-        })
-        .map_err(|error| format!("无法统计知识库 chunk：{error}"))?;
-    Ok((document_count, chunk_count))
-}
-
 fn build_fts_query(query: &str) -> Option<String> {
     let tokens = query
         .split_whitespace()
@@ -1429,13 +1548,6 @@ fn estimate_tokens(content: &str) -> i64 {
 
 fn max_file_mib() -> u64 {
     MAX_FILE_BYTES / 1024 / 1024
-}
-
-fn normalize_ids(ids: Vec<String>) -> BTreeSet<String> {
-    ids.into_iter()
-        .map(|id| id.trim().to_string())
-        .filter(|id| !id.is_empty())
-        .collect()
 }
 
 fn source_fingerprint(results: &[KnowledgeSourceIndexResult]) -> String {

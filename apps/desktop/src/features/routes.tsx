@@ -17,6 +17,7 @@ export const AppRoutes = () => (
         <Route path="chats/:workspaceId/:chatId" />
         <Route path="skills" element={<SkillsPage />} />
         <Route path="knowledge" element={<KnowledgePage />} />
+        <Route path="knowledge/:collectionId" element={<KnowledgePage />} />
         <Route path="stories" element={<StoriesPage />} />
         <Route path="hub" element={<HubPage />} />
         <Route path="settings" element={<SettingsPage />} />

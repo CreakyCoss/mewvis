@@ -4,7 +4,8 @@ use crate::db::config_db::{
     SetKnowledgeCollectionEmbeddingProfileInput, SetKnowledgeCollectionSourcesInput,
 };
 use crate::services::knowledge::{
-    self as knowledge_service, KnowledgeIndexStatus, RebuildKnowledgeIndexResult,
+    self as knowledge_service, KnowledgeCollectionFile, KnowledgeIndexStatus,
+    RebuildKnowledgeIndexResult,
 };
 use serde::Deserialize;
 use tauri::AppHandle;
@@ -12,7 +13,7 @@ use tauri::AppHandle;
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RebuildKnowledgeIndexInput {
-    pub source_ids: Option<Vec<String>>,
+    pub collection_id: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -109,16 +110,27 @@ pub fn save_knowledge_settings(
 }
 
 #[tauri::command]
-pub fn get_knowledge_index_status(app: AppHandle) -> Result<KnowledgeIndexStatus, String> {
-    knowledge_service::knowledge_index_status(&app)
+pub fn get_knowledge_index_status(
+    app: AppHandle,
+    collection_id: Option<String>,
+) -> Result<KnowledgeIndexStatus, String> {
+    knowledge_service::knowledge_index_status(&app, collection_id.as_deref())
 }
 
 #[tauri::command]
 pub fn rebuild_knowledge_index(
     app: AppHandle,
-    input: Option<RebuildKnowledgeIndexInput>,
+    input: RebuildKnowledgeIndexInput,
 ) -> Result<RebuildKnowledgeIndexResult, String> {
-    knowledge_service::rebuild_knowledge_index(&app, input.and_then(|value| value.source_ids))
+    knowledge_service::rebuild_knowledge_index(&app, &input.collection_id)
+}
+
+#[tauri::command]
+pub fn list_knowledge_collection_files(
+    app: AppHandle,
+    collection_id: String,
+) -> Result<Vec<KnowledgeCollectionFile>, String> {
+    knowledge_service::list_knowledge_collection_files(&app, &collection_id)
 }
 
 #[tauri::command]
@@ -126,8 +138,11 @@ pub fn save_knowledge_collection(
     app: AppHandle,
     input: SaveKnowledgeCollectionInput,
 ) -> Result<KnowledgeLibrary, String> {
+    let collection_id = input.id.clone();
     let library = config_db::save_knowledge_collection(&app, input)?;
-    knowledge_service::mark_knowledge_index_stale(&app)?;
+    if let Some(collection_id) = collection_id {
+        knowledge_service::mark_collection_index_stale(&app, &collection_id)?;
+    }
     Ok(library)
 }
 
@@ -136,8 +151,14 @@ pub fn delete_knowledge_collection(
     app: AppHandle,
     collection_id: String,
 ) -> Result<KnowledgeLibrary, String> {
+    let source_ids = config_db::knowledge_library(&app)?
+        .collections
+        .into_iter()
+        .find(|collection| collection.id == collection_id)
+        .map(|collection| collection.source_ids)
+        .unwrap_or_default();
     let library = config_db::delete_knowledge_collection(&app, &collection_id)?;
-    knowledge_service::mark_knowledge_index_stale(&app)?;
+    knowledge_service::delete_collection_index(&app, &collection_id, &source_ids)?;
     Ok(library)
 }
 
@@ -174,8 +195,9 @@ pub fn set_knowledge_collection_sources(
     app: AppHandle,
     input: SetKnowledgeCollectionSourcesInput,
 ) -> Result<KnowledgeLibrary, String> {
+    let collection_id = input.collection_id.clone();
     let library = config_db::set_knowledge_collection_sources(&app, input)?;
-    knowledge_service::mark_knowledge_index_stale(&app)?;
+    knowledge_service::mark_collection_index_stale(&app, &collection_id)?;
     Ok(library)
 }
 
@@ -184,7 +206,8 @@ pub fn set_knowledge_collection_embedding_profile(
     app: AppHandle,
     input: SetKnowledgeCollectionEmbeddingProfileInput,
 ) -> Result<KnowledgeLibrary, String> {
+    let collection_id = input.collection_id.clone();
     let library = config_db::set_knowledge_collection_embedding_profile(&app, input)?;
-    knowledge_service::mark_knowledge_index_stale(&app)?;
+    knowledge_service::mark_collection_index_stale(&app, &collection_id)?;
     Ok(library)
 }

@@ -1,3 +1,8 @@
-import { KnowledgeBasePage } from "@/features/pages/knowledge/components/knowledge-base-page";
+import { useParams } from "react-router";
+import { DetailPage } from "./components/detail";
+import { LibraryPage } from "./components/library";
 
-export const KnowledgePage = () => <KnowledgeBasePage />;
+export const KnowledgePage = () => {
+  const { collectionId } = useParams<{ collectionId?: string }>();
+  return collectionId ? <DetailPage collectionId={collectionId} /> : <LibraryPage />;
+};

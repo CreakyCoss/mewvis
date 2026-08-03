@@ -114,7 +114,47 @@ const CONFIG_MIGRATIONS: &[ConfigMigrationStep] = &[
         name: "bind_embedding_profiles_to_knowledge_collections",
         run: bind_embedding_profiles_to_knowledge_collections,
     },
+    ConfigMigrationStep {
+        target_version: 24,
+        name: "add_knowledge_collection_source_directory",
+        run: add_knowledge_collection_source_directory,
+    },
 ];
+
+fn add_knowledge_collection_source_directory(conn: &Connection) -> Result<(), String> {
+    let columns = table_columns(conn, "knowledge_collections")?;
+    if !columns.iter().any(|column| column == "source_directory") {
+        conn.execute_batch("ALTER TABLE knowledge_collections ADD COLUMN source_directory TEXT;")
+            .map_err(|error| format!("无法添加知识库来源目录：{error}"))?;
+    }
+
+    conn.execute_batch(
+        r#"
+        UPDATE knowledge_collections
+        SET source_directory = COALESCE(
+            (
+                SELECT sources.uri
+                FROM knowledge_collection_sources AS links
+                JOIN knowledge_sources AS sources ON sources.id = links.source_id
+                WHERE links.collection_id = knowledge_collections.id
+                  AND sources.kind = 'directory'
+                ORDER BY links.created_at ASC
+                LIMIT 1
+            ),
+            (
+                SELECT json_extract(value_json, '$')
+                FROM knowledge_settings
+                WHERE key = 'storageDirectory'
+                LIMIT 1
+            )
+        )
+        WHERE source_directory IS NULL;
+        "#,
+    )
+    .map_err(|error| format!("无法迁移知识库来源目录：{error}"))?;
+
+    Ok(())
+}
 
 fn add_story_registry(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(
@@ -1115,5 +1155,62 @@ mod tests {
             )
             .expect("read preserved binding");
         assert_eq!(preserved_binding.as_deref(), Some("embedding-1"));
+    }
+
+    #[test]
+    fn source_directory_migration_prefers_collection_directory_source() {
+        let conn = Connection::open_in_memory().expect("open database");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE knowledge_collections (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                color TEXT,
+                "order" INTEGER NOT NULL DEFAULT 0,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                embedding_profile_id TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            CREATE TABLE knowledge_sources (
+                id TEXT PRIMARY KEY,
+                kind TEXT NOT NULL,
+                uri TEXT NOT NULL
+            );
+            CREATE TABLE knowledge_collection_sources (
+                collection_id TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            );
+            CREATE TABLE knowledge_settings (
+                key TEXT PRIMARY KEY,
+                value_json TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            INSERT INTO knowledge_collections (
+                id, name, description, color, "order", enabled,
+                embedding_profile_id, created_at, updated_at
+            ) VALUES ('knowledge-1', '文档库', NULL, NULL, 0, 1, NULL, 1, 1);
+            INSERT INTO knowledge_sources (id, kind, uri)
+            VALUES ('source-1', 'directory', '/tmp/collection-docs');
+            INSERT INTO knowledge_collection_sources (collection_id, source_id, created_at)
+            VALUES ('knowledge-1', 'source-1', 1);
+            INSERT INTO knowledge_settings (key, value_json, updated_at)
+            VALUES ('storageDirectory', '"/tmp/global-docs"', 1);
+            "#,
+        )
+        .expect("create legacy knowledge directory schema");
+
+        add_knowledge_collection_source_directory(&conn).expect("migrate source directory");
+
+        let source_directory: Option<String> = conn
+            .query_row(
+                "SELECT source_directory FROM knowledge_collections WHERE id = 'knowledge-1'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("read migrated source directory");
+        assert_eq!(source_directory.as_deref(), Some("/tmp/collection-docs"));
     }
 }

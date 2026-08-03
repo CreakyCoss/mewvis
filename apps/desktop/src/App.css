@@ -201,6 +201,48 @@
     background: var(--surface-raised);
   }
 
+  .knowledge-list-container {
+    container-name: knowledge-list;
+    container-type: inline-size;
+  }
+
+  .knowledge-list-grid {
+    display: grid;
+    grid-template-columns:
+      minmax(200px, 1.15fr) minmax(0, 1.25fr) minmax(160px, 1fr) 72px 118px 104px
+      20px;
+  }
+
+  @container knowledge-list (max-width: 68rem) {
+    .knowledge-list-grid {
+      grid-template-columns: minmax(200px, 1.2fr) minmax(160px, 1fr) 72px 118px 104px 20px;
+    }
+
+    .knowledge-list-directory {
+      display: none;
+    }
+  }
+
+  @container knowledge-list (max-width: 51rem) {
+    .knowledge-list-grid {
+      grid-template-columns: minmax(190px, 1fr) 64px 112px 96px 20px;
+    }
+
+    .knowledge-list-model {
+      display: none;
+    }
+  }
+
+  @container knowledge-list (max-width: 38rem) {
+    .knowledge-list-grid {
+      grid-template-columns: minmax(180px, 1fr) 110px 88px 20px;
+    }
+
+    .knowledge-list-document {
+      display: none;
+    }
+  }
+
   .app-panel {
     border: 1px solid var(--border);
     background: var(--card);

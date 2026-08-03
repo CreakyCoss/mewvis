@@ -4,6 +4,7 @@ export type KnowledgeCollection = {
   id: string;
   name: string;
   description: string | null;
+  sourceDirectory: string | null;
   color: string | null;
   order: number;
   enabled: boolean;
@@ -40,6 +41,7 @@ export type SaveKnowledgeCollectionInput = {
   id?: string | null;
   name: string;
   description?: string | null;
+  sourceDirectory?: string | null;
   color?: string | null;
   order?: number | null;
   enabled: boolean;
@@ -100,4 +102,11 @@ export type KnowledgeSourceIndexResult = {
 export type RebuildKnowledgeIndexResult = {
   status: KnowledgeIndexStatus;
   sourceResults: KnowledgeSourceIndexResult[];
+};
+
+export type KnowledgeCollectionFile = {
+  name: string;
+  relativePath: string;
+  sizeBytes: number;
+  modifiedAt: number | null;
 };

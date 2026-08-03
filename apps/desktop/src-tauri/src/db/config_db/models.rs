@@ -138,12 +138,13 @@ pub struct SkillGroup {
     pub updated_at: i64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KnowledgeCollection {
     pub id: String,
     pub name: String,
     pub description: Option<String>,
+    pub source_directory: Option<String>,
     pub color: Option<String>,
     pub order: i64,
     pub enabled: bool,
@@ -153,7 +154,7 @@ pub struct KnowledgeCollection {
     pub updated_at: i64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KnowledgeSource {
     pub id: String,
@@ -169,7 +170,7 @@ pub struct KnowledgeSource {
     pub updated_at: i64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KnowledgeLibrary {
     pub collections: Vec<KnowledgeCollection>,

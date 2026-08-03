@@ -146,6 +146,7 @@ pub struct SaveKnowledgeCollectionInput {
     pub id: Option<String>,
     pub name: String,
     pub description: Option<String>,
+    pub source_directory: Option<String>,
     pub color: Option<String>,
     pub order: Option<i64>,
     pub enabled: bool,

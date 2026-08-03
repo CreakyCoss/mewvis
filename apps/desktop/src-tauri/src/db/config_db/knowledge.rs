@@ -165,18 +165,23 @@ pub fn save_knowledge_collection(
         return Err("知识集合名称不能为空".to_string());
     }
 
-    let conn = open_config_connection(app)?;
+    let source_directory = normalize_knowledge_source_directory(input.source_directory.as_deref())?;
+    let mut conn = open_config_connection(app)?;
     let id = normalize_record_id(input.id.as_deref());
     let now = now_millis()?;
-    conn.execute(
+    let tx = conn
+        .transaction()
+        .map_err(|error| format!("无法开始保存知识库：{error}"))?;
+    tx.execute(
         r#"
         INSERT INTO knowledge_collections (
-            id, name, description, color, "order", enabled,
+            id, name, description, source_directory, color, "order", enabled,
             embedding_profile_id, created_at, updated_at
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
         ON CONFLICT(id) DO UPDATE SET
             name = excluded.name,
             description = excluded.description,
+            source_directory = excluded.source_directory,
             color = excluded.color,
             "order" = excluded."order",
             enabled = excluded.enabled,
@@ -187,6 +192,7 @@ pub fn save_knowledge_collection(
             id,
             name,
             normalize_optional_text(input.description.as_deref()),
+            source_directory,
             normalize_optional_text(input.color.as_deref()),
             input.order.unwrap_or(0),
             input.enabled as i64,
@@ -195,7 +201,11 @@ pub fn save_knowledge_collection(
             now
         ],
     )
-    .map_err(|error| format!("无法保存知识集合：{error}"))?;
+    .map_err(|error| format!("无法保存知识库：{error}"))?;
+
+    sync_collection_directory_source(&tx, &id, source_directory.as_deref(), now)?;
+    tx.commit()
+        .map_err(|error| format!("无法提交知识库：{error}"))?;
 
     load_knowledge_library(&conn)
 }
@@ -210,11 +220,25 @@ pub fn delete_knowledge_collection(
     }
 
     let conn = open_config_connection(app)?;
+    let source_ids = collection_source_ids(&conn, id)?;
     conn.execute(
         "DELETE FROM knowledge_collections WHERE id = ?1",
         params![id],
     )
     .map_err(|error| format!("无法删除知识集合：{error}"))?;
+    for source_id in source_ids {
+        conn.execute(
+            r#"
+            DELETE FROM knowledge_sources
+            WHERE id = ?1
+              AND NOT EXISTS (
+                  SELECT 1 FROM knowledge_collection_sources WHERE source_id = ?1
+              )
+            "#,
+            params![source_id],
+        )
+        .map_err(|error| format!("无法清理知识库来源：{error}"))?;
+    }
     load_knowledge_library(&conn)
 }
 
@@ -512,7 +536,7 @@ fn load_knowledge_collections(conn: &Connection) -> Result<Vec<KnowledgeCollecti
         .prepare(
             r#"
             SELECT
-                id, name, description, color, "order", enabled,
+                id, name, description, source_directory, color, "order", enabled,
                 embedding_profile_id, created_at, updated_at
             FROM knowledge_collections
             ORDER BY "order" ASC, created_at ASC
@@ -528,12 +552,13 @@ fn load_knowledge_collections(conn: &Connection) -> Result<Vec<KnowledgeCollecti
                 id,
                 name: row.get(1)?,
                 description: row.get(2)?,
-                color: row.get(3)?,
-                order: row.get(4)?,
-                enabled: row.get::<_, i64>(5)? == 1,
-                embedding_profile_id: row.get(6)?,
-                created_at: row.get(7)?,
-                updated_at: row.get(8)?,
+                source_directory: row.get(3)?,
+                color: row.get(4)?,
+                order: row.get(5)?,
+                enabled: row.get::<_, i64>(6)? == 1,
+                embedding_profile_id: row.get(7)?,
+                created_at: row.get(8)?,
+                updated_at: row.get(9)?,
             })
         })
         .map_err(|error| format!("无法读取知识集合：{error}"))?;
@@ -687,6 +712,149 @@ fn normalize_storage_directory(directory: Option<&str>) -> Result<Option<String>
     }
 
     Ok(Some(path.to_string_lossy().to_string()))
+}
+
+fn normalize_knowledge_source_directory(directory: Option<&str>) -> Result<Option<String>, String> {
+    let Some(directory) = directory.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Err("请选择知识库目录".to_string());
+    };
+
+    let path = PathBuf::from(directory)
+        .canonicalize()
+        .map_err(|error| format!("无法定位知识库目录：{error}"))?;
+    if !path.is_dir() {
+        return Err("知识库目录必须是已存在的文件夹".to_string());
+    }
+
+    Ok(Some(path.to_string_lossy().to_string()))
+}
+
+fn sync_collection_directory_source(
+    conn: &Connection,
+    collection_id: &str,
+    source_directory: Option<&str>,
+    now: i64,
+) -> Result<(), String> {
+    let Some(source_directory) = source_directory else {
+        return Ok(());
+    };
+
+    let existing_source = conn
+        .query_row(
+            r#"
+            SELECT sources.id, sources.uri
+            FROM knowledge_collection_sources AS links
+            JOIN knowledge_sources AS sources ON sources.id = links.source_id
+            WHERE links.collection_id = ?1 AND sources.kind = 'directory'
+            ORDER BY links.created_at ASC
+            LIMIT 1
+            "#,
+            params![collection_id],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        )
+        .optional()
+        .map_err(|error| format!("无法读取知识库目录来源：{error}"))?;
+
+    if existing_source
+        .as_ref()
+        .is_some_and(|(_, uri)| uri == source_directory)
+    {
+        return Ok(());
+    }
+
+    let conflicting_collection = conn
+        .query_row(
+            r#"
+            SELECT collections.name
+            FROM knowledge_sources AS sources
+            JOIN knowledge_collection_sources AS links ON links.source_id = sources.id
+            JOIN knowledge_collections AS collections ON collections.id = links.collection_id
+            WHERE sources.kind = 'directory'
+              AND sources.uri = ?1
+              AND collections.id <> ?2
+            LIMIT 1
+            "#,
+            params![source_directory, collection_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|error| format!("无法校验知识库目录：{error}"))?;
+    if let Some(name) = conflicting_collection {
+        return Err(format!("该目录已被知识库“{name}”使用"));
+    }
+
+    let previous_source_ids = collection_source_ids(conn, collection_id)?;
+    conn.execute(
+        "DELETE FROM knowledge_collection_sources WHERE collection_id = ?1",
+        params![collection_id],
+    )
+    .map_err(|error| format!("无法更新知识库目录来源：{error}"))?;
+
+    let source_id = conn
+        .query_row(
+            "SELECT id FROM knowledge_sources WHERE kind = 'directory' AND uri = ?1 LIMIT 1",
+            params![source_directory],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|error| format!("无法读取知识库目录来源：{error}"))?
+        .unwrap_or_else(|| normalize_record_id(None));
+    let title = PathBuf::from(source_directory)
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("知识库目录")
+        .to_string();
+
+    conn.execute(
+        r#"
+        INSERT INTO knowledge_sources (
+            id, kind, uri, title, description, enabled,
+            include_patterns_json, exclude_patterns_json, metadata_json,
+            created_at, updated_at
+        ) VALUES (?1, 'directory', ?2, ?3, NULL, 1, NULL, NULL, ?4, ?5, ?5)
+        ON CONFLICT(id) DO UPDATE SET
+            uri = excluded.uri,
+            title = excluded.title,
+            enabled = 1,
+            metadata_json = excluded.metadata_json,
+            updated_at = excluded.updated_at
+        "#,
+        params![
+            source_id,
+            source_directory,
+            title,
+            format!(r#"{{"collectionId":"{collection_id}"}}"#),
+            now
+        ],
+    )
+    .map_err(|error| format!("无法保存知识库目录来源：{error}"))?;
+    conn.execute(
+        r#"
+        INSERT INTO knowledge_collection_sources (collection_id, source_id, created_at)
+        VALUES (?1, ?2, ?3)
+        "#,
+        params![collection_id, source_id, now],
+    )
+    .map_err(|error| format!("无法绑定知识库目录来源：{error}"))?;
+
+    for previous_source_id in previous_source_ids {
+        if previous_source_id == source_id {
+            continue;
+        }
+        conn.execute(
+            r#"
+            DELETE FROM knowledge_sources
+            WHERE id = ?1
+              AND NOT EXISTS (
+                  SELECT 1 FROM knowledge_collection_sources WHERE source_id = ?1
+              )
+            "#,
+            params![previous_source_id],
+        )
+        .map_err(|error| format!("无法清理旧知识库来源：{error}"))?;
+    }
+
+    Ok(())
 }
 
 fn normalize_ids(ids: Vec<String>) -> Vec<String> {

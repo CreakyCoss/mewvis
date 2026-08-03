@@ -36,7 +36,6 @@ pub trait KnowledgeVectorStore {
         model_id: &str,
         dimensions: i64,
     ) -> Result<(), String>;
-    fn clear_all(&self, conn: &Connection) -> Result<(), String>;
     fn clear_source(&self, conn: &Connection, source_id: &str) -> Result<(), String>;
     fn insert_embeddings(
         &self,
@@ -117,18 +116,6 @@ impl KnowledgeVectorStore for SqliteVecStore {
             self.backend_id(),
             dimensions,
         )
-    }
-
-    fn clear_all(&self, conn: &Connection) -> Result<(), String> {
-        for profile_id in vector_profile_ids(conn)? {
-            drop_vec_table(conn, &profile_vec_table(&profile_id))?;
-        }
-        drop_vec_table(conn, LEGACY_SQLITE_VEC_TABLE)?;
-        conn.execute("DELETE FROM rag_vector_entries", [])
-            .map_err(|error| format!("无法清空向量索引映射：{error}"))?;
-        conn.execute("DELETE FROM rag_vector_state", [])
-            .map_err(|error| format!("无法清空向量索引状态：{error}"))?;
-        Ok(())
     }
 
     fn clear_source(&self, conn: &Connection, source_id: &str) -> Result<(), String> {
@@ -432,18 +419,6 @@ fn vector_state(conn: &Connection, profile_id: &str) -> Result<Option<VectorStat
     )
     .optional()
     .map_err(|error| format!("无法读取向量索引状态：{error}"))
-}
-
-fn vector_profile_ids(conn: &Connection) -> Result<Vec<String>, String> {
-    let mut statement = conn
-        .prepare("SELECT profile_id FROM rag_vector_state")
-        .map_err(|error| format!("无法读取向量索引配置：{error}"))?;
-    let profile_ids = statement
-        .query_map([], |row| row.get::<_, String>(0))
-        .map_err(|error| format!("无法读取向量索引配置：{error}"))?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|error| format!("无法解析向量索引配置：{error}"))?;
-    Ok(profile_ids)
 }
 
 fn save_vector_state(

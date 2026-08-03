@@ -55,6 +55,86 @@ final result: passed
 
 ---
 
+# Knowledge Library Redesign Design QA
+
+## Evidence
+
+- Source visual truth: `/Users/haowen.zheng/.codex/generated_images/019fc7af-b051-7ba3-83bc-2fc50029eb5a/exec-d90953d9-1222-408e-8fa9-47e1fd6c0798.png`
+- Browser-rendered library list: `/Users/haowen.zheng/.codex/visualizations/2026/08/03/019fc7af-b051-7ba3-83bc-2fc50029eb5a/knowledge-redesign-qa/implementation-list-final.png`
+- Full-view comparison: `/Users/haowen.zheng/.codex/visualizations/2026/08/03/019fc7af-b051-7ba3-83bc-2fc50029eb5a/knowledge-redesign-qa/list-comparison-final.png`
+- Second-level management page: `/Users/haowen.zheng/.codex/visualizations/2026/08/03/019fc7af-b051-7ba3-83bc-2fc50029eb5a/knowledge-redesign-qa/implementation-detail-final.png`
+- Responsive evidence: `/Users/haowen.zheng/.codex/visualizations/2026/08/03/019fc7af-b051-7ba3-83bc-2fc50029eb5a/knowledge-redesign-qa/implementation-list-1024.png`
+- Post-feedback medium-width list: `/Users/haowen.zheng/.codex/visualizations/2026/08/03/019fc7af-b051-7ba3-83bc-2fc50029eb5a/knowledge-redesign-qa/polish-after-list-1400.png`
+- Post-feedback overview surface: `/Users/haowen.zheng/.codex/visualizations/2026/08/03/019fc7af-b051-7ba3-83bc-2fc50029eb5a/knowledge-redesign-qa/polish-after-overview-1440.png`
+- Post-feedback settings layout: `/Users/haowen.zheng/.codex/visualizations/2026/08/03/019fc7af-b051-7ba3-83bc-2fc50029eb5a/knowledge-redesign-qa/polish-after-settings-1440.png`
+- Flat-list reference: `/Users/haowen.zheng/.codex/visualizations/2026/08/03/019fc7af-b051-7ba3-83bc-2fc50029eb5a/knowledge-redesign-qa/embedding-list-reference.png`
+- Final flat Knowledge list: `/Users/haowen.zheng/.codex/visualizations/2026/08/03/019fc7af-b051-7ba3-83bc-2fc50029eb5a/knowledge-redesign-qa/flat-list-1440.png`
+- Final flat overview: `/Users/haowen.zheng/.codex/visualizations/2026/08/03/019fc7af-b051-7ba3-83bc-2fc50029eb5a/knowledge-redesign-qa/flat-overview-1440.png`
+- Final flat files page: `/Users/haowen.zheng/.codex/visualizations/2026/08/03/019fc7af-b051-7ba3-83bc-2fc50029eb5a/knowledge-redesign-qa/flat-files-1440.png`
+- Final flat settings page: `/Users/haowen.zheng/.codex/visualizations/2026/08/03/019fc7af-b051-7ba3-83bc-2fc50029eb5a/knowledge-redesign-qa/flat-settings-1440.png`
+- Browser route: `http://127.0.0.1:1420/#/knowledge`
+- State: light theme, six realistic knowledge libraries, no dialog open.
+- Browser viewport: `1440 × 1024` CSS px at device scale factor 1.
+- Source pixels: `1488 × 1058`, normalized to `1440 × 1024` for comparison.
+- Implementation pixels: `1440 × 1024`; no implementation density normalization required.
+- Responsive viewport: `1024 × 768` CSS px at device scale factor 1.
+
+## Findings
+
+- No actionable P0, P1, or P2 differences remain.
+- Typography: the implementation uses the product's existing Inter Variable and Chinese system fallbacks. Page title, supporting copy, table headers, library metadata, model names, and semantic statuses preserve the selected hierarchy.
+- Spacing and layout rhythm: the content keeps the selected restrained header, search-and-create actions, one continuous table surface, compact rows, subtle separators, and generous empty canvas. The second-level page reuses the same shell and separates overview, files, and settings without adding another navigation system.
+- Colors and visual tokens: the implementation uses the existing background, card, border, primary, foreground, and muted tokens. Indigo remains the sole brand accent; green, amber, and red are reserved for index-ready, pending, and invalid states.
+- Surface hierarchy: the final pass follows the LLM/Embedding settings list directly. Knowledge uses one continuous `surface` canvas with flat headers, divider lines, row hover states, and semantic status fills; large white cards, rounded panel borders, and panel shadows are removed.
+- Assets and icons: existing Lucide icons are used for database, folder, file, status, navigation, and actions. No placeholder, handcrafted SVG, emoji, or approximate asset was introduced.
+- Copy and content: the list communicates directory, selected vector model, document count, index state, and update time. The detail page clearly states that indexing is scoped to the current library's directory and model.
+- Focused-region evidence: the 1440 px full-view comparison keeps the header and all six table rows legible at original scale, so a separate crop was not needed to judge typography, status chips, separators, or column rhythm.
+- Expected differences: the source uses compact `/data/knowledge/...` sample paths and fixed timestamps, while the implementation uses realistic desktop paths and relative update times. These content differences exercise truncation and live-state behavior without changing the approved layout.
+
+## Comparison History
+
+1. V1 matched the selected catalog direction and core visual system, but exposed mock-data drift because only five libraries were visible. A sixth realistic library was added so status coverage and table density match the selected visual.
+2. Interaction QA found that changing a vector model in browser-preview mode saved the profile but did not visibly mark the library index stale. The preview state transition was fixed and re-tested: save now changes `索引就绪` to `等待更新` until rebuild.
+3. Responsive QA showed the desktop column grid needed a tighter small-window policy. The final implementation uses the table container's actual width rather than the window breakpoint: directory and then model yield first, while index status, recent update, and the row chevron remain visible.
+4. V2 full-view comparison at the normalized `1440 × 1024` size shows the approved shell, six-row density, header actions, table hierarchy, indigo accent, and semantic status system with no actionable mismatch.
+5. Post-feedback measurement at 1280 px found `clientWidth === scrollWidth` and 25 px of clearance after the row chevron. The same no-overflow result passed at 1180, 1100, and 1024 px.
+6. The settings tab was widened from a compact stacked card to a 240 px label column plus flexible controls.
+7. A final application-consistency pass compared Knowledge against the populated Embedding settings list. The list container, overview cards, files card, settings panel, and configuration side card were flattened into the shared page canvas and separated with the same border and hover language.
+
+## Primary Interactions Tested
+
+- Create flow opens the directory-first dialog, fills the name from the selected directory, saves the model binding, and navigates directly to the new library's management page.
+- Library rows open the second-level route for overview, files, and settings.
+- The files tab lists supported files and exposes a rescan action.
+- Changing a library's vector model marks only that library as `等待更新`.
+- Rebuild confirmation runs the selected library's index workflow and returns it to `索引就绪`.
+- The invalid-model state keeps the library visible and prompts the user to select a replacement rather than deleting the binding silently.
+- Responsive layout checked at `1024 × 768`; no visible horizontal overflow or inaccessible primary action was found.
+- Medium-width table checked at 1400, 1280, 1180, 1100, and 1024 px; recent-update values and row chevrons remain fully visible.
+- Browser console warnings/errors checked after the complete interaction pass: none.
+
+## Implementation Checklist
+
+- [x] Replace the single-page Knowledge workspace with a library list and second-level management route.
+- [x] Make directory selection the first step when creating a library.
+- [x] Persist directory and embedding-profile bindings per knowledge library.
+- [x] Track index state and rebuild operations per library rather than globally.
+- [x] Preserve deleted-profile IDs so only unresolved bindings show `模型失效`.
+- [x] Provide overview, recursive file listing, settings, delete, and rebuild interactions.
+- [x] Match the approved catalog visual and responsive behavior.
+- [x] Preserve the table layout at medium widths while protecting the recent-update and chevron columns.
+- [x] Expand the settings layout and align Knowledge surfaces with the application's canvas hierarchy.
+- [x] Match the LLM/Embedding flat-list background, divider, and hover treatment across every Knowledge tab.
+- [x] Pass TypeScript, production build, Rust formatting, Rust check, 47 Rust unit tests, browser interaction, console, and visual comparison checks.
+
+## Follow-up Polish
+
+- P3: native Tauri text rasterization and the operating-system directory picker cannot be represented exactly in the browser preview; the implementation uses the real Tauri picker outside preview mode.
+
+final result: passed
+
+---
+
 # Story Library Card Design QA
 
 ## Evidence

@@ -1,7 +1,34 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { EmbeddingProfile, SaveEmbeddingProfileInput } from "@/features/embedding/types";
 
-let previewEmbeddingProfiles: EmbeddingProfile[] = [];
+let previewEmbeddingProfiles: EmbeddingProfile[] = [
+  {
+    id: "preview-bge",
+    name: "本地中文向量",
+    providerKind: "ollama",
+    baseUrl: "http://127.0.0.1:11434",
+    apiKey: null,
+    modelId: "bge-large-zh-v1.5",
+    dimensions: 1024,
+    batchSize: 16,
+    knowledgeBaseCount: 2,
+    createdAt: Date.now() - 8 * 86_400_000,
+    updatedAt: Date.now() - 3 * 86_400_000,
+  },
+  {
+    id: "preview-openai",
+    name: "OpenAI Embedding",
+    providerKind: "openai-compatible",
+    baseUrl: "https://api.openai.com/v1",
+    apiKey: "preview-key",
+    modelId: "text-embedding-3-large",
+    dimensions: 3072,
+    batchSize: 32,
+    knowledgeBaseCount: 2,
+    createdAt: Date.now() - 6 * 86_400_000,
+    updatedAt: Date.now() - 2 * 86_400_000,
+  },
+];
 
 export const listEmbeddingProfiles = () => {
   if (!isTauri()) {
