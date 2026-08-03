@@ -1,9 +1,7 @@
+use crate::db::config_db::EmbeddingProfile;
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use tauri::AppHandle;
-
-use crate::db::config_db::{self, EmbeddingProfile};
 
 #[derive(Debug)]
 pub struct ResolvedEmbeddingProfile {
@@ -170,31 +168,6 @@ impl OpenAiCompatibleEmbeddingProvider {
 
 pub fn default_embedding_provider() -> Result<Box<dyn TextEmbeddingProvider>, String> {
     Ok(Box::new(OpenAiCompatibleEmbeddingProvider::new()?))
-}
-
-pub fn resolve_default_embedding_profile(
-    app: &AppHandle,
-) -> Result<Option<ResolvedEmbeddingProfile>, String> {
-    let Some(profile) = config_db::default_embedding_profile(app)? else {
-        return Ok(None);
-    };
-
-    if !is_supported_embedding_provider_kind(&profile.provider_kind) {
-        return Ok(None);
-    }
-
-    if profile.provider_kind == "ollama" {
-        return Ok(Some(ResolvedEmbeddingProfile { profile }));
-    }
-
-    Ok(Some(ResolvedEmbeddingProfile { profile }))
-}
-
-fn is_supported_embedding_provider_kind(provider_kind: &str) -> bool {
-    matches!(
-        provider_kind,
-        "openai" | "openai-compatible" | "openai-responses" | "openai-completions" | "ollama"
-    )
 }
 
 fn embedding_endpoint(base_url: Option<&str>) -> String {

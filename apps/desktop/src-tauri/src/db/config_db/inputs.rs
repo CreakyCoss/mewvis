@@ -149,6 +149,7 @@ pub struct SaveKnowledgeCollectionInput {
     pub color: Option<String>,
     pub order: Option<i64>,
     pub enabled: bool,
+    pub embedding_profile_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -180,6 +181,13 @@ pub struct SetKnowledgeCollectionSourcesInput {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SetKnowledgeCollectionEmbeddingProfileInput {
+    pub collection_id: String,
+    pub embedding_profile_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SaveEmbeddingProfileInput {
     pub id: Option<String>,
     pub name: String,
@@ -189,5 +197,4 @@ pub struct SaveEmbeddingProfileInput {
     pub model_id: String,
     pub dimensions: i64,
     pub batch_size: Option<i64>,
-    pub is_default: bool,
 }

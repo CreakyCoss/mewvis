@@ -244,6 +244,7 @@ const CONFIG_TABLE_SCHEMAS: &[DatabaseTableSchema] = &[
             "color",
             "order",
             "enabled",
+            "embedding_profile_id",
             "created_at",
             "updated_at",
         ],
@@ -255,6 +256,7 @@ const CONFIG_TABLE_SCHEMAS: &[DatabaseTableSchema] = &[
                 color TEXT,
                 "order" INTEGER NOT NULL DEFAULT 0,
                 enabled INTEGER NOT NULL DEFAULT 1,
+                embedding_profile_id TEXT,
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL,
                 UNIQUE(name)

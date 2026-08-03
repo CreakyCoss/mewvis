@@ -1,23 +1,22 @@
-import type { EmbeddingProfile, KnowledgeIndexStatus, KnowledgeLibrary, KnowledgeSettings } from "../types";
+import type { KnowledgeIndexStatus, KnowledgeLibrary, KnowledgeSettings } from "../types";
 import type { KnowledgeBaseView } from "../ui-state";
 import { formatTime, statusLabel } from "../ui-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, FileText, Layers3, Loader2, RefreshCw, Settings2, Tags } from "lucide-react";
+import { ChevronRight, CircleAlert, FileText, Layers3, Loader2, RefreshCw, Settings2, Tags } from "lucide-react";
 
 type OverviewViewProps = {
   settings: KnowledgeSettings;
   isSavingSettings: boolean;
   isLoading: boolean;
-  defaultEmbeddingProfile: EmbeddingProfile | null;
-  embeddingSummary: string;
-  defaultEmbeddingBaseUrl: string;
   status: KnowledgeIndexStatus;
   isRebuilding: boolean;
   library: KnowledgeLibrary;
   enabledCollectionCount: number;
+  validEmbeddingBindingCount: number;
+  invalidEmbeddingBindingCount: number;
+  boundEmbeddingProfileCount: number;
   onChooseStorageDirectory: () => void;
-  onOpenEmbeddingDialog: () => void;
   onRequestRebuild: () => void;
   onViewChange: (view: KnowledgeBaseView) => void;
 };
@@ -26,15 +25,14 @@ export const OverviewView = ({
   settings,
   isSavingSettings,
   isLoading,
-  defaultEmbeddingProfile,
-  embeddingSummary,
-  defaultEmbeddingBaseUrl,
   status,
   isRebuilding,
   library,
   enabledCollectionCount,
+  validEmbeddingBindingCount,
+  invalidEmbeddingBindingCount,
+  boundEmbeddingProfileCount,
   onChooseStorageDirectory,
-  onOpenEmbeddingDialog,
   onRequestRebuild,
   onViewChange,
 }: OverviewViewProps) => (
@@ -84,23 +82,25 @@ export const OverviewView = ({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h3 className="truncate text-sm font-semibold">语义检索</h3>
-              <Badge variant={defaultEmbeddingProfile ? "outline" : "secondary"}>sqlite-vec</Badge>
+              <Badge variant="outline">sqlite-vec</Badge>
             </div>
             <div className="mt-0.5 truncate text-xs text-muted-foreground">
-              {defaultEmbeddingProfile ? "模型与地址已配置" : "未配置 Embedding"}
+              按已启用知识库的模型绑定生成和维护向量索引
             </div>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" onClick={onOpenEmbeddingDialog}>
-            <Settings2 className="size-4" />
-            <span>{defaultEmbeddingProfile ? "修改配置" : "配置模型"}</span>
-          </Button>
+        <div className="flex items-center gap-2">
           <Button
             type="button"
             variant="outline"
             onClick={onRequestRebuild}
-            disabled={isRebuilding || isLoading || library.sources.length === 0}
+            disabled={
+              isRebuilding ||
+              isLoading ||
+              invalidEmbeddingBindingCount > 0 ||
+              validEmbeddingBindingCount === 0 ||
+              library.sources.length === 0
+            }
           >
             {isRebuilding ? (
               <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
@@ -112,13 +112,38 @@ export const OverviewView = ({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_160px]">
-        <div className="rounded-lg border bg-muted/25 px-3 py-2.5">
-          <div className="text-xs text-muted-foreground">模型与地址</div>
-          <div className="mt-1 truncate text-sm font-medium">{embeddingSummary}</div>
-          <div className="mt-1 truncate font-mono text-xs text-muted-foreground">
-            {defaultEmbeddingBaseUrl || "未设置"}
+      <div
+        className={[
+          "mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-3",
+          invalidEmbeddingBindingCount > 0 ? "border-destructive/30 bg-destructive/7" : "bg-muted/25",
+        ].join(" ")}
+        role={invalidEmbeddingBindingCount > 0 ? "alert" : undefined}
+      >
+        <div className="flex min-w-0 items-start gap-2.5">
+          {invalidEmbeddingBindingCount > 0 && <CircleAlert className="mt-0.5 size-4 shrink-0 text-destructive" />}
+          <div className="min-w-0">
+            <div className="text-sm font-medium">
+              {invalidEmbeddingBindingCount > 0
+                ? `${invalidEmbeddingBindingCount} 个知识库的向量模型已失效`
+                : "每个知识库独立选择向量模型"}
+            </div>
+            <div className="mt-0.5 text-xs text-muted-foreground">
+              {invalidEmbeddingBindingCount > 0
+                ? "进入知识库管理，为失效的知识库手动选择新模型后再重建索引。"
+                : "模型配置不会在删除或变更时自动替换知识库已有绑定。"}
+            </div>
           </div>
+        </div>
+        <Badge variant={invalidEmbeddingBindingCount > 0 ? "destructive" : "outline"}>
+          {invalidEmbeddingBindingCount > 0 ? "需要处理" : `${validEmbeddingBindingCount} 个绑定可用`}
+        </Badge>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <div className="rounded-lg border bg-muted/25 px-3 py-2.5">
+          <div className="text-xs text-muted-foreground">向量模型</div>
+          <div className="mt-1 truncate text-sm font-medium">{boundEmbeddingProfileCount} 个配置参与索引</div>
+          <div className="mt-0.5 truncate text-xs text-muted-foreground">由各知识库独立绑定</div>
         </div>
         <div className="rounded-lg border bg-muted/25 px-3 py-2.5">
           <div className="text-xs text-muted-foreground">索引状态</div>
@@ -126,9 +151,11 @@ export const OverviewView = ({
           <div className="mt-0.5 text-xs text-muted-foreground">{formatTime(status.updatedAt)}</div>
         </div>
         <div className="rounded-lg border bg-muted/25 px-3 py-2.5">
-          <div className="text-xs text-muted-foreground">向量后端</div>
-          <div className="mt-1 text-sm font-medium">sqlite-vec</div>
-          <div className="mt-0.5 text-xs text-muted-foreground">{isRebuilding ? "重建中" : "就绪后参与检索"}</div>
+          <div className="text-xs text-muted-foreground">检索内容</div>
+          <div className="mt-1 text-sm font-medium">
+            {status.documentCount} 个文档 · {status.chunkCount} 个片段
+          </div>
+          <div className="mt-0.5 text-xs text-muted-foreground">来自 {enabledCollectionCount} 个已启用知识库</div>
         </div>
       </div>
     </div>
@@ -139,7 +166,7 @@ export const OverviewView = ({
         <div className="mt-2 text-2xl font-semibold">{library.sources.length}</div>
       </div>
       <div className="app-panel rounded-xl px-4 py-3">
-        <div className="text-xs text-muted-foreground">启用集合</div>
+        <div className="text-xs text-muted-foreground">启用知识库</div>
         <div className="mt-2 text-2xl font-semibold">{enabledCollectionCount}</div>
       </div>
       <div className="app-panel rounded-xl px-4 py-3">
@@ -180,12 +207,12 @@ export const OverviewView = ({
           <span className="mb-4 flex size-10 items-center justify-center rounded-xl bg-accent text-primary">
             <Tags className="size-4" />
           </span>
-          <span className="block text-base font-semibold">集合管理</span>
+          <span className="block text-base font-semibold">知识库管理</span>
           <span className="mt-1 block text-sm leading-6 text-muted-foreground">
-            创建集合、启用检索范围，并为集合分配已上传文件。
+            创建知识库、选择向量模型，并为知识库分配已上传文件。
           </span>
           <span className="mt-3 inline-flex text-xs text-muted-foreground">
-            {library.collections.length} 个集合，{enabledCollectionCount} 个参与检索
+            {library.collections.length} 个知识库，{enabledCollectionCount} 个参与检索
           </span>
         </span>
         <ChevronRight className="mt-1 size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />

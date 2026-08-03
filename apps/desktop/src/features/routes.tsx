@@ -5,7 +5,7 @@ import { WorkspaceChatRoute } from "@/features/pages/chats";
 import { HubPage } from "@/features/pages/hub";
 import { KnowledgePage } from "@/features/pages/knowledge";
 import { StoriesPage } from "@/features/pages/stories";
-import { AgentPage, LlmPage, SettingsPage, WorkflowPage } from "@/features/pages/settings";
+import { AgentPage, EmbeddingPage, LlmPage, SettingsPage, WorkflowPage } from "@/features/pages/settings";
 import { SkillsPage } from "@/features/pages/skills";
 
 export const AppRoutes = () => (
@@ -21,6 +21,7 @@ export const AppRoutes = () => (
         <Route path="hub" element={<HubPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="settings/llm" element={<LlmPage />} />
+        <Route path="settings/embedding" element={<EmbeddingPage />} />
         <Route path="settings/agent" element={<AgentPage />} />
         <Route path="settings/workflow" element={<WorkflowPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

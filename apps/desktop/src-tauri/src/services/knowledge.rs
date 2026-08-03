@@ -101,6 +101,11 @@ struct IndexSourceOutcome {
     chunks: Vec<IndexedChunkForEmbedding>,
 }
 
+struct EmbeddingSourceGroup {
+    profile: ResolvedEmbeddingProfile,
+    source_ids: BTreeSet<String>,
+}
+
 pub fn knowledge_index_status(app: &AppHandle) -> Result<KnowledgeIndexStatus, String> {
     let conn = open_index_connection(app)?;
     load_index_status(&conn)
@@ -172,6 +177,7 @@ pub fn rebuild_knowledge_index(
     source_ids: Option<Vec<String>>,
 ) -> Result<RebuildKnowledgeIndexResult, String> {
     let library = config_db::knowledge_library(app)?;
+    let embedding_groups = embedding_source_groups(app, &library, true)?;
     let selected_source_ids = source_ids.map(normalize_ids).filter(|ids| !ids.is_empty());
     let sources = library
         .sources
@@ -249,7 +255,9 @@ pub fn rebuild_knowledge_index(
         .map_err(|error| format!("无法提交知识库索引：{error}"))?;
 
     if errors.is_empty() {
-        if let Err(error) = rebuild_vector_index(app, &mut conn, &chunks_for_embedding) {
+        if let Err(error) =
+            rebuild_vector_index(&mut conn, &chunks_for_embedding, &embedding_groups)
+        {
             errors.push(format!("向量索引：{error}"));
             let (document_count, chunk_count) = index_counts(&conn)?;
             set_index_status(
@@ -284,7 +292,22 @@ pub fn search_enabled_knowledge(
     max_results: usize,
     min_score: f64,
 ) -> Result<KnowledgeSearchResult, String> {
-    let enabled_source_ids = config_db::enabled_knowledge_source_ids(app)?;
+    let library = config_db::knowledge_library(app)?;
+    let embedding_groups = embedding_source_groups(app, &library, false)?;
+    let enabled_source_ids = library
+        .collections
+        .iter()
+        .filter(|collection| collection.enabled)
+        .flat_map(|collection| collection.source_ids.iter().cloned())
+        .filter(|source_id| {
+            library
+                .sources
+                .iter()
+                .any(|source| source.id == *source_id && source.enabled)
+        })
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
     if query.trim().is_empty() || enabled_source_ids.is_empty() {
         return Ok(KnowledgeSearchResult {
             matches: Vec::new(),
@@ -302,8 +325,8 @@ pub fn search_enabled_knowledge(
     }
     let max_results = max_results.clamp(1, 20);
     let fts_matches = search_fts(&conn, &enabled_source_ids, query, max_results, min_score)?;
-    let vector_matches = search_vector(app, &conn, &enabled_source_ids, query, max_results)
-        .unwrap_or_else(|_| Vec::new());
+    let vector_matches =
+        search_vector(&conn, &embedding_groups, query, max_results).unwrap_or_else(|_| Vec::new());
     let mut matches = merge_search_matches(fts_matches, vector_matches, max_results, min_score);
 
     if matches.is_empty() {
@@ -662,39 +685,52 @@ fn index_source(conn: &Connection, source: &KnowledgeSource) -> Result<IndexSour
 }
 
 fn rebuild_vector_index(
-    app: &AppHandle,
     conn: &mut Connection,
     chunks: &[IndexedChunkForEmbedding],
+    groups: &[EmbeddingSourceGroup],
 ) -> Result<(), String> {
-    let Some(profile) = embeddings::resolve_default_embedding_profile(app)? else {
-        return Ok(());
-    };
     if chunks.is_empty() {
         return Ok(());
     }
 
     let vector_store = vector_store::default_vector_store();
-    vector_store.ensure_schema(conn, profile.profile.dimensions)?;
     let embedding_provider = embeddings::default_embedding_provider()?;
-    let batch_size = effective_embedding_batch_size(&profile);
 
-    for batch in chunks.chunks(batch_size) {
-        let texts = batch
+    for group in groups {
+        let profile = &group.profile;
+        let profile_chunks = chunks
             .iter()
-            .map(|chunk| chunk.content.clone())
+            .filter(|chunk| group.source_ids.contains(&chunk.source_id))
             .collect::<Vec<_>>();
-        let vectors = embedding_provider.embed_texts(&profile, &texts)?;
-        let embeddings = batch
-            .iter()
-            .zip(vectors)
-            .map(|(chunk, vector)| vector_embedding_from_chunk(&profile, chunk, vector))
-            .collect::<Vec<_>>();
-        let tx = conn
-            .transaction()
-            .map_err(|error| format!("无法开始写入向量索引：{error}"))?;
-        vector_store.insert_embeddings(&tx, &embeddings)?;
-        tx.commit()
-            .map_err(|error| format!("无法提交向量索引：{error}"))?;
+        if profile_chunks.is_empty() {
+            continue;
+        }
+        vector_store.ensure_schema(
+            conn,
+            &profile.profile.id,
+            &profile.profile.model_id,
+            profile.profile.dimensions,
+        )?;
+        let batch_size = effective_embedding_batch_size(profile);
+
+        for batch in profile_chunks.chunks(batch_size) {
+            let texts = batch
+                .iter()
+                .map(|chunk| chunk.content.clone())
+                .collect::<Vec<_>>();
+            let vectors = embedding_provider.embed_texts(profile, &texts)?;
+            let embeddings = batch
+                .iter()
+                .zip(vectors)
+                .map(|(chunk, vector)| vector_embedding_from_chunk(profile, chunk, vector))
+                .collect::<Vec<_>>();
+            let tx = conn
+                .transaction()
+                .map_err(|error| format!("无法开始写入向量索引：{error}"))?;
+            vector_store.insert_embeddings(&tx, &embeddings)?;
+            tx.commit()
+                .map_err(|error| format!("无法提交向量索引：{error}"))?;
+        }
     }
 
     Ok(())
@@ -970,35 +1006,46 @@ fn overlap_tail(content: &str) -> String {
 }
 
 fn search_vector(
-    app: &AppHandle,
     conn: &Connection,
-    source_ids: &[String],
+    groups: &[EmbeddingSourceGroup],
     query: &str,
     max_results: usize,
 ) -> Result<Vec<KnowledgeSearchMatch>, String> {
-    let Some(profile) = embeddings::resolve_default_embedding_profile(app)? else {
-        return Ok(Vec::new());
-    };
     let embedding_provider = embeddings::default_embedding_provider()?;
     let query_texts = vec![query.trim().to_string()];
-    let query_embeddings = embedding_provider.embed_texts(&profile, &query_texts)?;
-    let Some(query_vector) = query_embeddings.first() else {
-        return Ok(Vec::new());
-    };
-
-    let vector_hits =
-        vector_store::default_vector_store().search(conn, query_vector, source_ids, max_results)?;
+    let vector_store = vector_store::default_vector_store();
+    let mut vector_hits_by_chunk = BTreeMap::new();
+    for group in groups {
+        let query_embeddings = embedding_provider.embed_texts(&group.profile, &query_texts)?;
+        let Some(query_vector) = query_embeddings.first() else {
+            continue;
+        };
+        let source_ids = group.source_ids.iter().cloned().collect::<Vec<_>>();
+        for hit in vector_store.search(
+            conn,
+            &group.profile.profile.id,
+            &group.profile.profile.model_id,
+            query_vector,
+            &source_ids,
+            max_results,
+        )? {
+            vector_hits_by_chunk
+                .entry(hit.chunk_id)
+                .and_modify(|score: &mut f64| *score = score.max(hit.score))
+                .or_insert(hit.score);
+        }
+    }
+    let mut vector_hits = vector_hits_by_chunk.into_iter().collect::<Vec<_>>();
+    vector_hits.sort_by(|left, right| right.1.total_cmp(&left.1));
+    vector_hits.truncate(max_results);
     if vector_hits.is_empty() {
         return Ok(Vec::new());
     }
 
-    let scores_by_chunk_id = vector_hits
-        .iter()
-        .map(|hit| (hit.chunk_id.clone(), hit.score))
-        .collect::<BTreeMap<_, _>>();
+    let scores_by_chunk_id = vector_hits.iter().cloned().collect::<BTreeMap<_, _>>();
     let chunk_ids = vector_hits
         .iter()
-        .map(|hit| hit.chunk_id.clone())
+        .map(|(chunk_id, _)| chunk_id.clone())
         .collect::<Vec<_>>();
     let mut matches_by_id = load_matches_by_chunk_ids(conn, &chunk_ids)?;
 
@@ -1012,6 +1059,69 @@ fn search_vector(
         .collect::<Vec<_>>();
 
     Ok(matches)
+}
+
+fn embedding_source_groups(
+    app: &AppHandle,
+    library: &KnowledgeLibrary,
+    require_valid_bindings: bool,
+) -> Result<Vec<EmbeddingSourceGroup>, String> {
+    let profiles = config_db::embedding_profiles(app)?;
+    let profiles_by_id = profiles
+        .into_iter()
+        .map(|profile| (profile.id.clone(), profile))
+        .collect::<BTreeMap<_, _>>();
+    let enabled_source_ids = library
+        .sources
+        .iter()
+        .filter(|source| source.enabled)
+        .map(|source| source.id.clone())
+        .collect::<BTreeSet<_>>();
+    let mut source_ids_by_profile = BTreeMap::<String, BTreeSet<String>>::new();
+    let mut invalid_collections = Vec::new();
+
+    for collection in library
+        .collections
+        .iter()
+        .filter(|collection| collection.enabled)
+    {
+        let Some(profile_id) = collection.embedding_profile_id.as_deref() else {
+            invalid_collections.push(collection.name.clone());
+            continue;
+        };
+        if !profiles_by_id.contains_key(profile_id) {
+            invalid_collections.push(collection.name.clone());
+            continue;
+        }
+        let profile_source_ids = source_ids_by_profile
+            .entry(profile_id.to_string())
+            .or_default();
+        profile_source_ids.extend(
+            collection
+                .source_ids
+                .iter()
+                .filter(|source_id| enabled_source_ids.contains(*source_id))
+                .cloned(),
+        );
+    }
+
+    if require_valid_bindings && !invalid_collections.is_empty() {
+        return Err(format!(
+            "以下知识库的向量模型已失效，请先重新选择：{}",
+            invalid_collections.join("、")
+        ));
+    }
+
+    Ok(source_ids_by_profile
+        .into_iter()
+        .filter_map(|(profile_id, source_ids)| {
+            let profile = profiles_by_id.get(&profile_id)?.clone();
+            Some(EmbeddingSourceGroup {
+                profile: ResolvedEmbeddingProfile { profile },
+                source_ids,
+            })
+        })
+        .collect())
 }
 
 fn load_matches_by_chunk_ids(

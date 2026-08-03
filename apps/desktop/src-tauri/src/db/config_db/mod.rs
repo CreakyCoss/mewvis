@@ -19,14 +19,15 @@ pub use inputs::{
     ImportStoryRecordInput, SaveAiAgentInput, SaveCollaborationWorkflowInput,
     SaveEmbeddingProfileInput, SaveKnowledgeCollectionInput, SaveKnowledgeSettingsInput,
     SaveKnowledgeSourceInput, SaveLlmProviderInput, SaveLlmSettingsInput, SaveProviderModelInput,
-    SaveSkillGroupInput, SaveSkillsInput, SetKnowledgeCollectionSourcesInput,
-    UpdateStoryRecordInput, UpdateWorkspaceInput,
+    SaveSkillGroupInput, SaveSkillsInput, SetKnowledgeCollectionEmbeddingProfileInput,
+    SetKnowledgeCollectionSourcesInput, UpdateStoryRecordInput, UpdateWorkspaceInput,
 };
 pub use knowledge::{
-    default_embedding_profile, delete_knowledge_collection, delete_knowledge_source,
-    embedding_profiles, enabled_knowledge_source_ids, knowledge_library, knowledge_settings,
-    save_embedding_profile, save_knowledge_collection, save_knowledge_settings,
-    save_knowledge_source, set_knowledge_collection_sources,
+    delete_embedding_profile, delete_knowledge_collection, delete_knowledge_source,
+    embedding_profile, embedding_profiles, enabled_knowledge_source_ids, knowledge_library,
+    knowledge_settings, save_embedding_profile, save_knowledge_collection, save_knowledge_settings,
+    save_knowledge_source, set_knowledge_collection_embedding_profile,
+    set_knowledge_collection_sources,
 };
 pub use llm::{llm_settings, save_llm_settings};
 pub use models::{

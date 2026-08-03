@@ -1,31 +1,30 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { ArrowLeft, Database, Loader2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { listEmbeddingProfiles } from "@/api/embedding";
 import {
   deleteKnowledgeCollection,
   deleteKnowledgeSource,
   getKnowledgeIndexStatus,
   getKnowledgeSettings,
   importKnowledgeFiles,
-  listEmbeddingProfiles,
   listKnowledgeLibrary,
   rebuildKnowledgeIndex,
-  saveEmbeddingProfile,
   saveKnowledgeCollection,
   saveKnowledgeSettings,
+  setKnowledgeCollectionEmbeddingProfile,
   setKnowledgeCollectionSources,
 } from "@/api/knowledge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import type { EmbeddingProfile } from "@/features/embedding/types";
 import { CollectionDetailsDialog, CollectionFormDialog } from "./collection-dialogs";
 import { CollectionsView } from "./collections-view";
-import { DeleteConfirmDialog, KnowledgeActionConfirmDialog } from "./confirm-dialogs";
-import { EmbeddingConfigDialog } from "./embedding-config-dialog";
+import { DeleteConfirmDialog, RebuildIndexConfirmDialog } from "./confirm-dialogs";
 import { FilesView } from "./files-view";
 import { OverviewView } from "./overview-view";
 import type {
-  EmbeddingProfile,
   KnowledgeCollection,
   KnowledgeIndexStatus,
   KnowledgeLibrary,
@@ -33,19 +32,13 @@ import type {
   KnowledgeSource,
 } from "../types";
 import {
-  embeddingDraftFromProfile,
   emptyCollectionDraft,
-  emptyEmbeddingDraft,
   emptyLibrary,
   emptySettings,
-  localOllamaBaseUrl,
-  localOllamaModelOptions,
   missingStatus,
-  openAiCompatibleEmbeddingModelOptions,
   supportedTextExtensions,
   type KnowledgeBaseView,
   type PendingDeleteTarget,
-  type PendingKnowledgeAction,
 } from "../ui-state";
 
 type KnowledgeBasePageProps = {
@@ -56,14 +49,12 @@ export const KnowledgeBasePage = ({ onBack }: KnowledgeBasePageProps) => {
   const [library, setLibrary] = useState<KnowledgeLibrary>(emptyLibrary);
   const [settings, setSettings] = useState<KnowledgeSettings>(emptySettings);
   const [embeddingProfiles, setEmbeddingProfiles] = useState<EmbeddingProfile[]>([]);
-  const [embeddingDraft, setEmbeddingDraft] = useState(emptyEmbeddingDraft);
   const [status, setStatus] = useState<KnowledgeIndexStatus>(missingStatus);
   const [isLoading, setIsLoading] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [isRebuilding, setIsRebuilding] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
-  const [isSavingEmbedding, setIsSavingEmbedding] = useState(false);
-  const [isEmbeddingDialogOpen, setIsEmbeddingDialogOpen] = useState(false);
+  const [isSelectingEmbedding, setIsSelectingEmbedding] = useState(false);
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
   const [isCollectionDialogOpen, setIsCollectionDialogOpen] = useState(false);
   const [isCollectionDetailsDialogOpen, setIsCollectionDetailsDialogOpen] = useState(false);
@@ -73,7 +64,7 @@ export const KnowledgeBasePage = ({ onBack }: KnowledgeBasePageProps) => {
   const [isSavingMembership, setIsSavingMembership] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<PendingDeleteTarget | null>(null);
-  const [pendingKnowledgeAction, setPendingKnowledgeAction] = useState<PendingKnowledgeAction>(null);
+  const [isRebuildConfirmOpen, setIsRebuildConfirmOpen] = useState(false);
   const [error, setError] = useState("");
   const [view, setView] = useState<KnowledgeBaseView>("overview");
 
@@ -88,6 +79,33 @@ export const KnowledgeBasePage = ({ onBack }: KnowledgeBasePageProps) => {
   const activeCollectionSources = useMemo(
     () => (activeCollection ? library.sources.filter((source) => activeCollection.sourceIds.includes(source.id)) : []),
     [activeCollection, library.sources],
+  );
+  const embeddingProfilesById = useMemo(
+    () => new Map(embeddingProfiles.map((profile) => [profile.id, profile])),
+    [embeddingProfiles],
+  );
+  const validEnabledCollections = useMemo(
+    () =>
+      library.collections.filter(
+        (collection) =>
+          collection.enabled &&
+          Boolean(collection.embeddingProfileId) &&
+          embeddingProfilesById.has(collection.embeddingProfileId ?? ""),
+      ),
+    [embeddingProfilesById, library.collections],
+  );
+  const invalidEnabledCollections = useMemo(
+    () =>
+      library.collections.filter(
+        (collection) =>
+          collection.enabled &&
+          (!collection.embeddingProfileId || !embeddingProfilesById.has(collection.embeddingProfileId)),
+      ),
+    [embeddingProfilesById, library.collections],
+  );
+  const boundEmbeddingProfileCount = useMemo(
+    () => new Set(validEnabledCollections.map((collection) => collection.embeddingProfileId)).size,
+    [validEnabledCollections],
   );
   const enabledCollectionNamesBySourceId = useMemo(() => {
     const namesBySourceId = new Map<string, string[]>();
@@ -105,44 +123,18 @@ export const KnowledgeBasePage = ({ onBack }: KnowledgeBasePageProps) => {
 
     return namesBySourceId;
   }, [library.collections]);
-  const defaultEmbeddingProfile = useMemo(
-    () => embeddingProfiles.find((profile) => profile.isDefault) ?? embeddingProfiles[0] ?? null,
-    [embeddingProfiles],
-  );
-  const isLocalOllamaEmbedding = embeddingDraft.providerKind === "ollama";
-  const embeddingModelOptions = useMemo(
-    () => (isLocalOllamaEmbedding ? localOllamaModelOptions : openAiCompatibleEmbeddingModelOptions),
-    [isLocalOllamaEmbedding],
-  );
-  const defaultEmbeddingProviderLabel =
-    defaultEmbeddingProfile?.providerKind === "ollama" ? "本地 Ollama" : "OpenAI-compatible";
-  const defaultEmbeddingBaseUrl =
-    defaultEmbeddingProfile?.providerKind === "ollama"
-      ? defaultEmbeddingProfile.baseUrl || localOllamaBaseUrl
-      : defaultEmbeddingProfile?.baseUrl || "";
-  const embeddingSummary = defaultEmbeddingProfile
-    ? `${defaultEmbeddingProviderLabel} · ${defaultEmbeddingProfile.modelId} · ${defaultEmbeddingProfile.dimensions} 维`
-    : "未配置 Embedding";
-  const isEmbeddingConfigChanged = Boolean(
-    defaultEmbeddingProfile &&
-    (defaultEmbeddingProfile.providerKind !== embeddingDraft.providerKind ||
-      (defaultEmbeddingProfile.baseUrl ?? "") !== (embeddingDraft.baseUrl.trim() || "") ||
-      (defaultEmbeddingProfile.apiKey ?? "") !== (embeddingDraft.apiKey.trim() || "") ||
-      defaultEmbeddingProfile.modelId !== embeddingDraft.modelId.trim() ||
-      defaultEmbeddingProfile.dimensions !== Math.floor(embeddingDraft.dimensions)),
-  );
   const viewTitle = (
     {
-      overview: "全局知识库",
+      overview: "知识库",
       files: "上传文件",
-      collections: "集合管理",
+      collections: "知识库管理",
     } as const
   )[view];
   const viewDescription = (
     {
-      overview: "管理资料来源、启用集合，以及知识检索使用的向量索引。",
+      overview: "管理多个知识库、资料来源，以及各自使用的向量模型。",
       files: "设置知识库目录，上传文本文件并维护已导入来源。",
-      collections: "创建集合，启用参与检索的集合，并分配已上传文件。",
+      collections: "创建知识库，选择向量模型，并分配已上传文件。",
     } as const
   )[view];
 
@@ -150,8 +142,9 @@ export const KnowledgeBasePage = ({ onBack }: KnowledgeBasePageProps) => {
     setIsLoading(true);
     setError("");
     try {
-      const [nextLibrary, nextStatus] = await Promise.all([listKnowledgeLibrary(), getKnowledgeIndexStatus()]);
-      const [nextSettings, nextEmbeddingProfiles] = await Promise.all([
+      const [nextLibrary, nextStatus, nextSettings, nextEmbeddingProfiles] = await Promise.all([
+        listKnowledgeLibrary(),
+        getKnowledgeIndexStatus(),
         getKnowledgeSettings(),
         listEmbeddingProfiles(),
       ]);
@@ -159,11 +152,6 @@ export const KnowledgeBasePage = ({ onBack }: KnowledgeBasePageProps) => {
       setStatus(nextStatus);
       setSettings(nextSettings);
       setEmbeddingProfiles(nextEmbeddingProfiles);
-      setEmbeddingDraft(
-        embeddingDraftFromProfile(
-          nextEmbeddingProfiles.find((profile) => profile.isDefault) ?? nextEmbeddingProfiles[0] ?? null,
-        ),
-      );
     } catch (caught) {
       setError(String(caught));
     } finally {
@@ -276,7 +264,7 @@ export const KnowledgeBasePage = ({ onBack }: KnowledgeBasePageProps) => {
   const requestRemoveSource = (source: KnowledgeSource) => {
     const blockingCollectionNames = enabledCollectionNamesBySourceId.get(source.id) ?? [];
     if (blockingCollectionNames.length > 0) {
-      setError(`文件已被启用集合使用，请先从集合中移除：${blockingCollectionNames.join("、")}`);
+      setError(`文件已被启用知识库使用，请先从知识库中移除：${blockingCollectionNames.join("、")}`);
       return;
     }
 
@@ -298,98 +286,45 @@ export const KnowledgeBasePage = ({ onBack }: KnowledgeBasePageProps) => {
   };
 
   const requestRebuild = () => {
-    setPendingKnowledgeAction("rebuild-index");
+    setIsRebuildConfirmOpen(true);
   };
 
-  const openEmbeddingDialog = () => {
-    setEmbeddingDraft(embeddingDraftFromProfile(defaultEmbeddingProfile));
-    setIsEmbeddingDialogOpen(true);
-  };
-
-  const embeddingDraftValidationError = () => {
-    if (!embeddingDraft.providerKind) {
-      return "请选择 Embedding Provider";
-    }
-    if (!embeddingDraft.modelId.trim()) {
-      return "请选择或填写 Embedding 模型";
-    }
-    if (!Number.isFinite(embeddingDraft.dimensions) || embeddingDraft.dimensions <= 0) {
-      return "Embedding 维度必须大于 0";
-    }
-    if (!Number.isFinite(embeddingDraft.batchSize) || embeddingDraft.batchSize <= 0) {
-      return "Embedding 批量大小必须大于 0";
-    }
-
-    return null;
-  };
-
-  const requestSaveDefaultEmbeddingProfile = () => {
-    const validationError = embeddingDraftValidationError();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
-    setError("");
-    setPendingKnowledgeAction("save-embedding");
-  };
-
-  const saveDefaultEmbeddingProfile = async () => {
-    const validationError = embeddingDraftValidationError();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
-    setIsSavingEmbedding(true);
+  const selectEmbeddingProfile = async (collectionId: string, profileId: string) => {
+    const collection = library.collections.find((item) => item.id === collectionId);
+    if (!profileId || profileId === collection?.embeddingProfileId) return;
+    setIsSelectingEmbedding(true);
     setError("");
     try {
-      const nextProfiles = await saveEmbeddingProfile({
-        id: embeddingDraft.id,
-        name: embeddingDraft.name,
-        providerKind: isLocalOllamaEmbedding ? "ollama" : "openai-compatible",
-        baseUrl: embeddingDraft.baseUrl.trim() || null,
-        apiKey: isLocalOllamaEmbedding ? null : embeddingDraft.apiKey.trim() || null,
-        modelId: embeddingDraft.modelId.trim(),
-        dimensions: Math.floor(embeddingDraft.dimensions),
-        batchSize: Math.floor(embeddingDraft.batchSize),
-        isDefault: true,
-      });
-      setEmbeddingProfiles(nextProfiles);
-      setEmbeddingDraft(
-        embeddingDraftFromProfile(nextProfiles.find((profile) => profile.isDefault) ?? nextProfiles[0] ?? null),
-      );
+      applySavedLibrary(await setKnowledgeCollectionEmbeddingProfile(collectionId, profileId));
       setStatus(await getKnowledgeIndexStatus());
-      setIsEmbeddingDialogOpen(false);
     } catch (caught) {
       setError(String(caught));
     } finally {
-      setIsSavingEmbedding(false);
+      setIsSelectingEmbedding(false);
     }
   };
 
-  const confirmKnowledgeAction = async () => {
-    if (pendingKnowledgeAction === "rebuild-index") {
-      setPendingKnowledgeAction(null);
-      await rebuild();
-      return;
-    }
-
-    if (pendingKnowledgeAction === "save-embedding") {
-      setPendingKnowledgeAction(null);
-      await saveDefaultEmbeddingProfile();
-    }
+  const confirmRebuild = async () => {
+    setIsRebuildConfirmOpen(false);
+    await rebuild();
   };
 
   const startNewCollection = () => {
-    setCollectionDraft(emptyCollectionDraft());
+    setCollectionDraft({
+      ...emptyCollectionDraft(),
+      embeddingProfileId: embeddingProfiles[0]?.id ?? "",
+    });
     setIsCollectionDialogOpen(true);
   };
 
   const saveCollection = async () => {
     const name = collectionDraft.name.trim();
     if (!name) {
-      setError("知识集合名称不能为空");
+      setError("知识库名称不能为空");
+      return;
+    }
+    if (!collectionDraft.embeddingProfileId) {
+      setError("请先在设置中添加 Embedding 配置，并为知识库选择向量模型");
       return;
     }
 
@@ -403,6 +338,7 @@ export const KnowledgeBasePage = ({ onBack }: KnowledgeBasePageProps) => {
         color: null,
         order: collectionDraft.id ? (activeCollection?.order ?? 0) : library.collections.length,
         enabled: true,
+        embeddingProfileId: collectionDraft.embeddingProfileId,
       });
       applySavedLibrary(nextLibrary);
 
@@ -464,6 +400,7 @@ export const KnowledgeBasePage = ({ onBack }: KnowledgeBasePageProps) => {
           color: collection.color,
           order: collection.order,
           enabled,
+          embeddingProfileId: collection.embeddingProfileId,
         }),
       );
     } catch (caught) {
@@ -485,7 +422,7 @@ export const KnowledgeBasePage = ({ onBack }: KnowledgeBasePageProps) => {
 
   const saveCollectionSources = async () => {
     if (!activeCollectionId) {
-      setError("请先保存或选择一个知识集合");
+      setError("请先保存或选择一个知识库");
       return;
     }
 
@@ -587,15 +524,14 @@ export const KnowledgeBasePage = ({ onBack }: KnowledgeBasePageProps) => {
                 settings={settings}
                 isSavingSettings={isSavingSettings}
                 isLoading={isLoading}
-                defaultEmbeddingProfile={defaultEmbeddingProfile}
-                embeddingSummary={embeddingSummary}
-                defaultEmbeddingBaseUrl={defaultEmbeddingBaseUrl}
                 status={status}
                 isRebuilding={isRebuilding}
                 library={library}
                 enabledCollectionCount={enabledCollectionCount}
+                validEmbeddingBindingCount={validEnabledCollections.length}
+                invalidEmbeddingBindingCount={invalidEnabledCollections.length}
+                boundEmbeddingProfileCount={boundEmbeddingProfileCount}
                 onChooseStorageDirectory={() => void chooseStorageDirectory()}
-                onOpenEmbeddingDialog={openEmbeddingDialog}
                 onRequestRebuild={requestRebuild}
                 onViewChange={setView}
               />
@@ -614,6 +550,7 @@ export const KnowledgeBasePage = ({ onBack }: KnowledgeBasePageProps) => {
                 collections={library.collections}
                 activeCollectionId={activeCollectionId}
                 enabledCollectionCount={enabledCollectionCount}
+                embeddingProfiles={embeddingProfiles}
                 onStartNewCollection={startNewCollection}
                 onOpenCollectionDetails={openCollectionDetails}
                 onToggleCollectionEnabled={(collection, enabled) => void toggleCollectionEnabled(collection, enabled)}
@@ -633,28 +570,15 @@ export const KnowledgeBasePage = ({ onBack }: KnowledgeBasePageProps) => {
         }}
         onConfirm={() => void confirmPendingDelete()}
       />
-      <KnowledgeActionConfirmDialog
-        pendingAction={pendingKnowledgeAction}
+      <RebuildIndexConfirmDialog
+        open={isRebuildConfirmOpen}
         isRebuilding={isRebuilding}
-        isSavingEmbedding={isSavingEmbedding}
         onOpenChange={(open) => {
-          if (!open && !isRebuilding && !isSavingEmbedding) {
-            setPendingKnowledgeAction(null);
+          if (!isRebuilding) {
+            setIsRebuildConfirmOpen(open);
           }
         }}
-        onConfirm={() => void confirmKnowledgeAction()}
-      />
-      <EmbeddingConfigDialog
-        open={isEmbeddingDialogOpen}
-        embeddingDraft={embeddingDraft}
-        defaultEmbeddingProfile={defaultEmbeddingProfile}
-        embeddingModelOptions={embeddingModelOptions}
-        isLocalOllamaEmbedding={isLocalOllamaEmbedding}
-        isEmbeddingConfigChanged={isEmbeddingConfigChanged}
-        isSavingEmbedding={isSavingEmbedding}
-        setEmbeddingDraft={setEmbeddingDraft}
-        onOpenChange={setIsEmbeddingDialogOpen}
-        onRequestSave={requestSaveDefaultEmbeddingProfile}
+        onConfirm={() => void confirmRebuild()}
       />
       <CollectionDetailsDialog
         open={isCollectionDetailsDialogOpen}
@@ -662,15 +586,21 @@ export const KnowledgeBasePage = ({ onBack }: KnowledgeBasePageProps) => {
         activeCollectionSources={activeCollectionSources}
         sources={library.sources}
         settings={settings}
+        embeddingProfiles={embeddingProfiles}
         collectionSourceIds={collectionSourceIds}
         isSavingMembership={isSavingMembership}
+        isSavingEmbeddingProfile={isSelectingEmbedding}
         onOpenChange={handleCollectionDetailsOpenChange}
         onToggleCollectionSource={toggleCollectionSource}
+        onEmbeddingProfileChange={(profileId) => {
+          if (activeCollectionId) void selectEmbeddingProfile(activeCollectionId, profileId);
+        }}
         onSaveCollectionSources={() => void saveCollectionSources()}
       />
       <CollectionFormDialog
         open={isCollectionDialogOpen}
         collectionDraft={collectionDraft}
+        embeddingProfiles={embeddingProfiles}
         isSavingCollection={isSavingCollection}
         setCollectionDraft={setCollectionDraft}
         onOpenChange={setIsCollectionDialogOpen}

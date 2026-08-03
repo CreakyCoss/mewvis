@@ -1,7 +1,7 @@
 use crate::db::config_db::{
     self, EmbeddingProfile, KnowledgeLibrary, KnowledgeSettings, SaveEmbeddingProfileInput,
     SaveKnowledgeCollectionInput, SaveKnowledgeSettingsInput, SaveKnowledgeSourceInput,
-    SetKnowledgeCollectionSourcesInput,
+    SetKnowledgeCollectionEmbeddingProfileInput, SetKnowledgeCollectionSourcesInput,
 };
 use crate::services::knowledge::{
     self as knowledge_service, KnowledgeIndexStatus, RebuildKnowledgeIndexResult,
@@ -41,9 +41,63 @@ pub fn save_embedding_profile(
     app: AppHandle,
     input: SaveEmbeddingProfileInput,
 ) -> Result<Vec<EmbeddingProfile>, String> {
+    let previous_profile = input
+        .id
+        .as_deref()
+        .map(|id| config_db::embedding_profile(&app, id))
+        .transpose()?
+        .flatten();
     let profiles = config_db::save_embedding_profile(&app, input)?;
-    knowledge_service::mark_knowledge_index_stale(&app)?;
+    let next_profile = previous_profile
+        .as_ref()
+        .and_then(|previous| profiles.iter().find(|profile| profile.id == previous.id));
+    let affected_knowledge_bases = next_profile
+        .map(|profile| profile.knowledge_base_count)
+        .or_else(|| {
+            previous_profile
+                .as_ref()
+                .map(|profile| profile.knowledge_base_count)
+        })
+        .unwrap_or(0);
+    if affected_knowledge_bases > 0
+        && embedding_index_profile_changed(previous_profile.as_ref(), next_profile)
+    {
+        knowledge_service::mark_knowledge_index_stale(&app)?;
+    }
     Ok(profiles)
+}
+
+#[tauri::command]
+pub fn delete_embedding_profile(
+    app: AppHandle,
+    profile_id: String,
+) -> Result<Vec<EmbeddingProfile>, String> {
+    let previous_profile = config_db::embedding_profile(&app, &profile_id)?;
+    let profiles = config_db::delete_embedding_profile(&app, &profile_id)?;
+    if previous_profile
+        .as_ref()
+        .is_some_and(|profile| profile.knowledge_base_count > 0)
+    {
+        knowledge_service::mark_knowledge_index_stale(&app)?;
+    }
+    Ok(profiles)
+}
+
+fn embedding_index_profile_changed(
+    previous: Option<&EmbeddingProfile>,
+    next: Option<&EmbeddingProfile>,
+) -> bool {
+    match (previous, next) {
+        (None, None) => false,
+        (Some(previous), Some(next)) => {
+            previous.id != next.id
+                || previous.provider_kind != next.provider_kind
+                || previous.base_url != next.base_url
+                || previous.model_id != next.model_id
+                || previous.dimensions != next.dimensions
+        }
+        _ => true,
+    }
 }
 
 #[tauri::command]
@@ -72,7 +126,9 @@ pub fn save_knowledge_collection(
     app: AppHandle,
     input: SaveKnowledgeCollectionInput,
 ) -> Result<KnowledgeLibrary, String> {
-    config_db::save_knowledge_collection(&app, input)
+    let library = config_db::save_knowledge_collection(&app, input)?;
+    knowledge_service::mark_knowledge_index_stale(&app)?;
+    Ok(library)
 }
 
 #[tauri::command]
@@ -80,7 +136,9 @@ pub fn delete_knowledge_collection(
     app: AppHandle,
     collection_id: String,
 ) -> Result<KnowledgeLibrary, String> {
-    config_db::delete_knowledge_collection(&app, &collection_id)
+    let library = config_db::delete_knowledge_collection(&app, &collection_id)?;
+    knowledge_service::mark_knowledge_index_stale(&app)?;
+    Ok(library)
 }
 
 #[tauri::command]
@@ -116,5 +174,17 @@ pub fn set_knowledge_collection_sources(
     app: AppHandle,
     input: SetKnowledgeCollectionSourcesInput,
 ) -> Result<KnowledgeLibrary, String> {
-    config_db::set_knowledge_collection_sources(&app, input)
+    let library = config_db::set_knowledge_collection_sources(&app, input)?;
+    knowledge_service::mark_knowledge_index_stale(&app)?;
+    Ok(library)
+}
+
+#[tauri::command]
+pub fn set_knowledge_collection_embedding_profile(
+    app: AppHandle,
+    input: SetKnowledgeCollectionEmbeddingProfileInput,
+) -> Result<KnowledgeLibrary, String> {
+    let library = config_db::set_knowledge_collection_embedding_profile(&app, input)?;
+    knowledge_service::mark_knowledge_index_stale(&app)?;
+    Ok(library)
 }

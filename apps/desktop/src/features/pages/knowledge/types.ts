@@ -7,6 +7,7 @@ export type KnowledgeCollection = {
   color: string | null;
   order: number;
   enabled: boolean;
+  embeddingProfileId: string | null;
   sourceIds: string[];
   createdAt: number;
   updatedAt: number;
@@ -35,20 +36,6 @@ export type KnowledgeSettings = {
   storageDirectory: string | null;
 };
 
-export type EmbeddingProfile = {
-  id: string;
-  name: string;
-  providerKind: string;
-  baseUrl: string | null;
-  apiKey: string | null;
-  modelId: string;
-  dimensions: number;
-  batchSize: number;
-  isDefault: boolean;
-  createdAt: number;
-  updatedAt: number;
-};
-
 export type SaveKnowledgeCollectionInput = {
   id?: string | null;
   name: string;
@@ -56,6 +43,7 @@ export type SaveKnowledgeCollectionInput = {
   color?: string | null;
   order?: number | null;
   enabled: boolean;
+  embeddingProfileId?: string | null;
 };
 
 export type SaveKnowledgeSourceInput = {
@@ -72,18 +60,6 @@ export type SaveKnowledgeSourceInput = {
 
 export type SaveKnowledgeSettingsInput = {
   storageDirectory?: string | null;
-};
-
-export type SaveEmbeddingProfileInput = {
-  id?: string | null;
-  name: string;
-  providerKind: string;
-  baseUrl?: string | null;
-  apiKey?: string | null;
-  modelId: string;
-  dimensions: number;
-  batchSize?: number | null;
-  isDefault: boolean;
 };
 
 export type KnowledgeSearchMatch = {

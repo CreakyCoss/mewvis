@@ -147,6 +147,7 @@ pub struct KnowledgeCollection {
     pub color: Option<String>,
     pub order: i64,
     pub enabled: bool,
+    pub embedding_profile_id: Option<String>,
     pub source_ids: Vec<String>,
     pub created_at: i64,
     pub updated_at: i64,
@@ -192,7 +193,7 @@ pub struct EmbeddingProfile {
     pub model_id: String,
     pub dimensions: i64,
     pub batch_size: i64,
-    pub is_default: bool,
+    pub knowledge_base_count: i64,
     pub created_at: i64,
     pub updated_at: i64,
 }

@@ -8,7 +8,8 @@ use super::{
     connection::open_config_connection,
     inputs::{
         SaveEmbeddingProfileInput, SaveKnowledgeCollectionInput, SaveKnowledgeSettingsInput,
-        SaveKnowledgeSourceInput, SetKnowledgeCollectionSourcesInput,
+        SaveKnowledgeSourceInput, SetKnowledgeCollectionEmbeddingProfileInput,
+        SetKnowledgeCollectionSourcesInput,
     },
     models::{
         EmbeddingProfile, KnowledgeCollection, KnowledgeLibrary, KnowledgeSettings, KnowledgeSource,
@@ -32,13 +33,18 @@ pub fn embedding_profiles(app: &AppHandle) -> Result<Vec<EmbeddingProfile>, Stri
     load_embedding_profiles(&conn)
 }
 
-pub fn default_embedding_profile(app: &AppHandle) -> Result<Option<EmbeddingProfile>, String> {
-    let profiles = embedding_profiles(app)?;
-    Ok(profiles
-        .iter()
-        .find(|profile| profile.is_default)
-        .cloned()
-        .or_else(|| profiles.first().cloned()))
+pub fn embedding_profile(
+    app: &AppHandle,
+    profile_id: &str,
+) -> Result<Option<EmbeddingProfile>, String> {
+    let id = profile_id.trim();
+    if id.is_empty() {
+        return Ok(None);
+    }
+
+    Ok(embedding_profiles(app)?
+        .into_iter()
+        .find(|profile| profile.id == id))
 }
 
 pub fn save_embedding_profile(
@@ -76,17 +82,12 @@ pub fn save_embedding_profile(
         normalize_optional_text(input.api_key.as_deref())
     };
 
-    if input.is_default {
-        conn.execute("UPDATE embedding_profiles SET is_default = 0", [])
-            .map_err(|error| format!("无法更新默认 Embedding 配置：{error}"))?;
-    }
-
     conn.execute(
         r#"
         INSERT INTO embedding_profiles (
             id, name, provider_kind, base_url, api_key, model_id,
-            dimensions, batch_size, is_default, created_at, updated_at
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+            dimensions, batch_size, created_at, updated_at
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
         ON CONFLICT(id) DO UPDATE SET
             name = excluded.name,
             provider_kind = excluded.provider_kind,
@@ -95,7 +96,6 @@ pub fn save_embedding_profile(
             model_id = excluded.model_id,
             dimensions = excluded.dimensions,
             batch_size = excluded.batch_size,
-            is_default = excluded.is_default,
             updated_at = excluded.updated_at
         "#,
         params![
@@ -107,14 +107,28 @@ pub fn save_embedding_profile(
             model_id,
             input.dimensions,
             batch_size,
-            input.is_default as i64,
             now,
             now
         ],
     )
     .map_err(|error| format!("无法保存 Embedding 配置：{error}"))?;
 
-    ensure_one_default_embedding_profile(&conn)?;
+    load_embedding_profiles(&conn)
+}
+
+pub fn delete_embedding_profile(
+    app: &AppHandle,
+    profile_id: &str,
+) -> Result<Vec<EmbeddingProfile>, String> {
+    let id = profile_id.trim();
+    if id.is_empty() {
+        return Err("Embedding 配置 ID 不能为空".to_string());
+    }
+
+    let conn = open_config_connection(app)?;
+    ensure_embedding_profile_exists(&conn, id)?;
+    conn.execute("DELETE FROM embedding_profiles WHERE id = ?1", params![id])
+        .map_err(|error| format!("无法删除 Embedding 配置：{error}"))?;
     load_embedding_profiles(&conn)
 }
 
@@ -157,14 +171,16 @@ pub fn save_knowledge_collection(
     conn.execute(
         r#"
         INSERT INTO knowledge_collections (
-            id, name, description, color, "order", enabled, created_at, updated_at
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+            id, name, description, color, "order", enabled,
+            embedding_profile_id, created_at, updated_at
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
         ON CONFLICT(id) DO UPDATE SET
             name = excluded.name,
             description = excluded.description,
             color = excluded.color,
             "order" = excluded."order",
             enabled = excluded.enabled,
+            embedding_profile_id = excluded.embedding_profile_id,
             updated_at = excluded.updated_at
         "#,
         params![
@@ -174,6 +190,7 @@ pub fn save_knowledge_collection(
             normalize_optional_text(input.color.as_deref()),
             input.order.unwrap_or(0),
             input.enabled as i64,
+            normalize_optional_text(input.embedding_profile_id.as_deref()),
             now,
             now
         ],
@@ -311,6 +328,35 @@ pub fn set_knowledge_collection_sources(
     load_knowledge_library(&conn)
 }
 
+pub fn set_knowledge_collection_embedding_profile(
+    app: &AppHandle,
+    input: SetKnowledgeCollectionEmbeddingProfileInput,
+) -> Result<KnowledgeLibrary, String> {
+    let collection_id = input.collection_id.trim();
+    if collection_id.is_empty() {
+        return Err("知识库 ID 不能为空".to_string());
+    }
+    let embedding_profile_id = input.embedding_profile_id.trim();
+    if embedding_profile_id.is_empty() {
+        return Err("请选择向量模型".to_string());
+    }
+
+    let conn = open_config_connection(app)?;
+    ensure_collection_exists(&conn, collection_id)?;
+    ensure_embedding_profile_exists(&conn, embedding_profile_id)?;
+    conn.execute(
+        r#"
+        UPDATE knowledge_collections
+        SET embedding_profile_id = ?2, updated_at = ?3
+        WHERE id = ?1
+        "#,
+        params![collection_id, embedding_profile_id, now_millis()?],
+    )
+    .map_err(|error| format!("无法切换知识库向量模型：{error}"))?;
+
+    load_knowledge_library(&conn)
+}
+
 pub fn enabled_knowledge_source_ids(app: &AppHandle) -> Result<Vec<String>, String> {
     let conn = open_config_connection(app)?;
     resolve_enabled_knowledge_source_ids(&conn)
@@ -360,9 +406,15 @@ fn load_embedding_profiles(conn: &Connection) -> Result<Vec<EmbeddingProfile>, S
             r#"
             SELECT
                 id, name, provider_kind, base_url, api_key, model_id,
-                dimensions, batch_size, is_default, created_at, updated_at
+                dimensions, batch_size,
+                (
+                    SELECT COUNT(*)
+                    FROM knowledge_collections
+                    WHERE embedding_profile_id = embedding_profiles.id
+                ) AS knowledge_base_count,
+                created_at, updated_at
             FROM embedding_profiles
-            ORDER BY is_default DESC, created_at ASC
+            ORDER BY created_at ASC
             "#,
         )
         .map_err(|error| format!("无法读取 Embedding 配置：{error}"))?;
@@ -378,7 +430,7 @@ fn load_embedding_profiles(conn: &Connection) -> Result<Vec<EmbeddingProfile>, S
                 model_id: row.get(5)?,
                 dimensions: row.get(6)?,
                 batch_size: row.get(7)?,
-                is_default: row.get::<_, i64>(8)? == 1,
+                knowledge_base_count: row.get(8)?,
                 created_at: row.get(9)?,
                 updated_at: row.get(10)?,
             })
@@ -389,31 +441,21 @@ fn load_embedding_profiles(conn: &Connection) -> Result<Vec<EmbeddingProfile>, S
         .map_err(|error| format!("无法解析 Embedding 配置：{error}"))
 }
 
-fn ensure_one_default_embedding_profile(conn: &Connection) -> Result<(), String> {
-    let has_default = conn
+fn ensure_embedding_profile_exists(conn: &Connection, profile_id: &str) -> Result<(), String> {
+    let exists = conn
         .query_row(
-            "SELECT EXISTS(SELECT 1 FROM embedding_profiles WHERE is_default = 1)",
-            [],
+            "SELECT EXISTS(SELECT 1 FROM embedding_profiles WHERE id = ?1)",
+            params![profile_id],
             |row| row.get::<_, i64>(0),
         )
-        .map_err(|error| format!("无法读取默认 Embedding 配置：{error}"))?
+        .map_err(|error| format!("无法读取 Embedding 配置：{error}"))?
         == 1;
-    if has_default {
-        return Ok(());
-    }
 
-    conn.execute(
-        r#"
-        UPDATE embedding_profiles
-        SET is_default = 1
-        WHERE id = (
-            SELECT id FROM embedding_profiles ORDER BY created_at ASC LIMIT 1
-        )
-        "#,
-        [],
-    )
-    .map_err(|error| format!("无法设置默认 Embedding 配置：{error}"))?;
-    Ok(())
+    if exists {
+        Ok(())
+    } else {
+        Err("Embedding 配置不存在".to_string())
+    }
 }
 
 fn is_supported_embedding_provider_kind(provider_kind: &str) -> bool {
@@ -469,7 +511,9 @@ fn load_knowledge_collections(conn: &Connection) -> Result<Vec<KnowledgeCollecti
     let mut statement = conn
         .prepare(
             r#"
-            SELECT id, name, description, color, "order", enabled, created_at, updated_at
+            SELECT
+                id, name, description, color, "order", enabled,
+                embedding_profile_id, created_at, updated_at
             FROM knowledge_collections
             ORDER BY "order" ASC, created_at ASC
             "#,
@@ -487,8 +531,9 @@ fn load_knowledge_collections(conn: &Connection) -> Result<Vec<KnowledgeCollecti
                 color: row.get(3)?,
                 order: row.get(4)?,
                 enabled: row.get::<_, i64>(5)? == 1,
-                created_at: row.get(6)?,
-                updated_at: row.get(7)?,
+                embedding_profile_id: row.get(6)?,
+                created_at: row.get(7)?,
+                updated_at: row.get(8)?,
             })
         })
         .map_err(|error| format!("无法读取知识集合：{error}"))?;

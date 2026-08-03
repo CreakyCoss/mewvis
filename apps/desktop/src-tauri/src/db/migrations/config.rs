@@ -109,6 +109,11 @@ const CONFIG_MIGRATIONS: &[ConfigMigrationStep] = &[
         name: "remove_readonly_skill_group_members",
         run: remove_readonly_skill_group_members,
     },
+    ConfigMigrationStep {
+        target_version: 23,
+        name: "bind_embedding_profiles_to_knowledge_collections",
+        run: bind_embedding_profiles_to_knowledge_collections,
+    },
 ];
 
 fn add_story_registry(conn: &Connection) -> Result<(), String> {
@@ -138,6 +143,44 @@ fn remove_readonly_skill_group_members(conn: &Connection) -> Result<(), String> 
         [],
     )
     .map_err(|error| format!("无法删除旧版内置 Skill 分组成员设置：{error}"))?;
+    Ok(())
+}
+
+fn bind_embedding_profiles_to_knowledge_collections(conn: &Connection) -> Result<(), String> {
+    let columns = table_columns(conn, "knowledge_collections")?;
+    if !columns
+        .iter()
+        .any(|column| column == "embedding_profile_id")
+    {
+        conn.execute_batch(
+            "ALTER TABLE knowledge_collections ADD COLUMN embedding_profile_id TEXT;",
+        )
+        .map_err(|error| format!("无法添加知识库 Embedding 绑定：{error}"))?;
+    }
+
+    conn.execute_batch(
+        r#"
+        UPDATE knowledge_collections
+        SET embedding_profile_id = COALESCE(
+            (
+                SELECT id
+                FROM embedding_profiles
+                WHERE is_default = 1
+                ORDER BY created_at ASC
+                LIMIT 1
+            ),
+            (
+                SELECT id
+                FROM embedding_profiles
+                ORDER BY created_at ASC
+                LIMIT 1
+            )
+        )
+        WHERE embedding_profile_id IS NULL;
+        "#,
+    )
+    .map_err(|error| format!("无法迁移知识库 Embedding 绑定：{error}"))?;
+
     Ok(())
 }
 
@@ -1018,5 +1061,59 @@ mod tests {
 
         assert_eq!(legacy_count, 0);
         assert_eq!(default_count, 1);
+    }
+
+    #[test]
+    fn embedding_binding_migration_preserves_explicit_ids_after_profile_deletion() {
+        let conn = Connection::open_in_memory().expect("open database");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE knowledge_collections (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                color TEXT,
+                "order" INTEGER NOT NULL DEFAULT 0,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            CREATE TABLE embedding_profiles (
+                id TEXT PRIMARY KEY,
+                is_default INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL
+            );
+            INSERT INTO embedding_profiles (id, is_default, created_at)
+            VALUES ('embedding-1', 1, 1);
+            INSERT INTO knowledge_collections (
+                id, name, description, color, "order", enabled, created_at, updated_at
+            ) VALUES ('knowledge-1', '文档库', NULL, NULL, 0, 1, 1, 1);
+            "#,
+        )
+        .expect("create legacy knowledge tables");
+
+        bind_embedding_profiles_to_knowledge_collections(&conn).expect("migrate bindings");
+        let binding: Option<String> = conn
+            .query_row(
+                "SELECT embedding_profile_id FROM knowledge_collections WHERE id = 'knowledge-1'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("read migrated binding");
+        assert_eq!(binding.as_deref(), Some("embedding-1"));
+
+        conn.execute(
+            "DELETE FROM embedding_profiles WHERE id = 'embedding-1'",
+            [],
+        )
+        .expect("delete embedding profile");
+        let preserved_binding: Option<String> = conn
+            .query_row(
+                "SELECT embedding_profile_id FROM knowledge_collections WHERE id = 'knowledge-1'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("read preserved binding");
+        assert_eq!(preserved_binding.as_deref(), Some("embedding-1"));
     }
 }
