@@ -603,6 +603,30 @@ const SettingsTab = ({
 
     <section className="border-y border-border/70">
       <div className="divide-y divide-border/60">
+        <div className="grid gap-4 bg-primary/[0.035] px-6 py-5 md:grid-cols-[240px_minmax(0,1fr)] md:items-center md:gap-8">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <Database className="size-4 text-primary" aria-hidden="true" />
+              参与聊天检索
+            </div>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              启用后，这个知识库会出现在聊天输入框的知识库选择器中。
+            </p>
+          </div>
+          <div className="flex min-h-12 items-center justify-between gap-4 rounded-xl border border-primary/15 bg-background/55 px-4">
+            <span>
+              <span className="block text-sm font-medium">{draft.enabled ? "已启用" : "未启用"}</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                {draft.enabled ? "聊天可以选择并检索此知识库" : "索引保留，但不会提供给聊天选择"}
+              </span>
+            </span>
+            <Switch
+              checked={draft.enabled}
+              aria-label={`${collection.name}${draft.enabled ? "停用知识检索" : "启用知识检索"}`}
+              onCheckedChange={(enabled) => onDraftChange({ ...draft, enabled })}
+            />
+          </div>
+        </div>
         <div className="grid gap-4 px-6 py-5 md:grid-cols-[240px_minmax(0,1fr)] md:gap-8">
           <div>
             <Label htmlFor="knowledge-settings-name" className="text-sm font-semibold">
@@ -684,20 +708,6 @@ const SettingsTab = ({
               </NativeSelectOption>
             ))}
           </NativeSelect>
-        </div>
-        <div className="grid gap-4 px-6 py-5 md:grid-cols-[240px_minmax(0,1fr)] md:items-center md:gap-8">
-          <div>
-            <div className="text-sm font-semibold">参与知识检索</div>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">关闭后，对话检索不会使用这个知识库。</p>
-          </div>
-          <div className="flex min-h-10 items-center justify-between gap-4">
-            <span className="text-sm text-muted-foreground">{draft.enabled ? "已启用" : "已停用"}</span>
-            <Switch
-              checked={draft.enabled}
-              aria-label={`${collection.name}${draft.enabled ? "停用知识检索" : "启用知识检索"}`}
-              onCheckedChange={(enabled) => onDraftChange({ ...draft, enabled })}
-            />
-          </div>
         </div>
       </div>
       <div className="flex justify-end border-t border-border/60 bg-surface/30 px-6 py-4">

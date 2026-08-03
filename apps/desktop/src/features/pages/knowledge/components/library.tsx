@@ -116,6 +116,7 @@ export const LibraryPage = () => {
                 <span className="knowledge-list-directory">目录</span>
                 <span className="knowledge-list-model">向量模型</span>
                 <span className="knowledge-list-document">文档</span>
+                <span>参与检索</span>
                 <span>索引状态</span>
                 <span>最近更新</span>
                 <span aria-hidden="true" />
@@ -169,6 +170,23 @@ export const LibraryPage = () => {
                       </span>
                       <span className="knowledge-list-document text-sm tabular-nums text-foreground">
                         {status?.documentCount ?? 0}
+                      </span>
+                      <span
+                        className={
+                          collection.enabled
+                            ? "inline-flex items-center gap-2 text-sm text-success"
+                            : "inline-flex items-center gap-2 text-sm text-muted-foreground"
+                        }
+                      >
+                        <span
+                          className={
+                            collection.enabled
+                              ? "size-1.5 shrink-0 rounded-full bg-success"
+                              : "size-1.5 shrink-0 rounded-full bg-muted-foreground/55"
+                          }
+                          aria-hidden="true"
+                        />
+                        {collection.enabled ? "已启用" : "未启用"}
                       </span>
                       <StatusBadge status={status} invalidModel={invalidModel || !collection.embeddingProfileId} />
                       <span className="truncate text-sm text-muted-foreground">

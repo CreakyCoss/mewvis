@@ -5,6 +5,7 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { ChatEditor, type ChatEditorHandle } from "./editor";
 import { emptyChatEditorValue, type ChatEditorValue } from "./editor/serialize";
 import { ModelMenu } from "./menus/model";
+import { KnowledgeMenu } from "./menus/knowledge";
 import { SkillMenu } from "./menus/skill";
 import { ToolMenu } from "./menus/tool";
 import { ChatInputStoreProvider, useChatInputStore } from "./store";
@@ -111,6 +112,7 @@ const ChatInputContent = ({
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
             <ModelMenu disabled={disabled} selectionDisabled={controlsDisabled} />
             <SkillMenu disabled={controlsDisabled} />
+            <KnowledgeMenu disabled={controlsDisabled} />
             <ToolMenu disabled={controlsDisabled} />
           </div>
 

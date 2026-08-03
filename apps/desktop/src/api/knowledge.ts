@@ -301,14 +301,20 @@ export const rebuildKnowledgeIndex = (collectionId: string) => {
 
 export const searchEnabledKnowledge = (input: {
   workspaceId?: string | null;
+  collectionIds?: string[];
   query: string;
   maxResults?: number;
   minScore?: number;
 }) => {
   if (!isTauri()) {
+    const selectedCollectionIds = input.collectionIds ? new Set(input.collectionIds) : null;
     return Promise.resolve<KnowledgeSearchResult>({
       matches: [],
-      enabledSourceIds: previewKnowledgeLibrary.collections.flatMap((collection) => collection.sourceIds),
+      enabledSourceIds: previewKnowledgeLibrary.collections
+        .filter(
+          (collection) => collection.enabled && (!selectedCollectionIds || selectedCollectionIds.has(collection.id)),
+        )
+        .flatMap((collection) => collection.sourceIds),
     });
   }
   return invoke<KnowledgeSearchResult>("search_workspace_knowledge", {

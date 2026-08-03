@@ -37,6 +37,7 @@ const resolveChatInputState = (
   const models = resources.models ?? [];
   const agents = resources.agents ?? [];
   const skillGroups = resources.skillGroups ?? [];
+  const knowledgeCollections = resources.knowledgeCollections ?? [];
   const tools = resources.tools ?? [];
   const defaultModel = models.find((model) => model.isDefault) ?? models[0] ?? null;
   const defaultAgent = agents.find((agent) => agent.isDefault) ?? null;
@@ -55,6 +56,12 @@ const resolveChatInputState = (
   const selectedSkills = selectedSkillKeys
     ? availableSkills.filter((skill) => selectedSkillKeys.has(skill.key))
     : collectSkills(defaultSkillGroups);
+  const requestedKnowledgeCollectionIds = values.selectedKnowledgeCollectionIds
+    ? new Set(values.selectedKnowledgeCollectionIds)
+    : null;
+  const selectedKnowledgeCollections = requestedKnowledgeCollectionIds
+    ? knowledgeCollections.filter((collection) => requestedKnowledgeCollectionIds.has(collection.value))
+    : knowledgeCollections.filter((collection) => collection.isDefault);
   const requestedToolNames = values.selectedToolNames ? new Set(values.selectedToolNames) : null;
   const selectedTools = requestedToolNames
     ? tools.filter((tool) => requestedToolNames.has(tool.value))
@@ -63,6 +70,7 @@ const resolveChatInputState = (
     selectedModelId: selectedModel?.value ?? "",
     selectedAgentId: selectedAgent?.value ?? "",
     selectedSkillKeys: selectedSkills.map((skill) => skill.key),
+    selectedKnowledgeCollectionIds: selectedKnowledgeCollections.map((collection) => collection.value),
     selectedToolNames: selectedTools.map((tool) => tool.value),
     showThinkingProcess: values.showThinkingProcess ?? true,
     showToolCallProcess: values.showToolCallProcess ?? true,
@@ -75,6 +83,7 @@ const resolveChatInputState = (
           model: selectedModel.runtimeModel,
           agent: selectedAgent?.agent ?? null,
           skills: selectedSkills,
+          knowledgeCollections: selectedKnowledgeCollections,
           tools: options.selectedToolNames,
         }
       : null,
@@ -103,6 +112,7 @@ const createChatInputStore = () =>
         selectedModelId: "",
         selectedAgentId: "",
         selectedSkillKeys: [],
+        selectedKnowledgeCollectionIds: [],
         selectedToolNames: [],
         showThinkingProcess: true,
         showToolCallProcess: true,

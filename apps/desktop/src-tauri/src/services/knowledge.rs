@@ -366,16 +366,23 @@ pub fn rebuild_knowledge_index(
 pub fn search_enabled_knowledge(
     app: &AppHandle,
     _workspace_id: &str,
+    collection_ids: Option<&[String]>,
     query: &str,
     max_results: usize,
     min_score: f64,
 ) -> Result<KnowledgeSearchResult, String> {
     let library = config_db::knowledge_library(app)?;
-    let embedding_groups = embedding_source_groups(app, &library, false)?;
+    let selected_collection_ids = collection_ids.map(|ids| ids.iter().collect::<BTreeSet<_>>());
+    let embedding_groups = embedding_source_groups(app, &library, false, collection_ids)?;
     let enabled_source_ids = library
         .collections
         .iter()
-        .filter(|collection| collection.enabled)
+        .filter(|collection| {
+            collection.enabled
+                && selected_collection_ids
+                    .as_ref()
+                    .map_or(true, |ids| ids.contains(&collection.id))
+        })
         .flat_map(|collection| collection.source_ids.iter().cloned())
         .filter(|source_id| {
             library
@@ -1198,6 +1205,7 @@ fn embedding_source_groups(
     app: &AppHandle,
     library: &KnowledgeLibrary,
     require_valid_bindings: bool,
+    collection_ids: Option<&[String]>,
 ) -> Result<Vec<EmbeddingSourceGroup>, String> {
     let profiles = config_db::embedding_profiles(app)?;
     let profiles_by_id = profiles
@@ -1212,12 +1220,14 @@ fn embedding_source_groups(
         .collect::<BTreeSet<_>>();
     let mut source_ids_by_profile = BTreeMap::<String, BTreeSet<String>>::new();
     let mut invalid_collections = Vec::new();
+    let selected_collection_ids = collection_ids.map(|ids| ids.iter().collect::<BTreeSet<_>>());
 
-    for collection in library
-        .collections
-        .iter()
-        .filter(|collection| collection.enabled)
-    {
+    for collection in library.collections.iter().filter(|collection| {
+        collection.enabled
+            && selected_collection_ids
+                .as_ref()
+                .map_or(true, |ids| ids.contains(&collection.id))
+    }) {
         let Some(profile_id) = collection.embedding_profile_id.as_deref() else {
             invalid_collections.push(collection.name.clone());
             continue;

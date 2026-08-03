@@ -2,6 +2,7 @@ import { createAgentClient } from "@/agent-client/runtime";
 import { buildRuntimeModelInputs, buildRuntimeModelOptions } from "@/agent-client/runtime-model";
 import { getAiAgentSettings } from "@/api/agents";
 import { getLlmSettings } from "@/api/llm";
+import { listKnowledgeLibrary } from "@/api/knowledge";
 import { getSkills } from "@/api/skills";
 import type { ChatInputResources } from "./components/chat-input/type";
 
@@ -9,10 +10,11 @@ export const loadResources = async (): Promise<ChatInputResources> => {
   const agentClient = createAgentClient();
 
   try {
-    const [llmSettings, agentSettings, skillSettings, toolSettings] = await Promise.all([
+    const [llmSettings, agentSettings, skillSettings, knowledgeLibrary, toolSettings] = await Promise.all([
       getLlmSettings(),
       getAiAgentSettings(),
       getSkills(),
+      listKnowledgeLibrary().catch(() => ({ collections: [], sources: [] })),
       agentClient.capabilities.listAgentTools(),
     ]);
     const defaultToolNames = new Set(toolSettings.defaultToolNames);
@@ -54,6 +56,16 @@ export const loadResources = async (): Promise<ChatInputResources> => {
           return definition ? [definition] : [];
         }),
       })),
+      knowledgeCollections: knowledgeLibrary.collections
+        .filter((collection) => collection.enabled)
+        .sort((left, right) => left.order - right.order || left.createdAt - right.createdAt)
+        .map((collection) => ({
+          value: collection.id,
+          label: collection.name,
+          description: collection.description ?? collection.sourceDirectory ?? "",
+          sourceDirectory: collection.sourceDirectory,
+          isDefault: true,
+        })),
       tools: toolSettings.tools.map((tool) => ({
         value: tool.name,
         label: tool.label,

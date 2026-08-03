@@ -26,10 +26,15 @@ export type ChatInputAgentOption = ChatInputResourceOption & {
   agent: AiAgent;
 };
 
+export type ChatInputKnowledgeOption = ChatInputResourceOption & {
+  sourceDirectory: string | null;
+};
+
 export type ChatInputResources = {
   models?: ChatInputModelOption[];
   agents?: ChatInputAgentOption[];
   skillGroups?: ChatInputSkillGroupOption[];
+  knowledgeCollections?: ChatInputKnowledgeOption[];
   tools?: ChatInputResourceOption[];
 };
 
@@ -58,6 +63,7 @@ export type ChatInputOptionValues = {
   selectedModelId: string;
   selectedAgentId: string;
   selectedSkillKeys: string[];
+  selectedKnowledgeCollectionIds: string[];
   selectedToolNames: string[];
 };
 
@@ -74,6 +80,7 @@ export type ChatInputSubmitResources = {
   model: RuntimeModelInput;
   agent: AiAgent | null;
   skills: Skill[];
+  knowledgeCollections: ChatInputKnowledgeOption[];
   tools: string[];
 };
 

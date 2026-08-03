@@ -5,6 +5,7 @@ import { createStore } from "zustand/vanilla";
 import { createAgentClient } from "@/agent-client/runtime";
 import type { AgentClientAgentEvent } from "@/agent-client/types";
 import { loadChat, saveChat as saveChatApi } from "@/api/chat";
+import { searchEnabledKnowledge } from "@/api/knowledge";
 import type { ChatInputOptions, ChatTurnRequest } from "../components/chat-input/type";
 import { buildAgentPrompt } from "./prompt";
 import { applyChatMessageEvent, failChatMessage } from "./reducer";
@@ -403,8 +404,16 @@ export const useChat = ({ chatId, workspacePath, initialTurn, saveChat, onStatus
       lastStderrRef.current = "";
       void saveImmediately();
 
-      const prompt = buildAgentPrompt(workspacePath, payload);
       try {
+        const knowledgeResult = payload.knowledgeCollections.length
+          ? await searchEnabledKnowledge({
+              collectionIds: payload.knowledgeCollections.map((collection) => collection.value),
+              query: payload.text,
+              maxResults: 8,
+              minScore: 0,
+            }).catch(() => null)
+          : null;
+        const prompt = buildAgentPrompt(workspacePath, payload, knowledgeResult);
         await agentClient.agent.run({
           taskId,
           workspacePath,

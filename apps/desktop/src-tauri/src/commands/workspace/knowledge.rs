@@ -7,6 +7,7 @@ use crate::services::knowledge::{self as knowledge_service, KnowledgeSearchResul
 #[serde(rename_all = "camelCase")]
 pub struct SearchWorkspaceKnowledgeInput {
     pub workspace_id: Option<String>,
+    pub collection_ids: Option<Vec<String>>,
     pub query: String,
     pub max_results: Option<usize>,
     pub min_score: Option<f64>,
@@ -21,6 +22,7 @@ pub fn search_workspace_knowledge(
     knowledge_service::search_enabled_knowledge(
         &app,
         &workspace_id,
+        input.collection_ids.as_deref(),
         &input.query,
         input.max_results.unwrap_or(8),
         input.min_score.unwrap_or(0.0),
