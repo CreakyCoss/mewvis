@@ -6,10 +6,13 @@ type StatusBadgeProps = {
   invalidModel?: boolean;
 };
 
+const badgeClassName =
+  "inline-flex w-fit justify-self-start items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium";
+
 export const StatusBadge = ({ status, invalidModel = false }: StatusBadgeProps) => {
   if (invalidModel) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-md bg-destructive/9 px-2 py-1 text-xs font-medium text-destructive">
+      <span className={`${badgeClassName} bg-destructive/9 text-destructive`}>
         <CircleAlert className="size-3.5" />
         模型失效
       </span>
@@ -18,16 +21,16 @@ export const StatusBadge = ({ status, invalidModel = false }: StatusBadgeProps) 
 
   if (status?.status === "ready") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-md bg-success/10 px-2 py-1 text-xs font-medium text-success">
+      <span className={`${badgeClassName} bg-accent text-primary`}>
         <CircleCheck className="size-3.5" />
-        索引就绪
+        可检索
       </span>
     );
   }
 
   if (status?.status === "building") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-md bg-primary/9 px-2 py-1 text-xs font-medium text-primary">
+      <span className={`${badgeClassName} bg-primary/9 text-primary`}>
         <Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" />
         正在建立
       </span>
@@ -36,7 +39,7 @@ export const StatusBadge = ({ status, invalidModel = false }: StatusBadgeProps) 
 
   if (status?.status === "error") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-md bg-destructive/9 px-2 py-1 text-xs font-medium text-destructive">
+      <span className={`${badgeClassName} bg-destructive/9 text-destructive`}>
         <CircleAlert className="size-3.5" />
         建立失败
       </span>
@@ -44,7 +47,7 @@ export const StatusBadge = ({ status, invalidModel = false }: StatusBadgeProps) 
   }
 
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-md bg-warning/10 px-2 py-1 text-xs font-medium text-warning">
+    <span className={`${badgeClassName} bg-warning/10 text-warning`}>
       <Clock3 className="size-3.5" />
       {status?.status === "stale" ? "等待更新" : "等待建立"}
     </span>

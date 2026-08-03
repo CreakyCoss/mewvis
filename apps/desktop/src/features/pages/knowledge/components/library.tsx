@@ -174,14 +174,14 @@ export const LibraryPage = () => {
                       <span
                         className={
                           collection.enabled
-                            ? "inline-flex items-center gap-2 text-sm text-success"
+                            ? "inline-flex items-center gap-2 text-sm text-primary"
                             : "inline-flex items-center gap-2 text-sm text-muted-foreground"
                         }
                       >
                         <span
                           className={
                             collection.enabled
-                              ? "size-1.5 shrink-0 rounded-full bg-success"
+                              ? "size-1.5 shrink-0 rounded-full bg-primary"
                               : "size-1.5 shrink-0 rounded-full bg-muted-foreground/55"
                           }
                           aria-hidden="true"

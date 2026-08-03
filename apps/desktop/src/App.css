@@ -209,13 +209,13 @@
   .knowledge-list-grid {
     display: grid;
     grid-template-columns:
-      minmax(200px, 1.15fr) minmax(0, 1.25fr) minmax(160px, 1fr) 72px 84px 118px 104px
+      minmax(200px, 1.15fr) minmax(0, 1.25fr) minmax(160px, 1fr) 72px 84px 100px 104px
       20px;
   }
 
   @container knowledge-list (max-width: 68rem) {
     .knowledge-list-grid {
-      grid-template-columns: minmax(200px, 1.2fr) minmax(160px, 1fr) 72px 84px 118px 104px 20px;
+      grid-template-columns: minmax(200px, 1.2fr) minmax(160px, 1fr) 72px 84px 100px 104px 20px;
     }
 
     .knowledge-list-directory {
@@ -225,7 +225,7 @@
 
   @container knowledge-list (max-width: 51rem) {
     .knowledge-list-grid {
-      grid-template-columns: minmax(190px, 1fr) 64px 84px 112px 96px 20px;
+      grid-template-columns: minmax(190px, 1fr) 64px 84px 96px 96px 20px;
     }
 
     .knowledge-list-model {
@@ -235,7 +235,7 @@
 
   @container knowledge-list (max-width: 38rem) {
     .knowledge-list-grid {
-      grid-template-columns: minmax(180px, 1fr) 84px 110px 88px 20px;
+      grid-template-columns: minmax(180px, 1fr) 84px 96px 88px 20px;
     }
 
     .knowledge-list-document {

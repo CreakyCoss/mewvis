@@ -439,18 +439,23 @@ const OverviewTab = ({
   <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
     <div className="space-y-8">
       <section className="border-b border-border/70">
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/70 px-5 py-4">
+        <div className="border-b border-border/70 px-5 py-4">
           <div>
             <h3 className="font-semibold">索引概览</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              {status?.status === "ready"
-                ? `索引已就绪，最近更新于 ${formatKnowledgeTime(status.updatedAt)}。`
-                : status?.status === "stale"
-                  ? "目录或模型配置已经变化，需要重建索引。"
-                  : "确认目录和模型后，建立首个可检索索引。"}
+              {invalidModel || !collection.embeddingProfileId
+                ? "向量模型不可用，请先更新知识库配置。"
+                : status?.status === "ready"
+                  ? `最近更新于 ${formatKnowledgeTime(status.updatedAt)}。`
+                  : status?.status === "building"
+                    ? "正在扫描目录并生成索引。"
+                    : status?.status === "error"
+                      ? "索引建立失败，请检查错误信息后重试。"
+                      : status?.status === "stale"
+                        ? "目录或模型配置已经变化，需要重建索引。"
+                        : "确认目录和模型后，建立首个可检索索引。"}
             </p>
           </div>
-          <StatusBadge status={status} invalidModel={invalidModel || !collection.embeddingProfileId} />
         </div>
         <div className="grid sm:grid-cols-2">
           <div className="border-b border-border/70 px-5 py-5 sm:border-r sm:border-b-0">
