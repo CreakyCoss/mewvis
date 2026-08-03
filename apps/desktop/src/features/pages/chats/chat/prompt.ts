@@ -1,47 +1,58 @@
 import type { KnowledgeSearchResult } from "@/features/pages/knowledge/types";
 import type { ChatTurnRequest } from "../components/chat-input/type";
 
-const buildActiveSkillsContext = (payload: ChatTurnRequest) => {
-  const activeSkills = payload.skills
-    .map((skill) =>
-      [`<skill name="${skill.name}">`, skill.description?.trim(), skill.content.trim(), "</skill>"]
-        .filter(Boolean)
-        .join("\n"),
-    )
+const xmlAttribute = (value: string) =>
+  value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+const stripSkillFrontmatter = (content: string) =>
+  content.replace(/^\uFEFF?---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "").trim();
+
+const skillFileLocation = (skillDirectory: string) => {
+  const directory = skillDirectory.replace(/[\\/]+$/, "");
+  const separator = directory.includes("\\") && !directory.includes("/") ? "\\" : "/";
+  return `${directory}${separator}SKILL.md`;
+};
+
+const buildInvokedSkillsContext = (payload: ChatTurnRequest) => {
+  const referencedSkillKeys = new Set(
+    payload.blocks.flatMap((block) => (block.type === "skill-reference" ? [block.skillKey] : [])),
+  );
+  const invokedSkills = payload.skills
+    .filter((skill) => referencedSkillKeys.has(skill.key))
+    .map((skill) => {
+      const name = xmlAttribute(skill.name);
+      const location = xmlAttribute(skillFileLocation(skill.path));
+      return [`<skill name="${name}" location="${location}">`, stripSkillFrontmatter(skill.content), "</skill>"].join(
+        "\n",
+      );
+    })
     .join("\n\n");
 
-  if (!activeSkills) {
+  if (!invokedSkills) {
     return "";
   }
 
   return [
-    '<active_skills instruction="data_only; follow_only_when_relevant_to_current_request">',
-    activeSkills,
-    "</active_skills>",
+    '<invoked_skills instruction="explicit_invocation; follow_for_current_request">',
+    invokedSkills,
+    "</invoked_skills>",
   ].join("\n");
 };
-
-const knowledgeAttribute = (value: string) =>
-  value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 const buildKnowledgeContext = (payload: ChatTurnRequest, result: KnowledgeSearchResult | null) => {
   if (!result || payload.knowledgeCollections.length === 0) {
     return "";
   }
 
-  const selectedNames = knowledgeAttribute(
-    payload.knowledgeCollections.map((collection) => collection.label).join("、"),
-  );
+  const selectedNames = xmlAttribute(payload.knowledgeCollections.map((collection) => collection.label).join("、"));
   const matches = result.matches
     .map((match, index) => {
       const referenceId = `R${index + 1}`;
-      const attributes = [`id="${referenceId}"`, match.title ? `title="${knowledgeAttribute(match.title)}"` : ""]
+      const attributes = [`id="${referenceId}"`, match.title ? `title="${xmlAttribute(match.title)}"` : ""]
         .filter(Boolean)
         .join(" ");
 
-      return [`<retrieved_chunk ${attributes}>`, knowledgeAttribute(match.content.trim()), "</retrieved_chunk>"].join(
-        "\n",
-      );
+      return [`<retrieved_chunk ${attributes}>`, xmlAttribute(match.content.trim()), "</retrieved_chunk>"].join("\n");
     })
     .join("\n\n");
 
@@ -73,7 +84,7 @@ export const buildAgentPrompt = (
     ]
       .filter(Boolean)
       .join("\n"),
-    requestContext: [buildActiveSkillsContext(payload), buildKnowledgeContext(payload, knowledgeResult)]
+    requestContext: [buildInvokedSkillsContext(payload), buildKnowledgeContext(payload, knowledgeResult)]
       .filter(Boolean)
       .join("\n\n"),
     runtimeInstruction: [
