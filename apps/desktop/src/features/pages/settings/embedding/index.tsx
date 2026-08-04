@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Layers3, Loader2, Plus } from "lucide-react";
-import { listEmbeddingProfiles } from "@/api/embedding";
+import { listEmbeddingProfiles, type EmbeddingProfile } from "@/api/embedding";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { embeddingProviderLabel, type EmbeddingProfile } from "@/features/embedding/types";
 import { SettingsPageHeader } from "../page-header";
 import { EmbeddingEditDialog, type EmbeddingEditDialogHandle } from "./edit";
-import { localOllamaBaseUrl } from "./ui-state";
+import { embeddingProviderLabel, localOllamaBaseUrl } from "./ui-state";
 
 const CredentialStatus = ({ profile }: { profile: EmbeddingProfile }) => {
   if (profile.providerKind === "ollama") {

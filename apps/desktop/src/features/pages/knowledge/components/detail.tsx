@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { listEmbeddingProfiles } from "@/api/embedding";
+import { listEmbeddingProfiles, type EmbeddingProfile } from "@/api/embedding";
 import {
   deleteKnowledgeCollection,
   getKnowledgeIndexStatus,
@@ -39,7 +39,6 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import type { EmbeddingProfile } from "@/features/embedding/types";
 import type { KnowledgeCollection, KnowledgeCollectionFile, KnowledgeIndexStatus } from "../types";
 import { formatFileSize, formatKnowledgeTime, StatusBadge } from "./status";
 

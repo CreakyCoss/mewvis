@@ -1,5 +1,31 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type { EmbeddingProfile, SaveEmbeddingProfileInput } from "@/features/embedding/types";
+
+export type EmbeddingProviderKind = "openai-compatible" | "ollama";
+
+export type EmbeddingProfile = {
+  id: string;
+  name: string;
+  providerKind: EmbeddingProviderKind;
+  baseUrl: string | null;
+  apiKey: string | null;
+  modelId: string;
+  dimensions: number;
+  batchSize: number;
+  knowledgeBaseCount: number;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type SaveEmbeddingProfileInput = {
+  id?: string | null;
+  name: string;
+  providerKind: EmbeddingProviderKind;
+  baseUrl?: string | null;
+  apiKey?: string | null;
+  modelId: string;
+  dimensions: number;
+  batchSize?: number | null;
+};
 
 let previewEmbeddingProfiles: EmbeddingProfile[] = [
   {

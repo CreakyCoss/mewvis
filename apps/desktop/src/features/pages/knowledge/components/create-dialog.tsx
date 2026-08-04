@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
-import type { EmbeddingProfile } from "@/features/embedding/types";
+import type { EmbeddingProfile } from "@/api/embedding";
 
 type CreateDialogProps = {
   open: boolean;

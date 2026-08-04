@@ -1,13 +1,12 @@
 import { ChevronRight, Database, Folder, Loader2, Plus, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { listEmbeddingProfiles } from "@/api/embedding";
+import { listEmbeddingProfiles, type EmbeddingProfile } from "@/api/embedding";
 import { getKnowledgeIndexStatus, listKnowledgeLibrary } from "@/api/knowledge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { EmbeddingProfile } from "@/features/embedding/types";
 import type { KnowledgeIndexStatus, KnowledgeLibrary } from "../types";
 import { CreateDialog } from "./create-dialog";
 import { formatKnowledgeTime, StatusBadge } from "./status";

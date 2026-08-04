@@ -1,6 +1,7 @@
-import type { EmbeddingProfile } from "@/features/embedding/types";
+import type { EmbeddingProfile, EmbeddingProviderKind } from "@/api/embedding";
 
-export type EmbeddingProviderKind = "openai-compatible" | "ollama";
+export const embeddingProviderLabel = (providerKind: string) =>
+  providerKind === "ollama" ? "本地 Ollama" : "OpenAI-compatible";
 
 export type EmbeddingDraft = {
   id: string | null;

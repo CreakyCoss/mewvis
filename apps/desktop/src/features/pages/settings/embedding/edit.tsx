@@ -1,6 +1,11 @@
 import { useImperativeHandle, useState, type Ref } from "react";
 import { CheckCircle2, Eye, EyeOff, Layers3, Loader2, Save, Trash2 } from "lucide-react";
-import { deleteEmbeddingProfile, saveEmbeddingProfile } from "@/api/embedding";
+import {
+  deleteEmbeddingProfile,
+  saveEmbeddingProfile,
+  type EmbeddingProfile,
+  type EmbeddingProviderKind,
+} from "@/api/embedding";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,7 +28,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-import type { EmbeddingProfile } from "@/features/embedding/types";
 import {
   embeddingDraftFromProfile,
   emptyEmbeddingDraft,
@@ -34,7 +38,6 @@ import {
   localOllamaModelOptions,
   openAiCompatibleEmbeddingModelOptions,
   type EmbeddingDraft,
-  type EmbeddingProviderKind,
 } from "./ui-state";
 
 type EmbeddingEditMode = "create" | "edit";
