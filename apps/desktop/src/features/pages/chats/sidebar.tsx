@@ -42,7 +42,7 @@ const toggleButtonClass =
 
 export const WorkspaceChatSidebar = ({ workspacePath, chatId, selectedModel, panels }: WorkspaceChatSidebarProps) => {
   const [activePanel, setActivePanel] = useState<WorkspaceChatPanel>(panels[0] ?? "files");
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     if (!panels.includes(activePanel) && panels[0]) {

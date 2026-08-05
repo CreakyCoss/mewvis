@@ -170,6 +170,33 @@ pub fn default_embedding_provider() -> Result<Box<dyn TextEmbeddingProvider>, St
     Ok(Box::new(OpenAiCompatibleEmbeddingProvider::new()?))
 }
 
+pub fn prepare_embedding_query(model_id: &str, query: &str) -> String {
+    if uses_embeddinggemma_prompts(model_id) {
+        format!("task: search result | query: {}", query.trim())
+    } else {
+        query.trim().to_string()
+    }
+}
+
+pub fn prepare_embedding_document(model_id: &str, title: &str, content: &str) -> String {
+    if uses_embeddinggemma_prompts(model_id) {
+        let title = title.trim();
+        let title = if title.is_empty() { "none" } else { title };
+        format!("title: {title} | text: {}", content.trim())
+    } else {
+        content.trim().to_string()
+    }
+}
+
+fn uses_embeddinggemma_prompts(model_id: &str) -> bool {
+    model_id
+        .rsplit('/')
+        .next()
+        .unwrap_or(model_id)
+        .to_ascii_lowercase()
+        .starts_with("embeddinggemma")
+}
+
 fn embedding_endpoint(base_url: Option<&str>) -> String {
     let mut base_url = base_url
         .map(str::trim)
@@ -263,7 +290,34 @@ fn describe_reqwest_error(error: reqwest::Error) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{embedding_endpoint, ollama_embedding_endpoints};
+    use super::{
+        embedding_endpoint, ollama_embedding_endpoints, prepare_embedding_document,
+        prepare_embedding_query,
+    };
+
+    #[test]
+    fn embeddinggemma_uses_retrieval_prompts() {
+        assert_eq!(
+            prepare_embedding_query("embeddinggemma:latest", " 谁制作了游戏？ "),
+            "task: search result | query: 谁制作了游戏？"
+        );
+        assert_eq!(
+            prepare_embedding_document("embeddinggemma", "第一章", " 正文内容 "),
+            "title: 第一章 | text: 正文内容"
+        );
+    }
+
+    #[test]
+    fn generic_embedding_models_keep_plain_text() {
+        assert_eq!(
+            prepare_embedding_query("text-embedding-3-small", " query "),
+            "query"
+        );
+        assert_eq!(
+            prepare_embedding_document("text-embedding-3-small", "ignored", " document "),
+            "document"
+        );
+    }
 
     #[test]
     fn embedding_endpoint_normalizes_openai_root() {

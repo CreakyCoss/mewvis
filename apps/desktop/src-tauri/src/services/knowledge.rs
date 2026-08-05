@@ -18,10 +18,11 @@ use crate::services::{
 };
 
 const GLOBAL_INDEX_ID: &str = "global";
-const INDEX_VERSION: i64 = 1;
+const INDEX_VERSION: i64 = 3;
 const MAX_FILE_BYTES: u64 = 50 * 1024 * 1024;
 const CHUNK_TARGET_CHARS: usize = 1200;
 const CHUNK_OVERLAP_CHARS: usize = 160;
+const MIN_VECTOR_RELEVANCE_SCORE: f64 = 0.55;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -101,6 +102,7 @@ struct DocumentChunk {
 struct IndexedChunkForEmbedding {
     source_id: String,
     chunk_id: String,
+    title: String,
     content: String,
 }
 
@@ -526,6 +528,15 @@ fn initialize_index_schema(conn: &Connection) -> Result<(), String> {
         params![GLOBAL_INDEX_ID, INDEX_VERSION, now],
     )
     .map_err(|error| format!("无法初始化知识库索引状态：{error}"))?;
+    conn.execute(
+        r#"
+        UPDATE rag_index_state
+        SET status = 'stale', source_fingerprint = NULL, updated_at = ?2
+        WHERE version < ?1 AND status = 'ready'
+        "#,
+        params![INDEX_VERSION, now],
+    )
+    .map_err(|error| format!("无法标记旧版知识库索引待更新：{error}"))?;
 
     Ok(())
 }
@@ -757,6 +768,7 @@ fn index_source(conn: &Connection, source: &KnowledgeSource) -> Result<IndexSour
             chunks_for_embedding.push(IndexedChunkForEmbedding {
                 source_id: source.id.clone(),
                 chunk_id,
+                title: document.title.clone(),
                 content: chunk.content,
             });
             chunk_count += 1;
@@ -802,7 +814,13 @@ fn rebuild_vector_index(
         for batch in profile_chunks.chunks(batch_size) {
             let texts = batch
                 .iter()
-                .map(|chunk| chunk.content.clone())
+                .map(|chunk| {
+                    embeddings::prepare_embedding_document(
+                        &profile.profile.model_id,
+                        &chunk.title,
+                        &chunk.content,
+                    )
+                })
                 .collect::<Vec<_>>();
             let vectors = embedding_provider.embed_texts(profile, &texts)?;
             let embeddings = batch
@@ -1067,82 +1085,70 @@ fn unique_import_destination(storage_dir: &Path, source_path: &Path) -> Result<P
 }
 
 fn chunk_document(content: &str) -> Vec<DocumentChunk> {
+    let chars = content.chars().collect::<Vec<_>>();
     let mut chunks = Vec::new();
-    let mut current = String::new();
-    let mut current_start = 0;
-    let mut cursor = 0;
+    let mut start = 0;
 
-    for paragraph in split_paragraphs(content) {
-        let paragraph_start = cursor;
-        cursor += paragraph.chars().count() + 2;
-        if current.is_empty() {
-            current_start = paragraph_start;
+    while start < chars.len() {
+        let hard_end = (start + CHUNK_TARGET_CHARS).min(chars.len());
+        let end = if hard_end == chars.len() {
+            hard_end
+        } else {
+            semantic_chunk_end(&chars, start, hard_end)
+        };
+        let raw = &chars[start..end];
+        let leading_whitespace = raw.iter().take_while(|ch| ch.is_whitespace()).count();
+        let trailing_whitespace = raw.iter().rev().take_while(|ch| ch.is_whitespace()).count();
+        let content_start = start + leading_whitespace;
+        let content_end = end.saturating_sub(trailing_whitespace);
+
+        if content_start < content_end {
+            let chunk_content = chars[content_start..content_end]
+                .iter()
+                .collect::<String>()
+                .replace("\r\n", "\n")
+                .replace('\r', "\n");
+            chunks.push(DocumentChunk {
+                index: chunks.len(),
+                content: chunk_content,
+                char_start: content_start,
+                char_end: content_end,
+            });
         }
 
-        if current.chars().count() + paragraph.chars().count() + 2 > CHUNK_TARGET_CHARS
-            && !current.is_empty()
-        {
-            push_chunk(&mut chunks, &current, current_start);
-            current = overlap_tail(&current);
-            current_start = paragraph_start.saturating_sub(current.chars().count());
+        if end == chars.len() {
+            break;
         }
 
-        if !current.is_empty() {
-            current.push_str("\n\n");
-        }
-        current.push_str(paragraph);
-    }
-
-    if !current.trim().is_empty() {
-        push_chunk(&mut chunks, &current, current_start);
+        let next_start = end.saturating_sub(CHUNK_OVERLAP_CHARS);
+        start = if next_start > start { next_start } else { end };
     }
 
     chunks
 }
 
-fn split_paragraphs(content: &str) -> Vec<&str> {
-    let paragraphs = content
-        .split("\n\n")
-        .map(str::trim)
-        .filter(|part| !part.is_empty())
-        .collect::<Vec<_>>();
-    if paragraphs.is_empty() {
-        content
-            .lines()
-            .map(str::trim)
-            .filter(|part| !part.is_empty())
-            .collect()
-    } else {
-        paragraphs
+fn semantic_chunk_end(chars: &[char], start: usize, hard_end: usize) -> usize {
+    let preferred_start = (start + CHUNK_TARGET_CHARS * 3 / 5).min(hard_end);
+
+    for end in (preferred_start..=hard_end).rev() {
+        if end > start && is_strong_chunk_boundary(chars[end - 1]) {
+            return end;
+        }
     }
+    for end in (preferred_start..=hard_end).rev() {
+        if end > start && chars[end - 1].is_whitespace() {
+            return end;
+        }
+    }
+
+    hard_end
 }
 
-fn push_chunk(chunks: &mut Vec<DocumentChunk>, content: &str, char_start: usize) {
-    let trimmed = content.trim();
-    if trimmed.is_empty() {
-        return;
-    }
-
-    let len = trimmed.chars().count();
-    chunks.push(DocumentChunk {
-        index: chunks.len(),
-        content: trimmed.to_string(),
-        char_start,
-        char_end: char_start + len,
-    });
-}
-
-fn overlap_tail(content: &str) -> String {
-    let chars = content.chars().collect::<Vec<_>>();
-    if chars.len() <= CHUNK_OVERLAP_CHARS {
-        return content.trim().to_string();
-    }
-
-    chars[chars.len() - CHUNK_OVERLAP_CHARS..]
-        .iter()
-        .collect::<String>()
-        .trim()
-        .to_string()
+fn is_strong_chunk_boundary(ch: char) -> bool {
+    matches!(
+        ch,
+        '\n' | '\r' | '。' | '！' | '？' | '；' | '!' | '?' | ';'
+    )
 }
 
 fn search_vector(
@@ -1152,23 +1158,30 @@ fn search_vector(
     max_results: usize,
 ) -> Result<Vec<KnowledgeSearchMatch>, String> {
     let embedding_provider = embeddings::default_embedding_provider()?;
-    let query_texts = vec![query.trim().to_string()];
     let vector_store = vector_store::default_vector_store();
     let mut vector_hits_by_chunk = BTreeMap::new();
     for group in groups {
+        let query_texts = vec![embeddings::prepare_embedding_query(
+            &group.profile.profile.model_id,
+            query,
+        )];
         let query_embeddings = embedding_provider.embed_texts(&group.profile, &query_texts)?;
         let Some(query_vector) = query_embeddings.first() else {
             continue;
         };
         let source_ids = group.source_ids.iter().cloned().collect::<Vec<_>>();
-        for hit in vector_store.search(
-            conn,
-            &group.profile.profile.id,
-            &group.profile.profile.model_id,
-            query_vector,
-            &source_ids,
-            max_results,
-        )? {
+        for hit in vector_store
+            .search(
+                conn,
+                &group.profile.profile.id,
+                &group.profile.profile.model_id,
+                query_vector,
+                &source_ids,
+                max_results,
+            )?
+            .into_iter()
+            .filter(|hit| hit.score >= MIN_VECTOR_RELEVANCE_SCORE)
+        {
             vector_hits_by_chunk
                 .entry(hit.chunk_id)
                 .and_modify(|score: &mut f64| *score = score.max(hit.score))
@@ -1594,4 +1607,93 @@ fn now_millis() -> Result<i64, String> {
         .duration_since(std::time::UNIX_EPOCH)
         .map_err(|error| format!("系统时间异常：{error}"))?;
     Ok(duration.as_millis() as i64)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn initialize_index_schema_marks_ready_legacy_index_stale() {
+        let conn = Connection::open_in_memory().expect("open in-memory index");
+        initialize_index_schema(&conn).expect("initialize current index schema");
+        conn.execute(
+            r#"
+            UPDATE rag_index_state
+            SET version = ?1, status = 'ready', source_fingerprint = 'legacy'
+            WHERE id = ?2
+            "#,
+            params![INDEX_VERSION - 1, GLOBAL_INDEX_ID],
+        )
+        .expect("seed legacy ready index");
+
+        initialize_index_schema(&conn).expect("migrate legacy index state");
+
+        let (status, fingerprint) = conn
+            .query_row(
+                "SELECT status, source_fingerprint FROM rag_index_state WHERE id = ?1",
+                params![GLOBAL_INDEX_ID],
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?)),
+            )
+            .expect("load migrated index state");
+        assert_eq!(status, "stale");
+        assert_eq!(fingerprint, None);
+    }
+
+    #[test]
+    fn chunk_document_normalizes_windows_line_endings_and_splits_content() {
+        let paragraph = format!(
+            "这是一个用于测试 Windows 换行的段落。{}",
+            "正文内容。".repeat(50)
+        );
+        let content = (0..20)
+            .map(|index| format!("第 {index} 节\r\n{paragraph}"))
+            .collect::<Vec<_>>()
+            .join("\r\n\r\n");
+
+        let chunks = chunk_document(&content);
+
+        assert!(chunks.len() > 1);
+        assert!(chunks.iter().all(|chunk| !chunk.content.contains('\r')));
+        assert!(chunks
+            .iter()
+            .all(|chunk| chunk.content.chars().count() <= CHUNK_TARGET_CHARS));
+    }
+
+    #[test]
+    fn chunk_document_forces_long_unbroken_content_under_limit() {
+        let content = "长".repeat(CHUNK_TARGET_CHARS * 3);
+
+        let chunks = chunk_document(&content);
+
+        assert!(chunks.len() > 1);
+        assert!(chunks
+            .iter()
+            .all(|chunk| chunk.content.chars().count() <= CHUNK_TARGET_CHARS));
+        for pair in chunks.windows(2) {
+            let left_tail = pair[0]
+                .content
+                .chars()
+                .rev()
+                .take(CHUNK_OVERLAP_CHARS)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .collect::<String>();
+            let right_head = pair[1]
+                .content
+                .chars()
+                .take(CHUNK_OVERLAP_CHARS)
+                .collect::<String>();
+            assert_eq!(left_tail, right_head);
+        }
+    }
+
+    #[test]
+    fn chunk_document_preserves_short_content_with_normalized_newlines() {
+        let chunks = chunk_document("第一行\r\n第二行\r第三行");
+
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0].content, "第一行\n第二行\n第三行");
+    }
 }

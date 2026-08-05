@@ -130,7 +130,7 @@ const previewFiles = new Map<string, KnowledgeCollectionFile[]>([
 function readyStatus(id: string, documentCount: number, chunkCount: number, updatedAt: number): KnowledgeIndexStatus {
   return {
     indexId: id,
-    version: 1,
+    version: 3,
     status: "ready",
     updatedAt,
     sourceFingerprint: `${id}-ready`,
@@ -147,7 +147,7 @@ function staleStatus(id: string, documentCount: number, chunkCount: number, upda
 function missingStatus(id: string): KnowledgeIndexStatus {
   return {
     indexId: id,
-    version: 1,
+    version: 3,
     status: "missing",
     updatedAt: null,
     sourceFingerprint: null,
