@@ -47,7 +47,7 @@ metadata:
 1. 调用 `story(action="read_context", ...)`；记录返回的 `revision`。
 2. 每个 ChangeSet 只做一个小批次，带 batch 元数据；最多 16 个 operations / 192 KiB。
 3. 新文件用 upsert；已有文件优先 patch、数组增量操作、append-text/replace-text。不能直接修改 `manifest` 角色文档。
-4. 每批只调用一次 `story(action="commit_changes", changeSet={...})` 原子校验并提交，再重读 revision。失败时根据返回 issues 修当前批；仅在用户要求预览时调用 `action="validate_changes"`。
+4. 每批只调用一次 `story(action="commit_changes", changeSet={...})` 原子校验并提交，再重读 revision。失败时根据返回 issues 修当前批；仅在用户要求预览时调用 `action="validate_changes"`。同一 `code + path` 连续失败两次必须停止当前批，禁止继续试验参数包装、扫描故事目录或让用户手工保存。
 5. 中间批用 draft 保持结构与引用有效，工作流最后一批才使用 openBook 或 chapterWrite 完整校验。
 6. 不使用 `write`、`edit`、`bash` 修改故事文件，不创建 Markdown 正文、设定、大纲或追踪文件。
 

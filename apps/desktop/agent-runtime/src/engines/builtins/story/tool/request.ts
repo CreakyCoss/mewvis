@@ -2,6 +2,8 @@ import type { ToolParameterDefinition } from "../../definition.js";
 
 type JsonObject = Record<string, unknown>;
 
+export type StoryIdentityFieldsByKind = Readonly<Record<string, readonly string[]>>;
+
 const isObject = (value: unknown): value is JsonObject =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
@@ -49,7 +51,44 @@ const booleanValue = (value: unknown) => {
   return value;
 };
 
-const normalizeOperation = (input: unknown) => {
+const nonEmptyString = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : null);
+
+const normalizeReference = (
+  input: unknown,
+  operationValue: unknown,
+  identityFieldsByKind: StoryIdentityFieldsByKind,
+) => {
+  const parsed = parseJson(input);
+  if (!isObject(parsed)) return parsed;
+  const ref = { ...parsed };
+  const kind = nonEmptyString(ref.kind);
+  const identityFields = kind ? identityFieldsByKind[kind] : undefined;
+  const parsedIdentity = parseJson(ref.identity);
+  const parsedIdentityJson = parseJson(ref.identityJson);
+  let identity = isObject(parsedIdentity)
+    ? parsedIdentity
+    : isObject(parsedIdentityJson)
+      ? parsedIdentityJson
+      : parsedIdentity;
+
+  if (!isObject(identity) && identityFields?.length === 1) {
+    const shorthand = nonEmptyString(ref.identityValue) ?? nonEmptyString(identity);
+    if (shorthand) identity = { [identityFields[0]!]: shorthand };
+  }
+  if (!isObject(identity) && identityFields?.length === 1 && isObject(operationValue)) {
+    const field = identityFields[0]!;
+    const valueIdentity = nonEmptyString(operationValue[field]);
+    if (valueIdentity) identity = { [field]: valueIdentity };
+  }
+  if ((identity === undefined || identity === "") && identityFields?.length === 0) identity = {};
+
+  delete ref.identityValue;
+  delete ref.identityJson;
+  if (identity !== undefined) ref.identity = identity;
+  return ref;
+};
+
+const normalizeOperation = (input: unknown, identityFieldsByKind: StoryIdentityFieldsByKind) => {
   const parsed = parseJson(input);
   if (!isObject(parsed)) return parsed;
   const operation = { ...parsed };
@@ -59,10 +98,8 @@ const normalizeOperation = (input: unknown) => {
   }
   if ("ids" in operation) operation.ids = arrayValue(operation.ids);
   if ("values" in operation) operation.values = arrayValue(operation.values);
-  if (isObject(operation.ref) && "identity" in operation.ref) {
-    operation.ref = { ...operation.ref, identity: parseJson(operation.ref.identity) };
-  }
   if ("value" in operation) operation.value = parseJson(operation.value);
+  if ("ref" in operation) operation.ref = normalizeReference(operation.ref, operation.value, identityFieldsByKind);
   return operation;
 };
 
@@ -70,7 +107,10 @@ const normalizeOperation = (input: unknown) => {
  * Normalizes unambiguous transport mistakes made by compatible model providers.
  * Story Project still performs the authoritative strict validation.
  */
-export const normalizeStoryChangeSet = (input: unknown): unknown => {
+export const normalizeStoryChangeSet = (
+  input: unknown,
+  identityFieldsByKind: StoryIdentityFieldsByKind = {},
+): unknown => {
   const parsed = parseJson(input);
   if (!isObject(parsed)) return parsed;
   const changeSet = { ...parsed };
@@ -85,7 +125,9 @@ export const normalizeStoryChangeSet = (input: unknown): unknown => {
     };
   }
   const operations = arrayValue(changeSet.operations);
-  changeSet.operations = Array.isArray(operations) ? operations.map(normalizeOperation) : operations;
+  changeSet.operations = Array.isArray(operations)
+    ? operations.map((operation) => normalizeOperation(operation, identityFieldsByKind))
+    : operations;
   return changeSet;
 };
 
@@ -108,13 +150,36 @@ const STORY_CHANGE_SET_OPERATION_PARAMETERS = {
     type: stringParam("原子操作类型"),
     ref: {
       type: "object",
-      description: "领域文档引用；kind 来自 describe_structure，many 文档按 identityFields 填写 identity",
+      description:
+        "领域文档引用；kind 来自 describe_structure。many 文档优先按 identityFields 填 identity 对象；只有一个身份字段时也可只传 identityValue",
       properties: {
         kind: stringParam("文档 kind"),
-        identity: optionalJson("文档身份字段；one 文档传空对象，many 文档按 identityFields 填写"),
+        identity: {
+          type: "union",
+          description:
+            "文档身份；one 文档传空对象或省略，many 文档可传身份对象，也可在只有一个 identityFields 时直接传该字段值",
+          anyOf: [
+            {
+              type: "object",
+              description: "规范身份对象；常见 many 文档传 {id: 'chap-001'}，角色状态传 {characterId: 'char-001'}",
+              properties: {
+                id: optionalString("identityFields 为 id 时的稳定 ID"),
+                characterId: optionalString("identityFields 为 characterId 时的角色 ID"),
+              },
+            },
+            stringParam("单字段身份简写，例如 chap-001；运行时按该 kind 的 identityFields 恢复对象"),
+          ],
+          optional: true,
+        },
+        identityValue: optionalString(
+          "推荐的单字段身份简写；运行时会按该 kind 唯一的 identityFields 字段组装身份对象，例如 chap-001",
+        ),
+        identityJson: optionalString("仅多字段身份使用：完整身份对象的 JSON 字符串"),
       },
     },
-    value: optionalJson("upsert/patch 的 JSON 值，或 append-text/replace-text 使用的文本值"),
+    value: optionalJson(
+      "upsert 的完整 JSON/Markdown 值，或 patch 的对象值；patch 不得使用 field+标量，完整替换章节 Markdown 使用 upsert+正文字符串",
+    ),
     field: optionalString("数组或文本操作使用的顶层字段名；Markdown 正文使用 content"),
     items: {
       type: "array",

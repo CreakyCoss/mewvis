@@ -17,7 +17,7 @@
 - 本技能只消费 Story Tool Contract 的结构描述、初始化、上下文读取、变更校验和原子提交方法，不依赖工具内部的故事类型解析、文件存储或事务实现。`describe_structure` 失败时报告工具或工作区故事类型问题，不要猜测目录和字段。
 - `read_context` 返回 `{text,sections,sources,revision}`。写作时以已经按中文 label 格式化的 `text` 为唯一正文上下文；Agent 工具结果里的 `sections` 只保留分区 ID、优先级和来源元数据，正文不再重复一份，用 `sources` 追踪来源。`scope="chapter"` 返回的是按目标细纲引用和章节邻接关系定向筛选后的写作简报，不是全项目文档转储；不要额外按默认目录猜测、扫描 Markdown 或读取遗漏内容。
 - 每个 ChangeSet 携带本轮 `describe_structure` 返回的 `structure.storyType.id` 与 `structure.storyType.version`，字段分别为 `storyTypeId` 与 `storyTypeVersion`。版本不匹配时重新 describe，并只重建失败批次。
-- 任何工作流先通过 `structure.roles[role]` 取得 kind，再读取 `structure.documents[kind].identityFields`，构造 `{ kind, identity }` 文档引用，并按需请求该 kind 的 schema。角色不存在表示当前故事类型没有该能力；停止对应工作流并说明缺少的角色，不得猜 kind 或替代文档。
+- 任何工作流先通过 `structure.roles[role]` 取得 kind，再读取 `structure.documents[kind].identityFields`，构造文档引用，并按需请求该 kind 的 schema。单例文档省略 identity 或传 `{}`；只有一个身份字段的多例文档优先传 `{ kind, identityValue }`，运行时按定义恢复规范 identity；多字段身份才传 identity 对象或 `identityJson`。角色不存在表示当前故事类型没有该能力；停止对应工作流并说明缺少的角色，不得猜 kind 或替代文档。
 - 创建文档前按 kind 查 `structure.schemas.documents[kind].fields`，只提交其中声明的业务字段；嵌套对象按 `definition` / `itemDefinition` 查 `structure.schemas.objectDefinitions`。字段 label、描述、路径、默认值、只读字段和校验规则均由故事类型维护。
 - 磁盘中的结构化资料是普通 JSON。章节正文使用 `chapterContent` 角色指向的 Markdown 文档，章节摘要、引用和状态变化使用 `chapterResult` 角色指向的结构化文档；实际 kind 和路径只从本轮结构描述解析。
 - `validate_changes` 只用于用户明确要求预览或诊断，不作为每批固定前置步骤。
