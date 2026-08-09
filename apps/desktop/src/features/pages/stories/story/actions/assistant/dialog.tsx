@@ -30,6 +30,9 @@ const resolveRevision = (documents: StoryDocument[]) => {
   return typeof manifest?.revision === "number" ? manifest.revision : null;
 };
 
+const latestStoryAssistantChatId = (chats: Awaited<ReturnType<typeof listChats>>) =>
+  orderBy(chats, ["updatedAt", "createdAt", "id"], ["desc", "desc", "desc"])[0]?.id ?? null;
+
 export const StoryAssistantDialog = ({
   documents,
   open,
@@ -55,9 +58,7 @@ export const StoryAssistantDialog = ({
         if (cancelled) return;
         setConversation((current) => ({
           instance: current.instance,
-          chatId:
-            orderBy(chats, ["updatedAt", "createdAt", "id"], ["desc", "desc", "desc"])[0]?.id ??
-            createTimestampId("chat"),
+          chatId: latestStoryAssistantChatId(chats) ?? createTimestampId("chat"),
         }));
       })
       .catch((error) => {
