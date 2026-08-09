@@ -1,13 +1,16 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Bot, Plus, ShieldCheck } from "lucide-react";
+import { listChats } from "@/api/chat";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { createTimestampId } from "@/utils/ids";
 import type { StoryDocument, StoryOverview } from "../../../../../../../core/story-project/types";
 import type { StoryLibraryItem, StoryWorkspace } from "../../../storage";
 import { storyDocumentData } from "../../../story-document";
 import { StoryChat } from "./chat";
+import { latestStoryAssistantChatId } from "./conversation";
 
 type StoryAssistantDialogProps = {
   onOpenChange: (open: boolean) => void;
@@ -19,7 +22,7 @@ type StoryAssistantDialogProps = {
 
 type StoryAssistantConversation = {
   instance: number;
-  chatId: string;
+  chatId: string | null;
 };
 
 const resolveRevision = (documents: StoryDocument[]) => {
@@ -41,8 +44,33 @@ export const StoryAssistantDialog = ({
   const revision = resolveRevision(documents);
   const [conversation, setConversation] = useState<StoryAssistantConversation>(() => ({
     instance: 0,
-    chatId: createTimestampId("chat"),
+    chatId: null,
   }));
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void listChats(workspace.path)
+      .then((chats) => {
+        if (cancelled) return;
+        setConversation((current) => ({
+          instance: current.instance,
+          chatId: latestStoryAssistantChatId(chats) ?? createTimestampId("chat"),
+        }));
+      })
+      .catch((error) => {
+        console.error("Failed to load the latest story assistant chat", error);
+        if (cancelled) return;
+        setConversation((current) => ({
+          instance: current.instance,
+          chatId: createTimestampId("chat"),
+        }));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace.path]);
 
   const createConversation = () => {
     setConversation((current) => ({
@@ -82,6 +110,7 @@ export const StoryAssistantDialog = ({
                 className="gap-1.5"
                 title="保留当前对话并开始新会话"
                 onClick={createConversation}
+                disabled={!conversation.chatId}
               >
                 <Plus className="size-3.5" />
                 新建会话
@@ -90,7 +119,14 @@ export const StoryAssistantDialog = ({
           </div>
         </DialogHeader>
         <div className="min-h-0 flex-1 overflow-hidden">
-          <StoryChat key={`${overview.id}:${conversation.instance}`} story={story} chatId={conversation.chatId} />
+          {conversation.chatId ? (
+            <StoryChat key={`${overview.id}:${conversation.instance}`} story={story} chatId={conversation.chatId} />
+          ) : (
+            <div className="flex h-full items-center justify-center gap-2 bg-background text-sm text-muted-foreground">
+              <Spinner />
+              <span>正在恢复上次会话</span>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

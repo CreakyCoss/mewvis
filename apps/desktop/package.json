@@ -22,6 +22,7 @@
     "test:story:commit-tool": "node scripts/business/story/commit-tool-e2e.mjs",
     "test:story:builtin-binding": "node scripts/business/story/builtin-binding-e2e.mjs",
     "test:story:runtime-boundary": "node scripts/business/story/runtime-boundary-e2e.mjs",
+    "test:story:assistant-chat": "node scripts/business/story/assistant-chat-e2e.mjs",
     "test:story:tavern-protocol": "node scripts/business/story/tavern-agent-protocol-e2e.mjs",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,mjs,cjs,json,md,css}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mjs,cjs,json,md,css}\"",
