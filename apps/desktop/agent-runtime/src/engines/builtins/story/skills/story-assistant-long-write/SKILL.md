@@ -27,6 +27,8 @@ metadata:
 
 按需读取最新上游资料：题材 `references/genre-catalog.md`，人物 `references/character-basics.md` 与 `character-relations.md`，大纲 `outline-methods.md`、`outline-structure-theory.md`、`outline-rhythm.md`，钩子 `hooks-chapter.md`，黄金三章 `opening-design.md`，正文 `writing-craft.md`，状态 `state-tracking.md`，质量 `quality-checklist.md`。
 
+进入“指定章 / 日更 / 续写 / 大修”前必须完整读取 `references/workflow-daily.md`，并以其中的 **Mewvis JSON 召回绑定**执行原版写前准备。原版提到的 Markdown 路径都是语义来源名，不是当前存储路径；只能通过 `story(action="read_context", scope="chapter", targetId=...)` 取得等价 JSON 投影，不得用 `read`、`find`、`grep` 或 `bash` 扫描故事工作区补上下文。
+
 ## 场景路由
 
 | 场景   | 触发                     | 默认停靠点                                              |
@@ -99,19 +101,21 @@ beats 预算合计必须在 `[targetWords, targetWords×1.1]`。低压章可没�
 ## 单章写作
 
 1. `story(action="read_context", scope="chapter", targetId="章节 ID 或章节号")`。
-2. 检查细纲已 ready/locked，beats 预算合法，并形成一句本章意图：目标情绪 + 节奏 + 核心事件 + release guards。
-3. 展开正文，保留自然段落与角色声线；工程词、细纲说明、读者说明不能进入正文。
-4. 新章在同一 ChangeSet 中 upsert `chapterContent` 角色文档的正文字符串，并 upsert `chapterResult` 角色文档的摘要、wordCount、引用和状态变化；续写或局部重写 Markdown 时用 field=`content` 的 append-text/replace-text，再 patch 章节结果。只有用户要求完整重写该章时才完整替换 Markdown。
-5. 正文单章为一个工作流；追踪字段较多时可在正文批后按依赖拆小批更新：
+2. 确认返回结果至少包含 `chapter-brief`、`chapter-plan`、`story-boundaries`、`continuity-state`；有上一章时还必须包含 `previous-chapter`。这些分区已经由 Story Project 按 JSON 引用定向选择，不能另行召回全项目文档。
+3. 检查 `chapter-brief` 的“准备状态”：若标记阻塞，停止写正文并按缺口补做对标分析或结构资料；不得用聊天记忆或全量项目摘要临时拼出替代品。检查细纲已 ready/locked、beats 预算合法。
+4. 按原版五轴消费写前控制变量：`selected_emotion_module` 控制读者情绪与释放方式，`rhythm_reference` 控制关键信息的展开/爆发/冷却，`genre_prose_card` 控制题材味，`style_directive` 控制句式/对话/标点，`matched_chapter_techniques` 只提供可复用技法；细纲与 release guards 始终控制剧情事实和边界。综合续写状态卡与上一章，形成一句“情绪起点 → 触发 → 情绪终点 + 节奏 + 模块 + 题材取舍 + 文风”的本章意图。
+5. 展开正文，保留自然段落与角色声线；工程词、细纲说明、读者说明不能进入正文。只能展开细纲已有事件，不能把对标证据、提示卡标签或合规自评写进正文。
+6. 新章在同一 ChangeSet 中 upsert `chapterContent` 角色文档的正文字符串，并 upsert `chapterResult` 角色文档的摘要、wordCount、引用和状态变化；续写或局部重写 Markdown 时用 field=`content` 的 append-text/replace-text，再 patch 章节结果。只有用户要求完整重写该章时才完整替换 Markdown。
+7. 正文单章为一个工作流；追踪字段较多时可在正文批后按依赖拆小批更新：
    - `characterState` 角色文档；
    - `relationships` 角色文档；
    - `foreshadows` 角色文档；
    - `timeline` 角色文档；
    - `progress` 角色文档；
    - 当前 `chapterPlan` 角色文档的 status。
-6. 最终批用 `validationMode="chapterWrite"` 校验并提交。不要在一个 ChangeSet 聚合多章正文。
+8. 最终批用 `validationMode="chapterWrite"` 校验并提交。不要在一个 ChangeSet 聚合多章正文。
 
-日更必须逐章串行：上一章提交成功后重新读取下一章上下文。大修先读原章，保持未被用户点名的情节事实和稳定 ID，并同步重算后续状态风险。
+日更必须逐章串行：上一章提交成功后重新读取下一章上下文，下一章必须消费刚更新的 `previous-chapter` 与 `continuity-state`。大修使用 `current-chapter-content` 读取原章，保持未被用户点名的情节事实和稳定 ID，并同步重算后续状态风险。
 
 ## 写作质量门槛
 

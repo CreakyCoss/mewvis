@@ -2,6 +2,34 @@
 
 # workflow-daily.md：日更续写工作流
 
+## Mewvis JSON 召回绑定（最高优先级）
+
+本适配保留原版工作流的选择、压缩和写前编排，只替换持久化与读取方式。当前故事事实存放在 Story Project 的分块 JSON/Markdown 正文字段中；任何下文出现的 `设定/*.md`、`大纲/*.md`、`追踪/*.md`、`对标/*.md` 都只表示原版的**语义来源**，不得从工作区直接读取。每章只调用：
+
+```text
+story(action="read_context", scope="chapter", targetId="章节 ID 或章节号")
+```
+
+Story Project 会返回以下原版等价投影，章节写作和写作酒馆共用同一结果：
+
+| 原版语义来源                 | JSON 定向投影分区                                                                          |
+| ---------------------------- | ------------------------------------------------------------------------------------------ |
+| 当前细纲                     | `chapter-plan`                                                                             |
+| 大纲、当前卷、当前阶段       | `story-boundaries`                                                                         |
+| `追踪/上下文.md` 七栏状态卡  | `continuity-state`                                                                         |
+| 上一章全文与逐章结果         | `previous-chapter`                                                                         |
+| 大修时的本章原文             | `current-chapter-content`                                                                  |
+| 角色设定与当前快照           | `relevant-characters`                                                                      |
+| 世界规则、关系、伏笔、时间线 | `relevant-world` / `relevant-relationships` / `relevant-foreshadows` / `relevant-timeline` |
+| 题材正文提示卡               | `genre-prose-card`                                                                         |
+| 自定义/对标文风与锚点        | `style-directive`                                                                          |
+| 情绪模块、节奏、匹配技巧     | `benchmark-writing-reference`                                                              |
+| 五轴选择结果与缺口           | `chapter-brief`                                                                            |
+
+`chapter-brief` 中的 `selected_emotion_module`、`rhythm_reference`、`genre_prose_card`、`style_directive`、`matched_chapter_techniques` 对应下文五类写前资料。准备状态为“阻塞”时执行原版 fail-fast；没有声明对标书时按原版“无对标项目”分支，用本书细纲、卷纲、定位和自定义文风继续。
+
+以下正文保留原版方法说明。凡涉及直接读写项目文件、运行 tracking 脚本、调用 story-explorer 或 narrative-writer 子代理的操作，一律替换为上述 Story 专属读取与当前 SKILL.md 的 ChangeSet 提交；不得回退到工作区文件扫描。
+
 本文件为"日更续写"场景的完整指引。SKILL.md 路由到本文件后，按以下流程执行。
 
 > **日更准备步骤**：每章写作前 4 步——状态筛选 + 题材正文提示卡召回 + 文风召回 + 意图确认，嵌入 Step 2 逐章循环。

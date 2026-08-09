@@ -13,6 +13,7 @@ const publicStorage = resolve(root, "core/story-project/storage/index.ts");
 const storageTypesEntry = resolve(root, "core/story-project/storage/types.ts");
 const fileStorageEntry = resolve(root, "core/story-project/storage/adapters/file/index.ts");
 const documentQueryEntry = resolve(root, "core/story-project/application/queries/document.ts");
+const contextQueryEntry = resolve(root, "core/story-project/application/queries/context.ts");
 const longNovelEntry = resolve(root, "core/story-project/story-types/long-novel/index.ts");
 
 writeFileSync(
@@ -23,6 +24,7 @@ writeFileSync(
   import type { StoryFileBackend } from ${JSON.stringify(storageTypesEntry)};
   import { assertStoryFileRevision } from ${JSON.stringify(fileStorageEntry)};
   import { editableStoryDocument } from ${JSON.stringify(documentQueryEntry)};
+  import { readStoryProjectContext } from ${JSON.stringify(contextQueryEntry)};
   import { LONG_NOVEL_STORY_TYPE } from ${JSON.stringify(longNovelEntry)};
 
   const assert = (condition: unknown, message: string, details?: unknown) => {
@@ -93,6 +95,73 @@ writeFileSync(
     chapterContent.displayName === "第1章 · 谷底激活（正文）",
     "Markdown 正文应从同 identity 的 companion 文档解析章号与标题。",
     chapterContent,
+  );
+
+  const recallProject = {
+    manifest: { revision: 7 },
+    documents: [
+      { ref: { kind: "story-book", identity: {} }, value: { id: "book", premise: "雾港调查", goal: "揭开港口真相", protagonistId: "hero" } },
+      { ref: { kind: "story-positioning", identity: {} }, value: { id: "positioning", primaryGenre: "都市悬疑", targetAudience: "喜欢高压反转的读者", emotionalPromise: "压迫后反杀", surfaceHook: "身份差", deepPayoff: "真相兑现", benchmarkTitles: ["标杆书"] } },
+      { ref: { kind: "story-style", identity: {} }, value: { id: "style", tone: "冷峻克制", sentenceRhythm: "短句用于爆发，长句用于压迫", dialogueGuidance: "用潜台词推进" } },
+      { ref: { kind: "story-book-arc", identity: {} }, value: { id: "arc", emotionalArc: "由受压到反击", stages: [{ id: "opening", name: "开篇", phase: "opening", startChapter: 1, endChapter: 10, purpose: "建立危机", emotionalTone: "高压", expectedReaderState: "期待反击", allowedReveals: ["港口异常"], prohibitedReveals: ["终极幕后"] }] } },
+      { ref: { kind: "story-volume", identity: { id: "volume-1" } }, value: { id: "volume-1", number: 1, title: "迷雾", startChapter: 1, endChapter: 20, phase: "opening", purpose: "查明失踪", coreConflict: "调查受阻", coreEvent: "进入封锁区", startState: "线索不足", endState: "锁定嫌疑人", emotionalArc: "受压后反击", prohibitedReveals: ["幕后姓名"] } },
+      { ref: { kind: "story-chapter-plan", identity: { id: "plan-2" } }, value: { id: "plan-2", number: 2, volumeId: "volume-1", title: "旧章", ending: { nextDrive: "进入仓库" } } },
+      { ref: { kind: "story-chapter-plan", identity: { id: "plan-3" } }, value: { id: "plan-3", number: 3, volumeId: "volume-1", title: "仓库反杀", chapterRole: "high-pressure", targetEmotion: "压迫转畅快", coreEvent: "主角用账本反制守卫", structureFormula: "压制→发现→反证→爆发→冷却", openingHook: "仓门落锁", payoff: "公开反证", releaseGuards: ["不得揭露终极幕后"], participantIds: ["hero"], appearanceOrder: ["hero"], worldRefIds: ["warehouse"], beats: [{ id: "beat-1", summary: "发现账本", participantIds: ["hero"], worldRefIds: ["warehouse"] }], ending: { nextDrive: "追查账本来源" }, status: "ready" } },
+      { ref: { kind: "story-chapter-plan", identity: { id: "plan-4" } }, value: { id: "plan-4", number: 4, volumeId: "volume-1", title: "FUTURE PLAN SHOULD NOT LOAD", coreEvent: "未来事件" } },
+      { ref: { kind: "story-chapter", identity: { id: "chapter-1" } }, value: { id: "chapter-1", planId: "plan-1", number: 1, title: "更早", summary: "初到雾港" } },
+      { ref: { kind: "story-chapter", identity: { id: "chapter-2" } }, value: { id: "chapter-2", planId: "plan-2", number: 2, title: "旧章", summary: "主角找到仓库入口" } },
+      { ref: { kind: "story-chapter-content", identity: { id: "chapter-1" } }, value: { kind: "story-chapter-content", id: "chapter-1", content: "ANCIENT FULL TEXT SHOULD NOT LOAD" } },
+      { ref: { kind: "story-chapter-content", identity: { id: "chapter-2" } }, value: { kind: "story-chapter-content", id: "chapter-2", content: "PREVIOUS FULL TEXT MUST LOAD" } },
+      { ref: { kind: "story-character", identity: { id: "hero" } }, value: { id: "hero", name: "沈砚", role: "protagonist", description: "调查员", speakingStyle: "简短直接" } },
+      { ref: { kind: "story-character", identity: { id: "irrelevant" } }, value: { id: "irrelevant", name: "IRRELEVANT CHARACTER SHOULD NOT LOAD", role: "minor" } },
+      { ref: { kind: "story-character-state", identity: { characterId: "hero" } }, value: { characterId: "hero", asOfChapterId: "chapter-2", identity: "调查员", location: "仓库门口", physicalState: "轻伤", knowledge: ["守卫隐瞒账本"], openThreads: ["账本来源"] } },
+      { ref: { kind: "story-world-entry", identity: { id: "warehouse" } }, value: { id: "warehouse", title: "封锁仓库", category: "geography", description: "只有守卫钥匙能打开" } },
+      { ref: { kind: "story-world-entry", identity: { id: "forest" } }, value: { id: "forest", title: "IRRELEVANT WORLD SHOULD NOT LOAD", category: "geography" } },
+      { ref: { kind: "story-relationships", identity: {} }, value: { id: "relationships", relationships: [{ id: "rel-1", fromCharacterId: "hero", toCharacterId: "guard", type: "敌对", currentState: "互相试探" }, { id: "rel-2", fromCharacterId: "other-a", toCharacterId: "other-b", type: "无关", currentState: "IRRELEVANT RELATIONSHIP SHOULD NOT LOAD" }] } },
+      { ref: { kind: "story-foreshadows", identity: {} }, value: { id: "foreshadows", foreshadows: [{ id: "ledger", content: "账本缺页", status: "planted", importance: "high", relatedEntityIds: ["hero", "warehouse"] }, { id: "resolved", content: "IRRELEVANT RESOLVED FORESHADOW", status: "resolved", importance: "high", relatedEntityIds: [] }] } },
+      { ref: { kind: "story-timeline", identity: { id: "main" } }, value: { id: "main", calendar: "公历", openingTime: "周一", currentTime: "周三深夜", entries: [{ id: "event-2", chapterId: "chapter-2", storyTime: "周三夜", event: "抵达仓库", participantIds: ["hero"], worldRefIds: ["warehouse"] }, { id: "future", chapterId: "chapter-9", storyTime: "未来", event: "IRRELEVANT TIMELINE SHOULD NOT LOAD", participantIds: ["hero"], worldRefIds: ["warehouse"] }] } },
+      { ref: { kind: "story-progress", identity: {} }, value: { id: "progress", lastCompletedChapterId: "chapter-2", currentVolumeId: "volume-1", nextChapterPlanId: "plan-3", recentChapterIds: ["chapter-1", "chapter-2"], notes: ["保持账本来源未知"] } },
+      { ref: { kind: "story-analysis", identity: { id: "benchmark-1" } }, value: { id: "benchmark-1", analysisType: "long", target: "benchmark", status: "complete", source: { title: "标杆书", platform: "测试", wordCount: 100000, chapterCount: 100 }, summary: "高压后证据反杀", structureStages: [{ name: "压制爆发", range: "单章", function: "关键信息先压后爆", emotion: "压迫转畅快", evidence: ["第3章"] }], emotionalArc: [{ label: "压迫", intensity: 8, cause: "主角被围堵" }, { label: "释放", intensity: 9, cause: "证据公开" }], plotModules: [{ id: "module-counter", name: "证据反杀", function: "兑现受压后的反击", setup: "先限制行动", payoff: "公开反证", reusablePattern: "压制→证据→反杀", evidence: ["第3章"] }], styleProfile: { pointOfView: "第三人称", tone: "克制", sentenceRhythm: "爆发处缩短", dialogue: "问非所答", proseRules: ["少解释"], anchorExcerpts: ["门闩落下。"] }, reusableTechniques: ["先隐藏关键账目，再让旁观者确认"], gaps: [] } },
+      { ref: { kind: "story-analysis", identity: { id: "current-analysis" } }, value: { id: "current-analysis", target: "current-story", status: "complete", summary: "IRRELEVANT CURRENT ANALYSIS SHOULD NOT LOAD" } },
+    ],
+  } as any;
+  const chapterRecall = readStoryProjectContext(recallProject, LONG_NOVEL_STORY_TYPE.definition, {
+    scope: "chapter",
+    targetId: "plan-3",
+  });
+  assert(chapterRecall.target?.id === "plan-3", "章节召回应锁定目标细纲。", chapterRecall.target);
+  assert(
+    ["chapter-brief", "chapter-plan", "story-boundaries", "continuity-state", "previous-chapter"]
+      .every((id) => chapterRecall.sections.some((section) => section.id === id)),
+    "章节召回应返回原版写前准备的核心语义分区。",
+    chapterRecall.sections.map((section) => section.id),
+  );
+  assert(chapterRecall.text.includes("PREVIOUS FULL TEXT MUST LOAD"), "章节召回应读取且只读取上一章全文。", chapterRecall.text);
+  assert(!chapterRecall.text.includes("ANCIENT FULL TEXT SHOULD NOT LOAD"), "章节召回不得加载更早章节全文。", chapterRecall.text);
+  assert(!chapterRecall.text.includes("FUTURE PLAN SHOULD NOT LOAD"), "章节召回不得加载未来细纲。", chapterRecall.text);
+  assert(!chapterRecall.text.includes("IRRELEVANT CHARACTER SHOULD NOT LOAD"), "章节召回应按 participantIds 筛选角色。", chapterRecall.text);
+  assert(!chapterRecall.text.includes("IRRELEVANT WORLD SHOULD NOT LOAD"), "章节召回应按 worldRefIds 筛选设定。", chapterRecall.text);
+  assert(!chapterRecall.text.includes("IRRELEVANT RELATIONSHIP SHOULD NOT LOAD"), "章节召回应过滤无关关系。", chapterRecall.text);
+  assert(!chapterRecall.text.includes("IRRELEVANT RESOLVED FORESHADOW"), "章节召回应过滤已回收伏笔。", chapterRecall.text);
+  assert(!chapterRecall.text.includes("IRRELEVANT TIMELINE SHOULD NOT LOAD"), "章节召回应过滤无关时间线。", chapterRecall.text);
+  assert(!chapterRecall.text.includes("IRRELEVANT CURRENT ANALYSIS SHOULD NOT LOAD"), "章节召回应只选择 benchmark 分析。", chapterRecall.text);
+  assert(
+    chapterRecall.text.includes("selected_emotion_module") &&
+      chapterRecall.text.includes("证据反杀") &&
+      chapterRecall.text.includes("rhythm_reference") &&
+      chapterRecall.text.includes("关键信息先压后爆"),
+    "章节写作简报应显式提供原版的情绪模块和节奏参考。",
+    chapterRecall.sections.find((section) => section.id === "chapter-brief"),
+  );
+  assert(
+    chapterRecall.sources.some((source) => source.kind === "story-character" && source.id === "hero") &&
+      !chapterRecall.sources.some((source) => source.kind === "story-character" && source.id === "irrelevant"),
+    "上下文来源也应保持定向筛选，供写作酒馆复用。",
+    chapterRecall.sources,
+  );
+  assert(
+    (chapterRecall.sections.find((section) => section.id === "continuity-state")?.content.length ?? 0) <= 12288,
+    "续写状态卡应维持固定硬上限，不随章节历史增长。",
   );
 
   const short = await projects.create("/memory/short", { storyTypeId: "short-novel", storyId: "story-2", title: "雾港一夜" });

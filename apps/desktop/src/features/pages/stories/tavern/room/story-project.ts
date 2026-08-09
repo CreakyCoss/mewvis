@@ -1,4 +1,4 @@
-import type { StoryDocument } from "../../../../../../core/story-project/types";
+import type { StoryContext, StoryDocument } from "../../../../../../core/story-project/types";
 import { storyProjectApi } from "../../project-client";
 import { storyDocumentData } from "../../story-document";
 import type { StoryWorkspace } from "../../storage";
@@ -62,6 +62,10 @@ const tavernCharacter = (value: JsonObject): TavernCharacter | null => {
   };
 };
 
+/** 酒馆与章节写作共用 Story Project 的定向召回结果，不再自行加载全项目角色。 */
+export const tavernContextCharacterIds = (context: StoryContext) =>
+  new Set(context.sources.flatMap((source) => (source.kind === "story-character" && source.id ? [source.id] : [])));
+
 export const tavernChapterWorkspacePath = (workspace: StoryWorkspace, chapterId: string) =>
   [
     trimPathEnd(workspace.path),
@@ -108,9 +112,11 @@ export const loadTavernStoryData = async ({
   if (context.target?.id !== chapterId) {
     throw new Error(`章节上下文目标不一致：${chapterId}`);
   }
+  const relevantCharacterIds = tavernContextCharacterIds(context);
   const characters = documentValues(await project.listDocuments({ role: "character" })).flatMap((value) => {
     const character = tavernCharacter(value);
-    return character ? [character] : [];
+    if (!character || !relevantCharacterIds.has(character.id)) return [];
+    return [character];
   });
   return {
     chapterId,

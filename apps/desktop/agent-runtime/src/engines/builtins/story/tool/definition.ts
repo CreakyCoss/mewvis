@@ -56,6 +56,14 @@ export type StoryToolPackage = BuiltinToolImplementation<StoryToolApi> &
     id: (typeof STORY_BUILTIN_IDENTIFIERS.toolPackage)["id"];
   }>;
 
+const storyContextForAgent = (context: Awaited<ReturnType<StoryToolApi["readContext"]>>) => ({
+  ...context,
+  sections: context.sections.map((section) => ({
+    ...section,
+    content: "[本分区正文已按同名标题合并到 text；此处不重复注入。]",
+  })),
+});
+
 export const createStoryToolPackage = (repository: StoryToolRepository): StoryToolPackage => {
   const api = createStoryToolService(repository);
   return {
@@ -68,8 +76,10 @@ export const createStoryToolPackage = (repository: StoryToolRepository): StoryTo
           return api.describeStructure(request);
         case STORY_TOOL_ACTIONS.initialize:
           return api.initialize(request);
-        case STORY_TOOL_ACTIONS.readContext:
-          return api.readContext(request);
+        case STORY_TOOL_ACTIONS.readContext: {
+          const context = await api.readContext(request);
+          return storyContextForAgent(context);
+        }
         case STORY_TOOL_ACTIONS.validateChanges:
           return api.validateChanges(request);
         case STORY_TOOL_ACTIONS.commitChanges:
@@ -110,7 +120,7 @@ const STORY_TOOL_PARAMETERS = {
     },
     scope: {
       type: "union",
-      description: "read_context 时必填：读取项目摘要或章节上下文",
+      description: "read_context 时必填：读取项目摘要，或由写作专属召回器生成定向章节简报",
       anyOf: [literalParam("project"), literalParam("chapter")],
       optional: true,
     },
@@ -124,7 +134,7 @@ export const STORY_TOOL = Object.freeze({
   label: "Story",
   contract: STORY_TOOL_CONTRACT,
   description:
-    "Read and modify a typed story project. It exposes the active document structure, readable writing context, validation, and atomic incremental commits.",
+    "Read and modify a typed story project. Chapter context is a writing-specific, reference-aware brief shared with Story Tavern; it never requires workspace document scanning.",
   parameters: STORY_TOOL_PARAMETERS,
   createImplementation: ({ workspacePath }) => createStoryToolPackage(createNodeStoryToolRepository(workspacePath)),
 }) satisfies BuiltinToolDefinition<typeof STORY_TOOL_CONTRACT>;

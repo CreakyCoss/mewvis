@@ -54,6 +54,13 @@ writeFileSync(
   const detailed = await tool.api.describeStructure({ documentKinds: ["story-book", "story-relationships"] });
   assert(detailed.structure.schemas.documents["story-book"].fields.title.label === "书名", "按需 describe 应返回字段 label。", detailed);
   const context = await tool.api.readContext({ scope: "project" });
+  const agentContext = await tool.execute({ action: "read_context", scope: "project" }) as any;
+  assert(
+    agentContext.text === context.text &&
+      agentContext.sections.every((section: any) => section.content.includes("不重复注入")),
+    "Agent 工具输出应保留单份 text，并把 sections 降为来源元数据，避免上下文正文重复注入。",
+    agentContext,
+  );
   const malformed = await tool.api.validateChanges({
     changeSet: {
       storyTypeId: detailed.structure.storyType.id,
