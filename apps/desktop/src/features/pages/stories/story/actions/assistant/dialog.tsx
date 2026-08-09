@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Bot, Plus, ShieldCheck } from "lucide-react";
+import { orderBy } from "lodash-es";
 import { listChats } from "@/api/chat";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +11,6 @@ import type { StoryDocument, StoryOverview } from "../../../../../../../core/sto
 import type { StoryLibraryItem, StoryWorkspace } from "../../../storage";
 import { storyDocumentData } from "../../../story-document";
 import { StoryChat } from "./chat";
-import { latestStoryAssistantChatId } from "./conversation";
 
 type StoryAssistantDialogProps = {
   onOpenChange: (open: boolean) => void;
@@ -55,7 +55,9 @@ export const StoryAssistantDialog = ({
         if (cancelled) return;
         setConversation((current) => ({
           instance: current.instance,
-          chatId: latestStoryAssistantChatId(chats) ?? createTimestampId("chat"),
+          chatId:
+            orderBy(chats, ["updatedAt", "createdAt", "id"], ["desc", "desc", "desc"])[0]?.id ??
+            createTimestampId("chat"),
         }));
       })
       .catch((error) => {
