@@ -1,4 +1,4 @@
-import { AgentEventType, type AgentEvent } from "../../../../protocol/index.js";
+import { AgentRuntimeEventType, type AgentEvent } from "../../../../protocol/wire.js";
 import { resolveRuntime } from "../runtimes/resolver.js";
 import type {
   AgentRunCommand,
@@ -234,11 +234,11 @@ const isVisibleChatOutputEvent = (command: ChatRunCommand, event: AgentEvent) =>
   }
 
   return (
-    event.type === AgentEventType.TextDelta ||
-    event.type === AgentEventType.ThinkingDelta ||
-    event.type === AgentEventType.ReplaceText ||
-    event.type === AgentEventType.ThinkingEnd ||
-    event.type === AgentEventType.Done
+    event.type === AgentRuntimeEventType.TextDelta ||
+    event.type === AgentRuntimeEventType.ThinkingDelta ||
+    event.type === AgentRuntimeEventType.ReplaceText ||
+    event.type === AgentRuntimeEventType.ThinkingEnd ||
+    event.type === AgentRuntimeEventType.Done
   );
 };
 

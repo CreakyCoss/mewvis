@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { AgentEventType, type AnswerQuestionCommand } from "../../../../protocol/index.js";
+import { AgentRuntimeEventType } from "../../../../protocol/wire.js";
+import { type AnswerQuestionCommand } from "../../../../protocol/index.js";
 import type { AgentRuntimeCallbacks, EmitAgentEvent, UserInputHandler, UserInputRequest } from "../runtimes/types.js";
 
 const ASK_USER_TIMEOUT_MS = 10 * 60 * 1000;
@@ -62,7 +63,7 @@ export const createUserInputManager = (emit: EmitAgentEvent): UserInputManager =
     });
 
     emit({
-      type: AgentEventType.Question,
+      type: AgentRuntimeEventType.Question,
       taskId,
       questionId: nextQuestion.questionId,
       question: nextQuestion.question,
@@ -96,7 +97,7 @@ export const createUserInputManager = (emit: EmitAgentEvent): UserInputManager =
     activeQuestionIds.delete(command.taskId);
     clearTimeout(pendingQuestion.timeout);
     emit({
-      type: AgentEventType.QuestionAnswered,
+      type: AgentRuntimeEventType.QuestionAnswered,
       taskId: command.taskId,
       questionId: command.questionId,
       answer: command.answer,

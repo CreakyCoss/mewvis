@@ -1,5 +1,12 @@
-import type { AgentCommand } from "../agent/index.js";
-import type { CollaborationModeRunInput, CollaborationRunInput } from "../collaboration/index.js";
+import type { AgentCommand } from "../agent/command.js";
+import type { CollaborationModeRunInput, CollaborationRunInput } from "../collaboration/workflow.js";
+import type {
+  CollaborationTimelineParams,
+  EmptyParams,
+  RuntimeSessionDebugParams,
+  RuntimeSessionParams,
+  RuntimeSessionsParams,
+} from "../wire.js";
 
 export enum AgentRuntimeCommandType {
   ListRuntimeSessions = "list_runtime_sessions",
@@ -11,47 +18,31 @@ export enum AgentRuntimeCommandType {
   RunCollaborationMode = "run_collaboration_mode",
 }
 
-export type ListCollaborationModesCommand = {
-  type: AgentRuntimeCommandType.ListCollaborationModes;
+type InternalRuntimeCommand<TType extends AgentRuntimeCommandType, TParams> = TParams & {
+  type: TType;
   requestId?: string | null;
 };
 
-export type ListRuntimeSessionsCommand = {
-  type: AgentRuntimeCommandType.ListRuntimeSessions;
-  requestId?: string | null;
-  workspacePath: string;
-  rootDir: string;
-  limit?: number | null;
-  maxDepth?: number | null;
-};
-
-export type ReadRuntimeSessionCommand = {
-  type: AgentRuntimeCommandType.ReadRuntimeSession;
-  requestId?: string | null;
-  workspacePath: string;
-  sessionRootDir: string;
-  includeTimeline?: boolean | null;
-  timelineLimit?: number | null;
-};
-
-export type ReadRuntimeSessionDebugCommand = {
-  type: AgentRuntimeCommandType.ReadRuntimeSessionDebug;
-  requestId?: string | null;
-  workspacePath: string;
-  sessionRootDir: string;
-  includeLedger?: boolean | null;
-  includeTrace?: boolean | null;
-  traceLimit?: number | null;
-};
-
-export type ReadCollaborationTimelineCommand = {
-  type: AgentRuntimeCommandType.ReadCollaborationTimeline;
-  requestId?: string | null;
-  workspacePath: string;
-  sessionRootDir: string;
-  workflowRunId?: string | null;
-  limit?: number | null;
-};
+type ListCollaborationModesCommand = InternalRuntimeCommand<
+  AgentRuntimeCommandType.ListCollaborationModes,
+  EmptyParams
+>;
+type ListRuntimeSessionsCommand = InternalRuntimeCommand<
+  AgentRuntimeCommandType.ListRuntimeSessions,
+  RuntimeSessionsParams
+>;
+type ReadRuntimeSessionCommand = InternalRuntimeCommand<
+  AgentRuntimeCommandType.ReadRuntimeSession,
+  RuntimeSessionParams
+>;
+type ReadRuntimeSessionDebugCommand = InternalRuntimeCommand<
+  AgentRuntimeCommandType.ReadRuntimeSessionDebug,
+  RuntimeSessionDebugParams
+>;
+type ReadCollaborationTimelineCommand = InternalRuntimeCommand<
+  AgentRuntimeCommandType.ReadCollaborationTimeline,
+  CollaborationTimelineParams
+>;
 
 export type RunCollaborationCommand = {
   type: AgentRuntimeCommandType.RunCollaboration;

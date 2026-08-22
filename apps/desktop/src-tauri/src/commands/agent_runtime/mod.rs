@@ -4,6 +4,7 @@ mod chat;
 mod collaboration;
 mod events;
 mod process;
+mod protocol;
 mod rpc;
 mod runtime_files;
 mod session;

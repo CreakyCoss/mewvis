@@ -1,5 +1,5 @@
 import { getModel, type Api, type Model } from "@earendil-works/pi-ai";
-import type { RuntimeApiFormat, RuntimeModelInput, RuntimeThinkingLevel } from "../../../../../../protocol/index.js";
+import type { RuntimeApiFormat, RuntimeModelInput, RuntimeThinkingLevel } from "../../../../../../protocol/wire.js";
 import type { ChatRunCommand, RuntimeAgentCommand } from "../../types.js";
 
 export const requirePiApiKey = (runtimeModel: RuntimeModelInput) => {

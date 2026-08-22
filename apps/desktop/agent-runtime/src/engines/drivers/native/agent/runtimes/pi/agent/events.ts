@@ -1,5 +1,5 @@
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
-import { AgentEventType } from "../../../../../../protocol/index.js";
+import { AgentRuntimeEventType } from "../../../../../../protocol/wire.js";
 import type { EmitAgentEvent, RuntimeAgentCommand } from "../../types.js";
 import { messageFromError } from "../../../../error.js";
 import type { PiAgentSession } from "./session.js";
@@ -46,7 +46,7 @@ export const reportPiAgentRunError = (
 
   state.errorReported = true;
   emit({
-    type: AgentEventType.Error,
+    type: AgentRuntimeEventType.Error,
     taskId: command.taskId,
     message: messageFromError(error),
   });
@@ -88,7 +88,7 @@ const handlePiSessionEvent = (
       return;
     case "tool_execution_start":
       emit({
-        type: AgentEventType.ToolExecutionStart,
+        type: AgentRuntimeEventType.ToolExecutionStart,
         taskId: command.taskId,
         toolCallId: event.toolCallId,
         toolName: event.toolName,
@@ -97,7 +97,7 @@ const handlePiSessionEvent = (
       return;
     case "tool_execution_update":
       emit({
-        type: AgentEventType.ToolExecutionUpdate,
+        type: AgentRuntimeEventType.ToolExecutionUpdate,
         taskId: command.taskId,
         toolCallId: event.toolCallId,
         toolName: event.toolName,
@@ -106,7 +106,7 @@ const handlePiSessionEvent = (
       return;
     case "tool_execution_end":
       emit({
-        type: AgentEventType.ToolExecutionEnd,
+        type: AgentRuntimeEventType.ToolExecutionEnd,
         taskId: command.taskId,
         toolCallId: event.toolCallId,
         toolName: event.toolName,
@@ -130,21 +130,21 @@ const handlePiMessageUpdate = (
       state.assistantText += event.assistantMessageEvent.delta;
       state.streamedText += event.assistantMessageEvent.delta;
       emit({
-        type: AgentEventType.TextDelta,
+        type: AgentRuntimeEventType.TextDelta,
         taskId: command.taskId,
         delta: event.assistantMessageEvent.delta,
       });
       return;
     case "thinking_delta":
       emit({
-        type: AgentEventType.ThinkingDelta,
+        type: AgentRuntimeEventType.ThinkingDelta,
         taskId: command.taskId,
         delta: event.assistantMessageEvent.delta,
       });
       return;
     case "thinking_end":
       emit({
-        type: AgentEventType.ThinkingEnd,
+        type: AgentRuntimeEventType.ThinkingEnd,
         taskId: command.taskId,
         content: event.assistantMessageEvent.content,
       });
@@ -153,7 +153,7 @@ const handlePiMessageUpdate = (
       const toolCall = getPiMessageUpdateToolCall(event);
       if (toolCall) {
         emit({
-          type: AgentEventType.ToolCallStart,
+          type: AgentRuntimeEventType.ToolCallStart,
           taskId: command.taskId,
           toolCallId: toolCall.id,
           toolName: toolCall.name,
@@ -165,7 +165,7 @@ const handlePiMessageUpdate = (
       const toolCall = getPiMessageUpdateToolCall(event);
       if (toolCall) {
         emit({
-          type: AgentEventType.ToolCallDelta,
+          type: AgentRuntimeEventType.ToolCallDelta,
           taskId: command.taskId,
           toolCallId: toolCall.id,
           toolName: toolCall.name,
@@ -176,7 +176,7 @@ const handlePiMessageUpdate = (
     }
     case "toolcall_end":
       emit({
-        type: AgentEventType.ToolCallEnd,
+        type: AgentRuntimeEventType.ToolCallEnd,
         taskId: command.taskId,
         toolCallId: event.assistantMessageEvent.toolCall.id,
         toolName: event.assistantMessageEvent.toolCall.name,
@@ -220,7 +220,7 @@ const handlePiMessageEnd = (
   const thinking = getPiMessageThinking(event);
   if (thinking) {
     emit({
-      type: AgentEventType.ThinkingEnd,
+      type: AgentRuntimeEventType.ThinkingEnd,
       taskId: command.taskId,
       content: thinking,
     });

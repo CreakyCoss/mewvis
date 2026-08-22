@@ -1,4 +1,4 @@
-import type { RuntimeModelInput, RuntimeSessionRecordRef } from "@/agent-client/types";
+import type { RuntimeModelInput, RuntimeSessionRef } from "@/agent-client/wire";
 import type { TavernCharacter, TavernStoryData } from "@/features/pages/stories/tavern/room/model";
 import type { TavernPresentationProfile } from "@/features/pages/stories/tavern/manage/model";
 import type { TavernMessage } from "@/features/pages/stories/tavern/room/model/message";
@@ -36,7 +36,7 @@ export type TavernAgentFlowRunAgentInput = {
 export type TavernAgentFlowRunAgentOutput = {
   text: string;
   thinking?: string | null;
-  agentSession?: RuntimeSessionRecordRef | null;
+  agentSession?: RuntimeSessionRef | null;
   taskId: string;
 };
 
@@ -90,7 +90,7 @@ export type TavernAgentFlowDirectorResult = {
   protocolData: AgentProtocolData[];
   prepared: AgentProtocolPrepared;
   decision: TavernAgentFlowDirectorDecision;
-  agentSession?: RuntimeSessionRecordRef | null;
+  agentSession?: RuntimeSessionRef | null;
   taskId: string;
 };
 
@@ -101,7 +101,7 @@ export type TavernAgentFlowSpeakerResult = {
   prepared: AgentProtocolPrepared;
   publicText: string;
   message: TavernMessage;
-  agentSession?: RuntimeSessionRecordRef | null;
+  agentSession?: RuntimeSessionRef | null;
   taskId: string;
 };
 

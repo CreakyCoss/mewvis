@@ -1,4 +1,5 @@
-import { AgentEventType, AgentResultType, type SessionMutationResult } from "../../../../../protocol/index.js";
+import { AgentRuntimeEventType, AgentRuntimeResultType } from "../../../../../protocol/wire.js";
+import { type SessionMutationResult } from "../../../../../protocol/index.js";
 import { resolveBuiltins } from "../../../../../builtins/index.js";
 import type {
   AgentRunResult,
@@ -22,36 +23,36 @@ export class MockAgent implements AgentRuntime {
     }
     const text = createMockAgentText(command);
 
-    emit({ type: AgentEventType.Started, taskId: command.taskId });
+    emit({ type: AgentRuntimeEventType.Started, taskId: command.taskId });
     emit({
-      type: AgentEventType.ThinkingDelta,
+      type: AgentRuntimeEventType.ThinkingDelta,
       taskId: command.taskId,
       delta: "Mock agent 正在生成模拟结果...\n",
     });
     await sleep(30);
     const toolCallId = crypto.randomUUID();
     emit({
-      type: AgentEventType.ToolCallStart,
+      type: AgentRuntimeEventType.ToolCallStart,
       taskId: command.taskId,
       toolCallId,
       toolName: "mock_tool",
     });
     emit({
-      type: AgentEventType.ToolCallDelta,
+      type: AgentRuntimeEventType.ToolCallDelta,
       taskId: command.taskId,
       toolCallId,
       toolName: "mock_tool",
       delta: '{"promptLength":',
     });
     emit({
-      type: AgentEventType.ToolCallEnd,
+      type: AgentRuntimeEventType.ToolCallEnd,
       taskId: command.taskId,
       toolCallId,
       toolName: "mock_tool",
       args: { promptLength: command.agentTaskPrompt.length },
     });
     emit({
-      type: AgentEventType.ToolExecutionStart,
+      type: AgentRuntimeEventType.ToolExecutionStart,
       taskId: command.taskId,
       toolCallId,
       toolName: "mock_tool",
@@ -59,7 +60,7 @@ export class MockAgent implements AgentRuntime {
     });
     await sleep(30);
     emit({
-      type: AgentEventType.ToolExecutionUpdate,
+      type: AgentRuntimeEventType.ToolExecutionUpdate,
       taskId: command.taskId,
       toolCallId,
       toolName: "mock_tool",
@@ -67,7 +68,7 @@ export class MockAgent implements AgentRuntime {
     });
     await sleep(30);
     emit({
-      type: AgentEventType.ToolExecutionEnd,
+      type: AgentRuntimeEventType.ToolExecutionEnd,
       taskId: command.taskId,
       toolCallId,
       toolName: "mock_tool",
@@ -76,12 +77,12 @@ export class MockAgent implements AgentRuntime {
     });
 
     for (const delta of chunkText(text)) {
-      emit({ type: AgentEventType.TextDelta, taskId: command.taskId, delta });
+      emit({ type: AgentRuntimeEventType.TextDelta, taskId: command.taskId, delta });
       await sleep(10);
     }
 
-    emit({ type: AgentEventType.ThinkingEnd, taskId: command.taskId, content: "模拟完成。" });
-    emit({ type: AgentEventType.Done, taskId: command.taskId, text });
+    emit({ type: AgentRuntimeEventType.ThinkingEnd, taskId: command.taskId, content: "模拟完成。" });
+    emit({ type: AgentRuntimeEventType.Done, taskId: command.taskId, text });
 
     return { text };
   }
@@ -110,7 +111,7 @@ export class MockAgent implements AgentRuntime {
     const generatedAt = Date.now();
     return {
       ...session,
-      type: AgentResultType.SessionMutationResult,
+      type: AgentRuntimeResultType.SessionMutationResult,
       displaySummary: {
         recordId: `agent-summary-${generatedAt}`,
         targetLeafId: command.agentSessionId ?? command.agentRoleId,
@@ -134,7 +135,7 @@ const mockAgentMaintenanceResult = (
   command: RuntimeAgentCompactCommand | RuntimeAgentRebuildCommand,
   result: Pick<SessionMutationResult, "compacted" | "rebuilt">,
 ): SessionMutationResult => ({
-  type: AgentResultType.SessionMutationResult,
+  type: AgentRuntimeResultType.SessionMutationResult,
   requestId: command.requestId ?? null,
   sessionRootDir: command.sessionRootDir,
   summary: "",

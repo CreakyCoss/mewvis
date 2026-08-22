@@ -1,0 +1,5 @@
+{
+  "jsonrpc": "2.0",
+  "id": "unknown-1",
+  "method": "runtime/does-not-exist"
+}

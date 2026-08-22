@@ -1,4 +1,8 @@
 use super::{
+    protocol::{
+        notification, request, AgentRuntimeResources, AgentRuntimeSkillResources,
+        AgentRuntimeToolResources, BundledPath, METHOD_AGENT_QUESTION_ANSWER, METHOD_AGENT_RUN,
+    },
     runtime_files::append_agent_diagnostic,
     session_paths::resolve_optional_session_root_dir,
     skills::{
@@ -11,12 +15,11 @@ use super::{
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tauri::{AppHandle, State};
-use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RunAgentRuntimeAgentInput {
-    task_id: Option<String>,
+    task_id: String,
     workspace_path: String,
     chat_id: Option<String>,
     session_root_dir: Option<String>,
@@ -27,8 +30,7 @@ pub struct RunAgentRuntimeAgentInput {
     runtime_instruction: Option<String>,
     bootstrap_instruction: Option<String>,
     runtime_model: Option<AgentRuntimeModelInput>,
-    allowed_tools: Option<Vec<String>>,
-    enabled_skills: Option<Vec<String>>,
+    resources: Option<AgentRuntimeResources>,
 }
 
 #[derive(Debug, Serialize)]
@@ -49,17 +51,11 @@ pub struct AnswerAgentRuntimeQuestionInput {
 pub fn run_agent_runtime_agent(
     app: AppHandle,
     state: State<AgentRuntimeSupervisor>,
-    input: RunAgentRuntimeAgentInput,
+    mut input: RunAgentRuntimeAgentInput,
 ) -> Result<RunAgentRuntimeAgentOutput, String> {
     validate_agent_input(&input)?;
 
-    let task_id = input
-        .task_id
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(str::to_string)
-        .unwrap_or_else(|| Uuid::now_v7().to_string());
+    let task_id = input.task_id.trim().to_string();
     let bundled_skills_path = bundled_skills_path_for_runtime(&app)?;
     let mut skill_paths = app_skill_paths_for_runtime(&app)?;
     skill_paths.extend(workspace_skill_paths_for_runtime(&input.workspace_path));
@@ -84,42 +80,64 @@ pub fn run_agent_runtime_agent(
         ),
     );
 
-    let allowed_tools = input.allowed_tools.unwrap_or_else(|| {
-        vec![
-            "read".to_string(),
-            "edit".to_string(),
-            "write".to_string(),
-            "ls".to_string(),
-            "find".to_string(),
-            "grep".to_string(),
-            "ask_user".to_string(),
-        ]
+    let mut resources = input.resources.take().unwrap_or(AgentRuntimeResources {
+        tools: None,
+        skills: None,
+        mcp: None,
     });
-    let enabled_skills = input.enabled_skills.unwrap_or_default();
-    let command = json!({
-        "type": "run_agent",
-        "requestId": task_id.clone(),
-        "taskId": task_id.clone(),
-        "workspacePath": input.workspace_path,
-        "sessionRootDir": session_root_dir,
-        "agentRoleId": input.agent_role_id,
-        "userMessage": input.user_message,
-        "systemPrompt": input.system_prompt,
-        "requestContext": input.request_context,
-        "runtimeInstruction": input.runtime_instruction,
-        "bootstrapInstruction": input.bootstrap_instruction,
-        "runtimeModel": input.runtime_model,
-        "resources": {
-            "tools": {
-                "allowed": allowed_tools,
-            },
-            "skills": {
-                "bundledPath": bundled_skills_path,
-                "paths": skill_paths,
-                "enabled": enabled_skills,
-            },
-        }
+    let allowed_tools = resources
+        .tools
+        .take()
+        .and_then(|tools| tools.allowed)
+        .unwrap_or_else(|| {
+            vec![
+                "read".to_string(),
+                "edit".to_string(),
+                "write".to_string(),
+                "ls".to_string(),
+                "find".to_string(),
+                "grep".to_string(),
+                "ask_user".to_string(),
+            ]
+        });
+    let requested_skills = resources.skills.take();
+    let enabled_skills = requested_skills
+        .as_ref()
+        .and_then(|skills| skills.enabled.clone())
+        .unwrap_or_default();
+    skill_paths.extend(
+        requested_skills
+            .as_ref()
+            .and_then(|skills| skills.paths.clone())
+            .unwrap_or_default(),
+    );
+    resources.tools = Some(AgentRuntimeToolResources {
+        allowed: Some(allowed_tools),
     });
+    resources.skills = Some(AgentRuntimeSkillResources {
+        bundled_path: bundled_skills_path
+            .map(BundledPath::PurpleString)
+            .or_else(|| requested_skills.and_then(|skills| skills.bundled_path)),
+        paths: Some(skill_paths),
+        enabled: Some(enabled_skills),
+    });
+    let command = request(
+        task_id.clone(),
+        METHOD_AGENT_RUN,
+        json!({
+            "taskId": task_id.clone(),
+            "workspacePath": input.workspace_path,
+            "sessionRootDir": session_root_dir,
+            "agentRoleId": input.agent_role_id,
+            "userMessage": input.user_message,
+            "systemPrompt": input.system_prompt,
+            "requestContext": input.request_context,
+            "runtimeInstruction": input.runtime_instruction,
+            "bootstrapInstruction": input.bootstrap_instruction,
+            "runtimeModel": input.runtime_model,
+            "resources": resources,
+        }),
+    );
 
     state.submit(
         app,
@@ -138,12 +156,14 @@ pub fn answer_agent_runtime_question(
     state: State<AgentRuntimeSupervisor>,
     input: AnswerAgentRuntimeQuestionInput,
 ) -> Result<(), String> {
-    let command = json!({
-        "type": "answer_question",
-        "taskId": input.task_id,
-        "questionId": input.question_id,
-        "answer": input.answer,
-    });
+    let command = notification(
+        METHOD_AGENT_QUESTION_ANSWER,
+        json!({
+            "taskId": input.task_id,
+            "questionId": input.question_id,
+            "answer": input.answer,
+        }),
+    );
 
     state.answer_question(&input.task_id, &command)
 }
@@ -174,6 +194,10 @@ fn session_key_for_task(
 }
 
 fn validate_agent_input(input: &RunAgentRuntimeAgentInput) -> Result<(), String> {
+    if input.task_id.trim().is_empty() {
+        return Err("Agent taskId 不能为空".to_string());
+    }
+
     if input.workspace_path.trim().is_empty() {
         return Err("工作区路径不能为空".to_string());
     }

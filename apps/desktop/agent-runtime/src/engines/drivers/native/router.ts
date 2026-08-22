@@ -1,11 +1,8 @@
+import { AgentRuntimeEventType, AgentRuntimeResultType, type AnswerQuestionParams } from "../../protocol/wire.js";
 import {
-  AgentEventType,
-  AgentResultType,
   AgentRuntimeCommandType,
-  AgentRuntimeResultType,
   AgentSessionCommandType,
   AgentTaskCommandType,
-  type AnswerQuestionInput,
   type AgentRuntimeCommand,
   type AgentRuntimeResult,
   type ChatCommand,
@@ -39,7 +36,7 @@ type NativeRuntimeCommandRouterDeps = {
   engine: AgentRuntimeEngine;
   emitEvent: EmitAgentRuntimeEvent;
   emitResult: EmitAgentRuntimeResult;
-  answerQuestion(input: AnswerQuestionInput): Promise<void>;
+  answerQuestion(input: AnswerQuestionParams): Promise<void>;
   runAgentCommand(command: AgentRunCommand): Promise<TaskResult>;
 };
 
@@ -56,7 +53,7 @@ export const createNativeRuntimeCommandRouter = (deps: NativeRuntimeCommandRoute
 
   const emitCommandError = (_command: RequestCommand, message: string, taskId?: string | null) => {
     deps.emitEvent({
-      type: AgentEventType.Error,
+      type: AgentRuntimeEventType.Error,
       taskId: taskId || undefined,
       message,
     });
@@ -107,7 +104,7 @@ export const createNativeRuntimeCommandRouter = (deps: NativeRuntimeCommandRoute
 
   const emitCollaborationBusyResult = (command: RunCollaborationCommand | RunCollaborationModeCommand) => {
     deps.emitEvent({
-      type: AgentEventType.Error,
+      type: AgentRuntimeEventType.Error,
       message: collaborationBusyMessage,
     });
     deps.emitResult({
@@ -119,7 +116,7 @@ export const createNativeRuntimeCommandRouter = (deps: NativeRuntimeCommandRoute
       message: collaborationBusyMessage,
     });
     deps.emitResult({
-      type: AgentResultType.TaskResult,
+      type: AgentRuntimeResultType.TaskResult,
       requestId: command.requestId ?? null,
       taskId: taskIdFor(command),
       success: false,
@@ -142,7 +139,7 @@ export const createNativeRuntimeCommandRouter = (deps: NativeRuntimeCommandRoute
       .then((result) => {
         emitCommandResult(command, result);
         deps.emitResult({
-          type: AgentResultType.TaskResult,
+          type: AgentRuntimeResultType.TaskResult,
           requestId: command.requestId ?? null,
           taskId: taskIdFor(command),
           success: true,
@@ -151,12 +148,12 @@ export const createNativeRuntimeCommandRouter = (deps: NativeRuntimeCommandRoute
       .catch((error: unknown) => {
         const message = messageFromError(error);
         deps.emitEvent({
-          type: AgentEventType.Error,
+          type: AgentRuntimeEventType.Error,
           taskId: taskIdFor(command) || undefined,
           message,
         });
         deps.emitResult({
-          type: AgentResultType.TaskResult,
+          type: AgentRuntimeResultType.TaskResult,
           requestId: command.requestId ?? null,
           taskId: taskIdFor(command),
           success: false,

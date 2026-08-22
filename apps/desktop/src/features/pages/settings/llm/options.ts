@@ -1,5 +1,5 @@
 import { MODEL_CATALOG } from "@/agent-client/model-catalog";
-import type { RuntimeApiFormat } from "@/agent-client/types";
+import type { RuntimeApiFormat } from "@/agent-client/wire";
 
 export type ProviderOption = {
   value: string;

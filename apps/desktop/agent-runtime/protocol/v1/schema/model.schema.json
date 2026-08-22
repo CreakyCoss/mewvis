@@ -1,0 +1,124 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://isle.local/protocol/agent-runtime/v1/model.schema.json",
+  "title": "Agent Runtime Model Contracts",
+  "definitions": {
+    "RuntimeApiFormat": {
+      "enum": [
+        "anthropic-messages",
+        "openai-completions",
+        "openai-codex-responses",
+        "openai-responses",
+        "azure-openai-responses",
+        "google-generative-ai",
+        "openrouter"
+      ]
+    },
+    "RuntimeThinkingLevel": {
+      "enum": ["off", "minimal", "low", "medium", "high", "xhigh"]
+    },
+    "RuntimeModelInputModality": {
+      "enum": ["text", "image"]
+    },
+    "RuntimeModelCost": {
+      "type": "object",
+      "required": ["input", "output", "cacheRead", "cacheWrite"],
+      "properties": {
+        "input": { "type": "number" },
+        "output": { "type": "number" },
+        "cacheRead": { "type": "number" },
+        "cacheWrite": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "RuntimeModelInput": {
+      "type": "object",
+      "required": ["provider", "apiFormat", "catalogModelId", "modelId"],
+      "properties": {
+        "provider": { "type": "string" },
+        "apiFormat": { "$ref": "#/definitions/RuntimeApiFormat" },
+        "apiKey": { "type": ["string", "null"] },
+        "catalogModelId": { "type": "string" },
+        "modelId": { "type": "string" },
+        "apiEndpoint": { "type": ["string", "null"] },
+        "reasoning": { "type": "boolean" },
+        "thinkingLevel": {
+          "oneOf": [{ "$ref": "#/definitions/RuntimeThinkingLevel" }, { "type": "null" }]
+        },
+        "thinkingLevelMap": {
+          "type": "object",
+          "additionalProperties": { "type": ["string", "null"] }
+        },
+        "input": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/RuntimeModelInputModality" }
+        },
+        "cost": { "$ref": "#/definitions/RuntimeModelCost" },
+        "contextWindow": { "type": "number" },
+        "maxTokens": { "type": "number" },
+        "headers": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "RuntimeModel": {
+      "oneOf": [{ "$ref": "#/definitions/RuntimeModelInput" }, { "type": "null" }]
+    },
+    "RuntimeModelCatalogApi": {
+      "type": "object",
+      "required": ["apiFormat"],
+      "properties": {
+        "apiFormat": { "$ref": "#/definitions/RuntimeApiFormat" },
+        "apiEndpoint": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "RuntimeModelSummary": {
+      "type": "object",
+      "required": ["id", "name", "reasoning", "input", "cost", "contextWindow", "maxTokens"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "reasoning": { "type": "boolean" },
+        "thinkingLevelMap": {
+          "type": "object",
+          "additionalProperties": { "type": ["string", "null"] }
+        },
+        "input": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/RuntimeModelInputModality" }
+        },
+        "cost": { "$ref": "#/definitions/RuntimeModelCost" },
+        "contextWindow": { "type": "number" },
+        "maxTokens": { "type": "number" },
+        "headers": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "RuntimeModelProviderSummary": {
+      "type": "object",
+      "required": ["models", "websiteUrl", "apis"],
+      "properties": {
+        "models": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/RuntimeModelSummary" }
+        },
+        "websiteUrl": { "type": "string" },
+        "apis": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/RuntimeModelCatalogApi" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "RuntimeModelCatalog": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/RuntimeModelProviderSummary" }
+    }
+  }
+}

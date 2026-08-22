@@ -1,10 +1,6 @@
 import { messageFromError } from "../../error.js";
-import {
-  CollaborationEventType,
-  type CollaborationEvent,
-  type CollaborationRunInput,
-  type CollaborationRunResult,
-} from "../../../../protocol/index.js";
+import { AgentRuntimeEventType, type CollaborationEvent } from "../../../../protocol/wire.js";
+import { type CollaborationRunInput, type CollaborationRunResult } from "../../../../protocol/index.js";
 import type {
   CollaborationRuntime,
   CollaborationRuntimeId,
@@ -63,7 +59,7 @@ export const executeCollaborationRunCommand = async (
     ? recorder.wrapEmit((event: CollaborationEvent) => context.emit?.(event))
     : (event: CollaborationEvent) => context.emit?.(event);
   emit({
-    type: CollaborationEventType.WorkflowStarted,
+    type: AgentRuntimeEventType.WorkflowStarted,
     workflowRunId,
     workflowId: input.workflow.id,
   });
@@ -80,7 +76,7 @@ export const executeCollaborationRunCommand = async (
     });
     const normalizedResult = normalizeRuntimeResult(result, workflowRunId);
     emit({
-      type: CollaborationEventType.WorkflowDone,
+      type: AgentRuntimeEventType.WorkflowDone,
       workflowRunId,
       result: normalizedResult,
     });
@@ -88,7 +84,7 @@ export const executeCollaborationRunCommand = async (
   } catch (error: unknown) {
     const metadata = getErrorMetadata(error);
     emit({
-      type: CollaborationEventType.Error,
+      type: AgentRuntimeEventType.Error,
       workflowRunId,
       stepId: metadata.stepId,
       agentRoleId: metadata.agentRoleId,

@@ -1,4 +1,12 @@
 use super::{
+    protocol::{
+        METHOD_COLLABORATION_TIMELINE_READ, METHOD_RUNTIME_SESSIONS_LIST,
+        METHOD_RUNTIME_SESSION_DEBUG_READ, METHOD_RUNTIME_SESSION_READ,
+        METHOD_SESSION_AGENT_SUMMARIZE, METHOD_SESSION_READ, METHOD_SESSION_SUMMARIZE,
+        RESULT_COLLABORATION_TIMELINE_RESULT, RESULT_RUNTIME_SESSIONS_RESULT,
+        RESULT_RUNTIME_SESSION_DEBUG_RESULT, RESULT_RUNTIME_SESSION_RESULT,
+        RESULT_SESSION_MUTATION_RESULT, RESULT_SESSION_RESULT,
+    },
     rpc::call_agent_runtime_rpc,
     session_paths::{resolve_optional_session_root_dir, resolve_session_root_dir},
     supervisor::AgentRuntimeSupervisor,
@@ -77,12 +85,12 @@ pub async fn read_agent_runtime_session(
         resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
     call_session_runtime(
         app,
+        METHOD_SESSION_READ,
         json!({
-            "type": "read_session",
             "workspacePath": input.workspace_path,
             "sessionRootDir": session_root_dir,
         }),
-        &["session_result"],
+        &[RESULT_SESSION_RESULT],
     )
     .await
 }
@@ -96,14 +104,14 @@ pub async fn list_agent_runtime_sessions(
         resolve_runtime_session_query_root_dir(&input.workspace_path, input.root_dir.as_deref())?;
     call_session_runtime(
         app,
+        METHOD_RUNTIME_SESSIONS_LIST,
         json!({
-            "type": "list_runtime_sessions",
             "workspacePath": input.workspace_path,
             "rootDir": root_dir,
             "limit": input.limit,
             "maxDepth": input.max_depth,
         }),
-        &["runtime_sessions_result"],
+        &[RESULT_RUNTIME_SESSIONS_RESULT],
     )
     .await
 }
@@ -117,14 +125,14 @@ pub async fn get_agent_runtime_session(
         resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
     call_session_runtime(
         app,
+        METHOD_RUNTIME_SESSION_READ,
         json!({
-            "type": "read_runtime_session",
             "workspacePath": input.workspace_path,
             "sessionRootDir": session_root_dir,
             "includeTimeline": input.include_timeline,
             "timelineLimit": input.timeline_limit,
         }),
-        &["runtime_session_result"],
+        &[RESULT_RUNTIME_SESSION_RESULT],
     )
     .await
 }
@@ -138,15 +146,15 @@ pub async fn get_agent_runtime_session_debug(
         resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
     call_session_runtime(
         app,
+        METHOD_RUNTIME_SESSION_DEBUG_READ,
         json!({
-            "type": "read_runtime_session_debug",
             "workspacePath": input.workspace_path,
             "sessionRootDir": session_root_dir,
             "includeLedger": input.include_ledger,
             "includeTrace": input.include_trace,
             "traceLimit": input.trace_limit,
         }),
-        &["runtime_session_debug_result"],
+        &[RESULT_RUNTIME_SESSION_DEBUG_RESULT],
     )
     .await
 }
@@ -160,14 +168,14 @@ pub async fn get_agent_runtime_collaboration_timeline(
         resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
     call_session_runtime(
         app,
+        METHOD_COLLABORATION_TIMELINE_READ,
         json!({
-            "type": "read_collaboration_timeline",
             "workspacePath": input.workspace_path,
             "sessionRootDir": session_root_dir,
             "workflowRunId": input.workflow_run_id,
             "limit": input.limit,
         }),
-        &["collaboration_timeline_result"],
+        &[RESULT_COLLABORATION_TIMELINE_RESULT],
     )
     .await
 }
@@ -227,50 +235,56 @@ pub async fn summarize_agent_runtime_session(
         .as_deref()
         .map(str::trim)
         .filter(|value| !value.is_empty());
-    let command = if let Some(agent_role_id) = agent_role_id {
-        json!({
-            "type": "summarize_agent_session",
-            "workspacePath": workspace_path,
-            "sessionRootDir": session_root_dir,
-            "target": {
-                "scope": "agent",
-                "agentRoleId": agent_role_id,
-            },
-            "options": {
-                "summaryInstruction": summary_instruction,
-                "maxSummaryChars": max_summary_chars,
-            },
-            "runtime": {
-                "model": runtime_model,
-            },
-        })
+    let (method, params) = if let Some(agent_role_id) = agent_role_id {
+        (
+            METHOD_SESSION_AGENT_SUMMARIZE,
+            json!({
+                "workspacePath": workspace_path,
+                "sessionRootDir": session_root_dir,
+                "target": {
+                    "scope": "agent",
+                    "agentRoleId": agent_role_id,
+                },
+                "options": {
+                    "summaryInstruction": summary_instruction,
+                    "maxSummaryChars": max_summary_chars,
+                },
+                "runtime": {
+                    "model": runtime_model,
+                },
+            }),
+        )
     } else {
-        json!({
-            "type": "summarize_session",
-            "workspacePath": workspace_path,
-            "sessionRootDir": session_root_dir,
-            "options": {
-                "summaryInstruction": summary_instruction,
-                "maxSummaryChars": max_summary_chars,
-            },
-            "runtime": {
-                "model": runtime_model,
-            },
-        })
+        (
+            METHOD_SESSION_SUMMARIZE,
+            json!({
+                "workspacePath": workspace_path,
+                "sessionRootDir": session_root_dir,
+                "options": {
+                    "summaryInstruction": summary_instruction,
+                    "maxSummaryChars": max_summary_chars,
+                },
+                "runtime": {
+                    "model": runtime_model,
+                },
+            }),
+        )
     };
-    call_session_runtime(app, command, &["session_mutation_result"]).await
+    call_session_runtime(app, method, params, &[RESULT_SESSION_MUTATION_RESULT]).await
 }
 
 async fn call_session_runtime(
     app: AppHandle,
-    command: Value,
+    method: &'static str,
+    params: Value,
     result_types: &'static [&'static str],
 ) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
         call_agent_runtime_rpc(
             &app,
             "Agent runtime session",
-            command,
+            method,
+            params,
             result_types,
             |_value| {},
         )

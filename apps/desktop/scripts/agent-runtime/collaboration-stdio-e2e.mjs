@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { runtimePayloadFromJsonRpcMessage, writeAgentRuntimeCommand } from "./stdio-json-rpc-client.mjs";
 
 const workspaceRoot = process.cwd();
 const runtimePath = join(workspaceRoot, "agent-runtime/dist/cli.js");
@@ -20,6 +21,10 @@ const assert = (condition, message, details) => {
 
 const child = spawn(process.execPath, [runtimePath], {
   cwd: workspaceRoot,
+  env: {
+    ...process.env,
+    AGENT_RUNTIME_PROFILE_ID: "mock",
+  },
   stdio: ["pipe", "pipe", "pipe"],
 });
 
@@ -32,7 +37,7 @@ const handleLine = (line) => {
   if (!line.trim()) {
     return;
   }
-  const parsed = JSON.parse(line);
+  const parsed = runtimePayloadFromJsonRpcMessage(JSON.parse(line));
   seen.push(parsed);
   for (const waiter of [...waiters]) {
     if (waiter.predicate(parsed)) {
@@ -75,7 +80,7 @@ const waitFor = (predicate, timeoutMs = 15_000) =>
   });
 
 const send = (command) => {
-  child.stdin.write(`${JSON.stringify(command)}\n`);
+  writeAgentRuntimeCommand(child.stdin, command);
 };
 
 try {
@@ -122,19 +127,16 @@ try {
         {
           id: "planner",
           label: "Planner",
-          agentId: "mock",
           systemPrompt: "你是 stdio 协作 smoke test 的共享系统角色。",
         },
         {
           id: "optional",
           label: "Optional",
-          agentId: "mock",
           systemPrompt: "你是 stdio 协作 smoke test 的可选角色。",
         },
         {
           id: "writer",
           label: "Writer",
-          agentId: "mock",
           systemPrompt: "你是 stdio 协作 smoke test 的写作角色。",
         },
       ],
@@ -208,13 +210,11 @@ try {
         {
           id: "writer",
           label: "Writer",
-          agentId: "mock",
           systemPrompt: "你是 stdio dispatch smoke test 的写作者。",
         },
         {
           id: "reviewer",
           label: "Reviewer",
-          agentId: "mock",
           systemPrompt: "你是 stdio dispatch smoke test 的审阅者。",
         },
       ],
@@ -340,19 +340,16 @@ try {
         {
           id: "left",
           label: "Left",
-          agentId: "mock",
           systemPrompt: "你是 stdio LangGraph 协作 smoke test 的左侧角色。",
         },
         {
           id: "right",
           label: "Right",
-          agentId: "mock",
           systemPrompt: "你是 stdio LangGraph 协作 smoke test 的右侧角色。",
         },
         {
           id: "reviewer",
           label: "Reviewer",
-          agentId: "mock",
           systemPrompt: "你是 stdio LangGraph 协作 smoke test 的审阅角色。",
         },
       ],

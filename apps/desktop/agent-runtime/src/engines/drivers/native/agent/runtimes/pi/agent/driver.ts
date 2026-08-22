@@ -1,4 +1,4 @@
-import { AgentEventType } from "../../../../../../protocol/index.js";
+import { AgentRuntimeEventType } from "../../../../../../protocol/wire.js";
 import type {
   AgentRunResult,
   AgentRuntimeCallbacks,
@@ -63,7 +63,7 @@ const nextPromptFromAskUserToolCall = async (
   }
 
   emit({
-    type: AgentEventType.ReplaceText,
+    type: AgentRuntimeEventType.ReplaceText,
     taskId: command.taskId,
     text: "",
   });

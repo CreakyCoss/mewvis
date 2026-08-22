@@ -1,18 +1,19 @@
 import {
   AgentRuntimeResultType,
+  type CollaborationTimelineParams,
+  type MessageDeleteParams,
+  type MessageEditParams,
+  type SessionTargetParams,
+  type SessionMessagesParams,
+  type RuntimeSessionDebugParams,
+  type RuntimeSessionParams,
+  type RuntimeSessionsParams,
+} from "../../../protocol/wire.js";
+import {
   AgentSessionCommandType,
-  type AppendSessionMessagesInput,
-  type CollaborationTimelineQuery,
   type CollaborationTimelineResult,
-  type DeleteSessionMessageInput,
-  type EditSessionMessageInput,
-  type ReadSessionInput,
-  type RebuildSessionInput,
-  type RuntimeSessionDebugQuery,
   type RuntimeSessionDebugResult,
-  type RuntimeSessionQuery,
   type RuntimeSessionResult,
-  type RuntimeSessionsQuery,
   type RuntimeSessionsResult,
   type SessionMutationResult,
   type SessionResult,
@@ -74,7 +75,7 @@ class RuntimeSessionManager {
     );
   }
 
-  async readSession(input: SessionManagerInput<ReadSessionInput> = {}): Promise<SessionResult> {
+  async readSession(input: SessionManagerInput<SessionTargetParams> = {}): Promise<SessionResult> {
     await this.ensureReady();
     return this.provider.readSession({
       ...input,
@@ -95,7 +96,7 @@ class RuntimeSessionManager {
   }
 
   async editSessionMessage(
-    input: SessionManagerInput<EditSessionMessageInput>,
+    input: SessionManagerInput<MessageEditParams>,
     hooks: RuntimeSessionMutationHooks = {},
   ): Promise<SessionMutationResult> {
     await this.ensureReady();
@@ -110,7 +111,7 @@ class RuntimeSessionManager {
   }
 
   async deleteSessionMessage(
-    input: SessionManagerInput<DeleteSessionMessageInput>,
+    input: SessionManagerInput<MessageDeleteParams>,
     hooks: RuntimeSessionMutationHooks = {},
   ): Promise<SessionMutationResult> {
     await this.ensureReady();
@@ -125,7 +126,7 @@ class RuntimeSessionManager {
   }
 
   async appendSessionMessages(
-    input: SessionManagerInput<AppendSessionMessagesInput>,
+    input: SessionManagerInput<SessionMessagesParams>,
     hooks: RuntimeSessionMutationHooks = {},
   ): Promise<SessionMutationResult> {
     await this.ensureReady();
@@ -140,7 +141,7 @@ class RuntimeSessionManager {
   }
 
   async rebuildSession(
-    input: SessionManagerInput<RebuildSessionInput>,
+    input: SessionManagerInput<SessionMessagesParams>,
     hooks: RuntimeSessionMutationHooks = {},
   ): Promise<SessionMutationResult> {
     await this.ensureReady();
@@ -201,7 +202,7 @@ class RuntimeSessionManager {
     });
   }
 
-  async readRuntimeSession(input: SessionManagerInput<RuntimeSessionQuery> = {}): Promise<RuntimeSessionResult> {
+  async readRuntimeSession(input: SessionManagerInput<RuntimeSessionParams> = {}): Promise<RuntimeSessionResult> {
     await this.ensureReady();
     const snapshot = await this.provider.getRuntimeSessionSnapshot(this.target, {
       includeTimeline: input.includeTimeline,
@@ -216,7 +217,7 @@ class RuntimeSessionManager {
   }
 
   async readRuntimeSessionDebug(
-    input: SessionManagerInput<RuntimeSessionDebugQuery> = {},
+    input: SessionManagerInput<RuntimeSessionDebugParams> = {},
   ): Promise<RuntimeSessionDebugResult> {
     await this.ensureReady();
     const snapshot = await this.provider.getRuntimeSessionDebugSnapshot(this.target, {
@@ -234,7 +235,7 @@ class RuntimeSessionManager {
   }
 
   async readCollaborationTimeline(
-    input: SessionManagerInput<CollaborationTimelineQuery> = {},
+    input: SessionManagerInput<CollaborationTimelineParams> = {},
   ): Promise<CollaborationTimelineResult> {
     await this.ensureReady();
     return {
@@ -279,7 +280,7 @@ export const createRuntimeSessionManager = (target: RuntimeSessionManagerTarget)
   new RuntimeSessionManager(target, resolveRuntimeSessionProvider(target.providerId));
 
 export const listRuntimeSessions = async (
-  input: RuntimeSessionsQuery,
+  input: RuntimeSessionsParams,
   providerId?: RuntimeSessionProviderId | null,
 ): Promise<RuntimeSessionsResult> => ({
   type: AgentRuntimeResultType.RuntimeSessionsResult,

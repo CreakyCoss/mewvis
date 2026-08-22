@@ -1,5 +1,5 @@
+import type { AgentEvent } from "../../../../protocol/wire.js";
 import type {
-  AgentEvent,
   MessageAppendCommand,
   MessageDeleteCommand,
   MessageEditCommand,
@@ -15,11 +15,7 @@ import type {
   RuntimeSessionRecordRef,
   RuntimeSessionContextView,
 } from "../model/context.js";
-import type {
-  RuntimeSessionDebugSnapshot,
-  RuntimeSessionSummary,
-  RuntimeSessionTimelineItem,
-} from "../../../../protocol/session.js";
+import type { RuntimeSessionSummary, RuntimeTimelineItem } from "../../../../protocol/wire.js";
 import type { RuntimeSessionCommand, SessionBackedRuntimeCommand } from "../model/runtime-command.js";
 
 export type RuntimeSessionProviderId = "jsonl" | (string & {});
@@ -47,7 +43,16 @@ export type RuntimeSessionQueryTarget = {
 
 export type RuntimeSessionSnapshot = {
   session: RuntimeSessionSummary;
-  timeline?: RuntimeSessionTimelineItem[];
+  timeline?: RuntimeTimelineItem[];
+};
+
+export type RuntimeSessionDebugSnapshot = {
+  session: RuntimeSessionSummary;
+  ledger?: {
+    header: unknown;
+    entries: unknown[];
+  } | null;
+  trace?: unknown[];
 };
 
 export type RuntimeSessionListOptions = {
@@ -169,6 +174,6 @@ export type RuntimeSessionProvider = {
   ): Promise<{
     session: RuntimeSessionSummary;
     workflowRunId?: string | null;
-    events: RuntimeSessionTimelineItem[];
+    events: RuntimeTimelineItem[];
   }>;
 };

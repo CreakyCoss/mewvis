@@ -1,19 +1,18 @@
-import type {
-  CollaborationTimelineQuery,
-  RuntimeSessionDebugQuery,
-  RuntimeSessionQuery,
-} from "@agent-runtime/engines/protocol";
-import type { AgentClientAgentInput, AgentClientAgentTask, AgentClientChatResult } from "../contracts/inputs";
-import type {
-  AgentClientCollaborationTimelineResult,
-  AgentClientRuntimeSessionDebugSnapshot,
-  AgentClientRuntimeSessionSnapshot,
-  AgentClientRuntimeSessionsResult,
-} from "../contracts/session";
+import type { AgentClientAgentTask, AgentClientAgentToolsResult, AgentClientChatResult } from "../contracts";
+import {
+  AgentRuntimeResultType,
+  type AgentRunParams,
+  type CollaborationTimelineParams,
+  type CollaborationTimelineResult,
+  type RuntimeSessionDebugParams,
+  type RuntimeSessionDebugResult,
+  type RuntimeSessionParams,
+  type RuntimeSessionResult,
+  type RuntimeSessionsResult,
+} from "../wire";
 import type {
   AgentClient,
   AgentClientAgent,
-  AgentClientAgentToolsResult,
   AgentClientCapabilities,
   AgentClientCollaboration,
   AgentClientEvents,
@@ -49,14 +48,15 @@ class WebPreviewAgentClientAgent implements AgentClientAgent {
     };
   }
 
-  async run(input: AgentClientAgentInput): Promise<AgentClientAgentTask> {
-    return { taskId: input.taskId?.trim() || crypto.randomUUID() };
+  async run(input: AgentRunParams): Promise<AgentClientAgentTask> {
+    return { taskId: input.taskId };
   }
 }
 
 class WebPreviewAgentClientSessionDebug implements AgentClientSessionDebug {
-  async read(input: RuntimeSessionDebugQuery): Promise<AgentClientRuntimeSessionDebugSnapshot> {
+  async read(input: RuntimeSessionDebugParams): Promise<RuntimeSessionDebugResult> {
     return {
+      type: AgentRuntimeResultType.RuntimeSessionDebugResult,
       session: emptyRuntimeSession(input),
       ledger: null,
       trace: [],
@@ -67,14 +67,16 @@ class WebPreviewAgentClientSessionDebug implements AgentClientSessionDebug {
 class WebPreviewAgentClientSession implements AgentClientSession {
   readonly debug: AgentClientSessionDebug = new WebPreviewAgentClientSessionDebug();
 
-  async list(): Promise<AgentClientRuntimeSessionsResult> {
+  async list(): Promise<RuntimeSessionsResult> {
     return {
+      type: AgentRuntimeResultType.RuntimeSessionsResult,
       sessions: [],
     };
   }
 
-  async read(input: RuntimeSessionQuery): Promise<AgentClientRuntimeSessionSnapshot> {
+  async read(input: RuntimeSessionParams): Promise<RuntimeSessionResult> {
     return {
+      type: AgentRuntimeResultType.RuntimeSessionResult,
       session: emptyRuntimeSession(input),
     };
   }
@@ -89,8 +91,9 @@ class WebPreviewAgentClientCollaboration implements AgentClientCollaboration {
     return { taskId: crypto.randomUUID() };
   }
 
-  async readTimeline(input: CollaborationTimelineQuery): Promise<AgentClientCollaborationTimelineResult> {
+  async readTimeline(input: CollaborationTimelineParams): Promise<CollaborationTimelineResult> {
     return {
+      type: AgentRuntimeResultType.CollaborationTimelineResult,
       session: emptyRuntimeSession(input),
       workflowRunId: input.workflowRunId ?? null,
       events: [],

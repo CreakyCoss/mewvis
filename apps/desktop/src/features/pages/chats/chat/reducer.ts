@@ -1,23 +1,8 @@
-import type { AgentClientAgentEvent } from "@/agent-client/types";
+import type { AgentClientChatMessageEvent, AgentClientToolEvent } from "@/agent-client/contracts";
+import { AgentRuntimeEventType } from "@/agent-client/wire";
 import type { ChatAssistantMessage, ChatAssistantMessageBlock, ChatToolEvent } from "./type";
 
-type ChatEvent = Extract<
-  AgentClientAgentEvent,
-  {
-    type:
-      | "text_delta"
-      | "replace_text"
-      | "thinking_delta"
-      | "thinking_end"
-      | "tool_call_start"
-      | "tool_call_delta"
-      | "tool_call_end"
-      | "tool_execution_start"
-      | "tool_execution_update"
-      | "tool_execution_end"
-      | "done";
-  }
->;
+type ChatEvent = AgentClientChatMessageEvent;
 
 const TOOL_EVENT_CONTENT_LIMIT = 2000;
 const TOOL_EVENT_HISTORY_LIMIT = 40;
@@ -136,28 +121,14 @@ const finalizeThinking = (message: ChatAssistantMessage, content: string) => {
   return blocks;
 };
 
-const appendToolEvent = (
-  message: ChatAssistantMessage,
-  event: Extract<
-    ChatEvent,
-    {
-      type:
-        | "tool_call_start"
-        | "tool_call_delta"
-        | "tool_call_end"
-        | "tool_execution_start"
-        | "tool_execution_update"
-        | "tool_execution_end";
-    }
-  >,
-) => {
+const appendToolEvent = (message: ChatAssistantMessage, event: AgentClientToolEvent) => {
   const blocks = [...message.blocks];
   const toolIndex = findLastBlockIndex(
     blocks,
     (block) => block.type === "tool" && block.toolCallId === event.toolCallId,
   );
 
-  if (event.type === "tool_call_start") {
+  if (event.type === AgentRuntimeEventType.ToolCallStart) {
     if (toolIndex >= 0) {
       return blocks;
     }
@@ -173,7 +144,7 @@ const appendToolEvent = (
     return blocks;
   }
 
-  if (event.type === "tool_call_delta") {
+  if (event.type === AgentRuntimeEventType.ToolCallDelta) {
     if (toolIndex >= 0) {
       const block = blocks[toolIndex];
       if (block.type === "tool") {
@@ -195,7 +166,7 @@ const appendToolEvent = (
     return blocks;
   }
 
-  if (event.type === "tool_call_end" || event.type === "tool_execution_start") {
+  if (event.type === AgentRuntimeEventType.ToolCallEnd || event.type === AgentRuntimeEventType.ToolExecutionStart) {
     if (toolIndex >= 0) {
       const block = blocks[toolIndex];
       if (block.type === "tool") {
@@ -219,9 +190,9 @@ const appendToolEvent = (
     return blocks;
   }
 
-  const status = event.type === "tool_execution_end" ? (event.isError ? "error" : "done") : "running";
+  const status = event.type === AgentRuntimeEventType.ToolExecutionEnd ? (event.isError ? "error" : "done") : "running";
   const toolEvent =
-    event.type === "tool_execution_update"
+    event.type === AgentRuntimeEventType.ToolExecutionUpdate
       ? createToolEvent("update", event.partialResult)
       : createToolEvent("output", event.result, event.isError);
 
@@ -249,7 +220,7 @@ const appendToolEvent = (
 };
 
 export const applyChatMessageEvent = (message: ChatAssistantMessage, event: ChatEvent): ChatAssistantMessage => {
-  if (event.type === "text_delta") {
+  if (event.type === AgentRuntimeEventType.TextDelta) {
     return {
       ...message,
       blocks: appendText(message, event.delta),
@@ -257,7 +228,7 @@ export const applyChatMessageEvent = (message: ChatAssistantMessage, event: Chat
     };
   }
 
-  if (event.type === "replace_text") {
+  if (event.type === AgentRuntimeEventType.ReplaceText) {
     return {
       ...message,
       blocks: replaceLastText(message, event.text),
@@ -265,7 +236,7 @@ export const applyChatMessageEvent = (message: ChatAssistantMessage, event: Chat
     };
   }
 
-  if (event.type === "thinking_delta") {
+  if (event.type === AgentRuntimeEventType.ThinkingDelta) {
     return {
       ...message,
       blocks: appendThinking(message, event.delta),
@@ -273,7 +244,7 @@ export const applyChatMessageEvent = (message: ChatAssistantMessage, event: Chat
     };
   }
 
-  if (event.type === "thinking_end") {
+  if (event.type === AgentRuntimeEventType.ThinkingEnd) {
     return {
       ...message,
       blocks: finalizeThinking(message, event.content),
@@ -282,12 +253,12 @@ export const applyChatMessageEvent = (message: ChatAssistantMessage, event: Chat
   }
 
   if (
-    event.type === "tool_call_start" ||
-    event.type === "tool_call_delta" ||
-    event.type === "tool_call_end" ||
-    event.type === "tool_execution_start" ||
-    event.type === "tool_execution_update" ||
-    event.type === "tool_execution_end"
+    event.type === AgentRuntimeEventType.ToolCallStart ||
+    event.type === AgentRuntimeEventType.ToolCallDelta ||
+    event.type === AgentRuntimeEventType.ToolCallEnd ||
+    event.type === AgentRuntimeEventType.ToolExecutionStart ||
+    event.type === AgentRuntimeEventType.ToolExecutionUpdate ||
+    event.type === AgentRuntimeEventType.ToolExecutionEnd
   ) {
     return {
       ...message,

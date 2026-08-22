@@ -1,5 +1,5 @@
 import { clamp } from "lodash-es";
-import type { RuntimeModelInput } from "../../../../protocol/index.js";
+import type { RuntimeModelInput } from "../../../../protocol/wire.js";
 import { resolveRuntime } from "../../agent/runtimes/resolver.js";
 import type { ChatRunCommand } from "../../agent/runtimes/types.js";
 import type { RuntimeSessionContextView } from "../model/context.js";

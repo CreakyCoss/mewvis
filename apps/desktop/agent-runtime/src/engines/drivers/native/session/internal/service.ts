@@ -1,6 +1,6 @@
 import { rm } from "node:fs/promises";
+import { AgentRuntimeResultType } from "../../../../protocol/wire.js";
 import {
-  AgentResultType,
   type CreateSessionCommand,
   type MessageAppendCommand,
   type MessageDeleteCommand,
@@ -30,7 +30,7 @@ export const runtimeSessionResultFrom = (
   command: { requestId?: string | null; sessionRootDir: string },
   context: ReturnType<typeof buildRuntimeSessionContext>,
 ): SessionResult => ({
-  type: AgentResultType.SessionResult,
+  type: AgentRuntimeResultType.SessionResult,
   requestId: command.requestId ?? null,
   sessionRootDir: command.sessionRootDir,
   summary: context.summary,
@@ -53,7 +53,7 @@ export const runtimeSessionMutationResultFrom = (
   > = {},
 ): SessionMutationResult => ({
   ...runtimeSessionResultFrom(command, context),
-  type: AgentResultType.SessionMutationResult,
+  type: AgentRuntimeResultType.SessionMutationResult,
   ...extra,
 });
 
@@ -253,6 +253,7 @@ export const summarizeRuntimeSession = async (
   const generated = await generateDisplaySummary({
     context: contextViewFrom(context),
     sourceEntries: summarySourceEntriesFromContext(context),
+    runtimeId: command.runtime?.runtimeId ?? null,
     runtimeModel: command.runtime?.model ?? null,
     summaryInstruction: command.options?.summaryInstruction ?? null,
     maxSummaryChars: command.options?.maxSummaryChars ?? null,

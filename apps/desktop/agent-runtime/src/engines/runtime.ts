@@ -1,40 +1,41 @@
 import type {
-  AgentRuntimeCommand,
   AgentRuntimeEvent,
+  AskUserInput,
+  AgentRunParams,
+  EmptyParams,
+  ChatParams,
+  MessageDeleteParams,
+  MessageEditParams,
+  SessionMessagesParams,
+  SessionTargetParams,
+  RuntimeSessionDebugParams,
+  RuntimeSessionParams,
+  RuntimeSessionsParams,
+  CollaborationTimelineParams,
+} from "./protocol/wire.js";
+import type {
+  AgentRuntimeCommand,
   AgentRuntimeResult,
   PongResult,
   ShutdownAckResult,
-  AskUserInput,
-  AgentRunInput,
-  AgentToolsQuery,
   AgentToolsResult,
-  ChatInput,
   ChatResult,
   RuntimeModelsResult,
   TaskResult,
-  AppendSessionMessagesInput,
   CompactAgentSessionInput,
-  DeleteSessionMessageInput,
-  EditSessionMessageInput,
   RebuildAgentSessionInput,
-  RebuildSessionInput,
-  ReadSessionInput,
   SessionMutationResult,
   SessionResult,
   SummarizeAgentSessionInput,
   SummarizeSessionInput,
-  RuntimeSessionDebugQuery,
   RuntimeSessionDebugResult,
-  RuntimeSessionQuery,
   RuntimeSessionResult,
-  RuntimeSessionsQuery,
   RuntimeSessionsResult,
   CollaborationModesRuntimeResult,
   CollaborationRuntimeResult,
-  CollaborationTimelineQuery,
   CollaborationTimelineResult,
-  RunCollaborationInput,
-  RunCollaborationModeInput,
+  CollaborationRunInput,
+  CollaborationModeRunInput,
 } from "./protocol/index.js";
 
 export type EmitAgentRuntimeEvent = (event: AgentRuntimeEvent) => void;
@@ -64,22 +65,22 @@ export type RuntimeEngineOptions = {
 export interface AgentRuntimeCapabilities {
   // 查询 runtime 对前端可见的模型与工具能力；只返回展示/选择所需的稳定协议结果。
   listRuntimeModels(): Promise<RuntimeModelsResult>;
-  listAgentTools(input?: AgentToolsQuery): Promise<AgentToolsResult>;
+  listAgentTools(input?: EmptyParams): Promise<AgentToolsResult>;
 }
 
 export interface AgentRuntimeAgent {
   // chat 是无 session 的轻量模型调用；需要上下文、工具或长期 agent session 时使用 run。
-  chat(input: ChatInput): Promise<ChatResult>;
-  run(input: AgentRunInput): Promise<TaskResult>;
+  chat(input: ChatParams): Promise<ChatResult>;
+  run(input: AgentRunParams): Promise<TaskResult>;
 }
 
 export interface AgentRuntimeSessionAdmin {
   // 底层 session 投影和 ledger 变更能力；普通前端展示优先使用 engine.session.read。
-  read(input: ReadSessionInput): Promise<SessionResult>;
-  appendMessages(input: AppendSessionMessagesInput): Promise<SessionMutationResult>;
-  editMessage(input: EditSessionMessageInput): Promise<SessionMutationResult>;
-  deleteMessage(input: DeleteSessionMessageInput): Promise<SessionMutationResult>;
-  rebuild(input: RebuildSessionInput): Promise<SessionMutationResult>;
+  read(input: SessionTargetParams): Promise<SessionResult>;
+  appendMessages(input: SessionMessagesParams): Promise<SessionMutationResult>;
+  editMessage(input: MessageEditParams): Promise<SessionMutationResult>;
+  deleteMessage(input: MessageDeleteParams): Promise<SessionMutationResult>;
+  rebuild(input: SessionMessagesParams): Promise<SessionMutationResult>;
   summarize(input: SummarizeSessionInput): Promise<SessionMutationResult>;
 }
 
@@ -92,13 +93,13 @@ export interface AgentRuntimeAgentSession {
 
 export interface AgentRuntimeSessionDebug {
   // 调试/审计口可读取 raw ledger/trace；业务 UI 不应依赖这里的内部结构。
-  read(input: RuntimeSessionDebugQuery): Promise<RuntimeSessionDebugResult>;
+  read(input: RuntimeSessionDebugParams): Promise<RuntimeSessionDebugResult>;
 }
 
 export interface AgentRuntimeSession {
   // Runtime session 的稳定查询面向前端；read 只返回 summary/timeline 这类协议投影。
-  list(input: RuntimeSessionsQuery): Promise<RuntimeSessionsResult>;
-  read(input: RuntimeSessionQuery): Promise<RuntimeSessionResult>;
+  list(input: RuntimeSessionsParams): Promise<RuntimeSessionsResult>;
+  read(input: RuntimeSessionParams): Promise<RuntimeSessionResult>;
   debug: AgentRuntimeSessionDebug;
   admin: AgentRuntimeSessionAdmin;
   agent: AgentRuntimeAgentSession;
@@ -107,9 +108,9 @@ export interface AgentRuntimeSession {
 export interface AgentRuntimeCollaboration {
   // Collaboration 是业务工作流入口；底层 native/langgraph runtime 由 profile/内部 resolver 决定。
   listModes(): Promise<CollaborationModesRuntimeResult>;
-  runMode(input: RunCollaborationModeInput): Promise<CollaborationRuntimeResult>;
-  run(input: RunCollaborationInput): Promise<CollaborationRuntimeResult>;
-  readTimeline(input: CollaborationTimelineQuery): Promise<CollaborationTimelineResult>;
+  runMode(input: CollaborationModeRunInput): Promise<CollaborationRuntimeResult>;
+  run(input: CollaborationRunInput): Promise<CollaborationRuntimeResult>;
+  readTimeline(input: CollaborationTimelineParams): Promise<CollaborationTimelineResult>;
 }
 
 /**

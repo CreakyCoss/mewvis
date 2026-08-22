@@ -1,4 +1,5 @@
-import type { AgentClientOutputEvent } from "./contracts/events";
+import type { AgentClientOutputEvent } from "./contracts";
+import { agentRuntimeEventGuards } from "./wire";
 
 export type AgentClientOutputHandlers = {
   onTextDelta?: (delta: string) => void;
@@ -21,45 +22,45 @@ export const createAgentClientOutputState = (): AgentClientOutputState => ({
 });
 
 export const isAgentClientOutputEvent = (event: { type: string }): event is AgentClientOutputEvent =>
-  event.type === "text_delta" ||
-  event.type === "thinking_delta" ||
-  event.type === "replace_text" ||
-  event.type === "thinking_end" ||
-  event.type === "done";
+  agentRuntimeEventGuards.textDelta(event) ||
+  agentRuntimeEventGuards.thinkingDelta(event) ||
+  agentRuntimeEventGuards.replaceText(event) ||
+  agentRuntimeEventGuards.thinkingEnd(event) ||
+  agentRuntimeEventGuards.done(event);
 
 export const applyAgentClientOutputEvent = (state: AgentClientOutputState, event: AgentClientOutputEvent) => {
-  if (event.type === "text_delta") {
+  if (agentRuntimeEventGuards.textDelta(event)) {
     state.text += event.delta;
     return;
   }
 
-  if (event.type === "replace_text") {
+  if (agentRuntimeEventGuards.replaceText(event)) {
     state.text = event.text;
     return;
   }
 
-  if (event.type === "thinking_delta") {
+  if (agentRuntimeEventGuards.thinkingDelta(event)) {
     state.thinking += event.delta;
     return;
   }
 
-  if (event.type === "thinking_end") {
+  if (agentRuntimeEventGuards.thinkingEnd(event)) {
     state.thinking = event.content || state.thinking;
     return;
   }
 
-  if (event.type === "done") {
+  if (agentRuntimeEventGuards.done(event)) {
     state.text = event.text || state.text;
   }
 };
 
 export const dispatchAgentClientOutputEvent = (event: AgentClientOutputEvent, handlers: AgentClientOutputHandlers) => {
-  if (event.type === "text_delta") {
+  if (agentRuntimeEventGuards.textDelta(event)) {
     handlers.onTextDelta?.(event.delta);
     return;
   }
 
-  if (event.type === "thinking_delta") {
+  if (agentRuntimeEventGuards.thinkingDelta(event)) {
     handlers.onThinkingDelta?.(event.delta);
   }
 };

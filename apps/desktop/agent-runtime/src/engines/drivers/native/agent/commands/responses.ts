@@ -1,5 +1,5 @@
+import { AgentRuntimeResultType } from "../../../../protocol/wire.js";
 import {
-  AgentResultType,
   type AgentToolsResult,
   type PongResult,
   type RuntimeModelsResult,
@@ -19,30 +19,30 @@ type TaskCommand = Pick<AgentRunCommand, "requestId" | "taskId">;
 type TaskResultStatus = { success: true } | { success: false; message: string };
 
 export const createAgentToolsResult = (command: RequestCommand): AgentToolsResult => ({
-  type: AgentResultType.AgentTools,
+  type: AgentRuntimeResultType.AgentTools,
   requestId: command.requestId ?? null,
-  tools: AGENT_TOOL_DEFINITIONS,
+  tools: [...AGENT_TOOL_DEFINITIONS],
   defaultToolNames: [...DEFAULT_ALLOWED_AGENT_TOOLS],
 });
 
 export const createRuntimeModelsResult = (command: RequestCommand): RuntimeModelsResult => ({
-  type: AgentResultType.RuntimeModels,
+  type: AgentRuntimeResultType.RuntimeModels,
   requestId: command.requestId ?? null,
   catalog: MODEL_CATALOG,
 });
 
 export const createPongResult = (command: RequestCommand): PongResult => ({
-  type: AgentResultType.Pong,
+  type: AgentRuntimeResultType.Pong,
   requestId: command.requestId ?? null,
 });
 
 export const createShutdownAckResult = (command: RequestCommand): ShutdownAckResult => ({
-  type: AgentResultType.ShutdownAck,
+  type: AgentRuntimeResultType.ShutdownAck,
   requestId: command.requestId ?? null,
 });
 
 export const createTaskResult = (command: TaskCommand, result: TaskResultStatus): TaskResult => ({
-  type: AgentResultType.TaskResult,
+  type: AgentRuntimeResultType.TaskResult,
   requestId: command.requestId ?? null,
   taskId: command.taskId,
   ...result,

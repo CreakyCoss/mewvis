@@ -2,10 +2,12 @@ import type {
   AgentEvent,
   AgentRuntimeResources,
   AskUserInput,
-  ChatMessageInput,
+  ChatMessage,
+  RuntimeModelInput,
+} from "../../../../protocol/wire.js";
+import type {
   ChatResult,
   RuntimeAgentDefinition,
-  RuntimeModelInput,
   SessionMutationResult,
   SessionResult,
 } from "../../../../protocol/index.js";
@@ -78,7 +80,7 @@ export type ChatRunCommand = {
   stream?: boolean;
   runtimeModel?: RuntimeModelInput | null;
   systemPrompt?: string | null;
-  messages: ChatMessageInput[];
+  messages: ChatMessage[];
 };
 
 export type AgentRunResult = {

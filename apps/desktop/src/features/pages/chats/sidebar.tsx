@@ -1,6 +1,6 @@
 import { useEffect, useState, type ComponentType } from "react";
 import { ActivityIcon, FolderIcon, GitBranchIcon, PanelRightIcon } from "lucide-react";
-import type { RuntimeModelInput } from "@/agent-client/types";
+import type { RuntimeModelInput } from "@/agent-client/wire";
 import { WorkspaceFiles } from "./panels/files";
 import { ChatLedger } from "./panels/ledger";
 import { WorkspaceVersionControl } from "./panels/version-control";

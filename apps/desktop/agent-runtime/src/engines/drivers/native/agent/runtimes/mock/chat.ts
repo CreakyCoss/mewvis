@@ -1,4 +1,4 @@
-import { AgentEventType } from "../../../../../protocol/index.js";
+import { AgentRuntimeEventType } from "../../../../../protocol/wire.js";
 import type { ChatRunResult, ChatRuntime, ChatRuntimeContext, ChatRunCommand } from "../types.js";
 import { chunkText, createMockChatText, sleep } from "./response.js";
 
@@ -11,13 +11,13 @@ export class MockChatRuntime implements ChatRuntime {
 
     if (command.stream !== false && command.streamId) {
       context.emit({
-        type: AgentEventType.ThinkingDelta,
+        type: AgentRuntimeEventType.ThinkingDelta,
         taskId: command.streamId,
         delta: `${thinking}\n`,
       });
 
       for (const delta of chunkText(text)) {
-        context.emit({ type: AgentEventType.TextDelta, taskId: command.streamId, delta });
+        context.emit({ type: AgentRuntimeEventType.TextDelta, taskId: command.streamId, delta });
         await sleep(10);
       }
     }

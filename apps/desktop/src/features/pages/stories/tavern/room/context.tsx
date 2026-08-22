@@ -1,6 +1,6 @@
 import type { SetStateAction } from "react";
 import { create } from "zustand";
-import type { RuntimeModelInput } from "@/agent-client/types";
+import type { RuntimeModelInput } from "@/agent-client/wire";
 import type { TavernStoryData } from "@/features/pages/stories/tavern/room/model";
 import { getVisualPreset } from "@/features/pages/stories/tavern/presets/visual-presets";
 import type { VisualPresetDefinition } from "@/features/pages/stories/tavern/presets/visual-presets/types";

@@ -1,5 +1,5 @@
 import { MODEL_CATALOG } from "./model-catalog";
-import type { CatalogModel, RuntimeApiFormat, RuntimeModelInput, RuntimeThinkingLevel } from "./types";
+import type { RuntimeModelSummary, RuntimeApiFormat, RuntimeModelInput, RuntimeThinkingLevel } from "./wire";
 
 export type ProviderModel = {
   id: string;
@@ -80,12 +80,12 @@ const formatProviderModelName = (model: Pick<ProviderModel, "modelId" | "modelNa
 const getCatalogModel = (
   provider: Pick<LlmProvider, "provider">,
   model: Pick<ProviderModel, "modelId">,
-): CatalogModel | null => {
+): RuntimeModelSummary | null => {
   return MODEL_CATALOG[provider.provider]?.models[model.modelId] ?? null;
 };
 
 const resolveHighestThinkingLevel = (
-  thinkingLevelMap: CatalogModel["thinkingLevelMap"],
+  thinkingLevelMap: RuntimeModelSummary["thinkingLevelMap"],
 ): RuntimeThinkingLevel | null => {
   if (!thinkingLevelMap) {
     return null;
@@ -101,7 +101,7 @@ const resolveHighestThinkingLevel = (
   return null;
 };
 
-const createCatalogRuntimeModelInput = (catalogModel: CatalogModel): CatalogRuntimeModelInput => {
+const createCatalogRuntimeModelInput = (catalogModel: RuntimeModelSummary): CatalogRuntimeModelInput => {
   return {
     reasoning: catalogModel.reasoning,
     thinkingLevel: resolveHighestThinkingLevel(catalogModel.thinkingLevelMap),

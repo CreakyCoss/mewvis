@@ -1,4 +1,4 @@
-import type { RuntimeModelCatalogApi } from "../../protocol/model.js";
+import type { RuntimeModelCatalogApi } from "../../protocol/wire.js";
 
 type CatalogProviderConfig = {
   websiteUrl: string;

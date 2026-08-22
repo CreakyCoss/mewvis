@@ -1,8 +1,14 @@
 use super::{
-    events::{emit_agent_event, emit_runtime_line},
+    events::{emit_agent_event, emit_runtime_value},
     process::{
         build_agent_runtime_command, resolve_agent_runtime_process_config,
         spawn_agent_runtime_command,
+    },
+    protocol::{
+        decode_runtime_message, request, JsonRpcError, RuntimeMessage, EVENT_DONE, EVENT_ERROR,
+        EVENT_QUESTION, EVENT_QUESTION_ANSWERED, EVENT_STARTED, METHOD_RUNTIME_PING,
+        METHOD_RUNTIME_SHUTDOWN, RESULT_CHAT_RESULT, RESULT_PONG, RESULT_SHUTDOWN_ACK,
+        RESULT_TASK_RESULT,
     },
     runtime_files::{append_agent_diagnostic, path_for_node},
 };
@@ -567,43 +573,54 @@ impl AgentRuntimeWorker {
 
             let value = match serde_json::from_str::<Value>(&line) {
                 Ok(value) => value,
-                Err(_) => {
-                    self.touch();
-                    if let Some(task_id) = self.current_task_id() {
-                        emit_runtime_line(&self.app, &task_id, &line);
-                    } else {
-                        append_agent_diagnostic(
-                            &self.app,
-                            format!("worker={} unparsed stdout {}", self.id, line),
-                        );
-                    }
+                Err(error) => {
+                    self.mark_unhealthy(format!(
+                        "Agent runtime worker 输出了无效 JSON：{error}，raw={line}"
+                    ));
+                    return;
+                }
+            };
+
+            let (value, response_id) = match decode_runtime_message(value) {
+                Ok(RuntimeMessage::Response { id, result }) => (result, Some(id)),
+                Ok(RuntimeMessage::Error(error)) => {
+                    self.handle_rpc_error(error);
                     continue;
+                }
+                Ok(RuntimeMessage::Event(event) | RuntimeMessage::AdditionalResult(event)) => {
+                    (event, None)
+                }
+                Err(error) => {
+                    self.mark_unhealthy(format!(
+                        "Agent runtime worker JSON-RPC 协议错误：{error}，raw={line}"
+                    ));
+                    return;
                 }
             };
 
             let event_type = value.get("type").and_then(Value::as_str);
             match event_type {
-                Some("pong") => {
-                    self.handle_pong(&value);
+                Some(RESULT_PONG) => {
+                    self.handle_pong(response_id.as_ref());
                     continue;
                 }
-                Some("task_result") => {
+                Some(RESULT_TASK_RESULT) => {
                     self.handle_task_result(&value);
                     continue;
                 }
-                Some("shutdown_ack") => continue,
-                Some("chat_result") => {
+                Some(RESULT_SHUTDOWN_ACK) => continue,
+                Some(RESULT_CHAT_RESULT) => {
                     self.touch();
                     continue;
                 }
-                Some("started") => self.mark_current_state(WorkerLifecycle::Running, "running"),
-                Some("question") => {
+                Some(EVENT_STARTED) => self.mark_current_state(WorkerLifecycle::Running, "running"),
+                Some(EVENT_QUESTION) => {
                     self.mark_current_state(WorkerLifecycle::WaitingUser, "waiting_user")
                 }
-                Some("question_answered") => {
+                Some(EVENT_QUESTION_ANSWERED) => {
                     self.mark_current_state(WorkerLifecycle::Running, "running")
                 }
-                Some("done") => self.mark_current_state(WorkerLifecycle::Running, "completing"),
+                Some(EVENT_DONE) => self.mark_current_state(WorkerLifecycle::Running, "completing"),
                 _ => {}
             }
 
@@ -615,7 +632,7 @@ impl AgentRuntimeWorker {
                 .map(str::to_string)
                 .or_else(|| self.current_task_id());
             if let Some(task_id) = task_id {
-                emit_runtime_line(&self.app, &task_id, &line);
+                emit_runtime_value(&self.app, &task_id, value);
             }
         }
     }
@@ -633,9 +650,9 @@ impl AgentRuntimeWorker {
             if let Some(task_id) = self.current_task_id() {
                 emit_agent_event(
                     &self.app,
+                    &task_id,
                     json!({
                         "type": "stderr",
-                        "taskId": task_id,
                         "message": line,
                     }),
                 );
@@ -699,10 +716,9 @@ impl AgentRuntimeWorker {
 
             match self.next_heartbeat_action() {
                 HeartbeatAction::Send(request_id) => {
-                    if let Err(error) = self.write_command(&json!({
-                        "type": "ping",
-                        "requestId": request_id,
-                    })) {
+                    if let Err(error) =
+                        self.write_command(&request(request_id, METHOD_RUNTIME_PING, json!({})))
+                    {
                         self.mark_unhealthy(format!("Agent worker 心跳发送失败：{error}"));
                         return;
                     }
@@ -769,8 +785,8 @@ impl AgentRuntimeWorker {
         HeartbeatAction::Send(request_id)
     }
 
-    fn handle_pong(&self, value: &Value) {
-        let request_id = value.get("requestId").and_then(Value::as_str);
+    fn handle_pong(&self, response_id: Option<&Value>) {
+        let request_id = response_id.and_then(Value::as_str);
         if let Ok(mut state) = self.state.lock() {
             let matches_pending = state
                 .pending_ping
@@ -840,10 +856,11 @@ impl AgentRuntimeWorker {
         );
 
         if self
-            .write_command(&json!({
-                "type": "shutdown",
-                "requestId": format!("idle-shutdown-{}", self.id),
-            }))
+            .write_command(&request(
+                format!("idle-shutdown-{}", self.id),
+                METHOD_RUNTIME_SHUTDOWN,
+                json!({}),
+            ))
             .is_err()
         {
             let _ = self.kill_child();
@@ -902,9 +919,9 @@ impl AgentRuntimeWorker {
             self.emit_task_state(&task_id, task_state);
             emit_agent_event(
                 &self.app,
+                &task_id,
                 json!({
                     "type": "exit",
-                    "taskId": task_id,
                     "success": status.success(),
                     "code": status.code(),
                 }),
@@ -957,6 +974,50 @@ impl AgentRuntimeWorker {
             .unwrap_or(false);
 
         self.complete_task(task_id, success);
+    }
+
+    fn handle_rpc_error(self: &Arc<Self>, error: JsonRpcError) {
+        let request_id = error.id.as_str();
+        let details = error
+            .data
+            .as_ref()
+            .map(|data| format!(" data={data}"))
+            .unwrap_or_default();
+        append_agent_diagnostic(
+            &self.app,
+            format!(
+                "worker JSON-RPC error worker={} session_key={} id={} code={} message={}{}",
+                self.id, self.session_key, error.id, error.code, error.message, details,
+            ),
+        );
+
+        let is_pending_heartbeat = self
+            .state
+            .lock()
+            .ok()
+            .and_then(|state| {
+                state
+                    .pending_ping
+                    .as_ref()
+                    .map(|pending| Some(pending.request_id.as_str()) == request_id)
+            })
+            .unwrap_or(false);
+        if is_pending_heartbeat {
+            return;
+        }
+
+        if request_id.is_some_and(|id| id.starts_with("idle-shutdown-")) {
+            let _ = self.kill_child();
+            return;
+        }
+
+        let current_task_id = self.current_task_id();
+        if let Some(task_id) = current_task_id {
+            self.emit_error(&task_id, &error.message);
+            if request_id == Some(task_id.as_str()) {
+                self.complete_task(&task_id, false);
+            }
+        }
     }
 
     fn complete_task(self: &Arc<Self>, task_id: &str, success: bool) {
@@ -1095,9 +1156,9 @@ impl AgentRuntimeWorker {
     fn emit_error(&self, task_id: &str, message: &str) {
         emit_agent_event(
             &self.app,
+            task_id,
             json!({
-                "type": "error",
-                "taskId": task_id,
+                "type": EVENT_ERROR,
                 "message": message,
             }),
         );
@@ -1111,9 +1172,9 @@ impl AgentRuntimeWorker {
             .unwrap_or(("crashed", 0));
         emit_agent_event(
             &self.app,
+            task_id,
             json!({
                 "type": "state",
-                "taskId": task_id,
                 "taskState": task_state,
                 "workerState": worker_state,
                 "workerId": self.id,
@@ -1168,9 +1229,9 @@ impl AgentRuntimeWorker {
             for task in queued_tasks {
                 emit_agent_event(
                     app,
+                    &task.task_id,
                     json!({
-                        "type": "error",
-                        "taskId": task.task_id,
+                        "type": EVENT_ERROR,
                         "message": "Agent supervisor 已停止，队列任务无法恢复",
                     }),
                 );
@@ -1185,9 +1246,9 @@ impl AgentRuntimeWorker {
                     for task in queued_tasks {
                         emit_agent_event(
                             app,
+                            &task.task_id,
                             json!({
-                                "type": "error",
-                                "taskId": task.task_id,
+                                "type": EVENT_ERROR,
                                 "message": "Agent runtime supervisor 状态已损坏，队列任务无法恢复",
                             }),
                         );
@@ -1212,9 +1273,9 @@ impl AgentRuntimeWorker {
                             inner.task_index.remove(&task.task_id);
                             emit_agent_event(
                                 app,
+                                &task.task_id,
                                 json!({
-                                    "type": "error",
-                                    "taskId": task.task_id,
+                                    "type": EVENT_ERROR,
                                     "message": format!("恢复 Agent 队列任务失败：{error}"),
                                 }),
                             );
@@ -1238,9 +1299,9 @@ impl AgentRuntimeWorker {
             if let Err(error) = worker.enqueue(task) {
                 emit_agent_event(
                     app,
+                    &task_id,
                     json!({
-                        "type": "error",
-                        "taskId": task_id,
+                        "type": EVENT_ERROR,
                         "message": format!("恢复 Agent 队列任务失败：{error}"),
                     }),
                 );

@@ -1,4 +1,4 @@
-import type { RuntimeModelInput } from "@/agent-client/types";
+import type { RuntimeModelInput } from "@/agent-client/wire";
 import type { AiAgent } from "@/features/pages/settings/agent/types";
 import type { Skill } from "@/features/pages/skills/types";
 

@@ -1,11 +1,8 @@
 import { readdir, stat } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
+import type { RuntimeSessionSummary, RuntimeTimelineItem } from "../../../../../protocol/wire.js";
 import type {
   RuntimeSessionDebugSnapshot,
-  RuntimeSessionSummary,
-  RuntimeSessionTimelineItem,
-} from "../../../../../protocol/session.js";
-import type {
   RuntimeSessionListOptions,
   RuntimeSessionQueryTarget,
   RuntimeSessionSnapshot,
@@ -134,7 +131,7 @@ const summarizeSession = async (
   };
 };
 
-const timelineStatusFor = (type: string): RuntimeSessionTimelineItem["status"] => {
+const timelineStatusFor = (type: string): RuntimeTimelineItem["status"] => {
   if (type.endsWith("_started")) {
     return "started";
   }
@@ -150,10 +147,7 @@ const timelineStatusFor = (type: string): RuntimeSessionTimelineItem["status"] =
   return null;
 };
 
-const collaborationTimelineItem = (
-  record: RuntimeSessionTraceRecord,
-  index: number,
-): RuntimeSessionTimelineItem | null => {
+const collaborationTimelineItem = (record: RuntimeSessionTraceRecord, index: number): RuntimeTimelineItem | null => {
   const parts = collaborationRecordParts(record);
   if (!parts) {
     return null;
@@ -186,7 +180,7 @@ const collaborationTimelineItem = (
   };
 };
 
-const runtimeTimelineItem = (record: RuntimeSessionTraceRecord, index: number): RuntimeSessionTimelineItem => {
+const runtimeTimelineItem = (record: RuntimeSessionTraceRecord, index: number): RuntimeTimelineItem => {
   const event = isRecord(record.event) ? record.event : null;
   const type = stringValue(event?.type) ?? record.type;
   return {

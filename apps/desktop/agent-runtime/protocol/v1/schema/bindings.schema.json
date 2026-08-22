@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://isle.local/protocol/agent-runtime/v1/bindings.schema.json",
+  "title": "AgentRuntimeMessage",
+  "description": "Any JSON-RPC message crossing the agent runtime stdio boundary.",
+  "oneOf": [
+    { "$ref": "./request.schema.json" },
+    { "$ref": "./response.schema.json" },
+    { "$ref": "./notification.schema.json" }
+  ]
+}

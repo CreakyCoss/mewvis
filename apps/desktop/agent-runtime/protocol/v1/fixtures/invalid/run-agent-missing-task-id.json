@@ -1,0 +1,9 @@
+{
+  "jsonrpc": "2.0",
+  "id": "run-invalid",
+  "method": "agent/run",
+  "params": {
+    "workspacePath": "/tmp/isle-workspace",
+    "userMessage": "This request is missing taskId."
+  }
+}

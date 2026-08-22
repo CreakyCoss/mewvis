@@ -1,6 +1,7 @@
 import { createRuntimeEngine } from "../engines/index.js";
 import type { AgentRuntimeEngine, RuntimeEngineCallbacks } from "../engines/runtime.js";
-import type { AgentRuntimeEvent, AgentRuntimeResult, AskUserInput } from "../engines/protocol/index.js";
+import type { AgentRuntimeEvent, AskUserInput } from "../engines/protocol/wire.js";
+import type { AgentRuntimeResult } from "../engines/protocol/index.js";
 
 export type AgentRuntimeUserInputRequest = {
   taskId: string;

@@ -1,5 +1,5 @@
+import type { CollaborationEvent } from "../../../../protocol/wire.js";
 import type {
-  CollaborationEvent,
   CollaborationConditionWorkflowStep,
   CollaborationRouterWorkflowStep,
   CollaborationRunInput,

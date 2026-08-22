@@ -1,19 +1,27 @@
-use super::{process::spawn_agent_runtime, runtime_files::append_agent_diagnostic};
-use serde_json::Value;
+use super::{
+    process::spawn_agent_runtime,
+    protocol::{decode_runtime_message, request, JsonRpcError, RuntimeMessage},
+    runtime_files::append_agent_diagnostic,
+};
+use serde_json::{json, Value};
 use std::{
     io::{BufRead, BufReader, Read, Write},
     thread,
 };
 use tauri::AppHandle;
+use uuid::Uuid;
 
 pub(super) fn call_agent_runtime_rpc(
     app: &AppHandle,
     label: &str,
-    command: Value,
+    method: &str,
+    params: Value,
     result_types: &[&str],
     mut on_event: impl FnMut(&Value),
 ) -> Result<Value, String> {
     let (mut child, _config) = spawn_agent_runtime(app, label, Vec::<(String, String)>::new())?;
+    let request_id = Uuid::now_v7().to_string();
+    let command = request(request_id.clone(), method, params);
 
     let mut stdin = child
         .stdin
@@ -36,7 +44,8 @@ pub(super) fn call_agent_runtime_rpc(
         .take()
         .ok_or_else(|| format!("{label} stdout 不可用"))?;
     let reader = BufReader::new(stdout);
-    let mut result_line: Option<String> = None;
+    let mut result_value: Option<Value> = None;
+    let mut response_error: Option<JsonRpcError> = None;
     let mut output_lines = Vec::new();
 
     for line in reader.lines() {
@@ -47,13 +56,32 @@ pub(super) fn call_agent_runtime_rpc(
         output_lines.push(line.clone());
 
         let value = parse_runtime_line(label, &line)?;
-        let event_type = value.get("type").and_then(Value::as_str);
-        if event_type == Some("error")
-            || event_type.is_some_and(|kind| result_types.contains(&kind))
+        match decode_runtime_message(value)
+            .map_err(|error| format!("解析 {label} JSON-RPC 输出失败：{error}，raw={line}"))?
         {
-            result_line = Some(line);
-        } else {
-            on_event(&value);
+            RuntimeMessage::Response { id, result } => {
+                if id != json!(request_id) {
+                    return Err(format!(
+                        "{label} 返回了不匹配的 JSON-RPC id：expected={request_id} actual={id}"
+                    ));
+                }
+                let result_type = result.get("type").and_then(Value::as_str);
+                if result_type.is_some_and(|kind| result_types.contains(&kind)) {
+                    result_value = Some(result);
+                } else {
+                    return Err(format!("{label} 返回了未知结果：{result}"));
+                }
+            }
+            RuntimeMessage::Error(error) => response_error = Some(error),
+            RuntimeMessage::Event(event) => on_event(&event),
+            RuntimeMessage::AdditionalResult(result) => {
+                let result_type = result.get("type").and_then(Value::as_str);
+                if result_type.is_some_and(|kind| result_types.contains(&kind)) {
+                    result_value = Some(result);
+                } else {
+                    on_event(&result);
+                }
+            }
         }
     }
 
@@ -70,7 +98,18 @@ pub(super) fn call_agent_runtime_rpc(
         append_agent_diagnostic(app, format!("{label} stderr {stderr}"));
     }
 
-    let line = result_line.ok_or_else(|| {
+    if let Some(error) = response_error {
+        let details = error
+            .data
+            .map(|data| format!("，data={data}"))
+            .unwrap_or_default();
+        return Err(format!(
+            "{} (JSON-RPC {}{})",
+            error.message, error.code, details
+        ));
+    }
+
+    let value = result_value.ok_or_else(|| {
         format!(
             "{label} 未返回结果：{}",
             if stderr.is_empty() {
@@ -84,15 +123,6 @@ pub(super) fn call_agent_runtime_rpc(
             }
         )
     })?;
-    let value = parse_runtime_line(label, &line)?;
-
-    if value.get("type").and_then(Value::as_str) == Some("error") {
-        return Err(value
-            .get("message")
-            .and_then(Value::as_str)
-            .unwrap_or("Agent runtime 返回错误")
-            .to_string());
-    }
 
     if !status.success() {
         return Err(format!(
@@ -103,11 +133,6 @@ pub(super) fn call_agent_runtime_rpc(
                 stderr
             }
         ));
-    }
-
-    let event_type = value.get("type").and_then(Value::as_str);
-    if !event_type.is_some_and(|kind| result_types.contains(&kind)) {
-        return Err(format!("{label} 返回了未知结果：{line}"));
     }
 
     Ok(value)

@@ -6,13 +6,8 @@ import {
   type AgentRuntimeSession,
   type RuntimeEngineOptions,
 } from "../../runtime.js";
-import type {
-  AgentRuntimeCommand,
-  AgentRuntimeEvent,
-  AgentRuntimeResult,
-  PongResult,
-  ShutdownAckResult,
-} from "../../protocol/index.js";
+import type { AgentRuntimeEvent } from "../../protocol/wire.js";
+import type { AgentRuntimeCommand, AgentRuntimeResult, PongResult, ShutdownAckResult } from "../../protocol/index.js";
 import { createUserInputManager } from "./agent/commands/user-input.js";
 import { createPongResult, createShutdownAckResult } from "./agent/commands/responses.js";
 import { createAgentEngine } from "./agent/index.js";

@@ -1,4 +1,7 @@
-use super::rpc::call_agent_runtime_rpc;
+use super::{
+    protocol::{METHOD_AGENT_TOOLS_LIST, RESULT_AGENT_TOOLS},
+    rpc::call_agent_runtime_rpc,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::AppHandle;
@@ -44,15 +47,14 @@ fn list_agent_runtime_tools_blocking(
     let value = call_agent_runtime_rpc(
         &app,
         "Agent runtime tools",
-        json!({
-            "type": "list_agent_tools",
-        }),
-        &["agent_tools"],
+        METHOD_AGENT_TOOLS_LIST,
+        json!({}),
+        &[RESULT_AGENT_TOOLS],
         |_| {},
     )?;
     let result: AgentToolsRuntimeResult = serde_json::from_value(value)
         .map_err(|error| format!("解析 Agent runtime tools 结果失败：{error}"))?;
-    if result.result_type != "agent_tools" {
+    if result.result_type != RESULT_AGENT_TOOLS {
         return Err(format!(
             "Agent runtime tools 返回了未知结果：{}",
             result.result_type

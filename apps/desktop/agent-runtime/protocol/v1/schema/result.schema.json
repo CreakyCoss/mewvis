@@ -1,0 +1,440 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://isle.local/protocol/agent-runtime/v1/result.schema.json",
+  "title": "AgentRuntimeResult",
+  "oneOf": [
+    { "$ref": "#/definitions/AckResult" },
+    { "$ref": "#/definitions/AgentToolsResult" },
+    { "$ref": "#/definitions/ChatResult" },
+    { "$ref": "#/definitions/CollaborationModesResult" },
+    { "$ref": "#/definitions/CollaborationResult" },
+    { "$ref": "#/definitions/CollaborationTimelineResult" },
+    { "$ref": "#/definitions/PongResult" },
+    { "$ref": "#/definitions/RuntimeModelsResult" },
+    { "$ref": "#/definitions/RuntimeSessionDebugResult" },
+    { "$ref": "#/definitions/RuntimeSessionResult" },
+    { "$ref": "#/definitions/RuntimeSessionsResult" },
+    { "$ref": "#/definitions/SessionMutationResult" },
+    { "$ref": "#/definitions/SessionResult" },
+    { "$ref": "#/definitions/ShutdownAckResult" },
+    { "$ref": "#/definitions/TaskResult" }
+  ],
+  "definitions": {
+    "JsonRpcId": { "oneOf": [{ "type": "string" }, { "type": "integer" }] },
+    "NullableString": { "type": ["string", "null"] },
+    "NullableNumber": { "type": ["number", "null"] },
+    "AckResult": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "const": "ack" },
+        "rpcRequestId": { "$ref": "#/definitions/JsonRpcId" }
+      },
+      "additionalProperties": false
+    },
+    "AgentTool": {
+      "type": "object",
+      "required": ["name", "label", "enabledByDefault"],
+      "properties": {
+        "name": { "type": "string" },
+        "label": { "type": "string" },
+        "description": { "$ref": "#/definitions/NullableString" },
+        "enabledByDefault": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "AgentToolsResult": {
+      "type": "object",
+      "required": ["type", "tools", "defaultToolNames"],
+      "properties": {
+        "type": { "const": "agent_tools" },
+        "rpcRequestId": { "$ref": "#/definitions/JsonRpcId" },
+        "tools": { "type": "array", "items": { "$ref": "#/definitions/AgentTool" } },
+        "defaultToolNames": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "ChatResult": {
+      "type": "object",
+      "required": ["type", "text"],
+      "properties": {
+        "type": { "const": "chat_result" },
+        "rpcRequestId": { "$ref": "#/definitions/JsonRpcId" },
+        "text": { "type": "string" },
+        "thinking": { "$ref": "#/definitions/NullableString" }
+      },
+      "additionalProperties": false
+    },
+    "PongResult": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "const": "pong" },
+        "rpcRequestId": { "$ref": "#/definitions/JsonRpcId" }
+      },
+      "additionalProperties": false
+    },
+    "ShutdownAckResult": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "const": "shutdown_ack" },
+        "rpcRequestId": { "$ref": "#/definitions/JsonRpcId" }
+      },
+      "additionalProperties": false
+    },
+    "TaskResult": {
+      "type": "object",
+      "required": ["type", "taskId", "success"],
+      "properties": {
+        "type": { "const": "task_result" },
+        "rpcRequestId": { "$ref": "#/definitions/JsonRpcId" },
+        "taskId": { "type": "string" },
+        "success": { "type": "boolean" },
+        "message": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "RuntimeModelsResult": {
+      "type": "object",
+      "required": ["type", "catalog"],
+      "properties": {
+        "type": { "const": "runtime_models" },
+        "rpcRequestId": { "$ref": "#/definitions/JsonRpcId" },
+        "catalog": { "$ref": "./model.schema.json#/definitions/RuntimeModelCatalog" }
+      },
+      "additionalProperties": false
+    },
+    "RuntimeSessionMessage": {
+      "type": "object",
+      "required": ["messageRecordId", "role", "content", "timestamp"],
+      "properties": {
+        "messageRecordId": { "type": "string" },
+        "role": { "type": "string" },
+        "content": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "metadata": { "type": ["object", "null"], "additionalProperties": true }
+      },
+      "additionalProperties": false
+    },
+    "RuntimeSessionAuxiliaryEntry": {
+      "type": "object",
+      "required": ["recordId", "content", "timestamp"],
+      "properties": {
+        "recordId": { "type": "string" },
+        "content": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "metadata": { "type": ["object", "null"], "additionalProperties": true }
+      },
+      "additionalProperties": false
+    },
+    "RuntimeDisplaySummary": {
+      "type": "object",
+      "required": ["recordId", "targetLeafId", "summary", "timestamp", "generatedAt"],
+      "properties": {
+        "recordId": { "type": "string" },
+        "targetLeafId": { "type": "string" },
+        "summary": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "generatedAt": { "type": "number" },
+        "summaryInstruction": { "$ref": "#/definitions/NullableString" },
+        "runtimeId": { "$ref": "#/definitions/NullableString" },
+        "modelId": { "$ref": "#/definitions/NullableString" },
+        "sourceCharCount": { "$ref": "#/definitions/NullableNumber" },
+        "chunkCount": { "$ref": "#/definitions/NullableNumber" },
+        "llmCallCount": { "$ref": "#/definitions/NullableNumber" },
+        "messageCount": { "$ref": "#/definitions/NullableNumber" },
+        "entryCount": { "$ref": "#/definitions/NullableNumber" }
+      },
+      "additionalProperties": false
+    },
+    "RuntimeLink": {
+      "type": "object",
+      "required": [
+        "linkId",
+        "assistantMessageRecordIds",
+        "requestContextRecordIds",
+        "runtimeInstructionRecordIds",
+        "messageRecordIds"
+      ],
+      "properties": {
+        "linkId": { "type": "string" },
+        "runtime": { "$ref": "#/definitions/NullableString" },
+        "runtimeId": { "$ref": "#/definitions/NullableString" },
+        "agentRoleId": { "$ref": "#/definitions/NullableString" },
+        "agentSessionId": { "$ref": "#/definitions/NullableString" },
+        "runId": { "$ref": "#/definitions/NullableString" },
+        "taskId": { "$ref": "#/definitions/NullableString" },
+        "streamId": { "$ref": "#/definitions/NullableString" },
+        "turnId": { "$ref": "#/definitions/NullableString" },
+        "parentEntryId": { "$ref": "#/definitions/NullableString" },
+        "rootUserEntryId": { "$ref": "#/definitions/NullableString" },
+        "systemMessageRecordId": { "$ref": "#/definitions/NullableString" },
+        "userMessageRecordId": { "$ref": "#/definitions/NullableString" },
+        "assistantMessageRecordIds": { "type": "array", "items": { "type": "string" } },
+        "requestContextRecordIds": { "type": "array", "items": { "type": "string" } },
+        "runtimeInstructionRecordIds": { "type": "array", "items": { "type": "string" } },
+        "messageRecordIds": { "type": "array", "items": { "type": "string" } },
+        "status": { "enum": ["running", "done", "error", null] },
+        "startedAt": { "$ref": "#/definitions/NullableNumber" },
+        "endedAt": { "$ref": "#/definitions/NullableNumber" }
+      },
+      "additionalProperties": false
+    },
+    "SessionResultProperties": {
+      "type": "object",
+      "required": ["sessionRootDir", "summary", "messages"],
+      "properties": {
+        "rpcRequestId": { "$ref": "#/definitions/JsonRpcId" },
+        "sessionRootDir": { "type": "string" },
+        "summary": { "type": "string" },
+        "messages": { "type": "array", "items": { "$ref": "#/definitions/RuntimeSessionMessage" } },
+        "requestContexts": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/RuntimeSessionAuxiliaryEntry" }
+        },
+        "runtimeInstructions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/RuntimeSessionAuxiliaryEntry" }
+        },
+        "displaySummary": {
+          "oneOf": [{ "$ref": "#/definitions/RuntimeDisplaySummary" }, { "type": "null" }]
+        },
+        "displaySummaries": { "type": "array", "items": { "$ref": "#/definitions/RuntimeDisplaySummary" } },
+        "runtimeLinks": { "type": "array", "items": { "$ref": "#/definitions/RuntimeLink" } }
+      }
+    },
+    "SessionResult": {
+      "type": "object",
+      "required": ["type", "sessionRootDir", "summary", "messages"],
+      "properties": {
+        "type": { "const": "session_result" },
+        "rpcRequestId": { "$ref": "#/definitions/JsonRpcId" },
+        "sessionRootDir": { "type": "string" },
+        "summary": { "type": "string" },
+        "messages": { "type": "array", "items": { "$ref": "#/definitions/RuntimeSessionMessage" } },
+        "requestContexts": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/RuntimeSessionAuxiliaryEntry" }
+        },
+        "runtimeInstructions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/RuntimeSessionAuxiliaryEntry" }
+        },
+        "displaySummary": {
+          "oneOf": [{ "$ref": "#/definitions/RuntimeDisplaySummary" }, { "type": "null" }]
+        },
+        "displaySummaries": { "type": "array", "items": { "$ref": "#/definitions/RuntimeDisplaySummary" } },
+        "runtimeLinks": { "type": "array", "items": { "$ref": "#/definitions/RuntimeLink" } }
+      },
+      "additionalProperties": false
+    },
+    "SessionMutationResult": {
+      "type": "object",
+      "required": ["type", "sessionRootDir", "summary", "messages"],
+      "properties": {
+        "type": { "const": "session_mutation_result" },
+        "rpcRequestId": { "$ref": "#/definitions/JsonRpcId" },
+        "sessionRootDir": { "type": "string" },
+        "summary": { "type": "string" },
+        "messages": { "type": "array", "items": { "$ref": "#/definitions/RuntimeSessionMessage" } },
+        "requestContexts": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/RuntimeSessionAuxiliaryEntry" }
+        },
+        "runtimeInstructions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/RuntimeSessionAuxiliaryEntry" }
+        },
+        "displaySummary": {
+          "oneOf": [{ "$ref": "#/definitions/RuntimeDisplaySummary" }, { "type": "null" }]
+        },
+        "displaySummaries": { "type": "array", "items": { "$ref": "#/definitions/RuntimeDisplaySummary" } },
+        "runtimeLinks": { "type": "array", "items": { "$ref": "#/definitions/RuntimeLink" } },
+        "messageRecordId": { "$ref": "#/definitions/NullableString" },
+        "messageRecordIds": { "type": "array", "items": { "type": "string" } },
+        "compacted": { "type": "boolean" },
+        "rebuilt": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "CollaborationStepResult": {
+      "type": "object",
+      "required": ["stepId", "stepType", "outputKey", "output", "text"],
+      "properties": {
+        "stepId": { "type": "string" },
+        "stepType": { "enum": ["agent", "dispatch", "transform", "condition", "router"] },
+        "outputKey": { "type": "string" },
+        "output": {},
+        "text": { "type": "string" },
+        "agentRoleId": { "type": "string" },
+        "agentTaskId": { "type": "string" },
+        "route": { "$ref": "#/definitions/NullableString" }
+      },
+      "additionalProperties": false
+    },
+    "CollaborationSkippedStep": {
+      "type": "object",
+      "required": ["stepId", "reason"],
+      "properties": {
+        "stepId": { "type": "string" },
+        "reason": { "type": "string" },
+        "condition": { "type": ["object", "null"], "additionalProperties": true }
+      },
+      "additionalProperties": false
+    },
+    "CollaborationRunResultProperties": {
+      "type": "object",
+      "required": ["workflowRunId", "steps"],
+      "properties": {
+        "workflowRunId": { "type": "string" },
+        "steps": { "type": "array", "items": { "$ref": "#/definitions/CollaborationStepResult" } },
+        "skippedSteps": { "type": "array", "items": { "$ref": "#/definitions/CollaborationSkippedStep" } },
+        "output": {}
+      }
+    },
+    "CollaborationResult": {
+      "type": "object",
+      "required": ["type", "workflowRunId", "steps"],
+      "properties": {
+        "type": { "const": "collaboration_result" },
+        "rpcRequestId": { "$ref": "#/definitions/JsonRpcId" },
+        "workflowRunId": { "type": "string" },
+        "steps": { "type": "array", "items": { "$ref": "#/definitions/CollaborationStepResult" } },
+        "skippedSteps": { "type": "array", "items": { "$ref": "#/definitions/CollaborationSkippedStep" } },
+        "output": {},
+        "mode": { "$ref": "#/definitions/NullableString" },
+        "success": { "type": "boolean" },
+        "message": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "CollaborationMode": {
+      "type": "object",
+      "required": ["id", "label", "version"],
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "version": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "CollaborationModesResult": {
+      "type": "object",
+      "required": ["type", "modes"],
+      "properties": {
+        "type": { "const": "collaboration_modes_result" },
+        "rpcRequestId": { "$ref": "#/definitions/JsonRpcId" },
+        "modes": { "type": "array", "items": { "$ref": "#/definitions/CollaborationMode" } }
+      },
+      "additionalProperties": false
+    },
+    "RuntimeSessionSummary": {
+      "type": "object",
+      "required": [
+        "workspacePath",
+        "sessionRootDir",
+        "entryCount",
+        "traceCount",
+        "workflowRunIds",
+        "workflowIds",
+        "modeIds"
+      ],
+      "properties": {
+        "workspacePath": { "type": "string" },
+        "sessionRootDir": { "type": "string" },
+        "sessionId": { "$ref": "#/definitions/NullableString" },
+        "createdAt": { "$ref": "#/definitions/NullableString" },
+        "updatedAt": { "$ref": "#/definitions/NullableString" },
+        "leafId": { "$ref": "#/definitions/NullableString" },
+        "entryCount": { "type": "integer" },
+        "traceCount": { "type": "integer" },
+        "workflowRunIds": { "type": "array", "items": { "type": "string" } },
+        "workflowIds": { "type": "array", "items": { "type": "string" } },
+        "modeIds": { "type": "array", "items": { "type": "string" } },
+        "latestWorkflowRunId": { "$ref": "#/definitions/NullableString" }
+      },
+      "additionalProperties": false
+    },
+    "RuntimeTimelineItem": {
+      "type": "object",
+      "required": ["id", "index", "source", "type"],
+      "properties": {
+        "id": { "type": "string" },
+        "index": { "type": "integer" },
+        "source": { "enum": ["agent", "collaboration", "runtime"] },
+        "type": { "type": "string" },
+        "timestamp": { "$ref": "#/definitions/NullableString" },
+        "taskId": { "$ref": "#/definitions/NullableString" },
+        "workflowRunId": { "$ref": "#/definitions/NullableString" },
+        "workflowId": { "$ref": "#/definitions/NullableString" },
+        "modeId": { "$ref": "#/definitions/NullableString" },
+        "stepId": { "$ref": "#/definitions/NullableString" },
+        "stepType": { "$ref": "#/definitions/NullableString" },
+        "agentRoleId": { "$ref": "#/definitions/NullableString" },
+        "agentTaskId": { "$ref": "#/definitions/NullableString" },
+        "status": { "enum": ["started", "done", "skipped", "error", null] },
+        "detail": { "$ref": "#/definitions/NullableString" }
+      },
+      "additionalProperties": false
+    },
+    "RuntimeSessionsResult": {
+      "type": "object",
+      "required": ["type", "sessions"],
+      "properties": {
+        "type": { "const": "runtime_sessions_result" },
+        "rpcRequestId": { "$ref": "#/definitions/JsonRpcId" },
+        "sessions": { "type": "array", "items": { "$ref": "#/definitions/RuntimeSessionSummary" } }
+      },
+      "additionalProperties": false
+    },
+    "RuntimeSessionResult": {
+      "type": "object",
+      "required": ["type", "session"],
+      "properties": {
+        "type": { "const": "runtime_session_result" },
+        "rpcRequestId": { "$ref": "#/definitions/JsonRpcId" },
+        "session": { "$ref": "#/definitions/RuntimeSessionSummary" },
+        "timeline": { "type": "array", "items": { "$ref": "#/definitions/RuntimeTimelineItem" } }
+      },
+      "additionalProperties": false
+    },
+    "RuntimeSessionDebugResult": {
+      "type": "object",
+      "required": ["type", "session"],
+      "properties": {
+        "type": { "const": "runtime_session_debug_result" },
+        "rpcRequestId": { "$ref": "#/definitions/JsonRpcId" },
+        "session": { "$ref": "#/definitions/RuntimeSessionSummary" },
+        "ledger": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": ["header", "entries"],
+              "properties": {
+                "header": {},
+                "entries": { "type": "array", "items": {} }
+              },
+              "additionalProperties": false
+            },
+            { "type": "null" }
+          ]
+        },
+        "trace": { "type": "array", "items": {} }
+      },
+      "additionalProperties": false
+    },
+    "CollaborationTimelineResult": {
+      "type": "object",
+      "required": ["type", "session", "events"],
+      "properties": {
+        "type": { "const": "collaboration_timeline_result" },
+        "rpcRequestId": { "$ref": "#/definitions/JsonRpcId" },
+        "session": { "$ref": "#/definitions/RuntimeSessionSummary" },
+        "workflowRunId": { "$ref": "#/definitions/NullableString" },
+        "events": { "type": "array", "items": { "$ref": "#/definitions/RuntimeTimelineItem" } }
+      },
+      "additionalProperties": false
+    }
+  }
+}

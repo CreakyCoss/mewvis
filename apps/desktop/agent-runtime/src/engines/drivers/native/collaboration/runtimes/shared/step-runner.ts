@@ -1,26 +1,28 @@
 import type {
   AgentRuntimeResources,
+  CollaborationEvent,
+  CollaborationSkippedStep,
+  CollaborationStepResult,
+} from "../../../../../protocol/wire.js";
+import type {
   CollaborationAgentRole,
   CollaborationAgentWorkflowStep,
   CollaborationConditionWorkflowStep,
   CollaborationDispatchWorkflowStep,
-  CollaborationEvent,
   CollaborationRouterWorkflowStep,
   CollaborationRunInput,
-  CollaborationSkippedStepResult,
   CollaborationStepCondition,
-  CollaborationStepResult,
   CollaborationTransformWorkflowStep,
   CollaborationWorkflowStep,
 } from "../../../../../protocol/index.js";
-import { CollaborationEventType } from "../../../../../protocol/index.js";
+import { AgentRuntimeEventType } from "../../../../../protocol/wire.js";
 import { messageFromError } from "../../../error.js";
 import type { CollaborationExecutionState } from "./execution-state.js";
 import type { CollaborationRuntimeRunInput, CollaborationRunContext, RunAgentForCollaboration } from "../types.js";
 import type { CollaborationAgentInvocation } from "./step.js";
 import type { CollaborationHandlerContext, CollaborationRouterResult } from "../../handlers/types.js";
 
-export type StepExecutionOutcome = CollaborationStepResult | CollaborationSkippedStepResult;
+export type StepExecutionOutcome = CollaborationStepResult | CollaborationSkippedStep;
 
 export type ExecuteStep = (step: CollaborationWorkflowStep) => Promise<StepExecutionOutcome>;
 
@@ -44,7 +46,7 @@ export const createCollaborationExecutionState = (
     stepResults = [],
   }: {
     output?: Record<string, unknown>;
-    skippedSteps?: readonly CollaborationSkippedStepResult[];
+    skippedSteps?: readonly CollaborationSkippedStep[];
     stepResults?: readonly CollaborationStepResult[];
   } = {},
 ): CollaborationExecutionState => ({
@@ -72,7 +74,7 @@ export const collectCollaborationRunResult = ({
   );
   const skippedSteps = steps
     .map((step) => state.skippedStepById.get(step.id))
-    .filter((step): step is CollaborationSkippedStepResult => Boolean(step));
+    .filter((step): step is CollaborationSkippedStep => Boolean(step));
 
   return {
     workflowRunId,
@@ -139,7 +141,7 @@ export const runStepWithRetry = async ({
     };
     state.skippedStepById.set(step.id, skippedStep);
     emit({
-      type: CollaborationEventType.StepSkipped,
+      type: AgentRuntimeEventType.StepSkipped,
       workflowRunId,
       step: skippedStep,
     });
@@ -231,7 +233,7 @@ const runAgentStepWithRetry = async ({
     const agentTaskId = createAgentTaskId(workflowRunId, step.id, attempt);
     lastAgentTaskId = agentTaskId;
     emit({
-      type: CollaborationEventType.StepStarted,
+      type: AgentRuntimeEventType.StepStarted,
       workflowRunId,
       stepId: step.id,
       stepType: step.type,
@@ -243,7 +245,7 @@ const runAgentStepWithRetry = async ({
       const result = await runAgent(buildAgentCommand(input, step, role, agentTaskId, state), {
         emit: (event) =>
           emit({
-            type: CollaborationEventType.AgentEvent,
+            type: AgentRuntimeEventType.AgentEvent,
             workflowRunId,
             stepId: step.id,
             agentRoleId: role.id,
@@ -263,7 +265,7 @@ const runAgentStepWithRetry = async ({
       state.stepResultById.set(step.id, stepResult);
       state.output[stepResult.outputKey] = result.text;
       emit({
-        type: CollaborationEventType.StepDone,
+        type: AgentRuntimeEventType.StepDone,
         workflowRunId,
         step: stepResult,
       });
@@ -294,7 +296,7 @@ const runDispatchStep = async ({
   step: CollaborationDispatchWorkflowStep;
 }) => {
   emit({
-    type: CollaborationEventType.StepStarted,
+    type: AgentRuntimeEventType.StepStarted,
     workflowRunId,
     stepId: step.id,
     stepType: step.type,
@@ -337,7 +339,7 @@ const runDispatchStep = async ({
   state.stepResultById.set(step.id, stepResult);
   state.output[stepResult.outputKey] = output;
   emit({
-    type: CollaborationEventType.StepDone,
+    type: AgentRuntimeEventType.StepDone,
     workflowRunId,
     step: stepResult,
   });
@@ -360,7 +362,7 @@ const runTransformStep = async ({
   workflowRunId: string;
 }) => {
   emit({
-    type: CollaborationEventType.StepStarted,
+    type: AgentRuntimeEventType.StepStarted,
     workflowRunId,
     stepId: step.id,
     stepType: step.type,
@@ -381,7 +383,7 @@ const runTransformStep = async ({
   state.stepResultById.set(step.id, stepResult);
   state.output[stepResult.outputKey] = output;
   emit({
-    type: CollaborationEventType.StepDone,
+    type: AgentRuntimeEventType.StepDone,
     workflowRunId,
     step: stepResult,
   });
@@ -404,7 +406,7 @@ const runConditionStep = async ({
   workflowRunId: string;
 }) => {
   emit({
-    type: CollaborationEventType.StepStarted,
+    type: AgentRuntimeEventType.StepStarted,
     workflowRunId,
     stepId: step.id,
     stepType: step.type,
@@ -425,7 +427,7 @@ const runConditionStep = async ({
   state.stepResultById.set(step.id, stepResult);
   state.output[stepResult.outputKey] = output;
   emit({
-    type: CollaborationEventType.StepDone,
+    type: AgentRuntimeEventType.StepDone,
     workflowRunId,
     step: stepResult,
   });
@@ -448,7 +450,7 @@ const runRouterStep = async ({
   workflowRunId: string;
 }) => {
   emit({
-    type: CollaborationEventType.StepStarted,
+    type: AgentRuntimeEventType.StepStarted,
     workflowRunId,
     stepId: step.id,
     stepType: step.type,
@@ -472,7 +474,7 @@ const runRouterStep = async ({
   state.stepResultById.set(step.id, stepResult);
   state.output[stepResult.outputKey] = stepResult.output;
   emit({
-    type: CollaborationEventType.StepDone,
+    type: AgentRuntimeEventType.StepDone,
     workflowRunId,
     step: stepResult,
   });

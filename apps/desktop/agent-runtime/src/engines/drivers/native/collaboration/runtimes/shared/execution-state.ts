@@ -1,8 +1,8 @@
-import type { CollaborationSkippedStepResult, CollaborationStepResult } from "../../../../../protocol/index.js";
+import type { CollaborationSkippedStep, CollaborationStepResult } from "../../../../../protocol/wire.js";
 
 export type CollaborationExecutionState = {
   input: unknown;
   output: Record<string, unknown>;
   stepResultById: Map<string, CollaborationStepResult>;
-  skippedStepById: Map<string, CollaborationSkippedStepResult>;
+  skippedStepById: Map<string, CollaborationSkippedStep>;
 };

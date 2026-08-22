@@ -1,5 +1,5 @@
 import { completeSimple, streamSimple, type AssistantMessage, type SimpleStreamOptions } from "@earendil-works/pi-ai";
-import { AgentEventType } from "../../../../../../protocol/index.js";
+import { AgentRuntimeEventType } from "../../../../../../protocol/wire.js";
 import type { ChatRunResult, ChatRuntime, ChatRuntimeContext, ChatRunCommand } from "../../types.js";
 import {
   createPiRuntimeModel,
@@ -31,14 +31,14 @@ export class PiChatRuntime implements ChatRuntime {
     for await (const event of stream) {
       if (event.type === "text_delta" && command.streamId) {
         context.emit({
-          type: AgentEventType.TextDelta,
+          type: AgentRuntimeEventType.TextDelta,
           taskId: command.streamId,
           delta: event.delta,
         });
       }
       if (event.type === "thinking_delta" && command.streamId) {
         context.emit({
-          type: AgentEventType.ThinkingDelta,
+          type: AgentRuntimeEventType.ThinkingDelta,
           taskId: command.streamId,
           delta: event.delta,
         });

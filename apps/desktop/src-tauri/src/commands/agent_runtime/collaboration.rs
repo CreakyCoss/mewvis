@@ -1,4 +1,8 @@
 use super::{
+    protocol::{
+        request, AgentRuntimeResources, AgentRuntimeSkillResources, AgentRuntimeToolResources,
+        BundledPath, METHOD_COLLABORATION_RUN, METHOD_COLLABORATION_RUN_MODE,
+    },
     runtime_files::append_agent_diagnostic,
     session_paths::resolve_optional_session_root_dir,
     skills::{
@@ -16,27 +20,27 @@ use uuid::Uuid;
 #[serde(rename_all = "camelCase")]
 #[serde(deny_unknown_fields)]
 pub struct RunAgentRuntimeCollaborationInput {
+    request_id: Option<String>,
     workspace_path: String,
     session_root_dir: Option<String>,
     workflow: Value,
     agents: Vec<Value>,
     input: Option<Value>,
-    allowed_tools: Option<Vec<String>>,
-    enabled_skills: Option<Vec<String>>,
+    resources: Option<AgentRuntimeResources>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(deny_unknown_fields)]
 pub struct RunAgentRuntimeCollaborationModeInput {
+    request_id: Option<String>,
     workspace_path: String,
     session_root_dir: Option<String>,
     mode: String,
     participants: Vec<Value>,
     context: Option<Value>,
     options: Option<Value>,
-    allowed_tools: Option<Vec<String>>,
-    enabled_skills: Option<Vec<String>>,
+    resources: Option<AgentRuntimeResources>,
 }
 
 #[derive(Debug, Serialize)]
@@ -49,11 +53,17 @@ pub struct RunAgentRuntimeCollaborationOutput {
 pub fn run_agent_runtime_collaboration(
     app: AppHandle,
     state: State<AgentRuntimeSupervisor>,
-    input: RunAgentRuntimeCollaborationInput,
+    mut input: RunAgentRuntimeCollaborationInput,
 ) -> Result<RunAgentRuntimeCollaborationOutput, String> {
     validate_collaboration_input(&input)?;
 
-    let task_id = Uuid::now_v7().to_string();
+    let task_id = input
+        .request_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| Uuid::now_v7().to_string());
     let bundled_skills_path = bundled_skills_path_for_runtime(&app)?;
     let mut skill_paths = app_skill_paths_for_runtime(&app)?;
     skill_paths.extend(workspace_skill_paths_for_runtime(&input.workspace_path));
@@ -78,32 +88,21 @@ pub fn run_agent_runtime_collaboration(
         ),
     );
 
-    let allowed_tools = input
-        .allowed_tools
-        .unwrap_or_else(default_collaboration_allowed_tools);
-    let enabled_skills = input.enabled_skills.unwrap_or_default();
-    let command = json!({
-        "type": "run_collaboration",
-        "requestId": task_id.clone(),
-        "input": {
-            "requestId": task_id.clone(),
-            "workspacePath": input.workspace_path,
-            "sessionRootDir": session_root_dir,
-            "workflow": input.workflow,
-            "agents": input.agents,
-            "input": input.input,
-            "resources": {
-                "tools": {
-                    "allowed": allowed_tools,
-                },
-                "skills": {
-                    "bundledPath": bundled_skills_path,
-                    "paths": skill_paths,
-                    "enabled": enabled_skills,
-                },
-            },
-        },
-    });
+    let resources =
+        collaboration_resources(bundled_skills_path, skill_paths, input.resources.take());
+    let command = request(
+        task_id.clone(),
+        METHOD_COLLABORATION_RUN,
+        json!({
+                "requestId": task_id.clone(),
+                "workspacePath": input.workspace_path,
+                "sessionRootDir": session_root_dir,
+                "workflow": input.workflow,
+                "agents": input.agents,
+                "input": input.input,
+                "resources": resources,
+        }),
+    );
 
     state.submit(
         app,
@@ -121,11 +120,17 @@ pub fn run_agent_runtime_collaboration(
 pub fn run_agent_runtime_collaboration_mode(
     app: AppHandle,
     state: State<AgentRuntimeSupervisor>,
-    input: RunAgentRuntimeCollaborationModeInput,
+    mut input: RunAgentRuntimeCollaborationModeInput,
 ) -> Result<RunAgentRuntimeCollaborationOutput, String> {
     validate_collaboration_mode_input(&input)?;
 
-    let task_id = Uuid::now_v7().to_string();
+    let task_id = input
+        .request_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| Uuid::now_v7().to_string());
     let bundled_skills_path = bundled_skills_path_for_runtime(&app)?;
     let mut skill_paths = app_skill_paths_for_runtime(&app)?;
     skill_paths.extend(workspace_skill_paths_for_runtime(&input.workspace_path));
@@ -152,33 +157,22 @@ pub fn run_agent_runtime_collaboration_mode(
         ),
     );
 
-    let allowed_tools = input
-        .allowed_tools
-        .unwrap_or_else(default_collaboration_allowed_tools);
-    let enabled_skills = input.enabled_skills.unwrap_or_default();
-    let command = json!({
-        "type": "run_collaboration_mode",
-        "requestId": task_id.clone(),
-        "input": {
-            "requestId": task_id.clone(),
-            "workspacePath": input.workspace_path,
-            "sessionRootDir": session_root_dir,
-            "mode": input.mode,
-            "participants": input.participants,
-            "context": input.context,
-            "options": input.options,
-            "resources": {
-                "tools": {
-                    "allowed": allowed_tools,
-                },
-                "skills": {
-                    "bundledPath": bundled_skills_path,
-                    "paths": skill_paths,
-                    "enabled": enabled_skills,
-                },
-            },
-        },
-    });
+    let resources =
+        collaboration_resources(bundled_skills_path, skill_paths, input.resources.take());
+    let command = request(
+        task_id.clone(),
+        METHOD_COLLABORATION_RUN_MODE,
+        json!({
+                "requestId": task_id.clone(),
+                "workspacePath": input.workspace_path,
+                "sessionRootDir": session_root_dir,
+                "mode": input.mode,
+                "participants": input.participants,
+                "context": input.context,
+                "options": input.options,
+                "resources": resources,
+        }),
+    );
 
     state.submit(
         app,
@@ -223,6 +217,45 @@ fn default_collaboration_allowed_tools() -> Vec<String> {
         "grep".to_string(),
         "ask_user".to_string(),
     ]
+}
+
+fn collaboration_resources(
+    bundled_skills_path: Option<String>,
+    mut skill_paths: Vec<String>,
+    resources: Option<AgentRuntimeResources>,
+) -> AgentRuntimeResources {
+    let mut resources = resources.unwrap_or(AgentRuntimeResources {
+        tools: None,
+        skills: None,
+        mcp: None,
+    });
+    let allowed_tools = resources
+        .tools
+        .take()
+        .and_then(|tools| tools.allowed)
+        .unwrap_or_else(default_collaboration_allowed_tools);
+    let requested_skills = resources.skills.take();
+    let enabled_skills = requested_skills
+        .as_ref()
+        .and_then(|skills| skills.enabled.clone())
+        .unwrap_or_default();
+    skill_paths.extend(
+        requested_skills
+            .as_ref()
+            .and_then(|skills| skills.paths.clone())
+            .unwrap_or_default(),
+    );
+    resources.tools = Some(AgentRuntimeToolResources {
+        allowed: Some(allowed_tools),
+    });
+    resources.skills = Some(AgentRuntimeSkillResources {
+        bundled_path: bundled_skills_path
+            .map(BundledPath::PurpleString)
+            .or_else(|| requested_skills.and_then(|skills| skills.bundled_path)),
+        paths: Some(skill_paths),
+        enabled: Some(enabled_skills),
+    });
+    resources
 }
 
 fn validate_collaboration_input(input: &RunAgentRuntimeCollaborationInput) -> Result<(), String> {

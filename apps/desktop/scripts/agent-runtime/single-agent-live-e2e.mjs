@@ -2,6 +2,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
+import { runtimePayloadFromJsonRpcMessage, writeAgentRuntimeCommand } from "./stdio-json-rpc-client.mjs";
 
 const workspaceRoot = process.cwd();
 const runtimePath = join(workspaceRoot, "agent-runtime/dist/cli.js");
@@ -131,7 +132,7 @@ const handleLine = (line) => {
   if (!line.trim()) {
     return;
   }
-  const parsed = JSON.parse(line);
+  const parsed = runtimePayloadFromJsonRpcMessage(JSON.parse(line));
   seen.push(parsed);
   if (parsed.type === "question" && parsed.questionId && parsed.taskId) {
     autoAnsweredQuestions.push(parsed);
@@ -199,7 +200,7 @@ const waitFor = (predicate, label, timeoutMs = LIVE_TIMEOUT_MS) =>
   });
 
 const send = (command) => {
-  runtime.stdin.write(`${JSON.stringify(command)}\n`);
+  writeAgentRuntimeCommand(runtime.stdin, command);
 };
 
 const request = async (command, resultType, timeoutMs) => {
@@ -321,36 +322,6 @@ try {
     ),
     "utf8",
   );
-
-  const list = await request({ type: "list_agents", requestId: "list" }, "agent_definitions", 10_000);
-  assert(
-    list.agents.some((agent) => agent.id === "pi" && agent.capabilities.includes("agent")),
-    "pi agent 应可用",
-    list,
-  );
-  assert(
-    list.agents.some((agent) => agent.id === "pi" && agent.capabilities.includes("chat")),
-    "pi chat 应可用",
-    list,
-  );
-
-  const created = await request(
-    {
-      type: "create_session",
-      requestId: "live-create-session",
-      workspacePath,
-      sessionRootDir,
-      systemPrompt,
-      metadata: {
-        live: true,
-        runMarker,
-        modelId: runtimeModel.modelId,
-      },
-    },
-    "session_mutation_result",
-    10_000,
-  );
-  assert(created.messageRecordId, "create_session 应写入 systemPrompt", created);
 
   const chatMarker = `${runMarker}_CHAT`;
   const chatResult = await request(

@@ -1,4 +1,4 @@
-export type RuntimeAgentCapability = "agent" | "chat";
+type RuntimeAgentCapability = "agent" | "chat";
 
 export type RuntimeAgentDefinition = Readonly<{
   id: string;
@@ -7,8 +7,3 @@ export type RuntimeAgentDefinition = Readonly<{
   capabilities: readonly RuntimeAgentCapability[];
   requiresModel: boolean;
 }>;
-
-export type ChatMessageInput = {
-  role: string;
-  content: string;
-};

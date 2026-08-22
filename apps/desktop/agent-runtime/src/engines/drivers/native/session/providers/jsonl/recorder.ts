@@ -1,9 +1,5 @@
-import { AgentEventType, type AgentEvent } from "../../../../../protocol/index.js";
-import type {
-  RuntimeAgentSessionCommand,
-  RuntimeSessionCommand,
-  SessionBackedRuntimeCommand,
-} from "../../model/runtime-command.js";
+import { AgentRuntimeEventType, type AgentEvent } from "../../../../../protocol/wire.js";
+import type { RuntimeSessionCommand, SessionBackedRuntimeCommand } from "../../model/runtime-command.js";
 import { isRuntimeAgentSessionCommand } from "../../model/runtime-command.js";
 import type { RuntimeMessage, RuntimeSessionRecordRef } from "../../model/ledger.js";
 import type { RuntimeSessionHandle, RuntimeSessionStorageProvider } from "../../internal/storage.js";
@@ -118,22 +114,22 @@ export class JsonlRuntimeSessionRecorder implements RuntimeSessionRunRecorder {
       event,
     });
 
-    if (event.type === AgentEventType.TextDelta) {
+    if (event.type === AgentRuntimeEventType.TextDelta) {
       this.text += event.delta;
     }
-    if (event.type === AgentEventType.ThinkingDelta) {
+    if (event.type === AgentRuntimeEventType.ThinkingDelta) {
       this.thinking += event.delta;
     }
-    if (event.type === AgentEventType.ThinkingEnd) {
+    if (event.type === AgentRuntimeEventType.ThinkingEnd) {
       this.thinking = event.content;
     }
-    if (event.type === AgentEventType.Done) {
+    if (event.type === AgentRuntimeEventType.Done) {
       await this.finalizeAssistantMessage({
         text: event.text,
         runStatus: "done",
       });
     }
-    if (event.type === AgentEventType.Error) {
+    if (event.type === AgentRuntimeEventType.Error) {
       await this.appendTrace({
         type: "error",
         timestamp: new Date().toISOString(),

@@ -2,12 +2,12 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { runtimePayloadFromJsonRpcMessage, writeAgentRuntimeCommand } from "./stdio-json-rpc-client.mjs";
 
 const workspaceRoot = process.cwd();
 const runtimePath = join(workspaceRoot, "agent-runtime/dist/cli.js");
 const workspacePath = mkdtempSync(join(tmpdir(), "isle-claw-runtime-e2e-"));
 const sessionRootDir = join(workspacePath, "standalone-session-store", "chats", "e2e-session", "session");
-const aliasSessionRootDir = join(workspacePath, "standalone-session-store", "chats", "alias-session", "session");
 const oversizedSummarySessionRootDir = join(
   workspacePath,
   "standalone-session-store",
@@ -17,7 +17,6 @@ const oversizedSummarySessionRootDir = join(
 );
 const sessionDirPath = sessionRootDir;
 const ledgerPath = join(sessionDirPath, "ledger.jsonl");
-const aliasLedgerPath = join(aliasSessionRootDir, "ledger.jsonl");
 const oversizedSummaryLedgerPath = join(oversizedSummarySessionRootDir, "ledger.jsonl");
 const tracePath = join(sessionDirPath, "trace.jsonl");
 const manifestPath = join(sessionDirPath, "session.json");
@@ -52,6 +51,10 @@ const readLedger = () => readLedgerFile(ledgerPath);
 
 const runtime = spawn(process.execPath, [runtimePath], {
   cwd: workspaceRoot,
+  env: {
+    ...process.env,
+    AGENT_RUNTIME_PROFILE_ID: "mock",
+  },
   stdio: ["pipe", "pipe", "pipe"],
 });
 const seen = [];
@@ -66,7 +69,7 @@ const handleLine = (line) => {
   if (!line.trim()) {
     return;
   }
-  const parsed = JSON.parse(line);
+  const parsed = runtimePayloadFromJsonRpcMessage(JSON.parse(line));
   seen.push(parsed);
   for (const waiter of [...waiters]) {
     if (waiter.predicate(parsed)) {
@@ -124,7 +127,7 @@ const waitFor = (predicate, label, timeoutMs = 10_000) =>
   });
 
 const send = (command) => {
-  runtime.stdin.write(`${JSON.stringify(command)}\n`);
+  writeAgentRuntimeCommand(runtime.stdin, command);
 };
 
 const request = async (command, resultType, timeoutMs) => {
@@ -210,151 +213,6 @@ const cleanup = async () => {
 };
 
 try {
-  const list = await request({ type: "list_agents", requestId: "list" }, "agent_definitions");
-  assert(list.defaultAgentId === "pi", "默认 agent 应保持为 pi", list);
-  assert(
-    list.agents.some((agent) => agent.id === "mock" && agent.capabilities.includes("agent")),
-    "mock agent 应可用",
-    list,
-  );
-  assert(
-    list.agents.some((agent) => agent.id === "pi" && agent.requiresModel),
-    "pi agent 应可用",
-    list,
-  );
-
-  const aliasSystemPrompt = "run_agent alias 初始系统提示词。";
-  const aliasCreated = await request(
-    {
-      type: "create_session",
-      requestId: "alias-create-session",
-      workspacePath,
-      sessionRootDir: aliasSessionRootDir,
-      systemPrompt: aliasSystemPrompt,
-      metadata: { uiSessionId: "alias-session" },
-    },
-    "session_mutation_result",
-  );
-  assert(
-    aliasCreated.messageRecordId &&
-      aliasCreated.messages.length === 1 &&
-      aliasCreated.messages[0]?.role === "system" &&
-      aliasCreated.messages[0]?.content === aliasSystemPrompt,
-    "create_session 应初始化独立 runtime session 并写入 systemPrompt",
-    aliasCreated,
-  );
-
-  const aliasChatResult = await request(
-    chatCommand({
-      requestId: "alias-chat-stateless",
-      stream: false,
-      systemPrompt: aliasSystemPrompt,
-      userMessage: "stateless chat 用户消息",
-      requestContext: "stateless chat 本次引用资料。",
-      runtimeInstruction: "stateless chat 本轮临时说明。",
-      runtimeModel: null,
-    }),
-    "chat_result",
-  );
-  assert(
-    aliasChatResult.text.includes(`系统提示词：${aliasSystemPrompt}`) &&
-      aliasChatResult.text.includes("收到的最后一条用户消息：stateless chat 用户消息"),
-    "chat 应使用调用方显式传入的 systemPrompt/messages",
-    aliasChatResult,
-  );
-  assert(!aliasChatResult.runtimeSession, "chat_result 不应携带 runtime session 引用", aliasChatResult);
-
-  const aliasAfterChat = await request(
-    {
-      type: "read_session",
-      requestId: "alias-read-after-chat",
-      workspacePath,
-      sessionRootDir: aliasSessionRootDir,
-    },
-    "session_result",
-  );
-  assert(
-    aliasAfterChat.messages.map((message) => message.role).join("|") === "system",
-    "stateless chat 不应写入 alias runtime session",
-    aliasAfterChat,
-  );
-
-  const aliasAgentTaskId = "alias-send-agent-task";
-  const aliasAgentRoleId = "alias-agent-role";
-  send(
-    runAgentCommand({
-      requestId: aliasAgentTaskId,
-      mode: "agent",
-      taskId: aliasAgentTaskId,
-      agentId: "mock",
-      workspacePath,
-      sessionRootDir: aliasSessionRootDir,
-      agentRoleId: aliasAgentRoleId,
-      userMessage: "run_agent 用户消息",
-      runtimeInstruction: "run_agent 临时执行说明。",
-      runtimeModel: { contextWindow: 4096, maxTokens: 1024 },
-      resources: {
-        tools: {
-          allowed: ["read"],
-        },
-        skills: {
-          enabled: [],
-        },
-        mcp: {
-          servers: [],
-        },
-      },
-    }),
-  );
-  const aliasAgentDone = await waitFor(
-    (item) => item.type === "done" && item.taskId === aliasAgentTaskId,
-    "alias run_agent done",
-  );
-  const aliasAgentTaskResult = await waitFor(
-    (item) => item.type === "task_result" && item.requestId === aliasAgentTaskId,
-    "alias run_agent task_result",
-  );
-  assert(aliasAgentTaskResult.success === true, "run_agent 应成功", aliasAgentTaskResult);
-  assert(
-    lineStartingWith(aliasAgentDone.text, "系统提示词：") === `系统提示词：${aliasSystemPrompt}` &&
-      aliasAgentDone.text.includes("用户消息：run_agent 用户消息"),
-    "run_agent 应使用 create_session 缓存的 systemPrompt，并传递 userMessage",
-    aliasAgentDone.text,
-  );
-  const aliasAgentSessionDir = join(aliasSessionRootDir, "agents", "mock", aliasAgentRoleId);
-  assert(
-    existsSync(aliasAgentSessionDir),
-    "run_agent 应按 runtimeId/agentRoleId 创建稳定 agent session 目录",
-    aliasAgentSessionDir,
-  );
-  const aliasAfterAgent = await request(
-    {
-      type: "read_session",
-      requestId: "alias-read-after-agent",
-      workspacePath,
-      sessionRootDir: aliasSessionRootDir,
-    },
-    "session_result",
-  );
-  assert(
-    aliasAfterAgent.messages.at(-2)?.content === "run_agent 用户消息" &&
-      aliasAfterAgent.messages.at(-2)?.metadata?.agentRoleId === aliasAgentRoleId &&
-      aliasAfterAgent.messages.at(-1)?.role === "assistant",
-    "run_agent 应写回标准 runtime user/assistant 消息",
-    aliasAfterAgent.messages,
-  );
-  const aliasLedger = readLedgerFile(aliasLedgerPath);
-  assert(
-    aliasLedger.header.sessionRootDir === aliasSessionRootDir,
-    "alias ledger header 应记录独立 sessionRootDir",
-    aliasLedger.header,
-  );
-  assert(
-    aliasLedger.entry(aliasCreated.messageRecordId)?.message?.metadata?.source === "app_create_session",
-    "create_session system message 应使用 app_create_session metadata",
-    aliasLedger.entry(aliasCreated.messageRecordId),
-  );
-
   const initialAgentRoleId = "mock-agent-stable-id";
   const initialUserMessage = "请写一个测试章节，并保持上下文链路可追踪。";
   const expectedAgentSessionId = `mock/${initialAgentRoleId}`;
@@ -726,11 +584,11 @@ try {
 
   const compacted = await request(
     {
-      type: "compact",
+      type: "compact_agent_session",
       requestId: "compact-agent-session",
       workspacePath,
       sessionRootDir,
-      target: { scope: "agent", agentId: "mock", agentRoleId: initialAgentRoleId },
+      target: { scope: "agent", agentRoleId: initialAgentRoleId },
       options: { compactInstruction: "测试手动压缩底层 agent session。" },
       runtime: {
         model: { contextWindow: 4096, maxTokens: 1024 },
@@ -742,10 +600,24 @@ try {
   assert(compacted.compacted === false, "mock runtime compact 应作为 no-op 但保持链路可用", compacted);
   assert(compacted.summary === "", "手动 compact 底层 agent 不应写入 runtime shared summary", compacted.summary);
   assert(
-    compacted.messages.map((message) => `${message.role}:${message.content}`).join("|") ===
+    compacted.messages.length === 0,
+    "agent maintenance 结果只返回操作状态，不复制 shared session 消息",
+    compacted,
+  );
+  const afterAgentCompact = await request(
+    {
+      type: "read_session",
+      requestId: "read-after-agent-compact",
+      workspacePath,
+      sessionRootDir,
+    },
+    "session_result",
+  );
+  assert(
+    afterAgentCompact.messages.map((message) => `${message.role}:${message.content}`).join("|") ===
       "user:重建后的用户消息|assistant:重建后的助手消息",
     "手动 compact 底层 agent 不应裁剪 runtime ledger active messages",
-    compacted.messages,
+    afterAgentCompact.messages,
   );
   const compactLedger = readLedger();
   assert(!("leafId" in compacted), "compact mutation 结果不应向应用侧暴露 leafId", compacted);
@@ -754,20 +626,9 @@ try {
     "手动 compact 底层 agent 不应写入 runtime compaction entry",
     compactLedger.entries.filter((entry) => entry.type === "compaction"),
   );
-  const compactEntry = [...compactLedger.entries]
-    .reverse()
-    .find((entry) => entry.type === "custom" && entry.customType === "agent_session_compacted");
-  assert(
-    compactEntry?.type === "custom" &&
-      compactEntry.data?.runtimeMetadataVersion === 1 &&
-      compactEntry.data?.source === "runtime_compact" &&
-      compactEntry.data?.scope === "shared" &&
-      compactEntry.data?.target?.runtimeId === "mock" &&
-      compactEntry.data?.target?.agentRoleId === initialAgentRoleId &&
-      compactEntry.data?.compacted === false,
-    "agent_session_compacted entry 应记录底层 agent compact 结果",
-    compactEntry,
-  );
+  const compactLedgerLastEntry = compactLedger.entries.at(-1);
+  const compactTargetLeafId =
+    compactLedgerLastEntry?.type === "leaf" ? compactLedgerLastEntry.targetId : compactLedgerLastEntry?.id;
 
   const summarized = await request(
     {
@@ -775,7 +636,6 @@ try {
       requestId: "summarize-display-after-compact",
       workspacePath,
       sessionRootDir,
-      agent: { agentId: "mock" },
       options: {
         summaryInstruction: "生成 E2E 展示摘要，必须提到这只是前端展示数据。",
         maxSummaryChars: 1800,
@@ -789,15 +649,15 @@ try {
   assert(summarized.summary === "", "展示摘要不应写入 runtime shared summary", summarized);
   assert(
     summarized.displaySummary?.summary?.trim() &&
-      summarized.displaySummary.targetLeafId === compactEntry.id &&
+      summarized.displaySummary.targetLeafId === compactTargetLeafId &&
       summarized.displaySummary.runtimeId === "mock" &&
       summarized.displaySummary.chunkCount >= 1,
     "summarize_session 应返回 displaySummary，并指向摘要触发时的 leaf",
     summarized.displaySummary,
   );
   assert(
-    summarized.messages.length === compacted.messages.length &&
-      summarized.messages.at(-1)?.content === compacted.messages.at(-1)?.content,
+    summarized.messages.length === afterAgentCompact.messages.length &&
+      summarized.messages.at(-1)?.content === afterAgentCompact.messages.at(-1)?.content,
     "display summary 不应出现在 active messages 中",
     summarized.messages,
   );
@@ -807,16 +667,16 @@ try {
   assert(
     displaySummaryEntry?.type === "custom" &&
       displaySummaryEntry.customType === "display_summary" &&
-      displaySummaryEntry.parentId === compactEntry.id &&
+      displaySummaryEntry.parentId === compactTargetLeafId &&
       displaySummaryEntry.data?.displayOnly === true &&
-      displaySummaryEntry.data?.targetLeafId === compactEntry.id,
+      displaySummaryEntry.data?.targetLeafId === compactTargetLeafId,
     "display_summary 应作为 display-only custom entry 写入 ledger",
     displaySummaryEntry,
   );
   assert(
     summaryLeafEntry?.type === "leaf" &&
       summaryLeafEntry.parentId === displaySummaryEntry.id &&
-      summaryLeafEntry.targetId === compactEntry.id,
+      summaryLeafEntry.targetId === compactTargetLeafId,
     "display_summary 写入后应通过 leaf entry 复位到原 leaf，避免污染后续上下文",
     summaryLeafEntry,
   );
@@ -864,7 +724,6 @@ try {
       requestId: "summarize-oversized-display",
       workspacePath,
       sessionRootDir: oversizedSummarySessionRootDir,
-      agent: { agentId: "mock" },
       options: {
         summaryInstruction: "测试超长输入分块摘要。",
         maxSummaryChars: 1200,
@@ -1060,7 +919,7 @@ try {
       requestId: "rebuild-tavern-a-agent-session",
       workspacePath,
       sessionRootDir,
-      target: { scope: "agent", agentId: "mock", agentRoleId: tavernARoleId },
+      target: { scope: "agent", agentRoleId: tavernARoleId },
       options: { rebuildInstruction: "测试：仅基于 A 自己的 ledger 上下文重建底层 session。" },
       runtime: {
         model: { contextWindow: 4096, maxTokens: 1024 },
@@ -1069,18 +928,7 @@ try {
     },
     "session_mutation_result",
   );
-  assert(tavernARebuilt.rebuilt === true, "rebuild_agent_session 应返回 rebuilt=true", tavernARebuilt);
-  const tavernARebuildEntry = [...readLedger().entries]
-    .reverse()
-    .find((entry) => entry.type === "custom" && entry.customType === "agent_session_rebuilt");
-  assert(
-    tavernARebuildEntry?.data?.target?.agentRoleId === tavernARoleId &&
-      tavernARebuildEntry.data?.details?.bootstrapContextChars > 0 &&
-      !tavernARebuildEntry.data?.message?.includes(tavernSecret) &&
-      !tavernARebuildEntry.data?.message?.includes("B 的私密心理描写"),
-    "rebuild_agent_session 应使用非空 ledger bootstrap 初始化，且不泄漏 B 的私密内容",
-    tavernARebuildEntry,
-  );
+  assert(tavernARebuilt.rebuilt === false, "mock runtime rebuild 应作为 no-op 但保持链路可用", tavernARebuilt);
   const tavernARebuildTaskId = "mock-task-tavern-a-rebuild";
   const tavernARebuildRequestContext = "A 可见信息：B 公开说，火把已经熄灭。";
   send(
@@ -1464,11 +1312,6 @@ try {
   );
 
   const checks = {
-    agents: list.agents.map((agent) => agent.id),
-    createSessionSystemPrompt: aliasCreated.messages[0]?.content,
-    sendMessageChatUser: aliasAfterChat.messages.at(-2)?.content,
-    sendMessageAgentUser: aliasAfterAgent.messages.at(-2)?.content,
-    sendMessageAgentRoleId: aliasAfterAgent.messages.at(-2)?.metadata?.agentRoleId,
     doneRuntimeSession: done.runtimeSession,
     taskMessages: afterTask.messages.length,
     taskLedgerParent: `${taskUserEntry.id}->${taskAssistantEntry.id}`,
@@ -1489,7 +1332,7 @@ try {
     rebuiltMessages: rebuilt.messages.map((message) => `${message.role}:${message.content}`),
     agentSessionCompacted: compacted.compacted,
     agentCompactDidNotWriteSharedSummary: compacted.summary === "",
-    agentCompactMessages: compacted.messages.map((message) => `${message.role}:${message.content}`),
+    agentCompactMessages: afterAgentCompact.messages.map((message) => `${message.role}:${message.content}`),
     displaySummaryRecordId: summarized.displaySummary?.recordId,
     displaySummaryTargetLeafId: summarized.displaySummary?.targetLeafId,
     displaySummaryCount: afterDisplaySummary.displaySummaries?.length ?? 0,

@@ -1,7 +1,6 @@
 import type {
   CollaborationModeId,
   CollaborationModeRunInput,
-  CollaborationModeSummary,
   CollaborationRunInput,
   CollaborationRunResult,
 } from "../../../../protocol/index.js";

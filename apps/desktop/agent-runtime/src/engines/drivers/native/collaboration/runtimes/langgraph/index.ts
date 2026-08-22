@@ -1,9 +1,8 @@
 import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 import type { CollaborationRuntime, CollaborationRuntimeRunInput } from "../types.js";
+import type { CollaborationSkippedStep, CollaborationStepResult } from "../../../../../protocol/wire.js";
 import type {
   CollaborationRunInput,
-  CollaborationSkippedStepResult,
-  CollaborationStepResult,
   CollaborationRouterWorkflowStep,
   CollaborationWorkflowStep,
 } from "../../../../../protocol/index.js";
@@ -20,7 +19,7 @@ type LangGraphWorkflowState = {
   input: unknown;
   output: Record<string, unknown>;
   stepResults: CollaborationStepResult[];
-  skippedSteps: CollaborationSkippedStepResult[];
+  skippedSteps: CollaborationSkippedStep[];
 };
 
 type LangGraphWorkflowUpdate = Partial<LangGraphWorkflowState>;
@@ -29,7 +28,7 @@ function mergeStepResults(left: CollaborationStepResult[], right: CollaborationS
   return mergeByStepId(left, right);
 }
 
-function mergeSkippedSteps(left: CollaborationSkippedStepResult[], right: CollaborationSkippedStepResult[]) {
+function mergeSkippedSteps(left: CollaborationSkippedStep[], right: CollaborationSkippedStep[]) {
   return mergeByStepId(left, right);
 }
 
@@ -46,7 +45,7 @@ const WorkflowStateAnnotation = Annotation.Root({
     reducer: mergeStepResults,
     default: () => [],
   }),
-  skippedSteps: Annotation<CollaborationSkippedStepResult[], CollaborationSkippedStepResult[]>({
+  skippedSteps: Annotation<CollaborationSkippedStep[], CollaborationSkippedStep[]>({
     reducer: mergeSkippedSteps,
     default: () => [],
   }),

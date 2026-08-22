@@ -1,4 +1,4 @@
-import { AgentEventType } from "../../../../../../protocol/index.js";
+import { AgentRuntimeEventType } from "../../../../../../protocol/wire.js";
 import type {
   AgentRunResult,
   AgentRuntime,
@@ -29,7 +29,7 @@ export class PiAgent implements AgentRuntime {
       const createdSession = await createPiAgentSession(command, callbacks);
       session = createdSession.session;
       unsubscribe = subscribeToPiAgentSession(command, session, emit, state);
-      emit({ type: AgentEventType.Started, taskId: command.taskId });
+      emit({ type: AgentRuntimeEventType.Started, taskId: command.taskId });
 
       const result = await drivePiAgentSession({
         command,
@@ -42,7 +42,7 @@ export class PiAgent implements AgentRuntime {
       });
 
       emit({
-        type: AgentEventType.Done,
+        type: AgentRuntimeEventType.Done,
         taskId: command.taskId,
         text: result.text,
       });

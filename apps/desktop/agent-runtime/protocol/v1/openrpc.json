@@ -1,0 +1,223 @@
+{
+  "openrpc": "1.4.0",
+  "info": {
+    "title": "Isle Agent Runtime",
+    "version": "1.0.0",
+    "description": "Language-neutral JSON-RPC protocol for the Isle agent runtime. The x-isle-params-schema extension points to the authoritative by-name params schema for each method."
+  },
+  "servers": [
+    {
+      "name": "stdio",
+      "url": "stdio://agent-runtime"
+    }
+  ],
+  "methods": [
+    {
+      "name": "runtime/ping",
+      "summary": "Check that the runtime is available",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "ping", "paramsMode": "flat" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/EmptyParams"
+    },
+    {
+      "name": "runtime/shutdown",
+      "summary": "Shut down the runtime process",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "shutdown", "paramsMode": "flat" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/EmptyParams"
+    },
+    {
+      "name": "agent/tools/list",
+      "summary": "List tools exposed to agents",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "list_agent_tools", "paramsMode": "flat" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/EmptyParams"
+    },
+    {
+      "name": "runtime/models/list",
+      "summary": "List runtime models",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "list_runtime_models", "paramsMode": "flat" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/EmptyParams"
+    },
+    {
+      "name": "agent/chat",
+      "summary": "Run a lightweight chat request",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "chat", "paramsMode": "flat" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/ChatParams"
+    },
+    {
+      "name": "agent/run",
+      "summary": "Run an agent task",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "run_agent", "paramsMode": "flat" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/AgentRunParams"
+    },
+    {
+      "name": "agent/question/answer",
+      "summary": "Answer a pending agent question",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "answer_question", "paramsMode": "flat" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/AnswerQuestionParams"
+    },
+    {
+      "name": "session/read",
+      "summary": "Read the internal session projection",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "read_session", "paramsMode": "flat" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/SessionTargetParams"
+    },
+    {
+      "name": "session/agent/compact",
+      "summary": "Compact an agent session",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "compact_agent_session", "paramsMode": "flat" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/AgentSessionMaintenanceParams"
+    },
+    {
+      "name": "session/agent/rebuild",
+      "summary": "Rebuild an agent session",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "rebuild_agent_session", "paramsMode": "flat" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/AgentSessionMaintenanceParams"
+    },
+    {
+      "name": "session/summarize",
+      "summary": "Summarize a session",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "summarize_session", "paramsMode": "flat" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/SessionSummaryParams"
+    },
+    {
+      "name": "session/agent/summarize",
+      "summary": "Summarize an agent session",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "summarize_agent_session", "paramsMode": "flat" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/AgentSessionSummaryParams"
+    },
+    {
+      "name": "session/message/edit",
+      "summary": "Edit a session message",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "message_edit", "paramsMode": "flat" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/MessageEditParams"
+    },
+    {
+      "name": "session/message/delete",
+      "summary": "Delete a session message",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "message_delete", "paramsMode": "flat" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/MessageDeleteParams"
+    },
+    {
+      "name": "session/message/append",
+      "summary": "Append session messages",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "message_append", "paramsMode": "flat" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/SessionMessagesParams"
+    },
+    {
+      "name": "session/rebuild",
+      "summary": "Rebuild a session from messages",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "rebuild", "paramsMode": "flat" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/SessionMessagesParams"
+    },
+    {
+      "name": "runtime/sessions/list",
+      "summary": "List runtime sessions",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "list_runtime_sessions", "paramsMode": "flat" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/RuntimeSessionsParams"
+    },
+    {
+      "name": "runtime/session/read",
+      "summary": "Read a stable runtime session projection",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "read_runtime_session", "paramsMode": "flat" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/RuntimeSessionParams"
+    },
+    {
+      "name": "runtime/session/debug/read",
+      "summary": "Read runtime session diagnostics",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "read_runtime_session_debug", "paramsMode": "flat" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/RuntimeSessionDebugParams"
+    },
+    {
+      "name": "collaboration/timeline/read",
+      "summary": "Read a collaboration timeline",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "read_collaboration_timeline", "paramsMode": "flat" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/CollaborationTimelineParams"
+    },
+    {
+      "name": "collaboration/modes/list",
+      "summary": "List collaboration modes",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "list_collaboration_modes", "paramsMode": "flat" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/EmptyParams"
+    },
+    {
+      "name": "collaboration/run",
+      "summary": "Run a collaboration workflow",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "run_collaboration", "paramsMode": "input" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/CollaborationRunParams"
+    },
+    {
+      "name": "collaboration/runMode",
+      "summary": "Run a registered collaboration mode",
+      "params": [],
+      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
+      "x-isle-command": { "type": "run_collaboration_mode", "paramsMode": "input" },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/CollaborationModeRunParams"
+    },
+    {
+      "name": "runtime/event",
+      "summary": "Runtime event notification emitted by the server",
+      "params": [],
+      "x-isle-direction": "server-to-client",
+      "x-isle-params-schema": "./schema/event.schema.json"
+    },
+    {
+      "name": "runtime/result",
+      "summary": "Additional runtime result notification emitted after a primary response",
+      "params": [],
+      "x-isle-direction": "server-to-client",
+      "x-isle-params-schema": "./schema/result.schema.json"
+    }
+  ],
+  "components": {
+    "contentDescriptors": {
+      "genericResult": {
+        "name": "result",
+        "description": "Runtime result payload. Its discriminating type field selects the concrete result schema.",
+        "schema": { "$ref": "./schema/result.schema.json" }
+      }
+    }
+  }
+}

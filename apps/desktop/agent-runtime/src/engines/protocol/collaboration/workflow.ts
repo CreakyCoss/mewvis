@@ -1,9 +1,13 @@
-import type { AgentRuntimeResources } from "../agent/index.js";
-import type { RuntimeModelInput } from "../model.js";
+import type {
+  AgentRuntimeResources,
+  CollaborationSkippedStep,
+  CollaborationStepResult,
+  RuntimeModelInput,
+} from "../wire.js";
 
-export type CollaborationStepType = "agent" | "dispatch" | "transform" | "condition" | "router";
+type CollaborationStepType = "agent" | "dispatch" | "transform" | "condition" | "router";
 
-export type CollaborationBuiltinStepCondition = {
+type CollaborationBuiltinStepCondition = {
   ref: string;
   equals?: unknown;
   notEquals?: unknown;
@@ -12,7 +16,7 @@ export type CollaborationBuiltinStepCondition = {
   includes?: unknown;
 };
 
-export type CollaborationNamedStepCondition = {
+type CollaborationNamedStepCondition = {
   condition: string;
   input?: unknown;
   invert?: boolean;
@@ -20,7 +24,7 @@ export type CollaborationNamedStepCondition = {
 
 export type CollaborationStepCondition = CollaborationBuiltinStepCondition | CollaborationNamedStepCondition;
 
-export type CollaborationBaseWorkflowStep = {
+type CollaborationBaseWorkflowStep = {
   id: string;
   type: CollaborationStepType;
   dependsOn?: string[];
@@ -45,7 +49,7 @@ export type CollaborationAgentWorkflowStep = CollaborationBaseWorkflowStep & {
   maxRetries?: number | null;
 };
 
-export type CollaborationDispatchMode = "serial" | "parallel";
+type CollaborationDispatchMode = "serial" | "parallel";
 
 export type CollaborationDispatchWorkflowStep = CollaborationBaseWorkflowStep & {
   type: "dispatch";
@@ -90,9 +94,9 @@ export type CollaborationAgentRole = {
   resources?: AgentRuntimeResources | null;
 };
 
-export type CollaborationWorkflowExecutionMode = "serial" | "parallel";
+type CollaborationWorkflowExecutionMode = "serial" | "parallel";
 
-export type CollaborationWorkflowDefinition = {
+type CollaborationWorkflowDefinition = {
   id: string;
   label?: string | null;
   version?: string | null;
@@ -148,4 +152,11 @@ export type CollaborationModeSummary = {
   id: CollaborationModeId;
   label: string;
   version: string;
+};
+
+export type CollaborationRunResult = {
+  workflowRunId: string;
+  steps: CollaborationStepResult[];
+  skippedSteps?: CollaborationSkippedStep[];
+  output?: unknown;
 };

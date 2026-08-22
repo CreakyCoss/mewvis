@@ -1,0 +1,344 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://isle.local/protocol/agent-runtime/v1/event.schema.json",
+  "title": "AgentRuntimeEvent",
+  "oneOf": [
+    { "$ref": "#/definitions/StartedEvent" },
+    { "$ref": "#/definitions/QuestionEvent" },
+    { "$ref": "#/definitions/QuestionAnsweredEvent" },
+    { "$ref": "#/definitions/ReplaceTextEvent" },
+    { "$ref": "#/definitions/TextDeltaEvent" },
+    { "$ref": "#/definitions/ThinkingDeltaEvent" },
+    { "$ref": "#/definitions/ThinkingEndEvent" },
+    { "$ref": "#/definitions/ToolCallStartEvent" },
+    { "$ref": "#/definitions/ToolCallDeltaEvent" },
+    { "$ref": "#/definitions/ToolCallEndEvent" },
+    { "$ref": "#/definitions/ToolExecutionStartEvent" },
+    { "$ref": "#/definitions/ToolExecutionUpdateEvent" },
+    { "$ref": "#/definitions/ToolExecutionEndEvent" },
+    { "$ref": "#/definitions/DoneEvent" },
+    { "$ref": "#/definitions/AgentErrorEvent" },
+    { "$ref": "#/definitions/WorkflowStartedEvent" },
+    { "$ref": "#/definitions/StepStartedEvent" },
+    { "$ref": "#/definitions/CollaborationAgentEvent" },
+    { "$ref": "#/definitions/StepDoneEvent" },
+    { "$ref": "#/definitions/StepSkippedEvent" },
+    { "$ref": "#/definitions/WorkflowDoneEvent" },
+    { "$ref": "#/definitions/CollaborationErrorEvent" }
+  ],
+  "definitions": {
+    "NullableString": { "type": ["string", "null"] },
+    "RuntimeSessionRef": {
+      "type": "object",
+      "required": ["sessionRootDir"],
+      "properties": {
+        "sessionRootDir": { "type": "string" },
+        "userMessageRecordId": { "$ref": "#/definitions/NullableString" },
+        "requestContextRecordId": { "$ref": "#/definitions/NullableString" },
+        "runtimeInstructionRecordId": { "$ref": "#/definitions/NullableString" },
+        "assistantMessageRecordId": { "$ref": "#/definitions/NullableString" }
+      },
+      "additionalProperties": false
+    },
+    "AskUserOption": {
+      "type": "object",
+      "required": ["value", "label"],
+      "properties": {
+        "value": { "type": "string" },
+        "label": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "AskUserInput": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["text", "select"] },
+        "label": { "type": "string" },
+        "options": { "type": "array", "items": { "$ref": "#/definitions/AskUserOption" } },
+        "selected": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "StartedEvent": {
+      "type": "object",
+      "required": ["type", "taskId"],
+      "properties": { "type": { "const": "started" }, "taskId": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "QuestionEvent": {
+      "type": "object",
+      "required": ["type", "taskId", "questionId", "question"],
+      "properties": {
+        "type": { "const": "question" },
+        "taskId": { "type": "string" },
+        "questionId": { "type": "string" },
+        "question": { "type": "string" },
+        "context": { "$ref": "#/definitions/NullableString" },
+        "input": { "$ref": "#/definitions/AskUserInput" }
+      },
+      "additionalProperties": false
+    },
+    "QuestionAnsweredEvent": {
+      "type": "object",
+      "required": ["type", "taskId", "questionId", "answer"],
+      "properties": {
+        "type": { "const": "question_answered" },
+        "taskId": { "type": "string" },
+        "questionId": { "type": "string" },
+        "answer": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "ReplaceTextEvent": {
+      "type": "object",
+      "required": ["type", "taskId", "text"],
+      "properties": {
+        "type": { "const": "replace_text" },
+        "taskId": { "type": "string" },
+        "text": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "TextDeltaEvent": {
+      "type": "object",
+      "required": ["type", "taskId", "delta"],
+      "properties": {
+        "type": { "const": "text_delta" },
+        "taskId": { "type": "string" },
+        "delta": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "ThinkingDeltaEvent": {
+      "type": "object",
+      "required": ["type", "taskId", "delta"],
+      "properties": {
+        "type": { "const": "thinking_delta" },
+        "taskId": { "type": "string" },
+        "delta": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "ThinkingEndEvent": {
+      "type": "object",
+      "required": ["type", "taskId", "content"],
+      "properties": {
+        "type": { "const": "thinking_end" },
+        "taskId": { "type": "string" },
+        "content": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "ToolCallStartEvent": {
+      "type": "object",
+      "required": ["type", "taskId", "toolCallId", "toolName"],
+      "properties": {
+        "type": { "const": "tool_call_start" },
+        "taskId": { "type": "string" },
+        "toolCallId": { "type": "string" },
+        "toolName": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "ToolCallDeltaEvent": {
+      "type": "object",
+      "required": ["type", "taskId", "toolCallId", "toolName", "delta"],
+      "properties": {
+        "type": { "const": "tool_call_delta" },
+        "taskId": { "type": "string" },
+        "toolCallId": { "type": "string" },
+        "toolName": { "type": "string" },
+        "delta": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "ToolCallEndEvent": {
+      "type": "object",
+      "required": ["type", "taskId", "toolCallId", "toolName", "args"],
+      "properties": {
+        "type": { "const": "tool_call_end" },
+        "taskId": { "type": "string" },
+        "toolCallId": { "type": "string" },
+        "toolName": { "type": "string" },
+        "args": {}
+      },
+      "additionalProperties": false
+    },
+    "ToolExecutionStartEvent": {
+      "type": "object",
+      "required": ["type", "taskId", "toolCallId", "toolName", "args"],
+      "properties": {
+        "type": { "const": "tool_execution_start" },
+        "taskId": { "type": "string" },
+        "toolCallId": { "type": "string" },
+        "toolName": { "type": "string" },
+        "args": {}
+      },
+      "additionalProperties": false
+    },
+    "ToolExecutionUpdateEvent": {
+      "type": "object",
+      "required": ["type", "taskId", "toolCallId", "toolName", "partialResult"],
+      "properties": {
+        "type": { "const": "tool_execution_update" },
+        "taskId": { "type": "string" },
+        "toolCallId": { "type": "string" },
+        "toolName": { "type": "string" },
+        "partialResult": {}
+      },
+      "additionalProperties": false
+    },
+    "ToolExecutionEndEvent": {
+      "type": "object",
+      "required": ["type", "taskId", "toolCallId", "toolName", "isError", "result"],
+      "properties": {
+        "type": { "const": "tool_execution_end" },
+        "taskId": { "type": "string" },
+        "toolCallId": { "type": "string" },
+        "toolName": { "type": "string" },
+        "isError": { "type": "boolean" },
+        "result": {}
+      },
+      "additionalProperties": false
+    },
+    "DoneEvent": {
+      "type": "object",
+      "required": ["type", "taskId", "text"],
+      "properties": {
+        "type": { "const": "done" },
+        "taskId": { "type": "string" },
+        "text": { "type": "string" },
+        "runtimeSession": {
+          "oneOf": [{ "$ref": "#/definitions/RuntimeSessionRef" }, { "type": "null" }]
+        }
+      },
+      "additionalProperties": false
+    },
+    "AgentErrorEvent": {
+      "type": "object",
+      "required": ["type", "message"],
+      "properties": {
+        "type": { "const": "error" },
+        "taskId": { "type": "string" },
+        "message": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "WorkflowStartedEvent": {
+      "type": "object",
+      "required": ["type", "workflowRunId", "workflowId"],
+      "properties": {
+        "type": { "const": "workflow_started" },
+        "workflowRunId": { "type": "string" },
+        "workflowId": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "StepStartedEvent": {
+      "type": "object",
+      "required": ["type", "workflowRunId", "stepId", "stepType"],
+      "properties": {
+        "type": { "const": "step_started" },
+        "workflowRunId": { "type": "string" },
+        "stepId": { "type": "string" },
+        "stepType": { "enum": ["agent", "dispatch", "transform", "condition", "router"] },
+        "agentRoleId": { "type": "string" },
+        "agentTaskId": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "AgentEvent": {
+      "oneOf": [
+        { "$ref": "#/definitions/StartedEvent" },
+        { "$ref": "#/definitions/QuestionEvent" },
+        { "$ref": "#/definitions/QuestionAnsweredEvent" },
+        { "$ref": "#/definitions/ReplaceTextEvent" },
+        { "$ref": "#/definitions/TextDeltaEvent" },
+        { "$ref": "#/definitions/ThinkingDeltaEvent" },
+        { "$ref": "#/definitions/ThinkingEndEvent" },
+        { "$ref": "#/definitions/ToolCallStartEvent" },
+        { "$ref": "#/definitions/ToolCallDeltaEvent" },
+        { "$ref": "#/definitions/ToolCallEndEvent" },
+        { "$ref": "#/definitions/ToolExecutionStartEvent" },
+        { "$ref": "#/definitions/ToolExecutionUpdateEvent" },
+        { "$ref": "#/definitions/ToolExecutionEndEvent" },
+        { "$ref": "#/definitions/DoneEvent" },
+        { "$ref": "#/definitions/AgentErrorEvent" }
+      ]
+    },
+    "CollaborationAgentEvent": {
+      "type": "object",
+      "required": ["type", "workflowRunId", "stepId", "agentRoleId", "agentTaskId", "event"],
+      "properties": {
+        "type": { "const": "agent_event" },
+        "workflowRunId": { "type": "string" },
+        "stepId": { "type": "string" },
+        "agentRoleId": { "type": "string" },
+        "agentTaskId": { "type": "string" },
+        "event": { "$ref": "#/definitions/AgentEvent" }
+      },
+      "additionalProperties": false
+    },
+    "StepDoneEvent": {
+      "type": "object",
+      "required": ["type", "workflowRunId", "step"],
+      "properties": {
+        "type": { "const": "step_done" },
+        "workflowRunId": { "type": "string" },
+        "step": { "$ref": "./result.schema.json#/definitions/CollaborationStepResult" }
+      },
+      "additionalProperties": false
+    },
+    "StepSkippedEvent": {
+      "type": "object",
+      "required": ["type", "workflowRunId", "step"],
+      "properties": {
+        "type": { "const": "step_skipped" },
+        "workflowRunId": { "type": "string" },
+        "step": { "$ref": "./result.schema.json#/definitions/CollaborationSkippedStep" }
+      },
+      "additionalProperties": false
+    },
+    "WorkflowDoneEvent": {
+      "type": "object",
+      "required": ["type", "workflowRunId", "result"],
+      "properties": {
+        "type": { "const": "workflow_done" },
+        "workflowRunId": { "type": "string" },
+        "result": {
+          "type": "object",
+          "required": ["workflowRunId", "steps"],
+          "properties": {
+            "workflowRunId": { "type": "string" },
+            "steps": {
+              "type": "array",
+              "items": { "$ref": "./result.schema.json#/definitions/CollaborationStepResult" }
+            },
+            "skippedSteps": {
+              "type": "array",
+              "items": { "$ref": "./result.schema.json#/definitions/CollaborationSkippedStep" }
+            },
+            "output": {}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "CollaborationErrorEvent": {
+      "type": "object",
+      "required": ["type", "workflowRunId", "message"],
+      "properties": {
+        "type": { "const": "error" },
+        "workflowRunId": { "type": "string" },
+        "stepId": { "type": "string" },
+        "agentRoleId": { "type": "string" },
+        "agentTaskId": { "type": "string" },
+        "message": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

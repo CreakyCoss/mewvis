@@ -13,6 +13,7 @@
   },
   "include": [
     "src/**/*.ts",
+    "protocol/**/*.json",
     "../core/story-project/**/*.ts",
     "../core/story-project/**/*.json",
     "../core/protocol.ts",

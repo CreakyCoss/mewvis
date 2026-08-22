@@ -1,5 +1,6 @@
 import { rm } from "node:fs/promises";
-import { AgentResultType, type SessionMutationResult } from "../../../../../../protocol/index.js";
+import { AgentRuntimeResultType } from "../../../../../../protocol/wire.js";
+import { type SessionMutationResult } from "../../../../../../protocol/index.js";
 import type {
   AgentRuntimeContext,
   RuntimeAgentCompactCommand,
@@ -265,7 +266,7 @@ const createPiAgentSummaryResult = async (
   const generatedAt = Date.now();
   return {
     ...session,
-    type: AgentResultType.SessionMutationResult,
+    type: AgentRuntimeResultType.SessionMutationResult,
     displaySummary: {
       recordId: `agent-summary-${generatedAt}`,
       targetLeafId: command.agentSessionId ?? command.agentRoleId,
@@ -288,7 +289,7 @@ const createPiAgentMaintenanceResult = (
   command: RuntimeAgentCompactCommand | RuntimeAgentRebuildCommand,
   result: Pick<SessionMutationResult, "compacted" | "rebuilt">,
 ): SessionMutationResult => ({
-  type: AgentResultType.SessionMutationResult,
+  type: AgentRuntimeResultType.SessionMutationResult,
   requestId: command.requestId ?? null,
   sessionRootDir: command.sessionRootDir,
   summary: "",

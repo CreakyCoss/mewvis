@@ -3,7 +3,7 @@ import { ActivityIcon, ChevronRightIcon, EyeIcon, RefreshCwIcon } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { RuntimeModelInput } from "@/agent-client/types";
+import type { RuntimeModelInput } from "@/agent-client/wire";
 import {
   readLedger,
   summarizeLedger,

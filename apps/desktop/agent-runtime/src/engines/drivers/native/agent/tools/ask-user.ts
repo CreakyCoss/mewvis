@@ -1,4 +1,4 @@
-import type { AskUserInput, AskUserOption } from "../../../../protocol/index.js";
+import type { AskUserInput, AskUserOption } from "../../../../protocol/wire.js";
 import type { ToolParameterDefinition } from "../../../../builtins/definition.js";
 
 const stringParam = (description: string, optional?: boolean): ToolParameterDefinition => ({

@@ -1,4 +1,4 @@
-import type { RuntimeDisplaySummary, RuntimeLink } from "../../../../protocol/session.js";
+import type { RuntimeDisplaySummary, RuntimeLink } from "../../../../protocol/wire.js";
 
 export type RuntimeMessageRole = "user" | "assistant" | "system";
 

@@ -1,5 +1,5 @@
 import { cloneDeep } from "lodash-es";
-import type { RuntimeApiFormat } from "@/agent-client/types";
+import type { RuntimeApiFormat } from "@/agent-client/wire";
 import type {
   LlmProvider,
   LlmProviderConfig,

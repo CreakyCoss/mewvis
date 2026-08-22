@@ -1,19 +1,18 @@
 import { createRuntimeEngine } from "../engines/index.js";
-import { AgentEventType, type AgentRuntimeCommand } from "../engines/protocol/index.js";
-import { createStdioRuntimeReader, parseAgentRuntimeCommand, writeAgentEvent, writeJsonLine } from "./stdio.js";
-
-const cliErrorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
+import type { AgentRuntimeCommand } from "../engines/protocol/index.js";
+import { AgentRuntimeStdioProtocol, createStdioRuntimeReader } from "./stdio.js";
 
 const runAgentRuntimeCli = async () => {
   const reader = createStdioRuntimeReader();
+  const protocol = new AgentRuntimeStdioProtocol();
   const runtime = createRuntimeEngine({
     profileId: process.env.AGENT_RUNTIME_PROFILE_ID,
     close: () => {
       reader.close();
     },
     callbacks: {
-      onEvent: writeAgentEvent,
-      onResult: writeJsonLine,
+      onEvent: (event) => protocol.writeEvent(event),
+      onResult: (result) => protocol.writeResult(result),
     },
   });
 
@@ -21,17 +20,24 @@ const runAgentRuntimeCli = async () => {
     for await (const line of reader) {
       let command: AgentRuntimeCommand;
       try {
-        command = parseAgentRuntimeCommand(line);
+        command = protocol.parseCommand(line);
       } catch (error: unknown) {
-        const message = cliErrorMessage(error);
-        writeAgentEvent({
-          type: AgentEventType.Error,
-          message,
-        });
+        protocol.writeError(error);
         continue;
       }
 
-      const keepRunning = await runtime.handle(command);
+      protocol.beginCommand(command);
+      let keepRunning: boolean;
+      try {
+        keepRunning = await runtime.handle(command);
+      } catch (error: unknown) {
+        protocol.writeError(error);
+        const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
+        console.error(message);
+        keepRunning = true;
+      } finally {
+        protocol.endCommand(command);
+      }
       if (!keepRunning) {
         break;
       }
@@ -44,9 +50,5 @@ const runAgentRuntimeCli = async () => {
 runAgentRuntimeCli().catch((error: unknown) => {
   const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
   console.error(message);
-  writeAgentEvent({
-    type: AgentEventType.Error,
-    message,
-  });
   process.exitCode = 1;
 });

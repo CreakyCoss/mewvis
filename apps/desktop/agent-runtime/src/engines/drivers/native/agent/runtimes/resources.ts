@@ -1,5 +1,5 @@
 import { uniq } from "lodash-es";
-import type { AgentRuntimeResources } from "../../../../protocol/index.js";
+import type { AgentRuntimeResources } from "../../../../protocol/wire.js";
 import { isBuiltinPrivateToolName, resolveBuiltins } from "../../../../builtins/index.js";
 import { DEFAULT_ALLOWED_AGENT_TOOLS } from "../tools/definitions.js";
 import type { AgentRunCommand } from "./types.js";

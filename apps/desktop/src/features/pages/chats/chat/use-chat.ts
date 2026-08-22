@@ -2,8 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { isEqual } from "lodash-es";
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
+import {
+  AgentClientTransportEventType,
+  type AgentClientAgentEvent,
+  type AgentClientStreamEvent,
+} from "@/agent-client/contracts";
 import { createAgentClient } from "@/agent-client/runtime";
-import type { AgentClientAgentEvent } from "@/agent-client/types";
+import { AgentRuntimeEventType, agentRuntimeEvents } from "@/agent-client/wire";
 import { loadChat, saveChat as saveChatApi } from "@/api/chat";
 import { searchEnabledKnowledge } from "@/api/knowledge";
 import type { ChatInputOptions, ChatTurnRequest } from "../components/chat-input/type";
@@ -82,10 +87,7 @@ const createChatStore = () =>
     setError: (error) => set({ error }),
   }));
 
-type StreamEvent = Extract<
-  AgentClientAgentEvent,
-  { type: "text_delta" | "thinking_delta" | "thinking_end" | "replace_text" | "tool_call_delta" }
->;
+type StreamEvent = AgentClientStreamEvent;
 
 type UseChatInput = {
   chatId: string;
@@ -243,23 +245,24 @@ export const useChat = ({ chatId, workspacePath, initialTurn, saveChat, onStatus
   );
 
   const handleAgentEvent = useCallback(
-    (event: AgentClientAgentEvent) => {
+    (envelope: AgentClientAgentEvent) => {
       const state = chatStore.getState();
       const activeTurn = state.activeTurn;
-      if (!activeTurn || (event.taskId && event.taskId !== activeTurn.taskId)) {
+      if (!activeTurn || envelope.taskId !== activeTurn.taskId) {
         return;
       }
+      const event = envelope.event;
 
       if (
-        event.type === "text_delta" ||
-        event.type === "thinking_delta" ||
-        event.type === "thinking_end" ||
-        event.type === "replace_text" ||
-        event.type === "tool_call_delta"
+        event.type === AgentRuntimeEventType.TextDelta ||
+        event.type === AgentRuntimeEventType.ThinkingDelta ||
+        event.type === AgentRuntimeEventType.ThinkingEnd ||
+        event.type === AgentRuntimeEventType.ReplaceText ||
+        event.type === AgentRuntimeEventType.ToolCallDelta
       ) {
         enqueueStreamEvent(event);
         streamChanged();
-        if (event.type === "thinking_end") {
+        if (event.type === AgentRuntimeEventType.ThinkingEnd) {
           nodeCompleted();
         }
         return;
@@ -267,7 +270,7 @@ export const useChat = ({ chatId, workspacePath, initialTurn, saveChat, onStatus
 
       flushStreamEvents();
 
-      if (event.type === "started") {
+      if (event.type === AgentRuntimeEventType.Started) {
         state.updateMessage(
           activeTurn.messageId,
           updateAssistantMessage((message) => ({ ...message, status: "streaming" })),
@@ -276,17 +279,17 @@ export const useChat = ({ chatId, workspacePath, initialTurn, saveChat, onStatus
       }
 
       if (
-        event.type === "tool_call_start" ||
-        event.type === "tool_call_end" ||
-        event.type === "tool_execution_start" ||
-        event.type === "tool_execution_update" ||
-        event.type === "tool_execution_end"
+        event.type === AgentRuntimeEventType.ToolCallStart ||
+        event.type === AgentRuntimeEventType.ToolCallEnd ||
+        event.type === AgentRuntimeEventType.ToolExecutionStart ||
+        event.type === AgentRuntimeEventType.ToolExecutionUpdate ||
+        event.type === AgentRuntimeEventType.ToolExecutionEnd
       ) {
         state.updateMessage(
           activeTurn.messageId,
           updateAssistantMessage((message) => applyChatMessageEvent(message, event)),
         );
-        if (event.type === "tool_execution_end") {
+        if (event.type === AgentRuntimeEventType.ToolExecutionEnd) {
           nodeCompleted();
         } else {
           streamChanged();
@@ -294,7 +297,7 @@ export const useChat = ({ chatId, workspacePath, initialTurn, saveChat, onStatus
         return;
       }
 
-      if (event.type === "question") {
+      if (event.type === AgentRuntimeEventType.Question) {
         state.setPendingQuestion({
           taskId: event.taskId,
           questionId: event.questionId,
@@ -305,19 +308,19 @@ export const useChat = ({ chatId, workspacePath, initialTurn, saveChat, onStatus
         return;
       }
 
-      if (event.type === "question_answered") {
+      if (event.type === AgentRuntimeEventType.QuestionAnswered) {
         if (state.pendingQuestion?.questionId === event.questionId) {
           state.setPendingQuestion(null);
         }
         return;
       }
 
-      if (event.type === "stderr") {
+      if (event.type === AgentClientTransportEventType.Stderr) {
         lastStderrRef.current = event.message;
         return;
       }
 
-      if (event.type === "done") {
+      if (event.type === AgentRuntimeEventType.Done) {
         state.updateMessage(
           activeTurn.messageId,
           updateAssistantMessage((message) => applyChatMessageEvent(message, event)),
@@ -328,29 +331,31 @@ export const useChat = ({ chatId, workspacePath, initialTurn, saveChat, onStatus
         return;
       }
 
-      if (event.type === "error") {
+      if (event.type === AgentRuntimeEventType.Error) {
         finishWithError(event.message);
         return;
       }
 
-      if (event.type === "exit" && !event.success) {
+      if (event.type === AgentClientTransportEventType.Exit && !event.success) {
         finishWithError(lastStderrRef.current || `Agent 任务异常退出：${event.code ?? "unknown"}`);
         lastStderrRef.current = "";
         return;
       }
 
-      if (event.type === "state") {
+      if (event.type === AgentClientTransportEventType.State) {
         const taskState = event.taskState.toLowerCase();
         const workerState = event.workerState.toLowerCase();
         if (taskState === "done") {
           state.updateMessage(
             activeTurn.messageId,
             updateAssistantMessage((message) =>
-              applyChatMessageEvent(message, {
-                type: "done",
-                taskId: activeTurn.taskId,
-                text: "",
-              }),
+              applyChatMessageEvent(
+                message,
+                agentRuntimeEvents.done({
+                  taskId: activeTurn.taskId,
+                  text: "",
+                }),
+              ),
             ),
           );
           state.finishTurn();
@@ -424,8 +429,10 @@ export const useChat = ({ chatId, workspacePath, initialTurn, saveChat, onStatus
           requestContext: prompt.requestContext,
           runtimeInstruction: prompt.runtimeInstruction,
           runtimeModel: payload.model,
-          allowedTools: [...new Set(payload.tools)],
-          enabledSkills: [...new Set(payload.skills.map((skill) => skill.name))],
+          resources: {
+            tools: { allowed: [...new Set(payload.tools)] },
+            skills: { enabled: [...new Set(payload.skills.map((skill) => skill.name))] },
+          },
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : "消息发送失败，请重试";

@@ -2,13 +2,13 @@ import { cloneDeep } from "lodash-es";
 import { MODEL_PROVIDER_CONFIG } from "./config.js";
 import { RAW_MODEL_CATALOG } from "./data.js";
 import type {
-  CatalogModel,
   RuntimeModelCatalog,
   RuntimeModelInputModality,
   RuntimeModelProviderSummary,
-} from "../../protocol/model.js";
+  RuntimeModelSummary,
+} from "../../protocol/wire.js";
 
-type RawCatalogModel = Omit<CatalogModel, "input"> & {
+type RawCatalogModel = Omit<RuntimeModelSummary, "input"> & {
   input: readonly RuntimeModelInputModality[];
 };
 
@@ -22,13 +22,13 @@ type RawModelCatalog = Record<string, RawCatalogProvider>;
 
 const rawModelCatalog = RAW_MODEL_CATALOG satisfies RawModelCatalog;
 
-const toCatalogModel = (model: RawCatalogModel): CatalogModel => ({
+const toCatalogModel = (model: RawCatalogModel): RuntimeModelSummary => ({
   ...model,
   input: [...model.input],
 });
 
 const buildCatalogModelMap = (rawModels: Record<string, RawCatalogModel>, modelIds?: string[]) => {
-  const models: Record<string, CatalogModel> = {};
+  const models: Record<string, RuntimeModelSummary> = {};
 
   for (const modelId of modelIds ?? Object.keys(rawModels)) {
     const rawModel = rawModels[modelId];

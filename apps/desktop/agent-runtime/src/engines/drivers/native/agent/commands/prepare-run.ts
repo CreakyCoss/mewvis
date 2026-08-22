@@ -64,7 +64,11 @@ export const prepareRuntimeAgentRun = async (
     sessionRootDir: command.sessionRootDir,
     providerId: options.sessionProviderId,
   });
-  const preparedTurn = await sessionManager.prepareTurn(command, {
+  const commandWithRuntime = {
+    ...command,
+    runtimeId,
+  };
+  const preparedTurn = await sessionManager.prepareTurn(commandWithRuntime, {
     includeSummary: false,
     preserveRecordUserMessageFalse: true,
   });
@@ -85,6 +89,7 @@ export const prepareRuntimeAgentRun = async (
   return {
     command: {
       ...commandWithTurn,
+      runtimeId,
       systemPrompt: preparedTurn.systemPrompt,
       agentRoleId: sessionPlan.agentRoleId,
       userMessage,

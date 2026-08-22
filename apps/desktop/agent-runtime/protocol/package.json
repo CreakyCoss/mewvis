@@ -1,0 +1,15 @@
+{
+  "name": "@isle/agent-runtime-protocol",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "generate": "node scripts/generate-bindings.mjs",
+    "check": "node scripts/generate-bindings.mjs --check"
+  },
+  "devDependencies": {
+    "json-schema-to-typescript": "15.0.4",
+    "prettier": "3.9.3",
+    "quicktype": "26.0.0"
+  }
+}

@@ -2,21 +2,16 @@ import {
   applyAgentClientOutputEvent,
   createAgentClientOutputState,
   dispatchAgentClientOutputEvent,
+  isAgentClientOutputEvent,
   snapshotAgentClientOutput,
 } from "@/agent-client/output";
+import { AgentClientTransportEventType, type AgentClientAgentEvent } from "@/agent-client/contracts";
 import { createAgentClient } from "@/agent-client/runtime";
-import type { AgentClientAgentEvent } from "@/agent-client/types";
+import { AgentRuntimeEventType } from "@/agent-client/wire";
 import { readLedger } from "@/api/conversation-ledger";
 import type { TavernAgentFlowRunAgentInput, TavernAgentFlowRunAgentOutput } from "../types";
 
 const tavernAgentFlowClient = createAgentClient();
-
-const isOutputEvent = (event: AgentClientAgentEvent) =>
-  event.type === "text_delta" ||
-  event.type === "thinking_delta" ||
-  event.type === "thinking_end" ||
-  event.type === "replace_text" ||
-  event.type === "done";
 
 const resolveSystemPrompt = async (input: TavernAgentFlowRunAgentInput) => {
   const currentSystemPrompt = input.systemPrompt?.trim();
@@ -64,36 +59,29 @@ export async function runTavernAgentFlowRuntimeAgent(
       resolve(agentOutput);
     };
 
-    const handleEvent = (event: AgentClientAgentEvent) => {
-      const eventTaskId = "taskId" in event ? event.taskId : undefined;
+    const handleEvent = (envelope: AgentClientAgentEvent) => {
       if (!taskId) {
-        if (eventTaskId) {
-          pendingEvents.push(event);
-          return;
-        }
-
-        if (event.type === "error") {
-          rejectOnce(new Error(event.message));
-        }
+        pendingEvents.push(envelope);
         return;
       }
 
-      if (eventTaskId && eventTaskId !== taskId) {
+      if (envelope.taskId !== taskId) {
         return;
       }
+      const event = envelope.event;
 
-      if (event.type === "error") {
+      if (event.type === AgentRuntimeEventType.Error) {
         rejectOnce(new Error(event.message));
         return;
       }
 
-      if (event.type === "question") {
+      if (event.type === AgentRuntimeEventType.Question) {
         rejectOnce(new Error("酒馆 Agent 请求了额外用户输入，当前流程暂不支持中途询问。"));
         return;
       }
 
       if (
-        event.type === "state" &&
+        event.type === AgentClientTransportEventType.State &&
         (event.taskState === "failed" ||
           event.taskState === "error" ||
           event.taskState === "cancelled" ||
@@ -104,19 +92,19 @@ export async function runTavernAgentFlowRuntimeAgent(
         return;
       }
 
-      if (event.type === "exit" && !event.success) {
+      if (event.type === AgentClientTransportEventType.Exit && !event.success) {
         rejectOnce(new Error(`Agent 任务异常退出：${event.code ?? "unknown"}`));
         return;
       }
 
-      if (!isOutputEvent(event)) {
+      if (!isAgentClientOutputEvent(event)) {
         return;
       }
 
       applyAgentClientOutputEvent(output, event);
       dispatchAgentClientOutputEvent(event, input);
 
-      if (event.type === "done") {
+      if (event.type === AgentRuntimeEventType.Done) {
         resolveOnce({
           ...snapshotAgentClientOutput(output),
           agentSession: event.runtimeSession ?? null,
@@ -127,8 +115,10 @@ export async function runTavernAgentFlowRuntimeAgent(
 
     try {
       const systemPrompt = await resolveSystemPrompt(input);
+      taskId = crypto.randomUUID();
       unlisten = await tavernAgentFlowClient.events.subscribe(handleEvent);
       const task = await tavernAgentFlowClient.agent.run({
+        taskId,
         workspacePath: input.workspacePath,
         sessionRootDir: input.sessionRootDir,
         agentRoleId: input.agentRoleId,
@@ -138,10 +128,14 @@ export async function runTavernAgentFlowRuntimeAgent(
         runtimeInstruction: input.runtimeInstruction,
         bootstrapInstruction: input.bootstrapInstruction,
         runtimeModel: input.runtimeModel,
-        allowedTools: input.allowedTools ?? [],
-        enabledSkills: input.enabledSkills ?? [],
+        resources: {
+          tools: { allowed: input.allowedTools ?? [] },
+          skills: { enabled: input.enabledSkills ?? [] },
+        },
       });
-      taskId = task.taskId;
+      if (task.taskId !== taskId) {
+        throw new Error(`Agent runtime 返回了不匹配的任务 ID：${task.taskId}`);
+      }
       pendingEvents.splice(0).forEach(handleEvent);
     } catch (error) {
       rejectOnce(error);

@@ -1,5 +1,5 @@
 import type { Api, AssistantMessage, Context, Message, Model, Usage } from "@earendil-works/pi-ai";
-import type { ChatMessageInput } from "../../../../../../protocol/index.js";
+import type { ChatMessage } from "../../../../../../protocol/wire.js";
 import type { ChatRunCommand, ChatRunResult } from "../../types.js";
 
 export const createPiChatResult = (message: AssistantMessage): ChatRunResult => ({
@@ -58,7 +58,7 @@ export const thinkingFromPiMessage = (message: AssistantMessage) => {
   return thinking || null;
 };
 
-const toPiMessage = (item: ChatMessageInput, model: Model<Api>): Message => {
+const toPiMessage = (item: ChatMessage, model: Model<Api>): Message => {
   if (item.role === "assistant") {
     return {
       role: "assistant",

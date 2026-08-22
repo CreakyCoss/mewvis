@@ -1,0 +1,10 @@
+{
+  "jsonrpc": "2.0",
+  "id": "run-1",
+  "method": "agent/run",
+  "params": {
+    "taskId": "task-1",
+    "workspacePath": "/tmp/isle-workspace",
+    "userMessage": "Write a short answer."
+  }
+}

@@ -1,5 +1,6 @@
-import type { CollaborationEvent, CollaborationRunInput, CollaborationStepResult } from "../../../../protocol/index.js";
-import { CollaborationEventType } from "../../../../protocol/index.js";
+import type { CollaborationEvent, CollaborationStepResult } from "../../../../protocol/wire.js";
+import type { CollaborationRunInput } from "../../../../protocol/index.js";
+import { AgentRuntimeEventType } from "../../../../protocol/wire.js";
 import type { EmitCollaborationEvent } from "../handlers/types.js";
 import { createRuntimeSessionManager } from "../../session/index.js";
 import type { RuntimeSessionProviderId } from "../../session/providers/types.js";
@@ -116,7 +117,7 @@ export class CollaborationSessionRecorder {
   }
 
   private async appendLedgerEvent(event: CollaborationEvent) {
-    if (event.type === CollaborationEventType.AgentEvent) {
+    if (event.type === AgentRuntimeEventType.AgentEvent) {
       return;
     }
 
@@ -129,7 +130,7 @@ export class CollaborationSessionRecorder {
       modeId: this.input.modeId,
     };
 
-    if (event.type === CollaborationEventType.WorkflowStarted) {
+    if (event.type === AgentRuntimeEventType.WorkflowStarted) {
       await this.input.session.recordSessionEvent({
         eventType: "collaboration_run_started",
         data: common,
@@ -137,7 +138,7 @@ export class CollaborationSessionRecorder {
       return;
     }
 
-    if (event.type === CollaborationEventType.StepStarted) {
+    if (event.type === AgentRuntimeEventType.StepStarted) {
       await this.input.session.recordSessionEvent({
         eventType: "collaboration_step_started",
         data: {
@@ -151,7 +152,7 @@ export class CollaborationSessionRecorder {
       return;
     }
 
-    if (event.type === CollaborationEventType.StepDone) {
+    if (event.type === AgentRuntimeEventType.StepDone) {
       await this.input.session.recordSessionEvent({
         eventType: "collaboration_step_done",
         data: {
@@ -162,7 +163,7 @@ export class CollaborationSessionRecorder {
       return;
     }
 
-    if (event.type === CollaborationEventType.StepSkipped) {
+    if (event.type === AgentRuntimeEventType.StepSkipped) {
       await this.input.session.recordSessionEvent({
         eventType: "collaboration_step_skipped",
         data: {
@@ -173,7 +174,7 @@ export class CollaborationSessionRecorder {
       return;
     }
 
-    if (event.type === CollaborationEventType.WorkflowDone) {
+    if (event.type === AgentRuntimeEventType.WorkflowDone) {
       await this.input.session.recordSessionEvent({
         eventType: "collaboration_run_done",
         data: {
@@ -186,7 +187,7 @@ export class CollaborationSessionRecorder {
       return;
     }
 
-    if (event.type === CollaborationEventType.Error) {
+    if (event.type === AgentRuntimeEventType.Error) {
       await this.input.session.recordSessionEvent({
         eventType: "collaboration_run_error",
         data: {

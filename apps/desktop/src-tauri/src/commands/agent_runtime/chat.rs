@@ -1,4 +1,5 @@
 use super::{
+    protocol::{EVENT_TEXT_DELTA, EVENT_THINKING_DELTA, METHOD_AGENT_CHAT, RESULT_CHAT_RESULT},
     rpc::call_agent_runtime_rpc,
     types::{AgentRuntimeChatMessageInput, AgentRuntimeModelInput},
 };
@@ -14,7 +15,7 @@ pub struct RunAgentRuntimeChatInput {
     stream_id: Option<String>,
     stream: Option<bool>,
     runtime_model: Option<AgentRuntimeModelInput>,
-    system_prompt: String,
+    system_prompt: Option<String>,
     messages: Vec<AgentRuntimeChatMessageInput>,
 }
 
@@ -48,8 +49,7 @@ fn chat_with_agent_runtime_blocking(
     input: RunAgentRuntimeChatInput,
 ) -> Result<RunAgentRuntimeChatOutput, String> {
     let stream_id = input.stream_id.clone();
-    let command = json!({
-        "type": "chat",
+    let params = json!({
         "streamId": stream_id,
         "stream": input.stream.unwrap_or(true),
         "runtimeModel": input.runtime_model,
@@ -60,8 +60,9 @@ fn chat_with_agent_runtime_blocking(
     let value = call_agent_runtime_rpc(
         &app,
         "Agent runtime chat",
-        command,
-        &["chat_result"],
+        METHOD_AGENT_CHAT,
+        params,
+        &[RESULT_CHAT_RESULT],
         |value| emit_agent_runtime_chat_event(&app, stream_id.as_deref(), value),
     )?;
     serde_json::from_value(value)
@@ -76,20 +77,19 @@ fn emit_agent_runtime_chat_event(app: &AppHandle, stream_id: Option<&str>, value
         return;
     };
 
-    if event_type != "text_delta" && event_type != "thinking_delta" {
+    if event_type != EVENT_TEXT_DELTA && event_type != EVENT_THINKING_DELTA {
         return;
     }
 
-    let Some(delta) = value.get("delta").and_then(Value::as_str) else {
+    if value.get("delta").and_then(Value::as_str).is_none() {
         return;
-    };
+    }
 
     let _ = app.emit(
         AGENT_RUNTIME_CHAT_EVENT,
         json!({
-            "type": event_type,
             "streamId": stream_id,
-            "delta": delta,
+            "event": value,
         }),
     );
 }

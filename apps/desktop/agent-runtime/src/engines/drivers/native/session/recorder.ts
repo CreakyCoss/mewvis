@@ -1,4 +1,4 @@
-import { AgentEventType, type AgentEvent } from "../../../protocol/index.js";
+import { AgentRuntimeEventType, type AgentEvent } from "../../../protocol/wire.js";
 import type { RuntimeSessionCommand, SessionBackedRuntimeCommand } from "./model/runtime-command.js";
 import { isRuntimeAgentSessionCommand } from "./model/runtime-command.js";
 import type { RuntimeSessionRecordRef } from "./model/context.js";
@@ -14,7 +14,8 @@ type EmitAgentEvent = (event: AgentEvent) => void;
 const hasSession = (command: RuntimeSessionCommand): command is SessionBackedRuntimeCommand => {
   const candidate = command as SessionBackedRuntimeCommand;
   return (
-    isRuntimeAgentSessionCommand(command) && Boolean(candidate.workspacePath.trim() && candidate.sessionRootDir.trim())
+    isRuntimeAgentSessionCommand(command) &&
+    Boolean(candidate.workspacePath?.trim() && candidate.sessionRootDir?.trim())
   );
 };
 
@@ -40,7 +41,7 @@ export class RuntimeSessionRecorder {
 
   wrapEmit(baseEmit: EmitAgentEvent): EmitAgentEvent {
     return (event) => {
-      if (event.type === AgentEventType.Done) {
+      if (event.type === AgentRuntimeEventType.Done) {
         this.pendingWrite = this.pendingWrite
           .then(async () => {
             await this.delegate.recordEvent(event);
@@ -76,7 +77,7 @@ export class RuntimeSessionRecorder {
   }
 
   private decorateEvent(event: AgentEvent): AgentEvent {
-    if (event.type !== AgentEventType.Done) {
+    if (event.type !== AgentRuntimeEventType.Done) {
       return event;
     }
 

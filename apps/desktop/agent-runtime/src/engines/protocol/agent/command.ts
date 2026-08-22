@@ -1,6 +1,15 @@
-import type { RuntimeModelInput } from "../model.js";
-import type { ChatMessageInput } from "./definition.js";
-import type { AgentRuntimeResources } from "./resources.js";
+import type {
+  AgentRuntimeResources,
+  AgentRunParams,
+  AnswerQuestionParams,
+  ChatParams,
+  EmptyParams,
+  MessageDeleteParams,
+  MessageEditParams,
+  RuntimeModelInput,
+  SessionMessagesParams,
+  SessionTargetParams,
+} from "../wire.js";
 
 export enum AgentTaskCommandType {
   RunAgent = "run_agent",
@@ -25,65 +34,32 @@ export enum AgentSessionCommandType {
   ReadSession = "read_session",
 }
 
-export const AgentCommandType = {
-  ...AgentTaskCommandType,
-  ...AgentSessionCommandType,
-} as const;
+type AgentCommandType = AgentTaskCommandType | AgentSessionCommandType;
 
-export type AgentCommandType = AgentTaskCommandType | AgentSessionCommandType;
-
-type RuntimeSessionTarget = {
-  workspacePath: string;
-  sessionRootDir?: string | null;
+type InternalCommand<TType extends AgentCommandType, TParams> = TParams & {
+  type: TType;
+  requestId?: string | null;
 };
 
-type AgentRuntimeOptions = {
+type AgentRuntimeModelResourcesOptions = {
   model?: RuntimeModelInput | null;
   resources?: AgentRuntimeResources | null;
 };
 
-export type RunAgentCommand = RuntimeSessionTarget & {
-  type: AgentTaskCommandType.RunAgent;
-  requestId?: string | null;
-  taskId: string;
-  agentRoleId?: string | null;
-  userMessage: string;
-  recordUserMessage?: boolean | null;
-  systemPrompt?: string | null;
-  requestContext?: string | null;
-  runtimeInstruction?: string | null;
-  bootstrapInstruction?: string | null;
-  runtimeModel?: RuntimeModelInput | null;
-  resources?: AgentRuntimeResources | null;
+type AgentRuntimeIdModelOptions = {
+  runtimeId?: string | null;
+  model?: RuntimeModelInput | null;
 };
 
-export type AnswerQuestionCommand = {
-  type: AgentTaskCommandType.AnswerQuestion;
-  requestId?: string | null;
-  taskId: string;
-  questionId: string;
-  answer: string;
+type AgentRuntimeModelOptions = {
+  model?: RuntimeModelInput | null;
 };
 
-export type ListAgentToolsCommand = {
-  type: AgentTaskCommandType.ListAgentTools;
-  requestId?: string | null;
-};
-
-export type ListRuntimeModelsCommand = {
-  type: AgentTaskCommandType.ListRuntimeModels;
-  requestId?: string | null;
-};
-
-export type ChatCommand = {
-  type: AgentTaskCommandType.Chat;
-  requestId?: string | null;
-  streamId?: string | null;
-  stream?: boolean;
-  runtimeModel?: RuntimeModelInput | null;
-  systemPrompt?: string | null;
-  messages: ChatMessageInput[];
-};
+export type RunAgentCommand = InternalCommand<AgentTaskCommandType.RunAgent, AgentRunParams>;
+export type AnswerQuestionCommand = InternalCommand<AgentTaskCommandType.AnswerQuestion, AnswerQuestionParams>;
+type ListAgentToolsCommand = InternalCommand<AgentTaskCommandType.ListAgentTools, EmptyParams>;
+type ListRuntimeModelsCommand = InternalCommand<AgentTaskCommandType.ListRuntimeModels, EmptyParams>;
+export type ChatCommand = InternalCommand<AgentTaskCommandType.Chat, ChatParams>;
 
 type SessionCommandBase = {
   requestId?: string | null;
@@ -110,31 +86,31 @@ type RuntimeSummaryOptions = {
   maxSummaryChars?: number | null;
 };
 
-export type CompactAgentSessionCommand = SessionCommandBase & {
+type CompactAgentSessionCommand = SessionCommandBase & {
   type: AgentSessionCommandType.CompactAgentSession;
   target: RuntimeCompactTarget;
   options?: RuntimeCompactOptions | null;
-  runtime?: Pick<AgentRuntimeOptions, "model" | "resources"> | null;
+  runtime?: AgentRuntimeModelResourcesOptions | null;
 };
 
-export type RebuildAgentSessionCommand = SessionCommandBase & {
+type RebuildAgentSessionCommand = SessionCommandBase & {
   type: AgentSessionCommandType.RebuildAgentSession;
   target: RuntimeCompactTarget;
   options?: RuntimeAgentSessionRebuildOptions | null;
-  runtime?: Pick<AgentRuntimeOptions, "model" | "resources"> | null;
+  runtime?: AgentRuntimeModelResourcesOptions | null;
 };
 
 export type SummarizeSessionCommand = SessionCommandBase & {
   type: AgentSessionCommandType.SummarizeSession;
   options?: RuntimeSummaryOptions | null;
-  runtime?: Pick<AgentRuntimeOptions, "model"> | null;
+  runtime?: AgentRuntimeIdModelOptions | null;
 };
 
-export type SummarizeAgentSessionCommand = SessionCommandBase & {
+type SummarizeAgentSessionCommand = SessionCommandBase & {
   type: AgentSessionCommandType.SummarizeAgentSession;
   target: RuntimeCompactTarget;
   options?: RuntimeSummaryOptions | null;
-  runtime?: Pick<AgentRuntimeOptions, "model"> | null;
+  runtime?: AgentRuntimeModelOptions | null;
 };
 
 export type CreateSessionCommand = SessionCommandBase & {
@@ -143,47 +119,15 @@ export type CreateSessionCommand = SessionCommandBase & {
   metadata?: Record<string, unknown> | null;
 };
 
-export type MessageEditCommand = SessionCommandBase & {
-  type: AgentSessionCommandType.MessageEdit;
-  messageRecordId: string;
-  content: string;
-};
+export type MessageEditCommand = InternalCommand<AgentSessionCommandType.MessageEdit, MessageEditParams>;
+export type MessageDeleteCommand = InternalCommand<AgentSessionCommandType.MessageDelete, MessageDeleteParams>;
+export type MessageAppendCommand = InternalCommand<AgentSessionCommandType.MessageAppend, SessionMessagesParams>;
+export type RebuildCommand = InternalCommand<AgentSessionCommandType.Rebuild, SessionMessagesParams>;
+export type ReadSessionCommand = InternalCommand<AgentSessionCommandType.ReadSession, SessionTargetParams>;
+type PingCommand = InternalCommand<AgentTaskCommandType.Ping, EmptyParams>;
+type ShutdownCommand = InternalCommand<AgentTaskCommandType.Shutdown, EmptyParams>;
 
-export type MessageDeleteCommand = SessionCommandBase & {
-  type: AgentSessionCommandType.MessageDelete;
-  messageRecordId: string;
-};
-
-export type MessageAppendCommand = SessionCommandBase & {
-  type: AgentSessionCommandType.MessageAppend;
-  messages: Array<{
-    role: string;
-    content: string;
-    timestamp?: number | null;
-    metadata?: Record<string, unknown> | null;
-  }>;
-};
-
-export type RebuildCommand = SessionCommandBase & {
-  type: AgentSessionCommandType.Rebuild;
-  messages: MessageAppendCommand["messages"];
-};
-
-export type ReadSessionCommand = SessionCommandBase & {
-  type: AgentSessionCommandType.ReadSession;
-};
-
-export type PingCommand = {
-  type: AgentTaskCommandType.Ping;
-  requestId?: string | null;
-};
-
-export type ShutdownCommand = {
-  type: AgentTaskCommandType.Shutdown;
-  requestId?: string | null;
-};
-
-export type AgentTaskCommand =
+type AgentTaskCommand =
   | RunAgentCommand
   | AnswerQuestionCommand
   | ChatCommand
@@ -192,7 +136,7 @@ export type AgentTaskCommand =
   | PingCommand
   | ShutdownCommand;
 
-export type AgentSessionCommand =
+type AgentSessionCommand =
   | CreateSessionCommand
   | CompactAgentSessionCommand
   | RebuildAgentSessionCommand

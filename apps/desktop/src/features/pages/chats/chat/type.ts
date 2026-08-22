@@ -1,4 +1,4 @@
-import type { AskUserInput } from "@/agent-client/types";
+import type { AskUserInput } from "@/agent-client/wire";
 import type { SaveChatInput } from "@/api/chat";
 import type {
   ChatInputFile,

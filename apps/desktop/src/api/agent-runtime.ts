@@ -1,60 +1,82 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type {
-  AnswerQuestionInput,
-  CollaborationTimelineQuery,
-  RuntimeSessionDebugQuery,
-  RuntimeSessionQuery,
-} from "@agent-runtime/engines/protocol";
-import type { AgentClientAgentEvent, AgentClientChatEvent } from "@/agent-client/contracts/events";
-import type { AgentClientChatResult } from "@/agent-client/contracts/inputs";
+  AgentRuntimeTauriAgentInput,
+  AgentRuntimeTauriChatInput,
+  AgentRuntimeTauriCollaborationInput,
+  AgentRuntimeTauriCollaborationModeInput,
+  AgentRuntimeTauriCommandArgs,
+  AgentRuntimeTauriCommandName,
+  AgentRuntimeTauriCommandResult,
+  AgentRuntimeTauriEventName,
+  AgentRuntimeTauriEventPayload,
+} from "@/agent-client/contracts/tauri";
+import type { AgentClientLedgerSummaryInput, AgentClientListRuntimeSessionsInput } from "@/agent-client/contracts";
 import type {
-  AgentClientCollaborationTimelineResult,
-  AgentClientListRuntimeSessionsInput,
-  AgentClientRuntimeSessionDebugSnapshot,
-  AgentClientRuntimeSessionSnapshot,
-  AgentClientRuntimeSessionsResult,
-} from "@/agent-client/contracts/session";
-import type { AgentClientAgentToolsResult } from "@/agent-client/runtime";
+  AnswerQuestionParams,
+  CollaborationTimelineParams,
+  RuntimeSessionDebugParams,
+  RuntimeSessionParams,
+  SessionTargetParams,
+} from "@/agent-client/wire";
 
-export type RunAgentRuntimeOutput = {
-  taskId: string;
-};
+const invokeAgentRuntime = <TName extends AgentRuntimeTauriCommandName>(
+  command: TName,
+  args: AgentRuntimeTauriCommandArgs<TName>,
+) => invoke<AgentRuntimeTauriCommandResult<TName>>(command, args);
 
-export const listAgentRuntimeTools = () =>
-  invoke<AgentClientAgentToolsResult>("list_agent_runtime_tools", { input: {} });
+const listenAgentRuntimeEvent = <TName extends AgentRuntimeTauriEventName>(
+  eventName: TName,
+  listener: (event: AgentRuntimeTauriEventPayload<TName>) => void,
+) =>
+  listen<AgentRuntimeTauriEventPayload<TName>>(eventName, (event) => {
+    listener(event.payload);
+  });
 
-export const runAgentRuntimeChat = (input: unknown) =>
-  invoke<AgentClientChatResult>("run_agent_runtime_chat", { input });
+export const listAgentRuntimeTools = () => invokeAgentRuntime("list_agent_runtime_tools", { input: {} });
 
-export const runAgentRuntimeAgent = (input: unknown) =>
-  invoke<RunAgentRuntimeOutput>("run_agent_runtime_agent", { input });
+export const runAgentRuntimeChat = (input: AgentRuntimeTauriChatInput) =>
+  invokeAgentRuntime("run_agent_runtime_chat", { input });
 
-export const getAgentRuntimeSessionDebug = (input: RuntimeSessionDebugQuery) =>
-  invoke<AgentClientRuntimeSessionDebugSnapshot>("get_agent_runtime_session_debug", { input });
+export const runAgentRuntimeAgent = (input: AgentRuntimeTauriAgentInput) =>
+  invokeAgentRuntime("run_agent_runtime_agent", { input });
+
+export const getAgentRuntimeSessionDebug = (input: RuntimeSessionDebugParams) =>
+  invokeAgentRuntime("get_agent_runtime_session_debug", { input });
 
 export const listAgentRuntimeSessions = (input: AgentClientListRuntimeSessionsInput) =>
-  invoke<AgentClientRuntimeSessionsResult>("list_agent_runtime_sessions", { input });
+  invokeAgentRuntime("list_agent_runtime_sessions", { input });
 
-export const getAgentRuntimeSession = (input: RuntimeSessionQuery) =>
-  invoke<AgentClientRuntimeSessionSnapshot>("get_agent_runtime_session", { input });
+export const getAgentRuntimeSession = (input: RuntimeSessionParams) =>
+  invokeAgentRuntime("get_agent_runtime_session", { input });
 
-export const runAgentRuntimeCollaboration = (input: unknown) =>
-  invoke<RunAgentRuntimeOutput>("run_agent_runtime_collaboration", { input });
+export const runAgentRuntimeCollaboration = (input: AgentRuntimeTauriCollaborationInput) =>
+  invokeAgentRuntime("run_agent_runtime_collaboration", { input });
 
-export const runAgentRuntimeCollaborationMode = (input: unknown) =>
-  invoke<RunAgentRuntimeOutput>("run_agent_runtime_collaboration_mode", { input });
+export const runAgentRuntimeCollaborationMode = (input: AgentRuntimeTauriCollaborationModeInput) =>
+  invokeAgentRuntime("run_agent_runtime_collaboration_mode", { input });
 
-export const getAgentRuntimeCollaborationTimeline = (input: CollaborationTimelineQuery) =>
-  invoke<AgentClientCollaborationTimelineResult>("get_agent_runtime_collaboration_timeline", { input });
+export const getAgentRuntimeCollaborationTimeline = (input: CollaborationTimelineParams) =>
+  invokeAgentRuntime("get_agent_runtime_collaboration_timeline", { input });
 
-export const answerAgentRuntimeQuestion = (input: AnswerQuestionInput) =>
-  invoke<void>("answer_agent_runtime_question", { input });
+export const answerAgentRuntimeQuestion = (input: AnswerQuestionParams) =>
+  invokeAgentRuntime("answer_agent_runtime_question", { input });
 
-export const abortAgentRuntimeTask = (taskId: string) => invoke<void>("abort_agent_runtime_agent", { taskId });
+export const abortAgentRuntimeTask = (taskId: string) => invokeAgentRuntime("abort_agent_runtime_agent", { taskId });
 
-export const listenAgentRuntimeAgentEvents = (listener: (event: AgentClientAgentEvent) => void) =>
-  listen<AgentClientAgentEvent>("agent_runtime_agent_event", (event) => listener(event.payload));
+export const readAgentRuntimeSession = (input: SessionTargetParams) =>
+  invokeAgentRuntime("read_agent_runtime_session", { input });
 
-export const listenAgentRuntimeChatEvents = (listener: (event: AgentClientChatEvent) => void) =>
-  listen<AgentClientChatEvent>("agent_runtime_chat_event", (event) => listener(event.payload));
+export const deleteAgentRuntimeSession = (input: SessionTargetParams) =>
+  invokeAgentRuntime("delete_agent_runtime_session", { input });
+
+export const summarizeAgentRuntimeSession = (input: AgentClientLedgerSummaryInput) =>
+  invokeAgentRuntime("summarize_agent_runtime_session", { input });
+
+export const listenAgentRuntimeAgentEvents = (
+  listener: (event: AgentRuntimeTauriEventPayload<"agent_runtime_agent_event">) => void,
+) => listenAgentRuntimeEvent("agent_runtime_agent_event", listener);
+
+export const listenAgentRuntimeChatEvents = (
+  listener: (event: AgentRuntimeTauriEventPayload<"agent_runtime_chat_event">) => void,
+) => listenAgentRuntimeEvent("agent_runtime_chat_event", listener);

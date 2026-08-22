@@ -1,5 +1,5 @@
 import type { RuntimeLedgerEntry, RuntimeMessage, RuntimeMessageMetadata, RuntimeSessionContext } from "./ledger.js";
-import type { RuntimeDisplaySummary, RuntimeLink } from "../../../../protocol/session.js";
+import type { RuntimeDisplaySummary, RuntimeLink } from "../../../../protocol/wire.js";
 import type { RuntimeSessionStore } from "../internal/storage.js";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
