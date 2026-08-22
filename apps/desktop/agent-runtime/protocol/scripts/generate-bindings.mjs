@@ -56,13 +56,13 @@ const targets = [
   {
     language: "typescript",
     generator: "json2ts",
-    relativePath: "typescript/agent-runtime-v1.ts",
+    relativePath: "typescript/index.ts",
     extension: "ts",
     args: ["--style.singleQuote", "--style.semi"],
   },
   {
     language: "rust",
-    relativePath: "rust/agent_runtime_v1.rs",
+    relativePath: "rust/mod.rs",
     extension: "rs",
     args: [
       "--lang",
@@ -76,7 +76,7 @@ const targets = [
   },
   {
     language: "python",
-    relativePath: "python/agent_runtime_v1.py",
+    relativePath: "python/__init__.py",
     extension: "py",
     args: ["--lang", "python", "--python-version", "3.10", "--just-types", "--alphabetize-properties"],
   },
@@ -338,7 +338,7 @@ try {
       }
       generated = readFileSync(tempOutput, "utf8");
     }
-    const destination = join(protocolVersionRoot, "generated", target.relativePath);
+    const destination = join(protocolVersionRoot, "sdk", target.relativePath);
     const current = existsSync(destination) ? readFileSync(destination, "utf8") : null;
     if (current === generated) continue;
     if (checkOnly) {

@@ -16,14 +16,14 @@ fixtures.
 
 The schemas use draft-07 because OpenRPC 1.4 Schema Objects are defined against
 that dialect. `schema/bindings.schema.json` aggregates every wire envelope for
-code generation. Generated TypeScript, Rust, and Python bindings are committed
-derived artifacts and must not become an independent protocol definition.
+code generation. Generated TypeScript, Rust, and Python SDKs are committed
+directly under `v1/sdk`; they are derived artifacts and must not become an
+independent protocol definition.
 
-Application code must consume the stable entrypoints under `v1/sdk` rather
-than importing `v1/generated` directly. TypeScript, Rust, and Python entrypoints
-are available today. The TypeScript SDK adds generated request factories,
-model enums, and event/result constants, type guards, and factories on top of
-the generated wire types:
+Application code consumes the generated entrypoints under `v1/sdk`.
+TypeScript, Rust, and Python entrypoints are available today. The TypeScript SDK
+contains generated wire types, request factories, model enums, event/result
+constants, type guards, and factories:
 
 ```ts
 import { AgentRuntimeEventType, agentRuntimeEventGuards, agentRuntimeEvents } from "./v1/sdk/typescript/index.js";

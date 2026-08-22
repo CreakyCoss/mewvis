@@ -35,7 +35,6 @@ assert.ok(wireFacadeSource.includes("agent-runtime/protocol/v1/sdk/typescript"),
 for (const name of ["index.ts", "tauri.ts"]) {
   const source = readFileSync(join(desktopRoot, "src/agent-client/contracts", name), "utf8");
   assert.ok(!source.includes("agent-runtime/protocol/v1/sdk/typescript"), `${name} 必须通过 wire.ts 使用 Protocol SDK`);
-  assert.ok(!source.includes("agent-runtime/protocol/v1/generated"), `${name} 不能绕过 Protocol SDK`);
   assert.ok(!source.includes("@agent-runtime/engines/protocol"), `${name} 不能依赖 runtime 内部协议类型`);
   assert.doesNotMatch(source, /\b(?:Pick|Omit)</, `${name} 不能用 Pick/Omit 伪装成 wire SDK 契约`);
   assert.doesNotMatch(source, /export type\s+(\w+)\s*=\s*\1\s*;/, `${name} 不能保留无意义的同名 SDK type alias`);
