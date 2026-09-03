@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mewvis.app/schemas/isle-manifest-v1.json",
+  "title": "Isle Package Manifest",
+  "type": "object",
+  "properties": {
+    "plugin": { "$ref": "./isle-plugin.schema.json" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "defaultEnabled": { "type": "boolean" },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "enum": ["network", "plugin-data", "workspace-files", "open-external", "process"]
+      },
+      "uniqueItems": true
+    }
+  },
+  "required": ["plugin", "permissions"]
+}

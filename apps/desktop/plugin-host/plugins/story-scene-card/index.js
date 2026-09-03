@@ -1,7 +1,9 @@
+import { definePlugin, defineSkill, defineTool } from "@isle/plugin-sdk";
+
 export const name = "@isle/story-scene-card";
 export const inject = ["tools", "skills"];
 
-const storySceneCardSkill = {
+const storySceneCardSkill = defineSkill({
   name: "isle-story-scene-card",
   description: "把小说场景的目标、冲突、代价和转折整理成可继续写作的场景卡。",
   source: "bundled",
@@ -10,7 +12,7 @@ const storySceneCardSkill = {
     "先提取人物在本场景中的明确目标、阻力与失败代价，再调用 `isle_story_scene_card` 固化场景卡。",
     "工具结果是写作约束，不是正文；随后再依据场景卡创作或修改正文。",
   ].join("\n"),
-};
+});
 
 const requiredText = (args, key) => {
   const value = args?.[key];
@@ -18,7 +20,7 @@ const requiredText = (args, key) => {
   return value.trim();
 };
 
-const storySceneCardTool = {
+const storySceneCardTool = defineTool({
   name: "isle_story_scene_card",
   description: "Create a compact story scene card from goal, conflict, stakes, and an optional turn.",
   parameters: {
@@ -62,9 +64,11 @@ const storySceneCardTool = {
       draftingPrompt: `让人物尝试“${goal}”，由“${conflict}”持续施压；失败将导致“${stakes}”。场景末尾：${resolvedTurn}。`,
     };
   },
-};
+});
 
 export function apply(ctx) {
   ctx.skills.register(storySceneCardSkill);
   ctx.tools.register(storySceneCardTool);
 }
+
+export default definePlugin({ name, inject, apply });

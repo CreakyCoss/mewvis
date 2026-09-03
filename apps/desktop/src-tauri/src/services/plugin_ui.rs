@@ -35,15 +35,17 @@ struct PluginUiConfiguration {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct PluginUiRuntimePlugin {
+    kind: plugins::PluginRuntimeKind,
     id: String,
     name: String,
     version: String,
     description: String,
     source: String,
-    specifier: String,
+    entry: String,
     package_root: String,
-    patch_path: String,
-    package_name: String,
+    patch_path: Option<String>,
+    permissions: Vec<plugins::PluginPermission>,
+    permission_status: plugins::PluginPermissionStatus,
 }
 
 struct PluginUiProcess {
@@ -324,23 +326,25 @@ impl Drop for PluginUiProcess {
 }
 
 fn configuration(app: &AppHandle) -> Result<PluginUiConfiguration, String> {
-    let plugins = plugins::list_dsh_plugins(app)?
+    let plugins = plugins::list_plugins(app)?
         .into_iter()
         .filter(|plugin| plugin.enabled)
         .map(|plugin| PluginUiRuntimePlugin {
+            kind: plugin.runtime_kind,
             id: plugin.id.clone(),
             name: plugin.name,
             version: plugin.version,
             description: plugin.description,
             source: plugin.source,
-            specifier: plugin.specifier,
+            entry: plugin.entry,
             package_root: plugin.path,
             patch_path: plugin.dsh_patch,
-            package_name: plugin.id,
+            permissions: plugin.permissions,
+            permission_status: plugin.permission_status,
         })
         .collect();
     Ok(PluginUiConfiguration {
-        settings_path: plugins::dsh_settings_location(app)?,
+        settings_path: plugins::settings_location(app)?,
         plugins,
     })
 }

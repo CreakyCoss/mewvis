@@ -1,23 +1,25 @@
 import { createInterface } from "node:readline";
 import { format } from "node:util";
-import { DshCompatPluginHost } from "./index.js";
+import { PluginHost, type PluginRuntimeKind } from "./index.js";
 import {
   loadPluginUiManifest,
-  type DshClientDeclarationInfo,
+  type PluginCompatibilityInfo,
   type PluginUiContribution,
   type PluginUiDocument,
 } from "./ui-manifest.js";
 
 type RuntimePlugin = Readonly<{
+  kind: PluginRuntimeKind;
   id: string;
   name: string;
   version: string;
   description: string;
   source: string;
-  specifier: string;
+  entry: string;
   packageRoot: string;
-  patchPath: string;
-  packageName: string;
+  patchPath?: string | null;
+  permissions: readonly string[];
+  permissionStatus: "declared" | "isle-upgrade-required" | "dsh-unsupported";
 }>;
 
 type HostConfiguration = Readonly<{
@@ -38,6 +40,7 @@ type UiTool = Readonly<{
 }>;
 
 type UiPlugin = Readonly<{
+  runtimeKind: PluginRuntimeKind;
   id: string;
   name: string;
   version: string;
@@ -47,7 +50,9 @@ type UiPlugin = Readonly<{
   error: string | null;
   ui: PluginUiContribution | null;
   uiError: string | null;
-  dshClient: DshClientDeclarationInfo | null;
+  compatibility: readonly PluginCompatibilityInfo[];
+  permissions: readonly string[];
+  permissionStatus: "declared" | "isle-upgrade-required" | "dsh-unsupported";
 }>;
 
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
@@ -60,7 +65,7 @@ console.info = writeLog;
 console.warn = writeLog;
 console.error = writeLog;
 
-let host: DshCompatPluginHost | null = null;
+let host: PluginHost | null = null;
 let plugins: readonly UiPlugin[] = Object.freeze([]);
 let uiDocuments = new Map<string, PluginUiDocument>();
 
@@ -92,7 +97,7 @@ const configure = async (value: unknown) => {
   const runtimePlugins = input.plugins as RuntimePlugin[];
 
   await disposeHost();
-  const nextHost = await DshCompatPluginHost.create({ settingsPath });
+  const nextHost = await PluginHost.create({ settingsPath });
   const nextPlugins: UiPlugin[] = [];
   try {
     for (const plugin of runtimePlugins) {
@@ -100,12 +105,7 @@ const configure = async (value: unknown) => {
       const before = new Set(nextHost.toolSchemas().map((tool) => tool.name));
       let error: string | null = null;
       try {
-        await nextHost.loadBundle(plugin.id, {
-          packageRoot: plugin.packageRoot,
-          packageName: plugin.packageName,
-          patchPath: plugin.patchPath,
-          entrySpecifier: plugin.specifier || undefined,
-        });
+        await nextHost.load(plugin);
       } catch (caught) {
         error = errorMessage(caught);
       }
@@ -122,6 +122,7 @@ const configure = async (value: unknown) => {
         uiDocuments.set(plugin.id, uiManifest.document);
       }
       nextPlugins.push({
+        runtimeKind: plugin.kind,
         id: plugin.id,
         name: plugin.name,
         version: plugin.version,
@@ -131,7 +132,16 @@ const configure = async (value: unknown) => {
         error,
         ui: uiManifest.contribution,
         uiError,
-        dshClient: uiManifest.dshClient,
+        compatibility: uiManifest.compatibility,
+        permissions: Array.isArray(plugin.permissions) ? plugin.permissions : [],
+        permissionStatus:
+          plugin.permissionStatus === "declared" ||
+          plugin.permissionStatus === "isle-upgrade-required" ||
+          plugin.permissionStatus === "dsh-unsupported"
+            ? plugin.permissionStatus
+            : plugin.kind === "dsh"
+              ? "dsh-unsupported"
+              : "isle-upgrade-required",
       });
     }
     host = nextHost;

@@ -12,6 +12,7 @@ const servicePath = resolve(root, "agent-runtime/dist/plugin-host/service.mjs");
 const pluginRoot = process.env.ISLE_RSS_PLUGIN_ROOT
   ? resolve(root, process.env.ISLE_RSS_PLUGIN_ROOT)
   : resolve(root, "plugin-host/plugins/rss-reader");
+const pluginKind = process.env.ISLE_RSS_PLUGIN_KIND === "dsh" ? "dsh" : "isle";
 const tempDir = mkdtempSync(join(tmpdir(), "isle-rss-plugin-"));
 const settingsRoot = join(tempDir, "plugins");
 const feedServer = createServer((request, response) => {
@@ -92,15 +93,15 @@ const configure = () =>
     settingsPath: settingsRoot,
     plugins: [
       {
+        kind: pluginKind,
         id: "@isle/rss-reader",
         name: "RSS 阅读器",
         version: "0.1.0",
         description: "RSS plugin E2E fixture",
         source: "bundled",
-        specifier: pathToFileURL(resolve(pluginRoot, "index.js")).href,
+        entry: pathToFileURL(resolve(pluginRoot, "index.js")).href,
         packageRoot: pluginRoot,
-        patchPath: resolve(pluginRoot, "cordis.patch.yml"),
-        packageName: "@isle/rss-reader",
+        ...(pluginKind === "dsh" ? { patchPath: resolve(pluginRoot, "cordis.patch.yml") } : {}),
       },
     ],
   });

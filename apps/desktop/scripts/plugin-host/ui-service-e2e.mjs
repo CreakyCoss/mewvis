@@ -54,15 +54,17 @@ try {
     settingsPath: join(tempDir, "settings.yaml"),
     plugins: [
       {
+        kind: "dsh",
         id: "@isle/fixture-dsh-portable-plugin",
         name: "Portable DSH fixture",
         version: "0.0.0",
         description: "Plugin UI service fixture",
         source: "installed",
-        specifier: pathToFileURL(resolve(fixtureRoot, "index.js")).href,
+        entry: pathToFileURL(resolve(fixtureRoot, "index.js")).href,
         packageRoot: fixtureRoot,
         patchPath: resolve(fixtureRoot, "cordis.patch.yml"),
-        packageName: "@isle/fixture-dsh-portable-plugin",
+        permissions: [],
+        permissionStatus: "dsh-unsupported",
       },
     ],
   });
@@ -78,7 +80,9 @@ try {
     layout: "full",
   });
   assert.equal(configured.plugins[0].uiError, null);
-  assert.equal(configured.plugins[0].dshClient, null);
+  assert.deepEqual(configured.plugins[0].compatibility, [{ adapter: "dsh" }]);
+  assert.deepEqual(configured.plugins[0].permissions, []);
+  assert.equal(configured.plugins[0].permissionStatus, "dsh-unsupported");
   assert.equal("packageRoot" in configured.plugins[0], false, "UI 目录不得泄露本地插件路径。");
 
   const catalog = await request("catalog");
@@ -110,15 +114,15 @@ try {
     settingsPath: join(tempDir, "legacy-settings.yaml"),
     plugins: [
       {
-        id: "@isle/fixture-legacy-host-ui-plugin",
+        kind: "dsh",
+        id: "@isle/fixture-dsh-portable-plugin",
         name: "Legacy host UI fixture",
         version: "0.0.0",
         description: "Legacy host renderer fixture",
         source: "installed",
-        specifier: pathToFileURL(resolve(fixtureRoot, "index.js")).href,
+        entry: pathToFileURL(resolve(fixtureRoot, "index.js")).href,
         packageRoot: legacyFixtureRoot,
         patchPath: resolve(legacyFixtureRoot, "cordis.patch.yml"),
-        packageName: "@isle/fixture-dsh-portable-plugin",
       },
     ],
   });
@@ -138,23 +142,23 @@ try {
     settingsPath: join(tempDir, "invalid-settings.yaml"),
     plugins: [
       {
-        id: "@isle/fixture-invalid-ui-plugin",
+        kind: "dsh",
+        id: "@isle/fixture-dsh-portable-plugin",
         name: "Invalid UI fixture",
         version: "0.0.0",
         description: "Invalid Plugin UI service fixture",
         source: "installed",
-        specifier: pathToFileURL(resolve(fixtureRoot, "index.js")).href,
+        entry: pathToFileURL(resolve(fixtureRoot, "index.js")).href,
         packageRoot: invalidFixtureRoot,
         patchPath: resolve(invalidFixtureRoot, "cordis.patch.yml"),
-        packageName: "@isle/fixture-dsh-portable-plugin",
       },
     ],
   });
   assert.equal(invalidConfigured.plugins[0].error, null, "无效 UI 不应阻止 DSH 服务端插件加载。");
   assert.equal(invalidConfigured.plugins[0].ui, null);
   assert.match(invalidConfigured.plugins[0].uiError, /必须是以 \.\/ 开头的包内相对路径/);
-  assert.deepEqual(invalidConfigured.plugins[0].dshClient, { declared: true, platform: "web" });
-  await assert.rejects(request("uiDocument", { pluginId: "@isle/fixture-invalid-ui-plugin" }), /UI 声明无效/);
+  assert.deepEqual(invalidConfigured.plugins[0].compatibility, [{ adapter: "dsh", clientPlatform: "web" }]);
+  await assert.rejects(request("uiDocument", { pluginId: "@isle/fixture-dsh-portable-plugin" }), /UI 声明无效/);
 
   await request("shutdown");
   child.stdin.end();

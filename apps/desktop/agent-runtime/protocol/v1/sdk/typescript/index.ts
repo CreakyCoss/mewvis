@@ -45,6 +45,18 @@ export type IsleAgentRuntimeJSONRPCRequest = {
   | CollaborationRunRequest
   | CollaborationModeRunRequest
 );
+export type AgentRuntimePlugin = {
+  [k: string]: unknown;
+} & {
+  kind: "isle" | "dsh";
+  id: string;
+  entry: string;
+  packageRoot: string;
+  patchPath?: string;
+  config?: {
+    [k: string]: unknown;
+  } | null;
+};
 export type StringArray = string[];
 export type IsleAgentRuntimeJSONRPCResponse =
   | {
@@ -221,17 +233,7 @@ export interface AgentRuntimeMcpResources {
 }
 export interface AgentRuntimePluginResources {
   settingsPath?: string | null;
-  dsh?: AgentRuntimeDshPlugin[] | null;
-}
-export interface AgentRuntimeDshPlugin {
-  id: string;
-  specifier?: string;
-  packageRoot?: string;
-  patchPath?: string;
-  packageName?: string;
-  config?: {
-    [k: string]: unknown;
-  } | null;
+  items?: AgentRuntimePlugin[] | null;
 }
 export interface AnswerQuestionRequest {
   method?: "agent/question/answer";

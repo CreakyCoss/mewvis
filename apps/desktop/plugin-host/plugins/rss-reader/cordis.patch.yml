@@ -1,7 +1,0 @@
-- insert:
-    - id: isle-rss-reader
-      name: "@isle/rss-reader"
-      config:
-        timeoutMs: 15000
-        maxBodyBytes: 5242880
-        userAgent: "Mewvis RSS Reader/0.1"

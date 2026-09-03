@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Download, Loader2, ShieldCheck, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
-import { installDshPluginFromMarketplace, type DshMarketplacePlugin, type DshPluginDescriptor } from "@/api/plugins";
+import { installPluginFromMarketplace, type MarketplacePlugin, type PluginDescriptor } from "@/api/plugins";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,16 +13,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 
 type MarketplaceInstallDialogProps = {
-  plugin: DshMarketplacePlugin | null;
+  plugin: MarketplacePlugin | null;
   onOpenChange: (open: boolean) => void;
-  onInstalled: (plugin: DshPluginDescriptor) => void | Promise<void>;
+  onInstalled: (plugin: PluginDescriptor) => void | Promise<void>;
 };
 
-const checkLabel = (check: DshMarketplacePlugin["installCheck"]) => {
+const checkLabel = (check: MarketplacePlugin["installCheck"]) => {
   switch (check) {
     case "passed":
       return "社区安装检查通过";
@@ -40,13 +38,11 @@ const checkLabel = (check: DshMarketplacePlugin["installCheck"]) => {
 };
 
 export const MarketplaceInstallDialog = ({ plugin, onOpenChange, onInstalled }: MarketplaceInstallDialogProps) => {
-  const [enableAfterInstall, setEnableAfterInstall] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!plugin) {
-      setEnableAfterInstall(false);
       setError("");
     }
   }, [plugin]);
@@ -56,10 +52,10 @@ export const MarketplaceInstallDialog = ({ plugin, onOpenChange, onInstalled }: 
     setIsInstalling(true);
     setError("");
     try {
-      const installed = await installDshPluginFromMarketplace(plugin, enableAfterInstall);
+      const installed = await installPluginFromMarketplace("dsh-community", plugin);
       await onInstalled(installed);
       toast.success("插件安装成功", {
-        description: enableAfterInstall ? `${installed.name} 已安装并启用` : `${installed.name} 已安全安装，暂未启用`,
+        description: `${installed.name} 已安全安装，暂未启用`,
       });
       onOpenChange(false);
     } catch (caught) {
@@ -113,23 +109,14 @@ export const MarketplaceInstallDialog = ({ plugin, onOpenChange, onInstalled }: 
             </Alert>
           ) : null}
 
-          <div className="flex min-h-12 items-center justify-between gap-4 rounded-xl border border-border/70 bg-card/55 px-4 py-2.5">
-            <div className="min-w-0">
-              <Label htmlFor="enable-market-plugin-after-install" className="cursor-pointer">
-                安装后立即启用
-              </Label>
-              <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
-                启用会在下一次 Agent 任务中执行插件代码，建议先查看来源仓库。
-              </p>
-            </div>
-            <Switch
-              id="enable-market-plugin-after-install"
-              checked={enableAfterInstall}
-              onCheckedChange={setEnableAfterInstall}
-              disabled={isInstalling}
-              aria-label="安装后立即启用市场插件"
-            />
-          </div>
+          <Alert>
+            <TriangleAlert />
+            <AlertTitle>安装后保持停用</AlertTitle>
+            <AlertDescription>
+              社区目录本身不提供权限信息。安装后 Isle 会读取包内声明；若 DSH
+              格式不支持，会明确标记为受信任模式，再由你确认启用。
+            </AlertDescription>
+          </Alert>
 
           {error ? (
             <Alert variant="destructive" role="alert">

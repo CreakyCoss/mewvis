@@ -3,11 +3,11 @@ import { ArrowLeft, Loader2, PackageOpen, PackagePlus, Plug, RefreshCw, Trash2 }
 import { NavLink } from "react-router";
 import { toast } from "sonner";
 import {
-  listDshPlugins,
-  removeDshPlugin,
-  setDshPluginEnabled,
-  type DshMarketplacePlugin,
-  type DshPluginDescriptor,
+  listPlugins,
+  removePlugin,
+  setPluginEnabled,
+  type MarketplacePlugin,
+  type PluginDescriptor,
 } from "@/api/plugins";
 import {
   AlertDialog,
@@ -28,9 +28,10 @@ import { usePluginCatalogStore } from "../catalog-store";
 import { ImportPluginDialog } from "./import-dialog";
 import { MarketplaceInstallDialog } from "./market-install-dialog";
 import { MarketplacePanel } from "./marketplace-panel";
+import { PluginPermissionSummary } from "../permission-summary";
 
 type PluginRowProps = {
-  plugin: DshPluginDescriptor;
+  plugin: PluginDescriptor;
   isUpdating: boolean;
   onEnabledChange: (enabled: boolean) => void;
   onRemove: () => void;
@@ -48,6 +49,10 @@ const PluginRow = ({ plugin, isUpdating, onEnabledChange, onRemove }: PluginRowP
         <Badge variant={plugin.source === "bundled" ? "secondary" : "outline"}>
           {plugin.source === "bundled" ? "内置" : plugin.origin?.kind === "marketplace" ? "社区" : "本地"}
         </Badge>
+        <Badge variant="outline">{plugin.runtimeKind === "isle" ? "Isle 原生" : "DSH 兼容"}</Badge>
+        {plugin.runtimeKind === "isle" && plugin.compatibility.some((item) => item.adapter === "dsh") ? (
+          <Badge variant="outline">兼容 DSH</Badge>
+        ) : null}
         <span className="text-xs text-muted-foreground">v{plugin.version || "0.0.0"}</span>
       </div>
       <p className="mt-1 line-clamp-1 text-sm leading-5 text-muted-foreground">
@@ -56,16 +61,24 @@ const PluginRow = ({ plugin, isUpdating, onEnabledChange, onRemove }: PluginRowP
       <p className="mt-1 truncate font-mono text-[11px] leading-4 text-muted-foreground/80" title={plugin.id}>
         {plugin.id}
       </p>
+      <PluginPermissionSummary
+        permissions={plugin.permissions}
+        status={plugin.permissionStatus}
+        compact
+        className="mt-1.5"
+      />
     </div>
 
     <div className="flex min-w-36 items-center justify-end gap-3 max-sm:col-span-2 max-sm:ml-[3.25rem] max-sm:min-w-0 max-sm:justify-between">
       <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs font-medium text-muted-foreground">
         {isUpdating ? <Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" /> : null}
-        <span>{plugin.enabled ? "已启用" : "未启用"}</span>
+        <span>
+          {plugin.permissionStatus === "isle-upgrade-required" ? "需要升级" : plugin.enabled ? "已启用" : "未启用"}
+        </span>
         <Switch
           checked={plugin.enabled}
           onCheckedChange={onEnabledChange}
-          disabled={isUpdating}
+          disabled={isUpdating || plugin.permissionStatus === "isle-upgrade-required"}
           aria-label={`${plugin.enabled ? "禁用" : "启用"}插件 ${plugin.name}`}
         />
       </label>
@@ -99,10 +112,10 @@ const PluginSection = ({
   pendingIds,
 }: {
   title: string;
-  plugins: DshPluginDescriptor[];
+  plugins: PluginDescriptor[];
   emptyText: string;
-  onToggle: (plugin: DshPluginDescriptor, enabled: boolean) => void;
-  onRemove: (plugin: DshPluginDescriptor) => void;
+  onToggle: (plugin: PluginDescriptor, enabled: boolean) => void;
+  onRemove: (plugin: PluginDescriptor) => void;
   pendingIds: Set<string>;
 }) => (
   <section aria-labelledby={`plugin-section-${title}`}>
@@ -133,21 +146,22 @@ const PluginSection = ({
 
 export const PluginManagePage = () => {
   const refreshPluginUi = usePluginCatalogStore((state) => state.refresh);
-  const [plugins, setPlugins] = useState<DshPluginDescriptor[]>([]);
+  const [plugins, setPlugins] = useState<PluginDescriptor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("installed");
-  const [marketplaceInstall, setMarketplaceInstall] = useState<DshMarketplacePlugin | null>(null);
-  const [pendingRemoval, setPendingRemoval] = useState<DshPluginDescriptor | null>(null);
+  const [marketplaceInstall, setMarketplaceInstall] = useState<MarketplacePlugin | null>(null);
+  const [pendingEnable, setPendingEnable] = useState<PluginDescriptor | null>(null);
+  const [pendingRemoval, setPendingRemoval] = useState<PluginDescriptor | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
 
   const loadPlugins = useCallback(async () => {
     setIsLoading(true);
     setError("");
     try {
-      setPlugins(await listDshPlugins());
+      setPlugins(await listPlugins());
     } catch (caught) {
       setError(String(caught));
     } finally {
@@ -177,11 +191,11 @@ export const PluginManagePage = () => {
     });
   };
 
-  const handleToggle = async (plugin: DshPluginDescriptor, enabled: boolean) => {
+  const handleToggle = async (plugin: PluginDescriptor, enabled: boolean) => {
     setPending(plugin.id, true);
     setError("");
     try {
-      const updated = await setDshPluginEnabled(plugin.id, enabled);
+      const updated = await setPluginEnabled(plugin.id, enabled);
       setPlugins((current) => current.map((item) => (item.id === updated.id ? updated : item)));
       void refreshPluginUi();
       toast.success(enabled ? "插件已启用" : "插件已停用", { description: plugin.name });
@@ -197,7 +211,7 @@ export const PluginManagePage = () => {
     setIsRemoving(true);
     setError("");
     try {
-      await removeDshPlugin(pendingRemoval.id);
+      await removePlugin(pendingRemoval.id);
       setPlugins((current) => current.filter((plugin) => plugin.id !== pendingRemoval.id));
       void refreshPluginUi();
       toast.success("插件已卸载", { description: pendingRemoval.name });
@@ -208,6 +222,14 @@ export const PluginManagePage = () => {
     } finally {
       setIsRemoving(false);
     }
+  };
+
+  const requestToggle = (plugin: PluginDescriptor, enabled: boolean) => {
+    if (enabled && plugin.source === "installed") {
+      setPendingEnable(plugin);
+      return;
+    }
+    void handleToggle(plugin, enabled);
   };
 
   return (
@@ -221,7 +243,7 @@ export const PluginManagePage = () => {
           </Button>
           <div className="min-w-0">
             <h1 className="truncate text-lg font-semibold tracking-[-0.02em]">插件管理</h1>
-            <p className="mt-1 truncate text-sm text-muted-foreground">安装、启停和维护 Cordis / DSH 兼容插件</p>
+            <p className="mt-1 truncate text-sm text-muted-foreground">安装、启停和维护 Isle 插件与兼容插件</p>
           </div>
         </div>
         <Button type="button" className="min-h-11 shrink-0" onClick={() => setIsImportOpen(true)} title="导入本地插件">
@@ -263,7 +285,7 @@ export const PluginManagePage = () => {
                     title="内置插件"
                     plugins={groupedPlugins.bundled}
                     emptyText="当前版本没有内置 DSH 插件。"
-                    onToggle={(plugin, enabled) => void handleToggle(plugin, enabled)}
+                    onToggle={requestToggle}
                     onRemove={setPendingRemoval}
                     pendingIds={pendingIds}
                   />
@@ -271,7 +293,7 @@ export const PluginManagePage = () => {
                     title="本地与市场安装"
                     plugins={groupedPlugins.installed}
                     emptyText="还没有安装外部插件。"
-                    onToggle={(plugin, enabled) => void handleToggle(plugin, enabled)}
+                    onToggle={requestToggle}
                     onRemove={setPendingRemoval}
                     pendingIds={pendingIds}
                   />
@@ -323,6 +345,39 @@ export const PluginManagePage = () => {
           await refreshPluginUi();
         }}
       />
+
+      <AlertDialog open={Boolean(pendingEnable)} onOpenChange={(open) => !open && setPendingEnable(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>启用“{pendingEnable?.name ?? ""}”？</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingEnable?.permissionStatus === "dsh-unsupported"
+                ? "该 DSH 兼容插件没有 Isle 权限声明。启用后会以受信任模式执行 Node.js 代码，请确认插件来源可靠。"
+                : "外部插件启用后会在 Agent Runtime 中执行 Node.js 代码。权限用途由作者声明，当前不构成运行时沙箱。"}
+            </AlertDialogDescription>
+            {pendingEnable ? (
+              <PluginPermissionSummary
+                permissions={pendingEnable.permissions}
+                status={pendingEnable.permissionStatus}
+                className="pt-1"
+              />
+            ) : null}
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                const plugin = pendingEnable;
+                setPendingEnable(null);
+                if (plugin) void handleToggle(plugin, true);
+              }}
+            >
+              确认启用
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={Boolean(pendingRemoval)}

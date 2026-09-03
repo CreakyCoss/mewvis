@@ -1,5 +1,5 @@
 use super::{
-    plugins::inject_registered_dsh_plugins,
+    plugins::inject_registered_plugins,
     protocol::{
         request, AgentRuntimeResources, AgentRuntimeSkillResources, AgentRuntimeToolResources,
         BundledPath, METHOD_COLLABORATION_RUN, METHOD_COLLABORATION_RUN_MODE,
@@ -266,7 +266,7 @@ fn collaboration_resources(
         paths: Some(skill_paths),
         enabled: Some(enabled_skills),
     });
-    inject_registered_dsh_plugins(app, &mut resources)?;
+    inject_registered_plugins(app, &mut resources)?;
     Ok(resources)
 }
 

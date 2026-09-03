@@ -9,20 +9,20 @@ import { createRequire } from "node:module";
 import { extname, isAbsolute, join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { load as loadYaml, JSON_SCHEMA } from "js-yaml";
-import { NamespacedFileSettingsProvider } from "./namespaced-settings.js";
+import { NamespacedFileSettingsProvider } from "./settings-provider.js";
 
-export type DshCompatToolSchema = ReturnType<ToolRuntime["schemas"]>[number];
+export type CordisToolSchema = ReturnType<ToolRuntime["schemas"]>[number];
 
-export type DshCompatPluginId = string;
+export type CordisPluginId = string;
 
-export type DshCompatToolCall = Readonly<{
+export type CordisToolCall = Readonly<{
   callId: string;
   name: string;
   arguments: unknown;
   signal?: AbortSignal;
 }>;
 
-export type DshCompatPluginHostOptions = Readonly<{
+export type CordisPluginHostOptions = Readonly<{
   toolPresentation?: "native" | "code" | "both";
   /** A YAML/JSON file keeps DSH's monolithic mode; a directory enables Isle namespace isolation. */
   settingsPath?: string;
@@ -70,7 +70,7 @@ class MemorySettingsProvider extends SettingsProvider {
 
 const requiredPluginId = (id: string) => {
   const value = id.trim();
-  if (!value) throw new Error("DSH 插件 ID 不能为空。");
+  if (!value) throw new Error("插件 ID 不能为空。");
   return value;
 };
 
@@ -81,7 +81,7 @@ const awaitPluginStart = async (task: PromiseLike<unknown>, label: string) => {
       task,
       new Promise<never>((_, reject) => {
         timer = setTimeout(
-          () => reject(new Error(`DSH 插件启动超时：${label}。它可能依赖 Isle 尚未提供的 DSH 服务。`)),
+          () => reject(new Error(`插件启动超时：${label}。它可能依赖 Isle 尚未提供的宿主服务。`)),
           PLUGIN_START_TIMEOUT_MS,
         );
         timer.unref?.();
@@ -162,7 +162,7 @@ const resolveBundleEntry = (entry: BundleEntry, options: DshCompatBundleOptions)
  * DSH packages commonly use named `apply`/`inject` exports, while ordinary
  * Cordis packages may default-export a function, class, or object plugin.
  */
-export const resolveDshPluginModule = (module: object): Plugin => {
+export const resolveCordisPluginModule = (module: object): Plugin => {
   const namespace = module as Readonly<{ default?: unknown }>;
   for (const candidate of [namespace.default, namespace]) {
     if (
@@ -178,15 +178,14 @@ export const resolveDshPluginModule = (module: object): Plugin => {
 };
 
 /**
- * Minimal DeepSeek Harness host surface used by Isle's first compatibility
- * milestone. The services are the real DSH implementations rather than local
- * lookalikes, so plugin registration, execution, validation, and Cordis-owned
- * disposal follow the upstream contracts.
+ * Cordis-backed runtime kernel shared by native Isle plugins and compatibility
+ * adapters. Isle owns the package protocol; Cordis owns plugin lifecycle and
+ * dependency injection.
  */
-export class DshCompatPluginHost {
+export class CordisPluginHost {
   readonly context: Context;
 
-  private readonly loaded = new Map<DshCompatPluginId, LoadedPlugin>();
+  private readonly loaded = new Map<CordisPluginId, LoadedPlugin>();
   private disposed = false;
 
   private constructor(
@@ -197,7 +196,7 @@ export class DshCompatPluginHost {
     this.context = context;
   }
 
-  static async create(options: DshCompatPluginHostOptions = {}) {
+  static async create(options: CordisPluginHostOptions = {}) {
     const context = new Context();
     try {
       if (options.settingsPath) {
@@ -227,23 +226,23 @@ export class DshCompatPluginHost {
       const tools = context.get("tools");
       const skills = context.get("skills");
       if (!(tools instanceof ToolRuntime) || !(skills instanceof SkillRegistry) || !context.get("settings")) {
-        throw new Error("DSH tools/skills/settings 服务没有完成初始化。");
+        throw new Error("Isle 插件 tools/skills/settings 服务没有完成初始化。");
       }
-      return new DshCompatPluginHost(context, tools, skills);
+      return new CordisPluginHost(context, tools, skills);
     } catch (error) {
       await context.fiber.dispose();
       throw error;
     }
   }
 
-  get pluginIds(): readonly DshCompatPluginId[] {
+  get pluginIds(): readonly CordisPluginId[] {
     return Object.freeze([...this.loaded.keys()]);
   }
 
-  async load(id: DshCompatPluginId, plugin: Plugin, config?: unknown) {
+  async load(id: CordisPluginId, plugin: Plugin, config?: unknown) {
     this.assertActive();
     const pluginId = requiredPluginId(id);
-    if (this.loaded.has(pluginId)) throw new Error(`DSH 插件已经加载：${pluginId}`);
+    if (this.loaded.has(pluginId)) throw new Error(`插件已经加载：${pluginId}`);
 
     const fiber = this.context.registry.plugin(plugin, config);
     try {
@@ -256,8 +255,8 @@ export class DshCompatPluginHost {
     }
   }
 
-  async loadModule(id: DshCompatPluginId, module: object, config?: unknown) {
-    await this.load(id, resolveDshPluginModule(module), config);
+  async loadModule(id: CordisPluginId, module: object, config?: unknown) {
+    await this.load(id, resolveCordisPluginModule(module), config);
   }
 
   /**
@@ -267,7 +266,7 @@ export class DshCompatPluginHost {
    * overrides that target the full DSH base profile are ignored, and `!!js`
    * expressions are rejected instead of evaluated.
    */
-  async loadBundle(id: DshCompatPluginId, options: DshCompatBundleOptions) {
+  async loadDshBundle(id: CordisPluginId, options: DshCompatBundleOptions) {
     this.assertActive();
     const bundleId = requiredPluginId(id);
     const entries = await parseBundleEntries(options.patchPath);
@@ -280,7 +279,7 @@ export class DshCompatPluginHost {
             ? pathToFileURL(specifier).href
             : specifier;
         const imported = (await import(importSpecifier)) as object;
-        return { entry, plugin: resolveDshPluginModule(imported) };
+        return { entry, plugin: resolveCordisPluginModule(imported) };
       }),
     );
 
@@ -309,8 +308,13 @@ export class DshCompatPluginHost {
     }
   }
 
+  /** @deprecated Load DSH bundles through PluginHost's DSH adapter. */
+  async loadBundle(id: CordisPluginId, options: DshCompatBundleOptions) {
+    await this.loadDshBundle(id, options);
+  }
+
   /** Load an installed package name or absolute file URL through Node ESM. */
-  async loadSpecifier(id: DshCompatPluginId, specifier: string | URL, config?: unknown) {
+  async loadSpecifier(id: CordisPluginId, specifier: string | URL, config?: unknown) {
     this.assertActive();
     const importSpecifier =
       specifier instanceof URL ? specifier.href : isAbsolute(specifier) ? pathToFileURL(specifier).href : specifier;
@@ -318,7 +322,7 @@ export class DshCompatPluginHost {
     await this.loadModule(id, module, config);
   }
 
-  async unload(id: DshCompatPluginId) {
+  async unload(id: CordisPluginId) {
     const pluginId = requiredPluginId(id);
     const loaded = this.loaded.get(pluginId);
     if (loaded) {
@@ -333,12 +337,12 @@ export class DshCompatPluginHost {
     return true;
   }
 
-  toolSchemas(): DshCompatToolSchema[] {
+  toolSchemas(): CordisToolSchema[] {
     this.assertActive();
     return this.tools.schemas();
   }
 
-  executeTool(call: DshCompatToolCall): Promise<ToolExecutionResult> {
+  executeTool(call: CordisToolCall): Promise<ToolExecutionResult> {
     this.assertActive();
     const input: ToolExecutionInput = {
       callId: call.callId as ToolExecutionInput["callId"],
@@ -367,7 +371,7 @@ export class DshCompatPluginHost {
   }
 
   private assertActive() {
-    if (this.disposed) throw new Error("DSH 兼容插件宿主已经关闭。");
+    if (this.disposed) throw new Error("Cordis 插件宿主已经关闭。");
   }
 
   private assertRequiredServices(id: string, plugin: Plugin, entryInject?: unknown) {
@@ -375,7 +379,7 @@ export class DshCompatPluginHost {
     if (entryInject !== undefined) Inject.resolve(entryInject as never, required);
     const missing = Object.keys(required).filter((name) => this.context.get(name as never) === undefined);
     if (missing.length > 0) {
-      throw new Error(`DSH 插件 ${id} 依赖 Isle 尚未提供的服务：${missing.join("、")}`);
+      throw new Error(`插件 ${id} 依赖 Isle 尚未提供的服务：${missing.join("、")}`);
     }
   }
 }

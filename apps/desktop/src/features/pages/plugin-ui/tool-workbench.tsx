@@ -1,6 +1,6 @@
 import { Loader2, Play, Wrench } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { executeDshPluginUiTool, type DshPluginUiPlugin, type DshPluginUiTool } from "@/api/plugins";
+import { executePluginUiTool, type PluginUiPlugin, type PluginUiTool } from "@/api/plugins";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,10 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
-const initialValues = (tool: DshPluginUiTool) =>
+const initialValues = (tool: PluginUiTool) =>
   Object.fromEntries(Object.keys(tool.parameters.properties ?? {}).map((name) => [name, ""]));
 
-const toolArguments = (tool: DshPluginUiTool, values: Record<string, string | boolean>) => {
+const toolArguments = (tool: PluginUiTool, values: Record<string, string | boolean>) => {
   const result: Record<string, unknown> = {};
   for (const [name, schema] of Object.entries(tool.parameters.properties ?? {})) {
     const value = values[name];
@@ -32,7 +32,7 @@ const toolArguments = (tool: DshPluginUiTool, values: Record<string, string | bo
   return result;
 };
 
-export const PluginToolWorkbench = ({ plugin }: { plugin: DshPluginUiPlugin }) => {
+export const PluginToolWorkbench = ({ plugin }: { plugin: PluginUiPlugin }) => {
   const [selectedName, setSelectedName] = useState(plugin.tools[0]?.name ?? "");
   const selectedTool = useMemo(
     () => plugin.tools.find((tool) => tool.name === selectedName) ?? plugin.tools[0],
@@ -72,7 +72,7 @@ export const PluginToolWorkbench = ({ plugin }: { plugin: DshPluginUiPlugin }) =
     setIsRunning(true);
     setError("");
     try {
-      const response = await executeDshPluginUiTool(plugin.id, selectedTool.name, toolArguments(selectedTool, values));
+      const response = await executePluginUiTool(plugin.id, selectedTool.name, toolArguments(selectedTool, values));
       setResult(response.value);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));

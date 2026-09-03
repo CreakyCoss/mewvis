@@ -21,9 +21,6 @@ try {
   writeFileSync(join(settingsRoot, "settings.yaml"), 'isle-fixture-portable:\n  prefix: "migrated"\n', { mode: 0o600 });
   process.env.ISLE_DSH_COMPAT_FIXTURE_URL = pathToFileURL(resolve(fixtureRoot, "index.js")).href;
   process.env.ISLE_DSH_COMPAT_FIXTURE_ROOT = fixtureRoot;
-  process.env.ISLE_DSH_COMPAT_STORY_DESLOP_URL = pathToFileURL(
-    resolve(root, "resources/skills/story-deslop/index.js"),
-  ).href;
   process.env.ISLE_DSH_COMPAT_SETTINGS_PATH = join(tempDir, "plugin-settings.yaml");
   process.env.ISLE_DSH_COMPAT_SETTINGS_ROOT = settingsRoot;
   await build({
@@ -39,7 +36,6 @@ try {
 } finally {
   delete process.env.ISLE_DSH_COMPAT_FIXTURE_URL;
   delete process.env.ISLE_DSH_COMPAT_FIXTURE_ROOT;
-  delete process.env.ISLE_DSH_COMPAT_STORY_DESLOP_URL;
   delete process.env.ISLE_DSH_COMPAT_SETTINGS_PATH;
   delete process.env.ISLE_DSH_COMPAT_SETTINGS_ROOT;
   rmSync(tempDir, { recursive: true, force: true });

@@ -5,34 +5,41 @@ use tauri::{AppHandle, State};
 use crate::services::{
     plugin_ui::PluginUiHost,
     plugins::{
-        self, DshMarketplaceSearchResult, DshPluginDescriptor, InstallMarketplaceDshPluginRequest,
-        RemovedDshPlugin,
+        self, InstallMarketplacePluginRequest, MarketplaceSearchResult, PluginDescriptor,
+        RemovedPlugin,
     },
 };
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct InstallDshPluginInput {
+pub struct InstallPluginInput {
     source_path: String,
     enable: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SetDshPluginEnabledInput {
+pub struct InspectPluginInput {
+    source_path: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetPluginEnabledInput {
     id: String,
     enabled: bool,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RemoveDshPluginInput {
+pub struct RemovePluginInput {
     id: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SearchDshPluginMarketplaceInput {
+pub struct SearchPluginMarketplaceInput {
+    provider: String,
     query: String,
     page: Option<u32>,
     limit: Option<u32>,
@@ -40,7 +47,7 @@ pub struct SearchDshPluginMarketplaceInput {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ExecuteDshPluginUiToolInput {
+pub struct ExecutePluginUiToolInput {
     plugin_id: String,
     tool_name: String,
     #[serde(default)]
@@ -49,23 +56,30 @@ pub struct ExecuteDshPluginUiToolInput {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct GetDshPluginUiDocumentInput {
+pub struct GetPluginUiDocumentInput {
     plugin_id: String,
 }
 
 #[tauri::command]
-pub fn list_dsh_plugins(app: AppHandle) -> Result<Vec<DshPluginDescriptor>, String> {
-    plugins::list_dsh_plugins(&app)
+pub fn list_plugins(app: AppHandle) -> Result<Vec<PluginDescriptor>, String> {
+    plugins::list_plugins(&app)
 }
 
 #[tauri::command]
-pub async fn install_dsh_plugin(
+pub async fn inspect_plugin(input: InspectPluginInput) -> Result<PluginDescriptor, String> {
+    tauri::async_runtime::spawn_blocking(move || plugins::inspect_local_plugin(&input.source_path))
+        .await
+        .map_err(|error| format!("插件检查任务失败：{error}"))?
+}
+
+#[tauri::command]
+pub async fn install_plugin(
     app: AppHandle,
     plugin_ui: State<'_, PluginUiHost>,
-    input: InstallDshPluginInput,
-) -> Result<DshPluginDescriptor, String> {
+    input: InstallPluginInput,
+) -> Result<PluginDescriptor, String> {
     let plugin = tauri::async_runtime::spawn_blocking(move || {
-        plugins::install_local_dsh_plugin(&app, &input.source_path, input.enable)
+        plugins::install_local_plugin(&app, &input.source_path, input.enable)
     })
     .await
     .map_err(|error| format!("插件安装任务失败：{error}"))??;
@@ -74,58 +88,56 @@ pub async fn install_dsh_plugin(
 }
 
 #[tauri::command]
-pub async fn search_dsh_plugin_marketplace(
-    input: SearchDshPluginMarketplaceInput,
-) -> Result<DshMarketplaceSearchResult, String> {
+pub async fn search_plugin_marketplace(
+    input: SearchPluginMarketplaceInput,
+) -> Result<MarketplaceSearchResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        plugins::search_dsh_marketplace(&input.query, input.page, input.limit)
+        plugins::search_marketplace(&input.provider, &input.query, input.page, input.limit)
     })
     .await
-    .map_err(|error| format!("DSH 市场搜索任务失败：{error}"))?
+    .map_err(|error| format!("插件市场搜索任务失败：{error}"))?
 }
 
 #[tauri::command]
-pub async fn install_dsh_plugin_from_marketplace(
+pub async fn install_plugin_from_marketplace(
     app: AppHandle,
     plugin_ui: State<'_, PluginUiHost>,
-    input: InstallMarketplaceDshPluginRequest,
-) -> Result<DshPluginDescriptor, String> {
+    input: InstallMarketplacePluginRequest,
+) -> Result<PluginDescriptor, String> {
     let plugin = tauri::async_runtime::spawn_blocking(move || {
-        plugins::install_marketplace_dsh_plugin(&app, input)
+        plugins::install_marketplace_plugin(&app, input)
     })
     .await
-    .map_err(|error| format!("DSH 市场插件安装任务失败：{error}"))??;
+    .map_err(|error| format!("插件市场安装任务失败：{error}"))??;
     plugin_ui.invalidate()?;
     Ok(plugin)
 }
 
 #[tauri::command]
-pub fn set_dsh_plugin_enabled(
+pub fn set_plugin_enabled(
     app: AppHandle,
     plugin_ui: State<'_, PluginUiHost>,
-    input: SetDshPluginEnabledInput,
-) -> Result<DshPluginDescriptor, String> {
-    let plugin = plugins::set_dsh_plugin_enabled(&app, &input.id, input.enabled)?;
+    input: SetPluginEnabledInput,
+) -> Result<PluginDescriptor, String> {
+    let plugin = plugins::set_plugin_enabled(&app, &input.id, input.enabled)?;
     plugin_ui.invalidate()?;
     Ok(plugin)
 }
 
 #[tauri::command]
-pub async fn remove_dsh_plugin(
+pub async fn remove_plugin(
     app: AppHandle,
     plugin_ui: State<'_, PluginUiHost>,
-    input: RemoveDshPluginInput,
-) -> Result<RemovedDshPlugin, String> {
+    input: RemovePluginInput,
+) -> Result<RemovedPlugin, String> {
     plugin_ui.invalidate()?;
-    tauri::async_runtime::spawn_blocking(move || {
-        plugins::remove_installed_dsh_plugin(&app, &input.id)
-    })
-    .await
-    .map_err(|error| format!("插件移除任务失败：{error}"))?
+    tauri::async_runtime::spawn_blocking(move || plugins::remove_installed_plugin(&app, &input.id))
+        .await
+        .map_err(|error| format!("插件移除任务失败：{error}"))?
 }
 
 #[tauri::command]
-pub async fn list_dsh_plugin_ui(
+pub async fn list_plugin_ui(
     app: AppHandle,
     plugin_ui: State<'_, PluginUiHost>,
 ) -> Result<Value, String> {
@@ -136,10 +148,10 @@ pub async fn list_dsh_plugin_ui(
 }
 
 #[tauri::command]
-pub async fn execute_dsh_plugin_ui_tool(
+pub async fn execute_plugin_ui_tool(
     app: AppHandle,
     plugin_ui: State<'_, PluginUiHost>,
-    input: ExecuteDshPluginUiToolInput,
+    input: ExecutePluginUiToolInput,
 ) -> Result<Value, String> {
     let plugin_ui = plugin_ui.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
@@ -150,10 +162,10 @@ pub async fn execute_dsh_plugin_ui_tool(
 }
 
 #[tauri::command]
-pub async fn get_dsh_plugin_ui_document(
+pub async fn get_plugin_ui_document(
     app: AppHandle,
     plugin_ui: State<'_, PluginUiHost>,
-    input: GetDshPluginUiDocumentInput,
+    input: GetPluginUiDocumentInput,
 ) -> Result<Value, String> {
     let plugin_ui = plugin_ui.inner().clone();
     tauri::async_runtime::spawn_blocking(move || plugin_ui.document(&app, input.plugin_id))

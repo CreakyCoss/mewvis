@@ -1,0 +1,22 @@
+{
+  "name": "@isle/plugin-sdk",
+  "version": "0.1.0",
+  "description": "Stable authoring contract for Isle Cordis plugins.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "README.md"
+  ],
+  "dependencies": {
+    "@deepseek-ai/schemastery": "3.18.1"
+  },
+  "sideEffects": false,
+  "license": "MIT"
+}

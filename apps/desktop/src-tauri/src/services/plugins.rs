@@ -20,9 +20,40 @@ const MAX_INSTALL_BYTES: u64 = 768 * 1024 * 1024;
 const MAX_MARKETPLACE_RESPONSE_BYTES: u64 = 4 * 1024 * 1024;
 const DSH_MARKETPLACE_API: &str = "https://dshmarketplace.dev/api/v1/plugins";
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum PluginRuntimeKind {
+    Isle,
+    Dsh,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct DshPluginDescriptor {
+pub(crate) struct PluginCompatibility {
+    pub adapter: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum PluginPermission {
+    Network,
+    PluginData,
+    WorkspaceFiles,
+    OpenExternal,
+    Process,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum PluginPermissionStatus {
+    Declared,
+    IsleUpgradeRequired,
+    DshUnsupported,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct PluginDescriptor {
     pub id: String,
     pub name: String,
     pub version: String,
@@ -31,14 +62,19 @@ pub(crate) struct DshPluginDescriptor {
     pub enabled: bool,
     pub default_enabled: bool,
     pub path: String,
-    pub specifier: String,
-    pub dsh_patch: String,
-    pub origin: Option<DshPluginOrigin>,
+    pub runtime_kind: PluginRuntimeKind,
+    pub entry: String,
+    #[serde(skip_serializing)]
+    pub dsh_patch: Option<String>,
+    pub compatibility: Vec<PluginCompatibility>,
+    pub permissions: Vec<PluginPermission>,
+    pub permission_status: PluginPermissionStatus,
+    pub origin: Option<PluginOrigin>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct DshPluginOrigin {
+pub(crate) struct PluginOrigin {
     pub kind: String,
     pub marketplace: String,
     pub full_name: String,
@@ -47,24 +83,24 @@ pub(crate) struct DshPluginOrigin {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct RuntimeDshPlugin {
+pub(crate) struct RuntimePlugin {
+    pub kind: PluginRuntimeKind,
     pub id: String,
-    pub specifier: String,
+    pub entry: String,
     pub package_root: String,
-    pub patch_path: String,
-    pub package_name: String,
+    pub patch_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct RemovedDshPlugin {
+pub(crate) struct RemovedPlugin {
     pub id: String,
     pub path: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct DshMarketplacePlugin {
+pub(crate) struct MarketplacePlugin {
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub full_name: String,
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -103,13 +139,13 @@ pub(crate) struct DshMarketplacePlugin {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct DshMarketplaceSearchResult {
+pub(crate) struct MarketplaceSearchResult {
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub total: u64,
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub count: u64,
     #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub results: Vec<DshMarketplacePlugin>,
+    pub results: Vec<MarketplacePlugin>,
 }
 
 fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
@@ -122,12 +158,12 @@ where
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct InstallMarketplaceDshPluginRequest {
+pub(crate) struct InstallMarketplacePluginRequest {
+    pub provider: String,
     pub full_name: String,
     pub npm_package: String,
     #[serde(default)]
     pub repo_url: String,
-    pub enable: Option<bool>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
@@ -168,6 +204,15 @@ struct IsleManifest {
     #[serde(default)]
     default_enabled: bool,
     display_name: Option<String>,
+    plugin: Option<IslePluginManifest>,
+    permissions: Option<Vec<PluginPermission>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IslePluginManifest {
+    version: u32,
+    entry: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -189,35 +234,35 @@ fn registry_schema_version() -> u32 {
     REGISTRY_SCHEMA_VERSION
 }
 
-pub(crate) fn list_dsh_plugins(app: &AppHandle) -> Result<Vec<DshPluginDescriptor>, String> {
+pub(crate) fn list_plugins(app: &AppHandle) -> Result<Vec<PluginDescriptor>, String> {
     let bundled_root = bundled_plugins_path(app)?;
     let app_root = app_plugins_root(app)?;
     list_plugins_at(bundled_root.as_deref(), &app_root)
 }
 
-pub(crate) fn dsh_settings_location(app: &AppHandle) -> Result<String, String> {
+pub(crate) fn settings_location(app: &AppHandle) -> Result<String, String> {
     Ok(app_plugins_root(app)?.to_string_lossy().to_string())
 }
 
-pub(crate) fn enabled_runtime_plugins(app: &AppHandle) -> Result<Vec<RuntimeDshPlugin>, String> {
-    Ok(list_dsh_plugins(app)?
+pub(crate) fn enabled_runtime_plugins(app: &AppHandle) -> Result<Vec<RuntimePlugin>, String> {
+    Ok(list_plugins(app)?
         .into_iter()
         .filter(|plugin| plugin.enabled)
-        .map(|plugin| RuntimeDshPlugin {
+        .map(|plugin| RuntimePlugin {
+            kind: plugin.runtime_kind,
             id: plugin.id.clone(),
-            specifier: plugin.specifier,
+            entry: plugin.entry,
             package_root: plugin.path,
             patch_path: plugin.dsh_patch,
-            package_name: plugin.id,
         })
         .collect())
 }
 
-pub(crate) fn install_local_dsh_plugin(
+pub(crate) fn install_local_plugin(
     app: &AppHandle,
     source_path: &str,
     enable: Option<bool>,
-) -> Result<DshPluginDescriptor, String> {
+) -> Result<PluginDescriptor, String> {
     let source_path = source_path.trim();
     if source_path.is_empty() {
         return Err("插件源目录不能为空".to_string());
@@ -230,6 +275,7 @@ pub(crate) fn install_local_dsh_plugin(
         return Err("插件源必须是目录".to_string());
     }
     let package = read_package(&source_root, PluginSource::Installed)?;
+    require_installable_permissions(&package)?;
     let app_root = app_plugins_root(app)?;
     let packages_root = app_root.join("packages");
     if packages_root.starts_with(&source_root) {
@@ -252,7 +298,9 @@ pub(crate) fn install_local_dsh_plugin(
         let _ = fs::remove_dir_all(&staging);
         return Err(error);
     }
-    if let Err(error) = read_package(&staging, PluginSource::Installed) {
+    if let Err(error) = read_package(&staging, PluginSource::Installed)
+        .and_then(|plugin| require_installable_permissions(&plugin))
+    {
         let _ = fs::remove_dir_all(&staging);
         return Err(error);
     }
@@ -262,25 +310,46 @@ pub(crate) fn install_local_dsh_plugin(
     }
 
     let mut registry = read_registry(&app_root)?;
-    registry
-        .enabled
-        .insert(package.id.clone(), enable.unwrap_or(true));
+    registry.enabled.insert(
+        package.id.clone(),
+        initial_install_enabled(&package, enable),
+    );
     if let Err(error) = write_registry(&app_root, &registry) {
         let _ = fs::remove_dir_all(&destination);
         return Err(error);
     }
 
-    list_dsh_plugins(app)?
+    list_plugins(app)?
         .into_iter()
         .find(|plugin| plugin.id == package.id)
         .ok_or_else(|| "插件已安装，但注册表未能重新发现它".to_string())
 }
 
-pub(crate) fn search_dsh_marketplace(
+pub(crate) fn inspect_local_plugin(source_path: &str) -> Result<PluginDescriptor, String> {
+    let source_path = source_path.trim();
+    if source_path.is_empty() {
+        return Err("插件源目录不能为空".to_string());
+    }
+    let source_root = PathBuf::from(source_path)
+        .canonicalize()
+        .map_err(|error| format!("无法定位插件源目录：{error}"))?;
+    if !source_root.is_dir() {
+        return Err("插件源必须是目录".to_string());
+    }
+    let plugin = read_package(&source_root, PluginSource::Installed)?;
+    require_installable_permissions(&plugin)?;
+    Ok(plugin)
+}
+
+pub(crate) fn search_marketplace(
+    provider: &str,
     query: &str,
     page: Option<u32>,
     limit: Option<u32>,
-) -> Result<DshMarketplaceSearchResult, String> {
+) -> Result<MarketplaceSearchResult, String> {
+    if provider != "dsh-community" {
+        return Err(format!("不支持的插件市场来源：{provider}"));
+    }
     let endpoint = std::env::var(product_env_var("DSH_MARKETPLACE_URL"))
         .unwrap_or_else(|_| DSH_MARKETPLACE_API.to_string());
     search_dsh_marketplace_at(&endpoint, query, page, limit)
@@ -291,7 +360,7 @@ fn search_dsh_marketplace_at(
     query: &str,
     page: Option<u32>,
     limit: Option<u32>,
-) -> Result<DshMarketplaceSearchResult, String> {
+) -> Result<MarketplaceSearchResult, String> {
     let mut url =
         reqwest::Url::parse(endpoint).map_err(|error| format!("DSH 市场地址无效：{error}"))?;
     if url.scheme() != "https" && !cfg!(debug_assertions) {
@@ -332,7 +401,7 @@ fn search_dsh_marketplace_at(
             MAX_MARKETPLACE_RESPONSE_BYTES / 1024 / 1024
         ));
     }
-    serde_json::from_slice::<DshMarketplaceSearchResult>(&body).map_err(|error| {
+    serde_json::from_slice::<MarketplaceSearchResult>(&body).map_err(|error| {
         let preview = String::from_utf8_lossy(&body[..body.len().min(240)])
             .split_whitespace()
             .collect::<Vec<_>>()
@@ -343,17 +412,20 @@ fn search_dsh_marketplace_at(
     })
 }
 
-pub(crate) fn install_marketplace_dsh_plugin(
+pub(crate) fn install_marketplace_plugin(
     app: &AppHandle,
-    request: InstallMarketplaceDshPluginRequest,
-) -> Result<DshPluginDescriptor, String> {
+    request: InstallMarketplacePluginRequest,
+) -> Result<PluginDescriptor, String> {
+    if request.provider != "dsh-community" {
+        return Err(format!("不支持的插件市场来源：{}", request.provider));
+    }
     let full_name = validate_marketplace_full_name(&request.full_name)?;
     let npm_package = validate_npm_package_name(&request.npm_package)?;
     let app_root = app_plugins_root(app)?;
     let packages_root = app_root.join("packages");
     fs::create_dir_all(&packages_root).map_err(|error| format!("无法创建插件安装目录：{error}"))?;
 
-    if list_dsh_plugins(app)?
+    if list_plugins(app)?
         .iter()
         .any(|plugin| plugin.id == npm_package)
     {
@@ -362,7 +434,7 @@ pub(crate) fn install_marketplace_dsh_plugin(
 
     let work = app_root.join(format!(".market-install-{}", Uuid::now_v7().simple()));
     fs::create_dir_all(&work).map_err(|error| format!("无法创建市场安装暂存目录：{error}"))?;
-    let result = install_marketplace_dsh_plugin_in(
+    let result = install_dsh_marketplace_plugin_in(
         app,
         &app_root,
         &packages_root,
@@ -370,13 +442,12 @@ pub(crate) fn install_marketplace_dsh_plugin(
         &full_name,
         &npm_package,
         &request.repo_url,
-        request.enable.unwrap_or(false),
     );
     let _ = fs::remove_dir_all(&work);
     result
 }
 
-fn install_marketplace_dsh_plugin_in(
+fn install_dsh_marketplace_plugin_in(
     app: &AppHandle,
     app_root: &Path,
     packages_root: &Path,
@@ -384,8 +455,7 @@ fn install_marketplace_dsh_plugin_in(
     full_name: &str,
     npm_package: &str,
     repo_url: &str,
-    enable: bool,
-) -> Result<DshPluginDescriptor, String> {
+) -> Result<PluginDescriptor, String> {
     fs::write(
         work.join("package.json"),
         "{\n  \"name\": \"isle-plugin-install\",\n  \"private\": true,\n  \"type\": \"module\"\n}\n",
@@ -440,7 +510,8 @@ fn install_marketplace_dsh_plugin_in(
     enforce_install_limits(&work.join("node_modules"))?;
     let installed_package = npm_package_path(&work.join("node_modules"), npm_package)?;
     let package = read_package(&installed_package, PluginSource::Installed)?;
-    if list_dsh_plugins(app)?
+    require_installable_permissions(&package)?;
+    if list_plugins(app)?
         .iter()
         .any(|plugin| plugin.id == package.id)
     {
@@ -466,7 +537,7 @@ fn install_marketplace_dsh_plugin_in(
             fs::copy(work.join("pnpm-lock.yaml"), staging.join("pnpm-lock.yaml"))
                 .map_err(|error| format!("无法保存插件依赖锁文件：{error}"))?;
         }
-        let origin = DshPluginOrigin {
+        let origin = PluginOrigin {
             kind: "marketplace".to_string(),
             marketplace: "dshmarketplace.dev".to_string(),
             full_name: full_name.to_string(),
@@ -480,7 +551,8 @@ fn install_marketplace_dsh_plugin_in(
             format!("{origin_json}\n"),
         )
         .map_err(|error| format!("无法记录插件来源：{error}"))?;
-        read_package(&staging, PluginSource::Installed)?;
+        let staged = read_package(&staging, PluginSource::Installed)?;
+        require_installable_permissions(&staged)?;
         fs::rename(&staging, &destination).map_err(|error| format!("无法完成插件安装：{error}"))?;
         Ok::<(), String>(())
     })();
@@ -490,13 +562,13 @@ fn install_marketplace_dsh_plugin_in(
     }
 
     let mut registry = read_registry(app_root)?;
-    registry.enabled.insert(package.id.clone(), enable);
+    registry.enabled.insert(package.id.clone(), false);
     if let Err(error) = write_registry(app_root, &registry) {
         let _ = fs::remove_dir_all(&destination);
         return Err(error);
     }
 
-    list_dsh_plugins(app)?
+    list_plugins(app)?
         .into_iter()
         .find(|plugin| plugin.id == package.id)
         .ok_or_else(|| "插件已安装，但注册表未能重新发现它".to_string())
@@ -527,17 +599,21 @@ fn plugin_installer_output(stdout: &[u8], stderr: &[u8]) -> String {
         .collect()
 }
 
-pub(crate) fn set_dsh_plugin_enabled(
+pub(crate) fn set_plugin_enabled(
     app: &AppHandle,
     id: &str,
     enabled: bool,
-) -> Result<DshPluginDescriptor, String> {
+) -> Result<PluginDescriptor, String> {
     let id = id.trim();
     if id.is_empty() {
         return Err("插件 ID 不能为空".to_string());
     }
-    if !list_dsh_plugins(app)?.iter().any(|plugin| plugin.id == id) {
-        return Err(format!("没有找到插件：{id}"));
+    let plugin = list_plugins(app)?
+        .into_iter()
+        .find(|plugin| plugin.id == id)
+        .ok_or_else(|| format!("没有找到插件：{id}"))?;
+    if enabled && plugin.permission_status == PluginPermissionStatus::IsleUpgradeRequired {
+        return Err(isle_permissions_upgrade_error(&plugin.id));
     }
 
     let app_root = app_plugins_root(app)?;
@@ -545,16 +621,13 @@ pub(crate) fn set_dsh_plugin_enabled(
     registry.enabled.insert(id.to_string(), enabled);
     write_registry(&app_root, &registry)?;
 
-    list_dsh_plugins(app)?
+    list_plugins(app)?
         .into_iter()
         .find(|plugin| plugin.id == id)
         .ok_or_else(|| format!("没有找到插件：{id}"))
 }
 
-pub(crate) fn remove_installed_dsh_plugin(
-    app: &AppHandle,
-    id: &str,
-) -> Result<RemovedDshPlugin, String> {
+pub(crate) fn remove_installed_plugin(app: &AppHandle, id: &str) -> Result<RemovedPlugin, String> {
     let id = id.trim();
     let app_root = app_plugins_root(app)?;
     let packages_root = app_root.join("packages");
@@ -583,7 +656,7 @@ pub(crate) fn remove_installed_dsh_plugin(
     registry.enabled.remove(id);
     write_registry(&app_root, &registry)?;
 
-    Ok(RemovedDshPlugin {
+    Ok(RemovedPlugin {
         id: id.to_string(),
         path: target.to_string_lossy().to_string(),
     })
@@ -785,9 +858,9 @@ fn enforce_install_limits(root: &Path) -> Result<(), String> {
 fn list_plugins_at(
     bundled_root: Option<&Path>,
     app_root: &Path,
-) -> Result<Vec<DshPluginDescriptor>, String> {
+) -> Result<Vec<PluginDescriptor>, String> {
     let registry = read_registry(app_root)?;
-    let mut plugins = HashMap::<String, DshPluginDescriptor>::new();
+    let mut plugins = HashMap::<String, PluginDescriptor>::new();
     if let Some(root) = bundled_root {
         for plugin in scan_plugin_root(root, PluginSource::Bundled)? {
             plugins.insert(plugin.id.clone(), plugin);
@@ -799,11 +872,16 @@ fn list_plugins_at(
     let mut plugins = plugins
         .into_values()
         .map(|mut plugin| {
-            plugin.enabled = registry
-                .enabled
-                .get(&plugin.id)
-                .copied()
-                .unwrap_or(plugin.default_enabled);
+            plugin.enabled =
+                if plugin.permission_status == PluginPermissionStatus::IsleUpgradeRequired {
+                    false
+                } else {
+                    registry
+                        .enabled
+                        .get(&plugin.id)
+                        .copied()
+                        .unwrap_or(plugin.default_enabled)
+                };
             plugin
         })
         .collect::<Vec<_>>();
@@ -811,7 +889,7 @@ fn list_plugins_at(
     Ok(plugins)
 }
 
-fn scan_plugin_root(root: &Path, source: PluginSource) -> Result<Vec<DshPluginDescriptor>, String> {
+fn scan_plugin_root(root: &Path, source: PluginSource) -> Result<Vec<PluginDescriptor>, String> {
     if !root.exists() {
         return Ok(Vec::new());
     }
@@ -842,7 +920,7 @@ fn scan_plugin_root(root: &Path, source: PluginSource) -> Result<Vec<DshPluginDe
     Ok(plugins)
 }
 
-fn read_package(root: &Path, source: PluginSource) -> Result<DshPluginDescriptor, String> {
+fn read_package(root: &Path, source: PluginSource) -> Result<PluginDescriptor, String> {
     let manifest_path = root.join("package.json");
     let manifest_text = fs::read_to_string(&manifest_path)
         .map_err(|error| format!("无法读取 {}：{error}", manifest_path.to_string_lossy()))?;
@@ -852,36 +930,90 @@ fn read_package(root: &Path, source: PluginSource) -> Result<DshPluginDescriptor
     if id.is_empty() {
         return Err("插件 package.json 缺少 name".to_string());
     }
-    let entry = manifest
+    let package_entry = manifest
         .main
         .as_deref()
         .map(str::to_string)
         .or_else(|| manifest.exports.as_ref().and_then(package_root_export));
-    let patch = manifest
+    let dsh_patch = manifest
         .dsh
         .as_ref()
         .and_then(|dsh| dsh.bundle.as_ref())
-        .and_then(|bundle| bundle.patch.as_deref())
-        .ok_or_else(|| format!("插件 {id} 缺少 dsh.bundle.patch"))?;
-    let entry_path = entry
-        .as_deref()
-        .map(|entry| resolve_package_file(root, entry, "插件入口"))
-        .transpose()?;
-    let patch_path = resolve_package_file(root, patch, "Cordis patch")?;
+        .and_then(|bundle| bundle.patch.as_deref());
     let isle = manifest.isle.unwrap_or_default();
+    let permissions_declared = isle.permissions.is_some();
+    let permissions = isle.permissions.as_deref().unwrap_or_default().to_vec();
+    if permissions
+        .iter()
+        .collect::<std::collections::HashSet<_>>()
+        .len()
+        != permissions.len()
+    {
+        return Err(format!("插件 {id} 的 isle.permissions 不能包含重复项"));
+    }
+    let (runtime_kind, entry) = if let Some(plugin) = isle.plugin.as_ref() {
+        if plugin.version != 1 {
+            return Err(format!(
+                "插件 {id} 使用了不支持的 Isle 插件协议版本：{}",
+                plugin.version
+            ));
+        }
+        let entry = plugin.entry.trim();
+        if entry.is_empty() {
+            return Err(format!("Isle 插件 {id} 缺少 isle.plugin.entry"));
+        }
+        (
+            PluginRuntimeKind::Isle,
+            resolve_package_file(root, entry, "Isle 插件入口")?,
+        )
+    } else if dsh_patch.is_some() {
+        let entry = package_entry
+            .as_deref()
+            .map(|entry| resolve_package_file(root, entry, "DSH 插件入口"))
+            .transpose()?
+            .unwrap_or_default();
+        (PluginRuntimeKind::Dsh, entry)
+    } else {
+        return Err(format!(
+            "插件 {id} 缺少 isle.plugin 声明，也不是可识别的 DSH 兼容插件"
+        ));
+    };
+    let permission_status = if permissions_declared {
+        PluginPermissionStatus::Declared
+    } else if runtime_kind == PluginRuntimeKind::Isle {
+        PluginPermissionStatus::IsleUpgradeRequired
+    } else {
+        PluginPermissionStatus::DshUnsupported
+    };
+    if source == PluginSource::Bundled
+        && permission_status == PluginPermissionStatus::IsleUpgradeRequired
+    {
+        return Err(isle_permissions_upgrade_error(&id));
+    }
+    let patch_path = dsh_patch
+        .map(|patch| resolve_package_file(root, patch, "DSH Cordis patch"))
+        .transpose()?;
+    let compatibility = patch_path
+        .as_ref()
+        .map(|_| {
+            vec![PluginCompatibility {
+                adapter: "dsh".to_string(),
+            }]
+        })
+        .unwrap_or_default();
     let origin_path = root.join(".isle-origin.json");
     let origin = if origin_path.is_file() {
         let content = fs::read_to_string(&origin_path)
             .map_err(|error| format!("无法读取插件来源信息：{error}"))?;
         Some(
-            serde_json::from_str::<DshPluginOrigin>(&content)
+            serde_json::from_str::<PluginOrigin>(&content)
                 .map_err(|error| format!("插件来源信息无效：{error}"))?,
         )
     } else {
         None
     };
 
-    Ok(DshPluginDescriptor {
+    Ok(PluginDescriptor {
         id: id.clone(),
         name: isle.display_name.unwrap_or(id),
         version: manifest.version,
@@ -890,12 +1022,29 @@ fn read_package(root: &Path, source: PluginSource) -> Result<DshPluginDescriptor
         enabled: false,
         default_enabled: isle.default_enabled,
         path: root.to_string_lossy().to_string(),
-        specifier: entry_path
-            .map(|path| path.to_string_lossy().to_string())
-            .unwrap_or_default(),
-        dsh_patch: patch_path.to_string_lossy().to_string(),
+        runtime_kind,
+        entry: entry.to_string_lossy().to_string(),
+        dsh_patch: patch_path.map(|path| path.to_string_lossy().to_string()),
+        compatibility,
+        permissions,
+        permission_status,
         origin,
     })
+}
+
+fn isle_permissions_upgrade_error(id: &str) -> String {
+    format!("Isle 插件 {id} 使用旧版清单：请添加 isle.permissions；没有额外能力时请声明空数组 []")
+}
+
+fn require_installable_permissions(plugin: &PluginDescriptor) -> Result<(), String> {
+    if plugin.permission_status == PluginPermissionStatus::IsleUpgradeRequired {
+        return Err(isle_permissions_upgrade_error(&plugin.id));
+    }
+    Ok(())
+}
+
+fn initial_install_enabled(plugin: &PluginDescriptor, requested: Option<bool>) -> bool {
+    plugin.runtime_kind == PluginRuntimeKind::Isle && requested.unwrap_or(true)
 }
 
 fn package_root_export(value: &serde_json::Value) -> Option<String> {
@@ -1072,18 +1221,16 @@ mod tests {
         fs::create_dir_all(root).unwrap();
         fs::write(root.join("index.js"), "export function apply() {}\n").unwrap();
         fs::write(
-            root.join("cordis.patch.yml"),
-            "- op: add\n  path: /plugins/test\n  value: {}\n",
-        )
-        .unwrap();
-        fs::write(
             root.join("package.json"),
             serde_json::json!({
                 "name": id,
                 "version": "1.0.0",
                 "main": "./index.js",
-                "dsh": { "bundle": { "patch": "./cordis.patch.yml" } },
-                "isle": { "defaultEnabled": default_enabled }
+                "isle": {
+                    "defaultEnabled": default_enabled,
+                    "plugin": { "version": 1, "entry": "./index.js" },
+                    "permissions": []
+                }
             })
             .to_string(),
         )
@@ -1196,8 +1343,120 @@ mod tests {
         .unwrap();
 
         let plugin = read_package(&package, PluginSource::Installed).unwrap();
-        assert!(plugin.specifier.is_empty());
+        assert!(plugin.entry.is_empty());
         assert_eq!(plugin.id, "bundle-only");
+        assert_eq!(plugin.runtime_kind, PluginRuntimeKind::Dsh);
+        assert_eq!(
+            plugin.permission_status,
+            PluginPermissionStatus::DshUnsupported
+        );
+        assert!(!initial_install_enabled(&plugin, Some(true)));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn isle_manifest_is_primary_and_dsh_remains_compatible() {
+        let root = temporary_root("dual-target");
+        let package = root.join("package");
+        fs::create_dir_all(&package).unwrap();
+        fs::write(package.join("index.js"), "export function apply() {}\n").unwrap();
+        fs::write(package.join("cordis.patch.yml"), "[]\n").unwrap();
+        fs::write(
+            package.join("package.json"),
+            r#"{
+                "name":"dual-target",
+                "main":"./index.js",
+                "dsh":{"bundle":{"patch":"./cordis.patch.yml"}},
+                "isle":{
+                    "plugin":{"version":1,"entry":"./index.js"},
+                    "permissions":["network","plugin-data"]
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let plugin = read_package(&package, PluginSource::Installed).unwrap();
+        assert_eq!(plugin.runtime_kind, PluginRuntimeKind::Isle);
+        assert_eq!(plugin.compatibility[0].adapter, "dsh");
+        assert!(plugin.dsh_patch.is_some());
+        assert_eq!(plugin.permission_status, PluginPermissionStatus::Declared);
+        assert_eq!(
+            plugin.permissions,
+            vec![PluginPermission::Network, PluginPermission::PluginData]
+        );
+        assert!(initial_install_enabled(&plugin, Some(true)));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn legacy_isle_plugin_is_disabled_and_cannot_be_imported_again() {
+        let root = temporary_root("legacy-isle-permissions");
+        let app = root.join("app");
+        let package = app.join("packages/legacy");
+        fs::create_dir_all(&package).unwrap();
+        fs::write(package.join("index.js"), "export function apply() {}\n").unwrap();
+        fs::write(
+            package.join("package.json"),
+            r#"{"name":"legacy-plugin","isle":{"defaultEnabled":true,"plugin":{"version":1,"entry":"./index.js"}}}"#,
+        )
+        .unwrap();
+        let mut registry = read_registry(&app).unwrap();
+        registry.enabled.insert("legacy-plugin".to_string(), true);
+        write_registry(&app, &registry).unwrap();
+
+        let plugin = list_plugins_at(None, &app).unwrap().remove(0);
+        assert_eq!(
+            plugin.permission_status,
+            PluginPermissionStatus::IsleUpgradeRequired
+        );
+        assert!(!plugin.enabled);
+        assert!(inspect_local_plugin(package.to_str().unwrap())
+            .unwrap_err()
+            .contains("请添加 isle.permissions"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn bundled_isle_plugin_without_permissions_is_rejected() {
+        let root = temporary_root("bundled-permissions");
+        let package = root.join("package");
+        fs::create_dir_all(&package).unwrap();
+        fs::write(package.join("index.js"), "export function apply() {}\n").unwrap();
+        fs::write(
+            package.join("package.json"),
+            r#"{"name":"bundled-legacy","isle":{"plugin":{"version":1,"entry":"./index.js"}}}"#,
+        )
+        .unwrap();
+
+        assert!(read_package(&package, PluginSource::Bundled)
+            .unwrap_err()
+            .contains("请添加 isle.permissions"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn duplicate_or_unknown_permissions_are_rejected() {
+        let root = temporary_root("invalid-permissions");
+        let package = root.join("package");
+        fs::create_dir_all(&package).unwrap();
+        fs::write(package.join("index.js"), "export function apply() {}\n").unwrap();
+        fs::write(
+            package.join("package.json"),
+            r#"{"name":"invalid","isle":{"plugin":{"version":1,"entry":"./index.js"},"permissions":["network","network"]}}"#,
+        )
+        .unwrap();
+        assert!(read_package(&package, PluginSource::Installed)
+            .unwrap_err()
+            .contains("不能包含重复项"));
+
+        fs::write(
+            package.join("package.json"),
+            r#"{"name":"invalid","isle":{"plugin":{"version":1,"entry":"./index.js"},"permissions":["everything"]}}"#,
+        )
+        .unwrap();
+        assert!(read_package(&package, PluginSource::Installed)
+            .unwrap_err()
+            .contains("unknown variant"));
         fs::remove_dir_all(root).unwrap();
     }
 

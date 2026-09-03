@@ -1,9 +1,8 @@
 # Isle Plugin UI v1
 
-`isle.ui` is an additive UI declaration for packages that already use the
-standard DeepSeek Harness `dsh.bundle` contract. It does not replace or redefine
-`dsh.client`: one npm package may ship both UI declarations and remain
-publishable to the DSH ecosystem.
+`isle.ui` is an Isle-owned UI contribution for native and compatible plugins.
+It is independent from `dsh.client`: a dual-target package may ship both UI
+declarations and remain publishable to the DSH ecosystem.
 
 The machine-readable schema is [`schema/isle-ui.schema.json`](./schema/isle-ui.schema.json).
 
@@ -16,8 +15,8 @@ capability-specific markup, styling, and interaction.
 
 ```json
 {
-  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } },
   "isle": {
+    "plugin": { "version": 1, "entry": "./index.js" },
     "ui": {
       "version": 1,
       "kind": "sandbox",
@@ -29,6 +28,11 @@ capability-specific markup, styling, and interaction.
   }
 }
 ```
+
+Source packages only maintain the `isle` declaration. Running
+`pnpm plugin:pack -- <package> --target dsh` preserves this UI metadata and
+adds the generated `dsh.bundle` declaration and `cordis.patch.yml` to the
+distribution package.
 
 Paths must start with `./`, resolve inside the package, and may not cross a
 symlink boundary out of it. `layout` is optional:
@@ -86,6 +90,8 @@ is executable Node.js and must be installed only from a trusted source.
 Upstream `dsh.client` bundles target DeepSeek's browser module table, React
 identity, Cordis client runner, and typed slots. Isle detects that declaration
 but does not execute the bundle in its application context. A dual-target
-package should keep its upstream `./client` export for DSH and add a separate
-small `isle.ui` entry for Isle. Both UI halves can call the same host tools, so
-business behavior remains in one portable Cordis plugin.
+package may keep its upstream `./client` export for DSH and add a separate small
+`isle.ui` entry for Isle. Both UI halves can call the same host tools, so
+business behavior remains in one portable Cordis plugin. Isle's DSH pack target
+currently generates the host-side Cordis declaration; an existing custom
+`dsh.client` build remains an advanced package-owned artifact.

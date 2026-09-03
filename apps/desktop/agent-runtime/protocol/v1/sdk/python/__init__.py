@@ -50,19 +50,24 @@ class AgentRuntimeMCPResources:
     servers: list[Any] | None
 
 
+class AgentRuntimePluginKind(Enum):
+    DSH = "dsh"
+    ISLE = "isle"
+
+
 @dataclass
-class AgentRuntimeDshPlugin:
+class AgentRuntimePlugin:
+    entry: str
     id: str
+    kind: AgentRuntimePluginKind
+    package_root: str
     config: dict[str, Any] | None
-    package_name: str | None
-    package_root: str | None
     patch_path: str | None
-    specifier: str | None
 
 
 @dataclass
 class AgentRuntimePluginResources:
-    dsh: list[AgentRuntimeDshPlugin] | None
+    items: list[AgentRuntimePlugin] | None
     settings_path: str | None
 
 

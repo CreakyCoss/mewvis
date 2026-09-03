@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Download, Loader2, PackageSearch, RefreshCw, Search, ShieldCheck, Star, TriangleAlert } from "lucide-react";
-import { searchDshPluginMarketplace, type DshMarketplacePlugin } from "@/api/plugins";
+import { searchPluginMarketplace, type MarketplacePlugin } from "@/api/plugins";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,10 +8,12 @@ import { Input } from "@/components/ui/input";
 
 type MarketplacePanelProps = {
   installedIds: Set<string>;
-  onInstall: (plugin: DshMarketplacePlugin) => void;
+  onInstall: (plugin: MarketplacePlugin) => void;
 };
 
-const installCheckLabel = (check: DshMarketplacePlugin["installCheck"]) => {
+const DSH_COMMUNITY_PROVIDER = "dsh-community";
+
+const installCheckLabel = (check: MarketplacePlugin["installCheck"]) => {
   switch (check) {
     case "passed":
       return "检查通过";
@@ -28,7 +30,7 @@ const installCheckLabel = (check: DshMarketplacePlugin["installCheck"]) => {
   }
 };
 
-const canInstall = (plugin: DshMarketplacePlugin) =>
+const canInstall = (plugin: MarketplacePlugin) =>
   Boolean(plugin.npmPackage) &&
   plugin.installable &&
   plugin.installCheck !== "not-a-layer" &&
@@ -39,7 +41,7 @@ export const MarketplacePanel = ({ installedIds, onInstall }: MarketplacePanelPr
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [plugins, setPlugins] = useState<DshMarketplacePlugin[]>([]);
+  const [plugins, setPlugins] = useState<MarketplacePlugin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const requestId = useRef(0);
@@ -49,7 +51,7 @@ export const MarketplacePanel = ({ installedIds, onInstall }: MarketplacePanelPr
     setIsLoading(true);
     setError("");
     try {
-      const result = await searchDshPluginMarketplace(nextQuery, nextPage, 20);
+      const result = await searchPluginMarketplace(DSH_COMMUNITY_PROVIDER, nextQuery, nextPage, 20);
       if (currentRequest !== requestId.current) return;
       setPlugins(result.results);
       setTotal(result.total);

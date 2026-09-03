@@ -1,8 +1,8 @@
 import { create } from "zustand";
-import { listDshPluginUi, type DshPluginUiCatalog } from "@/api/plugins";
+import { listPluginUi, type PluginUiCatalog } from "@/api/plugins";
 
 type PluginCatalogState = {
-  catalog: DshPluginUiCatalog;
+  catalog: PluginUiCatalog;
   isLoading: boolean;
   error: string;
   refresh: () => Promise<void>;
@@ -18,7 +18,7 @@ export const usePluginCatalogStore = create<PluginCatalogState>((set) => ({
     const currentRequest = ++requestId;
     set({ isLoading: true, error: "" });
     try {
-      const catalog = await listDshPluginUi();
+      const catalog = await listPluginUi();
       if (currentRequest === requestId) set({ catalog });
     } catch (error) {
       if (currentRequest === requestId) set({ error: String(error) });

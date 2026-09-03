@@ -1,9 +1,10 @@
 export {
-  DshCompatPluginHost,
-  resolveDshPluginModule,
+  CordisPluginHost as DshCompatPluginHost,
+  resolveCordisPluginModule as resolveDshPluginModule,
   type DshCompatBundleOptions,
-  type DshCompatPluginHostOptions,
-  type DshCompatPluginId,
-  type DshCompatToolCall,
-  type DshCompatToolSchema,
-} from "./host.js";
+  type CordisPluginHostOptions as DshCompatPluginHostOptions,
+  type CordisPluginId as DshCompatPluginId,
+  type CordisToolCall as DshCompatToolCall,
+  type CordisToolSchema as DshCompatToolSchema,
+} from "../cordis-host.js";
+export { DshPluginAdapter } from "./adapter.js";

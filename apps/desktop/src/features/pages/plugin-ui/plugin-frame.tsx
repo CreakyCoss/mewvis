@@ -1,12 +1,7 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { AlertTriangle, Loader2, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  executeDshPluginUiTool,
-  getDshPluginUiDocument,
-  type DshPluginUiDocument,
-  type DshPluginUiPlugin,
-} from "@/api/plugins";
+import { executePluginUiTool, getPluginUiDocument, type PluginUiDocument, type PluginUiPlugin } from "@/api/plugins";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 
@@ -88,7 +83,7 @@ button, input, textarea, select { font: inherit; }
 const escapeScript = (value: string) => value.replace(/<\/script/gi, "<\\/script");
 const escapeStyle = (value: string) => value.replace(/<\/style/gi, "<\\/style");
 
-const sandboxDocument = (document: DshPluginUiDocument) => `<!doctype html>
+const sandboxDocument = (document: PluginUiDocument) => `<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
@@ -105,12 +100,12 @@ const sandboxDocument = (document: DshPluginUiDocument) => `<!doctype html>
 const messageObject = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 
-export const PluginFrame = ({ plugin }: { plugin: DshPluginUiPlugin }) => {
+export const PluginFrame = ({ plugin }: { plugin: PluginUiPlugin }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const inFlight = useRef(new Set<string>());
   const externalOpenInFlight = useRef(false);
   const frameLoadCount = useRef(0);
-  const [uiDocument, setUiDocument] = useState<DshPluginUiDocument | null>(null);
+  const [uiDocument, setUiDocument] = useState<PluginUiDocument | null>(null);
   const [loadError, setLoadError] = useState("");
   const [runtimeError, setRuntimeError] = useState("");
   const [navigationBlocked, setNavigationBlocked] = useState(false);
@@ -126,7 +121,7 @@ export const PluginFrame = ({ plugin }: { plugin: DshPluginUiPlugin }) => {
     setNavigationBlocked(false);
     setIsFrameReady(false);
     frameLoadCount.current = 0;
-    void getDshPluginUiDocument(plugin.id)
+    void getPluginUiDocument(plugin.id)
       .then((next) => {
         if (!cancelled) setUiDocument(next);
       })
@@ -226,7 +221,7 @@ export const PluginFrame = ({ plugin }: { plugin: DshPluginUiPlugin }) => {
         return;
       }
       inFlight.current.add(id);
-      void executeDshPluginUiTool(plugin.id, toolName, args)
+      void executePluginUiTool(plugin.id, toolName, args)
         .then((result) => post({ type: "host:result", id, result }))
         .catch((error) => reject(error instanceof Error ? error.message : String(error)))
         .finally(() => inFlight.current.delete(id));

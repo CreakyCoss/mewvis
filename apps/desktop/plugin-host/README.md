@@ -1,107 +1,113 @@
-# Plugin Host
+# Isle Plugin Host
 
-`plugin-host` is the application-lifetime boundary for installable Isle plugins.
-It is intentionally separate from `agent-runtime`: agent workers are task-owned
-and may be reaped while idle, whereas product plugins may own background work.
+`plugin-host` is Isle's application-owned plugin boundary. Isle defines package
+discovery, manifests, enablement, data paths, UI contributions, and marketplace
+sources. Cordis is the private runtime kernel for lifecycle and dependency
+injection. DSH is one compatibility format implemented by an adapter.
 
-## Compatibility milestones
+## Runtime layers
 
-The initial `dsh-compat` surface mounts the real DeepSeek Harness implementations
-of:
+```text
+PluginHost
+├── IslePluginAdapter ── isle.plugin entry
+├── DshPluginAdapter  ── dsh.bundle.patch
+└── CordisPluginHost
+    ├── tools
+    ├── skills
+    └── namespaced settings
+```
 
-- Cordis plugin lifecycle and dependency injection;
-- `ctx.tools`, including DSH schema validation and execution;
-- `ctx.skills`, including embedded runtime skill registration.
+Generic consumers use `PluginHost` and `RuntimePlugin`; they do not construct a
+DSH host. The agent protocol carries `resources.plugins.items`, and each item is
+tagged with `kind: "isle" | "dsh"`. `DshCompatPluginHost` remains only as a
+compatibility alias for focused adapter tests and older programmatic callers.
 
-It does not yet load DSH profiles or client plugins, nor does it expose filesystem,
-shell, session, agent, or LLM services. `DshCompatPluginHost` is programmatic so a
-future long-lived process entry and the Tauri bridge can share the same tested
-composition.
+## Native Isle package
 
-The second milestone adds a serializable Agent Runtime input at
-`resources.plugins.dsh`: each entry contains only `id`, an ESM `specifier`, and
-an optional JSON object `config`. The Pi adapter rehydrates those plugins for an
-agent session, projects DSH tool JSON Schemas into Pi tools, materializes embedded
-DSH skills, and disposes the Cordis fibers and temporary skill files with the
-session. This rehydration makes idle worker recycling safe; application-lifetime
-background plugins still belong in the future long-lived host process.
-Loading a DSH entry activates its projected tools and its model-invocable skills;
-the plugin entry itself is the capability boundary.
+An Isle package exposes a Cordis plugin entry through an Isle-owned manifest:
 
-`plugins/story-scene-card` is the first portable Isle business plugin. Its source
-is a standard DSH bundle, while the desktop build also creates a self-contained
-copy under `agent-runtime/dist/plugins` for bundled use.
+```json
+{
+  "name": "@isle/example",
+  "type": "module",
+  "isle": {
+    "plugin": {
+      "version": 1,
+      "entry": "./index.js"
+    },
+    "permissions": ["network", "plugin-data"]
+  }
+}
+```
 
-The third milestone adds a desktop-owned registry. Bundled packages are
-discovered from `agent-runtime/dist/plugins`; locally installed packages and
-`registry.json` live below the product application-data `plugins` directory.
-Tauri commands can list, install from a local directory, enable, disable, and
-remove installed packages. Enabled entries are merged into every Agent and
-Collaboration request, while a same-ID entry explicitly supplied in
-`resources.plugins.dsh` wins for that request.
+The entry may export a Cordis function, class, or `{ apply(ctx, config) }`
+object. Plugin authors import `definePlugin`, `defineTool`, and `defineSkill`
+from `@isle/plugin-sdk` rather than importing Cordis or DSH services directly.
+The Isle-owned context exposes Cordis lifecycle semantics together with Isle's
+`tools`, `skills`, and `settings` services.
 
-The settings UI exposes this registry as a plugin management page. It separates
-bundled and externally installed packages, gives each mutation its own loading
-state, confirms removal, and warns before enabling externally supplied executable
-code.
+`isle.permissions` declares the plugin's intended use of `network`,
+`plugin-data`, `workspace-files`, `open-external`, and `process`. New native
+plugins must declare the field, using an empty array when they need none. Isle
+validates and displays this declaration before local installation. It is an
+auditable author contract, not a Node.js security sandbox; untrusted code must
+remain disabled. A new native Isle package without the field is rejected;
+already-installed legacy Isle packages are forced off until their manifest is
+upgraded, and bundled native packages fail validation. DSH packages can still
+be imported because their format has no equivalent field, but they remain off
+by default and are identified as trusted-mode compatibility packages instead
+of being assigned fictitious permissions.
 
-The fifth milestone adds discovery through the independent
-`dshmarketplace.dev` community directory. This source is replaceable through
-the product-prefixed `DSH_MARKETPLACE_URL` environment variable and is never
-presented as an official DeepSeek registry. Remote installation accepts only a
-structured npm package name, downloads from the fixed public npm registry with
-the bundled pnpm, disables all package lifecycle scripts, enforces size limits,
-and stores an exact lockfile plus origin metadata. Market packages are installed
-disabled unless the user explicitly chooses otherwise.
+Source packages maintain one `isle.plugin` declaration. The packaging tool can
+produce an Isle-only package or a bundled DSH-compatible package from the same
+entry. The latter generates `dsh.bundle` and `cordis.patch.yml`; authors do not
+maintain a second entry by hand.
 
-Standard `dsh.bundle.patch` files are now the runtime entry point for registered
-plugins. The host loads top-level inserted Cordis rows (including nested groups),
-resolves package self-references and dependencies from the installed package,
-and starts sibling rows together so ordinary Cordis service injection can settle.
-Patch overrides for a full DSH base profile are ignored because Isle intentionally
-starts from a smaller tools/skills host. `!!js` expressions are rejected rather
-than evaluated, and unresolved service dependencies fail explicitly instead of
-remaining as silent pending Cordis fibers.
+## Authoring workflow
 
-The sixth milestone mounts the upstream DSH settings contract. Desktop-launched
-Plugin UI and Agent Runtime sessions receive the application plugins data root;
-an Isle provider maps each standard DSH namespace to
-`plugins/<namespace>/settings.yaml` with owner-only, atomic writes. Existing
-sections in the former shared `plugins/settings.yaml` are migrated once, with a
-pre-migration backup and conflict-safe retention. Explicit `.yaml`, `.yml`, or
-`.json` paths still select the official monolithic file provider for portable
-hosts and tests. Programmatic hosts without a path keep an in-memory provider.
-This makes ordinary `ctx.settings` + `ctx.tools` packages such as `dsh-rss`
-durable without adding plugin-specific storage code or breaking DSH packages.
+Run these commands from `apps/desktop`:
 
-`resources/skills/story-deslop` is the first migrated capability that remains a
-plain Isle `SKILL.md` and is also a publishable Cordis/DSH package. Its build
-artifact includes the Skill and its `references` directory. Local installation
-currently expects a self-contained package (or packaged dependencies); loading
-a plugin executes its Node.js code with the desktop runtime's authority, so the
-installer is only exposed as a user-invoked settings command.
+```sh
+pnpm plugin:create -- ./my-plugin --name @example/my-plugin
+pnpm plugin:validate -- ./my-plugin
+pnpm plugin:pack -- ./my-plugin --target isle
+pnpm plugin:pack -- ./my-plugin --target dsh
+```
 
-The compatibility surface still excludes full DSH profiles, Client plugins,
-GitHub-source builds, attachment-backed image tool results, and application
-background services. Session, shell, filesystem, client, agent, and LLM services
-are not yet mounted. DSH `additionalContexts` are retained in Pi
-tool details but are not yet injected as separate follow-up messages, and
-non-directory Skill resource bases do not yet provide relative resource loading.
+`plugin:create` scaffolds a native package using `@isle/plugin-sdk`.
+`plugin:validate` checks the package name, native manifest, entry, and declared
+assets without executing plugin code. `plugin:pack` bundles dependencies and
+writes an atomic build directory under `dist/<target>` by default. It refuses
+to replace an existing directory unless that directory contains Isle's build
+marker.
 
-The seventh milestone adds the first portable plugin UI contract. A package may
-keep its standard `dsh.bundle` and optional upstream `dsh.client` declaration,
-then add `isle.ui` for Isle. Capability-specific pages are package-owned and load
-from one package-local JavaScript file plus optional CSS into an opaque-origin
-iframe. Plugins without a page receive a JSON-Schema-generated tool workbench.
-A fixed CSP blocks fetches and external subresources, while iframe permissions
-omit forms, popups, same-origin access, and top navigation. Application access
-is limited to the versioned tool and external-link bridges; the application and
-Node host both verify that requested tools belong to that plugin. See
-[`ISLE_UI.md`](./ISLE_UI.md) for the authoring contract.
+The DSH target intentionally retains the additive `isle` metadata. It can be
+published to a DSH channel and also imported back into Isle without changing
+its source or runtime implementation.
 
-The eighth milestone adds `plugins/rss-reader`, a disabled-by-default portable
-adapter around the community `dsh-rss` package. It keeps the upstream settings
-and seven `rss_*` tool contracts, adds a model-invocable skill with explicit
-untrusted-feed guidance, and ships its own sandboxed RSS reader page.
-The same package can be published as a normal DSH bundle; Isle's additive UI
-metadata is ignored by DeepSeek Harness.
+Plugins with persistent configuration use the SDK's `defineSettings`. Schema
+defaults form the base layer, manifest-independent plugin defaults form the
+composition layer, and `plugins/<namespace>/settings.yaml` contains only user
+overrides plus a reserved `$version`. Ordered migrations update that user layer
+before the plugin registers tools; missing migrations and newer unsupported
+versions fail plugin startup explicitly.
+
+## DSH compatibility
+
+External packages without `isle.plugin` are detected as DSH-compatible when they declare
+`dsh.bundle.patch`. The DSH adapter parses portable top-level insert rows,
+resolves package entries, and mounts them into an isolated Cordis lifecycle.
+Full DSH profiles, browser Client Runtime, session, shell, agent, and LLM
+services are not provided. Unsupported service dependencies fail explicitly.
+
+The independent `dshmarketplace.dev` directory is registered as the
+`dsh-community` marketplace provider. It is not Isle's native marketplace and
+is not presented as an official DeepSeek registry. Its URL remains configurable
+through the product-prefixed `DSH_MARKETPLACE_URL` environment variable.
+
+## Data and UI
+
+The application plugin root still owns `registry.json`, installed packages, and
+per-namespace settings at `plugins/<namespace>/settings.yaml`; this migration
+does not move user data. A package may add `isle.ui` for a sandboxed page. See
+[`ISLE_UI.md`](./ISLE_UI.md) for the UI contract.

@@ -1,6 +1,11 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 
-export type DshPluginDescriptor = {
+export type PluginRuntimeKind = "isle" | "dsh";
+
+export type PluginPermission = "network" | "plugin-data" | "workspace-files" | "open-external" | "process";
+export type PluginPermissionStatus = "declared" | "isle-upgrade-required" | "dsh-unsupported";
+
+export type PluginDescriptor = {
   id: string;
   name: string;
   version: string;
@@ -9,12 +14,19 @@ export type DshPluginDescriptor = {
   enabled: boolean;
   defaultEnabled: boolean;
   path: string;
-  specifier: string;
-  dshPatch: string;
-  origin: DshPluginOrigin | null;
+  runtimeKind: PluginRuntimeKind;
+  entry: string;
+  compatibility: PluginCompatibility[];
+  permissions: PluginPermission[];
+  permissionStatus: PluginPermissionStatus;
+  origin: PluginOrigin | null;
 };
 
-export type DshPluginOrigin = {
+export type PluginCompatibility = {
+  adapter: string;
+};
+
+export type PluginOrigin = {
   kind: "marketplace";
   marketplace: string;
   fullName: string;
@@ -22,7 +34,7 @@ export type DshPluginOrigin = {
   repoUrl: string;
 };
 
-export type DshMarketplacePlugin = {
+export type MarketplacePlugin = {
   fullName: string;
   name: string;
   owner: string;
@@ -43,18 +55,20 @@ export type DshMarketplacePlugin = {
   url: string;
 };
 
-export type DshMarketplaceSearchResult = {
+export type MarketplaceSearchResult = {
   total: number;
   count: number;
-  results: DshMarketplacePlugin[];
+  results: MarketplacePlugin[];
 };
 
-export type RemovedDshPlugin = {
+export type PluginMarketplaceProviderId = "dsh-community";
+
+export type RemovedPlugin = {
   id: string;
   path: string;
 };
 
-export type DshPluginUiTool = {
+export type PluginUiTool = {
   name: string;
   description: string;
   parameters: {
@@ -64,95 +78,110 @@ export type DshPluginUiTool = {
   };
 };
 
-export type DshPluginUiPlugin = {
+export type PluginUiPlugin = {
+  runtimeKind: PluginRuntimeKind;
   id: string;
   name: string;
   version: string;
   description: string;
   source: "bundled" | "installed";
-  tools: DshPluginUiTool[];
+  tools: PluginUiTool[];
   error: string | null;
   ui: { kind: "sandbox"; title?: string; layout?: "contained" | "full" } | null;
   uiError: string | null;
-  dshClient: { declared: true; platform: string | null } | null;
+  compatibility: { adapter: string; clientPlatform?: string | null }[];
+  permissions: PluginPermission[];
+  permissionStatus: PluginPermissionStatus;
 };
 
-export type DshPluginUiCatalog = {
-  plugins: DshPluginUiPlugin[];
+export type PluginUiCatalog = {
+  plugins: PluginUiPlugin[];
 };
 
-export type DshPluginUiToolResult = {
+export type PluginUiToolResult = {
   value: unknown;
   content: unknown[];
   meta: unknown;
 };
 
-export type DshPluginUiDocument = {
+export type PluginUiDocument = {
   script: string;
   style: string;
 };
 
-export async function listDshPlugins() {
-  if (!isTauri()) return [] satisfies DshPluginDescriptor[];
-  return invoke<DshPluginDescriptor[]>("list_dsh_plugins");
+export async function listPlugins() {
+  if (!isTauri()) return [] satisfies PluginDescriptor[];
+  return invoke<PluginDescriptor[]>("list_plugins");
 }
 
-export async function installDshPlugin(sourcePath: string, enable = true) {
+export async function installPlugin(sourcePath: string, enable = false) {
   if (!isTauri()) throw new Error("Web 预览模式暂不支持安装插件");
-  return invoke<DshPluginDescriptor>("install_dsh_plugin", {
+  return invoke<PluginDescriptor>("install_plugin", {
     input: { sourcePath, enable },
   });
 }
 
-export async function searchDshPluginMarketplace(query: string, page = 1, limit = 20) {
-  if (!isTauri()) return { total: 0, count: 0, results: [] } satisfies DshMarketplaceSearchResult;
-  return invoke<DshMarketplaceSearchResult>("search_dsh_plugin_marketplace", {
-    input: { query, page, limit },
+export async function inspectPlugin(sourcePath: string) {
+  if (!isTauri()) throw new Error("Web 预览模式暂不支持检查插件");
+  return invoke<PluginDescriptor>("inspect_plugin", {
+    input: { sourcePath },
   });
 }
 
-export async function installDshPluginFromMarketplace(plugin: DshMarketplacePlugin, enable = false) {
+export async function searchPluginMarketplace(
+  provider: PluginMarketplaceProviderId,
+  query: string,
+  page = 1,
+  limit = 20,
+) {
+  if (!isTauri()) return { total: 0, count: 0, results: [] } satisfies MarketplaceSearchResult;
+  return invoke<MarketplaceSearchResult>("search_plugin_marketplace", {
+    input: { provider, query, page, limit },
+  });
+}
+
+export async function installPluginFromMarketplace(provider: PluginMarketplaceProviderId, plugin: MarketplacePlugin) {
   if (!isTauri()) throw new Error("Web 预览模式暂不支持安装插件");
   if (!plugin.npmPackage) throw new Error("该条目没有可安全下载的 npm 发布包");
-  return invoke<DshPluginDescriptor>("install_dsh_plugin_from_marketplace", {
+  return invoke<PluginDescriptor>("install_plugin_from_marketplace", {
     input: {
+      provider,
       fullName: plugin.fullName,
       npmPackage: plugin.npmPackage,
       repoUrl: plugin.repoUrl,
-      enable,
     },
   });
 }
 
-export async function setDshPluginEnabled(id: string, enabled: boolean) {
+export async function setPluginEnabled(id: string, enabled: boolean) {
   if (!isTauri()) throw new Error("Web 预览模式暂不支持修改插件状态");
-  return invoke<DshPluginDescriptor>("set_dsh_plugin_enabled", {
+  return invoke<PluginDescriptor>("set_plugin_enabled", {
     input: { id, enabled },
   });
 }
 
-export async function removeDshPlugin(id: string) {
+export async function removePlugin(id: string) {
   if (!isTauri()) throw new Error("Web 预览模式暂不支持移除插件");
-  return invoke<RemovedDshPlugin>("remove_dsh_plugin", {
+  return invoke<RemovedPlugin>("remove_plugin", {
     input: { id },
   });
 }
 
-export async function listDshPluginUi() {
-  if (!isTauri()) return { plugins: [] } satisfies DshPluginUiCatalog;
-  return invoke<DshPluginUiCatalog>("list_dsh_plugin_ui");
+export async function listPluginUi() {
+  if (!isTauri()) return { plugins: [] } satisfies PluginUiCatalog;
+  return invoke<PluginUiCatalog>("list_plugin_ui");
 }
 
-export async function executeDshPluginUiTool(pluginId: string, toolName: string, args: unknown = {}) {
+export async function executePluginUiTool(pluginId: string, toolName: string, args: unknown = {}) {
   if (!isTauri()) throw new Error("Web 预览模式暂不支持插件工具调用");
-  return invoke<DshPluginUiToolResult>("execute_dsh_plugin_ui_tool", {
+  return invoke<PluginUiToolResult>("execute_plugin_ui_tool", {
     input: { pluginId, toolName, arguments: args },
   });
 }
 
-export async function getDshPluginUiDocument(pluginId: string) {
+export async function getPluginUiDocument(pluginId: string) {
   if (!isTauri()) throw new Error("Web 预览模式暂不支持插件沙箱 UI");
-  return invoke<DshPluginUiDocument>("get_dsh_plugin_ui_document", {
+  return invoke<PluginUiDocument>("get_plugin_ui_document", {
     input: { pluginId },
   });
 }

@@ -48,26 +48,40 @@
       "properties": { "servers": { "type": "array" } },
       "additionalProperties": true
     },
-    "AgentRuntimeDshPlugin": {
+    "AgentRuntimePluginKind": {
+      "type": "string",
+      "enum": ["isle", "dsh"]
+    },
+    "AgentRuntimePlugin": {
       "type": "object",
-      "required": ["id"],
+      "required": ["kind", "id", "entry", "packageRoot"],
       "properties": {
+        "kind": { "$ref": "#/definitions/AgentRuntimePluginKind" },
         "id": { "type": "string", "minLength": 1 },
-        "specifier": { "type": "string", "minLength": 1 },
+        "entry": { "type": "string" },
         "packageRoot": { "type": "string", "minLength": 1 },
         "patchPath": { "type": "string", "minLength": 1 },
-        "packageName": { "type": "string", "minLength": 1 },
         "config": { "type": ["object", "null"], "additionalProperties": true }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "isle" } } },
+          "then": { "properties": { "entry": { "minLength": 1 } } }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "dsh" } } },
+          "then": { "required": ["patchPath"] }
+        }
+      ]
     },
     "AgentRuntimePluginResources": {
       "type": "object",
       "properties": {
         "settingsPath": { "type": ["string", "null"] },
-        "dsh": {
+        "items": {
           "type": ["array", "null"],
-          "items": { "$ref": "#/definitions/AgentRuntimeDshPlugin" }
+          "items": { "$ref": "#/definitions/AgentRuntimePlugin" }
         }
       },
       "additionalProperties": false

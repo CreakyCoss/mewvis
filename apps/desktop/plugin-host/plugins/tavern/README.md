@@ -1,6 +1,7 @@
 # @isle/tavern
 
-Isle 内置的 DeepSeek Harness 兼容酒馆插件。
+Isle 内置的原生酒馆插件。源码只使用 `@isle/plugin-sdk` 提供的工具、
+技能、设置 Schema 和 Cordis 生命周期契约。
 
 ## 能力
 
@@ -8,6 +9,7 @@ Isle 内置的 DeepSeek Harness 兼容酒馆插件。
 - 为模型生成当前酒馆的上下文
 - 插件包自带沙箱酒馆工作台，不依赖 Isle 内部业务页面
 - 设置独立保存到 `plugins/isle-tavern/settings.yaml`
+- Schema 默认值、用户覆盖和 `$version` 迁移由 `defineSettings` 管理
 
 ## 工具
 
@@ -16,3 +18,14 @@ Isle 内置的 DeepSeek Harness 兼容酒馆插件。
 - `tavern_remove`
 - `tavern_activate`
 - `tavern_context`
+
+## 打包
+
+源码只维护 `isle.plugin`，不携带手写 DSH 清单。发布兼容包时运行：
+
+```sh
+pnpm plugin:pack -- plugin-host/plugins/tavern --target dsh
+```
+
+生成的 DSH 包会内联 SDK 与设置 Schema 实现，并自动生成
+`cordis.patch.yml`；同一产物仍能由 Isle 原生加载。

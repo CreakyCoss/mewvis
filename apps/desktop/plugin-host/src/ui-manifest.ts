@@ -12,16 +12,16 @@ export type PluginUiDocument = Readonly<{
   style: string;
 }>;
 
-export type DshClientDeclarationInfo = Readonly<{
-  declared: true;
-  platform: string | null;
+export type PluginCompatibilityInfo = Readonly<{
+  adapter: "dsh";
+  clientPlatform?: string | null;
 }>;
 
 export type PluginUiManifestResult = Readonly<{
   contribution: PluginUiContribution | null;
   document: PluginUiDocument | null;
   error: string | null;
-  dshClient: DshClientDeclarationInfo | null;
+  compatibility: readonly PluginCompatibilityInfo[];
 }>;
 
 const MAX_MANIFEST_BYTES = 512 * 1024;
@@ -69,16 +69,16 @@ const readPackageFile = async (packageRoot: string, entry: string, maxBytes: num
   return readFile(target, "utf8");
 };
 
-const dshClientInfo = (manifest: Record<string, unknown>): DshClientDeclarationInfo | null => {
+const compatibilityInfo = (manifest: Record<string, unknown>): readonly PluginCompatibilityInfo[] => {
   const dsh = manifest.dsh;
-  if (!dsh || typeof dsh !== "object" || Array.isArray(dsh)) return null;
+  if (!dsh || typeof dsh !== "object" || Array.isArray(dsh)) return [];
   const client = (dsh as Record<string, unknown>).client;
-  if (client === undefined) return null;
+  if (client === undefined) return [{ adapter: "dsh" }];
   const platform =
     client && typeof client === "object" && !Array.isArray(client)
       ? (client as Record<string, unknown>).platform
       : undefined;
-  return { declared: true, platform: typeof platform === "string" ? platform : null };
+  return [{ adapter: "dsh", clientPlatform: typeof platform === "string" ? platform : null }];
 };
 
 /** Read Isle's additive UI declaration without evaluating plugin browser code. */
@@ -92,16 +92,16 @@ export const loadPluginUiManifest = async (packageRoot: string): Promise<PluginU
       contribution: null,
       document: null,
       error: error instanceof Error ? error.message : String(error),
-      dshClient: null,
+      compatibility: [],
     };
   }
 
-  const dshClient = dshClientInfo(manifest);
+  const compatibility = compatibilityInfo(manifest);
   try {
     const isle = manifest.isle;
-    if (isle === undefined) return { contribution: null, document: null, error: null, dshClient };
+    if (isle === undefined) return { contribution: null, document: null, error: null, compatibility };
     const uiValue = asObject(isle, "isle").ui;
-    if (uiValue === undefined) return { contribution: null, document: null, error: null, dshClient };
+    if (uiValue === undefined) return { contribution: null, document: null, error: null, compatibility };
     const ui = asObject(uiValue, "isle.ui");
     if (ui.version !== 1) throw new Error("isle.ui.version 当前只支持 1。");
     const title = optionalTitle(ui.title);
@@ -122,7 +122,7 @@ export const loadPluginUiManifest = async (packageRoot: string): Promise<PluginU
         },
         document: { script, style: stylesheet },
         error: null,
-        dshClient,
+        compatibility,
       };
     }
 
@@ -132,7 +132,7 @@ export const loadPluginUiManifest = async (packageRoot: string): Promise<PluginU
       contribution: null,
       document: null,
       error: error instanceof Error ? error.message : String(error),
-      dshClient,
+      compatibility,
     };
   }
 };

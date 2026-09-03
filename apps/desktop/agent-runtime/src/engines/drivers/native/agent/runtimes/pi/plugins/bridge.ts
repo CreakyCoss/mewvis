@@ -4,8 +4,12 @@ import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { DshCompatPluginHost, type DshCompatToolSchema } from "../../../../../../../../../plugin-host/src/index.js";
-import type { AgentRuntimeDshPlugin } from "../../../../../../protocol/wire.js";
+import {
+  PluginHost,
+  type PluginToolSchema,
+  type RuntimePlugin,
+} from "../../../../../../../../../plugin-host/src/index.js";
+import type { AgentRuntimePlugin } from "../../../../../../protocol/wire.js";
 import type { RuntimeAgentCommand } from "../../types.js";
 import { runtimeResourcesFor } from "../../resources.js";
 
@@ -39,42 +43,37 @@ const contentAsPiText = (content: readonly unknown[], fallback: unknown): TextCo
   return [{ type: "text", text: jsonText(fallback) }];
 };
 
-export class DshPiPluginBridge {
+export class PluginRuntimeBridge {
   private disposed = false;
 
   private constructor(
-    private readonly host: DshCompatPluginHost,
+    private readonly host: PluginHost,
     readonly skills: readonly Skill[],
     private readonly temporarySkillRoot: string | null,
   ) {}
 
-  static async create(plugins: readonly AgentRuntimeDshPlugin[], cwd: string, settingsPath?: string | null) {
-    const host = await DshCompatPluginHost.create({
+  static async create(plugins: readonly AgentRuntimePlugin[], cwd: string, settingsPath?: string | null) {
+    const host = await PluginHost.create({
       settingsPath: settingsPath ? runtimePluginSpecifier(settingsPath, cwd) : undefined,
     });
     let temporarySkillRoot: string | null = null;
     try {
       for (const plugin of plugins) {
-        const id = requiredValue(plugin.id, "DSH 插件 ID");
-        if (plugin.patchPath && plugin.packageRoot) {
-          await host.loadBundle(id, {
-            packageRoot: runtimePluginSpecifier(plugin.packageRoot, cwd),
-            packageName: plugin.packageName?.trim() || id,
-            patchPath: runtimePluginSpecifier(plugin.patchPath, cwd),
-            entrySpecifier: plugin.specifier ? runtimePluginSpecifier(plugin.specifier, cwd) : undefined,
-          });
-        } else {
-          await host.loadSpecifier(
-            id,
-            runtimePluginSpecifier(requiredValue(plugin.specifier ?? "", `DSH 插件 ${id} 的 specifier`), cwd),
-            plugin.config ?? undefined,
-          );
-        }
+        const id = requiredValue(plugin.id, "插件 ID");
+        const runtimePlugin: RuntimePlugin = {
+          kind: plugin.kind,
+          id,
+          packageRoot: runtimePluginSpecifier(plugin.packageRoot, cwd),
+          entry: plugin.entry ? runtimePluginSpecifier(plugin.entry, cwd) : "",
+          patchPath: plugin.patchPath ? runtimePluginSpecifier(plugin.patchPath, cwd) : undefined,
+          config: plugin.config ?? undefined,
+        };
+        await host.load(runtimePlugin);
       }
 
-      const materialized = await materializeDshSkills(host, cwd);
+      const materialized = await materializePluginSkills(host, cwd);
       temporarySkillRoot = materialized.temporaryRoot;
-      return new DshPiPluginBridge(host, Object.freeze(materialized.skills), temporarySkillRoot);
+      return new PluginRuntimeBridge(host, Object.freeze(materialized.skills), temporarySkillRoot);
     } catch (error) {
       await host.dispose();
       if (temporarySkillRoot) await rm(temporarySkillRoot, { recursive: true, force: true });
@@ -82,7 +81,7 @@ export class DshPiPluginBridge {
     }
   }
 
-  toolSchemas(): DshCompatToolSchema[] {
+  toolSchemas(): PluginToolSchema[] {
     this.assertActive();
     return this.host.toolSchemas();
   }
@@ -130,19 +129,19 @@ export class DshPiPluginBridge {
   }
 
   private assertActive() {
-    if (this.disposed) throw new Error("DSH Pi 插件桥已经关闭。");
+    if (this.disposed) throw new Error("插件运行时桥已经关闭。");
   }
 }
 
-export const createDshPiPluginBridge = async (command: RuntimeAgentCommand) => {
+export const createPluginRuntimeBridge = async (command: RuntimeAgentCommand) => {
   const pluginResources = runtimeResourcesFor(command).plugins;
-  const plugins = pluginResources?.dsh ?? [];
+  const plugins = pluginResources?.items ?? [];
   return plugins.length > 0
-    ? DshPiPluginBridge.create(plugins, command.workspacePath, pluginResources?.settingsPath)
+    ? PluginRuntimeBridge.create(plugins, command.workspacePath, pluginResources?.settingsPath)
     : null;
 };
 
-const materializeDshSkills = async (host: DshCompatPluginHost, cwd: string) => {
+const materializePluginSkills = async (host: PluginHost, cwd: string) => {
   const summaries = await host.listSkills({ cwd });
   const skills: Skill[] = [];
   let temporaryRoot: string | null = null;
@@ -154,7 +153,7 @@ const materializeDshSkills = async (host: DshCompatPluginHost, cwd: string) => {
 
       let filePath = definition.path && existsSync(definition.path) ? definition.path : null;
       if (!filePath) {
-        temporaryRoot ??= await mkdtemp(join(tmpdir(), "isle-dsh-skills-"));
+        temporaryRoot ??= await mkdtemp(join(tmpdir(), "isle-plugin-skills-"));
         const skillDir = join(temporaryRoot, definition.name);
         await mkdir(skillDir, { recursive: true });
         filePath = join(skillDir, "SKILL.md");
@@ -169,7 +168,7 @@ const materializeDshSkills = async (host: DshCompatPluginHost, cwd: string) => {
         filePath,
         baseDir,
         sourceInfo: createSyntheticSourceInfo(filePath, {
-          source: `dsh-plugin:${definition.provider}`,
+          source: `plugin:${definition.provider}`,
           scope: "temporary",
           baseDir,
         }),

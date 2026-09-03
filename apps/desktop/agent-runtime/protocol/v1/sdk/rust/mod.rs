@@ -533,7 +533,7 @@ pub struct AgentRuntimeMcpResources {
 #[serde(rename_all = "camelCase")]
 pub struct AgentRuntimePluginResources {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub dsh: Option<Vec<AgentRuntimeDshPlugin>>,
+    pub items: Option<Vec<AgentRuntimePlugin>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub settings_path: Option<String>,
@@ -541,23 +541,28 @@ pub struct AgentRuntimePluginResources {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AgentRuntimeDshPlugin {
+pub struct AgentRuntimePlugin {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub config: Option<HashMap<String, Option<serde_json::Value>>>,
 
+    pub entry: String,
+
     pub id: String,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub package_name: Option<String>,
+    pub kind: AgentRuntimePluginKind,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub package_root: Option<String>,
+    pub package_root: String,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub patch_path: Option<String>,
+}
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub specifier: Option<String>,
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentRuntimePluginKind {
+    Dsh,
+
+    Isle,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

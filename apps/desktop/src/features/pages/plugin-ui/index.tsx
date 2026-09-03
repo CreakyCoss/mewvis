@@ -12,16 +12,17 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { NavLink, useParams } from "react-router";
-import type { DshPluginUiPlugin } from "@/api/plugins";
+import type { PluginUiPlugin } from "@/api/plugins";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { usePluginCatalogStore } from "./catalog-store";
 import { PluginFrame } from "./plugin-frame";
+import { PluginPermissionSummary } from "./permission-summary";
 import { PluginToolWorkbench } from "./tool-workbench";
 
-const pluginStatus = (plugin: DshPluginUiPlugin) => {
+const pluginStatus = (plugin: PluginUiPlugin) => {
   if (plugin.error) {
     return {
       label: "加载失败",
@@ -43,7 +44,7 @@ const pluginStatus = (plugin: DshPluginUiPlugin) => {
   };
 };
 
-const pluginSurfaceLabel = (plugin: DshPluginUiPlugin) => {
+const pluginSurfaceLabel = (plugin: PluginUiPlugin) => {
   if (plugin.ui?.kind === "sandbox") return "独立界面";
   return "工具面板";
 };
@@ -63,7 +64,7 @@ const PluginCatalog = ({
   error,
   refresh,
 }: {
-  plugins: DshPluginUiPlugin[];
+  plugins: PluginUiPlugin[];
   isLoading: boolean;
   error: string;
   refresh: () => Promise<void>;
@@ -152,11 +153,19 @@ const PluginCatalog = ({
                     <div className="mt-5 flex flex-wrap items-center gap-2">
                       <Badge variant="secondary">v{plugin.version || "0.0.0"}</Badge>
                       <Badge variant="outline">{plugin.source === "bundled" ? "内置" : "外部"}</Badge>
+                      {plugin.runtimeKind === "dsh" ? <Badge variant="outline">DSH 兼容</Badge> : null}
                       <span className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Wrench className="size-3.5" />
                         {plugin.tools.length} 个工具
                       </span>
                     </div>
+
+                    <PluginPermissionSummary
+                      permissions={plugin.permissions}
+                      status={plugin.permissionStatus}
+                      compact
+                      className="mt-3"
+                    />
 
                     <div className="mt-4 flex min-h-11 items-center justify-between border-t border-border/70 pt-4 text-sm">
                       <span className="text-muted-foreground">{pluginSurfaceLabel(plugin)}</span>
@@ -195,7 +204,7 @@ const PluginDetail = ({
   error,
   refresh,
 }: {
-  plugin: DshPluginUiPlugin | undefined;
+  plugin: PluginUiPlugin | undefined;
   isLoading: boolean;
   error: string;
   refresh: () => Promise<void>;
@@ -297,7 +306,8 @@ const PluginDetail = ({
                       <AlertDescription className="break-words">{plugin.uiError}</AlertDescription>
                     </Alert>
                   ) : null}
-                  {plugin.dshClient && !plugin.ui ? (
+                  {plugin.compatibility.some((item) => item.adapter === "dsh" && "clientPlatform" in item) &&
+                  !plugin.ui ? (
                     <Alert role="status">
                       <AlertCircle />
                       <AlertTitle>检测到 DeepSeek Web Client</AlertTitle>

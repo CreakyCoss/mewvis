@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 mod wire_sdk;
 
 pub(super) use wire_sdk::{
-    AgentRuntimeDshPlugin, AgentRuntimePluginResources, AgentRuntimeResources,
+    AgentRuntimePlugin, AgentRuntimePluginKind, AgentRuntimePluginResources, AgentRuntimeResources,
     AgentRuntimeSkillResources, AgentRuntimeToolResources, BundledPath, RuntimeModelInput,
     EVENT_DONE, EVENT_ERROR, EVENT_QUESTION, EVENT_QUESTION_ANSWERED, EVENT_STARTED,
     EVENT_TEXT_DELTA, EVENT_THINKING_DELTA, METHOD_AGENT_CHAT, METHOD_AGENT_QUESTION_ANSWER,

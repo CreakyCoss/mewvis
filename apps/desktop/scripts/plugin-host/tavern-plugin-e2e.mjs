@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createInterface } from "node:readline";
@@ -11,8 +11,12 @@ const servicePath = resolve(root, "agent-runtime/dist/plugin-host/service.mjs");
 const pluginRoot = process.env.ISLE_TAVERN_PLUGIN_ROOT
   ? resolve(root, process.env.ISLE_TAVERN_PLUGIN_ROOT)
   : resolve(root, "plugin-host/plugins/tavern");
+const pluginKind = process.env.ISLE_TAVERN_PLUGIN_KIND === "dsh" ? "dsh" : "isle";
 const tempDir = mkdtempSync(join(tmpdir(), "isle-tavern-plugin-"));
 const settingsRoot = join(tempDir, "plugins");
+const tavernSettingsRoot = join(settingsRoot, "isle-tavern");
+mkdirSync(tavernSettingsRoot, { recursive: true, mode: 0o700 });
+writeFileSync(join(tavernSettingsRoot, "settings.yaml"), 'activePresetId: ""\npresets: []\n', { mode: 0o600 });
 const child = spawn(process.execPath, [servicePath], {
   cwd: root,
   stdio: ["pipe", "pipe", "pipe"],
@@ -52,20 +56,20 @@ const request = (method, params = null) =>
     child.stdin.write(`${JSON.stringify({ id, method, params })}\n`);
   });
 
-const configure = () =>
+const configure = (settingsPath = settingsRoot) =>
   request("configure", {
-    settingsPath: settingsRoot,
+    settingsPath,
     plugins: [
       {
+        kind: pluginKind,
         id: "@isle/tavern",
         name: "酒馆",
         version: "0.1.0",
         description: "Tavern plugin E2E fixture",
         source: "bundled",
-        specifier: pathToFileURL(resolve(pluginRoot, "index.js")).href,
+        entry: pathToFileURL(resolve(pluginRoot, "index.js")).href,
         packageRoot: pluginRoot,
-        patchPath: resolve(pluginRoot, "cordis.patch.yml"),
-        packageName: "@isle/tavern",
+        ...(pluginKind === "dsh" ? { patchPath: resolve(pluginRoot, "cordis.patch.yml") } : {}),
       },
     ],
   });
@@ -90,6 +94,11 @@ try {
     arguments: {},
   });
   assert.deepEqual(empty.value, { count: 0, activePresetId: "", presets: [] });
+  assert.match(
+    readFileSync(join(tavernSettingsRoot, "settings.yaml"), "utf8"),
+    /\$version:\s+1/,
+    "旧版无版本设置必须在插件启动时迁移。",
+  );
 
   const saved = await request("execute", {
     pluginId: "@isle/tavern",
@@ -166,6 +175,16 @@ try {
   assert.equal(removed.value.count, 1);
   assert.equal(removed.value.activePresetId, presetId);
 
+  const newerSettingsRoot = join(tempDir, "newer-plugins");
+  const newerTavernRoot = join(newerSettingsRoot, "isle-tavern");
+  mkdirSync(newerTavernRoot, { recursive: true, mode: 0o700 });
+  writeFileSync(join(newerTavernRoot, "settings.yaml"), '$version: 2\nactivePresetId: ""\npresets: []\n', {
+    mode: 0o600,
+  });
+  const incompatible = await configure(newerSettingsRoot);
+  assert.match(incompatible.plugins[0].error, /uses newer version 2; plugin supports 1/);
+  assert.match(readFileSync(join(newerTavernRoot, "settings.yaml"), "utf8"), /\$version:\s+2/);
+
   await request("shutdown");
   child.stdin.end();
   const exitCode = await Promise.race([
@@ -173,7 +192,7 @@ try {
     new Promise((_, rejectExit) => setTimeout(() => rejectExit(new Error("Tavern Plugin Host 关闭超时。")), 5_000)),
   ]);
   assert.equal(exitCode, 0, stderr);
-  console.log("Tavern plugin E2E passed.");
+  console.log(`Tavern plugin E2E passed (${pluginKind}).`);
 } finally {
   output.close();
   if (child.exitCode === null) child.kill();

@@ -19,10 +19,6 @@ const tavernPluginUrl = process.env.ISLE_DSH_RUNTIME_TAVERN_PLUGIN_URL;
 assert.ok(tavernPluginUrl, "测试必须提供 Isle 内部酒馆插件入口 URL。");
 const tavernPluginRoot = process.env.ISLE_DSH_RUNTIME_TAVERN_PLUGIN_ROOT;
 assert.ok(tavernPluginRoot, "测试必须提供 Isle 内部酒馆插件根目录。");
-const storyDeslopUrl = process.env.ISLE_DSH_RUNTIME_STORY_DESLOP_URL;
-assert.ok(storyDeslopUrl, "测试必须提供 story-deslop DSH 插件入口 URL。");
-const storyDeslopRoot = process.env.ISLE_DSH_RUNTIME_STORY_DESLOP_ROOT;
-assert.ok(storyDeslopRoot, "测试必须提供 story-deslop DSH 插件根目录。");
 
 const workspacePath = await mkdtemp(join(tmpdir(), "isle-dsh-runtime-workspace-"));
 const pluginSettingsRoot = join(workspacePath, "plugin-settings");
@@ -37,33 +33,25 @@ const command: RuntimeAgentCommand = {
     skills: { enabled: [] },
     plugins: {
       settingsPath: pluginSettingsRoot,
-      dsh: [
+      items: [
         {
+          kind: "dsh",
           id: "@isle/story-scene-card",
-          specifier: pluginUrl,
+          entry: pluginUrl,
           packageRoot: pluginRoot,
-          packageName: "@isle/story-scene-card",
           patchPath: join(pluginRoot, "cordis.patch.yml"),
         },
         {
-          id: "@isle/story-deslop",
-          specifier: storyDeslopUrl,
-          packageRoot: storyDeslopRoot,
-          packageName: "@isle/story-deslop",
-          patchPath: join(storyDeslopRoot, "cordis.patch.yml"),
-        },
-        {
+          kind: "isle",
           id: "@isle/rss-reader",
-          specifier: rssPluginUrl,
+          entry: rssPluginUrl,
           packageRoot: rssPluginRoot,
-          packageName: "@isle/rss-reader",
-          patchPath: join(rssPluginRoot, "cordis.patch.yml"),
         },
         {
+          kind: "dsh",
           id: "@isle/tavern",
-          specifier: tavernPluginUrl,
+          entry: tavernPluginUrl,
           packageRoot: tavernPluginRoot,
-          packageName: "@isle/tavern",
           patchPath: join(tavernPluginRoot, "cordis.patch.yml"),
         },
       ],
@@ -72,7 +60,7 @@ const command: RuntimeAgentCommand = {
 };
 
 assert.deepEqual(allowedRuntimeTools(command), []);
-assert.equal(runtimeResourcesFor(command).plugins?.dsh?.[0]?.id, "@isle/story-scene-card");
+assert.equal(runtimeResourcesFor(command).plugins?.items?.[0]?.id, "@isle/story-scene-card");
 assert.equal(runtimeResourcesFor(command).plugins?.settingsPath, pluginSettingsRoot);
 
 const resources = await createPiResourceLoader(command, {
@@ -95,13 +83,8 @@ try {
   assert.ok(skill, "DSH Skill 必须进入 Pi Skill 目录。");
   materializedSkillPath = skill.filePath;
   assert.equal(skill.disableModelInvocation, false);
-  assert.match(skill.sourceInfo.source, /^dsh-plugin:/);
+  assert.match(skill.sourceInfo.source, /^plugin:/);
   assert.match(readFileSync(skill.filePath, "utf8"), /isle_story_scene_card/);
-  const storyDeslop = skills.find((candidate) => candidate.name === "story-deslop");
-  assert.ok(storyDeslop, "迁移后的 story-deslop 必须作为 DSH Skill 进入 Pi Skill 目录。");
-  assert.equal(storyDeslop.disableModelInvocation, false);
-  assert.match(readFileSync(storyDeslop.filePath, "utf8"), /核心信念/);
-  assert.ok(existsSync(join(storyDeslop.baseDir, "references", "banned-words.md")));
   const rssReader = skills.find((candidate) => candidate.name === "isle-rss-reader");
   assert.ok(rssReader, "RSS 插件技能必须进入 Pi Skill 目录。");
   assert.match(readFileSync(rssReader.filePath, "utf8"), /不可信内容/);

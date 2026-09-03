@@ -51,11 +51,11 @@ const renderObject = (value: JsonObject) =>
   });
 
 /**
- * Isle's DSH settings provider.
+ * Isle's namespaced settings provider for Cordis plugins.
  *
- * DSH plugins still own ordinary kebab-case settings namespaces. Isle maps
+ * Plugins own ordinary kebab-case settings namespaces. Isle maps
  * each namespace to `<root>/<namespace>/settings.yaml`, keeping the DSH
- * contract intact while physically isolating plugin data.
+ * the settings contract to physically isolated plugin data.
  */
 export class NamespacedFileSettingsProvider extends SettingsProvider {
   readonly writable = true;

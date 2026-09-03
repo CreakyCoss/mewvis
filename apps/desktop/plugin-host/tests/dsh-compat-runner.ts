@@ -7,8 +7,6 @@ const fixtureUrl = process.env.ISLE_DSH_COMPAT_FIXTURE_URL;
 assert.ok(fixtureUrl, "测试必须提供外部 DSH 插件入口 URL。");
 const fixtureRoot = process.env.ISLE_DSH_COMPAT_FIXTURE_ROOT;
 assert.ok(fixtureRoot, "测试必须提供外部 DSH 插件根目录。");
-const storyDeslopUrl = process.env.ISLE_DSH_COMPAT_STORY_DESLOP_URL;
-assert.ok(storyDeslopUrl, "测试必须提供 story-deslop 插件入口 URL。");
 const settingsPath = process.env.ISLE_DSH_COMPAT_SETTINGS_PATH;
 assert.ok(settingsPath, "测试必须提供持久化 settings 文件路径。");
 const settingsRoot = process.env.ISLE_DSH_COMPAT_SETTINGS_ROOT;
@@ -83,16 +81,6 @@ try {
   assert.equal(await host.unload("fixture"), false);
   assert.deepEqual(host.toolSchemas(), [], "Fiber dispose 后工具必须自动注销。");
   assert.deepEqual(await host.listSkills(), [], "Fiber dispose 后技能必须自动注销。");
-
-  await host.loadSpecifier("@isle/story-deslop", storyDeslopUrl);
-  assert.deepEqual(
-    (await host.listSkills()).map((skill) => skill.name),
-    ["story-deslop"],
-  );
-  const storyDeslop = await host.getSkill("story-deslop");
-  assert.match(storyDeslop?.content ?? "", /核心信念/);
-  assert.equal(storyDeslop?.resourceBase?.kind, "directory");
-  assert.equal(await host.unload("@isle/story-deslop"), true);
 
   await host.loadBundle("fixture", {
     packageRoot: fixtureRoot,
