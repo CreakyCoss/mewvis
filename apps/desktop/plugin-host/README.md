@@ -85,6 +85,11 @@ The DSH target intentionally retains the additive `isle` metadata. It can be
 published to a DSH channel and also imported back into Isle without changing
 its source or runtime implementation.
 
+Application builds automatically discover every first-level plugin directory
+under `plugin-host/plugins`, validate it, and pack it into the bundled runtime
+resources in stable directory-name order. Adding a built-in plugin therefore
+does not require maintaining a separate registration list.
+
 Plugins with persistent configuration use the SDK's `defineSettings`. Schema
 defaults form the base layer, manifest-independent plugin defaults form the
 composition layer, and `plugins/<namespace>/settings.yaml` contains only user

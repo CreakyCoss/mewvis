@@ -1,4 +1,4 @@
-import { access, cp, mkdir, mkdtemp, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, join, parse, relative, resolve, sep } from "node:path";
 import { build } from "esbuild";
@@ -59,6 +59,21 @@ const readManifest = async (root) => {
   }
   if (!isObject(manifest)) throw new Error("插件 package.json 必须是 JSON 对象。");
   return manifest;
+};
+
+export const discoverPluginSources = async (source) => {
+  const root = await realpath(resolve(source));
+  const entries = await readdir(root, { withFileTypes: true });
+  const plugins = [];
+  for (const entry of entries.sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0))) {
+    if (entry.name.startsWith(".")) continue;
+    if (entry.isSymbolicLink()) throw new Error(`内置插件目录不允许使用符号链接：${entry.name}`);
+    if (!entry.isDirectory()) continue;
+    const sourceRoot = join(root, entry.name);
+    await readManifest(sourceRoot);
+    plugins.push(Object.freeze({ name: entry.name, sourceRoot }));
+  }
+  return Object.freeze(plugins);
 };
 
 const pushAsset = (assets, value, label) => {
