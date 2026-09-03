@@ -10,6 +10,7 @@ export {
   type AgentEvent,
   type AgentRunParams,
   type AgentRuntimeEvent,
+  type AgentRuntimeDshPlugin,
   type AgentRuntimeResources,
   type AgentToolsResult,
   type AnswerQuestionParams,

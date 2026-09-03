@@ -1,6 +1,7 @@
 mod agents;
 mod knowledge;
 mod llm;
+mod plugins;
 mod skills;
 
 pub use agents::{
@@ -16,6 +17,11 @@ pub use knowledge::{
     set_knowledge_collection_sources,
 };
 pub use llm::{get_llm_settings, save_llm_settings};
+pub use plugins::{
+    execute_dsh_plugin_ui_tool, get_dsh_plugin_ui_document, install_dsh_plugin,
+    install_dsh_plugin_from_marketplace, list_dsh_plugin_ui, list_dsh_plugins, remove_dsh_plugin,
+    search_dsh_plugin_marketplace, set_dsh_plugin_enabled,
+};
 pub use skills::{
     get_skills, install_skill_from_marketplace, remove_app_skill, save_skills,
     search_skill_marketplace,

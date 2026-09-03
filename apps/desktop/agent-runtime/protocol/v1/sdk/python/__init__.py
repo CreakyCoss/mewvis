@@ -51,6 +51,22 @@ class AgentRuntimeMCPResources:
 
 
 @dataclass
+class AgentRuntimeDshPlugin:
+    id: str
+    config: dict[str, Any] | None
+    package_name: str | None
+    package_root: str | None
+    patch_path: str | None
+    specifier: str | None
+
+
+@dataclass
+class AgentRuntimePluginResources:
+    dsh: list[AgentRuntimeDshPlugin] | None
+    settings_path: str | None
+
+
+@dataclass
 class AgentRuntimeSkillResources:
     bundled_path: list[str] | str | None
     enabled: list[str] | None
@@ -65,6 +81,7 @@ class AgentRuntimeToolResources:
 @dataclass
 class AgentRuntimeResources:
     mcp: AgentRuntimeMCPResources | None
+    plugins: AgentRuntimePluginResources | None
     skills: AgentRuntimeSkillResources | None
     tools: AgentRuntimeToolResources | None
 

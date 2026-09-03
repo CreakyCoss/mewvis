@@ -514,6 +514,9 @@ pub struct AgentRuntimeResources {
     pub mcp: Option<AgentRuntimeMcpResources>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub plugins: Option<AgentRuntimePluginResources>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub skills: Option<AgentRuntimeSkillResources>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -524,6 +527,37 @@ pub struct AgentRuntimeResources {
 pub struct AgentRuntimeMcpResources {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub servers: Option<Vec<Option<serde_json::Value>>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentRuntimePluginResources {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dsh: Option<Vec<AgentRuntimeDshPlugin>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub settings_path: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentRuntimeDshPlugin {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub config: Option<HashMap<String, Option<serde_json::Value>>>,
+
+    pub id: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub package_name: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub package_root: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub patch_path: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub specifier: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

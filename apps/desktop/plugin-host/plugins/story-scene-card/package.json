@@ -1,0 +1,29 @@
+{
+  "name": "@isle/story-scene-card",
+  "version": "0.1.0",
+  "description": "Isle 场景卡小说能力：把目标、冲突、代价和转折固化为可继续写作的约束。",
+  "type": "module",
+  "main": "./index.js",
+  "exports": "./index.js",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-skill": "^0.1.1-rc.2",
+    "@deepseek-ai/dsh-tools": "^0.1.1-rc.2"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "isle": {
+    "displayName": "小说场景卡",
+    "defaultEnabled": true,
+    "ui": {
+      "version": 1,
+      "kind": "sandbox",
+      "entry": "./isle-ui.js",
+      "style": "./isle-ui.css",
+      "title": "场景卡工作台"
+    }
+  }
+}

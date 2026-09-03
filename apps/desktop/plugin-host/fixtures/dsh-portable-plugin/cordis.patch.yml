@@ -1,0 +1,3 @@
+- insert:
+    - id: isle-fixture-portable
+      name: '@isle/fixture-dsh-portable-plugin'

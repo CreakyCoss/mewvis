@@ -16,6 +16,7 @@ export type PiAgentSession = Awaited<ReturnType<typeof createAgentSession>>["ses
 export type PiAgentSessionCreateResult = {
   session: PiAgentSession;
   shouldBootstrap: boolean;
+  disposeResources(): Promise<void>;
 };
 
 export const createPiAgentSession = async (
@@ -28,24 +29,33 @@ export const createPiAgentSession = async (
   const thinkingLevel = resolvePiRuntimeThinkingLevel(runtimeModel);
   const authStorage = AuthStorage.inMemory();
   authStorage.setRuntimeApiKey(model.provider, apiKey);
-  const resourceLoader = await createPiResourceLoader(command, callbacks);
+  const resources = await createPiResourceLoader(command, callbacks);
   const sessionManager = createPiSessionManager(command);
+  try {
+    const enabledTools = [
+      ...normalizeAllowedAgentTools(allowedRuntimeTools(command)),
+      ...resources.pluginToolNames,
+    ].filter((name, index, names) => names.indexOf(name) === index);
+    const { session } = await createAgentSession({
+      cwd: command.workspacePath,
+      authStorage,
+      modelRegistry: ModelRegistry.inMemory(authStorage),
+      sessionManager,
+      resourceLoader: resources.loader,
+      model,
+      ...(thinkingLevel ? { thinkingLevel } : {}),
+      tools: enabledTools,
+    });
 
-  const { session } = await createAgentSession({
-    cwd: command.workspacePath,
-    authStorage,
-    modelRegistry: ModelRegistry.inMemory(authStorage),
-    sessionManager,
-    resourceLoader,
-    model,
-    ...(thinkingLevel ? { thinkingLevel } : {}),
-    tools: normalizeAllowedAgentTools(allowedRuntimeTools(command)),
-  });
-
-  return {
-    session,
-    shouldBootstrap: session.messages.length === 0,
-  };
+    return {
+      session,
+      shouldBootstrap: session.messages.length === 0,
+      disposeResources: resources.dispose,
+    };
+  } catch (error) {
+    await resources.dispose();
+    throw error;
+  }
 };
 
 const createPiSessionManager = (command: RuntimeAgentCommand) => {

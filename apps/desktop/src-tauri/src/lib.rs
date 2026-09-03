@@ -18,13 +18,16 @@ use commands::{
     },
     settings::{
         delete_ai_agent, delete_collaboration_workflow, delete_embedding_profile,
-        delete_knowledge_collection, delete_knowledge_source, get_ai_agent_settings,
-        get_knowledge_index_status, get_knowledge_settings, get_llm_settings, get_skills,
-        import_knowledge_files, install_skill_from_marketplace, list_embedding_profiles,
+        delete_knowledge_collection, delete_knowledge_source, execute_dsh_plugin_ui_tool,
+        get_ai_agent_settings, get_dsh_plugin_ui_document, get_knowledge_index_status,
+        get_knowledge_settings, get_llm_settings, get_skills, import_knowledge_files,
+        install_dsh_plugin, install_dsh_plugin_from_marketplace, install_skill_from_marketplace,
+        list_dsh_plugin_ui, list_dsh_plugins, list_embedding_profiles,
         list_knowledge_collection_files, list_knowledge_library, rebuild_knowledge_index,
-        remove_app_skill, save_ai_agent, save_collaboration_workflow, save_embedding_profile,
-        save_knowledge_collection, save_knowledge_settings, save_knowledge_source,
-        save_llm_settings, save_skills, search_skill_marketplace,
+        remove_app_skill, remove_dsh_plugin, save_ai_agent, save_collaboration_workflow,
+        save_embedding_profile, save_knowledge_collection, save_knowledge_settings,
+        save_knowledge_source, save_llm_settings, save_skills, search_dsh_plugin_marketplace,
+        search_skill_marketplace, set_dsh_plugin_enabled,
         set_knowledge_collection_embedding_profile, set_knowledge_collection_sources,
     },
     workspace::{
@@ -42,11 +45,13 @@ use commands::{
         write_workspace_files_atomic, WorkspaceFileWatchers,
     },
 };
+use services::plugin_ui::PluginUiHost;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .manage(AgentRuntimeSupervisor::default())
+        .manage(PluginUiHost::default())
         .manage(AppStartupState::default())
         .manage(WorkspaceFileWatchers::default())
         .plugin(tauri_plugin_opener::init())
@@ -103,6 +108,15 @@ pub fn run() {
             search_skill_marketplace,
             install_skill_from_marketplace,
             remove_app_skill,
+            list_dsh_plugins,
+            list_dsh_plugin_ui,
+            execute_dsh_plugin_ui_tool,
+            get_dsh_plugin_ui_document,
+            install_dsh_plugin,
+            search_dsh_plugin_marketplace,
+            install_dsh_plugin_from_marketplace,
+            set_dsh_plugin_enabled,
+            remove_dsh_plugin,
             search_workspace_knowledge,
             list_chats,
             load_chat,

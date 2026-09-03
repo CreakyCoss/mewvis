@@ -205,6 +205,7 @@ export interface AgentRuntimeResources {
   tools?: AgentRuntimeToolResources | null;
   skills?: AgentRuntimeSkillResources | null;
   mcp?: AgentRuntimeMcpResources | null;
+  plugins?: AgentRuntimePluginResources | null;
 }
 export interface AgentRuntimeToolResources {
   allowed?: string[] | null;
@@ -217,6 +218,20 @@ export interface AgentRuntimeSkillResources {
 export interface AgentRuntimeMcpResources {
   servers?: unknown[];
   [k: string]: unknown;
+}
+export interface AgentRuntimePluginResources {
+  settingsPath?: string | null;
+  dsh?: AgentRuntimeDshPlugin[] | null;
+}
+export interface AgentRuntimeDshPlugin {
+  id: string;
+  specifier?: string;
+  packageRoot?: string;
+  patchPath?: string;
+  packageName?: string;
+  config?: {
+    [k: string]: unknown;
+  } | null;
 }
 export interface AnswerQuestionRequest {
   method?: "agent/question/answer";

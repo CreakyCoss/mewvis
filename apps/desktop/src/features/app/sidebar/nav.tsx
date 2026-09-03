@@ -1,4 +1,4 @@
-import { BookOpen, Bot, Database, MessageSquarePlus, Settings, Wrench } from "lucide-react";
+import { Blocks, BookOpen, Bot, Database, MessageSquarePlus, Settings, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { To } from "react-router";
 import { NavLink } from "react-router";
@@ -29,24 +29,30 @@ const linkClassName = ({ isActive }: { isActive: boolean }) =>
       "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:top-2 before:bottom-2 before:left-0 before:w-0.5 before:rounded-full before:bg-sidebar-primary",
   );
 
-export const PrimaryNav = () => (
-  <nav className="space-y-1 px-2.5 pb-3 xl:px-3" aria-label="主导航">
-    <NavLink to="/chat" end className={linkClassName}>
-      <MessageSquarePlus className="size-4" />
-      <span>新建对话</span>
-    </NavLink>
-    {navItems.map((item) => {
-      const Icon = item.icon;
+export const PrimaryNav = () => {
+  return (
+    <nav className="space-y-1 px-2.5 pb-3 xl:px-3" aria-label="主导航">
+      <NavLink to="/chat" end className={linkClassName}>
+        <MessageSquarePlus className="size-4" />
+        <span>新建对话</span>
+      </NavLink>
+      {navItems.map((item) => {
+        const Icon = item.icon;
 
-      return (
-        <NavLink key={item.id} to={item.to} className={linkClassName}>
-          <Icon className="size-4" />
-          <span>{item.label}</span>
-        </NavLink>
-      );
-    })}
-  </nav>
-);
+        return (
+          <NavLink key={item.id} to={item.to} className={linkClassName}>
+            <Icon className="size-4" />
+            <span>{item.label}</span>
+          </NavLink>
+        );
+      })}
+      <NavLink to="/plugins" className={linkClassName}>
+        <Blocks className="size-4" />
+        <span>插件</span>
+      </NavLink>
+    </nav>
+  );
+};
 
 export const UtilityNav = () => (
   <nav className="space-y-1 border-t border-sidebar-border bg-transparent p-2.5 xl:p-3" aria-label="辅助导航">

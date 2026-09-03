@@ -3,6 +3,7 @@ mod agents;
 mod chat;
 mod collaboration;
 mod events;
+mod plugins;
 mod process;
 mod protocol;
 mod rpc;

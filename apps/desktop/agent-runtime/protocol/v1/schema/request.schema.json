@@ -48,6 +48,30 @@
       "properties": { "servers": { "type": "array" } },
       "additionalProperties": true
     },
+    "AgentRuntimeDshPlugin": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "specifier": { "type": "string", "minLength": 1 },
+        "packageRoot": { "type": "string", "minLength": 1 },
+        "patchPath": { "type": "string", "minLength": 1 },
+        "packageName": { "type": "string", "minLength": 1 },
+        "config": { "type": ["object", "null"], "additionalProperties": true }
+      },
+      "additionalProperties": false
+    },
+    "AgentRuntimePluginResources": {
+      "type": "object",
+      "properties": {
+        "settingsPath": { "type": ["string", "null"] },
+        "dsh": {
+          "type": ["array", "null"],
+          "items": { "$ref": "#/definitions/AgentRuntimeDshPlugin" }
+        }
+      },
+      "additionalProperties": false
+    },
     "AgentRuntimeToolResources": {
       "type": "object",
       "properties": { "allowed": { "type": ["array", "null"], "items": { "type": "string" } } },
@@ -75,6 +99,9 @@
         },
         "mcp": {
           "oneOf": [{ "$ref": "#/definitions/AgentRuntimeMcpResources" }, { "type": "null" }]
+        },
+        "plugins": {
+          "oneOf": [{ "$ref": "#/definitions/AgentRuntimePluginResources" }, { "type": "null" }]
         }
       },
       "additionalProperties": false

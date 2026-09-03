@@ -1,0 +1,188 @@
+import { createSyntheticSourceInfo, type ExtensionAPI, type Skill } from "@earendil-works/pi-coding-agent";
+import type { TextContent, TSchema } from "@earendil-works/pi-ai";
+import { existsSync } from "node:fs";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { DshCompatPluginHost, type DshCompatToolSchema } from "../../../../../../../../../plugin-host/src/index.js";
+import type { AgentRuntimeDshPlugin } from "../../../../../../protocol/wire.js";
+import type { RuntimeAgentCommand } from "../../types.js";
+import { runtimeResourcesFor } from "../../resources.js";
+
+const requiredValue = (value: string, label: string) => {
+  const normalized = value.trim();
+  if (!normalized) throw new Error(`${label}不能为空。`);
+  return normalized;
+};
+
+const skillFileContent = (skill: { name: string; description: string; content: string }) =>
+  [
+    "---",
+    `name: ${JSON.stringify(skill.name)}`,
+    `description: ${JSON.stringify(skill.description)}`,
+    "---",
+    "",
+    skill.content,
+    "",
+  ].join("\n");
+
+const jsonText = (value: unknown) => JSON.stringify(value) ?? String(value);
+
+const contentAsPiText = (content: readonly unknown[], fallback: unknown): TextContent[] => {
+  const blocks = content.flatMap((block): TextContent[] => {
+    if (block && typeof block === "object" && "text" in block && typeof block.text === "string") {
+      return [{ type: "text", text: block.text }];
+    }
+    return [{ type: "text", text: jsonText(block) }];
+  });
+  if (blocks.length > 0) return blocks;
+  return [{ type: "text", text: jsonText(fallback) }];
+};
+
+export class DshPiPluginBridge {
+  private disposed = false;
+
+  private constructor(
+    private readonly host: DshCompatPluginHost,
+    readonly skills: readonly Skill[],
+    private readonly temporarySkillRoot: string | null,
+  ) {}
+
+  static async create(plugins: readonly AgentRuntimeDshPlugin[], cwd: string, settingsPath?: string | null) {
+    const host = await DshCompatPluginHost.create({
+      settingsPath: settingsPath ? runtimePluginSpecifier(settingsPath, cwd) : undefined,
+    });
+    let temporarySkillRoot: string | null = null;
+    try {
+      for (const plugin of plugins) {
+        const id = requiredValue(plugin.id, "DSH 插件 ID");
+        if (plugin.patchPath && plugin.packageRoot) {
+          await host.loadBundle(id, {
+            packageRoot: runtimePluginSpecifier(plugin.packageRoot, cwd),
+            packageName: plugin.packageName?.trim() || id,
+            patchPath: runtimePluginSpecifier(plugin.patchPath, cwd),
+            entrySpecifier: plugin.specifier ? runtimePluginSpecifier(plugin.specifier, cwd) : undefined,
+          });
+        } else {
+          await host.loadSpecifier(
+            id,
+            runtimePluginSpecifier(requiredValue(plugin.specifier ?? "", `DSH 插件 ${id} 的 specifier`), cwd),
+            plugin.config ?? undefined,
+          );
+        }
+      }
+
+      const materialized = await materializeDshSkills(host, cwd);
+      temporarySkillRoot = materialized.temporaryRoot;
+      return new DshPiPluginBridge(host, Object.freeze(materialized.skills), temporarySkillRoot);
+    } catch (error) {
+      await host.dispose();
+      if (temporarySkillRoot) await rm(temporarySkillRoot, { recursive: true, force: true });
+      throw error;
+    }
+  }
+
+  toolSchemas(): DshCompatToolSchema[] {
+    this.assertActive();
+    return this.host.toolSchemas();
+  }
+
+  registerTools(pi: ExtensionAPI) {
+    this.assertActive();
+    for (const schema of this.host.toolSchemas()) {
+      pi.registerTool({
+        name: schema.name,
+        label: schema.name,
+        description: schema.description,
+        parameters: schema.parameters as TSchema,
+        execute: async (toolCallId, params, signal) => {
+          const result = await this.host.executeTool({
+            callId: toolCallId,
+            name: schema.name,
+            arguments: params,
+            signal,
+          });
+          if (result.isError) throw new Error(result.error.message);
+          return {
+            content: contentAsPiText(result.content, result.value),
+            details: {
+              value: result.value,
+              meta: result.meta ?? null,
+              additionalContexts: result.additionalContexts ?? null,
+            },
+            ...(result.concludesTurn ? { terminate: true } : {}),
+          };
+        },
+      });
+    }
+  }
+
+  async dispose() {
+    if (this.disposed) return;
+    this.disposed = true;
+    try {
+      await this.host.dispose();
+    } finally {
+      if (this.temporarySkillRoot) {
+        await rm(this.temporarySkillRoot, { recursive: true, force: true });
+      }
+    }
+  }
+
+  private assertActive() {
+    if (this.disposed) throw new Error("DSH Pi 插件桥已经关闭。");
+  }
+}
+
+export const createDshPiPluginBridge = async (command: RuntimeAgentCommand) => {
+  const pluginResources = runtimeResourcesFor(command).plugins;
+  const plugins = pluginResources?.dsh ?? [];
+  return plugins.length > 0
+    ? DshPiPluginBridge.create(plugins, command.workspacePath, pluginResources?.settingsPath)
+    : null;
+};
+
+const materializeDshSkills = async (host: DshCompatPluginHost, cwd: string) => {
+  const summaries = await host.listSkills({ cwd });
+  const skills: Skill[] = [];
+  let temporaryRoot: string | null = null;
+
+  try {
+    for (const summary of summaries) {
+      const definition = await host.getSkill(summary.name, { cwd });
+      if (!definition) continue;
+
+      let filePath = definition.path && existsSync(definition.path) ? definition.path : null;
+      if (!filePath) {
+        temporaryRoot ??= await mkdtemp(join(tmpdir(), "isle-dsh-skills-"));
+        const skillDir = join(temporaryRoot, definition.name);
+        await mkdir(skillDir, { recursive: true });
+        filePath = join(skillDir, "SKILL.md");
+        await writeFile(filePath, skillFileContent(definition), "utf8");
+      }
+
+      const resourceBase = definition.resourceBase;
+      const baseDir = resourceBase?.kind === "directory" ? resourceBase.path : dirname(filePath);
+      skills.push({
+        name: definition.name,
+        description: definition.description,
+        filePath,
+        baseDir,
+        sourceInfo: createSyntheticSourceInfo(filePath, {
+          source: `dsh-plugin:${definition.provider}`,
+          scope: "temporary",
+          baseDir,
+        }),
+        disableModelInvocation: !definition.invocation.modelInvocable,
+      });
+    }
+
+    return { skills, temporaryRoot };
+  } catch (error) {
+    if (temporaryRoot) await rm(temporaryRoot, { recursive: true, force: true });
+    throw error;
+  }
+};
+
+const runtimePluginSpecifier = (specifier: string, cwd: string) =>
+  ["./", "../", ".\\", "..\\"].some((prefix) => specifier.startsWith(prefix)) ? resolve(cwd, specifier) : specifier;

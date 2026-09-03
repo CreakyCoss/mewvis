@@ -115,7 +115,7 @@ export const compactPiAgentSession = async (
   command: RuntimeAgentCompactCommand,
   { callbacks }: AgentRuntimeContext,
 ): Promise<SessionMutationResult> => {
-  const { session } = await createPiAgentSession(maintenanceRuntimeCommand(command), callbacks);
+  const { session, disposeResources } = await createPiAgentSession(maintenanceRuntimeCommand(command), callbacks);
   try {
     await session.compact(command.compactInstructions?.trim() || undefined);
     return createPiAgentMaintenanceResult(command, {
@@ -130,7 +130,11 @@ export const compactPiAgentSession = async (
     }
     throw error;
   } finally {
-    session.dispose();
+    try {
+      session.dispose();
+    } finally {
+      await disposeResources();
+    }
   }
 };
 
@@ -170,7 +174,7 @@ export const rebuildPiAgentSession = async (
     bootstrapInstruction: rebuildInstruction,
     sessionBootstrapContext,
   });
-  const { session } = await createPiAgentSession(runtimeCommand, callbacks);
+  const { session, disposeResources } = await createPiAgentSession(runtimeCommand, callbacks);
   try {
     await session.prompt(prompt, {
       expandPromptTemplates: false,
@@ -180,7 +184,11 @@ export const rebuildPiAgentSession = async (
       rebuilt: true,
     });
   } finally {
-    session.dispose();
+    try {
+      session.dispose();
+    } finally {
+      await disposeResources();
+    }
   }
 };
 
@@ -193,7 +201,7 @@ export const summarizePiAgentSession = async (
   }
 
   const runtimeCommand = maintenanceRuntimeCommand(command);
-  const { session } = await createPiAgentSession(runtimeCommand, callbacks);
+  const { session, disposeResources } = await createPiAgentSession(runtimeCommand, callbacks);
   try {
     const source = renderPiSessionMessages(session.messages);
     if (!source.trim()) {
@@ -249,7 +257,11 @@ export const summarizePiAgentSession = async (
       sourceMessageCount: session.messages.length,
     });
   } finally {
-    session.dispose();
+    try {
+      session.dispose();
+    } finally {
+      await disposeResources();
+    }
   }
 };
 

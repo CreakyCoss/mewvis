@@ -23,11 +23,13 @@ export class PiAgent implements AgentRuntime {
   ): Promise<AgentRunResult> {
     const state = createPiAgentRunState();
     let session: PiAgentSession | null = null;
+    let disposeResources: (() => Promise<void>) | null = null;
     let unsubscribe: (() => void) | null = null;
 
     try {
       const createdSession = await createPiAgentSession(command, callbacks);
       session = createdSession.session;
+      disposeResources = createdSession.disposeResources;
       unsubscribe = subscribeToPiAgentSession(command, session, emit, state);
       emit({ type: AgentRuntimeEventType.Started, taskId: command.taskId });
 
@@ -52,7 +54,11 @@ export class PiAgent implements AgentRuntime {
       throw error;
     } finally {
       unsubscribe?.();
-      session?.dispose();
+      try {
+        session?.dispose();
+      } finally {
+        await disposeResources?.();
+      }
     }
   }
 

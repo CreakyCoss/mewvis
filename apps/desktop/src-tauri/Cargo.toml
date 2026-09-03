@@ -29,6 +29,9 @@ tauri-plugin-sql = { version = "2.4.0", features = ["sqlite"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 sqlite-vec = "=0.1.9"
 uuid = { version = "1", features = ["v7"] }
-reqwest = { version = "0.12", features = ["blocking", "json"] }
+reqwest = { version = "0.12", features = ["blocking", "json", "gzip"] }
 git2 = { version = "0.21.0", default-features = false }
 zip = { version = "2", default-features = false, features = ["deflate"] }
+
+[dev-dependencies]
+flate2 = "1"

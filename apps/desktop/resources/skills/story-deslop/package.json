@@ -1,0 +1,21 @@
+{
+  "name": "@isle/story-deslop",
+  "version": "1.0.0",
+  "description": "网文去 AI 味：扫描模板化表达，并在不改剧情和作者意图的前提下做最小润色。",
+  "type": "module",
+  "main": "./index.js",
+  "exports": "./index.js",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-skill": "^0.1.1-rc.2"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "isle": {
+    "displayName": "网文去 AI 味",
+    "defaultEnabled": false
+  }
+}

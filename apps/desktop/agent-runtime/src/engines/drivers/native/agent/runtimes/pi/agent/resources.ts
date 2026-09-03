@@ -4,37 +4,55 @@ import type { AgentRuntimeCallbacks, RuntimeAgentCommand } from "../../types.js"
 import { runtimeResourcesFor, runtimeSkillSourcePaths } from "../../resources.js";
 import { registerPiAskUserTool } from "../tools/ask-user-tool.js";
 import { registerPiBuiltinTool } from "../tools/builtin-tool.js";
+import { createDshPiPluginBridge } from "../plugins/dsh.js";
+import { AGENT_TOOL_DEFINITIONS } from "../../../tools/definitions.js";
 
 export const createPiResourceLoader = async (command: RuntimeAgentCommand, callbacks: AgentRuntimeCallbacks) => {
   const enabledSkills = runtimeResourcesFor(command).skills?.enabled ?? [];
   const builtins = resolveBuiltins(enabledSkills);
-  const skills = loadPiSkills(command, builtins);
-  const loader = new DefaultResourceLoader({
-    cwd: command.workspacePath,
-    agentDir: getAgentDir(),
-    noExtensions: true,
-    noSkills: true,
-    extensionFactories: [
-      (pi) => {
-        registerPiAskUserTool(pi, command.taskId, callbacks.requestUserInput);
-        for (const tool of builtins.requiredTools.internal) {
-          registerPiBuiltinTool(pi, tool, { workspacePath: command.workspacePath });
-        }
-      },
-    ],
-    skillsOverride: () => ({
-      skills,
-      diagnostics: [],
-    }),
-  });
+  const dsh = await createDshPiPluginBridge(command);
+  try {
+    assertDshToolNamesAvailable(dsh?.toolSchemas().map((tool) => tool.name) ?? [], builtins);
+    const skills = loadPiSkills(command, builtins, dsh?.skills ?? []);
+    const loader = new DefaultResourceLoader({
+      cwd: command.workspacePath,
+      agentDir: getAgentDir(),
+      noExtensions: true,
+      noSkills: true,
+      extensionFactories: [
+        (pi) => {
+          registerPiAskUserTool(pi, command.taskId, callbacks.requestUserInput);
+          for (const tool of builtins.requiredTools.internal) {
+            registerPiBuiltinTool(pi, tool, { workspacePath: command.workspacePath });
+          }
+          dsh?.registerTools(pi);
+        },
+      ],
+      skillsOverride: () => ({
+        skills,
+        diagnostics: [],
+      }),
+    });
 
-  await loader.reload();
-  return loader;
+    await loader.reload();
+    return {
+      loader,
+      pluginToolNames: dsh?.toolSchemas().map((tool) => tool.name) ?? [],
+      dispose: () => dsh?.dispose() ?? Promise.resolve(),
+    };
+  } catch (error) {
+    await dsh?.dispose();
+    throw error;
+  }
 };
 
-const loadPiSkills = (command: RuntimeAgentCommand, builtins: ResolvedBuiltins): Skill[] => {
+const loadPiSkills = (
+  command: RuntimeAgentCommand,
+  builtins: ResolvedBuiltins,
+  dshSkills: readonly Skill[],
+): Skill[] => {
   const enabledNames = new Set(builtins.skillNames);
-  if (enabledNames.size === 0) {
+  if (enabledNames.size === 0 && dshSkills.length === 0) {
     return [];
   }
 
@@ -60,8 +78,26 @@ const loadPiSkills = (command: RuntimeAgentCommand, builtins: ResolvedBuiltins):
       }).skills,
   );
 
-  return [
+  const resolved = [
     ...builtinSkills.filter((skill) => enabledNames.has(skill.name)),
     ...externalSkills.filter((skill) => enabledNames.has(skill.name) && !reservedNames.has(skill.name)),
   ];
+  const resolvedNames = new Set(resolved.map((skill) => skill.name));
+  return [
+    ...resolved,
+    ...dshSkills.filter(
+      (skill) => !skill.disableModelInvocation && !reservedNames.has(skill.name) && !resolvedNames.has(skill.name),
+    ),
+  ];
+};
+
+const assertDshToolNamesAvailable = (names: readonly string[], builtins: ResolvedBuiltins) => {
+  const reserved = new Set([
+    ...AGENT_TOOL_DEFINITIONS.map((tool) => tool.name),
+    ...builtins.requiredTools.internal.map((tool) => tool.name),
+  ]);
+  const collisions = names.filter((name) => reserved.has(name));
+  if (collisions.length > 0) {
+    throw new Error(`DSH 插件工具不能覆盖 Isle Runtime 工具：${collisions.join(", ")}`);
+  }
 };
