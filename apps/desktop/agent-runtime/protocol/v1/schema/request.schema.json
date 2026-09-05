@@ -71,7 +71,10 @@
         },
         {
           "if": { "properties": { "kind": { "const": "dsh" } } },
-          "then": { "required": ["patchPath"] }
+          "then": {
+            "properties": { "patchPath": { "type": "string", "minLength": 1 } },
+            "required": ["patchPath"]
+          }
         }
       ]
     },
