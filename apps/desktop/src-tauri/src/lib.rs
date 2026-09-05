@@ -19,8 +19,8 @@ use commands::{
     },
     plugins::{
         execute_plugin_ui_tool, get_plugin_ui_document, inspect_plugin, install_plugin,
-        install_plugin_from_marketplace, list_plugin_ui, list_plugins, remove_plugin,
-        search_plugin_marketplace, set_plugin_enabled,
+        install_plugin_from_marketplace, list_plugin_ui, list_plugins, post_plugin_chat,
+        remove_plugin, search_plugin_marketplace, set_plugin_enabled,
     },
     settings::{
         delete_ai_agent, delete_collaboration_workflow, delete_embedding_profile,
@@ -115,6 +115,7 @@ pub fn run() {
             list_plugins,
             inspect_plugin,
             list_plugin_ui,
+            post_plugin_chat,
             execute_plugin_ui_tool,
             get_plugin_ui_document,
             install_plugin,

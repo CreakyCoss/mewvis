@@ -88,6 +88,8 @@ export interface IslePluginLogger {
  * be added without requiring plugin authors to import Cordis or DSH packages.
  */
 export interface IslePluginContext {
+  /** Available in the Isle desktop plugin host when chat permission is declared. */
+  readonly chat?: import("./chat/index.js").PluginChatClient;
   readonly tools: IsleToolRegistry;
   readonly skills: IsleSkillRegistry;
   readonly settings: IsleSettingsRegistry;

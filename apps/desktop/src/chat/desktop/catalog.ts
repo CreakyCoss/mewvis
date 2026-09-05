@@ -10,6 +10,7 @@ import type { ChatContext, ChatMessage, ChatResources, TurnInput } from "../core
 export type ChatProfile = {
   id: string;
   systemPrompt(workspacePath: string): string;
+  authorize?: () => Promise<void>;
   skills?: (Skill & { label?: string })[];
   skillGroup?: { label: string; description?: string };
   useKnowledge?: boolean;

@@ -41,6 +41,8 @@ pub(crate) enum PluginPermission {
     WorkspaceFiles,
     OpenExternal,
     Process,
+    Chat,
+    ChatKnowledge,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]

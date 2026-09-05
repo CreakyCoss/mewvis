@@ -1,3 +1,5 @@
+import { pluginChatHost } from "@/features/app/plugin-chat";
+import type { PluginChatRequest } from "@isle/plugin-sdk/chat";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { AlertTriangle, Loader2, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -16,9 +18,21 @@ const BRIDGE_SOURCE = String.raw`
   const pending = new Map();
   let nextId = 1;
   let host = null;
+  const chatListeners = new Set();
   const send = (message) => parent.postMessage({ channel, ...message }, "*");
   const api = Object.freeze({
     version: 1,
+    chat: Object.freeze({
+      request(request) {
+        const id = String(nextId++);
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => { pending.delete(id); reject(new Error("聊天宿主响应超时；请重新连接以确认状态")); }, 120000);
+          pending.set(id, { resolve: (value) => { clearTimeout(timer); resolve(value); }, reject: (error) => { clearTimeout(timer); reject(error); } });
+          send({ type: "chat:request", id, request });
+        });
+      },
+      subscribe(listener) { chatListeners.add(listener); return () => chatListeners.delete(listener); },
+    }),
     executeTool(toolName, args = {}) {
       if (typeof toolName !== "string" || !toolName) return Promise.reject(new Error("toolName must be a non-empty string"));
       const id = String(nextId++);
@@ -47,15 +61,18 @@ const BRIDGE_SOURCE = String.raw`
     if (event.source !== parent) return;
     const message = event.data;
     if (!message || message.channel !== channel) return;
+    if (message.type === "chat:snapshot") { chatListeners.forEach((listener) => listener(message.event)); return; }
     if (message.type === "host:init") {
       host = Object.freeze(message.host);
       document.documentElement.dataset.theme = host.theme;
+      document.documentElement.classList.toggle("dark", host.theme === "dark");
       dispatchEvent(new CustomEvent("isle:ready", { detail: host }));
       return;
     }
     if (message.type === "host:theme") {
       if (host) host = Object.freeze({ ...host, theme: message.theme });
       document.documentElement.dataset.theme = message.theme;
+      document.documentElement.classList.toggle("dark", message.theme === "dark");
       dispatchEvent(new CustomEvent("isle:theme", { detail: message.theme }));
       return;
     }
@@ -83,16 +100,17 @@ button, input, textarea, select { font: inherit; }
 const escapeScript = (value: string) => value.replace(/<\/script/gi, "<\\/script");
 const escapeStyle = (value: string) => value.replace(/<\/style/gi, "<\\/style");
 
-const sandboxDocument = (document: PluginUiDocument) => `<!doctype html>
+export const sandboxDocument = (document: PluginUiDocument, chat?: PluginUiDocument) => `<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; connect-src 'none'; form-action 'none'; frame-src 'none'; img-src data: blob:; media-src 'none'; object-src 'none'; font-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
-    <style>${escapeStyle(BASE_STYLE)}${escapeStyle(document.style)}</style>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; connect-src 'none'; form-action 'none'; frame-src 'none'; img-src data: blob:; media-src 'none'; object-src 'none'; font-src data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
+    <style>${chat ? escapeStyle(chat.style) : ""}${chat ? "html, body { height: 100%; margin: 0; }" : escapeStyle(BASE_STYLE)}${escapeStyle(document.style)}</style>
   </head>
   <body>
     <script>${escapeScript(BRIDGE_SOURCE)}</script>
+    ${chat ? `<script>${escapeScript(chat.script)}</script>` : ""}
     <script>${escapeScript(document.script)}\n//# sourceURL=isle-plugin-ui.js</script>
   </body>
 </html>`;
@@ -100,18 +118,32 @@ const sandboxDocument = (document: PluginUiDocument) => `<!doctype html>
 const messageObject = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 
-export const PluginFrame = ({ plugin }: { plugin: PluginUiPlugin }) => {
+export const PluginFrame = ({
+  plugin,
+  chatHost = pluginChatHost,
+  loadDocument = getPluginUiDocument,
+}: {
+  plugin: PluginUiPlugin;
+  chatHost?: typeof pluginChatHost;
+  loadDocument?: typeof getPluginUiDocument;
+}) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const inFlight = useRef(new Set<string>());
   const externalOpenInFlight = useRef(false);
   const frameLoadCount = useRef(0);
   const [uiDocument, setUiDocument] = useState<PluginUiDocument | null>(null);
+  const [chatRuntime, setChatRuntime] = useState<PluginUiDocument>();
   const [loadError, setLoadError] = useState("");
   const [runtimeError, setRuntimeError] = useState("");
   const [navigationBlocked, setNavigationBlocked] = useState(false);
   const [isFrameReady, setIsFrameReady] = useState(false);
-  const source = useMemo(() => (uiDocument ? sandboxDocument(uiDocument) : ""), [uiDocument]);
-  const toolNames = useMemo(() => new Set(plugin.tools.map((tool) => tool.name)), [plugin.tools]);
+  const source = useMemo(() => (uiDocument ? sandboxDocument(uiDocument, chatRuntime) : ""), [uiDocument, chatRuntime]);
+  const signature = JSON.stringify([
+    plugin.version,
+    [...plugin.permissions].sort(),
+    plugin.tools.map((tool) => tool.name).sort(),
+  ]);
+  const toolNames = useMemo(() => new Set(plugin.tools.map((tool) => tool.name)), [signature]);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,9 +153,20 @@ export const PluginFrame = ({ plugin }: { plugin: PluginUiPlugin }) => {
     setNavigationBlocked(false);
     setIsFrameReady(false);
     frameLoadCount.current = 0;
-    void getPluginUiDocument(plugin.id)
-      .then((next) => {
-        if (!cancelled) setUiDocument(next);
+    void Promise.all([
+      loadDocument(plugin.id),
+      plugin.permissions.includes("chat")
+        ? Promise.all([
+            import("@/chat/react/dist/plugin-runtime.js?raw"),
+            import("@/chat/react/dist/plugin-runtime.css?raw"),
+          ]).then(([script, style]) => ({ script: script.default, style: style.default }))
+        : undefined,
+    ])
+      .then(([next, runtime]) => {
+        if (!cancelled) {
+          setUiDocument(next);
+          setChatRuntime(runtime);
+        }
       })
       .catch((error) => {
         if (!cancelled) setLoadError(error instanceof Error ? error.message : String(error));
@@ -131,11 +174,18 @@ export const PluginFrame = ({ plugin }: { plugin: PluginUiPlugin }) => {
     return () => {
       cancelled = true;
     };
-  }, [plugin.id]);
+  }, [plugin.id, loadDocument, signature]);
 
   useEffect(() => {
     const post = (message: Record<string, unknown>) =>
       iframeRef.current?.contentWindow?.postMessage({ channel: CHANNEL, ...message }, "*");
+    const chat = chatHost.connect(
+      plugin.id,
+      plugin.tools.map((tool) => tool.name),
+      (event) => post({ type: "chat:snapshot", event }),
+    );
+    const chatRequests = new Set<string>();
+    let connected = true;
     const theme = () => (document.documentElement.classList.contains("dark") ? "dark" : "light");
     const initialize = () =>
       post({
@@ -187,6 +237,37 @@ export const PluginFrame = ({ plugin }: { plugin: PluginUiPlugin }) => {
         }
         return;
       }
+      if (message.type === "chat:request") {
+        const id = message.id;
+        const request = messageObject(message.request);
+        if (typeof id !== "string" || !id || id.length > 128 || !request) return;
+        const reject = (error: string) => post({ type: "host:result", id, error });
+        if (chatRequests.has(id)) {
+          reject("重复的聊天请求 ID");
+          return;
+        }
+        if (new TextEncoder().encode(JSON.stringify(request)).byteLength > MAX_ARGUMENT_BYTES) {
+          reject("聊天请求超过 256 KiB");
+          return;
+        }
+        if (chatRequests.size >= 16 && !["stop", "close", "unwatch", "detach"].includes(String(request.method))) {
+          reject("聊天请求过多");
+          return;
+        }
+        chatRequests.add(id);
+        void chat
+          .request(request as PluginChatRequest)
+          .then(
+            (result) => {
+              if (connected) post({ type: "host:result", id, result });
+            },
+            (error) => {
+              if (connected) reject(String(error?.message ?? error));
+            },
+          )
+          .finally(() => chatRequests.delete(id));
+        return;
+      }
       if (message.type !== "tool:execute") return;
       const id = message.id;
       const toolName = message.toolName;
@@ -230,12 +311,14 @@ export const PluginFrame = ({ plugin }: { plugin: PluginUiPlugin }) => {
     themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
     window.addEventListener("message", onMessage);
     return () => {
+      connected = false;
+      chat.dispose();
       themeObserver.disconnect();
       window.removeEventListener("message", onMessage);
       inFlight.current.clear();
       externalOpenInFlight.current = false;
     };
-  }, [plugin.id, plugin.name, plugin.tools, plugin.version, toolNames]);
+  }, [plugin.id, signature, toolNames, chatHost]);
 
   useEffect(() => {
     if (!uiDocument || isFrameReady) return;

@@ -1,3 +1,4 @@
+import { createPluginChatClient, type PluginChatClient } from "@isle/plugin-sdk/chat";
 import { Context, Inject, type Fiber, type Plugin } from "@deepseek-ai/cordis";
 import { SkillRegistry, type SkillDefinition, type SkillSummary, type SkillViewOptions } from "@deepseek-ai/dsh-skill";
 import { SettingsProvider, type SettingsNamespace } from "@deepseek-ai/dsh-settings";
@@ -23,6 +24,7 @@ export type CordisToolCall = Readonly<{
 }>;
 
 export type CordisPluginHostOptions = Readonly<{
+  chat?: (pluginId: string) => PluginChatClient | undefined;
   toolPresentation?: "native" | "code" | "both";
   /** A YAML/JSON file keeps DSH's monolithic mode; a directory enables Isle namespace isolation. */
   settingsPath?: string;
@@ -38,6 +40,7 @@ export type DshCompatBundleOptions = Readonly<{
 type LoadedPlugin = Readonly<{
   plugin: Plugin;
   fiber: Fiber;
+  releaseChat?: () => void;
 }>;
 
 type BundleEntry = Readonly<{
@@ -192,6 +195,7 @@ export class CordisPluginHost {
     context: Context,
     private readonly tools: ToolRuntime,
     private readonly skills: SkillRegistry,
+    private readonly chatFactory?: CordisPluginHostOptions["chat"],
   ) {
     this.context = context;
   }
@@ -228,7 +232,7 @@ export class CordisPluginHost {
       if (!(tools instanceof ToolRuntime) || !(skills instanceof SkillRegistry) || !context.get("settings")) {
         throw new Error("Isle 插件 tools/skills/settings 服务没有完成初始化。");
       }
-      return new CordisPluginHost(context, tools, skills);
+      return new CordisPluginHost(context, tools, skills, options.chat);
     } catch (error) {
       await context.fiber.dispose();
       throw error;
@@ -244,13 +248,28 @@ export class CordisPluginHost {
     const pluginId = requiredPluginId(id);
     if (this.loaded.has(pluginId)) throw new Error(`插件已经加载：${pluginId}`);
 
-    const fiber = this.context.registry.plugin(plugin, config);
+    const chat =
+      this.chatFactory?.(pluginId) ??
+      createPluginChatClient({
+        request: async () => {
+          throw new Error("当前插件运行环境未提供桌面聊天连接或插件未声明 chat 权限");
+        },
+        subscribe: () => () => {},
+      });
+    const scope = chat ? this.context.isolate("chat") : this.context;
+    const removeChat = chat ? scope.provide("chat", chat) : undefined;
+    const releaseChat = () => {
+      chat?.dispose();
+      void removeChat?.();
+    };
+    const fiber = scope.registry.plugin(plugin, config);
     try {
       await awaitPluginStart(fiber, pluginId);
-      this.assertRequiredServices(pluginId, plugin);
-      this.loaded.set(pluginId, Object.freeze({ plugin, fiber }));
+      this.assertRequiredServices(pluginId, plugin, undefined, scope);
+      this.loaded.set(pluginId, Object.freeze({ plugin, fiber, releaseChat }));
     } catch (error) {
       await fiber.dispose();
+      releaseChat();
       throw error;
     }
   }
@@ -328,6 +347,7 @@ export class CordisPluginHost {
     if (loaded) {
       this.loaded.delete(pluginId);
       await loaded.fiber.dispose();
+      loaded.releaseChat?.();
       return true;
     }
     const bundleEntries = [...this.loaded.entries()].filter(([loadedId]) => loadedId.startsWith(`${pluginId}:`));
@@ -366,18 +386,20 @@ export class CordisPluginHost {
   async dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    const loaded = [...this.loaded.values()];
     this.loaded.clear();
     await this.context.fiber.dispose();
+    loaded.forEach((entry) => entry.releaseChat?.());
   }
 
   private assertActive() {
     if (this.disposed) throw new Error("Cordis 插件宿主已经关闭。");
   }
 
-  private assertRequiredServices(id: string, plugin: Plugin, entryInject?: unknown) {
+  private assertRequiredServices(id: string, plugin: Plugin, entryInject?: unknown, scope = this.context) {
     const required = Inject.resolve((plugin as { inject?: never }).inject);
     if (entryInject !== undefined) Inject.resolve(entryInject as never, required);
-    const missing = Object.keys(required).filter((name) => this.context.get(name as never) === undefined);
+    const missing = Object.keys(required).filter((name) => scope.get(name as never) === undefined);
     if (missing.length > 0) {
       throw new Error(`插件 ${id} 依赖 Isle 尚未提供的服务：${missing.join("、")}`);
     }

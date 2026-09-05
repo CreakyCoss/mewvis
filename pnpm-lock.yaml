@@ -223,6 +223,9 @@ importers:
       '@fontsource-variable/inter':
         specifier: ^5.2.8
         version: 5.2.8
+      '@isle/chat-contracts':
+        specifier: workspace:*
+        version: link:../../packages/chat-contracts
       '@isle/plugin-sdk':
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
@@ -402,11 +405,29 @@ importers:
         specifier: ^7.0.4
         version: 7.0.4(@types/node@22.0.0)
 
+  packages/chat-contracts: {}
+
   packages/plugin-sdk:
     dependencies:
       '@deepseek-ai/schemastery':
         specifier: 3.18.1
         version: 3.18.1
+      '@isle/chat-contracts':
+        specifier: workspace:*
+        version: link:../chat-contracts
+      react:
+        specifier: ^19.1.0
+        version: 19.1.0
+      react-dom:
+        specifier: ^19.1.0
+        version: 19.1.0(react@19.1.0)
+    devDependencies:
+      '@types/react':
+        specifier: ^19.1.8
+        version: 19.1.8
+      '@types/react-dom':
+        specifier: ^19.1.6
+        version: 19.1.6(@types/react@19.1.8)
 
 packages:
 

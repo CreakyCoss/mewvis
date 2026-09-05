@@ -4,7 +4,8 @@ The public authoring surface for Isle plugins.
 
 Runtime permissions are declared in the package's `isle.permissions` manifest
 field, not inside `definePlugin`. Supported values are `network`,
-`plugin-data`, `workspace-files`, `open-external`, and `process`; use an empty
+`plugin-data`, `workspace-files`, `open-external`, `process`, `chat`, and
+`chat-knowledge`; use an empty
 array when the plugin needs none. Native packages without the field fail new
 installation. The declaration is shown during installation and is not a
 replacement for a Node.js sandbox.
@@ -67,3 +68,7 @@ downgrading them.
 Use Isle's plugin tooling to validate and bundle source packages. The DSH
 target bundles this SDK into the output and generates its Cordis patch, so a
 plugin can be authored once and distributed to either host.
+
+## Chat
+
+See [Plugin Chat](chat/README.md) for the UI-independent client, default and composable React Chat, desktop `ctx.chat` connection, permissions, lifecycle, and build/test workflow. The root SDK entry does not load the chat UI; use the explicit `/chat` or `/chat/react` subpath.

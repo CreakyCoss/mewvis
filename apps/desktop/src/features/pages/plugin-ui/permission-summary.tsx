@@ -9,6 +9,8 @@ const permissionLabels: Record<PluginPermission, string> = {
   "workspace-files": "读写工作区文件",
   "open-external": "打开外部内容",
   process: "启动子进程",
+  chat: "使用宿主聊天与模型",
+  "chat-knowledge": "在聊天中检索知识库",
 };
 
 export const pluginPermissionLabel = (permission: PluginPermission) => permissionLabels[permission];

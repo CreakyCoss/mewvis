@@ -1,3 +1,4 @@
+import { createNativePluginChat } from "./chat.js";
 import { createInterface } from "node:readline";
 import { format } from "node:util";
 import { PluginHost, type PluginRuntimeKind } from "./index.js";
@@ -68,6 +69,10 @@ console.error = writeLog;
 let host: PluginHost | null = null;
 let plugins: readonly UiPlugin[] = Object.freeze([]);
 let uiDocuments = new Map<string, PluginUiDocument>();
+const nativeChat = createNativePluginChat(
+  (message) => protocolWrite(JSON.stringify(message) + "\n"),
+  (pluginId) => plugins.find((plugin) => plugin.id === pluginId)?.tools.map((tool) => tool.name) ?? [],
+);
 
 const asObject = (value: unknown, label: string): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label}必须是对象。`);
@@ -88,6 +93,7 @@ const disposeHost = async () => {
   plugins = Object.freeze([]);
   uiDocuments = new Map();
   if (current) await current.dispose();
+  nativeChat.dispose();
 };
 
 const configure = async (value: unknown) => {
@@ -97,7 +103,13 @@ const configure = async (value: unknown) => {
   const runtimePlugins = input.plugins as RuntimePlugin[];
 
   await disposeHost();
-  const nextHost = await PluginHost.create({ settingsPath });
+  const nextHost = await PluginHost.create({
+    settingsPath,
+    chat: (id) =>
+      runtimePlugins.find((plugin) => plugin.id === id)?.permissions.includes("chat")
+        ? nativeChat.client(id)
+        : undefined,
+  });
   const nextPlugins: UiPlugin[] = [];
   try {
     for (const plugin of runtimePlugins) {
@@ -242,29 +254,32 @@ const send = (payload: unknown) => {
   protocolWrite(`${line}\n`);
 };
 
+const jobs = new Set<Promise<void>>();
 const reader = createInterface({ input: process.stdin, crlfDelay: Infinity });
 for await (const line of reader) {
   if (!line.trim()) continue;
   let request: RpcRequest;
   try {
     request = JSON.parse(line) as RpcRequest;
+    if (nativeChat.receive(request)) continue;
     if (request.id === undefined || typeof request.method !== "string") throw new Error("请求缺少 id 或 method。");
   } catch (error) {
     send({ id: null, error: { message: `Plugin Host 请求无效：${errorMessage(error)}` } });
     continue;
   }
 
-  try {
-    send({ id: request.id, result: await dispatch(request) });
-  } catch (error) {
-    send({ id: request.id, error: { message: errorMessage(error) } });
-  }
-
-  if (request.method === "shutdown") {
-    reader.close();
-    break;
-  }
+  const job = (async () => {
+    try {
+      send({ id: request.id, result: await dispatch(request) });
+    } catch (error) {
+      send({ id: request.id, error: { message: errorMessage(error) } });
+    }
+    if (request.method === "shutdown") reader.close();
+  })();
+  jobs.add(job);
+  void job.finally(() => jobs.delete(job));
 }
+await Promise.allSettled(jobs);
 
 await disposeHost();
 process.stdin.unref();

@@ -7,13 +7,53 @@ import { dshBundleCompatibilityPlugin } from "../../agent-runtime/scripts/esbuil
 const BUILD_MARKER = ".isle-plugin-build.json";
 const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/;
 const ENTRY_PATTERN = /^\.\/.*\.m?js$/;
-const PERMISSIONS = new Set(["network", "plugin-data", "workspace-files", "open-external", "process"]);
+const PERMISSIONS = new Set([
+  "network",
+  "plugin-data",
+  "workspace-files",
+  "open-external",
+  "process",
+  "chat",
+  "chat-knowledge",
+]);
 const sdkEntry = createRequire(import.meta.url).resolve("@isle/plugin-sdk");
 
 const isleSdkResolver = {
   name: "isle-plugin-sdk",
   setup(buildContext) {
-    buildContext.onResolve({ filter: /^@isle\/plugin-sdk$/ }, () => ({ path: sdkEntry }));
+    buildContext.onResolve({ filter: /^@isle\/plugin-sdk(?:\/chat(?:\/react)?)?$/ }, ({ path }) => ({
+      path: path === "@isle/plugin-sdk" ? sdkEntry : createRequire(import.meta.url).resolve(path),
+    }));
+  },
+};
+
+// One React instance per sandbox, supplied together with the shared Chat runtime.
+const pluginReactResolver = {
+  name: "isle-shared-react",
+  setup(buildContext) {
+    const modules = {
+      react: "React",
+      "react-dom": "ReactDOM",
+      "react-dom/client": "ReactDOMClient",
+      "react/jsx-runtime": "JSXRuntime",
+      "react/jsx-dev-runtime": "JSXRuntime",
+    };
+    buildContext.onResolve({ filter: /^(react|react-dom)(\/.*)?$/ }, ({ path }) => {
+      if (!(path in modules)) throw new Error(`不支持的插件 React 入口：${path}`);
+      return { path, namespace: "isle-react" };
+    });
+    buildContext.onLoad({ filter: /.*/, namespace: "isle-react" }, async ({ path }) => {
+      const source = path === "react/jsx-dev-runtime" ? "react/jsx-runtime" : path;
+      const exports = Object.keys(await import(source)).filter(
+        (name) => name !== "default" && name !== "module.exports",
+      );
+      return {
+        contents:
+          `const api = globalThis.islePluginReact.${modules[path]}; export default api;\n` +
+          exports.map((name) => `export const ${name} = api.${name};`).join("\n"),
+        loader: "js",
+      };
+    });
   },
 };
 
@@ -214,6 +254,8 @@ const writeDshPatch = async (root, name) => {
 export const packPlugin = async ({ source, target = "isle", outDir, quiet = false }) => {
   if (target !== "isle" && target !== "dsh") throw new Error('打包目标必须是 "isle" 或 "dsh"。');
   const validated = await validatePlugin(source);
+  if (target === "dsh" && validated.manifest.isle.permissions.includes("chat"))
+    throw new Error("插件聊天能力需要 Isle 宿主，不能打包为 DSH 目标");
   const outputRoot = resolve(outDir ?? join(validated.root, "dist", target));
   await assertSafeOutput(validated.root, outputRoot);
   await mkdir(dirname(outputRoot), { recursive: true });
@@ -243,6 +285,31 @@ export const packPlugin = async ({ source, target = "isle", outDir, quiet = fals
     }
 
     const manifest = outputManifest(validated.manifest, target);
+    if (manifest.isle?.ui && validated.manifest.isle.permissions.includes("chat")) {
+      if (target !== "isle") throw new Error("插件 Chat UI 需要 Isle 宿主，不能打包为 DSH 目标");
+      const ui = validated.manifest.isle.ui;
+      const bundle = await build({
+        entryPoints: [containedPath(validated.root, ui.entry, "isle.ui.entry")],
+        outfile: join(stagingRoot, "isle-ui.js"),
+        bundle: true,
+        platform: "browser",
+        format: "iife",
+        target: "es2022",
+        minify: true,
+        write: false,
+        jsx: "automatic",
+        nodePaths: [resolve(dirname(sdkEntry), "../../apps/desktop/node_modules")],
+        define: { "process.env.NODE_ENV": '"production"' },
+        plugins: [isleSdkResolver, pluginReactResolver],
+      });
+      let style = ui.style ? await readFile(containedPath(validated.root, ui.style, "isle.ui.style"), "utf8") : "";
+      for (const file of bundle.outputFiles) {
+        if (file.path.endsWith(".css")) style += "\n" + file.text;
+        else await writeFile(join(stagingRoot, "isle-ui.js"), file.contents);
+      }
+      manifest.isle.ui = { ...ui, entry: "./isle-ui.js", ...(style ? { style: "./isle-ui.css" } : {}) };
+      if (style) await writeFile(join(stagingRoot, "isle-ui.css"), style);
+    }
     await writeFile(join(stagingRoot, "package.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
     if (target === "dsh") await writeDshPatch(stagingRoot, validated.manifest.name);
     await writeFile(
@@ -259,7 +326,11 @@ export const packPlugin = async ({ source, target = "isle", outDir, quiet = fals
   }
 
   if (!quiet) console.log(`插件已打包：${validated.manifest.name} -> ${outputRoot} (${target})`);
-  return Object.freeze({ outputRoot, target, manifest: outputManifest(validated.manifest, target) });
+  return Object.freeze({
+    outputRoot,
+    target,
+    manifest: JSON.parse(await readFile(join(outputRoot, "package.json"), "utf8")),
+  });
 };
 
 const slugFromPath = (path) =>

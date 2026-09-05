@@ -1,33 +1,19 @@
 import type { AgentClientAgentEvent } from "@/agent-client/contracts";
-import type { ChatMessage, ChatPendingQuestion, ChatUserMessageBlock } from "./messages";
-
-export type SessionIdentity = { scope: string; id: string };
+import type {
+  SessionIdentity,
+  ChatRunConfig,
+  ChatResources,
+  MessageInput,
+  ChatContext,
+  ChatRecord,
+  ChatSnapshot,
+  ChatMessage,
+} from "@isle/chat-contracts";
+export type * from "@isle/chat-contracts";
 export const sessionKey = ({ scope, id }: SessionIdentity) => JSON.stringify([scope, id]);
-
-export type ChatRunConfig = {
-  selectedModelId: string;
-  selectedAgentId: string;
-  selectedSkillKeys: string[];
-  selectedKnowledgeCollectionIds: string[];
-  selectedToolNames: string[];
-};
-export type ResourceOption = { value: string; label: string; description: string; isDefault: boolean };
-export type SkillOption = { key: string; name: string; label: string; description: string };
-export type ChatResources = {
-  models?: (ResourceOption & { selectedLabel: string })[];
-  agents?: ResourceOption[];
-  skillGroups?: (ResourceOption & { skills: SkillOption[] })[];
-  tools?: ResourceOption[];
-  knowledgeCollections?: (ResourceOption & { sourceDirectory?: string | null })[];
-  errors?: Partial<Record<"models" | "agents" | "skillGroups" | "tools" | "knowledgeCollections", string>>;
-};
 export interface ChatCatalog {
   load(options?: { refresh?: boolean }): Promise<ChatResources>;
 }
-type WithoutId<T> = T extends unknown ? Omit<T, "id"> : never;
-export type MessagePart = WithoutId<ChatUserMessageBlock>;
-export type MessageInput = { text: string; blocks?: MessagePart[]; requestId?: string };
-export type ChatContext = { systemPrompt?: string; requestContext?: string; runtimeInstruction?: string };
 export type TurnInput = { identity: SessionIdentity; taskId: string; input: MessageInput; config: ChatRunConfig };
 export interface ChatContextProvider {
   prepare(turn: TurnInput, signal: AbortSignal): Promise<ChatContext>;
@@ -41,45 +27,10 @@ export interface ChatRuntime {
   answer(taskId: string, questionId: string, answer: string): Promise<void>;
   release(): Promise<void>;
 }
-export type ChatRecord = { title: string; messages: ChatMessage[]; config?: Partial<ChatRunConfig> };
 export interface ChatStorage {
   load(): Promise<ChatRecord | null>;
   save(record: ChatRecord): Promise<void>;
   flush?(): Promise<void>;
-}
-export type ChatPhase =
-  "initializing" | "idle" | "preparing" | "submitting" | "running" | "waiting" | "stopping" | "closing" | "closed";
-export type ChatSnapshot = {
-  identity: SessionIdentity;
-  phase: ChatPhase;
-  initialized: boolean;
-  title: string;
-  messages: ChatMessage[];
-  config: ChatRunConfig;
-  resources: ChatResources;
-  activeTaskId: string | null;
-  pendingQuestion: ChatPendingQuestion | null;
-  answering: boolean;
-  error: string;
-  initializationError: string;
-  saveError: string;
-  dirty: boolean;
-};
-export type SendResult = { status: "dispatched" | "cancelled" | "rejected"; taskId?: string; reason?: string };
-export type OperationResult = { ok: true } | { ok: false; error: string };
-export interface ChatSession {
-  readonly identity: SessionIdentity;
-  getSnapshot(): Readonly<ChatSnapshot>;
-  subscribe(listener: () => void): () => void;
-  send(input: MessageInput): Promise<SendResult>;
-  stop(): Promise<OperationResult>;
-  answer(input: { questionId: string; answer: string }): Promise<OperationResult>;
-  updateConfig(patch: Partial<ChatRunConfig>): OperationResult;
-  refreshResources(): Promise<void>;
-  retryInitialization(): Promise<void>;
-  flush(): Promise<OperationResult>;
-  retrySave(): Promise<OperationResult>;
-  close(): Promise<OperationResult>;
 }
 export type ChatSessionOptions = {
   identity: SessionIdentity;

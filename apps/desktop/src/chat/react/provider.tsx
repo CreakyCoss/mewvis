@@ -51,7 +51,7 @@ export function useChatComposer() {
   const draft = useSyncExternalStore(view.subscribe, view.getSnapshot, view.getSnapshot);
   const environment = useContext(EnvironmentContext);
   const controls = useChatControls();
-  const busy = isChatBusy(snapshot);
+  const busy = isChatBusy(snapshot) || draft.submitting;
   const disabled = !snapshot.initialized || snapshot.phase === "closed" || snapshot.phase === "closing" || busy;
   return {
     ...draft,
@@ -76,10 +76,20 @@ export function useChatComposer() {
     setDraft: view.setDraft,
     async submit() {
       const current = view.getSnapshot();
-      const result = await session.send(current.draft);
-      if (result.status === "dispatched") view.clear(current.revision);
-      else if (result.status === "rejected") view.setError(result.reason ?? "消息发送失败");
-      return result;
+      if (current.submitting) return { status: "rejected", reason: "正在准备请求" } as const;
+      view.setSubmitting(true);
+      try {
+        const result = await session.send(current.draft);
+        if (result.status === "dispatched") view.clear(current.revision);
+        else if (result.status === "rejected") view.setError(result.reason ?? "消息发送失败");
+        return result;
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        view.setError(reason);
+        return { status: "rejected", reason } as const;
+      } finally {
+        view.setSubmitting(false);
+      }
     },
     stop: session.stop,
   };
@@ -88,6 +98,7 @@ export function useChatControls() {
   const snapshot = useChatSnapshot();
   const session = useChatSession();
   const view = useChatViewState();
+  const viewError = useBinding().view.setError;
   return {
     resources: snapshot.resources,
     options: { ...snapshot.config, ...view.preferences },
@@ -98,7 +109,13 @@ export function useChatControls() {
           ...(showThinkingProcess !== undefined ? { showThinkingProcess } : {}),
           ...(showToolCallProcess !== undefined ? { showToolCallProcess } : {}),
         });
-      if (Object.keys(config).length) session.updateConfig(config);
+      if (Object.keys(config).length)
+        void session
+          .updateConfig(config)
+          .then((result) => {
+            if (!result.ok) viewError(result.error);
+          })
+          .catch((error) => viewError(String(error)));
     },
   };
 }

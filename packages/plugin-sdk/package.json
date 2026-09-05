@@ -7,16 +7,42 @@
     ".": {
       "types": "./index.d.ts",
       "default": "./index.js"
+    },
+    "./chat": {
+      "types": "./chat/index.d.ts",
+      "default": "./chat/index.js"
+    },
+    "./chat/react": {
+      "types": "./chat/react.d.ts",
+      "default": "./chat/react.js"
     }
   },
   "files": [
     "index.js",
     "index.d.ts",
-    "README.md"
+    "README.md",
+    "chat"
   ],
   "dependencies": {
-    "@deepseek-ai/schemastery": "3.18.1"
+    "@deepseek-ai/schemastery": "3.18.1",
+    "@isle/chat-contracts": "workspace:*"
   },
   "sideEffects": false,
-  "license": "MIT"
+  "license": "MIT",
+  "peerDependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6"
+  }
 }

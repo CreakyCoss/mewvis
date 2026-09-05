@@ -4,11 +4,12 @@ use std::{
     collections::VecDeque,
     io::{BufRead, BufReader, Write},
     path::PathBuf,
-    process::{Child, ChildStdin, ChildStdout, Command, Stdio},
-    sync::{Arc, Mutex},
+    process::{Child, ChildStdin, Command, Stdio},
+    sync::{mpsc, Arc, Mutex},
     thread,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use tauri::{path::BaseDirectory, AppHandle, Manager};
+use tauri::{path::BaseDirectory, AppHandle, Emitter, Manager};
 
 use super::plugins;
 use crate::product_config::product_env_var;
@@ -23,6 +24,7 @@ pub(crate) struct PluginUiHost {
 #[derive(Default)]
 struct PluginUiHostInner {
     process: Mutex<Option<PluginUiProcess>>,
+    chat_writer: Mutex<Option<(String, Arc<Mutex<ChildStdin>>)>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -50,14 +52,30 @@ struct PluginUiRuntimePlugin {
 
 struct PluginUiProcess {
     child: Child,
-    stdin: ChildStdin,
-    stdout: BufReader<ChildStdout>,
+    stdin: Arc<Mutex<ChildStdin>>,
+    responses: mpsc::Receiver<Value>,
+    connection_id: String,
     stderr_tail: Arc<Mutex<VecDeque<String>>>,
     signature: String,
     next_request_id: u64,
 }
 
 impl PluginUiHost {
+    pub(crate) fn post_chat(&self, connection_id: &str, message: Value) -> Result<(), String> {
+        let writer = self
+            .inner
+            .chat_writer
+            .lock()
+            .map_err(|_| "插件聊天连接已损坏".to_string())?;
+        let (current, stdin) = writer
+            .as_ref()
+            .ok_or_else(|| "插件聊天连接已关闭".to_string())?;
+        if current != connection_id {
+            return Err("插件聊天连接已过期".to_string());
+        }
+        write_message(stdin, &message)
+    }
+
     pub(crate) fn catalog(&self, app: &AppHandle) -> Result<Value, String> {
         let configuration = configuration(app)?;
         if configuration.plugins.is_empty() {
@@ -112,6 +130,11 @@ impl PluginUiHost {
         if let Some(mut current) = process.take() {
             current.stop();
         }
+        *self
+            .inner
+            .chat_writer
+            .lock()
+            .map_err(|_| "插件聊天连接已损坏".to_string())? = None;
         Ok(())
     }
 
@@ -143,6 +166,12 @@ impl PluginUiHost {
                 current.stop();
             }
             let mut process = PluginUiProcess::spawn(app, signature)?;
+            *self
+                .inner
+                .chat_writer
+                .lock()
+                .map_err(|_| "插件聊天连接已损坏".to_string())? =
+                Some((process.connection_id.clone(), process.stdin.clone()));
             process.request(
                 "configure",
                 serde_json::to_value(&configuration)
@@ -217,10 +246,35 @@ impl PluginUiProcess {
             }
         });
 
+        let stdin = Arc::new(Mutex::new(stdin));
+        let connection_id = format!(
+            "{}-{}",
+            child.id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        );
+        let reader_connection = connection_id.clone();
+        let event_app = app.clone();
+        let (sender, responses) = mpsc::channel();
+        thread::spawn(move || {
+            route_plugin_output(BufReader::new(stdout), sender, |mut message| {
+                if let Some(object) = message.as_object_mut() {
+                    object.insert(
+                        "connectionId".to_string(),
+                        Value::String(reader_connection.clone()),
+                    );
+                    let _ = event_app.emit_to("main", "plugin-chat:request", &message);
+                }
+            });
+            let _ = event_app.emit_to("main", "plugin-chat:disconnect", &reader_connection);
+        });
         Ok(Self {
             child,
             stdin,
-            stdout: BufReader::new(stdout),
+            responses,
+            connection_id,
             stderr_tail,
             signature,
             next_request_id: 1,
@@ -241,35 +295,20 @@ impl PluginUiProcess {
 
         let id = self.next_request_id;
         self.next_request_id = self.next_request_id.saturating_add(1);
-        serde_json::to_writer(
-            &mut self.stdin,
+        write_message(
+            &self.stdin,
             &json!({ "id": id, "method": method, "params": params }),
-        )
-        .map_err(|error| format!("无法写入 Plugin UI Host 请求：{error}"))?;
-        self.stdin
-            .write_all(b"\n")
-            .and_then(|_| self.stdin.flush())
-            .map_err(|error| format!("无法发送 Plugin UI Host 请求：{error}"))?;
-
+        )?;
         loop {
-            let mut line = String::new();
-            let read = self
-                .stdout
-                .read_line(&mut line)
-                .map_err(|error| format!("无法读取 Plugin UI Host 响应：{error}"))?;
-            if read == 0 {
-                return Err(format!(
-                    "Plugin UI Host 在响应前关闭。{}",
-                    self.stderr_summary()
-                ));
-            }
-            let response = match serde_json::from_str::<Value>(&line) {
-                Ok(response) => response,
-                Err(_) => {
-                    self.push_diagnostic(line.trim().to_string());
-                    continue;
-                }
-            };
+            let response = self
+                .responses
+                .recv_timeout(Duration::from_secs(90))
+                .map_err(|error| {
+                    format!(
+                        "Plugin UI Host 响应中断：{error}。{}",
+                        self.stderr_summary()
+                    )
+                })?;
             if response.get("id").and_then(Value::as_u64) != Some(id) {
                 if response.get("id").is_none() || response.get("id") == Some(&Value::Null) {
                     if let Some(message) =
@@ -293,18 +332,6 @@ impl PluginUiProcess {
     fn stop(&mut self) {
         let _ = self.child.kill();
         let _ = self.child.wait();
-    }
-
-    fn push_diagnostic(&self, line: String) {
-        if line.is_empty() {
-            return;
-        }
-        if let Ok(mut tail) = self.stderr_tail.lock() {
-            tail.push_back(line);
-            while tail.len() > STDERR_TAIL_LINES {
-                tail.pop_front();
-            }
-        }
     }
 
     fn stderr_summary(&self) -> String {
@@ -378,4 +405,54 @@ fn resolve_service_path(app: &AppHandle) -> Result<PathBuf, String> {
         }
     }
     Err("未找到 Plugin UI Host，请重新构建桌面端。".to_string())
+}
+
+fn write_message(stdin: &Arc<Mutex<ChildStdin>>, message: &Value) -> Result<(), String> {
+    let mut writer = stdin.lock().map_err(|_| "插件输入连接已损坏".to_string())?;
+    serde_json::to_writer(&mut *writer, message).map_err(|error| error.to_string())?;
+    writer
+        .write_all(b"\n")
+        .and_then(|_| writer.flush())
+        .map_err(|error| error.to_string())
+}
+
+// Keep reading while the ordinary request waits; chat replies may be needed to finish that request.
+fn route_plugin_output(reader: impl BufRead, responses: mpsc::Sender<Value>, chat: impl Fn(Value)) {
+    for line in reader.lines().map_while(Result::ok) {
+        let Ok(message) = serde_json::from_str::<Value>(&line) else {
+            continue;
+        };
+        if message.get("type").and_then(Value::as_str) == Some("plugin-chat:request") {
+            chat(message);
+        } else if responses.send(message).is_err() {
+            break;
+        }
+    }
+}
+
+#[cfg(test)]
+mod chat_bridge_tests {
+    use super::*;
+    use std::cell::RefCell;
+    use std::io::Cursor;
+    #[test]
+    fn chat_notifications_do_not_consume_normal_rpc_responses() {
+        let (sender, receiver) = mpsc::channel();
+        let notifications = RefCell::new(Vec::new());
+        let lines = concat!(
+            "diagnostic text\n",
+            "{\"type\":\"plugin-chat:request\",\"id\":\"1\",\"pluginId\":\"fixture\"}\n",
+            "{\"id\":1,\"result\":{\"ok\":true}}\n",
+            "{\"type\":\"plugin-chat:request\",\"id\":\"2\"}\n"
+        );
+        route_plugin_output(Cursor::new(lines), sender, |message| {
+            notifications.borrow_mut().push(message)
+        });
+        assert_eq!(notifications.borrow().len(), 2);
+        assert_eq!(
+            receiver.recv().unwrap(),
+            json!({"id": 1, "result": {"ok": true}})
+        );
+        assert!(receiver.recv().is_err());
+    }
 }

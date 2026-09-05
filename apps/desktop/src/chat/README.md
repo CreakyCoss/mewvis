@@ -1,6 +1,6 @@
 # Isle Chat
 
-应用内的可复用 Chat 库。当前使用 `@/chat/core`、`@/chat/react`、`@/chat/desktop` 三个独立入口，没有发布新的 npm 包，也没有 `chat` 根入口把 UI 带进核心。
+应用内的可复用 Chat 库。当前使用 `@/chat/core`、`@/chat/react`、`@/chat/desktop` 三个独立入口，没有 `chat` 根入口把 UI 带进核心；会话与消息契约由无运行时依赖的工作区类型包 `@isle/chat-contracts` 统一提供。
 
 ## 文件和依赖
 
@@ -163,7 +163,15 @@ Pi 继续使用 `chats/<chatId>/session` 下的原执行上下文和账本。核
 
 `session.refreshResources()` 向目录传入 `{ refresh: true }`，强制重新读取模型配置；模型设置页的显式加载也会刷新。刷新失败会暴露错误、保留当前选择，下次读取可以重试；禁用或删除模型后不会继续返回旧的可执行配置。
 
-凭据在宿主准备请求时解析并留在 dispatch 闭包，快照和 UI props 只包含安全的选项描述。工具选择不等于授予插件权限；本阶段未实现插件聊天 SDK、宿主桥或酒馆／RSS 接入。
+凭据在宿主准备请求时解析并留在 dispatch 闭包，快照和 UI props 只包含安全的选项描述。工具选择不等于授予插件权限。插件 SDK、iframe／Node 宿主桥和共享 UI 已接入；用法与边界见 [插件聊天说明](../../../../packages/plugin-sdk/chat/README.md)。未迁移酒馆、RSS 或其他具体插件。
+
+## 插件接入
+
+`@isle/plugin-sdk/chat` 提供无 UI 客户端，`@isle/plugin-sdk/chat/react` 提供同一套 Chat 和绑定。`desktop/plugin.ts` 将经过身份绑定的连接映射到应用级 service，校验配置和授权，隔离会话句柄，并转发带修订号的快照。它不运行第二套 reducer。应用与 SDK 共同引用 `@isle/chat-contracts`，核心不依赖插件实现。
+
+`features/app/plugin-chat.ts` 连接实际插件权限、工作区和 service；`plugin-chat-native.ts` 一次性接入 Node 插件双向 stdio，StrictMode 共用原生事件监听。`PluginFrame` 连接 iframe 消息。插件 UI 按需加载由 `build:chat-ui` 从应用源码生成的共享脚本和样式；构建产物不提交。SDK 的公开组件声明有对应的类型检查。
+
+插件的 `chatId` 是业务逻辑 ID。宿主用插件身份和逻辑 ID 生成稳定的磁盘 ID，再结合工作区隔离；插件不传真实路径或凭据。动态上下文用 `setContext()` 更新，模型与能力用异步 `updateConfig()` 更新。会话仍由应用拥有，插件视图退出不停止任务；关闭应用、禁用或移除插件会明确关闭对应会话。
 
 ## 验证
 
@@ -172,6 +180,7 @@ Pi 继续使用 `chats/<chatId>/session` 下的原执行上下文和账本。核
 ```sh
 pnpm test:chat
 pnpm test:chat:stdio
+pnpm test:chat:plugin
 pnpm exec tsc --noEmit
 pnpm exec vite build
 cargo test --manifest-path src-tauri/Cargo.toml services::chats::tests

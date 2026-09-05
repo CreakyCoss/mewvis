@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use serde_json::Value;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, State};
 
 use crate::services::{
     plugin_ui::PluginUiHost,
@@ -120,6 +120,9 @@ pub fn set_plugin_enabled(
     input: SetPluginEnabledInput,
 ) -> Result<PluginDescriptor, String> {
     let plugin = plugins::set_plugin_enabled(&app, &input.id, input.enabled)?;
+    if !input.enabled {
+        let _ = app.emit_to("main", "plugin-chat:revoke", &input.id);
+    }
     plugin_ui.invalidate()?;
     Ok(plugin)
 }
@@ -131,9 +134,15 @@ pub async fn remove_plugin(
     input: RemovePluginInput,
 ) -> Result<RemovedPlugin, String> {
     plugin_ui.invalidate()?;
-    tauri::async_runtime::spawn_blocking(move || plugins::remove_installed_plugin(&app, &input.id))
-        .await
-        .map_err(|error| format!("插件移除任务失败：{error}"))?
+    let worker_app = app.clone();
+    let plugin_id = input.id.clone();
+    let removed = tauri::async_runtime::spawn_blocking(move || {
+        plugins::remove_installed_plugin(&worker_app, &input.id)
+    })
+    .await
+    .map_err(|error| format!("插件移除任务失败：{error}"))??;
+    let _ = app.emit_to("main", "plugin-chat:revoke", &plugin_id);
+    Ok(removed)
 }
 
 #[tauri::command]
@@ -171,4 +180,26 @@ pub async fn get_plugin_ui_document(
     tauri::async_runtime::spawn_blocking(move || plugin_ui.document(&app, input.plugin_id))
         .await
         .map_err(|error| format!("读取插件 UI 文档失败：{error}"))?
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginChatPostInput {
+    connection_id: String,
+    message: Value,
+}
+
+#[tauri::command]
+pub fn post_plugin_chat(
+    plugin_ui: State<'_, PluginUiHost>,
+    input: PluginChatPostInput,
+) -> Result<(), String> {
+    let kind = input.message.get("type").and_then(Value::as_str);
+    if !matches!(
+        kind,
+        Some("plugin-chat:response") | Some("plugin-chat:snapshot")
+    ) {
+        return Err("无效的插件聊天响应".to_string());
+    }
+    plugin_ui.post_chat(&input.connection_id, input.message)
 }

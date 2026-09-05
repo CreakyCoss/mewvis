@@ -1,0 +1,54 @@
+export type * from "@isle/chat-contracts";
+import type {
+  ChatSession,
+  ChatSnapshot,
+  ChatContext,
+  OperationResult,
+} from "@isle/chat-contracts";
+
+/** Serializable scene data. Identity, credentials and filesystem paths belong to the host. */
+export type PluginChatProfile = {
+  id: string;
+  systemPrompt: string;
+  context?: ChatContext;
+  allowedToolNames?: string[];
+  useKnowledge?: boolean;
+};
+export type PluginChatInput = {
+  workspaceId: string;
+  chatId: string;
+  profile: PluginChatProfile;
+};
+export type PluginChatRequest = {
+  method: string;
+  handle?: string;
+  input?: unknown;
+  watchId?: string;
+};
+export type PluginChatEvent = {
+  handle: string;
+  revision: number;
+  snapshot: Readonly<ChatSnapshot>;
+  watchId?: string;
+};
+export interface PluginChatTransport {
+  request(request: PluginChatRequest): Promise<unknown>;
+  subscribe(listener: (event: PluginChatEvent) => void): () => void;
+}
+export interface PluginChatSession extends ChatSession {
+  setContext(context: ChatContext): Promise<OperationResult>;
+  /** Refresh the mirror after reconnecting. Does not recreate or resend a turn. */
+  reconnect(): Promise<void>;
+}
+export interface PluginChatClient {
+  listWorkspaces(): Promise<{ id: string; name: string; isDefault: boolean }[]>;
+  openSession(input: PluginChatInput): Promise<PluginChatSession>;
+  /** Detach this client only. Host sessions continue until explicitly closed. */
+  dispose(): void;
+}
+/** Pure JS entry. A host may provide a transport without React, DOM or Tauri. */
+export declare function createPluginChatClient(
+  transport: PluginChatTransport,
+): PluginChatClient;
+/** The sandbox supplies the transport automatically. */
+export declare function getPluginChatClient(): PluginChatClient;

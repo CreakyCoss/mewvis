@@ -7,6 +7,7 @@ function createViewState() {
     draft: { text: "", blocks: [] } as ComposerDraft,
     revision: 0,
     clearVersion: 0,
+    submitting: false,
     error: "",
     preferenceError: "",
     preferences: { showThinkingProcess: true, showToolCallProcess: true },
@@ -62,6 +63,7 @@ function createViewState() {
           error: "",
         });
     },
+    setSubmitting: (submitting: boolean) => patch({ submitting }),
     setError: (error: string) => patch({ error }),
     updatePreferences(value: Partial<ChatDisplayOptions>) {
       preferencesRevision++;

@@ -106,7 +106,12 @@ export const QuestionView = ({ question, onAnswer, answering = false }: ChatQues
                   isCustomAnswer ? setCustomAnswer(event.currentTarget.value) : setAnswer(event.currentTarget.value)
                 }
               />
-              <Button type="submit" disabled={isAnswering || !answerValue.trim()} className="min-h-11">
+              <Button
+                type="button"
+                onClick={() => void submitAnswer(answerValue)}
+                disabled={isAnswering || !answerValue.trim()}
+                className="min-h-11"
+              >
                 {isAnswering ? <Spinner className="motion-reduce:animate-none" /> : <SendIcon aria-hidden="true" />}
                 回复
               </Button>

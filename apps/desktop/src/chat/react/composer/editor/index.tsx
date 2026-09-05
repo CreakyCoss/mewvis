@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, type KeyboardEvent, type Ref } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, type Ref } from "react";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import { ClearEditorPlugin } from "@lexical/react/LexicalClearEditorPlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
@@ -108,12 +108,6 @@ const ChatEditorComponent = (
     },
     [onChange],
   );
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-      event.preventDefault();
-      event.currentTarget.closest("form")?.requestSubmit();
-    }
-  };
 
   return (
     <LexicalComposer initialConfig={initialConfig}>
@@ -125,7 +119,6 @@ const ChatEditorComponent = (
               aria-label="对话内容"
               aria-disabled={disabled}
               className="max-h-48 min-h-28 w-full overflow-y-auto px-4 py-4 text-base leading-6 whitespace-pre-wrap text-foreground outline-none [overflow-wrap:anywhere] aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
-              onKeyDown={handleKeyDown}
             />
           }
           placeholder={

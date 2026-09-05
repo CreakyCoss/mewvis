@@ -19,6 +19,8 @@ export function createDesktopRuntime(
     async prepare(turn, signal) {
       // A scene revision applies to the next turn; an in-flight preparation keeps its own context.
       const profile = readProfile();
+      await profile.authorize?.();
+      signal.throwIfAborted();
       const details = catalog.getDetails();
       const { config, input } = turn;
       const collections = (details.resources.knowledgeCollections ?? []).filter((item) =>
@@ -71,6 +73,7 @@ export function createDesktopRuntime(
       return {
         author: { name: agent?.name, avatar: agent?.avatar },
         async dispatch() {
+          await readProfile().authorize?.();
           signal.throwIfAborted();
           await client.agent.run({
             taskId: turn.taskId,

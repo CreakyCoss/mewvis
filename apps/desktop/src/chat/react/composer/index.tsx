@@ -56,7 +56,8 @@ export function ComposerActions(binding: ComposerBinding) {
         </InputGroupButton>
       ) : (
         <InputGroupButton
-          type="submit"
+          type="button"
+          onClick={() => void binding.submit()}
           size="icon-sm"
           variant="default"
           disabled={!binding.canSubmit}
@@ -88,13 +89,24 @@ export function ComposerView({
   const Editor = slots.editor;
   const Toolbar = slots.toolbar ?? ComposerToolbar;
   const Actions = slots.actions ?? ComposerActions;
+  const submit = async () => {
+    if (!Editor && editor.current) binding.setDraft(editor.current.getValue());
+    const result = await binding.submit();
+    onSubmitted?.(result);
+    return result;
+  };
   return (
     <form
       className={`mx-auto w-full max-w-[69rem] ${className}`}
+      onKeyDown={(event) => {
+        if (!event.defaultPrevented && event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+          event.preventDefault();
+          void submit();
+        }
+      }}
       onSubmit={(event) => {
         event.preventDefault();
-        if (!Editor && editor.current) binding.setDraft(editor.current.getValue());
-        void binding.submit().then((result) => onSubmitted?.(result));
+        void submit();
       }}
     >
       <InputGroup className="h-auto flex-col items-stretch overflow-hidden rounded-xl border border-border/80 bg-card shadow-[var(--shadow-composer)] transition-[border-color,box-shadow] duration-200 ease-out has-[[data-slot=input-group-control]:focus-visible]:border-ring/55 has-[[data-slot=input-group-control]:focus-visible]:shadow-[var(--shadow-floating)] has-[[data-slot=input-group-control]:focus-visible]:ring-3 has-[[data-slot=input-group-control]:focus-visible]:ring-ring/15 dark:bg-card">
@@ -122,7 +134,7 @@ export function ComposerView({
             {children}
           </div>
           <div className="ml-auto flex shrink-0 items-center gap-2">
-            <Actions {...binding} />
+            <Actions {...binding} submit={submit} />
           </div>
         </InputGroupAddon>
       </InputGroup>
@@ -145,6 +157,7 @@ export function EmptyComposer({ placeholder = "输入问题" }: { placeholder?: 
     draft: { text: "", blocks: [] },
     revision: 0,
     clearVersion: 0,
+    submitting: false,
     error: "",
     preferenceError: "",
     preferences: { showThinkingProcess: true, showToolCallProcess: true },

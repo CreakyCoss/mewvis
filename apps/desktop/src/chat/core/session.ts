@@ -378,7 +378,7 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
         return { ok: false, error: message };
       }
     },
-    updateConfig(patch) {
+    async updateConfig(patch) {
       if (!state.initialized || active || state.phase !== "idle" || closing)
         return { ok: false, error: "当前无法修改运行配置" };
       seed = { ...state.config, ...structuredClone(patch) };

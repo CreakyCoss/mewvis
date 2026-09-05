@@ -1,0 +1,17 @@
+{
+  "name": "@isle/chat-contracts",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "UI-independent session and semantic message contracts shared by Isle and its plugin SDK.",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
+  },
+  "files": [
+    "index.d.ts",
+    "index.js"
+  ],
+  "sideEffects": false
+}

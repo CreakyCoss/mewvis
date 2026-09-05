@@ -2,7 +2,8 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 
 export type PluginRuntimeKind = "isle" | "dsh";
 
-export type PluginPermission = "network" | "plugin-data" | "workspace-files" | "open-external" | "process";
+export type PluginPermission =
+  "network" | "plugin-data" | "workspace-files" | "open-external" | "process" | "chat" | "chat-knowledge";
 export type PluginPermissionStatus = "declared" | "isle-upgrade-required" | "dsh-unsupported";
 
 export type PluginDescriptor = {
