@@ -82,6 +82,10 @@ export type AgentRuntimeTauriCommands = {
     args: { input: SessionTargetParams };
     result: AgentClientLedgerResult;
   };
+  release_agent_runtime_session: {
+    args: { input: SessionTargetParams };
+    result: void;
+  };
   delete_agent_runtime_session: {
     args: { input: SessionTargetParams };
     result: void;
@@ -106,6 +110,7 @@ export const agentRuntimeTauriCommandNames = [
   "answer_agent_runtime_question",
   "abort_agent_runtime_agent",
   "read_agent_runtime_session",
+  "release_agent_runtime_session",
   "delete_agent_runtime_session",
   "summarize_agent_runtime_session",
 ] as const satisfies readonly AgentRuntimeTauriCommandName[];

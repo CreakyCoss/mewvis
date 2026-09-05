@@ -1,18 +1,81 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type { LlmSettings, LlmSettingsConfig } from "@/agent-client/runtime-model";
+import {
+  buildRuntimeModelInputs,
+  buildRuntimeModelOptions,
+  type LlmSettings,
+  type LlmSettingsConfig,
+} from "@/agent-client/runtime-model";
 
-export const getLlmSettings = () => {
-  if (!isTauri()) {
-    return Promise.resolve<LlmSettings>({ providers: [] });
-  }
+type LoadOptions = { refresh?: boolean };
+// Host-only configuration, shared by catalog, runs and ledger summaries.
+// Callers receive copies; credentials never enter Chat snapshots or component props.
+let cachedSettings: LlmSettings | undefined;
+let pendingRead: Promise<LlmSettings> | undefined;
+let pendingSave: Promise<LlmSettings> | undefined;
+let saveQueue = Promise.resolve();
+let revision = 0;
 
-  return invoke<LlmSettings>("get_llm_settings");
+const loadSettings = ({ refresh = false }: LoadOptions = {}): Promise<LlmSettings> => {
+  if (pendingSave)
+    return pendingSave.then(
+      () => loadSettings(),
+      () => loadSettings({ refresh }),
+    );
+  if (pendingRead) return pendingRead;
+  if (!refresh && cachedSettings) return Promise.resolve(cachedSettings);
+
+  const readingRevision = revision;
+  cachedSettings = undefined;
+  const request = Promise.resolve()
+    .then(() => (isTauri() ? invoke<LlmSettings>("get_llm_settings") : { providers: [] }))
+    .then(
+      (settings) => {
+        if (revision !== readingRevision) return loadSettings();
+        cachedSettings = structuredClone(settings);
+        return cachedSettings;
+      },
+      (error) => {
+        if (revision !== readingRevision) return loadSettings();
+        throw error;
+      },
+    )
+    .finally(() => {
+      if (pendingRead === request) pendingRead = undefined;
+    });
+  pendingRead = request;
+  return request;
 };
 
-export const saveLlmSettings = (input: LlmSettingsConfig) => {
-  if (!isTauri()) {
-    return Promise.resolve<LlmSettings>({ providers: [] });
-  }
+export const getLlmSettings = (options?: LoadOptions) =>
+  loadSettings(options).then((settings) => structuredClone(settings));
 
-  return invoke<LlmSettings>("save_llm_settings", { input });
+export const saveLlmSettings = (input: LlmSettingsConfig) => {
+  const submitted = structuredClone(input);
+  // Supersede older reads immediately, including reads that fail after this save.
+  revision++;
+  pendingRead = undefined;
+  const request = saveQueue
+    .then(() => (isTauri() ? invoke<LlmSettings>("save_llm_settings", { input: submitted }) : { providers: [] }))
+    .then((settings) => {
+      cachedSettings = structuredClone(settings);
+      return cachedSettings;
+    })
+    .finally(() => {
+      if (pendingSave === request) pendingSave = undefined;
+    });
+  pendingSave = request;
+  saveQueue = request.then(
+    () => undefined,
+    () => undefined,
+  );
+  return request.then((settings) => structuredClone(settings));
+};
+
+export const getLlmModelOptions = async (options?: LoadOptions) =>
+  buildRuntimeModelOptions(await getLlmSettings(options));
+
+export const resolveLlmModel = async (modelId: string) => {
+  const model = buildRuntimeModelInputs(await getLlmSettings())[modelId];
+  if (!model) throw new Error("所选模型已不可用，请重新选择");
+  return model;
 };

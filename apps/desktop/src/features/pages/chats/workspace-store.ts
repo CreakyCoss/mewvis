@@ -1,13 +1,5 @@
 import { create } from "zustand";
-import {
-  deleteChat as deleteChatApi,
-  listChats,
-  saveChat as saveChatApi,
-  setChatUnread as setChatUnreadApi,
-  type ChatMeta,
-  type ChatRecord,
-  type SaveChatInput,
-} from "@/api/chat";
+import { deleteChat as deleteChatApi, listChats, type ChatMeta, type ChatRecord } from "@/api/chat";
 import {
   createWorkspace as createWorkspaceApi,
   deleteWorkspace as deleteWorkspaceApi,
@@ -15,17 +7,14 @@ import {
   updateWorkspace as updateWorkspaceApi,
   type Workspace,
 } from "@/api/workspace";
-import type { ChatInputResources, ChatTurnRequest } from "./components/chat-input/type";
-import { loadResources } from "./resources";
+import { chatService } from "@/features/app/chat-service";
 
 type CurrentChat = {
   workspaceId: string;
   chatId: string;
 };
 
-export type OpenChat = CurrentChat & {
-  initialTurn?: ChatTurnRequest;
-};
+export type OpenChat = CurrentChat;
 
 type ChatLoadingMap = Record<string, Record<string, boolean>>;
 
@@ -36,7 +25,6 @@ type WorkspaceStore = {
   currentWorkspace: Workspace | null;
   currentChat: CurrentChat | null;
   openChats: OpenChat[];
-  resources: ChatInputResources;
   chatsByWorkspaceId: Record<string, ChatMeta[]>;
   chatLoadingMap: ChatLoadingMap;
   isLoading: boolean;
@@ -44,7 +32,7 @@ type WorkspaceStore = {
   setCurrentWorkspace: (workspace: Workspace | null) => void;
   setCurrentChat: (chat: CurrentChat | null) => void;
   openChat: (chat: OpenChat) => void;
-  saveChat: (workspace: Workspace, input: Omit<SaveChatInput, "workspacePath">) => Promise<ChatRecord>;
+  acceptChatRecord: (workspacePath: string, record: ChatRecord) => void;
   setChatLoading: (workspaceId: string, chatId: string, isLoading: boolean) => void;
   deleteChat: (workspace: Workspace, chatId: string) => Promise<void>;
   loadWorkspaces: () => Promise<void>;
@@ -158,7 +146,6 @@ const fetchWorkspaces = async (currentWorkspace: Workspace | null, previousWorks
     workspaces,
     currentWorkspace: nextWorkspace,
     chatsByWorkspaceId,
-    resources: await loadResources(),
   };
 };
 
@@ -167,7 +154,6 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
   currentWorkspace: null,
   currentChat: null,
   openChats: [],
-  resources: {},
   chatsByWorkspaceId: {},
   chatLoadingMap: {},
   isLoading: false,
@@ -197,11 +183,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     }));
 
     if (workspace) {
-      void setChatUnreadApi({
-        workspacePath: workspace.path,
-        chatId: chat.chatId,
-        isUnread: false,
-      }).catch((error) => {
+      void chatService.setUnread(workspace.path, chat.chatId, false).catch((error) => {
         set({
           error: getErrorMessage(error, "对话已读状态更新失败，请重试。"),
         });
@@ -211,17 +193,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
   openChat: (chat) => {
     set((state) => {
       const existingChatIndex = state.openChats.findIndex((item) => isSameChat(item, chat));
-      if (existingChatIndex >= 0) {
-        if (!chat.initialTurn) {
-          return state;
-        }
-
-        return {
-          openChats: state.openChats.map((item, index) =>
-            index === existingChatIndex ? { ...item, initialTurn: chat.initialTurn } : item,
-          ),
-        };
-      }
+      if (existingChatIndex >= 0) return state;
 
       if (state.openChats.length < MAX_OPEN_CHAT_COUNT) {
         return { openChats: [...state.openChats, chat] };
@@ -242,31 +214,21 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
       get().setCurrentChat(chat);
     }
   },
-  saveChat: async (workspace, input) => {
-    set({ error: "" });
-    try {
-      const chat = await saveChatApi({
-        ...input,
-        workspacePath: workspace.path,
-      });
-      set((state) => {
-        const chats = state.chatsByWorkspaceId[workspace.id] ?? [];
-        const previous = chats.find((item) => item.id === chat.id);
-
-        return {
-          chatsByWorkspaceId: {
-            ...state.chatsByWorkspaceId,
-            [workspace.id]: mergeChatMeta(chats, chatToMeta(chat, previous)),
-          },
-        };
-      });
-      return chat;
-    } catch (error) {
-      set({
-        error: getErrorMessage(error, "对话保存失败，请重试。"),
-      });
-      throw error;
-    }
+  acceptChatRecord: (workspacePath, record) => {
+    const workspace = get().workspaces.find((item) => item.path === workspacePath);
+    if (!workspace) return;
+    set((state) => ({
+      chatsByWorkspaceId: {
+        ...state.chatsByWorkspaceId,
+        [workspace.id]: mergeChatMeta(
+          state.chatsByWorkspaceId[workspace.id] ?? [],
+          chatToMeta(
+            record,
+            state.chatsByWorkspaceId[workspace.id]?.find((item) => item.id === record.id),
+          ),
+        ),
+      },
+    }));
   },
   setChatLoading: (workspaceId, chatId, isLoading) => {
     const wasLoading = Boolean(get().chatLoadingMap[workspaceId]?.[chatId]);
@@ -297,11 +259,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
         return;
       }
 
-      void setChatUnreadApi({
-        workspacePath: workspace.path,
-        chatId,
-        isUnread: true,
-      }).catch((error) => {
+      void chatService.setUnread(workspace.path, chatId, true).catch((error) => {
         set({
           error: getErrorMessage(error, "对话未读状态更新失败，请重试。"),
         });
@@ -309,6 +267,11 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     }
   },
   deleteChat: async (workspace, chatId) => {
+    const closed = await chatService.closeSession({ scope: `workspace:${workspace.id}`, id: chatId });
+    if (!closed.ok) {
+      set({ error: closed.error });
+      return;
+    }
     const previousChats = get().chatsByWorkspaceId[workspace.id] ?? [];
     const deletedChat = previousChats.find((chat) => chat.id === chatId);
     const wasLoading = Boolean(get().chatLoadingMap[workspace.id]?.[chatId]);
@@ -364,7 +327,6 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
         currentWorkspace: null,
         currentChat: null,
         openChats: [],
-        resources: {},
         chatsByWorkspaceId: {},
         isLoading: false,
         error: getErrorMessage(error, "工作区列表加载失败，请重试。"),
@@ -416,6 +378,11 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
   deleteWorkspace: async (workspaceId) => {
     set({ error: "" });
     try {
+      const workspace = get().workspaces.find((item) => item.id === workspaceId);
+      if (workspace) {
+        const closed = await chatService.closeWorkspace(workspace.path);
+        if (!closed.ok) throw new Error(closed.error);
+      }
       await deleteWorkspaceApi(workspaceId);
       const currentWorkspaceDeleted = get().currentWorkspace?.id === workspaceId;
       const workspaces = get().workspaces.filter((workspace) => workspace.id !== workspaceId);

@@ -1,0 +1,104 @@
+import { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type PropsWithChildren } from "react";
+import { isChatBusy, type ChatRunConfig, type ChatSession } from "../core";
+import { getChatViewState } from "./view-state";
+import type { ChatDisplayOptions, ChatInputFile, ChatViewPersistence } from "./types";
+
+type Environment = {
+  files?: (session: ChatSession) => ChatInputFile[];
+  persistence?: (session: ChatSession, viewId: string) => ChatViewPersistence | undefined;
+};
+const EnvironmentContext = createContext<Environment>({});
+export function ChatEnvironment({ children, ...environment }: PropsWithChildren<Environment>) {
+  return <EnvironmentContext.Provider value={environment}>{children}</EnvironmentContext.Provider>;
+}
+const SessionContext = createContext<{ session: ChatSession; view: ReturnType<typeof getChatViewState> } | null>(null);
+export function ChatProvider({
+  session,
+  viewId = "main",
+  children,
+}: PropsWithChildren<{ session: ChatSession; viewId?: string }>) {
+  const environment = useContext(EnvironmentContext);
+  const view = useMemo(() => getChatViewState(session, viewId), [session, viewId]);
+  useEffect(() => {
+    view.connect(environment.persistence?.(session, viewId));
+  }, [environment, session, view, viewId]);
+  const value = useMemo(() => ({ session, view }), [session, view]);
+  return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
+}
+function useBinding() {
+  const binding = useContext(SessionContext);
+  if (!binding) throw new Error("Chat 组件需要 Chat.Provider");
+  return binding;
+}
+export function useChatSession() {
+  return useBinding().session;
+}
+export function useChatSnapshot() {
+  const session = useChatSession();
+  return useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
+}
+export function useChatActions() {
+  return useChatSession();
+}
+export function useChatViewState() {
+  const { view } = useBinding();
+  const snapshot = useSyncExternalStore(view.subscribe, view.getSnapshot, view.getSnapshot);
+  return { ...snapshot, updatePreferences: view.updatePreferences, retryPreferences: view.retryPreferences };
+}
+export function useChatComposer() {
+  const { session, view } = useBinding();
+  const snapshot = useChatSnapshot();
+  const draft = useSyncExternalStore(view.subscribe, view.getSnapshot, view.getSnapshot);
+  const environment = useContext(EnvironmentContext);
+  const controls = useChatControls();
+  const busy = isChatBusy(snapshot);
+  const disabled = !snapshot.initialized || snapshot.phase === "closed" || snapshot.phase === "closing" || busy;
+  return {
+    ...draft,
+    controls,
+    initialized: snapshot.initialized,
+    files: environment.files?.(session) ?? [],
+    skills: [
+      ...new Map(
+        (snapshot.resources.skillGroups ?? []).flatMap((group) =>
+          group.skills
+            .filter((skill) => snapshot.config.selectedSkillKeys.includes(skill.key))
+            .map((skill) => [skill.key, skill] as const),
+        ),
+      ).values(),
+    ],
+    busy,
+    disabled,
+    canSubmit:
+      !disabled &&
+      Boolean(draft.draft.text.trim()) &&
+      Boolean(snapshot.resources.models?.some((model) => model.value === snapshot.config.selectedModelId)),
+    setDraft: view.setDraft,
+    async submit() {
+      const current = view.getSnapshot();
+      const result = await session.send(current.draft);
+      if (result.status === "dispatched") view.clear(current.revision);
+      else if (result.status === "rejected") view.setError(result.reason ?? "消息发送失败");
+      return result;
+    },
+    stop: session.stop,
+  };
+}
+export function useChatControls() {
+  const snapshot = useChatSnapshot();
+  const session = useChatSession();
+  const view = useChatViewState();
+  return {
+    resources: snapshot.resources,
+    options: { ...snapshot.config, ...view.preferences },
+    updateOptions(patch: Partial<ChatRunConfig & ChatDisplayOptions>) {
+      const { showThinkingProcess, showToolCallProcess, ...config } = patch;
+      if (showThinkingProcess !== undefined || showToolCallProcess !== undefined)
+        view.updatePreferences({
+          ...(showThinkingProcess !== undefined ? { showThinkingProcess } : {}),
+          ...(showToolCallProcess !== undefined ? { showToolCallProcess } : {}),
+        });
+      if (Object.keys(config).length) session.updateConfig(config);
+    },
+  };
+}

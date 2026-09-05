@@ -292,3 +292,19 @@ async fn call_session_runtime(
     .await
     .map_err(|error| format!("Agent runtime session 任务失败：{error}"))?
 }
+
+/// Stop the worker and release its resources without deleting any session files.
+#[tauri::command]
+pub fn release_agent_runtime_session(
+    state: State<AgentRuntimeSupervisor>,
+    input: AgentRuntimeSessionInput,
+) -> Result<(), String> {
+    let session_root_dir =
+        resolve_session_root_dir(&input.workspace_path, &input.session_root_dir)?;
+    let workspace = workspace_root(&input.workspace_path)?;
+    ensure_under_root(
+        &workspace_app_data_dir(&workspace),
+        &PathBuf::from(&session_root_dir),
+    )?;
+    state.dispose_session(&input.workspace_path, &session_root_dir)
+}

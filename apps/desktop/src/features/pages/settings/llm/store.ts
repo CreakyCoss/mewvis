@@ -24,7 +24,7 @@ export const useLlmSettingsStore = create<LlmSettingsStore>((set) => ({
     loadSettingsPromise = (async () => {
       set({ isLoading: true, error: "" });
       try {
-        const settings = await getLlmSettings();
+        const settings = await getLlmSettings({ refresh: true });
         set({
           settings,
           isLoading: false,

@@ -1,138 +1,86 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Outlet, useMatch } from "react-router";
-import { Spinner } from "@/components/ui/spinner";
-import { Chat } from "./chat";
-import type { ChatSaveInput } from "./chat/type";
-import type { ChatInputOptions, ChatTurnRequest } from "./components/chat-input/type";
+import { Chat } from "@/chat/react";
+import { useDesktopChatSession } from "@/chat/desktop/react";
 import { useWorkspaceStore } from "./workspace-store";
-import { useWorkspaceFileStore, WorkspaceFileWatcher } from "./workspace-files";
+import { WorkspaceFileWatcher } from "./workspace-files";
 import { WorkspaceChatSidebar } from "./sidebar";
+import { workspaceChatProfile } from "./profile";
 
-type WorkspaceChatProps = {
-  workspaceId: string;
-  chatId: string;
-  initialTurn?: ChatTurnRequest;
-  isActive: boolean;
-};
-
-const WorkspaceChat = ({ workspaceId, chatId, initialTurn, isActive }: WorkspaceChatProps) => {
-  const workspaceStore = useWorkspaceStore();
-  const fileStore = useWorkspaceFileStore();
-  const [options, setOptions] = useState<ChatInputOptions | null>(null);
-  const workspace = workspaceStore.workspaces.find((item) => item.id === workspaceId) ?? null;
-  const resources = workspaceStore.resources;
-  const selectedModel = useMemo(
-    () => resources.models?.find((model) => model.value === options?.selectedModelId)?.runtimeModel ?? null,
-    [options?.selectedModelId, resources.models],
+function WorkspaceChat({ workspaceId, chatId, isActive }: { workspaceId: string; chatId: string; isActive: boolean }) {
+  const store = useWorkspaceStore();
+  const requestedWorkspaces = useRef(false);
+  const workspace = store.workspaces.find((item) => item.id === workspaceId);
+  const { session, error } = useDesktopChatSession(
+    workspace
+      ? {
+          identity: { scope: `workspace:${workspaceId}`, id: chatId },
+          workspacePath: workspace.path,
+          profile: workspaceChatProfile,
+        }
+      : null,
   );
-
   useEffect(() => {
-    if (workspaceStore.workspaces.length === 0 && !workspaceStore.isLoading && !workspaceStore.error) {
-      void workspaceStore.loadWorkspaces();
+    if (!requestedWorkspaces.current && !store.workspaces.length && !store.isLoading && !store.error) {
+      requestedWorkspaces.current = true;
+      void store.loadWorkspaces();
     }
-  }, [workspaceStore.error, workspaceStore.isLoading, workspaceStore.loadWorkspaces, workspaceStore.workspaces.length]);
-
+  }, [store.workspaces.length, store.isLoading, store.error, store.loadWorkspaces]);
   useEffect(() => {
-    if (isActive && workspace) {
-      workspaceStore.setCurrentWorkspace(workspace);
-    }
-  }, [isActive, workspace, workspaceStore.setCurrentWorkspace]);
-
-  const saveWorkspaceChat = useCallback(
-    (input: ChatSaveInput) => {
-      if (!workspace) {
-        return Promise.reject(new Error("工作区尚未加载完成"));
-      }
-
-      return workspaceStore.saveChat(workspace, input);
-    },
-    [workspace, workspaceStore.saveChat],
-  );
-
-  if (!workspaceId || !chatId) {
+    if (isActive && workspace) store.setCurrentWorkspace(workspace);
+  }, [isActive, workspace, store.setCurrentWorkspace]);
+  if (!session || !workspace)
     return (
-      <main className="flex h-full min-h-0 items-center justify-center bg-background px-6 text-sm text-destructive">
-        会话地址无效
-      </main>
+      <Chat.Loading
+        error={
+          error ||
+          store.error ||
+          (!workspace && !store.isLoading && requestedWorkspaces.current ? "工作区不存在" : undefined)
+        }
+      />
     );
-  }
-
-  const isLoading = workspaceStore.isLoading || (workspaceStore.workspaces.length === 0 && !workspaceStore.error);
-  const error = isLoading ? "" : workspaceStore.error || (!workspace ? "工作区不存在" : "");
-
-  if (isLoading || !workspace) {
-    return (
-      <main className="flex h-full min-h-0 items-center justify-center gap-2 bg-background px-6 text-sm text-muted-foreground">
-        {error ? null : <Spinner />}
-        <span>{error || "正在加载工作区会话"}</span>
-      </main>
-    );
-  }
-
   return (
     <div className="relative flex h-full min-h-0 flex-1 overflow-hidden bg-surface/45">
       <div className="min-w-0 flex-1 overflow-hidden bg-background/95">
-        <Chat
-          chatId={chatId}
-          workspacePath={workspace.path}
-          resources={resources}
-          files={fileStore.workspacePath === workspace.path ? fileStore.files : []}
-          initialTurn={initialTurn}
-          saveChat={saveWorkspaceChat}
-          onStatusChange={({ chatId: statusChatId, isRunning }) =>
-            workspaceStore.setChatLoading(workspaceId, statusChatId, isRunning)
-          }
-          onOptionsChange={setOptions}
-        />
+        <Chat session={session} />
       </div>
       {isActive ? (
-        <WorkspaceChatSidebar
-          workspacePath={workspace.path}
-          chatId={chatId}
-          selectedModel={selectedModel}
-          panels={["files", "version", "ledger"]}
-        />
+        <Chat.Provider session={session} viewId="sidebar">
+          <WorkspaceChatSidebar
+            workspacePath={workspace.path}
+            chatId={chatId}
+            panels={["files", "version", "ledger"]}
+          />
+        </Chat.Provider>
       ) : null}
     </div>
   );
-};
-
-export const WorkspaceChatRoute = () => {
-  const workspaceChatRoute = useMatch("/chats/:workspaceId/:chatId");
-  const workspaceStore = useWorkspaceStore();
-  const workspaceId = workspaceChatRoute?.params.workspaceId ?? "";
-  const chatId = workspaceChatRoute?.params.chatId ?? "";
-  const isWorkspaceChatRoute = Boolean(workspaceChatRoute);
-  const isOpen = workspaceStore.openChats.some((chat) => chat.workspaceId === workspaceId && chat.chatId === chatId);
+}
+export function WorkspaceChatRoute() {
+  const route = useMatch("/chats/:workspaceId/:chatId");
+  const store = useWorkspaceStore();
+  const workspaceId = route?.params.workspaceId ?? "";
+  const chatId = route?.params.chatId ?? "";
   const openChats =
-    workspaceChatRoute && !isOpen ? [...workspaceStore.openChats, { workspaceId, chatId }] : workspaceStore.openChats;
-
+    route && !store.openChats.some((chat) => chat.workspaceId === workspaceId && chat.chatId === chatId)
+      ? [...store.openChats, { workspaceId, chatId }]
+      : store.openChats;
   useEffect(() => {
-    if (isWorkspaceChatRoute) {
-      workspaceStore.openChat({ workspaceId, chatId });
-    } else {
-      workspaceStore.setCurrentChat(null);
-    }
-  }, [chatId, isWorkspaceChatRoute, workspaceId, workspaceStore.openChat, workspaceStore.setCurrentChat]);
-
+    if (workspaceId && chatId) store.openChat({ workspaceId, chatId });
+    else store.setCurrentChat(null);
+  }, [workspaceId, chatId, store.openChat, store.setCurrentChat]);
   return (
     <>
-      <WorkspaceFileWatcher workspacePath={workspaceStore.currentWorkspace?.path ?? ""} />
+      <WorkspaceFileWatcher workspacePath={store.currentWorkspace?.path ?? ""} />
       {openChats.map((chat) => {
-        const isActive = workspaceId === chat.workspaceId && chatId === chat.chatId;
-
+        const isActive = chat.workspaceId === workspaceId && chat.chatId === chatId;
         return (
           <div key={`${chat.workspaceId}:${chat.chatId}`} hidden={!isActive} className="min-h-0 flex-1">
-            <WorkspaceChat
-              workspaceId={chat.workspaceId}
-              chatId={chat.chatId}
-              initialTurn={chat.initialTurn}
-              isActive={isActive}
-            />
+            <WorkspaceChat {...chat} isActive={isActive} />
           </div>
         );
       })}
       <Outlet />
     </>
   );
-};
+}

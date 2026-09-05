@@ -80,3 +80,6 @@ export const listenAgentRuntimeAgentEvents = (
 export const listenAgentRuntimeChatEvents = (
   listener: (event: AgentRuntimeTauriEventPayload<"agent_runtime_chat_event">) => void,
 ) => listenAgentRuntimeEvent("agent_runtime_chat_event", listener);
+
+export const releaseAgentRuntimeSession = (input: SessionTargetParams) =>
+  invokeAgentRuntime("release_agent_runtime_session", { input });

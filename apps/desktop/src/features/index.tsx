@@ -1,12 +1,15 @@
+import { AppChatIntegration } from "@/features/app/chat-integration";
 import { HashRouter } from "react-router";
 import { StartupGate } from "@/features/app/startup";
 import { AppRoutes } from "@/features/routes";
 
 export const FeatureApp = () => (
   <StartupGate>
-    <HashRouter>
-      <AppRoutes />
-    </HashRouter>
+    <AppChatIntegration>
+      <HashRouter>
+        <AppRoutes />
+      </HashRouter>
+    </AppChatIntegration>
   </StartupGate>
 );
 

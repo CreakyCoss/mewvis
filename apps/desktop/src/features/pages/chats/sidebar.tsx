@@ -1,6 +1,6 @@
 import { useEffect, useState, type ComponentType } from "react";
 import { ActivityIcon, FolderIcon, GitBranchIcon, PanelRightIcon } from "lucide-react";
-import type { RuntimeModelInput } from "@/agent-client/wire";
+import { useChatSnapshot } from "@/chat/react";
 import { WorkspaceFiles } from "./panels/files";
 import { ChatLedger } from "./panels/ledger";
 import { WorkspaceVersionControl } from "./panels/version-control";
@@ -10,7 +10,6 @@ export type WorkspaceChatPanel = "files" | "version" | "ledger";
 type WorkspaceChatSidebarProps = {
   workspacePath: string;
   chatId: string;
-  selectedModel: RuntimeModelInput | null;
   panels: WorkspaceChatPanel[];
 };
 
@@ -40,7 +39,8 @@ const toolButtonClass =
 const toggleButtonClass =
   "flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:ring-3 focus-visible:ring-primary/20 focus-visible:outline-none data-[active=true]:bg-primary/10 data-[active=true]:text-primary";
 
-export const WorkspaceChatSidebar = ({ workspacePath, chatId, selectedModel, panels }: WorkspaceChatSidebarProps) => {
+export const WorkspaceChatSidebar = ({ workspacePath, chatId, panels }: WorkspaceChatSidebarProps) => {
+  const selectedModelId = useChatSnapshot().config.selectedModelId;
   const [activePanel, setActivePanel] = useState<WorkspaceChatPanel>(panels[0] ?? "files");
   const [isOpen, setIsOpen] = useState(false);
 
@@ -62,7 +62,7 @@ export const WorkspaceChatSidebar = ({ workspacePath, chatId, selectedModel, pan
             {activePanel === "files" ? <WorkspaceFiles workspacePath={workspacePath} /> : null}
             {activePanel === "version" ? <WorkspaceVersionControl workspacePath={workspacePath} /> : null}
             {activePanel === "ledger" ? (
-              <ChatLedger workspacePath={workspacePath} chatId={chatId} runtimeModel={selectedModel} />
+              <ChatLedger workspacePath={workspacePath} chatId={chatId} selectedModelId={selectedModelId} />
             ) : null}
           </div>
         </aside>

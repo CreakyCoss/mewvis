@@ -23,6 +23,6 @@ pub use collaboration::{run_agent_runtime_collaboration, run_agent_runtime_colla
 pub use session::{
     delete_agent_runtime_session, get_agent_runtime_collaboration_timeline,
     get_agent_runtime_session, get_agent_runtime_session_debug, list_agent_runtime_sessions,
-    read_agent_runtime_session, summarize_agent_runtime_session,
+    read_agent_runtime_session, release_agent_runtime_session, summarize_agent_runtime_session,
 };
 pub use supervisor::AgentRuntimeSupervisor;

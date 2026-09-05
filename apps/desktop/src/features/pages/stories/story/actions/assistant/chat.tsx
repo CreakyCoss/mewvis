@@ -1,23 +1,9 @@
-import { useEffect, useState } from "react";
-import { loadChat, saveChat } from "@/api/chat";
-import { Spinner } from "@/components/ui/spinner";
-import { Chat } from "@/features/pages/chats/chat";
-import type { ChatMessage } from "@/features/pages/chats/chat/type";
-import type { ChatInputResources } from "@/features/pages/chats/components/chat-input/type";
+import { useMemo } from "react";
+import { Chat } from "@/chat/react";
+import { useDesktopChatSession } from "@/chat/desktop/react";
+import type { ChatMessage } from "@/chat/core";
 import type { StoryLibraryItem } from "../../../storage";
-import { prepareStoryChatResources } from "./resources";
-
-type StoryChatState = {
-  resources: ChatInputResources;
-  isLoading: boolean;
-  error: string;
-};
-
-const initialState: StoryChatState = {
-  resources: {},
-  isLoading: true,
-  error: "",
-};
+import { prepareStoryChatProfile } from "./resources";
 
 const createStoryIntroduction = (story: StoryLibraryItem): ChatMessage => ({
   id: `story-introduction:${story.id}`,
@@ -37,70 +23,20 @@ const createStoryIntroduction = (story: StoryLibraryItem): ChatMessage => ({
   ],
 });
 
-type StoryChatProps = {
-  story: StoryLibraryItem;
-  chatId: string;
-};
-
-export const StoryChat = ({ story, chatId }: StoryChatProps) => {
-  const [state, setState] = useState(initialState);
-
-  useEffect(() => {
-    let cancelled = false;
-    setState(initialState);
-
-    if (!chatId) {
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    void Promise.all([prepareStoryChatResources(story), loadChat<ChatMessage>(story.workspace.path, chatId)])
-      .then(async ([resources, savedChat]) => {
-        if (!savedChat || savedChat.messages.length === 0) {
-          await saveChat({
-            workspacePath: story.workspace.path,
-            chatId,
-            title: `${story.overview.title} · 结构化创作`,
-            messages: [createStoryIntroduction(story)],
-          });
+export function StoryChat({ story, chatId }: { story: StoryLibraryItem; chatId: string }) {
+  const profile = useMemo(
+    () => ({ ...prepareStoryChatProfile(story), initialMessages: [createStoryIntroduction(story)] }),
+    [story],
+  );
+  const { session, error } = useDesktopChatSession(
+    chatId
+      ? {
+          identity: { scope: `workspace:${story.workspace.id}`, id: chatId },
+          workspacePath: story.workspace.path,
+          profile,
         }
-
-        if (!cancelled) {
-          setState({ resources, isLoading: false, error: "" });
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setState({
-            ...initialState,
-            isLoading: false,
-            error: error instanceof Error ? error.message : "故事会话加载失败",
-          });
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [chatId, story]);
-
-  if (!chatId) {
-    return (
-      <div className="flex h-full min-h-0 items-center justify-center bg-background px-6 text-sm text-destructive">
-        会话 ID 无效
-      </div>
-    );
-  }
-
-  if (state.isLoading || state.error) {
-    return (
-      <div className="flex h-full min-h-0 items-center justify-center gap-2 bg-background px-6 text-sm text-muted-foreground">
-        {state.error ? null : <Spinner />}
-        <span>{state.error || "正在加载故事会话"}</span>
-      </div>
-    );
-  }
-
-  return <Chat chatId={chatId} workspacePath={story.workspace.path} resources={state.resources} />;
-};
+      : null,
+  );
+  if (!session) return <Chat.Loading error={error || (!chatId ? "会话 ID 无效" : undefined)} />;
+  return <Chat session={session} />;
+}

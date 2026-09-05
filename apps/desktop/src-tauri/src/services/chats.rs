@@ -15,9 +15,8 @@ const CHAT_DIR_NAME: &str = "chats";
 const META_FILE_NAME: &str = "meta.json";
 const MESSAGES_FILE_NAME: &str = "messages.json";
 const OPTIONS_FILE_NAME: &str = "options.json";
+#[cfg(test)]
 const LEGACY_CONVERSATION_FILE_NAME: &str = "conversation.json";
-const LEGACY_CONTEXT_FILE_NAME: &str = "context.json";
-const LEGACY_TRACE_FILE_NAME: &str = "trace.json";
 static CHAT_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Deserialize)]
@@ -99,14 +98,15 @@ pub fn list_chats(input: ChatPathInput) -> Result<Vec<ChatMeta>, String> {
         let entry = entry.map_err(|error| format!("无法读取聊天记录项：{error}"))?;
         let path = entry.path();
         if path.is_file() && path.extension().and_then(|value| value.to_str()) == Some("json") {
-            fs::remove_file(&path).map_err(|error| format!("无法删除旧聊天记录：{error}"))?;
+            // Unknown/legacy records are preserved; listing must never migrate data.
             continue;
         }
-        if !path.is_dir() {
-            continue;
-        }
-        if is_legacy_chat_dir(&path) {
-            fs::remove_dir_all(&path).map_err(|error| format!("无法删除旧聊天记录：{error}"))?;
+        if !path.is_dir()
+            || entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".pending-chat-")
+        {
             continue;
         }
 
@@ -155,9 +155,10 @@ pub fn save_chat(input: SaveChatInput) -> Result<ChatRecord, String> {
         .as_deref()
         .map(sanitize_session_id)
         .transpose()?;
-    let existing = requested_id
-        .as_deref()
-        .and_then(|id| load_existing_chat(&input.workspace_path, id).ok().flatten());
+    let existing = match requested_id.as_deref() {
+        Some(id) => load_existing_chat(&input.workspace_path, id)?,
+        None => None,
+    };
     let created_at = existing.as_ref().map(|chat| chat.created_at).unwrap_or(now);
     let id = existing
         .as_ref()
@@ -255,14 +256,10 @@ fn load_chat_from_dir(workspace_path: &str, chat_id: &str) -> Result<Option<Chat
     if !dir.exists() {
         return Ok(None);
     }
-    if is_legacy_chat_dir(&dir) {
-        fs::remove_dir_all(&dir).map_err(|error| format!("无法删除旧聊天记录：{error}"))?;
-        return Ok(None);
-    }
 
     let meta_path = dir.join(META_FILE_NAME);
     if !meta_path.exists() {
-        return Ok(None);
+        return Err("聊天记录目录缺少元数据，已保留原文件；不会用空记录覆盖".to_string());
     }
 
     let meta = read_json_file::<ChatMeta>(&meta_path)
@@ -292,8 +289,25 @@ fn load_chat_from_dir(workspace_path: &str, chat_id: &str) -> Result<Option<Chat
 
 fn write_chat_files(workspace_path: &str, chat: &ChatRecord) -> Result<(), String> {
     let dir = chat_record_dir(workspace_path, &chat.id)?;
-    fs::create_dir_all(&dir).map_err(|error| format!("无法创建聊天记录目录：{error}"))?;
+    if dir.exists() {
+        return write_chat_record(&dir, chat);
+    }
+    // A failed first save must not leave a partial record that blocks retries.
+    let pending = chat_dir(workspace_path)?.join(format!(".pending-chat-{}", uuid::Uuid::now_v7()));
+    fs::create_dir(&pending).map_err(|error| format!("无法创建聊天记录临时目录：{error}"))?;
+    let result = write_chat_record(&pending, chat).and_then(|()| {
+        if dir.exists() {
+            return Err("聊天记录目录已被创建，请重新加载后重试".to_string());
+        }
+        fs::rename(&pending, &dir).map_err(|error| format!("无法完成聊天记录创建：{error}"))
+    });
+    if result.is_err() {
+        let _ = fs::remove_dir_all(&pending);
+    }
+    result
+}
 
+fn write_chat_record(dir: &Path, chat: &ChatRecord) -> Result<(), String> {
     write_json_file(&dir.join(MESSAGES_FILE_NAME), &chat.messages)?;
     let options_path = dir.join(OPTIONS_FILE_NAME);
     if let Some(options) = &chat.options {
@@ -301,28 +315,7 @@ fn write_chat_files(workspace_path: &str, chat: &ChatRecord) -> Result<(), Strin
     } else if options_path.exists() {
         fs::remove_file(&options_path).map_err(|error| format!("无法删除聊天选项：{error}"))?;
     }
-    remove_legacy_chat_files(&dir)?;
     write_json_file(&dir.join(META_FILE_NAME), &chat_meta(chat))?;
-    Ok(())
-}
-
-fn is_legacy_chat_dir(dir: &Path) -> bool {
-    dir.join(LEGACY_CONVERSATION_FILE_NAME).exists()
-        || dir.join(LEGACY_CONTEXT_FILE_NAME).exists()
-        || dir.join(LEGACY_TRACE_FILE_NAME).exists()
-}
-
-fn remove_legacy_chat_files(dir: &Path) -> Result<(), String> {
-    for file_name in [
-        LEGACY_CONVERSATION_FILE_NAME,
-        LEGACY_CONTEXT_FILE_NAME,
-        LEGACY_TRACE_FILE_NAME,
-    ] {
-        let path = dir.join(file_name);
-        if path.exists() {
-            fs::remove_file(&path).map_err(|error| format!("无法删除旧聊天上下文文件：{error}"))?;
-        }
-    }
     Ok(())
 }
 
@@ -334,7 +327,24 @@ fn read_json_file<T: DeserializeOwned>(path: &Path) -> Result<T, String> {
 fn write_json_file<T: Serialize>(path: &Path, value: &T) -> Result<(), String> {
     let content = serde_json::to_string_pretty(value)
         .map_err(|error| format!("无法序列化聊天记录：{error}"))?;
-    fs::write(path, content).map_err(|error| format!("无法保存聊天记录：{error}"))
+    let temporary = path.with_extension(format!("{}.tmp", uuid::Uuid::now_v7()));
+    let result = (|| {
+        use std::io::Write;
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)
+            .map_err(|error| format!("无法创建聊天记录临时文件：{error}"))?;
+        file.write_all(content.as_bytes())
+            .map_err(|error| format!("无法保存聊天记录：{error}"))?;
+        file.sync_all()
+            .map_err(|error| format!("无法同步聊天记录：{error}"))?;
+        fs::rename(&temporary, path).map_err(|error| format!("无法替换聊天记录：{error}"))
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result
 }
 
 fn normalize_title(title: Option<&str>, messages: &Value) -> String {
@@ -446,6 +456,74 @@ mod tests {
             is_unread: None,
         })
         .expect("save chat")
+    }
+
+    #[test]
+    fn listing_and_loading_preserve_legacy_and_runtime_files() {
+        let workspace = TestWorkspace::new("legacy-preserved");
+        save_test_chat(&workspace, "chat-existing");
+        let dir = chat_record_dir(&workspace.path_string(), "chat-existing").unwrap();
+        fs::write(dir.join("conversation.json"), "legacy content").unwrap();
+        fs::write(dir.join("context.json"), "legacy context").unwrap();
+        fs::create_dir_all(dir.join("session")).unwrap();
+        fs::write(dir.join("session/pi.jsonl"), "pi context").unwrap();
+        let loose = chat_dir(&workspace.path_string()).unwrap().join("old.json");
+        fs::write(&loose, "legacy loose").unwrap();
+        let listed = list_chats(ChatPathInput {
+            workspace_path: workspace.path_string(),
+        })
+        .unwrap();
+        assert_eq!(listed.len(), 1);
+        load_chat(LoadChatInput {
+            workspace_path: workspace.path_string(),
+            chat_id: Some("chat-existing".into()),
+        })
+        .unwrap()
+        .unwrap();
+        save_test_chat(&workspace, "chat-existing");
+        assert_eq!(
+            fs::read_to_string(dir.join("conversation.json")).unwrap(),
+            "legacy content"
+        );
+        assert_eq!(
+            fs::read_to_string(dir.join("context.json")).unwrap(),
+            "legacy context"
+        );
+        assert_eq!(
+            fs::read_to_string(dir.join("session/pi.jsonl")).unwrap(),
+            "pi context"
+        );
+        assert_eq!(fs::read_to_string(loose).unwrap(), "legacy loose");
+    }
+
+    #[test]
+    fn corrupted_or_unknown_history_is_not_overwritten() {
+        let workspace = TestWorkspace::new("corrupt-preserved");
+        save_test_chat(&workspace, "chat-corrupt");
+        let dir = chat_record_dir(&workspace.path_string(), "chat-corrupt").unwrap();
+        fs::write(dir.join(MESSAGES_FILE_NAME), "broken json").unwrap();
+        let result = save_chat(SaveChatInput {
+            workspace_path: workspace.path_string(),
+            chat_id: Some("chat-corrupt".into()),
+            title: None,
+            messages: json!([]),
+            options: None,
+            is_unread: None,
+        });
+        assert!(result.is_err());
+        assert_eq!(
+            fs::read_to_string(dir.join(MESSAGES_FILE_NAME)).unwrap(),
+            "broken json"
+        );
+        let unknown = chat_record_dir(&workspace.path_string(), "chat-unknown").unwrap();
+        fs::create_dir_all(&unknown).unwrap();
+        fs::write(unknown.join("conversation.json"), "unknown format").unwrap();
+        assert!(load_chat(LoadChatInput {
+            workspace_path: workspace.path_string(),
+            chat_id: Some("chat-unknown".into())
+        })
+        .is_err());
+        assert!(unknown.join("conversation.json").exists());
     }
 
     #[test]

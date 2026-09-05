@@ -1,8 +1,5 @@
-import { createAgentClient } from "@/agent-client/runtime";
-import { buildRuntimeModelInputs, buildRuntimeModelOptions } from "@/agent-client/runtime-model";
-import { getAiAgentSettings } from "@/api/agents";
-import { getLlmSettings } from "@/api/llm";
-import type { ChatInputResources, ChatInputSkillOption } from "@/features/pages/chats/components/chat-input/type";
+import type { ChatProfile } from "@/chat/desktop";
+import type { Skill } from "@/features/pages/skills/types";
 import type { StoryLibraryItem } from "../../../storage";
 import { storyDocumentData } from "../../../story-document";
 
@@ -14,7 +11,7 @@ const resolveRevision = (story: StoryLibraryItem) => {
   return typeof manifest?.revision === "number" ? manifest.revision : null;
 };
 
-const storySkill = (story: StoryLibraryItem): ChatInputSkillOption => ({
+const storySkill = (story: StoryLibraryItem): Skill & { label: string } => ({
   key: STORY_SKILL_NAME,
   name: STORY_SKILL_NAME,
   label: "故事创作助手",
@@ -33,56 +30,14 @@ const storySkill = (story: StoryLibraryItem): ChatInputSkillOption => ({
   path: "",
 });
 
-export const prepareStoryChatResources = async (story: StoryLibraryItem): Promise<ChatInputResources> => {
-  const agentClient = createAgentClient();
-  const [llmSettings, agentSettings, toolSettings] = await Promise.all([
-    getLlmSettings(),
-    getAiAgentSettings(),
-    agentClient.capabilities.listAgentTools(),
-  ]);
-  const models = buildRuntimeModelOptions(llmSettings);
-  const runtimeModels = buildRuntimeModelInputs(llmSettings);
-  const skill = storySkill(story);
-
-  return {
-    models: models.flatMap((model, index) => {
-      const runtimeModel = runtimeModels[model.id];
-      return runtimeModel
-        ? [
-            {
-              value: model.id,
-              label: `${model.provider.name}/${model.modelName}`,
-              selectedLabel: model.modelName,
-              description: `${model.provider.name} / ${model.modelName}`,
-              isDefault: index === 0,
-              runtimeModel,
-            },
-          ]
-        : [];
-    }),
-    agents: agentSettings.agents.map((agent) => ({
-      value: agent.id,
-      label: agent.name,
-      description: agent.description ?? "",
-      isDefault: false,
-      agent,
-    })),
-    skillGroups: [
-      {
-        value: STORY_SKILL_NAME,
-        label: "故事创作",
-        description: skill.description,
-        isDefault: true,
-        skills: [skill],
-      },
-    ],
-    tools: toolSettings.tools
-      .filter((tool) => storyToolNames.has(tool.name))
-      .map((tool) => ({
-        value: tool.name,
-        label: tool.label,
-        description: tool.description ?? "",
-        isDefault: true,
-      })),
-  };
-};
+export const prepareStoryChatProfile = (story: StoryLibraryItem): ChatProfile => ({
+  id: `story:${story.overview.id}`,
+  systemPrompt: (path) =>
+    ["你是 Mewvis 的工作区 AI 助手。", `工作区路径：${path}`, "你可以帮助用户规划、写作、分析和修改工作区文件。"].join(
+      "\n",
+    ),
+  skills: [storySkill(story)],
+  skillGroup: { label: "故事创作", description: "使用结构化故事能力规划、分析和创作当前故事。" },
+  useKnowledge: false,
+  allowedToolNames: [...storyToolNames],
+});

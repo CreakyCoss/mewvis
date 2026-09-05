@@ -1,62 +1,16 @@
-import { useEffect, useRef, useState } from "react";
-import { createTimestampId } from "@/utils/ids";
-import { ChatInput } from "../components/chat-input";
-import type { ChatInputSubmission } from "../components/chat-input/type";
+import { useEffect, useRef } from "react";
 import { WorkspaceDialog, type WorkspaceDialogHandle } from "../components/workspace-dialog";
 import { WorkspacePicker } from "../components/workspace-picker";
-import { HomeChat, type HomeChatProps } from "./chat";
-import { useWorkspaceFileStore } from "../workspace-files";
+import { EmptyComposer } from "@/chat/react";
+import { HomeComposer } from "./chat";
 import { useWorkspaceStore } from "../workspace-store";
-
-const defaultOptions = {
-  showThinkingProcess: true,
-  showToolCallProcess: true,
-};
 
 export const ChatHomePage = () => {
   const workspaceStore = useWorkspaceStore();
-  const fileStore = useWorkspaceFileStore();
   const workspaceDialogRef = useRef<WorkspaceDialogHandle>(null);
-  const [chat, setChat] = useState<HomeChatProps | null>(null);
-  const [createChatError, setCreateChatError] = useState("");
-  const [isCreatingChat, setIsCreatingChat] = useState(false);
-
   useEffect(() => {
     void workspaceStore.loadWorkspaces();
   }, [workspaceStore.loadWorkspaces]);
-
-  const submitPrompt = async ({ request, options }: ChatInputSubmission) => {
-    if (!workspaceStore.currentWorkspace) {
-      return;
-    }
-
-    const workspace = workspaceStore.currentWorkspace;
-    const chatId = createTimestampId("chat");
-    setCreateChatError("");
-    setIsCreatingChat(true);
-
-    try {
-      const savedChat = await workspaceStore.saveChat(workspace, {
-        chatId,
-        title: request.text,
-        messages: [],
-        options,
-      });
-      setChat({
-        chatId: savedChat.id,
-        workspaceId: workspace.id,
-        initialTurn: request,
-      });
-    } catch (error) {
-      setCreateChatError(error instanceof Error ? error.message : "新建对话失败，请重试。");
-    } finally {
-      setIsCreatingChat(false);
-    }
-  };
-
-  if (chat) {
-    return <HomeChat {...chat} />;
-  }
 
   return (
     <main className="app-canvas relative flex h-full min-h-0 overflow-hidden text-foreground">
@@ -90,22 +44,11 @@ export const ChatHomePage = () => {
               </h1>
 
               <div className="space-y-3">
-                <ChatInput
-                  resources={workspaceStore.resources}
-                  files={fileStore.workspacePath === workspaceStore.currentWorkspace?.path ? fileStore.files : []}
-                  initialOptions={defaultOptions}
-                  disabled={workspaceStore.isLoading || isCreatingChat || !workspaceStore.currentWorkspace}
-                  placeholder={
-                    workspaceStore.currentWorkspace
-                      ? `询问关于 ${workspaceStore.currentWorkspace.name} 的任何问题`
-                      : "输入问题"
-                  }
-                  onSubmit={submitPrompt}
-                />
-
-                {createChatError ? (
-                  <div className="mx-auto w-full max-w-[69rem] px-1 text-sm text-destructive">{createChatError}</div>
-                ) : null}
+                {workspaceStore.currentWorkspace ? (
+                  <HomeComposer key={workspaceStore.currentWorkspace.id} workspace={workspaceStore.currentWorkspace} />
+                ) : (
+                  <EmptyComposer />
+                )}
 
                 <WorkspacePicker onCreateWorkspace={() => workspaceDialogRef.current?.()} />
               </div>
