@@ -3,8 +3,8 @@ body {
   height: 100%;
   overflow: hidden;
 }
-#chat-playground {
-  height: 100vh;
+#isle-plugin-root {
+  height: 100%;
   min-height: 440px;
 }
 .lab-app {
@@ -500,4 +500,54 @@ body {
   .lab-chat-heading {
     padding: 12px 16px 0;
   }
+}
+
+.lab-host-tools {
+  flex-shrink: 0;
+  margin: 0 26px 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--lab-line);
+  border-radius: 10px;
+  background: var(--lab-tint);
+  max-height: 280px;
+  overflow: auto;
+}
+.lab-host-tools summary {
+  cursor: pointer;
+  color: var(--lab-accent);
+  font-weight: 600;
+}
+.lab-host-tools p {
+  margin: 8px 0;
+}
+.lab-host-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.lab-host-input input {
+  flex: 1;
+  min-width: 160px;
+  padding: 7px 10px;
+  border: 1px solid var(--lab-line);
+  border-radius: 6px;
+  background: var(--background);
+}
+.lab-host-tools pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.lab-host-input button {
+  padding: 8px 12px;
+  border: 1px solid var(--lab-accent);
+  border-radius: 7px;
+  color: var(--background);
+  background: var(--lab-accent);
+  cursor: pointer;
+}
+.lab-host-input button:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }

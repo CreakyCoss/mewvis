@@ -2,6 +2,18 @@
 
 The public authoring surface for Isle plugins.
 
+For a managed React project, use [`@isle/plugin-dev`](../plugin-dev/README.md).
+It owns startup, preview and build; business code stays in `main/`.
+Its `isle.config.ts` generates the manifest permissions described below.
+
+Browser business code imports `getPluginHost` from `@isle/plugin-sdk/browser`.
+`getPluginHost().executeTool(name, args)` invokes this plugin's own Node tool and
+returns `{ value, content, meta }`. The SDK delegates to Isle's authenticated
+sandbox bridge; it does not expose Tauri or require postMessage boilerplate.
+`getHost()` returns safe metadata/theme; `openExternal()` requires a user action.
+The example project demonstrates real Node crypto execution from a React button.
+
+
 Runtime permissions are declared in the package's `isle.permissions` manifest
 field, not inside `definePlugin`. Supported values are `network`,
 `plugin-data`, `workspace-files`, `open-external`, `process`, `chat`, and
@@ -26,6 +38,10 @@ export default definePlugin({
         name: "hello",
         description: "Return a greeting.",
         parameters: { type: "object", properties: {} },
+        output: {
+          schema: { type: "object", properties: { message: { type: "string" } }, required: ["message"], additionalProperties: false },
+          render: (_args, value) => [{ type: "text", text: value.message }],
+        },
         execute: () => ({ message: "hello" }),
       }),
     );

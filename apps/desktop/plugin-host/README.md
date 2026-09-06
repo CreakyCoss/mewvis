@@ -65,25 +65,23 @@ maintain a second entry by hand.
 
 ## Authoring workflow
 
-Run these commands from `apps/desktop`:
+The default React scaffold is managed by [`@isle/plugin-dev`](../../../packages/plugin-dev/README.md).
+Run `pnpm plugin:create -- /absolute/path/my-plugin --name @example/my-plugin --local`
+from `apps/desktop`, then install dependencies in the generated project.
+`--local` uses this checkout's SDK/toolchain while they are unpublished.
+Develop with `pnpm dev`, check with `pnpm check`, and build with `pnpm build`.
+The business entry is `main/App.tsx`; optional Node tools live in `main/host/tools.ts`.
+Permissions and capabilities are declared once in `isle.config.ts`, which generates the install manifest.
 
-```sh
-pnpm plugin:create -- ./my-plugin --name @example/my-plugin
-pnpm plugin:validate -- ./my-plugin
-pnpm plugin:pack -- ./my-plugin --target isle
-pnpm plugin:pack -- ./my-plugin --target dsh
-```
+Use `--template tools` for the existing JavaScript tool/skill template. Its source
+continues to declare `isle.plugin` in package.json. `plugin:validate` checks native
+entries/assets without evaluating the entry; for React projects it evaluates the
+trusted TS configuration. `plugin:pack` bundles dependencies into `dist/<target>`
+and refuses to replace directories without an Isle build marker.
 
-`plugin:create` scaffolds a native package using `@isle/plugin-sdk`.
-`plugin:validate` checks the package name, native manifest, entry, and declared
-assets without executing plugin code. `plugin:pack` bundles dependencies and
-writes an atomic build directory under `dist/<target>` by default. It refuses
-to replace an existing directory unless that directory contains Isle's build
-marker.
-
-The DSH target intentionally retains the additive `isle` metadata. It can be
-published to a DSH channel and also imported back into Isle without changing
-its source or runtime implementation.
+The DSH target retains additive `isle` metadata and generates `dsh.bundle` and
+`cordis.patch.yml`. Plugins declaring `chat` require Isle and cannot target DSH;
+the toolchain does not turn a React UI into `dsh.client`.
 
 Application builds automatically discover every first-level plugin directory
 under `plugin-host/plugins`, validate it, and pack it into the bundled runtime

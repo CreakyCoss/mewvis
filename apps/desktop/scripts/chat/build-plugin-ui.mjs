@@ -45,6 +45,31 @@ const bundledCss = await build({
   loader: { ".woff2": "dataurl", ".woff": "dataurl" },
 });
 await writeFile(resolve(output, "plugin-runtime.css"), bundledCss.outputFiles[0].text);
+// Ship a development runtime with the toolchain, without a dependency on a
+// checkout of desktop. React stays external so Vite and React Refresh share it.
+const previewOutput = resolve(desktop, "../../packages/plugin-dev/dist");
+await mkdir(previewOutput, { recursive: true });
+await build({
+  absWorkingDir: desktop,
+  entryPoints: ["src/chat/react/plugin-runtime.ts"],
+  outfile: resolve(previewOutput, "chat-ui.js"),
+  bundle: true,
+  format: "esm",
+  platform: "browser",
+  target: "es2022",
+  external: ["react", "react/*", "react-dom", "react-dom/*", "@isle/plugin-sdk/*"],
+  loader: { ".jpg": "dataurl", ".png": "dataurl", ".svg": "dataurl" },
+});
+await writeFile(resolve(previewOutput, "chat-ui.css"), bundledCss.outputFiles[0].text);
+await build({
+  absWorkingDir: desktop,
+  entryPoints: ["scripts/plugin-dev/preview-host.ts"],
+  outfile: resolve(previewOutput, "chat-host.js"),
+  bundle: true,
+  format: "esm",
+  platform: "browser",
+  target: "es2022",
+});
 console.log("Shared plugin Chat UI built from the application components; host dependency boundary passed.");
 
 async function buildDeclarations(check) {

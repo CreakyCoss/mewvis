@@ -3,11 +3,11 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
-import { discoverPluginSources } from "../../plugin-host/scripts/plugin-tooling.mjs";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { discoverPluginSources } from "@isle/plugin-dev/tooling";
 
 const root = process.cwd();
-const cli = resolve(root, "plugin-host/scripts/plugin-cli.mjs");
+const cli = fileURLToPath(import.meta.resolve("@isle/plugin-dev/cli"));
 const fixtureRoot = mkdtempSync(join(tmpdir(), "isle-plugin-tooling-"));
 const sourceRoot = join(fixtureRoot, "hello-plugin");
 const secondSourceRoot = join(fixtureRoot, "alpha-plugin");
@@ -22,8 +22,8 @@ const run = (...arguments_) =>
   });
 
 try {
-  assert.match(run("create", sourceRoot, "--name", "@example/hello"), /插件模板已创建/);
-  run("create", secondSourceRoot, "--name", "@example/alpha");
+  assert.match(run("create", sourceRoot, "--name", "@example/hello", "--template", "tools"), /插件模板已创建/);
+  run("create", secondSourceRoot, "--name", "@example/alpha", "--template", "tools");
   assert.equal(existsSync(join(sourceRoot, "cordis.patch.yml")), false, "源码不应携带生成型 DSH patch。");
   const sourceManifest = JSON.parse(readFileSync(join(sourceRoot, "package.json"), "utf8"));
   assert.deepEqual(sourceManifest.isle.permissions, []);

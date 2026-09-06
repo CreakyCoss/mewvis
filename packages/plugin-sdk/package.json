@@ -15,13 +15,18 @@
     "./chat/react": {
       "types": "./chat/react.d.ts",
       "default": "./chat/react.js"
+    },
+    "./browser": {
+      "types": "./browser/index.d.ts",
+      "default": "./browser/index.js"
     }
   },
   "files": [
     "index.js",
     "index.d.ts",
     "README.md",
-    "chat"
+    "chat",
+    "browser"
   ],
   "dependencies": {
     "@deepseek-ai/schemastery": "3.18.1",

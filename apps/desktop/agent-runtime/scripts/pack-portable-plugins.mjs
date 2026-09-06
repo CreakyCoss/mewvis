@@ -1,7 +1,7 @@
 import { mkdir, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { discoverPluginSources, packPlugin, validatePlugin } from "../../plugin-host/scripts/plugin-tooling.mjs";
+import { discoverPluginSources, packPlugin, validatePlugin } from "@isle/plugin-dev/tooling";
 
 const runtimeRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const desktopRoot = join(runtimeRoot, "..");

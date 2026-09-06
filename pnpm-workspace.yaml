@@ -2,3 +2,4 @@ packages:
   - "ai/pi/packages/*"
   - "apps/*"
   - "packages/*"
+  - "apps/desktop/plugin-host/plugins/chat-playground"

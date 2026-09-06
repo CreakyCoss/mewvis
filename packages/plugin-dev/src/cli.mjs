@@ -1,5 +1,8 @@
 #!/usr/bin/env node
-import { createPlugin, packPlugin, validatePlugin } from "./plugin-tooling.mjs";
+import { createPlugin, packPlugin, validatePlugin } from "./tooling.mjs";
+
+import { startDev } from "./dev.mjs";
+import { checkPlugin } from "./check.mjs";
 
 const parseArguments = (values) => {
   const positionals = [];
@@ -16,15 +19,20 @@ const parseArguments = (values) => {
       options.set(key, inlineValue);
       continue;
     }
+    if (key === "local") {
+      options.set(key, true);
+      continue;
+    }
     const next = values[index + 1];
-    if (!next || next.startsWith("--")) throw new Error(`参数 --${key} 缺少值。`);
+    if (!next || next.startsWith("--"))
+      throw new Error(`参数 --${key} 缺少值。`);
     options.set(key, next);
     index += 1;
   }
   return { positionals, options };
 };
 
-const usage = `Isle plugin tooling\n\nUsage:\n  pnpm plugin:create -- <directory> [--name @scope/name]\n  pnpm plugin:validate -- [directory]\n  pnpm plugin:pack -- [directory] --target isle|dsh [--out-dir directory]\n`;
+const usage = `Isle plugin tooling\n\nUsage:\n  pnpm plugin:create -- <directory> [--name @scope/name] [--template react|tools] [--local]\n  pnpm plugin:validate -- [directory]\n  pnpm plugin:pack -- [directory] --target isle|dsh [--out-dir directory]\n  isle-plugin dev [directory] [--port 5173]\n  isle-plugin check [directory]\n  isle-plugin build [directory] [--target isle|dsh]\n`;
 
 const main = async () => {
   const [command, ...values] = process.argv.slice(2);
@@ -36,7 +44,12 @@ const main = async () => {
   if (command === "create") {
     const destination = positionals[0];
     if (!destination) throw new Error("plugin:create 需要目标目录。");
-    const result = await createPlugin({ destination, name: options.get("name") });
+    const result = await createPlugin({
+      destination,
+      name: options.get("name"),
+      template: options.get("template") ?? "react",
+      local: options.has("local"),
+    });
     console.log(`插件模板已创建：${result.name} -> ${result.root}`);
     return;
   }
@@ -45,7 +58,20 @@ const main = async () => {
     console.log(`插件校验通过：${result.manifest.name}`);
     return;
   }
-  if (command === "pack") {
+  if (command === "dev") {
+    await startDev(
+      positionals[0] ?? process.cwd(),
+      Number(options.get("port") ?? 5173),
+    );
+    return;
+  }
+  if (command === "check") {
+    await checkPlugin(positionals[0] ?? process.cwd());
+    console.log("插件类型与运行边界检查通过");
+    return;
+  }
+  if (command === "pack" || command === "build") {
+    if (command === "build") await checkPlugin(positionals[0] ?? process.cwd());
     await packPlugin({
       source: positionals[0] ?? process.cwd(),
       target: options.get("target") ?? "isle",

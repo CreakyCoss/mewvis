@@ -1,0 +1,66 @@
+html,
+body,
+#isle-plugin-root {
+  height: 100%;
+  margin: 0;
+}
+.plugin-app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  font: 14px system-ui;
+  color: var(--foreground, #173a36);
+  background: var(--background, #f5faf8);
+}
+.plugin-app header h1 {
+  font-size: 20px;
+  margin: 0;
+}
+.plugin-app header p {
+  opacity: 0.7;
+}
+.plugin-app .host-panel,
+.plugin-app .connection {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.plugin-app label {
+  display: grid;
+  gap: 6px;
+}
+.plugin-app input,
+.plugin-app select,
+.plugin-app button {
+  font: inherit;
+  border: 1px solid #83a79b;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.plugin-app button {
+  background: #087f78;
+  color: white;
+  cursor: pointer;
+}
+.plugin-app button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.plugin-app pre {
+  flex-basis: 100%;
+  max-height: 160px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.plugin-app [role="alert"] {
+  color: #bd3434;
+}
+.plugin-app .chat-panel {
+  flex: 1;
+  min-height: 200px;
+  overflow: hidden;
+}

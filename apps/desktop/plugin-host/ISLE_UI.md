@@ -6,6 +6,12 @@ declarations and remain publishable to the DSH ecosystem.
 
 The machine-readable schema is [`schema/isle-ui.schema.json`](./schema/isle-ui.schema.json).
 
+React projects can use [`@isle/plugin-dev`](../../../packages/plugin-dev/README.md):
+export the page from `main/App.tsx`, declare optional tools in `main/host/tools.ts`,
+and keep permissions/UI settings in `isle.config.ts`. The toolchain generates the
+JavaScript entries and manifest below. Browser code calls its host tools through
+`getPluginHost()` from `@isle/plugin-sdk/browser`; no manual bridge code is needed.
+
 ## Package-owned page
 
 An Isle UI contribution consists of one package-local JavaScript entry and an

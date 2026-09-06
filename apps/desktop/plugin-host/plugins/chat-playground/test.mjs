@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -5,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createInterface } from "node:readline";
-import { packPlugin } from "../../scripts/plugin-tooling.mjs";
+import { packPlugin } from "@isle/plugin-dev/tooling";
 
 const source = dirname(fileURLToPath(import.meta.url));
 const desktop = resolve(source, "../../..");
@@ -100,7 +101,7 @@ try {
   assert.equal(plugin.uiError, null);
   assert.deepEqual(
     plugin.tools.map((tool) => tool.name),
-    ["chat_playground_echo"],
+    ["chat_playground_echo", "chat_playground_inspect_text"],
   );
   const document = await rpc("uiDocument", { pluginId: manifest.name });
   assert.ok(Buffer.byteLength(document.script) < 512 * 1024);
@@ -114,6 +115,10 @@ try {
   });
   assert.deepEqual(result.value, { echo: "Isle 👋", characters: 6 });
   assert.match(result.content[0].text, /Isle 👋/);
+  const inspection = await rpc("execute", { pluginId: manifest.name, toolName: "chat_playground_inspect_text", arguments: { text: "Isle 👋" } });
+  assert.deepEqual(inspection.value, { text: "Isle 👋", characters: 6, bytes: 9, sha256: createHash("sha256").update("Isle 👋").digest("hex"), runtime: "node" });
+  await assert.rejects(rpc("execute", { pluginId: manifest.name, toolName: "chat_playground_inspect_text", arguments: { text: "" } }), /text|length|字符/i);
+
   await assert.rejects(
     rpc("execute", { pluginId: manifest.name, toolName: "chat_playground_echo", arguments: {} }),
     /text|字符/,

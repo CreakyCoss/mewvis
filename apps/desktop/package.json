@@ -30,9 +30,9 @@
     "test:plugin-host:tavern": "pnpm build:plugin-host && node scripts/plugin-host/tavern-plugin-e2e.mjs",
     "test:plugin-host:ui": "pnpm build:plugin-host && node scripts/plugin-host/ui-service-e2e.mjs",
     "test:plugin-host:tooling": "pnpm build:plugin-host && node scripts/plugin-host/plugin-tooling-e2e.mjs",
-    "plugin:create": "node plugin-host/scripts/plugin-cli.mjs create",
-    "plugin:validate": "node plugin-host/scripts/plugin-cli.mjs validate",
-    "plugin:pack": "node plugin-host/scripts/plugin-cli.mjs pack",
+    "plugin:create": "isle-plugin create",
+    "plugin:validate": "isle-plugin validate",
+    "plugin:pack": "isle-plugin pack",
     "test:story:core": "node scripts/business/story/core-e2e.mjs",
     "test:story:contract": "node scripts/business/story/contract-e2e.mjs",
     "test:story:commit-tool": "node scripts/business/story/commit-tool-e2e.mjs",
@@ -55,7 +55,8 @@
     "init:config-db:rebuild-on-error": "cargo run --manifest-path src-tauri/Cargo.toml --bin init_config_db -- --rebuild-on-error",
     "build:chat-ui": "node scripts/chat/build-plugin-ui.mjs",
     "check:chat-ui-types": "node scripts/chat/build-plugin-ui.mjs --check-types",
-    "test:chat:plugin": "pnpm build:plugin-host && pnpm exec tsc -p scripts/chat/tsconfig.plugin.json && node plugin-host/scripts/plugin-cli.mjs pack scripts/chat/fixtures/plugin && node scripts/chat/test-plugin.mjs"
+    "test:chat:plugin": "pnpm build:plugin-host && pnpm exec tsc -p scripts/chat/tsconfig.plugin.json && isle-plugin pack scripts/chat/fixtures/plugin && node scripts/chat/test-plugin.mjs",
+    "test:plugin-dev": "pnpm build:chat-ui && pnpm exec tsc -p scripts/plugin-dev/tsconfig.json && pnpm --filter @isle/plugin-dev test"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
@@ -133,6 +134,7 @@
     "tailwindcss": "^4.3.0",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "~5.8.3",
-    "vite": "^7.0.4"
+    "vite": "^7.0.4",
+    "@isle/plugin-dev": "workspace:*"
   }
 }

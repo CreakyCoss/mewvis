@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import { build } from "esbuild";
-import { packPlugin } from "../../plugin-host/scripts/plugin-tooling.mjs";
+import { packPlugin } from "@isle/plugin-dev/tooling";
 
 const desktopRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const pluginSourceRoot = join(desktopRoot, "plugin-host", "plugins", "story-scene-card");

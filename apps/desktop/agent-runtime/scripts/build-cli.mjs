@@ -1,7 +1,7 @@
 import { build } from "esbuild";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { dshBundleCompatibilityPlugin } from "./esbuild-dsh.mjs";
+import { dshBundleCompatibilityPlugin } from "@isle/plugin-dev/dsh";
 
 const runtimeRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 

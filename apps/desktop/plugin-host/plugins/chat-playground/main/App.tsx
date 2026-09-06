@@ -1,5 +1,6 @@
-import { StrictMode, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { createRoot } from "react-dom/client";
+import "./styles.css";
+import { HostTools } from "./components/HostTools";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   getPluginChatClient,
   type ChatMessage,
@@ -16,7 +17,7 @@ const profile = {
   id: "chat-playground-v1",
   systemPrompt:
     "你是 Isle 聊天调试助手，用中文简洁回答。按用户要求演示 Markdown、代码和插件工具。需要验证工具时调用 chat_playground_echo，不要虚构工具执行或宿主状态。",
-  allowedToolNames: ["chat_playground_echo"],
+  allowedToolNames: ["chat_playground_echo", "chat_playground_inspect_text"],
   useKnowledge: true,
 };
 const phases: Record<ChatPhase, string> = {
@@ -320,7 +321,7 @@ function Connection({ input, retry, onSaved }: { input: PluginChatOpenInput; ret
     </Chat.Provider>
   );
 }
-function App() {
+export default function App() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [workspaceId, setWorkspaceId] = useState("");
   const [chatId, setChatId] = useState("");
@@ -431,6 +432,7 @@ function App() {
         </div>
         <span className="lab-badge">ISLE PLUGIN</span>
       </header>
+      <HostTools />
       <div className="lab-connection-form">
         <label>
           工作区
@@ -547,11 +549,3 @@ function App() {
     </main>
   );
 }
-const root = document.createElement("div");
-root.id = "chat-playground";
-document.body.append(root);
-createRoot(root).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);

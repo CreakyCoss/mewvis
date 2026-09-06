@@ -1,7 +1,7 @@
 import { build } from "esbuild";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { dshBundleCompatibilityPlugin } from "../../agent-runtime/scripts/esbuild-dsh.mjs";
+import { dshBundleCompatibilityPlugin } from "@isle/plugin-dev/dsh";
 
 const pluginHostRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const desktopRoot = join(pluginHostRoot, "..");
