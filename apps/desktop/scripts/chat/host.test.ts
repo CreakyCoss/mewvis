@@ -478,6 +478,7 @@ test("history restores plugin ownership and dynamic context after restart, inclu
   const readonly = await denied.service.openRecord(historyInput(plugin.identity.id), denied.host.restoreSession);
   assert.equal(readonly.session, undefined);
   assert.match(readonly.history!.reason, /permission revoked/);
+  assert.equal(readonly.history!.canRetry, true);
   assert.deepEqual(readonly.history!.messages, fake.record.messages);
   assert.equal(fake.events.size, subscriptions, "read-only history does not subscribe to a runtime");
   assert.equal(fake.writes.length, writes, "read-only history does not save or rewrite messages");
@@ -584,6 +585,7 @@ test("builtin origins survive saves and history never replaces a different or mi
     const view = await next.openRecord(input);
     assert.equal(view.session, undefined);
     assert.deepEqual(view.history!.messages, saved.messages);
+    assert.equal(view.history!.canRetry, false);
     assert.equal(next.listSessions().length, 0);
     assert.equal(fake.runs.length, runs);
     assert.equal(fake.writes.length, writes);

@@ -85,6 +85,8 @@ export declare const Chat: ComponentType<{
       displayOptions?: ChatDisplayOptions;
       reason: string;
       onRetry?: () => void;
+      connecting?: boolean;
+      retryError?: string;
     }
   >;
 };

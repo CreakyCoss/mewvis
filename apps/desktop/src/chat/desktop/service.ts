@@ -22,7 +22,12 @@ export type DesktopSessionInput = {
   profileSnapshot?: () => ChatRecordSource["profile"];
 };
 export type RestoreChatRecord = (workspacePath: string, chatId: string, source: unknown) => Promise<ChatSession>;
-export type ReadOnlyChatHistory = { messages: ChatMessage[]; preferences: ViewPreferences; reason: string };
+export type ReadOnlyChatHistory = {
+  messages: ChatMessage[];
+  preferences: ViewPreferences;
+  reason: string;
+  canRetry: boolean;
+};
 export type DesktopRecordView =
   { session: ChatSession; history?: never } | { session?: never; history: ReadOnlyChatHistory };
 export function createDesktopChatService() {
@@ -115,9 +120,13 @@ export function createDesktopChatService() {
       const storage = storageFor(workspacePath, identity.id);
       const source = await service.loadRecordSource(workspacePath, identity.id);
       if (source !== undefined) {
+        let canRetry = true;
         try {
           const saved = source as Partial<ChatRecordSource>;
-          if (!saved.origin || !saved.workspaceId) throw new Error("聊天缺少有效的来源信息");
+          if (!saved.origin || !saved.workspaceId) {
+            canRetry = false;
+            throw new Error("聊天缺少有效的来源信息");
+          }
           if (
             saved.origin.kind === "builtin" &&
             input.origin.kind === "builtin" &&
@@ -125,7 +134,10 @@ export function createDesktopChatService() {
             sameOrigin(saved.origin, input.origin)
           )
             return { session: (await reuseOwner()) ?? (await service.openSession(input)) };
-          if (!restore) throw new Error("当前宿主不支持恢复此聊天的场景");
+          if (!restore) {
+            canRetry = false;
+            throw new Error("当前宿主不支持恢复此聊天的场景");
+          }
           return { session: await restore(workspacePath, identity.id, source) };
         } catch (error) {
           const ownerKey = owners.get(address);
@@ -137,6 +149,7 @@ export function createDesktopChatService() {
               messages: structuredClone(record?.messages ?? []),
               preferences: await storage.loadPreferences(),
               reason: error instanceof Error ? error.message : String(error),
+              canRetry,
             },
           };
         }

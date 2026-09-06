@@ -11,7 +11,7 @@ function WorkspaceChat({ workspaceId, chatId, isActive }: { workspaceId: string;
   const store = useWorkspaceStore();
   const requestedWorkspaces = useRef(false);
   const workspace = store.workspaces.find((item) => item.id === workspaceId);
-  const { session, history, error, reload } = useDesktopChatRecord(
+  const { session, history, error, reload, connecting, retryError } = useDesktopChatRecord(
     workspace
       ? {
           identity: { scope: `workspace:${workspaceId}`, id: chatId },
@@ -37,7 +37,9 @@ function WorkspaceChat({ workspaceId, chatId, isActive }: { workspaceId: string;
         messages={history.messages}
         displayOptions={history.preferences}
         reason={history.reason}
-        onRetry={reload}
+        onRetry={history.canRetry ? reload : undefined}
+        connecting={connecting}
+        retryError={retryError}
       />
     );
   if (!session || !workspace)

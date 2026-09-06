@@ -179,7 +179,7 @@ Pi 继续使用 `chats/<chatId>/session` 下的原执行上下文和账本。核
 
 `meta.workspaceId` 保存所属工作区；`meta.origin` 是来源和场景的唯一依据：内置普通聊天是 `{ kind: "builtin", sceneId: "chat" }`，故事助手是 `{ kind: "builtin", sceneId: "story-assistant" }`，插件是 `{ kind: "plugin", pluginId, sceneId }`。场景配置保存在 `options.profile`，其中 `id` 只标识配置，动态上下文也经同一队列保存。运行选择和展示偏好保留原字段位置。保存不能更改已有记录的来源和工作区。
 
-`openRecord` 返回可运行的 `session` 或只读 `history`。侧栏按元数据恢复原场景，插件恢复仍需验证当前权限、工具归属和工作区；已有故事助手使用原故事配置。来源缺失、场景未知或插件不可用时，公共 `Chat.History` 保留消息与复制，不创建运行会话。插件撤销事件使打开的历史视图重新解析；重新启用后可点击「重新连接」。本阶段不实现旧来源格式的补齐或迁移。
+`openRecord` 返回可运行的 `session` 或只读 `history`。侧栏按元数据恢复原场景，插件恢复仍需验证当前权限、工具归属和工作区；已有故事助手使用原故事配置。来源缺失、场景未知或插件不可用时，公共 `Chat.History` 保留消息与复制，不创建运行会话。插件撤销事件使打开的历史视图重新解析；重新启用后可点击「重新连接」。绑定公开 `connecting` 和 `retryError`，重试期间保留消息并禁用按钮，失败时显示具体原因。`history.canRetry` 表示当前只读原因是否支持重试；来源信息缺失或宿主没有恢复入口时不显示按钮。本阶段不实现旧来源格式的补齐或迁移。
 
 `chat.listSessions({ workspaceId })` 直接从元数据过滤当前插件、工作区，返回记录 ID 和场景摘要；不读取消息和提示词。动态上下文用 `setContext()`，模型与能力用 `updateConfig()`。Provider 卸载只取消观察，关闭应用或禁用／移除插件才停止、保存并释放相应会话。
 
@@ -204,4 +204,6 @@ node scripts/agent-runtime/user-input-e2e.mjs
 
 已有 1420 服务提供 `/scripts/chat/browser.html`（StrictMode、多视图、默认／组合 UI、只读历史）、`/scripts/chat/page.html`（真实首页和聊天路由）以及 `/scripts/chat/plugin-browser.html`（真实沙箱与测试插件）。这些测试使用内存 Runtime 和存储，不连接真实模型或用户历史；插件测试页需点击「创建会话」。
 
-本次 1420 服务返回正常，但 Mac 锁屏使浏览器工具无法运行，未完成本轮界面回归及真实原生宿主／模型验收。没有启动或重启开发服务；Vite 保留已有大 chunk 警告。
+手动重试时，桌面绑定让 loading 至少显示 400 毫秒以避免快速失败时闪烁，请求会立即发起；较慢的请求持续显示 loading 直到结束。首次自动打开不增加这段反馈时间。
+
+本次重连反馈修复在已有 1420 服务通过 41 项浏览器断言，覆盖快速失败、慢请求、布局稳定、连续点击、失败重试、迟到响应、只读历史及 StrictMode；浏览器无错误或警告。核心／宿主测试、TypeScript、SDK 公开 UI 声明与构建通过。真实原生宿主／模型尚未验收；没有启动或重启开发服务，Vite 保留已有大 chunk 警告。

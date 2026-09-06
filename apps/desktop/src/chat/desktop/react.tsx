@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type PropsWithChildren } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
 import { ChatEnvironment } from "../react";
 import { sessionKey, type ChatSession } from "../core";
 import type { ChatInputFile } from "../react";
@@ -67,31 +67,69 @@ function useSession(
     session?: ChatSession;
     history?: ReadOnlyChatHistory;
     error?: string;
-  }>({ key: "" });
-  const [revision, reload] = useState(0);
+    connecting: boolean;
+    retryError?: string;
+  }>({ key: "", connecting: false });
+  const [revision, setRevision] = useState(0);
+  const pending = useRef<{ key: string; token: object; visibleUntil?: number } | null>(null);
   useEffect(() => {
     let attached = true;
     let generation = 0;
     let observed: ChatSession | undefined;
+    let token: object;
+    let finishFeedback = () => {};
     const connect = () => {
       if (!input) return;
       const current = ++generation;
+      const requestToken = (token = {});
+      const visibleUntil = pending.current?.key === key ? pending.current.visibleUntil : undefined;
+      pending.current = { key, token: requestToken, visibleUntil };
+      finishFeedback();
+      const remaining = Math.max(0, (visibleUntil ?? 0) - performance.now());
+      // Only manual retries have a minimum feedback duration; execution starts immediately.
+      const feedback = remaining
+        ? new Promise<void>((resolve) => {
+            const timer = setTimeout(resolve, remaining);
+            finishFeedback = () => {
+              clearTimeout(timer);
+              resolve();
+            };
+          })
+        : Promise.resolve();
+      setEntry((previous) => ({
+        ...(previous.key === key ? previous : { key }),
+        connecting: true,
+        retryError: undefined,
+        error: undefined,
+      }));
       void open(input)
-        .then((view) => {
+        .then(async (view) => {
+          await feedback;
           if (attached && current === generation) {
             observed = view.session ?? observed;
-            setEntry((previous) =>
-              view.session && previous.key === key && previous.session === view.session ? previous : { key, ...view },
-            );
+            setEntry((previous) => ({
+              key,
+              ...view,
+              connecting: false,
+              retryError: previous.key === key && previous.history ? view.history?.reason : undefined,
+            }));
           }
         })
-        .catch((error) => {
+        .catch(async (error) => {
+          await feedback;
           if (attached && current === generation) {
             const message = error instanceof Error ? error.message : String(error);
-            setEntry((previous) =>
-              previous.key === key && previous.error === message ? previous : { key, error: message },
-            );
+            setEntry((previous) => ({
+              key,
+              history: previous.key === key ? previous.history : undefined,
+              connecting: false,
+              error: message,
+              retryError: previous.key === key && previous.history ? message : undefined,
+            }));
           }
+        })
+        .finally(() => {
+          if (pending.current?.token === requestToken) pending.current = null;
         });
     };
     const detach = observeRecords?.subscribe((session) => {
@@ -110,10 +148,26 @@ function useSession(
     connect();
     return () => {
       attached = false;
+      finishFeedback();
+      if (pending.current?.token === token) pending.current = null;
       detach?.();
       detachRecords?.();
     };
     // The identity is stable; constructing a new descriptor does not re-open or close a session.
   }, [open, key, input?.profile, observeRecords, revision]);
-  return { ...(entry.key === key ? entry : { key }), reload: () => reload((value) => value + 1) };
+  return {
+    ...(entry.key === key ? entry : { key, connecting: Boolean(input) }),
+    reload: () => {
+      if (!input || pending.current?.key === key) return;
+      // Guard consecutive clicks before React commits the disabled button.
+      pending.current = { key, token: {}, visibleUntil: performance.now() + 400 };
+      setEntry((previous) => ({
+        ...(previous.key === key ? previous : { key }),
+        connecting: true,
+        retryError: undefined,
+        error: undefined,
+      }));
+      setRevision((value) => value + 1);
+    },
+  };
 }

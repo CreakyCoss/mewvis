@@ -108,12 +108,16 @@ function History({
   displayOptions = { showThinkingProcess: true, showToolCallProcess: true },
   reason,
   onRetry,
+  connecting = false,
+  retryError,
   className,
   renderMessage,
 }: Pick<ChatMessagesProps, "messages" | "renderMessage" | "className"> & {
   displayOptions?: ChatMessagesProps["displayOptions"];
   reason: string;
   onRetry?: () => void;
+  connecting?: boolean;
+  retryError?: string;
 }) {
   return (
     <Layout className={className}>
@@ -128,14 +132,28 @@ function History({
         <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">暂无聊天消息</div>
       )}
       <Footer>
-        <div
-          role="status"
-          className="mx-auto flex max-w-[69rem] items-center justify-between gap-4 rounded-lg bg-muted/60 px-4 py-3 text-sm text-muted-foreground"
-        >
-          <span>只读查看 · {reason}。无法继续聊天。</span>
+        <div className="mx-auto flex max-w-[69rem] items-center justify-between gap-4 rounded-lg bg-muted/60 px-4 py-3 text-sm text-muted-foreground">
+          <div className="min-w-0 space-y-1">
+            <p>只读查看 · 无法继续聊天。</p>
+            <p
+              role={retryError && !connecting ? "alert" : "status"}
+              className={`min-h-5 ${retryError && !connecting ? "text-destructive" : ""}`}
+            >
+              {connecting ? "正在重新连接…" : retryError ? `重新连接失败：${retryError}` : reason}
+            </p>
+          </div>
           {onRetry ? (
-            <button type="button" className="shrink-0 underline" onClick={onRetry}>
-              重新连接
+            <button
+              type="button"
+              className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 disabled:cursor-wait"
+              disabled={connecting}
+              aria-busy={connecting}
+              onClick={onRetry}
+            >
+              <span aria-hidden="true" className="flex size-3.5 items-center justify-center">
+                {connecting ? <Spinner className="size-3.5" /> : null}
+              </span>
+              <span className="w-[4em] text-center underline">{connecting ? "连接中…" : "重新连接"}</span>
             </button>
           ) : null}
         </div>

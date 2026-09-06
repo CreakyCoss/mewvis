@@ -256,6 +256,12 @@ async function run() {
   const historyListeners = new Set<(session: ChatSession) => void>();
   const recordChanges = new Set<() => void>();
   let connected = false;
+  let connectionGate: Promise<void> | undefined;
+  let releaseConnection: () => void;
+  let connectionFailure: string | undefined;
+  let historyReason = "插件已禁用或移除";
+  let canRetry = true;
+  let connectionAttempts = 0;
   let sessionOpens = 0;
   let historySession: ChatSession | undefined;
   const historyService = {
@@ -264,7 +270,12 @@ async function run() {
       throw new Error("Must resolve history ownership");
     },
     openRecord: async () => {
-      if (!connected)
+      connectionAttempts++;
+      const available = connected;
+      const failure = connectionFailure;
+      await connectionGate;
+      if (failure) throw new Error(failure);
+      if (!available)
         return {
           history: {
             messages: pluginSession.getSnapshot().messages.length
@@ -278,7 +289,8 @@ async function run() {
                   },
                 ],
             preferences: { showThinkingProcess: true, showToolCallProcess: true },
-            reason: "插件已禁用或移除",
+            reason: historyReason,
+            canRetry,
           },
         };
       return { session: pluginSession };
@@ -306,7 +318,7 @@ async function run() {
     profile: { id: "workspace", systemPrompt: () => "" },
   };
   function HistoryView() {
-    const { session, history, error, reload } = useDesktopChatRecord(historyInput);
+    const { session, history, error, reload, connecting, retryError } = useDesktopChatRecord(historyInput);
     historySession = session;
     if (history)
       return (
@@ -314,7 +326,9 @@ async function run() {
           messages={history.messages}
           reason={history.reason}
           displayOptions={history.preferences}
-          onRetry={reload}
+          onRetry={history.canRetry ? reload : undefined}
+          connecting={connecting}
+          retryError={retryError}
         />
       );
     return session ? <Chat session={session} /> : <p>{error || "Loading"}</p>;
@@ -339,13 +353,100 @@ async function run() {
       fixture.querySelector('[aria-label="复制消息"]'),
     "Read-only history allows copying but has no editor or send action",
   );
+  const retryButton = () =>
+    Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent === "重新连接")!;
+  const finishRetryFeedback = () => act(async () => new Promise((resolve) => setTimeout(resolve, 450)));
+  const idleButtonWidth = retryButton().getBoundingClientRect().width;
+  const idleFooterHeight = fixture.querySelector('[role="status"]')!.parentElement!.getBoundingClientRect().height;
   await act(async () => {
+    retryButton().click();
+    await delay();
+  });
+  const loadingButton = fixture.querySelector<HTMLButtonElement>('button[aria-busy="true"]');
+  assert(
+    loadingButton?.disabled && loadingButton.textContent === "连接中…" && loadingButton.querySelector("svg"),
+    "An immediately failed retry retains a visible loading spinner instead of flashing",
+  );
+  assert(
+    loadingButton?.getBoundingClientRect().width === idleButtonWidth &&
+      fixture.querySelector('[role="status"]')!.parentElement!.getBoundingClientRect().height === idleFooterHeight,
+    "Loading keeps the reconnect button and status area dimensions stable",
+  );
+  await finishRetryFeedback();
+  assert(
+    fixture.querySelector('[role="alert"]')?.textContent?.includes("重新连接失败") && !retryButton().disabled,
+    "A fast retry publishes its result after the loading feedback completes",
+  );
+  const attemptsBeforeRetry = connectionAttempts;
+  connectionGate = new Promise((resolve) => (releaseConnection = resolve));
+  await act(async () => {
+    const button = retryButton();
+    button.click();
+    button.click();
+  });
+  assert(
+    fixture.textContent?.includes("正在重新连接") &&
+      Array.from(fixture.querySelectorAll("button")).some(
+        (button) => button.disabled && button.textContent === "连接中…",
+      ),
+    "Retry displays connecting status and disables its button",
+  );
+  assert(connectionAttempts === attemptsBeforeRetry + 1, "Consecutive retry clicks start one connection attempt");
+  assert(
+    fixture.textContent?.includes("Archived plugin message") && fixture.querySelector('[aria-label="复制消息"]'),
+    "Connecting preserves readable history and copying",
+  );
+  await finishRetryFeedback();
+  assert(
+    fixture.querySelector<HTMLButtonElement>('button[aria-busy="true"]')?.disabled,
+    "A slow connection remains loading after the minimum feedback duration",
+  );
+  await act(async () => {
+    connectionGate = undefined;
+    releaseConnection();
+  });
+  assert(
+    fixture.querySelector('[role="alert"]')?.textContent?.includes("重新连接失败：插件已禁用或移除") &&
+      !retryButton().disabled,
+    "A repeated read-only result reports the failed attempt and permits another retry",
+  );
+  connectionGate = new Promise((resolve) => (releaseConnection = resolve));
+  connectionFailure = "授权服务暂时不可用";
+  await act(async () => retryButton().click());
+  assert(!fixture.querySelector('[role="alert"]'), "A new retry clears the previous failure feedback");
+  await act(async () => {
+    connectionGate = undefined;
+    connectionFailure = undefined;
+    releaseConnection();
+  });
+  await finishRetryFeedback();
+  assert(
+    fixture.querySelector('[role="alert"]')?.textContent?.includes("授权服务暂时不可用") &&
+      fixture.textContent?.includes("Archived plugin message") &&
+      !retryButton().disabled,
+    "Thrown connection errors retain history, report the failure and unlock retry",
+  );
+  // A newer availability notification can supersede a pending failed attempt.
+  connectionGate = new Promise((resolve) => (releaseConnection = resolve));
+  connectionFailure = "迟到的连接失败";
+  await act(async () => retryButton().click());
+  await act(async () => {
+    connectionGate = undefined;
+    connectionFailure = undefined;
     connected = true;
     historyListeners.forEach((listener) => listener(pluginSession));
   });
+  await finishRetryFeedback();
   assert(
     historySession === pluginSession && sessionOpens === 0,
     "An already mounted history page reconnects to the plugin owner when it becomes available",
+  );
+  await act(async () => releaseConnection());
+  assert(
+    historySession === pluginSession &&
+      !fixture.querySelector('[role="alert"]') &&
+      !fixture.textContent?.includes("连接中"),
+    "A late failed retry cannot overwrite a newer successful connection",
   );
   assert(historyListeners.size === 1, "StrictMode leaves one history ownership observer");
   await act(async () => {
@@ -375,9 +476,22 @@ async function run() {
       ) as HTMLButtonElement
     ).click();
   });
+  await finishRetryFeedback();
   assert(
     historySession === pluginSession && fixture.querySelector('[contenteditable="true"]'),
     "Re-enabling the plugin can reconnect the original session from the read-only view",
+  );
+  await act(async () => {
+    connected = false;
+    canRetry = false;
+    historyReason = "聊天缺少有效的来源信息";
+    recordChanges.forEach((listener) => listener());
+  });
+  assert(
+    fixture.textContent?.includes(historyReason) &&
+      !retryButton() &&
+      fixture.textContent?.includes("Plugin continuation"),
+    "A record with missing origin remains readable without an ineffective reconnect button",
   );
   await act(async () => {
     root.unmount();
