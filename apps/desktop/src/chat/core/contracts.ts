@@ -9,7 +9,6 @@ import type {
   ChatSnapshot,
   ChatMessage,
 } from "@isle/chat-contracts";
-export type * from "@isle/chat-contracts";
 export const sessionKey = ({ scope, id }: SessionIdentity) => JSON.stringify([scope, id]);
 export interface ChatCatalog {
   load(options?: { refresh?: boolean }): Promise<ChatResources>;
@@ -21,6 +20,8 @@ export interface ChatContextProvider {
 /** Runtime secrets stay in the adapter's dispatch closure, never in snapshots or UI props. */
 export type PreparedChatRun = { dispatch(): Promise<void>; author?: { name?: string; avatar?: string } };
 export interface ChatRuntime {
+  /** Runs inside the cancellable preparing phase, before application history is changed. */
+  authorize?(turn: TurnInput, signal: AbortSignal): Promise<void>;
   subscribe(listener: (event: AgentClientAgentEvent) => void): Promise<() => void>;
   prepare(turn: TurnInput & { context: ChatContext }, signal: AbortSignal): Promise<PreparedChatRun>;
   abort(taskId: string): Promise<void>;

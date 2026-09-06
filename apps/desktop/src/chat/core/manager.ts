@@ -1,4 +1,5 @@
-import { errorText, sessionKey, type ChatSession, type OperationResult, type SessionIdentity } from "./contracts";
+import type { ChatSession, OperationResult, SessionIdentity } from "@isle/chat-contracts";
+import { errorText, sessionKey } from "./contracts";
 
 /** Ownership is independent of subscriptions and React mount lifetimes. */
 export function createChatService<T extends { identity: SessionIdentity }>(create: (input: T) => Promise<ChatSession>) {

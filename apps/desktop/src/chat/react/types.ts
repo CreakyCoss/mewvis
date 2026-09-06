@@ -1,7 +1,8 @@
-export type { SkillOption as ChatInputSkillOption, MessagePart as ChatInputSubmitBlock } from "../core";
+import type { MessagePart } from "@isle/chat-contracts";
+export type { SkillOption as ChatInputSkillOption, MessagePart as ChatInputSubmitBlock } from "@isle/chat-contracts";
 export type ChatInputFile = { path: string; name: string; isDirectory: boolean };
 export type ChatDisplayOptions = { showThinkingProcess: boolean; showToolCallProcess: boolean };
-export type ComposerDraft = { text: string; blocks: import("../core").MessagePart[] };
+export type ComposerDraft = { text: string; blocks: MessagePart[] };
 export interface ChatViewPersistence {
   loadPreferences(): Promise<ChatDisplayOptions>;
   savePreferences(value: ChatDisplayOptions): Promise<void>;

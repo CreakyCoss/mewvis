@@ -74,23 +74,7 @@ export function useChatComposer() {
       Boolean(draft.draft.text.trim()) &&
       Boolean(snapshot.resources.models?.some((model) => model.value === snapshot.config.selectedModelId)),
     setDraft: view.setDraft,
-    async submit() {
-      const current = view.getSnapshot();
-      if (current.submitting) return { status: "rejected", reason: "正在准备请求" } as const;
-      view.setSubmitting(true);
-      try {
-        const result = await session.send(current.draft);
-        if (result.status === "dispatched") view.clear(current.revision);
-        else if (result.status === "rejected") view.setError(result.reason ?? "消息发送失败");
-        return result;
-      } catch (error) {
-        const reason = error instanceof Error ? error.message : String(error);
-        view.setError(reason);
-        return { status: "rejected", reason } as const;
-      } finally {
-        view.setSubmitting(false);
-      }
-    },
+    submit: view.submit,
     stop: session.stop,
   };
 }

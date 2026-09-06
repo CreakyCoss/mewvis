@@ -1,153 +1,301 @@
-import type {
-  ComponentType,
-  ReactNode,
-  HTMLAttributes,
+// Generated from the shared Chat implementation by pnpm build:chat-ui. Do not edit.
+import * as react_jsx_runtime from "react/jsx-runtime";
+import {
   PropsWithChildren,
+  ReactNode,
+  ComponentType,
+  ComponentProps,
+  HTMLAttributes,
 } from "react";
-import type {
-  ChatSession,
-  ChatSnapshot,
-  ChatMessage,
-  ChatRunConfig,
-  ChatResources,
+import * as _isle_chat_contracts from "@isle/chat-contracts";
+import {
   MessagePart,
+  ChatRunConfig,
+  ChatSession,
+  ChatMessage,
   SendResult,
+  ChatPendingQuestion,
 } from "@isle/chat-contracts";
-import type { PluginChatOpenInput, PluginChatSession } from "./index.js";
-export type ChatDisplayOptions = {
+import { PluginChatOpenInput, PluginChatSession } from "@isle/plugin-sdk/chat";
+
+type ChatInputFile = {
+  path: string;
+  name: string;
+  isDirectory: boolean;
+};
+type ChatDisplayOptions = {
   showThinkingProcess: boolean;
   showToolCallProcess: boolean;
 };
-export type ComposerDraft = { text: string; blocks: MessagePart[] };
-export type ChatControls = {
-  resources: ChatResources;
-  options: ChatRunConfig & ChatDisplayOptions;
-  updateOptions(patch: Partial<ChatRunConfig & ChatDisplayOptions>): void;
+type ComposerDraft = {
+  text: string;
+  blocks: MessagePart[];
 };
-export type ComposerBinding = {
+interface ChatViewPersistence {
+  loadPreferences(): Promise<ChatDisplayOptions>;
+  savePreferences(value: ChatDisplayOptions): Promise<void>;
+}
+
+type Environment = {
+  files?: (session: ChatSession) => ChatInputFile[];
+  persistence?: (
+    session: ChatSession,
+    viewId: string,
+  ) => ChatViewPersistence | undefined;
+};
+declare function ChatEnvironment({
+  children,
+  ...environment
+}: PropsWithChildren<Environment>): react_jsx_runtime.JSX.Element;
+declare function ChatProvider({
+  session,
+  viewId,
+  children,
+}: PropsWithChildren<{
+  session: ChatSession;
+  viewId?: string;
+}>): react_jsx_runtime.JSX.Element;
+declare function useChatSession(): ChatSession;
+declare function useChatSnapshot(): Readonly<_isle_chat_contracts.ChatSnapshot>;
+declare function useChatActions(): ChatSession;
+declare function useChatViewState(): {
+  updatePreferences: (value: Partial<ChatDisplayOptions>) => void;
+  retryPreferences: () => Promise<void>;
   draft: ComposerDraft;
   revision: number;
   clearVersion: number;
   submitting: boolean;
   error: string;
   preferenceError: string;
-  preferences: ChatDisplayOptions;
-  controls: ChatControls;
+  preferences: {
+    showThinkingProcess: boolean;
+    showToolCallProcess: boolean;
+  };
+};
+declare function useChatComposer(): {
+  controls: {
+    resources: _isle_chat_contracts.ChatResources;
+    options: {
+      showThinkingProcess: boolean;
+      showToolCallProcess: boolean;
+      selectedModelId: string;
+      selectedAgentId: string;
+      selectedSkillKeys: string[];
+      selectedKnowledgeCollectionIds: string[];
+      selectedToolNames: string[];
+    };
+    updateOptions(patch: Partial<ChatRunConfig & ChatDisplayOptions>): void;
+  };
   initialized: boolean;
+  files: ChatInputFile[];
+  skills: _isle_chat_contracts.SkillOption[];
   busy: boolean;
   disabled: boolean;
   canSubmit: boolean;
-  files: { path: string; name: string; isDirectory: boolean }[];
-  skills: { key: string; name: string; label: string; description: string }[];
-  setDraft(draft: ComposerDraft): void;
-  submit(): Promise<SendResult>;
-  stop(): ReturnType<ChatSession["stop"]>;
+  setDraft: (draft: ComposerDraft) => void;
+  submit: () => Promise<
+    | _isle_chat_contracts.SendResult
+    | {
+        readonly status: "rejected";
+        readonly reason: string;
+      }
+  >;
+  stop: () => Promise<_isle_chat_contracts.OperationResult>;
+  draft: ComposerDraft;
+  revision: number;
+  clearVersion: number;
+  submitting: boolean;
+  error: string;
+  preferenceError: string;
+  preferences: {
+    showThinkingProcess: boolean;
+    showToolCallProcess: boolean;
+  };
 };
-export type ComposerSlots = {
-  editor?: ComponentType<ComposerBinding & { placeholder: string }>;
+declare function useChatControls(): {
+  resources: _isle_chat_contracts.ChatResources;
+  options: {
+    showThinkingProcess: boolean;
+    showToolCallProcess: boolean;
+    selectedModelId: string;
+    selectedAgentId: string;
+    selectedSkillKeys: string[];
+    selectedKnowledgeCollectionIds: string[];
+    selectedToolNames: string[];
+  };
+  updateOptions(patch: Partial<ChatRunConfig & ChatDisplayOptions>): void;
+};
+
+type ChatMessagesProps = {
+  className?: string;
+  renderMessage?: (
+    message: ChatMessage,
+    defaultMessage: ReactNode,
+  ) => ReactNode;
+  messages: ChatMessage[];
+  isInitializing: boolean;
+  pendingQuestionId?: string;
+  displayOptions: ChatDisplayOptions;
+};
+declare const MessageView: ({
+  message,
+  displayOptions,
+}: {
+  message: ChatMessage;
+  displayOptions: ChatDisplayOptions;
+}) => react_jsx_runtime.JSX.Element;
+declare const MessagesView: ({
+  messages,
+  isInitializing,
+  pendingQuestionId,
+  displayOptions,
+  className,
+  renderMessage,
+}: ChatMessagesProps) => react_jsx_runtime.JSX.Element;
+
+type ComposerBinding = ReturnType<typeof useChatComposer>;
+type ComposerSlots = {
+  editor?: ComponentType<
+    ComposerBinding & {
+      placeholder: string;
+    }
+  >;
   toolbar?: ComponentType<ComposerBinding>;
   actions?: ComponentType<ComposerBinding>;
 };
-export type ChatComposerProps = PropsWithChildren<{
+declare function ComposerToolbar(
+  binding: ComposerBinding,
+): react_jsx_runtime.JSX.Element;
+declare function ComposerActions(
+  binding: ComposerBinding,
+): react_jsx_runtime.JSX.Element;
+type ComposerViewProps = PropsWithChildren<{
+  binding: ComposerBinding;
   className?: string;
   placeholder?: string;
   slots?: ComposerSlots;
   onSubmitted?: (result: SendResult) => void;
 }>;
-export type RenderMessage = (
-  message: ChatMessage,
-  defaultMessage: ReactNode,
-) => ReactNode;
-export type MessagesProps = {
-  className?: string;
-  renderMessage?: RenderMessage;
-};
-export declare const Chat: ComponentType<{
+declare function ComposerView({
+  binding,
+  className,
+  placeholder,
+  slots,
+  children,
+  onSubmitted,
+}: ComposerViewProps): react_jsx_runtime.JSX.Element;
+declare function ChatComposer(
+  props: Omit<ComposerViewProps, "binding">,
+): react_jsx_runtime.JSX.Element | null;
+
+declare function Messages(
+  props: Pick<ChatMessagesProps, "className" | "renderMessage">,
+): react_jsx_runtime.JSX.Element;
+declare function Question(): react_jsx_runtime.JSX.Element | null;
+declare function ErrorNotice(): react_jsx_runtime.JSX.Element | null;
+declare function Loading({
+  error,
+}: {
+  error?: string;
+}): react_jsx_runtime.JSX.Element;
+declare function Layout({
+  children,
+  className,
+  ...props
+}: HTMLAttributes<HTMLElement>): react_jsx_runtime.JSX.Element;
+declare function Footer({
+  children,
+  className,
+  ...props
+}: HTMLAttributes<HTMLDivElement>): react_jsx_runtime.JSX.Element;
+declare function History({
+  messages,
+  displayOptions,
+  reason,
+  onRetry,
+  connecting,
+  retryError,
+  className,
+  renderMessage,
+}: Pick<ChatMessagesProps, "messages" | "renderMessage" | "className"> & {
+  displayOptions?: ChatMessagesProps["displayOptions"];
+  reason: string;
+  onRetry?: () => void;
+  connecting?: boolean;
+  retryError?: string;
+}): react_jsx_runtime.JSX.Element;
+declare function DefaultChat({
+  session,
+  viewId,
+  className,
+  renderMessage,
+  composer,
+}: {
   session: ChatSession;
   viewId?: string;
   className?: string;
-  renderMessage?: RenderMessage;
-  composer?: ChatComposerProps;
-}> & {
-  Provider: ComponentType<
-    PropsWithChildren<{ session: ChatSession; viewId?: string }>
-  >;
-  Layout: ComponentType<HTMLAttributes<HTMLElement>>;
-  Footer: ComponentType<HTMLAttributes<HTMLDivElement>>;
-  Messages: ComponentType<MessagesProps>;
-  Composer: ComponentType<ChatComposerProps>;
-  Error: ComponentType;
-  Question: ComponentType;
-  Loading: ComponentType<{ error?: string }>;
-  History: ComponentType<
-    MessagesProps & {
-      messages: ChatMessage[];
-      displayOptions?: ChatDisplayOptions;
-      reason: string;
-      onRetry?: () => void;
-      connecting?: boolean;
-      retryError?: string;
-    }
-  >;
+  renderMessage?: ChatMessagesProps["renderMessage"];
+  composer?: ComponentProps<typeof ChatComposer>;
+}): react_jsx_runtime.JSX.Element;
+declare const Chat: typeof DefaultChat & {
+  Provider: typeof ChatProvider;
+  Layout: typeof Layout;
+  Footer: typeof Footer;
+  Messages: typeof Messages;
+  Composer: typeof ChatComposer;
+  Question: typeof Question;
+  Error: typeof ErrorNotice;
+  Loading: typeof Loading;
+  History: typeof History;
 };
-export declare function usePluginChatSession(
-  input: PluginChatOpenInput | null,
-): {
+
+type ChatQuestionProps = {
+  question: ChatPendingQuestion;
+  onAnswer: (answer: string) => Promise<void>;
+  answering?: boolean;
+};
+declare const QuestionView: ({
+  question,
+  onAnswer,
+  answering,
+}: ChatQuestionProps) => react_jsx_runtime.JSX.Element;
+
+/** The transport and shared client are supplied once by the sandbox host. */
+declare function usePluginChatSession(input: PluginChatOpenInput | null): {
   key: string;
   session?: PluginChatSession;
   error?: string;
 };
-export declare function useChatSession(): ChatSession;
-export declare function useChatSnapshot(): Readonly<ChatSnapshot>;
-export declare function useChatActions(): ChatSession;
-export declare function useChatComposer(): ComposerBinding;
-export declare function useChatControls(): ChatControls;
-export declare function useChatViewState(): Pick<
-  ComposerBinding,
-  | "draft"
-  | "revision"
-  | "clearVersion"
-  | "error"
-  | "preferenceError"
-  | "preferences"
-  | "submitting"
-> & {
-  updatePreferences(value: Partial<ChatDisplayOptions>): void;
-  retryPreferences(): Promise<void>;
+
+type ChatControls = ReturnType<typeof useChatControls>;
+type ChatComposerProps = ComponentProps<typeof Chat.Composer>;
+type MessagesProps = ComponentProps<typeof Chat.Messages>;
+type RenderMessage = NonNullable<MessagesProps["renderMessage"]>;
+
+export {
+  Chat,
+  ChatEnvironment,
+  ComposerActions,
+  ComposerToolbar,
+  ComposerView,
+  MessageView,
+  MessagesView,
+  QuestionView,
+  useChatActions,
+  useChatComposer,
+  useChatControls,
+  useChatSession,
+  useChatSnapshot,
+  useChatViewState,
+  usePluginChatSession,
 };
-export declare const ComposerView: ComponentType<
-  ChatComposerProps & { binding: ComposerBinding }
->;
-export declare const ComposerToolbar: ComponentType<ComposerBinding>;
-export declare const ComposerActions: ComponentType<ComposerBinding>;
-export declare const MessagesView: ComponentType<
-  MessagesProps & {
-    messages: ChatMessage[];
-    isInitializing: boolean;
-    pendingQuestionId?: string;
-    displayOptions: ChatDisplayOptions;
-  }
->;
-export declare const MessageView: ComponentType<{
-  message: ChatMessage;
-  displayOptions: ChatDisplayOptions;
-}>;
-export declare const QuestionView: ComponentType<{
-  question: import("@isle/chat-contracts").ChatPendingQuestion;
-  answering: boolean;
-  onAnswer(answer: string): Promise<void>;
-}>;
-export declare const ChatEnvironment: ComponentType<
-  PropsWithChildren<{
-    files?: (session: ChatSession) => ComposerBinding["files"];
-    persistence?: (
-      session: ChatSession,
-      viewId: string,
-    ) =>
-      | {
-          loadPreferences(): Promise<ChatDisplayOptions>;
-          savePreferences(value: ChatDisplayOptions): Promise<void>;
-        }
-      | undefined;
-  }>
->;
+export type {
+  ChatComposerProps,
+  ChatControls,
+  ChatDisplayOptions,
+  ComposerBinding,
+  ComposerDraft,
+  ComposerSlots,
+  MessagesProps,
+  RenderMessage,
+};

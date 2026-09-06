@@ -451,3 +451,35 @@ test("opening during explicit close waits for resource release and creates a fre
   assert.equal(service.getSession(input.identity), second);
   await service.closeSession(input.identity);
 });
+
+test("authorization belongs to the core turn: no record changes before approval, immediate stop and stale result isolation", async () => {
+  const authorization = deferred();
+  let authorize = () => authorization.promise;
+  const { session, calls } = await setup({ runtime: { authorize: () => authorize() } });
+  const sending = session.send({ text: "await permission" });
+  assert.equal(session.getSnapshot().phase, "preparing");
+  assert.equal(session.getSnapshot().messages.length, 0);
+  assert.equal(calls.saved.length, 0);
+  assert.equal((await session.updateConfig({ selectedToolNames: [] })).ok, false);
+  assert.equal((await session.stop()).ok, true);
+  assert.equal((await sending).status, "cancelled");
+  assert.equal(session.getSnapshot().phase, "idle");
+  assert.equal(calls.saved.length, 0);
+  authorize = () => Promise.resolve();
+  assert.equal((await session.send({ text: "next authorized turn" })).status, "dispatched");
+  const currentTask = session.getSnapshot().activeTaskId;
+  authorization.reject(new Error("late denial"));
+  await tick();
+  assert.equal(session.getSnapshot().activeTaskId, currentTask);
+  assert.equal(session.getSnapshot().phase, "running");
+  assert.equal(calls.dispatched, 1);
+  assert.doesNotMatch(JSON.stringify(session.getSnapshot().messages), /await permission|late denial/);
+  await session.stop();
+  const messages = session.getSnapshot().messages;
+  const saves = calls.saved.length;
+  authorize = () => Promise.reject(new Error("permission denied"));
+  assert.equal((await session.send({ text: "denied" })).status, "rejected");
+  assert.deepEqual(session.getSnapshot().messages, messages);
+  assert.equal(calls.saved.length, saves);
+  await session.close();
+});

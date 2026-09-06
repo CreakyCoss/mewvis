@@ -295,16 +295,13 @@ async function run() {
         };
       return { session: pluginSession };
     },
-    subscribeRecordChanges: (listener: () => void) => {
+    subscribeRecord: (_input: unknown, listener: () => void) => {
       recordChanges.add(listener);
+      const onSession = () => listener();
+      historyListeners.add(onSession);
       return () => {
         recordChanges.delete(listener);
-      };
-    },
-    subscribe: (listener: (session: ChatSession) => void) => {
-      historyListeners.add(listener);
-      return () => {
-        historyListeners.delete(listener);
+        historyListeners.delete(onSession);
       };
     },
     getLocation: () => ({ workspacePath: "fixture" }),

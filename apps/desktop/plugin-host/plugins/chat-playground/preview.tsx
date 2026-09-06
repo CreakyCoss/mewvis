@@ -62,15 +62,18 @@ const resources: ChatResources = {
   ],
 };
 const manager = createChatService(
-  async ({ identity, workspacePath, workspaceId, origin, profileSnapshot, profile }: DesktopSessionInput) => {
+  async ({ identity, workspacePath, workspaceId, origin, profileData, profile }: DesktopSessionInput) => {
     const key = JSON.stringify(identity);
     sources.set(JSON.stringify([workspacePath, identity.id]), () => ({
       workspaceId,
       origin,
-      profile: profileSnapshot?.(),
+      profile: profileData,
     }));
     locations.set(key, { workspacePath });
     const runtime: ChatRuntime = {
+      authorize: async () => {
+        await profile.authorize?.();
+      },
       subscribe: async (listener) => {
         listeners.add(listener);
         return () => {
@@ -78,7 +81,6 @@ const manager = createChatService(
         };
       },
       prepare: async (turn, signal) => {
-        await profile.authorize?.();
         signal.throwIfAborted();
         return {
           dispatch: async () => {
@@ -139,7 +141,7 @@ const manager = createChatService(
     return createChatSession({
       identity,
       runtime,
-      context: { prepare: async (turn, signal) => (await profile.context?.(turn, signal)) ?? {} },
+      context: { prepare: async () => profileData?.context ?? {} },
       catalog: { load: async () => structuredClone(resources) },
       storage: {
         load: async () => records.get(key) ?? null,
@@ -166,6 +168,19 @@ const service = {
   ...manager,
   getLocation: (session: ChatSession) => locations.get(JSON.stringify(session.identity)),
   viewPersistence: () => undefined,
+  updateContext: async (session: any, context: any) => {
+    if (session.getSnapshot().activeTaskId) throw new Error("运行期间不能修改场景上下文");
+    const location = locations.get(JSON.stringify(session.identity));
+    const source = sources.get(JSON.stringify([location!.workspacePath, session.identity.id]))?.() as any;
+    if (source?.profile) source.profile.context = structuredClone(context);
+  },
+  closePlugin: async (pluginId: string) =>
+    Promise.all(
+      manager
+        .listSessions()
+        .filter((session) => session.identity.scope.startsWith(`plugin:${pluginId}:workspace:`))
+        .map((session) => manager.closeSession(session.identity)),
+    ),
   loadRecordSource: async (workspacePath: string, chatId: string) =>
     structuredClone(sources.get(JSON.stringify([workspacePath, chatId]))?.()),
   listRecords: async (workspacePath: string) =>

@@ -8,16 +8,15 @@
 src/chat/
   core/
     index.ts          无 UI 公共入口
-    contracts.ts      会话、运行配置、能力目录及宿主接口
-    messages.ts       语义消息、思考、工具结果、用户引用和追问
+    contracts.ts      核心宿主接口、创建参数及配置辅助函数
     session.ts        唯一的会话执行编排与不可变快照
     reducer.ts        复用原有 AgentClient 事件的消息归并
     save-queue.ts     串行写入、流式节流、节点防抖、失败重试
-    manager.ts        创建合并、作用域隔离、持有与明确关闭
+    manager.ts        可选的无 UI 多会话管理；桌面宿主使用自己的单一拥有者
   react/
     index.ts          默认 Chat、组合组件、公开 hooks 和纯展示组件
     provider.tsx      useSyncExternalStore 绑定；Provider 只观察
-    view-state.ts     按 session + viewId 保存草稿和展示偏好
+    view-state.ts     按 session + viewId 管理草稿、提交事务和展示偏好
     chat.tsx          默认 Chat 及相同实现的公开组合组件
     question.tsx      追问表单
     messages/         现有消息、Markdown、思考、工具事件的展示
@@ -25,20 +24,33 @@ src/chat/
       editor/         Lexical 及文件／技能引用，仅 UI 使用
   desktop/
     index.ts          默认桌面宿主 service 和场景配置类型
-    service.ts        会话拥有者；统一挂接运行时、目录和存储
+    service.ts        桌面唯一拥有者；集中打开、恢复、关闭及运行时／存储装配
     catalog.ts        模型／角色／技能／知识库／工具独立加载
     context.ts        复用工作区 prompt、引用技能和知识检索上下文
     runtime.ts        复用 AgentClient，私下解析凭据，连接 Pi
     storage.ts        读取现有消息格式；来源／配置／偏好／未读共用写队列
     ledger.ts         账本摘要的模型解析，UI 只传模型 ID
+    plugin.ts         权限校验、场景配置解析和连接句柄；不另持有会话或执行状态
     react.tsx         DesktopChatEnvironment / useDesktopChatSession / useDesktopChatRecord
 ```
 
 依赖方向：`react → core`；`desktop → core + 现有 AgentClient/API`；`desktop/react → desktop + react`。核心只依赖现有纯 TypeScript 事件契约，不导入 AgentClient 的 Tauri 工厂。React 层可以使用现有设计系统、样式和 Lexical，不导入桌面 API 或普通聊天页面。
 
-`features/app/chat-service.ts` 创建应用级 service；`chat-integration.tsx` 一次性连接文件目录、聊天列表与未读状态、资源刷新、窗口明确关闭。业务页面不访问核心或输入区内部 Store。
+消息、会话和运行配置类型只在 `packages/chat-contracts/index.d.ts` 定义。核心内部直接从定义文件或共享包导入；`core/index.ts` 集中对外导出共享类型与核心 API，业务和其他层继续使用 `@/chat/core`。内部文件不再重复转导出共享类型，也不通过本层公共入口反向导入。
 
-业务创建会话使用 `useDesktopChatSession`；侧栏等历史入口使用 `useDesktopChatRecord`，由 `service.openRecord` 按磁盘记录查找原拥有者。已有插件会话直接复用，未运行的插件记录通过应用注入的恢复器校验权限后恢复原场景。删除记录使用 `closeRecord(workspacePath, chatId)` 关闭实际拥有者，不根据侧栏入口猜测 scope。
+`features/app/chat-service.ts` 一次性创建应用级 service 和插件宿主、配置场景恢复器；`chat-integration.tsx` 一次性连接文件目录、聊天列表与未读状态、资源刷新、窗口明确关闭。业务页面不访问核心或输入区内部 Store。
+
+业务创建会话使用 `useDesktopChatSession`；侧栏等历史入口使用 `useDesktopChatRecord`，由 `service.openRecord` 按磁盘记录查找原拥有者。插件记录通过启动时配置的 `resolveRecord` 校验权限并返回场景配置，service 统一复用或创建拥有者；恢复器不再调用 `openSession`。删除记录使用 `closeRecord(workspacePath, chatId)` 关闭实际拥有者，不根据侧栏入口猜测 scope。
+
+## 从操作查找实现
+
+- `core/session.ts`：一轮任务的初始化、授权准备、发送、事件归并、停止、追问和关闭。内部状态与保存队列不向调用方开放；`ChatRuntime.authorize` 在同一轮可取消的 preparing 阶段执行，授权完成前不改消息或持久化记录，派发前仍由宿主复核权限。
+- `desktop/service.ts`：会话创建、并发打开合并、磁盘归属、来源恢复、关闭和上下文保存。每个会话条目聚合配置、来源、存储、打开／关闭 Promise 和订阅；失败打开会清理预留归属。桌面不再叠加核心 manager 与插件的打开缓存。
+- `react/view-state.ts`：草稿、偏好及提交事务；内部处理重复提交、失败保留和版本匹配后的草稿清空。Provider 中的 hook 订阅状态并提供现有组件绑定。
+
+历史打开的顺序是 `openRecord → 读取来源 → resolveRecord 校验并返回配置 → openSession`，失败返回只读历史。React 通过 `subscribeRecord` 观察指定记录的可用性，不从全局会话流推测原拥有者；明确关闭不会触发观察者自动重开。手动重连的最短 loading 展示仍在 React 绑定中。
+
+`react/messages` 与 `react/composer` 的代码、目录及组件契约保持不变。`core/manager.ts` 继续作为独立无 UI 接入的可选管理器，不在桌面调用链中重复管理生命周期。
 
 ## 三种接入
 
@@ -171,9 +183,11 @@ Pi 继续使用 `chats/<chatId>/session` 下的原执行上下文和账本。核
 
 ## 插件接入
 
-`@isle/plugin-sdk/chat` 提供无 UI 客户端，`@isle/plugin-sdk/chat/react` 提供同一套 Chat 和绑定。`desktop/plugin.ts` 将经过身份绑定的连接映射到应用级 service，校验配置和授权，隔离会话句柄，并转发带修订号的快照。它不运行第二套 reducer。应用与 SDK 共同引用 `@isle/chat-contracts`，核心不依赖插件实现。
+`@isle/plugin-sdk/chat` 提供无 UI 客户端，`@isle/plugin-sdk/chat/react` 提供同一套 Chat 和绑定。`desktop/plugin.ts` 将经过身份绑定的连接映射到应用级 service，校验配置和授权，隔离会话句柄，并转发带修订号的快照。它不再管理会话打开缓存或发送准备状态；`resolveSession` 只返回配置。动态上下文交给 `service.updateContext` 更新和保存，`viewPersistence` 只暴露展示偏好接口。应用与 SDK 共同引用 `@isle/chat-contracts`，核心不依赖插件实现。
 
-`features/app/plugin-chat.ts` 连接实际插件权限、工作区和 service；`plugin-chat-native.ts` 一次性接入 Node 插件双向 stdio，StrictMode 共用原生事件监听。`PluginFrame` 连接 iframe 消息。插件 UI 按需加载由 `build:chat-ui` 从应用源码生成的共享脚本和样式；构建产物不提交。SDK 的公开组件声明有对应的类型检查。
+`features/app/chat-service.ts` 连接实际插件权限、工作区和 service；`plugin-chat-native.ts` 一次性接入 Node 插件双向 stdio，StrictMode 共用原生事件监听。`PluginFrame` 连接 iframe 消息。插件 UI 按需加载由 `build:chat-ui` 从应用源码生成的共享脚本和样式；脚本和样式产物不提交。同一构建还生成 `packages/plugin-sdk/chat/react.d.ts`，该声明随 SDK 保留在仓库中；组件、hook 和 UI 类型不再手写第二份字段结构。生成器读取 SDK 的实际运行导出，保留公开类型名，并将核心契约和插件协议保留为包导入。
+
+`pnpm check:chat-ui-types` 检查声明是否与源码同步，不改写声明。生成和检查均验证声明只引用公共依赖，并在不使用应用别名、不跳过声明检查的环境下进行 TypeScript 检查；插件契约测试另双向对照实际组件签名。
 
 插件通过 `createSession({ workspaceId, sceneId, profile })` 明确创建会话，宿主返回的 `session.identity.id` 就是 `meta.id`。`openSession({ workspaceId, chatId })` 只打开已有记录；React 的 `usePluginChatSession` 只负责打开和观察，不创建。不同创建操作生成不同 ID，多视图打开同一 ID 共用一个拥有者。插件不传真实路径或凭据。
 
@@ -191,6 +205,7 @@ Pi 继续使用 `chats/<chatId>/session` 下的原执行上下文和账本。核
 pnpm test:chat
 pnpm test:chat:stdio
 pnpm test:chat:plugin
+pnpm check:chat-ui-types
 pnpm exec tsc --noEmit
 pnpm exec vite build
 cargo test --manifest-path src-tauri/Cargo.toml services::chats::tests
@@ -200,10 +215,12 @@ node scripts/agent-runtime/user-input-e2e.mjs
 
 `test:chat` 包含不带 DOM lib 的核心类型检查、Node bundle 依赖边界检查、核心竞态测试、桌面宿主测试及 DSH patchPath 严格 Schema 回归。stdio 测试使用临时数据，需要已有 `agent-runtime/dist/cli.js`。
 
-本次来源结构调整通过 15 项核心、13 项桌面宿主、10 项插件与 8 项 Rust 存储测试，另通过 DSH Schema、SDK 公共 UI 声明、插件打包与实际 Node Host 回归、TypeScript 检查和前端构建。存储测试覆盖元数据来源不可变、配置不覆盖归属、列表不读取消息、目录 ID 校验与历史文件保护。
+Rust 存储测试覆盖元数据来源不可变、配置不覆盖归属、列表不读取消息、目录 ID 校验与历史文件保护。本轮没有修改 Rust 存储代码，未重复运行该组测试。
 
 已有 1420 服务提供 `/scripts/chat/browser.html`（StrictMode、多视图、默认／组合 UI、只读历史）、`/scripts/chat/page.html`（真实首页和聊天路由）以及 `/scripts/chat/plugin-browser.html`（真实沙箱与测试插件）。这些测试使用内存 Runtime 和存储，不连接真实模型或用户历史；插件测试页需点击「创建会话」。
 
 手动重试时，桌面绑定让 loading 至少显示 400 毫秒以避免快速失败时闪烁，请求会立即发起；较慢的请求持续显示 loading 直到结束。首次自动打开不增加这段反馈时间。
 
-本次重连反馈修复在已有 1420 服务通过 41 项浏览器断言，覆盖快速失败、慢请求、布局稳定、连续点击、失败重试、迟到响应、只读历史及 StrictMode；浏览器无错误或警告。核心／宿主测试、TypeScript、SDK 公开 UI 声明与构建通过。真实原生宿主／模型尚未验收；没有启动或重启开发服务，Vite 保留已有大 chunk 警告。
+本轮流程收拢通过 16 项核心、14 项桌面宿主和 10 项插件测试，新增授权取消、迟到结果隔离、打开失败归属回滚和定向观察回归；DSH Schema、SDK 公共 UI 声明、插件打包与实际 Node Host、无 UI stdio、TypeScript 和前端构建均通过。
+
+已有 1420 服务通过 41 项浏览器断言，覆盖默认／组合 UI、StrictMode、多视图、后台运行、只读历史和重连反馈。另在真实聊天路由的内存预览中验证了发送与保存，在内置调试插件预览中验证了授权等待时停止、迟到授权不派发、不写记录、上下文更新、工具／思考事件及默认与定制界面切换。浏览器无错误或警告。真实模型及原生应用界面尚未验收；没有启动或重启开发服务，Vite 保留已有大 chunk 警告。

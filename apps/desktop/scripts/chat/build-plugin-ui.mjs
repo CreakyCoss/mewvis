@@ -1,13 +1,19 @@
 import { build } from "esbuild";
 import postcss from "postcss";
 import tailwind from "@tailwindcss/postcss";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { rollup } from "rollup";
+import { dts } from "rollup-plugin-dts";
+import { format } from "prettier";
+import ts from "typescript";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const desktop = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const output = resolve(desktop, "src/chat/react/dist");
 await mkdir(output, { recursive: true });
+await buildDeclarations(process.argv.includes("--check-types"));
+if (process.argv.includes("--check-types")) process.exit(0);
 const runtime = await build({
   absWorkingDir: desktop,
   entryPoints: ["src/chat/react/plugin-runtime.ts"],
@@ -40,3 +46,81 @@ const bundledCss = await build({
 });
 await writeFile(resolve(output, "plugin-runtime.css"), bundledCss.outputFiles[0].text);
 console.log("Shared plugin Chat UI built from the application components; host dependency boundary passed.");
+
+async function buildDeclarations(check) {
+  const sdk = resolve(desktop, "../../packages/plugin-sdk/chat");
+  // Read the actual SDK exports without executing the host-injected module.
+  const facade = await build({
+    entryPoints: [resolve(sdk, "react.js")],
+    format: "esm",
+    metafile: true,
+    write: false,
+  });
+  const names = Object.values(facade.metafile.outputs)[0].exports;
+  const directory = await mkdtemp(resolve(output, "types-"));
+  const ui = JSON.stringify(resolve(desktop, "src/chat/react/index").replaceAll("\\", "/"));
+  const plugin = JSON.stringify(resolve(desktop, "src/chat/react/plugin").replaceAll("\\", "/"));
+  try {
+    const entry = resolve(directory, "entry.ts");
+    // Keep existing public names, deriving all fields and signatures from the implementation.
+    await writeFile(
+      entry,
+      `${names.map((name) => `export { ${name} } from ${name === "usePluginChatSession" ? plugin : ui};`).join("\n")}
+export type { ChatDisplayOptions, ComposerDraft, ComposerBinding, ComposerSlots } from ${ui};
+import type { ComponentProps } from "react";
+import type { Chat, useChatControls } from ${ui};
+export type ChatControls = ReturnType<typeof useChatControls>;
+export type ChatComposerProps = ComponentProps<typeof Chat.Composer>;
+export type MessagesProps = ComponentProps<typeof Chat.Messages>;
+export type RenderMessage = NonNullable<MessagesProps["renderMessage"]>;
+`,
+    );
+    const external = ["@isle/chat-contracts", "@isle/plugin-sdk/chat", "react", "react/jsx-runtime"];
+    const bundle = await rollup({
+      input: entry,
+      external,
+      plugins: [dts({ tsconfig: resolve(desktop, "scripts/chat/tsconfig.plugin.json") })],
+    });
+    let declarations;
+    try {
+      declarations = (await bundle.generate({ format: "es" })).output[0].code;
+    } finally {
+      await bundle.close();
+    }
+    for (const [, dependency] of declarations.matchAll(/(?:from\s+|import\()\s*["']([^"']+)["']/g))
+      if (!external.includes(dependency))
+        throw new Error(`Plugin UI declarations import a private dependency: ${dependency}`);
+    const content = await format(
+      `// Generated from the shared Chat implementation by pnpm build:chat-ui. Do not edit.\n${declarations}`,
+      { parser: "typescript" },
+    );
+    // Validate the published declarations without the application's aliases or skipLibCheck.
+    const validation = resolve(directory, "react.d.ts");
+    await writeFile(validation, content);
+    const program = ts.createProgram([validation], {
+      target: ts.ScriptTarget.ES2022,
+      module: ts.ModuleKind.NodeNext,
+      moduleResolution: ts.ModuleResolutionKind.NodeNext,
+      strict: true,
+      noEmit: true,
+      types: [],
+    });
+    const errors = ts.getPreEmitDiagnostics(program);
+    if (errors.length)
+      throw new Error(
+        ts.formatDiagnostics(errors, {
+          getCanonicalFileName: (file) => file,
+          getCurrentDirectory: () => desktop,
+          getNewLine: () => "\n",
+        }),
+      );
+    const destination = resolve(sdk, "react.d.ts");
+    if (check) {
+      if ((await readFile(destination, "utf8")) !== content)
+        throw new Error("Plugin Chat UI declarations are stale. Run pnpm build:chat-ui.");
+      console.log("Plugin Chat UI declarations match the shared implementation.");
+    } else await writeFile(destination, content);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}

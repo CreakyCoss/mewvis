@@ -54,6 +54,7 @@
     "rebuild:config-db": "cargo run --manifest-path src-tauri/Cargo.toml --bin init_config_db -- --rebuild",
     "init:config-db:rebuild-on-error": "cargo run --manifest-path src-tauri/Cargo.toml --bin init_config_db -- --rebuild-on-error",
     "build:chat-ui": "node scripts/chat/build-plugin-ui.mjs",
+    "check:chat-ui-types": "node scripts/chat/build-plugin-ui.mjs --check-types",
     "test:chat:plugin": "pnpm build:plugin-host && pnpm exec tsc -p scripts/chat/tsconfig.plugin.json && node plugin-host/scripts/plugin-cli.mjs pack scripts/chat/fixtures/plugin && node scripts/chat/test-plugin.mjs"
   },
   "dependencies": {
@@ -127,6 +128,8 @@
     "postcss": "^8.5.15",
     "prettier": "^3.9.3",
     "quicktype": "26.0.0",
+    "rollup": "4.60.4",
+    "rollup-plugin-dts": "6.5.1",
     "tailwindcss": "^4.3.0",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "~5.8.3",

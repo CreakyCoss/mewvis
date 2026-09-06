@@ -2,7 +2,7 @@ import { toast } from "sonner";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { PluginChatRequest } from "@isle/plugin-sdk/chat";
-import { pluginChatHost } from "./plugin-chat";
+import { pluginChatHost } from "./chat-service";
 import { chatService } from "./chat-service";
 
 type Request = {

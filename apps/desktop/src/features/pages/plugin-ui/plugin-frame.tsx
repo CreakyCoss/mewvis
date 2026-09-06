@@ -1,4 +1,4 @@
-import { pluginChatHost } from "@/features/app/plugin-chat";
+import { pluginChatHost } from "@/features/app/chat-service";
 import type { PluginChatRequest } from "@isle/plugin-sdk/chat";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { AlertTriangle, Loader2, ShieldCheck } from "lucide-react";

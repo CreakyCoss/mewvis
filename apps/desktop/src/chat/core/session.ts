@@ -4,18 +4,16 @@ import {
   type AgentClientChatMessageEvent,
 } from "@/agent-client/contracts";
 import { AgentRuntimeEventType as E, agentRuntimeEvents } from "@/agent-client/wire";
-import {
-  defaultConfig,
-  errorText,
-  type ChatRecord,
-  type ChatSession,
-  type ChatSessionOptions,
-  type ChatSnapshot,
-  type MessageInput,
-  type OperationResult,
-  type SendResult,
-} from "./contracts";
-import type { ChatAssistantMessage } from "./messages";
+import type {
+  ChatRecord,
+  ChatSession,
+  ChatSnapshot,
+  MessageInput,
+  OperationResult,
+  SendResult,
+  ChatAssistantMessage,
+} from "@isle/chat-contracts";
+import { defaultConfig, errorText, type ChatSessionOptions } from "./contracts";
 import { applyChatMessageEvent, failChatMessage } from "./reducer";
 import { createSaveQueue } from "./save-queue";
 
@@ -35,6 +33,7 @@ type Turn = {
   dispatch?: Promise<void>;
   stopping?: Promise<OperationResult>;
   cancelled: boolean;
+  recorded: boolean;
   stderr: string;
   events: AgentClientChatMessageEvent[];
   timer?: ReturnType<typeof setTimeout>;
@@ -117,8 +116,10 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
     }
     active = undefined;
     update({ phase: "idle", activeTaskId: null, pendingQuestion: null, answering: false, error: error ?? "" });
-    mark();
-    void saves.flush();
+    if (turn.recorded) {
+      mark();
+      void saves.flush();
+    }
   };
   const handleEvent = (envelope: AgentClientAgentEvent) => {
     const turn = active;
@@ -238,6 +239,7 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
       controller: new AbortController(),
       resolve,
       cancelled: false,
+      recorded: false,
       stderr: "",
       events: [],
     };
@@ -250,30 +252,33 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
       activeTaskId: taskId,
       pendingQuestion: null,
       error: "",
-      title,
-      messages: [
-        ...state.messages,
-        {
-          id: crypto.randomUUID(),
-          role: "user",
-          createdAt,
-          status: "done",
-          blocks: (submitted.blocks ?? [{ type: "text", content: submitted.text }]).map((block) => ({
-            ...block,
-            id: crypto.randomUUID(),
-          })),
-        },
-        { id: turn.messageId, role: "assistant", createdAt: createdAt + 1, status: "loading", blocks: [] },
-      ],
     });
-    mark();
-    const initialSave = saves.flush();
     const request = { identity, taskId, input: submitted, config: state.config };
     void (async () => {
       try {
+        if (options.runtime.authorize) await options.runtime.authorize(request, turn.controller.signal);
+        if (active !== turn || turn.cancelled) return;
+        update({
+          title,
+          messages: [
+            ...state.messages,
+            {
+              id: crypto.randomUUID(),
+              role: "user",
+              createdAt,
+              status: "done",
+              blocks: (submitted.blocks ?? [{ type: "text", content: submitted.text }]).map((block) => ({
+                ...block,
+                id: crypto.randomUUID(),
+              })),
+            },
+            { id: turn.messageId, role: "assistant", createdAt: createdAt + 1, status: "loading", blocks: [] },
+          ],
+        });
+        turn.recorded = true;
+        mark();
         // Establish application history before Pi can create its session directory.
-        // Cancellation remains immediate while this write is pending.
-        const saved = await initialSave;
+        const saved = await saves.flush();
         if (active !== turn || turn.cancelled) return;
         if (!saved.ok) throw new Error(`请求尚未发送，保存失败：${saved.error}`);
         const context = (await options.context?.prepare(request, turn.controller.signal)) ?? {};

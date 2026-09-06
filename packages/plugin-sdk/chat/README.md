@@ -47,7 +47,11 @@ export function BusinessChat({ workspaceId, chatId }) {
 
 ```ts
 const chat = getPluginChatClient();
-const session = await chat.createSession({ workspaceId, sceneId: "assistant", profile });
+const session = await chat.createSession({
+  workspaceId,
+  sceneId: "assistant",
+  profile,
+});
 const chatId = session.identity.id;
 ```
 
@@ -58,7 +62,10 @@ const chatId = session.identity.id;
 ```ts
 const conversations = await chat.listSessions({ workspaceId });
 // 列表包含 chatId、sceneId、title、createdAt、updatedAt、messageCount。
-const session = await chat.openSession({ workspaceId, chatId: conversations[0].chatId });
+const session = await chat.openSession({
+  workspaceId,
+  chatId: conversations[0].chatId,
+});
 ```
 
 `openSession` 不接受 `profile`，不存在的记录返回错误。宿主从记录恢复原场景；知道其他记录的 ID 不会获得访问权。列表不包含其他插件记录、真实路径、凭据或提示词。
@@ -83,7 +90,7 @@ const session = await chat.openSession({ workspaceId, chatId: conversations[0].c
 
 业务组件使用 `ComposerBinding`、`useChatComposer`、`useChatControls`、`useChatSnapshot` 等公开绑定。自定义编辑器更新 `binding.setDraft({ text, blocks })`；自定义发送区域调用 `binding.submit()` / `binding.stop()`。默认发送和回答按钮直接调用动作，不依赖沙箱禁止的原生表单提交；Ctrl/⌘+Enter 由共享 Composer 处理。
 
-应用与插件的会话／消息契约共同依赖无运行时依赖的 `@isle/chat-contracts`。`@isle/plugin-sdk/chat/react` 的公开声明有类型测试对照应用实际组件，纯 `@isle/plugin-sdk/chat` 入口不会导入 React、DOM、CSS 或 Tauri。
+应用与插件的会话／消息契约共同依赖无运行时依赖的 `@isle/chat-contracts`。`@isle/plugin-sdk/chat/react` 的 `react.d.ts` 由应用共享组件和 hook 自动生成，随 SDK 发布，不要手动修改。修改共享 UI 后，在 `apps/desktop` 运行 `pnpm build:chat-ui` 更新；`pnpm check:chat-ui-types` 只检查是否同步。构建检查公共依赖边界和声明独立可用性，类型测试双向对照实际组件签名。纯 `@isle/plugin-sdk/chat` 入口不会导入 React、DOM、CSS 或 Tauri。
 
 ## 无界面调用
 
@@ -91,7 +98,11 @@ const session = await chat.openSession({ workspaceId, chatId: conversations[0].c
 
 ```ts
 // chat 是浏览器 getPluginChatClient() 或桌面 Node 插件的 ctx.chat。
-const session = await chat.createSession({ workspaceId, sceneId: "assistant", profile });
+const session = await chat.createSession({
+  workspaceId,
+  sceneId: "assistant",
+  profile,
+});
 const detach = session.subscribe(() => {
   const snapshot = session.getSnapshot();
   // 读取消息、phase、pendingQuestion；按业务需要更新 TUI 或任务进度。
@@ -117,7 +128,7 @@ const result = await session.send({
 - 每次操作重新校验插件启用状态和授权，准备与派发前再次校验。停止和关闭始终允许用于当前连接已有的会话句柄。禁用／移除插件会停止并关闭该插件的会话，保存失败会在应用中报告。
 - Provider 卸载只取消观察，后台任务和保存继续；同一会话可以有多个视图。不同 `viewId` 隔离草稿。插件草稿和展示偏好目前保留于 iframe 内存，整个 iframe 重载后不恢复；消息和运行配置由宿主保存。
 - `session.reconnect()` 重新读取快照并恢复观察，不重新发送。快照带修订号，旧请求和旧观察者的事件不会覆盖新状态。连接句柄不能跨插件、跨 iframe 或跨原生宿主进程复用；连接重建后再次用记录 ID 打开。
-- `send()` 的权限／传输异常可能拒绝 Promise；调用方应处理失败。未确认响应时先重新连接查看实际状态，不能盲目重发；显式 `requestId` 在当前宿主会话生命周期内去重。其他会话操作返回 `OperationResult`，错误也投影到快照供默认 UI 展示。
+- `send()` 的运行授权失败返回 `rejected` 并在会话快照报告原因；参数校验／传输异常可能拒绝 Promise，调用方应处理这两类失败。未确认响应时先重新连接查看实际状态，不能盲目重发；显式 `requestId` 在当前宿主会话生命周期内去重。其他会话操作返回 `OperationResult`，错误也投影到快照供默认 UI 展示。
 - 唯一聊天 ID 是 `meta.id`；`meta.workspaceId` 表示所属工作区，`meta.origin` 保存权威提供者和场景：`{ kind: "plugin", pluginId, sceneId }`。内置场景使用 `{ kind: "builtin", sceneId }`。来源由宿主写入且不可更改，列表和恢复使用同一份信息；`options.profile` 单独保存场景配置及最新动态上下文，与消息、运行选择共用保存队列。`profile.id` 是配置身份，不参与归属与权限判断。不保存凭据，不复制 Pi 执行上下文，不补齐或迁移旧记录。
 
 ## 从应用侧栏继续聊天

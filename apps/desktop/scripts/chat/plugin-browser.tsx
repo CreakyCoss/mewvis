@@ -19,15 +19,18 @@ let writes = 0;
 let gate: Promise<void> | undefined;
 let release: (() => void) | undefined;
 const manager = createChatService(
-  async ({ identity, workspacePath, workspaceId, origin, profileSnapshot }: DesktopSessionInput) => {
+  async ({ identity, workspacePath, workspaceId, origin, profileData, profile }: DesktopSessionInput) => {
     sources.set(JSON.stringify([workspacePath, identity.id]), () => ({
       workspaceId,
       origin,
-      profile: profileSnapshot?.(),
+      profile: profileData,
     }));
     locations.set(JSON.stringify(identity), { workspacePath });
     const key = JSON.stringify(identity);
     const runtime: ChatRuntime = {
+      authorize: async () => {
+        await profile.authorize?.();
+      },
       subscribe: async (listener) => {
         events.add(listener);
         return () => {
@@ -91,6 +94,19 @@ const service = {
   ...manager,
   getLocation: (session: any) => locations.get(JSON.stringify(session.identity)),
   viewPersistence: () => undefined,
+  updateContext: async (session: any, context: any) => {
+    if (session.getSnapshot().activeTaskId) throw new Error("运行期间不能修改场景上下文");
+    const location = locations.get(JSON.stringify(session.identity));
+    const source = sources.get(JSON.stringify([location.workspacePath, session.identity.id]))?.() as any;
+    if (source?.profile) source.profile.context = structuredClone(context);
+  },
+  closePlugin: async (pluginId: string) =>
+    Promise.all(
+      manager
+        .listSessions()
+        .filter((session) => session.identity.scope.startsWith(`plugin:${pluginId}:workspace:`))
+        .map((session) => manager.closeSession(session.identity)),
+    ),
   loadRecordSource: async (path: string, id: string) => structuredClone(sources.get(JSON.stringify([path, id]))?.()),
 } as unknown as DesktopChatService;
 const host = createPluginChatHost(service, {

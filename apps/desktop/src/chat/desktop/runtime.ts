@@ -19,8 +19,6 @@ export function createDesktopRuntime(
     async prepare(turn, signal) {
       // A scene revision applies to the next turn; an in-flight preparation keeps its own context.
       const profile = readProfile();
-      await profile.authorize?.();
-      signal.throwIfAborted();
       const details = catalog.getDetails();
       const { config, input } = turn;
       const collections = (details.resources.knowledgeCollections ?? []).filter((item) =>
@@ -58,6 +56,10 @@ export function createDesktopRuntime(
     },
   };
   const runtime: ChatRuntime = {
+    async authorize(_turn, signal) {
+      await readProfile().authorize?.();
+      signal.throwIfAborted();
+    },
     subscribe: (listener) => client.events.subscribe(listener),
     async prepare(turn, signal) {
       const model = await resolveLlmModel(turn.config.selectedModelId);

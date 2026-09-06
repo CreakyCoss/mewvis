@@ -2,16 +2,15 @@ import type {
   PluginChatEvent,
   PluginChatCreateInput,
   PluginChatRequest,
-  ChatContext,
-  ChatSession,
   PluginChatSummary,
 } from "@isle/plugin-sdk/chat";
-import type { DesktopChatService } from "./service";
+import type { ChatContext, ChatSession } from "../core";
+import type { DesktopChatService, DesktopSessionInput } from "./service";
 import type { ChatProfile } from "./catalog";
 
 type Access = { workspacePath: string; knowledge: boolean };
 type SessionInput = PluginChatCreateInput & { chatId: string };
-type Entry = { input: SessionInput; profile: ChatProfile; session: ChatSession; revision: number; detach(): void };
+type Entry = { session: ChatSession; input: SessionInput };
 type Options = {
   authorize(pluginId: string, workspaceId: string): Promise<Access>;
   workspaces?: (pluginId: string) => Promise<{ id: string; name: string; isDefault: boolean }[]>;
@@ -69,9 +68,15 @@ function parseSaved(pluginId: string, workspaceId: string, chatId: string, value
 
 /** One host owner, many authenticated connections. Plugin code never chooses its principal or disk path. */
 export function createPluginChatHost(service: DesktopChatService, options: Options) {
-  const entries = new Map<string, Entry>();
-  const opening = new Map<string, Promise<void>>();
-  const preparing = new Map<ChatSession, AbortController>();
+  const revisions = new WeakMap<ChatSession, { snapshot: ReturnType<ChatSession["getSnapshot"]>; revision: number }>();
+  const revisionOf = (session: ChatSession) => {
+    const snapshot = session.getSnapshot();
+    const previous = revisions.get(session);
+    if (previous?.snapshot === snapshot) return previous.revision;
+    const revision = (previous?.revision ?? -1) + 1;
+    revisions.set(session, { snapshot, revision });
+    return revision;
+  };
   const authorize = async (pluginId: string, input: PluginChatCreateInput, ownedToolNames: readonly string[]) => {
     const result = await options.authorize(pluginId, input.workspaceId);
     if (input.profile.useKnowledge && !result.knowledge) throw new Error("插件未获授权使用知识库");
@@ -79,63 +84,35 @@ export function createPluginChatHost(service: DesktopChatService, options: Optio
       throw new Error("插件不能选择其他插件或宿主工具");
     return result;
   };
-  const open = async (pluginId: string, input: SessionInput, ownedToolNames: readonly string[], allowed: Access) => {
+  const resolveInput = (
+    pluginId: string,
+    input: SessionInput,
+    ownedToolNames: readonly string[],
+    allowed: Access,
+  ): DesktopSessionInput => {
     input.profile.allowedToolNames ??= [...ownedToolNames];
-    const key = JSON.stringify([pluginId, input.workspaceId, input.chatId]);
-    if (opening.has(key)) await opening.get(key);
-    let entry = entries.get(key);
-    if (entry?.session.getSnapshot().phase === "closed") {
-      entry.detach();
-      entries.delete(key);
-      entry = undefined;
-    }
-    if (!entry) {
-      const promise = (async () => {
-        const id = input.chatId;
-        const profile: ChatProfile = {
-          id: input.profile.id,
-          systemPrompt: () => input.profile.systemPrompt,
-          useKnowledge: input.profile.useKnowledge,
-          allowedToolNames: input.profile.allowedToolNames,
-          authorize: async () => {
-            const current = await options.authorize(pluginId, input.workspaceId);
-            if (current.workspacePath !== allowed.workspacePath || (input.profile.useKnowledge && !current.knowledge))
-              throw new Error("插件会话授权已变化");
-          },
-          context: async () => input.profile.context ?? {},
-        };
-        const session = await service.openSession({
-          identity: { scope: `plugin:${pluginId}:workspace:${input.workspaceId}`, id },
-          workspacePath: allowed.workspacePath,
-          profile,
-          workspaceId: input.workspaceId,
-          origin: { kind: "plugin", pluginId, sceneId: input.sceneId },
-          profileSnapshot: () => input.profile,
-        });
-        const next = { input, profile, session, revision: 0, detach: () => {} };
-        next.detach = session.subscribe(() => {
-          next.revision++;
-          if (session.getSnapshot().phase === "closed" && entries.get(key) === next) {
-            entries.delete(key);
-            next.detach();
-          }
-        });
-        entries.set(key, next);
-      })().finally(() => opening.delete(key));
-      opening.set(key, promise);
-      await promise;
-    } else if (
-      entry.input.sceneId !== input.sceneId ||
-      JSON.stringify({ ...entry.input.profile, context: undefined }) !==
-        JSON.stringify({ ...input.profile, context: undefined })
-    ) {
-      throw new Error("同一会话不能更换场景配置；动态上下文请使用 setContext");
-    }
-    const result = entries.get(key)!;
-    return result;
+    const profile: ChatProfile = {
+      id: input.profile.id,
+      systemPrompt: () => input.profile.systemPrompt,
+      useKnowledge: input.profile.useKnowledge,
+      allowedToolNames: input.profile.allowedToolNames,
+      authorize: async () => {
+        const tools = options.tools ? await options.tools(pluginId) : ownedToolNames;
+        const current = await authorize(pluginId, input, tools);
+        if (current.workspacePath !== allowed.workspacePath) throw new Error("插件会话授权已变化");
+      },
+    };
+    return {
+      identity: { scope: `plugin:${pluginId}:workspace:${input.workspaceId}`, id: input.chatId },
+      workspacePath: allowed.workspacePath,
+      workspaceId: input.workspaceId,
+      origin: { kind: "plugin", pluginId, sceneId: input.sceneId },
+      profile,
+      profileData: input.profile,
+    };
   };
   return {
-    async restoreSession(workspacePath: string, chatId: string, value: unknown): Promise<ChatSession> {
+    async resolveSession(workspacePath: string, chatId: string, value: unknown): Promise<DesktopSessionInput> {
       const source = record(value);
       const origin = record(source.origin);
       const pluginId = string(origin.pluginId);
@@ -146,17 +123,9 @@ export function createPluginChatHost(service: DesktopChatService, options: Optio
       const ownedToolNames = await options.tools(pluginId);
       const allowed = await authorize(pluginId, input, ownedToolNames);
       if (allowed.workspacePath !== workspacePath) throw new Error("插件聊天工作区与记录不匹配");
-      return (await open(pluginId, input, ownedToolNames, allowed)).session;
+      return resolveInput(pluginId, input, ownedToolNames, allowed);
     },
-    async revoke(pluginId: string) {
-      const results = [];
-      for (const [key, entry] of entries)
-        if (JSON.parse(key)[0] === pluginId) {
-          preparing.get(entry.session)?.abort();
-          results.push(await service.closeSession(entry.session.identity));
-        }
-      return results;
-    },
+    revoke: (pluginId: string) => service.closePlugin(pluginId),
     connect(pluginId: string, ownedToolNames: readonly string[], emit: (event: PluginChatEvent) => void) {
       const handles = new Map<string, Entry>();
       const watches = new Map<string, { id: string; detach(): void }>();
@@ -164,7 +133,7 @@ export function createPluginChatHost(service: DesktopChatService, options: Optio
       let disposed = false;
       const envelope = (handle: string, watchId?: string): PluginChatEvent => {
         const entry = handles.get(handle)!;
-        return { handle, revision: entry.revision, snapshot: entry.session.getSnapshot(), watchId };
+        return { handle, revision: revisionOf(entry.session), snapshot: entry.session.getSnapshot(), watchId };
       };
       const detach = () => {
         watches.forEach((watch) => watch.detach());
@@ -235,9 +204,11 @@ export function createPluginChatHost(service: DesktopChatService, options: Optio
               input = parseSaved(pluginId, workspaceId, chatId, saved);
             }
             const allowed = await access(input);
-            const entry = await open(pluginId, input, ownedToolNames, allowed);
+            const session = await service.openSession(resolveInput(pluginId, input, ownedToolNames, allowed));
+            const entry = { session, input };
             if (disposed) throw new Error("插件连接已断开");
-            const handle = [...handles].find(([, candidate]) => candidate === entry)?.[0] ?? crypto.randomUUID();
+            const handle =
+              [...handles].find(([, candidate]) => candidate.session === session)?.[0] ?? crypto.randomUUID();
             handles.set(handle, entry);
             return envelope(handle);
           }
@@ -254,7 +225,6 @@ export function createPluginChatHost(service: DesktopChatService, options: Optio
             return null;
           }
           if (request.method === "stop" || request.method === "close") {
-            preparing.get(entry.session)?.abort();
             const result =
               request.method === "stop"
                 ? await entry.session.stop()
@@ -263,34 +233,14 @@ export function createPluginChatHost(service: DesktopChatService, options: Optio
                   : { ok: true };
             return { result, event: envelope(handle) };
           }
-          // Authorization is cancellable too; stop must not be overtaken by a late check.
-          let preparation: AbortController | undefined;
-          if (request.method === "send") {
-            if (preparing.has(entry.session))
-              return { result: { status: "rejected", reason: "正在准备请求" }, event: envelope(handle) };
-            preparation = new AbortController();
-            preparing.set(entry.session, preparation);
-          }
-          let allowed: Access | null;
-          try {
-            allowed = await Promise.race([
-              access(entry.input),
-              ...(preparation
-                ? [
-                    new Promise<null>((resolve) =>
-                      preparation!.signal.addEventListener("abort", () => resolve(null), { once: true }),
-                    ),
-                  ]
-                : []),
-            ]);
-          } finally {
-            if (preparation && preparing.get(entry.session) === preparation) preparing.delete(entry.session);
-          }
-          if (!allowed || preparation?.signal.aborted)
-            return { result: { status: "cancelled" }, event: envelope(handle) };
-          if (service.getLocation(entry.session)?.workspacePath !== allowed.workspacePath)
-            throw new Error("工作区位置已变化，请关闭并重新打开会话");
           const session = entry.session;
+          // send reserves a core turn before awaiting authorization. stop cancels that same turn.
+          // Other operations still authorize the authenticated connection before accessing a snapshot or configuration.
+          if (request.method !== "send") {
+            const allowed = await access(entry.input);
+            if (service.getLocation(session)?.workspacePath !== allowed.workspacePath)
+              throw new Error("工作区位置已变化，请关闭并重新打开会话");
+          }
           if (request.method === "snapshot") return envelope(handle);
           if (request.method === "watch") {
             const id = string(request.watchId);
@@ -339,7 +289,6 @@ export function createPluginChatHost(service: DesktopChatService, options: Optio
               break;
             }
             case "updateConfig": {
-              if (preparing.has(session)) throw new Error("正在准备请求，不能修改运行配置");
               const patch = record(request.input);
               const resources = session.getSnapshot().resources;
               const scalar = { selectedModelId: resources.models, selectedAgentId: resources.agents };
@@ -372,10 +321,7 @@ export function createPluginChatHost(service: DesktopChatService, options: Optio
               break;
             }
             case "setContext":
-              if (preparing.has(session) || session.getSnapshot().activeTaskId)
-                throw new Error("运行期间不能修改场景上下文");
-              entry.input.profile.context = structuredClone(context(request.input));
-              await service.viewPersistence(session)?.saveProfile();
+              await service.updateContext(session, context(request.input));
               result = { ok: true };
               break;
 

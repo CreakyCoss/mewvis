@@ -164,7 +164,7 @@ const owner = createChatService(async (input: DesktopSessionInput) => {
 const service = {
   ...owner,
   openRecord: async (input: DesktopSessionInput) => ({ session: await owner.openSession(input) }),
-  subscribeRecordChanges: () => () => {},
+  subscribeRecord: () => () => {},
   getLocation: () => ({ workspacePath: workspace.path }),
   viewPersistence: () => undefined,
 } as unknown as DesktopChatService;
