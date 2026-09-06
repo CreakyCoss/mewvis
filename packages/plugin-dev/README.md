@@ -1,6 +1,6 @@
 # Isle 插件工程
 
-`@isle/plugin-dev` 管理 React 启动、开发预览、宿主工具注册、类型检查和安装包构建。
+`@isle/plugin-dev` 管理 React 启动、开发预览、宿主工具与技能注册、类型检查和安装包构建。
 插件业务使用 `@isle/plugin-sdk`，无需导入 desktop 源码或维护 Vite 配置、iframe、postMessage。
 
 ## 在当前仓库创建项目
@@ -21,18 +21,19 @@ pnpm dev
 ```text
 my-plugin/
 ├── package.json          # 身份、版本、依赖和命令
-├── isle.config.ts        # 权限、UI 和宿主工具配置
+├── isle.config.ts        # 权限、UI 和宿主能力配置
 ├── tsconfig.json         # 继承工具链提供的配置
 └── main/
     ├── App.tsx           # 默认导出 React 页面
     ├── styles.css
     ├── contracts.ts      # UI 与宿主共享的数据类型
     └── host/
-        └── tools.ts     # 可选，默认导出工具数组
+        ├── tools.ts     # 可选，默认导出工具数组
+        └── skills.ts    # 可选，默认导出技能数组
 ```
 
-页面可以自由拆分为 components、hooks、services；只有需要在 Node 执行的业务放在 host。
-纯 UI 插件可删除 host 配置及目录；纯工具插件设置 `ui: false`。
+页面可以自由拆分为 components、hooks、services；由宿主加载的工具实现和技能定义放在 host。
+纯 UI 插件可删除 host 配置及目录；纯工具或技能插件设置 `ui: false`；`host.tools` 和 `host.skills` 可以单独使用。
 package.json 不再维护一份重复的 `isle` 清单，构建时从 `isle.config.ts` 生成。
 
 ## 页面与宿主工具
@@ -57,6 +58,46 @@ const result = await getPluginHost().executeTool<TextInspection>(
 SDK 提供完整的发送、停止、能力选择、流式事件、保存和多视图绑定，插件不实现第二套执行流程。
 业务层决定何时创建和关闭会话，React 卸载只取消观察。
 
+## 插件技能
+
+```ts
+// isle.config.ts
+import { defineConfig } from "@isle/plugin-dev";
+
+export default defineConfig({
+  displayName: "文本助手",
+  permissions: ["chat", "workspace-files"],
+  host: {
+    tools: "./main/host/tools.ts",
+    skills: "./main/host/skills.ts",
+  },
+});
+```
+
+```ts
+// main/host/skills.ts
+import { defineSkill } from "@isle/plugin-sdk";
+
+export default [
+  defineSkill({
+    name: "example-my-plugin-text-inspection",
+    description: "分析文本长度、UTF-8 编码和 SHA-256。",
+    content: [
+      "用户要求分析文本时，保留原文中的空格与 emoji。",
+      "调用 example_my_plugin_inspect_text，把原文传入 text。",
+      "按工具结果报告字符数、UTF-8 字节数和 SHA-256，不要编造结果。",
+    ].join("\n"),
+  }),
+];
+```
+
+工具链自动生成 `ctx.skills.register()`，补齐宿主需要的默认 `source: "bundled"`，并把技能定义打包进宿主入口。检查会验证技能数组、非空字段、名称格式和重名。技能名称使用小写字母、数字与单个连字符，例如 `example-my-plugin-text-inspection`。React 不导入这个文件。
+工具提供可执行动作，技能提供模型使用工具的步骤和规则。注册技能不会授予它使用工具的权限；插件 Chat 的 `allowedToolNames` 仍需包含对应的本插件工具。
+
+默认模板包含完整的文本分析技能和对应工具。安装并启用插件后新建对话，发送页面给出的技能示例请求。现有 Pi 接入会加载插件技能，并按需向模型提供内容；它与技能页维护的可选文件技能目录不同，目前不在 Chat 的技能选择菜单中单独显示。 没有 `read` 工具的会话由宿主把已解析且允许模型使用的插件技能内容加入本轮模型上下文；有 `read` 时继续使用 Pi 原有的按需加载机制，不额外授予文件权限。
+
+`pnpm dev` 从 Node Worker 读取实际技能定义，预览顶部可展开“插件技能定义”。这用于核对名称和内容，不模拟模型遵循技能；模型执行效果需在 Isle 中验证。
+
 ## 开发与构建
 
 - `pnpm dev`：只监听本机 `127.0.0.1:5173`，端口被占用时退出，不替换已有服务。可传 `--port 5174`。
@@ -65,9 +106,9 @@ SDK 提供完整的发送、停止、能力选择、流式事件、保存和多�
 
 开发页面自动提供 React Refresh、主题切换和内存聊天宿主。聊天核心与 UI 来自 Isle 的同一份实现，仅模型和存储使用测试适配。页面上会标明“内存聊天预览”，刷新清空记录，不调用真实模型、不访问真实工作区。
 
-宿主工具在开发服务的 Node Worker 内执行原始业务代码。页面通过带开发连接令牌的本机接口调用，校验工具归属、输入和输出；最多四个并发请求，超时释放 Worker，下一次请求可以恢复。修改 host 模块会清理旧 Worker 并刷新预览及工具目录；修改共享 TS/JS 业务模块会让下次调用加载新代码。React 页面和样式使用热更新。修改 isle.config.ts 后需要手动重启插件开发命令。
+宿主工具在开发服务的 Node Worker 内执行原始业务代码。页面通过带开发连接令牌的本机接口调用，校验工具归属、输入和输出；最多四个并发请求，超时释放 Worker，下一次请求可以恢复。修改 host 模块会清理旧 Worker 并刷新预览、工具目录和技能定义；修改共享 TS/JS 业务模块会让下次调用加载新代码。React 页面和样式使用热更新。修改 isle.config.ts 后需要手动重启插件开发命令。
 
-开发工具运行器只支持这里声明的工具数组，不模拟完整 Cordis settings/services 生命周期，也不提供生产权限隔离。真实模型、文件权限和安装沙箱应在 Isle 中验证。
+开发宿主只加载这里声明的工具与技能数组，不模拟完整 Cordis settings/services 生命周期，也不提供生产权限隔离。真实模型、文件权限和安装沙箱应在 Isle 中验证。
 
 CSS 可以直接 import；图片和字体使用模块导入或 CSS 相对引用，打包为 data URL 以符合沙箱 CSP。不要依赖 `/public/...` 地址或浏览器直接访问网络、Node、Tauri。前端可使用普通 React 库，但产物仍受宿主 512 KiB JS / 256 KiB CSS 限制。
 
@@ -79,4 +120,4 @@ CSS 可以直接 import；图片和字体使用模块导入或 CSS 相对引用�
 
 `src/` 和 `templates/` 是工具链源码；`dist/chat-ui.js`、`dist/chat-ui.css`、`dist/chat-host.js` 由 `pnpm --filter desktop build:chat-ui` 生成并随工具包分发。插件安装后无需 desktop 源码。发布前先构建这些运行时，再打包 SDK、chat-contracts 和 plugin-dev；此流程不自动发布到 npm。
 
-`pnpm --filter desktop test:plugin-dev` 验证仓库外项目安装构建、Node 工具、参数与输出校验、超时恢复、跨环境导入限制、无监听端口的 Vite 转换，以及使用真实 Chat 核心的内存会话。
+`pnpm --filter desktop test:plugin-dev` 验证仓库外项目安装构建、Node 工具、技能注册与热更新、参数与输出校验、超时恢复、跨环境导入限制、无监听端口的 Vite 转换，以及使用真实 Chat 核心的内存会话。

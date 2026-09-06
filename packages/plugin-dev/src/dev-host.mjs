@@ -1,12 +1,12 @@
 import { Worker } from "node:worker_threads";
 
-/** Tools run in Node, never bundled into the browser. A reload releases the old module graph. */
-export function createDevTools(toolsEntry, timeout = 10_000) {
+/** Host modules load in Node; only tool schemas and skill data cross into the preview. */
+export function createDevHost({ toolsEntry, skillsEntry }, timeout = 10_000) {
   let worker;
   let ready;
   let nextId = 0;
   const pending = new Map();
-  const stop = (error = new Error("宿主工具已重新加载，请重试")) => {
+  const stop = (error = new Error("宿主能力已重新加载，请重试")) => {
     const old = worker;
     worker = undefined;
     ready = undefined;
@@ -19,14 +19,15 @@ export function createDevTools(toolsEntry, timeout = 10_000) {
   };
   function start() {
     if (ready) return ready;
-    if (!toolsEntry) return Promise.resolve([]);
+    if (!toolsEntry && !skillsEntry)
+      return Promise.resolve({ tools: [], skills: [] });
     const current = (worker = new Worker(
-      new URL("./tool-worker.mjs", import.meta.url),
-      { workerData: toolsEntry },
+      new URL("./host-worker.mjs", import.meta.url),
+      { workerData: { toolsEntry, skillsEntry } },
     ));
     ready = new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
-        reject(new Error("宿主工具加载超时"));
+        reject(new Error("宿主能力加载超时"));
         void stop();
       }, timeout);
       const fail = (error) => {
@@ -35,11 +36,11 @@ export function createDevTools(toolsEntry, timeout = 10_000) {
         if (worker === current) void stop(error);
       };
       current.once("error", fail);
-      current.once("exit", () => fail(new Error("宿主工具进程已退出")));
+      current.once("exit", () => fail(new Error("宿主能力进程已退出")));
       current.on("message", (message) => {
-        if (message.tools) {
+        if (message.catalog) {
           clearTimeout(timer);
-          resolve(message.tools);
+          resolve(message.catalog);
           return;
         }
         const call = pending.get(message.id);
@@ -53,7 +54,7 @@ export function createDevTools(toolsEntry, timeout = 10_000) {
     return ready;
   }
   return {
-    list: start,
+    describe: start,
     async execute(name, args) {
       await start();
       if (!worker) throw new Error("插件未声明宿主工具");
@@ -80,7 +81,7 @@ export function toolMiddleware(runtime, token) {
       if (request.headers["x-isle-dev-token"] !== token)
         throw new Error("开发宿主连接无效，请刷新预览页面");
       if (request.method === "GET") {
-        response.end(JSON.stringify({ tools: await runtime.list() }));
+        response.end(JSON.stringify(await runtime.describe()));
         return;
       }
       if (

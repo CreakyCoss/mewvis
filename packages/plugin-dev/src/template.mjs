@@ -55,7 +55,13 @@ export async function createReactPlugin({ destination, name, local }) {
           join(to, entry.name === "gitignore" ? ".gitignore" : entry.name),
           (await readFile(join(from, entry.name), "utf8"))
             .replaceAll("__PLUGIN_NAME__", packageName)
-            .replaceAll("__TOOL_NAME__", tool),
+            .replaceAll("__TOOL_NAME__", tool)
+            .replaceAll(
+              "__SKILL_NAME__",
+              tool
+                .replaceAll("_", "-")
+                .replace(/-inspect-text$/, "-text-inspection"),
+            ),
         );
     }
   }

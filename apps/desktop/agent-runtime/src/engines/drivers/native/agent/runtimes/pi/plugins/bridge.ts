@@ -1,7 +1,7 @@
 import { createSyntheticSourceInfo, type ExtensionAPI, type Skill } from "@earendil-works/pi-coding-agent";
 import type { TextContent, TSchema } from "@earendil-works/pi-ai";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import {
@@ -84,6 +84,27 @@ export class PluginRuntimeBridge {
   toolSchemas(): PluginToolSchema[] {
     this.assertActive();
     return this.host.toolSchemas();
+  }
+
+  registerSkills(pi: ExtensionAPI, resolvedSkills: readonly Skill[]) {
+    this.assertActive();
+    const resolvedPaths = new Set(resolvedSkills.map((skill) => skill.filePath));
+    const skills = this.skills.filter((skill) => !skill.disableModelInvocation && resolvedPaths.has(skill.filePath));
+    pi.on("before_agent_start", async (event) => {
+      this.assertActive();
+      // Pi only advertises file-backed skills when read is enabled. Plugin-only
+      // chats still need the loaded definitions, without granting filesystem tools.
+      if (pi.getActiveTools().includes("read")) return;
+      if (!skills.length) return;
+      const content = await Promise.all(skills.map((skill) => readFile(skill.filePath, "utf8")));
+      return {
+        systemPrompt: [
+          event.systemPrompt,
+          "以下是已加载的插件技能，只在与当前请求相关时使用；使用工具仍受本轮可用工具范围限制。",
+          ...content,
+        ].join("\n\n"),
+      };
+    });
   }
 
   registerTools(pi: ExtensionAPI) {

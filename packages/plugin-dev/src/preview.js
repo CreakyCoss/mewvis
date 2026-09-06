@@ -30,9 +30,9 @@ export async function mountPreview(App, options) {
         throw new Error(result.error ?? "宿主工具调用失败");
       return result;
     };
-    const tools = options.endpoint
-      ? (await request("GET")).tools
-      : (options.tools ?? []);
+    const { tools, skills } = options.endpoint
+      ? await request("GET")
+      : { tools: options.tools ?? [], skills: options.skills ?? [] };
     const executeTool = (name, args = {}) => request("POST", { name, args });
     const chat = createPreviewChat({
       name: options.name,
@@ -61,7 +61,7 @@ export async function mountPreview(App, options) {
         },
       }),
     });
-    environment = { chat, info };
+    environment = { chat, info, skills };
     addEventListener(
       "pagehide",
       () => {
@@ -70,7 +70,7 @@ export async function mountPreview(App, options) {
       { once: true },
     );
   }
-  const { chat, info } = environment;
+  const { chat, info, skills } = environment;
   document.documentElement.style.height = "100%";
   Object.assign(document.body.style, {
     height: "100%",
@@ -116,6 +116,25 @@ export async function mountPreview(App, options) {
     dispatchEvent(new CustomEvent("isle:theme", { detail: info.theme }));
   };
   bar.append(label, stats, pause, theme);
+  if (skills.length) {
+    const details = document.createElement("details");
+    const summary = document.createElement("summary");
+    summary.textContent = `插件技能定义 (${skills.length})`;
+    const content = document.createElement("pre");
+    content.textContent = skills
+      .map((skill) => `${skill.name}\n${skill.description}\n\n${skill.content}`)
+      .join("\n\n---\n\n");
+    Object.assign(content.style, {
+      whiteSpace: "pre-wrap",
+      maxHeight: "200px",
+      overflow: "auto",
+    });
+    const note = document.createElement("p");
+    note.textContent =
+      "仅展示宿主加载的定义；模型是否使用技能需在 Isle 中验证。";
+    details.append(summary, note, content);
+    bar.append(details);
+  }
   const container = document.createElement("div");
   container.id = "isle-plugin-root";
   Object.assign(container.style, { flex: "1", minHeight: "0" });

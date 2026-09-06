@@ -26,6 +26,7 @@ export const createPiResourceLoader = async (command: RuntimeAgentCommand, callb
             registerPiBuiltinTool(pi, tool, { workspacePath: command.workspacePath });
           }
           plugins?.registerTools(pi);
+          plugins?.registerSkills(pi, skills);
         },
       ],
       skillsOverride: () => ({

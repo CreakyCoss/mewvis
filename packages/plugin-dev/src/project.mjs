@@ -12,7 +12,7 @@ export async function exists(path) {
   }
 }
 
-// Bundle TS configuration/tools beside their source so package resolution works
+// Bundle TS configuration/host modules beside their source so package resolution works
 // outside the Isle repository too. Each load is fresh and cleans its own files.
 export async function importSource(entry) {
   const temporary = await mkdtemp(join(dirname(entry), ".isle-load-"));
@@ -68,10 +68,15 @@ export async function readProject(root) {
   if (
     config.host !== undefined &&
     (!config.host ||
-      Object.keys(config.host).some((key) => key !== "tools") ||
-      !config.host.tools)
+      typeof config.host !== "object" ||
+      Array.isArray(config.host) ||
+      Object.keys(config.host).some(
+        (key) => !["tools", "skills"].includes(key),
+      ) ||
+      (!Object.hasOwn(config.host, "tools") &&
+        !Object.hasOwn(config.host, "skills")))
   )
-    throw new Error("host 必须声明 tools 模块");
+    throw new Error("host 必须声明 tools 或 skills 模块");
   const ui = config.ui === false ? undefined : (config.ui ?? {});
   if (
     ui &&
@@ -92,17 +97,29 @@ export async function readProject(root) {
   const uiEntry = ui
     ? await projectFile(root, ui.entry ?? "./main/App.tsx", "ui.entry")
     : undefined;
-  const toolsEntry = config.host
-    ? await projectFile(root, config.host.tools, "host.tools")
-    : undefined;
-  return { config, uiEntry, toolsEntry };
+  const toolsEntry =
+    config.host && Object.hasOwn(config.host, "tools")
+      ? await projectFile(root, config.host.tools, "host.tools")
+      : undefined;
+  const skillsEntry =
+    config.host && Object.hasOwn(config.host, "skills")
+      ? await projectFile(root, config.host.skills, "host.skills")
+      : undefined;
+  return { config, uiEntry, toolsEntry, skillsEntry };
 }
 
 export function hostSource(project, name) {
   return `${project.toolsEntry ? `import tools from ${JSON.stringify(project.toolsEntry)};` : "const tools = [];"}
+${project.skillsEntry ? `import skills from ${JSON.stringify(project.skillsEntry)};` : "const skills = [];"}
 import { definePlugin } from "@isle/plugin-sdk";
-export default definePlugin({ name: ${JSON.stringify(name)}, inject: ["tools"], apply(ctx) {
+export default definePlugin({ name: ${JSON.stringify(name)}, inject: ${JSON.stringify(
+    [
+      ...(project.toolsEntry ? ["tools"] : []),
+      ...(project.skillsEntry ? ["skills"] : []),
+    ],
+  )}, apply(ctx) {
   for (const tool of tools) ctx.tools.register(tool);
+  for (const skill of skills) ctx.skills.register({ ...skill, source: skill.source ?? "bundled" });
 }});`;
 }
 
@@ -142,14 +159,51 @@ export async function loadTools(project) {
   return tools;
 }
 
+export async function loadSkills(project) {
+  if (!project.skillsEntry) return [];
+  const { default: skills } = await importSource(project.skillsEntry);
+  if (!Array.isArray(skills))
+    throw new Error("host.skills 模块必须默认导出技能数组");
+  const names = new Set();
+  for (const skill of skills) {
+    if (
+      !skill ||
+      ["name", "description", "content"].some(
+        (key) => typeof skill[key] !== "string" || !skill[key].trim(),
+      )
+    )
+      throw new Error("宿主技能必须声明非空 name、description 和 content");
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(skill.name))
+      throw new Error(
+        `宿主技能名称必须使用小写字母、数字和单个连字符：${skill.name}`,
+      );
+    if (skill.source !== undefined && typeof skill.source !== "string")
+      throw new Error(`宿主技能 ${skill.name} 的 source 必须是字符串`);
+    if (
+      skill.invocation !== undefined &&
+      (!skill.invocation ||
+        typeof skill.invocation.modelInvocable !== "boolean" ||
+        typeof skill.invocation.userInvocable !== "boolean")
+    )
+      throw new Error(
+        `宿主技能 ${skill.name} 的 invocation 必须声明 modelInvocable 和 userInvocable 布尔值`,
+      );
+    if (names.has(skill.name))
+      throw new Error(`宿主技能名称重复：${skill.name}`);
+    names.add(skill.name);
+  }
+  return skills;
+}
+
 export function isHostFile(root, project, path) {
   const normalize = (value) => value.replaceAll("\\", "/");
   const file = normalize(path);
   const directories = [join(root, "main", "host")];
-  if (project.toolsEntry && dirname(project.toolsEntry) !== root)
-    directories.push(dirname(project.toolsEntry));
+  const entries = [project.toolsEntry, project.skillsEntry].filter(Boolean);
+  for (const entry of entries)
+    if (dirname(entry) !== root) directories.push(dirname(entry));
   return (
-    file === (project.toolsEntry && normalize(project.toolsEntry)) ||
+    entries.some((entry) => file === normalize(entry)) ||
     directories.some((directory) => file.startsWith(normalize(directory) + "/"))
   );
 }

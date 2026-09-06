@@ -1,12 +1,14 @@
 import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { createInterface } from "node:readline";
 import { packPlugin } from "@isle/plugin-dev/tooling";
+import { dshBundleCompatibilityPlugin } from "@isle/plugin-dev/dsh";
+import { build } from "esbuild";
 
 const source = dirname(fileURLToPath(import.meta.url));
 const desktop = resolve(source, "../../..");
@@ -79,6 +81,76 @@ const rpc = (method, params = null) =>
     child.stdin.write(JSON.stringify({ id, method, params }) + "\n");
   });
 try {
+  // Exercise the actual host registry and Pi skill materialization without a model or user data.
+  const bridgeFile = join(temporary, "pi-plugin-bridge.mjs");
+  await build({
+    entryPoints: [join(desktop, "agent-runtime/src/engines/drivers/native/agent/runtimes/pi/plugins/bridge.ts")],
+    outfile: bridgeFile,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node22",
+    banner: {
+      js: 'import { createRequire as __testCreateRequire } from "node:module"; const require = __testCreateRequire(import.meta.url);',
+    },
+    plugins: [
+      {
+        name: "test-pi-packages",
+        setup(context) {
+          context.onResolve({ filter: /^@earendil-works\/pi-/ }, ({ path }) => ({
+            path: import.meta.resolve(path),
+            external: true,
+          }));
+        },
+      },
+      dshBundleCompatibilityPlugin,
+    ],
+    logLevel: "silent",
+  });
+  const { PluginRuntimeBridge } = await import(pathToFileURL(bridgeFile).href);
+  const bridge = await PluginRuntimeBridge.create(
+    [{ kind: "isle", id: manifest.name, packageRoot: outputRoot, entry: join(outputRoot, "index.js") }],
+    temporary,
+    join(temporary, "pi-settings"),
+  );
+  let skillFile;
+  try {
+    assert.equal(bridge.skills.length, 1);
+    const skill = bridge.skills[0];
+    assert.equal(skill.name, "chat-playground-text-inspection");
+    assert.equal(skill.disableModelInvocation, false);
+    skillFile = skill.filePath;
+    const content = await readFile(skillFile, "utf8");
+    assert.match(content, /chat_playground_inspect_text/);
+    assert.match(content, /Unicode 码点/);
+    assert.match(content, /不要自行编造/);
+    let beforeAgentStart;
+    let activeTools = ["chat_playground_inspect_text"];
+    const extension = {
+      getActiveTools: () => activeTools,
+      on(event, handler) {
+        assert.equal(event, "before_agent_start");
+        beforeAgentStart = handler;
+      },
+    };
+    bridge.registerSkills(extension, bridge.skills);
+    const context = await beforeAgentStart({ systemPrompt: "Original system prompt" });
+    assert.ok(context.systemPrompt.startsWith("Original system prompt\n\n"));
+    assert.ok(context.systemPrompt.includes(content));
+    assert.deepEqual(activeTools, ["chat_playground_inspect_text"], "Skill loading must not grant tools");
+    activeTools = ["read", "chat_playground_inspect_text"];
+    assert.equal(await beforeAgentStart({ systemPrompt: "Original system prompt" }), undefined);
+    activeTools = ["chat_playground_inspect_text"];
+    bridge.registerSkills(extension, []);
+    assert.equal(
+      await beforeAgentStart({ systemPrompt: "Original system prompt" }),
+      undefined,
+      "Filtered skills must stay excluded",
+    );
+  } finally {
+    await bridge.dispose();
+  }
+  await assert.rejects(access(skillFile), { code: "ENOENT" });
   const configured = await rpc("configure", {
     settingsPath: temporary,
     plugins: [
@@ -115,9 +187,22 @@ try {
   });
   assert.deepEqual(result.value, { echo: "Isle 👋", characters: 6 });
   assert.match(result.content[0].text, /Isle 👋/);
-  const inspection = await rpc("execute", { pluginId: manifest.name, toolName: "chat_playground_inspect_text", arguments: { text: "Isle 👋" } });
-  assert.deepEqual(inspection.value, { text: "Isle 👋", characters: 6, bytes: 9, sha256: createHash("sha256").update("Isle 👋").digest("hex"), runtime: "node" });
-  await assert.rejects(rpc("execute", { pluginId: manifest.name, toolName: "chat_playground_inspect_text", arguments: { text: "" } }), /text|length|字符/i);
+  const inspection = await rpc("execute", {
+    pluginId: manifest.name,
+    toolName: "chat_playground_inspect_text",
+    arguments: { text: "Isle 👋" },
+  });
+  assert.deepEqual(inspection.value, {
+    text: "Isle 👋",
+    characters: 6,
+    bytes: 9,
+    sha256: createHash("sha256").update("Isle 👋").digest("hex"),
+    runtime: "node",
+  });
+  await assert.rejects(
+    rpc("execute", { pluginId: manifest.name, toolName: "chat_playground_inspect_text", arguments: { text: "" } }),
+    /text|length|字符/i,
+  );
 
   await assert.rejects(
     rpc("execute", { pluginId: manifest.name, toolName: "chat_playground_echo", arguments: {} }),

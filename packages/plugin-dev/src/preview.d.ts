@@ -13,5 +13,7 @@ export declare function mountPreview(
       description: string;
       parameters: Record<string, unknown>;
     }[];
+    /** Serialized host definitions for static previews; never import host modules into UI. */
+    skills?: { name: string; description: string; content: string }[];
   },
 ): Promise<() => void>;

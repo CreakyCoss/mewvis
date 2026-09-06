@@ -35,6 +35,10 @@ const errorText = (error: unknown) => (error instanceof Error ? error.message : 
 const prompts = [
   { label: "Markdown", text: "请用 Markdown 演示一个三级标题、三项列表、一个两列表格和一段 TypeScript 代码。" },
   { label: "工具调用", text: "请调用 chat_playground_echo，text 设为“Hello Isle 👋”，然后说明返回的文本和字符数。" },
+  {
+    label: "技能示例",
+    text: "请使用 chat-playground-text-inspection 技能，分析文本“Hello Isle 👋”的字符数、UTF-8 字节数和 SHA-256，并解释字符数与字节数为什么不同。",
+  },
   { label: "长回复 / 停止", text: "请分十个小节详细介绍如何设计一个聊天应用，每节写一段，方便我测试流式输出和停止。" },
 ];
 function QuickPrompts() {

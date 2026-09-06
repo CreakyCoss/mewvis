@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { createServer, searchForWorkspaceRoot } from "vite";
 import react from "@vitejs/plugin-react";
 import { validatePlugin } from "./tooling.mjs";
-import { createDevTools, toolMiddleware } from "./dev-tools.mjs";
+import { createDevHost, toolMiddleware } from "./dev-host.mjs";
 import { exists, isHostFile } from "./project.mjs";
 
 export async function createDevServer(
@@ -20,7 +20,7 @@ export async function createDevServer(
       "插件开发运行时缺失；在 Isle 仓库执行 pnpm --filter desktop build:chat-ui，或安装包含 dist 的工具包",
     );
   const token = randomUUID();
-  const runtime = createDevTools(project.toolsEntry);
+  const runtime = createDevHost(project);
   const entry = "virtual:isle-plugin-entry";
   const endpoint = "/__isle_plugin_tools__";
   const descriptor = {
@@ -59,7 +59,7 @@ if (import.meta.hot) import.meta.hot.dispose(dispose);`;
       }
       if (isHostFile(root, project, context.file)) {
         await runtime.reload();
-        // Reload the descriptor too when a tool name/schema changes.
+        // Refresh the preview when tool schemas or skill definitions change.
         context.server.ws.send({ type: "full-reload" });
         return [];
       }

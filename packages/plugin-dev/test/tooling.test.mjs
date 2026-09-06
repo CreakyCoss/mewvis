@@ -2,20 +2,28 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+  mkdir,
+  symlink,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Readable } from "node:stream";
 import { createPlugin, packPlugin, validatePlugin } from "../src/tooling.mjs";
 import { checkPlugin } from "../src/check.mjs";
-import { createDevTools, toolMiddleware } from "../src/dev-tools.mjs";
+import { createDevHost, toolMiddleware } from "../src/dev-host.mjs";
 import { createDevServer } from "../src/dev.mjs";
 import { createPreviewChat } from "../dist/chat-host.js";
 import { createPluginChatClient } from "@isle/plugin-sdk/chat";
 
 let temporary, source;
 const toolName = "example_scaffold_inspect_text";
+const skillName = "example-scaffold-text-inspection";
 before(async () => {
   temporary = await mkdtemp(join(tmpdir(), "isle-react-scaffold-"));
   source = join(temporary, "my-plugin");
@@ -25,16 +33,27 @@ before(async () => {
     local: true,
   });
   // A real project install outside the monorepo, using the local unpublished packages.
-  execFileSync("pnpm", ["install", "--offline"], {
-    cwd: source,
-    stdio: "pipe",
-  });
+  execFileSync(
+    "pnpm",
+    ["install", "--prefer-offline", "--registry", "https://registry.npmjs.org"],
+    {
+      cwd: source,
+      stdio: "pipe",
+      encoding: "utf8",
+    },
+  );
 });
 after(async () => {
   if (temporary) await rm(temporary, { recursive: true, force: true });
 });
 
 test("React scaffold checks and builds outside the Isle repository", async () => {
+  const readme = await readFile(join(source, "README.md"), "utf8");
+  assert.match(readme, /请使用 example-scaffold-text-inspection 技能/);
+  assert.doesNotMatch(
+    readme,
+    /__(?:PLUGIN|TOOL|SKILL)_NAME__|\*\*(?:PLUGIN|SKILL)_NAME\*\*/,
+  );
   await checkPlugin(source);
   const { outputRoot, manifest } = await packPlugin({ source, quiet: true });
   assert.equal(manifest.isle.ui.entry, "./isle-ui.js");
@@ -45,7 +64,15 @@ test("React scaffold checks and builds outside the Isle repository", async () =>
   assert.doesNotMatch(ui, /node:crypto|createHash/);
   const host = await import(pathToFileURL(join(outputRoot, "index.js")).href);
   const registered = [];
-  host.default.apply({ tools: { register: (tool) => registered.push(tool) } });
+  const skills = [];
+  host.default.apply({
+    tools: { register: (tool) => registered.push(tool) },
+    skills: { register: (skill) => skills.push(skill) },
+  });
+  assert.equal(skills[0].name, skillName);
+  assert.equal(skills[0].source, "bundled");
+  assert.match(skills[0].content, new RegExp(toolName));
+  assert.doesNotMatch(ui, /不要自行编造字符数/);
   const result = await registered[0].execute({ text: "Isle 👋" });
   assert.equal(
     result.sha256,
@@ -83,6 +110,150 @@ test("SDK browser entry reports a missing bridge and preserves host errors", asy
   }
 });
 
+test("skills-only hosts build for Isle and DSH and reload definitions without tool access", async () => {
+  const configFile = join(source, "isle.config.ts");
+  const skillsEntry = join(source, "main/host/skills.ts");
+  const config = await readFile(configFile, "utf8");
+  const original = await readFile(skillsEntry, "utf8");
+  const runtime = createDevHost({ skillsEntry });
+  try {
+    await writeFile(
+      configFile,
+      'export default { displayName: "Skills only", permissions: [], ui: false, host: { skills: "./main/host/skills.ts" } };',
+    );
+    await checkPlugin(source);
+    for (const target of ["isle", "dsh"]) {
+      const { outputRoot } = await packPlugin({ source, target, quiet: true });
+      const { default: plugin } = await import(
+        pathToFileURL(join(outputRoot, "index.js")).href + `?skills=${target}`
+      );
+      assert.deepEqual(plugin.inject, ["skills"]);
+      const skills = [];
+      plugin.apply({ skills: { register: (skill) => skills.push(skill) } });
+      assert.equal(skills[0].name, skillName);
+      assert.match(skills[0].content, new RegExp(toolName));
+    }
+    const catalog = await runtime.describe();
+    assert.deepEqual(catalog.tools, []);
+    assert.equal(catalog.skills[0].name, skillName);
+    await assert.rejects(runtime.execute(skillName, {}), /未注册/);
+    await writeFile(
+      skillsEntry,
+      original.replace("保留空格", "更新后保留空格"),
+    );
+    await runtime.reload();
+    assert.match(
+      (await runtime.describe()).skills[0].content,
+      /更新后保留空格/,
+    );
+    await writeFile(skillsEntry, "export default {};");
+    await runtime.reload();
+    await assert.rejects(runtime.describe(), /技能数组/);
+    await writeFile(skillsEntry, original);
+    assert.equal((await runtime.describe()).skills[0].name, skillName);
+  } finally {
+    await runtime.dispose();
+    await writeFile(configFile, config);
+    await writeFile(skillsEntry, original);
+  }
+});
+
+test("skill validation rejects invalid definitions and paths before replacing a build", async () => {
+  const configFile = join(source, "isle.config.ts");
+  const skillsFile = join(source, "main/host/skills.ts");
+  const appFile = join(source, "main/App.tsx");
+  const [config, skills, app] = await Promise.all(
+    [configFile, skillsFile, appFile].map((file) => readFile(file, "utf8")),
+  );
+  const { outputRoot } = await packPlugin({ source, quiet: true });
+  const goodBuild = await readFile(join(outputRoot, "index.js"), "utf8");
+  try {
+    for (const [content, error] of [
+      ["export default {};", /技能数组/],
+      [
+        'export default [{ name: "x", description: "x", content: " " }];',
+        /非空/,
+      ],
+      [
+        'export default [{ name: "../x", description: "x", content: "x" }];',
+        /名称必须/,
+      ],
+      [
+        'export default [{ name: "x", description: "x", content: "x", source: 1 }];',
+        /source/,
+      ],
+      [
+        'export default [{ name: "x", description: "x", content: "x", invocation: {} }];',
+        /invocation/,
+      ],
+      [
+        'export default [{ name: "x", description: "x", content: "x" }, { name: "x", description: "x", content: "y" }];',
+        /名称重复/,
+      ],
+    ]) {
+      await writeFile(skillsFile, content);
+      await assert.rejects(validatePlugin(source), error);
+      await assert.rejects(packPlugin({ source, quiet: true }), error);
+      assert.equal(
+        await readFile(join(outputRoot, "index.js"), "utf8"),
+        goodBuild,
+      );
+    }
+    await writeFile(skillsFile, skills);
+    for (const host of [
+      {},
+      { skills: null },
+      { skills: "../outside.ts" },
+      { skills: "" },
+      { unknown: "./main/host/skills.ts" },
+    ]) {
+      await writeFile(
+        configFile,
+        `export default ${JSON.stringify({ displayName: "Invalid", permissions: [], ui: false, host })};`,
+      );
+      await assert.rejects(validatePlugin(source), /host/);
+    }
+    const outside = join(temporary, "outside.ts");
+    const link = join(source, "main/host/link.ts");
+    await writeFile(outside, skills);
+    await symlink(outside, link);
+    await writeFile(
+      configFile,
+      'export default { displayName: "Symlink", permissions: [], ui: false, host: { skills: "./main/host/link.ts" } };',
+    );
+    await assert.rejects(validatePlugin(source), /不能越过/);
+
+    // A custom skills entry outside main/host still belongs to the Node boundary.
+    await mkdir(join(source, "backend"));
+    await writeFile(join(source, "backend/skills.ts"), skills);
+    await writeFile(
+      configFile,
+      config.replace("./main/host/skills.ts", "./backend/skills.ts"),
+    );
+    await writeFile(
+      appFile,
+      'import skills from "../backend/skills"; export default function App() { return <p>{skills[0].content}</p>; }',
+    );
+    await assert.rejects(checkPlugin(source), /不能导入 host/);
+    await assert.rejects(packPlugin({ source, quiet: true }), /不能导入 host/);
+    const server = await createDevServer(source, { middlewareMode: true });
+    try {
+      await assert.rejects(
+        server.transformRequest("/backend/skills.ts"),
+        /不能导入 host/,
+      );
+    } finally {
+      await server.close();
+    }
+  } finally {
+    await Promise.all(
+      [configFile, skillsFile, appFile].map((file, i) =>
+        writeFile(file, [config, skills, app][i]),
+      ),
+    );
+  }
+});
+
 test("ordinary React JSON and image imports typecheck and embed in the sandbox bundle", async () => {
   const file = join(source, "main/App.tsx");
   const original = await readFile(file, "utf8");
@@ -114,9 +285,9 @@ test("ordinary React JSON and image imports typecheck and embed in the sandbox b
 test("Node development tools enforce schema, ownership, timeout and reload", async () => {
   const toolsFile = join(source, "main/host/tools.ts");
   const original = await readFile(toolsFile, "utf8");
-  const runtime = createDevTools(toolsFile, 1500);
+  const runtime = createDevHost({ toolsEntry: toolsFile }, 1500);
   try {
-    assert.equal((await runtime.list())[0].name, toolName);
+    assert.equal((await runtime.describe()).tools[0].name, toolName);
     const result = await runtime.execute(toolName, { text: "Isle 👋" });
     assert.equal(result.value.bytes, 9);
     assert.equal(result.value.sha256.length, 64);
@@ -157,7 +328,10 @@ test("Node development tools enforce schema, ownership, timeout and reload", asy
 });
 
 test("HTTP tool bridge rejects unauthenticated and oversized requests without opening a port", async () => {
-  const runtime = createDevTools(join(source, "main/host/tools.ts"));
+  const runtime = createDevHost({
+    toolsEntry: join(source, "main/host/tools.ts"),
+    skillsEntry: join(source, "main/host/skills.ts"),
+  });
   const handler = toolMiddleware(runtime, "test-token");
   async function call(body, token = "test-token", method = "POST") {
     const req = Readable.from([Buffer.from(body)]);
@@ -189,7 +363,10 @@ test("HTTP tool bridge rejects unauthenticated and oversized requests without op
       (await call(JSON.stringify({ name: toolName, args: [] }))).error,
       /对象/,
     );
-    assert.equal((await call("", "test-token", "GET")).tools[0].name, toolName);
+    const catalog = await call("", "test-token", "GET");
+    assert.equal(catalog.tools[0].name, toolName);
+    assert.equal(catalog.skills[0].name, skillName);
+    assert.match(catalog.skills[0].content, new RegExp(toolName));
   } finally {
     await runtime.dispose();
   }

@@ -13,7 +13,10 @@ export interface PluginConfig {
   /** Defaults to ./main/App.tsx. false creates a host-only plugin. */
   ui?:
     false | { entry?: string; title?: string; layout?: "contained" | "full" };
-  /** Optional module exporting a default array of SDK tool definitions. */
-  host?: { tools: string };
+  /** Optional modules exporting default arrays of SDK definitions. */
+  host?: {
+    tools?: string;
+    skills?: string;
+  };
 }
 export declare function defineConfig(config: PluginConfig): PluginConfig;

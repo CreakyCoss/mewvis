@@ -52,6 +52,7 @@ export async function checkPlugin(source) {
       files: [
         join(root, "isle.config.ts"),
         ...(project.toolsEntry ? [project.toolsEntry] : []),
+        ...(project.skillsEntry ? [project.skillsEntry] : []),
       ],
       options: { types: ["node"], lib: ["lib.es2022.d.ts"] },
     },

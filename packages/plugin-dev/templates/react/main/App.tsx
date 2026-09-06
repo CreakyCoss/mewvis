@@ -55,7 +55,7 @@ export default function App() {
     <main className="plugin-app">
       <header>
         <h1>__PLUGIN_NAME__</h1>
-        <p>React 页面 · 宿主工具 · 共享 Chat</p>
+        <p>React 页面 · 宿主工具与技能 · 共享 Chat</p>
       </header>
       <section className="host-panel">
         <label>
@@ -129,6 +129,10 @@ export default function App() {
       {pending && <p role="status">{pending}</p>}
       {error && <p role="alert">{error}</p>}
       <section className="chat-panel">
+        <p>
+          技能示例：新建对话后发送“请使用 __SKILL_NAME__ 技能分析文本 Hello Isle
+          👋 的字符数、UTF-8 字节数和 SHA-256”。
+        </p>
         {session ? <Chat session={session} /> : <p>选择工作区并新建对话。</p>}
       </section>
     </main>

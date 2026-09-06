@@ -28,6 +28,8 @@ import {
   hostSource,
   uiSource,
   browserBoundary,
+  loadTools,
+  loadSkills,
 } from "./project.mjs";
 import { createReactPlugin } from "./template.mjs";
 
@@ -298,6 +300,10 @@ export const validatePlugin = async (source) => {
     throw new Error(
       `插件校验失败：\n${problems.map((problem) => `- ${problem.trim()}`).join("\n")}`,
     );
+  }
+  if (project) {
+    await loadTools(project);
+    await loadSkills(project);
   }
   return Object.freeze({
     root,
