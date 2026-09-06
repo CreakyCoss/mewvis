@@ -11,78 +11,88 @@ import "../../src/App.css";
 
 if (isTauri()) throw new Error("仅允许 Web 内存测试，不连接真实宿主");
 const events = new Set<(event: any) => void>();
+const sources = new Map<string, () => unknown>();
 const records = new Map();
 const locations = new Map();
 let dispatches = 0;
 let writes = 0;
 let gate: Promise<void> | undefined;
 let release: (() => void) | undefined;
-const manager = createChatService(async ({ identity, workspacePath }: DesktopSessionInput) => {
-  locations.set(JSON.stringify(identity), { workspacePath });
-  const key = JSON.stringify(identity);
-  const runtime: ChatRuntime = {
-    subscribe: async (listener) => {
-      events.add(listener);
-      return () => {
-        events.delete(listener);
-      };
-    },
-    prepare: async (turn) => ({
-      dispatch: async () => {
-        dispatches++;
-        const emit = (event: any) => events.forEach((listener) => listener({ taskId: turn.taskId, event }));
-        emit({ type: "thinking_delta", delta: "检查宿主共享会话。" });
-        emit({ type: "text_delta", delta: "来自同一个宿主会话的流式回复。" });
-        emit({ type: "tool_execution_start", toolCallId: "tool", toolName: "own", args: {} });
-        emit({ type: "tool_execution_end", toolCallId: "tool", toolName: "own", result: "完成", isError: false });
-        if (turn.input.text.includes("追问"))
-          emit({ type: "question", questionId: "question", question: "需要详细说明吗？" });
-        else setTimeout(() => emit({ type: "done" }), 2000);
+const manager = createChatService(
+  async ({ identity, workspacePath, workspaceId, origin, profileSnapshot }: DesktopSessionInput) => {
+    sources.set(JSON.stringify([workspacePath, identity.id]), () => ({
+      workspaceId,
+      origin,
+      profile: profileSnapshot?.(),
+    }));
+    locations.set(JSON.stringify(identity), { workspacePath });
+    const key = JSON.stringify(identity);
+    const runtime: ChatRuntime = {
+      subscribe: async (listener) => {
+        events.add(listener);
+        return () => {
+          events.delete(listener);
+        };
       },
-    }),
-    abort: async () => {},
-    answer: async (taskId, questionId) =>
-      events.forEach((listener) => listener({ taskId, event: { type: "question_answered", questionId } })),
-    release: async () => {},
-  };
-  return createChatSession({
-    identity,
-    runtime,
-    storage: {
-      load: async () => records.get(key) ?? null,
-      save: async (record) => {
-        writes++;
-        records.set(key, structuredClone(record));
-      },
-    },
-    catalog: {
-      load: async () => ({
-        models: ["model", "second"].map((value) => ({
-          value,
-          label: value,
-          selectedLabel: value,
-          description: "Fixture model",
-          isDefault: value === "model",
-        })),
-        tools: [{ value: "own", label: "测试工具", description: "", isDefault: true }],
-        skillGroups: [
-          {
-            value: "group",
-            label: "测试技能组",
-            description: "",
-            isDefault: true,
-            skills: [{ key: "skill", name: "skill", label: "测试技能", description: "" }],
-          },
-        ],
-        knowledgeCollections: [{ value: "knowledge", label: "测试知识库", description: "", isDefault: true }],
+      prepare: async (turn) => ({
+        dispatch: async () => {
+          dispatches++;
+          const emit = (event: any) => events.forEach((listener) => listener({ taskId: turn.taskId, event }));
+          emit({ type: "thinking_delta", delta: "检查宿主共享会话。" });
+          emit({ type: "text_delta", delta: "来自同一个宿主会话的流式回复。" });
+          emit({ type: "tool_execution_start", toolCallId: "tool", toolName: "own", args: {} });
+          emit({ type: "tool_execution_end", toolCallId: "tool", toolName: "own", result: "完成", isError: false });
+          if (turn.input.text.includes("追问"))
+            emit({ type: "question", questionId: "question", question: "需要详细说明吗？" });
+          else setTimeout(() => emit({ type: "done" }), 2000);
+        },
       }),
-    },
-  });
-});
+      abort: async () => {},
+      answer: async (taskId, questionId) =>
+        events.forEach((listener) => listener({ taskId, event: { type: "question_answered", questionId } })),
+      release: async () => {},
+    };
+    return createChatSession({
+      identity,
+      runtime,
+      storage: {
+        load: async () => records.get(key) ?? null,
+        save: async (record) => {
+          writes++;
+          records.set(key, structuredClone(record));
+        },
+      },
+      catalog: {
+        load: async () => ({
+          models: ["model", "second"].map((value) => ({
+            value,
+            label: value,
+            selectedLabel: value,
+            description: "Fixture model",
+            isDefault: value === "model",
+          })),
+          tools: [{ value: "own", label: "测试工具", description: "", isDefault: true }],
+          skillGroups: [
+            {
+              value: "group",
+              label: "测试技能组",
+              description: "",
+              isDefault: true,
+              skills: [{ key: "skill", name: "skill", label: "测试技能", description: "" }],
+            },
+          ],
+          knowledgeCollections: [{ value: "knowledge", label: "测试知识库", description: "", isDefault: true }],
+        }),
+      },
+    });
+  },
+);
 const service = {
   ...manager,
   getLocation: (session: any) => locations.get(JSON.stringify(session.identity)),
-} as DesktopChatService;
+  viewPersistence: () => undefined,
+  loadRecordSource: async (path: string, id: string) => structuredClone(sources.get(JSON.stringify([path, id]))?.()),
+} as unknown as DesktopChatService;
 const host = createPluginChatHost(service, {
   authorize: async () => {
     await gate;

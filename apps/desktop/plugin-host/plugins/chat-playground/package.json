@@ -1,0 +1,32 @@
+{
+  "name": "@isle/chat-playground",
+  "version": "0.1.0",
+  "description": "Isle 内置聊天调试台：工作区与会话选择、默认和组合 Chat、会话状态以及回显工具。",
+  "type": "module",
+  "main": "./index.js",
+  "exports": "./index.js",
+  "dependencies": {
+    "@isle/plugin-sdk": "^0.1.0"
+  },
+  "isle": {
+    "plugin": {
+      "version": 1,
+      "entry": "./index.js"
+    },
+    "displayName": "聊天调试台",
+    "defaultEnabled": true,
+    "permissions": [
+      "chat",
+      "workspace-files",
+      "chat-knowledge"
+    ],
+    "ui": {
+      "version": 1,
+      "kind": "sandbox",
+      "entry": "./ui.tsx",
+      "style": "./style.css",
+      "title": "聊天调试台",
+      "layout": "full"
+    }
+  }
+}

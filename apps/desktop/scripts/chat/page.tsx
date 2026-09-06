@@ -161,7 +161,13 @@ const owner = createChatService(async (input: DesktopSessionInput) => {
     },
   });
 });
-const service = { ...owner, viewPersistence: () => undefined } as unknown as DesktopChatService;
+const service = {
+  ...owner,
+  openRecord: async (input: DesktopSessionInput) => ({ session: await owner.openSession(input) }),
+  subscribeRecordChanges: () => () => {},
+  getLocation: () => ({ workspacePath: workspace.path }),
+  viewPersistence: () => undefined,
+} as unknown as DesktopChatService;
 useWorkspaceStore.setState({
   workspaces: [workspace],
   currentWorkspace: workspace,

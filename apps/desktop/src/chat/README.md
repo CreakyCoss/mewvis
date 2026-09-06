@@ -29,14 +29,16 @@ src/chat/
     catalog.ts        模型／角色／技能／知识库／工具独立加载
     context.ts        复用工作区 prompt、引用技能和知识检索上下文
     runtime.ts        复用 AgentClient，私下解析凭据，连接 Pi
-    storage.ts        兼容现有记录；配置／偏好／未读共用写队列
+    storage.ts        读取现有消息格式；来源／配置／偏好／未读共用写队列
     ledger.ts         账本摘要的模型解析，UI 只传模型 ID
-    react.tsx         DesktopChatEnvironment / useDesktopChatSession
+    react.tsx         DesktopChatEnvironment / useDesktopChatSession / useDesktopChatRecord
 ```
 
 依赖方向：`react → core`；`desktop → core + 现有 AgentClient/API`；`desktop/react → desktop + react`。核心只依赖现有纯 TypeScript 事件契约，不导入 AgentClient 的 Tauri 工厂。React 层可以使用现有设计系统、样式和 Lexical，不导入桌面 API 或普通聊天页面。
 
 `features/app/chat-service.ts` 创建应用级 service；`chat-integration.tsx` 一次性连接文件目录、聊天列表与未读状态、资源刷新、窗口明确关闭。业务页面不访问核心或输入区内部 Store。
+
+业务创建会话使用 `useDesktopChatSession`；侧栏等历史入口使用 `useDesktopChatRecord`，由 `service.openRecord` 按磁盘记录查找原拥有者。已有插件会话直接复用，未运行的插件记录通过应用注入的恢复器校验权限后恢复原场景。删除记录使用 `closeRecord(workspacePath, chatId)` 关闭实际拥有者，不根据侧栏入口猜测 scope。
 
 ## 三种接入
 
@@ -88,6 +90,8 @@ import { useDesktopChatSession } from "@/chat/desktop/react";
 function Conversation({ workspace, chatId }) {
   const { session, error } = useDesktopChatSession({
     identity: { scope: `workspace:${workspace.id}`, id: chatId },
+    workspaceId: workspace.id,
+    origin: { kind: "builtin", sceneId: "chat" },
     workspacePath: workspace.path,
     profile: workspaceChatProfile,
   });
@@ -171,7 +175,13 @@ Pi 继续使用 `chats/<chatId>/session` 下的原执行上下文和账本。核
 
 `features/app/plugin-chat.ts` 连接实际插件权限、工作区和 service；`plugin-chat-native.ts` 一次性接入 Node 插件双向 stdio，StrictMode 共用原生事件监听。`PluginFrame` 连接 iframe 消息。插件 UI 按需加载由 `build:chat-ui` 从应用源码生成的共享脚本和样式；构建产物不提交。SDK 的公开组件声明有对应的类型检查。
 
-插件的 `chatId` 是业务逻辑 ID。宿主用插件身份和逻辑 ID 生成稳定的磁盘 ID，再结合工作区隔离；插件不传真实路径或凭据。动态上下文用 `setContext()` 更新，模型与能力用异步 `updateConfig()` 更新。会话仍由应用拥有，插件视图退出不停止任务；关闭应用、禁用或移除插件会明确关闭对应会话。
+插件通过 `createSession({ workspaceId, sceneId, profile })` 明确创建会话，宿主返回的 `session.identity.id` 就是 `meta.id`。`openSession({ workspaceId, chatId })` 只打开已有记录；React 的 `usePluginChatSession` 只负责打开和观察，不创建。不同创建操作生成不同 ID，多视图打开同一 ID 共用一个拥有者。插件不传真实路径或凭据。
+
+`meta.workspaceId` 保存所属工作区；`meta.origin` 是来源和场景的唯一依据：内置普通聊天是 `{ kind: "builtin", sceneId: "chat" }`，故事助手是 `{ kind: "builtin", sceneId: "story-assistant" }`，插件是 `{ kind: "plugin", pluginId, sceneId }`。场景配置保存在 `options.profile`，其中 `id` 只标识配置，动态上下文也经同一队列保存。运行选择和展示偏好保留原字段位置。保存不能更改已有记录的来源和工作区。
+
+`openRecord` 返回可运行的 `session` 或只读 `history`。侧栏按元数据恢复原场景，插件恢复仍需验证当前权限、工具归属和工作区；已有故事助手使用原故事配置。来源缺失、场景未知或插件不可用时，公共 `Chat.History` 保留消息与复制，不创建运行会话。插件撤销事件使打开的历史视图重新解析；重新启用后可点击「重新连接」。本阶段不实现旧来源格式的补齐或迁移。
+
+`chat.listSessions({ workspaceId })` 直接从元数据过滤当前插件、工作区，返回记录 ID 和场景摘要；不读取消息和提示词。动态上下文用 `setContext()`，模型与能力用 `updateConfig()`。Provider 卸载只取消观察，关闭应用或禁用／移除插件才停止、保存并释放相应会话。
 
 ## 验证
 
@@ -188,12 +198,10 @@ node scripts/agent-runtime/frontend-contract-e2e.mjs
 node scripts/agent-runtime/user-input-e2e.mjs
 ```
 
-`test:chat` 包含不带 DOM lib 的核心类型检查、Node bundle 依赖边界检查、核心竞态测试、默认宿主适配测试与已提交 DSH patchPath 的严格 Schema 回归。stdio 测试需要已有 `agent-runtime/dist/cli.js`，只使用临时测试数据。
+`test:chat` 包含不带 DOM lib 的核心类型检查、Node bundle 依赖边界检查、核心竞态测试、桌面宿主测试及 DSH patchPath 严格 Schema 回归。stdio 测试使用临时数据，需要已有 `agent-runtime/dist/cli.js`。
 
-浏览器测试地址为已有开发服务上的 `/scripts/chat/browser.html`，只使用内存存储和测试 Runtime。覆盖 StrictMode、多视图、后台运行、默认 Lexical、替换编辑器／工具栏／渲染和草稿保留。它不能替代真实 Tauri 页面验收，也不会自动启动服务器。
+本次来源结构调整通过 15 项核心、13 项桌面宿主、10 项插件与 8 项 Rust 存储测试，另通过 DSH Schema、SDK 公共 UI 声明、插件打包与实际 Node Host 回归、TypeScript 检查和前端构建。存储测试覆盖元数据来源不可变、配置不覆盖归属、列表不读取消息、目录 ID 校验与历史文件保护。
 
-最终浏览器测试通过 21 项断言，包含实际停止按钮点击不会误触发发送、公开草稿更新同步到默认编辑器、不同 viewId 草稿隔离。
+已有 1420 服务提供 `/scripts/chat/browser.html`（StrictMode、多视图、默认／组合 UI、只读历史）、`/scripts/chat/page.html`（真实首页和聊天路由）以及 `/scripts/chat/plugin-browser.html`（真实沙箱与测试插件）。这些测试使用内存 Runtime 和存储，不连接真实模型或用户历史；插件测试页需点击「创建会话」。
 
-`/scripts/chat/page.html` 用内存数据挂载迁移后的真实首页和聊天路由，供手动验收。已在用户的 1420 环境检查原有布局、模型／技能／知识库／工具选择、发送、追问、准备期间停止、草稿与配置在页面切换后的恢复，以及首页首次发送不会重发。该页面仅允许 Web 预览，所有测试消息和保存均在内存中。
-
-仍未验证真实模型与原生宿主的完整端到端行为。新增的 Runtime 释放命令已编译、通过契约检查，但还需要在重建后的原生程序中验证窗口关闭与资源释放；未擅自启动或重启开发服务。现有 Vite 构建仍提示主 chunk 超过 500 kB，本阶段未扩大到全应用分包。
+本次 1420 服务返回正常，但 Mac 锁屏使浏览器工具无法运行，未完成本轮界面回归及真实原生宿主／模型验收。没有启动或重启开发服务；Vite 保留已有大 chunk 警告。

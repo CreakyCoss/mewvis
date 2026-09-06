@@ -1,5 +1,12 @@
-import { loadChat, saveChat, setChatUnread, type ChatRecord as ApiRecord } from "@/api/chat";
+import { loadChat, saveChat, setChatUnread, type ChatRecord as ApiRecord, type ChatOrigin } from "@/api/chat";
 import type { ChatRecord, ChatRunConfig, ChatStorage } from "../core";
+import type { PluginChatProfile } from "@isle/plugin-sdk/chat";
+
+export type ChatRecordSource = { workspaceId: string; origin: ChatOrigin; profile?: PluginChatProfile };
+export const sameOrigin = (a: ChatOrigin | undefined, b: ChatOrigin) =>
+  a?.kind === b.kind &&
+  a.sceneId === b.sceneId &&
+  (a.kind !== "plugin" || (b.kind === "plugin" && a.pluginId === b.pluginId));
 
 export type ViewPreferences = { showThinkingProcess: boolean; showToolCallProcess: boolean };
 const configKeys = [
@@ -19,7 +26,12 @@ export const readRunConfig = (options: Record<string, unknown>): Partial<ChatRun
   }
   return config;
 };
-export function createDesktopStorage(workspacePath: string, chatId: string, saved: (record: ApiRecord) => void) {
+export function createDesktopStorage(
+  workspacePath: string,
+  chatId: string,
+  saved: (record: ApiRecord) => void,
+  readSource?: () => ChatRecordSource | undefined,
+) {
   let current: ApiRecord<ChatRecord["messages"][number], Record<string, unknown>> | null = null;
   let writePending = false;
   let unreadPending = false;
@@ -52,12 +64,20 @@ export function createDesktopStorage(workspacePath: string, chatId: string, save
   const write = async () => {
     if (!current) return;
     writePending = true;
+    const source = structuredClone(readSource?.());
+    const workspaceId = source?.workspaceId ?? current.workspaceId;
+    const origin = source?.origin ?? current.origin;
+    if (!workspaceId || !origin) throw new Error("聊天缺少工作区或来源信息，无法保存");
+    if (current.origin && (current.workspaceId !== workspaceId || !sameOrigin(current.origin, origin)))
+      throw new Error("不能更改已有聊天的工作区或来源");
     const record = await saveChat({
       workspacePath,
       chatId,
+      workspaceId,
+      origin,
       title: current.title,
       messages: current.messages,
-      options: { ...current.options, ...preferences },
+      options: { ...current.options, ...preferences, ...(source?.profile ? { profile: source.profile } : {}) },
       isUnread: current.isUnread,
     });
     current = record;
@@ -104,6 +124,24 @@ export function createDesktopStorage(workspacePath: string, chatId: string, save
   };
   return {
     storage,
+    async loadSource(): Promise<unknown> {
+      await load();
+      return current
+        ? {
+            workspaceId: current.workspaceId,
+            origin: current.origin,
+            profile: current.options?.profile,
+          }
+        : undefined;
+    },
+    saveProfile() {
+      return enqueue(async () => {
+        await load();
+        if (!writePending && JSON.stringify(current?.options?.profile) === JSON.stringify(readSource?.()?.profile))
+          return;
+        await write();
+      });
+    },
     async loadPreferences() {
       await load();
       return preferences;

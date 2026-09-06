@@ -32,6 +32,8 @@ export function StoryChat({ story, chatId }: { story: StoryLibraryItem; chatId: 
     chatId
       ? {
           identity: { scope: `workspace:${story.workspace.id}`, id: chatId },
+          workspaceId: story.workspace.id,
+          origin: { kind: "builtin", sceneId: "story-assistant" },
           workspacePath: story.workspace.path,
           profile,
         }

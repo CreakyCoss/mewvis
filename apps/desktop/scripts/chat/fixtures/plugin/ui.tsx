@@ -1,9 +1,10 @@
 import { StrictMode, useState } from "react";
+import { getPluginChatClient, type PluginChatOpenInput } from "@isle/plugin-sdk/chat";
 import { createRoot } from "react-dom/client";
 import { Chat, usePluginChatSession, useChatSnapshot, type ComposerBinding } from "@isle/plugin-sdk/chat/react";
 const input = {
   workspaceId: "workspace",
-  chatId: "logical-id",
+  sceneId: "debug",
   profile: { id: "fixture", systemPrompt: "Business context", useKnowledge: true },
 };
 function Editor(binding: ComposerBinding) {
@@ -28,8 +29,8 @@ function Status() {
     </output>
   );
 }
-function Views() {
-  const { session, error } = usePluginChatSession(input);
+function Views({ reference }: { reference: PluginChatOpenInput }) {
+  const { session, error } = usePluginChatSession(reference);
   if (!session) return <Chat.Loading error={error} />;
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", height: "80vh", gap: 12 }}>
@@ -64,10 +65,30 @@ function Views() {
 }
 function App() {
   const [visible, show] = useState(true);
+  const [reference, setReference] = useState<PluginChatOpenInput>();
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState("");
   return (
     <>
+      <button
+        disabled={creating}
+        onClick={async () => {
+          setCreating(true);
+          try {
+            const session = await getPluginChatClient().createSession(input);
+            setReference({ workspaceId: input.workspaceId, chatId: session.identity.id });
+          } catch (error) {
+            setError(String(error));
+          } finally {
+            setCreating(false);
+          }
+        }}
+      >
+        创建会话
+      </button>
+      <span>{error}</span>
       <button onClick={() => show(!visible)}>{visible ? "卸载视图" : "挂载视图"}</button>
-      {visible && <Views />}
+      {visible && reference && <Views reference={reference} />}
     </>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Outlet, useMatch } from "react-router";
 import { Chat } from "@/chat/react";
-import { useDesktopChatSession } from "@/chat/desktop/react";
+import { useDesktopChatRecord } from "@/chat/desktop/react";
 import { useWorkspaceStore } from "./workspace-store";
 import { WorkspaceFileWatcher } from "./workspace-files";
 import { WorkspaceChatSidebar } from "./sidebar";
@@ -11,10 +11,12 @@ function WorkspaceChat({ workspaceId, chatId, isActive }: { workspaceId: string;
   const store = useWorkspaceStore();
   const requestedWorkspaces = useRef(false);
   const workspace = store.workspaces.find((item) => item.id === workspaceId);
-  const { session, error } = useDesktopChatSession(
+  const { session, history, error, reload } = useDesktopChatRecord(
     workspace
       ? {
           identity: { scope: `workspace:${workspaceId}`, id: chatId },
+          workspaceId: workspaceId,
+          origin: { kind: "builtin", sceneId: "chat" },
           workspacePath: workspace.path,
           profile: workspaceChatProfile,
         }
@@ -29,6 +31,15 @@ function WorkspaceChat({ workspaceId, chatId, isActive }: { workspaceId: string;
   useEffect(() => {
     if (isActive && workspace) store.setCurrentWorkspace(workspace);
   }, [isActive, workspace, store.setCurrentWorkspace]);
+  if (history && workspace)
+    return (
+      <Chat.History
+        messages={history.messages}
+        displayOptions={history.preferences}
+        reason={history.reason}
+        onRetry={reload}
+      />
+    );
   if (!session || !workspace)
     return (
       <Chat.Loading

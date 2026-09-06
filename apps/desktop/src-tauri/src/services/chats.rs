@@ -36,6 +36,8 @@ pub struct LoadChatInput {
 #[serde(rename_all = "camelCase")]
 pub struct SaveChatInput {
     pub workspace_path: String,
+    pub workspace_id: String,
+    pub origin: ChatOrigin,
     pub chat_id: Option<String>,
     pub title: Option<String>,
     pub messages: Value,
@@ -60,6 +62,21 @@ pub struct SetChatUnreadInput {
     pub is_unread: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
+pub enum ChatOrigin {
+    Builtin {
+        #[serde(rename = "sceneId")]
+        scene_id: String,
+    },
+    Plugin {
+        #[serde(rename = "pluginId")]
+        plugin_id: String,
+        #[serde(rename = "sceneId")]
+        scene_id: String,
+    },
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ChatMeta {
@@ -70,11 +87,19 @@ pub struct ChatMeta {
     pub updated_at: i64,
     pub message_count: usize,
     pub is_unread: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin: Option<ChatOrigin>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ChatRecord {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin: Option<ChatOrigin>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_id: Option<String>,
     pub id: String,
     pub title: String,
     pub created_at: i64,
@@ -115,6 +140,9 @@ pub fn list_chats(input: ChatPathInput) -> Result<Vec<ChatMeta>, String> {
             Ok(meta) => meta,
             Err(_) => continue,
         };
+        if path.file_name().and_then(|name| name.to_str()) != Some(meta.id.as_str()) {
+            continue;
+        }
         chats.push(meta);
     }
 
@@ -159,6 +187,28 @@ pub fn save_chat(input: SaveChatInput) -> Result<ChatRecord, String> {
         Some(id) => load_existing_chat(&input.workspace_path, id)?,
         None => None,
     };
+    let scene_id = match &input.origin {
+        ChatOrigin::Builtin { scene_id } => scene_id,
+        ChatOrigin::Plugin {
+            plugin_id,
+            scene_id,
+        } => {
+            if plugin_id.trim().is_empty() {
+                return Err("插件来源无效".to_string());
+            }
+            scene_id
+        }
+    };
+    if input.workspace_id.trim().is_empty() || scene_id.trim().is_empty() {
+        return Err("聊天工作区或场景来源无效".to_string());
+    }
+    if let Some(previous) = &existing {
+        if previous.workspace_id.as_ref() != Some(&input.workspace_id)
+            || previous.origin.as_ref() != Some(&input.origin)
+        {
+            return Err("不能更改已有聊天的工作区或来源".to_string());
+        }
+    }
     let created_at = existing.as_ref().map(|chat| chat.created_at).unwrap_or(now);
     let id = existing
         .as_ref()
@@ -171,6 +221,8 @@ pub fn save_chat(input: SaveChatInput) -> Result<ChatRecord, String> {
             .and_then(|chat| chat.options.as_ref().cloned())
     });
     let chat = ChatRecord {
+        workspace_id: Some(input.workspace_id),
+        origin: Some(input.origin),
         id,
         title,
         created_at,
@@ -228,6 +280,8 @@ fn chat_meta(chat: &ChatRecord) -> ChatMeta {
             .map(|items| items.len())
             .unwrap_or(0),
         is_unread: chat.is_unread,
+        workspace_id: chat.workspace_id.clone(),
+        origin: chat.origin.clone(),
     }
 }
 
@@ -264,6 +318,9 @@ fn load_chat_from_dir(workspace_path: &str, chat_id: &str) -> Result<Option<Chat
 
     let meta = read_json_file::<ChatMeta>(&meta_path)
         .map_err(|error| format!("无法解析聊天记录元数据：{error}"))?;
+    if meta.id != chat_id {
+        return Err("聊天记录 ID 与目录不匹配".to_string());
+    }
     let messages = read_json_file::<Value>(&dir.join(MESSAGES_FILE_NAME))
         .map_err(|error| format!("无法读取聊天消息：{error}"))?;
     let options_path = dir.join(OPTIONS_FILE_NAME);
@@ -277,6 +334,8 @@ fn load_chat_from_dir(workspace_path: &str, chat_id: &str) -> Result<Option<Chat
     };
 
     Ok(Some(ChatRecord {
+        workspace_id: meta.workspace_id,
+        origin: meta.origin,
         id: meta.id,
         title: meta.title,
         created_at: meta.created_at,
@@ -443,6 +502,10 @@ mod tests {
 
     fn save_test_chat(workspace: &TestWorkspace, chat_id: &str) -> ChatRecord {
         save_chat(SaveChatInput {
+            workspace_id: "workspace".to_string(),
+            origin: ChatOrigin::Builtin {
+                scene_id: "chat".into(),
+            },
             workspace_path: workspace.path_string(),
             chat_id: Some(chat_id.to_string()),
             title: Some("测试聊天".to_string()),
@@ -456,6 +519,138 @@ mod tests {
             is_unread: None,
         })
         .expect("save chat")
+    }
+
+    #[test]
+    fn plugin_chat_listing_uses_metadata_without_reading_messages_or_exposing_context() {
+        let workspace = TestWorkspace::new("plugin-metadata");
+        let chat = save_chat(SaveChatInput {
+            workspace_id: "workspace".to_string(),
+            origin: ChatOrigin::Plugin {
+                plugin_id: "plugin".into(),
+                scene_id: "debug".into(),
+            },
+            workspace_path: workspace.path_string(),
+            chat_id: Some("plugin-fixture".to_string()),
+            title: Some("Plugin conversation".to_string()),
+            messages: json!([{ "role": "user", "text": "hello" }]),
+            options: Some(
+                json!({ "profile": { "id": "scene", "systemPrompt": "private scene context" } }),
+            ),
+            is_unread: Some(false),
+        })
+        .unwrap();
+        let directory = chat_record_dir(&workspace.path_string(), &chat.id).unwrap();
+        fs::write(directory.join(MESSAGES_FILE_NAME), "not needed for listing").unwrap();
+        let listed = list_chats(ChatPathInput {
+            workspace_path: workspace.path_string(),
+        })
+        .unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].workspace_id.as_deref(), Some("workspace"));
+        assert_eq!(
+            listed[0].origin,
+            Some(ChatOrigin::Plugin {
+                plugin_id: "plugin".into(),
+                scene_id: "debug".into()
+            })
+        );
+        assert!(!serde_json::to_string(&listed)
+            .unwrap()
+            .contains("private scene context"));
+        let unread = set_chat_unread(SetChatUnreadInput {
+            workspace_path: workspace.path_string(),
+            chat_id: chat.id,
+            is_unread: true,
+        })
+        .unwrap();
+        assert_eq!(unread.origin, listed[0].origin);
+    }
+
+    #[test]
+    fn origin_is_metadata_authority_and_cannot_be_changed_by_options_or_saves() {
+        let workspace = TestWorkspace::new("origin-authority");
+        let chat = save_test_chat(&workspace, "record");
+        let options =
+            json!({ "profile": { "id": "other-config", "pluginId": "untrusted-reference" } });
+        let updated = save_chat(SaveChatInput {
+            workspace_path: workspace.path_string(),
+            workspace_id: "workspace".into(),
+            origin: ChatOrigin::Builtin {
+                scene_id: "chat".into(),
+            },
+            chat_id: Some(chat.id.clone()),
+            title: None,
+            messages: chat.messages.clone(),
+            options: Some(options.clone()),
+            is_unread: None,
+        })
+        .unwrap();
+        let loaded = load_chat(LoadChatInput {
+            workspace_path: workspace.path_string(),
+            chat_id: Some(chat.id.clone()),
+        })
+        .unwrap()
+        .unwrap();
+        assert_eq!(loaded.origin, chat.origin);
+        assert_eq!(loaded.workspace_id, chat.workspace_id);
+        assert_eq!(loaded.options, Some(options));
+        for (workspace_id, origin) in [
+            (
+                "other",
+                ChatOrigin::Builtin {
+                    scene_id: "chat".into(),
+                },
+            ),
+            (
+                "workspace",
+                ChatOrigin::Builtin {
+                    scene_id: "story-assistant".into(),
+                },
+            ),
+            (
+                "workspace",
+                ChatOrigin::Plugin {
+                    plugin_id: "plugin".into(),
+                    scene_id: "debug".into(),
+                },
+            ),
+        ] {
+            let result = save_chat(SaveChatInput {
+                workspace_path: workspace.path_string(),
+                workspace_id: workspace_id.into(),
+                origin,
+                chat_id: Some(chat.id.clone()),
+                title: None,
+                messages: json!([]),
+                options: None,
+                is_unread: None,
+            });
+            assert!(result.unwrap_err().contains("不能更改"));
+        }
+        let unchanged = load_chat(LoadChatInput {
+            workspace_path: workspace.path_string(),
+            chat_id: Some(chat.id.clone()),
+        })
+        .unwrap()
+        .unwrap();
+        assert_eq!(unchanged.messages, updated.messages);
+        assert_eq!(unchanged.origin, updated.origin);
+        let directory = chat_record_dir(&workspace.path_string(), &chat.id).unwrap();
+        let mut meta: Value = read_json_file(&directory.join(META_FILE_NAME)).unwrap();
+        meta["id"] = json!("forged-id");
+        write_json_file(&directory.join(META_FILE_NAME), &meta).unwrap();
+        assert!(load_chat(LoadChatInput {
+            workspace_path: workspace.path_string(),
+            chat_id: Some(chat.id),
+        })
+        .unwrap_err()
+        .contains("ID 与目录不匹配"));
+        assert!(list_chats(ChatPathInput {
+            workspace_path: workspace.path_string()
+        })
+        .unwrap()
+        .is_empty());
     }
 
     #[test]
@@ -503,6 +698,10 @@ mod tests {
         let dir = chat_record_dir(&workspace.path_string(), "chat-corrupt").unwrap();
         fs::write(dir.join(MESSAGES_FILE_NAME), "broken json").unwrap();
         let result = save_chat(SaveChatInput {
+            workspace_id: "workspace".to_string(),
+            origin: ChatOrigin::Builtin {
+                scene_id: "chat".into(),
+            },
             workspace_path: workspace.path_string(),
             chat_id: Some("chat-corrupt".into()),
             title: None,
@@ -547,6 +746,10 @@ mod tests {
             "showThinkingProcess": false
         });
         let chat = save_chat(SaveChatInput {
+            workspace_id: "workspace".to_string(),
+            origin: ChatOrigin::Builtin {
+                scene_id: "chat".into(),
+            },
             workspace_path: workspace.path_string(),
             chat_id: Some("chat-options".to_string()),
             title: Some("选项测试".to_string()),
@@ -561,6 +764,10 @@ mod tests {
         assert_eq!(chat.options, Some(options.clone()));
 
         let updated = save_chat(SaveChatInput {
+            workspace_id: "workspace".to_string(),
+            origin: ChatOrigin::Builtin {
+                scene_id: "chat".into(),
+            },
             workspace_path: workspace.path_string(),
             chat_id: Some(chat.id),
             title: Some("选项测试".to_string()),

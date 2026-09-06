@@ -3,9 +3,16 @@ import assert from "node:assert/strict";
 import { fake } from "./fixtures/api";
 import { createDesktopCatalog } from "../../src/chat/desktop/catalog";
 import { createDesktopStorage } from "../../src/chat/desktop/storage";
-import { createDesktopChatService } from "../../src/chat/desktop/service";
+import {
+  createDesktopChatService,
+  type DesktopChatService,
+  type DesktopSessionInput,
+  type RestoreChatRecord,
+} from "../../src/chat/desktop/service";
 import { summarizeChatLedger } from "../../src/chat/desktop/ledger";
 import { getLlmSettings, getLlmModelOptions, resolveLlmModel, saveLlmSettings } from "../../src/api/llm";
+import { createPluginChatHost } from "../../src/chat/desktop/plugin";
+import { createPluginChatClient, type PluginChatEvent } from "@isle/plugin-sdk/chat";
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 function deferred<T>() {
@@ -23,6 +30,67 @@ const summaryInput = {
   selectedModelId: "model",
   summaryInstruction: "Summarize",
 };
+
+const pluginInput = {
+  workspaceId: "workspace",
+  sceneId: "debug",
+  profile: {
+    id: "plugin-scene",
+    systemPrompt: "Keep the plugin scene",
+    context: { requestContext: "initial" },
+    useKnowledge: true,
+  },
+};
+const historyInput = (id: string) => ({
+  identity: { scope: "workspace:workspace", id },
+  workspacePath: "fixture",
+  workspaceId: "workspace",
+  origin: { kind: "builtin" as const, sceneId: "chat" },
+  profile: { id: "workspace", systemPrompt: () => "WORKSPACE FALLBACK MUST NOT BE USED" },
+});
+function pluginFixture() {
+  const service = createDesktopChatService();
+  let allowed = true;
+  const host = createPluginChatHost(service, {
+    tools: async () => ["own"],
+    authorize: async () => {
+      if (!allowed) throw new Error("permission revoked");
+      return { workspacePath: "fixture", knowledge: true };
+    },
+  });
+  const listeners = new Set<(event: PluginChatEvent) => void>();
+  const connection = host.connect("plugin", ["own"], (event) => listeners.forEach((listener) => listener(event)));
+  const client = createPluginChatClient({
+    request: (request) => connection.request(structuredClone(request)),
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  });
+  return {
+    service,
+    host,
+    client,
+    connection,
+    revoke: () => {
+      allowed = false;
+    },
+  };
+}
+async function openHistorySession(
+  service: DesktopChatService,
+  input: DesktopSessionInput,
+  restore?: RestoreChatRecord,
+) {
+  const view = await service.openRecord(input, restore);
+  if (!view.session) throw new Error(view.history.reason);
+  return view.session;
+}
+function completeTask(taskId: string) {
+  fake.events.forEach((listener) => listener({ taskId, event: { type: "done", taskId, text: "Complete" } }));
+}
 
 test("catalog, model resolution and summaries share one cold read; callers cannot mutate the cache", async () => {
   const before = fake.llmReads;
@@ -64,6 +132,8 @@ test("resource loading tolerates tools failure; UI descriptors contain no runtim
 test("legacy record codec preserves options and serializes view/config/unread changes", async () => {
   fake.record = {
     id: "old",
+    workspaceId: "workspace",
+    origin: { kind: "builtin", sceneId: "chat" },
     title: "Old title",
     messages: [
       {
@@ -123,7 +193,7 @@ test("desktop owner isolates locations and refreshes scene context without expos
   const owner = createDesktopChatService();
   const identity = { scope: "scene", id: "record" };
   const profile = { id: "scene", systemPrompt: () => "revision one" };
-  const input = { identity, workspacePath: "fixture", profile };
+  const input = { ...historyInput(identity.id), identity, profile };
   const session = await owner.openSession(input);
   const readsAfterOpen = fake.llmReads;
   assert.equal(await owner.openSession(input), session);
@@ -254,7 +324,7 @@ test("failed saves preserve the last usable cache and do not poison later saves"
 test("explicit session refresh coalesces model reads, exposes failures and recovers", async () => {
   fake.record = null;
   const owner = createDesktopChatService();
-  const input = { workspacePath: "fixture", profile: { id: "workspace", systemPrompt: () => "" } };
+  const input = historyInput("refresh");
   const [a, b] = await Promise.all(
     ["a", "b"].map((id) => owner.openSession({ ...input, identity: { scope: "refresh", id } })),
   );
@@ -283,4 +353,240 @@ test("explicit session refresh coalesces model reads, exposes failures and recov
   await a.stop();
   assert.equal(fake.runs.at(-1).runtimeModel.apiKey, "updated-outside-cache");
   assert.equal((await owner.closeAll()).ok, true);
+});
+
+test("completed plugin chats open from history as the same owner and retain scene, permissions and save queue", async () => {
+  fake.record = null;
+  fake.runs = [];
+  const f = pluginFixture();
+  const plugin = await f.client.createSession(pluginInput);
+  await plugin.setContext({ requestContext: "updated scene" });
+  const sent = await plugin.send({ text: "first turn" });
+  assert.equal(sent.status, "dispatched");
+  completeTask(sent.taskId!);
+  await plugin.flush();
+  const owner = f.service.getSession(plugin.identity)!;
+  assert.equal(owner.getSnapshot().phase, "idle");
+  const [first, second] = await Promise.all([
+    openHistorySession(f.service, historyInput(plugin.identity.id), f.host.restoreSession),
+    openHistorySession(f.service, historyInput(plugin.identity.id), f.host.restoreSession),
+  ]);
+  assert.equal(first, owner);
+  assert.equal(second, owner);
+  assert.equal(f.service.listSessions().length, 1);
+  assert.deepEqual(
+    owner.getSnapshot().resources.tools?.map((tool) => tool.value),
+    ["own"],
+  );
+  const next = await first.send({ text: "continue from sidebar" });
+  assert.match(fake.runs.at(-1).systemPrompt, /Keep the plugin scene/);
+  assert.match(fake.runs.at(-1).requestContext, /updated scene/);
+  assert.equal(
+    await openHistorySession(f.service, historyInput(plugin.identity.id), f.host.restoreSession),
+    owner,
+    "running views also share the owner",
+  );
+  await assert.rejects(f.service.openSession(historyInput(plugin.identity.id)), /来源不匹配/);
+  completeTask(next.taskId!);
+  await owner.flush();
+  f.revoke();
+  const view = await f.service.openRecord(historyInput(plugin.identity.id), f.host.restoreSession);
+  assert.equal(view.session, undefined);
+  assert.deepEqual(view.history!.messages, owner.getSnapshot().messages);
+  assert.equal((await owner.send({ text: "not authorized" })).status, "rejected");
+  assert.equal(fake.runs.length, 2);
+  fake.failSave = true;
+  await assert.rejects(
+    f.service.viewPersistence(owner)!.savePreferences({ showThinkingProcess: false, showToolCallProcess: true }),
+  );
+  assert.equal((await f.service.closeRecord("fixture", plugin.identity.id)).ok, false);
+  assert.equal(f.service.getSession(plugin.identity), owner, "failed saves retain ownership");
+  fake.failSave = false;
+  assert.equal((await f.service.closeRecord("fixture", plugin.identity.id)).ok, true);
+  assert.equal(f.service.listSessions().length, 0);
+  f.connection.dispose();
+});
+
+test("history restores plugin ownership and dynamic context after restart, including later plugin reconnection", async () => {
+  fake.record = null;
+  const first = pluginFixture();
+  const plugin = await first.client.createSession(pluginInput);
+  const sent = await plugin.send({ text: "remember" });
+  completeTask(sent.taskId!);
+  await plugin.flush();
+  await plugin.setContext({ requestContext: "persisted after the last turn" });
+  await plugin.updateConfig({ selectedSkillKeys: [], selectedKnowledgeCollectionIds: [], selectedToolNames: [] });
+  await plugin.flush();
+  await first.service.closeAll();
+  first.connection.dispose();
+  const saved = structuredClone(fake.record);
+  assert.deepEqual(saved.origin, { kind: "plugin", pluginId: "plugin", sceneId: "debug" });
+  assert.equal(saved.workspaceId, "workspace");
+  assert.equal(saved.options.chatOrigin, undefined);
+  assert.equal(saved.options.profile.id, pluginInput.profile.id);
+  assert.doesNotMatch(
+    JSON.stringify({ workspaceId: saved.workspaceId, origin: saved.origin, profile: saved.options.profile }),
+    /apiKey|runtimeModel|secret-must-not-reach-ui/,
+  );
+  const second = pluginFixture();
+  const [a, b] = await Promise.all([
+    openHistorySession(second.service, historyInput(plugin.identity.id), second.host.restoreSession),
+    openHistorySession(second.service, historyInput(plugin.identity.id), second.host.restoreSession),
+  ]);
+  assert.equal(a, b);
+  assert.deepEqual(a.identity, plugin.identity);
+  assert.deepEqual(a.getSnapshot().config.selectedSkillKeys, []);
+  assert.deepEqual(a.getSnapshot().config.selectedToolNames, []);
+  assert.deepEqual(a.getSnapshot().config.selectedKnowledgeCollectionIds, []);
+  assert.equal(a.getSnapshot().messages.length, saved.messages.length);
+  const reconnect = await second.client.openSession({ workspaceId: "workspace", chatId: plugin.identity.id });
+  assert.equal(second.service.getSession(reconnect.identity), a);
+  const sentAgain = await reconnect.send({ text: "continue after restart" });
+  assert.match(fake.runs.at(-1).requestContext, /persisted after the last turn/);
+  completeTask(sentAgain.taskId!);
+  await second.service.closeAll();
+  second.connection.dispose();
+
+  const pluginFirst = pluginFixture();
+  const connectedFirst = await pluginFirst.client.openSession({ workspaceId: "workspace", chatId: plugin.identity.id });
+  const fromPlugin = await connectedFirst.send({ text: "plugin opens first after restart" });
+  assert.match(fake.runs.at(-1).requestContext, /persisted after the last turn/);
+  completeTask(fromPlugin.taskId!);
+  const closing = pluginFirst.service.closeRecord("fixture", plugin.identity.id);
+  const reopening = openHistorySession(
+    pluginFirst.service,
+    historyInput(plugin.identity.id),
+    pluginFirst.host.restoreSession,
+  );
+  assert.equal((await closing).ok, true);
+  const reopened = await reopening;
+  assert.deepEqual(reopened.identity, plugin.identity);
+  assert.equal(reopened.getSnapshot().phase, "idle");
+  assert.equal(
+    pluginFirst.service.listSessions().length,
+    1,
+    "history waits for an explicit owner close before restoring",
+  );
+  await pluginFirst.service.closeAll();
+  pluginFirst.connection.dispose();
+
+  const denied = pluginFixture();
+  denied.revoke();
+  const writes = fake.writes.length;
+  const subscriptions = fake.events.size;
+  const runs = fake.runs.length;
+  const readonly = await denied.service.openRecord(historyInput(plugin.identity.id), denied.host.restoreSession);
+  assert.equal(readonly.session, undefined);
+  assert.match(readonly.history!.reason, /permission revoked/);
+  assert.deepEqual(readonly.history!.messages, fake.record.messages);
+  assert.equal(fake.events.size, subscriptions, "read-only history does not subscribe to a runtime");
+  assert.equal(fake.writes.length, writes, "read-only history does not save or rewrite messages");
+  assert.equal(fake.runs.length, runs);
+  assert.equal(denied.service.listSessions().length, 0, "no workspace fallback on failed plugin authorization");
+  denied.connection.dispose();
+  const invalid = pluginFixture();
+  await assert.rejects(
+    invalid.host.restoreSession("other", plugin.identity.id, {
+      workspaceId: saved.workspaceId,
+      origin: saved.origin,
+      profile: saved.options.profile,
+    }),
+    /工作区与记录不匹配/,
+  );
+  await assert.rejects(invalid.client.openSession({ workspaceId: "workspace", chatId: "missing" }), /未找到聊天记录/);
+  saved.options.profile.allowedToolNames = ["host"];
+  await assert.rejects(
+    invalid.host.restoreSession("fixture", plugin.identity.id, {
+      workspaceId: saved.workspaceId,
+      origin: saved.origin,
+      profile: saved.options.profile,
+    }),
+    /其他插件或宿主工具/,
+  );
+  assert.equal(invalid.service.listSessions().length, 0);
+  invalid.connection.dispose();
+});
+
+test("plugin conversation lists contain only owned metadata and reopen saved scenes without resupplying a profile", async () => {
+  fake.record = null;
+  const f = pluginFixture();
+  const session = await f.client.createSession(pluginInput);
+  const sent = await session.send({ text: "saved conversation" });
+  completeTask(sent.taskId!);
+  await session.flush();
+  const origin = { kind: "plugin", pluginId: "plugin", sceneId: "debug" };
+  const own = {
+    id: session.identity.id,
+    path: "/private/path",
+    title: "Saved plugin conversation",
+    createdAt: 1,
+    updatedAt: 2,
+    messageCount: 2,
+    workspaceId: "workspace",
+    origin,
+  };
+  fake.metas = [
+    own,
+    { ...own, id: "ordinary", origin: { kind: "builtin", sceneId: "chat" }, title: "private ordinary chat" },
+    { ...own, origin: { ...origin, pluginId: "other" }, title: "private other plugin" },
+    { ...own, workspaceId: "other", title: "private other workspace" },
+    { ...own, origin: { ...origin, sceneId: "" }, title: "invalid scene" },
+  ];
+  fake.failLoad = true;
+  const summaries = await f.client.listSessions({ workspaceId: "workspace" });
+  fake.failLoad = false;
+  assert.deepEqual(summaries, [
+    { chatId: session.identity.id, sceneId: "debug", title: own.title, createdAt: 1, updatedAt: 2, messageCount: 2 },
+  ]);
+  assert.doesNotMatch(JSON.stringify(summaries), /private|forged|scope|profile|apiKey|pluginId/);
+  await f.service.closeAll();
+  const reopened = await f.client.openSession({ workspaceId: "workspace", chatId: summaries[0].chatId });
+  assert.deepEqual(reopened.identity, session.identity);
+  assert.equal(reopened.getSnapshot().messages.length, 2);
+  await f.service.closeAll();
+  const listGate = deferred<any[]>();
+  fake.list = () => listGate.promise;
+  const listing = f.client.listSessions({ workspaceId: "workspace" });
+  await tick();
+  f.revoke();
+  listGate.resolve([own]);
+  await assert.rejects(listing, /permission revoked/);
+  await assert.rejects(
+    f.client.openSession({ workspaceId: "workspace", chatId: session.identity.id }),
+    /permission revoked/,
+  );
+  fake.list = undefined;
+  fake.metas = [];
+  f.connection.dispose();
+});
+
+test("builtin origins survive saves and history never replaces a different or missing scene", async () => {
+  fake.record = null;
+  const service = createDesktopChatService();
+  const input = historyInput("builtin-record");
+  const session = await service.openSession(input);
+  const sent = await session.send({ text: "builtin history" });
+  completeTask(sent.taskId!);
+  await session.flush();
+  assert.deepEqual(fake.record.origin, { kind: "builtin", sceneId: "chat" });
+  assert.equal(fake.record.workspaceId, input.workspaceId);
+  assert.equal(fake.record.options.profile, undefined);
+  assert.equal((await service.openRecord(input)).session, session);
+  await assert.rejects(service.openSession({ ...input, origin: { kind: "builtin", sceneId: "other" } }), /来源不匹配/);
+  await assert.rejects(service.openSession({ ...input, workspaceId: "other" }), /来源不匹配/);
+  await service.closeAll();
+  const saved = structuredClone(fake.record);
+  for (const origin of [{ kind: "builtin", sceneId: "unavailable" }, undefined]) {
+    fake.record = { ...saved, origin };
+    const next = createDesktopChatService();
+    const runs = fake.runs.length;
+    const writes = fake.writes.length;
+    const view = await next.openRecord(input);
+    assert.equal(view.session, undefined);
+    assert.deepEqual(view.history!.messages, saved.messages);
+    assert.equal(next.listSessions().length, 0);
+    assert.equal(fake.runs.length, runs);
+    assert.equal(fake.writes.length, writes);
+  }
+  fake.record = null;
 });

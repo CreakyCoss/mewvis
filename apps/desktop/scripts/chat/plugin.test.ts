@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createPluginChatClient, type PluginChatEvent, type PluginChatInput } from "@isle/plugin-sdk/chat";
+import { createPluginChatClient, type PluginChatEvent, type PluginChatCreateInput } from "@isle/plugin-sdk/chat";
 import { createChatService, createChatSession, type ChatRuntime } from "../../src/chat/core";
 import { createPluginChatHost } from "../../src/chat/desktop/plugin";
 import type { DesktopSessionInput, DesktopChatService } from "../../src/chat/desktop/service";
@@ -11,9 +11,9 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
-const input: PluginChatInput = {
+const input: PluginChatCreateInput = {
   workspaceId: "workspace",
-  chatId: "logical-id",
+  sceneId: "debug",
   profile: { id: "fixture", systemPrompt: "Business context", useKnowledge: true },
 };
 function deferred<T = void>() {
@@ -22,67 +22,77 @@ function deferred<T = void>() {
   return { promise, resolve };
 }
 function fixture() {
+  const sources = new Map<string, () => unknown>();
   const records = new Map();
   const locations = new Map();
   const runs: string[] = [];
   const events = new Set<(event: any) => void>();
   let allowed = true;
   let gate: Promise<void> | undefined;
-  const manager = createChatService(async ({ identity, workspacePath, profile }: DesktopSessionInput) => {
-    locations.set(JSON.stringify(identity), { workspacePath });
-    const key = JSON.stringify(identity);
-    const runtime: ChatRuntime = {
-      subscribe: async (listener) => {
-        events.add(listener);
-        return () => {
-          events.delete(listener);
-        };
-      },
-      prepare: async (turn, signal) => {
-        await profile.authorize?.();
-        signal.throwIfAborted();
-        return {
-          dispatch: async () => {
-            signal.throwIfAborted();
-            runs.push(turn.taskId);
-          },
-        };
-      },
-      abort: async () => {},
-      answer: async () => {},
-      release: async () => {},
-    };
-    return createChatSession({
-      identity,
-      runtime,
-      storage: {
-        load: async () => records.get(key) ?? null,
-        save: async (record) => {
-          records.set(key, structuredClone(record));
+  const manager = createChatService(
+    async ({ identity, workspacePath, workspaceId, origin, profileSnapshot, profile }: DesktopSessionInput) => {
+      sources.set(JSON.stringify([workspacePath, identity.id]), () => ({
+        workspaceId,
+        origin,
+        profile: profileSnapshot?.(),
+      }));
+      locations.set(JSON.stringify(identity), { workspacePath });
+      const key = JSON.stringify(identity);
+      const runtime: ChatRuntime = {
+        subscribe: async (listener) => {
+          events.add(listener);
+          return () => {
+            events.delete(listener);
+          };
         },
-      },
-      catalog: {
-        load: async () => ({
-          models: [{ value: "model", label: "Model", selectedLabel: "Model", description: "", isDefault: true }],
-          tools: [{ value: "own", label: "Own tool", description: "", isDefault: true }],
-          skillGroups: [
-            {
-              value: "group",
-              label: "Skills",
-              description: "",
-              isDefault: true,
-              skills: [{ key: "skill", name: "Skill", label: "Skill", description: "" }],
+        prepare: async (turn, signal) => {
+          await profile.authorize?.();
+          signal.throwIfAborted();
+          return {
+            dispatch: async () => {
+              signal.throwIfAborted();
+              runs.push(turn.taskId);
             },
-          ],
-          knowledgeCollections: [{ value: "knowledge", label: "Knowledge", description: "", isDefault: true }],
-        }),
-      },
-    });
-  });
+          };
+        },
+        abort: async () => {},
+        answer: async () => {},
+        release: async () => {},
+      };
+      return createChatSession({
+        identity,
+        runtime,
+        storage: {
+          load: async () => records.get(key) ?? null,
+          save: async (record) => {
+            records.set(key, structuredClone(record));
+          },
+        },
+        catalog: {
+          load: async () => ({
+            models: [{ value: "model", label: "Model", selectedLabel: "Model", description: "", isDefault: true }],
+            tools: [{ value: "own", label: "Own tool", description: "", isDefault: true }],
+            skillGroups: [
+              {
+                value: "group",
+                label: "Skills",
+                description: "",
+                isDefault: true,
+                skills: [{ key: "skill", name: "Skill", label: "Skill", description: "" }],
+              },
+            ],
+            knowledgeCollections: [{ value: "knowledge", label: "Knowledge", description: "", isDefault: true }],
+          }),
+        },
+      });
+    },
+  );
   const service = {
     ...manager,
     getLocation: (session: any) => locations.get(JSON.stringify(session.identity)),
-  } as DesktopChatService;
+    viewPersistence: () => undefined,
+    loadRecordSource: async (path: string, id: string) => structuredClone(sources.get(JSON.stringify([path, id]))?.()),
+  } as unknown as DesktopChatService;
   const host = createPluginChatHost(service, {
     authorize: async () => {
       await gate;
@@ -118,21 +128,21 @@ function fixture() {
   };
 }
 
-test("plugin clients share one host owner, scope disk IDs, preserve immutable snapshots and reject forged handles", async () => {
+test("plugin clients share one host record, preserve immutable snapshots and reject foreign records and handles", async () => {
   const f = fixture();
   const a = f.connect();
   const b = f.connect();
   const other = f.connect("other");
-  const [one, two, isolated] = await Promise.all([
-    a.client.openSession(input),
-    b.client.openSession(input),
-    other.client.openSession(input),
-  ]);
+  const one = await a.client.createSession(input);
+  const ref = { workspaceId: input.workspaceId, chatId: one.identity.id };
+  const [two, isolated] = await Promise.all([b.client.openSession(ref), other.client.createSession(input)]);
+  await assert.rejects(other.client.openSession(ref), /当前插件和工作区/);
+  await assert.rejects(a.client.openSession({ ...ref, workspaceId: "other" }), /工作区/);
   assert.equal(f.service.listSessions().length, 2);
   assert.equal(one.identity.id, two.identity.id);
   assert.notEqual(one.identity.id, isolated.identity.id);
-  assert.match(one.identity.id, /^plugin-[a-f0-9]{64}$/);
-  const handle: any = await a.connection.request({ method: "open", input });
+  assert.match(one.identity.id, /^[a-f0-9-]{36}$/);
+  const handle: any = await a.connection.request({ method: "open", input: ref });
   await assert.rejects(b.connection.request({ method: "snapshot", handle: handle.handle }), /句柄/);
   assert.throws(() => (one.getSnapshot().config.selectedModelId = "mutated"));
   const off = one.subscribe(() => {});
@@ -159,10 +169,30 @@ test("plugin clients share one host owner, scope disk IDs, preserve immutable sn
   other.client.dispose();
 });
 
+test("creation generates distinct host IDs while open only observes an existing record", async () => {
+  const f = fixture();
+  const { client } = f.connect();
+  await assert.rejects(client.openSession({ workspaceId: input.workspaceId, chatId: "missing" }));
+  await assert.rejects(client.openSession({ ...input, chatId: "invented" } as any), /不支持/);
+  await assert.rejects(client.createSession({ ...input, chatId: "invented" } as any), /不支持/);
+  await assert.rejects(client.createSession({ ...input, pluginId: "other" } as any), /不支持/);
+  assert.equal(f.service.listSessions().length, 0);
+  const [one, two] = await Promise.all([client.createSession(input), client.createSession(input)]);
+  assert.notEqual(one.identity.id, two.identity.id);
+  const ref = { workspaceId: input.workspaceId, chatId: one.identity.id };
+  const views = await Promise.all([client.openSession(ref), client.openSession(ref)]);
+  assert.ok(views.every((view) => view === one));
+  assert.equal(f.service.listSessions().length, 2);
+  assert.equal(f.runs.length, 0);
+  await one.close();
+  await two.close();
+  client.dispose();
+});
+
 test("stop cancels host authorization immediately and late authorization cannot dispatch", async () => {
   const f = fixture();
   const { client } = f.connect();
-  const session = await client.openSession(input);
+  const session = await client.createSession(input);
   const gate = deferred();
   f.setGate(gate.promise);
   const sending = session.send({ text: "cancel before auth completes" });
@@ -181,10 +211,10 @@ test("stop cancels host authorization immediately and late authorization cannot 
 test("resource configuration is host-validated; unknown fields and traversal never reach the session", async () => {
   const f = fixture();
   const { client } = f.connect();
-  const session = await client.openSession(input);
-  await assert.rejects(client.openSession({ ...input, workspacePath: "/escape" } as any), /不支持/);
+  const session = await client.createSession(input);
+  await assert.rejects(client.createSession({ ...input, workspacePath: "/escape" } as any), /不支持/);
   await assert.rejects(
-    client.openSession({ ...input, profile: { ...input.profile, allowedToolNames: ["other-plugin"] } }),
+    client.createSession({ ...input, profile: { ...input.profile, allowedToolNames: ["other-plugin"] } }),
     /其他插件/,
   );
   assert.equal((await session.updateConfig({ selectedToolNames: ["other-plugin"] })).ok, false);
@@ -202,7 +232,7 @@ test("resource configuration is host-validated; unknown fields and traversal nev
   f.setAllowed(false);
   await assert.rejects(session.send({ text: "denied" }), /permission denied/);
   f.setAllowed(true);
-  assert.equal(await client.openSession(input), session);
+  assert.equal(await client.openSession({ workspaceId: input.workspaceId, chatId: session.identity.id }), session);
   assert.equal((await session.close()).ok, true);
   client.dispose();
 });
@@ -210,10 +240,10 @@ test("resource configuration is host-validated; unknown fields and traversal nev
 test("closing and reopening cannot let an old handle close or overwrite the replacement session", async () => {
   const f = fixture();
   const { client } = f.connect();
-  const old = await client.openSession(input);
+  const old = await client.createSession(input);
   await old.send({ text: "history" });
   await old.close();
-  const fresh = await client.openSession(input);
+  const fresh = await client.openSession({ workspaceId: input.workspaceId, chatId: old.identity.id });
   assert.notEqual(old, fresh);
   assert.equal(fresh.getSnapshot().messages.length, 2);
   assert.equal((await old.close()).ok, true);
@@ -225,8 +255,11 @@ test("closing and reopening cannot let an old handle close or overwrite the repl
 test("stale mirror events are ignored and transport reconnection clears local errors", async () => {
   const f = fixture();
   const c = f.connect();
-  const session = await c.client.openSession(input);
-  const initial: any = await c.connection.request({ method: "open", input });
+  const session = await c.client.createSession(input);
+  const initial: any = await c.connection.request({
+    method: "open",
+    input: { workspaceId: input.workspaceId, chatId: session.identity.id },
+  });
   await session.send({ text: "latest" });
   const state = session.getSnapshot();
   c.listeners.forEach((listener) => listener(initial));
@@ -248,7 +281,7 @@ test("stale mirror events are ignored and transport reconnection clears local er
 test("an old watch cannot replace a newer watch after asynchronous authorization", async () => {
   const f = fixture();
   const c = f.connect();
-  const initial: any = await c.connection.request({ method: "open", input });
+  const initial: any = await c.connection.request({ method: "create", input });
   const gate = deferred();
   f.setGate(gate.promise);
   const oldWatch = c.connection.request({ method: "watch", handle: initial.handle, watchId: "old" });
@@ -269,8 +302,8 @@ test("revoking a plugin stops its tasks while keeping other plugin sessions aliv
   const f = fixture();
   const a = f.connect("a");
   const b = f.connect("b");
-  const one = await a.client.openSession(input);
-  const two = await b.client.openSession(input);
+  const one = await a.client.createSession(input);
+  const two = await b.client.createSession(input);
   await one.send({ text: "a" });
   await two.send({ text: "b" });
   assert.deepEqual(await f.host.revoke("a"), [{ ok: true }]);
@@ -295,9 +328,9 @@ test("native no-UI plugin transport uses the same host sessions as iframe client
   const connection = f.host.connect("plugin", ["own"], (event) =>
     native.receive({ type: "plugin-chat:snapshot", pluginId: "plugin", event }),
   );
-  const session = await native.client("plugin").openSession(input);
+  const session = await native.client("plugin").createSession(input);
   const ui = f.connect();
-  const view = await ui.client.openSession(input);
+  const view = await ui.client.openSession({ workspaceId: input.workspaceId, chatId: session.identity.id });
   const off = view.subscribe(() => {});
   await tick();
   assert.equal((await session.send({ text: "from Node" })).status, "dispatched");

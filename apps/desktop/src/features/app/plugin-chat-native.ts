@@ -3,6 +3,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { PluginChatRequest } from "@isle/plugin-sdk/chat";
 import { pluginChatHost } from "./plugin-chat";
+import { chatService } from "./chat-service";
 
 type Request = {
   connectionId: string;
@@ -57,12 +58,14 @@ async function attachNativePluginChat() {
     });
     unlisteners.push(disconnect);
     const revoke = await listen<string>("plugin-chat:revoke", ({ payload }) => {
+      chatService.invalidateRecords();
       void pluginChatHost
         .revoke(payload)
         .then((results) => {
           for (const result of results) if (!result.ok) toast.error(`插件会话关闭失败，可重试保存：${result.error}`);
         })
-        .catch((error) => toast.error(String(error)));
+        .catch((error) => toast.error(String(error)))
+        .finally(() => chatService.invalidateRecords());
     });
     unlisteners.push(revoke);
     return dispose;

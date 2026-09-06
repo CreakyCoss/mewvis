@@ -14,10 +14,21 @@ export type PluginChatProfile = {
   allowedToolNames?: string[];
   useKnowledge?: boolean;
 };
-export type PluginChatInput = {
+export type PluginChatCreateInput = {
   workspaceId: string;
-  chatId: string;
+  sceneId: string;
   profile: PluginChatProfile;
+};
+export type PluginChatSessionRef = { workspaceId: string; chatId: string };
+/** Opens an existing host record; never creates a conversation. */
+export type PluginChatOpenInput = PluginChatSessionRef;
+export type PluginChatSummary = {
+  sceneId: string;
+  chatId: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messageCount: number;
 };
 export type PluginChatRequest = {
   method: string;
@@ -42,7 +53,10 @@ export interface PluginChatSession extends ChatSession {
 }
 export interface PluginChatClient {
   listWorkspaces(): Promise<{ id: string; name: string; isDefault: boolean }[]>;
-  openSession(input: PluginChatInput): Promise<PluginChatSession>;
+  listSessions(input: { workspaceId: string }): Promise<PluginChatSummary[]>;
+  /** Explicit creation; each call returns a new host-generated identity. */
+  createSession(input: PluginChatCreateInput): Promise<PluginChatSession>;
+  openSession(input: PluginChatOpenInput): Promise<PluginChatSession>;
   /** Detach this client only. Host sessions continue until explicitly closed. */
   dispose(): void;
 }

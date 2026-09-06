@@ -2,6 +2,9 @@ export const fake = {
   record: null as any,
   writes: [] as any[],
   runs: [] as any[],
+  events: new Set<(event: any) => void>(),
+  metas: [] as any[],
+  list: undefined as (() => Promise<any[]>) | undefined,
   failTools: false,
   failSave: false,
   failUnread: false,
@@ -60,9 +63,12 @@ export async function getSkills() {
 export async function listKnowledgeLibrary() {
   return { collections: [{ id: "knowledge", name: "Knowledge", enabled: true, order: 0, createdAt: 0 }], sources: [] };
 }
-export async function loadChat() {
+export async function loadChat(_workspacePath?: string, chatId?: string) {
   if (fake.failLoad) throw new Error("broken file");
-  return structuredClone(fake.record);
+  return structuredClone(fake.record?.id === chatId || !chatId ? fake.record : null);
+}
+export async function listChats() {
+  return fake.list ? fake.list() : structuredClone(fake.metas);
 }
 export async function saveChat(input: any) {
   fake.pending++;
@@ -87,13 +93,22 @@ export async function searchEnabledKnowledge() {
 export function createAgentClient() {
   return {
     events: {
-      async subscribe() {
-        return () => {};
+      async subscribe(listener: (event: any) => void) {
+        fake.events.add(listener);
+        return () => {
+          fake.events.delete(listener);
+        };
       },
     },
     capabilities: {
       async listAgentTools() {
-        return { tools: [], defaultToolNames: [] };
+        return {
+          tools: [
+            { name: "own", label: "Own tool" },
+            { name: "host", label: "Host tool" },
+          ],
+          defaultToolNames: [],
+        };
       },
     },
     agent: {

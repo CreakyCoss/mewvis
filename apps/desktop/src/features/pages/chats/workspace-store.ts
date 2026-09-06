@@ -63,6 +63,8 @@ const sortChats = (chats: ChatMeta[]) =>
 
 const chatToMeta = (chat: ChatRecord, previous?: ChatMeta): ChatMeta => ({
   id: chat.id,
+  workspaceId: chat.workspaceId,
+  origin: chat.origin,
   title: chat.title,
   path: previous?.path ?? "",
   createdAt: chat.createdAt,
@@ -267,7 +269,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     }
   },
   deleteChat: async (workspace, chatId) => {
-    const closed = await chatService.closeSession({ scope: `workspace:${workspace.id}`, id: chatId });
+    const closed = await chatService.closeRecord(workspace.path, chatId);
     if (!closed.ok) {
       set({ error: closed.error });
       return;

@@ -1,18 +1,21 @@
 import type {
   PluginChatEvent,
-  PluginChatInput,
+  PluginChatCreateInput,
   PluginChatRequest,
   ChatContext,
   ChatSession,
+  PluginChatSummary,
 } from "@isle/plugin-sdk/chat";
 import type { DesktopChatService } from "./service";
 import type { ChatProfile } from "./catalog";
 
 type Access = { workspacePath: string; knowledge: boolean };
-type Entry = { input: PluginChatInput; profile: ChatProfile; session: ChatSession; revision: number; detach(): void };
+type SessionInput = PluginChatCreateInput & { chatId: string };
+type Entry = { input: SessionInput; profile: ChatProfile; session: ChatSession; revision: number; detach(): void };
 type Options = {
   authorize(pluginId: string, workspaceId: string): Promise<Access>;
   workspaces?: (pluginId: string) => Promise<{ id: string; name: string; isDefault: boolean }[]>;
+  tools?: (pluginId: string) => Promise<string[]>;
 };
 const record = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("聊天参数必须是对象");
@@ -36,16 +39,16 @@ function context(value: unknown): ChatContext {
     if (typeof value !== "string" || value.length > 64_000) throw new Error("场景上下文无效");
   return input;
 }
-function parseOpen(value: unknown): PluginChatInput {
+function parseCreate(value: unknown): PluginChatCreateInput {
   const input = record(value);
-  only(input, ["workspaceId", "chatId", "profile"]);
+  only(input, ["workspaceId", "sceneId", "profile"]);
   const profile = record(input.profile);
   only(profile, ["id", "systemPrompt", "context", "allowedToolNames", "useKnowledge"]);
   if (profile.useKnowledge !== undefined && typeof profile.useKnowledge !== "boolean")
     throw new Error("useKnowledge 必须是布尔值");
   return {
     workspaceId: string(input.workspaceId),
-    chatId: string(input.chatId),
+    sceneId: string(input.sceneId),
     profile: {
       id: string(profile.id),
       systemPrompt: string(profile.systemPrompt, 64_000),
@@ -55,17 +58,96 @@ function parseOpen(value: unknown): PluginChatInput {
     },
   };
 }
-const diskId = async (pluginId: string, chatId: string) => {
-  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify([pluginId, chatId])));
-  return `plugin-${Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
-};
+function parseSaved(pluginId: string, workspaceId: string, chatId: string, value: unknown): SessionInput {
+  const source = record(value);
+  const origin = record(source.origin);
+  only(origin, ["kind", "pluginId", "sceneId"]);
+  if (origin.kind !== "plugin" || origin.pluginId !== pluginId || source.workspaceId !== workspaceId)
+    throw new Error("未找到属于当前插件和工作区的聊天记录");
+  return { ...parseCreate({ workspaceId, sceneId: origin.sceneId, profile: source.profile }), chatId };
+}
 
 /** One host owner, many authenticated connections. Plugin code never chooses its principal or disk path. */
 export function createPluginChatHost(service: DesktopChatService, options: Options) {
   const entries = new Map<string, Entry>();
   const opening = new Map<string, Promise<void>>();
   const preparing = new Map<ChatSession, AbortController>();
+  const authorize = async (pluginId: string, input: PluginChatCreateInput, ownedToolNames: readonly string[]) => {
+    const result = await options.authorize(pluginId, input.workspaceId);
+    if (input.profile.useKnowledge && !result.knowledge) throw new Error("插件未获授权使用知识库");
+    if (input.profile.allowedToolNames?.some((name) => !ownedToolNames.includes(name)))
+      throw new Error("插件不能选择其他插件或宿主工具");
+    return result;
+  };
+  const open = async (pluginId: string, input: SessionInput, ownedToolNames: readonly string[], allowed: Access) => {
+    input.profile.allowedToolNames ??= [...ownedToolNames];
+    const key = JSON.stringify([pluginId, input.workspaceId, input.chatId]);
+    if (opening.has(key)) await opening.get(key);
+    let entry = entries.get(key);
+    if (entry?.session.getSnapshot().phase === "closed") {
+      entry.detach();
+      entries.delete(key);
+      entry = undefined;
+    }
+    if (!entry) {
+      const promise = (async () => {
+        const id = input.chatId;
+        const profile: ChatProfile = {
+          id: input.profile.id,
+          systemPrompt: () => input.profile.systemPrompt,
+          useKnowledge: input.profile.useKnowledge,
+          allowedToolNames: input.profile.allowedToolNames,
+          authorize: async () => {
+            const current = await options.authorize(pluginId, input.workspaceId);
+            if (current.workspacePath !== allowed.workspacePath || (input.profile.useKnowledge && !current.knowledge))
+              throw new Error("插件会话授权已变化");
+          },
+          context: async () => input.profile.context ?? {},
+        };
+        const session = await service.openSession({
+          identity: { scope: `plugin:${pluginId}:workspace:${input.workspaceId}`, id },
+          workspacePath: allowed.workspacePath,
+          profile,
+          workspaceId: input.workspaceId,
+          origin: { kind: "plugin", pluginId, sceneId: input.sceneId },
+          profileSnapshot: () => input.profile,
+        });
+        const next = { input, profile, session, revision: 0, detach: () => {} };
+        next.detach = session.subscribe(() => {
+          next.revision++;
+          if (session.getSnapshot().phase === "closed" && entries.get(key) === next) {
+            entries.delete(key);
+            next.detach();
+          }
+        });
+        entries.set(key, next);
+      })().finally(() => opening.delete(key));
+      opening.set(key, promise);
+      await promise;
+    } else if (
+      entry.input.sceneId !== input.sceneId ||
+      JSON.stringify({ ...entry.input.profile, context: undefined }) !==
+        JSON.stringify({ ...input.profile, context: undefined })
+    ) {
+      throw new Error("同一会话不能更换场景配置；动态上下文请使用 setContext");
+    }
+    const result = entries.get(key)!;
+    return result;
+  };
   return {
+    async restoreSession(workspacePath: string, chatId: string, value: unknown): Promise<ChatSession> {
+      const source = record(value);
+      const origin = record(source.origin);
+      const pluginId = string(origin.pluginId);
+      if (new TextEncoder().encode(JSON.stringify(source)).byteLength > 256 * 1024)
+        throw new Error("插件聊天来源信息无效");
+      const input = parseSaved(pluginId, string(source.workspaceId), chatId, source);
+      if (!options.tools) throw new Error("当前宿主不支持恢复插件聊天");
+      const ownedToolNames = await options.tools(pluginId);
+      const allowed = await authorize(pluginId, input, ownedToolNames);
+      if (allowed.workspacePath !== workspacePath) throw new Error("插件聊天工作区与记录不匹配");
+      return (await open(pluginId, input, ownedToolNames, allowed)).session;
+    },
     async revoke(pluginId: string) {
       const results = [];
       for (const [key, entry] of entries)
@@ -89,12 +171,9 @@ export function createPluginChatHost(service: DesktopChatService, options: Optio
         watches.clear();
         requestedWatches.clear();
       };
-      const access = async (input: PluginChatInput) => {
-        const result = await options.authorize(pluginId, input.workspaceId);
+      const access = async (input: PluginChatCreateInput) => {
+        const result = await authorize(pluginId, input, ownedToolNames);
         if (disposed) throw new Error("插件连接已断开");
-        if (input.profile.useKnowledge && !result.knowledge) throw new Error("插件未获授权使用知识库");
-        if (input.profile.allowedToolNames?.some((name) => !ownedToolNames.includes(name)))
-          throw new Error("插件不能选择其他插件或宿主工具");
         return result;
       };
       return {
@@ -105,65 +184,61 @@ export function createPluginChatHost(service: DesktopChatService, options: Optio
           if (new TextEncoder().encode(JSON.stringify(request)).byteLength > 256 * 1024)
             throw new Error("聊天请求超过 256 KiB");
           if (request.method === "workspaces") return options.workspaces?.(pluginId) ?? [];
+          if (request.method === "list") {
+            const input = record(request.input);
+            only(input, ["workspaceId"]);
+            const workspaceId = string(input.workspaceId);
+            const allowed = await options.authorize(pluginId, workspaceId);
+            const records = await service.listRecords(allowed.workspacePath);
+            const summaries: PluginChatSummary[] = [];
+            for (const item of records) {
+              const origin = item.origin;
+              if (
+                origin?.kind !== "plugin" ||
+                origin.pluginId !== pluginId ||
+                item.workspaceId !== workspaceId ||
+                typeof origin.sceneId !== "string" ||
+                !origin.sceneId.trim()
+              )
+                continue;
+              summaries.push({
+                chatId: item.id,
+                sceneId: origin.sceneId,
+                title: item.title,
+                createdAt: item.createdAt,
+                updatedAt: item.updatedAt,
+                messageCount: item.messageCount,
+              });
+            }
+            const current = await options.authorize(pluginId, workspaceId);
+            if (disposed || current.workspacePath !== allowed.workspacePath) throw new Error("插件授权或连接已变化");
+            return summaries.sort((a, b) => b.updatedAt - a.updatedAt || b.chatId.localeCompare(a.chatId));
+          }
           if (request.method === "detach") {
             disposed = true;
             detach();
             handles.clear();
             return null;
           }
-          if (request.method === "open") {
-            const input = parseOpen(request.input);
-            const key = JSON.stringify([pluginId, input.workspaceId, input.chatId]);
+          if (request.method === "create" || request.method === "open") {
+            let input: SessionInput;
+            if (request.method === "create") {
+              input = { ...parseCreate(request.input), chatId: crypto.randomUUID() };
+            } else {
+              const requested = record(request.input);
+              only(requested, ["workspaceId", "chatId"]);
+              const workspaceId = string(requested.workspaceId);
+              const chatId = string(requested.chatId);
+              const allowed = await options.authorize(pluginId, workspaceId);
+              const saved = await service.loadRecordSource(allowed.workspacePath, chatId);
+              if (saved === undefined) throw new Error("未找到聊天记录");
+              input = parseSaved(pluginId, workspaceId, chatId, saved);
+            }
             const allowed = await access(input);
-            if (opening.has(key)) await opening.get(key);
-            let entry = entries.get(key);
-            if (entry?.session.getSnapshot().phase === "closed") {
-              entry.detach();
-              entries.delete(key);
-              entry = undefined;
-            }
-            if (!entry) {
-              const promise = (async () => {
-                const id = await diskId(pluginId, input.chatId);
-                const profile: ChatProfile = {
-                  id: input.profile.id,
-                  systemPrompt: () => input.profile.systemPrompt,
-                  useKnowledge: input.profile.useKnowledge,
-                  allowedToolNames: input.profile.allowedToolNames ?? [...ownedToolNames],
-                  authorize: async () => {
-                    const current = await options.authorize(pluginId, input.workspaceId);
-                    if (
-                      current.workspacePath !== allowed.workspacePath ||
-                      (input.profile.useKnowledge && !current.knowledge)
-                    )
-                      throw new Error("插件会话授权已变化");
-                  },
-                  context: async () => input.profile.context ?? {},
-                };
-                const session = await service.openSession({
-                  identity: { scope: `plugin:${pluginId}:workspace:${input.workspaceId}`, id },
-                  workspacePath: allowed.workspacePath,
-                  profile,
-                });
-                const next = { input, profile, session, revision: 0, detach: () => {} };
-                next.detach = session.subscribe(() => {
-                  next.revision++;
-                  if (session.getSnapshot().phase === "closed" && entries.get(key) === next) entries.delete(key);
-                });
-                entries.set(key, next);
-              })().finally(() => opening.delete(key));
-              opening.set(key, promise);
-              await promise;
-            } else if (
-              JSON.stringify({ ...entry.input.profile, context: undefined }) !==
-              JSON.stringify({ ...input.profile, context: undefined })
-            ) {
-              throw new Error("同一会话不能更换场景配置；动态上下文请使用 setContext");
-            }
+            const entry = await open(pluginId, input, ownedToolNames, allowed);
             if (disposed) throw new Error("插件连接已断开");
-            const handle =
-              [...handles].find(([, candidate]) => candidate === entries.get(key))?.[0] ?? crypto.randomUUID();
-            handles.set(handle, entries.get(key)!);
+            const handle = [...handles].find(([, candidate]) => candidate === entry)?.[0] ?? crypto.randomUUID();
+            handles.set(handle, entry);
             return envelope(handle);
           }
           const handle = string(request.handle);
@@ -300,6 +375,7 @@ export function createPluginChatHost(service: DesktopChatService, options: Optio
               if (preparing.has(session) || session.getSnapshot().activeTaskId)
                 throw new Error("运行期间不能修改场景上下文");
               entry.input.profile.context = structuredClone(context(request.input));
+              await service.viewPersistence(session)?.saveProfile();
               result = { ok: true };
               break;
 

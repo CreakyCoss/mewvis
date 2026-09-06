@@ -1,4 +1,4 @@
-import { listPlugins } from "@/api/plugins";
+import { listPlugins, listPluginUi } from "@/api/plugins";
 import { listWorkspaces } from "@/api/workspace";
 import { createPluginChatHost } from "@/chat/desktop/plugin";
 import { chatService } from "./chat-service";
@@ -12,6 +12,13 @@ async function requirePlugin(pluginId: string) {
   return plugin;
 }
 export const pluginChatHost = createPluginChatHost(chatService, {
+  async tools(pluginId) {
+    await requirePlugin(pluginId);
+    const catalog = await listPluginUi();
+    const plugin = catalog.plugins.find((item) => item.id === pluginId);
+    if (!plugin || plugin.error) throw new Error("插件能力加载失败，暂时无法恢复聊天");
+    return plugin.tools.map((tool) => tool.name);
+  },
   async workspaces(pluginId) {
     const [, workspaces] = await Promise.all([requirePlugin(pluginId), listWorkspaces()]);
     return workspaces.map(({ id, name, isDefault }) => ({ id, name, isDefault }));

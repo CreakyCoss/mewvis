@@ -13,7 +13,7 @@ import type {
   MessagePart,
   SendResult,
 } from "@isle/chat-contracts";
-import type { PluginChatInput, PluginChatSession } from "./index.js";
+import type { PluginChatOpenInput, PluginChatSession } from "./index.js";
 export type ChatDisplayOptions = {
   showThinkingProcess: boolean;
   showToolCallProcess: boolean;
@@ -79,8 +79,18 @@ export declare const Chat: ComponentType<{
   Error: ComponentType;
   Question: ComponentType;
   Loading: ComponentType<{ error?: string }>;
+  History: ComponentType<
+    MessagesProps & {
+      messages: ChatMessage[];
+      displayOptions?: ChatDisplayOptions;
+      reason: string;
+      onRetry?: () => void;
+    }
+  >;
 };
-export declare function usePluginChatSession(input: PluginChatInput | null): {
+export declare function usePluginChatSession(
+  input: PluginChatOpenInput | null,
+): {
   key: string;
   session?: PluginChatSession;
   error?: string;

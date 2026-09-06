@@ -103,6 +103,46 @@ function Footer({ children, className = "", ...props }: HTMLAttributes<HTMLDivEl
     </div>
   );
 }
+function History({
+  messages,
+  displayOptions = { showThinkingProcess: true, showToolCallProcess: true },
+  reason,
+  onRetry,
+  className,
+  renderMessage,
+}: Pick<ChatMessagesProps, "messages" | "renderMessage" | "className"> & {
+  displayOptions?: ChatMessagesProps["displayOptions"];
+  reason: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <Layout className={className}>
+      {messages.length ? (
+        <MessagesView
+          messages={messages}
+          displayOptions={displayOptions}
+          renderMessage={renderMessage}
+          isInitializing={false}
+        />
+      ) : (
+        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">暂无聊天消息</div>
+      )}
+      <Footer>
+        <div
+          role="status"
+          className="mx-auto flex max-w-[69rem] items-center justify-between gap-4 rounded-lg bg-muted/60 px-4 py-3 text-sm text-muted-foreground"
+        >
+          <span>只读查看 · {reason}。无法继续聊天。</span>
+          {onRetry ? (
+            <button type="button" className="shrink-0 underline" onClick={onRetry}>
+              重新连接
+            </button>
+          ) : null}
+        </div>
+      </Footer>
+    </Layout>
+  );
+}
 function DefaultChat({
   session,
   viewId,
@@ -138,4 +178,5 @@ export const Chat = Object.assign(DefaultChat, {
   Question,
   Error: ErrorNotice,
   Loading,
+  History,
 });

@@ -97,6 +97,13 @@ overrides plus a reserved `$version`. Ordered migrations update that user layer
 before the plugin registers tools; missing migrations and newer unsupported
 versions fail plugin startup explicitly.
 
+## Built-in Chat playground
+
+[Chat playground](./plugins/chat-playground/README.md) demonstrates workspace selection,
+shared sessions, default and composed Chat, custom styling, and session inspection.
+It is bundled as an Isle-only plugin and enabled by default, subject to the user's saved enablement setting. Other built-in plugins retain their DSH-compatible packages.
+The example also includes a preview for the existing 1420 development server.
+
 ## DSH compatibility
 
 External packages without `isle.plugin` are detected as DSH-compatible when they declare

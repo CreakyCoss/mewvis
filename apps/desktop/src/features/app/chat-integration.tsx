@@ -8,6 +8,29 @@ import { isChatBusy, sessionKey, type ChatSession } from "@/chat/core";
 import { useWorkspaceStore } from "@/features/pages/chats/workspace-store";
 import { useWorkspaceFileStore } from "@/features/pages/chats/workspace-files";
 import { chatService } from "./chat-service";
+import { pluginChatHost } from "./plugin-chat";
+import type { DesktopSessionInput } from "@/chat/desktop";
+import { loadStoryById } from "@/features/pages/stories/storage";
+import { prepareStoryChatProfile } from "@/features/pages/stories/story/actions/assistant/resources";
+
+const openChatRecord = (input: DesktopSessionInput) =>
+  chatService.openRecord(input, async (workspacePath, chatId, value) => {
+    const source = value as { workspaceId: string; origin: { kind: string; sceneId: string } };
+    if (source.origin.kind === "plugin") return pluginChatHost.restoreSession(workspacePath, chatId, value);
+    if (source.origin.kind !== "builtin") throw new Error("聊天来源不可用");
+    if (source.origin.sceneId === "story-assistant") {
+      const story = await loadStoryById(source.workspaceId);
+      if (!story || story.workspace.path !== workspacePath) throw new Error("故事场景不可用");
+      return chatService.openSession({
+        identity: { scope: `workspace:${source.workspaceId}`, id: chatId },
+        workspaceId: source.workspaceId,
+        workspacePath,
+        origin: { kind: "builtin", sceneId: "story-assistant" },
+        profile: prepareStoryChatProfile(story),
+      });
+    }
+    throw new Error("聊天场景不可用");
+  });
 
 export function AppChatIntegration({ children }: PropsWithChildren) {
   const fileState = useWorkspaceFileStore();
@@ -82,7 +105,7 @@ export function AppChatIntegration({ children }: PropsWithChildren) {
     };
   }, []);
   return (
-    <DesktopChatEnvironment service={chatService} files={files}>
+    <DesktopChatEnvironment service={chatService} files={files} openRecord={openChatRecord}>
       {children}
     </DesktopChatEnvironment>
   );

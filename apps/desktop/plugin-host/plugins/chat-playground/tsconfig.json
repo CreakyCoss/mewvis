@@ -1,0 +1,5 @@
+{
+  "extends": "../../../tsconfig.json",
+  "include": ["ui.tsx"],
+  "compilerOptions": { "types": ["vite/client"], "lib": ["ES2022", "DOM", "DOM.Iterable"] }
+}

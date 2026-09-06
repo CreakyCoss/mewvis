@@ -30,8 +30,17 @@ const resolveRevision = (documents: StoryDocument[]) => {
   return typeof manifest?.revision === "number" ? manifest.revision : null;
 };
 
-const latestStoryAssistantChatId = (chats: Awaited<ReturnType<typeof listChats>>) =>
-  orderBy(chats, ["updatedAt", "createdAt", "id"], ["desc", "desc", "desc"])[0]?.id ?? null;
+const latestStoryAssistantChatId = (chats: Awaited<ReturnType<typeof listChats>>, workspaceId: string) =>
+  orderBy(
+    chats.filter(
+      (chat) =>
+        chat.workspaceId === workspaceId &&
+        chat.origin?.kind === "builtin" &&
+        chat.origin.sceneId === "story-assistant",
+    ),
+    ["updatedAt", "createdAt", "id"],
+    ["desc", "desc", "desc"],
+  )[0]?.id ?? null;
 
 export const StoryAssistantDialog = ({
   documents,
@@ -58,7 +67,7 @@ export const StoryAssistantDialog = ({
         if (cancelled) return;
         setConversation((current) => ({
           instance: current.instance,
-          chatId: latestStoryAssistantChatId(chats) ?? createTimestampId("chat"),
+          chatId: latestStoryAssistantChatId(chats, workspace.id) ?? createTimestampId("chat"),
         }));
       })
       .catch((error) => {
@@ -73,7 +82,7 @@ export const StoryAssistantDialog = ({
     return () => {
       cancelled = true;
     };
-  }, [workspace.path]);
+  }, [workspace.path, workspace.id]);
 
   const createConversation = () => {
     setConversation((current) => ({

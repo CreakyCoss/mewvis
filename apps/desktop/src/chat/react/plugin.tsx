@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { getPluginChatClient, type PluginChatInput, type PluginChatSession } from "@isle/plugin-sdk/chat";
+import { getPluginChatClient, type PluginChatOpenInput, type PluginChatSession } from "@isle/plugin-sdk/chat";
 
 /** The transport and shared client are supplied once by the sandbox host. */
-export function usePluginChatSession(input: PluginChatInput | null) {
+export function usePluginChatSession(input: PluginChatOpenInput | null) {
   const key = JSON.stringify(input);
   const [entry, setEntry] = useState<{ key: string; session?: PluginChatSession; error?: string }>({ key: "" });
   useEffect(() => {

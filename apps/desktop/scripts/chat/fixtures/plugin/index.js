@@ -18,9 +18,9 @@ export default definePlugin({
           render: (_args, value) => [{ type: "text", text: JSON.stringify(value) }],
         },
         async execute() {
-          const session = await ctx.chat.openSession({
+          const session = await ctx.chat.createSession({
             workspaceId: "workspace",
-            chatId: "logical-id",
+            sceneId: "debug",
             profile: { id: "fixture", systemPrompt: "Business context", useKnowledge: true },
           });
           const result = await session.send({ text: "from native plugin" });

@@ -1,7 +1,9 @@
 import React, { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { act } from "react";
-import { createChatSession, type ChatRuntime } from "../../src/chat/core";
+import { createChatSession, type ChatRuntime, type ChatSession } from "../../src/chat/core";
+import { DesktopChatEnvironment, useDesktopChatRecord } from "../../src/chat/desktop/react";
+import type { DesktopChatService } from "../../src/chat/desktop";
 import { Chat, EmptyComposer, useChatComposer, type ComposerBinding } from "../../src/chat/react";
 import { AgentRuntimeEventType as E } from "../../src/agent-client/wire";
 import "../../src/App.css";
@@ -245,6 +247,146 @@ async function run() {
   await act(async () => {
     root.unmount();
   });
+  const pluginSession = await createChatSession({
+    identity: { scope: "plugin:fixture:workspace:fixture", id: "plugin-record" },
+    runtime,
+    catalog: { load: async () => ({ models }) },
+    storage: { load: async () => null, save: async () => {} },
+  });
+  const historyListeners = new Set<(session: ChatSession) => void>();
+  const recordChanges = new Set<() => void>();
+  let connected = false;
+  let sessionOpens = 0;
+  let historySession: ChatSession | undefined;
+  const historyService = {
+    openSession: async () => {
+      sessionOpens++;
+      throw new Error("Must resolve history ownership");
+    },
+    openRecord: async () => {
+      if (!connected)
+        return {
+          history: {
+            messages: pluginSession.getSnapshot().messages.length
+              ? pluginSession.getSnapshot().messages
+              : [
+                  {
+                    id: "archived",
+                    role: "user" as const,
+                    createdAt: 1,
+                    blocks: [{ type: "text" as const, id: "text", content: "Archived plugin message" }],
+                  },
+                ],
+            preferences: { showThinkingProcess: true, showToolCallProcess: true },
+            reason: "插件已禁用或移除",
+          },
+        };
+      return { session: pluginSession };
+    },
+    subscribeRecordChanges: (listener: () => void) => {
+      recordChanges.add(listener);
+      return () => {
+        recordChanges.delete(listener);
+      };
+    },
+    subscribe: (listener: (session: ChatSession) => void) => {
+      historyListeners.add(listener);
+      return () => {
+        historyListeners.delete(listener);
+      };
+    },
+    getLocation: () => ({ workspacePath: "fixture" }),
+    viewPersistence: () => undefined,
+  } as unknown as DesktopChatService;
+  const historyInput = {
+    identity: { scope: "workspace:fixture", id: "plugin-record" },
+    workspacePath: "fixture",
+    workspaceId: "fixture",
+    origin: { kind: "builtin" as const, sceneId: "chat" },
+    profile: { id: "workspace", systemPrompt: () => "" },
+  };
+  function HistoryView() {
+    const { session, history, error, reload } = useDesktopChatRecord(historyInput);
+    historySession = session;
+    if (history)
+      return (
+        <Chat.History
+          messages={history.messages}
+          reason={history.reason}
+          displayOptions={history.preferences}
+          onRetry={reload}
+        />
+      );
+    return session ? <Chat session={session} /> : <p>{error || "Loading"}</p>;
+  }
+  root = createRoot(fixture);
+  await act(async () => {
+    root.render(
+      <StrictMode>
+        <DesktopChatEnvironment service={historyService}>
+          <HistoryView />
+        </DesktopChatEnvironment>
+      </StrictMode>,
+    );
+  });
+  assert(
+    fixture.textContent?.includes("Archived plugin message") && fixture.textContent?.includes("只读查看"),
+    "An unavailable plugin retains readable history without creating an execution session",
+  );
+  assert(
+    !fixture.querySelector('[contenteditable="true"]') &&
+      !fixture.querySelector('[aria-label="发送消息"]') &&
+      fixture.querySelector('[aria-label="复制消息"]'),
+    "Read-only history allows copying but has no editor or send action",
+  );
+  await act(async () => {
+    connected = true;
+    historyListeners.forEach((listener) => listener(pluginSession));
+  });
+  assert(
+    historySession === pluginSession && sessionOpens === 0,
+    "An already mounted history page reconnects to the plugin owner when it becomes available",
+  );
+  assert(historyListeners.size === 1, "StrictMode leaves one history ownership observer");
+  await act(async () => {
+    await historySession!.send({ text: "continue from history" });
+    emit(pluginSession, { type: E.TextDelta, delta: "Plugin continuation" });
+    emit(pluginSession, { type: E.Done, text: "Plugin continuation" });
+  });
+  assert(
+    fixture.textContent?.includes("Plugin continuation"),
+    "History renders continuation through the original plugin session",
+  );
+  await act(async () => {
+    connected = false;
+    recordChanges.forEach((listener) => listener());
+  });
+  assert(
+    fixture.textContent?.includes("Plugin continuation") &&
+      fixture.textContent?.includes("只读查看") &&
+      !fixture.querySelector('[contenteditable="true"]'),
+    "Disabling a plugin switches an already open history page to read-only while retaining messages",
+  );
+  await act(async () => {
+    connected = true;
+    (
+      Array.from(fixture.querySelectorAll("button")).find(
+        (button) => button.textContent === "重新连接",
+      ) as HTMLButtonElement
+    ).click();
+  });
+  assert(
+    historySession === pluginSession && fixture.querySelector('[contenteditable="true"]'),
+    "Re-enabling the plugin can reconnect the original session from the read-only view",
+  );
+  await act(async () => {
+    root.unmount();
+  });
+  assert(
+    historyListeners.size === 0 && recordChanges.size === 0 && pluginSession.getSnapshot().phase === "idle",
+    "Leaving history detaches its observer without closing the plugin session",
+  );
+  await pluginSession.close();
   results.textContent = `PASS ${assertions.length} assertions\n${assertions.join("\n")}`;
   results.style.whiteSpace = "pre-wrap";
 }

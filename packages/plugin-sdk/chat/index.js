@@ -122,22 +122,26 @@ export function createPluginChatClient(transport) {
     };
   }
 
+  const receiveSession = (event) => {
+    assertActive();
+    let entry = sessions.get(event.handle);
+    if (!entry) {
+      entry = mirror(event);
+      sessions.set(event.handle, entry);
+    } else entry.accept(event);
+    return entry.session;
+  };
   return {
     listWorkspaces: () => request("workspaces"),
+    listSessions: (input) => request("list", undefined, input),
+    createSession: (input) =>
+      request("create", undefined, input).then(receiveSession),
     async openSession(input) {
       assertActive();
-      const key = JSON.stringify(input);
+      const key = JSON.stringify([input.workspaceId, input.chatId]);
       if (opening.has(key)) return opening.get(key);
       const pending = request("open", undefined, input)
-        .then((event) => {
-          assertActive();
-          let entry = sessions.get(event.handle);
-          if (!entry) {
-            entry = mirror(event);
-            sessions.set(event.handle, entry);
-          } else entry.accept(event);
-          return entry.session;
-        })
+        .then(receiveSession)
         .finally(() => opening.delete(key));
       opening.set(key, pending);
       return pending;

@@ -1,6 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentTimestamp } from "@/utils/time";
 
+export type ChatOrigin = { kind: "builtin"; sceneId: string } | { kind: "plugin"; pluginId: string; sceneId: string };
 export type ChatMeta = {
   id: string;
   title: string;
@@ -9,6 +10,8 @@ export type ChatMeta = {
   updatedAt: number;
   messageCount: number;
   isUnread?: boolean;
+  workspaceId?: string;
+  origin?: ChatOrigin;
 };
 
 export type ChatRecord<TMessage = unknown, TOptions = unknown> = {
@@ -16,6 +19,8 @@ export type ChatRecord<TMessage = unknown, TOptions = unknown> = {
   title: string;
   createdAt: number;
   updatedAt: number;
+  workspaceId?: string;
+  origin?: ChatOrigin;
   messages: TMessage[];
   options?: TOptions | null;
   isUnread?: boolean;
@@ -23,6 +28,8 @@ export type ChatRecord<TMessage = unknown, TOptions = unknown> = {
 
 export type SaveChatInput<TMessage = unknown, TOptions = unknown> = {
   workspacePath: string;
+  workspaceId: string;
+  origin: ChatOrigin;
   chatId?: string | null;
   title?: string | null;
   messages: TMessage[];
@@ -58,6 +65,8 @@ export async function saveChat<TMessage = unknown, TOptions = unknown>(input: Sa
       title: input.title ?? "新的聊天",
       createdAt: now,
       updatedAt: now,
+      workspaceId: input.workspaceId,
+      origin: input.origin,
       messages: input.messages,
       options: input.options,
       isUnread: input.isUnread ?? false,
@@ -69,6 +78,8 @@ export async function saveChat<TMessage = unknown, TOptions = unknown>(input: Sa
       workspacePath: input.workspacePath,
       chatId: input.chatId,
       title: input.title,
+      workspaceId: input.workspaceId,
+      origin: input.origin,
       messages: input.messages,
       options: input.options,
       isUnread: input.isUnread,

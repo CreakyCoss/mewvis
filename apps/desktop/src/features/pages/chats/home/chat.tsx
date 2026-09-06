@@ -13,6 +13,8 @@ export function HomeComposer({ workspace }: { workspace: Workspace }) {
   const openChat = useWorkspaceStore((store) => store.openChat);
   const { session, error } = useDesktopChatSession({
     identity: { scope: `workspace:${workspace.id}`, id: chatId },
+    workspaceId: workspace.id,
+    origin: { kind: "builtin", sceneId: "chat" },
     workspacePath: workspace.path,
     profile: workspaceChatProfile,
   });
