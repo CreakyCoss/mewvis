@@ -10,8 +10,16 @@ import {
   resolvePiRuntimeThinkingLevel,
 } from "../model/index.js";
 import { createPiResourceLoader } from "./resources.js";
+import type { PiSandboxConfig } from "../tools/sandbox.js";
 
 export type PiAgentSession = Awaited<ReturnType<typeof createAgentSession>>["session"];
+
+export type PiAgentSessionOptions = {
+  subagent?: boolean;
+  toolCeiling?: readonly string[];
+  rolePrompt?: string;
+  sandboxConfig?: PiSandboxConfig;
+};
 
 export type PiAgentSessionCreateResult = {
   session: PiAgentSession;
@@ -22,6 +30,7 @@ export type PiAgentSessionCreateResult = {
 export const createPiAgentSession = async (
   command: RuntimeAgentCommand,
   callbacks: AgentRuntimeCallbacks,
+  options: PiAgentSessionOptions = {},
 ): Promise<PiAgentSessionCreateResult> => {
   const runtimeModel = requirePiRuntimeConfig(command);
   const apiKey = requirePiApiKey(runtimeModel);
@@ -29,13 +38,13 @@ export const createPiAgentSession = async (
   const thinkingLevel = resolvePiRuntimeThinkingLevel(runtimeModel);
   const authStorage = AuthStorage.inMemory();
   authStorage.setRuntimeApiKey(model.provider, apiKey);
-  const resources = await createPiResourceLoader(command, callbacks);
+  const resources = await createPiResourceLoader(command, callbacks, options);
   const sessionManager = createPiSessionManager(command);
   try {
-    const enabledTools = [
-      ...normalizeAllowedAgentTools(allowedRuntimeTools(command)),
-      ...resources.pluginToolNames,
-    ].filter((name, index, names) => names.indexOf(name) === index);
+    const enabledTools = [...normalizeAllowedAgentTools(allowedRuntimeTools(command)), ...resources.pluginToolNames]
+      .filter((name, index, names) => names.indexOf(name) === index)
+      .filter((name) => !options.toolCeiling || options.toolCeiling.includes(name))
+      .filter((name) => !options.subagent || (name !== "subagent" && name !== "ask_user"));
     const { session } = await createAgentSession({
       cwd: command.workspacePath,
       authStorage,

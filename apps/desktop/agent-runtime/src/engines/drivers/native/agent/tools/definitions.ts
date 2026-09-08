@@ -56,6 +56,12 @@ export const AGENT_TOOL_DEFINITIONS = Object.freeze([
     description: "执行工作区 shell 命令",
     enabledByDefault: false,
   },
+  {
+    name: "subagent",
+    label: "子 Agent",
+    description: "Pi 专用：向独立会话委派单个、并行或串联任务",
+    enabledByDefault: false,
+  },
 ] as const satisfies readonly AgentToolDefinition[]);
 
 export type KnownAgentToolName = (typeof AGENT_TOOL_DEFINITIONS)[number]["name"];

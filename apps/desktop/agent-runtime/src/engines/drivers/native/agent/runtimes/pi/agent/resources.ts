@@ -1,26 +1,44 @@
 import { DefaultResourceLoader, getAgentDir, loadSkillsFromDir, type Skill } from "@earendil-works/pi-coding-agent";
 import { resolveBuiltins, type ResolvedBuiltins } from "../../../../../../builtins/index.js";
 import type { AgentRuntimeCallbacks, RuntimeAgentCommand } from "../../types.js";
-import { runtimeResourcesFor, runtimeSkillSourcePaths } from "../../resources.js";
+import { allowedRuntimeTools, runtimeResourcesFor, runtimeSkillSourcePaths } from "../../resources.js";
 import { registerPiAskUserTool } from "../tools/ask-user-tool.js";
 import { registerPiBuiltinTool } from "../tools/builtin-tool.js";
 import { createPluginRuntimeBridge } from "../plugins/bridge.js";
-import { AGENT_TOOL_DEFINITIONS } from "../../../tools/definitions.js";
+import { AGENT_TOOL_DEFINITIONS, normalizeAllowedAgentTools } from "../../../tools/definitions.js";
+import { loadPiSandboxConfig, registerPiSandbox } from "../tools/sandbox.js";
+import { registerPiSubagentTool } from "../tools/subagent.js";
+import { createPiSubagentRunner } from "./subagent-session.js";
+import type { PiAgentSessionOptions } from "./session.js";
 
-export const createPiResourceLoader = async (command: RuntimeAgentCommand, callbacks: AgentRuntimeCallbacks) => {
+export const createPiResourceLoader = async (
+  command: RuntimeAgentCommand,
+  callbacks: AgentRuntimeCallbacks,
+  options: PiAgentSessionOptions = {},
+) => {
+  const sandboxConfig = options.sandboxConfig ?? loadPiSandboxConfig(command.workspacePath);
   const enabledSkills = runtimeResourcesFor(command).skills?.enabled ?? [];
   const builtins = resolveBuiltins(enabledSkills);
   const plugins = await createPluginRuntimeBridge(command);
   try {
     assertPluginToolNamesAvailable(plugins?.toolSchemas().map((tool) => tool.name) ?? [], builtins);
+    const parentTools = [
+      ...normalizeAllowedAgentTools(allowedRuntimeTools(command)),
+      ...(plugins?.toolSchemas().map((tool) => tool.name) ?? []),
+    ];
     const skills = loadPiSkills(command, builtins, plugins?.skills ?? []);
     const loader = new DefaultResourceLoader({
       cwd: command.workspacePath,
       agentDir: getAgentDir(),
       noExtensions: true,
       noSkills: true,
+      ...(options.rolePrompt ? { systemPromptOverride: () => options.rolePrompt } : {}),
       extensionFactories: [
         (pi) => {
+          registerPiSandbox(pi, command.workspacePath, sandboxConfig);
+          if (!options.subagent) {
+            registerPiSubagentTool(pi, createPiSubagentRunner(command, callbacks, parentTools, sandboxConfig));
+          }
           registerPiAskUserTool(pi, command.taskId, callbacks.requestUserInput);
           for (const tool of builtins.requiredTools.internal) {
             registerPiBuiltinTool(pi, tool, { workspacePath: command.workspacePath });
