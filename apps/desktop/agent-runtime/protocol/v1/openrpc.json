@@ -31,7 +31,7 @@
     {
       "name": "agent/tools/list",
       "summary": "List tools exposed to agents",
-      "params": [],
+      "params": [{ "name": "source", "required": false, "schema": { "type": "string", "minLength": 1 } }],
       "result": { "$ref": "#/components/contentDescriptors/genericResult" },
       "x-isle-command": { "type": "list_agent_tools", "paramsMode": "flat" },
       "x-isle-params-schema": "./schema/request.schema.json#/definitions/EmptyParams"
@@ -209,6 +209,19 @@
       "params": [],
       "x-isle-direction": "server-to-client",
       "x-isle-params-schema": "./schema/result.schema.json"
+    },
+    {
+      "name": "agent/approval/answer",
+      "summary": "Answer a runtime approval from the trusted host UI",
+      "params": [],
+      "result": {
+        "$ref": "#/components/contentDescriptors/genericResult"
+      },
+      "x-isle-command": {
+        "type": "answer_approval",
+        "paramsMode": "flat"
+      },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/AnswerApprovalParams"
     }
   ],
   "components": {

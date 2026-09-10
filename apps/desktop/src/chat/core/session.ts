@@ -52,6 +52,7 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
     resources: {},
     activeTaskId: null,
     pendingQuestion: null,
+    pendingApproval: null,
     answering: false,
     error: "",
     initializationError: "",
@@ -109,13 +110,20 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
     // A terminal event can arrive before the abort RPC completes. Keep the turn
     // reserved so a late abort cannot race a new run in the same Pi session.
     if (turn.cancelled && turn.dispatch && !abortAcknowledged) {
-      update({ phase: "stopping", pendingQuestion: null, answering: false });
+      update({ phase: "stopping", pendingQuestion: null, pendingApproval: null, answering: false });
       mark();
       void saves.flush();
       return;
     }
     active = undefined;
-    update({ phase: "idle", activeTaskId: null, pendingQuestion: null, answering: false, error: error ?? "" });
+    update({
+      phase: "idle",
+      activeTaskId: null,
+      pendingQuestion: null,
+      pendingApproval: null,
+      answering: false,
+      error: error ?? "",
+    });
     if (turn.recorded) {
       mark();
       void saves.flush();
@@ -147,6 +155,24 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
           ? (options.saveDelays?.node ?? 5_000)
           : (options.saveDelays?.stream ?? 10_000),
       );
+    } else if (event.type === E.ApprovalRequested && !turn.cancelled) {
+      update({
+        phase: "waiting",
+        pendingApproval: {
+          taskId: turn.taskId,
+          approvalId: event.approvalId,
+          executionId: event.executionId,
+          summary: event.summary,
+          details: event.details,
+          reason: event.reason,
+          expiresAt: event.expiresAt,
+        },
+      });
+    } else if (event.type === E.ApprovalResolved && state.pendingApproval?.approvalId === event.approvalId) {
+      update({
+        phase: turn.cancelled ? "stopping" : state.pendingQuestion ? "waiting" : "running",
+        pendingApproval: null,
+      });
     } else if (event.type === E.Question && !turn.cancelled) {
       update({
         phase: "waiting",
@@ -160,7 +186,11 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
         answering: false,
       });
     } else if (event.type === E.QuestionAnswered && state.pendingQuestion?.questionId === event.questionId) {
-      update({ phase: turn.cancelled ? "stopping" : "running", pendingQuestion: null, answering: false });
+      update({
+        phase: turn.cancelled ? "stopping" : state.pendingApproval ? "waiting" : "running",
+        pendingQuestion: null,
+        answering: false,
+      });
     } else if (event.type === E.Done) {
       changeMessage(turn, (message) => applyChatMessageEvent(message, event));
       finish(turn);
@@ -227,6 +257,8 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
     if (!input.text.trim()) return reject("请输入消息");
     if (!state.resources.models?.some((model) => model.value === state.config.selectedModelId))
       return reject("请选择可用的 LLM 模型");
+    if (!state.resources.permissionOptions?.some((option) => option.mode === state.config.permissionMode))
+      return reject("执行权限尚未加载，请刷新后重试");
     const taskId = crypto.randomUUID();
     let resolve!: Turn["resolve"];
     const result = new Promise<SendResult>((done) => {
@@ -251,6 +283,7 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
       phase: "preparing",
       activeTaskId: taskId,
       pendingQuestion: null,
+      pendingApproval: null,
       error: "",
     });
     const request = { identity, taskId, input: submitted, config: state.config };
@@ -374,7 +407,7 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
       try {
         await options.runtime.answer(turn.taskId, questionId, answer.trim());
         if (active === turn && state.pendingQuestion?.questionId === questionId)
-          update({ phase: "running", pendingQuestion: null, answering: false });
+          update({ phase: state.pendingApproval ? "waiting" : "running", pendingQuestion: null, answering: false });
         return ok;
       } catch (error) {
         const message = errorText(error);
@@ -386,6 +419,11 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
     async updateConfig(patch) {
       if (!state.initialized || active || state.phase !== "idle" || closing)
         return { ok: false, error: "当前无法修改运行配置" };
+      if (
+        patch.permissionMode !== undefined &&
+        !state.resources.permissionOptions?.some((option) => option.mode === patch.permissionMode)
+      )
+        return { ok: false, error: "当前会话不支持此权限模式" };
       seed = { ...state.config, ...structuredClone(patch) };
       const config = defaultConfig(state.resources, seed);
       if (JSON.stringify(config) !== JSON.stringify(state.config)) {
@@ -406,7 +444,6 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
           if (resources.errors?.models) config.selectedModelId = state.config.selectedModelId;
           if (resources.errors?.agents) config.selectedAgentId = state.config.selectedAgentId;
           if (resources.errors?.skillGroups) config.selectedSkillKeys = state.config.selectedSkillKeys;
-          if (resources.errors?.tools) config.selectedToolNames = state.config.selectedToolNames;
           if (resources.errors?.knowledgeCollections)
             config.selectedKnowledgeCollectionIds = state.config.selectedKnowledgeCollectionIds;
         }

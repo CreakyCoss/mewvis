@@ -1,3 +1,4 @@
+import { agentPermissionOptions } from "../../src/agent-client/wire";
 // Development adapter compiled into @isle/plugin-dev. Uses the real session engine with memory-only resources.
 import {
   createChatSession,
@@ -37,6 +38,7 @@ export function createPreviewChat(options: {
     timers.delete(taskId);
   };
   const resources: ChatResources = {
+    permissionOptions: structuredClone([...agentPermissionOptions]),
     models: ["preview-model", "alternate-model"].map((value, index) => ({
       value,
       label: index ? "备用预览模型" : "预览模型",

@@ -1,3 +1,4 @@
+import { agentPermissionOptions } from "../../src/agent-client/wire";
 import React, { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { act } from "react";
@@ -91,7 +92,10 @@ async function run() {
     },
     catalog: {
       async load() {
-        return { models };
+        return {
+          permissionOptions: structuredClone([...agentPermissionOptions]),
+          models,
+        };
       },
     },
   });
@@ -250,7 +254,7 @@ async function run() {
   const pluginSession = await createChatSession({
     identity: { scope: "plugin:fixture:workspace:fixture", id: "plugin-record" },
     runtime,
-    catalog: { load: async () => ({ models }) },
+    catalog: { load: async () => ({ permissionOptions: structuredClone([...agentPermissionOptions]), models }) },
     storage: { load: async () => null, save: async () => {} },
   });
   const historyListeners = new Set<(session: ChatSession) => void>();

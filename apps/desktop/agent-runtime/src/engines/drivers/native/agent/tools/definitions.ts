@@ -54,13 +54,13 @@ export const AGENT_TOOL_DEFINITIONS = Object.freeze([
     name: "bash",
     label: "Shell",
     description: "执行工作区 shell 命令",
-    enabledByDefault: false,
+    enabledByDefault: true,
   },
   {
     name: "subagent",
     label: "子 Agent",
     description: "Pi 专用：向独立会话委派单个、并行或串联任务",
-    enabledByDefault: false,
+    enabledByDefault: true,
   },
 ] as const satisfies readonly AgentToolDefinition[]);
 

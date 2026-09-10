@@ -1,81 +1,89 @@
 # Pi sandbox and subagents
 
-Isle registers these extensions through `agent/resources.ts`. Pi itself is not
-modified. The implementations follow Pi's
+Isle assembles ordinary tools in `tools/index.ts`; `agent/resources.ts` only registers
+them and loads skills. Pi itself is not modified. The implementations follow Pi's
 [`sandbox` example](https://github.com/earendil-works/pi/tree/main/packages/coding-agent/examples/extensions/sandbox)
 and [`subagent` example](https://github.com/earendil-works/pi/tree/main/packages/coding-agent/examples/extensions/subagent).
 
-## Enable the tools
+## Execution safety and tool allocation
 
-Select **Shell** (`bash`) and/or **子 Agent** (`subagent`) in the agent tool list.
-Both are opt-in. SDK callers include the tools in the existing resource contract:
+The frontend selects `ask`, `auto` or `full`; host and plugin requests use the same
+policy. `resources.tools.allowed` controls scene capabilities independently of safety.
+Children intersect that allocation with their role's tools. Tool definitions carry
+no permission declarations. `agent/tools/list` returns tools and `permissionOptions`
+(mode, label, description, isDefault). Every source receives the same permission catalog.
 
-```json
-{
-  "resources": {
-    "tools": {
-      "allowed": ["read", "ls", "find", "grep", "edit", "write", "bash", "subagent"]
-    }
-  }
-}
-```
+`engines/safety/permissions.ts` is the single definition of permission options, their
+UI text/default and execution policy. Edit `AGENT_PERMISSION_DEFINITIONS`, then run
+`pnpm generate:agent-runtime:protocol`: the permission schema, language bindings and
+public Chat permission types are generated from that definition. The frontend uses
+the returned catalog for rendering, validation and restoring saved selections.
+No frontend enum, mode labels or default permission is maintained separately.
 
-`subagent` is implemented by the Pi runtime only. Existing LangGraph workflows
-remain available; this tool is for delegation chosen by an agent during a turn.
+Common code lives in `engines/safety`: `types.ts` defines execution requests,
+operation analysis, rule findings and decisions; `rules.ts` evaluates operation
+risks and protected targets; `policy.ts` applies the permission definitions;
+`gate.ts` handles pre-execution approval. Rules do not inspect tool names or caller
+identity. Add runtime-specific argument decoding in its adapter, not the rules.
+
+| Mode   | Behavior                                                                                                      |
+| ------ | ------------------------------------------------------------------------------------------------------------- |
+| `ask`  | Low risk runs directly; medium/high or incompletely analyzed execution needs approval.                        |
+| `auto` | Low/medium risk runs directly; high or incompletely analyzed execution needs approval.                        |
+| `full` | Risk approval, protected-target restrictions and the Shell sandbox are disabled. Invalid requests still fail. |
+
+Workspace reads/list/search are low risk; writes and outside reads are medium;
+deletes, outside writes and runtime configuration changes are high. Credential
+access and hardlink writes are denied in restricted modes. Multiple effects are
+aggregated without lowering another finding's risk. Empty/unmatched/partial
+analysis is never implicitly considered low risk.
+
+`safety.ts` decodes Pi file tools, Shell, questions and delegation. Generic commands
+remain partially analyzed/high risk: recognizing a command name cannot prove what
+scripts, expansions or child processes will do. Custom business and plugin tools
+use the same unknown-operation fallback. No plugin permission protocol is required.
+
+After creating a session, Isle installs `session.agent.beforeToolCall` after Pi's
+existing extension handler. This hook receives the actual arguments and AbortSignal.
+It checks the final extension arguments, canonicalizes file targets and either
+allows, blocks, or waits for host approval before Pi executes the original call.
+There is no authorization helper tool, grant cache or model-driven retry. A runtime
+without a blocking execution hook or controlled executor cannot provide this guarantee.
+
+Approval uses `approval_requested` / `approval_resolved` and `agent/approval/answer`.
+The payload contains the execution ID, summary, input/operation details, reason and
+expiry. Requests queue per root task and expire **one minute after creation**, including
+queue time. Missing approval, denial, cancellation or changed parameters/target policy
+prevents execution. Late/duplicate answers cannot authorize another invocation.
+Parent and child idle timers continue normally while approval is pending. Ordinary
+question answers cannot approve operations. No model reviewer is involved.
 
 ## Bash sandbox
 
-When `bash` is enabled, it uses `@anthropic-ai/sandbox-runtime` 0.0.26, matching the
-vendored Pi example. This integration supports macOS and Linux. macOS needs
-`ripgrep`; Linux also needs `bubblewrap` and `socat` on PATH. Packaging includes
-SRT's Linux seccomp assets for x64 and arm64.
+Shell uses `@anthropic-ai/sandbox-runtime` 0.0.26 on macOS/Linux. macOS requires
+ripgrep; Linux also requires bubblewrap and socat. Packaging includes the Linux
+seccomp assets. Unsupported platforms or initialization failures never silently
+execute outside the sandbox.
 
-Only **bash and its descendants** run in the OS sandbox. Pi's `read`, `write`,
-`edit`, `ls`, `find`, `grep`, the model connection, and in-process plugins are
-outside that boundary. This is not whole-agent or plugin isolation.
+In `ask` and `auto`, the host policy always enables the sandbox, blocks network,
+allows writes only within the workspace and OS temporary directory, denies reads
+of `~/.ssh`, `~/.aws`, `~/.gnupg`, and protects workspace `.env`, `.pi`, `.git`,
+and `.isle` writes. Other Shell file reads remain allowed by SRT.
+Global `<Pi agent directory>/extensions/sandbox.json` and project `.pi/sandbox.json`
+may further narrow the filesystem policy; they cannot disable or widen the host
+policy. Configurations are snapshotted for the parent and its children.
 
-Configuration is read once when creating the parent session, then inherited by
-its children. It merges defaults, `<Pi agent directory>/extensions/sandbox.json`,
-and `<workspace>/.pi/sandbox.json`, in that order. The agent directory comes from
-Pi's `getAgentDir()` using Isle's packaged Pi configuration. Relative filesystem
-paths are resolved against the task workspace, not the host process directory.
-Arrays replace the earlier array; missing properties retain earlier values.
+A command that needs broader access can explicitly request `bash` with
+`{ "command": "...", "sandbox": false }`. This is a new operation subject to
+explicit human approval of that exact unsandboxed command; it is never an automatic retry after
+partial execution. `full` disables the sandbox for the session.
 
-Supported configuration example:
-
-```json
-{
-  "enabled": true,
-  "network": {
-    "allowedDomains": ["github.com", "*.github.com", "registry.npmjs.org"],
-    "deniedDomains": []
-  },
-  "filesystem": {
-    "denyRead": ["~/.ssh", "~/.aws", "~/.gnupg"],
-    "allowWrite": ["."],
-    "denyWrite": [".env", ".pi"]
-  }
-}
-```
-
-Defaults allow writes to the workspace and the OS temporary directory; deny reads
-of the three credential directories above; deny writes to the workspace's `.env`
-and `.pi`; and allow network access to GitHub/raw.githubusercontent.com,
-registry.npmjs.org, pypi.org and files.pythonhosted.org. Other file reads remain
-allowed. An empty `allowedDomains` array blocks network access. Use literal paths
-for portable macOS/Linux configuration; this SRT version does not support Linux
-glob rules.
-
-Invalid configuration, unsupported platforms, missing dependencies, or failed
-initialization reject execution. They never silently run the command outside the
-sandbox. Explicit `{"enabled": false}` selects ordinary local bash; only use this
-for workspaces you trust. Project configuration is trusted configuration, not a
-security boundary against a hostile repository or unrestricted file tools.
-
-SRT has process-global state. Sandboxed bash calls in the same Isle worker are
-serialized through initialization, execution and proxy cleanup, so parallel
-sessions cannot overwrite each other's policy. Cancellation also removes waiting
-calls; running commands use Pi's normal process-tree cancellation and timeout.
+SRT has process-global state, so sandboxed commands are serialized around
+initialization, execution and cleanup. Waiting and running commands are cancellable.
+Only Shell processes use OS isolation. File tools use the common execution safety gate;
+plugin modules still run as trusted in-process Node code. This does not sandbox
+arbitrary plugin code, nor provide a security boundary against concurrent hostile
+filesystem mutations from another process.
 
 ## Subagents
 
@@ -93,8 +101,9 @@ to it. Supply relevant context in the delegated task.
 | `reviewer` | Parent-enabled read/ls/find/grep        | Review and report issues      |
 | `worker`   | Parent's tools, minus subagent/ask_user | Carry out a task              |
 
-There is no recursive delegation or child user-input flow. Children report missing
-information to the parent. This initial integration has four built-in roles; it
+There is no recursive delegation or child ask_user flow. Children report missing
+information to the parent. Runtime approvals still surface in the root host UI,
+using the parent permission mode. This initial integration has four built-in roles; it
 does not discover custom Markdown agents or select different models per child.
 
 Tool argument examples:
@@ -140,6 +149,7 @@ From `apps/desktop`:
 
 ```sh
 pnpm test:agent-runtime:pi-extensions
+pnpm test:agent-runtime:permissions
 ```
 
 The test runs actual OS sandbox allow/deny checks and the real Pi SDK against a

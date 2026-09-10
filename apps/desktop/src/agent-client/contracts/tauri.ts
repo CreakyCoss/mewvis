@@ -10,7 +10,9 @@ import type {
 } from "./index";
 import type {
   AgentRunParams,
+  EmptyParams,
   AnswerQuestionParams,
+  AnswerApprovalParams,
   ChatParams,
   CollaborationModeRunParams,
   CollaborationRunParams,
@@ -35,7 +37,7 @@ export type AgentRuntimeTauriCollaborationModeInput = CollaborationModeRunParams
 
 export type AgentRuntimeTauriCommands = {
   list_agent_runtime_tools: {
-    args: { input: Record<string, never> };
+    args: { input: EmptyParams };
     result: AgentClientAgentToolsResult;
   };
   run_agent_runtime_chat: {
@@ -70,6 +72,7 @@ export type AgentRuntimeTauriCommands = {
     args: { input: CollaborationTimelineParams };
     result: CollaborationTimelineResult;
   };
+  answer_agent_runtime_approval: { args: { input: AnswerApprovalParams }; result: void };
   answer_agent_runtime_question: {
     args: { input: AnswerQuestionParams };
     result: void;
@@ -108,6 +111,7 @@ export const agentRuntimeTauriCommandNames = [
   "run_agent_runtime_collaboration_mode",
   "get_agent_runtime_collaboration_timeline",
   "answer_agent_runtime_question",
+  "answer_agent_runtime_approval",
   "abort_agent_runtime_agent",
   "read_agent_runtime_session",
   "release_agent_runtime_session",

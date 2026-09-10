@@ -11,6 +11,7 @@
   },
   "files": [
     "index.d.ts",
+    "agent-permissions.d.ts",
     "index.js"
   ],
   "sideEffects": false

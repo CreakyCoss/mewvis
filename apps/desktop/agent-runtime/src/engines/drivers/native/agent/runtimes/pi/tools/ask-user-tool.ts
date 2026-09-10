@@ -3,11 +3,13 @@ import type { UserInputHandler } from "../../types.js";
 import { ASK_USER_TOOL_DEFINITION, type AskUserToolParams, normalizeAskUserInput } from "../../../tools/ask-user.js";
 import { toPiToolParameters } from "./schema.js";
 
-export const registerPiAskUserTool = (pi: ExtensionAPI, taskId: string, requestUserInput: UserInputHandler) => {
+export const registerPiAskUserTool = (
+  pi: Pick<ExtensionAPI, "registerTool">,
+  taskId: string,
+  requestUserInput: UserInputHandler,
+) => {
   pi.registerTool({
-    name: ASK_USER_TOOL_DEFINITION.name,
-    label: ASK_USER_TOOL_DEFINITION.label,
-    description: ASK_USER_TOOL_DEFINITION.description,
+    ...ASK_USER_TOOL_DEFINITION,
     parameters: toPiToolParameters(ASK_USER_TOOL_DEFINITION.parameters),
     execute: async (_toolCallId, params) => {
       const rawParams = params as AskUserToolParams;

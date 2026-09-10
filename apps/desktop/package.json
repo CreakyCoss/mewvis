@@ -57,7 +57,8 @@
     "build:chat-ui": "node scripts/chat/build-plugin-ui.mjs",
     "check:chat-ui-types": "node scripts/chat/build-plugin-ui.mjs --check-types",
     "test:chat:plugin": "pnpm build:plugin-host && pnpm exec tsc -p scripts/chat/tsconfig.plugin.json && isle-plugin pack scripts/chat/fixtures/plugin && node scripts/chat/test-plugin.mjs",
-    "test:plugin-dev": "pnpm build:chat-ui && pnpm exec tsc -p scripts/plugin-dev/tsconfig.json && pnpm --filter @isle/plugin-dev test"
+    "test:plugin-dev": "pnpm build:chat-ui && pnpm exec tsc -p scripts/plugin-dev/tsconfig.json && pnpm --filter @isle/plugin-dev test",
+    "test:agent-runtime:permissions": "node scripts/agent-runtime/permissions-e2e.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sandbox-runtime": "0.0.26",

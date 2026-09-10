@@ -6,6 +6,8 @@
     { "$ref": "#/definitions/StartedEvent" },
     { "$ref": "#/definitions/QuestionEvent" },
     { "$ref": "#/definitions/QuestionAnsweredEvent" },
+    { "$ref": "#/definitions/ApprovalRequestedEvent" },
+    { "$ref": "#/definitions/ApprovalResolvedEvent" },
     { "$ref": "#/definitions/ReplaceTextEvent" },
     { "$ref": "#/definitions/TextDeltaEvent" },
     { "$ref": "#/definitions/ThinkingDeltaEvent" },
@@ -254,6 +256,8 @@
         { "$ref": "#/definitions/StartedEvent" },
         { "$ref": "#/definitions/QuestionEvent" },
         { "$ref": "#/definitions/QuestionAnsweredEvent" },
+        { "$ref": "#/definitions/ApprovalRequestedEvent" },
+        { "$ref": "#/definitions/ApprovalResolvedEvent" },
         { "$ref": "#/definitions/ReplaceTextEvent" },
         { "$ref": "#/definitions/TextDeltaEvent" },
         { "$ref": "#/definitions/ThinkingDeltaEvent" },
@@ -337,6 +341,54 @@
         "agentRoleId": { "type": "string" },
         "agentTaskId": { "type": "string" },
         "message": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "ApprovalRequestedEvent": {
+      "type": "object",
+      "required": ["type", "taskId", "approvalId", "executionId", "summary", "details", "reason", "expiresAt"],
+      "properties": {
+        "type": {
+          "const": "approval_requested"
+        },
+        "taskId": {
+          "type": "string"
+        },
+        "approvalId": {
+          "type": "string"
+        },
+        "executionId": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "details": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "expiresAt": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "ApprovalResolvedEvent": {
+      "type": "object",
+      "required": ["type", "taskId", "approvalId", "approved"],
+      "properties": {
+        "type": {
+          "const": "approval_resolved"
+        },
+        "taskId": {
+          "type": "string"
+        },
+        "approvalId": {
+          "type": "string"
+        },
+        "approved": {
+          "type": "boolean"
+        }
       },
       "additionalProperties": false
     }

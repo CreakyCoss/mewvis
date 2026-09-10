@@ -72,7 +72,8 @@ export function useChatComposer() {
     canSubmit:
       !disabled &&
       Boolean(draft.draft.text.trim()) &&
-      Boolean(snapshot.resources.models?.some((model) => model.value === snapshot.config.selectedModelId)),
+      Boolean(snapshot.resources.models?.some((model) => model.value === snapshot.config.selectedModelId)) &&
+      Boolean(snapshot.resources.permissionOptions?.some((option) => option.mode === snapshot.config.permissionMode)),
     setDraft: view.setDraft,
     submit: view.submit,
     stop: session.stop,

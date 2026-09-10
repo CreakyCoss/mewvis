@@ -1,9 +1,10 @@
 import type {
   AgentRuntimeResources,
   AgentRunParams,
-  AnswerQuestionParams,
-  ChatParams,
   EmptyParams,
+  AnswerQuestionParams,
+  AnswerApprovalParams,
+  ChatParams,
   MessageDeleteParams,
   MessageEditParams,
   RuntimeModelInput,
@@ -14,6 +15,7 @@ import type {
 export enum AgentTaskCommandType {
   RunAgent = "run_agent",
   AnswerQuestion = "answer_question",
+  AnswerApproval = "answer_approval",
   Chat = "chat",
   ListAgentTools = "list_agent_tools",
   ListRuntimeModels = "list_runtime_models",
@@ -56,6 +58,7 @@ type AgentRuntimeModelOptions = {
 };
 
 export type RunAgentCommand = InternalCommand<AgentTaskCommandType.RunAgent, AgentRunParams>;
+export type AnswerApprovalCommand = InternalCommand<AgentTaskCommandType.AnswerApproval, AnswerApprovalParams>;
 export type AnswerQuestionCommand = InternalCommand<AgentTaskCommandType.AnswerQuestion, AnswerQuestionParams>;
 type ListAgentToolsCommand = InternalCommand<AgentTaskCommandType.ListAgentTools, EmptyParams>;
 type ListRuntimeModelsCommand = InternalCommand<AgentTaskCommandType.ListRuntimeModels, EmptyParams>;
@@ -130,6 +133,7 @@ type ShutdownCommand = InternalCommand<AgentTaskCommandType.Shutdown, EmptyParam
 type AgentTaskCommand =
   | RunAgentCommand
   | AnswerQuestionCommand
+  | AnswerApprovalCommand
   | ChatCommand
   | ListAgentToolsCommand
   | ListRuntimeModelsCommand

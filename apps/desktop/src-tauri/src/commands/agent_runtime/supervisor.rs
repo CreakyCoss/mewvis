@@ -5,10 +5,10 @@ use super::{
         spawn_agent_runtime_command,
     },
     protocol::{
-        decode_runtime_message, request, JsonRpcError, RuntimeMessage, EVENT_DONE, EVENT_ERROR,
-        EVENT_QUESTION, EVENT_QUESTION_ANSWERED, EVENT_STARTED, METHOD_RUNTIME_PING,
-        METHOD_RUNTIME_SHUTDOWN, RESULT_CHAT_RESULT, RESULT_PONG, RESULT_SHUTDOWN_ACK,
-        RESULT_TASK_RESULT,
+        decode_runtime_message, request, JsonRpcError, RuntimeMessage, EVENT_APPROVAL_REQUESTED,
+        EVENT_APPROVAL_RESOLVED, EVENT_DONE, EVENT_ERROR, EVENT_QUESTION, EVENT_QUESTION_ANSWERED,
+        EVENT_STARTED, METHOD_RUNTIME_PING, METHOD_RUNTIME_SHUTDOWN, RESULT_CHAT_RESULT,
+        RESULT_PONG, RESULT_SHUTDOWN_ACK, RESULT_TASK_RESULT,
     },
     runtime_files::{append_agent_diagnostic, path_for_node},
 };
@@ -614,10 +614,10 @@ impl AgentRuntimeWorker {
                     continue;
                 }
                 Some(EVENT_STARTED) => self.mark_current_state(WorkerLifecycle::Running, "running"),
-                Some(EVENT_QUESTION) => {
+                Some(EVENT_QUESTION | EVENT_APPROVAL_REQUESTED) => {
                     self.mark_current_state(WorkerLifecycle::WaitingUser, "waiting_user")
                 }
-                Some(EVENT_QUESTION_ANSWERED) => {
+                Some(EVENT_QUESTION_ANSWERED | EVENT_APPROVAL_RESOLVED) => {
                     self.mark_current_state(WorkerLifecycle::Running, "running")
                 }
                 Some(EVENT_DONE) => self.mark_current_state(WorkerLifecycle::Running, "completing"),

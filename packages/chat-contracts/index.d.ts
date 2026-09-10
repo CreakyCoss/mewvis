@@ -1,3 +1,12 @@
+import type {
+  AgentPermissions,
+  AgentPermissionOption,
+} from "./agent-permissions.js";
+export type {
+  AgentPermissions,
+  AgentPermissionOption,
+} from "./agent-permissions.js";
+
 export type ChatQuestionInput = {
   type: "text" | "select";
   label?: string;
@@ -80,12 +89,22 @@ export type ChatPendingQuestion = {
 
 export type SessionIdentity = { scope: string; id: string };
 
+export type ChatPermissionMode = AgentPermissions["mode"];
+export type ChatPendingApproval = {
+  taskId: string;
+  approvalId: string;
+  executionId: string;
+  summary: string;
+  details: string;
+  reason: string;
+  expiresAt: number;
+};
 export type ChatRunConfig = {
   selectedModelId: string;
   selectedAgentId: string;
   selectedSkillKeys: string[];
   selectedKnowledgeCollectionIds: string[];
-  selectedToolNames: string[];
+  permissionMode: ChatPermissionMode | null;
 };
 export type ResourceOption = {
   value: string;
@@ -100,6 +119,7 @@ export type SkillOption = {
   description: string;
 };
 export type ChatResources = {
+  permissionOptions?: AgentPermissionOption[];
   models?: (ResourceOption & { selectedLabel: string })[];
   agents?: ResourceOption[];
   skillGroups?: (ResourceOption & { skills: SkillOption[] })[];
@@ -151,6 +171,8 @@ export type ChatSnapshot = {
   resources: ChatResources;
   activeTaskId: string | null;
   pendingQuestion: ChatPendingQuestion | null;
+  /** Host-owned approval; plugins may observe but cannot approve it. */
+  pendingApproval: ChatPendingApproval | null;
   answering: boolean;
   error: string;
   initializationError: string;

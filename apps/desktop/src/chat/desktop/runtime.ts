@@ -40,9 +40,7 @@ export function createDesktopRuntime(
         {
           blocks: input.blocks ?? [],
           skills: details.skills.filter((skill) => config.selectedSkillKeys.includes(skill.key)),
-          tools: (details.resources.tools ?? [])
-            .filter((tool) => config.selectedToolNames.includes(tool.value))
-            .map((tool) => tool.value),
+          tools: (details.resources.tools ?? []).map((tool) => tool.value),
           agent: details.agents.find((agent) => agent.id === config.selectedAgentId) ?? null,
           knowledgeCollections: collections,
         },
@@ -62,13 +60,13 @@ export function createDesktopRuntime(
     },
     subscribe: (listener) => client.events.subscribe(listener),
     async prepare(turn, signal) {
+      const permissionMode = turn.config.permissionMode;
+      if (!permissionMode) throw new Error("尚未选择执行权限。");
       const model = await resolveLlmModel(turn.config.selectedModelId);
       signal.throwIfAborted();
       const details = catalog.getDetails();
       const agent = details.agents.find((item) => item.id === turn.config.selectedAgentId);
-      const tools = (details.resources.tools ?? [])
-        .filter((tool) => turn.config.selectedToolNames.includes(tool.value))
-        .map((tool) => tool.value);
+      const tools = readProfile().allowedToolNames;
       const skills = details.skills
         .filter((skill) => turn.config.selectedSkillKeys.includes(skill.key))
         .map((skill) => skill.name);
@@ -85,7 +83,13 @@ export function createDesktopRuntime(
             userMessage: turn.input.text,
             ...turn.context,
             runtimeModel: model,
-            resources: { tools: { allowed: [...new Set(tools)] }, skills: { enabled: [...new Set(skills)] } },
+            permissions: {
+              mode: permissionMode,
+            },
+            resources: {
+              ...(tools ? { tools: { allowed: [...new Set(tools)] } } : {}),
+              skills: { enabled: [...new Set(skills)] },
+            },
           });
         },
       };

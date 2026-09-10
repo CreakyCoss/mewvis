@@ -47,11 +47,11 @@ const historyInput = (id: string) => ({
   origin: { kind: "builtin" as const, sceneId: "chat" },
   profile: { id: "workspace", systemPrompt: () => "WORKSPACE FALLBACK MUST NOT BE USED" },
 });
-function pluginFixture() {
+function pluginFixture(availableTools = ["own"]) {
   const service = createDesktopChatService({ resolveRecord: (...args) => host.resolveSession(...args) });
   let allowed = true;
   const host = createPluginChatHost(service, {
-    tools: async () => ["own"],
+    tools: async () => availableTools,
     authorize: async () => {
       if (!allowed) throw new Error("permission revoked");
       return { workspacePath: "fixture", knowledge: true };
@@ -119,10 +119,37 @@ test("resource loading tolerates tools failure; UI descriptors contain no runtim
   assert.equal(data.skillGroups?.[0].skills.length, 1);
   assert.equal(data.knowledgeCollections?.length, 1);
   assert.match(data.errors?.tools ?? "", /工具/);
+  assert.deepEqual(data.permissionOptions, []);
   assert.doesNotMatch(
     JSON.stringify(data),
     /apiKey|runtimeModel|secret-must-not-reach-ui|private skill body|\/skills\/private/,
   );
+});
+test("plugin selection, restoration and dispatch use the same permission modes as the host", async () => {
+  fake.record = null;
+  const first = pluginFixture(["own", "host"]);
+  const second = pluginFixture(["own", "host"]);
+  try {
+    const plugin = await first.client.createSession({
+      ...pluginInput,
+      profile: { ...pluginInput.profile, allowedToolNames: ["own", "host"] },
+    });
+    assert.equal((await plugin.updateConfig({ permissionMode: "full" })).ok, true);
+    const sent = await plugin.send({ text: "use assigned tools" });
+    assert.equal(sent.status, "dispatched");
+    assert.deepEqual(fake.runs.at(-1).permissions, { mode: "full" });
+    assert.deepEqual(fake.runs.at(-1).resources.tools.allowed, ["own", "host"]);
+    completeTask(sent.taskId!);
+    await plugin.flush();
+    await first.service.closeAll();
+    const restored = await openHistorySession(second.service, historyInput(plugin.identity.id));
+    assert.equal(restored.getSnapshot().config.permissionMode, "full");
+  } finally {
+    await first.service.closeAll();
+    await second.service.closeAll();
+    first.connection.dispose();
+    second.connection.dispose();
+  }
 });
 test("legacy record codec preserves options and serializes view/config/unread changes", async () => {
   fake.record = {
@@ -141,7 +168,7 @@ test("legacy record codec preserves options and serializes view/config/unread ch
     ],
     options: {
       selectedModelId: "model",
-      selectedToolNames: [],
+      permissionMode: "catalog-defined-mode",
       selectedSkillKeys: ["skill"],
       selectedKnowledgeCollectionIds: ["knowledge"],
       showThinkingProcess: false,
@@ -157,7 +184,7 @@ test("legacy record codec preserves options and serializes view/config/unread ch
   const record = await host.storage.load();
   assert.equal((await host.loadPreferences()).showThinkingProcess, false);
   assert.equal((record!.config as any).showThinkingProcess, undefined);
-  assert.deepEqual(record!.config!.selectedToolNames, []);
+  assert.equal(record!.config!.permissionMode, "catalog-defined-mode", "the codec must not maintain a mode enum");
   await Promise.all([
     host.storage.save({ ...record!, config: { ...record!.config, selectedSkillKeys: [] } }),
     host.savePreferences({ showThinkingProcess: true, showToolCallProcess: false }),
@@ -410,7 +437,7 @@ test("history restores plugin ownership and dynamic context after restart, inclu
   completeTask(sent.taskId!);
   await plugin.flush();
   await plugin.setContext({ requestContext: "persisted after the last turn" });
-  await plugin.updateConfig({ selectedSkillKeys: [], selectedKnowledgeCollectionIds: [], selectedToolNames: [] });
+  await plugin.updateConfig({ selectedSkillKeys: [], selectedKnowledgeCollectionIds: [], permissionMode: "ask" });
   await plugin.flush();
   await first.service.closeAll();
   first.connection.dispose();
@@ -431,7 +458,7 @@ test("history restores plugin ownership and dynamic context after restart, inclu
   assert.equal(a, b);
   assert.deepEqual(a.identity, plugin.identity);
   assert.deepEqual(a.getSnapshot().config.selectedSkillKeys, []);
-  assert.deepEqual(a.getSnapshot().config.selectedToolNames, []);
+  assert.deepEqual(a.getSnapshot().config.permissionMode, "ask");
   assert.deepEqual(a.getSnapshot().config.selectedKnowledgeCollectionIds, []);
   assert.equal(a.getSnapshot().messages.length, saved.messages.length);
   const reconnect = await second.client.openSession({ workspaceId: "workspace", chatId: plugin.identity.id });
@@ -493,7 +520,7 @@ test("history restores plugin ownership and dynamic context after restart, inclu
       origin: saved.origin,
       profile: saved.options.profile,
     }),
-    /其他插件或宿主工具/,
+    /未分配/,
   );
   assert.equal(invalid.service.listSessions().length, 0);
   invalid.connection.dispose();

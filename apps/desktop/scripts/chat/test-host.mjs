@@ -46,6 +46,7 @@ const dir = "agent-runtime/protocol/v1/schema";
 const model = JSON.parse(readFileSync(`${dir}/model.schema.json`, "utf8"));
 const request = JSON.parse(readFileSync(`${dir}/request.schema.json`, "utf8"));
 ajv.addSchema(model);
+ajv.addSchema(JSON.parse(readFileSync(`${dir}/permissions.schema.json`, "utf8")));
 ajv.addSchema(request);
 const validate = ajv.compile({ $ref: `${request.$id}#/definitions/AgentRuntimePlugin` });
 assert.equal(

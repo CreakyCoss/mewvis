@@ -1,7 +1,5 @@
 import { AuthStorage, createAgentSession, ModelRegistry, SessionManager } from "@earendil-works/pi-coding-agent";
 import { mkdirSync } from "node:fs";
-import { normalizeAllowedAgentTools } from "../../../tools/definitions.js";
-import { allowedRuntimeTools } from "../../resources.js";
 import type { AgentRuntimeCallbacks, RuntimeAgentCommand } from "../../types.js";
 import {
   createPiRuntimeModel,
@@ -41,10 +39,6 @@ export const createPiAgentSession = async (
   const resources = await createPiResourceLoader(command, callbacks, options);
   const sessionManager = createPiSessionManager(command);
   try {
-    const enabledTools = [...normalizeAllowedAgentTools(allowedRuntimeTools(command)), ...resources.pluginToolNames]
-      .filter((name, index, names) => names.indexOf(name) === index)
-      .filter((name) => !options.toolCeiling || options.toolCeiling.includes(name))
-      .filter((name) => !options.subagent || (name !== "subagent" && name !== "ask_user"));
     const { session } = await createAgentSession({
       cwd: command.workspacePath,
       authStorage,
@@ -53,9 +47,10 @@ export const createPiAgentSession = async (
       resourceLoader: resources.loader,
       model,
       ...(thinkingLevel ? { thinkingLevel } : {}),
-      tools: enabledTools,
+      tools: resources.toolNames,
     });
 
+    resources.installSafety(session);
     return {
       session,
       shouldBootstrap: session.messages.length === 0,

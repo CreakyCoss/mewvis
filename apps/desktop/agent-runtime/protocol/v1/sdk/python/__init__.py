@@ -18,6 +18,7 @@ class Jsonrpc(Enum):
 
 
 class RuntimePingRequest(Enum):
+    AGENT_APPROVAL_ANSWER = "agent/approval/answer"
     AGENT_CHAT = "agent/chat"
     AGENT_QUESTION_ANSWER = "agent/question/answer"
     AGENT_RUN = "agent/run"
@@ -225,6 +226,8 @@ class RuntimeSessionRef:
 
 
 class AgentEventType(Enum):
+    APPROVAL_REQUESTED = "approval_requested"
+    APPROVAL_RESOLVED = "approval_resolved"
     DONE = "done"
     ERROR = "error"
     QUESTION = "question"
@@ -246,18 +249,25 @@ class AgentEventType(Enum):
 class AgentEvent:
     type: AgentEventType
     answer: str | None
+    approval_id: str | None
+    approved: bool | None
     args: Any
     content: str | None
     context: str | None
     delta: str | None
+    details: str | None
+    execution_id: str | None
+    expires_at: int | None
     input: AskUserInput | None
     is_error: bool | None
     message: str | None
     partial_result: Any
     question: str | None
     question_id: str | None
+    reason: str | None
     result: Any
     runtime_session: RuntimeSessionRef | None
+    summary: str | None
     task_id: str | None
     text: str | None
     tool_call_id: str | None
@@ -322,6 +332,25 @@ class CollaborationMode:
 class CollaborationParticipant:
     id: str
     kind: str
+
+
+class AgentPermissionMode(Enum):
+    ASK = "ask"
+    AUTO = "auto"
+    FULL = "full"
+
+
+@dataclass
+class AgentPermissionOption:
+    description: str
+    is_default: bool
+    label: str
+    mode: AgentPermissionMode
+
+
+@dataclass
+class AgentPermissions:
+    mode: AgentPermissionMode
 
 
 @dataclass
@@ -441,6 +470,8 @@ class PurpleType(Enum):
     ACK = "ack"
     AGENT_EVENT = "agent_event"
     AGENT_TOOLS = "agent_tools"
+    APPROVAL_REQUESTED = "approval_requested"
+    APPROVAL_RESOLVED = "approval_resolved"
     CHAT_RESULT = "chat_result"
     COLLABORATION_MODES_RESULT = "collaboration_modes_result"
     COLLABORATION_RESULT = "collaboration_result"
@@ -504,6 +535,8 @@ class AgentRuntimeEvent:
     agent_task_id: str | None
     agents: list[CollaborationAgent] | None
     answer: str | None
+    approval_id: str | None
+    approved: bool | None
     args: Any
     bootstrap_instruction: str | None
     catalog: dict[str, RuntimeModelProviderSummary] | None
@@ -512,10 +545,13 @@ class AgentRuntimeEvent:
     context: Any
     default_tool_names: list[str] | None
     delta: str | None
+    details: str | None
     display_summaries: list[RuntimeDisplaySummary] | None
     display_summary: RuntimeDisplaySummary | None
     event: AgentEvent | None
     events: list[RuntimeTimelineItem] | None
+    execution_id: str | None
+    expires_at: int | None
     include_ledger: bool | None
     include_timeline: bool | None
     include_trace: bool | None
@@ -534,8 +570,11 @@ class AgentRuntimeEvent:
     output: Any
     partial_result: Any
     participants: list[CollaborationParticipant] | None
+    permission_options: list[AgentPermissionOption] | None
+    permissions: AgentPermissions | None
     question: str | None
     question_id: str | None
+    reason: str | None
     rebuilt: bool | None
     record_user_message: bool | None
     request_context: str | None
@@ -627,6 +666,7 @@ class AgentRuntimeResult:
     mode: str | None
     modes: list[CollaborationMode] | None
     output: Any
+    permission_options: list[AgentPermissionOption] | None
     rebuilt: bool | None
     request_contexts: list[RuntimeSessionAuxiliaryEntry] | None
     rpc_request_id: int | str | None
@@ -662,9 +702,9 @@ class AgentRuntimeMessage:
 from typing import Final
 
 AGENT_RUNTIME_PROTOCOL_VERSION: Final[str] = "1.0.0"
-AGENT_RUNTIME_JSON_RPC_METHODS: Final[tuple[str, ...]] = ("runtime/ping", "runtime/shutdown", "agent/tools/list", "runtime/models/list", "agent/chat", "agent/run", "agent/question/answer", "session/read", "session/agent/compact", "session/agent/rebuild", "session/summarize", "session/agent/summarize", "session/message/edit", "session/message/delete", "session/message/append", "session/rebuild", "runtime/sessions/list", "runtime/session/read", "runtime/session/debug/read", "collaboration/timeline/read", "collaboration/modes/list", "collaboration/run", "collaboration/runMode",)
+AGENT_RUNTIME_JSON_RPC_METHODS: Final[tuple[str, ...]] = ("runtime/ping", "runtime/shutdown", "agent/tools/list", "runtime/models/list", "agent/chat", "agent/run", "agent/question/answer", "session/read", "session/agent/compact", "session/agent/rebuild", "session/summarize", "session/agent/summarize", "session/message/edit", "session/message/delete", "session/message/append", "session/rebuild", "runtime/sessions/list", "runtime/session/read", "runtime/session/debug/read", "collaboration/timeline/read", "collaboration/modes/list", "collaboration/run", "collaboration/runMode", "agent/approval/answer",)
 AGENT_RUNTIME_NOTIFICATION_METHODS: Final[tuple[str, ...]] = ("runtime/event", "runtime/result",)
-AGENT_RUNTIME_EVENT_TYPES: Final[tuple[str, ...]] = ("started", "question", "question_answered", "replace_text", "text_delta", "thinking_delta", "thinking_end", "tool_call_start", "tool_call_delta", "tool_call_end", "tool_execution_start", "tool_execution_update", "tool_execution_end", "done", "error", "workflow_started", "step_started", "agent_event", "step_done", "step_skipped", "workflow_done",)
+AGENT_RUNTIME_EVENT_TYPES: Final[tuple[str, ...]] = ("started", "question", "question_answered", "replace_text", "text_delta", "thinking_delta", "thinking_end", "tool_call_start", "tool_call_delta", "tool_call_end", "tool_execution_start", "tool_execution_update", "tool_execution_end", "done", "error", "workflow_started", "step_started", "agent_event", "step_done", "step_skipped", "workflow_done", "approval_requested", "approval_resolved",)
 AGENT_RUNTIME_RESULT_TYPES: Final[tuple[str, ...]] = ("ack", "agent_tools", "chat_result", "pong", "shutdown_ack", "task_result", "runtime_models", "session_result", "session_mutation_result", "collaboration_result", "collaboration_modes_result", "runtime_sessions_result", "runtime_session_result", "runtime_session_debug_result", "collaboration_timeline_result",)
 EVENT_STARTED: Final[str] = "started"
 EVENT_QUESTION: Final[str] = "question"
@@ -687,6 +727,8 @@ EVENT_AGENT_EVENT: Final[str] = "agent_event"
 EVENT_STEP_DONE: Final[str] = "step_done"
 EVENT_STEP_SKIPPED: Final[str] = "step_skipped"
 EVENT_WORKFLOW_DONE: Final[str] = "workflow_done"
+EVENT_APPROVAL_REQUESTED: Final[str] = "approval_requested"
+EVENT_APPROVAL_RESOLVED: Final[str] = "approval_resolved"
 RESULT_ACK: Final[str] = "ack"
 RESULT_AGENT_TOOLS: Final[str] = "agent_tools"
 RESULT_CHAT_RESULT: Final[str] = "chat_result"

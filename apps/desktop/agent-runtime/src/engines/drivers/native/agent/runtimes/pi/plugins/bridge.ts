@@ -81,7 +81,7 @@ export class PluginRuntimeBridge {
     }
   }
 
-  toolSchemas(): PluginToolSchema[] {
+  toolDefinitions(): PluginToolSchema[] {
     this.assertActive();
     return this.host.toolSchemas();
   }
@@ -107,7 +107,7 @@ export class PluginRuntimeBridge {
     });
   }
 
-  registerTools(pi: ExtensionAPI) {
+  registerTools(pi: Pick<ExtensionAPI, "registerTool">) {
     this.assertActive();
     for (const schema of this.host.toolSchemas()) {
       pi.registerTool({

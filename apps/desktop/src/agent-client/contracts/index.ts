@@ -1,6 +1,7 @@
 import type {
   AgentEvent,
   AgentTool,
+  AgentPermissionOption,
   ChatParams,
   CollaborationEvent,
   CollaborationResult,
@@ -94,6 +95,7 @@ export type AgentClientChatResult = {
 export type AgentClientAgentToolsResult = {
   readonly tools: readonly AgentTool[];
   readonly defaultToolNames: readonly string[];
+  readonly permissionOptions: readonly AgentPermissionOption[];
 };
 
 /** Tauri supplies the default app-data root when rootDir is omitted. */

@@ -9,7 +9,9 @@ import type {
 } from "./contracts";
 import type {
   AgentRunParams,
+  EmptyParams,
   AnswerQuestionParams,
+  AnswerApprovalParams,
   CollaborationModeRunParams,
   CollaborationRunParams,
   CollaborationTimelineParams,
@@ -24,7 +26,7 @@ import { createTauriAgentClient } from "./clients/tauri-client";
 import { createWebPreviewAgentClient } from "./clients/web-preview-client";
 
 export interface AgentClientCapabilities {
-  listAgentTools(): Promise<AgentClientAgentToolsResult>;
+  listAgentTools(input?: EmptyParams): Promise<AgentClientAgentToolsResult>;
 }
 
 export interface AgentClientAgent {
@@ -53,6 +55,7 @@ export interface AgentClientEvents {
 }
 
 export interface AgentClientTasks {
+  answerApproval(input: AnswerApprovalParams): Promise<void>;
   answerQuestion(input: AnswerQuestionParams): Promise<void>;
   abort(taskId: string): Promise<void>;
 }

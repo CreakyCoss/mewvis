@@ -7,14 +7,19 @@ import { join } from "node:path";
 import assert from "node:assert/strict";
 import { runtimePayloadFromJsonRpcMessage, writeAgentRuntimeCommand } from "../agent-runtime/stdio-json-rpc-client.mjs";
 const bundle = await build({
-  entryPoints: ["src/chat/core/index.ts"],
+  stdin: {
+    contents:
+      'export * from "./src/chat/core/index.ts"; export { agentPermissionOptions } from "./src/agent-client/wire.ts";',
+    resolveDir: process.cwd(),
+    loader: "ts",
+  },
   bundle: true,
   platform: "node",
   format: "esm",
   target: "node22",
   write: false,
 });
-const { createChatSession } = await import(
+const { createChatSession, agentPermissionOptions } = await import(
   `data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`
 );
 const workspacePath = await mkdtemp(join(tmpdir(), "isle-chat-core-"));
@@ -92,6 +97,7 @@ const storage = {
 const catalog = {
   async load() {
     return {
+      permissionOptions: structuredClone([...agentPermissionOptions]),
       models: [{ value: "fixture", label: "Fixture", selectedLabel: "Fixture", description: "", isDefault: true }],
     };
   },

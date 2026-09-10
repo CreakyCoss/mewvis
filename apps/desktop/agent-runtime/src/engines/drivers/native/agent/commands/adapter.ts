@@ -16,4 +16,5 @@ export const agentRunCommandFromRunAgent = (command: RunAgentCommand): AgentRunC
   bootstrapInstruction: command.bootstrapInstruction ?? null,
   runtimeModel: command.runtimeModel ?? null,
   resources: command.resources ?? null,
+  permissions: command.permissions,
 });

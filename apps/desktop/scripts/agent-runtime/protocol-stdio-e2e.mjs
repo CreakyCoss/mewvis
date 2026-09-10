@@ -315,6 +315,12 @@ try {
   );
   assert.ok(Array.isArray(tools.result.tools));
   assert.equal(validators.validateJsonRpcResponse(tools).valid, true);
+  const permissionDefinitions = (
+    await import("../../agent-runtime/src/engines/safety/permissions.ts")
+  ).getAgentPermissionOptions();
+  assert.deepEqual(tools.result.permissionOptions, permissionDefinitions);
+  assert.equal(tools.result.permissionOptions.filter((option) => option.isDefault).length, 1);
+  assert.ok(tools.result.permissionOptions.every((option) => !Object.hasOwn(option, "policy")));
 
   rpc.send({
     jsonrpc: "2.0",

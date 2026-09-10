@@ -14,13 +14,16 @@ const configKeys = [
   "selectedAgentId",
   "selectedSkillKeys",
   "selectedKnowledgeCollectionIds",
-  "selectedToolNames",
+  "permissionMode",
 ] as const;
 export const readRunConfig = (options: Record<string, unknown>): Partial<ChatRunConfig> => {
   const config: Record<string, unknown> = {};
   for (const key of configKeys) {
     const value = options[key];
-    if (key === "selectedModelId" || key === "selectedAgentId") {
+    if (key === "permissionMode") {
+      // The session normalizes saved modes against the returned permission catalog.
+      if (value === null || typeof value === "string") config[key] = value;
+    } else if (key === "selectedModelId" || key === "selectedAgentId") {
       if (typeof value === "string") config[key] = value;
     } else if (Array.isArray(value) && value.every((item) => typeof item === "string")) config[key] = value;
   }

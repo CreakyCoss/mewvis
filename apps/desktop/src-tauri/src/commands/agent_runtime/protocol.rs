@@ -5,10 +5,11 @@ use serde_json::{json, Value};
 mod wire_sdk;
 
 pub(super) use wire_sdk::{
-    AgentRuntimePlugin, AgentRuntimePluginKind, AgentRuntimePluginResources, AgentRuntimeResources,
-    AgentRuntimeSkillResources, AgentRuntimeToolResources, BundledPath, RuntimeModelInput,
-    EVENT_DONE, EVENT_ERROR, EVENT_QUESTION, EVENT_QUESTION_ANSWERED, EVENT_STARTED,
-    EVENT_TEXT_DELTA, EVENT_THINKING_DELTA, METHOD_AGENT_CHAT, METHOD_AGENT_QUESTION_ANSWER,
+    AgentPermissions, AgentPermissionOption, AgentRuntimePlugin, AgentRuntimePluginKind, AgentRuntimePluginResources,
+    AgentRuntimeResources, AgentRuntimeSkillResources, AgentRuntimeToolResources, BundledPath,
+    RuntimeModelInput, EVENT_APPROVAL_REQUESTED, EVENT_APPROVAL_RESOLVED, EVENT_DONE, EVENT_ERROR,
+    EVENT_QUESTION, EVENT_QUESTION_ANSWERED, EVENT_STARTED, EVENT_TEXT_DELTA, EVENT_THINKING_DELTA,
+    METHOD_AGENT_APPROVAL_ANSWER, METHOD_AGENT_CHAT, METHOD_AGENT_QUESTION_ANSWER,
     METHOD_AGENT_RUN, METHOD_AGENT_TOOLS_LIST, METHOD_COLLABORATION_RUN,
     METHOD_COLLABORATION_RUN_MODE, METHOD_COLLABORATION_TIMELINE_READ, METHOD_RUNTIME_PING,
     METHOD_RUNTIME_SESSIONS_LIST, METHOD_RUNTIME_SESSION_DEBUG_READ, METHOD_RUNTIME_SESSION_READ,

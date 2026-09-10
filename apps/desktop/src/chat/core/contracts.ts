@@ -48,6 +48,10 @@ export const isChatBusy = (snapshot: Readonly<ChatSnapshot>) => Boolean(snapshot
 export function defaultConfig(resources: ChatResources, saved: Partial<ChatRunConfig> = {}): ChatRunConfig {
   const groups = resources.skillGroups ?? [];
   const defaults = groups.find((group) => group.isDefault);
+  const permissions = resources.permissionOptions;
+  const permission =
+    permissions?.find((option) => option.mode === saved.permissionMode) ??
+    permissions?.find((option) => option.isDefault);
   return {
     selectedModelId:
       saved.selectedModelId ??
@@ -60,8 +64,7 @@ export function defaultConfig(resources: ChatResources, saved: Partial<ChatRunCo
     selectedKnowledgeCollectionIds:
       saved.selectedKnowledgeCollectionIds ??
       (resources.knowledgeCollections ?? []).filter((item) => item.isDefault).map((item) => item.value),
-    selectedToolNames:
-      saved.selectedToolNames ?? (resources.tools ?? []).filter((item) => item.isDefault).map((item) => item.value),
+    permissionMode: permission?.mode ?? (permissions?.length ? null : (saved.permissionMode ?? null)),
   };
 }
 export const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));

@@ -3,7 +3,7 @@ import { build } from "esbuild";
 import { dshBundleCompatibilityPlugin } from "@isle/plugin-dev/dsh";
 import { createServer } from "node:http";
 import { once } from "node:events";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { createRequire } from "node:module";
@@ -27,6 +27,7 @@ try {
     stdin: {
       contents: [
         `export * from ${JSON.stringify(join(root, "tools/sandbox.ts"))};`,
+        `export * from ${JSON.stringify(join(root, "../../commands/user-input.ts"))};`,
         `export * from ${JSON.stringify(join(root, "tools/subagent.ts"))};`,
         `export * from ${JSON.stringify(join(root, "agent/session.ts"))};`,
         `export * from ${JSON.stringify(join(root, "agent/subagent-session.ts"))};`,
@@ -62,7 +63,7 @@ try {
   const config = api.loadPiSandboxConfig(workspace, agentDir);
   assert.equal(config.enabled, true);
   assert.deepEqual(config.network.allowedDomains, []);
-  assert.deepEqual(config.filesystem.allowWrite, [workspace]);
+  assert.deepEqual(config.filesystem.allowWrite, [realpathSync(workspace)]);
   writeFileSync(projectConfig, '{"enabled":"false"}');
   assert.throws(() => api.loadPiSandboxConfig(workspace, agentDir), /Invalid sandbox/);
   rmSync(projectConfig);
@@ -218,7 +219,7 @@ try {
         },
         "tool_calls",
       );
-    } else if (messageText(last) === "sandbox-task") {
+    } else if (["sandbox-task", "policy-task"].includes(messageText(last))) {
       send(
         {
           tool_calls: [
@@ -226,13 +227,18 @@ try {
               index: 0,
               id: "bash-1",
               type: "function",
-              function: { name: "bash", arguments: JSON.stringify({ command: `cat ${quote(secret)}` }) },
+              function: {
+                name: "bash",
+                arguments: JSON.stringify({
+                  command: messageText(last) === "policy-task" ? "printf policy-test > .env" : `cat ${quote(secret)}`,
+                }),
+              },
             },
           ],
         },
         "tool_calls",
       );
-    } else if (messageText(last) === "child-task") {
+    } else if (["child-task", "child-outside"].includes(messageText(last))) {
       send(
         {
           tool_calls: [
@@ -240,7 +246,10 @@ try {
               index: 0,
               id: "read-1",
               type: "function",
-              function: { name: "read", arguments: JSON.stringify({ path: "fixture.txt" }) },
+              function: {
+                name: "read",
+                arguments: JSON.stringify({ path: messageText(last) === "child-outside" ? secret : "fixture.txt" }),
+              },
             },
           ],
         },
@@ -272,7 +281,10 @@ try {
     },
     resources: { tools: { allowed: ["read", "bash", "subagent"] } },
   };
-  const callbacks = { requestUserInput: async () => assert.fail("children must not ask user") };
+  const callbacks = {
+    requestUserInput: async () => assert.fail("children must not ask user"),
+    requestApproval: async () => true,
+  };
   created = await api.createPiAgentSession(command, callbacks, { sandboxConfig: strictConfig });
   assert.ok(created.session.getActiveToolNames().includes("subagent"));
   const events = [];
@@ -311,10 +323,51 @@ try {
   );
 
   await created.session.prompt("sandbox-task");
-  const bashResult = events.find((event) => event.type === "tool_execution_end" && event.toolName === "bash");
+  const bashResults = events.filter((event) => event.type === "tool_execution_end" && event.toolName === "bash");
+  assert.equal(bashResults.length, 1, "approval resumes the original call without a model retry");
+  const bashResult = bashResults.at(-1);
+  assert.ok(!created.session.getActiveToolNames().includes("request_authorization"));
   assert.ok(bashResult?.isError, "registered bash must enforce the sandbox");
   assert.ok(!JSON.stringify(bashResult).includes("private test content"));
   console.log("PASS Pi bash registration enforces sandbox restrictions");
+
+  writeFileSync(projectConfig, JSON.stringify({ enabled: false, filesystem: { allowWrite: ["/"] } }));
+  for (const mode of ["ask", "full"]) {
+    const policySession = await api.createPiAgentSession(
+      { ...command, agentSessionDir: null, permissions: { mode } },
+      callbacks,
+    );
+    try {
+      await policySession.session.prompt("policy-task");
+      assert.equal(
+        existsSync(join(workspace, ".env")),
+        mode === "full",
+        "project configuration must not disable the sandbox; host full access explicitly disables it",
+      );
+    } finally {
+      policySession.session.dispose();
+      await policySession.disposeResources();
+    }
+  }
+  rmSync(join(workspace, ".env"));
+  rmSync(projectConfig);
+  console.log("PASS real Pi host policy overrides project enabled:false and full access disables sandbox");
+
+  const approvals = [];
+  const inputManager = api.createUserInputManager((event) => approvals.push(event));
+  const approvalRunner = api.createPiSubagentRunner(command, inputManager.callbacks, ["read"], strictConfig);
+  const approvalAbort = new AbortController();
+  const waitingChild = approvalRunner({ agent: "scout", task: "child-outside" }, approvalAbort.signal, () => undefined);
+  const waitingRejection = assert.rejects(waitingChild);
+  const approvalDeadline = Date.now() + 10_000;
+  while (!approvals.length && Date.now() < approvalDeadline) await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(approvals[0]?.type, "approval_requested");
+  assert.equal(approvals[0]?.taskId, command.taskId, "child approvals belong to the root task");
+  approvalAbort.abort();
+  await waitingRejection;
+  assert.equal(approvals.at(-1).type, "approval_resolved");
+  assert.equal(approvals.at(-1).approved, false);
+  console.log("PASS real child approval inherits root identity and is cancelled with its parent");
 
   const runner = api.createPiSubagentRunner(command, callbacks, ["read", "subagent"], strictConfig);
   const controller = new AbortController();

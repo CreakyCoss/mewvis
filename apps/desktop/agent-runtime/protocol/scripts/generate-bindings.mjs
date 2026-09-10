@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { format } from "prettier";
+import { AGENT_PERMISSION_DEFINITIONS, getAgentPermissionOptions } from "../../src/engines/safety/permissions.ts";
 
 const protocolRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const protocolVersionRoot = join(protocolRoot, "v1");
@@ -15,6 +16,39 @@ const modelSchemaDocument = JSON.parse(readFileSync(join(schemaRoot, "model.sche
 const resultSchemaDocument = JSON.parse(readFileSync(join(schemaRoot, "result.schema.json"), "utf8"));
 const checkOnly = process.argv.includes("--check");
 const tempRoot = mkdtempSync(join(tmpdir(), "isle-agent-runtime-bindings-"));
+const permissionOptions = getAgentPermissionOptions();
+if (
+  permissionOptions.filter((option) => option.isDefault).length !== 1 ||
+  new Set(permissionOptions.map((option) => option.mode)).size !== permissionOptions.length
+)
+  throw new Error("权限定义必须有且只有一个默认项，且模式不可重复。");
+const permissionSchema = {
+  $schema: "http://json-schema.org/draft-07/schema#",
+  $id: "https://isle.local/protocol/agent-runtime/v1/permissions.schema.json",
+  $comment: "Generated from src/engines/safety/permissions.ts; do not edit.",
+  title: "IsleAgentPermissionsProtocol",
+  anyOf: [{ $ref: "#/definitions/AgentPermissions" }, { $ref: "#/definitions/AgentPermissionOption" }],
+  definitions: {
+    AgentPermissionMode: { type: "string", enum: AGENT_PERMISSION_DEFINITIONS.map((definition) => definition.mode) },
+    AgentPermissions: {
+      type: "object",
+      required: ["mode"],
+      additionalProperties: false,
+      properties: { mode: { $ref: "#/definitions/AgentPermissionMode" } },
+    },
+    AgentPermissionOption: {
+      type: "object",
+      required: ["mode", "label", "description", "isDefault"],
+      additionalProperties: false,
+      properties: {
+        mode: { $ref: "#/definitions/AgentPermissionMode" },
+        label: { type: "string" },
+        description: { type: "string" },
+        isDefault: { type: "boolean" },
+      },
+    },
+  },
+};
 
 const commandMethods = openRpcDocument.methods
   .filter((method) => method["x-isle-command"])
@@ -44,6 +78,7 @@ const modelEnumValues = Object.fromEntries(
 );
 
 const sourceSchemas = [
+  "permissions.schema.json",
   "model.schema.json",
   "request.schema.json",
   "response.schema.json",
@@ -237,6 +272,7 @@ const metadataFor = (language) => {
       "export type AgentRuntimeJsonRpcMethod = (typeof agentRuntimeJsonRpcMethods)[number];",
       "export type AgentRuntimeNotificationMethod = (typeof agentRuntimeNotificationMethods)[number];",
       ...Object.entries(modelEnumValues).map(([name, values]) => typescriptStringEnumMetadata(name, values)),
+      `export const agentPermissionOptions = ${JSON.stringify(permissionOptions)} as const satisfies readonly AgentPermissionOption[];`,
       typescriptRequestMetadata(),
       typescriptEventMetadata(),
       typescriptResultMetadata(),
@@ -280,6 +316,39 @@ const generatedHeader = (language) => {
 
 try {
   const stale = [];
+  const saveGenerated = (destination, generated) => {
+    const current = existsSync(destination) ? readFileSync(destination, "utf8") : null;
+    if (current === generated) return;
+    if (checkOnly) {
+      stale.push(destination);
+      return;
+    }
+    mkdirSync(dirname(destination), { recursive: true });
+    writeFileSync(destination, generated);
+    console.log(`generated ${destination}`);
+  };
+  saveGenerated(
+    join(schemaRoot, "permissions.schema.json"),
+    await format(JSON.stringify(permissionSchema), { parser: "json", printWidth: 120 }),
+  );
+
+  // Publish the same protocol types with the standalone Chat contracts. Plugins
+  // must not depend on a private desktop source path or a hand-maintained enum.
+  const sharedTypes = join(tempRoot, "agent-permissions.d.ts");
+  const sharedResult = spawnSync("json2ts", ["--input", "permissions.schema.json", "--output", sharedTypes], {
+    cwd: schemaRoot,
+    encoding: "utf8",
+  });
+  if (sharedResult.error || sharedResult.status !== 0)
+    throw new Error(`共享权限协议生成失败：${sharedResult.error?.message ?? sharedResult.stderr}`);
+  saveGenerated(
+    join(protocolRoot, "../../../../packages/chat-contracts/agent-permissions.d.ts"),
+    await format(`${generatedHeader("typescript")}${readFileSync(sharedTypes, "utf8")}`, {
+      parser: "typescript",
+      printWidth: 120,
+      singleQuote: false,
+    }),
+  );
   for (const target of targets) {
     const tempOutput = join(tempRoot, `agent-runtime-v1.${target.extension}`);
     const result =
@@ -338,16 +407,7 @@ try {
       }
       generated = readFileSync(tempOutput, "utf8");
     }
-    const destination = join(protocolVersionRoot, "sdk", target.relativePath);
-    const current = existsSync(destination) ? readFileSync(destination, "utf8") : null;
-    if (current === generated) continue;
-    if (checkOnly) {
-      stale.push(destination);
-      continue;
-    }
-    mkdirSync(dirname(destination), { recursive: true });
-    writeFileSync(destination, generated);
-    console.log(`generated ${destination}`);
+    saveGenerated(join(protocolVersionRoot, "sdk", target.relativePath), generated);
   }
 
   if (stale.length > 0) {

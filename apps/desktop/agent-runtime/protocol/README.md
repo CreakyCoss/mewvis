@@ -43,9 +43,17 @@ runtime boundary unchanged. A semantically different application contract must
 be defined independently and connected with an explicit adapter or envelope;
 it must not be presented as a `Pick`/`Omit`-derived wire contract.
 
-The generator and its Node dependencies live in this directory so the whole
-protocol package can be moved without relying on repository-specific script
-paths. After changing a Schema or OpenRPC method, run:
+Permission modes, display metadata, the default mode, and execution policies are
+maintained in `../src/engines/safety/permissions.ts`. The generator derives
+`v1/schema/permissions.schema.json` and the public permission declarations in
+`packages/chat-contracts` from that definition. `agent/tools/list` returns
+`permissionOptions` for consumers to render and validate selections; the
+generated TypeScript `agentPermissionOptions` snapshot is used by previews.
+
+The generator and its Node dependencies live in this directory. Generate within
+the repository, since permission generation also reads the runtime definition
+and publishes shared Chat types. After changing a Schema, OpenRPC method, or
+permission definition, run:
 
 ```sh
 cd agent-runtime/protocol
@@ -69,8 +77,9 @@ objects such as `{ "type": "run_agent", ... }` are implementation details and
 must never be written directly to stdio.
 
 Node validates the files with Ajv. A Python implementation should load the same
-`request.schema.json`, `response.schema.json`, and `notification.schema.json`
-with `jsonschema.Draft7Validator`; it must not translate them into a separately
+`request.schema.json`, `response.schema.json`, and `notification.schema.json`,
+including their referenced schemas such as `permissions.schema.json`, with
+`jsonschema.Draft7Validator`; it must not translate them into a separately
 maintained Pydantic contract.
 
 ## JSON-RPC behavior

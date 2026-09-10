@@ -1,14 +1,8 @@
 import { DefaultResourceLoader, getAgentDir, loadSkillsFromDir, type Skill } from "@earendil-works/pi-coding-agent";
-import { resolveBuiltins, type ResolvedBuiltins } from "../../../../../../builtins/index.js";
+import type { ResolvedBuiltins } from "../../../../../../builtins/index.js";
 import type { AgentRuntimeCallbacks, RuntimeAgentCommand } from "../../types.js";
-import { allowedRuntimeTools, runtimeResourcesFor, runtimeSkillSourcePaths } from "../../resources.js";
-import { registerPiAskUserTool } from "../tools/ask-user-tool.js";
-import { registerPiBuiltinTool } from "../tools/builtin-tool.js";
-import { createPluginRuntimeBridge } from "../plugins/bridge.js";
-import { AGENT_TOOL_DEFINITIONS, normalizeAllowedAgentTools } from "../../../tools/definitions.js";
-import { loadPiSandboxConfig, registerPiSandbox } from "../tools/sandbox.js";
-import { registerPiSubagentTool } from "../tools/subagent.js";
-import { createPiSubagentRunner } from "./subagent-session.js";
+import { runtimeSkillSourcePaths } from "../../resources.js";
+import { createPiToolSet } from "../tools/index.js";
 import type { PiAgentSessionOptions } from "./session.js";
 
 export const createPiResourceLoader = async (
@@ -16,17 +10,9 @@ export const createPiResourceLoader = async (
   callbacks: AgentRuntimeCallbacks,
   options: PiAgentSessionOptions = {},
 ) => {
-  const sandboxConfig = options.sandboxConfig ?? loadPiSandboxConfig(command.workspacePath);
-  const enabledSkills = runtimeResourcesFor(command).skills?.enabled ?? [];
-  const builtins = resolveBuiltins(enabledSkills);
-  const plugins = await createPluginRuntimeBridge(command);
+  const toolSet = await createPiToolSet(command, callbacks, options);
   try {
-    assertPluginToolNamesAvailable(plugins?.toolSchemas().map((tool) => tool.name) ?? [], builtins);
-    const parentTools = [
-      ...normalizeAllowedAgentTools(allowedRuntimeTools(command)),
-      ...(plugins?.toolSchemas().map((tool) => tool.name) ?? []),
-    ];
-    const skills = loadPiSkills(command, builtins, plugins?.skills ?? []);
+    const skills = loadPiSkills(command, toolSet.builtins, toolSet.plugins?.skills ?? []);
     const loader = new DefaultResourceLoader({
       cwd: command.workspacePath,
       agentDir: getAgentDir(),
@@ -35,32 +21,22 @@ export const createPiResourceLoader = async (
       ...(options.rolePrompt ? { systemPromptOverride: () => options.rolePrompt } : {}),
       extensionFactories: [
         (pi) => {
-          registerPiSandbox(pi, command.workspacePath, sandboxConfig);
-          if (!options.subagent) {
-            registerPiSubagentTool(pi, createPiSubagentRunner(command, callbacks, parentTools, sandboxConfig));
-          }
-          registerPiAskUserTool(pi, command.taskId, callbacks.requestUserInput);
-          for (const tool of builtins.requiredTools.internal) {
-            registerPiBuiltinTool(pi, tool, { workspacePath: command.workspacePath });
-          }
-          plugins?.registerTools(pi);
-          plugins?.registerSkills(pi, skills);
+          for (const tool of toolSet.tools) pi.registerTool(tool);
+          toolSet.registerExtensions(pi);
+          toolSet.plugins?.registerSkills(pi, skills);
         },
       ],
-      skillsOverride: () => ({
-        skills,
-        diagnostics: [],
-      }),
+      skillsOverride: () => ({ skills, diagnostics: [] }),
     });
-
     await loader.reload();
     return {
       loader,
-      pluginToolNames: plugins?.toolSchemas().map((tool) => tool.name) ?? [],
-      dispose: () => plugins?.dispose() ?? Promise.resolve(),
+      toolNames: toolSet.tools.map((tool) => tool.name),
+      dispose: toolSet.dispose,
+      installSafety: toolSet.installSafety,
     };
   } catch (error) {
-    await plugins?.dispose();
+    await toolSet.dispose();
     throw error;
   }
 };
@@ -108,15 +84,4 @@ const loadPiSkills = (
       (skill) => !skill.disableModelInvocation && !reservedNames.has(skill.name) && !resolvedNames.has(skill.name),
     ),
   ];
-};
-
-const assertPluginToolNamesAvailable = (names: readonly string[], builtins: ResolvedBuiltins) => {
-  const reserved = new Set([
-    ...AGENT_TOOL_DEFINITIONS.map((tool) => tool.name),
-    ...builtins.requiredTools.internal.map((tool) => tool.name),
-  ]);
-  const collisions = names.filter((name) => reserved.has(name));
-  if (collisions.length > 0) {
-    throw new Error(`插件工具不能覆盖 Isle Runtime 工具：${collisions.join(", ")}`);
-  }
 };

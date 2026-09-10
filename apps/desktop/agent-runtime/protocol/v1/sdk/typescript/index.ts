@@ -28,6 +28,7 @@ export type IsleAgentRuntimeJSONRPCRequest = {
   | AgentChatRequest
   | AgentRunRequest
   | AnswerQuestionRequest
+  | AnswerApprovalRequest
   | SessionReadRequest
   | AgentSessionCompactRequest
   | AgentSessionRebuildRequest
@@ -104,6 +105,8 @@ export type AgentRuntimeEvent =
   | StartedEvent
   | QuestionEvent
   | QuestionAnsweredEvent
+  | ApprovalRequestedEvent
+  | ApprovalResolvedEvent
   | ReplaceTextEvent
   | TextDeltaEvent
   | ThinkingDeltaEvent
@@ -212,6 +215,7 @@ export interface AgentRunParams {
   bootstrapInstruction?: string | null;
   runtimeModel?: RuntimeModelInput | null;
   resources?: AgentRuntimeResources | null;
+  permissions?: AgentPermissions;
 }
 export interface AgentRuntimeResources {
   tools?: AgentRuntimeToolResources | null;
@@ -235,6 +239,9 @@ export interface AgentRuntimePluginResources {
   settingsPath?: string | null;
   items?: AgentRuntimePlugin[] | null;
 }
+export interface AgentPermissions {
+  mode: "ask" | "auto" | "full";
+}
 export interface AnswerQuestionRequest {
   method?: "agent/question/answer";
   params: AnswerQuestionParams;
@@ -244,6 +251,16 @@ export interface AnswerQuestionParams {
   taskId: string;
   questionId: string;
   answer: string;
+}
+export interface AnswerApprovalRequest {
+  method?: "agent/approval/answer";
+  params: AnswerApprovalParams;
+  [k: string]: unknown;
+}
+export interface AnswerApprovalParams {
+  taskId: string;
+  approvalId: string;
+  approved: boolean;
 }
 export interface SessionReadRequest {
   method?: "session/read";
@@ -474,12 +491,19 @@ export interface AgentToolsResult {
   rpcRequestId?: string | number;
   tools: AgentTool[];
   defaultToolNames: string[];
+  permissionOptions: AgentPermissionOption[];
 }
 export interface AgentTool {
   name: string;
   label: string;
   description?: string | null;
   enabledByDefault: boolean;
+}
+export interface AgentPermissionOption {
+  mode: "ask" | "auto" | "full";
+  label: string;
+  description: string;
+  isDefault: boolean;
 }
 export interface ChatResult {
   type: "chat_result";
@@ -751,6 +775,22 @@ export interface QuestionAnsweredEvent {
   questionId: string;
   answer: string;
 }
+export interface ApprovalRequestedEvent {
+  type: "approval_requested";
+  taskId: string;
+  approvalId: string;
+  executionId: string;
+  summary: string;
+  details: string;
+  reason: string;
+  expiresAt: number;
+}
+export interface ApprovalResolvedEvent {
+  type: "approval_resolved";
+  taskId: string;
+  approvalId: string;
+  approved: boolean;
+}
 export interface ReplaceTextEvent {
   type: "replace_text";
   taskId: string;
@@ -854,6 +894,8 @@ export interface CollaborationAgentEvent {
     | StartedEvent
     | QuestionEvent
     | QuestionAnsweredEvent
+    | ApprovalRequestedEvent
+    | ApprovalResolvedEvent
     | ReplaceTextEvent
     | TextDeltaEvent
     | ThinkingDeltaEvent
@@ -921,6 +963,7 @@ export const agentRuntimeJsonRpcMethods = [
   "collaboration/modes/list",
   "collaboration/run",
   "collaboration/runMode",
+  "agent/approval/answer",
 ] as const;
 export const agentRuntimeNotificationMethods = ["runtime/event", "runtime/result"] as const;
 export type AgentRuntimeJsonRpcMethod = (typeof agentRuntimeJsonRpcMethods)[number];
@@ -949,6 +992,21 @@ export const RuntimeModelInputModality = {
   Image: "image",
 } as const;
 export type RuntimeModelInputModality = (typeof RuntimeModelInputModality)[keyof typeof RuntimeModelInputModality];
+export const agentPermissionOptions = [
+  { mode: "ask", label: "请求批准", description: "低风险操作直接执行；其他操作由你确认", isDefault: true },
+  {
+    mode: "auto",
+    label: "帮我批准",
+    description: "按规则自动放行低、中风险操作；高风险或未知风险由你确认",
+    isDefault: false,
+  },
+  {
+    mode: "full",
+    label: "完全访问权限",
+    description: "自动允许操作，无需逐次确认；允许访问工作区外文件和网络",
+    isDefault: false,
+  },
+] as const satisfies readonly AgentPermissionOption[];
 export type AgentRuntimeRequestFor<TMethod extends AgentRuntimeJsonRpcMethod> = Extract<
   IsleAgentRuntimeJSONRPCRequest,
   { method?: TMethod }
@@ -1008,6 +1066,8 @@ export const agentRuntimeRequests = {
     createAgentRuntimeRequest(id, "collaboration/run", params),
   collaborationRunMode: (id: string | number, params: AgentRuntimeRequestParams<"collaboration/runMode">) =>
     createAgentRuntimeRequest(id, "collaboration/runMode", params),
+  agentApprovalAnswer: (id: string | number, params: AgentRuntimeRequestParams<"agent/approval/answer">) =>
+    createAgentRuntimeRequest(id, "agent/approval/answer", params),
 } as const;
 export const AgentRuntimeEventType = {
   Started: "started",
@@ -1031,6 +1091,8 @@ export const AgentRuntimeEventType = {
   StepDone: "step_done",
   StepSkipped: "step_skipped",
   WorkflowDone: "workflow_done",
+  ApprovalRequested: "approval_requested",
+  ApprovalResolved: "approval_resolved",
 } as const;
 export type AgentEvent = CollaborationAgentEvent["event"];
 export type CollaborationEvent =
@@ -1100,6 +1162,10 @@ export const agentRuntimeEvents = {
     createAgentRuntimeEvent(AgentRuntimeEventType.StepSkipped, payload),
   workflowDone: (payload: AgentRuntimeEventPayload<typeof AgentRuntimeEventType.WorkflowDone>) =>
     createAgentRuntimeEvent(AgentRuntimeEventType.WorkflowDone, payload),
+  approvalRequested: (payload: AgentRuntimeEventPayload<typeof AgentRuntimeEventType.ApprovalRequested>) =>
+    createAgentRuntimeEvent(AgentRuntimeEventType.ApprovalRequested, payload),
+  approvalResolved: (payload: AgentRuntimeEventPayload<typeof AgentRuntimeEventType.ApprovalResolved>) =>
+    createAgentRuntimeEvent(AgentRuntimeEventType.ApprovalResolved, payload),
 } as const;
 export const agentRuntimeEventGuards = {
   started: (event: { type: string }): event is { type: typeof AgentRuntimeEventType.Started } =>
@@ -1144,6 +1210,10 @@ export const agentRuntimeEventGuards = {
     isAgentRuntimeEventType(event, AgentRuntimeEventType.StepSkipped),
   workflowDone: (event: { type: string }): event is { type: typeof AgentRuntimeEventType.WorkflowDone } =>
     isAgentRuntimeEventType(event, AgentRuntimeEventType.WorkflowDone),
+  approvalRequested: (event: { type: string }): event is { type: typeof AgentRuntimeEventType.ApprovalRequested } =>
+    isAgentRuntimeEventType(event, AgentRuntimeEventType.ApprovalRequested),
+  approvalResolved: (event: { type: string }): event is { type: typeof AgentRuntimeEventType.ApprovalResolved } =>
+    isAgentRuntimeEventType(event, AgentRuntimeEventType.ApprovalResolved),
 } as const;
 export const AgentRuntimeResultType = {
   Ack: "ack",

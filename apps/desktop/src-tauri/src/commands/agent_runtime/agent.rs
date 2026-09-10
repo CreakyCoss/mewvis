@@ -1,8 +1,8 @@
 use super::{
     plugins::inject_registered_plugins,
     protocol::{
-        notification, request, AgentRuntimeResources, AgentRuntimeSkillResources,
-        AgentRuntimeToolResources, BundledPath, METHOD_AGENT_QUESTION_ANSWER, METHOD_AGENT_RUN,
+        notification, request, AgentPermissions, AgentRuntimeResources, AgentRuntimeSkillResources,
+        BundledPath, METHOD_AGENT_APPROVAL_ANSWER, METHOD_AGENT_QUESTION_ANSWER, METHOD_AGENT_RUN,
     },
     runtime_files::append_agent_diagnostic,
     session_paths::resolve_optional_session_root_dir,
@@ -32,6 +32,7 @@ pub struct RunAgentRuntimeAgentInput {
     bootstrap_instruction: Option<String>,
     runtime_model: Option<AgentRuntimeModelInput>,
     resources: Option<AgentRuntimeResources>,
+    permissions: Option<AgentPermissions>,
 }
 
 #[derive(Debug, Serialize)]
@@ -87,21 +88,6 @@ pub fn run_agent_runtime_agent(
         mcp: None,
         plugins: None,
     });
-    let allowed_tools = resources
-        .tools
-        .take()
-        .and_then(|tools| tools.allowed)
-        .unwrap_or_else(|| {
-            vec![
-                "read".to_string(),
-                "edit".to_string(),
-                "write".to_string(),
-                "ls".to_string(),
-                "find".to_string(),
-                "grep".to_string(),
-                "ask_user".to_string(),
-            ]
-        });
     let requested_skills = resources.skills.take();
     let enabled_skills = requested_skills
         .as_ref()
@@ -113,9 +99,6 @@ pub fn run_agent_runtime_agent(
             .and_then(|skills| skills.paths.clone())
             .unwrap_or_default(),
     );
-    resources.tools = Some(AgentRuntimeToolResources {
-        allowed: Some(allowed_tools),
-    });
     resources.skills = Some(AgentRuntimeSkillResources {
         bundled_path: bundled_skills_path
             .map(BundledPath::PurpleString)
@@ -124,7 +107,7 @@ pub fn run_agent_runtime_agent(
         enabled: Some(enabled_skills),
     });
     inject_registered_plugins(&app, &mut resources)?;
-    let command = request(
+    let mut command = request(
         task_id.clone(),
         METHOD_AGENT_RUN,
         json!({
@@ -141,6 +124,11 @@ pub fn run_agent_runtime_agent(
             "resources": resources,
         }),
     );
+
+    if let Some(permissions) = input.permissions {
+        command["params"]["permissions"] =
+            serde_json::to_value(permissions).map_err(|error| error.to_string())?;
+    }
 
     state.submit(
         app,
@@ -168,6 +156,30 @@ pub fn answer_agent_runtime_question(
         }),
     );
 
+    state.answer_question(&input.task_id, &command)
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AnswerAgentRuntimeApprovalInput {
+    task_id: String,
+    approval_id: String,
+    approved: bool,
+}
+
+#[tauri::command]
+pub fn answer_agent_runtime_approval(
+    window: tauri::WebviewWindow,
+    state: State<AgentRuntimeSupervisor>,
+    input: AnswerAgentRuntimeApprovalInput,
+) -> Result<(), String> {
+    if window.label() != "main" {
+        return Err("仅宿主主窗口可以响应审批".into());
+    }
+    let command = notification(
+        METHOD_AGENT_APPROVAL_ANSWER,
+        serde_json::to_value(&input).map_err(|error| error.to_string())?,
+    );
     state.answer_question(&input.task_id, &command)
 }
 

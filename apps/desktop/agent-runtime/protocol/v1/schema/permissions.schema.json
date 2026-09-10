@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://isle.local/protocol/agent-runtime/v1/permissions.schema.json",
+  "$comment": "Generated from src/engines/safety/permissions.ts; do not edit.",
+  "title": "IsleAgentPermissionsProtocol",
+  "anyOf": [{ "$ref": "#/definitions/AgentPermissions" }, { "$ref": "#/definitions/AgentPermissionOption" }],
+  "definitions": {
+    "AgentPermissionMode": { "type": "string", "enum": ["ask", "auto", "full"] },
+    "AgentPermissions": {
+      "type": "object",
+      "required": ["mode"],
+      "additionalProperties": false,
+      "properties": { "mode": { "$ref": "#/definitions/AgentPermissionMode" } }
+    },
+    "AgentPermissionOption": {
+      "type": "object",
+      "required": ["mode", "label", "description", "isDefault"],
+      "additionalProperties": false,
+      "properties": {
+        "mode": { "$ref": "#/definitions/AgentPermissionMode" },
+        "label": { "type": "string" },
+        "description": { "type": "string" },
+        "isDefault": { "type": "boolean" }
+      }
+    }
+  }
+}

@@ -19,6 +19,7 @@
     { "$ref": "#/definitions/AgentChatRequest" },
     { "$ref": "#/definitions/AgentRunRequest" },
     { "$ref": "#/definitions/AnswerQuestionRequest" },
+    { "$ref": "#/definitions/AnswerApprovalRequest" },
     { "$ref": "#/definitions/SessionReadRequest" },
     { "$ref": "#/definitions/AgentSessionCompactRequest" },
     { "$ref": "#/definitions/AgentSessionRebuildRequest" },
@@ -189,7 +190,8 @@
         "runtimeModel": { "$ref": "#/definitions/RuntimeModel" },
         "resources": {
           "oneOf": [{ "$ref": "#/definitions/AgentRuntimeResources" }, { "type": "null" }]
-        }
+        },
+        "permissions": { "$ref": "./permissions.schema.json#/definitions/AgentPermissions" }
       },
       "additionalProperties": false
     },
@@ -537,6 +539,35 @@
       "properties": {
         "method": { "const": "collaboration/runMode" },
         "params": { "$ref": "#/definitions/CollaborationModeRunParams" }
+      }
+    },
+    "AnswerApprovalParams": {
+      "type": "object",
+      "required": ["taskId", "approvalId", "approved"],
+      "properties": {
+        "taskId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "approvalId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "approved": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "AnswerApprovalRequest": {
+      "required": ["params"],
+      "properties": {
+        "method": {
+          "const": "agent/approval/answer"
+        },
+        "params": {
+          "$ref": "#/definitions/AnswerApprovalParams"
+        }
       }
     }
   }

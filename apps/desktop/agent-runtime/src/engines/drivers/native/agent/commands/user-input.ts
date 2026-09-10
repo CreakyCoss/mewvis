@@ -1,3 +1,5 @@
+import { createApprovalManager } from "./approvals.js";
+import type { AnswerApprovalParams } from "../../../../protocol/wire.js";
 import { randomUUID } from "node:crypto";
 import { AgentRuntimeEventType } from "../../../../protocol/wire.js";
 import { type AnswerQuestionCommand } from "../../../../protocol/index.js";
@@ -20,10 +22,12 @@ type QueuedQuestion = UserInputRequest & {
 
 export type UserInputManager = {
   callbacks: AgentRuntimeCallbacks;
+  handleApprovalAnswer(command: AnswerApprovalParams): boolean;
   handleAnswer(command: AnswerQuestionCommand): void;
 };
 
 export const createUserInputManager = (emit: EmitAgentEvent): UserInputManager => {
+  const approvals = createApprovalManager(emit);
   const pendingQuestions = new Map<string, PendingQuestion>();
   const activeQuestionIds = new Map<string, string>();
   const queuedQuestions = new Map<string, QueuedQuestion[]>();
@@ -109,7 +113,9 @@ export const createUserInputManager = (emit: EmitAgentEvent): UserInputManager =
   return {
     callbacks: {
       requestUserInput,
+      requestApproval: approvals.request,
     },
     handleAnswer,
+    handleApprovalAnswer: approvals.answer,
   };
 };

@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { ChevronDown, Database, Puzzle, Sparkles, Wrench } from "lucide-react";
+import { ChevronDown, Database, Puzzle, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -24,7 +24,6 @@ type CapabilityMenuProps = {
 export const CapabilityMenu = ({ disabled, controls }: CapabilityMenuProps) => {
   const skillSelectAllId = useId();
   const knowledgeSelectAllId = useId();
-  const toolSelectAllId = useId();
   const skillGroupIdPrefix = useId();
   const resourceStore = controls;
   const skillGroups = resourceStore.resources.skillGroups ?? [];
@@ -32,16 +31,13 @@ export const CapabilityMenu = ({ disabled, controls }: CapabilityMenuProps) => {
     ...new Map(skillGroups.flatMap((group) => group.skills.map((skill) => [skill.key, skill] as const))).values(),
   ];
   const knowledgeCollections = resourceStore.resources.knowledgeCollections ?? [];
-  const tools = resourceStore.resources.tools ?? [];
 
   const selectedSkillKeys = new Set(resourceStore.options.selectedSkillKeys);
   const selectedKnowledgeIds = new Set(resourceStore.options.selectedKnowledgeCollectionIds);
-  const selectedToolNames = new Set(resourceStore.options.selectedToolNames);
   const selectedSkillCount = skills.filter((skill) => selectedSkillKeys.has(skill.key)).length;
   const selectedKnowledgeCount = knowledgeCollections.filter((collection) =>
     selectedKnowledgeIds.has(collection.value),
   ).length;
-  const selectedToolCount = tools.filter((tool) => selectedToolNames.has(tool.value)).length;
   const updateSelectedSkills = (skillKeys: string[], selected: boolean) => {
     const nextKeys = new Set(resourceStore.options.selectedSkillKeys);
     skillKeys.forEach((skillKey) => (selected ? nextKeys.add(skillKey) : nextKeys.delete(skillKey)));
@@ -54,12 +50,6 @@ export const CapabilityMenu = ({ disabled, controls }: CapabilityMenuProps) => {
     resourceStore.updateOptions({ selectedKnowledgeCollectionIds: [...nextIds] });
   };
 
-  const updateSelectedTools = (toolName: string, selected: boolean) => {
-    const nextNames = new Set(resourceStore.options.selectedToolNames);
-    selected ? nextNames.add(toolName) : nextNames.delete(toolName);
-    resourceStore.updateOptions({ selectedToolNames: [...nextNames] });
-  };
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -69,12 +59,12 @@ export const CapabilityMenu = ({ disabled, controls }: CapabilityMenuProps) => {
           size="sm"
           disabled={disabled}
           className="h-9 min-w-0 max-w-[24rem] cursor-pointer px-2 text-xs"
-          title={`技能 ${selectedSkillCount}/${skills.length}；知识库 ${selectedKnowledgeCount}/${knowledgeCollections.length}；工具 ${selectedToolCount}/${tools.length}`}
+          title={`技能 ${selectedSkillCount}/${skills.length}；知识库 ${selectedKnowledgeCount}/${knowledgeCollections.length}`}
         >
           <Puzzle className="size-3.5 shrink-0" aria-hidden="true" />
           <span>能力</span>
           <span className="min-w-0 truncate text-muted-foreground">
-            技能 {selectedSkillCount} · 知识库 {selectedKnowledgeCount} · 工具 {selectedToolCount}
+            技能 {selectedSkillCount} · 知识库 {selectedKnowledgeCount}
           </span>
           <ChevronDown className="size-3 shrink-0" aria-hidden="true" />
         </Button>
@@ -179,44 +169,6 @@ export const CapabilityMenu = ({ disabled, controls }: CapabilityMenuProps) => {
                     label={collection.label}
                     description={collection.description || collection.sourceDirectory || "已启用知识检索"}
                   />
-                </DropdownMenuCheckboxItem>
-              ))
-            )}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-
-        <DropdownMenuSub>
-          <CapabilityTrigger
-            icon={Wrench}
-            label="工具"
-            description="允许模型执行操作"
-            selected={selectedToolCount}
-            total={tools.length}
-          />
-          <DropdownMenuSubContent className="max-h-96 w-72 overflow-y-auto">
-            <SelectionHeader
-              id={toolSelectAllId}
-              label="工具"
-              selected={selectedToolCount}
-              total={tools.length}
-              onCheckedChange={(selected) =>
-                resourceStore.updateOptions({ selectedToolNames: selected ? tools.map((tool) => tool.value) : [] })
-              }
-            />
-            <DropdownMenuSeparator />
-            {tools.length === 0 ? (
-              <EmptyItem title="暂无可用工具" />
-            ) : (
-              tools.map((tool) => (
-                <DropdownMenuCheckboxItem
-                  key={tool.value}
-                  checked={selectedToolNames.has(tool.value)}
-                  className="min-h-12 items-start py-2"
-                  onSelect={(event) => event.preventDefault()}
-                  onCheckedChange={(checked) => updateSelectedTools(tool.value, checked === true)}
-                  title={tool.description || undefined}
-                >
-                  <ItemText label={tool.label} description={tool.description} />
                 </DropdownMenuCheckboxItem>
               ))
             )}

@@ -82,7 +82,7 @@ declare function useChatComposer(): {
       selectedAgentId: string;
       selectedSkillKeys: string[];
       selectedKnowledgeCollectionIds: string[];
-      selectedToolNames: string[];
+      permissionMode: _isle_chat_contracts.ChatPermissionMode | null;
     };
     updateOptions(patch: Partial<ChatRunConfig & ChatDisplayOptions>): void;
   };
@@ -121,7 +121,7 @@ declare function useChatControls(): {
     selectedAgentId: string;
     selectedSkillKeys: string[];
     selectedKnowledgeCollectionIds: string[];
-    selectedToolNames: string[];
+    permissionMode: _isle_chat_contracts.ChatPermissionMode | null;
   };
   updateOptions(patch: Partial<ChatRunConfig & ChatDisplayOptions>): void;
 };

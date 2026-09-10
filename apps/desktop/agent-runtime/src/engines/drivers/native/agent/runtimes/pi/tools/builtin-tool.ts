@@ -8,7 +8,11 @@ import { toPiToolParameters } from "./schema.js";
 
 const jsonText = (value: unknown) => JSON.stringify(value, null, 2);
 
-export const registerPiBuiltinTool = (pi: ExtensionAPI, tool: BuiltinToolDefinition, context: BuiltinToolContext) => {
+export const registerPiBuiltinTool = (
+  pi: Pick<ExtensionAPI, "registerTool">,
+  tool: BuiltinToolDefinition,
+  context: BuiltinToolContext,
+) => {
   const implementation = tool.createImplementation(context);
   assertBuiltinToolImplementation(tool, implementation);
   pi.registerTool({

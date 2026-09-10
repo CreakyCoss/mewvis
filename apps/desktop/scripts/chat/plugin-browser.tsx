@@ -1,3 +1,4 @@
+import { agentPermissionOptions } from "../../src/agent-client/wire";
 import React, { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { isTauri } from "@tauri-apps/api/core";
@@ -67,6 +68,7 @@ const manager = createChatService(
       },
       catalog: {
         load: async () => ({
+          permissionOptions: structuredClone([...agentPermissionOptions]),
           models: ["model", "second"].map((value) => ({
             value,
             label: value,

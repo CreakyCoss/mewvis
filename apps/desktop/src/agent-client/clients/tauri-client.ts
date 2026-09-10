@@ -1,6 +1,7 @@
 import {
   abortAgentRuntimeTask,
   answerAgentRuntimeQuestion,
+  answerAgentRuntimeApproval,
   getAgentRuntimeCollaborationTimeline,
   getAgentRuntimeSession,
   getAgentRuntimeSessionDebug,
@@ -23,7 +24,9 @@ import type {
 } from "../contracts";
 import type {
   AgentRunParams,
+  EmptyParams,
   AnswerQuestionParams,
+  AnswerApprovalParams,
   CollaborationModeRunParams,
   CollaborationRunParams,
   CollaborationTimelineParams,
@@ -47,8 +50,8 @@ import type {
 } from "../runtime";
 
 class TauriAgentClientCapabilities implements AgentClientCapabilities {
-  async listAgentTools(): Promise<AgentClientAgentToolsResult> {
-    return listAgentRuntimeTools();
+  async listAgentTools(input: EmptyParams = {}): Promise<AgentClientAgentToolsResult> {
+    return listAgentRuntimeTools(input);
   }
 }
 
@@ -143,6 +146,10 @@ class TauriAgentClientEvents implements AgentClientEvents {
 }
 
 class TauriAgentClientTasks implements AgentClientTasks {
+  async answerApproval(input: AnswerApprovalParams): Promise<void> {
+    await answerAgentRuntimeApproval(input);
+  }
+
   async answerQuestion(input: AnswerQuestionParams): Promise<void> {
     await answerAgentRuntimeQuestion(input);
   }

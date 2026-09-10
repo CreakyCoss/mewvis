@@ -4,6 +4,7 @@ import { InputGroup, InputGroupAddon, InputGroupButton } from "@/components/ui/i
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { ChatEditor, type ChatEditorHandle } from "./editor";
 import { ModelMenu } from "./menus/model";
+import { PermissionMenu } from "./menus/permission";
 import { CapabilityMenu } from "./menus/capability";
 import { useChatComposer } from "../provider";
 import type { SendResult } from "../../core";
@@ -23,6 +24,7 @@ export function ComposerToolbar(binding: ComposerBinding) {
         selectionDisabled={binding.disabled}
       />
       <CapabilityMenu controls={binding.controls} disabled={binding.disabled} />
+      <PermissionMenu controls={binding.controls} disabled={binding.disabled} />
     </>
   );
 }
@@ -176,7 +178,7 @@ export function EmptyComposer({ placeholder = "输入问题" }: { placeholder?: 
         selectedModelId: "",
         selectedAgentId: "",
         selectedSkillKeys: [],
-        selectedToolNames: [],
+        permissionMode: null,
         selectedKnowledgeCollectionIds: [],
         showThinkingProcess: true,
         showToolCallProcess: true,

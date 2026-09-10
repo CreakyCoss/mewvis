@@ -45,12 +45,16 @@
     },
     "AgentToolsResult": {
       "type": "object",
-      "required": ["type", "tools", "defaultToolNames"],
+      "required": ["type", "tools", "defaultToolNames", "permissionOptions"],
       "properties": {
         "type": { "const": "agent_tools" },
         "rpcRequestId": { "$ref": "#/definitions/JsonRpcId" },
         "tools": { "type": "array", "items": { "$ref": "#/definitions/AgentTool" } },
-        "defaultToolNames": { "type": "array", "items": { "type": "string" } }
+        "defaultToolNames": { "type": "array", "items": { "type": "string" } },
+        "permissionOptions": {
+          "type": "array",
+          "items": { "$ref": "./permissions.schema.json#/definitions/AgentPermissionOption" }
+        }
       },
       "additionalProperties": false
     },

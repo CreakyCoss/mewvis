@@ -1,6 +1,8 @@
+import { canonicalPath } from "../../../../../../safety/paths.js";
 import { readFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { Type } from "@earendil-works/pi-ai";
 import { z } from "zod";
 import {
   createBashTool,
@@ -35,7 +37,7 @@ const configSchema = z
 
 export type PiSandboxConfig = SandboxRuntimeConfig & { enabled: boolean };
 
-export const loadPiSandboxConfig = (cwd: string, agentDir = getAgentDir()): PiSandboxConfig => {
+export const loadPiSandboxConfig = (cwd: string, agentDir = getAgentDir(), hostPolicy = false): PiSandboxConfig => {
   const readConfig = (path: string) => {
     try {
       return configSchema.parse(JSON.parse(readFileSync(path, "utf8")));
@@ -44,28 +46,32 @@ export const loadPiSandboxConfig = (cwd: string, agentDir = getAgentDir()): PiSa
       throw new Error(`Invalid sandbox configuration: ${path}`, { cause: error });
     }
   };
-  const global = readConfig(join(agentDir, "extensions", "sandbox.json"));
-  const project = readConfig(join(cwd, ".pi", "sandbox.json"));
+  const global = hostPolicy ? {} : readConfig(join(agentDir, "extensions", "sandbox.json"));
+  const project = hostPolicy ? {} : readConfig(join(cwd, ".pi", "sandbox.json"));
   const absolutePath = (path: string) =>
-    path === "~" ? homedir() : path.startsWith("~/") ? join(homedir(), path.slice(2)) : resolve(cwd, path);
+    canonicalPath(
+      path === "~" ? homedir() : path.startsWith("~/") ? join(homedir(), path.slice(2)) : resolve(cwd, path),
+    );
   const filesystem = {
     denyRead: ["~/.ssh", "~/.aws", "~/.gnupg"],
     allowWrite: [cwd, tmpdir()],
-    denyWrite: [join(cwd, ".env"), join(cwd, ".pi")],
+    denyWrite: [join(cwd, ".env"), join(cwd, ".pi"), join(cwd, ".git"), join(cwd, ".isle")],
     ...global.filesystem,
     ...project.filesystem,
   };
   return {
     enabled: project.enabled ?? global.enabled ?? true,
     network: {
-      allowedDomains: [
-        "github.com",
-        "*.github.com",
-        "raw.githubusercontent.com",
-        "registry.npmjs.org",
-        "pypi.org",
-        "files.pythonhosted.org",
-      ],
+      allowedDomains: hostPolicy
+        ? []
+        : [
+            "github.com",
+            "*.github.com",
+            "raw.githubusercontent.com",
+            "registry.npmjs.org",
+            "pypi.org",
+            "files.pythonhosted.org",
+          ],
       deniedDomains: [],
       ...global.network,
       ...project.network,
@@ -140,13 +146,31 @@ export const createPiSandboxOperations = (config: PiSandboxConfig): BashOperatio
   };
 };
 
-export const registerPiSandbox = (pi: ExtensionAPI, cwd: string, config: PiSandboxConfig) => {
+export const registerPiSandbox = (pi: Pick<ExtensionAPI, "registerTool">, cwd: string, config: PiSandboxConfig) => {
   const operations = createPiSandboxOperations(config);
   const bash = createBashTool(cwd, { operations });
   pi.registerTool({
     ...bash,
     label: config.enabled ? "bash (sandboxed)" : "bash",
-    execute: (id, params, signal, onUpdate) => bash.execute(id, params, signal, onUpdate),
+    parameters: Type.Object({
+      ...bash.parameters.properties,
+      sandbox: Type.Optional(
+        Type.Boolean({
+          description:
+            "Defaults to true. Set false only when this exact command needs access beyond the sandbox; host approval is required.",
+        }),
+      ),
+    }),
+    execute: (id, params, signal, onUpdate) => {
+      const tool = params.sandbox === false ? createBashTool(cwd) : bash;
+      return tool.execute(id, params, signal, onUpdate);
+    },
   });
-  pi.on("user_bash", () => ({ operations }));
+};
+
+export const registerPiSandboxEvents = (pi: ExtensionAPI, config: PiSandboxConfig) => {
+  pi.on("user_bash", () => {
+    if (config.enabled) throw new Error("受限会话请通过 bash 工具执行命令，以进行权限检查。");
+    return { operations: createPiSandboxOperations(config) };
+  });
 };

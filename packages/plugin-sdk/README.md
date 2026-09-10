@@ -13,7 +13,6 @@ sandbox bridge; it does not expose Tauri or require postMessage boilerplate.
 `getHost()` returns safe metadata/theme; `openExternal()` requires a user action.
 The example project demonstrates real Node crypto execution from a React button.
 
-
 Runtime permissions are declared in the package's `isle.permissions` manifest
 field, not inside `definePlugin`. Supported values are `network`,
 `plugin-data`, `workspace-files`, `open-external`, `process`, `chat`, and
@@ -39,7 +38,12 @@ export default definePlugin({
         description: "Return a greeting.",
         parameters: { type: "object", properties: {} },
         output: {
-          schema: { type: "object", properties: { message: { type: "string" } }, required: ["message"], additionalProperties: false },
+          schema: {
+            type: "object",
+            properties: { message: { type: "string" } },
+            required: ["message"],
+            additionalProperties: false,
+          },
           render: (_args, value) => [{ type: "text", text: value.message }],
         },
         execute: () => ({ message: "hello" }),
@@ -48,6 +52,12 @@ export default definePlugin({
   },
 });
 ```
+
+Agent execution safety is controlled by the host at execution time. Tool definitions
+do not declare permissions or risk levels. Host and plugin chats share the same
+permission modes and approval flow; custom tools with unclassified effects require
+approval in `ask` and `auto`. Direct plugin Node/UI execution is outside this Agent
+execution gate. Manifest permissions remain separate.
 
 The SDK also exports Isle's settings `schema` builder. This keeps the backing
 schema implementation on the private host side of the authoring contract.

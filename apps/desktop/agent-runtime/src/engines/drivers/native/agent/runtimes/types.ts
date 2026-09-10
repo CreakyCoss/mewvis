@@ -1,5 +1,7 @@
+import type { ExecutionApprovalRequest } from "../../../../safety/types.js";
 import type {
   AgentEvent,
+  AgentPermissions,
   AgentRuntimeResources,
   AskUserInput,
   ChatMessage,
@@ -18,6 +20,7 @@ export type ChatRunResult = Omit<ChatResult, "type" | "requestId">;
 
 export type AgentRunCommand = {
   runtimeMode: "agent";
+  permissions?: AgentPermissions;
   requestId?: string | null;
   runtimeId?: string | null;
   taskId: string;
@@ -94,6 +97,8 @@ export type UserInputRequest = {
   input?: AskUserInput;
 };
 
+export type AgentApprovalRequest = ExecutionApprovalRequest & { taskId: string };
+
 export type UserInputHandler = (request: UserInputRequest) => Promise<string>;
 
 export type EmitAgentEvent = (event: AgentEvent) => void;
@@ -104,6 +109,7 @@ export type RuntimeEmitContext = {
 
 export type AgentRuntimeCallbacks = {
   requestUserInput: UserInputHandler;
+  requestApproval?: (request: AgentApprovalRequest) => Promise<boolean>;
 };
 
 export type AgentRuntimeNativeSession = {

@@ -57,7 +57,7 @@ export function createDesktopCatalog(client: AgentClient, readProfile: () => Cha
         const agentSettings = value("agents", results[1], { agents: [], collaborationWorkflows: [] });
         const skillSettings = value("skillGroups", results[2], { skills: [], groups: [], defaultGroupId: "" });
         const knowledge = value("knowledgeCollections", results[3], { collections: [], sources: [] });
-        const toolSettings = value("tools", results[4], { tools: [], defaultToolNames: [] });
+        const toolSettings = value("tools", results[4], { tools: [], defaultToolNames: [], permissionOptions: [] });
         agents = agentSettings.agents;
         skills = profile.skills ?? skillSettings.skills;
         const skillMap = new Map(
@@ -83,6 +83,7 @@ export function createDesktopCatalog(client: AgentClient, readProfile: () => Cha
             ]
           : skillSettings.groups.map((group) => ({ ...group, isDefault: group.id === skillSettings.defaultGroupId }));
         resources = {
+          permissionOptions: toolSettings.permissionOptions.map((option) => ({ ...option })),
           models: models.map((model, index) => ({
             value: model.id,
             label: `${model.provider.name}/${model.modelName}`,

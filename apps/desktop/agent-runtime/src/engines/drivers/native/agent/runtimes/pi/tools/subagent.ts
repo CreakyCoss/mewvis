@@ -1,5 +1,5 @@
-import { Type } from "@earendil-works/pi-ai";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { Type } from "@earendil-works/pi-ai";
 
 // Pi's subagent example exposes single, parallel and chain modes. Isle uses SDK
 // sessions instead of invoking a separately installed pi executable.
@@ -122,7 +122,7 @@ export const runPiSubagentTasks = async (
   return results;
 };
 
-export const registerPiSubagentTool = (pi: ExtensionAPI, run: PiSubagentRunner) => {
+export const registerPiSubagentTool = (pi: Pick<ExtensionAPI, "registerTool">, run: PiSubagentRunner) => {
   const agent = Type.Union([
     Type.Literal("scout"),
     Type.Literal("planner"),

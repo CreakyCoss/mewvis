@@ -14,6 +14,7 @@ import {
   type AgentRunParams,
   type EmptyParams,
   type AnswerQuestionParams,
+  type AnswerApprovalParams,
   type ChatParams,
   type CollaborationTimelineParams,
   type MessageDeleteParams,
@@ -166,6 +167,10 @@ export class NativeAgentRuntimeAgentSurface implements AgentRuntimeAgent {
       runtimeMode: "agent",
       requestId: null,
     });
+  }
+
+  async answerApproval(input: AnswerApprovalParams): Promise<void> {
+    this.deps.userInput.handleApprovalAnswer(input);
   }
 
   async answerQuestion(input: AnswerQuestionParams): Promise<void> {

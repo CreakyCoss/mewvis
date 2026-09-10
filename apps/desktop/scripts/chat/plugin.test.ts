@@ -1,3 +1,4 @@
+import { agentPermissionOptions } from "../../src/agent-client/wire";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createPluginChatClient, type PluginChatEvent, type PluginChatCreateInput } from "@isle/plugin-sdk/chat";
@@ -72,6 +73,7 @@ function fixture() {
         },
         catalog: {
           load: async () => ({
+            permissionOptions: structuredClone([...agentPermissionOptions]),
             models: [{ value: "model", label: "Model", selectedLabel: "Model", description: "", isDefault: true }],
             tools: [{ value: "own", label: "Own tool", description: "", isDefault: true }],
             skillGroups: [
@@ -230,18 +232,19 @@ test("resource configuration is host-validated; unknown fields and traversal nev
   await assert.rejects(client.createSession({ ...input, workspacePath: "/escape" } as any), /不支持/);
   await assert.rejects(
     client.createSession({ ...input, profile: { ...input.profile, allowedToolNames: ["other-plugin"] } }),
-    /其他插件/,
+    /未分配/,
   );
-  assert.equal((await session.updateConfig({ selectedToolNames: ["other-plugin"] })).ok, false);
+  assert.equal((await session.updateConfig({ permissionMode: "full" })).ok, true);
+  assert.equal((await session.updateConfig({ permissionMode: "invalid" as any })).ok, false);
   await assert.rejects(
     session.send({ text: "read", blocks: [{ type: "file-reference", path: "../secret" }] }),
     /授权工作区/,
   );
   assert.deepEqual(
-    await session.updateConfig({ selectedSkillKeys: [], selectedToolNames: [], selectedKnowledgeCollectionIds: [] }),
+    await session.updateConfig({ selectedSkillKeys: [], permissionMode: "ask", selectedKnowledgeCollectionIds: [] }),
     { ok: true },
   );
-  assert.deepEqual(session.getSnapshot().config.selectedToolNames, []);
+  assert.deepEqual(session.getSnapshot().config.permissionMode, "ask");
   await session.setContext({ requestContext: "latest business data" });
   assert.equal(f.runs.length, 0);
   f.setAllowed(false);
@@ -309,7 +312,7 @@ test("an old watch cannot replace a newer watch after asynchronous authorization
   await oldWatch;
   const updates: PluginChatEvent[] = [];
   c.listeners.add((event) => updates.push(event));
-  await c.connection.request({ method: "updateConfig", handle: initial.handle, input: { selectedToolNames: [] } });
+  await c.connection.request({ method: "updateConfig", handle: initial.handle, input: { permissionMode: "auto" } });
   assert.ok(updates.length);
   assert.ok(updates.every((event) => event.watchId === "new"));
   c.client.dispose();
@@ -436,3 +439,46 @@ test(
     }
   },
 );
+
+test("plugin can observe an approval but cannot authorize it through question answers or RPC", async () => {
+  const f = fixture();
+  const c = f.connect();
+  const session = await c.client.createSession(input);
+  const detach = session.subscribe(() => {});
+  await tick();
+  await session.send({ text: "work" });
+  const taskId = session.getSnapshot().activeTaskId!;
+  f.events.forEach((listener) =>
+    listener({
+      taskId,
+      event: {
+        type: "approval_requested",
+        taskId,
+        approvalId: "approval",
+        executionId: "call",
+        summary: "own",
+        details: "{}",
+        reason: "operation",
+        expiresAt: Date.now() + 60_000,
+      },
+    }),
+  );
+  assert.equal(session.getSnapshot().pendingApproval?.approvalId, "approval");
+  assert.equal((await session.answer({ questionId: "approval", answer: "yes" })).ok, false);
+  const opened: any = await c.connection.request({
+    method: "open",
+    input: { workspaceId: input.workspaceId, chatId: session.identity.id },
+  });
+  await assert.rejects(
+    c.connection.request({
+      method: "answerApproval",
+      handle: opened.handle,
+      input: { taskId, approvalId: "approval", approved: true },
+    } as any),
+    /不支持/,
+  );
+  assert.equal(session.getSnapshot().pendingApproval?.approvalId, "approval");
+  detach();
+  await session.close();
+  c.client.dispose();
+});

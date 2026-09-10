@@ -1,3 +1,4 @@
+import { agentPermissionOptions } from "../../src/agent-client/wire";
 // Isolated browser fixture: actual migrated pages, in-memory history, no native or model calls.
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -34,6 +35,7 @@ const workspace = {
   updatedAt: 1,
 };
 const resources: ChatResources = {
+  permissionOptions: structuredClone([...agentPermissionOptions]),
   models: ["模型 A", "模型 B"].map((label, index) => ({
     value: `m${index}`,
     label,

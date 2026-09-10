@@ -88,7 +88,10 @@ export class AgentRuntimeStdioProtocol {
   }
 
   endCommand(command: AgentRuntimeCommand) {
-    if (command.type === AgentTaskCommandType.AnswerQuestion && command.requestId) {
+    if (
+      (command.type === AgentTaskCommandType.AnswerQuestion || command.type === AgentTaskCommandType.AnswerApproval) &&
+      command.requestId
+    ) {
       const pending = this.pendingRequests.get(command.requestId);
       if (pending && !pending.responded) {
         this.write(createJsonRpcSuccessResponse(pending.id, { type: "ack" }));

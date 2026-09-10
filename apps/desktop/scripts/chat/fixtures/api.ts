@@ -1,4 +1,6 @@
+import { agentPermissionOptions } from "../../../src/agent-client/wire";
 export const fake = {
+  permissionOptions: structuredClone([...agentPermissionOptions]),
   record: null as any,
   writes: [] as any[],
   runs: [] as any[],
@@ -108,6 +110,7 @@ export function createAgentClient() {
             { name: "host", label: "Host tool" },
           ],
           defaultToolNames: [],
+          permissionOptions: structuredClone(fake.permissionOptions),
         };
       },
     },
@@ -116,6 +119,6 @@ export function createAgentClient() {
         fake.runs.push(input);
       },
     },
-    tasks: { async abort() {}, async answerQuestion() {} },
+    tasks: { async abort() {}, async answerQuestion() {}, async answerApproval() {} },
   };
 }

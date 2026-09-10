@@ -1,4 +1,9 @@
-import { AgentRuntimeEventType, AgentRuntimeResultType, type AnswerQuestionParams } from "../../protocol/wire.js";
+import {
+  AgentRuntimeEventType,
+  AgentRuntimeResultType,
+  type AnswerApprovalParams,
+  type AnswerQuestionParams,
+} from "../../protocol/wire.js";
 import {
   AgentRuntimeCommandType,
   AgentSessionCommandType,
@@ -36,6 +41,7 @@ type NativeRuntimeCommandRouterDeps = {
   engine: AgentRuntimeEngine;
   emitEvent: EmitAgentRuntimeEvent;
   emitResult: EmitAgentRuntimeResult;
+  answerApproval(input: AnswerApprovalParams): Promise<void>;
   answerQuestion(input: AnswerQuestionParams): Promise<void>;
   runAgentCommand(command: AgentRunCommand): Promise<TaskResult>;
 };
@@ -183,6 +189,9 @@ export const createNativeRuntimeCommandRouter = (deps: NativeRuntimeCommandRoute
         emitCommandResult(command, await deps.engine.capabilities.listRuntimeModels());
         return true;
 
+      case AgentTaskCommandType.AnswerApproval:
+        await deps.answerApproval(commandInputFrom(command));
+        return true;
       case AgentTaskCommandType.AnswerQuestion:
         await deps.answerQuestion(commandInputFrom(command));
         return true;

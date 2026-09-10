@@ -62,6 +62,9 @@ pub enum Jsonrpc {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum RuntimePingRequest {
+    #[serde(rename = "agent/approval/answer")]
+    AgentApprovalAnswer,
+
     #[serde(rename = "agent/chat")]
     AgentChat,
 
@@ -157,6 +160,12 @@ pub struct AgentRuntimeEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub answer: Option<String>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub approval_id: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub approved: Option<bool>,
+
     pub args: Option<serde_json::Value>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -180,6 +189,9 @@ pub struct AgentRuntimeEvent {
     pub delta: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub display_summaries: Option<Vec<RuntimeDisplaySummary>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -190,6 +202,12 @@ pub struct AgentRuntimeEvent {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub events: Option<Vec<RuntimeTimelineItem>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub execution_id: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<i64>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub include_ledger: Option<bool>,
@@ -243,10 +261,19 @@ pub struct AgentRuntimeEvent {
     pub participants: Option<Vec<CollaborationParticipant>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub permission_options: Option<Vec<AgentPermissionOption>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub permissions: Option<AgentPermissions>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub question: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub question_id: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rebuilt: Option<bool>,
@@ -389,6 +416,12 @@ pub enum PurpleType {
 
     #[serde(rename = "agent_tools")]
     AgentTools,
+
+    #[serde(rename = "approval_requested")]
+    ApprovalRequested,
+
+    #[serde(rename = "approval_resolved")]
+    ApprovalResolved,
 
     #[serde(rename = "chat_result")]
     ChatResult,
@@ -783,6 +816,12 @@ pub struct AgentEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub answer: Option<String>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub approval_id: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub approved: Option<bool>,
+
     pub args: Option<serde_json::Value>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -793,6 +832,15 @@ pub struct AgentEvent {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub delta: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub execution_id: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<i64>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub input: Option<AskUserInput>,
@@ -811,10 +859,16 @@ pub struct AgentEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub question_id: Option<String>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+
     pub result: Option<serde_json::Value>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub runtime_session: Option<RuntimeSessionRef>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub task_id: Option<String>,
@@ -832,6 +886,12 @@ pub struct AgentEvent {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AgentEventType {
+    #[serde(rename = "approval_requested")]
+    ApprovalRequested,
+
+    #[serde(rename = "approval_resolved")]
+    ApprovalResolved,
+
     Done,
 
     Error,
@@ -1031,6 +1091,33 @@ pub struct CollaborationParticipant {
     pub id: String,
 
     pub kind: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentPermissionOption {
+    pub description: String,
+
+    pub is_default: bool,
+
+    pub label: String,
+
+    pub mode: AgentPermissionMode,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentPermissionMode {
+    Ask,
+
+    Auto,
+
+    Full,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AgentPermissions {
+    pub mode: AgentPermissionMode,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1351,6 +1438,9 @@ pub struct AgentRuntimeResult {
     pub output: Option<serde_json::Value>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub permission_options: Option<Vec<AgentPermissionOption>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rebuilt: Option<bool>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1494,6 +1584,7 @@ pub const AGENT_RUNTIME_JSON_RPC_METHODS: &[&str] = &[
     "collaboration/modes/list",
     "collaboration/run",
     "collaboration/runMode",
+    "agent/approval/answer",
 ];
 pub const AGENT_RUNTIME_NOTIFICATION_METHODS: &[&str] = &["runtime/event", "runtime/result"];
 pub const METHOD_RUNTIME_PING: &str = "runtime/ping";
@@ -1519,6 +1610,7 @@ pub const METHOD_COLLABORATION_TIMELINE_READ: &str = "collaboration/timeline/rea
 pub const METHOD_COLLABORATION_MODES_LIST: &str = "collaboration/modes/list";
 pub const METHOD_COLLABORATION_RUN: &str = "collaboration/run";
 pub const METHOD_COLLABORATION_RUN_MODE: &str = "collaboration/runMode";
+pub const METHOD_AGENT_APPROVAL_ANSWER: &str = "agent/approval/answer";
 pub const NOTIFICATION_RUNTIME_EVENT: &str = "runtime/event";
 pub const NOTIFICATION_RUNTIME_RESULT: &str = "runtime/result";
 pub const EVENT_STARTED: &str = "started";
@@ -1542,6 +1634,8 @@ pub const EVENT_AGENT_EVENT: &str = "agent_event";
 pub const EVENT_STEP_DONE: &str = "step_done";
 pub const EVENT_STEP_SKIPPED: &str = "step_skipped";
 pub const EVENT_WORKFLOW_DONE: &str = "workflow_done";
+pub const EVENT_APPROVAL_REQUESTED: &str = "approval_requested";
+pub const EVENT_APPROVAL_RESOLVED: &str = "approval_resolved";
 pub const RESULT_ACK: &str = "ack";
 pub const RESULT_AGENT_TOOLS: &str = "agent_tools";
 pub const RESULT_CHAT_RESULT: &str = "chat_result";

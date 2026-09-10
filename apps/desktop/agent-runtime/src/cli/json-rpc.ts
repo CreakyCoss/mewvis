@@ -2,6 +2,7 @@ import { Ajv, type ErrorObject } from "ajv";
 import openRpcDocumentJson from "../../protocol/v1/openrpc.json" with { type: "json" };
 import eventSchemaJson from "../../protocol/v1/schema/event.schema.json" with { type: "json" };
 import modelSchemaJson from "../../protocol/v1/schema/model.schema.json" with { type: "json" };
+import permissionsSchemaJson from "../../protocol/v1/schema/permissions.schema.json" with { type: "json" };
 import notificationSchemaJson from "../../protocol/v1/schema/notification.schema.json" with { type: "json" };
 import requestSchemaJson from "../../protocol/v1/schema/request.schema.json" with { type: "json" };
 import responseSchemaJson from "../../protocol/v1/schema/response.schema.json" with { type: "json" };
@@ -66,6 +67,7 @@ const commandMethods = new Map(
 
 const ajv = new Ajv({ allErrors: true, allowUnionTypes: true, strict: true, strictTypes: false });
 ajv.addSchema(modelSchemaJson);
+ajv.addSchema(permissionsSchemaJson);
 ajv.addSchema(resultSchemaJson);
 ajv.addSchema(eventSchemaJson);
 

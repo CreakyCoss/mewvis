@@ -77,28 +77,28 @@ export function createPluginChatHost(service: DesktopChatService, options: Optio
     revisions.set(session, { snapshot, revision });
     return revision;
   };
-  const authorize = async (pluginId: string, input: PluginChatCreateInput, ownedToolNames: readonly string[]) => {
+  const authorize = async (pluginId: string, input: PluginChatCreateInput, assignedToolNames: readonly string[]) => {
     const result = await options.authorize(pluginId, input.workspaceId);
     if (input.profile.useKnowledge && !result.knowledge) throw new Error("插件未获授权使用知识库");
-    if (input.profile.allowedToolNames?.some((name) => !ownedToolNames.includes(name)))
-      throw new Error("插件不能选择其他插件或宿主工具");
-    return result;
+    const toolNames = options.tools ? await options.tools(pluginId) : assignedToolNames;
+    if (input.profile.allowedToolNames?.some((name) => !toolNames.includes(name)))
+      throw new Error("场景请求了当前未分配的工具");
+    return { ...result, toolNames };
   };
   const resolveInput = (
     pluginId: string,
     input: SessionInput,
-    ownedToolNames: readonly string[],
-    allowed: Access,
+    assignedToolNames: readonly string[],
+    allowed: Access & { toolNames: readonly string[] },
   ): DesktopSessionInput => {
-    input.profile.allowedToolNames ??= [...ownedToolNames];
+    input.profile.allowedToolNames ??= [...allowed.toolNames];
     const profile: ChatProfile = {
       id: input.profile.id,
       systemPrompt: () => input.profile.systemPrompt,
       useKnowledge: input.profile.useKnowledge,
       allowedToolNames: input.profile.allowedToolNames,
       authorize: async () => {
-        const tools = options.tools ? await options.tools(pluginId) : ownedToolNames;
-        const current = await authorize(pluginId, input, tools);
+        const current = await authorize(pluginId, input, assignedToolNames);
         if (current.workspacePath !== allowed.workspacePath) throw new Error("插件会话授权已变化");
       },
     };
@@ -120,13 +120,12 @@ export function createPluginChatHost(service: DesktopChatService, options: Optio
         throw new Error("插件聊天来源信息无效");
       const input = parseSaved(pluginId, string(source.workspaceId), chatId, source);
       if (!options.tools) throw new Error("当前宿主不支持恢复插件聊天");
-      const ownedToolNames = await options.tools(pluginId);
-      const allowed = await authorize(pluginId, input, ownedToolNames);
+      const allowed = await authorize(pluginId, input, []);
       if (allowed.workspacePath !== workspacePath) throw new Error("插件聊天工作区与记录不匹配");
-      return resolveInput(pluginId, input, ownedToolNames, allowed);
+      return resolveInput(pluginId, input, allowed.toolNames, allowed);
     },
     revoke: (pluginId: string) => service.closePlugin(pluginId),
-    connect(pluginId: string, ownedToolNames: readonly string[], emit: (event: PluginChatEvent) => void) {
+    connect(pluginId: string, assignedToolNames: readonly string[], emit: (event: PluginChatEvent) => void) {
       const handles = new Map<string, Entry>();
       const watches = new Map<string, { id: string; detach(): void }>();
       const requestedWatches = new Map<string, string>();
@@ -141,7 +140,7 @@ export function createPluginChatHost(service: DesktopChatService, options: Optio
         requestedWatches.clear();
       };
       const access = async (input: PluginChatCreateInput) => {
-        const result = await authorize(pluginId, input, ownedToolNames);
+        const result = await authorize(pluginId, input, assignedToolNames);
         if (disposed) throw new Error("插件连接已断开");
         return result;
       };
@@ -204,7 +203,7 @@ export function createPluginChatHost(service: DesktopChatService, options: Optio
               input = parseSaved(pluginId, workspaceId, chatId, saved);
             }
             const allowed = await access(input);
-            const session = await service.openSession(resolveInput(pluginId, input, ownedToolNames, allowed));
+            const session = await service.openSession(resolveInput(pluginId, input, assignedToolNames, allowed));
             const entry = { session, input };
             if (disposed) throw new Error("插件连接已断开");
             const handle =
@@ -293,11 +292,10 @@ export function createPluginChatHost(service: DesktopChatService, options: Optio
               const resources = session.getSnapshot().resources;
               const scalar = { selectedModelId: resources.models, selectedAgentId: resources.agents };
               const arrays = {
-                selectedToolNames: resources.tools?.map((x) => x.value),
                 selectedSkillKeys: resources.skillGroups?.flatMap((x) => x.skills.map((s) => s.key)),
                 selectedKnowledgeCollectionIds: resources.knowledgeCollections?.map((x) => x.value),
               };
-              only(patch, [...Object.keys(scalar), ...Object.keys(arrays)]);
+              only(patch, ["permissionMode", ...Object.keys(scalar), ...Object.keys(arrays)]);
               for (const [key, choices] of Object.entries(scalar))
                 if (
                   key in patch &&

@@ -1,6 +1,7 @@
 import type { AgentClientAgentTask, AgentClientAgentToolsResult, AgentClientChatResult } from "../contracts";
 import {
   AgentRuntimeResultType,
+  agentPermissionOptions,
   type AgentRunParams,
   type CollaborationTimelineParams,
   type CollaborationTimelineResult,
@@ -36,6 +37,7 @@ class WebPreviewAgentClientCapabilities implements AgentClientCapabilities {
     return {
       tools: [],
       defaultToolNames: [],
+      permissionOptions: agentPermissionOptions,
     };
   }
 }
@@ -108,6 +110,10 @@ class WebPreviewAgentClientEvents implements AgentClientEvents {
 }
 
 class WebPreviewAgentClientTasks implements AgentClientTasks {
+  async answerApproval(): Promise<void> {
+    throw new Error("网页预览不支持执行审批");
+  }
+
   async answerQuestion(): Promise<void> {
     return undefined;
   }

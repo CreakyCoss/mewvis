@@ -14,6 +14,7 @@ import type {
 import type { AgentClientLedgerSummaryInput, AgentClientListRuntimeSessionsInput } from "@/agent-client/contracts";
 import type {
   AnswerQuestionParams,
+  AnswerApprovalParams,
   CollaborationTimelineParams,
   RuntimeSessionDebugParams,
   RuntimeSessionParams,
@@ -33,7 +34,8 @@ const listenAgentRuntimeEvent = <TName extends AgentRuntimeTauriEventName>(
     listener(event.payload);
   });
 
-export const listAgentRuntimeTools = () => invokeAgentRuntime("list_agent_runtime_tools", { input: {} });
+export const listAgentRuntimeTools = (input: AgentRuntimeTauriCommandArgs<"list_agent_runtime_tools">["input"] = {}) =>
+  invokeAgentRuntime("list_agent_runtime_tools", { input });
 
 export const runAgentRuntimeChat = (input: AgentRuntimeTauriChatInput) =>
   invokeAgentRuntime("run_agent_runtime_chat", { input });
@@ -58,6 +60,9 @@ export const runAgentRuntimeCollaborationMode = (input: AgentRuntimeTauriCollabo
 
 export const getAgentRuntimeCollaborationTimeline = (input: CollaborationTimelineParams) =>
   invokeAgentRuntime("get_agent_runtime_collaboration_timeline", { input });
+
+export const answerAgentRuntimeApproval = (input: AnswerApprovalParams) =>
+  invokeAgentRuntime("answer_agent_runtime_approval", { input });
 
 export const answerAgentRuntimeQuestion = (input: AnswerQuestionParams) =>
   invokeAgentRuntime("answer_agent_runtime_question", { input });

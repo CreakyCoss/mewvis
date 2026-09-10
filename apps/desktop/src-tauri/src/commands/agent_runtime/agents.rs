@@ -1,5 +1,5 @@
 use super::{
-    protocol::{METHOD_AGENT_TOOLS_LIST, RESULT_AGENT_TOOLS},
+    protocol::{AgentPermissionOption, METHOD_AGENT_TOOLS_LIST, RESULT_AGENT_TOOLS},
     rpc::call_agent_runtime_rpc,
 };
 use serde::{Deserialize, Serialize};
@@ -20,6 +20,7 @@ pub struct AgentRuntimeToolSummaryOutput {
 pub struct ListAgentRuntimeToolsOutput {
     tools: Vec<AgentRuntimeToolSummaryOutput>,
     default_tool_names: Vec<String>,
+    permission_options: Vec<AgentPermissionOption>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -29,6 +30,7 @@ struct AgentToolsRuntimeResult {
     result_type: String,
     tools: Vec<AgentRuntimeToolSummaryOutput>,
     default_tool_names: Vec<String>,
+    permission_options: Vec<AgentPermissionOption>,
 }
 
 #[tauri::command]
@@ -64,5 +66,6 @@ fn list_agent_runtime_tools_blocking(
     Ok(ListAgentRuntimeToolsOutput {
         tools: result.tools,
         default_tool_names: result.default_tool_names,
+        permission_options: result.permission_options,
     })
 }

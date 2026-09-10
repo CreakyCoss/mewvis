@@ -1,3 +1,4 @@
+import { agentPermissionOptions } from "../../src/agent-client/wire";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -20,6 +21,7 @@ function deferred<T = void>() {
   return { promise, resolve, reject };
 }
 const resources: ChatResources = {
+  permissionOptions: structuredClone([...agentPermissionOptions]),
   models: [{ value: "model", label: "Model", selectedLabel: "Model", description: "", isDefault: true }],
   tools: [{ value: "read", label: "Read", description: "", isDefault: true }],
   skillGroups: [
@@ -105,7 +107,7 @@ test("node core imports without DOM, hydrates config and protects read failures"
         return {
           title: "Old",
           messages: [],
-          config: { selectedToolNames: [], selectedSkillKeys: [], selectedKnowledgeCollectionIds: [] },
+          config: { permissionMode: "ask", selectedSkillKeys: [], selectedKnowledgeCollectionIds: [] },
         };
       },
     },
@@ -116,7 +118,7 @@ test("node core imports without DOM, hydrates config and protects read failures"
   fail = false;
   await session.retryInitialization();
   assert.equal(calls.subscribed, 1);
-  assert.deepEqual(session.getSnapshot().config.selectedToolNames, []);
+  assert.deepEqual(session.getSnapshot().config.permissionMode, "ask");
   assert.deepEqual(session.getSnapshot().config.selectedSkillKeys, []);
   await session.close();
 });
@@ -241,14 +243,14 @@ test("saving is serialized, failure is visible and latest state can retry", asyn
       },
     },
   });
-  session.updateConfig({ selectedToolNames: [] });
+  session.updateConfig({ permissionMode: "ask" });
   await tick();
   session.updateConfig({ selectedSkillKeys: [] });
   gate.resolve();
   await session.flush();
   assert.equal(max, 1);
   assert.equal(session.getSnapshot().saveError, "");
-  assert.deepEqual(writes.at(-1).config.selectedToolNames, []);
+  assert.deepEqual(writes.at(-1).config.permissionMode, "ask");
   assert.deepEqual(writes.at(-1).config.selectedSkillKeys, []);
   await session.close();
 });
@@ -267,13 +269,13 @@ test("temporary catalog failure preserves selections and explicit empty values",
         : structuredClone(resources),
   });
   session.updateConfig({
-    selectedToolNames: ["read"],
+    permissionMode: "auto",
     selectedSkillKeys: ["s"],
     selectedKnowledgeCollectionIds: ["k"],
   });
   fail = true;
   await session.refreshResources();
-  assert.deepEqual(session.getSnapshot().config.selectedToolNames, ["read"]);
+  assert.deepEqual(session.getSnapshot().config.permissionMode, "auto");
   fail = false;
   await session.refreshResources();
   assert.deepEqual(session.getSnapshot().config.selectedSkillKeys, ["s"]);
@@ -460,7 +462,7 @@ test("authorization belongs to the core turn: no record changes before approval,
   assert.equal(session.getSnapshot().phase, "preparing");
   assert.equal(session.getSnapshot().messages.length, 0);
   assert.equal(calls.saved.length, 0);
-  assert.equal((await session.updateConfig({ selectedToolNames: [] })).ok, false);
+  assert.equal((await session.updateConfig({ permissionMode: "ask" })).ok, false);
   assert.equal((await session.stop()).ok, true);
   assert.equal((await sending).status, "cancelled");
   assert.equal(session.getSnapshot().phase, "idle");
@@ -481,5 +483,83 @@ test("authorization belongs to the core turn: no record changes before approval,
   assert.equal((await session.send({ text: "denied" })).status, "rejected");
   assert.deepEqual(session.getSnapshot().messages, messages);
   assert.equal(calls.saved.length, saves);
+  await session.close();
+});
+
+test("legacy tool selection migrates to ask and restored modes are independent of the tool catalog", async () => {
+  const legacy = await setup({
+    storage: {
+      async load() {
+        return { title: "legacy", messages: [], config: { selectedToolNames: ["bash"] } as any };
+      },
+    },
+  });
+  assert.equal(legacy.session.getSnapshot().config.permissionMode, "ask");
+  await legacy.session.close();
+  const plugin = await setup({
+    catalog: async () => ({ ...resources, tools: [] }),
+    storage: {
+      async load() {
+        return { title: "plugin", messages: [], config: { permissionMode: "full" } };
+      },
+    },
+  });
+  assert.equal(plugin.session.getSnapshot().config.permissionMode, "full");
+  assert.equal((await plugin.session.updateConfig({ permissionMode: "full" })).ok, true);
+  assert.equal((await plugin.session.updateConfig({ permissionMode: "auto" })).ok, true);
+  await plugin.session.close();
+});
+
+test("approval events wait independently of questions, reject question answers and clear on stop", async () => {
+  const { session, emit, calls } = await setup();
+  await session.send({ text: "work" });
+  const taskId = session.getSnapshot().activeTaskId!;
+  emit({
+    type: E.ApprovalRequested,
+    taskId,
+    approvalId: "approval",
+    executionId: "call",
+    summary: "bash",
+    details: "{}",
+    reason: "shell",
+    expiresAt: Date.now() + 60_000,
+  });
+  assert.equal(session.getSnapshot().phase, "waiting");
+  assert.equal((await session.answer({ questionId: "approval", answer: "yes" })).ok, false);
+  assert.equal(calls.answers, 0);
+  emit({ type: E.Question, questionId: "question", question: "detail?" });
+  emit({ type: E.QuestionAnswered, questionId: "question", answer: "detail" });
+  assert.equal(session.getSnapshot().pendingApproval?.approvalId, "approval");
+  assert.equal(session.getSnapshot().phase, "waiting");
+  emit({ type: E.ApprovalResolved, taskId, approvalId: "wrong", approved: true });
+  assert.equal(session.getSnapshot().pendingApproval?.approvalId, "approval");
+  await session.stop();
+  assert.equal(session.getSnapshot().pendingApproval, null);
+  await session.close();
+});
+
+test("permission selection, restoration and refresh follow the returned catalog", async () => {
+  let permissionOptions = agentPermissionOptions
+    .filter((option) => option.mode !== "full")
+    .map((option) => ({ ...option, label: `来自后端：${option.label}`, isDefault: option.mode === "auto" }));
+  const { session, calls } = await setup({
+    catalog: async () => ({ ...resources, permissionOptions }),
+    storage: { load: async () => ({ title: "saved", messages: [], config: { permissionMode: "full" } }) },
+  });
+  assert.equal(session.getSnapshot().config.permissionMode, "auto", "removed saved modes use the server default");
+  assert.match(session.getSnapshot().resources.permissionOptions![0].label, /来自后端/);
+  assert.equal((await session.updateConfig({ permissionMode: "full" })).ok, false);
+  assert.equal((await session.updateConfig({ permissionMode: "ask" })).ok, true);
+  permissionOptions = [];
+  await session.refreshResources();
+  assert.equal(session.getSnapshot().config.permissionMode, "ask", "a failed catalog refresh preserves the selection");
+  assert.equal((await session.send({ text: "must not guess permissions" })).status, "rejected");
+  assert.equal(calls.dispatched, 0);
+  permissionOptions = agentPermissionOptions
+    .filter((option) => option.mode === "auto")
+    .map((option) => ({ ...option, label: "新的默认权限", isDefault: true }));
+  await session.refreshResources();
+  assert.equal(session.getSnapshot().config.permissionMode, "auto");
+  assert.equal((await session.updateConfig({ permissionMode: "ask" })).ok, false);
   await session.close();
 });

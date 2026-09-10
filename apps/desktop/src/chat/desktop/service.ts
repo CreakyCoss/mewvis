@@ -280,6 +280,17 @@ export function createDesktopChatService({ resolveRecord }: { resolveRecord?: Re
   return {
     openSession,
     openRecord,
+    async answerApproval(session: ChatSession, approvalId: string, approved: boolean) {
+      const snapshot = session.getSnapshot();
+      if (
+        !entryFor(session) ||
+        snapshot.pendingApproval?.approvalId !== approvalId ||
+        snapshot.activeTaskId !== snapshot.pendingApproval.taskId ||
+        snapshot.phase !== "waiting"
+      )
+        throw new Error("审批已失效，请等待当前操作");
+      await client.tasks.answerApproval({ taskId: snapshot.pendingApproval.taskId, approvalId, approved });
+    },
     closeSession,
     loadRecordSource,
     listRecords: listChats,

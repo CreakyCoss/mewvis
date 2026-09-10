@@ -146,3 +146,21 @@ const result = await session.send({
 已有 1420 开发环境的 `/scripts/chat/plugin-browser.html` 挂载真实 `PluginFrame` 和打包后的测试插件，使用内存 Runtime 与存储。包含默认和组合 Chat、模型与能力选择、暂停授权、停止、追问、视图卸载／重挂载。它不安装插件、不读写真实用户历史，也不等同于真实模型和重建后 Tauri 程序的端到端验收。
 
 回归覆盖插件身份与权限隔离、只读历史、元数据列表、无场景参数重开、准备期停止、流式事件、追问、保存与后台运行。前端构建仍提示大 chunk。真实模型及重建后 Tauri 的完整链路需单独验收；测试不会启动或重启开发服务。
+
+### 执行权限
+
+聊天配置使用 `permissionMode: ChatPermissionMode | null` 替代旧的 `selectedToolNames`；
+`ChatPermissionMode` 来自生成的 `AgentPermissions["mode"]`，当前模式为 `ask`、`auto`、`full`。
+插件与宿主共同读取 `resources.permissionOptions`，用返回的名称、说明、默认项展示并校验权限选择。
+目录加载前选择为 `null`，目录不可用时禁止发送。`profile.allowedToolNames` 仍用于场景能力分配，不参与安全规则判断。
+
+Runtime 在实际执行前识别操作并进行安全检查。需要审批时，原调用直接等待宿主主窗口确认；
+无需模型调用额外授权工具或重试。一分钟未批准即拒绝，排队时间计入这一分钟。
+等待审批不暂停主/子 Agent 的超时计时。
+
+插件可以观察只读的 `snapshot.pendingApproval`；SDK 没有审批方法，`session.answer()`
+只能回答普通问题。后台和无界面会话同样使用宿主审批。`auto` 自动放行低、中风险操作，
+高风险或无法完整分析的执行需要人工确认，不调用审核 Agent。
+
+插件工具不再声明权限。未知自定义工具与未知内置工具使用相同策略。该机制检查 Agent 发起的执行，
+插件 Node 模块本身的进程隔离及直接 UI 调用的安全改造另行处理。

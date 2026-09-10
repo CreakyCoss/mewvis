@@ -5,11 +5,11 @@ mod services;
 
 use commands::{
     agent_runtime::{
-        abort_agent_runtime_agent, answer_agent_runtime_question, delete_agent_runtime_session,
-        get_agent_runtime_collaboration_timeline, get_agent_runtime_session,
-        get_agent_runtime_session_debug, list_agent_runtime_sessions, list_agent_runtime_tools,
-        read_agent_runtime_session, release_agent_runtime_session, run_agent_runtime_agent,
-        run_agent_runtime_chat, run_agent_runtime_collaboration,
+        abort_agent_runtime_agent, answer_agent_runtime_approval, answer_agent_runtime_question,
+        delete_agent_runtime_session, get_agent_runtime_collaboration_timeline,
+        get_agent_runtime_session, get_agent_runtime_session_debug, list_agent_runtime_sessions,
+        list_agent_runtime_tools, read_agent_runtime_session, release_agent_runtime_session,
+        run_agent_runtime_agent, run_agent_runtime_chat, run_agent_runtime_collaboration,
         run_agent_runtime_collaboration_mode, summarize_agent_runtime_session,
         AgentRuntimeSupervisor,
     },
@@ -98,6 +98,7 @@ pub fn run() {
             run_agent_runtime_collaboration,
             run_agent_runtime_collaboration_mode,
             answer_agent_runtime_question,
+            answer_agent_runtime_approval,
             abort_agent_runtime_agent,
             read_agent_runtime_session,
             list_agent_runtime_sessions,
