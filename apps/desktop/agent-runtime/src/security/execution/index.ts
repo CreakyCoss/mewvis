@@ -26,6 +26,7 @@ import type {
 } from "./types.js";
 
 export type * from "./types.js";
+export { serializeWorkspaceOperation } from "./runtime/workspace-queue.js";
 
 const jsonObject = z.record(z.string(), z.json());
 const configSchema = z

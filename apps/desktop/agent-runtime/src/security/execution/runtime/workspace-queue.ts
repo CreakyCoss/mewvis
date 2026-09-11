@@ -1,5 +1,4 @@
-// Builtin repositories used process-local transaction queues before execution moved
-// into workers. Keep their ordering in the trusted host across worker processes.
+// Keep per-workspace operation ordering in the host process when dispatching to workers.
 const workspaceOperations = new Map<string, Promise<void>>();
 export async function serializeWorkspaceOperation<T>(
   workspace: string,

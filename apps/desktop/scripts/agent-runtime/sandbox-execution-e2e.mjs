@@ -23,9 +23,7 @@ try {
   );
   await build({
     stdin: {
-      contents: ["security/execution/index", "engines/builtins/workspace-queue"]
-        .map((name) => `export * from ${JSON.stringify(resolve(`agent-runtime/src/${name}.ts`))};`)
-        .join("\n"),
+      contents: `export * from ${JSON.stringify(resolve("agent-runtime/src/security/execution/index.ts"))};`,
       loader: "ts",
       resolveDir: process.cwd(),
     },

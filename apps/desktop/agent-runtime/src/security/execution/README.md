@@ -101,6 +101,7 @@ not promise that malicious plugins cannot deliberately detach background process
 - `runtime/launcher.ts`: backend selection, program spawning and cleanup.
 - `runtime/sandbox.ts`: backend dispatch; unknown backend names are rejected.
 - `runtime/srt.ts`: SRT contract/version checks, command wrapping and status/setup delegation.
+- `runtime/workspace-queue.ts`: host-process queues for per-workspace operation ordering.
 - `../platforms/index.ts`: platform selection for processes, channels and sandbox setup.
 - `../platforms/posix`, `../platforms/windows`: platform parameter parsing and execution implementations.
   Their `config.ts` files contain parsers, not another set of editable settings.
@@ -109,7 +110,8 @@ not promise that malicious plugins cannot deliberately detach background process
 Pi owns its tool factories in `runtimes/pi/tools/worker.ts` and `tools/shell.ts`.
 `platforms/*/process.ts` selects the available command shell. Model/session
 control, questions and delegation stay in the host.
-Builtin transaction ordering stays in `engines/builtins/workspace-queue.ts`.
+Adapters opt operations into `serializeWorkspaceOperation` through `index.ts`.
+Queue state stays in the host process when operations are dispatched to execution workers.
 The same worker runs in either execution mode. PluginHost and plugin UI are outside
 this Agent-tool boundary.
 

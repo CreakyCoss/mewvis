@@ -8,8 +8,11 @@ import {
   resolveSafetyPolicy,
   checkExecution,
 } from "../../../../../../../security/safety/index.js";
-import { ProgramExecutor, resolveExecutionPolicy } from "../../../../../../../security/execution/index.js";
-import { serializeWorkspaceOperation } from "../../../../../../builtins/workspace-queue.js";
+import {
+  ProgramExecutor,
+  resolveExecutionPolicy,
+  serializeWorkspaceOperation,
+} from "../../../../../../../security/execution/index.js";
 import { allowedRuntimeTools, runtimeResourcesFor } from "../../resources.js";
 import type { AgentRuntimeCallbacks, RuntimeAgentCommand } from "../../types.js";
 import { createPiSubagentRunner } from "../agent/subagent-session.js";
