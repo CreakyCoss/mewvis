@@ -269,6 +269,13 @@ async function run() {
   let sessionOpens = 0;
   let historySession: ChatSession | undefined;
   const historyService = {
+    listSessions: () => [pluginSession],
+    subscribe: (listener: (session: ChatSession) => void) => {
+      historyListeners.add(listener);
+      return () => {
+        historyListeners.delete(listener);
+      };
+    },
     openSession: async () => {
       sessionOpens++;
       throw new Error("Must resolve history ownership");
@@ -449,7 +456,7 @@ async function run() {
       !fixture.textContent?.includes("连接中"),
     "A late failed retry cannot overwrite a newer successful connection",
   );
-  assert(historyListeners.size === 1, "StrictMode leaves one history ownership observer");
+  assert(historyListeners.size === 2, "StrictMode leaves one history observer and one host approval observer");
   await act(async () => {
     await historySession!.send({ text: "continue from history" });
     emit(pluginSession, { type: E.TextDelta, delta: "Plugin continuation" });
@@ -502,8 +509,107 @@ async function run() {
     "Leaving history detaches its observer without closing the plugin session",
   );
   await pluginSession.close();
+  await checkApprovals();
   results.textContent = `PASS ${assertions.length} assertions\n${assertions.join("\n")}`;
   results.style.whiteSpace = "pre-wrap";
+}
+async function checkApprovals() {
+  const session = await createChatSession({
+    identity: { scope: "approval-test", id: "approval" },
+    runtime,
+    storage: { load: async () => null, save: async () => {} },
+    catalog: { load: async () => ({ models, permissionOptions: structuredClone([...agentPermissionOptions]) }) },
+  });
+  const answers: [string, boolean][] = [];
+  const service = {
+    listSessions: () => [session],
+    subscribe: (listener: (session: ChatSession) => void) => session.subscribe(() => listener(session)),
+    viewPersistence: () => undefined,
+    answerApproval: async (target: ChatSession, approvalId: string, approved: boolean) => {
+      assert(target === session, "Approval actions retain the owning session");
+      answers.push([approvalId, approved]);
+      emit(session, { type: E.ApprovalResolved, approvalId, approved });
+    },
+  } as unknown as DesktopChatService;
+  root = createRoot(fixture);
+  const render = (visible: boolean) =>
+    root.render(
+      <StrictMode>
+        <DesktopChatEnvironment service={service}>
+          <div style={{ height: 680 }}>{visible ? <Chat session={session} /> : <p>Background task</p>}</div>
+        </DesktopChatEnvironment>
+      </StrictMode>,
+    );
+  const request = (id: string, expiresAt = Date.now() + 60_000) =>
+    emit(session, {
+      type: E.ApprovalRequested,
+      approvalId: id,
+      executionId: id,
+      summary: "bash",
+      reason: "需要执行命令，无法完整确认副作用。",
+      details: JSON.stringify(
+        { command: "pnpm test", operations: Array.from({ length: 20 }, (_, index) => `operation ${index}`) },
+        null,
+        2,
+      ),
+      expiresAt,
+    });
+  const button = (text: string) =>
+    Array.from(fixture.querySelectorAll("button")).find((item) => item.textContent === text)!;
+  await act(async () => {
+    render(true);
+    await session.send({ text: "test approval" });
+    request("first");
+  });
+  assert(
+    fixture.querySelectorAll('[aria-label="操作审批"]').length === 1 && !fixture.querySelector('[role="dialog"]'),
+    "Approval appears once inline without a modal",
+  );
+  assert(!fixture.querySelector('[aria-label="后台会话审批"]'), "An inline approval suppresses its background card");
+  const composerTop = fixture.querySelector("form")!.getBoundingClientRect().top;
+  await act(async () => button("详情").click());
+  const details = fixture.querySelector('[aria-label="完整审批信息"]')!;
+  assert(
+    details.getBoundingClientRect().bottom <= button("收起").getBoundingClientRect().top,
+    "Approval details expand above the action row",
+  );
+  assert(
+    Math.abs(fixture.querySelector("form")!.getBoundingClientRect().top - composerTop) < 2,
+    "Expanding approval details preserves the composer position",
+  );
+  assert(details.scrollHeight > details.clientHeight, "Long approval details scroll inside a bounded panel");
+  await act(async () => button("批准一次").click());
+  assert(
+    answers[0]?.[0] === "first" && answers[0]?.[1] === true && !fixture.querySelector('[aria-label="操作审批"]'),
+    "Approval submits once and disappears after resolution",
+  );
+  await act(async () => {
+    request("second");
+    render(false);
+  });
+  assert(
+    fixture.querySelectorAll('[aria-label="操作审批"]').length === 1 &&
+      fixture.querySelector('[aria-label="后台会话审批"]'),
+    "Leaving the composer keeps a compact background approval available",
+  );
+  await act(async () => button("拒绝").click());
+  assert(
+    answers[1]?.[0] === "second" && answers[1]?.[1] === false,
+    "Background approval can be rejected through the host",
+  );
+  await act(async () => {
+    render(true);
+    request("expired", Date.now() - 1);
+  });
+  assert(
+    button("批准一次").disabled && !fixture.querySelector('[aria-label="完整审批信息"]'),
+    "Expired approvals cannot be granted and new requests start collapsed",
+  );
+  await act(async () => {
+    await session.stop();
+    root.unmount();
+  });
+  await session.close();
 }
 run().catch((error) => {
   results.textContent = `FAIL ${String(error.stack || error)}\n${assertions.join("\n")}`;

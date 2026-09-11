@@ -99,6 +99,7 @@ history.set(sessionKey({ scope: "workspace:fixture", id: "preview" }), {
   ],
 });
 let writes = 0;
+const approvalAnswers = new Map<string, (approved: boolean) => void>();
 const owner = createChatService(async (input: DesktopSessionInput) => {
   const listeners = new Set<(event: AgentClientAgentEvent) => void>();
   const timers = new Map<string, ReturnType<typeof setTimeout>[]>();
@@ -116,6 +117,38 @@ const owner = createChatService(async (input: DesktopSessionInput) => {
       return {
         async dispatch() {
           emit(turn.taskId, { type: E.Started });
+          if (turn.input.text.includes("审批")) {
+            const approvalId = `approval:${turn.taskId}`;
+            const finish = (approved: boolean) => {
+              timers.get(turn.taskId)?.forEach(clearTimeout);
+              approvalAnswers.delete(turn.taskId);
+              emit(turn.taskId, { type: E.ApprovalResolved, approvalId, approved });
+              emit(turn.taskId, {
+                type: E.Done,
+                text: approved ? "已批准这次操作（内存演示，未执行命令）。" : "这次操作未获授权。",
+              });
+            };
+            approvalAnswers.set(turn.taskId, finish);
+            timers.set(turn.taskId, [setTimeout(() => finish(false), 60_000)]);
+            emit(turn.taskId, {
+              type: E.ApprovalRequested,
+              approvalId,
+              executionId: "preview-command",
+              summary: "bash",
+              reason: "需要运行测试命令，无法完整确认这次执行的副作用。",
+              details: JSON.stringify(
+                {
+                  input: { command: "git diff --stat && pnpm test:chat", timeout: 60 },
+                  operations: [{ kind: "process", command: "git diff --stat && pnpm test:chat", cwd: workspace.path }],
+                  coverage: "partial",
+                },
+                null,
+                2,
+              ),
+              expiresAt: Date.now() + 60_000,
+            });
+            return;
+          }
           const events = [
             { type: E.ThinkingDelta, delta: "检查任务配置。" },
             { type: E.ThinkingEnd, content: "检查任务配置。" },
@@ -132,6 +165,7 @@ const owner = createChatService(async (input: DesktopSessionInput) => {
       };
     },
     async abort(taskId) {
+      approvalAnswers.delete(taskId);
       timers.get(taskId)?.forEach(clearTimeout);
       timers.delete(taskId);
     },
@@ -165,6 +199,10 @@ const owner = createChatService(async (input: DesktopSessionInput) => {
 });
 const service = {
   ...owner,
+  answerApproval: async (session, _approvalId, approved) => {
+    const taskId = session.getSnapshot().activeTaskId;
+    if (taskId) approvalAnswers.get(taskId)?.(approved);
+  },
   openRecord: async (input: DesktopSessionInput) => ({ session: await owner.openSession(input) }),
   subscribeRecord: () => () => {},
   getLocation: () => ({ workspacePath: workspace.path }),

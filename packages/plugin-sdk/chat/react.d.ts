@@ -42,6 +42,7 @@ type Environment = {
     session: ChatSession,
     viewId: string,
   ) => ChatViewPersistence | undefined;
+  renderBeforeComposer?: (session: ChatSession) => ReactNode;
 };
 declare function ChatEnvironment({
   children,

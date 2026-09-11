@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type PropsWithChildren } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useSyncExternalStore,
+  type PropsWithChildren,
+  type ReactNode,
+} from "react";
 import { isChatBusy, type ChatRunConfig, type ChatSession } from "../core";
 import { getChatViewState } from "./view-state";
 import type { ChatDisplayOptions, ChatInputFile, ChatViewPersistence } from "./types";
@@ -6,6 +14,7 @@ import type { ChatDisplayOptions, ChatInputFile, ChatViewPersistence } from "./t
 type Environment = {
   files?: (session: ChatSession) => ChatInputFile[];
   persistence?: (session: ChatSession, viewId: string) => ChatViewPersistence | undefined;
+  renderBeforeComposer?: (session: ChatSession) => ReactNode;
 };
 const EnvironmentContext = createContext<Environment>({});
 export function ChatEnvironment({ children, ...environment }: PropsWithChildren<Environment>) {
@@ -39,6 +48,10 @@ export function useChatSnapshot() {
 }
 export function useChatActions() {
   return useChatSession();
+}
+export function useBeforeComposer() {
+  const session = useChatSession();
+  return useContext(EnvironmentContext).renderBeforeComposer?.(session);
 }
 export function useChatViewState() {
   const { view } = useBinding();

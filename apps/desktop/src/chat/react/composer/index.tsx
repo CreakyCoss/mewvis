@@ -6,7 +6,7 @@ import { ChatEditor, type ChatEditorHandle } from "./editor";
 import { ModelMenu } from "./menus/model";
 import { PermissionMenu } from "./menus/permission";
 import { CapabilityMenu } from "./menus/capability";
-import { useChatComposer } from "../provider";
+import { useBeforeComposer, useChatComposer } from "../provider";
 import type { SendResult } from "../../core";
 
 export type ComposerBinding = ReturnType<typeof useChatComposer>;
@@ -150,7 +150,13 @@ export function ComposerView({
 }
 export function ChatComposer(props: Omit<ComposerViewProps, "binding">) {
   const binding = useChatComposer();
-  return binding.initialized ? <ComposerView {...props} binding={binding} /> : null;
+  const beforeComposer = useBeforeComposer();
+  return binding.initialized ? (
+    <>
+      {beforeComposer}
+      <ComposerView {...props} binding={binding} />
+    </>
+  ) : null;
 }
 
 export function EmptyComposer({ placeholder = "输入问题" }: { placeholder?: string }) {

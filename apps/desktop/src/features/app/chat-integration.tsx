@@ -1,4 +1,3 @@
-import { ChatApprovals } from "./chat-approvals";
 import { connectNativePluginChat } from "./plugin-chat-native";
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -84,7 +83,6 @@ export function AppChatIntegration({ children }: PropsWithChildren) {
   return (
     <DesktopChatEnvironment service={chatService} files={files}>
       {children}
-      <ChatApprovals />
     </DesktopChatEnvironment>
   );
 }

@@ -3,6 +3,7 @@ import { ChatEnvironment } from "../react";
 import { sessionKey, type ChatSession } from "../core";
 import type { ChatInputFile } from "../react";
 import type { DesktopChatService, DesktopSessionInput, DesktopRecordView, ReadOnlyChatHistory } from "./service";
+import { useDesktopApprovals } from "./approvals";
 
 const Context = createContext<DesktopChatService | null>(null);
 export function DesktopChatEnvironment({
@@ -13,14 +14,16 @@ export function DesktopChatEnvironment({
   service: DesktopChatService;
   files?: (session: ChatSession) => ChatInputFile[];
 }>) {
+  const approvals = useDesktopApprovals(service);
   const persistence = useMemo(
     () => (session: ChatSession, viewId: string) => (viewId === "main" ? service.viewPersistence(session) : undefined),
     [service],
   );
   return (
     <Context.Provider value={service}>
-      <ChatEnvironment persistence={persistence} files={files}>
+      <ChatEnvironment persistence={persistence} files={files} renderBeforeComposer={approvals.renderBeforeComposer}>
         {children}
+        {approvals.background}
       </ChatEnvironment>
     </Context.Provider>
   );
