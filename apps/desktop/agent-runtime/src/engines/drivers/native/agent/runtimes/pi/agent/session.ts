@@ -5,6 +5,7 @@ import { createPiModelRuntime, requirePiRuntimeConfig } from "../model/index.js"
 import { createPiResourceLoader } from "./resources.js";
 import type { SafetyPolicy } from "../../../../../../../security/safety/index.js";
 import type { ExecutionPolicy } from "../../../../../../../security/execution/index.js";
+import type { ResolvedAgentAccess } from "../../../../../../../security/access/index.js";
 
 export type PiAgentSession = Awaited<ReturnType<typeof createAgentSession>>["session"];
 
@@ -12,7 +13,7 @@ export type PiAgentSessionOptions = {
   subagent?: boolean;
   toolCeiling?: readonly string[];
   rolePrompt?: string;
-  policies?: { safety: SafetyPolicy | null; execution: ExecutionPolicy };
+  policies?: { safety: SafetyPolicy | null; execution: ExecutionPolicy; access?: ResolvedAgentAccess };
   signal?: AbortSignal;
 };
 
@@ -38,6 +39,7 @@ export const createPiAgentSession = async (
       modelRuntime,
       sessionManager,
       resourceLoader: resources.loader,
+      settingsManager: resources.settingsManager,
       model,
       thinkingLevel: thinkingLevel ?? "off",
       tools: resources.toolNames,

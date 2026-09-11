@@ -4,6 +4,7 @@
   "type": "module",
   "description": "UI-independent session and semantic message contracts shared by Isle and its plugin SDK.",
   "exports": {
+    "./agent-access.schema.json": "./agent-access.schema.json",
     ".": {
       "types": "./index.d.ts",
       "default": "./index.js"
@@ -12,6 +13,8 @@
   "files": [
     "index.d.ts",
     "agent-permissions.d.ts",
+    "agent-access.d.ts",
+    "agent-access.schema.json",
     "model-thinking.d.ts",
     "index.js"
   ],

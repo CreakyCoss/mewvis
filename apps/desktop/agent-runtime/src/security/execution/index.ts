@@ -1,6 +1,8 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
+import { restrictExecutionReads } from "../platforms/index.js";
+import { intersectAccessHosts, intersectAccessPaths, type ResolvedAgentAccess } from "../access/index.js";
 import { z } from "zod";
 import entries from "../../../build-entries.json" with { type: "json" };
 import {
@@ -79,15 +81,19 @@ export function resolveExecutionPolicy(
   workspacePath: string,
   config: ExecutionConfig = EXECUTION_CONFIG,
   runtimePath = dirname(fileURLToPath(import.meta.url)),
+  constraint?: { access: ResolvedAgentAccess; programPaths?: readonly string[] },
 ): ExecutionPolicy {
   const parsed = validateExecutionConfig(config);
   const execution = { workspacePath: canonicalPath(workspacePath), environment: parsed.environment };
-  if (!parsed.enabled) return { ...execution, sandbox: null };
+  if (!parsed.enabled) {
+    if (constraint) throw new Error("当前请求带有 agentAccess 限制，请启用执行沙箱后重试。");
+    return { ...execution, sandbox: null };
+  }
   const profile = parsed.profiles.find((profile) => profile.mode === mode);
   if (!profile) throw new Error(`未配置沙箱档位：${mode}`);
   const path = createResourcePathResolver(execution.workspacePath, runtimePath);
   const { backend, systemWritePaths } = resolveExecutionBackend(parsed.backend, path);
-  return {
+  const policy: ExecutionPolicy = {
     ...execution,
     sandbox: {
       workspacePath: execution.workspacePath,
@@ -100,6 +106,22 @@ export function resolveExecutionPolicy(
       backend,
     },
   };
+  if (constraint) {
+    const { access } = constraint;
+    policy.access = access;
+    const sandbox = policy.sandbox!;
+    // Host-selected program packages are executable inputs, never writable data.
+    sandbox.filesystem.denyWrite.push(...(constraint.programPaths ?? []).map(canonicalPath));
+    const writes = intersectAccessPaths(profile.filesystem.allowWrite.map(path), access.filesystem.write);
+    sandbox.filesystem.allowWrite = [...systemWritePaths, ...(writes === "all" ? [] : writes)];
+    if (access.filesystem.read !== "all")
+      restrictExecutionReads(sandbox.filesystem, access.filesystem.read, [
+        runtimePath,
+        ...(constraint.programPaths ?? []),
+      ]);
+    sandbox.network.allow = intersectAccessHosts(sandbox.network.allow, access.network.hosts);
+  }
+  return policy;
 }
 
 type SandboxControlOptions = { config?: ExecutionConfig; workspacePath?: string; runtimePath?: string };
@@ -151,6 +173,26 @@ export class ProgramExecutor {
 
   constructor(launch: ExecutionLaunch) {
     this.policy = launch.policy;
+    if (launch.policy.access) {
+      if (!launch.policy.sandbox) throw new Error("带有访问范围的执行程序必须使用沙箱。");
+      if (launch.program.executable !== process.execPath) throw new Error("当前执行程序尚未提供进程权限隔离适配。");
+      // Node confines in-process custom tools too. Spawned programs remain under
+      // the OS filesystem/network sandbox; addons, FFI and worker escape paths stay disabled.
+      launch = {
+        ...launch,
+        program: {
+          ...launch.program,
+          args: [
+            "--permission",
+            "--allow-fs-read=*",
+            "--allow-fs-write=*",
+            "--allow-net",
+            ...(launch.policy.access.process.execute ? ["--allow-child-process"] : []),
+            ...launch.program.args,
+          ],
+        },
+      };
+    }
     this.child = spawn(process.execPath, [fileURLToPath(new URL(entries.executionHost.output, import.meta.url))], {
       cwd: launch.policy.workspacePath,
       env: this.platform.executionEnvironment(launch.policy.environment),

@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://isle.local/protocol/agent-runtime/v1/access.schema.json",
+  "title": "AgentAccessProtocol",
+  "anyOf": [{ "$ref": "#/definitions/AgentAccess" }, { "$ref": "#/definitions/AgentAccessRoots" }],
+  "definitions": {
+    "AgentAccessBase": {
+      "type": "string",
+      "enum": ["workspace", "pluginData", "home", "temp"]
+    },
+    "AgentAccessPath": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["base"],
+      "properties": {
+        "base": { "$ref": "#/definitions/AgentAccessBase" },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?![\\\\/])(?![A-Za-z]:)(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$))[^\\u0000*?\\[\\]]+$",
+          "description": "Optional relative path within the host-resolved base. Absolute paths, parent traversal and globs are forbidden."
+        }
+      }
+    },
+    "AgentAccessPaths": {
+      "description": "Omission means no access. all imposes no additional restriction on the host policy.",
+      "anyOf": [
+        { "type": "string", "enum": ["all"] },
+        { "type": "array", "items": { "$ref": "#/definitions/AgentAccessPath" }, "uniqueItems": true }
+      ]
+    },
+    "AgentAccess": {
+      "description": "Host-supplied hard access ceiling, independent of approval mode. Omitted capabilities are denied.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "filesystem": {
+          "title": "AgentFilesystemAccess",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "read": { "$ref": "#/definitions/AgentAccessPaths" },
+            "write": {
+              "$ref": "#/definitions/AgentAccessPaths",
+              "description": "Allows creating, modifying and deleting files within the declared paths."
+            }
+          }
+        },
+        "network": {
+          "title": "AgentNetworkAccess",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "hosts": {
+              "anyOf": [
+                { "type": "string", "enum": ["all"] },
+                {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "items": { "type": "string", "pattern": "^(?:\\*\\.)?[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)*$" }
+                }
+              ]
+            }
+          }
+        },
+        "process": {
+          "title": "AgentProcessAccess",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "execute": { "type": "boolean" } }
+        }
+      }
+    },
+    "AgentAccessRoots": {
+      "description": "Additional path bases supplied only by the trusted host. The runtime supplies workspace, home and temp itself.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "pluginData": { "type": "string", "minLength": 1 } }
+    }
+  }
+}

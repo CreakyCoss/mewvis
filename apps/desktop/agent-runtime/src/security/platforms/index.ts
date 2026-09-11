@@ -5,7 +5,21 @@ import * as windowsChannel from "./windows/channel.js";
 import { platformKey } from "./resources.js";
 import * as posixConfig from "./posix/config.js";
 import * as windowsConfig from "./windows/config.js";
-import type { ExecutionBackendConfig, ResolvedExecutionBackend } from "../execution/types.js";
+import * as posixAccess from "./posix/access.js";
+import * as windowsAccess from "./windows/access.js";
+import type { ExecutionBackendConfig, FilesystemScope, ResolvedExecutionBackend } from "../execution/types.js";
+
+export function restrictExecutionReads(
+  filesystem: FilesystemScope,
+  allowed: readonly string[],
+  programPaths: readonly string[],
+) {
+  return { posix: posixAccess, windows: windowsAccess }[platformKey(process.platform)].restrictReads(
+    filesystem,
+    allowed,
+    programPaths,
+  );
+}
 
 export function resolveExecutionBackend(
   config: ExecutionBackendConfig,

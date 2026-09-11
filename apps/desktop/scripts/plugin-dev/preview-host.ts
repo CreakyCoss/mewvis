@@ -91,7 +91,9 @@ export function createPreviewChat(options: {
               signal.throwIfAborted();
               dispatches++;
               emit(turn.taskId, { type: "thinking_delta", delta: "这是一段模拟思考，正在检查共享会话与展示组件。" });
-              const toolName = turn.config.selectedToolNames[0];
+              const toolName = options.tools.find(
+                (tool) => !profileData?.allowedToolNames || profileData.allowedToolNames.includes(tool.name),
+              )?.name;
               if (toolName && (turn.input.text.includes("工具") || turn.input.text.includes(toolName))) {
                 const args = { text: "Hello Isle 👋" };
                 const toolCallId = `${turn.taskId}-tool`;
@@ -112,6 +114,7 @@ export function createPreviewChat(options: {
                   type: "question",
                   questionId: `${turn.taskId}-question`,
                   question: "预览追问：你希望回复详细还是简洁？",
+                  expiresAt: Date.now() + 3 * 60_000,
                 });
                 return;
               }
@@ -197,7 +200,7 @@ export function createPreviewChat(options: {
   } as unknown as DesktopChatService;
   const host = createPluginChatHost(service, {
     workspaces: async () =>
-      options.permissions.includes("workspace-files")
+      options.permissions.includes("chat")
         ? [
             { id: "preview", name: "调试工作区", isDefault: true },
             { id: "alternate", name: "隔离工作区", isDefault: false },
@@ -205,8 +208,7 @@ export function createPreviewChat(options: {
         : [],
     authorize: async (_pluginId, workspaceId) => {
       await gate;
-      if (!options.permissions.includes("chat") || !options.permissions.includes("workspace-files"))
-        throw new Error("插件未声明 chat 和 workspace-files 权限");
+      if (!options.permissions.includes("chat")) throw new Error("插件未声明 chat 权限");
       if (!["preview", "alternate"].includes(workspaceId)) throw new Error("无效预览工作区");
       return { workspacePath: `/memory/${workspaceId}`, knowledge: options.permissions.includes("chat-knowledge") };
     },

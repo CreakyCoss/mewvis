@@ -10,6 +10,7 @@ use std::{
 use tauri::{path::BaseDirectory, AppHandle, Manager};
 use uuid::Uuid;
 
+use crate::commands::agent_runtime::AgentAccess;
 use crate::product_config::{app_data_dir_name, product_env_var};
 
 const REGISTRY_SCHEMA_VERSION: u32 = 1;
@@ -70,6 +71,7 @@ pub(crate) struct PluginDescriptor {
     pub dsh_patch: Option<String>,
     pub compatibility: Vec<PluginCompatibility>,
     pub permissions: Vec<PluginPermission>,
+    pub agent_access: Option<AgentAccess>,
     pub permission_status: PluginPermissionStatus,
     pub origin: Option<PluginOrigin>,
 }
@@ -91,6 +93,8 @@ pub(crate) struct RuntimePlugin {
     pub entry: String,
     pub package_root: String,
     pub patch_path: Option<String>,
+    pub agent_access: Option<AgentAccess>,
+    pub permissions: Vec<PluginPermission>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -208,6 +212,7 @@ struct IsleManifest {
     display_name: Option<String>,
     plugin: Option<IslePluginManifest>,
     permissions: Option<Vec<PluginPermission>>,
+    agent_access: Option<AgentAccess>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -256,6 +261,8 @@ pub(crate) fn enabled_runtime_plugins(app: &AppHandle) -> Result<Vec<RuntimePlug
             entry: plugin.entry,
             package_root: plugin.path,
             patch_path: plugin.dsh_patch,
+            agent_access: plugin.agent_access,
+            permissions: plugin.permissions,
         })
         .collect())
 }
@@ -1029,6 +1036,7 @@ fn read_package(root: &Path, source: PluginSource) -> Result<PluginDescriptor, S
         dsh_patch: patch_path.map(|path| path.to_string_lossy().to_string()),
         compatibility,
         permissions,
+        agent_access: isle.agent_access,
         permission_status,
         origin,
     })

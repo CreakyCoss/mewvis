@@ -117,10 +117,12 @@ pub async fn install_plugin_from_marketplace(
 pub fn set_plugin_enabled(
     app: AppHandle,
     plugin_ui: State<'_, PluginUiHost>,
+    agent_runtime: State<'_, super::agent_runtime::AgentRuntimeSupervisor>,
     input: SetPluginEnabledInput,
 ) -> Result<PluginDescriptor, String> {
     let plugin = plugins::set_plugin_enabled(&app, &input.id, input.enabled)?;
     if !input.enabled {
+        agent_runtime.abort_plugin(&input.id)?;
         let _ = app.emit_to("main", "plugin-chat:revoke", &input.id);
     }
     plugin_ui.invalidate()?;
@@ -131,11 +133,13 @@ pub fn set_plugin_enabled(
 pub async fn remove_plugin(
     app: AppHandle,
     plugin_ui: State<'_, PluginUiHost>,
+    agent_runtime: State<'_, super::agent_runtime::AgentRuntimeSupervisor>,
     input: RemovePluginInput,
 ) -> Result<RemovedPlugin, String> {
     plugin_ui.invalidate()?;
     let worker_app = app.clone();
     let plugin_id = input.id.clone();
+    agent_runtime.abort_plugin(&plugin_id)?;
     let removed = tauri::async_runtime::spawn_blocking(move || {
         plugins::remove_installed_plugin(&worker_app, &input.id)
     })

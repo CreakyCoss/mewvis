@@ -20,6 +20,7 @@ type RuntimePlugin = Readonly<{
   packageRoot: string;
   patchPath?: string | null;
   permissions: readonly string[];
+  agentAccess?: import("@isle/chat-contracts").AgentAccess | null;
   permissionStatus: "declared" | "isle-upgrade-required" | "dsh-unsupported";
 }>;
 
@@ -53,6 +54,7 @@ type UiPlugin = Readonly<{
   uiError: string | null;
   compatibility: readonly PluginCompatibilityInfo[];
   permissions: readonly string[];
+  agentAccess?: import("@isle/chat-contracts").AgentAccess | null;
   permissionStatus: "declared" | "isle-upgrade-required" | "dsh-unsupported";
 }>;
 
@@ -146,6 +148,7 @@ const configure = async (value: unknown) => {
         uiError,
         compatibility: uiManifest.compatibility,
         permissions: Array.isArray(plugin.permissions) ? plugin.permissions : [],
+        agentAccess: plugin.agentAccess,
         permissionStatus:
           plugin.permissionStatus === "declared" ||
           plugin.permissionStatus === "isle-upgrade-required" ||

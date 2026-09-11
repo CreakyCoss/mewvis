@@ -52,6 +52,7 @@ export async function readProject(root) {
   const allowed = [
     "displayName",
     "permissions",
+    "agentAccess",
     "defaultEnabled",
     "ui",
     "host",

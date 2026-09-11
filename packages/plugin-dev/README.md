@@ -58,6 +58,33 @@ const result = await getPluginHost().executeTool<TextInspection>(
 SDK 提供完整的发送、停止、能力选择、流式事件、保存和多视图绑定，插件不实现第二套执行流程。
 业务层决定何时创建和关闭会话，React 卸载只取消观察。
 
+## Agent 访问范围
+
+`isle.config.ts` 的 `agentAccess` 与 `permissions` 同级，打包后原样写入
+`package.json` 的 `isle.agentAccess`。`defineConfig` 直接使用协议生成的
+`AgentAccess` 类型；打包检查、后端解析使用同一份协议 schema。
+
+`permissions: ["chat"]` 开放对话入口，不隐含文件、网络和进程权限。
+`agentAccess` 省略的能力一律不允许；`filesystem.read`、`filesystem.write`
+和 `network.hosts` 可显式填 `"all"`，表示仍按宿主策略限制，不额外缩小该项范围。
+写入包括创建、修改和删除，编辑现有文件通常还需要读取权限。
+
+路径使用 `{ base, path? }`，`base` 支持 `workspace`、`pluginData`、`home`、`temp`。
+`path` 只能是基础目录内的相对路径，不接受绝对路径、`..` 或 glob；后端还会检查
+符号链接不能逃出基础目录。域名支持精确名称或 `*.example.com`，不接受完整 URL。
+
+宿主在每次请求时从已启用插件的清单注入范围，插件调用接口只选择 `ask / auto / full`，
+不能提供或覆盖 `agentAccess`。三档、单次审批和子 Agent 都不能扩大声明范围。
+不需要再声明 `workspace-files` 才能使用聊天；这个旧的宿主能力不会转换成 Agent 文件授权。
+`pluginData` 由宿主按插件身份初始化，Agent 内的插件设置也使用该独立目录，不迁移旧设置。
+未申请读取该目录时使用内存设置；写入持久设置还须申请写入范围。已声明的插件技能由宿主提供内容，
+不会为了读取技能临时文件而扩大业务文件的权限。
+
+此声明限制 Agent 的工具执行。执行程序仍需宿主配置中的系统设备、临时写入目录、
+系统运行库和宿主选定的程序/插件资源；这些是执行基础设施，不会授予读取其他用户目录的权限。
+当前实现需要开启执行沙箱；关闭审批不影响范围限制。Windows 的有限读取白名单尚未支持，
+会明确拒绝启动，不回退到无限制执行。原生插件自身仍是受信任的 Node.js 代码，声明不替代其进程隔离。
+
 ## 插件技能
 
 ```ts
@@ -66,7 +93,15 @@ import { defineConfig } from "@isle/plugin-dev";
 
 export default defineConfig({
   displayName: "文本助手",
-  permissions: ["chat", "workspace-files"],
+  permissions: ["chat"],
+  agentAccess: {
+    filesystem: {
+      read: [{ base: "workspace" }, { base: "pluginData" }],
+      write: [{ base: "workspace", path: "output" }, { base: "pluginData" }],
+    },
+    network: { hosts: ["api.example.com"] },
+    process: { execute: false },
+  },
   host: {
     tools: "./main/host/tools.ts",
     skills: "./main/host/skills.ts",

@@ -12,6 +12,18 @@
       "workspace-files",
       "chat-knowledge"
     ],
+    "agentAccess": {
+      "filesystem": {
+        "read": "all",
+        "write": "all"
+      },
+      "network": {
+        "hosts": "all"
+      },
+      "process": {
+        "execute": true
+      }
+    },
     "ui": {
       "version": 1,
       "kind": "sandbox",

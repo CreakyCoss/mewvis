@@ -576,6 +576,9 @@ importers:
 
   packages/plugin-dev:
     dependencies:
+      '@isle/chat-contracts':
+        specifier: workspace:*
+        version: link:../chat-contracts
       '@isle/plugin-sdk':
         specifier: workspace:*
         version: link:../plugin-sdk

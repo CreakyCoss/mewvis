@@ -36,6 +36,7 @@
     "prepack": "node src/check-dist.mjs"
   },
   "dependencies": {
+    "@isle/chat-contracts": "workspace:*",
     "@isle/plugin-sdk": "workspace:*",
     "@vitejs/plugin-react": "^4.6.0",
     "@types/node": "^22.0.0",

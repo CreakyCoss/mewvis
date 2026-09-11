@@ -18,9 +18,14 @@ export function quoteArgument(value: string) {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
-export function programCommand(program: ExecutionProgram, channelArgs: readonly string[], _temporaryDirectory: string) {
+export function programCommand(program: ExecutionProgram, channelArgs: readonly string[], temporaryDirectory: string) {
   const command = [program.executable, ...program.args, ...channelArgs].map(quoteArgument).join(" ");
-  return `exec env NO_PROXY= no_proxy= NODE_USE_ENV_PROXY=1 ${command}`;
+  // SRT installs its local proxy variables in the outer launcher. Resolve its
+  // loopback endpoint numerically so a read allowlist need not expose DNS files.
+  const proxy = ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"]
+    .map((name) => `${name}="\${${name}/localhost:/127.0.0.1:}"`)
+    .join(" ");
+  return `exec env ${proxy} TMPDIR=${quoteArgument(temporaryDirectory)} NO_PROXY= no_proxy= NODE_USE_ENV_PROXY=1 ${command}`;
 }
 
 function killGroup(child: ChildProcess, signal: NodeJS.Signals) {

@@ -6,6 +6,8 @@ platform helpers are internal to this module.
 
 ```text
 security/
+  access/                Protocol parsing and a generic, immutable access ceiling
+    index.ts             Resolve host path bases, intersect ranges and reject undeclared operations
   safety/                Pre-call rules, approval and rechecking
     index.ts             Public flow and configuration validation
     policy.ts            Executable rules and permission profiles
@@ -41,3 +43,22 @@ tools and argument decoding remain in their engine adapters.
 
 See [approval rules](safety/README.md) and [program execution](execution/README.md)
 for configuration, lifecycle and verification details.
+
+`agentAccess` is an optional host-supplied ceiling separate from `permissions.mode`.
+Its source of truth is `protocol/v1/schema/access.schema.json`; SDK declarations
+are generated from it. `access/index.ts` validates the schema, resolves path bases
+and defaults missing capabilities to deny. The ordinary host omits the ceiling;
+the plugin boundary always supplies its installed declaration, including `{}` when
+none was declared. The security module has no plugin identity or enablement logic.
+
+The pre-call gate rejects known out-of-scope operations before approval, even with
+approval disabled. Execution intersects filesystem/network policies with the same
+ceiling; opaque tools and subprocesses stay in that sandbox. Node workers also use
+the Node permission model to gate process creation and disable native addon/FFI/worker
+escape routes. This does not isolate the separate native plugin service itself.
+Scoped execution requires an enabled sandbox and an adapted execution program;
+unsupported programs/platform restrictions fail closed. Child agents inherit the
+entire policy snapshot. Disabling a plugin cancels its tasks through the native host.
+
+Run `pnpm test:agent-runtime:access` for real filesystem, symlink, process and network
+containment tests; `pi-extensions-e2e.mjs` also exercises full mode and child inheritance.

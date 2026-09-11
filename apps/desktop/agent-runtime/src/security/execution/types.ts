@@ -1,10 +1,11 @@
 import type { ChildProcess, StdioOptions } from "node:child_process";
 import type { Readable, Writable } from "node:stream";
+import type { ResolvedAgentAccess } from "../access/index.js";
 
 /** Backend settings and resolved snapshots contain data only; they cross worker RPC. */
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 export type JsonObject = { [key: string]: JsonValue };
-export type FilesystemScope = { allowWrite: string[]; denyRead: string[]; denyWrite: string[] };
+export type FilesystemScope = { allowWrite: string[]; allowRead?: string[]; denyRead: string[]; denyWrite: string[] };
 export type NetworkScope = { allow: string[] | "all"; deny: string[] };
 export type ExecutionBackendConfig = {
   name: string;
@@ -26,7 +27,12 @@ export type SandboxPolicy = {
   network: NetworkScope;
   backend: ResolvedExecutionBackend;
 };
-export type ExecutionPolicy = { workspacePath: string; environment: string[]; sandbox: SandboxPolicy | null };
+export type ExecutionPolicy = {
+  workspacePath: string;
+  environment: string[];
+  sandbox: SandboxPolicy | null;
+  access?: ResolvedAgentAccess;
+};
 export type ExecutionLaunch = Readonly<{ policy: ExecutionPolicy; program: ExecutionProgram }>;
 export type SandboxInstance = SandboxLifecycle & {
   wrapProgram(
@@ -54,7 +60,11 @@ export type ExecutionTransport = {
   send(line: string): void;
   close(): void;
 };
-export type SandboxLifecycle = { initialize(): Promise<void>; reset(): Promise<void> };
+export type SandboxLifecycle = {
+  readonly temporaryDirectory?: string;
+  initialize(): Promise<void>;
+  reset(): Promise<void>;
+};
 export type SandboxReadiness = {
   state: "ready" | "setup-required" | "unavailable" | "disabled";
   canInstall: boolean;

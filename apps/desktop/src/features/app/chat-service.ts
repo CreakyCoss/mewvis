@@ -33,7 +33,6 @@ async function requirePlugin(pluginId: string) {
   const plugin = plugins.find((plugin) => plugin.id === pluginId && plugin.enabled);
   if (!plugin || plugin.permissionStatus !== "declared" || !plugin.permissions.includes("chat"))
     throw new Error("插件未启用或未获授权使用聊天");
-  if (!plugin.permissions.includes("workspace-files")) throw new Error("插件未获授权访问工作区");
   return plugin;
 }
 export const pluginChatHost = createPluginChatHost(chatService, {

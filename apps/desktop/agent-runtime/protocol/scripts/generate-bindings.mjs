@@ -85,6 +85,7 @@ const modelEnumValues = Object.fromEntries(
 );
 
 const sourceSchemas = [
+  "access.schema.json",
   "permissions.schema.json",
   "model.schema.json",
   "request.schema.json",
@@ -357,6 +358,7 @@ try {
     }),
   );
   for (const [schema, name] of [
+    ["access.schema.json", "agent-access"],
     ["permissions.schema.json", "agent-permissions"],
     [thinkingSchema, "model-thinking"],
   ]) {
@@ -376,6 +378,10 @@ try {
       }),
     );
   }
+  saveGenerated(
+    join(protocolRoot, "../../../../packages/chat-contracts/agent-access.schema.json"),
+    readFileSync(join(schemaRoot, "access.schema.json"), "utf8"),
+  );
   for (const target of targets) {
     const tempOutput = join(tempRoot, `agent-runtime-v1.${target.extension}`);
     const result =
@@ -424,6 +430,16 @@ try {
         trailingComma: "all",
       });
     } else if (target.language === "rust") {
+      // Access declarations reject typos at the native manifest boundary too.
+      generated = generated.replace(
+        /pub struct (AgentAccess|AgentFilesystemAccess|AgentNetworkAccess|AgentProcessAccess|AgentAccessPath|AgentAccessRoots) \{[\s\S]*?\n\}/g,
+        (block) =>
+          "#[serde(deny_unknown_fields)]\n" +
+          block.replace(
+            /(?<!#\[serde\(skip_serializing_if = "Option::is_none"\)\]\n)    pub (\w+): Option</g,
+            '    #[serde(skip_serializing_if = "Option::is_none")]\n    pub $1: Option<',
+          ),
+      );
       writeFileSync(tempOutput, generated);
       const rustfmt = spawnSync("rustfmt", ["--edition", "2021", tempOutput], {
         cwd: protocolRoot,

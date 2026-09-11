@@ -60,6 +60,7 @@
     "test:chat:plugin": "pnpm build:plugin-host && pnpm exec tsc -p scripts/chat/tsconfig.plugin.json && isle-plugin pack scripts/chat/fixtures/plugin && node scripts/chat/test-plugin.mjs",
     "test:plugin-dev": "pnpm build:chat-ui && pnpm exec tsc -p scripts/plugin-dev/tsconfig.json && pnpm --filter @isle/plugin-dev test",
     "test:agent-runtime:permissions": "node scripts/agent-runtime/permissions-e2e.mjs",
+    "test:agent-runtime:access": "pnpm build:agent-runtime && node scripts/agent-runtime/access-e2e.mjs",
     "test:agent-runtime:shell": "node scripts/agent-runtime/shell-e2e.mjs",
     "test:agent-runtime:sandbox": "pnpm build:agent-runtime && node scripts/agent-runtime/sandbox-platform-e2e.mjs && node scripts/agent-runtime/sandbox-execution-e2e.mjs",
     "test:agent-runtime:sandbox-platform": "node scripts/agent-runtime/sandbox-platform-e2e.mjs"

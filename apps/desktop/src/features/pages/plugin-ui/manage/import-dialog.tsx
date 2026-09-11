@@ -134,7 +134,11 @@ export const ImportPluginDialog = ({ open, onOpenChange, onInstalled }: ImportPl
               </p>
               <div className="space-y-2 border-t border-border/60 pt-3">
                 <p className="text-xs font-medium text-foreground">权限用途</p>
-                <PluginPermissionSummary permissions={inspection.permissions} status={inspection.permissionStatus} />
+                <PluginPermissionSummary
+                  permissions={inspection.permissions}
+                  agentAccess={inspection.agentAccess}
+                  status={inspection.permissionStatus}
+                />
               </div>
             </div>
           ) : null}

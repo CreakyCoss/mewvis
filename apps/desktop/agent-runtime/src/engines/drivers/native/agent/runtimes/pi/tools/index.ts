@@ -17,6 +17,7 @@ import type { PiAgentSessionOptions, PiAgentSession } from "../agent/session.js"
 import { registerPiAskUserTool } from "./ask-user-tool.js";
 import { registerPiSubagentTool } from "./subagent.js";
 import { installPiSafety } from "./safety.js";
+import { accessAllowsPath, resolveAgentAccess } from "../../../../../../../security/access/index.js";
 
 type PiTool = Parameters<ExtensionAPI["registerTool"]>[0];
 type Catalog = {
@@ -31,14 +32,37 @@ export async function createPiToolSet(
   options: PiAgentSessionOptions = {},
 ) {
   const mode = command.permissions?.mode ?? DEFAULT_AGENT_PERMISSION_MODE;
+  const resources = structuredClone(runtimeResourcesFor(command));
+  const access =
+    options.policies?.access ??
+    (command.agentAccess === undefined
+      ? undefined
+      : resolveAgentAccess(command.agentAccess, {
+          workspacePath: command.workspacePath,
+          roots: command.agentAccessRoots,
+        }));
+  if (options.policies && access && !options.policies.execution.access)
+    throw new Error("继承的执行策略缺少当前请求的访问范围。");
+  if (
+    access &&
+    resources.plugins?.settingsPath &&
+    !accessAllowsPath(access.filesystem.read, resources.plugins.settingsPath)
+  )
+    delete resources.plugins.settingsPath;
   // Safety rules are an immutable host snapshot containing functions. Only execution data is cloned.
   const policies = options.policies
-    ? { safety: options.policies.safety, execution: structuredClone(options.policies.execution) }
+    ? { safety: options.policies.safety, execution: structuredClone(options.policies.execution), access }
     : {
         safety: resolveSafetyPolicy(mode, command.workspacePath),
-        execution: resolveExecutionPolicy(mode, command.workspacePath),
+        execution: resolveExecutionPolicy(
+          mode,
+          command.workspacePath,
+          undefined,
+          undefined,
+          access ? { access, programPaths: resources.plugins?.items?.map((plugin) => plugin.packageRoot) } : undefined,
+        ),
+        access,
       };
-  const resources = structuredClone(runtimeResourcesFor(command));
   const builtins = resolveBuiltins(resources.skills?.enabled ?? []);
   if (resources.plugins?.items?.length) {
     const decision = await checkExecution({
@@ -145,6 +169,7 @@ export async function createPiToolSet(
     registerPiAskUserTool(collector, command.taskId, callbacks.requestUserInput);
     return {
       tools,
+      access,
       builtins,
       plugins: {
         skills: catalog.skillContents.map(({ skill }) => skill),
@@ -154,7 +179,7 @@ export async function createPiToolSet(
             ({ skill }) => !skill.disableModelInvocation && paths.has(skill.filePath),
           );
           pi.on("before_agent_start", (event) => {
-            if (pi.getActiveTools().includes("read") || !contents.length) return;
+            if ((!access && pi.getActiveTools().includes("read")) || !contents.length) return;
             return {
               systemPrompt: [
                 event.systemPrompt,
@@ -165,7 +190,8 @@ export async function createPiToolSet(
           });
         },
       },
-      installSafety: (session: PiAgentSession) => installPiSafety(session, command, callbacks, policies.safety),
+      installSafety: (session: PiAgentSession) =>
+        installPiSafety(session, command, callbacks, policies.safety, policies.access),
       registerExtensions(pi: ExtensionAPI) {
         pi.on("user_bash", () => {
           throw new Error("请通过已分配的 Shell 工具调用统一执行程序。");

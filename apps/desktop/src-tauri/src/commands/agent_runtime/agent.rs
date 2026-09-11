@@ -107,7 +107,10 @@ pub fn run_agent_runtime_agent(
         paths: Some(skill_paths),
         enabled: Some(enabled_skills),
     });
-    resources.plugins = resolve_session_plugins(&app, input.plugin_id.as_deref())?;
+    let session_plugin = resolve_session_plugins(&app, input.plugin_id.as_deref())?;
+    resources.plugins = session_plugin
+        .as_ref()
+        .map(|plugin| plugin.resources.clone());
     let mut command = request(
         task_id.clone(),
         METHOD_AGENT_RUN,
@@ -130,6 +133,12 @@ pub fn run_agent_runtime_agent(
         command["params"]["permissions"] =
             serde_json::to_value(permissions).map_err(|error| error.to_string())?;
     }
+    if let Some(plugin) = session_plugin {
+        command["params"]["agentAccess"] =
+            serde_json::to_value(plugin.access).map_err(|error| error.to_string())?;
+        command["params"]["agentAccessRoots"] =
+            serde_json::to_value(plugin.roots).map_err(|error| error.to_string())?;
+    }
 
     state.submit(
         app,
@@ -137,6 +146,7 @@ pub fn run_agent_runtime_agent(
             task_id: task_id.clone(),
             session_key,
             command,
+            plugin_id: input.plugin_id,
         },
     )?;
 

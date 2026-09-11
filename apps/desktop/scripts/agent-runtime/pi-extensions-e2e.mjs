@@ -61,6 +61,7 @@ try {
     join(temp, "package.json"),
     JSON.stringify({ name: "pi-extensions-test", type: "module", piConfig: { name: "pi", configDir: ".pi" } }),
   );
+  cpSync(join(temp, "package.json"), join(runtime, "package.json"));
   const api = await import(pathToFileURL(bundle).href);
 
   const outside = join(temp, "private");
@@ -386,6 +387,67 @@ try {
     await pluginTools.dispose();
   }
   console.log("PASS sandboxed plugin settings initialize and read without legacy migration or writes");
+  const scopedPluginRoot = api.canonicalPath(join(temp, "scoped-plugin"));
+  mkdirSync(scopedPluginRoot);
+  writeFileSync(join(scopedPluginRoot, "package.json"), '{"type":"module"}');
+  await build({
+    stdin: {
+      contents: `
+      import { definePlugin, defineTool } from ${JSON.stringify(resolve(desktop, "../../packages/plugin-sdk/index.js"))};
+      export default definePlugin({ name: 'scope-fixture', inject: ['tools', 'skills'], apply(ctx) {
+        ctx.skills.register({ name: 'scope-fixture', description: 'In-memory skill', content: 'Use scope_echo to echo text.', source: 'bundled' });
+        ctx.tools.register(defineTool({ name: 'scope_echo', description: 'Echo without side effects',
+          parameters: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] },
+          output: { schema: {}, render: (_args, value) => [{ type: 'text', text: value }] },
+          execute: async (args) => args.text,
+        }));
+      }});
+    `,
+      resolveDir: desktop,
+      loader: "js",
+    },
+    outfile: join(scopedPluginRoot, "index.js"),
+    bundle: true,
+    platform: "node",
+    format: "esm",
+  });
+  const scopedPlugin = await api.createPiToolSet(
+    {
+      ...command,
+      permissions: { mode: "full" },
+      agentAccess: {},
+      resources: {
+        tools: { allowed: ["scope_echo"] },
+        plugins: {
+          settingsPath: settingsRoot,
+          items: [
+            {
+              kind: "isle",
+              id: "scope-fixture",
+              packageRoot: scopedPluginRoot,
+              entry: join(scopedPluginRoot, "index.js"),
+            },
+          ],
+        },
+      },
+    },
+    callbacks,
+  );
+  try {
+    assert.equal(
+      scopedPlugin.plugins.skills.length,
+      1,
+      "declared plugin skills must load without broad temporary-directory access",
+    );
+    assert.equal(
+      (await scopedPlugin.tools.find((tool) => tool.name === "scope_echo").execute("echo", { text: "ok" })).details
+        .value,
+      "ok",
+    );
+  } finally {
+    await scopedPlugin.dispose();
+  }
+  console.log("PASS plugin startup, memory settings and declared skills with an empty Agent access grant");
   await assert.rejects(
     api.createPiToolSet(
       {
@@ -536,6 +598,36 @@ try {
     }
   }
   console.log("PASS all four approval/sandbox combinations through real Pi and inherited subagent policies");
+
+  const scoped = await api.createPiAgentSession(
+    {
+      ...command,
+      agentSessionDir: null,
+      permissions: { mode: "full" },
+      agentAccess: { filesystem: { read: [{ base: "workspace" }] } },
+    },
+    { ...callbacks, requestApproval: async () => assert.fail("approval cannot widen a declared scope") },
+  );
+  try {
+    const before = requests.length;
+    await scoped.session.prompt("matrix-parent");
+    assert.ok(
+      !JSON.stringify(requests.slice(before)).includes("private test content"),
+      "child inherits the declaration even in full mode",
+    );
+    assert.ok(JSON.stringify(requests.slice(before)).includes("未申请执行命令"), "child must retain process denial");
+    await scoped.session.prompt("child-outside");
+    assert.ok(
+      JSON.stringify(scoped.session.messages).includes("未申请文件读取权限"),
+      "file access outside the scope must be denied",
+    );
+    await scoped.session.prompt("sandbox-task");
+    assert.match(JSON.stringify(scoped.session.messages), /未申请执行命令/);
+  } finally {
+    scoped.session.dispose();
+    await scoped.disposeResources();
+  }
+  console.log("PASS real Pi full mode and child agents retain the manifest access ceiling");
 
   const approvals = [];
   const inputManager = api.createUserInputManager((event) => approvals.push(event));

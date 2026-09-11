@@ -1,6 +1,7 @@
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import { checkAgentAccess, type ResolvedAgentAccess } from "../access/index.js";
 import { SAFETY_CONFIG as configuredPolicy } from "./policy.js";
 import { canonicalPath, createResourcePathResolver } from "../platforms/resources.js";
 import type {
@@ -149,15 +150,19 @@ export function evaluateSafety(analysis: OperationAnalysis, context: SafetyConte
 export async function checkExecution(options: {
   request: ExecutionRequest;
   policy: SafetyPolicy | null;
+  access?: ResolvedAgentAccess;
   analyze(request: ExecutionRequest): OperationAnalysis;
   requestApproval?: (request: ExecutionApprovalRequest) => Promise<boolean>;
   signal?: AbortSignal;
 }): Promise<{ allowed: boolean; reason?: string }> {
   const { signal } = options;
   signal?.throwIfAborted();
-  if (!options.policy) return { allowed: true };
+  if (!options.policy && !options.access) return { allowed: true };
   const request = structuredClone(options.request);
   const analysis = options.analyze(request);
+  const accessDenial = options.access && checkAgentAccess(options.access, analysis);
+  if (accessDenial) return { allowed: false, reason: `操作超出申请权限：${accessDenial}` };
+  if (!options.policy) return { allowed: true };
   const decision = evaluateSafety(analysis, { workspacePath: request.workspacePath, policy: options.policy, request });
   if (decision.action === "deny") return { allowed: false, reason: `操作被禁止：${decision.reasons.join("\n")}` };
   if (decision.action === "requestApproval") {
@@ -178,6 +183,8 @@ export async function checkExecution(options: {
     if (!approved) return { allowed: false, reason: "用户未授权这次操作（拒绝或等待超过一分钟），操作未执行。" };
     const currentRequest = structuredClone(options.request);
     const currentAnalysis = options.analyze(currentRequest);
+    const currentAccessDenial = options.access && checkAgentAccess(options.access, currentAnalysis);
+    if (currentAccessDenial) return { allowed: false, reason: currentAccessDenial };
     const currentDecision = evaluateSafety(currentAnalysis, {
       workspacePath: currentRequest.workspacePath,
       policy: options.policy,

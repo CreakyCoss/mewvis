@@ -43,7 +43,11 @@ export async function createSandbox(policy: SandboxPolicy) {
   return {
     ...lifecycle,
     wrapProgram(program: ExecutionProgram, channelArgs: readonly string[]) {
-      const command = platform.programCommand(program, channelArgs, backend.options.platform.temporaryDirectory);
+      const command = platform.programCommand(
+        program,
+        channelArgs,
+        lifecycle.temporaryDirectory ?? backend.options.platform.temporaryDirectory,
+      );
       return SandboxManager.wrapWithSandboxArgv(command, platform.shell, undefined, undefined, policy.workspacePath);
     },
   };

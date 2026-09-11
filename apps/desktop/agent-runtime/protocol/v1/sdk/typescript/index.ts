@@ -213,6 +213,8 @@ export interface AgentRunParams {
   runtimeModel?: RuntimeModelInput | null;
   resources?: AgentRuntimeResources | null;
   permissions?: AgentPermissions;
+  agentAccess?: AgentAccess;
+  agentAccessRoots?: AgentAccessRoots;
 }
 export interface AgentRuntimeResources {
   tools?: AgentRuntimeToolResources | null;
@@ -238,6 +240,43 @@ export interface AgentRuntimePluginResources {
 }
 export interface AgentPermissions {
   mode: "ask" | "auto" | "full";
+}
+/**
+ * Host-supplied hard access ceiling, independent of approval mode. Omitted capabilities are denied.
+ */
+export interface AgentAccess {
+  filesystem?: AgentFilesystemAccess;
+  network?: AgentNetworkAccess;
+  process?: AgentProcessAccess;
+}
+export interface AgentFilesystemAccess {
+  /**
+   * Omission means no access. all imposes no additional restriction on the host policy.
+   */
+  read?: "all" | AgentAccessPath[];
+  /**
+   * Omission means no access. all imposes no additional restriction on the host policy.
+   */
+  write?: "all" | AgentAccessPath[];
+}
+export interface AgentAccessPath {
+  base: "workspace" | "pluginData" | "home" | "temp";
+  /**
+   * Optional relative path within the host-resolved base. Absolute paths, parent traversal and globs are forbidden.
+   */
+  path?: string;
+}
+export interface AgentNetworkAccess {
+  hosts?: "all" | string[];
+}
+export interface AgentProcessAccess {
+  execute?: boolean;
+}
+/**
+ * Additional path bases supplied only by the trusted host. The runtime supplies workspace, home and temp itself.
+ */
+export interface AgentAccessRoots {
+  pluginData?: string;
 }
 export interface AnswerQuestionRequest {
   method?: "agent/question/answer";

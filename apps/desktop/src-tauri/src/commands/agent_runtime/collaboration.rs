@@ -110,6 +110,7 @@ pub fn run_agent_runtime_collaboration(
             task_id: task_id.clone(),
             session_key,
             command,
+            plugin_id: None,
         },
     )?;
 
@@ -180,6 +181,7 @@ pub fn run_agent_runtime_collaboration_mode(
             task_id: task_id.clone(),
             session_key,
             command,
+            plugin_id: None,
         },
     )?;
 

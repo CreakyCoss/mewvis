@@ -47,6 +47,7 @@ struct PluginUiRuntimePlugin {
     package_root: String,
     patch_path: Option<String>,
     permissions: Vec<plugins::PluginPermission>,
+    agent_access: Option<crate::commands::agent_runtime::AgentAccess>,
     permission_status: plugins::PluginPermissionStatus,
 }
 
@@ -367,6 +368,7 @@ fn configuration(app: &AppHandle) -> Result<PluginUiConfiguration, String> {
             package_root: plugin.path,
             patch_path: plugin.dsh_patch,
             permissions: plugin.permissions,
+            agent_access: plugin.agent_access,
             permission_status: plugin.permission_status,
         })
         .collect();

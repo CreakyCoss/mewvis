@@ -16,6 +16,8 @@ export {
   type AnswerQuestionParams,
   type AnswerApprovalParams,
   type AgentPermissions,
+  type AgentAccess,
+  type AgentAccessRoots,
   type AskUserInput,
   type AskUserOption,
   type ChatMessage,

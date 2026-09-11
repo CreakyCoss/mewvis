@@ -10,6 +10,7 @@ import {
 } from "../../../../../../../security/safety/index.js";
 import type { AgentRuntimeCallbacks, RuntimeAgentCommand } from "../../types.js";
 import type { PiAgentSession } from "../agent/session.js";
+import type { ResolvedAgentAccess } from "../../../../../../../security/access/index.js";
 
 const fileActions: Readonly<Record<string, Extract<Operation, { kind: "filesystem" }>["action"]>> = {
   read: "read",
@@ -79,8 +80,9 @@ export function installPiSafety(
   command: RuntimeAgentCommand,
   callbacks: AgentRuntimeCallbacks,
   policy: SafetyPolicy | null,
+  access?: ResolvedAgentAccess,
 ) {
-  if (!policy) return;
+  if (!policy && !access) return;
   const previous = session.agent.beforeToolCall;
   // This hook provides cancellation and runs after Pi's extension hooks, so the
   // checked arguments are the ones passed to execution. No changes to Pi itself.
@@ -101,6 +103,7 @@ export function installPiSafety(
     const result = await checkExecution({
       request,
       policy,
+      access,
       analyze: analyzePiExecution,
       requestApproval:
         callbacks.requestApproval &&

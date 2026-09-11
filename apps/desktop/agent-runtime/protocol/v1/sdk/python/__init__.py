@@ -46,6 +46,61 @@ class RuntimePingRequest(Enum):
     SESSION_SUMMARIZE = "session/summarize"
 
 
+class AgentAccessBase(Enum):
+    HOME = "home"
+    PLUGIN_DATA = "pluginData"
+    TEMP = "temp"
+    WORKSPACE = "workspace"
+
+
+@dataclass
+class AgentAccessPath:
+    base: AgentAccessBase
+    path: str | None
+    """Optional relative path within the host-resolved base. Absolute paths, parent traversal
+    and globs are forbidden.
+    """
+
+
+class AgentAccessPathsEnum(Enum):
+    ALL = "all"
+
+
+@dataclass
+class AgentFilesystemAccess:
+    read: list[AgentAccessPath] | AgentAccessPathsEnum | None
+    write: list[AgentAccessPath] | AgentAccessPathsEnum | None
+    """Allows creating, modifying and deleting files within the declared paths."""
+
+
+@dataclass
+class AgentNetworkAccess:
+    hosts: list[str] | AgentAccessPathsEnum | None
+
+
+@dataclass
+class AgentProcessAccess:
+    execute: bool | None
+
+
+@dataclass
+class AgentAccess:
+    """Host-supplied hard access ceiling, independent of approval mode. Omitted capabilities are
+    denied.
+    """
+    filesystem: AgentFilesystemAccess | None
+    network: AgentNetworkAccess | None
+    process: AgentProcessAccess | None
+
+
+@dataclass
+class AgentAccessRoots:
+    """Additional path bases supplied only by the trusted host. The runtime supplies workspace,
+    home and temp itself.
+    """
+    plugin_data: str | None
+
+
 @dataclass
 class AgentRuntimeMCPResources:
     servers: list[Any] | None
@@ -537,6 +592,8 @@ class Workflow:
 
 @dataclass
 class AgentRuntimeEvent:
+    agent_access: AgentAccess | None
+    agent_access_roots: AgentAccessRoots | None
     agent_role_id: str | None
     agent_task_id: str | None
     agents: list[CollaborationAgent] | None

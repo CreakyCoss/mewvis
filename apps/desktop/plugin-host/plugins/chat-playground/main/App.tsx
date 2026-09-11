@@ -121,7 +121,7 @@ function Inspector({ session }: { session: PluginChatSession }) {
         </dd>
         <dt>已选能力</dt>
         <dd>
-          技能 {state.config.selectedSkillKeys.length} · 工具 {state.config.selectedToolNames.length} · 知识库{" "}
+          技能 {state.config.selectedSkillKeys.length} · 可用工具 {state.resources.tools?.length ?? 0} · 知识库{" "}
           {state.config.selectedKnowledgeCollectionIds.length}
         </dd>
       </dl>

@@ -162,6 +162,7 @@ const PluginCatalog = ({
 
                     <PluginPermissionSummary
                       permissions={plugin.permissions}
+                      agentAccess={plugin.agentAccess}
                       status={plugin.permissionStatus}
                       compact
                       className="mt-3"

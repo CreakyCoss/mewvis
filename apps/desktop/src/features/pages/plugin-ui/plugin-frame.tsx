@@ -141,6 +141,7 @@ export const PluginFrame = ({
   const signature = JSON.stringify([
     plugin.version,
     [...plugin.permissions].sort(),
+    plugin.agentAccess,
     plugin.tools.map((tool) => tool.name).sort(),
   ]);
   const toolNames = useMemo(() => new Set(plugin.tools.map((tool) => tool.name)), [signature]);

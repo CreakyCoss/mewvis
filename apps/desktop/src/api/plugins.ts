@@ -1,4 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import type { AgentAccess } from "@isle/chat-contracts";
 
 export type PluginRuntimeKind = "isle" | "dsh";
 
@@ -19,6 +20,7 @@ export type PluginDescriptor = {
   entry: string;
   compatibility: PluginCompatibility[];
   permissions: PluginPermission[];
+  agentAccess?: AgentAccess | null;
   permissionStatus: PluginPermissionStatus;
   origin: PluginOrigin | null;
 };
@@ -92,6 +94,7 @@ export type PluginUiPlugin = {
   uiError: string | null;
   compatibility: { adapter: string; clientPlatform?: string | null }[];
   permissions: PluginPermission[];
+  agentAccess?: AgentAccess | null;
   permissionStatus: PluginPermissionStatus;
 };
 

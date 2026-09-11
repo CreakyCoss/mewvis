@@ -57,6 +57,14 @@ test("React scaffold checks and builds outside the Isle repository", async () =>
   await checkPlugin(source);
   const { outputRoot, manifest } = await packPlugin({ source, quiet: true });
   assert.equal(manifest.isle.ui.entry, "./isle-ui.js");
+  assert.deepEqual(manifest.isle.agentAccess.filesystem.read, [
+    { base: "workspace" },
+    { base: "pluginData" },
+  ]);
+  assert.deepEqual(manifest.isle.agentAccess.filesystem.write, [
+    { base: "workspace" },
+    { base: "pluginData" },
+  ]);
   assert.equal(manifest.dependencies, undefined);
   const ui = await readFile(join(outputRoot, "isle-ui.js"), "utf8");
   assert.match(ui, /isle-plugin-root/);
@@ -89,6 +97,27 @@ test("React scaffold checks and builds outside the Isle repository", async () =>
     !(await readdir(outputRoot)).includes("main"),
     "Only compiled entries and assets ship",
   );
+});
+
+test("agentAccess uses the protocol schema and rejects typos or invalid ranges before packaging", async () => {
+  const file = join(source, "isle.config.ts");
+  const original = await readFile(file, "utf8");
+  try {
+    for (const agentAccess of [
+      { filesystem: { raed: "all" } },
+      { filesystem: { read: [{ base: "workspace", path: "../secret" }] } },
+      { network: { hosts: ["https://example.com"] } },
+      { process: { execute: "true" } },
+    ]) {
+      await writeFile(
+        file,
+        `export default ${JSON.stringify({ displayName: "Access validation", permissions: ["chat"], ui: false, agentAccess })};`,
+      );
+      await assert.rejects(validatePlugin(source), /agentAccess/);
+    }
+  } finally {
+    await writeFile(file, original);
+  }
 });
 
 test("SDK browser entry reports a missing bridge and preserves host errors", async () => {
@@ -485,7 +514,7 @@ test("preview chat runs the shared core headlessly with isolated workspaces and 
     await session.send({ text: "追问" });
     await session.reconnect();
     const question = session.getSnapshot().pendingQuestion;
-    assert.ok(question);
+    assert.ok(question, JSON.stringify(session.getSnapshot()));
     await session.answer({ questionId: question.questionId, answer: "简洁" });
     await session.flush();
     await session.reconnect();

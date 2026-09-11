@@ -63,6 +63,7 @@ const PluginRow = ({ plugin, isUpdating, onEnabledChange, onRemove }: PluginRowP
       </p>
       <PluginPermissionSummary
         permissions={plugin.permissions}
+        agentAccess={plugin.agentAccess}
         status={plugin.permissionStatus}
         compact
         className="mt-1.5"
@@ -353,11 +354,12 @@ export const PluginManagePage = () => {
             <AlertDialogDescription>
               {pendingEnable?.permissionStatus === "dsh-unsupported"
                 ? "该 DSH 兼容插件没有 Isle 权限声明。启用后会以受信任模式执行 Node.js 代码，请确认插件来源可靠。"
-                : "外部插件启用后会在 Agent Runtime 中执行 Node.js 代码。权限用途由作者声明，当前不构成运行时沙箱。"}
+                : "启用前请确认宿主能力和 Agent 访问范围。Agent 操作会受到范围限制；插件自身的 Node.js 代码仍按受信任代码运行。"}
             </AlertDialogDescription>
             {pendingEnable ? (
               <PluginPermissionSummary
                 permissions={pendingEnable.permissions}
+                agentAccess={pendingEnable.agentAccess}
                 status={pendingEnable.permissionStatus}
                 className="pt-1"
               />

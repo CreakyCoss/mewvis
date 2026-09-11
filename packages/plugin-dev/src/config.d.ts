@@ -1,3 +1,10 @@
+import type { AgentAccess } from "@isle/chat-contracts";
+export type {
+  AgentAccess,
+  AgentAccessPath,
+  AgentAccessBase,
+} from "@isle/chat-contracts";
+
 export type PluginPermission =
   | "network"
   | "plugin-data"
@@ -9,6 +16,8 @@ export type PluginPermission =
 export interface PluginConfig {
   displayName: string;
   permissions: PluginPermission[];
+  /** Hard ceiling for Agent operations. Omitted capabilities are denied, including in full mode. */
+  agentAccess?: AgentAccess;
   defaultEnabled?: boolean;
   /** Defaults to ./main/App.tsx. false creates a host-only plugin. */
   ui?:

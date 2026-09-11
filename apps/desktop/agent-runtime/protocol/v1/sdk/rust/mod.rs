@@ -145,6 +145,12 @@ pub enum RuntimePingRequest {
 #[serde(rename_all = "camelCase")]
 pub struct AgentRuntimeEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_access: Option<AgentAccess>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_access_roots: Option<AgentAccessRoots>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_role_id: Option<String>,
 
     #[serde(rename = "type")]
@@ -406,6 +412,105 @@ pub struct AgentRuntimeEvent {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_path: Option<String>,
+}
+
+/// Host-supplied hard access ceiling, independent of approval mode. Omitted capabilities are
+/// denied.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AgentAccess {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub filesystem: Option<AgentFilesystemAccess>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub network: Option<AgentNetworkAccess>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub process: Option<AgentProcessAccess>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AgentFilesystemAccess {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub read: Option<AgentAccessPaths>,
+
+    /// Allows creating, modifying and deleting files within the declared paths.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub write: Option<AgentAccessPaths>,
+}
+
+/// Omission means no access. all imposes no additional restriction on the host policy.
+///
+/// Allows creating, modifying and deleting files within the declared paths.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum AgentAccessPaths {
+    AgentAccessPathArray(Vec<AgentAccessPath>),
+
+    Enum(AgentAccessPathsEnum),
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AgentAccessPath {
+    pub base: AgentAccessBase,
+
+    /// Optional relative path within the host-resolved base. Absolute paths, parent traversal
+    /// and globs are forbidden.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AgentAccessBase {
+    Home,
+
+    #[serde(rename = "pluginData")]
+    PluginData,
+
+    Temp,
+
+    Workspace,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentAccessPathsEnum {
+    All,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AgentNetworkAccess {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hosts: Option<Hosts>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Hosts {
+    Enum(AgentAccessPathsEnum),
+
+    StringArray(Vec<String>),
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AgentProcessAccess {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub execute: Option<bool>,
+}
+
+/// Additional path bases supplied only by the trusted host. The runtime supplies workspace,
+/// home and temp itself.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields)]
+pub struct AgentAccessRoots {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plugin_data: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

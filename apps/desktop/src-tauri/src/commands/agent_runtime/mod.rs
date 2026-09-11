@@ -20,9 +20,10 @@ pub use agent::{
     run_agent_runtime_agent,
 };
 pub use agents::list_agent_runtime_tools;
-pub use sandbox::{get_agent_runtime_sandbox_status, initialize_agent_runtime_sandbox};
 pub use chat::run_agent_runtime_chat;
 pub use collaboration::{run_agent_runtime_collaboration, run_agent_runtime_collaboration_mode};
+pub(crate) use protocol::AgentAccess;
+pub use sandbox::{get_agent_runtime_sandbox_status, initialize_agent_runtime_sandbox};
 pub use session::{
     delete_agent_runtime_session, get_agent_runtime_collaboration_timeline,
     get_agent_runtime_session, get_agent_runtime_session_debug, list_agent_runtime_sessions,

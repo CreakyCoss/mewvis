@@ -60,6 +60,7 @@ pub struct AgentRuntimeSupervisor {
 struct SupervisorInner {
     workers: HashMap<String, Arc<AgentRuntimeWorker>>,
     task_index: HashMap<String, Arc<AgentRuntimeWorker>>,
+    task_plugins: HashMap<String, String>,
 }
 
 #[derive(Clone)]
@@ -67,6 +68,7 @@ pub(super) struct AgentTaskSubmission {
     pub task_id: String,
     pub session_key: String,
     pub command: Value,
+    pub plugin_id: Option<String>,
 }
 
 #[derive(Clone)]
@@ -142,7 +144,11 @@ impl AgentRuntimeSupervisor {
 
         for _ in 0..2 {
             let worker = self.worker_for_session(&app, &submission.session_key)?;
-            self.index_task(&submission.task_id, &worker)?;
+            self.index_task(
+                &submission.task_id,
+                &worker,
+                submission.plugin_id.as_deref(),
+            )?;
 
             match worker.enqueue(task.clone()) {
                 Ok(()) => return Ok(()),
@@ -178,6 +184,25 @@ impl AgentRuntimeSupervisor {
             worker.abort(task_id)?;
         }
 
+        Ok(())
+    }
+
+    pub(crate) fn abort_plugin(&self, plugin_id: &str) -> Result<(), String> {
+        let tasks = {
+            let inner = self
+                .inner
+                .lock()
+                .map_err(|_| "Agent runtime supervisor 状态已损坏".to_string())?;
+            inner
+                .task_plugins
+                .iter()
+                .filter(|(_, owner)| owner.as_str() == plugin_id)
+                .map(|(task_id, _)| task_id.clone())
+                .collect::<Vec<_>>()
+        };
+        for task_id in tasks {
+            self.abort(&task_id)?;
+        }
         Ok(())
     }
 
@@ -225,6 +250,7 @@ impl AgentRuntimeSupervisor {
     fn remove_task(&self, task_id: &str) {
         if let Ok(mut inner) = self.inner.lock() {
             inner.task_index.remove(task_id);
+            inner.task_plugins.remove(task_id);
         }
     }
 
@@ -254,7 +280,12 @@ impl AgentRuntimeSupervisor {
         }
     }
 
-    fn index_task(&self, task_id: &str, worker: &Arc<AgentRuntimeWorker>) -> Result<(), String> {
+    fn index_task(
+        &self,
+        task_id: &str,
+        worker: &Arc<AgentRuntimeWorker>,
+        plugin_id: Option<&str>,
+    ) -> Result<(), String> {
         let mut inner = self
             .inner
             .lock()
@@ -263,6 +294,11 @@ impl AgentRuntimeSupervisor {
             return Err(format!("Agent runtime taskId 已存在：{task_id}"));
         }
         inner.task_index.insert(task_id.to_string(), worker.clone());
+        if let Some(plugin_id) = plugin_id {
+            inner
+                .task_plugins
+                .insert(task_id.to_string(), plugin_id.to_string());
+        }
         Ok(())
     }
 
@@ -1188,6 +1224,7 @@ impl AgentRuntimeWorker {
         if let Some(supervisor) = supervisor.upgrade() {
             if let Ok(mut inner) = supervisor.lock() {
                 inner.task_index.remove(task_id);
+                inner.task_plugins.remove(task_id);
             }
         }
     }
@@ -1271,6 +1308,7 @@ impl AgentRuntimeWorker {
                     Err(error) => {
                         for task in queued_tasks {
                             inner.task_index.remove(&task.task_id);
+                            inner.task_plugins.remove(&task.task_id);
                             emit_agent_event(
                                 app,
                                 &task.task_id,

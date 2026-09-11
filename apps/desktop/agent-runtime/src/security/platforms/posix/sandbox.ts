@@ -1,4 +1,5 @@
-import { mkdirSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { join } from "node:path";
 import { SandboxManager } from "@anthropic-ai/sandbox-runtime";
 import { getDefaultWritePaths } from "@anthropic-ai/sandbox-runtime/dist/sandbox/sandbox-utils.js";
 import type { SrtSandboxPolicy as SandboxPolicy, SrtOptions } from "../../execution/runtime/srt.js";
@@ -17,14 +18,23 @@ function validateConfig(options: SrtOptions["platform"]) {
 }
 
 export function createSandbox(policy: SandboxPolicy): SandboxLifecycle {
+  let scratch: string | undefined;
   return {
+    get temporaryDirectory() {
+      return scratch;
+    },
     async initialize() {
       validateConfig(policy.backend.options.platform);
       mkdirSync(policy.backend.options.platform.temporaryDirectory, { recursive: true });
-      process.env.TMPDIR = policy.backend.options.platform.temporaryDirectory;
+      const filesystem = structuredClone(policy.filesystem);
+      if (filesystem.allowRead) {
+        scratch = canonicalPath(mkdtempSync(join(policy.backend.options.platform.temporaryDirectory, "isle-")));
+        filesystem.allowRead.push(scratch);
+      }
+      process.env.TMPDIR = scratch ?? policy.backend.options.platform.temporaryDirectory;
       await SandboxManager.initialize(
         {
-          filesystem: structuredClone(policy.filesystem),
+          filesystem,
           network: {
             allowedDomains: policy.network.allow === "all" ? ["isle-proxy.invalid"] : policy.network.allow,
             deniedDomains: policy.network.deny,
@@ -34,7 +44,10 @@ export function createSandbox(policy: SandboxPolicy): SandboxLifecycle {
         false,
       );
     },
-    reset: () => SandboxManager.reset(),
+    async reset() {
+      await SandboxManager.reset();
+      if (scratch) rmSync(scratch, { recursive: true, force: true });
+    },
   };
 }
 

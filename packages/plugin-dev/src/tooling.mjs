@@ -21,6 +21,8 @@ import {
   sep,
 } from "node:path";
 import { build } from "esbuild";
+import { Ajv } from "ajv";
+import accessSchema from "@isle/chat-contracts/agent-access.schema.json" with { type: "json" };
 import { dshBundleCompatibilityPlugin } from "./dsh.mjs";
 
 import {
@@ -34,6 +36,11 @@ import {
 import { createReactPlugin } from "./template.mjs";
 
 const BUILD_MARKER = ".isle-plugin-build.json";
+const accessValidator = new Ajv({ allErrors: true }).compile({
+  ...accessSchema,
+  anyOf: undefined,
+  $ref: "#/definitions/AgentAccess",
+});
 const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/;
 const ENTRY_PATTERN = /^\.\/.*\.m?js$/;
 const PERMISSIONS = new Set([
@@ -195,6 +202,9 @@ export const validatePlugin = async (source) => {
       displayName: config.displayName,
       defaultEnabled: config.defaultEnabled ?? false,
       permissions: config.permissions,
+      ...(config.agentAccess === undefined
+        ? {}
+        : { agentAccess: config.agentAccess }),
       ...(uiEntry
         ? {
             ui: {
@@ -250,6 +260,11 @@ export const validatePlugin = async (source) => {
       }
     }
   }
+
+  if (isle?.agentAccess !== undefined && !accessValidator(isle.agentAccess))
+    problems.push(
+      `isle.agentAccess 不符合权限协议：${JSON.stringify(accessValidator.errors)}`,
+    );
 
   const assets = new Set(["./README.md", "./LICENSE"]);
   const requiredAssets = new Set();
