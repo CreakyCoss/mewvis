@@ -196,14 +196,55 @@ test("answers are correlated, duplicates rejected and failures remain retryable"
   const gate = deferred();
   const { session, emit } = await setup({ runtime: { answer: () => gate.promise } });
   await session.send({ text: "ask" });
-  emit({ type: E.Question, questionId: "q1", question: "Question?" });
+  emit({ type: E.Question, questionId: "q1", question: "Question?", expiresAt: Date.now() + 3 * 60_000 });
   const pending = session.answer({ questionId: "q1", answer: "yes" });
   assert.equal((await session.answer({ questionId: "q1", answer: "yes" })).ok, false);
-  emit({ type: E.Question, questionId: "q2", question: "New?" });
+  emit({ type: E.Question, questionId: "q2", question: "New?", expiresAt: Date.now() + 3 * 60_000 });
   gate.reject(new Error("old failure"));
   await pending;
   assert.equal(session.getSnapshot().pendingQuestion?.questionId, "q2");
   assert.equal(session.getSnapshot().error, "");
+  await session.close();
+});
+test("cancelling a question is retryable and resumes the task without aborting it", async () => {
+  const answers: (string | null)[] = [];
+  let fail = true;
+  const { session, emit, calls } = await setup({
+    runtime: {
+      async answer(_taskId, _questionId, answer) {
+        if (fail) throw new Error("connection lost");
+        answers.push(answer);
+      },
+    },
+  });
+  await session.send({ text: "ask" });
+  const taskId = session.getSnapshot().activeTaskId;
+  emit({ type: E.Question, questionId: "q", question: "Question?", expiresAt: Date.now() + 3 * 60_000 });
+  assert.equal((await session.answer({ questionId: "stale", answer: null })).ok, false);
+  assert.equal((await session.answer({ questionId: "q", answer: "  " })).ok, false);
+  assert.equal((await session.answer({ questionId: "q", answer: null })).ok, false);
+  assert.equal(session.getSnapshot().pendingQuestion?.questionId, "q");
+  assert.equal(session.getSnapshot().answering, false);
+  fail = false;
+  assert.equal((await session.answer({ questionId: "q", answer: null })).ok, true);
+  assert.deepEqual(answers, [null]);
+  assert.equal(session.getSnapshot().pendingQuestion, null);
+  assert.equal(session.getSnapshot().activeTaskId, taskId);
+  assert.equal(session.getSnapshot().phase, "running");
+  assert.deepEqual(calls.aborted, []);
+  await session.close();
+});
+test("question deadlines are preserved and expired replies cannot reach the runtime", async () => {
+  const { session, emit, calls } = await setup();
+  await session.send({ text: "ask" });
+  const expiresAt = Date.now() - 1;
+  emit({ type: E.Question, questionId: "q", question: "Question?", expiresAt });
+  assert.equal(session.getSnapshot().pendingQuestion?.expiresAt, expiresAt);
+  assert.equal((await session.answer({ questionId: "q", answer: "late answer" })).ok, false);
+  assert.equal(calls.answers, 0);
+  emit({ type: E.QuestionAnswered, questionId: "q", answer: null });
+  assert.equal(session.getSnapshot().pendingQuestion, null);
+  assert.equal(session.getSnapshot().phase, "running");
   await session.close();
 });
 test("terminal events during abort do not unlock a new turn before the abort acknowledgement", async () => {
@@ -527,7 +568,7 @@ test("approval events wait independently of questions, reject question answers a
   assert.equal(session.getSnapshot().phase, "waiting");
   assert.equal((await session.answer({ questionId: "approval", answer: "yes" })).ok, false);
   assert.equal(calls.answers, 0);
-  emit({ type: E.Question, questionId: "question", question: "detail?" });
+  emit({ type: E.Question, questionId: "question", question: "detail?", expiresAt: Date.now() + 3 * 60_000 });
   emit({ type: E.QuestionAnswered, questionId: "question", answer: "detail" });
   assert.equal(session.getSnapshot().pendingApproval?.approvalId, "approval");
   assert.equal(session.getSnapshot().phase, "waiting");

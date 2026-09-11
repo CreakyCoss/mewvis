@@ -48,7 +48,7 @@ export type RuntimeUserInputRequest = {
   input?: AskUserInput;
 };
 
-export type RuntimeUserInputHandler = (request: RuntimeUserInputRequest) => Promise<string>;
+export type RuntimeUserInputHandler = (request: RuntimeUserInputRequest) => Promise<string | null>;
 
 export type RuntimeEngineCallbacks = {
   requestUserInput?: RuntimeUserInputHandler;

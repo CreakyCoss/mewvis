@@ -49,6 +49,7 @@ let subscriptions = 0;
 let detaches = 0;
 let dispatches = 0;
 let saves = 0;
+const questionAnswers: (string | null)[] = [];
 let prepareGate: Promise<any> | undefined;
 let releasePreparation: (value: any) => void;
 const runtime: ChatRuntime = {
@@ -69,7 +70,8 @@ const runtime: ChatRuntime = {
     );
   },
   async abort() {},
-  async answer(taskId, questionId) {
+  async answer(taskId, questionId, answer) {
+    questionAnswers.push(answer);
     observer({ taskId, event: { type: E.QuestionAnswered, questionId } });
   },
   async release() {},
@@ -147,7 +149,12 @@ async function run() {
   assert(binding.draft.text === "", "Successful dispatch clears only the submitted draft");
   await act(async () => {
     emit(session, { type: E.TextDelta, delta: "Streaming answer" });
-    emit(session, { type: E.Question, questionId: "q", question: "Choose a value" });
+    emit(session, {
+      type: E.Question,
+      questionId: "q",
+      question: "Choose a value",
+      expiresAt: Date.now() + 3 * 60_000,
+    });
   });
   assert(
     fixture.textContent?.includes("Streaming answer") && fixture.textContent?.includes("Custom assistant"),
@@ -155,8 +162,105 @@ async function run() {
   );
   const fields = Array.from(fixture.querySelectorAll('textarea[aria-label="回复 Agent 的问题"]'));
   assert(fields.length === 2 && fields[0].id !== fields[1].id, "Question fields in two views have distinct DOM IDs");
+  const timers = Array.from(fixture.querySelectorAll('[role="timer"]'));
+  assert(
+    timers.length === 2 && timers.every((timer) => timer.textContent === "3:00"),
+    "Question views display the same server deadline",
+  );
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 1_100)));
+  assert(
+    timers.every((timer) => timer.textContent === "2:59"),
+    "Question countdown advances while waiting for an answer",
+  );
   await act(async () => {
-    await session.answer({ questionId: "q", answer: "yes" });
+    emit(session, {
+      type: E.Question,
+      questionId: "select-q",
+      question: "Choose a value",
+      expiresAt: Date.now() + 3 * 60_000,
+      context: "Additional context",
+      input: {
+        type: "select",
+        selected: "first",
+        options: [
+          { value: "first", label: "First option" },
+          { value: "second value", label: "Second option" },
+        ],
+      },
+    });
+  });
+  const radios = Array.from(fixture.querySelectorAll<HTMLInputElement>('input[type="radio"]'));
+  assert(
+    radios.length === 6 && radios[2].value === "other",
+    "Select questions always include a free-text Other option",
+  );
+  assert(radios[0].checked && questionAnswers.length === 0, "A default question choice is selected without submitting");
+  assert(radios[0].name !== radios[3].name, "Question choices in multiple views have independent radio groups");
+  assert(
+    radios[0].closest("form")!.innerText.includes("Additional context"),
+    "Supplemental question context is visible without expanding anything",
+  );
+  await act(async () => radios[1].click());
+  assert(radios[1].checked && questionAnswers.length === 0, "Choosing an answer waits for explicit submission");
+  await act(async () => radios[2].click());
+  assert(
+    fixture.querySelector('textarea[aria-label="回复 Agent 的问题"]') &&
+      radios[0].closest("form")!.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled,
+    "A custom choice shows the answer field and requires text before replying",
+  );
+  await act(async () => radios[1].click());
+  await act(async () => radios[0].closest("form")!.querySelector<HTMLButtonElement>('button[type="submit"]')!.click());
+  assert(
+    questionAnswers.length === 1 && questionAnswers[0] === "second value",
+    "Reply submits the exact selected value once",
+  );
+  for (const type of ["text", "select"] as const) {
+    await act(async () => {
+      emit(session, {
+        type: E.Question,
+        questionId: `cancel-${type}`,
+        question: "Optional question",
+        expiresAt: Date.now() + 3 * 60_000,
+        input: { type, options: [{ value: "other", label: "其他" }] },
+      });
+    });
+    if (type === "select")
+      assert(
+        fixture.querySelectorAll('input[type="radio"]').length === 2,
+        "An existing Other option is not duplicated",
+      );
+    const cancel = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent === "取消回答")!;
+    assert(!cancel.disabled, `${type} questions can be cancelled without an answer`);
+    await act(async () => cancel.click());
+    assert(
+      questionAnswers.at(-1) === null &&
+        session.getSnapshot().pendingQuestion === null &&
+        session.getSnapshot().phase === "running",
+      `Cancelling a ${type} question releases the wait without stopping the task`,
+    );
+  }
+  await act(async () =>
+    emit(session, {
+      type: E.Question,
+      questionId: "expired-question",
+      question: "Expired question",
+      expiresAt: Date.now() - 1,
+      input: { type: "text", selected: "late answer" },
+    }),
+  );
+  assert(
+    fixture.querySelector('[role="timer"]')?.textContent === "0:00" &&
+      Array.from(fixture.querySelectorAll("button"))
+        .filter((button) => button.textContent === "回复")
+        .every((button) => button.disabled),
+    "Expired questions show zero remaining time and cannot be answered",
+  );
+  await act(async () => emit(session, { type: E.QuestionAnswered, questionId: "expired-question", answer: null }));
+  assert(
+    !fixture.textContent?.includes("Expired question"),
+    "Server expiration clears the pending question in every view",
+  );
+  await act(async () => {
     emit(session, { type: E.Done, text: "Streaming answer" });
   });
   assert(!fixture.textContent?.includes("Choose a value"), "Answering through the session updates both views");
@@ -566,17 +670,16 @@ async function checkApprovals() {
     "Approval appears once inline without a modal",
   );
   assert(!fixture.querySelector('[aria-label="后台会话审批"]'), "An inline approval suppresses its background card");
-  const composerTop = fixture.querySelector("form")!.getBoundingClientRect().top;
+  const composerOffset = () =>
+    fixture.querySelector("form")!.getBoundingClientRect().top - fixture.getBoundingClientRect().top;
+  const composerTop = composerOffset();
   await act(async () => button("详情").click());
   const details = fixture.querySelector('[aria-label="完整审批信息"]')!;
   assert(
     details.getBoundingClientRect().bottom <= button("收起").getBoundingClientRect().top,
     "Approval details expand above the action row",
   );
-  assert(
-    Math.abs(fixture.querySelector("form")!.getBoundingClientRect().top - composerTop) < 2,
-    "Expanding approval details preserves the composer position",
-  );
+  assert(Math.abs(composerOffset() - composerTop) < 2, "Expanding approval details preserves the composer position");
   assert(details.scrollHeight > details.clientHeight, "Long approval details scroll inside a bounded panel");
   await act(async () => button("批准一次").click());
   assert(

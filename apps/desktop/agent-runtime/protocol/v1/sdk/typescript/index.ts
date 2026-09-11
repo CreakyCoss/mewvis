@@ -247,7 +247,10 @@ export interface AnswerQuestionRequest {
 export interface AnswerQuestionParams {
   taskId: string;
   questionId: string;
-  answer: string;
+  /**
+   * The user's answer, or null when the user cancels answering.
+   */
+  answer: string | null;
 }
 export interface AnswerApprovalRequest {
   method?: "agent/approval/answer";
@@ -760,6 +763,10 @@ export interface QuestionEvent {
   taskId: string;
   questionId: string;
   question: string;
+  /**
+   * Unix timestamp in milliseconds when this question expires.
+   */
+  expiresAt: number;
   context?: string | null;
   input?: AskUserInput;
 }
@@ -778,7 +785,10 @@ export interface QuestionAnsweredEvent {
   type: "question_answered";
   taskId: string;
   questionId: string;
-  answer: string;
+  /**
+   * The user's answer, or null when the user cancels answering.
+   */
+  answer: string | null;
 }
 export interface ApprovalRequestedEvent {
   type: "approval_requested";

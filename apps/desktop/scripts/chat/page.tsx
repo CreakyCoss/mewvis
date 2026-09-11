@@ -154,7 +154,12 @@ const owner = createChatService(async (input: DesktopSessionInput) => {
             { type: E.ThinkingEnd, content: "检查任务配置。" },
             { type: E.TextDelta, delta: "已通过公共 ChatSession 接收请求。" },
             turn.input.text.includes("追问")
-              ? { type: E.Question, questionId: `q:${turn.taskId}`, question: "下一步先检查哪一部分？" }
+              ? {
+                  type: E.Question,
+                  questionId: `q:${turn.taskId}`,
+                  question: "下一步先检查哪一部分？",
+                  expiresAt: Date.now() + 3 * 60_000,
+                }
               : { type: E.Done, text: "已通过公共 ChatSession 接收请求。" },
           ];
           timers.set(

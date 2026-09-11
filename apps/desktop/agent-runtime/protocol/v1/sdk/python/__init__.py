@@ -251,6 +251,8 @@ class AgentEventType(Enum):
 class AgentEvent:
     type: AgentEventType
     answer: str | None
+    """The user's answer, or null when the user cancels answering."""
+
     approval_id: str | None
     approved: bool | None
     args: Any
@@ -259,7 +261,9 @@ class AgentEvent:
     delta: str | None
     details: str | None
     execution_id: str | None
-    expires_at: int | None
+    expires_at: float | int | None
+    """Unix timestamp in milliseconds when this question expires."""
+
     input: AskUserInput | None
     is_error: bool | None
     message: str | None
@@ -537,6 +541,8 @@ class AgentRuntimeEvent:
     agent_task_id: str | None
     agents: list[CollaborationAgent] | None
     answer: str | None
+    """The user's answer, or null when the user cancels answering."""
+
     approval_id: str | None
     approved: bool | None
     args: Any
@@ -553,7 +559,9 @@ class AgentRuntimeEvent:
     event: AgentEvent | None
     events: list[RuntimeTimelineItem] | None
     execution_id: str | None
-    expires_at: int | None
+    expires_at: float | int | None
+    """Unix timestamp in milliseconds when this question expires."""
+
     include_ledger: bool | None
     include_timeline: bool | None
     include_trace: bool | None

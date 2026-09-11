@@ -22,12 +22,20 @@ export const registerPiAskUserTool = (
       });
 
       return {
-        content: [{ type: "text", text: answer }],
+        content: [
+          {
+            type: "text",
+            text:
+              answer ??
+              "用户取消了本次回答，未提供信息或授权。请基于已有信息继续；无法继续时说明缺少什么，不要反复询问同一个问题。",
+          },
+        ],
         details: {
           question: rawParams.question,
           context: rawParams.context ?? null,
           input: input ?? null,
           answer,
+          cancelled: answer === null,
         },
       };
     },

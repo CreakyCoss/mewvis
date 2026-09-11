@@ -201,7 +201,10 @@
       "properties": {
         "taskId": { "type": "string", "minLength": 1 },
         "questionId": { "type": "string", "minLength": 1 },
-        "answer": { "type": "string" }
+        "answer": {
+          "type": ["string", "null"],
+          "description": "The user's answer, or null when the user cancels answering."
+        }
       },
       "additionalProperties": false
     },

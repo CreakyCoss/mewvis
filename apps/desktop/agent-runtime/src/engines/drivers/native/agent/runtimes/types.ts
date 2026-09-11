@@ -99,7 +99,7 @@ export type UserInputRequest = {
 
 export type AgentApprovalRequest = ExecutionApprovalRequest & { taskId: string };
 
-export type UserInputHandler = (request: UserInputRequest) => Promise<string>;
+export type UserInputHandler = (request: UserInputRequest) => Promise<string | null>;
 
 export type EmitAgentEvent = (event: AgentEvent) => void;
 

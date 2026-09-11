@@ -29,7 +29,8 @@ function Question() {
       answering={snapshot.answering}
       question={snapshot.pendingQuestion}
       onAnswer={async (answer) => {
-        await session.answer({ questionId: snapshot.pendingQuestion!.questionId, answer });
+        const result = await session.answer({ questionId: snapshot.pendingQuestion!.questionId, answer });
+        if (!result.ok) throw new Error(result.error);
       }}
     />
   ) : null;

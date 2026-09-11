@@ -47,7 +47,12 @@ const manager = createChatService(
           emit({ type: "tool_execution_start", toolCallId: "tool", toolName: "own", args: {} });
           emit({ type: "tool_execution_end", toolCallId: "tool", toolName: "own", result: "完成", isError: false });
           if (turn.input.text.includes("追问"))
-            emit({ type: "question", questionId: "question", question: "需要详细说明吗？" });
+            emit({
+              type: "question",
+              questionId: "question",
+              question: "需要详细说明吗？",
+              expiresAt: Date.now() + 3 * 60_000,
+            });
           else setTimeout(() => emit({ type: "done" }), 2000);
         },
       }),

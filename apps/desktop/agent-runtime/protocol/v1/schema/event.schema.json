@@ -71,12 +71,13 @@
     },
     "QuestionEvent": {
       "type": "object",
-      "required": ["type", "taskId", "questionId", "question"],
+      "required": ["type", "taskId", "questionId", "question", "expiresAt"],
       "properties": {
         "type": { "const": "question" },
         "taskId": { "type": "string" },
         "questionId": { "type": "string" },
         "question": { "type": "string" },
+        "expiresAt": { "type": "number", "description": "Unix timestamp in milliseconds when this question expires." },
         "context": { "$ref": "#/definitions/NullableString" },
         "input": { "$ref": "#/definitions/AskUserInput" }
       },
@@ -89,7 +90,10 @@
         "type": { "const": "question_answered" },
         "taskId": { "type": "string" },
         "questionId": { "type": "string" },
-        "answer": { "type": "string" }
+        "answer": {
+          "type": ["string", "null"],
+          "description": "The user's answer, or null when the user cancels answering."
+        }
       },
       "additionalProperties": false
     },

@@ -85,6 +85,7 @@ export type ChatPendingQuestion = {
   taskId: string;
   questionId: string;
   question: string;
+  expiresAt: number;
   context?: string | null;
   input?: ChatQuestionInput;
 };
@@ -199,7 +200,8 @@ export interface ChatSession {
   stop(): Promise<OperationResult>;
   answer(input: {
     questionId: string;
-    answer: string;
+    /** null cancels this question without stopping the task. */
+    answer: string | null;
   }): Promise<OperationResult>;
   updateConfig(patch: Partial<ChatRunConfig>): Promise<OperationResult>;
   refreshResources(): Promise<void>;

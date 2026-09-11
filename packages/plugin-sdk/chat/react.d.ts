@@ -254,7 +254,7 @@ declare const Chat: typeof DefaultChat & {
 
 type ChatQuestionProps = {
   question: ChatPendingQuestion;
-  onAnswer: (answer: string) => Promise<void>;
+  onAnswer: (answer: string | null) => Promise<void>;
   answering?: boolean;
 };
 declare const QuestionView: ({

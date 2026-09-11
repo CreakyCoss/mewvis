@@ -157,6 +157,7 @@ pub struct AgentRuntimeEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agents: Option<Vec<CollaborationAgent>>,
 
+    /// The user's answer, or null when the user cancels answering.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub answer: Option<String>,
 
@@ -206,8 +207,9 @@ pub struct AgentRuntimeEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub execution_id: Option<String>,
 
+    /// Unix timestamp in milliseconds when this question expires.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub expires_at: Option<i64>,
+    pub expires_at: Option<f64>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub include_ledger: Option<bool>,
@@ -810,6 +812,7 @@ pub struct AgentEvent {
     #[serde(rename = "type")]
     pub agent_event_type: AgentEventType,
 
+    /// The user's answer, or null when the user cancels answering.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub answer: Option<String>,
 
@@ -836,8 +839,9 @@ pub struct AgentEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub execution_id: Option<String>,
 
+    /// Unix timestamp in milliseconds when this question expires.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub expires_at: Option<i64>,
+    pub expires_at: Option<f64>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub input: Option<AskUserInput>,

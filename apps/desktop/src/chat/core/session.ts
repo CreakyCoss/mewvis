@@ -180,6 +180,7 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
           taskId: turn.taskId,
           questionId: event.questionId,
           question: event.question,
+          expiresAt: event.expiresAt,
           context: event.context,
           input: event.input,
         },
@@ -400,12 +401,12 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
         question.questionId !== questionId ||
         state.answering ||
         turn.cancelled ||
-        !answer.trim()
+        (answer !== null && (!answer.trim() || Date.now() >= question.expiresAt))
       )
-        return { ok: false, error: "问题已变化或正在提交回答" };
+        return { ok: false, error: "问题已变化、已超时或正在提交回答" };
       update({ answering: true, error: "" });
       try {
-        await options.runtime.answer(turn.taskId, questionId, answer.trim());
+        await options.runtime.answer(turn.taskId, questionId, answer === null ? null : answer.trim());
         if (active === turn && state.pendingQuestion?.questionId === questionId)
           update({ phase: state.pendingApproval ? "waiting" : "running", pendingQuestion: null, answering: false });
         return ok;

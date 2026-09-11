@@ -478,6 +478,25 @@ test("plugin can observe an approval but cannot authorize it through question an
     /不支持/,
   );
   assert.equal(session.getSnapshot().pendingApproval?.approvalId, "approval");
+  f.events.forEach((listener) =>
+    listener({
+      taskId,
+      event: {
+        type: "question",
+        taskId,
+        questionId: "question",
+        question: "Optional detail?",
+        expiresAt: Date.now() + 3 * 60_000,
+      },
+    }),
+  );
+  assert.equal((await session.answer({ questionId: "question", answer: null })).ok, true);
+  assert.equal(session.getSnapshot().pendingQuestion, null);
+  assert.equal(
+    session.getSnapshot().pendingApproval?.approvalId,
+    "approval",
+    "Cancelling a question cannot resolve an approval",
+  );
   detach();
   await session.close();
   c.client.dispose();

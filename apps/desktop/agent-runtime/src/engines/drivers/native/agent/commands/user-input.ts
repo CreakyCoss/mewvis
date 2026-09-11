@@ -5,18 +5,19 @@ import { AgentRuntimeEventType } from "../../../../protocol/wire.js";
 import { type AnswerQuestionCommand } from "../../../../protocol/index.js";
 import type { AgentRuntimeCallbacks, EmitAgentEvent, UserInputHandler, UserInputRequest } from "../runtimes/types.js";
 
-const ASK_USER_TIMEOUT_MS = 10 * 60 * 1000;
+const ASK_USER_TIMEOUT_MS = 3 * 60 * 1000;
 
 type PendingQuestion = {
   taskId: string;
-  resolve: (answer: string) => void;
+  expiresAt: number;
+  resolve: (answer: string | null) => void;
   reject: (error: Error) => void;
   timeout: ReturnType<typeof setTimeout>;
 };
 
 type QueuedQuestion = UserInputRequest & {
   questionId: string;
-  resolve: (answer: string) => void;
+  resolve: (answer: string | null) => void;
   reject: (error: Error) => void;
 };
 
@@ -51,9 +52,16 @@ export const createUserInputManager = (emit: EmitAgentEvent): UserInputManager =
       queuedQuestions.delete(taskId);
     }
 
+    const expiresAt = Date.now() + ASK_USER_TIMEOUT_MS;
     const timeout = setTimeout(() => {
       pendingQuestions.delete(nextQuestion.questionId);
       activeQuestionIds.delete(taskId);
+      emit({
+        type: AgentRuntimeEventType.QuestionAnswered,
+        taskId,
+        questionId: nextQuestion.questionId,
+        answer: null,
+      });
       nextQuestion.reject(new Error(`等待用户回答超时：${nextQuestion.questionId}`));
       emitNextQuestion(taskId);
     }, ASK_USER_TIMEOUT_MS);
@@ -61,6 +69,7 @@ export const createUserInputManager = (emit: EmitAgentEvent): UserInputManager =
     activeQuestionIds.set(taskId, nextQuestion.questionId);
     pendingQuestions.set(nextQuestion.questionId, {
       taskId,
+      expiresAt,
       resolve: nextQuestion.resolve,
       reject: nextQuestion.reject,
       timeout,
@@ -71,13 +80,14 @@ export const createUserInputManager = (emit: EmitAgentEvent): UserInputManager =
       taskId,
       questionId: nextQuestion.questionId,
       question: nextQuestion.question,
+      expiresAt,
       context: nextQuestion.context ?? null,
       input: nextQuestion.input,
     });
   };
 
   const requestUserInput: UserInputHandler = (request) => {
-    return new Promise<string>((resolve, reject) => {
+    return new Promise<string | null>((resolve, reject) => {
       const question: QueuedQuestion = {
         ...request,
         questionId: randomUUID(),
@@ -93,7 +103,7 @@ export const createUserInputManager = (emit: EmitAgentEvent): UserInputManager =
 
   const handleAnswer = (command: AnswerQuestionCommand) => {
     const pendingQuestion = pendingQuestions.get(command.questionId);
-    if (!pendingQuestion || pendingQuestion.taskId !== command.taskId) {
+    if (!pendingQuestion || pendingQuestion.taskId !== command.taskId || Date.now() >= pendingQuestion.expiresAt) {
       return;
     }
 

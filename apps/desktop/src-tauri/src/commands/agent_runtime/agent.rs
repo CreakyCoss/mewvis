@@ -47,7 +47,7 @@ pub struct RunAgentRuntimeAgentOutput {
 pub struct AnswerAgentRuntimeQuestionInput {
     task_id: String,
     question_id: String,
-    answer: String,
+    answer: Option<String>,
 }
 
 #[tauri::command]

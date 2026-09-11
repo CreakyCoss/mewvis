@@ -314,7 +314,7 @@ export function createPluginChatHost(service: DesktopChatService, options: Optio
               only(input, ["questionId", "answer"]);
               result = await session.answer({
                 questionId: string(input.questionId),
-                answer: string(input.answer, 64_000),
+                answer: input.answer === null ? null : string(input.answer, 64_000),
               });
               break;
             }
