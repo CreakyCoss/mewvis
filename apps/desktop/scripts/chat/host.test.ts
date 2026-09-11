@@ -198,6 +198,7 @@ test("plugin selection, restoration and dispatch use the same permission modes a
     assert.equal(sent.status, "dispatched");
     assert.deepEqual(fake.runs.at(-1).permissions, { mode: "full" });
     assert.deepEqual(fake.runs.at(-1).resources.tools.allowed, ["own", "host"]);
+    assert.equal(fake.runs.at(-1).pluginId, "plugin");
     completeTask(sent.taskId!);
     await plugin.flush();
     await first.service.closeAll();
@@ -523,6 +524,7 @@ test("history restores plugin ownership and dynamic context after restart, inclu
   const reconnect = await second.client.openSession({ workspaceId: "workspace", chatId: plugin.identity.id });
   assert.equal(second.service.getSession(reconnect.identity), a);
   const sentAgain = await reconnect.send({ text: "continue after restart" });
+  assert.equal(fake.runs.at(-1).pluginId, "plugin", "restoring from host history preserves the plugin owner");
   assert.match(fake.runs.at(-1).requestContext, /persisted after the last turn/);
   completeTask(sentAgain.taskId!);
   await second.service.closeAll();
@@ -644,6 +646,8 @@ test("builtin origins survive saves and history never replaces a different or mi
   const input = historyInput("builtin-record");
   const session = await service.openSession(input);
   const sent = await session.send({ text: "builtin history" });
+  assert.equal(Object.hasOwn(fake.runs.at(-1), "pluginId"), false);
+  assert.equal(fake.runs.at(-1).resources.plugins, undefined);
   completeTask(sent.taskId!);
   await session.flush();
   assert.deepEqual(fake.record.origin, { kind: "builtin", sceneId: "chat" });

@@ -17,8 +17,10 @@ const bundlePath = join(tempDir, "runner.mjs");
 const settingsRoot = join(tempDir, "plugins");
 
 try {
-  mkdirSync(settingsRoot, { recursive: true });
-  writeFileSync(join(settingsRoot, "settings.yaml"), 'isle-fixture-portable:\n  prefix: "migrated"\n', { mode: 0o600 });
+  mkdirSync(join(settingsRoot, "isle-fixture-portable"), { recursive: true });
+  writeFileSync(join(settingsRoot, "isle-fixture-portable", "settings.yaml"), 'prefix: "configured"\n', {
+    mode: 0o600,
+  });
   process.env.ISLE_DSH_COMPAT_FIXTURE_URL = pathToFileURL(resolve(fixtureRoot, "index.js")).href;
   process.env.ISLE_DSH_COMPAT_FIXTURE_ROOT = fixtureRoot;
   process.env.ISLE_DSH_COMPAT_SETTINGS_PATH = join(tempDir, "plugin-settings.yaml");

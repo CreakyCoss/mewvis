@@ -34,6 +34,7 @@ try {
       contents: [
         `export * from ${JSON.stringify(join(desktop, "agent-runtime/src/security/safety/index.ts"))};`,
         `export * from ${JSON.stringify(join(desktop, "agent-runtime/src/security/execution/index.ts"))};`,
+        `export * from ${JSON.stringify(join(desktop, "agent-runtime/src/engines/drivers/native/index.ts"))};`,
         `export * from ${JSON.stringify(join(root, "../../commands/user-input.ts"))};`,
         `export * from ${JSON.stringify(join(root, "tools/subagent.ts"))};`,
         `export * from ${JSON.stringify(join(root, "tools/index.ts"))};`,
@@ -161,6 +162,7 @@ try {
     const input = JSON.parse(body);
     requests.push(input);
     const last = input.messages.at(-1);
+    const nativeApprovalTask = last.role === "user" && messageText(last).match(/native-approval-(parent|write)/)?.[1];
     const child = input.messages.some((message) => message.role === "user" && messageText(message) === "child-task");
     if (messageText(last) === "wait-for-cancel") {
       deferredRequests.push(response);
@@ -172,7 +174,27 @@ try {
         `data: ${JSON.stringify({ id: "test", object: "chat.completion.chunk", created: 1, model: "isle-test", choices: [{ index: 0, delta, finish_reason: finishReason }] })}\n\n`,
       );
     send({ role: "assistant" });
-    if (["parent-task", "matrix-parent"].includes(messageText(last))) {
+    if (nativeApprovalTask) {
+      send(
+        {
+          tool_calls: [
+            {
+              index: 0,
+              id: "native-approval-call",
+              type: "function",
+              function:
+                nativeApprovalTask === "parent"
+                  ? { name: "subagent", arguments: JSON.stringify({ agent: "worker", task: "native-approval-write" }) }
+                  : {
+                      name: "write",
+                      arguments: JSON.stringify({ path: "native-approved.txt", content: "approved content" }),
+                    },
+            },
+          ],
+        },
+        "tool_calls",
+      );
+    } else if (["parent-task", "matrix-parent"].includes(messageText(last))) {
       send(
         {
           tool_calls: [
@@ -267,6 +289,103 @@ try {
     requestUserInput: async () => assert.fail("children must not ask user"),
     requestApproval: async () => true,
   };
+  // Enter through the public engine, so omitted callbacks cannot be hidden by
+  // directly supplying an approval handler to a Pi session.
+  for (const scope of ["write", "parent"]) {
+    for (const approved of [false, true]) {
+      const target = join(workspace, "native-approved.txt");
+      const taskId = `native-approval-${scope}-${approved}`;
+      const engineEvents = [];
+      const answers = [];
+      let existedBeforeApproval;
+      const engine = api.createNativeRuntimeEngine({
+        callbacks: {
+          requestUserInput: async () => assert.fail("approval must not use ask_user"),
+          onEvent(event) {
+            engineEvents.push(event);
+            if (event.type === "approval_requested") {
+              existedBeforeApproval = existsSync(target);
+              answers.push(
+                engine.handle({
+                  type: "answer_approval",
+                  taskId: event.taskId,
+                  approvalId: event.approvalId,
+                  approved,
+                }),
+              );
+            }
+          },
+        },
+      });
+      try {
+        const result = await engine.agent.run({
+          taskId,
+          workspacePath: workspace,
+          userMessage: `native-approval-${scope}`,
+          runtimeModel: command.runtimeModel,
+          resources: { tools: { allowed: ["write", "subagent"] } },
+          permissions: { mode: "ask" },
+        });
+        await Promise.all(answers);
+        assert.equal(result.success, true, JSON.stringify(engineEvents));
+        const requested = engineEvents.filter((event) => event.type === "approval_requested");
+        assert.equal(requested.length, 1, `native ${scope} must expose approval through the engine event channel`);
+        assert.equal(requested[0].taskId, taskId, "child approvals retain the root task identity");
+        assert.equal(requested[0].summary, "write");
+        assert.equal(existedBeforeApproval, false, "the tool must wait before writing");
+        assert.deepEqual(
+          engineEvents.filter((event) => event.type === "approval_resolved").map((event) => event.approved),
+          [approved],
+        );
+        assert.equal(existsSync(target), approved, "only an approved invocation may write");
+        if (approved) assert.equal(readFileSync(target, "utf8"), "approved content");
+      } finally {
+        rmSync(target, { force: true });
+      }
+    }
+  }
+  console.log("PASS native engine approval events and answers gate real main/subagent writes");
+  const settingsRoot = join(temp, "read-only-plugin-settings");
+  mkdirSync(join(settingsRoot, "isle-fixture-portable"), { recursive: true });
+  writeFileSync(join(settingsRoot, "settings.yaml"), "{}\n");
+  writeFileSync(join(settingsRoot, "isle-fixture-portable", "settings.yaml"), "prefix: saved\n");
+  const fixtureRoot = join(desktop, "plugin-host/fixtures/dsh-portable-plugin");
+  const pluginExecution = api.resolveExecutionPolicy("ask", workspace);
+  pluginExecution.sandbox.filesystem.denyWrite.push(settingsRoot);
+  const pluginTools = await api.createPiToolSet(
+    {
+      ...command,
+      resources: {
+        tools: { allowed: ["isle_dsh_echo"] },
+        plugins: {
+          settingsPath: settingsRoot,
+          items: [
+            {
+              kind: "dsh",
+              id: "@isle/fixture-dsh-portable-plugin",
+              packageRoot: fixtureRoot,
+              entry: join(fixtureRoot, "index.js"),
+              patchPath: join(fixtureRoot, "cordis.patch.yml"),
+            },
+          ],
+        },
+      },
+    },
+    callbacks,
+    { policies: { safety: api.resolveSafetyPolicy("ask", workspace), execution: pluginExecution } },
+  );
+  try {
+    const tool = pluginTools.tools.find((tool) => tool.name === "isle_dsh_echo");
+    assert.ok(tool);
+    const result = await tool.execute("settings-read", { message: "loaded" });
+    assert.equal(result.details.value, "saved:loaded");
+    assert.equal(readFileSync(join(settingsRoot, "settings.yaml"), "utf8"), "{}\n");
+    assert.equal(existsSync(join(settingsRoot, "settings.yaml.lock")), false);
+    assert.equal(existsSync(join(settingsRoot, "settings.yaml.pre-namespace-migration.bak")), false);
+  } finally {
+    await pluginTools.dispose();
+  }
+  console.log("PASS sandboxed plugin settings initialize and read without legacy migration or writes");
   await assert.rejects(
     api.createPiToolSet(
       {

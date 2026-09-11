@@ -1,5 +1,6 @@
 import type {
   AgentEvent,
+  AgentRunParams,
   AgentTool,
   AgentPermissionOption,
   ChatParams,
@@ -80,6 +81,9 @@ type AgentClientChatOutputHandlers = {
 
 /** Chat params are wire data; output handlers are an independent application capability. */
 export type AgentClientChatInput = ChatParams & AgentClientChatOutputHandlers;
+
+/** The desktop host resolves the session owner's plugin into wire resources. */
+export type AgentClientAgentInput = AgentRunParams & { pluginId?: string };
 
 /** Desktop task submission result; this is an app contract, not a partial wire TaskResult. */
 export type AgentClientAgentTask = {

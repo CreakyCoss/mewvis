@@ -1,122 +1,88 @@
-use std::collections::BTreeMap;
-
 use tauri::AppHandle;
 
-use super::protocol::{
-    AgentRuntimePlugin, AgentRuntimePluginKind, AgentRuntimePluginResources, AgentRuntimeResources,
-};
+use super::protocol::{AgentRuntimePlugin, AgentRuntimePluginKind, AgentRuntimePluginResources};
 use crate::services::plugins::{self, PluginRuntimeKind, RuntimePlugin};
 
-pub(super) fn inject_registered_plugins(
+pub(super) fn resolve_session_plugins(
     app: &AppHandle,
-    resources: &mut AgentRuntimeResources,
-) -> Result<(), String> {
-    merge_plugins(
-        resources,
+    plugin_id: Option<&str>,
+) -> Result<Option<AgentRuntimePluginResources>, String> {
+    let Some(plugin_id) = plugin_id else {
+        return Ok(None);
+    };
+    select_session_plugin(
+        plugin_id,
         plugins::enabled_runtime_plugins(app)?,
         plugins::settings_location(app)?,
-    );
-    Ok(())
+    )
+    .map(Some)
 }
 
-fn merge_plugins(
-    resources: &mut AgentRuntimeResources,
+fn select_session_plugin(
+    plugin_id: &str,
     registered: Vec<RuntimePlugin>,
-    default_settings_location: String,
-) {
-    let requested = resources.plugins.take();
-    let requested_items = requested.as_ref().and_then(|plugins| plugins.items.clone());
-    if registered.is_empty() && requested_items.is_none() {
-        resources.plugins = requested;
-        return;
-    }
-
-    let mut plugins = BTreeMap::<String, AgentRuntimePlugin>::new();
-    for plugin in registered {
-        plugins.insert(
-            plugin.id.clone(),
-            AgentRuntimePlugin {
-                kind: match plugin.kind {
-                    PluginRuntimeKind::Isle => AgentRuntimePluginKind::Isle,
-                    PluginRuntimeKind::Dsh => AgentRuntimePluginKind::Dsh,
-                },
-                id: plugin.id,
-                entry: plugin.entry,
-                package_root: plugin.package_root,
-                patch_path: plugin.patch_path,
-                config: None,
+    settings_path: String,
+) -> Result<AgentRuntimePluginResources, String> {
+    let plugin = registered
+        .into_iter()
+        .find(|plugin| plugin.id == plugin_id)
+        .ok_or_else(|| format!("会话所属插件未启用或不存在：{plugin_id}"))?;
+    Ok(AgentRuntimePluginResources {
+        items: Some(vec![AgentRuntimePlugin {
+            kind: match plugin.kind {
+                PluginRuntimeKind::Isle => AgentRuntimePluginKind::Isle,
+                PluginRuntimeKind::Dsh => AgentRuntimePluginKind::Dsh,
             },
-        );
-    }
-    for plugin in requested_items.unwrap_or_default() {
-        plugins.insert(plugin.id.clone(), plugin);
-    }
-    let settings_path = requested
-        .as_ref()
-        .and_then(|plugins| plugins.settings_path.clone())
-        .or(Some(default_settings_location));
-    resources.plugins = Some(AgentRuntimePluginResources {
-        items: Some(plugins.into_values().collect()),
-        settings_path,
-    });
+            id: plugin.id,
+            entry: plugin.entry,
+            package_root: plugin.package_root,
+            patch_path: plugin.patch_path,
+            config: None,
+        }]),
+        settings_path: Some(settings_path),
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn empty_resources() -> AgentRuntimeResources {
-        AgentRuntimeResources {
-            tools: None,
-            skills: None,
-            mcp: None,
-            plugins: None,
+    fn plugin(id: &str) -> RuntimePlugin {
+        RuntimePlugin {
+            kind: PluginRuntimeKind::Dsh,
+            id: id.to_string(),
+            entry: format!("/{id}/index.js"),
+            package_root: format!("/{id}"),
+            patch_path: Some(format!("/{id}/cordis.patch.yml")),
         }
     }
 
     #[test]
-    fn explicit_plugin_overrides_registered_plugin_with_the_same_id() {
-        let mut resources = empty_resources();
-        resources.plugins = Some(AgentRuntimePluginResources {
-            items: Some(vec![AgentRuntimePlugin {
-                kind: AgentRuntimePluginKind::Isle,
-                id: "sample".to_string(),
-                entry: "/request/index.js".to_string(),
-                package_root: "/request".to_string(),
-                patch_path: None,
-                config: None,
-            }]),
-            settings_path: None,
-        });
-        merge_plugins(
-            &mut resources,
-            vec![RuntimePlugin {
-                kind: PluginRuntimeKind::Dsh,
-                id: "sample".to_string(),
-                entry: "/registry/index.js".to_string(),
-                package_root: "/registry".to_string(),
-                patch_path: Some("/registry/cordis.patch.yml".to_string()),
-            }],
+    fn plugin_session_loads_only_its_owner() {
+        let resources = select_session_plugin(
+            "owner",
+            vec![plugin("other"), plugin("owner")],
             "/app/plugins".to_string(),
+        )
+        .unwrap();
+        let items = resources.items.unwrap();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].id, "owner");
+        assert_eq!(items[0].entry, "/owner/index.js");
+        assert_eq!(
+            items[0].patch_path.as_deref(),
+            Some("/owner/cordis.patch.yml")
         );
-        let plugins = resources.plugins.unwrap();
-        assert_eq!(plugins.settings_path.as_deref(), Some("/app/plugins"));
-        assert_eq!(plugins.items.unwrap()[0].entry, "/request/index.js");
+        assert_eq!(resources.settings_path.as_deref(), Some("/app/plugins"));
     }
 
     #[test]
-    fn explicit_settings_path_overrides_the_registry_default() {
-        let mut resources = empty_resources();
-        resources.plugins = Some(AgentRuntimePluginResources {
-            items: Some(vec![]),
-            settings_path: Some("/request/settings.yaml".to_string()),
-        });
-
-        merge_plugins(&mut resources, vec![], "/app/plugins".to_string());
-
-        assert_eq!(
-            resources.plugins.unwrap().settings_path.as_deref(),
-            Some("/request/settings.yaml")
-        );
+    fn unavailable_owner_does_not_fall_back_to_other_plugins() {
+        assert!(select_session_plugin(
+            "missing",
+            vec![plugin("other")],
+            "/app/plugins".to_string()
+        )
+        .is_err());
     }
 }

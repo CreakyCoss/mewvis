@@ -118,6 +118,11 @@ through the product-prefixed `DSH_MARKETPLACE_URL` environment variable.
 ## Data and UI
 
 The application plugin root still owns `registry.json`, installed packages, and
-per-namespace settings at `plugins/<namespace>/settings.yaml`; this migration
-does not move user data. A package may add `isle.ui` for a sandboxed page. See
+per-namespace settings at `plugins/<namespace>/settings.yaml`. Settings reads do
+not migrate shared legacy files or acquire write locks; saving creates the
+namespace directory and file when needed. A package may add `isle.ui` for a sandboxed page. See
 [`ISLE_UI.md`](./ISLE_UI.md) for the UI contract.
+
+Built-in desktop conversations do not load plugins. A plugin-owned conversation
+loads only its owner plugin and uses its tools alongside the assigned built-in
+tools. Reopening that conversation from host history preserves the same owner.

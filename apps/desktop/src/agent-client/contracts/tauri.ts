@@ -1,5 +1,6 @@
 import type {
   AgentClientAgentEvent,
+  AgentClientAgentInput,
   AgentClientAgentTask,
   AgentClientAgentToolsResult,
   AgentClientChatEvent,
@@ -9,7 +10,6 @@ import type {
   AgentClientListRuntimeSessionsInput,
 } from "./index";
 import type {
-  AgentRunParams,
   EmptyParams,
   AnswerQuestionParams,
   AnswerApprovalParams,
@@ -29,7 +29,7 @@ import type { SandboxStatus } from "../../../agent-runtime/src/security/executio
 
 export type AgentRuntimeTauriChatInput = ChatParams;
 
-export type AgentRuntimeTauriAgentInput = AgentRunParams & {
+export type AgentRuntimeTauriAgentInput = AgentClientAgentInput & {
   chatId?: string | null;
 };
 

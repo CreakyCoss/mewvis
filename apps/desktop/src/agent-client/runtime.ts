@@ -1,6 +1,7 @@
 import { isTauri } from "@tauri-apps/api/core";
 import type {
   AgentClientAgentEvent,
+  AgentClientAgentInput,
   AgentClientAgentTask,
   AgentClientAgentToolsResult,
   AgentClientChatInput,
@@ -8,7 +9,6 @@ import type {
   AgentClientListRuntimeSessionsInput,
 } from "./contracts";
 import type {
-  AgentRunParams,
   EmptyParams,
   AnswerQuestionParams,
   AnswerApprovalParams,
@@ -31,7 +31,7 @@ export interface AgentClientCapabilities {
 
 export interface AgentClientAgent {
   chat(input: AgentClientChatInput): Promise<AgentClientChatResult>;
-  run(input: AgentRunParams): Promise<AgentClientAgentTask>;
+  run(input: AgentClientAgentInput): Promise<AgentClientAgentTask>;
 }
 
 export interface AgentClientSessionDebug {

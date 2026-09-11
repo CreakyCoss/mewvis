@@ -1,5 +1,5 @@
 use super::{
-    plugins::inject_registered_plugins,
+    plugins::resolve_session_plugins,
     protocol::{
         notification, request, AgentPermissions, AgentRuntimeResources, AgentRuntimeSkillResources,
         BundledPath, METHOD_AGENT_APPROVAL_ANSWER, METHOD_AGENT_QUESTION_ANSWER, METHOD_AGENT_RUN,
@@ -23,6 +23,7 @@ pub struct RunAgentRuntimeAgentInput {
     task_id: String,
     workspace_path: String,
     chat_id: Option<String>,
+    plugin_id: Option<String>,
     session_root_dir: Option<String>,
     agent_role_id: Option<String>,
     user_message: String,
@@ -106,7 +107,7 @@ pub fn run_agent_runtime_agent(
         paths: Some(skill_paths),
         enabled: Some(enabled_skills),
     });
-    inject_registered_plugins(&app, &mut resources)?;
+    resources.plugins = resolve_session_plugins(&app, input.plugin_id.as_deref())?;
     let mut command = request(
         task_id.clone(),
         METHOD_AGENT_RUN,

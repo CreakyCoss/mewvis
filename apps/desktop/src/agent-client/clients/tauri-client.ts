@@ -16,6 +16,7 @@ import {
 } from "@/api/agent-runtime";
 import type {
   AgentClientAgentEvent,
+  AgentClientAgentInput,
   AgentClientAgentTask,
   AgentClientAgentToolsResult,
   AgentClientChatInput,
@@ -23,7 +24,6 @@ import type {
   AgentClientListRuntimeSessionsInput,
 } from "../contracts";
 import type {
-  AgentRunParams,
   EmptyParams,
   AnswerQuestionParams,
   AnswerApprovalParams,
@@ -82,7 +82,7 @@ class TauriAgentClientAgent implements AgentClientAgent {
     });
   }
 
-  async run(input: AgentRunParams): Promise<AgentClientAgentTask> {
+  async run(input: AgentClientAgentInput): Promise<AgentClientAgentTask> {
     const taskId = input.taskId;
     const result = await runAgentRuntimeAgent({
       ...input,

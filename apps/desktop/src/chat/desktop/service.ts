@@ -168,6 +168,7 @@ export function createDesktopChatService({ resolveRecord }: { resolveRecord?: Re
           input.identity.id,
           catalog,
           readProfile,
+          source.origin,
         );
         const session = await createChatSession({
           identity: input.identity,

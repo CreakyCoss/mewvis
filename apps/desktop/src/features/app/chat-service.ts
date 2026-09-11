@@ -42,12 +42,7 @@ export const pluginChatHost = createPluginChatHost(chatService, {
     const [catalog, runtime] = await Promise.all([listPluginUi(), listAgentRuntimeTools()]);
     const plugin = catalog.plugins.find((item) => item.id === pluginId);
     if (!plugin || plugin.error) throw new Error("插件能力加载失败，暂时无法恢复聊天");
-    return [
-      ...new Set([
-        ...runtime.tools.map((tool) => tool.name),
-        ...catalog.plugins.filter((item) => !item.error).flatMap((item) => item.tools.map((tool) => tool.name)),
-      ]),
-    ];
+    return [...new Set([...runtime.tools.map((tool) => tool.name), ...plugin.tools.map((tool) => tool.name)])];
   },
   async workspaces(pluginId) {
     const [, workspaces] = await Promise.all([requirePlugin(pluginId), listWorkspaces()]);

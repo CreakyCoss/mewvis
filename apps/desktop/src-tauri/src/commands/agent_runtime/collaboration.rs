@@ -1,5 +1,4 @@
 use super::{
-    plugins::inject_registered_plugins,
     protocol::{
         request, AgentRuntimeResources, AgentRuntimeSkillResources, AgentRuntimeToolResources,
         BundledPath, METHOD_COLLABORATION_RUN, METHOD_COLLABORATION_RUN_MODE,
@@ -89,12 +88,8 @@ pub fn run_agent_runtime_collaboration(
         ),
     );
 
-    let resources = collaboration_resources(
-        &app,
-        bundled_skills_path,
-        skill_paths,
-        input.resources.take(),
-    )?;
+    let resources =
+        collaboration_resources(bundled_skills_path, skill_paths, input.resources.take());
     let command = request(
         task_id.clone(),
         METHOD_COLLABORATION_RUN,
@@ -162,12 +157,8 @@ pub fn run_agent_runtime_collaboration_mode(
         ),
     );
 
-    let resources = collaboration_resources(
-        &app,
-        bundled_skills_path,
-        skill_paths,
-        input.resources.take(),
-    )?;
+    let resources =
+        collaboration_resources(bundled_skills_path, skill_paths, input.resources.take());
     let command = request(
         task_id.clone(),
         METHOD_COLLABORATION_RUN_MODE,
@@ -229,11 +220,10 @@ fn default_collaboration_allowed_tools() -> Vec<String> {
 }
 
 fn collaboration_resources(
-    app: &AppHandle,
     bundled_skills_path: Option<String>,
     mut skill_paths: Vec<String>,
     resources: Option<AgentRuntimeResources>,
-) -> Result<AgentRuntimeResources, String> {
+) -> AgentRuntimeResources {
     let mut resources = resources.unwrap_or(AgentRuntimeResources {
         tools: None,
         skills: None,
@@ -266,8 +256,8 @@ fn collaboration_resources(
         paths: Some(skill_paths),
         enabled: Some(enabled_skills),
     });
-    inject_registered_plugins(app, &mut resources)?;
-    Ok(resources)
+    resources.plugins = None;
+    resources
 }
 
 fn validate_collaboration_input(input: &RunAgentRuntimeCollaborationInput) -> Result<(), String> {

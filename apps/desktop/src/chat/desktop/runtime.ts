@@ -6,6 +6,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import type { ChatRuntime, ChatContextProvider } from "../core";
 import type { createDesktopCatalog, ChatProfile } from "./catalog";
 import { buildAgentPrompt } from "./context";
+import type { ChatOrigin } from "@/api/chat";
 
 export function createDesktopRuntime(
   client: AgentClient,
@@ -13,6 +14,7 @@ export function createDesktopRuntime(
   chatId: string,
   catalog: ReturnType<typeof createDesktopCatalog>,
   readProfile: () => ChatProfile,
+  origin: ChatOrigin,
 ) {
   const sessionRootDir = `chats/${chatId}/session`;
   const context: ChatContextProvider = {
@@ -77,6 +79,7 @@ export function createDesktopRuntime(
           signal.throwIfAborted();
           await client.agent.run({
             taskId: turn.taskId,
+            ...(origin.kind === "plugin" ? { pluginId: origin.pluginId } : {}),
             workspacePath,
             sessionRootDir,
             agentRoleId: chatId,

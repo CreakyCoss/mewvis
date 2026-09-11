@@ -148,13 +148,13 @@ const createNamespacedFixtureHost = async () => {
 
 const firstNamespacedHost = await createNamespacedFixtureHost();
 try {
-  const migrated = await firstNamespacedHost.executeTool({
+  const initialized = await firstNamespacedHost.executeTool({
     callId: "compat-namespaced-settings-1",
     name: "isle_dsh_echo",
-    arguments: { message: "legacy" },
+    arguments: { message: "initial" },
   });
-  assert.equal(migrated.isError, false);
-  if (!migrated.isError) assert.equal(migrated.value, "migrated:legacy");
+  assert.equal(initialized.isError, false);
+  if (!initialized.isError) assert.equal(initialized.value, "configured:initial");
 
   const updated = await firstNamespacedHost.executeTool({
     callId: "compat-namespaced-settings-2",
@@ -169,11 +169,6 @@ try {
 const namespaceFile = join(settingsRoot, "isle-fixture-portable", "settings.yaml");
 assert.equal(existsSync(namespaceFile), true);
 assert.match(readFileSync(namespaceFile, "utf8"), /prefix:\s+isolated/);
-assert.doesNotMatch(readFileSync(join(settingsRoot, "settings.yaml"), "utf8"), /isle-fixture-portable/);
-assert.match(
-  readFileSync(join(settingsRoot, "settings.yaml.pre-namespace-migration.bak"), "utf8"),
-  /prefix:\s+"migrated"/,
-);
 
 const secondNamespacedHost = await createNamespacedFixtureHost();
 try {
