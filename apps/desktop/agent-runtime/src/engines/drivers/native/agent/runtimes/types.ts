@@ -1,4 +1,4 @@
-import type { ExecutionApprovalRequest } from "../../../../safety/types.js";
+import type { ExecutionApprovalRequest } from "../../../../../security/safety/index.js";
 import type {
   AgentEvent,
   AgentPermissions,

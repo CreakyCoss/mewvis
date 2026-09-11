@@ -25,6 +25,7 @@ import type {
   RuntimeSessionsResult,
   SessionTargetParams,
 } from "../wire";
+import type { SandboxStatus } from "../../../agent-runtime/src/security/execution/types";
 
 export type AgentRuntimeTauriChatInput = ChatParams;
 
@@ -36,6 +37,14 @@ export type AgentRuntimeTauriCollaborationInput = CollaborationRunParams;
 export type AgentRuntimeTauriCollaborationModeInput = CollaborationModeRunParams;
 
 export type AgentRuntimeTauriCommands = {
+  get_agent_runtime_sandbox_status: {
+    args: Record<string, never>;
+    result: SandboxStatus;
+  };
+  initialize_agent_runtime_sandbox: {
+    args: Record<string, never>;
+    result: SandboxStatus;
+  };
   list_agent_runtime_tools: {
     args: { input: EmptyParams };
     result: AgentClientAgentToolsResult;
@@ -101,6 +110,8 @@ export type AgentRuntimeTauriCommands = {
 
 export type AgentRuntimeTauriCommandName = keyof AgentRuntimeTauriCommands;
 export const agentRuntimeTauriCommandNames = [
+  "get_agent_runtime_sandbox_status",
+  "initialize_agent_runtime_sandbox",
   "list_agent_runtime_tools",
   "run_agent_runtime_chat",
   "run_agent_runtime_agent",

@@ -43,12 +43,13 @@ runtime boundary unchanged. A semantically different application contract must
 be defined independently and connected with an explicit adapter or envelope;
 it must not be presented as a `Pick`/`Omit`-derived wire contract.
 
-Permission modes, display metadata, the default mode, and execution policies are
-maintained in `../src/engines/safety/permissions.ts`. The generator derives
+Permission modes, display metadata, the default mode, and pre-call safety policies are
+maintained in `../src/security/safety/policy.ts`. The generator derives
 `v1/schema/permissions.schema.json` and the public permission declarations in
 `packages/chat-contracts` from that definition. `agent/tools/list` returns
 `permissionOptions` for consumers to render and validate selections; the
-generated TypeScript `agentPermissionOptions` snapshot is used by previews.
+generated TypeScript `agentPermissionOptions` snapshot is used by previews. OS sandbox
+configuration and its independent enable flag live in `../src/security/execution/policy.ts`.
 
 The generator and its Node dependencies live in this directory. Generate within
 the repository, since permission generation also reads the runtime definition

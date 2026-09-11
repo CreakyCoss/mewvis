@@ -286,9 +286,11 @@ different prompts can safely share the same workflow session.
 
 ## Collaboration Runtimes
 
-Pi also offers a `subagent` tool for delegation during a turn, and a bash
-sandbox extension. See [Pi sandbox and subagents](src/engines/drivers/native/agent/runtimes/pi/README.md)
-for configuration, supported platforms and the isolation boundaries.
+Pi also offers a `subagent` tool for delegation during a turn. All effectful
+Agent tools use independently configurable pre-call safety and program execution,
+organized together with platform implementations under [security](src/security/README.md).
+See [Pi sandbox and subagents](src/engines/drivers/native/agent/runtimes/pi/README.md)
+for adapter integration and delegation.
 
 `engines/drivers/native/collaboration` has a thin engine facade and pluggable runtimes. The
 default runtime is `"langgraph"`, which uses `@langchain/langgraph` to run the

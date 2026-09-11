@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://isle.local/protocol/agent-runtime/v1/permissions.schema.json",
-  "$comment": "Generated from src/engines/safety/permissions.ts; do not edit.",
+  "$comment": "Generated from src/security/safety/policy.ts; do not edit.",
   "title": "IsleAgentPermissionsProtocol",
   "anyOf": [{ "$ref": "#/definitions/AgentPermissions" }, { "$ref": "#/definitions/AgentPermissionOption" }],
   "definitions": {

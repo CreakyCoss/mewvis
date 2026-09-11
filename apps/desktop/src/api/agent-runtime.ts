@@ -37,6 +37,10 @@ const listenAgentRuntimeEvent = <TName extends AgentRuntimeTauriEventName>(
 export const listAgentRuntimeTools = (input: AgentRuntimeTauriCommandArgs<"list_agent_runtime_tools">["input"] = {}) =>
   invokeAgentRuntime("list_agent_runtime_tools", { input });
 
+export const getAgentRuntimeSandboxStatus = () => invokeAgentRuntime("get_agent_runtime_sandbox_status", {});
+
+export const initializeAgentRuntimeSandbox = () => invokeAgentRuntime("initialize_agent_runtime_sandbox", {});
+
 export const runAgentRuntimeChat = (input: AgentRuntimeTauriChatInput) =>
   invokeAgentRuntime("run_agent_runtime_chat", { input });
 

@@ -1,0 +1,18 @@
+{
+  "cli": {
+    "source": "src/cli/index.ts",
+    "output": "cli.js"
+  },
+  "executionHost": {
+    "source": "src/security/execution/runtime/launcher.ts",
+    "output": "execution-host.js"
+  },
+  "piToolWorker": {
+    "source": "src/engines/drivers/native/agent/runtimes/pi/tools/worker.ts",
+    "output": "pi-tool-worker.js"
+  },
+  "sandboxControl": {
+    "source": "src/security/execution/cli/control.ts",
+    "output": "sandbox-control.js"
+  }
+}

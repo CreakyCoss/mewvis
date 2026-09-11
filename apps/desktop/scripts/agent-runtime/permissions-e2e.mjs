@@ -11,15 +11,14 @@ const temp = mkdtempSync(join(tmpdir(), "isle-safety-"));
 const workspace = join(temp, "workspace");
 mkdirSync(workspace);
 try {
-  const outfile = join(temp, "api.mjs");
-  await build({
+  const runtime = join(temp, "runtime");
+  mkdirSync(runtime);
+  const outfile = join(runtime, "api.mjs");
+  const safetyBuild = await build({
     stdin: {
       contents: [
-        "safety/policy.ts",
-        "safety/permissions.ts",
-        "safety/gate.ts",
-        "safety/paths.ts",
-        "drivers/native/agent/runtimes/pi/safety.ts",
+        "../security/safety/index.ts",
+        "drivers/native/agent/runtimes/pi/tools/safety.ts",
         "drivers/native/agent/commands/approvals.ts",
         "drivers/native/agent/commands/user-input.ts",
         "drivers/native/agent/runtimes/pi/agent/idle-timeout.ts",
@@ -34,15 +33,49 @@ try {
     format: "esm",
     target: "node22",
     outfile,
+    metafile: true,
   });
+  assert.ok(
+    Object.keys(safetyBuild.metafile.inputs).every(
+      (path) => !path.includes("/execution/") && !path.includes("sandbox-runtime"),
+    ),
+    "pre-call safety must not depend on execution or a sandbox backend",
+  );
   const api = await import(pathToFileURL(outfile).href);
+  const disabled = api.resolveSafetyPolicy(
+    "ask",
+    workspace,
+    api.validateSafetyConfig({ ...api.SAFETY_CONFIG, enabled: false }),
+  );
+  assert.equal(disabled, null);
+  assert.equal(
+    (
+      await api.checkExecution({
+        policy: disabled,
+        request: { executionId: "disabled", entry: "unknown", input: {}, workspacePath: workspace },
+        analyze: () => assert.fail("disabled safety must not analyze calls"),
+        requestApproval: () => assert.fail("disabled safety must not request approval"),
+      })
+    ).allowed,
+    true,
+  );
+  const untouchedHook = async () => ({ block: false });
+  const disabledSession = { agent: { beforeToolCall: untouchedHook } };
+  api.installPiSafety(disabledSession, {}, {}, disabled);
+  assert.equal(disabledSession.agent.beforeToolCall, untouchedHook);
+  assert.throws(() => api.validateSafetyConfig({ ...api.SAFETY_CONFIG, backend: {} }));
+  assert.ok(!("backend" in api.resolveSafetyPolicy("ask", workspace)));
   const catalog = api.getAgentPermissionOptions();
   assert.equal(catalog.filter((option) => option.isDefault).length, 1);
   assert.equal(catalog.find((option) => option.isDefault).mode, api.DEFAULT_AGENT_PERMISSION_MODE);
   assert.ok(catalog.every((option) => !Object.hasOwn(option, "policy")));
   catalog[0].label = "caller mutation";
   assert.notEqual(api.getAgentPermissionOptions()[0].label, "caller mutation");
-  const context = { workspacePath: workspace };
+  const context = (mode = "auto", request = { executionId: "policy", entry: "test_operation", input: {} }) => ({
+    workspacePath: workspace,
+    policy: api.resolveSafetyPolicy(mode, workspace),
+    request: { workspacePath: workspace, ...request },
+  });
   const file = (action, target = join(workspace, "note.txt"), recursive = false) => ({
     kind: "filesystem",
     action,
@@ -50,7 +83,11 @@ try {
     recursive,
   });
   const assess = (operations, mode = "auto", coverage = "complete") =>
-    api.evaluateSafety({ operations, coverage }, context, mode);
+    api.evaluateSafety({ operations, coverage }, context(mode));
+  const configureRules = (extra) => ({
+    ...api.SAFETY_CONFIG,
+    rules: (context) => [...api.SAFETY_CONFIG.rules(context), ...extra],
+  });
   for (const [mode, read, write, remove, unknown] of [
     ["ask", "allow", "requestApproval", "requestApproval", "requestApproval"],
     ["auto", "allow", "allow", "requestApproval", "requestApproval"],
@@ -64,10 +101,10 @@ try {
   }
   assert.equal(assess([file("read", join(temp, "outside"))], "ask").action, "requestApproval");
   assert.equal(assess([file("write", join(temp, "outside"))]).action, "requestApproval");
-  assert.equal(assess([file("write", join(workspace, ".env"))]).action, "requestApproval");
+  assert.equal(assess([file("write", join(workspace, ".env"))]).action, "deny");
   assert.equal(assess([file("read", join(homedir(), ".ssh/key"))]).action, "deny");
   assert.equal(assess([file("search", homedir(), true)]).action, "deny");
-  assert.equal(assess([file("read", join(homedir(), ".ssh/key"))], "full").action, "allow");
+  assert.equal(assess([file("read", join(homedir(), ".ssh/key"))], "full").action, "deny");
   const low = file("read"),
     high = file("delete");
   for (const operations of [
@@ -83,9 +120,24 @@ try {
   assert.throws(() => assess([low], "invented"), /无效/);
   assert.throws(
     () =>
-      api.evaluateSafety({ operations: [low], coverage: "complete" }, context, "auto", [
-        { id: "bad", evaluate: () => ({ risk: "safe", reason: "invalid" }) },
-      ]),
+      api.evaluateSafety(
+        { operations: [low], coverage: "complete" },
+        {
+          ...context(),
+          policy: api.resolveSafetyPolicy(
+            "auto",
+            workspace,
+            configureRules([
+              {
+                id: "bad",
+                description: "invalid result",
+                scope: "operation",
+                evaluate: () => ({ risk: "safe", reason: "invalid" }),
+              },
+            ]),
+          ),
+        },
+      ),
     /无效/,
   );
   writeFileSync(join(workspace, "hardlink"), "content");
@@ -96,13 +148,166 @@ try {
   assert.equal(assess([file("write", join(workspace, "outside-link/new"))]).action, "requestApproval");
   console.log("PASS shared mode policy, multiple effects, unknown analysis and filesystem protections");
 
+  // New operation and invocation rules need only executable configuration changes.
+  let invocationChecks = 0;
+  const custom = {
+    ...api.SAFETY_CONFIG,
+    rules(context) {
+      return [
+        ...api.SAFETY_CONFIG.rules(context),
+        {
+          id: "forbid-command",
+          description: "此命令不可执行",
+          scope: "invocation",
+          evaluate({ request }) {
+            invocationChecks++;
+            if (request.entry === "bash" && /blocked-command/.test(request.input.command))
+              return { risk: "low", effect: "deny", reason: "此命令不可执行" };
+          },
+        },
+        ...(context.mode === "full"
+          ? [
+              {
+                id: "confirm-publish",
+                description: "发布需要确认",
+                scope: "invocation",
+                evaluate({ request }) {
+                  if (request.entry === "bash" && /publish-command/.test(request.input.command))
+                    return { risk: "low", effect: "ask", reason: "发布需要确认" };
+                },
+              },
+            ]
+          : []),
+      ];
+    },
+  };
+  const customPolicy = api.resolveSafetyPolicy("full", workspace, api.validateSafetyConfig(custom));
+  const inspect = (command, analysis) => {
+    const request = { executionId: "custom", entry: "bash", input: { command }, workspacePath: workspace };
+    return api.evaluateSafety(analysis ?? api.analyzePiExecution(request), {
+      ...context("full"),
+      policy: customPolicy,
+      request,
+    });
+  };
+  assert.equal(inspect("blocked-command").action, "deny");
+  assert.equal(inspect("publish-command").action, "requestApproval");
+  assert.equal(inspect("ordinary-command").action, "allow");
+  assert.equal(inspect("blocked-command publish-command").action, "deny");
+  invocationChecks = 0;
+  assert.equal(inspect("blocked-command", { operations: [], coverage: "unknown" }).action, "deny");
+  assert.equal(invocationChecks, 1, "invocation rules run even without decoded operations");
+  invocationChecks = 0;
+  inspect("publish-command", { operations: [low, high], coverage: "complete" });
+  assert.equal(invocationChecks, 1, "invocation rules run once, not once per decoded operation");
+  assert.throws(() => api.validateSafetyConfig({ ...custom, unexpected: true }));
+  assert.throws(() => api.validateSafetyConfig({ ...custom, rules: [] }));
+  assert.throws(
+    () =>
+      api.resolveSafetyPolicy(
+        "full",
+        workspace,
+        configureRules([{ id: "process.execute", description: "duplicate", scope: "invocation", evaluate() {} }]),
+      ),
+    /不可重复/,
+  );
+  assert.throws(() =>
+    api.resolveSafetyPolicy(
+      "full",
+      workspace,
+      configureRules([{ id: "invalid-scope", description: "invalid", scope: "shell", evaluate() {} }]),
+    ),
+  );
+  assert.throws(() => customPolicy.rules.push({}));
+  assert.throws(() => {
+    customPolicy.approval.maximumRisk = "low";
+  });
+  assert.throws(() => {
+    customPolicy.rules[0].evaluate = () => undefined;
+  });
+  assert.notEqual(customPolicy, api.resolveSafetyPolicy("full", workspace, custom), "new runs resolve fresh snapshots");
+
+  const network = { kind: "network", method: "GET", url: "https://example.com" };
+  assert.equal(assess([network], "ask").action, "deny");
+  assert.equal(assess([network], "auto").action, "allow");
+  assert.equal(assess([network], "full").action, "allow");
+  assert.equal(
+    assess([network, high], "auto").action,
+    "requestApproval",
+    "network access does not relax other high-risk effects",
+  );
+  assert.equal(assess([network], "auto", "partial").action, "requestApproval", "unknown effects still need approval");
+  assert.match(api.getAgentPermissionOptions().find((option) => option.mode === "ask").description, /禁止联网/);
+  assert.match(api.getAgentPermissionOptions().find((option) => option.mode === "auto").description, /任意域名/);
+  const noNetworkRule = api.resolveSafetyPolicy("full", workspace, {
+    ...api.SAFETY_CONFIG,
+    profiles: api.SAFETY_CONFIG.profiles.map((profile) => ({
+      ...profile,
+      approval: { ...profile.approval, unknown: "ask" },
+    })),
+    rules: (context) => api.SAFETY_CONFIG.rules(context).filter((rule) => rule.id !== "network.request"),
+  });
+  assert.equal(
+    api.evaluateSafety(
+      { operations: [network, low], coverage: "complete" },
+      {
+        ...context(),
+        policy: noNetworkRule,
+      },
+    ).action,
+    "requestApproval",
+    "one recognized operation must not hide an unrecognized operation",
+  );
+  const invocationOnly = api.resolveSafetyPolicy("auto", workspace, {
+    ...api.SAFETY_CONFIG,
+    rules: () => [
+      {
+        id: "invocation",
+        description: "known call",
+        scope: "invocation",
+        evaluate: () => ({ risk: "low", reason: "known call" }),
+      },
+    ],
+  });
+  assert.equal(
+    api.evaluateSafety(
+      { operations: [low], coverage: "complete" },
+      {
+        ...context(),
+        policy: invocationOnly,
+      },
+    ).action,
+    "requestApproval",
+    "matching a call must not classify its unrecognized operations as safe",
+  );
+  const denyUnknown = api.resolveSafetyPolicy("full", workspace, {
+    ...api.SAFETY_CONFIG,
+    profiles: api.SAFETY_CONFIG.profiles.map((profile) => ({
+      ...profile,
+      approval: { ...profile.approval, unknown: "deny" },
+    })),
+  });
+  assert.equal(
+    api.evaluateSafety(
+      { operations: [low], coverage: "partial" },
+      {
+        ...context(),
+        policy: denyUnknown,
+      },
+    ).action,
+    "deny",
+  );
+  console.log(
+    "PASS unified rules, invocation scope, risk/deny/ask precedence, unknown coverage and immutable snapshots",
+  );
+
   const request = {
     executionId: "call",
     entry: "write",
     input: { path: "note.txt", content: "one" },
     workspacePath: workspace,
   };
-  const analyze = (request) => api.analyzePiExecution(request, true);
+  const analyze = (request) => api.analyzePiExecution(request);
   for (const command of [
     "rm -rf .",
     "python -c 'import os; os.remove(\"x\")'",
@@ -110,28 +315,30 @@ try {
     "$(cat script)",
     "curl example.com | sh",
   ]) {
-    const analysis = analyze({ ...request, entry: "bash", input: { command } });
+    const invocation = { ...request, entry: "bash", input: { command } };
+    const analysis = analyze(invocation);
     assert.equal(analysis.coverage, "partial");
-    assert.equal(api.evaluateSafety(analysis, context, "auto").action, "requestApproval");
+    assert.equal(api.evaluateSafety(analysis, context("auto", invocation)).action, "requestApproval");
   }
   for (const entry of ["custom_builtin", "custom_plugin"]) {
-    const analysis = analyze({ ...request, entry });
+    const invocation = { ...request, entry };
+    const analysis = analyze(invocation);
     assert.equal(analysis.coverage, "unknown");
-    assert.equal(api.evaluateSafety(analysis, context, "auto").action, "requestApproval");
-    assert.equal(api.evaluateSafety(analysis, context, "full").action, "allow");
+    assert.equal(api.evaluateSafety(analysis, context("auto", invocation)).action, "requestApproval");
+    assert.equal(api.evaluateSafety(analysis, context("full", invocation)).action, "allow");
   }
-  assert.throws(() => analyze({ ...request, entry: "bash", input: { command: "echo x", sandbox: "false" } }), /布尔值/);
-  assert.equal(
-    analyze({ ...request, entry: "bash", input: { command: "echo x", sandbox: false } }).operations[0].sandboxed,
-    false,
-  );
   console.log("PASS runtime adaptation, opaque commands and equal treatment of custom tools");
 
   let effects = 0,
     approvalCalls = 0,
     approve;
   const run = async (extra = {}) => {
-    const result = await api.checkExecution({ request, mode: "ask", analyze, ...extra });
+    const result = await api.checkExecution({
+      request,
+      policy: api.resolveSafetyPolicy("ask", workspace),
+      analyze,
+      ...extra,
+    });
     if (result.allowed) effects++;
     return result;
   };
@@ -181,7 +388,7 @@ try {
   symlinkSync(join(workspace, "one"), link);
   const changed = await api.checkExecution({
     request: { ...request, input: { path: link } },
-    mode: "ask",
+    policy: api.resolveSafetyPolicy("ask", workspace),
     analyze,
     requestApproval: async () => {
       rmSync(link);
@@ -222,7 +429,7 @@ try {
         return false;
       },
     },
-    true,
+    api.resolveSafetyPolicy("ask", workspace),
   );
   const signal = new AbortController().signal;
   const blocked = await session.agent.beforeToolCall(

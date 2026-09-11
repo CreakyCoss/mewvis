@@ -11,6 +11,7 @@ use commands::{
         list_agent_runtime_tools, read_agent_runtime_session, release_agent_runtime_session,
         run_agent_runtime_agent, run_agent_runtime_chat, run_agent_runtime_collaboration,
         run_agent_runtime_collaboration_mode, summarize_agent_runtime_session,
+        get_agent_runtime_sandbox_status, initialize_agent_runtime_sandbox,
         AgentRuntimeSupervisor,
     },
     app::{
@@ -93,6 +94,8 @@ pub fn run() {
             list_knowledge_collection_files,
             rebuild_knowledge_index,
             list_agent_runtime_tools,
+            get_agent_runtime_sandbox_status,
+            initialize_agent_runtime_sandbox,
             run_agent_runtime_chat,
             run_agent_runtime_agent,
             run_agent_runtime_collaboration,

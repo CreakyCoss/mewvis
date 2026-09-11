@@ -55,6 +55,18 @@ pub(super) fn resolve_node_binary(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(PathBuf::from("node"))
 }
 
+pub(super) fn agent_runtime_entry_name(entry: &str) -> Result<String, String> {
+    let entries: serde_json::Value = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../agent-runtime/build-entries.json"
+    )))
+    .map_err(|error| format!("Agent runtime 构建入口清单无效：{error}"))?;
+    entries[entry]["output"]
+        .as_str()
+        .map(str::to_owned)
+        .ok_or_else(|| format!("未定义 Agent runtime 构建入口：{entry}"))
+}
+
 pub(super) fn resolve_agent_runtime_cli_path(app: &AppHandle) -> Result<PathBuf, String> {
     if let Ok(path) = std::env::var(product_env_var("AGENT_RUNTIME")) {
         let path = PathBuf::from(path);
@@ -63,9 +75,10 @@ pub(super) fn resolve_agent_runtime_cli_path(app: &AppHandle) -> Result<PathBuf,
         }
     }
 
+    let name = agent_runtime_entry_name("cli")?;
     if cfg!(debug_assertions) {
         let dev_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../agent-runtime/dist/cli.js")
+            .join(format!("../agent-runtime/dist/{name}"))
             .clean();
         if dev_path.exists() {
             return Ok(dev_path);
@@ -73,11 +86,10 @@ pub(super) fn resolve_agent_runtime_cli_path(app: &AppHandle) -> Result<PathBuf,
     }
 
     for candidate in [
-        "_up_/agent-runtime/dist/cli.js",
-        "agent-runtime/dist/cli.js",
-        "dist/index.js",
-        "cli.js",
-        "index.js",
+        format!("_up_/agent-runtime/dist/{name}"),
+        format!("agent-runtime/dist/{name}"),
+        format!("dist/{name}"),
+        name,
     ] {
         let path = app
             .path()

@@ -228,9 +228,10 @@ Rust 存储测试覆盖元数据来源不可变、配置不覆盖归属、列表
 ## 执行权限与审批
 
 输入区以 `permissionMode` 提供请求批准、帮我批准、完全访问权限；技能与知识库继续单独选择。
-旧的工具勾选不再参与分配，缺省及旧记录使用权限目录声明的默认项（当前为请求批准）。工具范围由 Runtime 默认值与宿主场景配置决定。
+未指定有效权限时使用权限目录声明的默认项（当前为请求批准）。工具范围由 Runtime 默认值与宿主场景配置决定。
 插件和宿主使用同一份权限目录。`agent/tools/list` 的 `permissionOptions` 返回模式、名称、说明和默认项。
-唯一维护位置是 Runtime 的 `engines/safety/permissions.ts`（`AGENT_PERMISSION_DEFINITIONS`），
+唯一维护位置是 Runtime 的 `security/safety/policy.ts`（`security/safety/index.ts` 统一校验并提供展示选项），
+审批层与 `security/execution/policy.ts` 的沙箱层各自通过 `enabled` 开关控制。
 协议模式和公开 Chat 类型通过 `pnpm generate:agent-runtime:protocol` 同步生成。
 前端菜单、配置校验和历史恢复读取目录，不维护枚举或标签；目录不可用时禁用选择与发送。
 
@@ -238,6 +239,7 @@ Rust 存储测试覆盖元数据来源不可变、配置不覆盖归属、列表
 覆盖后台及无界面会话。审批只能通过 desktop service 和主窗口 Tauri 命令答复，普通 `answer()` 不能批准操作。
 前端展示执行摘要、参数、识别出的操作、审批原因与期限，后端作最终判断。
 
-公共安全模块 `engines/safety` 负责操作风险与模式策略；Pi 适配层在执行前调用安全入口。
+公共安全模块 `security/safety` 从同一配置解析操作风险、公共及档位边界；Pi 适配层在执行前调用安全入口。
+包括 `full` 在内的三档都在沙箱进程中执行文件、Bash、业务及插件工具，审批不能覆盖禁用规则。
 需要审批时直接等待当前调用，一分钟未批准就拒绝，排队也计时；主/子 Agent 超时不暂停。
 批准只允许该次执行，后续操作重新检查。拒绝、取消或审批期间参数/目标权限变化均不执行。

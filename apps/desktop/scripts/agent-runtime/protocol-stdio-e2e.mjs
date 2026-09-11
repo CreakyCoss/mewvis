@@ -1,3 +1,4 @@
+import entries from "../../agent-runtime/build-entries.json" with { type: "json" };
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -6,13 +7,13 @@ import { join } from "node:path";
 import { build } from "esbuild";
 
 const desktopRoot = process.cwd();
-const runtimePath = join(desktopRoot, "agent-runtime/dist/cli.js");
+const runtimePath = join(desktopRoot, "agent-runtime/dist", entries.cli.output);
 const fixturesRoot = join(desktopRoot, "agent-runtime/protocol/v1/fixtures");
 const protocolRoot = join(desktopRoot, "agent-runtime/protocol/v1");
 const workspacePath = mkdtempSync(join(tmpdir(), "isle-agent-runtime-protocol-"));
 
 if (!existsSync(runtimePath)) {
-  throw new Error("agent-runtime/dist/cli.js 不存在，请先运行 pnpm build:agent-runtime");
+  throw new Error(`${runtimePath} 不存在，请先运行 pnpm build:agent-runtime`);
 }
 
 const fixture = (kind, name) => JSON.parse(readFileSync(join(fixturesRoot, kind, `${name}.json`), "utf8"));
@@ -315,9 +316,7 @@ try {
   );
   assert.ok(Array.isArray(tools.result.tools));
   assert.equal(validators.validateJsonRpcResponse(tools).valid, true);
-  const permissionDefinitions = (
-    await import("../../agent-runtime/src/engines/safety/permissions.ts")
-  ).getAgentPermissionOptions();
+  const permissionDefinitions = protocolSdk.agentPermissionOptions;
   assert.deepEqual(tools.result.permissionOptions, permissionDefinitions);
   assert.equal(tools.result.permissionOptions.filter((option) => option.isDefault).length, 1);
   assert.ok(tools.result.permissionOptions.every((option) => !Object.hasOwn(option, "policy")));

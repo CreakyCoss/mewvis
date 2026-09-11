@@ -1,4 +1,4 @@
-import { Bot, ChevronRight, GitBranch, Layers3, Settings, X } from "lucide-react";
+import { Bot, ChevronRight, GitBranch, Layers3, Settings, Shield, X } from "lucide-react";
 import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -15,6 +15,7 @@ type SettingsPanelProps = {
   onOpenEmbeddingSettings: () => void;
   onOpenAgentSettings: () => void;
   onOpenCollaborationWorkflowSettings: () => void;
+  onOpenSandboxSettings: () => void;
 };
 
 export const SettingsPanel = ({
@@ -25,8 +26,16 @@ export const SettingsPanel = ({
   onOpenEmbeddingSettings,
   onOpenAgentSettings,
   onOpenCollaborationWorkflowSettings,
+  onOpenSandboxSettings,
 }: SettingsPanelProps) => {
   const settingsItems = [
+    {
+      title: "Agent 沙箱",
+      description: "检查工具执行环境和初始化状态。",
+      category: "执行环境",
+      icon: Shield,
+      onClick: onOpenSandboxSettings,
+    },
     {
       title: "LLM 设置",
       description: "管理 Provider、API Key、API Endpoint 和启用模型。",
@@ -125,6 +134,7 @@ export const SettingsPage = () => {
       onOpenEmbeddingSettings={() => navigate("/settings/embedding")}
       onOpenAgentSettings={() => navigate("/settings/agent")}
       onOpenCollaborationWorkflowSettings={() => navigate("/settings/workflow")}
+      onOpenSandboxSettings={() => navigate("/settings/sandbox")}
     />
   );
 };

@@ -5,7 +5,7 @@ import {
   subagentAllowedTools,
   type PiSubagentRunner,
 } from "../tools/subagent.js";
-import type { PiSandboxConfig } from "../tools/sandbox.js";
+import type { PiAgentSessionOptions } from "./session.js";
 import { withIdleTimeout } from "./idle-timeout.js";
 
 export const createPiSubagentRunner =
@@ -13,7 +13,7 @@ export const createPiSubagentRunner =
     command: RuntimeAgentCommand,
     callbacks: AgentRuntimeCallbacks,
     parentTools: readonly string[],
-    sandboxConfig: PiSandboxConfig,
+    policies: NonNullable<PiAgentSessionOptions["policies"]>,
   ): PiSubagentRunner =>
   async (task, signal, onProgress) => {
     signal?.throwIfAborted();
@@ -32,7 +32,8 @@ export const createPiSubagentRunner =
         subagent: true,
         toolCeiling: subagentAllowedTools(parentTools, task.agent),
         rolePrompt: `${PI_SUBAGENT_ROLES[task.agent].prompt}\nYou are a delegated agent. You only know the supplied task, workspace instructions and enabled skills. Return blockers to the parent agent.`,
-        sandboxConfig,
+        policies,
+        signal,
       },
     );
     const { session } = created;

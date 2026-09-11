@@ -1,111 +1,183 @@
-import {
-  createReadTool,
-  createEditTool,
-  createWriteTool,
-  createLsTool,
-  createFindTool,
-  createGrepTool,
-  type ExtensionAPI,
-} from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, Skill } from "@earendil-works/pi-coding-agent";
+import { fileURLToPath } from "node:url";
+import entries from "../../../../../../../../build-entries.json" with { type: "json" };
 import { resolveBuiltins } from "../../../../../../builtins/index.js";
 import { AGENT_TOOL_DEFINITIONS, normalizeAllowedAgentTools } from "../../../tools/definitions.js";
-import { canonicalPath, containsPath } from "../../../../../../safety/paths.js";
-import { DEFAULT_AGENT_PERMISSION_MODE, getAgentPermissionPolicy } from "../../../../../../safety/permissions.js";
+import {
+  DEFAULT_AGENT_PERMISSION_MODE,
+  resolveSafetyPolicy,
+  checkExecution,
+} from "../../../../../../../security/safety/index.js";
+import { ProgramExecutor, resolveExecutionPolicy } from "../../../../../../../security/execution/index.js";
+import { serializeWorkspaceOperation } from "../../../../../../builtins/workspace-queue.js";
 import { allowedRuntimeTools, runtimeResourcesFor } from "../../resources.js";
 import type { AgentRuntimeCallbacks, RuntimeAgentCommand } from "../../types.js";
-import { createPluginRuntimeBridge } from "../plugins/bridge.js";
 import { createPiSubagentRunner } from "../agent/subagent-session.js";
-import type { PiAgentSessionOptions } from "../agent/session.js";
+import type { PiAgentSessionOptions, PiAgentSession } from "../agent/session.js";
 import { registerPiAskUserTool } from "./ask-user-tool.js";
-import { registerPiBuiltinTool } from "./builtin-tool.js";
 import { registerPiSubagentTool } from "./subagent.js";
-import { loadPiSandboxConfig, registerPiSandbox, registerPiSandboxEvents } from "./sandbox.js";
-import { installPiSafety } from "../safety.js";
-import type { PiAgentSession } from "../agent/session.js";
+import { installPiSafety } from "./safety.js";
 
 type PiTool = Parameters<ExtensionAPI["registerTool"]>[0];
+type Catalog = {
+  tools: Pick<PiTool, "name" | "label" | "description" | "parameters">[];
+  skillContents: { skill: Skill; content: string }[];
+};
 
-/** Assemble capabilities independently of the execution safety policy. */
+/** Agent control stays in the host; effectful implementations run in the configured execution worker. */
 export async function createPiToolSet(
   command: RuntimeAgentCommand,
   callbacks: AgentRuntimeCallbacks,
   options: PiAgentSessionOptions = {},
 ) {
   const mode = command.permissions?.mode ?? DEFAULT_AGENT_PERMISSION_MODE;
-  const sandboxRequired = !getAgentPermissionPolicy(mode).allowUnsandboxed;
-  const resourceInput = runtimeResourcesFor(command);
-  const builtins = resolveBuiltins(resourceInput.skills?.enabled ?? []);
-  const plugins = await createPluginRuntimeBridge(command);
+  // Safety rules are an immutable host snapshot containing functions. Only execution data is cloned.
+  const policies = options.policies
+    ? { safety: options.policies.safety, execution: structuredClone(options.policies.execution) }
+    : {
+        safety: resolveSafetyPolicy(mode, command.workspacePath),
+        execution: resolveExecutionPolicy(mode, command.workspacePath),
+      };
+  const resources = structuredClone(runtimeResourcesFor(command));
+  const builtins = resolveBuiltins(resources.skills?.enabled ?? []);
+  if (resources.plugins?.items?.length) {
+    const decision = await checkExecution({
+      request: {
+        executionId: `${command.taskId}:plugins.load`,
+        entry: "plugins.load",
+        input: {
+          plugins: resources.plugins.items.map(({ id, kind, packageRoot, entry }) => ({
+            id,
+            kind,
+            packageRoot,
+            entry,
+          })),
+        },
+        workspacePath: command.workspacePath,
+      },
+      policy: policies.safety,
+      signal: options.signal,
+      analyze: () => ({ coverage: "unknown", operations: [] }),
+      requestApproval:
+        callbacks.requestApproval && ((request) => callbacks.requestApproval!({ ...request, taskId: command.taskId })),
+    });
+    if (!decision.allowed) throw new Error(decision.reason);
+  }
+  let worker: ProgramExecutor | undefined;
+  let starting: Promise<Catalog> | undefined;
+  let disposed = false;
+  const initialize = async (signal = options.signal) => {
+    signal?.throwIfAborted();
+    if (disposed) throw new Error("工具资源已释放。");
+    if (!worker || worker.disposed) {
+      worker = new ProgramExecutor({
+        policy: policies.execution,
+        program: {
+          executable: process.execPath,
+          args: [fileURLToPath(new URL(entries.piToolWorker.output, import.meta.url))],
+        },
+      });
+      starting = worker.call<Catalog>(
+        "initialize",
+        { workspacePath: command.workspacePath, resources },
+        signal,
+        undefined,
+        60_000,
+      );
+    }
+    return starting!;
+  };
   try {
-    const reserved = new Set([
+    const catalog = await initialize();
+    const names = catalog.tools.map((tool) => tool.name);
+    if (new Set(names).size !== names.length || names.includes("ask_user") || names.includes("subagent"))
+      throw new Error("插件工具不能覆盖 Isle Runtime 工具。");
+    const baseNames = new Set([
       ...AGENT_TOOL_DEFINITIONS.map((tool) => tool.name),
       ...builtins.requiredTools.internal.map((tool) => tool.name),
     ]);
-    const pluginDefinitions = plugins?.toolDefinitions() ?? [];
-    const pluginNames = pluginDefinitions.map((tool) => tool.name);
-    const collisions = pluginNames.filter((name) => reserved.has(name));
-    if (collisions.length) throw new Error(`插件工具不能覆盖 Isle Runtime 工具：${collisions.join(", ")}`);
-    const available = new Set([...reserved, ...pluginNames]);
+    const pluginNames = names.filter((name) => !baseNames.has(name));
     const allocated = [
       ...normalizeAllowedAgentTools(allowedRuntimeTools(command)),
-      ...pluginNames.filter((name) => !resourceInput.tools?.allowed || resourceInput.tools.allowed.includes(name)),
+      ...pluginNames.filter((name) => !resources.tools?.allowed || resources.tools.allowed.includes(name)),
     ];
     const enabled = [...new Set(allocated)]
-      .filter((name) => available.has(name))
       .filter((name) => !options.toolCeiling || options.toolCeiling.includes(name))
       .filter((name) => !options.subagent || (name !== "subagent" && name !== "ask_user"));
-
-    const sandbox = structuredClone(
-      options.sandboxConfig ?? loadPiSandboxConfig(command.workspacePath, undefined, !sandboxRequired),
-    );
-    sandbox.enabled = sandboxRequired;
-    if (sandbox.enabled) {
-      const baseline = loadPiSandboxConfig(command.workspacePath, undefined, true);
-      sandbox.network = baseline.network;
-      sandbox.filesystem = {
-        allowWrite: sandbox.filesystem.allowWrite.flatMap((requested) =>
-          baseline.filesystem.allowWrite.flatMap((allowed) => {
-            const a = canonicalPath(allowed),
-              r = canonicalPath(requested);
-            return containsPath(a, r) ? [r] : containsPath(r, a) ? [a] : [];
-          }),
-        ),
-        denyRead: [...new Set([...baseline.filesystem.denyRead, ...sandbox.filesystem.denyRead])],
-        denyWrite: [...new Set([...baseline.filesystem.denyWrite, ...sandbox.filesystem.denyWrite])],
-      };
-    }
-
-    const tools: PiTool[] = [
-      createReadTool,
-      createEditTool,
-      createWriteTool,
-      createLsTool,
-      createFindTool,
-      createGrepTool,
-    ].map((createTool) => createTool(command.workspacePath) as PiTool);
+    const builtinNames = new Set(builtins.requiredTools.internal.map((tool) => tool.name));
+    const tools: PiTool[] = catalog.tools
+      .filter((tool) => enabled.includes(tool.name))
+      .map((descriptor) => ({
+        ...descriptor,
+        execute: async (callId, args, signal, progress) => {
+          signal?.throwIfAborted();
+          await initialize(signal);
+          signal?.throwIfAborted();
+          const parameters = args as Record<string, unknown>;
+          const timeout =
+            descriptor.name === "bash" &&
+            typeof parameters.timeout === "number" &&
+            Number.isFinite(parameters.timeout) &&
+            parameters.timeout > 0
+              ? parameters.timeout * 1000
+              : 0;
+          const execute = () =>
+            worker!.call<Awaited<ReturnType<PiTool["execute"]>>>(
+              "execute",
+              { callId, name: descriptor.name, arguments: args },
+              signal,
+              progress,
+              timeout,
+            );
+          return builtinNames.has(descriptor.name)
+            ? serializeWorkspaceOperation(policies.execution.workspacePath, signal, execute)
+            : execute();
+        },
+      }));
     const collector: Pick<ExtensionAPI, "registerTool"> = {
       registerTool: (tool) => {
-        tools.push(tool as PiTool);
+        if (enabled.includes(tool.name)) tools.push(tool as PiTool);
       },
     };
-    registerPiSandbox(collector, command.workspacePath, sandbox);
     if (!options.subagent)
-      registerPiSubagentTool(collector, createPiSubagentRunner(command, callbacks, enabled, sandbox));
+      registerPiSubagentTool(collector, createPiSubagentRunner(command, callbacks, enabled, policies));
     registerPiAskUserTool(collector, command.taskId, callbacks.requestUserInput);
-    for (const tool of builtins.requiredTools.internal)
-      registerPiBuiltinTool(collector, tool, { workspacePath: command.workspacePath });
-    plugins?.registerTools(collector);
-
     return {
-      tools: tools.filter((tool) => enabled.includes(tool.name)),
-      installSafety: (session: PiAgentSession) => installPiSafety(session, command, callbacks, sandbox.enabled),
+      tools,
       builtins,
-      plugins,
-      registerExtensions: (pi: ExtensionAPI) => registerPiSandboxEvents(pi, sandbox),
-      dispose: () => plugins?.dispose() ?? Promise.resolve(),
+      plugins: {
+        skills: catalog.skillContents.map(({ skill }) => skill),
+        registerSkills(pi: ExtensionAPI, resolvedSkills: readonly Skill[]) {
+          const paths = new Set(resolvedSkills.map((skill) => skill.filePath));
+          const contents = catalog.skillContents.filter(
+            ({ skill }) => !skill.disableModelInvocation && paths.has(skill.filePath),
+          );
+          pi.on("before_agent_start", (event) => {
+            if (pi.getActiveTools().includes("read") || !contents.length) return;
+            return {
+              systemPrompt: [
+                event.systemPrompt,
+                "已加载插件技能；执行仍遵守当前权限配置。",
+                ...contents.map(({ content }) => content),
+              ].join("\n\n"),
+            };
+          });
+        },
+      },
+      installSafety: (session: PiAgentSession) => installPiSafety(session, command, callbacks, policies.safety),
+      registerExtensions(pi: ExtensionAPI) {
+        pi.on("user_bash", () => {
+          throw new Error("请通过 bash 工具调用统一执行程序。");
+        });
+      },
+      async dispose() {
+        disposed = true;
+        await worker?.dispose();
+      },
     };
   } catch (error) {
-    await plugins?.dispose();
+    disposed = true;
+    await worker?.dispose();
     throw error;
   }
 }

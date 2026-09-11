@@ -4,7 +4,17 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { format } from "prettier";
-import { AGENT_PERMISSION_DEFINITIONS, getAgentPermissionOptions } from "../../src/engines/safety/permissions.ts";
+import { build } from "esbuild";
+const permissionBundle = await build({
+  entryPoints: [fileURLToPath(new URL("../../src/security/safety/index.ts", import.meta.url))],
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  write: false,
+});
+const { AGENT_PERMISSION_DEFINITIONS, getAgentPermissionOptions } = await import(
+  `data:text/javascript;base64,${Buffer.from(permissionBundle.outputFiles[0].text).toString("base64")}`
+);
 
 const protocolRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const protocolVersionRoot = join(protocolRoot, "v1");
@@ -25,7 +35,7 @@ if (
 const permissionSchema = {
   $schema: "http://json-schema.org/draft-07/schema#",
   $id: "https://isle.local/protocol/agent-runtime/v1/permissions.schema.json",
-  $comment: "Generated from src/engines/safety/permissions.ts; do not edit.",
+  $comment: "Generated from src/security/safety/policy.ts; do not edit.",
   title: "IsleAgentPermissionsProtocol",
   anyOf: [{ $ref: "#/definitions/AgentPermissions" }, { $ref: "#/definitions/AgentPermissionOption" }],
   definitions: {

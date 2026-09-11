@@ -8,7 +8,8 @@ import {
   resolvePiRuntimeThinkingLevel,
 } from "../model/index.js";
 import { createPiResourceLoader } from "./resources.js";
-import type { PiSandboxConfig } from "../tools/sandbox.js";
+import type { SafetyPolicy } from "../../../../../../../security/safety/index.js";
+import type { ExecutionPolicy } from "../../../../../../../security/execution/index.js";
 
 export type PiAgentSession = Awaited<ReturnType<typeof createAgentSession>>["session"];
 
@@ -16,7 +17,8 @@ export type PiAgentSessionOptions = {
   subagent?: boolean;
   toolCeiling?: readonly string[];
   rolePrompt?: string;
-  sandboxConfig?: PiSandboxConfig;
+  policies?: { safety: SafetyPolicy | null; execution: ExecutionPolicy };
+  signal?: AbortSignal;
 };
 
 export type PiAgentSessionCreateResult = {
@@ -39,6 +41,7 @@ export const createPiAgentSession = async (
   const resources = await createPiResourceLoader(command, callbacks, options);
   const sessionManager = createPiSessionManager(command);
   try {
+    options.signal?.throwIfAborted();
     const { session } = await createAgentSession({
       cwd: command.workspacePath,
       authStorage,

@@ -1,3 +1,4 @@
+import entries from "../../agent-runtime/build-entries.json" with { type: "json" };
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -5,11 +6,11 @@ import { join } from "node:path";
 import { runtimePayloadFromJsonRpcMessage, writeAgentRuntimeCommand } from "./stdio-json-rpc-client.mjs";
 
 const workspaceRoot = process.cwd();
-const runtimePath = join(workspaceRoot, "agent-runtime/dist/cli.js");
+const runtimePath = join(workspaceRoot, "agent-runtime/dist", entries.cli.output);
 const workspacePath = mkdtempSync(join(tmpdir(), "isle-claw-agent-runtime-stdio-"));
 
 if (!existsSync(runtimePath)) {
-  throw new Error("agent-runtime/dist/cli.js 不存在，请先运行 pnpm build:agent-runtime");
+  throw new Error(`${runtimePath} 不存在，请先运行 pnpm build:agent-runtime`);
 }
 
 const assert = (condition, message, details) => {

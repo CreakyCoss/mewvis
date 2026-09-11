@@ -4,11 +4,7 @@ import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import {
-  PluginHost,
-  type PluginToolSchema,
-  type RuntimePlugin,
-} from "../../../../../../../../../plugin-host/src/index.js";
+import { PluginHost, type RuntimePlugin } from "../../../../../../../../../plugin-host/src/index.js";
 import type { AgentRuntimePlugin } from "../../../../../../protocol/wire.js";
 import type { RuntimeAgentCommand } from "../../types.js";
 import { runtimeResourcesFor } from "../../resources.js";
@@ -79,32 +75,6 @@ export class PluginRuntimeBridge {
       if (temporarySkillRoot) await rm(temporarySkillRoot, { recursive: true, force: true });
       throw error;
     }
-  }
-
-  toolDefinitions(): PluginToolSchema[] {
-    this.assertActive();
-    return this.host.toolSchemas();
-  }
-
-  registerSkills(pi: ExtensionAPI, resolvedSkills: readonly Skill[]) {
-    this.assertActive();
-    const resolvedPaths = new Set(resolvedSkills.map((skill) => skill.filePath));
-    const skills = this.skills.filter((skill) => !skill.disableModelInvocation && resolvedPaths.has(skill.filePath));
-    pi.on("before_agent_start", async (event) => {
-      this.assertActive();
-      // Pi only advertises file-backed skills when read is enabled. Plugin-only
-      // chats still need the loaded definitions, without granting filesystem tools.
-      if (pi.getActiveTools().includes("read")) return;
-      if (!skills.length) return;
-      const content = await Promise.all(skills.map((skill) => readFile(skill.filePath, "utf8")));
-      return {
-        systemPrompt: [
-          event.systemPrompt,
-          "以下是已加载的插件技能，只在与当前请求相关时使用；使用工具仍受本轮可用工具范围限制。",
-          ...content,
-        ].join("\n\n"),
-      };
-    });
   }
 
   registerTools(pi: Pick<ExtensionAPI, "registerTool">) {

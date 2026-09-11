@@ -1,11 +1,15 @@
 import { homedir } from "node:os";
 import { resolve } from "node:path";
-import { checkExecution } from "../../../../../safety/gate.js";
-import { canonicalPath } from "../../../../../safety/paths.js";
-import { DEFAULT_AGENT_PERMISSION_MODE } from "../../../../../safety/permissions.js";
-import type { ExecutionRequest, OperationAnalysis, Operation } from "../../../../../safety/types.js";
-import type { AgentRuntimeCallbacks, RuntimeAgentCommand } from "../types.js";
-import type { PiAgentSession } from "./agent/session.js";
+import {
+  checkExecution,
+  canonicalPath,
+  type SafetyPolicy,
+  type ExecutionRequest,
+  type OperationAnalysis,
+  type Operation,
+} from "../../../../../../../security/safety/index.js";
+import type { AgentRuntimeCallbacks, RuntimeAgentCommand } from "../../types.js";
+import type { PiAgentSession } from "../agent/session.js";
 
 const fileActions: Readonly<Record<string, Extract<Operation, { kind: "filesystem" }>["action"]>> = {
   read: "read",
@@ -28,12 +32,22 @@ const fileTarget = (request: ExecutionRequest, name: string) => {
 };
 
 /** Pi-specific argument decoding. Common rules never depend on Pi's tool names. */
-export function analyzePiExecution(request: ExecutionRequest, sandboxEnabled: boolean): OperationAnalysis {
+export function analyzePiExecution(request: ExecutionRequest): OperationAnalysis {
   const name = request.entry;
   if (Object.hasOwn(fileActions, name))
     return {
       coverage: "complete",
       operations: [
+        ...(name === "edit"
+          ? [
+              {
+                kind: "filesystem" as const,
+                action: "read" as const,
+                target: fileTarget(request, name),
+                recursive: false,
+              },
+            ]
+          : []),
         {
           kind: "filesystem",
           action: fileActions[name],
@@ -43,15 +57,12 @@ export function analyzePiExecution(request: ExecutionRequest, sandboxEnabled: bo
       ],
     };
   if (name === "bash") {
-    const { command, sandbox } = request.input;
+    const { command } = request.input;
     if (typeof command !== "string" || !command.trim()) throw new Error("Shell 操作缺少有效命令。");
-    if (sandbox !== undefined && typeof sandbox !== "boolean") throw new Error("Shell 沙箱参数必须是布尔值。");
     // Parsing a command name cannot account for scripts, expansions or subprocesses.
     return {
       coverage: "partial",
-      operations: [
-        { kind: "process", command, cwd: request.workspacePath, sandboxed: sandboxEnabled && sandbox !== false },
-      ],
+      operations: [{ kind: "process", command, cwd: request.workspacePath }],
     };
   }
   if (name === "ask_user" || name === "subagent")
@@ -67,8 +78,9 @@ export function installPiSafety(
   session: PiAgentSession,
   command: RuntimeAgentCommand,
   callbacks: AgentRuntimeCallbacks,
-  sandboxEnabled: boolean,
+  policy: SafetyPolicy | null,
 ) {
+  if (!policy) return;
   const previous = session.agent.beforeToolCall;
   // This hook provides cancellation and runs after Pi's extension hooks, so the
   // checked arguments are the ones passed to execution. No changes to Pi itself.
@@ -88,8 +100,8 @@ export function installPiSafety(
     if (Object.hasOwn(fileActions, request.entry)) input.path = fileTarget(request, request.entry);
     const result = await checkExecution({
       request,
-      mode: command.permissions?.mode ?? DEFAULT_AGENT_PERMISSION_MODE,
-      analyze: (execution) => analyzePiExecution(execution, sandboxEnabled),
+      policy,
+      analyze: analyzePiExecution,
       requestApproval:
         callbacks.requestApproval &&
         ((approval) => callbacks.requestApproval!({ ...approval, taskId: command.taskId })),

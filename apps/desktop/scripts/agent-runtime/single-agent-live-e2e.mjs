@@ -1,3 +1,4 @@
+import entries from "../../agent-runtime/build-entries.json" with { type: "json" };
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -5,7 +6,7 @@ import { join } from "node:path";
 import { runtimePayloadFromJsonRpcMessage, writeAgentRuntimeCommand } from "./stdio-json-rpc-client.mjs";
 
 const workspaceRoot = process.cwd();
-const runtimePath = join(workspaceRoot, "agent-runtime/dist/cli.js");
+const runtimePath = join(workspaceRoot, "agent-runtime/dist", entries.cli.output);
 const configDbPath = process.env.ISLE_CLAW_CONFIG_DB?.trim() || join(homedir(), ".isle-claw", "config.db");
 const workspacePath = mkdtempSync(join(tmpdir(), "isle-claw-runtime-live-e2e-"));
 const sessionRootDir = join(workspacePath, "standalone-session-store", "chats", "live-e2e-session", "session");
@@ -39,7 +40,7 @@ const COMPACT_TIMEOUT_MS = Number(process.env.ISLE_CLAW_LIVE_COMPACT_TIMEOUT_MS 
 const STRESS_TURNS = Number(process.env.ISLE_CLAW_LIVE_STRESS_TURNS ?? 3);
 
 if (!existsSync(runtimePath)) {
-  throw new Error("agent-runtime/dist/cli.js 不存在，请先运行 pnpm build:agent-runtime");
+  throw new Error(`${runtimePath} 不存在，请先运行 pnpm build:agent-runtime`);
 }
 if (!existsSync(configDbPath)) {
   throw new Error(`配置库不存在：${configDbPath}`);

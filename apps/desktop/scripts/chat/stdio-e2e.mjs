@@ -1,3 +1,4 @@
+import entries from "../../agent-runtime/build-entries.json" with { type: "json" };
 import { build } from "esbuild";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
@@ -25,7 +26,7 @@ const { createChatSession, agentPermissionOptions } = await import(
 const workspacePath = await mkdtemp(join(tmpdir(), "isle-chat-core-"));
 const sessionRootDir = join(workspacePath, "runtime-session");
 const history = join(workspacePath, "history.json");
-const child = spawn(process.execPath, ["agent-runtime/dist/cli.js"], {
+const child = spawn(process.execPath, [`agent-runtime/dist/${entries.cli.output}`], {
   env: { ...process.env, AGENT_RUNTIME_PROFILE_ID: "mock" },
   stdio: ["pipe", "pipe", "pipe"],
 });

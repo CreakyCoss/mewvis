@@ -149,7 +149,7 @@ const result = await session.send({
 
 ### 执行权限
 
-聊天配置使用 `permissionMode: ChatPermissionMode | null` 替代旧的 `selectedToolNames`；
+聊天配置通过 `permissionMode: ChatPermissionMode | null` 选择执行权限；
 `ChatPermissionMode` 来自生成的 `AgentPermissions["mode"]`，当前模式为 `ask`、`auto`、`full`。
 插件与宿主共同读取 `resources.permissionOptions`，用返回的名称、说明、默认项展示并校验权限选择。
 目录加载前选择为 `null`，目录不可用时禁止发送。`profile.allowedToolNames` 仍用于场景能力分配，不参与安全规则判断。
@@ -162,5 +162,5 @@ Runtime 在实际执行前识别操作并进行安全检查。需要审批时，
 只能回答普通问题。后台和无界面会话同样使用宿主审批。`auto` 自动放行低、中风险操作，
 高风险或无法完整分析的执行需要人工确认，不调用审核 Agent。
 
-插件工具不再声明权限。未知自定义工具与未知内置工具使用相同策略。该机制检查 Agent 发起的执行，
-插件 Node 模块本身的进程隔离及直接 UI 调用的安全改造另行处理。
+工具执行权限由 Runtime 策略统一控制。未知自定义工具与未知内置工具使用相同策略。Agent Runtime 加载插件及执行工具均在本轮执行的沙箱进程中进行，三档共同遵守基础限制；
+加载插件代码本身按未知调用进行审批。桌面单独管理的 PluginHost 和直接 UI 调用不属于这个执行边界。

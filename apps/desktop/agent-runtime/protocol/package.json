@@ -10,6 +10,7 @@
   "devDependencies": {
     "json-schema-to-typescript": "15.0.4",
     "prettier": "3.9.3",
-    "quicktype": "26.0.0"
+    "quicktype": "26.0.0",
+    "esbuild": "^0.28.0"
   }
 }

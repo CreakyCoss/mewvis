@@ -8,6 +8,7 @@ mod process;
 mod protocol;
 mod rpc;
 mod runtime_files;
+mod sandbox;
 mod session;
 mod session_paths;
 mod skills;
@@ -19,6 +20,7 @@ pub use agent::{
     run_agent_runtime_agent,
 };
 pub use agents::list_agent_runtime_tools;
+pub use sandbox::{get_agent_runtime_sandbox_status, initialize_agent_runtime_sandbox};
 pub use chat::run_agent_runtime_chat;
 pub use collaboration::{run_agent_runtime_collaboration, run_agent_runtime_collaboration_mode};
 pub use session::{

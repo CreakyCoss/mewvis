@@ -993,18 +993,26 @@ export const RuntimeModelInputModality = {
 } as const;
 export type RuntimeModelInputModality = (typeof RuntimeModelInputModality)[keyof typeof RuntimeModelInputModality];
 export const agentPermissionOptions = [
-  { mode: "ask", label: "请求批准", description: "低风险操作直接执行；其他操作由你确认", isDefault: true },
+  {
+    mode: "ask",
+    label: "请求批准",
+    isDefault: true,
+    description:
+      "低风险直接执行，超过上限需审批；未知操作需要审批。调用前检查可写范围：工作区、临时目录；可访问域名：禁止联网。沙箱由执行配置独立控制。",
+  },
   {
     mode: "auto",
     label: "帮我批准",
-    description: "按规则自动放行低、中风险操作；高风险或未知风险由你确认",
     isDefault: false,
+    description:
+      "低、中风险直接执行，超过上限需审批；未知操作需要审批。调用前检查可写范围：工作区、临时目录；可访问域名：任意域名。沙箱由执行配置独立控制。",
   },
   {
     mode: "full",
     label: "完全访问权限",
-    description: "自动允许操作，无需逐次确认；允许访问工作区外文件和网络",
     isDefault: false,
+    description:
+      "低、中、高风险直接执行，超过上限需审批；未知操作自动放行。调用前检查可写范围：工作区、用户目录、临时目录；可访问域名：任意域名。沙箱由执行配置独立控制。",
   },
 ] as const satisfies readonly AgentPermissionOption[];
 export type AgentRuntimeRequestFor<TMethod extends AgentRuntimeJsonRpcMethod> = Extract<

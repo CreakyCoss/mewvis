@@ -9,7 +9,7 @@ import {
 import type { AgentRunCommand } from "../runtimes/types.js";
 import { AGENT_TOOL_DEFINITIONS, DEFAULT_ALLOWED_AGENT_TOOLS } from "../tools/definitions.js";
 import { MODEL_CATALOG } from "../../../../models/index.js";
-import { getAgentPermissionOptions } from "../../../../safety/permissions.js";
+import { getAgentPermissionOptions } from "../../../../../security/safety/index.js";
 
 type RequestCommand = {
   requestId?: string | null;

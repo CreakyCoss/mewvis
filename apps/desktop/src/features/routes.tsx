@@ -9,6 +9,7 @@ import { PluginManagePage } from "@/features/pages/plugin-ui/manage";
 import { StoriesPage } from "@/features/pages/stories";
 import { AgentPage, EmbeddingPage, LlmPage, SettingsPage, WorkflowPage } from "@/features/pages/settings";
 import { SkillsPage } from "@/features/pages/skills";
+import { SandboxSettingsPage } from "@/features/pages/settings/sandbox";
 
 export const AppRoutes = () => (
   <Routes>
@@ -30,6 +31,7 @@ export const AppRoutes = () => (
         <Route path="settings/embedding" element={<EmbeddingPage />} />
         <Route path="settings/agent" element={<AgentPage />} />
         <Route path="settings/workflow" element={<WorkflowPage />} />
+        <Route path="settings/sandbox" element={<SandboxSettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Route>
