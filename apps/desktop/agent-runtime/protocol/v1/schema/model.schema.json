@@ -15,7 +15,25 @@
       ]
     },
     "RuntimeThinkingLevel": {
-      "enum": ["off", "minimal", "low", "medium", "high", "xhigh"]
+      "type": "string"
+    },
+    "RuntimeThinkingOption": {
+      "type": "object",
+      "required": ["value", "label"],
+      "properties": {
+        "value": { "$ref": "#/definitions/RuntimeThinkingLevel" },
+        "label": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "RuntimeModelThinking": {
+      "type": "object",
+      "required": ["levels"],
+      "properties": {
+        "levels": { "type": "array", "items": { "$ref": "#/definitions/RuntimeThinkingOption" } },
+        "defaultLevel": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
     },
     "RuntimeModelInputModality": {
       "enum": ["text", "image"]
@@ -44,10 +62,6 @@
         "reasoning": { "type": "boolean" },
         "thinkingLevel": {
           "oneOf": [{ "$ref": "#/definitions/RuntimeThinkingLevel" }, { "type": "null" }]
-        },
-        "thinkingLevelMap": {
-          "type": "object",
-          "additionalProperties": { "type": ["string", "null"] }
         },
         "input": {
           "type": "array",
@@ -82,9 +96,9 @@
         "id": { "type": "string" },
         "name": { "type": "string" },
         "reasoning": { "type": "boolean" },
-        "thinkingLevelMap": {
+        "thinking": {
           "type": "object",
-          "additionalProperties": { "type": ["string", "null"] }
+          "additionalProperties": { "$ref": "#/definitions/RuntimeModelThinking" }
         },
         "input": {
           "type": "array",

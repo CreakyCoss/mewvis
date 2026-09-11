@@ -79,6 +79,7 @@ declare function useChatComposer(): {
       showThinkingProcess: boolean;
       showToolCallProcess: boolean;
       selectedModelId: string;
+      thinkingLevel?: string | null;
       selectedAgentId: string;
       selectedSkillKeys: string[];
       selectedKnowledgeCollectionIds: string[];
@@ -118,6 +119,7 @@ declare function useChatControls(): {
     showThinkingProcess: boolean;
     showToolCallProcess: boolean;
     selectedModelId: string;
+    thinkingLevel?: string | null;
     selectedAgentId: string;
     selectedSkillKeys: string[];
     selectedKnowledgeCollectionIds: string[];

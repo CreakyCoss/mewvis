@@ -12,6 +12,7 @@
   "files": [
     "index.d.ts",
     "agent-permissions.d.ts",
+    "model-thinking.d.ts",
     "index.js"
   ],
   "sideEffects": false

@@ -258,7 +258,8 @@ try {
       apiFormat: "openai-completions",
       apiEndpoint: `http://127.0.0.1:${server.address().port}/v1`,
       apiKey: "local-test-key",
-      reasoning: false,
+      reasoning: true,
+      thinkingLevel: "provider-custom",
     },
     resources: { tools: { allowed: ["read", "bash", "subagent"] } },
   };
@@ -315,6 +316,7 @@ try {
   );
   for (const input of childRequests) {
     assert.equal(input.model, "isle-test");
+    assert.equal(input.reasoning_effort, "provider-custom", "subagents inherit the selected thinking level");
     assert.ok(!JSON.stringify(input.messages).includes("PARENT_HISTORY_SENTINEL"));
     assert.deepEqual(
       input.tools.map((tool) => tool.function.name),
@@ -322,6 +324,7 @@ try {
     );
   }
   assert.ok(JSON.stringify(childRequests[1].messages).includes("delegated file content"));
+  assert.ok(requests.every((input) => input.reasoning_effort === "provider-custom"));
   assert.ok(events.some((event) => event.type === "tool_execution_update" && event.toolName === "subagent"));
   const delegation = events.find((event) => event.type === "tool_execution_end" && event.toolName === "subagent");
   assert.equal(delegation.isError, false);

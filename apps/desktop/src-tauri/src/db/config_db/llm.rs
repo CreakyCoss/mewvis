@@ -70,8 +70,8 @@ pub fn save_llm_settings(
             tx.execute(
                 r#"
                 INSERT INTO provider_models (
-                    id, provider_id, model_id, model_name, is_enabled, is_one_million_context, created_at, updated_at
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                    id, provider_id, model_id, model_name, is_enabled, is_one_million_context, created_at, updated_at, thinking_json
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
                 "#,
                 params![
                     model_id,
@@ -81,7 +81,8 @@ pub fn save_llm_settings(
                     model.is_enabled as i64,
                     model.is_one_million_context as i64,
                     now,
-                    now
+                    now,
+                    model.thinking.as_ref().map(serde_json::Value::to_string)
                 ],
             )
             .map_err(|error| format!("无法保存 LLM 模型：{error}"))?;
@@ -140,7 +141,7 @@ fn load_provider_models(
     let mut statement = conn
         .prepare(
             r#"
-            SELECT id, provider_id, model_id, model_name, is_enabled, is_one_million_context, created_at, updated_at
+            SELECT id, provider_id, model_id, model_name, is_enabled, is_one_million_context, created_at, updated_at, thinking_json
             FROM provider_models
             WHERE provider_id = ?1
             ORDER BY created_at ASC
@@ -159,6 +160,18 @@ fn load_provider_models(
                 is_one_million_context: row.get::<_, i64>(5)? == 1,
                 created_at: row.get(6)?,
                 updated_at: row.get(7)?,
+                thinking: row
+                    .get::<_, Option<String>>(8)?
+                    .map(|json| {
+                        serde_json::from_str(&json).map_err(|error| {
+                            rusqlite::Error::FromSqlConversionFailure(
+                                8,
+                                rusqlite::types::Type::Text,
+                                Box::new(error),
+                            )
+                        })
+                    })
+                    .transpose()?,
             })
         })
         .map_err(|error| format!("无法读取 LLM 模型：{error}"))?;
@@ -193,4 +206,25 @@ fn validate_llm_settings(input: &SaveLlmSettingsInput) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn model_settings_return_custom_thinking_configuration() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::db::schema::create_config_schema(&conn).unwrap();
+        conn.execute_batch("INSERT INTO llm_providers (id, name, provider, api_format, created_at, updated_at) VALUES ('p', 'P', 'custom', 'openai-completions', 1, 1);").unwrap();
+        let custom = serde_json::json!({"levels": [{"value": "provider-custom", "label": "自定义"}], "defaultLevel": "provider-custom"});
+        let input: super::super::inputs::SaveProviderModelInput = serde_json::from_value(serde_json::json!({
+            "modelId": "m", "modelName": "M", "isEnabled": true, "isOneMillionContext": false, "thinking": custom,
+        })).unwrap();
+        conn.execute("INSERT INTO provider_models (id, provider_id, model_id, model_name, created_at, updated_at, thinking_json) VALUES ('m', 'p', 'm', 'M', 1, 1, ?1)", [input.thinking.as_ref().map(serde_json::Value::to_string)]).unwrap();
+        assert_eq!(
+            load_provider_models(&conn, "p").unwrap()[0].thinking,
+            Some(custom)
+        );
+    }
 }

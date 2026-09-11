@@ -115,6 +115,46 @@ try {
   console.log(
     "PASS Pi chat stream/complete, custom providers, concurrent auth/endpoint isolation and Anthropic missing usage",
   );
+
+  const runtimeModel = {
+    provider: "deepseek",
+    catalogModelId: "deepseek-v4-pro",
+    modelId: "deepseek-v4-pro",
+    apiFormat: "openai-completions",
+    apiEndpoint: `${endpoint}/v1`,
+    apiKey: "local-test-key",
+  };
+  const command = (model) => ({
+    stream: false,
+    messages: [{ role: "user", content: "thinking test" }],
+    runtimeModel: model,
+  });
+  for (const thinkingLevel of [undefined, "low", "max", "off", "xhigh", "provider-custom"]) {
+    await chat.chat(command({ ...runtimeModel, thinkingLevel }), { maxRetries: 0 });
+    const sent = requests.at(-1).input;
+    assert.equal(
+      sent.thinking?.type,
+      thinkingLevel === undefined ? undefined : thinkingLevel === "off" ? "disabled" : "enabled",
+    );
+    assert.equal(sent.reasoning_effort, thinkingLevel === "off" ? undefined : thinkingLevel);
+  }
+  for (const apiFormat of ["anthropic-messages", "openai-completions"]) {
+    await chat.chat(
+      command({
+        ...runtimeModel,
+        provider: "minimax-cn",
+        catalogModelId: "MiniMax-M2.7",
+        modelId: "MiniMax-M2.7",
+        apiFormat,
+      }),
+      { maxRetries: 0 },
+    );
+    assert.equal(requests.at(-1).input.reasoning_effort, undefined);
+    assert.equal(requests.at(-1).input.thinking, undefined);
+  }
+  console.log(
+    "PASS missing effort stays omitted; standard and custom thinking levels pass through real Pi request payloads",
+  );
 } finally {
   server.closeAllConnections();
   await new Promise((resolve) => server.close(resolve));

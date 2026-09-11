@@ -660,10 +660,7 @@ pub struct RuntimeModelInput {
     pub reasoning: Option<bool>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub thinking_level: Option<RuntimeThinkingLevel>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub thinking_level_map: Option<HashMap<String, Option<String>>>,
+    pub thinking_level: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -711,22 +708,6 @@ pub enum RuntimeModelInputModality {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum RuntimeThinkingLevel {
-    High,
-
-    Low,
-
-    Medium,
-
-    Minimal,
-
-    Off,
-
-    Xhigh,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeModelProviderSummary {
     pub apis: Vec<RuntimeModelCatalogApi>,
@@ -766,7 +747,23 @@ pub struct RuntimeModelSummary {
     pub reasoning: bool,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub thinking_level_map: Option<HashMap<String, Option<String>>>,
+    pub thinking: Option<HashMap<String, RuntimeModelThinking>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeModelThinking {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_level: Option<String>,
+
+    pub levels: Vec<RuntimeThinkingOption>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RuntimeThinkingOption {
+    pub label: String,
+
+    pub value: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -119,7 +119,23 @@ const CONFIG_MIGRATIONS: &[ConfigMigrationStep] = &[
         name: "add_knowledge_collection_source_directory",
         run: add_knowledge_collection_source_directory,
     },
+    ConfigMigrationStep {
+        target_version: 25,
+        name: "add_provider_model_thinking",
+        run: add_provider_model_thinking,
+    },
 ];
+
+fn add_provider_model_thinking(conn: &Connection) -> Result<(), String> {
+    if !table_columns(conn, "provider_models")?
+        .iter()
+        .any(|column| column == "thinking_json")
+    {
+        conn.execute_batch("ALTER TABLE provider_models ADD COLUMN thinking_json TEXT;")
+            .map_err(|error| format!("无法添加模型思考等级配置：{error}"))?;
+    }
+    Ok(())
+}
 
 fn add_knowledge_collection_source_directory(conn: &Connection) -> Result<(), String> {
     let columns = table_columns(conn, "knowledge_collections")?;
@@ -733,6 +749,36 @@ fn run_config_migration_step(
 mod tests {
     use super::*;
     use rusqlite::params;
+
+    #[test]
+    fn provider_model_thinking_migration_preserves_records_and_custom_configuration() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("CREATE TABLE provider_models (id TEXT PRIMARY KEY); INSERT INTO provider_models VALUES ('existing');").unwrap();
+        add_provider_model_thinking(&conn).unwrap();
+        let initial: Option<String> = conn
+            .query_row(
+                "SELECT thinking_json FROM provider_models WHERE id = 'existing'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(initial, None);
+        let custom = r#"{"levels":[{"value":"provider-custom","label":"自定义"}],"defaultLevel":"provider-custom"}"#;
+        conn.execute(
+            "UPDATE provider_models SET thinking_json = ?1 WHERE id = 'existing'",
+            [custom],
+        )
+        .unwrap();
+        add_provider_model_thinking(&conn).unwrap();
+        let saved: String = conn
+            .query_row(
+                "SELECT thinking_json FROM provider_models WHERE id = 'existing'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(saved, custom);
+    }
 
     #[test]
     fn rename_llm_provider_runtime_columns_preserves_existing_values() {

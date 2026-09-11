@@ -295,7 +295,7 @@ export function createPluginChatHost(service: DesktopChatService, options: Optio
                 selectedSkillKeys: resources.skillGroups?.flatMap((x) => x.skills.map((s) => s.key)),
                 selectedKnowledgeCollectionIds: resources.knowledgeCollections?.map((x) => x.value),
               };
-              only(patch, ["permissionMode", ...Object.keys(scalar), ...Object.keys(arrays)]);
+              only(patch, ["permissionMode", "thinkingLevel", ...Object.keys(scalar), ...Object.keys(arrays)]);
               for (const [key, choices] of Object.entries(scalar))
                 if (
                   key in patch &&

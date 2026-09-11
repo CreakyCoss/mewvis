@@ -2,6 +2,8 @@ import type {
   AgentPermissions,
   AgentPermissionOption,
 } from "./agent-permissions.js";
+import type { RuntimeModelThinking } from "./model-thinking.js";
+export type { RuntimeModelThinking } from "./model-thinking.js";
 export type {
   AgentPermissions,
   AgentPermissionOption,
@@ -101,6 +103,7 @@ export type ChatPendingApproval = {
 };
 export type ChatRunConfig = {
   selectedModelId: string;
+  thinkingLevel?: string | null;
   selectedAgentId: string;
   selectedSkillKeys: string[];
   selectedKnowledgeCollectionIds: string[];
@@ -120,7 +123,10 @@ export type SkillOption = {
 };
 export type ChatResources = {
   permissionOptions?: AgentPermissionOption[];
-  models?: (ResourceOption & { selectedLabel: string })[];
+  models?: (ResourceOption & {
+    selectedLabel: string;
+    thinking?: RuntimeModelThinking;
+  })[];
   agents?: ResourceOption[];
   skillGroups?: (ResourceOption & { skills: SkillOption[] })[];
   tools?: ResourceOption[];

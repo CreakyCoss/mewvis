@@ -43,5 +43,3 @@ export const useLlmSettingsStore = create<LlmSettingsStore>((set) => ({
     await loadSettingsPromise;
   },
 }));
-
-void useLlmSettingsStore.getState().loadSettings();

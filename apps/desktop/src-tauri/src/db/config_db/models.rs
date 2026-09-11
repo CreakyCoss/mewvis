@@ -49,6 +49,7 @@ pub struct ProviderModel {
     pub model_name: String,
     pub is_enabled: bool,
     pub is_one_million_context: bool,
+    pub thinking: Option<serde_json::Value>,
     pub created_at: i64,
     pub updated_at: i64,
 }

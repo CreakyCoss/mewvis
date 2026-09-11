@@ -62,6 +62,7 @@ pub struct SaveProviderModelInput {
     pub model_name: String,
     pub is_enabled: bool,
     pub is_one_million_context: bool,
+    pub thinking: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]

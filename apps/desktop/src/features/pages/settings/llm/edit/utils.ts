@@ -72,6 +72,7 @@ export const toLlmSettingsConfig = (settings: LlmSettings): LlmSettingsConfig =>
         modelName: model.modelName,
         isEnabled: model.isEnabled,
         isOneMillionContext: model.isOneMillionContext,
+        thinking: model.thinking,
       })),
     };
   });
@@ -93,6 +94,15 @@ export const normalizeLlmSettingsConfig = (draft: LlmSettingsConfig): LlmSetting
       modelId: model.modelId.trim(),
       modelName: model.modelName.trim(),
       isOneMillionContext: model.isOneMillionContext,
+      thinking: model.thinking
+        ? {
+            levels: model.thinking.levels.map((level) => ({
+              value: level.value.trim(),
+              label: level.label.trim() || level.value.trim(),
+            })),
+            defaultLevel: model.thinking.defaultLevel || null,
+          }
+        : null,
     })),
   }));
 

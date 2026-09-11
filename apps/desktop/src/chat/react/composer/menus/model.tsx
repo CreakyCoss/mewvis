@@ -1,4 +1,4 @@
-import { Bot, ChevronDown, Orbit, Wrench } from "lucide-react";
+import { Bot, Brain, ChevronDown, Orbit, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -29,6 +29,10 @@ export const ModelMenu = ({ disabled, selectionDisabled, controls }: ModelMenuPr
   const selectedModel = models.find((model) => model.value === resourceStore.options.selectedModelId) ?? null;
   const selectedAgent = agents.find((agent) => agent.value === resourceStore.options.selectedAgentId) ?? null;
   const selectedModelLabel = selectedModel?.selectedLabel ?? "选择模型";
+  const thinking = selectedModel?.thinking;
+  const thinkingLevel = resourceStore.options.thinkingLevel ?? "";
+  const thinkingLabel =
+    thinking?.levels.find((option) => option.value === thinkingLevel)?.label ?? (thinkingLevel || "不指定");
   const selectedAgentLabel = selectedAgent?.label ?? "不使用角色";
   const menuLabel = selectedAgent ? `${selectedModelLabel} · ${selectedAgent.label}` : selectedModelLabel;
   const processLabel = [
@@ -80,6 +84,29 @@ export const ModelMenu = ({ disabled, selectionDisabled, controls }: ModelMenuPr
             )}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
+
+        {Boolean(thinking?.levels.length) && thinking && (
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger disabled={selectionDisabled}>
+              <Brain className="size-3.5" aria-hidden="true" />
+              <span className="min-w-0 flex-1 truncate">思考等级</span>
+              <span className="text-xs text-muted-foreground">{thinkingLabel}</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-40">
+              <DropdownMenuRadioGroup
+                value={thinkingLevel}
+                onValueChange={(value) => resourceStore.updateOptions({ thinkingLevel: value || null })}
+              >
+                <DropdownMenuRadioItem value="">不指定</DropdownMenuRadioItem>
+                {thinking.levels.map((option) => (
+                  <DropdownMenuRadioItem key={option.value} value={option.value}>
+                    {option.label}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        )}
 
         <DropdownMenuSub>
           <DropdownMenuSubTrigger disabled={selectionDisabled} title={selectedAgent?.description || selectedAgentLabel}>

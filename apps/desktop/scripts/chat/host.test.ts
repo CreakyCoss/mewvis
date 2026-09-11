@@ -10,10 +10,12 @@ import {
 } from "../../src/chat/desktop/service";
 import { summarizeChatLedger } from "../../src/chat/desktop/ledger";
 import { getLlmSettings, getLlmModelOptions, resolveLlmModel, saveLlmSettings } from "../../src/api/llm";
+import { normalizeLlmSettingsConfig, toLlmSettingsConfig } from "../../src/features/pages/settings/llm/edit/utils";
 import { createPluginChatHost } from "../../src/chat/desktop/plugin";
 import { createPluginChatClient, type PluginChatEvent } from "@isle/plugin-sdk/chat";
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (error: Error) => void;
@@ -103,6 +105,63 @@ test("catalog, model resolution and summaries share one cold read; callers canno
   await summarizeChatLedger(summaryInput);
   assert.equal(fake.summaries.at(-1).runtimeModel.apiKey, "secret-must-not-reach-ui");
   assert.equal(fake.llmReads - before, 1);
+});
+
+test("model catalog drives host and plugin thinking selection, request payloads and persisted sessions", async () => {
+  const previous = structuredClone(fake.llmSettings);
+  const fixture = pluginFixture();
+  fake.record = null;
+  try {
+    fake.llmSettings = {
+      providers: [
+        {
+          ...previous.providers[0],
+          provider: "deepseek",
+          models: [{ id: "model", modelId: "deepseek-v4-pro", modelName: "DeepSeek", isEnabled: true }],
+        },
+      ],
+    };
+    await getLlmSettings({ refresh: true });
+    const options = await getLlmModelOptions();
+    assert.deepEqual(
+      options[0].thinking?.levels.map((option) => option.value),
+      ["off", "low", "high", "max"],
+    );
+    assert.equal((await resolveLlmModel("model")).thinkingLevel, "high");
+    assert.equal((await resolveLlmModel("model", "off")).thinkingLevel, "off");
+    assert.equal((await resolveLlmModel("model", "provider-custom")).thinkingLevel, "provider-custom");
+    assert.equal((await resolveLlmModel("model", null)).thinkingLevel, null);
+    const custom = { levels: [{ value: "provider-custom", label: "自定义深度" }], defaultLevel: "provider-custom" };
+    const draft = toLlmSettingsConfig(fake.llmSettings);
+    draft.providers[0].models[0].thinking = custom;
+    await saveLlmSettings(normalizeLlmSettingsConfig(draft));
+    assert.deepEqual(toLlmSettingsConfig(await getLlmSettings()).providers[0].models[0].thinking, custom);
+    assert.deepEqual((await getLlmModelOptions())[0].thinking, custom);
+    assert.equal((await resolveLlmModel("model")).thinkingLevel, "provider-custom");
+    const plugin = await fixture.client.createSession(pluginInput);
+    assert.equal(plugin.getSnapshot().config.thinkingLevel, "provider-custom");
+    assert.deepEqual(plugin.getSnapshot().resources.models?.[0].thinking, custom);
+    assert.equal((await plugin.updateConfig({ thinkingLevel: "future-effort" })).ok, true);
+    assert.equal((await plugin.updateConfig({ thinkingLevel: "provider-custom" })).ok, true);
+    const sent = await plugin.send({ text: "selected effort" });
+    assert.equal(sent.status, "dispatched");
+    assert.equal(fake.runs.at(-1).runtimeModel.thinkingLevel, "provider-custom");
+    completeTask(sent.taskId!);
+    await plugin.flush();
+    assert.equal(fake.record.options.thinkingLevel, "provider-custom");
+    await fixture.service.closeAll();
+    const restored = await openHistorySession(fixture.service, historyInput(plugin.identity.id));
+    assert.equal(restored.getSnapshot().config.thinkingLevel, "provider-custom");
+    draft.providers[0].models[0].thinking = { levels: [], defaultLevel: null };
+    await saveLlmSettings(normalizeLlmSettingsConfig(draft));
+    assert.deepEqual((await getLlmModelOptions())[0].thinking?.levels, []);
+    assert.equal((await resolveLlmModel("model")).thinkingLevel, undefined);
+  } finally {
+    await fixture.service.closeAll();
+    fake.llmSettings = previous;
+    fake.record = null;
+    await getLlmSettings({ refresh: true });
+  }
 });
 
 test("resource loading tolerates tools failure; UI descriptors contain no runtime secrets or skill bodies", async () => {
@@ -644,4 +703,25 @@ test("desktop ownership rolls back failed opens and record observers only follow
   detach();
   service.invalidateRecords();
   assert.equal(changes, 1);
+});
+
+test("LLM settings import waits for the startup migration before loading", async () => {
+  const before = fake.llmReads;
+  let migrated = false;
+  fake.readLlm = async () => {
+    assert.ok(migrated, "model queries must not run before database migration");
+    return structuredClone(fake.llmSettings);
+  };
+  try {
+    const { useLlmSettingsStore } = await import("../../src/features/pages/settings/llm/store");
+    await tick();
+    assert.equal(fake.llmReads, before, "importing a route must not start a database query");
+    migrated = true;
+    await useLlmSettingsStore.getState().loadSettings();
+    assert.equal(fake.llmReads, before + 1);
+    assert.equal(useLlmSettingsStore.getState().error, "");
+    assert.deepEqual(useLlmSettingsStore.getState().settings, fake.llmSettings);
+  } finally {
+    fake.readLlm = undefined;
+  }
 });

@@ -123,7 +123,7 @@ runRequestWithModel.params.runtimeModel = {
   apiFormat: "openai-responses",
   catalogModelId: "gpt-5",
   modelId: "gpt-5",
-  thinkingLevel: "high",
+  thinkingLevel: "provider-custom",
   input: ["text", "image"],
 };
 assert.equal(validators.validateJsonRpcRequest(runRequestWithModel).valid, true);

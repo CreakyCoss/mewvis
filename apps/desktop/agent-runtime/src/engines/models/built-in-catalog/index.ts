@@ -27,14 +27,17 @@ const toCatalogModel = (model: RawCatalogModel): RuntimeModelSummary => ({
   input: [...model.input],
 });
 
-const buildCatalogModelMap = (rawModels: Record<string, RawCatalogModel>, modelIds?: string[]) => {
+const buildCatalogModelMap = (
+  rawModels: Record<string, RawCatalogModel>,
+  definitions: (typeof MODEL_PROVIDER_CONFIG)[string]["models"],
+) => {
   const models: Record<string, RuntimeModelSummary> = {};
 
-  for (const modelId of modelIds ?? Object.keys(rawModels)) {
+  for (const [modelId, definition] of Object.entries(definitions)) {
     const rawModel = rawModels[modelId];
     if (!rawModel) continue;
 
-    models[modelId] = toCatalogModel(rawModel);
+    models[modelId] = { ...toCatalogModel(rawModel), ...cloneDeep(definition) };
   }
 
   return models;

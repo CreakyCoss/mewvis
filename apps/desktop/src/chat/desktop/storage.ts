@@ -11,6 +11,7 @@ export const sameOrigin = (a: ChatOrigin | undefined, b: ChatOrigin) =>
 export type ViewPreferences = { showThinkingProcess: boolean; showToolCallProcess: boolean };
 const configKeys = [
   "selectedModelId",
+  "thinkingLevel",
   "selectedAgentId",
   "selectedSkillKeys",
   "selectedKnowledgeCollectionIds",
@@ -20,8 +21,8 @@ export const readRunConfig = (options: Record<string, unknown>): Partial<ChatRun
   const config: Record<string, unknown> = {};
   for (const key of configKeys) {
     const value = options[key];
-    if (key === "permissionMode") {
-      // The session normalizes saved modes against the returned permission catalog.
+    if (key === "permissionMode" || key === "thinkingLevel") {
+      // The session normalizes saved selections against the returned catalog.
       if (value === null || typeof value === "string") config[key] = value;
     } else if (key === "selectedModelId" || key === "selectedAgentId") {
       if (typeof value === "string") config[key] = value;

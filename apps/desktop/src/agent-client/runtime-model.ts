@@ -1,5 +1,5 @@
 import { MODEL_CATALOG } from "./model-catalog";
-import type { RuntimeModelSummary, RuntimeApiFormat, RuntimeModelInput, RuntimeThinkingLevel } from "./wire";
+import type { RuntimeModelSummary, RuntimeApiFormat, RuntimeModelInput, RuntimeModelThinking } from "./wire";
 
 export type ProviderModel = {
   id: string;
@@ -8,6 +8,7 @@ export type ProviderModel = {
   modelName: string;
   isEnabled: boolean;
   isOneMillionContext: boolean;
+  thinking?: RuntimeModelThinking | null;
   createdAt: number;
   updatedAt: number;
 };
@@ -49,17 +50,17 @@ export type RuntimeModelOption = {
   };
   modelId: string;
   modelName: string;
+  thinking?: RuntimeModelThinking;
 };
 
 export type RuntimeModelInputMap = Record<string, RuntimeModelInput>;
 
 type CatalogRuntimeModelInput = Pick<
   RuntimeModelInput,
-  "reasoning" | "thinkingLevel" | "thinkingLevelMap" | "input" | "cost" | "contextWindow" | "maxTokens" | "headers"
+  "reasoning" | "input" | "cost" | "contextWindow" | "maxTokens" | "headers"
 >;
 
 const ONE_MILLION_CONTEXT_SUFFIX = "[1m]";
-const THINKING_LEVELS: RuntimeThinkingLevel[] = ["off", "minimal", "low", "medium", "high", "xhigh"];
 
 const withOneMillionContextSuffix = (value: string, enabled: boolean) => {
   const text = value.trim();
@@ -84,38 +85,30 @@ const getCatalogModel = (
   return MODEL_CATALOG[provider.provider]?.models[model.modelId] ?? null;
 };
 
-const resolveHighestThinkingLevel = (
-  thinkingLevelMap: RuntimeModelSummary["thinkingLevelMap"],
-): RuntimeThinkingLevel | null => {
-  if (!thinkingLevelMap) {
-    return null;
-  }
-
-  for (let index = THINKING_LEVELS.length - 1; index >= 0; index -= 1) {
-    const level = THINKING_LEVELS[index];
-    if (Object.prototype.hasOwnProperty.call(thinkingLevelMap, level)) {
-      return level;
-    }
-  }
-
-  return null;
+// Saved settings take precedence; the built-in catalog is only a frontend preset.
+export const getModelThinking = (
+  provider: Pick<LlmProvider, "provider" | "apiFormat">,
+  model: Pick<ProviderModel, "modelId" | "thinking">,
+): RuntimeModelThinking | undefined => {
+  const thinking =
+    model.thinking ?? MODEL_CATALOG[provider.provider]?.models[model.modelId]?.thinking?.[provider.apiFormat];
+  return thinking ? structuredClone(thinking) : undefined;
 };
 
 const createCatalogRuntimeModelInput = (catalogModel: RuntimeModelSummary): CatalogRuntimeModelInput => {
   return {
     reasoning: catalogModel.reasoning,
-    thinkingLevel: resolveHighestThinkingLevel(catalogModel.thinkingLevelMap),
     input: [...catalogModel.input],
     cost: { ...catalogModel.cost },
     contextWindow: catalogModel.contextWindow,
     maxTokens: catalogModel.maxTokens,
-    thinkingLevelMap: catalogModel.thinkingLevelMap ? { ...catalogModel.thinkingLevelMap } : undefined,
     headers: catalogModel.headers ? { ...catalogModel.headers } : undefined,
   };
 };
 
 const createRuntimeModelInput = (provider: LlmProvider, model: ProviderModel, modelId: string): RuntimeModelInput => {
   const catalogModel = getCatalogModel(provider, model);
+  const thinking = getModelThinking(provider, model);
 
   return {
     provider: provider.provider,
@@ -125,6 +118,7 @@ const createRuntimeModelInput = (provider: LlmProvider, model: ProviderModel, mo
     modelId,
     apiEndpoint: provider.apiEndpoint ?? undefined,
     ...(catalogModel ? createCatalogRuntimeModelInput(catalogModel) : {}),
+    thinkingLevel: thinking?.defaultLevel ?? undefined,
   };
 };
 
@@ -140,6 +134,7 @@ const buildRuntimeModelOption = (provider: LlmProvider, model: ProviderModel): R
     },
     modelId,
     modelName,
+    thinking: getModelThinking(provider, model),
   };
 };
 

@@ -21,7 +21,7 @@ const LIVE_MODEL_TEMPLATE = Object.freeze({
   modelId: "MiniMax-M3-highspeed",
   apiEndpoint: "https://api.minimaxi.com/anthropic",
   reasoning: true,
-  thinkingLevel: process.env.ISLE_CLAW_LIVE_THINKING?.trim() || "off",
+  thinkingLevel: process.env.ISLE_CLAW_LIVE_THINKING?.trim() || undefined,
   input: ["text", "image"],
   cost: {
     input: 0.6,

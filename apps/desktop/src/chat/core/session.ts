@@ -424,7 +424,10 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
         !state.resources.permissionOptions?.some((option) => option.mode === patch.permissionMode)
       )
         return { ok: false, error: "当前会话不支持此权限模式" };
+      const selectedModelId = patch.selectedModelId ?? state.config.selectedModelId;
       seed = { ...state.config, ...structuredClone(patch) };
+      if (selectedModelId !== state.config.selectedModelId && patch.thinkingLevel === undefined)
+        seed.thinkingLevel = undefined;
       const config = defaultConfig(state.resources, seed);
       if (JSON.stringify(config) !== JSON.stringify(state.config)) {
         update({ config });
@@ -441,7 +444,10 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
         const config = active ? state.config : defaultConfig(resources, seed);
         if (!active) {
           // A failed refresh must also preserve selections initially chosen by defaults.
-          if (resources.errors?.models) config.selectedModelId = state.config.selectedModelId;
+          if (resources.errors?.models) {
+            config.selectedModelId = state.config.selectedModelId;
+            config.thinkingLevel = state.config.thinkingLevel;
+          }
           if (resources.errors?.agents) config.selectedAgentId = state.config.selectedAgentId;
           if (resources.errors?.skillGroups) config.selectedSkillKeys = state.config.selectedSkillKeys;
           if (resources.errors?.knowledgeCollections)

@@ -81,10 +81,7 @@ const resultTypes = [
   ),
 ];
 const modelEnumValues = Object.fromEntries(
-  ["RuntimeApiFormat", "RuntimeThinkingLevel", "RuntimeModelInputModality"].map((name) => [
-    name,
-    modelSchemaDocument.definitions[name].enum,
-  ]),
+  ["RuntimeApiFormat", "RuntimeModelInputModality"].map((name) => [name, modelSchemaDocument.definitions[name].enum]),
 );
 
 const sourceSchemas = [
@@ -344,21 +341,41 @@ try {
 
   // Publish the same protocol types with the standalone Chat contracts. Plugins
   // must not depend on a private desktop source path or a hand-maintained enum.
-  const sharedTypes = join(tempRoot, "agent-permissions.d.ts");
-  const sharedResult = spawnSync("json2ts", ["--input", "permissions.schema.json", "--output", sharedTypes], {
-    cwd: schemaRoot,
-    encoding: "utf8",
-  });
-  if (sharedResult.error || sharedResult.status !== 0)
-    throw new Error(`共享权限协议生成失败：${sharedResult.error?.message ?? sharedResult.stderr}`);
-  saveGenerated(
-    join(protocolRoot, "../../../../packages/chat-contracts/agent-permissions.d.ts"),
-    await format(`${generatedHeader("typescript")}${readFileSync(sharedTypes, "utf8")}`, {
-      parser: "typescript",
-      printWidth: 120,
-      singleQuote: false,
+  const thinkingSchema = join(tempRoot, "model-thinking.schema.json");
+  writeFileSync(
+    thinkingSchema,
+    JSON.stringify({
+      $schema: "http://json-schema.org/draft-07/schema#",
+      title: "ModelThinkingProtocol",
+      anyOf: [{ $ref: "#/definitions/RuntimeModelThinking" }],
+      definitions: Object.fromEntries(
+        ["RuntimeModelThinking", "RuntimeThinkingOption", "RuntimeThinkingLevel"].map((name) => [
+          name,
+          modelSchemaDocument.definitions[name],
+        ]),
+      ),
     }),
   );
+  for (const [schema, name] of [
+    ["permissions.schema.json", "agent-permissions"],
+    [thinkingSchema, "model-thinking"],
+  ]) {
+    const sharedTypes = join(tempRoot, `${name}.d.ts`);
+    const sharedResult = spawnSync("json2ts", ["--input", schema, "--output", sharedTypes], {
+      cwd: schemaRoot,
+      encoding: "utf8",
+    });
+    if (sharedResult.error || sharedResult.status !== 0)
+      throw new Error(`共享协议 ${name} 生成失败：${sharedResult.error?.message ?? sharedResult.stderr}`);
+    saveGenerated(
+      join(protocolRoot, `../../../../packages/chat-contracts/${name}.d.ts`),
+      await format(`${generatedHeader("typescript")}${readFileSync(sharedTypes, "utf8")}`, {
+        parser: "typescript",
+        printWidth: 120,
+        singleQuote: false,
+      }),
+    );
+  }
   for (const target of targets) {
     const tempOutput = join(tempRoot, `agent-runtime-v1.${target.extension}`);
     const result =

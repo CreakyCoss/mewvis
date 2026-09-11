@@ -563,3 +563,74 @@ test("permission selection, restoration and refresh follow the returned catalog"
   assert.equal((await session.updateConfig({ permissionMode: "ask" })).ok, false);
   await session.close();
 });
+
+test("thinking selections use frontend defaults and preserve custom values through restoration", async () => {
+  const models: ChatResources["models"] = [
+    {
+      value: "a",
+      label: "A",
+      selectedLabel: "A",
+      thinking: {
+        levels: [
+          { value: "high", label: "高" },
+          { value: "max", label: "最高" },
+        ],
+        defaultLevel: "high",
+      },
+    },
+    {
+      value: "b",
+      label: "B",
+      selectedLabel: "B",
+      thinking: {
+        levels: [
+          { value: "off", label: "关闭" },
+          { value: "low", label: "低" },
+        ],
+        defaultLevel: "low",
+      },
+    },
+    { value: "c", label: "C", selectedLabel: "C" },
+  ];
+  let offline = false;
+  const catalog = async (): Promise<ChatResources> =>
+    offline ? { ...resources, models: [], errors: { models: "offline" } } : { ...resources, models };
+  const { session, calls } = await setup({ catalog });
+  assert.equal(session.getSnapshot().config.thinkingLevel, "high");
+  assert.equal((await session.updateConfig({ thinkingLevel: "max" })).ok, true);
+  await session.flush();
+  const restored = await setup({ catalog, storage: { load: async () => calls.saved.at(-1) } });
+  assert.equal(restored.session.getSnapshot().config.thinkingLevel, "max");
+  await restored.session.close();
+  offline = true;
+  await session.refreshResources();
+  assert.equal(session.getSnapshot().config.thinkingLevel, "max");
+  offline = false;
+  await session.refreshResources();
+  assert.equal(session.getSnapshot().config.thinkingLevel, "max");
+  assert.equal((await session.updateConfig({ selectedModelId: "b", thinkingLevel: "provider-custom" })).ok, true);
+  assert.equal(session.getSnapshot().config.thinkingLevel, "provider-custom");
+  await session.updateConfig({ selectedModelId: "a" });
+  await session.updateConfig({ selectedModelId: "b" });
+  assert.equal(session.getSnapshot().config.thinkingLevel, "low");
+  await session.updateConfig({ thinkingLevel: "off" });
+  assert.equal(session.getSnapshot().config.thinkingLevel, "off");
+  await session.updateConfig({ selectedModelId: "c" });
+  assert.equal(session.getSnapshot().config.thinkingLevel, null);
+  assert.equal((await session.updateConfig({ thinkingLevel: "provider-custom" })).ok, true);
+  await session.updateConfig({ thinkingLevel: null });
+  assert.equal(session.getSnapshot().config.thinkingLevel, null);
+  await session.close();
+  const obsolete = await setup({
+    catalog,
+    storage: {
+      load: async () => ({
+        title: "saved",
+        messages: [],
+        config: { selectedModelId: "b", thinkingLevel: "max" },
+      }),
+    },
+  });
+  assert.equal(obsolete.session.getSnapshot().config.thinkingLevel, "max");
+  await obsolete.session.close();
+});

@@ -62,7 +62,7 @@ export function createDesktopRuntime(
     async prepare(turn, signal) {
       const permissionMode = turn.config.permissionMode;
       if (!permissionMode) throw new Error("尚未选择执行权限。");
-      const model = await resolveLlmModel(turn.config.selectedModelId);
+      const model = await resolveLlmModel(turn.config.selectedModelId, turn.config.thinkingLevel);
       signal.throwIfAborted();
       const details = catalog.getDetails();
       const agent = details.agents.find((item) => item.id === turn.config.selectedAgentId);

@@ -175,10 +175,7 @@ export interface RuntimeModelInput {
   modelId: string;
   apiEndpoint?: string | null;
   reasoning?: boolean;
-  thinkingLevel?: ("off" | "minimal" | "low" | "medium" | "high" | "xhigh") | null;
-  thinkingLevelMap?: {
-    [k: string]: string | null;
-  };
+  thinkingLevel?: string | null;
   input?: ("text" | "image")[];
   cost?: RuntimeModelCost;
   contextWindow?: number;
@@ -610,8 +607,8 @@ export interface RuntimeModelSummary {
   id: string;
   name: string;
   reasoning: boolean;
-  thinkingLevelMap?: {
-    [k: string]: string | null;
+  thinking?: {
+    [k: string]: RuntimeModelThinking;
   };
   input: ("text" | "image")[];
   cost: RuntimeModelCost;
@@ -620,6 +617,14 @@ export interface RuntimeModelSummary {
   headers?: {
     [k: string]: string;
   };
+}
+export interface RuntimeModelThinking {
+  levels: RuntimeThinkingOption[];
+  defaultLevel?: string | null;
+}
+export interface RuntimeThinkingOption {
+  value: string;
+  label: string;
 }
 export interface RuntimeModelCatalogApi {
   apiFormat:
@@ -978,15 +983,6 @@ export const RuntimeApiFormat = {
   Openrouter: "openrouter",
 } as const;
 export type RuntimeApiFormat = (typeof RuntimeApiFormat)[keyof typeof RuntimeApiFormat];
-export const RuntimeThinkingLevel = {
-  Off: "off",
-  Minimal: "minimal",
-  Low: "low",
-  Medium: "medium",
-  High: "high",
-  Xhigh: "xhigh",
-} as const;
-export type RuntimeThinkingLevel = (typeof RuntimeThinkingLevel)[keyof typeof RuntimeThinkingLevel];
 export const RuntimeModelInputModality = {
   Text: "text",
   Image: "image",

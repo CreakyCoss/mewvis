@@ -1,6 +1,11 @@
-import { useImperativeHandle, useState, type Ref } from "react";
-import { CheckCircle2, ChevronDown, Eye, EyeOff, Loader2, Plus, Save, ServerCog, Trash2 } from "lucide-react";
-import type { LlmProvider, LlmProviderConfig, ProviderModelConfig } from "@/agent-client/runtime-model";
+import { useImperativeHandle, useRef, useState, type Ref } from "react";
+import { CheckCircle2, Eye, EyeOff, Loader2, Pencil, Plus, Save, ServerCog, Trash2 } from "lucide-react";
+import {
+  getModelThinking,
+  type LlmProvider,
+  type LlmProviderConfig,
+  type ProviderModelConfig,
+} from "@/agent-client/runtime-model";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,7 +17,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import {
   Dialog,
   DialogContent,
@@ -22,24 +26,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 import { saveLlmSettings } from "@/api/llm";
-import {
-  getProviderApiFormatOptions,
-  getProviderModelOptions,
-  getProviderOption,
-  getProviderOptions,
-} from "../options";
+import { getProviderApiFormatOptions, getProviderOption, getProviderOptions } from "../options";
 import {
   applyApiFormatDefaults,
-  applyModelDefaults,
   applyProviderDefaults,
   cloneProviderConfig,
-  createModelConfig,
   createProviderConfig,
   normalizeLlmSettingsConfig,
   normalizeProvidersForSave,
@@ -47,6 +43,8 @@ import {
   toProviderConfig,
   validateLlmSettingsConfig,
 } from "./utils";
+
+import { ModelEditDialog } from "./model";
 
 type ProviderEditMode = "create" | "edit";
 
@@ -62,86 +60,12 @@ type ProviderEditDialogProps = {
   onSaved?: () => void | Promise<void>;
 };
 
-type ModelIdSelectorProps = {
-  id: string;
-  options: Array<{ id: string }>;
-  value: string;
-  onValueChange: (value: string) => void;
-};
-
-const ModelIdSelector = ({ id, options, value, onValueChange }: ModelIdSelectorProps) => {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-
-  const handleOpenChange = (nextOpen: boolean) => {
-    setOpen(nextOpen);
-    if (nextOpen) setQuery("");
-  };
-
-  return (
-    <Popover open={open} onOpenChange={handleOpenChange}>
-      <PopoverAnchor asChild>
-        <InputGroup className="rounded-lg bg-card/75 transition-[color,background-color,border-color,box-shadow] duration-150 ease-out hover:border-primary/30 has-[[data-slot=input-group-control]:focus-visible]:ring-ring/20">
-          <InputGroupInput
-            id={id}
-            className="focus-visible:bg-transparent"
-            role="combobox"
-            aria-autocomplete="list"
-            aria-haspopup="listbox"
-            aria-expanded={open}
-            value={value}
-            onChange={(event) => onValueChange(event.currentTarget.value)}
-            onClick={() => handleOpenChange(true)}
-          />
-          <InputGroupAddon align="inline-end">
-            <PopoverTrigger asChild>
-              <InputGroupButton
-                size="icon-xs"
-                className="aria-expanded:bg-transparent aria-expanded:text-muted-foreground"
-                aria-label="选择模型 ID"
-                title="选择模型 ID"
-                aria-expanded={open}
-              >
-                <ChevronDown className="size-4" />
-              </InputGroupButton>
-            </PopoverTrigger>
-          </InputGroupAddon>
-        </InputGroup>
-      </PopoverAnchor>
-      <PopoverContent
-        align="start"
-        className="w-[var(--radix-popover-anchor-width)] min-w-64 gap-0 overflow-hidden p-0"
-      >
-        <Command>
-          <CommandInput value={query} onValueChange={setQuery} placeholder="搜索模型 ID" />
-          <CommandList>
-            <CommandEmpty>没有匹配的模型，可直接输入自定义 ID</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => (
-                <CommandItem
-                  key={option.id}
-                  value={option.id}
-                  data-checked={option.id === value}
-                  onSelect={() => {
-                    onValueChange(option.id);
-                    setOpen(false);
-                  }}
-                >
-                  {option.id}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-};
-
 export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDialogProps) => {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<ProviderEditMode>("create");
   const [providerDraft, setProviderDraft] = useState<LlmProviderConfig | null>(null);
+  const [modelEditor, setModelEditor] = useState<{ model?: ProviderModelConfig } | null>(null);
+  const modelFocusTarget = useRef<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isApiKeyVisible, setIsApiKeyVisible] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -149,6 +73,8 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
 
   const resetTransientState = () => {
     setError("");
+    setModelEditor(null);
+    modelFocusTarget.current = null;
     setIsApiKeyVisible(false);
     setIsDeleteConfirmOpen(false);
   };
@@ -192,32 +118,10 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
 
   const selectedProviderOption = providerDraft ? getProviderOption(providerDraft.provider) : undefined;
   const selectedApiFormatOptions = providerDraft ? getProviderApiFormatOptions(providerDraft.provider) : [];
-  const selectedModelOptions = providerDraft ? getProviderModelOptions(providerDraft.provider) : [];
   const canDelete = mode === "edit" && providers.length > 1;
 
   const updateProviderDraft = (updater: (provider: LlmProviderConfig) => LlmProviderConfig) => {
     setProviderDraft((current) => (current ? updater(current) : current));
-  };
-
-  const updateModel = (modelId: string, updater: (model: ProviderModelConfig) => ProviderModelConfig) => {
-    updateProviderDraft((current) => ({
-      ...current,
-      models: current.models.map((model) => (model.id === modelId ? updater(model) : model)),
-    }));
-  };
-
-  const addModel = () => {
-    updateProviderDraft((current) => ({
-      ...current,
-      models: [...current.models, createModelConfig()],
-    }));
-  };
-
-  const removeModel = (modelId: string) => {
-    updateProviderDraft((current) => ({
-      ...current,
-      models: current.models.filter((model) => model.id !== modelId),
-    }));
   };
 
   const saveProviders = async (nextProviders: LlmProviderConfig[]) => {
@@ -288,8 +192,19 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
 
   return (
     <>
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="!flex max-h-[calc(100vh-2rem)] w-[min(720px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden border-border/70 bg-popover p-0 shadow-[var(--shadow-floating)] sm:max-w-[720px]">
+      <Dialog open={open && !modelEditor} onOpenChange={handleOpenChange}>
+        <DialogContent
+          className="!flex max-h-[calc(100vh-2rem)] w-[min(720px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden border-border/70 bg-popover p-0 shadow-[var(--shadow-floating)] sm:max-w-[720px]"
+          onOpenAutoFocus={(event) => {
+            if (!modelFocusTarget.current) return;
+            const target = document.getElementById(modelFocusTarget.current);
+            if (target) {
+              event.preventDefault();
+              target.focus();
+            }
+            modelFocusTarget.current = null;
+          }}
+        >
           <DialogHeader className="shrink-0">
             <div className="border-b border-border/70 bg-card/35 px-6 pt-6 pb-5">
               <DialogTitle className="flex items-center gap-3 text-lg font-semibold">
@@ -444,107 +359,120 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                 </section>
 
                 <section className="border-t border-border/70 px-6 py-5" aria-labelledby="llm-models-heading">
-                  <div className="mb-4 flex items-start justify-between gap-4">
-                    <div>
-                      <h3 id="llm-models-heading" className="text-sm font-semibold">
-                        可用模型
-                      </h3>
-                      <p className="mt-1 text-xs text-muted-foreground">管理此 Provider 下可用于对话和角色的模型。</p>
-                    </div>
-                    <Button type="button" variant="outline" onClick={addModel}>
+                  <div className="mb-3 flex items-center justify-between gap-4">
+                    <h3 id="llm-models-heading" className="flex items-center gap-2 text-sm font-semibold">
+                      可用模型{" "}
+                      <span className="text-xs font-normal text-muted-foreground">{providerDraft.models.length}</span>
+                    </h3>
+                    <Button
+                      id="llm-add-model"
+                      type="button"
+                      variant="outline"
+                      onClick={(event) => {
+                        modelFocusTarget.current = event.currentTarget.id;
+                        setModelEditor({});
+                      }}
+                    >
                       <Plus className="size-4" />
                       <span>新增模型</span>
                     </Button>
                   </div>
 
-                  <div className="overflow-hidden rounded-xl border border-border/70 bg-card/55">
-                    <div className="hidden min-h-10 grid-cols-[minmax(150px,1fr)_minmax(140px,1fr)_92px_68px_36px] items-center gap-2 border-b border-border/70 bg-muted/25 px-3 text-xs font-medium text-muted-foreground md:grid">
-                      <span>模型 ID</span>
-                      <span>显示名称</span>
-                      <span>上下文</span>
-                      <span>启用</span>
-                      <span className="sr-only">操作</span>
-                    </div>
-
-                    {providerDraft.models.map((model, index) => (
-                      <div
-                        key={model.id}
-                        className="grid gap-3 border-t border-border/60 p-3 first:border-t-0 md:grid-cols-[minmax(150px,1fr)_minmax(140px,1fr)_92px_68px_36px] md:items-center md:gap-2 md:border-t md:first:border-t-0"
-                      >
-                        <div className="space-y-2 md:space-y-0">
-                          <Label className="md:hidden" htmlFor={`${model.id}-model-id`}>
-                            模型 ID
-                          </Label>
-                          <ModelIdSelector
-                            id={`${model.id}-model-id`}
-                            options={selectedModelOptions}
-                            value={model.modelId}
-                            onValueChange={(value) => {
-                              updateModel(model.id, (item) => applyModelDefaults(item, providerDraft.provider, value));
-                            }}
-                          />
-                        </div>
-
-                        <div className="space-y-2 md:space-y-0">
-                          <Label className="md:hidden" htmlFor={`${model.id}-model-name`}>
-                            显示名称
-                          </Label>
-                          <Input
-                            id={`${model.id}-model-name`}
-                            value={model.modelName}
-                            onChange={(event) => {
-                              const value = event.currentTarget.value;
-                              updateModel(model.id, (item) => ({ ...item, modelName: value }));
-                            }}
-                            placeholder={
-                              selectedModelOptions.find((item) => item.id === model.modelId)?.name ?? "自定义显示名称"
-                            }
-                          />
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            id={`${model.id}-context`}
-                            checked={model.isOneMillionContext}
-                            onCheckedChange={(checked) => {
-                              updateModel(model.id, (item) => ({ ...item, isOneMillionContext: checked }));
-                            }}
-                          />
-                          <Label htmlFor={`${model.id}-context`} className="font-normal text-muted-foreground">
-                            1M
-                          </Label>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            id={`${model.id}-enabled`}
-                            checked={model.isEnabled}
-                            onCheckedChange={(checked) => {
-                              updateModel(model.id, (item) => ({ ...item, isEnabled: checked }));
-                            }}
-                          />
-                          <Label
-                            htmlFor={`${model.id}-enabled`}
-                            className="font-normal text-muted-foreground md:sr-only"
-                          >
-                            启用
-                          </Label>
-                        </div>
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="justify-self-end text-muted-foreground hover:text-destructive"
-                          title={`删除模型 ${index + 1}`}
-                          aria-label={`删除模型 ${index + 1}`}
-                          onClick={() => removeModel(model.id)}
-                          disabled={providerDraft.models.length <= 1}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </div>
-                    ))}
+                  <div className="overflow-hidden rounded-lg border border-border/70">
+                    <table className="w-full table-fixed text-left text-sm" aria-labelledby="llm-models-heading">
+                      <thead className="border-b border-border/70 bg-muted/30 text-xs text-muted-foreground">
+                        <tr>
+                          <th scope="col" className="px-3 py-2.5 font-normal">
+                            模型
+                          </th>
+                          <th scope="col" className="w-16 px-2 py-2.5 text-center font-normal sm:w-20 sm:px-3">
+                            状态
+                          </th>
+                          <th scope="col" className="hidden w-20 px-3 py-2.5 text-center font-normal sm:table-cell">
+                            上下文
+                          </th>
+                          <th scope="col" className="w-24 px-2 py-2.5 font-normal sm:w-36 sm:px-3">
+                            思考等级
+                          </th>
+                          <th scope="col" className="w-20 px-2 py-2.5 text-center font-normal sm:w-24 sm:px-3">
+                            操作
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/60">
+                        {providerDraft.models.map((model) => {
+                          const thinking = getModelThinking(providerDraft, model);
+                          const defaultLevel = thinking?.levels.find((level) => level.value === thinking.defaultLevel);
+                          return (
+                            <tr key={model.id} className="transition-colors hover:bg-muted/20">
+                              <td className="px-3 py-3">
+                                <p className="truncate font-medium" title={model.modelName || model.modelId}>
+                                  {model.modelName || model.modelId || "未命名模型"}
+                                </p>
+                                <p
+                                  className="mt-1 truncate font-mono text-[11px] text-muted-foreground"
+                                  title={model.modelId}
+                                >
+                                  {model.modelId || "待设置模型 ID"}
+                                </p>
+                              </td>
+                              <td className="px-2 py-3 text-center sm:px-3">
+                                <span
+                                  className={cn(
+                                    "inline-flex items-center gap-1.5 text-xs",
+                                    model.isEnabled ? "text-success" : "text-muted-foreground",
+                                  )}
+                                >
+                                  <span className="size-1.5 shrink-0 rounded-full bg-current" />
+                                  {model.isEnabled ? "启用" : "停用"}
+                                </span>
+                              </td>
+                              <td className="hidden px-3 py-3 text-center text-xs text-muted-foreground sm:table-cell">
+                                {model.isOneMillionContext ? "1M" : "默认"}
+                              </td>
+                              <td className="px-2 py-3 text-xs sm:px-3">
+                                {thinking?.levels.length ? (
+                                  <>
+                                    <p
+                                      className="truncate"
+                                      title={
+                                        defaultLevel
+                                          ? `默认 ${defaultLevel.label || defaultLevel.value}`
+                                          : "不指定默认等级"
+                                      }
+                                    >
+                                      {defaultLevel ? `默认 ${defaultLevel.label || defaultLevel.value}` : "默认不指定"}
+                                    </p>
+                                    <p className="mt-1 text-[11px] text-muted-foreground">
+                                      {thinking.levels.length} 个等级
+                                    </p>
+                                  </>
+                                ) : (
+                                  <span className="text-muted-foreground">未配置</span>
+                                )}
+                              </td>
+                              <td className="px-2 py-3 text-center sm:px-3">
+                                <Button
+                                  id={`llm-model-${model.id}`}
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 min-w-16 gap-1.5 px-2 text-xs"
+                                  aria-label={`编辑模型 ${model.modelName || model.modelId || "未命名模型"}`}
+                                  onClick={(event) => {
+                                    modelFocusTarget.current = event.currentTarget.id;
+                                    setModelEditor({ model });
+                                  }}
+                                >
+                                  <Pencil className="size-3.5" />
+                                  编辑
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </section>
               </div>
@@ -582,6 +510,36 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
           )}
         </DialogContent>
       </Dialog>
+
+      {open && providerDraft && modelEditor && (
+        <ModelEditDialog
+          provider={providerDraft}
+          model={modelEditor.model}
+          onClose={() => setModelEditor(null)}
+          onConfirm={(model) => {
+            modelFocusTarget.current = `llm-model-${model.id}`;
+            updateProviderDraft((current) => ({
+              ...current,
+              models: modelEditor.model
+                ? current.models.map((item) => (item.id === model.id ? model : item))
+                : [...current.models, model],
+            }));
+            setModelEditor(null);
+          }}
+          onDelete={
+            modelEditor.model && providerDraft.models.length > 1
+              ? () => {
+                  modelFocusTarget.current = "llm-add-model";
+                  updateProviderDraft((current) => ({
+                    ...current,
+                    models: current.models.filter((item) => item.id !== modelEditor.model?.id),
+                  }));
+                  setModelEditor(null);
+                }
+              : undefined
+          }
+        />
+      )}
 
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
         <AlertDialogContent>

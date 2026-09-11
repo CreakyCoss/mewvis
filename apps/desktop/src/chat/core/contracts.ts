@@ -52,11 +52,12 @@ export function defaultConfig(resources: ChatResources, saved: Partial<ChatRunCo
   const permission =
     permissions?.find((option) => option.mode === saved.permissionMode) ??
     permissions?.find((option) => option.isDefault);
+  const selectedModelId =
+    saved.selectedModelId ?? (resources.models?.find((model) => model.isDefault) ?? resources.models?.[0])?.value ?? "";
+  const thinking = resources.models?.find((model) => model.value === selectedModelId)?.thinking;
   return {
-    selectedModelId:
-      saved.selectedModelId ??
-      (resources.models?.find((model) => model.isDefault) ?? resources.models?.[0])?.value ??
-      "",
+    selectedModelId,
+    thinkingLevel: saved.thinkingLevel === undefined ? (thinking?.defaultLevel ?? null) : saved.thinkingLevel,
     selectedAgentId: saved.selectedAgentId ?? resources.agents?.find((agent) => agent.isDefault)?.value ?? "",
     selectedSkillKeys: saved.selectedSkillKeys ?? [
       ...new Set((defaults ? [defaults] : groups).flatMap((group) => group.skills.map((skill) => skill.key))),

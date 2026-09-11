@@ -115,15 +115,6 @@ class RuntimeModelInputModality(Enum):
     TEXT = "text"
 
 
-class RuntimeThinkingLevel(Enum):
-    HIGH = "high"
-    LOW = "low"
-    MEDIUM = "medium"
-    MINIMAL = "minimal"
-    OFF = "off"
-    XHIGH = "xhigh"
-
-
 @dataclass
 class RuntimeModelInput:
     api_format: RuntimeAPIFormat
@@ -138,8 +129,7 @@ class RuntimeModelInput:
     input: list[RuntimeModelInputModality] | None
     max_tokens: float | None
     reasoning: bool | None
-    thinking_level: RuntimeThinkingLevel | None
-    thinking_level_map: dict[str, str | None] | None
+    thinking_level: str | None
 
 
 @dataclass
@@ -160,6 +150,18 @@ class RuntimeModelCatalogAPI:
 
 
 @dataclass
+class RuntimeThinkingOption:
+    label: str
+    value: str
+
+
+@dataclass
+class RuntimeModelThinking:
+    levels: list[RuntimeThinkingOption]
+    default_level: str | None
+
+
+@dataclass
 class RuntimeModelSummary:
     context_window: float
     cost: RuntimeModelCost
@@ -169,7 +171,7 @@ class RuntimeModelSummary:
     name: str
     reasoning: bool
     headers: dict[str, str] | None
-    thinking_level_map: dict[str, str | None] | None
+    thinking: dict[str, RuntimeModelThinking] | None
 
 
 @dataclass

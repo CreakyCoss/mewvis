@@ -1,7 +1,7 @@
 import type { AssistantMessage, SimpleStreamOptions } from "@earendil-works/pi-ai";
 import { AgentRuntimeEventType } from "../../../../../../protocol/wire.js";
 import type { ChatRunResult, ChatRuntime, ChatRuntimeContext, ChatRunCommand } from "../../types.js";
-import { createPiModelRuntime, requirePiRuntimeConfig, resolvePiRuntimeThinkingLevel } from "../model/index.js";
+import { createPiModelRuntime, requirePiRuntimeConfig } from "../model/index.js";
 import { createPiChatContext, createPiChatResult } from "./messages.js";
 
 export class PiChatRuntime implements ChatRuntime {
@@ -53,8 +53,7 @@ export class PiChatRuntime implements ChatRuntime {
 
   private async createRequest(command: ChatRunCommand, context: ChatRuntimeContext) {
     const runtimeModel = requirePiRuntimeConfig(command);
-    const { model, modelRuntime } = await createPiModelRuntime(runtimeModel, context.signal);
-    const thinkingLevel = resolvePiRuntimeThinkingLevel(runtimeModel);
+    const { model, modelRuntime, thinkingLevel } = await createPiModelRuntime(runtimeModel, context.signal);
     const options: SimpleStreamOptions = {
       signal: context.signal,
       maxRetries: context.maxRetries,

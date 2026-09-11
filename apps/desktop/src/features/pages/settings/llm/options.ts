@@ -1,6 +1,17 @@
 import { MODEL_CATALOG } from "@/agent-client/model-catalog";
 import type { RuntimeApiFormat } from "@/agent-client/wire";
 
+// Suggestions only: providers may accept values outside this list.
+export const THINKING_LEVEL_PRESETS = [
+  { value: "off", label: "关闭" },
+  { value: "minimal", label: "极低" },
+  { value: "low", label: "低" },
+  { value: "medium", label: "中" },
+  { value: "high", label: "高" },
+  { value: "xhigh", label: "极高" },
+  { value: "max", label: "最高" },
+];
+
 export type ProviderOption = {
   value: string;
   label: string;

@@ -1,7 +1,7 @@
-import { InMemoryCredentialStore, type Api, type Model } from "@earendil-works/pi-ai";
+import { InMemoryCredentialStore, type Api, type Model, type ThinkingLevel } from "@earendil-works/pi-ai";
 import { getBuiltinModel } from "@earendil-works/pi-ai/providers/all";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
-import type { RuntimeApiFormat, RuntimeModelInput, RuntimeThinkingLevel } from "../../../../../../protocol/wire.js";
+import type { RuntimeApiFormat, RuntimeModelInput } from "../../../../../../protocol/wire.js";
 import type { ChatRunCommand, RuntimeAgentCommand } from "../../types.js";
 
 export const requirePiApiKey = (runtimeModel: RuntimeModelInput) => {
@@ -22,10 +22,6 @@ export const requirePiRuntimeConfig = (
 
   return command.runtimeModel;
 };
-
-export const resolvePiRuntimeThinkingLevel = (
-  runtimeModel: Pick<RuntimeModelInput, "thinkingLevel">,
-): RuntimeThinkingLevel | undefined => runtimeModel.thinkingLevel ?? undefined;
 
 const piApiForFormat = (apiFormat: RuntimeApiFormat): Api => {
   switch (apiFormat) {
@@ -51,17 +47,30 @@ const readCatalogPiModel = (runtimeModel: RuntimeModelInput): Model<Api> | undef
     runtimeModel.catalogModelId,
   );
 
+const PI_THINKING_LEVELS: readonly string[] = ["minimal", "low", "medium", "high", "xhigh", "max"];
+
+// Pi needs a fixed SDK level. Its native-value map carries custom effort strings unchanged.
+const toPiThinkingLevel = (level?: string | null): ThinkingLevel | "off" =>
+  !level || level === "off" ? "off" : PI_THINKING_LEVELS.includes(level) ? (level as ThinkingLevel) : "high";
+
 export const createPiRuntimeModel = (runtimeModel: RuntimeModelInput): Model<Api> => {
   const catalogModel = readCatalogPiModel(runtimeModel);
+  const thinkingLevel = toPiThinkingLevel(runtimeModel.thinkingLevel);
+  const api = piApiForFormat(runtimeModel.apiFormat);
+  const sameApi = catalogModel?.api === api;
 
   return {
     id: runtimeModel.modelId,
     name: runtimeModel.modelId,
-    api: piApiForFormat(runtimeModel.apiFormat),
+    api,
     provider: runtimeModel.provider,
     baseUrl: runtimeModel.apiEndpoint ?? catalogModel?.baseUrl ?? "",
-    reasoning: runtimeModel.reasoning ?? catalogModel?.reasoning ?? true,
-    thinkingLevelMap: runtimeModel.thinkingLevelMap ?? catalogModel?.thinkingLevelMap,
+    reasoning: thinkingLevel !== "off" ? true : (runtimeModel.reasoning ?? catalogModel?.reasoning ?? true),
+    thinkingLevelMap: {
+      ...(sameApi ? catalogModel?.thinkingLevelMap : undefined),
+      off: runtimeModel.thinkingLevel === "off" ? (catalogModel?.thinkingLevelMap?.off ?? undefined) : null,
+      ...(thinkingLevel !== "off" ? { [thinkingLevel]: runtimeModel.thinkingLevel } : {}),
+    },
     input: runtimeModel.input ?? catalogModel?.input ?? ["text"],
     cost: runtimeModel.cost ??
       catalogModel?.cost ?? {
@@ -73,10 +82,13 @@ export const createPiRuntimeModel = (runtimeModel: RuntimeModelInput): Model<Api
     contextWindow: runtimeModel.contextWindow ?? catalogModel?.contextWindow ?? 128000,
     maxTokens: runtimeModel.maxTokens ?? catalogModel?.maxTokens ?? 16384,
     headers: runtimeModel.headers ?? catalogModel?.headers,
+    compat: sameApi ? catalogModel?.compat : undefined,
+    samplingParams: sameApi ? catalogModel?.samplingParams : undefined,
   };
 };
 
 export const createPiModelRuntime = async (runtimeModel: RuntimeModelInput, signal?: AbortSignal) => {
+  const thinkingLevel = toPiThinkingLevel(runtimeModel.thinkingLevel);
   const apiKey = requirePiApiKey(runtimeModel);
   const model = createPiRuntimeModel(runtimeModel);
   const modelRuntime = await ModelRuntime.create({
@@ -91,5 +103,5 @@ export const createPiModelRuntime = async (runtimeModel: RuntimeModelInput, sign
     models: [model],
   });
   await modelRuntime.setRuntimeApiKey(model.provider, apiKey, { signal });
-  return { model, modelRuntime };
+  return { model, modelRuntime, thinkingLevel };
 };

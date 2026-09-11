@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Plus, Sparkles } from "lucide-react";
 import type { LlmProvider } from "@/agent-client/runtime-model";
@@ -72,6 +72,11 @@ export const LlmSettingsPage = () => {
     })),
   );
   const providers = settings.providers;
+
+  useEffect(() => {
+    // StartupGate completes database migrations before this page mounts.
+    void loadSettings();
+  }, [loadSettings]);
 
   const openCreateProvider = () => {
     providerEditDialogRef.current?.open({ mode: "create" });

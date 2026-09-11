@@ -88,6 +88,7 @@ export function createDesktopCatalog(client: AgentClient, readProfile: () => Cha
             value: model.id,
             label: `${model.provider.name}/${model.modelName}`,
             selectedLabel: model.modelName,
+            thinking: model.thinking,
             description: `${model.provider.name} / ${model.modelName}`,
             isDefault: index === 0,
           })),

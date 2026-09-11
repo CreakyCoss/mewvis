@@ -74,8 +74,9 @@ export const saveLlmSettings = (input: LlmSettingsConfig) => {
 export const getLlmModelOptions = async (options?: LoadOptions) =>
   buildRuntimeModelOptions(await getLlmSettings(options));
 
-export const resolveLlmModel = async (modelId: string) => {
+export const resolveLlmModel = async (modelId: string, thinkingLevel?: string | null) => {
   const model = buildRuntimeModelInputs(await getLlmSettings())[modelId];
   if (!model) throw new Error("所选模型已不可用，请重新选择");
+  if (thinkingLevel !== undefined) model.thinkingLevel = thinkingLevel;
   return model;
 };
