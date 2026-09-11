@@ -133,7 +133,6 @@ export const ImportPluginDialog = ({ open, onOpenChange, onInstalled }: ImportPl
                 {inspection.description || "该插件没有提供描述。"}
               </p>
               <div className="space-y-2 border-t border-border/60 pt-3">
-                <p className="text-xs font-medium text-foreground">权限用途</p>
                 <PluginPermissionSummary
                   permissions={inspection.permissions}
                   agentAccess={inspection.agentAccess}

@@ -58,6 +58,68 @@ const LoadingState = () => (
   </div>
 );
 
+const PluginCard = ({ plugin }: { plugin: PluginUiPlugin }) => {
+  const status = pluginStatus(plugin);
+  const StatusIcon = status.icon;
+  return (
+    <article className="flex min-w-0 flex-col rounded-xl border border-border/80 bg-card p-4 transition-[border-color,box-shadow] duration-150 hover:border-primary/25 hover:shadow-sm motion-reduce:transition-none">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-primary">
+          <PluginIcon className="size-5" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-semibold" title={plugin.name}>
+            {plugin.name}
+          </h3>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+            <span className="tabular-nums">v{plugin.version || "0.0.0"}</span>
+            <span aria-hidden="true">·</span>
+            <span>{plugin.source === "bundled" ? "内置" : "外部"}</span>
+            {plugin.runtimeKind === "dsh" && (
+              <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] leading-4">DSH 兼容</span>
+            )}
+          </div>
+        </div>
+      </div>
+      <p
+        className="mt-3 min-h-10 line-clamp-2 text-sm leading-5 text-muted-foreground"
+        title={plugin.description || undefined}
+      >
+        {plugin.description || "该插件没有提供描述。"}
+      </p>
+      <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          <Wrench className="size-3.5" aria-hidden="true" />
+          {plugin.tools.length} 个工具
+        </span>
+        <span aria-hidden="true">·</span>
+        <span>{pluginSurfaceLabel(plugin)}</span>
+      </div>
+      <div className="mt-auto pt-4">
+        <PluginPermissionSummary
+          permissions={plugin.permissions}
+          agentAccess={plugin.agentAccess}
+          status={plugin.permissionStatus}
+          compact
+          className="h-26"
+        />
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <span className={cn("inline-flex items-center gap-1.5 text-xs", status.className)}>
+          <StatusIcon className="size-3.5 shrink-0" aria-hidden="true" />
+          {status.label}
+        </span>
+        <Button asChild variant="outline" size="sm" className="min-h-9 px-3 text-xs shadow-none">
+          <NavLink to={`/plugins/${encodeURIComponent(plugin.id)}`} aria-label={`打开插件 ${plugin.name}`}>
+            打开插件
+            <ArrowRight className="size-3.5" />
+          </NavLink>
+        </Button>
+      </div>
+    </article>
+  );
+};
+
 const PluginCatalog = ({
   plugins,
   isLoading,
@@ -113,71 +175,16 @@ const PluginCatalog = ({
           <LoadingState />
         ) : plugins.length > 0 ? (
           <>
-            <div className="mb-5 flex items-end justify-between gap-4">
-              <div>
-                <h2 className="text-base font-semibold">已启用插件</h2>
-                <p className="mt-1 text-sm text-muted-foreground">选择一个插件查看介绍并进入操作页面。</p>
-              </div>
-              <Badge variant="secondary" className="shrink-0">
-                {plugins.length} 个
-              </Badge>
+            <div className="mb-4 flex items-center gap-2">
+              <h2 className="text-sm font-medium">已启用插件</h2>
+              <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs tabular-nums text-muted-foreground">
+                {plugins.length}
+              </span>
             </div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {plugins.map((plugin) => {
-                const status = pluginStatus(plugin);
-                const StatusIcon = status.icon;
-                return (
-                  <NavLink
-                    key={plugin.id}
-                    to={`/plugins/${encodeURIComponent(plugin.id)}`}
-                    className="group flex min-h-64 cursor-pointer flex-col rounded-2xl border border-border/70 bg-card/55 p-5 transition-[border-color,background-color,box-shadow] duration-200 hover:border-primary/30 hover:bg-card hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none motion-reduce:transition-none"
-                    aria-label={`打开插件 ${plugin.name}`}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent text-primary">
-                        <PluginIcon className="size-5" />
-                      </span>
-                      <span className={cn("flex items-center gap-1.5 text-xs font-medium", status.className)}>
-                        <StatusIcon className="size-3.5" />
-                        {status.label}
-                      </span>
-                    </div>
-
-                    <div className="mt-5 min-w-0 flex-1">
-                      <h3 className="truncate text-base font-semibold tracking-[-0.01em]">{plugin.name}</h3>
-                      <p className="mt-2 line-clamp-3 text-sm leading-6 text-muted-foreground">
-                        {plugin.description || "该插件没有提供描述。"}
-                      </p>
-                    </div>
-
-                    <div className="mt-5 flex flex-wrap items-center gap-2">
-                      <Badge variant="secondary">v{plugin.version || "0.0.0"}</Badge>
-                      <Badge variant="outline">{plugin.source === "bundled" ? "内置" : "外部"}</Badge>
-                      {plugin.runtimeKind === "dsh" ? <Badge variant="outline">DSH 兼容</Badge> : null}
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Wrench className="size-3.5" />
-                        {plugin.tools.length} 个工具
-                      </span>
-                    </div>
-
-                    <PluginPermissionSummary
-                      permissions={plugin.permissions}
-                      agentAccess={plugin.agentAccess}
-                      status={plugin.permissionStatus}
-                      compact
-                      className="mt-3"
-                    />
-
-                    <div className="mt-4 flex min-h-11 items-center justify-between border-t border-border/70 pt-4 text-sm">
-                      <span className="text-muted-foreground">{pluginSurfaceLabel(plugin)}</span>
-                      <span className="flex items-center gap-1 font-medium text-primary">
-                        查看插件
-                        <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none" />
-                      </span>
-                    </div>
-                  </NavLink>
-                );
-              })}
+              {plugins.map((plugin) => (
+                <PluginCard key={plugin.id} plugin={plugin} />
+              ))}
             </div>
           </>
         ) : (

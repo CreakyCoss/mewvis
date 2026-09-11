@@ -66,7 +66,7 @@ const PluginRow = ({ plugin, isUpdating, onEnabledChange, onRemove }: PluginRowP
         agentAccess={plugin.agentAccess}
         status={plugin.permissionStatus}
         compact
-        className="mt-1.5"
+        className="mt-2 max-w-xl"
       />
     </div>
 
@@ -348,7 +348,7 @@ export const PluginManagePage = () => {
       />
 
       <AlertDialog open={Boolean(pendingEnable)} onOpenChange={(open) => !open && setPendingEnable(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
           <AlertDialogHeader>
             <AlertDialogTitle>启用“{pendingEnable?.name ?? ""}”？</AlertDialogTitle>
             <AlertDialogDescription>
