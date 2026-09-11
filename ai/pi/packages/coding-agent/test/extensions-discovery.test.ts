@@ -51,6 +51,42 @@ describe("extensions discovery", () => {
 		expect(result.extensions.map((e) => path.basename(e.path)).sort()).toEqual(["bar.ts", "foo.ts"]);
 	});
 
+	it("loads the coding-agent entrypoint without rewriting pi-ai provider subpaths", async () => {
+		fs.writeFileSync(
+			path.join(extensionsDir, "coding-agent-import.ts"),
+			`
+				import { getAgentDir } from "@earendil-works/pi-coding-agent";
+				void getAgentDir;
+				export default function(pi) {
+					pi.registerCommand("test", { handler: async () => {} });
+				}
+			`,
+		);
+
+		const result = await discoverAndLoadExtensions([], tempDir, tempDir);
+
+		expect(result.errors).toHaveLength(0);
+		expect(result.extensions).toHaveLength(1);
+	});
+
+	it("keeps the type-only pi-ai OAuth compatibility barrel resolvable", async () => {
+		fs.writeFileSync(
+			path.join(extensionsDir, "oauth-import.ts"),
+			`
+				import * as oauth from "@earendil-works/pi-ai/oauth";
+				void oauth;
+				export default function(pi) {
+					pi.registerCommand("test", { handler: async () => {} });
+				}
+			`,
+		);
+
+		const result = await discoverAndLoadExtensions([], tempDir, tempDir);
+
+		expect(result.errors).toEqual([]);
+		expect(result.extensions).toHaveLength(1);
+	});
+
 	it("discovers direct .js files in extensions/", async () => {
 		fs.writeFileSync(path.join(extensionsDir, "foo.js"), extensionCode);
 
@@ -121,6 +157,31 @@ describe("extensions discovery", () => {
 		expect(result.extensions).toHaveLength(1);
 		expect(result.extensions[0].path).toContain("src");
 		expect(result.extensions[0].path).toContain("main.ts");
+	});
+
+	it("keeps package.json pi extension entries with leading tilde package-relative", async () => {
+		const subdir = path.join(extensionsDir, "tilde-package");
+		const directExtensionPath = path.join(subdir, "~entry.ts");
+		const slashExtensionPath = path.join(subdir, "~", "entry.ts");
+		fs.mkdirSync(path.join(subdir, "~"), { recursive: true });
+		fs.writeFileSync(directExtensionPath, extensionCode);
+		fs.writeFileSync(slashExtensionPath, extensionCode);
+		fs.writeFileSync(
+			path.join(subdir, "package.json"),
+			JSON.stringify({
+				name: "tilde-package",
+				pi: {
+					extensions: ["~entry.ts", "~/entry.ts"],
+				},
+			}),
+		);
+
+		const result = await discoverAndLoadExtensions([], tempDir, tempDir);
+
+		expect(result.errors).toHaveLength(0);
+		expect(result.extensions.map((extension) => extension.path).sort()).toEqual(
+			[directExtensionPath, slashExtensionPath].sort(),
+		);
 	});
 
 	it("package.json can declare multiple extensions", async () => {
@@ -310,11 +371,17 @@ describe("extensions discovery", () => {
 		expect(result.extensions[0].tools.has("parse_duration")).toBe(true);
 	});
 
-	it("registers message renderers", async () => {
+	it("registers message and entry renderers", async () => {
 		const extCode = `
 			export default function(pi) {
+				pi.registerMarkdownTransformer((markdown) => {
+					return markdown;
+				});
 				pi.registerMessageRenderer("my-custom-type", (message, options, theme) => {
 					return null; // Use default rendering
+				});
+				pi.registerEntryRenderer("my-entry-type", (entry, options, theme) => {
+					return null;
 				});
 			}
 		`;
@@ -324,7 +391,9 @@ describe("extensions discovery", () => {
 
 		expect(result.errors).toHaveLength(0);
 		expect(result.extensions).toHaveLength(1);
+		expect(result.extensions[0].markdownTransformer).toBeDefined();
 		expect(result.extensions[0].messageRenderers.has("my-custom-type")).toBe(true);
+		expect(result.extensions[0].entryRenderers?.has("my-entry-type")).toBe(true);
 	});
 
 	it("reports error when extension throws during initialization", async () => {

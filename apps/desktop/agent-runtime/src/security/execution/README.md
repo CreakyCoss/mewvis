@@ -106,8 +106,9 @@ not promise that malicious plugins cannot deliberately detach background process
   Their `config.ts` files contain parsers, not another set of editable settings.
 - `cli/control.ts`: application status/setup entry.
 
-Pi owns its tool factories and Bash language in `runtimes/pi/tools/worker.ts` and
-`tools/bash.ts`. Model/session control, questions and delegation stay in the host.
+Pi owns its tool factories in `runtimes/pi/tools/worker.ts` and `tools/shell.ts`.
+`platforms/*/process.ts` selects the available command shell. Model/session
+control, questions and delegation stay in the host.
 Builtin transaction ordering stays in `engines/builtins/workspace-queue.ts`.
 The same worker runs in either execution mode. PluginHost and plugin UI are outside
 this Agent-tool boundary.
@@ -124,10 +125,15 @@ sandboxing. Setup invokes the bundled `sandbox-control.js install`, which calls
 SRT's installer; the OS requests one UAC confirmation. Agent tools never invoke
 this setup action. A cancelled installation leaves execution unavailable. The
 same controller supports `node sandbox-control.js status` for diagnostics.
-Both x64 and ARM64 helpers ship in runtime resources. Bash calls require native
-Git Bash/MSYS2/Cygwin; WSL launchers are not selected as native Bash. File and
-plugin tools do not require Bash. Node and the worker use PowerShell only as the
-Windows startup shell. The Bash tool retains Bash command syntax.
+Both x64 and ARM64 helpers ship in runtime resources. Command tools prefer native
+Git Bash/MSYS2/Cygwin; WSL launchers are not selected as native Bash. When native
+Bash is absent, the adapter selects PowerShell 7 or Windows PowerShell, including
+the standard system location when it is missing from PATH. It exposes Pi's
+`powershell` tool with PowerShell syntax, UTF-8 output and no profile loading.
+The default allocation permits either tool; explicit tool allowlists must include
+`powershell` to use it. If neither shell exists, file and plugin tools remain
+available. Both command tools retain the same approval, sandbox and timeout flow.
+Windows sandbox initialization is separate from shell selection.
 
 The Windows backend is **alpha** and applies ACLs to one machine-wide sandbox
 account. Separate SRT instances alone do not isolate their grants. Isle uses an
@@ -167,7 +173,8 @@ backend-specific network and account limitations.
 
 Validation from `apps/desktop`: `pnpm test:agent-runtime:sandbox` runs the platform
 contract/lease/packaging checks and real OS execution checks. On Windows, first
-initialize the sandbox and install Git for Windows. The suite checks conflicting
+initialize the sandbox. The Bash-specific sandbox suite still requires native Bash;
+`pnpm test:agent-runtime:shell` also checks PowerShell without Git Bash. The suite checks conflicting
 scopes are rejected, equal scopes coexist, and cleanup preserves remaining grants.
 Native Windows runtime claims require running that suite on a Windows machine;
 cross-compilation and macOS tests alone do not prove Windows isolation.

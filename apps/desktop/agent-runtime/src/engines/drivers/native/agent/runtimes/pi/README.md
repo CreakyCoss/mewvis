@@ -3,9 +3,22 @@
 Isle assembles tool implementations in `tools/worker.ts`, built as
 `pi-tool-worker.js`. `tools/index.ts` passes that executable entry to the common
 program executor and registers RPC-backed tools. `agent/resources.ts` loads those
-tools and skills. Pi itself is not modified. The implementations follow Pi's
+tools and skills. The vendored Pi version is 0.85.1. The implementations follow Pi's
 [`sandbox` example](https://github.com/earendil-works/pi/tree/main/packages/coding-agent/examples/extensions/sandbox)
 and [`subagent` example](https://github.com/earendil-works/pi/tree/main/packages/coding-agent/examples/extensions/subagent).
+
+`model/index.ts` creates Pi's async `ModelRuntime` with in-memory credentials and
+the model/endpoint supplied by Isle. Agent sessions and plain chat share this
+model/auth adapter. The previous Anthropic missing-usage fix is retained in the
+upgraded API implementation and covered by its SSE regression test.
+Runtime bundling explicitly uses Isle's tsconfig so Pi's development aliases do
+not mix its source modules with package exports from `dist`.
+
+`tools/shell.ts` uses Pi's Bash or PowerShell factory. POSIX keeps Bash; Windows
+prefers native Bash and falls back to PowerShell 7, then Windows PowerShell.
+Detection belongs to `security/platforms/*/process.ts`. The model receives the
+actual tool name and language. Both tools are default capabilities, but only the
+selected shell is registered; explicit allowlists and child ceilings still apply.
 
 ## Execution safety and tool allocation
 
@@ -116,7 +129,9 @@ From `apps/desktop`:
 ```sh
 pnpm test:agent-runtime:sandbox
 pnpm test:agent-runtime:pi-extensions
+pnpm test:agent-runtime:pi-chat
 pnpm test:agent-runtime:permissions
+pnpm test:agent-runtime:shell
 ```
 
 The test runs actual OS sandbox allow/deny checks and the real Pi SDK against a

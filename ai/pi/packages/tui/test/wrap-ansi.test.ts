@@ -101,6 +101,26 @@ describe("wrapTextWithAnsi", () => {
 	});
 
 	describe("basic wrapping", () => {
+		it("should handle LF, CRLF, and CR line endings", () => {
+			assert.deepStrictEqual(wrapTextWithAnsi("first\nsecond\r\nthird\rfourth", 80), [
+				"first",
+				"second",
+				"third",
+				"fourth",
+			]);
+		});
+
+		it("should preserve ANSI state across CRLF and CR line endings", () => {
+			const red = "\x1b[31m";
+			const reset = "\x1b[0m";
+
+			assert.deepStrictEqual(wrapTextWithAnsi(`${red}first\r\nsecond\rthird${reset}`, 80), [
+				`${red}first`,
+				`${red}second`,
+				`${red}third${reset}`,
+			]);
+		});
+
 		it("should wrap plain text correctly", () => {
 			const text = "hello world this is a test";
 			const wrapped = wrapTextWithAnsi(text, 10);
@@ -108,6 +128,30 @@ describe("wrapTextWithAnsi", () => {
 			assert.ok(wrapped.length > 1);
 			for (const line of wrapped) {
 				assert.ok(visibleWidth(line) <= 10);
+			}
+		});
+
+		it("should break CJK runs at grapheme boundaries after Latin text", () => {
+			const text = "This is an example 中文汉字测试段落内容中文汉字测试段落内容.";
+			const wrapped = wrapTextWithAnsi(text, 40);
+
+			assert.deepStrictEqual(wrapped, ["This is an example 中文汉字测试段落内容", "中文汉字测试段落内容."]);
+			for (const line of wrapped) {
+				assert.ok(visibleWidth(line) <= 40);
+			}
+		});
+
+		it("should preserve color codes when wrapping CJK runs", () => {
+			const red = "\x1b[31m";
+			const reset = "\x1b[0m";
+			const text = `${red}This is an example 中文汉字测试段落内容中文汉字测试段落内容.${reset}`;
+			const wrapped = wrapTextWithAnsi(text, 40);
+
+			assert.strictEqual(wrapped.length, 2);
+			assert.strictEqual(wrapped[0], `${red}This is an example 中文汉字测试段落内容`);
+			assert.strictEqual(wrapped[1], `${red}中文汉字测试段落内容.${reset}`);
+			for (const line of wrapped) {
+				assert.ok(visibleWidth(line) <= 40);
 			}
 		});
 

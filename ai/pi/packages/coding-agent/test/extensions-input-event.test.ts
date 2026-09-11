@@ -5,8 +5,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AuthStorage } from "../src/core/auth-storage.ts";
 import { discoverAndLoadExtensions } from "../src/core/extensions/loader.ts";
 import { ExtensionRunner } from "../src/core/extensions/runner.ts";
-import { ModelRegistry } from "../src/core/model-registry.ts";
 import { SessionManager } from "../src/core/session-manager.ts";
+
+import { createInMemoryModelRegistry } from "./model-runtime-test-utils.ts";
 
 describe("Input Event", () => {
 	let tempDir: string;
@@ -29,7 +30,7 @@ describe("Input Event", () => {
 		for (let i = 0; i < extensions.length; i++) fs.writeFileSync(path.join(extensionsDir, `e${i}.ts`), extensions[i]);
 		const result = await discoverAndLoadExtensions([], tempDir, tempDir);
 		const sm = SessionManager.inMemory();
-		const mr = ModelRegistry.create(AuthStorage.create(path.join(tempDir, "auth.json")));
+		const mr = await createInMemoryModelRegistry(AuthStorage.inMemory());
 		return new ExtensionRunner(result.extensions, result.runtime, tempDir, sm, mr);
 	}
 
@@ -92,6 +93,18 @@ describe("Input Event", () => {
 			await r.emitInput("x", undefined, source);
 			expect((globalThis as any).testVar).toBe(source);
 		}
+	});
+
+	it("passes streamingBehavior correctly", async () => {
+		const r = await createRunner(
+			`export default p => p.on("input", async e => { globalThis.testVar = e.streamingBehavior; return { action: "continue" }; });`,
+		);
+		await r.emitInput("x", undefined, "interactive", "steer");
+		expect((globalThis as any).testVar).toBe("steer");
+		await r.emitInput("x", undefined, "interactive", "followUp");
+		expect((globalThis as any).testVar).toBe("followUp");
+		await r.emitInput("x", undefined, "interactive");
+		expect((globalThis as any).testVar).toBeUndefined();
 	});
 
 	it("catches handler errors and continues", async () => {

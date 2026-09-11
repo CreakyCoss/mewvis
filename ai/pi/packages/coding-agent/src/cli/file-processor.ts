@@ -7,8 +7,9 @@ import type { ImageContent } from "@earendil-works/pi-ai";
 import chalk from "chalk";
 import { resolve } from "path";
 import { resolveReadPath } from "../core/tools/path-utils.ts";
-import { formatDimensionNote, resizeImage } from "../utils/image-resize.ts";
+import { processImage } from "../utils/image-process.ts";
 import { detectSupportedImageMimeTypeFromFile } from "../utils/mime.ts";
+import { stripBom } from "../utils/text.ts";
 
 export interface ProcessedFiles {
 	text: string;
@@ -50,43 +51,30 @@ export async function processFileArguments(fileArgs: string[], options?: Process
 		if (mimeType) {
 			// Handle image file
 			const content = await readFile(absolutePath);
-			const base64Content = content.toString("base64");
+			const processed = await processImage(content, mimeType, { autoResizeImages });
 
-			let attachment: ImageContent;
-			let dimensionNote: string | undefined;
-
-			if (autoResizeImages) {
-				const resized = await resizeImage({ type: "image", data: base64Content, mimeType });
-				if (!resized) {
-					text += `<file name="${absolutePath}">[Image omitted: could not be resized below the inline image size limit.]</file>\n`;
-					continue;
-				}
-				dimensionNote = formatDimensionNote(resized);
-				attachment = {
-					type: "image",
-					mimeType: resized.mimeType,
-					data: resized.data,
-				};
-			} else {
-				attachment = {
-					type: "image",
-					mimeType,
-					data: base64Content,
-				};
+			if (!processed.ok) {
+				text += `<file name="${absolutePath}">${processed.message}</file>\n`;
+				continue;
 			}
 
+			const attachment: ImageContent = {
+				type: "image",
+				mimeType: processed.mimeType,
+				data: processed.data,
+			};
 			images.push(attachment);
 
-			// Add text reference to image with optional dimension note
-			if (dimensionNote) {
-				text += `<file name="${absolutePath}">${dimensionNote}</file>\n`;
+			// Add text reference to image with optional processing hints
+			if (processed.hints.length > 0) {
+				text += `<file name="${absolutePath}">${processed.hints.join("\n")}</file>\n`;
 			} else {
 				text += `<file name="${absolutePath}"></file>\n`;
 			}
 		} else {
 			// Handle text file
 			try {
-				const content = await readFile(absolutePath, "utf-8");
+				const content = stripBom(await readFile(absolutePath, "utf-8"));
 				text += `<file name="${absolutePath}">\n${content}\n</file>\n`;
 			} catch (error: unknown) {
 				const message = error instanceof Error ? error.message : String(error);

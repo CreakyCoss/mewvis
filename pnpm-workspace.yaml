@@ -1,5 +1,6 @@
 packages:
   - "ai/pi/packages/*"
+  - "ai/pi/packages/session-backends/*"
   - "apps/*"
   - "packages/*"
   - "apps/desktop/plugin-host/plugins/chat-playground"

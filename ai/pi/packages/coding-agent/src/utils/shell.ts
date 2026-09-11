@@ -1,21 +1,31 @@
 import { existsSync } from "node:fs";
-import { delimiter } from "node:path";
+import { delimiter, join } from "node:path";
 import { spawn, spawnSync } from "child_process";
 import { getBinDir } from "../config.ts";
 
 export interface ShellConfig {
 	shell: string;
 	args: string[];
+	commandTransport?: "argv" | "stdin";
 }
 
 /**
  * Find bash executable on PATH (cross-platform)
  */
-function findBashOnPath(): string | null {
+function isLegacyWslBashPath(path: string): boolean {
+	const normalized = path.replace(/\//g, "\\").toLowerCase();
+	return /^[a-z]:\\windows\\(?:system32|sysnative)\\bash\.exe$/.test(normalized);
+}
+
+function getBashShellConfig(shell: string): ShellConfig {
+	return isLegacyWslBashPath(shell) ? { shell, args: ["-s"], commandTransport: "stdin" } : { shell, args: ["-c"] };
+}
+
+function findExecutableOnPath(executable: string): string | null {
 	if (process.platform === "win32") {
 		// Windows: Use 'where' and verify file exists (where can return non-existent paths)
 		try {
-			const result = spawnSync("where", ["bash.exe"], {
+			const result = spawnSync("where", [executable], {
 				encoding: "utf-8",
 				timeout: 5000,
 				windowsHide: true,
@@ -34,7 +44,7 @@ function findBashOnPath(): string | null {
 
 	// Unix: Use 'which' and trust its output (handles Termux and special filesystems)
 	try {
-		const result = spawnSync("which", ["bash"], { encoding: "utf-8", timeout: 5000 });
+		const result = spawnSync("which", [executable], { encoding: "utf-8", timeout: 5000 });
 		if (result.status === 0 && result.stdout) {
 			const firstMatch = result.stdout.trim().split(/\r?\n/)[0];
 			if (firstMatch) {
@@ -58,7 +68,7 @@ export function getShellConfig(customShellPath?: string): ShellConfig {
 	// 1. Check user-specified shell path
 	if (customShellPath) {
 		if (existsSync(customShellPath)) {
-			return { shell: customShellPath, args: ["-c"] };
+			return getBashShellConfig(customShellPath);
 		}
 		throw new Error(`Custom shell path not found: ${customShellPath}`);
 	}
@@ -77,14 +87,14 @@ export function getShellConfig(customShellPath?: string): ShellConfig {
 
 		for (const path of paths) {
 			if (existsSync(path)) {
-				return { shell: path, args: ["-c"] };
+				return getBashShellConfig(path);
 			}
 		}
 
 		// 3. Fallback: search bash.exe on PATH (Cygwin, MSYS2, WSL, etc.)
-		const bashOnPath = findBashOnPath();
+		const bashOnPath = findExecutableOnPath("bash.exe");
 		if (bashOnPath) {
-			return { shell: bashOnPath, args: ["-c"] };
+			return getBashShellConfig(bashOnPath);
 		}
 
 		throw new Error(
@@ -98,15 +108,31 @@ export function getShellConfig(customShellPath?: string): ShellConfig {
 
 	// Unix: try /bin/bash, then bash on PATH, then fallback to sh
 	if (existsSync("/bin/bash")) {
-		return { shell: "/bin/bash", args: ["-c"] };
+		return getBashShellConfig("/bin/bash");
 	}
 
-	const bashOnPath = findBashOnPath();
+	const bashOnPath = findExecutableOnPath("bash");
 	if (bashOnPath) {
-		return { shell: bashOnPath, args: ["-c"] };
+		return getBashShellConfig(bashOnPath);
 	}
 
 	return { shell: "sh", args: ["-c"] };
+}
+
+export const POWERSHELL_ARGS = ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command"] as const;
+
+/** Resolve PowerShell on Windows, preferring PowerShell 7 when available. */
+export function getPowerShellConfig(): ShellConfig {
+	if (process.platform !== "win32") {
+		throw new Error("The powershell tool is only available on Windows.");
+	}
+
+	const shell = findExecutableOnPath("pwsh.exe") ?? findExecutableOnPath("powershell.exe");
+	if (!shell) {
+		throw new Error("No PowerShell executable found. Install PowerShell or add powershell.exe/pwsh.exe to PATH.");
+	}
+
+	return { shell, args: [...POWERSHELL_ARGS] };
 }
 
 export function getShellEnv(): NodeJS.ProcessEnv {
@@ -189,15 +215,21 @@ export function killTrackedDetachedChildren(): void {
  */
 export function killProcessTree(pid: number): void {
 	if (process.platform === "win32") {
-		// Use taskkill on Windows to kill process tree
+		// Use the trusted System32 executable so cleanup does not depend on PATH.
 		try {
-			spawn("taskkill", ["/F", "/T", "/PID", String(pid)], {
-				stdio: "ignore",
-				detached: true,
-				windowsHide: true,
-			});
+			const child = spawn(
+				join(process.env.SystemRoot ?? "C:\\Windows", "System32", "taskkill.exe"),
+				["/F", "/T", "/PID", String(pid)],
+				{
+					stdio: "ignore",
+					detached: true,
+					windowsHide: true,
+				},
+			);
+			// A failed spawn emits "error" asynchronously; consume it to avoid crashing Node.
+			child.once("error", () => {});
 		} catch {
-			// Ignore errors if taskkill fails
+			// Ignore errors if taskkill fails.
 		}
 	} else {
 		// Use SIGKILL on Unix/Linux/Mac

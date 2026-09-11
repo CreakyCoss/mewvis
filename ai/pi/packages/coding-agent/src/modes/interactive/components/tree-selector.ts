@@ -4,15 +4,18 @@ import {
 	type Focusable,
 	getKeybindings,
 	Input,
+	type Keybinding,
 	Spacer,
+	sliceByColumn,
 	Text,
-	TruncatedText,
 	truncateToWidth,
+	visibleWidth,
+	wrapTextWithAnsi,
 } from "@earendil-works/pi-tui";
 import type { SessionTreeNode } from "../../../core/session-manager.ts";
 import { theme } from "../theme/theme.ts";
 import { DynamicBorder } from "./dynamic-border.ts";
-import { keyHint, keyText } from "./keybinding-hints.ts";
+import { formatKeyText, keyHint } from "./keybinding-hints.ts";
 
 /** Gutter info: position (displayIndent where connector was) and whether to show │ */
 interface GutterInfo {
@@ -33,6 +36,59 @@ interface FlatNode {
 	gutters: GutterInfo[];
 	/** True if this node is a root under a virtual branching root (multiple roots) */
 	isVirtualRootChild: boolean;
+}
+
+interface HorizontalViewportRow {
+	gutter: string;
+	body: string;
+	anchorCol: number;
+	bodyWidth: number;
+	isSelected: boolean;
+}
+
+const TREE_GUTTER_WIDTH = 2;
+const MIN_VISIBLE_ANCHOR_CONTENT_WIDTH = 4;
+const MAX_VISIBLE_ANCHOR_CONTENT_WIDTH = 20;
+const MIN_ANCHOR_CONTEXT_WIDTH = 2;
+const MAX_ANCHOR_CONTEXT_WIDTH = 12;
+
+/**
+ * Render tree rows into a horizontally clipped viewport.
+ *
+ * The tree gutter is always kept visible. The row bodies are shifted left only
+ * when the selected row's anchor (the start of its entry text after tree
+ * indentation/markers) would otherwise be too far right to see useful content.
+ */
+function renderHorizontalViewport(rows: HorizontalViewportRow[], width: number): string[] {
+	const viewportWidth = Math.max(0, width - TREE_GUTTER_WIDTH);
+	const maxBodyWidth = rows.reduce((max, row) => Math.max(max, row.bodyWidth), 0);
+	const maxHorizontalScroll = Math.max(0, maxBodyWidth - viewportWidth);
+	const selectedRow = rows.find((row) => row.isSelected);
+
+	// Only pan horizontally when needed to keep enough selected-row content visible after its anchor.
+	let horizontalScroll = 0;
+	if (selectedRow && maxHorizontalScroll > 0) {
+		const minVisibleAnchorContentWidth = Math.min(
+			MAX_VISIBLE_ANCHOR_CONTENT_WIDTH,
+			Math.max(MIN_VISIBLE_ANCHOR_CONTENT_WIDTH, Math.floor(viewportWidth / 3)),
+		);
+		if (selectedRow.anchorCol > viewportWidth - minVisibleAnchorContentWidth) {
+			const anchorContextWidth = Math.min(
+				MAX_ANCHOR_CONTEXT_WIDTH,
+				Math.max(MIN_ANCHOR_CONTEXT_WIDTH, Math.floor(viewportWidth / 4)),
+			);
+			horizontalScroll = Math.min(maxHorizontalScroll, selectedRow.anchorCol - anchorContextWidth);
+		}
+	}
+
+	// Clip only the body; the fixed-width gutter remains visible as navigation context.
+	return rows.map((row) => {
+		const line =
+			horizontalScroll > 0
+				? `${row.gutter}${sliceByColumn(row.body, horizontalScroll, viewportWidth, true)}\x1b[0m`
+				: row.gutter + row.body;
+		return truncateToWidth(line, width, "");
+	});
 }
 
 /** Filter mode for tree display */
@@ -66,6 +122,7 @@ class TreeList implements Component {
 
 	public onSelect?: (entryId: string) => void;
 	public onCancel?: () => void;
+	public onCopy?: (text: string | undefined) => void;
 	public onLabelEdit?: (entryId: string, currentLabel: string | undefined) => void;
 
 	constructor(
@@ -567,6 +624,11 @@ class TreeList implements Component {
 		return this.filteredNodes[this.selectedIndex]?.node;
 	}
 
+	copySelected(): void {
+		const node = this.getSelectedNode();
+		this.onCopy?.(node ? this.getEntryCopyText(node) : undefined);
+	}
+
 	updateNodeLabel(entryId: string, label: string | undefined, labelTimestamp?: string): void {
 		for (const flatNode of this.flatNodes) {
 			if (flatNode.node.entry.id === entryId) {
@@ -617,6 +679,7 @@ class TreeList implements Component {
 		);
 		const endIndex = Math.min(startIndex + this.maxVisibleLines, this.filteredNodes.length);
 
+		const renderedRows: HorizontalViewportRow[] = [];
 		for (let i = startIndex; i < endIndex; i++) {
 			const flatNode = this.filteredNodes[i];
 			const entry = flatNode.node.entry;
@@ -680,14 +743,18 @@ class TreeList implements Component {
 					? theme.fg("muted", `${this.formatLabelTimestamp(flatNode.node.labelTimestamp)} `)
 					: "";
 			const content = this.getEntryDisplayText(flatNode.node, isSelected);
-
-			let line = cursor + theme.fg("dim", prefix) + foldMarker + pathMarker + label + labelTimestamp + content;
+			const prefixPart = theme.fg("dim", prefix) + foldMarker + pathMarker;
+			const anchorCol = visibleWidth(prefixPart);
+			let gutter = cursor;
+			let body = prefixPart + label + labelTimestamp + content;
 			if (isSelected) {
-				line = theme.bg("selectedBg", line);
+				gutter = theme.bg("selectedBg", gutter);
+				body = theme.bg("selectedBg", body);
 			}
-			lines.push(truncateToWidth(line, width));
+			renderedRows.push({ gutter, body, anchorCol, bodyWidth: visibleWidth(body), isSelected });
 		}
 
+		lines.push(...renderHorizontalViewport(renderedRows, width));
 		lines.push(
 			truncateToWidth(
 				theme.fg("muted", `  (${this.selectedIndex + 1}/${this.filteredNodes.length})${this.getStatusLabels()}`),
@@ -810,19 +877,49 @@ class TreeList implements Component {
 	}
 
 	private extractContent(content: unknown): string {
-		const maxLen = 200;
-		if (typeof content === "string") return content.slice(0, maxLen);
-		if (Array.isArray(content)) {
-			let result = "";
-			for (const c of content) {
-				if (typeof c === "object" && c !== null && "type" in c && c.type === "text") {
-					result += (c as { text: string }).text;
-					if (result.length >= maxLen) return result.slice(0, maxLen);
-				}
+		return this.extractFullContent(content).slice(0, 200);
+	}
+
+	private extractFullContent(content: unknown): string {
+		if (typeof content === "string") return content;
+		if (!Array.isArray(content)) return "";
+
+		let result = "";
+		for (const block of content) {
+			if (typeof block === "object" && block !== null && "type" in block && block.type === "text") {
+				result += (block as { text: string }).text;
 			}
-			return result;
 		}
-		return "";
+		return result;
+	}
+
+	private getEntryCopyText(node: SessionTreeNode): string | undefined {
+		const entry = node.entry;
+		let text: string | undefined;
+
+		switch (entry.type) {
+			case "message":
+				if (entry.message.role === "bashExecution") {
+					text = entry.message.command;
+				} else if ("content" in entry.message) {
+					text = this.extractFullContent(entry.message.content);
+					if (!text && entry.message.role === "assistant") {
+						text = entry.message.errorMessage;
+					}
+				}
+				break;
+			case "custom_message":
+				text = this.extractFullContent(entry.content);
+				break;
+			case "compaction":
+				text = entry.summary;
+				break;
+			case "branch_summary":
+				text = entry.summary;
+				break;
+		}
+
+		return text?.trim() ? text : undefined;
 	}
 
 	private hasTextContent(content: unknown): boolean {
@@ -929,6 +1026,8 @@ class TreeList implements Component {
 			if (selected && this.onSelect) {
 				this.onSelect(selected.node.entry.id);
 			}
+		} else if (kb.matches(keyData, "app.message.copy")) {
+			this.copySelected();
 		} else if (kb.matches(keyData, "tui.select.cancel")) {
 			if (this.searchQuery) {
 				this.searchQuery = "";
@@ -1075,6 +1174,99 @@ class SearchLine implements Component {
 	handleInput(_keyData: string): void {}
 }
 
+/** Component that renders tree help as semantic rows with chunk-aware wrapping */
+class TreeHelp implements Component {
+	invalidate(): void {}
+
+	render(width: number): string[] {
+		const items = TREE_HELP_ITEMS.map(({ keys, label, labelFirst }) => {
+			const text = formatHelpKeys(keys);
+			if (!text) return label;
+			return labelFirst ? `${label} ${text}` : `${text} ${label}`;
+		});
+
+		const availableWidth = Math.max(1, width);
+		const indent = "  ";
+		const separator = " · ";
+		const lines: string[] = [];
+		let currentLine = "";
+
+		for (const item of items) {
+			const candidate = currentLine
+				? `${currentLine}${separator}${item}`
+				: visibleWidth(`${indent}${item}`) <= availableWidth
+					? `${indent}${item}`
+					: item;
+			if (!currentLine || visibleWidth(candidate) <= availableWidth) {
+				currentLine = candidate;
+				continue;
+			}
+
+			lines.push(...wrapTextWithAnsi(currentLine.trimEnd(), availableWidth));
+			currentLine = visibleWidth(`${indent}${item}`) <= availableWidth ? `${indent}${item}` : item;
+		}
+
+		if (currentLine) {
+			lines.push(...wrapTextWithAnsi(currentLine.trimEnd(), availableWidth));
+		}
+
+		return lines.map((line) => theme.fg("muted", line));
+	}
+}
+
+const TREE_HELP_ITEMS: Array<{ keys: Keybinding[]; label: string; labelFirst?: boolean }> = [
+	{ keys: ["tui.select.up", "tui.select.down"], label: "move" },
+	{ keys: ["tui.editor.cursorLeft", "tui.editor.cursorRight"], label: "page" },
+	{ keys: ["app.tree.foldOrUp", "app.tree.unfoldOrDown"], label: "branch" },
+	{ keys: ["app.message.copy"], label: "copy" },
+	{ keys: ["app.tree.editLabel"], label: "label" },
+	{ keys: ["app.tree.toggleLabelTimestamp"], label: "label time" },
+	{
+		keys: [
+			"app.tree.filter.default",
+			"app.tree.filter.noTools",
+			"app.tree.filter.userOnly",
+			"app.tree.filter.labeledOnly",
+			"app.tree.filter.all",
+		],
+		label: "filters",
+		labelFirst: true,
+	},
+	{ keys: ["app.tree.filter.cycleForward", "app.tree.filter.cycleBackward"], label: "cycle", labelFirst: true },
+];
+
+function formatHelpKeys(keybindings: Keybinding[]): string {
+	const keys: string[] = [];
+	for (const keybinding of keybindings) {
+		const key = getKeybindings().getKeys(keybinding)[0];
+		if (key !== undefined) keys.push(key);
+	}
+	if (keys.length === 0) return "";
+
+	return formatKeyText(compactRawKeys(keys))
+		.replace(/\bpageUp\b/g, "pgup")
+		.replace(/\bpageDown\b/g, "pgdn")
+		.replace(/\bup\b/g, "↑")
+		.replace(/\bdown\b/g, "↓")
+		.replace(/\bleft\b/g, "←")
+		.replace(/\bright\b/g, "→");
+}
+
+function compactRawKeys(keys: string[]): string {
+	if (keys.length === 1) return keys[0]!;
+
+	const parts = keys.map((key) => {
+		const separatorIndex = key.lastIndexOf("+");
+		return separatorIndex === -1
+			? { prefix: "", suffix: key }
+			: { prefix: key.slice(0, separatorIndex + 1), suffix: key.slice(separatorIndex + 1) };
+	});
+	const prefix = parts[0]!.prefix;
+	return prefix && parts.every((part) => part.prefix === prefix)
+		? `${prefix}${parts.map((part) => part.suffix).join("/")}`
+		: keys.join("/");
+}
+
 /** Label input component shown when editing a label */
 class LabelInput implements Component, Focusable {
 	private input: Input;
@@ -1139,6 +1331,7 @@ export class TreeSelectorComponent extends Container implements Focusable {
 	private labelInputContainer: Container;
 	private treeContainer: Container;
 	private onLabelChangeCallback?: (entryId: string, label: string | undefined) => void;
+	public onCopy?: (text: string | undefined) => void;
 
 	// Focusable implementation - propagate to labelInput when active for IME cursor positioning
 	private _focused = false;
@@ -1171,6 +1364,7 @@ export class TreeSelectorComponent extends Container implements Focusable {
 		this.treeList = new TreeList(tree, currentLeafId, maxVisibleLines, initialSelectedId, initialFilterMode);
 		this.treeList.onSelect = onSelect;
 		this.treeList.onCancel = onCancel;
+		this.treeList.onCopy = (text) => this.onCopy?.(text);
 		this.treeList.onLabelEdit = (entryId, currentLabel) => this.showLabelInput(entryId, currentLabel);
 
 		this.treeContainer = new Container();
@@ -1181,25 +1375,7 @@ export class TreeSelectorComponent extends Container implements Focusable {
 		this.addChild(new Spacer(1));
 		this.addChild(new DynamicBorder());
 		this.addChild(new Text(theme.bold("  Session Tree"), 1, 0));
-		const filterKeys = [
-			keyText("app.tree.filter.default"),
-			keyText("app.tree.filter.noTools"),
-			keyText("app.tree.filter.userOnly"),
-			keyText("app.tree.filter.labeledOnly"),
-			keyText("app.tree.filter.all"),
-		].join("/");
-		const cycleKeys = `${keyText("app.tree.filter.cycleForward")}/${keyText("app.tree.filter.cycleBackward")}`;
-		const branchKeys = `${keyText("app.tree.foldOrUp")}/${keyText("app.tree.unfoldOrDown")}`;
-		this.addChild(
-			new TruncatedText(
-				theme.fg(
-					"muted",
-					`  ↑/↓: move. ←/→: page. ${branchKeys}: fold/branch. ${keyText("app.tree.editLabel")}: label. ${filterKeys}: filters (${cycleKeys} cycle). ${keyText("app.tree.toggleLabelTimestamp")}: label time`,
-				),
-				0,
-				0,
-			),
-		);
+		this.addChild(new TreeHelp());
 		this.addChild(new SearchLine(this.treeList));
 		this.addChild(new DynamicBorder());
 		this.addChild(new Spacer(1));

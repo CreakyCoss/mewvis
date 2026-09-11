@@ -4,21 +4,21 @@
 import type { ImagesApi, ImagesModel } from "./types.ts";
 
 export const IMAGE_MODELS = {
-	"openrouter": {
+	openrouter: {
 		"black-forest-labs/flux.2-flex": {
 			id: "black-forest-labs/flux.2-flex",
 			name: "Black Forest Labs: FLUX.2 Flex",
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
+			input: ["text", "image"],
 			output: ["image"],
-			cost: 	{
-	  "input": 0,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"black-forest-labs/flux.2-klein-4b": {
 			id: "black-forest-labs/flux.2-klein-4b",
@@ -26,14 +26,14 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
+			input: ["text", "image"],
 			output: ["image"],
-			cost: 	{
-	  "input": 0,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"black-forest-labs/flux.2-max": {
 			id: "black-forest-labs/flux.2-max",
@@ -41,14 +41,14 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
+			input: ["text", "image"],
 			output: ["image"],
-			cost: 	{
-	  "input": 0,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"black-forest-labs/flux.2-pro": {
 			id: "black-forest-labs/flux.2-pro",
@@ -56,14 +56,14 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
+			input: ["text", "image"],
 			output: ["image"],
-			cost: 	{
-	  "input": 0,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"bytedance-seed/seedream-4.5": {
 			id: "bytedance-seed/seedream-4.5",
@@ -71,14 +71,44 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["image","text"],
+			input: ["image", "text"],
 			output: ["image"],
-			cost: 	{
-	  "input": 0,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"bytedance-seed/seedream-5-0-lite": {
+			id: "bytedance-seed/seedream-5-0-lite",
+			name: "ByteDance Seed: Seedream 5.0 Lite",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["text", "image"],
+			output: ["image"],
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"bytedance-seed/seedream-5-0-pro": {
+			id: "bytedance-seed/seedream-5-0-pro",
+			name: "ByteDance Seed: Seedream 5.0 Pro",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["text", "image"],
+			output: ["image"],
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"google/gemini-2.5-flash-image": {
 			id: "google/gemini-2.5-flash-image",
@@ -86,14 +116,29 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["image","text"],
-			output: ["image","text"],
-			cost: 	{
-	  "input": 0.3,
-	  "output": 2.5,
-	  "cacheRead": 0.03,
-	  "cacheWrite": 0.08333333333333334
-	}
+			input: ["image", "text"],
+			output: ["image", "text"],
+			cost: {
+				input: 0.3,
+				output: 2.5,
+				cacheRead: 0.03,
+				cacheWrite: 0.0833333333333333,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"google/gemini-3-pro-image": {
+			id: "google/gemini-3-pro-image",
+			name: "Google: Nano Banana Pro (Gemini 3 Pro Image)",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["image", "text"],
+			output: ["image", "text"],
+			cost: {
+				input: 2,
+				output: 12,
+				cacheRead: 0.19999999999999998,
+				cacheWrite: 0.375,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"google/gemini-3-pro-image-preview": {
 			id: "google/gemini-3-pro-image-preview",
@@ -101,14 +146,29 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["image","text"],
-			output: ["image","text"],
-			cost: 	{
-	  "input": 2,
-	  "output": 12,
-	  "cacheRead": 0.19999999999999998,
-	  "cacheWrite": 0.375
-	}
+			input: ["image", "text"],
+			output: ["image", "text"],
+			cost: {
+				input: 2,
+				output: 12,
+				cacheRead: 0.19999999999999998,
+				cacheWrite: 0.375,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"google/gemini-3.1-flash-image": {
+			id: "google/gemini-3.1-flash-image",
+			name: "Google: Nano Banana 2 (Gemini 3.1 Flash Image)",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["image", "text"],
+			output: ["image", "text"],
+			cost: {
+				input: 0.5,
+				output: 3,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"google/gemini-3.1-flash-image-preview": {
 			id: "google/gemini-3.1-flash-image-preview",
@@ -116,14 +176,89 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["image","text"],
-			output: ["image","text"],
-			cost: 	{
-	  "input": 0.5,
-	  "output": 3,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			input: ["image", "text"],
+			output: ["image", "text"],
+			cost: {
+				input: 0.5,
+				output: 3,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"google/gemini-3.1-flash-lite-image": {
+			id: "google/gemini-3.1-flash-lite-image",
+			name: "Google: Nano Banana 2 Lite (Gemini 3.1 Flash Lite Image)",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["image", "text"],
+			output: ["image", "text"],
+			cost: {
+				input: 0.25,
+				output: 1.5,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"krea/krea-2-large": {
+			id: "krea/krea-2-large",
+			name: "Krea: Krea 2 Large",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["text", "image"],
+			output: ["image"],
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"krea/krea-2-medium": {
+			id: "krea/krea-2-medium",
+			name: "Krea: Krea 2 Medium",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["text", "image"],
+			output: ["image"],
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"krea/krea-2-medium-turbo": {
+			id: "krea/krea-2-medium-turbo",
+			name: "Krea: Krea 2 Medium Turbo",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["text", "image"],
+			output: ["image"],
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"meta/muse-image": {
+			id: "meta/muse-image",
+			name: "Meta: Muse Image",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["text", "image"],
+			output: ["image"],
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"microsoft/mai-image-2.5": {
 			id: "microsoft/mai-image-2.5",
@@ -131,14 +266,59 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
+			input: ["text", "image"],
 			output: ["image"],
-			cost: 	{
-	  "input": 5,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			cost: {
+				input: 5,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"microsoft/mai-image-2.5-pro": {
+			id: "microsoft/mai-image-2.5-pro",
+			name: "Microsoft: MAI-Image-2.5 Pro",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["text", "image"],
+			output: ["image"],
+			cost: {
+				input: 5,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"microsoft/mai-image-2.6": {
+			id: "microsoft/mai-image-2.6",
+			name: "Microsoft: MAI-Image-2.6",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["text", "image"],
+			output: ["image"],
+			cost: {
+				input: 5,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"microsoft/mai-image-2.6-flash": {
+			id: "microsoft/mai-image-2.6-flash",
+			name: "Microsoft: MAI-Image-2.6 Flash",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["text", "image"],
+			output: ["image"],
+			cost: {
+				input: 1.75,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"openai/gpt-5-image": {
 			id: "openai/gpt-5-image",
@@ -146,14 +326,14 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["image","text"],
-			output: ["image","text"],
-			cost: 	{
-	  "input": 10,
-	  "output": 10,
-	  "cacheRead": 1.25,
-	  "cacheWrite": 0
-	}
+			input: ["image", "text"],
+			output: ["image", "text"],
+			cost: {
+				input: 10,
+				output: 10,
+				cacheRead: 1.25,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"openai/gpt-5-image-mini": {
 			id: "openai/gpt-5-image-mini",
@@ -161,14 +341,14 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["image","text"],
-			output: ["image","text"],
-			cost: 	{
-	  "input": 2.5,
-	  "output": 2,
-	  "cacheRead": 0.25,
-	  "cacheWrite": 0
-	}
+			input: ["image", "text"],
+			output: ["image", "text"],
+			cost: {
+				input: 2.5,
+				output: 2,
+				cacheRead: 0.25,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"openai/gpt-5.4-image-2": {
 			id: "openai/gpt-5.4-image-2",
@@ -176,14 +356,59 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["image","text"],
-			output: ["image","text"],
-			cost: 	{
-	  "input": 8,
-	  "output": 15,
-	  "cacheRead": 2,
-	  "cacheWrite": 0
-	}
+			input: ["image", "text"],
+			output: ["image", "text"],
+			cost: {
+				input: 8,
+				output: 15,
+				cacheRead: 2,
+				cacheWrite: 0,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"openai/gpt-image-1": {
+			id: "openai/gpt-image-1",
+			name: "OpenAI: GPT Image 1",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["text", "image"],
+			output: ["image"],
+			cost: {
+				input: 10,
+				output: 10,
+				cacheRead: 1.25,
+				cacheWrite: 0,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"openai/gpt-image-1-mini": {
+			id: "openai/gpt-image-1-mini",
+			name: "OpenAI: GPT Image 1 Mini",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["text", "image"],
+			output: ["image"],
+			cost: {
+				input: 2.5,
+				output: 2.5,
+				cacheRead: 0.25,
+				cacheWrite: 0,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"openai/gpt-image-2": {
+			id: "openai/gpt-image-2",
+			name: "OpenAI: GPT Image 2",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["text", "image"],
+			output: ["image"],
+			cost: {
+				input: 8,
+				output: 8,
+				cacheRead: 2,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"openrouter/auto": {
 			id: "openrouter/auto",
@@ -191,14 +416,59 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
-			output: ["text","image"],
-			cost: 	{
-	  "input": -1000000,
-	  "output": -1000000,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			input: ["text", "image"],
+			output: ["text", "image"],
+			cost: {
+				input: -1000000,
+				output: -1000000,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"openrouter/auto-beta": {
+			id: "openrouter/auto-beta",
+			name: "Auto Router (Beta)",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["text", "image"],
+			output: ["text", "image"],
+			cost: {
+				input: -1000000,
+				output: -1000000,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"qwen/qwen-image-3": {
+			id: "qwen/qwen-image-3",
+			name: "Qwen: Qwen Image 3",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["text", "image"],
+			output: ["image"],
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"qwen/qwen-image-3-pro": {
+			id: "qwen/qwen-image-3-pro",
+			name: "Qwen: Qwen Image 3 Pro",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["text", "image"],
+			output: ["image"],
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"recraft/recraft-v3": {
 			id: "recraft/recraft-v3",
@@ -206,14 +476,14 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
+			input: ["text", "image"],
 			output: ["image"],
-			cost: 	{
-	  "input": 0,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"recraft/recraft-v4": {
 			id: "recraft/recraft-v4",
@@ -221,14 +491,14 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
+			input: ["text", "image"],
 			output: ["image"],
-			cost: 	{
-	  "input": 0,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"recraft/recraft-v4-pro": {
 			id: "recraft/recraft-v4-pro",
@@ -236,14 +506,14 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
+			input: ["text", "image"],
 			output: ["image"],
-			cost: 	{
-	  "input": 0,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"recraft/recraft-v4-pro-vector": {
 			id: "recraft/recraft-v4-pro-vector",
@@ -251,14 +521,74 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
+			input: ["text", "image"],
 			output: ["image"],
-			cost: 	{
-	  "input": 0,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"recraft/recraft-v4-styles": {
+			id: "recraft/recraft-v4-styles",
+			name: "Recraft: Recraft V4 Styles",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["text", "image"],
+			output: ["image"],
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"recraft/recraft-v4-styles-pro": {
+			id: "recraft/recraft-v4-styles-pro",
+			name: "Recraft: Recraft V4 Styles Pro",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["text", "image"],
+			output: ["image"],
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"recraft/recraft-v4-styles-pro-vector": {
+			id: "recraft/recraft-v4-styles-pro-vector",
+			name: "Recraft: Recraft V4 Styles Pro Vector",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["text", "image"],
+			output: ["image"],
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"recraft/recraft-v4-styles-vector": {
+			id: "recraft/recraft-v4-styles-vector",
+			name: "Recraft: Recraft V4 Styles Vector",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["text", "image"],
+			output: ["image"],
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"recraft/recraft-v4-vector": {
 			id: "recraft/recraft-v4-vector",
@@ -266,14 +596,14 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
+			input: ["text", "image"],
 			output: ["image"],
-			cost: 	{
-	  "input": 0,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"recraft/recraft-v4.1": {
 			id: "recraft/recraft-v4.1",
@@ -281,14 +611,14 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
+			input: ["text", "image"],
 			output: ["image"],
-			cost: 	{
-	  "input": 0,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"recraft/recraft-v4.1-pro": {
 			id: "recraft/recraft-v4.1-pro",
@@ -296,14 +626,14 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
+			input: ["text", "image"],
 			output: ["image"],
-			cost: 	{
-	  "input": 0,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"recraft/recraft-v4.1-pro-vector": {
 			id: "recraft/recraft-v4.1-pro-vector",
@@ -311,14 +641,14 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
+			input: ["text", "image"],
 			output: ["image"],
-			cost: 	{
-	  "input": 0,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"recraft/recraft-v4.1-utility": {
 			id: "recraft/recraft-v4.1-utility",
@@ -326,14 +656,14 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
+			input: ["text", "image"],
 			output: ["image"],
-			cost: 	{
-	  "input": 0,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"recraft/recraft-v4.1-utility-pro": {
 			id: "recraft/recraft-v4.1-utility-pro",
@@ -341,14 +671,14 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
+			input: ["text", "image"],
 			output: ["image"],
-			cost: 	{
-	  "input": 0,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"recraft/recraft-v4.1-vector": {
 			id: "recraft/recraft-v4.1-vector",
@@ -356,14 +686,14 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
+			input: ["text", "image"],
 			output: ["image"],
-			cost: 	{
-	  "input": 0,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"sourceful/riverflow-v2-fast": {
 			id: "sourceful/riverflow-v2-fast",
@@ -371,44 +701,14 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
+			input: ["text", "image"],
 			output: ["image"],
-			cost: 	{
-	  "input": 0,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
-		} satisfies ImagesModel<"openrouter-images">,
-		"sourceful/riverflow-v2-fast-preview": {
-			id: "sourceful/riverflow-v2-fast-preview",
-			name: "Sourceful: Riverflow V2 Fast Preview",
-			api: "openrouter-images",
-			provider: "openrouter",
-			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
-			output: ["image"],
-			cost: 	{
-	  "input": 0,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
-		} satisfies ImagesModel<"openrouter-images">,
-		"sourceful/riverflow-v2-max-preview": {
-			id: "sourceful/riverflow-v2-max-preview",
-			name: "Sourceful: Riverflow V2 Max Preview",
-			api: "openrouter-images",
-			provider: "openrouter",
-			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
-			output: ["image"],
-			cost: 	{
-	  "input": 0,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"sourceful/riverflow-v2-pro": {
 			id: "sourceful/riverflow-v2-pro",
@@ -416,44 +716,74 @@ export const IMAGE_MODELS = {
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
+			input: ["text", "image"],
 			output: ["image"],
-			cost: 	{
-	  "input": 0,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
-		"sourceful/riverflow-v2-standard-preview": {
-			id: "sourceful/riverflow-v2-standard-preview",
-			name: "Sourceful: Riverflow V2 Standard Preview",
+		"sourceful/riverflow-v2.5-fast": {
+			id: "sourceful/riverflow-v2.5-fast",
+			name: "Sourceful: Riverflow V2.5 Fast",
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
+			input: ["text", "image"],
 			output: ["image"],
-			cost: 	{
-	  "input": 0,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"sourceful/riverflow-v2.5-pro": {
+			id: "sourceful/riverflow-v2.5-pro",
+			name: "Sourceful: Riverflow V2.5 Pro",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["text", "image"],
+			output: ["image"],
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
+		} satisfies ImagesModel<"openrouter-images">,
+		"x-ai/grok-imagine-image-2.0": {
+			id: "x-ai/grok-imagine-image-2.0",
+			name: "xAI: Grok Imagine Image 2.0",
+			api: "openrouter-images",
+			provider: "openrouter",
+			baseUrl: "https://openrouter.ai/api/v1",
+			input: ["text", "image"],
+			output: ["image"],
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 		"x-ai/grok-imagine-image-quality": {
 			id: "x-ai/grok-imagine-image-quality",
-			name: "xAI: Grok Imagine Image Quality",
+			name: "SpaceXAI: Grok Imagine Image Quality",
 			api: "openrouter-images",
 			provider: "openrouter",
 			baseUrl: "https://openrouter.ai/api/v1",
-			input: ["text","image"],
+			input: ["text", "image"],
 			output: ["image"],
-			cost: 	{
-	  "input": 0,
-	  "output": 0,
-	  "cacheRead": 0,
-	  "cacheWrite": 0
-	}
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
 		} satisfies ImagesModel<"openrouter-images">,
 	},
 } as const satisfies Record<string, Record<string, ImagesModel<ImagesApi>>>;

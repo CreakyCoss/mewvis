@@ -102,6 +102,7 @@ export async function createPiToolSet(
       ...pluginNames.filter((name) => !resources.tools?.allowed || resources.tools.allowed.includes(name)),
     ];
     const enabled = [...new Set(allocated)]
+      .filter((name) => names.includes(name) || name === "subagent" || name === "ask_user")
       .filter((name) => !options.toolCeiling || options.toolCeiling.includes(name))
       .filter((name) => !options.subagent || (name !== "subagent" && name !== "ask_user"));
     const builtinNames = new Set(builtins.requiredTools.internal.map((tool) => tool.name));
@@ -115,7 +116,7 @@ export async function createPiToolSet(
           signal?.throwIfAborted();
           const parameters = args as Record<string, unknown>;
           const timeout =
-            descriptor.name === "bash" &&
+            (descriptor.name === "bash" || descriptor.name === "powershell") &&
             typeof parameters.timeout === "number" &&
             Number.isFinite(parameters.timeout) &&
             parameters.timeout > 0
@@ -167,7 +168,7 @@ export async function createPiToolSet(
       installSafety: (session: PiAgentSession) => installPiSafety(session, command, callbacks, policies.safety),
       registerExtensions(pi: ExtensionAPI) {
         pi.on("user_bash", () => {
-          throw new Error("请通过 bash 工具调用统一执行程序。");
+          throw new Error("请通过已分配的 Shell 工具调用统一执行程序。");
         });
       },
       async dispose() {

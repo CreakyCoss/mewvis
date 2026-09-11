@@ -5,6 +5,10 @@ export const detached = true;
 export const shutdownTimeoutMs = 750;
 export const shell = undefined;
 
+export function resolveCommandShell() {
+  return { name: "bash" as const, executable: "/bin/bash", args: ["-c"], commandPrefix: "" };
+}
+
 export function executionEnvironment(names: readonly string[], source = process.env) {
   return Object.fromEntries(names.flatMap((name) => (source[name] === undefined ? [] : [[name, source[name]!]])));
 }

@@ -16,6 +16,8 @@ const entryPoints = Object.values(entries).map(({ source, output }) => {
 await rm(join(runtimeRoot, "dist"), { recursive: true, force: true });
 await build({
   entryPoints,
+  // Use package exports consistently; Pi's development aliases target its sources.
+  tsconfig: join(runtimeRoot, "tsconfig.json"),
   outdir: join(runtimeRoot, "dist"),
   bundle: true,
   platform: "node",

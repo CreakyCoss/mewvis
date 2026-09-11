@@ -18,6 +18,7 @@
     "test:agent-runtime:idle-timeout": "node scripts/agent-runtime/idle-timeout-e2e.mjs",
     "test:agent-runtime:user-input": "node scripts/agent-runtime/user-input-e2e.mjs",
     "test:agent-runtime:pi-extensions": "node scripts/agent-runtime/pi-extensions-e2e.mjs",
+    "test:agent-runtime:pi-chat": "node scripts/agent-runtime/pi-chat-e2e.mjs",
     "generate:agent-runtime:protocol": "node agent-runtime/protocol/scripts/generate-bindings.mjs",
     "check:agent-runtime:protocol-bindings": "node agent-runtime/protocol/scripts/generate-bindings.mjs --check",
     "test:agent-runtime:protocol": "pnpm check:agent-runtime:protocol-bindings && pnpm build:agent-runtime && node scripts/agent-runtime/frontend-contract-e2e.mjs && node scripts/agent-runtime/protocol-stdio-e2e.mjs && cargo test --manifest-path src-tauri/Cargo.toml commands::agent_runtime::protocol::tests",
@@ -59,6 +60,7 @@
     "test:chat:plugin": "pnpm build:plugin-host && pnpm exec tsc -p scripts/chat/tsconfig.plugin.json && isle-plugin pack scripts/chat/fixtures/plugin && node scripts/chat/test-plugin.mjs",
     "test:plugin-dev": "pnpm build:chat-ui && pnpm exec tsc -p scripts/plugin-dev/tsconfig.json && pnpm --filter @isle/plugin-dev test",
     "test:agent-runtime:permissions": "node scripts/agent-runtime/permissions-e2e.mjs",
+    "test:agent-runtime:shell": "node scripts/agent-runtime/shell-e2e.mjs",
     "test:agent-runtime:sandbox": "pnpm build:agent-runtime && node scripts/agent-runtime/sandbox-platform-e2e.mjs && node scripts/agent-runtime/sandbox-execution-e2e.mjs",
     "test:agent-runtime:sandbox-platform": "node scripts/agent-runtime/sandbox-platform-e2e.mjs"
   },

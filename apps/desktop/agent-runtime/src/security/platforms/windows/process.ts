@@ -1,10 +1,39 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { join } from "node:path";
+import { existsSync } from "node:fs";
+import { join, win32 } from "node:path";
 import type { ExecutionProgram } from "../../execution/types.js";
 
 export const detached = false;
 export const shutdownTimeoutMs = 30_000;
 export const shell = "powershell";
+
+export function resolveCommandShell(source = process.env) {
+  const env = executionEnvironment(["PATH", "ProgramFiles", "ProgramFiles(x86)", "SystemRoot"], source);
+  const path = (env.PATH ?? "")
+    .split(win32.delimiter)
+    .map((entry) => entry.replace(/^"|"$/g, ""))
+    .filter(Boolean);
+  const bash = [
+    ...[env.ProgramFiles, env["ProgramFiles(x86)"]]
+      .filter(Boolean)
+      .map((root) => win32.join(root!, "Git", "bin", "bash.exe")),
+    ...path.map((root) => win32.join(root, "bash.exe")),
+  ].find((file) => !/[\\/]Windows[\\/](?:System32|Sysnative)[\\/]/i.test(file) && existsSync(file));
+  if (bash) return { name: "bash" as const, executable: bash, args: ["-c"], commandPrefix: "" };
+  const powershell = [
+    ...path.map((root) => win32.join(root, "pwsh.exe")),
+    ...(env.ProgramFiles ? [win32.join(env.ProgramFiles, "PowerShell", "7", "pwsh.exe")] : []),
+    ...path.map((root) => win32.join(root, "powershell.exe")),
+    win32.join(env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
+  ].find((file) => existsSync(file));
+  if (!powershell) return undefined;
+  return {
+    name: "powershell" as const,
+    executable: powershell,
+    args: ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command"],
+    commandPrefix: "try { [Console]::OutputEncoding=[System.Text.Encoding]::UTF8 } catch {}\n",
+  };
+}
 
 export function executionEnvironment(names: readonly string[], source = process.env) {
   const entries = Object.entries(source);

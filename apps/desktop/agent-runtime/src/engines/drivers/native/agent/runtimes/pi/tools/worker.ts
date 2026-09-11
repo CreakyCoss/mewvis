@@ -13,7 +13,7 @@ import { resolveBuiltins } from "../../../../../../builtins/index.js";
 import type { RuntimeAgentCommand } from "../../types.js";
 import { registerPiBuiltinTool } from "./builtin-tool.js";
 import { createPluginRuntimeBridge } from "../plugins/bridge.js";
-import { createPiBashTool } from "./bash.js";
+import { createPiShellTool } from "./shell.js";
 
 type Tool = Parameters<ExtensionAPI["registerTool"]>[0];
 let tools: Tool[] = [];
@@ -31,7 +31,8 @@ serveWorker({
       tools = [createReadTool, createEditTool, createWriteTool, createLsTool, createFindTool, createGrepTool].map(
         (create) => create(command.workspacePath) as Tool,
       );
-      tools.push(createPiBashTool(command.workspacePath) as Tool);
+      const shell = createPiShellTool(command.workspacePath);
+      if (shell) tools.push(shell as Tool);
       for (const tool of builtins.requiredTools.internal)
         registerPiBuiltinTool(collector, tool, { workspacePath: command.workspacePath });
       plugins = await createPluginRuntimeBridge(command);

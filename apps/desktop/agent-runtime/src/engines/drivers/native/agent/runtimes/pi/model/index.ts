@@ -1,4 +1,6 @@
-import { getModel, type Api, type Model } from "@earendil-works/pi-ai";
+import { InMemoryCredentialStore, type Api, type Model } from "@earendil-works/pi-ai";
+import { getBuiltinModel } from "@earendil-works/pi-ai/providers/all";
+import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import type { RuntimeApiFormat, RuntimeModelInput, RuntimeThinkingLevel } from "../../../../../../protocol/wire.js";
 import type { ChatRunCommand, RuntimeAgentCommand } from "../../types.js";
 
@@ -44,7 +46,7 @@ const piApiForFormat = (apiFormat: RuntimeApiFormat): Api => {
 };
 
 const readCatalogPiModel = (runtimeModel: RuntimeModelInput): Model<Api> | undefined =>
-  (getModel as (provider: string, modelId: string) => Model<Api> | undefined)(
+  (getBuiltinModel as (provider: string, modelId: string) => Model<Api> | undefined)(
     runtimeModel.provider,
     runtimeModel.catalogModelId,
   );
@@ -72,4 +74,22 @@ export const createPiRuntimeModel = (runtimeModel: RuntimeModelInput): Model<Api
     maxTokens: runtimeModel.maxTokens ?? catalogModel?.maxTokens ?? 16384,
     headers: runtimeModel.headers ?? catalogModel?.headers,
   };
+};
+
+export const createPiModelRuntime = async (runtimeModel: RuntimeModelInput, signal?: AbortSignal) => {
+  const apiKey = requirePiApiKey(runtimeModel);
+  const model = createPiRuntimeModel(runtimeModel);
+  const modelRuntime = await ModelRuntime.create({
+    credentials: new InMemoryCredentialStore(),
+    modelsPath: null,
+    refreshOnCreate: false,
+    signal,
+  });
+  modelRuntime.registerProvider(model.provider, {
+    api: model.api,
+    baseUrl: model.baseUrl,
+    models: [model],
+  });
+  await modelRuntime.setRuntimeApiKey(model.provider, apiKey, { signal });
+  return { model, modelRuntime };
 };

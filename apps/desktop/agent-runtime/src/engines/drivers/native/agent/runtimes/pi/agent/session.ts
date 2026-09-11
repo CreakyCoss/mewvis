@@ -1,12 +1,7 @@
-import { AuthStorage, createAgentSession, ModelRegistry, SessionManager } from "@earendil-works/pi-coding-agent";
+import { createAgentSession, SessionManager } from "@earendil-works/pi-coding-agent";
 import { mkdirSync } from "node:fs";
 import type { AgentRuntimeCallbacks, RuntimeAgentCommand } from "../../types.js";
-import {
-  createPiRuntimeModel,
-  requirePiApiKey,
-  requirePiRuntimeConfig,
-  resolvePiRuntimeThinkingLevel,
-} from "../model/index.js";
+import { createPiModelRuntime, requirePiRuntimeConfig, resolvePiRuntimeThinkingLevel } from "../model/index.js";
 import { createPiResourceLoader } from "./resources.js";
 import type { SafetyPolicy } from "../../../../../../../security/safety/index.js";
 import type { ExecutionPolicy } from "../../../../../../../security/execution/index.js";
@@ -33,19 +28,15 @@ export const createPiAgentSession = async (
   options: PiAgentSessionOptions = {},
 ): Promise<PiAgentSessionCreateResult> => {
   const runtimeModel = requirePiRuntimeConfig(command);
-  const apiKey = requirePiApiKey(runtimeModel);
-  const model = createPiRuntimeModel(runtimeModel);
+  const { model, modelRuntime } = await createPiModelRuntime(runtimeModel, options.signal);
   const thinkingLevel = resolvePiRuntimeThinkingLevel(runtimeModel);
-  const authStorage = AuthStorage.inMemory();
-  authStorage.setRuntimeApiKey(model.provider, apiKey);
   const resources = await createPiResourceLoader(command, callbacks, options);
   const sessionManager = createPiSessionManager(command);
   try {
     options.signal?.throwIfAborted();
     const { session } = await createAgentSession({
       cwd: command.workspacePath,
-      authStorage,
-      modelRegistry: ModelRegistry.inMemory(authStorage),
+      modelRuntime,
       sessionManager,
       resourceLoader: resources.loader,
       model,

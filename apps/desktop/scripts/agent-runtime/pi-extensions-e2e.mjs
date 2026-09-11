@@ -29,6 +29,7 @@ try {
   for (const name of [entries.executionHost.output, entries.piToolWorker.output, "vendor"])
     cpSync(join(desktop, "agent-runtime/dist", name), join(runtime, name), { recursive: true });
   await build({
+    tsconfig: join(desktop, "agent-runtime/tsconfig.json"),
     stdin: {
       contents: [
         `export * from ${JSON.stringify(join(desktop, "agent-runtime/src/security/safety/index.ts"))};`,

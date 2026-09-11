@@ -52,8 +52,14 @@ export const AGENT_TOOL_DEFINITIONS = Object.freeze([
   },
   {
     name: "bash",
-    label: "Shell",
-    description: "执行工作区 shell 命令",
+    label: "Bash",
+    description: "执行工作区 Bash 命令",
+    enabledByDefault: true,
+  },
+  {
+    name: "powershell",
+    label: "PowerShell",
+    description: "Windows 无原生 Bash 时执行 PowerShell 命令",
     enabledByDefault: true,
   },
   {

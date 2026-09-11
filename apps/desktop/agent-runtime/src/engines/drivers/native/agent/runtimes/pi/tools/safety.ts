@@ -56,7 +56,7 @@ export function analyzePiExecution(request: ExecutionRequest): OperationAnalysis
         },
       ],
     };
-  if (name === "bash") {
+  if (name === "bash" || name === "powershell") {
     const { command } = request.input;
     if (typeof command !== "string" || !command.trim()) throw new Error("Shell 操作缺少有效命令。");
     // Parsing a command name cannot account for scripts, expansions or subprocesses.

@@ -61,6 +61,8 @@ const handlePiSessionEvent = (
   switch (event.type) {
     case "agent_start":
     case "agent_end":
+    case "agent_settled":
+    case "entry_appended":
     case "turn_start":
     case "turn_end":
     case "message_start":
@@ -69,6 +71,10 @@ const handlePiSessionEvent = (
     case "session_info_changed":
     case "thinking_level_changed":
     case "auto_retry_start":
+    case "summarization_retry_scheduled":
+    case "summarization_retry_attempt_start":
+    case "summarization_retry_finished":
+    case "bash_execution_update":
       return;
     case "compaction_end":
       if (event.errorMessage && !event.willRetry) {

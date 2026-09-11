@@ -4,11 +4,15 @@
 # Mirrors .github/workflows/build-binaries.yml
 #
 # Usage:
-#   ./scripts/build-binaries.sh [--skip-deps] [--platform <platform>]
+#   ./scripts/build-binaries.sh [--skip-install] [--skip-deps] [--skip-build] [--offline-model-data] [--platform <platform>] [--out <dir>]
 #
 # Options:
-#   --skip-deps         Skip installing cross-platform dependencies
-#   --platform <name>   Build only for specified platform (darwin-arm64, darwin-x64, linux-x64, linux-arm64, windows-x64, windows-arm64)
+#   --skip-install       Skip npm ci
+#   --skip-deps          Skip installing cross-platform dependencies
+#   --skip-build         Skip the package build
+#   --offline-model-data Build with bundled model data instead of refreshing it
+#   --platform <name>    Build only for specified platform (darwin-arm64, darwin-x64, linux-x64, linux-arm64, windows-x64, windows-arm64)
+#   --out <dir>          Output directory (default: packages/coding-agent/binaries)
 #
 # Output:
 #   packages/coding-agent/binaries/
@@ -23,17 +27,37 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+SKIP_INSTALL=false
 SKIP_DEPS=false
+SKIP_BUILD=false
+OFFLINE_MODEL_DATA=false
 PLATFORM=""
+OUTPUT_DIR=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --skip-install)
+            SKIP_INSTALL=true
+            shift
+            ;;
         --skip-deps)
             SKIP_DEPS=true
             shift
             ;;
+        --skip-build)
+            SKIP_BUILD=true
+            shift
+            ;;
+        --offline-model-data)
+            OFFLINE_MODEL_DATA=true
+            shift
+            ;;
         --platform)
             PLATFORM="$2"
+            shift 2
+            ;;
+        --out)
+            OUTPUT_DIR="$2"
             shift 2
             ;;
         *)
@@ -56,45 +80,77 @@ if [[ -n "$PLATFORM" ]]; then
     esac
 fi
 
-echo "==> Installing dependencies..."
-npm ci --ignore-scripts
+if [[ -z "$OUTPUT_DIR" ]]; then
+    OUTPUT_DIR="packages/coding-agent/binaries"
+fi
+if [[ "$OUTPUT_DIR" != /* ]]; then
+    OUTPUT_DIR="$(pwd)/$OUTPUT_DIR"
+fi
+
+if [[ "$SKIP_INSTALL" == "false" ]]; then
+    echo "==> Installing dependencies..."
+    npm ci --ignore-scripts
+else
+    echo "==> Skipping npm ci (--skip-install)"
+fi
 
 if [[ "$SKIP_DEPS" == "false" ]]; then
     echo "==> Installing cross-platform native bindings..."
-    # npm ci only installs optional deps for the current platform
-    # We need all platform bindings for bun cross-compilation
-    # Use --force to bypass platform checks (os/cpu restrictions in package.json)
-    # Install all in one command to avoid npm removing packages from previous installs
-    npm install --no-save --package-lock=false --force --ignore-scripts \
-        @mariozechner/clipboard-darwin-arm64@0.3.2 \
-        @mariozechner/clipboard-darwin-x64@0.3.2 \
-        @mariozechner/clipboard-linux-x64-gnu@0.3.2 \
-        @mariozechner/clipboard-linux-arm64-gnu@0.3.2 \
-        @mariozechner/clipboard-win32-x64-msvc@0.3.2 \
-        @mariozechner/clipboard-win32-arm64-msvc@0.3.2 \
-        @img/sharp-darwin-arm64@0.34.5 \
-        @img/sharp-darwin-x64@0.34.5 \
-        @img/sharp-linux-x64@0.34.5 \
-        @img/sharp-linux-arm64@0.34.5 \
-        @img/sharp-win32-x64@0.34.5 \
-        @img/sharp-win32-arm64@0.34.5 \
-        @img/sharp-libvips-darwin-arm64@1.2.4 \
-        @img/sharp-libvips-darwin-x64@1.2.4 \
-        @img/sharp-libvips-linux-x64@1.2.4 \
-        @img/sharp-libvips-linux-arm64@1.2.4
+    CLIPBOARD_VERSION=$(node -p "require('./packages/coding-agent/package.json').optionalDependencies['@mariozechner/clipboard']")
+    # npm ci only installs optional deps for the current platform. Install the
+    # cross-platform packages in isolation so npm does not re-resolve and mutate
+    # the workspace dependency graph, which can trigger npm/arborist failures.
+    NATIVE_DEPS_DIR=$(mktemp -d)
+    cleanup_native_deps() {
+        rm -rf "$NATIVE_DEPS_DIR"
+    }
+    trap cleanup_native_deps EXIT
+    printf '%s\n' '{"private":true}' > "$NATIVE_DEPS_DIR/package.json"
+    # Use --force to bypass platform checks (os/cpu restrictions in package.json).
+    npm install --prefix "$NATIVE_DEPS_DIR" --include=optional --no-save --package-lock=false --force --ignore-scripts \
+        @mariozechner/clipboard@"$CLIPBOARD_VERSION" \
+        @mariozechner/clipboard-darwin-arm64@"$CLIPBOARD_VERSION" \
+        @mariozechner/clipboard-darwin-x64@"$CLIPBOARD_VERSION" \
+        @mariozechner/clipboard-linux-x64-gnu@"$CLIPBOARD_VERSION" \
+        @mariozechner/clipboard-linux-arm64-gnu@"$CLIPBOARD_VERSION" \
+        @mariozechner/clipboard-win32-x64-msvc@"$CLIPBOARD_VERSION" \
+        @mariozechner/clipboard-win32-arm64-msvc@"$CLIPBOARD_VERSION"
+    mkdir -p node_modules/@mariozechner
+    for package in \
+        clipboard \
+        clipboard-darwin-arm64 \
+        clipboard-darwin-x64 \
+        clipboard-linux-x64-gnu \
+        clipboard-linux-arm64-gnu \
+        clipboard-win32-x64-msvc \
+        clipboard-win32-arm64-msvc; do
+        rm -rf "node_modules/@mariozechner/$package"
+        cp -R "$NATIVE_DEPS_DIR/node_modules/@mariozechner/$package" node_modules/@mariozechner/
+    done
+    cleanup_native_deps
+    trap - EXIT
 else
     echo "==> Skipping cross-platform native bindings (--skip-deps)"
 fi
 
-echo "==> Building all packages..."
-npm run build
+if [[ "$SKIP_BUILD" == "false" ]]; then
+    if [[ "$OFFLINE_MODEL_DATA" == "true" ]]; then
+        echo "==> Building all packages with bundled model data..."
+        npm run build:offline
+    else
+        echo "==> Building all packages..."
+        npm run build
+    fi
+else
+    echo "==> Skipping package build (--skip-build)"
+fi
 
 echo "==> Building binaries..."
 cd packages/coding-agent
 
 # Clean previous builds
-rm -rf binaries
-mkdir -p binaries/{darwin-arm64,darwin-x64,linux-x64,linux-arm64,windows-x64,windows-arm64}
+rm -rf "$OUTPUT_DIR"
+mkdir -p "$OUTPUT_DIR"/{darwin-arm64,darwin-x64,linux-x64,linux-arm64,windows-x64,windows-arm64}
 
 # Determine which platforms to build
 if [[ -n "$PLATFORM" ]]; then
@@ -103,16 +159,52 @@ else
     PLATFORMS=(darwin-arm64 darwin-x64 linux-x64 linux-arm64 windows-x64 windows-arm64)
 fi
 
+set_clipboard_target() {
+    case "$1" in
+        darwin-arm64)
+            clipboard_native_package="clipboard-darwin-arm64"
+            clipboard_native_file="clipboard.darwin-arm64.node"
+            ;;
+        darwin-x64)
+            clipboard_native_package="clipboard-darwin-x64"
+            clipboard_native_file="clipboard.darwin-x64.node"
+            ;;
+        linux-x64)
+            clipboard_native_package="clipboard-linux-x64-gnu"
+            clipboard_native_file="clipboard.linux-x64-gnu.node"
+            ;;
+        linux-arm64)
+            clipboard_native_package="clipboard-linux-arm64-gnu"
+            clipboard_native_file="clipboard.linux-arm64-gnu.node"
+            ;;
+        windows-x64)
+            clipboard_native_package="clipboard-win32-x64-msvc"
+            clipboard_native_file="clipboard.win32-x64-msvc.node"
+            ;;
+        windows-arm64)
+            clipboard_native_package="clipboard-win32-arm64-msvc"
+            clipboard_native_file="clipboard.win32-arm64-msvc.node"
+            ;;
+    esac
+}
+
 for platform in "${PLATFORMS[@]}"; do
     echo "Building for $platform..."
-    # Externalize koffi to avoid embedding all 18 platform .node files (~74MB)
-    # into every binary. Koffi is only used on Windows for VT input and the
-    # call site has a try/catch fallback. For Windows builds, we copy the
-    # appropriate .node file alongside the binary below.
+    bun_target="bun-$platform"
+    if [[ "$platform" == *-x64 ]]; then
+        bun_target="${bun_target}-baseline"
+    fi
+
+    # Bun compiled executables only embed worker scripts when they are passed as
+    # explicit build entrypoints. The runtime can still use new URL(...), but the
+    # worker must be present in the compiled executable.
+    #
+    # Disable cwd bunfig.toml autoload so project preload scripts cannot crash the
+    # standalone binary before pi starts (see #7684).
     if [[ "$platform" == windows-* ]]; then
-        bun build --compile --external koffi --target=bun-$platform ./dist/bun/cli.js --outfile binaries/$platform/pi.exe
+        bun build --compile --no-compile-autoload-bunfig --target="$bun_target" ./dist/bun/cli.js ./src/utils/image-resize-worker.ts --outfile "$OUTPUT_DIR/$platform/pi.exe"
     else
-        bun build --compile --external koffi --target=bun-$platform ./dist/bun/cli.js --outfile binaries/$platform/pi
+        bun build --compile --no-compile-autoload-bunfig --target="$bun_target" ./dist/bun/cli.js ./src/utils/image-resize-worker.ts --outfile "$OUTPUT_DIR/$platform/pi"
     fi
 done
 
@@ -120,68 +212,76 @@ echo "==> Creating release archives..."
 
 # Copy shared files to each platform directory
 for platform in "${PLATFORMS[@]}"; do
-    cp package.json binaries/$platform/
-    cp README.md binaries/$platform/
-    cp CHANGELOG.md binaries/$platform/
-    cp ../../node_modules/@silvia-odwyer/photon-node/photon_rs_bg.wasm binaries/$platform/
-    mkdir -p binaries/$platform/theme
-    cp dist/modes/interactive/theme/*.json binaries/$platform/theme/
-    mkdir -p binaries/$platform/assets
-    cp dist/modes/interactive/assets/* binaries/$platform/assets/
-    cp -r dist/core/export-html binaries/$platform/
-    cp -r docs binaries/$platform/
-    cp -r examples binaries/$platform/
+    cp package.json "$OUTPUT_DIR/$platform/"
+    cp README.md "$OUTPUT_DIR/$platform/"
+    cp CHANGELOG.md "$OUTPUT_DIR/$platform/"
+    cp ../../node_modules/@silvia-odwyer/photon-node/photon_rs_bg.wasm "$OUTPUT_DIR/$platform/"
+    mkdir -p "$OUTPUT_DIR/$platform/theme"
+    cp dist/modes/interactive/theme/*.json "$OUTPUT_DIR/$platform/theme/"
+    mkdir -p "$OUTPUT_DIR/$platform/assets"
+    cp dist/modes/interactive/assets/* "$OUTPUT_DIR/$platform/assets/"
+    cp -r dist/core/export-html "$OUTPUT_DIR/$platform/"
+    cp -r docs "$OUTPUT_DIR/$platform/"
+    cp -r examples "$OUTPUT_DIR/$platform/"
 
-    # Copy koffi native module for Windows (needed for VT input support)
+    set_clipboard_target "$platform"
+    mkdir -p "$OUTPUT_DIR/$platform/node_modules/@mariozechner"
+    cp -r ../../node_modules/@mariozechner/clipboard "$OUTPUT_DIR/$platform/node_modules/@mariozechner/"
+    cp "../../node_modules/@mariozechner/$clipboard_native_package/$clipboard_native_file" \
+        "$OUTPUT_DIR/$platform/node_modules/@mariozechner/clipboard/"
+
+    # Copy terminal input native helpers next to compiled binaries.
+    if [[ "$platform" == darwin-* ]]; then
+        mkdir -p "$OUTPUT_DIR/$platform/native/darwin/prebuilds/$platform"
+        cp ../tui/native/darwin/prebuilds/$platform/darwin-modifiers.node "$OUTPUT_DIR/$platform/native/darwin/prebuilds/$platform/"
+    fi
     if [[ "$platform" == windows-* ]]; then
         if [[ "$platform" == "windows-arm64" ]]; then
-            koffi_arch_dir="win32_arm64"
+            win32_arch_dir="win32-arm64"
         else
-            koffi_arch_dir="win32_x64"
+            win32_arch_dir="win32-x64"
         fi
-        mkdir -p binaries/$platform/node_modules/koffi/build/koffi/$koffi_arch_dir
-        cp ../../node_modules/koffi/index.js binaries/$platform/node_modules/koffi/
-        cp ../../node_modules/koffi/package.json binaries/$platform/node_modules/koffi/
-        cp ../../node_modules/koffi/build/koffi/$koffi_arch_dir/koffi.node binaries/$platform/node_modules/koffi/build/koffi/$koffi_arch_dir/
+        mkdir -p "$OUTPUT_DIR/$platform/native/win32/prebuilds/$win32_arch_dir"
+        cp ../tui/native/win32/prebuilds/$win32_arch_dir/win32-console-mode.node "$OUTPUT_DIR/$platform/native/win32/prebuilds/$win32_arch_dir/"
     fi
 done
 
 # Create archives
-cd binaries
+cd "$OUTPUT_DIR"
 
 for platform in "${PLATFORMS[@]}"; do
     if [[ "$platform" == windows-* ]]; then
         # Windows (zip)
         echo "Creating pi-$platform.zip..."
-        (cd $platform && zip -r ../pi-$platform.zip .)
+        (cd "$platform" && zip -r ../pi-$platform.zip .)
     else
         # Unix platforms (tar.gz) - use wrapper directory for mise compatibility
         echo "Creating pi-$platform.tar.gz..."
-        mv $platform pi && tar -czf pi-$platform.tar.gz pi && mv pi $platform
+        mv "$platform" pi && tar -czf pi-$platform.tar.gz pi && mv pi "$platform"
     fi
 done
 
 # Extract archives for easy local testing
 echo "==> Extracting archives for testing..."
 for platform in "${PLATFORMS[@]}"; do
-    rm -rf $platform
+    rm -rf "$platform"
     if [[ "$platform" == windows-* ]]; then
-        mkdir -p $platform && (cd $platform && unzip -q ../pi-$platform.zip)
+        mkdir -p "$platform" && (cd "$platform" && unzip -q ../pi-$platform.zip)
     else
-        tar -xzf pi-$platform.tar.gz && mv pi $platform
+        tar -xzf pi-$platform.tar.gz && mv pi "$platform"
     fi
 done
 
 echo ""
 echo "==> Build complete!"
-echo "Archives available in packages/coding-agent/binaries/"
+echo "Archives available in $OUTPUT_DIR/"
 ls -lh *.tar.gz *.zip 2>/dev/null || true
 echo ""
 echo "Extracted directories for testing:"
 for platform in "${PLATFORMS[@]}"; do
     if [[ "$platform" == windows-* ]]; then
-        echo "  binaries/$platform/pi.exe"
+        echo "  $OUTPUT_DIR/$platform/pi.exe"
     else
-        echo "  binaries/$platform/pi"
+        echo "  $OUTPUT_DIR/$platform/pi"
     fi
 done
