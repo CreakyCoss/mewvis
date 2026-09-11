@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>文档中心 · 沙箱预览</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font: 13px system-ui;
+        background: #edf0f6;
+      }
+      header {
+        height: 44px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        padding: 4px 16px;
+      }
+      button {
+        padding: 5px 12px;
+      }
+      iframe {
+        display: block;
+        border: 0;
+        width: 100%;
+        height: calc(100vh - 44px);
+        margin: auto;
+      }
+      #result {
+        margin-left: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong>真实沙箱 · 内存文档工具预览</strong><button id="theme">切换深色</button><button id="width">窄屏</button
+      ><button id="failure">模拟下次读取失败</button><span id="result" role="status"></span>
+    </header>
+    <iframe title="文档中心预览" sandbox="allow-scripts"></iframe>
+    <script type="module" src="./preview.mjs"></script>
+  </body>
+</html>

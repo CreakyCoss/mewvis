@@ -5,6 +5,7 @@ import {
   Blocks,
   CheckCircle2,
   Loader2,
+  Maximize2,
   RefreshCw,
   Settings2,
   TriangleAlert,
@@ -17,6 +18,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { usePluginLayout } from "@/features/app/layout/plugin-layout";
 import { usePluginCatalogStore } from "./catalog-store";
 import { PluginFrame } from "./plugin-frame";
 import { PluginPermissionSummary } from "./permission-summary";
@@ -217,15 +219,25 @@ const PluginDetail = ({
   error: string;
   refresh: () => Promise<void>;
 }) => {
+  const { fullscreen, canFullscreen, setFullscreen } = usePluginLayout();
   const status = plugin ? pluginStatus(plugin) : null;
   const StatusIcon = status?.icon;
   const isImmersiveWorkbench = Boolean(
-    plugin && !plugin.error && !plugin.uiError && plugin.ui?.kind === "sandbox" && plugin.ui.layout === "full",
+    plugin &&
+    !plugin.error &&
+    !plugin.uiError &&
+    plugin.ui?.kind === "sandbox" &&
+    (plugin.ui.layout === "full" || plugin.ui.layout === "fullscreen"),
   );
 
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface/45">
-      <header className="flex min-h-16 items-center justify-between gap-3 border-b border-border/70 bg-card/70 px-4 py-2.5 max-sm:px-2">
+      <header
+        className={cn(
+          "min-h-16 items-center justify-between gap-3 border-b border-border/70 bg-card/70 px-4 py-2.5 max-sm:px-2",
+          fullscreen ? "hidden" : "flex",
+        )}
+      >
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <Button asChild type="button" variant="ghost" size="icon" className="size-10 shrink-0 rounded-full">
             <NavLink to="/plugins" aria-label="返回插件列表">
@@ -259,6 +271,19 @@ const PluginDetail = ({
           </div>
         </div>
         <div className="flex items-center gap-1.5">
+          {canFullscreen ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-10 rounded-full"
+              onClick={() => setFullscreen(true)}
+              aria-label="进入插件全屏"
+              title="进入插件全屏"
+            >
+              <Maximize2 className="size-4" />
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="ghost"
@@ -326,7 +351,7 @@ const PluginDetail = ({
                     </Alert>
                   ) : null}
                   {!plugin.uiError && plugin.ui?.kind === "sandbox" ? (
-                    <PluginFrame plugin={plugin} />
+                    <PluginFrame key={plugin.id} plugin={plugin} />
                   ) : (
                     <PluginToolWorkbench plugin={plugin} />
                   )}

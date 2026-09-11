@@ -349,7 +349,7 @@ export const PluginFrame = ({
     );
   }
 
-  const full = plugin.ui?.kind === "sandbox" && plugin.ui.layout === "full";
+  const full = plugin.ui?.kind === "sandbox" && (plugin.ui.layout === "full" || plugin.ui.layout === "fullscreen");
   const frame = (
     <div className={full ? "relative h-full min-h-0" : "relative min-h-[520px]"}>
       {!isFrameReady ? (

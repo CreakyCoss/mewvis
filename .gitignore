@@ -10,6 +10,7 @@ Thumbs.db
 # Build outputs
 dist/
 dist-ssr
+docs/.generated/
 *.local
 build/
 *.class

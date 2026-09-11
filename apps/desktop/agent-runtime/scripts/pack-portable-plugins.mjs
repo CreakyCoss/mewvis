@@ -2,11 +2,13 @@ import { mkdir, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { discoverPluginSources, packPlugin, validatePlugin } from "@isle/plugin-dev/tooling";
+import { buildBook } from "../../scripts/docs/book.mjs";
 
 const runtimeRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const desktopRoot = join(runtimeRoot, "..");
 const outputRoot = join(runtimeRoot, "dist", "plugins");
 const pluginsRoot = join(desktopRoot, "plugin-host", "plugins");
+await buildBook();
 const builtinPlugins = await discoverPluginSources(pluginsRoot);
 if (builtinPlugins.length === 0) throw new Error(`没有发现内置插件：${pluginsRoot}`);
 

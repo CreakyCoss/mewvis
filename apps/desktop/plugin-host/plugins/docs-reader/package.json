@@ -1,0 +1,30 @@
+{
+  "name": "@isle/docs-reader",
+  "version": "0.1.0",
+  "description": "离线中文文档中心，提供章节目录、全文搜索和 Markdown 阅读。",
+  "type": "module",
+  "main": "./index.js",
+  "exports": "./index.js",
+  "dependencies": {
+    "@isle/plugin-sdk": "^0.1.0"
+  },
+  "isle": {
+    "plugin": {
+      "version": 1,
+      "entry": "./index.js"
+    },
+    "displayName": "文档中心",
+    "defaultEnabled": true,
+    "permissions": [
+      "open-external"
+    ],
+    "ui": {
+      "version": 1,
+      "kind": "sandbox",
+      "entry": "./isle-ui.js",
+      "style": "./isle-ui.css",
+      "title": "文档中心",
+      "layout": "fullscreen"
+    }
+  }
+}

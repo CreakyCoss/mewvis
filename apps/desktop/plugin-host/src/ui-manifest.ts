@@ -4,7 +4,7 @@ import { extname, isAbsolute, relative, resolve } from "node:path";
 export type PluginUiContribution = Readonly<{
   kind: "sandbox";
   title?: string;
-  layout?: "contained" | "full";
+  layout?: "contained" | "full" | "fullscreen";
 }>;
 
 export type PluginUiDocument = Readonly<{
@@ -43,8 +43,8 @@ const optionalTitle = (value: unknown) => {
 
 const optionalLayout = (value: unknown) => {
   if (value === undefined) return undefined;
-  if (value !== "contained" && value !== "full") {
-    throw new Error("isle.ui.layout 只支持 contained 或 full。");
+  if (value !== "contained" && value !== "full" && value !== "fullscreen") {
+    throw new Error("isle.ui.layout 只支持 contained、full 或 fullscreen。");
   }
   return value;
 };

@@ -90,7 +90,7 @@ export type PluginUiPlugin = {
   source: "bundled" | "installed";
   tools: PluginUiTool[];
   error: string | null;
-  ui: { kind: "sandbox"; title?: string; layout?: "contained" | "full" } | null;
+  ui: { kind: "sandbox"; title?: string; layout?: "contained" | "full" | "fullscreen" } | null;
   uiError: string | null;
   compatibility: { adapter: string; clientPlatform?: string | null }[];
   permissions: PluginPermission[];

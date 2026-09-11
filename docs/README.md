@@ -1,41 +1,31 @@
-# 项目结构说明
+# Isle 中文文档
 
-## 目录结构
+这里是 Isle 自有文档的统一入口。文档按主题分章，既可在仓库中阅读，也可通过应用内「文档中心」插件离线查阅。
 
-```
+## 从这里开始
+
+- [桌面应用开发](guide/desktop.md)：安装、启动与构建。
+- [插件开发](plugins/development.md)：从创建项目到工具、技能和界面接入。
+- [Agent 运行时](runtime/overview.md)：SDK、通信与协作工作流。
+- [Chat 架构](architecture/chat.md)：共享聊天核心、界面与桌面宿主。
+- [完整目录](SUMMARY.md)：按章节查找全部文档。
+
+## 仓库结构
+
+```text
 isle/
-├── claw/          # 你的代码
-├── ai/            # 外部依赖
-│   └── pi/        # 来自 https://github.com/earendil-works/pi.git
-├── docs/          # 文档
-└── .git/          # 项目 Git 仓库
+├── apps/desktop/          桌面前端、Rust 宿主、Agent 运行时及内置插件
+├── packages/             插件 SDK、开发工具链和共享契约
+├── ai/pi/                通过 Git Subtree 引入的上游依赖
+└── docs/                 按章节组织的中文文档
 ```
 
-## Git 仓库说明
+上游依赖、内置技能和分发模板的原始说明随各自资源保留。第三方许可不迁移、不改写。新增 Isle 说明写入这里，不在源码目录新增 README。
 
-本项目使用 **Git Subtree** 方式管理 `ai/pi` 目录，将上游仓库完全合并到本仓库中。
+## 阅读约定
 
-### 远程仓库
+正文默认使用简体中文，API 名称、路径、协议字段和可执行命令保留原名。页面中的源码相对路径以所介绍模块为基准，命令会注明执行目录。
 
-- `origin` → 你的仓库（https://gitee.com/creaky/isle.git）
-- 上游 pi → https://github.com/earendil-works/pi.git
+技术规格、设计方案和质量验收记录包含历史状态，不等同于当前功能承诺。[Chat 基座草案](CHAT_FOUNDATION_DRAFT.md)保留原稿，当前实现请以 [Chat 架构](architecture/chat.md)为准。
 
-详细操作说明请查看 [docs/git.md](git.md)
-
----
-
-## 快速操作
-
-| 操作 | 命令 |
-|------|------|
-| 拉取上游 pi | `make pull-pi` |
-| 推送代码 | `make push` |
-| 查看状态 | `make status` |
-| 查看日志 | `make log` |
-
----
-
-## 注意事项
-
-- `ai/pi` 目录内没有嵌套的 `.git`，它是本仓库的一部分
-- 团队成员 clone 后会直接获得完整的 `ai/pi` 代码
+文档目录与离线阅读器共用 [SUMMARY.md](SUMMARY.md)。修改后执行 `pnpm docs:check` 检查覆盖和链接，执行 `pnpm docs:build` 更新离线索引。详见 [文档维护](guide/documentation.md)。

@@ -391,6 +391,10 @@ fn resolve_service_path(app: &AppHandle) -> Result<PathBuf, String> {
         if path.is_file() {
             return Ok(path);
         }
+        return Err(format!(
+            "开发模式缺少 Plugin UI Host：{}。请在 apps/desktop 运行 pnpm build:agent-runtime。",
+            path.display()
+        ));
     }
     for candidate in [
         "_up_/agent-runtime/dist/plugin-host/service.mjs",

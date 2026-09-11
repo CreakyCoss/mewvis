@@ -9,7 +9,7 @@
     "entry": { "type": "string", "pattern": "^\\./.*\\.(m?js)$" },
     "style": { "type": "string", "pattern": "^\\./.*\\.css$" },
     "title": { "type": "string", "minLength": 1, "maxLength": 100 },
-    "layout": { "enum": ["contained", "full"] }
+    "layout": { "enum": ["contained", "full", "fullscreen"] }
   },
   "required": ["version", "kind", "entry"],
   "additionalProperties": false

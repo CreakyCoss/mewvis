@@ -28,7 +28,6 @@
     "templates",
     "dist",
     "tsconfig.json",
-    "README.md",
     "client.d.ts"
   ],
   "scripts": {
