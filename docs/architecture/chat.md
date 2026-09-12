@@ -38,7 +38,7 @@ src/chat/
 
 消息、会话和运行配置类型只在 `packages/chat-contracts/index.d.ts` 定义。核心内部直接从定义文件或共享包导入；`core/index.ts` 集中对外导出共享类型与核心 API，业务和其他层继续使用 `@/chat/core`。内部文件不再重复转导出共享类型，也不通过本层公共入口反向导入。
 
-`features/shell/chat-service.ts` 一次性创建应用级 service 和应用宿主、配置场景恢复器；`chat-integration.tsx` 一次性连接文件目录、聊天列表与未读状态、资源刷新、窗口明确关闭。业务页面不访问核心或输入区内部 Store。
+`workbench/shell/chat-service.ts` 一次性创建应用级 service 和应用宿主、配置场景恢复器；`chat-integration.tsx` 一次性连接文件目录、聊天列表与未读状态、资源刷新、窗口明确关闭。业务页面不访问核心或输入区内部 Store。
 
 业务创建会话使用 `useDesktopChatSession`；侧栏等历史入口使用 `useDesktopChatRecord`，由 `service.openRecord` 按磁盘记录查找原拥有者。应用记录通过启动时配置的 `resolveRecord` 校验权限并返回场景配置，service 统一复用或创建拥有者；恢复器不再调用 `openSession`。删除记录使用 `closeRecord(workspacePath, chatId)` 关闭实际拥有者，不根据侧栏入口猜测 scope。
 
@@ -194,7 +194,7 @@ Pi 继续使用 `chats/<chatId>/session` 下的原执行上下文和账本。核
 
 `@isle/app-sdk/chat` 提供无 UI 客户端，`@isle/app-sdk/chat/react` 提供同一套 Chat 和绑定。`desktop/application.ts` 将经过身份绑定的连接映射到应用级 service，校验配置和授权，隔离会话句柄，并转发带修订号的快照。它不再管理会话打开缓存或发送准备状态；`resolveSession` 只返回配置。动态上下文交给 `service.updateContext` 更新和保存，`viewPersistence` 只暴露展示偏好接口。应用与 SDK 共同引用 `@isle/chat-contracts`，核心不依赖应用实现。
 
-`features/shell/chat-service.ts` 连接实际应用权限、工作区和 service；`application-chat-native.ts` 一次性接入 Node 应用双向 stdio，StrictMode 共用原生事件监听。`ApplicationFrame` 连接 iframe 消息。应用 UI 按需加载由 `build:chat-ui` 从应用源码生成的共享脚本和样式；脚本和样式产物不提交。同一构建还生成 `packages/app/sdk/chat/react.d.ts`，该声明随 SDK 保留在仓库中；组件、hook 和 UI 类型不再手写第二份字段结构。生成器读取 SDK 的实际运行导出，保留公开类型名，并将核心契约和应用协议保留为包导入。
+`workbench/shell/chat-service.ts` 连接实际应用权限、工作区和 service；`application-chat-native.ts` 一次性接入 Node 应用双向 stdio，StrictMode 共用原生事件监听。`ApplicationFrame` 连接 iframe 消息。应用 UI 按需加载由 `build:chat-ui` 从应用源码生成的共享脚本和样式；脚本和样式产物不提交。同一构建还生成 `packages/app/sdk/chat/react.d.ts`，该声明随 SDK 保留在仓库中；组件、hook 和 UI 类型不再手写第二份字段结构。生成器读取 SDK 的实际运行导出，保留公开类型名，并将核心契约和应用协议保留为包导入。
 
 `pnpm check:chat-ui-types` 检查声明是否与源码同步，不改写声明。生成和检查均验证声明只引用公共依赖，并在不使用应用别名、不跳过声明检查的环境下进行 TypeScript 检查；应用契约测试另双向对照实际组件签名。
 

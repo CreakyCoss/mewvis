@@ -16,9 +16,9 @@ import type { AgentClientAgentEvent } from "../../src/agent-client/contracts";
 import { AgentRuntimeEventType as E } from "../../src/agent-client/wire";
 import type { DesktopChatService, DesktopSessionInput } from "../../src/chat/desktop";
 import { DesktopChatEnvironment } from "../../src/chat/desktop/react";
-import { WorkspaceChatRoute } from "../../src/features/pages/chats";
-import { ChatHomePage } from "../../src/features/pages/chats/home";
-import { useWorkspaceStore } from "../../src/features/pages/chats/workspace-store";
+import { WorkspaceChatRoute } from "../../src/workbench/pages/chats";
+import { ChatHomePage } from "../../src/workbench/pages/chats/home";
+import { useWorkspaceStore } from "../../src/workbench/pages/chats/workspace-store";
 import "../../src/App.css";
 
 if (isTauri()) throw new Error("测试页仅允许 Web 内存预览");

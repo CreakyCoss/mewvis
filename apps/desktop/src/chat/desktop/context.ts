@@ -1,6 +1,6 @@
-import type { KnowledgeSearchResult } from "@/features/pages/knowledge/types";
-import type { Skill } from "@/features/pages/skills/types";
-import type { AiAgent } from "@/features/pages/settings/agent/types";
+import type { KnowledgeSearchResult } from "@/workbench/pages/knowledge/types";
+import type { Skill } from "@/workbench/pages/skills/types";
+import type { AiAgent } from "@/workbench/pages/settings/agent/types";
 import type { MessageInput, ChatResources } from "../core";
 export type PromptInput = {
   blocks: NonNullable<MessageInput["blocks"]>;

@@ -12,7 +12,7 @@ const tsFiles = (directory) => collect(directory).filter((path) => /\.tsx?$/.tes
 const runtimeRoot = resolve(root, "agent-runtime/src");
 const frontendReferences = tsFiles(runtimeRoot).filter((path) => {
   const source = readFileSync(path, "utf8");
-  return source.includes("src/features/") || /from\s+["']@\//.test(source);
+  return source.includes("src/workbench/") || /from\s+["']@\//.test(source);
 });
 if (frontendReferences.length) {
   throw new Error(
@@ -20,7 +20,7 @@ if (frontendReferences.length) {
   );
 }
 
-const frontendStoryRoot = resolve(root, "src/features/pages/stories");
+const frontendStoryRoot = resolve(root, "src/workbench/pages/stories");
 const internalCoreImports = tsFiles(frontendStoryRoot).filter((path) =>
   /core\/story-project\/(?:definitions|documents|internal|story-types)/.test(readFileSync(path, "utf8")),
 );
@@ -384,7 +384,7 @@ if (
   throw new Error("Story 模块应自行组装技能与私有工具，通用 builtins index 只消费成品。");
 }
 
-for (const legacy of ["story-project", "protocols/story-project", "src/features/pages/stories/contracts"]) {
+for (const legacy of ["story-project", "protocols/story-project", "src/workbench/pages/stories/contracts"]) {
   if (existsSync(resolve(root, legacy))) throw new Error(`已废弃目录仍存在：${legacy}`);
 }
 console.log("[story-runtime-boundary] ok");

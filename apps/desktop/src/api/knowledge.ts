@@ -9,7 +9,7 @@ import type {
   SaveKnowledgeCollectionInput,
   SaveKnowledgeSettingsInput,
   SaveKnowledgeSourceInput,
-} from "@/features/pages/knowledge/types";
+} from "@/workbench/pages/knowledge/types";
 
 const previewNow = Date.now();
 

@@ -2,7 +2,7 @@ import { agentPermissionOptions } from "../../../src/agent-client/wire";
 import React, { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { isTauri } from "@tauri-apps/api/core";
-import { ApplicationFrame } from "../../../src/features/pages/applications/application-frame";
+import { ApplicationFrame } from "../../../src/workbench/pages/applications/application-frame";
 import { createChatSession, createChatService, type ChatRuntime } from "../../../src/chat/core";
 import { createApplicationChatHost } from "../../../src/chat/desktop/application";
 import type { DesktopChatService, DesktopSessionInput } from "../../../src/chat/desktop/service";

@@ -1,6 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type { AiAgent, SaveAiAgentInput } from "@/features/pages/settings/agent/types";
-import type { CollaborationWorkflow, SaveCollaborationWorkflowInput } from "@/features/pages/settings/workflow/types";
+import type { AiAgent, SaveAiAgentInput } from "@/workbench/pages/settings/agent/types";
+import type { CollaborationWorkflow, SaveCollaborationWorkflowInput } from "@/workbench/pages/settings/workflow/types";
 
 type AiAgentSettings = {
   agents: AiAgent[];

@@ -39,8 +39,8 @@ apps/desktop/
     builtins/               # 内置应用
   src/
     api/applications/       # 应用管理、数据和工具 API
-    features/shell/         # 桌面外壳、侧栏和布局
-    features/pages/applications/ # 应用页面与沙箱桥
+    workbench/shell/         # 桌面外壳、侧栏和布局
+    workbench/pages/applications/ # 应用页面与沙箱桥
   src-tauri/src/services/applications/ # 应用管理、数据、路径、UI 和工作区
   scripts/app/
     host/                   # 应用宿主集成验证

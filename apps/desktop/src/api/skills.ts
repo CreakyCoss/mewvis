@@ -9,7 +9,7 @@ import {
   type SearchSkillMarketplaceInput,
   type SkillMarketplaceSearchResult,
   type SkillSettings,
-} from "@/features/pages/skills/types";
+} from "@/workbench/pages/skills/types";
 
 export async function getSkills() {
   if (!isTauri()) {

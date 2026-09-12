@@ -10,7 +10,7 @@ import {
 } from "../../src/chat/desktop/service";
 import { summarizeChatLedger } from "../../src/chat/desktop/ledger";
 import { getLlmSettings, getLlmModelOptions, resolveLlmModel, saveLlmSettings } from "../../src/api/llm";
-import { normalizeLlmSettingsConfig, toLlmSettingsConfig } from "../../src/features/pages/settings/llm/edit/utils";
+import { normalizeLlmSettingsConfig, toLlmSettingsConfig } from "../../src/workbench/pages/settings/llm/edit/utils";
 import { createApplicationChatHost } from "../../src/chat/desktop/application";
 import { createApplicationChatClient, type ApplicationChatEvent } from "@isle/app-sdk/chat";
 import { createApplicationToolClient } from "@isle/app-sdk/tools";
@@ -716,7 +716,7 @@ test("LLM settings import waits for the startup migration before loading", async
     return structuredClone(fake.llmSettings);
   };
   try {
-    const { useLlmSettingsStore } = await import("../../src/features/pages/settings/llm/store");
+    const { useLlmSettingsStore } = await import("../../src/workbench/pages/settings/llm/store");
     await tick();
     assert.equal(fake.llmReads, before, "importing a route must not start a database query");
     migrated = true;

@@ -67,7 +67,7 @@ try {
   });
 
   // Execute the actual injected iframe script and reject forged host messages.
-  const source = readFileSync(resolve("src/features/pages/applications/application-frame.tsx"), "utf8").match(
+  const source = readFileSync(resolve("src/workbench/pages/applications/application-frame.tsx"), "utf8").match(
     /const BRIDGE_SOURCE = String\.raw`([\s\S]*?)`;/,
   )[1];
   const listeners = new Map(),

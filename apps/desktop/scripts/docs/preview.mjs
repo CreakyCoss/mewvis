@@ -1,4 +1,4 @@
-import { sandboxDocument } from "../../src/features/pages/applications/application-frame.tsx";
+import { sandboxDocument } from "../../src/workbench/pages/applications/application-frame.tsx";
 import script from "../../applications/builtins/docs-reader/isle-ui.js?raw";
 import style from "../../applications/builtins/docs-reader/isle-ui.css?raw";
 import book from "../../../../docs/.generated/book.json";

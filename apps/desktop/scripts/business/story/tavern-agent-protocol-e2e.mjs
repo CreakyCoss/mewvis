@@ -8,11 +8,11 @@ const workspaceRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), "isle-claw-tavern-agent-protocol-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
-const parsePath = resolve(workspaceRoot, "src/features/pages/stories/tavern/room/agent-protocol/codecs/xml/parse.ts");
-const cleanupPath = resolve(workspaceRoot, "src/features/pages/stories/tavern/room/message/normalization/cleanup.ts");
+const parsePath = resolve(workspaceRoot, "src/workbench/pages/stories/tavern/room/agent-protocol/codecs/xml/parse.ts");
+const cleanupPath = resolve(workspaceRoot, "src/workbench/pages/stories/tavern/room/message/normalization/cleanup.ts");
 const normalizeMessagePath = resolve(
   workspaceRoot,
-  "src/features/pages/stories/tavern/room/message/normalization/message.ts",
+  "src/workbench/pages/stories/tavern/room/message/normalization/message.ts",
 );
 
 writeFileSync(

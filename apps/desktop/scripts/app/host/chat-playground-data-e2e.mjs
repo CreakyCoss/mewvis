@@ -105,7 +105,7 @@ try {
   const file = join(temp, "integration.mjs");
   await build({
     stdin: {
-      contents: `export { chatService, applicationChatHost } from "./src/features/shell/chat-service";
+      contents: `export { chatService, applicationChatHost } from "./src/workbench/shell/chat-service";
         export { createDesktopApplicationDataTransport } from "./src/api/applications/data";
         export { createPlaygroundPreferences } from "./applications/builtins/chat-playground/main/preferences";
         export * as nativeFixture from "./scripts/chat/fixtures/api";`,
@@ -127,7 +127,7 @@ try {
           build.onResolve(
             {
               filter:
-                /^(?:@tauri-apps\/api\/core|@\/api\/(applications$|workspace$|agent-runtime$)|@\/features\/pages\/stories\/)/,
+                /^(?:@tauri-apps\/api\/core|@\/api\/(applications$|workspace$|agent-runtime$)|@\/workbench\/pages\/stories\/)/,
             },
             ({ path }) => ({ path, namespace: "fixture" }),
           );

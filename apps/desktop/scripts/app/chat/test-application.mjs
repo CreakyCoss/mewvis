@@ -13,7 +13,7 @@ const result = await build({
   metafile: true,
 });
 for (const input of Object.keys(result.metafile.inputs))
-  if (/node_modules\/(react|lexical)|@tauri-apps|src\/features|src\/api\//.test(input))
+  if (/node_modules\/(react|lexical)|@tauri-apps|src\/workbench|src\/api\//.test(input))
     throw new Error(`Headless application boundary violation: ${input}`);
 const directory = await mkdtemp(join(tmpdir(), "isle-app-chat-"));
 try {

@@ -3,8 +3,8 @@ import { getAiAgentSettings } from "@/api/agents";
 import { getSkills } from "@/api/skills";
 import { listKnowledgeLibrary } from "@/api/knowledge";
 import type { AgentClient } from "@/agent-client/runtime";
-import type { Skill } from "@/features/pages/skills/types";
-import type { AiAgent } from "@/features/pages/settings/agent/types";
+import type { Skill } from "@/workbench/pages/skills/types";
+import type { AiAgent } from "@/workbench/pages/settings/agent/types";
 import type { ChatContext, ChatMessage, ChatResources, TurnInput } from "../core";
 
 export type ChatProfile = {

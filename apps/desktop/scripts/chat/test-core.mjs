@@ -16,7 +16,7 @@ const boundary = await build({
 for (const path of Object.keys(boundary.metafile.inputs))
   assert.doesNotMatch(
     path,
-    /(?:react|lexical|tauri|\.css$|chat\/desktop|features\/pages)/i,
+    /(?:react|lexical|tauri|\.css$|chat\/desktop|workbench\/pages)/i,
     `Forbidden core dependency: ${path}`,
   );
 assert.doesNotMatch(boundary.outputFiles[0].text, /\b(?:window|document|requestAnimationFrame)\b/);

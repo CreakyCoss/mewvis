@@ -9,7 +9,7 @@ const tempDir = mkdtempSync(join(tmpdir(), "isle-claw-scene-novelizer-review-"))
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
 const mockAgentClientPath = join(tempDir, "mock-agent-client.ts");
-const runtimePath = resolve(workspaceRoot, "src/features/scene-novelizer/runtime/run-scene-novelizer.ts");
+const runtimePath = resolve(workspaceRoot, "src/workbench/scene-novelizer/runtime/run-scene-novelizer.ts");
 
 writeFileSync(
   mockAgentClientPath,

@@ -28,7 +28,7 @@ const runtime = await build({
   outfile: resolve(output, "application-runtime.js"),
 });
 for (const path of Object.keys(runtime.metafile.inputs)) {
-  if (/src\/(api|features|chat\/desktop)\/|@tauri-apps|agent-runtime\/src/.test(path))
+  if (/src\/(api|workbench|chat\/desktop)\/|@tauri-apps|agent-runtime\/src/.test(path))
     throw new Error(`Application UI imports host code: ${path}`);
 }
 // Use the application stylesheet and embed fonts for the sandbox's data-only CSP.
