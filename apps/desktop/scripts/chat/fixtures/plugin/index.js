@@ -5,6 +5,7 @@ export default definePlugin({
   apply(ctx) {
     ctx.tools.register(
       defineTool({
+        risk: "low",
         name: "fixture_chat",
         description: "Exercise the headless SDK through the desktop host.",
         parameters: { type: "object", properties: {} },

@@ -4,6 +4,7 @@ import { defineTool } from "@isle/plugin-sdk";
 import type { TextInspection } from "../contracts";
 
 const inspectText = defineTool({
+  risk: "low",
   name: "chat_playground_inspect_text",
   description: "在宿主 Node 环境分析文本，返回字符数、UTF-8 字节数和 SHA-256。",
   parameters: {
@@ -42,6 +43,7 @@ const inspectText = defineTool({
 });
 
 const echo = defineTool({
+  risk: "low",
   name: "chat_playground_echo",
   description: "回显一段测试文本及其字符数，用于检查插件工具调用。无文件、网络或模型调用。",
   parameters: {
@@ -69,4 +71,12 @@ const echo = defineTool({
   },
 });
 
-export default [echo, inspectText];
+const mediumRisk = defineTool({
+  ...echo,
+  risk: "medium",
+  name: "chat_playground_medium_risk",
+  description:
+    "中风险审批测试工具：回显文本及其字符数。特意声明为 medium，用于验证聊天中的权限档位与审批；实际不读写文件、不访问网络、不调用模型。",
+});
+
+export default [echo, inspectText, mediumRisk];

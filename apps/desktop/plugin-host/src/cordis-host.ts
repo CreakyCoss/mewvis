@@ -1,3 +1,5 @@
+import type { IsleToolRisk } from "@isle/plugin-sdk";
+import { isRiskLevel } from "@isle/chat-contracts";
 import { createPluginChatClient, type PluginChatClient } from "@isle/plugin-sdk/chat";
 import { createPluginDataClient, type PluginDataClient } from "@isle/plugin-sdk/data";
 import { Context, Inject, type Fiber, type Plugin } from "@deepseek-ai/cordis";
@@ -14,7 +16,9 @@ import { load as loadYaml, JSON_SCHEMA } from "js-yaml";
 import { NamespacedFileSettingsProvider } from "./settings-provider.js";
 import { pluginDirectory } from "./plugin-paths.js";
 
-export type CordisToolSchema = ReturnType<ToolRuntime["schemas"]>[number];
+export type CordisToolSchema = ReturnType<ToolRuntime["schemas"]>[number] & {
+  risk?: IsleToolRisk;
+};
 
 export type CordisPluginId = string;
 
@@ -449,7 +453,13 @@ export class CordisPluginHost {
 
   toolSchemas(): CordisToolSchema[] {
     this.assertActive();
-    return this.tools.schemas();
+    return this.tools.schemas().map((schema) => {
+      const definition = this.tools.get(schema.name);
+      const risk = definition && "risk" in definition ? definition.risk : undefined;
+      if (risk === undefined) return schema;
+      if (!isRiskLevel(risk)) throw new Error(`工具 ${schema.name} 的 risk 必须是 low、medium 或 high`);
+      return { ...schema, risk };
+    });
   }
 
   executeTool(call: CordisToolCall): Promise<ToolExecutionResult> {

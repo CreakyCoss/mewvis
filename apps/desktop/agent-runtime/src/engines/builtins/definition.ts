@@ -9,6 +9,7 @@ import {
   type ProtocolDefinition,
   type ProtocolMemberDefinition,
 } from "../../../../core/protocol.js";
+import type { SafetyRisk } from "../../security/safety/types.js";
 
 export type ToolParameterDefinition =
   | {
@@ -73,6 +74,7 @@ export type BuiltinToolImplementation<TApi extends object> = Readonly<{
 export type BuiltinToolDefinition<TContract extends AnyBuiltinToolContract = AnyBuiltinToolContract> = Readonly<{
   name: string;
   label: string;
+  risk: SafetyRisk;
   description: string;
   contract: TContract;
   parameters: ToolParameterDefinition;

@@ -396,7 +396,7 @@ try {
       import { definePlugin, defineTool } from ${JSON.stringify(resolve(desktop, "../../packages/plugin-sdk/index.js"))};
       export default definePlugin({ name: 'scope-fixture', inject: ['tools', 'skills'], apply(ctx) {
         ctx.skills.register({ name: 'scope-fixture', description: 'In-memory skill', content: 'Use scope_echo to echo text.', source: 'bundled' });
-        ctx.tools.register(defineTool({ name: 'scope_echo', description: 'Echo without side effects',
+        ctx.tools.register(defineTool({ name: 'scope_echo', risk: 'low', description: 'Echo without side effects',
           parameters: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] },
           output: { schema: {}, render: (_args, value) => [{ type: 'text', text: value }] },
           execute: async (args) => args.text,
@@ -414,7 +414,7 @@ try {
   const scopedPlugin = await api.createPiToolSet(
     {
       ...command,
-      permissions: { mode: "full" },
+      permissions: { mode: "ask" },
       agentAccess: {},
       resources: {
         tools: { allowed: ["scope_echo"] },
@@ -431,9 +431,22 @@ try {
         },
       },
     },
-    callbacks,
+    { ...callbacks, requestApproval: () => assert.fail("enabled plugin initialization must not prompt") },
   );
   try {
+    const session = { agent: {} };
+    scopedPlugin.installSafety(session);
+    assert.equal(
+      await session.agent.beforeToolCall(
+        {
+          toolCall: { id: "low-risk", name: "scope_echo" },
+          args: { text: "ok" },
+        },
+        new AbortController().signal,
+      ),
+      undefined,
+      "registered low-risk plugin tools do not prompt in ask mode",
+    );
     assert.equal(
       scopedPlugin.plugins.skills.length,
       1,
@@ -468,16 +481,12 @@ try {
       },
       {
         ...callbacks,
-        requestApproval: async (request) => {
-          assert.equal(request.summary, "plugins.load");
-          assert.doesNotMatch(request.details, /PRIVATE_CONFIGURATION_SENTINEL/);
-          return false;
-        },
+        requestApproval: () => assert.fail("plugin initialization does not request approval"),
       },
     ),
-    /未授权/,
+    /missing-plugin/,
   );
-  console.log("PASS plugin startup is approved before loading code and does not expose configuration credentials");
+  console.log("PASS enabled plugin initialization and declared low-risk calls do not prompt; missing code still fails");
   created = await api.createPiAgentSession(command, callbacks, { policies: strictPolicies });
   assert.ok(created.session.getActiveToolNames().includes("subagent"));
   const events = [];

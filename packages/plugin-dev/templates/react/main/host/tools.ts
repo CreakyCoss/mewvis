@@ -6,6 +6,7 @@ import type { TextInspection } from "../contracts";
 export default [
   defineTool({
     name: "__TOOL_NAME__",
+    risk: "low",
     description:
       "在宿主 Node 环境分析文本，返回字符数、UTF-8 字节数和 SHA-256。",
     parameters: {

@@ -26,6 +26,7 @@ export async function listPluginTools(pluginId: string): Promise<PluginTool[]> {
       label: tool.name,
       description: tool.description,
       source: "plugin" as const,
+      risk: tool.risk,
     })),
   ];
   if (new Set(all.map((tool) => tool.name)).size !== all.length) throw new Error("插件工具不能与宿主工具重名");

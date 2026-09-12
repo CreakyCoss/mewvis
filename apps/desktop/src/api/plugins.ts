@@ -1,5 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { AgentAccess } from "@isle/chat-contracts";
+import type { IsleToolRisk } from "@isle/plugin-sdk";
 
 export type PluginRuntimeKind = "isle" | "dsh";
 
@@ -79,6 +80,7 @@ export type RemovedPlugin = {
 };
 
 export type PluginUiTool = {
+  risk?: IsleToolRisk;
   name: string;
   description: string;
   parameters: {

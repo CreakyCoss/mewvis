@@ -320,7 +320,7 @@ try {
     let startupBlocked = false;
     try { await readFile(${JSON.stringify(join(privatePath, "secret"))}); } catch { startupBlocked = true; }
     export default definePlugin({ name: 'sandbox-fixture', inject: ['tools'], apply(ctx) {
-      ctx.tools.register(defineTool({ name: 'fixture_effect', description: 'Exercise native Node effects.',
+      ctx.tools.register(defineTool({ name: 'fixture_effect', risk: 'low', description: 'Exercise native Node effects.',
         parameters: { type: 'object', properties: { action: { type: 'string' }, target: { type: 'string' } }, required: ['action'] },
         output: { schema: {}, render: (_args, value) => [{type:'text',text:JSON.stringify(value)}] },
         async execute(args) {
@@ -367,8 +367,11 @@ try {
   assert.equal(existsSync(join(workspace, "late-timeout")), false);
   console.log("PASS cancellation and timeout terminate the sandbox execution tree");
   await plugin.executor.dispose();
-  const afterCleanup = await open("auto");
+  const afterCleanup = await open("auto", plugins);
   await assert.rejects(afterCleanup.call("write", { path: ".env", content: "blocked-again" }));
+  await assert.rejects(afterCleanup.call("fixture_effect", { action: "write", target: join(workspace, ".env") }));
+  await afterCleanup.call("fixture_effect", { action: "write", target: join(workspace, "declared-risk.txt") });
+  assert.equal(readFileSync(join(workspace, "declared-risk.txt"), "utf8"), "plugin");
   assert.match(JSON.stringify(await afterCleanup.call("bash", { command })), /network-ok/);
   await afterCleanup.executor.dispose();
   console.log("PASS cleanup permits a restricted session after full sessions finish");

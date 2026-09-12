@@ -50,6 +50,7 @@ export default definePlugin({
     for (const [name, description, parameters, schema, execute] of definitions) {
       ctx.tools.register(
         defineTool({
+          risk: "low",
           name,
           description,
           parameters,

@@ -158,6 +158,51 @@ try {
   );
   writeFileSync(settingsFile, validSettings);
 
+  const badRiskRoot = join(tempDir, "bad-risk-plugin");
+  cpSync(fixtureRoot, badRiskRoot, { recursive: true });
+  writeFileSync(
+    join(badRiskRoot, "index.js"),
+    `
+    export default { name: "bad-risk", inject: ["tools"], apply(ctx) {
+      ctx.tools.register({ name: "bad_risk", description: "Invalid risk fixture", risk: "critical",
+        parameters: { type: "object", properties: {} },
+        output: { schema: {}, render: () => [] }, execute: () => null });
+    }};
+  `,
+  );
+  const badRisk = {
+    ...configuration.plugins[0],
+    kind: "isle",
+    id: "bad-risk",
+    packageRoot: badRiskRoot,
+    entry: pathToFileURL(join(badRiskRoot, "index.js")).href,
+    patchPath: null,
+  };
+  for (const candidates of [
+    [badRisk, configuration.plugins[0]],
+    [configuration.plugins[0], badRisk],
+  ]) {
+    const isolated = await request("configure", {
+      settingsPath: join(tempDir, "risk-isolation"),
+      plugins: candidates,
+    });
+    const invalid = isolated.plugins.find((plugin) => plugin.id === badRisk.id);
+    assert.match(invalid.error, /risk/);
+    assert.deepEqual(invalid.tools, []);
+    assert.equal(isolated.plugins.find((plugin) => plugin.id === owner).error, null);
+    assert.match(
+      (
+        await request("execute", {
+          pluginId: owner,
+          toolName: "isle_dsh_echo",
+          arguments: { message: "after-bad-risk" },
+        })
+      ).value,
+      /after-bad-risk/,
+    );
+    await assert.rejects(request("execute", { pluginId: badRisk.id, toolName: "bad_risk" }));
+  }
+
   const legacyFixtureRoot = join(tempDir, "legacy-host-ui-plugin");
   cpSync(fixtureRoot, legacyFixtureRoot, { recursive: true });
   const legacyManifestPath = join(legacyFixtureRoot, "package.json");

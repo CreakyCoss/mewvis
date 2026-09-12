@@ -83,7 +83,7 @@ export function PluginToolPermissions({ plugin, disabled }: { plugin: PluginDesc
         <DialogHeader>
           <DialogTitle>{plugin.name} · 工具授权</DialogTitle>
           <DialogDescription>
-            选择此插件可以使用的宿主工具和自身工具。文件、网络及命令的访问范围仍由权限声明和当前权限档位控制。
+            选择此插件可以使用的工具。插件工具按声明风险和聊天权限档位审批，文件、网络及命令仍受权限声明和沙箱限制。
           </DialogDescription>
         </DialogHeader>
         {error && (
@@ -148,6 +148,13 @@ export function PluginToolPermissions({ plugin, disabled }: { plugin: PluginDesc
                         />
                         <span className="min-w-0 text-sm">
                           <span className="font-medium">{tool.label}</span>
+                          {tool.source === "plugin" && (
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              {tool.risk
+                                ? `声明风险：${{ low: "低", medium: "中", high: "高" }[tool.risk]}`
+                                : "未声明风险"}
+                            </span>
+                          )}
                           {tool.label !== tool.name && (
                             <span className="ml-2 text-xs text-muted-foreground">{tool.name}</span>
                           )}

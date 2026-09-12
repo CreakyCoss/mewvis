@@ -7,7 +7,7 @@ isle.config.ts                  权限与能力配置
 main/App.tsx                    工作区、插件对话、默认／组合 Chat 和会话检查器
 main/preferences.ts             通过插件 storage 保存工作区和各目录最近选择的会话
 main/components/HostTools.tsx    普通 React 页面调用宿主工具
-main/host/tools.ts              Node 工具：回显与文本分析
+main/host/tools.ts              Node 工具：低风险回显、文本分析与中风险审批测试
 main/host/skills.ts             文本分析技能：使用工具的步骤与输出规则
 main/contracts.ts               共享业务数据类型
 main/styles.css                 定制样式
@@ -36,6 +36,10 @@ node apps/desktop/agent-runtime/scripts/pack-portable-plugins.mjs
 
 展开顶部「宿主能力示例 · 文本分析」，输入文本并点击「调用宿主工具」，页面通过 SDK 执行本插件的 `chat_playground_inspect_text`。返回值包含字符数、UTF-8 字节数和真实 Node crypto 计算的 SHA-256；清空输入可检查失败提示。这个工具不调用模型、不读写文件。
 
+现有的 `chat_playground_echo`、`chat_playground_inspect_text` 都声明为 `low`。新增的 `chat_playground_medium_risk` 声明为 `medium`，复用回显逻辑，仅用于验证审批，不读写文件或访问网络。点击「查询当前工具授权」可查看工具的授权状态和声明风险。
+
+测试中风险审批时，先在插件管理的工具权限中确认 `chat_playground_medium_risk` 已开启；已有的自定义工具勾选不会自动包含新工具。在聊天调试台选择 `ask` 档位，点击组合界面的「中风险工具」并发送，预期出现审批；选择 `auto` 或 `full` 档位时，预期直接执行。默认界面也可以发送“请调用 chat_playground_medium_risk，text 设为中风险审批测试”。审批测试应通过聊天中的 Agent 工具调用进行；顶部 SDK 直接调用按钮用于测试工具执行，不经过 Agent 审批。
+
 技能示例 `chat-playground-text-inspection` 在 `host.skills` 中声明，工具链自动注册到宿主。新建对话后，点击组合界面的“技能示例”填入请求并发送；默认界面可以直接输入“请使用 chat-playground-text-inspection 技能分析文本 Hello Isle 👋 的字符数、UTF-8 字节数和 SHA-256”。技能指导模型使用 `chat_playground_inspect_text` 并解释结果，不会自动调用工具或扩大工具权限。
 
 插件技能沿用现有 Pi 加载机制，与技能页中的文件技能目录不同，目前不在 Chat 的技能选择菜单中单独显示。
@@ -63,7 +67,7 @@ node apps/desktop/plugin-host/plugins/chat-playground/test.mjs --bundled
 pnpm --filter desktop test:plugin-dev
 ```
 
-Node E2E 在临时目录加载真实插件宿主，检查两个工具、输出和错误、UI 文档、真实 Pi 技能加载与临时文件释放，以及其他内置插件的 DSH 产物。测试不读取真实用户记录、不修改插件注册表。
+Node E2E 在临时目录加载真实插件宿主，检查三个工具及其风险声明、输出和错误、UI 文档、真实 Pi 技能加载与临时文件释放，以及其他内置插件的 DSH 产物。测试不读取真实用户记录、不修改插件注册表。
 
 数据接入回归使用实际应用 Chat 服务、SDK、目录解析与调试台状态模块，在临时文件中模拟原生 IO，验证新目录内保存、重建服务后恢复、工作区隔离、权限撤销、无效目录拒绝及并发选择的保存顺序；模型执行使用测试适配。真实 SQLite、目录标识和跨进程恢复由 `pnpm --filter desktop test:plugin-host:data` 覆盖。原生目录选择弹窗和真实模型仍需在重建后的应用中验收。
 

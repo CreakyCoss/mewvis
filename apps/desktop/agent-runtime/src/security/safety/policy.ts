@@ -173,6 +173,14 @@ export const SAFETY_CONFIG: SafetyConfig = {
         },
       },
       {
+        id: "tool.declared-risk",
+        description: "已启用工具按定义声明的风险等级处理。",
+        scope: "operation",
+        evaluate({ operation }) {
+          if (operation?.kind === "tool") return { risk: operation.risk, reason: `工具声明风险：${operation.risk}` };
+        },
+      },
+      {
         id: "interaction.request",
         description: "提问和委派不改变后续工具执行权限。",
         scope: "operation",

@@ -136,7 +136,7 @@ try {
               path === "@tauri-apps/api/core"
                 ? "export const isTauri = () => true; export const invoke = (...args) => globalThis.__playgroundFixture.invoke(...args);"
                 : path === "@/api/plugins"
-                  ? "export const listPlugins = async () => globalThis.__playgroundFixture.plugins(); export const listPluginUi = async () => ({plugins: [{id: '@isle/chat-playground', tools: [{name:'own', description:'Own tool'}]}, {id:'other-plugin',tools:[{name:'foreign-tool'}]}]});"
+                  ? "export const listPlugins = async () => globalThis.__playgroundFixture.plugins(); export const listPluginUi = async () => ({plugins: [{id: '@isle/chat-playground', tools: [{name:'own', description:'Own tool', risk:'low'}]}, {id:'other-plugin',tools:[{name:'foreign-tool'}]}]});"
                   : path === "@/api/workspace"
                     ? "export const listWorkspaces = async () => globalThis.__playgroundFixture.workspaces();"
                     : path === "@/api/agent-runtime"
@@ -168,6 +168,7 @@ try {
   await preferences.load();
   assert.equal(preferences.workspace(await data.workspaces.list()).id, own.id);
   let chat = connect();
+  assert.equal((await chat.listTools()).find((tool) => tool.name === "own").risk, "low");
   assert.deepEqual(
     (await chat.listTools()).map(({ name, source, enabled }) => ({ name, source, enabled })),
     [

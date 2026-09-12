@@ -1,6 +1,7 @@
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import { RISK_LEVELS } from "@isle/chat-contracts";
 import { checkAgentAccess, type ResolvedAgentAccess } from "../access/index.js";
 import { SAFETY_CONFIG as configuredPolicy } from "./policy.js";
 import { canonicalPath, createResourcePathResolver } from "../platforms/resources.js";
@@ -23,7 +24,7 @@ export { canonicalPath } from "../platforms/resources.js";
 export type * from "./types.js";
 
 const riskOrder: Record<SafetyRisk, number> = { low: 0, medium: 1, high: 2 };
-const riskSchema = z.enum(["low", "medium", "high"]);
+const riskSchema = z.enum(RISK_LEVELS);
 const textSchema = z.string().trim().min(1);
 const configSchema = z
   .object({

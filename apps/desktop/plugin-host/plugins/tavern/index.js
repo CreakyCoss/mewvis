@@ -123,6 +123,7 @@ const contextFor = (preset) => {
 
 const listTool = (settings) => ({
   name: "tavern_list",
+  risk: "low",
   description: "List every persisted tavern and the currently active tavern id.",
   parameters: { type: "object", properties: {}, additionalProperties: false },
   output,
@@ -134,6 +135,7 @@ const listTool = (settings) => ({
 
 const saveTool = (settings) => ({
   name: "tavern_save",
+  risk: "medium",
   description: "Create or update an independent tavern containing its character card, world book, and roleplay rules.",
   parameters: {
     type: "object",
@@ -172,6 +174,7 @@ const saveTool = (settings) => ({
 
 const removeTool = (settings) => ({
   name: "tavern_remove",
+  risk: "high",
   description: "Remove a persisted tavern.",
   parameters: {
     type: "object",
@@ -194,6 +197,7 @@ const removeTool = (settings) => ({
 
 const activateTool = (settings) => ({
   name: "tavern_activate",
+  risk: "medium",
   description: "Set the tavern used by later roleplay context requests.",
   parameters: {
     type: "object",
@@ -214,6 +218,7 @@ const activateTool = (settings) => ({
 
 const contextTool = (settings) => ({
   name: "tavern_context",
+  risk: "low",
   description: "Build the model-ready roleplay context for a tavern or the currently active tavern.",
   parameters: {
     type: "object",

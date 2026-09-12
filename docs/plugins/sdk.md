@@ -23,6 +23,7 @@ export default definePlugin({
       defineTool({
         name: "hello",
         description: "返回问候语。",
+        risk: "low",
         parameters: { type: "object", properties: {} },
         output: {
           schema: {
@@ -40,7 +41,11 @@ export default definePlugin({
 });
 ```
 
-Agent 执行安全由宿主在调用时控制，工具定义不声明权限或风险等级。宿主聊天和插件聊天使用同样的模式与审批流程；无法分类的自定义工具在 `ask`、`auto` 下需要审批。直接执行插件 Node/UI 不属于 Agent 的执行门控，清单权限也独立存在。
+工具通过 `risk: "low" | "medium" | "high"` 声明其最高操作风险，`defineTool` 和工具链检查会拒绝缺失或无效的声明。纯计算、读取可声明低风险，普通数据修改声明中风险，删除、执行程序等声明高风险；包含多种操作的工具按最高风险声明，也可以拆分为独立工具。
+
+用户启用插件并允许工具后，Agent 从已注册定义读取风险，按统一档位审批：`ask` 自动通过低风险，`auto` 自动通过低、中风险，`full` 自动通过全部已声明风险。超过档位上限仍需审批；调用参数不能覆盖声明。未声明风险的外部工具仍按未知操作处理。宿主文件、Shell 工具继续根据实际参数分析，不由静态声明替代。
+
+已启用插件的初始化不再单独请求 `plugins.load` 审批。初始化和 Agent 工具实现运行于同一受限执行进程，风险声明不会扩大 `agentAccess` 或沙箱范围，也不能覆盖明确的拒绝规则。直接执行插件 Node/UI 不属于 Agent 的执行门控，清单权限仍独立检查。
 
 ## 版本化设置
 

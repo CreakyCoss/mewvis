@@ -18,6 +18,7 @@ parentPort.postMessage({
     tools: [...tools.values()].map(({ tool }) => ({
       name: tool.name,
       description: tool.description,
+      risk: tool.risk,
       parameters: tool.parameters,
     })),
     skills: (await loadSkills(workerData)).map(

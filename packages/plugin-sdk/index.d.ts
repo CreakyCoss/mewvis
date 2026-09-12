@@ -1,12 +1,20 @@
+import type { RiskLevel } from "@isle/chat-contracts";
+import type { PluginChatClient } from "./chat/index.js";
+import type { PluginStorage, PluginWorkspaces } from "./data/index.js";
+
 export { default as schema } from "@deepseek-ai/schemastery";
 
 export type MaybePromise<T> = T | Promise<T>;
 
 export type IsleDisposable = () => MaybePromise<void>;
 
+export type IsleToolRisk = RiskLevel;
+
 export type IsleToolDefinition = Readonly<{
   name: string;
   description: string;
+  /** Maximum risk of this tool's operations; approval still follows the selected host permission mode. */
+  risk: IsleToolRisk;
   parameters: Record<string, unknown>;
   execute(arguments_: unknown): MaybePromise<unknown>;
   [key: string]: unknown;
@@ -89,11 +97,11 @@ export interface IslePluginLogger {
  */
 export interface IslePluginContext {
   /** Available in the Isle desktop plugin host when chat permission is declared. */
-  readonly chat?: import("./chat/index.js").PluginChatClient;
+  readonly chat?: PluginChatClient;
   /** Requires a host implementing the data v1 contract and plugin-data permission. */
-  readonly storage?: import("./data/index.js").PluginStorage;
+  readonly storage?: PluginStorage;
   /** Plugin-owned workspace membership; never the desktop workspace registry. */
-  readonly workspaces?: import("./data/index.js").PluginWorkspaces;
+  readonly workspaces?: PluginWorkspaces;
   readonly tools: IsleToolRegistry;
   readonly skills: IsleSkillRegistry;
   readonly settings: IsleSettingsRegistry;

@@ -1,3 +1,5 @@
+import type { IsleToolRisk } from "@isle/plugin-sdk";
+
 export type PluginRuntimeKind = "isle" | "dsh";
 
 export type RuntimePlugin = Readonly<{
@@ -17,6 +19,7 @@ export interface PluginAdapter {
 export type PluginToolSchema = Readonly<{
   name: string;
   description: string;
+  risk?: IsleToolRisk;
   parameters: unknown;
 }>;
 

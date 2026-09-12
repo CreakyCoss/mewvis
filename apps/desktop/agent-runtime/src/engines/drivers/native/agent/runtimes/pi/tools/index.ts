@@ -1,4 +1,5 @@
 import type { ExtensionAPI, Skill } from "@earendil-works/pi-coding-agent";
+import { isRiskLevel } from "@isle/chat-contracts";
 import { fileURLToPath } from "node:url";
 import entries from "../../../../../../../../build-entries.json" with { type: "json" };
 import { resolveBuiltins } from "../../../../../../builtins/index.js";
@@ -6,7 +7,7 @@ import { AGENT_TOOL_DEFINITIONS, normalizeAllowedAgentTools } from "../../../too
 import {
   DEFAULT_AGENT_PERMISSION_MODE,
   resolveSafetyPolicy,
-  checkExecution,
+  type SafetyRisk,
 } from "../../../../../../../security/safety/index.js";
 import {
   ProgramExecutor,
@@ -24,7 +25,7 @@ import { accessAllowsPath, resolveAgentAccess } from "../../../../../../../secur
 
 type PiTool = Parameters<ExtensionAPI["registerTool"]>[0];
 type Catalog = {
-  tools: Pick<PiTool, "name" | "label" | "description" | "parameters">[];
+  tools: (Pick<PiTool, "name" | "label" | "description" | "parameters"> & { risk?: SafetyRisk })[];
   skillContents: { skill: Skill; content: string }[];
 };
 
@@ -66,29 +67,7 @@ export async function createPiToolSet(
         access,
       };
   const builtins = resolveBuiltins(resources.skills?.enabled ?? []);
-  if (resources.plugins?.items?.length) {
-    const decision = await checkExecution({
-      request: {
-        executionId: `${command.taskId}:plugins.load`,
-        entry: "plugins.load",
-        input: {
-          plugins: resources.plugins.items.map(({ id, kind, packageRoot, entry }) => ({
-            id,
-            kind,
-            packageRoot,
-            entry,
-          })),
-        },
-        workspacePath: command.workspacePath,
-      },
-      policy: policies.safety,
-      signal: options.signal,
-      analyze: () => ({ coverage: "unknown", operations: [] }),
-      requestApproval:
-        callbacks.requestApproval && ((request) => callbacks.requestApproval!({ ...request, taskId: command.taskId })),
-    });
-    if (!decision.allowed) throw new Error(decision.reason);
-  }
+  // The host selected these enabled plugins. Initialization uses the same constrained worker as tool execution.
   let worker: ProgramExecutor | undefined;
   let starting: Promise<Catalog> | undefined;
   let disposed = false;
@@ -132,9 +111,15 @@ export async function createPiToolSet(
       .filter((name) => !options.toolCeiling || options.toolCeiling.includes(name))
       .filter((name) => !options.subagent || (name !== "subagent" && name !== "ask_user"));
     const builtinNames = new Set(builtins.requiredTools.internal.map((tool) => tool.name));
+    const toolRisks = new Map<string, SafetyRisk>();
+    for (const tool of catalog.tools) {
+      if (tool.risk === undefined || !enabled.includes(tool.name)) continue;
+      if (!isRiskLevel(tool.risk)) throw new Error(`工具 ${tool.name} 的风险声明无效`);
+      toolRisks.set(tool.name, tool.risk);
+    }
     const tools: PiTool[] = catalog.tools
       .filter((tool) => enabled.includes(tool.name))
-      .map((descriptor) => ({
+      .map(({ risk: _risk, ...descriptor }) => ({
         ...descriptor,
         execute: async (callId, args, signal, progress) => {
           signal?.throwIfAborted();
@@ -193,7 +178,7 @@ export async function createPiToolSet(
         },
       },
       installSafety: (session: PiAgentSession) =>
-        installPiSafety(session, command, callbacks, policies.safety, policies.access),
+        installPiSafety(session, command, callbacks, policies.safety, policies.access, toolRisks),
       registerExtensions(pi: ExtensionAPI) {
         pi.on("user_bash", () => {
           throw new Error("请通过已分配的 Shell 工具调用统一执行程序。");

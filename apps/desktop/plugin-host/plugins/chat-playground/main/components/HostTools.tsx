@@ -3,6 +3,8 @@ import { getPluginHost } from "@isle/plugin-sdk/browser";
 import { getPluginToolClient, type PluginTool } from "@isle/plugin-sdk/tools";
 import type { TextInspection } from "../contracts";
 
+const riskLabels = { low: "低", medium: "中", high: "高" };
+
 /** Ordinary React business UI. The SDK transports the call to this plugin's Node tool. */
 export function HostTools() {
   const [text, setText] = useState("Hello Isle 👋");
@@ -62,6 +64,7 @@ export function HostTools() {
           {tools.map((tool) => (
             <li key={tool.name}>
               {tool.label} · {tool.source === "host" ? "宿主" : "插件"} · {tool.enabled ? "允许" : "已禁用"}
+              {tool.risk && ` · 声明风险：${riskLabels[tool.risk]}`}
             </li>
           ))}
         </ul>

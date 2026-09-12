@@ -132,6 +132,7 @@ const STORY_TOOL_PARAMETERS = {
 export const STORY_TOOL = Object.freeze({
   name: STORY_TOOL_NAME,
   label: "Story",
+  risk: "high",
   contract: STORY_TOOL_CONTRACT,
   description:
     "Read and modify a typed story project. Chapter context is a writing-specific, reference-aware brief shared with Story Tavern; it never requires workspace document scanning.",

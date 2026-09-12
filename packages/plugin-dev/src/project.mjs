@@ -2,6 +2,7 @@ import { access, mkdtemp, rm, realpath } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
+import { isRiskLevel } from "@isle/chat-contracts";
 
 export async function exists(path) {
   try {
@@ -153,6 +154,10 @@ export async function loadTools(project) {
     if (!tool.output?.schema || typeof tool.output.render !== "function")
       throw new Error(
         `宿主工具 ${tool.name} 必须声明 output.schema 和 output.render`,
+      );
+    if (!isRiskLevel(tool.risk))
+      throw new Error(
+        `宿主工具 ${tool.name} 必须声明 risk：low、medium 或 high`,
       );
     if (names.has(tool.name)) throw new Error(`宿主工具名称重复：${tool.name}`);
     names.add(tool.name);

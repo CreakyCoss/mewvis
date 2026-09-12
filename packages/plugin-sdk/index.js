@@ -1,4 +1,5 @@
 import Schema from "@deepseek-ai/schemastery";
+import { isRiskLevel } from "@isle/chat-contracts";
 
 export { Schema as schema };
 
@@ -138,12 +139,15 @@ export const defineSettings = (definition) => {
 };
 
 /**
- * Authoring helpers intentionally have no runtime behavior. Isle plugins use
- * Cordis lifecycle semantics, while this package keeps Cordis and DSH package
- * names out of application plugin source.
+ * Isle plugins use Cordis lifecycle semantics. Tool authoring validates the
+ * risk declaration used by the host's approval policy.
  */
 export const definePlugin = (plugin) => plugin;
 
-export const defineTool = (tool) => tool;
+export const defineTool = (tool) => {
+  if (!isRiskLevel(tool?.risk))
+    throw new Error("工具必须声明 risk：low、medium 或 high");
+  return tool;
+};
 
 export const defineSkill = (skill) => skill;

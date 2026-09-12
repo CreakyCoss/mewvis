@@ -4,6 +4,7 @@ import {
   checkExecution,
   canonicalPath,
   type SafetyPolicy,
+  type SafetyRisk,
   type ExecutionRequest,
   type OperationAnalysis,
   type Operation,
@@ -33,7 +34,10 @@ const fileTarget = (request: ExecutionRequest, name: string) => {
 };
 
 /** Pi-specific argument decoding. Common rules never depend on Pi's tool names. */
-export function analyzePiExecution(request: ExecutionRequest): OperationAnalysis {
+export function analyzePiExecution(
+  request: ExecutionRequest,
+  toolRisks?: ReadonlyMap<string, SafetyRisk>,
+): OperationAnalysis {
   const name = request.entry;
   if (Object.hasOwn(fileActions, name))
     return {
@@ -71,7 +75,9 @@ export function analyzePiExecution(request: ExecutionRequest): OperationAnalysis
       coverage: "complete",
       operations: [{ kind: "interaction", action: name === "ask_user" ? "ask" : "delegate" }],
     };
-  // Custom tools, including internal business tools, use the same unknown-operation policy.
+  const risk = toolRisks?.get(name);
+  if (risk !== undefined) return { coverage: "complete", operations: [{ kind: "tool", risk }] };
+  // A custom tool with no registered risk declaration remains unknown.
   return { coverage: "unknown", operations: [] };
 }
 
@@ -81,9 +87,11 @@ export function installPiSafety(
   callbacks: AgentRuntimeCallbacks,
   policy: SafetyPolicy | null,
   access?: ResolvedAgentAccess,
+  toolRisks?: ReadonlyMap<string, SafetyRisk>,
 ) {
   if (!policy && !access) return;
   const previous = session.agent.beforeToolCall;
+  const declaredRisks = new Map(toolRisks);
   // This hook provides cancellation and runs after Pi's extension hooks, so the
   // checked arguments are the ones passed to execution. No changes to Pi itself.
   session.agent.beforeToolCall = async (context, signal) => {
@@ -104,7 +112,7 @@ export function installPiSafety(
       request,
       policy,
       access,
-      analyze: analyzePiExecution,
+      analyze: (request) => analyzePiExecution(request, declaredRisks),
       requestApproval:
         callbacks.requestApproval &&
         ((approval) => callbacks.requestApproval!({ ...approval, taskId: command.taskId })),

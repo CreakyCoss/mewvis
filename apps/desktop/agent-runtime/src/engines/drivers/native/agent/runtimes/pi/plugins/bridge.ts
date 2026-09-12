@@ -1,5 +1,6 @@
 import { createSyntheticSourceInfo, type ExtensionAPI, type Skill } from "@earendil-works/pi-coding-agent";
 import type { TextContent, TSchema } from "@earendil-works/pi-ai";
+import type { RiskLevel } from "@isle/chat-contracts";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -77,8 +78,9 @@ export class PluginRuntimeBridge {
     }
   }
 
-  registerTools(pi: Pick<ExtensionAPI, "registerTool">) {
+  registerTools(pi: Pick<ExtensionAPI, "registerTool">): ReadonlyMap<string, RiskLevel> {
     this.assertActive();
+    const risks = new Map<string, RiskLevel>();
     for (const schema of this.host.toolSchemas()) {
       pi.registerTool({
         name: schema.name,
@@ -104,7 +106,9 @@ export class PluginRuntimeBridge {
           };
         },
       });
+      if (schema.risk !== undefined) risks.set(schema.name, schema.risk);
     }
+    return risks;
   }
 
   async dispose() {

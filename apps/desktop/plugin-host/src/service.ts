@@ -1,9 +1,10 @@
+import type { AgentAccess } from "@isle/chat-contracts";
 import { createNativePluginChat } from "./chat.js";
 import { createNativePluginData } from "./data.js";
 import { readToolPolicy, writeToolPolicy } from "./tool-policy.js";
 import { createInterface } from "node:readline";
 import { format } from "node:util";
-import { PluginHost, type PluginRuntimeKind } from "./index.js";
+import { PluginHost, type PluginRuntimeKind, type PluginToolSchema } from "./index.js";
 import {
   loadPluginUiManifest,
   type PluginCompatibilityInfo,
@@ -22,7 +23,7 @@ type RuntimePlugin = Readonly<{
   packageRoot: string;
   patchPath?: string | null;
   permissions: readonly string[];
-  agentAccess?: import("@isle/chat-contracts").AgentAccess | null;
+  agentAccess?: AgentAccess | null;
   permissionStatus: "declared" | "isle-upgrade-required" | "dsh-unsupported";
   dataConnection?: string | null;
 }>;
@@ -38,12 +39,6 @@ type RpcRequest = Readonly<{
   params?: unknown;
 }>;
 
-type UiTool = Readonly<{
-  name: string;
-  description: string;
-  parameters: unknown;
-}>;
-
 type UiPlugin = Readonly<{
   runtimeKind: PluginRuntimeKind;
   id: string;
@@ -51,13 +46,13 @@ type UiPlugin = Readonly<{
   version: string;
   description: string;
   source: string;
-  tools: readonly UiTool[];
+  tools: readonly PluginToolSchema[];
   error: string | null;
   ui: PluginUiContribution | null;
   uiError: string | null;
   compatibility: readonly PluginCompatibilityInfo[];
   permissions: readonly string[];
-  agentAccess?: import("@isle/chat-contracts").AgentAccess | null;
+  agentAccess?: AgentAccess | null;
   permissionStatus: "declared" | "isle-upgrade-required" | "dsh-unsupported";
 }>;
 
@@ -128,19 +123,14 @@ const configure = async (value: unknown) => {
       const uiManifest = await loadPluginUiManifest(plugin.packageRoot);
       const before = new Set(nextHost.toolSchemas().map((tool) => tool.name));
       let error: string | null = null;
+      let tools: PluginToolSchema[] = [];
       try {
         await nextHost.load(plugin);
+        tools = nextHost.toolSchemas().filter((tool) => !before.has(tool.name));
       } catch (caught) {
         error = errorMessage(caught);
+        await nextHost.unload(plugin.id);
       }
-      const tools = nextHost
-        .toolSchemas()
-        .filter((tool) => !before.has(tool.name))
-        .map((tool): UiTool => ({
-          name: tool.name,
-          description: tool.description,
-          parameters: tool.parameters,
-        }));
       const uiError = uiManifest.error;
       if (uiManifest.contribution?.kind === "sandbox" && uiManifest.document) {
         uiDocuments.set(plugin.id, uiManifest.document);

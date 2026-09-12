@@ -36,12 +36,22 @@ serveWorker({
       for (const tool of builtins.requiredTools.internal)
         registerPiBuiltinTool(collector, tool, { workspacePath: command.workspacePath });
       plugins = await createPluginRuntimeBridge(command);
-      plugins?.registerTools(collector);
+      const pluginRisks = plugins?.registerTools(collector);
+      const toolRisks = new Map([
+        ...builtins.requiredTools.internal.map((tool) => [tool.name, tool.risk] as const),
+        ...(pluginRisks ?? []),
+      ]);
       const skillContents = await Promise.all(
         (plugins?.skills ?? []).map(async (skill) => ({ skill, content: await readFile(skill.filePath, "utf8") })),
       );
       return {
-        tools: tools.map(({ name, label, description, parameters }) => ({ name, label, description, parameters })),
+        tools: tools.map(({ name, label, description, parameters }) => ({
+          name,
+          label,
+          description,
+          parameters,
+          risk: toolRisks.get(name),
+        })),
         skillContents,
       };
     }

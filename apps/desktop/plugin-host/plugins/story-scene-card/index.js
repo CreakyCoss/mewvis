@@ -21,6 +21,7 @@ const requiredText = (args, key) => {
 };
 
 const storySceneCardTool = defineTool({
+  risk: "low",
   name: "isle_story_scene_card",
   description: "Create a compact story scene card from goal, conflict, stakes, and an optional turn.",
   parameters: {

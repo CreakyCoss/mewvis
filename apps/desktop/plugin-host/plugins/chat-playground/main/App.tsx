@@ -17,7 +17,7 @@ import { createPlaygroundPreferences } from "./preferences";
 const profile = {
   id: "chat-playground-v1",
   systemPrompt:
-    "你是 Isle 聊天调试助手，用中文简洁回答。按用户要求演示 Markdown、代码和插件工具。需要验证工具时调用 chat_playground_echo，不要虚构工具执行或宿主状态。",
+    "你是 Isle 聊天调试助手，用中文简洁回答。按用户要求演示 Markdown、代码和插件工具。需要验证工具时，使用用户指定的工具；未指定时调用 chat_playground_echo。不要虚构工具执行或宿主状态。",
   useKnowledge: true,
 };
 const phases: Record<ChatPhase, string> = {
@@ -34,7 +34,11 @@ const phases: Record<ChatPhase, string> = {
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 const prompts = [
   { label: "Markdown", text: "请用 Markdown 演示一个三级标题、三项列表、一个两列表格和一段 TypeScript 代码。" },
-  { label: "工具调用", text: "请调用 chat_playground_echo，text 设为“Hello Isle 👋”，然后说明返回的文本和字符数。" },
+  { label: "低风险工具", text: "请调用 chat_playground_echo，text 设为“Hello Isle 👋”，然后说明返回的文本和字符数。" },
+  {
+    label: "中风险工具",
+    text: "请调用 chat_playground_medium_risk，text 设为“中风险审批测试”，然后说明实际返回的文本和字符数。",
+  },
   {
     label: "技能示例",
     text: "请使用 chat-playground-text-inspection 技能，分析文本“Hello Isle 👋”的字符数、UTF-8 字节数和 SHA-256，并解释字符数与字节数为什么不同。",

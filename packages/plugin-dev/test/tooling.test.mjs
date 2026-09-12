@@ -81,6 +81,7 @@ test("React scaffold checks and builds outside the Isle repository", async () =>
   assert.match(skills[0].content, new RegExp(toolName));
   assert.doesNotMatch(ui, /不要自行编造字符数/);
   const result = await registered[0].execute({ text: "Isle 👋" });
+  assert.equal(registered[0].risk, "low");
   assert.equal(
     result.sha256,
     createHash("sha256").update("Isle 👋").digest("hex"),

@@ -329,6 +329,56 @@ try {
   }
   console.log("PASS runtime adaptation, opaque commands and equal treatment of custom tools");
 
+  const toolRisks = new Map([
+    ["custom_plugin", "low"],
+    ["custom_builtin", "high"],
+    ["custom_write", "medium"],
+  ]);
+  for (const [entry, risk] of toolRisks) {
+    const invocation = { ...request, entry, input: { risk: "low" } };
+    const analysis = api.analyzePiExecution(invocation, toolRisks);
+    assert.deepEqual(analysis, { coverage: "complete", operations: [{ kind: "tool", risk }] });
+    for (const mode of ["ask", "auto", "full"]) {
+      const approved = mode === "full" || risk === "low" || (mode === "auto" && risk === "medium");
+      assert.equal(
+        api.evaluateSafety(analysis, context(mode, invocation)).action,
+        approved ? "allow" : "requestApproval",
+      );
+    }
+  }
+  assert.equal(
+    api.analyzePiExecution({ ...request, entry: "unregistered", input: { risk: "low" } }, toolRisks).coverage,
+    "unknown",
+  );
+  assert.equal(
+    api.analyzePiExecution({ ...request, entry: "bash", input: { command: "echo hi" } }, new Map([["bash", "low"]]))
+      .coverage,
+    "partial",
+  );
+  assert.equal(api.analyzePiExecution(request, new Map([["write", "low"]])).operations[0].kind, "filesystem");
+  const deniedDeclaration = api.resolveSafetyPolicy("full", workspace, {
+    ...api.SAFETY_CONFIG,
+    rules: (context) => [
+      ...api.SAFETY_CONFIG.rules(context),
+      {
+        id: "deny-declared-tool",
+        description: "Explicit denials override declared risk",
+        scope: "invocation",
+        evaluate: () => ({ risk: "low", effect: "deny", reason: "Disabled by host rule" }),
+      },
+    ],
+  });
+  assert.equal(
+    api.evaluateSafety(api.analyzePiExecution({ ...request, entry: "custom_plugin" }, toolRisks), {
+      ...context("full"),
+      policy: deniedDeclaration,
+    }).action,
+    "deny",
+  );
+  console.log(
+    "PASS registered risks follow common mode thresholds; call arguments and declarations cannot override native analysis or denials",
+  );
+
   let effects = 0,
     approvalCalls = 0,
     approve;

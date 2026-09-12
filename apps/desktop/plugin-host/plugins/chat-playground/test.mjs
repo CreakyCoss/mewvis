@@ -131,8 +131,20 @@ try {
     assert.match(content, /Unicode 码点/);
     assert.match(content, /不要自行编造/);
     const tools = [];
-    bridge.registerTools({ registerTool: (tool) => tools.push(tool.name) });
-    assert.deepEqual(tools.sort(), ["chat_playground_echo", "chat_playground_inspect_text"]);
+    const risks = bridge.registerTools({ registerTool: (tool) => tools.push(tool.name) });
+    assert.deepEqual(tools.sort(), [
+      "chat_playground_echo",
+      "chat_playground_inspect_text",
+      "chat_playground_medium_risk",
+    ]);
+    assert.deepEqual(
+      [...risks],
+      [
+        ["chat_playground_echo", "low"],
+        ["chat_playground_inspect_text", "low"],
+        ["chat_playground_medium_risk", "medium"],
+      ],
+    );
   } finally {
     await bridge.dispose();
   }
@@ -158,8 +170,12 @@ try {
   assert.equal(plugin.error, null);
   assert.equal(plugin.uiError, null);
   assert.deepEqual(
+    plugin.tools.map((tool) => tool.risk),
+    ["low", "low", "medium"],
+  );
+  assert.deepEqual(
     plugin.tools.map((tool) => tool.name),
-    ["chat_playground_echo", "chat_playground_inspect_text"],
+    ["chat_playground_echo", "chat_playground_inspect_text", "chat_playground_medium_risk"],
   );
   const document = await rpc("uiDocument", { pluginId: manifest.name });
   assert.ok(Buffer.byteLength(document.script) < 512 * 1024);
@@ -173,6 +189,12 @@ try {
   });
   assert.deepEqual(result.value, { echo: "Isle 👋", characters: 6 });
   assert.match(result.content[0].text, /Isle 👋/);
+  const mediumResult = await rpc("execute", {
+    pluginId: manifest.name,
+    toolName: "chat_playground_medium_risk",
+    arguments: { text: "中风险审批测试" },
+  });
+  assert.deepEqual(mediumResult.value, { echo: "中风险审批测试", characters: 7 });
   const inspection = await rpc("execute", {
     pluginId: manifest.name,
     toolName: "chat_playground_inspect_text",

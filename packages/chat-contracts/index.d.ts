@@ -3,6 +3,11 @@ import type {
   AgentPermissionOption,
 } from "./agent-permissions.js";
 import type { RuntimeModelThinking } from "./model-thinking.js";
+
+export declare const RISK_LEVELS: readonly ["low", "medium", "high"];
+export type RiskLevel = (typeof RISK_LEVELS)[number];
+export declare function isRiskLevel(value: unknown): value is RiskLevel;
+
 export type {
   AgentAccess,
   AgentAccessBase,

@@ -1,3 +1,5 @@
+import type { IsleToolRisk } from "@isle/plugin-sdk";
+import type { PluginChatEvent } from "@isle/plugin-sdk/chat";
 import { agentPermissionOptions } from "../../src/agent-client/wire";
 // Development adapter compiled into @isle/plugin-dev. Uses the real session engine with memory-only resources.
 import {
@@ -21,7 +23,7 @@ import {
 export function createPreviewChat(options: {
   name: string;
   permissions: readonly string[];
-  tools: { name: string; description: string }[];
+  tools: { name: string; description: string; risk?: IsleToolRisk }[];
   executeTool(name: string, args: Record<string, unknown>): Promise<{ value: unknown }>;
 }) {
   type Listener = Parameters<ChatRuntime["subscribe"]>[0];
@@ -260,6 +262,7 @@ export function createPreviewChat(options: {
         label: tool.name,
         description: tool.description ?? "",
         source: "plugin" as const,
+        risk: tool.risk,
         enabled: true,
       }));
     },
@@ -271,7 +274,7 @@ export function createPreviewChat(options: {
     },
   });
 
-  const observers = new Set<(event: import("@isle/plugin-sdk/chat").PluginChatEvent) => void>();
+  const observers = new Set<(event: PluginChatEvent) => void>();
   const connection = host.connect(
     options.name,
     options.tools.map((tool) => tool.name),
@@ -281,7 +284,7 @@ export function createPreviewChat(options: {
     data,
     transport: {
       request: connection.request,
-      subscribe(listener: (event: import("@isle/plugin-sdk/chat").PluginChatEvent) => void) {
+      subscribe(listener: (event: PluginChatEvent) => void) {
         observers.add(listener);
         return () => {
           observers.delete(listener);

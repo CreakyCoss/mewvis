@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import type { PluginConfig } from "@isle/plugin-dev";
+import type { IsleToolRisk } from "@isle/plugin-sdk";
 export declare function mountPreview(
   App: ComponentType,
   options: Pick<PluginConfig, "displayName" | "permissions"> & {
@@ -12,6 +13,7 @@ export declare function mountPreview(
       name: string;
       description: string;
       parameters: Record<string, unknown>;
+      risk?: IsleToolRisk;
     }[];
     /** Serialized host definitions for static previews; never import host modules into UI. */
     skills?: { name: string; description: string; content: string }[];

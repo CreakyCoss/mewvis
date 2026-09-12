@@ -1,7 +1,8 @@
 import type { AgentPermissions } from "../../engines/protocol/wire.js";
+import type { RiskLevel } from "@isle/chat-contracts";
 
 export type PermissionMode = AgentPermissions["mode"];
-export type SafetyRisk = "low" | "medium" | "high";
+export type SafetyRisk = RiskLevel;
 
 /** Facts supplied by a trusted runtime adapter, never a model's description of intent. */
 export type Operation =
@@ -13,7 +14,9 @@ export type Operation =
     }>
   | Readonly<{ kind: "process"; command: string; cwd: string }>
   | Readonly<{ kind: "network"; url: string; method: string }>
-  | Readonly<{ kind: "interaction"; action: "ask" | "delegate" }>;
+  | Readonly<{ kind: "interaction"; action: "ask" | "delegate" }>
+  /** Risk declared by an enabled tool's definition. Actual effects remain confined by execution policy. */
+  | Readonly<{ kind: "tool"; risk: SafetyRisk }>;
 
 export type ExecutionRequest = Readonly<{
   executionId: string;
