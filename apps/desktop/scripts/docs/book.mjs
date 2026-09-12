@@ -166,7 +166,7 @@ export async function checkReadmeLocations() {
       if (entry.name.startsWith(".") || ["node_modules", "dist", "build", "target", "skills"].includes(entry.name))
         continue;
       const path = join(root, entry.name);
-      if (path === join(repositoryRoot, "packages/plugin-dev/templates")) continue;
+      if (path === join(repositoryRoot, "packages/app-dev/templates")) continue;
       if (entry.isDirectory()) await walk(path);
       else if (/^readme(?:[.-].*)?$/i.test(entry.name))
         throw new Error(`请将自有 README 写入 docs：${relative(repositoryRoot, path)}`);

@@ -635,10 +635,10 @@ pub struct CollaborationAgent {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AgentRuntimeResources {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub mcp: Option<AgentRuntimeMcpResources>,
+    pub applications: Option<AgentRuntimeApplicationResources>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub plugins: Option<AgentRuntimePluginResources>,
+    pub mcp: Option<AgentRuntimeMcpResources>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skills: Option<AgentRuntimeSkillResources>,
@@ -648,16 +648,10 @@ pub struct AgentRuntimeResources {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AgentRuntimeMcpResources {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub servers: Option<Vec<Option<serde_json::Value>>>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AgentRuntimePluginResources {
+pub struct AgentRuntimeApplicationResources {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub items: Option<Vec<AgentRuntimePlugin>>,
+    pub items: Option<Vec<AgentRuntimeApplication>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub settings_path: Option<String>,
@@ -665,7 +659,7 @@ pub struct AgentRuntimePluginResources {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AgentRuntimePlugin {
+pub struct AgentRuntimeApplication {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub config: Option<HashMap<String, Option<serde_json::Value>>>,
 
@@ -673,7 +667,7 @@ pub struct AgentRuntimePlugin {
 
     pub id: String,
 
-    pub kind: AgentRuntimePluginKind,
+    pub kind: AgentRuntimeApplicationKind,
 
     pub package_root: String,
 
@@ -683,10 +677,16 @@ pub struct AgentRuntimePlugin {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum AgentRuntimePluginKind {
+pub enum AgentRuntimeApplicationKind {
     Dsh,
 
     Isle,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AgentRuntimeMcpResources {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub servers: Option<Vec<Option<serde_json::Value>>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

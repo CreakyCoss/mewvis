@@ -46,7 +46,7 @@ export type IsleAgentRuntimeJSONRPCRequest = {
   | CollaborationRunRequest
   | CollaborationModeRunRequest
 );
-export type AgentRuntimePlugin = {
+export type AgentRuntimeApplication = {
   [k: string]: unknown;
 } & {
   kind: "isle" | "dsh";
@@ -219,7 +219,7 @@ export interface AgentRuntimeResources {
   tools?: AgentRuntimeToolResources | null;
   skills?: AgentRuntimeSkillResources | null;
   mcp?: AgentRuntimeMcpResources | null;
-  plugins?: AgentRuntimePluginResources | null;
+  applications?: AgentRuntimeApplicationResources | null;
 }
 export interface AgentRuntimeToolResources {
   allowed?: string[] | null;
@@ -233,9 +233,9 @@ export interface AgentRuntimeMcpResources {
   servers?: unknown[];
   [k: string]: unknown;
 }
-export interface AgentRuntimePluginResources {
+export interface AgentRuntimeApplicationResources {
   settingsPath?: string | null;
-  items?: AgentRuntimePlugin[] | null;
+  items?: AgentRuntimeApplication[] | null;
 }
 export interface AgentPermissions {
   mode: "ask" | "auto" | "full";

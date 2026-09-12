@@ -1,5 +1,5 @@
 use super::{
-    plugins::resolve_session_plugins,
+    applications::resolve_session_applications,
     protocol::{
         notification, request, AgentPermissions, AgentRuntimeResources, AgentRuntimeSkillResources,
         BundledPath, METHOD_AGENT_APPROVAL_ANSWER, METHOD_AGENT_QUESTION_ANSWER, METHOD_AGENT_RUN,
@@ -23,7 +23,7 @@ pub struct RunAgentRuntimeAgentInput {
     task_id: String,
     workspace_path: String,
     chat_id: Option<String>,
-    plugin_id: Option<String>,
+    application_id: Option<String>,
     session_root_dir: Option<String>,
     agent_role_id: Option<String>,
     user_message: String,
@@ -87,7 +87,7 @@ pub fn run_agent_runtime_agent(
         tools: None,
         skills: None,
         mcp: None,
-        plugins: None,
+        applications: None,
     });
     let requested_skills = resources.skills.take();
     let enabled_skills = requested_skills
@@ -107,10 +107,10 @@ pub fn run_agent_runtime_agent(
         paths: Some(skill_paths),
         enabled: Some(enabled_skills),
     });
-    let session_plugin = resolve_session_plugins(&app, input.plugin_id.as_deref())?;
-    resources.plugins = session_plugin
+    let session_application = resolve_session_applications(&app, input.application_id.as_deref())?;
+    resources.applications = session_application
         .as_ref()
-        .map(|plugin| plugin.resources.clone());
+        .map(|application| application.resources.clone());
     let mut command = request(
         task_id.clone(),
         METHOD_AGENT_RUN,
@@ -133,9 +133,9 @@ pub fn run_agent_runtime_agent(
         command["params"]["permissions"] =
             serde_json::to_value(permissions).map_err(|error| error.to_string())?;
     }
-    if let Some(plugin) = session_plugin {
+    if let Some(application) = session_application {
         command["params"]["agentAccess"] =
-            serde_json::to_value(plugin.access).map_err(|error| error.to_string())?;
+            serde_json::to_value(application.access).map_err(|error| error.to_string())?;
     }
 
     state.submit(
@@ -144,7 +144,7 @@ pub fn run_agent_runtime_agent(
             task_id: task_id.clone(),
             session_key,
             command,
-            plugin_id: input.plugin_id,
+            application_id: input.application_id,
         },
     )?;
 

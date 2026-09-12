@@ -2,16 +2,16 @@ import { createDesktopChatService } from "@/chat/desktop";
 import type { DesktopSessionInput } from "@/chat/desktop";
 import { loadStoryById } from "@/features/pages/stories/storage";
 import { prepareStoryChatProfile } from "@/features/pages/stories/story/actions/assistant/resources";
-import { listPlugins } from "@/api/plugins";
-import { createPluginChatHost } from "@/chat/desktop/plugin";
-import { listPluginTools } from "@/api/plugin-tools";
-import { resolvePluginChatWorkspace } from "./plugin-chat-workspace";
+import { listApplications } from "@/api/apps";
+import { createApplicationChatHost } from "@/chat/desktop/application";
+import { listApplicationTools } from "@/api/application-tools";
+import { resolveApplicationChatWorkspace } from "./application-chat-workspace";
 
 // Owned by the application. Resolvers return scene configuration; the service owns sessions.
 export const chatService = createDesktopChatService({
   async resolveRecord(workspacePath, chatId, value): Promise<DesktopSessionInput> {
     const source = value as { workspaceId: string; origin: { kind: string; sceneId: string } };
-    if (source.origin.kind === "plugin") return pluginChatHost.resolveSession(workspacePath, chatId, value);
+    if (source.origin.kind === "application") return applicationChatHost.resolveSession(workspacePath, chatId, value);
     if (source.origin.kind !== "builtin") throw new Error("聊天来源不可用");
     if (source.origin.sceneId === "story-assistant") {
       const story = await loadStoryById(source.workspaceId);
@@ -28,21 +28,21 @@ export const chatService = createDesktopChatService({
   },
 });
 
-async function requirePlugin(pluginId: string) {
-  const plugins = await listPlugins();
-  const plugin = plugins.find((plugin) => plugin.id === pluginId && plugin.enabled);
-  if (!plugin || plugin.permissionStatus !== "declared" || !plugin.permissions.includes("chat"))
-    throw new Error("插件未启用或未获授权使用聊天");
-  return plugin;
+async function requireApplication(applicationId: string) {
+  const applications = await listApplications();
+  const application = applications.find((application) => application.id === applicationId && application.enabled);
+  if (!application || application.permissionStatus !== "declared" || !application.permissions.includes("chat"))
+    throw new Error("应用未启用或未获授权使用聊天");
+  return application;
 }
-export const pluginChatHost = createPluginChatHost(chatService, {
-  async toolCatalog(pluginId) {
-    await requirePlugin(pluginId);
-    return listPluginTools(pluginId);
+export const applicationChatHost = createApplicationChatHost(chatService, {
+  async toolCatalog(applicationId) {
+    await requireApplication(applicationId);
+    return listApplicationTools(applicationId);
   },
-  async authorize(pluginId, workspaceId) {
-    const plugin = await requirePlugin(pluginId);
-    const workspacePath = await resolvePluginChatWorkspace(plugin, workspaceId);
-    return { workspacePath, knowledge: plugin.permissions.includes("chat-knowledge") };
+  async authorize(applicationId, workspaceId) {
+    const application = await requireApplication(applicationId);
+    const workspacePath = await resolveApplicationChatWorkspace(application, workspaceId);
+    return { workspacePath, knowledge: application.permissions.includes("chat-knowledge") };
   },
 });

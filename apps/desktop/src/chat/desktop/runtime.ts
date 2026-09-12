@@ -80,7 +80,7 @@ export function createDesktopRuntime(
           const tools = profile.resolveToolNames?.() ?? profile.allowedToolNames;
           await client.agent.run({
             taskId: turn.taskId,
-            ...(origin.kind === "plugin" ? { pluginId: origin.pluginId } : {}),
+            ...(origin.kind === "application" ? { applicationId: origin.applicationId } : {}),
             workspacePath,
             sessionRootDir,
             agentRoleId: chatId,

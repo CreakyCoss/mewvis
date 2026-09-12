@@ -1,0 +1,65 @@
+{
+  "name": "@isle/app-sdk",
+  "version": "0.1.0",
+  "description": "Stable authoring contract for Isle Cordis applications.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./chat": {
+      "types": "./chat/index.d.ts",
+      "default": "./chat/index.js"
+    },
+    "./chat/react": {
+      "types": "./chat/react.d.ts",
+      "default": "./chat/react.js"
+    },
+    "./browser": {
+      "types": "./browser/index.d.ts",
+      "default": "./browser/index.js"
+    },
+    "./tools": {
+      "types": "./tools/index.d.ts",
+      "default": "./tools/index.js"
+    },
+    "./data": {
+      "types": "./data/index.d.ts",
+      "default": "./data/index.js"
+    }
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "chat",
+    "browser",
+    "data",
+    "tools"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "3.18.1",
+    "@isle/chat-contracts": "workspace:*"
+  },
+  "sideEffects": false,
+  "license": "MIT",
+  "peerDependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6"
+  }
+}

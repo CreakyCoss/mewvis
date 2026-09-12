@@ -1,0 +1,36 @@
+{
+  "name": "@isle/rss-reader",
+  "version": "0.1.0",
+  "description": "Isle 原生 RSS/Atom 阅读应用，提供订阅管理、抓取工具、模型技能与应用自带界面。",
+  "type": "module",
+  "main": "./index.js",
+  "exports": "./index.js",
+  "dependencies": {
+    "@isle/app-sdk": "^0.1.0",
+    "dsh-rss": "0.2.0"
+  },
+  "isle": {
+    "app": {
+      "version": 1,
+      "entry": "./index.js",
+      "assets": [
+        "./THIRD_PARTY_NOTICES.md"
+      ]
+    },
+    "displayName": "RSS 阅读器",
+    "defaultEnabled": false,
+    "permissions": [
+      "network",
+      "application-data",
+      "open-external"
+    ],
+    "ui": {
+      "version": 1,
+      "kind": "sandbox",
+      "entry": "./isle-ui.js",
+      "style": "./isle-ui.css",
+      "title": "RSS 阅读器",
+      "layout": "full"
+    }
+  }
+}

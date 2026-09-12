@@ -4,8 +4,8 @@ import { ChatHomePage } from "@/features/pages/chats/home";
 import { WorkspaceChatRoute } from "@/features/pages/chats";
 import { HubPage } from "@/features/pages/hub";
 import { KnowledgePage } from "@/features/pages/knowledge";
-import { PluginUiPage } from "@/features/pages/plugin-ui";
-import { PluginManagePage } from "@/features/pages/plugin-ui/manage";
+import { ApplicationUiPage } from "@/features/pages/application-ui";
+import { ApplicationManagePage } from "@/features/pages/application-ui/manage";
 import { StoriesPage } from "@/features/pages/stories";
 import { AgentPage, EmbeddingPage, LlmPage, SettingsPage, WorkflowPage } from "@/features/pages/settings";
 import { SkillsPage } from "@/features/pages/skills";
@@ -22,9 +22,9 @@ export const AppRoutes = () => (
         <Route path="knowledge" element={<KnowledgePage />} />
         <Route path="knowledge/:collectionId" element={<KnowledgePage />} />
         <Route path="stories" element={<StoriesPage />} />
-        <Route path="plugins" element={<PluginUiPage />} />
-        <Route path="plugins/manage" element={<PluginManagePage />} />
-        <Route path="plugins/:pluginId" element={<PluginUiPage />} />
+        <Route path="apps" element={<ApplicationUiPage />} />
+        <Route path="apps/manage" element={<ApplicationManagePage />} />
+        <Route path="apps/:applicationId" element={<ApplicationUiPage />} />
         <Route path="hub" element={<HubPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="settings/llm" element={<LlmPage />} />

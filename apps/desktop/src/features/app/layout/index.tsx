@@ -3,19 +3,19 @@ import { ConfigDatabaseDialog } from "@/features/app/recovery";
 import { AppSidebar } from "@/features/app/sidebar";
 import { useWorkspaceStore } from "@/features/pages/chats/workspace-store";
 import { MainOutlet } from "./outlet";
-import { PluginLayoutProvider } from "./plugin-layout";
+import { ApplicationLayoutProvider } from "./application-layout";
 import { AppWorkspace } from "./workspace";
 
 export const AppLayout = () => {
   const refreshWorkspaces = useWorkspaceStore((store) => store.refreshWorkspaces);
 
   return (
-    <PluginLayoutProvider>
+    <ApplicationLayoutProvider>
       <AppWorkspace sidebar={<AppSidebar />}>
         <MainOutlet />
       </AppWorkspace>
       <ConfigDatabaseDialog onRecovered={refreshWorkspaces} />
       <Toaster position="top-center" />
-    </PluginLayoutProvider>
+    </ApplicationLayoutProvider>
   );
 };

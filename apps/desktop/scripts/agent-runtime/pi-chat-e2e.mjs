@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
-import { dshBundleCompatibilityPlugin } from "@isle/plugin-dev/dsh";
+import { dshBundleCompatibilityPlugin } from "@isle/app-dev/dsh";
 
 const temp = mkdtempSync(join(tmpdir(), "isle-pi-chat-"));
 const requests = [];

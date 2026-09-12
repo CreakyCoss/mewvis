@@ -1,11 +1,11 @@
 pub(crate) mod chats;
 pub(crate) mod embeddings;
 pub(crate) mod knowledge;
-pub(crate) mod plugin_data;
-pub(crate) mod plugin_paths;
-pub(crate) mod plugin_ui;
-pub(crate) mod plugin_workspaces;
-pub(crate) mod plugins;
+pub(crate) mod application_data;
+pub(crate) mod application_paths;
+pub(crate) mod application_ui;
+pub(crate) mod application_workspaces;
+pub(crate) mod applications;
 pub(crate) mod skills;
 pub(crate) mod tavern_sessions;
 pub(crate) mod vector_store;

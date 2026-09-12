@@ -17,7 +17,7 @@ use crate::db::{
 // 非开发环境下，版本一致的工作区库走快速路径，避免进入工作区或保存工作区时重复建表、迁移和 schema 校验。
 const ENABLE_RELEASE_WORKSPACE_DATABASE_FAST_PATH: bool = true;
 
-/// Shared by desktop and plugin registration; resolves existing aliases without creating files.
+/// Shared by desktop and application registration; resolves existing aliases without creating files.
 pub fn normalize_workspace_path(path: &Path) -> Result<PathBuf, String> {
     if !path.is_absolute() {
         return Err("请选择绝对路径的工作区目录".into());

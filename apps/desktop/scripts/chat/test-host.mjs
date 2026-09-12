@@ -49,7 +49,7 @@ ajv.addSchema(model);
 ajv.addSchema(JSON.parse(readFileSync(`${dir}/permissions.schema.json`, "utf8")));
 ajv.addSchema(JSON.parse(readFileSync(`${dir}/access.schema.json`, "utf8")));
 ajv.addSchema(request);
-const validate = ajv.compile({ $ref: `${request.$id}#/definitions/AgentRuntimePlugin` });
+const validate = ajv.compile({ $ref: `${request.$id}#/definitions/AgentRuntimeApplication` });
 assert.equal(
   validate({ kind: "dsh", id: "fixture", entry: "", packageRoot: "/fixture", patchPath: "/fixture/patch.js" }),
   true,

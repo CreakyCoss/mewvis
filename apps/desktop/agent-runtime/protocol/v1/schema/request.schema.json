@@ -49,15 +49,15 @@
       "properties": { "servers": { "type": "array" } },
       "additionalProperties": true
     },
-    "AgentRuntimePluginKind": {
+    "AgentRuntimeApplicationKind": {
       "type": "string",
       "enum": ["isle", "dsh"]
     },
-    "AgentRuntimePlugin": {
+    "AgentRuntimeApplication": {
       "type": "object",
       "required": ["kind", "id", "entry", "packageRoot"],
       "properties": {
-        "kind": { "$ref": "#/definitions/AgentRuntimePluginKind" },
+        "kind": { "$ref": "#/definitions/AgentRuntimeApplicationKind" },
         "id": { "type": "string", "minLength": 1 },
         "entry": { "type": "string" },
         "packageRoot": { "type": "string", "minLength": 1 },
@@ -79,13 +79,13 @@
         }
       ]
     },
-    "AgentRuntimePluginResources": {
+    "AgentRuntimeApplicationResources": {
       "type": "object",
       "properties": {
         "settingsPath": { "type": ["string", "null"] },
         "items": {
           "type": ["array", "null"],
-          "items": { "$ref": "#/definitions/AgentRuntimePlugin" }
+          "items": { "$ref": "#/definitions/AgentRuntimeApplication" }
         }
       },
       "additionalProperties": false
@@ -118,8 +118,8 @@
         "mcp": {
           "oneOf": [{ "$ref": "#/definitions/AgentRuntimeMcpResources" }, { "type": "null" }]
         },
-        "plugins": {
-          "oneOf": [{ "$ref": "#/definitions/AgentRuntimePluginResources" }, { "type": "null" }]
+        "applications": {
+          "oneOf": [{ "$ref": "#/definitions/AgentRuntimeApplicationResources" }, { "type": "null" }]
         }
       },
       "additionalProperties": false

@@ -1,17 +1,17 @@
-// Web-only fixture: production shell, routing, plugin detail and sandbox; all IPC stays in memory.
+// Web-only fixture: production shell, routing, application detail and sandbox; all IPC stays in memory.
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { MemoryRouter, Routes, Route, NavLink } from "react-router";
 import { isTauri } from "@tauri-apps/api/core";
 import { mockIPC } from "@tauri-apps/api/mocks";
-import { PluginLayoutProvider } from "../../src/features/app/layout/plugin-layout";
+import { ApplicationLayoutProvider } from "../../src/features/app/layout/application-layout";
 import { AppWorkspace } from "../../src/features/app/layout/workspace";
-import { PluginUiPage } from "../../src/features/pages/plugin-ui";
-import { usePluginCatalogStore } from "../../src/features/pages/plugin-ui/catalog-store";
-import script from "../../plugin-host/plugins/docs-reader/isle-ui.js?raw";
-import style from "../../plugin-host/plugins/docs-reader/isle-ui.css?raw";
+import { ApplicationUiPage } from "../../src/features/pages/application-ui";
+import { useApplicationCatalogStore } from "../../src/features/pages/application-ui/catalog-store";
+import script from "../../app-host/apps/docs-reader/isle-ui.js?raw";
+import style from "../../app-host/apps/docs-reader/isle-ui.css?raw";
 import book from "../../../../docs/.generated/book.json";
-import { createLibrary } from "../../plugin-host/plugins/docs-reader/library.js";
+import { createLibrary } from "../../app-host/apps/docs-reader/library.js";
 import "../../src/App.css";
 
 if (isTauri()) throw new Error("仅允许浏览器内存验证");
@@ -22,7 +22,7 @@ const tools = {
   isle_docs_read: ({ id }) => library.read(id),
   isle_docs_search: ({ query }) => library.search(query),
 };
-const plugins = ["fullscreen", "full", "contained"].map((layout) => ({
+const applications = ["fullscreen", "full", "contained"].map((layout) => ({
   id: `@isle/docs-${layout}`,
   name: `文档中心 ${layout}`,
   version: "0.1.0",
@@ -38,45 +38,45 @@ const plugins = ["fullscreen", "full", "contained"].map((layout) => ({
   tools: Object.keys(tools).map((name) => ({ name, description: name, inputSchema: { type: "object" } })),
 }));
 mockIPC((command, payload) => {
-  if (command === "list_plugin_ui") return { plugins };
-  if (command === "get_plugin_ui_document") return { script, style };
-  if (command === "execute_plugin_ui_tool") {
+  if (command === "list_application_ui") return { applications };
+  if (command === "get_application_ui_document") return { script, style };
+  if (command === "execute_application_ui_tool") {
     const { toolName, arguments: args } = payload.input;
     if (!Object.hasOwn(tools, toolName)) throw new Error("未知工具");
     return { value: tools[toolName](args), content: [], meta: {} };
   }
   throw new Error(`预览禁止原生调用：${command}`);
 });
-usePluginCatalogStore.setState({ catalog: { plugins } });
+useApplicationCatalogStore.setState({ catalog: { applications } });
 const sidebar = (
   <nav aria-label="应用侧栏" className="flex w-56 shrink-0 flex-col gap-4 border-r p-4 pt-12">
-    <NavLink to="/plugins">插件列表</NavLink>
-    {plugins.map((plugin) => (
-      <NavLink key={plugin.id} to={`/plugins/${encodeURIComponent(plugin.id)}`}>
-        {plugin.ui.layout} 模式
+    <NavLink to="/apps">应用列表</NavLink>
+    {applications.map((application) => (
+      <NavLink key={application.id} to={`/apps/${encodeURIComponent(application.id)}`}>
+        {application.ui.layout} 模式
       </NavLink>
     ))}
     <NavLink to="/home">其他页面</NavLink>
     <button
       onClick={() =>
-        usePluginCatalogStore.setState({
-          catalog: { plugins: plugins.map((plugin) => ({ ...plugin, uiError: "模拟声明失效" })) },
+        useApplicationCatalogStore.setState({
+          catalog: { applications: applications.map((application) => ({ ...application, uiError: "模拟声明失效" })) },
         })
       }
     >
-      模拟插件声明失效
+      模拟应用声明失效
     </button>
   </nav>
 );
 createRoot(document.getElementById("root")).render(
-  <MemoryRouter initialEntries={[`/plugins/${encodeURIComponent(plugins[0].id)}`]}>
-    <PluginLayoutProvider>
+  <MemoryRouter initialEntries={[`/apps/${encodeURIComponent(applications[0].id)}`]}>
+    <ApplicationLayoutProvider>
       <AppWorkspace sidebar={sidebar}>
         <Routes>
-          <Route path="/plugins/:pluginId?" element={<PluginUiPage />} />
+          <Route path="/apps/:applicationId?" element={<ApplicationUiPage />} />
           <Route path="/home" element={<div>其他应用页面</div>} />
         </Routes>
       </AppWorkspace>
-    </PluginLayoutProvider>
+    </ApplicationLayoutProvider>
   </MemoryRouter>,
 );

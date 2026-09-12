@@ -1,6 +1,6 @@
 # 程序执行与沙箱
 
-源码目录 `apps/desktop/agent-runtime/src/security/execution` 负责启动适配器提供的程序，以及 RPC、取消、超时和清理。操作系统沙箱是可选后端。执行模块不导入 Agent SDK 或安全审批模块，不构造工具、不加载插件、不解释技能。
+源码目录 `apps/desktop/agent-runtime/src/security/execution` 负责启动适配器提供的程序，以及 RPC、取消、超时和清理。操作系统沙箱是可选后端。执行模块不导入 Agent SDK 或安全审批模块，不构造工具、不加载应用、不解释技能。
 
 ## 配置与流程
 
@@ -36,7 +36,7 @@
 
 SRT 固定为 0.0.75，校验声明的强制保护与已安装后端一致，不接受漂移。Unix 系统写入路径及临时目录 `/tmp/claude` 显式配置，启动器避免使用 SRT 隐含的 macOS 系统临时目录父目录授权。应用限制应放在 baseline 或 profiles，修改声明不能取消后端自身保护。
 
-每个隔离执行器独享 SRT 实例和代理。POSIX 使用 Seatbelt 或 bubblewrap；Windows 使用下述实验后端。Worker 输出仅供诊断，Unix RPC 使用独立文件描述符，Windows 使用认证命名管道。取消／超时停止执行树，后续调用可按同一策略重建 Worker。进程清理不保证恶意插件无法故意脱离并遗留后台进程。
+每个隔离执行器独享 SRT 实例和代理。POSIX 使用 Seatbelt 或 bubblewrap；Windows 使用下述实验后端。Worker 输出仅供诊断，Unix RPC 使用独立文件描述符，Windows 使用认证命名管道。取消／超时停止执行树，后续调用可按同一策略重建 Worker。进程清理不保证恶意应用无法故意脱离并遗留后台进程。
 
 ## 源码布局
 
@@ -52,7 +52,7 @@ SRT 固定为 0.0.75，校验声明的强制保护与已安装后端一致，不
 - `../platforms/posix`、`../platforms/windows`：参数解析与执行实现，`config.ts` 是解析器，不是另一份可编辑设置。
 - `cli/control.ts`：应用状态／初始化入口。
 
-Pi 在 `runtimes/pi/tools/worker.ts` 和 `tools/shell.ts` 管理工具工厂，`platforms/*/process.ts` 选择可用 shell。模型、会话控制、追问和委派留在宿主。适配器经 `index.ts` 使用 `serializeWorkspaceOperation`，即使操作派到执行 Worker，队列仍留在宿主。两种执行模式使用同一 Worker。PluginHost 和插件 UI 不在此 Agent 工具边界内。
+Pi 在 `runtimes/pi/tools/worker.ts` 和 `tools/shell.ts` 管理工具工厂，`platforms/*/process.ts` 选择可用 shell。模型、会话控制、追问和委派留在宿主。适配器经 `index.ts` 使用 `serializeWorkspaceOperation`，即使操作派到执行 Worker，队列仍留在宿主。两种执行模式使用同一 Worker。ApplicationHost 和应用 UI 不在此 Agent 工具边界内。
 
 ## Windows 初始化与限制
 
@@ -60,7 +60,7 @@ Pi 在 `runtimes/pi/tools/worker.ts` 和 `tools/shell.ts` 管理工具工厂，`
 
 运行时同时携带 x64 和 ARM64 辅助程序。命令工具优先使用原生 Git Bash/MSYS2/Cygwin，不把 WSL 启动器作为原生 Bash。缺少 Bash 时依次选择 PowerShell 7、Windows PowerShell；PATH 缺失时也检查标准位置。此时注册 Pi 的 `powershell` 工具，使用 PowerShell 语法、UTF-8 输出且不加载 profile。
 
-默认能力分配允许两种工具；显式白名单需包含 `powershell` 才能使用。两种 shell 都缺失时，文件和插件工具仍可用。两种命令工具遵守相同审批、沙箱及超时流程。Windows 沙箱初始化独立于 shell 选择。
+默认能力分配允许两种工具；显式白名单需包含 `powershell` 才能使用。两种 shell 都缺失时，文件和应用工具仍可用。两种命令工具遵守相同审批、沙箱及超时流程。Windows 沙箱初始化独立于 shell 选择。
 
 Windows 后端处于 **alpha**，ACL 施加到整机共用的沙箱账户，单独创建 SRT 实例不足以隔离授权。Isle 在 SRT 受保护状态目录中通过 SQLite 租约事务协调 ACL：文件／网络范围相同可并发，不同范围在现有任务结束前被拒绝。审批阈值不属于资源范围，所以 ask/auto 范围相同时可共存。主／子 Agent 共用快照。
 

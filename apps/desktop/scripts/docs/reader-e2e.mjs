@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { pathToFileURL } from "node:url";
-import { packPlugin } from "@isle/plugin-dev/tooling";
+import { packApplication } from "@isle/app-dev/tooling";
 import { repositoryRoot } from "./book.mjs";
 
 const desktop = join(repositoryRoot, "apps/desktop");
@@ -14,13 +14,13 @@ let child;
 let output;
 const pending = new Map();
 try {
-  const source = join(desktop, "plugin-host/plugins/docs-reader");
-  const { outputRoot, manifest } = await packPlugin({ source, outDir: join(temporary, "plugin"), quiet: true });
+  const source = join(desktop, "app-host/apps/docs-reader");
+  const { outputRoot, manifest } = await packApplication({ source, outDir: join(temporary, "application"), quiet: true });
   assert.equal(manifest.isle.defaultEnabled, true);
   assert.deepEqual(manifest.isle.permissions, ["open-external"]);
   const bundledSource = await readFile(join(outputRoot, "index.js"), "utf8");
   assert.doesNotMatch(bundledSource, /from ["'][^"']*book\.json/);
-  child = spawn(process.execPath, [join(desktop, "agent-runtime/dist/plugin-host/service.mjs")], {
+  child = spawn(process.execPath, [join(desktop, "agent-runtime/dist/app-host/service.mjs")], {
     cwd: temporary,
     stdio: ["pipe", "pipe", "pipe"],
   });
@@ -38,7 +38,7 @@ try {
     pending.clear();
   };
   child.on("error", fail);
-  child.on("exit", () => fail(new Error(`插件宿主退出：${stderr}`)));
+  child.on("exit", () => fail(new Error(`应用宿主退出：${stderr}`)));
   output = createInterface({ input: child.stdout });
   output.on("line", (line) => {
     let response;
@@ -66,7 +66,7 @@ try {
     });
   const configured = await rpc("configure", {
     settingsPath: join(temporary, "settings"),
-    plugins: [
+    applications: [
       {
         kind: "isle",
         id: manifest.name,
@@ -80,12 +80,12 @@ try {
       },
     ],
   });
-  assert.equal(configured.plugins[0].error, null);
-  assert.equal(configured.plugins[0].uiError, null);
-  assert.equal(configured.plugins[0].ui.layout, "fullscreen");
-  assert.equal(configured.plugins[0].tools.length, 3);
+  assert.equal(configured.applications[0].error, null);
+  assert.equal(configured.applications[0].uiError, null);
+  assert.equal(configured.applications[0].ui.layout, "fullscreen");
+  assert.equal(configured.applications[0].tools.length, 3);
   const tool = async (toolName, args = {}) =>
-    (await rpc("execute", { pluginId: manifest.name, toolName, arguments: args })).value;
+    (await rpc("execute", { applicationId: manifest.name, toolName, arguments: args })).value;
   const catalog = await tool("isle_docs_catalog");
   assert.ok(catalog.entries.length >= 30);
   const document = await tool("isle_docs_read", { id: "README.md" });
@@ -99,7 +99,7 @@ try {
     document,
     "额外路径不能改变读取目标",
   );
-  const ui = await rpc("uiDocument", { pluginId: manifest.name });
+  const ui = await rpc("uiDocument", { applicationId: manifest.name });
   assert.match(ui.script, /isle_docs_search/);
   assert.match(ui.style, /\.docs-app/);
   assert.ok(Buffer.byteLength(ui.script) <= 512 * 1024);

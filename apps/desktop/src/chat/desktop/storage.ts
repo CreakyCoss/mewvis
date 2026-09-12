@@ -1,12 +1,12 @@
 import { loadChat, saveChat, setChatUnread, type ChatRecord as ApiRecord, type ChatOrigin } from "@/api/chat";
 import type { ChatRecord, ChatRunConfig, ChatStorage } from "../core";
-import type { PluginChatProfile } from "@isle/plugin-sdk/chat";
+import type { ApplicationChatProfile } from "@isle/app-sdk/chat";
 
-export type ChatRecordSource = { workspaceId: string; origin: ChatOrigin; profile?: PluginChatProfile };
+export type ChatRecordSource = { workspaceId: string; origin: ChatOrigin; profile?: ApplicationChatProfile };
 export const sameOrigin = (a: ChatOrigin | undefined, b: ChatOrigin) =>
   a?.kind === b.kind &&
   a.sceneId === b.sceneId &&
-  (a.kind !== "plugin" || (b.kind === "plugin" && a.pluginId === b.pluginId));
+  (a.kind !== "application" || (b.kind === "application" && a.applicationId === b.applicationId));
 
 export type ViewPreferences = { showThinkingProcess: boolean; showToolCallProcess: boolean };
 const configKeys = [

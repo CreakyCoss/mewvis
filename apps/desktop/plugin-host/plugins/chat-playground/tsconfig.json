@@ -1,4 +1,0 @@
-{
-  "extends": "@isle/plugin-dev/tsconfig.json",
-  "include": ["main", "isle.config.ts"]
-}

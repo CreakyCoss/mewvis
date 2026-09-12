@@ -11,9 +11,9 @@ import {
 import { summarizeChatLedger } from "../../src/chat/desktop/ledger";
 import { getLlmSettings, getLlmModelOptions, resolveLlmModel, saveLlmSettings } from "../../src/api/llm";
 import { normalizeLlmSettingsConfig, toLlmSettingsConfig } from "../../src/features/pages/settings/llm/edit/utils";
-import { createPluginChatHost } from "../../src/chat/desktop/plugin";
-import { createPluginChatClient, type PluginChatEvent } from "@isle/plugin-sdk/chat";
-import { createPluginToolClient } from "@isle/plugin-sdk/tools";
+import { createApplicationChatHost } from "../../src/chat/desktop/application";
+import { createApplicationChatClient, type ApplicationChatEvent } from "@isle/app-sdk/chat";
+import { createApplicationToolClient } from "@isle/app-sdk/tools";
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -33,12 +33,12 @@ const summaryInput = {
   summaryInstruction: "Summarize",
 };
 
-const pluginInput = {
+const applicationInput = {
   workspaceId: "workspace",
   sceneId: "debug",
   profile: {
-    id: "plugin-scene",
-    systemPrompt: "Keep the plugin scene",
+    id: "application-scene",
+    systemPrompt: "Keep the application scene",
     context: { requestContext: "initial" },
     useKnowledge: true,
   },
@@ -50,19 +50,19 @@ const historyInput = (id: string) => ({
   origin: { kind: "builtin" as const, sceneId: "chat" },
   profile: { id: "workspace", systemPrompt: () => "WORKSPACE FALLBACK MUST NOT BE USED" },
 });
-function pluginFixture(availableTools = ["own"]) {
+function applicationFixture(availableTools = ["own"]) {
   const service = createDesktopChatService({ resolveRecord: (...args) => host.resolveSession(...args) });
   let allowed = true;
-  const host = createPluginChatHost(service, {
+  const host = createApplicationChatHost(service, {
     tools: async () => availableTools,
     authorize: async () => {
       if (!allowed) throw new Error("permission revoked");
       return { workspacePath: "fixture", knowledge: true };
     },
   });
-  const listeners = new Set<(event: PluginChatEvent) => void>();
-  const connection = host.connect("plugin", ["own"], (event) => listeners.forEach((listener) => listener(event)));
-  const client = createPluginChatClient({
+  const listeners = new Set<(event: ApplicationChatEvent) => void>();
+  const connection = host.connect("application", ["own"], (event) => listeners.forEach((listener) => listener(event)));
+  const client = createApplicationChatClient({
     request: (request) => connection.request(structuredClone(request)),
     subscribe: (listener) => {
       listeners.add(listener);
@@ -108,9 +108,9 @@ test("catalog, model resolution and summaries share one cold read; callers canno
   assert.equal(fake.llmReads - before, 1);
 });
 
-test("model catalog drives host and plugin thinking selection, request payloads and persisted sessions", async () => {
+test("model catalog drives host and application thinking selection, request payloads and persisted sessions", async () => {
   const previous = structuredClone(fake.llmSettings);
-  const fixture = pluginFixture();
+  const fixture = applicationFixture();
   fake.record = null;
   try {
     fake.llmSettings = {
@@ -139,19 +139,19 @@ test("model catalog drives host and plugin thinking selection, request payloads 
     assert.deepEqual(toLlmSettingsConfig(await getLlmSettings()).providers[0].models[0].thinking, custom);
     assert.deepEqual((await getLlmModelOptions())[0].thinking, custom);
     assert.equal((await resolveLlmModel("model")).thinkingLevel, "provider-custom");
-    const plugin = await fixture.client.createSession(pluginInput);
-    assert.equal(plugin.getSnapshot().config.thinkingLevel, "provider-custom");
-    assert.deepEqual(plugin.getSnapshot().resources.models?.[0].thinking, custom);
-    assert.equal((await plugin.updateConfig({ thinkingLevel: "future-effort" })).ok, true);
-    assert.equal((await plugin.updateConfig({ thinkingLevel: "provider-custom" })).ok, true);
-    const sent = await plugin.send({ text: "selected effort" });
+    const application = await fixture.client.createSession(applicationInput);
+    assert.equal(application.getSnapshot().config.thinkingLevel, "provider-custom");
+    assert.deepEqual(application.getSnapshot().resources.models?.[0].thinking, custom);
+    assert.equal((await application.updateConfig({ thinkingLevel: "future-effort" })).ok, true);
+    assert.equal((await application.updateConfig({ thinkingLevel: "provider-custom" })).ok, true);
+    const sent = await application.send({ text: "selected effort" });
     assert.equal(sent.status, "dispatched");
     assert.equal(fake.runs.at(-1).runtimeModel.thinkingLevel, "provider-custom");
     completeTask(sent.taskId!);
-    await plugin.flush();
+    await application.flush();
     assert.equal(fake.record.options.thinkingLevel, "provider-custom");
     await fixture.service.closeAll();
-    const restored = await openHistorySession(fixture.service, historyInput(plugin.identity.id));
+    const restored = await openHistorySession(fixture.service, historyInput(application.identity.id));
     assert.equal(restored.getSnapshot().config.thinkingLevel, "provider-custom");
     draft.providers[0].models[0].thinking = { levels: [], defaultLevel: null };
     await saveLlmSettings(normalizeLlmSettingsConfig(draft));
@@ -169,7 +169,7 @@ test("resource loading tolerates tools failure; UI descriptors contain no runtim
   const client = {
     capabilities: {
       async listAgentTools() {
-        throw new Error("plugin schema failure");
+        throw new Error("application schema failure");
       },
     },
   };
@@ -185,25 +185,25 @@ test("resource loading tolerates tools failure; UI descriptors contain no runtim
     /apiKey|runtimeModel|secret-must-not-reach-ui|private skill body|\/skills\/private/,
   );
 });
-test("plugin selection, restoration and dispatch use the same permission modes as the host", async () => {
+test("application selection, restoration and dispatch use the same permission modes as the host", async () => {
   fake.record = null;
-  const first = pluginFixture(["own", "host"]);
-  const second = pluginFixture(["own", "host"]);
+  const first = applicationFixture(["own", "host"]);
+  const second = applicationFixture(["own", "host"]);
   try {
-    const plugin = await first.client.createSession({
-      ...pluginInput,
-      profile: { ...pluginInput.profile, allowedToolNames: ["own", "host"] },
+    const application = await first.client.createSession({
+      ...applicationInput,
+      profile: { ...applicationInput.profile, allowedToolNames: ["own", "host"] },
     });
-    assert.equal((await plugin.updateConfig({ permissionMode: "full" })).ok, true);
-    const sent = await plugin.send({ text: "use assigned tools" });
+    assert.equal((await application.updateConfig({ permissionMode: "full" })).ok, true);
+    const sent = await application.send({ text: "use assigned tools" });
     assert.equal(sent.status, "dispatched");
     assert.deepEqual(fake.runs.at(-1).permissions, { mode: "full" });
     assert.deepEqual(fake.runs.at(-1).resources.tools.allowed, ["own", "host"]);
-    assert.equal(fake.runs.at(-1).pluginId, "plugin");
+    assert.equal(fake.runs.at(-1).applicationId, "application");
     completeTask(sent.taskId!);
-    await plugin.flush();
+    await application.flush();
     await first.service.closeAll();
-    const restored = await openHistorySession(second.service, historyInput(plugin.identity.id));
+    const restored = await openHistorySession(second.service, historyInput(application.identity.id));
     assert.equal(restored.getSnapshot().config.permissionMode, "full");
   } finally {
     await first.service.closeAll();
@@ -438,21 +438,21 @@ test("explicit session refresh coalesces model reads, exposes failures and recov
   assert.equal((await owner.closeAll()).ok, true);
 });
 
-test("completed plugin chats open from history as the same owner and retain scene, permissions and save queue", async () => {
+test("completed application chats open from history as the same owner and retain scene, permissions and save queue", async () => {
   fake.record = null;
   fake.runs = [];
-  const f = pluginFixture();
-  const plugin = await f.client.createSession(pluginInput);
-  await plugin.setContext({ requestContext: "updated scene" });
-  const sent = await plugin.send({ text: "first turn" });
+  const f = applicationFixture();
+  const application = await f.client.createSession(applicationInput);
+  await application.setContext({ requestContext: "updated scene" });
+  const sent = await application.send({ text: "first turn" });
   assert.equal(sent.status, "dispatched");
   completeTask(sent.taskId!);
-  await plugin.flush();
-  const owner = f.service.getSession(plugin.identity)!;
+  await application.flush();
+  const owner = f.service.getSession(application.identity)!;
   assert.equal(owner.getSnapshot().phase, "idle");
   const [first, second] = await Promise.all([
-    openHistorySession(f.service, historyInput(plugin.identity.id)),
-    openHistorySession(f.service, historyInput(plugin.identity.id)),
+    openHistorySession(f.service, historyInput(application.identity.id)),
+    openHistorySession(f.service, historyInput(application.identity.id)),
   ]);
   assert.equal(first, owner);
   assert.equal(second, owner);
@@ -462,18 +462,18 @@ test("completed plugin chats open from history as the same owner and retain scen
     ["own"],
   );
   const next = await first.send({ text: "continue from sidebar" });
-  assert.match(fake.runs.at(-1).systemPrompt, /Keep the plugin scene/);
+  assert.match(fake.runs.at(-1).systemPrompt, /Keep the application scene/);
   assert.match(fake.runs.at(-1).requestContext, /updated scene/);
   assert.equal(
-    await openHistorySession(f.service, historyInput(plugin.identity.id)),
+    await openHistorySession(f.service, historyInput(application.identity.id)),
     owner,
     "running views also share the owner",
   );
-  await assert.rejects(f.service.openSession(historyInput(plugin.identity.id)), /来源不匹配/);
+  await assert.rejects(f.service.openSession(historyInput(application.identity.id)), /来源不匹配/);
   completeTask(next.taskId!);
   await owner.flush();
   f.revoke();
-  const view = await f.service.openRecord(historyInput(plugin.identity.id));
+  const view = await f.service.openRecord(historyInput(application.identity.id));
   assert.equal(view.session, undefined);
   assert.deepEqual(view.history!.messages, owner.getSnapshot().messages);
   assert.equal((await owner.send({ text: "not authorized" })).status, "rejected");
@@ -482,80 +482,80 @@ test("completed plugin chats open from history as the same owner and retain scen
   await assert.rejects(
     f.service.viewPersistence(owner)!.savePreferences({ showThinkingProcess: false, showToolCallProcess: true }),
   );
-  assert.equal((await f.service.closeRecord("fixture", plugin.identity.id)).ok, false);
-  assert.equal(f.service.getSession(plugin.identity), owner, "failed saves retain ownership");
+  assert.equal((await f.service.closeRecord("fixture", application.identity.id)).ok, false);
+  assert.equal(f.service.getSession(application.identity), owner, "failed saves retain ownership");
   fake.failSave = false;
-  assert.equal((await f.service.closeRecord("fixture", plugin.identity.id)).ok, true);
+  assert.equal((await f.service.closeRecord("fixture", application.identity.id)).ok, true);
   assert.equal(f.service.listSessions().length, 0);
   f.connection.dispose();
 });
 
-test("history restores plugin ownership and dynamic context after restart, including later plugin reconnection", async () => {
+test("history restores application ownership and dynamic context after restart, including later application reconnection", async () => {
   fake.record = null;
-  const first = pluginFixture();
-  const plugin = await first.client.createSession(pluginInput);
-  const sent = await plugin.send({ text: "remember" });
+  const first = applicationFixture();
+  const application = await first.client.createSession(applicationInput);
+  const sent = await application.send({ text: "remember" });
   completeTask(sent.taskId!);
-  await plugin.flush();
-  await plugin.setContext({ requestContext: "persisted after the last turn" });
-  await plugin.updateConfig({ selectedSkillKeys: [], selectedKnowledgeCollectionIds: [], permissionMode: "ask" });
-  await plugin.flush();
+  await application.flush();
+  await application.setContext({ requestContext: "persisted after the last turn" });
+  await application.updateConfig({ selectedSkillKeys: [], selectedKnowledgeCollectionIds: [], permissionMode: "ask" });
+  await application.flush();
   await first.service.closeAll();
   first.connection.dispose();
   const saved = structuredClone(fake.record);
-  assert.deepEqual(saved.origin, { kind: "plugin", pluginId: "plugin", sceneId: "debug" });
+  assert.deepEqual(saved.origin, { kind: "application", applicationId: "application", sceneId: "debug" });
   assert.equal(saved.workspaceId, "workspace");
   assert.equal(saved.options.chatOrigin, undefined);
-  assert.equal(saved.options.profile.id, pluginInput.profile.id);
+  assert.equal(saved.options.profile.id, applicationInput.profile.id);
   assert.doesNotMatch(
     JSON.stringify({ workspaceId: saved.workspaceId, origin: saved.origin, profile: saved.options.profile }),
     /apiKey|runtimeModel|secret-must-not-reach-ui/,
   );
-  const second = pluginFixture();
+  const second = applicationFixture();
   const [a, b] = await Promise.all([
-    openHistorySession(second.service, historyInput(plugin.identity.id)),
-    openHistorySession(second.service, historyInput(plugin.identity.id)),
+    openHistorySession(second.service, historyInput(application.identity.id)),
+    openHistorySession(second.service, historyInput(application.identity.id)),
   ]);
   assert.equal(a, b);
-  assert.deepEqual(a.identity, plugin.identity);
+  assert.deepEqual(a.identity, application.identity);
   assert.deepEqual(a.getSnapshot().config.selectedSkillKeys, []);
   assert.deepEqual(a.getSnapshot().config.permissionMode, "ask");
   assert.deepEqual(a.getSnapshot().config.selectedKnowledgeCollectionIds, []);
   assert.equal(a.getSnapshot().messages.length, saved.messages.length);
-  const reconnect = await second.client.openSession({ workspaceId: "workspace", chatId: plugin.identity.id });
+  const reconnect = await second.client.openSession({ workspaceId: "workspace", chatId: application.identity.id });
   assert.equal(second.service.getSession(reconnect.identity), a);
   const sentAgain = await reconnect.send({ text: "continue after restart" });
-  assert.equal(fake.runs.at(-1).pluginId, "plugin", "restoring from host history preserves the plugin owner");
+  assert.equal(fake.runs.at(-1).applicationId, "application", "restoring from host history preserves the application owner");
   assert.match(fake.runs.at(-1).requestContext, /persisted after the last turn/);
   completeTask(sentAgain.taskId!);
   await second.service.closeAll();
   second.connection.dispose();
 
-  const pluginFirst = pluginFixture();
-  const connectedFirst = await pluginFirst.client.openSession({ workspaceId: "workspace", chatId: plugin.identity.id });
-  const fromPlugin = await connectedFirst.send({ text: "plugin opens first after restart" });
+  const applicationFirst = applicationFixture();
+  const connectedFirst = await applicationFirst.client.openSession({ workspaceId: "workspace", chatId: application.identity.id });
+  const fromApplication = await connectedFirst.send({ text: "application opens first after restart" });
   assert.match(fake.runs.at(-1).requestContext, /persisted after the last turn/);
-  completeTask(fromPlugin.taskId!);
-  const closing = pluginFirst.service.closeRecord("fixture", plugin.identity.id);
-  const reopening = openHistorySession(pluginFirst.service, historyInput(plugin.identity.id));
+  completeTask(fromApplication.taskId!);
+  const closing = applicationFirst.service.closeRecord("fixture", application.identity.id);
+  const reopening = openHistorySession(applicationFirst.service, historyInput(application.identity.id));
   assert.equal((await closing).ok, true);
   const reopened = await reopening;
-  assert.deepEqual(reopened.identity, plugin.identity);
+  assert.deepEqual(reopened.identity, application.identity);
   assert.equal(reopened.getSnapshot().phase, "idle");
   assert.equal(
-    pluginFirst.service.listSessions().length,
+    applicationFirst.service.listSessions().length,
     1,
     "history waits for an explicit owner close before restoring",
   );
-  await pluginFirst.service.closeAll();
-  pluginFirst.connection.dispose();
+  await applicationFirst.service.closeAll();
+  applicationFirst.connection.dispose();
 
-  const denied = pluginFixture();
+  const denied = applicationFixture();
   denied.revoke();
   const writes = fake.writes.length;
   const subscriptions = fake.events.size;
   const runs = fake.runs.length;
-  const readonly = await denied.service.openRecord(historyInput(plugin.identity.id));
+  const readonly = await denied.service.openRecord(historyInput(application.identity.id));
   assert.equal(readonly.session, undefined);
   assert.match(readonly.history!.reason, /permission revoked/);
   assert.equal(readonly.history!.canRetry, true);
@@ -563,11 +563,11 @@ test("history restores plugin ownership and dynamic context after restart, inclu
   assert.equal(fake.events.size, subscriptions, "read-only history does not subscribe to a runtime");
   assert.equal(fake.writes.length, writes, "read-only history does not save or rewrite messages");
   assert.equal(fake.runs.length, runs);
-  assert.equal(denied.service.listSessions().length, 0, "no workspace fallback on failed plugin authorization");
+  assert.equal(denied.service.listSessions().length, 0, "no workspace fallback on failed application authorization");
   denied.connection.dispose();
-  const invalid = pluginFixture();
+  const invalid = applicationFixture();
   await assert.rejects(
-    invalid.host.resolveSession("other", plugin.identity.id, {
+    invalid.host.resolveSession("other", application.identity.id, {
       workspaceId: saved.workspaceId,
       origin: saved.origin,
       profile: saved.options.profile,
@@ -576,7 +576,7 @@ test("history restores plugin ownership and dynamic context after restart, inclu
   );
   await assert.rejects(invalid.client.openSession({ workspaceId: "workspace", chatId: "missing" }), /未找到聊天记录/);
   saved.options.profile.allowedToolNames = ["host"];
-  const stale = await invalid.host.resolveSession("fixture", plugin.identity.id, {
+  const stale = await invalid.host.resolveSession("fixture", application.identity.id, {
     workspaceId: saved.workspaceId,
     origin: saved.origin,
     profile: saved.options.profile,
@@ -586,18 +586,18 @@ test("history restores plugin ownership and dynamic context after restart, inclu
   invalid.connection.dispose();
 });
 
-test("plugin conversation lists contain only owned metadata and reopen saved scenes without resupplying a profile", async () => {
+test("application conversation lists contain only owned metadata and reopen saved scenes without resupplying a profile", async () => {
   fake.record = null;
-  const f = pluginFixture();
-  const session = await f.client.createSession(pluginInput);
+  const f = applicationFixture();
+  const session = await f.client.createSession(applicationInput);
   const sent = await session.send({ text: "saved conversation" });
   completeTask(sent.taskId!);
   await session.flush();
-  const origin = { kind: "plugin", pluginId: "plugin", sceneId: "debug" };
+  const origin = { kind: "application", applicationId: "application", sceneId: "debug" };
   const own = {
     id: session.identity.id,
     path: "/private/path",
-    title: "Saved plugin conversation",
+    title: "Saved application conversation",
     createdAt: 1,
     updatedAt: 2,
     messageCount: 2,
@@ -607,7 +607,7 @@ test("plugin conversation lists contain only owned metadata and reopen saved sce
   fake.metas = [
     own,
     { ...own, id: "ordinary", origin: { kind: "builtin", sceneId: "chat" }, title: "private ordinary chat" },
-    { ...own, origin: { ...origin, pluginId: "other" }, title: "private other plugin" },
+    { ...own, origin: { ...origin, applicationId: "other" }, title: "private other application" },
     { ...own, workspaceId: "other", title: "private other workspace" },
     { ...own, origin: { ...origin, sceneId: "" }, title: "invalid scene" },
   ];
@@ -617,7 +617,7 @@ test("plugin conversation lists contain only owned metadata and reopen saved sce
   assert.deepEqual(summaries, [
     { chatId: session.identity.id, sceneId: "debug", title: own.title, createdAt: 1, updatedAt: 2, messageCount: 2 },
   ]);
-  assert.doesNotMatch(JSON.stringify(summaries), /private|forged|scope|profile|apiKey|pluginId/);
+  assert.doesNotMatch(JSON.stringify(summaries), /private|forged|scope|profile|apiKey|applicationId/);
   await f.service.closeAll();
   const reopened = await f.client.openSession({ workspaceId: "workspace", chatId: summaries[0].chatId });
   assert.deepEqual(reopened.identity, session.identity);
@@ -645,8 +645,8 @@ test("builtin origins survive saves and history never replaces a different or mi
   const input = historyInput("builtin-record");
   const session = await service.openSession(input);
   const sent = await session.send({ text: "builtin history" });
-  assert.equal(Object.hasOwn(fake.runs.at(-1), "pluginId"), false);
-  assert.equal(fake.runs.at(-1).resources.plugins, undefined);
+  assert.equal(Object.hasOwn(fake.runs.at(-1), "applicationId"), false);
+  assert.equal(fake.runs.at(-1).resources.applications, undefined);
   completeTask(sent.taskId!);
   await session.flush();
   assert.deepEqual(fake.record.origin, { kind: "builtin", sceneId: "chat" });
@@ -735,24 +735,24 @@ test("user tool grants apply to SDK queries, existing scenes and every dispatch 
   let fail = false;
   let onCatalog: (() => void) | undefined;
   const service = createDesktopChatService();
-  const host = createPluginChatHost(service, {
+  const host = createApplicationChatHost(service, {
     authorize: async () => ({ workspacePath: "fixture", knowledge: true }),
     toolCatalog: async (id) => {
-      assert.equal(id, "plugin");
+      assert.equal(id, "application");
       if (fail) throw new Error("cannot read grants");
       onCatalog?.();
       return ["own", "host"].map((name) => ({
         name,
         label: name,
         description: "",
-        source: name === "own" ? ("plugin" as const) : ("host" as const),
+        source: name === "own" ? ("application" as const) : ("host" as const),
         enabled: granted.includes(name),
       }));
     },
   });
-  const listeners = new Set<(event: PluginChatEvent) => void>();
-  const connection = host.connect("plugin", ["own"], (event) => listeners.forEach((listener) => listener(event)));
-  const client = createPluginChatClient({
+  const listeners = new Set<(event: ApplicationChatEvent) => void>();
+  const connection = host.connect("application", ["own"], (event) => listeners.forEach((listener) => listener(event)));
+  const client = createApplicationChatClient({
     request: (request) => connection.request(structuredClone(request)),
     subscribe: (listener) => {
       listeners.add(listener);
@@ -760,16 +760,16 @@ test("user tool grants apply to SDK queries, existing scenes and every dispatch 
     },
   });
   try {
-    const sdk = createPluginToolClient(client);
+    const sdk = createApplicationToolClient(client);
     assert.deepEqual(
       (await sdk.list()).map((tool) => tool.name),
       ["own", "host"],
     );
     assert.equal("set" in sdk, false);
-    await assert.rejects(connection.request({ method: "tools", input: { pluginId: "other" } }), /不支持/);
+    await assert.rejects(connection.request({ method: "tools", input: { applicationId: "other" } }), /不支持/);
     const session = await client.createSession({
-      ...pluginInput,
-      profile: { ...pluginInput.profile, allowedToolNames: ["own", "host", "unavailable"] },
+      ...applicationInput,
+      profile: { ...applicationInput.profile, allowedToolNames: ["own", "host", "unavailable"] },
     });
     assert.deepEqual(
       session.getSnapshot().resources.tools?.map((tool) => tool.value),
@@ -826,15 +826,15 @@ test("user tool grants apply to SDK queries, existing scenes and every dispatch 
     assert.notEqual((await restored.send({ text: "Fail closed" })).status, "dispatched");
     assert.equal(fake.runs.length, before);
     fail = false;
-    const automatic = await client.createSession(pluginInput);
+    const automatic = await client.createSession(applicationInput);
     sent = await automatic.send({ text: "Omitting allowedToolNames still honors user grants" });
     assert.equal(sent.status, "dispatched");
     assert.deepEqual(fake.runs.at(-1).resources.tools.allowed, ["host"]);
     completeTask(sent.taskId!);
     await automatic.flush();
     const unavailable = await client.createSession({
-      ...pluginInput,
-      profile: { ...pluginInput.profile, allowedToolNames: ["unavailable", "other-plugin"] },
+      ...applicationInput,
+      profile: { ...applicationInput.profile, allowedToolNames: ["unavailable", "other-application"] },
     });
     sent = await unavailable.send({ text: "Unavailable tool names do not prevent chatting or grant access" });
     assert.equal(sent.status, "dispatched");

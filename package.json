@@ -6,7 +6,7 @@
   "scripts": {
     "docs:check": "node apps/desktop/scripts/docs/book.mjs --check",
     "docs:build": "node apps/desktop/scripts/docs/book.mjs",
-    "docs:test": "pnpm docs:build && node --test apps/desktop/scripts/docs/book.test.mjs && pnpm --filter desktop build:plugin-host && node apps/desktop/scripts/docs/reader-e2e.mjs",
+    "docs:test": "pnpm docs:build && node --test apps/desktop/scripts/docs/book.test.mjs && pnpm --filter desktop build:app-host && node apps/desktop/scripts/docs/reader-e2e.mjs",
     "build:ai": "cd ai/pi && npm install && npm run build",
     "dev:desktop": "cd apps/desktop && pnpm tauri dev",
     "build:desktop": "cd apps/desktop && pnpm tauri build",

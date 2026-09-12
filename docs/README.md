@@ -1,11 +1,11 @@
 # Isle 中文文档
 
-这里是 Isle 自有文档的统一入口。文档按主题分章，既可在仓库中阅读，也可通过应用内「文档中心」插件离线查阅。
+这里是 Isle 自有文档的统一入口。文档按主题分章，既可在仓库中阅读，也可通过应用内「文档中心」应用离线查阅。
 
 ## 从这里开始
 
 - [桌面应用开发](guide/desktop.md)：安装、启动与构建。
-- [插件开发](plugins/development.md)：从创建项目到工具、技能和界面接入。
+- [应用开发](apps/development.md)：从创建项目到工具、技能和界面接入。
 - [Agent 运行时](runtime/overview.md)：SDK、通信与协作工作流。
 - [Chat 架构](architecture/chat.md)：共享聊天核心、界面与桌面宿主。
 - [完整目录](SUMMARY.md)：按章节查找全部文档。
@@ -14,8 +14,8 @@
 
 ```text
 isle/
-├── apps/desktop/          桌面前端、Rust 宿主、Agent 运行时及内置插件
-├── packages/             插件 SDK、开发工具链和共享契约
+├── apps/desktop/          桌面前端、Rust 宿主、Agent 运行时及内置应用
+├── packages/             应用 SDK、开发工具链和共享契约
 ├── ai/pi/                通过 Git Subtree 引入的上游依赖
 └── docs/                 按章节组织的中文文档
 ```

@@ -16,13 +16,13 @@ pnpm docs:build
 pnpm docs:test
 ```
 
-`docs:check` 验证目录覆盖、重复条目、文件链接与文档锚点，并阻止自有源码目录再出现 README。`docs:build` 生成 `docs/.generated/book.json`；它是忽略提交的派生产物，不应手工修改。正常内置插件打包也会先重新生成，防止旧内容进入应用。
+`docs:check` 验证目录覆盖、重复条目、文件链接与文档锚点，并阻止自有源码目录再出现 README。`docs:build` 生成 `docs/.generated/book.json`；它是忽略提交的派生产物，不应手工修改。正常内置应用打包也会先重新生成，防止旧内容进入应用。
 
 ## 保留的资源
 
 - `ai/pi/` 属于上游依赖，其 README 与文档随上游维护。
 - `apps/desktop/resources/skills/` 和运行时内置技能中的文档是技能资源，按技能包分发。
-- `packages/plugin-dev/templates/` 内的 README 是生成新插件时使用的模板资源，随工具包分发，不是 Isle 的重复文档入口。
+- `packages/app-dev/templates/` 内的 README 是生成新应用时使用的模板资源，随工具包分发，不是 Isle 的重复文档入口。
 - `THIRD_PARTY_NOTICES.md`、LICENSE 等许可文件保持原位置和原文。
 - 已暂存的 `CHAT_FOUNDATION_DRAFT.md` 保留原位置和内容，目录中标记为历史草案。
 
@@ -32,6 +32,6 @@ pnpm docs:test
 
 构建时使用项目现有的 React Markdown 与 GFM 支持，将正文预渲染成 HTML；原始 HTML 不执行，危险 URL 不保留。离线索引同时包含标题目录和全文搜索文本。
 
-文档链接在阅读器内跳转；源码链接显示为仓库路径，供开发者定位，插件不读取工作区源码。外部 HTTP(S) 链接必须由用户点击，经宿主打开。图片仅显示替代说明与来源，不从沙箱联网加载。Mermaid 围栏保留为代码文本。
+文档链接在阅读器内跳转；源码链接显示为仓库路径，供开发者定位，应用不读取工作区源码。外部 HTTP(S) 链接必须由用户点击，经宿主打开。图片仅显示替代说明与来源，不从沙箱联网加载。Mermaid 围栏保留为代码文本。
 
-插件的宿主入口将索引打包进自身，生产环境不依赖源码仓库路径，也不启动本地 Web 服务。查看 [文档中心](../plugins/builtins/docs-reader.md)了解阅读方式。
+应用的宿主入口将索引打包进自身，生产环境不依赖源码仓库路径，也不启动本地 Web 服务。查看 [文档中心](../apps/builtins/docs-reader.md)了解阅读方式。

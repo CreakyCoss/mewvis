@@ -304,28 +304,28 @@ try {
     assert.equal(hits, 1, "concurrent executors must not share a permissive proxy");
   } else await assert.rejects(open("auto"), /不同的文件或网络范围/);
   console.log("PASS configured write/network boundaries and supported concurrent policy scopes");
-  const pluginRoot = join(workspace, "plugin");
-  mkdirSync(pluginRoot);
-  const sdk = pathToFileURL(resolve("../../packages/plugin-sdk/index.js")).href;
+  const applicationRoot = join(workspace, "application");
+  mkdirSync(applicationRoot);
+  const sdk = pathToFileURL(resolve("../../packages/app-sdk/index.js")).href;
   writeFileSync(
-    join(pluginRoot, "package.json"),
+    join(applicationRoot, "package.json"),
     JSON.stringify({ type: "module", name: "sandbox-fixture", main: "./index.js" }),
   );
   writeFileSync(
-    join(pluginRoot, "index.js"),
+    join(applicationRoot, "index.js"),
     `
-    import { definePlugin, defineTool } from ${JSON.stringify(sdk)};
+    import { defineApplication, defineTool } from ${JSON.stringify(sdk)};
     import { readFile, writeFile } from 'node:fs/promises';
-    console.log(JSON.stringify({id:1,result:'plugin stdout is not RPC'}));
+    console.log(JSON.stringify({id:1,result:'application stdout is not RPC'}));
     let startupBlocked = false;
     try { await readFile(${JSON.stringify(join(privatePath, "secret"))}); } catch { startupBlocked = true; }
-    export default definePlugin({ name: 'sandbox-fixture', inject: ['tools'], apply(ctx) {
+    export default defineApplication({ name: 'sandbox-fixture', inject: ['tools'], apply(ctx) {
       ctx.tools.register(defineTool({ name: 'fixture_effect', risk: 'low', description: 'Exercise native Node effects.',
         parameters: { type: 'object', properties: { action: { type: 'string' }, target: { type: 'string' } }, required: ['action'] },
         output: { schema: {}, render: (_args, value) => [{type:'text',text:JSON.stringify(value)}] },
         async execute(args) {
           if (args.action === 'read') return await readFile(args.target, 'utf8');
-          if (args.action === 'write') { await writeFile(args.target, 'plugin'); return 'written'; }
+          if (args.action === 'write') { await writeFile(args.target, 'application'); return 'written'; }
           if (args.action === 'network') return await (await fetch(args.target)).text();
           return { pid: process.pid, startupBlocked, hasSecret: Boolean(process.env.ISLE_TEST_SECRET) };
         }
@@ -334,25 +334,25 @@ try {
   `,
   );
   process.env.ISLE_TEST_SECRET = "must-not-inherit";
-  const plugins = {
-    plugins: {
-      items: [{ kind: "isle", id: "sandbox-fixture", packageRoot: pluginRoot, entry: join(pluginRoot, "index.js") }],
+  const applications = {
+    applications: {
+      items: [{ kind: "isle", id: "sandbox-fixture", packageRoot: applicationRoot, entry: join(applicationRoot, "index.js") }],
     },
   };
-  const plugin = await open("full", plugins);
+  const application = await open("full", applications);
   delete process.env.ISLE_TEST_SECRET;
-  const meta = await plugin.call("fixture_effect", { action: "meta" });
+  const meta = await application.call("fixture_effect", { action: "meta" });
   assert.notEqual(meta.details.value.pid, process.pid);
   assert.equal(meta.details.value.startupBlocked, true, "module initialization is isolated too");
   assert.equal(meta.details.value.hasSecret, false);
-  await assert.rejects(plugin.call("fixture_effect", { action: "read", target: join(privatePath, "secret") }));
-  await assert.rejects(plugin.call("fixture_effect", { action: "write", target: join(privatePath, "plugin-write") }));
-  const fetched = await plugin.call("fixture_effect", {
+  await assert.rejects(application.call("fixture_effect", { action: "read", target: join(privatePath, "secret") }));
+  await assert.rejects(application.call("fixture_effect", { action: "write", target: join(privatePath, "application-write") }));
+  const fetched = await application.call("fixture_effect", {
     action: "network",
     target: `http://127.0.0.1:${server.address().port}`,
   });
   assert.match(JSON.stringify(fetched), /network-ok/);
-  console.log("PASS plugin module initialization, native fs/fetch, IPC separation and environment isolation");
+  console.log("PASS application module initialization, native fs/fetch, IPC separation and environment isolation");
 
   const abort = new AbortController();
   const sleep = full.call("bash", { command: "sleep 20; touch late-effect" }, abort.signal);
@@ -366,12 +366,12 @@ try {
   await timeout.executor.dispose();
   assert.equal(existsSync(join(workspace, "late-timeout")), false);
   console.log("PASS cancellation and timeout terminate the sandbox execution tree");
-  await plugin.executor.dispose();
-  const afterCleanup = await open("auto", plugins);
+  await application.executor.dispose();
+  const afterCleanup = await open("auto", applications);
   await assert.rejects(afterCleanup.call("write", { path: ".env", content: "blocked-again" }));
   await assert.rejects(afterCleanup.call("fixture_effect", { action: "write", target: join(workspace, ".env") }));
   await afterCleanup.call("fixture_effect", { action: "write", target: join(workspace, "declared-risk.txt") });
-  assert.equal(readFileSync(join(workspace, "declared-risk.txt"), "utf8"), "plugin");
+  assert.equal(readFileSync(join(workspace, "declared-risk.txt"), "utf8"), "application");
   assert.match(JSON.stringify(await afterCleanup.call("bash", { command })), /network-ok/);
   await afterCleanup.executor.dispose();
   console.log("PASS cleanup permits a restricted session after full sessions finish");

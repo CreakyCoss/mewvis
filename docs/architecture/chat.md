@@ -30,7 +30,7 @@ src/chat/
     runtime.ts        复用 AgentClient，私下解析凭据，连接 Pi
     storage.ts        读取现有消息格式；来源／配置／偏好／未读共用写队列
     ledger.ts         账本摘要的模型解析，UI 只传模型 ID
-    plugin.ts         权限校验、场景配置解析和连接句柄；不另持有会话或执行状态
+    application.ts         权限校验、场景配置解析和连接句柄；不另持有会话或执行状态
     react.tsx         DesktopChatEnvironment / useDesktopChatSession / useDesktopChatRecord
 ```
 
@@ -38,14 +38,14 @@ src/chat/
 
 消息、会话和运行配置类型只在 `packages/chat-contracts/index.d.ts` 定义。核心内部直接从定义文件或共享包导入；`core/index.ts` 集中对外导出共享类型与核心 API，业务和其他层继续使用 `@/chat/core`。内部文件不再重复转导出共享类型，也不通过本层公共入口反向导入。
 
-`features/app/chat-service.ts` 一次性创建应用级 service 和插件宿主、配置场景恢复器；`chat-integration.tsx` 一次性连接文件目录、聊天列表与未读状态、资源刷新、窗口明确关闭。业务页面不访问核心或输入区内部 Store。
+`features/app/chat-service.ts` 一次性创建应用级 service 和应用宿主、配置场景恢复器；`chat-integration.tsx` 一次性连接文件目录、聊天列表与未读状态、资源刷新、窗口明确关闭。业务页面不访问核心或输入区内部 Store。
 
-业务创建会话使用 `useDesktopChatSession`；侧栏等历史入口使用 `useDesktopChatRecord`，由 `service.openRecord` 按磁盘记录查找原拥有者。插件记录通过启动时配置的 `resolveRecord` 校验权限并返回场景配置，service 统一复用或创建拥有者；恢复器不再调用 `openSession`。删除记录使用 `closeRecord(workspacePath, chatId)` 关闭实际拥有者，不根据侧栏入口猜测 scope。
+业务创建会话使用 `useDesktopChatSession`；侧栏等历史入口使用 `useDesktopChatRecord`，由 `service.openRecord` 按磁盘记录查找原拥有者。应用记录通过启动时配置的 `resolveRecord` 校验权限并返回场景配置，service 统一复用或创建拥有者；恢复器不再调用 `openSession`。删除记录使用 `closeRecord(workspacePath, chatId)` 关闭实际拥有者，不根据侧栏入口猜测 scope。
 
 ## 从操作查找实现
 
 - `core/session.ts`：一轮任务的初始化、授权准备、发送、事件归并、停止、追问和关闭。内部状态与保存队列不向调用方开放；`ChatRuntime.authorize` 在同一轮可取消的 preparing 阶段执行，授权完成前不改消息或持久化记录，派发前仍由宿主复核权限。
-- `desktop/service.ts`：会话创建、并发打开合并、磁盘归属、来源恢复、关闭和上下文保存。每个会话条目聚合配置、来源、存储、打开／关闭 Promise 和订阅；失败打开会清理预留归属。桌面不再叠加核心 manager 与插件的打开缓存。
+- `desktop/service.ts`：会话创建、并发打开合并、磁盘归属、来源恢复、关闭和上下文保存。每个会话条目聚合配置、来源、存储、打开／关闭 Promise 和订阅；失败打开会清理预留归属。桌面不再叠加核心 manager 与应用的打开缓存。
 - `react/view-state.ts`：草稿、偏好及提交事务；内部处理重复提交、失败保留和版本匹配后的草稿清空。Provider 中的 hook 订阅状态并提供现有组件绑定。
 
 历史打开的顺序是 `openRecord → 读取来源 → resolveRecord 校验并返回配置 → openSession`，失败返回只读历史。React 通过 `subscribeRecord` 观察指定记录的可用性，不从全局会话流推测原拥有者；明确关闭不会触发观察者自动重开。手动重连的最短 loading 展示仍在 React 绑定中。
@@ -188,23 +188,23 @@ Pi 继续使用 `chats/<chatId>/session` 下的原执行上下文和账本。核
 
 `session.refreshResources()` 向目录传入 `{ refresh: true }`，强制重新读取模型配置；模型设置页的显式加载也会刷新。刷新失败会暴露错误、保留当前选择，下次读取可以重试；禁用或删除模型后不会继续返回旧的可执行配置。
 
-凭据在宿主准备请求时解析并留在 dispatch 闭包，快照和 UI props 只包含安全的选项描述。工具选择不等于授予插件权限。插件 SDK、iframe／Node 宿主桥和共享 UI 已接入；用法与边界见 [插件聊天说明](../plugins/chat.md)。未迁移酒馆、RSS 或其他具体插件。
+凭据在宿主准备请求时解析并留在 dispatch 闭包，快照和 UI props 只包含安全的选项描述。工具选择不等于授予应用权限。应用 SDK、iframe／Node 宿主桥和共享 UI 已接入；用法与边界见 [应用聊天说明](../apps/chat.md)。未迁移酒馆、RSS 或其他具体应用。
 
-## 插件接入
+## 应用接入
 
-`@isle/plugin-sdk/chat` 提供无 UI 客户端，`@isle/plugin-sdk/chat/react` 提供同一套 Chat 和绑定。`desktop/plugin.ts` 将经过身份绑定的连接映射到应用级 service，校验配置和授权，隔离会话句柄，并转发带修订号的快照。它不再管理会话打开缓存或发送准备状态；`resolveSession` 只返回配置。动态上下文交给 `service.updateContext` 更新和保存，`viewPersistence` 只暴露展示偏好接口。应用与 SDK 共同引用 `@isle/chat-contracts`，核心不依赖插件实现。
+`@isle/app-sdk/chat` 提供无 UI 客户端，`@isle/app-sdk/chat/react` 提供同一套 Chat 和绑定。`desktop/application.ts` 将经过身份绑定的连接映射到应用级 service，校验配置和授权，隔离会话句柄，并转发带修订号的快照。它不再管理会话打开缓存或发送准备状态；`resolveSession` 只返回配置。动态上下文交给 `service.updateContext` 更新和保存，`viewPersistence` 只暴露展示偏好接口。应用与 SDK 共同引用 `@isle/chat-contracts`，核心不依赖应用实现。
 
-`features/app/chat-service.ts` 连接实际插件权限、工作区和 service；`plugin-chat-native.ts` 一次性接入 Node 插件双向 stdio，StrictMode 共用原生事件监听。`PluginFrame` 连接 iframe 消息。插件 UI 按需加载由 `build:chat-ui` 从应用源码生成的共享脚本和样式；脚本和样式产物不提交。同一构建还生成 `packages/plugin-sdk/chat/react.d.ts`，该声明随 SDK 保留在仓库中；组件、hook 和 UI 类型不再手写第二份字段结构。生成器读取 SDK 的实际运行导出，保留公开类型名，并将核心契约和插件协议保留为包导入。
+`features/app/chat-service.ts` 连接实际应用权限、工作区和 service；`application-chat-native.ts` 一次性接入 Node 应用双向 stdio，StrictMode 共用原生事件监听。`ApplicationFrame` 连接 iframe 消息。应用 UI 按需加载由 `build:chat-ui` 从应用源码生成的共享脚本和样式；脚本和样式产物不提交。同一构建还生成 `packages/app-sdk/chat/react.d.ts`，该声明随 SDK 保留在仓库中；组件、hook 和 UI 类型不再手写第二份字段结构。生成器读取 SDK 的实际运行导出，保留公开类型名，并将核心契约和应用协议保留为包导入。
 
-`pnpm check:chat-ui-types` 检查声明是否与源码同步，不改写声明。生成和检查均验证声明只引用公共依赖，并在不使用应用别名、不跳过声明检查的环境下进行 TypeScript 检查；插件契约测试另双向对照实际组件签名。
+`pnpm check:chat-ui-types` 检查声明是否与源码同步，不改写声明。生成和检查均验证声明只引用公共依赖，并在不使用应用别名、不跳过声明检查的环境下进行 TypeScript 检查；应用契约测试另双向对照实际组件签名。
 
-插件通过 `createSession({ workspaceId, sceneId, profile })` 明确创建会话，宿主返回的 `session.identity.id` 就是 `meta.id`。`openSession({ workspaceId, chatId })` 只打开已有记录；React 的 `usePluginChatSession` 只负责打开和观察，不创建。不同创建操作生成不同 ID，多视图打开同一 ID 共用一个拥有者。插件不传真实路径或凭据。
+应用通过 `createSession({ workspaceId, sceneId, profile })` 明确创建会话，宿主返回的 `session.identity.id` 就是 `meta.id`。`openSession({ workspaceId, chatId })` 只打开已有记录；React 的 `useApplicationChatSession` 只负责打开和观察，不创建。不同创建操作生成不同 ID，多视图打开同一 ID 共用一个拥有者。应用不传真实路径或凭据。
 
-`meta.workspaceId` 保存所属工作区；`meta.origin` 是来源和场景的唯一依据：内置普通聊天是 `{ kind: "builtin", sceneId: "chat" }`，故事助手是 `{ kind: "builtin", sceneId: "story-assistant" }`，插件是 `{ kind: "plugin", pluginId, sceneId }`。场景配置保存在 `options.profile`，其中 `id` 只标识配置，动态上下文也经同一队列保存。运行选择和展示偏好保留原字段位置。保存不能更改已有记录的来源和工作区。
+`meta.workspaceId` 保存所属工作区；`meta.origin` 是来源和场景的唯一依据：内置普通聊天是 `{ kind: "builtin", sceneId: "chat" }`，故事助手是 `{ kind: "builtin", sceneId: "story-assistant" }`，应用是 `{ kind: "application", applicationId, sceneId }`。场景配置保存在 `options.profile`，其中 `id` 只标识配置，动态上下文也经同一队列保存。运行选择和展示偏好保留原字段位置。保存不能更改已有记录的来源和工作区。
 
-`openRecord` 返回可运行的 `session` 或只读 `history`。侧栏按元数据恢复原场景，插件恢复仍需验证当前权限、工具归属和工作区；已有故事助手使用原故事配置。来源缺失、场景未知或插件不可用时，公共 `Chat.History` 保留消息与复制，不创建运行会话。插件撤销事件使打开的历史视图重新解析；重新启用后可点击「重新连接」。绑定公开 `connecting` 和 `retryError`，重试期间保留消息并禁用按钮，失败时显示具体原因。`history.canRetry` 表示当前只读原因是否支持重试；来源信息缺失或宿主没有恢复入口时不显示按钮。本阶段不实现旧来源格式的补齐或迁移。
+`openRecord` 返回可运行的 `session` 或只读 `history`。侧栏按元数据恢复原场景，应用恢复仍需验证当前权限、工具归属和工作区；已有故事助手使用原故事配置。来源缺失、场景未知或应用不可用时，公共 `Chat.History` 保留消息与复制，不创建运行会话。应用撤销事件使打开的历史视图重新解析；重新启用后可点击「重新连接」。绑定公开 `connecting` 和 `retryError`，重试期间保留消息并禁用按钮，失败时显示具体原因。`history.canRetry` 表示当前只读原因是否支持重试；来源信息缺失或宿主没有恢复入口时不显示按钮。本阶段不实现旧来源格式的补齐或迁移。
 
-`chat.listSessions({ workspaceId })` 直接从元数据过滤当前插件、工作区，返回记录 ID 和场景摘要；不读取消息和提示词。动态上下文用 `setContext()`，模型与能力用 `updateConfig()`。Provider 卸载只取消观察，关闭应用或禁用／移除插件才停止、保存并释放相应会话。
+`chat.listSessions({ workspaceId })` 直接从元数据过滤当前应用、工作区，返回记录 ID 和场景摘要；不读取消息和提示词。动态上下文用 `setContext()`，模型与能力用 `updateConfig()`。Provider 卸载只取消观察，关闭应用或禁用／移除应用才停止、保存并释放相应会话。
 
 ## 验证
 
@@ -213,7 +213,7 @@ Pi 继续使用 `chats/<chatId>/session` 下的原执行上下文和账本。核
 ```sh
 pnpm test:chat
 pnpm test:chat:stdio
-pnpm test:chat:plugin
+pnpm test:chat:application
 pnpm check:chat-ui-types
 pnpm exec tsc --noEmit
 pnpm exec vite build
@@ -226,19 +226,19 @@ node scripts/agent-runtime/user-input-e2e.mjs
 
 Rust 存储测试覆盖元数据来源不可变、配置不覆盖归属、列表不读取消息、目录 ID 校验与历史文件保护。本轮没有修改 Rust 存储代码，未重复运行该组测试。
 
-已有 1420 服务提供 `/scripts/chat/browser.html`（StrictMode、多视图、默认／组合 UI、只读历史）、`/scripts/chat/page.html`（真实首页和聊天路由）以及 `/scripts/chat/plugin-browser.html`（真实沙箱与测试插件）。这些测试使用内存 Runtime 和存储，不连接真实模型或用户历史；插件测试页需点击「创建会话」。
+已有 1420 服务提供 `/scripts/chat/browser.html`（StrictMode、多视图、默认／组合 UI、只读历史）、`/scripts/chat/page.html`（真实首页和聊天路由）以及 `/scripts/chat/application-browser.html`（真实沙箱与测试应用）。这些测试使用内存 Runtime 和存储，不连接真实模型或用户历史；应用测试页需点击「创建会话」。
 
 手动重试时，桌面绑定让 loading 至少显示 400 毫秒以避免快速失败时闪烁，请求会立即发起；较慢的请求持续显示 loading 直到结束。首次自动打开不增加这段反馈时间。
 
-本轮流程收拢通过 16 项核心、14 项桌面宿主和 10 项插件测试，新增授权取消、迟到结果隔离、打开失败归属回滚和定向观察回归；DSH Schema、SDK 公共 UI 声明、插件打包与实际 Node Host、无 UI stdio、TypeScript 和前端构建均通过。
+本轮流程收拢通过 16 项核心、14 项桌面宿主和 10 项应用测试，新增授权取消、迟到结果隔离、打开失败归属回滚和定向观察回归；DSH Schema、SDK 公共 UI 声明、应用打包与实际 Node Host、无 UI stdio、TypeScript 和前端构建均通过。
 
-已有 1420 服务通过 41 项浏览器断言，覆盖默认／组合 UI、StrictMode、多视图、后台运行、只读历史和重连反馈。另在真实聊天路由的内存预览中验证了发送与保存，在内置调试插件预览中验证了授权等待时停止、迟到授权不派发、不写记录、上下文更新、工具／思考事件及默认与定制界面切换。浏览器无错误或警告。真实模型及原生应用界面尚未验收；没有启动或重启开发服务，Vite 保留已有大 chunk 警告。
+已有 1420 服务通过 41 项浏览器断言，覆盖默认／组合 UI、StrictMode、多视图、后台运行、只读历史和重连反馈。另在真实聊天路由的内存预览中验证了发送与保存，在内置调试应用预览中验证了授权等待时停止、迟到授权不派发、不写记录、上下文更新、工具／思考事件及默认与定制界面切换。浏览器无错误或警告。真实模型及原生应用界面尚未验收；没有启动或重启开发服务，Vite 保留已有大 chunk 警告。
 
 ## 执行权限与审批
 
 输入区以 `permissionMode` 提供请求批准、帮我批准、完全访问权限；技能与知识库继续单独选择。
 未指定有效权限时使用权限目录声明的默认项（当前为请求批准）。工具范围由 Runtime 默认值与宿主场景配置决定。
-插件和宿主使用同一份权限目录。`agent/tools/list` 的 `permissionOptions` 返回模式、名称、说明和默认项。
+应用和宿主使用同一份权限目录。`agent/tools/list` 的 `permissionOptions` 返回模式、名称、说明和默认项。
 唯一维护位置是 Runtime 的 `security/safety/policy.ts`（`security/safety/index.ts` 统一校验并提供展示选项），
 审批层与 `security/execution/policy.ts` 的沙箱层各自通过 `enabled` 开关控制。
 协议模式和公开 Chat 类型通过 `pnpm generate:agent-runtime:protocol` 同步生成。
@@ -249,6 +249,6 @@ Rust 存储测试覆盖元数据来源不可变、配置不覆盖归属、列表
 前端展示执行摘要、参数、识别出的操作、审批原因与期限，后端作最终判断。
 
 公共安全模块 `security/safety` 从同一配置解析操作风险、公共及档位边界；Pi 适配层在执行前调用安全入口。
-包括 `full` 在内的三档都在沙箱进程中执行文件、Bash、业务及插件工具，审批不能覆盖禁用规则。
+包括 `full` 在内的三档都在沙箱进程中执行文件、Bash、业务及应用工具，审批不能覆盖禁用规则。
 需要审批时直接等待当前调用，一分钟未批准就拒绝，排队也计时；主/子 Agent 超时不暂停。
 批准只允许该次执行，后续操作重新检查。拒绝、取消或审批期间参数/目标权限变化均不执行。

@@ -48,10 +48,10 @@ export async function createPiToolSet(
     throw new Error("继承的执行策略缺少当前请求的访问范围。");
   if (
     access &&
-    resources.plugins?.settingsPath &&
-    !accessAllowsPath(access.filesystem.read, resources.plugins.settingsPath)
+    resources.applications?.settingsPath &&
+    !accessAllowsPath(access.filesystem.read, resources.applications.settingsPath)
   )
-    delete resources.plugins.settingsPath;
+    delete resources.applications.settingsPath;
   // Safety rules are an immutable host snapshot containing functions. Only execution data is cloned.
   const policies = options.policies
     ? { safety: options.policies.safety, execution: structuredClone(options.policies.execution), access }
@@ -62,12 +62,12 @@ export async function createPiToolSet(
           command.workspacePath,
           undefined,
           undefined,
-          access ? { access, programPaths: resources.plugins?.items?.map((plugin) => plugin.packageRoot) } : undefined,
+          access ? { access, programPaths: resources.applications?.items?.map((application) => application.packageRoot) } : undefined,
         ),
         access,
       };
   const builtins = resolveBuiltins(resources.skills?.enabled ?? []);
-  // The host selected these enabled plugins. Initialization uses the same constrained worker as tool execution.
+  // The host selected these enabled applications. Initialization uses the same constrained worker as tool execution.
   let worker: ProgramExecutor | undefined;
   let starting: Promise<Catalog> | undefined;
   let disposed = false;
@@ -96,15 +96,15 @@ export async function createPiToolSet(
     const catalog = await initialize();
     const names = catalog.tools.map((tool) => tool.name);
     if (new Set(names).size !== names.length || names.includes("ask_user") || names.includes("subagent"))
-      throw new Error("插件工具不能覆盖 Isle Runtime 工具。");
+      throw new Error("应用工具不能覆盖 Isle Runtime 工具。");
     const baseNames = new Set([
       ...AGENT_TOOL_DEFINITIONS.map((tool) => tool.name),
       ...builtins.requiredTools.internal.map((tool) => tool.name),
     ]);
-    const pluginNames = names.filter((name) => !baseNames.has(name));
+    const applicationNames = names.filter((name) => !baseNames.has(name));
     const allocated = [
       ...normalizeAllowedAgentTools(allowedRuntimeTools(command)),
-      ...pluginNames.filter((name) => !resources.tools?.allowed || resources.tools.allowed.includes(name)),
+      ...applicationNames.filter((name) => !resources.tools?.allowed || resources.tools.allowed.includes(name)),
     ];
     const enabled = [...new Set(allocated)]
       .filter((name) => names.includes(name) || name === "subagent" || name === "ask_user")
@@ -158,7 +158,7 @@ export async function createPiToolSet(
       tools,
       access,
       builtins,
-      plugins: {
+      applications: {
         skills: catalog.skillContents.map(({ skill }) => skill),
         registerSkills(pi: ExtensionAPI, resolvedSkills: readonly Skill[]) {
           const paths = new Set(resolvedSkills.map((skill) => skill.filePath));
@@ -170,7 +170,7 @@ export async function createPiToolSet(
             return {
               systemPrompt: [
                 event.systemPrompt,
-                "已加载插件技能；执行仍遵守当前权限配置。",
+                "已加载应用技能；执行仍遵守当前权限配置。",
                 ...contents.map(({ content }) => content),
               ].join("\n\n"),
             };

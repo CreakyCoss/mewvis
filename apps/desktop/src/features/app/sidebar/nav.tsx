@@ -46,9 +46,9 @@ export const PrimaryNav = () => {
           </NavLink>
         );
       })}
-      <NavLink to="/plugins" className={linkClassName}>
+      <NavLink to="/apps" className={linkClassName}>
         <Blocks className="size-4" />
-        <span>插件</span>
+        <span>应用</span>
       </NavLink>
     </nav>
   );

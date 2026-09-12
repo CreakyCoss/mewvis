@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import type { ChatPendingApproval, ChatSession } from "../core";
 import type { DesktopChatService } from "./service";
 
-/** Approval actions stay in the desktop host, including for headless and iframe plugin sessions. */
+/** Approval actions stay in the desktop host, including for headless and iframe application sessions. */
 export function useDesktopApprovals(service: DesktopChatService) {
   const [, refresh] = useReducer((value) => value + 1, 0);
   const visible = useRef(new Map<ChatSession, number>());

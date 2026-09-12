@@ -110,7 +110,7 @@ pub fn run_agent_runtime_collaboration(
             task_id: task_id.clone(),
             session_key,
             command,
-            plugin_id: None,
+            application_id: None,
         },
     )?;
 
@@ -181,7 +181,7 @@ pub fn run_agent_runtime_collaboration_mode(
             task_id: task_id.clone(),
             session_key,
             command,
-            plugin_id: None,
+            application_id: None,
         },
     )?;
 
@@ -230,7 +230,7 @@ fn collaboration_resources(
         tools: None,
         skills: None,
         mcp: None,
-        plugins: None,
+        applications: None,
     });
     let allowed_tools = resources
         .tools
@@ -258,7 +258,7 @@ fn collaboration_resources(
         paths: Some(skill_paths),
         enabled: Some(enabled_skills),
     });
-    resources.plugins = None;
+    resources.applications = None;
     resources
 }
 

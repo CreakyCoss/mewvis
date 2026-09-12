@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { build } from "esbuild";
-import { dshBundleCompatibilityPlugin } from "@isle/plugin-dev/dsh";
+import { dshBundleCompatibilityPlugin } from "@isle/app-dev/dsh";
 import fs from "node:fs";
 import childProcess from "node:child_process";
 import { EventEmitter } from "node:events";
@@ -163,8 +163,8 @@ try {
     ...bundleOptions,
     entryPoints: [join(piRoot, "tools/worker.ts")],
     outfile: join(runtime, entries.piToolWorker.output),
-    plugins: [
-      ...bundleOptions.plugins,
+    applications: [
+      ...bundleOptions.applications,
       {
         name: "powershell-process-fixture",
         setup(builder) {

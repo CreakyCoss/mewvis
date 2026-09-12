@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { build } from "esbuild";
-import { dshBundleCompatibilityPlugin } from "@isle/plugin-dev/dsh";
+import { dshBundleCompatibilityPlugin } from "@isle/app-dev/dsh";
 import { createServer } from "node:http";
 import { once } from "node:events";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
@@ -346,24 +346,24 @@ try {
     }
   }
   console.log("PASS native engine approval events and answers gate real main/subagent writes");
-  const settingsRoot = join(temp, "read-only-plugin-settings");
+  const settingsRoot = join(temp, "read-only-application-settings");
   mkdirSync(join(settingsRoot, "isle-fixture-portable"), { recursive: true });
   writeFileSync(join(settingsRoot, "settings.yaml"), "{}\n");
   writeFileSync(join(settingsRoot, "isle-fixture-portable", "settings.yaml"), "prefix: saved\n");
-  const fixtureRoot = join(desktop, "plugin-host/fixtures/dsh-portable-plugin");
-  const pluginExecution = api.resolveExecutionPolicy("ask", workspace);
-  pluginExecution.sandbox.filesystem.denyWrite.push(settingsRoot);
-  const pluginTools = await api.createPiToolSet(
+  const fixtureRoot = join(desktop, "app-host/fixtures/dsh-portable-application");
+  const applicationExecution = api.resolveExecutionPolicy("ask", workspace);
+  applicationExecution.sandbox.filesystem.denyWrite.push(settingsRoot);
+  const applicationTools = await api.createPiToolSet(
     {
       ...command,
       resources: {
         tools: { allowed: ["isle_dsh_echo"] },
-        plugins: {
+        applications: {
           settingsPath: settingsRoot,
           items: [
             {
               kind: "dsh",
-              id: "@isle/fixture-dsh-portable-plugin",
+              id: "@isle/fixture-dsh-portable-application",
               packageRoot: fixtureRoot,
               entry: join(fixtureRoot, "index.js"),
               patchPath: join(fixtureRoot, "cordis.patch.yml"),
@@ -373,10 +373,10 @@ try {
       },
     },
     callbacks,
-    { policies: { safety: api.resolveSafetyPolicy("ask", workspace), execution: pluginExecution } },
+    { policies: { safety: api.resolveSafetyPolicy("ask", workspace), execution: applicationExecution } },
   );
   try {
-    const tool = pluginTools.tools.find((tool) => tool.name === "isle_dsh_echo");
+    const tool = applicationTools.tools.find((tool) => tool.name === "isle_dsh_echo");
     assert.ok(tool);
     const result = await tool.execute("settings-read", { message: "loaded" });
     assert.equal(result.details.value, "saved:loaded");
@@ -384,17 +384,17 @@ try {
     assert.equal(existsSync(join(settingsRoot, "settings.yaml.lock")), false);
     assert.equal(existsSync(join(settingsRoot, "settings.yaml.pre-namespace-migration.bak")), false);
   } finally {
-    await pluginTools.dispose();
+    await applicationTools.dispose();
   }
-  console.log("PASS sandboxed plugin settings initialize and read without legacy migration or writes");
-  const scopedPluginRoot = api.canonicalPath(join(temp, "scoped-plugin"));
-  mkdirSync(scopedPluginRoot);
-  writeFileSync(join(scopedPluginRoot, "package.json"), '{"type":"module"}');
+  console.log("PASS sandboxed application settings initialize and read without legacy migration or writes");
+  const scopedApplicationRoot = api.canonicalPath(join(temp, "scoped-application"));
+  mkdirSync(scopedApplicationRoot);
+  writeFileSync(join(scopedApplicationRoot, "package.json"), '{"type":"module"}');
   await build({
     stdin: {
       contents: `
-      import { definePlugin, defineTool } from ${JSON.stringify(resolve(desktop, "../../packages/plugin-sdk/index.js"))};
-      export default definePlugin({ name: 'scope-fixture', inject: ['tools', 'skills'], apply(ctx) {
+      import { defineApplication, defineTool } from ${JSON.stringify(resolve(desktop, "../../packages/app-sdk/index.js"))};
+      export default defineApplication({ name: 'scope-fixture', inject: ['tools', 'skills'], apply(ctx) {
         ctx.skills.register({ name: 'scope-fixture', description: 'In-memory skill', content: 'Use scope_echo to echo text.', source: 'bundled' });
         ctx.tools.register(defineTool({ name: 'scope_echo', risk: 'low', description: 'Echo without side effects',
           parameters: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] },
@@ -406,36 +406,36 @@ try {
       resolveDir: desktop,
       loader: "js",
     },
-    outfile: join(scopedPluginRoot, "index.js"),
+    outfile: join(scopedApplicationRoot, "index.js"),
     bundle: true,
     platform: "node",
     format: "esm",
   });
-  const scopedPlugin = await api.createPiToolSet(
+  const scopedApplication = await api.createPiToolSet(
     {
       ...command,
       permissions: { mode: "ask" },
       agentAccess: {},
       resources: {
         tools: { allowed: ["scope_echo"] },
-        plugins: {
+        applications: {
           settingsPath: settingsRoot,
           items: [
             {
               kind: "isle",
               id: "scope-fixture",
-              packageRoot: scopedPluginRoot,
-              entry: join(scopedPluginRoot, "index.js"),
+              packageRoot: scopedApplicationRoot,
+              entry: join(scopedApplicationRoot, "index.js"),
             },
           ],
         },
       },
     },
-    { ...callbacks, requestApproval: () => assert.fail("enabled plugin initialization must not prompt") },
+    { ...callbacks, requestApproval: () => assert.fail("enabled application initialization must not prompt") },
   );
   try {
     const session = { agent: {} };
-    scopedPlugin.installSafety(session);
+    scopedApplication.installSafety(session);
     assert.equal(
       await session.agent.beforeToolCall(
         {
@@ -445,34 +445,34 @@ try {
         new AbortController().signal,
       ),
       undefined,
-      "registered low-risk plugin tools do not prompt in ask mode",
+      "registered low-risk application tools do not prompt in ask mode",
     );
     assert.equal(
-      scopedPlugin.plugins.skills.length,
+      scopedApplication.applications.skills.length,
       1,
-      "declared plugin skills must load without broad temporary-directory access",
+      "declared application skills must load without broad temporary-directory access",
     );
     assert.equal(
-      (await scopedPlugin.tools.find((tool) => tool.name === "scope_echo").execute("echo", { text: "ok" })).details
+      (await scopedApplication.tools.find((tool) => tool.name === "scope_echo").execute("echo", { text: "ok" })).details
         .value,
       "ok",
     );
   } finally {
-    await scopedPlugin.dispose();
+    await scopedApplication.dispose();
   }
-  console.log("PASS plugin startup, memory settings and declared skills with an empty Agent access grant");
+  console.log("PASS application startup, memory settings and declared skills with an empty Agent access grant");
   await assert.rejects(
     api.createPiToolSet(
       {
         ...command,
         resources: {
-          plugins: {
+          applications: {
             items: [
               {
                 kind: "isle",
                 id: "bootstrap-test",
                 packageRoot: workspace,
-                entry: "missing-plugin.js",
+                entry: "missing-application.js",
                 config: { apiKey: "PRIVATE_CONFIGURATION_SENTINEL" },
               },
             ],
@@ -481,12 +481,12 @@ try {
       },
       {
         ...callbacks,
-        requestApproval: () => assert.fail("plugin initialization does not request approval"),
+        requestApproval: () => assert.fail("application initialization does not request approval"),
       },
     ),
-    /missing-plugin/,
+    /missing-application/,
   );
-  console.log("PASS enabled plugin initialization and declared low-risk calls do not prompt; missing code still fails");
+  console.log("PASS enabled application initialization and declared low-risk calls do not prompt; missing code still fails");
   created = await api.createPiAgentSession(command, callbacks, { policies: strictPolicies });
   assert.ok(created.session.getActiveToolNames().includes("subagent"));
   const events = [];

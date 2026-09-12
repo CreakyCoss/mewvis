@@ -69,9 +69,9 @@ pub enum ChatOrigin {
         #[serde(rename = "sceneId")]
         scene_id: String,
     },
-    Plugin {
-        #[serde(rename = "pluginId")]
-        plugin_id: String,
+    Application {
+        #[serde(rename = "applicationId")]
+        application_id: String,
         #[serde(rename = "sceneId")]
         scene_id: String,
     },
@@ -189,12 +189,12 @@ pub fn save_chat(input: SaveChatInput) -> Result<ChatRecord, String> {
     };
     let scene_id = match &input.origin {
         ChatOrigin::Builtin { scene_id } => scene_id,
-        ChatOrigin::Plugin {
-            plugin_id,
+        ChatOrigin::Application {
+            application_id,
             scene_id,
         } => {
-            if plugin_id.trim().is_empty() {
-                return Err("插件来源无效".to_string());
+            if application_id.trim().is_empty() {
+                return Err("应用来源无效".to_string());
             }
             scene_id
         }
@@ -522,17 +522,17 @@ mod tests {
     }
 
     #[test]
-    fn plugin_chat_listing_uses_metadata_without_reading_messages_or_exposing_context() {
-        let workspace = TestWorkspace::new("plugin-metadata");
+    fn application_chat_listing_uses_metadata_without_reading_messages_or_exposing_context() {
+        let workspace = TestWorkspace::new("application-metadata");
         let chat = save_chat(SaveChatInput {
             workspace_id: "workspace".to_string(),
-            origin: ChatOrigin::Plugin {
-                plugin_id: "plugin".into(),
+            origin: ChatOrigin::Application {
+                application_id: "application".into(),
                 scene_id: "debug".into(),
             },
             workspace_path: workspace.path_string(),
-            chat_id: Some("plugin-fixture".to_string()),
-            title: Some("Plugin conversation".to_string()),
+            chat_id: Some("application-fixture".to_string()),
+            title: Some("Application conversation".to_string()),
             messages: json!([{ "role": "user", "text": "hello" }]),
             options: Some(
                 json!({ "profile": { "id": "scene", "systemPrompt": "private scene context" } }),
@@ -550,8 +550,8 @@ mod tests {
         assert_eq!(listed[0].workspace_id.as_deref(), Some("workspace"));
         assert_eq!(
             listed[0].origin,
-            Some(ChatOrigin::Plugin {
-                plugin_id: "plugin".into(),
+            Some(ChatOrigin::Application {
+                application_id: "application".into(),
                 scene_id: "debug".into()
             })
         );
@@ -572,7 +572,7 @@ mod tests {
         let workspace = TestWorkspace::new("origin-authority");
         let chat = save_test_chat(&workspace, "record");
         let options =
-            json!({ "profile": { "id": "other-config", "pluginId": "untrusted-reference" } });
+            json!({ "profile": { "id": "other-config", "applicationId": "untrusted-reference" } });
         let updated = save_chat(SaveChatInput {
             workspace_path: workspace.path_string(),
             workspace_id: "workspace".into(),
@@ -610,8 +610,8 @@ mod tests {
             ),
             (
                 "workspace",
-                ChatOrigin::Plugin {
-                    plugin_id: "plugin".into(),
+                ChatOrigin::Application {
+                    application_id: "application".into(),
                     scene_id: "debug".into(),
                 },
             ),

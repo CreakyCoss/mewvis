@@ -13,7 +13,7 @@
 | false  | true  | 跳过调用前安全检查，由沙箱约束资源范围。 |
 | false  | false | 普通子进程执行，不执行这两层检查。       |
 
-禁用时 `resolveSafetyPolicy()` 返回 `null`；没有额外 `agentAccess` 约束时，适配器不改动 `beforeToolCall`。已启用插件的加载属于宿主授权的初始化，所有档位均不再单独进行启动审批。Worker RPC、取消、超时与工具分配不受开关影响。full 是普通档位，仍遵守显式禁用与审批规则。
+禁用时 `resolveSafetyPolicy()` 返回 `null`；没有额外 `agentAccess` 约束时，适配器不改动 `beforeToolCall`。已启用应用的加载属于宿主授权的初始化，所有档位均不再单独进行启动审批。Worker RPC、取消、超时与工具分配不受开关影响。full 是普通档位，仍遵守显式禁用与审批规则。
 
 ## 修改规则
 

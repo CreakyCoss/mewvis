@@ -1,49 +1,53 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import { build } from "esbuild";
-import { packPlugin } from "@isle/plugin-dev/tooling";
+import { packApplication } from "@isle/app-dev/tooling";
+import entries from "../../agent-runtime/build-entries.json" with { type: "json" };
 
 const desktopRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
-const pluginSourceRoot = join(desktopRoot, "plugin-host", "plugins", "story-scene-card");
-const rssPluginRoot = join(desktopRoot, "plugin-host", "plugins", "rss-reader");
-const tavernPluginSourceRoot = join(desktopRoot, "plugin-host", "plugins", "tavern");
+const applicationSourceRoot = join(desktopRoot, "app-host", "apps", "story-scene-card");
+const rssApplicationRoot = join(desktopRoot, "app-host", "apps", "rss-reader");
+const tavernApplicationSourceRoot = join(desktopRoot, "app-host", "apps", "tavern");
 const temporaryRoot = mkdtempSync(join(desktopRoot, ".agent-runtime-dsh-e2e-"));
-const pluginRoot = join(temporaryRoot, "story-scene-card-dsh");
-const tavernPluginRoot = join(temporaryRoot, "tavern-dsh");
-const requestedPluginEntry = process.env.ISLE_DSH_RUNTIME_PLUGIN_ENTRY;
-const requestedRssPluginEntry = process.env.ISLE_DSH_RUNTIME_RSS_PLUGIN_ENTRY;
-const requestedTavernPluginEntry = process.env.ISLE_DSH_RUNTIME_TAVERN_PLUGIN_ENTRY;
+const applicationRoot = join(temporaryRoot, "story-scene-card-dsh");
+const tavernApplicationRoot = join(temporaryRoot, "tavern-dsh");
+const requestedApplicationEntry = process.env.ISLE_DSH_RUNTIME_APPLICATION_ENTRY;
+const requestedRssApplicationEntry = process.env.ISLE_DSH_RUNTIME_RSS_APPLICATION_ENTRY;
+const requestedTavernApplicationEntry = process.env.ISLE_DSH_RUNTIME_TAVERN_APPLICATION_ENTRY;
 const outputPath = join(temporaryRoot, "runner.mjs");
-const environmentKey = "ISLE_DSH_RUNTIME_PLUGIN_URL";
-const rssEnvironmentKey = "ISLE_DSH_RUNTIME_RSS_PLUGIN_URL";
-const tavernEnvironmentKey = "ISLE_DSH_RUNTIME_TAVERN_PLUGIN_URL";
-const pluginRootEnvironmentKey = "ISLE_DSH_RUNTIME_PLUGIN_ROOT";
-const rssPluginRootEnvironmentKey = "ISLE_DSH_RUNTIME_RSS_PLUGIN_ROOT";
-const tavernPluginRootEnvironmentKey = "ISLE_DSH_RUNTIME_TAVERN_PLUGIN_ROOT";
+const environmentKey = "ISLE_DSH_RUNTIME_APPLICATION_URL";
+const rssEnvironmentKey = "ISLE_DSH_RUNTIME_RSS_APPLICATION_URL";
+const tavernEnvironmentKey = "ISLE_DSH_RUNTIME_TAVERN_APPLICATION_URL";
+const applicationRootEnvironmentKey = "ISLE_DSH_RUNTIME_APPLICATION_ROOT";
+const rssApplicationRootEnvironmentKey = "ISLE_DSH_RUNTIME_RSS_APPLICATION_ROOT";
+const tavernApplicationRootEnvironmentKey = "ISLE_DSH_RUNTIME_TAVERN_APPLICATION_ROOT";
 
 try {
-  await packPlugin({ source: pluginSourceRoot, target: "dsh", outDir: pluginRoot, quiet: true });
-  await packPlugin({ source: tavernPluginSourceRoot, target: "dsh", outDir: tavernPluginRoot, quiet: true });
-  const manifest = JSON.parse(readFileSync(join(pluginRoot, "package.json"), "utf8"));
-  const patch = readFileSync(join(pluginRoot, "cordis.patch.yml"), "utf8");
-  const pluginEntry = requestedPluginEntry
-    ? resolve(desktopRoot, requestedPluginEntry)
-    : resolve(pluginRoot, manifest.main);
-  const rssPluginEntry = requestedRssPluginEntry
-    ? resolve(desktopRoot, requestedRssPluginEntry)
-    : resolve(rssPluginRoot, "index.js");
-  const tavernPluginEntry = requestedTavernPluginEntry
-    ? resolve(desktopRoot, requestedTavernPluginEntry)
-    : resolve(tavernPluginRoot, "index.js");
+  // The bundled resource loader resolves execution workers beside this test bundle.
+  for (const name of [entries.executionHost.output, entries.piToolWorker.output, "vendor"])
+    cpSync(join(desktopRoot, "agent-runtime/dist", name), join(temporaryRoot, name), { recursive: true });
+  await packApplication({ source: applicationSourceRoot, target: "dsh", outDir: applicationRoot, quiet: true });
+  await packApplication({ source: tavernApplicationSourceRoot, target: "dsh", outDir: tavernApplicationRoot, quiet: true });
+  const manifest = JSON.parse(readFileSync(join(applicationRoot, "package.json"), "utf8"));
+  const patch = readFileSync(join(applicationRoot, "cordis.patch.yml"), "utf8");
+  const applicationEntry = requestedApplicationEntry
+    ? resolve(desktopRoot, requestedApplicationEntry)
+    : resolve(applicationRoot, manifest.main);
+  const rssApplicationEntry = requestedRssApplicationEntry
+    ? resolve(desktopRoot, requestedRssApplicationEntry)
+    : resolve(rssApplicationRoot, "index.js");
+  const tavernApplicationEntry = requestedTavernApplicationEntry
+    ? resolve(desktopRoot, requestedTavernApplicationEntry)
+    : resolve(tavernApplicationRoot, "index.js");
 
   assert.equal(manifest.main, "./index.js");
   assert.equal(manifest.dsh?.bundle?.patch, "./cordis.patch.yml");
   assert.match(patch, /name:\s*['"]?@isle\/story-scene-card/);
 
   await build({
-    entryPoints: [join(desktopRoot, "agent-runtime", "tests", "dsh-plugin-runner.ts")],
+    entryPoints: [join(desktopRoot, "agent-runtime", "tests", "dsh-application-runner.ts")],
     outfile: outputPath,
     bundle: true,
     platform: "node",
@@ -52,19 +56,19 @@ try {
     packages: "external",
     sourcemap: "inline",
   });
-  process.env[environmentKey] = pathToFileURL(pluginEntry).href;
-  process.env[rssEnvironmentKey] = pathToFileURL(rssPluginEntry).href;
-  process.env[tavernEnvironmentKey] = pathToFileURL(tavernPluginEntry).href;
-  process.env[pluginRootEnvironmentKey] = pluginRoot;
-  process.env[rssPluginRootEnvironmentKey] = rssPluginRoot;
-  process.env[tavernPluginRootEnvironmentKey] = tavernPluginRoot;
+  process.env[environmentKey] = pathToFileURL(applicationEntry).href;
+  process.env[rssEnvironmentKey] = pathToFileURL(rssApplicationEntry).href;
+  process.env[tavernEnvironmentKey] = pathToFileURL(tavernApplicationEntry).href;
+  process.env[applicationRootEnvironmentKey] = applicationRoot;
+  process.env[rssApplicationRootEnvironmentKey] = rssApplicationRoot;
+  process.env[tavernApplicationRootEnvironmentKey] = tavernApplicationRoot;
   await import(`${pathToFileURL(outputPath).href}?cache=${Date.now()}`);
 } finally {
   delete process.env[environmentKey];
   delete process.env[rssEnvironmentKey];
   delete process.env[tavernEnvironmentKey];
-  delete process.env[pluginRootEnvironmentKey];
-  delete process.env[rssPluginRootEnvironmentKey];
-  delete process.env[tavernPluginRootEnvironmentKey];
+  delete process.env[applicationRootEnvironmentKey];
+  delete process.env[rssApplicationRootEnvironmentKey];
+  delete process.env[tavernApplicationRootEnvironmentKey];
   rmSync(temporaryRoot, { recursive: true, force: true });
 }

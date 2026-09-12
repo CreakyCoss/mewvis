@@ -3,4 +3,4 @@ packages:
   - "ai/pi/packages/session-backends/*"
   - "apps/*"
   - "packages/*"
-  - "apps/desktop/plugin-host/plugins/chat-playground"
+  - "apps/desktop/app-host/apps/chat-playground"

@@ -537,18 +537,18 @@ test("legacy tool selection migrates to ask and restored modes are independent o
   });
   assert.equal(legacy.session.getSnapshot().config.permissionMode, "ask");
   await legacy.session.close();
-  const plugin = await setup({
+  const application = await setup({
     catalog: async () => ({ ...resources, tools: [] }),
     storage: {
       async load() {
-        return { title: "plugin", messages: [], config: { permissionMode: "full" } };
+        return { title: "application", messages: [], config: { permissionMode: "full" } };
       },
     },
   });
-  assert.equal(plugin.session.getSnapshot().config.permissionMode, "full");
-  assert.equal((await plugin.session.updateConfig({ permissionMode: "full" })).ok, true);
-  assert.equal((await plugin.session.updateConfig({ permissionMode: "auto" })).ok, true);
-  await plugin.session.close();
+  assert.equal(application.session.getSnapshot().config.permissionMode, "full");
+  assert.equal((await application.session.updateConfig({ permissionMode: "full" })).ok, true);
+  assert.equal((await application.session.updateConfig({ permissionMode: "auto" })).ok, true);
+  await application.session.close();
 });
 
 test("approval events wait independently of questions, reject question answers and clear on stop", async () => {

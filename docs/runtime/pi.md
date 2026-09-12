@@ -8,11 +8,11 @@ Isle 在 `tools/worker.ts` 装配工具实现，构建为 `pi-tool-worker.js`。
 
 ## 执行安全与工具分配
 
-前端选择 `ask`、`auto`、`full`，宿主与插件请求共用策略。`resources.tools.allowed` 独立控制场景能力；子 Agent 与角色工具取交集。工具定义不声明权限，`agent/tools/list` 返回工具及 `permissionOptions`（模式、标签、说明、是否默认），所有来源共用同一目录。
+前端选择 `ask`、`auto`、`full`，宿主与应用请求共用策略。`resources.tools.allowed` 独立控制场景能力；子 Agent 与角色工具取交集。工具定义不声明权限，`agent/tools/list` 返回工具及 `permissionOptions`（模式、标签、说明、是否默认），所有来源共用同一目录。
 
 `security/safety/policy.ts` 定义档位、共享边界、调用规则、风险、可执行规则与显示文字；`security/safety/index.ts` 校验契约并执行审批。协议模式和 Chat 类型通过 `pnpm generate:agent-runtime:protocol` 生成。
 
-文件、shell、内置业务和插件工具实现在 Node 子进程执行，插件代码也加载于其中。`security/execution/policy.ts` 独立控制 OS 隔离。Pi 与 Agent／模型／会话控制留在宿主。安全层启用时，`beforeToolCall` 在远程调用前校验最终参数并处理审批。`ask_user`、`subagent` 是宿主控制操作，子 Agent 工具仍走同一执行链。
+文件、shell、内置业务和应用工具实现在 Node 子进程执行，应用代码也加载于其中。`security/execution/policy.ts` 独立控制 OS 隔离。Pi 与 Agent／模型／会话控制留在宿主。安全层启用时，`beforeToolCall` 在远程调用前校验最终参数并处理审批。`ask_user`、`subagent` 是宿主控制操作，子 Agent 工具仍走同一执行链。
 
 | 模式 | 默认审批策略                                 | 默认应用写入范围             |
 | ---- | -------------------------------------------- | ---------------------------- |

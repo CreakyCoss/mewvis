@@ -76,7 +76,7 @@ try {
     api.resolveAgentAccess({ filesystem: { read: [{ base: "workspace", path: "outside" }] } }, context),
   );
   assert.throws(
-    () => api.resolveAgentAccess({ filesystem: { read: [{ base: "pluginData" }] } }, context),
+    () => api.resolveAgentAccess({ filesystem: { read: [{ base: "applicationData" }] } }, context),
     /不符合权限协议/,
   );
   declaration.filesystem.read.push({ base: "home" });

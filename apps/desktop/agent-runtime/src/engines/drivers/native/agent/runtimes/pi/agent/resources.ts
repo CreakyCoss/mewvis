@@ -19,7 +19,7 @@ export const createPiResourceLoader = async (
 ) => {
   const toolSet = await createPiToolSet(command, callbacks, options);
   try {
-    const skills = loadPiSkills(command, toolSet.builtins, toolSet.plugins?.skills ?? [], toolSet.access);
+    const skills = loadPiSkills(command, toolSet.builtins, toolSet.applications?.skills ?? [], toolSet.access);
     const settingsManager = toolSet.access ? SettingsManager.inMemory() : undefined;
     const loader = new DefaultResourceLoader({
       cwd: command.workspacePath,
@@ -36,7 +36,7 @@ export const createPiResourceLoader = async (
         (pi) => {
           for (const tool of toolSet.tools) pi.registerTool(tool);
           toolSet.registerExtensions(pi);
-          toolSet.plugins?.registerSkills(pi, skills);
+          toolSet.applications?.registerSkills(pi, skills);
         },
       ],
       skillsOverride: () => ({ skills, diagnostics: [] }),
@@ -58,11 +58,11 @@ export const createPiResourceLoader = async (
 const loadPiSkills = (
   command: RuntimeAgentCommand,
   builtins: ResolvedBuiltins,
-  pluginSkills: readonly Skill[],
+  applicationSkills: readonly Skill[],
   access?: ResolvedAgentAccess,
 ): Skill[] => {
   const enabledNames = new Set(builtins.skillNames);
-  if (enabledNames.size === 0 && pluginSkills.length === 0) {
+  if (enabledNames.size === 0 && applicationSkills.length === 0) {
     return [];
   }
 
@@ -102,7 +102,7 @@ const loadPiSkills = (
   const resolvedNames = new Set(resolved.map((skill) => skill.name));
   return [
     ...resolved,
-    ...pluginSkills.filter(
+    ...applicationSkills.filter(
       (skill) => !skill.disableModelInvocation && !reservedNames.has(skill.name) && !resolvedNames.has(skill.name),
     ),
   ];

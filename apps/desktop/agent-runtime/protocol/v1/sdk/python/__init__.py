@@ -92,30 +92,30 @@ class AgentAccess:
     process: AgentProcessAccess | None
 
 
-@dataclass
-class AgentRuntimeMCPResources:
-    servers: list[Any] | None
-
-
-class AgentRuntimePluginKind(Enum):
+class AgentRuntimeApplicationKind(Enum):
     DSH = "dsh"
     ISLE = "isle"
 
 
 @dataclass
-class AgentRuntimePlugin:
+class AgentRuntimeApplication:
     entry: str
     id: str
-    kind: AgentRuntimePluginKind
+    kind: AgentRuntimeApplicationKind
     package_root: str
     config: dict[str, Any] | None
     patch_path: str | None
 
 
 @dataclass
-class AgentRuntimePluginResources:
-    items: list[AgentRuntimePlugin] | None
+class AgentRuntimeApplicationResources:
+    items: list[AgentRuntimeApplication] | None
     settings_path: str | None
+
+
+@dataclass
+class AgentRuntimeMCPResources:
+    servers: list[Any] | None
 
 
 @dataclass
@@ -132,8 +132,8 @@ class AgentRuntimeToolResources:
 
 @dataclass
 class AgentRuntimeResources:
+    applications: AgentRuntimeApplicationResources | None
     mcp: AgentRuntimeMCPResources | None
-    plugins: AgentRuntimePluginResources | None
     skills: AgentRuntimeSkillResources | None
     tools: AgentRuntimeToolResources | None
 

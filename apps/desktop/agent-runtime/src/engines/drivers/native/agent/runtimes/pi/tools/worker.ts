@@ -12,12 +12,12 @@ import { serveWorker } from "../../../../../../../security/execution/index.js";
 import { resolveBuiltins } from "../../../../../../builtins/index.js";
 import type { RuntimeAgentCommand } from "../../types.js";
 import { registerPiBuiltinTool } from "./builtin-tool.js";
-import { createPluginRuntimeBridge } from "../plugins/bridge.js";
+import { createApplicationRuntimeBridge } from "../apps/bridge.js";
 import { createPiShellTool } from "./shell.js";
 
 type Tool = Parameters<ExtensionAPI["registerTool"]>[0];
 let tools: Tool[] = [];
-let plugins: Awaited<ReturnType<typeof createPluginRuntimeBridge>>;
+let applications: Awaited<ReturnType<typeof createApplicationRuntimeBridge>>;
 let initialized = false;
 
 serveWorker({
@@ -35,14 +35,14 @@ serveWorker({
       if (shell) tools.push(shell as Tool);
       for (const tool of builtins.requiredTools.internal)
         registerPiBuiltinTool(collector, tool, { workspacePath: command.workspacePath });
-      plugins = await createPluginRuntimeBridge(command);
-      const pluginRisks = plugins?.registerTools(collector);
+      applications = await createApplicationRuntimeBridge(command);
+      const applicationRisks = applications?.registerTools(collector);
       const toolRisks = new Map([
         ...builtins.requiredTools.internal.map((tool) => [tool.name, tool.risk] as const),
-        ...(pluginRisks ?? []),
+        ...(applicationRisks ?? []),
       ]);
       const skillContents = await Promise.all(
-        (plugins?.skills ?? []).map(async (skill) => ({ skill, content: await readFile(skill.filePath, "utf8") })),
+        (applications?.skills ?? []).map(async (skill) => ({ skill, content: await readFile(skill.filePath, "utf8") })),
       );
       return {
         tools: tools.map(({ name, label, description, parameters }) => ({
@@ -65,6 +65,6 @@ serveWorker({
     throw new Error("未知工具进程请求。");
   },
   async dispose() {
-    await plugins?.dispose();
+    await applications?.dispose();
   },
 });

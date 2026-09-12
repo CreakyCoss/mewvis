@@ -322,9 +322,9 @@ export function createDesktopChatService({ resolveRecord }: { resolveRecord?: Re
     },
     closeWorkspace: (workspacePath: string) => closeWhere((entry) => entry.input.workspacePath === workspacePath),
     closeAll: () => closeWhere(() => true),
-    async closePlugin(pluginId: string) {
+    async closeApplication(applicationId: string) {
       const entries = [...sessions.values()].filter(
-        ({ source }) => source.origin.kind === "plugin" && source.origin.pluginId === pluginId,
+        ({ source }) => source.origin.kind === "application" && source.origin.applicationId === applicationId,
       );
       return Promise.all(entries.map((entry) => closeSession(entry.input.identity)));
     },
@@ -345,7 +345,7 @@ export function createDesktopChatService({ resolveRecord }: { resolveRecord?: Re
     },
     async updateContext(session: ChatSession, context: ChatContext) {
       const entry = entryFor(session);
-      if (!entry?.source.profile) throw new Error("当前会话不支持更新插件上下文");
+      if (!entry?.source.profile) throw new Error("当前会话不支持更新应用上下文");
       if (session.getSnapshot().phase !== "idle" || entry.closing) throw new Error("当前无法修改场景上下文");
       entry.source.profile.context = structuredClone(context);
       await entry.storage.saveProfile();

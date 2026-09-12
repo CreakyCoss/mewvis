@@ -1,8 +1,8 @@
-import { sandboxDocument } from "../../src/features/pages/plugin-ui/plugin-frame.tsx";
-import script from "../../plugin-host/plugins/docs-reader/isle-ui.js?raw";
-import style from "../../plugin-host/plugins/docs-reader/isle-ui.css?raw";
+import { sandboxDocument } from "../../src/features/pages/application-ui/application-frame.tsx";
+import script from "../../app-host/apps/docs-reader/isle-ui.js?raw";
+import style from "../../app-host/apps/docs-reader/isle-ui.css?raw";
 import book from "../../../../docs/.generated/book.json";
-import { createLibrary } from "../../plugin-host/plugins/docs-reader/library.js";
+import { createLibrary } from "../../app-host/apps/docs-reader/library.js";
 
 const iframe = document.querySelector("iframe");
 const library = createLibrary(book);
@@ -27,13 +27,13 @@ window.addEventListener("message", (event) => {
   if (event.source !== iframe.contentWindow) return;
   const message = event.data;
   if (!message || typeof message.channel !== "string") return;
-  if (message.type === "plugin:ready") {
+  if (message.type === "application:ready") {
     channel = message.channel;
     post({
       type: "host:init",
       host: {
         theme,
-        plugin: { id: "@isle/docs-reader", name: "文档中心", version: "0.1.0" },
+        application: { id: "@isle/docs-reader", name: "文档中心", version: "0.1.0" },
         tools: Object.keys(tools).map((name) => ({ name })),
       },
     });
@@ -51,7 +51,7 @@ window.addEventListener("message", (event) => {
   } else if (message.type === "host:open-external") {
     document.querySelector("#result").textContent = `外部链接请求：${message.url}`;
     post({ type: "host:result", id: message.id, result: { opened: true } });
-  } else if (message.type === "plugin:error") {
+  } else if (message.type === "application:error") {
     document.querySelector("#result").textContent = message.message;
   }
 });

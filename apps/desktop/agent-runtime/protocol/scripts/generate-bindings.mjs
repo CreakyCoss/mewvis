@@ -340,7 +340,7 @@ try {
     await format(JSON.stringify(permissionSchema), { parser: "json", printWidth: 120 }),
   );
 
-  // Publish the same protocol types with the standalone Chat contracts. Plugins
+  // Publish the same protocol types with the standalone Chat contracts. Applications
   // must not depend on a private desktop source path or a hand-maintained enum.
   const thinkingSchema = join(tempRoot, "model-thinking.schema.json");
   writeFileSync(

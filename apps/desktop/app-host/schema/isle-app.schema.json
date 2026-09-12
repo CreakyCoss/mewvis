@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mewvis.app/schemas/isle-app-v1.json",
+  "title": "Isle Application Manifest",
+  "type": "object",
+  "properties": {
+    "version": { "const": 1 },
+    "entry": { "type": "string", "pattern": "^\\./.*\\.(m?js)$" },
+    "assets": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^\\./" },
+      "uniqueItems": true
+    }
+  },
+  "required": ["version", "entry"],
+  "additionalProperties": false
+}

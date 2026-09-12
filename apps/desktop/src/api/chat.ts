@@ -1,7 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentTimestamp } from "@/utils/time";
 
-export type ChatOrigin = { kind: "builtin"; sceneId: string } | { kind: "plugin"; pluginId: string; sceneId: string };
+export type ChatOrigin = { kind: "builtin"; sceneId: string } | { kind: "application"; applicationId: string; sceneId: string };
 export type ChatMeta = {
   id: string;
   title: string;

@@ -189,7 +189,7 @@ export type ChatSnapshot = {
   resources: ChatResources;
   activeTaskId: string | null;
   pendingQuestion: ChatPendingQuestion | null;
-  /** Host-owned approval; plugins may observe but cannot approve it. */
+  /** Host-owned approval; applications may observe but cannot approve it. */
   pendingApproval: ChatPendingApproval | null;
   answering: boolean;
   error: string;

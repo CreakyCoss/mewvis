@@ -359,9 +359,9 @@ importers:
       '@isle/chat-contracts':
         specifier: workspace:*
         version: link:../../packages/chat-contracts
-      '@isle/plugin-sdk':
+      '@isle/app-sdk':
         specifier: workspace:*
-        version: link:../../packages/plugin-sdk
+        version: link:../../packages/app-sdk
       '@langchain/core':
         specifier: ^1.2.1
         version: 1.2.1
@@ -477,9 +477,9 @@ importers:
         specifier: ^5.0.0
         version: 5.0.0(@types/react@19.1.8)(react@19.1.0)
     devDependencies:
-      '@isle/plugin-dev':
+      '@isle/app-dev':
         specifier: workspace:*
-        version: link:../../packages/plugin-dev
+        version: link:../../packages/app-dev
       '@tailwindcss/postcss':
         specifier: ^4.3.0
         version: 4.3.0
@@ -547,11 +547,11 @@ importers:
         specifier: ^7.0.4
         version: 7.0.4(@types/node@22.0.0)
 
-  apps/desktop/plugin-host/plugins/chat-playground:
+  apps/desktop/app-host/apps/chat-playground:
     dependencies:
-      '@isle/plugin-sdk':
+      '@isle/app-sdk':
         specifier: workspace:*
-        version: link:../../../../../packages/plugin-sdk
+        version: link:../../../../../packages/app-sdk
       react:
         specifier: ^19.1.0
         version: 19.1.0
@@ -559,9 +559,9 @@ importers:
         specifier: ^19.1.0
         version: 19.1.0(react@19.1.0)
     devDependencies:
-      '@isle/plugin-dev':
+      '@isle/app-dev':
         specifier: workspace:*
-        version: link:../../../../../packages/plugin-dev
+        version: link:../../../../../packages/app-dev
       '@types/node':
         specifier: ^22.0.0
         version: 22.0.0
@@ -574,14 +574,14 @@ importers:
 
   packages/chat-contracts: {}
 
-  packages/plugin-dev:
+  packages/app-dev:
     dependencies:
       '@isle/chat-contracts':
         specifier: workspace:*
         version: link:../chat-contracts
-      '@isle/plugin-sdk':
+      '@isle/app-sdk':
         specifier: workspace:*
-        version: link:../plugin-sdk
+        version: link:../app-sdk
       '@types/node':
         specifier: ^22.0.0
         version: 22.0.0
@@ -613,7 +613,7 @@ importers:
         specifier: ^7.0.4
         version: 7.0.4(@types/node@22.0.0)
 
-  packages/plugin-sdk:
+  packages/app-sdk:
     dependencies:
       '@deepseek-ai/schemastery':
         specifier: 3.18.1

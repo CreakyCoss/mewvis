@@ -9,7 +9,7 @@ export {
   type AgentEvent,
   type AgentRunParams,
   type AgentRuntimeEvent,
-  type AgentRuntimePlugin,
+  type AgentRuntimeApplication,
   type AgentRuntimeResources,
   type AgentToolsResult,
   type EmptyParams,

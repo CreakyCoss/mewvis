@@ -355,8 +355,8 @@ async function run() {
   await act(async () => {
     root.unmount();
   });
-  const pluginSession = await createChatSession({
-    identity: { scope: "plugin:fixture:workspace:fixture", id: "plugin-record" },
+  const applicationSession = await createChatSession({
+    identity: { scope: "application:fixture:workspace:fixture", id: "application-record" },
     runtime,
     catalog: { load: async () => ({ permissionOptions: structuredClone([...agentPermissionOptions]), models }) },
     storage: { load: async () => null, save: async () => {} },
@@ -367,13 +367,13 @@ async function run() {
   let connectionGate: Promise<void> | undefined;
   let releaseConnection: () => void;
   let connectionFailure: string | undefined;
-  let historyReason = "插件已禁用或移除";
+  let historyReason = "应用已禁用或移除";
   let canRetry = true;
   let connectionAttempts = 0;
   let sessionOpens = 0;
   let historySession: ChatSession | undefined;
   const historyService = {
-    listSessions: () => [pluginSession],
+    listSessions: () => [applicationSession],
     subscribe: (listener: (session: ChatSession) => void) => {
       historyListeners.add(listener);
       return () => {
@@ -393,14 +393,14 @@ async function run() {
       if (!available)
         return {
           history: {
-            messages: pluginSession.getSnapshot().messages.length
-              ? pluginSession.getSnapshot().messages
+            messages: applicationSession.getSnapshot().messages.length
+              ? applicationSession.getSnapshot().messages
               : [
                   {
                     id: "archived",
                     role: "user" as const,
                     createdAt: 1,
-                    blocks: [{ type: "text" as const, id: "text", content: "Archived plugin message" }],
+                    blocks: [{ type: "text" as const, id: "text", content: "Archived application message" }],
                   },
                 ],
             preferences: { showThinkingProcess: true, showToolCallProcess: true },
@@ -408,7 +408,7 @@ async function run() {
             canRetry,
           },
         };
-      return { session: pluginSession };
+      return { session: applicationSession };
     },
     subscribeRecord: (_input: unknown, listener: () => void) => {
       recordChanges.add(listener);
@@ -423,7 +423,7 @@ async function run() {
     viewPersistence: () => undefined,
   } as unknown as DesktopChatService;
   const historyInput = {
-    identity: { scope: "workspace:fixture", id: "plugin-record" },
+    identity: { scope: "workspace:fixture", id: "application-record" },
     workspacePath: "fixture",
     workspaceId: "fixture",
     origin: { kind: "builtin" as const, sceneId: "chat" },
@@ -456,8 +456,8 @@ async function run() {
     );
   });
   assert(
-    fixture.textContent?.includes("Archived plugin message") && fixture.textContent?.includes("只读查看"),
-    "An unavailable plugin retains readable history without creating an execution session",
+    fixture.textContent?.includes("Archived application message") && fixture.textContent?.includes("只读查看"),
+    "An unavailable application retains readable history without creating an execution session",
   );
   assert(
     !fixture.querySelector('[contenteditable="true"]') &&
@@ -505,7 +505,7 @@ async function run() {
   );
   assert(connectionAttempts === attemptsBeforeRetry + 1, "Consecutive retry clicks start one connection attempt");
   assert(
-    fixture.textContent?.includes("Archived plugin message") && fixture.querySelector('[aria-label="复制消息"]'),
+    fixture.textContent?.includes("Archived application message") && fixture.querySelector('[aria-label="复制消息"]'),
     "Connecting preserves readable history and copying",
   );
   await finishRetryFeedback();
@@ -518,7 +518,7 @@ async function run() {
     releaseConnection();
   });
   assert(
-    fixture.querySelector('[role="alert"]')?.textContent?.includes("重新连接失败：插件已禁用或移除") &&
+    fixture.querySelector('[role="alert"]')?.textContent?.includes("重新连接失败：应用已禁用或移除") &&
       !retryButton().disabled,
     "A repeated read-only result reports the failed attempt and permits another retry",
   );
@@ -534,7 +534,7 @@ async function run() {
   await finishRetryFeedback();
   assert(
     fixture.querySelector('[role="alert"]')?.textContent?.includes("授权服务暂时不可用") &&
-      fixture.textContent?.includes("Archived plugin message") &&
+      fixture.textContent?.includes("Archived application message") &&
       !retryButton().disabled,
     "Thrown connection errors retain history, report the failure and unlock retry",
   );
@@ -546,16 +546,16 @@ async function run() {
     connectionGate = undefined;
     connectionFailure = undefined;
     connected = true;
-    historyListeners.forEach((listener) => listener(pluginSession));
+    historyListeners.forEach((listener) => listener(applicationSession));
   });
   await finishRetryFeedback();
   assert(
-    historySession === pluginSession && sessionOpens === 0,
-    "An already mounted history page reconnects to the plugin owner when it becomes available",
+    historySession === applicationSession && sessionOpens === 0,
+    "An already mounted history page reconnects to the application owner when it becomes available",
   );
   await act(async () => releaseConnection());
   assert(
-    historySession === pluginSession &&
+    historySession === applicationSession &&
       !fixture.querySelector('[role="alert"]') &&
       !fixture.textContent?.includes("连接中"),
     "A late failed retry cannot overwrite a newer successful connection",
@@ -563,22 +563,22 @@ async function run() {
   assert(historyListeners.size === 2, "StrictMode leaves one history observer and one host approval observer");
   await act(async () => {
     await historySession!.send({ text: "continue from history" });
-    emit(pluginSession, { type: E.TextDelta, delta: "Plugin continuation" });
-    emit(pluginSession, { type: E.Done, text: "Plugin continuation" });
+    emit(applicationSession, { type: E.TextDelta, delta: "Application continuation" });
+    emit(applicationSession, { type: E.Done, text: "Application continuation" });
   });
   assert(
-    fixture.textContent?.includes("Plugin continuation"),
-    "History renders continuation through the original plugin session",
+    fixture.textContent?.includes("Application continuation"),
+    "History renders continuation through the original application session",
   );
   await act(async () => {
     connected = false;
     recordChanges.forEach((listener) => listener());
   });
   assert(
-    fixture.textContent?.includes("Plugin continuation") &&
+    fixture.textContent?.includes("Application continuation") &&
       fixture.textContent?.includes("只读查看") &&
       !fixture.querySelector('[contenteditable="true"]'),
-    "Disabling a plugin switches an already open history page to read-only while retaining messages",
+    "Disabling a application switches an already open history page to read-only while retaining messages",
   );
   await act(async () => {
     connected = true;
@@ -590,8 +590,8 @@ async function run() {
   });
   await finishRetryFeedback();
   assert(
-    historySession === pluginSession && fixture.querySelector('[contenteditable="true"]'),
-    "Re-enabling the plugin can reconnect the original session from the read-only view",
+    historySession === applicationSession && fixture.querySelector('[contenteditable="true"]'),
+    "Re-enabling the application can reconnect the original session from the read-only view",
   );
   await act(async () => {
     connected = false;
@@ -602,17 +602,17 @@ async function run() {
   assert(
     fixture.textContent?.includes(historyReason) &&
       !retryButton() &&
-      fixture.textContent?.includes("Plugin continuation"),
+      fixture.textContent?.includes("Application continuation"),
     "A record with missing origin remains readable without an ineffective reconnect button",
   );
   await act(async () => {
     root.unmount();
   });
   assert(
-    historyListeners.size === 0 && recordChanges.size === 0 && pluginSession.getSnapshot().phase === "idle",
-    "Leaving history detaches its observer without closing the plugin session",
+    historyListeners.size === 0 && recordChanges.size === 0 && applicationSession.getSnapshot().phase === "idle",
+    "Leaving history detaches its observer without closing the application session",
   );
-  await pluginSession.close();
+  await applicationSession.close();
   await checkApprovals();
   results.textContent = `PASS ${assertions.length} assertions\n${assertions.join("\n")}`;
   results.style.whiteSpace = "pre-wrap";

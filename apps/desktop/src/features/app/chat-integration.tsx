@@ -1,4 +1,4 @@
-import { connectNativePluginChat } from "./plugin-chat-native";
+import { connectNativeApplicationChat } from "./application-chat-native";
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { toast } from "sonner";
@@ -17,11 +17,11 @@ export function AppChatIntegration({ children }: PropsWithChildren) {
   );
   useEffect(() => {
     let integrationDisposed = false;
-    let disconnectPlugins: (() => void) | undefined;
-    void connectNativePluginChat()
+    let disconnectApplications: (() => void) | undefined;
+    void connectNativeApplicationChat()
       .then((detach) => {
         if (integrationDisposed) detach();
-        else disconnectPlugins = detach;
+        else disconnectApplications = detach;
       })
       .catch((error) => toast.error(String(error)));
     const running = new Map<string, boolean>();
@@ -71,7 +71,7 @@ export function AppChatIntegration({ children }: PropsWithChildren) {
         .catch((error) => toast.error(String(error)));
     return () => {
       integrationDisposed = true;
-      disconnectPlugins?.();
+      disconnectApplications?.();
       disposed = true;
       unlistenClose?.();
       detach();

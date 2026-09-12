@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cp, mkdir, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { dshBundleCompatibilityPlugin } from "@isle/plugin-dev/dsh";
+import { dshBundleCompatibilityPlugin } from "@isle/app-dev/dsh";
 import entries from "../build-entries.json" with { type: "json" };
 
 const runtimeRoot = join(dirname(fileURLToPath(import.meta.url)), "..");

@@ -6,8 +6,8 @@ mod wire_sdk;
 
 pub(crate) use wire_sdk::AgentAccess;
 pub(super) use wire_sdk::{
-    AgentPermissionOption, AgentPermissions, AgentRuntimePlugin, AgentRuntimePluginKind,
-    AgentRuntimePluginResources, AgentRuntimeResources, AgentRuntimeSkillResources,
+    AgentPermissionOption, AgentPermissions, AgentRuntimeApplication, AgentRuntimeApplicationKind,
+    AgentRuntimeApplicationResources, AgentRuntimeResources, AgentRuntimeSkillResources,
     AgentRuntimeToolResources, BundledPath, RuntimeModelInput, EVENT_APPROVAL_REQUESTED,
     EVENT_APPROVAL_RESOLVED, EVENT_DONE, EVENT_ERROR, EVENT_QUESTION, EVENT_QUESTION_ANSWERED,
     EVENT_STARTED, EVENT_TEXT_DELTA, EVENT_THINKING_DELTA, METHOD_AGENT_APPROVAL_ANSWER,

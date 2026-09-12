@@ -2,10 +2,10 @@ import { Minimize2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { WindowDragRegion } from "@/components/window-drag-region";
-import { usePluginLayout } from "./plugin-layout";
+import { useApplicationLayout } from "./application-layout";
 
 export const AppWorkspace = ({ sidebar, children }: { sidebar: ReactNode; children: ReactNode }) => {
-  const { fullscreen, setFullscreen } = usePluginLayout();
+  const { fullscreen, setFullscreen } = useApplicationLayout();
   return (
     <main className="flex h-screen min-h-screen overflow-hidden bg-background text-foreground">
       <WindowDragRegion className="fixed inset-x-0 top-0 z-40 h-10" />
@@ -18,7 +18,7 @@ export const AppWorkspace = ({ sidebar, children }: { sidebar: ReactNode; childr
           size="sm"
           className="fixed right-3 top-1 z-50 h-8 bg-background"
           onClick={() => setFullscreen(false)}
-          aria-label="退出插件全屏"
+          aria-label="退出应用全屏"
         >
           <Minimize2 className="size-4" />
           退出全屏

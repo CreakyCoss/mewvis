@@ -13,6 +13,7 @@
 
 - [技术规格（历史方案）](architecture/spec.md)
 - [Chat 架构](architecture/chat.md)
+- [应用与宿主插件边界](architecture/extensibility.md)
 - [前端 Agent 契约](architecture/client-contracts.md)
 - [知识检索设计](architecture/rag.md)
 - [视觉系统](architecture/design-system.md)
@@ -29,22 +30,22 @@
   - [调用前安全与审批](runtime/security/approval.md)
   - [程序执行与沙箱](runtime/security/execution.md)
 
-## 插件开发
+## 应用开发
 
-- [插件工程](plugins/development.md)
-- [插件 SDK](plugins/sdk.md)
-- [插件数据与工作区 SDK](plugins/data.md)
-- [插件宿主](plugins/host.md)
-- [插件界面协议](plugins/ui.md)
-- [插件聊天](plugins/chat.md)
+- [应用工程](apps/development.md)
+- [应用 SDK](apps/sdk.md)
+- [应用数据与工作区 SDK](apps/data.md)
+- [应用宿主](apps/host.md)
+- [应用界面协议](apps/ui.md)
+- [应用聊天](apps/chat.md)
 
-## 内置插件
+## 内置应用
 
-- [文档中心](plugins/builtins/docs-reader.md)
-- [聊天调试台](plugins/builtins/chat-playground.md)
-- [RSS 阅读器](plugins/builtins/rss-reader.md)
-- [小说场景卡](plugins/builtins/story-scene-card.md)
-- [酒馆](plugins/builtins/tavern.md)
+- [文档中心](apps/builtins/docs-reader.md)
+- [聊天调试台](apps/builtins/chat-playground.md)
+- [RSS 阅读器](apps/builtins/rss-reader.md)
+- [小说场景卡](apps/builtins/story-scene-card.md)
+- [酒馆](apps/builtins/tavern.md)
 
 ## 质量记录
 

@@ -320,7 +320,7 @@ try {
     assert.equal(analysis.coverage, "partial");
     assert.equal(api.evaluateSafety(analysis, context("auto", invocation)).action, "requestApproval");
   }
-  for (const entry of ["custom_builtin", "custom_plugin"]) {
+  for (const entry of ["custom_builtin", "custom_application"]) {
     const invocation = { ...request, entry };
     const analysis = analyze(invocation);
     assert.equal(analysis.coverage, "unknown");
@@ -330,7 +330,7 @@ try {
   console.log("PASS runtime adaptation, opaque commands and equal treatment of custom tools");
 
   const toolRisks = new Map([
-    ["custom_plugin", "low"],
+    ["custom_application", "low"],
     ["custom_builtin", "high"],
     ["custom_write", "medium"],
   ]);
@@ -369,7 +369,7 @@ try {
     ],
   });
   assert.equal(
-    api.evaluateSafety(api.analyzePiExecution({ ...request, entry: "custom_plugin" }, toolRisks), {
+    api.evaluateSafety(api.analyzePiExecution({ ...request, entry: "custom_application" }, toolRisks), {
       ...context("full"),
       policy: deniedDeclaration,
     }).action,

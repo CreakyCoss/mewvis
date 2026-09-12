@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mewvis.app/schemas/isle-ui-v1.json",
+  "title": "Isle Application UI Manifest",
+  "type": "object",
+  "properties": {
+    "version": { "const": 1 },
+    "kind": { "const": "sandbox" },
+    "entry": { "type": "string", "pattern": "^\\./.*\\.(m?js)$" },
+    "style": { "type": "string", "pattern": "^\\./.*\\.css$" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "layout": { "enum": ["contained", "full", "fullscreen"] }
+  },
+  "required": ["version", "kind", "entry"],
+  "additionalProperties": false
+}
