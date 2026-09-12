@@ -34,12 +34,13 @@ pub fn create_workspace(app: &AppHandle, input: CreateWorkspaceInput) -> Result<
     if workspace_path.as_os_str().is_empty() {
         return Err("请选择工作区目录".to_string());
     }
-    if workspace_path == default_workspace_path(app)? {
+    let workspace_path = crate::db::setup::normalize_workspace_path(&workspace_path)?;
+    if workspace_path == crate::db::setup::normalize_workspace_path(&default_workspace_path(app)?)?
+    {
         return Err("默认工作区由系统管理，不能作为普通工作区创建".to_string());
     }
 
-    fs::create_dir_all(&workspace_path).map_err(|error| format!("无法创建工作区目录：{error}"))?;
-    crate::db::setup::initialize_workspace_database(&workspace_path)?;
+    let workspace_path = crate::db::setup::initialize_workspace_directory(&workspace_path)?;
 
     let conn = open_config_connection(app)?;
     let now = now_millis()?;
@@ -86,7 +87,7 @@ pub fn update_workspace(app: &AppHandle, input: UpdateWorkspaceInput) -> Result<
     if PathBuf::from(&current.path) == default_workspace_path(app)? {
         return Err("默认工作区由系统管理，不能编辑".to_string());
     }
-    crate::db::setup::initialize_workspace_database(&workspace_path)?;
+    let workspace_path = crate::db::setup::initialize_workspace_directory(&workspace_path)?;
 
     let now = now_millis()?;
     let description = input.description.and_then(|value| {

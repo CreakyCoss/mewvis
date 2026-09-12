@@ -13,7 +13,6 @@ type SessionInput = PluginChatCreateInput & { chatId: string };
 type Entry = { session: ChatSession; input: SessionInput };
 type Options = {
   authorize(pluginId: string, workspaceId: string): Promise<Access>;
-  workspaces?: (pluginId: string) => Promise<{ id: string; name: string; isDefault: boolean }[]>;
   tools?: (pluginId: string) => Promise<string[]>;
 };
 const record = (value: unknown): Record<string, unknown> => {
@@ -151,7 +150,7 @@ export function createPluginChatHost(service: DesktopChatService, options: Optio
           string(request.method, 64);
           if (new TextEncoder().encode(JSON.stringify(request)).byteLength > 256 * 1024)
             throw new Error("聊天请求超过 256 KiB");
-          if (request.method === "workspaces") return options.workspaces?.(pluginId) ?? [];
+          if (request.method === "workspaces") throw new Error("请通过 @isle/plugin-sdk/data 查询插件工作区");
           if (request.method === "list") {
             const input = record(request.input);
             only(input, ["workspaceId"]);

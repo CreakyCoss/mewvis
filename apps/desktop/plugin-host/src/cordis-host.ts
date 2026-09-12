@@ -1,16 +1,18 @@
 import { createPluginChatClient, type PluginChatClient } from "@isle/plugin-sdk/chat";
+import { createPluginDataClient, type PluginDataClient } from "@isle/plugin-sdk/data";
 import { Context, Inject, type Fiber, type Plugin } from "@deepseek-ai/cordis";
 import { SkillRegistry, type SkillDefinition, type SkillSummary, type SkillViewOptions } from "@deepseek-ai/dsh-skill";
 import { SettingsProvider, type SettingsNamespace } from "@deepseek-ai/dsh-settings";
 import { FileSettingsProvider } from "@deepseek-ai/dsh-settings-file";
 import { SystemPrompt } from "@deepseek-ai/dsh-system-prompt";
 import { ToolRuntime, type ToolExecutionInput, type ToolExecutionResult } from "@deepseek-ai/dsh-tools";
-import { readFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { extname, isAbsolute, join, resolve, sep } from "node:path";
+import { dirname, extname, isAbsolute, join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { load as loadYaml, JSON_SCHEMA } from "js-yaml";
 import { NamespacedFileSettingsProvider } from "./settings-provider.js";
+import { pluginDirectory } from "./plugin-paths.js";
 
 export type CordisToolSchema = ReturnType<ToolRuntime["schemas"]>[number];
 
@@ -25,9 +27,12 @@ export type CordisToolCall = Readonly<{
 
 export type CordisPluginHostOptions = Readonly<{
   chat?: (pluginId: string) => PluginChatClient | undefined;
+  data?: (pluginId: string) => PluginDataClient;
   toolPresentation?: "native" | "code" | "both";
   /** A YAML/JSON file keeps DSH's monolithic mode; a directory enables Isle namespace isolation. */
   settingsPath?: string;
+  /** Desktop-owned settings, isolated by full plugin identity. Layout migration must run before opening the host. */
+  pluginSettingsRoot?: string;
 }>;
 
 export type DshCompatBundleOptions = Readonly<{
@@ -68,6 +73,31 @@ class MemorySettingsProvider extends SettingsProvider {
 
   protected persist(_namespace: SettingsNamespace, _section: Record<string, unknown>): Promise<void> {
     return Promise.resolve();
+  }
+}
+
+/** An unused settings service stays read-only; the first actual save creates its format marker. */
+class PluginFileSettingsProvider extends FileSettingsProvider {
+  private async prepareMarker() {
+    const path = this.documentPath;
+    await mkdir(dirname(path), { recursive: true, mode: 0o700 });
+    try {
+      await writeFile(path, "$islePluginSettings: 1\n", { flag: "wx", mode: 0o600 });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      const info = await lstat(path);
+      if (!info.isFile() || info.nlink > 1) throw new Error(`插件配置文件不能重定向：${path}`);
+    }
+  }
+
+  protected async persist(namespace: SettingsNamespace, section: Record<string, unknown>) {
+    await this.prepareMarker();
+    await super.persist(namespace, section);
+  }
+
+  async prepareDocument() {
+    await this.prepareMarker();
+    return super.prepareDocument();
   }
 }
 
@@ -189,6 +219,7 @@ export class CordisPluginHost {
   readonly context: Context;
 
   private readonly loaded = new Map<CordisPluginId, LoadedPlugin>();
+  private readonly settingsScopes = new Map<string, { scope: Context; fiber: Fiber }>();
   private disposed = false;
 
   private constructor(
@@ -196,6 +227,8 @@ export class CordisPluginHost {
     private readonly tools: ToolRuntime,
     private readonly skills: SkillRegistry,
     private readonly chatFactory?: CordisPluginHostOptions["chat"],
+    private readonly dataFactory?: CordisPluginHostOptions["data"],
+    private readonly pluginSettingsRoot?: string,
   ) {
     this.context = context;
   }
@@ -203,7 +236,7 @@ export class CordisPluginHost {
   static async create(options: CordisPluginHostOptions = {}) {
     const context = new Context();
     try {
-      if (options.settingsPath) {
+      if (options.settingsPath && !options.pluginSettingsRoot) {
         const settingsLocation = resolve(options.settingsPath);
         if ([".yaml", ".yml", ".json"].includes(extname(settingsLocation).toLowerCase())) {
           await context.plugin(FileSettingsProvider, {
@@ -232,7 +265,7 @@ export class CordisPluginHost {
       if (!(tools instanceof ToolRuntime) || !(skills instanceof SkillRegistry) || !context.get("settings")) {
         throw new Error("Isle 插件 tools/skills/settings 服务没有完成初始化。");
       }
-      return new CordisPluginHost(context, tools, skills, options.chat);
+      return new CordisPluginHost(context, tools, skills, options.chat, options.data, options.pluginSettingsRoot);
     } catch (error) {
       await context.fiber.dispose();
       throw error;
@@ -241,6 +274,45 @@ export class CordisPluginHost {
 
   get pluginIds(): readonly CordisPluginId[] {
     return Object.freeze([...this.loaded.keys()]);
+  }
+
+  private async settingsScope(id: string): Promise<Context> {
+    if (!this.pluginSettingsRoot) return this.context;
+    const existing = this.settingsScopes.get(id);
+    if (existing) return existing.scope;
+    const directory = pluginDirectory(this.pluginSettingsRoot, id);
+    for (let path = directory; ; path = dirname(path)) {
+      try {
+        const info = await lstat(path);
+        if (info.isSymbolicLink() || !info.isDirectory()) throw new Error(`插件配置目录不能重定向：${path}`);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
+      if (path === this.pluginSettingsRoot || path === dirname(path)) break;
+    }
+    const path = join(directory, "settings.yaml");
+    try {
+      const info = await lstat(path);
+      if (!info.isFile() || info.nlink > 1) throw new Error(`插件配置文件不能重定向：${path}`);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+    const scope = this.context.isolate("settings");
+    const fiber = scope.registry.plugin(PluginFileSettingsProvider, { path, watch: false });
+    try {
+      await awaitPluginStart(fiber, `${id} settings`);
+    } catch (error) {
+      await fiber.dispose();
+      throw error;
+    }
+    this.settingsScopes.set(id, { scope, fiber });
+    return scope;
+  }
+
+  private async releaseSettings(id: string) {
+    const settings = this.settingsScopes.get(id);
+    this.settingsScopes.delete(id);
+    await settings?.fiber.dispose();
   }
 
   async load(id: CordisPluginId, plugin: Plugin, config?: unknown) {
@@ -256,11 +328,24 @@ export class CordisPluginHost {
         },
         subscribe: () => () => {},
       });
-    const scope = chat ? this.context.isolate("chat") : this.context;
+    const scope = (await this.settingsScope(pluginId)).isolate("chat").isolate("storage").isolate("workspaces");
+    const data =
+      this.dataFactory?.(pluginId) ??
+      createPluginDataClient({
+        version: 1,
+        request: async () => ({
+          ok: false,
+          error: { code: "CAPABILITY_UNAVAILABLE", message: "当前插件运行环境未提供持久化数据连接" },
+        }),
+      });
+    const removeStorage = scope.provide("storage", data.storage);
+    const removeWorkspaces = scope.provide("workspaces", data.workspaces);
     const removeChat = chat ? scope.provide("chat", chat) : undefined;
     const releaseChat = () => {
       chat?.dispose();
       void removeChat?.();
+      void removeStorage();
+      void removeWorkspaces();
     };
     const fiber = scope.registry.plugin(plugin, config);
     try {
@@ -270,6 +355,7 @@ export class CordisPluginHost {
     } catch (error) {
       await fiber.dispose();
       releaseChat();
+      await this.releaseSettings(pluginId);
       throw error;
     }
   }
@@ -302,6 +388,7 @@ export class CordisPluginHost {
       }),
     );
 
+    const scope = await this.settingsScope(bundleId);
     const pending = modules.map(({ entry, plugin }) => {
       const pluginId = `${bundleId}:${entry.id}`;
       if (this.loaded.has(pluginId)) throw new Error(`DSH 插件已经加载：${pluginId}`);
@@ -309,20 +396,21 @@ export class CordisPluginHost {
         pluginId,
         entry,
         plugin,
-        fiber: this.context.registry.plugin(plugin, entry.config),
+        fiber: scope.registry.plugin(plugin, entry.config),
       };
     });
 
     try {
       await awaitPluginStart(Promise.all(pending.map(({ fiber }) => fiber.await())), bundleId);
       for (const item of pending) {
-        this.assertRequiredServices(item.pluginId, item.plugin, item.entry.inject);
+        this.assertRequiredServices(item.pluginId, item.plugin, item.entry.inject, scope);
       }
       for (const item of pending) {
         this.loaded.set(item.pluginId, Object.freeze({ plugin: item.plugin, fiber: item.fiber }));
       }
     } catch (error) {
       await Promise.allSettled(pending.map(({ fiber }) => fiber.dispose()));
+      await this.releaseSettings(bundleId);
       throw error;
     }
   }
@@ -348,12 +436,14 @@ export class CordisPluginHost {
       this.loaded.delete(pluginId);
       await loaded.fiber.dispose();
       loaded.releaseChat?.();
+      await this.releaseSettings(pluginId);
       return true;
     }
     const bundleEntries = [...this.loaded.entries()].filter(([loadedId]) => loadedId.startsWith(`${pluginId}:`));
     if (bundleEntries.length === 0) return false;
     for (const [loadedId] of bundleEntries) this.loaded.delete(loadedId);
     await Promise.all(bundleEntries.map(([, entry]) => entry.fiber.dispose()));
+    await this.releaseSettings(pluginId);
     return true;
   }
 
@@ -389,6 +479,7 @@ export class CordisPluginHost {
     const loaded = [...this.loaded.values()];
     this.loaded.clear();
     await this.context.fiber.dispose();
+    this.settingsScopes.clear();
     loaded.forEach((entry) => entry.releaseChat?.());
   }
 

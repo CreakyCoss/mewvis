@@ -3,7 +3,7 @@ import { defineConfig } from "@isle/plugin-dev";
 export default defineConfig({
   displayName: "聊天调试台",
   defaultEnabled: true,
-  permissions: ["chat", "workspace-files", "chat-knowledge"],
+  permissions: ["chat", "workspace-files", "chat-knowledge", "plugin-workspaces", "plugin-data"],
   agentAccess: {
     filesystem: { read: "all", write: "all" },
     network: { hosts: "all" },

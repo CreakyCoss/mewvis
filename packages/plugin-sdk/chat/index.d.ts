@@ -15,10 +15,12 @@ export type PluginChatProfile = {
   useKnowledge?: boolean;
 };
 export type PluginChatCreateInput = {
+  /** An ID registered to this plugin through the data SDK; host workspace IDs are not accepted. */
   workspaceId: string;
   sceneId: string;
   profile: PluginChatProfile;
 };
+/** workspaceId must belong to the current plugin's data SDK workspace registry. */
 export type PluginChatSessionRef = { workspaceId: string; chatId: string };
 /** Opens an existing host record; never creates a conversation. */
 export type PluginChatOpenInput = PluginChatSessionRef;
@@ -52,7 +54,6 @@ export interface PluginChatSession extends ChatSession {
   reconnect(): Promise<void>;
 }
 export interface PluginChatClient {
-  listWorkspaces(): Promise<{ id: string; name: string; isDefault: boolean }[]>;
   listSessions(input: { workspaceId: string }): Promise<PluginChatSummary[]>;
   /** Explicit creation; each call returns a new host-generated identity. */
   createSession(input: PluginChatCreateInput): Promise<PluginChatSession>;

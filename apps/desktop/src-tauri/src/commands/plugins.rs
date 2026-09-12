@@ -1,6 +1,7 @@
+use crate::services::plugin_data::PluginDataHost;
 use serde::Deserialize;
 use serde_json::Value;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::services::{
     plugin_ui::PluginUiHost,
@@ -122,6 +123,7 @@ pub fn set_plugin_enabled(
 ) -> Result<PluginDescriptor, String> {
     let plugin = plugins::set_plugin_enabled(&app, &input.id, input.enabled)?;
     if !input.enabled {
+        app.state::<PluginDataHost>().revoke(&input.id);
         agent_runtime.abort_plugin(&input.id)?;
         let _ = app.emit_to("main", "plugin-chat:revoke", &input.id);
     }
@@ -139,6 +141,7 @@ pub async fn remove_plugin(
     plugin_ui.invalidate()?;
     let worker_app = app.clone();
     let plugin_id = input.id.clone();
+    app.state::<PluginDataHost>().revoke(&plugin_id);
     agent_runtime.abort_plugin(&plugin_id)?;
     let removed = tauri::async_runtime::spawn_blocking(move || {
         plugins::remove_installed_plugin(&worker_app, &input.id)
@@ -191,6 +194,37 @@ pub async fn get_plugin_ui_document(
 pub struct PluginChatPostInput {
     connection_id: String,
     message: Value,
+}
+
+#[tauri::command]
+pub fn connect_plugin_data(
+    app: AppHandle,
+    host: State<PluginDataHost>,
+    plugin_id: String,
+) -> Result<String, Value> {
+    host.connect(&app, &plugin_id)
+}
+
+#[tauri::command]
+pub async fn request_plugin_data(
+    app: AppHandle,
+    host: State<'_, PluginDataHost>,
+    connection: String,
+    request: Value,
+) -> Result<Value, String> {
+    let host = host.inner().clone();
+    Ok(
+        tauri::async_runtime::spawn_blocking(move || host.request(&app, &connection, request))
+            .await
+            .unwrap_or_else(|_| {
+                crate::services::plugin_data::error("INTERNAL_ERROR", "插件数据任务失败")
+            }),
+    )
+}
+
+#[tauri::command]
+pub fn disconnect_plugin_data(host: State<PluginDataHost>, connection: String) {
+    host.disconnect(&connection);
 }
 
 #[tauri::command]

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -14,9 +14,16 @@ const pluginRoot = process.env.ISLE_TAVERN_PLUGIN_ROOT
 const pluginKind = process.env.ISLE_TAVERN_PLUGIN_KIND === "dsh" ? "dsh" : "isle";
 const tempDir = mkdtempSync(join(tmpdir(), "isle-tavern-plugin-"));
 const settingsRoot = join(tempDir, "plugins");
-const tavernSettingsRoot = join(settingsRoot, "isle-tavern");
-mkdirSync(tavernSettingsRoot, { recursive: true, mode: 0o700 });
-writeFileSync(join(tavernSettingsRoot, "settings.yaml"), 'activePresetId: ""\npresets: []\n', { mode: 0o600 });
+const legacySettingsRoot = join(settingsRoot, "isle-tavern");
+const tavernSettingsRoot = join(settingsRoot, "@isle", "tavern");
+mkdirSync(legacySettingsRoot, { recursive: true, mode: 0o700 });
+writeFileSync(join(legacySettingsRoot, "settings.yaml"), 'activePresetId: ""\npresets: []\n', { mode: 0o600 });
+execFileSync(process.execPath, [
+  resolve("agent-runtime/dist/plugin-host/migrate-layout.mjs"),
+  settingsRoot,
+  "@isle/tavern",
+]);
+assert.equal(existsSync(legacySettingsRoot), false);
 const child = spawn(process.execPath, [servicePath], {
   cwd: root,
   stdio: ["pipe", "pipe", "pipe"],
@@ -119,11 +126,11 @@ try {
   assert.equal(saved.value.activePresetId, saved.value.preset.id);
   const presetId = saved.value.preset.id;
 
-  const settingsPath = join(settingsRoot, "isle-tavern", "settings.yaml");
+  const settingsPath = join(tavernSettingsRoot, "settings.yaml");
   assert.equal(existsSync(settingsPath), true, "酒馆设置必须保存到独立 namespace 目录。");
   assert.match(readFileSync(settingsPath, "utf8"), /雾港酒馆/);
   assert.equal(statSync(settingsPath).mode & 0o777, 0o600);
-  assert.equal(statSync(join(settingsRoot, "isle-tavern")).mode & 0o777, 0o700);
+  assert.equal(statSync(tavernSettingsRoot).mode & 0o777, 0o700);
   assert.equal(existsSync(join(settingsRoot, "settings.yaml")), false, "新安装不应创建共享 settings 文件。");
 
   const context = await request("execute", {
@@ -181,9 +188,14 @@ try {
   writeFileSync(join(newerTavernRoot, "settings.yaml"), '$version: 2\nactivePresetId: ""\npresets: []\n', {
     mode: 0o600,
   });
+  execFileSync(process.execPath, [
+    resolve("agent-runtime/dist/plugin-host/migrate-layout.mjs"),
+    newerSettingsRoot,
+    "@isle/tavern",
+  ]);
   const incompatible = await configure(newerSettingsRoot);
   assert.match(incompatible.plugins[0].error, /uses newer version 2; plugin supports 1/);
-  assert.match(readFileSync(join(newerTavernRoot, "settings.yaml"), "utf8"), /\$version:\s+2/);
+  assert.match(readFileSync(join(newerSettingsRoot, "@isle", "tavern", "settings.yaml"), "utf8"), /\$version:\s+2/);
 
   await request("shutdown");
   child.stdin.end();

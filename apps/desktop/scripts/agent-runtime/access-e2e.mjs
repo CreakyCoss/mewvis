@@ -20,16 +20,16 @@ import entries from "../../agent-runtime/build-entries.json" with { type: "json"
 const temp = realpathSync(mkdtempSync(join(tmpdir(), "isle-access-")));
 const workspace = join(temp, "workspace"),
   runtime = join(temp, "runtime"),
-  data = join(temp, "data");
+  outside = join(temp, "outside");
 const workers = [];
 let server;
 try {
-  for (const path of [workspace, runtime, data, join(workspace, "docs"), join(workspace, "out")]) mkdirSync(path);
+  for (const path of [workspace, runtime, outside, join(workspace, "docs"), join(workspace, "out")]) mkdirSync(path);
   writeFileSync(join(workspace, "docs", "allowed.txt"), "allowed");
   writeFileSync(join(workspace, "docs", "private.txt"), "baseline private");
   writeFileSync(join(workspace, "secret.txt"), "outside grant");
   symlinkSync(join(workspace, "secret.txt"), join(workspace, "docs", "escape"));
-  symlinkSync(data, join(workspace, "outside"));
+  symlinkSync(outside, join(workspace, "outside"));
   const apiFile = join(runtime, "api.mjs");
   await build({
     stdin: {
@@ -50,7 +50,7 @@ try {
     format: "esm",
   });
   const api = await import(pathToFileURL(apiFile));
-  const context = { workspacePath: workspace, roots: { pluginData: data } };
+  const context = { workspacePath: workspace };
   const declaration = {
     filesystem: { read: [{ base: "workspace", path: "docs" }], write: [{ base: "workspace", path: "out" }] },
   };
@@ -75,8 +75,9 @@ try {
   assert.throws(() =>
     api.resolveAgentAccess({ filesystem: { read: [{ base: "workspace", path: "outside" }] } }, context),
   );
-  assert.throws(() =>
-    api.resolveAgentAccess({ filesystem: { read: [{ base: "pluginData" }] } }, { workspacePath: workspace }),
+  assert.throws(
+    () => api.resolveAgentAccess({ filesystem: { read: [{ base: "pluginData" }] } }, context),
+    /不符合权限协议/,
   );
   declaration.filesystem.read.push({ base: "home" });
   assert.equal(access.filesystem.read.length, 1, "resolved grants must not track caller mutation");
@@ -84,7 +85,9 @@ try {
     api.intersectAccessHosts(["*.example.com", "other.test"], ["api.example.com", "*.sub.example.com", "evil.test"]),
     ["api.example.com", "*.sub.example.com"],
   );
-  assert.deepEqual(api.intersectAccessPaths([workspace], [join(workspace, "docs"), data]), [join(workspace, "docs")]);
+  assert.deepEqual(api.intersectAccessPaths([workspace], [join(workspace, "docs"), outside]), [
+    join(workspace, "docs"),
+  ]);
   for (const mode of ["ask", "auto", "full"]) {
     for (const policy of [api.resolveSafetyPolicy(mode, workspace), null]) {
       for (const [entry, input] of [

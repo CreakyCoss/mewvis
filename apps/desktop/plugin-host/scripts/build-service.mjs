@@ -7,8 +7,9 @@ const pluginHostRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const desktopRoot = join(pluginHostRoot, "..");
 
 await build({
-  entryPoints: [join(pluginHostRoot, "src", "service.ts")],
-  outfile: join(desktopRoot, "agent-runtime", "dist", "plugin-host", "service.mjs"),
+  entryPoints: ["service", "migrate-layout"].map((name) => join(pluginHostRoot, "src", `${name}.ts`)),
+  outdir: join(desktopRoot, "agent-runtime", "dist", "plugin-host"),
+  outExtension: { ".js": ".mjs" },
   bundle: true,
   platform: "node",
   format: "esm",

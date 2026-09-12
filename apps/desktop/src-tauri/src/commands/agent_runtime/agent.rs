@@ -136,8 +136,6 @@ pub fn run_agent_runtime_agent(
     if let Some(plugin) = session_plugin {
         command["params"]["agentAccess"] =
             serde_json::to_value(plugin.access).map_err(|error| error.to_string())?;
-        command["params"]["agentAccessRoots"] =
-            serde_json::to_value(plugin.roots).map_err(|error| error.to_string())?;
     }
 
     state.submit(

@@ -42,7 +42,6 @@ export async function createPiToolSet(
       ? undefined
       : resolveAgentAccess(command.agentAccess, {
           workspacePath: command.workspacePath,
-          roots: command.agentAccessRoots,
         }));
   if (options.policies && access && !options.policies.execution.access)
     throw new Error("继承的执行策略缺少当前请求的访问范围。");

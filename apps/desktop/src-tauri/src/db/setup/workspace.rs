@@ -1,5 +1,8 @@
 use rusqlite::Connection;
-use std::{fs, path::Path};
+use std::{
+    fs,
+    path::{Component, Path, PathBuf},
+};
 
 use crate::db::{
     migrations::{database_user_version, run_workspace_migrations, WORKSPACE_SCHEMA_VERSION},
@@ -13,6 +16,41 @@ use crate::db::{
 
 // 非开发环境下，版本一致的工作区库走快速路径，避免进入工作区或保存工作区时重复建表、迁移和 schema 校验。
 const ENABLE_RELEASE_WORKSPACE_DATABASE_FAST_PATH: bool = true;
+
+/// Shared by desktop and plugin registration; resolves existing aliases without creating files.
+pub fn normalize_workspace_path(path: &Path) -> Result<PathBuf, String> {
+    if !path.is_absolute() {
+        return Err("请选择绝对路径的工作区目录".into());
+    }
+    let mut resolved = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                resolved.pop();
+            }
+            _ => resolved.push(component.as_os_str()),
+        }
+        match fs::symlink_metadata(&resolved) {
+            Ok(_) => {
+                resolved = fs::canonicalize(&resolved)
+                    .map_err(|error| format!("无法解析工作区目录：{error}"))?;
+                if !resolved.is_dir() {
+                    return Err("工作区路径必须是目录".into());
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(format!("无法读取工作区目录：{error}")),
+        }
+    }
+    Ok(resolved)
+}
+
+pub fn initialize_workspace_directory(path: &Path) -> Result<PathBuf, String> {
+    let path = normalize_workspace_path(path)?;
+    initialize_workspace_database(&path)?;
+    Ok(path)
+}
 
 pub fn initialize_workspace_database(workspace_path: &Path) -> Result<(), String> {
     fs::create_dir_all(workspace_path).map_err(|error| format!("无法创建工作区目录：{error}"))?;

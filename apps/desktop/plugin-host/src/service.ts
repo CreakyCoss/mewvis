@@ -1,4 +1,5 @@
 import { createNativePluginChat } from "./chat.js";
+import { createNativePluginData } from "./data.js";
 import { createInterface } from "node:readline";
 import { format } from "node:util";
 import { PluginHost, type PluginRuntimeKind } from "./index.js";
@@ -22,6 +23,7 @@ type RuntimePlugin = Readonly<{
   permissions: readonly string[];
   agentAccess?: import("@isle/chat-contracts").AgentAccess | null;
   permissionStatus: "declared" | "isle-upgrade-required" | "dsh-unsupported";
+  dataConnection?: string | null;
 }>;
 
 type HostConfiguration = Readonly<{
@@ -75,6 +77,8 @@ const nativeChat = createNativePluginChat(
   (message) => protocolWrite(JSON.stringify(message) + "\n"),
   (pluginId) => plugins.find((plugin) => plugin.id === pluginId)?.tools.map((tool) => tool.name) ?? [],
 );
+const createDataConnection = () => createNativePluginData((message) => protocolWrite(JSON.stringify(message) + "\n"));
+let nativeData = createDataConnection();
 
 const asObject = (value: unknown, label: string): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label}必须是对象。`);
@@ -96,6 +100,7 @@ const disposeHost = async () => {
   uiDocuments = new Map();
   if (current) await current.dispose();
   nativeChat.dispose();
+  nativeData.dispose();
 };
 
 const configure = async (value: unknown) => {
@@ -105,10 +110,12 @@ const configure = async (value: unknown) => {
   const runtimePlugins = input.plugins as RuntimePlugin[];
 
   await disposeHost();
+  nativeData = createDataConnection();
   const nextHost = await PluginHost.create({
-    settingsPath,
+    pluginSettingsRoot: settingsPath,
+    data: (id) => nativeData.client(runtimePlugins.find((plugin) => plugin.id === id)?.dataConnection),
     chat: (id) =>
-      runtimePlugins.find((plugin) => plugin.id === id)?.permissions.includes("chat")
+      runtimePlugins.find((plugin) => plugin.id === id)?.permissions?.includes("chat")
         ? nativeChat.client(id)
         : undefined,
   });
@@ -265,6 +272,7 @@ for await (const line of reader) {
   try {
     request = JSON.parse(line) as RpcRequest;
     if (nativeChat.receive(request)) continue;
+    if (nativeData.receive(request)) continue;
     if (request.id === undefined || typeof request.method !== "string") throw new Error("请求缺少 id 或 method。");
   } catch (error) {
     send({ id: null, error: { message: `Plugin Host 请求无效：${errorMessage(error)}` } });

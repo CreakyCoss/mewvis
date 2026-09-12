@@ -1,7 +1,7 @@
 import { Ajv } from "ajv";
 import { homedir, tmpdir } from "node:os";
 import schema from "../../../protocol/v1/schema/access.schema.json" with { type: "json" };
-import type { AgentAccess, AgentAccessBase, AgentAccessPaths, AgentAccessRoots } from "@isle/chat-contracts";
+import type { AgentAccess, AgentAccessBase, AgentAccessPaths } from "@isle/chat-contracts";
 import { canonicalPath, containsPath, getPathPlatform, networkAllowed } from "../platforms/resources.js";
 import type { OperationAnalysis } from "../safety/types.js";
 
@@ -18,17 +18,16 @@ export type ResolvedAgentAccess = Readonly<{
   process: Readonly<{ execute: boolean }>;
 }>;
 
-/** The protocol owns the shape. Only the trusted host supplies path bases. */
+/** The protocol owns the shape; path bases come from the selected workspace and runtime environment. */
 export function resolveAgentAccess(
   declaration: unknown,
-  context: { workspacePath: string; roots?: AgentAccessRoots },
+  context: { workspacePath: string },
 ): ResolvedAgentAccess {
   if (!validator(declaration)) throw new Error(`agentAccess 不符合权限协议：${JSON.stringify(validator.errors)}`);
-  const bases: Record<AgentAccessBase, string | undefined> = {
+  const bases: Record<AgentAccessBase, string> = {
     workspace: context.workspacePath,
     home: homedir(),
     temp: tmpdir(),
-    pluginData: context.roots?.pluginData,
   };
   const platform = getPathPlatform();
   const paths = (scope: AgentAccessPaths | undefined): AccessPaths => {

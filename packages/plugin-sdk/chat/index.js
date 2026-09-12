@@ -132,7 +132,6 @@ export function createPluginChatClient(transport) {
     return entry.session;
   };
   return {
-    listWorkspaces: () => request("workspaces"),
     listSessions: (input) => request("list", undefined, input),
     createSession: (input) =>
       request("create", undefined, input).then(receiveSession),

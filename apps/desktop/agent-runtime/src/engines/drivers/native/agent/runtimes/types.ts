@@ -3,7 +3,6 @@ import type {
   AgentEvent,
   AgentPermissions,
   AgentAccess,
-  AgentAccessRoots,
   AgentRuntimeResources,
   AskUserInput,
   ChatMessage,
@@ -24,7 +23,6 @@ export type AgentRunCommand = {
   runtimeMode: "agent";
   permissions?: AgentPermissions;
   agentAccess?: AgentAccess;
-  agentAccessRoots?: AgentAccessRoots;
   requestId?: string | null;
   runtimeId?: string | null;
   taskId: string;

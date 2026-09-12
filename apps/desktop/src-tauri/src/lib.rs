@@ -19,9 +19,10 @@ use commands::{
         rebuild_workspace_database, AppStartupState,
     },
     plugins::{
-        execute_plugin_ui_tool, get_plugin_ui_document, inspect_plugin, install_plugin,
-        install_plugin_from_marketplace, list_plugin_ui, list_plugins, post_plugin_chat,
-        remove_plugin, search_plugin_marketplace, set_plugin_enabled,
+        connect_plugin_data, disconnect_plugin_data, execute_plugin_ui_tool,
+        get_plugin_ui_document, inspect_plugin, install_plugin, install_plugin_from_marketplace,
+        list_plugin_ui, list_plugins, post_plugin_chat, remove_plugin, request_plugin_data,
+        search_plugin_marketplace, set_plugin_enabled,
     },
     settings::{
         delete_ai_agent, delete_collaboration_workflow, delete_embedding_profile,
@@ -56,11 +57,16 @@ pub fn run() {
     tauri::Builder::default()
         .manage(AgentRuntimeSupervisor::default())
         .manage(PluginUiHost::default())
+        .manage(services::plugin_data::PluginDataHost::default())
         .manage(AppStartupState::default())
         .manage(WorkspaceFileWatchers::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
+        .setup(|app| {
+            services::plugins::initialize_plugin_layout(app.handle()).map_err(std::io::Error::other)?;
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             initialize_config_database,
             get_config_database_status,
@@ -120,6 +126,9 @@ pub fn run() {
             inspect_plugin,
             list_plugin_ui,
             post_plugin_chat,
+            connect_plugin_data,
+            request_plugin_data,
+            disconnect_plugin_data,
             execute_plugin_ui_tool,
             get_plugin_ui_document,
             install_plugin,

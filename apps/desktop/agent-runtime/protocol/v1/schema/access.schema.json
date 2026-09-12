@@ -2,11 +2,11 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://isle.local/protocol/agent-runtime/v1/access.schema.json",
   "title": "AgentAccessProtocol",
-  "anyOf": [{ "$ref": "#/definitions/AgentAccess" }, { "$ref": "#/definitions/AgentAccessRoots" }],
+  "anyOf": [{ "$ref": "#/definitions/AgentAccess" }],
   "definitions": {
     "AgentAccessBase": {
       "type": "string",
-      "enum": ["workspace", "pluginData", "home", "temp"]
+      "enum": ["workspace", "home", "temp"]
     },
     "AgentAccessPath": {
       "type": "object",
@@ -70,12 +70,6 @@
           "properties": { "execute": { "type": "boolean" } }
         }
       }
-    },
-    "AgentAccessRoots": {
-      "description": "Additional path bases supplied only by the trusted host. The runtime supplies workspace, home and temp itself.",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": { "pluginData": { "type": "string", "minLength": 1 } }
     }
   }
 }

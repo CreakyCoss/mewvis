@@ -150,6 +150,16 @@ body {
   color: var(--lab-muted);
   overflow-wrap: anywhere;
 }
+.lab-workspace-create {
+  padding-top: 12px;
+}
+.lab-workspace-path {
+  margin: 0;
+  padding: 8px 26px;
+  color: var(--lab-muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
 .lab-connected-to span {
   opacity: 0.5;
   padding: 0 5px;

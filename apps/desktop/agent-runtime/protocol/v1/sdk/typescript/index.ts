@@ -214,7 +214,6 @@ export interface AgentRunParams {
   resources?: AgentRuntimeResources | null;
   permissions?: AgentPermissions;
   agentAccess?: AgentAccess;
-  agentAccessRoots?: AgentAccessRoots;
 }
 export interface AgentRuntimeResources {
   tools?: AgentRuntimeToolResources | null;
@@ -260,7 +259,7 @@ export interface AgentFilesystemAccess {
   write?: "all" | AgentAccessPath[];
 }
 export interface AgentAccessPath {
-  base: "workspace" | "pluginData" | "home" | "temp";
+  base: "workspace" | "home" | "temp";
   /**
    * Optional relative path within the host-resolved base. Absolute paths, parent traversal and globs are forbidden.
    */
@@ -271,12 +270,6 @@ export interface AgentNetworkAccess {
 }
 export interface AgentProcessAccess {
   execute?: boolean;
-}
-/**
- * Additional path bases supplied only by the trusted host. The runtime supplies workspace, home and temp itself.
- */
-export interface AgentAccessRoots {
-  pluginData?: string;
 }
 export interface AnswerQuestionRequest {
   method?: "agent/question/answer";

@@ -192,8 +192,7 @@
           "oneOf": [{ "$ref": "#/definitions/AgentRuntimeResources" }, { "type": "null" }]
         },
         "permissions": { "$ref": "./permissions.schema.json#/definitions/AgentPermissions" },
-        "agentAccess": { "$ref": "./access.schema.json#/definitions/AgentAccess" },
-        "agentAccessRoots": { "$ref": "./access.schema.json#/definitions/AgentAccessRoots" }
+        "agentAccess": { "$ref": "./access.schema.json#/definitions/AgentAccess" }
       },
       "additionalProperties": false
     },

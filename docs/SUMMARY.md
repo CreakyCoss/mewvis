@@ -33,6 +33,7 @@
 
 - [插件工程](plugins/development.md)
 - [插件 SDK](plugins/sdk.md)
+- [插件数据与工作区 SDK](plugins/data.md)
 - [插件宿主](plugins/host.md)
 - [插件界面协议](plugins/ui.md)
 - [插件聊天](plugins/chat.md)

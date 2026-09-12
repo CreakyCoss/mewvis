@@ -5,6 +5,7 @@
 ```text
 isle.config.ts                  权限与能力配置
 main/App.tsx                    工作区、插件对话、默认／组合 Chat 和会话检查器
+main/preferences.ts             通过插件 storage 保存工作区和各目录最近选择的会话
 main/components/HostTools.tsx    普通 React 页面调用宿主工具
 main/host/tools.ts              Node 工具：回显与文本分析
 main/host/skills.ts             文本分析技能：使用工具的步骤与输出规则
@@ -27,11 +28,17 @@ node apps/desktop/agent-runtime/scripts/pack-portable-plugins.mjs
 内置产物位于 `apps/desktop/agent-runtime/dist/plugins/chat-playground`，会随应用正常构建。
 构建后在当前开发应用刷新插件列表并打开「聊天调试台」。不需要导入或创建另一份插件。
 
+调试台声明 `plugin-workspaces`、`plugin-data`，通过 `@isle/plugin-sdk/data` 管理自己的工作区和业务状态。首次加载使用插件的默认工作区；点击「新增工作区」，填写名称，再点击「选择目录并创建」，由宿主打开目录选择器。选择已被其他插件登记的目录时，宿主显示共享提示；取消不会切换或登记目录。页面展示实际目录，插件工作区不会加入应用侧栏的工作区列表。
+
+`storage` 保存最近选择的工作区和各目录的会话 ID。重新打开插件后，调试台查询所选目录的历史，只恢复仍存在的会话；未发送过消息的空会话不会在应用重启后自动创建。消息和运行配置继续保存在工作区的聊天记录中。切换工作区会清空当前视图，再加载该目录的历史，已有后台任务继续运行。保存选择失败或目录不可用时，界面显示错误。
+
+宿主 Chat 只接受插件通过数据 SDK 登记的工作区 ID，并通过数据服务验证归属、标识文件和目录可用性。插件不能枚举宿主默认工作区，也不能用宿主工作区 ID 绕过登记来加载历史。原有宿主工作区的聊天不自动迁移，应用侧可保留只读历史。聊天执行、已分配目录的普通文件访问和权限档位沿用既有流程。
+
 展开顶部「宿主能力示例 · 文本分析」，输入文本并点击「调用宿主工具」，页面通过 SDK 执行本插件的 `chat_playground_inspect_text`。返回值包含字符数、UTF-8 字节数和真实 Node crypto 计算的 SHA-256；清空输入可检查失败提示。这个工具不调用模型、不读写文件。
 
 技能示例 `chat-playground-text-inspection` 在 `host.skills` 中声明，工具链自动注册到宿主。新建对话后，点击组合界面的“技能示例”填入请求并发送；默认界面可以直接输入“请使用 chat-playground-text-inspection 技能分析文本 Hello Isle 👋 的字符数、UTF-8 字节数和 SHA-256”。技能指导模型使用 `chat_playground_inspect_text` 并解释结果，不会自动调用工具或扩大工具权限。
 
-插件技能沿用现有 Pi 自动加载机制，与技能页中的文件技能目录不同，目前不在 Chat 的技能选择菜单中单独显示。 没有 `read` 工具的会话由宿主把已解析且允许模型使用的插件技能内容加入本轮模型上下文；有 `read` 时继续使用 Pi 原有的按需加载机制，不额外授予文件权限。
+插件技能沿用现有 Pi 加载机制，与技能页中的文件技能目录不同，目前不在 Chat 的技能选择菜单中单独显示。
 
 聊天区域保留已有工作区／插件对话选择、会话恢复、默认／定制界面切换、双视图、检查器、动态上下文和显式关闭能力。模型仍可使用原有 `chat_playground_echo`，也可选择新的文本分析工具。切换视图不会停止后台会话。
 
@@ -39,7 +46,7 @@ node apps/desktop/agent-runtime/scripts/pack-portable-plugins.mjs
 
 ## 普通 React 开发
 
-在本插件目录运行 `pnpm dev`，由工具链提供开发页面和 React Refresh。聊天使用内存模型和存储，工具通过本机 Node Worker 执行真实业务代码。开发配置变化需手动重新运行 dev；业务源码变化自动更新。顶部“插件技能定义”展示从 Node 加载的实际名称与内容，修改技能会刷新预览；内存模型不模拟技能推理。该命令不会替换已占用端口上的服务。
+在本插件目录运行 `pnpm dev`，由工具链提供开发页面和 React Refresh。聊天、插件工作区和业务状态使用内存适配；新增工作区生成 `/memory/…` 虚拟目录，整页刷新后清空，不会选择或创建真实目录。工具通过本机 Node Worker 执行真实业务代码。开发配置变化需手动重新运行 dev；业务源码变化自动更新。顶部“插件技能定义”展示从 Node 加载的实际名称与内容，修改技能会刷新预览；内存模型不模拟技能推理。该命令不会替换已占用端口上的服务。
 
 如果要复用仓库已经启动的 1420 服务，可打开：
 
@@ -50,13 +57,14 @@ node apps/desktop/agent-runtime/scripts/pack-portable-plugins.mjs
 ## 测试
 
 ```sh
-pnpm --filter desktop build:plugin-host
-node apps/desktop/plugin-host/plugins/chat-playground/test.mjs
+pnpm --filter desktop test:plugin-host:chat-playground
 node apps/desktop/agent-runtime/scripts/pack-portable-plugins.mjs
 node apps/desktop/plugin-host/plugins/chat-playground/test.mjs --bundled
 pnpm --filter desktop test:plugin-dev
 ```
 
 Node E2E 在临时目录加载真实插件宿主，检查两个工具、输出和错误、UI 文档、真实 Pi 技能加载与临时文件释放，以及其他内置插件的 DSH 产物。测试不读取真实用户记录、不修改插件注册表。
+
+数据接入回归使用实际应用 Chat 服务、SDK、目录解析与调试台状态模块，在临时文件中模拟原生 IO，验证新目录内保存、重建服务后恢复、工作区隔离、权限撤销、无效目录拒绝及并发选择的保存顺序；模型执行使用测试适配。真实 SQLite、目录标识和跨进程恢复由 `pnpm --filter desktop test:plugin-host:data` 覆盖。原生目录选择弹窗和真实模型仍需在重建后的应用中验收。
 
 更多脚手架用法见仓库 `docs/plugins/development.md`。

@@ -8,7 +8,6 @@ export type {
   AgentAccessBase,
   AgentAccessPath,
   AgentAccessPaths,
-  AgentAccessRoots,
 } from "./agent-access.js";
 export type { RuntimeModelThinking } from "./model-thinking.js";
 export type {

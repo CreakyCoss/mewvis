@@ -31,6 +31,7 @@ type PermissionSummaryProps = {
 const permissionMeta = {
   network: { label: "访问网络", shortLabel: "网络", icon: Globe },
   "plugin-data": { label: "读写插件数据", shortLabel: "插件数据", icon: Folder },
+  "plugin-workspaces": { label: "创建和查询插件工作区", shortLabel: "插件工作区", icon: Folder },
   "workspace-files": { label: "读写工作区文件", shortLabel: "工作区文件", icon: Files },
   "open-external": { label: "打开外部内容", shortLabel: "外部内容", icon: ExternalLink },
   process: { label: "启动子进程", shortLabel: "子进程", icon: Terminal },
@@ -42,7 +43,6 @@ export const pluginPermissionLabel = (permission: PluginPermission) => permissio
 
 const baseLabels: Record<AgentAccessBase, string> = {
   workspace: "当前工作区",
-  pluginData: "插件数据",
   home: "用户目录",
   temp: "临时目录",
 };

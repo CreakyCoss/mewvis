@@ -8,7 +8,7 @@
 
 ## 权限与生命周期
 
-运行时权限声明在包清单的 `isle.permissions`，不放在 `definePlugin` 中。支持 `network`、`plugin-data`、`workspace-files`、`open-external`、`process`、`chat`、`chat-knowledge`；无需能力时使用空数组。新安装的原生包缺少此字段会失败。安装界面展示这些声明，但声明不替代 Node.js 沙箱。
+权限声明在包清单的 `isle.permissions`，不放在 `definePlugin` 中。支持 `network`、`plugin-data`、`plugin-workspaces`、`workspace-files`、`open-external`、`process`、`chat`、`chat-knowledge`；无需能力时使用空数组。新安装的原生包缺少此字段会失败。安装界面展示这些声明供用户审核，对应 SDK 宿主接口检查所需权限；声明不替代现有沙箱。
 
 插件通过 Isle 上下文中的 `tools`、`skills`、`settings` 使用 Cordis 生命周期和依赖注入，无需直接导入 Cordis 或 DeepSeek Harness 服务包。
 
@@ -69,6 +69,10 @@ export async function apply(ctx) {
 迁移 `N` 将原始用户层从版本 `N-1` 转为 `N`。保留字段 `$version` 与数据存放在 `plugins/<namespace>/settings.yaml`，但插件读取时不可见。旧插件遇到新 Schema 写入的数据会拒绝加载，不会静默降级。
 
 使用 Isle 工具链验证并打包源码。DSH 目标将 SDK 内联到产物并生成 Cordis 补丁，同一份插件源码可以分发给两类宿主。
+
+## 业务存储与插件工作区
+
+`@isle/plugin-sdk/data` 提供插件独立的持久化键值存储，以及工作区新增与查询；桌面插件页面和原生 PluginHost 已接入宿主落库服务。两类接口分别要求 `plugin-data`、`plugin-workspaces`。工作区使用与宿主遵循相同的文件操作规则，SDK 不修改 Agent／Pi 流程或增加文件访问限制。详见 [插件数据与工作区 SDK](data.md)。
 
 ## 聊天
 

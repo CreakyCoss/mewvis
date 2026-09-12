@@ -11,6 +11,12 @@ import {
 import { createPluginChatHost } from "../../src/chat/desktop/plugin";
 import type { DesktopChatService, DesktopSessionInput } from "../../src/chat/desktop/service";
 import type { ChatMeta } from "../../src/api/chat";
+import {
+  createPluginDataClient,
+  type PluginDataTransport,
+  type PluginStorageValue,
+  type PluginWorkspace,
+} from "@isle/plugin-sdk/data";
 
 export function createPreviewChat(options: {
   name: string;
@@ -27,6 +33,53 @@ export function createPreviewChat(options: {
   const metadata = new Map<string, ChatMeta & { workspacePath: string }>();
   const locations = new Map<string, { workspacePath: string }>();
   const timers = new Map<string, ReturnType<typeof setInterval>>();
+  const businessData = new Map<string, PluginStorageValue>();
+  const workspaces: PluginWorkspace[] = [
+    { id: "preview", name: "调试工作区", path: "/memory/preview", isDefault: true },
+    { id: "alternate", name: "隔离工作区", path: "/memory/alternate", isDefault: false },
+  ];
+  const data: PluginDataTransport = {
+    version: 1,
+    async request(request) {
+      const permission = request.method.startsWith("storage.") ? "plugin-data" : "plugin-workspaces";
+      if (!options.permissions.includes(permission))
+        return { ok: false, error: { code: "PERMISSION_DENIED", message: `插件未声明 ${permission} 权限` } };
+      switch (request.method) {
+        case "storage.getItem":
+          return { ok: true, value: structuredClone(businessData.get(request.params.key) ?? null) };
+        case "storage.setItem":
+          businessData.set(request.params.key, structuredClone(request.params.value));
+          return { ok: true, value: null };
+        case "storage.removeItem":
+          businessData.delete(request.params.key);
+          return { ok: true, value: null };
+        case "storage.clear":
+          businessData.clear();
+          return { ok: true, value: null };
+        case "storage.keys":
+          return { ok: true, value: [...businessData.keys()] };
+        case "workspaces.list":
+          return { ok: true, value: structuredClone(workspaces) };
+        case "workspaces.get": {
+          const workspace = workspaces.find((item) => item.id === request.params.id);
+          return workspace
+            ? { ok: true, value: { ...workspace } }
+            : { ok: false, error: { code: "WORKSPACE_NOT_FOUND", message: "未找到预览工作区" } };
+        }
+        case "workspaces.create": {
+          if (!request.params.name.trim() || request.params.path !== undefined)
+            return {
+              ok: false,
+              error: { code: "INVALID_ARGUMENT", message: "内存预览只支持命名的虚拟目录，真实目录请在 Isle 中选择" },
+            };
+          const id = crypto.randomUUID();
+          const workspace = { id, name: request.params.name.trim(), path: `/memory/${id}`, isDefault: false };
+          workspaces.push(workspace);
+          return { ok: true, value: { ...workspace } };
+        }
+      }
+    },
+  };
   let dispatches = 0;
   let writes = 0;
   let gate: Promise<void> | undefined;
@@ -198,19 +251,13 @@ export function createPreviewChat(options: {
     listRecords: async (workspacePath: string) =>
       [...metadata.values()].filter((item) => item.workspacePath === workspacePath),
   } as unknown as DesktopChatService;
+  const dataClient = createPluginDataClient(data);
   const host = createPluginChatHost(service, {
-    workspaces: async () =>
-      options.permissions.includes("chat")
-        ? [
-            { id: "preview", name: "调试工作区", isDefault: true },
-            { id: "alternate", name: "隔离工作区", isDefault: false },
-          ]
-        : [],
     authorize: async (_pluginId, workspaceId) => {
       await gate;
       if (!options.permissions.includes("chat")) throw new Error("插件未声明 chat 权限");
-      if (!["preview", "alternate"].includes(workspaceId)) throw new Error("无效预览工作区");
-      return { workspacePath: `/memory/${workspaceId}`, knowledge: options.permissions.includes("chat-knowledge") };
+      const workspace = await dataClient.workspaces.get(workspaceId);
+      return { workspacePath: workspace.path, knowledge: options.permissions.includes("chat-knowledge") };
     },
   });
 
@@ -221,6 +268,7 @@ export function createPreviewChat(options: {
     (event) => observers.forEach((listener) => listener(event)),
   );
   return {
+    data,
     transport: {
       request: connection.request,
       subscribe(listener: (event: import("@isle/plugin-sdk/chat").PluginChatEvent) => void) {

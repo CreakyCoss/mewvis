@@ -18,5 +18,4 @@ export const agentRunCommandFromRunAgent = (command: RunAgentCommand): AgentRunC
   resources: command.resources ?? null,
   permissions: command.permissions,
   agentAccess: command.agentAccess,
-  agentAccessRoots: command.agentAccessRoots,
 });

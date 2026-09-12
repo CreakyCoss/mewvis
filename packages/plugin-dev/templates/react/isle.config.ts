@@ -2,11 +2,11 @@ import { defineConfig } from "@isle/plugin-dev";
 
 export default defineConfig({
   displayName: "__PLUGIN_NAME__",
-  permissions: ["chat"],
+  permissions: ["chat", "plugin-workspaces"],
   agentAccess: {
     filesystem: {
-      read: [{ base: "workspace" }, { base: "pluginData" }],
-      write: [{ base: "workspace" }, { base: "pluginData" }],
+      read: [{ base: "workspace" }],
+      write: [{ base: "workspace" }],
     },
   },
   host: {

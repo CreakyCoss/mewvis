@@ -432,7 +432,7 @@ try {
     } else if (target.language === "rust") {
       // Access declarations reject typos at the native manifest boundary too.
       generated = generated.replace(
-        /pub struct (AgentAccess|AgentFilesystemAccess|AgentNetworkAccess|AgentProcessAccess|AgentAccessPath|AgentAccessRoots) \{[\s\S]*?\n\}/g,
+        /pub struct (AgentAccess|AgentFilesystemAccess|AgentNetworkAccess|AgentProcessAccess|AgentAccessPath) \{[\s\S]*?\n\}/g,
         (block) =>
           "#[serde(deny_unknown_fields)]\n" +
           block.replace(

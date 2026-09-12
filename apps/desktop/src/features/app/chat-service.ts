@@ -3,9 +3,9 @@ import type { DesktopSessionInput } from "@/chat/desktop";
 import { loadStoryById } from "@/features/pages/stories/storage";
 import { prepareStoryChatProfile } from "@/features/pages/stories/story/actions/assistant/resources";
 import { listPlugins, listPluginUi } from "@/api/plugins";
-import { listWorkspaces } from "@/api/workspace";
 import { createPluginChatHost } from "@/chat/desktop/plugin";
 import { listAgentRuntimeTools } from "@/api/agent-runtime";
+import { resolvePluginChatWorkspace } from "./plugin-chat-workspace";
 
 // Owned by the application. Resolvers return scene configuration; the service owns sessions.
 export const chatService = createDesktopChatService({
@@ -43,14 +43,9 @@ export const pluginChatHost = createPluginChatHost(chatService, {
     if (!plugin || plugin.error) throw new Error("插件能力加载失败，暂时无法恢复聊天");
     return [...new Set([...runtime.tools.map((tool) => tool.name), ...plugin.tools.map((tool) => tool.name)])];
   },
-  async workspaces(pluginId) {
-    const [, workspaces] = await Promise.all([requirePlugin(pluginId), listWorkspaces()]);
-    return workspaces.map(({ id, name, isDefault }) => ({ id, name, isDefault }));
-  },
   async authorize(pluginId, workspaceId) {
-    const [plugin, workspaces] = await Promise.all([requirePlugin(pluginId), listWorkspaces()]);
-    const workspace = workspaces.find((workspace) => workspace.id === workspaceId);
-    if (!workspace) throw new Error("工作区不存在");
-    return { workspacePath: workspace.path, knowledge: plugin.permissions.includes("chat-knowledge") };
+    const plugin = await requirePlugin(pluginId);
+    const workspacePath = await resolvePluginChatWorkspace(plugin, workspaceId);
+    return { workspacePath, knowledge: plugin.permissions.includes("chat-knowledge") };
   },
 });

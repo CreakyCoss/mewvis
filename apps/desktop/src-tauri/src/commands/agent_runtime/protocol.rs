@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 #[path = "../../../../agent-runtime/protocol/v1/sdk/rust/mod.rs"]
 mod wire_sdk;
 
-pub(crate) use wire_sdk::{AgentAccess, AgentAccessRoots};
+pub(crate) use wire_sdk::AgentAccess;
 pub(super) use wire_sdk::{
     AgentPermissionOption, AgentPermissions, AgentRuntimePlugin, AgentRuntimePluginKind,
     AgentRuntimePluginResources, AgentRuntimeResources, AgentRuntimeSkillResources,

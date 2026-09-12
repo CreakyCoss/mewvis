@@ -11,6 +11,7 @@ use std::{
 };
 use tauri::{path::BaseDirectory, AppHandle, Emitter, Manager};
 
+use super::plugin_data::PluginDataHost;
 use super::plugins;
 use crate::product_config::product_env_var;
 
@@ -49,6 +50,8 @@ struct PluginUiRuntimePlugin {
     permissions: Vec<plugins::PluginPermission>,
     agent_access: Option<crate::commands::agent_runtime::AgentAccess>,
     permission_status: plugins::PluginPermissionStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    data_connection: Option<String>,
 }
 
 struct PluginUiProcess {
@@ -59,6 +62,8 @@ struct PluginUiProcess {
     stderr_tail: Arc<Mutex<VecDeque<String>>>,
     signature: String,
     next_request_id: u64,
+    data_host: PluginDataHost,
+    data_connections: Vec<String>,
 }
 
 impl PluginUiHost {
@@ -142,7 +147,7 @@ impl PluginUiHost {
     fn request(
         &self,
         app: &AppHandle,
-        configuration: PluginUiConfiguration,
+        mut configuration: PluginUiConfiguration,
         method: &str,
         params: Value,
     ) -> Result<Value, String> {
@@ -166,7 +171,7 @@ impl PluginUiHost {
             if let Some(mut current) = slot.take() {
                 current.stop();
             }
-            let mut process = PluginUiProcess::spawn(app, signature)?;
+            let mut process = PluginUiProcess::spawn(app, signature, &mut configuration)?;
             *self
                 .inner
                 .chat_writer
@@ -205,7 +210,11 @@ impl Drop for PluginUiHostInner {
 }
 
 impl PluginUiProcess {
-    fn spawn(app: &AppHandle, signature: String) -> Result<Self, String> {
+    fn spawn(
+        app: &AppHandle,
+        signature: String,
+        configuration: &mut PluginUiConfiguration,
+    ) -> Result<Self, String> {
         let node = plugins::resolve_node_binary(app)?;
         let service = resolve_service_path(app)?;
         let mut command = Command::new(&node);
@@ -248,6 +257,18 @@ impl PluginUiProcess {
         });
 
         let stdin = Arc::new(Mutex::new(stdin));
+        let data_host = app.state::<PluginDataHost>().inner().clone();
+        let data_connections: Vec<String> = configuration
+            .plugins
+            .iter_mut()
+            .filter_map(|plugin| {
+                let token = data_host.connect(app, &plugin.id).ok();
+                plugin.data_connection = token.clone();
+                token
+            })
+            .collect();
+        let data_reader = data_host.clone();
+        let data_writer = stdin.clone();
         let connection_id = format!(
             "{}-{}",
             child.id(),
@@ -261,6 +282,29 @@ impl PluginUiProcess {
         let (sender, responses) = mpsc::channel();
         thread::spawn(move || {
             route_plugin_output(BufReader::new(stdout), sender, |mut message| {
+                if message.get("type").and_then(Value::as_str) == Some("plugin-data:request") {
+                    let id = message.get("id").cloned().unwrap_or(Value::Null);
+                    let token = message
+                        .get("connection")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_owned();
+                    let data_reader = data_reader.clone();
+                    let data_writer = data_writer.clone();
+                    let event_app = event_app.clone();
+                    tauri::async_runtime::spawn_blocking(move || {
+                        let response = data_reader.request(
+                            &event_app,
+                            &token,
+                            message.get("request").cloned().unwrap_or(Value::Null),
+                        );
+                        let _ = write_message(
+                            &data_writer,
+                            &json!({"type":"plugin-data:response", "id":id, "response":response}),
+                        );
+                    });
+                    return;
+                }
                 if let Some(object) = message.as_object_mut() {
                     object.insert(
                         "connectionId".to_string(),
@@ -279,6 +323,8 @@ impl PluginUiProcess {
             stderr_tail,
             signature,
             next_request_id: 1,
+            data_host,
+            data_connections,
         })
     }
 
@@ -331,6 +377,9 @@ impl PluginUiProcess {
     }
 
     fn stop(&mut self) {
+        for token in self.data_connections.drain(..) {
+            self.data_host.disconnect(&token);
+        }
         let _ = self.child.kill();
         let _ = self.child.wait();
     }
@@ -370,6 +419,7 @@ fn configuration(app: &AppHandle) -> Result<PluginUiConfiguration, String> {
             permissions: plugin.permissions,
             agent_access: plugin.agent_access,
             permission_status: plugin.permission_status,
+            data_connection: None,
         })
         .collect();
     Ok(PluginUiConfiguration {
@@ -378,7 +428,7 @@ fn configuration(app: &AppHandle) -> Result<PluginUiConfiguration, String> {
     })
 }
 
-fn resolve_service_path(app: &AppHandle) -> Result<PathBuf, String> {
+pub(crate) fn resolve_service_path(app: &AppHandle) -> Result<PathBuf, String> {
     if let Ok(path) = std::env::var(product_env_var("PLUGIN_HOST")) {
         let path = PathBuf::from(path);
         if path.is_file() {
@@ -428,7 +478,10 @@ fn route_plugin_output(reader: impl BufRead, responses: mpsc::Sender<Value>, cha
         let Ok(message) = serde_json::from_str::<Value>(&line) else {
             continue;
         };
-        if message.get("type").and_then(Value::as_str) == Some("plugin-chat:request") {
+        if matches!(
+            message.get("type").and_then(Value::as_str),
+            Some("plugin-chat:request" | "plugin-data:request")
+        ) {
             chat(message);
         } else if responses.send(message).is_err() {
             break;
@@ -442,19 +495,20 @@ mod chat_bridge_tests {
     use std::cell::RefCell;
     use std::io::Cursor;
     #[test]
-    fn chat_notifications_do_not_consume_normal_rpc_responses() {
+    fn chat_and_data_notifications_do_not_consume_normal_rpc_responses() {
         let (sender, receiver) = mpsc::channel();
         let notifications = RefCell::new(Vec::new());
         let lines = concat!(
             "diagnostic text\n",
             "{\"type\":\"plugin-chat:request\",\"id\":\"1\",\"pluginId\":\"fixture\"}\n",
             "{\"id\":1,\"result\":{\"ok\":true}}\n",
-            "{\"type\":\"plugin-chat:request\",\"id\":\"2\"}\n"
+            "{\"type\":\"plugin-chat:request\",\"id\":\"2\"}\n",
+            "{\"type\":\"plugin-data:request\",\"id\":\"3\",\"connection\":\"fixture\",\"request\":{\"version\":1,\"method\":\"storage.keys\"}}\n"
         );
         route_plugin_output(Cursor::new(lines), sender, |message| {
             notifications.borrow_mut().push(message)
         });
-        assert_eq!(notifications.borrow().len(), 2);
+        assert_eq!(notifications.borrow().len(), 3);
         assert_eq!(
             receiver.recv().unwrap(),
             json!({"id": 1, "result": {"ok": true}})

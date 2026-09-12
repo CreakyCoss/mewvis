@@ -1,5 +1,7 @@
 import { pluginChatHost } from "@/features/app/chat-service";
 import type { PluginChatRequest } from "@isle/plugin-sdk/chat";
+import type { PluginDataRequest } from "@isle/plugin-sdk/data";
+import { createDesktopPluginDataTransport } from "@/api/plugin-data";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { AlertTriangle, Loader2, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -22,6 +24,17 @@ const BRIDGE_SOURCE = String.raw`
   const send = (message) => parent.postMessage({ channel, ...message }, "*");
   const api = Object.freeze({
     version: 1,
+    data: Object.freeze({
+      version: 1,
+      request(request) {
+        const id = String(nextId++);
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => { pending.delete(id); reject(new Error("插件数据请求超时，请重新读取确认结果")); }, request?.method === "workspaces.create" ? 75000 : 30000);
+          pending.set(id, { resolve: (value) => { clearTimeout(timer); resolve(value); }, reject: (error) => { clearTimeout(timer); reject(error); } });
+          send({ type: "data:request", id, request });
+        });
+      },
+    }),
     chat: Object.freeze({
       request(request) {
         const id = String(nextId++);
@@ -186,6 +199,8 @@ export const PluginFrame = ({
       (event) => post({ type: "chat:snapshot", event }),
     );
     const chatRequests = new Set<string>();
+    const dataRequests = new Set<string>();
+    const data = createDesktopPluginDataTransport(plugin.id);
     let connected = true;
     const theme = () => (document.documentElement.classList.contains("dark") ? "dark" : "light");
     const initialize = () =>
@@ -269,6 +284,37 @@ export const PluginFrame = ({
           .finally(() => chatRequests.delete(id));
         return;
       }
+      if (message.type === "data:request") {
+        const id = message.id;
+        const request = messageObject(message.request);
+        if (typeof id !== "string" || !id || id.length > 128 || !request) return;
+        const reject = (code: string, text: string) =>
+          post({ type: "host:result", id, result: { ok: false, error: { code, message: text } } });
+        if (dataRequests.has(id) || dataRequests.size >= MAX_CONCURRENT_CALLS) {
+          reject("INVALID_ARGUMENT", "插件数据请求重复或并发请求过多");
+          return;
+        }
+        try {
+          if (new TextEncoder().encode(JSON.stringify(request)).byteLength > MAX_ARGUMENT_BYTES) {
+            reject("INVALID_ARGUMENT", "插件数据请求超过 256 KiB");
+            return;
+          }
+        } catch {
+          reject("INVALID_ARGUMENT", "插件数据请求必须是 JSON 数据");
+          return;
+        }
+        dataRequests.add(id);
+        void data
+          .request(request as PluginDataRequest)
+          .then((result) => {
+            if (connected) post({ type: "host:result", id, result });
+          })
+          .catch((error) => {
+            if (connected) post({ type: "host:result", id, error: String(error?.message ?? error) });
+          })
+          .finally(() => dataRequests.delete(id));
+        return;
+      }
       if (message.type !== "tool:execute") return;
       const id = message.id;
       const toolName = message.toolName;
@@ -313,6 +359,7 @@ export const PluginFrame = ({
     window.addEventListener("message", onMessage);
     return () => {
       connected = false;
+      data.dispose();
       chat.dispose();
       themeObserver.disconnect();
       window.removeEventListener("message", onMessage);

@@ -36,7 +36,7 @@ Isle 包通过自己的清单暴露 Cordis 插件入口：
 
 入口可以导出 Cordis 函数、类或 `{ apply(ctx, config) }` 对象。作者从 `@isle/plugin-sdk` 导入 `definePlugin`、`defineTool`、`defineSkill`，无需导入 Cordis 或 DSH 服务。Isle 上下文提供 Cordis 生命周期语义，以及 `tools`、`skills`、`settings` 服务。
 
-`isle.permissions` 声明插件对 `network`、`plugin-data`、`workspace-files`、`open-external`、`process` 等能力的使用意图。新增原生插件必须声明该字段，不需要能力时填空数组。安装前 Isle 校验并展示声明。这是可审计的作者契约，并非 Node.js 安全沙箱，不受信任代码应保持禁用。
+`isle.permissions` 声明插件对 `network`、`plugin-data`、`plugin-workspaces`、`workspace-files`、`open-external`、`process` 等能力的使用意图。新增原生插件必须声明该字段，不需要能力时填空数组。安装前 Isle 校验并展示声明；数据 SDK 对应的宿主接口还会检查声明，未申请的接口直接拒绝。该检查不替代现有文件沙箱和权限档位。工作区与业务存储的接入见 [插件数据 SDK](data.md)。
 
 新安装的原生包缺少该字段会被拒绝；已安装的旧包在清单升级前强制禁用；内置原生包则校验失败。DSH 格式没有等价字段，仍允许导入，但默认禁用，并明确标记为受信任模式的兼容包，不虚构权限。
 
@@ -54,7 +54,7 @@ DSH 目标保留附加的 `isle` 元数据并生成 DSH 声明。含 `chat` 权�
 
 应用构建按目录名稳定排序，自动发现、校验和打包 `plugin-host/plugins` 下所有一级插件目录，新增内置插件无需修改注册列表。
 
-持久配置使用 SDK 的 `defineSettings`。Schema 默认值是基础层，插件默认值是组合层，`plugins/<namespace>/settings.yaml` 仅保存用户覆盖及 `$version`。工具注册前按序迁移用户层；缺少迁移或版本过新都会明确启动失败。
+持久配置使用 SDK 的 `defineSettings`。Schema 默认值是基础层，插件默认值是组合层。桌面宿主按完整插件 ID 隔离 `plugins/<namespace>/settings.yaml`，文件内按设置 namespace 保存用户覆盖及 `$version`，同时维护格式标记。工具注册前按序迁移用户层；缺少迁移或版本过新都会明确启动失败。
 
 ## 内置聊天调试台
 
@@ -68,6 +68,6 @@ DSH 目标保留附加的 `isle` 元数据并生成 DSH 声明。含 `chat` 权�
 
 ## 数据与界面
 
-应用插件根目录管理 `registry.json`、安装包及 `plugins/<namespace>/settings.yaml`。读取设置不迁移旧共享文件、不获取写锁；保存时按需创建目录和文件。包可通过 `isle.ui` 增加沙箱页面，详见 [插件界面协议](ui.md)。
+应用插件根目录保留宿主的 `registry.json` 与共享安装缓存，每个插件的配置、SDK 数据库、默认工作区和外部安装包统一归入完整插件 ID 对应的目录。启动时先完成旧目录和配置迁移，再加载插件；安装包位于 `package/`，可以独立升级和卸载。详见[持久化与工作区](data.md)。包可通过 `isle.ui` 增加沙箱页面，详见[插件界面协议](ui.md)。
 
 内置桌面对话不加载插件。插件对话仅加载所属插件，并结合分配的内置工具使用；从宿主历史重新打开仍保留同一归属。

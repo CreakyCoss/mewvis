@@ -39,6 +39,7 @@ pub(crate) struct PluginCompatibility {
 pub(crate) enum PluginPermission {
     Network,
     PluginData,
+    PluginWorkspaces,
     WorkspaceFiles,
     OpenExternal,
     Process,
@@ -251,6 +252,31 @@ pub(crate) fn settings_location(app: &AppHandle) -> Result<String, String> {
     Ok(app_plugins_root(app)?.to_string_lossy().to_string())
 }
 
+/// Held for the app lifetime: a second process cannot migrate files while plugins are using them.
+struct PluginLayoutGuard { _file: fs::File }
+
+pub(crate) fn initialize_plugin_layout(app: &AppHandle) -> Result<(), String> {
+    let root = app_plugins_root(app)?;
+    fs::create_dir_all(&root).map_err(|error| error.to_string())?;
+    let path = root.join(".layout.lock");
+    if fs::symlink_metadata(&path).is_ok_and(|info| info.file_type().is_symlink()) {
+        return Err("插件目录锁不能是符号链接".into());
+    }
+    let file = fs::OpenOptions::new().read(true).write(true).create(true).truncate(false)
+        .open(path).map_err(|error| error.to_string())?;
+    file.try_lock().map_err(|error| format!("插件数据正在被其他 Isle 实例使用：{error}"))?;
+    let ids = list_plugins(app)?.into_iter().map(|plugin| plugin.id).collect::<Vec<_>>();
+    let migration = super::plugin_ui::resolve_service_path(app)?.with_file_name("migrate-layout.mjs");
+    let output = Command::new(resolve_node_binary(app)?)
+        .arg(migration).arg(&root).args(ids).stdin(Stdio::null()).output()
+        .map_err(|error| format!("无法启动插件目录迁移：{error}"))?;
+    if !output.status.success() {
+        return Err(format!("插件目录迁移失败，旧数据已保留：{}", String::from_utf8_lossy(&output.stderr)));
+    }
+    app.manage(PluginLayoutGuard { _file: file });
+    Ok(())
+}
+
 pub(crate) fn enabled_runtime_plugins(app: &AppHandle) -> Result<Vec<RuntimePlugin>, String> {
     Ok(list_plugins(app)?
         .into_iter()
@@ -286,20 +312,19 @@ pub(crate) fn install_local_plugin(
     let package = read_package(&source_root, PluginSource::Installed)?;
     require_installable_permissions(&package)?;
     let app_root = app_plugins_root(app)?;
-    let packages_root = app_root.join("packages");
+    let packages_root = super::plugin_paths::plugin_directory(&app_root, &package.id);
     if packages_root.starts_with(&source_root) {
         return Err("插件源目录不能包含应用插件安装目录".to_string());
     }
-    fs::create_dir_all(&packages_root).map_err(|error| format!("无法创建插件安装目录：{error}"))?;
+    create_install_directory(&app_root, &packages_root)?;
 
-    let directory_name = safe_plugin_directory_name(&package.id)?;
-    let destination = packages_root.join(&directory_name);
+    let destination = packages_root.join("package");
     if destination.exists() {
         return Err(format!("插件已经安装：{}", package.id));
     }
 
     let staging = packages_root.join(format!(
-        ".install-{directory_name}-{}",
+        ".install-{}",
         Uuid::now_v7().simple()
     ));
     fs::create_dir(&staging).map_err(|error| format!("无法创建插件暂存目录：{error}"))?;
@@ -431,8 +456,6 @@ pub(crate) fn install_marketplace_plugin(
     let full_name = validate_marketplace_full_name(&request.full_name)?;
     let npm_package = validate_npm_package_name(&request.npm_package)?;
     let app_root = app_plugins_root(app)?;
-    let packages_root = app_root.join("packages");
-    fs::create_dir_all(&packages_root).map_err(|error| format!("无法创建插件安装目录：{error}"))?;
 
     if list_plugins(app)?
         .iter()
@@ -446,7 +469,6 @@ pub(crate) fn install_marketplace_plugin(
     let result = install_dsh_marketplace_plugin_in(
         app,
         &app_root,
-        &packages_root,
         &work,
         &full_name,
         &npm_package,
@@ -459,7 +481,6 @@ pub(crate) fn install_marketplace_plugin(
 fn install_dsh_marketplace_plugin_in(
     app: &AppHandle,
     app_root: &Path,
-    packages_root: &Path,
     work: &Path,
     full_name: &str,
     npm_package: &str,
@@ -527,13 +548,14 @@ fn install_dsh_marketplace_plugin_in(
         return Err(format!("插件已经安装或已由应用内置：{}", package.id));
     }
 
-    let directory_name = safe_plugin_directory_name(&package.id)?;
-    let destination = packages_root.join(&directory_name);
+    let packages_root = super::plugin_paths::plugin_directory(app_root, &package.id);
+    create_install_directory(app_root, &packages_root)?;
+    let destination = packages_root.join("package");
     if destination.exists() {
         return Err(format!("插件安装目录已经存在：{}", package.id));
     }
     let staging = packages_root.join(format!(
-        ".install-{directory_name}-{}",
+        ".install-{}",
         Uuid::now_v7().simple()
     ));
     fs::create_dir(&staging).map_err(|error| format!("无法创建插件暂存目录：{error}"))?;
@@ -639,8 +661,8 @@ pub(crate) fn set_plugin_enabled(
 pub(crate) fn remove_installed_plugin(app: &AppHandle, id: &str) -> Result<RemovedPlugin, String> {
     let id = id.trim();
     let app_root = app_plugins_root(app)?;
-    let packages_root = app_root.join("packages");
-    let installed = scan_plugin_root(&packages_root, PluginSource::Installed)?;
+    let packages_root = super::plugin_paths::plugin_directory(&app_root, id);
+    let installed = scan_installed_plugins(&app_root)?;
     let plugin = installed
         .into_iter()
         .find(|plugin| plugin.id == id)
@@ -655,6 +677,7 @@ pub(crate) fn remove_installed_plugin(app: &AppHandle, id: &str) -> Result<Remov
     if target == canonical_root
         || !target.starts_with(&canonical_root)
         || target.parent() != Some(canonical_root.as_path())
+        || target.file_name().and_then(|name| name.to_str()) != Some("package")
         || !target.join("package.json").is_file()
     {
         return Err("只允许移除应用插件目录中的完整插件包".to_string());
@@ -875,7 +898,7 @@ fn list_plugins_at(
             plugins.insert(plugin.id.clone(), plugin);
         }
     }
-    for plugin in scan_plugin_root(&app_root.join("packages"), PluginSource::Installed)? {
+    for plugin in scan_installed_plugins(app_root)? {
         plugins.insert(plugin.id.clone(), plugin);
     }
     let mut plugins = plugins
@@ -1138,22 +1161,49 @@ fn write_registry(app_root: &Path, registry: &PluginRegistry) -> Result<(), Stri
     }
 }
 
-fn safe_plugin_directory_name(id: &str) -> Result<String, String> {
-    let value = id
-        .chars()
-        .map(|character| {
-            if character.is_ascii_alphanumeric() || matches!(character, '.' | '_' | '-') {
-                character
-            } else {
-                '-'
+fn scan_installed_plugins(root: &Path) -> Result<Vec<PluginDescriptor>, String> {
+    // Read legacy packages only so startup migration can discover their identities.
+    let mut plugins = scan_plugin_root(&root.join("packages"), PluginSource::Installed)?;
+    fn visit(root: &Path, path: &Path, plugins: &mut Vec<PluginDescriptor>, ids: bool) -> Result<(), String> {
+        if !path.exists() { return Ok(()); }
+        for entry in fs::read_dir(path).map_err(|error| error.to_string())? {
+            let entry = entry.map_err(|error| error.to_string())?;
+            let name = entry.file_name().to_string_lossy().to_string();
+            if path == root && matches!(name.as_str(), "data" | "packages" | "pnpm-store") { continue; }
+            if name.starts_with('.') && name != ".ids" { continue; }
+            let kind = entry.file_type().map_err(|error| error.to_string())?;
+            if kind.is_symlink() { return Err(format!("插件目录不允许使用符号链接：{}", entry.path().display())); }
+            if !kind.is_dir() { continue; }
+            let directory = entry.path();
+            if (path == root && name.starts_with('@')) || name == ".ids" {
+                visit(root, &directory, plugins, name == ".ids")?;
+                continue;
             }
-        })
-        .collect::<String>();
-    let value = value.trim_matches(['.', '-']).to_string();
-    if value.is_empty() {
-        return Err("插件 ID 不能映射为安全的安装目录".to_string());
+            let package = directory.join("package");
+            if fs::symlink_metadata(&package).is_ok_and(|info| info.file_type().is_symlink()) {
+                return Err(format!("插件包不允许使用符号链接：{}", package.display()));
+            }
+            if package.is_dir() {
+                let plugin = read_package(&package, PluginSource::Installed)?;
+                if super::plugin_paths::plugin_directory(root, &plugin.id) != directory {
+                    return Err(format!("插件目录与包 ID 不匹配：{}", directory.display()));
+                }
+                plugins.push(plugin);
+            }
+            if ids && name.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+                visit(root, &directory, plugins, true)?;
+            }
+        }
+        Ok(())
     }
-    Ok(value)
+    visit(root, root, &mut plugins, false)?;
+    Ok(plugins)
+}
+
+fn create_install_directory(root: &Path, directory: &Path) -> Result<(), String> {
+    super::plugin_data::check_paths(root, directory).map_err(|error| error.to_string())?;
+    fs::create_dir_all(directory).map_err(|error| format!("无法创建插件安装目录：{error}"))?;
+    super::plugin_data::check_paths(root, directory).map_err(|error| error.to_string())
 }
 
 fn copy_plugin_tree(source: &Path, destination: &Path) -> Result<(), String> {
@@ -1304,12 +1354,16 @@ mod tests {
         let bundled = root.join("bundled");
         let app = root.join("app");
         write_plugin(&bundled.join("sample"), "@test/sample", true);
-        write_plugin(&app.join("packages/sample"), "@test/sample", false);
+        write_plugin(&app.join("@test/sample/package"), "@test/sample", false);
 
         let plugins = list_plugins_at(Some(&bundled), &app).unwrap();
         assert_eq!(plugins.len(), 1);
         assert_eq!(plugins[0].source, "installed");
         assert!(!plugins[0].enabled);
+        assert!(plugins[0].path.ends_with("@test/sample/package"));
+        // Workspace contents must never be discovered as installed packages.
+        write_plugin(&app.join("@test/sample/workspace/package"), "hidden", false);
+        assert_eq!(list_plugins_at(Some(&bundled), &app).unwrap().len(), 1);
 
         let mut registry = read_registry(&app).unwrap();
         registry.enabled.insert("@test/sample".to_string(), true);
@@ -1379,7 +1433,7 @@ mod tests {
                 "dsh":{"bundle":{"patch":"./cordis.patch.yml"}},
                 "isle":{
                     "plugin":{"version":1,"entry":"./index.js"},
-                    "permissions":["network","plugin-data"]
+                    "permissions":["network","plugin-data","plugin-workspaces"]
                 }
             }"#,
         )
@@ -1392,7 +1446,11 @@ mod tests {
         assert_eq!(plugin.permission_status, PluginPermissionStatus::Declared);
         assert_eq!(
             plugin.permissions,
-            vec![PluginPermission::Network, PluginPermission::PluginData]
+            vec![
+                PluginPermission::Network,
+                PluginPermission::PluginData,
+                PluginPermission::PluginWorkspaces
+            ]
         );
         assert!(initial_install_enabled(&plugin, Some(true)));
         fs::remove_dir_all(root).unwrap();

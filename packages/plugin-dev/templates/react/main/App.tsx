@@ -5,6 +5,7 @@ import {
   type PluginChatSession,
 } from "@isle/plugin-sdk/chat";
 import { Chat } from "@isle/plugin-sdk/chat/react";
+import { getPluginDataClient } from "@isle/plugin-sdk/data";
 import type { TextInspection } from "./contracts";
 import "./styles.css";
 
@@ -21,8 +22,8 @@ export default function App() {
 
   useEffect(() => {
     let active = true;
-    getPluginChatClient()
-      .listWorkspaces()
+    getPluginDataClient()
+      .workspaces.list()
       .then((items) => {
         if (active) {
           setWorkspaces(items);

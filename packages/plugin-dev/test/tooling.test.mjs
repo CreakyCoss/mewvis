@@ -20,6 +20,7 @@ import { createDevHost, toolMiddleware } from "../src/dev-host.mjs";
 import { createDevServer } from "../src/dev.mjs";
 import { createPreviewChat } from "../dist/chat-host.js";
 import { createPluginChatClient } from "@isle/plugin-sdk/chat";
+import { createPluginDataClient } from "@isle/plugin-sdk/data";
 
 let temporary, source;
 const toolName = "example_scaffold_inspect_text";
@@ -59,11 +60,9 @@ test("React scaffold checks and builds outside the Isle repository", async () =>
   assert.equal(manifest.isle.ui.entry, "./isle-ui.js");
   assert.deepEqual(manifest.isle.agentAccess.filesystem.read, [
     { base: "workspace" },
-    { base: "pluginData" },
   ]);
   assert.deepEqual(manifest.isle.agentAccess.filesystem.write, [
     { base: "workspace" },
-    { base: "pluginData" },
   ]);
   assert.equal(manifest.dependencies, undefined);
   const ui = await readFile(join(outputRoot, "isle-ui.js"), "utf8");
@@ -488,7 +487,7 @@ test("Vite generates the HTML and React entry in middleware mode without startin
 test("preview chat runs the shared core headlessly with isolated workspaces and cancellable preparation", async () => {
   const host = createPreviewChat({
     name: "@example/scaffold",
-    permissions: ["chat", "workspace-files"],
+    permissions: ["chat", "plugin-workspaces"],
     tools: [],
     executeTool: async () => {
       throw new Error("unused");
@@ -542,4 +541,88 @@ test("preview chat runs the shared core headlessly with isolated workspaces and 
     await host.dispose();
   }
   assert.equal(host.stats().subscriptions, 0);
+});
+
+test("preview data uses declared permissions and virtual workspaces that Chat can open", async () => {
+  const options = {
+    name: "preview-data",
+    tools: [],
+    executeTool: async () => {
+      throw new Error("unused");
+    },
+  };
+  const host = createPreviewChat({
+    ...options,
+    permissions: ["chat", "plugin-data", "plugin-workspaces"],
+  });
+  const denied = createPreviewChat({ ...options, permissions: ["chat"] });
+  const data = createPluginDataClient(host.data);
+  const chat = createPluginChatClient(host.transport);
+  const deniedChat = createPluginChatClient(denied.transport);
+  try {
+    assert.equal("listWorkspaces" in chat, false);
+    await assert.rejects(
+      host.transport.request({ method: "workspaces" }),
+      /@isle\/plugin-sdk\/data/,
+    );
+    await assert.rejects(deniedChat.listSessions({ workspaceId: "preview" }), {
+      code: "PERMISSION_DENIED",
+    });
+    await assert.rejects(
+      deniedChat.createSession({
+        workspaceId: "preview",
+        sceneId: "test",
+        profile: { id: "test", systemPrompt: "test" },
+      }),
+      { code: "PERMISSION_DENIED" },
+    );
+    await assert.rejects(createPluginDataClient(denied.data).storage.keys(), {
+      code: "PERMISSION_DENIED",
+    });
+    await assert.rejects(
+      createPluginDataClient(denied.data).workspaces.create({ name: "denied" }),
+      { code: "PERMISSION_DENIED" },
+    );
+    const workspace = await data.workspaces.create({ name: "virtual" });
+    assert.match(workspace.path, /^\/memory\//);
+    assert.equal((await data.workspaces.get(workspace.id)).name, "virtual");
+    assert.ok(
+      (await data.workspaces.list()).some((item) => item.id === workspace.id),
+    );
+    await assert.rejects(
+      data.workspaces.create({ name: "real", path: "/real" }),
+      { code: "INVALID_ARGUMENT" },
+    );
+    await assert.rejects(data.workspaces.get("unknown"), {
+      code: "WORKSPACE_NOT_FOUND",
+    });
+    const session = await chat.createSession({
+      workspaceId: workspace.id,
+      sceneId: "test",
+      profile: { id: "test", systemPrompt: "test" },
+    });
+    await data.storage.setItem("selection", {
+      workspaceId: workspace.id,
+      chatId: session.identity.id,
+    });
+    assert.equal(
+      (await data.storage.getItem("selection")).chatId,
+      session.identity.id,
+    );
+    await data.storage.removeItem("selection");
+    assert.equal(await data.storage.getItem("selection"), null);
+    await data.storage.setItem("keep", true);
+    await data.storage.clear();
+    assert.deepEqual(await data.storage.keys(), []);
+    assert.equal(
+      (await data.workspaces.get(workspace.id)).path,
+      workspace.path,
+    );
+    assert.equal(host.stats().dispatches, 0);
+  } finally {
+    chat.dispose();
+    deniedChat.dispose();
+    await host.dispose();
+    await denied.dispose();
+  }
 });

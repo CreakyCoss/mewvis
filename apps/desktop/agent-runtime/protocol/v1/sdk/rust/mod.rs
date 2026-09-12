@@ -148,9 +148,6 @@ pub struct AgentRuntimeEvent {
     pub agent_access: Option<AgentAccess>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub agent_access_roots: Option<AgentAccessRoots>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_role_id: Option<String>,
 
     #[serde(rename = "type")]
@@ -463,12 +460,9 @@ pub struct AgentAccessPath {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub enum AgentAccessBase {
     Home,
-
-    #[serde(rename = "pluginData")]
-    PluginData,
 
     Temp,
 
@@ -501,16 +495,6 @@ pub enum Hosts {
 pub struct AgentProcessAccess {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub execute: Option<bool>,
-}
-
-/// Additional path bases supplied only by the trusted host. The runtime supplies workspace,
-/// home and temp itself.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[serde(deny_unknown_fields)]
-pub struct AgentAccessRoots {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub plugin_data: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

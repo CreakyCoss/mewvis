@@ -65,19 +65,21 @@ SDK 提供完整的发送、停止、能力选择、流式事件、保存和多�
 `AgentAccess` 类型；打包检查、后端解析使用同一份协议 schema。
 
 `permissions: ["chat"]` 开放对话入口，不隐含文件、网络和进程权限。
+
+使用插件工作区还需声明 `plugin-workspaces`，通过 `getPluginDataClient().workspaces.list/create/get` 获取自己的登记目录。模板已使用这个入口；Chat 不再提供 `listWorkspaces()`，也不能访问宿主默认工作区。通用业务持久化另需 `plugin-data`。这些 SDK 权限检查不会替代目录分配后的标准沙箱和执行权限档位。
 `agentAccess` 省略的能力一律不允许；`filesystem.read`、`filesystem.write`
 和 `network.hosts` 可显式填 `"all"`，表示仍按宿主策略限制，不额外缩小该项范围。
 写入包括创建、修改和删除，编辑现有文件通常还需要读取权限。
 
-路径使用 `{ base, path? }`，`base` 支持 `workspace`、`pluginData`、`home`、`temp`。
+路径使用 `{ base, path? }`，`base` 支持 `workspace`、`home`、`temp`。
 `path` 只能是基础目录内的相对路径，不接受绝对路径、`..` 或 glob；后端还会检查
 符号链接不能逃出基础目录。域名支持精确名称或 `*.example.com`，不接受完整 URL。
 
 宿主在每次请求时从已启用插件的清单注入范围，插件调用接口只选择 `ask / auto / full`，
 不能提供或覆盖 `agentAccess`。三档、单次审批和子 Agent 都不能扩大声明范围。
 不需要再声明 `workspace-files` 才能使用聊天；这个旧的宿主能力不会转换成 Agent 文件授权。
-`pluginData` 由宿主按插件身份初始化，Agent 内的插件设置也使用该独立目录，不迁移旧设置。
-未申请读取该目录时使用内存设置；写入持久设置还须申请写入范围。已声明的插件技能由宿主提供内容，
+插件业务文件使用已登记的工作区；宿主管理的配置和数据库通过 SDK 访问，不作为文件权限目录提供。
+已声明的插件技能由宿主提供内容，
 不会为了读取技能临时文件而扩大业务文件的权限。
 
 此声明限制 Agent 的工具执行。执行程序仍需宿主配置中的系统设备、临时写入目录、
@@ -96,8 +98,8 @@ export default defineConfig({
   permissions: ["chat"],
   agentAccess: {
     filesystem: {
-      read: [{ base: "workspace" }, { base: "pluginData" }],
-      write: [{ base: "workspace", path: "output" }, { base: "pluginData" }],
+      read: [{ base: "workspace" }],
+      write: [{ base: "workspace", path: "output" }],
     },
     network: { hosts: ["api.example.com"] },
     process: { execute: false },

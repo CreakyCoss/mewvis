@@ -8,12 +8,12 @@
  * and run json-schema-to-typescript to regenerate this file.
  */
 
-export type AgentAccessProtocol = AgentAccess | AgentAccessRoots;
+export type AgentAccessProtocol = AgentAccess;
 /**
  * Omission means no access. all imposes no additional restriction on the host policy.
  */
 export type AgentAccessPaths = "all" | AgentAccessPath[];
-export type AgentAccessBase = "workspace" | "pluginData" | "home" | "temp";
+export type AgentAccessBase = "workspace" | "home" | "temp";
 
 /**
  * Host-supplied hard access ceiling, independent of approval mode. Omitted capabilities are denied.
@@ -42,10 +42,4 @@ export interface AgentNetworkAccess {
 }
 export interface AgentProcessAccess {
   execute?: boolean;
-}
-/**
- * Additional path bases supplied only by the trusted host. The runtime supplies workspace, home and temp itself.
- */
-export interface AgentAccessRoots {
-  pluginData?: string;
 }

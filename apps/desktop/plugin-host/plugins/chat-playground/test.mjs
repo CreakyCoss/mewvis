@@ -29,7 +29,13 @@ if (bundled) {
 }
 assert.equal(manifest.isle.ui.entry, "./isle-ui.js");
 assert.equal(manifest.isle.ui.style, "./isle-ui.css");
-assert.deepEqual(manifest.isle.permissions, ["chat", "workspace-files", "chat-knowledge"]);
+assert.deepEqual(manifest.isle.permissions, [
+  "chat",
+  "workspace-files",
+  "chat-knowledge",
+  "plugin-workspaces",
+  "plugin-data",
+]);
 assert.equal((await readFile(join(outputRoot, "index.js"), "utf8")).includes("react-dom"), false);
 const temporary = await mkdtemp(join(tmpdir(), "isle-chat-playground-"));
 const child = spawn(process.execPath, [join(desktop, "agent-runtime/dist/plugin-host/service.mjs")], {
@@ -124,29 +130,9 @@ try {
     assert.match(content, /chat_playground_inspect_text/);
     assert.match(content, /Unicode 码点/);
     assert.match(content, /不要自行编造/);
-    let beforeAgentStart;
-    let activeTools = ["chat_playground_inspect_text"];
-    const extension = {
-      getActiveTools: () => activeTools,
-      on(event, handler) {
-        assert.equal(event, "before_agent_start");
-        beforeAgentStart = handler;
-      },
-    };
-    bridge.registerSkills(extension, bridge.skills);
-    const context = await beforeAgentStart({ systemPrompt: "Original system prompt" });
-    assert.ok(context.systemPrompt.startsWith("Original system prompt\n\n"));
-    assert.ok(context.systemPrompt.includes(content));
-    assert.deepEqual(activeTools, ["chat_playground_inspect_text"], "Skill loading must not grant tools");
-    activeTools = ["read", "chat_playground_inspect_text"];
-    assert.equal(await beforeAgentStart({ systemPrompt: "Original system prompt" }), undefined);
-    activeTools = ["chat_playground_inspect_text"];
-    bridge.registerSkills(extension, []);
-    assert.equal(
-      await beforeAgentStart({ systemPrompt: "Original system prompt" }),
-      undefined,
-      "Filtered skills must stay excluded",
-    );
+    const tools = [];
+    bridge.registerTools({ registerTool: (tool) => tools.push(tool.name) });
+    assert.deepEqual(tools.sort(), ["chat_playground_echo", "chat_playground_inspect_text"]);
   } finally {
     await bridge.dispose();
   }

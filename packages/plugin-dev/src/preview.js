@@ -54,6 +54,7 @@ export async function mountPreview(App, options) {
       value: Object.freeze({
         version: 1,
         chat: chat.transport,
+        data: chat.data,
         executeTool,
         getHost: () => info,
         openExternal: async () => {
@@ -93,8 +94,8 @@ export async function mountPreview(App, options) {
   });
   const label = document.createElement("strong");
   label.textContent = options.endpoint
-    ? "内存聊天预览 · 宿主工具在本机 Node 执行"
-    : "内存聊天预览 · 静态页面未连接 Node 工具服务";
+    ? "内存聊天与工作区预览 · 宿主工具在本机 Node 执行"
+    : "内存聊天与工作区预览 · 静态页面未连接 Node 工具服务";
   const stats = document.createElement("span");
   const pause = document.createElement("button");
   pause.textContent = "暂停授权";

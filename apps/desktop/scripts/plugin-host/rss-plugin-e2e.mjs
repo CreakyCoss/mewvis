@@ -135,11 +135,11 @@ try {
   });
   assert.equal(added.value.added.url, feedUrl);
   assert.equal(added.value.feedTitle, "Isle RSS Fixture");
-  const rssSettingsPath = join(settingsRoot, "dsh-rss", "settings.yaml");
+  const rssSettingsPath = join(settingsRoot, "@isle", "rss-reader", "settings.yaml");
   assert.equal(existsSync(rssSettingsPath), true, "RSS 设置必须保存到独立 namespace 目录。");
   assert.match(readFileSync(rssSettingsPath, "utf8"), /http:\/\/127\.0\.0\.1:/);
   assert.equal(statSync(rssSettingsPath).mode & 0o777, 0o600);
-  assert.equal(statSync(join(settingsRoot, "dsh-rss")).mode & 0o777, 0o700);
+  assert.equal(statSync(join(settingsRoot, "@isle", "rss-reader")).mode & 0o777, 0o700);
   assert.equal(existsSync(join(settingsRoot, "settings.yaml")), false, "新安装不应创建共享 settings 文件。");
 
   const fetched = await request("execute", {

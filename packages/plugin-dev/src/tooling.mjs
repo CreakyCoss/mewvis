@@ -46,6 +46,7 @@ const ENTRY_PATTERN = /^\.\/.*\.m?js$/;
 const PERMISSIONS = new Set([
   "network",
   "plugin-data",
+  "plugin-workspaces",
   "workspace-files",
   "open-external",
   "process",
@@ -58,7 +59,7 @@ const isleSdkResolver = {
   name: "isle-plugin-sdk",
   setup(buildContext) {
     buildContext.onResolve(
-      { filter: /^@isle\/plugin-sdk(?:\/(?:browser|chat(?:\/react)?))?$/ },
+      { filter: /^@isle\/plugin-sdk(?:\/(?:browser|data|chat(?:\/react)?))?$/ },
       ({ path }) => ({
         path:
           path === "@isle/plugin-sdk"

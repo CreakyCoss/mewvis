@@ -8,6 +8,7 @@ export type {
 export type PluginPermission =
   | "network"
   | "plugin-data"
+  | "plugin-workspaces"
   | "workspace-files"
   | "open-external"
   | "process"
@@ -21,7 +22,12 @@ export interface PluginConfig {
   defaultEnabled?: boolean;
   /** Defaults to ./main/App.tsx. false creates a host-only plugin. */
   ui?:
-    false | { entry?: string; title?: string; layout?: "contained" | "full" | "fullscreen" };
+    | false
+    | {
+        entry?: string;
+        title?: string;
+        layout?: "contained" | "full" | "fullscreen";
+      };
   /** Optional modules exporting default arrays of SDK definitions. */
   host?: {
     tools?: string;

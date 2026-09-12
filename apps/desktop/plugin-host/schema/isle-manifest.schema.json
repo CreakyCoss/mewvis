@@ -10,7 +10,16 @@
     "permissions": {
       "type": "array",
       "items": {
-        "enum": ["network", "plugin-data", "workspace-files", "open-external", "process"]
+        "enum": [
+          "network",
+          "plugin-data",
+          "plugin-workspaces",
+          "workspace-files",
+          "open-external",
+          "process",
+          "chat",
+          "chat-knowledge"
+        ]
       },
       "uniqueItems": true
     }

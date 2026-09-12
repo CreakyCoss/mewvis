@@ -48,7 +48,6 @@ class RuntimePingRequest(Enum):
 
 class AgentAccessBase(Enum):
     HOME = "home"
-    PLUGIN_DATA = "pluginData"
     TEMP = "temp"
     WORKSPACE = "workspace"
 
@@ -91,14 +90,6 @@ class AgentAccess:
     filesystem: AgentFilesystemAccess | None
     network: AgentNetworkAccess | None
     process: AgentProcessAccess | None
-
-
-@dataclass
-class AgentAccessRoots:
-    """Additional path bases supplied only by the trusted host. The runtime supplies workspace,
-    home and temp itself.
-    """
-    plugin_data: str | None
 
 
 @dataclass
@@ -593,7 +584,6 @@ class Workflow:
 @dataclass
 class AgentRuntimeEvent:
     agent_access: AgentAccess | None
-    agent_access_roots: AgentAccessRoots | None
     agent_role_id: str | None
     agent_task_id: str | None
     agents: list[CollaborationAgent] | None

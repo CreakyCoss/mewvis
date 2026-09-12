@@ -8,6 +8,7 @@
 - 页面通过 `@isle/plugin-sdk/browser` 的 `getPluginHost().executeTool()` 调用自己的工具，通过 Chat SDK 使用聊天。
 - `main/contracts.ts` 放共享数据类型，页面不能直接导入 `main/host/` 实现。
 - 插件身份和版本以 package.json 为准，权限和能力只在 isle.config.ts 声明。
+- 工作区通过 `@isle/plugin-sdk/data` 查询，只包含本插件的登记目录；模板声明 `plugin-workspaces`，不会读取宿主默认工作区。保存业务结构时另行申请 `plugin-data` 并使用 `storage`。
 
 开发预览中的聊天、工作区、历史由公共内存宿主提供，刷新清空，不访问真实用户数据；宿主工具通过开发服务在本机 Node 进程执行真实业务代码。真实模型与安装权限需要在 Isle 内验收。
 

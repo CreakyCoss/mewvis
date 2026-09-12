@@ -10,13 +10,13 @@ Isle 插件使用宿主持有的 Chat 会话。纯 SDK 只镜像快照和转发�
 {
   "isle": {
     "plugin": { "version": 1, "entry": "./index.js" },
-    "permissions": ["chat", "workspace-files"],
+    "permissions": ["chat", "plugin-workspaces"],
     "ui": { "version": 1, "kind": "sandbox", "entry": "./ui.tsx" }
   }
 }
 ```
 
-`chat` 允许使用宿主模型和聊天；`workspace-files` 允许访问工作区并保存插件聊天。如果场景要使用知识库，额外声明 `chat-knowledge`，并在 profile 中设置 `useKnowledge: true`。这些用途出现在原有安装权限说明中，不自动给已有插件增加权限。原生 Node 插件仍沿用现有受信任运行模式，声明不是 Node 沙箱。
+`chat` 允许使用宿主模型和聊天；`plugin-workspaces` 允许通过数据 SDK 新增、查询当前插件登记的工作区，Chat 也通过这个服务解析记录目录。如果场景要使用知识库，额外声明 `chat-knowledge`，并在 profile 中设置 `useKnowledge: true`。这些用途出现在原有安装权限说明中，不自动给已有插件增加权限。工作区分配后的普通文件操作沿用标准沙箱和所选权限档位；SDK 声明不是 Node 沙箱。
 
 用 Isle 的 `plugin:pack` 打包。聊天 UI 可以使用 TSX，打包器会解析 SDK 子入口，并将 React、ReactDOM 和 JSX runtime 连接到宿主提供的同一实例。生成的 UI 仍符合现有脚本大小限制；Chat、Lexical、设计系统、字体和图片由宿主共享运行时提供。CSS 和 JS 由应用实际源码构建，按需加载，不复制聊天组件。插件自己的 CSS 排在默认样式之后。
 
@@ -41,7 +41,9 @@ export function BusinessChat({ workspaceId, chatId }) {
 }
 ```
 
-业务只保存宿主返回的 `chatId` 和选择的 `workspaceId`。`listWorkspaces()` 返回已授权工作区的 ID、名称和默认标记。插件不传 `scope`、插件身份、真实目录或凭据。
+业务只保存宿主返回的 `chatId` 和选择的 `workspaceId`。插件不向 Chat 传 `scope`、插件身份、真实目录或凭据。
+
+工作区只通过 `getPluginDataClient().workspaces.list/create/get` 获取，再把返回的 `id` 传给 Chat 的创建、列表和打开接口。Chat 宿主只通过数据服务查询当前插件的登记目录，不读取或回退到宿主工作区注册表。`chat.listWorkspaces()` 已移除，旧 `workspaces` 聊天请求会明确拒绝；已有插件需改用数据 SDK 并声明 `plugin-workspaces`。猜测宿主默认工作区或其他插件工作区的 ID，也无法读取其中的聊天。目录失效、标识损坏或权限撤销时拒绝操作。可额外声明 `plugin-data`，用 `storage` 保存选择；详见[插件数据与工作区](data.md)。
 
 在用户点击新建等明确操作中创建会话：
 

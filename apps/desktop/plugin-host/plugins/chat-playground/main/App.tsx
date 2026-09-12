@@ -11,8 +11,9 @@ import {
   type OperationResult,
 } from "@isle/plugin-sdk/chat";
 import { Chat, useChatComposer, useChatSnapshot, usePluginChatSession } from "@isle/plugin-sdk/chat/react";
+import { getPluginDataClient, type PluginWorkspace } from "@isle/plugin-sdk/data";
+import { createPlaygroundPreferences } from "./preferences";
 
-type Workspace = Awaited<ReturnType<ReturnType<typeof getPluginChatClient>["listWorkspaces"]>>[number];
 const profile = {
   id: "chat-playground-v1",
   systemPrompt:
@@ -326,13 +327,26 @@ function Connection({ input, retry, onSaved }: { input: PluginChatOpenInput; ret
   );
 }
 export default function App() {
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [workspaces, setWorkspaces] = useState<PluginWorkspace[]>([]);
   const [workspaceId, setWorkspaceId] = useState("");
+  const selectedWorkspaceId = useRef("");
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [addingWorkspace, setAddingWorkspace] = useState(false);
+  const [creatingWorkspace, setCreatingWorkspace] = useState(false);
+  const creatingWorkspaceRef = useRef(false);
+  const [selectionVersion, setSelectionVersion] = useState(0);
+  const resume = useRef<{ workspaceId: string; chatId: string } | undefined>(undefined);
+  const preferences = useRef<ReturnType<typeof createPlaygroundPreferences> | null>(null);
+  const getPreferences = useCallback(
+    () => (preferences.current ??= createPlaygroundPreferences(getPluginDataClient().storage)),
+    [],
+  );
   const [chatId, setChatId] = useState("");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const creatingRef = useRef(false);
   const [error, setError] = useState("");
+  const [storageError, setStorageError] = useState("");
   const [connection, setConnection] = useState<{ input: PluginChatOpenInput; version: number }>();
   const [history, setHistory] = useState<{
     workspaceId: string;
@@ -341,6 +355,25 @@ export default function App() {
     error?: string;
   }>({ workspaceId: "", items: [], loading: false });
   const historyGeneration = useRef(0);
+  const selectionSaveGeneration = useRef(0);
+  const persistSelection = (id: string, selectedChatId?: string) => {
+    const current = ++selectionSaveGeneration.current;
+    setStorageError("");
+    void getPreferences()
+      .select(id, selectedChatId)
+      .catch((error) => {
+        if (current === selectionSaveGeneration.current) setStorageError(errorText(error));
+      });
+  };
+  const selectWorkspace = (workspace: PluginWorkspace) => {
+    historyGeneration.current++;
+    selectedWorkspaceId.current = workspace.id;
+    setWorkspaceId(workspace.id);
+    setChatId("");
+    setConnection(undefined);
+    resume.current = { workspaceId: workspace.id, chatId: getPreferences().chat(workspace.id) };
+    setSelectionVersion((value) => value + 1);
+  };
   const reloadHistory = useCallback(async () => {
     const current = ++historyGeneration.current;
     if (!workspaceId) {
@@ -354,12 +387,23 @@ export default function App() {
     }));
     try {
       const items = await getPluginChatClient().listSessions({ workspaceId });
-      if (current === historyGeneration.current) setHistory({ workspaceId, items, loading: false });
+      if (current === historyGeneration.current) {
+        setHistory({ workspaceId, items, loading: false });
+        if (resume.current?.workspaceId === workspaceId) {
+          const chatId = resume.current.chatId;
+          resume.current = undefined;
+          // Empty sessions are not saved until their first message; never recreate a missing record.
+          if (items.some((item) => item.chatId === chatId)) {
+            setChatId(chatId);
+            setConnection((previous) => ({ input: { workspaceId, chatId }, version: (previous?.version ?? 0) + 1 }));
+          }
+        }
+      }
     } catch (error) {
       if (current === historyGeneration.current)
         setHistory({ workspaceId, items: [], loading: false, error: errorText(error) });
     }
-  }, [workspaceId]);
+  }, [workspaceId, selectionVersion]);
   useEffect(() => {
     void reloadHistory();
     return () => {
@@ -372,18 +416,27 @@ export default function App() {
     setLoading(true);
     setError("");
     try {
-      const next = await getPluginChatClient().listWorkspaces();
+      const prefs = getPreferences();
+      const [next] = await Promise.all([getPluginDataClient().workspaces.list(), prefs.load()]);
       if (current !== generation.current) return;
       setWorkspaces(next);
-      setWorkspaceId((id) =>
-        next.some((item) => item.id === id) ? id : ((next.find((item) => item.isDefault) ?? next[0])?.id ?? ""),
-      );
+      const selected = prefs.workspace(next);
+      if (selected) {
+        if (selectedWorkspaceId.current !== selected.id) {
+          setChatId("");
+          setConnection(undefined);
+        }
+        selectedWorkspaceId.current = selected.id;
+        setWorkspaceId(selected.id);
+        resume.current = { workspaceId: selected.id, chatId: prefs.chat(selected.id) };
+        setSelectionVersion((value) => value + 1);
+      }
     } catch (error) {
       if (current === generation.current) setError(errorText(error));
     } finally {
       if (current === generation.current) setLoading(false);
     }
-  }, []);
+  }, [getPreferences]);
   useEffect(() => {
     void reload();
     return () => {
@@ -391,15 +444,18 @@ export default function App() {
     };
   }, [reload]);
   const connect = (nextId = chatId) => {
-    if (!workspaceId || !nextId.trim() || loading) return;
+    if (!workspaceId || !nextId.trim() || loading || creatingWorkspaceRef.current || creatingRef.current) return;
+    resume.current = undefined;
     setChatId(nextId.trim());
+    persistSelection(workspaceId, nextId.trim());
     setConnection((previous) => ({
       input: { workspaceId, chatId: nextId.trim() },
       version: (previous?.version ?? 0) + 1,
     }));
   };
   const create = async () => {
-    if (!workspaceId || loading || creatingRef.current) return;
+    if (!workspaceId || loading || creatingRef.current || creatingWorkspaceRef.current) return;
+    resume.current = undefined;
     creatingRef.current = true;
     setCreating(true);
     setError("");
@@ -411,6 +467,7 @@ export default function App() {
         profile,
       });
       setChatId(session.identity.id);
+      persistSelection(targetWorkspace, session.identity.id);
       setConnection((previous) => ({
         input: { workspaceId: targetWorkspace, chatId: session.identity.id },
         version: (previous?.version ?? 0) + 1,
@@ -422,6 +479,26 @@ export default function App() {
       setCreating(false);
     }
   };
+  const addWorkspace = async () => {
+    if (!workspaceName.trim() || loading || creatingRef.current || creatingWorkspaceRef.current) return;
+    creatingWorkspaceRef.current = true;
+    setCreatingWorkspace(true);
+    setError("");
+    try {
+      const workspace = await getPluginDataClient().workspaces.create({ name: workspaceName.trim() });
+      if (!workspace) return;
+      setWorkspaces((items) => [...items.filter((item) => item.id !== workspace.id), workspace]);
+      selectWorkspace(workspace);
+      persistSelection(workspace.id);
+      setAddingWorkspace(false);
+      setWorkspaceName("");
+    } catch (error) {
+      setError(errorText(error));
+    } finally {
+      creatingWorkspaceRef.current = false;
+      setCreatingWorkspace(false);
+    }
+  };
   return (
     <main className="lab-app">
       <header className="lab-header">
@@ -431,7 +508,7 @@ export default function App() {
           </span>
           <div>
             <h1>聊天调试台</h1>
-            <p>连接工作区，试用你的 Chat。</p>
+            <p>选择插件自己的工作区，保存和继续调试对话。</p>
           </div>
         </div>
         <span className="lab-badge">ISLE PLUGIN</span>
@@ -443,8 +520,14 @@ export default function App() {
           <select
             aria-label="工作区"
             value={workspaceId}
-            disabled={loading || creating}
-            onChange={(event) => setWorkspaceId(event.target.value)}
+            disabled={loading || creating || creatingWorkspace}
+            onChange={(event) => {
+              const workspace = workspaces.find((item) => item.id === event.target.value);
+              if (workspace) {
+                selectWorkspace(workspace);
+                persistSelection(workspace.id);
+              }
+            }}
           >
             {!workspaces.length && <option value="">{loading ? "加载中…" : "暂无工作区"}</option>}
             {workspaces.map((workspace) => (
@@ -455,14 +538,34 @@ export default function App() {
             ))}
           </select>
         </label>
-        <button type="button" className="lab-refresh" disabled={loading} onClick={() => void reload()}>
+        <button
+          type="button"
+          className="lab-refresh"
+          disabled={loading || creating || creatingWorkspace}
+          onClick={() => void reload()}
+        >
           刷新工作区
+        </button>
+        <button
+          type="button"
+          disabled={loading || creating || creatingWorkspace}
+          aria-expanded={addingWorkspace}
+          onClick={() => setAddingWorkspace((value) => !value)}
+        >
+          新增工作区
         </button>
         <label className="lab-history-select">
           插件对话
           <select
             aria-label="插件对话"
-            disabled={!workspaceId || history.workspaceId !== workspaceId || history.loading}
+            disabled={
+              loading ||
+              creating ||
+              creatingWorkspace ||
+              !workspaceId ||
+              history.workspaceId !== workspaceId ||
+              history.loading
+            }
             value={
               connection?.input.workspaceId === workspaceId &&
               history.items.some((item) => item.chatId === connection.input.chatId)
@@ -502,15 +605,54 @@ export default function App() {
         <button
           type="button"
           className="lab-primary"
-          disabled={loading || !workspaceId || !chatId.trim()}
+          disabled={loading || creating || creatingWorkspace || !workspaceId || !chatId.trim()}
           onClick={() => connect()}
         >
           连接会话
         </button>
-        <button type="button" disabled={loading || creating || !workspaceId} onClick={() => void create()}>
+        <button
+          type="button"
+          disabled={loading || creating || creatingWorkspace || !workspaceId}
+          onClick={() => void create()}
+        >
           {creating ? "创建中…" : "新会话"}
         </button>
       </div>
+      {addingWorkspace && (
+        <div className="lab-connection-form lab-workspace-create">
+          <label>
+            工作区名称
+            <input
+              aria-label="工作区名称"
+              value={workspaceName}
+              maxLength={512}
+              disabled={creatingWorkspace}
+              onChange={(event) => setWorkspaceName(event.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            className="lab-primary"
+            disabled={loading || creating || creatingWorkspace || !workspaceName.trim()}
+            onClick={() => void addWorkspace()}
+          >
+            {creatingWorkspace ? "等待目录选择…" : "选择目录并创建"}
+          </button>
+          <button type="button" disabled={creatingWorkspace} onClick={() => setAddingWorkspace(false)}>
+            取消
+          </button>
+        </div>
+      )}
+      {workspaces.find((item) => item.id === workspaceId) && (
+        <p className="lab-workspace-path">
+          工作区目录：<code>{workspaces.find((item) => item.id === workspaceId)?.path}</code>
+        </p>
+      )}
+      {storageError && (
+        <p className="lab-top-error" role="alert">
+          选择保存失败：{storageError}
+        </p>
+      )}
       {history.error && history.workspaceId === workspaceId && (
         <p className="lab-top-error" role="alert">
           对话列表加载失败：{history.error}
@@ -544,7 +686,7 @@ export default function App() {
           <h2>从一个会话开始</h2>
           <p>
             {!loading && !workspaces.length
-              ? "先在 Isle 中创建工作区，再刷新列表。"
+              ? "工作区尚未加载成功，请重试或新增工作区。"
               : "选择工作区后新建会话，或从插件对话列表恢复历史。"}
           </p>
           <p className="lab-help">切换会话或隐藏界面时，后台任务会继续。</p>
