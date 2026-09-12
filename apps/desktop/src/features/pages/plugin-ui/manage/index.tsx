@@ -29,6 +29,7 @@ import { ImportPluginDialog } from "./import-dialog";
 import { MarketplaceInstallDialog } from "./market-install-dialog";
 import { MarketplacePanel } from "./marketplace-panel";
 import { PluginPermissionSummary } from "../permission-summary";
+import { PluginToolPermissions } from "./tool-permissions";
 
 type PluginRowProps = {
   plugin: PluginDescriptor;
@@ -70,7 +71,8 @@ const PluginRow = ({ plugin, isUpdating, onEnabledChange, onRemove }: PluginRowP
       />
     </div>
 
-    <div className="flex min-w-36 items-center justify-end gap-3 max-sm:col-span-2 max-sm:ml-[3.25rem] max-sm:min-w-0 max-sm:justify-between">
+    <div className="flex min-w-36 items-center justify-end gap-3 max-sm:col-span-2 max-sm:ml-[3.25rem] max-sm:min-w-0 max-sm:flex-wrap max-sm:justify-between">
+      <PluginToolPermissions plugin={plugin} disabled={isUpdating} />
       <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs font-medium text-muted-foreground">
         {isUpdating ? <Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" /> : null}
         <span>

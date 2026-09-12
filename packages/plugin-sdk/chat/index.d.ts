@@ -11,6 +11,7 @@ export type PluginChatProfile = {
   id: string;
   systemPrompt: string;
   context?: ChatContext;
+  /** Optional scene subset. The host intersects it with current user grants on every turn. */
   allowedToolNames?: string[];
   useKnowledge?: boolean;
 };
@@ -54,6 +55,8 @@ export interface PluginChatSession extends ChatSession {
   reconnect(): Promise<void>;
 }
 export interface PluginChatClient {
+  /** Read-only host tool catalog. The host checks chat permission independently of a workspace. */
+  listTools(): Promise<import("../tools/index.js").PluginTool[]>;
   listSessions(input: { workspaceId: string }): Promise<PluginChatSummary[]>;
   /** Explicit creation; each call returns a new host-generated identity. */
   createSession(input: PluginChatCreateInput): Promise<PluginChatSession>;

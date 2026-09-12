@@ -16,7 +16,7 @@ export interface PluginBrowserHost {
   readonly version: 1;
   /** Optional authenticated data v1 transport. Older hosts omit this capability. */
   readonly data?: import("../data/index.js").PluginDataTransport;
-  /** Only tools owned by this plugin can be invoked. Result types are caller supplied. */
+  /** Only this plugin's tools enabled by the user can be invoked. Result types are caller supplied. */
   executeTool<T = unknown>(
     name: string,
     args?: Record<string, unknown>,

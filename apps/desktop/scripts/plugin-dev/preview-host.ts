@@ -253,6 +253,16 @@ export function createPreviewChat(options: {
   } as unknown as DesktopChatService;
   const dataClient = createPluginDataClient(data);
   const host = createPluginChatHost(service, {
+    toolCatalog: async () => {
+      if (!options.permissions.includes("chat")) throw new Error("插件未声明 chat 权限");
+      return options.tools.map((tool) => ({
+        name: tool.name,
+        label: tool.name,
+        description: tool.description ?? "",
+        source: "plugin" as const,
+        enabled: true,
+      }));
+    },
     authorize: async (_pluginId, workspaceId) => {
       await gate;
       if (!options.permissions.includes("chat")) throw new Error("插件未声明 chat 权限");

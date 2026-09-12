@@ -7,6 +7,7 @@ import type {
 import type { ChatContext, ChatSession } from "../core";
 import type { DesktopChatService, DesktopSessionInput } from "./service";
 import type { ChatProfile } from "./catalog";
+import type { PluginTool } from "@isle/plugin-sdk/tools";
 
 type Access = { workspacePath: string; knowledge: boolean };
 type SessionInput = PluginChatCreateInput & { chatId: string };
@@ -14,6 +15,7 @@ type Entry = { session: ChatSession; input: SessionInput };
 type Options = {
   authorize(pluginId: string, workspaceId: string): Promise<Access>;
   tools?: (pluginId: string) => Promise<string[]>;
+  toolCatalog?: (pluginId: string) => Promise<PluginTool[]>;
 };
 const record = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("聊天参数必须是对象");
@@ -79,26 +81,43 @@ export function createPluginChatHost(service: DesktopChatService, options: Optio
   const authorize = async (pluginId: string, input: PluginChatCreateInput, assignedToolNames: readonly string[]) => {
     const result = await options.authorize(pluginId, input.workspaceId);
     if (input.profile.useKnowledge && !result.knowledge) throw new Error("插件未获授权使用知识库");
-    const toolNames = options.tools ? await options.tools(pluginId) : assignedToolNames;
-    if (input.profile.allowedToolNames?.some((name) => !toolNames.includes(name)))
-      throw new Error("场景请求了当前未分配的工具");
-    return { ...result, toolNames };
+    const catalog = options.toolCatalog ? await options.toolCatalog(pluginId) : undefined;
+    const toolNames = catalog
+      ? catalog.map((tool) => tool.name)
+      : options.tools
+        ? await options.tools(pluginId)
+        : assignedToolNames;
+    const effectiveNames = toolNames.filter(
+      (name) =>
+        (!catalog || catalog.some((tool) => tool.name === name && tool.enabled)) &&
+        (!input.profile.allowedToolNames || input.profile.allowedToolNames.includes(name)),
+    );
+    return { ...result, toolNames, effectiveNames, catalog };
   };
   const resolveInput = (
     pluginId: string,
     input: SessionInput,
     assignedToolNames: readonly string[],
-    allowed: Access & { toolNames: readonly string[] },
+    allowed: Awaited<ReturnType<typeof authorize>>,
   ): DesktopSessionInput => {
-    input.profile.allowedToolNames ??= [...allowed.toolNames];
+    let effectiveNames = allowed.effectiveNames;
     const profile: ChatProfile = {
       id: input.profile.id,
       systemPrompt: () => input.profile.systemPrompt,
       useKnowledge: input.profile.useKnowledge,
-      allowedToolNames: input.profile.allowedToolNames,
+      resolveToolNames: () => effectiveNames,
+      toolCatalog: options.toolCatalog
+        ? async () => {
+            const current = await authorize(pluginId, input, assignedToolNames);
+            if (current.workspacePath !== allowed.workspacePath) throw new Error("插件会话授权已变化");
+            effectiveNames = current.effectiveNames;
+            return current.catalog!.filter((tool) => effectiveNames.includes(tool.name));
+          }
+        : undefined,
       authorize: async () => {
         const current = await authorize(pluginId, input, assignedToolNames);
         if (current.workspacePath !== allowed.workspacePath) throw new Error("插件会话授权已变化");
+        effectiveNames = current.effectiveNames;
       },
     };
     return {
@@ -118,7 +137,7 @@ export function createPluginChatHost(service: DesktopChatService, options: Optio
       if (new TextEncoder().encode(JSON.stringify(source)).byteLength > 256 * 1024)
         throw new Error("插件聊天来源信息无效");
       const input = parseSaved(pluginId, string(source.workspaceId), chatId, source);
-      if (!options.tools) throw new Error("当前宿主不支持恢复插件聊天");
+      if (!options.tools && !options.toolCatalog) throw new Error("当前宿主不支持恢复插件聊天");
       const allowed = await authorize(pluginId, input, []);
       if (allowed.workspacePath !== workspacePath) throw new Error("插件聊天工作区与记录不匹配");
       return resolveInput(pluginId, input, allowed.toolNames, allowed);
@@ -150,6 +169,13 @@ export function createPluginChatHost(service: DesktopChatService, options: Optio
           string(request.method, 64);
           if (new TextEncoder().encode(JSON.stringify(request)).byteLength > 256 * 1024)
             throw new Error("聊天请求超过 256 KiB");
+          if (request.method === "tools") {
+            only(record(request), ["method"]);
+            if (!options.toolCatalog) throw new Error("当前宿主不支持插件工具目录");
+            const catalog = await options.toolCatalog(pluginId);
+            if (disposed) throw new Error("插件连接已断开");
+            return catalog;
+          }
           if (request.method === "workspaces") throw new Error("请通过 @isle/plugin-sdk/data 查询插件工作区");
           if (request.method === "list") {
             const input = record(request.input);

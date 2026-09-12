@@ -20,6 +20,10 @@
       "types": "./browser/index.d.ts",
       "default": "./browser/index.js"
     },
+    "./tools": {
+      "types": "./tools/index.d.ts",
+      "default": "./tools/index.js"
+    },
     "./data": {
       "types": "./data/index.d.ts",
       "default": "./data/index.js"
@@ -30,7 +34,8 @@
     "index.d.ts",
     "chat",
     "browser",
-    "data"
+    "data",
+    "tools"
   ],
   "scripts": {
     "test": "node --test test/*.test.mjs"

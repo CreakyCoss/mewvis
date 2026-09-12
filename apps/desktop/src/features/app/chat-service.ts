@@ -2,9 +2,9 @@ import { createDesktopChatService } from "@/chat/desktop";
 import type { DesktopSessionInput } from "@/chat/desktop";
 import { loadStoryById } from "@/features/pages/stories/storage";
 import { prepareStoryChatProfile } from "@/features/pages/stories/story/actions/assistant/resources";
-import { listPlugins, listPluginUi } from "@/api/plugins";
+import { listPlugins } from "@/api/plugins";
 import { createPluginChatHost } from "@/chat/desktop/plugin";
-import { listAgentRuntimeTools } from "@/api/agent-runtime";
+import { listPluginTools } from "@/api/plugin-tools";
 import { resolvePluginChatWorkspace } from "./plugin-chat-workspace";
 
 // Owned by the application. Resolvers return scene configuration; the service owns sessions.
@@ -36,12 +36,9 @@ async function requirePlugin(pluginId: string) {
   return plugin;
 }
 export const pluginChatHost = createPluginChatHost(chatService, {
-  async tools(pluginId) {
+  async toolCatalog(pluginId) {
     await requirePlugin(pluginId);
-    const [catalog, runtime] = await Promise.all([listPluginUi(), listAgentRuntimeTools()]);
-    const plugin = catalog.plugins.find((item) => item.id === pluginId);
-    if (!plugin || plugin.error) throw new Error("插件能力加载失败，暂时无法恢复聊天");
-    return [...new Set([...runtime.tools.map((tool) => tool.name), ...plugin.tools.map((tool) => tool.name)])];
+    return listPluginTools(pluginId);
   },
   async authorize(pluginId, workspaceId) {
     const plugin = await requirePlugin(pluginId);

@@ -1,5 +1,6 @@
 import { createNativePluginChat } from "./chat.js";
 import { createNativePluginData } from "./data.js";
+import { readToolPolicy, writeToolPolicy } from "./tool-policy.js";
 import { createInterface } from "node:readline";
 import { format } from "node:util";
 import { PluginHost, type PluginRuntimeKind } from "./index.js";
@@ -71,6 +72,7 @@ console.warn = writeLog;
 console.error = writeLog;
 
 let host: PluginHost | null = null;
+let pluginSettingsRoot: string | undefined;
 let plugins: readonly UiPlugin[] = Object.freeze([]);
 let uiDocuments = new Map<string, PluginUiDocument>();
 const nativeChat = createNativePluginChat(
@@ -110,6 +112,7 @@ const configure = async (value: unknown) => {
   const runtimePlugins = input.plugins as RuntimePlugin[];
 
   await disposeHost();
+  pluginSettingsRoot = settingsPath;
   nativeData = createDataConnection();
   const nextHost = await PluginHost.create({
     pluginSettingsRoot: settingsPath,
@@ -198,6 +201,8 @@ const execute = async (value: unknown) => {
   if (!plugin.tools.some((tool) => tool.name === toolName)) {
     throw new Error(`插件 ${plugin.name} 没有注册工具：${toolName}`);
   }
+  const policy = await readToolPolicy(pluginSettingsRoot!, pluginId);
+  if (policy && !policy.allowedToolNames.includes(toolName)) throw new Error(`用户已禁用工具：${toolName}`);
 
   const controller = new AbortController();
   const timeoutError = new Error(`工具执行超过 ${TOOL_TIMEOUT_MS / 1000} 秒。`);
@@ -233,6 +238,16 @@ const execute = async (value: unknown) => {
 
 const dispatch = async (request: RpcRequest) => {
   switch (request.method) {
+    case "toolPolicy.get":
+    case "toolPolicy.set": {
+      const input = asObject(request.params, "工具授权参数");
+      const id = requiredString(input, "pluginId");
+      if (!host || !pluginSettingsRoot || !plugins.some((plugin) => plugin.id === id))
+        throw new Error("插件未启用或不存在");
+      return request.method === "toolPolicy.get"
+        ? readToolPolicy(pluginSettingsRoot, id)
+        : writeToolPolicy(pluginSettingsRoot, id, input.policy);
+    }
     case "configure":
       return configure(request.params);
     case "catalog":

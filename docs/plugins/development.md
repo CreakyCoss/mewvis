@@ -129,7 +129,44 @@ export default [
 ```
 
 工具链自动生成 `ctx.skills.register()`，补齐宿主需要的默认 `source: "bundled"`，并把技能定义打包进宿主入口。检查会验证技能数组、非空字段、名称格式和重名。技能名称使用小写字母、数字与单个连字符，例如 `example-my-plugin-text-inspection`。React 不导入这个文件。
-工具提供可执行动作，技能提供模型使用工具的步骤和规则。注册技能不会授予它使用工具的权限；插件 Chat 的 `allowedToolNames` 仍需包含对应的本插件工具。
+工具提供可执行动作，技能提供模型使用工具的步骤和规则。注册技能不会授予它使用工具的权限。插件 Chat 可以省略 `allowedToolNames`，由宿主按用户授权选择工具；显式传入时，它只能进一步缩小本场景使用的工具集合。
+
+### 用户选择工具
+
+在「插件管理 → 工具授权」中，用户可以勾选宿主通用工具和该插件自身的工具，不包含其他插件的工具。首次未配置时沿用当前全部工具；保存后使用明确的名单，空名单表示全部禁用，后续新增工具需要重新勾选。
+
+宿主将选择保存在 `plugins/<完整插件 ID>/settings.yaml` 的保留项中：
+
+```yaml
+$islePluginSettings: 1
+$isleHost:
+  tools:
+    allowedToolNames:
+      - read
+      - chat_playground_echo
+```
+
+此项只能由宿主管理界面修改。普通 `defineSettings` 命名空间不接受 `$isleHost`；`storage` 的业务增删改查和清空也不会修改它。宿主写入授权与插件写入业务设置使用同一文件锁，保留彼此的数据。插件不需要知道文件路径或 YAML 格式。
+
+声明了 `chat` 权限的插件可以通过只读 SDK 查询最新目录及用户选择，无需创建工作区，也不需要额外申请 `plugin-data`：
+
+```ts
+import { getPluginToolClient } from "@isle/plugin-sdk/tools";
+
+const tools = await getPluginToolClient().list();
+// [{ name, label, description, source: "host" | "plugin", enabled }]
+const allowedToolNames = tools
+  .filter((tool) => tool.enabled)
+  .map((tool) => tool.name);
+```
+
+Node 插件确认 `context.chat` 可用后，使用 `createPluginToolClient(context.chat)`；没有聊天连接的环境会明确报错。开发预览提供本插件的模拟工具目录。
+
+聊天调试台省略场景白名单，由宿主每轮计算「当前可用工具 ∩ 用户勾选工具 ∩ 场景请求工具」，省略场景名单视为不进一步限制。已有会话和恢复的历史会话也会重新检查；授权读取失败时不发起执行，不使用旧授权回退。名单中已下架或未注册的工具不进入提交的工具集合，也不阻止聊天或授权配置保存。宿主不维护技能名称与工具依赖的对应表，不因技能缺少工具提前拒绝聊天。
+
+这里的交集是宿主提交的工具名单。现有 Agent 运行时仍会为内置技能自动补充依赖工具；该行为可能扩大实际可用工具集合，本次没有修改这部分执行逻辑。
+
+修改授权对后续调用和聊天下一轮生效，已经执行的任务继续使用本轮授权。UI 的 `executeTool` 仍只能调用本插件工具，并检查最新勾选结果。工具授权不能替代 `agentAccess`、沙箱与权限档位：禁用 `write` 工具本身不等于禁止其他工具写文件。
 
 默认模板包含完整的文本分析技能和对应工具。安装并启用插件后新建对话，发送页面给出的技能示例请求。现有 Pi 接入会加载插件技能，并按需向模型提供内容；它与技能页维护的可选文件技能目录不同，目前不在 Chat 的技能选择菜单中单独显示。 没有 `read` 工具的会话由宿主把已解析且允许模型使用的插件技能内容加入本轮模型上下文；有 `read` 时继续使用 Pi 原有的按需加载机制，不额外授予文件权限。
 

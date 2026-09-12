@@ -13,6 +13,7 @@ import { getLlmSettings, getLlmModelOptions, resolveLlmModel, saveLlmSettings } 
 import { normalizeLlmSettingsConfig, toLlmSettingsConfig } from "../../src/features/pages/settings/llm/edit/utils";
 import { createPluginChatHost } from "../../src/chat/desktop/plugin";
 import { createPluginChatClient, type PluginChatEvent } from "@isle/plugin-sdk/chat";
+import { createPluginToolClient } from "@isle/plugin-sdk/tools";
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -575,14 +576,12 @@ test("history restores plugin ownership and dynamic context after restart, inclu
   );
   await assert.rejects(invalid.client.openSession({ workspaceId: "workspace", chatId: "missing" }), /未找到聊天记录/);
   saved.options.profile.allowedToolNames = ["host"];
-  await assert.rejects(
-    invalid.host.resolveSession("fixture", plugin.identity.id, {
-      workspaceId: saved.workspaceId,
-      origin: saved.origin,
-      profile: saved.options.profile,
-    }),
-    /未分配/,
-  );
+  const stale = await invalid.host.resolveSession("fixture", plugin.identity.id, {
+    workspaceId: saved.workspaceId,
+    origin: saved.origin,
+    profile: saved.options.profile,
+  });
+  assert.deepEqual(stale.profile.resolveToolNames?.(), [], "unavailable tools do not prevent restoring history");
   assert.equal(invalid.service.listSessions().length, 0);
   invalid.connection.dispose();
 });
@@ -727,5 +726,123 @@ test("LLM settings import waits for the startup migration before loading", async
     assert.deepEqual(useLlmSettingsStore.getState().settings, fake.llmSettings);
   } finally {
     fake.readLlm = undefined;
+  }
+});
+
+test("user tool grants apply to SDK queries, existing scenes and every dispatch without changing saved profiles", async () => {
+  fake.record = null;
+  let granted = ["own", "host"];
+  let fail = false;
+  let onCatalog: (() => void) | undefined;
+  const service = createDesktopChatService();
+  const host = createPluginChatHost(service, {
+    authorize: async () => ({ workspacePath: "fixture", knowledge: true }),
+    toolCatalog: async (id) => {
+      assert.equal(id, "plugin");
+      if (fail) throw new Error("cannot read grants");
+      onCatalog?.();
+      return ["own", "host"].map((name) => ({
+        name,
+        label: name,
+        description: "",
+        source: name === "own" ? ("plugin" as const) : ("host" as const),
+        enabled: granted.includes(name),
+      }));
+    },
+  });
+  const listeners = new Set<(event: PluginChatEvent) => void>();
+  const connection = host.connect("plugin", ["own"], (event) => listeners.forEach((listener) => listener(event)));
+  const client = createPluginChatClient({
+    request: (request) => connection.request(structuredClone(request)),
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  });
+  try {
+    const sdk = createPluginToolClient(client);
+    assert.deepEqual(
+      (await sdk.list()).map((tool) => tool.name),
+      ["own", "host"],
+    );
+    assert.equal("set" in sdk, false);
+    await assert.rejects(connection.request({ method: "tools", input: { pluginId: "other" } }), /不支持/);
+    const session = await client.createSession({
+      ...pluginInput,
+      profile: { ...pluginInput.profile, allowedToolNames: ["own", "host", "unavailable"] },
+    });
+    assert.deepEqual(
+      session.getSnapshot().resources.tools?.map((tool) => tool.value),
+      ["own", "host"],
+    );
+    granted = ["own"];
+    assert.equal((await sdk.list()).find((tool) => tool.name === "host")?.enabled, false);
+    await session.refreshResources();
+    assert.deepEqual(
+      session.getSnapshot().resources.tools?.map((tool) => tool.value),
+      ["own"],
+    );
+    let sent = await session.send({ text: "A stale scene cannot restore host tools" });
+    assert.equal(sent.status, "dispatched");
+    assert.deepEqual(fake.runs.at(-1).resources.tools.allowed, ["own"]);
+    completeTask(sent.taskId!);
+    await session.flush();
+    assert.deepEqual(fake.record.options.profile.allowedToolNames, ["own", "host", "unavailable"]);
+    granted = [];
+    assert.deepEqual(await session.updateConfig({ selectedSkillKeys: ["skill"] }), { ok: true });
+    sent = await session.send({ text: "Empty grants must remain empty" });
+    assert.equal(sent.status, "dispatched");
+    assert.deepEqual(fake.runs.at(-1).resources.tools.allowed, []);
+    assert.deepEqual(
+      fake.runs.at(-1).resources.skills.enabled,
+      ["skill"],
+      "the host does not infer skill tool dependencies",
+    );
+    completeTask(sent.taskId!);
+    await session.flush();
+    granted = ["own"];
+    let authorizations = 0;
+    onCatalog = () => {
+      if (++authorizations === 2) granted = ["host"];
+    };
+    sent = await session.send({ text: "Authorization changes between prepare and dispatch" });
+    assert.equal(sent.status, "dispatched");
+    assert.ok(authorizations >= 2);
+    assert.deepEqual(fake.runs.at(-1).resources.tools.allowed, ["host"]);
+    onCatalog = undefined;
+    completeTask(sent.taskId!);
+    await session.flush();
+    await service.closeAll();
+    const restored = await client.openSession({ workspaceId: "workspace", chatId: session.identity.id });
+    granted = ["host"];
+    sent = await restored.send({ text: "Read latest grants on restored conversations" });
+    assert.equal(sent.status, "dispatched");
+    assert.deepEqual(fake.runs.at(-1).resources.tools.allowed, ["host"]);
+    completeTask(sent.taskId!);
+    await restored.flush();
+    const before = fake.runs.length;
+    fail = true;
+    await assert.rejects(sdk.list(), /cannot read grants/);
+    assert.notEqual((await restored.send({ text: "Fail closed" })).status, "dispatched");
+    assert.equal(fake.runs.length, before);
+    fail = false;
+    const automatic = await client.createSession(pluginInput);
+    sent = await automatic.send({ text: "Omitting allowedToolNames still honors user grants" });
+    assert.equal(sent.status, "dispatched");
+    assert.deepEqual(fake.runs.at(-1).resources.tools.allowed, ["host"]);
+    completeTask(sent.taskId!);
+    await automatic.flush();
+    const unavailable = await client.createSession({
+      ...pluginInput,
+      profile: { ...pluginInput.profile, allowedToolNames: ["unavailable", "other-plugin"] },
+    });
+    sent = await unavailable.send({ text: "Unavailable tool names do not prevent chatting or grant access" });
+    assert.equal(sent.status, "dispatched");
+    assert.deepEqual(fake.runs.at(-1).resources.tools.allowed, []);
+    completeTask(sent.taskId!);
+  } finally {
+    await service.closeAll();
+    connection.dispose();
+    client.dispose();
   }
 });

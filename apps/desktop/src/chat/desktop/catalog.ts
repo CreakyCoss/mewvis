@@ -15,6 +15,8 @@ export type ChatProfile = {
   skillGroup?: { label: string; description?: string };
   useKnowledge?: boolean;
   allowedToolNames?: string[];
+  resolveToolNames?: () => string[];
+  toolCatalog?: () => Promise<{ name: string; label: string; description?: string }[]>;
   initialMessages?: ChatMessage[];
   context?: (turn: TurnInput, signal: AbortSignal) => Promise<ChatContext>;
 };
@@ -44,7 +46,9 @@ export function createDesktopCatalog(client: AgentClient, readProfile: () => Cha
           getAiAgentSettings(),
           profile.skills ? Promise.resolve({ skills: profile.skills, groups: [], defaultGroupId: "" }) : getSkills(),
           profile.useKnowledge === false ? Promise.resolve({ collections: [], sources: [] }) : listKnowledgeLibrary(),
-          client.capabilities.listAgentTools(),
+          Promise.all([client.capabilities.listAgentTools(), profile.toolCatalog?.()]).then(([tools, catalog]) =>
+            catalog ? { ...tools, tools: catalog } : tools,
+          ),
         ]);
         const errors: NonNullable<ChatResources["errors"]> = {};
         const value = <T>(key: keyof typeof errors, result: PromiseSettledResult<T>, fallback: T): T => {
@@ -58,6 +62,7 @@ export function createDesktopCatalog(client: AgentClient, readProfile: () => Cha
         const skillSettings = value("skillGroups", results[2], { skills: [], groups: [], defaultGroupId: "" });
         const knowledge = value("knowledgeCollections", results[3], { collections: [], sources: [] });
         const toolSettings = value("tools", results[4], { tools: [], defaultToolNames: [], permissionOptions: [] });
+        const allowedTools = profile.resolveToolNames?.() ?? profile.allowedToolNames;
         agents = agentSettings.agents;
         skills = profile.skills ?? skillSettings.skills;
         const skillMap = new Map(
@@ -119,12 +124,12 @@ export function createDesktopCatalog(client: AgentClient, readProfile: () => Cha
               isDefault: true,
             })),
           tools: toolSettings.tools
-            .filter((tool) => !profile.allowedToolNames || profile.allowedToolNames.includes(tool.name))
+            .filter((tool) => !allowedTools || allowedTools.includes(tool.name))
             .map((tool) => ({
               value: tool.name,
               label: tool.label,
               description: tool.description ?? "",
-              isDefault: profile.allowedToolNames ? true : toolSettings.defaultToolNames.includes(tool.name),
+              isDefault: allowedTools ? true : toolSettings.defaultToolNames.includes(tool.name),
             })),
           errors,
         };

@@ -67,6 +67,33 @@ struct PluginUiProcess {
 }
 
 impl PluginUiHost {
+    pub(crate) fn tool_policy(
+        &self,
+        app: &AppHandle,
+        plugin_id: String,
+        policy: Option<Value>,
+    ) -> Result<Value, String> {
+        let configuration = configuration(app)?;
+        if !configuration
+            .plugins
+            .iter()
+            .any(|plugin| plugin.id == plugin_id)
+        {
+            return Err("插件未启用或不存在".into());
+        }
+        let method = if policy.is_some() {
+            "toolPolicy.set"
+        } else {
+            "toolPolicy.get"
+        };
+        self.request(
+            app,
+            configuration,
+            method,
+            json!({ "pluginId": plugin_id, "policy": policy }),
+        )
+    }
+
     pub(crate) fn post_chat(&self, connection_id: &str, message: Value) -> Result<(), String> {
         let writer = self
             .inner

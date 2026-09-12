@@ -18,7 +18,6 @@ const profile = {
   id: "chat-playground-v1",
   systemPrompt:
     "你是 Isle 聊天调试助手，用中文简洁回答。按用户要求演示 Markdown、代码和插件工具。需要验证工具时调用 chat_playground_echo，不要虚构工具执行或宿主状态。",
-  allowedToolNames: ["chat_playground_echo", "chat_playground_inspect_text"],
   useKnowledge: true,
 };
 const phases: Record<ChatPhase, string> = {

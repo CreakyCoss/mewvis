@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
+import { load as loadYaml } from "js-yaml";
 
 const root = process.cwd();
 const servicePath = resolve(root, "agent-runtime/dist/plugin-host/service.mjs");
@@ -50,7 +51,7 @@ const request = (method, params = null) =>
   });
 
 try {
-  const configured = await request("configure", {
+  const configuration = {
     settingsPath: join(tempDir, "settings.yaml"),
     plugins: [
       {
@@ -67,7 +68,8 @@ try {
         permissionStatus: "dsh-unsupported",
       },
     ],
-  });
+  };
+  const configured = await request("configure", configuration);
   assert.equal(configured.plugins.length, 1);
   assert.deepEqual(
     configured.plugins[0].tools.map((tool) => tool.name),
@@ -102,6 +104,59 @@ try {
   });
   assert.equal(executed.value, "ui:hello");
   assert.deepEqual(executed.content, [{ type: "text", text: "ui:hello" }]);
+
+  const owner = "@isle/fixture-dsh-portable-plugin";
+  const settingsFile = join(configuration.settingsPath, "@isle", "fixture-dsh-portable-plugin", "settings.yaml");
+  assert.equal(await request("toolPolicy.get", { pluginId: owner }), null);
+  const beforePolicy = loadYaml(readFileSync(settingsFile, "utf8"));
+  await request("toolPolicy.set", { pluginId: owner, policy: { allowedToolNames: [] } });
+  assert.deepEqual(await request("toolPolicy.get", { pluginId: owner }), { allowedToolNames: [] });
+  const deniedDoc = loadYaml(readFileSync(settingsFile, "utf8"));
+  assert.deepEqual(deniedDoc["isle-fixture-portable"], beforePolicy["isle-fixture-portable"]);
+  assert.deepEqual(deniedDoc.$isleHost.tools, { allowedToolNames: [] });
+  await assert.rejects(
+    request("execute", {
+      pluginId: owner,
+      toolName: "isle_dsh_echo",
+      arguments: { message: "blocked", prefix: "must-not-save" },
+    }),
+    /用户已禁用工具/,
+  );
+  await request("configure", configuration);
+  assert.deepEqual(
+    await request("toolPolicy.get", { pluginId: owner }),
+    { allowedToolNames: [] },
+    "host restart retains revocation",
+  );
+  await assert.rejects(
+    request("execute", { pluginId: owner, toolName: "isle_dsh_echo", arguments: { message: "still blocked" } }),
+    /用户已禁用工具/,
+  );
+  await request("toolPolicy.set", { pluginId: owner, policy: { allowedToolNames: ["isle_dsh_echo", "read"] } });
+  await Promise.all([
+    request("execute", {
+      pluginId: owner,
+      toolName: "isle_dsh_echo",
+      arguments: { message: "ok", prefix: "after-policy" },
+    }),
+    request("toolPolicy.set", { pluginId: owner, policy: { allowedToolNames: ["isle_dsh_echo"] } }),
+  ]);
+  const updatedDoc = loadYaml(readFileSync(settingsFile, "utf8"));
+  assert.equal(updatedDoc["isle-fixture-portable"].prefix, "after-policy");
+  assert.deepEqual(
+    updatedDoc.$isleHost.tools.allowedToolNames,
+    ["isle_dsh_echo"],
+    "business writes preserve user grants",
+  );
+  await assert.rejects(request("toolPolicy.set", { pluginId: owner, policy: { allowedToolNames: "all" } }), /配置无效/);
+  await assert.rejects(request("toolPolicy.get", { pluginId: "another-plugin" }), /未启用或不存在/);
+  const validSettings = readFileSync(settingsFile, "utf8");
+  writeFileSync(settingsFile, "$isleHost:\n  tools:\n    allowedToolNames: all\n");
+  await assert.rejects(
+    request("execute", { pluginId: owner, toolName: "isle_dsh_echo", arguments: { message: "fail closed" } }),
+    /配置无效/,
+  );
+  writeFileSync(settingsFile, validSettings);
 
   const legacyFixtureRoot = join(tempDir, "legacy-host-ui-plugin");
   cpSync(fixtureRoot, legacyFixtureRoot, { recursive: true });

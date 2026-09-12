@@ -132,6 +132,10 @@ export function createPluginChatClient(transport) {
     return entry.session;
   };
   return {
+    listTools: () => {
+      assertActive();
+      return transport.request({ method: "tools" });
+    },
     listSessions: (input) => request("list", undefined, input),
     createSession: (input) =>
       request("create", undefined, input).then(receiveSession),

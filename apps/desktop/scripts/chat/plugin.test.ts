@@ -230,10 +230,6 @@ test("resource configuration is host-validated; unknown fields and traversal nev
   const { client } = f.connect();
   const session = await client.createSession(input);
   await assert.rejects(client.createSession({ ...input, workspacePath: "/escape" } as any), /不支持/);
-  await assert.rejects(
-    client.createSession({ ...input, profile: { ...input.profile, allowedToolNames: ["other-plugin"] } }),
-    /未分配/,
-  );
   assert.equal((await session.updateConfig({ permissionMode: "full" })).ok, true);
   assert.equal((await session.updateConfig({ permissionMode: "invalid" as any })).ok, false);
   await assert.rejects(

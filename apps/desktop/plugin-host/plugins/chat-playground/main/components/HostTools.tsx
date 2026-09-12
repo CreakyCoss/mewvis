@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { getPluginHost } from "@isle/plugin-sdk/browser";
+import { getPluginToolClient, type PluginTool } from "@isle/plugin-sdk/tools";
 import type { TextInspection } from "../contracts";
 
 /** Ordinary React business UI. The SDK transports the call to this plugin's Node tool. */
@@ -8,6 +9,19 @@ export function HostTools() {
   const [result, setResult] = useState<TextInspection>();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [tools, setTools] = useState<PluginTool[]>();
+  const [loadingTools, setLoadingTools] = useState(false);
+  const loadTools = async () => {
+    setLoadingTools(true);
+    setError("");
+    try {
+      setTools(await getPluginToolClient().list());
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLoadingTools(false);
+    }
+  };
   const inspect = async () => {
     setPending(true);
     setResult(undefined);
@@ -40,6 +54,18 @@ export function HostTools() {
       )}
       {result && <pre aria-label="宿主结果">{JSON.stringify(result, null, 2)}</pre>}
       <p className="lab-help">此操作不会调用模型或读写文件。清空文本后调用，可检查宿主参数校验。</p>
+      <button type="button" disabled={loadingTools} onClick={() => void loadTools()}>
+        {loadingTools ? "查询中…" : "查询当前工具授权"}
+      </button>
+      {tools && (
+        <ul aria-label="当前工具授权">
+          {tools.map((tool) => (
+            <li key={tool.name}>
+              {tool.label} · {tool.source === "host" ? "宿主" : "插件"} · {tool.enabled ? "允许" : "已禁用"}
+            </li>
+          ))}
+        </ul>
+      )}
     </details>
   );
 }

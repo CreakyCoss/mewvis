@@ -22,6 +22,7 @@ const state = {
   error: null,
   cancel: false,
   calls: [],
+  policy: null,
 };
 let bundle;
 const ok = (value) => ({ ok: true, value });
@@ -42,6 +43,7 @@ globalThis.__playgroundFixture = {
   },
   async invoke(command, args) {
     state.calls.push({ command, args });
+    if (command === "get_plugin_tool_policy") return structuredClone(state.policy);
     if (command === "connect_plugin_data") {
       assert.equal(args.pluginId, pluginId);
       if (!state.enabled) throw denied("PERMISSION_DENIED");
@@ -134,11 +136,11 @@ try {
               path === "@tauri-apps/api/core"
                 ? "export const isTauri = () => true; export const invoke = (...args) => globalThis.__playgroundFixture.invoke(...args);"
                 : path === "@/api/plugins"
-                  ? "export const listPlugins = async () => globalThis.__playgroundFixture.plugins(); export const listPluginUi = async () => ({plugins: [{id: '@isle/chat-playground', tools: [{name:'own'}]}]});"
+                  ? "export const listPlugins = async () => globalThis.__playgroundFixture.plugins(); export const listPluginUi = async () => ({plugins: [{id: '@isle/chat-playground', tools: [{name:'own', description:'Own tool'}]}, {id:'other-plugin',tools:[{name:'foreign-tool'}]}]});"
                   : path === "@/api/workspace"
                     ? "export const listWorkspaces = async () => globalThis.__playgroundFixture.workspaces();"
                     : path === "@/api/agent-runtime"
-                      ? "export const listAgentRuntimeTools = async () => ({tools:[]}); export const releaseAgentRuntimeSession = async () => {};"
+                      ? "export const listAgentRuntimeTools = async () => ({tools:[{name:'host',label:'Host',description:'Host tool'}]}); export const releaseAgentRuntimeSession = async () => {};"
                       : "export const loadStoryById = async () => null; export const prepareStoryChatProfile = () => {throw new Error('Unexpected story access')};",
           }));
         },
@@ -166,6 +168,19 @@ try {
   await preferences.load();
   assert.equal(preferences.workspace(await data.workspaces.list()).id, own.id);
   let chat = connect();
+  assert.deepEqual(
+    (await chat.listTools()).map(({ name, source, enabled }) => ({ name, source, enabled })),
+    [
+      { name: "host", source: "host", enabled: true },
+      { name: "own", source: "plugin", enabled: true },
+    ],
+    "SDK lists host tools and only the authenticated plugin's tools",
+  );
+  state.policy = { allowedToolNames: ["own"] };
+  assert.deepEqual(
+    (await chat.listTools()).filter((tool) => tool.enabled).map((tool) => tool.name),
+    ["own"],
+  );
   assert.equal("listWorkspaces" in chat, false, "workspace lookup belongs only to the data SDK");
   assert.deepEqual(await data.workspaces.list(), [own], "plugin listing must not expose the host default");
   const raw = bundle.pluginChatHost.connect(pluginId, [], () => {});
@@ -202,6 +217,11 @@ try {
   const sent = await session.send({ text: "插件目录内的聊天" });
   assert.equal(sent.status, "dispatched");
   assert.deepEqual(bundle.nativeFixture.fake.runs.at(-1).permissions, { mode: "full" });
+  assert.deepEqual(
+    bundle.nativeFixture.fake.runs.at(-1).resources.tools.allowed,
+    ["own"],
+    "production Chat applies user grants even when the scene omits allowedToolNames",
+  );
   bundle.nativeFixture.fake.events.forEach((listener) =>
     listener({ taskId: sent.taskId, event: { type: "done", text: "已保存" } }),
   );

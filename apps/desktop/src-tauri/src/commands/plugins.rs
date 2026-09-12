@@ -67,6 +67,39 @@ pub fn list_plugins(app: AppHandle) -> Result<Vec<PluginDescriptor>, String> {
 }
 
 #[tauri::command]
+pub async fn get_plugin_tool_policy(
+    window: tauri::WebviewWindow,
+    app: AppHandle,
+    plugin_ui: State<'_, PluginUiHost>,
+    plugin_id: String,
+) -> Result<Value, String> {
+    if window.label() != "main" {
+        return Err("仅宿主主窗口可以查询工具授权".into());
+    }
+    let host = plugin_ui.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || host.tool_policy(&app, plugin_id, None))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn set_plugin_tool_policy(
+    window: tauri::WebviewWindow,
+    app: AppHandle,
+    plugin_ui: State<'_, PluginUiHost>,
+    plugin_id: String,
+    policy: Value,
+) -> Result<Value, String> {
+    if window.label() != "main" {
+        return Err("仅宿主主窗口可以修改工具授权".into());
+    }
+    let host = plugin_ui.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || host.tool_policy(&app, plugin_id, Some(policy)))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
 pub async fn inspect_plugin(input: InspectPluginInput) -> Result<PluginDescriptor, String> {
     tauri::async_runtime::spawn_blocking(move || plugins::inspect_local_plugin(&input.source_path))
         .await

@@ -20,9 +20,10 @@ use commands::{
     },
     plugins::{
         connect_plugin_data, disconnect_plugin_data, execute_plugin_ui_tool,
-        get_plugin_ui_document, inspect_plugin, install_plugin, install_plugin_from_marketplace,
-        list_plugin_ui, list_plugins, post_plugin_chat, remove_plugin, request_plugin_data,
-        search_plugin_marketplace, set_plugin_enabled,
+        get_plugin_tool_policy, get_plugin_ui_document, inspect_plugin, install_plugin,
+        install_plugin_from_marketplace, list_plugin_ui, list_plugins, post_plugin_chat,
+        remove_plugin, request_plugin_data, search_plugin_marketplace, set_plugin_enabled,
+        set_plugin_tool_policy,
     },
     settings::{
         delete_ai_agent, delete_collaboration_workflow, delete_embedding_profile,
@@ -125,6 +126,8 @@ pub fn run() {
             list_plugins,
             inspect_plugin,
             list_plugin_ui,
+            get_plugin_tool_policy,
+            set_plugin_tool_policy,
             post_plugin_chat,
             connect_plugin_data,
             request_plugin_data,

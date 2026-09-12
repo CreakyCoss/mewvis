@@ -68,7 +68,6 @@ export function createDesktopRuntime(
       signal.throwIfAborted();
       const details = catalog.getDetails();
       const agent = details.agents.find((item) => item.id === turn.config.selectedAgentId);
-      const tools = readProfile().allowedToolNames;
       const skills = details.skills
         .filter((skill) => turn.config.selectedSkillKeys.includes(skill.key))
         .map((skill) => skill.name);
@@ -77,6 +76,8 @@ export function createDesktopRuntime(
         async dispatch() {
           await readProfile().authorize?.();
           signal.throwIfAborted();
+          const profile = readProfile();
+          const tools = profile.resolveToolNames?.() ?? profile.allowedToolNames;
           await client.agent.run({
             taskId: turn.taskId,
             ...(origin.kind === "plugin" ? { pluginId: origin.pluginId } : {}),
