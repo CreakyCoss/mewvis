@@ -1,10 +1,10 @@
-use crate::services::application_data::ApplicationDataHost;
+use crate::services::applications::data::ApplicationDataHost;
 use serde::Deserialize;
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::services::{
-    application_ui::ApplicationUiHost,
+    applications::ui::ApplicationUiHost,
     applications::{
         self, InstallMarketplaceApplicationRequest, MarketplaceSearchResult, ApplicationDescriptor,
         RemovedApplication,
@@ -250,7 +250,7 @@ pub async fn request_application_data(
         tauri::async_runtime::spawn_blocking(move || host.request(&app, &connection, request))
             .await
             .unwrap_or_else(|_| {
-                crate::services::application_data::error("INTERNAL_ERROR", "应用数据任务失败")
+                crate::services::applications::data::error("INTERNAL_ERROR", "应用数据任务失败")
             }),
     )
 }

@@ -54,16 +54,16 @@ node apps/desktop/agent-runtime/scripts/pack-portable-applications.mjs
 
 如果要复用仓库已经启动的 1420 服务，可打开：
 
-[静态预览](http://localhost:1420/scripts/app-dev/preview.html)
+[静态预览](http://localhost:1420/scripts/app/dev/preview.html)
 
-这份仓库开发入口位于 `apps/desktop/scripts/app-dev`，不属于应用业务，也不进入应用产物。它直接预览 React 源码和公共内存聊天宿主，无须另外启动服务。1420 未挂载工具链的 Node 接口，因此宿主工具按钮会明确提示未连接，而不会伪造执行结果。真实 Node 调用在 Isle 或应用自身的 `pnpm dev` 中验证。
+这份仓库开发入口位于 `apps/desktop/scripts/app/dev`，不属于应用业务，也不进入应用产物。它直接预览 React 源码和公共内存聊天宿主，无须另外启动服务。1420 未挂载工具链的 Node 接口，因此宿主工具按钮会明确提示未连接，而不会伪造执行结果。真实 Node 调用在 Isle 或应用自身的 `pnpm dev` 中验证。
 
 ## 测试
 
 ```sh
 pnpm --filter desktop test:app-host:chat-playground
 node apps/desktop/agent-runtime/scripts/pack-portable-applications.mjs
-node apps/desktop/app-host/apps/chat-playground/test.mjs --bundled
+node apps/desktop/applications/builtins/chat-playground/test.mjs --bundled
 pnpm --filter desktop test:app-dev
 ```
 

@@ -1,11 +1,11 @@
 import { Navigate, Route, Routes } from "react-router";
-import { AppLayout } from "@/features/app/layout";
+import { AppLayout } from "@/features/shell/layout";
 import { ChatHomePage } from "@/features/pages/chats/home";
 import { WorkspaceChatRoute } from "@/features/pages/chats";
 import { HubPage } from "@/features/pages/hub";
 import { KnowledgePage } from "@/features/pages/knowledge";
-import { ApplicationUiPage } from "@/features/pages/application-ui";
-import { ApplicationManagePage } from "@/features/pages/application-ui/manage";
+import { ApplicationUiPage } from "@/features/pages/applications";
+import { ApplicationManagePage } from "@/features/pages/applications/manage";
 import { StoriesPage } from "@/features/pages/stories";
 import { AgentPage, EmbeddingPage, LlmPage, SettingsPage, WorkflowPage } from "@/features/pages/settings";
 import { SkillsPage } from "@/features/pages/skills";

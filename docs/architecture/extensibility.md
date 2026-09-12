@@ -13,7 +13,7 @@ Isle 将具有独立业务界面、设置、数据和会话的功能称为**应�
 | CLI               | `isle-app`；桌面工程中的 `app:create`、`app:validate`、`app:pack`      |
 | SDK 工厂与类型    | `defineApplication`、`IsleApplicationContext`、`ApplicationChatClient` |
 | 原生安装清单      | `isle.app`；`isle.ui` 继续声明应用界面                                 |
-| Node 宿主与内置包 | `apps/desktop/app-host`、`app-host/apps`                               |
+| Node 宿主与内置包 | `apps/desktop/applications/host`、`applications/builtins`              |
 | 身份与协议        | `applicationId`、`application` 来源、`application:*` 桥接消息          |
 | 数据根目录        | 产品数据目录下的 `apps/`                                               |
 | 数据权限          | `application-data`、`application-workspaces`                           |
@@ -22,6 +22,35 @@ Isle 将具有独立业务界面、设置、数据和会话的功能称为**应�
 本次命名切换是一次性协议更新。旧应用 SDK、清单字段、命令、路由、消息和数据位置不提供别名或自动迁移；已有应用源码和安装产物需要按新协议重新构建。仓库中的布局整理与设置版本迁移继续服务于应用自己的数据格式，不负责读取旧命名的数据根目录。
 
 Tauri、Vite、Lexical、React Markdown、Cordis 等依赖自身的 plugin API，以及 DSH 市场的外部接口，保留上游名称。DSH 适配仍是应用包的一种导入方式，不代表 Isle 已实现宿主插件机制。
+
+## 源码目录归属
+
+应用开发包统一放在 `packages/app/`，各自保留独立包名和发布边界：
+
+```text
+packages/
+  app/
+    sdk/                    # @isle/app-sdk：应用公共契约
+    dev/                    # @isle/app-dev：创建、预览和打包
+  chat-contracts/            # 跨宿主与应用共享的聊天契约
+apps/desktop/
+  applications/
+    host/                   # Node 应用宿主、协议与宿主构建
+    builtins/               # 内置应用
+  src/
+    api/applications/       # 应用管理、数据和工具 API
+    features/shell/         # 桌面外壳、侧栏和布局
+    features/pages/applications/ # 应用页面与沙箱桥
+  src-tauri/src/services/applications/ # 应用管理、数据、路径、UI 和工作区
+  scripts/app/
+    host/                   # 应用宿主集成验证
+    dev/                    # 开发预览验证
+    chat/                   # 应用聊天构建、契约测试与样例
+```
+
+目录分组不改变公开包名、应用协议、运行时数据目录或构建产物路径。聊天核心和桌面聊天适配仍位于各自模块；`chat-contracts` 同时服务宿主和应用，保持独立。
+
+后续宿主插件开发包可放在 `packages/extension/`，运行时使用独立入口。当前不创建空目录，也不提前抽象尚未出现的公共基类。
 
 ## 后续接入边界
 

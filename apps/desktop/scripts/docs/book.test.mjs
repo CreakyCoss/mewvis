@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { compileBook, parseSummary, repositoryRoot } from "./book.mjs";
-import { createLibrary } from "../../app-host/apps/docs-reader/library.js";
+import { createLibrary } from "../../applications/builtins/docs-reader/library.js";
 
 test("目录拒绝重复、越界和缺少父级", () => {
   assert.throws(() => parseSummary("- [A](a.md)\n- [B](a.md)"), /重复/);

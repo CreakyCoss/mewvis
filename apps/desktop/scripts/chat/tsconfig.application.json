@@ -1,8 +1,0 @@
-{
-  "extends": "../../tsconfig.json",
-  "include": ["application-contract.test.tsx", "fixtures/application/ui.tsx"],
-  "compilerOptions": {
-    "types": ["vite/client"],
-    "lib": ["ES2022", "DOM", "DOM.Iterable"]
-  }
-}

@@ -5,7 +5,7 @@ import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { ApplicationHost, type RuntimeApplication } from "../../../../../../../../../app-host/src/index.js";
+import { ApplicationHost, type RuntimeApplication } from "../../../../../../../../../applications/host/src/index.js";
 import type { AgentRuntimeApplication } from "../../../../../../protocol/wire.js";
 import type { RuntimeAgentCommand } from "../../types.js";
 import { runtimeResourcesFor } from "../../resources.js";

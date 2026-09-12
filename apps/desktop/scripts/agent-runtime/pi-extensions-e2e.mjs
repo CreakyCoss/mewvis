@@ -350,7 +350,7 @@ try {
   mkdirSync(join(settingsRoot, "isle-fixture-portable"), { recursive: true });
   writeFileSync(join(settingsRoot, "settings.yaml"), "{}\n");
   writeFileSync(join(settingsRoot, "isle-fixture-portable", "settings.yaml"), "prefix: saved\n");
-  const fixtureRoot = join(desktop, "app-host/fixtures/dsh-portable-application");
+  const fixtureRoot = join(desktop, "applications/host/fixtures/dsh-portable-application");
   const applicationExecution = api.resolveExecutionPolicy("ask", workspace);
   applicationExecution.sandbox.filesystem.denyWrite.push(settingsRoot);
   const applicationTools = await api.createPiToolSet(
@@ -393,7 +393,7 @@ try {
   await build({
     stdin: {
       contents: `
-      import { defineApplication, defineTool } from ${JSON.stringify(resolve(desktop, "../../packages/app-sdk/index.js"))};
+      import { defineApplication, defineTool } from ${JSON.stringify(resolve(desktop, "../../packages/app/sdk/index.js"))};
       export default defineApplication({ name: 'scope-fixture', inject: ['tools', 'skills'], apply(ctx) {
         ctx.skills.register({ name: 'scope-fixture', description: 'In-memory skill', content: 'Use scope_echo to echo text.', source: 'bundled' });
         ctx.tools.register(defineTool({ name: 'scope_echo', risk: 'low', description: 'Echo without side effects',

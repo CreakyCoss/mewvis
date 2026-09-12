@@ -14,7 +14,7 @@ let child;
 let output;
 const pending = new Map();
 try {
-  const source = join(desktop, "app-host/apps/docs-reader");
+  const source = join(desktop, "applications/builtins/docs-reader");
   const { outputRoot, manifest } = await packApplication({ source, outDir: join(temporary, "application"), quiet: true });
   assert.equal(manifest.isle.defaultEnabled, true);
   assert.deepEqual(manifest.isle.permissions, ["open-external"]);

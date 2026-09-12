@@ -7,7 +7,7 @@ import {
   updateWorkspace as updateWorkspaceApi,
   type Workspace,
 } from "@/api/workspace";
-import { chatService } from "@/features/app/chat-service";
+import { chatService } from "@/features/shell/chat-service";
 
 type CurrentChat = {
   workspaceId: string;

@@ -1,8 +1,8 @@
-import { sandboxDocument } from "../../src/features/pages/application-ui/application-frame.tsx";
-import script from "../../app-host/apps/docs-reader/isle-ui.js?raw";
-import style from "../../app-host/apps/docs-reader/isle-ui.css?raw";
+import { sandboxDocument } from "../../src/features/pages/applications/application-frame.tsx";
+import script from "../../applications/builtins/docs-reader/isle-ui.js?raw";
+import style from "../../applications/builtins/docs-reader/isle-ui.css?raw";
 import book from "../../../../docs/.generated/book.json";
-import { createLibrary } from "../../app-host/apps/docs-reader/library.js";
+import { createLibrary } from "../../applications/builtins/docs-reader/library.js";
 
 const iframe = document.querySelector("iframe");
 const library = createLibrary(book);

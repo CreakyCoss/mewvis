@@ -1,0 +1,5 @@
+{
+  "extends": "../../../tsconfig.json",
+  "include": ["preview.tsx", "preview-host.ts"],
+  "compilerOptions": { "types": ["vite/client", "node"], "lib": ["ES2022", "DOM", "DOM.Iterable"] }
+}

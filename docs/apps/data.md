@@ -198,7 +198,7 @@ apps/
 
 ```sh
 pnpm --filter @isle/app-sdk test
-pnpm --filter @isle/app-dev exec tsc -p ../app-sdk/test/tsconfig.json
+pnpm --filter @isle/app-dev exec tsc -p ../sdk/test/tsconfig.json
 pnpm --filter @isle/app-dev exec node --test test/data-sdk.test.mjs
 pnpm --filter desktop test:app-host:data
 ```

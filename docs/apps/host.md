@@ -1,6 +1,6 @@
 # 应用宿主
 
-`apps/desktop/app-host` 是 Isle 自己管理的应用边界。Isle 定义包发现、清单、启用状态、数据路径、界面贡献和市场来源。Cordis 是负责生命周期及依赖注入的私有运行时内核，DSH 是通过适配器支持的一种兼容格式。
+`apps/desktop/applications/host` 是 Isle 自己管理的应用边界。Isle 定义包发现、清单、启用状态、数据路径、界面贡献和市场来源。Cordis 是负责生命周期及依赖注入的私有运行时内核，DSH 是通过适配器支持的一种兼容格式。
 
 ## 运行时分层
 
@@ -52,7 +52,7 @@ Isle 包通过自己的清单暴露 Cordis 应用入口：
 
 DSH 目标保留附加的 `isle` 元数据并生成 DSH 声明。含 `chat` 权限的应用依赖 Isle，不能选择 DSH 目标；工具链不会把 React UI 转换成 `dsh.client`。
 
-应用构建按目录名稳定排序，自动发现、校验和打包 `app-host/apps` 下所有一级应用目录，新增内置应用无需修改注册列表。
+应用构建按目录名稳定排序，自动发现、校验和打包 `applications/builtins` 下所有一级应用目录，新增内置应用无需修改注册列表。
 
 持久配置使用 SDK 的 `defineSettings`。Schema 默认值是基础层，应用默认值是组合层。桌面宿主按完整应用 ID 隔离 `apps/<namespace>/settings.yaml`，文件内按设置 namespace 保存用户覆盖及 `$version`，同时维护格式标记。工具注册前按序迁移用户层；缺少迁移或版本过新都会明确启动失败。
 

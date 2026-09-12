@@ -7,7 +7,7 @@ import { buildBook } from "../../scripts/docs/book.mjs";
 const runtimeRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const desktopRoot = join(runtimeRoot, "..");
 const outputRoot = join(runtimeRoot, "dist", "apps");
-const applicationsRoot = join(desktopRoot, "app-host", "apps");
+const applicationsRoot = join(desktopRoot, "applications", "builtins");
 await buildBook();
 const builtinApplications = await discoverApplicationSources(applicationsRoot);
 if (builtinApplications.length === 0) throw new Error(`没有发现内置应用：${applicationsRoot}`);

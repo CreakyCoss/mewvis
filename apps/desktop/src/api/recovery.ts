@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { ConfigDatabaseStatus, RebuildWorkspaceDatabaseOutput } from "@/features/app/recovery/types";
+import type { ConfigDatabaseStatus, RebuildWorkspaceDatabaseOutput } from "@/features/shell/recovery/types";
 
 export function getConfigDatabaseStatus() {
   return invoke<ConfigDatabaseStatus>("get_config_database_status");

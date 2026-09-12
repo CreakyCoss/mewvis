@@ -51,14 +51,14 @@ use commands::{
         write_workspace_files_atomic, WorkspaceFileWatchers,
     },
 };
-use services::application_ui::ApplicationUiHost;
+use services::applications::ui::ApplicationUiHost;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .manage(AgentRuntimeSupervisor::default())
         .manage(ApplicationUiHost::default())
-        .manage(services::application_data::ApplicationDataHost::default())
+        .manage(services::applications::data::ApplicationDataHost::default())
         .manage(AppStartupState::default())
         .manage(WorkspaceFileWatchers::default())
         .plugin(tauri_plugin_opener::init())

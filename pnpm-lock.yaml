@@ -356,12 +356,12 @@ importers:
       '@fontsource-variable/inter':
         specifier: ^5.2.8
         version: 5.2.8
+      '@isle/app-sdk':
+        specifier: workspace:*
+        version: link:../../packages/app/sdk
       '@isle/chat-contracts':
         specifier: workspace:*
         version: link:../../packages/chat-contracts
-      '@isle/app-sdk':
-        specifier: workspace:*
-        version: link:../../packages/app-sdk
       '@langchain/core':
         specifier: ^1.2.1
         version: 1.2.1
@@ -479,7 +479,7 @@ importers:
     devDependencies:
       '@isle/app-dev':
         specifier: workspace:*
-        version: link:../../packages/app-dev
+        version: link:../../packages/app/dev
       '@tailwindcss/postcss':
         specifier: ^4.3.0
         version: 4.3.0
@@ -547,11 +547,11 @@ importers:
         specifier: ^7.0.4
         version: 7.0.4(@types/node@22.0.0)
 
-  apps/desktop/app-host/apps/chat-playground:
+  apps/desktop/applications/builtins/chat-playground:
     dependencies:
       '@isle/app-sdk':
         specifier: workspace:*
-        version: link:../../../../../packages/app-sdk
+        version: link:../../../../../packages/app/sdk
       react:
         specifier: ^19.1.0
         version: 19.1.0
@@ -561,7 +561,7 @@ importers:
     devDependencies:
       '@isle/app-dev':
         specifier: workspace:*
-        version: link:../../../../../packages/app-dev
+        version: link:../../../../../packages/app/dev
       '@types/node':
         specifier: ^22.0.0
         version: 22.0.0
@@ -572,16 +572,14 @@ importers:
         specifier: ^19.1.6
         version: 19.1.6(@types/react@19.1.8)
 
-  packages/chat-contracts: {}
-
-  packages/app-dev:
+  packages/app/dev:
     dependencies:
-      '@isle/chat-contracts':
-        specifier: workspace:*
-        version: link:../chat-contracts
       '@isle/app-sdk':
         specifier: workspace:*
-        version: link:../app-sdk
+        version: link:../sdk
+      '@isle/chat-contracts':
+        specifier: workspace:*
+        version: link:../../chat-contracts
       '@types/node':
         specifier: ^22.0.0
         version: 22.0.0
@@ -613,14 +611,14 @@ importers:
         specifier: ^7.0.4
         version: 7.0.4(@types/node@22.0.0)
 
-  packages/app-sdk:
+  packages/app/sdk:
     dependencies:
       '@deepseek-ai/schemastery':
         specifier: 3.18.1
         version: 3.18.1
       '@isle/chat-contracts':
         specifier: workspace:*
-        version: link:../chat-contracts
+        version: link:../../chat-contracts
       react:
         specifier: ^19.1.0
         version: 19.1.0
@@ -634,6 +632,8 @@ importers:
       '@types/react-dom':
         specifier: ^19.1.6
         version: 19.1.6(@types/react@19.1.8)
+
+  packages/chat-contracts: {}
 
 packages:
 

@@ -7,9 +7,9 @@ import { packApplication } from "@isle/app-dev/tooling";
 import entries from "../../agent-runtime/build-entries.json" with { type: "json" };
 
 const desktopRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
-const applicationSourceRoot = join(desktopRoot, "app-host", "apps", "story-scene-card");
-const rssApplicationRoot = join(desktopRoot, "app-host", "apps", "rss-reader");
-const tavernApplicationSourceRoot = join(desktopRoot, "app-host", "apps", "tavern");
+const applicationSourceRoot = join(desktopRoot, "applications", "builtins", "story-scene-card");
+const rssApplicationRoot = join(desktopRoot, "applications", "builtins", "rss-reader");
+const tavernApplicationSourceRoot = join(desktopRoot, "applications", "builtins", "tavern");
 const temporaryRoot = mkdtempSync(join(desktopRoot, ".agent-runtime-dsh-e2e-"));
 const applicationRoot = join(temporaryRoot, "story-scene-card-dsh");
 const tavernApplicationRoot = join(temporaryRoot, "tavern-dsh");

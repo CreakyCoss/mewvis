@@ -306,7 +306,7 @@ try {
   console.log("PASS configured write/network boundaries and supported concurrent policy scopes");
   const applicationRoot = join(workspace, "application");
   mkdirSync(applicationRoot);
-  const sdk = pathToFileURL(resolve("../../packages/app-sdk/index.js")).href;
+  const sdk = pathToFileURL(resolve("../../packages/app/sdk/index.js")).href;
   writeFileSync(
     join(applicationRoot, "package.json"),
     JSON.stringify({ type: "module", name: "sandbox-fixture", main: "./index.js" }),

@@ -145,7 +145,7 @@ const result = await session.send({
 
 在 `apps/desktop` 中运行 `pnpm test:chat:application`：构建共享 UI、核对公开组件声明、打包隔离测试应用，运行无 UI／代理／权限／并发／实际 Node 应用 stdio 回归。`pnpm test:chat` 保留原核心、桌面宿主和 DSH schema 回归。
 
-已有 1420 开发环境的 `/scripts/chat/application-browser.html` 挂载真实 `ApplicationFrame` 和打包后的测试应用，使用内存 Runtime 与存储。包含默认和组合 Chat、模型与能力选择、暂停授权、停止、追问、视图卸载／重挂载。它不安装应用、不读写真实用户历史，也不等同于真实模型和重建后 Tauri 程序的端到端验收。
+已有 1420 开发环境的 `/scripts/app/chat/application-browser.html` 挂载真实 `ApplicationFrame` 和打包后的测试应用，使用内存 Runtime 与存储。包含默认和组合 Chat、模型与能力选择、暂停授权、停止、追问、视图卸载／重挂载。它不安装应用、不读写真实用户历史，也不等同于真实模型和重建后 Tauri 程序的端到端验收。
 
 回归覆盖应用身份与权限隔离、只读历史、元数据列表、无场景参数重开、准备期停止、流式事件、追问、保存与后台运行。前端构建仍提示大 chunk。真实模型及重建后 Tauri 的完整链路需单独验收；测试不会启动或重启开发服务。
 
