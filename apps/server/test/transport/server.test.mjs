@@ -141,7 +141,7 @@ test("invalid inputs are rejected before worker creation, unavailable applicatio
     assert.equal((await s.run("invalid", "ok", extra)).status, 400);
   }
   assert.equal(
-    (await s.run("application", "ok", { applicationId: "@isle/tavern" }))
+    (await s.run("application", "ok", { applicationId: "@isle/rss-reader" }))
       .status,
     404,
   );

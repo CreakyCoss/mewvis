@@ -25,7 +25,7 @@ const { outputRoot, manifest } = bundled
 assert.equal(manifest.isle.defaultEnabled, true);
 assert.equal(manifest.dsh, undefined, "内置聊天应用必须使用 Isle 格式");
 if (bundled) {
-  for (const name of ["rss-reader", "tavern", "story-scene-card"]) {
+  for (const name of ["rss-reader", "docs-reader"]) {
     const portable = JSON.parse(
       await readFile(
         join(client, "../agent-runtime/dist/apps", name, "package.json"),

@@ -48,8 +48,6 @@
 - [文档中心](apps/builtins/docs-reader.md)
 - [聊天调试台](apps/builtins/chat-playground.md)
 - [RSS 阅读器](apps/builtins/rss-reader.md)
-- [小说场景卡](apps/builtins/story-scene-card.md)
-- [酒馆](apps/builtins/tavern.md)
 
 ## 质量记录
 
