@@ -1,4 +1,4 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { invoke } from "@/transport";
 import type { AgentAccess } from "@isle/chat-contracts";
 import type { IsleToolRisk } from "@isle/app-sdk";
 
@@ -123,19 +123,16 @@ export type ApplicationUiDocument = {
 };
 
 export async function listApplications() {
-  if (!isTauri()) return [] satisfies ApplicationDescriptor[];
   return invoke<ApplicationDescriptor[]>("list_applications");
 }
 
 export async function installApplication(sourcePath: string, enable = false) {
-  if (!isTauri()) throw new Error("Web 预览模式暂不支持安装应用");
   return invoke<ApplicationDescriptor>("install_application", {
     input: { sourcePath, enable },
   });
 }
 
 export async function inspectApplication(sourcePath: string) {
-  if (!isTauri()) throw new Error("Web 预览模式暂不支持检查应用");
   return invoke<ApplicationDescriptor>("inspect_application", {
     input: { sourcePath },
   });
@@ -147,14 +144,15 @@ export async function searchApplicationMarketplace(
   page = 1,
   limit = 20,
 ) {
-  if (!isTauri()) return { total: 0, count: 0, results: [] } satisfies MarketplaceSearchResult;
   return invoke<MarketplaceSearchResult>("search_application_marketplace", {
     input: { provider, query, page, limit },
   });
 }
 
-export async function installApplicationFromMarketplace(provider: ApplicationMarketplaceProviderId, application: MarketplaceApplication) {
-  if (!isTauri()) throw new Error("Web 预览模式暂不支持安装应用");
+export async function installApplicationFromMarketplace(
+  provider: ApplicationMarketplaceProviderId,
+  application: MarketplaceApplication,
+) {
   if (!application.npmPackage) throw new Error("该条目没有可安全下载的 npm 发布包");
   return invoke<ApplicationDescriptor>("install_application_from_marketplace", {
     input: {
@@ -167,33 +165,28 @@ export async function installApplicationFromMarketplace(provider: ApplicationMar
 }
 
 export async function setApplicationEnabled(id: string, enabled: boolean) {
-  if (!isTauri()) throw new Error("Web 预览模式暂不支持修改应用状态");
   return invoke<ApplicationDescriptor>("set_application_enabled", {
     input: { id, enabled },
   });
 }
 
 export async function removeApplication(id: string) {
-  if (!isTauri()) throw new Error("Web 预览模式暂不支持移除应用");
   return invoke<RemovedApplication>("remove_application", {
     input: { id },
   });
 }
 
 export async function listApplicationUi() {
-  if (!isTauri()) return { applications: [] } satisfies ApplicationUiCatalog;
   return invoke<ApplicationUiCatalog>("list_application_ui");
 }
 
 export async function executeApplicationUiTool(applicationId: string, toolName: string, args: unknown = {}) {
-  if (!isTauri()) throw new Error("Web 预览模式暂不支持应用工具调用");
   return invoke<ApplicationUiToolResult>("execute_application_ui_tool", {
     input: { applicationId, toolName, arguments: args },
   });
 }
 
 export async function getApplicationUiDocument(applicationId: string) {
-  if (!isTauri()) throw new Error("Web 预览模式暂不支持应用沙箱 UI");
   return invoke<ApplicationUiDocument>("get_application_ui_document", {
     input: { applicationId },
   });

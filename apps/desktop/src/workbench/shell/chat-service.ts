@@ -2,10 +2,11 @@ import { createDesktopChatService } from "@/chat/desktop";
 import type { DesktopSessionInput } from "@/chat/desktop";
 import { loadStoryById } from "@/workbench/pages/stories/storage";
 import { prepareStoryChatProfile } from "@/workbench/pages/stories/story/actions/assistant/resources";
-import { listApplications } from "@/api/applications";
+import { listApplications, type ApplicationPermission } from "@/api/applications";
 import { createApplicationChatHost } from "@/chat/desktop/application";
 import { listApplicationTools } from "@/api/applications/tools";
-import { resolveApplicationChatWorkspace } from "./application-chat-workspace";
+import { createApplicationDataClient, ApplicationDataError } from "@isle/app-sdk/data";
+import { createBackendApplicationDataTransport } from "@/api/applications/data";
 
 // Owned by the application. Resolvers return scene configuration; the service owns sessions.
 export const chatService = createDesktopChatService({
@@ -27,6 +28,22 @@ export const chatService = createDesktopChatService({
     throw new Error("聊天场景不可用");
   },
 });
+
+/** Resolve a directory for Chat without enrolling it in the desktop workspace registry. */
+async function resolveApplicationChatWorkspace(
+  application: { id: string; permissions: ApplicationPermission[] },
+  workspaceId: string,
+): Promise<string> {
+  if (!application.permissions.includes("application-workspaces")) {
+    throw new ApplicationDataError("PERMISSION_DENIED", "应用未声明 application-workspaces 权限");
+  }
+  const transport = createBackendApplicationDataTransport(application.id);
+  try {
+    return (await createApplicationDataClient(transport).workspaces.get(workspaceId)).path;
+  } finally {
+    transport.dispose();
+  }
+}
 
 async function requireApplication(applicationId: string) {
   const applications = await listApplications();

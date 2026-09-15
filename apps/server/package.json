@@ -1,0 +1,32 @@
+{
+  "name": "@isle/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "node dist/cli.js",
+    "dev": "pnpm build && node dist/cli.js",
+    "test": "pnpm build && node scripts/test.mjs",
+    "test:runtime": "pnpm build && node --test test/integration/runtime.e2e.mjs",
+    "test:interop": "pnpm build && node scripts/test-interop.mjs"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "fs-native-extensions": "1.5.1",
+    "sqlite-vec": "0.1.9",
+    "yaml": "2.9.0",
+    "yauzl": "^3.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/yauzl": "^3.4.0",
+    "typescript": "~5.8.3"
+  },
+  "optionalDependencies": {
+    "fs-ext": "2.1.1"
+  }
+}

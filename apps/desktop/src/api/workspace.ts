@@ -1,4 +1,4 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { invoke } from "@/transport";
 
 export type Workspace = {
   id: string;
@@ -21,18 +21,10 @@ export type WorkspaceForm = {
 };
 
 export async function listWorkspaces() {
-  if (!isTauri()) {
-    return [];
-  }
-
   return invoke<Workspace[]>("list_workspaces");
 }
 
 export async function createWorkspace(input: WorkspaceForm) {
-  if (!isTauri()) {
-    throw new Error("Web 预览模式暂不支持创建工作区");
-  }
-
   return invoke<Workspace>("create_workspace", {
     input: {
       name: input.name,
@@ -44,10 +36,6 @@ export async function createWorkspace(input: WorkspaceForm) {
 }
 
 export async function updateWorkspace(workspaceId: string, input: WorkspaceForm) {
-  if (!isTauri()) {
-    throw new Error("Web 预览模式暂不支持保存工作区");
-  }
-
   return invoke<Workspace>("update_workspace", {
     input: {
       id: workspaceId,
@@ -60,10 +48,6 @@ export async function updateWorkspace(workspaceId: string, input: WorkspaceForm)
 }
 
 export async function deleteWorkspace(workspaceId: string) {
-  if (!isTauri()) {
-    throw new Error("Web 预览模式暂不支持删除工作区");
-  }
-
   return invoke<void>("delete_workspace", {
     input: {
       id: workspaceId,

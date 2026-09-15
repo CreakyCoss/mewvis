@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { openSystemDialog as openDialog } from "@/api/native";
 import { Download, FileArchive, Globe2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { getSkills, installSkillFromMarketplace } from "@/api/skills";

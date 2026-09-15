@@ -1,4 +1,3 @@
-import { isTauri } from "@tauri-apps/api/core";
 import { workspaceFile } from "@/utils/files";
 import { STORY_TAVERN_FILE, type StoryWorkspace } from "../../storage";
 import { createEmptyManualTavernRoom, type TavernRoomConfig } from "./model";
@@ -7,8 +6,6 @@ type StoryTavernOwner = {
   id: string;
   workspace: StoryWorkspace;
 };
-
-const createDesktopOnlyTavernStorageError = () => new Error("故事酒馆文件存储仅支持桌面环境。");
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -63,19 +60,11 @@ export const saveStoryTavernConfig = async (
   workspace: StoryWorkspace,
   config: TavernRoomConfig,
 ): Promise<TavernRoomConfig> => {
-  if (!isTauri()) {
-    throw createDesktopOnlyTavernStorageError();
-  }
-
   await workspaceFile(workspace.path, STORY_TAVERN_FILE).writeJson(config);
   return config;
 };
 
 export const loadStoryTavernConfig = async (item: StoryTavernOwner): Promise<TavernRoomConfig | null> => {
-  if (!isTauri()) {
-    throw createDesktopOnlyTavernStorageError();
-  }
-
   const parsed = await workspaceFile(item.workspace.path, STORY_TAVERN_FILE).readJson();
   return normalizeStoryTavernConfig(item, parsed);
 };

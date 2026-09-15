@@ -1,5 +1,4 @@
-import { isTauri } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { openSystemDialog as open } from "@/api/native";
 import {
   ArrowLeft,
   CircleAlert,
@@ -165,9 +164,7 @@ export const DetailPage = ({ collectionId }: DetailPageProps) => {
     setIsChoosingDirectory(true);
     setError("");
     try {
-      const selected = isTauri()
-        ? await open({ multiple: false, directory: true, title: "选择知识库目录" })
-        : "/Users/demo/Documents/updated-knowledge-base";
+      const selected = await open({ multiple: false, directory: true, title: "选择知识库目录" });
       if (typeof selected === "string") {
         setSettingsDraft((current) => ({ ...current, sourceDirectory: selected }));
       }

@@ -1,4 +1,7 @@
-import { connectNativeApplicationChat } from "./application-chat-native";
+import { openSystemDialog } from "@/api/native";
+import { confirmWorkspaceShare } from "./feedback";
+import { invoke, listen, backendKind } from "@/transport";
+import type { ApplicationChatRequest } from "@isle/app-sdk/chat";
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { toast } from "sonner";
@@ -7,7 +10,159 @@ import { DesktopChatEnvironment } from "@/chat/desktop/react";
 import { isChatBusy, sessionKey, type ChatSession } from "@/chat/core";
 import { useWorkspaceStore } from "@/workbench/pages/chats/workspace-store";
 import { useWorkspaceFileStore } from "@/workbench/pages/chats/workspace-files";
-import { chatService } from "./chat-service";
+import { applicationChatHost, chatService } from "./chat-service";
+
+type WorkspaceInteraction = {
+  requestId: string;
+  applicationId: string;
+  kind: string;
+  path?: string;
+  applications?: string[];
+};
+async function connectWorkspaceInteractions() {
+  if (backendKind() !== "node") return () => {};
+  const handled = new Set<string>();
+  const pending = new Set<AbortController>();
+  const unlisten = await listen<WorkspaceInteraction>("application-workspace:interaction", ({ payload }) => {
+    if (handled.has(payload.requestId)) return;
+    handled.add(payload.requestId);
+    if (handled.size > 1024) handled.delete(handled.values().next().value!);
+    // The server expires confirmations after 60 s; never leave a stale path chooser open.
+    void (async () => {
+      let value: string | null | boolean = null;
+      const controller = new AbortController();
+      pending.add(controller);
+      const timer = setTimeout(() => controller.abort(), 55_000);
+      try {
+        if (payload.kind === "pick-directory") {
+          const path = await openSystemDialog(
+            { directory: true, title: `${payload.applicationId}：选择工作区目录` },
+            controller.signal,
+          );
+          value = typeof path === "string" ? path : null;
+        } else if (payload.kind === "confirm-share") {
+          value = await confirmWorkspaceShare(
+            "共享工作区",
+            `应用 ${payload.applicationId} 请求共享工作区 ${payload.path}。已有应用：${payload.applications?.join("、") ?? ""}。是否允许？`,
+            controller.signal,
+          );
+        }
+      } finally {
+        clearTimeout(timer);
+        pending.delete(controller);
+      }
+      await invoke("answer_application_workspace_interaction", { input: { requestId: payload.requestId, value } });
+    })().catch((error) => toast.error(String(error)));
+  });
+  return () => {
+    unlisten();
+    pending.forEach((controller) => controller.abort());
+  };
+}
+
+type ApplicationChatBackendRequest = {
+  connectionId: string;
+  clientId: string;
+  applicationId: string;
+  tools: string[];
+  id: string;
+  request: ApplicationChatRequest;
+};
+
+let attachment: Promise<() => void> | undefined;
+let consumers = 0;
+async function connectBackendApplicationChat() {
+  consumers++;
+  const current = (attachment ??= (async () => {
+    const connections = new Map<string, ReturnType<typeof applicationChatHost.connect>>();
+    let active = true;
+    const unlisteners: (() => void)[] = [];
+    const dispose = () => {
+      active = false;
+      unlisteners.forEach((unlisten) => unlisten());
+      connections.forEach((connection) => connection.dispose());
+      connections.clear();
+    };
+    try {
+      unlisteners.push(await connectWorkspaceInteractions());
+      const post = (connectionId: string, message: unknown) =>
+        invoke("post_application_chat", { input: { connectionId, message } });
+      const unlisten = await listen<ApplicationChatBackendRequest>("application-chat:request", ({ payload }) => {
+        if (!active) return;
+        const { connectionId, clientId, applicationId, id, request, tools } = payload;
+        const key = JSON.stringify([connectionId, applicationId, clientId]);
+        let connection = connections.get(key);
+        if (!connection) {
+          connection = applicationChatHost.connect(applicationId, tools, (event) => {
+            void post(connectionId, { type: "application-chat:snapshot", applicationId, event }).catch(() => {});
+          });
+          connections.set(key, connection);
+        }
+        void connection
+          .request(request)
+          .then(
+            (result) => post(connectionId, { type: "application-chat:response", applicationId, id, result }),
+            (error) =>
+              post(connectionId, {
+                type: "application-chat:response",
+                applicationId,
+                id,
+                error: String(error?.message ?? error),
+              }),
+          )
+          .catch(() => {}); // Process restarts invalidate its connection id, never the host session.
+      });
+      unlisteners.push(unlisten);
+      const disconnect = await listen<string | { connectionId: string }>(
+        "application-chat:disconnect",
+        ({ payload }) => {
+          for (const [key, connection] of connections)
+            if (JSON.parse(key)[0] === (typeof payload === "string" ? payload : payload.connectionId)) {
+              connection.dispose();
+              connections.delete(key);
+            }
+        },
+      );
+      unlisteners.push(disconnect);
+      const revoke = await listen<string | { applicationId: string }>("application-chat:revoke", ({ payload }) => {
+        chatService.invalidateRecords();
+        void applicationChatHost
+          .revoke(typeof payload === "string" ? payload : payload.applicationId)
+          .then((results) => {
+            for (const result of results) if (!result.ok) toast.error(`应用会话关闭失败，可重试保存：${result.error}`);
+          })
+          .catch((error) => toast.error(String(error)))
+          .finally(() => chatService.invalidateRecords());
+      });
+      unlisteners.push(revoke);
+      return dispose;
+    } catch (error) {
+      dispose();
+      throw error;
+    }
+  })());
+  let detach: () => void;
+  try {
+    detach = await current;
+  } catch (error) {
+    consumers--;
+    if (attachment === current) attachment = undefined;
+    throw error;
+  }
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    consumers--;
+    queueMicrotask(() => {
+      if (!consumers && attachment === current) {
+        attachment = undefined;
+        detach();
+      }
+    });
+  };
+}
+
 export function AppChatIntegration({ children }: PropsWithChildren) {
   const fileState = useWorkspaceFileStore();
   const files = useCallback(
@@ -18,7 +173,7 @@ export function AppChatIntegration({ children }: PropsWithChildren) {
   useEffect(() => {
     let integrationDisposed = false;
     let disconnectApplications: (() => void) | undefined;
-    void connectNativeApplicationChat()
+    void connectBackendApplicationChat()
       .then((detach) => {
         if (integrationDisposed) detach();
         else disconnectApplications = detach;

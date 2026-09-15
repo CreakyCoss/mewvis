@@ -22,6 +22,10 @@
 ## Agent 运行时
 
 - [运行时概览](runtime/overview.md)
+- [Node 后端服务](runtime/server.md)
+  - [Server 配置接口](runtime/server-settings.md)
+  - [Server 工作区管理](runtime/server-workspaces.md)
+  - [Server 业务接口](runtime/server-interfaces.md)
 - [通信协议](runtime/protocol.md)
 - [模型思考等级](runtime/models.md)
 - [Pi 接入与子 Agent](runtime/pi.md)

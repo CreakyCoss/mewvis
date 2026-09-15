@@ -67,7 +67,10 @@
     "test:agent-runtime:access": "pnpm build:agent-runtime && node scripts/agent-runtime/access-e2e.mjs",
     "test:agent-runtime:shell": "node scripts/agent-runtime/shell-e2e.mjs",
     "test:agent-runtime:sandbox": "pnpm build:agent-runtime && node scripts/agent-runtime/sandbox-platform-e2e.mjs && node scripts/agent-runtime/sandbox-execution-e2e.mjs",
-    "test:agent-runtime:sandbox-platform": "node scripts/agent-runtime/sandbox-platform-e2e.mjs"
+    "test:agent-runtime:sandbox-platform": "node scripts/agent-runtime/sandbox-platform-e2e.mjs",
+    "dev:web": "pnpm sync-product-config && pnpm build:agent-runtime && node scripts/web/serve.mjs",
+    "start:web": "node scripts/web/serve.mjs --preview",
+    "test:web": "node --test scripts/web/*.test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sandbox-runtime": "0.0.75",

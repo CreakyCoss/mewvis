@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "@/transport";
 import type { ConfigDatabaseStatus, RebuildWorkspaceDatabaseOutput } from "@/workbench/shell/recovery/types";
 
 export function getConfigDatabaseStatus() {
@@ -18,11 +18,5 @@ export function rebuildWorkspaceDatabase(workspacePath: string) {
     input: {
       workspacePath,
     },
-  });
-}
-
-export function revealItemInDirectory(path: string) {
-  return invoke("plugin:opener|reveal_item_in_dir", {
-    paths: [path],
   });
 }

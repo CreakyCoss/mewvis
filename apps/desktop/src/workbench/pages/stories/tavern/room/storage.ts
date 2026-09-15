@@ -1,4 +1,3 @@
-import { isTauri } from "@tauri-apps/api/core";
 import { deleteWorkspaceFile, writeWorkspaceFile } from "@/api/workspace-files";
 import type { TavernMessage } from "./model/message";
 import { workspaceFile } from "@/utils/files";
@@ -40,7 +39,7 @@ const deleteWorkspaceFileIfExists = async (workspacePath: string, relativePath: 
 };
 
 const ensureTavernRoomDirectory = async (workspacePath: string) => {
-  if (!workspacePath.trim() || !isTauri()) {
+  if (!workspacePath.trim()) {
     return;
   }
 
@@ -63,7 +62,7 @@ const ensureTavernRoomDirectory = async (workspacePath: string) => {
 };
 
 export const loadTavernRoom = async (workspacePath: string): Promise<TavernRoomFiles | null> => {
-  if (!workspacePath.trim() || !isTauri()) {
+  if (!workspacePath.trim()) {
     return null;
   }
 
@@ -76,7 +75,7 @@ export const loadTavernRoom = async (workspacePath: string): Promise<TavernRoomF
 };
 
 export const saveTavernRoom = async (workspacePath: string, messages: TavernMessage[]) => {
-  if (!workspacePath.trim() || !isTauri()) {
+  if (!workspacePath.trim()) {
     return;
   }
 
@@ -85,7 +84,7 @@ export const saveTavernRoom = async (workspacePath: string, messages: TavernMess
 };
 
 export const deleteTavernRoom = async (workspacePath: string) => {
-  if (!workspacePath.trim() || !isTauri()) {
+  if (!workspacePath.trim()) {
     return;
   }
 

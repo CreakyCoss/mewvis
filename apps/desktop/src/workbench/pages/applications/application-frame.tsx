@@ -1,13 +1,26 @@
 import { applicationChatHost } from "@/workbench/shell/chat-service";
 import type { ApplicationChatRequest } from "@isle/app-sdk/chat";
 import type { ApplicationDataRequest } from "@isle/app-sdk/data";
-import { createDesktopApplicationDataTransport } from "@/api/applications/data";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { createBackendApplicationDataTransport } from "@/api/applications/data";
+import { isTauri } from "@tauri-apps/api/core";
+import { openUrl as nativeOpenUrl } from "@tauri-apps/plugin-opener";
 import { AlertTriangle, Loader2, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { executeApplicationUiTool, getApplicationUiDocument, type ApplicationUiDocument, type ApplicationUiApplication } from "@/api/applications";
+import {
+  executeApplicationUiTool,
+  getApplicationUiDocument,
+  type ApplicationUiDocument,
+  type ApplicationUiApplication,
+} from "@/api/applications";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+
+async function openUrl(url: string) {
+  if (isTauri()) return nativeOpenUrl(url);
+  const parsed = new URL(url);
+  if (!["https:", "http:", "mailto:"].includes(parsed.protocol)) throw new Error("不支持此链接类型");
+  window.open(parsed.href, "_blank", "noopener,noreferrer");
+}
 
 const CHANNEL = "isle-app-ui-v1";
 const MAX_ARGUMENT_BYTES = 256 * 1024;
@@ -200,7 +213,7 @@ export const ApplicationFrame = ({
     );
     const chatRequests = new Set<string>();
     const dataRequests = new Set<string>();
-    const data = createDesktopApplicationDataTransport(application.id);
+    const data = createBackendApplicationDataTransport(application.id);
     let connected = true;
     const theme = () => (document.documentElement.classList.contains("dark") ? "dark" : "light");
     const initialize = () =>
@@ -396,7 +409,8 @@ export const ApplicationFrame = ({
     );
   }
 
-  const full = application.ui?.kind === "sandbox" && (application.ui.layout === "full" || application.ui.layout === "fullscreen");
+  const full =
+    application.ui?.kind === "sandbox" && (application.ui.layout === "full" || application.ui.layout === "fullscreen");
   const frame = (
     <div className={full ? "relative h-full min-h-0" : "relative min-h-[520px]"}>
       {!isFrameReady ? (

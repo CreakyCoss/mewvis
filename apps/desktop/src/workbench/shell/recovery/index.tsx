@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Database, FolderOpen, Loader2, Trash2 } from "lucide-react";
 import { isTauri } from "@tauri-apps/api/core";
-import { getConfigDatabaseStatus, rebuildConfigDatabase, revealItemInDirectory } from "@/api/recovery";
+import { getConfigDatabaseStatus, rebuildConfigDatabase } from "@/api/recovery";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -19,24 +20,19 @@ type ConfigDatabaseDialogProps = {
 };
 
 export const ConfigDatabaseDialog = ({ onRecovered }: ConfigDatabaseDialogProps) => {
-  const shouldCheckConfigDatabase = isTauri();
   const [status, setStatus] = useState<ConfigDatabaseStatus | null>(null);
   const [statusLoadError, setStatusLoadError] = useState("");
   const [actionError, setActionError] = useState("");
   const [isRebuilding, setIsRebuilding] = useState(false);
 
   const loadStatus = useCallback(async () => {
-    if (!shouldCheckConfigDatabase) {
-      return;
-    }
-
     try {
       setStatusLoadError("");
       setStatus(await getConfigDatabaseStatus());
     } catch (caught) {
       setStatusLoadError(String(caught));
     }
-  }, [shouldCheckConfigDatabase]);
+  }, []);
 
   useEffect(() => {
     void loadStatus();
@@ -49,7 +45,8 @@ export const ConfigDatabaseDialog = ({ onRecovered }: ConfigDatabaseDialogProps)
 
     try {
       setActionError("");
-      await revealItemInDirectory(status.configDbPath);
+      if (isTauri()) await revealItemInDir(status.configDbPath);
+      else await navigator.clipboard.writeText(status.configDbPath);
     } catch (caught) {
       setActionError(String(caught));
     }
@@ -72,7 +69,7 @@ export const ConfigDatabaseDialog = ({ onRecovered }: ConfigDatabaseDialogProps)
     }
   };
 
-  const setupError = shouldCheckConfigDatabase ? (status?.setupError ?? statusLoadError) : "";
+  const setupError = statusLoadError || status?.setupError || "";
   const rebuildWarnings = status?.lastRebuild?.warnings ?? [];
   const shouldShowRecoveredWarnings = !setupError && rebuildWarnings.length > 0;
   const isOpen = Boolean(setupError) || shouldShowRecoveredWarnings;
@@ -96,10 +93,14 @@ export const ConfigDatabaseDialog = ({ onRecovered }: ConfigDatabaseDialogProps)
           >
             <Database className="size-8" />
           </AlertDialogMedia>
-          <AlertDialogTitle>{setupError ? "配置数据库需要重建" : "配置数据库已重建"}</AlertDialogTitle>
+          <AlertDialogTitle>
+            {statusLoadError ? "无法连接后端服务" : setupError ? "配置数据库需要重建" : "配置数据库已重建"}
+          </AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div className="space-y-3 text-left">
-              {setupError ? (
+              {statusLoadError ? (
+                <p>请检查服务是否已启动，再重试连接。</p>
+              ) : setupError ? (
                 <p>
                   当前配置数据库结构无法继续使用。重建时会先读取旧库数据，字段名称与新结构一致的表会自动写回新数据库。
                 </p>
@@ -137,9 +138,11 @@ export const ConfigDatabaseDialog = ({ onRecovered }: ConfigDatabaseDialogProps)
         <AlertDialogFooter>
           <Button type="button" variant="outline" disabled={!status?.configDbPath} onClick={handleReveal}>
             <FolderOpen className="size-4" />
-            <span>打开位置</span>
+            <span>{isTauri() ? "打开位置" : "复制路径"}</span>
           </Button>
-          {setupError ? (
+          {statusLoadError ? (
+            <Button onClick={() => window.location.reload()}>重试连接</Button>
+          ) : setupError ? (
             <Button
               type="button"
               variant="destructive"

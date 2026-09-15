@@ -1,5 +1,4 @@
-import { isTauri } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { openSystemDialog as open } from "@/api/native";
 import { FolderOpen, Loader2, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
@@ -58,9 +57,7 @@ export const CreateDialog = ({ open: isOpen, embeddingProfiles, onOpenChange, on
     setIsChoosingDirectory(true);
     setError("");
     try {
-      const selected = isTauri()
-        ? await open({ multiple: false, directory: true, title: "选择知识库目录" })
-        : "/Users/demo/Documents/new-knowledge-base";
+      const selected = await open({ multiple: false, directory: true, title: "选择知识库目录" });
       const path = typeof selected === "string" ? selected : null;
       if (!path) return;
       setDraft((current) => ({

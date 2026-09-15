@@ -1,4 +1,4 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { invoke } from "@/transport";
 import {
   buildRuntimeModelInputs,
   buildRuntimeModelOptions,
@@ -27,7 +27,7 @@ const loadSettings = ({ refresh = false }: LoadOptions = {}): Promise<LlmSetting
   const readingRevision = revision;
   cachedSettings = undefined;
   const request = Promise.resolve()
-    .then(() => (isTauri() ? invoke<LlmSettings>("get_llm_settings") : { providers: [] }))
+    .then(() => invoke<LlmSettings>("get_llm_settings"))
     .then(
       (settings) => {
         if (revision !== readingRevision) return loadSettings();
@@ -55,7 +55,7 @@ export const saveLlmSettings = (input: LlmSettingsConfig) => {
   revision++;
   pendingRead = undefined;
   const request = saveQueue
-    .then(() => (isTauri() ? invoke<LlmSettings>("save_llm_settings", { input: submitted }) : { providers: [] }))
+    .then(() => invoke<LlmSettings>("save_llm_settings", { input: submitted }))
     .then((settings) => {
       cachedSettings = structuredClone(settings);
       return cachedSettings;

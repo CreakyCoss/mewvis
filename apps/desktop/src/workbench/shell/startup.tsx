@@ -1,5 +1,4 @@
 import { type ReactNode, useEffect, useState } from "react";
-import { isTauri } from "@tauri-apps/api/core";
 import { initializeConfigDatabase } from "@/api/recovery";
 import { APP_DISPLAY_NAME } from "@/product-config";
 
@@ -83,13 +82,6 @@ export const StartupGate = ({ children }: StartupGateProps) => {
 
         await wait(Math.max(STARTUP_PREVIEW_DURATION_MS - STARTUP_PREVIEW_COMPLETE_DELAY_MS, 0));
 
-        if (!isCancelled) {
-          setIsReady(true);
-        }
-        return;
-      }
-
-      if (!isTauri()) {
         if (!isCancelled) {
           setIsReady(true);
         }

@@ -49,13 +49,13 @@ import type {
   AgentClientTasks,
 } from "../runtime";
 
-class TauriAgentClientCapabilities implements AgentClientCapabilities {
+class BackendAgentClientCapabilities implements AgentClientCapabilities {
   async listAgentTools(input: EmptyParams = {}): Promise<AgentClientAgentToolsResult> {
     return listAgentRuntimeTools(input);
   }
 }
 
-class TauriAgentClientAgent implements AgentClientAgent {
+class BackendAgentClientAgent implements AgentClientAgent {
   async chat(input: AgentClientChatInput): Promise<AgentClientChatResult> {
     const shouldStream = input.stream ?? true;
     const hasOutputHandlers = Boolean(input.onTextDelta || input.onThinkingDelta);
@@ -99,14 +99,14 @@ class TauriAgentClientAgent implements AgentClientAgent {
   }
 }
 
-class TauriAgentClientSessionDebug implements AgentClientSessionDebug {
+class BackendAgentClientSessionDebug implements AgentClientSessionDebug {
   async read(input: RuntimeSessionDebugParams): Promise<RuntimeSessionDebugResult> {
     return getAgentRuntimeSessionDebug(input);
   }
 }
 
-class TauriAgentClientSession implements AgentClientSession {
-  readonly debug: AgentClientSessionDebug = new TauriAgentClientSessionDebug();
+class BackendAgentClientSession implements AgentClientSession {
+  readonly debug: AgentClientSessionDebug = new BackendAgentClientSessionDebug();
 
   async list(input: AgentClientListRuntimeSessionsInput): Promise<RuntimeSessionsResult> {
     return listAgentRuntimeSessions(input);
@@ -117,7 +117,7 @@ class TauriAgentClientSession implements AgentClientSession {
   }
 }
 
-class TauriAgentClientCollaboration implements AgentClientCollaboration {
+class BackendAgentClientCollaboration implements AgentClientCollaboration {
   async run(input: CollaborationRunParams): Promise<AgentClientAgentTask> {
     const result = await runAgentRuntimeCollaboration(input);
 
@@ -139,13 +139,13 @@ class TauriAgentClientCollaboration implements AgentClientCollaboration {
   }
 }
 
-class TauriAgentClientEvents implements AgentClientEvents {
+class BackendAgentClientEvents implements AgentClientEvents {
   async subscribe(listener: (event: AgentClientAgentEvent) => void) {
     return listenAgentRuntimeAgentEvents(listener);
   }
 }
 
-class TauriAgentClientTasks implements AgentClientTasks {
+class BackendAgentClientTasks implements AgentClientTasks {
   async answerApproval(input: AnswerApprovalParams): Promise<void> {
     await answerAgentRuntimeApproval(input);
   }
@@ -159,13 +159,13 @@ class TauriAgentClientTasks implements AgentClientTasks {
   }
 }
 
-class TauriAgentClient implements AgentClient {
-  readonly capabilities: AgentClientCapabilities = new TauriAgentClientCapabilities();
-  readonly agent: AgentClientAgent = new TauriAgentClientAgent();
-  readonly session: AgentClientSession = new TauriAgentClientSession();
-  readonly collaboration: AgentClientCollaboration = new TauriAgentClientCollaboration();
-  readonly events: AgentClientEvents = new TauriAgentClientEvents();
-  readonly tasks: AgentClientTasks = new TauriAgentClientTasks();
+class BackendAgentClient implements AgentClient {
+  readonly capabilities: AgentClientCapabilities = new BackendAgentClientCapabilities();
+  readonly agent: AgentClientAgent = new BackendAgentClientAgent();
+  readonly session: AgentClientSession = new BackendAgentClientSession();
+  readonly collaboration: AgentClientCollaboration = new BackendAgentClientCollaboration();
+  readonly events: AgentClientEvents = new BackendAgentClientEvents();
+  readonly tasks: AgentClientTasks = new BackendAgentClientTasks();
 }
 
-export const createTauriAgentClient = (): AgentClient => new TauriAgentClient();
+export const createBackendAgentClient = (): AgentClient => new BackendAgentClient();

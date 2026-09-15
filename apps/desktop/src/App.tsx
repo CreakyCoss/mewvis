@@ -1,8 +1,6 @@
 import Workbench from "@/workbench";
 import "./App.css";
 
-const App = () => {
-  return <Workbench />;
-};
+const App = () => <Workbench />;
 
 export default App;

@@ -1,0 +1,302 @@
+# Node 后端服务
+
+独立运行的 Node 后端，已覆盖 `apps/desktop/src-tauri/src/lib.rs` 注册的全部 104 个命令，包括 Agent、配置、工作区、文件、聊天、酒馆、Git、技能、知识库、应用与数据库维护。前端共用命令传输层：桌面继续连接 Rust，浏览器连接 Node。完整范围与宿主交互适配见 [Server 业务接口](server-interfaces.md)。
+
+```text
+HTTP 命令 / SSE 事件
+        ↓
+CommandRegistry              按名称分发全部后端命令
+        ├─ AgentRuntimeHost → AgentRuntimeSupervisor → stdio Runtime
+        ├─ 业务 Service → Repository / 文件系统 / Git / SQLite
+        └─ Applications → Node ApplicationHost（按需托管的子进程）
+```
+
+## 目录分层
+
+按业务聚合，模块内就近放置服务、查询和类型。跨业务共用的数据库与系统工具单独保留，避免一个功能同时散落在顶层 `services`、`repositories`、`domain` 下。
+
+```text
+apps/server/
+├── src/
+│   ├── cli.ts                 CLI 与信号处理
+│   ├── server.ts              startServer 公共入口
+│   ├── bootstrap/
+│   │   ├── services.ts        依赖组装、资源初始化与关闭
+│   │   └── commands.ts        104 个原命令及新增命令的显式注册
+│   ├── config/runtime.ts      运行参数、产品配置及原数据路径
+│   ├── modules/               按业务聚合
+│   │   ├── agent/             Agent 宿主、沙箱、runtime 进程管理
+│   │   ├── applications/      应用包、SDK 数据与 ApplicationHost
+│   │   ├── settings/          模型、Agent 配置、协作流程
+│   │   ├── workspaces/        工作区登记与默认工作区保护
+│   │   ├── knowledge/         知识配置、文档分块、Embedding、索引
+│   │   ├── files/             工作区文件与监听
+│   │   ├── chats/             聊天存档
+│   │   ├── tavern/            酒馆存档
+│   │   ├── stories/           故事登记
+│   │   ├── skills/            技能安装与分组
+│   │   ├── version-control/   Git 操作
+│   │   └── database-admin/    数据库维护接口
+│   ├── storage/               跨模块共用的原数据存储
+│   │   ├── config/            config.db 连接、schema、升级和默认记录
+│   │   ├── workspace.ts       workspace.db 及目录初始化
+│   │   ├── lease.ts           原 apps/.layout.lock 的持有与释放
+│   │   └── errors.ts          数据库错误转换
+│   ├── infrastructure/        文件路径/JSON/归档、文件锁、进程、网络、事件
+│   ├── transport/             HTTP/SSE、命令注册表与参数封装
+│   └── shared/                输入校验、记录 ID、会话 ID、串行执行
+├── test/
+│   ├── modules/               配置、工作区和存储测试
+│   ├── runtime/               Supervisor 与进程可靠性测试
+│   ├── transport/             HTTP/SSE 与关闭行为测试
+│   ├── integration/           完整接口、真实 Runtime、Rust 互操作测试
+│   └── support/               共享 helper 与 fixtures
+└── scripts/                   构建、依赖边界检查和测试入口
+```
+
+小模块先使用一个 `service.ts`。复杂模块再按职责增加文件，例如 `settings/` 就近放置 `llm-service.ts`、`llm-repository.ts` 和 `types.ts`；`knowledge/` 则将文档处理、Embedding 调用、索引编排和 `storage/` 分开。只有多个模块共用的存储才进入顶层 `storage/`；RAG 数据库属于知识库模块。
+
+`bootstrap/services.ts` 负责创建依赖和持有资源，即使初始化中途失败也能关闭已创建的对象。`bootstrap/commands.ts` 只注册命令，不打开数据库或启动 worker。`server.ts` 连接这两部分与 HTTP 生命周期，保留现有 `startServer()` 调用方式。
+
+依赖方向由构建时的 `scripts/check-boundaries.mjs` 检查：
+
+- `shared/` 不依赖其他层；`infrastructure/` 只依赖自身和通用工具。
+- `storage/` 可以使用系统工具，不能反向依赖业务模块或传输层。
+- 业务服务可以使用共用存储、系统工具和其他模块，不能依赖启动组装或 HTTP；模块中的 `commands.ts` 允许使用通用命令注册接口。
+- `bootstrap/` 统一完成组装；源码不允许循环依赖。
+
+构建会清理 Server 自己的 `dist/` 后重新编译，避免旧路径留下兼容空壳。测试入口递归收集 `*.test.mjs`；真实 Runtime 和 Rust 互操作测试使用显式命令运行。开发文档统一放在 `docs/runtime/`。
+
+## 启动
+
+需要 Node 22.13.0 或更高版本，版本控制接口另需系统 `git`；配置库存储使用内置 `node:sqlite`，知识索引加载与 Rust 一致的 sqlite-vec 0.1.9。macOS/Windows 文件锁使用预编译扩展；Linux 使用 `fs-ext` 的 `flock`，安装时需要 Python、C/C++ 编译工具和 make。缺少锁模块时启动会明确失败，不降级为无锁运行。版本要求对应 [Node SQLite 文档](https://nodejs.org/download/release/v22.13.1/docs/api/sqlite.html)。
+
+在仓库根目录执行：
+
+```sh
+pnpm install
+pnpm --filter desktop build:agent-runtime
+pnpm dev:server
+```
+
+默认监听 `http://127.0.0.1:1422`，启动时输出本次进程的 Bearer token。Server 自动按需启动 Runtime worker，无需手动启动第二个服务，也不需要启动 Tauri。
+
+构建和运行也可以分开：
+
+```sh
+pnpm build:server
+pnpm start:server
+```
+
+`GET /` 和 `GET /health` 返回服务信息。`dev:server` 只启动 API；执行一次编译后启动，修改服务源码后需要重启。
+
+### 启动 Web 页面
+
+```sh
+pnpm dev:web
+```
+
+此命令先构建 Server 和 Runtime，再同时启动 Node API（默认 1422）与 Vite 页面（默认 `http://127.0.0.1:1420`）。无需启动 Tauri 或手动管理 Runtime worker。按 Ctrl+C 同时关闭页面服务、Node 后端与其子进程。数据目录仍与桌面共用，启动前先退出桌面后端。
+
+构建后可以在本机运行页面：
+
+```sh
+pnpm build:web
+pnpm start:web
+```
+
+`start:web` 使用 Vite preview 托管已有页面产物，默认端口 4173，适合本机运行和验收；不是公网部署方案。两个入口均在服务端生成随机 token，经同源 `/api/` 代理加入 Bearer 鉴权，并先验证页面请求的 Host、Origin 和 Fetch Metadata。token 不放入 URL、浏览器配置或构建产物。`ISLE_SERVER_TOKEN` 仅适用于单独启动 API 的 CLI。
+
+`apps/desktop/src/transport/` 集中提供命令、HTTP 错误、SSE 订阅和连接状态；连接提示 UI 位于 `workbench/shell/feedback.tsx`，传输层不依赖 UI 组件。浏览器的模型、Agent、知识库、工作区、文件、聊天、故事、技能、应用及维护接口均读取真实 Node 数据；生产客户端不再使用 Web mock。Agent 共用 `backend-client.ts`，保留已有类型契约及模型配置缓存。
+
+事件先订阅再派发。临时断线使用 Last-Event-ID 重连、补发；文件监听按 watch ID 路由。服务重启或游标过期时明确提示用户保留未保存编辑并刷新，重新加载持久数据和建立文件/应用连接；当前不做活动任务的跨重启热接管，也不会自动重试写请求。
+
+`src/api/native.ts` 统一提供系统文件/目录选择接口：桌面使用 Tauri 原生选择器，Web 请求本机 Node 调用系统选择器并返回真实绝对路径。业务页面直接引用该接口，不自行判断运行环境。应用工作区交互监听是 `chat-integration.tsx` 的局部方法，通过 SSE 接收选择/确认请求，再回复一次性交互 ID；共享确认队列、弹窗和连接提示集中在 `workbench/shell/feedback.tsx`，由 `Workbench` 在 `StartupGate` 外挂载 `SystemFeedback`。打开外部链接、定位或复制数据库路径的逻辑留在各自调用点。数据库状态在两端均检查，服务不可达显示连接错误和重试入口，不误报为需要重建。
+
+Node 新增 `open_system_dialog`，接收 `{ input: { directory, multiple, title, defaultPath, filters } }`，返回绝对路径、多选路径数组或取消时的 `null`。选择发生在 **Node 服务所在电脑**：macOS 使用系统脚本选择器，Windows 使用 PowerShell 的系统对话框，Linux 使用 Zenity（单选可使用 KDialog）。Windows 目录多选暂不支持。无图形环境或缺少系统工具时明确报错，不回退到手输路径。一次只打开一个选择器；等待最多 5 分钟，请求中断或 Server 关闭会终止选择器子进程。应用工作区交互仍受原 60 秒回复期限约束。
+
+开发验证使用 `pnpm test:web`，临时目录覆盖真实 HTTP 代理、持久化、Agent 流及交互、文件监听、应用数据、SSE 补发与过期处理。
+
+| 环境变量                       | 用途                                              |
+| ------------------------------ | ------------------------------------------------- |
+| `ISLE_WEB_PORT`                | Web 页面端口，默认开发 1420、构建后运行 4173     |
+| `ISLE_SERVER_PORT`             | HTTP 端口，默认 1422；0 表示分配空闲端口          |
+| `ISLE_SERVER_TOKEN`            | 自定义 Bearer token，至少 24 字节；省略时随机生成 |
+| `ISLE_SERVER_DATA_DIR`         | 共用业务数据目录，默认 `~/.isle-claw`             |
+| `ISLE_SERVER_RUNTIME_DATA_DIR` | 覆盖 Tauri runtime 数据目录，通常无需设置         |
+| `ISLE_SERVER_RUNTIME_CLI`      | Runtime CLI 构建产物的绝对路径                    |
+| `AGENT_RUNTIME_PROFILE_ID`     | Runtime profile；`mock` 用于离线验证              |
+
+Server 仍从仓库中读取现有协议 schema、产品目录名和内置技能。它目前是仓库内可独立启动的服务，尚未制作脱离仓库的分发包。启动缺少 Runtime 构建时会明确报错。
+
+当前定位为本机单用户服务：仅监听 loopback，API 和事件订阅要求 Bearer token，校验 Host / Origin，不提供跨站 CORS 或多用户权限隔离。Web 启动入口提供同源代理，不能直接放开到公网。
+
+## 共用目录与后端切换
+
+默认直接使用原来的数据，不创建另一份 Server 用户目录：
+
+| 数据                                        | 默认位置                                                    |
+| ------------------------------------------- | ----------------------------------------------------------- |
+| 模型、Agent、工作区、故事、技能、知识库配置 | `~/.isle-claw/config.db`，schema v25                        |
+| 默认工作区                                  | `~/.isle-claw/default-workspace`                            |
+| 宿主技能                                    | `~/.isle-claw/skills`                                       |
+| 应用包、配置、SDK 数据、应用工作区          | `~/.isle-claw/apps/<应用命名空间>/`                         |
+| 应用目录锁                                  | `~/.isle-claw/apps/.layout.lock`                            |
+| 知识索引                                    | `~/.isle-claw/rag/index.sqlite`                             |
+| 工作区聊天、酒馆、Runtime 会话              | 原工作区内的 `.isle-claw/`                                  |
+| Agent runtime 持久目录、诊断日志            | Tauri 系统应用数据目录下的 `pi-agent/`、`agent-runtime.log` |
+
+Tauri 的系统应用数据目录与业务根目录不同：macOS 为 `~/Library/Application Support/com.isle-claw.desktop`；Windows 为 `%APPDATA%/com.isle-claw.desktop`；Linux 为 `${XDG_DATA_HOME:-~/.local/share}/com.isle-claw.desktop`。这些名称均来自现有产品配置。
+
+切换时先正常退出当前后端，再启动 Node 或 Rust。两者持有同一个 `.layout.lock`，第二个进程会明确提示数据正在使用。持久配置和会话文件直接继续使用；进行中的任务应先完成或取消，不支持热接管内存中的 worker、任务队列或审批状态。
+
+`ISLE_SERVER_DATA_DIR` 仍可用于临时测试或指定业务根目录；显式指定时，Runtime 数据也默认写入该根目录，避免测试触碰桌面真实数据。需要分别指定时使用 `ISLE_SERVER_RUNTIME_DATA_DIR`。常规切换不需要设置这两个变量。
+
+桌面使用 Tauri `invoke/listen`，浏览器使用 Node HTTP/SSE；选择集中在前端 `transport/index.ts`。当前不支持在仍持有数据锁的桌面进程中热切换后端。
+
+## HTTP 契约
+
+`POST /api/commands/<Tauri 命令名>` 接受原 `invoke(name, args)` 中的 `args`，成功时直接返回原命令结果；void 对应 JSON `null`。失败时返回非 2xx 状态与：
+
+```json
+{ "error": { "code": "INVALID_ARGUMENT", "message": "错误说明" } }
+```
+
+所有命令采用显式白名单，不提供任意 Runtime 方法或任意 shell 命令的 HTTP 转发入口。Agent 命令输入和 Runtime 输出使用现有 `apps/desktop/agent-runtime/protocol/v1/schema` 验证。配置与工作区命令由独立业务服务验证，详见 [Server 配置接口](server-settings.md)和 [Server 工作区管理](server-workspaces.md)。
+
+| 命令                                       | 行为                                   |
+| ------------------------------------------ | -------------------------------------- |
+| `list_agent_runtime_tools`                 | 独立短进程查询工具                     |
+| `run_agent_runtime_chat`                   | 独立短进程完成无状态聊天，可发送流事件 |
+| `run_agent_runtime_agent`                  | 提交 Agent 任务，立即返回 `{taskId}`   |
+| `run_agent_runtime_collaboration`          | 提交协作工作流                         |
+| `run_agent_runtime_collaboration_mode`     | 提交 Runtime 已注册的协作模式          |
+| `answer_agent_runtime_question`            | 将追问回答路由到活动任务               |
+| `answer_agent_runtime_approval`            | 将审批回答路由到活动任务               |
+| `abort_agent_runtime_agent`                | 取消排队任务或终止运行中的 worker      |
+| `read_agent_runtime_session`               | 读取会话账本                           |
+| `get_agent_runtime_session`                | 读取 Runtime 会话摘要                  |
+| `get_agent_runtime_session_debug`          | 读取账本与 trace 调试信息              |
+| `get_agent_runtime_collaboration_timeline` | 读取协作时间线                         |
+| `list_agent_runtime_sessions`              | 列出工作区数据目录内的 Runtime 会话    |
+| `summarize_agent_runtime_session`          | 会话摘要或 Agent 角色摘要              |
+| `release_agent_runtime_session`            | 停止会话的 worker 与队列，保留文件     |
+| `delete_agent_runtime_session`             | 先停止会话，再删除对应会话目录         |
+
+上表除 `abort_agent_runtime_agent` 使用 `{ "taskId": "..." }` 外，其余命令使用 `{ "input": {...} }`。工具列表也可以传 `{}`。协议语义仍由现有 Runtime 定义；使用持久化 Agent 会话时需要稳定的 `agentRoleId`。
+
+额外提供：
+
+- `GET /api/commands`：列出本版已实现的命令。
+- `GET /api/status`：worker 状态与任务快照，不包含提交时的模型配置、凭据和完整指令。
+- `GET /api/tasks/<taskId>`：单任务快照；等待用户输入时包含 `pendingInput`。
+- `GET /api/events`：SSE 事件流。
+
+示例：先以 mock profile 启动，避免调用真实模型。
+
+```sh
+AGENT_RUNTIME_PROFILE_ID=mock pnpm dev:server
+```
+
+在另一个终端设置启动时输出的 token，并使用真实存在的工作区绝对路径：
+
+```sh
+export ISLE_SERVER_TOKEN='<启动时输出的 Session token>'
+
+curl http://127.0.0.1:1422/api/commands/list_agent_runtime_tools \
+  -H "Authorization: Bearer $ISLE_SERVER_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"input":{}}'
+
+curl http://127.0.0.1:1422/api/commands/run_agent_runtime_agent \
+  -H "Authorization: Bearer $ISLE_SERVER_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"input":{"taskId":"demo-1","workspacePath":"/absolute/existing/workspace","sessionRootDir":"sessions/demo","agentRoleId":"assistant","userMessage":"你好"}}'
+```
+
+真实模型仍通过原接口的 `runtimeModel` 传入，由 Runtime 处理。配置 API 可持久化模型设置；任务提交时仍由调用方选择模型并构造 `runtimeModel`，未增加隐式模型选择，也不提供配置 UI。
+
+## Supervisor 行为
+
+保留 Tauri 的队列和进程边界，并收紧异常状态处理：
+
+- 普通 Agent 按工作区与会话 scope 复用 worker；同会话 FIFO，不同会话可同时执行。
+- 新 worker 先完成 `runtime/ping` 握手，默认 10 秒超时。握手成功前任务保留在宿主队列中，不发送执行命令；`starting` 表示仍在等待可用 Runtime。
+- 协作与协作模式继续使用各自的会话键，模式键包含 mode 名称。
+- 取消排队任务不会影响活动任务。取消活动任务会终止对应 Runtime 子进程，未执行的队列任务由新 worker 接手。
+- 崩溃或协议错误将活动任务标记失败，恢复尚未开始的任务；不自动重跑可能已经产生副作用的活动任务。
+- 只有确认旧 Runtime 主进程退出后才创建替代 worker。自动恢复默认最多 3 次，退避为 200 / 400 / 800 毫秒；后续成功完成一个任务会重置失败计数。连续启动失败不会把队列中的任务逐个派发到坏进程。
+- 恢复等待期间保留会话与队列，新请求返回 `409 SESSION_STOPPING`，不会插队或并行启动同一个 worker 键。释放会话或关闭 Server 会取消未执行的恢复计时器。
+- 心跳每 15 秒检查，等待阈值 10 秒，连续两次无响应标记不健康；活动任务和等待用户期间同样检测。
+- 空闲 180 秒后回收，每 5 秒检查；正常 pong 不延长业务空闲时间。
+- 空闲关闭先发送 `runtime/shutdown`，默认最多等待 500 毫秒后强制终止；取消、会话释放和不健康进程直接请求强制终止。停止等待的总期限默认 5 秒。
+- `exit` 表示主进程退出，`close` 还需要输出管道关闭。已收到 `exit` 后最多排空输出 250 毫秒，避免继承了 stdout 的后代进程把宿主永久拖住。使用单调时钟计算运行期时长，不受系统时间校准影响。
+- 停止超时仍未确认主进程退出时，返回 `WORKER_EXIT_UNCONFIRMED`，保留隔离状态与进程容量占位，失败的活动任务不会被重跑，队列停止恢复。此时禁止同一会话的新任务和文件删除；以后观察到真实退出才解除隔离。
+- 释放会话时取消其活动任务和队列，确认所有相关 worker 退出后才能删除文件。任一退出无法确认都会保留文件，不把“请求终止”当作“终止成功”。
+- Server 收到 SIGINT / SIGTERM 时停止接收新任务，关闭事件连接并清理 worker 和短进程请求。中断尚未上传完的 HTTP 请求，等待已经派发的异步业务操作收尾，再关闭共享配置库，避免工作区目录操作完成后访问已关闭的数据库。
+
+HTTP 断开和任务生命周期分离。关闭网页或 SSE 连接不会取消 Agent。显式取消必须调用取消接口。
+
+相对 `sessionRootDir` 仍解析到 `<workspace>/.isle-claw/<sessionRootDir>`，目录名读取现有产品配置。释放与删除检查数据目录边界和符号链接，禁止删除数据根目录。内置、宿主与工作区技能由 Node 宿主注入；宿主技能位于 `<ISLE_SERVER_DATA_DIR>/skills`。
+
+默认最多 32 个 Runtime 进程（包含短请求），每个会话最多 128 个排队任务。通过编程接口 `startServer({token, runtime: {...}})` 可调整进程、队列、心跳和超时参数。
+
+生命周期控制同样覆盖短进程 RPC：请求超时、服务关闭、启动失败和输出管道不关闭都有对应处理。这里确认的是直接托管的 Runtime 进程；不会把关闭输出管道当成已清理所有工具后代进程，也不承诺终止任意自行脱离的进程树。这部分仍需结合 Runtime 的执行沙箱逐平台处理。
+
+## 宿主诊断日志
+
+日志继续写入 Tauri runtime 数据目录中的 `agent-runtime.log`。原 Rust 日志保留，Node 追加 JSON 行，继续使用有界队列和脱敏字段。`GET /api/status` 中的 `diagnostics` 返回当前文件路径、写入失败标记、丢弃条数和排队字节数。
+
+- 记录 worker 创建、就绪、停止、退出、心跳失败、恢复次数与任务状态，以及短 RPC 的耗时、退出码和 stderr 字节数。
+- 只序列化明确允许的字段，不记录完整命令、模型配置、提示词、凭据、绝对工作区路径或原始 stderr。任务和会话身份使用本次进程的加盐摘要关联。
+- 原始 stderr 仍可通过受认证的任务事件实时查看；它不进入持久诊断文件。Runtime 自己的会话 trace 不受此策略影响。
+- 异步串行写入，默认队列上限 256 KiB；拥塞时丢弃额外诊断记录，不阻塞 Agent 或无限积压。
+- 每个文件默认最多 2 MiB，最多保留当前日志以及 `.1`、`.2` 两个轮转文件。启动时计入已有日志大小，不清空原文件。
+- 新建日志目录和文件权限分别为 0700 / 0600（按平台文件权限支持生效）。写盘失败时停止日志写入并报告状态，不使 Agent 执行失败。关闭时最多额外等待 1 秒刷新日志。
+
+参数分别为 `diagnosticMaxBytes`、`diagnosticQueueBytes` 和 `diagnosticFlushTimeoutMs`；生命周期参数为 `startupTimeoutMs`、`shutdownGraceMs`、`stopTimeoutMs`、`outputDrainTimeoutMs`、`restartBackoffMs` 与 `maxRecoveryAttempts`。
+
+## 事件与恢复
+
+SSE 事件保留 Tauri 的名称和 payload：
+
+```text
+event: agent_runtime_agent_event
+data: {"taskId":"demo-1","event":{"type":"text_delta","delta":"你好"}}
+
+event: agent_runtime_chat_event
+data: {"streamId":"chat-1","event":{"type":"text_delta","delta":"你好"}}
+```
+
+每条事件有 SSE `id`。浏览器需要使用支持 Authorization header 的 `fetch` 流读取方式；原生 `EventSource` 不能直接设置该 header，服务不接受 URL query token。
+
+```sh
+curl -N http://127.0.0.1:1422/api/events \
+  -H "Authorization: Bearer $ISLE_SERVER_TOKEN"
+```
+
+建议先订阅，再提交任务。重连时使用 `Last-Event-ID` 补发缓存中的事件。缓存最多 1024 条、8 MiB，游标包含进程 epoch；缓存过期或 Server 重启时返回 `409 EVENT_CURSOR_EXPIRED`。此时先建立不带旧游标的新订阅，再查询任务快照恢复显示状态，避免在查询和订阅之间遗漏事件。
+
+任务状态保留全部活动任务及最近最多 512 个终态任务。任务快照和事件缓存都在内存中，Server 重启不会恢复运行中的任务或审批；Runtime 会话文件仍按原逻辑持久化。第一版不承诺持久化任务调度或完整事件重放。
+
+请求上限 1 MiB，响应与 Runtime 单行输出上限 16 MiB。SSE 慢消费者达到缓冲阈值时断开，随后可按游标重连，避免拖住 worker 或持续占用内存。
+
+## 本版边界
+
+- 全部 104 个 Tauri 注册命令已提供 Node 实现。新增 `answer_application_workspace_interaction` 接口，用于回复桌面弹窗替代事件；命令发现接口共返回 105 个命令。
+- `applicationId` 由应用登记与权限声明解析，只注入所属应用；应用必须启用并声明 `chat`。客户端不能直接注入 `resources.applications` 或 `agentAccess`。
+- 配置、应用数据、知识索引及 Runtime 持久数据直接复用 Rust 原目录、命名与格式。切换后端无需导入或搬动历史数据；活动进程与内存中的排队任务不跨后端接管。
+- Tauri Channel 文件监听及原生目录选择/共享确认已改为 SSE 和宿主回复接口，详见 [交互适配](server-interfaces.md#宿主交互适配)。Web 前端已接入这些事件。
+- Tauri Supervisor、Runtime SDK/CLI 和桌面打包路径保持原样；Web 已接入真实服务，尚未制作脱离仓库的分发包。
+
+## 验证
+
+```sh
+pnpm test:server
+pnpm test:server:runtime
+pnpm test:server:interop
+```
+
+前者还核对全部 Tauri 注册命令覆盖，使用真实 Git 临时仓库、真实 Node ApplicationHost、临时文件/数据库及本地 Embedding HTTP fixture 验证新业务。沙箱安装使用控制程序 fixture，不在测试中安装用户沙箱；技能 ZIP 安装使用离线包，公开市场下载不作为离线测试依赖。基础进程测试使用真实子进程 fixture 验证排队、取消、追问、审批、崩溃、错误输出、心跳、空闲回收、关闭清理、HTTP 与 SSE，并使用临时 SQLite 验证配置接口、持久化、回滚、锁冲突和 schema 边界。后者使用现有 Runtime 构建和 mock profile，通过 HTTP 验证 Agent、协作、聊天、会话读取、摘要、释放与删除；不消耗模型额度。缺少 Runtime 构建时测试失败并提示构建，不静默跳过。
+
+`test:server:interop` 需要 Rust 工具链，会直接编译现有 Rust 配置 schema、迁移和 vector store 源码到测试辅助程序。测试在临时目录中验证 Rust → Node HTTP → Rust 的配置读写、同一 sqlite-vec 索引的双向搜索、原文件锁互斥及崩溃释放，以及原应用目录和旧版目录升级。辅助程序仅用于测试，启动 Node Server 不需要 Rust 服务或 Rust 编译器。常规测试另外核对全部配置/RAG 表定义，以及 v3–v25 历史库升级和回滚。

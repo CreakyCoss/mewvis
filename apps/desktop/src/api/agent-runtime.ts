@@ -1,5 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@/transport";
+import { listen } from "@/transport";
 import type {
   AgentRuntimeTauriAgentInput,
   AgentRuntimeTauriChatInput,

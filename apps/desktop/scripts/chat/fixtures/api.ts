@@ -34,6 +34,7 @@ export const fake = {
 };
 export const isTauri = () => true;
 export async function invoke(command: string, args?: { input: any }) {
+  if (command === "release_agent_runtime_session") return;
   if (command === "get_llm_settings") {
     fake.llmReads++;
     return fake.readLlm ? fake.readLlm() : structuredClone(fake.llmSettings);

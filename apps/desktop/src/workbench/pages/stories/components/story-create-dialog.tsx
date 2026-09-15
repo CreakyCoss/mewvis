@@ -1,6 +1,6 @@
 import type { FormEvent, Ref } from "react";
 import { useImperativeHandle, useState } from "react";
-import { open as openDirectoryDialog } from "@tauri-apps/plugin-dialog";
+import { openSystemDialog as openDirectoryDialog } from "@/api/native";
 import { FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";

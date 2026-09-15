@@ -1,4 +1,4 @@
-import { open as openDirectoryDialog } from "@tauri-apps/plugin-dialog";
+import { openSystemDialog as openDirectoryDialog } from "@/api/native";
 import { BookOpen, FolderInput, Loader2, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";

@@ -4,6 +4,11 @@
   "private": true,
   "packageManager": "pnpm@8.15.9",
   "scripts": {
+    "dev:server": "pnpm --filter @isle/server dev",
+    "build:server": "pnpm --filter @isle/server build",
+    "start:server": "pnpm --filter @isle/server start",
+    "test:server": "pnpm --filter @isle/server test",
+    "test:server:runtime": "pnpm --filter @isle/server test:runtime",
     "docs:check": "node apps/desktop/scripts/docs/book.mjs --check",
     "docs:build": "node apps/desktop/scripts/docs/book.mjs",
     "docs:test": "pnpm docs:build && node --test apps/desktop/scripts/docs/book.test.mjs && pnpm --filter desktop build:app-host && node apps/desktop/scripts/docs/reader-e2e.mjs",
@@ -21,6 +26,11 @@
     "format:desktop:check": "pnpm --filter desktop format:check",
     "init:config-db": "pnpm --filter desktop init:config-db",
     "rebuild:config-db": "pnpm --filter desktop rebuild:config-db",
-    "init:config-db:rebuild-on-error": "pnpm --filter desktop init:config-db:rebuild-on-error"
+    "init:config-db:rebuild-on-error": "pnpm --filter desktop init:config-db:rebuild-on-error",
+    "test:server:interop": "pnpm --filter @isle/server test:interop",
+    "dev:web": "pnpm build:server && pnpm --filter desktop dev:web",
+    "build:web": "pnpm build:server && pnpm --filter desktop build",
+    "start:web": "pnpm --filter desktop start:web",
+    "test:web": "pnpm build:web && pnpm --filter desktop test:web"
   }
 }

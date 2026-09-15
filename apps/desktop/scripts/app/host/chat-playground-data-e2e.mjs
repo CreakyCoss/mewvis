@@ -106,7 +106,7 @@ try {
   await build({
     stdin: {
       contents: `export { chatService, applicationChatHost } from "./src/workbench/shell/chat-service";
-        export { createDesktopApplicationDataTransport } from "./src/api/applications/data";
+        export { createBackendApplicationDataTransport } from "./src/api/applications/data";
         export { createPlaygroundPreferences } from "./applications/builtins/chat-playground/main/preferences";
         export * as nativeFixture from "./scripts/chat/fixtures/api";`,
       resolveDir: desktop,
@@ -162,7 +162,7 @@ try {
     });
   };
   await load(1);
-  const transport = bundle.createDesktopApplicationDataTransport(applicationId);
+  const transport = bundle.createBackendApplicationDataTransport(applicationId);
   const data = createApplicationDataClient(transport);
   let preferences = bundle.createPlaygroundPreferences(data.storage);
   await preferences.load();
@@ -252,7 +252,7 @@ try {
 
   // Reconstruct the application service and application state from persisted records.
   await load(2);
-  const nextTransport = bundle.createDesktopApplicationDataTransport(applicationId);
+  const nextTransport = bundle.createBackendApplicationDataTransport(applicationId);
   const nextData = createApplicationDataClient(nextTransport);
   preferences = bundle.createPlaygroundPreferences(nextData.storage);
   await preferences.load();

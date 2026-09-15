@@ -35,16 +35,17 @@ try {
     async invoke(method, args) {
       invoked.push({ method, args });
       if (method === "connect_application_data") {
-        if (args.applicationId === "denied") throw { ok: false, error: { code: "PERMISSION_DENIED", message: "denied" } };
+        if (args.applicationId === "denied")
+          throw { ok: false, error: { code: "PERMISSION_DENIED", message: "denied" } };
         return `binding:${args.applicationId}`;
       }
       if (method === "request_application_data") return { ok: true, value: args.connection };
       return null;
     },
   };
-  const { createDesktopApplicationDataTransport } = await import(pathToFileURL(desktopApi));
-  const desktop = createDesktopApplicationDataTransport("one");
-  const another = createDesktopApplicationDataTransport("two");
+  const { createBackendApplicationDataTransport } = await import(pathToFileURL(desktopApi));
+  const desktop = createBackendApplicationDataTransport("one");
+  const another = createBackendApplicationDataTransport("two");
   const client = createApplicationDataClient(desktop);
   assert.deepEqual(await Promise.all([client.storage.getItem("a"), client.storage.getItem("b")]), [
     "binding:one",
@@ -52,7 +53,7 @@ try {
   ]);
   assert.equal(invoked.filter(({ method }) => method === "connect_application_data").length, 1);
   assert.equal(await createApplicationDataClient(another).storage.getItem("a"), "binding:two");
-  await assert.rejects(createApplicationDataClient(createDesktopApplicationDataTransport("denied")).storage.keys(), {
+  await assert.rejects(createApplicationDataClient(createBackendApplicationDataTransport("denied")).storage.keys(), {
     code: "PERMISSION_DENIED",
   });
   desktop.dispose();
@@ -62,8 +63,8 @@ try {
     invoked.some(({ method, args }) => method === "disconnect_application_data" && args.connection === "binding:one"),
   );
   globalThis.__dataTauri.enabled = false;
-  await assert.rejects(createApplicationDataClient(createDesktopApplicationDataTransport("preview")).storage.keys(), {
-    code: "CAPABILITY_UNAVAILABLE",
+  await assert.rejects(createApplicationDataClient(createBackendApplicationDataTransport("offline")).storage.keys(), {
+    code: "TRANSPORT_ERROR",
   });
 
   // Execute the actual injected iframe script and reject forged host messages.
@@ -118,7 +119,9 @@ try {
     data: { ...result, id: sent.at(-1).id, result: { ok: true, value: [workspace] } },
   });
   assert.deepEqual(await listing, [workspace]);
-  console.log("PASS desktop binding lifecycle, preview denial, iframe protocol and forged response rejection");
+  console.log(
+    "PASS desktop binding lifecycle, offline transport errors, iframe protocol and forged response rejection",
+  );
 } finally {
   delete globalThis.__dataTauri;
   rmSync(temp, { recursive: true, force: true });

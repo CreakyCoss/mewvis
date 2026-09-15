@@ -2,7 +2,6 @@ import type { AgentClient } from "@/agent-client/runtime";
 import { resolveLlmModel } from "@/api/llm";
 import { searchEnabledKnowledge } from "@/api/knowledge";
 import { releaseAgentRuntimeSession } from "@/api/agent-runtime";
-import { isTauri } from "@tauri-apps/api/core";
 import type { ChatRuntime, ChatContextProvider } from "../core";
 import type { createDesktopCatalog, ChatProfile } from "./catalog";
 import { buildAgentPrompt } from "./context";
@@ -100,10 +99,7 @@ export function createDesktopRuntime(
     },
     abort: (taskId) => client.tasks.abort(taskId),
     answer: (taskId, questionId, answer) => client.tasks.answerQuestion({ taskId, questionId, answer }),
-    release: () =>
-      typeof window !== "undefined" && isTauri()
-        ? releaseAgentRuntimeSession({ workspacePath, sessionRootDir })
-        : Promise.resolve(),
+    release: () => releaseAgentRuntimeSession({ workspacePath, sessionRootDir }),
   };
   return { runtime, context };
 }

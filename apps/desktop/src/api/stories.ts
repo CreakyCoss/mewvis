@@ -1,4 +1,4 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { invoke } from "@/transport";
 
 export type StoryRecord = {
   id: string;
@@ -7,8 +7,6 @@ export type StoryRecord = {
   createdAt: number;
   updatedAt: number;
 };
-
-const desktopOnlyError = () => new Error("故事文件存储仅支持桌面环境。");
 
 const normalizeStoryRecord = (value: unknown): StoryRecord | null => {
   if (!value || typeof value !== "object") {
@@ -41,10 +39,6 @@ const requireStoryRecord = (value: unknown, errorMessage: string) => {
 };
 
 export const listStoryRecords = async (): Promise<StoryRecord[]> => {
-  if (!isTauri()) {
-    return [];
-  }
-
   const records = await invoke<unknown[]>("list_story_records");
   return records.flatMap((record) => {
     const normalized = normalizeStoryRecord(record);
@@ -53,10 +47,6 @@ export const listStoryRecords = async (): Promise<StoryRecord[]> => {
 };
 
 export const createStoryRecord = async (name: string, workspacePath: string): Promise<StoryRecord> => {
-  if (!isTauri()) {
-    throw desktopOnlyError();
-  }
-
   const record = await invoke<unknown>("create_story_record", {
     input: { name, workspacePath },
   });
@@ -64,10 +54,6 @@ export const createStoryRecord = async (name: string, workspacePath: string): Pr
 };
 
 export const importStoryRecord = async (name: string, workspacePath: string): Promise<StoryRecord> => {
-  if (!isTauri()) {
-    throw desktopOnlyError();
-  }
-
   const record = await invoke<unknown>("import_story_record", {
     input: { name, workspacePath },
   });
@@ -75,10 +61,6 @@ export const importStoryRecord = async (name: string, workspacePath: string): Pr
 };
 
 export const updateStoryRecord = async (id: string, name: string): Promise<StoryRecord> => {
-  if (!isTauri()) {
-    throw desktopOnlyError();
-  }
-
   const record = await invoke<unknown>("update_story_record", {
     input: { id, name },
   });
@@ -86,10 +68,6 @@ export const updateStoryRecord = async (id: string, name: string): Promise<Story
 };
 
 export const deleteStoryRecord = async (id: string, deleteContent = false) => {
-  if (!isTauri()) {
-    throw desktopOnlyError();
-  }
-
   await invoke("delete_story_record", {
     input: { id, deleteContent },
   });

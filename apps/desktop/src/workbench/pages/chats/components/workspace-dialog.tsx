@@ -1,5 +1,5 @@
 import { useImperativeHandle, useState, type ChangeEvent, type Ref } from "react";
-import { open as openDirectoryDialog } from "@tauri-apps/plugin-dialog";
+import { openSystemDialog as openDirectoryDialog } from "@/api/native";
 import { FolderOpenIcon } from "lucide-react";
 import type { Workspace } from "@/api/workspace";
 import { Alert, AlertDescription } from "@/components/ui/alert";

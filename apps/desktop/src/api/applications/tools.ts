@@ -1,4 +1,4 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { invoke } from "@/transport";
 import type { ApplicationTool } from "@isle/app-sdk/tools";
 import { listAgentRuntimeTools } from "@/api/agent-runtime";
 import { listApplicationUi } from "@/api/applications";
@@ -6,7 +6,6 @@ import { listApplicationUi } from "@/api/applications";
 export type ApplicationToolPolicy = { allowedToolNames: string[] };
 
 export async function listApplicationTools(applicationId: string): Promise<ApplicationTool[]> {
-  if (!isTauri()) throw new Error("当前宿主不支持应用工具授权");
   const [runtime, catalog, policy] = await Promise.all([
     listAgentRuntimeTools(),
     listApplicationUi(),
@@ -35,5 +34,8 @@ export async function listApplicationTools(applicationId: string): Promise<Appli
 
 /** Only the trusted management UI calls this; it is never exposed on the application bridge. */
 export async function saveApplicationToolPolicy(applicationId: string, allowedToolNames: string[]): Promise<void> {
-  await invoke("set_application_tool_policy", { applicationId, policy: { allowedToolNames: [...new Set(allowedToolNames)] } });
+  await invoke("set_application_tool_policy", {
+    applicationId,
+    policy: { allowedToolNames: [...new Set(allowedToolNames)] },
+  });
 }

@@ -1,4 +1,5 @@
 {
+  "apps/server/README.md": "docs/runtime/server.md",
   "apps/desktop/README.md": "docs/guide/desktop.md",
   "apps/desktop/scripts/README.md": "docs/guide/scripts.md",
   "apps/desktop/src/chat/README.md": "docs/architecture/chat.md",

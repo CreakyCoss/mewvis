@@ -1,4 +1,3 @@
-import { isTauri } from "@tauri-apps/api/core";
 import type {
   AgentClientAgentEvent,
   AgentClientAgentInput,
@@ -22,8 +21,7 @@ import type {
   RuntimeSessionResult,
   RuntimeSessionsResult,
 } from "./wire";
-import { createTauriAgentClient } from "./clients/tauri-client";
-import { createWebPreviewAgentClient } from "./clients/web-preview-client";
+import { createBackendAgentClient } from "./clients/backend-client";
 
 export interface AgentClientCapabilities {
   listAgentTools(input?: EmptyParams): Promise<AgentClientAgentToolsResult>;
@@ -69,7 +67,4 @@ export interface AgentClient {
   tasks: AgentClientTasks;
 }
 
-const canUseTauriAgentClient = () => typeof window !== "undefined" && isTauri();
-
-export const createAgentClient = (): AgentClient =>
-  canUseTauriAgentClient() ? createTauriAgentClient() : createWebPreviewAgentClient();
+export const createAgentClient = (): AgentClient => createBackendAgentClient();
