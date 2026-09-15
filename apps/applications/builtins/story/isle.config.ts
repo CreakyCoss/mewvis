@@ -3,7 +3,7 @@ import { defineConfig } from "@isle/app-dev";
 export default defineConfig({
   displayName: "故事",
   defaultEnabled: true,
-  permissions: ["application-workspaces", "application-data", "chat"],
+  permissions: ["application-workspaces", "application-data", "chat", "chat-knowledge"],
   agentAccess: {
     filesystem: { read: [{ base: "workspace" }], write: [{ base: "workspace" }] },
     network: { hosts: [] },
