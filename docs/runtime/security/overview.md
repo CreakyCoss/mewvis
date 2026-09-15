@@ -39,4 +39,4 @@ security/
 
 受限执行要求沙箱已启用且程序适配完成；不支持的程序或平台范围会拒绝执行。子 Agent 继承完整策略快照。禁用应用由原生宿主取消其任务。
 
-在 `apps/desktop` 运行 `pnpm test:agent-runtime:access` 验证真实文件、符号链接、进程和网络边界；`pi-extensions-e2e.mjs` 还检查 full 模式及子 Agent 继承。
+在 `apps/client` 运行 `pnpm test:agent-runtime:access` 验证真实文件、符号链接、进程和网络边界；`pi-extensions-e2e.mjs` 还检查 full 模式及子 Agent 继承。

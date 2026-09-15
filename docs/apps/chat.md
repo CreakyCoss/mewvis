@@ -92,7 +92,7 @@ const session = await chat.openSession({
 
 业务组件使用 `ComposerBinding`、`useChatComposer`、`useChatControls`、`useChatSnapshot` 等公开绑定。自定义编辑器更新 `binding.setDraft({ text, blocks })`；自定义发送区域调用 `binding.submit()` / `binding.stop()`。默认发送和回答按钮直接调用动作，不依赖沙箱禁止的原生表单提交；Ctrl/⌘+Enter 由共享 Composer 处理。
 
-应用与应用的会话／消息契约共同依赖无运行时依赖的 `@isle/chat-contracts`。`@isle/app-sdk/chat/react` 的 `react.d.ts` 由应用共享组件和 hook 自动生成，随 SDK 发布，不要手动修改。修改共享 UI 后，在 `apps/desktop` 运行 `pnpm build:chat-ui` 更新；`pnpm check:chat-ui-types` 只检查是否同步。构建检查公共依赖边界和声明独立可用性，类型测试双向对照实际组件签名。纯 `@isle/app-sdk/chat` 入口不会导入 React、DOM、CSS 或 Tauri。
+应用与应用的会话／消息契约共同依赖无运行时依赖的 `@isle/chat-contracts`。`@isle/app-sdk/chat/react` 的 `react.d.ts` 由应用共享组件和 hook 自动生成，随 SDK 发布，不要手动修改。修改共享 UI 后，在 `apps/client` 运行 `pnpm build:chat-ui` 更新；`pnpm check:chat-ui-types` 只检查是否同步。构建检查公共依赖边界和声明独立可用性，类型测试双向对照实际组件签名。纯 `@isle/app-sdk/chat` 入口不会导入 React、DOM、CSS 或 Tauri。
 
 ## 无界面调用
 
@@ -143,7 +143,7 @@ const result = await session.send({
 
 ## 验证
 
-在 `apps/desktop` 中运行 `pnpm test:chat:application`：构建共享 UI、核对公开组件声明、打包隔离测试应用，运行无 UI／代理／权限／并发／实际 Node 应用 stdio 回归。`pnpm test:chat` 保留原核心、桌面宿主和 DSH schema 回归。
+在 `apps/client` 中运行 `pnpm test:chat:application`：构建共享 UI、核对公开组件声明、打包隔离测试应用，运行无 UI／代理／权限／并发／实际 Node 应用 stdio 回归。`pnpm test:chat` 保留原核心、桌面宿主和 DSH schema 回归。
 
 已有 1420 开发环境的 `/scripts/app/chat/application-browser.html` 挂载真实 `ApplicationFrame` 和打包后的测试应用，使用内存 Runtime 与存储。包含默认和组合 Chat、模型与能力选择、暂停授权、停止、追问、视图卸载／重挂载。它不安装应用、不读写真实用户历史，也不等同于真实模型和重建后 Tauri 程序的端到端验收。
 

@@ -69,7 +69,7 @@ Isle 在同一进程创建独立的内存 Pi SDK 会话，无需另装 Pi CLI。
 
 ## 验证
 
-在 `apps/desktop` 执行：
+在 `apps/client` 执行：
 
 ```sh
 pnpm test:agent-runtime:sandbox

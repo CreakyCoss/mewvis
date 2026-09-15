@@ -37,7 +37,7 @@ packages/
 apps/applications/
   builtins/                 # 内置应用源码
   scripts/                  # 应用打包与文档生成
-apps/desktop/
+apps/client/
   src/
     api/applications/       # 应用管理、数据和工具 API
     workbench/shell/         # 桌面外壳、侧栏和布局

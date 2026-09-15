@@ -56,19 +56,19 @@ pnpm build:runtime
 
 [静态预览](http://localhost:1420/scripts/app/dev/preview.html)
 
-这份仓库开发入口位于 `apps/desktop/scripts/app/dev`，不属于应用业务，也不进入应用产物。它直接预览 React 源码和公共内存聊天宿主，无须另外启动服务。1420 未挂载工具链的 Node 接口，因此宿主工具按钮会明确提示未连接，而不会伪造执行结果。真实 Node 调用在 Isle 或应用自身的 `pnpm dev` 中验证。
+这份仓库开发入口位于 `apps/client/scripts/app/dev`，不属于应用业务，也不进入应用产物。它直接预览 React 源码和公共内存聊天宿主，无须另外启动服务。1420 未挂载工具链的 Node 接口，因此宿主工具按钮会明确提示未连接，而不会伪造执行结果。真实 Node 调用在 Isle 或应用自身的 `pnpm dev` 中验证。
 
 ## 测试
 
 ```sh
-pnpm --filter desktop test:app-host:chat-playground
+pnpm --filter client test:app-host:chat-playground
 pnpm build:runtime
 node apps/applications/builtins/chat-playground/test.mjs --bundled
-pnpm --filter desktop test:app-dev
+pnpm --filter client test:app-dev
 ```
 
 Node E2E 在临时目录加载真实应用宿主，检查三个工具及其风险声明、输出和错误、UI 文档、真实 Pi 技能加载与临时文件释放，以及其他内置应用的 DSH 产物。测试不读取真实用户记录、不修改应用注册表。
 
-数据接入回归使用实际应用 Chat 服务、SDK、目录解析与调试台状态模块，在临时文件中模拟原生 IO，验证新目录内保存、重建服务后恢复、工作区隔离、权限撤销、无效目录拒绝及并发选择的保存顺序；模型执行使用测试适配。真实 SQLite、目录标识和跨进程恢复由 `pnpm --filter desktop test:app-host:data` 覆盖。原生目录选择弹窗和真实模型仍需在重建后的应用中验收。
+数据接入回归使用实际应用 Chat 服务、SDK、目录解析与调试台状态模块，在临时文件中模拟原生 IO，验证新目录内保存、重建服务后恢复、工作区隔离、权限撤销、无效目录拒绝及并发选择的保存顺序；模型执行使用测试适配。真实 SQLite、目录标识和跨进程恢复由 `pnpm --filter client test:app-host:data` 覆盖。原生目录选择弹窗和真实模型仍需在重建后的应用中验收。
 
 更多脚手架用法见仓库 `docs/apps/development.md`。

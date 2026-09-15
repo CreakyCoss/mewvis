@@ -62,4 +62,4 @@
 
 ## 验证
 
-在 `apps/desktop` 运行 `pnpm test:agent-runtime:permissions`、`pnpm test:agent-runtime:pi-extensions`、`pnpm test:agent-runtime:sandbox-platform`。Pi 套件使用真实会话与本地模型桩，检查四种开关组合及子策略继承。
+在 `apps/client` 运行 `pnpm test:agent-runtime:permissions`、`pnpm test:agent-runtime:pi-extensions`、`pnpm test:agent-runtime:sandbox-platform`。Pi 套件使用真实会话与本地模型桩，检查四种开关组合及子策略继承。

@@ -18,7 +18,7 @@ Isle 中 `dsh-rss` 设置命名空间保存于 `<app-data>/apps/dsh-rss/settings
 
 ## 构建与分发
 
-源码只有一份原生 `isle.app` 入口，不维护手写 DSH 清单。在 `apps/desktop` 执行：
+源码只有一份原生 `isle.app` 入口，不维护手写 DSH 清单。在 `apps/client` 执行：
 
 ```sh
 pnpm app:validate -- ../applications/builtins/rss-reader

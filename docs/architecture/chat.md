@@ -208,7 +208,7 @@ Pi 继续使用 `chats/<chatId>/session` 下的原执行上下文和账本。核
 
 ## 验证
 
-在 `apps/desktop` 下运行：
+在 `apps/client` 下运行：
 
 ```sh
 pnpm test:chat

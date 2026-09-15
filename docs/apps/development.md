@@ -5,10 +5,10 @@
 
 ## 在当前仓库创建项目
 
-本轮没有发布 npm 包，下面先使用仓库内的 SDK 和工具链。先在仓库根目录执行 `pnpm install` 和 `pnpm --filter desktop build:chat-ui`，然后：
+本轮没有发布 npm 包，下面先使用仓库内的 SDK 和工具链。先在仓库根目录执行 `pnpm install` 和 `pnpm --filter client build:chat-ui`，然后：
 
 ```sh
-pnpm --filter desktop app:create -- /absolute/path/my-application --name @example/my-application --local
+pnpm --filter client app:create -- /absolute/path/my-application --name @example/my-application --local
 cd /absolute/path/my-application
 pnpm install
 pnpm dev
@@ -194,6 +194,6 @@ CSS 可以直接 import；图片和字体使用模块导入或 CSS 相对引用�
 
 ## 工具链维护
 
-`src/` 和 `templates/` 是工具链源码；`dist/chat-ui.js`、`dist/chat-ui.css`、`dist/chat-host.js` 由 `pnpm --filter desktop build:chat-ui` 生成并随工具包分发。应用安装后无需 desktop 源码。发布前先构建这些运行时，再打包 SDK、chat-contracts 和 app-dev；此流程不自动发布到 npm。
+`src/` 和 `templates/` 是工具链源码；`dist/chat-ui.js`、`dist/chat-ui.css`、`dist/chat-host.js` 由 `pnpm --filter client build:chat-ui` 生成并随工具包分发。应用安装后无需 desktop 源码。发布前先构建这些运行时，再打包 SDK、chat-contracts 和 app-dev；此流程不自动发布到 npm。
 
-`pnpm --filter desktop test:app-dev` 验证仓库外项目安装构建、Node 工具、技能注册与热更新、参数与输出校验、超时恢复、跨环境导入限制、无监听端口的 Vite 转换，以及使用真实 Chat 核心的内存会话。
+`pnpm --filter client test:app-dev` 验证仓库外项目安装构建、Node 工具、技能注册与热更新、参数与输出校验、超时恢复、跨环境导入限制、无监听端口的 Vite 转换，以及使用真实 Chat 核心的内存会话。

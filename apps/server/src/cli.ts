@@ -79,7 +79,7 @@ Desktop mode writes a private readiness message to stdout and closes on stdin EO
       ? (process.env.ISLE_SERVER_WEB_ROOT ??
         (process.env.ISLE_SERVER_RESOURCES
           ? join(process.env.ISLE_SERVER_RESOURCES, "web")
-          : fileURLToPath(new URL("../../desktop/dist/", import.meta.url))))
+          : fileURLToPath(new URL("../../client/dist/", import.meta.url))))
       : undefined;
     server = await startServer({ port, token, allowedOrigins, webRoot });
     if (parentGone) shutdown();

@@ -1,7 +1,7 @@
 # 酒馆提示词质量评估
 
 本评估用于优化酒馆输出模式和风格套餐。真实模型输出报告默认写入
-`apps/desktop/tmp/tavern-prompt-quality-eval.json`，该目录不提交。
+`apps/client/tmp/tavern-prompt-quality-eval.json`，该目录不提交。
 
 ## 评估方法
 

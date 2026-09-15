@@ -26,7 +26,7 @@ React 项目可使用 [应用工程工具链](development.md)：页面从 `main/
 }
 ```
 
-源码只维护 `isle` 声明。在 `apps/desktop` 运行 `pnpm app:pack -- <package> --target dsh`，会保留 UI 元数据，并在分发包增加 `dsh.bundle` 和 `cordis.patch.yml`。
+源码只维护 `isle` 声明。在 `apps/client` 运行 `pnpm app:pack -- <package> --target dsh`，会保留 UI 元数据，并在分发包增加 `dsh.bundle` 和 `cordis.patch.yml`。
 
 路径必须以 `./` 开头，解析后位于包内，不得经符号链接越界。`layout` 可省略：
 

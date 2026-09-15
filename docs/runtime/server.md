@@ -112,7 +112,7 @@ pnpm start:web
 
 桌面与 Web 不能同时使用同一数据目录；第二个启动入口明确失败，不发现、不连接、不接管已有后端。切换入口前先退出当前进程。
 
-`apps/desktop/src/transport/` 集中提供命令、HTTP 错误、SSE 订阅和连接状态；连接提示 UI 位于 `workbench/shell/feedback.tsx`，传输层不依赖 UI 组件。浏览器的模型、Agent、知识库、工作区、文件、聊天、故事、技能、应用及维护接口均读取真实 Node 数据；生产客户端不再使用 Web mock。Agent 共用 `backend-client.ts`，保留已有类型契约及模型配置缓存。
+`apps/client/src/transport/` 集中提供命令、HTTP 错误、SSE 订阅和连接状态；连接提示 UI 位于 `workbench/shell/feedback.tsx`，传输层不依赖 UI 组件。浏览器的模型、Agent、知识库、工作区、文件、聊天、故事、技能、应用及维护接口均读取真实 Node 数据；生产客户端不再使用 Web mock。Agent 共用 `backend-client.ts`，保留已有类型契约及模型配置缓存。
 
 事件先订阅再派发。临时断线使用 Last-Event-ID 重连、补发；文件监听按 watch ID 路由。服务重启或游标过期时明确提示用户保留未保存编辑并刷新，重新加载持久数据和建立文件/应用连接；当前不做活动任务的跨重启热接管，也不会自动重试写请求。
 
@@ -125,7 +125,7 @@ Node 新增 `open_system_dialog`，接收 `{ input: { directory, multiple, title
 | 环境变量                       | 用途                                              |
 | ------------------------------ | ------------------------------------------------- |
 | `ISLE_WEB_PORT`                | Web 端口，默认开发 1420、正式模式 4173          |
-| `ISLE_SERVER_WEB_ROOT`         | 正式 Web 构建目录，默认 `apps/desktop/dist`      |
+| `ISLE_SERVER_WEB_ROOT`         | 正式 Web 构建目录，默认 `apps/client/dist`      |
 | `ISLE_SERVER_PORT`             | HTTP 端口，默认 1422；0 表示分配空闲端口          |
 | `ISLE_SERVER_TOKEN`            | 自定义 Bearer token，至少 24 字节；省略时随机生成 |
 | `ISLE_SERVER_DATA_DIR`         | 共用业务数据目录，默认 `~/.isle-claw`             |

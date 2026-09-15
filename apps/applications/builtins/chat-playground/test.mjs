@@ -11,9 +11,9 @@ import { dshBundleCompatibilityPlugin } from "@isle/app-dev/dsh";
 import { build } from "esbuild";
 
 const source = dirname(fileURLToPath(import.meta.url));
-const desktop = resolve(source, "../../../desktop");
+const client = resolve(source, "../../../client");
 const bundled = process.argv.includes("--bundled");
-const builtinRoot = join(desktop, "../agent-runtime/dist/apps/chat-playground");
+const builtinRoot = join(client, "../agent-runtime/dist/apps/chat-playground");
 const { outputRoot, manifest } = bundled
   ? {
       outputRoot: builtinRoot,
@@ -28,7 +28,7 @@ if (bundled) {
   for (const name of ["rss-reader", "tavern", "story-scene-card"]) {
     const portable = JSON.parse(
       await readFile(
-        join(desktop, "../agent-runtime/dist/apps", name, "package.json"),
+        join(client, "../agent-runtime/dist/apps", name, "package.json"),
         "utf8",
       ),
     );
@@ -57,14 +57,14 @@ const child = spawn(
   process.execPath,
   [
     join(
-      desktop,
+      client,
       bundled
         ? "../agent-runtime/dist/app-host/service.mjs"
         : "../../packages/app/host/dist/service.mjs",
     ),
   ],
   {
-    cwd: desktop,
+    cwd: client,
     stdio: ["pipe", "pipe", "pipe"],
   },
 );
@@ -120,7 +120,7 @@ try {
   await build({
     entryPoints: [
       join(
-        desktop,
+        client,
         "../agent-runtime/src/engines/drivers/native/agent/runtimes/pi/apps/bridge.ts",
       ),
     ],

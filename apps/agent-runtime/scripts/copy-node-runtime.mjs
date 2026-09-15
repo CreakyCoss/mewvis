@@ -7,9 +7,9 @@ import { arch as hostArch, platform as hostPlatform } from "node:os";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const runtimeRoot = join(scriptDir, "..");
-const desktopRoot = join(runtimeRoot, "../desktop");
+const clientRoot = join(runtimeRoot, "../client");
 const outputDir = join(runtimeRoot, "dist");
-const targetDir = join(desktopRoot, "src-tauri", "target");
+const targetDir = join(clientRoot, "src-tauri", "target");
 const cacheDir = join(targetDir, "node-runtime-cache");
 
 const args = process.argv.slice(2);

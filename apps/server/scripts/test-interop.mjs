@@ -10,7 +10,7 @@ for (const [program, args] of [
       "--manifest-path",
       "test/integration/rust/Cargo.toml",
       "--target-dir",
-      "../desktop/src-tauri/target/server-interop",
+      "../client/src-tauri/target/server-interop",
     ],
   ],
   [process.execPath, ["--test", "test/integration/storage.interop.mjs"]],

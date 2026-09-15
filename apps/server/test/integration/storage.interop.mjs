@@ -15,7 +15,7 @@ import { startServer } from "../../dist/server.js";
 import { token } from "../support/helpers.mjs";
 const binary = fileURLToPath(
   new URL(
-    `../../../desktop/src-tauri/target/server-interop/debug/storage-interop${process.platform === "win32" ? ".exe" : ""}`,
+    `../../../client/src-tauri/target/server-interop/debug/storage-interop${process.platform === "win32" ? ".exe" : ""}`,
     import.meta.url,
   ),
 );

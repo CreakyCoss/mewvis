@@ -39,25 +39,25 @@
 
 1. Catalog / Settings
    - 管理全局知识库目录、知识源、集合、集合来源关系和 embedding profile。
-   - 前端入口：`apps/desktop/src/workbench/knowledge-base/catalog-api.ts`。
-   - 后端入口：`apps/desktop/src-tauri/src/db/config_db/knowledge.rs` 与 settings commands。
+   - 前端入口：`apps/client/src/workbench/knowledge-base/catalog-api.ts`。
+   - 后端入口：`apps/client/src-tauri/src/db/config_db/knowledge.rs` 与 settings commands。
 
 2. Indexing
    - 把 catalog 中 enabled sources 抽取为 documents/chunks，写入 FTS5 与 sqlite-vec。
    - 索引是可重建产物，不作为用户配置真实来源。
-   - 前端入口：`apps/desktop/src/workbench/knowledge-base/index-api.ts`。
-   - 后端入口：`apps/desktop/src-tauri/src/services/knowledge.rs`、`vector_store.rs`、`embeddings.rs`。
+   - 前端入口：`apps/client/src/workbench/knowledge-base/index-api.ts`。
+   - 后端入口：`apps/client/src-tauri/src/services/knowledge.rs`、`vector_store.rs`、`embeddings.rs`。
 
 3. Retrieval
    - 用户发送消息前，按“已启用集合”展开 source 范围并检索 top K chunk。
    - 不负责修改 catalog，不负责重建索引。
-   - 前端入口：`apps/desktop/src/workbench/knowledge-base/retrieval-api.ts` 与 `rag-index.ts`。
+   - 前端入口：`apps/client/src/workbench/knowledge-base/retrieval-api.ts` 与 `rag-index.ts`。
    - 后端入口：`search_workspace_knowledge` command 和 `search_enabled_knowledge` service。
 
 4. Prompt Injection
    - 把检索结果作为 `<retrieved_knowledge>` data-only 上下文注入系统/Agent/协作 prompt。
    - 检索内容不能覆盖系统、开发者或当前用户指令。
-   - 前端入口：`apps/desktop/src/ai/agent-context/prompt/prompts.ts`。
+   - 前端入口：`apps/client/src/ai/agent-context/prompt/prompts.ts`。
 
 UI 边界：
 
@@ -71,12 +71,12 @@ UI 边界：
 
 现有代码已经有较好的上下文边界：
 
-- `apps/desktop/src/ai/agent-context/engine/rag.ts` 定义了 `ContextRagIndex`，但目前是 placeholder。
-- `apps/desktop/src/ai/agent-context/engine/runtime-context.ts` 已注册实验性的 `rag-index` 和 `hybrid-memory` context engine。
-- `apps/desktop/src/ai/agent-context/prompt/prompts.ts` 统一组装 `buildSystemPrompt`、`buildAgentPrompt` 和协作 Prompt。
-- `apps/desktop/src/workbench/workspace-chat/components/page.tsx` 是发送消息、构造上下文、调用 runtime 的主入口。
-- `apps/desktop/src-tauri/src/db/paths.rs` 已有全局配置目录和 `config.db` 路径，适合承载全局知识库 catalog。
-- `apps/desktop/src-tauri/src/db/config_db/workspace.rs` 已在全局库中维护 workspace 列表，适合保存 workspace 到知识源/集合的选择关系。
+- `apps/client/src/ai/agent-context/engine/rag.ts` 定义了 `ContextRagIndex`，但目前是 placeholder。
+- `apps/client/src/ai/agent-context/engine/runtime-context.ts` 已注册实验性的 `rag-index` 和 `hybrid-memory` context engine。
+- `apps/client/src/ai/agent-context/prompt/prompts.ts` 统一组装 `buildSystemPrompt`、`buildAgentPrompt` 和协作 Prompt。
+- `apps/client/src/workbench/workspace-chat/components/page.tsx` 是发送消息、构造上下文、调用 runtime 的主入口。
+- `apps/client/src-tauri/src/db/paths.rs` 已有全局配置目录和 `config.db` 路径，适合承载全局知识库 catalog。
+- `apps/client/src-tauri/src/db/config_db/workspace.rs` 已在全局库中维护 workspace 列表，适合保存 workspace 到知识源/集合的选择关系。
 
 因此 RAG 不需要另起聊天系统。首版应作为 context engine 的资料来源，接入现有 Prompt 组装。
 
@@ -355,16 +355,16 @@ CREATE TABLE IF NOT EXISTS rag_jobs (
 新增文件建议：
 
 ```text
-apps/desktop/src-tauri/src/commands/settings/knowledge.rs
-apps/desktop/src-tauri/src/commands/workspace/knowledge.rs
-apps/desktop/src-tauri/src/services/knowledge/mod.rs
-apps/desktop/src-tauri/src/services/knowledge/catalog.rs
-apps/desktop/src-tauri/src/services/knowledge/scope.rs
-apps/desktop/src-tauri/src/services/knowledge/extract.rs
-apps/desktop/src-tauri/src/services/knowledge/chunk.rs
-apps/desktop/src-tauri/src/services/knowledge/embed.rs
-apps/desktop/src-tauri/src/services/knowledge/index.rs
-apps/desktop/src-tauri/src/services/knowledge/search.rs
+apps/client/src-tauri/src/commands/settings/knowledge.rs
+apps/client/src-tauri/src/commands/workspace/knowledge.rs
+apps/client/src-tauri/src/services/knowledge/mod.rs
+apps/client/src-tauri/src/services/knowledge/catalog.rs
+apps/client/src-tauri/src/services/knowledge/scope.rs
+apps/client/src-tauri/src/services/knowledge/extract.rs
+apps/client/src-tauri/src/services/knowledge/chunk.rs
+apps/client/src-tauri/src/services/knowledge/embed.rs
+apps/client/src-tauri/src/services/knowledge/index.rs
+apps/client/src-tauri/src/services/knowledge/search.rs
 ```
 
 全局知识库 commands：
@@ -483,20 +483,20 @@ score = vectorWeight / (60 + vectorRank) + keywordWeight / (60 + keywordRank)
 新增前端模块：
 
 ```text
-apps/desktop/src/workbench/knowledge-base/api.ts
-apps/desktop/src/workbench/knowledge-base/catalog-api.ts
-apps/desktop/src/workbench/knowledge-base/index-api.ts
-apps/desktop/src/workbench/knowledge-base/retrieval-api.ts
-apps/desktop/src/workbench/knowledge-base/rag-index.ts
-apps/desktop/src/workbench/knowledge-base/types.ts
-apps/desktop/src/workbench/knowledge-base/ui-state.ts
-apps/desktop/src/workbench/knowledge-base/components/knowledge-base-page.tsx
-apps/desktop/src/workbench/knowledge-base/components/overview-view.tsx
-apps/desktop/src/workbench/knowledge-base/components/files-view.tsx
-apps/desktop/src/workbench/knowledge-base/components/collections-view.tsx
-apps/desktop/src/workbench/knowledge-base/components/embedding-config-dialog.tsx
-apps/desktop/src/workbench/knowledge-base/components/collection-dialogs.tsx
-apps/desktop/src/workbench/knowledge-base/components/confirm-dialogs.tsx
+apps/client/src/workbench/knowledge-base/api.ts
+apps/client/src/workbench/knowledge-base/catalog-api.ts
+apps/client/src/workbench/knowledge-base/index-api.ts
+apps/client/src/workbench/knowledge-base/retrieval-api.ts
+apps/client/src/workbench/knowledge-base/rag-index.ts
+apps/client/src/workbench/knowledge-base/types.ts
+apps/client/src/workbench/knowledge-base/ui-state.ts
+apps/client/src/workbench/knowledge-base/components/knowledge-base-page.tsx
+apps/client/src/workbench/knowledge-base/components/overview-view.tsx
+apps/client/src/workbench/knowledge-base/components/files-view.tsx
+apps/client/src/workbench/knowledge-base/components/collections-view.tsx
+apps/client/src/workbench/knowledge-base/components/embedding-config-dialog.tsx
+apps/client/src/workbench/knowledge-base/components/collection-dialogs.tsx
+apps/client/src/workbench/knowledge-base/components/confirm-dialogs.tsx
 ```
 
 UI 入口：

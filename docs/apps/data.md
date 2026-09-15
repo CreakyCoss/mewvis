@@ -200,7 +200,7 @@ apps/
 pnpm --filter @isle/app-sdk test
 pnpm --filter @isle/app-dev exec tsc -p ../sdk/test/tsconfig.json
 pnpm --filter @isle/app-dev exec node --test test/data-sdk.test.mjs
-pnpm --filter desktop test:app-host:data
+pnpm --filter client test:app-host:data
 ```
 
 测试覆盖 SDK JSON 契约、应用独立打包、页面桥接、真实 SQLite 与 Node ApplicationHost 重启恢复，以及权限拒绝、默认目录、共享确认取消、并发加入、目录别名、标识异常、旧数据迁移和 clear 的范围。测试不依赖模型服务；自动化确认测试通过宿主交互接口注入选择结果，不会替真实用户批准共享。

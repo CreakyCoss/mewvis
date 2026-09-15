@@ -15,7 +15,7 @@
 
 ```text
 isle/
-├── apps/desktop/          桌面前端、Rust 宿主、Agent 运行时及内置应用
+├── apps/client/          桌面前端、Rust 宿主、Agent 运行时及内置应用
 ├── apps/server/           独立 Node 后端服务
 ├── packages/             应用 SDK、开发工具链和共享契约
 ├── ai/pi/                通过 Git Subtree 引入的上游依赖

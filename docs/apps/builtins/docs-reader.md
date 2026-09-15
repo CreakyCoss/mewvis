@@ -31,7 +31,7 @@
 ```sh
 pnpm docs:build
 pnpm docs:test
-pnpm --filter desktop app:pack -- ../applications/builtins/docs-reader --target isle
+pnpm --filter client app:pack -- ../applications/builtins/docs-reader --target isle
 ```
 
 应用内置应用打包脚本会自动重新生成 docs 索引，并发现这个应用。单独打包前需先运行 `docs:build`。

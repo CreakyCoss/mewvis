@@ -1,9 +1,9 @@
 import { cp, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
-import { createStoryProjectApi, type StoryWorkspace } from "../../../../../../desktop/core/story-project/index.js";
-import { assertStoryFileRevision } from "../../../../../../desktop/core/story-project/storage/adapters/file/index.js";
-import type { StoryFileBackend, StoryFileEntry } from "../../../../../../desktop/core/story-project/storage/types.js";
+import { createStoryProjectApi, type StoryWorkspace } from "../../../../../../client/core/story-project/index.js";
+import { assertStoryFileRevision } from "../../../../../../client/core/story-project/storage/adapters/file/index.js";
+import type { StoryFileBackend, StoryFileEntry } from "../../../../../../client/core/story-project/storage/types.js";
 
 /** Story Tool 只消费绑定后的标准故事工作区，不感知文件系统或故事类型实现。 */
 export interface StoryToolRepository {

@@ -431,7 +431,7 @@ importers:
         specifier: ^19.1.6
         version: 19.1.6(@types/react@19.1.8)
 
-  apps/desktop:
+  apps/client:
     dependencies:
       '@anthropic-ai/sandbox-runtime':
         specifier: 0.0.75

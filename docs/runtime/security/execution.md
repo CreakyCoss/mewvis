@@ -74,6 +74,6 @@ Windows 用户级工具安装路径需加入 `backend.platforms.windows.readGran
 
 ## 验证
 
-从 `apps/desktop` 运行 `pnpm test:agent-runtime:sandbox`，检查隔离／普通启动、RPC、资源边界、启动失败、取消、超时、清理，以及平台契约、租约和打包。`pnpm test:agent-runtime:pi-extensions` 检查四种开关组合和子 Agent 继承。
+从 `apps/client` 运行 `pnpm test:agent-runtime:sandbox`，检查隔离／普通启动、RPC、资源边界、启动失败、取消、超时、清理，以及平台契约、租约和打包。`pnpm test:agent-runtime:pi-extensions` 检查四种开关组合和子 Agent 继承。
 
 Windows 上先初始化沙箱；Bash 专项套件仍需原生 Bash，`pnpm test:agent-runtime:shell` 另检查没有 Git Bash 时的 PowerShell。套件检查不同范围被拒绝、相同范围共存、清理保留其余授权。Windows 原生验收仍待完成，交叉编译或 macOS 测试不能证明 Windows 隔离成立。

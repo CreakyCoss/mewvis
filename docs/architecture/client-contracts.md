@@ -1,6 +1,6 @@
 # 前端 Agent 契约
 
-源码目录 `apps/desktop/src/agent-client/contracts` 是前端 Agent Runtime 功能的契约边界。
+源码目录 `apps/client/src/agent-client/contracts` 是前端 Agent Runtime 功能的契约边界。
 
 - `index.ts` 直接定义语义不同于传输数据的应用载荷：客户端输入和结果、事件封装、会话选项、账本操作。它是应用契约的唯一导入入口。
 - `tauri.ts` 权威定义 Tauri 命令参数、结果和事件载荷的映射。

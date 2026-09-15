@@ -17,7 +17,7 @@ export async function createDevServer(
   const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   if (!(await exists(resolve(packageRoot, "dist/chat-ui.js"))))
     throw new Error(
-      "应用开发运行时缺失；在 Isle 仓库执行 pnpm --filter desktop build:chat-ui，或安装包含 dist 的工具包",
+      "应用开发运行时缺失；在 Isle 仓库执行 pnpm --filter client build:chat-ui，或安装包含 dist 的工具包",
     );
   const token = randomUUID();
   const runtime = createDevHost(project);

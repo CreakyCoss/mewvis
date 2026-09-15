@@ -340,8 +340,8 @@ if (
 if (
   !service.includes("repository.project.describe") ||
   service.includes("StoryProjectApi") ||
-  !repository.includes('from "../../../../../../desktop/core/story-project/index.js"') ||
-  !repository.includes('from "../../../../../../desktop/core/story-project/storage/adapters/file/index.js"') ||
+  !repository.includes('from "../../../../../../client/core/story-project/index.js"') ||
+  !repository.includes('from "../../../../../../client/core/story-project/storage/adapters/file/index.js"') ||
   repository.includes("core/story-project/story-types") ||
   !repository.includes("interface StoryToolRepository") ||
   repository.includes("createStoryProjectStorage") ||

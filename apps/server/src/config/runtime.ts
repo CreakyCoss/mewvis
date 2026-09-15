@@ -38,7 +38,7 @@ export function runtimeConfig(
   overrides: Partial<RuntimeConfig> = {},
 ): RuntimeConfig {
   // Resolve repository assets identically from src/config and dist/config.
-  const desktop = fileURLToPath(new URL("../../../desktop/", import.meta.url));
+  const client = fileURLToPath(new URL("../../../client/", import.meta.url));
   const runtime = fileURLToPath(
     new URL("../../../agent-runtime/", import.meta.url),
   );
@@ -47,7 +47,7 @@ export function runtimeConfig(
     readFileSync(
       resources
         ? join(resources, "product.config.json")
-        : join(desktop, "../product.config.json"),
+        : join(client, "../product.config.json"),
       "utf8",
     ),
   );
@@ -67,7 +67,7 @@ export function runtimeConfig(
     ),
     bundledSkillsPath: resources
       ? join(resources, "skills")
-      : join(desktop, "resources/skills"),
+      : join(client, "resources/skills"),
 
     appDataDirName: product.appDataDirName,
     defaultWorkspaceDirName: product.defaultWorkspaceDirName,

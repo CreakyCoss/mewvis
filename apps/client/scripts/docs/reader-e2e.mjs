@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 import { packApplication } from "@isle/app-dev/tooling";
 import { repositoryRoot } from "../../../applications/scripts/docs/book.mjs";
 
-const desktop = join(repositoryRoot, "apps/desktop");
+const desktop = join(repositoryRoot, "apps/client");
 const temporary = await mkdtemp(join(tmpdir(), "isle-docs-reader-"));
 let child;
 let output;

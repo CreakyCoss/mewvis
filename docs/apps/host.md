@@ -44,7 +44,7 @@ Isle 包通过自己的清单暴露 Cordis 应用入口：
 
 ## 开发流程
 
-默认 React 脚手架由 [应用工程工具链](development.md) 管理。在 `apps/desktop` 运行 `pnpm app:create -- /absolute/path/my-application --name @example/my-application --local`，然后在新项目安装依赖。工具尚未发布时，`--local` 使用当前检出的 SDK 和工具链。
+默认 React 脚手架由 [应用工程工具链](development.md) 管理。在 `apps/client` 运行 `pnpm app:create -- /absolute/path/my-application --name @example/my-application --local`，然后在新项目安装依赖。工具尚未发布时，`--local` 使用当前检出的 SDK 和工具链。
 
 `pnpm dev` 开发，`pnpm check` 检查，`pnpm build` 构建。页面位于 `main/App.tsx`，可选 Node 工具位于 `main/host/tools.ts`。权限与能力统一在 `isle.config.ts` 声明，由其生成安装清单。
 
@@ -76,4 +76,4 @@ DSH 目标保留附加的 `isle` 元数据并生成 DSH 声明。含 `chat` 权�
 
 `packages/app/host` 以私有工作区包 `@isle/app-host` 提供宿主 API，Runtime 通过包名导入。执行 `pnpm --filter @isle/app-host build` 生成库模块及 `dist/service.mjs`、`dist/migrate-layout.mjs`，不依赖桌面项目的构建命令。
 
-内置应用由 `apps/applications` 中的 `@isle/builtin-applications` 包管理，执行 `pnpm --filter @isle/builtin-applications build` 输出到该模块的 `dist/`；文档生成脚本位于 `scripts/docs/`。应用 Chat UI 仍由 desktop 中的共享 React 实现构建。Runtime 构建最后将宿主和内置应用产物复制到自己的 `dist/app-host`、`dist/apps`，保持分发和运行时路径不变。
+内置应用由 `apps/applications` 中的 `@isle/builtin-applications` 包管理，执行 `pnpm --filter @isle/builtin-applications build` 输出到该模块的 `dist/`；文档生成脚本位于 `scripts/docs/`。应用 Chat UI 仍由 client 中的共享 React 实现构建。Runtime 构建最后将宿主和内置应用产物复制到自己的 `dist/app-host`、`dist/apps`，保持分发和运行时路径不变。

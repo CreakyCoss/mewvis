@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "pnpm --filter desktop build:chat-ui && node scripts/build.mjs",
+    "build": "pnpm --filter client build:chat-ui && node scripts/build.mjs",
     "docs:check": "node scripts/docs/book.mjs --check",
     "docs:build": "node scripts/docs/book.mjs",
     "docs:test": "node --test scripts/docs/book.test.mjs"
