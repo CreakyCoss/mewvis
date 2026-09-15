@@ -17,13 +17,11 @@ import type {
   OperationAnalysis,
   Operation,
   PermissionMode,
-  SafetyRisk,
 } from "./types.js";
 
 export { canonicalPath } from "../platforms/resources.js";
 export type * from "./types.js";
 
-const riskOrder: Record<SafetyRisk, number> = { low: 0, medium: 1, high: 2 };
 const riskSchema = z.enum(RISK_LEVELS);
 const textSchema = z.string().trim().min(1);
 const configSchema = z
@@ -141,7 +139,9 @@ export function evaluateSafety(analysis: OperationAnalysis, context: SafetyConte
   const deny = findings.some((finding) => finding.effect === "deny") || (unknown && policy.approval.unknown === "deny");
   const approval =
     findings.some(
-      (finding) => finding.effect === "ask" || riskOrder[finding.risk] > riskOrder[policy.approval.maximumRisk],
+      (finding) =>
+        finding.effect === "ask" ||
+        RISK_LEVELS.indexOf(finding.risk) > RISK_LEVELS.indexOf(policy.approval.maximumRisk),
     ) ||
     (unknown && policy.approval.unknown === "ask");
   return { action: deny ? "deny" : approval ? "requestApproval" : "allow", reasons, findings };
