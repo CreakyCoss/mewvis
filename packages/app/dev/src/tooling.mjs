@@ -30,6 +30,7 @@ import {
   hostSource,
   uiSource,
   browserBoundary,
+  loadHostEntry,
   loadTools,
   loadSkills,
 } from "./project.mjs";
@@ -318,8 +319,11 @@ export const validateApplication = async (source) => {
     );
   }
   if (project) {
-    await loadTools(project);
-    await loadSkills(project);
+    if (project.hostEntry) await loadHostEntry(project);
+    else {
+      await loadTools(project);
+      await loadSkills(project);
+    }
   }
   return Object.freeze({
     root,

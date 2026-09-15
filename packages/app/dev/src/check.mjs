@@ -51,6 +51,7 @@ export async function checkApplication(source) {
     {
       files: [
         join(root, "isle.config.ts"),
+        ...(project.hostEntry ? [project.hostEntry] : []),
         ...(project.toolsEntry ? [project.toolsEntry] : []),
         ...(project.skillsEntry ? [project.skillsEntry] : []),
       ],

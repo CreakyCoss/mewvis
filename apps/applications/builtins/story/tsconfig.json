@@ -1,0 +1,4 @@
+{
+  "extends": "@isle/app-dev/tsconfig.json",
+  "include": ["main", "shared", "isle.config.ts"]
+}

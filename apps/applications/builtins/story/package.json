@@ -1,0 +1,26 @@
+{
+  "name": "@isle/story",
+  "version": "0.1.0",
+  "description": "Isle 内置故事工作台：结构化小说项目、文档编辑、创作助手与章节酒馆。",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "isle-app dev",
+    "build": "isle-app build",
+    "check": "isle-app check",
+    "test": "pnpm build && node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@isle/app-sdk": "workspace:*",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zod": "^4.2.0"
+  },
+  "devDependencies": {
+    "@isle/app-dev": "workspace:*",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "typescript": "~5.8.3"
+  }
+}

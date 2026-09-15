@@ -129,6 +129,61 @@ test("React scaffold checks and builds outside the Isle repository", async () =>
   );
 });
 
+test("React application fullscreen layout is packaged for the existing host behavior", async () => {
+  const configFile = join(source, "isle.config.ts");
+  const original = await readFile(configFile, "utf8");
+  try {
+    await writeFile(configFile, original.replace("  host:", '  ui: { layout: "fullscreen" },\n  host:'));
+    await checkApplication(source);
+    const { manifest } = await packApplication({ source, quiet: true });
+    assert.equal(manifest.isle.ui.layout, "fullscreen");
+  } finally {
+    await writeFile(configFile, original);
+  }
+});
+
+test("a full host entry captures the existing application workspace context", async () => {
+  const configFile = join(source, "isle.config.ts");
+  const entryFile = join(source, "main/host/index.ts");
+  const original = await readFile(configFile, "utf8");
+  const dev = createDevHost({ hostEntry: entryFile });
+  try {
+    await writeFile(entryFile, `import { defineApplication, defineTool } from "@isle/app-sdk";
+export default defineApplication({
+  name: "@example/scaffold", inject: ["tools", "workspaces"],
+  apply(ctx) {
+    ctx.tools.register(defineTool({
+      name: "example_custom_entry_check", description: "Read registered workspace", risk: "low",
+      parameters: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
+      output: { schema: { type: "object" }, render: (_args: unknown, value: unknown) => [{ type: "text", text: JSON.stringify(value) }] },
+      async execute(args) { return { path: (await ctx.workspaces!.get((args as { id: string }).id)).path }; },
+    }));
+  },
+});`);
+    await writeFile(configFile,
+      'export default { displayName: "Custom host", permissions: ["application-workspaces"], ui: false, host: { entry: "./main/host/index.ts" } };');
+    await checkApplication(source);
+    const { outputRoot } = await packApplication({ source, quiet: true });
+    const { default: application } = await import(pathToFileURL(join(outputRoot, "index.js")).href + "?custom-entry");
+    assert.deepEqual(application.inject, ["tools", "workspaces"]);
+    const tools = [];
+    application.apply({
+      tools: { register: tool => tools.push(tool) },
+      workspaces: { get: async id => ({ id, path: "/registered/story" }) },
+    });
+    assert.deepEqual(await tools[0].execute({ id: "story" }), { path: "/registered/story" });
+    assert.equal((await dev.describe()).tools[0].name, "example_custom_entry_check");
+    await assert.rejects(dev.execute("example_custom_entry_check", { id: "story" }), /真实工作区/);
+    await writeFile(configFile,
+      'export default { displayName: "Invalid", permissions: [], host: { entry: "./main/host/index.ts", tools: "./main/host/tools.ts" } };');
+    await assert.rejects(validateApplication(source), /host 必须声明 entry/);
+  } finally {
+    await dev.dispose();
+    await writeFile(configFile, original);
+    await rm(entryFile, { force: true });
+  }
+});
+
 test("agentAccess uses the protocol schema and rejects typos or invalid ranges before packaging", async () => {
   const file = join(source, "isle.config.ts");
   const original = await readFile(file, "utf8");

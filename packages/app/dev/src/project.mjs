@@ -73,12 +73,15 @@ export async function readProject(root) {
       typeof config.host !== "object" ||
       Array.isArray(config.host) ||
       Object.keys(config.host).some(
-        (key) => !["tools", "skills"].includes(key),
+        (key) => !["entry", "tools", "skills"].includes(key),
       ) ||
-      (!Object.hasOwn(config.host, "tools") &&
-        !Object.hasOwn(config.host, "skills")))
+      (!Object.hasOwn(config.host, "entry") &&
+        !Object.hasOwn(config.host, "tools") &&
+        !Object.hasOwn(config.host, "skills")) ||
+      (Object.hasOwn(config.host, "entry") &&
+        (Object.hasOwn(config.host, "tools") || Object.hasOwn(config.host, "skills"))))
   )
-    throw new Error("host 必须声明 tools 或 skills 模块");
+    throw new Error("host 必须声明 entry，或声明 tools/skills 模块");
   const ui = config.ui === false ? undefined : (config.ui ?? {});
   if (
     ui &&
@@ -89,8 +92,8 @@ export async function readProject(root) {
       ))
   )
     throw new Error("ui 配置无效");
-  if (ui?.layout && !["full", "contained"].includes(ui.layout))
-    throw new Error("ui.layout 必须是 full 或 contained");
+  if (ui?.layout && !["full", "contained", "fullscreen"].includes(ui.layout))
+    throw new Error("ui.layout 必须是 full、contained 或 fullscreen");
   if (
     ui?.title !== undefined &&
     (typeof ui.title !== "string" || !ui.title.trim() || ui.title.length > 100)
@@ -99,6 +102,10 @@ export async function readProject(root) {
   const uiEntry = ui
     ? await projectFile(root, ui.entry ?? "./main/App.tsx", "ui.entry")
     : undefined;
+  const hostEntry =
+    config.host && Object.hasOwn(config.host, "entry")
+      ? await projectFile(root, config.host.entry, "host.entry")
+      : undefined;
   const toolsEntry =
     config.host && Object.hasOwn(config.host, "tools")
       ? await projectFile(root, config.host.tools, "host.tools")
@@ -107,10 +114,11 @@ export async function readProject(root) {
     config.host && Object.hasOwn(config.host, "skills")
       ? await projectFile(root, config.host.skills, "host.skills")
       : undefined;
-  return { config, uiEntry, toolsEntry, skillsEntry };
+  return { config, uiEntry, hostEntry, toolsEntry, skillsEntry };
 }
 
 export function hostSource(project, name) {
+  if (project.hostEntry) return `export { default } from ${JSON.stringify(project.hostEntry)};`;
   return `${project.toolsEntry ? `import tools from ${JSON.stringify(project.toolsEntry)};` : "const tools = [];"}
 ${project.skillsEntry ? `import skills from ${JSON.stringify(project.skillsEntry)};` : "const skills = [];"}
 import { defineApplication } from "@isle/app-sdk";
@@ -139,6 +147,10 @@ createRoot(root).render(React.createElement(React.StrictMode, null, React.create
 export async function loadTools(project) {
   if (!project.toolsEntry) return [];
   const { default: tools } = await importSource(project.toolsEntry);
+  return validateTools(tools);
+}
+
+function validateTools(tools) {
   if (!Array.isArray(tools))
     throw new Error("host.tools 模块必须默认导出工具数组");
   const names = new Set();
@@ -168,6 +180,10 @@ export async function loadTools(project) {
 export async function loadSkills(project) {
   if (!project.skillsEntry) return [];
   const { default: skills } = await importSource(project.skillsEntry);
+  return validateSkills(skills);
+}
+
+function validateSkills(skills) {
   if (!Array.isArray(skills))
     throw new Error("host.skills 模块必须默认导出技能数组");
   const names = new Set();
@@ -201,11 +217,27 @@ export async function loadSkills(project) {
   return skills;
 }
 
+export async function loadHostEntry(project) {
+  if (!project.hostEntry) return null;
+  const { default: application } = await importSource(project.hostEntry);
+  if (!application || typeof application.apply !== "function")
+    throw new Error("host.entry 必须默认导出 SDK 应用");
+  const tools = [];
+  const skills = [];
+  await application.apply({
+    tools: { register: (tool) => tools.push(tool) },
+    skills: { register: (skill) => skills.push(skill) },
+    // The in-memory preview has no real registered directories.
+    workspaces: { get: async () => { throw new Error("请在 Isle 桌面宿主中选择真实工作区"); } },
+  });
+  return { tools: validateTools(tools), skills: validateSkills(skills) };
+}
+
 export function isHostFile(root, project, path) {
   const normalize = (value) => value.replaceAll("\\", "/");
   const file = normalize(path);
   const directories = [join(root, "main", "host")];
-  const entries = [project.toolsEntry, project.skillsEntry].filter(Boolean);
+  const entries = [project.hostEntry, project.toolsEntry, project.skillsEntry].filter(Boolean);
   for (const entry of entries)
     if (dirname(entry) !== root) directories.push(dirname(entry));
   return (

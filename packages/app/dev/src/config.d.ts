@@ -28,8 +28,9 @@ export interface ApplicationConfig {
         title?: string;
         layout?: "contained" | "full" | "fullscreen";
       };
-  /** Optional modules exporting default arrays of SDK definitions. */
+  /** Default arrays, or a full SDK application entry that can capture the application context. */
   host?: {
+    entry?: string;
     tools?: string;
     skills?: string;
   };

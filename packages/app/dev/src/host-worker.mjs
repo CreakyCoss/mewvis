@@ -1,10 +1,13 @@
 import { parentPort, workerData } from "node:worker_threads";
 import Ajv from "ajv";
-import { loadTools, loadSkills } from "./project.mjs";
+import { loadHostEntry, loadTools, loadSkills } from "./project.mjs";
 
 const ajv = new Ajv({ allErrors: true, strict: false });
+const definitions = workerData.hostEntry
+  ? await loadHostEntry(workerData)
+  : { tools: await loadTools(workerData), skills: await loadSkills(workerData) };
 const tools = new Map(
-  (await loadTools(workerData)).map((tool) => [
+  definitions.tools.map((tool) => [
     tool.name,
     {
       tool,
@@ -21,7 +24,7 @@ parentPort.postMessage({
       risk: tool.risk,
       parameters: tool.parameters,
     })),
-    skills: (await loadSkills(workerData)).map(
+    skills: definitions.skills.map(
       ({ name, description, content }) => ({
         name,
         description,

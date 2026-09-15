@@ -1,7 +1,7 @@
 import { Worker } from "node:worker_threads";
 
 /** Host modules load in Node; only tool schemas and skill data cross into the preview. */
-export function createDevHost({ toolsEntry, skillsEntry }, timeout = 10_000) {
+export function createDevHost({ hostEntry, toolsEntry, skillsEntry }, timeout = 10_000) {
   let worker;
   let ready;
   let nextId = 0;
@@ -19,11 +19,11 @@ export function createDevHost({ toolsEntry, skillsEntry }, timeout = 10_000) {
   };
   function start() {
     if (ready) return ready;
-    if (!toolsEntry && !skillsEntry)
+    if (!hostEntry && !toolsEntry && !skillsEntry)
       return Promise.resolve({ tools: [], skills: [] });
     const current = (worker = new Worker(
       new URL("./host-worker.mjs", import.meta.url),
-      { workerData: { toolsEntry, skillsEntry } },
+      { workerData: { hostEntry, toolsEntry, skillsEntry } },
     ));
     ready = new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
