@@ -23,7 +23,8 @@ let server;
 let created;
 
 try {
-  const runtime = join(temp, "runtime");
+  // Match the desktop layout: the bundled worker lives in dist/ beside a source package.
+  const runtime = join(temp, "dist");
   mkdirSync(runtime);
   const bundle = join(runtime, "test-api.mjs");
   for (const name of [entries.executionHost.output, entries.piToolWorker.output, "vendor"])
@@ -461,6 +462,36 @@ try {
     await scopedApplication.dispose();
   }
   console.log("PASS application startup, memory settings and declared skills with an empty Agent access grant");
+  const storyWorkspace = join(temp, "story-workspace");
+  const storyWorkspaceId = "11111111-1111-4111-8111-111111111111";
+  const storyPackageRoot = join(desktop, "../applications/dist/story");
+  const storyManifest = JSON.parse(readFileSync(join(storyPackageRoot, "package.json"), "utf8"));
+  mkdirSync(join(storyWorkspace, ".isle"), { recursive: true });
+  writeFileSync(join(storyWorkspace, ".isle", "workspace.json"),
+    JSON.stringify({ version: 1, id: storyWorkspaceId, applications: ["@isle/story"] }));
+  const storyTools = await api.createPiToolSet({
+    ...command,
+    workspacePath: storyWorkspace,
+    permissions: { mode: "ask" },
+    agentAccess: storyManifest.isle.agentAccess,
+    resources: {
+      tools: { allowed: ["isle_story_inspect"] },
+      applications: { items: [{
+        kind: "isle", id: "@isle/story", packageRoot: storyPackageRoot,
+        entry: join(storyPackageRoot, storyManifest.isle.app.entry),
+      }] },
+    },
+  }, callbacks);
+  try {
+    const inspect = storyTools.tools.find((tool) => tool.name === "isle_story_inspect");
+    assert.equal((await inspect.execute("story-inspect", { workspaceId: storyWorkspaceId })).details.value.status,
+      "empty");
+    await assert.rejects(inspect.execute("wrong-workspace", { workspaceId: "22222222-2222-4222-8222-222222222222" }),
+      /未登记/);
+  } finally {
+    await storyTools.dispose();
+  }
+  console.log("PASS built-in Story tools start and resolve their registered workspace under Agent access");
   await assert.rejects(
     api.createPiToolSet(
       {

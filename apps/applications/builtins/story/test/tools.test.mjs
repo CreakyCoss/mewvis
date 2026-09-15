@@ -102,6 +102,29 @@ test("tools resolve only this application's registered workspace", async t => {
     { code: "ENOENT" });
 });
 
+test("agent tools use the authenticated working directory when workspace data is unavailable", async t => {
+  const workspace = await fixture();
+  t.after(workspace.dispose);
+  const agentTools = new Map();
+  application.apply({
+    tools: { register(tool) { agentTools.set(tool.name, tool); } },
+    skills: { register() {} },
+    workspaces: {
+      async get() { throw Object.assign(new Error("无持久化数据连接"), { code: "CAPABILITY_UNAVAILABLE" }); },
+    },
+  });
+  const previous = process.cwd();
+  process.chdir(workspace.workspacePath);
+  try {
+    assert.equal((await agentTools.get("isle_story_inspect").execute({ workspaceId: workspace.workspaceId })).status,
+      "empty");
+    await assert.rejects(agentTools.get("isle_story_inspect").execute({ workspaceId: randomUUID() }),
+      /未登记/);
+  } finally {
+    process.chdir(previous);
+  }
+});
+
 test("the short story type opens through the same app tools", async t => {
   const workspace = await fixture();
   t.after(workspace.dispose);

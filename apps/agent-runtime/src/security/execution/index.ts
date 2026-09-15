@@ -1,6 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { existsSync, lstatSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { restrictExecutionReads } from "../platforms/index.js";
 import { intersectAccessHosts, intersectAccessPaths, type ResolvedAgentAccess } from "../access/index.js";
 import { z } from "zod";
@@ -115,9 +116,14 @@ export function resolveExecutionPolicy(
     sandbox.filesystem.denyWrite.push(...(constraint.programPaths ?? []).map(canonicalPath));
     const writes = intersectAccessPaths(profile.filesystem.allowWrite.map(path), access.filesystem.write);
     sandbox.filesystem.allowWrite = [...systemWritePaths, ...(writes === "all" ? [] : writes)];
+    const parentManifest = join(dirname(runtimePath), "package.json");
     if (access.filesystem.read !== "all")
       restrictExecutionReads(sandbox.filesystem, access.filesystem.read, [
         runtimePath,
+        // Bundled Pi chooses dist's parent manifest when a source package sits beside dist.
+        ...(basename(runtimePath) === "dist" && existsSync(parentManifest) && lstatSync(parentManifest).isFile()
+          ? [parentManifest]
+          : []),
         ...(constraint.programPaths ?? []),
       ]);
     sandbox.network.allow = intersectAccessHosts(sandbox.network.allow, access.network.hosts);
