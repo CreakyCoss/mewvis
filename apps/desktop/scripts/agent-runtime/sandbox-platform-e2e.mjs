@@ -6,7 +6,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, realpathSync, rmSy
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import entries from "../../agent-runtime/build-entries.json" with { type: "json" };
+import entries from "../../../agent-runtime/build-entries.json" with { type: "json" };
 const temp = realpathSync(mkdtempSync(join(tmpdir(), "isle-platform-test-")));
 const children = [];
 try {
@@ -20,7 +20,7 @@ try {
           "security/platforms/windows/policy-lease",
           "security/platforms/windows/policy",
           "security/execution/index",
-        ].map((name) => `export * from ${JSON.stringify(resolve(`agent-runtime/src/${name}.ts`))};`),
+        ].map((name) => `export * from ${JSON.stringify(resolve(`../agent-runtime/src/${name}.ts`))};`),
       ].join("\n"),
       resolveDir: process.cwd(),
       loader: "ts",
@@ -55,7 +55,7 @@ try {
   console.log("PASS shared platform paths: Windows drives/UNC/case and POSIX resource semantics");
   const disabledControl = join(temp, "disabled-control.mjs");
   await build({
-    entryPoints: [resolve("agent-runtime/src/security/execution/cli/control.ts")],
+    entryPoints: [resolve("../agent-runtime/src/security/execution/cli/control.ts")],
     outfile: disabledControl,
     bundle: true,
     format: "esm",
@@ -330,14 +330,14 @@ try {
     ["x64", 0x8664],
     ["arm64", 0xaa64],
   ]) {
-    const path = resolve(`agent-runtime/dist/vendor/srt-win/${arch}/srt-win.exe`);
+    const path = resolve(`../agent-runtime/dist/vendor/srt-win/${arch}/srt-win.exe`);
     assert.ok(existsSync(path), `missing ${arch} sandbox helper`);
     const binary = readFileSync(path);
     assert.equal(binary.toString("ascii", 0, 2), "MZ");
     const pe = binary.readUInt32LE(0x3c);
     assert.equal(binary.readUInt16LE(pe + 4), machine);
   }
-  for (const { output } of Object.values(entries)) assert.ok(existsSync(resolve("agent-runtime/dist", output)));
+  for (const { output } of Object.values(entries)) assert.ok(existsSync(resolve("../agent-runtime/dist", output)));
   console.log("PASS packaged Windows x64/ARM64 helpers and setup entry point");
 } finally {
   for (const child of children) if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");

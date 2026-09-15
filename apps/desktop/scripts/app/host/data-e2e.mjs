@@ -20,10 +20,10 @@ try {
       {
         name: "test-tauri",
         setup(build) {
-          build.onResolve({ filter: /^@tauri-apps\/api\/core$/ }, () => ({ path: "tauri", namespace: "fixture" }));
+          build.onResolve({ filter: /^@\/transport$/ }, () => ({ path: "tauri", namespace: "fixture" }));
           build.onLoad({ filter: /.*/, namespace: "fixture" }, () => ({
             contents:
-              "export const invoke = (...args) => globalThis.__dataTauri.invoke(...args); export const isTauri = () => globalThis.__dataTauri.enabled;",
+              'export const invoke = async (...args) => { if (!globalThis.__dataTauri.enabled) throw new Error("Backend offline"); return globalThis.__dataTauri.invoke(...args); };',
           }));
         },
       },

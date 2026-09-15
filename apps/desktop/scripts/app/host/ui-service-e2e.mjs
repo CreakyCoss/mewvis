@@ -8,8 +8,13 @@ import { createInterface } from "node:readline";
 import { load as loadYaml } from "js-yaml";
 
 const root = process.cwd();
-const servicePath = resolve(root, "agent-runtime/dist/app-host/service.mjs");
-const fixtureRoot = resolve(root, "applications/host/fixtures/dsh-portable-application");
+const servicePath = resolve(
+  root,
+  process.argv.includes("--bundled")
+    ? "../agent-runtime/dist/app-host/service.mjs"
+    : "../../packages/app/host/dist/service.mjs",
+);
+const fixtureRoot = resolve(root, "../../packages/app/host/fixtures/dsh-portable-application");
 const tempDir = mkdtempSync(join(tmpdir(), "isle-app-ui-service-"));
 const child = spawn(process.execPath, [servicePath], {
   cwd: root,
@@ -71,11 +76,11 @@ try {
   };
   const configured = await request("configure", configuration);
   assert.equal(configured.applications.length, 1);
+  assert.equal(configured.applications[0].error, null);
   assert.deepEqual(
     configured.applications[0].tools.map((tool) => tool.name),
     ["isle_dsh_echo"],
   );
-  assert.equal(configured.applications[0].error, null);
   assert.deepEqual(configured.applications[0].ui, {
     kind: "sandbox",
     title: "Portable UI Fixture",
@@ -148,7 +153,10 @@ try {
     ["isle_dsh_echo"],
     "business writes preserve user grants",
   );
-  await assert.rejects(request("toolPolicy.set", { applicationId: owner, policy: { allowedToolNames: "all" } }), /配置无效/);
+  await assert.rejects(
+    request("toolPolicy.set", { applicationId: owner, policy: { allowedToolNames: "all" } }),
+    /配置无效/,
+  );
   await assert.rejects(request("toolPolicy.get", { applicationId: "another-application" }), /未启用或不存在/);
   const validSettings = readFileSync(settingsFile, "utf8");
   writeFileSync(settingsFile, "$isleHost:\n  tools:\n    allowedToolNames: all\n");
@@ -258,7 +266,10 @@ try {
   assert.equal(invalidConfigured.applications[0].ui, null);
   assert.match(invalidConfigured.applications[0].uiError, /必须是以 \.\/ 开头的包内相对路径/);
   assert.deepEqual(invalidConfigured.applications[0].compatibility, [{ adapter: "dsh", clientPlatform: "web" }]);
-  await assert.rejects(request("uiDocument", { applicationId: "@isle/fixture-dsh-portable-application" }), /UI 声明无效/);
+  await assert.rejects(
+    request("uiDocument", { applicationId: "@isle/fixture-dsh-portable-application" }),
+    /UI 声明无效/,
+  );
 
   await request("shutdown");
   child.stdin.end();

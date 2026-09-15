@@ -22,10 +22,7 @@ import {
 } from "../../dist/config/runtime.js";
 import { chunkDocument } from "../../dist/modules/knowledge/documents.js";
 const rust = (path) =>
-  readFile(
-    new URL(`../../../desktop/src-tauri/src/${path}`, import.meta.url),
-    "utf8",
-  );
+  readFile(new URL(`../support/legacy-rust/${path}`, import.meta.url), "utf8");
 const norm = (s) => s.replace(/\s+/g, " ").trim();
 
 test("Node uses original product and Tauri runtime paths without creating files", () => {
@@ -55,7 +52,7 @@ test("Node uses original product and Tauri runtime paths without creating files"
     );
 });
 
-test("all config, RAG and vector SQL definitions match production Rust", async () => {
+test("all config, RAG and vector SQL definitions match the legacy Rust snapshot", async () => {
   const source = await rust("db/schema.rs");
   const definitions = [
     ...source.matchAll(
@@ -75,9 +72,7 @@ test("all config, RAG and vector SQL definitions match production Rust", async (
     await rust("db/migrations/version.rs"),
     new RegExp(`CONFIG_SCHEMA_VERSION: i64 = ${CONFIG_SCHEMA_VERSION};`),
   );
-  const index = (await rust("services/knowledge.rs"))
-    .split("fn initialize_index_schema")[1]
-    .match(/r#"([\s\S]*?)"#/)[1];
+  const index = await rust("rag-index.sql");
   assert.equal(norm(ragSchema), norm(index));
   const vec = (await rust("services/vector_store.rs")).split(
     "pub fn initialize_vector_metadata_schema",

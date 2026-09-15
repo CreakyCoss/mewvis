@@ -5,7 +5,7 @@ import { createApplicationChatClient, type ApplicationChatEvent, type Applicatio
 import { createChatService, createChatSession, type ChatRuntime } from "../../../src/chat/core";
 import { createApplicationChatHost } from "../../../src/chat/desktop/application";
 import type { DesktopSessionInput, DesktopChatService } from "../../../src/chat/desktop/service";
-import { createNativeApplicationChat } from "../../../applications/host/src/chat";
+import { createNativeApplicationChat } from "../../../../../packages/app/host/src/chat";
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -365,7 +365,7 @@ test(
   async () => {
     const f = fixture();
     const directory = await mkdtemp(join(tmpdir(), "isle-native-chat-"));
-    const child = spawn(process.execPath, ["agent-runtime/dist/app-host/service.mjs"], {
+    const child = spawn(process.execPath, ["../../packages/app/host/dist/service.mjs"], {
       stdio: ["pipe", "pipe", "pipe"],
     });
     let errors = "";

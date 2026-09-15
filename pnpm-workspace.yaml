@@ -4,4 +4,4 @@ packages:
   - "apps/*"
   - "packages/*"
   - "packages/*/*"
-  - "apps/desktop/applications/builtins/chat-playground"
+  - "apps/applications/builtins/chat-playground"

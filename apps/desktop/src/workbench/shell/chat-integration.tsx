@@ -1,6 +1,6 @@
 import { openSystemDialog } from "@/api/native";
 import { confirmWorkspaceShare } from "./feedback";
-import { invoke, listen, backendKind } from "@/transport";
+import { invoke, listen } from "@/transport";
 import type { ApplicationChatRequest } from "@isle/app-sdk/chat";
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -20,7 +20,6 @@ type WorkspaceInteraction = {
   applications?: string[];
 };
 async function connectWorkspaceInteractions() {
-  if (backendKind() !== "node") return () => {};
   const handled = new Set<string>();
   const pending = new Set<AbortController>();
   const unlisten = await listen<WorkspaceInteraction>("application-workspace:interaction", ({ payload }) => {

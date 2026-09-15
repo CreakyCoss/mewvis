@@ -71,10 +71,10 @@ try {
   assert.notEqual(unsafe.status, 0);
   assert.match(unsafe.stderr, /不是 Isle 构建产物/);
 
-  run("validate", resolve(root, "applications/builtins/rss-reader"));
-  run("pack", resolve(root, "applications/builtins/rss-reader"), "--target", "dsh", "--out-dir", rssOutput);
+  run("validate", resolve(root, "../applications/builtins/rss-reader"));
+  run("pack", resolve(root, "../applications/builtins/rss-reader"), "--target", "dsh", "--out-dir", rssOutput);
   const rssSourceManifest = JSON.parse(
-    readFileSync(resolve(root, "applications/builtins/rss-reader/package.json"), "utf8"),
+    readFileSync(resolve(root, "../applications/builtins/rss-reader/package.json"), "utf8"),
   );
   const rssOutputManifest = JSON.parse(readFileSync(join(rssOutput, "package.json"), "utf8"));
   assert.equal(rssSourceManifest.dsh, undefined, "RSS 源码必须只维护 Isle 清单。");

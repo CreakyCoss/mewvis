@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 
 const openRpcDocument = JSON.parse(
-  readFileSync(new URL("../../agent-runtime/protocol/v1/openrpc.json", import.meta.url), "utf8"),
+  readFileSync(new URL("../../../agent-runtime/protocol/v1/openrpc.json", import.meta.url), "utf8"),
 );
 
 const methodByCommandType = new Map(

@@ -13,7 +13,7 @@ Isle 将具有独立业务界面、设置、数据和会话的功能称为**应�
 | CLI               | `isle-app`；桌面工程中的 `app:create`、`app:validate`、`app:pack`      |
 | SDK 工厂与类型    | `defineApplication`、`IsleApplicationContext`、`ApplicationChatClient` |
 | 原生安装清单      | `isle.app`；`isle.ui` 继续声明应用界面                                 |
-| Node 宿主与内置包 | `apps/desktop/applications/host`、`applications/builtins`              |
+| Node 宿主与内置包 | `packages/app/host`、`apps/applications/builtins`              |
 | 身份与协议        | `applicationId`、`application` 来源、`application:*` 桥接消息          |
 | 数据根目录        | 产品数据目录下的 `apps/`                                               |
 | 数据权限          | `application-data`、`application-workspaces`                           |
@@ -32,20 +32,21 @@ packages/
   app/
     sdk/                    # @isle/app-sdk：应用公共契约
     dev/                    # @isle/app-dev：创建、预览和打包
+    host/                   # @isle/app-host：Node 应用宿主、协议与构建
   chat-contracts/            # 跨宿主与应用共享的聊天契约
+apps/applications/
+  builtins/                 # 内置应用源码
+  scripts/                  # 应用打包与文档生成
 apps/desktop/
-  applications/
-    host/                   # Node 应用宿主、协议与宿主构建
-    builtins/               # 内置应用
   src/
     api/applications/       # 应用管理、数据和工具 API
     workbench/shell/         # 桌面外壳、侧栏和布局
     workbench/pages/applications/ # 应用页面与沙箱桥
-  src-tauri/src/services/applications/ # 应用管理、数据、路径、UI 和工作区
   scripts/app/
     host/                   # 应用宿主集成验证
     dev/                    # 开发预览验证
     chat/                   # 应用聊天构建、契约测试与样例
+apps/server/src/modules/applications/ # 应用管理、数据、路径、UI 和工作区
 ```
 
 目录分组不改变公开包名、应用协议、运行时数据目录或构建产物路径。聊天核心和桌面聊天适配仍位于各自模块；`chat-contracts` 同时服务宿主和应用，保持独立。

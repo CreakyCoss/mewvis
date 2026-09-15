@@ -45,15 +45,12 @@ async function setup(t) {
 }
 test("every registered Tauri backend command has a Node command", async (t) => {
   const s = await setup(t);
-  const rust = await fs.readFile(
-    new URL("../../../desktop/src-tauri/src/lib.rs", import.meta.url),
-    "utf8",
+  const names = JSON.parse(
+    await fs.readFile(
+      new URL("../support/fixtures/legacy-commands.json", import.meta.url),
+      "utf8",
+    ),
   );
-  const section = rust.match(/generate_handler!\[([\s\S]*?)\]/)[1];
-  const names = section
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean);
   assert.equal(names.length, 104);
   const response = await fetch(s.server.url + "/api/commands", {
     headers: { authorization: "Bearer " + token },
@@ -492,7 +489,7 @@ test("real Node application host forwards SDK storage and tools, policies, UI an
     await fs.mkdtemp(join(tmpdir(), "isle-apphost-")),
   );
   const cli = fileURLToPath(
-    new URL("../../../desktop/agent-runtime/dist/cli.js", import.meta.url),
+    new URL("../../../agent-runtime/dist/cli.js", import.meta.url),
   );
   const { runtimeConfig } = await import("../../dist/config/runtime.js");
   const { AgentRuntimeSupervisor } =

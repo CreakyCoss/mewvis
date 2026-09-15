@@ -1,0 +1,37 @@
+{
+  "name": "@isle/agent-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "pnpm --filter @isle/app-host build && tsc --noEmit && node scripts/build-cli.mjs && pnpm --filter @isle/builtin-applications build && node scripts/write-package.mjs && node scripts/copy-builtin-resources.mjs && node scripts/copy-application-installer.mjs && node scripts/copy-node-runtime.mjs",
+    "check": "tsc --noEmit",
+    "generate:protocol": "node protocol/scripts/generate-bindings.mjs",
+    "check:protocol": "node protocol/scripts/generate-bindings.mjs --check"
+  },
+  "dependencies": {
+    "@anthropic-ai/sandbox-runtime": "0.0.75",
+    "@earendil-works/pi-ai": "workspace:*",
+    "@earendil-works/pi-coding-agent": "workspace:*",
+    "@isle/chat-contracts": "workspace:*",
+    "@langchain/langgraph": "^1.4.7",
+    "ajv": "^8.20.0",
+    "lodash-es": "^4.18.1",
+    "zod": "^4.2.0",
+    "@isle/app-host": "workspace:*"
+  },
+  "devDependencies": {
+    "@isle/app-dev": "workspace:*",
+    "@types/node": "^22.0.0",
+    "@types/lodash-es": "^4.17.12",
+    "esbuild": "^0.28.0",
+    "prettier": "^3.9.3",
+    "typescript": "~5.8.3",
+    "json-schema-to-typescript": "15.0.4",
+    "quicktype": "26.0.0",
+    "pnpm": "11.7.0"
+  }
+}

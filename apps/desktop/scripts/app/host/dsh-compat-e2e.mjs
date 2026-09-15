@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
 
 const root = process.cwd();
-const fixtureRoot = resolve(root, "applications/host/fixtures/dsh-portable-application");
+const fixtureRoot = resolve(root, "../../packages/app/host/fixtures/dsh-portable-application");
 const manifest = JSON.parse(readFileSync(resolve(fixtureRoot, "package.json"), "utf8"));
 const patch = readFileSync(resolve(fixtureRoot, "cordis.patch.yml"), "utf8");
 
@@ -26,7 +26,7 @@ try {
   process.env.ISLE_DSH_COMPAT_SETTINGS_PATH = join(tempDir, "application-settings.yaml");
   process.env.ISLE_DSH_COMPAT_SETTINGS_ROOT = settingsRoot;
   await build({
-    entryPoints: [resolve(root, "applications/host/tests/dsh-compat-runner.ts")],
+    entryPoints: [resolve(root, "../../packages/app/host/tests/dsh-compat-runner.ts")],
     bundle: true,
     platform: "node",
     format: "esm",

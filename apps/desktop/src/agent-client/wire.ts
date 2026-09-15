@@ -50,4 +50,4 @@ export {
   type ToolExecutionEndEvent,
   type ToolExecutionStartEvent,
   type ToolExecutionUpdateEvent,
-} from "../../agent-runtime/protocol/v1/sdk/typescript/index";
+} from "../../../agent-runtime/protocol/v1/sdk/typescript/index";

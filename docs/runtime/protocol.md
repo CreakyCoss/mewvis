@@ -1,6 +1,6 @@
 # Agent 运行时通信协议
 
-`apps/desktop/agent-runtime/protocol` 是跨语言通信的唯一协议来源。运行时可使用 Node.js、Python 或其他语言实现，但必须消费同一套文件并通过相同测试样例。
+`apps/agent-runtime/protocol` 是跨语言通信的唯一协议来源。运行时可使用 Node.js、Python 或其他语言实现，但必须消费同一套文件并通过相同测试样例。
 
 ## 分层
 
@@ -40,7 +40,7 @@ if (agentRuntimeEventGuards.textDelta(event)) {
 生成器和 Node 依赖位于协议目录。生成过程还需读取运行时定义并更新共享 Chat 类型，因此应在本仓库内执行。修改 Schema、OpenRPC 方法或权限定义后，在 `apps/desktop` 执行：
 
 ```sh
-cd agent-runtime/protocol
+cd apps/agent-runtime/protocol
 pnpm install
 pnpm generate
 pnpm check

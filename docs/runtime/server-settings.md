@@ -100,4 +100,4 @@ API Key 与 Tauri 字段契约一致存入 SQLite，并由受认证的模型读�
 
 当前配置读写为同步、小规模操作，HTTP 请求仍受 1 MiB 限制。文件扫描与网络 Embedding 使用异步操作；知识索引复用原 `rag/index.sqlite`，向量查询使用 sqlite-vec。大规模索引仍受本机资源和同步 SQLite 提交耗时约束，限制见业务接口文档。
 
-这些接口只管理配置记录。现有桌面前端尚未切换，任务仍显式提交 `runtimeModel` 与角色配置。[工作区登记接口](server-workspaces.md)以及[技能、知识库和应用接口](server-interfaces.md)均已迁移。
+这些接口只管理配置记录。桌面与 Web 已统一使用 Node，任务仍显式提交 `runtimeModel` 与角色配置。[工作区登记接口](server-workspaces.md)以及[技能、知识库和应用接口](server-interfaces.md)均已迁移。

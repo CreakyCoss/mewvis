@@ -1,5 +1,4 @@
-import { Channel } from "@tauri-apps/api/core";
-import { invoke, listen, backendKind } from "@/transport";
+import { invoke, listen } from "@/transport";
 
 export type WorkspaceFileEntry = {
   path: string;
@@ -105,35 +104,21 @@ export type WorkspaceFileWriteResult = {
 };
 
 export async function watchWorkspaceFiles(workspacePath: string, onChange: () => void): Promise<() => void> {
-  if (backendKind() === "node") {
-    let watchId: string | undefined;
-    const unlisten = await listen<{ watchId: string }>("workspace_files_changed", ({ payload }) => {
-      if (payload.watchId === watchId) onChange();
-    });
-    try {
-      watchId = await invoke<string>("watch_workspace_files", { input: { workspacePath } });
-      // Refresh after registration to cover changes before the watch id reached the browser.
-      onChange();
-    } catch (error) {
-      unlisten();
-      throw error;
-    }
-    return () => {
-      unlisten();
-      void invoke("unwatch_workspace_files", { input: { watchId } }).catch(() => {});
-    };
-  }
-  const channel = new Channel<null>();
-  channel.onmessage = onChange;
-  const watchId = await invoke<string>("watch_workspace_files", {
-    input: { workspacePath },
-    onChange: channel,
+  let watchId: string | undefined;
+  const unlisten = await listen<{ watchId: string }>("workspace_files_changed", ({ payload }) => {
+    if (payload.watchId === watchId) onChange();
   });
-
+  try {
+    watchId = await invoke<string>("watch_workspace_files", { input: { workspacePath } });
+    // Refresh after registration to cover changes before the watch id reached the browser.
+    onChange();
+  } catch (error) {
+    unlisten();
+    throw error;
+  }
   return () => {
-    void invoke("unwatch_workspace_files", {
-      input: { watchId },
-    }).catch(() => undefined);
+    unlisten();
+    void invoke("unwatch_workspace_files", { input: { watchId } }).catch(() => {});
   };
 }
 

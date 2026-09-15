@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createServer } from "node:http";
 import { once } from "node:events";
-import entries from "../../agent-runtime/build-entries.json" with { type: "json" };
+import entries from "../../../agent-runtime/build-entries.json" with { type: "json" };
 const temp = mkdtempSync(join(tmpdir(), "isle-tool-sandbox-"));
 const workspace = join(temp, "workspace"),
   runtime = join(temp, "runtime");
@@ -16,14 +16,14 @@ let server;
 const workers = [];
 try {
   for (const name of [entries.executionHost.output, entries.piToolWorker.output, "vendor", "builtins"])
-    cpSync(resolve("agent-runtime/dist", name), join(runtime, name), { recursive: true });
+    cpSync(resolve("../agent-runtime/dist", name), join(runtime, name), { recursive: true });
   writeFileSync(
     join(runtime, "package.json"),
     JSON.stringify({ type: "module", piConfig: { name: "pi", configDir: ".pi" } }),
   );
   await build({
     stdin: {
-      contents: `export * from ${JSON.stringify(resolve("agent-runtime/src/security/execution/index.ts"))};`,
+      contents: `export * from ${JSON.stringify(resolve("../agent-runtime/src/security/execution/index.ts"))};`,
       loader: "ts",
       resolveDir: process.cwd(),
     },
@@ -45,7 +45,7 @@ try {
   const genericBuild = await build({
     stdin: {
       contents: `
-        import { serveWorker } from ${JSON.stringify(resolve("agent-runtime/src/security/execution/index.ts"))};
+        import { serveWorker } from ${JSON.stringify(resolve("../agent-runtime/src/security/execution/index.ts"))};
         import { readFile, writeFile } from 'node:fs/promises';
         let startupBlocked = false;
         let disposals = 0;

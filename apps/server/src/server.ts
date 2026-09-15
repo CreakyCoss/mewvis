@@ -12,6 +12,8 @@ export interface ServerOptions {
   token: string;
   nativePicker?: NativePicker;
   port?: number;
+  allowedOrigins?: string[];
+  webRoot?: string;
   runtime?: Partial<RuntimeConfig>;
 }
 

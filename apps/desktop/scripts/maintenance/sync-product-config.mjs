@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const desktopRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
-const productConfigPath = join(desktopRoot, "product.config.json");
+const productConfigPath = join(desktopRoot, "../product.config.json");
 const indexPath = join(desktopRoot, "index.html");
 const tauriConfigPath = join(desktopRoot, "src-tauri", "tauri.conf.json");
 const cargoTomlPath = join(desktopRoot, "src-tauri", "Cargo.toml");

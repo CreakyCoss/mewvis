@@ -47,8 +47,8 @@ const server = createServer(async (request, response) => {
 try {
   const bundle = join(temp, "chat.mjs");
   await build({
-    tsconfig: resolve("agent-runtime/tsconfig.json"),
-    entryPoints: [resolve("agent-runtime/src/engines/drivers/native/agent/runtimes/pi/chat/index.ts")],
+    tsconfig: resolve("../agent-runtime/tsconfig.json"),
+    entryPoints: [resolve("../agent-runtime/src/engines/drivers/native/agent/runtimes/pi/chat/index.ts")],
     bundle: true,
     platform: "node",
     format: "esm",

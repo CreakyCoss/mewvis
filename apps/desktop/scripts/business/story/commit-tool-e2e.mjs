@@ -9,9 +9,9 @@ const tempDir = mkdtempSync(join(tmpdir(), "isle-claw-story-tool-"));
 const workspace = join(tempDir, "workspace");
 const entryPath = join(tempDir, "runner.ts");
 const bundlePath = join(tempDir, "runner.mjs");
-const definitionPath = resolve(root, "agent-runtime/src/engines/builtins/story/tool/definition.ts");
-const repositoryPath = resolve(root, "agent-runtime/src/engines/builtins/story/tool/repository.ts");
-const piSchemaPath = resolve(root, "agent-runtime/src/engines/drivers/native/agent/runtimes/pi/tools/schema.ts");
+const definitionPath = resolve(root, "../agent-runtime/src/engines/builtins/story/tool/definition.ts");
+const repositoryPath = resolve(root, "../agent-runtime/src/engines/builtins/story/tool/repository.ts");
+const piSchemaPath = resolve(root, "../agent-runtime/src/engines/drivers/native/agent/runtimes/pi/tools/schema.ts");
 const piValidationPath = resolve(root, "../../ai/pi/packages/ai/src/utils/validation.ts");
 
 writeFileSync(

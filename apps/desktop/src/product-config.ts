@@ -1,4 +1,4 @@
-import productConfig from "../product.config.json";
+import productConfig from "../../product.config.json";
 
 export const PRODUCT_CONFIG = productConfig;
 

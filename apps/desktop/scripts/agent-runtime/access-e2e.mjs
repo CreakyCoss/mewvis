@@ -15,7 +15,7 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createServer } from "node:http";
 import { once } from "node:events";
-import entries from "../../agent-runtime/build-entries.json" with { type: "json" };
+import entries from "../../../agent-runtime/build-entries.json" with { type: "json" };
 
 const temp = realpathSync(mkdtempSync(join(tmpdir(), "isle-access-")));
 const workspace = join(temp, "workspace"),
@@ -39,7 +39,7 @@ try {
         "security/safety/index",
         "engines/drivers/native/agent/runtimes/pi/tools/safety",
       ]
-        .map((name) => `export * from ${JSON.stringify(resolve(`agent-runtime/src/${name}.ts`))};`)
+        .map((name) => `export * from ${JSON.stringify(resolve(`../agent-runtime/src/${name}.ts`))};`)
         .join("\n"),
       resolveDir: process.cwd(),
       loader: "ts",
@@ -114,13 +114,13 @@ try {
   );
 
   for (const name of [entries.executionHost.output, "vendor"])
-    cpSync(resolve("agent-runtime/dist", name), join(runtime, name), { recursive: true });
+    cpSync(resolve("../agent-runtime/dist", name), join(runtime, name), { recursive: true });
   writeFileSync(join(runtime, "package.json"), '{"type":"module"}');
   const entry = join(runtime, "worker.mjs");
   await build({
     stdin: {
       contents: `
-    import { serveWorker } from ${JSON.stringify(resolve("agent-runtime/src/security/execution/index.ts"))};
+    import { serveWorker } from ${JSON.stringify(resolve("../agent-runtime/src/security/execution/index.ts"))};
     import { readFile, writeFile } from 'node:fs/promises';
     import { execFileSync } from 'node:child_process';
     serveWorker({ async execute(method, input) {

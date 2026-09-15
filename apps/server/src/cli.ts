@@ -1,34 +1,100 @@
+import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 import { startServer } from "./server.js";
 
+const desktop = process.argv.includes("--desktop");
+const web = process.argv.includes("--web");
+if (desktop && web) throw new Error("--desktop 和 --web 不能同时使用");
+const unknown = process.argv
+  .slice(2)
+  .filter((arg) => !["--desktop", "--web", "--help"].includes(arg));
+if (unknown.length) throw new Error(`未知参数：${unknown.join(", ")}`);
 if (process.argv.includes("--help")) {
-  console.log(`Isle Agent Server (loopback only)
-Usage: pnpm --filter @isle/server start
-  ISLE_SERVER_PORT          Port, default 1422 (0 selects a free port)
-  ISLE_SERVER_TOKEN         Bearer token; generated for this run when omitted
-  ISLE_SERVER_DATA_DIR      Shared config/data root, default ~/.isle-claw
-  ISLE_SERVER_RUNTIME_DATA_DIR  Override Tauri runtime data directory
-  ISLE_SERVER_RUNTIME_CLI   Existing Runtime CLI build path
-  AGENT_RUNTIME_PROFILE_ID Runtime profile, e.g. mock for offline testing
-The desktop frontend, Tauri backend, and Runtime engine are not modified.`);
+  console.log(`Isle Node Server (loopback only)
+Usage: node cli.js [--desktop | --web]
+  ISLE_SERVER_PORT       Port, default 1422 (desktop uses a free port)
+  ISLE_WEB_PORT          Web mode port, default 4173
+  ISLE_SERVER_WEB_ROOT   Built React page directory for --web
+  ISLE_SERVER_TOKEN      Bearer token; generated when omitted
+  ISLE_SERVER_DATA_DIR   Shared data root, default ~/.isle-claw
+  ISLE_SERVER_RESOURCES  Packaged Runtime, protocol and product resources
+Desktop mode writes a private readiness message to stdout and closes on stdin EOF.`);
 } else {
-  const port = Number(process.env.ISLE_SERVER_PORT ?? 1422);
-  if (!Number.isInteger(port) || port < 0 || port > 65535)
-    throw new Error("ISLE_SERVER_PORT 不合法");
-  const token =
-    process.env.ISLE_SERVER_TOKEN ?? randomBytes(32).toString("hex");
-  const server = await startServer({ port, token });
-  console.log(`Isle Agent Server: ${server.url}`);
-  if (!process.env.ISLE_SERVER_TOKEN) console.log(`Session token: ${token}`);
-  console.log(
-    "Agent and settings APIs ready. Existing desktop UI is not connected to this server.",
-  );
+  let parentGone = false;
+  let server: Awaited<ReturnType<typeof startServer>> | undefined;
+  let closing: Promise<void> | undefined;
   const shutdown = () => {
-    void server.close().catch((error) => {
-      console.error(error);
-      process.exitCode = 1;
-    });
+    parentGone = true;
+    if (!server) return;
+    closing ??= server.close();
+    void closing.then(
+      () => {
+        if (desktop) process.exit(0);
+      },
+      (error) => {
+        console.error(error);
+        process.exitCode = 1;
+        if (desktop) process.exit(1);
+      },
+    );
   };
+  if (desktop) {
+    process.stdin.resume();
+    process.stdin.once("end", shutdown);
+    process.stdin.once("error", shutdown);
+  }
   process.once("SIGINT", shutdown);
   process.once("SIGTERM", shutdown);
+  try {
+    const port = Number(
+      web
+        ? (process.env.ISLE_WEB_PORT ?? 4173)
+        : (process.env.ISLE_SERVER_PORT ?? (desktop ? 0 : 1422)),
+    );
+    if (!Number.isInteger(port) || port < 0 || port > 65535)
+      throw new Error(`${web ? "ISLE_WEB_PORT" : "ISLE_SERVER_PORT"} 不合法`);
+    const token =
+      process.env.ISLE_SERVER_TOKEN ?? randomBytes(32).toString("hex");
+    // Only desktop's known bundled-page origins and its exact development origin may use CORS.
+    const allowedOrigins = desktop
+      ? [
+          "tauri://localhost",
+          "http://tauri.localhost",
+          "https://tauri.localhost",
+        ]
+      : [];
+    const devOrigin = process.env.ISLE_DESKTOP_DEV_ORIGIN;
+    if (desktop && devOrigin) {
+      const parsed = new URL(devOrigin);
+      if (
+        parsed.protocol !== "http:" ||
+        !["localhost", "127.0.0.1"].includes(parsed.hostname) ||
+        parsed.origin !== devOrigin
+      )
+        throw new Error("Invalid desktop development origin");
+      allowedOrigins.push(devOrigin);
+    }
+    const webRoot = web
+      ? (process.env.ISLE_SERVER_WEB_ROOT ??
+        (process.env.ISLE_SERVER_RESOURCES
+          ? join(process.env.ISLE_SERVER_RESOURCES, "web")
+          : fileURLToPath(new URL("../../desktop/dist/", import.meta.url))))
+      : undefined;
+    server = await startServer({ port, token, allowedOrigins, webRoot });
+    if (parentGone) shutdown();
+    else if (desktop)
+      process.stdout.write(
+        JSON.stringify({ type: "ready", url: server.url, token }) + "\n",
+      );
+    else if (web) console.log(`Isle Web: ${server.url}`);
+    else {
+      console.log(`Isle Node Server: ${server.url}`);
+      if (!process.env.ISLE_SERVER_TOKEN)
+        console.log(`Session token: ${token}`);
+    }
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : error);
+    process.exit(1);
+  }
 }

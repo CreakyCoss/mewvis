@@ -13,7 +13,7 @@ Isle 内部的原生小说能力。源码只依赖 `@isle/app-sdk`，通过 Isle
 前运行：
 
 ```sh
-pnpm app:pack -- applications/builtins/story-scene-card --target dsh
+pnpm app:pack -- ../applications/builtins/story-scene-card --target dsh
 ```
 
 打包器会把 SDK 和依赖写入单文件入口，并生成标准 DSH Bundle；该产物

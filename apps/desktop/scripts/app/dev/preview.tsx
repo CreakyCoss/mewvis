@@ -1,8 +1,8 @@
 // Static preview on the already-running desktop Vite server. No extra service.
 import { mountPreview } from "@isle/app-dev/preview";
-import App from "../../../applications/builtins/chat-playground/main/App";
-import config from "../../../applications/builtins/chat-playground/isle.config";
-import manifest from "../../../applications/builtins/chat-playground/package.json";
+import App from "../../../../applications/builtins/chat-playground/main/App";
+import config from "../../../../applications/builtins/chat-playground/isle.config";
+import manifest from "../../../../applications/builtins/chat-playground/package.json";
 
 const dispose = await mountPreview(App, {
   ...config,

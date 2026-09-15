@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { createServer, preview } from "vite";
+import { createServer } from "vite";
 import { startServer } from "../../../server/dist/server.js";
 import { webBackendConfig } from "./backend-proxy.mjs";
 
@@ -37,13 +37,10 @@ try {
   if (process.env.ISLE_WEB_PORT) {
     const port = Number(process.env.ISLE_WEB_PORT);
     if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("ISLE_WEB_PORT 不合法");
-    config.server.port = config.preview.port = port;
+    config.server.port = port;
   }
-  if (process.argv.includes("--preview")) ownLifecycle(await preview(config));
-  else {
-    ownLifecycle(await createServer(config));
-    await web.listen();
-  }
+  ownLifecycle(await createServer(config));
+  await web.listen();
   web.printUrls();
   for (const signal of ["SIGINT", "SIGTERM"])
     process.once(signal, () => {

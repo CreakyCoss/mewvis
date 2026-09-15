@@ -1,6 +1,6 @@
 # 程序执行与沙箱
 
-源码目录 `apps/desktop/agent-runtime/src/security/execution` 负责启动适配器提供的程序，以及 RPC、取消、超时和清理。操作系统沙箱是可选后端。执行模块不导入 Agent SDK 或安全审批模块，不构造工具、不加载应用、不解释技能。
+源码目录 `apps/agent-runtime/src/security/execution` 负责启动适配器提供的程序，以及 RPC、取消、超时和清理。操作系统沙箱是可选后端。执行模块不导入 Agent SDK 或安全审批模块，不构造工具、不加载应用、不解释技能。
 
 ## 配置与流程
 

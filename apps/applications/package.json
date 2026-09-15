@@ -1,0 +1,24 @@
+{
+  "name": "@isle/builtin-applications",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm --filter desktop build:chat-ui && node scripts/build.mjs",
+    "docs:check": "node scripts/docs/book.mjs --check",
+    "docs:build": "node scripts/docs/book.mjs",
+    "docs:test": "node --test scripts/docs/book.test.mjs"
+  },
+  "devDependencies": {
+    "@isle/app-dev": "workspace:*",
+    "@isle/app-sdk": "workspace:*",
+    "dsh-rss": "0.2.0",
+    "esbuild": "^0.28.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "@earendil-works/pi-coding-agent": "workspace:*",
+    "@earendil-works/pi-ai": "workspace:*"
+  }
+}

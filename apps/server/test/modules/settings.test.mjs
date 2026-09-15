@@ -313,7 +313,7 @@ test("database initialization rejects foreign and future schemas without rebuild
 test("migrated configuration tables keep Tauri column names", async (t) => {
   const s = await setup(t);
   const rust = await readFile(
-    new URL("../../../desktop/src-tauri/src/db/schema.rs", import.meta.url),
+    new URL("../support/legacy-rust/db/schema.rs", import.meta.url),
     "utf8",
   );
   const db = new DatabaseSync(join(s.root, "config.db"));

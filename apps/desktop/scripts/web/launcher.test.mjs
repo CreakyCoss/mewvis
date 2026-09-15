@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { createServer } from "node:net";
 import { once } from "node:events";
 
-for (const mode of ["dev", "preview"])
+for (const mode of ["dev", "web"])
   test(
     `${mode} launcher serves UI/API and SIGTERM releases runtime children and storage`,
     { timeout: 20000 },
@@ -21,7 +21,9 @@ for (const mode of ["dev", "preview"])
       await new Promise((resolve) => reservation.close(resolve));
       const child = spawn(
         process.execPath,
-        [fileURLToPath(new URL("./serve.mjs", import.meta.url)), ...(mode === "preview" ? ["--preview"] : [])],
+        mode === "web"
+          ? [fileURLToPath(new URL("../../../server/dist/cli.js", import.meta.url)), "--web"]
+          : [fileURLToPath(new URL("./serve.mjs", import.meta.url))],
         {
           cwd: fileURLToPath(new URL("../../", import.meta.url)),
           env: {
@@ -53,11 +55,14 @@ for (const mode of ["dev", "preview"])
         await new Promise((r) => setTimeout(r, 10));
       }
       assert.ok(url, output);
-      assert.match(await (await fetch(url)).text(), /<div id="root">/);
+      const page = await fetch(url);
+      assert.match(await page.text(), /<div id="root">/);
+      const headers = mode === "web" ? { cookie: page.headers.get("set-cookie").split(";")[0] } : {};
+      if (mode === "web") assert.ok(!output.includes("Session token"));
       const command = async (name, args) => {
         const response = await fetch(`${url}/api/commands/${name}`, {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: { ...headers, "content-type": "application/json" },
           body: JSON.stringify(args ?? {}),
         });
         assert.equal(response.status, 200, await response.clone().text());
@@ -74,14 +79,14 @@ for (const mode of ["dev", "preview"])
       });
       let pid;
       for (let n = 0; n < 100; n++) {
-        const status = await (await fetch(`${url}/api/status`)).json();
+        const status = await (await fetch(`${url}/api/status`, { headers })).json();
         pid = status.workers[0]?.pid;
         if (pid) break;
         await new Promise((r) => setTimeout(r, 10));
       }
       assert.ok(pid);
       const abort = new AbortController();
-      const stream = await fetch(`${url}/api/events`, { signal: abort.signal });
+      const stream = await fetch(`${url}/api/events`, { signal: abort.signal, headers });
       assert.equal(stream.status, 200);
       child.kill("SIGTERM");
       const [code, signal] = await exit;

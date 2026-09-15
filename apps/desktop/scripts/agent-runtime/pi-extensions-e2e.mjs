@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import entries from "../../agent-runtime/build-entries.json" with { type: "json" };
+import entries from "../../../agent-runtime/build-entries.json" with { type: "json" };
 
 const desktop = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const temp = mkdtempSync(join(tmpdir(), "isle-pi-extensions-"));
@@ -18,7 +18,7 @@ mkdirSync(workspace);
 mkdirSync(agentDir);
 const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
 process.env.PI_CODING_AGENT_DIR = agentDir;
-const root = join(desktop, "agent-runtime/src/engines/drivers/native/agent/runtimes/pi");
+const root = join(desktop, "../agent-runtime/src/engines/drivers/native/agent/runtimes/pi");
 let server;
 let created;
 
@@ -27,14 +27,14 @@ try {
   mkdirSync(runtime);
   const bundle = join(runtime, "test-api.mjs");
   for (const name of [entries.executionHost.output, entries.piToolWorker.output, "vendor"])
-    cpSync(join(desktop, "agent-runtime/dist", name), join(runtime, name), { recursive: true });
+    cpSync(join(desktop, "../agent-runtime/dist", name), join(runtime, name), { recursive: true });
   await build({
-    tsconfig: join(desktop, "agent-runtime/tsconfig.json"),
+    tsconfig: join(desktop, "../agent-runtime/tsconfig.json"),
     stdin: {
       contents: [
-        `export * from ${JSON.stringify(join(desktop, "agent-runtime/src/security/safety/index.ts"))};`,
-        `export * from ${JSON.stringify(join(desktop, "agent-runtime/src/security/execution/index.ts"))};`,
-        `export * from ${JSON.stringify(join(desktop, "agent-runtime/src/engines/drivers/native/index.ts"))};`,
+        `export * from ${JSON.stringify(join(desktop, "../agent-runtime/src/security/safety/index.ts"))};`,
+        `export * from ${JSON.stringify(join(desktop, "../agent-runtime/src/security/execution/index.ts"))};`,
+        `export * from ${JSON.stringify(join(desktop, "../agent-runtime/src/engines/drivers/native/index.ts"))};`,
         `export * from ${JSON.stringify(join(root, "../../commands/user-input.ts"))};`,
         `export * from ${JSON.stringify(join(root, "tools/subagent.ts"))};`,
         `export * from ${JSON.stringify(join(root, "tools/index.ts"))};`,
@@ -350,7 +350,7 @@ try {
   mkdirSync(join(settingsRoot, "isle-fixture-portable"), { recursive: true });
   writeFileSync(join(settingsRoot, "settings.yaml"), "{}\n");
   writeFileSync(join(settingsRoot, "isle-fixture-portable", "settings.yaml"), "prefix: saved\n");
-  const fixtureRoot = join(desktop, "applications/host/fixtures/dsh-portable-application");
+  const fixtureRoot = join(desktop, "../../packages/app/host/fixtures/dsh-portable-application");
   const applicationExecution = api.resolveExecutionPolicy("ask", workspace);
   applicationExecution.sandbox.filesystem.denyWrite.push(settingsRoot);
   const applicationTools = await api.createPiToolSet(

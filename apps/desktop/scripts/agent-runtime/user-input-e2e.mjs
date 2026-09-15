@@ -3,7 +3,7 @@ import { mock } from "node:test";
 import { build } from "esbuild";
 import { resolve } from "node:path";
 
-const entry = resolve(process.cwd(), "agent-runtime/src/engines/drivers/native/agent/commands/user-input.ts");
+const entry = resolve(process.cwd(), "../agent-runtime/src/engines/drivers/native/agent/commands/user-input.ts");
 const output = await build({
   entryPoints: [entry],
   bundle: true,
@@ -101,7 +101,7 @@ assert.equal(await otherTaskAnswer, "另一个回答");
 
 const toolBundle = await build({
   entryPoints: [
-    resolve(process.cwd(), "agent-runtime/src/engines/drivers/native/agent/runtimes/pi/tools/ask-user-tool.ts"),
+    resolve(process.cwd(), "../agent-runtime/src/engines/drivers/native/agent/runtimes/pi/tools/ask-user-tool.ts"),
   ],
   bundle: true,
   platform: "node",

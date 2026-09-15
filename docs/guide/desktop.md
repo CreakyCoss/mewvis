@@ -24,7 +24,7 @@ pnpm build:desktop:win:arm64
 
 构建会同步产品配置，构建 Chat 共享界面、应用宿主和 Agent 运行时，并打包内置应用与中文文档。具体平台还需安装对应的 Rust/Tauri 构建依赖。
 
-`build:agent-runtime` 会先清理并构建运行时，再构建 Application UI Host，最后复制资源和打包应用。应用宿主位于同一个 `agent-runtime/dist` 目录，必须在清理之后生成。开发模式缺少宿主产物时会明确报错，不会加载旧的 Tauri 资源副本。在 `apps/desktop` 运行 `pnpm test:app-host:packaging` 可验证完整构建后的宿主启动与文档应用全屏声明。
+`build:agent-runtime` 调用独立的 `@isle/agent-runtime` 包，先清理并构建运行时，再构建 Application UI Host，最后复制资源和打包应用。应用宿主位于同一个 `apps/agent-runtime/dist` 目录，必须在清理之后生成。开发模式缺少宿主产物时会明确报错，不会加载旧的 Tauri 资源副本。在 `apps/desktop` 运行 `pnpm test:app-host:packaging` 可验证完整构建后的宿主启动与文档应用全屏声明。
 
 ## 编辑器
 
@@ -33,3 +33,5 @@ pnpm build:desktop:win:arm64
 ## 阅读与维护文档
 
 应用的应用列表中打开「文档中心」。源码文档的入口是 [文档首页](../README.md)，维护规则见 [文档维护](documentation.md)。
+
+产品配置统一位于 `apps/product.config.json`。桌面同步脚本从这里生成页面标题和 Tauri/Cargo 产品信息；Server 与 Runtime 读取同一份配置。文件移动不改变产品标识或原数据目录命名。应用宿主和内置应用分别归属 `packages/app/host`、`apps/applications`；`core` 仍保留在 desktop。

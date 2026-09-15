@@ -7,7 +7,7 @@ const targetPath = join(
   __dirname,
   "..",
   "..",
-  "agent-runtime",
+  "../agent-runtime",
   "src",
   "engines",
   "models",

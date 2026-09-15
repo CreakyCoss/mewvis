@@ -21,9 +21,9 @@ Isle 中 `dsh-rss` 设置命名空间保存于 `<app-data>/apps/dsh-rss/settings
 源码只有一份原生 `isle.app` 入口，不维护手写 DSH 清单。在 `apps/desktop` 执行：
 
 ```sh
-pnpm app:validate -- applications/builtins/rss-reader
-pnpm app:pack -- applications/builtins/rss-reader --target isle
-pnpm app:pack -- applications/builtins/rss-reader --target dsh
+pnpm app:validate -- ../applications/builtins/rss-reader
+pnpm app:pack -- ../applications/builtins/rss-reader --target isle
+pnpm app:pack -- ../applications/builtins/rss-reader --target dsh
 ```
 
 DSH 目标内联运行时依赖，生成 `cordis.patch.yml`，并保留附加的 Isle 元数据，同一产物仍可导入 Isle。第三方许可原文随包保留在 `THIRD_PARTY_NOTICES.md`。

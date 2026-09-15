@@ -8,10 +8,10 @@ import { createInterface } from "node:readline";
 import { pathToFileURL } from "node:url";
 
 const root = process.cwd();
-const servicePath = resolve(root, "agent-runtime/dist/app-host/service.mjs");
+const servicePath = resolve(root, "../../packages/app/host/dist/service.mjs");
 const applicationRoot = process.env.ISLE_RSS_APPLICATION_ROOT
   ? resolve(root, process.env.ISLE_RSS_APPLICATION_ROOT)
-  : resolve(root, "applications/builtins/rss-reader");
+  : resolve(root, "../applications/builtins/rss-reader");
 const applicationKind = process.env.ISLE_RSS_APPLICATION_KIND === "dsh" ? "dsh" : "isle";
 const tempDir = mkdtempSync(join(tmpdir(), "isle-rss-application-"));
 const settingsRoot = join(tempDir, "apps");

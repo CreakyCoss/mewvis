@@ -1,6 +1,6 @@
 # 应用宿主
 
-`apps/desktop/applications/host` 是 Isle 自己管理的应用边界。Isle 定义包发现、清单、启用状态、数据路径、界面贡献和市场来源。Cordis 是负责生命周期及依赖注入的私有运行时内核，DSH 是通过适配器支持的一种兼容格式。
+`packages/app/host` 是 Isle 自己管理的应用边界。Isle 定义包发现、清单、启用状态、数据路径、界面贡献和市场来源。Cordis 是负责生命周期及依赖注入的私有运行时内核，DSH 是通过适配器支持的一种兼容格式。
 
 ## 运行时分层
 
@@ -52,7 +52,7 @@ Isle 包通过自己的清单暴露 Cordis 应用入口：
 
 DSH 目标保留附加的 `isle` 元数据并生成 DSH 声明。含 `chat` 权限的应用依赖 Isle，不能选择 DSH 目标；工具链不会把 React UI 转换成 `dsh.client`。
 
-应用构建按目录名稳定排序，自动发现、校验和打包 `applications/builtins` 下所有一级应用目录，新增内置应用无需修改注册列表。
+应用构建按目录名稳定排序，自动发现、校验和打包 `apps/applications/builtins` 下所有一级应用目录，新增内置应用无需修改注册列表。
 
 持久配置使用 SDK 的 `defineSettings`。Schema 默认值是基础层，应用默认值是组合层。桌面宿主按完整应用 ID 隔离 `apps/<namespace>/settings.yaml`，文件内按设置 namespace 保存用户覆盖及 `$version`，同时维护格式标记。工具注册前按序迁移用户层；缺少迁移或版本过新都会明确启动失败。
 
@@ -71,3 +71,9 @@ DSH 目标保留附加的 `isle` 元数据并生成 DSH 声明。含 `chat` 权�
 应用应用根目录保留宿主的 `registry.json` 与共享安装缓存，每个应用的配置、SDK 数据库、默认工作区和外部安装包统一归入完整应用 ID 对应的目录。启动时先完成旧目录和配置迁移，再加载应用；安装包位于 `package/`，可以独立升级和卸载。详见[持久化与工作区](data.md)。包可通过 `isle.ui` 增加沙箱页面，详见[应用界面协议](ui.md)。
 
 内置桌面对话不加载应用。应用对话仅加载所属应用，并结合分配的内置工具使用；从宿主历史重新打开仍保留同一归属。
+
+## 独立构建
+
+`packages/app/host` 以私有工作区包 `@isle/app-host` 提供宿主 API，Runtime 通过包名导入。执行 `pnpm --filter @isle/app-host build` 生成库模块及 `dist/service.mjs`、`dist/migrate-layout.mjs`，不依赖桌面项目的构建命令。
+
+内置应用由 `apps/applications` 中的 `@isle/builtin-applications` 包管理，执行 `pnpm --filter @isle/builtin-applications build` 输出到该模块的 `dist/`；文档生成脚本位于 `scripts/docs/`。应用 Chat UI 仍由 desktop 中的共享 React 实现构建。Runtime 构建最后将宿主和内置应用产物复制到自己的 `dist/app-host`、`dist/apps`，保持分发和运行时路径不变。

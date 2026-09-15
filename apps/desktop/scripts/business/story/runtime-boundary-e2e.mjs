@@ -9,7 +9,7 @@ const collect = (directory) =>
   });
 const tsFiles = (directory) => collect(directory).filter((path) => /\.tsx?$/.test(path));
 
-const runtimeRoot = resolve(root, "agent-runtime/src");
+const runtimeRoot = resolve(root, "../agent-runtime/src");
 const frontendReferences = tsFiles(runtimeRoot).filter((path) => {
   const source = readFileSync(path, "utf8");
   return source.includes("src/workbench/") || /from\s+["']@\//.test(source);
@@ -325,9 +325,9 @@ if (
   throw new Error("Application index 必须直接组装 Workspace 与 Query 实现，不得增加二级 Facade 或 re-export barrel。");
 }
 
-const protocol = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/protocol.ts"), "utf8");
-const service = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/tool/service.ts"), "utf8");
-const repository = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/tool/repository.ts"), "utf8");
+const protocol = readFileSync(resolve(root, "../agent-runtime/src/engines/builtins/story/protocol.ts"), "utf8");
+const service = readFileSync(resolve(root, "../agent-runtime/src/engines/builtins/story/tool/service.ts"), "utf8");
+const repository = readFileSync(resolve(root, "../agent-runtime/src/engines/builtins/story/tool/repository.ts"), "utf8");
 if (
   protocol.includes("core/story-project") ||
   protocol.includes("StoryProjectApi") ||
@@ -340,8 +340,8 @@ if (
 if (
   !service.includes("repository.project.describe") ||
   service.includes("StoryProjectApi") ||
-  !repository.includes('from "../../../../../../core/story-project/index.js"') ||
-  !repository.includes('from "../../../../../../core/story-project/storage/adapters/file/index.js"') ||
+  !repository.includes('from "../../../../../../desktop/core/story-project/index.js"') ||
+  !repository.includes('from "../../../../../../desktop/core/story-project/storage/adapters/file/index.js"') ||
   repository.includes("core/story-project/story-types") ||
   !repository.includes("interface StoryToolRepository") ||
   repository.includes("createStoryProjectStorage") ||
@@ -351,7 +351,7 @@ if (
   throw new Error("Story Tool 应仅通过公共 StoryWorkspace 绑定 Node 存储适配器。");
 }
 
-const skillRoot = resolve(root, "agent-runtime/src/engines/builtins/story/skills");
+const skillRoot = resolve(root, "../agent-runtime/src/engines/builtins/story/skills");
 const incrementalChangeSetGuide = readFileSync(
   resolve(skillRoot, "story-assistant/references/incremental-changesets.md"),
   "utf8",
@@ -372,8 +372,8 @@ if (
   throw new Error("Story Skill 必须只消费 Story Tool 的故事类型、语义角色和稳定 ChangeSet 字段。");
 }
 
-const builtinsIndex = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/index.ts"), "utf8");
-const storyBuiltin = readFileSync(resolve(root, "agent-runtime/src/engines/builtins/story/index.ts"), "utf8");
+const builtinsIndex = readFileSync(resolve(root, "../agent-runtime/src/engines/builtins/index.ts"), "utf8");
+const storyBuiltin = readFileSync(resolve(root, "../agent-runtime/src/engines/builtins/story/index.ts"), "utf8");
 if (
   !builtinsIndex.includes("STORY_BUILTIN") ||
   builtinsIndex.includes("STORY_TOOL_CONTRACT") ||

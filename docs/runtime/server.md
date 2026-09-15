@@ -1,9 +1,9 @@
 # Node 后端服务
 
-独立运行的 Node 后端，已覆盖 `apps/desktop/src-tauri/src/lib.rs` 注册的全部 104 个命令，包括 Agent、配置、工作区、文件、聊天、酒馆、Git、技能、知识库、应用与数据库维护。前端共用命令传输层：桌面继续连接 Rust，浏览器连接 Node。完整范围与宿主交互适配见 [Server 业务接口](server-interfaces.md)。
+桌面和 Web 共用的唯一 Node 业务后端，已覆盖迁移前 Tauri 注册的全部 104 个命令，包括 Agent、配置、工作区、文件、聊天、酒馆、Git、技能、知识库、应用与数据库维护。前端共用命令传输层：桌面与浏览器均连接 Node，Tauri 仅保留桌面交互和 Node 主进程管理。完整范围与宿主交互适配见 [Server 业务接口](server-interfaces.md)。
 
 ```text
-HTTP 命令 / SSE 事件
+Web 静态页面 / HTTP 命令 / SSE 事件
         ↓
 CommandRegistry              按名称分发全部后端命令
         ├─ AgentRuntimeHost → AgentRuntimeSupervisor → stdio Runtime
@@ -19,6 +19,7 @@ CommandRegistry              按名称分发全部后端命令
 apps/server/
 ├── src/
 │   ├── cli.ts                 CLI 与信号处理
+│   ├── maintenance.ts         配置库初始化与重建 CLI
 │   ├── server.ts              startServer 公共入口
 │   ├── bootstrap/
 │   │   ├── services.ts        依赖组装、资源初始化与关闭
@@ -43,7 +44,7 @@ apps/server/
 │   │   ├── lease.ts           原 apps/.layout.lock 的持有与释放
 │   │   └── errors.ts          数据库错误转换
 │   ├── infrastructure/        文件路径/JSON/归档、文件锁、进程、网络、事件
-│   ├── transport/             HTTP/SSE、命令注册表与参数封装
+│   ├── transport/             HTTP/SSE、Web 静态资源、命令注册表与参数封装
 │   └── shared/                输入校验、记录 ID、会话 ID、串行执行
 ├── test/
 │   ├── modules/               配置、工作区和存储测试
@@ -75,7 +76,7 @@ apps/server/
 
 ```sh
 pnpm install
-pnpm --filter desktop build:agent-runtime
+pnpm build:runtime
 pnpm dev:server
 ```
 
@@ -96,7 +97,7 @@ pnpm start:server
 pnpm dev:web
 ```
 
-此命令先构建 Server 和 Runtime，再同时启动 Node API（默认 1422）与 Vite 页面（默认 `http://127.0.0.1:1420`）。无需启动 Tauri 或手动管理 Runtime worker。按 Ctrl+C 同时关闭页面服务、Node 后端与其子进程。数据目录仍与桌面共用，启动前先退出桌面后端。
+开发模式构建 Server 和 Runtime，在同一个启动进程中运行 Node API（默认 1422）和 Vite 热更新页面（默认 `http://127.0.0.1:1420`）。无需启动 Tauri 或手动管理 Runtime worker。按 Ctrl+C 关闭服务及其子进程。数据目录仍与桌面共用，启动前先退出桌面后端。
 
 构建后可以在本机运行页面：
 
@@ -105,7 +106,11 @@ pnpm build:web
 pnpm start:web
 ```
 
-`start:web` 使用 Vite preview 托管已有页面产物，默认端口 4173，适合本机运行和验收；不是公网部署方案。两个入口均在服务端生成随机 token，经同源 `/api/` 代理加入 Bearer 鉴权，并先验证页面请求的 Host、Origin 和 Fetch Metadata。token 不放入 URL、浏览器配置或构建产物。`ISLE_SERVER_TOKEN` 仅适用于单独启动 API 的 CLI。
+`start:web` 执行 Node Server 的 `--web` 模式：一个 Node 进程、一个端口（默认 `http://127.0.0.1:4173`）直接提供已构建的 React 页面、API 和 SSE，不启动 Vite 或额外代理。页面使用原组件和同源 `/api/` 调用；Runtime worker 与 ApplicationHost 仍按需创建。静态文件支持正确的媒体类型、HEAD 和 ETag 条件请求，HTML 不缓存，缺失的资源与 API 不回退为页面，路径穿越和越界符号链接被拒绝。
+
+正式 Web 模式在页面响应中设置本次进程的 HttpOnly、SameSite=Strict 会话 Cookie，API 验证此 Cookie 及精确的 Host、Origin、Fetch Metadata；凭证不出现在 URL、页面脚本或持久配置中。服务重启后需刷新页面取得新会话。开发模式的 Vite 同源代理仍在服务端注入 Bearer token。单独 API 和桌面模式继续使用 Bearer 鉴权。所有模式仅监听本机回环地址，不提供公网或多用户服务。
+
+桌面与 Web 不能同时使用同一数据目录；第二个启动入口明确失败，不发现、不连接、不接管已有后端。切换入口前先退出当前进程。
 
 `apps/desktop/src/transport/` 集中提供命令、HTTP 错误、SSE 订阅和连接状态；连接提示 UI 位于 `workbench/shell/feedback.tsx`，传输层不依赖 UI 组件。浏览器的模型、Agent、知识库、工作区、文件、聊天、故事、技能、应用及维护接口均读取真实 Node 数据；生产客户端不再使用 Web mock。Agent 共用 `backend-client.ts`，保留已有类型契约及模型配置缓存。
 
@@ -119,19 +124,21 @@ Node 新增 `open_system_dialog`，接收 `{ input: { directory, multiple, title
 
 | 环境变量                       | 用途                                              |
 | ------------------------------ | ------------------------------------------------- |
-| `ISLE_WEB_PORT`                | Web 页面端口，默认开发 1420、构建后运行 4173     |
+| `ISLE_WEB_PORT`                | Web 端口，默认开发 1420、正式模式 4173          |
+| `ISLE_SERVER_WEB_ROOT`         | 正式 Web 构建目录，默认 `apps/desktop/dist`      |
 | `ISLE_SERVER_PORT`             | HTTP 端口，默认 1422；0 表示分配空闲端口          |
 | `ISLE_SERVER_TOKEN`            | 自定义 Bearer token，至少 24 字节；省略时随机生成 |
 | `ISLE_SERVER_DATA_DIR`         | 共用业务数据目录，默认 `~/.isle-claw`             |
 | `ISLE_SERVER_RUNTIME_DATA_DIR` | 覆盖 Tauri runtime 数据目录，通常无需设置         |
+| `ISLE_SERVER_RESOURCES`       | 打包后的 Runtime、协议和产品资源根目录          |
 | `ISLE_SERVER_RUNTIME_CLI`      | Runtime CLI 构建产物的绝对路径                    |
 | `AGENT_RUNTIME_PROFILE_ID`     | Runtime profile；`mock` 用于离线验证              |
 
-Server 仍从仓库中读取现有协议 schema、产品目录名和内置技能。它目前是仓库内可独立启动的服务，尚未制作脱离仓库的分发包。启动缺少 Runtime 构建时会明确报错。
+开发时 Server 从 `apps/agent-runtime` 读取协议，从 `apps/product.config.json` 读取产品配置。桌面构建会将 Server、原生依赖、协议、产品配置及技能打包进 Runtime 资源目录；通过 `ISLE_SERVER_RESOURCES` 定位，不依赖源码仓库或系统 Node。Node 可执行文件继续随桌面分发。当前 sqlite-vec 0.1.9 无 Windows ARM64 产物，该目标会明确拒绝打包；其他跨平台构建也会检查目标原生依赖。
 
-当前定位为本机单用户服务：仅监听 loopback，API 和事件订阅要求 Bearer token，校验 Host / Origin，不提供跨站 CORS 或多用户权限隔离。Web 启动入口提供同源代理，不能直接放开到公网。
+当前定位为本机单用户服务：仅监听 loopback，API 和事件订阅要求 Bearer token，校验 Host / Origin。开发 Web 使用同源代理，正式 Web 使用同端口会话鉴权。桌面模式只为 Tauri 包内页面和本次开发页面的精确 Origin 提供 CORS，预检只允许 GET/POST 与规定请求头，实际请求仍需 token；不提供通用跨站访问或多用户隔离。
 
-## 共用目录与后端切换
+## 共用数据目录
 
 默认直接使用原来的数据，不创建另一份 Server 用户目录：
 
@@ -148,11 +155,19 @@ Server 仍从仓库中读取现有协议 schema、产品目录名和内置技能
 
 Tauri 的系统应用数据目录与业务根目录不同：macOS 为 `~/Library/Application Support/com.isle-claw.desktop`；Windows 为 `%APPDATA%/com.isle-claw.desktop`；Linux 为 `${XDG_DATA_HOME:-~/.local/share}/com.isle-claw.desktop`。这些名称均来自现有产品配置。
 
-切换时先正常退出当前后端，再启动 Node 或 Rust。两者持有同一个 `.layout.lock`，第二个进程会明确提示数据正在使用。持久配置和会话文件直接继续使用；进行中的任务应先完成或取消，不支持热接管内存中的 worker、任务队列或审批状态。
+桌面和 Web 都使用 Node，并持有同一个 `.layout.lock`。同一目录不能同时启动两个独立后端；第二个进程会明确提示数据正在使用。旧版本 Rust 保存的配置和会话文件可以直接继续使用，不支持跨进程热接管正在运行的任务。
 
 `ISLE_SERVER_DATA_DIR` 仍可用于临时测试或指定业务根目录；显式指定时，Runtime 数据也默认写入该根目录，避免测试触碰桌面真实数据。需要分别指定时使用 `ISLE_SERVER_RUNTIME_DATA_DIR`。常规切换不需要设置这两个变量。
 
-桌面使用 Tauri `invoke/listen`，浏览器使用 Node HTTP/SSE；选择集中在前端 `transport/index.ts`。当前不支持在仍持有数据锁的桌面进程中热切换后端。
+两端业务命令与事件固定使用 `transport/index.ts` 的 HTTP/SSE，不再有 `backendKind()`。桌面保留包内页面加载方式，`transport/http.ts` 首次请求通过唯一的壳命令 `get_backend_connection` 获取 Node 地址与本次进程凭证，后续业务请求直接访问 Node；Web 继续使用同源 `/api/`。凭证不写入源码、URL或持久配置。
+
+### 桌面启动与退出
+
+`src-tauri/src/node_backend.rs` 只管理 Node 主进程。首次连接时启动随包携带的 Node，使用随机空闲端口，通过私有 stdout 管道接收就绪消息。并发首次请求共用同一进程；启动异常可由恢复界面显示，运行中崩溃不自动重放业务任务。
+
+关闭桌面时关闭 Node 的 stdin，触发服务清理。Rust 最多等待 15 秒，超时清理进程树；Unix 使用独立进程组，Windows 使用带关闭清理标记的 Job Object。桌面窗口和原生文件选择继续由 Tauri 插件处理。Rust 不再初始化数据库、持有业务目录锁或托管 Runtime worker。
+
+原 Rust 业务模块和数据库 CLI 已移除；`init:config-db`、`rebuild:config-db` 改用 Node 的维护入口，保留旧库备份及目录锁保护。
 
 ## HTTP 契约
 
@@ -162,7 +177,7 @@ Tauri 的系统应用数据目录与业务根目录不同：macOS 为 `~/Library
 { "error": { "code": "INVALID_ARGUMENT", "message": "错误说明" } }
 ```
 
-所有命令采用显式白名单，不提供任意 Runtime 方法或任意 shell 命令的 HTTP 转发入口。Agent 命令输入和 Runtime 输出使用现有 `apps/desktop/agent-runtime/protocol/v1/schema` 验证。配置与工作区命令由独立业务服务验证，详见 [Server 配置接口](server-settings.md)和 [Server 工作区管理](server-workspaces.md)。
+所有命令采用显式白名单，不提供任意 Runtime 方法或任意 shell 命令的 HTTP 转发入口。Agent 命令输入和 Runtime 输出使用现有 `apps/agent-runtime/protocol/v1/schema` 验证。配置与工作区命令由独立业务服务验证，详见 [Server 配置接口](server-settings.md)和 [Server 工作区管理](server-workspaces.md)。
 
 | 命令                                       | 行为                                   |
 | ------------------------------------------ | -------------------------------------- |
@@ -283,11 +298,11 @@ curl -N http://127.0.0.1:1422/api/events \
 
 ## 本版边界
 
-- 全部 104 个 Tauri 注册命令已提供 Node 实现。新增 `answer_application_workspace_interaction` 接口，用于回复桌面弹窗替代事件；命令发现接口共返回 105 个命令。
+- 全部 104 个历史 Tauri 业务命令已提供 Node 实现，另有 `answer_application_workspace_interaction` 与 `open_system_dialog`，共 106 个业务命令。历史命令清单保存在测试快照中；Tauri 仅注册一个启动连接命令。
 - `applicationId` 由应用登记与权限声明解析，只注入所属应用；应用必须启用并声明 `chat`。客户端不能直接注入 `resources.applications` 或 `agentAccess`。
 - 配置、应用数据、知识索引及 Runtime 持久数据直接复用 Rust 原目录、命名与格式。切换后端无需导入或搬动历史数据；活动进程与内存中的排队任务不跨后端接管。
 - Tauri Channel 文件监听及原生目录选择/共享确认已改为 SSE 和宿主回复接口，详见 [交互适配](server-interfaces.md#宿主交互适配)。Web 前端已接入这些事件。
-- Tauri Supervisor、Runtime SDK/CLI 和桌面打包路径保持原样；Web 已接入真实服务，尚未制作脱离仓库的分发包。
+- Tauri 的业务 Supervisor 已移除，Node 管理所有 Runtime worker。Runtime 源码与产物位于 `apps/agent-runtime`，Supervisor 留在 `apps/server`。桌面分发资源已包含 Node Server 及其依赖，可脱离仓库运行。
 
 ## 验证
 
@@ -299,4 +314,4 @@ pnpm test:server:interop
 
 前者还核对全部 Tauri 注册命令覆盖，使用真实 Git 临时仓库、真实 Node ApplicationHost、临时文件/数据库及本地 Embedding HTTP fixture 验证新业务。沙箱安装使用控制程序 fixture，不在测试中安装用户沙箱；技能 ZIP 安装使用离线包，公开市场下载不作为离线测试依赖。基础进程测试使用真实子进程 fixture 验证排队、取消、追问、审批、崩溃、错误输出、心跳、空闲回收、关闭清理、HTTP 与 SSE，并使用临时 SQLite 验证配置接口、持久化、回滚、锁冲突和 schema 边界。后者使用现有 Runtime 构建和 mock profile，通过 HTTP 验证 Agent、协作、聊天、会话读取、摘要、释放与删除；不消耗模型额度。缺少 Runtime 构建时测试失败并提示构建，不静默跳过。
 
-`test:server:interop` 需要 Rust 工具链，会直接编译现有 Rust 配置 schema、迁移和 vector store 源码到测试辅助程序。测试在临时目录中验证 Rust → Node HTTP → Rust 的配置读写、同一 sqlite-vec 索引的双向搜索、原文件锁互斥及崩溃释放，以及原应用目录和旧版目录升级。辅助程序仅用于测试，启动 Node Server 不需要 Rust 服务或 Rust 编译器。常规测试另外核对全部配置/RAG 表定义，以及 v3–v25 历史库升级和回滚。
+`test:server:interop` 需要 Rust 工具链，会编译 `test/support/legacy-rust` 中冻结的旧版 schema、迁移和 vector store 快照到测试辅助程序。测试在临时目录中验证 Rust → Node HTTP → Rust 的配置读写、同一 sqlite-vec 索引的双向搜索、原文件锁互斥及崩溃释放，以及原应用目录和旧版目录升级。辅助程序仅用于测试，启动 Node Server 不需要 Rust 服务或 Rust 编译器。常规测试另外核对全部配置/RAG 表定义，以及 v3–v25 历史库升级和回滚。

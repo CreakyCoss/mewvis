@@ -15,9 +15,9 @@ export class ConfigDatabase {
   readonly path: string;
   private closed = false;
 
-  constructor(dataDir: string, tolerateError = false) {
+  constructor(dataDir: string, tolerateError = false, databasePath?: string) {
     mkdirSync(dataDir, { recursive: true, mode: 0o700 });
-    this.path = join(dataDir, "config.db");
+    this.path = databasePath ?? join(dataDir, "config.db");
     closeSync(openSync(this.path, "a", 0o600));
     if (process.platform !== "win32") chmodSync(this.path, 0o600);
     try {

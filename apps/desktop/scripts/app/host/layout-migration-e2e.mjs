@@ -33,7 +33,7 @@ try {
     stdin: {
       contents:
         'export * from "./layout-migration.ts"; export * from "./application-paths.ts"; export * from "./cordis-host.ts";',
-      resolveDir: resolve("applications/host/src"),
+      resolveDir: resolve("../../packages/app/host/src"),
       loader: "ts",
     },
     outfile: bundle,

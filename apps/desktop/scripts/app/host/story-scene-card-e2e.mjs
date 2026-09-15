@@ -7,10 +7,10 @@ import { createInterface } from "node:readline";
 import { pathToFileURL } from "node:url";
 
 const root = process.cwd();
-const servicePath = resolve(root, "agent-runtime/dist/app-host/service.mjs");
+const servicePath = resolve(root, "../../packages/app/host/dist/service.mjs");
 const applicationRoot = process.env.ISLE_STORY_SCENE_CARD_APPLICATION_ROOT
   ? resolve(root, process.env.ISLE_STORY_SCENE_CARD_APPLICATION_ROOT)
-  : resolve(root, "applications/builtins/story-scene-card");
+  : resolve(root, "../applications/builtins/story-scene-card");
 const applicationKind = process.env.ISLE_STORY_SCENE_CARD_APPLICATION_KIND === "dsh" ? "dsh" : "isle";
 const tempDir = mkdtempSync(join(tmpdir(), "isle-story-scene-card-"));
 const child = spawn(process.execPath, [servicePath], { cwd: root, stdio: ["pipe", "pipe", "pipe"] });

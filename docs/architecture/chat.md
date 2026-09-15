@@ -180,11 +180,11 @@ function BusinessEditor(binding: ComposerBinding) {
 
 Pi 继续使用 `chats/<chatId>/session` 下的原执行上下文和账本。核心不会将应用历史重新灌入 Pi，不提供可独立编辑的第二份模型上下文。账本摘要仍走现有 Pi 接口。
 
-首次请求写入应用历史后才派发 Runtime。流式保存按节点防抖和持续流节流执行，结束／停止／关闭立即 flush；失败保留最新待写版本。桌面偏好与未读更新同样串行并可重试。Rust 先完整创建新记录临时目录再发布，已有文件采用临时文件替换；已有记录的多个 JSON 文件尚不构成跨文件事务。
+首次请求写入应用历史后才派发 Runtime。流式保存按节点防抖和持续流节流执行，结束／停止／关闭立即 flush；失败保留最新待写版本。桌面偏好与未读更新同样串行并可重试。Node 先完整创建新记录临时目录再发布，已有文件采用临时文件替换；已有记录的多个 JSON 文件尚不构成跨文件事务。
 
 读取、列举和正常保存不再删除旧格式文件。未知或损坏记录报错且保留原文件，不用空记录覆盖。这里没有执行迁移或用户数据清理。显式删除会话仍保留原产品的删除行为，删除前先关闭拥有者。
 
-模型目录、发送和账本摘要共用 `api/llm.ts` 的宿主配置缓存；目录读取安全的 `getLlmModelOptions`，执行和摘要通过 `resolveLlmModel` 按 ID 解析。首次读取和显式刷新才查询原生配置，并发读取合并为一次。`saveLlmSettings` 串行保存并用后端成功结果更新缓存；读取等待正在保存的配置，迟到的旧读取或错误不会覆盖新配置。返回副本避免调用方修改缓存。缓存仅在当前宿主实例的内存中，不写入浏览器存储。
+模型目录、发送和账本摘要共用 `api/llm.ts` 的宿主配置缓存；目录读取安全的 `getLlmModelOptions`，执行和摘要通过 `resolveLlmModel` 按 ID 解析。首次读取和显式刷新才查询 Node 配置，并发读取合并为一次。`saveLlmSettings` 串行保存并用后端成功结果更新缓存；读取等待正在保存的配置，迟到的旧读取或错误不会覆盖新配置。返回副本避免调用方修改缓存。缓存仅在当前宿主实例的内存中，不写入浏览器存储。
 
 `session.refreshResources()` 向目录传入 `{ refresh: true }`，强制重新读取模型配置；模型设置页的显式加载也会刷新。刷新失败会暴露错误、保留当前选择，下次读取可以重试；禁用或删除模型后不会继续返回旧的可执行配置。
 
@@ -224,7 +224,7 @@ node scripts/agent-runtime/user-input-e2e.mjs
 
 `test:chat` 包含不带 DOM lib 的核心类型检查、Node bundle 依赖边界检查、核心竞态测试、桌面宿主测试及 DSH patchPath 严格 Schema 回归。stdio 测试使用临时数据，需要已有 `agent-runtime/dist/cli.js`。
 
-Rust 存储测试覆盖元数据来源不可变、配置不覆盖归属、列表不读取消息、目录 ID 校验与历史文件保护。本轮没有修改 Rust 存储代码，未重复运行该组测试。
+Node 存储回归测试覆盖元数据来源不可变、配置不覆盖归属、目录 ID 校验与历史文件保护；冻结的旧 Rust 存储快照继续用于验证历史数据兼容性。
 
 已有 1420 服务提供 `/scripts/chat/browser.html`（StrictMode、多视图、默认／组合 UI、只读历史）、`/scripts/chat/page.html`（真实首页和聊天路由）以及 `/scripts/app/chat/application-browser.html`（真实沙箱与测试应用）。这些测试使用内存 Runtime 和存储，不连接真实模型或用户历史；应用测试页需点击「创建会话」。
 
@@ -245,7 +245,7 @@ Rust 存储测试覆盖元数据来源不可变、配置不覆盖归属、列表
 前端菜单、配置校验和历史恢复读取目录，不维护枚举或标签；目录不可用时禁用选择与发送。
 
 `pendingApproval` 独立于 `pendingQuestion`。`AppChatIntegration` 挂载宿主 `ChatApprovals`，
-覆盖后台及无界面会话。审批只能通过 desktop service 和主窗口 Tauri 命令答复，普通 `answer()` 不能批准操作。
+覆盖后台及无界面会话。审批只能通过 desktop service 和统一 Node API 答复，普通 `answer()` 不能批准操作。
 前端展示执行摘要、参数、识别出的操作、审批原因与期限，后端作最终判断。
 
 公共安全模块 `security/safety` 从同一配置解析操作风险、公共及档位边界；Pi 适配层在执行前调用安全入口。

@@ -8,10 +8,10 @@ import { ApplicationLayoutProvider } from "../../src/workbench/shell/layout/appl
 import { AppWorkspace } from "../../src/workbench/shell/layout/workspace";
 import { ApplicationUiPage } from "../../src/workbench/pages/applications";
 import { useApplicationCatalogStore } from "../../src/workbench/pages/applications/catalog-store";
-import script from "../../applications/builtins/docs-reader/isle-ui.js?raw";
-import style from "../../applications/builtins/docs-reader/isle-ui.css?raw";
+import script from "../../../applications/builtins/docs-reader/isle-ui.js?raw";
+import style from "../../../applications/builtins/docs-reader/isle-ui.css?raw";
 import book from "../../../../docs/.generated/book.json";
-import { createLibrary } from "../../applications/builtins/docs-reader/library.js";
+import { createLibrary } from "../../../applications/builtins/docs-reader/library.js";
 import "../../src/App.css";
 
 if (isTauri()) throw new Error("仅允许浏览器内存验证");

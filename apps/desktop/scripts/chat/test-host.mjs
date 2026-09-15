@@ -21,7 +21,7 @@ const bundled = await build({
         build.onResolve(
           {
             filter:
-              /^(?:@\/(api\/(agents|skills|knowledge|chat|conversation-ledger)|agent-client\/runtime)|@tauri-apps\/api\/core)$/,
+              /^(?:@\/(transport|api\/(agents|skills|knowledge|chat|conversation-ledger)|agent-client\/runtime)|@tauri-apps\/api\/core)$/,
           },
           () => ({
             path: resolve("scripts/chat/fixtures/api.ts"),
@@ -42,7 +42,7 @@ try {
 }
 // Regression for 9610802f5: compile the complete strict schema and validate DSH patchPath.
 const ajv = new Ajv({ strict: true, strictTypes: false, allowUnionTypes: true });
-const dir = "agent-runtime/protocol/v1/schema";
+const dir = "../agent-runtime/protocol/v1/schema";
 const model = JSON.parse(readFileSync(`${dir}/model.schema.json`, "utf8"));
 const request = JSON.parse(readFileSync(`${dir}/request.schema.json`, "utf8"));
 ajv.addSchema(model);

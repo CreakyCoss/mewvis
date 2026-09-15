@@ -39,22 +39,35 @@ export function runtimeConfig(
 ): RuntimeConfig {
   // Resolve repository assets identically from src/config and dist/config.
   const desktop = fileURLToPath(new URL("../../../desktop/", import.meta.url));
+  const runtime = fileURLToPath(
+    new URL("../../../agent-runtime/", import.meta.url),
+  );
+  const resources = process.env.ISLE_SERVER_RESOURCES;
   const product = JSON.parse(
-    readFileSync(join(desktop, "product.config.json"), "utf8"),
+    readFileSync(
+      resources
+        ? join(resources, "product.config.json")
+        : join(desktop, "../product.config.json"),
+      "utf8",
+    ),
   );
   const config: RuntimeConfig = {
     nodeBinary: process.env[`${product.envPrefix}_NODE`] ?? process.execPath,
     cliPath: resolve(
       process.env.ISLE_SERVER_RUNTIME_CLI ??
         process.env[`${product.envPrefix}_AGENT_RUNTIME`] ??
-        join(desktop, "agent-runtime/dist/cli.js"),
+        join(resources ?? join(runtime, "dist"), "cli.js"),
     ),
-    protocolDir: join(desktop, "agent-runtime/protocol/v1"),
+    protocolDir: resources
+      ? join(resources, "protocol/v1")
+      : join(runtime, "protocol/v1"),
     dataDir: resolve(
       process.env.ISLE_SERVER_DATA_DIR ??
         join(homedir(), product.appDataDirName),
     ),
-    bundledSkillsPath: join(desktop, "resources/skills"),
+    bundledSkillsPath: resources
+      ? join(resources, "skills")
+      : join(desktop, "resources/skills"),
 
     appDataDirName: product.appDataDirName,
     defaultWorkspaceDirName: product.defaultWorkspaceDirName,
@@ -121,7 +134,7 @@ export function runtimeConfig(
 export function assertRuntimeAvailable(config: RuntimeConfig) {
   if (!existsSync(config.cliPath)) {
     throw new Error(
-      `Runtime CLI 不存在：${config.cliPath}。请先运行 pnpm --filter desktop build:agent-runtime。`,
+      `Runtime CLI 不存在：${config.cliPath}。请先运行 pnpm build:runtime。`,
     );
   }
 }

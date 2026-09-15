@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { pathToFileURL } from "node:url";
 import { packApplication } from "@isle/app-dev/tooling";
-import { repositoryRoot } from "./book.mjs";
+import { repositoryRoot } from "../../../applications/scripts/docs/book.mjs";
 
 const desktop = join(repositoryRoot, "apps/desktop");
 const temporary = await mkdtemp(join(tmpdir(), "isle-docs-reader-"));
@@ -14,16 +14,31 @@ let child;
 let output;
 const pending = new Map();
 try {
-  const source = join(desktop, "applications/builtins/docs-reader");
-  const { outputRoot, manifest } = await packApplication({ source, outDir: join(temporary, "application"), quiet: true });
+  const source = join(desktop, "../applications/builtins/docs-reader");
+  const { outputRoot, manifest } = await packApplication({
+    source,
+    outDir: join(temporary, "application"),
+    quiet: true,
+  });
   assert.equal(manifest.isle.defaultEnabled, true);
   assert.deepEqual(manifest.isle.permissions, ["open-external"]);
   const bundledSource = await readFile(join(outputRoot, "index.js"), "utf8");
   assert.doesNotMatch(bundledSource, /from ["'][^"']*book\.json/);
-  child = spawn(process.execPath, [join(desktop, "agent-runtime/dist/app-host/service.mjs")], {
-    cwd: temporary,
-    stdio: ["pipe", "pipe", "pipe"],
-  });
+  child = spawn(
+    process.execPath,
+    [
+      join(
+        desktop,
+        process.argv.includes("--bundled")
+          ? "../agent-runtime/dist/app-host/service.mjs"
+          : "../../packages/app/host/dist/service.mjs",
+      ),
+    ],
+    {
+      cwd: temporary,
+      stdio: ["pipe", "pipe", "pipe"],
+    },
+  );
   const exited = new Promise((resolve) => child.once("exit", resolve));
   let stderr = "";
   let nextId = 0;

@@ -8,11 +8,11 @@ const root = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), "isle-claw-story-builtin-binding-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundlePath = join(tempDir, "runner.mjs");
-const resourcesPath = resolve(root, "agent-runtime/src/engines/drivers/native/agent/runtimes/resources.ts");
-const builtinsIndexPath = resolve(root, "agent-runtime/src/engines/builtins/index.ts");
-const builtinDefinitionPath = resolve(root, "agent-runtime/src/engines/builtins/definition.ts");
-const storyBuiltinPath = resolve(root, "agent-runtime/src/engines/builtins/story/index.ts");
-const builtinSkillsPath = resolve(root, "agent-runtime/src/engines/builtins/story/skills");
+const resourcesPath = resolve(root, "../agent-runtime/src/engines/drivers/native/agent/runtimes/resources.ts");
+const builtinsIndexPath = resolve(root, "../agent-runtime/src/engines/builtins/index.ts");
+const builtinDefinitionPath = resolve(root, "../agent-runtime/src/engines/builtins/definition.ts");
+const storyBuiltinPath = resolve(root, "../agent-runtime/src/engines/builtins/story/index.ts");
+const builtinSkillsPath = resolve(root, "../agent-runtime/src/engines/builtins/story/skills");
 
 writeFileSync(
   entryPath,

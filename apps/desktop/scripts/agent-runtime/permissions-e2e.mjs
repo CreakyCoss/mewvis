@@ -6,7 +6,7 @@ import { tmpdir, homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const root = resolve("agent-runtime/src/engines");
+const root = resolve("../agent-runtime/src/engines");
 const temp = mkdtempSync(join(tmpdir(), "isle-safety-"));
 const workspace = join(temp, "workspace");
 mkdirSync(workspace);

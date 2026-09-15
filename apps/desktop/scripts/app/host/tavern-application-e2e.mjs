@@ -7,10 +7,10 @@ import { createInterface } from "node:readline";
 import { pathToFileURL } from "node:url";
 
 const root = process.cwd();
-const servicePath = resolve(root, "agent-runtime/dist/app-host/service.mjs");
+const servicePath = resolve(root, "../../packages/app/host/dist/service.mjs");
 const applicationRoot = process.env.ISLE_TAVERN_APPLICATION_ROOT
   ? resolve(root, process.env.ISLE_TAVERN_APPLICATION_ROOT)
-  : resolve(root, "applications/builtins/tavern");
+  : resolve(root, "../applications/builtins/tavern");
 const applicationKind = process.env.ISLE_TAVERN_APPLICATION_KIND === "dsh" ? "dsh" : "isle";
 const tempDir = mkdtempSync(join(tmpdir(), "isle-tavern-application-"));
 const settingsRoot = join(tempDir, "apps");
@@ -19,7 +19,7 @@ const tavernSettingsRoot = join(settingsRoot, "@isle", "tavern");
 mkdirSync(legacySettingsRoot, { recursive: true, mode: 0o700 });
 writeFileSync(join(legacySettingsRoot, "settings.yaml"), 'activePresetId: ""\npresets: []\n', { mode: 0o600 });
 execFileSync(process.execPath, [
-  resolve("agent-runtime/dist/app-host/migrate-layout.mjs"),
+  resolve("../../packages/app/host/dist/migrate-layout.mjs"),
   settingsRoot,
   "@isle/tavern",
 ]);
@@ -189,7 +189,7 @@ try {
     mode: 0o600,
   });
   execFileSync(process.execPath, [
-    resolve("agent-runtime/dist/app-host/migrate-layout.mjs"),
+    resolve("../../packages/app/host/dist/migrate-layout.mjs"),
     newerSettingsRoot,
     "@isle/tavern",
   ]);

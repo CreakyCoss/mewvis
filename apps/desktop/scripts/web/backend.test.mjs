@@ -104,7 +104,10 @@ test("browser APIs use authenticated proxy, real persistence and replayable even
       streams.push(abort);
       init = { ...init, signal: AbortSignal.any([abort.signal, init.signal]) };
     }
-    return nativeFetch(new URL(path, url), { ...init, headers: { ...init.headers, origin: new URL(url).origin } });
+    return nativeFetch(new URL(path, url), {
+      ...init,
+      headers: { ...Object.fromEntries(new Headers(init.headers)), origin: new URL(url).origin },
+    });
   };
   const disposers = [];
   t.after(async () => {
@@ -244,7 +247,9 @@ test("browser APIs use authenticated proxy, real persistence and replayable even
     assert.equal(response.status, 403);
     const sameSite = await nativeFetch(new URL("/api/status", url), { headers: { "sec-fetch-site": "same-site" } });
     assert.equal(sameSite.status, 403);
-    assert.ok(requests.every(({ init }) => !JSON.stringify(init.headers ?? {}).includes(token)));
+    assert.ok(
+      requests.every(({ init }) => !JSON.stringify(Object.fromEntries(new Headers(init.headers))).includes(token)),
+    );
   });
   await t.test("SSE reconnect replays missed events once and expired cursors require explicit reload", async () => {
     const values = [];
@@ -256,7 +261,7 @@ test("browser APIs use authenticated proxy, real persistence and replayable even
     server.supervisor.events.publish("probe", { n: 2 });
     await until(() => values.length === 2, "replay");
     assert.deepEqual(values, [1, 2]);
-    assert.ok(requests.filter((r) => r.path === "/api/events").at(-1).init.headers["Last-Event-ID"]);
+    assert.ok(new Headers(requests.filter((r) => r.path === "/api/events").at(-1).init.headers).get("Last-Event-ID"));
     streams.at(-1).abort();
     await until(() => api.getConnectionState() === "disconnected", "second disconnect");
     for (let n = 0; n < 1100; n++) server.supervisor.events.publish("probe", { n });

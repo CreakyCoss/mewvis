@@ -1,6 +1,9 @@
 # Agent 运行时
 
-`apps/desktop/agent-runtime` 是 Mewvis Agent 的可复用运行时边界。外部适配器选择 CLI 或 SDK 并归一化输入；引擎层拥有标准协议，可替换协议背后的实现。
+Runtime 源码位于 `apps/agent-runtime`，作为 `@isle/agent-runtime` 工作区包维护。仓库根目录执行 `pnpm build:runtime` 构建，`pnpm --filter @isle/agent-runtime check` 检查类型。`dist/cli.js` 是 stdio worker 入口，由 `apps/server` 中的 Supervisor 按需启动；Runtime 不负责 HTTP 服务或桌面生命周期。应用宿主通过 `@isle/app-host` 包复用，内置应用由 `@isle/builtin-applications` 构建，产品配置来自 `apps/product.config.json`。故事核心仍复用 `apps/desktop/core`，构建不会启动桌面。
+
+
+`apps/agent-runtime` 是 Mewvis Agent 的可复用运行时边界。外部适配器选择 CLI 或 SDK 并归一化输入；引擎层拥有标准协议，可替换协议背后的实现。
 
 ## 分层与依赖
 

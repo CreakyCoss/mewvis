@@ -1,5 +1,4 @@
 import { useSyncExternalStore, type PropsWithChildren } from "react";
-import { backendKind } from "@/transport";
 import { getConnectionState, observeConnection } from "@/transport/events";
 import {
   Dialog,
@@ -92,7 +91,7 @@ function SystemDialogs() {
 
 function BackendConnectionNotice() {
   const state = useSyncExternalStore(observeConnection, getConnectionState, () => "connecting");
-  if (backendKind() !== "node" || state === "connected" || state === "connecting") return null;
+  if (state === "connected" || state === "connecting") return null;
   return (
     <div
       role="alert"

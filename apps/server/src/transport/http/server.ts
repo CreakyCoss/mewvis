@@ -3,7 +3,8 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
-import { timingSafeEqual } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
+import { webAssets } from "./web-assets.js";
 
 import type { AgentRuntimeSupervisor } from "../../modules/agent/runtime/supervisor.js";
 import type { CommandRegistry } from "../commands/registry.js";
@@ -13,6 +14,8 @@ import type { ServerEvent } from "../../infrastructure/events/event-hub.js";
 interface HttpServerOptions {
   token: string;
   port?: number;
+  allowedOrigins?: string[];
+  webRoot?: string;
   supervisor: AgentRuntimeSupervisor;
   commands: CommandRegistry;
   shutdown: () => Promise<void>;
@@ -54,16 +57,53 @@ export async function startHttpServer(options: HttpServerOptions) {
   const streams = new Set<ServerResponse>();
   const requests = new Set<Promise<void>>();
   const expectedAuthorization = Buffer.from(`Bearer ${options.token}`);
+  const serveAssets = options.webRoot !== undefined
+    ? await webAssets(options.webRoot)
+    : undefined;
+  const webToken = randomBytes(32).toString("hex");
+  let cookieName = "";
   let url = "";
   let closing = false;
 
-  function authorize(request: IncomingMessage) {
-    // First release is a single-user loopback service. No ambient cookies or permissive CORS.
+  const allowedOrigins = new Set(options.allowedOrigins ?? []);
+
+  function checkOrigin(request: IncomingMessage, response: ServerResponse) {
+    // Both modes are single-user loopback services with an exact origin boundary.
     const address = new URL(url);
     if (request.headers.host !== address.host)
       throw new ServiceError(403, "INVALID_HOST", "Host 不匹配");
-    if (request.headers.origin && request.headers.origin !== address.origin) {
+    if (
+      request.headers.origin &&
+      request.headers.origin !== address.origin &&
+      (!!serveAssets || !allowedOrigins.has(request.headers.origin))
+    ) {
       throw new ServiceError(403, "INVALID_ORIGIN", "不允许此来源");
+    }
+    const origin = request.headers.origin;
+    if (
+      serveAssets &&
+      ["cross-site", "same-site"].includes(
+        String(request.headers["sec-fetch-site"]),
+      )
+    )
+      throw new ServiceError(403, "INVALID_ORIGIN", "不允许此来源访问本地服务");
+    if (origin && allowedOrigins.has(origin)) {
+      response.setHeader("access-control-allow-origin", origin);
+      response.setHeader("vary", "Origin");
+      response.setHeader("access-control-expose-headers", "x-event-cursor");
+    }
+  }
+
+  function authorize(request: IncomingMessage) {
+    if (serveAssets && !request.headers.authorization) {
+      const cookie = request.headers.cookie
+        ?.split(";")
+        .map((part) => part.trim())
+        .find((part) => part.startsWith(`${cookieName}=`));
+      const value = Buffer.from(cookie?.slice(cookieName.length + 1) ?? "");
+      const expected = Buffer.from(webToken);
+      if (value.length === expected.length && timingSafeEqual(value, expected))
+        return;
     }
     const authorization = Buffer.from(request.headers.authorization ?? "");
     if (
@@ -129,7 +169,11 @@ export async function startHttpServer(options: HttpServerOptions) {
       if (closing)
         throw new ServiceError(503, "SERVER_STOPPING", "Server 正在停止");
       const path = new URL(request.url ?? "/", url).pathname;
-      if (request.method === "GET" && (path === "/health" || path === "/")) {
+      if (
+        request.method === "GET" &&
+        !serveAssets &&
+        (path === "/health" || path === "/")
+      ) {
         json(response, 200, {
           service: "isle-agent-server",
           version: 1,
@@ -137,6 +181,46 @@ export async function startHttpServer(options: HttpServerOptions) {
           api: "/api/commands/:name",
           events: "/api/events",
         });
+        return;
+      }
+      checkOrigin(request, response);
+      if (serveAssets && path !== "/api" && !path.startsWith("/api/")) {
+        await serveAssets(
+          request,
+          response,
+          `${cookieName}=${webToken}; HttpOnly; SameSite=Strict; Path=/api/`,
+        );
+        return;
+      }
+      if (request.method === "OPTIONS") {
+        if (
+          !request.headers.origin ||
+          !allowedOrigins.has(request.headers.origin)
+        )
+          throw new ServiceError(403, "INVALID_ORIGIN", "不允许此来源");
+        const method = request.headers["access-control-request-method"];
+        const headers = String(
+          request.headers["access-control-request-headers"] ?? "",
+        )
+          .toLowerCase()
+          .split(",")
+          .map((h) => h.trim())
+          .filter(Boolean);
+        if (
+          !["GET", "POST"].includes(String(method)) ||
+          headers.some(
+            (h) =>
+              !["authorization", "content-type", "last-event-id"].includes(h),
+          )
+        )
+          throw new ServiceError(403, "INVALID_PREFLIGHT", "不允许此跨域请求");
+        response.writeHead(204, {
+          "access-control-allow-methods": "GET, POST",
+          "access-control-allow-headers":
+            "authorization, content-type, last-event-id",
+          "access-control-max-age": "600",
+        });
+        response.end();
         return;
       }
       authorize(request);
@@ -222,6 +306,7 @@ export async function startHttpServer(options: HttpServerOptions) {
   if (!address || typeof address === "string")
     throw new Error("无法取得监听地址");
   url = `http://127.0.0.1:${address.port}`;
+  cookieName = `isle_web_${address.port}`;
   let closePromise: Promise<void> | undefined;
   return {
     url,

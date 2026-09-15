@@ -61,4 +61,4 @@
 - `503 WORKSPACE_BUSY`：数据库被占用；锁等待上限为 100 毫秒。
 - `500 WORKSPACE_STORAGE_ERROR`：其他数据库读写错误，响应不包含 SQL 或参数。
 
-本页介绍工作区登记和初始化。工作区文件、版本控制、故事记录、聊天、知识检索与应用工作区接口均已迁移，详见 [Server 业务接口](server-interfaces.md)。桌面调用链和 Runtime 内部逻辑保持现状。
+本页介绍工作区登记和初始化。工作区文件、版本控制、故事记录、聊天、知识检索与应用工作区接口均已迁移，详见 [Server 业务接口](server-interfaces.md)。桌面与 Web 均通过 Node 调用这些接口，Runtime 内部逻辑保持现状。

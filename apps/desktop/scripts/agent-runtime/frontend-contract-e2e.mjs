@@ -21,7 +21,7 @@ const sorted = (values) => [...new Set(values)].sort();
 const commandNames = sorted(contract.agentRuntimeTauriCommandNames);
 const eventNames = sorted(contract.agentRuntimeTauriEventNames);
 const wireEventSchema = JSON.parse(
-  readFileSync(join(desktopRoot, "agent-runtime/protocol/v1/schema/event.schema.json"), "utf8"),
+  readFileSync(join(desktopRoot, "../agent-runtime/protocol/v1/schema/event.schema.json"), "utf8"),
 );
 const wireEventTypes = sorted(
   Object.values(wireEventSchema.definitions)
@@ -30,32 +30,30 @@ const wireEventTypes = sorted(
 );
 
 const wireFacadeSource = readFileSync(join(desktopRoot, "src/agent-client/wire.ts"), "utf8");
-assert.ok(wireFacadeSource.includes("agent-runtime/protocol/v1/sdk/typescript"), "wire.ts 必须是 Protocol SDK 入口");
+assert.ok(wireFacadeSource.includes("../agent-runtime/protocol/v1/sdk/typescript"), "wire.ts 必须是 Protocol SDK 入口");
 
 for (const name of ["index.ts", "tauri.ts"]) {
   const source = readFileSync(join(desktopRoot, "src/agent-client/contracts", name), "utf8");
-  assert.ok(!source.includes("agent-runtime/protocol/v1/sdk/typescript"), `${name} 必须通过 wire.ts 使用 Protocol SDK`);
+  assert.ok(!source.includes("../agent-runtime/protocol/v1/sdk/typescript"), `${name} 必须通过 wire.ts 使用 Protocol SDK`);
   assert.ok(!source.includes("@agent-runtime/engines/protocol"), `${name} 不能依赖 runtime 内部协议类型`);
   assert.doesNotMatch(source, /\b(?:Pick|Omit)</, `${name} 不能用 Pick/Omit 伪装成 wire SDK 契约`);
   assert.doesNotMatch(source, /export type\s+(\w+)\s*=\s*\1\s*;/, `${name} 不能保留无意义的同名 SDK type alias`);
 }
 
-const libSource = readFileSync(join(desktopRoot, "src-tauri/src/lib.rs"), "utf8");
-const handlerBlock = libSource.match(/tauri::generate_handler!\[([\s\S]*?)\]/)?.[1];
-assert.ok(handlerBlock, "找不到 Rust tauri::generate_handler! 注册表");
-const rustCommandNames = sorted(
-  [...handlerBlock.matchAll(/\b([a-z][a-z0-9_]*agent_runtime[a-z0-9_]*)\b/g)].map((match) => match[1]),
+const serverRoot = join(desktopRoot, "../server");
+const { commandNames: nodeCommandNames } = await import(
+  new URL("../../../server/dist/modules/agent/host.js", import.meta.url)
 );
-assert.deepEqual(commandNames, rustCommandNames, "前端 Tauri command 契约必须与 Rust 注册表完全一致");
-
-const rustEventNames = sorted(
-  ["src-tauri/src/commands/agent_runtime/events.rs", "src-tauri/src/commands/agent_runtime/chat.rs"].flatMap((path) =>
-    [...readFileSync(join(desktopRoot, path), "utf8").matchAll(/const AGENT_RUNTIME_[A-Z_]+: &str = "([^"]+)"/g)].map(
+const sandboxCommands = ["get_agent_runtime_sandbox_status", "initialize_agent_runtime_sandbox"];
+assert.deepEqual(commandNames, sorted([...nodeCommandNames, ...sandboxCommands]), "前端命令契约必须与 Node 注册表一致");
+const nodeEventNames = sorted(
+  ["modules/agent/host.ts", "modules/agent/runtime/supervisor.ts"].flatMap((path) =>
+    [...readFileSync(join(serverRoot, "src", path), "utf8").matchAll(/\.publish\("(agent_runtime_[^"]+)"/g)].map(
       (match) => match[1],
     ),
   ),
 );
-assert.deepEqual(eventNames, rustEventNames, "前端 Tauri event 契约必须与 Rust 事件名完全一致");
+assert.deepEqual(eventNames, nodeEventNames, "前端事件契约必须与 Node 事件名一致");
 
 const sourceRoot = join(desktopRoot, "src");
 const allowedRawContractFiles = new Set(["agent-client/contracts/tauri.ts", "api/agent-runtime.ts"]);
@@ -73,7 +71,7 @@ const collectSourceFiles = (directory) => {
 collectSourceFiles(sourceRoot);
 
 const frontendSdkImports = sourceFiles.filter((path) =>
-  readFileSync(path, "utf8").includes("agent-runtime/protocol/v1/sdk/typescript"),
+  readFileSync(path, "utf8").includes("../agent-runtime/protocol/v1/sdk/typescript"),
 );
 assert.deepEqual(
   frontendSdkImports.map((path) => relative(sourceRoot, path)),
@@ -81,7 +79,7 @@ assert.deepEqual(
   "frontend agent code 只能由 wire.ts 导入 Protocol SDK",
 );
 
-const runtimeSourceRoot = join(desktopRoot, "agent-runtime/src");
+const runtimeSourceRoot = join(desktopRoot, "../agent-runtime/src");
 const runtimeSourceFiles = [];
 const collectRuntimeSourceFiles = (directory) => {
   for (const name of readdirSync(directory)) {

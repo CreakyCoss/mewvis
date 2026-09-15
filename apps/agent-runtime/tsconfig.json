@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "outDir": "dist",
+    "types": ["node"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "protocol/**/*.json",
+    "../desktop/core/story-project/**/*.ts",
+    "../desktop/core/story-project/**/*.json",
+    "../desktop/core/protocol.ts",
+    "../product.config.json"
+  ]
+}

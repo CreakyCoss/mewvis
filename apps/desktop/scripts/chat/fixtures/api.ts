@@ -33,6 +33,9 @@ export const fake = {
   } as any,
 };
 export const isTauri = () => true;
+export async function listen() {
+  throw new Error("Unexpected backend event subscription");
+}
 export async function invoke(command: string, args?: { input: any }) {
   if (command === "release_agent_runtime_session") return;
   if (command === "get_llm_settings") {

@@ -1,6 +1,6 @@
 # 调用前安全与审批
 
-源码目录 `apps/desktop/agent-runtime/src/security/safety` 中，`policy.ts` 配置调用前规则、档位元数据、资源边界和操作风险；`index.ts` 提供配置校验、运行快照解析、规则评估、等待审批和调用复核；`types.ts` 定义通用契约。Agent 特有的操作解码留在运行时适配器。
+源码目录 `apps/agent-runtime/src/security/safety` 中，`policy.ts` 配置调用前规则、档位元数据、资源边界和操作风险；`index.ts` 提供配置校验、运行快照解析、规则评估、等待审批和调用复核；`types.ts` 定义通用契约。Agent 特有的操作解码留在运行时适配器。
 
 ## 独立开关
 

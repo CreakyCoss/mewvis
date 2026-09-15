@@ -9,9 +9,9 @@
     "start:server": "pnpm --filter @isle/server start",
     "test:server": "pnpm --filter @isle/server test",
     "test:server:runtime": "pnpm --filter @isle/server test:runtime",
-    "docs:check": "node apps/desktop/scripts/docs/book.mjs --check",
-    "docs:build": "node apps/desktop/scripts/docs/book.mjs",
-    "docs:test": "pnpm docs:build && node --test apps/desktop/scripts/docs/book.test.mjs && pnpm --filter desktop build:app-host && node apps/desktop/scripts/docs/reader-e2e.mjs",
+    "docs:check": "pnpm --filter @isle/builtin-applications docs:check",
+    "docs:build": "pnpm --filter @isle/builtin-applications docs:build",
+    "docs:test": "pnpm docs:build && pnpm --filter @isle/builtin-applications docs:test && pnpm --filter desktop build:app-host && node apps/desktop/scripts/docs/reader-e2e.mjs",
     "build:ai": "cd ai/pi && npm install && npm run build",
     "dev:desktop": "cd apps/desktop && pnpm tauri dev",
     "build:desktop": "cd apps/desktop && pnpm tauri build",
@@ -30,7 +30,8 @@
     "test:server:interop": "pnpm --filter @isle/server test:interop",
     "dev:web": "pnpm build:server && pnpm --filter desktop dev:web",
     "build:web": "pnpm build:server && pnpm --filter desktop build",
-    "start:web": "pnpm --filter desktop start:web",
-    "test:web": "pnpm build:web && pnpm --filter desktop test:web"
+    "start:web": "node apps/server/dist/cli.js --web",
+    "test:web": "pnpm build:web && pnpm --filter desktop test:web",
+    "build:runtime": "pnpm --filter @isle/agent-runtime build"
   }
 }

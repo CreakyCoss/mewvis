@@ -1,6 +1,6 @@
 # 运行时安全架构
 
-`apps/desktop/agent-runtime/src/security` 集中管理审批、沙箱执行及平台实现。Agent 适配器只调用公开的 safety/execution 入口，资源与平台辅助模块由安全模块内部管理。
+`apps/agent-runtime/src/security` 集中管理审批、沙箱执行及平台实现。Agent 适配器只调用公开的 safety/execution 入口，资源与平台辅助模块由安全模块内部管理。
 
 ```text
 security/

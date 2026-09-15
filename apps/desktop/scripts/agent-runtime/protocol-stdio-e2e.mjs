@@ -1,4 +1,4 @@
-import entries from "../../agent-runtime/build-entries.json" with { type: "json" };
+import entries from "../../../agent-runtime/build-entries.json" with { type: "json" };
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -7,9 +7,9 @@ import { join } from "node:path";
 import { build } from "esbuild";
 
 const desktopRoot = process.cwd();
-const runtimePath = join(desktopRoot, "agent-runtime/dist", entries.cli.output);
-const fixturesRoot = join(desktopRoot, "agent-runtime/protocol/v1/fixtures");
-const protocolRoot = join(desktopRoot, "agent-runtime/protocol/v1");
+const runtimePath = join(desktopRoot, "../agent-runtime/dist", entries.cli.output);
+const fixturesRoot = join(desktopRoot, "../agent-runtime/protocol/v1/fixtures");
+const protocolRoot = join(desktopRoot, "../agent-runtime/protocol/v1");
 const workspacePath = mkdtempSync(join(tmpdir(), "isle-agent-runtime-protocol-"));
 
 if (!existsSync(runtimePath)) {
@@ -19,7 +19,7 @@ if (!existsSync(runtimePath)) {
 const fixture = (kind, name) => JSON.parse(readFileSync(join(fixturesRoot, kind, `${name}.json`), "utf8"));
 
 const validatorBundle = await build({
-  entryPoints: [join(desktopRoot, "agent-runtime/src/cli/json-rpc.ts")],
+  entryPoints: [join(desktopRoot, "../agent-runtime/src/cli/json-rpc.ts")],
   bundle: true,
   platform: "node",
   format: "esm",
@@ -41,7 +41,7 @@ const protocolSdk = await import(
   `data:text/javascript;base64,${Buffer.from(protocolSdkBundle.outputFiles[0].text).toString("base64")}`
 );
 const stdioBundle = await build({
-  entryPoints: [join(desktopRoot, "agent-runtime/src/cli/stdio.ts")],
+  entryPoints: [join(desktopRoot, "../agent-runtime/src/cli/stdio.ts")],
   bundle: true,
   platform: "node",
   format: "esm",

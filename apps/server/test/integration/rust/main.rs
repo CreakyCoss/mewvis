@@ -1,14 +1,14 @@
 #![allow(dead_code)]
-// Compile the production Rust schema/migrations/vector store directly, without launching Tauri.
+// Frozen pre-migration Rust schema/migrations/vector store, used only for storage compatibility tests.
 mod db {
-    pub mod sqlite { include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../../desktop/src-tauri/src/db/sqlite.rs")); }
-    pub mod schema { include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../../desktop/src-tauri/src/db/schema.rs")); }
+    pub mod sqlite { include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../support/legacy-rust/db/sqlite.rs")); }
+    pub mod schema { include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../support/legacy-rust/db/schema.rs")); }
     pub mod migrations {
-        pub mod version { include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../../desktop/src-tauri/src/db/migrations/version.rs")); }
-        pub mod config { include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../../desktop/src-tauri/src/db/migrations/config.rs")); }
+        pub mod version { include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../support/legacy-rust/db/migrations/version.rs")); }
+        pub mod config { include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../support/legacy-rust/db/migrations/config.rs")); }
     }
 }
-mod vector_store { include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../../desktop/src-tauri/src/services/vector_store.rs")); }
+mod vector_store { include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../support/legacy-rust/services/vector_store.rs")); }
 use rusqlite::{Connection,types::ValueRef};
 use vector_store::{KnowledgeVectorStore,SqliteVecStore,VectorEmbedding};
 use std::io::{self,Read,Write};

@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import {
   IdleTimeoutError,
   withIdleTimeout,
-} from "../../agent-runtime/src/engines/drivers/native/agent/runtimes/pi/agent/idle-timeout.ts";
+} from "../../../agent-runtime/src/engines/drivers/native/agent/runtimes/pi/agent/idle-timeout.ts";
 import {
   isPiAbortError,
   normalizePiAbortError,
-} from "../../agent-runtime/src/engines/drivers/native/agent/runtimes/pi/agent/abort.ts";
+} from "../../../agent-runtime/src/engines/drivers/native/agent/runtimes/pi/agent/abort.ts";
 
 const wait = (durationMs) => new Promise((resolve) => setTimeout(resolve, durationMs));
 

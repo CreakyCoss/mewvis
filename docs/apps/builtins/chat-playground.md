@@ -22,10 +22,10 @@ React 初始化、宿主工具与技能注册、SDK 连接、预览和打包由�
 ```sh
 pnpm --filter @isle/chat-playground check
 pnpm --filter @isle/chat-playground build
-node apps/desktop/agent-runtime/scripts/pack-portable-applications.mjs
+pnpm build:runtime
 ```
 
-内置产物位于 `apps/desktop/agent-runtime/dist/apps/chat-playground`，会随应用正常构建。
+内置产物位于 `apps/agent-runtime/dist/apps/chat-playground`，会随应用正常构建。
 构建后在当前开发应用刷新应用列表并打开「聊天调试台」。不需要导入或创建另一份应用。
 
 调试台声明 `application-workspaces`、`application-data`，通过 `@isle/app-sdk/data` 管理自己的工作区和业务状态。首次加载使用应用的默认工作区；点击「新增工作区」，填写名称，再点击「选择目录并创建」，由宿主打开目录选择器。选择已被其他应用登记的目录时，宿主显示共享提示；取消不会切换或登记目录。页面展示实际目录，应用工作区不会加入应用侧栏的工作区列表。
@@ -62,8 +62,8 @@ node apps/desktop/agent-runtime/scripts/pack-portable-applications.mjs
 
 ```sh
 pnpm --filter desktop test:app-host:chat-playground
-node apps/desktop/agent-runtime/scripts/pack-portable-applications.mjs
-node apps/desktop/applications/builtins/chat-playground/test.mjs --bundled
+pnpm build:runtime
+node apps/applications/builtins/chat-playground/test.mjs --bundled
 pnpm --filter desktop test:app-dev
 ```
 

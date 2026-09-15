@@ -107,7 +107,7 @@ try {
     stdin: {
       contents: `export { chatService, applicationChatHost } from "./src/workbench/shell/chat-service";
         export { createBackendApplicationDataTransport } from "./src/api/applications/data";
-        export { createPlaygroundPreferences } from "./applications/builtins/chat-playground/main/preferences";
+        export { createPlaygroundPreferences } from "../applications/builtins/chat-playground/main/preferences";
         export * as nativeFixture from "./scripts/chat/fixtures/api";`,
       resolveDir: desktop,
     },
@@ -127,13 +127,13 @@ try {
           build.onResolve(
             {
               filter:
-                /^(?:@tauri-apps\/api\/core|@\/api\/(applications$|workspace$|agent-runtime$)|@\/workbench\/pages\/stories\/)/,
+                /^(?:@\/transport$|@tauri-apps\/api\/core|@\/api\/(applications$|workspace$|agent-runtime$)|@\/workbench\/pages\/stories\/)/,
             },
             ({ path }) => ({ path, namespace: "fixture" }),
           );
           build.onLoad({ filter: /.*/, namespace: "fixture" }, ({ path }) => ({
             contents:
-              path === "@tauri-apps/api/core"
+              path === "@tauri-apps/api/core" || path === "@/transport"
                 ? "export const isTauri = () => true; export const invoke = (...args) => globalThis.__playgroundFixture.invoke(...args);"
                 : path === "@/api/applications"
                   ? "export const listApplications = async () => globalThis.__playgroundFixture.applications(); export const listApplicationUi = async () => ({applications: [{id: '@isle/chat-playground', tools: [{name:'own', description:'Own tool', risk:'low'}]}, {id:'other-application',tools:[{name:'foreign-tool'}]}]});"

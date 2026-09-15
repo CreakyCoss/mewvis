@@ -25,7 +25,7 @@ import type {
   RuntimeSessionsResult,
   SessionTargetParams,
 } from "../wire";
-import type { SandboxStatus } from "../../../agent-runtime/src/security/execution/types";
+import type { SandboxStatus } from "../../../../agent-runtime/src/security/execution/types";
 
 export type AgentRuntimeTauriChatInput = ChatParams;
 

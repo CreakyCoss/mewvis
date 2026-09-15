@@ -1,179 +1,20 @@
-mod commands;
-pub mod db;
-mod product_config;
-mod services;
+mod node_backend;
 
-use commands::{
-    agent_runtime::{
-        abort_agent_runtime_agent, answer_agent_runtime_approval, answer_agent_runtime_question,
-        delete_agent_runtime_session, get_agent_runtime_collaboration_timeline,
-        get_agent_runtime_session, get_agent_runtime_session_debug, list_agent_runtime_sessions,
-        list_agent_runtime_tools, read_agent_runtime_session, release_agent_runtime_session,
-        run_agent_runtime_agent, run_agent_runtime_chat, run_agent_runtime_collaboration,
-        run_agent_runtime_collaboration_mode, summarize_agent_runtime_session,
-        get_agent_runtime_sandbox_status, initialize_agent_runtime_sandbox,
-        AgentRuntimeSupervisor,
-    },
-    app::{
-        get_config_database_status, initialize_config_database, rebuild_config_database,
-        rebuild_workspace_database, AppStartupState,
-    },
-    applications::{
-        connect_application_data, disconnect_application_data, execute_application_ui_tool,
-        get_application_tool_policy, get_application_ui_document, inspect_application, install_application,
-        install_application_from_marketplace, list_application_ui, list_applications, post_application_chat,
-        remove_application, request_application_data, search_application_marketplace, set_application_enabled,
-        set_application_tool_policy,
-    },
-    settings::{
-        delete_ai_agent, delete_collaboration_workflow, delete_embedding_profile,
-        delete_knowledge_collection, delete_knowledge_source, get_ai_agent_settings,
-        get_knowledge_index_status, get_knowledge_settings, get_llm_settings, get_skills,
-        import_knowledge_files, install_skill_from_marketplace, list_embedding_profiles,
-        list_knowledge_collection_files, list_knowledge_library, rebuild_knowledge_index,
-        remove_app_skill, save_ai_agent, save_collaboration_workflow, save_embedding_profile,
-        save_knowledge_collection, save_knowledge_settings, save_knowledge_source,
-        save_llm_settings, save_skills, search_skill_marketplace,
-        set_knowledge_collection_embedding_profile, set_knowledge_collection_sources,
-    },
-    workspace::{
-        clear_tavern_state, create_story_record, create_workspace, create_workspace_version,
-        create_workspace_version_branch, delete_chat, delete_story_record, delete_workspace,
-        delete_workspace_file, discard_workspace_version_file_changes,
-        get_workspace_version_commit_file_diff, get_workspace_version_control_status,
-        get_workspace_version_file_diff, import_story_record, initialize_workspace_version_control,
-        list_chats, list_story_records, list_workspace_files, list_workspace_version_files,
-        list_workspace_versions, list_workspaces, load_chat, load_tavern_state,
-        read_workspace_file, read_workspace_file_optional, read_workspace_version_file,
-        restore_workspace_version, save_chat, save_tavern_state, search_workspace_knowledge,
-        set_chat_unread, switch_workspace_version_branch, unwatch_workspace_files,
-        update_story_record, update_workspace, watch_workspace_files, write_workspace_file,
-        write_workspace_files_atomic, WorkspaceFileWatchers,
-    },
-};
-use services::applications::ui::ApplicationUiHost;
+use node_backend::{get_backend_connection, NodeBackend};
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .manage(AgentRuntimeSupervisor::default())
-        .manage(ApplicationUiHost::default())
-        .manage(services::applications::data::ApplicationDataHost::default())
-        .manage(AppStartupState::default())
-        .manage(WorkspaceFileWatchers::default())
+        .manage(NodeBackend::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_sql::Builder::default().build())
-        .setup(|app| {
-            services::applications::initialize_application_layout(app.handle()).map_err(std::io::Error::other)?;
-            Ok(())
-        })
-        .invoke_handler(tauri::generate_handler![
-            initialize_config_database,
-            get_config_database_status,
-            rebuild_config_database,
-            rebuild_workspace_database,
-            list_workspaces,
-            create_workspace,
-            update_workspace,
-            delete_workspace,
-            get_llm_settings,
-            save_llm_settings,
-            get_ai_agent_settings,
-            save_ai_agent,
-            delete_ai_agent,
-            save_collaboration_workflow,
-            delete_collaboration_workflow,
-            list_knowledge_library,
-            get_knowledge_settings,
-            save_knowledge_settings,
-            list_embedding_profiles,
-            save_embedding_profile,
-            delete_embedding_profile,
-            save_knowledge_collection,
-            delete_knowledge_collection,
-            save_knowledge_source,
-            import_knowledge_files,
-            delete_knowledge_source,
-            set_knowledge_collection_embedding_profile,
-            set_knowledge_collection_sources,
-            get_knowledge_index_status,
-            list_knowledge_collection_files,
-            rebuild_knowledge_index,
-            list_agent_runtime_tools,
-            get_agent_runtime_sandbox_status,
-            initialize_agent_runtime_sandbox,
-            run_agent_runtime_chat,
-            run_agent_runtime_agent,
-            run_agent_runtime_collaboration,
-            run_agent_runtime_collaboration_mode,
-            answer_agent_runtime_question,
-            answer_agent_runtime_approval,
-            abort_agent_runtime_agent,
-            read_agent_runtime_session,
-            list_agent_runtime_sessions,
-            get_agent_runtime_session,
-            get_agent_runtime_session_debug,
-            get_agent_runtime_collaboration_timeline,
-            delete_agent_runtime_session,
-            release_agent_runtime_session,
-            summarize_agent_runtime_session,
-            get_skills,
-            save_skills,
-            search_skill_marketplace,
-            install_skill_from_marketplace,
-            remove_app_skill,
-            list_applications,
-            inspect_application,
-            list_application_ui,
-            get_application_tool_policy,
-            set_application_tool_policy,
-            post_application_chat,
-            connect_application_data,
-            request_application_data,
-            disconnect_application_data,
-            execute_application_ui_tool,
-            get_application_ui_document,
-            install_application,
-            search_application_marketplace,
-            install_application_from_marketplace,
-            set_application_enabled,
-            remove_application,
-            search_workspace_knowledge,
-            list_chats,
-            load_chat,
-            save_chat,
-            set_chat_unread,
-            delete_chat,
-            list_story_records,
-            create_story_record,
-            import_story_record,
-            update_story_record,
-            delete_story_record,
-            load_tavern_state,
-            save_tavern_state,
-            clear_tavern_state,
-            watch_workspace_files,
-            unwatch_workspace_files,
-            list_workspace_files,
-            read_workspace_file,
-            read_workspace_file_optional,
-            write_workspace_file,
-            write_workspace_files_atomic,
-            delete_workspace_file,
-            get_workspace_version_control_status,
-            initialize_workspace_version_control,
-            get_workspace_version_file_diff,
-            discard_workspace_version_file_changes,
-            get_workspace_version_commit_file_diff,
-            create_workspace_version,
-            create_workspace_version_branch,
-            switch_workspace_version_branch,
-            list_workspace_versions,
-            list_workspace_version_files,
-            read_workspace_version_file,
-            restore_workspace_version
-        ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .invoke_handler(tauri::generate_handler![get_backend_connection])
+        .build(tauri::generate_context!())
+        .expect("error while building desktop shell")
+        .run(|app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                app.state::<NodeBackend>().shutdown();
+            }
+        });
 }

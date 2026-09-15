@@ -24,9 +24,9 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@agent-runtime": ["./agent-runtime/src/index.ts"],
-      "@agent-runtime/*": ["./agent-runtime/src/*"],
-      "@engines/*": ["./agent-runtime/src/engines/*"]
+      "@agent-runtime": ["../agent-runtime/src/index.ts"],
+      "@agent-runtime/*": ["../agent-runtime/src/*"],
+      "@engines/*": ["../agent-runtime/src/engines/*"]
     }
   },
   "include": ["src"],

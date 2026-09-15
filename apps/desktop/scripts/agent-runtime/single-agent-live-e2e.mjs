@@ -1,4 +1,4 @@
-import entries from "../../agent-runtime/build-entries.json" with { type: "json" };
+import entries from "../../../agent-runtime/build-entries.json" with { type: "json" };
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { runtimePayloadFromJsonRpcMessage, writeAgentRuntimeCommand } from "./stdio-json-rpc-client.mjs";
 
 const workspaceRoot = process.cwd();
-const runtimePath = join(workspaceRoot, "agent-runtime/dist", entries.cli.output);
+const runtimePath = join(workspaceRoot, "../agent-runtime/dist", entries.cli.output);
 const configDbPath = process.env.ISLE_CLAW_CONFIG_DB?.trim() || join(homedir(), ".isle-claw", "config.db");
 const workspacePath = mkdtempSync(join(tmpdir(), "isle-claw-runtime-live-e2e-"));
 const sessionRootDir = join(workspacePath, "standalone-session-store", "chats", "live-e2e-session", "session");

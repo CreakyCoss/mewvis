@@ -1,6 +1,6 @@
 # Server 业务接口
 
-Node Server 覆盖 Tauri 当前注册的全部 104 个后端命令。`apps/server/test/migration.test.mjs` 直接读取 Rust 注册表，对照 `GET /api/commands` 检查缺项；它同时包含业务回归测试。新增接口继续使用 `POST /api/commands/<name>`、Bearer 认证和原 Tauri 请求/结果字段。
+Node Server 覆盖迁移前 Tauri 注册的全部 104 个业务命令。`apps/server/test/integration/backend-api.test.mjs` 读取冻结的历史命令清单，对照 `GET /api/commands` 检查缺项；它同时包含业务回归测试。新增接口继续使用 `POST /api/commands/<name>`、Bearer 认证和原 Tauri 请求/结果字段。
 
 ## 覆盖范围
 
@@ -62,7 +62,7 @@ Git 使用系统命令行，以独立参数传递路径并禁用 hooks、外部 
 
 ## 数据库维护
 
-配置库沿用 Rust 的版本 25 和完整历史升级规则。两种后端共用原数据目录，同一时刻仅启动一个后端；使用原 `apps/.layout.lock` 的操作系统文件锁互斥，进程崩溃后锁自动释放。切换后端先正常退出当前进程，再启动另一种实现，不复制数据库或创建专属配置库。
+配置库沿用 Rust 的版本 25 和完整历史升级规则。桌面和 Web 的 Node 后端复用原数据目录，同一时刻仅启动一个后端；使用原 `apps/.layout.lock` 的操作系统文件锁互斥，进程崩溃后锁自动释放。切换启动入口前先正常退出当前进程，不复制数据库或创建专属配置库。
 
 配置库初始化失败时，Server 仍提供认证后的状态与重建接口。重建先准备新库、恢复可匹配表、校验完整性和外键，再替换旧库。旧文件保留为 `*.backup-<uuid>`，路径通过原 `DatabaseRestoreReport.warnings` 返回。锁冲突返回可重试错误，不把锁冲突当作数据损坏。无法读取的损坏库允许重建空库，但原文件始终保留备份。
 
@@ -70,7 +70,7 @@ Git 使用系统命令行，以独立参数传递路径并禁用 hooks、外部 
 
 ## 宿主交互适配
 
-HTTP 无法传递 Tauri Channel 或打开原生弹窗，因此这两类接口使用 SSE。建立事件订阅后再发起操作。
+文件监听和应用工作区交互统一使用 SSE。建立事件订阅后再发起操作；桌面需要选目录时使用 Tauri 原生交互，Web 使用 Node 原生选择器。
 
 - `watch_workspace_files` 仍返回 watch ID；文件变化发送 `workspace_files_changed`，payload 为 `{ "watchId": "..." }`。不传 `onChange` Channel。停止监听仍调用 `unwatch_workspace_files`。
 - 应用工作区需要选择目录时发送 `application-workspace:interaction`：`{ "requestId": "...", "applicationId": "...", "kind": "pick-directory" }`。宿主回复绝对目录路径或 `null`。

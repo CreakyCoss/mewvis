@@ -2,7 +2,7 @@
 
 `isle.ui` 是 Isle 为原生和兼容应用定义的 UI 扩展，与 `dsh.client` 独立。双目标包可以同时携带两份 UI 声明，继续向 DSH 生态分发。
 
-机器可读定义位于 [isle-ui.schema.json](../../apps/desktop/applications/host/schema/isle-ui.schema.json)。
+机器可读定义位于 [isle-ui.schema.json](../../packages/app/host/schema/isle-ui.schema.json)。
 
 React 项目可使用 [应用工程工具链](development.md)：页面从 `main/App.tsx` 导出，工具与技能通过 `host.tools` / `host.skills` 指向 `main/host/tools.ts` 和 `main/host/skills.ts`，权限和 UI 设置放入 `isle.config.ts`。工具链生成下列 JS 入口与清单，浏览器通过 SDK 的 `getApplicationHost()` 调用本应用工具，无需手写桥接代码。
 

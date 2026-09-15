@@ -9,10 +9,10 @@ const tempDir = mkdtempSync(join(tmpdir(), "isle-claw-agent-runtime-collab-"));
 const entryPath = join(tempDir, "collaboration-smoke.ts");
 const bundlePath = join(tempDir, "collaboration-smoke.mjs");
 const packagePath = join(tempDir, "package.json");
-const runtimeEntry = resolve(desktopRoot, "agent-runtime/src/index.ts");
-const protocolEntry = resolve(desktopRoot, "agent-runtime/src/engines/protocol/index.ts");
-const collaborationEntry = resolve(desktopRoot, "agent-runtime/src/engines/drivers/native/collaboration/index.ts");
-const sessionEntry = resolve(desktopRoot, "agent-runtime/src/engines/drivers/native/session/index.ts");
+const runtimeEntry = resolve(desktopRoot, "../agent-runtime/src/index.ts");
+const protocolEntry = resolve(desktopRoot, "../agent-runtime/src/engines/protocol/index.ts");
+const collaborationEntry = resolve(desktopRoot, "../agent-runtime/src/engines/drivers/native/collaboration/index.ts");
+const sessionEntry = resolve(desktopRoot, "../agent-runtime/src/engines/drivers/native/session/index.ts");
 
 writeFileSync(
   entryPath,

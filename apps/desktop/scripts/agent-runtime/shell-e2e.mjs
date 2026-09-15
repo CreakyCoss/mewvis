@@ -9,16 +9,16 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { mock } from "node:test";
 import { pathToFileURL } from "node:url";
-import entries from "../../agent-runtime/build-entries.json" with { type: "json" };
+import entries from "../../../agent-runtime/build-entries.json" with { type: "json" };
 
 const temp = fs.mkdtempSync(join(tmpdir(), "isle-shell-"));
 const runtime = join(temp, "runtime");
 fs.mkdirSync(runtime);
-const piRoot = resolve("agent-runtime/src/engines/drivers/native/agent/runtimes/pi");
+const piRoot = resolve("../agent-runtime/src/engines/drivers/native/agent/runtimes/pi");
 const originalPlatform = Object.getOwnPropertyDescriptor(process, "platform");
 const resources = [];
 const bundleOptions = {
-  tsconfig: resolve("agent-runtime/tsconfig.json"),
+  tsconfig: resolve("../agent-runtime/tsconfig.json"),
   bundle: true,
   platform: "node",
   format: "esm",
@@ -42,7 +42,7 @@ try {
         "engines/drivers/native/agent/runtimes/pi/tools/subagent",
         "engines/drivers/native/agent/runtimes/pi/agent/subagent-session",
       ]
-        .map((file) => `export * from ${JSON.stringify(resolve(`agent-runtime/src/${file}.ts`))};`)
+        .map((file) => `export * from ${JSON.stringify(resolve(`../agent-runtime/src/${file}.ts`))};`)
         .join("\n"),
       loader: "ts",
       resolveDir: process.cwd(),
@@ -187,7 +187,7 @@ try {
     ],
   });
   fs.copyFileSync(
-    resolve("agent-runtime/dist", entries.executionHost.output),
+    resolve("../agent-runtime/dist", entries.executionHost.output),
     join(runtime, entries.executionHost.output),
   );
   const config = structuredClone(api.EXECUTION_CONFIG);

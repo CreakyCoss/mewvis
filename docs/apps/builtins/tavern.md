@@ -24,7 +24,7 @@ Isle 内置的原生酒馆应用。源码只使用 `@isle/app-sdk` 提供的工�
 源码只维护 `isle.app`，不携带手写 DSH 清单。发布兼容包时运行：
 
 ```sh
-pnpm app:pack -- applications/builtins/tavern --target dsh
+pnpm app:pack -- ../applications/builtins/tavern --target dsh
 ```
 
 生成的 DSH 包会内联 SDK 与设置 Schema 实现，并自动生成

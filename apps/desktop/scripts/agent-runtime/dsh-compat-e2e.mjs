@@ -4,12 +4,12 @@ import { dirname, join, resolve } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { packApplication } from "@isle/app-dev/tooling";
-import entries from "../../agent-runtime/build-entries.json" with { type: "json" };
+import entries from "../../../agent-runtime/build-entries.json" with { type: "json" };
 
 const desktopRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
-const applicationSourceRoot = join(desktopRoot, "applications", "builtins", "story-scene-card");
-const rssApplicationRoot = join(desktopRoot, "applications", "builtins", "rss-reader");
-const tavernApplicationSourceRoot = join(desktopRoot, "applications", "builtins", "tavern");
+const applicationSourceRoot = join(desktopRoot, "../applications", "builtins", "story-scene-card");
+const rssApplicationRoot = join(desktopRoot, "../applications", "builtins", "rss-reader");
+const tavernApplicationSourceRoot = join(desktopRoot, "../applications", "builtins", "tavern");
 const temporaryRoot = mkdtempSync(join(desktopRoot, ".agent-runtime-dsh-e2e-"));
 const applicationRoot = join(temporaryRoot, "story-scene-card-dsh");
 const tavernApplicationRoot = join(temporaryRoot, "tavern-dsh");
@@ -27,7 +27,7 @@ const tavernApplicationRootEnvironmentKey = "ISLE_DSH_RUNTIME_TAVERN_APPLICATION
 try {
   // The bundled resource loader resolves execution workers beside this test bundle.
   for (const name of [entries.executionHost.output, entries.piToolWorker.output, "vendor"])
-    cpSync(join(desktopRoot, "agent-runtime/dist", name), join(temporaryRoot, name), { recursive: true });
+    cpSync(join(desktopRoot, "../agent-runtime/dist", name), join(temporaryRoot, name), { recursive: true });
   await packApplication({ source: applicationSourceRoot, target: "dsh", outDir: applicationRoot, quiet: true });
   await packApplication({ source: tavernApplicationSourceRoot, target: "dsh", outDir: tavernApplicationRoot, quiet: true });
   const manifest = JSON.parse(readFileSync(join(applicationRoot, "package.json"), "utf8"));
@@ -47,7 +47,7 @@ try {
   assert.match(patch, /name:\s*['"]?@isle\/story-scene-card/);
 
   await build({
-    entryPoints: [join(desktopRoot, "agent-runtime", "tests", "dsh-application-runner.ts")],
+    entryPoints: [join(desktopRoot, "../agent-runtime", "tests", "dsh-application-runner.ts")],
     outfile: outputPath,
     bundle: true,
     platform: "node",

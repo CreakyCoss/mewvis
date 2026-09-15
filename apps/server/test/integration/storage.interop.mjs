@@ -23,7 +23,7 @@ const runtimeFixture = fileURLToPath(
   new URL("../support/fixtures/runtime.mjs", import.meta.url),
 );
 const actualRuntime = fileURLToPath(
-  new URL("../../../desktop/agent-runtime/dist/cli.js", import.meta.url),
+  new URL("../../../agent-runtime/dist/cli.js", import.meta.url),
 );
 const rust = (...args) => {
   const result = spawnSync(binary, args, {
@@ -187,16 +187,10 @@ test("Rust and Node search each other's sqlite-vec index without rebuilding on b
     ).collections[0],
     source = c.sourceIds[0];
   const path = join(root, "rag", "index.sqlite");
-  const sourceCode = await fs.readFile(
-    new URL(
-      "../../../desktop/src-tauri/src/services/knowledge.rs",
-      import.meta.url,
-    ),
+  const sql = await fs.readFile(
+    new URL("../support/legacy-rust/rag-index.sql", import.meta.url),
     "utf8",
   );
-  const sql = sourceCode
-    .split("fn initialize_index_schema")[1]
-    .match(/r#"([\s\S]*?)"#/)[1];
   rust(
     "exec",
     path,
