@@ -13,7 +13,8 @@ export default defineApplication({
       ctx.tools.register({
         ...tool,
         async execute(args: unknown) {
-          if (tool.name === "isle_story_types") return tool.execute(args);
+          if (["isle_story_types", "isle_story_skill", "isle_story_skill_resource"].includes(tool.name))
+            return tool.execute(args);
           const input = args as { workspaceId?: unknown } | null;
           if (typeof input?.workspaceId !== "string") throw new Error("工作区 ID 无效");
           let workspacePath: string;

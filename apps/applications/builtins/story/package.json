@@ -5,9 +5,10 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "generate:skills": "node scripts/generate-skills.mjs",
     "dev": "isle-app dev",
-    "build": "isle-app build",
-    "check": "isle-app check",
+    "build": "pnpm generate:skills && isle-app build",
+    "check": "pnpm generate:skills && isle-app check",
     "test": "pnpm build && node --test test/*.test.mjs"
   },
   "dependencies": {

@@ -5,6 +5,7 @@ import { defineTool } from "@isle/app-sdk";
 import { storyProjectApi } from "../../shared/project-file.js";
 import { storyDocumentIdentityKey } from "../../shared/project/index.js";
 import type { StoryDocumentIdentity, StoryValue } from "../../shared/project/types.js";
+import { storySkillDefinitions, storySkillResources } from "./story-skills.generated.js";
 
 const workspaceFields = {
   workspaceId: { type: "string", minLength: 1 },
@@ -21,13 +22,14 @@ const projectPath = (input: WorkspaceArgs) => input.workspacePath;
 
 const snapshot = async (path: string) => {
   const workspace = await storyProjectApi.open(path);
-  const [overview, documents, structure] = await Promise.all([
+  const [overview, documents, structure, projectContext] = await Promise.all([
     workspace.overview(),
     workspace.listDocuments(),
     workspace.describe(),
+    workspace.readContext({ scope: "project" }),
   ]);
   return {
-    status: "ready", overview, structure,
+    status: "ready", overview, structure, revision: projectContext.revision,
     documents: documents.map(({ ref, displayName, updatedAt }) => ({ ref, displayName, updatedAt })),
   };
 };
@@ -36,6 +38,91 @@ const storyTypes = defineTool({
   risk: "low", name: "isle_story_types", description: "列出可创建的故事项目类型。",
   parameters: { type: "object", properties: {}, additionalProperties: false }, output,
   execute: () => ({ types: storyProjectApi.listStoryTypes() }),
+});
+const skillResource = defineTool({
+  risk: "low", name: "isle_story_skill_resource",
+  description: "读取内置故事技能引用的参考资料或检查脚本。",
+  parameters: {
+    type: "object",
+    properties: { skillName: { type: "string", minLength: 1 }, path: { type: "string", minLength: 1 } },
+    required: ["skillName", "path"], additionalProperties: false,
+  },
+  output,
+  execute(args) {
+    const input = args as { skillName: string; path: string };
+    const parts = `${input.skillName}/${input.path}`.replaceAll("\\", "/").split("/");
+    const normalized: string[] = [];
+    for (const part of parts) {
+      if (!part || part === ".") continue;
+      if (part === "..") {
+        if (!normalized.pop()) throw new Error("技能资源路径越界");
+      } else normalized.push(part);
+    }
+    const key = normalized.join("/");
+    const content = storySkillResources[key];
+    if (content === undefined) throw new Error(`故事技能资源不存在：${key}`);
+    return { skillName: input.skillName, path: input.path, content };
+  },
+});
+const storySkill = defineTool({
+  risk: "low", name: "isle_story_skill",
+  description: "列出或加载故事助手的专属工作流技能。开始故事创作任务时先加载 story-assistant，再按其路由加载一个子技能。",
+  parameters: {
+    type: "object",
+    properties: { name: { type: "string" } }, additionalProperties: false,
+  },
+  output,
+  execute(args) {
+    const input = args as { name?: string };
+    if (!input.name) return {
+      skills: storySkillDefinitions.map(({ name, description }) => ({ name, description })),
+    };
+    const skill = storySkillDefinitions.find(item => item.name === input.name);
+    if (!skill) throw new Error(`故事专属技能不存在：${input.name}`);
+    return skill;
+  },
+});
+const story = defineTool({
+  risk: "medium", name: "story",
+  description: "故事创作助手专用的结构化 Story Contract。所有操作绑定当前应用工作区。",
+  parameters: {
+    type: "object",
+    properties: {
+      ...workspaceFields,
+      action: { type: "string", enum: ["describe_structure", "initialize", "read_context", "validate_changes", "commit_changes"] },
+      documentKinds: { type: "array", items: { type: "string" } },
+      storyId: { type: "string" }, title: { type: "string" }, storyTypeId: { type: "string" },
+      replaceExisting: { type: "boolean" },
+      scope: { type: "string", enum: ["project", "chapter"] }, targetId: { type: "string" },
+      changeSet: {},
+    },
+    required: [...workspaceRequired, "action"], additionalProperties: false,
+  },
+  output,
+  async execute(args) {
+    const input = args as WorkspaceArgs & {
+      action: "describe_structure" | "initialize" | "read_context" | "validate_changes" | "commit_changes";
+      documentKinds?: string[]; storyId?: string; title?: string; storyTypeId?: string; replaceExisting?: boolean;
+      scope?: "project" | "chapter"; targetId?: string; changeSet?: unknown;
+    };
+    const path = await projectPath(input);
+    if (input.action === "initialize") {
+      if (!input.storyId?.trim() || !input.title?.trim()) throw new Error("initialize 需要 storyId 和 title");
+      return storyProjectApi.workspace(path).initialize({
+        storyId: input.storyId, title: input.title, storyTypeId: input.storyTypeId,
+        replaceExisting: input.replaceExisting,
+      });
+    }
+    const workspace = await storyProjectApi.open(path);
+    if (input.action === "describe_structure")
+      return { available: true, structure: await workspace.describe({ documentKinds: input.documentKinds }) };
+    if (input.action === "read_context") {
+      if (!input.scope) throw new Error("read_context 需要 scope");
+      return workspace.readContext({ scope: input.scope, targetId: input.targetId });
+    }
+    if (input.action === "validate_changes") return workspace.validateChanges(input.changeSet);
+    return workspace.commitChanges(input.changeSet);
+  },
 });
 const inspect = defineTool({
   risk: "low", name: "isle_story_inspect", description: "检查故事工作区兼容性，读取概览、文档和结构。",
@@ -186,6 +273,6 @@ const saveTavern = defineTool({
 });
 
 export default [
-  storyTypes, inspect, create, getDocument, save, remove, upgrade, context,
+  storyTypes, storySkill, skillResource, story, inspect, create, getDocument, save, remove, upgrade, context,
   validateChanges, commitChanges, readTavern, saveTavern,
 ];

@@ -5,7 +5,7 @@ import { getApplicationDataClient, type ApplicationWorkspace } from "@isle/app-s
 import { getApplicationChatClient, type ApplicationChatSession } from "@isle/app-sdk/chat";
 import { Chat } from "@isle/app-sdk/chat/react";
 import type {
-  JsonFieldMetadata, StoryDocument, StoryDocumentIdentity, StoryOverview,
+  JsonFieldMetadata, JsonObjectDefinition, StoryDocument, StoryDocumentIdentity, StoryOverview,
   StoryProjectCompatibility, StoryProjectStructure, StoryValue,
 } from "../shared/project/types";
 
@@ -13,6 +13,7 @@ type StoryType = { id: string; label: string; description: string };
 type DocumentSummary = Pick<StoryDocument, "ref" | "displayName" | "updatedAt">;
 type Snapshot = {
   status: "empty" | "ready" | "upgrade-available" | "incompatible";
+  revision?: number;
   overview?: StoryOverview;
   documents?: DocumentSummary[];
   structure?: StoryProjectStructure;
@@ -98,15 +99,15 @@ const workspaceArgs = (workspace: ApplicationWorkspace) => ({ workspaceId: works
 const call = async <T,>(name: string, args: Record<string, unknown> = {}): Promise<T> =>
   (await host().executeTool<T>(name, args)).value;
 const openingSessions = new Map<string, Promise<ApplicationChatSession>>();
-const openStorySession = (workspace: ApplicationWorkspace, scene: string, prompt: string) => {
-  const key = `${workspace.id}:${scene}`;
+const openStorySession = (workspace: ApplicationWorkspace, scene: string, prompt: string, createNew = false) => {
+  const key = `${workspace.id}:${scene}:${createNew ? "new" : "latest"}`;
   const previous = openingSessions.get(key);
   if (previous) return previous;
   const pending = (async () => {
     const client = getApplicationChatClient();
-    const summaries = await client.listSessions({ workspaceId: workspace.id });
+    const summaries = createNew ? [] : await client.listSessions({ workspaceId: workspace.id });
     const prior = summaries.filter(item => item.sceneId === scene).sort((a, b) => b.updatedAt - a.updatedAt)[0];
-    return prior
+    return prior && !createNew
       ? client.openSession({ workspaceId: workspace.id, chatId: prior.chatId })
       : client.createSession({
           workspaceId: workspace.id, sceneId: scene,
@@ -115,7 +116,8 @@ const openStorySession = (workspace: ApplicationWorkspace, scene: string, prompt
             systemPrompt: [
               "你是 Isle 故事创作助手。请用中文交流，尊重项目已有设定和用户的写作要求。",
               `当前应用工作区：workspaceId=${workspace.id}。`,
-              "使用 isle_story_inspect 和 isle_story_read_context 了解项目，编辑文档时使用 isle_story_save_document。",
+              "处理写作、拆解、导入、审稿或去 AI 味任务时，必须先调用 isle_story_skill 加载 story-assistant，再按路由加载对应子技能。",
+              "技能中的 story 调用必须始终带上当前 workspaceId。结构化变更优先使用 story 的 ChangeSet 协议提交。",
               prompt,
             ].join("\n"),
             useKnowledge: true,
@@ -142,39 +144,84 @@ function Dialog({ title, close, children }: { title: string; close(): void; chil
   </div>;
 }
 
-function ChatPane({ workspace, scene, prompt, onClose, closeLabel = "关闭" }: {
+function ChatPane({ workspace, scene, prompt, onClose, closeLabel = "关闭", allowNewSession = false, revision }: {
   workspace: ApplicationWorkspace; scene: string; prompt: string; onClose(): void; closeLabel?: string;
+  allowNewSession?: boolean; revision?: number;
 }) {
   const [session, setSession] = useState<ApplicationChatSession | null>(null);
   const [error, setError] = useState("");
+  const [sessionGeneration, setSessionGeneration] = useState(0);
   useEffect(() => {
     let alive = true;
     setSession(null);
     setError("");
     void (async () => {
       try {
-        const opened = await openStorySession(workspace, scene, prompt);
+        const opened = await openStorySession(workspace, scene, prompt, sessionGeneration > 0);
         if (alive) setSession(opened);
       } catch (cause) {
         if (alive) setError(errorMessage(cause));
       }
     })();
     return () => { alive = false; };
-  }, [workspace.id, scene, prompt]);
+  }, [workspace.id, scene, prompt, sessionGeneration]);
   return <section className="story-chat-pane">
-    <header><div><span className="story-eyebrow">创作助手</span><h2>{scene.startsWith("tavern") ? "章节酒馆" : "故事助手"}</h2></div><Button onClick={onClose} variant="quiet">{closeLabel}</Button></header>
+    <header><div><span className="story-eyebrow">创作助手</span><h2>{scene.startsWith("tavern") ? "章节酒馆" : "故事助手"}</h2>
+      {!scene.startsWith("tavern") && <small className="story-chat-status">结构化技能 · 校验后落库{revision === undefined ? "" : ` · revision ${revision}`}</small>}</div>
+      <div className="story-actions">{allowNewSession && <Button onClick={() => setSessionGeneration(value => value + 1)} disabled={!session}>＋ 新建会话</Button>}
+        <Button onClick={onClose} variant="quiet">{closeLabel}</Button></div></header>
     {session ? <div className="story-chat-body"><Chat session={session} viewId={scene} /></div> : <div className="story-empty"><Chat.Loading error={error || undefined} /></div>}
   </section>;
 }
 
-function Field({ name, field, value, update }: { name: string; field: JsonFieldMetadata; value: StoryValue | undefined; update(value: StoryValue): void }) {
+function Field({ name, field, value, definitions, update }: {
+  name: string; field: JsonFieldMetadata; value: StoryValue | undefined;
+  definitions: Readonly<Record<string, JsonObjectDefinition>>; update(value: StoryValue): void;
+}) {
   const [raw, setRaw] = useState(() => JSON.stringify(value ?? field.default ?? null, null, 2));
+  const [rawError, setRawError] = useState("");
   useEffect(() => { setRaw(JSON.stringify(value ?? field.default ?? null, null, 2)); }, [value, field.default]);
   const locked = !!(field.readOnly || field.immutable || field.generated || field.const !== undefined);
   const complex = Array.isArray(value) || isObject(value) || ["object", "collection", "string-list", "reference-list"].includes(field.type);
-  return <label className="story-field">
-    <span>{field.label || name}{field.required && <em> *</em>}</span>
-    {field.description && <small>{field.description}</small>}
+  const objectDefinition = field.definition ? definitions[field.definition] : undefined;
+  const itemDefinition = field.itemDefinition ? definitions[field.itemDefinition] : undefined;
+  const label = <><span>{field.label || name}{field.required && <em> *</em>}</span>
+    {field.description && <small>{field.description}</small>}</>;
+  if (objectDefinition) {
+    const object = isObject(value) ? value : {};
+    return <div className="story-field story-complex-field">{label}<div className="story-nested-fields">
+      {Object.entries(objectDefinition.fields).map(([childName, child]) => <Field key={childName} name={childName}
+        field={child} definitions={definitions} value={object[pointerKey(childName)]}
+        update={next => update({ ...object, [pointerKey(childName)]: next })} />)}
+    </div></div>;
+  }
+  if (itemDefinition) {
+    const items = Array.isArray(value) ? value : [];
+    return <div className="story-field story-complex-field">{label}<div className="story-collection">
+      {items.map((item, index) => {
+        const object = isObject(item) ? item : {};
+        return <section className="story-collection-item" key={index}><header><strong>第 {index + 1} 项</strong>
+          {!locked && <Button variant="danger" onClick={() => update(items.filter((_, itemIndex) => itemIndex !== index))}>删除此项</Button>}</header>
+          <div className="story-nested-fields">{Object.entries(itemDefinition.fields).map(([childName, child]) =>
+            <Field key={childName} name={childName} field={child} definitions={definitions}
+              value={object[pointerKey(childName)]} update={next => update(items.map((current, itemIndex) =>
+                itemIndex === index ? { ...object, [pointerKey(childName)]: next } : current))} />)}</div></section>;
+      })}
+      {!items.length && <small className="story-collection-empty">暂无内容</small>}
+      {!locked && <Button onClick={() => update([...items, Object.fromEntries(Object.entries(itemDefinition.fields)
+        .map(([childName, child]) => [pointerKey(childName), defaultFor(child, definitions)]))])}>＋ 新增一项</Button>}
+    </div></div>;
+  }
+  if (["string-list", "reference-list"].includes(field.type)) {
+    const items = Array.isArray(value) ? value.map(item => String(item ?? "")) : [];
+    return <div className="story-field story-complex-field">{label}<div className="story-list-editor">
+      {items.map((item, index) => <div className="story-list-row" key={index}><input value={item} disabled={locked}
+        onChange={event => update(items.map((current, itemIndex) => itemIndex === index ? event.target.value : current))} />
+        {!locked && <Button variant="danger" onClick={() => update(items.filter((_, itemIndex) => itemIndex !== index))}>删除</Button>}</div>)}
+      {!locked && <Button onClick={() => update([...items, ""])}>＋ 新增一项</Button>}
+    </div></div>;
+  }
+  return <label className="story-field">{label}
     {field.options?.length ? <select disabled={locked} value={String(value ?? "")} onChange={event => update(event.target.value)}>
       <option value="">请选择</option>
       {field.options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
@@ -183,22 +230,25 @@ function Field({ name, field, value, update }: { name: string; field: JsonFieldM
       : complex
         ? <textarea rows={Math.max(5, Math.min(12, raw.split("\n").length + 1))} disabled={locked} value={raw}
             onChange={event => setRaw(event.target.value)}
-            onBlur={() => { try { update(JSON.parse(raw) as StoryValue); } catch { /* keep the draft until valid */ } }} />
+            onBlur={() => { try { update(JSON.parse(raw) as StoryValue); setRawError(""); } catch { setRawError("JSON 格式无效，请修正后再保存。"); } }} />
         : typeof value === "number" || ["number", "integer"].includes(field.type)
           ? <input type="number" disabled={locked} value={Number(value ?? 0)} onChange={event => update(Number(event.target.value))} />
           : pointerKey(name) === "content" || ["textarea", "content"].includes(field.type) || String(value ?? "").length > 160
             ? <textarea rows={10} disabled={locked} value={String(value ?? "")} onChange={event => update(event.target.value)} />
             : <input type="text" disabled={locked} value={String(value ?? "")} onChange={event => update(event.target.value)} />}
+    {rawError && <small className="story-field-error" role="alert">{rawError}</small>}
   </label>;
 }
 
-function DocumentEditor({ document, structure, save, remove, busy }: {
+function DocumentEditor({ document, structure, save, remove, busy, onDirtyChange }: {
   document: StoryDocument; structure: StoryProjectStructure;
   save(ref: StoryDocumentIdentity, value: StoryValue): void; remove(ref: StoryDocumentIdentity): void; busy: boolean;
+  onDirtyChange(dirty: boolean): void;
 }) {
   const [draft, setDraft] = useState<StoryValue>(document.value);
   const [raw, setRaw] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [rawError, setRawError] = useState("");
   const [tab, setTab] = useState<"basics" | "content" | "structured" | "technical" | "raw">("basics");
   useEffect(() => { setDraft(document.value); setRaw(JSON.stringify(document.value, null, 2)); setTab("basics"); }, [document]);
   const schema = document.definition ?? {
@@ -208,6 +258,8 @@ function DocumentEditor({ document, structure, save, remove, busy }: {
     definitions: structure.schemas.objectDefinitions,
   };
   const dirty = JSON.stringify(draft) !== JSON.stringify(document.value);
+  useEffect(() => { onDirtyChange(dirty); }, [dirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange(false), [onDirtyChange]);
   const setField = (name: string, value: StoryValue) => setDraft(previous => ({ ...(isObject(previous) ? previous : {}), [pointerKey(name)]: value }));
   const fields = Object.entries(schema.fields);
   const visible = fields.filter(([name, field]) => sectionOf(name, field) === tab);
@@ -218,7 +270,7 @@ function DocumentEditor({ document, structure, save, remove, busy }: {
     <div className="story-tabs" role="tablist">
       {(["basics", "content", "structured", "technical", "raw"] as const).map(item =>
         <button type="button" key={item} role="tab" aria-selected={tab === item} className={tab === item ? "active" : ""}
-          onClick={() => setTab(item)}>{({
+          onClick={() => { if (item === "raw") setRaw(JSON.stringify(draft, null, 2)); setRawError(""); setTab(item); }}>{({
             basics: "基本信息", content: "主要内容", structured: "列表与关系",
             technical: "技术信息", raw: "原始数据",
           } as const)[item]}</button>)}
@@ -226,11 +278,12 @@ function DocumentEditor({ document, structure, save, remove, busy }: {
     <div className="story-fields">
       {tab === "raw" ? <label className="story-field"><span>JSON</span><textarea rows={24} value={raw}
         onChange={event => setRaw(event.target.value)}
-        onBlur={() => { try { setDraft(JSON.parse(raw) as StoryValue); } catch { /* preserve draft */ } }} />
+        onBlur={() => { try { setDraft(JSON.parse(raw) as StoryValue); setRawError(""); } catch { setRawError("JSON 格式无效，请修正后再保存。"); } }} />
         <small>离开输入框后解析为文档数据。</small></label>
         : visible.length ? visible.map(([name, field]) => <Field key={name} name={name} field={field}
-          value={isObject(draft) ? draft[pointerKey(name)] : undefined} update={value => setField(name, value)} />)
+          definitions={schema.definitions} value={isObject(draft) ? draft[pointerKey(name)] : undefined} update={value => setField(name, value)} />)
           : <div className="story-empty">这里没有可编辑字段。</div>}
+      {rawError && <div className="story-alert" role="alert">{rawError}</div>}
     </div>
     {confirmDelete && <Dialog title="删除故事文档" close={() => setConfirmDelete(false)}>
       <div className="story-dialog-content"><p className="story-hint">确定删除「{document.displayName}」？这份文档会从故事项目中移除。</p></div>
@@ -240,10 +293,13 @@ function DocumentEditor({ document, structure, save, remove, busy }: {
   </main>;
 }
 
-function AddDocument({ structure, close, save, busy }: {
-  structure: StoryProjectStructure; close(): void; save(ref: StoryDocumentIdentity, value: StoryValue): void; busy: boolean;
+function AddDocument({ structure, documents, close, save, busy }: {
+  structure: StoryProjectStructure; documents: DocumentSummary[]; close(): void;
+  save(ref: StoryDocumentIdentity, value: StoryValue): void; busy: boolean;
 }) {
-  const kinds = Object.entries(structure.schemas.documents).filter(([, schema]) => schema.cardinality === "many");
+  const kinds = Object.entries(structure.schemas.documents).filter(([kind, schema]) =>
+    kind !== structure.storyType.manifestKind && kind !== structure.roles.import &&
+    (schema.cardinality === "many" || !documents.some(document => document.ref.kind === kind)));
   const [kind, setKind] = useState(kinds[0]?.[0] ?? "");
   const [identity, setIdentity] = useState<Record<string, string>>({});
   const [value, setValue] = useState<Record<string, StoryValue>>({});
@@ -263,9 +319,9 @@ function AddDocument({ structure, close, save, busy }: {
       <label className="story-field" key={field}><span>{schema.fields[`/${field}`]?.label || schema.fields[field]?.label || field}</span>
         <input value={identity[field] ?? ""} onChange={event => setIdentity(previous => ({ ...previous, [field]: event.target.value }))} /></label>)}
     {schema && Object.entries(schema.fields).filter(([name, field]) => !schema.identityFields.includes(pointerKey(name)) && !field.generated && !field.readOnly && !field.immutable)
-      .map(([name, field]) => <Field key={name} name={name} field={field} value={value[pointerKey(name)]}
+      .map(([name, field]) => <Field key={name} name={name} field={field} definitions={structure.schemas.objectDefinitions} value={value[pointerKey(name)]}
         update={next => setValue(previous => ({ ...previous, [pointerKey(name)]: next }))} />)}
-  </div><footer><Button onClick={close}>取消</Button><Button variant="primary" disabled={!kind || busy}
+  </div><footer><Button onClick={close}>取消</Button><Button variant="primary" disabled={!kind || busy || schema?.identityFields.some(field => !identity[field]?.trim())}
     onClick={() => save({ kind, identity }, { ...value, ...identity })}>创建文档</Button></footer></Dialog>;
 }
 
@@ -281,9 +337,17 @@ function Editor({ item, update, back, tavern }: {
   const [collapsed, setCollapsed] = useState<string[]>([]);
   const [addOpen, setAddOpen] = useState(false);
   const [assistant, setAssistant] = useState(false);
+  const [documentDirty, setDocumentDirty] = useState(false);
+  const [pendingSelected, setPendingSelected] = useState("");
   const [activeDocument, setActiveDocument] = useState<StoryDocument | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const reportDirty = useCallback((dirty: boolean) => setDocumentDirty(dirty), []);
+  const chooseDocument = (key: string) => {
+    if (key === selected) return;
+    if (documentDirty) setPendingSelected(key);
+    else setSelected(key);
+  };
   useEffect(() => { if (!documents.some(doc => keyOf(doc.ref) === selected)) setSelected(documents[0] ? keyOf(documents[0].ref) : ""); }, [documents, selected]);
   const active = documents.find(doc => keyOf(doc.ref) === selected);
   useEffect(() => {
@@ -325,23 +389,29 @@ function Editor({ item, update, back, tavern }: {
           <button type="button" className="story-group-button" onClick={() => setCollapsed(previous => previous.includes(group) ? previous.filter(item => item !== group) : [...previous, group])}>
             <span>{collapsed.includes(group) ? "▸" : "▾"} {group}</span><small>{entries.length}</small></button>
           {!collapsed.includes(group) && entries.map(document => <button type="button" key={keyOf(document.ref)}
-            className={`story-nav-item ${selected === keyOf(document.ref) ? "active" : ""}`} onClick={() => setSelected(keyOf(document.ref))}>
+            className={`story-nav-item ${selected === keyOf(document.ref) ? "active" : ""}`} onClick={() => chooseDocument(keyOf(document.ref))}>
             <span>◇</span>{document.displayName}</button>)}</section>)}</nav>
       </aside>
       {active && activeDocument && structure ? <DocumentEditor key={keyOf(active.ref)} document={activeDocument} structure={structure} busy={busy}
         save={(ref, value) => void mutate("isle_story_save_document", { ref, value })}
-        remove={ref => void mutate("isle_story_remove_document", { ref })} />
+        remove={ref => void mutate("isle_story_remove_document", { ref })} onDirtyChange={reportDirty} />
         : <div className="story-empty story-editor-empty">{active ? "正在读取文档…" : "选择一份文档开始编辑。"}</div>}
     </div>
-    {addOpen && structure && <AddDocument structure={structure} close={() => setAddOpen(false)} busy={busy}
+    {addOpen && structure && <AddDocument structure={structure} documents={documents} close={() => setAddOpen(false)} busy={busy}
       save={(ref, value) => void mutate("isle_story_save_document", { ref, value }, next => {
         setSelected(keyOf(ref)); setAddOpen(false);
       })} />}
     {assistant && <div className="story-chat-overlay" role="dialog" aria-modal="true" aria-label="故事助手">
       <ChatPane workspace={workspace} scene="story-assistant"
         prompt="先阅读当前项目上下文，再和作者协作。需要修改项目文件时请遵守已有故事结构。"
-        onClose={() => setAssistant(false)} closeLabel="返回编辑器" />
+        onClose={() => { setAssistant(false); void mutate("isle_story_inspect", {}); }} closeLabel="返回编辑器"
+        allowNewSession revision={snapshot.revision} />
     </div>}
+    {pendingSelected && <Dialog title="放弃未保存更改？" close={() => setPendingSelected("")}>
+      <div className="story-dialog-content"><p className="story-hint">当前文档还有未保存的更改。切换文档会丢弃这些更改。</p></div>
+      <footer><Button onClick={() => setPendingSelected("")}>继续编辑</Button>
+        <Button variant="danger" onClick={() => { setDocumentDirty(false); setSelected(pendingSelected); setPendingSelected(""); }}>放弃并切换</Button></footer>
+    </Dialog>}
   </div>;
 }
 

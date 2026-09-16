@@ -7,10 +7,11 @@ import { test } from "node:test";
 import application from "../dist/isle/index.js";
 
 const registered = new Map();
+const registeredSkills = new Map();
 const enrolled = new Map();
 application.apply({
   tools: { register(tool) { registered.set(tool.name, tool); } },
-  skills: { register() {} },
+  skills: { register(skill) { registeredSkills.set(skill.name, skill); } },
   workspaces: {
     async get(id) {
       const workspace = enrolled.get(id);
@@ -132,4 +133,34 @@ test("the short story type opens through the same app tools", async t => {
   const created = await run("isle_story_create", { ...args, title: "测试短篇", storyTypeId: "short-novel" });
   assert.equal(created.structure.storyType.id, "short-novel");
   assert.equal((await run("isle_story_inspect", args)).overview.title, "测试短篇");
+});
+
+test("the app bundles the original assistant workflows and Story Contract tool", async t => {
+  assert.deepEqual([...registeredSkills.keys()].sort(), [
+    "story-assistant",
+    "story-assistant-deslop",
+    "story-assistant-import",
+    "story-assistant-long-analyze",
+    "story-assistant-long-write",
+    "story-assistant-review",
+    "story-assistant-short-analyze",
+    "story-assistant-short-write",
+  ]);
+  const listed = await run("isle_story_skill", {});
+  assert.equal(listed.skills.length, 8);
+  assert.match((await run("isle_story_skill", { name: "story-assistant" })).content, /Story Contract/);
+  assert.match((await run("isle_story_skill_resource", {
+    skillName: "story-assistant-deslop",
+    path: "../story-assistant/references/story-tool-binding.md",
+  })).content, /describe_structure/);
+
+  const workspace = await fixture();
+  t.after(workspace.dispose);
+  const args = { workspaceId: workspace.workspaceId };
+  await run("isle_story_create", { ...args, title: "协议故事", storyTypeId: "long-novel" });
+  const described = await run("story", { ...args, action: "describe_structure" });
+  assert.equal(described.available, true);
+  assert.equal(described.structure.storyType.id, "long-novel");
+  const context = await run("story", { ...args, action: "read_context", scope: "project" });
+  assert.match(context.text, /协议故事/);
 });

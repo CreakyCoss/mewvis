@@ -102,6 +102,19 @@ button { cursor: pointer; }
 .story-field textarea { resize: vertical; line-height: 1.6; }
 .story-field input:disabled, .story-field textarea:disabled { opacity: .55; }
 .story-field input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary); }
+.story-complex-field {
+  border: 1px solid var(--story-line); border-radius: 12px; padding: 14px;
+  background: color-mix(in oklab, var(--card) 78%, var(--background));
+}
+.story-nested-fields, .story-collection, .story-list-editor { display: grid; gap: 14px; }
+.story-collection-item {
+  border: 1px solid var(--story-line); border-radius: 10px; padding: 13px;
+  background: var(--card);
+}
+.story-collection-item > header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 13px; }
+.story-collection-empty { padding: 9px 0; }
+.story-list-row { display: flex; align-items: center; gap: 8px; }
+.story-field-error { color: var(--destructive) !important; }
 .story-editor-empty, .story-tavern-empty { margin: auto; }
 .story-dialog-backdrop { position: fixed; inset: 0; background: rgb(10 10 20 / 55%); display: grid; place-items: center; z-index: 100; padding: 20px; }
 .story-dialog { background: var(--popover); color: var(--popover-foreground); border: 1px solid var(--border); border-radius: 15px; width: min(630px, 100%); max-height: calc(100vh - 40px); display: flex; flex-direction: column; box-shadow: var(--shadow-floating); }
@@ -123,6 +136,7 @@ button { cursor: pointer; }
   border-bottom: 1px solid var(--story-line); background: var(--card);
 }
 .story-chat-pane h2 { margin: 3px 0 0; font-size: 19px; }
+.story-chat-status { display: block; margin-top: 4px; color: var(--muted-foreground); font-size: 11px; font-weight: 500; }
 .story-chat-body { flex: 1; min-height: 0; overflow: hidden; }
 .story-tavern-layout > .story-chat-pane { flex: 1; min-width: 0; }
 @media (max-width: 760px) {
