@@ -1,0 +1,25 @@
+{
+  "name": "@isle/learning",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "学习工作台：主题与文本资料生成课程、逐课学习、测验和 AI 导师。",
+  "scripts": {
+    "dev": "isle-app dev",
+    "check": "isle-app check",
+    "build": "isle-app build",
+    "test": "pnpm build && node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@isle/app-sdk": "workspace:*",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@isle/app-dev": "workspace:*",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "esbuild": "^0.28.0"
+  }
+}

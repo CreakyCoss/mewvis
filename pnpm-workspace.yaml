@@ -6,3 +6,4 @@ packages:
   - "packages/*/*"
   - "apps/applications/builtins/chat-playground"
   - "apps/applications/builtins/story"
+  - "apps/applications/builtins/learning"

@@ -431,6 +431,34 @@ importers:
         specifier: ^19.1.6
         version: 19.1.6(@types/react@19.1.8)
 
+  apps/applications/builtins/learning:
+    dependencies:
+      '@isle/app-sdk':
+        specifier: workspace:*
+        version: link:../../../../packages/app/sdk
+      react:
+        specifier: ^19.1.0
+        version: 19.1.0
+      react-dom:
+        specifier: ^19.1.0
+        version: 19.1.0(react@19.1.0)
+    devDependencies:
+      '@isle/app-dev':
+        specifier: workspace:*
+        version: link:../../../../packages/app/dev
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      '@types/react':
+        specifier: ^19.1.8
+        version: 19.1.8
+      '@types/react-dom':
+        specifier: ^19.1.6
+        version: 19.1.6(@types/react@19.1.8)
+      esbuild:
+        specifier: ^0.28.0
+        version: 0.28.1
+
   apps/applications/builtins/story:
     dependencies:
       '@isle/app-sdk':
