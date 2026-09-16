@@ -237,8 +237,18 @@ const tavernContext = defineTool({
         avatar: typeof value.avatar === "string" ? value.avatar : "",
         description: typeof value.description === "string" ? value.description : "",
         speakingStyle: typeof value.speakingStyle === "string" ? value.speakingStyle : "",
+        writingStyle: typeof value.writingStyle === "string" ? value.writingStyle : "",
+        replyStylePrompt: typeof value.replyStylePrompt === "string" ? value.replyStylePrompt : "",
         goals: typeof value.goals === "string" ? value.goals : "",
         relationshipSummary: typeof value.relationshipSummary === "string" ? value.relationshipSummary : "",
+        publicRelationshipSummary: typeof value.publicRelationshipSummary === "string" ? value.publicRelationshipSummary : "",
+        memory: value.memory && typeof value.memory === "object" && !Array.isArray(value.memory) ? {
+          required: typeof value.memory.required === "string" ? value.memory.required : "",
+          public: typeof value.memory.public === "string" ? value.memory.public : "",
+          known: typeof value.memory.known === "string" ? value.memory.known : "",
+          privateSelf: typeof value.memory.privateSelf === "string" ? value.memory.privateSelf : "",
+          directorSecret: typeof value.memory.directorSecret === "string" ? value.memory.directorSecret : "",
+        } : undefined,
       }));
     return { context: chapterContext, characters };
   },
@@ -311,7 +321,79 @@ const saveTavern = defineTool({
   },
 });
 
+const tavernRoomFile = async (path: string, workspaceId: string, chapterId: string) => {
+  const safe = (value: string, fallback: string) => value.trim().replace(/[\\/]/g, "-")
+    .replace(/\.\./g, "").replace(/^\.+/, "").trim() || fallback;
+  const root = join(path, ".tavern");
+  const storyDirectory = join(root, safe(workspaceId, "story"));
+  const directory = join(storyDirectory, safe(chapterId, "chapter"));
+  for (const candidate of [root, storyDirectory, directory]) {
+    const metadata = await lstat(candidate).catch(() => null);
+    if (metadata && (!metadata.isDirectory() || metadata.isSymbolicLink())) throw new Error("酒馆消息目录无效");
+  }
+  const file = join(directory, "messages.json");
+  const metadata = await lstat(file).catch(() => null);
+  if (metadata && (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size > 8 * 1024 * 1024))
+    throw new Error("酒馆消息文件无效");
+  return { directory, file };
+};
+const readTavernRoom = defineTool({
+  risk: "low", name: "isle_story_tavern_room_read", description: "读取原酒馆兼容的章节消息记录。",
+  parameters: {
+    type: "object", properties: { ...workspaceFields, chapterId: { type: "string", minLength: 1 } },
+    required: [...workspaceRequired, "chapterId"], additionalProperties: false,
+  }, output,
+  async execute(args) {
+    const input = args as WorkspaceArgs & { chapterId: string };
+    const { file } = await tavernRoomFile(await projectPath(input), input.workspaceId, input.chapterId);
+    const content = await readFile(file, "utf8").catch((error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") return "[]";
+      throw error;
+    });
+    const messages = JSON.parse(content) as unknown;
+    if (!Array.isArray(messages)) throw new Error("酒馆消息格式无效");
+    return { messages };
+  },
+});
+const saveTavernRoom = defineTool({
+  risk: "medium", name: "isle_story_tavern_room_save", description: "原子保存章节酒馆消息记录。",
+  parameters: {
+    type: "object", properties: {
+      ...workspaceFields, chapterId: { type: "string", minLength: 1 }, messages: { type: "array" },
+    }, required: [...workspaceRequired, "chapterId", "messages"], additionalProperties: false,
+  }, output,
+  async execute(args) {
+    const input = args as WorkspaceArgs & { chapterId: string; messages: unknown[] };
+    const { directory, file } = await tavernRoomFile(await projectPath(input), input.workspaceId, input.chapterId);
+    const content = JSON.stringify(input.messages, null, 2);
+    if (Buffer.byteLength(content) > 8 * 1024 * 1024) throw new Error("酒馆消息记录过大");
+    await mkdir(directory, { recursive: true });
+    const staged = `${file}.${randomUUID()}.tmp`;
+    try {
+      await writeFile(staged, content, "utf8");
+      await rename(staged, file);
+    } finally {
+      await rm(staged, { force: true });
+    }
+    return { saved: true, count: input.messages.length };
+  },
+});
+const resetTavernRoom = defineTool({
+  risk: "medium", name: "isle_story_tavern_room_reset", description: "清空指定章节的酒馆消息文件，故事项目内容不受影响。",
+  parameters: {
+    type: "object", properties: { ...workspaceFields, chapterId: { type: "string", minLength: 1 } },
+    required: [...workspaceRequired, "chapterId"], additionalProperties: false,
+  }, output,
+  async execute(args) {
+    const input = args as WorkspaceArgs & { chapterId: string };
+    const { file } = await tavernRoomFile(await projectPath(input), input.workspaceId, input.chapterId);
+    await rm(file, { force: true });
+    return { reset: true };
+  },
+});
+
 export default [
   storyTypes, storySkill, skillResource, story, inspect, create, getDocument, save, remove, upgrade, context,
   tavernContext, validateChanges, commitChanges, readTavern, saveTavern,
+  readTavernRoom, saveTavernRoom, resetTavernRoom,
 ];

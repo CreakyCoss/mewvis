@@ -73,6 +73,15 @@ test("the app creates, reads and edits the existing story project format", async
   await run("isle_story_tavern_save", { ...args, config });
   assert.deepEqual((await run("isle_story_tavern_read", args)).config, config);
   assert.deepEqual(JSON.parse(await readFile(join(workspace.workspacePath, "story", "tavern.json"), "utf8")), config);
+  const messages = [{ id: "msg-1", roomId: "tavern-test", role: "user", kind: "user_text",
+    body: { type: "text", text: "有人吗？" }, createdAt: Date.now(), status: "done" }];
+  assert.deepEqual((await run("isle_story_tavern_room_read", { ...args, chapterId: "chapter-1" })).messages, []);
+  await run("isle_story_tavern_room_save", { ...args, chapterId: "chapter-1", messages });
+  assert.deepEqual((await run("isle_story_tavern_room_read", { ...args, chapterId: "chapter-1" })).messages, messages);
+  assert.deepEqual(JSON.parse(await readFile(join(workspace.workspacePath, ".tavern", workspace.workspaceId,
+    "chapter-1", "messages.json"), "utf8")), messages);
+  await run("isle_story_tavern_room_reset", { ...args, chapterId: "chapter-1" });
+  assert.deepEqual((await run("isle_story_tavern_room_read", { ...args, chapterId: "chapter-1" })).messages, []);
 });
 
 test("tools resolve only this application's registered workspace", async t => {

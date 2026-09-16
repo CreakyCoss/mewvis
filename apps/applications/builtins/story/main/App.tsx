@@ -4,10 +4,18 @@ import { getApplicationHost } from "@isle/app-sdk/browser";
 import { getApplicationDataClient, type ApplicationWorkspace } from "@isle/app-sdk/data";
 import { getApplicationChatClient, type ApplicationChatSession } from "@isle/app-sdk/chat";
 import { Chat } from "@isle/app-sdk/chat/react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type {
-  JsonFieldMetadata, JsonObjectDefinition, StoryContext, StoryDocument, StoryDocumentIdentity, StoryOverview,
+  JsonFieldMetadata, JsonObjectDefinition, StoryDocument, StoryDocumentIdentity, StoryOverview,
   StoryProjectCompatibility, StoryProjectStructure, StoryValue,
 } from "../shared/project/types";
+import { OriginalTavernRoom } from "./tavern/Room";
+import type { TavernRoomConfig } from "./tavern/manage/model";
+import { TAVERN_PRESENTATION_RULES, getTavernPresentationProfile } from "./tavern/presets/prompts/presentation-rules";
+import { TAVERN_ROOM_STYLES, getTavernRoomStyle } from "./tavern/presets/prompts/room-styles";
+import { TAVERN_SYSTEM_NARRATIVE_STYLES, getTavernSystemNarrativeStyle } from "./tavern/presets/prompts/system-narrative-styles";
+import type { TavernStoryData } from "./tavern/room/model";
 
 type StoryType = { id: string; label: string; description: string };
 type DocumentSummary = Pick<StoryDocument, "ref" | "displayName" | "updatedAt">;
@@ -21,26 +29,8 @@ type Snapshot = {
 };
 type LibraryItem = { workspace: ApplicationWorkspace; snapshot: Snapshot };
 type View = "library" | "editor" | "tavern";
-type TavernCharacter = {
-  id: string; name: string; avatar: string; description: string; speakingStyle: string;
-  goals: string; relationshipSummary: string;
-};
-type TavernStoryContext = { context: StoryContext; characters: TavernCharacter[] };
-type TavernConfig = {
-  id: string; title: string; scenePresetId: string; replyMode: "director";
-  presentation: { profileId: "dialogue-chat" | "third-person-prose" | "novel-prose" };
-  systemNarrative: { styleId: "balanced" | "restrained" | "dramatic"; customInstructions: string };
-  roomStyleId: "silent-law" | "novel" | "wuxia" | "light-novel" | "dramatic" | "grounded";
-  settings: {
-    immersiveDescriptionEnabled: boolean; directorMaxSpeakers: number;
-    directorLoop: { maxRounds: number };
-    directorNarrativeControl: {
-      agencyMode: "player_protagonist" | "story_directive" | "scene_drive";
-      responseScale: "focused" | "balanced" | "ensemble";
-      narratorPressure: "low" | "balanced" | "high";
-    };
-  };
-};
+type TavernStoryContext = Pick<TavernStoryData, "context" | "characters">;
+type TavernConfig = TavernRoomConfig;
 const defaultTavern = (item: LibraryItem): TavernConfig => ({
   id: `tavern-${item.snapshot.overview?.id || item.workspace.id}`,
   title: `${item.snapshot.overview?.title || item.workspace.name} · 酒馆`,
@@ -99,6 +89,36 @@ const sectionOf = (pointer: string, field: JsonFieldMetadata) => {
   if (["object", "collection", "string-list", "reference", "reference-list"].includes(field.type)) return "structured";
   if (["textarea", "content"].includes(field.type)) return "content";
   return "basics";
+};
+const documentGroups = [
+  { id: "work", label: "作品", icon: "▤", keywords: [] },
+  { id: "people", label: "人物与关系", icon: "♙", keywords: ["character", "relationship", "角色", "人物", "关系"] },
+  { id: "world", label: "世界设定", icon: "◎", keywords: ["world", "setting", "faction", "location", "世界", "设定", "势力", "地点"] },
+  { id: "outline", label: "大纲与卷纲", icon: "▥", keywords: ["outline", "volume", "book-arc", "arc", "大纲", "卷纲", "分卷", "主线"] },
+  { id: "chapter-plan", label: "细纲", icon: "☷", keywords: ["chapter-plan", "chapter-outline", "细纲"] },
+  { id: "chapter-content", label: "正文", icon: "▧", keywords: ["chapter-content", "章节正文", "正文"] },
+  { id: "continuity", label: "伏笔与连续性", icon: "⌁", keywords: ["tracking", "chapter-result", "foreshadow", "continuity", "progress", "章节结果", "章节记录", "伏笔", "连续", "进度"] },
+] as const;
+const exactDocumentGroup: Readonly<Record<string, string>> = {
+  "story-book-arc": "outline", "story-volume": "outline", "story-chapter-plan": "chapter-plan",
+  "story-chapter-content": "chapter-content", "story-chapter": "continuity",
+};
+const tavernSceneOptions = [
+  { value: "general", label: "通用", description: "清爽、克制，适合大多数叙事场景。" },
+  { value: "wuxia", label: "武侠", description: "墨色、竹影和冷玉色调，适合江湖、门派和夜行故事。" },
+  { value: "tavern", label: "酒馆", description: "暖灯、吧台和夜雨氛围，适合桌边对话和角色群像。" },
+  { value: "modern", label: "现代", description: "明亮玻璃、访谈室和城市办公感，适合都市、职场和现实题材。" },
+  { value: "mystery", label: "悬疑", description: "冷雨、档案灯和低对比暗色，适合调查、怪谈和悬疑氛围。" },
+  { value: "scifi", label: "科幻", description: "深空屏幕、冷光和高对比界面，适合星舰、赛博和未来都市。" },
+  { value: "fantasy", label: "奇幻", description: "森林、古籍和微光魔法感，适合王国、预言和冒险旅队。" },
+  { value: "oracle", label: "占卜", description: "烛影、牌阵和旧纸纹理，适合命理、梦境和神秘学叙事。" },
+] as const;
+const groupForDocument = (document: DocumentSummary, structure?: StoryProjectStructure) => {
+  const exact = exactDocumentGroup[document.ref.kind];
+  if (exact) return documentGroups.find(group => group.id === exact) ?? documentGroups[0];
+  const schema = structure?.schemas.documents[document.ref.kind];
+  const searchable = `${document.ref.kind} ${document.displayName} ${schema?.label ?? ""}`.toLowerCase();
+  return documentGroups.find(group => group.id !== "work" && group.keywords.some(keyword => searchable.includes(keyword))) ?? documentGroups[0];
 };
 const workspaceArgs = (workspace: ApplicationWorkspace) => ({ workspaceId: workspace.id });
 const call = async <T,>(name: string, args: Record<string, unknown> = {}): Promise<T> =>
@@ -248,14 +268,111 @@ function Field({ name, field, value, definitions, update }: {
   </label>;
 }
 
-function DocumentEditor({ document, structure, save, remove, busy, onDirtyChange }: {
+function EmptyDocumentValue() {
+  return <span className="story-detail-empty-value">未填写</span>;
+}
+
+function DocumentValue({ field, value, definitions, compact = false }: {
+  field: JsonFieldMetadata; value: StoryValue | undefined;
+  definitions: Readonly<Record<string, JsonObjectDefinition>>; compact?: boolean;
+}) {
+  const objectDefinition = field.definition ? definitions[field.definition] : undefined;
+  const itemDefinition = field.itemDefinition ? definitions[field.itemDefinition] : undefined;
+  let content: React.ReactNode;
+  if (objectDefinition) {
+    const object = isObject(value) ? value : {};
+    content = <dl className="story-detail-object">{Object.entries(objectDefinition.fields).map(([name, child]) =>
+      <DocumentValue key={name} compact field={child} definitions={definitions} value={object[pointerKey(name)]} />)}</dl>;
+  } else if (itemDefinition) {
+    const items = Array.isArray(value) ? value : [];
+    content = items.length ? <div className="story-detail-collection">{items.map((item, index) => {
+      const object = isObject(item) ? item : {};
+      return <section key={index}><small>第 {index + 1} 项</small><dl className="story-detail-object">
+        {Object.entries(itemDefinition.fields).map(([name, child]) => <DocumentValue key={name} compact field={child}
+          definitions={definitions} value={object[pointerKey(name)]} />)}
+      </dl></section>;
+    })}</div> : <EmptyDocumentValue />;
+  } else if (Array.isArray(value)) {
+    content = value.length ? <div className="story-detail-chips">{value.map((item, index) =>
+      <span key={`${String(item)}-${index}`}>{typeof item === "object" ? JSON.stringify(item) : String(item)}</span>)}</div> : <EmptyDocumentValue />;
+  } else if (isObject(value)) {
+    content = <pre>{JSON.stringify(value, null, 2)}</pre>;
+  } else if (value === undefined || value === null || value === "") {
+    content = <EmptyDocumentValue />;
+  } else if (typeof value === "boolean") {
+    content = <p>{value ? "✓ 是" : "× 否"}</p>;
+  } else if (field.type === "timestamp" && typeof value === "number") {
+    content = <p>{new Date(value).toLocaleString("zh-CN", { hour12: false })}</p>;
+  } else {
+    const option = typeof value === "string" ? field.options?.find(item => item.value === value) : undefined;
+    content = <p className={["textarea", "content"].includes(field.type) ? "story-detail-long-text" : ""}>{option?.label ?? String(value)}</p>;
+  }
+  const wide = !compact && ["textarea", "content", "object", "collection", "string-list", "reference-list"].includes(field.type);
+  return <div className={`story-detail-field ${compact ? "compact" : ""} ${wide ? "wide" : ""}`}>
+    <dt>{field.label}</dt><dd>{content}</dd>
+  </div>;
+}
+
+function DocumentDetail({ document, structure, groupLabel, edit, remove, busy }: {
+  document: StoryDocument; structure: StoryProjectStructure; groupLabel: string;
+  edit(): void; remove(ref: StoryDocumentIdentity): void; busy: boolean;
+}) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const schema = document.definition ?? {
+    kind: document.ref.kind, label: document.displayName,
+    contentFormat: structure.schemas.documents[document.ref.kind]?.contentFormat ?? "structured",
+    fields: structure.schemas.documents[document.ref.kind]?.fields ?? {},
+    definitions: structure.schemas.objectDefinitions,
+  };
+  const sections = ([
+    ["basics", "基本信息", "名称、定位与核心属性"],
+    ["content", "主要内容", "这份资料的正文与详细描述"],
+    ["structured", "列表与关系", "关联对象、列表和结构化内容"],
+    ["technical", "技术信息", "文档标识与系统维护字段"],
+  ] as const).map(([id, label, description]) => ({ id, label, description,
+    fields: Object.entries(schema.fields).filter(([name, field]) => sectionOf(name, field) === id),
+  })).filter(section => section.fields.length);
+  const content = isObject(document.value) ? document.value.content : undefined;
+  const isMarkdown = schema.contentFormat === "markdown";
+  return <main className="story-document-detail">
+    <header className="story-detail-toolbar"><div><span>{groupLabel}</span><b>›</b><strong>{document.displayName}</strong></div>
+      <div className="story-actions">{Object.keys(document.ref.identity).length > 0 &&
+        <Button onClick={() => setConfirmDelete(true)} variant="quiet" disabled={busy} title="删除这份资料">•••</Button>}
+        <Button onClick={edit} variant="primary">✎ 编辑</Button></div></header>
+    <article className="story-detail-article">
+      <header><div><div className="story-detail-kind"><span>{isMarkdown ? "▧" : "{}"}</span>{schema.label}</div>
+        <h2>{document.displayName}</h2><p>◷ {document.updatedAt ? `更新于 ${new Date(document.updatedAt).toLocaleString("zh-CN", { hour12: false })}` : "尚无更新时间"}</p></div>
+        <span className="story-detail-format">{isMarkdown ? "Markdown" : "结构化文档"}</span></header>
+      {isMarkdown ? <section className="story-markdown-detail">
+        {typeof content === "string" && content.trim() ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+          : <div className="story-detail-empty">暂无正文内容，点击“编辑”开始写作。</div>}
+      </section> : sections.length ? <div className="story-detail-sections">
+        {sections.filter(section => section.id !== "technical").map(section => <section key={section.id}>
+          <h3>{section.label}</h3><p>{section.description}</p><dl>{section.fields.map(([name, field]) =>
+            <DocumentValue key={name} field={field} definitions={schema.definitions}
+              value={isObject(document.value) ? document.value[pointerKey(name)] : undefined} />)}</dl>
+        </section>)}
+        {sections.find(section => section.id === "technical") && <details className="story-detail-technical"><summary>技术信息 <small>文档标识与系统维护字段</small></summary>
+          <dl>{sections.find(section => section.id === "technical")!.fields.map(([name, field]) =>
+            <DocumentValue key={name} field={field} definitions={schema.definitions}
+              value={isObject(document.value) ? document.value[pointerKey(name)] : undefined} />)}</dl></details>}
+      </div> : <pre className="story-detail-raw">{JSON.stringify(document.value, null, 2)}</pre>}
+    </article>
+    {confirmDelete && <Dialog title={`删除“${document.displayName}”？`} close={() => setConfirmDelete(false)}>
+      <div className="story-dialog-content"><p className="story-hint">这份资料会从故事项目中删除，其他资料中的引用不会自动修复。</p></div>
+      <footer><Button onClick={() => setConfirmDelete(false)}>取消</Button>
+        <Button onClick={() => { setConfirmDelete(false); remove(document.ref); }} variant="danger" disabled={busy}>{busy ? "删除中…" : "删除"}</Button></footer>
+    </Dialog>}
+  </main>;
+}
+
+function DocumentEditor({ document, structure, save, busy, onDirtyChange }: {
   document: StoryDocument; structure: StoryProjectStructure;
-  save(ref: StoryDocumentIdentity, value: StoryValue): void; remove(ref: StoryDocumentIdentity): void; busy: boolean;
+  save(ref: StoryDocumentIdentity, value: StoryValue): void; busy: boolean;
   onDirtyChange(dirty: boolean): void;
 }) {
   const [draft, setDraft] = useState<StoryValue>(document.value);
   const [raw, setRaw] = useState("");
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [rawError, setRawError] = useState("");
   const [tab, setTab] = useState<"basics" | "content" | "structured" | "technical" | "raw">("basics");
   useEffect(() => { setDraft(document.value); setRaw(JSON.stringify(document.value, null, 2)); setTab("basics"); }, [document]);
@@ -271,10 +388,9 @@ function DocumentEditor({ document, structure, save, remove, busy, onDirtyChange
   const setField = (name: string, value: StoryValue) => setDraft(previous => ({ ...(isObject(previous) ? previous : {}), [pointerKey(name)]: value }));
   const fields = Object.entries(schema.fields);
   const visible = fields.filter(([name, field]) => sectionOf(name, field) === tab);
-  return <main className="story-document-editor">
+  return <main className="story-document-editor story-document-editor-dialog">
     <header className="story-document-header"><div><span className="story-eyebrow">{schema.label}</span><h2>{document.displayName}</h2></div>
-      <div className="story-actions"><Button onClick={() => setConfirmDelete(true)} variant="danger" disabled={busy} title="删除此文档">删除</Button>
-      <Button onClick={() => save(document.ref, draft)} variant="primary" disabled={busy || !dirty}>保存更改</Button></div></header>
+      <div className="story-actions"><Button onClick={() => save(document.ref, draft)} variant="primary" disabled={busy || !dirty}>保存更改</Button></div></header>
     <div className="story-tabs" role="tablist">
       {(["basics", "content", "structured", "technical", "raw"] as const).map(item =>
         <button type="button" key={item} role="tab" aria-selected={tab === item} className={tab === item ? "active" : ""}
@@ -293,11 +409,6 @@ function DocumentEditor({ document, structure, save, remove, busy, onDirtyChange
           : <div className="story-empty">这里没有可编辑字段。</div>}
       {rawError && <div className="story-alert" role="alert">{rawError}</div>}
     </div>
-    {confirmDelete && <Dialog title="删除故事文档" close={() => setConfirmDelete(false)}>
-      <div className="story-dialog-content"><p className="story-hint">确定删除「{document.displayName}」？这份文档会从故事项目中移除。</p></div>
-      <footer><Button onClick={() => setConfirmDelete(false)}>取消</Button>
-        <Button onClick={() => { setConfirmDelete(false); remove(document.ref); }} variant="danger">删除文档</Button></footer>
-    </Dialog>}
   </main>;
 }
 
@@ -342,8 +453,10 @@ function Editor({ item, update, back, tavern }: {
   const structure = snapshot.structure;
   const [selected, setSelected] = useState("");
   const [search, setSearch] = useState("");
-  const [collapsed, setCollapsed] = useState<string[]>([]);
+  const [collapsed, setCollapsed] = useState<string[]>(["chapter-plan", "chapter-content"]);
   const [addOpen, setAddOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [discardEditOpen, setDiscardEditOpen] = useState(false);
   const [assistant, setAssistant] = useState(false);
   const [documentDirty, setDocumentDirty] = useState(false);
   const [pendingSelected, setPendingSelected] = useState("");
@@ -369,18 +482,21 @@ function Editor({ item, update, back, tavern }: {
     return () => { alive = false; };
   }, [selected, active?.updatedAt, workspace.id]);
   const groups = useMemo(() => {
-    const result = new Map<string, DocumentSummary[]>();
+    const result = new Map<string, { id: string; label: string; icon: string; documents: DocumentSummary[] }>();
     for (const document of documents.filter((doc: DocumentSummary) =>
-      !search || (doc.displayName + doc.ref.kind).toLowerCase().includes(search.toLowerCase()))) {
-      const group = structure?.documents[document.ref.kind]?.label ?? document.ref.kind;
-      result.set(group, [...(result.get(group) ?? []), document]);
+      !search || `${doc.displayName} ${doc.ref.kind} ${structure?.schemas.documents[doc.ref.kind]?.label ?? ""}`.toLowerCase().includes(search.toLowerCase()))) {
+      const group = groupForDocument(document, structure);
+      const current = result.get(group.id) ?? { id: group.id, label: group.label, icon: group.icon, documents: [] };
+      current.documents.push(document);
+      result.set(group.id, current);
     }
-    return [...result];
+    return [...result.values()].sort((left, right) =>
+      documentGroups.findIndex(group => group.id === left.id) - documentGroups.findIndex(group => group.id === right.id));
   }, [documents, search, structure]);
   const mutate = async (tool: string, args: Record<string, unknown>, after?: (next: Snapshot) => void) => {
     setBusy(true); setError("");
-    try { const next = await call<Snapshot>(tool, { ...workspaceArgs(workspace), ...args }); update(next); after?.(next); }
-    catch (cause) { setError(errorMessage(cause)); }
+    try { const next = await call<Snapshot>(tool, { ...workspaceArgs(workspace), ...args }); update(next); after?.(next); return true; }
+    catch (cause) { setError(errorMessage(cause)); return false; }
     finally { setBusy(false); }
   };
   return <div className="story-workbench">
@@ -391,20 +507,31 @@ function Editor({ item, update, back, tavern }: {
     {error && <div className="story-alert">{error}</div>}
     <div className="story-editor-layout">
       <aside className="story-sidebar">
-        <div className="story-sidebar-head"><h2>项目文档</h2><Button onClick={() => setAddOpen(true)} disabled={!structure} variant="quiet">＋</Button></div>
-        <input className="story-search" placeholder="搜索人物、章节、设定…" value={search} onChange={event => setSearch(event.target.value)} />
-        <nav>{groups.map(([group, entries]) => <section key={group} className="story-nav-group">
-          <button type="button" className="story-group-button" onClick={() => setCollapsed(previous => previous.includes(group) ? previous.filter(item => item !== group) : [...previous, group])}>
-            <span>{collapsed.includes(group) ? "▸" : "▾"} {group}</span><small>{entries.length}</small></button>
-          {!collapsed.includes(group) && entries.map(document => <button type="button" key={keyOf(document.ref)}
+        <div className="story-sidebar-head"><div><h2>故事资料</h2><small>按内容组织，而不是按文件浏览</small></div><Button onClick={() => setAddOpen(true)} disabled={!structure} variant="quiet">＋</Button></div>
+        <input className="story-search" placeholder="搜索资料" value={search} onChange={event => setSearch(event.target.value)} />
+        <nav>{groups.map(group => <section key={group.id} className="story-nav-group">
+          <button type="button" className={`story-group-button ${active && groupForDocument(active, structure).id === group.id ? "selected" : ""}`}
+            onClick={() => setCollapsed(previous => previous.includes(group.id) ? previous.filter(item => item !== group.id) : [...previous, group.id])}>
+            <span>{collapsed.includes(group.id) ? "▸" : "▾"} <i>{group.icon}</i> {group.label}</span><small>{group.documents.length}</small></button>
+          {!collapsed.includes(group.id) && group.documents.map(document => <button type="button" key={keyOf(document.ref)}
             className={`story-nav-item ${selected === keyOf(document.ref) ? "active" : ""}`} onClick={() => chooseDocument(keyOf(document.ref))}>
-            <span>◇</span>{document.displayName}</button>)}</section>)}</nav>
+            <span>{structure?.schemas.documents[document.ref.kind]?.contentFormat === "markdown" ? "▧" : "◇"}</span>{document.displayName}</button>)}</section>)}
+          {search && !groups.length && <div className="story-sidebar-empty">没有匹配的故事资料</div>}</nav>
       </aside>
-      {active && activeDocument && structure ? <DocumentEditor key={keyOf(active.ref)} document={activeDocument} structure={structure} busy={busy}
-        save={(ref, value) => void mutate("isle_story_save_document", { ref, value })}
-        remove={ref => void mutate("isle_story_remove_document", { ref })} onDirtyChange={reportDirty} />
-        : <div className="story-empty story-editor-empty">{active ? "正在读取文档…" : "选择一份文档开始编辑。"}</div>}
+      {active && activeDocument && structure ? <DocumentDetail key={keyOf(active.ref)} document={activeDocument} structure={structure}
+        groupLabel={groupForDocument(active, structure).label} edit={() => setEditOpen(true)} busy={busy}
+        remove={ref => void mutate("isle_story_remove_document", { ref })} />
+        : <div className="story-empty story-editor-empty">{active ? "正在读取文档…" : "选择一份故事资料查看详情。"}</div>}
     </div>
+    {editOpen && activeDocument && structure && <div className="story-editor-dialog-backdrop" role="presentation">
+      <section className="story-editor-dialog-shell" role="dialog" aria-modal="true" aria-label={`编辑 ${activeDocument.displayName}`}>
+        <button type="button" className="story-editor-dialog-close" aria-label="关闭编辑器"
+          onClick={() => documentDirty ? setDiscardEditOpen(true) : setEditOpen(false)}>×</button>
+        <DocumentEditor key={keyOf(activeDocument.ref)} document={activeDocument} structure={structure} busy={busy}
+          save={(ref, value) => void mutate("isle_story_save_document", { ref, value }, () => { setDocumentDirty(false); setEditOpen(false); })}
+          onDirtyChange={reportDirty} />
+      </section>
+    </div>}
     {addOpen && structure && <AddDocument structure={structure} documents={documents} close={() => setAddOpen(false)} busy={busy}
       save={(ref, value) => void mutate("isle_story_save_document", { ref, value }, next => {
         setSelected(keyOf(ref)); setAddOpen(false);
@@ -420,65 +547,13 @@ function Editor({ item, update, back, tavern }: {
       <footer><Button onClick={() => setPendingSelected("")}>继续编辑</Button>
         <Button variant="danger" onClick={() => { setDocumentDirty(false); setSelected(pendingSelected); setPendingSelected(""); }}>放弃并切换</Button></footer>
     </Dialog>}
+    {discardEditOpen && <Dialog title="放弃未保存更改？" close={() => setDiscardEditOpen(false)}>
+      <div className="story-dialog-content"><p className="story-hint">当前文档还有未保存的更改。关闭编辑器会丢弃这些更改。</p></div>
+      <footer><Button onClick={() => setDiscardEditOpen(false)}>继续编辑</Button>
+        <Button variant="danger" onClick={() => { setDocumentDirty(false); setDiscardEditOpen(false); setEditOpen(false); }}>放弃并关闭</Button></footer>
+    </Dialog>}
   </div>;
 }
-
-const tavernPresentationPrompt = (profile: TavernConfig["presentation"]["profileId"]) => ({
-  "dialogue-chat": [
-    "以直接对白和少量可观察动作回应，保留聊天式现场感。",
-    "每个发言角色使用三级标题“### 角色名”，旁白使用“### 旁白”；不要输出角色名冒号剧本。",
-    "每位角色至少带来一条新信息、态度变化或可继续的行动，不用纯气氛代替回应。",
-  ],
-  "third-person-prose": [
-    "以第三人称有限视角推进，用间接叙事表达动作、心理压力和选择。",
-    "不要输出聊天记录、角色名冒号或第一人称自述；写成可连续阅读的短段落。",
-  ],
-  "novel-prose": [
-    "以第三人称小说正文呈现，允许自然对白，写成 2 到 5 个短自然段。",
-    "动作、对白、环境变化和反应压力分段呈现，不输出字段、标签或选择菜单。",
-  ],
-}[profile]);
-
-const tavernStylePrompt = (style: TavernConfig["roomStyleId"]) => ({
-  "silent-law": "克制、连续，严格保持视角、关系阶段与用户选择权。",
-  novel: "重视镜头、氛围和多轮承接，允许铺陈，但每轮都要发生可见推进。",
-  wuxia: "突出江湖气、身份分寸、门派恩怨和招式代价，不随意新增秘闻。",
-  "light-novel": "对话轻快、反应鲜明，可以有小动作和吐槽，但不破坏人物边界。",
-  dramatic: "强化立场碰撞、信息增量和选择压力，冲突必须来自既有人设与事实。",
-  grounded: "写实克制，减少夸张修辞，使用自然对白、清楚行动和明确因果。",
-}[style]);
-
-const tavernNarrativePrompt = (style: TavernConfig["systemNarrative"]["styleId"]) => ({
-  balanced: "兼顾现场推进、角色承接、可读密度和用户选择空间，不急于闭环。",
-  restrained: "降低戏剧化和修辞密度，让张力留在行为、停顿和未说尽的对白里。",
-  dramatic: "每轮至少产生一个可观察的张力变化、立场碰撞或信息增量，但不替用户完成关键决定。",
-}[style]);
-
-const buildTavernPrompt = (chapter: DocumentSummary, config: TavernConfig, story: TavernStoryContext) => [
-  "你正在主持 Isle 章节酒馆。你同时承担导演调度与被调度角色的演绎，但不要向用户展示调度过程。",
-  `当前章节：${chapter.displayName}（${story.context.target?.id || chapter.ref.identity.id || "未知章节"}）。`,
-  `每轮最多选择 ${config.settings.directorMaxSpeakers} 个最应该回应的相关角色，按自然顺序发言；最多推进 ${config.settings.directorLoop.maxRounds} 轮内部承接。`,
-  `用户控制权：${config.settings.directorNarrativeControl.agencyMode}；调度规模：${config.settings.directorNarrativeControl.responseScale}；旁白压力：${config.settings.directorNarrativeControl.narratorPressure}。`,
-  "只能使用下方相关角色；不得替用户的主角做关键决定，不得泄露角色未知的秘密，不得凭空增加世界规则。",
-  ...tavernPresentationPrompt(config.presentation.profileId),
-  `房间文风：${tavernStylePrompt(config.roomStyleId)}`,
-  `系统叙事：${tavernNarrativePrompt(config.systemNarrative.styleId)}`,
-  config.settings.immersiveDescriptionEnabled
-    ? "允许少量沉浸式环境和动作描写，但描写必须推动回应。"
-    : "以清楚对白和行动为主，不主动加入独立氛围描写段。",
-  config.systemNarrative.customInstructions ? `房间自定义要求：${config.systemNarrative.customInstructions}` : "",
-  "相关角色：",
-  story.characters.length ? story.characters.map(character => [
-    `- ${character.name}（id=${character.id}）`,
-    character.description && `  人物：${character.description}`,
-    character.speakingStyle && `  说话风格：${character.speakingStyle}`,
-    character.goals && `  目标：${character.goals}`,
-    character.relationshipSummary && `  关系：${character.relationshipSummary}`,
-  ].filter(Boolean).join("\n")).join("\n") : "- 当前章节上下文没有召回明确角色；仅使用上下文中已有角色。",
-  "章节定向上下文：",
-  story.context.text,
-  "直接承接用户本轮输入开始演绎。不要解释这些规则，也不要修改故事项目文件。",
-].filter(Boolean).join("\n\n");
 
 function TavernRoom({ item, chapter, config, close }: {
   item: LibraryItem; chapter: DocumentSummary; config: TavernConfig; close(): void;
@@ -498,28 +573,13 @@ function TavernRoom({ item, chapter, config, close }: {
   if (!story) return <div className="story-empty story-tavern-empty">
     {error ? <div className="story-alert">{error}</div> : "正在准备章节、角色与场景…"}
   </div>;
-  const prompt = buildTavernPrompt(chapter, config, story);
-  return <section className={`story-tavern-room story-tavern-theme-${config.scenePresetId}`}>
-    <div className="story-tavern-chat">
-      <ChatPane workspace={item.workspace} scene={`tavern:${chapterId}`} prompt={prompt}
-        status={`导演调度 · ${story.characters.length} 位相关角色 · ${config.presentation.profileId}`}
-        onClose={close} closeLabel="关闭章节" allowNewSession />
-    </div>
-    <aside className="story-tavern-context">
-      <div className="story-tavern-scene-card"><span className="story-eyebrow">CURRENT CHAPTER</span>
-        <h2>{chapter.displayName}</h2><p>{story.context.target?.label || "章节定向上下文"}</p>
-        <div className="story-tavern-badges"><span>{config.roomStyleId}</span><span>{config.systemNarrative.styleId}</span></div></div>
-      <section><header><h3>在场角色</h3><small>{story.characters.length}</small></header>
-        <div className="story-character-list">{story.characters.length ? story.characters.map(character =>
-          <article className="story-character-card" key={character.id} title={character.description}>
-            <div className="story-character-avatar">{character.name.slice(0, 1)}</div>
-            <div><strong>{character.name}</strong><small>{character.speakingStyle || character.description || "跟随故事设定"}</small></div>
-          </article>) : <p className="story-hint">这一章尚未关联明确角色。</p>}</div></section>
-      <details className="story-context-details"><summary>本章故事上下文</summary>
-        <div>{story.context.sections.map(section => <section key={section.id}><h4>{section.label}</h4><p>{section.content}</p></section>)}</div>
-      </details>
-    </aside>
-  </section>;
+  return <OriginalTavernRoom
+    workspace={item.workspace}
+    chapter={chapter}
+    story={{ chapterId, context: story.context, characters: story.characters, roomConfig: config }}
+    execute={call}
+    close={close}
+  />;
 }
 
 function Tavern({ item, back, editor }: {
@@ -540,6 +600,10 @@ function Tavern({ item, back, editor }: {
     return () => { alive = false; };
   }, [item.workspace.id]);
   const selected = chapters.find(doc => keyOf(doc.ref) === chapter);
+  const visualPreset = tavernSceneOptions.find(option => option.value === config.scenePresetId) ?? tavernSceneOptions[0];
+  const presentationPreset = getTavernPresentationProfile(config.presentation.profileId);
+  const narrativePreset = getTavernSystemNarrativeStyle(config.systemNarrative.styleId);
+  const roomStyle = getTavernRoomStyle(config.roomStyleId);
   const save = async () => {
     setBusy(true); setError("");
     try {
@@ -555,6 +619,9 @@ function Tavern({ item, back, editor }: {
       {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
     </select>;
   const option = (value: string, label: string) => ({ value, label });
+  if (mode === "room" && selected) return <div className="story-workbench">
+    <TavernRoom item={item} chapter={selected} config={config} close={() => setChapter("")} />
+  </div>;
   return <div className="story-workbench">
     <header className="story-topbar"><div className="story-heading"><Button onClick={back} variant="quiet">← 故事列表</Button>
       <div><span className="story-eyebrow">{item.snapshot.overview?.title}</span><h1>{mode === "manage" ? config.title : "章节酒馆"}</h1></div></div>
@@ -573,38 +640,56 @@ function Tavern({ item, back, editor }: {
           className={`story-nav-item ${tab === id ? "active" : ""}`} onClick={() => setTab(id)}>
           <span>✦</span><span>{label}<small className="story-nav-hint">{hint}</small></span></button>)}</nav>
       </aside>
-      <main className="story-document-editor story-tavern-settings"><span className="story-eyebrow">章节酒馆</span>
-        <h2>{tab === "basic" ? "基础" : tab === "prompt" ? "呈现与叙事" : "运行设置"}</h2>
+      <main className="story-document-editor story-tavern-settings">
+        <header className="story-tavern-settings-header"><div><span className="story-eyebrow">故事酒馆配置</span><h2>{config.title.trim() || "未设置"}</h2>
+          <p>编辑酒馆呈现、系统叙事和调度策略；故事资产在独立故事页维护。</p></div>
+          <div className="story-tavern-header-metrics"><div><span>◉</span><strong>{visualPreset.label}</strong><small>视觉预设</small></div>
+            <div><span>▤</span><strong>{roomStyle.label}</strong><small>房间文风</small></div></div></header>
+        <section className="story-tavern-module"><header><div><span className="story-tavern-module-icon">{tab === "basic" ? "♜" : tab === "prompt" ? "▥" : "⚙"}</span>
+          <div><h3>{tab === "basic" ? "运行基础" : tab === "prompt" ? "呈现与叙事" : "运行设置"}</h3>
+            <p>{tab === "basic" ? "管理酒馆呈现名称、默认视觉场景和角色回复模式。" : tab === "prompt" ? "管理房间的呈现规则、系统叙事和文风模式。" : "调整用户控制权、导演调度规模和每回合回环轮次。"}</p></div></div>
+          {tab === "prompt" && <span className="story-tavern-module-meta">{presentationPreset.label} / {narrativePreset.label} / {roomStyle.label}</span>}</header>
+        <div className="story-tavern-metric-strip">
+          {tab === "basic" ? <><div><small>视觉场景</small><strong>{visualPreset.label}</strong></div><div><small>发言模式</small><strong>导演调度</strong></div>
+            <div><small>房间文风</small><strong>{roomStyle.label}</strong></div><div><small>导演人数</small><strong>{config.settings.directorMaxSpeakers} 人</strong></div></>
+            : tab === "prompt" ? <><div><small>呈现规则</small><strong>{presentationPreset.label}</strong></div><div><small>系统叙事</small><strong>{narrativePreset.label}</strong></div>
+              <div><small>房间文风</small><strong>{roomStyle.label}</strong></div><div><small>输出合同</small><strong>{presentationPreset.generationContract === "character_narrative_beat" ? "小说段落" : "角色回复"}</strong></div></>
+              : <><div><small>导演人数</small><strong>{config.settings.directorMaxSpeakers} 人</strong></div><div><small>导演回环</small><strong>{config.settings.directorLoop.maxRounds} 轮</strong></div>
+                <div><small>控制权</small><strong>{{ player_protagonist: "主角行动", story_directive: "剧情指令", scene_drive: "场景自推" }[config.settings.directorNarrativeControl.agencyMode]}</strong></div>
+                <div><small>沉浸描写</small><strong>{config.settings.immersiveDescriptionEnabled ? "开启" : "关闭"}</strong></div></>}
+        </div>
         <div className="story-fields">
           {tab === "basic" ? <>
             <label className="story-field"><span>房间名称</span><input value={config.title}
               onChange={event => setConfig(previous => ({ ...previous, title: event.target.value }))} /></label>
             <label className="story-field"><span>场景设置</span>{select(config.scenePresetId,
-              [option("general", "通用"), option("wuxia", "武侠"), option("tavern", "酒馆"),
-                option("modern", "现代"), option("mystery", "悬疑"), option("scifi", "科幻"),
-                option("fantasy", "奇幻"), option("oracle", "占卜")],
-              value => setConfig(previous => ({ ...previous, scenePresetId: value })))}</label>
+              tavernSceneOptions,
+              value => setConfig(previous => ({ ...previous, scenePresetId: value as TavernConfig["scenePresetId"] })))}
+              <small>{visualPreset.description}</small></label>
             <label className="story-field"><span>发言模式</span>{select(config.replyMode,
               [option("director", "导演调度")], () => {})}</label>
           </> : tab === "prompt" ? <>
             <label className="story-field"><span>呈现规则</span>{select(config.presentation.profileId,
-              [option("dialogue-chat", "对话聊天"), option("third-person-prose", "第三人称叙事"), option("novel-prose", "小说段落")],
-              value => setConfig(previous => ({ ...previous, presentation: { profileId: value as TavernConfig["presentation"]["profileId"] } })))}</label>
+              TAVERN_PRESENTATION_RULES.map(item => option(item.id, item.label)),
+              value => setConfig(previous => ({ ...previous, presentation: { profileId: value as TavernConfig["presentation"]["profileId"] } })))}
+              <small>{presentationPreset.description}</small></label>
             <label className="story-field"><span>系统叙事</span>{select(config.systemNarrative.styleId,
-              [option("balanced", "均衡"), option("restrained", "克制"), option("dramatic", "戏剧性")],
-              value => setConfig(previous => ({ ...previous, systemNarrative: { ...previous.systemNarrative, styleId: value as TavernConfig["systemNarrative"]["styleId"] } })))}</label>
+              TAVERN_SYSTEM_NARRATIVE_STYLES.map(item => option(item.id, item.label)),
+              value => setConfig(previous => ({ ...previous, systemNarrative: { ...previous.systemNarrative, styleId: value as TavernConfig["systemNarrative"]["styleId"] } })))}
+              <small>{narrativePreset.description}</small></label>
             <label className="story-field"><span>房间文风</span>{select(config.roomStyleId,
-              [option("novel", "小说"), option("silent-law", "沉默法则"), option("wuxia", "武侠"), option("light-novel", "轻小说"), option("dramatic", "戏剧"), option("grounded", "写实")],
-              value => setConfig(previous => ({ ...previous, roomStyleId: value as TavernConfig["roomStyleId"] })))}</label>
+              TAVERN_ROOM_STYLES.map(item => option(item.id, item.label)),
+              value => setConfig(previous => ({ ...previous, roomStyleId: value as TavernConfig["roomStyleId"] })))}
+              <small>{roomStyle.description}</small></label>
             <label className="story-field"><span>自定义叙事要求</span><textarea rows={10} value={config.systemNarrative.customInstructions}
               onChange={event => setConfig(previous => ({ ...previous, systemNarrative: { ...previous.systemNarrative, customInstructions: event.target.value } }))} /></label>
           </> : <>
             <label className="story-field"><span>沉浸式描写</span><input type="checkbox" checked={config.settings.immersiveDescriptionEnabled}
               onChange={event => setConfig(previous => ({ ...previous, settings: { ...previous.settings, immersiveDescriptionEnabled: event.target.checked } }))} /></label>
-            <label className="story-field"><span>最多发言角色</span><input type="number" min={1} max={10} value={config.settings.directorMaxSpeakers}
-              onChange={event => setConfig(previous => ({ ...previous, settings: { ...previous.settings, directorMaxSpeakers: Number(event.target.value) } }))} /></label>
-            <label className="story-field"><span>最多调度轮次</span><input type="number" min={1} max={10} value={config.settings.directorLoop.maxRounds}
-              onChange={event => setConfig(previous => ({ ...previous, settings: { ...previous.settings, directorLoop: { maxRounds: Number(event.target.value) } } }))} /></label>
+            <label className="story-field"><span>最多发言角色</span><input type="number" min={1} max={6} value={config.settings.directorMaxSpeakers}
+              onChange={event => setConfig(previous => ({ ...previous, settings: { ...previous.settings, directorMaxSpeakers: Math.max(1, Math.min(6, Number(event.target.value) || 1)) } }))} /></label>
+            <label className="story-field"><span>最多调度轮次</span><input type="number" min={1} max={5} value={config.settings.directorLoop.maxRounds}
+              onChange={event => setConfig(previous => ({ ...previous, settings: { ...previous.settings, directorLoop: { maxRounds: Math.max(1, Math.min(5, Number(event.target.value) || 1)) } } }))} /></label>
             <label className="story-field"><span>叙事控制</span>{select(config.settings.directorNarrativeControl.agencyMode,
               [option("player_protagonist", "玩家主角"), option("story_directive", "故事指令"), option("scene_drive", "场景推进")],
               value => setConfig(previous => ({ ...previous, settings: { ...previous.settings,
@@ -619,6 +704,7 @@ function Tavern({ item, back, editor }: {
                 directorNarrativeControl: { ...previous.settings.directorNarrativeControl, narratorPressure: value as TavernConfig["settings"]["directorNarrativeControl"]["narratorPressure"] } } })))}</label>
           </>}
         </div>
+        </section>
       </main>
     </div> : <div className="story-tavern-layout"><aside className="story-sidebar">
       <div className="story-sidebar-head"><h2>章节</h2><small>{chapters.length}</small></div>
