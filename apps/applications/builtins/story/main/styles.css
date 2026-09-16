@@ -112,11 +112,18 @@ button { cursor: pointer; }
 .story-dialog footer { border-top: 1px solid var(--story-line); padding: 16px 24px; display: flex; justify-content: end; gap: 8px; }
 .story-hint { color: var(--muted-foreground); font-size: 13px; line-height: 1.6; margin: 0; }
 .story-hint code { color: var(--primary); }
-.story-chat-overlay { position: fixed; inset: 0 0 0 auto; width: min(540px, 100%); z-index: 90; box-shadow: var(--shadow-floating); }
+.story-chat-overlay {
+  position: fixed; inset: 0; z-index: 40; overflow: hidden;
+  background: var(--background);
+}
 .story-chat-pane { height: 100%; width: 100%; background: var(--card); display: flex; flex-direction: column; min-height: 0; }
-.story-chat-pane > header { min-height: 75px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--story-line); }
+.story-chat-pane > header {
+  min-height: 72px; padding: 12px 24px; flex: none; display: flex;
+  justify-content: space-between; align-items: center; gap: 18px;
+  border-bottom: 1px solid var(--story-line); background: var(--card);
+}
 .story-chat-pane h2 { margin: 3px 0 0; font-size: 19px; }
-.story-chat-body { flex: 1; min-height: 0; overflow: auto; }
+.story-chat-body { flex: 1; min-height: 0; overflow: hidden; }
 .story-tavern-layout > .story-chat-pane { flex: 1; min-width: 0; }
 @media (max-width: 760px) {
   .story-library { padding: 25px 15px; }
@@ -125,4 +132,5 @@ button { cursor: pointer; }
   .story-sidebar { width: 185px; }
   .story-document-editor { padding: 22px 18px; }
   .story-document-header { flex-direction: column; }
+  .story-chat-pane > header { min-height: 64px; padding: 10px 14px; }
 }

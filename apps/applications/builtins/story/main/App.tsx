@@ -142,8 +142,8 @@ function Dialog({ title, close, children }: { title: string; close(): void; chil
   </div>;
 }
 
-function ChatPane({ workspace, scene, prompt, onClose }: {
-  workspace: ApplicationWorkspace; scene: string; prompt: string; onClose(): void;
+function ChatPane({ workspace, scene, prompt, onClose, closeLabel = "关闭" }: {
+  workspace: ApplicationWorkspace; scene: string; prompt: string; onClose(): void; closeLabel?: string;
 }) {
   const [session, setSession] = useState<ApplicationChatSession | null>(null);
   const [error, setError] = useState("");
@@ -162,7 +162,7 @@ function ChatPane({ workspace, scene, prompt, onClose }: {
     return () => { alive = false; };
   }, [workspace.id, scene, prompt]);
   return <section className="story-chat-pane">
-    <header><div><span className="story-eyebrow">创作助手</span><h2>{scene.startsWith("tavern") ? "章节酒馆" : "故事助手"}</h2></div><Button onClick={onClose} variant="quiet">关闭</Button></header>
+    <header><div><span className="story-eyebrow">创作助手</span><h2>{scene.startsWith("tavern") ? "章节酒馆" : "故事助手"}</h2></div><Button onClick={onClose} variant="quiet">{closeLabel}</Button></header>
     {session ? <div className="story-chat-body"><Chat session={session} viewId={scene} /></div> : <div className="story-empty"><Chat.Loading error={error || undefined} /></div>}
   </section>;
 }
@@ -337,8 +337,11 @@ function Editor({ item, update, back, tavern }: {
       save={(ref, value) => void mutate("isle_story_save_document", { ref, value }, next => {
         setSelected(keyOf(ref)); setAddOpen(false);
       })} />}
-    {assistant && <div className="story-chat-overlay"><ChatPane workspace={workspace} scene="story-assistant"
-      prompt="先阅读当前项目上下文，再和作者协作。需要修改项目文件时请遵守已有故事结构。" onClose={() => setAssistant(false)} /></div>}
+    {assistant && <div className="story-chat-overlay" role="dialog" aria-modal="true" aria-label="故事助手">
+      <ChatPane workspace={workspace} scene="story-assistant"
+        prompt="先阅读当前项目上下文，再和作者协作。需要修改项目文件时请遵守已有故事结构。"
+        onClose={() => setAssistant(false)} closeLabel="返回编辑器" />
+    </div>}
   </div>;
 }
 
