@@ -123,13 +123,13 @@ const openStorySession = (workspace: ApplicationWorkspace, scene: string, prompt
               `当前应用工作区：workspaceId=${workspace.id}。`,
               "处理写作、拆解、导入、审稿或去 AI 味任务时，必须先调用 isle_story_skill 加载 story-assistant，再按路由加载对应子技能。",
               "技能中的 story 调用必须始终带上当前 workspaceId。结构化变更优先使用 story 的 ChangeSet 协议提交。",
-              prompt,
             ].join("\n"),
+            context: { runtimeInstruction: prompt },
             useKnowledge: true,
           },
         });
     const opened = await session;
-    await opened.setContext({ runtimeInstruction: prompt });
+    if (prior && !createNew) await opened.setContext({ runtimeInstruction: prompt });
     return opened;
   })().finally(() => openingSessions.delete(key));
   openingSessions.set(key, pending);
