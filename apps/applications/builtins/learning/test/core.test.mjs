@@ -345,7 +345,7 @@ test("built installation keeps permissions minimal, includes license and stays b
     "application-workspaces",
     "application-data",
   ]);
-  assert.equal(manifest.isle.ui.layout, "full");
+  assert.equal(manifest.isle.ui.layout, "fullscreen");
   assert.ok(
     (await readFile(join(root, "dist/isle/isle-ui.js"))).byteLength <
       512 * 1024,
