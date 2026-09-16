@@ -1,5 +1,6 @@
 import { agentPermissionOptions } from "../../src/agent-client/wire";
 import test from "node:test";
+import { getChatActivity } from "../../src/workbench/shell/chat-activity";
 import assert from "node:assert/strict";
 import {
   createChatSession,
@@ -674,4 +675,33 @@ test("thinking selections use frontend defaults and preserve custom values throu
   });
   assert.equal(obsolete.session.getSnapshot().config.thinkingLevel, "max");
   await obsolete.session.close();
+});
+
+test("sidebar activity follows approval and question events through resume and settlement", async () => {
+  const { session, emit } = await setup();
+  const activity = () => getChatActivity(session.getSnapshot());
+  assert.equal(activity(), null);
+  await session.send({ text: "work" });
+  assert.equal(activity(), "running");
+  const taskId = session.getSnapshot().activeTaskId!;
+  emit({ type: E.Question, questionId: "q", question: "Detail?", expiresAt: Date.now() + 60_000 });
+  assert.equal(activity(), "waiting-answer");
+  emit({
+    type: E.ApprovalRequested,
+    taskId,
+    approvalId: "approval",
+    executionId: "call",
+    summary: "bash",
+    details: "{}",
+    reason: "shell",
+    expiresAt: Date.now() + 60_000,
+  });
+  assert.equal(activity(), "waiting-approval");
+  emit({ type: E.ApprovalResolved, taskId, approvalId: "approval", approved: true });
+  assert.equal(activity(), "waiting-answer");
+  assert.equal((await session.answer({ questionId: "q", answer: "detail" })).ok, true);
+  assert.equal(activity(), "running");
+  emit({ type: E.Done, taskId, text: "Done" });
+  assert.equal(activity(), null);
+  await session.close();
 });

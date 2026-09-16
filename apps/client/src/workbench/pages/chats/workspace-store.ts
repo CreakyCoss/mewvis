@@ -16,7 +16,9 @@ type CurrentChat = {
 
 export type OpenChat = CurrentChat;
 
-type ChatLoadingMap = Record<string, Record<string, boolean>>;
+export type ChatActivity = "running" | "waiting-approval" | "waiting-answer";
+
+type ChatActivityMap = Partial<Record<string, Partial<Record<string, ChatActivity>>>>;
 
 const MAX_OPEN_CHAT_COUNT = 5;
 
@@ -26,14 +28,14 @@ type WorkspaceStore = {
   currentChat: CurrentChat | null;
   openChats: OpenChat[];
   chatsByWorkspaceId: Record<string, ChatMeta[]>;
-  chatLoadingMap: ChatLoadingMap;
+  chatActivityMap: ChatActivityMap;
   isLoading: boolean;
   error: string;
   setCurrentWorkspace: (workspace: Workspace | null) => void;
   setCurrentChat: (chat: CurrentChat | null) => void;
   openChat: (chat: OpenChat) => void;
   acceptChatRecord: (workspacePath: string, record: ChatRecord) => void;
-  setChatLoading: (workspaceId: string, chatId: string, isLoading: boolean) => void;
+  setChatActivity: (workspaceId: string, chatId: string, activity: ChatActivity | null) => void;
   deleteChat: (workspace: Workspace, chatId: string) => Promise<void>;
   loadWorkspaces: () => Promise<void>;
   refreshWorkspaces: () => Promise<void>;
@@ -90,18 +92,23 @@ const updateChatUnread = (chats: ChatMeta[], chatId: string, isUnread: boolean) 
 const isSameChat = (left: CurrentChat | null, right: CurrentChat) =>
   left?.workspaceId === right.workspaceId && left.chatId === right.chatId;
 
-const updateChatLoading = (chatLoadingMap: ChatLoadingMap, workspaceId: string, chatId: string, isLoading: boolean) => {
-  const nextMap = { ...chatLoadingMap };
-  const workspaceChatLoadingMap = { ...nextMap[workspaceId] };
+const updateChatActivity = (
+  chatActivityMap: ChatActivityMap,
+  workspaceId: string,
+  chatId: string,
+  activity: ChatActivity | null,
+) => {
+  const nextMap = { ...chatActivityMap };
+  const workspaceChatActivityMap = { ...nextMap[workspaceId] };
 
-  if (isLoading) {
-    workspaceChatLoadingMap[chatId] = true;
+  if (activity) {
+    workspaceChatActivityMap[chatId] = activity;
   } else {
-    delete workspaceChatLoadingMap[chatId];
+    delete workspaceChatActivityMap[chatId];
   }
 
-  if (Object.keys(workspaceChatLoadingMap).length > 0) {
-    nextMap[workspaceId] = workspaceChatLoadingMap;
+  if (Object.keys(workspaceChatActivityMap).length > 0) {
+    nextMap[workspaceId] = workspaceChatActivityMap;
   } else {
     delete nextMap[workspaceId];
   }
@@ -157,7 +164,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
   currentChat: null,
   openChats: [],
   chatsByWorkspaceId: {},
-  chatLoadingMap: {},
+  chatActivityMap: {},
   isLoading: false,
   error: "",
   setCurrentWorkspace: (workspace) => {
@@ -202,7 +209,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
       }
 
       const removableChatIndex = state.openChats.findIndex(
-        (item) => !isSameChat(state.currentChat, item) && !state.chatLoadingMap[item.workspaceId]?.[item.chatId],
+        (item) => !isSameChat(state.currentChat, item) && !state.chatActivityMap[item.workspaceId]?.[item.chatId],
       );
 
       return {
@@ -232,21 +239,22 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
       },
     }));
   },
-  setChatLoading: (workspaceId, chatId, isLoading) => {
-    const wasLoading = Boolean(get().chatLoadingMap[workspaceId]?.[chatId]);
+  setChatActivity: (workspaceId, chatId, activity) => {
+    const previousActivity = get().chatActivityMap[workspaceId]?.[chatId] ?? null;
+    if (previousActivity === activity) return;
     const shouldMarkUnread =
-      wasLoading &&
-      !isLoading &&
+      previousActivity !== null &&
+      activity === null &&
       (get().currentChat?.chatId !== chatId || get().currentChat?.workspaceId !== workspaceId);
     const workspace =
       get().workspaces.find((item) => item.id === workspaceId) ??
       (get().currentWorkspace?.id === workspaceId ? get().currentWorkspace : null);
 
     set((state) => {
-      const chatLoadingMap = updateChatLoading(state.chatLoadingMap, workspaceId, chatId, isLoading);
+      const chatActivityMap = updateChatActivity(state.chatActivityMap, workspaceId, chatId, activity);
 
       return {
-        chatLoadingMap,
+        chatActivityMap,
         chatsByWorkspaceId: shouldMarkUnread
           ? {
               ...state.chatsByWorkspaceId,
@@ -276,13 +284,13 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     }
     const previousChats = get().chatsByWorkspaceId[workspace.id] ?? [];
     const deletedChat = previousChats.find((chat) => chat.id === chatId);
-    const wasLoading = Boolean(get().chatLoadingMap[workspace.id]?.[chatId]);
+    const previousActivity = get().chatActivityMap[workspace.id]?.[chatId];
     set((state) => ({
       chatsByWorkspaceId: {
         ...state.chatsByWorkspaceId,
         [workspace.id]: previousChats.filter((chat) => chat.id !== chatId),
       },
-      chatLoadingMap: updateChatLoading(state.chatLoadingMap, workspace.id, chatId, false),
+      chatActivityMap: updateChatActivity(state.chatActivityMap, workspace.id, chatId, null),
       openChats: state.openChats.filter((chat) => chat.workspaceId !== workspace.id || chat.chatId !== chatId),
       currentChat:
         state.currentChat?.chatId === chatId && state.currentChat.workspaceId === workspace.id
@@ -301,9 +309,9 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
             ? mergeChatMeta(state.chatsByWorkspaceId[workspace.id] ?? [], deletedChat)
             : (state.chatsByWorkspaceId[workspace.id] ?? []),
         },
-        chatLoadingMap: wasLoading
-          ? updateChatLoading(state.chatLoadingMap, workspace.id, chatId, true)
-          : state.chatLoadingMap,
+        chatActivityMap: previousActivity
+          ? updateChatActivity(state.chatActivityMap, workspace.id, chatId, previousActivity)
+          : state.chatActivityMap,
         error: getErrorMessage(error, "对话删除失败，请重试。"),
       }));
     }
@@ -391,13 +399,13 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 
       set((state) => {
         const chatsByWorkspaceId = { ...state.chatsByWorkspaceId };
-        const chatLoadingMap = { ...state.chatLoadingMap };
+        const chatActivityMap = { ...state.chatActivityMap };
         delete chatsByWorkspaceId[workspaceId];
-        delete chatLoadingMap[workspaceId];
+        delete chatActivityMap[workspaceId];
         return {
           workspaces,
           chatsByWorkspaceId,
-          chatLoadingMap,
+          chatActivityMap,
           openChats: state.openChats.filter((chat) => chat.workspaceId !== workspaceId),
           currentChat: state.currentChat?.workspaceId === workspaceId ? null : state.currentChat,
         };

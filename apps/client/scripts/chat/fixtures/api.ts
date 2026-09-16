@@ -126,3 +126,18 @@ export function createAgentClient() {
     tasks: { async abort() {}, async answerQuestion() {}, async answerApproval() {} },
   };
 }
+
+// Workspace state tests use the same host boundary without opening runtime sessions.
+export const unreadUpdates: { workspacePath: string; chatId: string; isUnread: boolean }[] = [];
+export const chatService = {
+  async setUnread(workspacePath: string, chatId: string, isUnread: boolean) {
+    unreadUpdates.push({ workspacePath, chatId, isUnread });
+  },
+  async closeRecord() {
+    return { ok: true };
+  },
+  async closeWorkspace() {
+    return { ok: true };
+  },
+};
+export async function deleteChat() {}

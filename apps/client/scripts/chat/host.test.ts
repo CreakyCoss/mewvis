@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fake } from "./fixtures/api";
+import { fake, unreadUpdates } from "./fixtures/api";
+import { useWorkspaceStore } from "../../src/workbench/pages/chats/workspace-store";
+import type { Workspace } from "../../src/api/workspace";
 import { createDesktopCatalog } from "../../src/chat/desktop/catalog";
 import { createDesktopStorage } from "../../src/chat/desktop/storage";
 import {
@@ -525,14 +527,21 @@ test("history restores application ownership and dynamic context after restart, 
   const reconnect = await second.client.openSession({ workspaceId: "workspace", chatId: application.identity.id });
   assert.equal(second.service.getSession(reconnect.identity), a);
   const sentAgain = await reconnect.send({ text: "continue after restart" });
-  assert.equal(fake.runs.at(-1).applicationId, "application", "restoring from host history preserves the application owner");
+  assert.equal(
+    fake.runs.at(-1).applicationId,
+    "application",
+    "restoring from host history preserves the application owner",
+  );
   assert.match(fake.runs.at(-1).requestContext, /persisted after the last turn/);
   completeTask(sentAgain.taskId!);
   await second.service.closeAll();
   second.connection.dispose();
 
   const applicationFirst = applicationFixture();
-  const connectedFirst = await applicationFirst.client.openSession({ workspaceId: "workspace", chatId: application.identity.id });
+  const connectedFirst = await applicationFirst.client.openSession({
+    workspaceId: "workspace",
+    chatId: application.identity.id,
+  });
   const fromApplication = await connectedFirst.send({ text: "application opens first after restart" });
   assert.match(fake.runs.at(-1).requestContext, /persisted after the last turn/);
   completeTask(fromApplication.taskId!);
@@ -845,4 +854,86 @@ test("user tool grants apply to SDK queries, existing scenes and every dispatch 
     connection.dispose();
     client.dispose();
   }
+});
+
+test("background waiting transitions do not mark unread until the task settles", () => {
+  const workspace: Workspace = {
+    id: "status-workspace",
+    name: "Status",
+    path: "/status",
+    description: null,
+    isDefault: false,
+    isPinned: false,
+    order: 0,
+    groupId: null,
+    createdAt: 1,
+    updatedAt: 1,
+  };
+  const chat = {
+    id: "status-chat",
+    title: "Status",
+    path: "/status/chat",
+    createdAt: 1,
+    updatedAt: 1,
+    messageCount: 0,
+    isUnread: false,
+  };
+  useWorkspaceStore.setState({
+    workspaces: [workspace],
+    currentWorkspace: workspace,
+    currentChat: null,
+    chatActivityMap: {},
+    chatsByWorkspaceId: { [workspace.id]: [chat] },
+    openChats: [],
+  });
+  unreadUpdates.length = 0;
+  const { setChatActivity, setCurrentChat } = useWorkspaceStore.getState();
+  for (const activity of ["running", "waiting-approval", "waiting-answer", "running"] as const) {
+    setChatActivity(workspace.id, chat.id, activity);
+    assert.equal(useWorkspaceStore.getState().chatActivityMap[workspace.id]?.[chat.id], activity);
+    assert.equal(useWorkspaceStore.getState().chatsByWorkspaceId[workspace.id][0].isUnread, false);
+    assert.equal(unreadUpdates.length, 0);
+  }
+  setChatActivity(workspace.id, chat.id, null);
+  assert.equal(useWorkspaceStore.getState().chatsByWorkspaceId[workspace.id][0].isUnread, true);
+  assert.deepEqual(useWorkspaceStore.getState().chatActivityMap, {});
+  assert.deepEqual(unreadUpdates, [{ workspacePath: workspace.path, chatId: chat.id, isUnread: true }]);
+  setChatActivity(workspace.id, chat.id, null);
+  assert.equal(unreadUpdates.length, 1);
+
+  for (const activity of ["waiting-approval", "waiting-answer"] as const) {
+    setChatActivity(workspace.id, chat.id, activity);
+    setCurrentChat({ workspaceId: workspace.id, chatId: chat.id });
+    assert.equal(useWorkspaceStore.getState().chatActivityMap[workspace.id]?.[chat.id], activity);
+    unreadUpdates.length = 0;
+    setChatActivity(workspace.id, chat.id, null);
+    assert.equal(useWorkspaceStore.getState().chatsByWorkspaceId[workspace.id][0].isUnread, false);
+    assert.equal(unreadUpdates.length, 0);
+
+    setCurrentChat(null);
+    setChatActivity(workspace.id, chat.id, activity);
+    setChatActivity(workspace.id, chat.id, null);
+    assert.equal(useWorkspaceStore.getState().chatsByWorkspaceId[workspace.id][0].isUnread, true);
+    assert.equal(unreadUpdates.length, 1);
+  }
+});
+
+test("opening another chat preserves running and waiting chats at the open-chat limit", () => {
+  const openChats = ["approval", "answer", "running", "idle", "current"].map((chatId) => ({
+    workspaceId: "workspace",
+    chatId,
+  }));
+  useWorkspaceStore.setState({
+    workspaces: [],
+    currentWorkspace: null,
+    currentChat: openChats[4],
+    openChats,
+    chatsByWorkspaceId: {},
+    chatActivityMap: { workspace: { approval: "waiting-approval", answer: "waiting-answer", running: "running" } },
+  });
+  useWorkspaceStore.getState().openChat({ workspaceId: "workspace", chatId: "new" });
+  assert.deepEqual(
+    useWorkspaceStore.getState().openChats.map((chat) => chat.chatId),
+    ["approval", "answer", "running", "current", "new"],
+  );
 });

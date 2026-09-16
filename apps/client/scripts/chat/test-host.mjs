@@ -21,7 +21,7 @@ const bundled = await build({
         build.onResolve(
           {
             filter:
-              /^(?:@\/(transport|api\/(agents|skills|knowledge|chat|conversation-ledger)|agent-client\/runtime)|@tauri-apps\/api\/core)$/,
+              /^(?:@\/(transport|workbench\/shell\/chat-service|api\/(agents|skills|knowledge|chat|conversation-ledger)|agent-client\/runtime)|@tauri-apps\/api\/core)$/,
           },
           () => ({
             path: resolve("scripts/chat/fixtures/api.ts"),

@@ -28,7 +28,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { WorkspaceDialog, type WorkspaceDialogHandle } from "@/workbench/pages/chats/components/workspace-dialog";
-import { useWorkspaceStore } from "@/workbench/pages/chats/workspace-store";
+import { useWorkspaceStore, type ChatActivity } from "@/workbench/pages/chats/workspace-store";
+import { chatActivityPresentation } from "../chat-activity";
 import type { ChatMeta } from "@/api/chat";
 import type { Workspace } from "@/api/workspace";
 import { cn } from "@/lib/utils";
@@ -47,7 +48,7 @@ type ChatRowProps = {
   to: string;
   workspace: Workspace;
   chat: ChatMeta;
-  isRunning: boolean;
+  activity: ChatActivity | null;
   onConfirmDelete: (workspace: Workspace, chat: ChatMeta) => void;
 };
 
@@ -69,14 +70,16 @@ const EmptyState = ({ children }: { children: string }) => (
   </div>
 );
 
-const ChatRow = ({ to, workspace, chat, isRunning, onConfirmDelete }: ChatRowProps) => {
+const ChatRow = ({ to, workspace, chat, activity, onConfirmDelete }: ChatRowProps) => {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const presentation = activity ? chatActivityPresentation[activity] : null;
+  const ActivityIcon = presentation?.icon;
 
   return (
     <div className="group/chat relative min-w-0" onMouseLeave={() => setIsConfirmingDelete(false)}>
       <NavLink
         to={to}
-        title={`${chat.title}\n${chat.path}`}
+        title={`${chat.title}${presentation ? ` · ${presentation.label}` : ""}\n${chat.path}`}
         className={({ isActive }) =>
           cn(
             "flex h-9 min-w-0 items-center overflow-hidden rounded-lg py-1 pr-3 pl-8 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground group-hover/chat:bg-sidebar-accent/70 group-hover/chat:text-sidebar-foreground",
@@ -86,8 +89,8 @@ const ChatRow = ({ to, workspace, chat, isRunning, onConfirmDelete }: ChatRowPro
       >
         <span className="min-w-0 flex-1 truncate">{chat.title}</span>
         <span className="ml-2 flex h-7 w-12 shrink-0 items-center justify-end whitespace-nowrap text-xs font-medium tabular-nums text-muted-foreground/80 group-hover/chat:opacity-0 group-focus-within/chat:opacity-0">
-          {isRunning ? (
-            <LoaderCircle className="size-3.5 animate-spin motion-reduce:animate-none" aria-label="处理中" />
+          {presentation && ActivityIcon ? (
+            <ActivityIcon className={presentation.className} aria-label={presentation.label} />
           ) : chat.isUnread ? (
             <span className="mt-1 block size-2 rounded-full bg-primary" aria-label="未读消息" />
           ) : (
@@ -188,8 +191,8 @@ export const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps
     void workspaceStore.loadWorkspaces();
   }, [workspaceStore.loadWorkspaces]);
 
-  const isChatRunning = (workspace: Workspace, chat: ChatMeta) =>
-    Boolean(workspaceStore.chatLoadingMap[workspace.id]?.[chat.id]);
+  const chatActivity = (workspace: Workspace, chat: ChatMeta) =>
+    workspaceStore.chatActivityMap[workspace.id]?.[chat.id] ?? null;
 
   const toggleWorkspace = (workspaceId: string) => {
     setExpandedWorkspaceIds((current) => {
@@ -306,7 +309,7 @@ export const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps
                             to={`/chats/${workspace.id}/${chat.id}`}
                             workspace={workspace}
                             chat={chat}
-                            isRunning={isChatRunning(workspace, chat)}
+                            activity={chatActivity(workspace, chat)}
                             onConfirmDelete={confirmDeleteChat}
                           />
                         ))}
@@ -352,7 +355,7 @@ export const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps
                       to={`/chats/${defaultWorkspace.id}/${chat.id}`}
                       workspace={defaultWorkspace}
                       chat={chat}
-                      isRunning={isChatRunning(defaultWorkspace, chat)}
+                      activity={chatActivity(defaultWorkspace, chat)}
                       onConfirmDelete={confirmDeleteChat}
                     />
                   ))}

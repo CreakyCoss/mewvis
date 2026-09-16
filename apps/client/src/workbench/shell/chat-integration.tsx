@@ -7,7 +7,8 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { toast } from "sonner";
 import { useCallback, useEffect, type PropsWithChildren } from "react";
 import { DesktopChatEnvironment } from "@/chat/desktop/react";
-import { isChatBusy, sessionKey, type ChatSession } from "@/chat/core";
+import type { ChatSession } from "@/chat/core";
+import { getChatActivity } from "./chat-activity";
 import { useWorkspaceStore } from "@/workbench/pages/chats/workspace-store";
 import { useWorkspaceFileStore } from "@/workbench/pages/chats/workspace-files";
 import { applicationChatHost, chatService } from "./chat-service";
@@ -178,16 +179,11 @@ export function AppChatIntegration({ children }: PropsWithChildren) {
         else disconnectApplications = detach;
       })
       .catch((error) => toast.error(String(error)));
-    const running = new Map<string, boolean>();
     const observe = (session: ChatSession) => {
-      const key = sessionKey(session.identity);
-      const busy = isChatBusy(session.getSnapshot());
-      if (running.get(key) === busy) return;
-      running.set(key, busy);
       const location = chatService.getLocation(session);
       const store = useWorkspaceStore.getState();
       const workspace = store.workspaces.find((item) => item.path === location?.workspacePath);
-      if (workspace) store.setChatLoading(workspace.id, session.identity.id, busy);
+      if (workspace) store.setChatActivity(workspace.id, session.identity.id, getChatActivity(session.getSnapshot()));
     };
     chatService.listSessions().forEach(observe);
     const detach = chatService.subscribe(observe);
