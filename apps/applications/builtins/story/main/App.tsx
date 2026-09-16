@@ -5,7 +5,7 @@ import { getApplicationDataClient, type ApplicationWorkspace } from "@isle/app-s
 import { getApplicationChatClient, type ApplicationChatSession } from "@isle/app-sdk/chat";
 import { Chat } from "@isle/app-sdk/chat/react";
 import type {
-  JsonFieldMetadata, JsonObjectDefinition, StoryDocument, StoryDocumentIdentity, StoryOverview,
+  JsonFieldMetadata, JsonObjectDefinition, StoryContext, StoryDocument, StoryDocumentIdentity, StoryOverview,
   StoryProjectCompatibility, StoryProjectStructure, StoryValue,
 } from "../shared/project/types";
 
@@ -21,6 +21,11 @@ type Snapshot = {
 };
 type LibraryItem = { workspace: ApplicationWorkspace; snapshot: Snapshot };
 type View = "library" | "editor" | "tavern";
+type TavernCharacter = {
+  id: string; name: string; avatar: string; description: string; speakingStyle: string;
+  goals: string; relationshipSummary: string;
+};
+type TavernStoryContext = { context: StoryContext; characters: TavernCharacter[] };
 type TavernConfig = {
   id: string; title: string; scenePresetId: string; replyMode: "director";
   presentation: { profileId: "dialogue-chat" | "third-person-prose" | "novel-prose" };
@@ -107,7 +112,7 @@ const openStorySession = (workspace: ApplicationWorkspace, scene: string, prompt
     const client = getApplicationChatClient();
     const summaries = createNew ? [] : await client.listSessions({ workspaceId: workspace.id });
     const prior = summaries.filter(item => item.sceneId === scene).sort((a, b) => b.updatedAt - a.updatedAt)[0];
-    return prior && !createNew
+    const session = prior && !createNew
       ? client.openSession({ workspaceId: workspace.id, chatId: prior.chatId })
       : client.createSession({
           workspaceId: workspace.id, sceneId: scene,
@@ -123,6 +128,9 @@ const openStorySession = (workspace: ApplicationWorkspace, scene: string, prompt
             useKnowledge: true,
           },
         });
+    const opened = await session;
+    await opened.setContext({ runtimeInstruction: prompt });
+    return opened;
   })().finally(() => openingSessions.delete(key));
   openingSessions.set(key, pending);
   return pending;
@@ -144,9 +152,9 @@ function Dialog({ title, close, children }: { title: string; close(): void; chil
   </div>;
 }
 
-function ChatPane({ workspace, scene, prompt, onClose, closeLabel = "关闭", allowNewSession = false, revision }: {
+function ChatPane({ workspace, scene, prompt, onClose, closeLabel = "关闭", allowNewSession = false, revision, status }: {
   workspace: ApplicationWorkspace; scene: string; prompt: string; onClose(): void; closeLabel?: string;
-  allowNewSession?: boolean; revision?: number;
+  allowNewSession?: boolean; revision?: number; status?: string;
 }) {
   const [session, setSession] = useState<ApplicationChatSession | null>(null);
   const [error, setError] = useState("");
@@ -167,7 +175,7 @@ function ChatPane({ workspace, scene, prompt, onClose, closeLabel = "关闭", al
   }, [workspace.id, scene, prompt, sessionGeneration]);
   return <section className="story-chat-pane">
     <header><div><span className="story-eyebrow">创作助手</span><h2>{scene.startsWith("tavern") ? "章节酒馆" : "故事助手"}</h2>
-      {!scene.startsWith("tavern") && <small className="story-chat-status">结构化技能 · 校验后落库{revision === undefined ? "" : ` · revision ${revision}`}</small>}</div>
+      {(status || !scene.startsWith("tavern")) && <small className="story-chat-status">{status || `结构化技能 · 校验后落库${revision === undefined ? "" : ` · revision ${revision}`}`}</small>}</div>
       <div className="story-actions">{allowNewSession && <Button onClick={() => setSessionGeneration(value => value + 1)} disabled={!session}>＋ 新建会话</Button>}
         <Button onClick={onClose} variant="quiet">{closeLabel}</Button></div></header>
     {session ? <div className="story-chat-body"><Chat session={session} viewId={scene} /></div> : <div className="story-empty"><Chat.Loading error={error || undefined} /></div>}
@@ -415,6 +423,105 @@ function Editor({ item, update, back, tavern }: {
   </div>;
 }
 
+const tavernPresentationPrompt = (profile: TavernConfig["presentation"]["profileId"]) => ({
+  "dialogue-chat": [
+    "以直接对白和少量可观察动作回应，保留聊天式现场感。",
+    "每个发言角色使用三级标题“### 角色名”，旁白使用“### 旁白”；不要输出角色名冒号剧本。",
+    "每位角色至少带来一条新信息、态度变化或可继续的行动，不用纯气氛代替回应。",
+  ],
+  "third-person-prose": [
+    "以第三人称有限视角推进，用间接叙事表达动作、心理压力和选择。",
+    "不要输出聊天记录、角色名冒号或第一人称自述；写成可连续阅读的短段落。",
+  ],
+  "novel-prose": [
+    "以第三人称小说正文呈现，允许自然对白，写成 2 到 5 个短自然段。",
+    "动作、对白、环境变化和反应压力分段呈现，不输出字段、标签或选择菜单。",
+  ],
+}[profile]);
+
+const tavernStylePrompt = (style: TavernConfig["roomStyleId"]) => ({
+  "silent-law": "克制、连续，严格保持视角、关系阶段与用户选择权。",
+  novel: "重视镜头、氛围和多轮承接，允许铺陈，但每轮都要发生可见推进。",
+  wuxia: "突出江湖气、身份分寸、门派恩怨和招式代价，不随意新增秘闻。",
+  "light-novel": "对话轻快、反应鲜明，可以有小动作和吐槽，但不破坏人物边界。",
+  dramatic: "强化立场碰撞、信息增量和选择压力，冲突必须来自既有人设与事实。",
+  grounded: "写实克制，减少夸张修辞，使用自然对白、清楚行动和明确因果。",
+}[style]);
+
+const tavernNarrativePrompt = (style: TavernConfig["systemNarrative"]["styleId"]) => ({
+  balanced: "兼顾现场推进、角色承接、可读密度和用户选择空间，不急于闭环。",
+  restrained: "降低戏剧化和修辞密度，让张力留在行为、停顿和未说尽的对白里。",
+  dramatic: "每轮至少产生一个可观察的张力变化、立场碰撞或信息增量，但不替用户完成关键决定。",
+}[style]);
+
+const buildTavernPrompt = (chapter: DocumentSummary, config: TavernConfig, story: TavernStoryContext) => [
+  "你正在主持 Isle 章节酒馆。你同时承担导演调度与被调度角色的演绎，但不要向用户展示调度过程。",
+  `当前章节：${chapter.displayName}（${story.context.target?.id || chapter.ref.identity.id || "未知章节"}）。`,
+  `每轮最多选择 ${config.settings.directorMaxSpeakers} 个最应该回应的相关角色，按自然顺序发言；最多推进 ${config.settings.directorLoop.maxRounds} 轮内部承接。`,
+  `用户控制权：${config.settings.directorNarrativeControl.agencyMode}；调度规模：${config.settings.directorNarrativeControl.responseScale}；旁白压力：${config.settings.directorNarrativeControl.narratorPressure}。`,
+  "只能使用下方相关角色；不得替用户的主角做关键决定，不得泄露角色未知的秘密，不得凭空增加世界规则。",
+  ...tavernPresentationPrompt(config.presentation.profileId),
+  `房间文风：${tavernStylePrompt(config.roomStyleId)}`,
+  `系统叙事：${tavernNarrativePrompt(config.systemNarrative.styleId)}`,
+  config.settings.immersiveDescriptionEnabled
+    ? "允许少量沉浸式环境和动作描写，但描写必须推动回应。"
+    : "以清楚对白和行动为主，不主动加入独立氛围描写段。",
+  config.systemNarrative.customInstructions ? `房间自定义要求：${config.systemNarrative.customInstructions}` : "",
+  "相关角色：",
+  story.characters.length ? story.characters.map(character => [
+    `- ${character.name}（id=${character.id}）`,
+    character.description && `  人物：${character.description}`,
+    character.speakingStyle && `  说话风格：${character.speakingStyle}`,
+    character.goals && `  目标：${character.goals}`,
+    character.relationshipSummary && `  关系：${character.relationshipSummary}`,
+  ].filter(Boolean).join("\n")).join("\n") : "- 当前章节上下文没有召回明确角色；仅使用上下文中已有角色。",
+  "章节定向上下文：",
+  story.context.text,
+  "直接承接用户本轮输入开始演绎。不要解释这些规则，也不要修改故事项目文件。",
+].filter(Boolean).join("\n\n");
+
+function TavernRoom({ item, chapter, config, close }: {
+  item: LibraryItem; chapter: DocumentSummary; config: TavernConfig; close(): void;
+}) {
+  const [story, setStory] = useState<TavernStoryContext | null>(null);
+  const [error, setError] = useState("");
+  const chapterId = String(chapter.ref.identity.id || "");
+  useEffect(() => {
+    let alive = true;
+    setStory(null); setError("");
+    void call<TavernStoryContext>("isle_story_tavern_context", {
+      ...workspaceArgs(item.workspace), chapterId,
+    }).then(value => { if (alive) setStory(value); })
+      .catch(cause => { if (alive) setError(errorMessage(cause)); });
+    return () => { alive = false; };
+  }, [item.workspace.id, chapterId]);
+  if (!story) return <div className="story-empty story-tavern-empty">
+    {error ? <div className="story-alert">{error}</div> : "正在准备章节、角色与场景…"}
+  </div>;
+  const prompt = buildTavernPrompt(chapter, config, story);
+  return <section className={`story-tavern-room story-tavern-theme-${config.scenePresetId}`}>
+    <div className="story-tavern-chat">
+      <ChatPane workspace={item.workspace} scene={`tavern:${chapterId}`} prompt={prompt}
+        status={`导演调度 · ${story.characters.length} 位相关角色 · ${config.presentation.profileId}`}
+        onClose={close} closeLabel="关闭章节" allowNewSession />
+    </div>
+    <aside className="story-tavern-context">
+      <div className="story-tavern-scene-card"><span className="story-eyebrow">CURRENT CHAPTER</span>
+        <h2>{chapter.displayName}</h2><p>{story.context.target?.label || "章节定向上下文"}</p>
+        <div className="story-tavern-badges"><span>{config.roomStyleId}</span><span>{config.systemNarrative.styleId}</span></div></div>
+      <section><header><h3>在场角色</h3><small>{story.characters.length}</small></header>
+        <div className="story-character-list">{story.characters.length ? story.characters.map(character =>
+          <article className="story-character-card" key={character.id} title={character.description}>
+            <div className="story-character-avatar">{character.name.slice(0, 1)}</div>
+            <div><strong>{character.name}</strong><small>{character.speakingStyle || character.description || "跟随故事设定"}</small></div>
+          </article>) : <p className="story-hint">这一章尚未关联明确角色。</p>}</div></section>
+      <details className="story-context-details"><summary>本章故事上下文</summary>
+        <div>{story.context.sections.map(section => <section key={section.id}><h4>{section.label}</h4><p>{section.content}</p></section>)}</div>
+      </details>
+    </aside>
+  </section>;
+}
+
 function Tavern({ item, back, editor }: {
   item: LibraryItem; back(): void; editor(): void;
 }) {
@@ -518,10 +625,8 @@ function Tavern({ item, back, editor }: {
       <nav>{chapters.map(doc => <button type="button" key={keyOf(doc.ref)}
         className={`story-nav-item ${chapter === keyOf(doc.ref) ? "active" : ""}`} onClick={() => setChapter(keyOf(doc.ref))}>
         <span>✦</span>{doc.displayName}</button>)}</nav></aside>
-      {selected ? <ChatPane key={chapter} workspace={item.workspace}
-        scene={`tavern:${selected.ref.identity.id || keyOf(selected.ref)}`}
-        prompt={`当前讨论章节：${selected.displayName}，章节身份：${JSON.stringify(selected.ref)}。请调用 isle_story_read_context，scope=chapter，targetId=${selected.ref.identity.id || ""}。酒馆配置：${JSON.stringify(config)}。`}
-        onClose={() => setChapter("")} /> : <div className="story-empty story-tavern-empty">
+      {selected ? <TavernRoom key={chapter} item={item} chapter={selected} config={config} close={() => setChapter("")} />
+        : <div className="story-empty story-tavern-empty">
           <div className="story-empty-icon">✦</div><h2>选择章节，进入酒馆</h2>
           <p>围绕章节设定讨论情节、角色和写法。</p></div>}
     </div>}

@@ -204,6 +204,45 @@ const context = defineTool({
     return { context: await (await storyProjectApi.open(path)).readContext({ scope: input.scope, targetId: input.targetId }) };
   },
 });
+const tavernContext = defineTool({
+  risk: "low", name: "isle_story_tavern_context",
+  description: "读取章节酒馆所需的定向故事上下文和相关角色资料。",
+  parameters: {
+    type: "object",
+    properties: { ...workspaceFields, chapterId: { type: "string", minLength: 1 } },
+    required: [...workspaceRequired, "chapterId"], additionalProperties: false,
+  },
+  output,
+  async execute(args) {
+    const input = args as WorkspaceArgs & { chapterId: string };
+    const workspace = await storyProjectApi.open(await projectPath(input));
+    const [chapterContext, structure, documents] = await Promise.all([
+      workspace.readContext({ scope: "chapter", targetId: input.chapterId }),
+      workspace.describe(),
+      workspace.listDocuments(),
+    ]);
+    if (chapterContext.target?.id !== input.chapterId)
+      throw new Error(`章节上下文目标不一致：${input.chapterId}`);
+    const characterKind = structure.roles.character;
+    const relevant = new Set(chapterContext.sources
+      .filter(source => source.kind === characterKind)
+      .map(source => storyDocumentIdentityKey(source.ref)));
+    const characters = documents
+      .filter(document => document.ref.kind === characterKind && relevant.has(storyDocumentIdentityKey(document.ref)))
+      .map(document => document.value)
+      .filter((value): value is Record<string, StoryValue> => !!value && typeof value === "object" && !Array.isArray(value))
+      .map(value => ({
+        id: typeof value.id === "string" ? value.id : "",
+        name: typeof value.name === "string" ? value.name : "未命名角色",
+        avatar: typeof value.avatar === "string" ? value.avatar : "",
+        description: typeof value.description === "string" ? value.description : "",
+        speakingStyle: typeof value.speakingStyle === "string" ? value.speakingStyle : "",
+        goals: typeof value.goals === "string" ? value.goals : "",
+        relationshipSummary: typeof value.relationshipSummary === "string" ? value.relationshipSummary : "",
+      }));
+    return { context: chapterContext, characters };
+  },
+});
 const validateChanges = defineTool({
   risk: "low", name: "isle_story_validate_changes", description: "按原故事协议校验带修订版本的变更集，不写入文件。",
   parameters: { type: "object", properties: { ...workspaceFields, changeSet: {} }, required: [...workspaceRequired, "changeSet"], additionalProperties: false }, output,
@@ -274,5 +313,5 @@ const saveTavern = defineTool({
 
 export default [
   storyTypes, storySkill, skillResource, story, inspect, create, getDocument, save, remove, upgrade, context,
-  validateChanges, commitChanges, readTavern, saveTavern,
+  tavernContext, validateChanges, commitChanges, readTavern, saveTavern,
 ];

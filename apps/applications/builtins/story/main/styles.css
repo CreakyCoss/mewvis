@@ -139,6 +139,61 @@ button { cursor: pointer; }
 .story-chat-status { display: block; margin-top: 4px; color: var(--muted-foreground); font-size: 11px; font-weight: 500; }
 .story-chat-body { flex: 1; min-height: 0; overflow: hidden; }
 .story-tavern-layout > .story-chat-pane { flex: 1; min-width: 0; }
+.story-tavern-room {
+  --tavern-glow: color-mix(in oklab, var(--primary) 22%, transparent);
+  flex: 1; min-width: 0; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 286px;
+  background:
+    radial-gradient(circle at 72% 12%, var(--tavern-glow), transparent 38%),
+    linear-gradient(145deg, color-mix(in oklab, var(--background) 92%, var(--primary)), var(--background));
+}
+.story-tavern-theme-wuxia { --tavern-glow: rgb(142 105 54 / 25%); }
+.story-tavern-theme-tavern { --tavern-glow: rgb(156 78 34 / 28%); }
+.story-tavern-theme-modern { --tavern-glow: rgb(46 114 146 / 22%); }
+.story-tavern-theme-mystery { --tavern-glow: rgb(83 65 126 / 28%); }
+.story-tavern-theme-scifi { --tavern-glow: rgb(26 148 157 / 23%); }
+.story-tavern-theme-fantasy { --tavern-glow: rgb(116 66 168 / 25%); }
+.story-tavern-theme-oracle { --tavern-glow: rgb(102 71 144 / 28%); }
+.story-tavern-chat { min-width: 0; min-height: 0; padding: 14px 0 14px 14px; }
+.story-tavern-chat .story-chat-pane {
+  overflow: hidden; border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  border-radius: 15px; background: color-mix(in oklab, var(--card) 94%, transparent);
+  box-shadow: var(--shadow-card);
+}
+.story-tavern-chat .story-chat-pane > header { background: color-mix(in oklab, var(--card) 92%, transparent); }
+.story-tavern-context {
+  min-height: 0; overflow: auto; padding: 14px; display: flex; flex-direction: column; gap: 14px;
+}
+.story-tavern-context > section, .story-tavern-scene-card, .story-context-details {
+  border: 1px solid color-mix(in oklab, var(--border) 72%, transparent); border-radius: 13px;
+  background: color-mix(in oklab, var(--card) 92%, transparent); box-shadow: var(--shadow-card);
+}
+.story-tavern-scene-card { padding: 18px; }
+.story-tavern-scene-card h2 { margin: 5px 0 6px; font-size: 19px; line-height: 1.35; }
+.story-tavern-scene-card p { color: var(--muted-foreground); margin: 0; font-size: 12px; }
+.story-tavern-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
+.story-tavern-badges span {
+  border-radius: 999px; padding: 4px 8px; background: var(--accent); color: var(--accent-foreground);
+  font-size: 10px; font-weight: 700;
+}
+.story-tavern-context > section { padding: 14px; }
+.story-tavern-context > section > header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.story-tavern-context h3 { margin: 0; font-size: 13px; }
+.story-tavern-context header small { color: var(--muted-foreground); }
+.story-character-list { display: grid; gap: 7px; }
+.story-character-card { display: flex; align-items: center; gap: 9px; padding: 8px; border-radius: 9px; background: var(--story-soft); }
+.story-character-avatar {
+  width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 50%;
+  color: var(--primary-foreground); background: var(--primary); font-size: 13px; font-weight: 800;
+}
+.story-character-card div:last-child { min-width: 0; display: grid; gap: 2px; }
+.story-character-card strong { font-size: 12px; }
+.story-character-card small { color: var(--muted-foreground); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.story-context-details { overflow: hidden; }
+.story-context-details summary { cursor: pointer; padding: 13px 14px; font-size: 12px; font-weight: 700; }
+.story-context-details > div { max-height: 350px; overflow: auto; padding: 0 14px 14px; }
+.story-context-details section { border-top: 1px solid var(--story-line); padding: 10px 0 0; margin-top: 10px; }
+.story-context-details h4 { margin: 0 0 5px; font-size: 11px; }
+.story-context-details p { color: var(--muted-foreground); white-space: pre-wrap; font-size: 10px; line-height: 1.55; margin: 0; }
 @media (max-width: 760px) {
   .story-library { padding: 25px 15px; }
   .story-library-header, .story-topbar { align-items: start; flex-direction: column; }
@@ -147,4 +202,7 @@ button { cursor: pointer; }
   .story-document-editor { padding: 22px 18px; }
   .story-document-header { flex-direction: column; }
   .story-chat-pane > header { min-height: 64px; padding: 10px 14px; }
+  .story-tavern-room { grid-template-columns: minmax(0, 1fr); }
+  .story-tavern-context { display: none; }
+  .story-tavern-chat { padding: 8px; }
 }
