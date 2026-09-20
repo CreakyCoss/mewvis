@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { ChevronRightIcon, XIcon } from "lucide-react";
 import type { LedgerAuxiliaryEntry, LedgerMessage, LedgerResult, LedgerRuntimeLink } from "@/api/conversation-ledger";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "design-system/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "design-system/components/ui/dialog";
+import { ScrollArea } from "design-system/components/ui/scroll-area";
 
 type LedgerDialogProps = {
   ledger: LedgerResult | null;

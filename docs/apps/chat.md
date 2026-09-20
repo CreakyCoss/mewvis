@@ -166,3 +166,11 @@ Runtime 在实际执行前识别操作并进行安全检查。需要审批时，
 
 工具执行权限由 Runtime 策略统一控制。已启用的应用工具和内置业务工具按定义声明的风险等级审批；未声明风险的工具仍使用未知操作策略。已启用应用的加载不再单独请求审批。Agent Runtime 加载应用及执行工具均在本轮执行的沙箱进程中进行，三档共同遵守基础限制；
 桌面单独管理的 ApplicationHost 和直接 UI 调用不属于这个执行边界。
+
+## 场景介绍、技能与模型选择
+
+创建会话的 `profile` 支持 `introduction`、`skills` 和 `skillGroup`。`introduction` 是初始助手消息，沿用普通消息的持久化。`skills` 为 `{ key, name, label?, description, content }[]`，覆盖该场景的技能选择；传空数组表示没有技能选项，省略则使用宿主技能目录。`skillGroup` 可设置 `{ label, description? }`。这些字段只定义应用场景提示，不扩大工具权限。
+
+`chat.listModels()` 返回安全目录 `{ id, provider: { id, name }, modelId, modelName }[]`，不暴露 API Key。应用使用目录中的 `id` 调用 `session.updateConfig({ selectedModelId: id })`。
+
+`chat.deleteSession({ workspaceId, chatId })` 校验应用和工作区归属，关闭运行会话并删除对应聊天记录与会话目录。不能删除其他应用的记录；仅 `close()` 不删除历史。用于重置独立业务场景时，应用先按自己的 `sceneId` 筛选记录。

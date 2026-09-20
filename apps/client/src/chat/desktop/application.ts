@@ -3,6 +3,7 @@ import type {
   ApplicationChatCreateInput,
   ApplicationChatRequest,
   ApplicationChatSummary,
+  ApplicationModelOption,
 } from "@isle/app-sdk/chat";
 import type { ChatContext, ChatSession } from "../core";
 import type { DesktopChatService, DesktopSessionInput } from "./service";
@@ -13,6 +14,8 @@ type Access = { workspacePath: string; knowledge: boolean };
 type SessionInput = ApplicationChatCreateInput & { chatId: string };
 type Entry = { session: ChatSession; input: SessionInput };
 type Options = {
+  models?: (applicationId: string) => Promise<ApplicationModelOption[]>;
+  deleteRecord?: (workspacePath: string, chatId: string) => Promise<unknown>;
   authorize(applicationId: string, workspaceId: string): Promise<Access>;
   tools?: (applicationId: string) => Promise<string[]>;
   toolCatalog?: (applicationId: string) => Promise<ApplicationTool[]>;
@@ -39,11 +42,46 @@ function context(value: unknown): ChatContext {
     if (typeof value !== "string" || value.length > 64_000) throw new Error("场景上下文无效");
   return input;
 }
+function sceneSkills(value: unknown): NonNullable<ApplicationChatCreateInput["profile"]["skills"]> {
+  if (!Array.isArray(value) || value.length > 64) throw new Error("场景技能列表无效");
+  const keys = new Set<string>();
+  return value.map((item) => {
+    const skill = record(item);
+    only(skill, ["key", "name", "label", "description", "content"]);
+    const key = string(skill.key);
+    if (keys.has(key)) throw new Error("场景技能重复");
+    keys.add(key);
+    return {
+      key,
+      name: string(skill.name),
+      description: string(skill.description, 4096),
+      content: string(skill.content, 64000),
+      ...(skill.label === undefined ? {} : { label: string(skill.label) }),
+    };
+  });
+}
+function sceneSkillGroup(value: unknown) {
+  const group = record(value);
+  only(group, ["label", "description"]);
+  return {
+    label: string(group.label),
+    ...(group.description === undefined ? {} : { description: string(group.description, 4096) }),
+  };
+}
 function parseCreate(value: unknown): ApplicationChatCreateInput {
   const input = record(value);
   only(input, ["workspaceId", "sceneId", "profile"]);
   const profile = record(input.profile);
-  only(profile, ["id", "systemPrompt", "context", "allowedToolNames", "useKnowledge"]);
+  only(profile, [
+    "id",
+    "systemPrompt",
+    "context",
+    "allowedToolNames",
+    "useKnowledge",
+    "introduction",
+    "skills",
+    "skillGroup",
+  ]);
   if (profile.useKnowledge !== undefined && typeof profile.useKnowledge !== "boolean")
     throw new Error("useKnowledge 必须是布尔值");
   return {
@@ -51,6 +89,9 @@ function parseCreate(value: unknown): ApplicationChatCreateInput {
     sceneId: string(input.sceneId),
     profile: {
       id: string(profile.id),
+      ...(profile.skills === undefined ? {} : { skills: sceneSkills(profile.skills) }),
+      ...(profile.skillGroup === undefined ? {} : { skillGroup: sceneSkillGroup(profile.skillGroup) }),
+      ...(profile.introduction === undefined ? {} : { introduction: string(profile.introduction, 16000) }),
       systemPrompt: string(profile.systemPrompt, 64_000),
       context: profile.context === undefined ? undefined : context(profile.context),
       allowedToolNames: profile.allowedToolNames === undefined ? undefined : strings(profile.allowedToolNames),
@@ -78,7 +119,11 @@ export function createApplicationChatHost(service: DesktopChatService, options: 
     revisions.set(session, { snapshot, revision });
     return revision;
   };
-  const authorize = async (applicationId: string, input: ApplicationChatCreateInput, assignedToolNames: readonly string[]) => {
+  const authorize = async (
+    applicationId: string,
+    input: ApplicationChatCreateInput,
+    assignedToolNames: readonly string[],
+  ) => {
     const result = await options.authorize(applicationId, input.workspaceId);
     if (input.profile.useKnowledge && !result.knowledge) throw new Error("应用未获授权使用知识库");
     const catalog = options.toolCatalog ? await options.toolCatalog(applicationId) : undefined;
@@ -103,6 +148,19 @@ export function createApplicationChatHost(service: DesktopChatService, options: 
     let effectiveNames = allowed.effectiveNames;
     const profile: ChatProfile = {
       id: input.profile.id,
+      skills: input.profile.skills?.map((skill) => ({ ...skill, source: "system", path: "" })),
+      skillGroup: input.profile.skillGroup,
+      initialMessages: input.profile.introduction
+        ? [
+            {
+              id: `introduction:${input.chatId}`,
+              role: "assistant",
+              status: "done",
+              createdAt: Date.now(),
+              blocks: [{ id: `introduction-text:${input.chatId}`, type: "text", content: input.profile.introduction }],
+            },
+          ]
+        : undefined,
       systemPrompt: () => input.profile.systemPrompt,
       useKnowledge: input.profile.useKnowledge,
       resolveToolNames: () => effectiveNames,
@@ -169,6 +227,32 @@ export function createApplicationChatHost(service: DesktopChatService, options: 
           string(request.method, 64);
           if (new TextEncoder().encode(JSON.stringify(request)).byteLength > 256 * 1024)
             throw new Error("聊天请求超过 256 KiB");
+          if (request.method === "models") {
+            only(record(request), ["method"]);
+            if (!options.models) throw new Error("当前宿主不支持应用模型目录");
+            const result = await options.models(applicationId);
+            if (disposed) throw new Error("应用连接已断开");
+            return result;
+          }
+          if (request.method === "delete") {
+            const requested = record(request.input);
+            only(requested, ["workspaceId", "chatId"]);
+            const workspaceId = string(requested.workspaceId);
+            const chatId = string(requested.chatId);
+            const allowed = await options.authorize(applicationId, workspaceId);
+            const source = await service.loadRecordSource(allowed.workspacePath, chatId);
+            const input = parseSaved(applicationId, workspaceId, chatId, source);
+            if (!options.deleteRecord) throw new Error("当前宿主不支持删除应用会话");
+            const identity = { scope: `application:${applicationId}:workspace:${workspaceId}`, id: chatId };
+            if (service.getSession(identity)) {
+              const closed = await service.closeSession(identity);
+              if (!closed.ok) throw new Error(closed.error);
+            }
+            const current = await access(input);
+            if (current.workspacePath !== allowed.workspacePath) throw new Error("应用工作区已变化");
+            await options.deleteRecord(allowed.workspacePath, chatId);
+            return null;
+          }
           if (request.method === "tools") {
             only(record(request), ["method"]);
             if (!options.toolCatalog) throw new Error("当前宿主不支持应用工具目录");

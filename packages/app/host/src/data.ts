@@ -28,7 +28,7 @@ export function createNativeApplicationData(send: (message: unknown) => void) {
                 pending.delete(id);
                 reject(new Error("应用数据请求超时，请读取确认结果"));
               },
-              request.method === "workspaces.create" ? 75_000 : 30_000,
+              ["workspaces.create", "workspaces.selectDirectory"].includes(request.method) ? 75_000 : 30_000,
             );
             timer.unref?.();
             pending.set(id, { resolve, reject, timer });

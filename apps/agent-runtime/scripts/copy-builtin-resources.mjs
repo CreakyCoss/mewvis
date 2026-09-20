@@ -3,18 +3,15 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const runtimeRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
-const source = join(runtimeRoot, "src", "engines", "builtins", "story");
-const target = join(runtimeRoot, "dist", "builtins", "story");
-
+// Remove retired host-owned business resources from incremental builds.
+await rm(join(runtimeRoot, "dist", "builtins", "story"), {
+  recursive: true,
+  force: true,
+});
 await rm(join(runtimeRoot, "dist", "resources"), {
   recursive: true,
   force: true,
 });
-await rm(target, { recursive: true, force: true });
-await mkdir(target, { recursive: true });
-await cp(join(source, "skills"), join(target, "skills"), { recursive: true });
-
-console.log(`Agent runtime story built-in resources copied to ${target}`);
 
 // Bundle the independently built application packages with the Runtime distribution.
 const appHost = join(runtimeRoot, "../../packages/app/host/dist");

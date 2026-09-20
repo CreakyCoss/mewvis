@@ -1,4 +1,4 @@
-import { Markdown } from "@/components/markdown";
+import { Markdown } from "design-system/components/markdown";
 import type { TextBlockValue } from "./text";
 
 type MarkdownTextBlockProps = {

@@ -3,8 +3,8 @@ import { FolderOpen, Loader2, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { saveKnowledgeCollection } from "@/api/knowledge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "design-system/components/ui/alert";
+import { Button } from "design-system/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -12,11 +12,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-import { Textarea } from "@/components/ui/textarea";
+} from "design-system/components/ui/dialog";
+import { Input } from "design-system/components/ui/input";
+import { Label } from "design-system/components/ui/label";
+import { NativeSelect, NativeSelectOption } from "design-system/components/ui/native-select";
+import { Textarea } from "design-system/components/ui/textarea";
 import type { EmbeddingProfile } from "@/api/embedding";
 
 type CreateDialogProps = {

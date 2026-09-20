@@ -7,3 +7,11 @@ export function getApplicationHost() {
     );
   return host;
 }
+
+export async function writeClipboardText(text) {
+  if (typeof text !== "string") throw new Error("复制内容必须是文本");
+  const host = globalThis.isleApplication;
+  if (host?.writeClipboardText) return host.writeClipboardText(text);
+  if (!globalThis.navigator?.clipboard) throw new Error("当前环境不支持剪贴板");
+  return globalThis.navigator.clipboard.writeText(text);
+}

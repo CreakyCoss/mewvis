@@ -15,8 +15,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+} from "design-system/components/ui/alert-dialog";
+import { Button } from "design-system/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -24,12 +24,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-import { Switch } from "@/components/ui/switch";
-import { cn } from "@/lib/utils";
+} from "design-system/components/ui/dialog";
+import { Input } from "design-system/components/ui/input";
+import { Label } from "design-system/components/ui/label";
+import { NativeSelect, NativeSelectOption } from "design-system/components/ui/native-select";
+import { Switch } from "design-system/components/ui/switch";
+import { cn } from "design-system/lib/utils";
 import { saveLlmSettings } from "@/api/llm";
 import { getProviderApiFormatOptions, getProviderOption, getProviderOptions } from "../options";
 import {
@@ -546,7 +546,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
           <AlertDialogHeader>
             <AlertDialogTitle>删除“{providerDraft?.name || "这个 Provider"}”？</AlertDialogTitle>
             <AlertDialogDescription>
-              删除后，此 Provider 下的模型将不再出现在对话、角色和酒馆中。此操作无法撤销。
+              删除后，此 Provider 下的模型将不再出现在对话、角色和应用中。此操作无法撤销。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

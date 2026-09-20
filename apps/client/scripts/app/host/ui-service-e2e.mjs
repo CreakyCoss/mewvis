@@ -271,6 +271,29 @@ try {
     /UI 声明无效/,
   );
 
+  const largeRoot = join(tempDir, "large-ui-application");
+  cpSync(fixtureRoot, largeRoot, { recursive: true });
+  writeFileSync(join(largeRoot, "isle-ui.js"), `/*${"x".repeat(5 * 1024 * 1024)}*/`);
+  writeFileSync(join(largeRoot, "index.js"), `
+    export default { name: "large-response", inject: ["tools"], apply(ctx) {
+      ctx.tools.register({ name: "large_response", description: "Response limit fixture", risk: "low",
+        parameters: {}, output: { schema: {}, render: () => [] },
+        execute: () => "x".repeat(5 * 1024 * 1024) });
+    }};
+  `);
+  const large = await request("configure", {
+    settingsPath: join(tempDir, "large-settings"),
+    applications: [{ ...configuration.applications[0],
+      entry: pathToFileURL(join(largeRoot, "index.js")).href,
+      packageRoot: largeRoot, patchPath: join(largeRoot, "cordis.patch.yml"),
+    }],
+  });
+  assert.equal(large.applications[0].error, null);
+  assert.equal(large.applications[0].uiError, null);
+  assert.ok((await request("uiDocument", { applicationId: owner })).script.length > 4 * 1024 * 1024);
+  await assert.rejects(request("execute", { applicationId: owner, toolName: "large_response", arguments: {} }), /4 MiB/);
+  assert.equal((await request("catalog")).applications.length, 1, "oversized tool responses do not kill the host");
+
   await request("shutdown");
   child.stdin.end();
   const exitCode = await Promise.race([

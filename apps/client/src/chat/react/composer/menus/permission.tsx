@@ -1,12 +1,12 @@
 import { ChevronDown, ShieldCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "design-system/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "design-system/components/ui/dropdown-menu";
 import type { useChatControls } from "../../provider";
 
 export function PermissionMenu({

@@ -1,4 +1,4 @@
-import { Spinner } from "@/components/ui/spinner";
+import { Spinner } from "design-system/components/ui/spinner";
 import type { ChatAssistantMessageBlock } from "@/chat/core";
 import { MarkdownTextBlock } from "./types/markdown-text";
 import { ThinkingBlock } from "./types/thinking";

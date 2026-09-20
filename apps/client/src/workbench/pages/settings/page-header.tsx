@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { ChevronLeft } from "lucide-react";
 import { useNavigate } from "react-router";
-import { Button } from "@/components/ui/button";
+import { Button } from "design-system/components/ui/button";
 
 type SettingsPageHeaderProps = {
   title: string;

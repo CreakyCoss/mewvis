@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Layers3, Loader2, Plus } from "lucide-react";
 import { listEmbeddingProfiles, type EmbeddingProfile } from "@/api/embedding";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "design-system/components/ui/button";
+import { ScrollArea } from "design-system/components/ui/scroll-area";
 import { SettingsPageHeader } from "../page-header";
 import { EmbeddingEditDialog, type EmbeddingEditDialogHandle } from "./edit";
 import { embeddingProviderLabel, localOllamaBaseUrl } from "./ui-state";

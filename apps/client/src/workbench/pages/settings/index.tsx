@@ -1,7 +1,7 @@
 import { Bot, ChevronRight, GitBranch, Layers3, Settings, Shield, X } from "lucide-react";
 import { useNavigate } from "react-router";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "design-system/components/ui/button";
+import { ScrollArea } from "design-system/components/ui/scroll-area";
 import { AgentSettingsPage } from "./agent";
 import { EmbeddingSettingsPage } from "./embedding";
 import { LlmSettingsPage } from "./llm";

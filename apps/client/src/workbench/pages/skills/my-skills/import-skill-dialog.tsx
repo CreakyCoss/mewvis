@@ -3,8 +3,8 @@ import { openSystemDialog as openDialog } from "@/api/native";
 import { Download, FileArchive, Globe2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { getSkills, installSkillFromMarketplace } from "@/api/skills";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "design-system/components/ui/alert";
+import { Button } from "design-system/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -12,9 +12,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
+} from "design-system/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "design-system/components/ui/tabs";
+import { Textarea } from "design-system/components/ui/textarea";
 import { useSkillsStore } from "../store";
 
 type ImportMode = "remote" | "zip";

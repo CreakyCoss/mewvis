@@ -41,10 +41,19 @@ async function readBody(request: IncomingMessage) {
   }
 }
 
-function json(response: ServerResponse, status: number, value: unknown) {
+function json(
+  response: ServerResponse,
+  status: number,
+  value: unknown,
+  maxBytes = 16 * 1024 * 1024,
+) {
   const text = JSON.stringify(value);
-  if (Buffer.byteLength(text) > 16 * 1024 * 1024)
-    throw new ServiceError(413, "RESPONSE_TOO_LARGE", "响应超过 16 MiB");
+  if (Buffer.byteLength(text) > maxBytes)
+    throw new ServiceError(
+      413,
+      "RESPONSE_TOO_LARGE",
+      `响应超过 ${maxBytes / 1024 / 1024} MiB`,
+    );
   response.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
@@ -57,9 +66,10 @@ export async function startHttpServer(options: HttpServerOptions) {
   const streams = new Set<ServerResponse>();
   const requests = new Set<Promise<void>>();
   const expectedAuthorization = Buffer.from(`Bearer ${options.token}`);
-  const serveAssets = options.webRoot !== undefined
-    ? await webAssets(options.webRoot)
-    : undefined;
+  const serveAssets =
+    options.webRoot !== undefined
+      ? await webAssets(options.webRoot)
+      : undefined;
   const webToken = randomBytes(32).toString("hex");
   let cookieName = "";
   let url = "";
@@ -250,6 +260,7 @@ export async function startHttpServer(options: HttpServerOptions) {
         return;
       }
       if (request.method === "POST" && path.startsWith("/api/commands/")) {
+        const command = path.slice("/api/commands/".length);
         const args = await readBody(request);
         if (closing)
           throw new ServiceError(503, "SERVER_STOPPING", "Server 正在停止");
@@ -260,12 +271,20 @@ export async function startHttpServer(options: HttpServerOptions) {
         response.once("close", disconnected);
         if (response.destroyed) abort.abort();
         try {
-          const result = await commands.invoke(
-            path.slice("/api/commands/".length),
-            args,
-            { signal: abort.signal },
-          );
-          if (!response.destroyed) json(response, 200, result ?? null);
+          const result = await commands.invoke(command, args, {
+            signal: abort.signal,
+          });
+          if (!response.destroyed) {
+            // UI documents embed their assets; ordinary command responses keep the default bound.
+            json(
+              response,
+              200,
+              result ?? null,
+              command === "get_application_ui_document"
+                ? 24 * 1024 * 1024
+                : undefined,
+            );
+          }
         } finally {
           response.off("close", disconnected);
         }

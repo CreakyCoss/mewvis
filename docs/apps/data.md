@@ -85,7 +85,10 @@ interface ApplicationWorkspaces {
   create(input: {
     name: string;
     path?: string;
+    exclusive?: boolean;
   }): Promise<ApplicationWorkspace | null>;
+  selectDirectory(): Promise<string | null>;
+  remove(input: { id: string; deleteContent?: boolean }): Promise<void>;
   list(): Promise<ApplicationWorkspace[]>;
   get(id: string): Promise<ApplicationWorkspace>;
 }
@@ -104,6 +107,14 @@ interface ApplicationWorkspaces {
 取消目录选择或共享确认返回 `null`，不会新增工作区登记或修改共享目录。需要交互但没有可见宿主窗口时返回 `CONFIRMATION_UNAVAILABLE`。目录选择与确认共用 60 秒期限；超时不视为同意，之后的迟到确认不会完成登记。SDK 传输为 create 保留更长的等待时间。
 
 确认后宿主重新检查连接、权限和目录标识。若成员或目录已变化，返回错误，应用应重新发起，让用户看到最新信息。
+
+`selectDirectory()` 只选择目录，取消返回 `null`，不登记、不创建目录。适合先选择父目录再由应用命名项目的交互。与创建操作一样使用宿主目录选择器和交互超时。
+
+`create({ name, path, exclusive: true })` 要求目标目录尚不存在；通过独占目录创建避免覆盖同名项目。目录已存在时明确失败，即使此前已登记也不会复用。应用应在初始化业务内容失败时清理本次新建目录。
+
+### 移除
+
+`remove({ id })` 移除当前应用的登记及共享标识中的成员，保留目录内容。`deleteContent: true` 同时删除整个目录；默认工作区、共享目录、标识不匹配或路径已变化时拒绝删除。失效目录仍可仅移除登记。业务键不自动删除，由应用自己处理引用。
 
 ### 查询与默认目录
 
@@ -125,8 +136,8 @@ interface ApplicationWorkspaces {
 
 ## 宿主持久化与权限
 
-| SDK 服务       | 所需声明            |
-| -------------- | ------------------- |
+| SDK 服务       | 所需声明                 |
+| -------------- | ------------------------ |
 | `storage.*`    | `application-data`       |
 | `workspaces.*` | `application-workspaces` |
 

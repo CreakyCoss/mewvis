@@ -15,7 +15,7 @@ mkdirSync(runtime);
 let server;
 const workers = [];
 try {
-  for (const name of [entries.executionHost.output, entries.piToolWorker.output, "vendor", "builtins"])
+  for (const name of [entries.executionHost.output, entries.piToolWorker.output, "vendor"])
     cpSync(resolve("../agent-runtime/dist", name), join(runtime, name), { recursive: true });
   writeFileSync(
     join(runtime, "package.json"),
@@ -220,17 +220,10 @@ try {
     await tool.executor.dispose();
   }
   console.log("PASS all three profiles isolate file tools and Bash; full keeps shared restrictions");
-  const builtin = await open("auto", { skills: { enabled: ["story-assistant"] } });
-  assert.ok(builtin.catalog.tools.some((tool) => tool.name === "story"));
-  const initialized = await builtin.call("story", {
-    action: "initialize",
-    storyId: "sandbox-story",
-    title: "Sandbox story",
-  });
-  assert.equal(initialized.details.initialized, true, JSON.stringify(initialized));
-  assert.ok(existsSync(join(workspace, "story/.isle-claw/project.json")));
-  await builtin.executor.dispose();
-  console.log("PASS builtin business tools initialize and write through the isolated executor");
+  const ordinary = await open("auto", { skills: { enabled: ["story-assistant"] } });
+  assert.ok(!ordinary.catalog.tools.some((tool) => tool.name === "story"));
+  await ordinary.executor.dispose();
+  console.log("PASS story tools belong to the application, not global runtime sessions");
 
   let releaseTransaction;
   const entered = [];
@@ -336,7 +329,9 @@ try {
   process.env.ISLE_TEST_SECRET = "must-not-inherit";
   const applications = {
     applications: {
-      items: [{ kind: "isle", id: "sandbox-fixture", packageRoot: applicationRoot, entry: join(applicationRoot, "index.js") }],
+      items: [
+        { kind: "isle", id: "sandbox-fixture", packageRoot: applicationRoot, entry: join(applicationRoot, "index.js") },
+      ],
     },
   };
   const application = await open("full", applications);
@@ -346,7 +341,9 @@ try {
   assert.equal(meta.details.value.startupBlocked, true, "module initialization is isolated too");
   assert.equal(meta.details.value.hasSecret, false);
   await assert.rejects(application.call("fixture_effect", { action: "read", target: join(privatePath, "secret") }));
-  await assert.rejects(application.call("fixture_effect", { action: "write", target: join(privatePath, "application-write") }));
+  await assert.rejects(
+    application.call("fixture_effect", { action: "write", target: join(privatePath, "application-write") }),
+  );
   const fetched = await application.call("fixture_effect", {
     action: "network",
     target: `http://127.0.0.1:${server.address().port}`,

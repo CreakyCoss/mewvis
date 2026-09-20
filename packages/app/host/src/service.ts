@@ -4,7 +4,11 @@ import { createNativeApplicationData } from "./data.js";
 import { readToolPolicy, writeToolPolicy } from "./tool-policy.js";
 import { createInterface } from "node:readline";
 import { format } from "node:util";
-import { ApplicationHost, type ApplicationRuntimeKind, type ApplicationToolSchema } from "./index.js";
+import {
+  ApplicationHost,
+  type ApplicationRuntimeKind,
+  type ApplicationToolSchema,
+} from "./index.js";
 import {
   loadApplicationUiManifest,
   type ApplicationCompatibilityInfo,
@@ -57,9 +61,11 @@ type UiApplication = Readonly<{
 }>;
 
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
+const MAX_UI_DOCUMENT_RESPONSE_BYTES = 24 * 1024 * 1024;
 const TOOL_TIMEOUT_MS = 60_000;
 const protocolWrite = process.stdout.write.bind(process.stdout);
-const writeLog = (...values: unknown[]) => process.stderr.write(`${format(...values)}\n`);
+const writeLog = (...values: unknown[]) =>
+  process.stderr.write(`${format(...values)}\n`);
 
 console.log = writeLog;
 console.info = writeLog;
@@ -72,23 +78,32 @@ let applications: readonly UiApplication[] = Object.freeze([]);
 let uiDocuments = new Map<string, ApplicationUiDocument>();
 const nativeChat = createNativeApplicationChat(
   (message) => protocolWrite(JSON.stringify(message) + "\n"),
-  (applicationId) => applications.find((application) => application.id === applicationId)?.tools.map((tool) => tool.name) ?? [],
+  (applicationId) =>
+    applications
+      .find((application) => application.id === applicationId)
+      ?.tools.map((tool) => tool.name) ?? [],
 );
-const createDataConnection = () => createNativeApplicationData((message) => protocolWrite(JSON.stringify(message) + "\n"));
+const createDataConnection = () =>
+  createNativeApplicationData((message) =>
+    protocolWrite(JSON.stringify(message) + "\n"),
+  );
 let nativeData = createDataConnection();
 
 const asObject = (value: unknown, label: string): Record<string, unknown> => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label}必须是对象。`);
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error(`${label}必须是对象。`);
   return value as Record<string, unknown>;
 };
 
 const requiredString = (record: Record<string, unknown>, key: string) => {
   const value = record[key];
-  if (typeof value !== "string" || !value.trim()) throw new Error(`${key}不能为空。`);
+  if (typeof value !== "string" || !value.trim())
+    throw new Error(`${key}不能为空。`);
   return value;
 };
 
-const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
+const errorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
 
 const disposeHost = async () => {
   const current = host;
@@ -103,7 +118,8 @@ const disposeHost = async () => {
 const configure = async (value: unknown) => {
   const input = asObject(value, "Application Host 配置");
   const settingsPath = requiredString(input, "settingsPath");
-  if (!Array.isArray(input.applications)) throw new Error("applications 必须是数组。");
+  if (!Array.isArray(input.applications))
+    throw new Error("applications 必须是数组。");
   const runtimeApplications = input.applications as RuntimeApplication[];
 
   await disposeHost();
@@ -111,16 +127,24 @@ const configure = async (value: unknown) => {
   nativeData = createDataConnection();
   const nextHost = await ApplicationHost.create({
     applicationSettingsRoot: settingsPath,
-    data: (id) => nativeData.client(runtimeApplications.find((application) => application.id === id)?.dataConnection),
+    data: (id) =>
+      nativeData.client(
+        runtimeApplications.find((application) => application.id === id)
+          ?.dataConnection,
+      ),
     chat: (id) =>
-      runtimeApplications.find((application) => application.id === id)?.permissions?.includes("chat")
+      runtimeApplications
+        .find((application) => application.id === id)
+        ?.permissions?.includes("chat")
         ? nativeChat.client(id)
         : undefined,
   });
   const nextApplications: UiApplication[] = [];
   try {
     for (const application of runtimeApplications) {
-      const uiManifest = await loadApplicationUiManifest(application.packageRoot);
+      const uiManifest = await loadApplicationUiManifest(
+        application.packageRoot,
+      );
       const before = new Set(nextHost.toolSchemas().map((tool) => tool.name));
       let error: string | null = null;
       let tools: ApplicationToolSchema[] = [];
@@ -147,7 +171,9 @@ const configure = async (value: unknown) => {
         ui: uiManifest.contribution,
         uiError,
         compatibility: uiManifest.compatibility,
-        permissions: Array.isArray(application.permissions) ? application.permissions : [],
+        permissions: Array.isArray(application.permissions)
+          ? application.permissions
+          : [],
         agentAccess: application.agentAccess,
         permissionStatus:
           application.permissionStatus === "declared" ||
@@ -171,12 +197,19 @@ const configure = async (value: unknown) => {
 const uiDocument = (value: unknown) => {
   const input = asObject(value, "应用 UI 文档参数");
   const applicationId = requiredString(input, "applicationId");
-  const application = applications.find((candidate) => candidate.id === applicationId);
+  const application = applications.find(
+    (candidate) => candidate.id === applicationId,
+  );
   if (!application) throw new Error(`应用未启用或不存在：${applicationId}`);
-  if (application.uiError) throw new Error(`应用 ${application.name} 的 UI 声明无效：${application.uiError}`);
-  if (!application.ui) throw new Error(`应用 ${application.name} 没有声明沙箱 UI。`);
+  if (application.uiError)
+    throw new Error(
+      `应用 ${application.name} 的 UI 声明无效：${application.uiError}`,
+    );
+  if (!application.ui)
+    throw new Error(`应用 ${application.name} 没有声明沙箱 UI。`);
   const document = uiDocuments.get(applicationId);
-  if (!document) throw new Error(`应用 ${application.name} 的沙箱 UI 文档不可用。`);
+  if (!document)
+    throw new Error(`应用 ${application.name} 的沙箱 UI 文档不可用。`);
   return document;
 };
 
@@ -185,14 +218,18 @@ const execute = async (value: unknown) => {
   const input = asObject(value, "工具调用参数");
   const applicationId = requiredString(input, "applicationId");
   const toolName = requiredString(input, "toolName");
-  const application = applications.find((candidate) => candidate.id === applicationId);
+  const application = applications.find(
+    (candidate) => candidate.id === applicationId,
+  );
   if (!application) throw new Error(`应用未启用或不存在：${applicationId}`);
-  if (application.error) throw new Error(`应用 ${application.name} 加载失败：${application.error}`);
+  if (application.error)
+    throw new Error(`应用 ${application.name} 加载失败：${application.error}`);
   if (!application.tools.some((tool) => tool.name === toolName)) {
     throw new Error(`应用 ${application.name} 没有注册工具：${toolName}`);
   }
   const policy = await readToolPolicy(applicationSettingsRoot!, applicationId);
-  if (policy && !policy.allowedToolNames.includes(toolName)) throw new Error(`用户已禁用工具：${toolName}`);
+  if (policy && !policy.allowedToolNames.includes(toolName))
+    throw new Error(`用户已禁用工具：${toolName}`);
 
   const controller = new AbortController();
   const timeoutError = new Error(`工具执行超过 ${TOOL_TIMEOUT_MS / 1000} 秒。`);
@@ -232,7 +269,11 @@ const dispatch = async (request: RpcRequest) => {
     case "toolPolicy.set": {
       const input = asObject(request.params, "工具授权参数");
       const id = requiredString(input, "applicationId");
-      if (!host || !applicationSettingsRoot || !applications.some((application) => application.id === id))
+      if (
+        !host ||
+        !applicationSettingsRoot ||
+        !applications.some((application) => application.id === id)
+      )
         throw new Error("应用未启用或不存在");
       return request.method === "toolPolicy.get"
         ? readToolPolicy(applicationSettingsRoot, id)
@@ -254,17 +295,33 @@ const dispatch = async (request: RpcRequest) => {
   }
 };
 
-const send = (payload: unknown) => {
+const send = (payload: unknown, method?: string) => {
+  const maxBytes =
+    method === "uiDocument"
+      ? MAX_UI_DOCUMENT_RESPONSE_BYTES
+      : MAX_RESPONSE_BYTES;
   const responseId =
-    payload && typeof payload === "object" && "id" in payload ? (payload as { id?: unknown }).id : null;
+    payload && typeof payload === "object" && "id" in payload
+      ? (payload as { id?: unknown }).id
+      : null;
   let line: string;
   try {
     line = JSON.stringify(payload);
   } catch (error) {
-    line = JSON.stringify({ id: responseId, error: { message: `Application Host 响应无法序列化：${errorMessage(error)}` } });
+    line = JSON.stringify({
+      id: responseId,
+      error: {
+        message: `Application Host 响应无法序列化：${errorMessage(error)}`,
+      },
+    });
   }
-  if (Buffer.byteLength(line) > MAX_RESPONSE_BYTES) {
-    line = JSON.stringify({ id: responseId, error: { message: "Application Host 响应超过 4 MiB 上限。" } });
+  if (Buffer.byteLength(line) > maxBytes) {
+    line = JSON.stringify({
+      id: responseId,
+      error: {
+        message: `Application Host 响应超过 ${maxBytes / 1024 / 1024} MiB 上限。`,
+      },
+    });
   }
   protocolWrite(`${line}\n`);
 };
@@ -278,15 +335,19 @@ for await (const line of reader) {
     request = JSON.parse(line) as RpcRequest;
     if (nativeChat.receive(request)) continue;
     if (nativeData.receive(request)) continue;
-    if (request.id === undefined || typeof request.method !== "string") throw new Error("请求缺少 id 或 method。");
+    if (request.id === undefined || typeof request.method !== "string")
+      throw new Error("请求缺少 id 或 method。");
   } catch (error) {
-    send({ id: null, error: { message: `Application Host 请求无效：${errorMessage(error)}` } });
+    send({
+      id: null,
+      error: { message: `Application Host 请求无效：${errorMessage(error)}` },
+    });
     continue;
   }
 
   const job = (async () => {
     try {
-      send({ id: request.id, result: await dispatch(request) });
+      send({ id: request.id, result: await dispatch(request) }, request.method);
     } catch (error) {
       send({ id: request.id, error: { message: errorMessage(error) } });
     }

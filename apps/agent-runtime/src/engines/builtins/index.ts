@@ -1,8 +1,7 @@
 import { uniq } from "lodash-es";
-import { STORY_BUILTIN } from "./story/index.js";
-import { assertBuiltinDefinition, type BuiltinToolDefinition } from "./definition.js";
+import { assertBuiltinDefinition, type BuiltinDefinition, type BuiltinToolDefinition } from "./definition.js";
 
-const builtinRegistry = Object.freeze([STORY_BUILTIN] as const);
+const builtinRegistry = Object.freeze([] as BuiltinDefinition[]);
 
 const builtinInternalSkillNames = new Set<string>(builtinRegistry.flatMap((builtin) => builtin.skill.skills.names));
 const builtinPrivateToolNames = new Set<string>(

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Download, Loader2, PackageSearch, RefreshCw, Search, ShieldCheck, Star, TriangleAlert } from "lucide-react";
 import { searchApplicationMarketplace, type MarketplaceApplication } from "@/api/applications";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription, AlertTitle } from "design-system/components/ui/alert";
+import { Badge } from "design-system/components/ui/badge";
+import { Button } from "design-system/components/ui/button";
+import { Input } from "design-system/components/ui/input";
 
 type MarketplacePanelProps = {
   installedIds: Set<string>;

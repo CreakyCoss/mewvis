@@ -8,7 +8,7 @@ import {
   type ProtocolApi,
   type ProtocolDefinition,
   type ProtocolMemberDefinition,
-} from "../../../../client/core/protocol.js";
+} from "./protocol.js";
 import type { SafetyRisk } from "../../security/safety/types.js";
 
 export type ToolParameterDefinition =

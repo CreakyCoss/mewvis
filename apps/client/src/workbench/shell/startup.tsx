@@ -123,7 +123,7 @@ const StartupScreen = ({ isComplete = false, statusText }: StartupScreenProps) =
       <section className="startup-welcome__content">
         <header className="startup-welcome__brand">
           <StartupBrandName />
-          <p className="startup-welcome__tagline">你的 AI 故事创作伙伴</p>
+          <p className="startup-welcome__tagline">你的 AI 工作伙伴</p>
         </header>
 
         <div className="startup-welcome__status" role="status" aria-live="polite">

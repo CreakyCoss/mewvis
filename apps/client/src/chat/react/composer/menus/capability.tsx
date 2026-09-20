@@ -1,7 +1,7 @@
 import { useId } from "react";
 import { ChevronDown, Database, Puzzle, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "design-system/components/ui/button";
+import { Checkbox } from "design-system/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -13,7 +13,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "design-system/components/ui/dropdown-menu";
 import type { useChatControls } from "../../provider";
 
 type CapabilityMenuProps = {

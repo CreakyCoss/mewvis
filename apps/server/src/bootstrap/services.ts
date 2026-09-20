@@ -10,8 +10,6 @@ import { Sandbox } from "../modules/agent/sandbox.js";
 import { Applications } from "../modules/applications/service.js";
 import { WorkspaceFiles } from "../modules/files/service.js";
 import { Chats } from "../modules/chats/service.js";
-import { Tavern } from "../modules/tavern/service.js";
-import { Stories } from "../modules/stories/service.js";
 import { Skills } from "../modules/skills/service.js";
 import { VersionControl } from "../modules/version-control/service.js";
 import { Databases } from "../modules/database-admin/service.js";
@@ -69,8 +67,6 @@ export class ServerServices {
       dialogs: this.dialogs,
       files: this.files,
       chats: new Chats(config.appDataDirName, this.files),
-      tavern: new Tavern(config.appDataDirName, this.files),
-      stories: new Stories(database),
       versionControl: new VersionControl(config.appDataDirName),
       skills: new Skills(database, config.dataDir, config.bundledSkillsPath),
       sandbox: new Sandbox(config),

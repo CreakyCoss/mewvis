@@ -14,10 +14,10 @@ import {
 import { useEffect, useMemo, useRef } from "react";
 import { NavLink, useParams } from "react-router";
 import type { ApplicationUiApplication } from "@/api/applications";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Alert, AlertDescription, AlertTitle } from "design-system/components/ui/alert";
+import { Badge } from "design-system/components/ui/badge";
+import { Button } from "design-system/components/ui/button";
+import { cn } from "design-system/lib/utils";
 import { useApplicationLayout } from "@/workbench/shell/layout/application-layout";
 import { useApplicationCatalogStore } from "./catalog-store";
 import { ApplicationFrame } from "./application-frame";

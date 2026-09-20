@@ -1,7 +1,7 @@
 import { useRef, type ComponentType, type PropsWithChildren } from "react";
 import { SendIcon, SquareIcon } from "lucide-react";
-import { InputGroup, InputGroupAddon, InputGroupButton } from "@/components/ui/input-group";
-import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { InputGroup, InputGroupAddon, InputGroupButton } from "design-system/components/ui/input-group";
+import { Kbd, KbdGroup } from "design-system/components/ui/kbd";
 import { ChatEditor, type ChatEditorHandle } from "./editor";
 import { ModelMenu } from "./menus/model";
 import { PermissionMenu } from "./menus/permission";

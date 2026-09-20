@@ -311,7 +311,10 @@ test("uncertain transport failures are not retried or reported as host denial", 
 });
 
 test("browser clients require an explicit supported bridge and follow bridge replacement", async () => {
-  const previous = Object.getOwnPropertyDescriptor(globalThis, "isleApplication");
+  const previous = Object.getOwnPropertyDescriptor(
+    globalThis,
+    "isleApplication",
+  );
   try {
     for (const host of [
       undefined,
@@ -326,10 +329,53 @@ test("browser clients require an explicit supported bridge and follow bridge rep
         version: 1,
         data: { version: 1, request: async () => success(value) },
       };
-      assert.equal(await getApplicationDataClient().storage.getItem("key"), value);
+      assert.equal(
+        await getApplicationDataClient().storage.getItem("key"),
+        value,
+      );
     }
   } finally {
-    if (previous) Object.defineProperty(globalThis, "isleApplication", previous);
+    if (previous)
+      Object.defineProperty(globalThis, "isleApplication", previous);
     else delete globalThis.isleApplication;
   }
+});
+test("directory selection, exclusive creation and removal use the generic workspace transport", async () => {
+  const client = connect((request) =>
+    success(
+      request.method === "workspaces.selectDirectory"
+        ? "/chosen"
+        : request.method === "workspaces.create"
+          ? workspace
+          : null,
+    ),
+  );
+  assert.equal(await client.workspaces.selectDirectory(), "/chosen");
+  await client.workspaces.create({
+    name: "小说",
+    path: "/new",
+    exclusive: true,
+  });
+  await client.workspaces.remove({ id: "ws-1", deleteContent: true });
+  assert.deepEqual(client.requests, [
+    { version: 1, method: "workspaces.selectDirectory" },
+    {
+      version: 1,
+      method: "workspaces.create",
+      params: { name: "小说", path: "/new", exclusive: true },
+    },
+    {
+      version: 1,
+      method: "workspaces.remove",
+      params: { id: "ws-1", deleteContent: true },
+    },
+  ]);
+  await assert.rejects(
+    client.workspaces.remove({ id: "ws-1", deleteContent: "yes" }),
+    isCode("INVALID_ARGUMENT"),
+  );
+  await assert.rejects(
+    client.workspaces.create({ name: "小说", exclusive: "yes" }),
+    isCode("INVALID_ARGUMENT"),
+  );
 });

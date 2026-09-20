@@ -24,11 +24,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+} from "design-system/components/ui/alert-dialog";
+import { Button } from "design-system/components/ui/button";
+import { Input } from "design-system/components/ui/input";
+import { ScrollArea } from "design-system/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "design-system/components/ui/tooltip";
 import { useSkillsStore } from "../store";
 import { ALL_SKILLS_GROUP_ID, type SaveSkillGroupInput, type Skill, type SkillGroup } from "../types";
 import { EmptyState } from "./empty-state";

@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { Download, Loader2, ShieldCheck, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { installApplicationFromMarketplace, type MarketplaceApplication, type ApplicationDescriptor } from "@/api/applications";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "design-system/components/ui/alert";
+import { Badge } from "design-system/components/ui/badge";
+import { Button } from "design-system/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "design-system/components/ui/dialog";
 
 type MarketplaceInstallDialogProps = {
   application: MarketplaceApplication | null;

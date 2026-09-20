@@ -4,8 +4,8 @@ import { toast } from "sonner";
 import type { ApplicationTool } from "@isle/app-sdk/tools";
 import type { ApplicationDescriptor } from "@/api/applications";
 import { listApplicationTools, saveApplicationToolPolicy } from "@/api/applications/tools";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "design-system/components/ui/button";
+import { Checkbox } from "design-system/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "design-system/components/ui/dialog";
 
 export function ApplicationToolPermissions({ application, disabled }: { application: ApplicationDescriptor; disabled?: boolean }) {
   const [open, setOpen] = useState(false);

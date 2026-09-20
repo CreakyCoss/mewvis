@@ -22,6 +22,10 @@ export interface ApplicationBrowserHost {
     args?: Record<string, unknown>,
   ): Promise<ApplicationToolResult<T>>;
   getHost(): ApplicationHostInfo | null;
+  writeClipboardText?(text: string): Promise<void>;
   openExternal(url: string): Promise<{ opened: boolean }>;
 }
 export declare function getApplicationHost(): ApplicationBrowserHost;
+
+/** Copies from a user action, using the sandbox host when present. Never reads the clipboard. */
+export declare function writeClipboardText(text: string): Promise<void>;

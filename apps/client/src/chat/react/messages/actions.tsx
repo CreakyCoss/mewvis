@@ -1,6 +1,7 @@
+import { writeClipboardText } from "@isle/app-sdk/browser";
 import { useEffect, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "design-system/components/ui/button";
 import type { ChatMessage } from "@/chat/core";
 
 const getMessageText = (message: ChatMessage) => {
@@ -55,12 +56,12 @@ export const MessageActions = ({ message }: MessageActionsProps) => {
   }
 
   const copyMessage = async () => {
-    if (!text || !navigator.clipboard) {
+    if (!text) {
       return;
     }
 
     try {
-      await navigator.clipboard.writeText(text);
+      await writeClipboardText(text);
       setIsCopied(true);
     } catch {
       return;

@@ -1,5 +1,5 @@
 import { Bot, Brain, ChevronDown, Orbit, Wrench } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "design-system/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,8 +12,8 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Switch } from "@/components/ui/switch";
+} from "design-system/components/ui/dropdown-menu";
+import { Switch } from "design-system/components/ui/switch";
 import type { useChatControls } from "../../provider";
 
 type ModelMenuProps = {

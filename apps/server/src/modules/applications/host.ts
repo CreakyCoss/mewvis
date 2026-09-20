@@ -29,6 +29,7 @@ export class ApplicationHost {
       resolve: (v: any) => void;
       reject: (e: Error) => void;
       timer: NodeJS.Timeout;
+      maxResponseBytes: number;
     }
   >();
   private dataConnections: string[] = [];
@@ -68,7 +69,12 @@ export class ApplicationHost {
         void this.stop().catch(() => {});
       }, 65000);
       timer.unref();
-      this.pending.set(id, { resolve, reject, timer });
+      this.pending.set(id, {
+        resolve,
+        reject,
+        timer,
+        maxResponseBytes: (method === "uiDocument" ? 24 : 4) * 1024 * 1024,
+      });
       try {
         this.send({ id, method, params });
       } catch (e) {
@@ -157,20 +163,28 @@ export class ApplicationHost {
       let buffer = Buffer.alloc(0);
       child.stdout.on("data", (chunk: Buffer) => {
         buffer = Buffer.concat([buffer, chunk]);
-        if (buffer.length > 4 * 1024 * 1024) {
-          child.kill("SIGKILL");
-          return;
-        }
         let offset: number;
         while ((offset = buffer.indexOf(10)) >= 0) {
+          if (offset > 24 * 1024 * 1024) {
+            child.kill("SIGKILL");
+            return;
+          }
           const line = buffer.subarray(0, offset).toString("utf8");
           buffer = buffer.subarray(offset + 1);
           try {
-            this.receive(JSON.parse(line), connection);
+            const message = JSON.parse(line);
+            const maxBytes =
+              this.pending.get(String(message.id))?.maxResponseBytes ??
+              4 * 1024 * 1024;
+            if (offset > maxBytes) throw new Error("应用宿主响应过大");
+            this.receive(message, connection);
           } catch {
             child.kill("SIGKILL");
+            return;
           }
         }
+        // The frame bound allows UI documents; completed frames are checked against their own RPC method.
+        if (buffer.length > 24 * 1024 * 1024) child.kill("SIGKILL");
       });
       child.stderr.on("data", () => {});
       child.stdin.on("error", () => {});

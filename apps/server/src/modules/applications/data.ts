@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 import { randomUUID } from "node:crypto";
 import {
   Packages,
@@ -327,7 +327,11 @@ export class ApplicationData {
       await check();
       let result: any = null;
       if (workspace) {
-        if (method === "workspaces.list") {
+        if (method === "workspaces.selectDirectory") {
+          if (request.params != null) invalid("selectDirectory 不接受参数");
+          result = await this.ask(owner, "pick-directory", {});
+          await check();
+        } else if (method === "workspaces.list") {
           if (request.params != null) invalid("list 不接受参数");
           if (!(await this.records(owner)).some((r) => r.isDefault))
             await this.create(
@@ -350,13 +354,75 @@ export class ApplicationData {
             );
             if (!result) fail("WORKSPACE_NOT_FOUND", "当前应用未登记此工作区");
             await this.validate(owner, result);
+          } else if (method === "workspaces.remove") {
+            onlyKeys(p, ["id", "deleteContent"]);
+            if (
+              p.deleteContent !== undefined &&
+              typeof p.deleteContent !== "boolean"
+            )
+              invalid("deleteContent 必须为布尔值");
+            const record = (await this.records(owner)).find(
+              (r) => r.id === nonempty(p.id, "id"),
+            );
+            if (!record) fail("WORKSPACE_NOT_FOUND", "当前应用未登记此工作区");
+            if (record.isDefault)
+              fail("INVALID_ARGUMENT", "默认工作区不能移除");
+            await this.serial.run(async () => {
+              await check();
+              if (await exists(record.path)) {
+                await this.validate(owner, record);
+                const marker = await this.marker(record.path);
+                if (p.deleteContent) {
+                  if (
+                    marker.applications.length !== 1 ||
+                    dirname(record.path) === record.path
+                  )
+                    fail("PERMISSION_DENIED", "共享工作区或根目录不能删除");
+                  await fs.rm(record.path, { recursive: true });
+                } else {
+                  marker.applications = marker.applications.filter(
+                    (id: string) => id !== owner,
+                  );
+                  await jsonWrite(
+                    join(record.path, ".isle/workspace.json"),
+                    marker,
+                  );
+                }
+              }
+              const db = (await this.db(owner))!;
+              try {
+                db.prepare("DELETE FROM application_workspaces WHERE id=?").run(
+                  record.id,
+                );
+              } finally {
+                db.close();
+              }
+            });
           } else if (method === "workspaces.create") {
-            onlyKeys(p, ["name", "path"]);
+            onlyKeys(p, ["name", "path", "exclusive"]);
+            if (p.exclusive !== undefined && typeof p.exclusive !== "boolean")
+              invalid("exclusive 必须为布尔值");
             const name = nonempty(p.name, "name");
             if (name.length > 512) invalid("name 过长");
             let path = p.path;
             if (path == null)
               path = await this.ask(owner, "pick-directory", {});
+            if (path != null && p.exclusive) {
+              await check();
+              const directory = await normalizeWorkspacePath(
+                nonempty(path, "path"),
+              );
+              try {
+                await fs.mkdir(directory);
+              } catch (error) {
+                if ((error as NodeJS.ErrnoException).code === "EEXIST")
+                  fail(
+                    "WORKSPACE_UNAVAILABLE",
+                    "目录已存在，请选择新名称或导入工作区",
+                  );
+                throw error;
+              }
+            }
             if (path != null)
               result = await this.create(
                 owner,

@@ -1,13 +1,13 @@
 import { Loader2, Play, Wrench } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { executeApplicationUiTool, type ApplicationUiApplication, type ApplicationUiTool } from "@/api/applications";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "design-system/components/ui/alert";
+import { Badge } from "design-system/components/ui/badge";
+import { Button } from "design-system/components/ui/button";
+import { Input } from "design-system/components/ui/input";
+import { Label } from "design-system/components/ui/label";
+import { Switch } from "design-system/components/ui/switch";
+import { Textarea } from "design-system/components/ui/textarea";
 
 const initialValues = (tool: ApplicationUiTool) =>
   Object.fromEntries(Object.keys(tool.parameters.properties ?? {}).map((name) => [name, ""]));

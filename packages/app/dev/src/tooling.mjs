@@ -27,6 +27,7 @@ import { dshBundleCompatibilityPlugin } from "./dsh.mjs";
 
 import {
   readProject,
+  importSource,
   hostSource,
   uiSource,
   browserBoundary,
@@ -233,7 +234,10 @@ export const validateApplication = async (source) => {
     problems.push("缺少 isle.app 原生入口声明。");
   } else {
     if (application.version !== 1) problems.push("isle.app.version 必须为 1。");
-    if (typeof application.entry !== "string" || !ENTRY_PATTERN.test(application.entry)) {
+    if (
+      typeof application.entry !== "string" ||
+      !ENTRY_PATTERN.test(application.entry)
+    ) {
       problems.push("isle.app.entry 必须是以 ./ 开头的 .js 或 .mjs 文件。");
     } else {
       try {
@@ -492,6 +496,7 @@ export const packApplication = async ({
         },
         define: { "process.env.NODE_ENV": '"production"' },
         plugins: [
+          ...(await applicationStyles(validated.root)),
           ...(validated.project
             ? [browserBoundary(validated.root, validated.project)]
             : []),
@@ -515,11 +520,11 @@ export const packApplication = async ({
         Buffer.byteLength(
           bundle.outputFiles.find((file) => file.path.endsWith(".js")).text,
         ) >
-        512 * 1024
+        8 * 1024 * 1024
       )
-        throw new Error("应用 UI 超过 512 KiB 宿主限制");
-      if (Buffer.byteLength(style) > 256 * 1024)
-        throw new Error("应用样式超过 256 KiB 宿主限制");
+        throw new Error("应用 UI 超过 8 MiB 宿主限制");
+      if (Buffer.byteLength(style) > 2 * 1024 * 1024)
+        throw new Error("应用样式超过 2 MiB 宿主限制");
       manifest.isle.ui = {
         ...ui,
         entry: "./isle-ui.js",
@@ -643,3 +648,36 @@ export default defineApplication({
   await validateApplication(root);
   return Object.freeze({ root, name: packageName });
 };
+
+// A project's PostCSS pipeline is shared by production packaging and Vite preview.
+async function applicationStyles(root) {
+  const configPath = join(root, "postcss.config.mjs");
+  try {
+    await access(configPath);
+  } catch {
+    return [];
+  }
+  const { default: config } = await importSource(configPath);
+  if (!config || !Array.isArray(config.plugins))
+    throw new Error("postcss.config.mjs 必须提供 plugins 数组");
+  const postcss = createRequire(join(root, "package.json"))("postcss");
+  return [
+    {
+      name: "application-postcss",
+      setup(context) {
+        context.onLoad({ filter: /\.css$/ }, async ({ path }) => {
+          if (path.includes(`${sep}node_modules${sep}`)) return;
+          const result = await postcss(config.plugins).process(
+            await readFile(path, "utf8"),
+            { from: path },
+          );
+          return {
+            contents: result.css,
+            loader: "css",
+            resolveDir: dirname(path),
+          };
+        });
+      },
+    },
+  ];
+}

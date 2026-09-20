@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, ChevronRight, FolderPlus, Search, Sparkles, Trash2, X } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription } from "design-system/components/ui/alert";
+import { Button } from "design-system/components/ui/button";
+import { Checkbox } from "design-system/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -10,9 +10,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "design-system/components/ui/dialog";
+import { Input } from "design-system/components/ui/input";
+import { ScrollArea } from "design-system/components/ui/scroll-area";
 import { ALL_SKILLS_GROUP_ID, type Skill, type SkillGroup } from "../types";
 import { EmptyState } from "./empty-state";
 import {

@@ -131,7 +131,10 @@ export function createApplicationDataClient(transport) {
         typeof response.error.message !== "string"
       )
         fail("INVALID_RESPONSE", "宿主返回的应用数据错误无效");
-      throw new ApplicationDataError(response.error.code, response.error.message);
+      throw new ApplicationDataError(
+        response.error.code,
+        response.error.message,
+      );
     }
     return response.value;
   };
@@ -164,13 +167,37 @@ export function createApplicationDataClient(transport) {
     },
   });
   const workspaces = Object.freeze({
+    async remove(input) {
+      if (
+        !isObject(input) ||
+        !nonempty(input.id) ||
+        Object.keys(input).some(
+          (key) => !["id", "deleteContent"].includes(key),
+        ) ||
+        (input.deleteContent !== undefined &&
+          typeof input.deleteContent !== "boolean")
+      )
+        fail("INVALID_ARGUMENT", "工作区移除参数无效");
+      voidValue(
+        await request("workspaces.remove", copyJson(input, "INVALID_ARGUMENT")),
+      );
+    },
+    async selectDirectory() {
+      const value = await request("workspaces.selectDirectory");
+      if (value !== null && !nonempty(value))
+        fail("INVALID_RESPONSE", "目录选择结果无效");
+      return value;
+    },
     async create(input) {
       if (!isObject(input)) fail("INVALID_ARGUMENT", "工作区参数必须是对象");
       const params = copyJson(input, "INVALID_ARGUMENT");
       if (
-        Object.keys(params).some((key) => !["name", "path"].includes(key)) ||
+        Object.keys(params).some(
+          (key) => !["name", "path", "exclusive"].includes(key),
+        ) ||
         !nonempty(params.name) ||
-        ("path" in params && !nonempty(params.path))
+        ("path" in params && !nonempty(params.path)) ||
+        ("exclusive" in params && typeof params.exclusive !== "boolean")
       )
         fail("INVALID_ARGUMENT", "工作区参数只允许非空的 name 和可选 path");
       const value = await request("workspaces.create", params);

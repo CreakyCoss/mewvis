@@ -1,54 +1,112 @@
-import { readdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join, relative, resolve } from "node:path";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parse } from "yaml";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const skillsRoot = join(root, "skills");
-const output = join(root, "main", "host", "story-skills.generated.ts");
+const skillsRoot = join(root, "main", "host", "authoring", "skills");
+const compatibility =
+  (await readFile(join(skillsRoot, "runtime.md"), "utf8")).trimEnd() + "\n";
+const output = join(root, "main", "host", "generated", "skills.ts");
 
-const walk = async directory => (await Promise.all((await readdir(directory, { withFileTypes: true }))
-  .sort((left, right) => left.name.localeCompare(right.name))
-  .map(async entry => entry.isDirectory() ? walk(join(directory, entry.name)) : [join(directory, entry.name)]))).flat();
+const walk = async (directory) =>
+  (
+    await Promise.all(
+      (await readdir(directory, { withFileTypes: true }))
+        .sort((left, right) => left.name.localeCompare(right.name))
+        .map(async (entry) =>
+          entry.isDirectory()
+            ? walk(join(directory, entry.name))
+            : [join(directory, entry.name)],
+        ),
+    )
+  ).flat();
 
-const parseSkill = async directory => {
+const parseSkill = async (directory) => {
   const source = await readFile(join(directory, "SKILL.md"), "utf8");
-  const boundary = source.indexOf("\n---", 4);
-  if (!source.startsWith("---\n") || boundary < 0) throw new Error(`技能 frontmatter 无效：${directory}`);
-  const frontmatter = source.slice(4, boundary);
-  const name = /^name:\s*(.+)$/m.exec(frontmatter)?.[1]?.trim();
-  const folded = /^description:\s*>-\s*\n((?: {2}.*\n?)*)/m.exec(frontmatter)?.[1];
-  const plain = /^description:\s*([^\n]+)$/m.exec(frontmatter)?.[1]?.trim();
-  const description = folded
-    ? folded.split("\n").map(line => line.replace(/^ {2}/, "").trim()).filter(Boolean).join(" ")
-    : plain;
-  if (!name || !description) throw new Error(`技能名称或描述无效：${directory}`);
-  const body = source.slice(boundary + 4).trim();
-  const compatibility = [
-    "## Isle 内置故事应用运行约定",
-    "",
-    "本技能运行在 Isle 内置故事应用中。`story` 工具已经实现同版本 Story Contract；每次调用都必须带上系统提示给出的当前 `workspaceId`。不得猜测或访问其他工作区。",
-    "技能提到的 `references/...`、`scripts/...` 或 `../story-assistant/...` 资源由应用私有打包。需要读取时调用 `isle_story_skill_resource`，参数 `skillName` 使用当前技能名，`path` 使用文中相对路径；不要用普通 `read`、`find`、`grep` 或 shell 读取这些应用资源。",
-    "脚本资源用于说明确定性检查规则；当前应用不开放进程执行。需要质量检查时读取对应脚本规则并在当前文本上逐项检查，不得声称实际执行了脚本。",
-    "技能中的 `ask_user` 表示直接在当前聊天中向用户提出一个简短问题；它不是可调用工具。已有信息足够时直接继续，不要重复确认。",
-    "文中出现的 Mewvis 故事弹窗均指当前 Isle 故事助手。",
-    "",
-  ].join("\n");
-  return { name, description, content: `${compatibility}${body}` };
+  const block = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(source);
+  if (!block) throw new Error(`技能 frontmatter 无效：${directory}`);
+  const meta = parse(block[1], { maxAliasCount: 20 });
+  const { name, description } = meta;
+  if (
+    typeof name !== "string" ||
+    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name) ||
+    name !== basename(directory) ||
+    typeof description !== "string" ||
+    !description.trim()
+  ) {
+    throw new Error(`技能名称、目录或描述无效：${directory}`);
+  }
+  const privateTool = meta.metadata?.["isle-claw"]?.["required-private-tool"];
+  if (typeof privateTool !== "string" || !privateTool.trim())
+    throw new Error(`技能未声明 required-private-tool：${name}`);
+  const body = source.slice(block[0].length).trim();
+  // Only explicit inline paths in SKILL.md are dependencies. Natural-language mentions
+  // and example paths in upstream reference documents are not executable declarations.
+  const references = [...body.matchAll(/`([^`\n]+)`/g)].map(
+    (match) => match[1],
+  );
+  const paths = references.filter((value) =>
+    /^(?:references\/|scripts\/|\.\.\/)/.test(value),
+  );
+  const resources = paths.filter(
+    (value) => /\.(?:md|js|json|py)$/.test(value) && !/[{}*|]/.test(value),
+  );
+  const resourceDirectories = paths
+    .filter((value) => /[{}*]/.test(value))
+    .map((value) =>
+      value.slice(0, value.search(/[{}*]/)).replace(/[^/]*$/, ""),
+    );
+  const requirement = {
+    name,
+    tools: [
+      ...new Set([
+        privateTool,
+        "isle_story_skill",
+        "isle_story_skill_resource",
+      ]),
+    ],
+    skills: [
+      ...new Set(
+        references.filter((value) =>
+          /^story-assistant(?:-[a-z]+)*$/.test(value),
+        ),
+      ),
+    ],
+    resources: [...new Set(resources)],
+    resourceDirectories: [...new Set(resourceDirectories)],
+    actions: [
+      ...new Set(
+        [...body.matchAll(/\baction\s*=\s*["']([a-z_]+)["']/g)].map(
+          (match) => match[1],
+        ),
+      ),
+    ],
+  };
+  return {
+    definition: { name, description, content: `${compatibility}${body}` },
+    requirement,
+  };
 };
 
 const directories = (await readdir(skillsRoot, { withFileTypes: true }))
-  .filter(entry => entry.isDirectory())
-  .map(entry => join(skillsRoot, entry.name))
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => join(skillsRoot, entry.name))
   .sort();
-const definitions = await Promise.all(directories.map(parseSkill));
+const skills = await Promise.all(directories.map(parseSkill));
+const definitions = skills.map((skill) => skill.definition);
+const requirements = skills.map((skill) => skill.requirement);
 const resources = {};
-for (const file of await walk(skillsRoot)) {
+for (const file of (await Promise.all(directories.map(walk))).flat()) {
   const key = relative(skillsRoot, file).replaceAll("\\", "/");
   if (key.endsWith("/SKILL.md") || key.includes("/evals/")) continue;
   resources[key] = await readFile(file, "utf8");
 }
 
-const generated = `// Generated by scripts/generate-skills.mjs. Do not edit by hand.\n` +
+const generated =
+  `// Generated by scripts/generate-skills.mjs. Do not edit by hand.\n` +
   `export const storySkillDefinitions = ${JSON.stringify(definitions, null, 2)} as const;\n` +
+  `export const storySkillRequirements = ${JSON.stringify(requirements, null, 2)} as const;\n` +
   `export const storySkillResources: Readonly<Record<string, string>> = ${JSON.stringify(resources, null, 2)};\n`;
+await mkdir(dirname(output), { recursive: true });
 await writeFile(output, generated, "utf8");

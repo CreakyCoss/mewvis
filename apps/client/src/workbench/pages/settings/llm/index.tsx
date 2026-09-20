@@ -2,9 +2,9 @@ import { useEffect, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Plus, Sparkles } from "lucide-react";
 import type { LlmProvider } from "@/agent-client/runtime-model";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "design-system/components/ui/badge";
+import { Button } from "design-system/components/ui/button";
+import { ScrollArea } from "design-system/components/ui/scroll-area";
 import { getApiFormatLabel, getProviderWebsiteUrl } from "./options";
 import { ProviderEditDialog, type ProviderEditDialogHandle } from "./edit";
 import { useLlmSettingsStore } from "./store";
@@ -131,7 +131,7 @@ export const LlmSettingsPage = () => {
               <div className="space-y-1">
                 <h3 className="font-semibold">还没有配置 Provider</h3>
                 <p className="text-sm text-muted-foreground">
-                  添加模型服务后，就可以在聊天、角色和酒馆中选择启用的模型。
+                  添加模型服务后，就可以在聊天、角色和应用中选择启用的模型。
                 </p>
               </div>
               <Button type="button" onClick={openCreateProvider}>

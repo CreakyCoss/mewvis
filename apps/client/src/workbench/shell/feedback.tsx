@@ -7,8 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+} from "design-system/components/ui/dialog";
+import { Button } from "design-system/components/ui/button";
 
 type ConfirmationRequest = {
   id: number;

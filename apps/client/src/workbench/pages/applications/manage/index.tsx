@@ -18,12 +18,12 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+} from "design-system/components/ui/alert-dialog";
+import { Badge } from "design-system/components/ui/badge";
+import { Button } from "design-system/components/ui/button";
+import { ScrollArea } from "design-system/components/ui/scroll-area";
+import { Switch } from "design-system/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "design-system/components/ui/tabs";
 import { useApplicationCatalogStore } from "../catalog-store";
 import { ImportApplicationDialog } from "./import-dialog";
 import { MarketplaceInstallDialog } from "./market-install-dialog";

@@ -1,0 +1,15 @@
+@import "tailwindcss" source(none);
+@source "..";
+@import "design-system/theme.css";
+
+@layer components {
+  .tavern-immersive-markdown .tavern-immersive-em {
+    color: color-mix(in oklab, currentColor 86%, transparent);
+    font-family:
+      ui-serif, "Songti SC", "STSong", "Noto Serif CJK SC", Georgia, serif;
+    font-size: 0.99em;
+    font-style: italic;
+    font-weight: 430;
+    line-height: 1.8;
+  }
+}

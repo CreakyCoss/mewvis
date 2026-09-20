@@ -1,6 +1,6 @@
 import type { ComponentProps, HTMLAttributes } from "react";
 import { CircleAlertIcon } from "lucide-react";
-import { Spinner } from "@/components/ui/spinner";
+import { Spinner } from "design-system/components/ui/spinner";
 import { ChatProvider, useChatActions, useChatSnapshot, useChatViewState } from "./provider";
 import { MessagesView, type ChatMessagesProps } from "./messages";
 import { QuestionView } from "./question";

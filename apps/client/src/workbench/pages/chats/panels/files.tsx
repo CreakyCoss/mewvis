@@ -20,8 +20,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+} from "design-system/components/ui/alert-dialog";
+import { Button } from "design-system/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -29,10 +29,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Textarea } from "@/components/ui/textarea";
+} from "design-system/components/ui/dialog";
+import { Input } from "design-system/components/ui/input";
+import { ScrollArea } from "design-system/components/ui/scroll-area";
+import { Textarea } from "design-system/components/ui/textarea";
 import {
   deleteWorkspaceFile,
   getWorkspaceVersionControlStatus,

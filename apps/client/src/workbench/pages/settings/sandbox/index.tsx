@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getAgentRuntimeSandboxStatus, initializeAgentRuntimeSandbox } from "@/api/agent-runtime";
-import { Button } from "@/components/ui/button";
+import { Button } from "design-system/components/ui/button";
 import { SettingsPageHeader } from "../page-header";
 
 export function SandboxSettingsPage() {

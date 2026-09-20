@@ -7,7 +7,24 @@ import type {
 } from "@isle/chat-contracts";
 
 /** Serializable scene data. Identity, credentials and filesystem paths belong to the host. */
+export type ApplicationModelOption = {
+  id: string;
+  provider: { id: string; name: string };
+  modelId: string;
+  modelName: string;
+};
 export type ApplicationChatProfile = {
+  /** Assistant introduction shown for a newly created empty conversation. */
+  introduction?: string;
+  /** Application-owned scene skills. Omit to use the host catalog; [] disables scene skill choices. */
+  skills?: Array<{
+    key: string;
+    name: string;
+    label?: string;
+    description: string;
+    content: string;
+  }>;
+  skillGroup?: { label: string; description?: string };
   id: string;
   systemPrompt: string;
   context?: ChatContext;
@@ -55,11 +72,19 @@ export interface ApplicationChatSession extends ChatSession {
   reconnect(): Promise<void>;
 }
 export interface ApplicationChatClient {
+  /** Enabled models; credentials remain in the host. */
+  listModels(): Promise<ApplicationModelOption[]>;
+  /** Deletes a conversation belonging to the authenticated application. */
+  deleteSession(input: ApplicationChatSessionRef): Promise<void>;
   /** Read-only host tool catalog. The host checks chat permission independently of a workspace. */
   listTools(): Promise<import("../tools/index.js").ApplicationTool[]>;
-  listSessions(input: { workspaceId: string }): Promise<ApplicationChatSummary[]>;
+  listSessions(input: {
+    workspaceId: string;
+  }): Promise<ApplicationChatSummary[]>;
   /** Explicit creation; each call returns a new host-generated identity. */
-  createSession(input: ApplicationChatCreateInput): Promise<ApplicationChatSession>;
+  createSession(
+    input: ApplicationChatCreateInput,
+  ): Promise<ApplicationChatSession>;
   openSession(input: ApplicationChatOpenInput): Promise<ApplicationChatSession>;
   /** Detach this client only. Host sessions continue until explicitly closed. */
   dispose(): void;

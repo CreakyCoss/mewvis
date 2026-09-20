@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIcon, ChevronRightIcon, EyeIcon, RefreshCwIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "design-system/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "design-system/components/ui/dialog";
+import { ScrollArea } from "design-system/components/ui/scroll-area";
 import { summarizeChatLedger } from "@/chat/desktop/ledger";
 import { readLedger, type LedgerMessage, type LedgerResult, type LedgerRuntimeLink } from "@/api/conversation-ledger";
 import { LedgerDialog } from "./dialog";

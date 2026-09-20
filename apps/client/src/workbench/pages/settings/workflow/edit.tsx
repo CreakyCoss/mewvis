@@ -10,8 +10,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+} from "design-system/components/ui/alert-dialog";
+import { Button } from "design-system/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -19,11 +19,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-import { Textarea } from "@/components/ui/textarea";
+} from "design-system/components/ui/dialog";
+import { Input } from "design-system/components/ui/input";
+import { Label } from "design-system/components/ui/label";
+import { NativeSelect, NativeSelectOption } from "design-system/components/ui/native-select";
+import { Textarea } from "design-system/components/ui/textarea";
 import { createUuid } from "@/utils/ids";
 import type { AiAgent } from "../agent/types";
 import type { CollaborationWorkflow, CollaborationWorkflowStep, SaveCollaborationWorkflowInput } from "./types";

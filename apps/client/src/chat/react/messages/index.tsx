@@ -1,7 +1,7 @@
 import { Fragment, memo, type ReactNode } from "react";
 import { BotIcon, CircleAlertIcon } from "lucide-react";
 import { resolveAvatar } from "@/assets/avatars";
-import { Spinner } from "@/components/ui/spinner";
+import { Spinner } from "design-system/components/ui/spinner";
 import type { ChatDisplayOptions } from "@/chat/react/types";
 import type { ChatMessage } from "@/chat/core";
 import { MessageActions } from "./actions";

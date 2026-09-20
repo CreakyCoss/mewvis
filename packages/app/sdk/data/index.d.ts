@@ -36,15 +36,23 @@ export type ApplicationWorkspaceCreateInput = Readonly<{
   name: string;
   /** Omit to use the host's directory picker. An explicit path never bypasses sharing consent. */
   path?: string;
+  /** Require a new directory; never join or reuse existing content. */
+  exclusive?: boolean;
 }>;
 
 export interface ApplicationWorkspaces {
+  /** Select a directory without creating or registering a workspace. */
+  selectDirectory(): Promise<string | null>;
+  /** Detach this application. Content deletion is rejected for shared/default workspaces. */
+  remove(input: { id: string; deleteContent?: boolean }): Promise<void>;
   /**
    * Creates or joins a workspace using the desktop's directory initialization rules.
    * The host owns the marker, membership, permissions and any sharing confirmation.
    * Returns null if the user cancels the picker or confirmation, without enrolling the application.
    */
-  create(input: ApplicationWorkspaceCreateInput): Promise<ApplicationWorkspace | null>;
+  create(
+    input: ApplicationWorkspaceCreateInput,
+  ): Promise<ApplicationWorkspace | null>;
   /** Only this application's registered workspaces. Initializes its default once; never repairs missing directories. */
   list(): Promise<ApplicationWorkspace[]>;
   /**
@@ -103,11 +111,23 @@ export type ApplicationDataRequest =
       method: "storage.setItem";
       params: { key: string; value: ApplicationStorageValue };
     }
-  | { version: 1; method: "storage.clear" | "storage.keys" | "workspaces.list" }
+  | {
+      version: 1;
+      method:
+        | "storage.clear"
+        | "storage.keys"
+        | "workspaces.list"
+        | "workspaces.selectDirectory";
+    }
   | {
       version: 1;
       method: "workspaces.create";
       params: ApplicationWorkspaceCreateInput;
+    }
+  | {
+      version: 1;
+      method: "workspaces.remove";
+      params: { id: string; deleteContent?: boolean };
     }
   | { version: 1; method: "workspaces.get"; params: { id: string } };
 

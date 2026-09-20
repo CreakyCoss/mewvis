@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import { ChevronDownIcon, ChevronUpIcon, ShieldCheckIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "design-system/components/ui/button";
 import type { ChatPendingApproval, ChatSession } from "../core";
 import type { DesktopChatService } from "./service";
 

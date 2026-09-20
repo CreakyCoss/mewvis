@@ -25,8 +25,8 @@ export type ApplicationUiManifestResult = Readonly<{
 }>;
 
 const MAX_MANIFEST_BYTES = 512 * 1024;
-const MAX_SCRIPT_BYTES = 512 * 1024;
-const MAX_STYLE_BYTES = 256 * 1024;
+const MAX_SCRIPT_BYTES = 8 * 1024 * 1024;
+const MAX_STYLE_BYTES = 2 * 1024 * 1024;
 
 const asObject = (value: unknown, label: string): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label}必须是对象。`);

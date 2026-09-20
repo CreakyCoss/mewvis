@@ -6,10 +6,11 @@
   "private": true,
   "scripts": {
     "generate:skills": "node scripts/generate-skills.mjs",
-    "dev": "isle-app dev",
-    "build": "pnpm generate:skills && isle-app build",
-    "check": "pnpm generate:skills && isle-app check",
-    "test": "pnpm build && node --test test/*.test.mjs"
+    "dev": "pnpm generate:skills && pnpm check:registry && isle-app dev",
+    "build": "pnpm generate:skills && pnpm check:registry && isle-app build",
+    "check": "pnpm generate:skills && pnpm check:registry && isle-app check",
+    "test": "pnpm build && node --test test/*.test.mjs && node test/core-e2e.mjs && node test/contract-e2e.mjs && node test/commit-tool-e2e.mjs && node test/tavern-agent-protocol-e2e.mjs && node test/boundary.mjs && node test/binding.mjs",
+    "check:registry": "node scripts/check-registry.mjs"
   },
   "dependencies": {
     "@isle/app-sdk": "workspace:*",
@@ -17,13 +18,27 @@
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
-    "zod": "^4.2.0"
+    "zod": "^4.2.0",
+    "@base-ui/react": "^1.5.0",
+    "lodash-es": "^4.18.1",
+    "lucide-react": "^0.500.0",
+    "react-router": "^7.18.0",
+    "sonner": "^2.0.7",
+    "zustand": "^5.0.0",
+    "date-fns": "^4.2.1",
+    "design-system": "workspace:*"
   },
   "devDependencies": {
     "@isle/app-dev": "workspace:*",
     "@types/node": "^22.0.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
-    "typescript": "~5.8.3"
+    "typescript": "~5.8.3",
+    "@types/lodash-es": "^4.17.12",
+    "@tailwindcss/postcss": "^4.3.0",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^4.3.0",
+    "esbuild": "^0.28.0",
+    "yaml": "^2.9.0"
   }
 }

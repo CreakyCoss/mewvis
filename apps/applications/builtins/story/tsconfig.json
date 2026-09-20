@@ -1,4 +1,12 @@
 {
   "extends": "@isle/app-dev/tsconfig.json",
-  "include": ["main", "shared", "isle.config.ts"]
+  "include": ["main", "core", "isle.config.ts"],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["main/*"],
+      "@story/project": ["core/project/index.ts"],
+      "@story/project/*": ["core/project/*"]
+    }
+  }
 }

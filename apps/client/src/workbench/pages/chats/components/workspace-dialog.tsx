@@ -2,8 +2,8 @@ import { useImperativeHandle, useState, type ChangeEvent, type Ref } from "react
 import { openSystemDialog as openDirectoryDialog } from "@/api/native";
 import { FolderOpenIcon } from "lucide-react";
 import type { Workspace } from "@/api/workspace";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "design-system/components/ui/alert";
+import { Button } from "design-system/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,11 +11,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Spinner } from "@/components/ui/spinner";
-import { Textarea } from "@/components/ui/textarea";
+} from "design-system/components/ui/dialog";
+import { Input } from "design-system/components/ui/input";
+import { Label } from "design-system/components/ui/label";
+import { Spinner } from "design-system/components/ui/spinner";
+import { Textarea } from "design-system/components/ui/textarea";
 import { useWorkspaceStore } from "../workspace-store";
 
 export type WorkspaceDialogHandle = (workspace?: Workspace) => void;

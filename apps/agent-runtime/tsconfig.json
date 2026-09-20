@@ -13,9 +13,6 @@
   "include": [
     "src/**/*.ts",
     "protocol/**/*.json",
-    "../client/core/story-project/**/*.ts",
-    "../client/core/story-project/**/*.json",
-    "../client/core/protocol.ts",
     "../product.config.json"
   ]
 }

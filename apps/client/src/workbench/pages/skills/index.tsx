@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "design-system/components/ui/tabs";
 import { DiscoverSkillsTab } from "./discover";
 import { MySkillsTab } from "./my-skills";
 

@@ -21,8 +21,6 @@ export function registerCommands(services: Services) {
   registerWorkspaceCommands(commands, services.workspaces);
   registerModule(commands, services.files.commands());
   registerModule(commands, services.chats.commands());
-  registerModule(commands, services.tavern.commands());
-  registerModule(commands, services.stories.commands(), ["list_story_records"]);
   registerModule(commands, services.versionControl.commands());
   registerModule(commands, services.skills.commands(), ["get_skills"]);
   registerModule(commands, services.sandbox.commands(), [

@@ -1,7 +1,11 @@
 import { agentPermissionOptions } from "../../../src/agent-client/wire";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createApplicationChatClient, type ApplicationChatEvent, type ApplicationChatCreateInput } from "@isle/app-sdk/chat";
+import {
+  createApplicationChatClient,
+  type ApplicationChatEvent,
+  type ApplicationChatCreateInput,
+} from "@isle/app-sdk/chat";
 import { createChatService, createChatSession, type ChatRuntime } from "../../../src/chat/core";
 import { createApplicationChatHost } from "../../../src/chat/desktop/application";
 import type { DesktopSessionInput, DesktopChatService } from "../../../src/chat/desktop/service";
@@ -27,11 +31,14 @@ function fixture() {
   const records = new Map();
   const locations = new Map();
   const runs: string[] = [];
+  const profiles: DesktopSessionInput["profile"][] = [];
+  const deleted: string[] = [];
   const events = new Set<(event: any) => void>();
   let allowed = true;
   let gate: Promise<void> | undefined;
   const manager = createChatService(
     async ({ identity, workspacePath, workspaceId, origin, profileData, profile }: DesktopSessionInput) => {
+      profiles.push(profile);
       sources.set(JSON.stringify([workspacePath, identity.id]), () => ({
         workspaceId,
         origin,
@@ -111,6 +118,13 @@ function fixture() {
     loadRecordSource: async (path: string, id: string) => structuredClone(sources.get(JSON.stringify([path, id]))?.()),
   } as unknown as DesktopChatService;
   const host = createApplicationChatHost(service, {
+    models: async () => [
+      { id: "model", provider: { id: "provider", name: "Provider" }, modelId: "safe-model", modelName: "Model" },
+    ],
+    deleteRecord: async (_path, id) => {
+      deleted.push(id);
+      sources.delete(JSON.stringify([_path, id]));
+    },
     authorize: async () => {
       await gate;
       if (!allowed) throw new Error("permission denied");
@@ -135,6 +149,8 @@ function fixture() {
   };
   return {
     host,
+    profiles,
+    deleted,
     service,
     records,
     runs,
@@ -381,7 +397,8 @@ test(
       const message = JSON.parse(line);
       if (message.type === "application-chat:request") {
         void connection.request(message.request).then(
-          (result) => send({ type: "application-chat:response", id: message.id, applicationId: message.applicationId, result }),
+          (result) =>
+            send({ type: "application-chat:response", id: message.id, applicationId: message.applicationId, result }),
           (error) => send({ type: "application-chat:response", id: message.id, error: String(error) }),
         );
         return;
@@ -496,4 +513,41 @@ test("application can observe an approval but cannot authorize it through questi
   detach();
   await session.close();
   c.client.dispose();
+});
+
+test("application scene profiles preserve intro and skill choices; model listing and deletion stay generic and isolated", async () => {
+  const f = fixture();
+  const own = f.connect();
+  const session = await own.client.createSession({
+    ...input,
+    profile: {
+      ...input.profile,
+      introduction: "原场景介绍",
+      skills: [{ key: "scene", name: "scene", description: "当前场景", content: "场景指令" }],
+      skillGroup: { label: "场景技能" },
+    },
+  });
+  assert.equal(f.profiles[0].initialMessages?.[0].blocks[0].type, "text");
+  assert.equal(f.profiles[0].skills?.[0].content, "场景指令");
+  assert.equal(f.profiles[0].skillGroup?.label, "场景技能");
+  assert.equal((await own.client.listModels())[0].modelId, "safe-model");
+  const ref = { workspaceId: input.workspaceId, chatId: session.identity.id };
+  await assert.rejects(f.connect("other").client.deleteSession(ref), /当前应用和工作区/);
+  assert.deepEqual(f.deleted, []);
+  await own.client.deleteSession(ref);
+  assert.deepEqual(f.deleted, [ref.chatId]);
+  await assert.rejects(own.client.openSession(ref));
+  await assert.rejects(
+    own.client.createSession({
+      ...input,
+      profile: {
+        ...input.profile,
+        skills: [
+          { key: "dup", name: "s", description: "d", content: "c" },
+          { key: "dup", name: "s", description: "d", content: "c" },
+        ],
+      },
+    }),
+    /重复/,
+  );
 });

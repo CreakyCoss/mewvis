@@ -22,6 +22,7 @@
 ## Agent 运行时
 
 - [运行时概览](runtime/overview.md)
+- [内置工具与技能示例](runtime/builtins-example.md)
 - [Node 后端服务](runtime/server.md)
   - [Server 配置接口](runtime/server-settings.md)
   - [Server 工作区管理](runtime/server-workspaces.md)
@@ -45,6 +46,7 @@
 
 ## 内置应用
 
+- [故事工作台](apps/builtins/story.md)
 - [文档中心](apps/builtins/docs-reader.md)
 - [聊天调试台](apps/builtins/chat-playground.md)
 - [RSS 阅读器](apps/builtins/rss-reader.md)

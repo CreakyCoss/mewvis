@@ -2,10 +2,49 @@ import { randomUUID } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer, searchForWorkspaceRoot } from "vite";
+import ts from "typescript";
 import react from "@vitejs/plugin-react";
 import { validateApplication } from "./tooling.mjs";
 import { createDevHost, toolMiddleware } from "./dev-host.mjs";
 import { exists, isHostFile } from "./project.mjs";
+
+// Match production esbuild's tsconfig aliases in the Vite preview, including inherited paths.
+export function projectAliases(root) {
+  const configPath = ts.findConfigFile(
+    root,
+    ts.sys.fileExists,
+    "tsconfig.json",
+  );
+  if (!configPath) return [];
+  const parsed = ts.getParsedCommandLineOfConfigFile(
+    configPath,
+    {},
+    {
+      ...ts.sys,
+      onUnRecoverableConfigFileDiagnostic(d) {
+        throw new Error(ts.flattenDiagnosticMessageText(d.messageText, "\n"));
+      },
+    },
+  );
+  const options = parsed?.options ?? {};
+  return Object.entries(options.paths ?? {}).map(([key, values]) => {
+    const wildcard = key.endsWith("/*");
+    if (!values.length || (key.includes("*") && !wildcard))
+      throw new Error("开发预览仅支持精确路径别名和 /* 后缀别名");
+    const escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return {
+      find: new RegExp(
+        "^" +
+          escape(wildcard ? key.slice(0, -1) : key) +
+          (wildcard ? "(.+)$" : "$"),
+      ),
+      replacement: resolve(
+        options.baseUrl ?? options.pathsBasePath ?? root,
+        values[0],
+      ).replace(/\*$/, "$1"),
+    };
+  });
+}
 
 export async function createDevServer(
   source,
@@ -95,7 +134,10 @@ if (import.meta.hot) import.meta.hot.dispose(dispose);`;
     root,
     publicDir: false,
     plugins: [application, react()],
-    resolve: { dedupe: ["react", "react-dom", "@isle/app-sdk"] },
+    resolve: {
+      alias: projectAliases(root),
+      dedupe: ["react", "react-dom", "@isle/app-sdk"],
+    },
     optimizeDeps: {
       exclude: ["@isle/app-dev", "@isle/app-sdk/chat/react"],
       ...(middlewareMode ? { noDiscovery: true, include: [] } : {}),

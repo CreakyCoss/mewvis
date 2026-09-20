@@ -51,7 +51,7 @@ test("every registered Tauri backend command has a Node command", async (t) => {
       "utf8",
     ),
   );
-  assert.equal(names.length, 104);
+  assert.equal(names.length, 96);
   const response = await fetch(s.server.url + "/api/commands", {
     headers: { authorization: "Bearer " + token },
   });
@@ -153,27 +153,6 @@ test("file transactions protect revision, traversal and original data; chats pre
   await s.call("set_chat_unread", { chatId: chat.id, isUnread: true });
   assert.equal((await s.call("load_chat", { chatId: chat.id })).isUnread, true);
   assert.equal((await s.call("delete_chat", { chatId: chat.id })).length, 0);
-  const state = {
-    version: 4,
-    activeRoomId: "room",
-    rooms: [
-      {
-        id: "room",
-        activeSceneInstanceId: "scene",
-        sceneInstances: [{ id: "scene" }],
-      },
-    ],
-    messagesByInstance: { scene: [{ text: "hello" }] },
-  };
-  await s.call("save_tavern_state", { state });
-  assert.deepEqual(await s.call("load_tavern_state", {}), state);
-  await s.call("clear_tavern_state", {});
-  assert.equal(await s.call("load_tavern_state", {}), null);
-  const story = await s.call("create_story_record", { name: "测试小说" });
-  assert.equal(story.workspacePath, join(s.root, "测试小说"));
-  await s.call("update_story_record", { id: story.id, name: "新名字" });
-  await s.call("delete_story_record", { id: story.id });
-  assert.ok((await fs.stat(story.workspacePath)).isDirectory());
 });
 test("Git interfaces commit selected files, inspect history, branch, discard and restore without moving HEAD", async (t) => {
   const s = await setup(t);
@@ -240,12 +219,22 @@ test("Git interfaces commit selected files, inspect history, branch, discard and
 });
 test("database rebuild preserves matching records, keeps backups and exposes status", async (t) => {
   const s = await setup(t);
-  const story = await s.call("create_story_record", { name: "keep" });
+  const legacy = new DatabaseSync(join(s.root, "data/config.db"));
+  legacy
+    .prepare("INSERT INTO stories VALUES(?,?,?,?,?)")
+    .run("legacy-story", "keep", join(s.root, "keep"), 1, 1);
+  legacy.close();
   const result = await s.call("rebuild_config_database", {}, true);
   assert.equal(result.setupError, null);
   assert.ok(result.lastRebuild.restoredTables.includes("stories"));
   assert.ok(result.lastRebuild.warnings.some((x) => x.includes("backup-")));
-  assert.equal((await s.call("list_story_records", {}, true))[0].id, story.id);
+  const restored = new DatabaseSync(join(s.root, "data/config.db"));
+  assert.equal(
+    restored.prepare("SELECT name FROM stories WHERE id='legacy-story'").get()
+      .name,
+    "keep",
+  );
+  restored.close();
   assert.equal(
     (await s.call("initialize_config_database", {}, true)).setupError,
     null,
@@ -439,6 +428,54 @@ test("application data ownership, workspace confirmation, revocation and package
   );
   assert.equal((await pending).value.path, shared);
   unsubscribe();
+  assert.equal(
+    (await request("workspaces.remove", { id: workspaces.value[0].id })).ok,
+    false,
+  );
+  const exclusivePath = join(s.root, "exclusive");
+  const fresh = await request("workspaces.create", {
+    name: "exclusive",
+    path: exclusivePath,
+    exclusive: true,
+  });
+  assert.equal(fresh.ok, true, JSON.stringify(fresh));
+  await fs.writeFile(join(exclusivePath, "keep.txt"), "keep");
+  assert.equal(
+    (
+      await request("workspaces.create", {
+        name: "collision",
+        path: exclusivePath,
+        exclusive: true,
+      })
+    ).ok,
+    false,
+  );
+  assert.equal(
+    await fs.readFile(join(exclusivePath, "keep.txt"), "utf8"),
+    "keep",
+  );
+  assert.equal(
+    (
+      await request("workspaces.remove", {
+        id: fresh.value.id,
+        deleteContent: true,
+      })
+    ).ok,
+    true,
+  );
+  await assert.rejects(fs.stat(exclusivePath), { code: "ENOENT" });
+  const sharedId = (await pending).value.id;
+  assert.equal(
+    (await request("workspaces.remove", { id: sharedId, deleteContent: true }))
+      .ok,
+    false,
+  );
+  assert.equal((await request("workspaces.remove", { id: sharedId })).ok, true);
+  assert.deepEqual(
+    JSON.parse(await fs.readFile(join(shared, ".isle/workspace.json"), "utf8"))
+      .applications,
+    ["other"],
+  );
   assert.equal(
     (
       await request("workspaces.create", {

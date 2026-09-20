@@ -1,7 +1,7 @@
+import { getLlmModelOptions } from "@/api/llm";
+import { deleteChat } from "@/api/chat";
 import { createDesktopChatService } from "@/chat/desktop";
 import type { DesktopSessionInput } from "@/chat/desktop";
-import { loadStoryById } from "@/workbench/pages/stories/storage";
-import { prepareStoryChatProfile } from "@/workbench/pages/stories/story/actions/assistant/resources";
 import { listApplications, type ApplicationPermission } from "@/api/applications";
 import { createApplicationChatHost } from "@/chat/desktop/application";
 import { listApplicationTools } from "@/api/applications/tools";
@@ -14,17 +14,6 @@ export const chatService = createDesktopChatService({
     const source = value as { workspaceId: string; origin: { kind: string; sceneId: string } };
     if (source.origin.kind === "application") return applicationChatHost.resolveSession(workspacePath, chatId, value);
     if (source.origin.kind !== "builtin") throw new Error("聊天来源不可用");
-    if (source.origin.sceneId === "story-assistant") {
-      const story = await loadStoryById(source.workspaceId);
-      if (!story || story.workspace.path !== workspacePath) throw new Error("故事场景不可用");
-      return {
-        identity: { scope: `workspace:${source.workspaceId}`, id: chatId },
-        workspaceId: source.workspaceId,
-        workspacePath,
-        origin: { kind: "builtin", sceneId: "story-assistant" },
-        profile: prepareStoryChatProfile(story),
-      };
-    }
     throw new Error("聊天场景不可用");
   },
 });
@@ -53,6 +42,16 @@ async function requireApplication(applicationId: string) {
   return application;
 }
 export const applicationChatHost = createApplicationChatHost(chatService, {
+  async models(applicationId) {
+    await requireApplication(applicationId);
+    return (await getLlmModelOptions()).map(({ id, provider, modelId, modelName }) => ({
+      id,
+      provider,
+      modelId,
+      modelName,
+    }));
+  },
+  deleteRecord: deleteChat,
   async toolCatalog(applicationId) {
     await requireApplication(applicationId);
     return listApplicationTools(applicationId);

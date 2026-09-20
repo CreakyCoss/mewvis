@@ -19,20 +19,20 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "design-system/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "design-system/components/ui/dropdown-menu";
+import { ScrollArea } from "design-system/components/ui/scroll-area";
 import { WorkspaceDialog, type WorkspaceDialogHandle } from "@/workbench/pages/chats/components/workspace-dialog";
 import { useWorkspaceStore, type ChatActivity } from "@/workbench/pages/chats/workspace-store";
 import { chatActivityPresentation } from "../chat-activity";
 import type { ChatMeta } from "@/api/chat";
 import type { Workspace } from "@/api/workspace";
-import { cn } from "@/lib/utils";
+import { cn } from "design-system/lib/utils";
 import { formatRelativeTime } from "@/utils/time";
 
 const DEFAULT_VISIBLE_CHAT_LIMIT = 5;

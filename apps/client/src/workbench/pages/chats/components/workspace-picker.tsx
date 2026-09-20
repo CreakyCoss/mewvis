@@ -1,16 +1,16 @@
 import { useMemo, useState } from "react";
 import { CheckIcon, ChevronDownIcon, FolderIcon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
 import type { Workspace } from "@/api/workspace";
-import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Alert, AlertAction, AlertDescription } from "design-system/components/ui/alert";
+import { Button } from "design-system/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Spinner } from "@/components/ui/spinner";
+} from "design-system/components/ui/dropdown-menu";
+import { Spinner } from "design-system/components/ui/spinner";
 import { useWorkspaceStore } from "../workspace-store";
 
 type WorkspacePickerProps = {

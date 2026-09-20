@@ -14,17 +14,17 @@ import {
   Search,
 } from "lucide-react";
 import { getSkills, installSkillFromMarketplace, searchSkillMarketplace } from "@/api/skills";
-import { Button } from "@/components/ui/button";
+import { Button } from "design-system/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { TooltipProvider } from "@/components/ui/tooltip";
+} from "design-system/components/ui/dropdown-menu";
+import { Input } from "design-system/components/ui/input";
+import { ScrollArea } from "design-system/components/ui/scroll-area";
+import { TooltipProvider } from "design-system/components/ui/tooltip";
 import { useSkillsStore } from "../store";
 import type { MarketplaceSkill, SearchSkillMarketplaceInput, SkillMarketplaceSort } from "../types";
 import { MarketplaceResult } from "./marketplace";

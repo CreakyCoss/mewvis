@@ -50,6 +50,7 @@ console.log(response.value);
 - `window.isleApplication.version`：当前为 `1`。
 - `window.isleApplication.getHost()`：最近一次宿主描述，包括安全的应用元数据、`light` / `dark` 主题与工具 Schema。
 - `window.isleApplication.openExternal(url)`：由用户操作触发，请求宿主用系统浏览器打开 HTTP(S) 地址，其他协议会被拒绝。
+- `window.isleApplication.writeClipboardText(text)`：从用户点击操作复制文本，上限 256 KiB，不提供剪贴板读取。共享 Chat 消息与故事酒馆使用 SDK 的同名辅助函数，独立预览回退到浏览器剪贴板。
 - `isle:ready`：收到宿主描述后触发的窗口事件。
 - `isle:theme`：应用主题变化时触发的窗口事件。
 
@@ -63,7 +64,7 @@ console.log(response.value);
 - 工具参数必须是 JSON 对象，上限 256 KiB；每个 frame 最多同时调用四个工具。
 - 浏览器桥和 Node 宿主都会复核工具归属。
 
-iframe 离开宿主文档后不再展示界面。JS 入口上限 512 KiB，样式表上限 256 KiB。UI 加载或执行失败不影响工具与技能；无效 UI 声明回退到通用工具台。
+iframe 离开宿主文档后不再展示界面。JS 入口上限 8 MiB，样式表上限 2 MiB（图片、字体内联后的实际大小）。只有 UI 文档读取响应允许 24 MiB，以容纳内联资源及 JSON 编码开销；普通应用工具响应仍限制为 4 MiB，普通 HTTP 响应仍限制为 16 MiB。UI 加载或执行失败不影响工具与技能；无效 UI 声明回退到通用工具台。
 
 浏览器沙箱隔离 DOM 与应用权限，不会将安装包变为不可信数据。宿主侧 Cordis 入口是可执行 Node.js 代码，必须来自受信任来源。
 
@@ -72,3 +73,14 @@ iframe 离开宿主文档后不再展示界面。JS 入口上限 512 KiB，样�
 上游 `dsh.client` 面向 DeepSeek 浏览器模块表、React 实例、Cordis 客户端运行器与类型化插槽。Isle 识别该声明，但不在应用上下文执行它。双目标包可以保留 DSH 的 `./client` 导出，再增加小型 `isle.ui` 入口；两套 UI 可以调用同一批宿主工具，共享业务行为。
 
 Isle 的 DSH 打包目标目前只生成宿主 Cordis 声明。已有的自定义 `dsh.client` 构建仍由应用自身维护。
+
+## 共享基础组件
+
+宿主和内置应用可以共同依赖工作区包 `design-system`，通过 `design-system/components/ui/button`、`design-system/components/ui/dialog`、`design-system/components/markdown` 等入口复用组件，通过 `design-system/lib/utils` 使用 `cn`。组件实现不依赖宿主目录、Tauri 或应用业务。
+
+Tailwind 入口先导入 `tailwindcss`，再导入 `design-system/theme.css`；后者包含主题变量、通用样式及共享组件的源码扫描声明。应用继续扫描自己的页面源码，并维护业务专属样式。这个包在构建时复用，应用通过现有沙箱打包流程运行；Chat 仍通过 `@isle/app-sdk/chat/react` 使用。
+
+
+共享目录保持原组件层级：`packages/design-system/components/ui/` 存放基础 UI，`packages/design-system/components/markdown.tsx` 等上层通用组件与 `ui/` 同级。配套工具和 hooks 分别放在 `lib/`、`hooks/`；主题入口为 `design-system/theme.css`。新增通用组件直接放入对应目录，包的子路径导出会自动覆盖它，无需在宿主保留转发文件。
+
+`components.json` 和组件生成所需别名统一放在 `packages/design-system`，后续组件生成从该目录执行。`pnpm --filter design-system check` 检查整个共享包，包括当前尚无调用方的组件。宿主的原生窗口拖动组件属于 `workbench/shell/layout`，不进入通用组件包。

@@ -1,8 +1,8 @@
 import { useEffect, useState, useId } from "react";
 import { Clock3Icon, MessageCircleQuestionIcon, SendIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "design-system/components/ui/button";
+import { Spinner } from "design-system/components/ui/spinner";
+import { Textarea } from "design-system/components/ui/textarea";
 import type { ChatPendingQuestion } from "../core";
 
 type ChatQuestionProps = {

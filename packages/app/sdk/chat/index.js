@@ -17,7 +17,12 @@ export function createApplicationChatClient(transport) {
   };
   const request = (method, handle, input, watchId) => {
     assertActive();
-    return transport.request({ method, handle, input, watchId });
+    return transport.request({
+      method,
+      ...(handle === undefined ? {} : { handle }),
+      ...(input === undefined ? {} : { input }),
+      ...(watchId === undefined ? {} : { watchId }),
+    });
   };
   const detach = transport.subscribe((event) =>
     sessions.get(event.handle)?.accept(event),
@@ -132,6 +137,8 @@ export function createApplicationChatClient(transport) {
     return entry.session;
   };
   return {
+    listModels: () => request("models"),
+    deleteSession: (input) => request("delete", undefined, input),
     listTools: () => {
       assertActive();
       return transport.request({ method: "tools" });

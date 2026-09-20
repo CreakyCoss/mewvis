@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GitBranch, Loader2, Plus } from "lucide-react";
 import { getAiAgentSettings } from "@/api/agents";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "design-system/components/ui/button";
+import { ScrollArea } from "design-system/components/ui/scroll-area";
 import { formatDateTime } from "@/utils/time";
 import { SettingsPageHeader } from "../page-header";
 import { WorkflowEditDialog, type WorkflowEditDialogHandle } from "./edit";

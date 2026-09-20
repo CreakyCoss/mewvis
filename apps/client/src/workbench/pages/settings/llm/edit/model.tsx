@@ -2,8 +2,8 @@ import { useState } from "react";
 import { ChevronDown, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { getModelThinking, type LlmProviderConfig, type ProviderModelConfig } from "@/agent-client/runtime-model";
 import type { RuntimeModelThinking } from "@/agent-client/wire";
-import { Button } from "@/components/ui/button";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Button } from "design-system/components/ui/button";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "design-system/components/ui/command";
 import {
   Dialog,
   DialogContent,
@@ -11,14 +11,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Switch } from "@/components/ui/switch";
-import { cn } from "@/lib/utils";
+} from "design-system/components/ui/dialog";
+import { Input } from "design-system/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "design-system/components/ui/input-group";
+import { Label } from "design-system/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "design-system/components/ui/radio-group";
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "design-system/components/ui/popover";
+import { Switch } from "design-system/components/ui/switch";
+import { cn } from "design-system/lib/utils";
 import { getProviderModelOptions, THINKING_LEVEL_PRESETS } from "../options";
 import { applyModelDefaults, createModelConfig } from "./utils";
 

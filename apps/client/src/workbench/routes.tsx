@@ -6,7 +6,6 @@ import { HubPage } from "@/workbench/pages/hub";
 import { KnowledgePage } from "@/workbench/pages/knowledge";
 import { ApplicationUiPage } from "@/workbench/pages/applications";
 import { ApplicationManagePage } from "@/workbench/pages/applications/manage";
-import { StoriesPage } from "@/workbench/pages/stories";
 import { AgentPage, EmbeddingPage, LlmPage, SettingsPage, WorkflowPage } from "@/workbench/pages/settings";
 import { SkillsPage } from "@/workbench/pages/skills";
 import { SandboxSettingsPage } from "@/workbench/pages/settings/sandbox";
@@ -21,7 +20,6 @@ export const AppRoutes = () => (
         <Route path="skills" element={<SkillsPage />} />
         <Route path="knowledge" element={<KnowledgePage />} />
         <Route path="knowledge/:collectionId" element={<KnowledgePage />} />
-        <Route path="stories" element={<StoriesPage />} />
         <Route path="apps" element={<ApplicationUiPage />} />
         <Route path="apps/manage" element={<ApplicationManagePage />} />
         <Route path="apps/:applicationId" element={<ApplicationUiPage />} />

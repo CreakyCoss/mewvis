@@ -12,8 +12,8 @@ import {
   type ApplicationUiDocument,
   type ApplicationUiApplication,
 } from "@/api/applications";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "design-system/components/ui/alert";
+import { Badge } from "design-system/components/ui/badge";
 
 async function openUrl(url: string) {
   if (isTauri()) return nativeOpenUrl(url);
@@ -37,12 +37,20 @@ const BRIDGE_SOURCE = String.raw`
   const send = (message) => parent.postMessage({ channel, ...message }, "*");
   const api = Object.freeze({
     version: 1,
+    writeClipboardText(text) {
+      if (typeof text !== "string" || new TextEncoder().encode(text).byteLength > 256 * 1024) return Promise.reject(new Error("复制内容超过 256 KiB 或格式无效"));
+      if (navigator.userActivation && !navigator.userActivation.isActive) return Promise.reject(new Error("复制需要用户操作"));
+      const id = String(nextId++);
+      return new Promise((resolve, reject) => {
+        pending.set(id, { resolve, reject }); send({ type: "host:clipboard-write", id, text });
+      });
+    },
     data: Object.freeze({
       version: 1,
       request(request) {
         const id = String(nextId++);
         return new Promise((resolve, reject) => {
-          const timer = setTimeout(() => { pending.delete(id); reject(new Error("应用数据请求超时，请重新读取确认结果")); }, request?.method === "workspaces.create" ? 75000 : 30000);
+          const timer = setTimeout(() => { pending.delete(id); reject(new Error("应用数据请求超时，请重新读取确认结果")); }, ["workspaces.create", "workspaces.selectDirectory"].includes(request?.method) ? 75000 : 30000);
           pending.set(id, { resolve: (value) => { clearTimeout(timer); resolve(value); }, reject: (error) => { clearTimeout(timer); reject(error); } });
           send({ type: "data:request", id, request });
         });
@@ -236,6 +244,19 @@ export const ApplicationFrame = ({
       }
       if (message.type === "application:error") {
         setRuntimeError(typeof message.message === "string" ? message.message : "应用 UI 运行失败。");
+        return;
+      }
+      if (message.type === "host:clipboard-write") {
+        if (typeof message.id !== "string" || !message.id || message.id.length > 128) return;
+        if (typeof message.text !== "string" || new TextEncoder().encode(message.text).byteLength > MAX_ARGUMENT_BYTES) {
+          post({ type: "host:result", id: message.id, error: "复制内容超过 256 KiB 或格式无效" }); return;
+        }
+        if (navigator.userActivation && !navigator.userActivation.isActive) {
+          post({ type: "host:result", id: message.id, error: "复制需要用户操作" }); return;
+        }
+        void navigator.clipboard.writeText(message.text)
+          .then(() => post({ type: "host:result", id: message.id, result: null }))
+          .catch(error => post({ type: "host:result", id: message.id, error: String(error?.message || error) }));
         return;
       }
       if (message.type === "host:open-external") {

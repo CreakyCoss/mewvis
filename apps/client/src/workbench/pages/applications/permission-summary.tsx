@@ -16,9 +16,9 @@ import {
 } from "lucide-react";
 import type { AgentAccess, AgentAccessBase, AgentAccessPaths } from "@isle/chat-contracts";
 import type { ApplicationPermission, ApplicationPermissionStatus } from "@/api/applications";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "design-system/components/ui/popover";
+import { useIsMobile } from "design-system/hooks/use-mobile";
+import { cn } from "design-system/lib/utils";
 
 type PermissionSummaryProps = {
   permissions: ApplicationPermission[];

@@ -1,4 +1,4 @@
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "design-system/components/ui/sonner";
 import { ConfigDatabaseDialog } from "@/workbench/shell/recovery";
 import { AppSidebar } from "@/workbench/shell/sidebar";
 import { useWorkspaceStore } from "@/workbench/pages/chats/workspace-store";

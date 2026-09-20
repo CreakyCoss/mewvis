@@ -115,7 +115,7 @@ export class WorkspaceFiles {
             ? present
             : !present || (await jsonRead(target)).revision !== expected
         )
-          throw new ServiceError(409, "REVISION_CONFLICT", "故事项目版本冲突");
+          throw new ServiceError(409, "REVISION_CONFLICT", "文件版本冲突");
       }
       const targets = new Map<string, string>();
       for (const rel of paths) {

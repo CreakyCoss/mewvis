@@ -3,9 +3,9 @@ import { openSystemDialog as openDialog } from "@/api/native";
 import { FolderOpen, Loader2, PackagePlus, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { inspectApplication, installApplication, type ApplicationDescriptor } from "@/api/applications";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "design-system/components/ui/alert";
+import { Badge } from "design-system/components/ui/badge";
+import { Button } from "design-system/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -13,9 +13,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+} from "design-system/components/ui/dialog";
+import { Label } from "design-system/components/ui/label";
+import { Switch } from "design-system/components/ui/switch";
 import { ApplicationPermissionSummary } from "../permission-summary";
 
 type ImportApplicationDialogProps = {

@@ -186,7 +186,7 @@ Node 应用确认 `context.chat` 可用后，使用 `createApplicationToolClient
 
 开发宿主只加载这里声明的工具与技能数组，不模拟完整 Cordis settings/services 生命周期，也不提供生产权限隔离。真实模型、文件权限和安装沙箱应在 Isle 中验证。
 
-CSS 可以直接 import；图片和字体使用模块导入或 CSS 相对引用，打包为 data URL 以符合沙箱 CSP。不要依赖 `/public/...` 地址或浏览器直接访问网络、Node、Tauri。前端可使用普通 React 库，但产物仍受宿主 512 KiB JS / 256 KiB CSS 限制。
+CSS 可以直接 import；图片和字体使用模块导入或 CSS 相对引用，打包为 data URL 以符合沙箱 CSP。不要依赖 `/public/...` 地址或浏览器直接访问网络、Node、Tauri。前端可使用普通 React 库，但产物仍受宿主 8 MiB JS / 2 MiB CSS 限制。
 
 不使用聊天的 React UI 自带 React；聊天应用使用宿主共享 React/Chat，避免重复组件运行时。
 `--target dsh` 保留工具／技能兼容打包；声明 `chat` 的应用会明确拒绝 DSH 目标，UI 不会自动转换为 `dsh.client`。
@@ -197,3 +197,9 @@ CSS 可以直接 import；图片和字体使用模块导入或 CSS 相对引用�
 `src/` 和 `templates/` 是工具链源码；`dist/chat-ui.js`、`dist/chat-ui.css`、`dist/chat-host.js` 由 `pnpm --filter client build:chat-ui` 生成并随工具包分发。应用安装后无需 desktop 源码。发布前先构建这些运行时，再打包 SDK、chat-contracts 和 app-dev；此流程不自动发布到 npm。
 
 `pnpm --filter client test:app-dev` 验证仓库外项目安装构建、Node 工具、技能注册与热更新、参数与输出校验、超时恢复、跨环境导入限制、无监听端口的 Vite 转换，以及使用真实 Chat 核心的内存会话。
+
+### 原模块的样式与路径适配
+
+开发预览与生产打包都支持 `tsconfig.json` 的精确别名和 `/*` 后缀别名。应用可提供 `postcss.config.mjs`，默认导出 `{ plugins: [...] }`；生产构建和 Vite 预览使用同一配置，插件及 `postcss` 由应用声明依赖。例如故事应用保留原 Tailwind 样式表，通过 `@tailwindcss/postcss` 编译，图片和字体继续内联。
+
+独立预览的虚拟工作区不能代替真实文件系统。依赖项目文件和数据迁移的完整流程，应在隔离数据目录的 Isle 宿主中验证。

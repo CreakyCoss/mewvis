@@ -1,7 +1,7 @@
 import { Minimize2 } from "lucide-react";
 import type { ReactNode } from "react";
-import { Button } from "@/components/ui/button";
-import { WindowDragRegion } from "@/components/window-drag-region";
+import { Button } from "design-system/components/ui/button";
+import { WindowDragRegion } from "@/workbench/shell/layout/window-drag-region";
 import { useApplicationLayout } from "./application-layout";
 
 export const AppWorkspace = ({ sidebar, children }: { sidebar: ReactNode; children: ReactNode }) => {

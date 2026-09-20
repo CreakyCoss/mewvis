@@ -1,6 +1,6 @@
 import { Brain, Code2, Download, Globe2, Loader2, Palette, Search, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "design-system/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "design-system/components/ui/tooltip";
 import type { MarketplaceSkill } from "../types";
 import { formatMarketplaceUpdatedAt, formatStars } from "./utils";
 

@@ -11,8 +11,8 @@ import {
   AlertDialogHeader,
   AlertDialogMedia,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+} from "design-system/components/ui/alert-dialog";
+import { Button } from "design-system/components/ui/button";
 import type { ConfigDatabaseStatus } from "./types";
 
 type ConfigDatabaseDialogProps = {

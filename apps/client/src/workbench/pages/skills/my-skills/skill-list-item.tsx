@@ -1,7 +1,7 @@
 import { Brain, Code2, Globe2, Loader2, Palette, Search, Sparkles, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "design-system/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "design-system/components/ui/tooltip";
 import type { Skill } from "../types";
 import { skillDescriptionPreview } from "./utils";
 
