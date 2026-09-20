@@ -15,27 +15,29 @@ export const VISUAL_PRESETS: VisualPresetDefinition[] = [
       page: "bg-background text-foreground",
       backgroundImage: generalTavernBackgroundUrl,
       backgroundOverlay:
-        "linear-gradient(180deg,rgba(248,250,252,0.92),rgba(248,250,252,0.76) 38%,rgba(248,250,252,0.92)),radial-gradient(circle at 50% 34%,rgba(255,255,255,0.72),transparent 46%),linear-gradient(90deg,rgba(248,250,252,0.72),rgba(248,250,252,0.32) 24%,rgba(248,250,252,0.32) 76%,rgba(248,250,252,0.72))",
+        "linear-gradient(180deg,color-mix(in srgb,var(--background) 92%,transparent),color-mix(in srgb,var(--background) 76%,transparent) 38%,color-mix(in srgb,var(--background) 92%,transparent)),radial-gradient(circle at 50% 34%,color-mix(in srgb,var(--card) 72%,transparent),transparent 46%)",
       backgroundPosition: "center",
       backgroundSize: "cover",
       header: "border-border/60 bg-background/78 backdrop-blur-xl",
-      headerIcon: "border-teal-500/25 bg-teal-500/10 text-primary shadow-[0_10px_24px_-20px_rgb(13_148_136_/_0.65)]",
+      headerIcon:
+        "border-primary-border bg-primary-subtle text-primary shadow-[var(--shadow-primary)]",
       scrollArea: "bg-background",
       sceneCard:
-        "rounded-xl border-border/60 bg-background/72 shadow-[0_18px_50px_-38px_rgb(15_23_42_/_0.45)] backdrop-blur-xl",
-      sceneBadge: "rounded-full bg-primary/10 text-primary ring-1 ring-primary/15",
+        "rounded-xl border-border/60 bg-background/72 shadow-[var(--shadow-floating)] backdrop-blur-xl",
+      sceneBadge:
+        "rounded-full bg-primary/10 text-primary ring-1 ring-primary/15",
       messageList: "max-w-3xl",
       narratorBubble:
-        "rounded-full border-teal-700/12 bg-white/54 text-slate-500 shadow-[0_10px_28px_-24px_rgb(15_23_42_/_0.42)] ring-1 ring-white/55 backdrop-blur-xl",
+        "rounded-full border-border/60 bg-card/54 text-muted-foreground shadow-[var(--shadow-card)] ring-1 ring-border/55 backdrop-blur-xl",
       characterBubble:
-        "rounded-[18px] rounded-tl-[6px] border-teal-800/14 bg-[linear-gradient(135deg,rgba(255,255,255,0.94),rgba(232,247,244,0.78))] text-slate-900 shadow-[0_20px_46px_-34px_rgb(15_23_42_/_0.52)] ring-1 ring-white/70 backdrop-blur-xl",
-      characterBubbleTail: "border-teal-800/14 bg-[#f2fbfa]",
+        "rounded-[18px] rounded-tl-[6px] border-border bg-card/94 text-card-foreground shadow-[var(--shadow-floating)] ring-1 ring-border/70 backdrop-blur-xl",
+      characterBubbleTail: "border-border bg-card",
       userBubble:
-        "rounded-[18px] rounded-tr-[6px] border-teal-200/28 bg-[linear-gradient(135deg,#0f8b75,#0d9488)] text-white shadow-[0_18px_42px_-30px_rgb(13_148_136_/_0.82)] ring-1 ring-teal-100/25",
-      userBubbleTail: "border-teal-200/28 bg-[#0d9488]",
+        "rounded-[18px] rounded-tr-[6px] border-primary-border bg-primary text-primary-foreground shadow-[var(--shadow-primary)] ring-1 ring-primary/25",
+      userBubbleTail: "border-primary-border bg-primary",
       composer: "border-border/60 bg-background/72 backdrop-blur-xl",
       composerInput:
-        "rounded-xl border-border/60 bg-background/82 shadow-[0_18px_42px_-36px_rgb(15_23_42_/_0.4)] backdrop-blur-xl",
+        "rounded-xl border-border/60 bg-background/82 shadow-[var(--shadow-composer)] backdrop-blur-xl",
       sidePanel: "border-border/60 bg-background/68 backdrop-blur-xl",
     },
   },

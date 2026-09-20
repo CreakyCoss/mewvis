@@ -77,7 +77,7 @@ export const MarketplaceInstallDialog = ({ application, onOpenChange, onInstalle
           <div className="space-y-2 rounded-xl border border-border/70 bg-card/55 p-4">
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-semibold">{application?.fullName}</span>
-              <Badge variant={application?.installCheck === "passed" ? "secondary" : "outline"}>
+              <Badge variant={application?.installCheck === "passed" ? "success" : "outline"}>
                 {checkLabel(application?.installCheck ?? null)}
               </Badge>
             </div>

@@ -165,7 +165,7 @@ export default function App() {
           </Notice>
         )}
         {!!warnings.length && (
-          <details className="learn-notice">
+          <details className="learn-notice warning">
             <summary>{warnings.length} 门课程无法读取，原始数据已保留</summary>
             {warnings.map((w) => (
               <p key={w}>{w}</p>

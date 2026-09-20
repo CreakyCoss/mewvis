@@ -47,7 +47,7 @@ const ApplicationRow = ({ application, isUpdating, onEnabledChange, onRemove }: 
     <div className="min-w-0">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <h3 className="truncate text-sm font-semibold tracking-[-0.01em]">{application.name}</h3>
-        <Badge variant={application.source === "bundled" ? "secondary" : "outline"}>
+        <Badge variant={application.source === "bundled" ? "primary" : "outline"}>
           {application.source === "bundled" ? "内置" : application.origin?.kind === "marketplace" ? "社区" : "本地"}
         </Badge>
         <Badge variant="outline">{application.runtimeKind === "isle" ? "Isle 原生" : "DSH 兼容"}</Badge>

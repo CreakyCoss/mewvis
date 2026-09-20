@@ -277,7 +277,7 @@ export const StoryDocumentDialog = ({
       <Dialog open={isOpen} onOpenChange={requestOpenChange}>
         <DialogContent
           className="!flex h-[min(90vh,52rem)] max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl"
-          overlayClassName="bg-black/45"
+          overlayClassName="bg-overlay/45"
         >
           <DialogHeader className="shrink-0 border-b px-6 py-5 pr-14">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

@@ -6,27 +6,43 @@ Mewvis 是一个需要长时间停留的 AI 创作工作台。界面采用“冷
 
 - 内容优先，装饰退后；页面只保留一个明确的主操作。
 - 冷白背景降低视觉噪音，纯白卡片只用于需要分组或抬升的内容。
-- 靛蓝用于主操作、选中态与焦点；珊瑚红只用于极少量品牌提示，薄荷绿保留给次级状态。
+- 主色用于主操作、选中态与焦点；状态通过 success、warning、error、info 区分，次级操作使用中性色。
 - 图标统一使用 Lucide 线性图标，不使用 emoji 作为结构图标。
 - 阴影只表达层级：页面卡片、浮层两级，不能在单页中随机定义多套阴影。
 
 ## 核心令牌
 
-所有颜色以 `apps/client/src/App.css` 中的语义变量为准。组件中禁止新增硬编码十六进制背景色。
+所有系统界面颜色以 `packages/design-system/tokens.css` 的浅色、深色语义变量为准；`theme.css` 提供 Tailwind 映射和共享样式。宿主与内置应用共同使用这套变量，组件中不新增固定色值或 `text-green-*` 等调色板类。
 
-| 角色                      | 用途                     |
-| ------------------------- | ------------------------ |
-| `background`              | 页面画布                 |
-| `surface`                 | 次级分区、工具栏背景     |
-| `surface-raised` / `card` | 卡片、输入框、浮起内容   |
-| `foreground`              | 主文字                   |
-| `muted-foreground`        | 描述、辅助信息           |
-| `primary`                 | 唯一主操作、选中态、焦点 |
-| `accent`                  | 低强调选中态、图标底色   |
-| `brand-pop`               | 品牌提示、微量活力强调   |
-| `border` / `input`        | 分隔和输入边界           |
+`theme.css` 是 `components.json` 指定的 shadcn 样式入口，也是项目维护的源码，常规构建不会重新生成它。新增语义色时在此补充 `@theme inline` 映射；日常换肤只修改 `tokens.css`。执行 shadcn 初始化、应用预设或安装带有样式的 registry 项时，需检查 CLI 对入口的改动，避免重新引入重复的颜色定义。
 
-浅色与暗色必须同时使用这些语义变量，不允许在内容组件里写 `bg-white`、`bg-black/*` 或页面私有灰色；模态 scrim 是唯一例外，统一由共享浮层组件维护。
+当前 `success` 使用低饱和、偏冷的青绿色，与靛紫主色搭配；成功状态仍通过勾选图标或文字表达。
+
+| 角色                      | 用途                         |
+| ------------------------- | ---------------------------- |
+| `background`              | 页面画布                     |
+| `surface`                 | 次级分区、工具栏背景         |
+| `surface-raised` / `card` | 卡片、输入框、浮起内容       |
+| `foreground`              | 主文字                       |
+| `muted-foreground`        | 描述、辅助信息               |
+| `primary`                 | 唯一主操作、选中态、焦点     |
+| `success`                 | 完成、通过、正确反馈         |
+| `warning`                 | 风险、等待确认、需注意       |
+| `error` / `destructive`   | 错误与破坏性操作（同一色值） |
+| `info`                    | 信息提示、重命名等中性变更   |
+| `secondary` / `muted`     | 中性的次级操作、弱化背景     |
+| `chart-1` … `chart-5`     | 图表系列、无状态含义的分类   |
+| `accent`                  | 低强调选中态、图标底色       |
+| `brand-pop`               | 品牌提示、微量活力强调       |
+| `border` / `input`        | 分隔和输入边界               |
+
+`primary/success/warning/error/info` 均提供 `-foreground`（实色背景上的文字）、`-subtle`（弱背景）和 `-border`（边框）。例如主要按钮用 `bg-primary text-primary-foreground`，“内置”标签用 `<Badge variant="primary">`，成功反馈用 `<Badge variant="success">`。`Badge` 和 `Alert` 均提供语义状态变体；共享 `Toaster` 也使用这些变量。
+
+浅色与暗色必须同时使用语义变量，不在内容组件里写 `bg-white`、`bg-black/*` 或页面私有灰色；浮层遮罩使用 `bg-overlay/45`。分类颜色不借用成功或警告语义，改用 `chart-*`。
+
+应用 iframe 由宿主注入 `tokens.css` 作为默认值，并在 `host:init`、`host:theme` 中传递宿主已解析的 `themeTokens`，自动应用到 iframe 根节点。宿主根节点的 `class`、`style`、`data-theme` 变化都会同步，因此仅修改主色也能更新已打开的应用，无需应用各自维护深浅两套颜色。原有 `isle:theme` 事件仍以浅色/深色字符串为 detail。普通 CSS 应用直接使用 `var(--primary)` 等变量；应用内不要覆盖共享语义变量为固定颜色。
+
+本轮统一范围包括应用管理/市场、聊天任务与文件状态、共享浮层与提示、故事通用场景、文档中心、RSS、学习工作台和聊天调试台。森林、赛博、武侠等明确的场景主题，以及办公室和学习首页插画保留独立艺术配色。
 
 ## 排版
 

@@ -16,7 +16,13 @@ import {
   DialogTrigger,
 } from "design-system/components/ui/dialog";
 
-export function ApplicationToolPermissions({ application, disabled }: { application: ApplicationDescriptor; disabled?: boolean }) {
+export function ApplicationToolPermissions({
+  application,
+  disabled,
+}: {
+  application: ApplicationDescriptor;
+  disabled?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -70,8 +76,10 @@ export function ApplicationToolPermissions({ application, disabled }: { applicat
     >
       <DialogTrigger asChild>
         <Button
-          variant="outline"
+          type="button"
+          variant="ghost"
           size="sm"
+          className="h-9 px-3 text-xs text-muted-foreground"
           disabled={disabled || !application.enabled}
           title={application.enabled ? "选择允许应用使用的工具" : "启用应用后可设置工具"}
         >
@@ -101,26 +109,33 @@ export function ApplicationToolPermissions({ application, disabled }: { applicat
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="mr-auto text-muted-foreground">
-                已选择 {count} / {tools.length}
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <span className="text-xs text-muted-foreground" role="status">
+                已选择 <span className="font-medium tabular-nums text-foreground">{count}</span> / {tools.length}
               </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={saving || !!error}
-                onClick={() => setTools((tools) => tools.map((tool) => ({ ...tool, enabled: true })))}
-              >
-                全选
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={saving || !!error}
-                onClick={() => setTools((tools) => tools.map((tool) => ({ ...tool, enabled: false })))}
-              >
-                取消全选
-              </Button>
+              <div className="flex items-center" role="group" aria-label="批量选择工具">
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="h-8 px-2 text-xs font-normal"
+                  disabled={saving || !!error || count === tools.length}
+                  onClick={() => setTools((tools) => tools.map((tool) => ({ ...tool, enabled: true })))}
+                >
+                  全选
+                </Button>
+                <span className="mx-1 h-3 w-px bg-border" aria-hidden="true" />
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="h-8 px-2 text-xs font-normal"
+                  disabled={saving || !!error || count === 0}
+                  onClick={() => setTools((tools) => tools.map((tool) => ({ ...tool, enabled: false })))}
+                >
+                  取消全选
+                </Button>
+              </div>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto rounded-md border px-3">
               {(["host", "application"] as const).map((source) => (

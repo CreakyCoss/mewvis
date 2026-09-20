@@ -48,7 +48,7 @@ export const StoryModulesContent = ({ bind, onBack }: StoryModulesContentProps) 
     <Dialog open={Boolean(overview)} onOpenChange={handleOpenChange}>
       <DialogContent
         showCloseButton={false}
-        overlayClassName="bg-black/5 backdrop-blur-none"
+        overlayClassName="bg-overlay/5 backdrop-blur-none"
         className={fullScreenDialogContentClassName}
       >
         <DialogTitle className="sr-only">{overview?.title ? `${overview.title} · 编辑` : "故事编辑"}</DialogTitle>

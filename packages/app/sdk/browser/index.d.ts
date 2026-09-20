@@ -1,6 +1,8 @@
 export interface ApplicationHostInfo {
   application: { id: string; name: string; version: string };
   theme: "light" | "dark";
+  /** Resolved design-system CSS tokens, also applied to the sandbox root by the host. */
+  themeTokens?: Readonly<Record<string, string>>;
   tools: {
     name: string;
     description: string;

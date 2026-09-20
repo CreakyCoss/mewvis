@@ -1,0 +1,143 @@
+/* Shared semantic theme tokens; usable without Tailwind or component styles. */
+:root {
+  color-scheme: light;
+  --background: #f7f8fc;
+  --foreground: #23232d;
+  --surface: #f0f2f8;
+  --surface-raised: #ffffff;
+  --card: #ffffff;
+  --card-foreground: #23232d;
+  --popover: #ffffff;
+  --popover-foreground: #23232d;
+  --primary: #5a56d6;
+  --primary-foreground: #ffffff;
+  --secondary: var(--muted);
+  --secondary-foreground: var(--foreground);
+  --muted: #eef0f5;
+  --muted-foreground: #656978;
+  --accent: var(--primary-subtle);
+  --accent-foreground: var(--primary);
+  --error: #bc3046;
+  --error-foreground: #ffffff;
+  --info: #2563b8;
+  --info-foreground: #ffffff;
+  --success: #2b7165;
+  --success-foreground: #ffffff;
+  --warning: #995907;
+  --warning-foreground: #ffffff;
+  --destructive: var(--error);
+  --destructive-foreground: var(--error-foreground);
+  --overlay: #000000;
+  --primary-hover: color-mix(in oklab, var(--primary) 90%, var(--foreground));
+  --primary-subtle: color-mix(in oklab, var(--primary) 10%, var(--background));
+  --primary-border: color-mix(in oklab, var(--primary) 30%, var(--border));
+  --success-subtle: color-mix(in oklab, var(--success) 10%, var(--background));
+  --success-border: color-mix(in oklab, var(--success) 30%, var(--border));
+  --warning-subtle: color-mix(in oklab, var(--warning) 10%, var(--background));
+  --warning-border: color-mix(in oklab, var(--warning) 30%, var(--border));
+  --error-subtle: color-mix(in oklab, var(--error) 10%, var(--background));
+  --error-border: color-mix(in oklab, var(--error) 30%, var(--border));
+  --info-subtle: color-mix(in oklab, var(--info) 10%, var(--background));
+  --info-border: color-mix(in oklab, var(--info) 30%, var(--border));
+  --brand-pop: #c94736;
+  --border: #dde0e9;
+  --input: #c9ceda;
+  --ring: var(--primary);
+  --chart-1: var(--primary);
+  --chart-2: #d94f3d;
+  --chart-3: #0f8c84;
+  --chart-4: #a75ccd;
+  --chart-5: #c78712;
+  --radius: 0.625rem;
+  --sidebar: #f2f3f8;
+  --sidebar-foreground: #272731;
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--primary-subtle);
+  --sidebar-accent-foreground: var(--primary);
+  --sidebar-border: #dcdde7;
+  --sidebar-ring: var(--primary);
+  --shadow-card:
+    0 1px 2px rgb(31 31 49 / 5%), 0 10px 24px -22px rgb(70 65 160 / 22%);
+  --shadow-floating:
+    0 16px 48px -24px rgb(36 32 78 / 32%), 0 4px 12px -8px rgb(31 31 49 / 16%);
+  --shadow-composer:
+    0 18px 54px -38px rgb(53 48 129 / 36%), 0 2px 8px rgb(31 31 49 / 7%);
+  --shadow-primary:
+    0 1px 2px color-mix(in srgb, var(--primary) 24%, transparent),
+    0 8px 18px -12px color-mix(in srgb, var(--primary) 48%, transparent);
+  --motion-fast: 120ms;
+  --motion-base: 180ms;
+  --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.dark,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #171720;
+  --foreground: #f4f4f8;
+  --surface: #1d1d27;
+  --surface-raised: #23232f;
+  --card: #21212b;
+  --card-foreground: #f4f4f8;
+  --popover: #272733;
+  --popover-foreground: #f4f4f8;
+  --primary: #a8a4ff;
+  --primary-foreground: #1b1941;
+  --secondary: var(--muted);
+  --secondary-foreground: var(--foreground);
+  --muted: #2a2a35;
+  --muted-foreground: #a9abb7;
+  --accent: var(--primary-subtle);
+  --accent-foreground: var(--primary);
+  --error: #ff7b8b;
+  --error-foreground: #321018;
+  --info: #83b6ff;
+  --info-foreground: #10213b;
+  --success: #83c4b3;
+  --success-foreground: #132d27;
+  --warning: #f3b45d;
+  --warning-foreground: #352006;
+  --destructive: var(--error);
+  --destructive-foreground: var(--error-foreground);
+  --overlay: #000000;
+  --primary-hover: color-mix(in oklab, var(--primary) 90%, var(--foreground));
+  --primary-subtle: color-mix(in oklab, var(--primary) 10%, var(--background));
+  --primary-border: color-mix(in oklab, var(--primary) 30%, var(--border));
+  --success-subtle: color-mix(in oklab, var(--success) 10%, var(--background));
+  --success-border: color-mix(in oklab, var(--success) 30%, var(--border));
+  --warning-subtle: color-mix(in oklab, var(--warning) 10%, var(--background));
+  --warning-border: color-mix(in oklab, var(--warning) 30%, var(--border));
+  --error-subtle: color-mix(in oklab, var(--error) 10%, var(--background));
+  --error-border: color-mix(in oklab, var(--error) 30%, var(--border));
+  --info-subtle: color-mix(in oklab, var(--info) 10%, var(--background));
+  --info-border: color-mix(in oklab, var(--info) 30%, var(--border));
+  --brand-pop: #ff8b79;
+  --border: #393946;
+  --input: #4a4a58;
+  --ring: var(--primary);
+  --chart-1: var(--primary);
+  --chart-2: #ff8b79;
+  --chart-3: #61d0c3;
+  --chart-4: #d493ef;
+  --chart-5: #efbd62;
+  --sidebar: #1b1b24;
+  --sidebar-foreground: #f4f4f8;
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--primary-subtle);
+  --sidebar-accent-foreground: var(--primary);
+  --sidebar-border: #363641;
+  --sidebar-ring: var(--primary);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 24%), 0 14px 30px -24px rgb(0 0 0 / 64%);
+  --shadow-floating:
+    0 18px 50px -24px rgb(0 0 0 / 82%), 0 4px 12px rgb(0 0 0 / 28%);
+  --shadow-composer:
+    0 20px 58px -34px rgb(0 0 0 / 80%), 0 3px 10px rgb(0 0 0 / 26%);
+  --shadow-primary:
+    0 1px 2px color-mix(in srgb, var(--primary) 24%, transparent),
+    0 8px 18px -12px color-mix(in srgb, var(--primary) 48%, transparent);
+  --motion-fast: 120ms;
+  --motion-base: 180ms;
+  --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+}

@@ -194,7 +194,7 @@ export const TavernManageContent = ({ bind, onBack }: TavernManageContentProps) 
     <Dialog open={Boolean(item)} onOpenChange={(nextOpen) => !nextOpen && handleBack()}>
       <DialogContent
         showCloseButton={false}
-        overlayClassName="bg-black/5 backdrop-blur-none"
+        overlayClassName="bg-overlay/5 backdrop-blur-none"
         className={fullScreenDialogContentClassName}
       >
         <DialogTitle className="sr-only">

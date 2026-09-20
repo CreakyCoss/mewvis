@@ -236,7 +236,7 @@ const SelectionHeader = ({ id, label, selected, total, badge, onCheckedChange }:
         checked={allSelected ? true : hasSelection ? "indeterminate" : false}
         disabled={total === 0}
         aria-label={`全选${label}`}
-        className="[&_[data-slot=checkbox-indicator]_svg]:stroke-white"
+        className="[&_[data-slot=checkbox-indicator]_svg]:stroke-primary-foreground"
         onCheckedChange={(checked) => onCheckedChange(checked === true)}
       />
     </div>

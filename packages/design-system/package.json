@@ -8,13 +8,15 @@
     "./components/*": "./components/*.tsx",
     "./hooks/*": "./hooks/*.ts",
     "./lib/*": "./lib/*.ts",
-    "./theme.css": "./theme.css"
+    "./theme.css": "./theme.css",
+    "./tokens.css": "./tokens.css"
   },
   "files": [
     "components",
     "hooks",
     "lib",
-    "theme.css"
+    "theme.css",
+    "tokens.css"
   ],
   "sideEffects": [
     "*.css"

@@ -19,7 +19,7 @@ const statusLabel = {
 
 const statusClass = {
   running: "bg-primary",
-  done: "bg-emerald-500",
+  done: "bg-success",
   error: "bg-destructive",
 } satisfies Record<NonNullable<LedgerRuntimeLink["status"]>, string>;
 

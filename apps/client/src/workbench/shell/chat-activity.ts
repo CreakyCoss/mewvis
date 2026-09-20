@@ -11,12 +11,12 @@ export const chatActivityPresentation = {
   "waiting-approval": {
     label: "待审批",
     icon: ShieldCheck,
-    className: "size-3.5 text-amber-600 dark:text-amber-400",
+    className: "size-3.5 text-warning",
   },
   "waiting-answer": {
     label: "待回答",
     icon: MessageCircleQuestion,
-    className: "size-3.5 text-amber-600 dark:text-amber-400",
+    className: "size-3.5 text-warning",
   },
 } satisfies Record<ChatActivity, { label: string; icon: LucideIcon; className: string }>;
 

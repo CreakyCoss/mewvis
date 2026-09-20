@@ -36,13 +36,14 @@ const applicationStatus = (application: ApplicationUiApplication) => {
     return {
       label: "界面已降级",
       icon: TriangleAlert,
-      className: "text-amber-700 dark:text-amber-300",
+      className: "text-warning",
     };
   }
   return {
     label: "运行正常",
     icon: CheckCircle2,
-    className: "text-emerald-700 dark:text-emerald-300",
+    className: "text-muted-foreground",
+    iconClassName: "text-success",
   };
 };
 
@@ -108,7 +109,7 @@ const ApplicationCard = ({ application }: { application: ApplicationUiApplicatio
       </div>
       <div className="mt-3 flex items-center justify-between gap-3">
         <span className={cn("inline-flex items-center gap-1.5 text-xs", status.className)}>
-          <StatusIcon className="size-3.5 shrink-0" aria-hidden="true" />
+          <StatusIcon className={cn("size-3.5 shrink-0", status.iconClassName)} aria-hidden="true" />
           {status.label}
         </span>
         <Button asChild variant="outline" size="sm" className="min-h-9 px-3 text-xs shadow-none">
@@ -145,14 +146,15 @@ const ApplicationCatalog = ({
       <div className="flex items-center gap-2">
         <Button
           type="button"
-          variant="outline"
-          size="sm"
-          className="min-h-11"
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground"
           disabled={isLoading}
           onClick={() => void refresh()}
+          aria-label="刷新应用列表"
+          title="刷新应用列表"
         >
           <RefreshCw className={cn("size-3.5", isLoading && "animate-spin motion-reduce:animate-none")} />
-          刷新
         </Button>
         <Button asChild type="button" variant="ghost" size="sm" className="min-h-11">
           <NavLink to="/apps/manage">
@@ -220,7 +222,7 @@ const ApplicationDetail = ({
   refresh: () => Promise<void>;
 }) => {
   const { fullscreen, canFullscreen, setFullscreen } = useApplicationLayout();
-  const status = application ? applicationStatus(application) : null;
+  const status = application && (application.error || application.uiError) ? applicationStatus(application) : null;
   const StatusIcon = status?.icon;
   const isImmersiveWorkbench = Boolean(
     application &&
@@ -253,19 +255,17 @@ const ApplicationDetail = ({
             <div className="flex min-w-0 items-center gap-2">
               <h1 className="truncate text-base font-semibold tracking-[-0.015em]">{application?.name || "应用详情"}</h1>
               {application ? (
-                <Badge variant="secondary" className="h-5 shrink-0 px-2 text-[11px] font-normal">
+                <Badge variant="primary" className="h-5 shrink-0 px-2 text-[11px] font-normal">
                   v{application.version || "0.0.0"}
                 </Badge>
               ) : null}
             </div>
-            {application ? (
+            {status && StatusIcon ? (
               <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-                {status && StatusIcon ? (
-                  <span className={cn("flex shrink-0 items-center gap-1", status.className)}>
-                    <StatusIcon className="size-3" />
-                    {status.label}
-                  </span>
-                ) : null}
+                <span className={cn("flex shrink-0 items-center gap-1", status.className)}>
+                  <StatusIcon className={cn("size-3", status.iconClassName)} />
+                  {status.label}
+                </span>
               </div>
             ) : null}
           </div>
@@ -288,10 +288,11 @@ const ApplicationDetail = ({
             type="button"
             variant="ghost"
             size="icon"
-            className="size-10 rounded-full"
+            className="size-10 rounded-full text-muted-foreground"
             disabled={isLoading}
             onClick={() => void refresh()}
             aria-label="刷新应用"
+            title="刷新应用"
           >
             <RefreshCw className={cn("size-3.5", isLoading && "animate-spin motion-reduce:animate-none")} />
           </Button>

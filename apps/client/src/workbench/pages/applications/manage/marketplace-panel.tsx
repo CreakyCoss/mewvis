@@ -150,7 +150,7 @@ export const MarketplacePanel = ({ installedIds, onInstall }: MarketplacePanelPr
                 <div className="min-w-0">
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <h3 className="truncate text-sm font-semibold tracking-[-0.01em]">{application.name}</h3>
-                    <Badge variant={application.installCheck === "passed" ? "secondary" : "outline"}>
+                    <Badge variant={application.installCheck === "passed" ? "success" : "outline"}>
                       {installCheckLabel(application.installCheck)}
                     </Badge>
                     {application.category ? <Badge variant="outline">{application.category}</Badge> : null}
@@ -166,7 +166,7 @@ export const MarketplacePanel = ({ installedIds, onInstall }: MarketplacePanelPr
                     {application.language ? <span>{application.language}</span> : null}
                     {application.license ? <span>{application.license}</span> : null}
                     {application.riskFlags.slice(0, 2).map((risk) => (
-                      <span key={risk} className="text-amber-700 dark:text-amber-400">
+                      <span key={risk} className="text-warning">
                         {risk}
                       </span>
                     ))}

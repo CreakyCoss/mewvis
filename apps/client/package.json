@@ -27,6 +27,7 @@
     "test:agent-runtime:collaboration:stdio": "node scripts/agent-runtime/collaboration-stdio-e2e.mjs",
     "test:app-host:dsh-compat": "node scripts/app/host/dsh-compat-e2e.mjs",
     "test:app-host:rss": "pnpm build:app-host && node scripts/app/host/rss-application-e2e.mjs",
+    "test:app-host:theme": "node --test scripts/app/host/theme.test.mjs",
     "test:app-host:ui": "pnpm build:app-host && node scripts/app/host/ui-service-e2e.mjs",
     "test:app-host:data": "pnpm build:app-host && node ../agent-runtime/scripts/copy-node-runtime.mjs && node scripts/app/host/data-e2e.mjs",
     "test:app-host:layout": "pnpm build:app-host && node scripts/app/host/layout-migration-e2e.mjs",

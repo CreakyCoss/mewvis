@@ -101,11 +101,11 @@ const versionStatusLabels: Record<WorkspaceVersionFileStatusKind, string> = {
 };
 
 const versionStatusClasses: Record<WorkspaceVersionFileStatusKind, string> = {
-  added: "bg-emerald-500/10 text-emerald-700 ring-emerald-500/20 dark:text-emerald-400",
-  modified: "bg-amber-500/10 text-amber-700 ring-amber-500/20 dark:text-amber-400",
+  added: "bg-success/10 text-success ring-success/20",
+  modified: "bg-warning/10 text-warning ring-warning/20",
   deleted: "bg-destructive/10 text-destructive ring-destructive/20",
-  renamed: "bg-sky-500/10 text-sky-700 ring-sky-500/20 dark:text-sky-400",
-  typechange: "bg-violet-500/10 text-violet-700 ring-violet-500/20 dark:text-violet-400",
+  renamed: "bg-info/10 text-info ring-info/20",
+  typechange: "bg-primary/10 text-primary ring-primary/20",
   conflicted: "bg-destructive/10 text-destructive ring-destructive/20",
   untracked: "bg-muted text-muted-foreground ring-border",
 };

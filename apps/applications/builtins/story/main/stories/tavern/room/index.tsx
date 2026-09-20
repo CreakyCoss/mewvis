@@ -193,7 +193,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
       >
         <DialogContent
           showCloseButton={false}
-          overlayClassName="bg-black/5 backdrop-blur-none"
+          overlayClassName="bg-overlay/5 backdrop-blur-none"
           className={cn(fullScreenDialogContentClassName, "items-center justify-center bg-background text-foreground")}
         >
           <DialogTitle className="sr-only">酒馆房间</DialogTitle>
@@ -224,7 +224,7 @@ export const TavernRoomDialog = ({ bind }: TavernRoomDialogProps) => {
     >
       <DialogContent
         showCloseButton={false}
-        overlayClassName="bg-black/5 backdrop-blur-none"
+        overlayClassName="bg-overlay/5 backdrop-blur-none"
         className={cn(fullScreenDialogContentClassName, "text-foreground", visualPreset.tavern.page)}
       >
         <DialogTitle className="sr-only">{story.roomConfig.title || "酒馆房间"}</DialogTitle>
