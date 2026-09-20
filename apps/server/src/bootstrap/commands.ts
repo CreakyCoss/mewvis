@@ -26,6 +26,7 @@ export function registerCommands(services: Services) {
   registerModule(commands, services.sandbox.commands(), [
     "get_agent_runtime_sandbox_status",
     "initialize_agent_runtime_sandbox",
+    "set_agent_runtime_sandbox_enabled",
   ]);
   registerModule(commands, services.databases.commands(), [
     "get_config_database_status",

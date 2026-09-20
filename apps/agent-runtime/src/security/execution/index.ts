@@ -14,6 +14,7 @@ import {
   validateConfiguredPaths,
 } from "../platforms/resources.js";
 import { EXECUTION_CONFIG as configuredPolicy } from "./policy.js";
+import { readExecutionConfig, saveSandboxEnabled } from "./settings.js";
 import { getProcessPlatform, getChannelPlatform, resolveExecutionBackend } from "../platforms/index.js";
 import { RpcClient } from "./runtime/client.js";
 import { serveRequests } from "./runtime/server.js";
@@ -81,7 +82,7 @@ export const EXECUTION_CONFIG = validateExecutionConfig(configuredPolicy);
 export function resolveExecutionPolicy(
   mode: string,
   workspacePath: string,
-  config: ExecutionConfig = EXECUTION_CONFIG,
+  config: ExecutionConfig = readExecutionConfig(),
   runtimePath = dirname(fileURLToPath(import.meta.url)),
   constraint?: { access: ResolvedAgentAccess; programPaths?: readonly string[] },
 ): ExecutionPolicy {
@@ -135,8 +136,8 @@ type SandboxControlOptions = { config?: ExecutionConfig; workspacePath?: string;
 
 /** Resolve the same backend parameters for status/install as for actual execution. */
 async function controlSandbox(action: "status" | "install", options: SandboxControlOptions): Promise<SandboxStatus> {
-  const config = validateExecutionConfig(options.config ?? EXECUTION_CONFIG);
-  const base = { platform: process.platform, backend: config.backend.name, version: config.backend.version };
+  const config = validateExecutionConfig(options.config ?? readExecutionConfig());
+  const base = { enabled: config.enabled, platform: process.platform, backend: config.backend.name, version: config.backend.version };
   if (!config.enabled)
     return { ...base, state: "disabled", canInstall: false, message: "沙箱已关闭，工具在普通子进程中执行。" };
   try {
@@ -165,6 +166,10 @@ export function getSandboxStatus(options: SandboxControlOptions = {}) {
 }
 export function installSandbox(options: SandboxControlOptions = {}) {
   return controlSandbox("install", options);
+}
+export function setSandboxEnabled(enabled: boolean) {
+  saveSandboxEnabled(enabled);
+  return getSandboxStatus();
 }
 
 /** Owns one execution program: launch, calls, cancellation, timeout and process cleanup. */

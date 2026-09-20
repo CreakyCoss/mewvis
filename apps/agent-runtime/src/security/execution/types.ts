@@ -70,4 +70,4 @@ export type SandboxReadiness = {
   canInstall: boolean;
   message: string;
 };
-export type SandboxStatus = SandboxReadiness & { platform: string; backend: string; version: string };
+export type SandboxStatus = SandboxReadiness & { enabled: boolean; platform: string; backend: string; version: string };

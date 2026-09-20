@@ -13,6 +13,11 @@
 | `delete_ai_agent`               | `{id}`                                       | 完整 Agent 与流程配置                            |
 | `save_collaboration_workflow`   | `{input: {...}}`                             | 完整 Agent 与流程配置                            |
 | `delete_collaboration_workflow` | `{id}`                                       | 完整 Agent 与流程配置                            |
+| `get_agent_runtime_sandbox_status` | `{}` | 沙箱开关及就绪状态 |
+| `set_agent_runtime_sandbox_enabled` | `{enabled: boolean}` | 保存后的沙箱开关及就绪状态 |
+| `initialize_agent_runtime_sandbox` | `{}` | 初始化后的沙箱开关及就绪状态 |
+
+沙箱开关保存到 Server 数据目录的 `sandbox.json`，从下一次 Agent 运行生效。Windows 默认关闭沙箱，macOS/Linux 默认开启。开启开关不会自动安装；Windows 用户按需主动初始化，关闭时无需配置隔离账户。返回值中的 `enabled` 表示用户选择，与依赖是否就绪分开；`state` 为 `ready`、`setup-required`、`unavailable` 或 `disabled`。详见[程序执行与沙箱](security/execution.md)。
 
 读取返回的记录包含 `createdAt`、`updatedAt` 等元数据，保存时只传输入契约中的字段。Server 拒绝未知字段和错误类型；删除不存在的记录按 Tauri 行为成功返回当前配置。
 

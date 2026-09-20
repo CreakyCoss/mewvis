@@ -14,9 +14,9 @@
 - `backend.platforms`：POSIX 系统写入路径／临时目录，Windows 辅助程序、ACL、代理及初始化配置。只解析当前平台，不影响调用前安全规则。
 - `environment`：两种执行模式共用的 Worker 环境变量白名单，宿主命令内的模型凭据不会传入执行进程。
 
-两层默认启用，关闭任意一层不改变另一层或前端模式。两层都关闭时使用普通子进程，不做审批／范围检查及系统隔离；环境契约、RPC、诊断、取消和超时始终保留。两个范围独立，批准调用不扩大沙箱授权。
+审批默认启用；沙箱在 Windows 默认关闭，在 macOS/Linux 默认启用。设置页可手动启停沙箱，关闭任意一层不改变另一层或前端模式。两层都关闭时使用普通子进程，不做审批／范围检查及系统隔离；环境契约、RPC、诊断、取消和超时始终保留。两个范围独立，批准调用不扩大沙箱授权。
 
-配置参与打包，修改后必须重新构建并重启。`resolveExecutionPolicy()` 返回包含工作区、环境和可选沙箱策略的快照，主／子 Agent 继承同一对安全与执行快照。禁用沙箱时应用设置显示 `state: disabled`，无需初始化；状态／安装命令也不解析或加载禁用的后端。
+策略和后端配置参与打包，修改后必须重新构建并重启。沙箱开关通过「应用设置 → Agent 沙箱」保存到 Server 数据目录的 `sandbox.json`，Server 使用 `ISLE_SANDBOX_SETTINGS_PATH` 将路径传给控制程序和 Agent Runtime；独立 CLI 默认使用产品配置目录。开关从下一次 Agent 运行生效，无需重启，正在运行的任务及其子 Agent 保持原快照。带有 `agentAccess` 限制的请求仍需沙箱，关闭时会明确拒绝执行。`resolveExecutionPolicy()` 返回包含工作区、环境和可选沙箱策略的快照，主／子 Agent 继承同一对安全与执行快照。禁用沙箱时应用设置显示 `state: disabled`，无需初始化；状态／安装命令也不解析或加载禁用的后端。
 
 `index.ts` 校验公共契约、选择档位、合并资源范围，再调用 `platforms/index.ts` 解析后端参数。平台 Schema 与路径转换位于 `platforms/posix/config.ts`、`platforms/windows/config.ts`，公共解析器没有 OS 分支、SRT 字段 Schema 或固定 SDK 版本。后端选项必须为 JSON 数据，函数会被拒绝；快照不与源码配置共享可变数组或对象。
 
@@ -56,7 +56,7 @@ Pi 在 `runtimes/pi/tools/worker.ts` 和 `tools/shell.ts` 管理工具工厂，`
 
 ## Windows 初始化与限制
 
-打开「应用设置 → Agent 沙箱」查看就绪状态并初始化／修复。该操作调用内置 `sandbox-control.js install`，再调用 SRT 安装器，由系统要求一次 UAC 确认。Agent 工具不会触发安装；取消安装后执行仍不可用。`node sandbox-control.js status` 可输出诊断。
+Windows 用户可以保持沙箱关闭，无需创建隔离账户或安装沙箱。打开「应用设置 → Agent 沙箱」手动开启后，可查看就绪状态并按需初始化／修复；开启开关本身不会触发安装。该操作调用内置 `sandbox-control.js install`，再调用 SRT 安装器，由系统要求一次 UAC 确认。Agent 工具不会触发安装；取消安装后，启用状态下工具执行仍不可用，也可关闭沙箱使用普通执行。关闭不会删除已安装账户或网络规则。`node sandbox-control.js status` 可输出诊断，`enable`／`disable` 保存开关设置。
 
 运行时同时携带 x64 和 ARM64 辅助程序。命令工具优先使用原生 Git Bash/MSYS2/Cygwin，不把 WSL 启动器作为原生 Bash。缺少 Bash 时依次选择 PowerShell 7、Windows PowerShell；PATH 缺失时也检查标准位置。此时注册 Pi 的 `powershell` 工具，使用 PowerShell 语法、UTF-8 输出且不加载 profile。
 

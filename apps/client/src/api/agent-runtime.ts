@@ -38,6 +38,8 @@ export const listAgentRuntimeTools = (input: AgentRuntimeTauriCommandArgs<"list_
   invokeAgentRuntime("list_agent_runtime_tools", { input });
 
 export const getAgentRuntimeSandboxStatus = () => invokeAgentRuntime("get_agent_runtime_sandbox_status", {});
+export const setAgentRuntimeSandboxEnabled = (enabled: boolean) =>
+  invokeAgentRuntime("set_agent_runtime_sandbox_enabled", { enabled });
 
 export const initializeAgentRuntimeSandbox = () => invokeAgentRuntime("initialize_agent_runtime_sandbox", {});
 

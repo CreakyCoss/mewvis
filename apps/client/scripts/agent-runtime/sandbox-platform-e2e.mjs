@@ -9,6 +9,8 @@ import { pathToFileURL } from "node:url";
 import entries from "../../../agent-runtime/build-entries.json" with { type: "json" };
 const temp = realpathSync(mkdtempSync(join(tmpdir(), "isle-platform-test-")));
 const children = [];
+const previousSettingsPath = process.env.ISLE_SANDBOX_SETTINGS_PATH;
+process.env.ISLE_SANDBOX_SETTINGS_PATH = join(temp, "settings", "sandbox.json");
 try {
   const bundle = join(temp, "api.mjs");
   await build({
@@ -20,6 +22,7 @@ try {
           "security/platforms/windows/policy-lease",
           "security/platforms/windows/policy",
           "security/execution/index",
+          "security/execution/settings",
         ].map((name) => `export * from ${JSON.stringify(resolve(`../agent-runtime/src/${name}.ts`))};`),
       ].join("\n"),
       resolveDir: process.cwd(),
@@ -53,34 +56,46 @@ try {
   assert.ok(winPaths.resourceVariables().programData);
   assert.throws(() => api.getPathPlatform("freebsd"), /不支持/);
   console.log("PASS shared platform paths: Windows drives/UNC/case and POSIX resource semantics");
-  const disabledControl = join(temp, "disabled-control.mjs");
+  assert.equal(api.readExecutionConfig("win32").enabled, false, "Windows starts without sandbox setup");
+  assert.equal(api.readExecutionConfig("darwin").enabled, true);
+  assert.equal(api.readExecutionConfig("linux").enabled, true);
+  const control = join(temp, "sandbox-control.mjs");
   await build({
     entryPoints: [resolve("../agent-runtime/src/security/execution/cli/control.ts")],
-    outfile: disabledControl,
+    outfile: control,
+    banner: {
+      js: "import { createRequire as __runtimeCreateRequire } from 'node:module'; const require = __runtimeCreateRequire(import.meta.url);",
+    },
     bundle: true,
     format: "esm",
     platform: "node",
-    plugins: [
-      {
-        name: "disabled-sandbox-config",
-        setup(builder) {
-          builder.onLoad({ filter: /execution[\\/]policy\.ts$/ }, ({ path }) => {
-            const source = readFileSync(path, "utf8");
-            const disabled = source.replace(/(["']?enabled["']?\s*:\s*)true/, "$1false");
-            assert.notEqual(source, disabled, "fixture must disable the execution policy");
-            return { contents: disabled, loader: "ts" };
-          });
-        },
-      },
-    ],
   });
-  const status = JSON.parse(execFileSync(process.execPath, [disabledControl, "status"], { encoding: "utf8" }));
+  const runControl = (action) => JSON.parse(execFileSync(process.execPath, [control, action], { encoding: "utf8" }));
+  const status = runControl("disable");
+  assert.equal(status.enabled, false);
   assert.equal(status.state, "disabled");
   assert.equal(status.canInstall, false);
-  assert.equal(
-    JSON.parse(execFileSync(process.execPath, [disabledControl, "install"], { encoding: "utf8" })).state,
-    "disabled",
-  );
+  assert.equal(runControl("status").enabled, false, "choice survives a fresh CLI process");
+  assert.equal(runControl("install").state, "disabled", "disabled sandbox never installs");
+  const plain = api.resolveExecutionPolicy("ask", temp);
+  assert.equal(plain.sandbox, null, "a running host reads the changed preference for its next run");
+  const enabled = runControl("enable");
+  assert.equal(enabled.enabled, true);
+  assert.notEqual(enabled.state, "disabled");
+  assert.equal(api.readExecutionConfig("win32").enabled, true, "saved preference overrides Windows default");
+  const isolated = api.resolveExecutionPolicy("ask", temp);
+  assert.ok(isolated.sandbox);
+  assert.ok(isolated.sandbox.filesystem.denyWrite.includes(process.env.ISLE_SANDBOX_SETTINGS_PATH));
+  assert.equal(plain.sandbox, null, "existing run snapshots remain unchanged");
+  await api.setSandboxEnabled(false);
+  assert.equal(api.resolveExecutionPolicy("ask", temp).sandbox, null);
+  assert.ok(isolated.sandbox, "disabling does not change an active isolated run");
+  assert.throws(() => api.resolveExecutionPolicy("ask", temp, undefined, undefined, { access: {} }), /agentAccess/);
+  assert.throws(() => api.saveSandboxEnabled("false"), /boolean/);
+  writeFileSync(process.env.ISLE_SANDBOX_SETTINGS_PATH, '{"enabled":"false"}');
+  assert.throws(() => api.readExecutionConfig(), /boolean/, "invalid settings cannot silently disable isolation");
+  await api.setSandboxEnabled(true);
+  console.log("PASS manual sandbox control: defaults, persistence, live reload, snapshots and access constraints");
   const independentConfig = structuredClone(api.EXECUTION_CONFIG);
   independentConfig.profiles.push({ ...structuredClone(independentConfig.profiles[2]), mode: "custom" });
   const snapshot = api.resolveExecutionPolicy("custom", temp, independentConfig);
@@ -340,6 +355,8 @@ try {
   for (const { output } of Object.values(entries)) assert.ok(existsSync(resolve("../agent-runtime/dist", output)));
   console.log("PASS packaged Windows x64/ARM64 helpers and setup entry point");
 } finally {
+  if (previousSettingsPath === undefined) delete process.env.ISLE_SANDBOX_SETTINGS_PATH;
+  else process.env.ISLE_SANDBOX_SETTINGS_PATH = previousSettingsPath;
   for (const child of children) if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
   rmSync(temp, { recursive: true, force: true });
 }

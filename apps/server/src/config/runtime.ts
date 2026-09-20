@@ -142,6 +142,7 @@ export function assertRuntimeAvailable(config: RuntimeConfig) {
 export function runtimeEnvironment(config: RuntimeConfig): NodeJS.ProcessEnv {
   return {
     ...config.env,
+    ISLE_SANDBOX_SETTINGS_PATH: join(config.dataDir, "sandbox.json"),
     PI_PACKAGE_DIR: dirname(config.cliPath),
     PI_CODING_AGENT_DIR: join(
       config.runtimeDataDir ?? config.dataDir,

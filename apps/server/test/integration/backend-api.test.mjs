@@ -647,7 +647,7 @@ test("skills zip installation, persisted groups and removal use the shared comma
     0,
   );
 });
-test("sandbox commands use the control entry with their original action names", async (t) => {
+test("sandbox commands validate toggles and share persisted runtime settings", async (t) => {
   const root = await fs.realpath(
     await fs.mkdtemp(join(tmpdir(), "isle-sandbox-")),
   );
@@ -667,6 +667,42 @@ test("sandbox commands use the control entry with their original action names", 
   assert.deepEqual(await commands.initialize_agent_runtime_sandbox({}), {
     action: "install",
   });
+  assert.deepEqual(
+    await commands.set_agent_runtime_sandbox_enabled({ enabled: false }),
+    { action: "disable" },
+  );
+  assert.deepEqual(
+    await commands.set_agent_runtime_sandbox_enabled({ enabled: true }),
+    { action: "enable" },
+  );
+  for (const input of [
+    {},
+    { enabled: "false" },
+    { enabled: null },
+    { enabled: true, extra: 1 },
+  ]) {
+    assert.throws(() => commands.set_agent_runtime_sandbox_enabled(input), {
+      status: 400,
+    });
+  }
+  await fs.writeFile(
+    join(root, "sandbox-control.js"),
+    "console.log(JSON.stringify({settingsPath:process.env.ISLE_SANDBOX_SETTINGS_PATH}));",
+  );
+  assert.deepEqual(await commands.get_agent_runtime_sandbox_status({}), {
+    settingsPath: join(root, "sandbox.json"),
+  });
+  const s = await setup(t);
+  for (const input of [
+    {},
+    { enabled: "false" },
+    { input: { enabled: false } },
+  ]) {
+    assert.equal(
+      (await s.raw("set_agent_runtime_sandbox_enabled", input)).status,
+      400,
+    );
+  }
 });
 test("corrupt configuration can be inspected and rebuilt without preventing Server startup", async (t) => {
   const root = await fs.realpath(

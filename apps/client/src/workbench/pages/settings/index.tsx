@@ -31,7 +31,7 @@ export const SettingsPanel = ({
   const settingsItems = [
     {
       title: "Agent 沙箱",
-      description: "检查工具执行环境和初始化状态。",
+      description: "选择工具执行方式，管理沙箱隔离与环境初始化。",
       category: "执行环境",
       icon: Shield,
       onClick: onOpenSandboxSettings,

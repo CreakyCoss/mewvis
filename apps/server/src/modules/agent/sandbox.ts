@@ -5,7 +5,7 @@ import {
 } from "../../config/runtime.js";
 import { command } from "../../infrastructure/process/command.js";
 import { Serial } from "../../shared/serial.js";
-import { onlyKeys, type JsonObject } from "../../shared/validation.js";
+import { invalid, onlyKeys, type JsonObject } from "../../shared/validation.js";
 export class Sandbox {
   private serial = new Serial();
   constructor(private config: RuntimeConfig) {}
@@ -27,6 +27,11 @@ export class Sandbox {
         this.run("status", i),
       initialize_agent_runtime_sandbox: (i: JsonObject) =>
         this.run("install", i),
+      set_agent_runtime_sandbox_enabled: (i: JsonObject) => {
+        onlyKeys(i, ["enabled"]);
+        if (typeof i.enabled !== "boolean") invalid("enabled 必须是布尔值");
+        return this.run(i.enabled ? "enable" : "disable", {});
+      },
     };
   }
 }

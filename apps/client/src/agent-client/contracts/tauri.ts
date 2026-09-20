@@ -37,6 +37,10 @@ export type AgentRuntimeTauriCollaborationInput = CollaborationRunParams;
 export type AgentRuntimeTauriCollaborationModeInput = CollaborationModeRunParams;
 
 export type AgentRuntimeTauriCommands = {
+  set_agent_runtime_sandbox_enabled: {
+    args: { enabled: boolean };
+    result: SandboxStatus;
+  };
   get_agent_runtime_sandbox_status: {
     args: Record<string, never>;
     result: SandboxStatus;
@@ -112,6 +116,7 @@ export type AgentRuntimeTauriCommandName = keyof AgentRuntimeTauriCommands;
 export const agentRuntimeTauriCommandNames = [
   "get_agent_runtime_sandbox_status",
   "initialize_agent_runtime_sandbox",
+  "set_agent_runtime_sandbox_enabled",
   "list_agent_runtime_tools",
   "run_agent_runtime_chat",
   "run_agent_runtime_agent",
