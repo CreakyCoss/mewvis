@@ -100,9 +100,11 @@ pub async fn get_backend_connection(
 fn runtime_directory(app: &AppHandle) -> Result<PathBuf, String> {
     if cfg!(debug_assertions) {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../agent-runtime/dist");
-        if path.join("server/cli.mjs").is_file() {
-            return path.canonicalize().map_err(|e| e.to_string());
+        // A rebuild temporarily removes dist. Never fall back to stale copied resources.
+        if !path.join("server/cli.mjs").is_file() {
+            return Err("开发环境 Node 后端尚未构建完成，请等待构建完成后重试，或运行 pnpm --filter client build:agent-runtime".into());
         }
+        return path.canonicalize().map_err(|e| e.to_string());
     }
     let resources = app.path().resource_dir().map_err(|e| e.to_string())?;
     let path = resources.join("_up_/_up_/agent-runtime/dist");

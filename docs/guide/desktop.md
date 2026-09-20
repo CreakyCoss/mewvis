@@ -26,7 +26,7 @@ pnpm build:desktop:win:arm64
 
 构建会同步产品配置，构建 Chat 共享界面、应用宿主和 Agent 运行时，并打包内置应用与中文文档。具体平台还需安装对应的 Rust/Tauri 构建依赖。
 
-`build:agent-runtime` 调用独立的 `@isle/agent-runtime` 包，先清理并构建运行时，再构建 Application UI Host，最后复制资源和打包应用。应用宿主位于同一个 `apps/agent-runtime/dist` 目录，必须在清理之后生成。开发模式缺少宿主产物时会明确报错，不会加载旧的 Tauri 资源副本。在 `apps/client` 运行 `pnpm test:app-host:packaging` 可验证完整构建后的宿主启动与文档应用全屏声明。
+`build:agent-runtime` 调用独立的 `@isle/agent-runtime` 包，先清理并构建运行时，再构建 Application UI Host，最后复制资源和打包应用。应用宿主位于同一个 `apps/agent-runtime/dist` 目录，必须在清理之后生成。开发模式只使用工作区的运行时产物；缺少 Node 后端时会明确报错，不会回退加载 `target/debug` 中旧的 Tauri 资源副本。运行时重建期间若触发桌面重启，等待构建完成后重试。在 `apps/client` 运行 `pnpm test:app-host:packaging` 可验证完整构建后的宿主启动与文档应用全屏声明。
 
 ## 编辑器
 
