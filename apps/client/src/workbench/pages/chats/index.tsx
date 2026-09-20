@@ -6,6 +6,7 @@ import { useWorkspaceStore } from "./workspace-store";
 import { WorkspaceFileWatcher } from "./workspace-files";
 import { WorkspaceChatSidebar } from "./sidebar";
 import { workspaceChatProfile } from "./profile";
+import { ModelSetupDialog } from "./components/model-setup-dialog";
 
 function WorkspaceChat({ workspaceId, chatId, isActive }: { workspaceId: string; chatId: string; isActive: boolean }) {
   const store = useWorkspaceStore();
@@ -71,6 +72,7 @@ function WorkspaceChat({ workspaceId, chatId, isActive }: { workspaceId: string;
 }
 export function WorkspaceChatRoute() {
   const route = useMatch("/chats/:workspaceId/:chatId");
+  const homeRoute = useMatch("/chat");
   const store = useWorkspaceStore();
   const workspaceId = route?.params.workspaceId ?? "";
   const chatId = route?.params.chatId ?? "";
@@ -94,6 +96,7 @@ export function WorkspaceChatRoute() {
         );
       })}
       <Outlet />
+      {route || homeRoute ? <ModelSetupDialog key={route?.pathname ?? homeRoute?.pathname} /> : null}
     </>
   );
 }
