@@ -180,7 +180,13 @@ fn start(app: &AppHandle, stopping: &AtomicBool) -> Result<BackendProcess, Strin
             .take(16 * 1024)
             .read_until(b'\n', &mut bytes)
             .map_err(|e| e.to_string())
-            .and_then(|_| parse_ready(&bytes));
+            .and_then(|count| {
+                if count == 0 {
+                    Err("Node 后端在发送启动状态前已退出，请检查后端启动日志".into())
+                } else {
+                    parse_ready(&bytes)
+                }
+            });
         let _ = sender.send(result);
         // Readiness contains the credential; it must never be copied to logs.
         let _ = std::io::copy(&mut reader, &mut std::io::sink());
@@ -206,16 +212,25 @@ fn start(app: &AppHandle, stopping: &AtomicBool) -> Result<BackendProcess, Strin
 
 fn parse_ready(bytes: &[u8]) -> Result<BackendConnection, String> {
     #[derive(Deserialize)]
-    struct Ready {
-        r#type: String,
-        url: String,
-        token: String,
+    #[serde(tag = "type", rename_all = "snake_case")]
+    enum Startup {
+        Ready { url: String, token: String },
+        Error { code: String },
     }
     let invalid = || "Node 后端启动握手无效".to_string();
-    let ready: Ready = serde_json::from_slice(bytes).map_err(|_| invalid())?;
-    let url = tauri::Url::parse(&ready.url).map_err(|_| invalid())?;
-    if ready.r#type != "ready"
-        || url.scheme() != "http"
+    let message: Startup = serde_json::from_slice(bytes).map_err(|_| invalid())?;
+    let (address, token) = match message {
+        Startup::Ready { url, token } => (url, token),
+        Startup::Error { code } => {
+            return Err(if code == "SERVER_DATA_IN_USE" {
+                "数据目录正在被其他后端使用，请先退出 Web 开发服务或其他桌面实例后重试".into()
+            } else {
+                "Node 后端启动失败，请检查后端启动日志".into()
+            });
+        }
+    };
+    let url = tauri::Url::parse(&address).map_err(|_| invalid())?;
+    if url.scheme() != "http"
         || url.host_str() != Some("127.0.0.1")
         || url.port().is_none()
         || !url.username().is_empty()
@@ -223,14 +238,14 @@ fn parse_ready(bytes: &[u8]) -> Result<BackendConnection, String> {
         || url.path() != "/"
         || url.query().is_some()
         || url.fragment().is_some()
-        || ready.token.len() != 64
-        || !ready.token.bytes().all(|b| b.is_ascii_hexdigit())
+        || token.len() != 64
+        || !token.bytes().all(|b| b.is_ascii_hexdigit())
     {
         return Err(invalid());
     }
     Ok(BackendConnection {
-        url: ready.url.trim_end_matches('/').into(),
-        token: ready.token,
+        url: address.trim_end_matches('/').into(),
+        token,
     })
 }
 
@@ -294,5 +309,21 @@ mod tests {
             assert!(parse_ready(&ready(url)).is_err());
         }
         assert!(parse_ready(b"not json").is_err());
+    }
+
+    #[test]
+    fn startup_errors_explain_data_conflicts_without_exposing_raw_errors() {
+        let error = parse_ready(br#"{"type":"error","code":"SERVER_DATA_IN_USE"}"#)
+            .err()
+            .unwrap();
+        assert!(error.contains("数据目录正在被其他后端使用"));
+        assert!(error.contains("Web 开发服务"));
+        let error = parse_ready(
+            br#"{"type":"error","code":"unknown-secret","message":"private details"}"#,
+        )
+        .err()
+        .unwrap();
+        assert_eq!(error, "Node 后端启动失败，请检查后端启动日志");
+        assert!(parse_ready(br#"{"type":"error"}"#).is_err());
     }
 }

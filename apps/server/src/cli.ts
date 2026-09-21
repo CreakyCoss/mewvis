@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 import { startServer } from "./server.js";
+import { ServiceError } from "./shared/validation.js";
 
 const desktop = process.argv.includes("--desktop");
 const web = process.argv.includes("--web");
@@ -95,6 +96,17 @@ Desktop mode writes a private readiness message to stdout and closes on stdin EO
     }
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
+    if (desktop) {
+      // Only send a stable code across the private startup channel. Raw errors
+      // may contain credentials or database details and belong in stderr.
+      const code =
+        error instanceof ServiceError && error.code === "SERVER_DATA_IN_USE"
+          ? error.code
+          : "STARTUP_FAILED";
+      await new Promise<void>((resolve) => {
+        process.stdout.write(JSON.stringify({ type: "error", code }) + "\n", () => resolve());
+      });
+    }
     process.exit(1);
   }
 }

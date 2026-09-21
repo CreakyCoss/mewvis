@@ -69,6 +69,34 @@ async function launch(root, runtime, earlyClose = false) {
   }
 }
 
+test("desktop startup reports a data directory conflict and can retry after the owner exits", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "isle desktop conflict "));
+  const sessions = [];
+  t.after(async () => {
+    for (const session of sessions) {
+      session.child.stdin.end();
+      session.child.kill();
+      await session.exited;
+      session.output.close();
+    }
+    await rm(root, { recursive: true, force: true });
+  });
+  const owner = await launch(root, resources);
+  sessions.push(owner);
+  assert.equal(owner.ready.type, "ready");
+  const conflict = await launch(root, resources);
+  sessions.push(conflict);
+  assert.deepEqual(conflict.ready, { type: "error", code: "SERVER_DATA_IN_USE" });
+  assert.equal((await waitFor(conflict.exited, "conflicting backend exits"))[0], 1);
+  owner.child.stdin.end();
+  assert.equal((await waitFor(owner.exited, "owner releases data directory"))[0], 0);
+  const retry = await launch(root, resources);
+  sessions.push(retry);
+  assert.equal(retry.ready.type, "ready");
+  retry.child.stdin.end();
+  assert.equal((await waitFor(retry.exited, "retry shuts down"))[0], 0);
+});
+
 test("packaged desktop backend runs outside the repository, authenticates HTTP/SSE and closes on parent EOF", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "isle desktop backend "));
   const runtime = join(root, "runtime");
