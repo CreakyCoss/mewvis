@@ -7,11 +7,13 @@ import { WorkspaceFileWatcher } from "./workspace-files";
 import { WorkspaceChatSidebar } from "./sidebar";
 import { workspaceChatProfile } from "./profile";
 import { ModelSetupDialog } from "./components/model-setup-dialog";
+import { useExtensionCommands } from "./panels/extensions/use-commands";
 
 function WorkspaceChat({ workspaceId, chatId, isActive }: { workspaceId: string; chatId: string; isActive: boolean }) {
   const store = useWorkspaceStore();
   const requestedWorkspaces = useRef(false);
   const workspace = store.workspaces.find((item) => item.id === workspaceId);
+  const extensionCommands = useExtensionCommands({ workspacePath: workspace?.path ?? "", chatId });
   const { session, history, error, reload, connecting, retryError } = useDesktopChatRecord(
     workspace
       ? {
@@ -63,7 +65,8 @@ function WorkspaceChat({ workspaceId, chatId, isActive }: { workspaceId: string;
           <WorkspaceChatSidebar
             workspacePath={workspace.path}
             chatId={chatId}
-            panels={["files", "version", "ledger"]}
+            panels={["files", "version", "ledger", "extensions"]}
+            extensionCommands={extensionCommands}
           />
         </Chat.Provider>
       ) : null}

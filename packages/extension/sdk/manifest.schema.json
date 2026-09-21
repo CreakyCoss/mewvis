@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Isle Extension package.json",
+  "type": "object",
+  "required": ["name", "version", "type", "isle.extension"],
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$" },
+    "type": { "const": "module" },
+    "isle.extension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "id", "apiVersion", "entry", "capabilities"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$" },
+        "apiVersion": { "const": 1 },
+        "entry": { "type": "string", "minLength": 1 },
+        "capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "tools",
+              "skills",
+              "commands",
+              "session.state",
+              "events.run",
+              "events.tool",
+              "events.turn",
+              "events.message",
+              "events.session",
+              "middleware.input",
+              "middleware.system_prompt",
+              "middleware.context",
+              "middleware.tool_call",
+              "middleware.tool_result",
+              "middleware.session_compact"
+            ]
+          }
+        },
+        "configuration": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schema"],
+          "properties": {
+            "schema": { "type": "object", "required": ["type"], "properties": { "type": { "const": "object" } } },
+            "defaults": { "type": "object" }
+          }
+        }
+      }
+    }
+  }
+}

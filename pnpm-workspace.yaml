@@ -2,6 +2,7 @@ packages:
   - "ai/pi/packages/*"
   - "ai/pi/packages/session-backends/*"
   - "apps/*"
+  - "apps/extensions/*"
   - "packages/*"
   - "packages/*/*"
   - "apps/applications/builtins/chat-playground"

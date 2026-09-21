@@ -14,5 +14,13 @@
   "sandboxControl": {
     "source": "src/security/execution/cli/control.ts",
     "output": "sandbox-control.js"
+  },
+  "extensionWorker": {
+    "source": "src/extensions/execution/worker.ts",
+    "output": "extension-worker.js"
+  },
+  "sdk": {
+    "source": "src/index.ts",
+    "output": "sdk.js"
   }
 }

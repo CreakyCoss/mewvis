@@ -7,6 +7,9 @@ const runAgentRuntimeCli = async () => {
   const protocol = new AgentRuntimeStdioProtocol();
   const runtime = createRuntimeEngine({
     profileId: process.env.AGENT_RUNTIME_PROFILE_ID,
+    extensionSettingsPath: process.env.ISLE_EXTENSION_SETTINGS_PATH,
+    bundledExtensionsPath: process.env.ISLE_BUNDLED_EXTENSIONS_PATH,
+    reloadExtensionSettings: true,
     close: () => {
       reader.close();
     },
@@ -43,7 +46,12 @@ const runAgentRuntimeCli = async () => {
       }
     }
   } finally {
-    await runtime.waitForRunningTask();
+    try {
+      await runtime.waitForRunningTask();
+    } finally {
+      // EOF is also a normal shutdown path for one-shot desktop RPCs.
+      await runtime.shutdown();
+    }
   }
 };
 

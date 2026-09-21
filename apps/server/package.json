@@ -12,9 +12,12 @@
     "dev": "pnpm build && node dist/cli.js",
     "test": "pnpm build && node scripts/test.mjs",
     "test:runtime": "pnpm build && node --test test/integration/runtime.e2e.mjs",
+    "test:extensions": "pnpm --filter @isle/extension-tasks build && pnpm --filter @isle/agent-runtime build && pnpm build && node --test test/integration/extensions.e2e.mjs",
     "test:interop": "pnpm build && node scripts/test-interop.mjs"
   },
   "dependencies": {
+    "@isle/extension-host": "workspace:*",
+    "@isle/extension-sdk": "workspace:*",
     "ajv": "^8.20.0",
     "fs-native-extensions": "1.5.1",
     "sqlite-vec": "0.1.9",

@@ -320,6 +320,12 @@ importers:
       '@anthropic-ai/sandbox-runtime':
         specifier: 0.0.75
         version: 0.0.75
+      '@deepseek-ai/dsh-atomic-write':
+        specifier: 0.1.1-rc.2
+        version: 0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.1-rc.2)
+      '@earendil-works/chord':
+        specifier: workspace:*
+        version: link:../../ai/pi/packages/chord
       '@earendil-works/pi-ai':
         specifier: workspace:*
         version: link:../../ai/pi/packages/ai
@@ -332,6 +338,12 @@ importers:
       '@isle/chat-contracts':
         specifier: workspace:*
         version: link:../../packages/chat-contracts
+      '@isle/extension-host':
+        specifier: workspace:*
+        version: link:../../packages/extension/host
+      '@isle/extension-sdk':
+        specifier: workspace:*
+        version: link:../../packages/extension/sdk
       '@langchain/langgraph':
         specifier: ^1.4.7
         version: 1.4.7(@langchain/core@1.2.1)(react-dom@19.1.0)(react@19.1.0)(zod@4.4.3)
@@ -348,6 +360,9 @@ importers:
       '@isle/app-dev':
         specifier: workspace:*
         version: link:../../packages/app/dev
+      '@isle/extension-dev':
+        specifier: workspace:*
+        version: link:../../packages/extension/dev
       '@types/lodash-es':
         specifier: ^4.17.12
         version: 4.17.12
@@ -713,8 +728,37 @@ importers:
         specifier: ^7.0.4
         version: 7.0.4(@types/node@22.0.0)
 
+  apps/extensions/tasks:
+    dependencies:
+      '@isle/extension-sdk':
+        specifier: workspace:*
+        version: link:../../../packages/extension/sdk
+      zod:
+        specifier: ^4.2.0
+        version: 4.4.3
+    devDependencies:
+      '@isle/extension-dev':
+        specifier: workspace:*
+        version: link:../../../packages/extension/dev
+
+  apps/extensions/text-stats:
+    dependencies:
+      '@isle/extension-sdk':
+        specifier: workspace:*
+        version: link:../../../packages/extension/sdk
+    devDependencies:
+      '@isle/extension-dev':
+        specifier: workspace:*
+        version: link:../../../packages/extension/dev
+
   apps/server:
     dependencies:
+      '@isle/extension-host':
+        specifier: workspace:*
+        version: link:../../packages/extension/host
+      '@isle/extension-sdk':
+        specifier: workspace:*
+        version: link:../../packages/extension/sdk
       ajv:
         specifier: ^8.20.0
         version: 8.20.0
@@ -944,6 +988,32 @@ importers:
       typescript:
         specifier: ~5.8.3
         version: 5.8.3
+
+  packages/extension/dev:
+    dependencies:
+      '@isle/extension-host':
+        specifier: workspace:*
+        version: link:../host
+      '@isle/extension-sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      esbuild:
+        specifier: ^0.28.0
+        version: 0.28.1
+
+  packages/extension/host:
+    dependencies:
+      '@deepseek-ai/dsh-atomic-write':
+        specifier: 0.1.1-rc.2
+        version: 0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.1-rc.2)
+      '@isle/extension-sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
+
+  packages/extension/sdk: {}
 
 packages:
 

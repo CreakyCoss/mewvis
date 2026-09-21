@@ -1,4 +1,4 @@
-import { Blocks, Bot, Database, MessageSquarePlus, Settings, Wrench } from "lucide-react";
+import { Blocks, Bot, Database, MessageSquarePlus, Puzzle, Settings, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { To } from "react-router";
 import { NavLink } from "react-router";
@@ -43,6 +43,10 @@ export const PrimaryNav = () => {
       <NavLink to="/apps" className={linkClassName}>
         <Blocks className="size-4" />
         <span>应用</span>
+      </NavLink>
+      <NavLink to="/extensions" className={linkClassName}>
+        <Puzzle className="size-4" />
+        <span>插件</span>
       </NavLink>
     </nav>
   );

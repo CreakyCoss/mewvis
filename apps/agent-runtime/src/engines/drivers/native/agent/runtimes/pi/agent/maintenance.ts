@@ -11,6 +11,7 @@ import type {
 import type { RuntimeAgentVisibleContext } from "../../../../session/model/agent-context.js";
 import { PiChatRuntime } from "../chat/index.js";
 import { createPiAgentSession, type PiAgentSession } from "./session.js";
+import { PiExtensionFailure, isPiCompactionSkipped } from "../extensions/index.js";
 
 type PiMaintenanceCommand = RuntimeAgentCompactCommand | RuntimeAgentRebuildCommand | RuntimeAgentSummarizeCommand;
 
@@ -113,23 +114,33 @@ const renderNativeAgentContext = (context: RuntimeAgentVisibleContext) =>
 
 export const compactPiAgentSession = async (
   command: RuntimeAgentCompactCommand,
-  { callbacks }: AgentRuntimeContext,
+  { callbacks, extensions, signal }: AgentRuntimeContext,
 ): Promise<SessionMutationResult> => {
-  const { session, disposeResources } = await createPiAgentSession(maintenanceRuntimeCommand(command), callbacks);
+  const { session, disposeResources } = await createPiAgentSession(maintenanceRuntimeCommand(command), callbacks, {
+    extensions,
+    signal,
+  });
+  const abort = () => session.abortCompaction();
+  signal?.addEventListener("abort", abort, { once: true });
   try {
+    signal?.throwIfAborted();
     await session.compact(command.compactInstructions?.trim() || undefined);
+    signal?.throwIfAborted();
     return createPiAgentMaintenanceResult(command, {
       compacted: true,
     });
   } catch (error: unknown) {
+    signal?.throwIfAborted();
+    if (error instanceof PiExtensionFailure) throw error;
     const message = error instanceof Error ? error.message : String(error);
-    if (message.includes("Nothing to compact") || message.includes("Already compacted")) {
+    if (isPiCompactionSkipped(message) || message === "Compaction cancelled") {
       return createPiAgentMaintenanceResult(command, {
         compacted: false,
       });
     }
     throw error;
   } finally {
+    signal?.removeEventListener("abort", abort);
     try {
       session.dispose();
     } finally {

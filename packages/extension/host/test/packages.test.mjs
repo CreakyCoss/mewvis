@@ -1,0 +1,157 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { mkdtemp, mkdir, writeFile, readFile, rm, symlink, realpath } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { createExtensionPackageManager, readExtensionPackage, resolveExtensionPackages } from "../index.mjs";
+
+async function fixture(t, id = "test.package") {
+  const root = await mkdtemp(join(tmpdir(), "isle-package-test-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const directory = join(root, "plugin");
+  await mkdir(directory);
+  const pkg = {
+    name: id,
+    version: "1.0.0",
+    type: "module",
+    "isle.extension": {
+      schemaVersion: 1,
+      id,
+      apiVersion: 1,
+      entry: "./index.js",
+      capabilities: ["commands"],
+      configuration: {
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["limit"],
+          properties: { limit: { type: "integer", minimum: 1 } },
+        },
+        defaults: { limit: 10 },
+      },
+    },
+  };
+  const save = () => writeFile(join(directory, "package.json"), JSON.stringify(pkg));
+  await save();
+  await writeFile(join(directory, "index.js"), "throw new Error('metadata loading must not execute code');");
+  return { root, directory, pkg, save, settings: join(root, "settings/extensions.json") };
+}
+
+test("metadata validation never executes code; configuration defaults and host risks", async (t) => {
+  const f = await fixture(t);
+  const pkg = readExtensionPackage(f.directory);
+  assert.equal(pkg.manifest.id, "test.package");
+  const [source] = resolveExtensionPackages([
+    { path: f.directory, config: { limit: 3 }, commandRisks: { hello: "low" } },
+  ]);
+  assert.deepEqual(source.config, { limit: 3 });
+  assert.equal(source.commandRisks.hello, "low");
+  assert.equal(resolveExtensionPackages([{ path: f.directory }])[0].config.limit, 10);
+  assert.throws(() => resolveExtensionPackages([{ path: f.directory, config: { limit: "3" } }]), /配置无效/);
+  assert.throws(() => resolveExtensionPackages([{ path: f.directory, config: { limit: NaN } }]), /JSON/);
+  assert.throws(() => resolveExtensionPackages([{ path: f.directory }, { path: f.directory }]), /重复/);
+});
+
+test("entry traversal, symlink escape, unsupported versions and capabilities fail closed", async (t) => {
+  const f = await fixture(t);
+  await writeFile(join(f.root, "outside.js"), "");
+  for (const entry of ["../outside.js", join(f.root, "outside.js")]) {
+    f.pkg["isle.extension"].entry = entry;
+    await f.save();
+    assert.throws(() => readExtensionPackage(f.directory), /包内/);
+  }
+  await symlink(join(f.root, "outside.js"), join(f.directory, "escape.js"));
+  f.pkg["isle.extension"].entry = "escape.js";
+  await f.save();
+  assert.throws(() => readExtensionPackage(f.directory), /包内/);
+  f.pkg["isle.extension"].entry = "index.js";
+  f.pkg["isle.extension"].capabilities.push("context.transform");
+  await f.save();
+  assert.throws(() => readExtensionPackage(f.directory), /尚不支持/);
+  f.pkg["isle.extension"].capabilities = [];
+  f.pkg["isle.extension"].apiVersion = 2;
+  await f.save();
+  assert.throws(() => readExtensionPackage(f.directory), /清单无效/);
+});
+
+test("persistent registration, configure rollback, disable missing package, remove preserves files", async (t) => {
+  const f = await fixture(t);
+  const manager = createExtensionPackageManager(f.settings);
+  assert.deepEqual(manager.list(), []);
+  await manager.add(f.directory);
+  await assert.rejects(() => manager.add(f.directory), /重复/);
+  await manager.configure("test.package", { config: { limit: 2 } });
+  const resumed = createExtensionPackageManager(f.settings);
+  assert.equal(resumed.resolve()[0].config.limit, 2);
+  await assert.rejects(() => resumed.configure("test.package", { config: { limit: 0 } }), /配置无效/);
+  assert.equal(resumed.resolve()[0].config.limit, 2);
+  await rm(join(f.directory, "index.js"));
+  await resumed.configure("test.package", { enabled: false });
+  assert.deepEqual(resumed.resolve(), []);
+  await assert.rejects(() => resumed.configure("test.package", { enabled: true }), /ENOENT/);
+  assert.equal(resumed.list()[0].enabled, false);
+  await resumed.remove("test.package");
+  assert.deepEqual(resumed.list(), []);
+  assert.ok(await readFile(join(f.directory, "package.json")));
+});
+
+test("concurrent managers preserve updates and package identity cannot change silently", async (t) => {
+  const f = await fixture(t);
+  const other = await fixture(t, "test.other");
+  const a = createExtensionPackageManager(f.settings),
+    b = createExtensionPackageManager(f.settings);
+  await Promise.all([a.add(f.directory), b.add(other.directory)]);
+  assert.equal(a.list().length, 2);
+  f.pkg["isle.extension"].id = "test.changed";
+  await f.save();
+  assert.throws(() => b.resolve(), /身份已改变/);
+  await writeFile(f.settings, "{broken");
+  await assert.rejects(() => b.remove("test.package"));
+  assert.equal(await readFile(f.settings, "utf8"), "{broken");
+});
+
+test("bundled discovery, overrides, relocation and local registration share one catalog", async (t) => {
+  const f = await fixture(t);
+  const { cp } = await import("node:fs/promises");
+  const bundledPath = join(f.root, "installation/extensions");
+  await mkdir(bundledPath, { recursive: true });
+  await cp(f.directory, join(bundledPath, "plugin"), { recursive: true });
+  const manager = createExtensionPackageManager(f.settings, { bundledPath });
+  assert.equal(manager.list()[0].source, "bundled");
+  assert.equal(manager.resolve()[0].config.limit, 10);
+  await assert.rejects(readFile(f.settings), { code: "ENOENT" }); // Discovery does not write registrations.
+  await assert.rejects(() => manager.add(f.directory), /重复/);
+  await assert.rejects(() => manager.remove("test.package"), /内置插件不能移除/);
+  await manager.configure("test.package", { config: { limit: 3 } });
+  await assert.rejects(() => manager.configure("test.package", { config: { limit: 0 } }), /配置无效/);
+  const other = await fixture(t, "test.local");
+  await Promise.all([
+    manager.configure("test.package", { enabled: false }),
+    createExtensionPackageManager(f.settings, { bundledPath }).add(other.directory),
+  ]);
+  assert.deepEqual(
+    manager.resolve().map((item) => item.id),
+    ["test.local"],
+  );
+  const settings = JSON.parse(await readFile(f.settings, "utf8"));
+  assert.deepEqual(settings.bundled["test.package"], { config: { limit: 3 }, enabled: false });
+  assert.equal(settings.packages.length, 1);
+  assert.ok(!JSON.stringify(settings).includes(bundledPath));
+
+  const relocated = join(f.root, "upgraded/extensions");
+  await cp(bundledPath, relocated, { recursive: true });
+  await rm(bundledPath, { recursive: true });
+  const upgraded = createExtensionPackageManager(f.settings, { bundledPath: relocated });
+  assert.equal(upgraded.list()[0].enabled, false);
+  await upgraded.configure("test.package", { enabled: true });
+  assert.equal(upgraded.resolve()[0].config.limit, 3);
+  assert.equal(upgraded.resolve()[0].entry, await realpath(join(relocated, "plugin/index.js")));
+  await rm(join(relocated, "plugin/index.js"));
+  await upgraded.configure("test.package", { enabled: false });
+  assert.deepEqual(
+    upgraded.resolve().map((item) => item.id),
+    ["test.local"],
+  );
+  await upgraded.remove("test.local");
+  assert.equal(upgraded.list().length, 1);
+});

@@ -52,6 +52,7 @@ export interface TaskSnapshot {
   sessionKey: string;
   updatedAt: number;
   pendingInput?: JsonObject;
+  result?: JsonObject;
 }
 
 const terminal = new Set<TaskState>(["done", "failed", "cancelled"]);
@@ -158,6 +159,7 @@ export class AgentRuntimeSupervisor {
       workerId: worker.id,
       sessionKey: worker.scope.sessionKey,
       updatedAt: Date.now(),
+      ...(previous?.result ? { result: previous.result } : {}),
       ...(taskState === "waiting_user" && previous?.pendingInput
         ? { pendingInput: previous.pendingInput }
         : {}),
@@ -186,6 +188,8 @@ export class AgentRuntimeSupervisor {
 
   emit(taskId: string, event: JsonObject) {
     const task = this.tasks.get(taskId);
+    if (task && event.type === "extension_command_result")
+      task.result = structuredClone(event);
     if (
       task &&
       (event.type === "question" || event.type === "approval_requested")
@@ -824,6 +828,11 @@ class RuntimeWorker {
     if (message.kind === "result" && value.rpcRequestId !== this.current.taskId)
       return;
     this.lastActivity = performance.now();
+    if (value.type === "extension_command_result") {
+      this.supervisor.emit(this.current.taskId, value);
+      this.complete(value.success === true);
+      return;
+    }
     if (value.type === "task_result") {
       this.complete(value.success === true);
       return;

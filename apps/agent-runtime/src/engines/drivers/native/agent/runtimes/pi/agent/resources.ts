@@ -1,3 +1,4 @@
+import { piExtensionAdapter, installPiExtensionGuards } from "../extensions/index.js";
 import {
   DefaultResourceLoader,
   SettingsManager,
@@ -9,7 +10,7 @@ import type { ResolvedBuiltins } from "../../../../../../builtins/index.js";
 import type { AgentRuntimeCallbacks, RuntimeAgentCommand } from "../../types.js";
 import { runtimeSkillSourcePaths } from "../../resources.js";
 import { createPiToolSet } from "../tools/index.js";
-import type { PiAgentSessionOptions } from "./session.js";
+import type { PiAgentSession, PiAgentSessionOptions } from "./session.js";
 import { accessAllowsPath, type ResolvedAgentAccess } from "../../../../../../../security/access/index.js";
 
 export const createPiResourceLoader = async (
@@ -19,8 +20,19 @@ export const createPiResourceLoader = async (
 ) => {
   const toolSet = await createPiToolSet(command, callbacks, options);
   try {
+    const extensionTools = options.extensions?.catalog.tools ?? [];
+    const allTools = [...toolSet.tools, ...extensionTools];
+    if (new Set(allTools.map((tool) => tool.name)).size !== allTools.length)
+      throw new Error("插件工具与已有工具名称冲突");
     const skills = loadPiSkills(command, toolSet.builtins, toolSet.applications?.skills ?? [], toolSet.access);
     const settingsManager = toolSet.access ? SettingsManager.inMemory() : undefined;
+    const extension =
+      options.extensions &&
+      piExtensionAdapter.adapt(options.extensions, {
+        taskId: command.taskId,
+        runtimeId: "pi",
+        signal: options.signal,
+      });
     const loader = new DefaultResourceLoader({
       cwd: command.workspacePath,
       agentDir: getAgentDir(),
@@ -29,7 +41,13 @@ export const createPiResourceLoader = async (
       noSkills: true,
       // Scoped runs must not auto-inject unrelated home/ancestor instructions or templates.
       ...(toolSet.access
-        ? { noContextFiles: true, noPromptTemplates: true, noThemes: true, systemPrompt: "", appendSystemPrompt: [] }
+        ? {
+            noContextFiles: true,
+            noPromptTemplates: true,
+            noThemes: true,
+            systemPrompt: "",
+            appendSystemPrompt: [],
+          }
         : {}),
       ...(options.rolePrompt ? { systemPromptOverride: () => options.rolePrompt } : {}),
       extensionFactories: [
@@ -38,6 +56,7 @@ export const createPiResourceLoader = async (
           toolSet.registerExtensions(pi);
           toolSet.applications?.registerSkills(pi, skills);
         },
+        ...(extension ? [extension] : []),
       ],
       skillsOverride: () => ({ skills, diagnostics: [] }),
     });
@@ -45,9 +64,12 @@ export const createPiResourceLoader = async (
     return {
       loader,
       settingsManager,
-      toolNames: toolSet.tools.map((tool) => tool.name),
+      toolNames: allTools.map((tool) => tool.name),
       dispose: toolSet.dispose,
-      installSafety: toolSet.installSafety,
+      installSafety(session: PiAgentSession) {
+        toolSet.installSafety(session);
+        if (extension) installPiExtensionGuards(session, extension.assertHealthy);
+      },
     };
   } catch (error) {
     await toolSet.dispose();

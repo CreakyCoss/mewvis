@@ -1,4 +1,10 @@
-import { executeAgentRunCommand, executeChatCommand, type AgentEngineOptions } from "./commands/execution.js";
+import type { ExtensionSource } from "@isle/extension-sdk";
+import { createExtensionRuntime } from "../../../../extensions/index.js";
+import {
+  executeAgentRunCommand,
+  executeChatCommand,
+  type AgentExecutionOptions,
+} from "./commands/execution.js";
 import type {
   AgentRunCommand,
   AgentRunResult,
@@ -9,11 +15,33 @@ import type {
 } from "./runtimes/types.js";
 
 export type AgentEngine = {
-  runAgent(command: AgentRunCommand, context: AgentRuntimeContext): Promise<AgentRunResult>;
-  chat(command: ChatRunCommand, context: ChatRuntimeContext): Promise<ChatRunResult>;
+  dispose(): Promise<void>;
+  runAgent(
+    command: AgentRunCommand,
+    context: AgentRuntimeContext,
+  ): Promise<AgentRunResult>;
+  chat(
+    command: ChatRunCommand,
+    context: ChatRuntimeContext,
+  ): Promise<ChatRunResult>;
 };
 
-export const createAgentEngine = (options: AgentEngineOptions = {}): AgentEngine => ({
-  runAgent: (command, context) => executeAgentRunCommand(command, context, options),
+/** Engine configuration resolves plugins once at the start of each Agent run. */
+export type AgentEngineOptions = Omit<AgentExecutionOptions, "extensions"> & {
+  getExtensionSources?: () => readonly ExtensionSource[];
+};
+
+export const createAgentEngine = ({
+  getExtensionSources = () => [],
+  extensionRuntime = createExtensionRuntime(),
+  ...options
+}: AgentEngineOptions = {}): AgentEngine => ({
+  dispose: () => extensionRuntime.dispose(),
+  runAgent: async (command, context) =>
+    executeAgentRunCommand(command, context, {
+      ...options,
+      extensionRuntime,
+      extensions: extensionRuntime.snapshotSources(getExtensionSources()),
+    }),
   chat: (command, context) => executeChatCommand(command, context, options),
 });

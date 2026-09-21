@@ -2,6 +2,8 @@ import { invoke } from "@/transport";
 import { listen } from "@/transport";
 import type {
   AgentRuntimeTauriAgentInput,
+  ExtensionCommandTarget,
+  ExtensionCommandInput,
   AgentRuntimeTauriChatInput,
   AgentRuntimeTauriCollaborationInput,
   AgentRuntimeTauriCollaborationModeInput,
@@ -94,3 +96,8 @@ export const listenAgentRuntimeChatEvents = (
 
 export const releaseAgentRuntimeSession = (input: SessionTargetParams) =>
   invokeAgentRuntime("release_agent_runtime_session", { input });
+
+export const listExtensionCommands = async (input: ExtensionCommandTarget) =>
+  (await invokeAgentRuntime("list_extension_commands", { input })).commands;
+export const executeExtensionCommand = (input: ExtensionCommandInput) =>
+  invokeAgentRuntime("execute_extension_command", { input });

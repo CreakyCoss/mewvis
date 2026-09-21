@@ -13,6 +13,15 @@ import { RuntimeSessionRecorder } from "../../session/recorder.js";
 import { messageFromError } from "../../error.js";
 import type { RuntimeSessionProviderId } from "../../session/providers/types.js";
 
+import type { ExtensionSource } from "@isle/extension-sdk";
+import { resolveExtensionAdaptation } from "@isle/extension-sdk";
+import type { RuntimeAgentRegistry } from "../runtimes/registry.js";
+import {
+  createExtensionRuntime,
+  type ExtensionOperation,
+  type ExtensionRuntime,
+} from "../../../../../extensions/index.js";
+
 const CHAT_TIMEOUT_MS = 10 * 60 * 1000;
 const CHAT_MAX_ATTEMPTS = 2;
 const CHAT_PROVIDER_MAX_RETRIES = 0;
@@ -56,10 +65,13 @@ const RETRYABLE_ERROR_MESSAGES = [
 export const executeAgentRunCommand = (
   command: AgentRunCommand,
   context: AgentRuntimeContext,
-  options: AgentEngineOptions = {},
+  options: AgentExecutionOptions = {},
 ): Promise<AgentRunResult> => executeAgentRunCommandWithRecording(command, context, options);
 
-export type AgentEngineOptions = {
+export type AgentExecutionOptions = {
+  registry?: RuntimeAgentRegistry;
+  extensions?: readonly ExtensionSource[];
+  extensionRuntime?: ExtensionRuntime;
   agentRuntimeId?: string | null;
   chatRuntimeId?: string | null;
   sessionProviderId?: RuntimeSessionProviderId | null;
@@ -71,12 +83,20 @@ const runtimeIdOverride = (commandRuntimeId: string | null | undefined, defaultI
 const executeAgentRunCommandWithRecording = async (
   command: AgentRunCommand,
   context: AgentRuntimeContext,
-  options: AgentEngineOptions,
+  options: AgentExecutionOptions,
 ): Promise<AgentRunResult> => {
+  options.extensionRuntime?.signal.throwIfAborted();
   const { runtimeId, implementation } = resolveRuntime(
     "agent",
     runtimeIdOverride(command.runtimeId, options.agentRuntimeId),
+    options.registry,
   );
+  if (options.extensions?.length) {
+    if (!implementation.extensionAdapter) throw new Error(`${runtimeId} 不支持 Isle 插件能力`);
+    const report = resolveExtensionAdaptation(implementation.extensionAdapter, options.extensions);
+    context.callbacks.onExtensionAdaptation?.(report);
+  }
+  context.signal?.throwIfAborted();
   const preparedRun = await prepareRuntimeAgentRun(command, runtimeId, {
     sessionProviderId: options.sessionProviderId,
   });
@@ -88,23 +108,70 @@ const executeAgentRunCommandWithRecording = async (
       }
     : context;
   const recorder = await RuntimeSessionRecorder.create(runtimeCommand, options.sessionProviderId);
-  await recorder?.recordInitialUserMessage();
+  const extensionRuntime = options.extensionRuntime ?? createExtensionRuntime();
+  let extensions: ExtensionOperation | undefined;
+  let started = false;
+  let completed = false;
+  const emit = recorder ? recorder.wrapEmit(runtimeContext.emit) : runtimeContext.emit;
   try {
-    return await implementation.run(
-      runtimeCommand,
-      recorder ? { ...runtimeContext, emit: recorder.wrapEmit(runtimeContext.emit) } : runtimeContext,
-    );
+    await recorder?.recordInitialUserMessage();
+    extensions = options.extensions?.length
+      ? await extensionRuntime.open(options.extensions, runtimeCommand, runtimeContext)
+      : undefined;
+    if (!extensions && runtimeCommand.sessionRootDir) {
+      // An empty source snapshot must retire previously enabled plugins too.
+      await extensionRuntime.releaseSession(runtimeCommand.sessionRootDir);
+    }
+    if (extensions) {
+      await extensions.notify({
+        type: "run_started",
+        taskId: command.taskId,
+        runtimeId,
+      });
+      started = true;
+    }
+    context.signal?.throwIfAborted();
+    const result = await implementation.run(runtimeCommand, {
+      ...runtimeContext,
+      extensions,
+      emit,
+    });
+    context.signal?.throwIfAborted();
+    completed = true;
+    return result;
   } finally {
-    await recorder?.flush();
+    try {
+      if (started && extensions) {
+        await extensions.finish({
+          type: "run_finished",
+          taskId: command.taskId,
+          status: context.signal?.aborted ? "cancelled" : completed ? "completed" : "failed",
+        });
+      }
+    } finally {
+      try {
+        await extensions?.dispose();
+      } finally {
+        try {
+          if (!options.extensionRuntime) await extensionRuntime.dispose();
+        } finally {
+          await recorder?.flush();
+        }
+      }
+    }
   }
 };
 
 export const executeChatCommand = async (
   command: ChatRunCommand,
   context: ChatRuntimeContext,
-  options: AgentEngineOptions = {},
+  options: AgentExecutionOptions = {},
 ): Promise<ChatRunResult> => {
-  const { implementation } = resolveRuntime("chat", runtimeIdOverride(command.runtimeId, options.chatRuntimeId));
+  const { implementation } = resolveRuntime(
+    "chat",
+    runtimeIdOverride(command.runtimeId, options.chatRuntimeId),
+    options.registry,
+  );
   const runtimeCommand = prepareChatRunCommand(command);
   let lastError: unknown;
 

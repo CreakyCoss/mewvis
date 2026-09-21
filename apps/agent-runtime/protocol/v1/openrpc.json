@@ -222,6 +222,32 @@
         "paramsMode": "flat"
       },
       "x-isle-params-schema": "./schema/request.schema.json#/definitions/AnswerApprovalParams"
+    },
+    {
+      "name": "extensions/commands/list",
+      "summary": "extensions/commands/list",
+      "params": [],
+      "result": {
+        "$ref": "#/components/contentDescriptors/genericResult"
+      },
+      "x-isle-command": {
+        "type": "list_extension_commands",
+        "paramsMode": "flat"
+      },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/ExtensionCommandsParams"
+    },
+    {
+      "name": "extensions/commands/execute",
+      "summary": "extensions/commands/execute",
+      "params": [],
+      "result": {
+        "$ref": "#/components/contentDescriptors/genericResult"
+      },
+      "x-isle-command": {
+        "type": "execute_extension_command",
+        "paramsMode": "flat"
+      },
+      "x-isle-params-schema": "./schema/request.schema.json#/definitions/ExtensionCommandParams"
     }
   ],
   "components": {

@@ -3,12 +3,16 @@ import type { CollaborationModeRunInput, CollaborationRunInput } from "../collab
 import type {
   CollaborationTimelineParams,
   EmptyParams,
+  ExtensionCommandsParams,
+  ExtensionCommandParams,
   RuntimeSessionDebugParams,
   RuntimeSessionParams,
   RuntimeSessionsParams,
 } from "../wire.js";
 
 export enum AgentRuntimeCommandType {
+  ListExtensionCommands = "list_extension_commands",
+  ExecuteExtensionCommand = "execute_extension_command",
   ListRuntimeSessions = "list_runtime_sessions",
   ReadRuntimeSession = "read_runtime_session",
   ReadRuntimeSessionDebug = "read_runtime_session_debug",
@@ -57,6 +61,8 @@ export type RunCollaborationModeCommand = {
 };
 
 export type AgentRuntimeCommand =
+  | InternalRuntimeCommand<AgentRuntimeCommandType.ListExtensionCommands, ExtensionCommandsParams>
+  | InternalRuntimeCommand<AgentRuntimeCommandType.ExecuteExtensionCommand, ExtensionCommandParams>
   | AgentCommand
   | ListCollaborationModesCommand
   | ListRuntimeSessionsCommand

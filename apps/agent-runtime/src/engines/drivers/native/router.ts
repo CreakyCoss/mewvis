@@ -16,21 +16,30 @@ import {
   type RunCollaborationModeCommand,
   type TaskResult,
 } from "../../protocol/index.js";
-import type { AgentRuntimeEngine, EmitAgentRuntimeEvent, EmitAgentRuntimeResult } from "../../runtime.js";
+import type {
+  AgentRuntimeEngine,
+  EmitAgentRuntimeEvent,
+  EmitAgentRuntimeResult,
+} from "../../runtime.js";
 import { agentRunCommandFromRunAgent } from "./agent/commands/adapter.js";
 import type { AgentRunCommand } from "./agent/runtimes/types.js";
 import { createTaskResult } from "./agent/commands/responses.js";
 import { messageFromError } from "./error.js";
 
-const collaborationBusyMessage = "当前 Agent runtime 已有运行中的协作任务，无法启动新协作";
-const runningTaskMessage = "当前 Agent runtime 已有运行中的任务，无法启动新任务";
-const runningTaskChatMessage = "当前 Agent runtime 已有运行中的任务，无法启动 chat";
+const collaborationBusyMessage =
+  "当前 Agent runtime 已有运行中的协作任务，无法启动新协作";
+const runningTaskMessage =
+  "当前 Agent runtime 已有运行中的任务，无法启动新任务";
+const runningTaskChatMessage =
+  "当前 Agent runtime 已有运行中的任务，无法启动 chat";
 
 type RequestCommand = {
   requestId?: string | null;
 };
 
-const commandInputFrom = <TCommand extends { type: unknown; requestId?: string | null }>(
+const commandInputFrom = <
+  TCommand extends { type: unknown; requestId?: string | null },
+>(
   command: TCommand,
 ): Omit<TCommand, "type" | "requestId"> => {
   const { type: _type, requestId: _requestId, ...input } = command;
@@ -46,18 +55,27 @@ type NativeRuntimeCommandRouterDeps = {
   runAgentCommand(command: AgentRunCommand): Promise<TaskResult>;
 };
 
-export const createNativeRuntimeCommandRouter = (deps: NativeRuntimeCommandRouterDeps) => {
+export const createNativeRuntimeCommandRouter = (
+  deps: NativeRuntimeCommandRouterDeps,
+) => {
   let activeAgentRun: Promise<void> | null = null;
   let activeCollaborationRun: Promise<void> | null = null;
 
-  const emitCommandResult = (command: RequestCommand, result: AgentRuntimeResult) => {
+  const emitCommandResult = (
+    command: RequestCommand,
+    result: AgentRuntimeResult,
+  ) => {
     deps.emitResult({
       ...result,
       requestId: command.requestId ?? null,
     } as AgentRuntimeResult);
   };
 
-  const emitCommandError = (_command: RequestCommand, message: string, taskId?: string | null) => {
+  const emitCommandError = (
+    _command: RequestCommand,
+    message: string,
+    taskId?: string | null,
+  ) => {
     deps.emitEvent({
       type: AgentRuntimeEventType.Error,
       taskId: taskId || undefined,
@@ -65,7 +83,10 @@ export const createNativeRuntimeCommandRouter = (deps: NativeRuntimeCommandRoute
     });
   };
 
-  const emitCommandActionResult = async (command: RequestCommand, action: () => Promise<AgentRuntimeResult>) => {
+  const emitCommandActionResult = async (
+    command: RequestCommand,
+    action: () => Promise<AgentRuntimeResult>,
+  ) => {
     try {
       emitCommandResult(command, await action());
     } catch (error: unknown) {
@@ -79,10 +100,15 @@ export const createNativeRuntimeCommandRouter = (deps: NativeRuntimeCommandRoute
       return;
     }
 
-    await emitCommandActionResult(command, () => deps.engine.agent.chat(commandInputFrom(command)));
+    await emitCommandActionResult(command, () =>
+      deps.engine.agent.chat(commandInputFrom(command)),
+    );
   };
 
-  const runAgentCommandWhenIdle = (command: RunAgentCommand, agentCommand: AgentRunCommand) => {
+  const runAgentCommandWhenIdle = (
+    command: RunAgentCommand,
+    agentCommand: AgentRunCommand,
+  ) => {
     if (activeAgentRun) {
       emitCommandError(command, runningTaskMessage, agentCommand.taskId);
       emitCommandResult(
@@ -105,10 +131,13 @@ export const createNativeRuntimeCommandRouter = (deps: NativeRuntimeCommandRoute
       });
   };
 
-  const taskIdFor = (command: RunCollaborationCommand | RunCollaborationModeCommand) =>
-    command.requestId?.trim() || command.input.requestId?.trim() || "";
+  const taskIdFor = (
+    command: RunCollaborationCommand | RunCollaborationModeCommand,
+  ) => command.requestId?.trim() || command.input.requestId?.trim() || "";
 
-  const emitCollaborationBusyResult = (command: RunCollaborationCommand | RunCollaborationModeCommand) => {
+  const emitCollaborationBusyResult = (
+    command: RunCollaborationCommand | RunCollaborationModeCommand,
+  ) => {
     deps.emitEvent({
       type: AgentRuntimeEventType.Error,
       message: collaborationBusyMessage,
@@ -130,7 +159,9 @@ export const createNativeRuntimeCommandRouter = (deps: NativeRuntimeCommandRoute
     });
   };
 
-  const runCollaborationCommand = (command: RunCollaborationCommand | RunCollaborationModeCommand) => {
+  const runCollaborationCommand = (
+    command: RunCollaborationCommand | RunCollaborationModeCommand,
+  ) => {
     if (activeCollaborationRun) {
       emitCollaborationBusyResult(command);
       return;
@@ -173,6 +204,35 @@ export const createNativeRuntimeCommandRouter = (deps: NativeRuntimeCommandRoute
 
   const handle = async (command: AgentRuntimeCommand): Promise<boolean> => {
     switch (command.type) {
+      case AgentRuntimeCommandType.ListExtensionCommands:
+        await emitCommandActionResult(command, async () => ({
+          type: AgentRuntimeResultType.ExtensionCommandsResult,
+          commands: await deps.engine.extensions.listCommands(
+            commandInputFrom(command),
+          ),
+        }));
+        return true;
+      case AgentRuntimeCommandType.ExecuteExtensionCommand: {
+        const finish = (success: boolean, value?: unknown, message?: string) =>
+          emitCommandResult(command, {
+            type: AgentRuntimeResultType.ExtensionCommandResult,
+            taskId: command.taskId,
+            success,
+            ...(success ? { value } : { message }),
+          });
+        if (activeAgentRun || activeCollaborationRun) {
+          finish(false, undefined, runningTaskMessage);
+          return true;
+        }
+        activeAgentRun = deps.engine.extensions
+          .executeCommand(commandInputFrom(command))
+          .then((value) => finish(true, value))
+          .catch((error) => finish(false, undefined, messageFromError(error)))
+          .finally(() => {
+            activeAgentRun = null;
+          });
+        return true;
+      }
       case AgentTaskCommandType.Ping:
         emitCommandResult(command, await deps.engine.ping());
         return true;
@@ -182,11 +242,19 @@ export const createNativeRuntimeCommandRouter = (deps: NativeRuntimeCommandRoute
         return false;
 
       case AgentTaskCommandType.ListAgentTools:
-        emitCommandResult(command, await deps.engine.capabilities.listAgentTools(commandInputFrom(command)));
+        emitCommandResult(
+          command,
+          await deps.engine.capabilities.listAgentTools(
+            commandInputFrom(command),
+          ),
+        );
         return true;
 
       case AgentTaskCommandType.ListRuntimeModels:
-        emitCommandResult(command, await deps.engine.capabilities.listRuntimeModels());
+        emitCommandResult(
+          command,
+          await deps.engine.capabilities.listRuntimeModels(),
+        );
         return true;
 
       case AgentTaskCommandType.AnswerApproval:
@@ -205,15 +273,22 @@ export const createNativeRuntimeCommandRouter = (deps: NativeRuntimeCommandRoute
         return true;
 
       case AgentSessionCommandType.CreateSession:
-        emitCommandError(command, "create_session 是 native session 内部初始化能力，不作为外部 runtime 命令暴露");
+        emitCommandError(
+          command,
+          "create_session 是 native session 内部初始化能力，不作为外部 runtime 命令暴露",
+        );
         return true;
 
       case AgentSessionCommandType.ReadSession:
-        await emitCommandActionResult(command, () => deps.engine.session.admin.read(commandInputFrom(command)));
+        await emitCommandActionResult(command, () =>
+          deps.engine.session.admin.read(commandInputFrom(command)),
+        );
         return true;
 
       case AgentSessionCommandType.CompactAgentSession:
-        await emitCommandActionResult(command, () => deps.engine.session.agent.compact(commandInputFrom(command)));
+        await emitCommandActionResult(command, () =>
+          deps.engine.session.agent.compact(commandInputFrom(command)),
+        );
         return true;
 
       case AgentSessionCommandType.RebuildAgentSession:
@@ -221,19 +296,27 @@ export const createNativeRuntimeCommandRouter = (deps: NativeRuntimeCommandRoute
           emitCommandError(command, runningTaskMessage);
           return true;
         }
-        await emitCommandActionResult(command, () => deps.engine.session.agent.rebuild(commandInputFrom(command)));
+        await emitCommandActionResult(command, () =>
+          deps.engine.session.agent.rebuild(commandInputFrom(command)),
+        );
         return true;
 
       case AgentSessionCommandType.SummarizeSession:
-        await emitCommandActionResult(command, () => deps.engine.session.admin.summarize(commandInputFrom(command)));
+        await emitCommandActionResult(command, () =>
+          deps.engine.session.admin.summarize(commandInputFrom(command)),
+        );
         return true;
 
       case AgentSessionCommandType.SummarizeAgentSession:
-        await emitCommandActionResult(command, () => deps.engine.session.agent.summarize(commandInputFrom(command)));
+        await emitCommandActionResult(command, () =>
+          deps.engine.session.agent.summarize(commandInputFrom(command)),
+        );
         return true;
 
       case AgentSessionCommandType.MessageEdit:
-        await emitCommandActionResult(command, () => deps.engine.session.admin.editMessage(commandInputFrom(command)));
+        await emitCommandActionResult(command, () =>
+          deps.engine.session.admin.editMessage(commandInputFrom(command)),
+        );
         return true;
 
       case AgentSessionCommandType.MessageDelete:
@@ -249,7 +332,9 @@ export const createNativeRuntimeCommandRouter = (deps: NativeRuntimeCommandRoute
         return true;
 
       case AgentSessionCommandType.Rebuild:
-        await emitCommandActionResult(command, () => deps.engine.session.admin.rebuild(commandInputFrom(command)));
+        await emitCommandActionResult(command, () =>
+          deps.engine.session.admin.rebuild(commandInputFrom(command)),
+        );
         return true;
 
       case AgentRuntimeCommandType.ListCollaborationModes:
@@ -257,19 +342,27 @@ export const createNativeRuntimeCommandRouter = (deps: NativeRuntimeCommandRoute
         return true;
 
       case AgentRuntimeCommandType.ListRuntimeSessions:
-        await emitCommandActionResult(command, () => deps.engine.session.list(commandInputFrom(command)));
+        await emitCommandActionResult(command, () =>
+          deps.engine.session.list(commandInputFrom(command)),
+        );
         return true;
 
       case AgentRuntimeCommandType.ReadRuntimeSession:
-        await emitCommandActionResult(command, () => deps.engine.session.read(commandInputFrom(command)));
+        await emitCommandActionResult(command, () =>
+          deps.engine.session.read(commandInputFrom(command)),
+        );
         return true;
 
       case AgentRuntimeCommandType.ReadRuntimeSessionDebug:
-        await emitCommandActionResult(command, () => deps.engine.session.debug.read(commandInputFrom(command)));
+        await emitCommandActionResult(command, () =>
+          deps.engine.session.debug.read(commandInputFrom(command)),
+        );
         return true;
 
       case AgentRuntimeCommandType.ReadCollaborationTimeline:
-        await emitCommandActionResult(command, () => deps.engine.collaboration.readTimeline(commandInputFrom(command)));
+        await emitCommandActionResult(command, () =>
+          deps.engine.collaboration.readTimeline(commandInputFrom(command)),
+        );
         return true;
 
       case AgentRuntimeCommandType.RunCollaboration:
@@ -294,4 +387,6 @@ export const createNativeRuntimeCommandRouter = (deps: NativeRuntimeCommandRoute
   };
 };
 
-export type NativeRuntimeCommandRouter = ReturnType<typeof createNativeRuntimeCommandRouter>;
+export type NativeRuntimeCommandRouter = ReturnType<
+  typeof createNativeRuntimeCommandRouter
+>;

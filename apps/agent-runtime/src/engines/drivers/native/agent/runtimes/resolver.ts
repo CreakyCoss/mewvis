@@ -1,5 +1,5 @@
 import type { AgentRuntime, RuntimeAgent, ChatRuntime, RuntimeMode } from "./types.js";
-import { resolveRuntimeAgent } from "./registry.js";
+import { defaultRuntimeAgentRegistry, type RuntimeAgentRegistry } from "./registry.js";
 
 export type RuntimeResolution =
   | {
@@ -48,10 +48,26 @@ const runtimeResolvers = {
   chat: RuntimeResolver<"chat", ChatRuntime>;
 };
 
-export function resolveRuntime(mode: "agent", runtimeId?: string | null): Extract<RuntimeResolution, { mode: "agent" }>;
-export function resolveRuntime(mode: "chat", runtimeId?: string | null): Extract<RuntimeResolution, { mode: "chat" }>;
-export function resolveRuntime(mode: RuntimeMode, runtimeId?: string | null): RuntimeResolution;
-export function resolveRuntime(mode: RuntimeMode, runtimeId?: string | null): RuntimeResolution {
-  const runtimeAgent = resolveRuntimeAgent(runtimeId);
+export function resolveRuntime(
+  mode: "agent",
+  runtimeId?: string | null,
+  registry?: RuntimeAgentRegistry,
+): Extract<RuntimeResolution, { mode: "agent" }>;
+export function resolveRuntime(
+  mode: "chat",
+  runtimeId?: string | null,
+  registry?: RuntimeAgentRegistry,
+): Extract<RuntimeResolution, { mode: "chat" }>;
+export function resolveRuntime(
+  mode: RuntimeMode,
+  runtimeId?: string | null,
+  registry?: RuntimeAgentRegistry,
+): RuntimeResolution;
+export function resolveRuntime(
+  mode: RuntimeMode,
+  runtimeId?: string | null,
+  registry?: RuntimeAgentRegistry,
+): RuntimeResolution {
+  const runtimeAgent = (registry ?? defaultRuntimeAgentRegistry).resolve(runtimeId);
   return runtimeResolvers[mode](runtimeAgent);
 }

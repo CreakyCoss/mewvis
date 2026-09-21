@@ -1,3 +1,5 @@
+import type { ExtensionDiagnostic } from "../../../../../extensions/index.js";
+import type { ExtensionAdapter, ExtensionBindings, ExtensionAdaptationReport } from "@isle/extension-sdk";
 import type { ExecutionApprovalRequest } from "../../../../../security/safety/index.js";
 import type {
   AgentEvent,
@@ -99,7 +101,9 @@ export type UserInputRequest = {
   input?: AskUserInput;
 };
 
-export type AgentApprovalRequest = ExecutionApprovalRequest & { taskId: string };
+export type AgentApprovalRequest = ExecutionApprovalRequest & {
+  taskId: string;
+};
 
 export type UserInputHandler = (request: UserInputRequest) => Promise<string | null>;
 
@@ -110,6 +114,8 @@ export type RuntimeEmitContext = {
 };
 
 export type AgentRuntimeCallbacks = {
+  onExtensionAdaptation?: (report: ExtensionAdaptationReport) => void;
+  onExtensionError?: (diagnostic: ExtensionDiagnostic) => void;
   requestUserInput: UserInputHandler;
   requestApproval?: (request: AgentApprovalRequest) => Promise<boolean>;
 };
@@ -123,6 +129,8 @@ export type AgentRuntimeNativeSession = {
 };
 
 export type AgentRuntimeContext = RuntimeEmitContext & {
+  signal?: AbortSignal;
+  extensions?: ExtensionBindings;
   callbacks: AgentRuntimeCallbacks;
   nativeSession?: AgentRuntimeNativeSession;
 };
@@ -135,6 +143,7 @@ export type ChatRuntimeContext = RuntimeEmitContext & {
 export type RuntimeMode = "agent" | "chat";
 
 export type AgentRuntime = {
+  readonly extensionAdapter?: ExtensionAdapter<unknown>;
   readonly id: string;
   run(command: RuntimeAgentCommand, context: AgentRuntimeContext): Promise<AgentRunResult>;
   compact?(command: RuntimeAgentCompactCommand, context: AgentRuntimeContext): Promise<SessionMutationResult>;

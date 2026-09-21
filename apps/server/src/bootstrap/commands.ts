@@ -20,6 +20,7 @@ export function registerCommands(services: Services) {
   );
   registerWorkspaceCommands(commands, services.workspaces);
   registerModule(commands, services.files.commands());
+  registerModule(commands, services.extensions.commands());
   registerModule(commands, services.chats.commands());
   registerModule(commands, services.versionControl.commands());
   registerModule(commands, services.skills.commands(), ["get_skills"]);

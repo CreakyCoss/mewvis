@@ -1,4 +1,12 @@
 import {
+  resolveExtensionPackages,
+  loadExtensionSettingsSources,
+} from "@isle/extension-host";
+import {
+  createExtensionRuntime,
+  type RuntimeExtensions,
+} from "../../../extensions/index.js";
+import {
   AgentRuntimeEngine,
   type AgentRuntimeAgent,
   type AgentRuntimeCapabilities,
@@ -7,14 +15,35 @@ import {
   type RuntimeEngineOptions,
 } from "../../runtime.js";
 import type { AgentRuntimeEvent } from "../../protocol/wire.js";
-import type { AgentRuntimeCommand, AgentRuntimeResult, PongResult, ShutdownAckResult } from "../../protocol/index.js";
+import type {
+  AgentRuntimeCommand,
+  AgentRuntimeResult,
+  PongResult,
+  ShutdownAckResult,
+} from "../../protocol/index.js";
 import { createUserInputManager } from "./agent/commands/user-input.js";
-import { createPongResult, createShutdownAckResult } from "./agent/commands/responses.js";
+import {
+  createPongResult,
+  createShutdownAckResult,
+} from "./agent/commands/responses.js";
+import {
+  builtinRuntimeAgents,
+  createRuntimeAgentRegistry,
+} from "./agent/runtimes/registry.js";
 import { createAgentEngine } from "./agent/index.js";
-import type { AgentRuntimeCallbacks, EmitAgentEvent } from "./agent/runtimes/types.js";
+import type {
+  AgentRuntimeCallbacks,
+  EmitAgentEvent,
+} from "./agent/runtimes/types.js";
 import { createCollaborationEngine } from "./collaboration/index.js";
-import type { EmitCollaborationEvent, RunAgentForCollaboration } from "./collaboration/runtimes/types.js";
-import { createNativeRuntimeCommandRouter, type NativeRuntimeCommandRouter } from "./router.js";
+import type {
+  EmitCollaborationEvent,
+  RunAgentForCollaboration,
+} from "./collaboration/runtimes/types.js";
+import {
+  createNativeRuntimeCommandRouter,
+  type NativeRuntimeCommandRouter,
+} from "./router.js";
 import { resolveNativeRuntimeProfile } from "./profile.js";
 import {
   NativeAgentRuntimeAgentSurface,
@@ -25,6 +54,7 @@ import {
 
 export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
   readonly id = "native";
+  readonly extensions: RuntimeExtensions;
   readonly capabilities: AgentRuntimeCapabilities;
   readonly agent: AgentRuntimeAgent;
   readonly session: AgentRuntimeSession;
@@ -35,8 +65,19 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
   private readonly emitResult: (result: AgentRuntimeResult) => void;
   private readonly agentSurface: NativeAgentRuntimeAgentSurface;
   private readonly commandRouter: NativeRuntimeCommandRouter;
+  private readonly extensionRuntime = createExtensionRuntime();
 
-  constructor({ callbacks, close = () => undefined, profileId }: RuntimeEngineOptions = {}) {
+  constructor({
+    callbacks,
+    close = () => undefined,
+    profileId,
+    runtimeAgents = [],
+    extensions,
+    extensionPackages,
+    extensionSettingsPath,
+    bundledExtensionsPath,
+    reloadExtensionSettings = false,
+  }: RuntimeEngineOptions = {}) {
     super();
 
     const profile = resolveNativeRuntimeProfile(profileId);
@@ -47,15 +88,49 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
     const userInput = createUserInputManager(this.emitAgentEvent);
     const runtimeCallbacks: AgentRuntimeCallbacks = {
       ...userInput.callbacks,
-      requestUserInput: callbacks?.requestUserInput ?? userInput.callbacks.requestUserInput,
+      onExtensionError: callbacks?.onExtensionError,
+      onExtensionAdaptation: callbacks?.onExtensionAdaptation,
+      requestUserInput:
+        callbacks?.requestUserInput ?? userInput.callbacks.requestUserInput,
     };
+    const registry = createRuntimeAgentRegistry([
+      ...builtinRuntimeAgents,
+      ...runtimeAgents,
+    ]);
+    const directSources = this.extensionRuntime.snapshotSources([
+      ...(extensions ?? []),
+      ...resolveExtensionPackages(extensionPackages ?? []),
+    ]);
+    const loadSources = () =>
+      this.extensionRuntime.snapshotSources([
+        ...directSources,
+        ...loadExtensionSettingsSources(extensionSettingsPath, {
+          bundledPath: bundledExtensionsPath,
+        }),
+      ]);
+    const extensionSources = reloadExtensionSettings
+      ? undefined
+      : loadSources();
+    const getExtensionSources = extensionSources
+      ? () => extensionSources
+      : loadSources;
+    this.extensions = this.extensionRuntime.bindCommands(
+      getExtensionSources,
+      runtimeCallbacks,
+    );
     const agentEngine = createAgentEngine({
+      registry,
+      getExtensionSources,
+      extensionRuntime: this.extensionRuntime,
       agentRuntimeId: profile.agentRuntimeId,
       chatRuntimeId: profile.chatRuntimeId,
       sessionProviderId: profile.sessionProviderId,
     });
 
-    const runAgentForCollaboration: RunAgentForCollaboration = (command, context) =>
+    const runAgentForCollaboration: RunAgentForCollaboration = (
+      command,
+      context,
+    ) =>
       agentEngine.runAgent(command, {
         callbacks: runtimeCallbacks,
         emit: context.emit,
@@ -75,6 +150,9 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
     });
     this.agent = this.agentSurface;
     this.session = new NativeAgentRuntimeSessionSurface({
+      getExtensionSources,
+      extensionRuntime: this.extensionRuntime,
+      registry,
       emitAgentEvent: this.emitAgentEvent,
       profile,
       runtimeCallbacks,
@@ -104,6 +182,7 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
 
   async shutdown(): Promise<ShutdownAckResult> {
     const result = createShutdownAckResult({});
+    await this.extensionRuntime.dispose();
     this.close();
     return result;
   }
@@ -121,4 +200,5 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
   };
 }
 
-export const createNativeRuntimeEngine = (options: RuntimeEngineOptions = {}) => new NativeAgentRuntimeEngine(options);
+export const createNativeRuntimeEngine = (options: RuntimeEngineOptions = {}) =>
+  new NativeAgentRuntimeEngine(options);

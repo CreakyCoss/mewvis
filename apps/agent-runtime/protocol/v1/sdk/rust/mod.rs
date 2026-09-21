@@ -89,6 +89,12 @@ pub enum RuntimePingRequest {
     #[serde(rename = "collaboration/timeline/read")]
     CollaborationTimelineRead,
 
+    #[serde(rename = "extensions/commands/execute")]
+    ExtensionsCommandsExecute,
+
+    #[serde(rename = "extensions/commands/list")]
+    ExtensionsCommandsList,
+
     #[serde(rename = "runtime/event")]
     RuntimeEvent,
 
@@ -173,10 +179,19 @@ pub struct AgentRuntimeEvent {
     pub args: Option<serde_json::Value>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub arguments: Option<HashMap<String, Option<serde_json::Value>>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bootstrap_instruction: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub catalog: Option<HashMap<String, RuntimeModelProviderSummary>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command_id: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub commands: Option<Vec<Command>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compacted: Option<bool>,
@@ -398,6 +413,8 @@ pub struct AgentRuntimeEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user_message: Option<String>,
 
+    pub value: Option<serde_json::Value>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workflow: Option<Workflow>,
 
@@ -529,6 +546,12 @@ pub enum PurpleType {
     Done,
 
     Error,
+
+    #[serde(rename = "extension_command_result")]
+    ExtensionCommandResult,
+
+    #[serde(rename = "extension_commands_result")]
+    ExtensionCommandsResult,
 
     Pong,
 
@@ -855,6 +878,15 @@ pub struct RuntimeThinkingOption {
     pub label: String,
 
     pub value: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Command {
+    pub description: String,
+
+    pub id: String,
+
+    pub parameters: HashMap<String, Option<serde_json::Value>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1490,6 +1522,9 @@ pub struct AgentRuntimeResult {
     pub catalog: Option<HashMap<String, RuntimeModelProviderSummary>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub commands: Option<Vec<Command>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub compacted: Option<bool>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1583,6 +1618,8 @@ pub struct AgentRuntimeResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub trace: Option<Vec<Option<serde_json::Value>>>,
 
+    pub value: Option<serde_json::Value>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workflow_run_id: Option<String>,
 }
@@ -1606,6 +1643,12 @@ pub enum AgentRuntimeResultType {
 
     #[serde(rename = "collaboration_timeline_result")]
     CollaborationTimelineResult,
+
+    #[serde(rename = "extension_command_result")]
+    ExtensionCommandResult,
+
+    #[serde(rename = "extension_commands_result")]
+    ExtensionCommandsResult,
 
     Pong,
 
@@ -1675,6 +1718,8 @@ pub const AGENT_RUNTIME_JSON_RPC_METHODS: &[&str] = &[
     "collaboration/run",
     "collaboration/runMode",
     "agent/approval/answer",
+    "extensions/commands/list",
+    "extensions/commands/execute",
 ];
 pub const AGENT_RUNTIME_NOTIFICATION_METHODS: &[&str] = &["runtime/event", "runtime/result"];
 pub const METHOD_RUNTIME_PING: &str = "runtime/ping";
@@ -1701,6 +1746,8 @@ pub const METHOD_COLLABORATION_MODES_LIST: &str = "collaboration/modes/list";
 pub const METHOD_COLLABORATION_RUN: &str = "collaboration/run";
 pub const METHOD_COLLABORATION_RUN_MODE: &str = "collaboration/runMode";
 pub const METHOD_AGENT_APPROVAL_ANSWER: &str = "agent/approval/answer";
+pub const METHOD_EXTENSIONS_COMMANDS_LIST: &str = "extensions/commands/list";
+pub const METHOD_EXTENSIONS_COMMANDS_EXECUTE: &str = "extensions/commands/execute";
 pub const NOTIFICATION_RUNTIME_EVENT: &str = "runtime/event";
 pub const NOTIFICATION_RUNTIME_RESULT: &str = "runtime/result";
 pub const EVENT_STARTED: &str = "started";
@@ -1741,3 +1788,5 @@ pub const RESULT_RUNTIME_SESSIONS_RESULT: &str = "runtime_sessions_result";
 pub const RESULT_RUNTIME_SESSION_RESULT: &str = "runtime_session_result";
 pub const RESULT_RUNTIME_SESSION_DEBUG_RESULT: &str = "runtime_session_debug_result";
 pub const RESULT_COLLABORATION_TIMELINE_RESULT: &str = "collaboration_timeline_result";
+pub const RESULT_EXTENSION_COMMANDS_RESULT: &str = "extension_commands_result";
+pub const RESULT_EXTENSION_COMMAND_RESULT: &str = "extension_command_result";

@@ -1,3 +1,7 @@
+import type { RuntimeExtensions, ExtensionDiagnostic } from "../extensions/index.js";
+import type { ExtensionSource, ExtensionAdaptationReport } from "@isle/extension-sdk";
+import type { ExtensionPackageRegistration } from "@isle/extension-host";
+import type { RuntimeAgent } from "./drivers/native/agent/runtimes/types.js";
 import type {
   AgentRuntimeEvent,
   AskUserInput,
@@ -51,12 +55,21 @@ export type RuntimeUserInputRequest = {
 export type RuntimeUserInputHandler = (request: RuntimeUserInputRequest) => Promise<string | null>;
 
 export type RuntimeEngineCallbacks = {
+  onExtensionAdaptation?: (report: ExtensionAdaptationReport) => void;
+  onExtensionError?: (diagnostic: ExtensionDiagnostic) => void;
   requestUserInput?: RuntimeUserInputHandler;
   onEvent?: EmitAgentRuntimeEvent;
   onResult?: EmitAgentRuntimeResult;
 };
 
 export type RuntimeEngineOptions = {
+  runtimeAgents?: readonly RuntimeAgent[];
+  extensions?: readonly ExtensionSource[];
+  extensionPackages?: readonly ExtensionPackageRegistration[];
+  extensionSettingsPath?: string;
+  bundledExtensionsPath?: string;
+  /** Desktop CLI: read host-owned settings at each operation; active runs keep their snapshot. */
+  reloadExtensionSettings?: boolean;
   callbacks?: RuntimeEngineCallbacks;
   close?: () => void;
   profileId?: string | null;
@@ -68,10 +81,15 @@ export interface AgentRuntimeCapabilities {
   listAgentTools(input?: EmptyParams): Promise<AgentToolsResult>;
 }
 
+/** SDK-only adapter selection; does not extend the public wire protocol. */
+export type AgentRuntimeRunInput = AgentRunParams & {
+  runtimeId?: string | null;
+};
+
 export interface AgentRuntimeAgent {
   // chat 是无 session 的轻量模型调用；需要上下文、工具或长期 agent session 时使用 run。
   chat(input: ChatParams): Promise<ChatResult>;
-  run(input: AgentRunParams): Promise<TaskResult>;
+  run(input: AgentRuntimeRunInput): Promise<TaskResult>;
 }
 
 export interface AgentRuntimeSessionAdmin {
@@ -86,7 +104,7 @@ export interface AgentRuntimeSessionAdmin {
 
 export interface AgentRuntimeAgentSession {
   // 绑定 agentRoleId 的长期 agent session 维护能力，保留给需要显式维护上下文的前端/工具。
-  compact(input: CompactAgentSessionInput): Promise<SessionMutationResult>;
+  compact(input: CompactAgentSessionInput, options?: { signal?: AbortSignal }): Promise<SessionMutationResult>;
   rebuild(input: RebuildAgentSessionInput): Promise<SessionMutationResult>;
   summarize(input: SummarizeAgentSessionInput): Promise<SessionMutationResult>;
 }
@@ -124,6 +142,7 @@ export interface AgentRuntimeCollaboration {
  */
 export abstract class AgentRuntimeEngine {
   abstract readonly id: string;
+  abstract readonly extensions: RuntimeExtensions;
   abstract readonly capabilities: AgentRuntimeCapabilities;
   abstract readonly agent: AgentRuntimeAgent;
   abstract readonly session: AgentRuntimeSession;

@@ -11,6 +11,7 @@ import type {
 } from "./index";
 import type {
   EmptyParams,
+  ExtensionCommandsResult,
   AnswerQuestionParams,
   AnswerApprovalParams,
   ChatParams,
@@ -36,7 +37,16 @@ export type AgentRuntimeTauriAgentInput = AgentClientAgentInput & {
 export type AgentRuntimeTauriCollaborationInput = CollaborationRunParams;
 export type AgentRuntimeTauriCollaborationModeInput = CollaborationModeRunParams;
 
+export type ExtensionCommandTarget = { workspacePath: string; chatId: string };
+export type ExtensionCommandInput = ExtensionCommandTarget & {
+  taskId: string;
+  commandId: string;
+  arguments: Record<string, unknown>;
+};
+
 export type AgentRuntimeTauriCommands = {
+  list_extension_commands: { args: { input: ExtensionCommandTarget }; result: ExtensionCommandsResult };
+  execute_extension_command: { args: { input: ExtensionCommandInput }; result: AgentClientAgentTask };
   set_agent_runtime_sandbox_enabled: {
     args: { enabled: boolean };
     result: SandboxStatus;
@@ -114,6 +124,8 @@ export type AgentRuntimeTauriCommands = {
 
 export type AgentRuntimeTauriCommandName = keyof AgentRuntimeTauriCommands;
 export const agentRuntimeTauriCommandNames = [
+  "list_extension_commands",
+  "execute_extension_command",
   "get_agent_runtime_sandbox_status",
   "initialize_agent_runtime_sandbox",
   "set_agent_runtime_sandbox_enabled",

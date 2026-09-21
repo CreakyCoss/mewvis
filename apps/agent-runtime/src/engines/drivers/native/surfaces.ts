@@ -1,6 +1,10 @@
+import type { RuntimeAgentRegistry } from "./agent/runtimes/registry.js";
 import { randomUUID } from "node:crypto";
+import { resolveExtensionAdaptation, type ExtensionSource } from "@isle/extension-sdk";
+import type { ExtensionRuntime } from "../../../extensions/index.js";
 import type {
   AgentRuntimeAgent,
+  AgentRuntimeRunInput,
   AgentRuntimeAgentSession,
   AgentRuntimeCapabilities,
   AgentRuntimeCollaboration,
@@ -11,7 +15,6 @@ import type {
 import {
   AgentRuntimeEventType,
   AgentRuntimeResultType,
-  type AgentRunParams,
   type EmptyParams,
   type AnswerQuestionParams,
   type AnswerApprovalParams,
@@ -161,7 +164,7 @@ export class NativeAgentRuntimeAgentSurface implements AgentRuntimeAgent {
     };
   }
 
-  async run(input: AgentRunParams): Promise<TaskResult> {
+  async run(input: AgentRuntimeRunInput): Promise<TaskResult> {
     return this.runCommand({
       ...input,
       runtimeMode: "agent",
@@ -201,6 +204,9 @@ export class NativeAgentRuntimeAgentSurface implements AgentRuntimeAgent {
 }
 
 type NativeAgentRuntimeSessionDeps = {
+  getExtensionSources: () => readonly ExtensionSource[];
+  extensionRuntime: ExtensionRuntime;
+  registry: RuntimeAgentRegistry;
   emitAgentEvent: EmitAgentEvent;
   profile: NativeRuntimeProfile;
   runtimeCallbacks: AgentRuntimeCallbacks;
@@ -262,38 +268,69 @@ class NativeAgentRuntimeSessionAdminSurface implements AgentRuntimeSessionAdmin 
 class NativeAgentRuntimeAgentSessionSurface implements AgentRuntimeAgentSession {
   constructor(private readonly deps: NativeAgentRuntimeSessionDeps) {}
 
-  async compact(input: CompactAgentSessionInput): Promise<SessionMutationResult> {
-    const { runtimeId, implementation } = resolveRuntime("agent", this.deps.profile.agentRuntimeId);
-    const sessionPlan = await createAgentSessionPlan({
-      workspacePath: input.workspacePath,
-      sessionRootDir: input.sessionRootDir,
-      sessionProviderId: this.deps.profile.sessionProviderId,
-      runtimeId,
-      agentRoleId: input.target.agentRoleId,
-    });
-    const compactCommand: RuntimeAgentCompactCommand = {
-      requestId: null,
-      runtimeId,
-      taskId: `runtime-compact-${randomUUID()}`,
-      workspacePath: input.workspacePath,
-      sessionRootDir: input.sessionRootDir,
-      agentRoleId: sessionPlan.agentRoleId,
-      runtimeModel: input.runtime?.model ?? null,
-      resources: input.runtime?.resources ?? null,
-      agentSessionDir: sessionPlan.agentSessionDir,
-      compactInstructions: input.options?.compactInstruction ?? null,
-    };
-    return implementation.compact
-      ? implementation.compact(compactCommand, {
-          callbacks: this.deps.runtimeCallbacks,
-          emit: this.deps.emitAgentEvent,
-        })
-      : agentMaintenanceMutationResult(compactCommand, { compacted: false });
+  async compact(input: CompactAgentSessionInput, options?: { signal?: AbortSignal }): Promise<SessionMutationResult> {
+    const { runtimeId, implementation } = resolveRuntime("agent", this.deps.profile.agentRuntimeId, this.deps.registry);
+    const sources = this.deps.getExtensionSources();
+    const signal = AbortSignal.any([this.deps.extensionRuntime.signal, ...(options?.signal ? [options.signal] : [])]);
+    signal.throwIfAborted();
+    if (sources.length) {
+      if (!implementation.extensionAdapter) throw new Error(`${runtimeId} 不支持 Isle 插件能力`);
+      this.deps.runtimeCallbacks.onExtensionAdaptation?.(
+        resolveExtensionAdaptation(implementation.extensionAdapter, sources),
+      );
+    }
+    const taskId = `runtime-compact-${randomUUID()}`;
+    const context = { callbacks: this.deps.runtimeCallbacks, emit: this.deps.emitAgentEvent, signal };
+    const extensions = sources.length
+      ? await this.deps.extensionRuntime.open(
+          sources,
+          {
+            workspacePath: input.workspacePath,
+            sessionRootDir: input.sessionRootDir,
+            runtimeMode: "agent",
+            runtimeId,
+            taskId,
+            userMessage: "",
+            resources: input.runtime?.resources,
+          },
+          context,
+        )
+      : undefined;
+    try {
+      if (!extensions) {
+        await this.deps.extensionRuntime.releaseSession(input.sessionRootDir);
+      }
+      signal.throwIfAborted();
+      const sessionPlan = await createAgentSessionPlan({
+        workspacePath: input.workspacePath,
+        sessionRootDir: input.sessionRootDir,
+        sessionProviderId: this.deps.profile.sessionProviderId,
+        runtimeId,
+        agentRoleId: input.target.agentRoleId,
+      });
+      const compactCommand: RuntimeAgentCompactCommand = {
+        requestId: null,
+        runtimeId,
+        taskId,
+        workspacePath: input.workspacePath,
+        sessionRootDir: input.sessionRootDir,
+        agentRoleId: sessionPlan.agentRoleId,
+        runtimeModel: input.runtime?.model ?? null,
+        resources: input.runtime?.resources ?? null,
+        agentSessionDir: sessionPlan.agentSessionDir,
+        compactInstructions: input.options?.compactInstruction ?? null,
+      };
+      return implementation.compact
+        ? await implementation.compact(compactCommand, { ...context, extensions })
+        : agentMaintenanceMutationResult(compactCommand, { compacted: false });
+    } finally {
+      await extensions?.dispose();
+    }
   }
 
   async rebuild(input: RebuildAgentSessionInput): Promise<SessionMutationResult> {
     const sessionManager = this.runtimeSessionManagerFor(input);
-    const { runtimeId, implementation } = resolveRuntime("agent", this.deps.profile.agentRuntimeId);
+    const { runtimeId, implementation } = resolveRuntime("agent", this.deps.profile.agentRuntimeId, this.deps.registry);
     const sessionPlan = await createAgentSessionPlan({
       workspacePath: input.workspacePath,
       sessionRootDir: input.sessionRootDir,
@@ -325,7 +362,7 @@ class NativeAgentRuntimeAgentSessionSurface implements AgentRuntimeAgentSession 
 
   async summarize(input: SummarizeAgentSessionInput): Promise<SessionMutationResult> {
     const sessionManager = this.runtimeSessionManagerFor(input);
-    const { runtimeId, implementation } = resolveRuntime("agent", this.deps.profile.agentRuntimeId);
+    const { runtimeId, implementation } = resolveRuntime("agent", this.deps.profile.agentRuntimeId, this.deps.registry);
     if (!implementation.summarize) {
       throw new Error(`${runtimeId} agent runtime 不支持摘要底层 session`);
     }

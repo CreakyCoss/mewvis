@@ -3,6 +3,7 @@ import { rm } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { AgentRuntimeSupervisor } from "./runtime/supervisor.js";
+import { sessionId } from "../../shared/session-id.js";
 import {
   nonempty,
   object,
@@ -32,6 +33,8 @@ const queryCommands: Record<string, { method: string; result: string }> = {
 };
 
 export const commandNames = [
+  "list_extension_commands",
+  "execute_extension_command",
   "list_agent_runtime_tools",
   "run_agent_runtime_chat",
   "run_agent_runtime_agent",
@@ -283,6 +286,51 @@ export class AgentRuntimeHost {
 
     const workspacePath = workspace(input.workspacePath);
     input.workspacePath = workspacePath;
+    if (
+      name === "list_extension_commands" ||
+      name === "execute_extension_command"
+    ) {
+      onlyKeys(
+        input,
+        name === "list_extension_commands"
+          ? ["workspacePath", "chatId"]
+          : ["workspacePath", "chatId", "taskId", "commandId", "arguments"],
+      );
+      const chatId = sessionId(input.chatId);
+      const sessionRootDir = this.sessionPath(
+        workspacePath,
+        `chats/${chatId}/session`,
+        true,
+      )!;
+      this.underDataRoot(workspacePath, sessionRootDir);
+      this.supervisor.assertSessionAvailable(workspacePath, sessionRootDir);
+      const target = {
+        workspacePath,
+        sessionRootDir,
+        permissions: { mode: "ask" },
+      };
+      if (name === "list_extension_commands")
+        return this.supervisor.call("extensions/commands/list", target, [
+          "extension_commands_result",
+        ]);
+      const taskId = nonempty(input.taskId, "taskId");
+      return this.supervisor.submit({
+        taskId,
+        workspacePath,
+        sessionRootDir,
+        sessionKey: `${workspacePath}|${sessionRootDir}`,
+        command: this.supervisor.protocol.command(
+          "extensions/commands/execute",
+          {
+            ...target,
+            taskId,
+            commandId: nonempty(input.commandId, "commandId"),
+            arguments: object(input.arguments ?? {}),
+          },
+          taskId,
+        ),
+      });
+    }
     if (name === "list_agent_runtime_sessions") {
       const rootDir =
         this.sessionPath(workspacePath, input.rootDir) ??

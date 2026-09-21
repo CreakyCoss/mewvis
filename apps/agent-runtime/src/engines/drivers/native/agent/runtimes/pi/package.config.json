@@ -1,5 +1,14 @@
 {
   "piConfig": {
     "configDir": "{appDataDirName}/agents/{runtimeId}"
+  },
+  "isle": {
+    "extensionCompatibility": {
+      "pi": {
+        "package": "@earendil-works/pi-coding-agent",
+        "version": "0.85.1",
+        "extensionTypesSha256": "96e20f8038027f0b0172f311b6b9d9ddf42123b2f5b2a018f533af026fd3371e"
+      }
+    }
   }
 }

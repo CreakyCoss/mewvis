@@ -35,7 +35,9 @@
     { "$ref": "#/definitions/CollaborationTimelineReadRequest" },
     { "$ref": "#/definitions/CollaborationModesListRequest" },
     { "$ref": "#/definitions/CollaborationRunRequest" },
-    { "$ref": "#/definitions/CollaborationModeRunRequest" }
+    { "$ref": "#/definitions/CollaborationModeRunRequest" },
+    {"$ref": "#/definitions/ExtensionCommandsListRequest"},
+    {"$ref": "#/definitions/ExtensionCommandExecuteRequest"}
   ],
   "definitions": {
     "NullableString": { "type": ["string", "null"] },
@@ -573,6 +575,87 @@
           "$ref": "#/definitions/AnswerApprovalParams"
         }
       }
+    },
+    "ExtensionCommandsParams": {
+      "type": "object",
+      "properties": {
+        "workspacePath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sessionRootDir": {
+          "type": "string",
+          "minLength": 1
+        },
+        "permissions": {
+          "$ref": "./permissions.schema.json#/definitions/AgentPermissions"
+        }
+      },
+      "required": [
+        "workspacePath",
+        "sessionRootDir"
+      ],
+      "additionalProperties": false
+    },
+    "ExtensionCommandsListRequest": {
+      "properties": {
+        "method": {
+          "const": "extensions/commands/list"
+        },
+        "params": {
+          "$ref": "#/definitions/ExtensionCommandsParams"
+        }
+      },
+      "required": [
+        "params"
+      ]
+    },
+    "ExtensionCommandParams": {
+      "type": "object",
+      "properties": {
+        "workspacePath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sessionRootDir": {
+          "type": "string",
+          "minLength": 1
+        },
+        "permissions": {
+          "$ref": "./permissions.schema.json#/definitions/AgentPermissions"
+        },
+        "taskId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "commandId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "arguments": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "workspacePath",
+        "sessionRootDir",
+        "taskId",
+        "commandId"
+      ],
+      "additionalProperties": false
+    },
+    "ExtensionCommandExecuteRequest": {
+      "properties": {
+        "method": {
+          "const": "extensions/commands/execute"
+        },
+        "params": {
+          "$ref": "#/definitions/ExtensionCommandParams"
+        }
+      },
+      "required": [
+        "params"
+      ]
     }
   }
 }

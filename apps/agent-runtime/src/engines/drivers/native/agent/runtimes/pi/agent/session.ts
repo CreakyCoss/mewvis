@@ -1,3 +1,4 @@
+import type { ExtensionBindings } from "@isle/extension-sdk";
 import { createAgentSession, SessionManager } from "@earendil-works/pi-coding-agent";
 import { mkdirSync } from "node:fs";
 import type { AgentRuntimeCallbacks, RuntimeAgentCommand } from "../../types.js";
@@ -10,10 +11,15 @@ import type { ResolvedAgentAccess } from "../../../../../../../security/access/i
 export type PiAgentSession = Awaited<ReturnType<typeof createAgentSession>>["session"];
 
 export type PiAgentSessionOptions = {
+  extensions?: ExtensionBindings;
   subagent?: boolean;
   toolCeiling?: readonly string[];
   rolePrompt?: string;
-  policies?: { safety: SafetyPolicy | null; execution: ExecutionPolicy; access?: ResolvedAgentAccess };
+  policies?: {
+    safety: SafetyPolicy | null;
+    execution: ExecutionPolicy;
+    access?: ResolvedAgentAccess;
+  };
   signal?: AbortSignal;
 };
 

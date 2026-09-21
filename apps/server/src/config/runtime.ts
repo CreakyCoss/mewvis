@@ -11,6 +11,7 @@ export interface RuntimeConfig {
   runtimeDataDir?: string;
   bundledSkillsPath?: string;
   bundledApplicationsPath?: string;
+  bundledExtensionsPath?: string;
   appDataDirName: string;
   defaultWorkspaceDirName: string;
   env: NodeJS.ProcessEnv;
@@ -99,6 +100,7 @@ export function runtimeConfig(
         : desktopRuntimeDirectory(product.bundleIdentifier)),
   );
   config.bundledApplicationsPath ??= join(dirname(config.cliPath), "apps");
+  config.bundledExtensionsPath ??= join(dirname(config.cliPath), "extensions");
   if (
     !config.defaultWorkspaceDirName ||
     /[/\\]/.test(config.defaultWorkspaceDirName) ||
@@ -143,6 +145,8 @@ export function runtimeEnvironment(config: RuntimeConfig): NodeJS.ProcessEnv {
   return {
     ...config.env,
     ISLE_SANDBOX_SETTINGS_PATH: join(config.dataDir, "sandbox.json"),
+    ISLE_EXTENSION_SETTINGS_PATH: join(config.dataDir, "extensions.json"),
+    ISLE_BUNDLED_EXTENSIONS_PATH: config.bundledExtensionsPath,
     PI_PACKAGE_DIR: dirname(config.cliPath),
     PI_CODING_AGENT_DIR: join(
       config.runtimeDataDir ?? config.dataDir,

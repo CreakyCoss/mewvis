@@ -63,3 +63,9 @@ Node 使用 Ajv 校验协议文件。Python 实现应以 `jsonschema.Draft7Valid
 - 流式运行时事件通过 `runtime/event` 通知发送。
 - 主响应之后的附加结果通过 `runtime/result` 通知发送。
 - `params` 始终使用按名称传参的对象。
+
+## 插件命令
+
+`extensions/commands/list` 读取当前宿主配置并返回命令 ID、描述和参数 schema；`extensions/commands/execute` 接收 `workspacePath`、`sessionRootDir`、`taskId`、`commandId` 与 JSON `arguments`，返回 `extension_command_result`。执行期间仍通过既有 `runtime/event` 请求审批，宿主可使用原审批回答和取消入口。
+
+桌面 Node 服务将聊天 ID 转换为宿主管理的会话路径，命令执行与该会话的 Agent 共用 FIFO 队列。包登记和配置由 Node 管理接口保存，不通过执行请求注入插件路径。服务在任务快照中保留命令结果和待审批输入供页面恢复；恢复不会重新执行命令。

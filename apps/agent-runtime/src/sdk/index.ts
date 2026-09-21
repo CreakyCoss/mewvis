@@ -1,5 +1,5 @@
 import { createRuntimeEngine } from "../engines/index.js";
-import type { AgentRuntimeEngine, RuntimeEngineCallbacks } from "../engines/runtime.js";
+import type { AgentRuntimeEngine, RuntimeEngineCallbacks, RuntimeEngineOptions } from "../engines/runtime.js";
 import type { AgentRuntimeEvent, AskUserInput } from "../engines/protocol/wire.js";
 import type { AgentRuntimeResult } from "../engines/protocol/index.js";
 
@@ -13,8 +13,15 @@ export type AgentRuntimeUserInputRequest = {
 export type AgentRuntimeUserInputHandler = (request: AgentRuntimeUserInputRequest) => Promise<string>;
 
 export type AgentRuntimeSdkOptions = {
+  runtimeAgents?: RuntimeEngineOptions["runtimeAgents"];
+  extensions?: RuntimeEngineOptions["extensions"];
+  extensionPackages?: RuntimeEngineOptions["extensionPackages"];
+  extensionSettingsPath?: string;
+  bundledExtensionsPath?: string;
   profileId?: string | null;
   callbacks?: {
+    onExtensionAdaptation?: RuntimeEngineCallbacks["onExtensionAdaptation"];
+    onExtensionError?: RuntimeEngineCallbacks["onExtensionError"];
     onEvent?: (event: AgentRuntimeEvent) => void;
     onResult?: (result: AgentRuntimeResult) => void;
     requestUserInput?: AgentRuntimeUserInputHandler;
@@ -24,7 +31,10 @@ export type AgentRuntimeSdkOptions = {
 export const createAgentRuntime = (options: AgentRuntimeSdkOptions = {}): AgentRuntimeEngine => {
   const callbacks = options.callbacks;
   const requestUserInput = callbacks?.requestUserInput;
-  const runtimeCallbacks: RuntimeEngineCallbacks = {};
+  const runtimeCallbacks: RuntimeEngineCallbacks = {
+    onExtensionError: callbacks?.onExtensionError,
+    onExtensionAdaptation: callbacks?.onExtensionAdaptation,
+  };
 
   if (callbacks?.onEvent) {
     runtimeCallbacks.onEvent = callbacks.onEvent;
@@ -42,6 +52,11 @@ export const createAgentRuntime = (options: AgentRuntimeSdkOptions = {}): AgentR
 
   const runtimeOptions = {
     profileId: options.profileId,
+    runtimeAgents: options.runtimeAgents,
+    extensions: options.extensions,
+    extensionPackages: options.extensionPackages,
+    extensionSettingsPath: options.extensionSettingsPath,
+    bundledExtensionsPath: options.bundledExtensionsPath,
     ...(Object.keys(runtimeCallbacks).length > 0 ? { callbacks: runtimeCallbacks } : {}),
   };
 

@@ -62,7 +62,9 @@ export async function createPiToolSet(
           command.workspacePath,
           undefined,
           undefined,
-          access ? { access, programPaths: resources.applications?.items?.map((application) => application.packageRoot) } : undefined,
+          access
+            ? { access, programPaths: resources.applications?.items?.map((application) => application.packageRoot) }
+            : undefined,
         ),
         access,
       };
@@ -178,7 +180,15 @@ export async function createPiToolSet(
         },
       },
       installSafety: (session: PiAgentSession) =>
-        installPiSafety(session, command, callbacks, policies.safety, policies.access, toolRisks),
+        installPiSafety(
+          session,
+          command,
+          callbacks,
+          policies.safety,
+          policies.access,
+          toolRisks,
+          options.extensions?.catalog.tools.map((tool) => tool.name),
+        ),
       registerExtensions(pi: ExtensionAPI) {
         pi.on("user_bash", () => {
           throw new Error("请通过已分配的 Shell 工具调用统一执行程序。");

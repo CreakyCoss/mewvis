@@ -21,6 +21,7 @@ import { LlmSettingsService } from "../modules/settings/llm-service.js";
 import { LlmRepository } from "../modules/settings/llm-repository.js";
 import { AgentSettingsService } from "../modules/settings/agents-service.js";
 import { AgentSettingsRepository } from "../modules/settings/agents-repository.js";
+import { Extensions } from "../modules/extensions/service.js";
 
 /** Own resources even while initialization is incomplete, so failures follow the same cleanup path. */
 export class ServerServices {
@@ -65,6 +66,7 @@ export class ServerServices {
         join(config.dataDir, config.defaultWorkspaceDirName),
       ),
       dialogs: this.dialogs,
+      extensions: new Extensions(config.dataDir, config.bundledExtensionsPath),
       files: this.files,
       chats: new Chats(config.appDataDirName, this.files),
       versionControl: new VersionControl(config.appDataDirName),

@@ -1,5 +1,6 @@
 import type {
   AgentEvent,
+  ExtensionCommandResult,
   AgentRunParams,
   AgentTool,
   AgentPermissionOption,
@@ -60,7 +61,8 @@ type AgentClientTransportEvent =
   | { type: typeof AgentClientTransportEventType.Stderr; message: string }
   | { type: typeof AgentClientTransportEventType.Exit; success: boolean; code: number | null };
 
-type AgentClientEventPayload = AgentEvent | CollaborationEvent | CollaborationResult | AgentClientTransportEvent;
+type AgentClientEventPayload =
+  AgentEvent | CollaborationEvent | CollaborationResult | ExtensionCommandResult | AgentClientTransportEvent;
 
 /** Desktop task identity around a wire event or an application transport event. */
 export type AgentClientAgentEvent = {

@@ -1,3 +1,4 @@
+import { piExtensionAdapter } from "../extensions/index.js";
 import { AgentRuntimeEventType } from "../../../../../../protocol/wire.js";
 import type {
   AgentRunResult,
@@ -16,20 +17,29 @@ import { compactPiAgentSession, rebuildPiAgentSession, summarizePiAgentSession }
 
 export class PiAgent implements AgentRuntime {
   readonly id = "pi";
+  readonly extensionAdapter = piExtensionAdapter;
 
   async run(
     command: RuntimeAgentCommand,
-    { callbacks, emit, nativeSession }: AgentRuntimeContext,
+    { callbacks, emit, nativeSession, extensions, signal }: AgentRuntimeContext,
   ): Promise<AgentRunResult> {
     const state = createPiAgentRunState();
     let session: PiAgentSession | null = null;
     let disposeResources: (() => Promise<void>) | null = null;
     let unsubscribe: (() => void) | null = null;
 
+    const abort = () => {
+      void session?.abort().catch(() => undefined);
+    };
     try {
-      const createdSession = await createPiAgentSession(command, callbacks);
+      const createdSession = await createPiAgentSession(command, callbacks, {
+        extensions,
+        signal,
+      });
       session = createdSession.session;
+      signal?.addEventListener("abort", abort, { once: true });
       disposeResources = createdSession.disposeResources;
+      signal?.throwIfAborted();
       unsubscribe = subscribeToPiAgentSession(command, session, emit, state);
       emit({ type: AgentRuntimeEventType.Started, taskId: command.taskId });
 
@@ -43,6 +53,7 @@ export class PiAgent implements AgentRuntime {
         shouldBootstrap: createdSession.shouldBootstrap,
       });
 
+      signal?.throwIfAborted();
       emit({
         type: AgentRuntimeEventType.Done,
         taskId: command.taskId,
@@ -53,6 +64,7 @@ export class PiAgent implements AgentRuntime {
       reportPiAgentRunError(command, emit, error, state);
       throw error;
     } finally {
+      signal?.removeEventListener("abort", abort);
       unsubscribe?.();
       try {
         session?.dispose();
@@ -62,11 +74,8 @@ export class PiAgent implements AgentRuntime {
     }
   }
 
-  async compact(
-    command: RuntimeAgentCompactCommand,
-    { callbacks }: AgentRuntimeContext,
-  ): Promise<SessionMutationResult> {
-    return compactPiAgentSession(command, { callbacks, emit: () => undefined });
+  async compact(command: RuntimeAgentCompactCommand, context: AgentRuntimeContext): Promise<SessionMutationResult> {
+    return compactPiAgentSession(command, context);
   }
 
   async rebuild(

@@ -17,7 +17,9 @@
     { "$ref": "#/definitions/SessionMutationResult" },
     { "$ref": "#/definitions/SessionResult" },
     { "$ref": "#/definitions/ShutdownAckResult" },
-    { "$ref": "#/definitions/TaskResult" }
+    { "$ref": "#/definitions/TaskResult" },
+    {"$ref": "#/definitions/ExtensionCommandsResult"},
+    {"$ref": "#/definitions/ExtensionCommandResult"}
   ],
   "definitions": {
     "JsonRpcId": { "oneOf": [{ "type": "string" }, { "type": "integer" }] },
@@ -438,6 +440,72 @@
         "workflowRunId": { "$ref": "#/definitions/NullableString" },
         "events": { "type": "array", "items": { "$ref": "#/definitions/RuntimeTimelineItem" } }
       },
+      "additionalProperties": false
+    },
+    "ExtensionCommandsResult": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "extension_commands_result"
+        },
+        "rpcRequestId": {
+          "$ref": "#/definitions/JsonRpcId"
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "description",
+              "parameters"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "parameters": {
+                "type": "object"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "type",
+        "commands"
+      ],
+      "additionalProperties": false
+    },
+    "ExtensionCommandResult": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "extension_command_result"
+        },
+        "rpcRequestId": {
+          "$ref": "#/definitions/JsonRpcId"
+        },
+        "taskId": {
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "value": {},
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "taskId",
+        "success"
+      ],
       "additionalProperties": false
     }
   }

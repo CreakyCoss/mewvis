@@ -1,0 +1,14 @@
+{
+  "name": "@isle/extension-sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./manifest.schema.json": "./manifest.schema.json"
+  },
+  "sideEffects": false
+}

@@ -1,5 +1,7 @@
 import type {
   AgentToolsResult as WireAgentToolsResult,
+  ExtensionCommandsResult,
+  ExtensionCommandResult,
   ChatResult as WireChatResult,
   CollaborationModesResult as WireCollaborationModesResult,
   CollaborationResult as WireCollaborationResult,
@@ -35,6 +37,8 @@ export type RuntimeSessionDebugResult = WireRuntimeSessionDebugResult & Internal
 export type CollaborationTimelineResult = WireCollaborationTimelineResult & InternalResultMetadata;
 
 export type AgentRuntimeResult =
+  | (ExtensionCommandsResult & InternalResultMetadata)
+  | (ExtensionCommandResult & InternalResultMetadata)
   | AgentToolsResult
   | ChatResult
   | CollaborationModesRuntimeResult

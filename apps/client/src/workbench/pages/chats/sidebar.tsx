@@ -1,16 +1,19 @@
 import { useEffect, useState, type ComponentType } from "react";
-import { ActivityIcon, FolderIcon, GitBranchIcon, PanelRightIcon } from "lucide-react";
+import { ActivityIcon, FolderIcon, GitBranchIcon, PanelRightIcon, PuzzleIcon } from "lucide-react";
 import { useChatSnapshot } from "@/chat/react";
 import { WorkspaceFiles } from "./panels/files";
 import { ChatLedger } from "./panels/ledger";
 import { WorkspaceVersionControl } from "./panels/version-control";
+import { ExtensionCommandsPanel } from "./panels/extensions";
+import type { ExtensionCommandController } from "./panels/extensions/use-commands";
 
-export type WorkspaceChatPanel = "files" | "version" | "ledger";
+export type WorkspaceChatPanel = "files" | "version" | "ledger" | "extensions";
 
 type WorkspaceChatSidebarProps = {
   workspacePath: string;
   chatId: string;
   panels: WorkspaceChatPanel[];
+  extensionCommands?: ExtensionCommandController;
 };
 
 type PanelDefinition = {
@@ -19,6 +22,7 @@ type PanelDefinition = {
 };
 
 const panelDefinitions = {
+  extensions: { label: "插件命令", icon: PuzzleIcon },
   files: {
     label: "文件",
     icon: FolderIcon,
@@ -39,7 +43,12 @@ const toolButtonClass =
 const toggleButtonClass =
   "flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:ring-3 focus-visible:ring-primary/20 focus-visible:outline-none data-[active=true]:bg-primary/10 data-[active=true]:text-primary";
 
-export const WorkspaceChatSidebar = ({ workspacePath, chatId, panels }: WorkspaceChatSidebarProps) => {
+export const WorkspaceChatSidebar = ({
+  workspacePath,
+  chatId,
+  panels,
+  extensionCommands,
+}: WorkspaceChatSidebarProps) => {
   const selectedModelId = useChatSnapshot().config.selectedModelId;
   const [activePanel, setActivePanel] = useState<WorkspaceChatPanel>(panels[0] ?? "files");
   const [isOpen, setIsOpen] = useState(false);
@@ -60,6 +69,9 @@ export const WorkspaceChatSidebar = ({ workspacePath, chatId, panels }: Workspac
         <aside className="flex w-[clamp(280px,22vw,360px)] min-w-0 shrink-0 overflow-hidden border-l border-border/70 bg-surface/70 text-foreground backdrop-blur-xl max-[1099px]:absolute max-[1099px]:inset-y-0 max-[1099px]:right-10 max-[1099px]:z-30 max-[1099px]:w-[min(360px,calc(100%_-_3.5rem))] max-[1099px]:bg-surface/95 max-[1099px]:shadow-[var(--shadow-floating)]">
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             {activePanel === "files" ? <WorkspaceFiles workspacePath={workspacePath} /> : null}
+            {activePanel === "extensions" && extensionCommands ? (
+              <ExtensionCommandsPanel target={{ workspacePath, chatId }} controller={extensionCommands} />
+            ) : null}
             {activePanel === "version" ? <WorkspaceVersionControl workspacePath={workspacePath} /> : null}
             {activePanel === "ledger" ? (
               <ChatLedger workspacePath={workspacePath} chatId={chatId} selectedModelId={selectedModelId} />

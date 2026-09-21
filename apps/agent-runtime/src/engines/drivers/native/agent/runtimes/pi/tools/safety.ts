@@ -1,5 +1,6 @@
 import { homedir } from "node:os";
 import { resolve } from "node:path";
+import { validateToolArguments } from "@earendil-works/pi-ai";
 import {
   checkExecution,
   canonicalPath,
@@ -88,19 +89,28 @@ export function installPiSafety(
   policy: SafetyPolicy | null,
   access?: ResolvedAgentAccess,
   toolRisks?: ReadonlyMap<string, SafetyRisk>,
+  hostCheckedTools: readonly string[] = [],
 ) {
-  if (!policy && !access) return;
   const previous = session.agent.beforeToolCall;
   const declaredRisks = new Map(toolRisks);
+  const delegated = new Set(hostCheckedTools);
   // This hook provides cancellation and runs after Pi's extension hooks, so the
   // checked arguments are the ones passed to execution. No changes to Pi itself.
   session.agent.beforeToolCall = async (context, signal) => {
     const prior = await previous?.(context, signal);
     if (prior?.block) return prior;
+    // Isle proxies validate their final arguments without native coercion, before host approval.
+    if (delegated.has(context.toolCall.name)) return prior;
     signal?.throwIfAborted();
     if (!context.args || typeof context.args !== "object" || Array.isArray(context.args))
       return { block: true, reason: "执行参数必须为对象。" };
     const input = context.args as Record<string, unknown>;
+    const tool = session.agent.state.tools.find((tool) => tool.name === context.toolCall.name);
+    if (!tool) return { block: true, reason: "执行工具未启用。" };
+    const validated = validateToolArguments(tool, { ...context.toolCall, arguments: input });
+    for (const key of Object.keys(input)) delete input[key];
+    Object.defineProperties(input, Object.getOwnPropertyDescriptors(validated));
+    if (!policy && !access) return prior;
     const request: ExecutionRequest = {
       executionId: context.toolCall.id,
       entry: context.toolCall.name,

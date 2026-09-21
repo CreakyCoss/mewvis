@@ -45,6 +45,8 @@ export type IsleAgentRuntimeJSONRPCRequest = {
   | CollaborationModesListRequest
   | CollaborationRunRequest
   | CollaborationModeRunRequest
+  | ExtensionCommandsListRequest
+  | ExtensionCommandExecuteRequest
 );
 export type AgentRuntimeApplication = {
   [k: string]: unknown;
@@ -89,7 +91,9 @@ export type AgentRuntimeResult =
   | SessionMutationResult
   | SessionResult
   | ShutdownAckResult
-  | TaskResult;
+  | TaskResult
+  | ExtensionCommandsResult
+  | ExtensionCommandResult;
 export type IsleAgentRuntimeJSONRPCNotification =
   | {
       jsonrpc: "2.0";
@@ -514,6 +518,31 @@ export interface CollaborationParticipant {
   kind: string;
   [k: string]: unknown;
 }
+export interface ExtensionCommandsListRequest {
+  method?: "extensions/commands/list";
+  params: ExtensionCommandsParams;
+  [k: string]: unknown;
+}
+export interface ExtensionCommandsParams {
+  workspacePath: string;
+  sessionRootDir: string;
+  permissions?: AgentPermissions;
+}
+export interface ExtensionCommandExecuteRequest {
+  method?: "extensions/commands/execute";
+  params: ExtensionCommandParams;
+  [k: string]: unknown;
+}
+export interface ExtensionCommandParams {
+  workspacePath: string;
+  sessionRootDir: string;
+  permissions?: AgentPermissions;
+  taskId: string;
+  commandId: string;
+  arguments?: {
+    [k: string]: unknown;
+  };
+}
 export interface AckResult {
   type: "ack";
   rpcRequestId?: string | number;
@@ -786,6 +815,25 @@ export interface TaskResult {
   success: boolean;
   message?: string;
 }
+export interface ExtensionCommandsResult {
+  type: "extension_commands_result";
+  rpcRequestId?: string | number;
+  commands: {
+    id: string;
+    description: string;
+    parameters: {
+      [k: string]: unknown;
+    };
+  }[];
+}
+export interface ExtensionCommandResult {
+  type: "extension_command_result";
+  rpcRequestId?: string | number;
+  taskId: string;
+  success: boolean;
+  value?: unknown;
+  message?: string;
+}
 export interface StartedEvent {
   type: "started";
   taskId: string;
@@ -1011,6 +1059,8 @@ export const agentRuntimeJsonRpcMethods = [
   "collaboration/run",
   "collaboration/runMode",
   "agent/approval/answer",
+  "extensions/commands/list",
+  "extensions/commands/execute",
 ] as const;
 export const agentRuntimeNotificationMethods = ["runtime/event", "runtime/result"] as const;
 export type AgentRuntimeJsonRpcMethod = (typeof agentRuntimeJsonRpcMethods)[number];
@@ -1114,6 +1164,10 @@ export const agentRuntimeRequests = {
     createAgentRuntimeRequest(id, "collaboration/runMode", params),
   agentApprovalAnswer: (id: string | number, params: AgentRuntimeRequestParams<"agent/approval/answer">) =>
     createAgentRuntimeRequest(id, "agent/approval/answer", params),
+  extensionsCommandsList: (id: string | number, params: AgentRuntimeRequestParams<"extensions/commands/list">) =>
+    createAgentRuntimeRequest(id, "extensions/commands/list", params),
+  extensionsCommandsExecute: (id: string | number, params: AgentRuntimeRequestParams<"extensions/commands/execute">) =>
+    createAgentRuntimeRequest(id, "extensions/commands/execute", params),
 } as const;
 export const AgentRuntimeEventType = {
   Started: "started",
@@ -1277,6 +1331,8 @@ export const AgentRuntimeResultType = {
   RuntimeSessionResult: "runtime_session_result",
   RuntimeSessionDebugResult: "runtime_session_debug_result",
   CollaborationTimelineResult: "collaboration_timeline_result",
+  ExtensionCommandsResult: "extension_commands_result",
+  ExtensionCommandResult: "extension_command_result",
 } as const;
 export type AgentRuntimeResultType = (typeof AgentRuntimeResultType)[keyof typeof AgentRuntimeResultType];
 export type AgentRuntimeResultOf<TType extends AgentRuntimeResultType> = Extract<AgentRuntimeResult, { type: TType }>;
@@ -1328,6 +1384,11 @@ export const agentRuntimeResults = {
   collaborationTimelineResult: (
     payload: AgentRuntimeResultPayload<typeof AgentRuntimeResultType.CollaborationTimelineResult>,
   ) => createAgentRuntimeResult(AgentRuntimeResultType.CollaborationTimelineResult, payload),
+  extensionCommandsResult: (
+    payload: AgentRuntimeResultPayload<typeof AgentRuntimeResultType.ExtensionCommandsResult>,
+  ) => createAgentRuntimeResult(AgentRuntimeResultType.ExtensionCommandsResult, payload),
+  extensionCommandResult: (payload: AgentRuntimeResultPayload<typeof AgentRuntimeResultType.ExtensionCommandResult>) =>
+    createAgentRuntimeResult(AgentRuntimeResultType.ExtensionCommandResult, payload),
 } as const;
 export const agentRuntimeResultGuards = {
   ack: (result: { type: string }): result is { type: typeof AgentRuntimeResultType.Ack } =>
@@ -1374,4 +1435,12 @@ export const agentRuntimeResultGuards = {
     type: string;
   }): result is { type: typeof AgentRuntimeResultType.CollaborationTimelineResult } =>
     isAgentRuntimeResultType(result, AgentRuntimeResultType.CollaborationTimelineResult),
+  extensionCommandsResult: (result: {
+    type: string;
+  }): result is { type: typeof AgentRuntimeResultType.ExtensionCommandsResult } =>
+    isAgentRuntimeResultType(result, AgentRuntimeResultType.ExtensionCommandsResult),
+  extensionCommandResult: (result: {
+    type: string;
+  }): result is { type: typeof AgentRuntimeResultType.ExtensionCommandResult } =>
+    isAgentRuntimeResultType(result, AgentRuntimeResultType.ExtensionCommandResult),
 } as const;
