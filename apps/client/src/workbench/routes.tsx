@@ -32,7 +32,6 @@ export const AppRoutes = () => (
         <Route path="settings/agent" element={<AgentPage />} />
         <Route path="settings/workflow" element={<WorkflowPage />} />
         <Route path="settings/sandbox" element={<SandboxSettingsPage />} />
-        <Route path="settings/extensions" element={<Navigate to="/extensions" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Route>
