@@ -8,7 +8,27 @@
       "types": "./index.d.ts",
       "default": "./index.js"
     },
-    "./manifest.schema.json": "./manifest.schema.json"
+    "./agent": {
+      "types": "./agent/index.d.ts",
+      "default": "./agent/index.js"
+    },
+    "./ui": {
+      "types": "./ui/index.d.ts",
+      "default": "./ui/index.js"
+    },
+    "./host": {
+      "types": "./host/index.d.ts",
+      "default": "./host/adapter.js"
+    },
+    "./manifest.schema.json": "./manifest.schema.json",
+    "./ui/contribution.schema.json": "./ui/contribution.schema.json"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "scripts": {
+    "generate": "node scripts/generate-ui.mjs",
+    "check:ui": "node scripts/generate-ui.mjs --check"
+  },
+  "devDependencies": {
+    "json-schema-to-typescript": "^15.0.4"
+  }
 }

@@ -1,0 +1,42 @@
+{
+  "name": "@isle/extension-session-insights",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "会话统计：通过界面插槽和受控数据接口展示当前会话，不依赖 Agent。",
+  "scripts": {
+    "build": "isle-extension build",
+    "validate": "isle-extension validate dist/plugin"
+  },
+  "dependencies": {
+    "@isle/extension-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@isle/extension-dev": "workspace:*"
+  },
+  "isle.extension": {
+    "schemaVersion": 2,
+    "id": "isle.session-insights",
+    "apiVersion": 1,
+    "modules": {
+      "ui": {
+        "entry": "./ui.js",
+        "capabilities": [
+          "session.read"
+        ],
+        "contributions": [
+          {
+            "id": "overview",
+            "slot": "session.sidebar",
+            "title": "会话统计",
+            "type": "sidebar",
+            "icon": "chart",
+            "view": {
+              "id": "overview"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

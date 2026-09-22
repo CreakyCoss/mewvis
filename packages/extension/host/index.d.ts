@@ -19,7 +19,7 @@ export interface ExtensionPackageManagerOptions {
 }
 export interface ExtensionPackage {
   root: string;
-  entry: string;
+  modules: ExtensionManifest["modules"];
   manifest: ExtensionManifest;
   packageJson: {
     name: string;
@@ -29,7 +29,11 @@ export interface ExtensionPackage {
     [key: string]: unknown;
   };
 }
-export function readExtensionPackage(path: string, options?: { checkEntry?: boolean }): ExtensionPackage;
+export function resolveExtensionConfig(manifest: ExtensionManifest, input?: JsonObject): JsonObject;
+export function readExtensionPackage(
+  path: string,
+  options?: { checkEntry?: boolean; module?: "agent" | "ui" },
+): ExtensionPackage;
 export function resolveExtensionPackages(packages: readonly ExtensionPackageRegistration[]): ExtensionSource[];
 export function readExtensionSettings(path: string): {
   version: 1;

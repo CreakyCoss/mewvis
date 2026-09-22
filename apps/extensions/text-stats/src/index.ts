@@ -1,4 +1,4 @@
-import { defineExtension } from "@isle/extension-sdk";
+import { defineExtension } from "@isle/extension-sdk/agent";
 
 export default defineExtension({
   id: "isle.example",

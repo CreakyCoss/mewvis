@@ -1,5 +1,13 @@
 import { build } from "esbuild";
-import { mkdtemp, mkdir, writeFile, rm, cp, lstat, realpath } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  writeFile,
+  rm,
+  cp,
+  lstat,
+  realpath,
+} from "node:fs/promises";
 import { resolve, join, dirname, relative } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -11,7 +19,8 @@ const exec = promisify(execFile);
 const sdkEntry = fileURLToPath(import.meta.resolve("@isle/extension-sdk"));
 
 export async function createExtensionPackage(directory, id) {
-  if (!/^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$/.test(id)) throw new Error("无效的插件 ID");
+  if (!/^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$/.test(id))
+    throw new Error("无效的插件 ID");
   const root = resolve(directory);
   // A new directory is required: never overwrite an existing project.
   await mkdir(root, { recursive: false });
@@ -28,12 +37,20 @@ export async function createExtensionPackage(directory, id) {
     },
     dependencies: { "@isle/extension-sdk": "workspace:*" },
     devDependencies: { "@isle/extension-dev": "workspace:*" },
-    "isle.extension": { schemaVersion: 1, id, apiVersion: 1, entry: "./index.js", capabilities: ["commands"] },
+    "isle.extension": {
+      schemaVersion: 2,
+      id,
+      apiVersion: 1,
+      modules: { agent: { entry: "./index.js", capabilities: ["commands"] } },
+    },
   };
-  await writeFile(join(root, "package.json"), JSON.stringify(pkg, null, 2) + "\n");
+  await writeFile(
+    join(root, "package.json"),
+    JSON.stringify(pkg, null, 2) + "\n",
+  );
   await writeFile(
     join(root, "src/index.ts"),
-    `import { defineExtension } from "@isle/extension-sdk";
+    `import { defineExtension } from "@isle/extension-sdk/agent";
 
 export default defineExtension({
   id: ${JSON.stringify(id)},
@@ -61,30 +78,53 @@ export async function buildExtensionPackage(directory, { outputDir } = {}) {
   // Custom output must be absent. Replace dist/plugin only after building succeeds.
   const staging = await mkdtemp(join(tmpdir(), "isle-extension-build-"));
   try {
-    const outfile = resolve(staging, pkg.manifest.entry);
-    await build({
-      entryPoints: [join(pkg.root, "src/index.ts")],
-      outfile,
-      bundle: true,
-      platform: "node",
-      format: "esm",
-      target: "node22",
-      alias: { "@isle/extension-sdk": sdkEntry },
-      banner: {
-        js: "import { createRequire as __isleRequire } from 'node:module'; const require = __isleRequire(import.meta.url);",
-      },
-      plugins: [
-        {
-          name: "isle-plugin-boundary",
-          setup(builder) {
-            builder.onResolve(
-              { filter: /^@(?:earendil-works\/pi-|isle\/(?:agent-runtime|app-host|extension-host))/ },
-              (args) => ({ errors: [{ text: `插件不能依赖宿主或 Agent 内部包：${args.path}` }] }),
-            );
-          },
+    for (const [kind, declaration] of Object.entries(pkg.manifest.modules)) {
+      if (!declaration.entry) continue;
+      const browser = kind === "ui";
+      await build({
+        entryPoints: [join(pkg.root, browser ? "src/ui.ts" : "src/index.ts")],
+        outfile: resolve(staging, declaration.entry),
+        bundle: true,
+        platform: browser ? "browser" : "node",
+        format: "esm",
+        target: browser ? "es2022" : "node22",
+        alias: {
+          "@isle/extension-sdk/agent": fileURLToPath(
+            import.meta.resolve("@isle/extension-sdk/agent"),
+          ),
+          "@isle/extension-sdk/ui": fileURLToPath(
+            import.meta.resolve("@isle/extension-sdk/ui"),
+          ),
+          "@isle/extension-sdk/host": fileURLToPath(
+            import.meta.resolve("@isle/extension-sdk/host"),
+          ),
+          "@isle/extension-sdk": sdkEntry,
         },
-      ],
-    });
+        ...(!browser && {
+          banner: {
+            js: "import { createRequire as __isleRequire } from 'node:module'; const require = __isleRequire(import.meta.url);",
+          },
+        }),
+        plugins: [
+          {
+            name: "isle-plugin-boundary",
+            setup(builder) {
+              builder.onResolve(
+                {
+                  filter:
+                    /^@(?:earendil-works\/pi-|isle\/(?:agent-runtime|app-host|extension-host))/,
+                },
+                (args) => ({
+                  errors: [
+                    { text: `插件不能依赖宿主或 Agent 内部包：${args.path}` },
+                  ],
+                }),
+              );
+            },
+          },
+        ],
+      });
+    }
     const artifact = {
       name: pkg.packageJson.name,
       version: pkg.packageJson.version,
@@ -92,9 +132,13 @@ export async function buildExtensionPackage(directory, { outputDir } = {}) {
       "isle.extension": pkg.manifest,
     };
     for (const key of ["description", "license", "keywords"]) {
-      if (pkg.packageJson[key] !== undefined) artifact[key] = pkg.packageJson[key];
+      if (pkg.packageJson[key] !== undefined)
+        artifact[key] = pkg.packageJson[key];
     }
-    await writeFile(join(staging, "package.json"), JSON.stringify(artifact, null, 2) + "\n");
+    await writeFile(
+      join(staging, "package.json"),
+      JSON.stringify(artifact, null, 2) + "\n",
+    );
     for (const name of ["README.md", "LICENSE"]) {
       try {
         const path = join(pkg.root, name);
@@ -108,15 +152,21 @@ export async function buildExtensionPackage(directory, { outputDir } = {}) {
     // Refuse custom output replacement, and never follow a substituted dist symlink.
     const parent = dirname(output);
     await mkdir(parent, { recursive: true });
-    if (conventional && (await realpath(parent)) !== parent) throw new Error("构建输出父目录不能为符号链接");
+    if (conventional && (await realpath(parent)) !== parent)
+      throw new Error("构建输出父目录不能为符号链接");
     try {
       const current = await lstat(output);
-      if (!conventional || current.isSymbolicLink()) throw new Error("输出目录已存在或为符号链接");
+      if (!conventional || current.isSymbolicLink())
+        throw new Error("输出目录已存在或为符号链接");
       await rm(output, { recursive: true });
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
     }
-    await cp(staging, output, { recursive: true, errorOnExist: true, force: false });
+    await cp(staging, output, {
+      recursive: true,
+      errorOnExist: true,
+      force: false,
+    });
     return readExtensionPackage(output);
   } finally {
     await rm(staging, { recursive: true, force: true });
@@ -127,7 +177,9 @@ export async function packExtensionPackage(directory, { outputDir } = {}) {
   const root = resolve(directory);
   const temp = await mkdtemp(join(tmpdir(), "isle-extension-pack-"));
   try {
-    const pkg = await buildExtensionPackage(root, { outputDir: join(temp, "package") });
+    const pkg = await buildExtensionPackage(root, {
+      outputDir: join(temp, "package"),
+    });
     const destination = resolve(outputDir ?? join(root, "dist"));
     await mkdir(destination, { recursive: true });
     const filename = `${pkg.manifest.id}-${pkg.packageJson.version}.tgz`;

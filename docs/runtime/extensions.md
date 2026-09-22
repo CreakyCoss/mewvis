@@ -1,6 +1,6 @@
 # 宿主插件最小闭环
 
-状态：SDK 已支持工具、内联技能、显式命令、会话状态和 Agent 事件订阅；独立插件包已支持清单、本地注册、配置、启停与开发 CLI。Pi 和脚本 Mock 共用执行入口。任务清单示例验证了不提供模型工具的功能插件。桌面已有本地插件管理页和聊天命令面板；尚未提供市场、插件自定义 UI、运行中代码热替换或 Pi 原生插件兼容。包开发见[插件包开发与管理](../extensions/development.md)，能力路线见[插件协议与能力映射](../architecture/extensions.md)。
+状态：SDK 已支持工具、内联技能、显式命令、会话状态和 Agent 事件订阅；独立插件包已支持清单、本地注册、配置、启停与开发 CLI。Pi 和脚本 Mock 共用执行入口。任务清单示例验证了不提供模型工具的功能插件。桌面已有本地插件管理页与 `session.sidebar` UI 插槽。清单 v2 可按需声明 Agent 与 UI 入口，UI 通过受控接口读取当前会话；尚未提供市场、任意 UI 插槽、运行中代码热替换或 Pi 原生插件兼容。包开发见[插件包开发与管理](../extensions/development.md)，能力路线见[插件协议与能力映射](../architecture/extensions.md)。
 
 ## 运行示例
 
@@ -29,7 +29,7 @@ pnpm --filter @isle/agent-runtime test:extensions
 公共类型位于 `@isle/extension-sdk`，不导出 Pi 或 Chord 的内部类型。插件默认导出 `defineExtension()` 的结果，声明 `id`、`apiVersion: 1` 和同步 `setup`：
 
 ```ts
-import { defineExtension } from "@isle/extension-sdk";
+import { defineExtension } from "@isle/extension-sdk/agent";
 
 export default defineExtension({
   id: "example.greeting",
@@ -59,7 +59,7 @@ export default defineExtension({
 
 `registerSkill` 注册 `{ name, description, content }` 内联技能，`onActivate` 注册异步初始化，`own` 注册清理函数。资源只能在同步 setup 中声明；资源分配尽量放在激活阶段，并在 setup 提前登记对应清理。
 
-`registerCommand` 注册 `{ name, description, parameters, execute }` 显式命令；`ctx.on(type, handler)` 订阅标准 Agent 事件；`ctx.session.get/set/delete` 访问当前插件的会话 JSON 状态。命令 ID 为 `extensionId/commandName`，可通过宿主 SDK 或桌面命令面板调用，不自动解析斜杠指令，也不会注册为模型工具。命令输入和返回值必须为 JSON，参数在宿主和 worker 双重校验。`ExtensionSource.commandRisks` 与工具风险配置一样由宿主审核提供；未声明时按未知副作用处理，沿用现有审批流程。
+`registerCommand` 注册 `{ name, description, parameters, execute }` 显式命令；`ctx.on(type, handler)` 订阅标准 Agent 事件；`ctx.session.get/set/delete` 访问当前插件的会话 JSON 状态。命令 ID 为 `extensionId/commandName`，可通过宿主 SDK 或协议调用，不自动解析斜杠指令，也不会注册为模型工具。命令输入和返回值必须为 JSON，参数在宿主和 worker 双重校验。`ExtensionSource.commandRisks` 与工具风险配置一样由宿主审核提供；未声明时按未知副作用处理，沿用现有审批流程。
 
 工具 schema 使用 JSON Schema object，输入、输出和进度必须是 JSON。第一版输出支持文本 content 和 JSON details。插件不直接声明执行风险；宿主可在审核后用 `ExtensionSource.toolRisks` 配置，未配置的工具按未知副作用处理。
 
@@ -110,17 +110,17 @@ await runtime.agent.run({
 
 SDK 将声明数据与调用接口分开：`ExtensionCatalog` 是可序列化的贡献目录，`ExtensionBindings` 提供带协议版本的工具执行、命令执行和事件投递接口。`ExtensionAdapter<TNativePlugin>` 的返回类型由目标 Agent 决定，公共协议不导入 Pi 类型。现有 worker 实现绑定接口，参数校验、审批、取消和状态事务继续在宿主执行。
 
-| 当前能力 | Pi 注册方式 | Mock 注册方式 |
-| --- | --- | --- |
-| 工具 | 原生 `registerTool`，执行时调用宿主绑定 | `addTool`，脚本按名称调用 |
-| 命令 | 原生 `registerCommand`，参数为 JSON 对象文本，结果写入自定义消息 | `addCommand`，脚本 `command` 步骤调用 |
-| 内联技能 | 原生 `before_agent_start` 注入系统提示（模拟） | 注册指令（模拟） |
-| 工具事件 | 原生 `tool_execution_start/end` 映射到 Isle 事件 | Mock 原生工具观察器 |
-| 消息与回合事件 | 原生 message / turn 钩子映射为 Isle 快照 | Mock 原生消息与回合观察器 |
-| 压缩前决策与结果 | 原生 session_before_compact / session_compact / session_compact_failed | Mock 原生 beforeCompact / onCompact |
-| 运行事件与状态 | Isle 运行边界与会话事务服务（模拟） | 同一宿主服务（模拟） |
+| 当前能力         | Pi 注册方式                                                            | Mock 注册方式                         |
+| ---------------- | ---------------------------------------------------------------------- | ------------------------------------- |
+| 工具             | 原生 `registerTool`，执行时调用宿主绑定                                | `addTool`，脚本按名称调用             |
+| 命令             | 原生 `registerCommand`，参数为 JSON 对象文本，结果写入自定义消息       | `addCommand`，脚本 `command` 步骤调用 |
+| 内联技能         | 原生 `before_agent_start` 注入系统提示（模拟）                         | 注册指令（模拟）                      |
+| 工具事件         | 原生 `tool_execution_start/end` 映射到 Isle 事件                       | Mock 原生工具观察器                   |
+| 消息与回合事件   | 原生 message / turn 钩子映射为 Isle 快照                               | Mock 原生消息与回合观察器             |
+| 压缩前决策与结果 | 原生 session_before_compact / session_compact / session_compact_failed | Mock 原生 beforeCompact / onCompact   |
+| 运行事件与状态   | Isle 运行边界与会话事务服务（模拟）                                    | 同一宿主服务（模拟）                  |
 
-Pi 原生命令例如 `/isle.tasks/add {"title":"验证原生注册"}`。这是适配器在 Pi 内部提供的注册；桌面聊天输入框仍未提供插件斜杠解析，桌面用户使用右侧命令面板。
+Pi 原生命令例如 `/isle.tasks/add {"title":"验证原生注册"}`。这是适配器在 Pi 内部提供的注册；桌面聊天输入框仍未提供插件斜杠解析，也不内置通用命令面板。
 
 工具观察不再从 UI 事件重复转发，避免同一次调用重复更新插件状态。取消后跳过普通观察事件；持久会话的运行终态恢复仍由宿主处理。当前已接入会话实例、输入/上下文/工具中间件及压缩决策，具体契约见[插件中间件](../extensions/middleware.md)和[会话压缩钩子](../extensions/session-control.md)；外部插件导入层仍未实现。
 
@@ -185,15 +185,15 @@ try {
 
 事件由 Isle 归一化，不暴露 Pi 原生事件类型：
 
-| 事件 | 内容 |
-| --- | --- |
-| `run_started` | 运行 ID、Agent runtime ID |
-| `tool_started` | 运行 ID、调用 ID、工具名 |
-| `tool_finished` | 上述标识、是否错误 |
-| `run_finished` | 运行 ID、completed / failed / cancelled |
-| `turn_started` / `turn_finished` | 本次运行的回合索引；结束时含助手消息和工具结果快照 |
-| `message_started` / `message_updated` / `message_finished` | 具有稳定 ID 的消息快照；更新时可含流式 delta 提示 |
-| `session_compact_finished` | 压缩尝试 ID、触发原因、结果状态、摘要或错误信息 |
+| 事件                                                       | 内容                                               |
+| ---------------------------------------------------------- | -------------------------------------------------- |
+| `run_started`                                              | 运行 ID、Agent runtime ID                          |
+| `tool_started`                                             | 运行 ID、调用 ID、工具名                           |
+| `tool_finished`                                            | 上述标识、是否错误                                 |
+| `run_finished`                                             | 运行 ID、completed / failed / cancelled            |
+| `turn_started` / `turn_finished`                           | 本次运行的回合索引；结束时含助手消息和工具结果快照 |
+| `message_started` / `message_updated` / `message_finished` | 具有稳定 ID 的消息快照；更新时可含流式 delta 提示  |
+| `session_compact_finished`                                 | 压缩尝试 ID、触发原因、结果状态、摘要或错误信息    |
 
 消息 ID、内容块、回合编号与 Mock 脚本语义见[消息与回合观察事件](../extensions/events.md)。
 
@@ -219,7 +219,7 @@ SDK 提供插件入口
 
 插件代码的导入、setup、激活和执行均发生在执行 worker 中，沿用现有程序执行配置。开启沙箱时受 OS 隔离约束；明确关闭沙箱时与现有工具相同，在普通子进程执行。Chord 的 facet 负责生命周期，不提供沙箱隔离。
 
-插件列表作用于 SDK 实例内的 Agent 运行和显式插件命令；同一会话共用插件实例，不同会话隔离。同会话操作按序执行；不同 runtime 或进程仍是不同实例，只共享持久状态。桌面命令发现使用短进程，发现阶段的实例会在输入关闭后释放，不与执行进程共用闭包。
+插件列表作用于 SDK 实例内的 Agent 运行和显式插件命令；同一会话共用插件实例，不同会话隔离。同会话操作按序执行；不同 runtime 或进程仍是不同实例，只共享持久状态。宿主命令发现使用短进程，发现阶段的实例会在输入关闭后释放，不与执行进程共用闭包。
 
 `resources.tools.allowed` 省略或为 null 时允许插件贡献的工具，空数组禁用所有插件工具；`resources.skills.enabled` 同样按完整技能 ID 过滤，空数组禁用插件技能。这些筛选每次操作重新应用，不控制命令或事件订阅。Pi 适配器通过原生 `before_agent_start` 将已启用内联技能加入系统提示；Mock 将其保存为注册指令，脚本本身不执行模型推理。
 
@@ -247,4 +247,4 @@ SDK 提供插件入口
 
 现有 Pi 内置工具和 Application 工具保留原执行链；尚未完成全部工具目录的迁移。桌面通过宿主管理的 `extensions.json` 提供插件来源，stdio 新增 `extensions/commands/list` 和 `extensions/commands/execute`；前端不能在执行请求中提供插件路径或风险授权。插件工具目录尚未并入桌面全局工具选择器。插件接入主 Agent 运行与手动压缩，Pi 内部子 Agent、重建和独立摘要维护操作尚未接入。
 
-桌面命令面板已经能通过命令查看任务状态，当前使用通用 JSON 结果展示。后续增加会话级启用配置、多模态消息编辑、会话控制钩子、UI 扩展等能力。Application 的归属与加载机制继续遵循[应用与宿主插件边界](../architecture/extensibility.md)。
+命令可通过宿主 SDK 查看任务状态，桌面不内置通用执行面板。后续增加会话级启用配置、多模态消息编辑、会话控制钩子、更多 UI 插槽等能力。Application 的归属与加载机制继续遵循[应用与宿主插件边界](../architecture/extensibility.md)。

@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtemp, readFile, writeFile, rm, mkdir, symlink } from "node:fs/promises";
+import {
+  mkdtemp,
+  readFile,
+  writeFile,
+  rm,
+  mkdir,
+  symlink,
+} from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { execFile } from "node:child_process";
@@ -10,7 +17,53 @@ import { buildExtensionPackage } from "../index.mjs";
 
 const exec = promisify(execFile);
 const cliPath = fileURLToPath(new URL("../cli.mjs", import.meta.url));
-const cli = async (...args) => JSON.parse((await exec(process.execPath, [cliPath, ...args])).stdout);
+const cli = async (...args) =>
+  JSON.parse((await exec(process.execPath, [cliPath, ...args])).stdout);
+
+test("build optional browser module separately, without Node bootstrap or host imports", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "isle-ui-build-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const project = join(root, "plugin");
+  await cli("create", project, "--id", "test.ui");
+  const pkg = JSON.parse(await readFile(join(project, "package.json"), "utf8"));
+  pkg["isle.extension"].modules.ui = {
+    entry: "./ui.js",
+    capabilities: [],
+    contributions: [
+      {
+        id: "stats",
+        type: "sidebar",
+        icon: "chart",
+        view: { id: "overview" },
+        slot: "session.sidebar",
+        title: "Stats",
+      },
+    ],
+  };
+  await writeFile(join(project, "package.json"), JSON.stringify(pkg));
+  await writeFile(
+    join(project, "src/ui.ts"),
+    `import { defineUIExtension } from '@isle/extension-sdk/ui';
+     export default defineUIExtension({id:'test.ui',apiVersion:1,mount(root){root.textContent='UI'}});`,
+  );
+  let built = await buildExtensionPackage(project);
+  const source = await readFile(built.modules.ui.entry, "utf8");
+  assert.doesNotMatch(source, /node:module|createRequire/);
+  assert.ok(built.modules.agent);
+  delete pkg["isle.extension"].modules.agent;
+  await writeFile(join(project, "package.json"), JSON.stringify(pkg));
+  await rm(join(project, "src/index.ts"));
+  built = await buildExtensionPackage(project);
+  assert.equal(built.modules.agent, undefined);
+  await assert.rejects(readFile(join(built.root, "index.js")), {
+    code: "ENOENT",
+  });
+  await writeFile(
+    join(project, "src/ui.ts"),
+    `import {readFile} from 'node:fs'; console.log(readFile);`,
+  );
+  await assert.rejects(() => buildExtensionPackage(project), /node:fs/);
+});
 
 test("real CLI: scaffold → bundle → validate → archive → registration and enablement", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "isle-plugin-cli-"));
@@ -18,14 +71,20 @@ test("real CLI: scaffold → bundle → validate → archive → registration an
   const project = join(root, "hello"),
     settings = join(root, "settings.json");
   await cli("create", project, "--id", "test.hello");
-  await assert.rejects(() => cli("create", project, "--id", "test.hello"), /EEXIST/);
+  await assert.rejects(
+    () => cli("create", project, "--id", "test.hello"),
+    /EEXIST/,
+  );
   await writeFile(join(project, ".env"), "EXCLUDED_SECRET=not-a-real-secret");
   const pkg = JSON.parse(await readFile(join(project, "package.json"), "utf8"));
   pkg.scripts.prepack = "exit 99";
   await writeFile(join(project, "package.json"), JSON.stringify(pkg));
   const artifact = await cli("build", project);
   await cli("build", project); // supported rebuild of the conventional output
-  assert.equal((await cli("validate", artifact.root)).manifest.id, "test.hello");
+  assert.equal(
+    (await cli("validate", artifact.root)).manifest.id,
+    "test.hello",
+  );
   assert.equal(artifact.packageJson.scripts, undefined);
   const archive = await cli("pack", project);
   const entries = (await exec("tar", ["-tzf", archive])).stdout;
@@ -56,7 +115,10 @@ test("build does not evaluate code, rejects Pi coupling and preserves unrelated 
   const other = join(root, "other");
   await mkdir(other);
   await writeFile(join(other, "keep"), "preserved");
-  await assert.rejects(() => buildExtensionPackage(project, { outputDir: other }), /已存在/);
+  await assert.rejects(
+    () => buildExtensionPackage(project, { outputDir: other }),
+    /已存在/,
+  );
   assert.equal(await readFile(join(other, "keep"), "utf8"), "preserved");
   await rm(join(project, "dist"), { recursive: true });
   await symlink(other, join(project, "dist"));
@@ -65,5 +127,34 @@ test("build does not evaluate code, rejects Pi coupling and preserves unrelated 
     join(project, "src/index.ts"),
     "import { x } from '@earendil-works/pi-coding-agent'; console.log(x);",
   );
-  await assert.rejects(() => buildExtensionPackage(project, { outputDir: join(root, "forbidden") }), /不能依赖/);
+  await assert.rejects(
+    () =>
+      buildExtensionPackage(project, { outputDir: join(root, "forbidden") }),
+    /不能依赖/,
+  );
+});
+
+test("plain text contributions build without source files or a runtime entry", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "isle-text-ui-build-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const project = join(root, "plugin");
+  await cli("create", project, "--id", "test.text");
+  const pkg = JSON.parse(await readFile(join(project, "package.json"), "utf8"));
+  pkg["isle.extension"].modules = {
+    ui: {
+      capabilities: [],
+      contributions: [
+        { id: "ready", slot: "session.status", type: "text", text: "Ready" },
+      ],
+    },
+  };
+  await writeFile(join(project, "package.json"), JSON.stringify(pkg));
+  await rm(join(project, "src"), { recursive: true });
+  const built = await buildExtensionPackage(project);
+  assert.equal(built.modules.ui.entry, undefined);
+  assert.deepEqual(
+    built.manifest.modules.ui.contributions,
+    pkg["isle.extension"].modules.ui.contributions,
+  );
+  await assert.rejects(readFile(join(built.root, "ui.js")), { code: "ENOENT" });
 });

@@ -1,6 +1,8 @@
 import { SystemDialogs } from "../modules/system-dialogs/service.js";
 import type { NativePicker } from "../infrastructure/dialogs/native-picker.js";
 import { join } from "node:path";
+import { root, safePath } from "../infrastructure/filesystem/paths.js";
+import { sessionId } from "../shared/session-id.js";
 import type { RuntimeConfig } from "../config/runtime.js";
 import { leaseDataDirectory } from "../storage/lease.js";
 import { ConfigDatabase } from "../storage/config/database.js";
@@ -53,10 +55,11 @@ export class ServerServices {
       new KnowledgeRepository(database),
       config.dataDir,
     );
+    const agent = new AgentRuntimeHost(this.supervisor, (id) =>
+      this.applications.session(id),
+    );
     return {
-      agent: new AgentRuntimeHost(this.supervisor, (id) =>
-        this.applications.session(id),
-      ),
+      agent,
       settings: {
         llm: new LlmSettingsService(new LlmRepository(database)),
         agents: new AgentSettingsService(new AgentSettingsRepository(database)),
@@ -66,7 +69,19 @@ export class ServerServices {
         join(config.dataDir, config.defaultWorkspaceDirName),
       ),
       dialogs: this.dialogs,
-      extensions: new Extensions(config.dataDir, config.bundledExtensionsPath),
+      extensions: new Extensions(config.dataDir, config.bundledExtensionsPath, {
+        readSession: async (target) => {
+          const workspacePath = await root(target.workspacePath);
+          const sessionRootDir = await safePath(
+            workspacePath,
+            `${config.appDataDirName}/chats/${sessionId(target.chatId)}/session`,
+          );
+          return agent.invoke("read_agent_runtime_session", {
+            input: { workspacePath, sessionRootDir },
+          });
+        },
+        changed: () => this.supervisor.events.publish("extensions_changed", {}),
+      }),
       files: this.files,
       chats: new Chats(config.appDataDirName, this.files),
       versionControl: new VersionControl(config.appDataDirName),

@@ -16,13 +16,17 @@
     "@isle/extension-dev": "workspace:*"
   },
   "isle.extension": {
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "id": "isle.example",
     "apiVersion": 1,
-    "entry": "./index.js",
-    "capabilities": [
-      "tools",
-      "skills"
-    ]
+    "modules": {
+      "agent": {
+        "entry": "./index.js",
+        "capabilities": [
+          "tools",
+          "skills"
+        ]
+      }
+    }
   }
 }

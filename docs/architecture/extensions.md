@@ -6,6 +6,86 @@ Isle 以 Pi 的扩展能力为基准，设计自己的插件协议、SDK 和运�
 
 本文的「目标设计」描述尚未全部实现的架构；「当前状态」和「当前实现边界」记录实际代码能力。目前没有 Pi 原生插件兼容层。
 
+## SDK 目录与入口
+
+`packages/extension/sdk/index.d.ts` 统一定义插件清单、`ExtensionModules` 和配置；按需声明 `agent`、`ui`。[插件 SDK 能力与目录](../extensions/sdk.md)提供当前能力表与阅读导航。
+
+- `agent/`：Agent 上下文与生命周期、工具/技能/命令、事件、中间件、会话契约及编写辅助函数。
+- `ui/`：UI 模块、通用插槽与贡献、受控数据服务；浏览器 DOM 挂载单独定义在 `browser.d.ts`。
+- `host/`：加载来源、宿主执行绑定、Agent 适配契约与能力协商；不属于可执行插件模块。
+- `shared.d.ts`：跨领域基础类型；`manifest.schema.json` 和 `ui/contribution.schema.json` 负责校验。
+
+对外提供统一 `@isle/extension-sdk` 入口，以及 `/agent`、`/ui`、`/host` 领域入口。类型与相关实现按领域共置，不维护平行的 types/runtime 目录树；内部不反向导入 SDK 总入口。旧 `/ui-slots` 和 `/ui-contribution.schema.json` 路径已移除。
+
+## 当前模块化加载
+
+清单 v2 按 `modules.agent` 与 `modules.ui` 声明可选入口；共享插件 ID、版本、配置与启停。包管理只校验元数据，Agent 来源解析只输出 Agent 模块。只接受模块化清单，不提供旧结构转换，也不将 UI 能力传给 Agent 适配器。
+
+```text
+插件目录 → 清单校验与配置
+           ├─ modules.agent → Agent Worker → Pi / Mock 适配器
+           └─ modules.ui    → 桌面 session.sidebar 插槽 → 隔离 iframe
+                                               ↓ MessageChannel
+                                      Server 视图租约与能力校验
+                                               ↓
+                                      宿主会话读取与公开 DTO
+```
+
+`packages/extension/sdk/ui/slots.js` 是 UI 插槽协议源，生成贡献 Schema 和 `slots.generated.d.ts`，`slots.d.ts` 定义编写辅助与宿主上下文：定义 `key`、`type`、`scope`、会话上下文、贡献结构及适配状态，不依赖 React、DOM 或终端组件。当前有 `session.sidebar`（`sidebar`）和 `session.status`（`text`）。`ui/contribution.schema.json` 校验清单贡献的插槽与类型必须匹配；未知插槽、类型或旧 `panels` 字段直接拒绝。
+
+`modules.ui.contributions` 声明贡献。纯文本模块不需要 JS 入口；包含 `view` 引用时必须声明 `entry`。协议定义、宿主实现和页面挂载是三个独立步骤：
+
+```text
+SDK 插槽协议 → 插件声明 contributions
+                       ↓
+Server 贡献目录 → ExtensionHost 绑定可执行视图
+                       ↓
+UISlotProvider（自动发现 *.adapter.tsx 的独立声明）
+                       ↓
+页面 <UISlot definition={uiSlotDefinitions.sessionSidebar} context={...} />
+                       ↓
+SidebarSlotAdapter → 选中视图 → 隔离 iframe
+```
+
+客户端插件能力统一放在 `apps/client/src/extensions/`。`slots/` 承载插槽运行时和桌面适配，`views/` 承载插件视图的隔离执行；页面通过 `@/extensions/slots` 挂载插槽，不依赖插件管理页面。
+
+```text
+extensions/
+├── index.tsx             # ExtensionHost：组合贡献目录、视图绑定与插槽适配
+├── catalog.ts            # 订阅插件贡献目录
+├── contributions.tsx     # 将协议贡献绑定到通用视图加载器
+├── slots/
+│   ├── index.tsx         # 插槽 Provider、挂载入口及上下文
+│   ├── adapter.ts        # 适配契约与注册校验
+│   ├── icons.tsx         # 协议图标的桌面映射
+│   └── adapters/         # 自动发现各类型的独立适配器
+└── views/                # 隔离 iframe、通信及租约生命周期
+```
+
+前端依赖按职责划分：
+
+- `extensions/index.tsx`：定义 `ExtensionHost`，工作台根部挂载一次，订阅贡献目录并接入自动发现的桌面适配器。
+- `extensions/contributions.tsx`：将协议贡献与通用 `renderView(view, context)` 绑定；没有 text/sidebar 类型分支。
+- `extensions/views/`：隔离 iframe、通信和视图租约的挂载与销毁。
+- `extensions/slots/index.tsx`：按协议定义分发贡献，提供 `UISlotProvider`、`UISlot`、`useUISlotContext` 和 `useUISlotStatus`；只定义 React 侧绑定，不重复定义插槽目录。
+- `extensions/slots/adapters/sidebar.adapter.tsx`：侧栏布局、选择与按需渲染；`extensions/slots/adapters/text.adapter.tsx`：纯文本与语义颜色渲染。
+- `extensions/slots/adapters/index.ts`：固定 glob 自动发现适配器，校验重复类型与空实现原因；没有中心类型清单。
+- `workbench/index.tsx`：只挂载 `ExtensionHost`。当前实现两种类型，但只在聊天页挂载 `session.sidebar`。
+- `workbench/pages/chats/panels/index.tsx`：声明侧栏插槽并提供内置贡献，不查询或合并插件面板。
+- `workbench/pages/extensions/`：只承担管理页面。
+
+适配器可省略（`unsupported`）、显式空实现（`noop`，必需原因）或实际实现（`supported`）。`useUISlotStatus(definition)` 分别返回 `support` 与 `surfaces`：未挂载时为 0，实现适配器不会自动插入页面或执行插件视图；挂载占位也不意味着插件面板已打开。没有适配器和空实现均不渲染贡献，且不报告为完整支持。诊断是宿主 React API，当前尚未通过插件 iframe SDK 暴露动态插槽状态。
+
+`apps/server/src/modules/extensions/views.ts` 承接贡献目录、视图租约与数据访问。声明文本不会运行插件代码；只有打开侧栏视图才会加载 UI 入口。关闭、切换、停用或移除贡献会卸载其视图；选中的贡献移除时回落到第一个可用面板。
+
+新增同类插件贡献不修改页面；新增协议插槽或类型修改 `ui/slots.js` 并运行 SDK `generate`，随后编写独立适配器文件；页面独立决定是否挂载，不再同步维护类型清单或贡献转换分支。当前没有后台插件代码入口、任意页面注入或动态文本更新 API。插件包生命周期统一管理，UI 挂载实例与 Agent 会话实例分别管理，不共享可变内存。
+
+sidebar 协议必须提供 `title`、语义图标 `icon` 和 `view: { id }`。图标是受控名称，不接收 React 组件、HTML 或资源 URL。浏览器上下文以 `contributionId` 与 `viewId` 区分贡献与入口内部视图，Server 校验请求引用确实存在于已启用插件的清单中。
+
+聊天侧栏不内置插件命令管理或执行面板，启停与配置集中在插件管理页。宿主 SDK 和 Agent 的命令能力继续保留；有交互需求时再通过插件提供界面，并按需扩展受控宿主接口。
+
+`apps/extensions/session-insights` 是纯 UI 示例，通过 `session.read` 查询当前会话的公开消息和关联运行。权限由 Server 重检，配置和启停变更撤销已有视图租约，数据读取过程中停用也不会继续返回数据。宿主账本与存储实现保持原职责。
+
 ## 目标结构
 
 ```text
@@ -59,11 +139,11 @@ extensions/
 
 ## 目标设计：三个契约边界
 
-| 边界 | 责任 | 不应承担的责任 |
-| --- | --- | --- |
-| 插件 SDK | 插件注册、资源贡献、生命周期、宿主服务及标准扩展点 | 暴露 Pi 的内部类型或要求插件识别底层 Agent |
-| Agent 适配契约 | 将 Isle 插件转换为 Agent 原生插件定义与回调，交由 Agent 标准注册；处理直接映射与缺失能力策略 | 重复实现插件加载、状态事务、审批、桌面 UI 或包管理 |
-| 生态兼容适配契约 | 识别外部包，提供其受支持 API 的桥接，将注册、回调和调用翻译为 Isle 语义 | 绕过 Isle 执行边界，或为每个目标 Agent 再写一套插件转换逻辑 |
+| 边界             | 责任                                                                                         | 不应承担的责任                                              |
+| ---------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| 插件 SDK         | 插件注册、资源贡献、生命周期、宿主服务及标准扩展点                                           | 暴露 Pi 的内部类型或要求插件识别底层 Agent                  |
+| Agent 适配契约   | 将 Isle 插件转换为 Agent 原生插件定义与回调，交由 Agent 标准注册；处理直接映射与缺失能力策略 | 重复实现插件加载、状态事务、审批、桌面 UI 或包管理          |
+| 生态兼容适配契约 | 识别外部包，提供其受支持 API 的桥接，将注册、回调和调用翻译为 Isle 语义                      | 绕过 Isle 执行边界，或为每个目标 Agent 再写一套插件转换逻辑 |
 
 Agent 适配器的产物是可注册的原生插件或插件工厂。注册以后，由目标 Agent 的原生插件机制驱动其事件、钩子、命令与工具调度，适配器在回调边界转换参数、返回值和上下文。Isle 不要求每个 Agent 重新实现一套 Isle 专用插件调度器。宿主通用服务实现一次，插件作者不需要针对每个 Agent 编写分支。
 
@@ -81,17 +161,17 @@ Agent 适配器的产物是可注册的原生插件或插件工厂。注册以�
 
 目标适配器对每项能力给出明确的映射策略，并报告实际采用的策略：
 
-| 策略 | 行为 |
-| --- | --- |
-| 直接映射 | 转换成 Agent 对应的原生插件 API |
-| 模拟 | 组合 Agent 的其他内部方法或 Isle 宿主服务实现 |
-| 忽略 | 不注册该贡献或钩子 |
-| 空实现 | 保留可调用接口，返回事先定义的空值或中性结果 |
-| 报错 | 在注册或调用时返回明确的不支持错误 |
+| 策略     | 行为                                          |
+| -------- | --------------------------------------------- |
+| 直接映射 | 转换成 Agent 对应的原生插件 API               |
+| 模拟     | 组合 Agent 的其他内部方法或 Isle 宿主服务实现 |
+| 忽略     | 不注册该贡献或钩子                            |
+| 空实现   | 保留可调用接口，返回事先定义的空值或中性结果  |
+| 报错     | 在注册或调用时返回明确的不支持错误            |
 
 策略可以由适配器提供默认值，并由插件要求及宿主策略进一步约束。忽略和空实现是允许的兼容策略，但属于降级，不计为语义等价支持；空值必须满足返回类型，不能任意返回 `undefined`。执行权限和审批仍由宿主控制，不属于可通过空实现绕过的插件贡献。
 
-当前清单 v1 的 `capabilities` 仍为必需能力声明。SDK 已增加版本化 `ExtensionAdapter<TNativePlugin>`、五种映射模式和逐项适配报告；缺少映射默认报错。具体策略由适配器实现，尚未提供宿主覆盖策略或更细粒度的语义要求。
+当前清单 v2 的 `modules.agent.capabilities` 为必需能力声明。SDK 已增加版本化 `ExtensionAdapter<TNativePlugin>`、五种映射模式和逐项适配报告；缺少映射默认报错。具体策略由适配器实现，尚未提供宿主覆盖策略或更细粒度的语义要求。
 
 每个扩展点必须定义触发时机、输入输出、执行顺序、串行或并行、返回值合并、短路、失败、取消和权限语义。观察事件与可改变执行的中间件分开定义。对上下文的修改必须送入本轮实际模型请求；工具参数修改后必须重新进行 schema 与宿主最终权限检查。只有完整兑现这些语义的 Agent 才能声明支持相应能力。
 
@@ -117,25 +197,24 @@ Pi 兼容层作为独立模块实现，声明支持的 Pi API 版本和能力范
 
 参考仓库内 Pi 0.85.1 的 `ai/pi/packages/coding-agent/docs/extensions.md`、`docs/packages.md` 和 `src/core/extensions/types.ts`。完整分类及基准校验见[Pi 兼容基准与协议规格](../extensions/pi-compatibility.md)，概要如下：
 
-| Pi 能力 | Isle 目标 | 当前状态 |
-| --- | --- | --- |
-| Pi package 的资源声明与分发 | `isle.extension` 清单、独立构建、包注册 | 已有本地目录注册、tgz 打包；网络安装和托管解包未实现 |
-| `registerTool` | `ctx.registerTool` 与宿主最终执行检查 | 已有文本结果、JSON details 与进度；多模态结果待补 |
-| skills / prompts 资源 | 技能与模板贡献 | 已有内联技能；目录技能和模板发现待补 |
-| `registerCommand` | 显式命令目录、SDK 和桌面执行入口 | 已有通用参数表单、审批、取消与结果；输入框斜杠命令与补全待补 |
-| Agent / tool 事件 | Isle 归一化事件 | 已有 run/tool/turn 开始结束、消息开始/流式更新/结束观察；消息返回值替换待补 |
-| `input`、`context`、`before_agent_start` | 输入和上下文中间件 | 已有文本输入/系统提示替换、输入阻断及上下文文本/引用管道；完整多模态编辑待补 |
-| `tool_call`、`tool_result` 拦截 | 调用前拦截和结果转换 | 已有参数替换、工具阻断、结果转换；最终参数重新校验并接受权限检查 |
-| `appendEntry` 和 session manager | 插件会话状态、会话操作 | 已有 JSON 状态、压缩前允许/阻止与结果通知；切换、分叉、条目历史待补 |
-| `ctx.ui`、消息渲染器、快捷键 | Isle 通知、卡片、面板及交互扩展 | 待实现，采用桌面协议 |
-| 模型选择、provider、请求钩子 | 可选模型与供应商扩展能力 | 待设计，按 Agent 支持范围开放 |
+| Pi 能力                                  | Isle 目标                               | 当前状态                                                                     |
+| ---------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------- |
+| Pi package 的资源声明与分发              | `isle.extension` 清单、独立构建、包注册 | 已有本地目录注册、tgz 打包；网络安装和托管解包未实现                         |
+| `registerTool`                           | `ctx.registerTool` 与宿主最终执行检查   | 已有文本结果、JSON details 与进度；多模态结果待补                            |
+| skills / prompts 资源                    | 技能与模板贡献                          | 已有内联技能；目录技能和模板发现待补                                         |
+| `registerCommand`                        | 显式命令目录、SDK 和桌面执行入口        | 已有通用参数表单、审批、取消与结果；输入框斜杠命令与补全待补                 |
+| Agent / tool 事件                        | Isle 归一化事件                         | 已有 run/tool/turn 开始结束、消息开始/流式更新/结束观察；消息返回值替换待补  |
+| `input`、`context`、`before_agent_start` | 输入和上下文中间件                      | 已有文本输入/系统提示替换、输入阻断及上下文文本/引用管道；完整多模态编辑待补 |
+| `tool_call`、`tool_result` 拦截          | 调用前拦截和结果转换                    | 已有参数替换、工具阻断、结果转换；最终参数重新校验并接受权限检查             |
+| `appendEntry` 和 session manager         | 插件会话状态、会话操作                  | 已有 JSON 状态、压缩前允许/阻止与结果通知；切换、分叉、条目历史待补          |
+| `ctx.ui`、消息渲染器、快捷键             | Isle 通知、卡片、面板及交互扩展         | 待实现，采用桌面协议                                                         |
+| 模型选择、provider、请求钩子             | 可选模型与供应商扩展能力                | 待设计，按 Agent 支持范围开放                                                |
 
-尚未实现的能力不能写入 v1 清单，加载时会报错。Agent 通过 `extensionAdapter.capabilities` 声明映射；运行前检查包的全部所需能力，缺少映射时明确失败。Pi 和脚本 Mock 已通过原生插件注册承接资源、状态、五类观察事件和六类中间件，其中内联技能、运行事件及状态采用显式模拟；Pi 上下文使用文本/原生消息引用投影。Mock 验证契约和工作流，不模拟真实模型推理或原生会话摘要。
+尚未实现的能力不能写入清单，加载时会报错。Agent 通过 `extensionAdapter.capabilities` 声明映射；运行前检查包的全部所需能力，缺少映射时明确失败。Pi 和脚本 Mock 已通过原生插件注册承接资源、状态、五类观察事件和六类中间件，其中内联技能、运行事件及状态采用显式模拟；Pi 上下文使用文本/原生消息引用投影。Mock 验证契约和工作流，不模拟真实模型推理或原生会话摘要。
 
 ## 当前实现边界
 
 已实现第一阶段原生插件适配：SDK 的 `ExtensionCatalog` 定义贡献数据，`ExtensionBindings` 定义受控调用接口，`ExtensionAdapter<TNativePlugin>` 定义转换。Pi 适配器返回 Pi 的 `ExtensionFactory` 并交给原生资源加载器；Mock 适配器返回 Mock 插件并交给其注册表。工具、命令与工具事件由原生注册机制驱动，运行终态及状态事务仍复用 Isle 宿主服务。适配契约位于 SDK 的独立 `adapter` 模块，具体 Agent 类型只出现在各自适配器中。
-
 
 包身份由清单 `id` 和代码 `defineExtension({ id })` 共同确定。元数据阶段检查版本、入口和配置；代码只在执行 worker 中导入，激活时再次检查身份和贡献能力。JSON Schema 是声明校验；worker 沙箱及宿主执行检查承担运行权限控制。`capabilities` 不等于文件、网络或进程授权。
 
@@ -152,6 +231,6 @@ Pi 兼容层作为独立模块实现，声明支持的 Pi API 版本和能力范
 3. 补齐资源发现、消息与 UI、会话操作、模型与 Provider 能力；按模块声明支持范围。
 4. 增加独立 Pi 兼容适配器，先覆盖工具、命令和事件类原生插件，再逐步覆盖复杂插件；用真实插件验证跨 Agent 行为。
 
-桌面已完成的包管理与命令入口继续复用。新增接口应落在上述契约边界中，并明确「设计」「已实现」「已验证」，避免把局部闭环描述为完整兼容。
+桌面包管理与宿主 SDK 命令能力继续复用。新增接口应落在上述契约边界中，并明确「设计」「已实现」「已验证」，避免把局部闭环描述为完整兼容。
 
 开发与验证步骤见[插件包开发与管理](../extensions/development.md)，执行和状态语义见[宿主插件最小闭环](../runtime/extensions.md)。

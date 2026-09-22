@@ -13,7 +13,7 @@ Isle 插件 API、Agent 适配协议和外部生态基准分别版本化。目�
 | package、`resources_discover` | 宿主包管理、资源贡献 | 本地包、配置、构建、打包已有；动态资源目录、网络安装未实现 |
 | `registerTool` | 插件资源与 Agent 工具注册 | 名称、描述、schema、文本结果、details、进度已有；图片、prompt hints、参数预处理、执行模式与自定义渲染未实现 |
 | skills、prompts、themes | 宿主资源与 Agent 适配 | 内联技能通过系统提示模拟；目录技能、模板、主题未实现 |
-| `registerCommand` | 插件命令与宿主命令入口 | JSON 参数、Pi 原生命令、Mock 命令、桌面表单已有；补全和桌面输入框命令解析未实现 |
+| `registerCommand` | 插件命令与宿主命令入口 | JSON 参数、Pi 原生命令和 Mock 命令已有；桌面无内置执行面板，补全和桌面输入框命令解析未实现 |
 | `registerShortcut`、`registerFlag`、`getFlag` | 宿主交互与启动配置 | 未实现；配置 schema 不等价于动态 CLI flag |
 | `agent_start/end/settled` | Agent 运行观察 | Isle `run_started/finished` 由宿主模拟，覆盖成功/失败/取消；不等价于 Pi 三个事件的完整时序 |
 | `tool_execution_start/update/end` | Agent 工具观察 | start/end 映射为标准观察事件；update 作为工具进度存在，尚无通用 update 订阅 |

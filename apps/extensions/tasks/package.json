@@ -17,16 +17,9 @@
     "@isle/extension-dev": "workspace:*"
   },
   "isle.extension": {
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "id": "isle.tasks",
     "apiVersion": 1,
-    "entry": "./index.js",
-    "capabilities": [
-      "commands",
-      "session.state",
-      "events.run",
-      "events.tool"
-    ],
     "configuration": {
       "schema": {
         "type": "object",
@@ -45,6 +38,17 @@
       },
       "defaults": {
         "maxTasks": 500
+      }
+    },
+    "modules": {
+      "agent": {
+        "entry": "./index.js",
+        "capabilities": [
+          "commands",
+          "session.state",
+          "events.run",
+          "events.tool"
+        ]
       }
     }
   }

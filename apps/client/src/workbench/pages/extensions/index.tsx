@@ -72,7 +72,7 @@ export function ExtensionsPage() {
             <Puzzle className="size-5 text-primary" aria-hidden="true" />
             <h1 className="text-lg font-semibold tracking-[-0.02em]">插件</h1>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">为 Agent 添加工具、技能与会话命令</p>
+          <p className="mt-1 text-sm text-muted-foreground">按需扩展 Agent 能力与应用界面</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -138,7 +138,7 @@ export function ExtensionsPage() {
               </span>
               <h2 className="text-base font-semibold">添加第一个插件</h2>
               <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
-                接入本地插件，为 Agent 扩展能力。提供命令的插件也可在聊天右侧直接使用。
+                接入本地插件，扩展 Agent 或应用界面。会话插件可在聊天右侧使用。
               </p>
               <Button variant="outline" className="mt-5 bg-card" disabled={busy} onClick={openAdd}>
                 <Plus className="size-4" />
@@ -177,6 +177,14 @@ export function ExtensionsPage() {
                       <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
                         {item.source === "bundled" ? "内置" : "本地"}
                       </span>
+                      {item.modules.map((module) => (
+                        <span
+                          key={module}
+                          className="rounded-md bg-accent px-1.5 py-0.5 text-xs text-accent-foreground"
+                        >
+                          {module === "ui" ? "界面" : "Agent"}
+                        </span>
+                      ))}
                       {item.version ? (
                         <span className="text-xs tabular-nums text-muted-foreground">v{item.version}</span>
                       ) : null}
@@ -243,7 +251,7 @@ export function ExtensionsPage() {
           ) : null}
           {items.length ? (
             <p className="px-1 text-xs leading-5 text-muted-foreground">
-              启停与配置变更从下一次执行生效。移除插件会保留会话数据。
+              界面扩展即时更新；Agent 扩展从下一次执行生效。移除插件会保留会话数据。
             </p>
           ) : null}
         </div>

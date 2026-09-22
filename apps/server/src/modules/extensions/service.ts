@@ -2,8 +2,9 @@ import { join } from "node:path";
 import {
   createExtensionPackageManager,
   readExtensionPackage,
-  resolveExtensionPackages,
+  resolveExtensionConfig,
 } from "@isle/extension-host";
+import { ExtensionViews, type ExtensionViewServices } from "./views.js";
 import type { JsonObject as ExtensionConfig } from "@isle/extension-sdk";
 import {
   object,
@@ -16,11 +17,17 @@ import {
 /** Only this management surface can register paths. Agent command inputs never supply packages or risk grants. */
 export class Extensions {
   private manager;
-  constructor(dataDir: string, bundledPath?: string) {
+  private views;
+  constructor(
+    dataDir: string,
+    bundledPath?: string,
+    private services?: ExtensionViewServices,
+  ) {
     this.manager = createExtensionPackageManager(
       join(dataDir, "extensions.json"),
       { bundledPath },
     );
+    this.views = new ExtensionViews(this.manager, services);
   }
 
   list() {
@@ -29,9 +36,7 @@ export class Extensions {
         const pkg = readExtensionPackage(record.path);
         if (pkg.manifest.id !== record.id)
           throw new Error("插件身份与登记记录不一致");
-        const [source] = resolveExtensionPackages([
-          { path: record.path, config: record.config },
-        ]);
+        const config = resolveExtensionConfig(pkg.manifest, record.config);
         return {
           id: record.id,
           source: record.source,
@@ -39,8 +44,13 @@ export class Extensions {
           enabled: record.enabled,
           version: pkg.packageJson.version,
           description: String(pkg.packageJson.description ?? ""),
-          capabilities: pkg.manifest.capabilities,
-          config: source.config ?? {},
+          modules: Object.keys(pkg.modules),
+          capabilities: Object.entries(pkg.modules).flatMap(([kind, module]) =>
+            module.capabilities.map(
+              (capability: string) => `${kind}.${capability}`,
+            ),
+          ),
+          config,
           configSchema: pkg.manifest.configuration?.schema ?? {
             type: "object",
             properties: {},
@@ -55,6 +65,7 @@ export class Extensions {
           enabled: record.enabled,
           version: null,
           description: "",
+          modules: [],
           capabilities: [],
           config: record.config ?? {},
           configSchema: null,
@@ -62,6 +73,11 @@ export class Extensions {
         };
       }
     });
+  }
+
+  private changed() {
+    this.views.invalidate();
+    this.services?.changed();
   }
 
   commands() {
@@ -79,6 +95,7 @@ export class Extensions {
         }
       };
     return {
+      ...this.views.commands(guarded),
       list_extensions: guarded((input) => {
         onlyKeys(input, []);
         return this.list();
@@ -91,6 +108,7 @@ export class Extensions {
             ? {}
             : { config: object(input.config) as ExtensionConfig },
         );
+        this.changed();
         return this.list();
       }),
       configure_extension: guarded(async (input) => {
@@ -109,11 +127,13 @@ export class Extensions {
             ? { config: object(input.config) as ExtensionConfig }
             : {}),
         });
+        this.changed();
         return this.list();
       }),
       remove_extension: guarded(async (input) => {
         onlyKeys(input, ["id"]);
         await this.manager.remove(nonempty(input.id, "id"));
+        this.changed();
         return this.list();
       }),
     };

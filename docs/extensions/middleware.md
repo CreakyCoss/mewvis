@@ -64,7 +64,7 @@ interface ExtensionContextMessage {
 清单声明 `middleware.system_prompt`、`middleware.tool_call`：
 
 ```ts
-import { defineExtension } from "@isle/extension-sdk";
+import { defineExtension } from "@isle/extension-sdk/agent";
 
 export default defineExtension({
   id: "example.policy",

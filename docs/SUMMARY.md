@@ -25,6 +25,7 @@
 - [运行时概览](runtime/overview.md)
 - [内置工具与技能示例](runtime/builtins-example.md)
 - [宿主插件最小闭环](runtime/extensions.md)
+- [插件 SDK 能力与目录](extensions/sdk.md)
 - [插件包开发与管理](extensions/development.md)
 - [Pi 兼容基准与协议规格](extensions/pi-compatibility.md)
 - [插件中间件](extensions/middleware.md)

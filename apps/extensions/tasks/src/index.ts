@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { defineExtension } from "@isle/extension-sdk";
+import { defineExtension } from "@isle/extension-sdk/agent";
 import { z } from "zod";
 
 const stateSchema = z

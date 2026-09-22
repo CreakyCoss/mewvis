@@ -594,6 +594,9 @@ importers:
       '@isle/chat-contracts':
         specifier: workspace:*
         version: link:../../packages/chat-contracts
+      '@isle/extension-sdk':
+        specifier: workspace:*
+        version: link:../../packages/extension/sdk
       '@langchain/core':
         specifier: ^1.2.1
         version: 1.2.1
@@ -727,6 +730,16 @@ importers:
       vite:
         specifier: ^7.0.4
         version: 7.0.4(@types/node@22.0.0)
+
+  apps/extensions/session-insights:
+    dependencies:
+      '@isle/extension-sdk':
+        specifier: workspace:*
+        version: link:../../../packages/extension/sdk
+    devDependencies:
+      '@isle/extension-dev':
+        specifier: workspace:*
+        version: link:../../../packages/extension/dev
 
   apps/extensions/tasks:
     dependencies:
@@ -1013,7 +1026,11 @@ importers:
         specifier: ^8.20.0
         version: 8.20.0
 
-  packages/extension/sdk: {}
+  packages/extension/sdk:
+    devDependencies:
+      json-schema-to-typescript:
+        specifier: ^15.0.4
+        version: 15.0.4
 
 packages:
 

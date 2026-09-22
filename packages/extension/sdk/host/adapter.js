@@ -1,4 +1,4 @@
-import { extensionCapabilities } from "./index.js";
+import { extensionCapabilities } from "../agent/index.js";
 
 const modes = new Set(["direct", "simulate", "ignore", "noop", "error"]);
 function validateAdapter(adapter) {

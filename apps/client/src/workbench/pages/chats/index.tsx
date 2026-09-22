@@ -4,16 +4,14 @@ import { Chat } from "@/chat/react";
 import { useDesktopChatRecord } from "@/chat/desktop/react";
 import { useWorkspaceStore } from "./workspace-store";
 import { WorkspaceFileWatcher } from "./workspace-files";
-import { WorkspaceChatSidebar } from "./sidebar";
+import { WorkspaceChatPanels } from "./panels";
 import { workspaceChatProfile } from "./profile";
 import { ModelSetupDialog } from "./components/model-setup-dialog";
-import { useExtensionCommands } from "./panels/extensions/use-commands";
 
 function WorkspaceChat({ workspaceId, chatId, isActive }: { workspaceId: string; chatId: string; isActive: boolean }) {
   const store = useWorkspaceStore();
   const requestedWorkspaces = useRef(false);
   const workspace = store.workspaces.find((item) => item.id === workspaceId);
-  const extensionCommands = useExtensionCommands({ workspacePath: workspace?.path ?? "", chatId });
   const { session, history, error, reload, connecting, retryError } = useDesktopChatRecord(
     workspace
       ? {
@@ -62,12 +60,7 @@ function WorkspaceChat({ workspaceId, chatId, isActive }: { workspaceId: string;
       </div>
       {isActive ? (
         <Chat.Provider session={session} viewId="sidebar">
-          <WorkspaceChatSidebar
-            workspacePath={workspace.path}
-            chatId={chatId}
-            panels={["files", "version", "ledger", "extensions"]}
-            extensionCommands={extensionCommands}
-          />
+          <WorkspaceChatPanels workspacePath={workspace.path} chatId={chatId} />
         </Chat.Provider>
       ) : null}
     </div>

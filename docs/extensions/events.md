@@ -39,7 +39,7 @@ Agent 等待观察器完成后再继续。同一次事件按插件来源顺序�
 清单声明 `events.turn`、`session.state` 和 `commands`，即可在同一会话切换 Pi / Mock 后继续统计：
 
 ```ts
-import { defineExtension } from "@isle/extension-sdk";
+import { defineExtension } from "@isle/extension-sdk/agent";
 
 export default defineExtension({
   id: "example.turns",

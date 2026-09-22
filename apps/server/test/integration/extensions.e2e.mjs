@@ -262,50 +262,148 @@ test(
   },
 );
 
-test("bundled plugins are discovered without registration and overrides survive restart", { timeout: 60_000 }, async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle-bundled-plugins-"));
-  let server;
-  t.after(async () => {
-    await server?.close();
-    await rm(root, { recursive: true, force: true });
-  });
-  const start = () => startServer({ port: 0, token, runtime: { dataDir: join(root, "data") } });
-  server = await start();
-  const raw = async (name, input = {}) => {
-    const response = await fetch(`${server.url}/api/commands/${name}`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${token}` },
-      body: JSON.stringify({ input }),
+test(
+  "bundled plugins are discovered without registration and overrides survive restart",
+  { timeout: 60_000 },
+  async (t) => {
+    const root = await mkdtemp(join(tmpdir(), "isle-bundled-plugins-"));
+    let server;
+    t.after(async () => {
+      await server?.close();
+      await rm(root, { recursive: true, force: true });
     });
-    return { status: response.status, value: await response.json() };
-  };
-  const call = async (name, input) => {
-    const result = await raw(name, input);
-    assert.equal(result.status, 200, JSON.stringify(result.value));
-    return result.value;
-  };
-  const records = await call("list_extensions");
-  assert.deepEqual(records.map((item) => item.id).sort(), ["isle.example", "isle.tasks"]);
-  assert.ok(records.every((item) => item.source === "bundled" && item.enabled && !item.error));
-  await assert.rejects(readFile(join(root, "data/extensions.json")), { code: "ENOENT" });
-  assert.equal((await raw("remove_extension", { id: "isle.tasks" })).status, 400);
-  const workspace = await call("create_workspace", { name: "内置插件测试", path: join(root, "workspace") });
-  const target = { workspacePath: workspace.path, chatId: "bundled-test" };
-  assert.equal((await call("list_extension_commands", target)).commands.length, 4);
-  await call("execute_extension_command", { ...target, taskId: "bundled-command", commandId: "isle.tasks/list", arguments: {} });
-  await waitFor(() => server.supervisor.snapshot("bundled-command")?.pendingInput, "builtin command approval", 15_000);
-  const approval = server.supervisor.snapshot("bundled-command").pendingInput;
-  await call("answer_agent_runtime_approval", { taskId: "bundled-command", approvalId: approval.approvalId, approved: true });
-  await waitFor(() => server.supervisor.snapshot("bundled-command")?.taskState === "done", "builtin command result", 15_000);
-  assert.equal(server.supervisor.snapshot("bundled-command").result.success, true);
-  await call("configure_extension", { id: "isle.tasks", enabled: false, config: { maxTasks: 7 } });
-  assert.deepEqual((await call("list_extension_commands", target)).commands, []);
-  await server.close();
-  server = undefined;
-  server = await start();
-  const persisted = (await call("list_extensions")).find((item) => item.id === "isle.tasks");
-  assert.equal(persisted.enabled, false);
-  assert.equal(persisted.config.maxTasks, 7);
-  await call("configure_extension", { id: "isle.tasks", enabled: true });
-  assert.equal((await call("list_extension_commands", target)).commands.length, 4);
-});
+    const start = () =>
+      startServer({ port: 0, token, runtime: { dataDir: join(root, "data") } });
+    server = await start();
+    const raw = async (name, input = {}) => {
+      const response = await fetch(`${server.url}/api/commands/${name}`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}` },
+        body: JSON.stringify({ input }),
+      });
+      return { status: response.status, value: await response.json() };
+    };
+    const call = async (name, input) => {
+      const result = await raw(name, input);
+      assert.equal(result.status, 200, JSON.stringify(result.value));
+      return result.value;
+    };
+    const records = await call("list_extensions");
+    assert.deepEqual(records.map((item) => item.id).sort(), [
+      "isle.example",
+      "isle.session-insights",
+      "isle.tasks",
+    ]);
+    assert.ok(
+      records.every(
+        (item) => item.source === "bundled" && item.enabled && !item.error,
+      ),
+    );
+    await assert.rejects(readFile(join(root, "data/extensions.json")), {
+      code: "ENOENT",
+    });
+    assert.equal(
+      (await raw("remove_extension", { id: "isle.tasks" })).status,
+      400,
+    );
+    const workspace = await call("create_workspace", {
+      name: "内置插件测试",
+      path: join(root, "workspace"),
+    });
+    const target = { workspacePath: workspace.path, chatId: "bundled-test" };
+    const [panel] = await call("list_extension_ui_contributions");
+    assert.equal(panel.extensionId, "isle.session-insights");
+    const view = await call("open_extension_view", {
+      ...target,
+      id: panel.extensionId,
+      contributionId: panel.id,
+      viewId: panel.view.id,
+    });
+    assert.match(view.source, /isle.session-insights/);
+    const snapshot = await call("query_extension_view", {
+      token: view.token,
+      method: "session.read",
+    });
+    assert.deepEqual(snapshot.messages, []);
+    assert.deepEqual(snapshot.runs, []);
+    assert.equal(snapshot.truncated, false);
+    assert.equal(
+      (
+        await raw("query_extension_view", {
+          token: view.token,
+          method: "session.read",
+          chatId: "other",
+        })
+      ).status,
+      400,
+    );
+    await call("configure_extension", {
+      id: panel.extensionId,
+      enabled: false,
+    });
+    assert.equal(
+      (
+        await raw("query_extension_view", {
+          token: view.token,
+          method: "session.read",
+        })
+      ).status,
+      403,
+    );
+    assert.deepEqual(await call("list_extension_ui_contributions"), []);
+    await call("configure_extension", { id: panel.extensionId, enabled: true });
+    await call("close_extension_view", { token: view.token });
+    assert.equal(
+      (await call("list_extension_commands", target)).commands.length,
+      4,
+    );
+    await call("execute_extension_command", {
+      ...target,
+      taskId: "bundled-command",
+      commandId: "isle.tasks/list",
+      arguments: {},
+    });
+    await waitFor(
+      () => server.supervisor.snapshot("bundled-command")?.pendingInput,
+      "builtin command approval",
+      15_000,
+    );
+    const approval = server.supervisor.snapshot("bundled-command").pendingInput;
+    await call("answer_agent_runtime_approval", {
+      taskId: "bundled-command",
+      approvalId: approval.approvalId,
+      approved: true,
+    });
+    await waitFor(
+      () => server.supervisor.snapshot("bundled-command")?.taskState === "done",
+      "builtin command result",
+      15_000,
+    );
+    assert.equal(
+      server.supervisor.snapshot("bundled-command").result.success,
+      true,
+    );
+    await call("configure_extension", {
+      id: "isle.tasks",
+      enabled: false,
+      config: { maxTasks: 7 },
+    });
+    assert.deepEqual(
+      (await call("list_extension_commands", target)).commands,
+      [],
+    );
+    await server.close();
+    server = undefined;
+    server = await start();
+    const persisted = (await call("list_extensions")).find(
+      (item) => item.id === "isle.tasks",
+    );
+    assert.equal(persisted.enabled, false);
+    assert.equal(persisted.config.maxTasks, 7);
+    await call("configure_extension", { id: "isle.tasks", enabled: true });
+    assert.equal(
+      (await call("list_extension_commands", target)).commands.length,
+      4,
+    );
+  },
+);

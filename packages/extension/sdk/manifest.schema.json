@@ -2,50 +2,163 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Isle Extension package.json",
   "type": "object",
-  "required": ["name", "version", "type", "isle.extension"],
+  "required": [
+    "name",
+    "version",
+    "type",
+    "isle.extension"
+  ],
   "properties": {
-    "name": { "type": "string", "minLength": 1 },
-    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$" },
-    "type": { "const": "module" },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "type": {
+      "const": "module"
+    },
     "isle.extension": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schemaVersion", "id", "apiVersion", "entry", "capabilities"],
+      "required": [
+        "schemaVersion",
+        "id",
+        "apiVersion",
+        "modules"
+      ],
       "properties": {
-        "schemaVersion": { "const": 1 },
-        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$" },
-        "apiVersion": { "const": 1 },
-        "entry": { "type": "string", "minLength": 1 },
-        "capabilities": {
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "enum": [
-              "tools",
-              "skills",
-              "commands",
-              "session.state",
-              "events.run",
-              "events.tool",
-              "events.turn",
-              "events.message",
-              "events.session",
-              "middleware.input",
-              "middleware.system_prompt",
-              "middleware.context",
-              "middleware.tool_call",
-              "middleware.tool_result",
-              "middleware.session_compact"
-            ]
-          }
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$"
+        },
+        "apiVersion": {
+          "const": 1
         },
         "configuration": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["schema"],
+          "required": [
+            "schema"
+          ],
           "properties": {
-            "schema": { "type": "object", "required": ["type"], "properties": { "type": { "const": "object" } } },
-            "defaults": { "type": "object" }
+            "schema": {
+              "type": "object",
+              "required": [
+                "type"
+              ],
+              "properties": {
+                "type": {
+                  "const": "object"
+                }
+              }
+            },
+            "defaults": {
+              "type": "object"
+            }
+          }
+        },
+        "schemaVersion": {
+          "const": 2
+        },
+        "modules": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "agent": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "entry",
+                "capabilities"
+              ],
+              "properties": {
+                "entry": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "capabilities": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "items": {
+                    "enum": [
+                      "tools",
+                      "skills",
+                      "commands",
+                      "session.state",
+                      "events.run",
+                      "events.tool",
+                      "events.turn",
+                      "events.message",
+                      "events.session",
+                      "middleware.input",
+                      "middleware.system_prompt",
+                      "middleware.context",
+                      "middleware.tool_call",
+                      "middleware.tool_result",
+                      "middleware.session_compact"
+                    ]
+                  }
+                }
+              }
+            },
+            "ui": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "capabilities",
+                "contributions"
+              ],
+              "properties": {
+                "entry": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "capabilities": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "items": {
+                    "enum": [
+                      "session.read"
+                    ]
+                  }
+                },
+                "contributions": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 16,
+                  "items": {
+                    "$ref": "urn:isle:ui-contribution"
+                  }
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "contributions": {
+                        "contains": {
+                          "type": "object",
+                          "required": [
+                            "view"
+                          ]
+                        },
+                        "type": "array"
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "entry"
+                    ]
+                  }
+                }
+              ]
+            }
           }
         }
       }
