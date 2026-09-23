@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "design-system/theme.css";
+@import "@isle/extension-host/ui/styles.css";
 
 @layer components {
   .knowledge-list-container {

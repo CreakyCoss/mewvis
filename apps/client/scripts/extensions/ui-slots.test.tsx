@@ -179,6 +179,39 @@ test("view components can read the mounted surface context", () => {
   assert.throws(() => renderToStaticMarkup(<View />), /context unavailable/);
 });
 
+test("concrete slots provide defaults and explicit null overrides never load a view", () => {
+  let views = 0;
+  const entries = [
+    text,
+    {
+      ...panel,
+      renderView: () => {
+        views += 1;
+        return <p>Plugin content</p>;
+      },
+    },
+  ];
+  const html = renderToStaticMarkup(
+    <ExtensionSlotProvider contributions={entries}>
+      <SidebarSlot definition={sidebar} context={context} />
+      <TextSlot definition={status} context={context} />
+    </ExtensionSlotProvider>,
+  );
+  assert.equal(views, 1);
+  assert.match(html, /<h2>Panel<\/h2>/);
+  assert.match(html, /Plugin content/);
+  assert.match(html, /text-info/);
+  assert.match(html, /&lt;script&gt;unsafe\(\)&lt;\/script&gt;/);
+  const hidden = renderToStaticMarkup(
+    <ExtensionSlotProvider contributions={entries}>
+      <SidebarSlot definition={sidebar} context={context} render={() => null} />
+      <TextSlot definition={status} context={context} render={() => null} />
+    </ExtensionSlotProvider>,
+  );
+  assert.equal(hidden, "");
+  assert.equal(views, 1);
+});
+
 // Compile-time contracts: definitions constrain payloads and the concrete slot's render signature.
 if (false) {
   // @ts-expect-error the shared definition is required
@@ -195,8 +228,10 @@ if (false) {
   <SidebarSlot definition={sidebar} context={context} contributions={[panel]} render={() => null} />;
   // @ts-expect-error concrete text slots cannot receive page contributions
   <TextSlot definition={status} context={context} contributions={[text]} render={() => null} />;
-  // @ts-expect-error a renderer is mandatory
   <SidebarSlot definition={sidebar} context={context} />;
+  <TextSlot definition={status} context={context} />;
+  // @ts-expect-error the headless generic slot still requires a renderer
+  <ExtensionSlot definition={sidebar} context={context} />;
   // @ts-expect-error render and renderAll are mutually exclusive
   <SidebarSlot definition={sidebar} context={context} render={() => null} renderAll={() => null} />;
   <TextSlot

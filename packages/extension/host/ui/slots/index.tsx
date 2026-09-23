@@ -42,9 +42,10 @@ export interface SlotCollection<T> {
   items: readonly T[];
   error?: string;
 }
-export type SlotRenderer<T> =
+/** Concrete slots may supply a default; overrides replace it completely. */
+export type SlotRenderOverrides<T> =
   | {
-      render(item: T): ReactNode;
+      render?: (item: T) => ReactNode;
       renderAll?: never;
       fallback?: ReactNode;
       renderError?(error: string): ReactNode;
@@ -55,10 +56,17 @@ export type SlotRenderer<T> =
       fallback?: never;
       renderError?: never;
     };
-export type ExtensionSlotProps<D extends UISlotDefinition> = {
+export type SlotRenderer<T> = SlotRenderOverrides<T> &
+  (
+    | { render(item: T): ReactNode }
+    | { renderAll(collection: SlotCollection<T>): ReactNode }
+  );
+export type SlotProps<D extends UISlotDefinition> = {
   definition: D;
   context: UISlotContext<NoInfer<D>>;
-} & SlotRenderer<SlotItem<UIContributionFor<NoInfer<D>>>>;
+} & SlotRenderOverrides<SlotItem<UIContributionFor<NoInfer<D>>>>;
+export type ExtensionSlotProps<D extends UISlotDefinition> = SlotProps<D> &
+  SlotRenderer<SlotItem<UIContributionFor<NoInfer<D>>>>;
 
 const SurfaceContext = createContext<{
   definition: UISlotDefinition;

@@ -19,7 +19,7 @@
 | Host  | 会话读取、只读账本、一次性摘要、能力协商和标准错误    | [host/services.d.ts](../../packages/extension/sdk/host/services.d.ts)                                             |
 | UI    | 浏览器视图挂载、取消信号与清理                        | [ui/browser.d.ts](../../packages/extension/sdk/ui/browser.d.ts)                                                   |
 
-UI 协议定义数据，具体 Slot 约束渲染参数，页面决定布局与展示时机。当前提供 `SidebarSlot`、`TextSlot` 和 `DialogSlot`，产品页面挂载 `session.sidebar`；text 是静态结构化文本，由页面自行绘制。插件视图的内部内容仍由插件绘制。
+UI 协议定义数据，具体 Slot 约束渲染参数，页面决定布局与展示时机。当前提供 `SidebarSlot`、`TextSlot` 和 `DialogSlot`，产品页面挂载 `session.sidebar`；text 是静态结构化文本，可使用默认展示或由页面自行绘制。插件视图的内部内容仍由插件绘制。
 
 ## 按需阅读与导入
 
@@ -61,7 +61,7 @@ const overview = defineUIContribution(uiSlotDefinitions.sessionSidebar, {
 
 SDK 作者使用 SDK 定义对象；宿主页面使用独立的宿主定义对象，Isle 适配器负责映射。双方都不需要在 TS 中手填 key/type。`package.json` 是序列化清单，仍保存稳定的 `slot`、`type` 字符串；可把上面的结果写入清单，加载时统一执行 Schema 校验。缺失标题、图标或视图引用的 sidebar 贡献会被拒绝。
 
-宿主插槽机制位于 `packages/extension/host/ui/slots/index.tsx`；具体接口位于同目录的 `sidebar.tsx` 和 `text.tsx`。页面通过 `render` 决定每个贡献的布局：
+宿主插槽机制位于 `packages/extension/host/ui/slots/index.tsx`；具体接口位于同目录的 `sidebar.tsx`、`text.tsx` 和 `dialog.tsx`。具体插槽提供默认展示，页面可以省略 `render`，也可以通过它完整替换默认布局（包括返回 `null` 隐藏内容）：
 
 插件数据沿目录 → `ExtensionHost` → `ExtensionSlotProvider` → Slot 流动。`contributions` 仅由宿主注入 Provider，所有 Slot 都不接受这个属性。页面提供位置定义、上下文和渲染函数；页面原有组件无需实现插件协议，渲染函数负责把插件字段适配到页面自己的结构。
 
@@ -125,4 +125,4 @@ import { uiSlotDefinitions } from "@isle/extension-host/ui";
 
 插件声明 `uiSlotDefinitions.sessionDialog` 对应的贡献，必须提供标题、尺寸（`sm/md/lg`）与视图引用。`ctx.ui.dialog.open({ id: "detail", input: { runId: "..." } })` 打开本插件的弹窗，Promise 在关闭后完成；目标视图通过 `ctx.input` 读取参数，通过 `ctx.ui.dialog.close()` 关闭自身。
 
-宿主在应用根部挂载 `DialogSlot`，由 `render` 选择弹窗容器。插件通过 `ctx.ui.dialog.available` 判断当前是否有插槽；参数仅接受 64 KiB 以内的 JSON 对象，会话范围由宿主从来源视图继承。当前一次打开一个弹窗，插件停用、更新或来源视图销毁会自动关闭。完整生命周期见[宿主原生插件系统](native-host.md#弹窗插槽)。
+宿主在应用根部挂载 `<DialogSlot />`，默认使用统一弹窗容器；需要自定义外壳时传入 `render`。插件通过 `ctx.ui.dialog.available` 判断当前是否有插槽；参数仅接受 64 KiB 以内的 JSON 对象，会话范围由宿主从来源视图继承。当前一次打开一个弹窗，插件停用、更新或来源视图销毁会自动关闭。完整生命周期见[宿主原生插件系统](native-host.md#弹窗插槽)。

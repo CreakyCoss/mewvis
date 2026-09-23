@@ -31,6 +31,7 @@
     "./agent/middleware": "./agent/registration/middleware.ts",
     "./agent/registration": "./agent/registration/host.ts",
     "./ui/react": "./ui/runtime/provider.tsx",
+    "./ui/styles.css": "./ui/styles.css",
     "./ui/transport": "./ui/protocol/transport.ts",
     "./ui/slots": "./ui/slots/index.tsx",
     "./ui/slots/*": "./ui/slots/*.tsx",
@@ -58,6 +59,7 @@
     "check:ui": "node scripts/generate-ui.mjs --check"
   },
   "dependencies": {
+    "design-system": "workspace:*",
     "@deepseek-ai/dsh-atomic-write": "0.1.1-rc.2",
     "ajv": "^8.20.0",
     "@earendil-works/chord": "workspace:*",

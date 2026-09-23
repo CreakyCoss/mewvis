@@ -14,7 +14,7 @@ packages/extension/
 │  ├─ ui/                       # UI 协议与扩展点
 │  │  ├─ protocol/              # 插槽、视图入口、目录与传输接口、Schema
 │  │  ├─ runtime/               # Provider、目录订阅、贡献绑定
-│  │  ├─ slots/                 # SidebarSlot、TextSlot、ExtensionSlot
+│  │  ├─ slots/                 # SidebarSlot、TextSlot、DialogSlot、ExtensionSlot
 │  │  ├─ views/                 # iframe、通信、取消与释放
 │  │  └─ server/                # 视图租约、作用域、权限撤销
 │  └─ services/                 # 内部服务契约、统一分发、会话数据映射
@@ -103,8 +103,14 @@ SDK 作者继续使用 `isle.extension` 清单和 `apiVersion`。构建工具根
 
 UI 模块通过 `session.dialog` 声明 `dialog` 贡献，必须提供 `id`、`title`、`size`（`sm/md/lg`）和 `view`。它不会随贡献目录自动显示。插件调用 `ctx.ui.dialog.open({ id, input })` 打开自己声明的弹窗，Promise 在关闭时完成；弹窗视图通过 `ctx.input` 获取参数，通过 `ctx.ui.dialog.close()` 关闭自身。
 
-应用在 `PluginUIProvider` 下放置一个 `DialogSlot`，`render` 接收协议字段及 `renderView()`、`close()`，自行选用弹窗组件、布局和尺寸。未挂载插槽时 `ctx.ui.dialog.available` 为 false，调用返回 `UI_UNSUPPORTED`。当前只允许一个活动弹窗，重复或嵌套打开返回 `UI_BUSY`。
+应用在 `PluginUIProvider` 下放置一个 `<DialogSlot />`，默认使用宿主设计系统提供弹窗外壳，根据协议的 `title`、`size` 展示插件视图。可选的 `render` 接收协议字段及 `renderView()`、`close()`，完整替换默认外壳；返回 `null` 时不显示默认弹窗。未挂载插槽时 `ctx.ui.dialog.available` 为 false，调用返回 `UI_UNSUPPORTED`。当前只允许一个活动弹窗，重复或嵌套打开返回 `UI_BUSY`。
 
 宿主继承来源视图的会话范围，插件不能指定其他插件 ID 或宿主路径。参数必须是 64 KiB 以内的 JSON 对象。关闭弹窗会销毁 iframe 并取消请求；来源视图卸载、插件停用/更新、插槽卸载也会关闭关联弹窗。Esc（包括 iframe 内）和焦点恢复由通用视图桥接与应用弹窗容器协作处理。
 
 原生与 SDK UI 上下文均提供 `ui.dialog` 和 `input`，SDK 适配器负责转换。React 仅是链路插件的实现选择；UI 构建支持 TSX，并打包为独立的生产模式浏览器入口。链路的详情和摘要内容保留在插件内，宿主只提供通用弹窗容器。
+
+### 插槽默认渲染约定
+
+具体类型的插槽可以在自身模块内提供默认实现，`render` 是可选的完整覆盖入口；支持集合渲染的插槽也允许 `renderAll` 覆盖，二者互斥。`SidebarSlot` 默认显示标题、图标及插件视图，`TextSlot` 默认按 tone 显示文本。默认实现只负责插槽所在区域，不接管页面布局或选择状态；页面仍可通过自定义渲染决定何时挂载插件视图。通用 `ExtensionSlot` 保持无布局，必须提供渲染函数。
+
+默认 UI 使用共享 `design-system`，不依赖客户端业务。Tailwind 消费端通过 `@import "@isle/extension-host/ui/styles.css";` 引入样式入口，由包内部声明 UI 源码扫描范围，无需引用仓库相对路径。新增具体插槽时沿用这一约定，SDK 和数据协议无需感知默认外观。
