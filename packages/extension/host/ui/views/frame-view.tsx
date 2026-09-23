@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useViewTransport } from "./transport-context";
+import type { JsonObject } from "../../shared.js";
+import { useDialogRuntime } from "../runtime/dialog-context";
 import { extensionFrameDocument } from "./frame-document";
 
 export function ExtensionView({
@@ -10,6 +12,8 @@ export function ExtensionView({
   title,
   workspacePath,
   chatId,
+  input,
+  dialogId,
 }: {
   extensionId: string;
   contributionId: string;
@@ -18,8 +22,11 @@ export function ExtensionView({
   title: string;
   workspacePath: string;
   chatId: string;
+  input?: JsonObject;
+  dialogId?: number;
 }) {
   const transport = useViewTransport();
+  const dialogs = useDialogRuntime();
   const container = useRef<HTMLDivElement>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -30,9 +37,20 @@ export function ExtensionView({
       frame: HTMLIFrameElement | undefined;
     let channel: MessageChannel | undefined,
       timer: ReturnType<typeof setTimeout> | undefined;
+    const owner = {
+      key: Symbol(),
+      extensionId,
+      revision,
+      context: { workspacePath, chatId },
+    };
+    let disconnectUI: (() => void) | undefined;
+    let themeObserver: MutationObserver | undefined;
     setError("");
     setLoading(true);
     const release = () => {
+      disconnectUI?.();
+      themeObserver?.disconnect();
+      dialogs.release(owner.key);
       clearTimeout(timer);
       channel?.port1.postMessage({ type: "dispose" });
       channel?.port1.close();
@@ -81,6 +99,10 @@ export function ExtensionView({
             clearTimeout(timer);
             fail(String(message.message));
           }
+          if (message.type === "dialog.close") {
+            if (dialogId !== undefined) dialogs.close(dialogId);
+            return;
+          }
           if (message.type === "cancel" && Number.isSafeInteger(message.id)) {
             void transport
               .cancel(view.token, message.id as number)
@@ -103,12 +125,15 @@ export function ExtensionView({
           }
           busy = true;
           try {
-            const value = await transport.query(
-              view.token,
-              message.method,
-              message.arguments,
-              id,
-            );
+            const value =
+              message.method === "ui.dialog.open"
+                ? await dialogs.open(owner, message.arguments)
+                : await transport.query(
+                    view.token,
+                    message.method,
+                    message.arguments,
+                    id,
+                  );
             if (!closed) port.postMessage({ type: "response", id, value });
           } catch (error) {
             if (!closed)
@@ -120,7 +145,7 @@ export function ExtensionView({
                     error &&
                     typeof error === "object" &&
                     "code" in error &&
-                    String(error.code).startsWith("HOST_")
+                    /^(HOST_|UI_)/.test(String(error.code))
                       ? error.code
                       : "HOST_UNAVAILABLE",
                   message:
@@ -134,17 +159,41 @@ export function ExtensionView({
         port.start();
         frame.onload = () => {
           if (closed || !frame || !channel) return;
-          const styles = getComputedStyle(document.documentElement);
-          const theme = Object.fromEntries(
-            [
-              "--background",
-              "--foreground",
-              "--muted",
-              "--muted-foreground",
-              "--border",
-              "--primary",
-            ].map((key) => [key, styles.getPropertyValue(key)]),
+          const readTheme = () => {
+            const styles = getComputedStyle(document.documentElement);
+            return Object.fromEntries(
+              [
+                "background",
+                "foreground",
+                "muted",
+                "muted-foreground",
+                "border",
+                "primary",
+                "primary-foreground",
+                "surface",
+                "surface-raised",
+                "success",
+                "destructive",
+                "ring",
+                "popover",
+                "popover-foreground",
+              ].map((name) => [
+                `--${name}`,
+                styles.getPropertyValue(`--${name}`),
+              ]),
+            );
+          };
+          const theme = readTheme();
+          disconnectUI = dialogs.subscribe(() =>
+            port.postMessage({ type: "ui.support", dialog: dialogs.available }),
           );
+          themeObserver = new MutationObserver(() =>
+            port.postMessage({ type: "theme", theme: readTheme() }),
+          );
+          themeObserver.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ["class", "style", "data-theme"],
+          });
           frame.contentWindow?.postMessage(
             {
               type: "isle.extension.connect",
@@ -153,6 +202,9 @@ export function ExtensionView({
               contributionId: view.contributionId,
               viewId: view.viewId,
               config: view.config,
+              input: input ?? {},
+              dialog: dialogs.available,
+              isDialog: dialogId !== undefined,
               capabilities: view.capabilities,
               theme,
             },
@@ -181,6 +233,9 @@ export function ExtensionView({
     chatId,
     attempt,
     transport,
+    dialogs,
+    input,
+    dialogId,
   ]);
   return (
     <section className="flex min-h-0 flex-1 flex-col" aria-label={title}>

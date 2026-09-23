@@ -10,22 +10,35 @@ export type UIContribution =
     }
   | {
       id: string;
+      slot: "session.dialog";
+      type: "dialog";
+      title: string;
+      size: "sm" | "md" | "lg";
+      view: UIViewReference;
+    }
+  | {
+      id: string;
       slot: "session.sidebar";
       type: "sidebar";
       title: string;
       icon: "chart" | "files" | "git-branch" | "activity" | "puzzle" | "info";
-      view: UIViewReference;
+      view: UIViewReference1;
     };
 
 export interface UIViewReference {
   id: string;
 }
+export interface UIViewReference1 {
+  id: string;
+}
 
 export const uiSlotDefinitions: {
   readonly sessionStatus: { readonly key: "session.status"; readonly type: "text"; readonly scope: "session" };
+  readonly sessionDialog: { readonly key: "session.dialog"; readonly type: "dialog"; readonly scope: "session" };
   readonly sessionSidebar: { readonly key: "session.sidebar"; readonly type: "sidebar"; readonly scope: "session" };
 };
 export const uiSlotTypes: {
   readonly text: { readonly type: "text"; readonly schema: object };
+  readonly dialog: { readonly type: "dialog"; readonly schema: object };
   readonly sidebar: { readonly type: "sidebar"; readonly schema: object };
 };

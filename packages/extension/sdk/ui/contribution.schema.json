@@ -47,6 +47,58 @@
           "maxLength": 64
         },
         "slot": {
+          "const": "session.dialog"
+        },
+        "type": {
+          "const": "dialog"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "size": {
+          "enum": [
+            "sm",
+            "md",
+            "lg"
+          ]
+        },
+        "view": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]*$",
+              "maxLength": 64
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "title": "UIViewReference"
+        }
+      },
+      "required": [
+        "id",
+        "slot",
+        "type",
+        "title",
+        "size",
+        "view"
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "maxLength": 64
+        },
+        "slot": {
           "const": "session.sidebar"
         },
         "type": {

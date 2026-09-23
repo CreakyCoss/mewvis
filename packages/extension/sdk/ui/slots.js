@@ -23,6 +23,17 @@ export const uiSlotTypes = Object.freeze({
       ["text"],
     ),
   }),
+  dialog: Object.freeze({
+    type: "dialog",
+    schema: payload(
+      {
+        title: { type: "string", minLength: 1, maxLength: 64 },
+        size: { enum: ["sm", "md", "lg"] },
+        view: { ...payload({ id: identifier }, ["id"]), title: "UIViewReference" },
+      },
+      ["title", "size", "view"],
+    ),
+  }),
   sidebar: Object.freeze({
     type: "sidebar",
     schema: payload(
@@ -46,6 +57,7 @@ const slot = (key, kind, scope) =>
 /** Use these references in code; stable keys are only serialized at the protocol boundary. */
 export const uiSlotDefinitions = Object.freeze({
   sessionStatus: slot("session.status", uiSlotTypes.text, "session"),
+  sessionDialog: slot("session.dialog", uiSlotTypes.dialog, "session"),
   sessionSidebar: slot("session.sidebar", uiSlotTypes.sidebar, "session"),
 });
 

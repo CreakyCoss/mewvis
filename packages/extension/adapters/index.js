@@ -111,6 +111,17 @@ export function adaptUIExtension(definition) {
       return definition.mount(
         root,
         Object.freeze({
+          input: copy(native.input),
+          ui: Object.freeze({
+            dialog: Object.freeze({
+              get available() {
+                return native.ui.dialog.available;
+              },
+              /** @param {{ id: string, input?: import("@isle/extension-sdk").JsonObject }} request */
+              open: (request) => native.ui.dialog.open(copy(request)),
+              close: () => native.ui.dialog.close(),
+            }),
+          }),
           contributionId: native.contributionId,
           viewId: native.viewId,
           config: native.config,

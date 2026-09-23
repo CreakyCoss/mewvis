@@ -130,3 +130,72 @@ test("SDK package conversion produces a native manifest, and rejects unsupported
   source["isle.extension"].apiVersion = 999;
   assert.throws(() => adaptIslePackage(source), /无效/);
 });
+
+test("SDK dialogs map metadata, input and lifecycle without exposing native UI objects", async () => {
+  const contribution = {
+    id: "detail",
+    slot: "session.dialog",
+    type: "dialog",
+    title: "详情",
+    size: "lg",
+    view: { id: "detail" },
+  };
+  const metadata = {
+    name: "test.dialog",
+    version: "1.0.0",
+    type: "module",
+    "isle.extension": {
+      id: "test.dialog",
+      schemaVersion: 2,
+      apiVersion: 1,
+      modules: { ui: { entry: "ui.js", contributions: [contribution] } },
+    },
+  };
+  assert.deepEqual(
+    adaptIslePackage(metadata)["isle.plugin"].modules.ui.contributions,
+    [contribution],
+  );
+  let request,
+    closed = false;
+  const ui = {
+    dialog: {
+      available: true,
+      async open(value) {
+        request = value;
+      },
+      close() {
+        closed = true;
+      },
+    },
+  };
+  const input = { runId: "a" };
+  const adapted = adaptUIExtension({
+    id: "test.dialog",
+    apiVersion: 1,
+    async mount(_root, ctx) {
+      assert.notEqual(ctx.ui, ui);
+      assert.notEqual(ctx.input, input);
+      assert.deepEqual(ctx.input, input);
+      assert.equal(ctx.ui.dialog.available, true);
+      ui.dialog.available = false;
+      assert.equal(ctx.ui.dialog.available, false);
+      await ctx.ui.dialog.open({ id: "detail", input: ctx.input });
+      ctx.ui.dialog.close();
+    },
+  });
+  await adapted.mount(
+    {},
+    { input, ui, config: {}, services: { capabilities: [], session: {} } },
+  );
+  assert.deepEqual(request, { id: "detail", input });
+  assert.notEqual(request.input, input);
+  assert.equal(closed, true);
+  for (const invalid of [
+    { ...contribution, size: "fullscreen" },
+    { ...contribution, title: undefined },
+    { ...contribution, view: undefined },
+  ]) {
+    metadata["isle.extension"].modules.ui.contributions = [invalid];
+    assert.throws(() => adaptIslePackage(metadata), /无效/);
+  }
+});

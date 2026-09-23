@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ExtensionSlotProvider } from "../slots/index";
 import { bindUIContributions } from "./contributions";
 import { ViewTransportContext } from "../views/transport-context";
+import { DialogRuntimeProvider } from "./dialog-context";
 import { observeUICatalog } from "./catalog";
 import type {
   ExtensionUICatalogSource,
@@ -41,9 +42,11 @@ export function PluginUIProvider({
   );
   return (
     <ViewTransportContext.Provider value={transport}>
-      <ExtensionSlotProvider contributions={bound} error={catalog.error}>
-        {children}
-      </ExtensionSlotProvider>
+      <DialogRuntimeProvider contributions={catalog.contributions}>
+        <ExtensionSlotProvider contributions={bound} error={catalog.error}>
+          {children}
+        </ExtensionSlotProvider>
+      </DialogRuntimeProvider>
     </ViewTransportContext.Provider>
   );
 }

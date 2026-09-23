@@ -98,3 +98,13 @@ SDK 作者继续使用 `isle.extension` 清单和 `apiVersion`。构建工具根
 `pnpm test:extensions` 覆盖宿主依赖边界、SDK 元数据和回调转换、包构建与真实 Pi/Mock 工作流。`pnpm --filter client test:extensions` 验证原生 UI 插槽。`pnpm --filter @isle/server test:extensions` 验证原生账本插件和 SDK 统计插件共同加载，并核对一次性摘要前后全部会话文件不变。
 
 边界测试禁止 Client、Server、Agent Runtime 生产代码直接导入 SDK 或 SDK 适配器，也禁止宿主核心依赖具体 Pi 包。更换 SDK 只影响 SDK 接入侧；更换 Agent 只影响该 Agent 的适配器。新增未被宿主支持的能力仍需扩展内部协议和消费点。
+
+## 弹窗插槽
+
+UI 模块通过 `session.dialog` 声明 `dialog` 贡献，必须提供 `id`、`title`、`size`（`sm/md/lg`）和 `view`。它不会随贡献目录自动显示。插件调用 `ctx.ui.dialog.open({ id, input })` 打开自己声明的弹窗，Promise 在关闭时完成；弹窗视图通过 `ctx.input` 获取参数，通过 `ctx.ui.dialog.close()` 关闭自身。
+
+应用在 `PluginUIProvider` 下放置一个 `DialogSlot`，`render` 接收协议字段及 `renderView()`、`close()`，自行选用弹窗组件、布局和尺寸。未挂载插槽时 `ctx.ui.dialog.available` 为 false，调用返回 `UI_UNSUPPORTED`。当前只允许一个活动弹窗，重复或嵌套打开返回 `UI_BUSY`。
+
+宿主继承来源视图的会话范围，插件不能指定其他插件 ID 或宿主路径。参数必须是 64 KiB 以内的 JSON 对象。关闭弹窗会销毁 iframe 并取消请求；来源视图卸载、插件停用/更新、插槽卸载也会关闭关联弹窗。Esc（包括 iframe 内）和焦点恢复由通用视图桥接与应用弹窗容器协作处理。
+
+原生与 SDK UI 上下文均提供 `ui.dialog` 和 `input`，SDK 适配器负责转换。React 仅是链路插件的实现选择；UI 构建支持 TSX，并打包为独立的生产模式浏览器入口。链路的详情和摘要内容保留在插件内，宿主只提供通用弹窗容器。

@@ -20,13 +20,13 @@ export function adaptIslePackage(packageJson) {
     modules.ui = {
       ...(source.modules.ui.entry && { entry: source.modules.ui.entry }),
       contributions: source.modules.ui.contributions.map((item) =>
-        item.type === "sidebar"
+        item.type === "sidebar" || item.type === "dialog"
           ? {
               id: item.id,
               slot: item.slot,
               type: item.type,
               title: item.title,
-              icon: item.icon,
+              ...(item.type === "sidebar" ? { icon: item.icon } : { size: item.size }),
               view: { id: item.view.id },
             }
           : {

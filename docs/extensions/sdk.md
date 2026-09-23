@@ -15,11 +15,11 @@
 | Agent | 干预输入、系统提示、上下文、工具调用/结果、会话压缩   | [agent/middleware.d.ts](../../packages/extension/sdk/agent/middleware.d.ts)                                       |
 | Agent | 插件会话状态、压缩请求与结果                          | [agent/session.d.ts](../../packages/extension/sdk/agent/session.d.ts)                                             |
 | Agent | 同步 setup、异步激活、资源清理与注册入口              | [agent/index.d.ts](../../packages/extension/sdk/agent/index.d.ts)                                                 |
-| UI    | `session.status` 文本贡献、`session.sidebar` 侧栏贡献 | [ui/slots.d.ts](../../packages/extension/sdk/ui/slots.d.ts)、[插槽目录](../../packages/extension/sdk/ui/slots.js) |
+| UI    | `session.status` 文本、`session.sidebar` 侧栏、`session.dialog` 弹窗贡献 | [ui/slots.d.ts](../../packages/extension/sdk/ui/slots.d.ts)、[插槽目录](../../packages/extension/sdk/ui/slots.js) |
 | Host  | 会话读取、只读账本、一次性摘要、能力协商和标准错误    | [host/services.d.ts](../../packages/extension/sdk/host/services.d.ts)                                             |
 | UI    | 浏览器视图挂载、取消信号与清理                        | [ui/browser.d.ts](../../packages/extension/sdk/ui/browser.d.ts)                                                   |
 
-UI 协议定义数据，具体 Slot 约束渲染参数，页面决定布局与展示时机。当前提供 `SidebarSlot` 和 `TextSlot`，产品页面挂载 `session.sidebar`；text 是静态结构化文本，由页面自行绘制。插件视图的内部内容仍由插件绘制。
+UI 协议定义数据，具体 Slot 约束渲染参数，页面决定布局与展示时机。当前提供 `SidebarSlot`、`TextSlot` 和 `DialogSlot`，产品页面挂载 `session.sidebar`；text 是静态结构化文本，由页面自行绘制。插件视图的内部内容仍由插件绘制。
 
 ## 按需阅读与导入
 
@@ -119,3 +119,10 @@ import { uiSlotDefinitions } from "@isle/extension-host/ui";
 结构化数据只由相应协议提供。例如 `TextSlot` 的 `render={({ text, tone }) => ...}` 让页面自由绘制文本，它不提供 `renderView`。当前 sidebar 提供插件视图，尚未额外声明结构化内容；后续按具体业务协议增加精确字段，不使用无约束的通用 `data`。
 
 新增类型的流程是：修改协议源并生成 → 插件声明贡献 → 按需提供具体 Slot → 页面传入 render。无需修改全局适配器注册表。页面不挂载或返回 `null` 就不会展示；只有页面渲染了视图才会执行插件 UI。若新能力需要新的受控服务或执行方式，也必须实现对应宿主服务。
+
+
+### 弹窗贡献
+
+插件声明 `uiSlotDefinitions.sessionDialog` 对应的贡献，必须提供标题、尺寸（`sm/md/lg`）与视图引用。`ctx.ui.dialog.open({ id: "detail", input: { runId: "..." } })` 打开本插件的弹窗，Promise 在关闭后完成；目标视图通过 `ctx.input` 读取参数，通过 `ctx.ui.dialog.close()` 关闭自身。
+
+宿主在应用根部挂载 `DialogSlot`，由 `render` 选择弹窗容器。插件通过 `ctx.ui.dialog.available` 判断当前是否有插槽；参数仅接受 64 KiB 以内的 JSON 对象，会话范围由宿主从来源视图继承。当前一次打开一个弹窗，插件停用、更新或来源视图销毁会自动关闭。完整生命周期见[宿主原生插件系统](native-host.md#弹窗插槽)。

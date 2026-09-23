@@ -23,6 +23,6 @@ export function bindUIContributions(
           {...context}
         />
       ),
-    };
+    } as UIHostContribution;
   });
 }

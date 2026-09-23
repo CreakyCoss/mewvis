@@ -111,6 +111,7 @@ export async function buildExtensionPackage(directory, { outputDir } = {}) {
         platform: browser ? "browser" : "node",
         format: "esm",
         target: browser ? "es2022" : "node22",
+        ...(browser && { jsx: "automatic", minify: true, define: { "process.env.NODE_ENV": '"production"' } }),
         alias: {
           "@isle/extension-sdk/agent": fileURLToPath(
             import.meta.resolve("@isle/extension-sdk/agent"),

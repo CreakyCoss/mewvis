@@ -6,13 +6,20 @@
   "description": "只读会话链路查看器，支持运行详情与不写回账本的临时摘要。",
   "scripts": {
     "build": "isle-extension build",
-    "validate": "isle-extension validate dist/plugin"
+    "validate": "isle-extension validate dist/plugin",
+    "check": "tsc --noEmit"
   },
   "dependencies": {
-    "@isle/extension-host": "workspace:*"
+    "@isle/extension-host": "workspace:*",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "lucide-react": "^0.500.0"
   },
   "devDependencies": {
-    "@isle/extension-dev": "workspace:*"
+    "@isle/extension-dev": "workspace:*",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "typescript": "~5.8.3"
   },
   "isle.plugin": {
     "schemaVersion": 1,
@@ -37,6 +44,26 @@
             "icon": "activity",
             "view": {
               "id": "ledger"
+            }
+          },
+          {
+            "id": "run-detail",
+            "slot": "session.dialog",
+            "type": "dialog",
+            "title": "链路详情",
+            "size": "lg",
+            "view": {
+              "id": "run-detail"
+            }
+          },
+          {
+            "id": "summary",
+            "slot": "session.dialog",
+            "type": "dialog",
+            "title": "会话摘要",
+            "size": "md",
+            "view": {
+              "id": "summary"
             }
           }
         ]
