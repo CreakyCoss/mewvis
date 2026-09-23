@@ -8,7 +8,7 @@ export async function verifyExtensionMiddleware({ api, workspace, command, piCom
   const toolsEntry = join(workspace, "middleware-tools.mjs");
   await writeFile(
     toolsEntry,
-    `export default {id:'isle.example',apiVersion:1,setup(ctx){
+    `export default {id:'isle.example',protocolVersion:1,setup(ctx){
     ctx.registerTool({name:'text_stats',label:'Echo',description:'Echo',parameters:{type:'object',properties:{text:{type:'string'}},required:['text'],additionalProperties:false},
       async execute(input){ctx.session.set('calls',(ctx.session.get('calls')??0)+1);ctx.session.set('input',input);if(ctx.config.fail)throw new Error('producer failed');return {content:[{type:'text',text:input.text}],details:input}}});
     ctx.registerCommand({name:'inspect',description:'Inspect',parameters:{type:'object'},async execute(){return {calls:ctx.session.get('calls')??0,input:ctx.session.get('input')??null}}});
@@ -21,7 +21,7 @@ export async function verifyExtensionMiddleware({ api, workspace, command, piCom
     await writeFile(
       entry,
       `import {writeFile} from 'node:fs/promises';
-      export default {id:'test.${label}',apiVersion:1,setup(ctx){
+      export default {id:'test.${label}',protocolVersion:1,setup(ctx){
         for(const type of ['input','system_prompt','context','tool_call','tool_result']) ctx.use(type,async data=>{
           ctx.session.set('seen.'+type,true);
           if(ctx.config.fail===type) throw new Error('middleware failed: '+type);

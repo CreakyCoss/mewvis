@@ -15,6 +15,7 @@
   "dependencies": {
     "@isle/extension-host": "workspace:*",
     "@isle/extension-sdk": "workspace:*",
-    "esbuild": "^0.28.0"
+    "esbuild": "^0.28.0",
+    "@isle/extension-adapters": "workspace:*"
   }
 }

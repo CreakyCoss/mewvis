@@ -230,3 +230,24 @@ test("short-lived RPC has a bounded timeout", async (t) => {
   );
   assert.equal(s.supervisor.status().rpcProcesses, 0);
 });
+
+test("one-shot chat RPC cancellation stops its process and releases capacity", async (t) => {
+  const s = await setup(t);
+  const abort = new AbortController();
+  const pending = s.supervisor.call(
+    "agent/chat",
+    { messages: [{ role: "user", content: "hold" }], stream: false },
+    ["chat_result"],
+    undefined,
+    abort.signal,
+  );
+  const rejected = assert.rejects(pending, /已取消/);
+  abort.abort();
+  await rejected;
+  const result = await s.supervisor.call(
+    "agent/chat",
+    { messages: [{ role: "user", content: "ok" }], stream: false },
+    ["chat_result"],
+  );
+  assert.equal(result.text, "fixture");
+});

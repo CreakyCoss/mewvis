@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { defineExtensionAdapter, resolveExtensionAdaptation } from "@isle/extension-sdk";
+import { defineExtensionAdapter, resolveExtensionAdaptation } from "@isle/extension-host";
 
 export async function verifyExtensionAdapters({ piExtensionAdapter, mockExtensionAdapter, createMockPluginRegistry }) {
   const packageConfig = JSON.parse(

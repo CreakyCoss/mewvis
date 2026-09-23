@@ -24,7 +24,6 @@
     "zod": "^4.2.0",
     "@isle/app-host": "workspace:*",
     "@earendil-works/chord": "workspace:*",
-    "@isle/extension-sdk": "workspace:*",
     "@isle/extension-host": "workspace:*",
     "@deepseek-ai/dsh-atomic-write": "0.1.1-rc.2"
   },

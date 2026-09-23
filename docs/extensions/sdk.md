@@ -1,5 +1,7 @@
 # Isle Extension SDK
 
+这是外部插件作者协议，不是宿主内部插件协议。原生插件、页面插槽和 Agent 适配器使用独立的[宿主原生插件系统](native-host.md)。SDK 通过 Isle 适配器接入宿主。
+
 插件作者面向 Isle 协议开发。一个插件包通过 `modules.agent`、`modules.ui` 按需声明能力；Agent 和 UI 分别加载、分别适配。
 
 从 [index.d.ts](../../packages/extension/sdk/index.d.ts) 开始阅读：这里实际定义 `ExtensionManifest`、`ExtensionModules` 和共享配置。各领域只有一组目录，类型与相关实现放在一起。
@@ -14,10 +16,8 @@
 | Agent | 插件会话状态、压缩请求与结果                          | [agent/session.d.ts](../../packages/extension/sdk/agent/session.d.ts)                                             |
 | Agent | 同步 setup、异步激活、资源清理与注册入口              | [agent/index.d.ts](../../packages/extension/sdk/agent/index.d.ts)                                                 |
 | UI    | `session.status` 文本贡献、`session.sidebar` 侧栏贡献 | [ui/slots.d.ts](../../packages/extension/sdk/ui/slots.d.ts)、[插槽目录](../../packages/extension/sdk/ui/slots.js) |
-| UI    | 当前会话的公开消息与关联运行读取                      | [ui/services.d.ts](../../packages/extension/sdk/ui/services.d.ts)                                                 |
+| Host  | 会话读取、只读账本、一次性摘要、能力协商和标准错误    | [host/services.d.ts](../../packages/extension/sdk/host/services.d.ts)                                             |
 | UI    | 浏览器视图挂载、取消信号与清理                        | [ui/browser.d.ts](../../packages/extension/sdk/ui/browser.d.ts)                                                   |
-| 宿主  | 加载来源、贡献目录、受控调用绑定                      | [host/index.d.ts](../../packages/extension/sdk/host/index.d.ts)                                                   |
-| 宿主  | Agent 能力协商、原生适配与降级报告                    | [host/adapter.d.ts](../../packages/extension/sdk/host/adapter.d.ts)                                               |
 
 UI 协议定义数据，具体 Slot 约束渲染参数，页面决定布局与展示时机。当前提供 `SidebarSlot` 和 `TextSlot`，产品页面挂载 `session.sidebar`；text 是静态结构化文本，由页面自行绘制。插件视图的内部内容仍由插件绘制。
 
@@ -25,24 +25,23 @@ UI 协议定义数据，具体 Slot 约束渲染参数，页面决定布局与�
 
 - `@isle/extension-sdk`：统一入口，包含总协议和各领域公开 API。
 - `@isle/extension-sdk/agent`：Agent 模块定义和 `defineExtension` 等编写辅助函数。
-- `@isle/extension-sdk/ui`：UI 模块、插槽、数据服务、浏览器入口、`defineUIExtension` 和 `defineUIContribution`。
-- `@isle/extension-sdk/host`：宿主来源/绑定契约，以及 Agent 适配声明与协商函数。
+- `@isle/extension-sdk/ui`：UI 模块、插槽、浏览器入口、`defineUIExtension` 和 `defineUIContribution`。
+- `@isle/extension-sdk/host`：外部插件可调用的宿主服务协议与客户端。
 
 ```ts
 import type { ExtensionManifest } from "@isle/extension-sdk";
 import { defineExtension } from "@isle/extension-sdk/agent";
 import { defineUIExtension, uiSlotDefinitions } from "@isle/extension-sdk/ui";
-import { defineExtensionAdapter } from "@isle/extension-sdk/host";
 ```
 
-`shared.d.ts` 是 JSON 等跨领域基础类型。领域内部引用具体契约文件，不反向依赖 SDK 根入口。`host` 是宿主接入协议，不是清单中的可执行插件模块。
+`shared.d.ts` 是 JSON 等跨领域基础类型。领域内部引用具体契约文件，不反向依赖 SDK 根入口。`host` 是宿主接入协议，不是清单中的可执行插件模块。清单顶层 `host.required/optional` 声明服务需求，插件通过 `ctx.host` 调用；当前由 UI 视图绑定，Agent worker 尚未注入此服务客户端。详见[宿主服务协议与适配](host-services.md)。
 
 ## 校验与实现边界
 
 - [manifest.schema.json](../../packages/extension/sdk/manifest.schema.json) 校验插件清单。
 - [ui/contribution.schema.json](../../packages/extension/sdk/ui/contribution.schema.json) 校验 UI 插槽与贡献类型，对外路径为 `@isle/extension-sdk/ui/contribution.schema.json`。独立使用 Ajv 时先注册此 Schema（ID 为 `urn:isle:ui-contribution`），再编译清单 Schema。
 - UI 插槽的唯一源定义是 `ui/slots.js`：`uiSlotTypes` 定义各类贡献的必填字段，`uiSlotDefinitions` 定义具体位置与作用域。运行 `pnpm --filter @isle/extension-sdk generate` 生成 `ui/slots.generated.d.ts` 与贡献 Schema；`check:ui` 检查生成物漂移。其他领域的类型与 Schema 仍按各自契约维护。
-- SDK 的 JS 只提供编写辅助、目录与协商逻辑；包管理位于 `packages/extension/host`，隔离执行位于 Agent Runtime，桌面适配与渲染位于 client。
+- SDK 的 JS 提供作者辅助和服务客户端；`adapters` 负责转换，`host` 独立实现内部协议、注册、插槽和服务分发。具体 Agent 的原生适配留在自己的目录。
 
 ## 定义与页面挂载
 
@@ -60,15 +59,16 @@ const overview = defineUIContribution(uiSlotDefinitions.sessionSidebar, {
 });
 ```
 
-作者代码和页面使用同一份定义对象，不再手填插槽 key/type。`package.json` 是序列化清单，仍保存稳定的 `slot`、`type` 字符串；可把上面的结果写入清单，加载时统一执行 Schema 校验。缺失标题、图标或视图引用的 sidebar 贡献会被拒绝。
+SDK 作者使用 SDK 定义对象；宿主页面使用独立的宿主定义对象，Isle 适配器负责映射。双方都不需要在 TS 中手填 key/type。`package.json` 是序列化清单，仍保存稳定的 `slot`、`type` 字符串；可把上面的结果写入清单，加载时统一执行 Schema 校验。缺失标题、图标或视图引用的 sidebar 贡献会被拒绝。
 
-客户端插槽机制位于 `apps/client/src/extensions/slots/index.tsx`；具体接口位于同目录的 `sidebar.tsx` 和 `text.tsx`。页面通过 `render` 决定每个贡献的布局：
+宿主插槽机制位于 `packages/extension/host/ui/slots/index.tsx`；具体接口位于同目录的 `sidebar.tsx` 和 `text.tsx`。页面通过 `render` 决定每个贡献的布局：
 
 插件数据沿目录 → `ExtensionHost` → `ExtensionSlotProvider` → Slot 流动。`contributions` 仅由宿主注入 Provider，所有 Slot 都不接受这个属性。页面提供位置定义、上下文和渲染函数；页面原有组件无需实现插件协议，渲染函数负责把插件字段适配到页面自己的结构。
 
 ```tsx
-import { SidebarSlot } from "@/extensions/slots/sidebar";
-import { UIIcon } from "@/extensions/slots/icons";
+import { SidebarSlot } from "@isle/extension-host/ui/slots/sidebar";
+import { UIIcon } from "@isle/extension-host/ui/slots/icons";
+import { uiSlotDefinitions } from "@isle/extension-host/ui";
 
 <SidebarSlot
   definition={uiSlotDefinitions.sessionSidebar}
@@ -77,11 +77,14 @@ import { UIIcon } from "@/extensions/slots/icons";
   renderError={(error) => <p role="alert">{error}</p>}
   render={({ title, icon, renderView }) => (
     <article className="my-card">
-      <h2><UIIcon name={icon} />{title}</h2>
+      <h2>
+        <UIIcon name={icon} />
+        {title}
+      </h2>
       {renderView()}
     </article>
   )}
-/>
+/>;
 ```
 
 `title`、`icon`、`view` 等字段直接来自协议；`key` 是宿主添加的唯一标识，`renderView()` 已绑定视图引用和当前会话。宿主图标映射是可选工具，页面也可以用自己的映射。Slot 不添加默认标题栏或布局。同一贡献可以在其他页面使用不同的 `render` 展示，各处视图实例相互独立。
@@ -111,7 +114,7 @@ import { UIIcon } from "@/extensions/slots/icons";
 
 需要处理插件集合时可以使用 `renderAll({ items, error })`，例如对扩展区域中的插件条目分组展示。`renderAll` 同样只渲染预留的扩展区域。`render` 与 `renderAll` 必须提供其中一个，不能同时使用；空集合和目录错误也交由页面处理。只有按需渲染 `item.renderView()` 的返回值，插件视图才会挂载。不要在渲染回调里调用 Hook，需要 Hook 时返回独立组件。
 
-没有具体封装时可以从 `@/extensions/slots` 导入 `ExtensionSlot`；传入同一份定义，仍能推导完整参数，不退化成任意对象。`SidebarSlot` 只接受 sidebar 定义，`TextSlot` 只接受 text 定义。位置和类型是不同维度，同一种类型可以增加多个位置定义。
+没有具体封装时可以从 `@isle/extension-host/ui/slots` 导入 `ExtensionSlot`；传入同一份定义，仍能推导完整参数，不退化成任意对象。`SidebarSlot` 只接受 sidebar 定义，`TextSlot` 只接受 text 定义。位置和类型是不同维度，同一种类型可以增加多个位置定义。
 
 结构化数据只由相应协议提供。例如 `TextSlot` 的 `render={({ text, tone }) => ...}` 让页面自由绘制文本，它不提供 `renderView`。当前 sidebar 提供插件视图，尚未额外声明结构化内容；后续按具体业务协议增加精确字段，不使用无约束的通用 `data`。
 

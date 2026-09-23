@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:isle:host-ui-contribution",
+  "title": "UIContribution",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "maxLength": 64
+        },
+        "slot": {
+          "const": "session.status"
+        },
+        "type": {
+          "const": "text"
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 8000
+        },
+        "tone": {
+          "enum": [
+            "neutral",
+            "info",
+            "warning"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "slot",
+        "type",
+        "text"
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "maxLength": 64
+        },
+        "slot": {
+          "const": "session.sidebar"
+        },
+        "type": {
+          "const": "sidebar"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "icon": {
+          "enum": [
+            "chart",
+            "files",
+            "git-branch",
+            "activity",
+            "puzzle",
+            "info"
+          ]
+        },
+        "view": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]*$",
+              "maxLength": 64
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "title": "UIViewReference"
+        }
+      },
+      "required": [
+        "id",
+        "slot",
+        "type",
+        "title",
+        "icon",
+        "view"
+      ]
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import { isJsonValue } from "@earendil-works/chord";
-import { extensionCapabilities, type ExtensionSource, type JsonValue } from "@isle/extension-sdk";
+import { extensionCapabilities, type ExtensionSource, type JsonValue } from "@isle/extension-host";
 import { realpathSync, statSync } from "node:fs";
 import { isAbsolute } from "node:path";
 import { z } from "zod";

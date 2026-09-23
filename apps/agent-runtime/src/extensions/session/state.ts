@@ -1,6 +1,6 @@
 import { isJsonValue } from "@earendil-works/chord";
 import { withFileLock, writeFileAtomic } from "@deepseek-ai/dsh-atomic-write";
-import type { JsonObject } from "@isle/extension-sdk";
+import type { JsonObject } from "@isle/extension-host";
 import { mkdir, readFile, realpath } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 import { randomUUID } from "node:crypto";

@@ -341,9 +341,6 @@ importers:
       '@isle/extension-host':
         specifier: workspace:*
         version: link:../../packages/extension/host
-      '@isle/extension-sdk':
-        specifier: workspace:*
-        version: link:../../packages/extension/sdk
       '@langchain/langgraph':
         specifier: ^1.4.7
         version: 1.4.7(@langchain/core@1.2.1)(react-dom@19.1.0)(react@19.1.0)(zod@4.4.3)
@@ -594,9 +591,9 @@ importers:
       '@isle/chat-contracts':
         specifier: workspace:*
         version: link:../../packages/chat-contracts
-      '@isle/extension-sdk':
+      '@isle/extension-host':
         specifier: workspace:*
-        version: link:../../packages/extension/sdk
+        version: link:../../packages/extension/host
       '@langchain/core':
         specifier: ^1.2.1
         version: 1.2.1
@@ -741,6 +738,16 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/extension/dev
 
+  apps/extensions/session-ledger:
+    dependencies:
+      '@isle/extension-host':
+        specifier: workspace:*
+        version: link:../../../packages/extension/host
+    devDependencies:
+      '@isle/extension-dev':
+        specifier: workspace:*
+        version: link:../../../packages/extension/dev
+
   apps/extensions/tasks:
     dependencies:
       '@isle/extension-sdk':
@@ -769,9 +776,6 @@ importers:
       '@isle/extension-host':
         specifier: workspace:*
         version: link:../../packages/extension/host
-      '@isle/extension-sdk':
-        specifier: workspace:*
-        version: link:../../packages/extension/sdk
       ajv:
         specifier: ^8.20.0
         version: 8.20.0
@@ -1002,8 +1006,27 @@ importers:
         specifier: ~5.8.3
         version: 5.8.3
 
+  packages/extension/adapters:
+    dependencies:
+      '@isle/extension-host':
+        specifier: workspace:*
+        version: link:../host
+      '@isle/extension-sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+
   packages/extension/dev:
     dependencies:
+      '@isle/extension-adapters':
+        specifier: workspace:*
+        version: link:../adapters
       '@isle/extension-host':
         specifier: workspace:*
         version: link:../host
@@ -1019,12 +1042,37 @@ importers:
       '@deepseek-ai/dsh-atomic-write':
         specifier: 0.1.1-rc.2
         version: 0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.1-rc.2)
-      '@isle/extension-sdk':
+      '@earendil-works/chord':
         specifier: workspace:*
-        version: link:../sdk
+        version: link:../../../ai/pi/packages/chord
       ajv:
         specifier: ^8.20.0
         version: 8.20.0
+      zod:
+        specifier: ^4.2.0
+        version: 4.4.3
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      '@types/react':
+        specifier: ^19.1.8
+        version: 19.1.8
+      esbuild:
+        specifier: ^0.28.0
+        version: 0.28.1
+      json-schema-to-typescript:
+        specifier: ^15.0.4
+        version: 15.0.4
+      lucide-react:
+        specifier: ^0.500.0
+        version: 0.500.0(react@19.1.0)
+      react:
+        specifier: ^19.1.0
+        version: 19.1.0
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
 
   packages/extension/sdk:
     devDependencies:
@@ -8263,7 +8311,6 @@ packages:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
     dependencies:
       react: 19.1.0
-    dev: false
 
   /magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}

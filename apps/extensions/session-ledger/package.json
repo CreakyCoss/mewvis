@@ -1,0 +1,47 @@
+{
+  "name": "@isle/extension-session-ledger",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "只读会话链路查看器，支持运行详情与不写回账本的临时摘要。",
+  "scripts": {
+    "build": "isle-extension build",
+    "validate": "isle-extension validate dist/plugin"
+  },
+  "dependencies": {
+    "@isle/extension-host": "workspace:*"
+  },
+  "devDependencies": {
+    "@isle/extension-dev": "workspace:*"
+  },
+  "isle.plugin": {
+    "schemaVersion": 1,
+    "id": "isle.session-ledger",
+    "host": {
+      "required": [
+        "session.ledger.read"
+      ],
+      "optional": [
+        "session.summarize"
+      ]
+    },
+    "modules": {
+      "ui": {
+        "entry": "./ui.js",
+        "contributions": [
+          {
+            "id": "ledger",
+            "slot": "session.sidebar",
+            "type": "sidebar",
+            "title": "链路",
+            "icon": "activity",
+            "view": {
+              "id": "ledger"
+            }
+          }
+        ]
+      }
+    },
+    "protocolVersion": 1
+  }
+}

@@ -1,7 +1,7 @@
 import {
   resolveExtensionPackages,
   loadExtensionSettingsSources,
-} from "@isle/extension-host";
+} from "@isle/extension-host/management";
 import {
   createExtensionRuntime,
   type RuntimeExtensions,

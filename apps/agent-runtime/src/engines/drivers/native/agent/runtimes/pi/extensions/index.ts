@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { defineExtensionAdapter } from "@isle/extension-sdk";
-import type { ExtensionMiddlewareType, ExtensionMiddlewareData, JsonValue, JsonObject } from "@isle/extension-sdk";
+import { defineExtensionAdapter } from "@isle/extension-host";
+import type { ExtensionMiddlewareType, ExtensionMiddlewareData, JsonValue, JsonObject } from "@isle/extension-host";
 import { projectPiContext } from "./context.js";
 import { registerPiConversationEvents } from "./events.js";
 import { registerPiCompactionHooks } from "./compaction.js";

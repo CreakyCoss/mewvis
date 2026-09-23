@@ -292,6 +292,7 @@ test(
     assert.deepEqual(records.map((item) => item.id).sort(), [
       "isle.example",
       "isle.session-insights",
+      "isle.session-ledger",
       "isle.tasks",
     ]);
     assert.ok(
@@ -311,7 +312,9 @@ test(
       path: join(root, "workspace"),
     });
     const target = { workspacePath: workspace.path, chatId: "bundled-test" };
-    const [panel] = await call("list_extension_ui_contributions");
+    const panel = (await call("list_extension_ui_contributions")).find(
+      (item) => item.extensionId === "isle.session-insights",
+    );
     assert.equal(panel.extensionId, "isle.session-insights");
     const view = await call("open_extension_view", {
       ...target,
@@ -323,6 +326,7 @@ test(
     const snapshot = await call("query_extension_view", {
       token: view.token,
       method: "session.read",
+      requestId: 1,
     });
     assert.deepEqual(snapshot.messages, []);
     assert.deepEqual(snapshot.runs, []);
@@ -332,6 +336,7 @@ test(
         await raw("query_extension_view", {
           token: view.token,
           method: "session.read",
+          requestId: 1,
           chatId: "other",
         })
       ).status,
@@ -346,11 +351,16 @@ test(
         await raw("query_extension_view", {
           token: view.token,
           method: "session.read",
+          requestId: 1,
         })
       ).status,
       403,
     );
-    assert.deepEqual(await call("list_extension_ui_contributions"), []);
+    assert.ok(
+      (await call("list_extension_ui_contributions")).every(
+        (item) => item.extensionId !== panel.extensionId,
+      ),
+    );
     await call("configure_extension", { id: panel.extensionId, enabled: true });
     await call("close_extension_view", { token: view.token });
     assert.equal(

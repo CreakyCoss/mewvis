@@ -1,8 +1,9 @@
 import type { JsonObject } from "../shared.js";
-import type { ExtensionUIServices } from "./services.js";
+import type { ExtensionHostServices } from "../host/services.js";
 
 /** Browser entry contract; portable slot declarations do not depend on the DOM. */
-export interface ExtensionUIContext extends ExtensionUIServices {
+export interface ExtensionUIContext {
+  readonly host: ExtensionHostServices;
   readonly contributionId: string;
   readonly viewId: string;
   readonly config: Readonly<JsonObject>;

@@ -46,13 +46,13 @@ try {
         out: entries[id].output.slice(0, -3),
       })),
       { in: join(root, "src/index.ts"), out: "api" },
-      { in: join(root, "src/extensions/execution/host.ts"), out: "host" },
+      { in: fileURLToPath(import.meta.resolve("@isle/extension-host/agent/registration")), out: "host" },
       { in: join(root, "src/extensions/index.ts"), out: "extension-runtime" },
       { in: join(root, "src/engines/drivers/native/agent/runtimes/pi/agent/session.ts"), out: "pi-session" },
       { in: join(root, "src/engines/drivers/native/agent/artifacts.ts"), out: "agent-artifacts" },
       { in: join(root, "src/engines/drivers/native/agent/runtimes/pi/extensions/index.ts"), out: "pi-adapter" },
-      { in: join(root, "src/engines/drivers/native/agent/runtimes/mock/extensions.ts"), out: "mock-adapter" },
-      { in: join(root, "src/engines/drivers/native/agent/runtimes/mock/plugins.ts"), out: "mock-plugins" },
+      { in: join(root, "src/engines/drivers/native/agent/runtimes/mock/extensions/index.ts"), out: "mock-adapter" },
+      { in: join(root, "src/engines/drivers/native/agent/runtimes/mock/extensions/registry.ts"), out: "mock-registry" },
     ],
     outdir: dist,
     tsconfig: join(root, "tsconfig.json"),
@@ -79,7 +79,7 @@ try {
   await verifyExtensionAdapters({
     ...await import(pathToFileURL(join(dist, "pi-adapter.js")).href),
     ...await import(pathToFileURL(join(dist, "mock-adapter.js")).href),
-    ...await import(pathToFileURL(join(dist, "mock-plugins.js")).href),
+    ...await import(pathToFileURL(join(dist, "mock-registry.js")).href),
   });
   const toolName = "ext_isle_example__text_stats";
   const [source] = api.resolveExtensionPackages([
@@ -173,7 +173,7 @@ try {
     `
     import { writeFile } from 'node:fs/promises';
     import { join } from 'node:path';
-    export default { id: 'test.lifecycle', apiVersion: 1, setup(ctx) {
+    export default { id: 'test.lifecycle', protocolVersion: 1, setup(ctx) {
       ctx.own(() => writeFile(join(ctx.workspacePath, 'disposed'), 'yes'));
       ctx.registerTool({ name: 'wait', label: 'Wait', description: 'Wait until cancelled',
         parameters: {type:'object', properties:{}, additionalProperties:false},
@@ -199,7 +199,7 @@ try {
     `
     import { writeFile } from 'node:fs/promises';
     import { join } from 'node:path';
-    export default {id:'test.failure',apiVersion:1,setup(ctx){
+    export default {id:'test.failure',protocolVersion:1,setup(ctx){
       ctx.own(() => writeFile(join(ctx.workspacePath,'failed-disposed'),'yes'));
       ctx.onActivate(() => {throw new Error('activation failed')});
     }};
@@ -214,7 +214,7 @@ try {
   const duplicateEntry = join(fixtureDir, "duplicate.mjs");
   await writeFile(
     duplicateEntry,
-    `export default {id:'test.duplicate',apiVersion:1,setup(ctx){
+    `export default {id:'test.duplicate',protocolVersion:1,setup(ctx){
     const tool={name:'same',label:'Same',description:'Same',parameters:{type:'object'},async execute(){return {content:[],details:{}}}};
     ctx.registerTool(tool);ctx.registerTool(tool);
   }};`,
@@ -263,7 +263,7 @@ try {
     import {readFile} from 'node:fs/promises';
     let blocked=false;
     try {await readFile(${JSON.stringify(secret)},'utf8')} catch {blocked=true}
-    export default {id:'test.scoped',apiVersion:1,setup(ctx){
+    export default {id:'test.scoped',protocolVersion:1,setup(ctx){
       if(!blocked) throw new Error('initialization escaped sandbox');
       ctx.registerTool({name:'probe',label:'Probe',description:'Probe sandbox',parameters:{type:'object'},
         async execute(){

@@ -37,7 +37,7 @@ export default defineUIExtension({
       button.disabled = true;
       error.textContent = "";
       try {
-        const snapshot = await ctx.session.read();
+        const snapshot = await ctx.host.session.read();
         if (disposed || ctx.signal.aborted) return;
         const duration = snapshot.runs.reduce(
           (sum, run) =>

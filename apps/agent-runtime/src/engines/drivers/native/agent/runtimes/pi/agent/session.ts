@@ -1,4 +1,4 @@
-import type { ExtensionBindings } from "@isle/extension-sdk";
+import type { ExtensionBindings } from "@isle/extension-host";
 import { createAgentSession, SessionManager } from "@earendil-works/pi-coding-agent";
 import { mkdirSync } from "node:fs";
 import type { AgentRuntimeCallbacks, RuntimeAgentCommand } from "../../types.js";

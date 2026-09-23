@@ -72,7 +72,10 @@ export default defineExtension({
 执行 `pnpm build:runtime` 后，`apps/agent-runtime/dist/sdk.js` 导出 SDK。SDK 与执行 worker 必须一起部署，保持 dist 内的相邻布局；运行时构建不包含示例插件。文本统计示例是独立包 `apps/extensions/text-stats`，可通过 `pnpm --filter @isle/extension-text-stats build` 构建，并登记其 `dist/plugin` 目录。以下代码在 Node 宿主中执行（导入路径按宿主位置调整）：
 
 ```ts
-import { createAgentRuntime, createScriptedMockRuntime } from "./apps/agent-runtime/dist/sdk.js";
+import {
+  createAgentRuntime,
+  createScriptedMockRuntime,
+} from "./apps/agent-runtime/dist/sdk.js";
 
 const tool = "ext_example_greeting__hello";
 const mock = createScriptedMockRuntime("greeting-mock", [
@@ -81,11 +84,13 @@ const mock = createScriptedMockRuntime("greeting-mock", [
 
 const runtime = createAgentRuntime({
   runtimeAgents: [mock],
-  extensions: [{
-    id: "example.greeting",
-    entry: "/absolute/path/greeting.mjs",
-    toolRisks: { hello: "low" }, // 宿主审核后的配置
-  }],
+  extensions: [
+    {
+      id: "example.greeting",
+      entry: "/absolute/path/greeting.mjs",
+      toolRisks: { hello: "low" }, // 宿主审核后的配置
+    },
+  ],
   callbacks: { onEvent: (event) => console.log(event) },
 });
 
@@ -133,34 +138,47 @@ Pi 原生命令例如 `/isle.tasks/add {"title":"验证原生注册"}`。这是�
 ```js
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
-import { createAgentRuntime, createScriptedMockRuntime } from "./apps/agent-runtime/dist/sdk.js";
+import {
+  createAgentRuntime,
+  createScriptedMockRuntime,
+} from "./apps/agent-runtime/dist/sdk.js";
 
 const runtime = createAgentRuntime({
-  runtimeAgents: [createScriptedMockRuntime("task-demo", [
-    { type: "text", text: "演示运行完成" },
-  ])],
-  extensionPackages: [{
-    path: resolve("apps/extensions/tasks/dist/plugin"),
-    config: { maxTasks: 20 },
-    commandRisks: { add: "low", list: "low", select: "low", reset: "low" },
-  }],
+  runtimeAgents: [
+    createScriptedMockRuntime("task-demo", [
+      { type: "text", text: "演示运行完成" },
+    ]),
+  ],
+  extensionPackages: [
+    {
+      path: resolve("apps/extensions/tasks/dist/plugin"),
+      config: { maxTasks: 20 },
+      commandRisks: { add: "low", list: "low", select: "low", reset: "low" },
+    },
+  ],
   callbacks: { onExtensionError: (error) => console.error(error) },
 });
 const target = {
   workspacePath: resolve("."),
   sessionRootDir: resolve(".task-demo/session"),
 };
-const command = (name, args = {}) => runtime.extensions.executeCommand({
-  ...target, commandId: `isle.tasks/${name}`, arguments: args,
-});
+const command = (name, args = {}) =>
+  runtime.extensions.executeCommand({
+    ...target,
+    commandId: `isle.tasks/${name}`,
+    arguments: args,
+  });
 
 try {
   console.log(await runtime.extensions.listCommands(target));
   const task = await command("add", { title: "验证功能插件" });
   await command("select", { id: task.id });
   const result = await runtime.agent.run({
-    ...target, runtimeId: "task-demo", taskId: randomUUID(),
-    agentRoleId: "demo-agent", userMessage: "开始演示",
+    ...target,
+    runtimeId: "task-demo",
+    taskId: randomUUID(),
+    agentRoleId: "demo-agent",
+    userMessage: "开始演示",
   });
   if (!result.success) throw new Error(result.message);
   console.log(await command("list")); // 当前任务已 completed
@@ -231,7 +249,7 @@ SDK 提供插件入口
 
 ## 当前边界与源码
 
-宿主模块统一入口为 `apps/agent-runtime/src/extensions/index.ts`，直接定义 `ExtensionRuntime` 接口并实现唯一创建入口 `createExtensionRuntime()`，管理实例所有权与生命周期。`types.ts` 保存操作、命令及诊断类型；具体能力、会话管理和执行机制分别位于 `capabilities/`、`session/`、`execution/`。宿主通过 `ExtensionRuntime.open()` 借用单次操作，使用 `ExtensionOperation.finish()` 声明 Agent 运行终态，并在 finally 中 dispose。会话池、状态目录与 worker 恢复不会暴露给 Agent 执行模块；目录与职责见[插件协议与能力映射](../architecture/extensions.md)。SDK 对外的 `runtime.extensions` 命令接口保持不变。
+宿主模块统一入口为 `apps/agent-runtime/src/extensions/index.ts`，直接定义 `ExtensionRuntime` 接口并实现唯一创建入口 `createExtensionRuntime()`，管理实例所有权与生命周期。`types.ts` 保存操作、命令及诊断类型；通用注册执行和资源/事件/中间件校验已集中到 `packages/extension/host/agent/registration`；当前 Runtime 的命令装配、会话池、状态事务和进程沙箱仍位于 `capabilities/commands.ts`、`session/`、`execution/`。宿主通过 `ExtensionRuntime.open()` 借用单次操作，使用 `ExtensionOperation.finish()` 声明 Agent 运行终态，并在 finally 中 dispose。会话池、状态目录与 worker 恢复不会暴露给 Agent 执行模块；目录与职责见[插件协议与能力映射](../architecture/extensions.md)。SDK 对外的 `runtime.extensions` 命令接口保持不变。
 
 - `packages/extension/sdk`：插件开发契约。
 - `packages/extension/host`：包清单校验、本地登记、配置与启停。

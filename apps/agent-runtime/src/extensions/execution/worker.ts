@@ -1,8 +1,8 @@
-import type { ExtensionAgentEvent } from "@isle/extension-sdk";
+import type { ExtensionAgentEvent } from "@isle/extension-host";
 import type { ExtensionState } from "../session/state.js";
-import type { ExtensionSource } from "@isle/extension-sdk";
+import type { ExtensionSource } from "@isle/extension-host";
 import { serveWorker } from "../../security/execution/index.js";
-import { createExtensionHost } from "./host.js";
+import { createExtensionHost } from "@isle/extension-host/agent/registration";
 
 let host: Awaited<ReturnType<typeof createExtensionHost>> | undefined;
 let initialized = false;

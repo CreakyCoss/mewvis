@@ -3,18 +3,19 @@ import { AppChatIntegration } from "@/workbench/shell/chat-integration";
 import { HashRouter } from "react-router";
 import { StartupGate } from "@/workbench/shell/startup";
 import { AppRoutes } from "@/workbench/routes";
-import { ExtensionHost } from "@/extensions";
+import { PluginUIProvider } from "@isle/extension-host/ui/react";
+import { extensionUICatalog, extensionViewTransport } from "@/api/extensions";
 
 export const Workbench = () => (
   <SystemFeedback>
     <StartupGate>
-      <ExtensionHost>
+      <PluginUIProvider source={extensionUICatalog} transport={extensionViewTransport}>
         <AppChatIntegration>
           <HashRouter>
             <AppRoutes />
           </HashRouter>
         </AppChatIntegration>
-      </ExtensionHost>
+      </PluginUIProvider>
     </StartupGate>
   </SystemFeedback>
 );

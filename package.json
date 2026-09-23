@@ -5,7 +5,7 @@
   "packageManager": "pnpm@8.15.9",
   "scripts": {
     "extension": "node packages/extension/dev/cli.mjs",
-    "test:extensions": "pnpm --filter @isle/extension-host test && pnpm --filter @isle/extension-dev test && pnpm --filter @isle/agent-runtime test:extensions",
+    "test:extensions": "pnpm --filter @isle/extension-host test && pnpm --filter @isle/extension-adapters test && pnpm --filter @isle/extension-dev test && pnpm --filter @isle/agent-runtime test:extensions",
     "dev:server": "pnpm --filter @isle/server dev",
     "build:server": "pnpm --filter @isle/server build",
     "start:server": "pnpm --filter @isle/server start",

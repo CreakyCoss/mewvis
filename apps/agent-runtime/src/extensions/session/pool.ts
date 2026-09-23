@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ExtensionCatalog } from "@isle/extension-sdk";
+import type { ExtensionCatalog } from "@isle/extension-host";
 import { ProgramExecutor, serializeWorkspaceOperation } from "../../security/execution/index.js";
 
 export interface ExtensionSessionInstance {

@@ -408,7 +408,9 @@ export class AgentRuntimeSupervisor {
     params: JsonObject,
     resultTypes: readonly string[],
     onEvent: (event: JsonObject) => void = () => {},
+    signal?: AbortSignal,
   ): Promise<JsonObject> {
+    signal?.throwIfAborted();
     this.assertCapacity();
     const id = randomUUID();
     const command = this.protocol.command(method, params, id);
@@ -428,6 +430,8 @@ export class AgentRuntimeSupervisor {
         failure ??= error;
         void lifecycle.stop();
       };
+      const abort = () => fail(new Error("Runtime 请求已取消"));
+      signal?.addEventListener("abort", abort, { once: true });
       const timer = setTimeout(
         () =>
           fail(new ServiceError(504, "RUNTIME_TIMEOUT", "Runtime 请求超时")),
@@ -471,8 +475,9 @@ export class AgentRuntimeSupervisor {
         fail,
       );
       void lifecycle.finished.then((outcome) => {
-        const { code, signal, confirmed } = outcome;
+        const { code, signal: exitSignal, confirmed } = outcome;
         clearTimeout(timer);
+        signal?.removeEventListener("abort", abort);
         if (confirmed) this.rpcProcesses.delete(child);
         else child.once("exit", () => this.rpcProcesses.delete(child));
         this.diagnostics.record("rpc_exit", {
@@ -480,7 +485,7 @@ export class AgentRuntimeSupervisor {
           method,
           pid: child.pid,
           code,
-          signal,
+          signal: exitSignal,
           confirmed,
           drainTimedOut: outcome.drainTimedOut,
           stderrBytes,
@@ -496,7 +501,7 @@ export class AgentRuntimeSupervisor {
           );
         else if (failure) reject(failure);
         else if (code !== 0 || !result)
-          reject(new Error(`Runtime 未正常返回结果：${signal ?? code}`));
+          reject(new Error(`Runtime 未正常返回结果：${exitSignal ?? code}`));
         else resolve(result);
       });
       child.stdin.end(`${JSON.stringify(command)}\n`);

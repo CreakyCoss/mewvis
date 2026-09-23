@@ -15,7 +15,7 @@ import {
   createExtensionPackageManager,
   readExtensionPackage,
   resolveExtensionPackages,
-} from "../index.mjs";
+} from "../management/index.mjs";
 
 async function fixture(t, id = "test.package") {
   const root = await mkdtemp(join(tmpdir(), "isle-package-test-"));
@@ -26,10 +26,10 @@ async function fixture(t, id = "test.package") {
     name: id,
     version: "1.0.0",
     type: "module",
-    "isle.extension": {
-      schemaVersion: 2,
+    "isle.plugin": {
+      schemaVersion: 1,
       id,
-      apiVersion: 1,
+      protocolVersion: 1,
       modules: { agent: { entry: "./index.js", capabilities: ["commands"] } },
       configuration: {
         schema: {
@@ -90,15 +90,14 @@ test("metadata validation never executes code; configuration defaults and host r
 
 test("modular packages isolate UI from Agent sources and validate every entry", async (t) => {
   const f = await fixture(t);
-  const { id } = f.pkg["isle.extension"];
-  f.pkg["isle.extension"] = {
-    schemaVersion: 2,
+  const { id } = f.pkg["isle.plugin"];
+  f.pkg["isle.plugin"] = {
+    schemaVersion: 1,
     id,
-    apiVersion: 1,
+    protocolVersion: 1,
     modules: {
       ui: {
         entry: "./ui.js",
-        capabilities: ["session.read"],
         contributions: [
           {
             id: "stats",
@@ -117,7 +116,7 @@ test("modular packages isolate UI from Agent sources and validate every entry", 
     "throw new Error('UI must not execute in host');",
   );
   await f.save();
-  const contribution = f.pkg["isle.extension"].modules.ui.contributions[0];
+  const contribution = f.pkg["isle.plugin"].modules.ui.contributions[0];
   for (const field of ["title", "icon", "view"]) {
     const value = contribution[field];
     delete contribution[field];
@@ -154,7 +153,7 @@ test("modular packages isolate UI from Agent sources and validate every entry", 
   const manager = createExtensionPackageManager(f.settings);
   await manager.add(f.directory);
   assert.equal(manager.list().length, 1);
-  f.pkg["isle.extension"].modules.agent = {
+  f.pkg["isle.plugin"].modules.agent = {
     entry: "./index.js",
     capabilities: ["commands"],
   };
@@ -164,7 +163,7 @@ test("modular packages isolate UI from Agent sources and validate every entry", 
     manager.resolve()[0].entry,
     await realpath(join(f.directory, "index.js")),
   );
-  const ui = f.pkg["isle.extension"].modules.ui;
+  const ui = f.pkg["isle.plugin"].modules.ui;
   ui.contributions.push({ ...ui.contributions[0] });
   await f.save();
   assert.throws(() => readExtensionPackage(f.directory), /重复/);
@@ -179,12 +178,12 @@ test("modular packages isolate UI from Agent sources and validate every entry", 
   await f.save();
   assert.throws(() => readExtensionPackage(f.directory), /共享入口/);
   ui.entry = "./ui.js";
-  ui.capabilities = ["session.write"];
+  f.pkg["isle.plugin"].host = { required: ["session.write"] };
   await f.save();
   assert.throws(() => readExtensionPackage(f.directory), /尚不支持/);
-  ui.capabilities = [];
-  delete f.pkg["isle.extension"].modules.agent;
-  f.pkg["isle.extension"].id = "test.changed";
+  f.pkg["isle.plugin"].host = { required: [] };
+  delete f.pkg["isle.plugin"].modules.agent;
+  f.pkg["isle.plugin"].id = "test.changed";
   await f.save();
   assert.throws(() => manager.resolve(), /身份已改变/);
 });
@@ -193,24 +192,24 @@ test("entry traversal, symlink escape, unsupported versions and capabilities fai
   const f = await fixture(t);
   await writeFile(join(f.root, "outside.js"), "");
   for (const entry of ["../outside.js", join(f.root, "outside.js")]) {
-    f.pkg["isle.extension"].modules.agent.entry = entry;
+    f.pkg["isle.plugin"].modules.agent.entry = entry;
     await f.save();
     assert.throws(() => readExtensionPackage(f.directory), /包内/);
   }
   await symlink(join(f.root, "outside.js"), join(f.directory, "escape.js"));
-  f.pkg["isle.extension"].modules.agent.entry = "escape.js";
+  f.pkg["isle.plugin"].modules.agent.entry = "escape.js";
   await f.save();
   assert.throws(() => readExtensionPackage(f.directory), /包内/);
-  f.pkg["isle.extension"].modules.agent.entry = "index.js";
-  f.pkg["isle.extension"].modules.agent.capabilities.push("context.transform");
+  f.pkg["isle.plugin"].modules.agent.entry = "index.js";
+  f.pkg["isle.plugin"].modules.agent.capabilities.push("context.transform");
   await f.save();
   assert.throws(() => readExtensionPackage(f.directory), /尚不支持/);
-  f.pkg["isle.extension"].modules.agent.capabilities = [];
-  f.pkg["isle.extension"].apiVersion = 2;
+  f.pkg["isle.plugin"].modules.agent.capabilities = [];
+  f.pkg["isle.plugin"].apiVersion = 2;
   await f.save();
   assert.throws(() => readExtensionPackage(f.directory), /清单无效/);
 
-  const manifest = f.pkg["isle.extension"];
+  const manifest = f.pkg["isle.plugin"];
   manifest.apiVersion = 1;
   manifest.schemaVersion = 1;
   await f.save();
@@ -257,7 +256,7 @@ test("concurrent managers preserve updates and package identity cannot change si
     b = createExtensionPackageManager(f.settings);
   await Promise.all([a.add(f.directory), b.add(other.directory)]);
   assert.equal(a.list().length, 2);
-  f.pkg["isle.extension"].id = "test.changed";
+  f.pkg["isle.plugin"].id = "test.changed";
   await f.save();
   assert.throws(() => b.resolve(), /身份已改变/);
   await writeFile(f.settings, "{broken");
@@ -336,12 +335,12 @@ test("UI protocol validates slot/type pairs and permits data-only text modules",
     text: "Ready",
     tone: "info",
   };
-  const ui = { capabilities: [], contributions: [contribution] };
-  f.pkg["isle.extension"].modules = { ui };
+  const ui = { contributions: [contribution] };
+  f.pkg["isle.plugin"].modules = { ui };
   await f.save();
   assert.equal(readExtensionPackage(f.directory).modules.ui.entry, undefined);
   assert.deepEqual(resolveExtensionPackages([{ path: f.directory }]), []);
-  const { uiSlotDefinitions } = await import("@isle/extension-sdk/ui");
+  const { uiSlotDefinitions } = await import("@isle/extension-host/ui");
   assert.equal(uiSlotDefinitions.sessionStatus.type, contribution.type);
   for (const invalid of [
     { ...contribution, slot: "session.sidebar" },

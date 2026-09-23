@@ -1,11 +1,15 @@
+import { PluginError } from "@isle/extension-host/services/error";
 import { join } from "node:path";
 import {
   createExtensionPackageManager,
   readExtensionPackage,
   resolveExtensionConfig,
-} from "@isle/extension-host";
-import { ExtensionViews, type ExtensionViewServices } from "./views.js";
-import type { JsonObject as ExtensionConfig } from "@isle/extension-sdk";
+} from "@isle/extension-host/management";
+import {
+  ExtensionViews,
+  type ExtensionViewServices,
+} from "@isle/extension-host/ui/server";
+import type { JsonObject as ExtensionConfig } from "@isle/extension-host";
 import {
   object,
   onlyKeys,
@@ -45,11 +49,17 @@ export class Extensions {
           version: pkg.packageJson.version,
           description: String(pkg.packageJson.description ?? ""),
           modules: Object.keys(pkg.modules),
-          capabilities: Object.entries(pkg.modules).flatMap(([kind, module]) =>
-            module.capabilities.map(
-              (capability: string) => `${kind}.${capability}`,
+          capabilities: [
+            ...Object.entries(pkg.modules).flatMap(([kind, module]) =>
+              ("capabilities" in module ? module.capabilities : []).map(
+                (capability: string) => `${kind}.${capability}`,
+              ),
             ),
-          ),
+            ...[
+              ...(pkg.manifest.host?.required ?? []),
+              ...(pkg.manifest.host?.optional ?? []),
+            ].map((capability) => `host.${capability}`),
+          ],
           config,
           configSchema: pkg.manifest.configuration?.schema ?? {
             type: "object",
@@ -87,6 +97,8 @@ export class Extensions {
           return await action(input);
         } catch (error) {
           if (error instanceof ServiceError) throw error;
+          if (error instanceof PluginError)
+            throw new ServiceError(error.status, error.code, error.message);
           throw new ServiceError(
             400,
             "EXTENSION_INVALID",

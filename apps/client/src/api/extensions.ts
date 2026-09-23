@@ -1,5 +1,12 @@
-import type { UIContribution } from "@isle/extension-sdk/ui";
+import type { ExtensionUICatalogSource } from "@isle/extension-host/ui/react";
+import type {
+  ExtensionUIContribution,
+  ExtensionViewInput,
+  ExtensionViewLease,
+  ExtensionViewTransport,
+} from "@isle/extension-host/ui/transport";
 import { invokeNode } from "@/transport/http";
+import { listenNode, observeConnection } from "@/transport/events";
 
 export type ExtensionSchema = Record<string, unknown> & {
   properties?: Record<string, ExtensionSchema>;
@@ -31,27 +38,36 @@ export const configureExtension = (id: string, patch: { enabled?: boolean; confi
   mutate("configure_extension", { id, ...patch });
 export const removeExtension = (id: string) => mutate("remove_extension", { id });
 
-export type ExtensionUIContribution = UIContribution & {
-  extensionId: string;
-  revision: string;
-};
-export type ExtensionView = {
-  token: string;
-  source: string;
-  id: string;
-  contributionId: string;
-  viewId: string;
-  config: Record<string, unknown>;
-};
 export const listExtensionUIContributions = () =>
   invokeNode<ExtensionUIContribution[]>("list_extension_ui_contributions", { input: {} });
-export const openExtensionView = (input: {
-  id: string;
-  contributionId: string;
-  viewId: string;
-  workspacePath: string;
-  chatId: string;
-}) => invokeNode<ExtensionView>("open_extension_view", { input });
-export const queryExtensionView = (token: string, method: "session.read") =>
-  invokeNode<unknown>("query_extension_view", { input: { token, method } });
+export const openExtensionView = (input: ExtensionViewInput) =>
+  invokeNode<ExtensionViewLease>("open_extension_view", { input });
+export const queryExtensionView = (token: string, method: string, input: unknown, requestId: number) =>
+  invokeNode<unknown>("query_extension_view", { input: { token, method, arguments: input, requestId } });
+export const cancelExtensionViewRequest = (token: string, requestId: number) =>
+  invokeNode<void>("cancel_extension_view_request", { input: { token, requestId } });
 export const closeExtensionView = (token: string) => invokeNode<void>("close_extension_view", { input: { token } });
+
+/** Bind application HTTP/events to the native UI host's ports. */
+export const extensionUICatalog: ExtensionUICatalogSource = {
+  list: listExtensionUIContributions,
+  async subscribe(changed) {
+    const disconnect = observeConnection(changed);
+    try {
+      const stop = await listenNode("extensions_changed", changed);
+      return () => {
+        disconnect();
+        stop();
+      };
+    } catch (error) {
+      disconnect();
+      throw error;
+    }
+  },
+};
+export const extensionViewTransport: ExtensionViewTransport = {
+  open: openExtensionView,
+  close: closeExtensionView,
+  query: queryExtensionView,
+  cancel: cancelExtensionViewRequest,
+};

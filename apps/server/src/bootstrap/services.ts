@@ -1,8 +1,6 @@
 import { SystemDialogs } from "../modules/system-dialogs/service.js";
 import type { NativePicker } from "../infrastructure/dialogs/native-picker.js";
 import { join } from "node:path";
-import { root, safePath } from "../infrastructure/filesystem/paths.js";
-import { sessionId } from "../shared/session-id.js";
 import type { RuntimeConfig } from "../config/runtime.js";
 import { leaseDataDirectory } from "../storage/lease.js";
 import { ConfigDatabase } from "../storage/config/database.js";
@@ -23,6 +21,7 @@ import { LlmSettingsService } from "../modules/settings/llm-service.js";
 import { LlmRepository } from "../modules/settings/llm-repository.js";
 import { AgentSettingsService } from "../modules/settings/agents-service.js";
 import { AgentSettingsRepository } from "../modules/settings/agents-repository.js";
+import { createDesktopExtensionAdapter } from "./extensions.js";
 import { Extensions } from "../modules/extensions/service.js";
 
 /** Own resources even while initialization is incomplete, so failures follow the same cleanup path. */
@@ -58,10 +57,12 @@ export class ServerServices {
     const agent = new AgentRuntimeHost(this.supervisor, (id) =>
       this.applications.session(id),
     );
+    const llm = new LlmSettingsService(new LlmRepository(database));
+    const chats = new Chats(config.appDataDirName, this.files);
     return {
       agent,
       settings: {
-        llm: new LlmSettingsService(new LlmRepository(database)),
+        llm,
         agents: new AgentSettingsService(new AgentSettingsRepository(database)),
       },
       workspaces: new WorkspaceService(
@@ -70,20 +71,17 @@ export class ServerServices {
       ),
       dialogs: this.dialogs,
       extensions: new Extensions(config.dataDir, config.bundledExtensionsPath, {
-        readSession: async (target) => {
-          const workspacePath = await root(target.workspacePath);
-          const sessionRootDir = await safePath(
-            workspacePath,
-            `${config.appDataDirName}/chats/${sessionId(target.chatId)}/session`,
-          );
-          return agent.invoke("read_agent_runtime_session", {
-            input: { workspacePath, sessionRootDir },
-          });
-        },
+        host: createDesktopExtensionAdapter({
+          config,
+          agent,
+          supervisor: this.supervisor,
+          chats,
+          llm,
+        }),
         changed: () => this.supervisor.events.publish("extensions_changed", {}),
       }),
       files: this.files,
-      chats: new Chats(config.appDataDirName, this.files),
+      chats,
       versionControl: new VersionControl(config.appDataDirName),
       skills: new Skills(database, config.dataDir, config.bundledSkillsPath),
       sandbox: new Sandbox(config),

@@ -1,4 +1,4 @@
-import type { ExtensionSource } from "@isle/extension-sdk";
+import type { ExtensionSource } from "@isle/extension-host";
 import { createExtensionRuntime } from "../../../../extensions/index.js";
 import {
   executeAgentRunCommand,

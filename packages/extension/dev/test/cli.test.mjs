@@ -28,7 +28,6 @@ test("build optional browser module separately, without Node bootstrap or host i
   const pkg = JSON.parse(await readFile(join(project, "package.json"), "utf8"));
   pkg["isle.extension"].modules.ui = {
     entry: "./ui.js",
-    capabilities: [],
     contributions: [
       {
         id: "stats",
@@ -142,7 +141,6 @@ test("plain text contributions build without source files or a runtime entry", a
   const pkg = JSON.parse(await readFile(join(project, "package.json"), "utf8"));
   pkg["isle.extension"].modules = {
     ui: {
-      capabilities: [],
       contributions: [
         { id: "ready", slot: "session.status", type: "text", text: "Ready" },
       ],

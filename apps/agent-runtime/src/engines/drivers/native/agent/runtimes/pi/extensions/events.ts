@@ -6,7 +6,7 @@ import type {
   ExtensionMessageContent,
   ExtensionMessageChange,
   JsonValue,
-} from "@isle/extension-sdk";
+} from "@isle/extension-host";
 
 type NativeMessage = MessageStartEvent["message"];
 const json = (value: unknown): JsonValue => JSON.parse(JSON.stringify(value));

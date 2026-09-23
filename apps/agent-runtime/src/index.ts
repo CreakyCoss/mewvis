@@ -1,6 +1,6 @@
 export { createAgentRuntime } from "./sdk/index.js";
-export { createExtensionPackageManager, readExtensionPackage, resolveExtensionPackages } from "@isle/extension-host";
-export type { ExtensionPackageRegistration, ExtensionPackageRecord } from "@isle/extension-host";
+export { createExtensionPackageManager, readExtensionPackage, resolveExtensionPackages } from "@isle/extension-host/management";
+export type { ExtensionPackageRegistration, ExtensionPackageRecord } from "@isle/extension-host/management";
 export type { AgentRuntimeRunInput } from "./engines/runtime.js";
 export { createAgentEngine } from "./engines/drivers/native/agent/index.js";
 export { createRuntimeAgentRegistry, builtinRuntimeAgents } from "./engines/drivers/native/agent/runtimes/registry.js";
@@ -12,7 +12,7 @@ export type {
   AgentRuntimeContext,
   AgentRunCommand,
 } from "./engines/drivers/native/agent/runtimes/types.js";
-export type { ExtensionSource } from "@isle/extension-sdk";
+export type { ExtensionSource } from "@isle/extension-host";
 export type {
   AgentRuntimeSdkOptions,
   AgentRuntimeUserInputHandler,

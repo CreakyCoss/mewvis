@@ -1,14 +1,14 @@
 import { StrictMode, useEffect, useState, useCallback } from "react";
 import { createRoot } from "react-dom/client";
-import { uiSlotDefinitions, defineUIContribution } from "@isle/extension-sdk/ui";
+import { uiSlotDefinitions, defineUIContribution } from "@isle/extension-host/ui";
 import {
   ExtensionSlotProvider,
   useExtensionSlotStatus,
   useExtensionSlotContext,
   type UIHostContribution,
-} from "../../../src/extensions/slots";
-import { SidebarSlot } from "../../../src/extensions/slots/sidebar";
-import { TextSlot } from "../../../src/extensions/slots/text";
+} from "@isle/extension-host/ui/slots";
+import { SidebarSlot } from "@isle/extension-host/ui/slots/sidebar";
+import { TextSlot } from "@isle/extension-host/ui/slots/text";
 
 const sidebar = uiSlotDefinitions.sessionSidebar;
 function Status() {

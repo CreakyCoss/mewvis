@@ -1,5 +1,5 @@
 import type { ExtensionDiagnostic } from "../../../../../extensions/index.js";
-import type { ExtensionAdapter, ExtensionBindings, ExtensionAdaptationReport } from "@isle/extension-sdk";
+import type { ExtensionAdapter, ExtensionBindings, ExtensionAdaptationReport } from "@isle/extension-host";
 import type { ExecutionApprovalRequest } from "../../../../../security/safety/index.js";
 import type {
   AgentEvent,

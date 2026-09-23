@@ -1,19 +1,12 @@
-import { ActivityIcon, FolderIcon, GitBranchIcon } from "lucide-react";
-import { uiSlotDefinitions } from "@isle/extension-sdk/ui";
-import { useChatSnapshot } from "@/chat/react";
-import { SidebarSlot } from "@/extensions/slots/sidebar";
-import { UIIcon } from "@/extensions/slots/icons";
+import { FolderIcon, GitBranchIcon } from "lucide-react";
+import { uiSlotDefinitions } from "@isle/extension-host/ui";
+import { SidebarSlot } from "@isle/extension-host/ui/slots/sidebar";
+import { UIIcon } from "@isle/extension-host/ui/slots/icons";
 import { ChatPanels, ChatPanel } from "./layout";
 import { WorkspaceFiles } from "./files";
 import { WorkspaceVersionControl } from "./version-control";
-import { ChatLedger } from "./ledger";
 
 type ChatPanelTarget = { workspacePath: string; chatId: string };
-function LedgerPanel(target: ChatPanelTarget) {
-  const selectedModelId = useChatSnapshot().config.selectedModelId;
-  return <ChatLedger {...target} selectedModelId={selectedModelId} />;
-}
-
 export function WorkspaceChatPanels(target: ChatPanelTarget) {
   return (
     <ChatPanels defaultValue="files">
@@ -22,9 +15,6 @@ export function WorkspaceChatPanels(target: ChatPanelTarget) {
       </ChatPanel>
       <ChatPanel icon={<GitBranchIcon className="size-4" />} value="version" title="版本">
         <WorkspaceVersionControl workspacePath={target.workspacePath} />
-      </ChatPanel>
-      <ChatPanel icon={<ActivityIcon className="size-4" />} value="ledger" title="链路">
-        <LedgerPanel {...target} />
       </ChatPanel>
 
       <SidebarSlot

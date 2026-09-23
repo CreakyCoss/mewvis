@@ -1,7 +1,7 @@
 import { isJsonValue } from "@earendil-works/chord";
-import type { ExtensionSource, ExtensionToolResult, JsonValue } from "@isle/extension-sdk";
-import type { ExtensionBindings } from "@isle/extension-sdk";
-import { extensionToolName } from "@isle/extension-sdk";
+import type { ExtensionSource, ExtensionToolResult, JsonValue } from "@isle/extension-host";
+import type { ExtensionBindings } from "@isle/extension-host";
+import { extensionToolName } from "@isle/extension-host";
 import { Ajv } from "ajv";
 import { statSync } from "node:fs";
 import { dirname } from "node:path";
@@ -12,12 +12,12 @@ import { checkExecution, DEFAULT_AGENT_PERMISSION_MODE, resolveSafetyPolicy } fr
 import { resolveAgentAccess } from "../../security/access/index.js";
 import type { AgentRunCommand, AgentRuntimeContext } from "../../engines/drivers/native/agent/runtimes/types.js";
 import { createExtensionStateStore, validateExtensionState, type ExtensionState } from "../session/state.js";
-import { validateExtensionResult } from "../capabilities/resources.js";
-import type { ExtensionCatalog } from "@isle/extension-sdk";
+import { validateExtensionResult } from "@isle/extension-host/agent/resources";
+import type { ExtensionCatalog } from "@isle/extension-host";
 import { ExtensionSessionPool } from "../session/pool.js";
-import { validateMiddlewareOutcome, validateMiddlewareData } from "../capabilities/middleware.js";
-import { validateExtensionEvent } from "../capabilities/events.js";
-import type { ExtensionMiddlewareType, ExtensionMiddlewareData, ExtensionMiddlewareOutcome } from "@isle/extension-sdk";
+import { validateMiddlewareOutcome, validateMiddlewareData } from "@isle/extension-host/agent/middleware";
+import { validateExtensionEvent } from "@isle/extension-host/agent/events";
+import type { ExtensionMiddlewareType, ExtensionMiddlewareData, ExtensionMiddlewareOutcome } from "@isle/extension-host";
 
 export interface ExtensionRunResources extends ExtensionBindings {
   readonly available: boolean;

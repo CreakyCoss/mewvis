@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createSessionHostAdapter } from "@isle/extension-host/services/session";
 import { Extensions } from "../../dist/modules/extensions/service.js";
 
 test("UI view leases bind session reads, filter private data, and revoke pending results", async (t) => {
@@ -14,14 +15,14 @@ test("UI view leases bind session reads, filter private data, and revoke pending
     name: "test.ui",
     version: "1.0.0",
     type: "module",
-    "isle.extension": {
-      schemaVersion: 2,
-      apiVersion: 1,
+    "isle.plugin": {
+      schemaVersion: 1,
+      protocolVersion: 1,
       id: "test.ui",
+      host: { required: ["session.read"] },
       modules: {
         ui: {
           entry: "ui.js",
-          capabilities: ["session.read"],
           contributions: [
             {
               id: "stats",
@@ -81,12 +82,14 @@ test("UI view leases bind session reads, filter private data, and revoke pending
     changed() {
       changes++;
     },
-    async readSession(target) {
-      calls++;
-      targets.push(target);
-      if (blocked) await blocked;
-      return ledger;
-    },
+    host: createSessionHostAdapter({
+      async readSession(target) {
+        calls++;
+        targets.push(target);
+        if (blocked) await blocked;
+        return ledger;
+      },
+    }),
   });
   const commands = service.commands();
   await commands.add_extension({ path: pkg });
@@ -130,6 +133,7 @@ test("UI view leases bind session reads, filter private data, and revoke pending
     commands.query_extension_view({
       token: view.token,
       method: "session.read",
+      requestId: 1,
     });
   const snapshot = await query();
   assert.deepEqual(
@@ -149,6 +153,7 @@ test("UI view leases bind session reads, filter private data, and revoke pending
     commands.query_extension_view({
       token: view.token,
       method: "session.read",
+      requestId: 1,
       chatId: "b",
     }),
     /未知字段/,
@@ -157,6 +162,7 @@ test("UI view leases bind session reads, filter private data, and revoke pending
     commands.query_extension_view({
       token: view.token,
       method: "session.delete",
+      requestId: 1,
     }),
     /未获得/,
   );
@@ -169,7 +175,7 @@ test("UI view leases bind session reads, filter private data, and revoke pending
   await assert.rejects(query(), /进行中/);
   await commands.configure_extension({ id: "test.ui", enabled: false });
   release();
-  await assert.rejects(pending, /停用或过期/);
+  await assert.rejects(pending, /已取消/);
   await assert.rejects(query(), /停用或过期/);
   assert.deepEqual(await commands.list_extension_ui_contributions({}), []);
   await assert.rejects(open(), /停用或过期/);
@@ -181,7 +187,7 @@ test("UI view leases bind session reads, filter private data, and revoke pending
   );
   await commands.close_extension_view({ token: view.token });
   await assert.rejects(query(), /停用或过期/);
-  manifest["isle.extension"].modules.ui.capabilities = [];
+  manifest["isle.plugin"].host.required = [];
   await save();
   view = await open();
   await assert.rejects(query(), /未获得/);
@@ -200,13 +206,12 @@ test("text contributions are discoverable without a JS entry and cannot open exe
       name: "test.text",
       version: "1.0.0",
       type: "module",
-      "isle.extension": {
-        schemaVersion: 2,
-        apiVersion: 1,
+      "isle.plugin": {
+        schemaVersion: 1,
+        protocolVersion: 1,
         id: "test.text",
         modules: {
           ui: {
-            capabilities: [],
             contributions: [
               {
                 id: "ready",

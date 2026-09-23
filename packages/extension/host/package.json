@@ -6,15 +6,82 @@
   "exports": {
     ".": {
       "types": "./index.d.ts",
-      "default": "./index.mjs"
+      "default": "./index.js"
+    },
+    "./management": {
+      "types": "./management/index.d.ts",
+      "default": "./management/index.mjs"
+    },
+    "./agent": {
+      "types": "./agent/index.d.ts",
+      "default": "./agent/index.js"
+    },
+    "./ui": {
+      "types": "./ui/index.d.ts",
+      "default": "./ui/index.js"
+    },
+    "./services": {
+      "types": "./services/contracts.d.ts",
+      "default": "./services/contracts.js"
+    },
+    "./manifest.schema.json": "./manifest.schema.json",
+    "./ui/contribution.schema.json": "./ui/protocol/contribution.schema.json",
+    "./agent/resources": "./agent/registration/resources.ts",
+    "./agent/events": "./agent/registration/events.ts",
+    "./agent/middleware": "./agent/registration/middleware.ts",
+    "./agent/registration": "./agent/registration/host.ts",
+    "./ui/react": "./ui/runtime/provider.tsx",
+    "./ui/transport": "./ui/protocol/transport.ts",
+    "./ui/slots": "./ui/slots/index.tsx",
+    "./ui/slots/*": "./ui/slots/*.tsx",
+    "./services/runtime": {
+      "types": "./dist/services/dispatch.d.ts",
+      "default": "./dist/services/dispatch.js"
+    },
+    "./services/session": {
+      "types": "./dist/services/session.d.ts",
+      "default": "./dist/services/session.js"
+    },
+    "./services/error": {
+      "types": "./dist/services/error.d.ts",
+      "default": "./dist/services/error.js"
+    },
+    "./ui/server": {
+      "types": "./dist/ui/server/views.d.ts",
+      "default": "./dist/ui/server/views.js"
     }
   },
   "scripts": {
-    "test": "node --test test/*.test.mjs"
+    "test": "pnpm build && node --test test/*.test.mjs",
+    "build": "tsc -p tsconfig.services.json && node scripts/copy-service-contracts.mjs",
+    "generate": "node scripts/generate-ui.mjs",
+    "check:ui": "node scripts/generate-ui.mjs --check"
   },
   "dependencies": {
-    "@isle/extension-sdk": "workspace:*",
     "@deepseek-ai/dsh-atomic-write": "0.1.1-rc.2",
-    "ajv": "^8.20.0"
+    "ajv": "^8.20.0",
+    "@earendil-works/chord": "workspace:*",
+    "zod": "^4.2.0"
+  },
+  "peerDependencies": {
+    "react": "^19.1.0",
+    "lucide-react": "^0.500.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "lucide-react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.8",
+    "react": "^19.1.0",
+    "lucide-react": "^0.500.0",
+    "typescript": "~5.8.3",
+    "esbuild": "^0.28.0",
+    "json-schema-to-typescript": "^15.0.4",
+    "@types/node": "^22.0.0"
   }
 }

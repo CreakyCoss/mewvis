@@ -20,7 +20,7 @@ for (const directory of (await readdir(sources, { withFileTypes: true })).sort((
     if (error.code === "ENOENT") continue;
     throw error;
   }
-  if (!manifest["isle.extension"]) continue;
+  if (!manifest["isle.extension"] && !manifest["isle.plugin"]) continue;
   const pkg = await buildExtensionPackage(source, { outputDir: join(output, directory.name) });
   if (ids.has(pkg.manifest.id)) throw new Error(`重复内置插件：${pkg.manifest.id}`);
   ids.add(pkg.manifest.id);

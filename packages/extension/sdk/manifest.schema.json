@@ -2,12 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Isle Extension package.json",
   "type": "object",
-  "required": [
-    "name",
-    "version",
-    "type",
-    "isle.extension"
-  ],
+  "required": ["name", "version", "type", "isle.extension"],
   "properties": {
     "name": {
       "type": "string",
@@ -23,12 +18,7 @@
     "isle.extension": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "schemaVersion",
-        "id",
-        "apiVersion",
-        "modules"
-      ],
+      "required": ["schemaVersion", "id", "apiVersion", "modules"],
       "properties": {
         "id": {
           "type": "string",
@@ -41,15 +31,11 @@
         "configuration": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "schema"
-          ],
+          "required": ["schema"],
           "properties": {
             "schema": {
               "type": "object",
-              "required": [
-                "type"
-              ],
+              "required": ["type"],
               "properties": {
                 "type": {
                   "const": "object"
@@ -72,10 +58,7 @@
             "agent": {
               "type": "object",
               "additionalProperties": false,
-              "required": [
-                "entry",
-                "capabilities"
-              ],
+              "required": ["entry", "capabilities"],
               "properties": {
                 "entry": {
                   "type": "string",
@@ -109,23 +92,11 @@
             "ui": {
               "type": "object",
               "additionalProperties": false,
-              "required": [
-                "capabilities",
-                "contributions"
-              ],
+              "required": ["contributions"],
               "properties": {
                 "entry": {
                   "type": "string",
                   "minLength": 1
-                },
-                "capabilities": {
-                  "type": "array",
-                  "uniqueItems": true,
-                  "items": {
-                    "enum": [
-                      "session.read"
-                    ]
-                  }
                 },
                 "contributions": {
                   "type": "array",
@@ -143,21 +114,45 @@
                       "contributions": {
                         "contains": {
                           "type": "object",
-                          "required": [
-                            "view"
-                          ]
+                          "required": ["view"]
                         },
                         "type": "array"
                       }
                     }
                   },
                   "then": {
-                    "required": [
-                      "entry"
-                    ]
+                    "required": ["entry"]
                   }
                 }
               ]
+            }
+          }
+        },
+        "host": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "required": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "session.read",
+                  "session.ledger.read",
+                  "session.summarize"
+                ]
+              }
+            },
+            "optional": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "session.read",
+                  "session.ledger.read",
+                  "session.summarize"
+                ]
+              }
             }
           }
         }

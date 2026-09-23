@@ -7,14 +7,16 @@ import {
   cp,
   lstat,
   realpath,
+  readFile,
 } from "node:fs/promises";
 import { resolve, join, dirname, relative } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { readExtensionPackage } from "@isle/extension-host";
+import { readExtensionPackage } from "@isle/extension-host/management";
 
+import { adaptIslePackage } from "@isle/extension-adapters/package";
 const exec = promisify(execFile);
 const sdkEntry = fileURLToPath(import.meta.resolve("@isle/extension-sdk"));
 
@@ -71,7 +73,16 @@ export default defineExtension({
 
 /** Build a self-contained package; no plugin or package lifecycle script is executed. */
 export async function buildExtensionPackage(directory, { outputDir } = {}) {
-  const pkg = readExtensionPackage(resolve(directory), { checkEntry: false });
+  const metadata = JSON.parse(
+    await readFile(join(resolve(directory), "package.json"), "utf8"),
+  );
+  if (metadata["isle.plugin"] && metadata["isle.extension"])
+    throw new Error("不能同时声明原生与 SDK 插件清单");
+  const external = Boolean(metadata["isle.extension"]);
+  const pkg = readExtensionPackage(resolve(directory), {
+    checkEntry: false,
+    ...(external && { decode: adaptIslePackage }),
+  });
   const output = resolve(outputDir ?? join(pkg.root, "dist/plugin"));
   if (output === pkg.root || !relative(output, pkg.root).startsWith(".."))
     throw new Error("构建输出不能覆盖项目或其父目录");
@@ -82,7 +93,19 @@ export async function buildExtensionPackage(directory, { outputDir } = {}) {
       if (!declaration.entry) continue;
       const browser = kind === "ui";
       await build({
-        entryPoints: [join(pkg.root, browser ? "src/ui.ts" : "src/index.ts")],
+        ...(external
+          ? {
+              stdin: {
+                contents: `import definition from ${JSON.stringify(join(pkg.root, browser ? "src/ui.ts" : "src/index.ts"))}; import { ${browser ? "adaptUIExtension" : "adaptAgentExtension"} as adapt } from ${JSON.stringify(fileURLToPath(import.meta.resolve("@isle/extension-adapters")))}; export default adapt(definition);`,
+                resolveDir: pkg.root,
+                sourcefile: "isle-adapter-entry.js",
+              },
+            }
+          : {
+              entryPoints: [
+                join(pkg.root, browser ? "src/ui.ts" : "src/index.ts"),
+              ],
+            }),
         outfile: resolve(staging, declaration.entry),
         bundle: true,
         platform: browser ? "browser" : "node",
@@ -99,6 +122,15 @@ export async function buildExtensionPackage(directory, { outputDir } = {}) {
             import.meta.resolve("@isle/extension-sdk/host"),
           ),
           "@isle/extension-sdk": sdkEntry,
+          ...(!external &&
+            Object.fromEntries(
+              ["", "/agent", "/ui", "/services"].map((suffix) => [
+                `@isle/extension-host${suffix}`,
+                fileURLToPath(
+                  import.meta.resolve(`@isle/extension-host${suffix}`),
+                ),
+              ]),
+            )),
         },
         ...(!browser && {
           banner: {
@@ -114,11 +146,16 @@ export async function buildExtensionPackage(directory, { outputDir } = {}) {
                   filter:
                     /^@(?:earendil-works\/pi-|isle\/(?:agent-runtime|app-host|extension-host))/,
                 },
-                (args) => ({
-                  errors: [
-                    { text: `插件不能依赖宿主或 Agent 内部包：${args.path}` },
-                  ],
-                }),
+                (args) =>
+                  !external && args.path.startsWith("@isle/extension-host")
+                    ? undefined
+                    : {
+                        errors: [
+                          {
+                            text: `插件不能依赖宿主或 Agent 内部包：${args.path}`,
+                          },
+                        ],
+                      },
               );
             },
           },
@@ -129,7 +166,7 @@ export async function buildExtensionPackage(directory, { outputDir } = {}) {
       name: pkg.packageJson.name,
       version: pkg.packageJson.version,
       type: "module",
-      "isle.extension": pkg.manifest,
+      "isle.plugin": pkg.manifest,
     };
     for (const key of ["description", "license", "keywords"]) {
       if (pkg.packageJson[key] !== undefined)

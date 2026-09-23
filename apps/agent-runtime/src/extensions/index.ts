@@ -1,4 +1,4 @@
-import type { ExtensionSource } from "@isle/extension-sdk";
+import type { ExtensionSource } from "@isle/extension-host";
 import type {
   AgentRunCommand,
   AgentRuntimeContext,

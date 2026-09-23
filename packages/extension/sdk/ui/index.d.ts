@@ -5,15 +5,12 @@ import type { ExtensionUIDefinition } from "./browser.js";
 export interface UIModuleManifest {
   /** Required for sidebar views; plain text contributions need no executable entry. */
   entry?: string;
-  capabilities: ExtensionUICapability[];
   contributions: UIContribution[];
 }
-export type ExtensionUICapability = "session.read";
 
 export function defineUIExtension(
   definition: ExtensionUIDefinition,
 ): ExtensionUIDefinition;
 
 export * from "./slots.js";
-export * from "./services.js";
 export * from "./browser.js";

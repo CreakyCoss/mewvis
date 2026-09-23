@@ -15,7 +15,7 @@ export async function verifyExtensionCompaction({
   await writeFile(
     entry,
     `import {writeFile} from 'node:fs/promises';
-  export default {id:'test.compaction',apiVersion:1,setup(ctx){
+  export default {id:'test.compaction',protocolVersion:1,setup(ctx){
     let calls=0;
     ctx.use('session_compact',async data=>{
       calls++;ctx.session.set('before',data);ctx.session.set('pending',true);

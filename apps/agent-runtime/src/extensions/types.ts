@@ -1,4 +1,4 @@
-import type { ExtensionAgentEvent, ExtensionBindings, ExtensionCatalog, JsonValue } from "@isle/extension-sdk";
+import type { ExtensionAgentEvent, ExtensionBindings, ExtensionCatalog, JsonValue } from "@isle/extension-host";
 import type { AgentAccess, AgentPermissions } from "../engines/protocol/wire.js";
 
 export type ExtensionSessionTarget = {

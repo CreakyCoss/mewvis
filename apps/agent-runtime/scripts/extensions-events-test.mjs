@@ -21,7 +21,7 @@ export async function verifyExtensionEvents({ api, hostApi, workspace, command, 
   const entry = join(workspace, "events.mjs");
   const witnessEntry = join(workspace, "events-witness.mjs");
   const fixture = `import {writeFile} from 'node:fs/promises';
-  export default {id:'test.events',apiVersion:1,setup(ctx){
+  export default {id:'test.events',protocolVersion:1,setup(ctx){
     for(const type of ${JSON.stringify(eventTypes)})ctx.on(type,async event=>{
       const events=ctx.session.get('events')??[];events.push(event);ctx.session.set('events',events);
       if(event.type==='message_updated'){
@@ -54,7 +54,7 @@ export async function verifyExtensionEvents({ api, hostApi, workspace, command, 
   const toolEntry = join(workspace, "events-tool.mjs");
   await writeFile(
     toolEntry,
-    `export default {id:'test.echo',apiVersion:1,setup(ctx){ctx.registerTool({name:'echo',label:'Echo',description:'Echo',parameters:{type:'object'},async execute(input){return {content:[{type:'text',text:'tool response'}],details:null}}})}};`,
+    `export default {id:'test.echo',protocolVersion:1,setup(ctx){ctx.registerTool({name:'echo',label:'Echo',description:'Echo',parameters:{type:'object'},async execute(input){return {content:[{type:'text',text:'tool response'}],details:null}}})}};`,
   );
   const tool = { id: "test.echo", entry: toolEntry, capabilities: ["tools"], toolRisks: { echo: "low" } };
   const mock = api.createScriptedMockRuntime("events-mock", [

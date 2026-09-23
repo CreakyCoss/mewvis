@@ -18,7 +18,7 @@
     },
     "./host": {
       "types": "./host/index.d.ts",
-      "default": "./host/adapter.js"
+      "default": "./host/index.js"
     },
     "./manifest.schema.json": "./manifest.schema.json",
     "./ui/contribution.schema.json": "./ui/contribution.schema.json"

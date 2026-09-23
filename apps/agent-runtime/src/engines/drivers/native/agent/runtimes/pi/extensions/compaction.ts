@@ -5,7 +5,7 @@ import type {
   ExtensionCompactionRequest,
   ExtensionCompactionResult,
   ExtensionMiddlewareOutcome,
-} from "@isle/extension-sdk";
+} from "@isle/extension-host";
 
 export const isPiCompactionSkipped = (message: string) =>
   message === "Nothing to compact (session too small)" || message === "Already compacted";

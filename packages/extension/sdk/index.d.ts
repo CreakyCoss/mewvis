@@ -1,4 +1,5 @@
 /** Isle plugin protocol overview. Capability guide: docs/extensions/sdk.md. */
+import type { ExtensionHostRequirements } from "./host/services.js";
 import type { JsonObject } from "./shared.js";
 import type { AgentModuleManifest } from "./agent/index.js";
 import type { UIModuleManifest } from "./ui/index.js";
@@ -22,6 +23,8 @@ export interface ExtensionManifest {
   id: string;
   apiVersion: 1;
   modules: ExtensionModules;
+  /** Host services required or optionally consumed by this package. Not an executable module. */
+  host?: ExtensionHostRequirements;
   configuration?: ExtensionConfiguration;
 }
 

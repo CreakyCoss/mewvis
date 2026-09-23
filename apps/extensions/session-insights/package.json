@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "会话统计：通过界面插槽和受控数据接口展示当前会话，不依赖 Agent。",
+  "description": "\u4f1a\u8bdd\u7edf\u8ba1\uff1a\u901a\u8fc7\u754c\u9762\u63d2\u69fd\u548c\u53d7\u63a7\u6570\u636e\u63a5\u53e3\u5c55\u793a\u5f53\u524d\u4f1a\u8bdd\uff0c\u4e0d\u4f9d\u8d56 Agent\u3002",
   "scripts": {
     "build": "isle-extension build",
     "validate": "isle-extension validate dist/plugin"
@@ -21,14 +21,11 @@
     "modules": {
       "ui": {
         "entry": "./ui.js",
-        "capabilities": [
-          "session.read"
-        ],
         "contributions": [
           {
             "id": "overview",
             "slot": "session.sidebar",
-            "title": "会话统计",
+            "title": "\u4f1a\u8bdd\u7edf\u8ba1",
             "type": "sidebar",
             "icon": "chart",
             "view": {
@@ -37,6 +34,11 @@
           }
         ]
       }
+    },
+    "host": {
+      "required": [
+        "session.read"
+      ]
     }
   }
 }

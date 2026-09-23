@@ -160,7 +160,7 @@ export async function verifyExtensionWorkflow({
   const slowEntry = join(fixtureDir, "slow.mjs");
   await writeFile(
     slowEntry,
-    `export default {id:'test.slow',apiVersion:1,setup(ctx){
+    `export default {id:'test.slow',protocolVersion:1,setup(ctx){
     ctx.registerTool({name:'wait',label:'Wait',description:'Wait',parameters:{type:'object'},async execute(input,{progress}){
       progress({content:[],details:{ready:true}});await new Promise(resolve=>setTimeout(resolve,30000));return {content:[],details:{}};
     }});
@@ -208,7 +208,7 @@ export async function verifyExtensionWorkflow({
   const brokenEntry = join(fixtureDir, "broken.mjs");
   await writeFile(
     brokenEntry,
-    `export default {id:'test.broken',apiVersion:1,setup(ctx){
+    `export default {id:'test.broken',protocolVersion:1,setup(ctx){
     ctx.registerCommand({name:'fail',description:'Fail',parameters:{type:'object'},async execute(){ctx.session.set('leak',true);throw new Error('command exploded')}});
     ctx.registerCommand({name:'inspect',description:'Inspect',parameters:{type:'object'},async execute(){return ctx.session.get('leak')??null}});
     ctx.on('run_started',()=>{ctx.session.set('leak',true);throw new Error('observer exploded')});

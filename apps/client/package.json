@@ -107,7 +107,7 @@
     "zod": "^4.2.0",
     "zustand": "^5.0.0",
     "design-system": "workspace:*",
-    "@isle/extension-sdk": "workspace:*"
+    "@isle/extension-host": "workspace:*"
   },
   "devDependencies": {
     "@isle/app-dev": "workspace:*",

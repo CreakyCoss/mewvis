@@ -10,7 +10,7 @@ export async function verifyExtensionSessions({ api, workspace, command, piComma
     `
     import {randomUUID} from 'node:crypto';
     import {appendFile} from 'node:fs/promises';
-    export default {id:'isle.example',apiVersion:1,setup(ctx){
+    export default {id:'isle.example',protocolVersion:1,setup(ctx){
       const id=randomUUID(); let calls=0, runs=0;
       const record=(phase,extra={})=>appendFile(${JSON.stringify(log)},JSON.stringify({id,phase,...extra})+'\\n');
       ctx.onActivate(()=>record('activate')); ctx.own(()=>record('dispose'));

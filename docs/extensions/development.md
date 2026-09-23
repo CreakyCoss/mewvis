@@ -80,19 +80,21 @@ pnpm extension pack apps/extensions/my-feature
 
 中间件的返回值、顺序、阻断和错误语义见[插件中间件](middleware.md)。观察器只观察，改写输入或结果必须注册中间件并声明对应能力。消息快照、流式更新、回合身份与取消语义见[消息与回合观察事件](events.md)。
 
+SDK 源包使用下文的 `isle.extension` 清单。构建产物统一转换成宿主原生 `isle.plugin` 清单和 `protocolVersion: 1` 入口，宿主不直接加载旧 SDK 构建产物；修改后重新构建即可。直接编写原生插件见[宿主原生插件系统](native-host.md)。
+
 ## UI 模块与会话插槽
 
-插件可只实现 `modules.ui`，也可同时声明 `agent` 与 `ui`。至少提供一个模块，不同模块不能共用入口文件。登记时校验全部入口，运行时只检查目标模块的入口文件；缺失 UI 产物不会阻断 Agent 入口加载。当前只支持这两个模块；`host`、任意扩展域、导航和完整页面插槽尚未开放，未知能力会拒绝加载。
+插件可只实现 `modules.ui`，也可同时声明 `agent` 与 `ui`。至少提供一个模块，不同模块不能共用入口文件。登记时校验全部入口，运行时只检查目标模块的入口文件；缺失 UI 产物不会阻断 Agent 入口加载。当前只支持这两个可执行模块；`modules.host`、任意扩展域、导航和完整页面插槽尚未开放。宿主服务需求通过清单顶层 `host.required/optional` 声明，未知能力会拒绝加载。
 
 ```json
 {
   "schemaVersion": 2,
   "id": "example.insights",
   "apiVersion": 1,
+  "host": { "required": ["session.read"] },
   "modules": {
     "ui": {
       "entry": "./ui.js",
-      "capabilities": ["session.read"],
       "contributions": [
         {
           "id": "overview",
@@ -121,7 +123,7 @@ export default defineUIExtension({
     button.textContent = "查看消息数";
     const read = async () => {
       try {
-        const snapshot = await ctx.session.read();
+        const snapshot = await ctx.host.session.read();
         if (!ctx.signal.aborted)
           button.textContent = `返回 ${snapshot.messages.length} 条消息`;
       } catch (error) {
@@ -165,7 +167,6 @@ const contribution = defineUIContribution(uiSlotDefinitions.sessionSidebar, {
 
 ```json
 "ui": {
-  "capabilities": [],
   "contributions": [
     { "id": "status", "slot": "session.status", "type": "text", "text": "插件已启用", "tone": "info" }
   ]
@@ -179,6 +180,8 @@ const contribution = defineUIContribution(uiSlotDefinitions.sessionSidebar, {
 UI 在 `sandbox="allow-scripts"` 的独立源 iframe 中执行，通过 MessageChannel 请求服务，不能直接访问宿主 DOM、认证信息或通用命令接口。当前仅支持不超过 1 MiB 的自包含浏览器 ESM，没有静态资源目录或任意网络请求接口；Node 内置依赖会在构建时被拒绝。这是 UI 隔离，不是 Agent Worker 的 OS 进程沙箱；只安装信任的可执行插件。
 
 `session.read` 绑定当前面板的会话，插件不能传入工作区路径或其他会话 ID。返回稳定 DTO：共享的用户/助手消息（id、role、text、timestamp）和关联运行（id、status、startedAt、endedAt）。不返回私有消息、系统提示词、原始 metadata 或账本路径。最多返回最近 1000 条消息和 1000 条运行，单条文本最多 8000 字符；发生截断时 `truncated` 为 true。未声明该能力的 UI 仍可展示静态内容，但读取被拒绝。
+
+原生插件 `session-ledger` 通过 `ctx.services` 使用独立的 `session.ledger.read` 能力查看运行链路、指令、上下文和工具记录，通过可选的 `session.summarize` 获取一次性摘要。摘要不会写回会话、触发压缩或进入后续上下文；需要宿主配置可用模型。能力缺失、错误与取消约定见[宿主服务协议与适配](host-services.md)。
 
 `session-insights` 从该接口计算消息数、运行数、失败数与累计时间，通过按钮刷新；目前没有工具明细、token 统计或数据变更订阅。纯 UI 插件不会向 Pi / Mock 注入空插件，也不要求配置模型。
 
@@ -208,7 +211,7 @@ pnpm extension remove isle.tasks --settings /absolute/path/extensions.json
 ## 桌面使用
 
 1. 正常启动桌面开发项目或构建桌面包；构建链会同时构建内置插件。
-2. 打开左侧导航「应用」下方的「插件」，可以直接看到 `isle.tasks`、`isle.example` 和 `isle.session-insights`，无需手动添加。内置插件支持启停和 schema 配置，不支持移除；其他插件通过「添加插件」选择已构建的包目录登记。
+2. 打开左侧导航「应用」下方的「插件」，可以直接看到 `isle.tasks`、`isle.example`、`isle.session-insights` 和 `isle.session-ledger`，无需手动添加。内置插件支持启停和 schema 配置，不支持移除；其他插件通过「添加插件」选择已构建的包目录登记。
 3. 插件的启停和配置统一在插件管理页完成。提供 UI 贡献的插件会在已挂载的插槽中展示，例如工作区聊天右侧的「会话统计」。
 
 管理设置保存到产品数据目录的 `extensions.json`。聊天侧栏不内置通用插件命令面板；命令能力保留在宿主 SDK、协议和 Agent 适配器中。有交互需求时可在后续通过插件扩展 UI，并按需增加受控宿主接口。

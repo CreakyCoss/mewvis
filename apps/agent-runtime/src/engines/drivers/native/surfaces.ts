@@ -1,6 +1,6 @@
 import type { RuntimeAgentRegistry } from "./agent/runtimes/registry.js";
 import { randomUUID } from "node:crypto";
-import { resolveExtensionAdaptation, type ExtensionSource } from "@isle/extension-sdk";
+import { resolveExtensionAdaptation, type ExtensionSource } from "@isle/extension-host";
 import type { ExtensionRuntime } from "../../../extensions/index.js";
 import type {
   AgentRuntimeAgent,

@@ -1,16 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { defineUIContribution, uiSlotDefinitions, type UISlotDefinition } from "@isle/extension-sdk/ui";
+import { defineUIContribution, uiSlotDefinitions, type UISlotDefinition } from "@isle/extension-host/ui";
 import {
   ExtensionSlot,
   ExtensionSlotProvider,
   useExtensionSlotStatus,
   useExtensionSlotContext,
   type UIHostContribution,
-} from "../../src/extensions/slots";
-import { SidebarSlot, type SidebarSlotItem } from "../../src/extensions/slots/sidebar";
-import { TextSlot } from "../../src/extensions/slots/text";
+} from "@isle/extension-host/ui/slots";
+import { SidebarSlot, type SidebarSlotItem } from "@isle/extension-host/ui/slots/sidebar";
+import { TextSlot } from "@isle/extension-host/ui/slots/text";
 
 const context = { workspacePath: "/test", chatId: "a" };
 const { sessionSidebar: sidebar, sessionStatus: status } = uiSlotDefinitions;
