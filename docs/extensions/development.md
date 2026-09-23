@@ -172,7 +172,7 @@ const contribution = defineUIContribution(uiSlotDefinitions.sessionSidebar, {
 }
 ```
 
-安装并不保证展示：宿主可以缺少适配器、显式选择空实现，或者已实现但没有在页面挂载该插槽。以上情况不阻止同包其他可用模块工作。宿主可通过 `useUISlotStatus` 区分支持状态与挂载数量；插件 iframe 当前没有这个诊断接口。侧栏贡献需要 UI `entry`，其作者接口仍使用 `defineUIExtension`。
+安装并不保证展示：页面决定是否挂载 `SidebarSlot`、`TextSlot` 或通用 `ExtensionSlot`，以及 render 是否返回内容。Slot 按类型提供可靠参数，页面控制布局；同一贡献可以在多处以不同样式显示。宿主通过 `useExtensionSlotStatus` 查看挂载数量，插件 iframe 当前没有这个诊断接口。侧栏贡献需要 UI `entry`，其作者接口仍使用 `defineUIExtension`。页面渲染示例见[SDK 页面挂载](sdk.md#定义与页面挂载)。
 
 每个声明面板在打开时创建独立 UI 实例，`ctx.contributionId` 标识贡献，`ctx.viewId` 标识清单引用的具体视图，`ctx.config` 是只读配置快照。宿主提供样式变量，插件负责面板内容；切换或关闭面板会销毁 iframe 与数据租约。进程或页面直接销毁时不保证清理回调完成，不要依赖它持久化数据。
 
@@ -268,4 +268,4 @@ pnpm --filter @isle/server test:extensions
 
 ### UI 插槽验证
 
-运行 `pnpm --filter client test:extensions` 检查省略适配器、空实现、未挂载和文本渲染边界。使用桌面 Web 开发服务时，打开 `/scripts/extensions/fixtures/ui-slots.html` 可验证适配器切换与插槽挂载计数；测试页位于 scripts 下，不进入生产路由。该夹具启用 React StrictMode，挂载计数在重复 effect 检查后仍应保持正确。
+运行 `pnpm --filter client test:extensions` 检查具体 Slot 的类型约束、通用入口的类型推导、数据筛选、按需渲染、不同布局及作用域、空状态和错误处理。使用桌面 Web 开发服务时，打开 `/scripts/extensions/fixtures/ui-slots.html` 可验证同一贡献在卡片与折叠布局中的独立状态、会话切换、停用和卸载清理；测试页位于 scripts 下，不进入生产路由。夹具启用 React StrictMode，挂载计数在重复 effect 检查后仍应保持正确。

@@ -1,108 +1,118 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ComponentType,
-  type ReactNode,
-} from "react";
-import {
-  type UISessionContext,
-  type UIContributionFor,
-  type UISlotContext,
-  type UISlotKey,
-  type UISlotStatus,
-  type UISlotDefinition,
+import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import type {
+  UIContribution,
+  UIContributionFor,
+  UISessionContext,
+  UISlotContext,
+  UISlotDefinition,
+  UISlotKey,
+  UISlotStatus,
+  UIViewReference,
 } from "@isle/extension-sdk/ui";
 
-import type { UIAdapters, UIAdapterProps, UIHostContribution } from "./adapter";
-export { defineUIAdapter, createUIAdapters } from "./adapter";
-export type { UIAdapters, UIAdapter, UIAdapterProps, UIHostContribution } from "./adapter";
+type ViewRenderer = (view: UIViewReference, context: UISessionContext) => ReactNode;
+/** Source binding. Data-only contributions need no executable view loader. */
+export type UIHostContribution<C extends UIContribution = UIContribution> = C extends UIContribution
+  ? { key: string; contribution: C } & (C extends { view: UIViewReference }
+      ? { renderView: ViewRenderer }
+      : { renderView?: never })
+  : never;
+/** Protocol fields stay intact; only view-bearing contributions receive a scoped renderer. */
+export type SlotItem<C extends UIContribution> = C extends UIContribution
+  ? Readonly<C> & { readonly key: string } & (C extends { view: UIViewReference } ? { renderView(): ReactNode } : {})
+  : never;
+export interface SlotCollection<T> {
+  items: readonly T[];
+  error?: string;
+}
+export type SlotRenderer<T> =
+  | { render(item: T): ReactNode; renderAll?: never; fallback?: ReactNode; renderError?(error: string): ReactNode }
+  | { render?: never; renderAll(collection: SlotCollection<T>): ReactNode; fallback?: never; renderError?: never };
+export type ExtensionSlotProps<D extends UISlotDefinition> = {
+  definition: D;
+  context: UISlotContext<NoInfer<D>>;
+} & SlotRenderer<SlotItem<UIContributionFor<NoInfer<D>>>>;
 
 const SurfaceContext = createContext<{ definition: UISlotDefinition; context: UISessionContext } | null>(null);
-export function useUISlotContext<D extends UISlotDefinition>(definition: D): UISlotContext<D> {
+export function useExtensionSlotContext<D extends UISlotDefinition>(definition: D): UISlotContext<D> {
   const surface = useContext(SurfaceContext);
   if (!surface || surface.definition.key !== definition.key)
-    throw new Error(`UI context unavailable: ${definition.key}`);
+    throw new Error(`Slot context unavailable: ${definition.key}`);
   return surface.context;
 }
-
 type SlotRuntime = {
-  adapters: UIAdapters;
   contributions: readonly UIHostContribution[];
   error?: string;
   surfaces: Partial<Record<UISlotKey, number>>;
-  attach(name: UISlotKey): () => void;
+  attach(key: UISlotKey): () => void;
 };
-const SlotContext = createContext<SlotRuntime | null>(null);
+const RuntimeContext = createContext<SlotRuntime | null>(null);
 
-/** The host chooses adapters independently of protocol declarations and mounted surfaces. */
-export function UISlotProvider({
-  adapters,
+/** Supplies contributions, not layout components. Pages choose whether and how to render. */
+export function ExtensionSlotProvider({
   contributions,
   error,
   children,
 }: {
-  adapters: UIAdapters;
   contributions: readonly UIHostContribution[];
   error?: string;
   children: ReactNode;
 }) {
   const [surfaces, setSurfaces] = useState<SlotRuntime["surfaces"]>({});
-  const attach = useCallback((name: UISlotKey) => {
-    setSurfaces((current) => ({ ...current, [name]: (current[name] ?? 0) + 1 }));
-    return () => setSurfaces((current) => ({ ...current, [name]: (current[name] ?? 0) - 1 }));
+  const attach = useCallback((key: UISlotKey) => {
+    setSurfaces((current) => ({ ...current, [key]: (current[key] ?? 0) + 1 }));
+    return () => setSurfaces((current) => ({ ...current, [key]: (current[key] ?? 0) - 1 }));
   }, []);
-  const runtime = useMemo(
-    () => ({ adapters, contributions, error, surfaces, attach }),
-    [adapters, contributions, error, surfaces, attach],
-  );
-  return <SlotContext.Provider value={runtime}>{children}</SlotContext.Provider>;
+  const runtime = useMemo(() => ({ contributions, error, surfaces, attach }), [contributions, error, surfaces, attach]);
+  return <RuntimeContext.Provider value={runtime}>{children}</RuntimeContext.Provider>;
 }
-
 function useSlotRuntime() {
-  const runtime = useContext(SlotContext);
-  if (!runtime) throw new Error("UI 插槽需要 UISlotProvider");
+  const runtime = useContext(RuntimeContext);
+  if (!runtime) throw new Error("ExtensionSlotProvider is required");
   return runtime;
 }
-
-/** Query support separately from mounted surfaces. A no-op adapter is never reported as supported. */
-export function useUISlotStatus(definition: UISlotDefinition): UISlotStatus {
-  const { adapters, surfaces } = useSlotRuntime();
-  const adapter = adapters[definition.type];
-  return {
-    key: definition.key,
-    type: definition.type,
-    support: adapter?.mode ?? "unsupported",
-    reason: adapter?.mode === "noop" ? adapter.reason : undefined,
-    surfaces: surfaces[definition.key] ?? 0,
-  };
+/** Counts mounted surfaces; registration alone never implies a renderer or an opened view. */
+export function useExtensionSlotStatus(definition: UISlotDefinition): UISlotStatus {
+  const { surfaces } = useSlotRuntime();
+  return { key: definition.key, type: definition.type, surfaces: surfaces[definition.key] ?? 0 };
+}
+function bindItem(entry: UIHostContribution, context: UISessionContext): SlotItem<UIContribution> {
+  const contribution = entry.contribution;
+  if ("view" in contribution) {
+    const render = entry.renderView;
+    if (!render) throw new Error(`Missing view binding: ${entry.key}`);
+    const viewKey = JSON.stringify([entry.key, contribution.view.id, context.workspacePath, context.chatId]);
+    return {
+      ...contribution,
+      key: entry.key,
+      renderView: () => <Fragment key={viewKey}>{render(contribution.view, context)}</Fragment>,
+    };
+  }
+  return { ...contribution, key: entry.key };
 }
 
-/** A page declares only its slot and context. Local contributions share the same adapter. */
-export function UISlot<D extends UISlotDefinition>({
-  definition,
-  context,
-  contributions = [],
-}: {
-  definition: D;
-  context: UISlotContext<D>;
-  contributions?: readonly UIHostContribution<UIContributionFor<NoInfer<D>>>[];
-}) {
+/** Headless, typed escape hatch for any protocol slot; never chooses page layout. */
+export function ExtensionSlot<D extends UISlotDefinition>(props: ExtensionSlotProps<D>) {
+  const { definition, context } = props;
   const runtime = useSlotRuntime();
   useEffect(() => runtime.attach(definition.key), [runtime.attach, definition.key]);
-  const adapter = runtime.adapters[definition.type];
-  if (!adapter || adapter.mode === "noop") return null;
-  const items = [...contributions, ...runtime.contributions].filter(
-    (item) => item.contribution.slot === definition.key && item.contribution.type === definition.type,
+  const entries = runtime.contributions.filter(
+    (entry) => entry.contribution.slot === definition.key && entry.contribution.type === definition.type,
   );
-  // Both the adapter and its input are selected by the same protocol discriminator above.
-  const Renderer = adapter.component as ComponentType<UIAdapterProps>;
+  // The definition filters both the key and type before correlating the generic render input.
+  const items = entries.map((entry) => bindItem(entry, context)) as SlotItem<UIContributionFor<D>>[];
   return (
     <SurfaceContext.Provider value={{ definition, context }}>
-      <Renderer definition={definition} context={context} contributions={items} error={runtime.error} />
+      {props.renderAll ? (
+        props.renderAll({ items, error: runtime.error })
+      ) : (
+        <>
+          {runtime.error ? props.renderError?.(runtime.error) : null}
+          {items.length
+            ? items.map((item) => <Fragment key={item.key}>{props.render(item)}</Fragment>)
+            : props.fallback}
+        </>
+      )}
     </SurfaceContext.Provider>
   );
 }

@@ -31,54 +31,56 @@ Isle 以 Pi 的扩展能力为基准，设计自己的插件协议、SDK 和运�
                                       宿主会话读取与公开 DTO
 ```
 
-`packages/extension/sdk/ui/slots.js` 是 UI 插槽协议源，生成贡献 Schema 和 `slots.generated.d.ts`，`slots.d.ts` 定义编写辅助与宿主上下文：定义 `key`、`type`、`scope`、会话上下文、贡献结构及适配状态，不依赖 React、DOM 或终端组件。当前有 `session.sidebar`（`sidebar`）和 `session.status`（`text`）。`ui/contribution.schema.json` 校验清单贡献的插槽与类型必须匹配；未知插槽、类型或旧 `panels` 字段直接拒绝。
+`packages/extension/sdk/ui/slots.js` 是 UI 插槽协议源，生成贡献 Schema 和 `slots.generated.d.ts`，`slots.d.ts` 定义编写辅助与宿主上下文。协议定义 `key`、`type`、`scope` 与贡献字段，不依赖 React 或具体布局。当前有 `session.sidebar`（`sidebar`）和 `session.status`（`text`）；未知插槽、类型、字段或不匹配的 key/type 在清单校验时被拒绝。
 
-`modules.ui.contributions` 声明贡献。纯文本模块不需要 JS 入口；包含 `view` 引用时必须声明 `entry`。协议定义、宿主实现和页面挂载是三个独立步骤：
+`modules.ui.contributions` 声明贡献。纯文本模块不需要 JS 入口；包含 `view` 引用时必须声明 `entry`。页面在普通 TSX 布局中预留具体 Slot，并提供渲染方法：
 
 ```text
 SDK 插槽协议 → 插件声明 contributions
                        ↓
 Server 贡献目录 → ExtensionHost 绑定可执行视图
                        ↓
-UISlotProvider（自动发现 *.adapter.tsx 的独立声明）
+ExtensionSlotProvider（提供贡献数据，不注册布局）
                        ↓
-页面 <UISlot definition={uiSlotDefinitions.sessionSidebar} context={...} />
+页面 SidebarSlot / TextSlot（或通用 ExtensionSlot）
                        ↓
-SidebarSlotAdapter → 选中视图 → 隔离 iframe
+页面 render / renderAll → 预留位置中的插件内容
+                       ↓ 按需调用 renderView()
+                 独立的插件视图实例
 ```
 
-客户端插件能力统一放在 `apps/client/src/extensions/`。`slots/` 承载插槽运行时和桌面适配，`views/` 承载插件视图的隔离执行；页面通过 `@/extensions/slots` 挂载插槽，不依赖插件管理页面。
+客户端插件能力统一放在 `apps/client/src/extensions/`。`slots/` 承载无布局的插槽机制与具体类型接口，`views/` 承载插件视图的隔离执行；页面不依赖插件管理页面。
 
 ```text
 extensions/
-├── index.tsx             # ExtensionHost：组合贡献目录、视图绑定与插槽适配
+├── index.tsx             # ExtensionHost：组合贡献目录、视图绑定与 Provider
 ├── catalog.ts            # 订阅插件贡献目录
-├── contributions.tsx     # 将协议贡献绑定到通用视图加载器
+├── contributions.tsx     # 按内容契约绑定通用视图加载器
 ├── slots/
-│   ├── index.tsx         # 插槽 Provider、挂载入口及上下文
-│   ├── adapter.ts        # 适配契约与注册校验
-│   ├── icons.tsx         # 协议图标的桌面映射
-│   └── adapters/         # 自动发现各类型的独立适配器
+│   ├── index.tsx         # ExtensionSlot、Provider、渲染类型与上下文
+│   ├── sidebar.tsx       # SidebarSlot：标题、图标和视图引用
+│   ├── text.tsx          # TextSlot：结构化 text / tone 字段
+│   └── icons.tsx         # 可供页面使用的协议图标映射
 └── views/                # 隔离 iframe、通信及租约生命周期
 ```
 
 前端依赖按职责划分：
 
-- `extensions/index.tsx`：定义 `ExtensionHost`，工作台根部挂载一次，订阅贡献目录并接入自动发现的桌面适配器。
-- `extensions/contributions.tsx`：将协议贡献与通用 `renderView(view, context)` 绑定；没有 text/sidebar 类型分支。
-- `extensions/views/`：隔离 iframe、通信和视图租约的挂载与销毁。
-- `extensions/slots/index.tsx`：按协议定义分发贡献，提供 `UISlotProvider`、`UISlot`、`useUISlotContext` 和 `useUISlotStatus`；只定义 React 侧绑定，不重复定义插槽目录。
-- `extensions/slots/adapters/sidebar.adapter.tsx`：侧栏布局、选择与按需渲染；`extensions/slots/adapters/text.adapter.tsx`：纯文本与语义颜色渲染。
-- `extensions/slots/adapters/index.ts`：固定 glob 自动发现适配器，校验重复类型与空实现原因；没有中心类型清单。
-- `workbench/index.tsx`：只挂载 `ExtensionHost`。当前实现两种类型，但只在聊天页挂载 `session.sidebar`。
-- `workbench/pages/chats/panels/index.tsx`：声明侧栏插槽并提供内置贡献，不查询或合并插件面板。
-- `workbench/pages/extensions/`：只承担管理页面。
+- `ExtensionHost` 订阅目录并提供绑定后的贡献，视图加载不按 sidebar/text 类型分支。只有带 `view` 的贡献才绑定加载器。
+- `ExtensionSlot` 根据定义筛选贡献、绑定作用域并调用页面的渲染函数，不生成固定布局、标题栏或样式。
+- `SidebarSlot` 和 `TextSlot` 分别约束定义与渲染参数的类型；位置定义与贡献必须匹配。没有专用封装时可直接使用通用 `ExtensionSlot`，参数仍由定义推导。
+- `render(item)` 逐项渲染，Slot 管理列表 key；`renderAll({ items, error })` 将插件条目交给页面组织，只渲染预留的扩展区域，两者互斥。
+- 单项模式的 `fallback` 和 `renderError` 由页面决定空状态和错误展示；集合模式在空集合或目录异常时也调用 `renderAll`，页面自行处理。
+- Slot 只从宿主读取插件贡献，不接受页面传入 `contributions`。`workbench/pages/chats/panels/index.tsx` 直接编写原生工具栏和文件、版本、链路内容，通过普通页面组件组合面板；在原生面板声明之后预留一个 `SidebarSlot`。Slot 不包裹整个页面，也不接管原生面板。`layout.tsx` 提供 `ChatPanels` 和 `ChatPanel`；每个面板一次声明图标、标题与内容，组件统一管理选择，并通过 portal 安排内容位置。它不依赖插件协议或 Slot 类型，也不识别具体业务面板。
+- `workbench/pages/extensions/` 只承担插件管理。
 
-适配器可省略（`unsupported`）、显式空实现（`noop`，必需原因）或实际实现（`supported`）。`useUISlotStatus(definition)` 分别返回 `support` 与 `surfaces`：未挂载时为 0，实现适配器不会自动插入页面或执行插件视图；挂载占位也不意味着插件面板已打开。没有适配器和空实现均不渲染贡献，且不报告为完整支持。诊断是宿主 React API，当前尚未通过插件 iframe SDK 暴露动态插槽状态。
+页面可以不挂载插槽或返回 `null`，不再维护全局 UI 适配器注册表，也没有由注册状态推断的 `supported/noop/unsupported`。`useExtensionSlotStatus(definition)` 只返回该定义的挂载数量；挂载插槽不等于打开插件视图。诊断仅供宿主使用，未通过 iframe SDK 暴露。
 
-`apps/server/src/modules/extensions/views.ts` 承接贡献目录、视图租约与数据访问。声明文本不会运行插件代码；只有打开侧栏视图才会加载 UI 入口。关闭、切换、停用或移除贡献会卸载其视图；选中的贡献移除时回落到第一个可用面板。
+`renderView()` 已绑定该贡献的视图引用和当前页面作用域，只有页面实际渲染返回值时才挂载实例。同一个插件贡献可在多个位置以不同样式展示，各处实例独立；工作区、会话或视图引用改变时旧实例卸载。关闭、切换、停用或移除贡献会清理 iframe 与视图租约。聊天页的 Slot 始终挂载，由 `render` 将完整条目适配成普通 `ChatPanel`；选择和延迟挂载由 `ChatPanels` 与 `ChatPanel` 统一处理；没有匹配贡献时不渲染插件内容，不自动切换到其他面板。
 
-新增同类插件贡献不修改页面；新增协议插槽或类型修改 `ui/slots.js` 并运行 SDK `generate`，随后编写独立适配器文件；页面独立决定是否挂载，不再同步维护类型清单或贡献转换分支。当前没有后台插件代码入口、任意页面注入或动态文本更新 API。插件包生命周期统一管理，UI 挂载实例与 Agent 会话实例分别管理，不共享可变内存。
+结构化内容由具体协议定义，不能通过任意 `data` 绕过契约。当前 `TextSlot` 的 `text/tone` 由页面直接绘制；sidebar 的内部视图由插件绘制。未来需要表格、卡片等结构化内容时，先在对应类型声明准确的数据结构，再由页面选择渲染方式，不假定所有视图都能转换成结构化数据。
+
+新增同类插件贡献不修改页面；新增协议类型先修改 `ui/slots.js` 并运行 SDK `generate`，按需提供专用 Slot，再由页面传入 render 挂载。无需新增全局注册项；如果需要新的受控服务或执行方式，仍需实现相应宿主边界。当前没有后台插件代码入口、任意页面注入或动态文本更新 API。
 
 sidebar 协议必须提供 `title`、语义图标 `icon` 和 `view: { id }`。图标是受控名称，不接收 React 组件、HTML 或资源 URL。浏览器上下文以 `contributionId` 与 `viewId` 区分贡献与入口内部视图，Server 校验请求引用确实存在于已启用插件的清单中。
 

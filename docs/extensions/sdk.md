@@ -19,7 +19,7 @@
 | 宿主  | 加载来源、贡献目录、受控调用绑定                      | [host/index.d.ts](../../packages/extension/sdk/host/index.d.ts)                                                   |
 | 宿主  | Agent 能力协商、原生适配与降级报告                    | [host/adapter.d.ts](../../packages/extension/sdk/host/adapter.d.ts)                                               |
 
-UI 的协议定义、适配器支持和页面挂载相互独立。当前桌面实现 text/sidebar 适配器，产品页面只挂载 `session.sidebar`；text 为静态纯文本。缺少适配器、空适配器和已支持但未挂载的状态分别报告。
+UI 协议定义数据，具体 Slot 约束渲染参数，页面决定布局与展示时机。当前提供 `SidebarSlot` 和 `TextSlot`，产品页面挂载 `session.sidebar`；text 是静态结构化文本，由页面自行绘制。插件视图的内部内容仍由插件绘制。
 
 ## 按需阅读与导入
 
@@ -44,7 +44,7 @@ import { defineExtensionAdapter } from "@isle/extension-sdk/host";
 - UI 插槽的唯一源定义是 `ui/slots.js`：`uiSlotTypes` 定义各类贡献的必填字段，`uiSlotDefinitions` 定义具体位置与作用域。运行 `pnpm --filter @isle/extension-sdk generate` 生成 `ui/slots.generated.d.ts` 与贡献 Schema；`check:ui` 检查生成物漂移。其他领域的类型与 Schema 仍按各自契约维护。
 - SDK 的 JS 只提供编写辅助、目录与协商逻辑；包管理位于 `packages/extension/host`，隔离执行位于 Agent Runtime，桌面适配与渲染位于 client。
 
-## 定义、适配与挂载
+## 定义与页面挂载
 
 ```ts
 import {
@@ -62,6 +62,57 @@ const overview = defineUIContribution(uiSlotDefinitions.sessionSidebar, {
 
 作者代码和页面使用同一份定义对象，不再手填插槽 key/type。`package.json` 是序列化清单，仍保存稳定的 `slot`、`type` 字符串；可把上面的结果写入清单，加载时统一执行 Schema 校验。缺失标题、图标或视图引用的 sidebar 贡献会被拒绝。
 
-桌面实现位于 `apps/client/src/extensions/slots/adapters/*.adapter.tsx`。每个文件默认导出 `defineUIAdapter(uiSlotTypes.sidebar, { mode: "supported", component })` 这样的独立声明；Vite 自动发现，重复类型注册直接报错。适配器只决定呈现，页面显式使用 `<UISlot definition={uiSlotDefinitions.sessionSidebar} context={...} />` 才会挂载。
+客户端插槽机制位于 `apps/client/src/extensions/slots/index.tsx`；具体接口位于同目录的 `sidebar.tsx` 和 `text.tsx`。页面通过 `render` 决定每个贡献的布局：
 
-新增类型的流程是：修改协议源并生成 → 插件声明贡献 → 添加适配器文件 → 页面挂载插槽。不需要修改工作台注册表或插件来源的类型分支。适配器可以省略或声明带原因的 `noop`；字段完整性不会因此放宽。若新能力需要新的受控服务或新的执行方式，也必须实现对应宿主服务，不能仅靠声明获得能力。
+插件数据沿目录 → `ExtensionHost` → `ExtensionSlotProvider` → Slot 流动。`contributions` 仅由宿主注入 Provider，所有 Slot 都不接受这个属性。页面提供位置定义、上下文和渲染函数；页面原有组件无需实现插件协议，渲染函数负责把插件字段适配到页面自己的结构。
+
+```tsx
+import { SidebarSlot } from "@/extensions/slots/sidebar";
+import { UIIcon } from "@/extensions/slots/icons";
+
+<SidebarSlot
+  definition={uiSlotDefinitions.sessionSidebar}
+  context={{ workspacePath, chatId }}
+  fallback={<p>暂无内容</p>}
+  renderError={(error) => <p role="alert">{error}</p>}
+  render={({ title, icon, renderView }) => (
+    <article className="my-card">
+      <h2><UIIcon name={icon} />{title}</h2>
+      {renderView()}
+    </article>
+  )}
+/>
+```
+
+`title`、`icon`、`view` 等字段直接来自协议；`key` 是宿主添加的唯一标识，`renderView()` 已绑定视图引用和当前会话。宿主图标映射是可选工具，页面也可以用自己的映射。Slot 不添加默认标题栏或布局。同一贡献可以在其他页面使用不同的 `render` 展示，各处视图实例相互独立。
+
+页面先编写原生布局，在需要增强的位置留出 Slot。聊天侧栏使用普通页面组件 `ChatPanels` 与 `ChatPanel`：一个面板只声明一次标题、图标和内容，插件也只需一个 Slot。
+
+```tsx
+<ChatPanels defaultValue="files">
+  <ChatPanel value="files" title="文件" icon={<FolderIcon />}>
+    <WorkspaceFiles workspacePath={workspacePath} />
+  </ChatPanel>
+  <SidebarSlot
+    definition={uiSlotDefinitions.sessionSidebar}
+    context={{ workspacePath, chatId }}
+    render={({ key, title, icon, renderView }) => (
+      <ChatPanel value={key} title={title} icon={<UIIcon name={icon} />}>
+        {renderView}
+      </ChatPanel>
+    )}
+  />
+</ChatPanels>
+```
+
+`ChatPanels` 和 `ChatPanel` 是聊天页面自己的组件，不属于插件 SDK。`ChatPanels` 提供工具栏和内容位置并管理选择；`ChatPanel` 生成按钮，将选中且展开的内容通过 React portal 放到内容位置，保持声明处的 React 上下文。`renderView` 作为延迟函数传入，未选中时不调用，收起或切换时卸载内容。组件不解析 Slot 的子节点，也不重复挂载插件以收集元数据。
+
+布局与选择机制都在 Slot 外部，移除 Slot，原生页面仍然完整。Slot 的渲染函数只把插件贡献适配为普通 `ChatPanel`，不包裹整个页面，也不接收原生面板数据。
+
+需要处理插件集合时可以使用 `renderAll({ items, error })`，例如对扩展区域中的插件条目分组展示。`renderAll` 同样只渲染预留的扩展区域。`render` 与 `renderAll` 必须提供其中一个，不能同时使用；空集合和目录错误也交由页面处理。只有按需渲染 `item.renderView()` 的返回值，插件视图才会挂载。不要在渲染回调里调用 Hook，需要 Hook 时返回独立组件。
+
+没有具体封装时可以从 `@/extensions/slots` 导入 `ExtensionSlot`；传入同一份定义，仍能推导完整参数，不退化成任意对象。`SidebarSlot` 只接受 sidebar 定义，`TextSlot` 只接受 text 定义。位置和类型是不同维度，同一种类型可以增加多个位置定义。
+
+结构化数据只由相应协议提供。例如 `TextSlot` 的 `render={({ text, tone }) => ...}` 让页面自由绘制文本，它不提供 `renderView`。当前 sidebar 提供插件视图，尚未额外声明结构化内容；后续按具体业务协议增加精确字段，不使用无约束的通用 `data`。
+
+新增类型的流程是：修改协议源并生成 → 插件声明贡献 → 按需提供具体 Slot → 页面传入 render。无需修改全局适配器注册表。页面不挂载或返回 `null` 就不会展示；只有页面渲染了视图才会执行插件 UI。若新能力需要新的受控服务或执行方式，也必须实现对应宿主服务。

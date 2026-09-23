@@ -1,50 +1,46 @@
-import {
-  defineUIContribution,
-  uiSlotDefinitions,
-  type UIContributionFor,
-  type UISessionContext,
-} from "@isle/extension-sdk/ui";
+import { ActivityIcon, FolderIcon, GitBranchIcon } from "lucide-react";
+import { uiSlotDefinitions } from "@isle/extension-sdk/ui";
 import { useChatSnapshot } from "@/chat/react";
-import { UISlot, useUISlotContext, type UIHostContribution } from "@/extensions/slots";
+import { SidebarSlot } from "@/extensions/slots/sidebar";
+import { UIIcon } from "@/extensions/slots/icons";
+import { ChatPanels, ChatPanel } from "./layout";
 import { WorkspaceFiles } from "./files";
 import { WorkspaceVersionControl } from "./version-control";
 import { ChatLedger } from "./ledger";
 
-const sidebar = uiSlotDefinitions.sessionSidebar;
-function LedgerPanel() {
-  const target = useUISlotContext(sidebar);
+type ChatPanelTarget = { workspacePath: string; chatId: string };
+function LedgerPanel(target: ChatPanelTarget) {
   const selectedModelId = useChatSnapshot().config.selectedModelId;
   return <ChatLedger {...target} selectedModelId={selectedModelId} />;
 }
-const panels: UIHostContribution<UIContributionFor<typeof sidebar>>[] = [
-  {
-    key: "native:files",
-    contribution: defineUIContribution(sidebar, { id: "files", title: "文件", icon: "files", view: { id: "files" } }),
-    renderView: (_view, context) => <WorkspaceFiles workspacePath={context.workspacePath} />,
-  },
-  {
-    key: "native:version",
-    contribution: defineUIContribution(sidebar, {
-      id: "version",
-      title: "版本",
-      icon: "git-branch",
-      view: { id: "version" },
-    }),
-    renderView: (_view, context) => <WorkspaceVersionControl workspacePath={context.workspacePath} />,
-  },
-  {
-    key: "native:ledger",
-    contribution: defineUIContribution(sidebar, {
-      id: "ledger",
-      title: "链路",
-      icon: "activity",
-      view: { id: "ledger" },
-    }),
-    renderView: () => <LedgerPanel />,
-  },
-];
 
-/** The page mounts a protocol slot; each panel owns its data and services. */
-export function WorkspaceChatPanels(context: UISessionContext) {
-  return <UISlot definition={sidebar} context={context} contributions={panels} />;
+export function WorkspaceChatPanels(target: ChatPanelTarget) {
+  return (
+    <ChatPanels defaultValue="files">
+      <ChatPanel icon={<FolderIcon className="size-4" />} value="files" title="文件">
+        <WorkspaceFiles workspacePath={target.workspacePath} />
+      </ChatPanel>
+      <ChatPanel icon={<GitBranchIcon className="size-4" />} value="version" title="版本">
+        <WorkspaceVersionControl workspacePath={target.workspacePath} />
+      </ChatPanel>
+      <ChatPanel icon={<ActivityIcon className="size-4" />} value="ledger" title="链路">
+        <LedgerPanel {...target} />
+      </ChatPanel>
+
+      <SidebarSlot
+        definition={uiSlotDefinitions.sessionSidebar}
+        context={target}
+        renderError={(error) => (
+          <span title={error} aria-label="插件面板加载失败" className="text-destructive">
+            !
+          </span>
+        )}
+        render={({ key, title, icon, renderView }) => (
+          <ChatPanel value={key} title={title} icon={<UIIcon name={icon} className="size-4" />}>
+            {renderView}
+          </ChatPanel>
+        )}
+      />
+    </ChatPanels>
+  );
 }

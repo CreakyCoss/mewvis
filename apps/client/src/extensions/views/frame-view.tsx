@@ -131,7 +131,6 @@ export function ExtensionView({
   }, [extensionId, contributionId, viewId, title, revision, workspacePath, chatId, attempt]);
   return (
     <section className="flex min-h-0 flex-1 flex-col" aria-label={title}>
-      <header className="border-b px-4 py-3 text-sm font-medium">{title}</header>
       {loading ? (
         <p role="status" className="p-4 text-sm text-muted-foreground">
           正在加载…

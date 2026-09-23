@@ -1,16 +1,15 @@
 import { useMemo, type ReactNode } from "react";
-import { UISlotProvider } from "./slots";
-import { uiAdapters } from "./slots/adapters";
+import { ExtensionSlotProvider } from "./slots";
 import { useExtensionCatalog } from "./catalog";
 import { bindUIContributions } from "./contributions";
 
-/** Desktop extension host. Adapter modules declare their own support. */
+/** Desktop extension host. Pages supply their own slot renderers. */
 export function ExtensionHost({ children }: { children: ReactNode }) {
   const catalog = useExtensionCatalog();
   const contributions = useMemo(() => bindUIContributions(catalog.contributions), [catalog.contributions]);
   return (
-    <UISlotProvider adapters={uiAdapters} contributions={contributions} error={catalog.error}>
+    <ExtensionSlotProvider contributions={contributions} error={catalog.error}>
       {children}
-    </UISlotProvider>
+    </ExtensionSlotProvider>
   );
 }

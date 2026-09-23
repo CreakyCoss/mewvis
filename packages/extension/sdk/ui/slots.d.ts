@@ -31,12 +31,9 @@ export function defineUIContribution<D extends UISlotDefinition>(
   contribution: Omit<UIContributionFor<NoInfer<D>>, "slot" | "type">,
 ): UIContributionFor<D>;
 
-export type UIAdapterSupport = "supported" | "noop" | "unsupported";
 export interface UISlotStatus {
   key: UISlotKey;
   type: UISlotType;
-  support: UIAdapterSupport;
-  reason?: string;
-  /** Mounted host surfaces, independently of adapter support and opened views. */
+  /** Mounted host surfaces, independently of opened plugin views. */
   surfaces: number;
 }
