@@ -1,3 +1,10 @@
+import {
+  PauseIcon,
+  PlayIcon,
+  XIcon,
+  LoaderCircleIcon,
+  WorkflowIcon,
+} from "lucide-react";
 import { useHostExecution } from "../runtime/execution-context";
 import { useEffect, useState, type ReactNode } from "react";
 import {
@@ -27,65 +34,71 @@ const active = (state: ExtensionActivitySnapshot["state"]) =>
   ["running", "pausing", "paused", "cancelling"].includes(state);
 export function DefaultStatus({ item }: { item: StatusSlotItem }) {
   const { activity } = item;
+  if (!active(activity.state)) return null;
+  const paused = activity.state === "paused";
+  const pausing = activity.state === "pausing";
+  const completed = activity.steps.filter(
+    (step) => step.state === "completed",
+  ).length;
+  const current =
+    activity.steps.find((step) => step.state === "running") ??
+    activity.steps.find((step) => step.state === "pending");
+  const pauseLabel = paused ? "继续" : pausing ? "撤回暂停" : "暂停";
+  const cancelLabel = item.cancelling
+    ? "取消中"
+    : activity.state === "cancelling"
+      ? "重试取消"
+      : "取消";
+  const hint = pausing
+    ? "当前步骤完成后暂停"
+    : paused
+      ? "准备好后，继续下一步"
+      : activity.detail;
   return (
-    <div
-      role="status"
-      className="flex items-center gap-3 rounded-lg border border-border bg-surface-raised px-3 py-2 text-xs"
-    >
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <strong>{activity.title}</strong>
-          <span className="text-muted-foreground">
-            {
-              {
-                running: "执行中",
-                pausing: "暂停中",
-                paused: "已暂停",
-                cancelling: "取消中",
-                completed: "已完成",
-                failed: "失败",
-                cancelled: "已取消",
-              }[activity.state]
-            }
-          </span>
+    <div role="status" className="rounded-2xl bg-muted/40 px-3.5 py-3 text-xs">
+      <div className="flex items-center gap-3">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/8 text-primary">
+          {paused ? (
+            <PauseIcon className="size-3.5" aria-hidden="true" />
+          ) : (
+            <WorkflowIcon className="size-4" aria-hidden="true" />
+          )}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate font-medium text-foreground">
+              {activity.title}
+            </span>
+            <span className="shrink-0 text-[11px] text-muted-foreground">
+              {paused
+                ? "已暂停"
+                : pausing
+                  ? "暂停中"
+                  : activity.state === "cancelling"
+                    ? "取消中"
+                    : "执行中"}
+            </span>
+          </div>
+          <div className="mt-1 flex min-w-0 items-center gap-2 text-muted-foreground">
+            <span className="truncate" title={hint || current?.title}>
+              {hint && (paused || pausing)
+                ? hint
+                : (current?.title ?? "正在收尾")}
+            </span>
+            <span className="shrink-0 text-[11px] tabular-nums opacity-65">
+              {completed} / {activity.steps.length}
+            </span>
+          </div>
         </div>
-        <ol className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground">
-          {activity.steps.map((step, index) => (
-            <li
-              key={step.id}
-              className={
-                step.state === "running" ? "font-medium text-primary" : ""
-              }
-            >
-              {index + 1}. {step.title} ·{" "}
-              {
-                {
-                  pending: "等待",
-                  running: "执行中",
-                  completed: "完成",
-                  failed: "失败",
-                  cancelled: "取消",
-                }[step.state]
-              }
-            </li>
-          ))}
-        </ol>
-        {activity.state === "pausing" ? (
-          <p className="mt-1">当前步骤完成后暂停</p>
-        ) : activity.state === "paused" ? (
-          <p className="mt-1">已完成的步骤会保留，继续后执行下一步</p>
-        ) : activity.detail ? (
-          <p className="mt-1 break-words">{activity.detail}</p>
-        ) : null}
-      </div>
-      {active(activity.state) ? (
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-0.5">
           {activity.state !== "cancelling" &&
           activity.pausable &&
           (activity.state === "running" ? item.canPause : item.canResume) ? (
             <button
               type="button"
-              className="rounded px-2 py-1 hover:bg-accent disabled:opacity-50"
+              aria-label={pauseLabel}
+              title={pauseLabel}
+              className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40"
               disabled={item.pendingAction !== null || item.cancelling}
               onClick={() =>
                 void (activity.state === "running"
@@ -93,30 +106,49 @@ export function DefaultStatus({ item }: { item: StatusSlotItem }) {
                   : item.resume())
               }
             >
-              {activity.state === "running"
-                ? "暂停"
-                : activity.state === "pausing"
-                  ? "撤回暂停"
-                  : "继续"}
+              {paused || pausing ? (
+                <PlayIcon className="size-3.5" aria-hidden="true" />
+              ) : (
+                <PauseIcon className="size-3.5" aria-hidden="true" />
+              )}
             </button>
           ) : null}
           <button
             type="button"
-            className="rounded px-2 py-1 hover:bg-accent disabled:opacity-50"
+            aria-label={cancelLabel}
+            title={cancelLabel}
+            className="flex size-8 items-center justify-center rounded-full text-muted-foreground/70 transition-colors hover:bg-background/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40"
             disabled={item.pendingAction !== null || item.cancelling}
             onClick={() => void item.cancel()}
           >
-            {item.cancelling
-              ? "取消中"
-              : activity.state === "cancelling"
-                ? "重试取消"
-                : "取消"}
+            {item.cancelling ? (
+              <LoaderCircleIcon
+                className="size-3.5 animate-spin motion-reduce:animate-none"
+                aria-hidden="true"
+              />
+            ) : (
+              <XIcon className="size-3.5" aria-hidden="true" />
+            )}
           </button>
         </div>
-      ) : null}
+      </div>
+      <ol aria-label="流程步骤" className="mt-2.5 flex gap-1.5">
+        {activity.steps.map((step) => {
+          const label = `${step.title} · ${{ pending: "等待", running: "执行中", completed: "完成", failed: "失败", cancelled: "取消" }[step.state]}`;
+          return (
+            <li
+              key={step.id}
+              aria-label={label}
+              title={label}
+              className={`h-1 min-w-0 flex-1 rounded-full ${step.state === "completed" ? "bg-primary/50" : step.state === "running" ? "bg-primary/25" : "bg-foreground/6"}`}
+            />
+          );
+        })}
+      </ol>
     </div>
   );
 }
+
 function Activity({
   item,
   context,
@@ -237,6 +269,7 @@ function Activity({
     execution.snapshot?.taskId === activity.executionId
       ? execution.snapshot
       : undefined;
+  if (!active(activity.state) || (shared && !active(shared.state))) return null;
   const control = async (action: "resume" | "cancel") => {
     if (!shared || !execution.source) return act(action, activity.id);
     setPendingAction(action);

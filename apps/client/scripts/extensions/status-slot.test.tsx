@@ -30,21 +30,21 @@ const item: StatusSlotItem = {
 const render = (value: StatusSlotItem) => renderToStaticMarkup(<DefaultStatus item={value} />);
 
 test("status distinguishes deferred pause and checkpoint wait with appropriate controls", () => {
-  assert.match(render(item), />暂停<\/button>/);
+  assert.match(render(item), /aria-label="暂停"/);
   const pausing = render({ ...item, activity: { ...item.activity, state: "pausing" } });
   assert.match(pausing, /当前步骤完成后暂停/);
-  assert.match(pausing, />撤回暂停<\/button>/);
+  assert.match(pausing, /aria-label="撤回暂停"/);
   const paused = render({ ...item, activity: { ...item.activity, state: "paused" } });
   assert.match(paused, /已暂停/);
-  assert.match(paused, />继续<\/button>/);
-  assert.match(paused, />取消<\/button>/);
+  assert.match(paused, /aria-label="继续"/);
+  assert.match(paused, /aria-label="取消"/);
   assert.match(paused, /Draft · 完成/);
   assert.match(paused, /Review · 等待/);
 });
 
 test("status only offers pause for capable activities and disables controls while a request is pending", () => {
-  assert.doesNotMatch(render({ ...item, activity: { ...item.activity, pausable: false } }), />暂停<\/button>/);
-  assert.doesNotMatch(render({ ...item, canPause: false }), />暂停<\/button>/);
+  assert.doesNotMatch(render({ ...item, activity: { ...item.activity, pausable: false } }), /aria-label="暂停"/);
+  assert.doesNotMatch(render({ ...item, canPause: false }), /aria-label="暂停"/);
   assert.doesNotMatch(render({ ...item, activity: { ...item.activity, state: "completed" } }), /<button/);
   assert.equal((render({ ...item, pendingAction: "pause" }).match(/disabled=""/g) ?? []).length, 2);
 });
@@ -53,12 +53,17 @@ test("cancelling status retains a disabled cancel control until termination", ()
   const html = render({ ...item, activity: { ...item.activity, state: "cancelling" }, cancelling: true });
   assert.match(html, /取消中/);
   assert.match(html, /disabled=""/);
-  assert.doesNotMatch(html, />继续<\/button>|>暂停<\/button>/);
+  assert.doesNotMatch(html, /aria-label="继续"|aria-label="暂停"/);
 });
 
 test("failed cancellation offers a retry without unlocking the task", () => {
   const html = render({ ...item, activity: { ...item.activity, state: "cancelling" }, cancelling: false });
-  assert.match(html, />重试取消<\/button>/);
+  assert.match(html, /aria-label="重试取消"/);
   assert.doesNotMatch(html, /disabled=""/);
-  assert.doesNotMatch(html, />继续<\/button>|>暂停<\/button>/);
+  assert.doesNotMatch(html, /aria-label="继续"|aria-label="暂停"/);
+});
+
+test("terminal activities leave no status bar", () => {
+  for (const state of ["completed", "failed", "cancelled"] as const)
+    assert.equal(render({ ...item, activity: { ...item.activity, state } }), "");
 });

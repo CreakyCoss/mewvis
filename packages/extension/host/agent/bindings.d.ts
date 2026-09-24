@@ -41,6 +41,7 @@ export interface ExtensionCatalog {
     parameters: ExtensionTool["parameters"];
   }>;
   commands: Array<{
+    label?: string;
     inputMode?: "text";
     id: string;
     description: string;

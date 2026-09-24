@@ -15,7 +15,7 @@ const getMessageText = (message: ChatMessage) => {
 
   return message.blocks
     .map((block) => {
-      if (block.type === "skill-reference") {
+      if (block.type === "skill-reference" || block.type === "command-reference") {
         return `/${block.name}`;
       }
       if (block.type === "file-reference") {

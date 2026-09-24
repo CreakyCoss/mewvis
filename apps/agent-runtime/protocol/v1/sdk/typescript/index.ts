@@ -822,6 +822,7 @@ export interface ExtensionCommandsResult {
   rpcRequestId?: string | number;
   commands: {
     inputMode?: "text";
+    label?: string;
     id: string;
     description: string;
     parameters: {

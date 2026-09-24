@@ -184,6 +184,7 @@ test(
       "插件配置不能改动宿主角色",
     );
     const catalog = await call("list_extension_commands", target);
+    assert.equal(catalog.commands.find((item) => item.id === "isle.collaboration/review").label, flow.name);
     assert.ok(
       catalog.commands.some(
         (item) =>

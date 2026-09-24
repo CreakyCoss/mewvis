@@ -16,6 +16,7 @@ export default defineExtension({
     for (const flow of flows) {
       ctx.registerCommand({
         name: flow.id,
+        label: flow.name,
         inputMode: "text",
         description: `协作 · ${flow.name}：${flow.description || `${flow.steps.length} 个步骤`}`,
         parameters,

@@ -390,6 +390,10 @@ export function createApplicationChatHost(service: DesktopChatService, options: 
                     only(part, ["type", "skillKey", "name"]);
                     string(part.skillKey);
                     string(part.name);
+                  } else if (part.type === "command-reference") {
+                    only(part, ["type", "commandId", "name"]);
+                    string(part.commandId);
+                    string(part.name);
                   } else throw new Error("不支持的消息块");
                 }
               }

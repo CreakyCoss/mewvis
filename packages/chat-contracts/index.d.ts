@@ -68,6 +68,12 @@ export type ChatUserMessageBlock =
     }
   | {
       id: string;
+      type: "command-reference";
+      commandId: string;
+      name: string;
+    }
+  | {
+      id: string;
       type: "skill-reference";
       skillKey: string;
       name: string;
@@ -138,7 +144,7 @@ export type SkillOption = {
   description: string;
 };
 export type ChatResources = {
-  commands?: { id: string; description: string }[];
+  commands?: { id: string; label?: string; description: string }[];
   permissionOptions?: AgentPermissionOption[];
   models?: (ResourceOption & {
     selectedLabel: string;

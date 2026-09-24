@@ -230,6 +230,7 @@ export async function createExtensionHost(
               catalog.commands.push({
                 id,
                 ...(command.inputMode && { inputMode: command.inputMode }),
+                ...(command.label && { label: command.label }),
                 description: command.description,
                 parameters,
               });

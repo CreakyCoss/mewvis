@@ -100,6 +100,7 @@ export function adaptAgentExtension(definition) {
         registerCommand(command) {
           native.registerCommand({
             ...(command.inputMode && { inputMode: command.inputMode }),
+            ...(command.label && { label: command.label }),
             name: command.name,
             description: command.description,
             parameters: copy(command.parameters),

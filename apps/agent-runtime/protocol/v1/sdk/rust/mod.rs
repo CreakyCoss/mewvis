@@ -920,6 +920,9 @@ pub struct Command {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub input_mode: Option<InputMode>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+
     pub parameters: HashMap<String, Option<serde_json::Value>>,
 }
 

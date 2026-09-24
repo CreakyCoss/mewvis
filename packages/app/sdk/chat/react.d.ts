@@ -95,6 +95,7 @@ declare function useChatComposer(): {
   files: ChatInputFile[];
   commands: {
     id: string;
+    label?: string;
     description: string;
   }[];
   skills: _isle_chat_contracts.SkillOption[];

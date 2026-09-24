@@ -1,3 +1,4 @@
+import { createRequire } from "node:module";
 import { build } from "esbuild";
 import { mkdtemp, rm, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -14,6 +15,7 @@ try {
     bundle: true,
     platform: "node",
     format: "cjs",
+    alias: { lexical: createRequire(import.meta.url).resolve("lexical") },
     jsx: "automatic",
   });
   const result = spawnSync(

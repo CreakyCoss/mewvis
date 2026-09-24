@@ -239,6 +239,7 @@ class Command:
     id: str
     parameters: dict[str, Any]
     input_mode: InputMode | None
+    label: str | None
 
 
 @dataclass

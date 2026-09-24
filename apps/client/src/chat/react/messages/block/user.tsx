@@ -1,3 +1,4 @@
+import { WorkflowIcon } from "lucide-react";
 import type { ChatUserMessageBlock } from "@/chat/core";
 import { FileReferenceBlock } from "./types/file-reference";
 import { SkillReferenceBlock } from "./types/skill-reference";
@@ -18,6 +19,18 @@ export const UserBlocks = ({ blocks }: UserBlocksProps) => (
         return <SkillReferenceBlock key={block.id} block={block} />;
       }
 
+      if (block.type === "command-reference") {
+        return (
+          <span
+            key={block.id}
+            title={block.name}
+            className="inline-flex max-w-full items-center gap-1.5 rounded-md bg-primary-foreground/15 px-2 py-0.5 align-middle text-xs font-medium"
+          >
+            <WorkflowIcon aria-hidden="true" className="size-3.5 shrink-0" />
+            <span className="truncate">{block.name}</span>
+          </span>
+        );
+      }
       return <TextBlock key={block.id} block={block} />;
     })}
   </div>

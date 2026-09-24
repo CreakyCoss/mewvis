@@ -462,6 +462,7 @@
             ],
             "properties": {
               "inputMode": { "const": "text" },
+              "label": { "type": "string" },
               "id": {
                 "type": "string"
               },

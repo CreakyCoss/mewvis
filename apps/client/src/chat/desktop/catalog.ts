@@ -96,7 +96,7 @@ export function createDesktopCatalog(
         resources = {
           commands: value("commands", results[5], [])
             .filter((command) => command.inputMode === "text")
-            .map(({ id, description }) => ({ id, description })),
+            .map(({ id, label, description }) => ({ id, label, description })),
           permissionOptions: toolSettings.permissionOptions.map((option) => ({ ...option })),
           models: models.map((model, index) => ({
             value: model.id,

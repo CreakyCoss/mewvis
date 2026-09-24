@@ -11,6 +11,7 @@ import { $createParagraphNode, $createTextNode, $getRoot, CLEAR_EDITOR_COMMAND }
 import type { ChatInputFile, ChatInputSkillOption } from "@/chat/react/types";
 import { FileReferenceMenu } from "./reference/file";
 import { $createFileReferenceNode, FileReferenceNode } from "./reference/file/node";
+import { $createCommandReferenceNode, CommandReferenceNode } from "./reference/command/node";
 import { SkillReferenceMenu } from "./reference/skill";
 import { $createSkillReferenceNode, SkillReferenceNode } from "./reference/skill/node";
 import { serializeChatEditorState, type ChatEditorValue } from "./serialize";
@@ -23,7 +24,7 @@ export type ChatEditorHandle = {
 type ChatEditorProps = {
   files: ChatInputFile[];
   skills: ChatInputSkillOption[];
-  commands?: { id: string; description: string }[];
+  commands?: { id: string; label?: string; description: string }[];
   defaultValue: string;
   initialBlocks?: import("@/chat/core").MessagePart[];
   placeholder: string;
@@ -38,9 +39,11 @@ const restoreContent = (value: ChatEditorValue) => {
       paragraph.append(
         block.type === "file-reference"
           ? $createFileReferenceNode(block.path, block.path.split(/[\\/]/).pop() ?? block.path)
-          : block.type === "skill-reference"
-            ? $createSkillReferenceNode(block.skillKey, block.name)
-            : $createTextNode(block.content),
+          : block.type === "command-reference"
+            ? $createCommandReferenceNode(block.commandId, block.name)
+            : block.type === "skill-reference"
+              ? $createSkillReferenceNode(block.skillKey, block.name)
+              : $createTextNode(block.content),
       );
   } else if (value.text) paragraph.append($createTextNode(value.text));
   $getRoot().clear().append(paragraph);
@@ -89,7 +92,7 @@ const ChatEditorComponent = (
   const initialConfig = useMemo(
     () => ({
       namespace: "MewvisChatInput",
-      nodes: [FileReferenceNode, SkillReferenceNode],
+      nodes: [FileReferenceNode, SkillReferenceNode, CommandReferenceNode],
       editable: !disabled,
       theme: {
         paragraph: "m-0",

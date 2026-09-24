@@ -6,6 +6,7 @@ import { $createTextNode, $getRoot, $getSelection, $isRangeSelection, type TextN
 import type { ChatInputSkillOption } from "@/chat/react/types";
 import { ReferenceMenu } from "../menu";
 import { $createSkillReferenceNode } from "./node";
+import { $createCommandReferenceNode } from "../command/node";
 
 type SlashOption = ChatInputSkillOption & { commandId?: string };
 const MAX_VISIBLE_SKILLS = 8;
@@ -41,7 +42,7 @@ class SkillReferenceOption extends MenuOption {
 
 type SkillReferenceMenuProps = {
   skills: ChatInputSkillOption[];
-  commands?: { id: string; description: string }[];
+  commands?: { id: string; label?: string; description: string }[];
 };
 
 export const SkillReferenceMenu = ({ skills, commands = [] }: SkillReferenceMenuProps) => {
@@ -71,9 +72,9 @@ export const SkillReferenceMenu = ({ skills, commands = [] }: SkillReferenceMenu
     const entries: SlashOption[] = [
       ...(atStart ? commands : []).map((command) => ({
         key: command.id,
-        name: command.description,
-        label: command.description,
-        description: `/${command.id}`,
+        name: command.label ?? command.description,
+        label: command.label ?? command.description,
+        description: command.description,
         commandId: command.id,
       })),
       ...skills,
@@ -100,7 +101,7 @@ export const SkillReferenceMenu = ({ skills, commands = [] }: SkillReferenceMenu
     (option: SkillReferenceOption, nodeToReplace: TextNode | null, closeMenu: () => void) => {
       editor.update(() => {
         const referenceNode = option.skill.commandId
-          ? $createTextNode(`/${option.skill.commandId}`)
+          ? $createCommandReferenceNode(option.skill.commandId, option.skill.name)
           : $createSkillReferenceNode(option.skill.key, option.skill.name);
         if (nodeToReplace) {
           nodeToReplace.replace(referenceNode);

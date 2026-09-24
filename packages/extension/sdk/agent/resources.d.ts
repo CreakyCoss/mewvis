@@ -27,6 +27,8 @@ export interface ExtensionSkill {
 }
 
 export interface ExtensionCommand {
+  /** Human-readable command name; routing still uses name. */
+  label?: string;
   /** Text commands accept slash input as { text }; other commands use structured arguments. */
   inputMode?: "text";
   name: string;

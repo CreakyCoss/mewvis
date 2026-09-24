@@ -1,6 +1,7 @@
 import { $getRoot, $isElementNode, $isLineBreakNode, $isTextNode, type EditorState, type LexicalNode } from "lexical";
 import type { ChatInputSubmitBlock } from "@/chat/react/types";
 import { $isFileReferenceNode } from "./reference/file/node";
+import { $isCommandReferenceNode } from "./reference/command/node";
 import { $isSkillReferenceNode } from "./reference/skill/node";
 
 export type ChatEditorValue = {
@@ -27,6 +28,11 @@ const appendText = (blocks: ChatInputSubmitBlock[], content: string) => {
 const serializeNode = (node: LexicalNode, blocks: ChatInputSubmitBlock[]) => {
   if ($isFileReferenceNode(node)) {
     blocks.push({ type: "file-reference", path: node.getPath() });
+    return;
+  }
+
+  if ($isCommandReferenceNode(node)) {
+    blocks.push({ type: "command-reference", commandId: node.getCommandId(), name: node.getName() });
     return;
   }
 
@@ -85,6 +91,7 @@ export const serializeChatEditorState = (editorState: EditorState): ChatEditorVa
           if (block.type === "file-reference") {
             return formatFileReference(block.path);
           }
+          if (block.type === "command-reference") return `/${block.commandId}`;
           if (block.type === "skill-reference") {
             return `/${block.name}`;
           }
