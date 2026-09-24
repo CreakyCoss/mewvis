@@ -14,7 +14,7 @@ packages/extension/
 │  ├─ ui/                       # UI 协议与扩展点
 │  │  ├─ protocol/              # 插槽、视图入口、目录与传输接口、Schema
 │  │  ├─ runtime/               # Provider、目录订阅、贡献绑定
-│  │  ├─ slots/                 # SidebarSlot、TextSlot、DialogSlot、ExtensionSlot
+│  │  ├─ slots/                 # SidebarSlot、ActionSlot、TextSlot、DialogSlot、ExtensionSlot
 │  │  ├─ views/                 # iframe、通信、取消与释放
 │  │  └─ server/                # 视图租约、作用域、权限撤销
 │  └─ services/                 # 内部服务契约、统一分发、会话数据映射
@@ -105,9 +105,11 @@ UI 模块通过 `session.dialog` 声明 `dialog` 贡献，必须提供 `id`、`t
 
 应用在 `PluginUIProvider` 下放置一个 `<DialogSlot />`，默认使用宿主设计系统提供弹窗外壳，根据协议的 `title`、`size` 展示插件视图。可选的 `render` 接收协议字段及 `renderView()`、`close()`，完整替换默认外壳；返回 `null` 时不显示默认弹窗。未挂载插槽时 `ctx.ui.dialog.available` 为 false，调用返回 `UI_UNSUPPORTED`。当前只允许一个活动弹窗，重复或嵌套打开返回 `UI_BUSY`。
 
+`ctx.ui.confirm()` 是宿主绘制的一次性确认交互，复用同一个弹窗挂载点，不要求插件声明确认框贡献。默认使用小型确认框，`renderConfirm` 可覆盖外观；确认返回 `true`，取消、关闭、来源销毁或插件停用返回 `false`。它只提供用户选择，插件仍负责执行操作。
+
 宿主继承来源视图的会话范围，插件不能指定其他插件 ID 或宿主路径。参数必须是 64 KiB 以内的 JSON 对象。关闭弹窗会销毁 iframe 并取消请求；来源视图卸载、插件停用/更新、插槽卸载也会关闭关联弹窗。Esc（包括 iframe 内）和焦点恢复由通用视图桥接与应用弹窗容器协作处理。
 
-原生与 SDK UI 上下文均提供 `ui.dialog` 和 `input`，SDK 适配器负责转换。React 仅是链路插件的实现选择；UI 构建支持 TSX，并打包为独立的生产模式浏览器入口。链路的详情和摘要内容保留在插件内，宿主只提供通用弹窗容器。
+原生与 SDK UI 上下文均提供 `ui.dialog`、`ui.confirm` 和 `input`，SDK 适配器负责转换。React 仅是链路插件的实现选择；UI 构建支持 TSX，并打包为独立的生产模式浏览器入口。链路的详情和摘要内容保留在插件内，宿主只提供通用弹窗容器。
 
 ### 插槽默认渲染约定
 

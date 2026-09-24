@@ -6,6 +6,7 @@ import type { Workspace } from "@/api/workspace";
 import { createTimestampId } from "@/utils/ids";
 import { useWorkspaceStore } from "../workspace-store";
 import { workspaceChatProfile } from "../profile";
+import { ComposerActionSlot } from "@isle/extension-host/ui/slots/action";
 
 export function HomeComposer({ workspace }: { workspace: Workspace }) {
   const [chatId] = useState(() => createTimestampId("chat"));
@@ -29,7 +30,9 @@ export function HomeComposer({ workspace }: { workspace: Workspace }) {
           openChat({ workspaceId: workspace.id, chatId });
           navigate(`/chats/${workspace.id}/${chatId}`, { replace: true });
         }}
-      />
+      >
+        <ComposerActionSlot context={{ workspacePath: workspace.path, chatId }} />
+      </Chat.Composer>
     </Chat.Provider>
   );
 }

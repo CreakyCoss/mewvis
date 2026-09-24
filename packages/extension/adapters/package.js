@@ -19,37 +19,9 @@ export function adaptIslePackage(packageJson) {
   if (source.modules.ui)
     modules.ui = {
       ...(source.modules.ui.entry && { entry: source.modules.ui.entry }),
-      contributions: source.modules.ui.contributions.map((item) =>
-        item.type === "sidebar" ||
-        item.type === "dialog" ||
-        item.type === "settings"
-          ? {
-              id: item.id,
-              slot: item.slot,
-              type: item.type,
-              title: item.title,
-              ...(item.type === "sidebar"
-                ? { icon: item.icon }
-                : item.type === "dialog"
-                  ? { size: item.size }
-                  : {}),
-              view: { id: item.view.id },
-            }
-          : item.type === "status"
-            ? {
-                id: item.id,
-                slot: item.slot,
-                type: item.type,
-                title: item.title,
-              }
-            : {
-                id: item.id,
-                slot: item.slot,
-                type: item.type,
-                text: item.text,
-                ...(item.tone && { tone: item.tone }),
-              },
-      ),
+      // Current SDK and host UI payloads share a serializable shape. The host
+      // validates its own schema after translation, so new slot types need no switch here.
+      contributions: structuredClone(source.modules.ui.contributions),
     };
   const { "isle.extension": _external, ...metadata } = packageJson;
   return {

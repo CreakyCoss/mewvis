@@ -128,6 +128,8 @@ export function ExtensionView({
             const value =
               message.method === "ui.dialog.open"
                 ? await dialogs.open(owner, message.arguments)
+                : message.method === "ui.confirm"
+                  ? await dialogs.confirm(owner, message.arguments)
                 : await transport.query(
                     view.token,
                     message.method,

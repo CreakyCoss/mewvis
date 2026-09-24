@@ -17,11 +17,11 @@
 | Agent | 干预输入、系统提示、上下文、工具调用/结果、会话压缩   | [agent/middleware.d.ts](../../packages/extension/sdk/agent/middleware.d.ts)                                       |
 | Agent | 插件会话状态、压缩请求与结果                          | [agent/session.d.ts](../../packages/extension/sdk/agent/session.d.ts)                                             |
 | Agent | 同步 setup、异步激活、资源清理与注册入口              | [agent/index.d.ts](../../packages/extension/sdk/agent/index.d.ts)                                                 |
-| UI    | `session.status` 文本、`session.sidebar` 侧栏、`session.dialog` 弹窗贡献 | [ui/slots.d.ts](../../packages/extension/sdk/ui/slots.d.ts)、[插槽目录](../../packages/extension/sdk/ui/slots.js) |
+| UI    | 设置、状态、侧栏、会话操作和弹窗贡献 | [ui/slots.d.ts](../../packages/extension/sdk/ui/slots.d.ts)、[插槽目录](../../packages/extension/sdk/ui/slots.js) |
 | Host  | 会话读取、只读账本、一次性摘要、能力协商和标准错误    | [host/services.d.ts](../../packages/extension/sdk/host/services.d.ts)                                             |
 | UI    | 浏览器视图挂载、取消信号与清理                        | [ui/browser.d.ts](../../packages/extension/sdk/ui/browser.d.ts)                                                   |
 
-UI 协议定义数据，具体 Slot 约束渲染参数，页面决定布局与展示时机。当前提供 `SidebarSlot`、`TextSlot` 和 `DialogSlot`，产品页面挂载 `session.sidebar`；text 是静态结构化文本，可使用默认展示或由页面自行绘制。插件视图的内部内容仍由插件绘制。
+UI 协议定义数据，具体 Slot 约束渲染参数，页面决定布局与展示时机。当前提供 `SidebarSlot`、`TextSlot`、`StatusSlot`、`ActionSlot`、`SettingsSlot` 和 `DialogSlot`；text 是静态结构化文本，可使用默认展示或由页面自行绘制。插件视图的内部内容仍由插件绘制。
 
 ## 按需阅读与导入
 
@@ -128,3 +128,7 @@ import { uiSlotDefinitions } from "@isle/extension-host/ui";
 插件声明 `uiSlotDefinitions.sessionDialog` 对应的贡献，必须提供标题、尺寸（`sm/md/lg`）与视图引用。`ctx.ui.dialog.open({ id: "detail", input: { runId: "..." } })` 打开本插件的弹窗，Promise 在关闭后完成；目标视图通过 `ctx.input` 读取参数，通过 `ctx.ui.dialog.close()` 关闭自身。
 
 宿主在应用根部挂载 `<DialogSlot />`，默认使用统一弹窗容器；需要自定义外壳时传入 `render`。插件通过 `ctx.ui.dialog.available` 判断当前是否有插槽；参数仅接受 64 KiB 以内的 JSON 对象，会话范围由宿主从来源视图继承。当前一次打开一个弹窗，插件停用、更新或来源视图销毁会自动关闭。完整生命周期见[宿主原生插件系统](native-host.md#弹窗插槽)。
+
+`ctx.ui.confirm({ title, description?, confirmText, cancelText?, tone? })` 请求宿主显示小型确认框并返回布尔值；插件只在返回 `true` 后自行执行删除等操作。它不需要新增贡献或声明一个确认弹窗视图，复用应用根部的 `DialogSlot`。关闭、按 Escape、来源视图卸载或插件停用均返回 `false`；当前已有插件弹窗时返回 `UI_BUSY`。
+
+会话操作贡献可声明在 `session.composer-actions` 或 `session.header-actions`，必填 `title`、`icon` 和 `trigger: { kind: "dialog", id: "..." }`；目标必须是同插件声明的 `session.dialog`。宿主提供默认按钮，页面也可以用 `render` 或 `renderAll` 改变显示方式。只有点击时才打开目标视图，贡献本身不会启动 iframe。

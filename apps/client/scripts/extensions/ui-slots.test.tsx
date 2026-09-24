@@ -11,6 +11,8 @@ import {
 } from "@isle/extension-host/ui/slots";
 import { SidebarSlot, type SidebarSlotItem } from "@isle/extension-host/ui/slots/sidebar";
 import { TextSlot } from "@isle/extension-host/ui/slots/text";
+import { ActionSlot, ComposerActionSlot, HeaderActionSlot, type ActionSlotItem } from "@isle/extension-host/ui/slots/action";
+import { DialogRuntimeProvider } from "../../../../packages/extension/host/ui/runtime/dialog-context";
 
 const context = { workspacePath: "/test", chatId: "a" };
 const { sessionSidebar: sidebar, sessionStatus: status } = uiSlotDefinitions;
@@ -212,12 +214,51 @@ test("concrete slots provide defaults and explicit null overrides never load a v
   assert.equal(views, 1);
 });
 
+test("session action slots expose typed actions without loading their target views", () => {
+  let opened: ActionSlotItem<typeof uiSlotDefinitions.composerActions> | undefined;
+  let views = 0;
+  const action = defineUIContribution(uiSlotDefinitions.composerActions, {
+    id: "open-report", title: "打开报告", icon: "chart", trigger: { kind: "dialog", id: "report" },
+  });
+  const dialog = defineUIContribution(uiSlotDefinitions.sessionDialog, {
+    id: "report", title: "报告", size: "sm", view: { id: "report" },
+  });
+  const html = renderToStaticMarkup(
+    <DialogRuntimeProvider contributions={[
+      { ...action, extensionId: "test.report", revision: "1" },
+      { ...dialog, extensionId: "test.report", revision: "1" },
+    ]}>
+      <ExtensionSlotProvider contributions={[
+        { key: "plugin:action", extensionId: "test.report", revision: "1", contribution: action },
+        {
+          key: "plugin:dialog", extensionId: "test.report", revision: "1", contribution: dialog,
+          renderView: () => { views++; return <p>Report view</p>; },
+        },
+      ]}>
+        <ComposerActionSlot context={context} render={(item) => {
+          opened = item;
+          return <button>{item.title}</button>;
+        }} />
+        <HeaderActionSlot context={context} fallback={<span>empty</span>} />
+      </ExtensionSlotProvider>
+    </DialogRuntimeProvider>,
+  );
+  assert.equal(html, "<button>打开报告</button><span>empty</span>");
+  assert.equal(opened?.trigger.id, "report");
+  assert.equal(typeof opened?.open, "function");
+  assert.equal(views, 0);
+});
+
 // Compile-time contracts: definitions constrain payloads and the concrete slot's render signature.
 if (false) {
   // @ts-expect-error the shared definition is required
   defineUIContribution("session.sidebar", { id: "x", title: "X" });
   // @ts-expect-error sidebar requires icon and view
   defineUIContribution(sidebar, { id: "x", title: "X" });
+  // @ts-expect-error actions require an icon and a typed trigger
+  defineUIContribution(uiSlotDefinitions.composerActions, { id: "x", title: "X" });
+  // @ts-expect-error action slots cannot use a sidebar definition
+  <ActionSlot definition={sidebar} context={context} />;
   // @ts-expect-error the text definition cannot be passed to SidebarSlot
   <SidebarSlot definition={status} context={context} render={() => null} />;
   // @ts-expect-error the sidebar definition cannot be passed to TextSlot

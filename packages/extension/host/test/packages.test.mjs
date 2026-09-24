@@ -366,3 +366,32 @@ test("UI protocol validates slot/type pairs and permits data-only text modules",
   await f.save();
   assert.throws(() => readExtensionPackage(f.directory), /清单无效/);
 });
+
+test("session actions require complete metadata and a declared session dialog", async (t) => {
+  const f = await fixture(t);
+  await writeFile(join(f.directory, "ui.js"), "throw new Error('metadata loading must not execute UI');");
+  const dialog = {
+    id: "editor", slot: "session.dialog", type: "dialog", title: "Editor", size: "sm", view: { id: "editor" },
+  };
+  const action = {
+    id: "open-editor", slot: "session.composer-actions", type: "action", title: "Open editor",
+    icon: "puzzle", trigger: { kind: "dialog", id: "editor" },
+  };
+  const ui = { entry: "./ui.js", contributions: [dialog, action] };
+  f.pkg["isle.plugin"].modules = { ui };
+  await f.save();
+  assert.equal(readExtensionPackage(f.directory).modules.ui.contributions.length, 2);
+  for (const invalid of [
+    { ...action, title: undefined },
+    { ...action, icon: undefined },
+    { ...action, trigger: { kind: "command", id: "editor" } },
+    { ...action, trigger: { kind: "dialog", id: "missing" } },
+  ]) {
+    ui.contributions = [dialog, invalid];
+    await f.save();
+    assert.throws(() => readExtensionPackage(f.directory), /清单无效|必须指向/);
+  }
+  ui.contributions = [{ ...dialog, slot: "plugin.dialog" }, action];
+  await f.save();
+  assert.throws(() => readExtensionPackage(f.directory), /必须指向/);
+});

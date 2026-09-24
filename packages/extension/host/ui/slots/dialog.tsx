@@ -5,6 +5,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "design-system/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "design-system/components/ui/alert-dialog";
 import type { UIContribution } from "../index.js";
 import { useDialogRuntime } from "../runtime/dialog-context";
 import { ExtensionView } from "../views/frame-view";
@@ -17,7 +27,39 @@ export type DialogSlotItem = Readonly<
 
 export type DialogSlotProps = {
   render?: (item: DialogSlotItem) => ReactNode;
+  renderConfirm?: (item: ConfirmSlotItem) => ReactNode;
 };
+export type ConfirmSlotItem = Readonly<{
+  title: string;
+  description?: string;
+  confirmText: string;
+  cancelText: string;
+  tone: "default" | "danger";
+  confirm(): void;
+  close(): void;
+}>;
+
+function DefaultConfirm({ item }: { item: ConfirmSlotItem }) {
+  return (
+    <AlertDialog open onOpenChange={(open) => { if (!open) item.close(); }}>
+      <AlertDialogContent className="sm:max-w-sm">
+        <AlertDialogHeader>
+          <AlertDialogTitle>{item.title}</AlertDialogTitle>
+          <AlertDialogDescription>{item.description ?? "请确认是否继续。"}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={item.close}>{item.cancelText}</AlertDialogCancel>
+          <AlertDialogAction
+            variant={item.tone === "danger" ? "destructive" : "default"}
+            onClick={item.confirm}
+          >
+            {item.confirmText}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
 
 function DefaultDialog({ item }: { item: DialogSlotItem }) {
   return (
@@ -48,7 +90,7 @@ function DefaultDialog({ item }: { item: DialogSlotItem }) {
 }
 
 /** Mount once at the application root. Override render to replace the default dialog shell. */
-export function DialogSlot({ render }: DialogSlotProps) {
+export function DialogSlot({ render, renderConfirm }: DialogSlotProps) {
   const runtime = useDialogRuntime();
   useEffect(() => runtime.attach(), [runtime]);
   const request = useSyncExternalStore(
@@ -57,6 +99,18 @@ export function DialogSlot({ render }: DialogSlotProps) {
     () => null,
   );
   if (!request) return null;
+  if (request.kind === "confirm") {
+    const item: ConfirmSlotItem = {
+      title: request.title,
+      description: request.description,
+      confirmText: request.confirmText,
+      cancelText: request.cancelText,
+      tone: request.tone,
+      confirm: () => runtime.close(request.id, true),
+      close: () => runtime.close(request.id),
+    };
+    return renderConfirm ? renderConfirm(item) : <DefaultConfirm item={item} />;
+  }
   const contribution = request.contribution;
   const close = () => runtime.close(request.id);
   const item: DialogSlotItem = {

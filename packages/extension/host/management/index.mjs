@@ -149,6 +149,11 @@ export function readExtensionPackage(
       modules.ui.contributions.length
   )
     throw new Error("插件 UI 贡献 ID 重复");
+  for (const action of modules.ui?.contributions.filter((item) => item.type === "action") ?? []) {
+    if (!modules.ui.contributions.some((item) =>
+      item.id === action.trigger.id && item.type === "dialog" && item.slot === "session.dialog",
+    )) throw new Error(`操作入口 ${action.id} 必须指向同插件声明的会话弹窗`);
+  }
   // Compile schema now, but required configuration may be supplied at registration time.
   if (manifest.configuration)
     new Ajv({ allErrors: true }).compile(manifest.configuration.schema);

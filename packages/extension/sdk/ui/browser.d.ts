@@ -7,6 +7,8 @@ export interface ExtensionUIContext {
   /** Serializable parameters supplied by the opening view. Empty for a sidebar. */
   readonly input: Readonly<JsonObject>;
   readonly ui: {
+    /** Host-rendered confirmation; the plugin performs the action after a true result. */
+    confirm(request: UIConfirmRequest): Promise<boolean>;
     readonly dialog: {
       readonly available: boolean;
       /** Opens this plugin's declared dialog contribution. Resolves when it closes. */
@@ -19,6 +21,14 @@ export interface ExtensionUIContext {
   readonly viewId: string;
   readonly config: Readonly<JsonObject>;
   readonly signal: AbortSignal;
+}
+
+export interface UIConfirmRequest {
+  title: string;
+  description?: string;
+  confirmText: string;
+  cancelText?: string;
+  tone?: "default" | "danger";
 }
 
 export interface ExtensionUIDefinition {

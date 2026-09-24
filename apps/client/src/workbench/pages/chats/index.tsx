@@ -7,6 +7,7 @@ import { WorkspaceFileWatcher } from "./workspace-files";
 import { WorkspaceChatPanels } from "./panels";
 import { workspaceChatProfile } from "./profile";
 import { ModelSetupDialog } from "./components/model-setup-dialog";
+import { ComposerActionSlot, HeaderActionSlot } from "@isle/extension-host/ui/slots/action";
 
 function WorkspaceChat({ workspaceId, chatId, isActive }: { workspaceId: string; chatId: string; isActive: boolean }) {
   const store = useWorkspaceStore();
@@ -55,8 +56,16 @@ function WorkspaceChat({ workspaceId, chatId, isActive }: { workspaceId: string;
     );
   return (
     <div className="relative flex h-full min-h-0 flex-1 overflow-hidden bg-surface/45">
-      <div className="min-w-0 flex-1 overflow-hidden bg-background/95">
-        <Chat session={session} />
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background/95">
+        <div className="flex shrink-0 justify-end gap-1 empty:hidden px-4 pt-2 sm:px-8">
+          <HeaderActionSlot context={{ workspacePath: workspace.path, chatId }} />
+        </div>
+        <div className="min-h-0 flex-1">
+          <Chat
+            session={session}
+            composer={{ children: <ComposerActionSlot context={{ workspacePath: workspace.path, chatId }} /> }}
+          />
+        </div>
       </div>
       {isActive ? (
         <Chat.Provider session={session} viewId="sidebar">

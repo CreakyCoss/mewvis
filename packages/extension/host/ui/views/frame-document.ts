@@ -33,7 +33,7 @@ addEventListener("message", function connect(event) {
         port.postMessage({ type: "cancel", id });
         reject(hostError("HOST_CANCELLED", "请求已取消"));
       };
-      const timer = method === "ui.dialog.open" ? undefined : setTimeout(cancel, 125000);
+      const timer = method === "ui.dialog.open" || method === "ui.confirm" ? undefined : setTimeout(cancel, 125000);
       options?.signal?.addEventListener("abort", cancel, { once: true });
       pending.set(id, { resolve, reject, cleanup: () => {
         clearTimeout(timer); options?.signal?.removeEventListener("abort", cancel);
@@ -82,7 +82,13 @@ addEventListener("message", function connect(event) {
       dispose = await definition.mount(document.getElementById("root"), Object.freeze({
         contributionId: input.contributionId, viewId: input.viewId, config: freeze(input.config), signal: abort.signal,
         input: freeze(input.input),
-        ui: Object.freeze({ dialog: Object.freeze({
+        ui: Object.freeze({
+          async confirm(args) {
+            const trigger = document.activeElement;
+            try { return await request("ui.confirm", args); }
+            finally { requestAnimationFrame(() => requestAnimationFrame(() => trigger?.focus?.())); }
+          },
+          dialog: Object.freeze({
           get available() { return dialogAvailable; },
           async open(args) {
             const trigger = document.activeElement;
@@ -90,7 +96,8 @@ addEventListener("message", function connect(event) {
             finally { requestAnimationFrame(() => requestAnimationFrame(() => trigger?.focus?.())); }
           },
           close() { if (input.isDialog) port.postMessage({ type: "dialog.close" }); },
-        }) }),
+          }),
+        }),
         services: createHostClient(request, input.capabilities),
       }));
       if (dispose !== undefined && typeof dispose !== "function") throw new Error("插件 mount 必须返回清理函数或空值");

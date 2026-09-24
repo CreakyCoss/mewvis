@@ -158,6 +158,8 @@ export function adaptUIExtension(definition) {
         Object.freeze({
           input: copy(native.input),
           ui: Object.freeze({
+            /** @param {import("@isle/extension-sdk/ui").UIConfirmRequest} request */
+            confirm: (request) => native.ui.confirm(copy(request)),
             dialog: Object.freeze({
               get available() {
                 return native.ui.dialog.available;

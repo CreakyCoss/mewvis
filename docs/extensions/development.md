@@ -22,7 +22,7 @@ pnpm extension pack apps/extensions/my-feature
 
 生成的 tgz 根目录为 `package/`。自行解包后可登记该目录；CLI 当前不直接安装不可信压缩包。打包和登记不运行 npm 安装脚本。
 
-仓库内置 `collaboration`、`decisions`、`session-insights` 和 `session-ledger` 四个插件，其中 `session-insights` 演示纯 UI 会话统计。桌面构建会将 `apps/extensions/` 下声明 `isle.extension` 的直接子目录打包到 Runtime 的 `dist/extensions/`，作为内置插件自动发现、默认启用。它们仍使用通用插件协议，运行时代码不硬编码插件 ID。独立 SDK 不自动扫描仓库目录，由宿主指定包来源。
+仓库内置 `collaboration`、`decisions`、`session-insights` 和 `session-ledger` 四个插件，其中 `session-insights` 演示纯 UI 会话统计。桌面构建会将 `apps/extensions/` 下声明 `isle.extension` 或 `isle.plugin` 的直接子目录打包到 Runtime 的 `dist/extensions/`，作为内置插件自动发现、默认启用。它们仍使用通用插件协议，运行时代码不硬编码插件 ID。独立 SDK 不自动扫描仓库目录，由宿主指定包来源。
 
 ## 包清单
 
@@ -137,12 +137,16 @@ export default defineUIExtension({
 });
 ```
 
-插槽定义由 `@isle/extension-sdk/ui` 提供，不在桌面页面内定义。目前协议有两类：
+插槽定义由 `@isle/extension-sdk/ui` 提供，不在桌面页面内定义。当前常用位置如下：
 
-| 插槽 key          | 类型      | 贡献内容                                                       | 当前桌面状态           |
-| ----------------- | --------- | -------------------------------------------------------------- | ---------------------- |
-| `session.sidebar` | `sidebar` | 必需 `id`、`title`、`icon`、`view: { id }`，渲染模块的 UI 入口 | 已适配并挂载在聊天侧栏 |
-| `session.status`  | `text`    | `id`、`text`、可选 `tone`（neutral/info/warning）              | 已适配，页面尚未挂载   |
+| 插槽 key | 类型 | 贡献内容 | 当前桌面状态 |
+| --- | --- | --- | --- |
+| `plugin.settings` | `settings` | 标题和视图引用 | 插件管理页 |
+| `session.sidebar` | `sidebar` | 标题、图标和视图引用 | 聊天侧栏 |
+| `session.composer-status` | `status` | 标题；运行状态由宿主提供 | 聊天输入区上方 |
+| `session.composer-actions` / `session.header-actions` | `action` | 标题、图标和 `{ kind: "dialog", id }` 触发器 | 聊天输入区 / 会话顶部 |
+| `plugin.dialog` / `session.dialog` | `dialog` | 标题、尺寸和视图引用 | 应用根部按需打开 |
+| `session.status` | `text` | 文本、可选 tone | 已适配，页面尚未挂载 |
 
 作者代码可通过共享定义创建贡献，避免重复输入插槽 key/type：
 
@@ -159,7 +163,7 @@ const contribution = defineUIContribution(uiSlotDefinitions.sessionSidebar, {
 });
 ```
 
-结果可序列化到清单的 `modules.ui.contributions`；静态 JSON 仍须填写协议 key/type，并由 Schema 校验。可用图标为 `chart`、`files`、`git-branch`、`activity`、`puzzle`、`info`，不接受任意 HTML 或 React 组件。`view.id` 传入 UI 模块的 mount 上下文，由插件选择对应视图。
+结果可序列化到清单的 `modules.ui.contributions`；静态 JSON 仍须填写协议 key/type，并由 Schema 校验。可用图标为 `chart`、`files`、`git-branch`、`activity`、`puzzle`、`info`、`sparkles`，不接受任意 HTML 或 React 组件。`view.id` 传入 UI 模块的 mount 上下文，由插件选择对应视图。会话操作入口的 `trigger.id` 必须指向同插件声明的 `session.dialog` 贡献。
 
 清单字段统一使用 `contributions`，不接受旧 `panels`。同一 UI 模块内贡献 ID 必须唯一，贡献的 `slot` 与 `type` 必须匹配协议。当前文本为静态纯文本，不解释 HTML；动态数据看板使用侧栏 UI 入口和已有数据接口。
 
@@ -181,7 +185,7 @@ UI 在 `sandbox="allow-scripts"` 的独立源 iframe 中执行，通过 MessageC
 
 `session.read` 绑定当前面板的会话，插件不能传入工作区路径或其他会话 ID。返回稳定 DTO：共享的用户/助手消息（id、role、text、timestamp）和关联运行（id、status、startedAt、endedAt）。不返回私有消息、系统提示词、原始 metadata 或账本路径。最多返回最近 1000 条消息和 1000 条运行，单条文本最多 8000 字符；发生截断时 `truncated` 为 true。未声明该能力的 UI 仍可展示静态内容，但读取被拒绝。
 
-原生插件 `session-ledger` 通过 `ctx.services` 使用独立的 `session.ledger.read` 能力查看运行链路、指令、上下文和工具记录，通过可选的 `session.summarize` 获取一次性摘要。摘要不会写回会话、触发压缩或进入后续上下文；需要宿主配置可用模型。能力缺失、错误与取消约定见[宿主服务协议与适配](host-services.md)。
+原生插件 `session-ledger` 通过 `ctx.services` 使用独立的 `session.ledger.read` 能力查看运行链路、指令、上下文和工具记录，通过可选的 `session.summarize` 获取一次性摘要。它还在会话顶部提供「会话摘要」操作入口，点击后打开插件已有的摘要弹窗。摘要不会写回会话、触发压缩或进入后续上下文；需要宿主配置可用模型。能力缺失、错误与取消约定见[宿主服务协议与适配](host-services.md)。
 
 `session-insights` 从该接口计算消息数、运行数、失败数与累计时间，通过按钮刷新；目前没有工具明细、token 统计或数据变更订阅。纯 UI 插件不会向 Pi / Mock 注入空插件，也不要求配置模型。
 

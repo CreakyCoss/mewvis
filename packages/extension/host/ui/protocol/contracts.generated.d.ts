@@ -16,6 +16,28 @@ export type UIContribution =
     }
   | {
       id: string;
+      slot: "session.composer-actions";
+      type: "action";
+      title: string;
+      icon: "activity" | "chart" | "files" | "git-branch" | "info" | "puzzle" | "sparkles";
+      trigger: {
+        kind: "dialog";
+        id: string;
+      };
+    }
+  | {
+      id: string;
+      slot: "session.header-actions";
+      type: "action";
+      title: string;
+      icon: "activity" | "chart" | "files" | "git-branch" | "info" | "puzzle" | "sparkles";
+      trigger: {
+        kind: "dialog";
+        id: string;
+      };
+    }
+  | {
+      id: string;
       slot: "session.status";
       type: "text";
       text: string;
@@ -59,6 +81,8 @@ export interface UIViewReference2 {
 export const uiSlotDefinitions: {
   readonly pluginSettings: { readonly key: "plugin.settings"; readonly type: "settings"; readonly scope: "application" };
   readonly composerStatus: { readonly key: "session.composer-status"; readonly type: "status"; readonly scope: "session" };
+  readonly composerActions: { readonly key: "session.composer-actions"; readonly type: "action"; readonly scope: "session" };
+  readonly headerActions: { readonly key: "session.header-actions"; readonly type: "action"; readonly scope: "session" };
   readonly sessionStatus: { readonly key: "session.status"; readonly type: "text"; readonly scope: "session" };
   readonly pluginDialog: { readonly key: "plugin.dialog"; readonly type: "dialog"; readonly scope: "application" };
   readonly sessionDialog: { readonly key: "session.dialog"; readonly type: "dialog"; readonly scope: "session" };
@@ -67,6 +91,7 @@ export const uiSlotDefinitions: {
 export const uiSlotTypes: {
   readonly settings: { readonly type: "settings"; readonly schema: object };
   readonly status: { readonly type: "status"; readonly schema: object };
+  readonly action: { readonly type: "action"; readonly schema: object };
   readonly text: { readonly type: "text"; readonly schema: object };
   readonly dialog: { readonly type: "dialog"; readonly schema: object };
   readonly sidebar: { readonly type: "sidebar"; readonly schema: object };

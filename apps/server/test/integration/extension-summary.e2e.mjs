@@ -109,6 +109,11 @@ test(
       server.supervisor.snapshot("summary-source").taskState,
       "done",
     );
+    const summaryAction = (await call("list_extension_ui_contributions")).find(
+      (item) => item.extensionId === "isle.session-ledger" && item.id === "open-summary",
+    );
+    assert.equal(summaryAction?.slot, "session.header-actions");
+    assert.deepEqual(summaryAction?.trigger, { kind: "dialog", id: "summary" });
     const view = await call("open_extension_view", {
       ...target,
       id: "isle.session-ledger",

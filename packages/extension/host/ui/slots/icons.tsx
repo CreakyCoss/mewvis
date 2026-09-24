@@ -5,6 +5,7 @@ import {
   GitBranchIcon,
   InfoIcon,
   PuzzleIcon,
+  SparklesIcon,
 } from "lucide-react";
 import type { UIContribution } from "../index.js";
 
@@ -15,6 +16,7 @@ const icons = {
   "git-branch": GitBranchIcon,
   info: InfoIcon,
   puzzle: PuzzleIcon,
+  sparkles: SparklesIcon,
 } satisfies Record<
   Extract<UIContribution, { icon: string }>["icon"],
   typeof InfoIcon

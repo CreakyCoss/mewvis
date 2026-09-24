@@ -66,6 +66,17 @@
             "view": {
               "id": "summary"
             }
+          },
+          {
+            "id": "open-summary",
+            "slot": "session.header-actions",
+            "type": "action",
+            "title": "会话摘要",
+            "icon": "activity",
+            "trigger": {
+              "kind": "dialog",
+              "id": "summary"
+            }
           }
         ]
       }

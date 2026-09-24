@@ -9,12 +9,24 @@ export interface DialogOwner {
   revision: string;
   context: UIHostContext;
 }
-export interface DialogRequest {
+export interface ViewDialogRequest {
+  kind: "view";
   id: number;
   owner: DialogOwner;
   contribution: DialogContribution;
   input: JsonObject;
 }
+export interface ConfirmDialogRequest {
+  kind: "confirm";
+  id: number;
+  owner: DialogOwner;
+  title: string;
+  description?: string;
+  confirmText: string;
+  cancelText: string;
+  tone: "default" | "danger";
+}
+export type DialogRequest = ViewDialogRequest | ConfirmDialogRequest;
 function isJSON(value: unknown, ancestors = new Set<unknown>()): boolean {
   if (value === null || typeof value === "string" || typeof value === "boolean")
     return true;
@@ -41,7 +53,7 @@ export class DialogRuntime {
   private mounted = false;
   private sequence = 0;
   private current: DialogRequest | null = null;
-  private resolve?: () => void;
+  private finish?: (confirmed: boolean) => void;
   get available() {
     return this.mounted;
   }
@@ -58,16 +70,12 @@ export class DialogRuntime {
   update(catalog: readonly ExtensionUIContribution[]) {
     this.catalog = catalog;
     const request = this.current;
-    if (
-      request &&
-      !catalog.some(
-        (item) =>
-          item.type === "dialog" &&
-          item.extensionId === request.owner.extensionId &&
-          item.id === request.contribution.id &&
-          item.revision === request.contribution.revision,
-      )
-    )
+    if (request && !catalog.some((item) =>
+      item.extensionId === request.owner.extensionId &&
+      item.revision === request.owner.revision &&
+      (request.kind === "confirm" ||
+        (item.type === "dialog" && item.id === request.contribution.id)),
+    ))
       this.close(request.id);
   }
   attach() {
@@ -121,8 +129,9 @@ export class DialogRuntime {
         );
       const cleanInput = JSON.parse(json);
       return new Promise((resolve) => {
-        this.resolve = resolve;
+        this.finish = () => resolve();
         this.current = {
+          kind: "view",
           id: ++this.sequence,
           owner,
           contribution,
@@ -134,13 +143,59 @@ export class DialogRuntime {
       return Promise.reject(error);
     }
   }
-  close(id?: number) {
+  confirm(owner: DialogOwner, value: unknown): Promise<boolean> {
+    try {
+      if (!this.mounted)
+        throw failure("UI_UNSUPPORTED", "当前界面没有提供确认弹窗");
+      if (this.current) throw failure("UI_BUSY", "请先关闭当前插件弹窗");
+      if (!value || typeof value !== "object" || Array.isArray(value))
+        throw failure("UI_INVALID_REQUEST", "无效的确认请求");
+      const request = value as Record<string, unknown>;
+      if (Object.keys(request).some((key) =>
+        !["title", "description", "confirmText", "cancelText", "tone"].includes(key),
+      )) throw failure("UI_INVALID_REQUEST", "无效的确认请求");
+      const text = (key: string, max: number, required: boolean) => {
+        const field = request[key];
+        if (field === undefined && !required) return undefined;
+        if (typeof field !== "string" || !field.trim() || field.length > max)
+          throw failure("UI_INVALID_REQUEST", `确认请求的 ${key} 无效`);
+        return field;
+      };
+      const title = text("title", 100, true)!;
+      const description = text("description", 1000, false);
+      const confirmText = text("confirmText", 32, true)!;
+      const cancelText = text("cancelText", 32, false) ?? "取消";
+      const tone = request.tone ?? "default";
+      if (tone !== "default" && tone !== "danger")
+        throw failure("UI_INVALID_REQUEST", "无效的确认框类型");
+      if (!this.catalog.some((item) =>
+        item.extensionId === owner.extensionId && item.revision === owner.revision,
+      )) throw failure("UI_DENIED", "插件已停用或更新");
+      return new Promise((resolve) => {
+        this.finish = resolve;
+        this.current = {
+          kind: "confirm",
+          id: ++this.sequence,
+          owner,
+          title,
+          description,
+          confirmText,
+          cancelText,
+          tone,
+        };
+        this.emit();
+      });
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }
+  close(id?: number, confirmed = false) {
     if (!this.current || (id !== undefined && this.current.id !== id)) return;
-    const resolve = this.resolve;
+    const finish = this.finish;
     this.current = null;
-    this.resolve = undefined;
+    this.finish = undefined;
     this.emit();
-    resolve?.();
+    finish?.(confirmed);
   }
   release(owner: symbol) {
     if (this.current?.owner.key === owner) this.close();

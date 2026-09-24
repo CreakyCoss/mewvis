@@ -1,8 +1,8 @@
 import type { UIContribution } from "./protocol/contracts.js";
 
-/** UI module: text/sidebar contributions and scoped session data access. */
+/** UI module: typed contributions and scoped browser views. */
 export interface UIModuleManifest {
-  /** Required for sidebar views; plain text contributions need no executable entry. */
+  /** Required when a contribution references a browser view. */
   entry?: string;
   contributions: UIContribution[];
 }

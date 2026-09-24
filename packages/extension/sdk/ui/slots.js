@@ -33,6 +33,22 @@ export const uiSlotTypes = Object.freeze({
       ["title"],
     ),
   }),
+  action: Object.freeze({
+    type: "action",
+    schema: payload(
+      {
+        title: { type: "string", minLength: 1, maxLength: 64 },
+        icon: {
+          enum: ["activity", "chart", "files", "git-branch", "info", "puzzle", "sparkles"],
+        },
+        trigger: payload(
+          { kind: { const: "dialog" }, id: identifier },
+          ["kind", "id"],
+        ),
+      },
+      ["title", "icon", "trigger"],
+    ),
+  }),
   text: Object.freeze({
     type: "text",
     schema: payload(
@@ -85,6 +101,8 @@ export const uiSlotDefinitions = Object.freeze({
     uiSlotTypes.status,
     "session",
   ),
+  composerActions: slot("session.composer-actions", uiSlotTypes.action, "session"),
+  headerActions: slot("session.header-actions", uiSlotTypes.action, "session"),
   sessionStatus: slot("session.status", uiSlotTypes.text, "session"),
   pluginDialog: slot("plugin.dialog", uiSlotTypes.dialog, "application"),
   sessionDialog: slot("session.dialog", uiSlotTypes.dialog, "session"),

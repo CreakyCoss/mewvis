@@ -108,3 +108,49 @@ test("source disposal, plugin disable/update and slot unmount close pending dial
     assert.equal(runtime.snapshot(), null);
   }
 });
+
+test("host confirmation returns a decision without invoking a plugin action", async () => {
+  const runtime = fixture();
+  const detach = runtime.attach();
+  const source = owner();
+  const accepted = runtime.confirm(source, {
+    title: "删除规则？",
+    description: "删除后无法恢复",
+    confirmText: "删除",
+    tone: "danger",
+  });
+  assert.deepEqual(
+    { kind: runtime.snapshot().kind, title: runtime.snapshot().title, tone: runtime.snapshot().tone },
+    { kind: "confirm", title: "删除规则？", tone: "danger" },
+  );
+  await assert.rejects(runtime.open(source, { id: "details" }), { code: "UI_BUSY" });
+  runtime.close(runtime.snapshot().id, true);
+  assert.equal(await accepted, true);
+  const view = runtime.open(source, { id: "details" });
+  await assert.rejects(runtime.confirm(source, { title: "删除？", confirmText: "删除" }), { code: "UI_BUSY" });
+  runtime.close();
+  await view;
+  const cancelled = runtime.confirm(source, { title: "删除？", confirmText: "删除" });
+  runtime.close();
+  assert.equal(await cancelled, false);
+  const removed = runtime.confirm(source, { title: "删除？", confirmText: "删除" });
+  runtime.release(source.key);
+  assert.equal(await removed, false);
+  detach();
+});
+
+test("confirmation validates data and closes when its plugin or slot disappears", async () => {
+  const runtime = fixture();
+  const detach = runtime.attach();
+  const source = owner();
+  for (const input of [null, {}, { title: "删除？", confirmText: "删除", tone: "invalid" }, { title: "删除？", confirmText: "删除", extra: true }])
+    await assert.rejects(runtime.confirm(source, input), { code: "UI_INVALID_REQUEST" });
+  await assert.rejects(runtime.confirm({ ...source, revision: "old" }, { title: "删除？", confirmText: "删除" }), { code: "UI_DENIED" });
+  const disabled = runtime.confirm(source, { title: "删除？", confirmText: "删除" });
+  runtime.update([]);
+  assert.equal(await disabled, false);
+  runtime.update([contribution]);
+  const unmounted = runtime.confirm(source, { title: "删除？", confirmText: "删除" });
+  detach();
+  assert.equal(await unmounted, false);
+});

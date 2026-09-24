@@ -165,8 +165,13 @@ test("SDK dialogs map metadata, input and lifecycle without exposing native UI o
     "plugin.dialog",
   );
   let request,
+    confirmation,
     closed = false;
   const ui = {
+    async confirm(value) {
+      confirmation = value;
+      return true;
+    },
     dialog: {
       available: true,
       async open(value) {
@@ -189,6 +194,7 @@ test("SDK dialogs map metadata, input and lifecycle without exposing native UI o
       ui.dialog.available = false;
       assert.equal(ctx.ui.dialog.available, false);
       await ctx.ui.dialog.open({ id: "detail", input: ctx.input });
+      assert.equal(await ctx.ui.confirm({ title: "删除？", confirmText: "删除", tone: "danger" }), true);
       ctx.ui.dialog.close();
     },
   });
@@ -198,6 +204,7 @@ test("SDK dialogs map metadata, input and lifecycle without exposing native UI o
   );
   assert.deepEqual(request, { id: "detail", input });
   assert.notEqual(request.input, input);
+  assert.deepEqual(confirmation, { title: "删除？", confirmText: "删除", tone: "danger" });
   assert.equal(closed, true);
   for (const invalid of [
     { ...contribution, size: "fullscreen" },
@@ -207,4 +214,28 @@ test("SDK dialogs map metadata, input and lifecycle without exposing native UI o
     metadata["isle.extension"].modules.ui.contributions = [invalid];
     assert.throws(() => adaptIslePackage(metadata), /无效/);
   }
+});
+
+test("SDK session actions retain their typed trigger during native manifest conversion", () => {
+  const action = {
+    id: "open-report",
+    slot: "session.header-actions",
+    type: "action",
+    title: "打开报告",
+    icon: "chart",
+    trigger: { kind: "dialog", id: "report" },
+  };
+  const source = {
+    name: "test.actions",
+    version: "1.0.0",
+    type: "module",
+    "isle.extension": {
+      id: "test.actions",
+      schemaVersion: 2,
+      apiVersion: 1,
+      modules: { ui: { entry: "ui.js", contributions: [action] } },
+    },
+  };
+  assert.deepEqual(adaptIslePackage(source)["isle.plugin"].modules.ui.contributions, [action]);
+  assert.notEqual(adaptIslePackage(source)["isle.plugin"].modules.ui.contributions[0].trigger, action.trigger);
 });
