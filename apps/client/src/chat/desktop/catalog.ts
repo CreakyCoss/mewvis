@@ -1,4 +1,5 @@
 import { listExtensionCommands } from "@/api/agent-runtime";
+import { listExtensions } from "@/api/extensions";
 import { getLlmModelOptions } from "@/api/llm";
 import { getAiAgentSettings } from "@/api/agents";
 import { getSkills } from "@/api/skills";
@@ -55,6 +56,7 @@ export function createDesktopCatalog(
             catalog ? { ...tools, tools: catalog } : tools,
           ),
           target ? listExtensionCommands(target) : Promise.resolve([]),
+          target ? listExtensions() : Promise.resolve([]),
         ]);
         const errors: NonNullable<ChatResources["errors"]> = {};
         const value = <T>(key: keyof typeof errors, result: PromiseSettledResult<T>, fallback: T): T => {
@@ -68,6 +70,11 @@ export function createDesktopCatalog(
         const skillSettings = value("skillGroups", results[2], { skills: [], groups: [], defaultGroupId: "" });
         const knowledge = value("knowledgeCollections", results[3], { collections: [], sources: [] });
         const toolSettings = value("tools", results[4], { tools: [], defaultToolNames: [], permissionOptions: [] });
+        const pluginNames = new Map(
+          (results[6].status === "fulfilled" ? results[6].value : []).map(
+            (extension) => [extension.id, extension.displayName] as const,
+          ),
+        );
         const allowedTools = profile.resolveToolNames?.() ?? profile.allowedToolNames;
         agents = agentSettings.agents;
         skills = profile.skills ?? skillSettings.skills;
@@ -96,7 +103,12 @@ export function createDesktopCatalog(
         resources = {
           commands: value("commands", results[5], [])
             .filter((command) => command.inputMode === "text")
-            .map(({ id, label, description }) => ({ id, label, description })),
+            .map(({ id, label, description }) => ({
+              id,
+              label,
+              description,
+              pluginName: pluginNames.get(id.slice(0, id.lastIndexOf("/"))) ?? "未命名插件",
+            })),
           permissionOptions: toolSettings.permissionOptions.map((option) => ({ ...option })),
           models: models.map((model, index) => ({
             value: model.id,

@@ -35,7 +35,7 @@ export class CommandReferenceNode extends TextNode {
   }
 
   constructor(commandId: string, name: string, text?: string, key?: NodeKey) {
-    super(text ?? `/${name}`, key);
+    super(text ?? name, key);
     this.__commandId = commandId;
     this.__name = name;
   }
@@ -59,7 +59,7 @@ export class CommandReferenceNode extends TextNode {
   createDOM(config: EditorConfig) {
     const element = super.createDOM(config);
     element.className =
-      "inline rounded-md bg-accent px-1.5 py-0.5 font-medium text-primary ring-1 ring-primary/10 box-decoration-clone";
+      "inline rounded-md border-l-2 border-foreground/45 bg-muted py-0.5 pr-1.5 pl-1 font-medium text-foreground ring-1 ring-inset ring-border box-decoration-clone";
     element.dataset.commandReference = this.__commandId;
     element.title = this.__name;
     element.spellcheck = false;

@@ -97,6 +97,7 @@ declare function useChatComposer(): {
     id: string;
     label?: string;
     description: string;
+    pluginName?: string;
   }[];
   skills: _isle_chat_contracts.SkillOption[];
   busy: boolean;

@@ -144,7 +144,12 @@ export type SkillOption = {
   description: string;
 };
 export type ChatResources = {
-  commands?: { id: string; label?: string; description: string }[];
+  commands?: {
+    id: string;
+    label?: string;
+    description: string;
+    pluginName?: string;
+  }[];
   permissionOptions?: AgentPermissionOption[];
   models?: (ResourceOption & {
     selectedLabel: string;

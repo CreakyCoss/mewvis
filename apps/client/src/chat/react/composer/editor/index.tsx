@@ -7,29 +7,41 @@ import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { PlainTextPlugin } from "@lexical/react/LexicalPlainTextPlugin";
-import { $createParagraphNode, $createTextNode, $getRoot, CLEAR_EDITOR_COMMAND } from "lexical";
-import type { ChatInputFile, ChatInputSkillOption } from "@/chat/react/types";
+import {
+  $createParagraphNode,
+  $createTextNode,
+  $getNodeByKey,
+  $getRoot,
+  $getSelection,
+  $isElementNode,
+  $isRangeSelection,
+  $isTextNode,
+  CLEAR_EDITOR_COMMAND,
+} from "lexical";
+import type { ChatInputFile } from "@/chat/react/types";
 import { FileReferenceMenu } from "./reference/file";
 import { $createFileReferenceNode, FileReferenceNode } from "./reference/file/node";
 import { $createCommandReferenceNode, CommandReferenceNode } from "./reference/command/node";
-import { SkillReferenceMenu } from "./reference/skill";
+import { SkillReferenceTrigger, type SlashReferenceTrigger } from "./reference/skill";
+import type { ReferenceEntry } from "./reference/skill/options";
 import { $createSkillReferenceNode, SkillReferenceNode } from "./reference/skill/node";
 import { serializeChatEditorState, type ChatEditorValue } from "./serialize";
 
 export type ChatEditorHandle = {
   clear: () => void;
   getValue: () => ChatEditorValue;
+  insertReference: (entry: ReferenceEntry, trigger?: SlashReferenceTrigger) => void;
+  canInsertCommandAtSelection: () => boolean;
 };
 
 type ChatEditorProps = {
   files: ChatInputFile[];
-  skills: ChatInputSkillOption[];
-  commands?: { id: string; label?: string; description: string }[];
   defaultValue: string;
   initialBlocks?: import("@/chat/core").MessagePart[];
   placeholder: string;
   disabled: boolean;
   onChange: (value: ChatEditorValue) => void;
+  onSlashTriggerChange?: (trigger: SlashReferenceTrigger | null) => void;
 };
 
 const restoreContent = (value: ChatEditorValue) => {
@@ -67,6 +79,43 @@ const EditorBridge = ({
         editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined);
       },
       getValue: () => serializeChatEditorState(editor.getEditorState()),
+      canInsertCommandAtSelection: () =>
+        editor.getEditorState().read(() => {
+          const root = $getRoot();
+          const first = root.getFirstChild();
+          const selection = $getSelection();
+          if (!$isRangeSelection(selection) || !$isElementNode(first)) return !root.getTextContent().trim();
+          const anchor = selection.anchor.getNode();
+          if (anchor.getTopLevelElement() !== first) return false;
+          if (anchor === first) return selection.anchor.offset === 0;
+          for (const child of first.getChildren()) {
+            if (child === anchor) return !child.getTextContent().slice(0, selection.anchor.offset).trim();
+            if (child.getTextContent().trim()) return false;
+          }
+          return false;
+        }),
+      insertReference: (entry, trigger) => {
+        editor.focus(() => {
+          editor.update(() => {
+            const selection = $getSelection();
+            const range = $isRangeSelection(selection) ? selection : $getRoot().selectEnd();
+            if (trigger) {
+              const node = $getNodeByKey(trigger.nodeKey);
+              if (!$isTextNode(node) || node.getTextContent().slice(trigger.start, trigger.end) !== `/${trigger.query}`)
+                return;
+              const end = trigger.end + Number(node.getTextContent()[trigger.end] === " ");
+              range.setTextNodeRange(node, trigger.start, node, end);
+            }
+            const referenceNode =
+              entry.kind === "command"
+                ? $createCommandReferenceNode(entry.commandId, entry.name)
+                : $createSkillReferenceNode(entry.skillKey, entry.name);
+            const trailingSpace = $createTextNode(" ");
+            range.insertNodes([referenceNode, trailingSpace]);
+            trailingSpace.selectEnd();
+          });
+        });
+      },
     }),
     [editor],
   );
@@ -86,7 +135,7 @@ const EditorBridge = ({
 };
 
 const ChatEditorComponent = (
-  { files, skills, commands, defaultValue, initialBlocks, placeholder, disabled, onChange }: ChatEditorProps,
+  { files, defaultValue, initialBlocks, placeholder, disabled, onChange, onSlashTriggerChange }: ChatEditorProps,
   bind: Ref<ChatEditorHandle>,
 ) => {
   const initialConfig = useMemo(
@@ -136,7 +185,7 @@ const ChatEditorComponent = (
         <ClearEditorPlugin />
         <OnChangePlugin ignoreSelectionChange ignoreHistoryMergeTagChange={false} onChange={handleChange} />
         <FileReferenceMenu files={files} />
-        <SkillReferenceMenu skills={skills} commands={commands} />
+        {onSlashTriggerChange && <SkillReferenceTrigger onChange={onSlashTriggerChange} />}
         <EditorBridge bind={bind} disabled={disabled} value={{ text: defaultValue, blocks: initialBlocks ?? [] }} />
       </div>
     </LexicalComposer>

@@ -1,9 +1,11 @@
-import { useRef, type ComponentType, type PropsWithChildren } from "react";
+import { useRef, useState, type ComponentType, type PropsWithChildren } from "react";
 import { SendIcon, SquareIcon, PlayIcon, LoaderCircleIcon } from "lucide-react";
 import { InputGroup, InputGroupAddon, InputGroupButton } from "design-system/components/ui/input-group";
 import { ChatEditor, type ChatEditorHandle } from "./editor";
+import type { SlashReferenceTrigger } from "./editor/reference/skill";
 import { ModelMenu } from "./menus/model";
 import { PermissionMenu } from "./menus/permission";
+import { ReferenceInsertMenu, type ReferenceInsertMenuHandle } from "./menus/reference";
 import { useBeforeComposer, useChatComposer } from "../provider";
 import type { SendResult } from "../../core";
 
@@ -16,11 +18,6 @@ export type ComposerSlots = {
 export function ComposerToolbar(binding: ComposerBinding) {
   return (
     <>
-      <ModelMenu
-        controls={binding.controls}
-        disabled={binding.disabled && !binding.busy}
-        selectionDisabled={binding.disabled}
-      />
       <PermissionMenu controls={binding.controls} disabled={binding.disabled} />
     </>
   );
@@ -32,6 +29,11 @@ export function ComposerActions(binding: ComposerBinding) {
   const cancelFailed = cancelling && Boolean(binding.execution?.cancelError);
   return (
     <>
+      <ModelMenu
+        controls={binding.controls}
+        disabled={binding.disabled && !binding.busy}
+        selectionDisabled={binding.disabled}
+      />
       {binding.busy ? (
         <InputGroupButton
           type="button"
@@ -98,6 +100,9 @@ export function ComposerView({
   onSubmitted,
 }: ComposerViewProps) {
   const editor = useRef<ChatEditorHandle>(null);
+  const referenceMenu = useRef<ReferenceInsertMenuHandle>(null);
+  const composerRoot = useRef<HTMLDivElement>(null);
+  const [slashTrigger, setSlashTrigger] = useState<SlashReferenceTrigger | null>(null);
   const Editor = slots.editor;
   const Toolbar = slots.toolbar ?? ComposerToolbar;
   const Actions = slots.actions ?? ComposerActions;
@@ -110,6 +115,7 @@ export function ComposerView({
   return (
     <form
       className={`mx-auto w-full max-w-[69rem] ${className}`}
+      onKeyDownCapture={(event) => referenceMenu.current?.handleSlashKeyDown(event)}
       onKeyDown={(event) => {
         if (!event.defaultPrevented && event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
           event.preventDefault();
@@ -121,7 +127,10 @@ export function ComposerView({
         void submit();
       }}
     >
-      <InputGroup className="h-auto flex-col items-stretch overflow-hidden rounded-xl border border-border/80 bg-card shadow-[var(--shadow-composer)] transition-[border-color,box-shadow] duration-200 ease-out has-[[data-slot=input-group-control]:focus-visible]:border-ring/55 has-[[data-slot=input-group-control]:focus-visible]:shadow-[var(--shadow-floating)] has-[[data-slot=input-group-control]:focus-visible]:ring-3 has-[[data-slot=input-group-control]:focus-visible]:ring-ring/15 dark:bg-card">
+      <InputGroup
+        ref={composerRoot}
+        className="h-auto flex-col items-stretch overflow-hidden rounded-xl border border-border/80 bg-card shadow-[var(--shadow-composer)] transition-[border-color,box-shadow] duration-200 ease-out has-[[data-slot=input-group-control]:focus-visible]:border-ring/55 has-[[data-slot=input-group-control]:focus-visible]:shadow-[var(--shadow-floating)] has-[[data-slot=input-group-control]:focus-visible]:ring-3 has-[[data-slot=input-group-control]:focus-visible]:ring-ring/15 dark:bg-card"
+      >
         {Editor ? (
           <Editor {...binding} placeholder={placeholder} />
         ) : (
@@ -129,13 +138,12 @@ export function ComposerView({
             key={binding.clearVersion}
             ref={editor}
             files={binding.files}
-            skills={binding.skills}
-            commands={binding.commands}
             defaultValue={binding.draft.text}
             initialBlocks={binding.draft.blocks}
             placeholder={placeholder}
             disabled={binding.disabled}
             onChange={binding.setDraft}
+            onSlashTriggerChange={setSlashTrigger}
           />
         )}
         <InputGroupAddon
@@ -143,6 +151,19 @@ export function ComposerView({
           className="min-h-12 flex-wrap justify-between gap-2 px-3 pt-0 pb-3 font-normal"
         >
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+            {!Editor && (
+              <ReferenceInsertMenu
+                ref={referenceMenu}
+                anchorRef={composerRoot}
+                skills={binding.skills}
+                skillGroups={binding.controls.resources.skillGroups}
+                commands={binding.commands}
+                disabled={binding.disabled}
+                slashTrigger={slashTrigger}
+                canInsertCommandAtSelection={() => editor.current?.canInsertCommandAtSelection() ?? false}
+                onSelect={(entry, trigger) => editor.current?.insertReference(entry, trigger)}
+              />
+            )}
             <Toolbar {...binding} />
             {children}
           </div>

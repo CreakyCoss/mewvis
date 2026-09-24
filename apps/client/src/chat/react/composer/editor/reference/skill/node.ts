@@ -35,7 +35,7 @@ export class SkillReferenceNode extends TextNode {
   }
 
   constructor(skillKey: string, name: string, text?: string, key?: NodeKey) {
-    super(text ?? `/${name}`, key);
+    super(text ?? name, key);
     this.__skillKey = skillKey;
     this.__name = name;
   }
