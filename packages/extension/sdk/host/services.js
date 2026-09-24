@@ -15,6 +15,7 @@ export const extensionHostMethods = Object.freeze({
       additionalProperties: false,
       required: ["text"],
       properties: {
+        tools: { const: "none" },
         title: { type: "string", minLength: 1, maxLength: 256 },
         avatar: { type: "string", maxLength: 32768, pattern: "^(https?://|data:image/)" },
         systemPrompt: { type: "string", maxLength: 16384 },

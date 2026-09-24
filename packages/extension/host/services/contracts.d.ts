@@ -86,6 +86,8 @@ export interface ExtensionHostMethods {
     input: {
       text: string;
       systemPrompt?: string;
+      /** Disable all tools and ambient skills for an evaluation-only task. */
+      tools?: "none";
       title?: string;
       /** Plugin-owned image URL or data URI; never a host avatar ID. */
       avatar?: string;

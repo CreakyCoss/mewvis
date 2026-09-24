@@ -33,7 +33,7 @@ if (ctx.host.supports("session.summarize")) {
 
 ## 当前能力
 
-协作相关能力包括 `configuration.read/write`、`tasks.run` 和 `activity.publish/read/pause/resume/checkpoint/cancel`。配置限定为调用插件本身，活动限定为插件和当前会话；任务执行沿用宿主的模型、权限及取消链路，接受 `{ text, systemPrompt?, title?, avatar? }`，不依赖任何宿主角色。具体作用域与使用方式见[角色协作插件](collaboration.md)。
+协作相关能力包括 `configuration.read/write`、`tasks.run` 和 `activity.publish/read/pause/resume/checkpoint/cancel`。配置限定为调用插件本身，活动限定为插件和当前会话；任务执行沿用宿主的模型、权限及取消链路，接受 `{ text, systemPrompt?, title?, avatar?, tools?: "none" }`，不依赖任何宿主角色。指定 `tools: "none"` 时，宿主清空子任务工具、技能和应用资源，并收紧其访问范围，适合只做模型判断的任务。具体作用域与使用方式见[角色协作插件](collaboration.md)和[智能判断插件](decisions.md)。
 
 | 方法                  | 返回与边界                                                                                                                                                                                     |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

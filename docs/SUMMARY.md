@@ -29,6 +29,7 @@
 - [插件 SDK 能力与目录](extensions/sdk.md)
 - [宿主服务协议与适配](extensions/host-services.md)
 - [角色协作插件](extensions/collaboration.md)
+- [智能判断插件](extensions/decisions.md)
 - [插件包开发与管理](extensions/development.md)
 - [Pi 兼容基准与协议规格](extensions/pi-compatibility.md)
 - [插件中间件](extensions/middleware.md)

@@ -291,6 +291,7 @@ test(
     const records = await call("list_extensions");
     assert.deepEqual(records.map((item) => item.id).sort(), [
       "isle.collaboration",
+      "isle.decisions",
       "isle.example",
       "isle.session-insights",
       "isle.session-ledger",
@@ -365,7 +366,9 @@ test(
     await call("configure_extension", { id: panel.extensionId, enabled: true });
     await call("close_extension_view", { token: view.token });
     assert.equal(
-      (await call("list_extension_commands", target)).commands.length,
+      (await call("list_extension_commands", target)).commands.filter(
+        (item) => item.id.startsWith("isle.tasks/"),
+      ).length,
       4,
     );
     await call("execute_extension_command", {
@@ -400,7 +403,9 @@ test(
       config: { maxTasks: 7 },
     });
     assert.deepEqual(
-      (await call("list_extension_commands", target)).commands,
+      (await call("list_extension_commands", target)).commands.filter(
+        (item) => item.id.startsWith("isle.tasks/"),
+      ),
       [],
     );
     await server.close();
@@ -413,7 +418,9 @@ test(
     assert.equal(persisted.config.maxTasks, 7);
     await call("configure_extension", { id: "isle.tasks", enabled: true });
     assert.equal(
-      (await call("list_extension_commands", target)).commands.length,
+      (await call("list_extension_commands", target)).commands.filter(
+        (item) => item.id.startsWith("isle.tasks/"),
+      ).length,
       4,
     );
   },

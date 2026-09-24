@@ -8,7 +8,13 @@ import type {
 
 /** Stream child output in its own scope; child lifecycle never settles the parent. */
 export async function runExtensionTask(
-  input: { text: string; systemPrompt?: string; title?: string; avatar?: string },
+  input: {
+    text: string;
+    systemPrompt?: string;
+    title?: string;
+    avatar?: string;
+    tools?: "none";
+  },
   command: AgentRunCommand,
   context: AgentRuntimeContext,
   signal: AbortSignal,
@@ -24,7 +30,9 @@ export async function runExtensionTask(
       taskId: command.taskId,
       subtaskId: taskId,
       title: input.title ?? "子任务",
-      ...(event.type === "started" && input.avatar ? { avatar: input.avatar } : {}),
+      ...(event.type === "started" && input.avatar
+        ? { avatar: input.avatar }
+        : {}),
       event,
     });
   };
@@ -35,6 +43,16 @@ export async function runExtensionTask(
       {
         ...command,
         taskId,
+        ...(input.tools === "none"
+          ? {
+              resources: {
+                tools: { allowed: [] },
+                skills: { enabled: [] },
+                applications: { items: [] },
+              },
+              agentAccess: {},
+            }
+          : {}),
         sessionRootDir: command.sessionRootDir
           ? join(command.sessionRootDir, "children", childId)
           : undefined,
@@ -72,9 +90,16 @@ export async function runExtensionTask(
           runExtensionTask: undefined,
           requestApproval:
             context.callbacks.requestApproval &&
-            ((request) => context.callbacks.requestApproval!({ ...request, taskId: command.taskId })),
+            ((request) =>
+              context.callbacks.requestApproval!({
+                ...request,
+                taskId: command.taskId,
+              })),
           requestUserInput: (request) =>
-            context.callbacks.requestUserInput({ ...request, taskId: command.taskId }),
+            context.callbacks.requestUserInput({
+              ...request,
+              taskId: command.taskId,
+            }),
         },
       },
     );
@@ -85,7 +110,11 @@ export async function runExtensionTask(
     emit({
       type: "error",
       taskId,
-      message: signal.aborted ? "任务已取消" : error instanceof Error ? error.message : String(error),
+      message: signal.aborted
+        ? "任务已取消"
+        : error instanceof Error
+          ? error.message
+          : String(error),
     });
     throw error;
   } finally {
