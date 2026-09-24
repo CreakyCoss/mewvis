@@ -75,6 +75,7 @@ export async function verifyExtensionAdapters({ piExtensionAdapter, mockExtensio
         },
       ],
       commands: [
+        { id: "example/text", inputMode: "text", description: "文本命令", parameters: { type: "object" } },
         {
           id: "example/list",
           description: "列表",
@@ -128,7 +129,9 @@ export async function verifyExtensionAdapters({ piExtensionAdapter, mockExtensio
   };
   await piExtensionAdapter.adapt(binding, context)(pi);
   assert.deepEqual([...tools.keys()], ["ext_example__tool"]);
-  assert.deepEqual([...commands.keys()], ["example/list"]);
+  assert.deepEqual([...commands.keys()], ["example/text", "example/list"]);
+  await commands.get("example/text").handler("一个普通文本任务");
+  assert.deepEqual(calls.at(-1).input, { text: "一个普通文本任务" });
   let progress;
   assert.deepEqual(
     await tools.get("ext_example__tool").execute("native-call", { text: "hello" }, controller.signal, (value) => {

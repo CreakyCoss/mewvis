@@ -50,6 +50,10 @@
     "./ui/server": {
       "types": "./dist/ui/server/views.d.ts",
       "default": "./dist/ui/server/views.js"
+    },
+    "./services/activity": {
+      "types": "./dist/services/activity.d.ts",
+      "default": "./dist/services/activity.js"
     }
   },
   "scripts": {

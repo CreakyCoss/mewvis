@@ -1,5 +1,16 @@
+import { randomUUID } from "node:crypto";
+import { join } from "node:path";
+import { ExtensionHost } from "@isle/extension-host/services/runtime";
+import {
+  createActivityStore,
+  type ActivityRecord,
+} from "@isle/extension-host/services/activity";
 import { isJsonValue } from "@earendil-works/chord";
-import type { ExtensionSource, ExtensionToolResult, JsonValue } from "@isle/extension-host";
+import type {
+  ExtensionSource,
+  ExtensionToolResult,
+  JsonValue,
+} from "@isle/extension-host";
 import type { ExtensionBindings } from "@isle/extension-host";
 import { extensionToolName } from "@isle/extension-host";
 import { Ajv } from "ajv";
@@ -7,17 +18,38 @@ import { statSync } from "node:fs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import entries from "../../../build-entries.json" with { type: "json" };
-import { ProgramExecutor, resolveExecutionPolicy } from "../../security/execution/index.js";
-import { checkExecution, DEFAULT_AGENT_PERMISSION_MODE, resolveSafetyPolicy } from "../../security/safety/index.js";
+import {
+  ProgramExecutor,
+  resolveExecutionPolicy,
+} from "../../security/execution/index.js";
+import {
+  checkExecution,
+  DEFAULT_AGENT_PERMISSION_MODE,
+  resolveSafetyPolicy,
+} from "../../security/safety/index.js";
 import { resolveAgentAccess } from "../../security/access/index.js";
-import type { AgentRunCommand, AgentRuntimeContext } from "../../engines/drivers/native/agent/runtimes/types.js";
-import { createExtensionStateStore, validateExtensionState, type ExtensionState } from "../session/state.js";
+import type {
+  AgentRunCommand,
+  AgentRuntimeContext,
+} from "../../engines/drivers/native/agent/runtimes/types.js";
+import {
+  createExtensionStateStore,
+  validateExtensionState,
+  type ExtensionState,
+} from "../session/state.js";
 import { validateExtensionResult } from "@isle/extension-host/agent/resources";
 import type { ExtensionCatalog } from "@isle/extension-host";
 import { ExtensionSessionPool } from "../session/pool.js";
-import { validateMiddlewareOutcome, validateMiddlewareData } from "@isle/extension-host/agent/middleware";
+import {
+  validateMiddlewareOutcome,
+  validateMiddlewareData,
+} from "@isle/extension-host/agent/middleware";
 import { validateExtensionEvent } from "@isle/extension-host/agent/events";
-import type { ExtensionMiddlewareType, ExtensionMiddlewareData, ExtensionMiddlewareOutcome } from "@isle/extension-host";
+import type {
+  ExtensionMiddlewareType,
+  ExtensionMiddlewareData,
+  ExtensionMiddlewareOutcome,
+} from "@isle/extension-host";
 
 export interface ExtensionRunResources extends ExtensionBindings {
   readonly available: boolean;
@@ -35,16 +67,26 @@ export async function createExtensionRunResources(
   context.signal?.throwIfAborted();
   sessions?.signal.throwIfAborted();
   const mode = command.permissions?.mode ?? DEFAULT_AGENT_PERMISSION_MODE;
-  const access = command.agentAccess === undefined ? undefined : resolveAgentAccess(command.agentAccess, command);
+  const access =
+    command.agentAccess === undefined
+      ? undefined
+      : resolveAgentAccess(command.agentAccess, command);
   const safety = resolveSafetyPolicy(mode, command.workspacePath);
   const execution = resolveExecutionPolicy(
     mode,
     command.workspacePath,
     undefined,
     undefined,
-    access ? { access, programPaths: sources.map((source) => dirname(source.entry)) } : undefined,
+    access
+      ? { access, programPaths: sources.map((source) => dirname(source.entry)) }
+      : undefined,
   );
   const stateStore = await createExtensionStateStore(command.sessionRootDir);
+  const hostCapabilities = [
+    "configuration.read",
+    ...(command.sessionRootDir ? ["activity.publish"] : []),
+    ...(context.callbacks.runExtensionTask ? ["tasks.run"] : []),
+  ];
   if (stateStore.directory && execution.sandbox) {
     execution.sandbox.filesystem.denyRead.push(stateStore.directory);
     execution.sandbox.filesystem.denyWrite.push(stateStore.directory);
@@ -54,13 +96,17 @@ export async function createExtensionRunResources(
       policy: execution,
       program: {
         executable: process.execPath,
-        args: [fileURLToPath(new URL(entries.extensionWorker.output, import.meta.url))],
+        args: [
+          fileURLToPath(
+            new URL(entries.extensionWorker.output, import.meta.url),
+          ),
+        ],
       },
     });
     try {
       const catalog = await worker.call<ExtensionCatalog>(
         "initialize",
-        { sources, workspacePath: command.workspacePath },
+        { sources, workspacePath: command.workspacePath, hostCapabilities },
         signal,
         undefined,
         60_000,
@@ -77,6 +123,7 @@ export async function createExtensionRunResources(
           stateStore.directory,
           JSON.stringify({
             sources,
+            hostCapabilities,
             execution,
             entries: sources.map(({ entry }) => {
               const stat = statSync(entry);
@@ -109,11 +156,17 @@ export async function createExtensionRunResources(
       middleware: available.middleware,
       commands: available.commands,
       subscriptions: available.subscriptions,
-      tools: available.tools.filter((tool) => allowedTools == null || allowedTools.includes(tool.name)),
-      skills: available.skills.filter((skill) => enabledSkills == null || enabledSkills.includes(skill.id)),
+      tools: available.tools.filter(
+        (tool) => allowedTools == null || allowedTools.includes(tool.name),
+      ),
+      skills: available.skills.filter(
+        (skill) => enabledSkills == null || enabledSkills.includes(skill.id),
+      ),
     };
     const ajv = new Ajv({ allErrors: true });
-    const validators = new Map(catalog.tools.map((tool) => [tool.name, ajv.compile(tool.parameters)]));
+    const validators = new Map(
+      catalog.tools.map((tool) => [tool.name, ajv.compile(tool.parameters)]),
+    );
     const risks = new Map(
       sources.flatMap((source) =>
         Object.entries(source.toolRisks ?? {}).map(
@@ -121,10 +174,17 @@ export async function createExtensionRunResources(
         ),
       ),
     );
-    const commandValidators = new Map(catalog.commands.map((entry) => [entry.id, ajv.compile(entry.parameters)]));
+    const commandValidators = new Map(
+      catalog.commands.map((entry) => [
+        entry.id,
+        ajv.compile(entry.parameters),
+      ]),
+    );
     const commandRisks = new Map(
       sources.flatMap((source) =>
-        Object.entries(source.commandRisks ?? {}).map(([name, risk]) => [`${source.id}/${name}`, risk] as const),
+        Object.entries(source.commandRisks ?? {}).map(
+          ([name, risk]) => [`${source.id}/${name}`, risk] as const,
+        ),
       ),
     );
     const calls = new Set<string>();
@@ -137,17 +197,182 @@ export async function createExtensionRunResources(
       validate?: (value: T) => T,
     ) =>
       stateStore.transact(extensionId, signal, async (state) => {
-        const selected = Object.hasOwn(state, extensionId) ? { [extensionId]: state[extensionId] } : {};
-        const reply = await worker.call<{ value: T; state: ExtensionState }>(
-          method,
-          { ...input, state: selected },
-          signal,
-          progress,
-          60_000,
-        );
+        const selected = Object.hasOwn(state, extensionId)
+          ? { [extensionId]: state[extensionId] }
+          : {};
+        const source = sources.find((item) => item.id === extensionId)!;
+        const controller = new AbortController();
+        const serviceSignal = AbortSignal.any([signal, controller.signal]);
+        const activityStore = command.sessionRootDir
+          ? createActivityStore(command.sessionRootDir, extensionId)
+          : undefined;
+        let activity: ActivityRecord | undefined;
+        const services = new ExtensionHost({
+          "configuration.read": async () =>
+            structuredClone(source.config ?? {}),
+          "activity.publish": async (value) => {
+            if (!activityStore) throw new Error("活动状态需要会话");
+            activity = {
+              ...value,
+              taskId: command.taskId,
+              updatedAt: Date.now(),
+            };
+            await activityStore.write(activity);
+            return null;
+          },
+          ...(context.callbacks.runExtensionTask
+            ? {
+                "tasks.run": async (input: {
+                  systemPrompt?: string;
+                  text: string;
+                }) => {
+                  if (!command.runtimeModel) throw new Error("请先选择模型");
+                  const childId = randomUUID();
+                  return context.callbacks.runExtensionTask!(
+                    {
+                      ...command,
+                      taskId: `extension-child-${childId}`,
+                      sessionRootDir: command.sessionRootDir
+                        ? join(command.sessionRootDir, "children", childId)
+                        : undefined,
+                      agentRoleId: `extension-task-${childId}`,
+                      sessionLink: null,
+                      requestId: null,
+                      recordUserMessage: true,
+                      userMessage: input.text,
+                      systemPrompt: input.systemPrompt ?? null,
+                      requestContext: null,
+                      runtimeInstruction: null,
+                      bootstrapInstruction: null,
+                    },
+                    {
+                      signal: serviceSignal,
+                      emit() {},
+                      callbacks: {
+                        ...context.callbacks,
+                        runExtensionTask: undefined,
+                        requestApproval:
+                          context.callbacks.requestApproval &&
+                          ((request) =>
+                            context.callbacks.requestApproval!({
+                              ...request,
+                              taskId: command.taskId,
+                            })),
+                        requestUserInput: (request) =>
+                          context.callbacks.requestUserInput({
+                            ...request,
+                            taskId: command.taskId,
+                          }),
+                      },
+                    },
+                  );
+                },
+              }
+            : {}),
+        });
+        const requests = new Set<Promise<void>>();
+        let succeeded = false;
+        let reply: { value: T; state: ExtensionState };
+        try {
+          reply = await worker.call<{ value: T; state: ExtensionState }>(
+            method,
+            { ...input, state: selected },
+            signal,
+            (update: unknown) => {
+              if (
+                !update ||
+                typeof update !== "object" ||
+                !("kind" in update) ||
+                update.kind !== "host_call"
+              ) {
+                progress?.(update);
+                return;
+              }
+              if (
+                !("id" in update) ||
+                typeof update.id !== "string" ||
+                !("method" in update) ||
+                typeof update.method !== "string" ||
+                !("input" in update)
+              )
+                throw new Error("无效的宿主能力请求");
+              const request = {
+                id: update.id,
+                method: update.method,
+                input: update.input,
+              };
+              const work = (async () => {
+                let result: unknown,
+                  error: { message: string; code: string } | undefined;
+                try {
+                  result = await services.invoke(
+                    request.method,
+                    request.input,
+                    source.host,
+                    {
+                      target: {
+                        workspacePath: command.workspacePath,
+                        chatId: command.taskId,
+                      },
+                      extensionId,
+                      signal: serviceSignal,
+                    },
+                  );
+                } catch (caught) {
+                  error = {
+                    message:
+                      caught instanceof Error ? caught.message : String(caught),
+                    code:
+                      caught &&
+                      typeof caught === "object" &&
+                      "code" in caught &&
+                      typeof caught.code === "string"
+                        ? caught.code
+                        : "HOST_FAILED",
+                  };
+                }
+                if (!serviceSignal.aborted && !worker.disposed)
+                  await worker.call(
+                    "host_reply",
+                    { id: request.id, result, error },
+                    serviceSignal,
+                  );
+              })().catch(() => undefined);
+              requests.add(work);
+              void work.finally(() => requests.delete(work));
+            },
+            [
+              ...(source.host?.required ?? []),
+              ...(source.host?.optional ?? []),
+            ].includes("tasks.run")
+              ? 10 * 60_000
+              : 60_000,
+          );
+          succeeded = true;
+        } finally {
+          controller.abort();
+          await Promise.allSettled(requests);
+          if (activity?.state === "running" && activityStore) {
+            const state = signal.aborted
+              ? "cancelled"
+              : succeeded
+                ? "completed"
+                : "failed";
+            await activityStore.write({
+              ...activity,
+              state,
+              steps: activity.steps.map((step) =>
+                step.state === "running" ? { ...step, state } : step,
+              ),
+              updatedAt: Date.now(),
+            });
+          }
+        }
         const next = validateExtensionState(reply.state);
-        if (Object.keys(next).some((id) => id !== extensionId)) throw new Error("插件尝试修改其他插件状态");
-        if (!isJsonValue(reply.value)) throw new Error("插件返回了无效的 JSON 结果");
+        if (Object.keys(next).some((id) => id !== extensionId))
+          throw new Error("插件尝试修改其他插件状态");
+        if (!isJsonValue(reply.value))
+          throw new Error("插件返回了无效的 JSON 结果");
         const value = validate ? validate(reply.value) : reply.value;
         if (Object.hasOwn(next, extensionId))
           Object.defineProperty(state, extensionId, {
@@ -167,14 +392,26 @@ export async function createExtensionRunResources(
       kind: "tool" | "command",
     ) => {
       signal.throwIfAborted();
-      const validate = (kind === "tool" ? validators : commandValidators).get(name);
-      if (!validate) throw new Error(`插件${kind === "tool" ? "工具" : "命令"}未启用：${name}`);
+      const validate = (kind === "tool" ? validators : commandValidators).get(
+        name,
+      );
+      if (!validate)
+        throw new Error(
+          `插件${kind === "tool" ? "工具" : "命令"}未启用：${name}`,
+        );
       const args = structuredClone(input);
-      if (!isJsonValue(args) || args === null || typeof args !== "object" || Array.isArray(args) || !validate(args))
+      if (
+        !isJsonValue(args) ||
+        args === null ||
+        typeof args !== "object" ||
+        Array.isArray(args) ||
+        !validate(args)
+      )
         throw new Error(
           `插件${kind === "tool" ? "工具" : "命令"}参数无效：${name}：${ajv.errorsText(validate.errors)}`,
         );
-      if (!callId || calls.has(callId)) throw new Error("插件调用 ID 为空或重复；不会自动重放调用");
+      if (!callId || calls.has(callId))
+        throw new Error("插件调用 ID 为空或重复；不会自动重放调用");
       calls.add(callId);
       const risk = (kind === "tool" ? risks : commandRisks).get(name);
       const result = await checkExecution({
@@ -219,7 +456,9 @@ export async function createExtensionRunResources(
         input: ExtensionMiddlewareData[T],
         options?: { signal?: AbortSignal },
       ): Promise<ExtensionMiddlewareOutcome<T>> {
-        const signal = options?.signal ? AbortSignal.any([options.signal, runSignal]) : runSignal;
+        const signal = options?.signal
+          ? AbortSignal.any([options.signal, runSignal])
+          : runSignal;
         signal.throwIfAborted();
         let value = validateMiddlewareData(type, input);
         for (const handler of catalog.middleware) {
@@ -239,21 +478,38 @@ export async function createExtensionRunResources(
         return { action: "continue", value };
       },
       async execute(name, input, options) {
-        const signal = options.signal ? AbortSignal.any([options.signal, runSignal]) : runSignal;
-        const args = await authorize(name, input, options.callId, signal, "tool");
+        const signal = options.signal
+          ? AbortSignal.any([options.signal, runSignal])
+          : runSignal;
+        const args = await authorize(
+          name,
+          input,
+          options.callId,
+          signal,
+          "tool",
+        );
         const tool = catalog.tools.find((entry) => entry.name === name)!;
         const value = await transact<ExtensionToolResult>(
           tool.id.split("/")[0],
           "execute",
           { name, input: args, callId: options.callId },
           signal,
-          (update: unknown) => options.progress?.(validateExtensionResult(update)),
+          (update: unknown) =>
+            options.progress?.(validateExtensionResult(update)),
         );
         return validateExtensionResult(value);
       },
       async command(id, input, options) {
-        const signal = options.signal ? AbortSignal.any([options.signal, runSignal]) : runSignal;
-        const args = await authorize(id, input, options.callId, signal, "command");
+        const signal = options.signal
+          ? AbortSignal.any([options.signal, runSignal])
+          : runSignal;
+        const args = await authorize(
+          id,
+          input,
+          options.callId,
+          signal,
+          "command",
+        );
         return transact<JsonValue>(
           id.split("/")[0],
           "command",
@@ -282,10 +538,14 @@ export async function createExtensionRunResources(
               message: error instanceof Error ? error.message : String(error),
             };
             try {
-              if (context.callbacks.onExtensionError) context.callbacks.onExtensionError(diagnostic);
+              if (context.callbacks.onExtensionError)
+                context.callbacks.onExtensionError(diagnostic);
               else console.error("Extension observer failed", diagnostic);
             } catch (reportError) {
-              console.error("Extension diagnostic callback failed", reportError);
+              console.error(
+                "Extension diagnostic callback failed",
+                reportError,
+              );
             }
           }
         }

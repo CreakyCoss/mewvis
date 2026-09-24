@@ -17,6 +17,7 @@ import type {
 export interface ExtensionSource {
   id: string;
   entry: string;
+  host?: import("../services/contracts.js").ExtensionHostRequirements;
   config?: JsonObject;
   /** Package contributions must stay within this declaration. Omission gives a host-provided direct source access to all Agent capabilities. */
   capabilities?: readonly ExtensionCapability[];
@@ -40,6 +41,7 @@ export interface ExtensionCatalog {
     parameters: ExtensionTool["parameters"];
   }>;
   commands: Array<{
+    inputMode?: "text";
     id: string;
     description: string;
     parameters: ExtensionCommand["parameters"];

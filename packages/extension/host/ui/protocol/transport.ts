@@ -7,9 +7,9 @@ export type ExtensionUIContribution = UIContribution & {
 export interface ExtensionViewInput {
   id: string;
   contributionId: string;
-  viewId: string;
-  workspacePath: string;
-  chatId: string;
+  viewId?: string;
+  workspacePath?: string;
+  chatId?: string;
 }
 export interface ExtensionViewLease {
   token: string;

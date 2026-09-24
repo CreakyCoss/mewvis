@@ -172,6 +172,7 @@ export function resolveExtensionPackages(packages) {
       id,
       entry: pkg.modules.agent.entry,
       capabilities: pkg.modules.agent.capabilities,
+      host: pkg.manifest.host,
       config,
       ...(registration.toolRisks && { toolRisks: registration.toolRisks }),
       ...(registration.commandRisks && {

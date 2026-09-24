@@ -1,5 +1,9 @@
 import type { ExtensionDiagnostic } from "../../../../../extensions/index.js";
-import type { ExtensionAdapter, ExtensionBindings, ExtensionAdaptationReport } from "@isle/extension-host";
+import type {
+  ExtensionAdapter,
+  ExtensionBindings,
+  ExtensionAdaptationReport,
+} from "@isle/extension-host";
 import type { ExecutionApprovalRequest } from "../../../../../security/safety/index.js";
 import type {
   AgentEvent,
@@ -65,19 +69,22 @@ export type RuntimeAgentSessionMaintenanceCommand = {
   agentSessionDir?: string | null;
 };
 
-export type RuntimeAgentCompactCommand = RuntimeAgentSessionMaintenanceCommand & {
-  compactInstructions?: string | null;
-};
+export type RuntimeAgentCompactCommand =
+  RuntimeAgentSessionMaintenanceCommand & {
+    compactInstructions?: string | null;
+  };
 
-export type RuntimeAgentRebuildCommand = RuntimeAgentSessionMaintenanceCommand & {
-  rebuildInstruction?: string | null;
-  userMessage?: string | null;
-};
+export type RuntimeAgentRebuildCommand =
+  RuntimeAgentSessionMaintenanceCommand & {
+    rebuildInstruction?: string | null;
+    userMessage?: string | null;
+  };
 
-export type RuntimeAgentSummarizeCommand = RuntimeAgentSessionMaintenanceCommand & {
-  summaryInstruction?: string | null;
-  maxSummaryChars?: number | null;
-};
+export type RuntimeAgentSummarizeCommand =
+  RuntimeAgentSessionMaintenanceCommand & {
+    summaryInstruction?: string | null;
+    maxSummaryChars?: number | null;
+  };
 
 export type ChatRunCommand = {
   type: "chat";
@@ -105,7 +112,9 @@ export type AgentApprovalRequest = ExecutionApprovalRequest & {
   taskId: string;
 };
 
-export type UserInputHandler = (request: UserInputRequest) => Promise<string | null>;
+export type UserInputHandler = (
+  request: UserInputRequest,
+) => Promise<string | null>;
 
 export type EmitAgentEvent = (event: AgentEvent) => void;
 
@@ -114,6 +123,10 @@ export type RuntimeEmitContext = {
 };
 
 export type AgentRuntimeCallbacks = {
+  runExtensionTask?: (
+    command: AgentRunCommand,
+    context: AgentRuntimeContext,
+  ) => Promise<AgentRunResult>;
   onExtensionAdaptation?: (report: ExtensionAdaptationReport) => void;
   onExtensionError?: (diagnostic: ExtensionDiagnostic) => void;
   requestUserInput: UserInputHandler;
@@ -145,15 +158,30 @@ export type RuntimeMode = "agent" | "chat";
 export type AgentRuntime = {
   readonly extensionAdapter?: ExtensionAdapter<unknown>;
   readonly id: string;
-  run(command: RuntimeAgentCommand, context: AgentRuntimeContext): Promise<AgentRunResult>;
-  compact?(command: RuntimeAgentCompactCommand, context: AgentRuntimeContext): Promise<SessionMutationResult>;
-  rebuild?(command: RuntimeAgentRebuildCommand, context: AgentRuntimeContext): Promise<SessionMutationResult>;
-  summarize?(command: RuntimeAgentSummarizeCommand, context: AgentRuntimeContext): Promise<SessionMutationResult>;
+  run(
+    command: RuntimeAgentCommand,
+    context: AgentRuntimeContext,
+  ): Promise<AgentRunResult>;
+  compact?(
+    command: RuntimeAgentCompactCommand,
+    context: AgentRuntimeContext,
+  ): Promise<SessionMutationResult>;
+  rebuild?(
+    command: RuntimeAgentRebuildCommand,
+    context: AgentRuntimeContext,
+  ): Promise<SessionMutationResult>;
+  summarize?(
+    command: RuntimeAgentSummarizeCommand,
+    context: AgentRuntimeContext,
+  ): Promise<SessionMutationResult>;
 };
 
 export type ChatRuntime = {
   readonly id: string;
-  chat(command: ChatRunCommand, context: ChatRuntimeContext): Promise<ChatRunResult>;
+  chat(
+    command: ChatRunCommand,
+    context: ChatRuntimeContext,
+  ): Promise<ChatRunResult>;
 };
 
 export type RuntimeAgent = RuntimeAgentDefinition & {

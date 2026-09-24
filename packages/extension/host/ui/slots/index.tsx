@@ -11,7 +11,7 @@ import {
 import type {
   UIContribution,
   UIContributionFor,
-  UISessionContext,
+  UIHostContext,
   UISlotContext,
   UISlotDefinition,
   UISlotKey,
@@ -21,18 +21,27 @@ import type {
 
 type ViewRenderer = (
   view: UIViewReference,
-  context: UISessionContext,
+  context: UIHostContext,
 ) => ReactNode;
 /** Source binding. Data-only contributions need no executable view loader. */
 export type UIHostContribution<C extends UIContribution = UIContribution> =
   C extends UIContribution
-    ? { key: string; contribution: C } & (C extends { view: UIViewReference }
+    ? {
+        key: string;
+        contribution: C;
+        extensionId?: string;
+        revision?: string;
+      } & (C extends { view: UIViewReference }
         ? { renderView: ViewRenderer }
         : { renderView?: never })
     : never;
 /** Protocol fields stay intact; only view-bearing contributions receive a scoped renderer. */
 export type SlotItem<C extends UIContribution> = C extends UIContribution
-  ? Readonly<C> & { readonly key: string } & (C extends {
+  ? Readonly<C> & {
+      readonly key: string;
+      readonly extensionId?: string;
+      readonly revision?: string;
+    } & (C extends {
         view: UIViewReference;
       }
         ? { renderView(): ReactNode }
@@ -63,6 +72,7 @@ export type SlotRenderer<T> = SlotRenderOverrides<T> &
   );
 export type SlotProps<D extends UISlotDefinition> = {
   definition: D;
+  extensionId?: string;
   context: UISlotContext<NoInfer<D>>;
 } & SlotRenderOverrides<SlotItem<UIContributionFor<NoInfer<D>>>>;
 export type ExtensionSlotProps<D extends UISlotDefinition> = SlotProps<D> &
@@ -70,7 +80,7 @@ export type ExtensionSlotProps<D extends UISlotDefinition> = SlotProps<D> &
 
 const SurfaceContext = createContext<{
   definition: UISlotDefinition;
-  context: UISessionContext;
+  context: UIHostContext;
 } | null>(null);
 export function useExtensionSlotContext<D extends UISlotDefinition>(
   definition: D,
@@ -78,7 +88,7 @@ export function useExtensionSlotContext<D extends UISlotDefinition>(
   const surface = useContext(SurfaceContext);
   if (!surface || surface.definition.key !== definition.key)
     throw new Error(`Slot context unavailable: ${definition.key}`);
-  return surface.context;
+  return surface.context as UISlotContext<D>;
 }
 type SlotRuntime = {
   contributions: readonly UIHostContribution[];
@@ -135,7 +145,7 @@ export function useExtensionSlotStatus(
 }
 function bindItem(
   entry: UIHostContribution,
-  context: UISessionContext,
+  context: UIHostContext,
 ): SlotItem<UIContribution> {
   const contribution = entry.contribution;
   if ("view" in contribution) {
@@ -150,12 +160,19 @@ function bindItem(
     return {
       ...contribution,
       key: entry.key,
+      extensionId: entry.extensionId,
+      revision: entry.revision,
       renderView: () => (
         <Fragment key={viewKey}>{render(contribution.view, context)}</Fragment>
       ),
     };
   }
-  return { ...contribution, key: entry.key };
+  return {
+    ...contribution,
+    key: entry.key,
+    extensionId: entry.extensionId,
+    revision: entry.revision,
+  };
 }
 
 /** Headless, typed escape hatch for any protocol slot; never chooses page layout. */
@@ -170,6 +187,7 @@ export function ExtensionSlot<D extends UISlotDefinition>(
   );
   const entries = runtime.contributions.filter(
     (entry) =>
+      (!props.extensionId || entry.extensionId === props.extensionId) &&
       entry.contribution.slot === definition.key &&
       entry.contribution.type === definition.type,
   );

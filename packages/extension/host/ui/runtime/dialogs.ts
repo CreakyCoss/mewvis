@@ -1,5 +1,5 @@
 import type { JsonObject } from "../../shared.js";
-import type { UISessionContext } from "../index.js";
+import type { UIHostContext } from "../index.js";
 import type { ExtensionUIContribution } from "../protocol/transport";
 
 type DialogContribution = Extract<ExtensionUIContribution, { type: "dialog" }>;
@@ -7,7 +7,7 @@ export interface DialogOwner {
   key: symbol;
   extensionId: string;
   revision: string;
-  context: UISessionContext;
+  context: UIHostContext;
 }
 export interface DialogRequest {
   id: number;

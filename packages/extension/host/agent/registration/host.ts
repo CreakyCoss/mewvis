@@ -1,4 +1,9 @@
 import {
+  createExtensionHostClient,
+  extensionHostMethods,
+  type ExtensionHostServices,
+} from "../../services/contracts.js";
+import {
   toolSchema,
   commandSchema,
   skillSchema,
@@ -42,6 +47,7 @@ import { validateExtensionEvent } from "@isle/extension-host/agent/events";
 export async function createExtensionHost(
   sources: readonly ExtensionSource[],
   workspacePath: string,
+  services?: (source: ExtensionSource) => ExtensionHostServices,
 ) {
   const catalog: ExtensionCatalog = {
     tools: [],
@@ -169,6 +175,17 @@ export async function createExtensionHost(
         });
         try {
           const result: unknown = extension.setup({
+            services:
+              services?.(source) ??
+              createExtensionHostClient(
+                async () => {
+                  throw new Error("宿主服务不可用");
+                },
+                Object.keys(extensionHostMethods).map((capability) => ({
+                  capability,
+                  status: "unsupported",
+                })) as ExtensionHostServices["capabilities"],
+              ),
             workspacePath,
             config,
             session: {
@@ -212,6 +229,7 @@ export async function createExtensionHost(
               commands.set(id, { command, validate: ajv.compile(parameters) });
               catalog.commands.push({
                 id,
+                ...(command.inputMode && { inputMode: command.inputMode }),
                 description: command.description,
                 parameters,
               });

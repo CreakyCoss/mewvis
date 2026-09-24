@@ -9,9 +9,17 @@ export function bindUIContributions(
   return contributions.map((item) => {
     const key = `plugin:${item.extensionId}/${item.id}`;
     const title = "title" in item ? item.title : item.id;
-    if (!("view" in item)) return { key, contribution: item };
+    if (!("view" in item))
+      return {
+        key,
+        contribution: item,
+        extensionId: item.extensionId,
+        revision: item.revision,
+      } as UIHostContribution;
     return {
       key,
+      extensionId: item.extensionId,
+      revision: item.revision,
       contribution: item,
       renderView: (view, context) => (
         <ExtensionView

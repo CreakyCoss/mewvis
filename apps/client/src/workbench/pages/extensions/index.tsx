@@ -1,3 +1,4 @@
+import { SettingsSlot } from "@isle/extension-host/ui/slots/settings";
 import { useEffect, useState } from "react";
 import { AlertCircle, FolderOpen, Loader2, Plus, Puzzle, RefreshCw, Search, Settings2, Trash2 } from "lucide-react";
 import { Button } from "design-system/components/ui/button";
@@ -343,48 +344,56 @@ export function ExtensionsPage() {
           }
         }}
       >
-        <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>插件配置</DialogTitle>
             <DialogDescription>{editing?.id}</DialogDescription>
           </DialogHeader>
-          {editing?.configSchema ? (
-            <form
-              className="space-y-5"
-              onSubmit={(event) => {
-                event.preventDefault();
-                try {
-                  const config = schemaValues(editing.configSchema!, draft);
-                  void run(
-                    () => configureExtension(editing.id, { config }),
-                    () => setEditing(null),
-                  );
-                } catch (caught) {
-                  setError(caught instanceof Error ? caught.message : String(caught));
-                }
-              }}
-            >
-              <SchemaFields schema={editing.configSchema} draft={draft} onChange={setDraft} disabled={busy} />
-              {error ? (
-                <p role="alert" className="text-sm text-destructive">
-                  {error}
-                </p>
-              ) : null}
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => {
-                    setEditing(null);
-                    setError("");
-                  }}
-                >
-                  取消
-                </Button>
-                <Button disabled={busy}>保存配置</Button>
-              </div>
-            </form>
+          {editing ? (
+            <SettingsSlot
+              extensionId={editing.id}
+              render={({ renderView }) => <div className="flex h-[65vh] min-h-0 flex-col">{renderView()}</div>}
+              fallback={
+                editing.configSchema ? (
+                  <form
+                    className="space-y-5"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      try {
+                        const config = schemaValues(editing.configSchema!, draft);
+                        void run(
+                          () => configureExtension(editing.id, { config }),
+                          () => setEditing(null),
+                        );
+                      } catch (caught) {
+                        setError(caught instanceof Error ? caught.message : String(caught));
+                      }
+                    }}
+                  >
+                    <SchemaFields schema={editing.configSchema} draft={draft} onChange={setDraft} disabled={busy} />
+                    {error ? (
+                      <p role="alert" className="text-sm text-destructive">
+                        {error}
+                      </p>
+                    ) : null}
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() => {
+                          setEditing(null);
+                          setError("");
+                        }}
+                      >
+                        取消
+                      </Button>
+                      <Button disabled={busy}>保存配置</Button>
+                    </div>
+                  </form>
+                ) : null
+              }
+            />
           ) : null}
         </DialogContent>
       </Dialog>

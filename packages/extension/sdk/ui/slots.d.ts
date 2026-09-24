@@ -11,7 +11,9 @@ export interface UISessionContext {
   workspacePath: string;
   chatId: string;
 }
+export type UIHostContext = Partial<UISessionContext>;
 export interface UIScopeContexts {
+  application: { workspacePath?: never; chatId?: never };
   session: UISessionContext;
 }
 export type UISlotDefinition =

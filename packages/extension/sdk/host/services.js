@@ -1,5 +1,70 @@
 const empty = { type: "object", additionalProperties: false, properties: {} };
 export const extensionHostMethods = Object.freeze({
+  "configuration.read": { requestSchema: empty },
+  "configuration.write": {
+    requestSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["value"],
+      properties: { value: { type: "object" } },
+    },
+  },
+  "tasks.run": {
+    requestSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["text"],
+      properties: {
+        systemPrompt: { type: "string", maxLength: 16384 },
+        text: { type: "string", minLength: 1, maxLength: 96000 },
+      },
+    },
+  },
+  "activity.publish": {
+    requestSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["id", "title", "state", "steps"],
+      properties: {
+        id: { type: "string", minLength: 1, maxLength: 128 },
+        title: { type: "string", minLength: 1, maxLength: 128 },
+        state: { enum: ["running", "completed", "failed", "cancelled"] },
+        detail: { type: "string", maxLength: 1000 },
+        steps: {
+          type: "array",
+          maxItems: 32,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["id", "title", "state"],
+            properties: {
+              id: { type: "string", maxLength: 128 },
+              title: { type: "string", maxLength: 128 },
+              state: {
+                enum: [
+                  "pending",
+                  "running",
+                  "completed",
+                  "failed",
+                  "cancelled",
+                ],
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  "activity.read": { requestSchema: empty },
+  "activity.cancel": {
+    requestSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["id"],
+      properties: { id: { type: "string", minLength: 1, maxLength: 128 } },
+    },
+  },
+
   "session.read": { requestSchema: empty },
   "session.ledger.read": { requestSchema: empty },
   "session.summarize": {
@@ -59,6 +124,20 @@ export function createExtensionHostClient(transport, capabilities) {
   };
   return Object.freeze({
     capabilities: support,
+    configuration: Object.freeze({
+      read: (options) => call("configuration.read", {}, options),
+      write: (value, options) =>
+        call("configuration.write", { value }, options),
+    }),
+    tasks: Object.freeze({
+      run: (input, options) => call("tasks.run", input, options),
+    }),
+    activity: Object.freeze({
+      publish: (input, options) => call("activity.publish", input, options),
+      read: (options) => call("activity.read", {}, options),
+      cancel: (id, options) => call("activity.cancel", { id }, options),
+    }),
+
     supports,
     session: Object.freeze({
       read: (options) => call("session.read", {}, options),

@@ -161,7 +161,10 @@ export function createDesktopChatService({ resolveRecord }: { resolveRecord?: Re
         if (saved && (saved.workspaceId !== input.workspaceId || !sameOrigin(saved.origin, input.origin)))
           throw new Error("已有聊天的工作区或来源不匹配");
         const readProfile = () => entry.input.profile;
-        const catalog = createDesktopCatalog(client, readProfile);
+        const catalog = createDesktopCatalog(client, readProfile, {
+          workspacePath: input.workspacePath,
+          chatId: input.identity.id,
+        });
         const { runtime, context } = createDesktopRuntime(
           client,
           input.workspacePath,

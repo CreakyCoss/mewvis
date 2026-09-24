@@ -8,6 +8,54 @@ const toolResult = (value) => ({
   details: copy(value.details),
 });
 
+/** @param {import("@isle/extension-host/services").ExtensionHostServices} native */
+function adaptServices(native) {
+  return {
+    capabilities: native.capabilities,
+    supports: (
+      /** @type {import("@isle/extension-sdk/host").ExtensionHostCapability} */ capability,
+    ) => native.supports(capability),
+    configuration: {
+      read: async (/** @type {{signal?: AbortSignal}} */ options = {}) =>
+        copy(await native.configuration.read(options)),
+      write: async (
+        /** @type {import("@isle/extension-sdk").JsonObject} */ value,
+        /** @type {{signal?: AbortSignal}} */ options = {},
+      ) => copy(await native.configuration.write(copy(value), options)),
+    },
+    tasks: {
+      run: async (
+        /** @type {{text: string, systemPrompt?: string}} */ input,
+        /** @type {{signal?: AbortSignal}} */ options = {},
+      ) => copy(await native.tasks.run(copy(input), options)),
+    },
+    activity: {
+      publish: async (
+        /** @type {import("@isle/extension-sdk/host").ExtensionActivity} */ input,
+        /** @type {{signal?: AbortSignal}} */ options = {},
+      ) => native.activity.publish(copy(input), options),
+      read: async (/** @type {{signal?: AbortSignal}} */ options = {}) =>
+        copy(await native.activity.read(options)),
+      cancel: (
+        /** @type {string} */ id,
+        /** @type {{signal?: AbortSignal}} */ options = {},
+      ) => native.activity.cancel(id, options),
+    },
+    session: {
+      read: async (/** @type {{signal?: AbortSignal}} */ options = {}) =>
+        copy(await native.session.read(options)),
+      ledger: {
+        read: async (/** @type {{signal?: AbortSignal}} */ options = {}) =>
+          copy(await native.session.ledger.read(options)),
+      },
+      summarize: async (
+        /** @type {import("@isle/extension-sdk/host").ExtensionSummaryRequest} */ input,
+        /** @type {{signal?: AbortSignal}} */ options = {},
+      ) => copy(await native.session.summarize(copy(input), options)),
+    },
+  };
+}
+
 /** SDK callbacks are registered through native host ports; no Agent-native API enters this boundary.
  * @param {import("@isle/extension-sdk/agent").ExtensionDefinition} definition
  * @returns {import("@isle/extension-host/agent").ExtensionDefinition}
@@ -20,6 +68,9 @@ export function adaptAgentExtension(definition) {
     protocolVersion: 1,
     setup(native) {
       return definition.setup({
+        get host() {
+          return adaptServices(native.services);
+        },
         workspacePath: native.workspacePath,
         config: native.config,
         session: {
@@ -45,6 +96,7 @@ export function adaptAgentExtension(definition) {
         },
         registerCommand(command) {
           native.registerCommand({
+            ...(command.inputMode && { inputMode: command.inputMode }),
             name: command.name,
             description: command.description,
             parameters: copy(command.parameters),
@@ -87,24 +139,7 @@ export function adaptUIExtension(definition) {
     protocolVersion: 1,
     mount(root, native) {
       /** @type {import("@isle/extension-sdk/host").ExtensionHostServices} */
-      const host = {
-        capabilities: Object.freeze(
-          native.services.capabilities.map(({ capability, status }) =>
-            Object.freeze({ capability, status }),
-          ),
-        ),
-        supports: (capability) => native.services.supports(capability),
-        session: {
-          read: async (options) =>
-            copy(await native.services.session.read(options)),
-          ledger: {
-            read: async (options) =>
-              copy(await native.services.session.ledger.read(options)),
-          },
-          summarize: async (input, options) =>
-            copy(await native.services.session.summarize(copy(input), options)),
-        },
-      };
+      const host = adaptServices(native.services);
       Object.freeze(host.session.ledger);
       Object.freeze(host.session);
       Object.freeze(host);

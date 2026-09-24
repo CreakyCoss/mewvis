@@ -13,6 +13,26 @@ const payload = (properties, required) => ({
 
 /** Serializable payload contracts, independent of host framework and placement. */
 export const uiSlotTypes = Object.freeze({
+  settings: Object.freeze({
+    type: "settings",
+    schema: payload(
+      {
+        title: { type: "string", minLength: 1, maxLength: 64 },
+        view: {
+          ...payload({ id: identifier }, ["id"]),
+          title: "UIViewReference",
+        },
+      },
+      ["title", "view"],
+    ),
+  }),
+  status: Object.freeze({
+    type: "status",
+    schema: payload(
+      { title: { type: "string", minLength: 1, maxLength: 64 } },
+      ["title"],
+    ),
+  }),
   text: Object.freeze({
     type: "text",
     schema: payload(
@@ -29,7 +49,10 @@ export const uiSlotTypes = Object.freeze({
       {
         title: { type: "string", minLength: 1, maxLength: 64 },
         size: { enum: ["sm", "md", "lg"] },
-        view: { ...payload({ id: identifier }, ["id"]), title: "UIViewReference" },
+        view: {
+          ...payload({ id: identifier }, ["id"]),
+          title: "UIViewReference",
+        },
       },
       ["title", "size", "view"],
     ),
@@ -56,6 +79,12 @@ const slot = (key, kind, scope) =>
   Object.freeze({ key, type: kind.type, scope });
 /** Use these references in code; stable keys are only serialized at the protocol boundary. */
 export const uiSlotDefinitions = Object.freeze({
+  pluginSettings: slot("plugin.settings", uiSlotTypes.settings, "application"),
+  composerStatus: slot(
+    "session.composer-status",
+    uiSlotTypes.status,
+    "session",
+  ),
   sessionStatus: slot("session.status", uiSlotTypes.text, "session"),
   sessionDialog: slot("session.dialog", uiSlotTypes.dialog, "session"),
   sessionSidebar: slot("session.sidebar", uiSlotTypes.sidebar, "session"),

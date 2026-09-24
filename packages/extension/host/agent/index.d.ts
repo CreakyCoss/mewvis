@@ -47,6 +47,7 @@ export const extensionCapabilities: readonly [
 ];
 
 export interface ExtensionContext {
+  readonly services: import("../services/contracts.js").ExtensionHostServices;
   workspacePath: string;
   /** Frozen instance snapshot; a host configuration change takes effect on a replacement instance. */
   readonly config: Readonly<JsonObject>;

@@ -20,22 +20,35 @@ export function adaptIslePackage(packageJson) {
     modules.ui = {
       ...(source.modules.ui.entry && { entry: source.modules.ui.entry }),
       contributions: source.modules.ui.contributions.map((item) =>
-        item.type === "sidebar" || item.type === "dialog"
+        item.type === "sidebar" ||
+        item.type === "dialog" ||
+        item.type === "settings"
           ? {
               id: item.id,
               slot: item.slot,
               type: item.type,
               title: item.title,
-              ...(item.type === "sidebar" ? { icon: item.icon } : { size: item.size }),
+              ...(item.type === "sidebar"
+                ? { icon: item.icon }
+                : item.type === "dialog"
+                  ? { size: item.size }
+                  : {}),
               view: { id: item.view.id },
             }
-          : {
-              id: item.id,
-              slot: item.slot,
-              type: item.type,
-              text: item.text,
-              ...(item.tone && { tone: item.tone }),
-            },
+          : item.type === "status"
+            ? {
+                id: item.id,
+                slot: item.slot,
+                type: item.type,
+                title: item.title,
+              }
+            : {
+                id: item.id,
+                slot: item.slot,
+                type: item.type,
+                text: item.text,
+                ...(item.tone && { tone: item.tone }),
+              },
       ),
     };
   const { "isle.extension": _external, ...metadata } = packageJson;

@@ -10,6 +10,7 @@ import { HostServiceError as ServiceError } from "./error.js";
 
 export interface ExtensionHostContext {
   target: { workspacePath: string; chatId: string };
+  extensionId?: string;
   signal: AbortSignal;
 }
 export type ExtensionHostAdapter = {

@@ -1,3 +1,4 @@
+import { StatusSlot } from "@isle/extension-host/ui/slots/status";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
 import { ChatEnvironment } from "../react";
 import { sessionKey, type ChatSession } from "../core";
@@ -21,7 +22,19 @@ export function DesktopChatEnvironment({
   );
   return (
     <Context.Provider value={service}>
-      <ChatEnvironment persistence={persistence} files={files} renderBeforeComposer={approvals.renderBeforeComposer}>
+      <ChatEnvironment
+        persistence={persistence}
+        files={files}
+        renderBeforeComposer={(session) => {
+          const target = service.getLocation(session);
+          return (
+            <>
+              {approvals.renderBeforeComposer(session)}
+              {target ? <StatusSlot context={target} /> : null}
+            </>
+          );
+        }}
+      >
         {children}
         {approvals.background}
       </ChatEnvironment>

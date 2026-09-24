@@ -1,3 +1,17 @@
+export interface ExtensionActivity {
+  id: string;
+  title: string;
+  state: "running" | "completed" | "failed" | "cancelled";
+  detail?: string;
+  steps: Array<{
+    id: string;
+    title: string;
+    state: "pending" | "running" | "completed" | "failed" | "cancelled";
+  }>;
+}
+export interface ExtensionActivitySnapshot extends ExtensionActivity {
+  updatedAt: number;
+}
 /** Plugin-facing host contracts. No transport, storage paths or Agent-native types. */
 export interface ExtensionSessionSnapshot {
   messages: Array<{
@@ -49,6 +63,25 @@ export interface ExtensionSummaryResult {
   truncated: boolean;
 }
 export interface ExtensionHostMethods {
+  "configuration.read": {
+    input: Record<string, never>;
+    output: import("../shared.js").JsonObject;
+  };
+  "configuration.write": {
+    input: { value: import("../shared.js").JsonObject };
+    output: import("../shared.js").JsonObject;
+  };
+  "tasks.run": {
+    input: { text: string; systemPrompt?: string };
+    output: { text: string };
+  };
+  "activity.publish": { input: ExtensionActivity; output: null };
+  "activity.read": {
+    input: Record<string, never>;
+    output: ExtensionActivitySnapshot | null;
+  };
+  "activity.cancel": { input: { id: string }; output: null };
+
   "session.read": {
     input: Record<string, never>;
     output: ExtensionSessionSnapshot;
@@ -84,6 +117,32 @@ export type ExtensionHostTransport = <M extends ExtensionHostCapability>(
   options?: { signal?: AbortSignal },
 ) => Promise<ExtensionHostMethods[M]["output"]>;
 export interface ExtensionHostServices {
+  readonly configuration: {
+    read(options?: {
+      signal?: AbortSignal;
+    }): Promise<import("../shared.js").JsonObject>;
+    write(
+      value: import("../shared.js").JsonObject,
+      options?: { signal?: AbortSignal },
+    ): Promise<import("../shared.js").JsonObject>;
+  };
+  readonly tasks: {
+    run(
+      input: { text: string; systemPrompt?: string },
+      options?: { signal?: AbortSignal },
+    ): Promise<{ text: string }>;
+  };
+  readonly activity: {
+    publish(
+      input: ExtensionActivity,
+      options?: { signal?: AbortSignal },
+    ): Promise<null>;
+    read(options?: {
+      signal?: AbortSignal;
+    }): Promise<ExtensionActivitySnapshot | null>;
+    cancel(id: string, options?: { signal?: AbortSignal }): Promise<null>;
+  };
+
   readonly capabilities: readonly ExtensionHostSupport[];
   supports(capability: ExtensionHostCapability): boolean;
   readonly session: {

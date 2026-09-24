@@ -819,6 +819,7 @@ export interface ExtensionCommandsResult {
   type: "extension_commands_result";
   rpcRequestId?: string | number;
   commands: {
+    inputMode?: "text";
     id: string;
     description: string;
     parameters: {

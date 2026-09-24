@@ -71,6 +71,7 @@ export function useChatComposer() {
     controls,
     initialized: snapshot.initialized,
     files: environment.files?.(session) ?? [],
+    commands: snapshot.resources.commands ?? [],
     skills: [
       ...new Map(
         (snapshot.resources.skillGroups ?? []).flatMap((group) =>

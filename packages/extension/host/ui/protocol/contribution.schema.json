@@ -13,6 +13,78 @@
           "maxLength": 64
         },
         "slot": {
+          "const": "plugin.settings"
+        },
+        "type": {
+          "const": "settings"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "view": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]*$",
+              "maxLength": 64
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "title": "UIViewReference"
+        }
+      },
+      "required": [
+        "id",
+        "slot",
+        "type",
+        "title",
+        "view"
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "maxLength": 64
+        },
+        "slot": {
+          "const": "session.composer-status"
+        },
+        "type": {
+          "const": "status"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "id",
+        "slot",
+        "type",
+        "title"
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "maxLength": 64
+        },
+        "slot": {
           "const": "session.status"
         },
         "type": {

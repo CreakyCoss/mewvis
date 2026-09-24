@@ -290,6 +290,7 @@ test(
     };
     const records = await call("list_extensions");
     assert.deepEqual(records.map((item) => item.id).sort(), [
+      "isle.collaboration",
       "isle.example",
       "isle.session-insights",
       "isle.session-ledger",

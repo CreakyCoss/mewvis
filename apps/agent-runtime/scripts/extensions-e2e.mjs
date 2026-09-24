@@ -15,6 +15,7 @@ import { verifyExtensionWorkflow } from "./extensions-workflow-test.mjs";
 import { verifyExtensionSessions } from "./extensions-session-test.mjs";
 import { verifyExtensionMiddleware } from "./extensions-middleware-test.mjs";
 import { verifyExtensionEvents } from "./extensions-events-test.mjs";
+import { verifyExtensionCollaboration } from "./extensions-collaboration-test.mjs";
 import { verifyExtensionCompaction } from "./extensions-compaction-test.mjs";
 
 // Self-contained demo/test: actual Pi SDK, actual execution workers and local SSE model.
@@ -410,6 +411,21 @@ try {
   const { createPiAgentSession } = await import(pathToFileURL(join(dist, "pi-session.js")).href);
   const [nativeCommandSource] = api.resolveExtensionPackages([{ path: taskPackage.root, commandRisks: { add: "low", list: "low" } }]);
   const nativeCommand = { ...piCommand, taskId: "pi-native-command", sessionRootDir: join(workspace, "pi-native-command"), agentTaskPrompt: "" };
+  const slashEngine = api.createAgentEngine({
+    getExtensionSources: () => [nativeCommandSource],
+  });
+  engines.push(slashEngine);
+  const beforeSlash = requests.length;
+  const slashResult = await slashEngine.runAgent(
+    {
+      ...nativeCommand,
+      sessionRootDir: join(workspace, "generic-json-command"),
+      userMessage: '/isle.tasks/add {"title":"JSON 命令回归"}',
+    },
+    context,
+  );
+  assert.match(slashResult.text, /JSON 命令回归/);
+  assert.equal(requests.length, beforeSlash);
   const extensionRuntime = createExtensionRuntime();
   const binding = await extensionRuntime.open([nativeCommandSource], nativeCommand, context);
   let nativeSession;
@@ -429,6 +445,7 @@ try {
     await extensionRuntime.dispose();
   }
   await verifyExtensionWorkflow({ api, dist, taskPackage, workspace, source, mock, command, piCommand, context });
+  await verifyExtensionCollaboration({ api, root, workspace, piCommand });
   await verifyExtensionSessions({ api, workspace, command, piCommand });
   await verifyExtensionMiddleware({ api, workspace, command, piCommand });
   await verifyExtensionEvents({ api, hostApi, workspace, command, piCommand });

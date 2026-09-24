@@ -129,7 +129,8 @@ export const piExtensionAdapter = defineExtensionAdapter<PiExtensionFactory>({
         pi.registerCommand(command.id, {
           description: command.description,
           handler: async (args) => {
-            const value = await bindings.command(command.id, JSON.parse(args.trim() || "{}"), {
+            const input = command.inputMode === "text" ? { text: args.trim() } : JSON.parse(args.trim() || "{}");
+            const value = await bindings.command(command.id, input, {
               callId: randomUUID(),
               signal: context.signal,
             });

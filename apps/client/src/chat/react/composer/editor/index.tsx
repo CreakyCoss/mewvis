@@ -23,6 +23,7 @@ export type ChatEditorHandle = {
 type ChatEditorProps = {
   files: ChatInputFile[];
   skills: ChatInputSkillOption[];
+  commands?: { id: string; description: string }[];
   defaultValue: string;
   initialBlocks?: import("@/chat/core").MessagePart[];
   placeholder: string;
@@ -82,7 +83,7 @@ const EditorBridge = ({
 };
 
 const ChatEditorComponent = (
-  { files, skills, defaultValue, initialBlocks, placeholder, disabled, onChange }: ChatEditorProps,
+  { files, skills, commands, defaultValue, initialBlocks, placeholder, disabled, onChange }: ChatEditorProps,
   bind: Ref<ChatEditorHandle>,
 ) => {
   const initialConfig = useMemo(
@@ -132,7 +133,7 @@ const ChatEditorComponent = (
         <ClearEditorPlugin />
         <OnChangePlugin ignoreSelectionChange ignoreHistoryMergeTagChange={false} onChange={handleChange} />
         <FileReferenceMenu files={files} />
-        <SkillReferenceMenu skills={skills} />
+        <SkillReferenceMenu skills={skills} commands={commands} />
         <EditorBridge bind={bind} disabled={disabled} value={{ text: defaultValue, blocks: initialBlocks ?? [] }} />
       </div>
     </LexicalComposer>

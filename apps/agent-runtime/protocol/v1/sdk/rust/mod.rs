@@ -881,12 +881,22 @@ pub struct RuntimeThinkingOption {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Command {
     pub description: String,
 
     pub id: String,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input_mode: Option<InputMode>,
+
     pub parameters: HashMap<String, Option<serde_json::Value>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InputMode {
+    Text,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

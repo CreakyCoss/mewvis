@@ -135,6 +135,7 @@ export type SkillOption = {
   description: string;
 };
 export type ChatResources = {
+  commands?: { id: string; description: string }[];
   permissionOptions?: AgentPermissionOption[];
   models?: (ResourceOption & {
     selectedLabel: string;
@@ -148,7 +149,12 @@ export type ChatResources = {
   })[];
   errors?: Partial<
     Record<
-      "models" | "agents" | "skillGroups" | "tools" | "knowledgeCollections",
+      | "models"
+      | "agents"
+      | "skillGroups"
+      | "tools"
+      | "knowledgeCollections"
+      | "commands",
       string
     >
   >;

@@ -27,6 +27,8 @@ export interface ExtensionSkill {
 }
 
 export interface ExtensionCommand {
+  /** Text commands accept slash input as { text }; other commands use structured arguments. */
+  inputMode?: "text";
   name: string;
   description: string;
   parameters: JsonObject;

@@ -3,6 +3,19 @@
 export type UIContribution =
   | {
       id: string;
+      slot: "plugin.settings";
+      type: "settings";
+      title: string;
+      view: UIViewReference;
+    }
+  | {
+      id: string;
+      slot: "session.composer-status";
+      type: "status";
+      title: string;
+    }
+  | {
+      id: string;
       slot: "session.status";
       type: "text";
       text: string;
@@ -14,7 +27,7 @@ export type UIContribution =
       type: "dialog";
       title: string;
       size: "sm" | "md" | "lg";
-      view: UIViewReference;
+      view: UIViewReference1;
     }
   | {
       id: string;
@@ -22,7 +35,7 @@ export type UIContribution =
       type: "sidebar";
       title: string;
       icon: "chart" | "files" | "git-branch" | "activity" | "puzzle" | "info";
-      view: UIViewReference1;
+      view: UIViewReference2;
     };
 
 export interface UIViewReference {
@@ -31,13 +44,20 @@ export interface UIViewReference {
 export interface UIViewReference1 {
   id: string;
 }
+export interface UIViewReference2 {
+  id: string;
+}
 
 export const uiSlotDefinitions: {
+  readonly pluginSettings: { readonly key: "plugin.settings"; readonly type: "settings"; readonly scope: "application" };
+  readonly composerStatus: { readonly key: "session.composer-status"; readonly type: "status"; readonly scope: "session" };
   readonly sessionStatus: { readonly key: "session.status"; readonly type: "text"; readonly scope: "session" };
   readonly sessionDialog: { readonly key: "session.dialog"; readonly type: "dialog"; readonly scope: "session" };
   readonly sessionSidebar: { readonly key: "session.sidebar"; readonly type: "sidebar"; readonly scope: "session" };
 };
 export const uiSlotTypes: {
+  readonly settings: { readonly type: "settings"; readonly schema: object };
+  readonly status: { readonly type: "status"; readonly schema: object };
   readonly text: { readonly type: "text"; readonly schema: object };
   readonly dialog: { readonly type: "dialog"; readonly schema: object };
   readonly sidebar: { readonly type: "sidebar"; readonly schema: object };

@@ -136,7 +136,13 @@
                 "enum": [
                   "session.read",
                   "session.ledger.read",
-                  "session.summarize"
+                  "session.summarize",
+                  "configuration.read",
+                  "configuration.write",
+                  "tasks.run",
+                  "activity.publish",
+                  "activity.read",
+                  "activity.cancel"
                 ]
               }
             },
@@ -147,7 +153,13 @@
                 "enum": [
                   "session.read",
                   "session.ledger.read",
-                  "session.summarize"
+                  "session.summarize",
+                  "configuration.read",
+                  "configuration.write",
+                  "tasks.run",
+                  "activity.publish",
+                  "activity.read",
+                  "activity.cancel"
                 ]
               }
             }

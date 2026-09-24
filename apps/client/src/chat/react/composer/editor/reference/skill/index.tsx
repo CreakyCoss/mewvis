@@ -2,11 +2,12 @@ import { useCallback, useMemo, useState } from "react";
 import { SparklesIcon } from "lucide-react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { LexicalTypeaheadMenuPlugin, MenuOption, type TriggerFn } from "@lexical/react/LexicalTypeaheadMenuPlugin";
-import { $createTextNode, type TextNode } from "lexical";
+import { $createTextNode, $getRoot, $getSelection, $isRangeSelection, type TextNode } from "lexical";
 import type { ChatInputSkillOption } from "@/chat/react/types";
 import { ReferenceMenu } from "../menu";
 import { $createSkillReferenceNode } from "./node";
 
+type SlashOption = ChatInputSkillOption & { commandId?: string };
 const MAX_VISIBLE_SKILLS = 8;
 
 // 允许“请使用/技能”连续输入，但不响应 @文件路径和普通英文路径中的斜杠。
@@ -30,9 +31,9 @@ const skillReferenceTrigger: TriggerFn = (text) => {
 };
 
 class SkillReferenceOption extends MenuOption {
-  skill: ChatInputSkillOption;
+  skill: SlashOption;
 
-  constructor(skill: ChatInputSkillOption) {
+  constructor(skill: SlashOption) {
     super(skill.key);
     this.skill = skill;
   }
@@ -40,18 +41,44 @@ class SkillReferenceOption extends MenuOption {
 
 type SkillReferenceMenuProps = {
   skills: ChatInputSkillOption[];
+  commands?: { id: string; description: string }[];
 };
 
-export const SkillReferenceMenu = ({ skills }: SkillReferenceMenuProps) => {
+export const SkillReferenceMenu = ({ skills, commands = [] }: SkillReferenceMenuProps) => {
   const [editor] = useLexicalComposerContext();
   const [query, setQuery] = useState<string | null>(null);
+  const [atStart, setAtStart] = useState(false);
+  const trigger: TriggerFn = useCallback(
+    (text) => {
+      const match = skillReferenceTrigger(text, editor);
+      const firstParagraph = editor.getEditorState().read(() => {
+        const selection = $getSelection();
+        return (
+          $isRangeSelection(selection) && selection.anchor.getNode().getTopLevelElement() === $getRoot().getFirstChild()
+        );
+      });
+      setAtStart(Boolean(match && firstParagraph && !text.slice(0, match.leadOffset).trim()));
+      return match;
+    },
+    [editor],
+  );
   const options = useMemo(() => {
     if (query === null) {
       return [];
     }
 
     const normalizedQuery = query.trim().toLocaleLowerCase();
-    return skills
+    const entries: SlashOption[] = [
+      ...(atStart ? commands : []).map((command) => ({
+        key: command.id,
+        name: command.description,
+        label: command.description,
+        description: `/${command.id}`,
+        commandId: command.id,
+      })),
+      ...skills,
+    ];
+    return entries
       .filter((skill) => {
         if (!normalizedQuery) {
           return true;
@@ -67,12 +94,14 @@ export const SkillReferenceMenu = ({ skills }: SkillReferenceMenuProps) => {
       })
       .slice(0, MAX_VISIBLE_SKILLS)
       .map((skill) => new SkillReferenceOption(skill));
-  }, [query, skills]);
+  }, [query, skills, commands, atStart]);
 
   const selectOption = useCallback(
     (option: SkillReferenceOption, nodeToReplace: TextNode | null, closeMenu: () => void) => {
       editor.update(() => {
-        const referenceNode = $createSkillReferenceNode(option.skill.key, option.skill.name);
+        const referenceNode = option.skill.commandId
+          ? $createTextNode(`/${option.skill.commandId}`)
+          : $createSkillReferenceNode(option.skill.key, option.skill.name);
         if (nodeToReplace) {
           nodeToReplace.replace(referenceNode);
         }
@@ -87,7 +116,7 @@ export const SkillReferenceMenu = ({ skills }: SkillReferenceMenuProps) => {
 
   return (
     <LexicalTypeaheadMenuPlugin<SkillReferenceOption>
-      triggerFn={skillReferenceTrigger}
+      triggerFn={trigger}
       options={options}
       onQueryChange={setQuery}
       onSelectOption={selectOption}
@@ -95,9 +124,9 @@ export const SkillReferenceMenu = ({ skills }: SkillReferenceMenuProps) => {
         <ReferenceMenu
           editor={editor}
           anchorElement={anchorElementRef.current}
-          ariaLabel="技能"
-          title="引用技能"
-          emptyText="没有匹配的已启用技能"
+          ariaLabel="命令与技能"
+          title="命令与技能"
+          emptyText="没有匹配的已启用命令或技能"
           options={menu.options}
           selectedIndex={menu.selectedIndex}
           selectOption={menu.selectOptionAndCleanUp}

@@ -93,6 +93,10 @@ declare function useChatComposer(): {
   };
   initialized: boolean;
   files: ChatInputFile[];
+  commands: {
+    id: string;
+    description: string;
+  }[];
   skills: _isle_chat_contracts.SkillOption[];
   busy: boolean;
   disabled: boolean;

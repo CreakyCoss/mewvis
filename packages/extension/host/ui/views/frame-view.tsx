@@ -20,8 +20,8 @@ export function ExtensionView({
   viewId: string;
   revision: string;
   title: string;
-  workspacePath: string;
-  chatId: string;
+  workspacePath?: string;
+  chatId?: string;
   input?: JsonObject;
   dialogId?: number;
 }) {
@@ -167,6 +167,7 @@ export function ExtensionView({
                 "foreground",
                 "muted",
                 "muted-foreground",
+                "accent",
                 "border",
                 "primary",
                 "primary-foreground",

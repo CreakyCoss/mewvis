@@ -1,3 +1,4 @@
+import { listExtensionCommands } from "@/api/agent-runtime";
 import { getLlmModelOptions } from "@/api/llm";
 import { getAiAgentSettings } from "@/api/agents";
 import { getSkills } from "@/api/skills";
@@ -20,7 +21,11 @@ export type ChatProfile = {
   initialMessages?: ChatMessage[];
   context?: (turn: TurnInput, signal: AbortSignal) => Promise<ChatContext>;
 };
-export function createDesktopCatalog(client: AgentClient, readProfile: () => ChatProfile) {
+export function createDesktopCatalog(
+  client: AgentClient,
+  readProfile: () => ChatProfile,
+  target?: { workspacePath: string; chatId: string },
+) {
   let skills: Skill[] = [];
   let agents: AiAgent[] = [];
   let resources: ChatResources = {};
@@ -49,12 +54,13 @@ export function createDesktopCatalog(client: AgentClient, readProfile: () => Cha
           Promise.all([client.capabilities.listAgentTools(), profile.toolCatalog?.()]).then(([tools, catalog]) =>
             catalog ? { ...tools, tools: catalog } : tools,
           ),
+          target ? listExtensionCommands(target) : Promise.resolve([]),
         ]);
         const errors: NonNullable<ChatResources["errors"]> = {};
         const value = <T>(key: keyof typeof errors, result: PromiseSettledResult<T>, fallback: T): T => {
           if (result.status === "fulfilled") return result.value;
           errors[key] =
-            `${{ models: "模型", agents: "角色", skillGroups: "技能", knowledgeCollections: "知识库", tools: "工具" }[key]}加载失败，可重试`;
+            `${{ models: "模型", agents: "角色", skillGroups: "技能", knowledgeCollections: "知识库", tools: "工具", commands: "插件命令" }[key]}加载失败，可重试`;
           return fallback;
         };
         const models = value("models", results[0], []);
@@ -88,6 +94,9 @@ export function createDesktopCatalog(client: AgentClient, readProfile: () => Cha
             ]
           : skillSettings.groups.map((group) => ({ ...group, isDefault: group.id === skillSettings.defaultGroupId }));
         resources = {
+          commands: value("commands", results[5], [])
+            .filter((command) => command.inputMode === "text")
+            .map(({ id, description }) => ({ id, description })),
           permissionOptions: toolSettings.permissionOptions.map((option) => ({ ...option })),
           models: models.map((model, index) => ({
             value: model.id,

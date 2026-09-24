@@ -24,6 +24,7 @@ export const toolSchema = z
   })
   .strict();
 export const commandSchema = toolSchema.omit({ label: true }).extend({
+  inputMode: z.literal("text").optional(),
   execute: z.custom<ExtensionCommand["execute"]>(
     (value) => typeof value === "function",
   ),

@@ -64,8 +64,8 @@ test("the same contribution renders in different layouts with separately scoped 
   const targets: string[] = [];
   const entry = {
     ...panel,
-    renderView: (_view: unknown, target: typeof context) => {
-      targets.push(target.chatId);
+    renderView: (_view: unknown, target: Partial<typeof context>) => {
+      targets.push(target.chatId!);
       return <small>{target.chatId}</small>;
     },
   };

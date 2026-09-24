@@ -1,6 +1,6 @@
 # 宿主服务协议与适配
 
-SDK 插件通过 `ctx.host` 请求宿主能力，原生插件通过独立宿主协议的 `ctx.services` 请求相同能力。Isle 适配器转换上下文和服务调用；插件不导入应用 API、会话存储类型或模型配置。当前首个消费入口是 UI 视图；Agent worker 尚未注入此服务客户端。`host` 不代表一个新的可执行插件模块。
+SDK 插件通过 `ctx.host` 请求宿主能力，原生插件通过独立宿主协议的 `ctx.services` 请求相同能力。Isle 适配器转换上下文和服务调用；插件不导入应用 API、会话存储类型或模型配置。UI 视图和 Agent worker 都可以消费服务，由当前执行环境决定可用能力。`host` 不代表一个新的可执行插件模块。
 
 ## 协议入口
 
@@ -33,6 +33,8 @@ if (ctx.host.supports("session.summarize")) {
 
 ## 当前能力
 
+协作相关能力包括 `configuration.read/write`、`tasks.run` 和 `activity.publish/read/cancel`。配置限定为调用插件本身，活动限定为插件和当前会话；任务执行沿用宿主的模型、权限及取消链路，接受 `{ text, systemPrompt? }`，不依赖任何宿主角色。具体作用域与使用方式见[角色协作插件](collaboration.md)。
+
 | 方法                  | 返回与边界                                                                                                                                                                                     |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `session.read`        | 用户/助手公开消息和关联运行；排除私有消息、系统提示与原始 metadata。最多最近 1000 条消息/运行，单条文本 8000 字符。                                                                            |
@@ -48,19 +50,19 @@ if (ctx.host.supports("session.summarize")) {
 ```text
 插件 ctx.host
   → SDK 客户端
-  → UI MessageChannel / Server 视图租约
+  → UI MessageChannel / Server 视图租约，或 Agent worker 请求桥
   → extension-host/services：能力、请求校验、错误、取消
   → extension-host/services/session：协议数据与内部服务的翻译
   → 现有会话读取 / 无会话模型调用
 ```
 
-宿主的 [services/dispatch.ts](../../packages/extension/host/services/dispatch.ts) 定义 `ExtensionHostAdapter` 与分发入口；[services/session.ts](../../packages/extension/host/services/session.ts) 投影内部 DTO；应用的 [bootstrap/extensions.ts](../../apps/server/src/bootstrap/extensions.ts) 连接内部服务。bootstrap 仅注入依赖，不实现插件协议分支。Client 视图传输按协议方法转发，不为每个服务编写页面逻辑。
+宿主的 [services/dispatch.ts](../../packages/extension/host/services/dispatch.ts) 定义 `ExtensionHostAdapter` 与分发入口；[services/session.ts](../../packages/extension/host/services/session.ts) 投影内部 DTO；应用的 [bootstrap/extensions.ts](../../apps/server/src/bootstrap/extensions.ts) 连接会话与任务服务。Agent runtime 在自身扩展模块中绑定任务执行能力，不将 Pi 依赖带入宿主插件层。Client 视图传输按协议方法转发，不为每个服务编写页面逻辑。
 
 新宿主可实现本地服务、远程转发或 Mock 适配器，再通过 `createExtensionHostClient` 绑定传输。缺失的能力不注册即可；不可伪造成功。新增能力需要同时定义输入输出和请求 Schema、实现适配器，并明确作用域和生命周期，再由插件按需声明。
 
 ## 生命周期与错误
 
-每个视图最多一个正在执行的请求。请求绑定当前插件配置、启用状态和会话；配置变更、停用、关闭会撤销租约并中止挂起的请求。显式取消使用请求 ID，取消先于查询到达时也会阻止执行。宿主请求超时为 120 秒，浏览器传输兜底为 125 秒。桌面摘要取消会停止该次短生命周期模型进程；不停止会话自身的 Agent。
+每个视图最多一个正在执行的请求。请求绑定当前插件配置、启用状态和会话；外部配置变更、停用、关闭会撤销租约并中止挂起的请求。插件通过 `configuration.write` 保存自身配置时，服务会更新本插件视图的配置指纹，并通知宿主刷新贡献。显式取消使用请求 ID，取消先于查询到达时也会阻止执行。宿主请求超时为 120 秒，浏览器传输兜底为 125 秒。桌面摘要取消会停止该次短生命周期模型进程；不停止会话自身的 Agent。
 
 错误具有协议 `code`：`HOST_UNSUPPORTED`、`HOST_DENIED`、`HOST_INVALID_REQUEST`、`HOST_UNAVAILABLE`、`HOST_CANCELLED`、`HOST_FAILED`。适配器内部异常不会原样透传到插件。服务完成后仍检查取消及租约状态，避免已撤销视图收到结果。
 

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { AgentRuntimeEventType, type AgentEvent } from "../../../../protocol/wire.js";
 import { resolveRuntime } from "../runtimes/resolver.js";
 import type {
@@ -131,6 +132,37 @@ const executeAgentRunCommandWithRecording = async (
       started = true;
     }
     context.signal?.throwIfAborted();
+    const slash =
+      /^\/([a-z][a-z0-9.-]*\/[a-z][a-z0-9_]*)(?:\s+([\s\S]*))?$/.exec(
+        command.userMessage.trim(),
+      );
+    const registered = slash && extensions?.catalog.commands.find((item) => item.id === slash[1]);
+    if (slash && registered && extensions) {
+      emit({ type: AgentRuntimeEventType.Started, taskId: command.taskId });
+      const input =
+        registered.inputMode === "text"
+          ? { text: slash[2] ?? "" }
+          : JSON.parse(slash[2] || "{}");
+      const value = await extensions.command(registered.id, input, {
+        callId: randomUUID(),
+        signal: context.signal,
+      });
+      const text =
+        value &&
+        typeof value === "object" &&
+        !Array.isArray(value) &&
+        typeof value.text === "string"
+          ? value.text
+          : JSON.stringify(value);
+      emit({
+        type: AgentRuntimeEventType.TextDelta,
+        taskId: command.taskId,
+        delta: text,
+      });
+      emit({ type: AgentRuntimeEventType.Done, taskId: command.taskId, text });
+      completed = true;
+      return { text };
+    }
     const result = await implementation.run(runtimeCommand, {
       ...runtimeContext,
       extensions,

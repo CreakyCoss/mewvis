@@ -229,11 +229,16 @@ class RuntimeModelProviderSummary:
     website_url: str
 
 
+class InputMode(Enum):
+    TEXT = "text"
+
+
 @dataclass
 class Command:
     description: str
     id: str
     parameters: dict[str, Any]
+    input_mode: InputMode | None
 
 
 @dataclass

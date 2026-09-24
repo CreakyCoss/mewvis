@@ -120,6 +120,7 @@ export function ComposerView({
             ref={editor}
             files={binding.files}
             skills={binding.skills}
+            commands={binding.commands}
             defaultValue={binding.draft.text}
             initialBlocks={binding.draft.blocks}
             placeholder={placeholder}
@@ -171,6 +172,7 @@ export function EmptyComposer({ placeholder = "输入问题" }: { placeholder?: 
     preferences: { showThinkingProcess: true, showToolCallProcess: true },
     files: [],
     skills: [],
+    commands: [],
     busy: false,
     initialized: false,
     disabled: true,

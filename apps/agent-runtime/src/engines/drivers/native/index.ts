@@ -30,6 +30,7 @@ import {
   builtinRuntimeAgents,
   createRuntimeAgentRegistry,
 } from "./agent/runtimes/registry.js";
+import { executeAgentRunCommand } from "./agent/commands/execution.js";
 import { createAgentEngine } from "./agent/index.js";
 import type {
   AgentRuntimeCallbacks,
@@ -97,6 +98,13 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
       ...builtinRuntimeAgents,
       ...runtimeAgents,
     ]);
+    runtimeCallbacks.runExtensionTask = (command, context) =>
+      executeAgentRunCommand(command, context, {
+        registry,
+        agentRuntimeId: profile.agentRuntimeId,
+        sessionProviderId: profile.sessionProviderId,
+        extensions: [],
+      });
     const directSources = this.extensionRuntime.snapshotSources([
       ...(extensions ?? []),
       ...resolveExtensionPackages(extensionPackages ?? []),

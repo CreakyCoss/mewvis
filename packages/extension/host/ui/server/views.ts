@@ -1,3 +1,4 @@
+import { uiSlotDefinitions } from "@isle/extension-host/ui";
 import { createHash, randomUUID } from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
 import {
@@ -46,12 +47,29 @@ const denied = () =>
 export class ExtensionViews {
   private revision = 0;
   private readonly host: ExtensionHost;
+  private readonly changed: () => void;
   private readonly views = new Map<string, View>();
   constructor(
     private manager: Manager,
     services?: ExtensionViewServices,
   ) {
-    this.host = new ExtensionHost(services?.host);
+    this.changed = services?.changed ?? (() => {});
+    this.host = new ExtensionHost({
+      ...services?.host,
+      "configuration.read": async (_input, context) =>
+        this.resolve(context.extensionId!).config,
+      "configuration.write": async ({ value }, context) => {
+        if (JSON.stringify(value).length > 256_000)
+          throw new ServiceError(400, "HOST_INVALID_REQUEST", "插件配置过大");
+        await this.manager.configure(context.extensionId!, { config: value });
+        const resolved = this.resolve(context.extensionId!);
+        for (const view of this.views.values())
+          if (view.id === context.extensionId)
+            view.fingerprint = resolved.fingerprint;
+        this.changed();
+        return resolved.config;
+      },
+    });
   }
 
   invalidate() {
@@ -113,18 +131,37 @@ export class ExtensionViews {
         ]);
         const id = nonempty(input.id, "id");
         const contributionId = nonempty(input.contributionId, "contributionId");
-        const viewId = nonempty(input.viewId, "viewId");
         const resolved = this.resolve(id);
+        const contribution = resolved.ui.contributions.find(
+          (item) => item.id === contributionId,
+        );
+        if (!contribution) throw denied();
+        if (!("view" in contribution) && contribution.type !== "status")
+          throw denied();
+        if (!("view" in contribution) && input.viewId !== undefined)
+          throw denied();
+        const definition = Object.values(uiSlotDefinitions).find(
+          (item) => item.key === contribution.slot,
+        )!;
+        const viewId =
+          "view" in contribution ? nonempty(input.viewId, "viewId") : "";
         if (
-          !resolved.ui.entry ||
-          !resolved.ui.contributions.some(
-            (item) =>
-              item.id === contributionId &&
-              "view" in item &&
-              item.view.id === viewId,
-          )
+          "view" in contribution &&
+          (!resolved.ui.entry || contribution.view.id !== viewId)
         )
           throw denied();
+        if (
+          definition.scope === "application" &&
+          (input.workspacePath || input.chatId)
+        )
+          throw denied();
+        const target =
+          definition.scope === "session"
+            ? {
+                workspacePath: nonempty(input.workspacePath, "workspacePath"),
+                chatId: nonempty(input.chatId, "chatId"),
+              }
+            : { workspacePath: "", chatId: "" };
         const capabilities = this.host.check(resolved.requirements);
         for (const [token, view] of this.views)
           if (view.expires < Date.now()) {
@@ -137,21 +174,20 @@ export class ExtensionViews {
             "EXTENSION_VIEW_LIMIT",
             "插件视图数量已达上限",
           );
-        if (statSync(resolved.ui.entry).size > 1024 * 1024)
+        if (resolved.ui.entry && statSync(resolved.ui.entry).size > 1024 * 1024)
           throw new ServiceError(
             413,
             "EXTENSION_UI_TOO_LARGE",
             "插件界面入口超过 1 MiB",
           );
-        const source = readFileSync(resolved.ui.entry, "utf8");
+        const source = resolved.ui.entry
+          ? readFileSync(resolved.ui.entry, "utf8")
+          : "";
         const token = randomUUID();
         this.views.set(token, {
           id,
           fingerprint: resolved.fingerprint,
-          target: {
-            workspacePath: nonempty(input.workspacePath, "workspacePath"),
-            chatId: nonempty(input.chatId, "chatId"),
-          },
+          target,
           expires: Date.now() + lifetime,
           cancelledThrough: 0,
         });
@@ -196,11 +232,20 @@ export class ExtensionViews {
         view.pending = pending;
         view.expires = Date.now() + lifetime;
         try {
+          const method = nonempty(input.method, "method");
+          if (
+            !view.target.chatId &&
+            (method.startsWith("session.") ||
+              method.startsWith("activity.") ||
+              method === "tasks.run")
+          )
+            throw denied();
           const result = await this.host.invoke(
             nonempty(input.method, "method"),
             input.arguments ?? {},
             resolved.requirements,
             {
+              extensionId: view.id,
               target: view.target,
               signal: AbortSignal.any([
                 pending.abort.signal,

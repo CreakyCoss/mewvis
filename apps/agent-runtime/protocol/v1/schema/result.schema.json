@@ -461,6 +461,7 @@
               "parameters"
             ],
             "properties": {
+              "inputMode": { "const": "text" },
               "id": {
                 "type": "string"
               },
