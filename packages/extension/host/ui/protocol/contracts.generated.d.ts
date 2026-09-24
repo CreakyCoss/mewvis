@@ -23,6 +23,14 @@ export type UIContribution =
     }
   | {
       id: string;
+      slot: "plugin.dialog";
+      type: "dialog";
+      title: string;
+      size: "sm" | "md" | "lg";
+      view: UIViewReference1;
+    }
+  | {
+      id: string;
       slot: "session.dialog";
       type: "dialog";
       title: string;
@@ -52,6 +60,7 @@ export const uiSlotDefinitions: {
   readonly pluginSettings: { readonly key: "plugin.settings"; readonly type: "settings"; readonly scope: "application" };
   readonly composerStatus: { readonly key: "session.composer-status"; readonly type: "status"; readonly scope: "session" };
   readonly sessionStatus: { readonly key: "session.status"; readonly type: "text"; readonly scope: "session" };
+  readonly pluginDialog: { readonly key: "plugin.dialog"; readonly type: "dialog"; readonly scope: "application" };
   readonly sessionDialog: { readonly key: "session.dialog"; readonly type: "dialog"; readonly scope: "session" };
   readonly sessionSidebar: { readonly key: "session.sidebar"; readonly type: "sidebar"; readonly scope: "session" };
 };

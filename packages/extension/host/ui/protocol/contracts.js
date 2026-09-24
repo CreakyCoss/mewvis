@@ -86,6 +86,7 @@ export const uiSlotDefinitions = Object.freeze({
     "session",
   ),
   sessionStatus: slot("session.status", uiSlotTypes.text, "session"),
+  pluginDialog: slot("plugin.dialog", uiSlotTypes.dialog, "application"),
   sessionDialog: slot("session.dialog", uiSlotTypes.dialog, "session"),
   sessionSidebar: slot("session.sidebar", uiSlotTypes.sidebar, "session"),
 });

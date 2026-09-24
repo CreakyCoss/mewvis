@@ -121,6 +121,16 @@
             "view": {
               "id": "settings"
             }
+          },
+          {
+            "id": "rule-editor",
+            "slot": "plugin.dialog",
+            "type": "dialog",
+            "title": "编辑判断规则",
+            "size": "lg",
+            "view": {
+              "id": "rule-editor"
+            }
           }
         ]
       }

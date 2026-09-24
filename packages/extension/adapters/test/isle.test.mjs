@@ -155,6 +155,13 @@ test("SDK dialogs map metadata, input and lifecycle without exposing native UI o
     adaptIslePackage(metadata)["isle.plugin"].modules.ui.contributions,
     [contribution],
   );
+  metadata["isle.extension"].modules.ui.contributions = [
+    { ...contribution, slot: "plugin.dialog" },
+  ];
+  assert.equal(
+    adaptIslePackage(metadata)["isle.plugin"].modules.ui.contributions[0].slot,
+    "plugin.dialog",
+  );
   let request,
     closed = false;
   const ui = {

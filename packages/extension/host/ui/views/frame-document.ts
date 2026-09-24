@@ -4,7 +4,7 @@ import { createExtensionHostClient } from "@isle/extension-host/services";
 export function extensionFrameDocument(nonce: string) {
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}' blob:; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
-<style>html,body,#root{margin:0;height:100%;font:13px system-ui,sans-serif;color:var(--foreground);background:var(--background)}*{box-sizing:border-box}button{font:inherit;color:inherit;cursor:pointer}button:disabled{cursor:wait;opacity:.6}button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}</style>
+<style>html,body,#root{margin:0;height:100%}body{font:13px/1.6 system-ui,sans-serif;color:var(--foreground);background:var(--background)}*{box-sizing:border-box}button{font:inherit;color:inherit;cursor:pointer}button:disabled{cursor:wait;opacity:.6}button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}</style>
 </head><body><div id="root"></div><script nonce="${nonce}">
 const createHostClient = ${createExtensionHostClient.toString()};
 ${bootstrap}

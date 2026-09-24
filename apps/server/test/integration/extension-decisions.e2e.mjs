@@ -68,6 +68,30 @@ test(
         arguments: args,
         requestId: ++requestId,
       });
+    // Settings dialogs work without a workspace/session and share plugin configuration.
+    for (const [id, viewId] of [
+      ["isle.decisions", "rule-editor"],
+      ["isle.collaboration", "role-editor"],
+      ["isle.collaboration", "workflow-editor"],
+    ]) {
+      const dialog = await call("open_extension_view", {
+        id,
+        contributionId: viewId,
+        viewId,
+      });
+      const config = await call("query_extension_view", {
+        token: dialog.token,
+        method: "configuration.read",
+        arguments: {},
+        requestId: 1,
+      });
+      assert.ok(
+        id === "isle.decisions"
+          ? Array.isArray(config.rules)
+          : Array.isArray(config.roles),
+      );
+      await call("close_extension_view", { token: dialog.token });
+    }
     const defaults = await query("configuration.read");
     assert.equal(defaults.rules.length, 0);
     await query("configuration.write", {

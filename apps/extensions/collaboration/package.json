@@ -268,6 +268,26 @@
             "slot": "session.composer-status",
             "type": "status",
             "title": "角色协作"
+          },
+          {
+            "id": "role-editor",
+            "slot": "plugin.dialog",
+            "type": "dialog",
+            "title": "编辑协作角色",
+            "size": "md",
+            "view": {
+              "id": "role-editor"
+            }
+          },
+          {
+            "id": "workflow-editor",
+            "slot": "plugin.dialog",
+            "type": "dialog",
+            "title": "编辑协作流程",
+            "size": "lg",
+            "view": {
+              "id": "workflow-editor"
+            }
           }
         ]
       }
