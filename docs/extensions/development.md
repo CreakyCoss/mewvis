@@ -22,7 +22,7 @@ pnpm extension pack apps/extensions/my-feature
 
 生成的 tgz 根目录为 `package/`。自行解包后可登记该目录；CLI 当前不直接安装不可信压缩包。打包和登记不运行 npm 安装脚本。
 
-仓库提供三个独立插件包：`apps/extensions/text-stats` 演示工具和内联技能，`apps/extensions/tasks` 演示命令、会话状态和 Agent 事件，`apps/extensions/session-insights` 演示纯 UI 会话统计。桌面构建会将 `apps/extensions/` 下声明 `isle.extension` 的直接子目录打包到 Runtime 的 `dist/extensions/`，作为内置插件自动发现、默认启用。它们仍使用通用插件协议，运行时代码不硬编码插件 ID。独立 SDK 不自动扫描仓库目录，由宿主指定包来源。
+仓库内置 `collaboration`、`decisions`、`session-insights` 和 `session-ledger` 四个插件，其中 `session-insights` 演示纯 UI 会话统计。桌面构建会将 `apps/extensions/` 下声明 `isle.extension` 的直接子目录打包到 Runtime 的 `dist/extensions/`，作为内置插件自动发现、默认启用。它们仍使用通用插件协议，运行时代码不硬编码插件 ID。独立 SDK 不自动扫描仓库目录，由宿主指定包来源。
 
 ## 包清单
 
@@ -187,23 +187,22 @@ UI 在 `sandbox="allow-scripts"` 的独立源 iframe 中执行，通过 MessageC
 
 ## 本地登记与启停
 
-以任务清单为例：
+以一个已构建的本地插件包为例：
 
 ```sh
-pnpm --filter @isle/extension-tasks build
-pnpm extension add apps/extensions/tasks/dist/plugin --settings /absolute/path/extensions.json
+pnpm extension add /absolute/path/my-feature/dist/plugin --settings /absolute/path/extensions.json
 pnpm extension list --settings /absolute/path/extensions.json
-pnpm extension disable isle.tasks --settings /absolute/path/extensions.json
-pnpm extension enable isle.tasks --settings /absolute/path/extensions.json
+pnpm extension disable example.feature --settings /absolute/path/extensions.json
+pnpm extension enable example.feature --settings /absolute/path/extensions.json
 ```
 
 设置文件由宿主选择，不内置到插件包，也不使用聊天输入决定路径。`add` 保存本地包目录的绝对路径引用，不复制文件。重复 ID 拒绝登记。禁用的包不加载，可以先禁用损坏或丢失的包，再处理文件问题。
 
-配置文件例如 `{ "maxTasks": 20 }`，通过以下命令替换宿主覆盖配置：
+配置文件按插件清单中的 schema 编写，通过以下命令替换宿主覆盖配置：
 
 ```sh
-pnpm extension configure isle.tasks --config /absolute/path/tasks-config.json --settings /absolute/path/extensions.json
-pnpm extension remove isle.tasks --settings /absolute/path/extensions.json
+pnpm extension configure example.feature --config /absolute/path/feature-config.json --settings /absolute/path/extensions.json
+pnpm extension remove example.feature --settings /absolute/path/extensions.json
 ```
 
 `remove` 只移除登记，不删除源包或会话数据。设置更新使用文件锁和原子替换，校验失败不会覆盖原设置；进程异常退出后遗留锁需在确认旧进程退出后人工清理。
@@ -211,7 +210,7 @@ pnpm extension remove isle.tasks --settings /absolute/path/extensions.json
 ## 桌面使用
 
 1. 正常启动桌面开发项目或构建桌面包；构建链会同时构建内置插件。
-2. 打开左侧导航「应用」下方的「插件」，可以直接看到 `isle.tasks`、`isle.example`、`isle.session-insights` 和 `isle.session-ledger`，无需手动添加。内置插件支持启停和 schema 配置，不支持移除；其他插件通过「添加插件」选择已构建的包目录登记。
+2. 打开左侧导航「应用」下方的「插件」，可以直接看到「角色协作」、「智能判断」、「会话统计」和「会话链路」，无需手动添加。内置插件支持启停和 schema 配置，不支持移除；其他插件通过「添加插件」选择已构建的包目录登记。
 3. 插件的启停和配置统一在插件管理页完成。提供 UI 贡献的插件会在已挂载的插槽中展示，例如工作区聊天右侧的「会话统计」。
 
 管理设置保存到产品数据目录的 `extensions.json`。聊天侧栏不内置通用插件命令面板；命令能力保留在宿主 SDK、协议和 Agent 适配器中。有交互需求时可在后续通过插件扩展 UI，并按需增加受控宿主接口。
@@ -237,10 +236,10 @@ const runtime = createAgentRuntime({
 const runtime = createAgentRuntime({
   extensionPackages: [
     {
-      path: "/absolute/path/tasks/dist/plugin",
+      path: "/absolute/path/my-feature/dist/plugin",
       enabled: true,
-      config: { maxTasks: 20 },
-      commandRisks: { add: "low", list: "low", select: "low", reset: "low" },
+      config: { limit: 20 },
+      commandRisks: { run: "low" },
     },
   ],
 });
@@ -263,11 +262,11 @@ pnpm test:extensions
 pnpm --filter @isle/server test:extensions
 ```
 
-测试涵盖真实 CLI 构建与打包、清单和路径边界、设置并发与回滚，以及同一任务清单包在真实 Pi SDK 和脚本 Mock 中的工作流。Pi 使用本地 SSE 模型桩，无需模型账号。完整可运行宿主示例见[宿主插件最小闭环](../runtime/extensions.md)。
+测试涵盖真实 CLI 构建与打包、清单和路径边界、设置并发与回滚，以及临时插件在真实 Pi SDK 和脚本 Mock 中的工具调用。Pi 使用本地 SSE 模型桩，无需模型账号。完整可运行宿主示例见[宿主插件最小闭环](../runtime/extensions.md)。
 
-桌面后端闭环测试使用真实 stdio worker，覆盖包管理、审批通过与拒绝、任务结果恢复、Pi 更新状态以及复用 worker 后读取新配置。
+桌面后端闭环测试覆盖内置插件发现、UI 服务、启停与配置持久化。
 
-原生 Agent 接入使用 SDK 的 `ExtensionAdapter<TNativePlugin>`，详见[原生插件适配](../runtime/extensions.md#原生插件适配)。闭环测试还验证 Pi 原生斜杠命令、Mock 原生命令、工具事件映射以及能力适配诊断。
+原生 Agent 接入使用 SDK 的 `ExtensionAdapter<TNativePlugin>`，详见[原生插件适配](../runtime/extensions.md#原生插件适配)。闭环测试还验证工具事件映射和能力适配诊断。
 
 ### UI 插槽验证
 

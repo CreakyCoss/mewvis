@@ -23,7 +23,6 @@
 ## Agent 运行时
 
 - [运行时概览](runtime/overview.md)
-- [内置工具与技能示例](runtime/builtins-example.md)
 - [宿主插件最小闭环](runtime/extensions.md)
 - [宿主原生插件系统](extensions/native-host.md)
 - [插件 SDK 能力与目录](extensions/sdk.md)

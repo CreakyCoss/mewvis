@@ -7,11 +7,9 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "esbuild";
-import { buildExtensionPackage } from "@isle/extension-dev";
 import { dshBundleCompatibilityPlugin } from "@isle/app-dev/dsh";
 import entries from "../build-entries.json" with { type: "json" };
 import { verifyExtensionAdapters } from "./extensions-adapter-test.mjs";
-import { verifyExtensionWorkflow } from "./extensions-workflow-test.mjs";
 import { verifyExtensionSessions } from "./extensions-session-test.mjs";
 import { verifyExtensionMiddleware } from "./extensions-middleware-test.mjs";
 import { verifyExtensionEvents } from "./extensions-events-test.mjs";
@@ -50,7 +48,6 @@ try {
       })),
       { in: join(root, "src/index.ts"), out: "api" },
       { in: fileURLToPath(import.meta.resolve("@isle/extension-host/agent/registration")), out: "host" },
-      { in: join(root, "src/extensions/index.ts"), out: "extension-runtime" },
       { in: join(root, "src/extensions/execution/deadline.ts"), out: "extension-deadline" },
       { in: join(root, "src/engines/drivers/native/agent/runtimes/pi/agent/idle-timeout.ts"), out: "pi-idle-timeout" },
       { in: join(root, "src/engines/drivers/native/agent/runtimes/pi/agent/session.ts"), out: "pi-session" },
@@ -71,12 +68,15 @@ try {
     },
   });
   const require = createRequire(import.meta.url);
-  const examplePackage = await buildExtensionPackage(join(root, "../extensions/text-stats"), {
-    outputDir: join(temp, "text-stats-package"),
-  });
-  const taskPackage = await buildExtensionPackage(join(root, "../extensions/tasks"), {
-    outputDir: join(temp, "tasks-package"),
-  });
+  const echoEntry = join(temp, "echo.mjs");
+  await writeFile(echoEntry, `export default {id:'test.echo',protocolVersion:1,setup(ctx){
+    let calls = 0;
+    ctx.registerTool({name:'echo',label:'Echo',description:'Echo input',
+      parameters:{type:'object',properties:{text:{type:'string'}},required:['text'],additionalProperties:false},
+      async execute(input,{progress}){const value={echo:input.text,calls:++calls};progress({content:[{type:'text',text:'working'}],details:{}});return {content:[{type:'text',text:JSON.stringify(value)}],details:value}}
+    });
+    ctx.registerSkill({name:'echo_guidance',description:'Echo guidance',content:'Always repeat the input exactly.'});
+  }};`);
   const sandboxRoot = dirname(require.resolve("@anthropic-ai/sandbox-runtime/package.json"));
   await cp(join(sandboxRoot, "vendor"), join(dist, "vendor"), { recursive: true });
   const api = await import(pathToFileURL(join(dist, "api.js")).href);
@@ -90,10 +90,8 @@ try {
     ...await import(pathToFileURL(join(dist, "mock-adapter.js")).href),
     ...await import(pathToFileURL(join(dist, "mock-registry.js")).href),
   });
-  const toolName = "ext_isle_example__text_stats";
-  const [source] = api.resolveExtensionPackages([
-    { path: examplePackage.root, toolRisks: { text_stats: "low" } },
-  ]);
+  const toolName = "ext_test_echo__echo";
+  const source = { id: "test.echo", entry: echoEntry, toolRisks: { echo: "low" } };
   const script = [{ type: "tool", name: toolName, input: { text: "你好🌍\nIsle" } }];
   const mock = api.createScriptedMockRuntime("scripted", script);
   const registry = api.createRuntimeAgentRegistry([...api.builtinRuntimeAgents, mock]);
@@ -107,7 +105,7 @@ try {
     runtimeId: "scripted",
     taskId: "mock-demo",
     workspacePath: workspace,
-    userMessage: "请精确统计文本",
+    userMessage: "请复述文本",
     permissions: { mode: "ask" },
     resources: { tools: { allowed: [toolName] } },
   };
@@ -123,7 +121,7 @@ try {
   );
   await assert.rejects(() => engine.runAgent({ ...command, runtimeId: "mock" }, context), /不支持 Isle 插件/);
   const result = await engine.runAgent(command, context);
-  assert.deepEqual(JSON.parse(result.text), { characters: 8, lines: 2, calls: 1 });
+  assert.deepEqual(JSON.parse(result.text), { echo: script[0].input.text, calls: 1 });
   assert.ok(events.some((event) => event.type === "tool_execution_update"));
   const mockToolResult = events.find((event) => event.type === "tool_execution_end").result;
   console.log("PASS Mock → 插件工具 → 真实 worker：", result.text);
@@ -317,15 +315,16 @@ try {
     response.writeHead(200, { "Content-Type": "text/event-stream" });
     const last = input.messages.at(-1);
     const toolReply = last.role === "tool";
+    const sessionProbe = input.tools?.find((tool) => tool.function.name === "ext_test_session__probe_tool");
     const delta = toolReply
-      ? { content: "Pi 已读取插件统计结果" }
+      ? { content: "Pi 已读取插件结果" }
       : {
           tool_calls: [
             {
               index: 0,
               id: "extension-call",
               type: "function",
-              function: { name: toolName, arguments: JSON.stringify(script[0].input) },
+              function: { name: sessionProbe?.function.name ?? toolName, arguments: sessionProbe ? "{}" : JSON.stringify(script[0].input) },
             },
           ],
         };
@@ -354,11 +353,11 @@ try {
   };
   events.length = 0;
   const piResult = await engine.runAgent(piCommand, context);
-  assert.equal(piResult.text, "Pi 已读取插件统计结果");
+  assert.equal(piResult.text, "Pi 已读取插件结果");
   assert.equal(requests.length, 2);
   assert.ok(requests[0].tools.some((tool) => tool.function.name === toolName));
-  assert.match(JSON.stringify(requests[0].messages), /不要估算/);
-  assert.match(JSON.stringify(requests[1].messages.at(-1)), /characters/);
+  assert.match(JSON.stringify(requests[0].messages), /Always repeat the input exactly/);
+  assert.match(JSON.stringify(requests[1].messages.at(-1)), /echo/);
   const piToolResult = events.find((event) => event.type === "tool_execution_end" && event.toolName === toolName);
   assert.equal(piToolResult.isError, false);
   assert.deepEqual(piToolResult.result, mockToolResult);
@@ -406,7 +405,7 @@ try {
     workspacePath: workspace,
     sessionRootDir: join(workspace, "sdk-session"),
   });
-  assert.match(JSON.stringify(session), /characters/);
+  assert.match(JSON.stringify(session), /echo/);
   const plainSdk = api.createAgentRuntime();
   const missing = await plainSdk.agent.run({ ...command, taskId: "isolated-registry" });
   assert.equal(missing.success, false);
@@ -414,46 +413,8 @@ try {
   await sdk.shutdown();
   await plainSdk.shutdown();
   console.log("PASS 公共 SDK 接入、会话落盘、注册表实例隔离");
-  // Register the converted factory into a real Pi session and invoke its native slash command.
-  const { createExtensionRuntime } = await import(pathToFileURL(join(dist, "extension-runtime.js")).href);
   const { createPiAgentSession } = await import(pathToFileURL(join(dist, "pi-session.js")).href);
-  const [nativeCommandSource] = api.resolveExtensionPackages([{ path: taskPackage.root, commandRisks: { add: "low", list: "low" } }]);
-  const nativeCommand = { ...piCommand, taskId: "pi-native-command", sessionRootDir: join(workspace, "pi-native-command"), agentTaskPrompt: "" };
-  const slashEngine = api.createAgentEngine({
-    getExtensionSources: () => [nativeCommandSource],
-  });
-  engines.push(slashEngine);
-  const beforeSlash = requests.length;
-  const slashResult = await slashEngine.runAgent(
-    {
-      ...nativeCommand,
-      sessionRootDir: join(workspace, "generic-json-command"),
-      userMessage: '/isle.tasks/add {"title":"JSON 命令回归"}',
-    },
-    context,
-  );
-  assert.match(slashResult.text, /JSON 命令回归/);
-  assert.equal(requests.length, beforeSlash);
-  const extensionRuntime = createExtensionRuntime();
-  const binding = await extensionRuntime.open([nativeCommandSource], nativeCommand, context);
-  let nativeSession;
-  try {
-    nativeSession = await createPiAgentSession(nativeCommand, context.callbacks, { extensions: binding });
-    const beforeCommandRequests = requests.length;
-    await nativeSession.session.prompt('/isle.tasks/add {"title":"Pi 原生命令"}');
-    assert.equal(requests.length, beforeCommandRequests, "原生命令无需模型调用");
-    const nativeList = await binding.command("isle.tasks/list", {}, { callId: "inspect-native-command" });
-    assert.equal(nativeList.items.length, 1);
-    assert.equal(nativeList.items[0].title, "Pi 原生命令");
-    console.log("PASS Isle 命令 → Pi 标准插件注册 → 原生斜杠命令 → 同一 worker 与状态服务");
-  } finally {
-    nativeSession?.session.dispose();
-    await nativeSession?.disposeResources();
-    await binding.dispose();
-    await extensionRuntime.dispose();
-  }
   await verifyExtensionServices({ api, workspace, hostApi });
-  await verifyExtensionWorkflow({ api, dist, taskPackage, workspace, source, mock, command, piCommand, context });
   await verifyExtensionCollaboration({ api, root, workspace, piCommand });
   await verifyExtensionSessions({ api, workspace, command, piCommand });
   await verifyExtensionMiddleware({ api, workspace, command, piCommand });

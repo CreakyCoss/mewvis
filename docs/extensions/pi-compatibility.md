@@ -62,4 +62,4 @@ Isle 插件 API、Agent 适配协议和外部生态基准分别版本化。目�
 
 保持原有含义的新增可选字段可扩展同一版本；删除字段、改变事件时序或返回值含义需要新的协议版本及明确迁移。外部导入器将来单独声明源生态版本，不因目标 Agent 能注册工具就宣称兼容所有 Pi 插件。
 
-现有自动验证位于 `extensions-adapter-test.mjs`、`extensions-session-test.mjs`、`extensions-middleware-test.mjs`、`extensions-events-test.mjs`、`extensions-compaction-test.mjs` 和 `extensions-workflow-test.mjs`，由 `pnpm --filter @isle/agent-runtime test:extensions` 统一运行。
+现有自动验证位于 `extensions-adapter-test.mjs`、`extensions-session-test.mjs`、`extensions-middleware-test.mjs`、`extensions-events-test.mjs` 和 `extensions-compaction-test.mjs`，由 `pnpm --filter @isle/agent-runtime test:extensions` 统一运行。

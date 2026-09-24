@@ -12,7 +12,7 @@
     "dev": "pnpm build && node dist/cli.js",
     "test": "pnpm build && node scripts/test.mjs",
     "test:runtime": "pnpm build && node --test test/integration/runtime.e2e.mjs",
-    "test:extensions": "pnpm --filter @isle/extension-tasks build && pnpm --filter @isle/agent-runtime build && pnpm build && node --test test/integration/extensions.e2e.mjs test/integration/extension-summary.e2e.mjs test/integration/extension-collaboration.e2e.mjs test/integration/extension-decisions.e2e.mjs",
+    "test:extensions": "pnpm --filter @isle/agent-runtime build && pnpm build && node --test test/integration/extensions.e2e.mjs test/integration/extension-summary.e2e.mjs test/integration/extension-collaboration.e2e.mjs test/integration/extension-decisions.e2e.mjs",
     "test:interop": "pnpm build && node scripts/test-interop.mjs"
   },
   "dependencies": {

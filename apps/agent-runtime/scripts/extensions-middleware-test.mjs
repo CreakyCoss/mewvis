@@ -8,8 +8,8 @@ export async function verifyExtensionMiddleware({ api, workspace, command, piCom
   const toolsEntry = join(workspace, "middleware-tools.mjs");
   await writeFile(
     toolsEntry,
-    `export default {id:'isle.example',protocolVersion:1,setup(ctx){
-    ctx.registerTool({name:'text_stats',label:'Echo',description:'Echo',parameters:{type:'object',properties:{text:{type:'string'}},required:['text'],additionalProperties:false},
+    `export default {id:'test.middleware',protocolVersion:1,setup(ctx){
+    ctx.registerTool({name:'echo',label:'Echo',description:'Echo',parameters:{type:'object',properties:{text:{type:'string'}},required:['text'],additionalProperties:false},
       async execute(input){ctx.session.set('calls',(ctx.session.get('calls')??0)+1);ctx.session.set('input',input);if(ctx.config.fail)throw new Error('producer failed');return {content:[{type:'text',text:input.text}],details:input}}});
     ctx.registerCommand({name:'inspect',description:'Inspect',parameters:{type:'object'},async execute(){return {calls:ctx.session.get('calls')??0,input:ctx.session.get('input')??null}}});
   }};`,
@@ -48,11 +48,11 @@ export async function verifyExtensionMiddleware({ api, workspace, command, piCom
   }
   const sources = (config = {}, second = true) => [
     {
-      id: "isle.example",
+      id: "test.middleware",
       entry: toolsEntry,
       config: { fail: !!config.failTool },
       capabilities: ["tools", "commands", "session.state"],
-      toolRisks: { text_stats: "low" },
+      toolRisks: { echo: "low" },
       commandRisks: { inspect: "low" },
     },
     ...entries.slice(0, second ? 2 : 1).map((entry, index) => ({
@@ -68,7 +68,7 @@ export async function verifyExtensionMiddleware({ api, workspace, command, piCom
     })),
   ];
   const requests = [];
-  let tool = { name: "ext_isle_example__text_stats", input: { text: "original" } };
+  let tool = { name: "ext_test_middleware__echo", input: { text: "original" } };
   const server = createServer(async (request, response) => {
     let body = "";
     for await (const chunk of request) body += chunk;
@@ -114,6 +114,7 @@ export async function verifyExtensionMiddleware({ api, workspace, command, piCom
         sdk.agent.run({
           ...piCommand,
           ...target,
+          resources: undefined,
           runtimeId,
           runtimeModel: model,
           taskId: `middleware-${++sequence}`,
@@ -121,7 +122,7 @@ export async function verifyExtensionMiddleware({ api, workspace, command, piCom
           userMessage: "input",
           ...extra,
         }),
-      inspect: (commandId = "isle.example/inspect", args = {}) =>
+      inspect: (commandId = "test.middleware/inspect", args = {}) =>
         sdk.extensions.executeCommand({ ...target, commandId, arguments: args }),
     };
   };
@@ -303,7 +304,7 @@ export async function verifyExtensionMiddleware({ api, workspace, command, piCom
           }),
           false,
         );
-        assert.equal((await sdk.extensions.executeCommand({ ...target, commandId: "isle.example/inspect" })).calls, 0);
+        assert.equal((await sdk.extensions.executeCommand({ ...target, commandId: "test.middleware/inspect" })).calls, 0);
       } finally {
         await sdk.shutdown();
       }

@@ -10,7 +10,7 @@ export async function verifyExtensionSessions({ api, workspace, command, piComma
     `
     import {randomUUID} from 'node:crypto';
     import {appendFile} from 'node:fs/promises';
-    export default {id:'isle.example',protocolVersion:1,setup(ctx){
+    export default {id:'test.session',protocolVersion:1,setup(ctx){
       const id=randomUUID(); let calls=0, runs=0;
       const record=(phase,extra={})=>appendFile(${JSON.stringify(log)},JSON.stringify({id,phase,...extra})+'\\n');
       ctx.onActivate(()=>record('activate')); ctx.own(()=>record('dispose'));
@@ -24,20 +24,20 @@ export async function verifyExtensionSessions({ api, workspace, command, piComma
         return {id,calls:++calls,runs,persisted,config:ctx.config};
       };
       ctx.registerCommand({name:'probe',description:'Probe',parameters:{type:'object'},async execute(){return probe()}});
-      ctx.registerTool({name:'text_stats',label:'Probe',description:'Probe',parameters:{type:'object'},async execute(input,{progress}){
+      ctx.registerTool({name:'probe_tool',label:'Probe',description:'Probe',parameters:{type:'object'},async execute(input,{progress}){
         if(input.wait){progress({content:[],details:{ready:true}});await new Promise(r=>setTimeout(r,30000))}
         const details=probe();return {content:[{type:'text',text:JSON.stringify(details)}],details};
       }});
     }};
   `,
   );
-  let sources = [{ id: "isle.example", entry, commandRisks: { probe: "low" }, toolRisks: { text_stats: "low" } }];
+  let sources = [{ id: "test.session", entry, commandRisks: { probe: "low" }, toolRisks: { probe_tool: "low" } }];
   const mock = api.createScriptedMockRuntime("session-probe", [
-    { type: "command", name: "isle.example/probe", input: {} },
+    { type: "command", name: "test.session/probe", input: {} },
   ]);
   const sdk = api.createAgentRuntime({ extensions: sources, runtimeAgents: [mock] });
   const target = { workspacePath: workspace, sessionRootDir: join(workspace, "live-session") };
-  const probe = (selected = target) => sdk.extensions.executeCommand({ ...selected, commandId: "isle.example/probe" });
+  const probe = (selected = target) => sdk.extensions.executeCommand({ ...selected, commandId: "test.session/probe" });
   const lifecycle = async () => (await readFile(log, "utf8")).trim().split("\n").map(JSON.parse);
   try {
     await sdk.extensions.listCommands(target);
@@ -55,7 +55,7 @@ export async function verifyExtensionSessions({ api, workspace, command, piComma
     assert.equal(afterMock.id, first.id);
     assert.equal(afterMock.calls, 3);
     assert.equal(afterMock.runs, 1);
-    const piResult = await sdk.agent.run({ ...piCommand, ...target, taskId: "session-pi", agentRoleId: "main" });
+    const piResult = await sdk.agent.run({ ...piCommand, ...target, resources: undefined, taskId: "session-pi", agentRoleId: "main" });
     assert.equal(piResult.success, true, piResult.message);
     const afterPi = await probe();
     assert.equal(afterPi.id, first.id);
@@ -94,10 +94,10 @@ export async function verifyExtensionSessions({ api, workspace, command, piComma
   console.log("PASS 同一实例跨桌面命令、Mock、真实 Pi 复用；并发串行、会话隔离、释放与退出清理");
 
   const slow = api.createScriptedMockRuntime("session-slow", [
-    { type: "tool", name: "ext_isle_example__text_stats", input: { wait: true } },
+    { type: "tool", name: "ext_test_session__probe_tool", input: { wait: true } },
   ]);
   const tool = api.createScriptedMockRuntime("session-tool", [
-    { type: "tool", name: "ext_isle_example__text_stats", input: {} },
+    { type: "tool", name: "ext_test_session__probe_tool", input: {} },
   ]);
   const engine = api.createAgentEngine({
     registry: api.createRuntimeAgentRegistry([mock, slow, tool], mock.id),
@@ -109,6 +109,7 @@ export async function verifyExtensionSessions({ api, workspace, command, piComma
       {
         ...command,
         ...target,
+        resources: undefined,
         runtimeId: mock.id,
         taskId: `session-${++sequence}`,
         agentRoleId: "main",

@@ -1,6 +1,6 @@
 # 宿主插件最小闭环
 
-状态：SDK 已支持工具、内联技能、显式命令、会话状态和 Agent 事件订阅；独立插件包已支持清单、本地注册、配置、启停与开发 CLI。Pi 和脚本 Mock 共用执行入口。任务清单示例验证了不提供模型工具的功能插件。桌面已有本地插件管理页与 `session.sidebar` UI 插槽。清单 v2 可按需声明 Agent 与 UI 入口，UI 通过受控接口读取当前会话；尚未提供市场、任意 UI 插槽、运行中代码热替换或 Pi 原生插件兼容。包开发见[插件包开发与管理](../extensions/development.md)，能力路线见[插件协议与能力映射](../architecture/extensions.md)。
+状态：SDK 已支持工具、内联技能、显式命令、会话状态和 Agent 事件订阅；独立插件包已支持清单、本地注册、配置、启停与开发 CLI。Pi 和脚本 Mock 共用执行入口。桌面已有本地插件管理页与 `session.sidebar` UI 插槽。清单 v2 可按需声明 Agent 与 UI 入口，UI 通过受控接口读取当前会话；尚未提供市场、任意 UI 插槽、运行中代码热替换或 Pi 原生插件兼容。包开发见[插件包开发与管理](../extensions/development.md)，能力路线见[插件协议与能力映射](../architecture/extensions.md)。
 
 ## 运行示例
 
@@ -10,17 +10,15 @@
 pnpm --filter @isle/agent-runtime test:extensions
 ```
 
-脚本在临时目录构建 SDK、插件和 worker，用真实 Pi SDK、本地 SSE 模型桩以及脚本 Mock 调用同一个文本统计插件，不访问外部模型服务，不需要 API Key。临时目录在结束后清理。
+脚本在临时目录构建 SDK、测试插件和 worker，用真实 Pi SDK、本地 SSE 模型桩以及脚本 Mock 调用同一个临时回显工具，不访问外部模型服务，不需要 API Key。临时目录在结束后清理。
 
 输入 `你好🌍\nIsle`，两个 Agent 的工具结果均为：
 
 ```json
-{ "characters": 8, "lines": 2, "calls": 1 }
+{ "echo": "你好🌍\nIsle", "calls": 1 }
 ```
 
 同时验证参数和能力检查、名称冲突、工具白名单、审批拒绝和通过、并发运行隔离、生命周期清理、取消、真实 OS 沙箱、技能注入、SDK 注册表隔离及会话落盘。启用的沙箱不可用时测试失败，不降级跳过。
-
-任务清单测试还验证独立包加载、配置限额、启停快照、能力协商、命令发现、重建 SDK 后恢复状态、Pi/Mock 驱动进度、失败与取消状态、跨进程并发更新、执行中查询、异常状态回滚以及事件处理异常的隔离。
 
 会话实例测试验证同一实例跨命令、Mock 和真实 Pi 复用、不同会话隔离、同会话操作排队、配置/沙箱/入口变更重建、每次调用独立审批与工具筛选、取消恢复和退出清理。Pi 版本与 API 文件变化会触发基准检查，具体范围见[Pi 兼容基准与协议规格](../extensions/pi-compatibility.md)。
 
@@ -69,7 +67,7 @@ export default defineExtension({
 
 产品插件优先通过 `extensionPackages` 或 `extensionSettingsPath` 加载独立包。以下保留直接入口接入方式，用于内部测试或宿主自管打包：把插件预先打包为本地 ESM `.js` 或 `.mjs`，通过 SDK 传入绝对入口路径。路径不是 prompt、聊天请求或模型提供的参数；依赖应一起打包，避免收紧文件权限后读取包外依赖。
 
-执行 `pnpm build:runtime` 后，`apps/agent-runtime/dist/sdk.js` 导出 SDK。SDK 与执行 worker 必须一起部署，保持 dist 内的相邻布局；运行时构建不包含示例插件。文本统计示例是独立包 `apps/extensions/text-stats`，可通过 `pnpm --filter @isle/extension-text-stats build` 构建，并登记其 `dist/plugin` 目录。以下代码在 Node 宿主中执行（导入路径按宿主位置调整）：
+执行 `pnpm build:runtime` 后，`apps/agent-runtime/dist/sdk.js` 导出 SDK。SDK 与执行 worker 必须一起部署，保持 dist 内的相邻布局；运行时构建包含仓库内置插件。以下代码在 Node 宿主中执行（导入路径按宿主位置调整）：
 
 ```ts
 import {
@@ -125,71 +123,9 @@ SDK 将声明数据与调用接口分开：`ExtensionCatalog` 是可序列化的
 | 压缩前决策与结果 | 原生 session_before_compact / session_compact / session_compact_failed | Mock 原生 beforeCompact / onCompact   |
 | 运行事件与状态   | Isle 运行边界与会话事务服务（模拟）                                    | 同一宿主服务（模拟）                  |
 
-Pi 原生命令例如 `/isle.tasks/add {"title":"验证原生注册"}`。这是适配器在 Pi 内部提供的注册；桌面聊天输入框仍未提供插件斜杠解析，也不内置通用命令面板。
+Pi 原生命令由适配器注册。这是适配器在 Pi 内部提供的注册；桌面聊天输入框仍未提供插件斜杠解析，也不内置通用命令面板。
 
 工具观察不再从 UI 事件重复转发，避免同一次调用重复更新插件状态。取消后跳过普通观察事件；持久会话的运行终态恢复仍由宿主处理。当前已接入会话实例、输入/上下文/工具中间件及压缩决策，具体契约见[插件中间件](../extensions/middleware.md)和[会话压缩钩子](../extensions/session-control.md)；外部插件导入层仍未实现。
-
-## 功能插件：任务清单
-
-独立包 `apps/extensions/tasks` 提供 `isle.tasks/add`、`list`、`select`、`reset` 四个命令。插件没有注册工具：用户通过命令添加、选择任务，下一轮 Agent 事件自动更新其执行状态。它不在运行时固定入口中，构建后从清单加载。
-
-以下示例在仓库根目录的 Node ESM 文件中执行；先运行 `pnpm build:runtime` 和 `pnpm --filter @isle/extension-tasks build`：
-
-```js
-import { resolve } from "node:path";
-import { randomUUID } from "node:crypto";
-import {
-  createAgentRuntime,
-  createScriptedMockRuntime,
-} from "./apps/agent-runtime/dist/sdk.js";
-
-const runtime = createAgentRuntime({
-  runtimeAgents: [
-    createScriptedMockRuntime("task-demo", [
-      { type: "text", text: "演示运行完成" },
-    ]),
-  ],
-  extensionPackages: [
-    {
-      path: resolve("apps/extensions/tasks/dist/plugin"),
-      config: { maxTasks: 20 },
-      commandRisks: { add: "low", list: "low", select: "low", reset: "low" },
-    },
-  ],
-  callbacks: { onExtensionError: (error) => console.error(error) },
-});
-const target = {
-  workspacePath: resolve("."),
-  sessionRootDir: resolve(".task-demo/session"),
-};
-const command = (name, args = {}) =>
-  runtime.extensions.executeCommand({
-    ...target,
-    commandId: `isle.tasks/${name}`,
-    arguments: args,
-  });
-
-try {
-  console.log(await runtime.extensions.listCommands(target));
-  const task = await command("add", { title: "验证功能插件" });
-  await command("select", { id: task.id });
-  const result = await runtime.agent.run({
-    ...target,
-    runtimeId: "task-demo",
-    taskId: randomUUID(),
-    agentRoleId: "demo-agent",
-    userMessage: "开始演示",
-  });
-  if (!result.success) throw new Error(result.message);
-  console.log(await command("list")); // 当前任务已 completed
-} finally {
-  await runtime.shutdown();
-}
-```
-
-`select` 只选择下一轮需要跟踪的任务，不会自动提交消息。持久会话中的 Agent 调用沿用现有要求，必须提供稳定的 `agentRoleId`。每轮使用唯一 `taskId`；多个 Agent 同时启动时，先获得状态锁的一轮消费选中任务。已有执行中的任务按 `runId` 区分。换成 Pi 时仍使用同一组命令与插件，只替换运行配置并提供模型。
-
-任务的状态依次为 `pending → running → completed / failed / cancelled`。这里的完成表示 Agent 运行成功返回，不评估用户的业务目标是否达成。工具失败计数单独记录；Pi 在工具出错后恢复并成功返回时，任务仍可完成。`reset` 清空运行关联和计数，恢复为待执行；它不会取消底层 Agent，旧运行后续事件不会覆盖已重置的任务。
 
 ## 会话状态与事件
 
@@ -197,9 +133,9 @@ try {
 
 每次工具、命令、事件或中间件处理获得最新快照，成功后提交，异常或提交前取消则丢弃本次 JSON 修改。`get` 与 `set` 都复制值；只能在处理函数内访问状态，不能在 setup、激活或处理结束后的后台任务中访问。一个插件的同一观察事件有多个处理函数时，它们属于同一个事务；中间件每个处理器单独提交，返回值验证失败也回滚。文件、网络等外部副作用不参与回滚。
 
-同会话同插件的操作串行执行，跨进程通过文件锁协调；不同插件使用不同文件和锁，耗时工具不会锁住另一个插件的任务清单。跨进程争锁有有限等待时间，超时明确报错。每个插件的状态上限为 1 MiB，文件通过原子替换写入；没有 fsync 掉电持久性承诺。损坏或版本不支持的文件会报错，不静默覆盖。
+同会话同插件的操作串行执行，跨进程通过文件锁协调；不同插件使用不同文件和锁，耗时工具不会锁住另一个插件的状态。跨进程争锁有有限等待时间，超时明确报错。每个插件的状态上限为 1 MiB，文件通过原子替换写入；没有 fsync 掉电持久性承诺。损坏或版本不支持的文件会报错，不静默覆盖。
 
-宿主异常退出可能留下锁文件和 `running` 任务：确认旧进程退出后人工清理对应 `.lock`，再用 `reset` 恢复任务。当前不自动偷锁、重放操作或恢复 Agent 运行。
+宿主异常退出可能留下锁文件：确认旧进程退出后人工清理对应 `.lock`。当前不自动偷锁、重放操作或恢复 Agent 运行。
 
 事件由 Isle 归一化，不暴露 Pi 原生事件类型：
 
@@ -255,11 +191,9 @@ SDK 提供插件入口
 - `packages/extension/host`：包清单校验、本地登记、配置与启停。
 - `packages/extension/dev`：创建、构建、校验、打包及管理 CLI。
 - `apps/agent-runtime/src/extensions`：Chord 宿主、worker、共享执行入口、命令与状态存储。
-- `apps/extensions/text-stats`：独立文本统计示例包，演示工具与内联技能。
-- `apps/extensions/tasks`：独立任务清单插件包，演示命令、状态与事件。
+- `apps/extensions`：仓库内置的角色协作、智能判断、会话统计和会话链路插件。
 - `apps/agent-runtime/src/engines/drivers/native/agent/runtimes`：Pi、Mock 和可注入注册表。
 - `apps/agent-runtime/scripts/extensions-e2e.mjs`：可直接运行的闭环验证。
-- `apps/agent-runtime/scripts/extensions-workflow-test.mjs`：任务命令、状态与事件测试，由闭环脚本调用。
 - `apps/agent-runtime/scripts/extensions-session-test.mjs`：会话实例复用、失效、取消和清理测试。
 - `apps/agent-runtime/scripts/extensions-middleware-test.mjs`：原生中间件串联、真实模型请求、阻断、错误、最终参数/权限检查及取消测试。
 
