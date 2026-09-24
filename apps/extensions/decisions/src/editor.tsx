@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ExtensionUIContext } from "@isle/extension-sdk/ui";
 import { readRules, type Rule } from "./rules";
-import { builtinRules } from "./builtins";
+import { Library } from "./library";
 import { RuleEditor } from "./rule-editor";
 import { styles } from "./styles";
 
@@ -162,82 +162,30 @@ export function Editor({ context }: { context: ExtensionUIContext }) {
             </footer>
           </>
         ) : (
-          <>
-            <div>
-              <h2>智能判断标准</h2>
-              <p className="muted">
-                优先匹配自定义规则，其次使用内置规则，没有适用规则时进行通用判断。
-              </p>
-            </div>
-            <section className="section" aria-label="自定义规则">
-              <div className="row">
-                <h3>自定义规则</h3>
-                <button
-                  disabled={!ready || busy || rules.length >= 32}
-                  onClick={() => void open()}
-                >
-                  ＋ 添加规则
-                </button>
-              </div>
-              <div className="items">
-                {rules.map((item) => (
-                  <div key={item.id}>
-                    <div className="list-row">
-                      <button
-                        className="item"
-                        disabled={busy}
-                        onClick={() => void open(item.id)}
-                      >
-                        <span className="item-copy">
-                          <span className="item-title">{item.name}</span>
-                          <span className="item-description">{item.when}</span>
-                          <span className="meta">
-                            {item.enabled ? "已启用" : "已停用"} · 优先级{" "}
-                            {item.priority} · 复核阈值 {item.threshold}
-                          </span>
-                        </span>
-                        <span className="chevron" aria-hidden>
-                          ›
-                        </span>
-                      </button>
-                      <button
-                        className={
-                          pendingDelete?.id === item.id
-                            ? "delete error"
-                            : "delete"
-                        }
-                        aria-label={`${pendingDelete?.id === item.id ? "确认删除" : "删除"}规则：${item.name}`}
-                        disabled={busy}
-                        onBlur={() => setPendingDelete(null)}
-                        onClick={(event) => {
-                          deleteButton.current = event.currentTarget;
-                          event.currentTarget.focus();
-                          void remove(item.id);
-                        }}
-                      >
-                        {pendingDelete?.id === item.id ? "确认" : "删除"}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {ready && !rules.length && (
-                <p className="notice muted">
-                  尚无自定义规则，当前使用内置规则和通用判断。
-                </p>
-              )}
-            </section>
-            <section className="card">
-              <h3>内置规则</h3>
-              <p>{builtinRules.map((rule) => rule.name).join(" · ")}</p>
-              <small>系统自动匹配，无需配置，也可直接使用 / 快捷命令。</small>
-            </section>
-            {error && (
-              <p role="alert" className="error">
-                {error}
-              </p>
+          <Library
+            rules={rules}
+            ready={ready}
+            busy={busy}
+            error={error}
+            open={(id) => void open(id)}
+            renderDelete={(item) => (
+              <button
+                className={
+                  pendingDelete?.id === item.id ? "delete error" : "delete"
+                }
+                aria-label={`${pendingDelete?.id === item.id ? "确认删除" : "删除"}规则：${item.name}`}
+                disabled={busy}
+                onBlur={() => setPendingDelete(null)}
+                onClick={(event) => {
+                  deleteButton.current = event.currentTarget;
+                  event.currentTarget.focus();
+                  void remove(item.id);
+                }}
+              >
+                {pendingDelete?.id === item.id ? "确认" : "删除"}
+              </button>
             )}
-          </>
+          />
         )}
       </main>
     </>

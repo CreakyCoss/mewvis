@@ -107,13 +107,7 @@ fieldset {
   display: grid;
   gap: 16px;
 }
-.card {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
-  display: grid;
-  gap: 12px;
-}
+
 label {
   display: grid;
   gap: 5px;
@@ -147,48 +141,16 @@ label {
   }
 }
 
+.section[hidden] {
+  display: none;
+}
 .section {
   display: grid;
   gap: 12px;
 }
-.items {
-  display: grid;
-  gap: 8px;
-}
-.item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 14px;
-  text-align: left;
-  border-color: var(--border);
-  border-radius: 10px;
-}
-.item-copy {
-  flex: 1;
-  min-width: 0;
-  display: grid;
-  gap: 3px;
-}
-.item-title {
-  font-weight: 600;
-  font-size: 14px;
-}
-.item-description {
-  color: var(--muted-foreground);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 400;
-}
 .meta {
   font-size: 12px;
   color: var(--muted-foreground);
-}
-.chevron {
-  color: var(--muted-foreground);
-  font-size: 20px;
 }
 .toolbar {
   position: sticky;
@@ -219,31 +181,16 @@ h2 {
 h3 {
   font-size: 14px;
 }
-.list-row {
-  display: flex;
-  align-items: center;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
-}
-.list-row .item {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  border-radius: 0;
-}
 .delete {
   border: 0;
   background: transparent;
   color: var(--muted-foreground);
-  margin: 0 10px;
-  padding: 6px 8px;
+  margin: 0;
+  padding: 0 4px;
+  flex-shrink: 0;
 }
 .delete:hover {
   color: var(--destructive);
-}
-.items .notice {
-  margin-top: 6px;
 }
 .meta {
   overflow-wrap: anywhere;
@@ -255,5 +202,116 @@ h3 {
 }
 .delete.error:hover {
   background: color-mix(in srgb, var(--destructive) 18%, var(--background));
+}
+.library-heading {
+  display: grid;
+  gap: 6px;
+}
+.tabs {
+  display: flex;
+  gap: 24px;
+  border-bottom: 1px solid var(--border);
+}
+.tabs button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 2px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+}
+.tabs button[aria-selected="true"] {
+  color: var(--foreground);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+.count {
+  border-radius: 6px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 400;
+}
+.library-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.library-tools button {
+  flex-shrink: 0;
+}
+.empty-state {
+  display: grid;
+  gap: 8px;
+  padding: 24px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  text-align: center;
+}
+.rule-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rule-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.rule-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.rule-heading h3 {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.rule-title {
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  text-align: left;
+  font-weight: inherit;
+  overflow-wrap: anywhere;
+}
+.rule-title:hover {
+  color: var(--primary);
+  background: transparent;
+}
+.rule-details {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+.rule-details > div {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 12px;
+}
+.rule-details dt {
+  color: var(--muted-foreground);
+}
+.rule-details dd {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 520px) {
+  .rule-details > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
 }
 `;
