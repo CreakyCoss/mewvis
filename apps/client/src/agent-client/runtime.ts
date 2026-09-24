@@ -56,6 +56,7 @@ export interface AgentClientTasks {
   answerApproval(input: AnswerApprovalParams): Promise<void>;
   answerQuestion(input: AnswerQuestionParams): Promise<void>;
   abort(taskId: string): Promise<void>;
+  resume(taskId: string): Promise<void>;
 }
 
 export interface AgentClient {

@@ -97,6 +97,7 @@ export function createDesktopRuntime(
         },
       };
     },
+    resume: (taskId) => client.tasks.resume(taskId),
     abort: (taskId) => client.tasks.abort(taskId),
     answer: (taskId, questionId, answer) => client.tasks.answerQuestion({ taskId, questionId, answer }),
     release: () => releaseAgentRuntimeSession({ workspacePath, sessionRootDir }),

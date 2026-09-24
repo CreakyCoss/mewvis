@@ -59,6 +59,11 @@ export interface ExtensionCatalog {
 
 /** Agent-independent host ports. Calls retain host validation, permissions and state transactions. */
 export interface ExtensionBindings {
+  /** Host checkpoint wait state; adapters can suspend idle watchdogs without changing Agent APIs. */
+  readonly suspension?: {
+    readonly active: boolean;
+    subscribe(listener: () => void): () => void;
+  };
   readonly protocolVersion: 1;
   readonly catalog: ExtensionCatalog;
   execute(

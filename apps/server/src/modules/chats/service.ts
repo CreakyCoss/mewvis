@@ -56,7 +56,22 @@ export class Chats {
     if (!id) return null;
     const record = await safePath(dir, id);
     if (!(await exists(record))) return null;
-    const meta = await jsonRead(await safePath(record, "meta.json"));
+    const metadata = await safePath(record, "meta.json");
+    if (!(await exists(metadata))) {
+      // Runtime/plugin storage may exist before the first chat message is saved.
+      // Existing chat data without metadata must never be silently overwritten.
+      if (
+        (await exists(await safePath(record, "messages.json"))) ||
+        (await exists(await safePath(record, "options.json")))
+      )
+        throw new ServiceError(
+          409,
+          "CHAT_CORRUPT",
+          "聊天元数据缺失，已保留原文件",
+        );
+      return null;
+    }
+    const meta = await jsonRead(metadata);
     if (meta.id !== id)
       throw new ServiceError(
         409,

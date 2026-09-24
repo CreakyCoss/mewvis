@@ -334,6 +334,9 @@ export function createDesktopChatService({ resolveRecord }: { resolveRecord?: Re
     refreshResources() {
       return Promise.all([...sessions.values()].map(async (entry) => (await entry.opening).refreshResources()));
     },
+    findSession(workspacePath: string, chatId: string) {
+      return owners.get(addressOf(workspacePath, chatId))?.session;
+    },
     getLocation(session: ChatSession) {
       const input = entryFor(session)?.input;
       return input

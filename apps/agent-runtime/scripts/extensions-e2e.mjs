@@ -17,6 +17,7 @@ import { verifyExtensionMiddleware } from "./extensions-middleware-test.mjs";
 import { verifyExtensionEvents } from "./extensions-events-test.mjs";
 import { verifyExtensionCollaboration } from "./extensions-collaboration-test.mjs";
 import { verifyExtensionCompaction } from "./extensions-compaction-test.mjs";
+import { verifyExtensionWait } from "./extensions-wait-test.mjs";
 
 // Self-contained demo/test: actual Pi SDK, actual execution workers and local SSE model.
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -49,6 +50,8 @@ try {
       { in: join(root, "src/index.ts"), out: "api" },
       { in: fileURLToPath(import.meta.resolve("@isle/extension-host/agent/registration")), out: "host" },
       { in: join(root, "src/extensions/index.ts"), out: "extension-runtime" },
+      { in: join(root, "src/extensions/execution/deadline.ts"), out: "extension-deadline" },
+      { in: join(root, "src/engines/drivers/native/agent/runtimes/pi/agent/idle-timeout.ts"), out: "pi-idle-timeout" },
       { in: join(root, "src/engines/drivers/native/agent/runtimes/pi/agent/session.ts"), out: "pi-session" },
       { in: join(root, "src/engines/drivers/native/agent/artifacts.ts"), out: "agent-artifacts" },
       { in: join(root, "src/engines/drivers/native/agent/runtimes/pi/extensions/index.ts"), out: "pi-adapter" },
@@ -76,6 +79,10 @@ try {
   const sandboxRoot = dirname(require.resolve("@anthropic-ai/sandbox-runtime/package.json"));
   await cp(join(sandboxRoot, "vendor"), join(dist, "vendor"), { recursive: true });
   const api = await import(pathToFileURL(join(dist, "api.js")).href);
+  await verifyExtensionWait({
+    ...await import(pathToFileURL(join(dist, "extension-deadline.js")).href),
+    ...await import(pathToFileURL(join(dist, "pi-idle-timeout.js")).href),
+  });
   const hostApi = await import(pathToFileURL(join(dist, "host.js")).href);
   await verifyExtensionAdapters({
     ...await import(pathToFileURL(join(dist, "pi-adapter.js")).href),

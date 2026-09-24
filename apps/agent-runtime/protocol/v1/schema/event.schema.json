@@ -4,6 +4,8 @@
   "title": "AgentRuntimeEvent",
   "oneOf": [
     { "$ref": "#/definitions/StartedEvent" },
+    { "$ref": "#/definitions/ExtensionActivityEvent" },
+    { "$ref": "#/definitions/SubtaskEvent" },
     { "$ref": "#/definitions/QuestionEvent" },
     { "$ref": "#/definitions/QuestionAnsweredEvent" },
     { "$ref": "#/definitions/ApprovalRequestedEvent" },
@@ -29,6 +31,126 @@
     { "$ref": "#/definitions/CollaborationErrorEvent" }
   ],
   "definitions": {
+    "SubtaskEvent": {
+      "type": "object",
+      "required": [
+        "type",
+        "taskId",
+        "subtaskId",
+        "title",
+        "event"
+      ],
+      "properties": {
+        "type": {
+          "const": "subtask_event"
+        },
+        "taskId": {
+          "type": "string"
+        },
+        "subtaskId": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "avatar": {
+          "type": "string",
+          "maxLength": 32768,
+          "pattern": "^(https?://|data:image/)"
+        },
+        "event": {
+          "$ref": "#/definitions/SubtaskOutputEvent"
+        }
+      },
+      "additionalProperties": false
+    },
+    "SubtaskOutputEvent": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/StartedEvent"
+        },
+        {
+          "$ref": "#/definitions/ReplaceTextEvent"
+        },
+        {
+          "$ref": "#/definitions/TextDeltaEvent"
+        },
+        {
+          "$ref": "#/definitions/ThinkingDeltaEvent"
+        },
+        {
+          "$ref": "#/definitions/ThinkingEndEvent"
+        },
+        {
+          "$ref": "#/definitions/ToolCallStartEvent"
+        },
+        {
+          "$ref": "#/definitions/ToolCallDeltaEvent"
+        },
+        {
+          "$ref": "#/definitions/ToolCallEndEvent"
+        },
+        {
+          "$ref": "#/definitions/ToolExecutionStartEvent"
+        },
+        {
+          "$ref": "#/definitions/ToolExecutionUpdateEvent"
+        },
+        {
+          "$ref": "#/definitions/ToolExecutionEndEvent"
+        },
+        {
+          "$ref": "#/definitions/DoneEvent"
+        },
+        {
+          "$ref": "#/definitions/AgentErrorEvent"
+        }
+      ]
+    },
+    "ExtensionActivityEvent": {
+      "type": "object",
+      "required": [
+        "type",
+        "taskId",
+        "extensionId",
+        "activityId",
+        "state",
+        "pausable",
+        "revision"
+      ],
+      "properties": {
+        "type": {
+          "const": "extension_activity"
+        },
+        "taskId": {
+          "type": "string"
+        },
+        "extensionId": {
+          "type": "string"
+        },
+        "activityId": {
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "running",
+            "pausing",
+            "paused",
+            "completed",
+            "failed",
+            "cancelled"
+          ]
+        },
+        "pausable": {
+          "type": "boolean"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
     "NullableString": { "type": ["string", "null"] },
     "RuntimeSessionRef": {
       "type": "object",
@@ -258,6 +380,8 @@
     "AgentEvent": {
       "oneOf": [
         { "$ref": "#/definitions/StartedEvent" },
+        { "$ref": "#/definitions/ExtensionActivityEvent" },
+        { "$ref": "#/definitions/SubtaskEvent" },
         { "$ref": "#/definitions/QuestionEvent" },
         { "$ref": "#/definitions/QuestionAnsweredEvent" },
         { "$ref": "#/definitions/ApprovalRequestedEvent" },

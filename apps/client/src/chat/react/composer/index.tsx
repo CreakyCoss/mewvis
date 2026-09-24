@@ -1,5 +1,5 @@
 import { useRef, type ComponentType, type PropsWithChildren } from "react";
-import { SendIcon, SquareIcon } from "lucide-react";
+import { SendIcon, SquareIcon, PlayIcon, LoaderCircleIcon } from "lucide-react";
 import { InputGroup, InputGroupAddon, InputGroupButton } from "design-system/components/ui/input-group";
 import { Kbd, KbdGroup } from "design-system/components/ui/kbd";
 import { ChatEditor, type ChatEditorHandle } from "./editor";
@@ -29,32 +29,56 @@ export function ComposerToolbar(binding: ComposerBinding) {
   );
 }
 export function ComposerActions(binding: ComposerBinding) {
+  const paused = binding.execution?.state === "paused";
+  const pausing = binding.execution?.state === "pausing";
+  const cancelling = binding.execution?.state === "cancelling";
+  const cancelFailed = cancelling && Boolean(binding.execution?.cancelError);
   return (
     <>
       <span className="hidden items-center gap-1.5 px-1 text-xs text-muted-foreground sm:flex">
-        <KbdGroup>
-          <Kbd>Ctrl</Kbd>
-          <span>/</span>
-          <Kbd>⌘</Kbd>
-          <Kbd>Enter</Kbd>
-        </KbdGroup>
-        <span>发送</span>
+        {!binding.busy ? (
+          <KbdGroup>
+            <Kbd>Ctrl</Kbd>
+            <span>/</span>
+            <Kbd>⌘</Kbd>
+            <Kbd>Enter</Kbd>
+          </KbdGroup>
+        ) : null}
+        <span>{paused ? "已暂停" : pausing ? "暂停中" : cancelling ? "取消中" : binding.busy ? "执行中" : "发送"}</span>
       </span>
       {binding.busy ? (
         <InputGroupButton
           type="button"
           size="icon-sm"
           variant="default"
-          aria-label="停止生成"
+          aria-label={
+            paused
+              ? "继续执行"
+              : cancelFailed
+                ? "重试取消"
+                : cancelling
+                  ? "取消中"
+                  : pausing
+                    ? "暂停中，取消任务"
+                    : "停止生成"
+          }
+          disabled={cancelling && !cancelFailed}
           className="size-10 cursor-pointer rounded-full shadow-xs"
           onClick={(event) => {
             // Stopping preparation can synchronously render the submit button in
             // this DOM position. Suppress this click's native submit default.
             event.preventDefault();
-            void binding.stop();
+            if (paused) void binding.resume?.();
+            else void binding.stop();
           }}
         >
-          <SquareIcon aria-hidden="true" className="size-3 fill-current" />
+          {paused ? (
+            <PlayIcon aria-hidden="true" className="size-4 fill-current" />
+          ) : cancelling && !cancelFailed ? (
+            <LoaderCircleIcon aria-hidden="true" className="size-4 animate-spin" />
+          ) : (
+            <SquareIcon aria-hidden="true" className="size-3 fill-current" />
+          )}
         </InputGroupButton>
       ) : (
         <InputGroupButton
@@ -173,6 +197,8 @@ export function EmptyComposer({ placeholder = "输入问题" }: { placeholder?: 
     files: [],
     skills: [],
     commands: [],
+    execution: undefined,
+    resume: undefined,
     busy: false,
     initialized: false,
     disabled: true,

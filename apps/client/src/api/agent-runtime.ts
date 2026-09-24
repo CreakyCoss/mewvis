@@ -75,6 +75,8 @@ export const answerAgentRuntimeApproval = (input: AnswerApprovalParams) =>
 export const answerAgentRuntimeQuestion = (input: AnswerQuestionParams) =>
   invokeAgentRuntime("answer_agent_runtime_question", { input });
 
+export const resumeAgentRuntimeTask = (taskId: string) => invokeAgentRuntime("resume_agent_runtime_agent", { taskId });
+
 export const abortAgentRuntimeTask = (taskId: string) => invokeAgentRuntime("abort_agent_runtime_agent", { taskId });
 
 export const readAgentRuntimeSession = (input: SessionTargetParams) =>

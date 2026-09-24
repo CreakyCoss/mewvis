@@ -82,6 +82,8 @@ export function useChatComposer() {
       ).values(),
     ],
     busy,
+    execution: snapshot.execution,
+    resume: session.resume,
     disabled,
     canSubmit:
       !disabled &&

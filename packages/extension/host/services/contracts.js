@@ -15,6 +15,8 @@ export const extensionHostMethods = Object.freeze({
       additionalProperties: false,
       required: ["text"],
       properties: {
+        title: { type: "string", minLength: 1, maxLength: 256 },
+        avatar: { type: "string", maxLength: 32768, pattern: "^(https?://|data:image/)" },
         systemPrompt: { type: "string", maxLength: 16384 },
         text: { type: "string", minLength: 1, maxLength: 96000 },
       },
@@ -28,6 +30,7 @@ export const extensionHostMethods = Object.freeze({
       properties: {
         id: { type: "string", minLength: 1, maxLength: 128 },
         title: { type: "string", minLength: 1, maxLength: 128 },
+        pausable: { type: "boolean" },
         state: { enum: ["running", "completed", "failed", "cancelled"] },
         detail: { type: "string", maxLength: 1000 },
         steps: {
@@ -57,6 +60,30 @@ export const extensionHostMethods = Object.freeze({
   },
   "activity.read": { requestSchema: empty },
   "activity.cancel": {
+    requestSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["id"],
+      properties: { id: { type: "string", minLength: 1, maxLength: 128 } },
+    },
+  },
+  "activity.pause": {
+    requestSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["id"],
+      properties: { id: { type: "string", minLength: 1, maxLength: 128 } },
+    },
+  },
+  "activity.resume": {
+    requestSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["id"],
+      properties: { id: { type: "string", minLength: 1, maxLength: 128 } },
+    },
+  },
+  "activity.checkpoint": {
     requestSchema: {
       type: "object",
       additionalProperties: false,
@@ -136,6 +163,9 @@ export function createExtensionHostClient(transport, capabilities) {
       publish: (input, options) => call("activity.publish", input, options),
       read: (options) => call("activity.read", {}, options),
       cancel: (id, options) => call("activity.cancel", { id }, options),
+      pause: (id, options) => call("activity.pause", { id }, options),
+      resume: (id, options) => call("activity.resume", { id }, options),
+      checkpoint: (id, options) => call("activity.checkpoint", { id }, options),
     }),
 
     supports,

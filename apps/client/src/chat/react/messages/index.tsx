@@ -7,6 +7,7 @@ import type { ChatMessage } from "@/chat/core";
 import { MessageActions } from "./actions";
 import { MessageBlocks } from "./block";
 import { useFollowBottom } from "./follow-bottom";
+import { visibleMessages, messageAvatarSource } from "./presentation";
 
 export type ChatMessagesProps = {
   className?: string;
@@ -31,7 +32,7 @@ export const MessageView = ({
   displayOptions: ChatDisplayOptions;
 }) => {
   const isAssistant = message.role === "assistant";
-  const agentAvatar = isAssistant && message.agentAvatar ? resolveAvatar(message.agentAvatar) : undefined;
+  const agentAvatar = isAssistant ? messageAvatarSource(message.agentAvatar, (id) => resolveAvatar(id).src) : undefined;
 
   return (
     <div
@@ -44,7 +45,7 @@ export const MessageView = ({
           title={message.agentName ?? "助手"}
         >
           {agentAvatar ? (
-            <img src={agentAvatar.src} alt="" className="size-full object-cover" />
+            <img src={agentAvatar} alt="" className="size-full object-cover" />
           ) : (
             <BotIcon aria-hidden="true" className="size-4" />
           )}
@@ -122,7 +123,7 @@ export const MessagesView = ({
           </div>
         ) : null}
 
-        {messages.map((message) => (
+        {visibleMessages(messages).map((message) => (
           <Fragment key={message.id}>
             {renderMessage ? (
               renderMessage(message, <MessageItem message={message} displayOptions={displayOptions} />)

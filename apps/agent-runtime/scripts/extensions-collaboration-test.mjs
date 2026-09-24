@@ -59,6 +59,8 @@ export async function verifyExtensionCollaboration({
       return run(command, context);
     children.push(command);
     assert.equal(context.extensions, undefined);
+    context.emit({ type: "thinking_delta", taskId: command.taskId, delta: "Mock 步骤思考" });
+    context.emit({ type: "thinking_end", taskId: command.taskId, content: "Mock 步骤思考" });
     return child.agent.run(command, context);
   };
   const events = [];
@@ -89,6 +91,19 @@ export async function verifyExtensionCollaboration({
     assert.ok(
       events.some((event) => JSON.stringify(event).includes("Mock 步骤完成")),
     );
+    const streamed = events.filter((event) => event.type === "subtask_event");
+    assert.equal(new Set(streamed.map((event) => event.subtaskId)).size, 2);
+    for (const subtaskId of new Set(streamed.map((event) => event.subtaskId))) {
+      const output = streamed.filter((event) => event.subtaskId === subtaskId);
+      assert.equal(output[0].event.type, "started");
+      assert.equal(output.at(-1).event.type, "done");
+      assert.ok(output.some(({ event }) => event.type === "thinking_delta"));
+      assert.ok(output.some(({ event }) => event.type === "text_delta"));
+      assert.ok(output.every((event) => event.taskId === "workflow-mock-tool"));
+      assert.match(output[0].title, /评审者/);
+      assert.match(output[0].avatar, /^data:image\/svg\+xml,/);
+      assert.ok(output.slice(1).every((event) => event.avatar === undefined));
+    }
     const slash = await sdk.agent.run({
       ...command,
       taskId: "workflow-mock-slash",

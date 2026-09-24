@@ -9,6 +9,10 @@ export class IdleTimeoutError extends Error {
 }
 
 export type IdleTimeoutOptions = {
+  suspension?: {
+    readonly active: boolean;
+    subscribe(listener: () => void): () => void;
+  };
   timeoutMs: number;
   message: string;
   subscribe: (onActivity: () => void) => () => void;
@@ -17,11 +21,12 @@ export type IdleTimeoutOptions = {
 
 export const withIdleTimeout = async <T>(
   operation: () => Promise<T>,
-  { timeoutMs, message, subscribe, onTimeout }: IdleTimeoutOptions,
+  { timeoutMs, message, subscribe, onTimeout, suspension }: IdleTimeoutOptions,
 ): Promise<T> => {
   let active = true;
   let timeout: ReturnType<typeof setTimeout> | undefined;
   let unsubscribe: (() => void) | undefined;
+  let unsubscribeSuspension: (() => void) | undefined;
   let rejectTimeout: (error: IdleTimeoutError) => void = () => undefined;
 
   const timeoutPromise = new Promise<never>((_resolve, reject) => {
@@ -33,6 +38,8 @@ export const withIdleTimeout = async <T>(
       clearTimeout(timeout);
       timeout = undefined;
     }
+    unsubscribeSuspension?.();
+    unsubscribeSuspension = undefined;
     unsubscribe?.();
     unsubscribe = undefined;
   };
@@ -43,12 +50,14 @@ export const withIdleTimeout = async <T>(
     if (timeout) {
       clearTimeout(timeout);
     }
+    if (suspension?.active) return;
     timeout = setTimeout(() => {
       active = false;
       rejectTimeout(new IdleTimeoutError(message, timeoutMs));
     }, timeoutMs);
   };
 
+  unsubscribeSuspension = suspension?.subscribe(refreshTimeout);
   unsubscribe = subscribe(refreshTimeout);
   refreshTimeout();
 

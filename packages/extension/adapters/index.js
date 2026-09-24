@@ -30,6 +30,9 @@ function adaptServices(native) {
       ) => copy(await native.tasks.run(copy(input), options)),
     },
     activity: {
+      pause: (/** @type {string} */ id, /** @type {{signal?: AbortSignal}} */ options = {}) => native.activity.pause(id, options),
+      resume: (/** @type {string} */ id, /** @type {{signal?: AbortSignal}} */ options = {}) => native.activity.resume(id, options),
+      checkpoint: (/** @type {string} */ id, /** @type {{signal?: AbortSignal}} */ options = {}) => native.activity.checkpoint(id, options),
       publish: async (
         /** @type {import("@isle/extension-sdk/host").ExtensionActivity} */ input,
         /** @type {{signal?: AbortSignal}} */ options = {},

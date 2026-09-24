@@ -1,5 +1,6 @@
 import {
   abortAgentRuntimeTask,
+  resumeAgentRuntimeTask,
   answerAgentRuntimeQuestion,
   answerAgentRuntimeApproval,
   getAgentRuntimeCollaborationTimeline,
@@ -152,6 +153,10 @@ class BackendAgentClientTasks implements AgentClientTasks {
 
   async answerQuestion(input: AnswerQuestionParams): Promise<void> {
     await answerAgentRuntimeQuestion(input);
+  }
+
+  async resume(taskId: string): Promise<void> {
+    await resumeAgentRuntimeTask(taskId);
   }
 
   async abort(taskId: string): Promise<void> {

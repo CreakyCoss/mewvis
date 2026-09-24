@@ -251,3 +251,56 @@ test("one-shot chat RPC cancellation stops its process and releases capacity", a
   );
   assert.equal(result.text, "fixture");
 });
+
+test("activity revisions project one shared task state without stale progress undoing pause", async (t) => {
+  const s = await setup(t);
+  await s.run("activity-task", "hold");
+  await s.done("activity-task", "running");
+  const activity = {
+    extensionId: "test.flow",
+    activityId: "flow",
+    pausable: true,
+  };
+  s.supervisor.activity("activity-task", {
+    ...activity,
+    state: "pausing",
+    revision: 2,
+  });
+  assert.equal(s.supervisor.snapshot("activity-task").taskState, "pausing");
+  s.supervisor.activity("activity-task", {
+    ...activity,
+    state: "running",
+    revision: 1,
+  });
+  assert.equal(s.supervisor.snapshot("activity-task").taskState, "pausing");
+  s.supervisor.activity("activity-task", {
+    ...activity,
+    state: "paused",
+    revision: 3,
+  });
+  assert.equal(s.supervisor.snapshot("activity-task").taskState, "paused");
+  s.supervisor.activity("activity-task", {
+    ...activity,
+    state: "running",
+    revision: 4,
+  });
+  assert.equal(s.supervisor.snapshot("activity-task").taskState, "running");
+  s.supervisor.activity("activity-task", {
+    ...activity,
+    state: "completed",
+    revision: 5,
+  });
+  assert.equal(
+    s.supervisor.snapshot("activity-task").taskState,
+    "running",
+    "plugin completion does not end the parent model turn",
+  );
+  await s.supervisor.abort("activity-task");
+  assert.equal(s.supervisor.snapshot("activity-task").taskState, "cancelled");
+  s.supervisor.activity("activity-task", {
+    ...activity,
+    state: "running",
+    revision: 6,
+  });
+  assert.equal(s.supervisor.snapshot("activity-task").taskState, "cancelled");
+});

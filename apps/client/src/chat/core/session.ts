@@ -32,10 +32,12 @@ type Turn = {
   resolve: (result: SendResult) => void;
   dispatch?: Promise<void>;
   stopping?: Promise<OperationResult>;
+  resuming?: Promise<OperationResult>;
   cancelled: boolean;
   recorded: boolean;
   stderr: string;
-  events: AgentClientChatMessageEvent[];
+  events: { messageId: string; event: AgentClientChatMessageEvent }[];
+  subtasks: Map<string, { messageId: string; finished: boolean }>;
   timer?: ReturnType<typeof setTimeout>;
 };
 
@@ -77,11 +79,15 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
   const mark = () => {
     if (state.initialized) saves.mark({ title: state.title, messages: state.messages, config: state.config });
   };
-  const changeMessage = (turn: Turn, change: (message: ChatAssistantMessage) => ChatAssistantMessage) => {
+  const changeMessage = (
+    turn: Turn,
+    change: (message: ChatAssistantMessage) => ChatAssistantMessage,
+    messageId = turn.messageId,
+  ) => {
     if (active !== turn) return;
     update({
       messages: state.messages.map((message) =>
-        message.id === turn.messageId && message.role === "assistant" ? change(message) : message,
+        message.id === messageId && message.role === "assistant" ? change(message) : message,
       ),
     });
   };
@@ -92,16 +98,32 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
     const events = turn.events;
     turn.events = [];
     if (active === turn && events.length) {
-      changeMessage(turn, (message) => events.reduce(applyChatMessageEvent, message));
+      const grouped = new Map<string, AgentClientChatMessageEvent[]>();
+      for (const { messageId, event } of events) {
+        const batch = grouped.get(messageId) ?? [];
+        batch.push(event);
+        grouped.set(messageId, batch);
+      }
+      update({
+        messages: state.messages.map((message) => {
+          const batch = grouped.get(message.id);
+          return message.role === "assistant" && batch ? batch.reduce(applyChatMessageEvent, message) : message;
+        }),
+      });
       mark();
       saves.schedule("stream", options.saveDelays?.stream ?? 10_000);
-      if (events.some((event) => event.type === E.ThinkingEnd))
+      if (events.some(({ event }) => event.type === E.ThinkingEnd))
         saves.schedule("node", options.saveDelays?.node ?? 5_000);
     }
   };
   const finish = (turn: Turn, error?: string, abortAcknowledged = false) => {
     if (active !== turn) return;
     flushEvents(turn);
+    for (const subtask of turn.subtasks.values()) {
+      if (subtask.finished) continue;
+      subtask.finished = true;
+      changeMessage(turn, (message) => failChatMessage(message, error ?? "子任务未正常结束"), subtask.messageId);
+    }
     if (error) changeMessage(turn, (message) => failChatMessage(message, error));
     else
       changeMessage(turn, (message) =>
@@ -109,7 +131,7 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
       );
     // A terminal event can arrive before the abort RPC completes. Keep the turn
     // reserved so a late abort cannot race a new run in the same Pi session.
-    if (turn.cancelled && turn.dispatch && !abortAcknowledged) {
+    if (turn.cancelled && turn.stopping && !abortAcknowledged) {
       update({ phase: "stopping", pendingQuestion: null, pendingApproval: null, answering: false });
       mark();
       void saves.flush();
@@ -119,6 +141,7 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
     update({
       phase: "idle",
       activeTaskId: null,
+      execution: { taskId: turn.taskId, state: turn.cancelled ? "cancelled" : error ? "failed" : "completed" },
       pendingQuestion: null,
       pendingApproval: null,
       answering: false,
@@ -133,8 +156,56 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
     const turn = active;
     if (!turn || envelope.taskId !== turn.taskId || state.phase === "preparing") return;
     const event = envelope.event;
+    if (event.type === E.SubtaskEvent) {
+      if (event.taskId !== turn.taskId || (event.event.taskId && event.event.taskId !== event.subtaskId)) return;
+      const child = event.event;
+      if (child.type === E.Started) {
+        if (turn.cancelled || turn.subtasks.has(event.subtaskId)) return;
+        flushEvents(turn);
+        const messageId = crypto.randomUUID();
+        turn.subtasks.set(event.subtaskId, { messageId, finished: false });
+        const message: ChatAssistantMessage = {
+          id: messageId,
+          role: "assistant",
+          agentName: event.title,
+          agentAvatar: event.avatar,
+          parentMessageId: turn.messageId,
+          createdAt: Date.now(),
+          status: "loading",
+          blocks: [],
+        };
+        // Keep the parent's final reply after its child task messages.
+        const messages = [...state.messages];
+        messages.splice(
+          messages.findIndex((item) => item.id === turn.messageId),
+          0,
+          message,
+        );
+        update({ messages });
+        mark();
+        return;
+      }
+      const subtask = turn.subtasks.get(event.subtaskId);
+      if (!subtask || subtask.finished) return;
+      if (child.type === E.Done || child.type === E.Error) {
+        flushEvents(turn);
+        subtask.finished = true;
+        changeMessage(
+          turn,
+          (message) =>
+            child.type === E.Error ? failChatMessage(message, child.message) : applyChatMessageEvent(message, child),
+          subtask.messageId,
+        );
+        mark();
+        saves.schedule("node", options.saveDelays?.node ?? 5_000);
+      } else {
+        turn.events.push({ messageId: subtask.messageId, event: child });
+        turn.timer ??= setTimeout(() => flushEvents(turn), 16);
+      }
+      return;
+    }
     if ([E.TextDelta, E.ThinkingDelta, E.ThinkingEnd, E.ReplaceText, E.ToolCallDelta].includes(event.type as never)) {
-      turn.events.push(event as AgentClientChatMessageEvent);
+      turn.events.push({ messageId: turn.messageId, event: event as AgentClientChatMessageEvent });
       turn.timer ??= setTimeout(() => flushEvents(turn), 16);
       return;
     }
@@ -203,9 +274,17 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
       finish(turn, turn.cancelled ? "已停止生成" : turn.stderr || `Agent 任务异常退出：${event.code}`);
     } else if (event.type === AgentClientTransportEventType.State) {
       const taskState = event.taskState.toLowerCase();
-      if (taskState === "done") finish(turn);
-      else if (["cancelled", "canceled"].includes(taskState)) finish(turn, "已停止生成");
-      else if (
+      if (taskState === "cancelling") {
+        turn.cancelled = true;
+        update({ phase: "stopping", execution: { taskId: turn.taskId, state: "cancelling" } });
+      } else if (["paused", "pausing", "running"].includes(taskState) && !turn.cancelled) {
+        const phase = taskState as "paused" | "pausing" | "running";
+        update({ phase, execution: { taskId: turn.taskId, state: phase } });
+      } else if (taskState === "done") finish(turn);
+      else if (["cancelled", "canceled"].includes(taskState)) {
+        turn.cancelled = true;
+        finish(turn, "已停止生成");
+      } else if (
         [taskState, event.workerState.toLowerCase()].some((value) => ["error", "failed", "crashed"].includes(value))
       )
         finish(turn, turn.stderr || "Agent 任务失败");
@@ -275,6 +354,7 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
       recorded: false,
       stderr: "",
       events: [],
+      subtasks: new Map(),
     };
     active = turn;
     const createdAt = Date.now();
@@ -283,6 +363,7 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
     update({
       phase: "preparing",
       activeTaskId: taskId,
+      execution: { taskId, state: "running" },
       pendingQuestion: null,
       pendingApproval: null,
       error: "",
@@ -350,7 +431,7 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
       finish(turn, "已停止生成");
       return Promise.resolve(ok);
     }
-    update({ phase: "stopping" });
+    update({ phase: "stopping", execution: { taskId: turn.taskId, state: "cancelling" } });
     turn.stopping = (async () => {
       try {
         await turn.dispatch!.catch(() => undefined);
@@ -360,7 +441,12 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
         return ok;
       } catch (error) {
         const message = errorText(error);
-        if (active === turn) update({ error: message, phase: "stopping" });
+        if (active === turn)
+          update({
+            error: message,
+            phase: "stopping",
+            execution: { taskId: turn.taskId, state: "cancelling", cancelError: message },
+          });
         return { ok: false, error: message } as const;
       } finally {
         turn.stopping = undefined;
@@ -392,6 +478,31 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
     },
     send,
     stop,
+    resume() {
+      const turn = active;
+      if (
+        !turn ||
+        turn.cancelled ||
+        !["paused", "pausing"].includes(state.execution?.state ?? "") ||
+        !options.runtime.resume
+      )
+        return Promise.resolve({ ok: false, error: "当前任务不可继续" } as const);
+      if (turn.resuming) return turn.resuming;
+      turn.resuming = (async () => {
+        try {
+          await options.runtime.resume!(turn.taskId);
+          // Only host events move the state to running; never overwrite a concurrent cancel.
+          return ok;
+        } catch (error) {
+          const message = errorText(error);
+          if (active === turn) update({ error: message });
+          return { ok: false, error: message } as const;
+        } finally {
+          turn.resuming = undefined;
+        }
+      })();
+      return turn.resuming;
+    },
     async answer({ questionId, answer }) {
       const question = state.pendingQuestion;
       const turn = active;

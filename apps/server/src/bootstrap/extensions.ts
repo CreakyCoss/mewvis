@@ -1,4 +1,8 @@
-import { createActivityStore } from "@isle/extension-host/services/activity";
+import {
+  createActivityStore,
+  isActiveActivity,
+  activityExecution,
+} from "@isle/extension-host/services/activity";
 import type { ExtensionHostAdapter } from "@isle/extension-host/services/runtime";
 import type { RuntimeConfig } from "../config/runtime.js";
 import { root, safePath } from "../infrastructure/filesystem/paths.js";
@@ -39,7 +43,54 @@ export function createDesktopExtensionAdapter({
       workspacePath,
     };
   };
+  const control = async (
+    id: string,
+    target: { workspacePath: string; chatId: string },
+    extensionId: string,
+    pause: boolean,
+  ) => {
+    const { store, sessionRoot, workspacePath } = await activity(
+      target,
+      extensionId,
+    );
+    const changed = await store.update((record) => {
+      const task = record && supervisor.snapshot(record.taskId);
+      if (
+        !record ||
+        record.id !== id ||
+        !record.pausable ||
+        !isActiveActivity(record.state) ||
+        !task ||
+        ["done", "failed", "cancelled", "cancelling"].includes(task.taskState)
+      )
+        throw new ServiceError(
+          409,
+          "HOST_UNAVAILABLE",
+          "活动已结束或不支持暂停",
+        );
+      if (task.sessionKey !== `${workspacePath}|${sessionRoot}`)
+        throw new ServiceError(403, "HOST_DENIED", "任务不属于当前会话");
+      return {
+        ...record,
+        state: pause
+          ? record.state === "paused"
+            ? "paused"
+            : "pausing"
+          : "running",
+        updatedAt: Date.now(),
+      };
+    });
+    supervisor.activity(
+      changed!.taskId,
+      activityExecution(extensionId, changed!),
+    );
+    return null;
+  };
   return {
+    "activity.pause": ({ id }, { target, extensionId }) =>
+      control(id, target, extensionId!, true),
+    "activity.resume": ({ id }, { target, extensionId }) =>
+      control(id, target, extensionId!, false),
     "activity.read": async (_input, { target, extensionId }) => {
       const { store, sessionRoot, workspacePath } = await activity(
         target,
@@ -49,24 +100,29 @@ export function createDesktopExtensionAdapter({
       if (!record) return null;
       const task = supervisor.snapshot(record.taskId);
       if (
-        record.state === "running" &&
+        isActiveActivity(record.state) &&
         (!task || ["cancelled", "failed", "done"].includes(task.taskState))
       ) {
-        record.state =
+        const terminalState =
           task?.taskState === "done"
             ? "completed"
             : task?.taskState === "cancelled"
               ? "cancelled"
               : "failed";
+        record.state = terminalState;
         record.detail = "执行已结束";
         record.steps = record.steps.map((step) =>
-          step.state === "running" ? { ...step, state: record.state } : step,
+          step.state === "running" ? { ...step, state: terminalState } : step,
         );
       }
       if (task && task.sessionKey !== `${workspacePath}|${sessionRoot}`)
         throw new ServiceError(403, "HOST_DENIED", "任务不属于当前会话");
-      const { taskId: _taskId, ...snapshot } = record;
-      return snapshot;
+      const { taskId, revision: _revision, ...snapshot } = record;
+      return {
+        ...snapshot,
+        state: task?.taskState === "cancelling" ? "cancelling" : snapshot.state,
+        executionId: taskId,
+      };
     },
     "activity.cancel": async ({ id }, { target, extensionId }) => {
       const { store, sessionRoot, workspacePath } = await activity(
@@ -79,7 +135,7 @@ export function createDesktopExtensionAdapter({
         record?.id === id &&
         task?.sessionKey === `${workspacePath}|${sessionRoot}`
       )
-        supervisor.abort(record.taskId);
+        await supervisor.abort(record.taskId);
       return null;
     },
     ...createSessionHostAdapter({
@@ -142,4 +198,38 @@ export function createDesktopExtensionAdapter({
       },
     }),
   } satisfies ExtensionHostAdapter;
+}
+
+/** Task controls translate into native activity services; the supervisor knows no plugin SDK. */
+export async function resumeExtensionTask(
+  supervisor: AgentRuntimeSupervisor,
+  taskId: string,
+) {
+  const scope = supervisor.executionScope(taskId);
+  const task = supervisor.snapshot(taskId);
+  const waiting = Object.values(task?.activities ?? {}).filter(
+    (item) => item.state === "paused" || item.state === "pausing",
+  );
+  if (!scope?.sessionRootDir || !waiting.length)
+    throw new ServiceError(409, "HOST_UNAVAILABLE", "任务当前不可继续");
+  for (const activity of waiting) {
+    const store = createActivityStore(
+      scope.sessionRootDir,
+      activity.extensionId,
+    );
+    const changed = await store.update((record) => {
+      if (
+        !record ||
+        record.taskId !== taskId ||
+        record.id !== activity.activityId ||
+        !isActiveActivity(record.state)
+      )
+        throw new ServiceError(409, "HOST_UNAVAILABLE", "活动已结束或变化");
+      return { ...record, state: "running", updatedAt: Date.now() };
+    });
+    supervisor.activity(
+      taskId,
+      activityExecution(activity.extensionId, changed!),
+    );
+  }
 }

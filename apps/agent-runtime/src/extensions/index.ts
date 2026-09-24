@@ -53,6 +53,7 @@ export function createExtensionRuntime(): ExtensionRuntime {
       return {
         protocolVersion: resources.protocolVersion,
         catalog: resources.catalog,
+        suspension: resources.suspension,
         execute: resources.execute,
         command: resources.command,
         intercept: resources.intercept,

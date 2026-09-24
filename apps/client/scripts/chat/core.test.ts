@@ -1,3 +1,4 @@
+import { visibleMessages, messageAvatarSource } from "../../src/chat/react/messages/presentation";
 import { agentPermissionOptions } from "../../src/agent-client/wire";
 import test from "node:test";
 import { getChatActivity } from "../../src/workbench/shell/chat-activity";
@@ -188,6 +189,8 @@ test("stop during dispatch waits for registration, aborts once, and failed abort
   assert.equal(aborted, 0);
   gate.resolve();
   assert.equal((await stopping).ok, false);
+  assert.equal(session.getSnapshot().execution?.state, "cancelling");
+  assert.equal(session.getSnapshot().execution?.cancelError, "abort failed");
   assert.equal((await session.send({ text: "blocked" })).status, "rejected");
   assert.equal((await session.stop()).ok, true);
   assert.equal(aborted, 2);
@@ -704,4 +707,169 @@ test("sidebar activity follows approval and question events through resume and s
   emit({ type: E.Done, taskId, text: "Done" });
   assert.equal(activity(), null);
   await session.close();
+});
+
+test("shared execution snapshot drives sidebar pause and cancellation, retaining the turn until host acknowledgement", async () => {
+  const resume = deferred();
+  const abort = deferred();
+  let resumes = 0;
+  const { session, emit } = await setup({
+    runtime: {
+      resume: () => {
+        resumes++;
+        return resume.promise;
+      },
+      abort: () => abort.promise,
+    },
+  });
+  const { taskId } = await session.send({ text: "two steps" });
+  const state = (taskState: string, id = taskId) => emit({ type: "state", taskState, workerState: "running" }, id);
+  state("pausing");
+  assert.equal(session.getSnapshot().phase, "pausing");
+  assert.equal(getChatActivity(session.getSnapshot()), "pausing");
+  state("paused");
+  assert.equal(session.getSnapshot().execution?.state, "paused");
+  assert.equal(getChatActivity(session.getSnapshot()), "paused");
+  assert.equal((await session.send({ text: "must not submit draft" })).status, "rejected");
+  state("running", "another-task");
+  assert.equal(session.getSnapshot().execution?.state, "paused");
+  const first = session.resume!();
+  assert.equal(session.resume!(), first);
+  assert.equal(resumes, 1);
+  assert.equal(session.getSnapshot().phase, "paused", "only a host event releases pause");
+  state("running");
+  resume.resolve();
+  assert.equal((await first).ok, true);
+  state("paused");
+  const stopping = session.stop();
+  assert.equal(session.getSnapshot().execution?.state, "cancelling");
+  assert.equal(getChatActivity(session.getSnapshot()), "cancelling");
+  state("running");
+  state("cancelled");
+  assert.equal(session.getSnapshot().phase, "stopping");
+  assert.equal((await session.send({ text: "too early" })).status, "rejected");
+  abort.resolve();
+  await stopping;
+  assert.equal(session.getSnapshot().activeTaskId, null);
+  assert.equal(session.getSnapshot().execution?.state, "cancelled");
+  assert.equal(getChatActivity(session.getSnapshot()), null);
+  assert.equal((await session.send({ text: "new task" })).status, "dispatched");
+  await session.stop();
+  await session.close();
+});
+
+test("external task cancellation is shared even when no status slot is mounted", async () => {
+  const { session, emit } = await setup();
+  await session.send({ text: "task" });
+  emit({ type: "state", taskState: "cancelling", workerState: "stopping" });
+  assert.equal(session.getSnapshot().execution?.state, "cancelling");
+  assert.equal((await session.send({ text: "too early" })).status, "rejected");
+  emit({ type: "state", taskState: "cancelled", workerState: "stopped" });
+  assert.equal(session.getSnapshot().phase, "idle");
+  assert.equal(session.getSnapshot().execution?.state, "cancelled");
+  await session.close();
+});
+
+test("subtasks stream separate thinking, text and tools, persist in order, and never settle the parent", async () => {
+  const { session, emit, calls } = await setup();
+  await session.send({ text: "Run workflow" });
+  const taskId = session.getSnapshot().activeTaskId!;
+  const child = (id: string, event: object, parent = taskId) =>
+    emit(
+      {
+        type: E.SubtaskEvent,
+        taskId: parent,
+        subtaskId: id,
+        title: `Step ${id}`,
+        avatar: "data:image/svg+xml,%3Csvg%2F%3E",
+        event: { taskId: id, ...event },
+      },
+      parent,
+    );
+  child("one", { type: E.Started });
+  child("two", { type: E.Started });
+  child("one", { type: E.ThinkingDelta, delta: "Thinking one" });
+  child("two", { type: E.ThinkingDelta, delta: "Thinking two" });
+  child("one", { type: E.ThinkingEnd, content: "Thinking one" });
+  child("one", { type: E.TextDelta, delta: "Draft" });
+  child("two", { type: E.ToolExecutionStart, toolCallId: "same", toolName: "read", args: {} });
+  child("one", { type: E.ToolExecutionStart, toolCallId: "same", toolName: "write", args: {} });
+  child("one", { type: E.ToolExecutionEnd, toolCallId: "same", toolName: "write", result: "ok", isError: false });
+  await session.flush();
+  const first = session.getSnapshot().messages[1];
+  const second = session.getSnapshot().messages[2];
+  assert.equal(first.role, "assistant");
+  assert.equal(first.agentAvatar, "data:image/svg+xml,%3Csvg%2F%3E");
+  assert.equal(first.parentMessageId, session.getSnapshot().messages.at(-1)!.id);
+  assert.equal(visibleMessages(session.getSnapshot().messages).length, 3);
+  assert.equal(second.role, "assistant");
+  assert.ok(first.blocks.some((b: any) => b.type === "thinking" && b.content === "Thinking one"));
+  assert.ok(second.blocks.some((b: any) => b.type === "thinking" && b.content === "Thinking two"));
+  assert.ok(first.blocks.some((b: any) => b.type === "tool" && b.status === "done"));
+  assert.ok(second.blocks.some((b: any) => b.type === "tool" && b.status === "running"));
+  child("one", { type: E.Done, text: "Draft" });
+  child("one", { type: E.TextDelta, delta: "late output" });
+  child("two", { type: E.Error, message: "review failed" });
+  child("foreign", { type: E.Started }, "old-parent");
+  assert.equal(session.getSnapshot().activeTaskId, taskId);
+  assert.equal(session.getSnapshot().messages.length, 4);
+  assert.equal(session.getSnapshot().messages[1].status, "done");
+  assert.equal(session.getSnapshot().messages[2].status, "error");
+  emit({ type: E.Done, taskId, text: "Final summary" });
+  await session.flush();
+  assert.equal(session.getSnapshot().phase, "idle");
+  assert.equal(calls.saved.at(-1).messages.length, 4);
+  assert.doesNotMatch(JSON.stringify(calls.saved.at(-1)), /late output/);
+  const restored = await setup({ storage: { load: async () => calls.saved.at(-1) } });
+  assert.deepEqual(restored.session.getSnapshot().messages, session.getSnapshot().messages);
+  await restored.session.close();
+  await session.close();
+});
+
+test("cancelling preserves partial subtask output and settles only unfinished child messages", async () => {
+  const { session, emit } = await setup();
+  await session.send({ text: "Run" });
+  const taskId = session.getSnapshot().activeTaskId!;
+  const child = (subtaskId: string, event: object) =>
+    emit({
+      type: E.SubtaskEvent,
+      taskId,
+      subtaskId,
+      title: subtaskId,
+      event: { taskId: subtaskId, ...event },
+    });
+  child("one", { type: E.Started });
+  child("one", { type: E.Done, text: "Completed step" });
+  child("two", { type: E.Started });
+  child("two", { type: E.ThinkingDelta, delta: "Partial thinking" });
+  child("two", { type: E.TextDelta, delta: "Partial answer" });
+  await session.stop();
+  assert.equal(session.getSnapshot().messages[1].status, "done");
+  assert.equal(session.getSnapshot().messages[2].status, "error");
+  assert.match(JSON.stringify(session.getSnapshot().messages[2]), /Partial thinking/);
+  assert.match(JSON.stringify(session.getSnapshot().messages[2]), /Partial answer/);
+  await session.close();
+});
+
+test("coordinator placeholders hide only during delegated execution; plugin avatars bypass the host catalog", () => {
+  const parent = { id: "parent", role: "assistant" as const, createdAt: 1, status: "loading" as const, blocks: [] };
+  const child = { ...parent, id: "child", parentMessageId: "parent" };
+  assert.deepEqual(visibleMessages([parent]), [parent]);
+  assert.deepEqual(visibleMessages([child, parent]), [child]);
+  const output = {
+    ...parent,
+    status: "streaming" as const,
+    blocks: [{ id: "text", type: "text" as const, content: "Actual parent output" }],
+  };
+  assert.deepEqual(visibleMessages([child, output]), [child, output]);
+  assert.equal(visibleMessages([child, { ...parent, status: "error" }]).length, 2);
+  assert.equal(visibleMessages([child, { ...parent, status: "done" }]).length, 2);
+  const builtin = (id: string) => {
+    assert.equal(id, "cat-sky");
+    return "/assets/cat.jpg";
+  };
+  assert.equal(messageAvatarSource("data:image/svg+xml,%3Csvg%2F%3E", builtin), "data:image/svg+xml,%3Csvg%2F%3E");
+  assert.equal(messageAvatarSource("https://example.com/avatar.png", builtin), "https://example.com/avatar.png");
+  assert.equal(messageAvatarSource("cat-sky", builtin), "/assets/cat.jpg");
+  assert.equal(messageAvatarSource(undefined, builtin), undefined);
 });

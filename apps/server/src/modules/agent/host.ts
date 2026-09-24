@@ -43,6 +43,7 @@ export const commandNames = [
   "answer_agent_runtime_question",
   "answer_agent_runtime_approval",
   "abort_agent_runtime_agent",
+  "resume_agent_runtime_agent",
   ...Object.keys(queryCommands),
   "list_agent_runtime_sessions",
   "summarize_agent_runtime_session",
@@ -91,6 +92,7 @@ export class AgentRuntimeHost {
     private applicationSession?: (
       id: unknown,
     ) => Promise<{ access: unknown; resources: JsonObject }>,
+    private resumeTask?: (taskId: string) => Promise<void>,
   ) {}
 
   private sessionPath(
@@ -222,9 +224,20 @@ export class AgentRuntimeHost {
         "COMMAND_NOT_FOUND",
         `尚未实现的命令：${name}`,
       );
+    if (name === "resume_agent_runtime_agent") {
+      onlyKeys(args, ["taskId"]);
+      if (!this.resumeTask)
+        throw new ServiceError(
+          501,
+          "HOST_UNSUPPORTED",
+          "宿主未实现任务继续能力",
+        );
+      await this.resumeTask(nonempty(args.taskId, "taskId"));
+      return null;
+    }
     if (name === "abort_agent_runtime_agent") {
       onlyKeys(args, ["taskId"]);
-      this.supervisor.abort(nonempty(args.taskId, "taskId"));
+      await this.supervisor.abort(nonempty(args.taskId, "taskId"));
       return null;
     }
     onlyKeys(args, ["input"]);

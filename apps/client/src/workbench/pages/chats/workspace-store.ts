@@ -16,7 +16,7 @@ type CurrentChat = {
 
 export type OpenChat = CurrentChat;
 
-export type ChatActivity = "running" | "waiting-approval" | "waiting-answer";
+export type ChatActivity = "running" | "pausing" | "paused" | "cancelling" | "waiting-approval" | "waiting-answer";
 
 type ChatActivityMap = Partial<Record<string, Partial<Record<string, ChatActivity>>>>;
 

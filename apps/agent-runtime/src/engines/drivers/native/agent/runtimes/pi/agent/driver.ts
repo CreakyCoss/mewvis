@@ -1,3 +1,4 @@
+import type { ExtensionBindings } from "@isle/extension-host";
 import { AgentRuntimeEventType } from "../../../../../../protocol/wire.js";
 import type {
   AgentRunResult,
@@ -24,6 +25,7 @@ type DrivePiAgentSessionInput = {
   nativeSession?: AgentRuntimeNativeSession;
   state: PiAgentRunState;
   shouldBootstrap: boolean;
+  suspension?: ExtensionBindings["suspension"];
 };
 
 export const drivePiAgentSession = async ({
@@ -34,13 +36,14 @@ export const drivePiAgentSession = async ({
   nativeSession,
   state,
   shouldBootstrap,
+  suspension,
 }: DrivePiAgentSessionInput): Promise<AgentRunResult> => {
   let nextPrompt: string | null = await createPiInitialPrompt(command, shouldBootstrap, nativeSession);
   while (nextPrompt) {
     state.assistantText = "";
     state.streamedText = "";
     state.sessionError = null;
-    await runPromptWithIdleTimeout(session, nextPrompt, state);
+    await runPromptWithIdleTimeout(session, nextPrompt, state, suspension);
     throwPiSessionError(state);
 
     nextPrompt = await nextPromptFromAskUserToolCall(command, callbacks, emit, state);
@@ -76,10 +79,16 @@ const nextPromptFromAskUserToolCall = async (
   return createPiAskUserContinuationPrompt(answer);
 };
 
-const runPromptWithIdleTimeout = async (session: PiAgentSession, prompt: string, state: PiAgentRunState) => {
+const runPromptWithIdleTimeout = async (
+  session: PiAgentSession,
+  prompt: string,
+  state: PiAgentRunState,
+  suspension?: ExtensionBindings["suspension"],
+) => {
   try {
     await withIdleTimeout(() => session.prompt(prompt), {
       timeoutMs: PROMPT_IDLE_TIMEOUT_MS,
+      suspension,
       message: `Agent session 连续 ${formatTimeout(PROMPT_IDLE_TIMEOUT_MS)}无活动，已中止`,
       subscribe: (onActivity) => session.subscribe(() => onActivity()),
       onTimeout: async (error) => {

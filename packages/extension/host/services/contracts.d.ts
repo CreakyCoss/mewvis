@@ -3,13 +3,21 @@ export interface ExtensionActivity {
   title: string;
   state: "running" | "completed" | "failed" | "cancelled";
   detail?: string;
+  /** This activity cooperates with host checkpoints. */
+  pausable?: boolean;
   steps: Array<{
     id: string;
     title: string;
     state: "pending" | "running" | "completed" | "failed" | "cancelled";
   }>;
 }
-export interface ExtensionActivitySnapshot extends ExtensionActivity {
+export interface ExtensionActivitySnapshot extends Omit<
+  ExtensionActivity,
+  "state"
+> {
+  state: ExtensionActivity["state"] | "pausing" | "paused" | "cancelling";
+  /** Opaque parent execution identity, used to correlate host execution state. */
+  executionId: string;
   updatedAt: number;
 }
 /** Plugin-facing host contracts. No transport, storage paths or Agent-native types. */
@@ -72,7 +80,14 @@ export interface ExtensionHostMethods {
     output: import("../shared.js").JsonObject;
   };
   "tasks.run": {
-    input: { text: string; systemPrompt?: string };
+    /** Host displays this task’s streamed output separately using the optional title. */
+    input: {
+      text: string;
+      systemPrompt?: string;
+      title?: string;
+      /** Plugin-owned image URL or data URI; never a host avatar ID. */
+      avatar?: string;
+    };
     output: { text: string };
   };
   "activity.publish": { input: ExtensionActivity; output: null };
@@ -81,6 +96,9 @@ export interface ExtensionHostMethods {
     output: ExtensionActivitySnapshot | null;
   };
   "activity.cancel": { input: { id: string }; output: null };
+  "activity.pause": { input: { id: string }; output: null };
+  "activity.resume": { input: { id: string }; output: null };
+  "activity.checkpoint": { input: { id: string }; output: null };
 
   "session.read": {
     input: Record<string, never>;
@@ -141,6 +159,12 @@ export interface ExtensionHostServices {
       signal?: AbortSignal;
     }): Promise<ExtensionActivitySnapshot | null>;
     cancel(id: string, options?: { signal?: AbortSignal }): Promise<null>;
+    /** Request a pause at the next checkpoint; the current step keeps running. */
+    pause(id: string, options?: { signal?: AbortSignal }): Promise<null>;
+    /** Release a paused checkpoint or withdraw a pending pause request. */
+    resume(id: string, options?: { signal?: AbortSignal }): Promise<null>;
+    /** Runtime only: wait here while paused. Cancellation rejects; completed work is not replayed. */
+    checkpoint(id: string, options?: { signal?: AbortSignal }): Promise<null>;
   };
 
   readonly capabilities: readonly ExtensionHostSupport[];

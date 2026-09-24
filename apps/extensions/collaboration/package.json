@@ -157,7 +157,10 @@
         "tasks.run",
         "activity.publish",
         "activity.read",
-        "activity.cancel"
+        "activity.cancel",
+        "activity.pause",
+        "activity.resume",
+        "activity.checkpoint"
       ]
     },
     "modules": {

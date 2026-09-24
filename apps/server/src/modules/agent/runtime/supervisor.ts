@@ -1,3 +1,4 @@
+import type { ActivityExecution } from "@isle/extension-host/services/activity";
 import { randomUUID } from "node:crypto";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import type { RuntimeConfig } from "../../../config/runtime.js";
@@ -26,6 +27,8 @@ export type WorkerState =
   | "crashed"
   | "recovering";
 export type TaskState =
+  | "pausing"
+  | "paused"
   | "queued"
   | "starting"
   | "running"
@@ -51,6 +54,7 @@ export interface TaskSnapshot {
   workerId: string;
   sessionKey: string;
   updatedAt: number;
+  activities?: Record<string, ActivityExecution>;
   pendingInput?: JsonObject;
   result?: JsonObject;
 }
@@ -146,7 +150,47 @@ export class AgentRuntimeSupervisor {
     };
   }
 
+  executionScope(taskId: string) {
+    const worker = this.taskIndex.get(taskId);
+    return worker?.current?.taskId === taskId && worker.usable
+      ? worker.scope
+      : undefined;
+  }
+
+  activity(taskId: string, value: ActivityExecution) {
+    const worker = this.taskIndex.get(taskId);
+    const task = this.tasks.get(taskId);
+    if (
+      !task ||
+      !worker?.usable ||
+      worker.current?.taskId !== taskId ||
+      terminal.has(task.taskState)
+    )
+      return;
+    if ((task.activities?.[value.extensionId]?.revision ?? 0) >= value.revision)
+      return;
+    task.activities = {
+      ...task.activities,
+      [value.extensionId]: structuredClone(value),
+    };
+    this.state(worker, taskId, task.pendingInput ? "waiting_user" : "running");
+  }
+
   state(worker: RuntimeWorker, taskId: string, taskState: TaskState) {
+    const activities = this.tasks.get(taskId)?.activities;
+    if (taskState === "running") {
+      const active = Object.values(activities ?? {}).filter((item) =>
+        ["running", "pausing", "paused"].includes(item.state),
+      );
+      if (active.length && active.every((item) => item.state === "paused"))
+        taskState = "paused";
+      else if (
+        active.some(
+          (item) => item.state === "pausing" || item.state === "paused",
+        )
+      )
+        taskState = "pausing";
+    }
     this.diagnostics.record("task_state", {
       workerId: worker.id,
       taskId,
@@ -159,6 +203,7 @@ export class AgentRuntimeSupervisor {
       workerId: worker.id,
       sessionKey: worker.scope.sessionKey,
       updatedAt: Date.now(),
+      ...(activities ? { activities } : {}),
       ...(previous?.result ? { result: previous.result } : {}),
       ...(taskState === "waiting_user" && previous?.pendingInput
         ? { pendingInput: previous.pendingInput }
@@ -214,12 +259,12 @@ export class AgentRuntimeSupervisor {
   }
 
   abort(taskId: string) {
-    this.taskIndex.get(taskId)?.abort(taskId);
+    return this.taskIndex.get(taskId)?.abort(taskId) ?? Promise.resolve();
   }
 
   abortApplication(applicationId: string) {
     for (const [taskId, owner] of this.applications)
-      if (owner === applicationId) this.abort(taskId);
+      if (owner === applicationId) void this.abort(taskId).catch(() => {});
   }
 
   assertSessionAvailable(workspacePath: string, sessionRootDir?: string) {
@@ -674,17 +719,13 @@ class RuntimeWorker {
     writeCommand(this.child, command, (error) => this.unhealthy(error));
   }
 
-  abort(taskId: string) {
+  async abort(taskId: string) {
     const index = this.queue.findIndex((task) => task.taskId === taskId);
     if (index >= 0) {
       this.queue.splice(index, 1);
       this.supervisor.state(this, taskId, "cancelled");
     } else if (this.current?.taskId === taskId && this.usable) {
-      this.supervisor.emit(taskId, {
-        type: "error",
-        message: "Agent 任务已取消",
-      });
-      void this.stop("cancelled").catch(() => {});
+      await this.stop("cancelled");
     }
   }
 
@@ -709,12 +750,14 @@ class RuntimeWorker {
       if (this.current)
         this.supervisor.state(this, this.current.taskId, "cancelling");
     }
+    // Let the runtime abort extension calls and release their state locks before
+    // terminating it. ProcessLifecycle still enforces the forced-exit deadline.
     const outcome = await this.lifecycle.stop(
-      reason === "idle"
+      ["idle", "cancelled", "disposed"].includes(reason)
         ? this.supervisor.protocol.command(
             "runtime/shutdown",
             {},
-            `idle-shutdown-${this.id}`,
+            `${reason}-shutdown-${this.id}`,
           )
         : undefined,
     );
@@ -833,6 +876,13 @@ class RuntimeWorker {
     if (message.kind === "result" && value.rpcRequestId !== this.current.taskId)
       return;
     this.lastActivity = performance.now();
+    if (value.type === "extension_activity") {
+      this.supervisor.activity(
+        this.current.taskId,
+        value as unknown as ActivityExecution,
+      );
+      return;
+    }
     if (value.type === "extension_command_result") {
       this.supervisor.emit(this.current.taskId, value);
       this.complete(value.success === true);

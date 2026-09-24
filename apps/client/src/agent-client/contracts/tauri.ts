@@ -100,6 +100,7 @@ export type AgentRuntimeTauriCommands = {
     args: { input: AnswerQuestionParams };
     result: void;
   };
+  resume_agent_runtime_agent: { args: { taskId: string }; result: null };
   abort_agent_runtime_agent: {
     args: { taskId: string };
     result: void;
@@ -141,6 +142,7 @@ export const agentRuntimeTauriCommandNames = [
   "answer_agent_runtime_question",
   "answer_agent_runtime_approval",
   "abort_agent_runtime_agent",
+  "resume_agent_runtime_agent",
   "read_agent_runtime_session",
   "release_agent_runtime_session",
   "delete_agent_runtime_session",

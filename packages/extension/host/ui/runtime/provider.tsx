@@ -1,3 +1,8 @@
+import { ExecutionContext, type UIExecutionSource } from "./execution-context";
+export type {
+  UIExecutionSource,
+  UIExecutionSnapshot,
+} from "./execution-context";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ExtensionSlotProvider } from "../slots/index";
 import { bindUIContributions } from "./contributions";
@@ -16,10 +21,12 @@ export type { ExtensionUICatalogSource } from "../protocol/catalog";
 export function PluginUIProvider({
   source,
   transport,
+  execution,
   children,
 }: {
   source: ExtensionUICatalogSource;
   transport: ExtensionViewTransport;
+  execution?: UIExecutionSource;
   children: ReactNode;
 }) {
   const [catalog, setCatalog] = useState<ExtensionUICatalogState>({
@@ -41,12 +48,14 @@ export function PluginUIProvider({
     [catalog.contributions],
   );
   return (
-    <ViewTransportContext.Provider value={transport}>
-      <DialogRuntimeProvider contributions={catalog.contributions}>
-        <ExtensionSlotProvider contributions={bound} error={catalog.error}>
-          {children}
-        </ExtensionSlotProvider>
-      </DialogRuntimeProvider>
-    </ViewTransportContext.Provider>
+    <ExecutionContext.Provider value={execution}>
+      <ViewTransportContext.Provider value={transport}>
+        <DialogRuntimeProvider contributions={catalog.contributions}>
+          <ExtensionSlotProvider contributions={bound} error={catalog.error}>
+            {children}
+          </ExtensionSlotProvider>
+        </DialogRuntimeProvider>
+      </ViewTransportContext.Provider>
+    </ExecutionContext.Provider>
   );
 }

@@ -151,6 +151,9 @@ pub enum RuntimePingRequest {
 #[serde(rename_all = "camelCase")]
 pub struct AgentRuntimeEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub activity_id: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_access: Option<AgentAccess>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -180,6 +183,9 @@ pub struct AgentRuntimeEvent {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub arguments: Option<HashMap<String, Option<serde_json::Value>>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bootstrap_instruction: Option<String>,
@@ -217,7 +223,7 @@ pub struct AgentRuntimeEvent {
     pub display_summary: Option<RuntimeDisplaySummary>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub event: Option<AgentEvent>,
+    pub event: Option<Event>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub events: Option<Vec<RuntimeTimelineItem>>,
@@ -228,6 +234,9 @@ pub struct AgentRuntimeEvent {
     /// Unix timestamp in milliseconds when this question expires.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<f64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extension_id: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub include_ledger: Option<bool>,
@@ -281,6 +290,9 @@ pub struct AgentRuntimeEvent {
     pub participants: Option<Vec<CollaborationParticipant>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub pausable: Option<bool>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub permission_options: Option<Vec<AgentPermissionOption>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -314,6 +326,9 @@ pub struct AgentRuntimeEvent {
     pub resources: Option<AgentRuntimeResources>,
 
     pub result: Option<serde_json::Value>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub revision: Option<i64>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub root_dir: Option<String>,
@@ -351,6 +366,9 @@ pub struct AgentRuntimeEvent {
     pub skipped_steps: Option<Vec<CollaborationSkippedStep>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<State>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub step: Option<CollaborationS>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -367,6 +385,9 @@ pub struct AgentRuntimeEvent {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stream_id: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subtask_id: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub success: Option<bool>,
@@ -394,6 +415,9 @@ pub struct AgentRuntimeEvent {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timeline_limit: Option<i64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_call_id: Option<String>,
@@ -547,6 +571,9 @@ pub enum PurpleType {
 
     Error,
 
+    #[serde(rename = "extension_activity")]
+    ExtensionActivity,
+
     #[serde(rename = "extension_command_result")]
     ExtensionCommandResult,
 
@@ -594,6 +621,9 @@ pub enum PurpleType {
 
     #[serde(rename = "step_started")]
     StepStarted,
+
+    #[serde(rename = "subtask_event")]
+    SubtaskEvent,
 
     #[serde(rename = "task_result")]
     TaskResult,
@@ -939,9 +969,9 @@ pub struct RuntimeDisplaySummary {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AgentEvent {
-    #[serde(rename = "type")]
-    pub agent_event_type: AgentEventType,
+pub struct Event {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub activity_id: Option<String>,
 
     /// The user's answer, or null when the user cancels answering.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -956,6 +986,9 @@ pub struct AgentEvent {
     pub args: Option<serde_json::Value>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -968,11 +1001,20 @@ pub struct AgentEvent {
     pub details: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub event: Option<SubtaskOutputEvent>,
+
+    #[serde(rename = "type")]
+    pub event_type: EventType,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub execution_id: Option<String>,
 
     /// Unix timestamp in milliseconds when this question expires.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<f64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extension_id: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub input: Option<AskUserInput>,
@@ -986,6 +1028,9 @@ pub struct AgentEvent {
     pub partial_result: Option<serde_json::Value>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub pausable: Option<bool>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub question: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -997,10 +1042,62 @@ pub struct AgentEvent {
     pub result: Option<serde_json::Value>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub revision: Option<i64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub runtime_session: Option<RuntimeSessionRef>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<State>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subtask_id: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub summary: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub task_id: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_call_id: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_name: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SubtaskOutputEvent {
+    pub args: Option<serde_json::Value>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub delta: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_error: Option<bool>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+
+    pub partial_result: Option<serde_json::Value>,
+
+    pub result: Option<serde_json::Value>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub runtime_session: Option<RuntimeSessionRef>,
+
+    #[serde(rename = "type")]
+    pub subtask_output_event_type: SubtaskOutputEventType,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub task_id: Option<String>,
@@ -1016,8 +1113,66 @@ pub struct AgentEvent {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeSessionRef {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assistant_message_record_id: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_context_record_id: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub runtime_instruction_record_id: Option<String>,
+
+    pub session_root_dir: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_message_record_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum AgentEventType {
+pub enum SubtaskOutputEventType {
+    Done,
+
+    Error,
+
+    #[serde(rename = "replace_text")]
+    ReplaceText,
+
+    Started,
+
+    #[serde(rename = "text_delta")]
+    TextDelta,
+
+    #[serde(rename = "thinking_delta")]
+    ThinkingDelta,
+
+    #[serde(rename = "thinking_end")]
+    ThinkingEnd,
+
+    #[serde(rename = "tool_call_delta")]
+    ToolCallDelta,
+
+    #[serde(rename = "tool_call_end")]
+    ToolCallEnd,
+
+    #[serde(rename = "tool_call_start")]
+    ToolCallStart,
+
+    #[serde(rename = "tool_execution_end")]
+    ToolExecutionEnd,
+
+    #[serde(rename = "tool_execution_start")]
+    ToolExecutionStart,
+
+    #[serde(rename = "tool_execution_update")]
+    ToolExecutionUpdate,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EventType {
     #[serde(rename = "approval_requested")]
     ApprovalRequested,
 
@@ -1028,6 +1183,9 @@ pub enum AgentEventType {
 
     Error,
 
+    #[serde(rename = "extension_activity")]
+    ExtensionActivity,
+
     Question,
 
     #[serde(rename = "question_answered")]
@@ -1037,6 +1195,9 @@ pub enum AgentEventType {
     ReplaceText,
 
     Started,
+
+    #[serde(rename = "subtask_event")]
+    SubtaskEvent,
 
     #[serde(rename = "text_delta")]
     TextDelta,
@@ -1100,21 +1261,19 @@ pub struct AskUserOption {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RuntimeSessionRef {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub assistant_message_record_id: Option<String>,
+#[serde(rename_all = "snake_case")]
+pub enum State {
+    Cancelled,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub request_context_record_id: Option<String>,
+    Completed,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub runtime_instruction_record_id: Option<String>,
+    Failed,
 
-    pub session_root_dir: String,
+    Paused,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub user_message_record_id: Option<String>,
+    Pausing,
+
+    Running,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1760,6 +1919,8 @@ pub const METHOD_EXTENSIONS_COMMANDS_LIST: &str = "extensions/commands/list";
 pub const METHOD_EXTENSIONS_COMMANDS_EXECUTE: &str = "extensions/commands/execute";
 pub const NOTIFICATION_RUNTIME_EVENT: &str = "runtime/event";
 pub const NOTIFICATION_RUNTIME_RESULT: &str = "runtime/result";
+pub const EVENT_SUBTASK_EVENT: &str = "subtask_event";
+pub const EVENT_EXTENSION_ACTIVITY: &str = "extension_activity";
 pub const EVENT_STARTED: &str = "started";
 pub const EVENT_QUESTION: &str = "question";
 pub const EVENT_QUESTION_ANSWERED: &str = "question_answered";

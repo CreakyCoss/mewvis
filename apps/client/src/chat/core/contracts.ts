@@ -25,6 +25,7 @@ export interface ChatRuntime {
   subscribe(listener: (event: AgentClientAgentEvent) => void): Promise<() => void>;
   prepare(turn: TurnInput & { context: ChatContext }, signal: AbortSignal): Promise<PreparedChatRun>;
   abort(taskId: string): Promise<void>;
+  resume?(taskId: string): Promise<void>;
   answer(taskId: string, questionId: string, answer: string | null): Promise<void>;
   release(): Promise<void>;
 }

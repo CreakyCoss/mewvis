@@ -87,7 +87,10 @@ export type ChatUserMessage = ChatMessageBase & {
 export type ChatAssistantMessage = ChatMessageBase & {
   role: "assistant";
   blocks: ChatAssistantMessageBlock[];
+  /** Built-in avatar ID or a plugin-owned image URL/data URI. */
   agentAvatar?: string;
+  /** Message whose execution produced this subtask output. */
+  parentMessageId?: string;
   agentName?: string;
 };
 
@@ -182,11 +185,28 @@ export type ChatPhase =
   | "preparing"
   | "submitting"
   | "running"
+  | "pausing"
+  | "paused"
   | "waiting"
   | "stopping"
   | "closing"
   | "closed";
+export type ChatExecution = {
+  taskId: string;
+  /** A failed cancellation can be retried while the task remains reserved. */
+  cancelError?: string;
+  state:
+    | "running"
+    | "pausing"
+    | "paused"
+    | "cancelling"
+    | "completed"
+    | "cancelled"
+    | "failed";
+};
 export type ChatSnapshot = {
+  /** Host execution state shared by all views; retained at completion for activity correlation. */
+  execution?: ChatExecution;
   identity: SessionIdentity;
   phase: ChatPhase;
   initialized: boolean;
@@ -216,6 +236,7 @@ export interface ChatSession {
   subscribe(listener: () => void): () => void;
   send(input: MessageInput): Promise<SendResult>;
   stop(): Promise<OperationResult>;
+  resume?(): Promise<OperationResult>;
   answer(input: {
     questionId: string;
     /** null cancels this question without stopping the task. */

@@ -10,24 +10,25 @@ import { startServer } from "../../dist/server.js";
 import { token, waitFor } from "../support/helpers.mjs";
 
 test(
-  "configurable collaboration crosses SDK, host, Pi, slash command, model tool and activity cancellation",
+  "collaboration crosses SDK, host and Pi with step-boundary pause, resume and cancellation",
   { timeout: 120000 },
   async (t) => {
     const root = await mkdtemp(join(tmpdir(), "isle-plugin-collaboration-"));
     const requests = [];
-    let hold = false;
+    let gateChildren = false;
+    const gates = [];
     const model = createServer(async (request, response) => {
       let body = "";
       for await (const chunk of request) body += chunk;
       const input = JSON.parse(body);
       requests.push(input);
-      if (hold) {
-        await delay(15000);
-        if (response.destroyed) return;
-      }
       const tool = input.tools?.find(
         (item) => item.function?.name === "ext_isle_collaboration__review",
       );
+      if (gateChildren && !tool) {
+        await new Promise((resolve) => gates.push(resolve));
+        if (response.destroyed) return;
+      }
       const toolReply = input.messages?.some((item) => item.role === "tool");
       const delta =
         tool && !toolReply
@@ -47,6 +48,9 @@ test(
             }
           : { role: "assistant", content: `步骤结果 ${requests.length}` };
       response.writeHead(200, { "Content-Type": "text/event-stream" });
+      if (!tool) response.write(
+        `data: ${JSON.stringify({ id: "fixture", object: "chat.completion.chunk", created: 1, model: "local", choices: [{ index: 0, delta: { role: "assistant", reasoning_content: "步骤思考内容" }, finish_reason: null }] })}\n\n`,
+      );
       response.write(
         `data: ${JSON.stringify({ id: "fixture", object: "chat.completion.chunk", created: 1, model: "local", choices: [{ index: 0, delta, finish_reason: tool && !toolReply ? "tool_calls" : "stop" }] })}\n\n`,
       );
@@ -62,6 +66,7 @@ test(
     const events = [];
     server.supervisor.events.subscribe((event) => events.push(event));
     t.after(async () => {
+      for (const release of gates.splice(0)) release();
       await server.close();
       model.closeAllConnections();
       await new Promise((r) => model.close(r));
@@ -72,7 +77,12 @@ test(
         method: "POST",
         headers: { authorization: `Bearer ${token}` },
         body: JSON.stringify(
-          name === "get_ai_agent_settings" || name === "delete_ai_agent"
+          [
+            "get_ai_agent_settings",
+            "delete_ai_agent",
+            "resume_agent_runtime_agent",
+            "abort_agent_runtime_agent",
+          ].includes(name)
             ? input
             : { input },
         ),
@@ -100,13 +110,17 @@ test(
       viewId: "settings",
     });
     let sequence = 0;
-    const query = (view, method, args = {}) =>
-      call("query_extension_view", {
-        token: view.token,
-        method,
-        arguments: args,
-        requestId: ++sequence,
-      });
+    const query = (view, method, args = {}, expect = 200) =>
+      call(
+        "query_extension_view",
+        {
+          token: view.token,
+          method,
+          arguments: args,
+          requestId: ++sequence,
+        },
+        expect,
+      );
     await call(
       "query_extension_view",
       {
@@ -181,11 +195,38 @@ test(
       id: "isle.collaboration",
       contributionId: "progress",
     });
-    const run = (taskId, userMessage) =>
+    const other = await call("open_extension_view", {
+      ...target,
+      chatId: "another-chat",
+      id: "isle.collaboration",
+      contributionId: "progress",
+    });
+    const waitActivity = async (state, view = status) => {
+      for (let i = 0; i < 200; i++) {
+        const activity = await query(view, "activity.read");
+        if (activity?.state === state) return activity;
+        await delay(50);
+      }
+      assert.fail(`activity did not become ${state}`);
+    };
+    const waitChild = async () => {
+      try {
+        await waitFor(
+          () => gates.length > 0,
+          "child request reached model",
+          15000,
+        );
+      } catch (error) {
+        throw new Error(
+          `${error.message}: ${JSON.stringify(events.slice(-15))}`,
+        );
+      }
+    };
+    const run = (taskId, userMessage, runTarget = target) =>
       call("run_agent_runtime_agent", {
-        ...target,
+        ...runTarget,
         taskId,
-        sessionRootDir: `chats/${target.chatId}/session`,
+        sessionRootDir: `chats/${runTarget.chatId}/session`,
         agentRoleId: "main",
         userMessage,
         permissions: { mode: "full" },
@@ -223,6 +264,18 @@ test(
       2,
       "slash commands bypass parent model selection",
     );
+    const outputs = events
+      .map((event) => event.payload?.event)
+      .filter((event) => event?.type === "subtask_event" && event.taskId === "slash-flow");
+    assert.equal(new Set(outputs.map((event) => event.subtaskId)).size, 2);
+    for (const subtaskId of new Set(outputs.map((event) => event.subtaskId))) {
+      const child = outputs.filter((event) => event.subtaskId === subtaskId);
+      assert.equal(child[0].event.type, "started");
+      assert.match(child[0].avatar, /^data:image\/svg\+xml,/);
+      assert.equal(child.at(-1).event.type, "done");
+      assert.ok(child.some(({ event }) => event.type === "thinking_delta" && event.delta.includes("步骤思考")));
+      assert.ok(child.some(({ event }) => event.type === "text_delta" && event.delta.includes("步骤结果")));
+    }
     assert.match(JSON.stringify(requests[0].messages), /插件独立角色指令/);
     assert.doesNotMatch(
       JSON.stringify(requests[0].messages),
@@ -259,10 +312,143 @@ test(
       ),
     );
     assert.equal((await query(status, "activity.read")).state, "completed");
-    hold = true;
-    const before = requests.length;
+    gateChildren = true;
+    const modelTarget = { ...target, chatId: "model-pausing" };
+    const modelStatus = await call("open_extension_view", {
+      ...modelTarget,
+      id: "isle.collaboration",
+      contributionId: "progress",
+    });
+    await run("model-pause-flow", "请按自定义评审流程完成任务", modelTarget);
+    await waitChild();
+    const modelActivity = await query(modelStatus, "activity.read");
+    await query(modelStatus, "activity.pause", { id: modelActivity.id });
+    gates.shift()();
+    await waitActivity("paused", modelStatus);
+    const pausedRequestCount = requests.length;
+    await delay(250);
+    assert.equal(
+      requests.length,
+      pausedRequestCount,
+      "parent Pi waits for its paused plugin tool",
+    );
+    await query(modelStatus, "activity.resume", { id: modelActivity.id });
+    await waitChild();
+    gates.shift()();
+    await done("model-pause-flow");
+    assert.equal(
+      (await query(modelStatus, "activity.read")).state,
+      "completed",
+    );
+    const previous = await query(status, "activity.read");
+    await run("pause-flow", "/isle.collaboration/review 步骤之间暂停");
+    await waitChild();
+    const first = await query(status, "activity.read");
+    assert.equal(first.pausable, true);
+    await query(status, "activity.pause", { id: previous.id }, 409);
+    await query(other, "activity.pause", { id: first.id }, 409);
+    await query(status, "activity.pause", { id: first.id });
+    await query(status, "activity.pause", { id: first.id });
+    const pausing = await query(status, "activity.read");
+    assert.equal(pausing.state, "pausing");
+    assert.equal(
+      pausing.steps[0].state,
+      "running",
+      "pause never aborts the active step",
+    );
+    const firstRequestCount = requests.length;
+    gates.shift()();
+    const paused = await waitActivity("paused");
+    assert.deepEqual(
+      paused.steps.map((s) => s.state),
+      ["completed", "pending"],
+    );
+    await delay(250);
+    assert.equal(
+      requests.length,
+      firstRequestCount,
+      "next step must not start during pause",
+    );
+    await waitFor(
+      () => server.supervisor.snapshot("pause-flow").taskState === "paused",
+      "shared paused task state",
+    );
+    assert.equal(paused.executionId, "pause-flow");
+    assert.ok(
+      events.some(
+        (event) =>
+          event.payload?.taskId === "pause-flow" &&
+          event.payload.event.taskState === "pausing",
+      ),
+    );
+    await call("resume_agent_runtime_agent", { taskId: "pause-flow" });
+    await query(status, "activity.resume", { id: first.id });
+    await waitChild();
+    assert.equal(
+      requests.length,
+      firstRequestCount + 1,
+      "resume starts the next step exactly once",
+    );
+    assert.match(
+      JSON.stringify(requests.at(-1).messages),
+      new RegExp(`步骤结果 ${firstRequestCount}`),
+    );
+    await query(status, "activity.pause", { id: first.id });
+    gates.shift()();
+    await done("pause-flow");
+    assert.equal(
+      (await query(status, "activity.read")).state,
+      "completed",
+      "last-step completion wins over a pending pause",
+    );
+    await query(status, "activity.resume", { id: first.id }, 409);
+
+    await run("withdraw-pause", "/isle.collaboration/review 撤回暂停");
+    await waitChild();
+    const withdrawn = await query(status, "activity.read");
+    await query(status, "activity.pause", { id: withdrawn.id });
+    await query(status, "activity.resume", { id: withdrawn.id });
+    assert.equal((await query(status, "activity.read")).state, "running");
+    gates.shift()();
+    await waitChild();
+    gates.shift()();
+    await done("withdraw-pause");
+
+    await run("cancel-paused", "/isle.collaboration/review 暂停后取消");
+    await waitChild();
+    const cancelPaused = await query(status, "activity.read");
+    await query(status, "activity.pause", { id: cancelPaused.id });
+    gates.shift()();
+    await waitActivity("paused");
+    const beforeCancel = requests.length;
+    await query(status, "activity.cancel", { id: cancelPaused.id });
+    assert.equal(
+      server.supervisor.snapshot("cancel-paused").taskState,
+      "cancelled",
+      "cancel acknowledgement confirms termination",
+    );
+    assert.ok(
+      events.some(
+        (event) =>
+          event.payload?.taskId === "cancel-paused" &&
+          event.payload.event.taskState === "cancelling",
+      ),
+    );
+    await waitFor(
+      () =>
+        server.supervisor.snapshot("cancel-paused")?.taskState === "cancelled",
+      "paused task cancelled",
+      10000,
+    );
+    assert.equal((await query(status, "activity.read")).state, "cancelled");
+    assert.deepEqual(
+      (await query(status, "activity.read")).steps.map((s) => s.state),
+      ["completed", "pending"],
+    );
+    assert.equal(requests.length, beforeCancel);
+
     await run("cancel-flow", "/isle.collaboration/review 等待取消");
-    await waitFor(() => requests.length > before, "child started", 15000);
+    await waitChild();
     const running = await query(status, "activity.read");
     assert.equal(running.state, "running");
     assert.equal(running.steps[0].state, "running");
@@ -276,12 +462,6 @@ test(
     const cancelled = await query(status, "activity.read");
     assert.equal(cancelled.state, "cancelled");
     assert.equal(cancelled.steps[0].state, "cancelled");
-    const other = await call("open_extension_view", {
-      ...target,
-      chatId: "another-chat",
-      id: "isle.collaboration",
-      contributionId: "progress",
-    });
     assert.equal(await query(other, "activity.read"), null);
   },
 );

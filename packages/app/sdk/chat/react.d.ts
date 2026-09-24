@@ -99,6 +99,8 @@ declare function useChatComposer(): {
   }[];
   skills: _isle_chat_contracts.SkillOption[];
   busy: boolean;
+  execution: _isle_chat_contracts.ChatExecution | undefined;
+  resume: (() => Promise<_isle_chat_contracts.OperationResult>) | undefined;
   disabled: boolean;
   canSubmit: boolean;
   setDraft: (draft: ComposerDraft) => void;

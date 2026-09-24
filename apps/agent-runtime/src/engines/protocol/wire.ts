@@ -7,6 +7,7 @@ export {
   agentRuntimeJsonRpcMethods,
   agentRuntimeProtocolVersion,
   type AgentEvent,
+  type SubtaskEvent,
   type AgentRunParams,
   type ExtensionCommandsParams,
   type ExtensionCommandParams,

@@ -51,6 +51,7 @@ export class PiAgent implements AgentRuntime {
         nativeSession,
         state,
         shouldBootstrap: createdSession.shouldBootstrap,
+        suspension: extensions?.suspension,
       });
 
       signal?.throwIfAborted();

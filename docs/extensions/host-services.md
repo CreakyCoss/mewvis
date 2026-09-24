@@ -33,7 +33,7 @@ if (ctx.host.supports("session.summarize")) {
 
 ## 当前能力
 
-协作相关能力包括 `configuration.read/write`、`tasks.run` 和 `activity.publish/read/cancel`。配置限定为调用插件本身，活动限定为插件和当前会话；任务执行沿用宿主的模型、权限及取消链路，接受 `{ text, systemPrompt? }`，不依赖任何宿主角色。具体作用域与使用方式见[角色协作插件](collaboration.md)。
+协作相关能力包括 `configuration.read/write`、`tasks.run` 和 `activity.publish/read/pause/resume/checkpoint/cancel`。配置限定为调用插件本身，活动限定为插件和当前会话；任务执行沿用宿主的模型、权限及取消链路，接受 `{ text, systemPrompt?, title?, avatar? }`，不依赖任何宿主角色。具体作用域与使用方式见[角色协作插件](collaboration.md)。
 
 | 方法                  | 返回与边界                                                                                                                                                                                     |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -44,6 +44,16 @@ if (ctx.host.supports("session.summarize")) {
 读取结果使用稳定 DTO，不暴露账本路径和任意内部 metadata；内容文本本身可能包含会话中已有的路径或工具参数。发生裁剪时 `truncated` 为 true。摘要的 `truncated` 同时反映源快照与输入裁剪。
 
 摘要是用户主动触发的一次性模型调用。桌面适配器使用会话已选的可用模型，未选择时使用配置中的首个已启用模型；无可用模型返回 `HOST_UNAVAILABLE`。模型密钥由宿主解析，不返回插件。该调用没有会话写入端口，不保存摘要，不压缩账本，也不将摘要加入后续对话上下文。
+
+## 活动暂停协议
+
+- `activity.publish` 的 `pausable: true` 表示插件会主动调用检查点。发布状态仍为 `running/completed/failed/cancelled`；宿主读取快照额外包含 `pausing/paused`，插件不能自行发布这两个状态。
+- `activity.pause({ id })` 在当前会话登记暂停请求，不中断正在执行的工作；`activity.resume({ id })` 放行等待或撤回请求。已结束、不支持暂停或不匹配的活动返回 `HOST_UNAVAILABLE`。
+- `activity.checkpoint({ id })` 仅在 Agent 执行环境提供：未请求暂停时直接返回，已请求时转为 `paused` 并等待继续；取消或运行销毁时拒绝等待。插件在安全边界主动调用它，宿主不理解具体流程。
+
+上述是传输方法的参数形状；SDK 客户端对应 `ctx.host.activity.pause(id)`、`resume(id)`、`checkpoint(id)`。UI 的通用 `StatusSlot` 提供暂停、撤回暂停、继续和取消的默认渲染，也将操作暴露给自定义 `render`。
+
+当前实现以活动文件协调桌面服务和运行进程，并用同一文件锁保护暂停请求与进度更新。活动更新带有单调版本，运行进程与宿主控制请求统一投影到任务执行状态，旧事件不能覆盖新暂停请求。读取快照的 `executionId` 是父执行的关联标识；UI 可用宿主 `UIExecutionSource` 与会话快照关联。文件仅是状态快照，不是可恢复的执行检查点：等待与前序结果保留在当前进程中。暂停等待不计入插件执行预算；Agent 适配器可通过宿主 `ExtensionBindings.suspension` 暂停自身的空闲检测，无需 SDK 或宿主服务了解底层 Agent。
 
 ## 分发、适配与消费
 
@@ -71,3 +81,5 @@ if (ctx.host.supports("session.summarize")) {
 ## 验证
 
 `pnpm --filter @isle/server test:extensions` 包括真实 Runtime 闭环：本地模型桩生成会话与运行摘要，核对账本快照及全部会话文件保持不变。模块测试覆盖可选能力缺失、权限与参数校验、不同宿主实现、取消先于查询、视图关闭和插件停用。
+
+`tasks.run` 的正文、模型返回的思考和工具事件由宿主以独立子任务事件转发到父会话；`title` 仅提供显示名称，`avatar` 使用插件自己的图片 URL 或 data URI，不引用宿主角色和头像 ID。子任务完成或失败只结束自己的消息，父任务继续由自身生命周期管理。桌面按子任务显示并保存消息，取消时保留已输出内容。

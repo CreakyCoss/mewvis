@@ -134,12 +134,14 @@ test("recovery backoff reserves the session, and disposal cancels the pending re
 
 test("unconfirmed stop quarantines session and preserves files; later exit releases quarantine", async (t) => {
   const s = await setup(t, { stopTimeoutMs: 80 });
+  await s.run("ignore-graceful-stop", "ignore-shutdown");
+  await s.done("ignore-graceful-stop");
   const path = join(s.root, ".isle-claw/sessions/test");
   await mkdir(path, { recursive: true });
   await writeFile(join(path, "keep.txt"), "keep");
   await s.run("active", "hold");
   await s.done("active", "running");
-  // Fault injection at the process boundary: emulate a kill request accepted without OS exit.
+  // Ignore both graceful shutdown and a kill request accepted without OS exit.
   const worker = [...s.supervisor.workers.values()][0];
   const kill = worker.child.kill.bind(worker.child);
   worker.child.kill = () => true;

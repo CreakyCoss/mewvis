@@ -259,6 +259,48 @@ class RuntimeDisplaySummary:
 
 
 @dataclass
+class RuntimeSessionRef:
+    session_root_dir: str
+    assistant_message_record_id: str | None
+    request_context_record_id: str | None
+    runtime_instruction_record_id: str | None
+    user_message_record_id: str | None
+
+
+class SubtaskOutputEventType(Enum):
+    DONE = "done"
+    ERROR = "error"
+    REPLACE_TEXT = "replace_text"
+    STARTED = "started"
+    TEXT_DELTA = "text_delta"
+    THINKING_DELTA = "thinking_delta"
+    THINKING_END = "thinking_end"
+    TOOL_CALL_DELTA = "tool_call_delta"
+    TOOL_CALL_END = "tool_call_end"
+    TOOL_CALL_START = "tool_call_start"
+    TOOL_EXECUTION_END = "tool_execution_end"
+    TOOL_EXECUTION_START = "tool_execution_start"
+    TOOL_EXECUTION_UPDATE = "tool_execution_update"
+
+
+@dataclass
+class SubtaskOutputEvent:
+    type: SubtaskOutputEventType
+    args: Any
+    content: str | None
+    delta: str | None
+    is_error: bool | None
+    message: str | None
+    partial_result: Any
+    result: Any
+    runtime_session: RuntimeSessionRef | None
+    task_id: str | None
+    text: str | None
+    tool_call_id: str | None
+    tool_name: str | None
+
+
+@dataclass
 class AskUserOption:
     label: str
     value: str
@@ -278,24 +320,26 @@ class AskUserInput:
     selected: str | None
 
 
-@dataclass
-class RuntimeSessionRef:
-    session_root_dir: str
-    assistant_message_record_id: str | None
-    request_context_record_id: str | None
-    runtime_instruction_record_id: str | None
-    user_message_record_id: str | None
+class State(Enum):
+    CANCELLED = "cancelled"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    PAUSED = "paused"
+    PAUSING = "pausing"
+    RUNNING = "running"
 
 
-class AgentEventType(Enum):
+class EventType(Enum):
     APPROVAL_REQUESTED = "approval_requested"
     APPROVAL_RESOLVED = "approval_resolved"
     DONE = "done"
     ERROR = "error"
+    EXTENSION_ACTIVITY = "extension_activity"
     QUESTION = "question"
     QUESTION_ANSWERED = "question_answered"
     REPLACE_TEXT = "replace_text"
     STARTED = "started"
+    SUBTASK_EVENT = "subtask_event"
     TEXT_DELTA = "text_delta"
     THINKING_DELTA = "thinking_delta"
     THINKING_END = "thinking_end"
@@ -308,34 +352,43 @@ class AgentEventType(Enum):
 
 
 @dataclass
-class AgentEvent:
-    type: AgentEventType
+class Event:
+    type: EventType
+    activity_id: str | None
     answer: str | None
     """The user's answer, or null when the user cancels answering."""
 
     approval_id: str | None
     approved: bool | None
     args: Any
+    avatar: str | None
     content: str | None
     context: str | None
     delta: str | None
     details: str | None
+    event: SubtaskOutputEvent | None
     execution_id: str | None
     expires_at: float | int | None
     """Unix timestamp in milliseconds when this question expires."""
 
+    extension_id: str | None
     input: AskUserInput | None
     is_error: bool | None
     message: str | None
     partial_result: Any
+    pausable: bool | None
     question: str | None
     question_id: str | None
     reason: str | None
     result: Any
+    revision: int | None
     runtime_session: RuntimeSessionRef | None
+    state: State | None
+    subtask_id: str | None
     summary: str | None
     task_id: str | None
     text: str | None
+    title: str | None
     tool_call_id: str | None
     tool_name: str | None
 
@@ -544,6 +597,7 @@ class PurpleType(Enum):
     COLLABORATION_TIMELINE_RESULT = "collaboration_timeline_result"
     DONE = "done"
     ERROR = "error"
+    EXTENSION_ACTIVITY = "extension_activity"
     EXTENSION_COMMANDS_RESULT = "extension_commands_result"
     EXTENSION_COMMAND_RESULT = "extension_command_result"
     PONG = "pong"
@@ -561,6 +615,7 @@ class PurpleType(Enum):
     STEP_DONE = "step_done"
     STEP_SKIPPED = "step_skipped"
     STEP_STARTED = "step_started"
+    SUBTASK_EVENT = "subtask_event"
     TASK_RESULT = "task_result"
     TEXT_DELTA = "text_delta"
     THINKING_DELTA = "thinking_delta"
@@ -599,6 +654,7 @@ class Workflow:
 
 @dataclass
 class AgentRuntimeEvent:
+    activity_id: str | None
     agent_access: AgentAccess | None
     agent_role_id: str | None
     agent_task_id: str | None
@@ -610,6 +666,7 @@ class AgentRuntimeEvent:
     approved: bool | None
     args: Any
     arguments: dict[str, Any] | None
+    avatar: str | None
     bootstrap_instruction: str | None
     catalog: dict[str, RuntimeModelProviderSummary] | None
     command_id: str | None
@@ -622,12 +679,13 @@ class AgentRuntimeEvent:
     details: str | None
     display_summaries: list[RuntimeDisplaySummary] | None
     display_summary: RuntimeDisplaySummary | None
-    event: AgentEvent | None
+    event: Event | None
     events: list[RuntimeTimelineItem] | None
     execution_id: str | None
     expires_at: float | int | None
     """Unix timestamp in milliseconds when this question expires."""
 
+    extension_id: str | None
     include_ledger: bool | None
     include_timeline: bool | None
     include_trace: bool | None
@@ -646,6 +704,7 @@ class AgentRuntimeEvent:
     output: Any
     partial_result: Any
     participants: list[CollaborationParticipant] | None
+    pausable: bool | None
     permission_options: list[AgentPermissionOption] | None
     permissions: AgentPermissions | None
     question: str | None
@@ -658,6 +717,7 @@ class AgentRuntimeEvent:
     request_id: str | None
     resources: AgentRuntimeResources | None
     result: Any
+    revision: int | None
     root_dir: str | None
     rpc_request_id: int | str | None
     runtime: dict[str, Any] | None
@@ -670,12 +730,14 @@ class AgentRuntimeEvent:
     session_root_dir: str | None
     sessions: list[RuntimeSessionSummary] | None
     skipped_steps: list[CollaborationSkippedStep] | None
+    state: State | None
     step: CollaborationS | None
     step_id: str | None
     step_type: StepTypeEnum | None
     steps: list[CollaborationStepResult] | None
     stream: bool | None
     stream_id: str | None
+    subtask_id: str | None
     success: bool | None
     summary: str | None
     system_prompt: str | None
@@ -685,6 +747,7 @@ class AgentRuntimeEvent:
     thinking: str | None
     timeline: list[RuntimeTimelineItem] | None
     timeline_limit: int | None
+    title: str | None
     tool_call_id: str | None
     tool_name: str | None
     tools: list[AgentTool] | None
@@ -785,8 +848,10 @@ from typing import Final
 AGENT_RUNTIME_PROTOCOL_VERSION: Final[str] = "1.0.0"
 AGENT_RUNTIME_JSON_RPC_METHODS: Final[tuple[str, ...]] = ("runtime/ping", "runtime/shutdown", "agent/tools/list", "runtime/models/list", "agent/chat", "agent/run", "agent/question/answer", "session/read", "session/agent/compact", "session/agent/rebuild", "session/summarize", "session/agent/summarize", "session/message/edit", "session/message/delete", "session/message/append", "session/rebuild", "runtime/sessions/list", "runtime/session/read", "runtime/session/debug/read", "collaboration/timeline/read", "collaboration/modes/list", "collaboration/run", "collaboration/runMode", "agent/approval/answer", "extensions/commands/list", "extensions/commands/execute",)
 AGENT_RUNTIME_NOTIFICATION_METHODS: Final[tuple[str, ...]] = ("runtime/event", "runtime/result",)
-AGENT_RUNTIME_EVENT_TYPES: Final[tuple[str, ...]] = ("started", "question", "question_answered", "replace_text", "text_delta", "thinking_delta", "thinking_end", "tool_call_start", "tool_call_delta", "tool_call_end", "tool_execution_start", "tool_execution_update", "tool_execution_end", "done", "error", "workflow_started", "step_started", "agent_event", "step_done", "step_skipped", "workflow_done", "approval_requested", "approval_resolved",)
+AGENT_RUNTIME_EVENT_TYPES: Final[tuple[str, ...]] = ("subtask_event", "extension_activity", "started", "question", "question_answered", "replace_text", "text_delta", "thinking_delta", "thinking_end", "tool_call_start", "tool_call_delta", "tool_call_end", "tool_execution_start", "tool_execution_update", "tool_execution_end", "done", "error", "workflow_started", "step_started", "agent_event", "step_done", "step_skipped", "workflow_done", "approval_requested", "approval_resolved",)
 AGENT_RUNTIME_RESULT_TYPES: Final[tuple[str, ...]] = ("ack", "agent_tools", "chat_result", "pong", "shutdown_ack", "task_result", "runtime_models", "session_result", "session_mutation_result", "collaboration_result", "collaboration_modes_result", "runtime_sessions_result", "runtime_session_result", "runtime_session_debug_result", "collaboration_timeline_result", "extension_commands_result", "extension_command_result",)
+EVENT_SUBTASK_EVENT: Final[str] = "subtask_event"
+EVENT_EXTENSION_ACTIVITY: Final[str] = "extension_activity"
 EVENT_STARTED: Final[str] = "started"
 EVENT_QUESTION: Final[str] = "question"
 EVENT_QUESTION_ANSWERED: Final[str] = "question_answered"

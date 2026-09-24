@@ -107,6 +107,8 @@ export type IsleAgentRuntimeJSONRPCNotification =
     };
 export type AgentRuntimeEvent =
   | StartedEvent
+  | ExtensionActivityEvent
+  | SubtaskEvent
   | QuestionEvent
   | QuestionAnsweredEvent
   | ApprovalRequestedEvent
@@ -839,53 +841,35 @@ export interface StartedEvent {
   type: "started";
   taskId: string;
 }
-export interface QuestionEvent {
-  type: "question";
+export interface ExtensionActivityEvent {
+  type: "extension_activity";
   taskId: string;
-  questionId: string;
-  question: string;
-  /**
-   * Unix timestamp in milliseconds when this question expires.
-   */
-  expiresAt: number;
-  context?: string | null;
-  input?: AskUserInput;
+  extensionId: string;
+  activityId: string;
+  state: "running" | "pausing" | "paused" | "completed" | "failed" | "cancelled";
+  pausable: boolean;
+  revision: number;
 }
-export interface AskUserInput {
-  type: "text" | "select";
-  label?: string;
-  options?: AskUserOption[];
-  selected?: string;
-}
-export interface AskUserOption {
-  value: string;
-  label: string;
-  description?: string;
-}
-export interface QuestionAnsweredEvent {
-  type: "question_answered";
+export interface SubtaskEvent {
+  type: "subtask_event";
   taskId: string;
-  questionId: string;
-  /**
-   * The user's answer, or null when the user cancels answering.
-   */
-  answer: string | null;
-}
-export interface ApprovalRequestedEvent {
-  type: "approval_requested";
-  taskId: string;
-  approvalId: string;
-  executionId: string;
-  summary: string;
-  details: string;
-  reason: string;
-  expiresAt: number;
-}
-export interface ApprovalResolvedEvent {
-  type: "approval_resolved";
-  taskId: string;
-  approvalId: string;
-  approved: boolean;
+  subtaskId: string;
+  title: string;
+  avatar?: string;
+  event:
+    | StartedEvent
+    | ReplaceTextEvent
+    | TextDeltaEvent
+    | ThinkingDeltaEvent
+    | ThinkingEndEvent
+    | ToolCallStartEvent
+    | ToolCallDeltaEvent
+    | ToolCallEndEvent
+    | ToolExecutionStartEvent
+    | ToolExecutionUpdateEvent
+    | ToolExecutionEndEvent
+    | DoneEvent
+    | AgentErrorEvent;
 }
 export interface ReplaceTextEvent {
   type: "replace_text";
@@ -967,6 +951,54 @@ export interface AgentErrorEvent {
   taskId?: string;
   message: string;
 }
+export interface QuestionEvent {
+  type: "question";
+  taskId: string;
+  questionId: string;
+  question: string;
+  /**
+   * Unix timestamp in milliseconds when this question expires.
+   */
+  expiresAt: number;
+  context?: string | null;
+  input?: AskUserInput;
+}
+export interface AskUserInput {
+  type: "text" | "select";
+  label?: string;
+  options?: AskUserOption[];
+  selected?: string;
+}
+export interface AskUserOption {
+  value: string;
+  label: string;
+  description?: string;
+}
+export interface QuestionAnsweredEvent {
+  type: "question_answered";
+  taskId: string;
+  questionId: string;
+  /**
+   * The user's answer, or null when the user cancels answering.
+   */
+  answer: string | null;
+}
+export interface ApprovalRequestedEvent {
+  type: "approval_requested";
+  taskId: string;
+  approvalId: string;
+  executionId: string;
+  summary: string;
+  details: string;
+  reason: string;
+  expiresAt: number;
+}
+export interface ApprovalResolvedEvent {
+  type: "approval_resolved";
+  taskId: string;
+  approvalId: string;
+  approved: boolean;
+}
 export interface WorkflowStartedEvent {
   type: "workflow_started";
   workflowRunId: string;
@@ -988,6 +1020,8 @@ export interface CollaborationAgentEvent {
   agentTaskId: string;
   event:
     | StartedEvent
+    | ExtensionActivityEvent
+    | SubtaskEvent
     | QuestionEvent
     | QuestionAnsweredEvent
     | ApprovalRequestedEvent
@@ -1171,6 +1205,8 @@ export const agentRuntimeRequests = {
     createAgentRuntimeRequest(id, "extensions/commands/execute", params),
 } as const;
 export const AgentRuntimeEventType = {
+  SubtaskEvent: "subtask_event",
+  ExtensionActivity: "extension_activity",
   Started: "started",
   Question: "question",
   QuestionAnswered: "question_answered",
@@ -1221,6 +1257,10 @@ export const createAgentRuntimeEvent = <TType extends AgentRuntimeEventType>(
   payload: AgentRuntimeEventPayload<TType>,
 ): AgentRuntimeEventOf<TType> => ({ type, ...payload }) as unknown as AgentRuntimeEventOf<TType>;
 export const agentRuntimeEvents = {
+  subtaskEvent: (payload: AgentRuntimeEventPayload<typeof AgentRuntimeEventType.SubtaskEvent>) =>
+    createAgentRuntimeEvent(AgentRuntimeEventType.SubtaskEvent, payload),
+  extensionActivity: (payload: AgentRuntimeEventPayload<typeof AgentRuntimeEventType.ExtensionActivity>) =>
+    createAgentRuntimeEvent(AgentRuntimeEventType.ExtensionActivity, payload),
   started: (payload: AgentRuntimeEventPayload<typeof AgentRuntimeEventType.Started>) =>
     createAgentRuntimeEvent(AgentRuntimeEventType.Started, payload),
   question: (payload: AgentRuntimeEventPayload<typeof AgentRuntimeEventType.Question>) =>
@@ -1269,6 +1309,10 @@ export const agentRuntimeEvents = {
     createAgentRuntimeEvent(AgentRuntimeEventType.ApprovalResolved, payload),
 } as const;
 export const agentRuntimeEventGuards = {
+  subtaskEvent: (event: { type: string }): event is { type: typeof AgentRuntimeEventType.SubtaskEvent } =>
+    isAgentRuntimeEventType(event, AgentRuntimeEventType.SubtaskEvent),
+  extensionActivity: (event: { type: string }): event is { type: typeof AgentRuntimeEventType.ExtensionActivity } =>
+    isAgentRuntimeEventType(event, AgentRuntimeEventType.ExtensionActivity),
   started: (event: { type: string }): event is { type: typeof AgentRuntimeEventType.Started } =>
     isAgentRuntimeEventType(event, AgentRuntimeEventType.Started),
   question: (event: { type: string }): event is { type: typeof AgentRuntimeEventType.Question } =>

@@ -1,4 +1,5 @@
 import { rolePrompt, type Role } from "./roles";
+import { avatarSource } from "./roles/avatars";
 import type { JsonObject } from "@isle/extension-sdk";
 import type {
   ExtensionHostServices,
@@ -65,6 +66,7 @@ export async function runWorkflow(
     id: crypto.randomUUID(),
     title: snapshot.name,
     state: "running",
+    pausable: host.supports("activity.checkpoint"),
     steps: snapshot.steps.map((step) => ({
       id: step.id,
       title: step.name,
@@ -78,8 +80,11 @@ export async function runWorkflow(
   try {
     for (const [index, step] of snapshot.steps.entries()) {
       signal.throwIfAborted();
+      if (activity.pausable)
+        await host.activity.checkpoint(activity.id, { signal });
+      const role = roles.find((role) => role.id === step.roleId)!;
       activity.steps[index].state = "running";
-      activity.detail = `当前角色：${roles.find((role) => role.id === step.roleId)!.name}`;
+      activity.detail = `当前角色：${role.name}`;
       await publish();
       const context =
         step.input === "all"
@@ -99,9 +104,9 @@ export async function runWorkflow(
         throw new Error("步骤输入过长，请减少前序结果引用");
       const result = await host.tasks.run(
         {
-          systemPrompt: rolePrompt(
-            roles.find((role) => role.id === step.roleId)!,
-          ),
+          title: `${index + 1}. ${step.name} · ${role.name}`,
+          avatar: avatarSource(role.avatar),
+          systemPrompt: rolePrompt(role),
           text: prompt,
         },
         { signal },

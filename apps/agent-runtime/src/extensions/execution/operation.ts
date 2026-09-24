@@ -1,9 +1,10 @@
-import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { createActiveDeadline } from "./deadline.js";
+import { runExtensionTask } from "./task.js";
 import { ExtensionHost } from "@isle/extension-host/services/runtime";
 import {
   createActivityStore,
-  type ActivityRecord,
+  createActivityExecution,
+  activityExecution,
 } from "@isle/extension-host/services/activity";
 import { isJsonValue } from "@earendil-works/chord";
 import type {
@@ -84,7 +85,9 @@ export async function createExtensionRunResources(
   const stateStore = await createExtensionStateStore(command.sessionRootDir);
   const hostCapabilities = [
     "configuration.read",
-    ...(command.sessionRootDir ? ["activity.publish"] : []),
+    ...(command.sessionRootDir
+      ? ["activity.publish", "activity.checkpoint"]
+      : []),
     ...(context.callbacks.runExtensionTask ? ["tasks.run"] : []),
   ];
   if (stateStore.directory && execution.sandbox) {
@@ -188,6 +191,19 @@ export async function createExtensionRunResources(
       ),
     );
     const calls = new Set<string>();
+    let waitingCount = 0;
+    const waitingListeners = new Set<() => void>();
+    const suspension = {
+      get active() {
+        return waitingCount > 0;
+      },
+      subscribe(listener: () => void) {
+        waitingListeners.add(listener);
+        return () => {
+          waitingListeners.delete(listener);
+        };
+      },
+    };
     const transact = <T>(
       extensionId: string,
       method: string,
@@ -202,71 +218,56 @@ export async function createExtensionRunResources(
           : {};
         const source = sources.find((item) => item.id === extensionId)!;
         const controller = new AbortController();
-        const serviceSignal = AbortSignal.any([signal, controller.signal]);
+        const budget = createActiveDeadline(
+          [
+            ...(source.host?.required ?? []),
+            ...(source.host?.optional ?? []),
+          ].includes("tasks.run")
+            ? 10 * 60_000
+            : 60_000,
+        );
+        const invocationSignal = AbortSignal.any([signal, budget.signal]);
+        const serviceSignal = AbortSignal.any([
+          invocationSignal,
+          controller.signal,
+        ]);
         const activityStore = command.sessionRootDir
           ? createActivityStore(command.sessionRootDir, extensionId)
           : undefined;
-        let activity: ActivityRecord | undefined;
+        let waitingDepth = 0;
+        const activity = activityStore
+          ? createActivityExecution(
+              activityStore,
+              command.taskId,
+              serviceSignal,
+              (active) => {
+                waitingDepth += active ? 1 : -1;
+                waitingCount += active ? 1 : -1;
+                if (waitingDepth > 0) budget.pause();
+                else budget.resume();
+                for (const listener of waitingListeners) listener();
+              },
+              (record) =>
+                context.emit({
+                  type: "extension_activity",
+                  taskId: command.taskId,
+                  ...activityExecution(extensionId, record),
+                }),
+            )
+          : undefined;
         const services = new ExtensionHost({
           "configuration.read": async () =>
             structuredClone(source.config ?? {}),
-          "activity.publish": async (value) => {
-            if (!activityStore) throw new Error("活动状态需要会话");
-            activity = {
-              ...value,
-              taskId: command.taskId,
-              updatedAt: Date.now(),
-            };
-            await activityStore.write(activity);
-            return null;
-          },
+          ...(activity
+            ? {
+                "activity.publish": (value) => activity.publish(value),
+                "activity.checkpoint": ({ id }) => activity.checkpoint(id),
+              }
+            : {}),
           ...(context.callbacks.runExtensionTask
             ? {
-                "tasks.run": async (input: {
-                  systemPrompt?: string;
-                  text: string;
-                }) => {
-                  if (!command.runtimeModel) throw new Error("请先选择模型");
-                  const childId = randomUUID();
-                  return context.callbacks.runExtensionTask!(
-                    {
-                      ...command,
-                      taskId: `extension-child-${childId}`,
-                      sessionRootDir: command.sessionRootDir
-                        ? join(command.sessionRootDir, "children", childId)
-                        : undefined,
-                      agentRoleId: `extension-task-${childId}`,
-                      sessionLink: null,
-                      requestId: null,
-                      recordUserMessage: true,
-                      userMessage: input.text,
-                      systemPrompt: input.systemPrompt ?? null,
-                      requestContext: null,
-                      runtimeInstruction: null,
-                      bootstrapInstruction: null,
-                    },
-                    {
-                      signal: serviceSignal,
-                      emit() {},
-                      callbacks: {
-                        ...context.callbacks,
-                        runExtensionTask: undefined,
-                        requestApproval:
-                          context.callbacks.requestApproval &&
-                          ((request) =>
-                            context.callbacks.requestApproval!({
-                              ...request,
-                              taskId: command.taskId,
-                            })),
-                        requestUserInput: (request) =>
-                          context.callbacks.requestUserInput({
-                            ...request,
-                            taskId: command.taskId,
-                          }),
-                      },
-                    },
-                  );
-                },
+                "tasks.run": (input) =>
+                  runExtensionTask(input, command, context, serviceSignal),
               }
             : {}),
         });
@@ -277,7 +278,7 @@ export async function createExtensionRunResources(
           reply = await worker.call<{ value: T; state: ExtensionState }>(
             method,
             { ...input, state: selected },
-            signal,
+            invocationSignal,
             (update: unknown) => {
               if (
                 !update ||
@@ -341,33 +342,22 @@ export async function createExtensionRunResources(
               requests.add(work);
               void work.finally(() => requests.delete(work));
             },
-            [
-              ...(source.host?.required ?? []),
-              ...(source.host?.optional ?? []),
-            ].includes("tasks.run")
-              ? 10 * 60_000
-              : 60_000,
+            0,
           );
           succeeded = true;
+        } catch (error) {
+          if (budget.signal.aborted && !signal.aborted)
+            throw budget.signal.reason;
+          throw error;
         } finally {
+          budget.dispose();
           controller.abort();
           await Promise.allSettled(requests);
-          if (activity?.state === "running" && activityStore) {
-            const state = signal.aborted
-              ? "cancelled"
-              : succeeded
-                ? "completed"
-                : "failed";
-            await activityStore.write({
-              ...activity,
-              state,
-              steps: activity.steps.map((step) =>
-                step.state === "running" ? { ...step, state } : step,
-              ),
-              updatedAt: Date.now(),
-            });
-          }
+          await activity?.finish(
+            signal.aborted ? "cancelled" : succeeded ? "completed" : "failed",
+          );
         }
+
         const next = validateExtensionState(reply.state);
         if (Object.keys(next).some((id) => id !== extensionId))
           throw new Error("插件尝试修改其他插件状态");
@@ -442,6 +432,7 @@ export async function createExtensionRunResources(
     };
     return {
       protocolVersion: 1,
+      suspension,
       // Callers receive a snapshot; changing it cannot alter the execution allowlist.
       catalog: structuredClone(catalog),
       get available() {
