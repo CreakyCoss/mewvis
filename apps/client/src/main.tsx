@@ -24,7 +24,10 @@ if (rootElement.firstElementChild) {
   };
 
   removeWhitespaceTextNodes(startupElement);
-  rootElement.replaceChildren(startupElement);
+  // Keep the already visible startup element attached so its animation does not restart.
+  for (const child of Array.from(rootElement.childNodes)) {
+    if (child !== startupElement) child.remove();
+  }
   hydrateRoot(rootElement, app);
 } else {
   createRoot(rootElement).render(app);
