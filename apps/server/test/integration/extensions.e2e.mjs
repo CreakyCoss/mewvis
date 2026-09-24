@@ -297,6 +297,8 @@ test(
       "isle.session-ledger",
       "isle.tasks",
     ]);
+    assert.equal(records.find((item) => item.id === "isle.collaboration")?.displayName, "角色协作");
+    assert.equal(records.find((item) => item.id === "isle.decisions")?.displayName, "智能判断");
     assert.ok(
       records.every(
         (item) => item.source === "bundled" && item.enabled && !item.error,

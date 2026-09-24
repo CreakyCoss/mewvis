@@ -19,6 +19,7 @@ export type ExtensionSchema = Record<string, unknown> & {
 };
 export type DesktopExtension = {
   id: string;
+  displayName: string;
   source: "bundled" | "local";
   path: string;
   enabled: boolean;

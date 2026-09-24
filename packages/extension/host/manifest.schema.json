@@ -25,6 +25,11 @@
           "maxLength": 128,
           "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$"
         },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
         "configuration": {
           "type": "object",
           "additionalProperties": false,

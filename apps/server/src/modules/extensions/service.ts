@@ -43,6 +43,7 @@ export class Extensions {
         const config = resolveExtensionConfig(pkg.manifest, record.config);
         return {
           id: record.id,
+          displayName: pkg.manifest.displayName ?? pkg.packageJson.name,
           source: record.source,
           path: record.path,
           enabled: record.enabled,
@@ -70,6 +71,7 @@ export class Extensions {
       } catch (error) {
         return {
           id: record.id,
+          displayName: record.id,
           source: record.source,
           path: record.path,
           enabled: record.enabled,

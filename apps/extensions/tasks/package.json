@@ -17,6 +17,7 @@
     "@isle/extension-dev": "workspace:*"
   },
   "isle.extension": {
+    "displayName": "任务清单",
     "schemaVersion": 2,
     "id": "isle.tasks",
     "apiVersion": 1,

@@ -20,6 +20,7 @@
     "typescript": "~5.8.3"
   },
   "isle.extension": {
+    "displayName": "角色协作",
     "schemaVersion": 2,
     "apiVersion": 1,
     "id": "isle.collaboration",

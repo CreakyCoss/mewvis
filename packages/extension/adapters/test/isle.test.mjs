@@ -115,6 +115,7 @@ test("SDK package conversion produces a native manifest, and rejects unsupported
     type: "module",
     "isle.extension": {
       id: "test.sdk",
+      displayName: "测试插件",
       schemaVersion: 2,
       apiVersion: 1,
       modules: { agent: { entry: "index.js", capabilities: ["tools"] } },
@@ -123,6 +124,7 @@ test("SDK package conversion produces a native manifest, and rejects unsupported
   const native = adaptIslePackage(source);
   assert.equal(native["isle.extension"], undefined);
   assert.equal(native["isle.plugin"].protocolVersion, 1);
+  assert.equal(native["isle.plugin"].displayName, "测试插件");
   assert.notEqual(
     native["isle.plugin"].modules.agent.capabilities,
     source["isle.extension"].modules.agent.capabilities,

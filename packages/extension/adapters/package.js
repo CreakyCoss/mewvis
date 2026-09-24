@@ -56,6 +56,7 @@ export function adaptIslePackage(packageJson) {
     ...metadata,
     "isle.plugin": {
       id: source.id,
+      ...(source.displayName && { displayName: source.displayName }),
       schemaVersion: 1,
       protocolVersion: 1,
       modules,

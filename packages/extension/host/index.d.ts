@@ -21,6 +21,8 @@ export interface ExtensionConfiguration {
 export interface ExtensionManifest {
   schemaVersion: 1;
   id: string;
+  /** Human-readable name shown in plugin management. */
+  displayName?: string;
   protocolVersion: 1;
   modules: ExtensionModules;
   /** Host services required or optionally consumed by this package. Not an executable module. */

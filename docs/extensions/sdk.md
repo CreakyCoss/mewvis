@@ -4,6 +4,8 @@
 
 插件作者面向 Isle 协议开发。一个插件包通过 `modules.agent`、`modules.ui` 按需声明能力；Agent 和 UI 分别加载、分别适配。
 
+清单中的 `id` 是稳定标识，供注册和引用使用；可选的 `displayName` 是插件管理界面展示给用户的名称。内置插件均提供展示名称。本地插件未填写时，管理界面回退到包名。
+
 从 [index.d.ts](../../packages/extension/sdk/index.d.ts) 开始阅读：这里实际定义 `ExtensionManifest`、`ExtensionModules` 和共享配置。各领域只有一组目录，类型与相关实现放在一起。
 
 ## 当前能提供什么

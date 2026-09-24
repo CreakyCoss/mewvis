@@ -16,6 +16,7 @@
     "@isle/extension-dev": "workspace:*"
   },
   "isle.extension": {
+    "displayName": "文本统计",
     "schemaVersion": 2,
     "id": "isle.example",
     "apiVersion": 1,

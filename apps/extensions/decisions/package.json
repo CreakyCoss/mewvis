@@ -24,6 +24,7 @@
     "esbuild": "^0.28.0"
   },
   "isle.extension": {
+    "displayName": "智能判断",
     "schemaVersion": 2,
     "apiVersion": 1,
     "id": "isle.decisions",

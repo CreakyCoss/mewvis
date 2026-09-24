@@ -15,6 +15,7 @@
     "@isle/extension-dev": "workspace:*"
   },
   "isle.extension": {
+    "displayName": "会话统计",
     "schemaVersion": 2,
     "id": "isle.session-insights",
     "apiVersion": 1,

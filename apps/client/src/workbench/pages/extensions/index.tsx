@@ -62,7 +62,7 @@ export function ExtensionsPage() {
     setAdding(true);
   };
   const normalizedQuery = query.trim().toLowerCase();
-  const filtered = items.filter((item) => `${item.id} ${item.description}`.toLowerCase().includes(normalizedQuery));
+  const filtered = items.filter((item) => `${item.displayName} ${item.id} ${item.description}`.toLowerCase().includes(normalizedQuery));
   const enabledCount = items.filter((item) => item.enabled).length;
 
   return (
@@ -174,7 +174,7 @@ export function ExtensionsPage() {
                   </span>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <h3 className="break-all text-sm font-semibold">{item.id}</h3>
+                      <h3 className="min-w-0 break-words text-sm font-semibold" title={item.id}>{item.displayName || item.id}</h3>
                       <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
                         {item.source === "bundled" ? "内置" : "本地"}
                       </span>
@@ -198,9 +198,11 @@ export function ExtensionsPage() {
                     <p className="mt-1 text-sm leading-6 text-muted-foreground">
                       {item.description || "该插件暂无描述。"}
                     </p>
-                    <p className="mt-1.5 truncate text-xs text-muted-foreground/75" title={item.path}>
-                      {item.path}
-                    </p>
+                    {item.source === "local" ? (
+                      <p className="mt-1.5 truncate text-xs text-muted-foreground/75" title={item.path}>
+                        {item.path}
+                      </p>
+                    ) : null}
                     {item.error ? (
                       <p role="alert" className="mt-2 break-words text-sm text-destructive">
                         {item.error}
@@ -211,7 +213,7 @@ export function ExtensionsPage() {
                     <label className="mr-2 flex min-h-9 cursor-pointer items-center gap-2 text-xs text-muted-foreground">
                       <span>{item.enabled ? "已启用" : "已停用"}</span>
                       <Switch
-                        aria-label={`${item.enabled ? "停用" : "启用"} ${item.id}`}
+                        aria-label={`${item.enabled ? "停用" : "启用"} ${item.displayName || item.id}`}
                         checked={item.enabled}
                         disabled={busy}
                         onCheckedChange={(enabled) => void run(() => configureExtension(item.id, { enabled }))}
@@ -220,7 +222,7 @@ export function ExtensionsPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      aria-label={`配置 ${item.id}`}
+                      aria-label={`配置 ${item.displayName || item.id}`}
                       title={item.configSchema ? "配置插件" : "此插件无需配置"}
                       disabled={busy || !item.configSchema || !!item.error}
                       onClick={() => {
@@ -237,7 +239,7 @@ export function ExtensionsPage() {
                         variant="ghost"
                         size="icon"
                         disabled={busy}
-                        aria-label={`移除 ${item.id}`}
+                        aria-label={`移除 ${item.displayName || item.id}`}
                         title="移除插件"
                         className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                         onClick={() => void run(() => removeExtension(item.id))}
@@ -347,7 +349,7 @@ export function ExtensionsPage() {
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>插件配置</DialogTitle>
-            <DialogDescription>{editing?.id}</DialogDescription>
+            <DialogDescription>{editing?.displayName || editing?.id}</DialogDescription>
           </DialogHeader>
           {editing ? (
             <SettingsSlot
