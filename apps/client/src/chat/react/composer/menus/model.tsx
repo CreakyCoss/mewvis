@@ -15,6 +15,7 @@ import {
 } from "design-system/components/ui/dropdown-menu";
 import { Switch } from "design-system/components/ui/switch";
 import type { useChatControls } from "../../provider";
+import { CapabilitySubmenus } from "./capability";
 
 type ModelMenuProps = {
   controls: ReturnType<typeof useChatControls>;
@@ -59,7 +60,7 @@ export const ModelMenu = ({ disabled, selectionDisabled, controls }: ModelMenuPr
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
-        <DropdownMenuLabel>模型与角色</DropdownMenuLabel>
+        <DropdownMenuLabel>对话设置</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuSub>
           <DropdownMenuSubTrigger disabled={selectionDisabled} title={selectedModel?.description || selectedModelLabel}>
@@ -133,6 +134,9 @@ export const ModelMenu = ({ disabled, selectionDisabled, controls }: ModelMenuPr
           </DropdownMenuSubContent>
         </DropdownMenuSub>
 
+        <CapabilitySubmenus controls={controls} disabled={selectionDisabled} />
+
+        <DropdownMenuSeparator />
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <Wrench className="size-3.5" aria-hidden="true" />

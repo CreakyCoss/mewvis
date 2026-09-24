@@ -1,30 +1,30 @@
-import { useId } from "react";
-import { ChevronDown, Database, Puzzle, Sparkles } from "lucide-react";
-import { Button } from "design-system/components/ui/button";
+import { useId, useState } from "react";
+import { ChevronRight, Database, Sparkles } from "lucide-react";
 import { Checkbox } from "design-system/components/ui/checkbox";
 import {
-  DropdownMenu,
   DropdownMenuCheckboxItem,
-  DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
 } from "design-system/components/ui/dropdown-menu";
 import type { useChatControls } from "../../provider";
 
-type CapabilityMenuProps = {
+type CapabilitySubmenusProps = {
   controls: ReturnType<typeof useChatControls>;
   disabled: boolean;
 };
 
-export const CapabilityMenu = ({ disabled, controls }: CapabilityMenuProps) => {
+// Overlay scrollbars otherwise cover the right-aligned checkmarks while scrolling.
+const scrollableMenuClassName = "max-h-96 w-80 overflow-y-auto pr-5";
+
+export const CapabilitySubmenus = ({ disabled, controls }: CapabilitySubmenusProps) => {
   const skillSelectAllId = useId();
   const knowledgeSelectAllId = useId();
   const skillGroupIdPrefix = useId();
+  const [expandedSkillGroups, setExpandedSkillGroups] = useState<Set<string>>(() => new Set());
   const resourceStore = controls;
   const skillGroups = resourceStore.resources.skillGroups ?? [];
   const skills = [
@@ -49,69 +49,59 @@ export const CapabilityMenu = ({ disabled, controls }: CapabilityMenuProps) => {
     selected ? nextIds.add(collectionId) : nextIds.delete(collectionId);
     resourceStore.updateOptions({ selectedKnowledgeCollectionIds: [...nextIds] });
   };
+  const toggleSkillGroup = (groupId: string) => {
+    setExpandedSkillGroups((current) => {
+      const next = new Set(current);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
+    <>
+      <DropdownMenuSub>
+        <CapabilityTrigger
+          icon={Sparkles}
+          label="技能"
+          selected={selectedSkillCount}
+          total={skills.length}
           disabled={disabled}
-          className="h-9 min-w-0 max-w-[24rem] cursor-pointer px-2 text-xs"
-          title={`技能 ${selectedSkillCount}/${skills.length}；知识库 ${selectedKnowledgeCount}/${knowledgeCollections.length}`}
-        >
-          <Puzzle className="size-3.5 shrink-0" aria-hidden="true" />
-          <span>能力</span>
-          <span className="min-w-0 truncate text-muted-foreground">
-            技能 {selectedSkillCount} · 知识库 {selectedKnowledgeCount}
-          </span>
-          <ChevronDown className="size-3 shrink-0" aria-hidden="true" />
-        </Button>
-      </DropdownMenuTrigger>
-
-      <DropdownMenuContent align="start" className="w-64">
-        <DropdownMenuLabel>对话能力</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-
-        <DropdownMenuSub>
-          <CapabilityTrigger
-            icon={Sparkles}
+        />
+        <DropdownMenuSubContent className={scrollableMenuClassName}>
+          <SelectionHeader
+            id={skillSelectAllId}
             label="技能"
-            description="按任务自动调用"
             selected={selectedSkillCount}
             total={skills.length}
+            onCheckedChange={(selected) =>
+              resourceStore.updateOptions({ selectedSkillKeys: selected ? skills.map((skill) => skill.key) : [] })
+            }
           />
-          <DropdownMenuSubContent className="max-h-96 w-80 overflow-y-auto">
-            <SelectionHeader
-              id={skillSelectAllId}
-              label="技能"
-              selected={selectedSkillCount}
-              total={skills.length}
-              onCheckedChange={(selected) =>
-                resourceStore.updateOptions({ selectedSkillKeys: selected ? skills.map((skill) => skill.key) : [] })
-              }
-            />
-            <DropdownMenuSeparator />
-            {skillGroups.length === 0 ? (
-              <EmptyItem title="暂无可用技能" description="请先在技能设置中添加或启用" />
-            ) : (
-              skillGroups.map((group, groupIndex) => {
-                const groupSkillKeys = [...new Set(group.skills.map((skill) => skill.key))];
-                const selectedGroupCount = groupSkillKeys.filter((skillKey) => selectedSkillKeys.has(skillKey)).length;
+          <DropdownMenuSeparator />
+          {skillGroups.length === 0 ? (
+            <EmptyItem title="暂无可用技能" description="请先在技能设置中添加或启用" />
+          ) : (
+            skillGroups.map((group, groupIndex) => {
+              const groupSkillKeys = [...new Set(group.skills.map((skill) => skill.key))];
+              const selectedGroupCount = groupSkillKeys.filter((skillKey) => selectedSkillKeys.has(skillKey)).length;
+              const expanded = expandedSkillGroups.has(group.value);
 
-                return (
-                  <div key={group.value}>
-                    {groupIndex > 0 && <DropdownMenuSeparator />}
-                    <SelectionHeader
-                      id={`${skillGroupIdPrefix}-${groupIndex}`}
-                      label={group.label}
-                      selected={selectedGroupCount}
-                      total={groupSkillKeys.length}
-                      badge={group.isDefault ? "默认" : undefined}
-                      onCheckedChange={(selected) => updateSelectedSkills(groupSkillKeys, selected)}
-                    />
-                    {group.skills.map((skill) => (
+              return (
+                <div key={group.value}>
+                  {groupIndex > 0 && <DropdownMenuSeparator />}
+                  <SelectionHeader
+                    id={`${skillGroupIdPrefix}-${groupIndex}`}
+                    label={group.label}
+                    selected={selectedGroupCount}
+                    total={groupSkillKeys.length}
+                    badge={group.isDefault ? "默认" : undefined}
+                    expanded={expanded}
+                    onToggle={() => toggleSkillGroup(group.value)}
+                    onCheckedChange={(selected) => updateSelectedSkills(groupSkillKeys, selected)}
+                  />
+                  {expanded &&
+                    group.skills.map((skill) => (
                       <DropdownMenuCheckboxItem
                         key={`${group.value}:${skill.key}`}
                         checked={selectedSkillKeys.has(skill.key)}
@@ -123,80 +113,74 @@ export const CapabilityMenu = ({ disabled, controls }: CapabilityMenuProps) => {
                         <ItemText label={skill.label} description={skill.description} />
                       </DropdownMenuCheckboxItem>
                     ))}
-                  </div>
-                );
-              })
-            )}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
+                </div>
+              );
+            })
+          )}
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
 
-        <DropdownMenuSub>
-          <CapabilityTrigger
-            icon={Database}
+      <DropdownMenuSub>
+        <CapabilityTrigger
+          icon={Database}
+          label="知识库"
+          selected={selectedKnowledgeCount}
+          total={knowledgeCollections.length}
+          disabled={disabled}
+        />
+        <DropdownMenuSubContent className={scrollableMenuClassName}>
+          <SelectionHeader
+            id={knowledgeSelectAllId}
             label="知识库"
-            description="参与知识检索"
             selected={selectedKnowledgeCount}
             total={knowledgeCollections.length}
+            onCheckedChange={(selected) =>
+              resourceStore.updateOptions({
+                selectedKnowledgeCollectionIds: selected
+                  ? knowledgeCollections.map((collection) => collection.value)
+                  : [],
+              })
+            }
           />
-          <DropdownMenuSubContent className="max-h-96 w-80 overflow-y-auto">
-            <SelectionHeader
-              id={knowledgeSelectAllId}
-              label="知识库"
-              selected={selectedKnowledgeCount}
-              total={knowledgeCollections.length}
-              onCheckedChange={(selected) =>
-                resourceStore.updateOptions({
-                  selectedKnowledgeCollectionIds: selected
-                    ? knowledgeCollections.map((collection) => collection.value)
-                    : [],
-                })
-              }
-            />
-            <DropdownMenuSeparator />
-            {knowledgeCollections.length === 0 ? (
-              <EmptyItem title="暂无已启用的知识库" description="请先在知识库设置中启用" />
-            ) : (
-              knowledgeCollections.map((collection) => (
-                <DropdownMenuCheckboxItem
-                  key={collection.value}
-                  checked={selectedKnowledgeIds.has(collection.value)}
-                  className="min-h-14 items-start py-2"
-                  onSelect={(event) => event.preventDefault()}
-                  onCheckedChange={(checked) => updateSelectedKnowledge(collection.value, checked === true)}
-                  title={collection.sourceDirectory ?? collection.description ?? undefined}
-                >
-                  <ItemText
-                    label={collection.label}
-                    description={collection.description || collection.sourceDirectory || "已启用知识检索"}
-                  />
-                </DropdownMenuCheckboxItem>
-              ))
-            )}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <DropdownMenuSeparator />
+          {knowledgeCollections.length === 0 ? (
+            <EmptyItem title="暂无已启用的知识库" description="请先在知识库设置中启用" />
+          ) : (
+            knowledgeCollections.map((collection) => (
+              <DropdownMenuCheckboxItem
+                key={collection.value}
+                checked={selectedKnowledgeIds.has(collection.value)}
+                className="min-h-14 items-start py-2"
+                onSelect={(event) => event.preventDefault()}
+                onCheckedChange={(checked) => updateSelectedKnowledge(collection.value, checked === true)}
+                title={collection.sourceDirectory ?? collection.description ?? undefined}
+              >
+                <ItemText
+                  label={collection.label}
+                  description={collection.description || collection.sourceDirectory || "已启用知识检索"}
+                />
+              </DropdownMenuCheckboxItem>
+            ))
+          )}
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+    </>
   );
 };
 
 type CapabilityTriggerProps = {
   icon: typeof Sparkles;
   label: string;
-  description: string;
   selected: number;
   total: number;
+  disabled: boolean;
 };
 
-const CapabilityTrigger = ({ icon: Icon, label, description, selected, total }: CapabilityTriggerProps) => (
-  <DropdownMenuSubTrigger className="min-h-12 gap-2.5 py-2">
-    <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-      <Icon className="size-3.5" aria-hidden="true" />
-    </span>
-    <span className="min-w-0 flex-1">
-      <span className="block font-medium">{label}</span>
-      <span className="block truncate text-xs text-muted-foreground">{description}</span>
-    </span>
-    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+const CapabilityTrigger = ({ icon: Icon, label, selected, total, disabled }: CapabilityTriggerProps) => (
+  <DropdownMenuSubTrigger disabled={disabled}>
+    <Icon className="size-3.5" aria-hidden="true" />
+    <span className="min-w-0 flex-1 truncate">{label}</span>
+    <span className="max-w-32 truncate text-xs tabular-nums text-muted-foreground">
       {selected}/{total}
     </span>
   </DropdownMenuSubTrigger>
@@ -208,23 +192,47 @@ type SelectionHeaderProps = {
   selected: number;
   total: number;
   badge?: string;
+  expanded?: boolean;
+  onToggle?: () => void;
   onCheckedChange: (selected: boolean) => void;
 };
 
-const SelectionHeader = ({ id, label, selected, total, badge, onCheckedChange }: SelectionHeaderProps) => {
+const SelectionHeader = ({
+  id,
+  label,
+  selected,
+  total,
+  badge,
+  expanded,
+  onToggle,
+  onCheckedChange,
+}: SelectionHeaderProps) => {
   const hasSelection = selected > 0;
   const allSelected = total > 0 && selected === total;
 
   return (
     <div className="flex min-h-10 items-center gap-2 px-2">
-      <DropdownMenuLabel className="min-w-0 flex-1 truncate p-0">
-        {label}
-        {badge && (
-          <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-medium leading-none">
-            {badge}
-          </span>
-        )}
-      </DropdownMenuLabel>
+      {onToggle ? (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          onClick={onToggle}
+          className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded-md py-1 text-left text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
+        >
+          <ChevronRight
+            className={`size-3.5 shrink-0 text-muted-foreground transition-transform ${expanded ? "rotate-90" : ""}`}
+            aria-hidden="true"
+          />
+          <span className="min-w-0 truncate">{label}</span>
+          {badge && (
+            <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-medium leading-none">
+              {badge}
+            </span>
+          )}
+        </button>
+      ) : (
+        <DropdownMenuLabel className="min-w-0 flex-1 truncate p-0">{label}</DropdownMenuLabel>
+      )}
       <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
         {selected}/{total}
       </span>
