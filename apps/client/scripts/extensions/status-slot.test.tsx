@@ -38,8 +38,8 @@ test("status distinguishes deferred pause and checkpoint wait with appropriate c
   assert.match(paused, /已暂停/);
   assert.match(paused, /aria-label="继续"/);
   assert.match(paused, /aria-label="取消"/);
-  assert.match(paused, /Draft · 完成/);
-  assert.match(paused, /Review · 等待/);
+  assert.match(paused, /下一步：Review/);
+  assert.match(paused, /aria-label="查看流程步骤"/);
 });
 
 test("status only offers pause for capable activities and disables controls while a request is pending", () => {
@@ -66,4 +66,20 @@ test("failed cancellation offers a retry without unlocking the task", () => {
 test("terminal activities leave no status bar", () => {
   for (const state of ["completed", "failed", "cancelled"] as const)
     assert.equal(render({ ...item, activity: { ...item.activity, state } }), "");
+});
+
+
+test("status follows the current step actor and keeps actors optional", () => {
+  const steps = [
+    { id: "one", title: "分析需求", actor: { name: "分析师" }, state: "running" as const },
+    { id: "two", title: "复核方案", actor: { name: "审核员" }, state: "pending" as const },
+  ];
+  const first = render({ ...item, activity: { ...item.activity, steps } });
+  assert.match(first, /title="分析师"/);
+  assert.doesNotMatch(first, /审核员/);
+  const next = render({ ...item, activity: { ...item.activity, state: "paused", steps: [{ ...steps[0], state: "completed" }, steps[1]] } });
+  assert.match(next, /title="审核员"/);
+  assert.doesNotMatch(next, /分析师/);
+  assert.doesNotMatch(first, /执行者/);
+  assert.doesNotMatch(render(item), /分析师|审核员/);
 });

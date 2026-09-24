@@ -346,6 +346,7 @@ test(
     await waitChild();
     const first = await query(status, "activity.read");
     assert.equal(first.pausable, true);
+    assert.deepEqual(first.steps.map((step) => step.actor), flow.steps.map(() => ({ name: role.name })));
     await query(status, "activity.pause", { id: previous.id }, 409);
     await query(other, "activity.pause", { id: first.id }, 409);
     await query(status, "activity.pause", { id: first.id });
@@ -375,6 +376,7 @@ test(
       "shared paused task state",
     );
     assert.equal(paused.executionId, "pause-flow");
+    assert.deepEqual(paused.steps[1].actor, { name: role.name });
     assert.ok(
       events.some(
         (event) =>

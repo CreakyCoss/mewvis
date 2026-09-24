@@ -8,6 +8,8 @@ export interface ExtensionActivity {
   steps: Array<{
     id: string;
     title: string;
+    /** Plugin-owned display identity for this step; independent of host roles. */
+    actor?: { name: string };
     state: "pending" | "running" | "completed" | "failed" | "cancelled";
   }>;
 }
@@ -146,7 +148,7 @@ export interface ExtensionHostServices {
   };
   readonly tasks: {
     run(
-      input: { text: string; systemPrompt?: string },
+      input: ExtensionHostMethods["tasks.run"]["input"],
       options?: { signal?: AbortSignal },
     ): Promise<{ text: string }>;
   };

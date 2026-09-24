@@ -25,7 +25,7 @@ function adaptServices(native) {
     },
     tasks: {
       run: async (
-        /** @type {{text: string, systemPrompt?: string}} */ input,
+        /** @type {import("@isle/extension-sdk/host").ExtensionHostMethods["tasks.run"]["input"]} */ input,
         /** @type {{signal?: AbortSignal}} */ options = {},
       ) => copy(await native.tasks.run(copy(input), options)),
     },

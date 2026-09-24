@@ -43,6 +43,14 @@ export const extensionHostMethods = Object.freeze({
             properties: {
               id: { type: "string", maxLength: 128 },
               title: { type: "string", maxLength: 128 },
+              actor: {
+                type: "object",
+                additionalProperties: false,
+                required: ["name"],
+                properties: {
+                  name: { type: "string", minLength: 1, maxLength: 128 },
+                },
+              },
               state: {
                 enum: [
                   "pending",

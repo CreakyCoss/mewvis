@@ -70,6 +70,7 @@ export async function runWorkflow(
     steps: snapshot.steps.map((step) => ({
       id: step.id,
       title: step.name,
+      actor: { name: roles.find((role) => role.id === step.roleId)!.name },
       state: "pending",
     })),
   };
@@ -84,7 +85,6 @@ export async function runWorkflow(
         await host.activity.checkpoint(activity.id, { signal });
       const role = roles.find((role) => role.id === step.roleId)!;
       activity.steps[index].state = "running";
-      activity.detail = `当前角色：${role.name}`;
       await publish();
       const context =
         step.input === "all"
