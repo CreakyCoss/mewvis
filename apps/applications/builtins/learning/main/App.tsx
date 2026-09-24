@@ -5,6 +5,7 @@ import { getApplicationHost } from "@isle/app-sdk/browser";
 import {
   createCourse,
   emptyProgress,
+  restoreProgress,
   validateContent,
   type Course,
   type Progress,
@@ -12,7 +13,8 @@ import {
 import { repository } from "./repository";
 import { exampleCourse } from "./example";
 import { Icon, Notice, Quiz, Text, Tutor, errorText } from "./components";
-import { Studio, clearGenerationDraft } from "./Studio";
+import { ProjectLab } from "./ProjectLab";
+import { Studio } from "./Studio";
 
 const repo = () => repository(getApplicationDataClient().storage);
 type View = "library" | "studio" | "lesson";
@@ -20,6 +22,7 @@ export default function App() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [progress, setProgress] = useState<Record<string, Progress>>({});
   const [selected, setSelected] = useState("");
+  const [editing, setEditing] = useState<Course | undefined>();
   const [view, setView] = useState<View>("library");
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -28,7 +31,7 @@ export default function App() {
   const [warnings, setWarnings] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [confirmDelete, setConfirmDelete] = useState("");
-  const [tab, setTab] = useState<"lesson" | "quiz">("lesson");
+  const [tab, setTab] = useState<"lesson" | "quiz" | "project">("lesson");
   const [showTutor, setShowTutor] = useState(true);
   const [theme, setTheme] = useState("light");
   const lock = useRef(false);
@@ -99,7 +102,7 @@ export default function App() {
     ]);
     setProgress((current) => ({
       ...current,
-      [course.id]: current[course.id] ?? emptyProgress(course),
+      [course.id]: restoreProgress(course, current[course.id]),
     }));
   };
   const updateProgress = async (next: Progress) => {
@@ -147,7 +150,10 @@ export default function App() {
           <button
             className={view === "studio" ? "active" : ""}
             disabled={loading || loadFailed}
-            onClick={() => setView("studio")}
+            onClick={() => {
+              setEditing(undefined);
+              setView("studio");
+            }}
           >
             <Icon name="plus" size={17} />
             创建课程
@@ -186,13 +192,7 @@ export default function App() {
             </button>
           </div>
         ) : view === "studio" ? (
-          <Studio
-            onSave={async (course) => {
-              await save(course);
-              await clearGenerationDraft();
-              open(course);
-            }}
-          />
+          <Studio initialCourse={editing} onSave={save} onSaved={open} />
         ) : view === "lesson" && course && lesson && currentProgress ? (
           <>
             <div className="learn-course-top">
@@ -206,13 +206,27 @@ export default function App() {
               <span>{course.title}</span>
               <button
                 className="learn-button"
-                onClick={() => setShowTutor(!showTutor)}
-                aria-expanded={showTutor}
+                disabled={busy}
+                onClick={() => {
+                  setEditing(course);
+                  setView("studio");
+                }}
               >
-                {showTutor ? "收起导师" : "打开导师"}
+                编辑 / 重新生成
               </button>
+              {tab !== "project" && (
+                <button
+                  className="learn-button"
+                  onClick={() => setShowTutor(!showTutor)}
+                  aria-expanded={showTutor}
+                >
+                  {showTutor ? "收起导师" : "打开导师"}
+                </button>
+              )}
             </div>
-            <div className={`learn-classroom ${showTutor ? "with-tutor" : ""}`}>
+            <div
+              className={`learn-classroom ${showTutor && tab !== "project" ? "with-tutor" : ""}`}
+            >
               <aside className="learn-outline" aria-label="课程目录">
                 <span className="learn-eyebrow">COURSE OUTLINE</span>
                 <h2>学习路线</h2>
@@ -267,8 +281,8 @@ export default function App() {
                     )}{" "}
                     / {String(course.lessons.length).padStart(2, "0")}
                   </span>
-                  <h1>{lesson.title}</h1>
-                  <p>{lesson.objective}</p>
+                  <h1>{tab === "project" ? "课程项目实训" : lesson.title}</h1>
+                  <p>{tab === "project" ? course.title : lesson.objective}</p>
                 </div>
                 <div
                   className="learn-tabs"
@@ -293,13 +307,30 @@ export default function App() {
                   >
                     课后测验<span>{lesson.questions.length}</span>
                   </button>
+                  <button
+                    role="tab"
+                    id="project-tab"
+                    aria-controls="lesson-panel"
+                    aria-selected={tab === "project"}
+                    onClick={() => setTab("project")}
+                  >
+                    项目实训
+                  </button>
                 </div>
                 <div
                   id="lesson-panel"
                   role="tabpanel"
-                  aria-labelledby={tab === "lesson" ? "lesson-tab" : "quiz-tab"}
+                  aria-labelledby={
+                    tab === "lesson"
+                      ? "lesson-tab"
+                      : tab === "quiz"
+                        ? "quiz-tab"
+                        : "project-tab"
+                  }
                 >
-                  {tab === "lesson" ? (
+                  {tab === "project" ? (
+                    <ProjectLab key={course.id} course={course} />
+                  ) : tab === "lesson" ? (
                     <article className="learn-article">
                       <Text value={lesson.content} />
                       <section className="learn-example">
@@ -358,47 +389,49 @@ export default function App() {
                     />
                   )}
                 </div>
-                <footer className="learn-lesson-footer">
-                  <span>
-                    {currentProgress.completed.includes(lesson.id)
-                      ? "本课已完成"
-                      : "完成情况由你自己决定"}
-                  </span>
-                  <button
-                    className="learn-button primary"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(async () => {
-                        const next =
-                          course.lessons[course.lessons.indexOf(lesson) + 1];
-                        await updateProgress({
-                          ...currentProgress,
-                          completed: [
-                            ...new Set([
-                              ...currentProgress.completed,
-                              lesson.id,
-                            ]),
-                          ],
-                          lessonId: next?.id ?? lesson.id,
-                        });
-                        setTab("lesson");
-                      })
-                    }
-                  >
-                    {busy
-                      ? "保存中…"
-                      : course.lessons.indexOf(lesson) <
-                          course.lessons.length - 1
-                        ? "完成本课，继续学习"
-                        : currentProgress.completed.length ===
-                            course.lessons.length
-                          ? "已完成全部课程"
-                          : "完成本课"}
-                    <Icon name="check" size={17} />
-                  </button>
-                </footer>
+                {tab !== "project" && (
+                  <footer className="learn-lesson-footer">
+                    <span>
+                      {currentProgress.completed.includes(lesson.id)
+                        ? "本课已完成"
+                        : "完成情况由你自己决定"}
+                    </span>
+                    <button
+                      className="learn-button primary"
+                      disabled={busy}
+                      onClick={() =>
+                        void run(async () => {
+                          const next =
+                            course.lessons[course.lessons.indexOf(lesson) + 1];
+                          await updateProgress({
+                            ...currentProgress,
+                            completed: [
+                              ...new Set([
+                                ...currentProgress.completed,
+                                lesson.id,
+                              ]),
+                            ],
+                            lessonId: next?.id ?? lesson.id,
+                          });
+                          setTab("lesson");
+                        })
+                      }
+                    >
+                      {busy
+                        ? "保存中…"
+                        : course.lessons.indexOf(lesson) <
+                            course.lessons.length - 1
+                          ? "完成本课，继续学习"
+                          : currentProgress.completed.length ===
+                              course.lessons.length
+                            ? "已完成全部课程"
+                            : "完成本课"}
+                      <Icon name="check" size={17} />
+                    </button>
+                  </footer>
+                )}
               </div>
-              {showTutor && (
+              {showTutor && tab !== "project" && (
                 <Tutor
                   key={`${course.id}:${lesson.id}`}
                   course={course}
@@ -419,7 +452,10 @@ export default function App() {
               </div>
               <button
                 className="learn-button primary"
-                onClick={() => setView("studio")}
+                onClick={() => {
+                  setEditing(undefined);
+                  setView("studio");
+                }}
               >
                 <Icon name="plus" size={18} />
                 创建新课程
@@ -591,7 +627,7 @@ export default function App() {
                         {confirmDelete === item.id && (
                           <div className="learn-delete-confirm">
                             <p>
-                              移除此课程与学习进度？导师聊天仍保留在历史中。
+                              移除此课程、学习进度与实训项目？聊天仍保留在历史中。
                             </p>
                             <button
                               className="learn-button danger"
@@ -641,7 +677,13 @@ export default function App() {
                 </p>
                 <button
                   className="learn-button"
-                  onClick={() => (search ? setSearch("") : setView("studio"))}
+                  onClick={() => {
+                    if (search) setSearch("");
+                    else {
+                      setEditing(undefined);
+                      setView("studio");
+                    }
+                  }}
                 >
                   {search ? "清除搜索" : "创建第一门课程"}
                 </button>

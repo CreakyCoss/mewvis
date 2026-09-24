@@ -49,7 +49,8 @@
   outline: 3px solid var(--ring);
   outline-offset: 3px;
 }
-.learning-app input:not([type="radio"]):not([type="file"]),
+.learning-app
+  input:not([type="radio"]):not([type="checkbox"]):not([type="file"]),
 .learning-app textarea,
 .learning-app select {
   background: var(--card);
@@ -1309,4 +1310,185 @@
 .learn-card-cover span,
 .learn-card-cover b {
   color: var(--foreground);
+}
+
+/* Course planning and durable per-lesson generation. */
+.learn-outline-editor fieldset {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  min-width: 0;
+}
+.learn-outline-editor label {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+  font-size: 14px;
+}
+.learn-outline-editor input,
+.learn-outline-editor textarea,
+.learn-quiz textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: inherit;
+  background: var(--card);
+  font: inherit;
+}
+.learn-outline-editor input:focus-visible,
+.learn-outline-editor textarea:focus-visible,
+.learn-quiz textarea:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.learn-slot-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 20px;
+}
+.learn-slot-list > li {
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.learn-slot-list details {
+  margin-top: 16px;
+}
+.learn-task,
+.learn-grading {
+  margin-top: 28px;
+  min-width: 0;
+}
+.learn-task .learn-author-chat {
+  margin-top: 20px;
+  height: 550px;
+}
+.learn-result-preview {
+  margin: 20px 0;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  max-height: 440px;
+  overflow: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.learn-result-preview li {
+  margin: 10px 0;
+}
+.learn-outline-editor .learn-actions,
+.learn-task .learn-actions,
+.learn-quiz .learn-actions,
+.learn-course-top {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.learn-quiz small {
+  font-size: 12px;
+  font-weight: 400;
+}
+@media (max-width: 640px) {
+  .learn-outline-editor fieldset {
+    padding: 12px;
+  }
+  .learn-slot-list > li {
+    padding: 12px;
+  }
+  .learn-task .learn-author-chat {
+    height: 480px;
+  }
+}
+
+.learn-project {
+  padding: 28px;
+}
+.learn-project > * + *,
+.learn-project-brief > * + *,
+.learn-project-context > * + * {
+  margin-top: 16px;
+}
+.learn-project-context,
+.learn-project-brief,
+.learn-project-review {
+  border: 1px solid var(--border);
+  padding: 20px;
+  border-radius: 12px;
+  background: var(--card);
+  overflow-wrap: anywhere;
+}
+.learn-project-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.learn-project .learn-actions {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.learn-project-submitted {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.learn-project-review li {
+  margin: 10px 0;
+}
+.learn-save-status {
+  color: var(--primary);
+}
+.learn-manual-editor {
+  max-width: 900px;
+  margin: 0 auto;
+}
+.learn-manual-editor fieldset {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin: 24px 0;
+}
+.learn-manual-editor label {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+}
+.learn-manual-editor .learn-actions {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.learn-edit-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.learn-manual-editor .learn-correct-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.learn-project-review-chat > summary {
+  cursor: pointer;
+  padding: 12px 0;
+}
+@media (max-width: 640px) {
+  .learn-project {
+    padding: 18px;
+  }
+  .learn-project-context,
+  .learn-project-brief,
+  .learn-project-review {
+    padding: 14px;
+  }
+  .learn-manual-editor fieldset {
+    padding: 14px;
+  }
+  .learn-edit-option {
+    flex-wrap: wrap;
+  }
+  .learn-edit-option > input {
+    flex: 1;
+  }
 }

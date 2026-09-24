@@ -10,6 +10,8 @@ import {
   type Progress,
 } from "./course";
 
+import { projectKey } from "./pbl";
+
 export const courseKey = (id: string) => `learning:course:${id}`;
 const progressKey = (id: string) => `learning:progress:${id}`;
 export function repository(storage: ApplicationStorage) {
@@ -60,6 +62,7 @@ export function repository(storage: ApplicationStorage) {
       // Remove the visible document first; an orphaned progress key is harmless on failure.
       await storage.removeItem(courseKey(id));
       await storage.removeItem(progressKey(id));
+      await storage.removeItem(projectKey(id));
     },
   };
 }

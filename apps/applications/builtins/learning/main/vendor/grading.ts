@@ -1,6 +1,6 @@
 // Adapted from THU-MAIC/OpenMAIC, commit ebf665f316372d6ee875bd50dac1e04662d5a519.
 // Copyright (c) 2026 THU-MAIC. MIT; see ../../LICENSE.
-// Isle uses validated single-choice questions only.
+// Isle validates choice questions and sends short answers to a separate AI grading flow.
 import type { Question as QuizQuestion } from "../course";
 
 export interface QuestionResult {
@@ -30,7 +30,7 @@ export function toArray(v: string | string[] | undefined): string[] {
  * must not be re-routed to AI grading. `hasAnswer` does not override the type.
  */
 export function isShortAnswer(q: QuizQuestion): boolean {
-  return false; // Basic edition supports single-choice questions only.
+  return q.type === "short_answer";
 }
 
 /**

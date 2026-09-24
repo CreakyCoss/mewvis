@@ -6,8 +6,7 @@ import {
 import { getApplicationDataClient } from "@isle/app-sdk/data";
 import { Chat } from "@isle/app-sdk/chat/react";
 import { tutorProfile } from "./generation";
-import { gradeChoiceQuestions } from "./vendor/grading";
-import type { Attempt, Course, Lesson } from "./course";
+import type { Course, Lesson } from "./course";
 
 export const errorText = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
@@ -68,118 +67,7 @@ export function Text({ value }: { value: string }) {
     </div>
   );
 }
-export function Quiz({
-  lesson,
-  attempt,
-  onSubmit,
-  disabled,
-}: {
-  lesson: Lesson;
-  attempt?: Attempt;
-  onSubmit: (attempt: Attempt) => Promise<void>;
-  disabled: boolean;
-}) {
-  const [answers, setAnswers] = useState<Record<string, string>>(
-    attempt?.answers ?? {},
-  );
-  const [retrying, setRetrying] = useState(false);
-  const [error, setError] = useState("");
-  const results =
-    attempt && !retrying
-      ? gradeChoiceQuestions(lesson.questions, attempt.answers)
-      : null;
-  const complete = lesson.questions.every((q) => answers[q.id]);
-  return (
-    <section className="learn-quiz" aria-label="课后测验">
-      <div className="learn-section-title">
-        <div>
-          <span className="learn-eyebrow">CHECK YOUR UNDERSTANDING</span>
-          <h2>用一道题，检验理解</h2>
-        </div>
-        <span className="learn-chip">{lesson.questions.length} 道单选题</span>
-      </div>
-      {lesson.questions.map((q, index) => (
-        <fieldset key={q.id} disabled={disabled || !!results}>
-          <legend>
-            {index + 1}. {q.question}
-          </legend>
-          <div className="learn-options">
-            {q.options.map((option) => (
-              <label
-                key={option.value}
-                className={`learn-option ${answers[q.id] === option.value ? "selected" : ""}`}
-              >
-                <input
-                  type="radio"
-                  name={q.id}
-                  value={option.value}
-                  checked={answers[q.id] === option.value}
-                  onChange={() =>
-                    setAnswers((current) => ({
-                      ...current,
-                      [q.id]: option.value,
-                    }))
-                  }
-                />
-                <span className="learn-option-letter">{option.value}</span>
-                <span>{option.label}</span>
-              </label>
-            ))}
-          </div>
-          {results && (
-            <div
-              className={`learn-answer ${results[index].correct ? "correct" : "incorrect"}`}
-            >
-              <strong>
-                {results[index].correct
-                  ? "回答正确"
-                  : `再理解一下 · 正确答案 ${q.answer}`}
-              </strong>
-              <p>{q.explanation}</p>
-            </div>
-          )}
-        </fieldset>
-      ))}
-      {error && <Notice>{error}</Notice>}
-      <div className="learn-actions">
-        {results ? (
-          <>
-            <span className="learn-muted">
-              答对 {results.filter((r) => r.correct).length} / {results.length}{" "}
-              题 · 已保存
-            </span>
-            <button
-              className="learn-button"
-              disabled={disabled}
-              onClick={() => {
-                setRetrying(true);
-                setAnswers({});
-              }}
-            >
-              再练一次
-            </button>
-          </>
-        ) : (
-          <button
-            className="learn-button primary"
-            disabled={disabled || !complete}
-            onClick={async () => {
-              setError("");
-              try {
-                await onSubmit({ answers, submittedAt: Date.now() });
-                setRetrying(false);
-              } catch (e) {
-                setError(errorText(e));
-              }
-            }}
-          >
-            {disabled ? "保存中…" : "提交答案"}
-          </button>
-        )}
-      </div>
-    </section>
-  );
-}
+export { Quiz } from "./Quiz";
 export function Tutor({ course, lesson }: { course: Course; lesson: Lesson }) {
   const [session, setSession] = useState<ApplicationChatSession | null>(null);
   const [busy, setBusy] = useState(false);

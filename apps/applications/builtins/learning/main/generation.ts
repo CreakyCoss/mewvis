@@ -30,11 +30,11 @@ export function buildPrompt(brief: Brief): string {
 ${JSON.stringify(brief)}`;
 }
 /** A dispatched send is not completion. Only accept the final answer of the latest user turn. */
-export function courseFromSnapshot(
-  snapshot: Readonly<ChatSnapshot>,
-): CourseContent | null {
+export function finalText(snapshot: Readonly<ChatSnapshot>): string | null {
   if (
     snapshot.phase !== "idle" ||
+    snapshot.execution?.state === "cancelled" ||
+    snapshot.execution?.state === "failed" ||
     snapshot.activeTaskId ||
     snapshot.error ||
     snapshot.initializationError
@@ -65,5 +65,12 @@ export function courseFromSnapshot(
     .filter((b) => b.type === "text")
     .map((b) => b.content)
     .join("\n");
-  return parseCourseOutput(raw);
+  return raw;
+}
+
+export function courseFromSnapshot(
+  snapshot: Readonly<ChatSnapshot>,
+): CourseContent | null {
+  const raw = finalText(snapshot);
+  return raw === null ? null : parseCourseOutput(raw);
 }
