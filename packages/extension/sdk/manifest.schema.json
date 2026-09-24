@@ -132,6 +132,7 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
+            "provides": {"type": "array", "uniqueItems": true, "items": {"enum": ["decisions.evaluate"]}},
             "required": {
               "type": "array",
               "uniqueItems": true,
@@ -143,6 +144,7 @@
                   "configuration.read",
                   "configuration.write",
                   "tasks.run",
+                  "decisions.evaluate",
                   "activity.publish",
                   "activity.read",
                   "activity.cancel",
@@ -163,6 +165,7 @@
                   "configuration.read",
                   "configuration.write",
                   "tasks.run",
+                  "decisions.evaluate",
                   "activity.publish",
                   "activity.read",
                   "activity.cancel",

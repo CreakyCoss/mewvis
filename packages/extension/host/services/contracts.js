@@ -1,5 +1,9 @@
+import { decisionRequestSchema, decisionResultSchema, decisionResultMatchesRequest } from "./decisions.js";
+export * from "./decisions.js";
+export const extensionProvidedCapabilities = Object.freeze(["decisions.evaluate"]);
 const empty = { type: "object", additionalProperties: false, properties: {} };
 export const extensionHostMethods = Object.freeze({
+  "decisions.evaluate": { requestSchema: decisionRequestSchema, responseSchema: decisionResultSchema, validateResult: decisionResultMatchesRequest },
   "configuration.read": { requestSchema: empty },
   "configuration.write": {
     requestSchema: {
@@ -160,6 +164,7 @@ export function createExtensionHostClient(transport, capabilities) {
   };
   return Object.freeze({
     capabilities: support,
+    decisions: Object.freeze({ evaluate: (input, options) => call("decisions.evaluate", input, options) }),
     configuration: Object.freeze({
       read: (options) => call("configuration.read", {}, options),
       write: (value, options) =>

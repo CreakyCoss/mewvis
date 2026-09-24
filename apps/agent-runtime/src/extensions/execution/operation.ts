@@ -83,7 +83,16 @@ export async function createExtensionRunResources(
       : undefined,
   );
   const stateStore = await createExtensionStateStore(command.sessionRootDir);
+  const providers = new Map<string, string>();
+  for (const source of sources) {
+    for (const capability of source.host?.provides ?? []) {
+      if (providers.has(capability))
+        throw new Error(`能力存在多个提供者：${capability}`);
+      providers.set(capability, source.id);
+    }
+  }
   const hostCapabilities = [
+    ...providers.keys(),
     "configuration.read",
     ...(command.sessionRootDir
       ? ["activity.publish", "activity.checkpoint"]
@@ -211,8 +220,12 @@ export async function createExtensionRunResources(
       signal: AbortSignal,
       progress?: (value: unknown) => void,
       validate?: (value: T) => T,
-    ) =>
-      stateStore.transact(extensionId, signal, async (state) => {
+      chain: readonly string[] = [],
+    ): Promise<T> => {
+      // Detect recursion before acquiring per-plugin state locks.
+      if (chain.includes(extensionId) || chain.length >= 8)
+        return Promise.reject(new Error("插件能力循环调用或调用深度超限"));
+      return stateStore.transact(extensionId, signal, async (state) => {
         const selected = Object.hasOwn(state, extensionId)
           ? { [extensionId]: state[extensionId] }
           : {};
@@ -222,7 +235,10 @@ export async function createExtensionRunResources(
           [
             ...(source.host?.required ?? []),
             ...(source.host?.optional ?? []),
-          ].includes("tasks.run")
+          ].some(
+            (capability) =>
+              capability === "tasks.run" || providers.has(capability),
+          )
             ? 10 * 60_000
             : 60_000,
         );
@@ -255,7 +271,23 @@ export async function createExtensionRunResources(
                 }),
             )
           : undefined;
+        const providerAdapters = Object.fromEntries(
+          [...providers].map(([method, providerId]) => [
+            method,
+            (input: object) =>
+              transact(
+                providerId,
+                "service",
+                { name: method, input, extensionId: providerId },
+                serviceSignal,
+                undefined,
+                undefined,
+                [...chain, extensionId],
+              ),
+          ]),
+        );
         const services = new ExtensionHost({
+          ...providerAdapters,
           "configuration.read": async () =>
             structuredClone(source.config ?? {}),
           ...(activity
@@ -374,6 +406,7 @@ export async function createExtensionRunResources(
         else delete state[extensionId];
         return { value, state };
       });
+    };
     const authorize = async (
       name: string,
       input: unknown,

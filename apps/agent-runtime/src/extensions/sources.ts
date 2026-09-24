@@ -1,3 +1,4 @@
+import { extensionProvidedCapabilities } from "@isle/extension-host/services";
 import { isJsonValue } from "@earendil-works/chord";
 import {
   extensionCapabilities,
@@ -28,6 +29,7 @@ const sourceSchema = z
       .object({
         required: z.array(z.string()).optional(),
         optional: z.array(z.string()).optional(),
+        provides: z.array(z.enum(extensionProvidedCapabilities)).refine((items) => new Set(items).size === items.length).optional(),
       })
       .strict()
       .optional(),

@@ -95,6 +95,85 @@
                           "previous",
                           "all"
                         ]
+                      },
+                      "judgment": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "question",
+                          "output"
+                        ],
+                        "properties": {
+                          "question": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 4000
+                          },
+                          "output": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "type",
+                                  "options"
+                                ],
+                                "properties": {
+                                  "type": {
+                                    "const": "choice"
+                                  },
+                                  "options": {
+                                    "type": "array",
+                                    "minItems": 2,
+                                    "maxItems": 10,
+                                    "uniqueItems": true,
+                                    "items": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 300
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "type",
+                                  "levels"
+                                ],
+                                "properties": {
+                                  "type": {
+                                    "const": "score"
+                                  },
+                                  "levels": {
+                                    "type": "array",
+                                    "minItems": 2,
+                                    "maxItems": 10,
+                                    "uniqueItems": true,
+                                    "items": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 300
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "type"
+                                ],
+                                "properties": {
+                                  "type": {
+                                    "const": "boolean"
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
                       }
                     }
                   }
@@ -160,7 +239,8 @@
         "activity.cancel",
         "activity.pause",
         "activity.resume",
-        "activity.checkpoint"
+        "activity.checkpoint",
+        "decisions.evaluate"
       ]
     },
     "modules": {

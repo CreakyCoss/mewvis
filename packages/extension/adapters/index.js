@@ -23,6 +23,9 @@ function adaptServices(native) {
         /** @type {{signal?: AbortSignal}} */ options = {},
       ) => copy(await native.configuration.write(copy(value), options)),
     },
+    decisions: {
+      evaluate: async (/** @type {import("@isle/extension-sdk/host").DecisionRequest} */ input, /** @type {{signal?: AbortSignal}} */ options = {}) => copy(await native.decisions.evaluate(copy(input), options)),
+    },
     tasks: {
       run: async (
         /** @type {import("@isle/extension-sdk/host").ExtensionHostMethods["tasks.run"]["input"]} */ input,
@@ -80,6 +83,9 @@ export function adaptAgentExtension(definition) {
           get: (key) => copy(native.session.get(key)),
           set: (key, value) => native.session.set(key, copy(value)),
           delete: (key) => native.session.delete(key),
+        },
+        provide(method, handler) {
+          native.provide(method, async (input, context) => copy(await handler(copy(input), context)));
         },
         registerTool(tool) {
           native.registerTool({

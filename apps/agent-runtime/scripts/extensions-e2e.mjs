@@ -17,6 +17,7 @@ import { verifyExtensionMiddleware } from "./extensions-middleware-test.mjs";
 import { verifyExtensionEvents } from "./extensions-events-test.mjs";
 import { verifyExtensionCollaboration } from "./extensions-collaboration-test.mjs";
 import { verifyExtensionCompaction } from "./extensions-compaction-test.mjs";
+import { verifyExtensionServices } from "./extensions-service-test.mjs";
 import { verifyExtensionWait } from "./extensions-wait-test.mjs";
 
 // Self-contained demo/test: actual Pi SDK, actual execution workers and local SSE model.
@@ -451,6 +452,7 @@ try {
     await binding.dispose();
     await extensionRuntime.dispose();
   }
+  await verifyExtensionServices({ api, workspace, hostApi });
   await verifyExtensionWorkflow({ api, dist, taskPackage, workspace, source, mock, command, piCommand, context });
   await verifyExtensionCollaboration({ api, root, workspace, piCommand });
   await verifyExtensionSessions({ api, workspace, command, piCommand });

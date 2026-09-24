@@ -4,6 +4,8 @@ import type { JsonObject } from "@isle/extension-sdk";
 import type {
   ExtensionHostServices,
   ExtensionActivity,
+  DecisionOutput,
+  DecisionResult,
 } from "@isle/extension-sdk/host";
 export type Step = {
   id: string;
@@ -11,6 +13,8 @@ export type Step = {
   roleId: string;
   instruction: string;
   input: "original" | "previous" | "all";
+  /** Optional assessment of this step's output; no provider or policy identifiers. */
+  judgment?: { question: string; output: DecisionOutput };
 };
 export type Workflow = {
   id: string;
@@ -44,6 +48,27 @@ export function workflows(config: Readonly<JsonObject>): Workflow[] {
       )
         throw new Error("请为每个步骤填写名称并选择角色");
       steps.add(step.id);
+      if (
+        step.judgment &&
+        (!step.judgment.question.trim() || step.judgment.question.length > 4000)
+      )
+        throw new Error("请填写判断问题（最多 4000 字）");
+      const output = step.judgment?.output;
+      if (output && output.type !== "boolean") {
+        const labels =
+          output.type === "choice"
+            ? output.options
+            : output.type === "score"
+              ? output.levels
+              : [];
+        if (
+          labels.length < 2 ||
+          labels.length > 10 ||
+          labels.some((label) => !label.trim() || label.length > 300) ||
+          new Set(labels).size !== labels.length
+        )
+          throw new Error("判断选项或评分档位须为 2–10 个不重复的非空值");
+      }
     }
   }
   return structuredClone(values);
@@ -75,6 +100,14 @@ export async function runWorkflow(
     })),
   };
   const results: string[] = [];
+  const judgments: Array<{ stepId: string; result: DecisionResult }> = [];
+  if (
+    snapshot.steps.some((step) => step.judgment) &&
+    !host.supports("decisions.evaluate")
+  )
+    throw new Error(
+      "当前没有可用的判断能力提供者，请启用智能判断插件或配置宿主实现。",
+    );
   const publish = () =>
     host.activity.publish(structuredClone(activity), { signal });
   await publish();
@@ -111,14 +144,28 @@ export async function runWorkflow(
         },
         { signal },
       );
-      results.push(`${step.name}\n${result.text}`);
+      let assessment = "";
+      if (step.judgment) {
+        if (result.text.length > 24000)
+          throw new Error("步骤结果超过判断输入上限，请缩短输出。");
+        activity.detail = `正在判断：${step.judgment.question}`;
+        await publish();
+        const decision = await host.decisions.evaluate(
+          { input: result.text, ...step.judgment },
+          { signal },
+        );
+        judgments.push({ stepId: step.id, result: decision });
+        assessment = `\n\n判断结果（需复核或弃答时不可作为确定结论）：\n${JSON.stringify(decision, null, 2)}`;
+        delete activity.detail;
+      }
+      results.push(`${step.name}\n${result.text}${assessment}`);
       activity.steps[index].state = "completed";
       await publish();
     }
     activity.state = "completed";
     activity.detail = "全部步骤完成";
     await publish();
-    return { text: results.at(-1) ?? "", steps: results };
+    return { text: results.at(-1) ?? "", steps: results, judgments };
   } catch (error) {
     activity.state = signal.aborted ? "cancelled" : "failed";
     activity.detail = signal.aborted

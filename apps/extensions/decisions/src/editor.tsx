@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ExtensionUIContext } from "@isle/extension-sdk/ui";
-import { readProfiles, type Profile } from "./profiles";
+import { readRules, type Rule } from "./rules";
+import { builtinRules } from "./builtins";
 
 const styles = `
 *{box-sizing:border-box}body{margin:0;color:var(--foreground);background:var(--background);font:13px/1.6 system-ui}
@@ -9,8 +10,8 @@ input,textarea,select{width:100%;padding:8px 10px;border:1px solid var(--border)
 main{max-width:800px;margin:auto;padding:20px;display:grid;gap:18px}h2,h3,p{margin:0}.row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.row h2,.row h3{flex:1}.muted,small{color:var(--muted-foreground)}fieldset{min-width:0;margin:0;padding:0;border:0;display:grid;gap:16px}.card{border:1px solid var(--border);border-radius:12px;padding:16px;display:grid;gap:12px}label{display:grid;gap:5px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.primary{background:var(--primary);color:var(--primary-foreground)}.primary:hover{background:var(--primary)}footer{position:sticky;bottom:0;background:var(--background);padding:12px 0;border-top:1px solid var(--border)}.error{color:var(--destructive)}@media(max-width:520px){.grid{grid-template-columns:1fr}main{padding:12px}}
 `;
 export function Editor({ context }: { context: ExtensionUIContext }) {
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [rules, setRules] = useState<Rule[]>([]);
+  const [ready, setReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -18,37 +19,39 @@ export function Editor({ context }: { context: ExtensionUIContext }) {
     let active = true;
     context.host.configuration
       .read({ signal: context.signal })
-      .then((config) => {
-        if (active) setProfiles(readProfiles(config));
+      .then((value) => {
+        if (active) {
+          setRules(readRules(value));
+          setReady(true);
+        }
       })
       .catch((error) => {
         if (active) setError(String(error));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
       });
     return () => {
       active = false;
     };
   }, [context]);
-  const change = (value: Profile[]) => {
-    setProfiles(value);
+  const change = (value: Rule[]) => {
+    setRules(value);
     setSaved(false);
   };
-  const replace = (profile: Profile) =>
-    change(profiles.map((item) => (item.id === profile.id ? profile : item)));
+  const patch = (id: string, value: Partial<Rule>) =>
+    change(
+      rules.map((rule) => (rule.id === id ? { ...rule, ...value } : rule)),
+    );
   const save = async () => {
     setSaving(true);
-    setError("");
     setSaved(false);
+    setError("");
     try {
-      const validated = readProfiles({ profiles });
+      const value = readRules({ rules });
       await context.host.configuration.write(
-        { profiles: validated },
+        { rules: value },
         { signal: context.signal },
       );
       if (!context.signal.aborted) {
-        setProfiles(validated);
+        setRules(value);
         setSaved(true);
       }
     } catch (error) {
@@ -63,27 +66,31 @@ export function Editor({ context }: { context: ExtensionUIContext }) {
       <style>{styles}</style>
       <main>
         <div>
-          <h2>智能判断</h2>
+          <h2>智能判断标准</h2>
           <p className="muted">
-            使用当前会话的模型做选择、评分或是非判断。保存后，在聊天中输入
-            /，按模板名称选择。
+            自定义规则优先，其次是内置规则，没有适用规则时使用通用判断。调用方只需提供材料、问题和输出约束。
           </p>
         </div>
-        <p className="muted">
-          置信度为模型自评，未经统计校准。低于阈值时标记为“需复核”；材料不足时允许弃答。结果不会自动执行任何业务操作。
-        </p>
-        {loading && <p role="status">正在读取模板…</p>}
-        <fieldset disabled={loading || saving}>
-          {profiles.map((profile) => (
-            <section className="card" key={profile.id}>
+        <section className="card">
+          <h3>内置规则</h3>
+          <p>{builtinRules.map((rule) => rule.name).join(" · ")}</p>
+          <small>
+            系统自动匹配，无需手动选择。没有自定义规则也可以直接使用判断能力和 /
+            快捷命令。
+          </small>
+        </section>
+        {!ready && !error && <p role="status">正在读取规则…</p>}
+        <fieldset disabled={!ready || saving}>
+          {rules.map((rule) => (
+            <section className="card" key={rule.id}>
               <div className="row">
-                <h3>{profile.name || "新判断模板"}</h3>
+                <h3>{rule.name || "新规则"}</h3>
                 <button
                   onClick={() =>
-                    change(profiles.filter((item) => item.id !== profile.id))
+                    change(rules.filter((item) => item.id !== rule.id))
                   }
                 >
-                  删除模板
+                  删除规则
                 </button>
               </div>
               <div className="grid">
@@ -91,117 +98,101 @@ export function Editor({ context }: { context: ExtensionUIContext }) {
                   名称
                   <input
                     maxLength={64}
-                    value={profile.name}
-                    onChange={(event) =>
-                      replace({ ...profile, name: event.target.value })
-                    }
+                    value={rule.name}
+                    onChange={(e) => patch(rule.id, { name: e.target.value })}
                   />
                 </label>
                 <label>
-                  判断类型
+                  状态
                   <select
-                    value={profile.type}
-                    onChange={(event) => {
-                      const type = event.target.value as Profile["type"];
-                      const common = {
-                        id: profile.id,
-                        name: profile.name,
-                        instructions: profile.instructions,
-                        threshold: profile.threshold,
-                      };
-                      replace(
-                        type === "noul"
-                          ? { ...common, type }
-                          : {
-                              ...common,
-                              type,
-                              choices:
-                                profile.type === "noul"
-                                  ? ["", ""]
-                                  : profile.choices,
-                            },
-                      );
-                    }}
+                    value={String(rule.enabled)}
+                    onChange={(e) =>
+                      patch(rule.id, { enabled: e.target.value === "true" })
+                    }
                   >
-                    <option value="choice">选择一个选项</option>
-                    <option value="score">按档位评分</option>
-                    <option value="noul">是 / 否</option>
+                    <option value="true">启用</option>
+                    <option value="false">停用</option>
                   </select>
                 </label>
               </div>
               <label>
-                判断要求
+                适用条件
                 <textarea
-                  maxLength={8000}
-                  value={profile.instructions}
-                  onChange={(event) =>
-                    replace({ ...profile, instructions: event.target.value })
-                  }
-                  placeholder="描述判断目标、依据以及何时应当弃答"
-                />
-              </label>
-              {profile.type !== "noul" && (
-                <label>
-                  {profile.type === "score"
-                    ? "评分档位（从低到高，每行一档，分值从 0 开始）"
-                    : "可选项（每行一个）"}
-                  <textarea
-                    value={profile.choices.join("\n")}
-                    onChange={(event) =>
-                      replace({
-                        ...profile,
-                        choices: event.target.value.split("\n"),
-                      })
-                    }
-                  />
-                  <small>支持 2–10 项，每项最多 300 字。</small>
-                </label>
-              )}
-              <label>
-                需复核阈值
-                <input
-                  type="number"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={
-                    Number.isNaN(profile.threshold) ? "" : profile.threshold
-                  }
-                  onChange={(event) =>
-                    replace({
-                      ...profile,
-                      threshold: event.target.valueAsNumber,
-                    })
-                  }
+                  maxLength={1000}
+                  value={rule.when}
+                  onChange={(e) => patch(rule.id, { when: e.target.value })}
+                  placeholder="例如：判断本项目的发布方案是否具备上线条件"
                 />
                 <small>
-                  自评置信度低于此值时提示人工复核，不更改模型给出的结果。
+                  描述什么问题应该使用这条规则；不需要填写命令名或规则引用。
                 </small>
               </label>
+              <label>
+                判断标准
+                <textarea
+                  maxLength={8000}
+                  value={rule.instructions}
+                  onChange={(e) =>
+                    patch(rule.id, { instructions: e.target.value })
+                  }
+                  placeholder="例如：需明确回滚方案、测试结果和负责人；缺少关键证据时不能判定通过"
+                />
+              </label>
+              <div className="grid">
+                <label>
+                  匹配优先级
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={Number.isNaN(rule.priority) ? "" : rule.priority}
+                    onChange={(e) =>
+                      patch(rule.id, { priority: e.target.valueAsNumber })
+                    }
+                  />
+                  <small>多个规则适用时优先选择较高值（0–100）。</small>
+                </label>
+                <label>
+                  需复核阈值
+                  <input
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={Number.isNaN(rule.threshold) ? "" : rule.threshold}
+                    onChange={(e) =>
+                      patch(rule.id, { threshold: e.target.valueAsNumber })
+                    }
+                  />
+                  <small>模型自评低于此值时提示复核，不切换规则重判。</small>
+                </label>
+              </div>
             </section>
           ))}
-          {!loading && !profiles.length && (
+          {ready && !rules.length && (
             <p className="muted">
-              还没有判断模板。添加一个模板即可创建对应的 / 命令。
+              尚无自定义规则，当前使用内置规则和通用判断。
             </p>
           )}
           <div>
             <button
-              disabled={profiles.length >= 32}
+              disabled={rules.length >= 32}
               onClick={() =>
                 change([
-                  ...profiles,
+                  ...rules,
                   {
-                    id: `d${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`,
+                    id: `r${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`,
                     name: "",
+                    enabled: true,
+                    priority: 0,
+                    when: "",
                     instructions: "",
                     threshold: 0.7,
-                    type: "noul",
                   },
                 ])
               }
             >
-              ＋ 添加判断模板
+              ＋ 添加规则
             </button>
           </div>
         </fieldset>
@@ -213,12 +204,12 @@ export function Editor({ context }: { context: ExtensionUIContext }) {
         <footer className="row">
           <button
             className="primary"
-            disabled={loading || saving}
+            disabled={!ready || saving}
             onClick={save}
           >
-            {saving ? "保存中…" : "保存模板"}
+            {saving ? "保存中…" : "保存规则"}
           </button>
-          {saved && <span role="status">已保存，可在聊天中通过 / 引用</span>}
+          {saved && <span role="status">已保存，下次判断生效</span>}
         </footer>
       </main>
     </>

@@ -69,14 +69,16 @@ test(
         requestId: ++requestId,
       });
     const defaults = await query("configuration.read");
-    assert.equal(defaults.profiles.length, 3);
+    assert.equal(defaults.rules.length, 0);
     await query("configuration.write", {
       value: {
-        profiles: [
+        rules: [
           {
             id: "review",
             name: "上线条件判断",
-            type: "noul",
+            when: "判断是否满足上线条件",
+            enabled: true,
+            priority: 10,
             instructions: "判断是否可以上线",
             threshold: 0.8,
           },
@@ -85,9 +87,9 @@ test(
     });
     const catalog = await call("list_extension_commands", target);
     const command = catalog.commands.find(
-      (item) => item.id === "isle.decisions/review",
+      (item) => item.id === "isle.decisions/ready",
     );
-    assert.equal(command.label, "上线条件判断");
+    assert.equal(command.label, "执行条件判断");
     assert.equal(command.inputMode, "text");
     const run = async (taskId, answers, expectedState = "done") => {
       replies.push(...answers);
@@ -96,7 +98,7 @@ test(
         taskId,
         sessionRootDir: `chats/${target.chatId}/session`,
         agentRoleId: "main",
-        userMessage: "/isle.decisions/review 已完成验证，请判断是否可以上线",
+        userMessage: "/isle.decisions/ready 已完成验证，请判断是否可以上线",
         permissions: { mode: "full" },
         resources: {
           tools: { allowed: ["read", "bash", "ask_user"] },
@@ -132,36 +134,123 @@ test(
     };
     const answer = (value, confidence) =>
       JSON.stringify({
-        type: "noul",
+        type: "boolean",
         value,
         confidence,
         reason: "根据提供的验证情况判断。",
       });
-    const accepted = await run("valid", [answer(true, 0.9)]);
+    const matched = JSON.stringify({
+      matches: [{ id: "review", confidence: 0.95 }],
+    });
+    const accepted = await run("valid", [matched, answer(true, 0.9)]);
     assert.ok(
       accepted.some(
         (event) => event.type === "done" && event.text.includes("已判断"),
       ),
       JSON.stringify(accepted),
     );
-    const review = await run("repair", ["invalid", answer(false, 0.4)]);
+    const review = await run("repair", [
+      matched,
+      "invalid",
+      answer(false, 0.4),
+    ]);
     assert.ok(
       review.some(
         (event) => event.type === "done" && event.text.includes("需复核"),
       ),
     );
-    const abstained = await run("abstain", [answer(null, 0)]);
+    const abstained = await run("abstain", [matched, answer(null, 0)]);
     assert.ok(
       abstained.some(
         (event) => event.type === "done" && event.text.includes("已弃答"),
       ),
     );
-    await run("invalid", ["invalid", "invalid"], "failed");
+    await run("invalid", [matched, "invalid", "invalid"], "failed");
     assert.equal(
       requests.length,
-      6,
+      10,
       "slash calls bypass parent inference; only invalid output is retried once",
     );
+    const collabView = await call("open_extension_view", {
+      id: "isle.collaboration",
+      contributionId: "settings",
+      viewId: "settings",
+    });
+    await call("query_extension_view", {
+      token: collabView.token,
+      method: "configuration.write",
+      requestId: 1,
+      arguments: {
+        value: {
+          roles: [
+            {
+              id: "writer",
+              name: "方案作者",
+              instructions: "写一份方案",
+              avatar: "compass",
+            },
+          ],
+          workflows: [
+            {
+              id: "assess",
+              name: "方案与判断",
+              description: "检查结果",
+              steps: [
+                {
+                  id: "draft",
+                  name: "方案",
+                  roleId: "writer",
+                  instruction: "写方案",
+                  input: "original",
+                  judgment: {
+                    question: "是否满足上线条件？",
+                    output: { type: "boolean" },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    });
+    replies.push("方案：已完成测试", matched, answer(false, 0.4));
+    await call("run_agent_runtime_agent", {
+      ...target,
+      taskId: "consumer",
+      sessionRootDir: `chats/${target.chatId}/session`,
+      agentRoleId: "main",
+      userMessage: "/isle.collaboration/assess 准备上线方案",
+      permissions: { mode: "full" },
+      resources: { tools: { allowed: [] }, skills: { enabled: [] } },
+      runtimeModel: {
+        provider: "openai",
+        modelId: "local",
+        catalogModelId: "local",
+        apiFormat: "openai-completions",
+        apiEndpoint: `http://127.0.0.1:${model.address().port}/v1`,
+        apiKey: "test",
+        reasoning: false,
+      },
+    });
+    await waitFor(
+      () =>
+        ["done", "failed"].includes(
+          server.supervisor.snapshot("consumer")?.taskState,
+        ),
+      "consumer",
+      40000,
+    );
+    assert.equal(
+      server.supervisor.snapshot("consumer").taskState,
+      "done",
+      JSON.stringify(events.slice(-12)),
+    );
+    assert.equal(replies.length, 0);
+    const final = events
+      .map((event) => event.payload?.event)
+      .find((event) => event?.taskId === "consumer" && event.type === "done");
+    assert.match(final.text, /review_required/);
+    assert.equal(requests.length, 13);
     assert.ok(
       requests.every((request) => !request.tools?.length),
       "evaluation tasks must not expose inherited tools or plugin tools",

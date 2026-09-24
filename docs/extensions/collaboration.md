@@ -47,3 +47,9 @@
 
 - `pnpm --filter @isle/agent-runtime test:extensions`：Mock 工具、文本命令、角色失效、子任务隔离，以及已有 Pi/Mock 插件回归。
 - `pnpm --filter @isle/server test:extensions`：真实服务、SDK worker、Pi、本地模型、配置保存、命令发现、账本、暂停/继续、撤回暂停、最后一步完成、暂停中取消和会话隔离链路；不需要外部模型账号。
+
+### 步骤结果判断
+
+步骤可配置 `judgment: { question, output }`。执行角色完成后，协作插件将该步骤输出作为材料，通过 `host.decisions.evaluate` 获取标准判断结果。界面中的“完成后判断结果”用于配置这个入口，不选择判断插件或内部规则。
+
+判断结果加入本步骤结果，后续步骤可通过“前序结果”引用；当前不改变步骤顺序。结果可能为 `review_required` 或 `abstained`，不能当作确定结论。没有可用提供者会在开始流程前明确报错；判断执行异常会按普通步骤失败处理。暂停仍在步骤之间生效，取消会同时终止嵌套的判断调用。

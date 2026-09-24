@@ -83,3 +83,9 @@ if (ctx.host.supports("session.summarize")) {
 `pnpm --filter @isle/server test:extensions` 包括真实 Runtime 闭环：本地模型桩生成会话与运行摘要，核对账本快照及全部会话文件保持不变。模块测试覆盖可选能力缺失、权限与参数校验、不同宿主实现、取消先于查询、视图关闭和插件停用。
 
 `tasks.run` 的正文、模型返回的思考和工具事件由宿主以独立子任务事件转发到父会话；`title` 仅提供显示名称，`avatar` 使用插件自己的图片 URL 或 data URI，不引用宿主角色和头像 ID。子任务完成或失败只结束自己的消息，父任务继续由自身生命周期管理。桌面按子任务显示并保存消息，取消时保留已输出内容。
+
+## 标准判断能力与插件提供者
+
+`decisions.evaluate` 接收 `{ input, question, output }`，返回类型化判断结果。SDK 消费端使用 `host.decisions.evaluate`，宿主原生消费端使用 `services.decisions.evaluate`，均不传提供者或规则 ID。
+
+插件清单通过 `host.provides` 声明自己实现的标准服务，在运行模块 setup 中使用 `provide(method, handler)` 注册。SDK 适配器翻译注册和调用，宿主在独立的提供者配置与状态作用域内分发请求；提供者缺失、重复、递归调用及非法结果都会明确失败。匹配用户规则、内置规则和通用判断的逻辑完全属于提供者。参见[智能判断能力与插件](decisions.md)。

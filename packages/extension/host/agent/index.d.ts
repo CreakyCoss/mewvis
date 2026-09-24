@@ -52,6 +52,11 @@ export interface ExtensionContext {
   /** Frozen instance snapshot; a host configuration change takes effect on a replacement instance. */
   readonly config: Readonly<JsonObject>;
   session: ExtensionSessionState;
+  /** Register an implementation of a standard capability; consumers never address plugin IDs. */
+  provide<M extends import("../services/contracts.js").ExtensionProvidedCapability>(
+    method: M,
+    handler: (input: import("../services/contracts.js").ExtensionHostMethods[M]["input"], context: { signal: AbortSignal }) => Promise<import("../services/contracts.js").ExtensionHostMethods[M]["output"]>,
+  ): void;
   registerTool(tool: ExtensionTool): void;
   registerSkill(skill: ExtensionSkill): void;
   registerCommand(command: ExtensionCommand): void;

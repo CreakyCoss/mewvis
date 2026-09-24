@@ -1,181 +1,179 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readProfiles } from "../src/profiles";
-import { evaluate, parseAnswer } from "../src/evaluate";
+import { evaluate, parseAnswer, requestSchema } from "../src/evaluate";
+import { readRules, type Rule } from "../src/rules";
 import extension from "../src/index";
-import metadata from "../package.json";
-
-const profiles = readProfiles(
-  metadata["isle.extension"].configuration.defaults,
-);
-const [choice, score, noul] = profiles;
-const answer = (
-  type = "choice",
-  value: unknown = "功能开发",
-  confidence = 0.9,
-) =>
-  JSON.stringify({
-    type,
-    value,
-    confidence,
-    reason: "材料中有明确的功能要求。",
-  });
-const fakeHost = (responses: string[]) => {
+import type { DecisionRequest } from "@isle/extension-sdk/host";
+const request: DecisionRequest = {
+  input: "已经完成测试",
+  question: "是否可以实施？",
+  output: { type: "boolean" },
+};
+const rule: Rule = {
+  id: "release",
+  name: "发布",
+  when: "判断发布条件",
+  enabled: true,
+  priority: 10,
+  instructions: "必须包含回滚方案",
+  threshold: 0.9,
+};
+const match = (...ids: string[]) => ({
+  matches: ids.map((id) => ({ id, confidence: 0.95 })),
+});
+const raw = (value: unknown = true, confidence = 0.95, type = "boolean") => ({
+  type,
+  value,
+  confidence,
+  reason: "根据给出的材料判断",
+});
+const fixture = (responses: unknown[]) => {
   const calls: any[] = [];
   return {
     calls,
     supports: () => true,
     tasks: {
-      async run(input: unknown, options: unknown) {
+      async run(input: any, options: any) {
         calls.push({ input, options });
-        return { text: responses.shift() ?? "invalid" };
+        const next = responses.shift();
+        if (next instanceof Error) throw next;
+        return { text: typeof next === "string" ? next : JSON.stringify(next) };
       },
     },
   };
 };
+const signal = () => new AbortController().signal;
 
-test("typed decisions enforce choice membership, integer rubric and booleans", () => {
-  assert.equal(parseAnswer(answer(), choice).status, "accepted");
-  assert.equal(parseAnswer(answer("score", 2), score).value, 2);
-  assert.equal(parseAnswer(answer("noul", false), noul).value, false);
-  for (const [profile, raw] of [
-    [choice, answer("choice", "未定义选项")],
-    [score, answer("score", 1.5)],
-    [score, answer("score", 4)],
-    [noul, answer("noul", "true")],
-    [choice, answer("choice", "功能开发", 1.1)],
-    [choice, answer("score", 1)],
-    [choice, '{"type":"choice","value":"功能开发","confidence":0.9}'],
-    [choice, answer().replace('"type":', '"extra":true,"type":')],
-  ] as const)
-    assert.throws(() => parseAnswer(raw, profile));
-  assert.throws(() => parseAnswer(`说明文字\n${answer()}`, choice));
-  assert.equal(
-    parseAnswer(`\`\`\`json\n${answer()}\n\`\`\``, choice).value,
-    "功能开发",
-  );
-});
-
-test("uncertainty is explicit, threshold never changes the chosen answer", () => {
-  const low = parseAnswer(answer("choice", "功能开发", 0.69), choice);
-  assert.equal(low.status, "review_required");
-  assert.equal(low.value, "功能开发");
-  assert.equal(low.confidenceSource, "model_self_report");
-  assert.equal(
-    parseAnswer(answer("choice", "功能开发", 0.7), choice).status,
-    "accepted",
-  );
-  for (const profile of profiles)
-    assert.equal(
-      parseAnswer(answer(profile.type, null, 0), profile).status,
-      "abstained",
-    );
-});
-
-test("configuration rejects duplicate IDs, ambiguous choices and invalid profiles", () => {
-  assert.throws(() => readProfiles({ profiles: [choice, choice] }));
-  assert.throws(() =>
-    readProfiles({ profiles: [{ ...choice, choices: ["a", " a "] }] }),
-  );
-  assert.throws(() => readProfiles({ profiles: [{ ...choice, name: " " }] }));
-  assert.throws(() =>
-    readProfiles({ profiles: [{ ...noul, choices: ["a", "b"] }] }),
-  );
-  assert.throws(() =>
-    readProfiles({ profiles: [{ ...score, threshold: NaN }] }),
-  );
-  assert.deepEqual(readProfiles({ profiles: [] }), []);
-});
-
-test("evaluation uses current host task without tools, retries only malformed answers", async () => {
-  const host = fakeHost(["not JSON", answer()]);
-  const signal = new AbortController().signal;
-  const result = await evaluate(choice, "开发一个搜索功能", host, signal);
-  assert.equal(result.answer.value, "功能开发");
-  assert.match(result.text, /未经校准/);
+test("custom rules win without changing caller output or consulting builtins", async () => {
+  const host = fixture([match("release"), raw(false)]);
+  const result = await evaluate(request, [rule], host, signal());
+  assert.equal(result.value, false);
+  assert.equal(result.status, "accepted");
   assert.equal(host.calls.length, 2);
-  assert.equal(host.calls[0].input.tools, "none");
-  assert.equal(host.calls[0].options.signal, signal);
-  assert.match(host.calls[1].input.text, /未通过格式校验/);
-  const invalid = fakeHost(["invalid", "invalid"]);
-  await assert.rejects(evaluate(choice, "材料", invalid, signal), /两次/);
-  assert.equal(invalid.calls.length, 2);
-  const failed = {
-    supports: () => true,
-    tasks: {
-      run: async () => {
-        throw new Error("模型不可用");
-      },
-    },
-  };
-  await assert.rejects(evaluate(choice, "材料", failed, signal), /模型不可用/);
+  assert.match(host.calls[1].input.systemPrompt, /必须包含回滚方案/);
+  assert.ok(host.calls.every(({ input }) => input.tools === "none"));
+  assert.equal(result.confidence?.source, "model_self_report");
 });
 
-test("cancellation, unsupported hosts and empty input never fabricate an answer", async () => {
-  const controller = new AbortController();
-  const host = fakeHost([answer()]);
-  await assert.rejects(
-    evaluate(choice, " ", host, controller.signal),
-    /请输入|输入/,
+test("unmatched custom rules fall back to builtin rules then general judgment", async () => {
+  const builtin = fixture([match(), match("readiness"), raw()]);
+  await evaluate(request, [rule], builtin, signal());
+  assert.match(builtin.calls[2].input.systemPrompt, /检查目标/);
+  const general = fixture([match(), match(), raw()]);
+  await evaluate(request, [rule], general, signal());
+  assert.match(general.calls[2].input.systemPrompt, /依据问题与材料直接判断/);
+  const disabled = fixture([match(), raw()]);
+  await evaluate(request, [{ ...rule, enabled: false }], disabled, signal());
+  assert.equal(disabled.calls.length, 2);
+});
+
+test("priority is resolved in code, uncertain matching falls through", async () => {
+  const host = fixture([match("release", "higher"), raw()]);
+  await evaluate(
+    request,
+    [
+      rule,
+      { ...rule, id: "higher", priority: 90, instructions: "高优先级标准" },
+    ],
+    host,
+    signal(),
   );
-  await assert.rejects(
-    evaluate(choice, "x".repeat(24001), host, controller.signal),
+  assert.match(host.calls[1].input.systemPrompt, /高优先级标准/);
+  const uncertain = fixture([
+    { matches: [{ id: "release", confidence: 0.5 }] },
+    match(),
+    raw(),
+  ]);
+  await evaluate(request, [rule], uncertain, signal());
+  assert.equal(uncertain.calls.length, 3);
+});
+
+test("abstention and low confidence never fall through after matching", async () => {
+  for (const [value, status] of [
+    [null, "abstained"],
+    [false, "review_required"],
+  ] as const) {
+    const host = fixture([match("release"), raw(value, 0.2)]);
+    assert.equal(
+      (await evaluate(request, [rule], host, signal())).status,
+      status,
+    );
+    assert.equal(host.calls.length, 2);
+  }
+});
+
+test("malformed selection is retried once; transport failures are not fallback", async () => {
+  const repaired = fixture(["invalid", match(), raw()]);
+  assert.equal((await evaluate(request, [], repaired, signal())).value, true);
+  const unknown = fixture([match("invented"), match("invented")]);
+  await assert.rejects(evaluate(request, [rule], unknown, signal()), /两次/);
+  assert.equal(unknown.calls.length, 2);
+  const failed = fixture([new Error("offline")]);
+  await assert.rejects(evaluate(request, [rule], failed, signal()), /offline/);
+  assert.equal(failed.calls.length, 1);
+});
+
+test("caller constraints are enforced; policy IDs are not part of the protocol", async () => {
+  assert.throws(() => requestSchema.parse({ ...request, policyId: "release" }));
+  assert.throws(() => parseAnswer(raw("true"), request, 0.7));
+  const choice: DecisionRequest = {
+    ...request,
+    output: { type: "choice", options: ["通过", "修改"] },
+  };
+  assert.equal(
+    parseAnswer(raw("通过", 0.9, "choice"), choice, 0.7).value,
+    "通过",
   );
-  await assert.rejects(
-    evaluate(
-      choice,
-      "材料",
-      { ...host, supports: () => false },
-      controller.signal,
-    ),
-    /不支持/,
-  );
+  assert.throws(() => parseAnswer(raw("其他", 0.9, "choice"), choice, 0.7));
+  const score: DecisionRequest = {
+    ...request,
+    output: { type: "score", levels: ["低", "中", "高"] },
+  };
+  assert.equal(parseAnswer(raw(2, 0.9, "score"), score, 0.7).value, 2);
+  for (const value of [3, -1, 1.5])
+    assert.throws(() => parseAnswer(raw(value, 0.9, "score"), score, 0.7));
+  const host = fixture([match("release"), raw("true"), raw("true")]);
+  await assert.rejects(evaluate(request, [rule], host, signal()), /两次/);
+  assert.equal(host.calls.length, 3);
+});
+
+test("rule validation and cancellation are bounded", async () => {
+  assert.deepEqual(readRules({ rules: [] }), []);
+  assert.throws(() => readRules({ rules: [rule, rule] }));
+  assert.throws(() => readRules({ rules: [{ ...rule, when: " " }] }));
+  const host = fixture([]),
+    controller = new AbortController();
   controller.abort();
-  await assert.rejects(evaluate(choice, "材料", host, controller.signal), {
+  await assert.rejects(evaluate(request, [], host, controller.signal), {
     name: "AbortError",
   });
   assert.equal(host.calls.length, 0);
-  const active = new AbortController();
-  await assert.rejects(
-    evaluate(
-      choice,
-      "材料",
-      {
-        supports: () => true,
-        tasks: {
-          async run() {
-            active.abort();
-            return { text: answer() };
-          },
-        },
-      },
-      active.signal,
-    ),
-    { name: "AbortError" },
-  );
 });
 
-test("each template exposes a named slash command and a matching model tool", async () => {
-  const commands: any[] = [],
+test("provider, command and tool share the same standard judgment implementation", async () => {
+  const providers = new Map(),
+    commands: any[] = [],
     tools: any[] = [];
-  const host = fakeHost([answer(), answer()]);
+  const host = fixture([match(), raw(), match(), raw()]);
   extension.setup({
-    config: { profiles },
+    config: { rules: [] },
     host,
-    registerCommand: (value: any) => commands.push(value),
-    registerTool: (value: any) => tools.push(value),
+    provide: (name: string, handler: any) => providers.set(name, handler),
+    registerCommand: (item: any) => commands.push(item),
+    registerTool: (item: any) => tools.push(item),
   } as any);
-  assert.deepEqual(
-    commands.map((item) => item.label),
-    ["需求分类", "方案评分", "执行条件判断"],
-  );
-  assert.ok(commands.every((item) => item.inputMode === "text"));
-  const context = { signal: new AbortController().signal };
-  assert.equal(
-    (await commands[0].execute({ text: "功能" }, context)).answer.value,
-    "功能开发",
-  );
-  const result = await tools[0].execute({ text: "功能" }, context);
-  assert.equal(result.details.answer.value, "功能开发");
-  assert.equal(result.content[0].text, result.details.text);
+  const result = await providers.get("decisions.evaluate")(request, {
+    signal: signal(),
+  });
+  assert.equal(result.value, true);
+  assert.equal(tools.length, 1);
+  assert.deepEqual(tools[0].parameters.required, [
+    "input",
+    "question",
+    "output",
+  ]);
+  const executed = await commands
+    .find((item) => item.name === "ready")
+    .execute({ text: "完成测试" }, { signal: signal() });
+  assert.equal(executed.answer.value, true);
 });

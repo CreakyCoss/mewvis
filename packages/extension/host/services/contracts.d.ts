@@ -1,3 +1,5 @@
+export * from "./decisions.js";
+import type { DecisionRequest, DecisionResult } from "./decisions.js";
 export interface ExtensionActivity {
   id: string;
   title: string;
@@ -73,6 +75,7 @@ export interface ExtensionSummaryResult {
   truncated: boolean;
 }
 export interface ExtensionHostMethods {
+  "decisions.evaluate": { input: DecisionRequest; output: DecisionResult };
   "configuration.read": {
     input: Record<string, never>;
     output: import("../shared.js").JsonObject;
@@ -118,7 +121,11 @@ export interface ExtensionHostMethods {
   };
 }
 export type ExtensionHostCapability = keyof ExtensionHostMethods;
+export const extensionProvidedCapabilities: readonly ["decisions.evaluate"];
+export type ExtensionProvidedCapability = typeof extensionProvidedCapabilities[number];
 export interface ExtensionHostRequirements {
+  /** Capabilities implemented by this plugin, registered during setup. */
+  provides?: ExtensionProvidedCapability[];
   required?: ExtensionHostCapability[];
   optional?: ExtensionHostCapability[];
 }
@@ -139,6 +146,7 @@ export type ExtensionHostTransport = <M extends ExtensionHostCapability>(
   options?: { signal?: AbortSignal },
 ) => Promise<ExtensionHostMethods[M]["output"]>;
 export interface ExtensionHostServices {
+  readonly decisions: { evaluate(input: DecisionRequest, options?: { signal?: AbortSignal }): Promise<DecisionResult> };
   readonly configuration: {
     read(options?: {
       signal?: AbortSignal;
@@ -187,7 +195,7 @@ export interface ExtensionHostServices {
   };
 }
 export const extensionHostMethods: Readonly<
-  Record<ExtensionHostCapability, { requestSchema: Record<string, unknown> }>
+  Record<ExtensionHostCapability, { requestSchema: Record<string, unknown>; responseSchema?: Record<string, unknown>; validateResult?: (input: unknown, result: unknown) => boolean }>
 >;
 export function createExtensionHostClient(
   transport: ExtensionHostTransport,

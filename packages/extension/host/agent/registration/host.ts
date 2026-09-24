@@ -103,6 +103,17 @@ export async function createExtensionHost(
     { tool: ExtensionTool; validate: ReturnType<Ajv["compile"]> }
   >();
   const ajv = new Ajv({ allErrors: true });
+  const providers = new Map<
+    string,
+    {
+      extensionId: string;
+      handle: (
+        input: never,
+        context: { signal: AbortSignal },
+      ) => Promise<unknown>;
+      validate: ReturnType<Ajv["compile"]>;
+    }
+  >();
   const directory = defineService<{
     add(source: ExtensionSource, tool: ExtensionTool): void;
   }>("isle.extension.tools", {
@@ -188,6 +199,22 @@ export async function createExtensionHost(
               ),
             workspacePath,
             config,
+            provide(method, handler) {
+              assertSetup();
+              if (!source.host?.provides?.includes(method))
+                throw new Error(`插件 ${source.id} 未声明提供能力：${method}`);
+              if (providers.has(method))
+                throw new Error(`能力存在多个提供者：${method}`);
+              if (typeof handler !== "function")
+                throw new Error("能力处理器必须是函数");
+              providers.set(method, {
+                extensionId: source.id,
+                handle: handler,
+                validate: ajv.compile(
+                  extensionHostMethods[method].requestSchema,
+                ),
+              });
+            },
             session: {
               get(key) {
                 requireCapability("session.state");
@@ -310,9 +337,36 @@ export async function createExtensionHost(
     });
   }
   const host = await createFacetHost({ facets });
+  for (const source of sources) {
+    for (const method of source.host?.provides ?? []) {
+      if (providers.get(method)?.extensionId !== source.id) {
+        await host.dispose();
+        throw new Error(`插件未注册已声明的能力：${source.id}/${method}`);
+      }
+    }
+  }
   let disposed = false;
   return {
     catalog,
+    async service(
+      extensionId: string,
+      method: string,
+      input: unknown,
+      signal: AbortSignal,
+    ) {
+      signal.throwIfAborted();
+      const provider = providers.get(method);
+      if (!provider || provider.extensionId !== extensionId)
+        throw new Error("能力提供者未注册");
+      if (!isJsonValue(input) || !provider.validate(input))
+        throw new Error("能力输入不符合协议");
+      const result = await provider.handle(structuredClone(input) as never, {
+        signal,
+      });
+      signal.throwIfAborted();
+      if (!isJsonValue(result)) throw new Error("能力结果必须为 JSON");
+      return result;
+    },
     async intercept(id: string, data: unknown, signal: AbortSignal) {
       signal.throwIfAborted();
       const handler = middleware.get(id);

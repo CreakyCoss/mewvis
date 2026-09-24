@@ -112,7 +112,7 @@ serveWorker({
     }
     if (
       host &&
-      ["execute", "command", "event", "middleware"].includes(method)
+      ["execute", "command", "event", "middleware", "service"].includes(method)
     ) {
       const call = input as {
         name: string;
@@ -125,6 +125,8 @@ serveWorker({
       const current = host;
       return invocation.run(context, () =>
         current.transact(call.state, async () => {
+          if (method === "service")
+            return current.service(call.extensionId, call.name, call.input, context.signal);
           if (method === "middleware")
             return current.intercept(call.name, call.input, context.signal);
           if (method === "command")

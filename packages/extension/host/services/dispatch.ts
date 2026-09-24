@@ -26,6 +26,13 @@ const validators = Object.fromEntries(
     ajv.compile(contract.requestSchema),
   ]),
 );
+const resultValidators = Object.fromEntries(
+  Object.entries(extensionHostMethods).flatMap(([method, contract]) =>
+    contract.responseSchema
+      ? [[method, ajv.compile(contract.responseSchema)]]
+      : [],
+  ),
+);
 
 /** One protocol dispatch boundary. Transports and plugins cannot invoke arbitrary internal services. */
 export class ExtensionHost {
@@ -91,6 +98,16 @@ export class ExtensionHost {
       ) => Promise<unknown>;
       const result = await handler(input, context);
       context.signal.throwIfAborted();
+      const contract = extensionHostMethods[method as ExtensionHostCapability];
+      if (
+        (resultValidators[method] && !resultValidators[method](result)) ||
+        (contract.validateResult && !contract.validateResult(input, result))
+      )
+        throw new ServiceError(
+          500,
+          "HOST_FAILED",
+          "能力提供者返回了不符合协议的结果",
+        );
       return result;
     } catch (error) {
       if (context.signal.aborted)
