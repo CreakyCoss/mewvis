@@ -7,7 +7,6 @@ import type {
   SkillMarketplaceSort,
 } from "../types";
 
-export const DEFAULT_MARKETPLACE_QUERY = "小说";
 export const DEFAULT_MARKETPLACE_SORT: SkillMarketplaceSort = "stars";
 
 type MarketplaceCacheEntry = {
@@ -26,12 +25,13 @@ type MarketplaceStore = {
   cache: Record<string, MarketplaceCacheEntry>;
   setSearchResult: (input: SearchSkillMarketplaceInput, result: SkillMarketplaceSearchResult) => void;
   restoreCache: (input: SearchSkillMarketplaceInput) => boolean;
+  clearSearch: () => void;
 };
 
 export const useMarketplaceStore = create<MarketplaceStore>((set, get) => ({
   results: [],
   pagination: null,
-  query: DEFAULT_MARKETPLACE_QUERY,
+  query: "",
   sortBy: DEFAULT_MARKETPLACE_SORT,
   hasLoaded: false,
   cache: {},
@@ -71,9 +71,16 @@ export const useMarketplaceStore = create<MarketplaceStore>((set, get) => ({
     });
     return true;
   },
+  clearSearch: () =>
+    set({
+      results: [],
+      pagination: null,
+      query: "",
+      hasLoaded: false,
+    }),
 }));
 
-const normalizeQuery = (query: string) => query.trim() || DEFAULT_MARKETPLACE_QUERY;
+const normalizeQuery = (query: string) => query.trim();
 
 const cacheKey = (query: string, sortBy: SkillMarketplaceSort) => `${sortBy}:${query.trim().toLowerCase()}`;
 

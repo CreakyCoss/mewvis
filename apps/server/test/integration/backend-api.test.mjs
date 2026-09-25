@@ -12,14 +12,18 @@ import { token } from "../support/helpers.mjs";
 const fixture = fileURLToPath(
   new URL("../support/fixtures/runtime.mjs", import.meta.url),
 );
-async function setup(t) {
+async function setup(t, runtimeOverrides = {}) {
   const root = await fs.realpath(
     await fs.mkdtemp(join(tmpdir(), "isle-migration-")),
   );
   const server = await startServer({
     port: 0,
     token,
-    runtime: { dataDir: join(root, "data"), cliPath: fixture },
+    runtime: {
+      dataDir: join(root, "data"),
+      cliPath: fixture,
+      ...runtimeOverrides,
+    },
   });
   t.after(async () => {
     await server.close();
@@ -605,6 +609,35 @@ test("real Node application host forwards SDK storage and tools, policies, UI an
     /更换/,
   );
 });
+test("bundled skills share one generic system group", async (t) => {
+  const bundled = await fs.mkdtemp(join(tmpdir(), "isle-bundled-skills-"));
+  t.after(() => fs.rm(bundled, { recursive: true, force: true }));
+  for (const name of ["story-long-write", "bazi", "another-skill"]) {
+    const path = join(bundled, name);
+    await fs.mkdir(path);
+    await fs.writeFile(join(path, "SKILL.md"), `# ${name}\n`);
+  }
+  const s = await setup(t, { bundledSkillsPath: bundled });
+  const settings = await s.call("get_skills", {}, true);
+  const systemGroups = settings.groups.filter(
+    (group) => group.source === "system",
+  );
+  assert.deepEqual(
+    systemGroups.map((group) => [group.id, group.name]),
+    [["system-general", "系统技能"]],
+  );
+  assert.deepEqual(systemGroups[0].skills.map((skill) => skill.key).sort(), [
+    "system:another-skill",
+    "system:bazi",
+    "system:story-long-write",
+  ]);
+  assert.equal(settings.defaultGroupId, "all");
+  const saved = await s.call("save_skills", {
+    defaultGroupId: "system-story-creation",
+  });
+  assert.equal(saved.defaultGroupId, "all");
+});
+
 test("skills zip installation, persisted groups and removal use the shared command contract", async (t) => {
   const s = await setup(t);
   const fixtureZip = JSON.parse(

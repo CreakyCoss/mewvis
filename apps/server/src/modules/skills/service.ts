@@ -80,11 +80,7 @@ export class Skills {
       const [id, name, order] =
         skill.source === "upload"
           ? ["app-uploaded", "本地上传", 910]
-          : /^story-(long-|short-|cover|deslop)|^browser-cdp$/.test(skill.name)
-            ? ["system-story-creation", "小说创作", 10]
-            : ["bazi", "chenggu-analysis", "yuan"].includes(skill.name)
-              ? ["system-metaphysics", "命理分析", 40]
-              : ["system-general", "系统技能", 100];
+          : ["system-general", "系统技能", 100];
       let g = groups.find((x) => x.id === id);
       if (!g) {
         g = {

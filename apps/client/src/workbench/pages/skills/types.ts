@@ -46,7 +46,7 @@ export type MarketplaceSkill = {
   githubUrl: string;
   skillUrl: string;
   stars: number;
-  updatedAt?: string | null;
+  updatedAt?: string | number | null;
 };
 
 export type SkillMarketplaceSort = "stars" | "updatedAt";

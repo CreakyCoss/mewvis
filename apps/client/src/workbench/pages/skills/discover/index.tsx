@@ -28,7 +28,7 @@ import { TooltipProvider } from "design-system/components/ui/tooltip";
 import { useSkillsStore } from "../store";
 import type { MarketplaceSkill, SearchSkillMarketplaceInput, SkillMarketplaceSort } from "../types";
 import { MarketplaceResult } from "./marketplace";
-import { DEFAULT_MARKETPLACE_QUERY, DEFAULT_MARKETPLACE_SORT, useMarketplaceStore } from "./store";
+import { DEFAULT_MARKETPLACE_SORT, useMarketplaceStore } from "./store";
 
 export const DiscoverSkillsTab = () => {
   const skillsStore = useSkillsStore();
@@ -36,9 +36,7 @@ export const DiscoverSkillsTab = () => {
   const [error, setError] = useState("");
   const [isMarketplaceSearching, setIsMarketplaceSearching] = useState(false);
   const [isMarketplaceLoadingMore, setIsMarketplaceLoadingMore] = useState(false);
-  const [marketplaceQuery, setMarketplaceQuery] = useState(() =>
-    marketplaceStore.hasLoaded && marketplaceStore.query !== DEFAULT_MARKETPLACE_QUERY ? marketplaceStore.query : "",
-  );
+  const [marketplaceQuery, setMarketplaceQuery] = useState(marketplaceStore.query);
   const [selectedSortBy, setSelectedSortBy] = useState<SkillMarketplaceSort>(
     marketplaceStore.sortBy || DEFAULT_MARKETPLACE_SORT,
   );
@@ -50,7 +48,6 @@ export const DiscoverSkillsTab = () => {
   });
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const categoryScrollerRef = useRef<HTMLDivElement | null>(null);
-  const hasRequestedInitialSearchRef = useRef(false);
   const isInstalling = installingSkillKey !== null;
 
   const installedAppSkillNames = useMemo(
@@ -100,7 +97,12 @@ export const DiscoverSkillsTab = () => {
       page = 1,
       append = false,
     }: Partial<SearchSkillMarketplaceInput> = {}) => {
-      const nextQuery = query.trim() || DEFAULT_MARKETPLACE_QUERY;
+      const nextQuery = query.trim();
+      if (!nextQuery) {
+        marketplaceStore.clearSearch();
+        setError("");
+        return;
+      }
       await searchMarketplace({
         query: nextQuery,
         sortBy,
@@ -109,22 +111,18 @@ export const DiscoverSkillsTab = () => {
         append,
       });
     },
-    [marketplaceQuery, marketplaceStore.pagination?.limit, searchMarketplace, selectedSortBy],
+    [
+      marketplaceQuery,
+      marketplaceStore.clearSearch,
+      marketplaceStore.pagination?.limit,
+      searchMarketplace,
+      selectedSortBy,
+    ],
   );
-
-  useEffect(() => {
-    if (hasRequestedInitialSearchRef.current || marketplaceStore.hasLoaded || isMarketplaceSearching) {
-      return;
-    }
-    hasRequestedInitialSearchRef.current = true;
-    void runSearch({
-      query: DEFAULT_MARKETPLACE_QUERY,
-      sortBy: DEFAULT_MARKETPLACE_SORT,
-    });
-  }, [isMarketplaceSearching, marketplaceStore.hasLoaded, runSearch]);
 
   const handleCategorySearch = (category: DiscoverCategory) => {
     setSelectedCategory(category.label);
+    setMarketplaceQuery(category.query);
     void runSearch({ query: category.query, page: 1 });
   };
 
@@ -140,7 +138,7 @@ export const DiscoverSkillsTab = () => {
   };
 
   const handleSearch = () => {
-    setSelectedCategory("");
+    setSelectedCategory(marketplaceQuery.trim() ? "" : "全部");
     void runSearch({ page: 1 });
   };
 
@@ -471,7 +469,7 @@ const LoadMoreState = ({ isLoading, hasNext, onLoadMore }: LoadMoreStateProps) =
 const DISCOVER_CATEGORIES: DiscoverCategory[] = [
   {
     label: "全部",
-    query: DEFAULT_MARKETPLACE_QUERY,
+    query: "",
     icon: null,
   },
   {

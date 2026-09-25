@@ -109,7 +109,7 @@ export const MarketplaceResult = ({
   );
 };
 
-const MarketplaceUpdatedAt = ({ value }: { value?: string | null }) => {
+const MarketplaceUpdatedAt = ({ value }: { value?: string | number | null }) => {
   const updatedAt = formatMarketplaceUpdatedAt(value);
   return updatedAt ? <span>更新于 {updatedAt}</span> : null;
 };

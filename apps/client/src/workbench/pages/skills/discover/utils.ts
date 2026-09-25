@@ -5,8 +5,10 @@ export const formatStars = (stars: number) => {
   return String(stars);
 };
 
-export const formatMarketplaceUpdatedAt = (value?: string | null) => {
-  const normalized = value?.trim();
+export const formatMarketplaceUpdatedAt = (value?: string | number | null) => {
+  let normalized = "";
+  if (typeof value === "string") normalized = value.trim();
+  else if (typeof value === "number" && Number.isFinite(value)) normalized = String(value);
   if (!normalized) {
     return null;
   }
