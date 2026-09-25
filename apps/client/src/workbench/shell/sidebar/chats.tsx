@@ -39,6 +39,7 @@ const DEFAULT_VISIBLE_CHAT_LIMIT = 5;
 const WORKSPACE_VISIBLE_CHAT_LIMIT = 4;
 
 type SidebarChatsProps = {
+  collapsed: boolean;
   workspaces: Workspace[];
   isLoading: boolean;
   error: string;
@@ -171,7 +172,7 @@ const WorkspaceActions = ({ workspace, onEdit, onRequestDelete }: WorkspaceActio
   );
 };
 
-export const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps) => {
+export const SidebarChats = ({ collapsed, workspaces, isLoading, error }: SidebarChatsProps) => {
   const navigate = useNavigate();
   const params = useParams();
   const workspaceStore = useWorkspaceStore();
@@ -237,7 +238,7 @@ export const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps
 
   return (
     <>
-      <ScrollArea className="min-h-0 flex-1">
+      <ScrollArea className={cn("min-h-0 flex-1", collapsed && "hidden")}>
         <div className="space-y-5 px-2.5 py-3 xl:px-3">
           <section className="space-y-2">
             <SectionHeader label="工作区" />

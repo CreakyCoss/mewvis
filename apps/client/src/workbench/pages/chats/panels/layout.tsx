@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { PanelRightIcon } from "lucide-react";
+import { PanelLeftIcon, PanelRightIcon } from "lucide-react";
 
 type PanelState = {
   contentRoot: HTMLDivElement | null;
@@ -49,7 +49,7 @@ export function ChatPanels({
           data-active={isOpen}
           onClick={() => setIsOpen((current) => !current)}
         >
-          <PanelRightIcon className="size-4" />
+          {isOpen ? <PanelRightIcon className="size-4" /> : <PanelLeftIcon className="size-4" />}
         </button>
         <div className="h-px w-5 bg-border/70" />
         {children}
