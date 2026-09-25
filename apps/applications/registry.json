@@ -1,0 +1,9 @@
+{
+  "applications": [
+    "chat-playground",
+    "docs-reader",
+    "learning",
+    "rss-reader",
+    "story"
+  ]
+}

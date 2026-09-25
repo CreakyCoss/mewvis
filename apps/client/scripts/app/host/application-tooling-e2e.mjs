@@ -4,13 +4,11 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { discoverApplicationSources } from "@isle/app-dev/tooling";
 
 const root = process.cwd();
 const cli = fileURLToPath(import.meta.resolve("@isle/app-dev/cli"));
 const fixtureRoot = mkdtempSync(join(tmpdir(), "isle-app-tooling-"));
 const sourceRoot = join(fixtureRoot, "hello-application");
-const secondSourceRoot = join(fixtureRoot, "alpha-application");
 const isleOutput = join(fixtureRoot, "output-isle");
 const dshOutput = join(fixtureRoot, "output-dsh");
 const rssOutput = join(fixtureRoot, "rss-dsh");
@@ -23,15 +21,9 @@ const run = (...arguments_) =>
 
 try {
   assert.match(run("create", sourceRoot, "--name", "@example/hello", "--template", "tools"), /应用模板已创建/);
-  run("create", secondSourceRoot, "--name", "@example/alpha", "--template", "tools");
   assert.equal(existsSync(join(sourceRoot, "cordis.patch.yml")), false, "源码不应携带生成型 DSH patch。");
   const sourceManifest = JSON.parse(readFileSync(join(sourceRoot, "package.json"), "utf8"));
   assert.deepEqual(sourceManifest.isle.permissions, []);
-  const discovered = await discoverApplicationSources(fixtureRoot);
-  assert.deepEqual(
-    discovered.map((application) => application.name),
-    ["alpha-application", "hello-application"],
-  );
   assert.match(run("validate", sourceRoot), /应用校验通过/);
 
   const legacySourceManifest = structuredClone(sourceManifest);

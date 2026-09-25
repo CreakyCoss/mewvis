@@ -1,7 +1,7 @@
 # 学习工作台
 
 `@isle/learning` 是独立的 Isle 内置应用，源码位于 `apps/applications/builtins/learning`。
-它使用公开的 `@isle/app-sdk` 聊天、数据和工作区接口，随内置应用构建自动发现；默认启用。
+它使用公开的 `@isle/app-sdk` 聊天、数据和工作区接口，已登记在 `apps/applications/registry.json` 中，随内置应用构建打包；默认启用。
 
 ## 使用
 

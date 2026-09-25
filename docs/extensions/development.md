@@ -22,7 +22,7 @@ pnpm extension pack apps/extensions/my-feature
 
 生成的 tgz 根目录为 `package/`。自行解包后可登记该目录；CLI 当前不直接安装不可信压缩包。打包和登记不运行 npm 安装脚本。
 
-仓库内置 `collaboration`、`decisions`、`session-insights` 和 `session-ledger` 四个插件，其中 `session-insights` 演示纯 UI 会话统计。桌面构建会将 `apps/extensions/` 下声明 `isle.extension` 或 `isle.plugin` 的直接子目录打包到 Runtime 的 `dist/extensions/`，作为内置插件自动发现、默认启用。它们仍使用通用插件协议，运行时代码不硬编码插件 ID。独立 SDK 不自动扫描仓库目录，由宿主指定包来源。
+仓库内置 `collaboration`、`decisions`、`session-insights` 和 `session-ledger` 四个插件，其中 `session-insights` 演示纯 UI 会话统计。要让新插件随桌面发布，需把它在 `apps/extensions/` 下的一级目录名加入 `apps/extensions/registry.json` 的 `extensions` 数组。构建只按数组顺序打包登记的插件到 Runtime 的 `dist/extensions/`；未登记的目录不会打包。配置中允许空数组；重复、无效或不存在的目录会使构建失败。打包后的内置插件默认启用，仍使用通用插件协议，运行时代码不硬编码插件 ID。独立 SDK 由宿主指定包来源。
 
 ## 包清单
 

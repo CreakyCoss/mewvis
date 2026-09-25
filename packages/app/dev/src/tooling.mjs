@@ -4,7 +4,6 @@ import {
   mkdir,
   mkdtemp,
   readFile,
-  readdir,
   realpath,
   rename,
   rm,
@@ -164,24 +163,6 @@ const readManifest = async (root) => {
   if (!isObject(manifest))
     throw new Error("应用 package.json 必须是 JSON 对象。");
   return manifest;
-};
-
-export const discoverApplicationSources = async (source) => {
-  const root = await realpath(resolve(source));
-  const entries = await readdir(root, { withFileTypes: true });
-  const applications = [];
-  for (const entry of entries.sort((left, right) =>
-    left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
-  )) {
-    if (entry.name.startsWith(".")) continue;
-    if (entry.isSymbolicLink())
-      throw new Error(`内置应用目录不允许使用符号链接：${entry.name}`);
-    if (!entry.isDirectory()) continue;
-    const sourceRoot = join(root, entry.name);
-    await readManifest(sourceRoot);
-    applications.push(Object.freeze({ name: entry.name, sourceRoot }));
-  }
-  return Object.freeze(applications);
 };
 
 const pushAsset = (assets, value, label) => {

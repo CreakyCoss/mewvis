@@ -34,7 +34,7 @@ pnpm docs:test
 pnpm --filter client app:pack -- ../applications/builtins/docs-reader --target isle
 ```
 
-应用内置应用打包脚本会自动重新生成 docs 索引，并发现这个应用。单独打包前需先运行 `docs:build`。
+内置应用打包脚本会自动重新生成 docs 索引，并按 `apps/applications/registry.json` 登记打包这个应用。单独打包前需先运行 `docs:build`。
 
 验证覆盖目录与链接、真实宿主加载和工具调用、无结果与非法文档 ID、打包后的离线读取以及 UI 资源。阅读器不执行 Markdown 原始 HTML；外部图片显示来源说明，Mermaid 作为代码展示。
 

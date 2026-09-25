@@ -52,7 +52,7 @@ Isle 包通过自己的清单暴露 Cordis 应用入口：
 
 DSH 目标保留附加的 `isle` 元数据并生成 DSH 声明。含 `chat` 权限的应用依赖 Isle，不能选择 DSH 目标；工具链不会把 React UI 转换成 `dsh.client`。
 
-应用构建按目录名稳定排序，自动发现、校验和打包 `apps/applications/builtins` 下所有一级应用目录，新增内置应用无需修改注册列表。
+内置应用由 `apps/applications/registry.json` 中的 `applications` 数组显式登记。数组项是 `apps/applications/builtins` 下的一级目录名，例如 `"story"`。构建按数组顺序校验和打包这些应用；新增目录后需将目录名加入此配置，未登记的目录不会进入内置应用包。删除条目并重新构建后，该应用也不会随新版 Runtime 发布。配置中允许空数组；目录名重复、应用 ID 重复、目录名无效或目录不存在都会使构建失败。
 
 持久配置使用 SDK 的 `defineSettings`。Schema 默认值是基础层，应用默认值是组合层。桌面宿主按完整应用 ID 隔离 `apps/<namespace>/settings.yaml`，文件内按设置 namespace 保存用户覆盖及 `$version`，同时维护格式标记。工具注册前按序迁移用户层；缺少迁移或版本过新都会明确启动失败。
 
