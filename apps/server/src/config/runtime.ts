@@ -68,7 +68,7 @@ export function runtimeConfig(
     ),
     bundledSkillsPath: resources
       ? join(resources, "skills")
-      : join(client, "resources/skills"),
+      : join(runtime, "dist/skills"),
 
     appDataDirName: product.appDataDirName,
     defaultWorkspaceDirName: product.defaultWorkspaceDirName,

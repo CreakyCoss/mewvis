@@ -7,7 +7,7 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "build": "pnpm --filter @isle/extension-host build && pnpm --filter @isle/app-host build && tsc --noEmit && node scripts/build-cli.mjs && pnpm --filter @isle/builtin-applications build && node scripts/write-package.mjs && node scripts/copy-builtin-resources.mjs && node scripts/build-builtin-extensions.mjs && node scripts/copy-application-installer.mjs && node scripts/copy-node-runtime.mjs",
+    "build": "pnpm --filter @isle/extension-host build && pnpm --filter @isle/app-host build && tsc --noEmit && node scripts/build-cli.mjs && pnpm --filter @isle/builtin-applications build && node scripts/write-package.mjs && node scripts/copy-builtin-resources.mjs && node scripts/copy-builtin-skills.mjs && node scripts/build-builtin-extensions.mjs && node scripts/copy-application-installer.mjs && node scripts/copy-node-runtime.mjs",
     "check": "tsc --noEmit",
     "generate:protocol": "node protocol/scripts/generate-bindings.mjs",
     "check:protocol": "node protocol/scripts/generate-bindings.mjs --check",

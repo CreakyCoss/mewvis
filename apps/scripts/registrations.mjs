@@ -1,4 +1,4 @@
-import { lstat, readFile } from "node:fs/promises";
+import { cp, lstat, mkdir, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 
 /** Read the explicit source list used by a built-in package build. */
@@ -42,5 +42,19 @@ export async function loadRegistrations(configPath, key, sourceRoot) {
       throw new Error(`注册项必须是普通目录：${path}`);
     registrations.push({ name, sourceRoot: path });
   }
+  return registrations;
+}
+
+export async function copyRegistrations(
+  configPath,
+  key,
+  sourceRoot,
+  outputRoot,
+) {
+  const registrations = await loadRegistrations(configPath, key, sourceRoot);
+  await rm(outputRoot, { recursive: true, force: true });
+  await mkdir(outputRoot, { recursive: true });
+  for (const { name, sourceRoot: path } of registrations)
+    await cp(path, join(outputRoot, name), { recursive: true });
   return registrations;
 }

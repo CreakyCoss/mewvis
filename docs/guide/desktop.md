@@ -28,6 +28,8 @@ pnpm build:desktop:win:arm64
 
 `build:agent-runtime` 调用独立的 `@isle/agent-runtime` 包，先清理并构建运行时，再构建 Application UI Host，最后复制资源和打包应用。应用宿主位于同一个 `apps/agent-runtime/dist` 目录，必须在清理之后生成。开发模式只使用工作区的运行时产物；缺少 Node 后端时会明确报错，不会回退加载 `target/debug` 中旧的 Tauri 资源副本。运行时重建期间若触发桌面重启，等待构建完成后重试。在 `apps/client` 运行 `pnpm test:app-host:packaging` 可验证完整构建后的宿主启动与文档应用全屏声明。
 
+技能资源由 `apps/client/resources/registry.json` 的 `resources` 数组显式登记。数组项是 `apps/client/resources/skills` 下的一级目录名；构建只复制列出的目录到 Runtime 的 `dist/skills`，开发和桌面启动均从这里加载。`shared` 是榜单脚本依赖的公共目录，因此也在名单中。新增技能目录后需手动加入配置；未登记的目录不会随 Runtime 发布或注册为系统技能。删除条目并重新构建即可从新版 Runtime 移除对应资源。
+
 ## 编辑器
 
 可使用 [VS Code](https://code.visualstudio.com/)，配合 [Tauri 扩展](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode)和 [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)。

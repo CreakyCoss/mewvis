@@ -1,9 +1,17 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  readdir,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { loadRegistrations } from "./registrations.mjs";
+import { copyRegistrations, loadRegistrations } from "./registrations.mjs";
 
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), "isle-registrations-"));
@@ -63,5 +71,22 @@ test("registered symlinks are rejected", async (t) => {
   await assert.rejects(
     loadRegistrations(configPath, "extensions", sourceRoot),
     /无法读取注册配置/,
+  );
+});
+
+test("copying resources includes only registered directories and clears old output", async (t) => {
+  const { root, sourceRoot, configPath, save } = await fixture(t);
+  const output = join(root, "output");
+  await mkdir(output);
+  await mkdir(join(output, "old"));
+  await writeFile(join(sourceRoot, "beta", "SKILL.md"), "registered");
+  await writeFile(join(sourceRoot, "unlisted", "SKILL.md"), "unlisted");
+  await save({ resources: ["beta"] });
+
+  await copyRegistrations(configPath, "resources", sourceRoot, output);
+  assert.deepEqual(await readdir(output), ["beta"]);
+  assert.equal(
+    await readFile(join(output, "beta", "SKILL.md"), "utf8"),
+    "registered",
   );
 });

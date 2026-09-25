@@ -30,8 +30,7 @@
     "active": true,
     "targets": "all",
     "resources": [
-      "../../agent-runtime/dist/**/*",
-      "../resources/skills/**/*"
+      "../../agent-runtime/dist/**/*"
     ],
     "icon": [
       "icons/32x32.png",

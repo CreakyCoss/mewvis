@@ -21,7 +21,7 @@ pnpm docs:test
 ## 保留的资源
 
 - `ai/pi/` 属于上游依赖，其 README 与文档随上游维护。
-- `apps/client/resources/skills/` 和运行时内置技能中的文档是技能资源，按技能包分发。
+- `apps/client/resources/skills/` 和运行时内置技能中的文档是技能资源；前者只打包 `apps/client/resources/registry.json` 登记的目录。
 - `packages/app/dev/templates/` 内的 README 是生成新应用时使用的模板资源，随工具包分发，不是 Isle 的重复文档入口。
 - `THIRD_PARTY_NOTICES.md`、LICENSE 等许可文件保持原位置和原文。
 - 已暂存的 `CHAT_FOUNDATION_DRAFT.md` 保留原位置和内容，目录中标记为历史草案。

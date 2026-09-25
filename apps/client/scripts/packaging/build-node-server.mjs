@@ -84,11 +84,8 @@ if (target.startsWith("linux-")) {
 }
 await writeFile(join(output, "package.json"), JSON.stringify({ private: true, type: "module" }) + "\n");
 await cp(join(desktop, "../product.config.json"), join(resources, "product.config.json"));
-for (const [source, destination] of [
-  ["../agent-runtime/protocol/v1", "protocol/v1"],
-  ["resources/skills", "skills"],
-]) {
-  await rm(join(resources, destination), { recursive: true, force: true });
-  await cp(join(desktop, source), join(resources, destination), { recursive: true });
-}
+await rm(join(resources, "protocol/v1"), { recursive: true, force: true });
+await cp(join(desktop, "../agent-runtime/protocol/v1"), join(resources, "protocol/v1"), {
+  recursive: true,
+});
 console.log(`Node backend bundled for ${target}: ${output}`);
