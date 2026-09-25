@@ -25,7 +25,6 @@ type MarketplaceStore = {
   cache: Record<string, MarketplaceCacheEntry>;
   setSearchResult: (input: SearchSkillMarketplaceInput, result: SkillMarketplaceSearchResult) => void;
   restoreCache: (input: SearchSkillMarketplaceInput) => boolean;
-  clearSearch: () => void;
 };
 
 export const useMarketplaceStore = create<MarketplaceStore>((set, get) => ({
@@ -71,13 +70,6 @@ export const useMarketplaceStore = create<MarketplaceStore>((set, get) => ({
     });
     return true;
   },
-  clearSearch: () =>
-    set({
-      results: [],
-      pagination: null,
-      query: "",
-      hasLoaded: false,
-    }),
 }));
 
 const normalizeQuery = (query: string) => query.trim();

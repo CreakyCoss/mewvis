@@ -11,10 +11,20 @@ test("marketplace dates accept numeric timestamps and ignore invalid values", ()
   assert.equal(formatMarketplaceUpdatedAt(Number.NaN), null);
 });
 
-test("discovery starts without a search and can return to the empty state", () => {
+test("discovery caches the default all-skills result under an empty query", () => {
   const store = useMarketplaceStore;
   assert.equal(store.getState().query, "");
   assert.equal(store.getState().hasLoaded, false);
+
+  store.getState().setSearchResult(
+    { query: "", sortBy: "stars" },
+    {
+      skills: [{ name: "popular", githubUrl: "https://example.com/popular" }],
+      pagination: null,
+    },
+  );
+  assert.equal(store.getState().query, "");
+  assert.equal(store.getState().hasLoaded, true);
 
   store.getState().setSearchResult(
     { query: "设计", sortBy: "stars" },
@@ -26,8 +36,7 @@ test("discovery starts without a search and can return to the empty state", () =
   assert.equal(store.getState().query, "设计");
   assert.equal(store.getState().hasLoaded, true);
 
-  store.getState().clearSearch();
+  assert.equal(store.getState().restoreCache({ query: "", sortBy: "stars" }), true);
   assert.equal(store.getState().query, "");
-  assert.equal(store.getState().hasLoaded, false);
-  assert.deepEqual(store.getState().results, []);
+  assert.deepEqual(store.getState().results.map((skill) => skill.name), ["popular"]);
 });

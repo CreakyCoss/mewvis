@@ -1,17 +1,7 @@
 {
-  "resources": [
-    "bazi",
-    "browser-cdp",
-    "chenggu-analysis",
-    "shared",
-    "story-cover",
-    "story-deslop",
-    "story-long-analyze",
-    "story-long-scan",
-    "story-long-write",
-    "story-short-analyze",
-    "story-short-scan",
-    "story-short-write",
-    "yuan"
+  "skills": [
+    "frontend-design",
+    "systematic-debugging",
+    "verification-before-completion"
   ]
 }

@@ -74,7 +74,7 @@ test("registered symlinks are rejected", async (t) => {
   );
 });
 
-test("copying resources includes only registered directories and clears old output", async (t) => {
+test("copying skills includes only registered directories and clears old output", async (t) => {
   const { root, sourceRoot, configPath, save } = await fixture(t);
   const output = join(root, "output");
   await mkdir(output);
@@ -82,8 +82,13 @@ test("copying resources includes only registered directories and clears old outp
   await writeFile(join(sourceRoot, "beta", "SKILL.md"), "registered");
   await writeFile(join(sourceRoot, "unlisted", "SKILL.md"), "unlisted");
   await save({ resources: ["beta"] });
+  await assert.rejects(
+    copyRegistrations(configPath, "skills", sourceRoot, output),
+    /必须只包含 skills 数组/,
+  );
+  await save({ skills: ["beta"] });
 
-  await copyRegistrations(configPath, "resources", sourceRoot, output);
+  await copyRegistrations(configPath, "skills", sourceRoot, output);
   assert.deepEqual(await readdir(output), ["beta"]);
   assert.equal(
     await readFile(join(output, "beta", "SKILL.md"), "utf8"),

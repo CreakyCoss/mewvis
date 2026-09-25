@@ -187,14 +187,14 @@ export class Skills {
     return this.read();
   }
   async search(i: JsonObject) {
-    const query = String(i.query ?? "").trim();
-    if (!query) return { skills: [], pagination: null };
+    // SkillsMP requires a keyword and does not expose a public browse endpoint.
+    const query = String(i.query ?? "").trim() || "skill";
     const url = new URL("https://skillsmp.com/api/v1/skills/search");
     url.search = new URLSearchParams({
       q: query,
       limit: String(Math.min(24, Math.max(1, Number(i.limit ?? 12)))),
       page: String(Math.max(1, Number(i.page ?? 1))),
-      sortBy: i.sortBy === "updatedAt" ? "updatedAt" : "stars",
+      sortBy: i.sortBy === "updatedAt" ? "recent" : "stars",
     }).toString();
     const response = await fetchJson(url.href);
     if (!response.success)

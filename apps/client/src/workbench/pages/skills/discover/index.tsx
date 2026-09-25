@@ -40,7 +40,7 @@ export const DiscoverSkillsTab = () => {
   const [selectedSortBy, setSelectedSortBy] = useState<SkillMarketplaceSort>(
     marketplaceStore.sortBy || DEFAULT_MARKETPLACE_SORT,
   );
-  const [selectedCategory, setSelectedCategory] = useState("全部");
+  const [selectedCategory, setSelectedCategory] = useState(marketplaceStore.query ? "" : "全部");
   const [installingSkillKey, setInstallingSkillKey] = useState<string | null>(null);
   const [categoryScrollState, setCategoryScrollState] = useState({
     canScroll: false,
@@ -48,6 +48,8 @@ export const DiscoverSkillsTab = () => {
   });
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const categoryScrollerRef = useRef<HTMLDivElement | null>(null);
+  const didRequestInitialSearchRef = useRef(false);
+  const searchRequestRef = useRef(0);
   const isInstalling = installingSkillKey !== null;
 
   const installedAppSkillNames = useMemo(
@@ -63,8 +65,12 @@ export const DiscoverSkillsTab = () => {
         limit: input.limit ?? 12,
       };
       const isAppend = normalizedInput.append === true;
+      const requestId = ++searchRequestRef.current;
 
       if (!isAppend && marketplaceStore.restoreCache(normalizedInput)) {
+        setError("");
+        setIsMarketplaceSearching(false);
+        setIsMarketplaceLoadingMore(false);
         return;
       }
 
@@ -72,18 +78,26 @@ export const DiscoverSkillsTab = () => {
         setIsMarketplaceLoadingMore(true);
       } else {
         setIsMarketplaceSearching(true);
+        setIsMarketplaceLoadingMore(false);
       }
       setError("");
 
       try {
-        marketplaceStore.setSearchResult(normalizedInput, await searchSkillMarketplace(normalizedInput));
+        const result = await searchSkillMarketplace(normalizedInput);
+        if (requestId === searchRequestRef.current) {
+          marketplaceStore.setSearchResult(normalizedInput, result);
+        }
       } catch (caught) {
-        setError(String(caught));
+        if (requestId === searchRequestRef.current) {
+          setError(String(caught));
+        }
       } finally {
-        if (isAppend) {
-          setIsMarketplaceLoadingMore(false);
-        } else {
-          setIsMarketplaceSearching(false);
+        if (requestId === searchRequestRef.current) {
+          if (isAppend) {
+            setIsMarketplaceLoadingMore(false);
+          } else {
+            setIsMarketplaceSearching(false);
+          }
         }
       }
     },
@@ -98,11 +112,6 @@ export const DiscoverSkillsTab = () => {
       append = false,
     }: Partial<SearchSkillMarketplaceInput> = {}) => {
       const nextQuery = query.trim();
-      if (!nextQuery) {
-        marketplaceStore.clearSearch();
-        setError("");
-        return;
-      }
       await searchMarketplace({
         query: nextQuery,
         sortBy,
@@ -113,12 +122,19 @@ export const DiscoverSkillsTab = () => {
     },
     [
       marketplaceQuery,
-      marketplaceStore.clearSearch,
       marketplaceStore.pagination?.limit,
       searchMarketplace,
       selectedSortBy,
     ],
   );
+
+  useEffect(() => {
+    if (didRequestInitialSearchRef.current || marketplaceStore.hasLoaded) {
+      return;
+    }
+    didRequestInitialSearchRef.current = true;
+    void runSearch({ query: "", sortBy: selectedSortBy });
+  }, [marketplaceStore.hasLoaded, runSearch, selectedSortBy]);
 
   const handleCategorySearch = (category: DiscoverCategory) => {
     setSelectedCategory(category.label);
@@ -374,7 +390,7 @@ export const DiscoverSkillsTab = () => {
         )}
 
         <section>
-          {isMarketplaceSearching ? (
+          {isMarketplaceSearching || (!marketplaceStore.hasLoaded && !error) ? (
             <SearchLoadingState />
           ) : marketplaceStore.results.length > 0 ? (
             <TooltipProvider delayDuration={220}>
@@ -433,7 +449,7 @@ const SearchLoadingState = () => (
 const DiscoverEmptyState = () => (
   <div className="app-empty-state flex min-h-[220px] items-center justify-center gap-2 rounded-2xl text-sm text-muted-foreground">
     <Search className="size-4" />
-    <span>输入关键词搜索可安装的技能</span>
+    <span>暂无技能结果，请重试或搜索关键词</span>
   </div>
 );
 

@@ -9,7 +9,7 @@ const source = join(resources, "skills");
 const output = fileURLToPath(new URL("../dist/skills/", import.meta.url));
 const registrations = await copyRegistrations(
   join(resources, "registry.json"),
-  "resources",
+  "skills",
   source,
   output,
 );

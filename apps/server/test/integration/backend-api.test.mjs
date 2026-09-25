@@ -675,10 +675,6 @@ test("skills zip installation, persisted groups and removal use the shared comma
   });
   assert.equal(removed.name, "fixture-skill");
   assert.equal((await s.call("get_skills", {}, true)).defaultGroupId, "all");
-  assert.equal(
-    (await s.call("search_skill_marketplace", { query: "" })).skills.length,
-    0,
-  );
 });
 test("sandbox commands validate toggles and share persisted runtime settings", async (t) => {
   const root = await fs.realpath(

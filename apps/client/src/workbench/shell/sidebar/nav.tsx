@@ -18,7 +18,7 @@ type MenuItem = {
 
 const menuItems: MenuItem[] = [
   { to: "/hub", label: "中枢", icon: Bot },
-  { to: "/skills", label: "技能广场", icon: Wrench },
+  { to: "/skills", label: "技能", icon: Wrench },
   { to: "/knowledge", label: "知识库", icon: Database },
   { to: "/extensions", label: "插件", icon: Puzzle },
   { to: "/settings", label: "设置", icon: Settings },
