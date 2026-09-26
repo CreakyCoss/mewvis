@@ -163,7 +163,7 @@ Tauri 的系统应用数据目录与业务根目录不同：macOS 为 `~/Library
 
 ### 桌面启动与退出
 
-`src-tauri/src/node_backend.rs` 只管理 Node 主进程。首次连接时启动随包携带的 Node，使用随机空闲端口，通过私有 stdout 管道接收就绪消息。并发首次请求共用同一进程；启动异常可由恢复界面显示，运行中崩溃不自动重放业务任务。
+`apps/desktop/src-tauri/src/node_backend.rs` 只管理 Node 主进程。首次连接时启动随包携带的 Node，使用随机空闲端口，通过私有 stdout 管道接收就绪消息。并发首次请求共用同一进程；启动异常可由恢复界面显示，运行中崩溃不自动重放业务任务。
 
 关闭桌面时关闭 Node 的 stdin，触发服务清理。Rust 最多等待 15 秒，超时清理进程树；Unix 使用独立进程组，Windows 使用带关闭清理标记的 Job Object。桌面窗口和原生文件选择继续由 Tauri 插件处理。Rust 不再初始化数据库、持有业务目录锁或托管 Runtime worker。
 

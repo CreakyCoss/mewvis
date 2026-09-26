@@ -1,0 +1,20 @@
+{
+  "name": "@isle/desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "build:mac": "node scripts/build-macos.mjs",
+    "build:mac:arm64": "node scripts/build-macos.mjs --target darwin-arm64",
+    "build:mac:x64": "node scripts/build-macos.mjs --target darwin-x64",
+    "build:win": "node scripts/build-windows.mjs x64",
+    "build:win:arm64": "node scripts/build-windows.mjs arm64",
+    "sync-product-config": "node ../../scripts/maintenance/sync-product-config.mjs",
+    "build:agent-runtime": "pnpm --filter client build:agent-runtime"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

@@ -667,9 +667,6 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.3.0
         version: 4.3.0(vite@7.0.4)
-      '@tauri-apps/cli':
-        specifier: ^2
-        version: 2.0.0
       '@types/js-yaml':
         specifier: 4.0.9
         version: 4.0.9
@@ -727,6 +724,12 @@ importers:
       vite:
         specifier: ^7.0.4
         version: 7.0.4(@types/node@22.0.0)
+
+  apps/desktop:
+    devDependencies:
+      '@tauri-apps/cli':
+        specifier: ^2
+        version: 2.0.0
 
   apps/extensions/collaboration:
     dependencies:

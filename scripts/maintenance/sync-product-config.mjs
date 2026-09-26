@@ -2,11 +2,11 @@ import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const desktopRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
-const productConfigPath = join(desktopRoot, "../product.config.json");
-const indexPath = join(desktopRoot, "index.html");
-const tauriConfigPath = join(desktopRoot, "src-tauri", "tauri.conf.json");
-const cargoTomlPath = join(desktopRoot, "src-tauri", "Cargo.toml");
+const repositoryRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
+const productConfigPath = join(repositoryRoot, "apps/product.config.json");
+const indexPath = join(repositoryRoot, "apps/client/index.html");
+const tauriConfigPath = join(repositoryRoot, "apps/desktop/src-tauri/tauri.conf.json");
+const cargoTomlPath = join(repositoryRoot, "apps/desktop/src-tauri/Cargo.toml");
 
 const productConfig = JSON.parse(await readFile(productConfigPath, "utf8"));
 

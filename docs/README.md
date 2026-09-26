@@ -15,7 +15,10 @@
 
 ```text
 isle/
-├── apps/client/          桌面前端、Rust 宿主、Agent 运行时及内置应用
+├── apps/client/          桌面与 Web 共用的 React 前端
+├── apps/desktop/         Tauri Rust 宿主与桌面打包命令
+├── apps/agent-runtime/   Agent 运行时
+├── apps/applications/    内置应用
 ├── apps/server/           独立 Node 后端服务
 ├── packages/             应用 SDK、开发工具链和共享契约
 ├── ai/pi/                通过 Git Subtree 引入的上游依赖

@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "com.isle-claw.desktop",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "pnpm --filter client dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
-    "frontendDist": "../dist"
+    "beforeBuildCommand": "pnpm --filter client build",
+    "frontendDist": "../../client/dist"
   },
   "app": {
     "windows": [

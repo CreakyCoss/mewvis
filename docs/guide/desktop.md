@@ -1,8 +1,8 @@
 # 桌面应用开发
 
-客户端工程位于 `apps/client`，工作区包名为 `client`，共用桌面和 Web 页面。`dev:desktop`、`build:desktop` 仍表示 Tauri 桌面目标；直接调用包脚本使用 `pnpm --filter client`。
+共享前端位于 `apps/client`，工作区包名为 `client`，同时供桌面和 Web 使用。Tauri 工程位于 `apps/desktop`，工作区包名为 `@isle/desktop`。仓库根目录的 `dev:desktop`、`build:desktop` 命令转发到桌面包；直接调用桌面包脚本使用 `pnpm --filter @isle/desktop`。
 
-Isle 桌面应用使用 Tauri、React、TypeScript 和 Vite。源码位于 `apps/client`，Rust 宿主位于其 `src-tauri` 目录。
+Isle 桌面应用使用 Tauri、React、TypeScript 和 Vite。React 页面位于 `apps/client/src`，Rust 宿主位于 `apps/desktop/src-tauri`。Tauri 开发与构建命令调用 `client` 的 Vite 脚本，并将 `apps/client/dist` 作为前端产物。
 
 ## 启动与构建
 
@@ -26,7 +26,7 @@ pnpm build:desktop:win:arm64
 
 构建会同步产品配置，构建 Chat 共享界面、应用宿主和 Agent 运行时，并打包内置应用与中文文档。具体平台还需安装对应的 Rust/Tauri 构建依赖。
 
-`build:agent-runtime` 调用独立的 `@isle/agent-runtime` 包，先清理并构建运行时，再构建 Application UI Host，最后复制资源和打包应用。应用宿主位于同一个 `apps/agent-runtime/dist` 目录，必须在清理之后生成。开发模式只使用工作区的运行时产物；缺少 Node 后端时会明确报错，不会回退加载 `target/debug` 中旧的 Tauri 资源副本。运行时重建期间若触发桌面重启，等待构建完成后重试。在 `apps/client` 运行 `pnpm test:app-host:packaging` 可验证完整构建后的宿主启动与文档应用全屏声明。
+`build:agent-runtime` 调用独立的 `@isle/agent-runtime` 包，先清理并构建运行时，再构建 Application UI Host，最后复制资源和打包应用。应用宿主位于同一个 `apps/agent-runtime/dist` 目录，必须在清理之后生成。开发模式只使用工作区的运行时产物；缺少 Node 后端时会明确报错，不会回退加载 `apps/desktop/src-tauri/target/debug` 中旧的 Tauri 资源副本。运行时重建期间若触发桌面重启，等待构建完成后重试。在 `apps/client` 运行 `pnpm test:app-host:packaging` 可验证完整构建后的宿主启动与文档应用全屏声明。
 
 技能资源由 `apps/client/resources/registry.json` 的 `skills` 数组显式登记。数组项是 `apps/client/resources/skills` 下的一级目录名；构建只复制列出的目录到 Runtime 的 `dist/skills`，开发和桌面启动均从这里加载。新增技能目录后需手动加入配置；未登记的目录不会随 Runtime 发布或注册为系统技能。删除条目并重新构建即可从新版 Runtime 移除对应资源。当前内置技能的上游来源和许可记录在各目录的 `SOURCE.md`、`LICENSE` 或 `LICENSE.txt` 中。
 
@@ -38,4 +38,4 @@ pnpm build:desktop:win:arm64
 
 应用的应用列表中打开「文档中心」。源码文档的入口是 [文档首页](../README.md)，维护规则见 [文档维护](documentation.md)。
 
-产品配置统一位于 `apps/product.config.json`。桌面同步脚本从这里生成页面标题和 Tauri/Cargo 产品信息；Server 与 Runtime 读取同一份配置。文件移动不改变产品标识或原数据目录命名。应用宿主和内置应用分别归属 `packages/app/host`、`apps/applications`；`core` 仍位于 `apps/client/core`。
+产品配置统一位于 `apps/product.config.json`。配置同步脚本从这里生成 `apps/client/index.html` 的页面标题以及 `apps/desktop/src-tauri` 的 Tauri/Cargo 产品信息；Server 与 Runtime 读取同一份配置。文件移动不改变产品标识或原数据目录命名。应用宿主和内置应用分别归属 `packages/app/host`、`apps/applications`；`core` 仍位于 `apps/client/core`。
