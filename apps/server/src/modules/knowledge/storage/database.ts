@@ -1,7 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { load } from "sqlite-vec";
+import { sqliteVecPath } from "./extension.js";
 import { ragSchema, vectorSchema } from "./schema.js";
 
 export const textHash = (text: string) => {
@@ -24,7 +24,7 @@ export class RagDatabase {
       allowExtension: true,
     });
     try {
-      load(this.db);
+      this.db.loadExtension(sqliteVecPath());
       this.db.enableLoadExtension(false);
       this.db.exec("PRAGMA busy_timeout=100");
       this.db.exec("BEGIN IMMEDIATE");

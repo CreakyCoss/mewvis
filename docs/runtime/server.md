@@ -134,7 +134,9 @@ Node 新增 `open_system_dialog`，接收 `{ input: { directory, multiple, title
 | `ISLE_SERVER_RUNTIME_CLI`      | Runtime CLI 构建产物的绝对路径                    |
 | `AGENT_RUNTIME_PROFILE_ID`     | Runtime profile；`mock` 用于离线验证              |
 
-开发时 Server 从 `apps/agent-runtime` 读取协议，从 `apps/product.config.json` 读取产品配置。桌面构建会将 Server、原生依赖、协议、产品配置及技能打包进 Runtime 资源目录；通过 `ISLE_SERVER_RESOURCES` 定位，不依赖源码仓库或系统 Node。Node 可执行文件继续随桌面分发。当前 sqlite-vec 0.1.9 无 Windows ARM64 产物，该目标会明确拒绝打包；其他跨平台构建也会检查目标原生依赖。
+开发时 Server 从 `apps/agent-runtime` 读取协议，从 `apps/product.config.json` 读取产品配置。桌面构建会将 Server、原生依赖、协议、产品配置及技能打包进 Runtime 资源目录；通过 `ISLE_SERVER_RESOURCES` 定位，不依赖源码仓库或系统 Node。Node 可执行文件继续随桌面分发。Windows ARM64 使用原生 ARM64 Node；打包时从固定版本且经 SHA-256 校验的 sqlite-vec 0.1.9 源码编译 `server/native/vec0.dll`，同时复制上游许可证。其他平台继续使用 npm 的目标原生依赖。
+
+Windows ARM64 的本机构建需在 Visual Studio 的 ARM64 Native Tools 开发命令行中运行；macOS/Linux 交叉编译复用 LLVM 与 `cargo-xwin` 提供的 ARM64 CRT/SDK。源码及工具链缓存可供后续构建复用。Windows ARM64 开发时先运行 `pnpm --filter client build:node-server` 生成 DLL，再启动 Server；运行分发包无需编译器或 Rust。
 
 当前定位为本机单用户服务：仅监听 loopback，API 和事件订阅要求 Bearer token，校验 Host / Origin。开发 Web 使用同源代理，正式 Web 使用同端口会话鉴权。桌面模式只为 Tauri 包内页面和本次开发页面的精确 Origin 提供 CORS，预检只允许 GET/POST 与规定请求头，实际请求仍需 token；不提供通用跨站访问或多用户隔离。
 

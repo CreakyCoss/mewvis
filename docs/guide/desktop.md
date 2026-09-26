@@ -26,6 +26,8 @@ pnpm build:desktop:win:arm64
 
 构建会同步产品配置，构建 Chat 共享界面、应用宿主和 Agent 运行时，并打包内置应用与中文文档。具体平台还需安装对应的 Rust/Tauri 构建依赖。
 
+Windows ARM64 包保留原生 ARM64 桌面外壳与 Node。sqlite-vec 0.1.9 的 npm 包未提供该平台 DLL，构建会下载并校验固定版本的上游源码，再编译并打包 ARM64 DLL。本机 Windows 构建使用 ARM64 Native Tools 开发命令行；macOS/Linux 交叉构建使用现有 LLVM 与 `cargo-xwin`。首次构建需联网获取源码、许可证和未缓存的 CRT/SDK，后续可复用缓存。
+
 `build:agent-runtime` 调用独立的 `@isle/agent-runtime` 包，先清理并构建运行时，再构建 Application UI Host，最后复制资源和打包应用。应用宿主位于同一个 `apps/agent-runtime/dist` 目录，必须在清理之后生成。开发模式只使用工作区的运行时产物；缺少 Node 后端时会明确报错，不会回退加载 `apps/desktop/src-tauri/target/debug` 中旧的 Tauri 资源副本。运行时重建期间若触发桌面重启，等待构建完成后重试。在 `apps/client` 运行 `pnpm test:app-host:packaging` 可验证完整构建后的宿主启动与文档应用全屏声明。
 
 技能资源由 `apps/client/resources/registry.json` 的 `skills` 数组显式登记。数组项是 `apps/client/resources/skills` 下的一级目录名；构建只复制列出的目录到 Runtime 的 `dist/skills`，开发和桌面启动均从这里加载。新增技能目录后需手动加入配置；未登记的目录不会随 Runtime 发布或注册为系统技能。删除条目并重新构建即可从新版 Runtime 移除对应资源。当前内置技能的上游来源和许可记录在各目录的 `SOURCE.md`、`LICENSE` 或 `LICENSE.txt` 中。
