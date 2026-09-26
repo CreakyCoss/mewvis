@@ -55,8 +55,8 @@ import {
 
 const overview = defineUIContribution(uiSlotDefinitions.sessionSidebar, {
   id: "overview",
-  title: "会话统计",
-  icon: "chart",
+  title: "会话信息",
+  icon: "info",
   view: { id: "overview" },
 });
 ```

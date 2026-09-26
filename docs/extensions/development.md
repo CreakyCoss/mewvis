@@ -22,7 +22,7 @@ pnpm extension pack apps/extensions/my-feature
 
 生成的 tgz 根目录为 `package/`。自行解包后可登记该目录；CLI 当前不直接安装不可信压缩包。打包和登记不运行 npm 安装脚本。
 
-仓库内置 `collaboration`、`decisions`、`session-insights` 和 `session-ledger` 四个插件，其中 `session-insights` 演示纯 UI 会话统计。要让新插件随桌面发布，需把它在 `apps/extensions/` 下的一级目录名加入 `apps/extensions/registry.json` 的 `extensions` 数组。构建只按数组顺序打包登记的插件到 Runtime 的 `dist/extensions/`；未登记的目录不会打包。配置中允许空数组；重复、无效或不存在的目录会使构建失败。打包后的内置插件默认启用，仍使用通用插件协议，运行时代码不硬编码插件 ID。独立 SDK 由宿主指定包来源。
+仓库内置 `collaboration`、`decisions` 和 `session-ledger` 三个插件。要让新插件随桌面发布，需把它在 `apps/extensions/` 下的一级目录名加入 `apps/extensions/registry.json` 的 `extensions` 数组。构建只按数组顺序打包登记的插件到 Runtime 的 `dist/extensions/`；未登记的目录不会打包。配置中允许空数组；重复、无效或不存在的目录会使构建失败。打包后的内置插件默认启用，仍使用通用插件协议，运行时代码不硬编码插件 ID。独立 SDK 由宿主指定包来源。
 
 ## 包清单
 
@@ -89,7 +89,7 @@ SDK 源包使用下文的 `isle.extension` 清单。构建产物统一转换成�
 ```json
 {
   "schemaVersion": 2,
-  "id": "example.insights",
+  "id": "example.session-info",
   "apiVersion": 1,
   "host": { "required": ["session.read"] },
   "modules": {
@@ -100,8 +100,8 @@ SDK 源包使用下文的 `isle.extension` 清单。构建产物统一转换成�
           "id": "overview",
           "type": "sidebar",
           "slot": "session.sidebar",
-          "title": "会话统计",
-          "icon": "chart",
+          "title": "会话信息",
+          "icon": "info",
           "view": { "id": "overview" }
         }
       ]
@@ -116,16 +116,16 @@ SDK 源包使用下文的 `isle.extension` 清单。构建产物统一转换成�
 import { defineUIExtension } from "@isle/extension-sdk/ui";
 
 export default defineUIExtension({
-  id: "example.insights",
+  id: "example.session-info",
   apiVersion: 1,
   mount(root, ctx) {
     const button = document.createElement("button");
-    button.textContent = "查看消息数";
+    button.textContent = "查看最近消息";
     const read = async () => {
       try {
         const snapshot = await ctx.host.session.read();
         if (!ctx.signal.aborted)
-          button.textContent = `返回 ${snapshot.messages.length} 条消息`;
+          button.textContent = snapshot.messages.at(-1)?.text ?? "当前会话没有消息";
       } catch (error) {
         if (!ctx.signal.aborted) button.textContent = String(error);
       }
@@ -157,8 +157,8 @@ import {
 } from "@isle/extension-sdk/ui";
 const contribution = defineUIContribution(uiSlotDefinitions.sessionSidebar, {
   id: "overview",
-  title: "会话统计",
-  icon: "chart",
+  title: "会话信息",
+  icon: "info",
   view: { id: "overview" },
 });
 ```
@@ -187,8 +187,6 @@ UI 在 `sandbox="allow-scripts"` 的独立源 iframe 中执行，通过 MessageC
 
 原生插件 `session-ledger` 通过 `ctx.services` 使用独立的 `session.ledger.read` 能力查看运行链路、指令、上下文和工具记录，通过可选的 `session.summarize` 获取一次性摘要。它还在会话顶部提供「会话摘要」操作入口，点击后打开插件已有的摘要弹窗。摘要不会写回会话、触发压缩或进入后续上下文；需要宿主配置可用模型。能力缺失、错误与取消约定见[宿主服务协议与适配](host-services.md)。
 
-`session-insights` 从该接口计算消息数、运行数、失败数与累计时间，通过按钮刷新；目前没有工具明细、token 统计或数据变更订阅。纯 UI 插件不会向 Pi / Mock 注入空插件，也不要求配置模型。
-
 ## 本地登记与启停
 
 以一个已构建的本地插件包为例：
@@ -214,8 +212,8 @@ pnpm extension remove example.feature --settings /absolute/path/extensions.json
 ## 桌面使用
 
 1. 正常启动桌面开发项目或构建桌面包；构建链会同时构建内置插件。
-2. 打开左侧导航「应用」下方的「插件」，可以直接看到「角色协作」、「智能判断」、「会话统计」和「会话链路」，无需手动添加。内置插件支持启停和 schema 配置，不支持移除；其他插件通过「添加插件」选择已构建的包目录登记。
-3. 插件的启停和配置统一在插件管理页完成。提供 UI 贡献的插件会在已挂载的插槽中展示，例如工作区聊天右侧的「会话统计」。
+2. 打开左侧导航「应用」下方的「插件」，可以直接看到「角色协作」、「智能判断」和「会话链路」，无需手动添加。内置插件支持启停和 schema 配置，不支持移除；其他插件通过「添加插件」选择已构建的包目录登记。
+3. 插件的启停和配置统一在插件管理页完成。提供 UI 贡献的插件会在已挂载的插槽中展示，例如会话顶部的「会话摘要」。
 
 管理设置保存到产品数据目录的 `extensions.json`。聊天侧栏不内置通用插件命令面板；命令能力保留在宿主 SDK、协议和 Agent 适配器中。有交互需求时可在后续通过插件扩展 UI，并按需增加受控宿主接口。
 

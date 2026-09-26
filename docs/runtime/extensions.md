@@ -191,7 +191,7 @@ SDK 提供插件入口
 - `packages/extension/host`：包清单校验、本地登记、配置与启停。
 - `packages/extension/dev`：创建、构建、校验、打包及管理 CLI。
 - `apps/agent-runtime/src/extensions`：Chord 宿主、worker、共享执行入口、命令与状态存储。
-- `apps/extensions`：仓库内置的角色协作、智能判断、会话统计和会话链路插件。
+- `apps/extensions`：仓库内置的角色协作、智能判断和会话链路插件。
 - `apps/agent-runtime/src/engines/drivers/native/agent/runtimes`：Pi、Mock 和可注入注册表。
 - `apps/agent-runtime/scripts/extensions-e2e.mjs`：可直接运行的闭环验证。
 - `apps/agent-runtime/scripts/extensions-session-test.mjs`：会话实例复用、失效、取消和清理测试。

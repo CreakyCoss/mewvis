@@ -803,16 +803,6 @@ importers:
         specifier: ~5.8.3
         version: 5.8.3
 
-  apps/extensions/session-insights:
-    dependencies:
-      '@isle/extension-sdk':
-        specifier: workspace:*
-        version: link:../../../packages/extension/sdk
-    devDependencies:
-      '@isle/extension-dev':
-        specifier: workspace:*
-        version: link:../../../packages/extension/dev
-
   apps/extensions/session-ledger:
     dependencies:
       '@isle/extension-host':

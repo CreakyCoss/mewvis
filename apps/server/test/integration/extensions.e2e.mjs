@@ -1,9 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm, readFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { startServer } from "../../dist/server.js";
 import { token } from "../support/helpers.mjs";
 
@@ -31,16 +30,85 @@ test("local plugins can be added, disabled, enabled and removed", { timeout: 30_
     assert.equal(result.status, 200, JSON.stringify(result.value));
     return result.value;
   };
-  const path = fileURLToPath(new URL("../../../agent-runtime/dist/extensions/session-insights/", import.meta.url));
+  const path = join(root, "session-info");
+  await mkdir(path);
+  await writeFile(
+    join(path, "package.json"),
+    JSON.stringify({
+      name: "test.session-info",
+      version: "1.0.0",
+      type: "module",
+      "isle.plugin": {
+        schemaVersion: 1,
+        id: "test.session-info",
+        protocolVersion: 1,
+        host: { required: ["session.read"] },
+        modules: {
+          ui: {
+            entry: "./ui.js",
+            contributions: [{
+              id: "overview",
+              type: "sidebar",
+              slot: "session.sidebar",
+              title: "会话信息",
+              icon: "info",
+              view: { id: "overview" },
+            }],
+          },
+        },
+      },
+    }),
+  );
+  await writeFile(
+    join(path, "ui.js"),
+    'export default {id:"test.session-info",protocolVersion:1,mount(){}};',
+  );
   assert.deepEqual(await call("list_extensions"), []);
   const added = await call("add_extension", { path });
-  assert.equal(added[0].id, "isle.session-insights");
+  assert.equal(added[0].id, "test.session-info");
   assert.equal(added[0].source, "local");
   assert.equal((await raw("add_extension", { path })).status, 400);
+
+  const workspace = await call("create_workspace", {
+    name: "本地插件测试",
+    path: join(root, "workspace"),
+  });
+  const panel = (await call("list_extension_ui_contributions")).find(
+    (item) => item.extensionId === added[0].id,
+  );
+  assert.ok(panel);
+  const view = await call("open_extension_view", {
+    workspacePath: workspace.path,
+    chatId: "local-test",
+    id: panel.extensionId,
+    contributionId: panel.id,
+    viewId: panel.view.id,
+  });
+  assert.match(view.source, /test.session-info/);
+  const snapshot = await call("query_extension_view", {
+    token: view.token,
+    method: "session.read",
+    requestId: 1,
+  });
+  assert.deepEqual(snapshot.messages, []);
+  assert.deepEqual(snapshot.runs, []);
+  assert.equal(snapshot.truncated, false);
+  assert.equal((await raw("query_extension_view", {
+    token: view.token,
+    method: "session.read",
+    requestId: 1,
+    chatId: "other",
+  })).status, 400);
   await call("configure_extension", { id: added[0].id, enabled: false });
   assert.deepEqual(await call("list_extension_ui_contributions"), []);
+  assert.equal((await raw("query_extension_view", {
+    token: view.token,
+    method: "session.read",
+    requestId: 1,
+  })).status, 403);
   await call("configure_extension", { id: added[0].id, enabled: true });
   assert.ok((await call("list_extension_ui_contributions")).some((item) => item.extensionId === added[0].id));
+  await call("close_extension_view", { token: view.token });
   await call("remove_extension", { id: added[0].id });
   assert.deepEqual(await call("list_extensions"), []);
 });
@@ -75,7 +143,6 @@ test(
     assert.deepEqual(records.map((item) => item.id).sort(), [
       "isle.collaboration",
       "isle.decisions",
-      "isle.session-insights",
       "isle.session-ledger",
     ]);
     assert.equal(records.find((item) => item.id === "isle.collaboration")?.displayName, "角色协作");
@@ -97,57 +164,6 @@ test(
       path: join(root, "workspace"),
     });
     const target = { workspacePath: workspace.path, chatId: "bundled-test" };
-    const panel = (await call("list_extension_ui_contributions")).find(
-      (item) => item.extensionId === "isle.session-insights",
-    );
-    assert.equal(panel.extensionId, "isle.session-insights");
-    const view = await call("open_extension_view", {
-      ...target,
-      id: panel.extensionId,
-      contributionId: panel.id,
-      viewId: panel.view.id,
-    });
-    assert.match(view.source, /isle.session-insights/);
-    const snapshot = await call("query_extension_view", {
-      token: view.token,
-      method: "session.read",
-      requestId: 1,
-    });
-    assert.deepEqual(snapshot.messages, []);
-    assert.deepEqual(snapshot.runs, []);
-    assert.equal(snapshot.truncated, false);
-    assert.equal(
-      (
-        await raw("query_extension_view", {
-          token: view.token,
-          method: "session.read",
-          requestId: 1,
-          chatId: "other",
-        })
-      ).status,
-      400,
-    );
-    await call("configure_extension", {
-      id: panel.extensionId,
-      enabled: false,
-    });
-    assert.equal(
-      (
-        await raw("query_extension_view", {
-          token: view.token,
-          method: "session.read",
-          requestId: 1,
-        })
-      ).status,
-      403,
-    );
-    assert.ok(
-      (await call("list_extension_ui_contributions")).every(
-        (item) => item.extensionId !== panel.extensionId,
-      ),
-    );
-    await call("configure_extension", { id: panel.extensionId, enabled: true });
-    await call("close_extension_view", { token: view.token });
     assert.equal(
       (await call("list_extension_commands", target)).commands.filter(
         (item) => item.id.startsWith("isle.decisions/"),
