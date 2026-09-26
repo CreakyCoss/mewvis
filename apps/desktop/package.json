@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "tauri dev",
     "build": "tauri build",
+    "dev:ui": "pnpm sync-product-config && pnpm build:agent-runtime && vite",
+    "build:ui": "pnpm sync-product-config && pnpm build:agent-runtime && tsc && vite build",
     "build:mac": "node scripts/build-macos.mjs",
     "build:mac:arm64": "node scripts/build-macos.mjs --target darwin-arm64",
     "build:mac:x64": "node scripts/build-macos.mjs --target darwin-x64",
@@ -14,7 +16,16 @@
     "sync-product-config": "node ../../scripts/maintenance/sync-product-config.mjs",
     "build:agent-runtime": "pnpm --filter client build:agent-runtime"
   },
+  "dependencies": {
+    "@isle/client-platform": "workspace:*",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2",
+    "@tauri-apps/plugin-opener": "^2"
+  },
   "devDependencies": {
-    "@tauri-apps/cli": "^2"
+    "@tauri-apps/cli": "^2",
+    "@types/node": "22.0.0",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.4"
   }
 }

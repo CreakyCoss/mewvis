@@ -32,7 +32,6 @@ export const fake = {
     ],
   } as any,
 };
-export const isTauri = () => true;
 export async function listen() {
   throw new Error("Unexpected backend event subscription");
 }

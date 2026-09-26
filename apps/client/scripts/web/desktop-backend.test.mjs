@@ -2,12 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp, rm, cp } from "node:fs/promises";
+import { mkdtemp, rm, cp, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { createInterface } from "node:readline";
+import { desktopPlatformFixture } from "../platform/desktop-fixture.mjs";
 
 const resources =
   process.env.ISLE_TEST_DESKTOP_RESOURCES ?? fileURLToPath(new URL("../../../agent-runtime/dist/", import.meta.url));
@@ -102,6 +103,17 @@ test("packaged desktop backend runs outside the repository, authenticates HTTP/S
   const runtime = join(root, "runtime");
   await cp(resources, runtime, { recursive: true, dereference: true });
   t.after(() => rm(root, { recursive: true, force: true }));
+  // The mock engine has no Isle extension adapter; isolate this transport/lifecycle fixture.
+  const bundled = Object.fromEntries(
+    await Promise.all(
+      (await readdir(join(runtime, "extensions"))).map(async (name) => {
+        const pkg = JSON.parse(await readFile(join(runtime, "extensions", name, "package.json"), "utf8"));
+        return [pkg["isle.plugin"].id, { enabled: false }];
+      }),
+    ),
+  );
+  await mkdir(join(root, "data"));
+  await writeFile(join(root, "data/extensions.json"), JSON.stringify({ version: 1, packages: [], bundled }));
   const session = await launch(root, runtime);
   t.after(() => {
     session.child.stdin.end();
@@ -116,10 +128,12 @@ test("packaged desktop backend runs outside the repository, authenticates HTTP/S
   // Real frontend transport: Tauri supplies only connection metadata, never a business command.
   const shellCalls = [];
   const nativeFetch = globalThis.fetch;
-  globalThis.__desktopBackendHandshake = async (command) => {
-    shellCalls.push(command);
-    assert.equal(command, "get_backend_connection");
-    return { url, token };
+  globalThis.__desktopBackendPlatform = {
+    invoke: async (command) => {
+      shellCalls.push(command);
+      assert.equal(command, "get_backend_connection");
+      return { url, token };
+    },
   };
   globalThis.fetch = (input, init = {}) => {
     const headers = new Headers(init.headers);
@@ -128,13 +142,13 @@ test("packaged desktop backend runs outside the repository, authenticates HTTP/S
   };
   t.after(() => {
     globalThis.fetch = nativeFetch;
-    delete globalThis.__desktopBackendHandshake;
+    delete globalThis.__desktopBackendPlatform;
   });
   const desktop = fileURLToPath(new URL("../../", import.meta.url));
   const compiled = await build({
     stdin: {
       contents:
-        'export { getLlmSettings } from "./src/api/llm.ts"; export { initializeConfigDatabase } from "./src/api/recovery.ts";',
+        'export { getLlmSettings } from "./src/api/llm.ts"; export { initializeConfigDatabase } from "./src/api/recovery.ts"; export { readEvents } from "./src/transport/sse.ts";',
       resolveDir: desktop,
     },
     bundle: true,
@@ -142,18 +156,7 @@ test("packaged desktop backend runs outside the repository, authenticates HTTP/S
     platform: "browser",
     format: "esm",
     tsconfig: join(desktop, "tsconfig.json"),
-    plugins: [
-      {
-        name: "desktop-shell-handshake",
-        setup(build) {
-          build.onResolve({ filter: /^@tauri-apps\/api\/core$/ }, () => ({ path: "shell", namespace: "fixture" }));
-          build.onLoad({ filter: /.*/, namespace: "fixture" }, () => ({
-            contents:
-              "export const isTauri = () => true; export const invoke = (...args) => globalThis.__desktopBackendHandshake(...args);",
-          }));
-        },
-      },
-    ],
+    plugins: [desktopPlatformFixture("__desktopBackendPlatform")],
   });
   const api = await import(
     `data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString("base64")}`
@@ -200,6 +203,18 @@ test("packaged desktop backend runs outside the repository, authenticates HTTP/S
     return value;
   };
   const workspace = await invokeBackend("create_workspace", { name: "Desktop runtime", path: join(root, "project") });
+  const taskAbort = new AbortController();
+  t.after(() => taskAbort.abort());
+  const runtimeEvents = [];
+  const taskStream = await fetch(`${url}/api/events`, {
+    headers: { origin, authorization: `Bearer ${token}` },
+    signal: taskAbort.signal,
+  });
+  const taskReading = api
+    .readEvents(taskStream.body, (event) => runtimeEvents.push(event))
+    .catch((error) => {
+      if (!taskAbort.signal.aborted) throw error;
+    });
   await invokeBackend("run_agent_runtime_agent", {
     taskId: "desktop-runtime",
     workspacePath: workspace.path,
@@ -215,7 +230,9 @@ test("packaged desktop backend runs outside the repository, authenticates HTTP/S
     if (["done", "failed"].includes(task.taskState)) break;
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
-  assert.equal(task.taskState, "done", JSON.stringify(task));
+  taskAbort.abort();
+  await taskReading;
+  assert.equal(task.taskState, "done", JSON.stringify({ task, events: runtimeEvents }));
   const runtimeStatus = await (
     await fetch(`${url}/api/status`, { headers: { origin, authorization: `Bearer ${token}` } })
   ).json();

@@ -1,22 +1,4 @@
-import { isTauri, invoke as invokeShell } from "@tauri-apps/api/core";
-
-type BackendConnection = { url: string; token: string };
-let connection: Promise<BackendConnection> | undefined;
-
-async function desktopConnection() {
-  connection ??= invokeShell<BackendConnection>("get_backend_connection")
-    .then((value) => {
-      const url = new URL(value.url);
-      if (url.protocol !== "http:" || url.hostname !== "127.0.0.1" || url.username || url.password || !value.token)
-        throw new Error("Invalid desktop backend connection");
-      return value;
-    })
-    .catch((error) => {
-      connection = undefined;
-      throw error;
-    });
-  return connection;
-}
+import { platform } from "@/platform";
 
 export class BackendError extends Error {
   constructor(
@@ -33,7 +15,7 @@ export class BackendError extends Error {
 export async function requestBackend(path: string, init?: RequestInit): Promise<Response> {
   let response: Response;
   try {
-    const backend = isTauri() ? await desktopConnection() : undefined;
+    const backend = await platform.getBackendConnection();
     const headers = new Headers(init?.headers);
     if (backend) headers.set("authorization", `Bearer ${backend.token}`);
     response = await fetch(backend ? `${backend.url}/api/${path}` : `/api/${path}`, {

@@ -24,6 +24,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
+      "@platform-impl": ["./src/platform/web.ts"],
       "@agent-runtime": ["../agent-runtime/src/index.ts"],
       "@agent-runtime/*": ["../agent-runtime/src/*"],
       "@engines/*": ["../agent-runtime/src/engines/*"]

@@ -127,14 +127,14 @@ try {
           build.onResolve(
             {
               filter:
-                /^(?:@\/transport$|@tauri-apps\/api\/core|@\/api\/(applications$|workspace$|agent-runtime$)|@\/workbench\/pages\/stories\/)/,
+                /^(?:@\/transport$|@\/api\/(applications$|workspace$|agent-runtime$)|@\/workbench\/pages\/stories\/)/,
             },
             ({ path }) => ({ path, namespace: "fixture" }),
           );
           build.onLoad({ filter: /.*/, namespace: "fixture" }, ({ path }) => ({
             contents:
-              path === "@tauri-apps/api/core" || path === "@/transport"
-                ? "export const isTauri = () => true; export const invoke = (...args) => globalThis.__playgroundFixture.invoke(...args);"
+              path === "@/transport"
+                ? "export const invoke = (...args) => globalThis.__playgroundFixture.invoke(...args);"
                 : path === "@/api/applications"
                   ? "export const listApplications = async () => globalThis.__playgroundFixture.applications(); export const listApplicationUi = async () => ({applications: [{id: '@isle/chat-playground', tools: [{name:'own', description:'Own tool', risk:'low'}]}, {id:'other-application',tools:[{name:'foreign-tool'}]}]});"
                   : path === "@/api/workspace"

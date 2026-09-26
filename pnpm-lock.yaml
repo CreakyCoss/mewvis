@@ -591,6 +591,9 @@ importers:
       '@isle/chat-contracts':
         specifier: workspace:*
         version: link:../../packages/chat-contracts
+      '@isle/client-platform':
+        specifier: workspace:*
+        version: link:../../packages/client-platform
       '@isle/extension-host':
         specifier: workspace:*
         version: link:../../packages/extension/host
@@ -603,15 +606,6 @@ importers:
       '@lexical/react':
         specifier: ^0.48.0
         version: 0.48.0(react-dom@19.1.0)(react@19.1.0)(typescript@5.8.3)(yjs@13.6.31)
-      '@tauri-apps/api':
-        specifier: ^2
-        version: 2.0.0
-      '@tauri-apps/plugin-dialog':
-        specifier: ^2
-        version: 2.0.0
-      '@tauri-apps/plugin-opener':
-        specifier: ^2
-        version: 2.0.0
       ajv:
         specifier: ^8.20.0
         version: 8.20.0
@@ -726,10 +720,32 @@ importers:
         version: 7.0.4(@types/node@22.0.0)
 
   apps/desktop:
+    dependencies:
+      '@isle/client-platform':
+        specifier: workspace:*
+        version: link:../../packages/client-platform
+      '@tauri-apps/api':
+        specifier: ^2
+        version: 2.0.0
+      '@tauri-apps/plugin-dialog':
+        specifier: ^2
+        version: 2.0.0
+      '@tauri-apps/plugin-opener':
+        specifier: ^2
+        version: 2.0.0
     devDependencies:
       '@tauri-apps/cli':
         specifier: ^2
         version: 2.0.0
+      '@types/node':
+        specifier: 22.0.0
+        version: 22.0.0
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: ^7.0.4
+        version: 7.0.4(@types/node@22.0.0)
 
   apps/extensions/collaboration:
     dependencies:
@@ -974,6 +990,8 @@ importers:
         version: 19.1.6(@types/react@19.1.8)
 
   packages/chat-contracts: {}
+
+  packages/client-platform: {}
 
   packages/design-system:
     dependencies:

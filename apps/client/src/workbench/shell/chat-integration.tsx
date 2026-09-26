@@ -2,8 +2,7 @@ import { openSystemDialog } from "@/api/native";
 import { confirmWorkspaceShare } from "./feedback";
 import { invoke, listen } from "@/transport";
 import type { ApplicationChatRequest } from "@isle/app-sdk/chat";
-import { isTauri } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { platform } from "@/platform";
 import { toast } from "sonner";
 import { useCallback, useEffect, type PropsWithChildren } from "react";
 import { DesktopChatEnvironment } from "@/chat/desktop/react";
@@ -196,24 +195,17 @@ export function AppChatIntegration({ children }: PropsWithChildren) {
     window.addEventListener("focus", refresh);
     window.addEventListener("hashchange", refresh);
     let disposed = false;
-    let closing = false;
     let unlistenClose: (() => void) | undefined;
-    if (isTauri())
-      void getCurrentWindow()
-        .onCloseRequested(async (event) => {
-          event.preventDefault();
-          if (closing) return;
-          closing = true;
-          try {
+    if (platform.window)
+      void platform.window
+        .onCloseRequested(
+          async () => {
             const result = await chatService.closeAll();
-            if (result.ok) await getCurrentWindow().destroy();
-            else toast.error(`会话关闭失败，请重试：${result.error}`);
-          } catch (error) {
-            toast.error(`会话关闭失败，请重试：${String(error)}`);
-          } finally {
-            closing = false;
-          }
-        })
+            if (!result.ok) toast.error(`会话关闭失败，请重试：${result.error}`);
+            return result.ok;
+          },
+          (error) => toast.error(`会话关闭失败，请重试：${String(error)}`),
+        )
         .then((unlisten) => {
           if (disposed) unlisten();
           else unlistenClose = unlisten;

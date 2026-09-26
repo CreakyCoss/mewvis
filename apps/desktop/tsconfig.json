@@ -1,0 +1,13 @@
+{
+  "extends": "../client/tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"],
+      "@platform-impl": ["../desktop/src/platform/tauri.ts"],
+      "@agent-runtime": ["../agent-runtime/src/index.ts"],
+      "@agent-runtime/*": ["../agent-runtime/src/*"],
+      "@engines/*": ["../agent-runtime/src/engines/*"]
+    }
+  },
+  "include": ["src", "../client/src", "vite.config.ts"]
+}

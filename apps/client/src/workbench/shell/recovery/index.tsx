@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Database, FolderOpen, Loader2, Trash2 } from "lucide-react";
-import { isTauri } from "@tauri-apps/api/core";
+import { platform } from "@/platform";
 import { getConfigDatabaseStatus, rebuildConfigDatabase } from "@/api/recovery";
-import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -45,7 +44,7 @@ export const ConfigDatabaseDialog = ({ onRecovered }: ConfigDatabaseDialogProps)
 
     try {
       setActionError("");
-      if (isTauri()) await revealItemInDir(status.configDbPath);
+      if (platform.revealPath) await platform.revealPath(status.configDbPath);
       else await navigator.clipboard.writeText(status.configDbPath);
     } catch (caught) {
       setActionError(String(caught));
@@ -138,7 +137,7 @@ export const ConfigDatabaseDialog = ({ onRecovered }: ConfigDatabaseDialogProps)
         <AlertDialogFooter>
           <Button type="button" variant="outline" disabled={!status?.configDbPath} onClick={handleReveal}>
             <FolderOpen className="size-4" />
-            <span>{isTauri() ? "打开位置" : "复制路径"}</span>
+            <span>{platform.revealPath ? "打开位置" : "复制路径"}</span>
           </Button>
           {statusLoadError ? (
             <Button onClick={() => window.location.reload()}>重试连接</Button>

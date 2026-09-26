@@ -1,7 +1,7 @@
 import { agentPermissionOptions } from "../../../src/agent-client/wire";
 import React, { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { isTauri } from "@tauri-apps/api/core";
+import { platform } from "../../../src/platform";
 import { ApplicationFrame } from "../../../src/workbench/pages/applications/application-frame";
 import { createChatSession, createChatService, type ChatRuntime } from "../../../src/chat/core";
 import { createApplicationChatHost } from "../../../src/chat/desktop/application";
@@ -10,7 +10,7 @@ import type { ApplicationUiApplication } from "../../../src/api/applications/ind
 import script from "./fixtures/application/dist/isle/isle-ui.js?raw";
 import "../../../src/App.css";
 
-if (isTauri()) throw new Error("仅允许 Web 内存测试，不连接真实宿主");
+if (platform.kind !== "web") throw new Error("仅允许 Web 内存测试，不连接真实宿主");
 const events = new Set<(event: any) => void>();
 const sources = new Map<string, () => unknown>();
 const records = new Map();

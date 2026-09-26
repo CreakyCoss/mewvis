@@ -1,16 +1,15 @@
-import { isTauri } from "@tauri-apps/api/core";
-import { open as nativeOpen, type OpenDialogOptions } from "@tauri-apps/plugin-dialog";
+import { platform } from "@/platform";
+import type { PathDialogOptions, PathSelection } from "@isle/client-platform";
 import { invokeNode } from "@/transport/http";
 
 /** Open the OS chooser through the active backend. */
-export async function openSystemDialog(
-  input: OpenDialogOptions = {},
-  signal?: AbortSignal,
-): Promise<string | string[] | null> {
+export async function openSystemDialog(input: PathDialogOptions = {}, signal?: AbortSignal): Promise<PathSelection> {
   if (signal?.aborted) return null;
-  if (isTauri()) return nativeOpen(input);
   try {
-    return await invokeNode<string | string[] | null>("open_system_dialog", { input }, signal);
+    const selection = platform.openDialog
+      ? await platform.openDialog(input)
+      : await invokeNode<PathSelection>("open_system_dialog", { input }, signal);
+    return signal?.aborted ? null : selection;
   } catch (error) {
     if (signal?.aborted) return null;
     throw error;

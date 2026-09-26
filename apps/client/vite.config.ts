@@ -1,37 +1,32 @@
-import { defineConfig } from "vite";
+import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
+import { fileURLToPath } from "node:url";
 
-// @ts-expect-error process is a nodejs global
-const host = process.env.TAURI_DEV_HOST;
+export const clientRoot = fileURLToPath(new URL("./", import.meta.url));
 
-// https://vite.dev/config/
-export default defineConfig(async () => ({
-  plugins: [react(), tailwindcss()],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-      "@agent-runtime": path.resolve(__dirname, "../agent-runtime/src"),
-      "@engines": path.resolve(__dirname, "../agent-runtime/src/engines"),
+export function createClientConfig(platformModule: string, outDir: string): UserConfig {
+  return {
+    root: clientRoot,
+    plugins: [react(), tailwindcss()],
+    resolve: {
+      alias: {
+        "@": path.resolve(clientRoot, "src"),
+        "@platform-impl": platformModule,
+        "@agent-runtime": path.resolve(clientRoot, "../agent-runtime/src"),
+        "@engines": path.resolve(clientRoot, "../agent-runtime/src/engines"),
+      },
     },
-  },
 
-  // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
-  //
-  // 1. prevent Vite from obscuring rust errors
-  clearScreen: false,
-  // 2. tauri expects a fixed port, fail if that port is not available
-  server: {
-    port: 1420,
-    strictPort: true,
-    host: host || false,
-    hmr: host
-      ? {
-          protocol: "ws",
-          host,
-          port: 1421,
-        }
-      : undefined,
-  },
-}));
+    build: { outDir, emptyOutDir: true },
+    server: {
+      port: 1420,
+      strictPort: true,
+    },
+  };
+}
+
+export default defineConfig(
+  createClientConfig(path.resolve(clientRoot, "src/platform/web.ts"), path.resolve(clientRoot, "dist")),
+);

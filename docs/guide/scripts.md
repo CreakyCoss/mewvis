@@ -3,6 +3,7 @@
 `scripts/maintenance/sync-product-config.mjs` 同步前端与桌面的产品配置。`apps/desktop/scripts` 维护 macOS、Windows 桌面打包命令。`apps/client/scripts` 按其余职责组织：
 
 - `packaging/`：共享 Node 后端的资源打包脚本。
+- `platform/`：平台能力边界与桌面适配器行为检查。
 - `agent-runtime/`：单 Agent 与协作运行时测试。
 - `maintenance/`：模型同步等客户端维护脚本。
 - `app/host/`：应用宿主和内置应用集成检查。

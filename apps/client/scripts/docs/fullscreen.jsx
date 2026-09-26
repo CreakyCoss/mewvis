@@ -2,8 +2,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { MemoryRouter, Routes, Route, NavLink } from "react-router";
-import { isTauri } from "@tauri-apps/api/core";
-import { mockIPC } from "@tauri-apps/api/mocks";
+import { platform } from "../../src/platform";
 import { ApplicationLayoutProvider } from "../../src/workbench/shell/layout/application-layout";
 import { AppWorkspace } from "../../src/workbench/shell/layout/workspace";
 import { ApplicationUiPage } from "../../src/workbench/pages/applications";
@@ -14,8 +13,7 @@ import book from "../../../../docs/.generated/book.json";
 import { createLibrary } from "../../../applications/builtins/docs-reader/library.js";
 import "../../src/App.css";
 
-if (isTauri()) throw new Error("仅允许浏览器内存验证");
-window.isTauri = true;
+if (platform.kind !== "web") throw new Error("仅允许浏览器内存验证");
 const library = createLibrary(book);
 const tools = {
   isle_docs_catalog: () => library.catalog(),
@@ -37,16 +35,21 @@ const applications = ["fullscreen", "full", "contained"].map((layout) => ({
   permissionStatus: "declared",
   tools: Object.keys(tools).map((name) => ({ name, description: name, inputSchema: { type: "object" } })),
 }));
-mockIPC((command, payload) => {
-  if (command === "list_application_ui") return { applications };
-  if (command === "get_application_ui_document") return { script, style };
+const browserFetch = window.fetch.bind(window);
+window.fetch = async (input, init) => {
+  const path = new URL(input instanceof Request ? input.url : input, window.location.href).pathname;
+  if (!path.startsWith("/api/")) return browserFetch(input, init);
+  const command = decodeURIComponent(path.replace("/api/commands/", ""));
+  const payload = JSON.parse(init?.body ?? "{}");
+  if (command === "list_application_ui") return Response.json({ applications });
+  if (command === "get_application_ui_document") return Response.json({ script, style });
   if (command === "execute_application_ui_tool") {
     const { toolName, arguments: args } = payload.input;
     if (!Object.hasOwn(tools, toolName)) throw new Error("未知工具");
-    return { value: tools[toolName](args), content: [], meta: {} };
+    return Response.json({ value: tools[toolName](args), content: [], meta: {} });
   }
   throw new Error(`预览禁止原生调用：${command}`);
-});
+};
 useApplicationCatalogStore.setState({ catalog: { applications } });
 const sidebar = (
   <nav aria-label="应用侧栏" className="flex w-56 shrink-0 flex-col gap-4 border-r p-4 pt-12">

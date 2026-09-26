@@ -2,8 +2,7 @@ import { applicationChatHost } from "@/workbench/shell/chat-service";
 import type { ApplicationChatRequest } from "@isle/app-sdk/chat";
 import type { ApplicationDataRequest } from "@isle/app-sdk/data";
 import { createBackendApplicationDataTransport } from "@/api/applications/data";
-import { isTauri } from "@tauri-apps/api/core";
-import { openUrl as nativeOpenUrl } from "@tauri-apps/plugin-opener";
+import { platform } from "@/platform";
 import { AlertTriangle, Loader2, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -16,13 +15,6 @@ import { Alert, AlertDescription, AlertTitle } from "design-system/components/ui
 import { Badge } from "design-system/components/ui/badge";
 import { readApplicationTheme, sandboxDocument } from "./sandbox-document";
 export { sandboxDocument } from "./sandbox-document";
-
-async function openUrl(url: string) {
-  if (isTauri()) return nativeOpenUrl(url);
-  const parsed = new URL(url);
-  if (!["https:", "http:", "mailto:"].includes(parsed.protocol)) throw new Error("不支持此链接类型");
-  window.open(parsed.href, "_blank", "noopener,noreferrer");
-}
 
 const CHANNEL = "isle-app-ui-v1";
 const MAX_ARGUMENT_BYTES = 256 * 1024;
@@ -161,7 +153,8 @@ export const ApplicationFrame = ({
           const parsed = new URL(url);
           if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error();
           externalOpenInFlight.current = true;
-          void openUrl(parsed.href)
+          void platform
+            .openExternal(parsed.href)
             .then(() => post({ type: "host:result", id, result: { opened: true } }))
             .catch((error) => reject(error instanceof Error ? error.message : String(error)))
             .finally(() => {

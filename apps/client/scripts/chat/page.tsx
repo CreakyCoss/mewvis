@@ -3,7 +3,7 @@ import { agentPermissionOptions } from "../../src/agent-client/wire";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Link, MemoryRouter, Route, Routes } from "react-router";
-import { isTauri } from "@tauri-apps/api/core";
+import { platform } from "../../src/platform";
 import {
   createChatService,
   createChatSession,
@@ -21,7 +21,7 @@ import { ChatHomePage } from "../../src/workbench/pages/chats/home";
 import { useWorkspaceStore } from "../../src/workbench/pages/chats/workspace-store";
 import "../../src/App.css";
 
-if (isTauri()) throw new Error("测试页仅允许 Web 内存预览");
+if (platform.kind !== "web") throw new Error("测试页仅允许 Web 内存预览");
 const workspace = {
   id: "fixture",
   name: "验收工作区",

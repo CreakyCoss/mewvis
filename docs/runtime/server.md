@@ -116,7 +116,7 @@ pnpm start:web
 
 事件先订阅再派发。临时断线使用 Last-Event-ID 重连、补发；文件监听按 watch ID 路由。服务重启或游标过期时明确提示用户保留未保存编辑并刷新，重新加载持久数据和建立文件/应用连接；当前不做活动任务的跨重启热接管，也不会自动重试写请求。
 
-`src/api/native.ts` 统一提供系统文件/目录选择接口：桌面使用 Tauri 原生选择器，Web 请求本机 Node 调用系统选择器并返回真实绝对路径。业务页面直接引用该接口，不自行判断运行环境。应用工作区交互监听是 `chat-integration.tsx` 的局部方法，通过 SSE 接收选择/确认请求，再回复一次性交互 ID；共享确认队列、弹窗和连接提示集中在 `workbench/shell/feedback.tsx`，由 `Workbench` 在 `StartupGate` 外挂载 `SystemFeedback`。打开外部链接、定位或复制数据库路径的逻辑留在各自调用点。数据库状态在两端均检查，服务不可达显示连接错误和重试入口，不误报为需要重建。
+`src/api/native.ts` 统一提供系统文件/目录选择接口：桌面调用平台适配器的原生选择器，Web 请求本机 Node 调用系统选择器并返回真实绝对路径。业务页面直接引用该接口，不自行判断运行环境。应用工作区交互监听是 `chat-integration.tsx` 的局部方法，通过 SSE 接收选择/确认请求，再回复一次性交互 ID；共享确认队列、弹窗和连接提示集中在 `workbench/shell/feedback.tsx`，由 `Workbench` 在 `StartupGate` 外挂载 `SystemFeedback`。外部链接和文件位置能力通过 `src/platform` 提供；Web 没有文件位置能力时，数据库状态页提供复制路径操作。数据库状态在两端均检查，服务不可达显示连接错误和重试入口，不误报为需要重建。
 
 Node 新增 `open_system_dialog`，接收 `{ input: { directory, multiple, title, defaultPath, filters } }`，返回绝对路径、多选路径数组或取消时的 `null`。选择发生在 **Node 服务所在电脑**：macOS 使用系统脚本选择器，Windows 使用 PowerShell 的系统对话框，Linux 使用 Zenity（单选可使用 KDialog）。Windows 目录多选暂不支持。无图形环境或缺少系统工具时明确报错，不回退到手输路径。一次只打开一个选择器；等待最多 5 分钟，请求中断或 Server 关闭会终止选择器子进程。应用工作区交互仍受原 60 秒回复期限约束。
 
@@ -124,13 +124,13 @@ Node 新增 `open_system_dialog`，接收 `{ input: { directory, multiple, title
 
 | 环境变量                       | 用途                                              |
 | ------------------------------ | ------------------------------------------------- |
-| `ISLE_WEB_PORT`                | Web 端口，默认开发 1420、正式模式 4173          |
-| `ISLE_SERVER_WEB_ROOT`         | 正式 Web 构建目录，默认 `apps/client/dist`      |
+| `ISLE_WEB_PORT`                | Web 端口，默认开发 1420、正式模式 4173            |
+| `ISLE_SERVER_WEB_ROOT`         | 正式 Web 构建目录，默认 `apps/client/dist`        |
 | `ISLE_SERVER_PORT`             | HTTP 端口，默认 1422；0 表示分配空闲端口          |
 | `ISLE_SERVER_TOKEN`            | 自定义 Bearer token，至少 24 字节；省略时随机生成 |
 | `ISLE_SERVER_DATA_DIR`         | 共用业务数据目录，默认 `~/.isle-claw`             |
 | `ISLE_SERVER_RUNTIME_DATA_DIR` | 覆盖 Tauri runtime 数据目录，通常无需设置         |
-| `ISLE_SERVER_RESOURCES`       | 打包后的 Runtime、协议和产品资源根目录          |
+| `ISLE_SERVER_RESOURCES`        | 打包后的 Runtime、协议和产品资源根目录            |
 | `ISLE_SERVER_RUNTIME_CLI`      | Runtime CLI 构建产物的绝对路径                    |
 | `AGENT_RUNTIME_PROFILE_ID`     | Runtime profile；`mock` 用于离线验证              |
 
