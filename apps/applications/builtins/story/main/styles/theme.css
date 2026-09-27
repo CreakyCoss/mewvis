@@ -1,6 +1,6 @@
 @import "tailwindcss" source(none);
-@source "..";
 @import "design-system/theme.css";
+@source "..";
 
 @layer components {
   .tavern-immersive-markdown .tavern-immersive-em {

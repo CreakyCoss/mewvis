@@ -1,5 +1,11 @@
-import { useEffect, useImperativeHandle, useMemo, useState, type Ref } from "react";
-import { Braces, FileCode2, LoaderCircle, Save, Sparkles } from "lucide-react";
+import {
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+  type Ref,
+} from "react";
+import { Braces, FileCode2, LoaderCircle, Save } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -22,7 +28,13 @@ import {
 } from "design-system/components/ui/dialog";
 import { Input } from "design-system/components/ui/input";
 import { Label } from "design-system/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "design-system/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "design-system/components/ui/select";
 import { Textarea } from "design-system/components/ui/textarea";
 import type {
   StoryDocument,
@@ -30,15 +42,23 @@ import type {
   StoryProjectStructure,
   StoryValue,
 } from "@story/project/types";
-import { isJsonObject, storyDocumentData, storyDocumentKey, storyDocumentLabel } from "../../../story-document";
+import {
+  isJsonObject,
+  storyDocumentData,
+  storyDocumentKey,
+  storyDocumentLabel,
+} from "../../../story-document";
 import { useStoryState } from "../../use-story-state";
 import { StoryDocumentForm } from "./form";
 import { createDocumentValue } from "../structure";
+import "../../workbench/tokens.css";
+import "./dialog.css";
 
 type DocumentSchema = StoryProjectStructure["schemas"]["documents"][string];
 
 const generatedDocumentId = () =>
-  globalThis.crypto?.randomUUID?.() ?? `document-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  globalThis.crypto?.randomUUID?.() ??
+  `document-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 const sourceText = (document: StoryDocument, value: StoryValue) => {
   if (document.definition?.contentFormat === "markdown") {
@@ -48,8 +68,15 @@ const sourceText = (document: StoryDocument, value: StoryValue) => {
   return JSON.stringify(value, null, 2);
 };
 
-const createIdentity = (schema: DocumentSchema): StoryDocumentIdentity["identity"] =>
-  Object.fromEntries(schema.identityFields.map((field) => [field, field === "id" ? generatedDocumentId() : ""]));
+const createIdentity = (
+  schema: DocumentSchema,
+): StoryDocumentIdentity["identity"] =>
+  Object.fromEntries(
+    schema.identityFields.map((field) => [
+      field,
+      field === "id" ? generatedDocumentId() : "",
+    ]),
+  );
 
 const editorDocumentForSchema = (
   kind: string,
@@ -71,10 +98,16 @@ const editorDocumentForSchema = (
   },
 });
 
-const draftSnapshot = (kind: string, identity: StoryDocumentIdentity["identity"], rawText: string) =>
-  JSON.stringify({ kind, identity, rawText });
+const draftSnapshot = (
+  kind: string,
+  identity: StoryDocumentIdentity["identity"],
+  rawText: string,
+) => JSON.stringify({ kind, identity, rawText });
 
-export type StoryDocumentDialogHandle = (document?: StoryDocument) => void;
+export type StoryDocumentDialogHandle = (
+  document?: StoryDocument,
+  preferredKind?: string,
+) => void;
 
 export const StoryDocumentDialog = ({
   bind,
@@ -86,14 +119,20 @@ export const StoryDocumentDialog = ({
   const createDocument = useStoryState((state) => state.createDocument);
   const documents = useStoryState((state) => state.documents);
   const documentStructure = useStoryState((state) => state.documentStructure);
-  const isLoadingStructure = useStoryState((state) => state.isLoadingDocumentStructure);
+  const isLoadingStructure = useStoryState(
+    (state) => state.isLoadingDocumentStructure,
+  );
   const isSaving = useStoryState((state) => state.isSaving);
-  const loadDocumentStructure = useStoryState((state) => state.loadDocumentStructure);
+  const loadDocumentStructure = useStoryState(
+    (state) => state.loadDocumentStructure,
+  );
   const saveDocument = useStoryState((state) => state.saveDocument);
   const [isOpen, setIsOpen] = useState(false);
   const [document, setDocument] = useState<StoryDocument | null>(null);
   const [selectedKind, setSelectedKind] = useState("");
-  const [identity, setIdentity] = useState<StoryDocumentIdentity["identity"]>({});
+  const [identity, setIdentity] = useState<StoryDocumentIdentity["identity"]>(
+    {},
+  );
   const [draft, setDraft] = useState<StoryValue>({});
   const [rawText, setRawText] = useState("{}");
   const [rawError, setRawError] = useState("");
@@ -102,9 +141,11 @@ export const StoryDocumentDialog = ({
   const [baseline, setBaseline] = useState("");
   const [isDiscardOpen, setIsDiscardOpen] = useState(false);
   const [pendingKind, setPendingKind] = useState("");
+  const [preferredKind, setPreferredKind] = useState<string | undefined>();
 
-  const open = (nextDocument?: StoryDocument) => {
+  const open = (nextDocument?: StoryDocument, nextKind?: string) => {
     setDocument(nextDocument ?? null);
+    setPreferredKind(nextKind);
     setIsOpen(true);
   };
 
@@ -117,9 +158,12 @@ export const StoryDocumentDialog = ({
         ([kind, definition]) =>
           kind !== documentStructure.storyType.manifestKind &&
           kind !== documentStructure.roles.import &&
-          (definition.cardinality === "many" || !documents.some((item) => item.ref.kind === kind)),
+          (definition.cardinality === "many" ||
+            !documents.some((item) => item.ref.kind === kind)),
       )
-      .sort(([, left], [, right]) => left.label.localeCompare(right.label, "zh-CN"));
+      .sort(([, left], [, right]) =>
+        left.label.localeCompare(right.label, "zh-CN"),
+      );
   }, [documentStructure, documents]);
 
   useEffect(() => {
@@ -145,7 +189,9 @@ export const StoryDocumentDialog = ({
     setRawError("");
     setIdentityError("");
     setViewMode("form");
-    setBaseline(draftSnapshot(document.ref.kind, document.ref.identity, nextRawText));
+    setBaseline(
+      draftSnapshot(document.ref.kind, document.ref.identity, nextRawText),
+    );
   }, [document, isOpen]);
 
   const initializeCreateKind = (kind: string) => {
@@ -153,9 +199,20 @@ export const StoryDocumentDialog = ({
     const schema = documentStructure.schemas.documents[kind];
     if (!schema) return;
     const nextIdentity = createIdentity(schema);
-    const nextValue = createDocumentValue(schema.fields, documentStructure.schemas.objectDefinitions);
-    const valueWithIdentity = isJsonObject(nextValue) ? { ...nextValue, ...nextIdentity } : nextValue;
-    const nextDocument = editorDocumentForSchema(kind, schema, documentStructure, nextIdentity, valueWithIdentity);
+    const nextValue = createDocumentValue(
+      schema.fields,
+      documentStructure.schemas.objectDefinitions,
+    );
+    const valueWithIdentity = isJsonObject(nextValue)
+      ? { ...nextValue, ...nextIdentity }
+      : nextValue;
+    const nextDocument = editorDocumentForSchema(
+      kind,
+      schema,
+      documentStructure,
+      nextIdentity,
+      valueWithIdentity,
+    );
     const nextRawText = sourceText(nextDocument, valueWithIdentity);
     setSelectedKind(kind);
     setIdentity(nextIdentity);
@@ -168,21 +225,47 @@ export const StoryDocumentDialog = ({
   };
 
   useEffect(() => {
-    if (isOpen && !document && documentStructure && !selectedKind && availableKinds[0]) {
-      initializeCreateKind(availableKinds[0][0]);
+    if (
+      isOpen &&
+      !document &&
+      documentStructure &&
+      !selectedKind &&
+      availableKinds[0]
+    ) {
+      initializeCreateKind(
+        availableKinds.find(([kind]) => kind === preferredKind)?.[0] ??
+          availableKinds[0][0],
+      );
     }
-  }, [availableKinds, document, documentStructure, isOpen, selectedKind]);
+  }, [
+    availableKinds,
+    document,
+    documentStructure,
+    isOpen,
+    preferredKind,
+    selectedKind,
+  ]);
 
-  const schema = !document && documentStructure ? documentStructure.schemas.documents[selectedKind] : null;
+  const schema =
+    !document && documentStructure
+      ? documentStructure.schemas.documents[selectedKind]
+      : null;
   const editorDocument =
     document ??
     (schema && documentStructure
-      ? editorDocumentForSchema(selectedKind, schema, documentStructure, identity, draft)
+      ? editorDocumentForSchema(
+          selectedKind,
+          schema,
+          documentStructure,
+          identity,
+          draft,
+        )
       : null);
   const isMarkdown = editorDocument?.definition?.contentFormat === "markdown";
   const currentSnapshot = draftSnapshot(selectedKind, identity, rawText);
   const isDirty = Boolean(baseline && currentSnapshot !== baseline);
-  const visibleIdentityFields = schema?.identityFields.filter((field) => field !== "id") ?? [];
+  const visibleIdentityFields =
+    schema?.identityFields.filter((field) => field !== "id") ?? [];
 
   const updateDraft = (value: StoryValue) => {
     setDraft(value);
@@ -201,7 +284,11 @@ export const StoryDocumentDialog = ({
     if (!editorDocument) return { valid: false as const };
     if (isMarkdown) {
       const data = storyDocumentData({ ...editorDocument, value: draft });
-      const value = { ...(data ?? {}), ...identity, content: rawText } as StoryValue;
+      const value = {
+        ...(data ?? {}),
+        ...identity,
+        content: rawText,
+      } as StoryValue;
       setDraft(value);
       setRawError("");
       return { valid: true as const, value };
@@ -241,9 +328,12 @@ export const StoryDocumentDialog = ({
 
   const save = async () => {
     if (!editorDocument) return;
-    const missingIdentity = Object.entries(identity).find(([, value]) => !value.trim());
+    const missingIdentity = Object.entries(identity).find(
+      ([, value]) => !value.trim(),
+    );
     if (missingIdentity) {
-      const label = schema?.fields[missingIdentity[0]]?.label ?? missingIdentity[0];
+      const label =
+        schema?.fields[missingIdentity[0]]?.label ?? missingIdentity[0];
       setIdentityError(`请填写${label}。`);
       setViewMode("form");
       return;
@@ -275,39 +365,54 @@ export const StoryDocumentDialog = ({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={requestOpenChange}>
-        <DialogContent
-          className="!flex h-[min(90vh,52rem)] max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl"
-          overlayClassName="bg-overlay/45"
-        >
-          <DialogHeader className="shrink-0 border-b px-6 py-5 pr-14">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <DialogContent className="sd-dialog" overlayClassName="bg-overlay/45">
+          <DialogHeader className="sd-header">
+            <div className="sd-heading">
               <div className="min-w-0">
-                <DialogTitle className="text-lg">
-                  {document ? `编辑“${storyDocumentLabel(document)}”` : "新增故事资料"}
-                </DialogTitle>
-                <DialogDescription className="mt-1.5">
+                <DialogTitle className="sd-title">
                   {document
-                    ? "在弹窗中集中修改内容；关闭后页面会继续保持清晰的阅读模式。"
-                    : "从当前故事支持的标准文档中选择类型，表单会自动生成所需字段。"}
+                    ? `编辑“${storyDocumentLabel(document)}”`
+                    : "新增故事资料"}
+                </DialogTitle>
+                <DialogDescription className="sd-description">
+                  {document
+                    ? "更新这份资料，保存后继续创作。"
+                    : "选择资料类型，补充你的故事内容。"}
                 </DialogDescription>
               </div>
               {editorDocument ? (
-                <Button type="button" size="sm" variant="outline" className="mr-1 self-start" onClick={switchViewMode}>
-                  {viewMode === "form" ? <FileCode2 className="size-4" /> : <Braces className="size-4" />}
-                  {viewMode === "form" ? `编辑${isMarkdown ? " Markdown" : " JSON"}源码` : "返回表单"}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="sd-source-toggle"
+                  onClick={switchViewMode}
+                >
+                  {viewMode === "form" ? (
+                    <FileCode2 className="size-4" />
+                  ) : (
+                    <Braces className="size-4" />
+                  )}
+                  {viewMode === "form" ? "源码" : "返回表单"}
                 </Button>
               ) : null}
             </div>
           </DialogHeader>
 
           {!document ? (
-            <div className="shrink-0 border-b bg-muted/20 px-6 py-4">
+            <div className="sd-type-area">
               {documentStructure && availableKinds.length > 0 ? (
-                <div className="grid items-end gap-4 sm:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
-                  <div className="space-y-2">
+                <div className="sd-type-picker">
+                  <div className="sd-type-field">
                     <Label htmlFor="story-document-type">资料类型</Label>
-                    <Select value={selectedKind} onValueChange={requestKindChange}>
-                      <SelectTrigger id="story-document-type" className="w-full bg-background">
+                    <Select
+                      value={selectedKind}
+                      onValueChange={requestKindChange}
+                    >
+                      <SelectTrigger
+                        id="story-document-type"
+                        className="w-full bg-background"
+                      >
                         <SelectValue placeholder="选择标准文档" />
                       </SelectTrigger>
                       <SelectContent>
@@ -319,10 +424,9 @@ export const StoryDocumentDialog = ({
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex min-h-9 items-center gap-2 text-xs leading-5 text-muted-foreground">
-                    <Sparkles className="size-4 shrink-0 text-primary" />
-                    <span>{schema?.description ?? "字段、默认值和文档标识均来自当前故事的标准结构。"}</span>
-                  </div>
+                  {schema?.description && (
+                    <p className="sd-type-description">{schema.description}</p>
+                  )}
                 </div>
               ) : isLoadingStructure ? (
                 <div className="flex h-10 items-center gap-2 text-sm text-muted-foreground">
@@ -330,11 +434,20 @@ export const StoryDocumentDialog = ({
                   正在读取标准文档结构…
                 </div>
               ) : documentStructure ? (
-                <p className="text-sm text-muted-foreground">当前故事没有可新增的标准文档。</p>
+                <p className="text-sm text-muted-foreground">
+                  当前故事没有可新增的标准文档。
+                </p>
               ) : (
                 <div className="flex items-center justify-between gap-4">
-                  <p className="text-sm text-muted-foreground">标准文档结构读取失败。</p>
-                  <Button type="button" size="sm" variant="outline" onClick={() => void loadDocumentStructure()}>
+                  <p className="text-sm text-muted-foreground">
+                    标准文档结构读取失败。
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void loadDocumentStructure()}
+                  >
                     重试
                   </Button>
                 </div>
@@ -345,7 +458,7 @@ export const StoryDocumentDialog = ({
           {editorDocument ? (
             <>
               {viewMode === "form" && visibleIdentityFields.length > 0 ? (
-                <div className="grid shrink-0 gap-4 border-b bg-primary/[0.025] px-6 py-4 sm:grid-cols-2">
+                <div className="sd-identity-fields">
                   {visibleIdentityFields.map((field) => (
                     <div key={field} className="space-y-2">
                       <Label htmlFor={`story-document-identity-${field}`}>
@@ -355,14 +468,21 @@ export const StoryDocumentDialog = ({
                       <Input
                         id={`story-document-identity-${field}`}
                         value={identity[field] ?? ""}
-                        aria-invalid={Boolean(identityError && !identity[field]?.trim())}
+                        aria-invalid={Boolean(
+                          identityError && !identity[field]?.trim(),
+                        )}
                         placeholder={`填写${schema?.fields[field]?.label ?? field}`}
-                        onChange={(event) => updateIdentity(field, event.currentTarget.value)}
+                        onChange={(event) =>
+                          updateIdentity(field, event.currentTarget.value)
+                        }
                       />
                     </div>
                   ))}
                   {identityError ? (
-                    <p role="alert" className="text-xs text-destructive sm:col-span-2">
+                    <p
+                      role="alert"
+                      className="text-xs text-destructive sm:col-span-2"
+                    >
                       {identityError}
                     </p>
                   ) : null}
@@ -377,12 +497,14 @@ export const StoryDocumentDialog = ({
                   onChange={updateDraft}
                 />
               ) : (
-                <div className="flex min-h-0 flex-1 flex-col gap-2 px-6 py-5">
-                  <Label htmlFor="story-document-source">{isMarkdown ? "Markdown 正文" : "JSON 源码"}</Label>
+                <div className="sd-source-editor">
+                  <Label htmlFor="story-document-source">
+                    {isMarkdown ? "Markdown 正文" : "JSON 源码"}
+                  </Label>
                   <Textarea
                     id="story-document-source"
                     value={rawText}
-                    className="min-h-0 flex-1 resize-none bg-muted/15 font-mono text-xs leading-5"
+                    className="sd-source-text"
                     spellCheck={false}
                     aria-invalid={Boolean(rawError)}
                     onChange={(event) => {
@@ -403,13 +525,24 @@ export const StoryDocumentDialog = ({
             <div className="min-h-0 flex-1" />
           )}
 
-          <DialogFooter className="shrink-0 border-t bg-background px-6 py-4">
-            <Button type="button" variant="outline" disabled={isSaving} onClick={() => requestOpenChange(false)}>
+          <DialogFooter className="sd-footer">
+            <span className="sd-required-note">带 * 的字段为必填项</span>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSaving}
+              onClick={() => requestOpenChange(false)}
+            >
               取消
             </Button>
             <Button
               type="button"
-              disabled={isSaving || !editorDocument || (!document && !selectedKind) || (document ? !isDirty : false)}
+              disabled={
+                isSaving ||
+                !editorDocument ||
+                (!document && !selectedKind) ||
+                (document ? !isDirty : false)
+              }
               onClick={() => void save()}
             >
               {isSaving ? (
@@ -417,7 +550,13 @@ export const StoryDocumentDialog = ({
               ) : (
                 <Save className="size-4" />
               )}
-              {isSaving ? (document ? "保存中" : "创建中") : document ? "保存修改" : "创建资料"}
+              {isSaving
+                ? document
+                  ? "保存中"
+                  : "创建中"
+                : document
+                  ? "保存修改"
+                  : "创建资料"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -427,7 +566,9 @@ export const StoryDocumentDialog = ({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>放弃未保存的修改？</AlertDialogTitle>
-            <AlertDialogDescription>当前弹窗中的修改尚未保存，放弃后无法恢复。</AlertDialogDescription>
+            <AlertDialogDescription>
+              当前弹窗中的修改尚未保存，放弃后无法恢复。
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>继续编辑</AlertDialogCancel>
@@ -444,11 +585,16 @@ export const StoryDocumentDialog = ({
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={Boolean(pendingKind)} onOpenChange={(nextOpen) => !nextOpen && setPendingKind("")}>
+      <AlertDialog
+        open={Boolean(pendingKind)}
+        onOpenChange={(nextOpen) => !nextOpen && setPendingKind("")}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>切换资料类型？</AlertDialogTitle>
-            <AlertDialogDescription>切换后会按新类型重新生成表单，当前填写的内容将被清空。</AlertDialogDescription>
+            <AlertDialogDescription>
+              切换后会按新类型重新生成表单，当前填写的内容将被清空。
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>保留当前内容</AlertDialogCancel>

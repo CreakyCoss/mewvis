@@ -91,7 +91,7 @@ const documentSearchText = (document: StoryDocument) => {
   return `${storyDocumentKey(document)} ${inspected?.kind ?? ""} ${inspected?.label ?? ""} ${storyDocumentLabel(document)}`.toLowerCase();
 };
 
-const groupForDocument = (document: StoryDocument) => {
+export const groupForDocument = (document: StoryDocument) => {
   const exactGroupId = exactGroupIdsByKind[document.ref.kind];
   const exactGroup = exactGroupId ? groupHints.find((group) => group.id === exactGroupId) : null;
   if (exactGroup) return exactGroup;
@@ -107,7 +107,7 @@ const groupForDocument = (document: StoryDocument) => {
   );
 };
 
-const buildDocumentGroups = (documents: StoryDocument[], query: string): DocumentGroup[] => {
+export const buildDocumentGroups = (documents: StoryDocument[], query: string): DocumentGroup[] => {
   const normalizedQuery = query.trim().toLowerCase();
   const visible = normalizedQuery
     ? documents.filter((document) => documentSearchText(document).includes(normalizedQuery))

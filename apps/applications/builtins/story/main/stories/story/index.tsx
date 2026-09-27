@@ -1,8 +1,11 @@
 import type { Ref } from "react";
 import { useCallback, useImperativeHandle } from "react";
-import { Dialog, DialogContent, DialogTitle } from "design-system/components/ui/dialog";
-import { StoryHeader } from "./header";
-import { StoryModules } from "./modules";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "design-system/components/ui/dialog";
+import { StoryWorkbench } from "./workbench";
 import { useStoryState } from "./use-story-state";
 import type { StoryLibraryItem } from "../storage";
 
@@ -19,8 +22,12 @@ type StoryModulesContentProps = {
 const fullScreenDialogContentClassName =
   "!fixed !inset-0 !left-0 !top-0 !flex !h-screen !max-h-none !w-screen !max-w-none !translate-x-0 !translate-y-0 flex-col gap-0 overflow-hidden !rounded-none !bg-background p-0 text-foreground !ring-0";
 
-export const StoryModulesContent = ({ bind, onBack }: StoryModulesContentProps) => {
+export const StoryModulesContent = ({
+  bind,
+  onBack,
+}: StoryModulesContentProps) => {
   const overview = useStoryState((state) => state.overview);
+  const workspacePath = useStoryState((state) => state.storyWorkspace?.path);
   const closeStory = useStoryState((state) => state.closeStory);
   const openStory = useStoryState((state) => state.openStory);
 
@@ -28,7 +35,10 @@ export const StoryModulesContent = ({ bind, onBack }: StoryModulesContentProps) 
     closeStory();
   }, [closeStory]);
 
-  useImperativeHandle(bind, () => ({ close, open: openStory }), [close, openStory]);
+  useImperativeHandle(bind, () => ({ close, open: openStory }), [
+    close,
+    openStory,
+  ]);
 
   const handleBack = useCallback(() => {
     close();
@@ -50,12 +60,18 @@ export const StoryModulesContent = ({ bind, onBack }: StoryModulesContentProps) 
         showCloseButton={false}
         overlayClassName="bg-overlay/5 backdrop-blur-none"
         className={fullScreenDialogContentClassName}
+        onEscapeKeyDown={(event) => event.preventDefault()}
+        onInteractOutside={(event) => event.preventDefault()}
       >
-        <DialogTitle className="sr-only">{overview?.title ? `${overview.title} · 编辑` : "故事编辑"}</DialogTitle>
+        <DialogTitle className="sr-only">
+          {overview?.title ? `${overview.title} · 编辑` : "故事编辑"}
+        </DialogTitle>
         {overview ? (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
-            <StoryHeader onBack={handleBack} />
-            <StoryModules />
+            <StoryWorkbench
+              key={workspacePath ?? overview.id}
+              onBack={handleBack}
+            />
           </div>
         ) : null}
       </DialogContent>

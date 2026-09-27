@@ -1,0 +1,29 @@
+/* Shared writing-surface dimensions; semantic colors come from the app. */
+.sw-shell,
+.sd-dialog {
+  --sw-font-caption: 12px;
+  --sw-font-ui: 14px;
+  --sw-font-heading: 16px;
+  --sw-font-title: 24px;
+  --sw-font-reading: 20px;
+  --sw-leading-ui: 1.5;
+  --sw-leading-reading: 1.8;
+  --sw-leading-assistant: 1.75;
+  --sw-font-story: "Songti SC", "STSong", "Noto Serif CJK SC", ui-serif, serif;
+  --sw-space-1: 4px;
+  --sw-space-2: 8px;
+  --sw-space-3: 12px;
+  --sw-space-4: 16px;
+  --sw-space-6: 24px;
+  --sw-space-8: 32px;
+  --sw-space-12: 48px;
+  --sw-control-height: 36px;
+  --sw-icon-height: 32px;
+  --sw-row-height: 40px;
+  --sw-bar-height: 56px;
+  --sw-radius: 8px;
+  --sw-sidebar-width: clamp(216px, 16vw, 264px);
+  --sw-panel-width: clamp(320px, 25vw, 400px);
+  --sw-rail-width: 56px;
+  --sw-paper-inset: 48px;
+}

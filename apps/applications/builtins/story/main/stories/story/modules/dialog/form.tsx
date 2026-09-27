@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { ScrollArea } from "design-system/components/ui/scroll-area";
 import type { StoryDocument, StoryValue } from "@story/project/types";
 import { inspectStoryDocument } from "../../../story-document";
@@ -14,13 +14,26 @@ export const StoryDocumentForm = ({
   onChange: (value: StoryValue) => void;
   value: StoryValue;
 }) => {
-  const inspected = useMemo(() => inspectStoryDocument({ ...document, value }), [document, value]);
-  const sections = useMemo(() => (inspected ? buildDocumentSections(inspected.fields) : []), [inspected]);
+  const inspected = useMemo(
+    () => inspectStoryDocument({ ...document, value }),
+    [document, value],
+  );
+  const sections = useMemo(
+    () => (inspected ? buildDocumentSections(inspected.fields) : []),
+    [inspected],
+  );
   const [activeSectionId, setActiveSectionId] = useState("");
-  const activeSection = sections.find((section) => section.id === activeSectionId) ?? sections[0] ?? null;
+  const formId = useId();
+  const activeSection =
+    sections.find((section) => section.id === activeSectionId) ??
+    sections[0] ??
+    null;
 
   useEffect(() => {
-    if (sections.length > 0 && !sections.some((section) => section.id === activeSectionId)) {
+    if (
+      sections.length > 0 &&
+      !sections.some((section) => section.id === activeSectionId)
+    ) {
       setActiveSectionId(sections[0].id);
     }
   }, [activeSectionId, sections]);
@@ -31,9 +44,9 @@ export const StoryDocumentForm = ({
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="sd-form">
       {sections.length > 0 ? (
-        <div className="flex shrink-0 items-center gap-6 overflow-x-auto border-b px-6" role="tablist">
+        <div className="sd-tabs" role="tablist" aria-label="资料内容分组">
           {sections.map((section) => {
             const active = activeSection?.id === section.id;
             return (
@@ -41,52 +54,91 @@ export const StoryDocumentForm = ({
                 key={section.id}
                 type="button"
                 role="tab"
+                id={`${formId}-tab-${section.id}`}
+                aria-controls={`${formId}-panel-${section.id}`}
                 aria-selected={active}
-                className={[
-                  "relative h-12 shrink-0 rounded-t-lg px-1 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
-                  active ? "text-primary" : "text-muted-foreground hover:text-foreground",
-                ].join(" ")}
+                tabIndex={active ? 0 : -1}
+                className={active ? "active" : ""}
                 onClick={() => setActiveSectionId(section.id)}
+                onKeyDown={(event) => {
+                  const index = sections.findIndex(
+                    (item) => item.id === section.id,
+                  );
+                  const next =
+                    event.key === "ArrowRight"
+                      ? (index + 1) % sections.length
+                      : event.key === "ArrowLeft"
+                        ? (index - 1 + sections.length) % sections.length
+                        : event.key === "Home"
+                          ? 0
+                          : event.key === "End"
+                            ? sections.length - 1
+                            : -1;
+                  if (next < 0) return;
+                  event.preventDefault();
+                  setActiveSectionId(sections[next].id);
+                  event.currentTarget.parentElement
+                    ?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+                    [next]?.focus();
+                }}
               >
-                {section.label}
-                {active ? <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-primary" /> : null}
+                {section.id === "technical" ? "系统信息" : section.label}
               </button>
             );
           })}
         </div>
       ) : null}
 
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="mx-auto w-full max-w-4xl px-6 py-6">
+      <ScrollArea className="sd-form-scroll">
+        <div className="sd-form-content">
           {inspected && activeSection ? (
-            <section aria-labelledby={`document-form-section-${activeSection.id}`}>
-              <div className="mb-2">
-                <h3 id={`document-form-section-${activeSection.id}`} className="text-lg font-semibold tracking-tight">
-                  {activeSection.label}
-                </h3>
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">{activeSection.description}</p>
-              </div>
-              <div className="divide-y">
+            <section
+              role="tabpanel"
+              id={`${formId}-panel-${activeSection.id}`}
+              aria-labelledby={`${formId}-tab-${activeSection.id}`}
+            >
+              <p className="sd-section-description">
+                {activeSection.description}
+              </p>
+              <div className="sd-field-grid">
                 {activeSection.fields.map(([pointer, field]) => (
-                  <MetadataFieldEditor
+                  <div
                     key={pointer}
-                    definitions={inspected.definitions}
-                    field={field}
-                    value={inspected.data[documentPointerKey(pointer)]}
-                    onChange={(nextValue) => updateData(documentPointerKey(pointer), nextValue)}
-                  />
+                    className={
+                      [
+                        "textarea",
+                        "content",
+                        "object",
+                        "collection",
+                        "string-list",
+                        "reference-list",
+                      ].includes(field.type)
+                        ? "sd-field-wide"
+                        : undefined
+                    }
+                  >
+                    <MetadataFieldEditor
+                      definitions={inspected.definitions}
+                      field={field}
+                      value={inspected.data[documentPointerKey(pointer)]}
+                      onChange={(nextValue) =>
+                        updateData(documentPointerKey(pointer), nextValue)
+                      }
+                    />
+                  </div>
                 ))}
               </div>
             </section>
           ) : (
             <section>
-              <div className="mb-5">
-                <h3 className="text-lg font-semibold tracking-tight">内容</h3>
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  当前文档没有字段说明，将按实际 JSON 结构提供编辑控件。
-                </p>
+              <div className="sd-fallback-heading">
+                <h3>内容</h3>
+                <p>当前文档没有字段说明，将按实际 JSON 结构提供编辑控件。</p>
               </div>
-              <GenericJsonValueEditor value={inspected?.data ?? value} onChange={onChange} />
+              <GenericJsonValueEditor
+                value={inspected?.data ?? value}
+                onChange={onChange}
+              />
             </section>
           )}
         </div>
