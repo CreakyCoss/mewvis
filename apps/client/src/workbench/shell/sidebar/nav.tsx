@@ -25,15 +25,14 @@ const primaryNavItems: MenuItem[] = [
 
 const menuItems: MenuItem[] = [
   { to: "/settings/sandbox", label: "沙箱设置", icon: Shield },
-  { to: "/settings/llm", label: "LLM 设置", icon: Settings },
+  { to: "/settings/llm", label: "模型设置", icon: Settings },
   { to: "/settings/agent", label: "角色设置", icon: Bot },
 ];
 
 const linkClassName = ({ isActive }: { isActive: boolean }) =>
   cn(
     "relative flex h-9 w-full items-center justify-center rounded-lg text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring/25 focus-visible:outline-none",
-    isActive &&
-      "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:top-2 before:bottom-2 before:left-0 before:w-0.5 before:rounded-full before:bg-sidebar-primary",
+    isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
   );
 
 export const PrimaryNav = () => {
@@ -68,7 +67,15 @@ export const UtilityNav = () => {
   return (
     <nav className="mt-auto space-y-1 border-t border-sidebar-border bg-sidebar px-2 py-1.5" aria-label="更多导航">
       <NavLink to="/hub" className={linkClassName} title="中枢">
-        <Bot className="size-4 shrink-0" />
+        <img
+          src="/assets/startup/mewvis-i-dot.png"
+          alt=""
+          aria-hidden="true"
+          width={20}
+          height={20}
+          className="size-5 shrink-0 object-contain"
+          draggable={false}
+        />
         <span className="sr-only">中枢</span>
       </NavLink>
       <DropdownMenu>

@@ -93,7 +93,7 @@ export const LlmSettingsPage = () => {
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface/45">
       <SettingsPageHeader
-        title="LLM 设置"
+        title="模型设置"
         description="管理模型服务、凭据与可用模型"
         action={
           <Button type="button" onClick={openCreateProvider}>
