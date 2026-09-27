@@ -1,4 +1,4 @@
-import { ChevronRight, Database, Folder, Loader2, Plus, Search } from "lucide-react";
+import { ChevronRight, Database, Folder, Loader2, Plus, Search, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { listEmbeddingProfiles, type EmbeddingProfile } from "@/api/embedding";
@@ -77,8 +77,8 @@ export const LibraryPage = () => {
             <p className="mt-0.5 text-sm text-muted-foreground">管理多个知识库、资料目录，以及各自使用的向量模型。</p>
           </div>
         </div>
-        <div className="flex w-full items-center gap-3 sm:w-auto">
-          <div className="relative min-w-0 flex-1 sm:w-64">
+        <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
+          <div className="relative min-w-0 flex-1 basis-full sm:w-64 sm:basis-auto">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               className="pl-9"
@@ -88,10 +88,22 @@ export const LibraryPage = () => {
               onChange={(event) => setQuery(event.target.value)}
             />
           </div>
-          <Button type="button" className="shrink-0" onClick={() => setIsCreateOpen(true)}>
-            <Plus className="size-4" />
-            新建知识库
-          </Button>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              aria-label="管理 Embedding 配置"
+              title="管理 Embedding 配置"
+              onClick={() => navigate("/knowledge/embedding")}
+            >
+              <Settings2 className="size-4" />
+              管理
+            </Button>
+            <Button type="button" onClick={() => setIsCreateOpen(true)}>
+              <Plus className="size-4" />
+              新建知识库
+            </Button>
+          </div>
         </div>
       </header>
 

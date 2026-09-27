@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Layers3, Loader2, Plus } from "lucide-react";
+import { ChevronLeft, Layers3, Loader2, Plus } from "lucide-react";
+import { useNavigate } from "react-router";
 import { listEmbeddingProfiles, type EmbeddingProfile } from "@/api/embedding";
 import { Button } from "design-system/components/ui/button";
 import { ScrollArea } from "design-system/components/ui/scroll-area";
-import { SettingsPageHeader } from "../page-header";
 import { EmbeddingEditDialog, type EmbeddingEditDialogHandle } from "./edit";
 import { embeddingProviderLabel, localOllamaBaseUrl } from "./ui-state";
 
@@ -62,7 +62,8 @@ const EmbeddingTableHeader = () => (
   </div>
 );
 
-export const EmbeddingSettingsPage = () => {
+export const EmbeddingManagementPage = () => {
+  const navigate = useNavigate();
   const editDialogRef = useRef<EmbeddingEditDialogHandle>(null);
   const [profiles, setProfiles] = useState<EmbeddingProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -86,16 +87,31 @@ export const EmbeddingSettingsPage = () => {
 
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface/45">
-      <SettingsPageHeader
-        title="Embedding 设置"
-        description="管理可供知识库选择的向量化服务与模型"
-        action={
+      <header className="app-page-header flex min-h-28 shrink-0 flex-wrap items-center justify-between gap-4 bg-transparent px-6 py-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-lg"
+            className="-ml-2 shrink-0 rounded-full bg-muted/55 text-muted-foreground hover:bg-accent/75 hover:text-foreground"
+            title="返回知识库"
+            aria-label="返回知识库"
+            onClick={() => navigate("/knowledge")}
+          >
+            <ChevronLeft className="size-5" />
+          </Button>
+          <div className="min-w-0">
+            <h2 className="text-xl font-semibold tracking-[-0.02em]">Embedding 设置</h2>
+            <p className="mt-1 text-sm text-muted-foreground">管理可供知识库选择的向量化服务与模型</p>
+          </div>
+        </div>
+        <div className="shrink-0">
           <Button type="button" onClick={() => editDialogRef.current?.open({ mode: "create" })}>
             <Plus className="size-4" />
             <span>添加配置</span>
           </Button>
-        }
-      />
+        </div>
+      </header>
 
       <ScrollArea className="min-h-0 flex-1 bg-transparent">
         <div className="w-full px-6">

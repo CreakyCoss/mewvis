@@ -1,9 +1,8 @@
-import { Bot, ChevronRight, Layers3, Settings, Shield, X } from "lucide-react";
+import { Bot, ChevronRight, Settings, Shield, X } from "lucide-react";
 import { useNavigate } from "react-router";
 import { Button } from "design-system/components/ui/button";
 import { ScrollArea } from "design-system/components/ui/scroll-area";
 import { AgentSettingsPage } from "./agent";
-import { EmbeddingSettingsPage } from "./embedding";
 import { LlmSettingsPage } from "./llm";
 
 type SettingsPanelProps = {
@@ -11,7 +10,6 @@ type SettingsPanelProps = {
   skillsError: string;
   onBack: () => void;
   onOpenLlmSettings: () => void;
-  onOpenEmbeddingSettings: () => void;
   onOpenAgentSettings: () => void;
   onOpenSandboxSettings: () => void;
 };
@@ -21,7 +19,6 @@ export const SettingsPanel = ({
   skillsError,
   onBack,
   onOpenLlmSettings,
-  onOpenEmbeddingSettings,
   onOpenAgentSettings,
   onOpenSandboxSettings,
 }: SettingsPanelProps) => {
@@ -41,13 +38,6 @@ export const SettingsPanel = ({
       onClick: onOpenLlmSettings,
     },
     {
-      title: "Embedding 设置",
-      description: "管理向量化服务、API Key、服务地址和默认模型。",
-      category: "模型与凭据",
-      icon: Layers3,
-      onClick: onOpenEmbeddingSettings,
-    },
-    {
       title: "角色设置",
       description: "创建和维护角色画像，聊天时独立选择模型。",
       category: "角色画像",
@@ -64,7 +54,7 @@ export const SettingsPanel = ({
             <div className="min-w-0 space-y-1.5">
               <h2 className="text-xl font-semibold tracking-[-0.02em]">应用设置</h2>
               <p className="max-w-2xl text-sm text-muted-foreground">
-                设置会影响所有工作区中的模型服务、语义检索、角色画像和执行环境。
+                设置会影响所有工作区中的模型服务、角色画像和执行环境。
               </p>
             </div>
             <Button
@@ -121,7 +111,6 @@ export const SettingsPage = () => {
       skillsError=""
       onBack={() => navigate("/")}
       onOpenLlmSettings={() => navigate("/settings/llm")}
-      onOpenEmbeddingSettings={() => navigate("/settings/embedding")}
       onOpenAgentSettings={() => navigate("/settings/agent")}
       onOpenSandboxSettings={() => navigate("/settings/sandbox")}
     />
@@ -130,10 +119,6 @@ export const SettingsPage = () => {
 
 export const LlmPage = () => {
   return <LlmSettingsPage />;
-};
-
-export const EmbeddingPage = () => {
-  return <EmbeddingSettingsPage />;
 };
 
 export const AgentPage = () => {

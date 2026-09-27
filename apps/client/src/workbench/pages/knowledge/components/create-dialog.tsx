@@ -187,7 +187,7 @@ export const CreateDialog = ({ open: isOpen, embeddingProfiles, onOpenChange, on
               }
             >
               <NativeSelectOption value="" disabled>
-                {embeddingProfiles.length ? "请选择向量模型" : "请先在设置中添加 Embedding 配置"}
+                {embeddingProfiles.length ? "请选择向量模型" : "请先添加 Embedding 配置"}
               </NativeSelectOption>
               {embeddingProfiles.map((profile) => (
                 <NativeSelectOption key={profile.id} value={profile.id}>
@@ -200,7 +200,7 @@ export const CreateDialog = ({ open: isOpen, embeddingProfiles, onOpenChange, on
                 type="button"
                 variant="link"
                 className="mt-1 h-auto px-0 text-xs"
-                onClick={() => navigate("/settings/embedding")}
+                onClick={() => navigate("/knowledge/embedding")}
               >
                 前往 Embedding 设置
               </Button>
