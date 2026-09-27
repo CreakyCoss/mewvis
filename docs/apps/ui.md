@@ -32,7 +32,7 @@ React 项目可使用 [应用工程工具链](development.md)：页面从 `main/
 
 - `contained`：默认值，在有标题的沙箱卡片中显示，适用于紧凑工具。
 - `full`：iframe 铺满应用详情内容区，保留应用左侧栏和应用详情栏。
-- `fullscreen`：打开应用时自动隐藏应用左侧栏和应用详情栏，铺满应用工作区。窗口顶部保留拖动区域和“退出全屏”按钮；退出后可从详情栏再次进入。切换不会重载应用界面，离开应用页面后恢复应用导航。此声明不切换操作系统窗口全屏。
+- `fullscreen`：打开应用时自动隐藏应用详情栏，铺满常驻导航栏右侧的应用工作区。左侧图标导航栏始终保留，窗口顶部保留拖动区域和“退出全屏”按钮；退出后可从详情栏再次进入。切换不会重载应用界面。此声明不切换操作系统窗口全屏。
 
 未声明 `isle.ui` 时，Isle 根据工具 JSON Schema 生成通用表单，因此只有自定义流程才需要自带界面。
 
@@ -79,7 +79,6 @@ Isle 的 DSH 打包目标目前只生成宿主 Cordis 声明。已有的自定�
 宿主和内置应用可以共同依赖工作区包 `design-system`，通过 `design-system/components/ui/button`、`design-system/components/ui/dialog`、`design-system/components/markdown` 等入口复用组件，通过 `design-system/lib/utils` 使用 `cn`。组件实现不依赖宿主目录、Tauri 或应用业务。
 
 Tailwind 入口先导入 `tailwindcss`，再导入 `design-system/theme.css`；后者包含主题变量、通用样式及共享组件的源码扫描声明。应用继续扫描自己的页面源码，并维护业务专属样式。这个包在构建时复用，应用通过现有沙箱打包流程运行；Chat 仍通过 `@isle/app-sdk/chat/react` 使用。
-
 
 共享目录保持原组件层级：`packages/design-system/components/ui/` 存放基础 UI，`packages/design-system/components/markdown.tsx` 等上层通用组件与 `ui/` 同级。配套工具和 hooks 分别放在 `lib/`、`hooks/`；主题入口为 `design-system/theme.css`。新增通用组件直接放入对应目录，包的子路径导出会自动覆盖它，无需在宿主保留转发文件。
 

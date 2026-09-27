@@ -6,9 +6,10 @@ import {
   LoaderCircle,
   MoreHorizontal,
   Pencil,
+  SquarePen,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, NavLink, useNavigate, useParams } from "react-router";
 import {
   AlertDialog,
@@ -29,6 +30,7 @@ import {
 import { ScrollArea } from "design-system/components/ui/scroll-area";
 import { WorkspaceDialog, type WorkspaceDialogHandle } from "@/workbench/pages/chats/components/workspace-dialog";
 import { useWorkspaceStore, type ChatActivity } from "@/workbench/pages/chats/workspace-store";
+import { APP_DISPLAY_NAME } from "@/product-config";
 import { chatActivityPresentation } from "../chat-activity";
 import type { ChatMeta } from "@/api/chat";
 import type { Workspace } from "@/api/workspace";
@@ -39,7 +41,6 @@ const DEFAULT_VISIBLE_CHAT_LIMIT = 5;
 const WORKSPACE_VISIBLE_CHAT_LIMIT = 4;
 
 type SidebarChatsProps = {
-  collapsed: boolean;
   workspaces: Workspace[];
   isLoading: boolean;
   error: string;
@@ -60,7 +61,7 @@ type WorkspaceActionsProps = {
 };
 
 const SectionHeader = ({ label }: { label: string }) => (
-  <div className="flex items-center justify-between px-2.5 pt-1">
+  <div className="flex items-center justify-between px-2 pt-1">
     <span className="text-xs font-semibold tracking-[0.08em] text-muted-foreground/85">{label}</span>
   </div>
 );
@@ -83,7 +84,7 @@ const ChatRow = ({ to, workspace, chat, activity, onConfirmDelete }: ChatRowProp
         title={`${chat.title}${presentation ? ` · ${presentation.label}` : ""}\n${chat.path}`}
         className={({ isActive }) =>
           cn(
-            "flex h-9 min-w-0 items-center overflow-hidden rounded-lg py-1 pr-3 pl-8 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground group-hover/chat:bg-sidebar-accent/70 group-hover/chat:text-sidebar-foreground",
+            "flex h-9 min-w-0 items-center overflow-hidden rounded-lg py-1 pr-2 pl-8 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground group-hover/chat:bg-sidebar-accent/70 group-hover/chat:text-sidebar-foreground",
             isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
           )
         }
@@ -172,14 +173,45 @@ const WorkspaceActions = ({ workspace, onEdit, onRequestDelete }: WorkspaceActio
   );
 };
 
-export const SidebarChats = ({ collapsed, workspaces, isLoading, error }: SidebarChatsProps) => {
+export const ChatSidebar = () => {
+  const workspaceStore = useWorkspaceStore();
+
+  return (
+    <aside
+      aria-label="聊天记录"
+      className="relative z-20 hidden w-[clamp(216px,20vw,272px)] shrink-0 flex-col border-r border-sidebar-border bg-sidebar pt-12 text-sidebar-foreground min-[720px]:flex"
+    >
+      <div className="relative h-11 shrink-0 px-2 pt-2 pb-3">
+        <h1 className="app-brand truncate px-0.5 text-xl font-bold leading-6 tracking-[-0.03em]">{APP_DISPLAY_NAME}</h1>
+      </div>
+      <nav className="px-1.5 pb-1" aria-label="对话导航">
+        <Link
+          to="/chat"
+          className="group flex h-9 w-full items-center gap-2.5 rounded-lg px-2 text-sm font-medium text-sidebar-foreground/85 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring/25 focus-visible:outline-none"
+        >
+          <SquarePen className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-sidebar-foreground" />
+          <span>新建对话</span>
+        </Link>
+      </nav>
+      <SidebarChats
+        workspaces={workspaceStore.workspaces}
+        isLoading={workspaceStore.isLoading}
+        error={workspaceStore.error}
+      />
+    </aside>
+  );
+};
+
+const SidebarChats = ({ workspaces, isLoading, error }: SidebarChatsProps) => {
   const navigate = useNavigate();
   const params = useParams();
   const workspaceStore = useWorkspaceStore();
   const workspaceDialogRef = useRef<WorkspaceDialogHandle>(null);
   const [expandedWorkspaceIds, setExpandedWorkspaceIds] = useState<Set<string>>(() => new Set());
   const [collapsedWorkspaceIds, setCollapsedWorkspaceIds] = useState<Set<string>>(() => new Set());
+  const [isDefaultChatsCollapsed, setIsDefaultChatsCollapsed] = useState(false);
   const [showAllDefaultChats, setShowAllDefaultChats] = useState(false);
+  const defaultChatsId = useId();
   const [workspacePendingDelete, setWorkspacePendingDelete] = useState<Workspace | null>(null);
   const defaultWorkspace = useMemo(() => workspaces.find((workspace) => workspace.isDefault) ?? null, [workspaces]);
   const projectWorkspaces = useMemo(() => workspaces.filter((workspace) => !workspace.isDefault), [workspaces]);
@@ -238,8 +270,8 @@ export const SidebarChats = ({ collapsed, workspaces, isLoading, error }: Sideba
 
   return (
     <>
-      <ScrollArea className={cn("min-h-0 flex-1", collapsed && "hidden")}>
-        <div className="space-y-5 px-2.5 py-3 xl:px-3">
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="space-y-5 px-1.5 pt-2 pb-3">
           <section className="space-y-2">
             <SectionHeader label="工作区" />
             <div className="space-y-2">
@@ -258,6 +290,7 @@ export const SidebarChats = ({ collapsed, workspaces, isLoading, error }: Sideba
                   const chats = workspaceStore.chatsByWorkspaceId[workspace.id] ?? [];
                   const isExpanded = expandedWorkspaceIds.has(workspace.id);
                   const isCollapsed = collapsedWorkspaceIds.has(workspace.id);
+                  const isSelected = workspaceStore.currentWorkspace?.id === workspace.id;
                   const visibleChats = isCollapsed
                     ? []
                     : isExpanded
@@ -271,12 +304,20 @@ export const SidebarChats = ({ collapsed, workspaces, isLoading, error }: Sideba
                         <Link
                           to="/chat"
                           title={workspace.path}
+                          aria-expanded={isSelected && chats.length > 0 ? !isCollapsed : undefined}
                           className={cn(
                             "flex h-9 min-w-0 items-center gap-2 overflow-hidden rounded-lg py-1 pr-[4.75rem] pl-3 text-muted-foreground transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground group-hover/workspace:bg-sidebar-accent/70 group-hover/workspace:text-sidebar-foreground group-has-[button[data-state=open]]/workspace:bg-sidebar-accent/70 group-has-[button[data-state=open]]/workspace:text-sidebar-foreground",
-                            workspaceStore.currentWorkspace?.id === workspace.id &&
-                              "bg-sidebar-accent text-sidebar-accent-foreground",
+                            isSelected && "bg-sidebar-accent text-sidebar-accent-foreground",
                           )}
-                          onClick={() => workspaceStore.setCurrentWorkspace(workspace)}
+                          onClick={(event) => {
+                            if (isSelected && chats.length > 0) {
+                              event.preventDefault();
+                              toggleWorkspaceChats(workspace.id);
+                              return;
+                            }
+
+                            workspaceStore.setCurrentWorkspace(workspace);
+                          }}
                         >
                           <Folder className="size-4 shrink-0 text-muted-foreground" />
                           <span className="block min-w-0 flex-1 truncate text-sm font-medium">{workspace.name}</span>
@@ -341,8 +382,34 @@ export const SidebarChats = ({ collapsed, workspaces, isLoading, error }: Sideba
           </section>
 
           <section className="space-y-2">
-            <SectionHeader label="对话" />
-            <div className="space-y-2">
+            <button
+              type="button"
+              className="group/dialog-header flex min-h-7 w-full cursor-pointer items-center gap-1.5 rounded-md px-2 text-left text-muted-foreground/85 transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:outline-none disabled:cursor-default disabled:hover:text-muted-foreground/85"
+              title={isDefaultChatsCollapsed ? "展开会话" : "折叠会话"}
+              aria-label={`对话 ${isDefaultChatsCollapsed ? "展开会话" : "折叠会话"}`}
+              aria-expanded={!isDefaultChatsCollapsed}
+              aria-controls={defaultChatsId}
+              disabled={defaultChats.length === 0}
+              onClick={() => setIsDefaultChatsCollapsed((current) => !current)}
+            >
+              <span className="flex h-4 items-center text-xs font-semibold leading-none tracking-[0.08em]">对话</span>
+              {defaultChats.length > 0 && (
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "flex size-3 shrink-0 items-center justify-center leading-none opacity-0 group-hover/dialog-header:opacity-100 group-focus-visible/dialog-header:opacity-100",
+                    isDefaultChatsCollapsed && "opacity-100",
+                  )}
+                >
+                  {isDefaultChatsCollapsed ? (
+                    <ChevronRight className="block size-3" />
+                  ) : (
+                    <ChevronDown className="block size-3" />
+                  )}
+                </span>
+              )}
+            </button>
+            <div id={defaultChatsId} hidden={isDefaultChatsCollapsed} className="space-y-2">
               {isChatsLoading && defaultChats.length === 0 ? (
                 <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
                   <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />

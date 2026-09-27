@@ -5,12 +5,21 @@ import { Button } from "design-system/components/ui/button";
 import { WindowDragRegion } from "@/workbench/shell/layout/window-drag-region";
 import { useApplicationLayout } from "./application-layout";
 
-export const AppWorkspace = ({ sidebar, children }: { sidebar: ReactNode; children: ReactNode }) => {
+export const AppWorkspace = ({
+  sidebar,
+  contextualSidebar,
+  children,
+}: {
+  sidebar: ReactNode;
+  contextualSidebar?: ReactNode;
+  children: ReactNode;
+}) => {
   const { fullscreen, setFullscreen } = useApplicationLayout();
   return (
     <main className="flex h-screen min-h-screen overflow-hidden bg-background text-foreground">
       <WindowDragRegion className="fixed inset-x-0 top-0 z-40 h-10" />
-      <div className={fullscreen ? "hidden" : "contents"}>{sidebar}</div>
+      {sidebar}
+      <div className={fullscreen ? "hidden" : "contents"}>{contextualSidebar}</div>
       <section className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background pt-10">{children}</section>
       {fullscreen ? (
         <div
