@@ -14,6 +14,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "design-system/components/ui/alert";
 import { Badge } from "design-system/components/ui/badge";
 import { readApplicationTheme, sandboxDocument } from "./sandbox-document";
+import { usesApplicationWorkspace } from "./layout";
 export { sandboxDocument } from "./sandbox-document";
 
 const CHANNEL = "isle-app-ui-v1";
@@ -43,6 +44,7 @@ export const ApplicationFrame = ({
   const [runtimeError, setRuntimeError] = useState("");
   const [navigationBlocked, setNavigationBlocked] = useState(false);
   const [isFrameReady, setIsFrameReady] = useState(false);
+  const full = usesApplicationWorkspace(application);
   const source = useMemo(() => (uiDocument ? sandboxDocument(uiDocument, chatRuntime) : ""), [uiDocument, chatRuntime]);
   const signature = JSON.stringify([
     application.version,
@@ -294,7 +296,7 @@ export const ApplicationFrame = ({
 
   if (loadError) {
     return (
-      <Alert variant="destructive" role="alert">
+      <Alert variant="destructive" className={full ? "m-4 w-auto" : undefined} role="alert">
         <AlertTriangle />
         <AlertTitle>无法加载应用界面</AlertTitle>
         <AlertDescription className="break-words">{loadError}</AlertDescription>
@@ -304,15 +306,19 @@ export const ApplicationFrame = ({
 
   if (!uiDocument) {
     return (
-      <div className="flex min-h-72 items-center justify-center gap-2 rounded-2xl border border-border/70 bg-card/45 text-sm text-muted-foreground">
+      <div
+        className={
+          full
+            ? "flex h-full items-center justify-center gap-2 bg-card/45 text-sm text-muted-foreground"
+            : "flex min-h-72 items-center justify-center gap-2 rounded-2xl border border-border/70 bg-card/45 text-sm text-muted-foreground"
+        }
+      >
         <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
         正在加载沙箱界面
       </div>
     );
   }
 
-  const full =
-    application.ui?.kind === "sandbox" && (application.ui.layout === "full" || application.ui.layout === "fullscreen");
   const frame = (
     <div className={full ? "relative h-full min-h-0" : "relative min-h-[520px]"}>
       {!isFrameReady ? (

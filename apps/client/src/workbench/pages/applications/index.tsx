@@ -5,7 +5,6 @@ import {
   Blocks,
   CheckCircle2,
   Loader2,
-  Maximize2,
   RefreshCw,
   Settings2,
   TriangleAlert,
@@ -18,9 +17,9 @@ import { Alert, AlertDescription, AlertTitle } from "design-system/components/ui
 import { Badge } from "design-system/components/ui/badge";
 import { Button } from "design-system/components/ui/button";
 import { cn } from "design-system/lib/utils";
-import { useApplicationLayout } from "@/workbench/shell/layout/application-layout";
 import { useApplicationCatalogStore } from "./catalog-store";
 import { ApplicationFrame } from "./application-frame";
+import { usesApplicationWorkspace } from "./layout";
 import { ApplicationPermissionSummary } from "./permission-summary";
 import { ApplicationToolWorkbench } from "./tool-workbench";
 
@@ -165,7 +164,11 @@ const ApplicationCatalog = ({
       </div>
     </header>
 
-    <main id="application-main" className="min-h-0 flex-1 overflow-y-auto p-6 focus:outline-none max-sm:p-4" tabIndex={-1}>
+    <main
+      id="application-main"
+      className="min-h-0 flex-1 overflow-y-auto p-6 focus:outline-none max-sm:p-4"
+      tabIndex={-1}
+    >
       <div className="mx-auto w-full max-w-7xl">
         {error ? (
           <Alert variant="destructive" className="mb-5" role="alert">
@@ -221,23 +224,16 @@ const ApplicationDetail = ({
   error: string;
   refresh: () => Promise<void>;
 }) => {
-  const { fullscreen, canFullscreen, setFullscreen } = useApplicationLayout();
   const status = application && (application.error || application.uiError) ? applicationStatus(application) : null;
   const StatusIcon = status?.icon;
-  const isImmersiveWorkbench = Boolean(
-    application &&
-    !application.error &&
-    !application.uiError &&
-    application.ui?.kind === "sandbox" &&
-    (application.ui.layout === "full" || application.ui.layout === "fullscreen"),
-  );
+  const isWorkspace = usesApplicationWorkspace(application);
 
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface/45">
       <header
         className={cn(
           "min-h-16 items-center justify-between gap-3 border-b border-border/70 bg-card/70 px-4 py-2.5 max-sm:px-2",
-          fullscreen ? "hidden" : "flex",
+          isWorkspace ? "hidden" : "flex",
         )}
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -253,7 +249,9 @@ const ApplicationDetail = ({
           ) : null}
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-2">
-              <h1 className="truncate text-base font-semibold tracking-[-0.015em]">{application?.name || "应用详情"}</h1>
+              <h1 className="truncate text-base font-semibold tracking-[-0.015em]">
+                {application?.name || "应用详情"}
+              </h1>
               {application ? (
                 <Badge variant="primary" className="h-5 shrink-0 px-2 text-[11px] font-normal">
                   v{application.version || "0.0.0"}
@@ -271,19 +269,6 @@ const ApplicationDetail = ({
           </div>
         </div>
         <div className="flex items-center gap-1.5">
-          {canFullscreen ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-10 rounded-full"
-              onClick={() => setFullscreen(true)}
-              aria-label="进入应用全屏"
-              title="进入应用全屏"
-            >
-              <Maximize2 className="size-4" />
-            </Button>
-          ) : null}
           <Button
             type="button"
             variant="ghost"
@@ -308,13 +293,17 @@ const ApplicationDetail = ({
         id="application-main"
         className={cn(
           "min-h-0 flex-1 focus:outline-none",
-          isImmersiveWorkbench ? "overflow-hidden p-0" : "overflow-y-auto p-4 sm:p-5",
+          isWorkspace ? "overflow-hidden p-0" : "overflow-y-auto p-4 sm:p-5",
         )}
         tabIndex={-1}
       >
-        <div className={cn(isImmersiveWorkbench ? "h-full w-full" : "mx-auto w-full max-w-[1440px] space-y-4")}>
+        <div className={cn(isWorkspace ? "relative h-full w-full" : "mx-auto w-full max-w-[1440px] space-y-4")}>
           {error ? (
-            <Alert variant="destructive" role="alert">
+            <Alert
+              variant="destructive"
+              className={isWorkspace ? "absolute inset-x-4 top-4 z-20 shadow-sm" : undefined}
+              role="alert"
+            >
               <AlertCircle />
               <AlertTitle>Application UI Host 不可用</AlertTitle>
               <AlertDescription className="break-words">{error}</AlertDescription>
@@ -386,7 +375,10 @@ export const ApplicationUiPage = () => {
   const error = useApplicationCatalogStore((state) => state.error);
   const refresh = useApplicationCatalogStore((state) => state.refresh);
   const hasRequestedCatalog = useRef(false);
-  const selected = useMemo(() => catalog.applications.find((application) => application.id === applicationId), [catalog.applications, applicationId]);
+  const selected = useMemo(
+    () => catalog.applications.find((application) => application.id === applicationId),
+    [catalog.applications, applicationId],
+  );
 
   useEffect(() => {
     if (!hasRequestedCatalog.current && catalog.applications.length === 0 && !isLoading) {

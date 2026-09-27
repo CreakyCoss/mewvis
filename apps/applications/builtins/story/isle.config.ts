@@ -10,5 +10,5 @@ export default defineConfig({
     process: { execute: false },
   },
   host: { entry: "./main/host/index.ts" },
-  ui: { title: "故事工作台", layout: "fullscreen" },
+  ui: { title: "故事工作台", layout: "full" },
 });

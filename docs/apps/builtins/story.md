@@ -26,7 +26,7 @@
 
 通用组件已统一移至 `packages/design-system/components`，保留 `ui/` 子目录及上层组件层级，宿主与故事共同引用 `design-system/components/...`。`cn` 和通用 hooks 分别由 `design-system/lib/utils`、`design-system/hooks/...` 提供；宿主不再保留另一套 `src/components/ui`。主题变量和通用样式也由该包维护；知识库列表样式仅属于宿主，酒馆强调样式仅属于故事应用。酒馆文件写入由应用后端创建父目录，不再通过临时文件探测／初始化目录。
 
-窗口标题栏与拖动区域由宿主统一管理，应用全屏时也保留宿主顶部区域。故事页面不设置窗口拖动区或为其预留空间，SDK 不提供窗口拖动接口。
+窗口标题栏与拖动区域由宿主统一管理，故事页面占满其下方、常驻导航栏之外的应用工作区。故事页面不设置窗口拖动区或为其预留空间，SDK 不提供窗口拖动接口。
 
 页面通过 `project-client` 保持原项目接口；调用应用自己的 `isle_story_project`，执行共享领域内核。Agent 使用原 `story` 工具及原技能，仍然先 `describe_structure`，通过 ChangeSet 校验并提交正式数据。
 

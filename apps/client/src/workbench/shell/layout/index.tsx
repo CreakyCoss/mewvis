@@ -5,7 +5,6 @@ import { AppSidebar } from "@/workbench/shell/sidebar";
 import { ChatSidebar } from "@/workbench/shell/sidebar/chats";
 import { useWorkspaceStore } from "@/workbench/pages/chats/workspace-store";
 import { MainOutlet } from "./outlet";
-import { ApplicationLayoutProvider } from "./application-layout";
 import { AppWorkspace } from "./workspace";
 
 export const AppLayout = () => {
@@ -14,12 +13,12 @@ export const AppLayout = () => {
   const chat = useMatch("/chats/:workspaceId/:chatId");
 
   return (
-    <ApplicationLayoutProvider>
+    <>
       <AppWorkspace sidebar={<AppSidebar />} contextualSidebar={chatHome || chat ? <ChatSidebar /> : null}>
         <MainOutlet />
       </AppWorkspace>
       <ConfigDatabaseDialog onRecovered={refreshWorkspaces} />
       <Toaster position="top-center" />
-    </ApplicationLayoutProvider>
+    </>
   );
 };

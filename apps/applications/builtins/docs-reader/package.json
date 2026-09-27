@@ -24,7 +24,7 @@
       "entry": "./isle-ui.js",
       "style": "./isle-ui.css",
       "title": "文档中心",
-      "layout": "fullscreen"
+      "layout": "full"
     }
   }
 }
