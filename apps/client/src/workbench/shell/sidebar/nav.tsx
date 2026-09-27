@@ -1,10 +1,12 @@
-import { Blocks, Bot, Database, House, Puzzle, Settings, Wrench } from "lucide-react";
+import { Blocks, Bot, ChevronRight, Database, House, Puzzle, Settings, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "design-system/components/ui/dropdown-menu";
 import { cn } from "design-system/lib/utils";
@@ -24,7 +26,9 @@ const primaryNavItems: MenuItem[] = [
   { to: "/extensions", label: "插件", icon: Puzzle },
 ];
 
-const menuItems: MenuItem[] = [{ to: "/settings", label: "设置", icon: Settings }];
+const utilityMenuItems: MenuItem[] = [{ to: "/settings", label: "设置", icon: Settings }];
+
+const matchesMenuRoute = (pathname: string, to: string) => pathname === to || pathname.startsWith(`${to}/`);
 
 const linkClassName = ({ isActive }: { isActive: boolean }) =>
   cn(
@@ -60,6 +64,7 @@ export const PrimaryNav = () => {
 export const UtilityNav = () => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const isMenuPageActive = utilityMenuItems.some(({ to }) => matchesMenuRoute(pathname, to));
 
   return (
     <nav className="mt-auto space-y-1 border-t border-sidebar-border bg-sidebar px-2 py-1.5" aria-label="更多导航">
@@ -81,7 +86,10 @@ export const UtilityNav = () => {
             type="button"
             aria-label={`打开 ${APP_DISPLAY_NAME} 菜单`}
             title={`${APP_DISPLAY_NAME} 菜单`}
-            className="flex h-10 w-full cursor-pointer items-center justify-center rounded-lg text-[13px] font-normal text-muted-foreground transition-colors hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring/35 focus-visible:outline-none data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-foreground"
+            className={cn(
+              linkClassName({ isActive: isMenuPageActive }),
+              "h-10 cursor-pointer data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground",
+            )}
           >
             <span
               className="flex size-6 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-[11px] font-semibold text-sidebar-primary-foreground"
@@ -89,32 +97,45 @@ export const UtilityNav = () => {
             >
               {APP_DISPLAY_NAME.charAt(0)}
             </span>
-            <span className="sr-only">{APP_DISPLAY_NAME}</span>
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
-          side="top"
-          align="start"
+          side="right"
+          align="end"
           sideOffset={8}
           collisionPadding={8}
-          className="w-44 p-1.5"
+          className="w-56 p-1.5"
           aria-label={`${APP_DISPLAY_NAME} 菜单`}
         >
-          {menuItems.map(({ to, label, icon: Icon }) => (
-            <DropdownMenuItem
-              key={to}
-              onSelect={() => navigate(to)}
-              aria-current={pathname === to || pathname.startsWith(`${to}/`) ? "page" : undefined}
-              className={cn(
-                "h-10 gap-2.5 px-3 text-sidebar-foreground",
-                (pathname === to || pathname.startsWith(`${to}/`)) &&
-                  "bg-sidebar-accent text-sidebar-primary font-medium",
-              )}
+          <DropdownMenuLabel className="flex items-center gap-2.5 px-3 py-2.5">
+            <span
+              className="flex size-5 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-[10px] font-semibold text-sidebar-primary-foreground"
+              aria-hidden="true"
             >
-              <Icon className="size-4" />
-              <span>{label}</span>
-            </DropdownMenuItem>
-          ))}
+              {APP_DISPLAY_NAME.charAt(0)}
+            </span>
+            <span className="min-w-0 truncate text-sm font-medium text-popover-foreground">{APP_DISPLAY_NAME}</span>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator className="mx-1.5 my-1.5" />
+          {utilityMenuItems.map(({ to, label, icon: Icon }) => {
+            const isActive = matchesMenuRoute(pathname, to);
+
+            return (
+              <DropdownMenuItem
+                key={to}
+                onSelect={() => navigate(to)}
+                aria-current={isActive ? "page" : undefined}
+                className={cn(
+                  "min-h-10 gap-2.5 px-3",
+                  isActive && "bg-sidebar-accent text-sidebar-primary font-medium",
+                )}
+              >
+                <Icon aria-hidden="true" className="size-4" />
+                <span className="flex-1">{label}</span>
+                <ChevronRight aria-hidden="true" className="size-3.5 text-muted-foreground" />
+              </DropdownMenuItem>
+            );
+          })}
         </DropdownMenuContent>
       </DropdownMenu>
     </nav>

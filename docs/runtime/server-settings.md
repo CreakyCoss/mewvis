@@ -2,7 +2,7 @@
 
 [Node Agent 服务](server.md)提供模型与聊天智能体配置。协作流程在[角色协作插件](../extensions/collaboration.md)中管理。以下命令均通过已认证的 `POST /api/commands/<命令名>` 调用，沿用 Tauri 的 camelCase 参数及返回字段。
 
-点击「M 菜单 → 设置」打开 `/settings` 一级页面，显示“模型设置”和“沙箱设置”两个入口，分别进入 `/settings/llm` 和 `/settings/sandbox`。两个内页标题左侧均提供“返回设置”按钮，点击后回到 `/settings`。
+点击侧边栏左下角的圆形「M」图标打开应用菜单，面板顶部显示应用名称，下面展示可用操作。选择「设置」打开 `/settings` 一级页面，显示“模型设置”和“沙箱设置”两个入口，分别进入 `/settings/llm` 和 `/settings/sandbox`。两个内页标题左侧均提供“返回设置”按钮，点击后回到 `/settings`。
 
 ## 命令与参数
 
