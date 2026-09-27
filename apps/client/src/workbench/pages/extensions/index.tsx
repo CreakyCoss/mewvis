@@ -94,7 +94,7 @@ export function ExtensionsPage() {
         </div>
       </header>
       <ScrollArea className="min-h-0 flex-1">
-        <div className="mx-auto w-full max-w-6xl space-y-5 p-6 max-sm:p-4">
+        <div className="w-full space-y-5 p-6 max-sm:p-4">
           {error && !editing && !adding ? (
             <div
               role="alert"
