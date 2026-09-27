@@ -8,7 +8,8 @@ import { KnowledgeDetailPage } from "@/workbench/pages/knowledge/detail";
 import { EmbeddingManagementPage } from "@/workbench/pages/knowledge/embedding";
 import { ApplicationUiPage } from "@/workbench/pages/applications";
 import { ApplicationManagePage } from "@/workbench/pages/applications/manage";
-import { AgentPage, LlmPage, SettingsPage } from "@/workbench/pages/settings";
+import { AgentSettingsPage } from "@/workbench/pages/settings/agent";
+import { LlmSettingsPage } from "@/workbench/pages/settings/llm";
 import { SkillsPage } from "@/workbench/pages/skills";
 import { SandboxSettingsPage } from "@/workbench/pages/settings/sandbox";
 import { ExtensionsPage } from "@/workbench/pages/extensions";
@@ -29,9 +30,9 @@ export const AppRoutes = () => (
         <Route path="apps/:applicationId" element={<ApplicationUiPage />} />
         <Route path="extensions" element={<ExtensionsPage />} />
         <Route path="hub" element={<HubPage />} />
-        <Route path="settings" element={<SettingsPage />} />
-        <Route path="settings/llm" element={<LlmPage />} />
-        <Route path="settings/agent" element={<AgentPage />} />
+        <Route path="settings" element={<Navigate to="/settings/llm" replace />} />
+        <Route path="settings/llm" element={<LlmSettingsPage />} />
+        <Route path="settings/agent" element={<AgentSettingsPage />} />
         <Route path="settings/sandbox" element={<SandboxSettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

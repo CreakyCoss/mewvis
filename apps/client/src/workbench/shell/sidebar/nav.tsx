@@ -1,4 +1,4 @@
-import { Blocks, Bot, Database, House, Puzzle, Settings, Wrench } from "lucide-react";
+import { Blocks, Bot, Database, House, Puzzle, Settings, Shield, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router";
 import {
@@ -23,7 +23,11 @@ const primaryNavItems: MenuItem[] = [
   { to: "/extensions", label: "插件", icon: Puzzle },
 ];
 
-const menuItems: MenuItem[] = [{ to: "/settings", label: "设置", icon: Settings }];
+const menuItems: MenuItem[] = [
+  { to: "/settings/sandbox", label: "沙箱设置", icon: Shield },
+  { to: "/settings/llm", label: "LLM 设置", icon: Settings },
+  { to: "/settings/agent", label: "角色设置", icon: Bot },
+];
 
 const linkClassName = ({ isActive }: { isActive: boolean }) =>
   cn(
