@@ -76,7 +76,11 @@ const ApplicationRow = ({ application, isUpdating, onEnabledChange, onRemove }: 
       <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs font-medium text-muted-foreground">
         {isUpdating ? <Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" /> : null}
         <span>
-          {application.permissionStatus === "isle-upgrade-required" ? "需要升级" : application.enabled ? "已启用" : "未启用"}
+          {application.permissionStatus === "isle-upgrade-required"
+            ? "需要升级"
+            : application.enabled
+              ? "已启用"
+              : "未启用"}
         </span>
         <Switch
           checked={application.enabled}
@@ -237,7 +241,7 @@ export const ApplicationManagePage = () => {
 
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface/45">
-      <header className="flex min-h-20 shrink-0 items-center justify-between gap-4 border-b border-border/70 bg-card/50 px-6 py-4 max-sm:px-3">
+      <header className="flex min-h-20 shrink-0 items-center justify-between gap-4 border-b border-border/70 bg-card/50 px-6 py-4 max-sm:px-4">
         <div className="flex min-w-0 items-center gap-3">
           <Button asChild type="button" variant="ghost" size="icon" className="size-11 shrink-0 rounded-full">
             <NavLink to="/apps" aria-label="返回应用列表">
@@ -256,9 +260,9 @@ export const ApplicationManagePage = () => {
       </header>
 
       <ScrollArea className="min-h-0 flex-1 bg-transparent">
-        <div className="mx-auto w-full max-w-5xl px-6 pt-5 pb-10 max-sm:px-4">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList variant="line" className="mb-4">
+        <div className="w-full px-6 pt-4 pb-6 max-sm:px-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="gap-3">
+            <TabsList variant="line">
               <TabsTrigger value="installed">已安装</TabsTrigger>
               <TabsTrigger value="marketplace">社区市场</TabsTrigger>
             </TabsList>
