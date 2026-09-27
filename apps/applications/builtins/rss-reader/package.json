@@ -29,8 +29,7 @@
       "kind": "sandbox",
       "entry": "./isle-ui.js",
       "style": "./isle-ui.css",
-      "title": "RSS 阅读器",
-      "layout": "full"
+      "title": "RSS 阅读器"
     }
   }
 }

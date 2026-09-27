@@ -111,7 +111,7 @@ try {
   const application = configured.applications[0];
   assert.equal(application.error, null);
   assert.equal(application.uiError, null);
-  assert.deepEqual(application.ui, { kind: "sandbox", title: "RSS 阅读器", layout: "full" });
+  assert.deepEqual(application.ui, { kind: "sandbox", title: "RSS 阅读器" });
   const uiDocument = await request("uiDocument", { applicationId: "@isle/rss-reader" });
   assert.match(uiDocument.script, /isleApplication\.executeTool\("rss_list"/);
   assert.match(uiDocument.script, /isleApplication\.openExternal/);

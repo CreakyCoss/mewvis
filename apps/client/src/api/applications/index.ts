@@ -99,7 +99,7 @@ export type ApplicationUiApplication = {
   source: "bundled" | "installed";
   tools: ApplicationUiTool[];
   error: string | null;
-  ui: { kind: "sandbox"; title?: string; layout?: "contained" | "full" | "fullscreen" } | null;
+  ui: { kind: "sandbox"; title?: string } | null;
   uiError: string | null;
   compatibility: { adapter: string; clientPlatform?: string | null }[];
   permissions: ApplicationPermission[];

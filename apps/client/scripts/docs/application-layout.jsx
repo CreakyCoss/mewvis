@@ -3,7 +3,6 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { MemoryRouter, Routes, Route, NavLink } from "react-router";
 import { platform } from "../../src/platform";
-import { ApplicationLayoutProvider } from "../../src/workbench/shell/layout/application-layout";
 import { AppWorkspace } from "../../src/workbench/shell/layout/workspace";
 import { ApplicationUiPage } from "../../src/workbench/pages/applications";
 import { useApplicationCatalogStore } from "../../src/workbench/pages/applications/catalog-store";
@@ -20,20 +19,20 @@ const tools = {
   isle_docs_read: ({ id }) => library.read(id),
   isle_docs_search: ({ query }) => library.search(query),
 };
-const applications = ["fullscreen", "full", "contained"].map((layout) => ({
-  id: `@isle/docs-${layout}`,
-  name: `文档中心 ${layout}`,
+const applications = ["bundled", "installed"].map((source) => ({
+  id: `@isle/docs-${source}`,
+  name: `文档中心 ${source}`,
   version: "0.1.0",
-  description: "全屏布局验证",
+  description: "应用工作区验证",
   runtimeKind: "isle",
-  source: "bundled",
+  source,
   error: null,
   uiError: null,
-  ui: { kind: "sandbox", layout },
+  ui: { kind: "sandbox" },
   compatibility: [],
   permissions: [],
   permissionStatus: "declared",
-  tools: Object.keys(tools).map((name) => ({ name, description: name, inputSchema: { type: "object" } })),
+  tools: Object.keys(tools).map((name) => ({ name, description: name, parameters: { type: "object" } })),
 }));
 const browserFetch = window.fetch.bind(window);
 window.fetch = async (input, init) => {
@@ -56,7 +55,7 @@ const sidebar = (
     <NavLink to="/apps">应用列表</NavLink>
     {applications.map((application) => (
       <NavLink key={application.id} to={`/apps/${encodeURIComponent(application.id)}`}>
-        {application.ui.layout} 模式
+        {application.name}
       </NavLink>
     ))}
     <NavLink to="/home">其他页面</NavLink>
@@ -73,13 +72,11 @@ const sidebar = (
 );
 createRoot(document.getElementById("root")).render(
   <MemoryRouter initialEntries={[`/apps/${encodeURIComponent(applications[0].id)}`]}>
-    <ApplicationLayoutProvider>
-      <AppWorkspace sidebar={sidebar}>
-        <Routes>
-          <Route path="/apps/:applicationId?" element={<ApplicationUiPage />} />
-          <Route path="/home" element={<div>其他应用页面</div>} />
-        </Routes>
-      </AppWorkspace>
-    </ApplicationLayoutProvider>
+    <AppWorkspace sidebar={sidebar}>
+      <Routes>
+        <Route path="/apps/:applicationId?" element={<ApplicationUiPage />} />
+        <Route path="/home" element={<div>其他应用页面</div>} />
+      </Routes>
+    </AppWorkspace>
   </MemoryRouter>,
 );

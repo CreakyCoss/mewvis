@@ -13,5 +13,5 @@ export default defineConfig({
     tools: "./main/host/tools.ts",
     skills: "./main/host/skills.ts",
   },
-  ui: { title: "聊天调试台", layout: "full" },
+  ui: { title: "聊天调试台" },
 });

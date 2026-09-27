@@ -8,8 +8,7 @@
     "kind": { "const": "sandbox" },
     "entry": { "type": "string", "pattern": "^\\./.*\\.(m?js)$" },
     "style": { "type": "string", "pattern": "^\\./.*\\.css$" },
-    "title": { "type": "string", "minLength": 1, "maxLength": 100 },
-    "layout": { "enum": ["contained", "full", "fullscreen"] }
+    "title": { "type": "string", "minLength": 1, "maxLength": 100 }
   },
   "required": ["version", "kind", "entry"],
   "additionalProperties": false

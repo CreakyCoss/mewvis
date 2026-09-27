@@ -3,7 +3,7 @@ import type { ApplicationChatRequest } from "@isle/app-sdk/chat";
 import type { ApplicationDataRequest } from "@isle/app-sdk/data";
 import { createBackendApplicationDataTransport } from "@/api/applications/data";
 import { platform } from "@/platform";
-import { AlertTriangle, Loader2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   executeApplicationUiTool,
@@ -12,9 +12,7 @@ import {
   type ApplicationUiApplication,
 } from "@/api/applications";
 import { Alert, AlertDescription, AlertTitle } from "design-system/components/ui/alert";
-import { Badge } from "design-system/components/ui/badge";
 import { readApplicationTheme, sandboxDocument } from "./sandbox-document";
-import { usesApplicationWorkspace } from "./layout";
 export { sandboxDocument } from "./sandbox-document";
 
 const CHANNEL = "isle-app-ui-v1";
@@ -44,7 +42,6 @@ export const ApplicationFrame = ({
   const [runtimeError, setRuntimeError] = useState("");
   const [navigationBlocked, setNavigationBlocked] = useState(false);
   const [isFrameReady, setIsFrameReady] = useState(false);
-  const full = usesApplicationWorkspace(application);
   const source = useMemo(() => (uiDocument ? sandboxDocument(uiDocument, chatRuntime) : ""), [uiDocument, chatRuntime]);
   const signature = JSON.stringify([
     application.version,
@@ -296,7 +293,7 @@ export const ApplicationFrame = ({
 
   if (loadError) {
     return (
-      <Alert variant="destructive" className={full ? "m-4 w-auto" : undefined} role="alert">
+      <Alert variant="destructive" className="m-4 w-auto" role="alert">
         <AlertTriangle />
         <AlertTitle>无法加载应用界面</AlertTitle>
         <AlertDescription className="break-words">{loadError}</AlertDescription>
@@ -306,13 +303,7 @@ export const ApplicationFrame = ({
 
   if (!uiDocument) {
     return (
-      <div
-        className={
-          full
-            ? "flex h-full items-center justify-center gap-2 bg-card/45 text-sm text-muted-foreground"
-            : "flex min-h-72 items-center justify-center gap-2 rounded-2xl border border-border/70 bg-card/45 text-sm text-muted-foreground"
-        }
-      >
+      <div className="flex h-full items-center justify-center gap-2 bg-card/45 text-sm text-muted-foreground">
         <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
         正在加载沙箱界面
       </div>
@@ -320,7 +311,7 @@ export const ApplicationFrame = ({
   }
 
   const frame = (
-    <div className={full ? "relative h-full min-h-0" : "relative min-h-[520px]"}>
+    <div className="relative h-full min-h-0">
       {!isFrameReady ? (
         <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-card text-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
@@ -328,13 +319,7 @@ export const ApplicationFrame = ({
         </div>
       ) : null}
       {navigationBlocked ? (
-        <div
-          className={
-            full
-              ? "flex h-full items-center justify-center p-8 text-center text-sm text-muted-foreground"
-              : "flex min-h-[520px] items-center justify-center p-8 text-center text-sm text-muted-foreground"
-          }
-        >
+        <div className="flex h-full items-center justify-center p-8 text-center text-sm text-muted-foreground">
           应用界面已停止，因为它离开了宿主提供的沙箱文档。
         </div>
       ) : (
@@ -351,41 +336,16 @@ export const ApplicationFrame = ({
               setNavigationBlocked(true);
             }
           }}
-          className={
-            full
-              ? "h-full min-h-0 w-full border-0 bg-transparent"
-              : "h-[calc(100vh-15rem)] min-h-[520px] w-full border-0 bg-transparent"
-          }
+          className="h-full min-h-0 w-full border-0 bg-transparent"
         />
       )}
     </div>
   );
 
-  if (full) {
-    return (
-      <div className="relative h-full min-h-0 overflow-hidden bg-card/30">
-        {runtimeError ? (
-          <Alert variant="destructive" className="absolute inset-x-4 top-4 z-20 shadow-sm" role="alert">
-            <AlertTriangle />
-            <AlertDescription className="break-words">{runtimeError}</AlertDescription>
-          </Alert>
-        ) : null}
-        {frame}
-      </div>
-    );
-  }
-
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/55">
-      <div className="flex min-h-12 items-center justify-between gap-3 border-b border-border/70 px-4 py-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <ShieldCheck className="size-4 shrink-0 text-primary" />
-          <span className="truncate text-sm font-medium">{application.ui?.title || application.name}</span>
-        </div>
-        <Badge variant="outline">受控沙箱</Badge>
-      </div>
+    <div className="relative h-full min-h-0 overflow-hidden bg-card/30">
       {runtimeError ? (
-        <Alert variant="destructive" className="m-4" role="alert">
+        <Alert variant="destructive" className="absolute inset-x-4 top-4 z-20 shadow-sm" role="alert">
           <AlertTriangle />
           <AlertDescription className="break-words">{runtimeError}</AlertDescription>
         </Alert>

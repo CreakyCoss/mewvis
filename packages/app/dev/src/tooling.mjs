@@ -196,7 +196,6 @@ export const validateApplication = async (source) => {
               kind: "sandbox",
               entry: "./" + relative(root, uiEntry).split(sep).join("/"),
               title: config.ui?.title ?? config.displayName,
-              layout: config.ui?.layout ?? "full",
             },
           }
         : {}),

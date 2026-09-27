@@ -129,17 +129,10 @@ test("React scaffold checks and builds outside the Isle repository", async () =>
   );
 });
 
-test("React application fullscreen layout is packaged for the existing host behavior", async () => {
-  const configFile = join(source, "isle.config.ts");
-  const original = await readFile(configFile, "utf8");
-  try {
-    await writeFile(configFile, original.replace("  host:", '  ui: { layout: "fullscreen" },\n  host:'));
-    await checkApplication(source);
-    const { manifest } = await packApplication({ source, quiet: true });
-    assert.equal(manifest.isle.ui.layout, "fullscreen");
-  } finally {
-    await writeFile(configFile, original);
-  }
+test("React application UI is packaged without configurable layouts", async () => {
+  const { manifest } = await packApplication({ source, quiet: true });
+  assert.equal(manifest.isle.ui.kind, "sandbox");
+  assert.equal(Object.hasOwn(manifest.isle.ui, "layout"), false);
 });
 
 test("a full host entry captures the existing application workspace context", async () => {

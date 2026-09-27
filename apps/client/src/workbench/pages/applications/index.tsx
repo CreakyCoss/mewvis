@@ -1,6 +1,5 @@
 import {
   AlertCircle,
-  ArrowLeft,
   ArrowRight,
   Blocks,
   CheckCircle2,
@@ -14,12 +13,10 @@ import { useEffect, useMemo, useRef } from "react";
 import { NavLink, useParams } from "react-router";
 import type { ApplicationUiApplication } from "@/api/applications";
 import { Alert, AlertDescription, AlertTitle } from "design-system/components/ui/alert";
-import { Badge } from "design-system/components/ui/badge";
 import { Button } from "design-system/components/ui/button";
 import { cn } from "design-system/lib/utils";
 import { useApplicationCatalogStore } from "./catalog-store";
 import { ApplicationFrame } from "./application-frame";
-import { usesApplicationWorkspace } from "./layout";
 import { ApplicationPermissionSummary } from "./permission-summary";
 import { ApplicationToolWorkbench } from "./tool-workbench";
 
@@ -140,7 +137,7 @@ const ApplicationCatalog = ({
           <Blocks className="size-5 text-primary" />
           <h1 className="truncate text-lg font-semibold tracking-[-0.02em]">应用</h1>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">浏览已启用应用，进入详情后使用完整能力</p>
+        <p className="mt-1 text-sm text-muted-foreground">浏览已启用应用，打开后使用完整功能</p>
       </div>
       <div className="flex items-center gap-2">
         <Button
@@ -224,89 +221,28 @@ const ApplicationDetail = ({
   error: string;
   refresh: () => Promise<void>;
 }) => {
-  const status = application && (application.error || application.uiError) ? applicationStatus(application) : null;
-  const StatusIcon = status?.icon;
-  const isWorkspace = usesApplicationWorkspace(application);
+  const hasSandboxUi = Boolean(
+    application && !application.error && !application.uiError && application.ui?.kind === "sandbox",
+  );
 
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface/45">
-      <header
-        className={cn(
-          "min-h-16 items-center justify-between gap-3 border-b border-border/70 bg-card/70 px-4 py-2.5 max-sm:px-2",
-          isWorkspace ? "hidden" : "flex",
-        )}
-      >
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <Button asChild type="button" variant="ghost" size="icon" className="size-10 shrink-0 rounded-full">
-            <NavLink to="/apps" aria-label="返回应用列表">
-              <ArrowLeft className="size-4" />
-            </NavLink>
-          </Button>
-          {application ? (
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent text-primary">
-              <ApplicationIcon className="size-[18px]" />
-            </span>
-          ) : null}
-          <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 items-center gap-2">
-              <h1 className="truncate text-base font-semibold tracking-[-0.015em]">
-                {application?.name || "应用详情"}
-              </h1>
-              {application ? (
-                <Badge variant="primary" className="h-5 shrink-0 px-2 text-[11px] font-normal">
-                  v{application.version || "0.0.0"}
-                </Badge>
-              ) : null}
-            </div>
-            {status && StatusIcon ? (
-              <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-                <span className={cn("flex shrink-0 items-center gap-1", status.className)}>
-                  <StatusIcon className={cn("size-3", status.iconClassName)} />
-                  {status.label}
-                </span>
-              </div>
-            ) : null}
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-10 rounded-full text-muted-foreground"
-            disabled={isLoading}
-            onClick={() => void refresh()}
-            aria-label="刷新应用"
-            title="刷新应用"
-          >
-            <RefreshCw className={cn("size-3.5", isLoading && "animate-spin motion-reduce:animate-none")} />
-          </Button>
-          <Button asChild type="button" variant="ghost" size="icon" className="size-10 rounded-full">
-            <NavLink to="/apps/manage" aria-label="管理应用">
-              <Settings2 className="size-3.5" />
-            </NavLink>
-          </Button>
-        </div>
-      </header>
-
-      <main
-        id="application-main"
-        className={cn(
-          "min-h-0 flex-1 focus:outline-none",
-          isWorkspace ? "overflow-hidden p-0" : "overflow-y-auto p-4 sm:p-5",
-        )}
-        tabIndex={-1}
-      >
-        <div className={cn(isWorkspace ? "relative h-full w-full" : "mx-auto w-full max-w-[1440px] space-y-4")}>
+      <main id="application-main" className="min-h-0 flex-1 overflow-hidden focus:outline-none" tabIndex={-1}>
+        <div className={cn("relative h-full w-full", !hasSandboxUi && "space-y-4 overflow-y-auto p-6 max-sm:p-4")}>
           {error ? (
             <Alert
               variant="destructive"
-              className={isWorkspace ? "absolute inset-x-4 top-4 z-20 shadow-sm" : undefined}
+              className={hasSandboxUi ? "absolute inset-x-4 top-4 z-20 shadow-sm" : undefined}
               role="alert"
             >
               <AlertCircle />
               <AlertTitle>Application UI Host 不可用</AlertTitle>
-              <AlertDescription className="break-words">{error}</AlertDescription>
+              <AlertDescription className="break-words">
+                {error}
+                <Button variant="outline" size="sm" disabled={isLoading} onClick={() => void refresh()}>
+                  重新加载
+                </Button>
+              </AlertDescription>
             </Alert>
           ) : null}
 

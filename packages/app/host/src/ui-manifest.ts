@@ -4,7 +4,6 @@ import { extname, isAbsolute, relative, resolve } from "node:path";
 export type ApplicationUiContribution = Readonly<{
   kind: "sandbox";
   title?: string;
-  layout?: "contained" | "full" | "fullscreen";
 }>;
 
 export type ApplicationUiDocument = Readonly<{
@@ -39,14 +38,6 @@ const optionalTitle = (value: unknown) => {
   const title = value.trim();
   if (title.length > 100) throw new Error("isle.ui.title 不能超过 100 个字符。");
   return title;
-};
-
-const optionalLayout = (value: unknown) => {
-  if (value === undefined) return undefined;
-  if (value !== "contained" && value !== "full" && value !== "fullscreen") {
-    throw new Error("isle.ui.layout 只支持 contained、full 或 fullscreen。");
-  }
-  return value;
 };
 
 const relativeEntry = (value: unknown, field: string, extensions: readonly string[]) => {
@@ -107,7 +98,6 @@ export const loadApplicationUiManifest = async (packageRoot: string): Promise<Ap
     const title = optionalTitle(ui.title);
 
     if (ui.kind === "sandbox") {
-      const layout = optionalLayout(ui.layout);
       const entry = relativeEntry(ui.entry, "isle.ui.entry", [".js", ".mjs"]);
       const style = ui.style === undefined ? undefined : relativeEntry(ui.style, "isle.ui.style", [".css"]);
       const [script, stylesheet] = await Promise.all([
@@ -118,7 +108,6 @@ export const loadApplicationUiManifest = async (packageRoot: string): Promise<Ap
         contribution: {
           kind: "sandbox",
           ...(title ? { title } : {}),
-          ...(layout ? { layout } : {}),
         },
         document: { script, style: stylesheet },
         error: null,

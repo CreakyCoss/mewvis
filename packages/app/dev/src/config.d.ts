@@ -26,7 +26,6 @@ export interface ApplicationConfig {
     | {
         entry?: string;
         title?: string;
-        layout?: "contained" | "full" | "fullscreen";
       };
   /** Default arrays, or a full SDK application entry that can capture the application context. */
   host?: {

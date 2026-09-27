@@ -131,7 +131,7 @@ const application: ApplicationUiApplication = {
   source: "bundled",
   tools: [{ name: "own", description: "Fixture", parameters: {} }],
   error: null,
-  ui: { kind: "sandbox", layout: "full" },
+  ui: { kind: "sandbox" },
   uiError: null,
   compatibility: [],
   permissions: ["chat", "workspace-files", "chat-knowledge"],

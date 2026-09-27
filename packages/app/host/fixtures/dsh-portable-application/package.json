@@ -15,8 +15,7 @@
       "kind": "sandbox",
       "entry": "./isle-ui.js",
       "style": "./isle-ui.css",
-      "title": "Portable UI Fixture",
-      "layout": "full"
+      "title": "Portable UI Fixture"
     }
   }
 }

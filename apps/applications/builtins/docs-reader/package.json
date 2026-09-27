@@ -23,8 +23,7 @@
       "kind": "sandbox",
       "entry": "./isle-ui.js",
       "style": "./isle-ui.css",
-      "title": "文档中心",
-      "layout": "full"
+      "title": "文档中心"
     }
   }
 }

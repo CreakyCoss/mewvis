@@ -88,12 +88,10 @@ export async function readProject(root) {
     (typeof ui !== "object" ||
       Array.isArray(ui) ||
       Object.keys(ui).some(
-        (key) => !["entry", "title", "layout"].includes(key),
+        (key) => !["entry", "title"].includes(key),
       ))
   )
     throw new Error("ui 配置无效");
-  if (ui?.layout && !["full", "contained", "fullscreen"].includes(ui.layout))
-    throw new Error("ui.layout 必须是 full、contained 或 fullscreen");
   if (
     ui?.title !== undefined &&
     (typeof ui.title !== "string" || !ui.title.trim() || ui.title.length > 100)

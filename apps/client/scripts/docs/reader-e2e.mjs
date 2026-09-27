@@ -97,7 +97,7 @@ try {
   });
   assert.equal(configured.applications[0].error, null);
   assert.equal(configured.applications[0].uiError, null);
-  assert.equal(configured.applications[0].ui.layout, "fullscreen");
+  assert.equal(Object.hasOwn(configured.applications[0].ui, "layout"), false);
   assert.equal(configured.applications[0].tools.length, 3);
   const tool = async (toolName, args = {}) =>
     (await rpc("execute", { applicationId: manifest.name, toolName, arguments: args })).value;

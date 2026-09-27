@@ -84,7 +84,6 @@ try {
   assert.deepEqual(configured.applications[0].ui, {
     kind: "sandbox",
     title: "Portable UI Fixture",
-    layout: "full",
   });
   assert.equal(configured.applications[0].uiError, null);
   assert.deepEqual(configured.applications[0].compatibility, [{ adapter: "dsh" }]);
@@ -270,6 +269,16 @@ try {
     request("uiDocument", { applicationId: "@isle/fixture-dsh-portable-application" }),
     /UI 声明无效/,
   );
+
+  for (const source of ["bundled", "installed"]) {
+    const result = await request("configure", {
+      ...configuration,
+      applications: [{ ...configuration.applications[0], source }],
+    });
+    assert.equal(result.applications[0].error, null);
+    assert.equal(result.applications[0].uiError, null);
+    assert.deepEqual(result.applications[0].ui, { kind: "sandbox", title: "Portable UI Fixture" });
+  }
 
   const largeRoot = join(tempDir, "large-ui-application");
   cpSync(fixtureRoot, largeRoot, { recursive: true });
