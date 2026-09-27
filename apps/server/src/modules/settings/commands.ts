@@ -36,8 +36,6 @@ export function registerSettingsCommands(
     get_ai_agent_settings: read(() => agents.read()),
     save_ai_agent: save((input) => agents.saveAgent(input)),
     delete_ai_agent: remove((id) => agents.deleteAgent(id)),
-    save_collaboration_workflow: save((input) => agents.saveWorkflow(input)),
-    delete_collaboration_workflow: remove((id) => agents.deleteWorkflow(id)),
   };
   for (const [name, handler] of Object.entries(handlers)) {
     registry.register(name, (args) => settingsOperation(() => handler(args)));

@@ -84,6 +84,7 @@ export const configTables = [
     sql: "CREATE TABLE IF NOT EXISTS ai_agents (\n    id TEXT PRIMARY KEY,\n    name TEXT NOT NULL,\n    avatar TEXT NOT NULL,\n    description TEXT,\n    created_at INTEGER NOT NULL,\n    updated_at INTEGER NOT NULL\n);",
   },
   {
+    // Retired host workflow data is retained only for v25 database compatibility.
     name: "collaboration_workflows",
     columns: [
       "id",

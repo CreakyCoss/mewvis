@@ -1,13 +1,13 @@
 # Server 业务接口
 
-Node Server 覆盖迁移前 Tauri 注册的全部 104 个业务命令。`apps/server/test/integration/backend-api.test.mjs` 读取冻结的历史命令清单，对照 `GET /api/commands` 检查缺项；它同时包含业务回归测试。新增接口继续使用 `POST /api/commands/<name>`、Bearer 认证和原 Tauri 请求/结果字段。
+Node Server 覆盖迁移前 Tauri 注册的现行业务命令；旧协作流程的保存和删除命令已退役，流程统一在角色协作插件中管理。`apps/server/test/integration/backend-api.test.mjs` 读取冻结的历史命令清单，对照 `GET /api/commands` 检查未退役命令的缺项，并确认退役命令不再注册；它同时包含业务回归测试。新增接口继续使用 `POST /api/commands/<name>`、Bearer 认证和原 Tauri 请求/结果字段。
 
 ## 覆盖范围
 
 | 模块              | 数量 | 提供的能力                                                      |
 | ----------------- | ---: | --------------------------------------------------------------- |
 | Agent 与沙箱      |   18 | 任务、协作、会话、审批、取消、工具目录、沙箱状态与初始化        |
-| 模型与 Agent 配置 |    7 | Provider、模型、Agent、协作流程                                 |
+| 模型与 Agent 配置 |    5 | Provider、模型、聊天角色                                 |
 | 工作区登记        |    4 | 默认工作区、创建、编辑、移除登记                                |
 | 数据库维护        |    4 | 初始化、状态、配置库重建、工作区库重建                          |
 | 工作区文件        |    8 | 列表、读取、可选读取、写入、批量事务、删除、监听、取消监听      |

@@ -54,7 +54,7 @@ export async function summarizeLedger(input: any) {
   return null;
 }
 export async function getAiAgentSettings() {
-  return { agents: [], collaborationWorkflows: [] };
+  return { agents: [] };
 }
 export async function getSkills() {
   return {

@@ -246,7 +246,7 @@ export const AgentEditDialog = ({ bind, onSaved }: AgentEditDialogProps) => {
                     <h3 id="agent-avatar-heading" className="text-sm font-semibold">
                       选择头像
                     </h3>
-                    <p className="mt-1 text-xs text-muted-foreground">头像用于聊天和协作流程中的角色识别。</p>
+                    <p className="mt-1 text-xs text-muted-foreground">头像用于聊天中的角色识别。</p>
                   </div>
 
                   <div className="space-y-5">
@@ -326,7 +326,7 @@ export const AgentEditDialog = ({ bind, onSaved }: AgentEditDialogProps) => {
           <AlertDialogHeader>
             <AlertDialogTitle>删除“{draft?.name || "这个角色"}”？</AlertDialogTitle>
             <AlertDialogDescription>
-              删除后，引用此角色的聊天选项和协作流程可能不再可用。此操作无法撤销。
+              删除后，引用此角色的聊天选项可能不再可用。此操作无法撤销。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

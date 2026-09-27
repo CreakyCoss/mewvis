@@ -6,7 +6,7 @@ import { HubPage } from "@/workbench/pages/hub";
 import { KnowledgePage } from "@/workbench/pages/knowledge";
 import { ApplicationUiPage } from "@/workbench/pages/applications";
 import { ApplicationManagePage } from "@/workbench/pages/applications/manage";
-import { AgentPage, EmbeddingPage, LlmPage, SettingsPage, WorkflowPage } from "@/workbench/pages/settings";
+import { AgentPage, EmbeddingPage, LlmPage, SettingsPage } from "@/workbench/pages/settings";
 import { SkillsPage } from "@/workbench/pages/skills";
 import { SandboxSettingsPage } from "@/workbench/pages/settings/sandbox";
 import { ExtensionsPage } from "@/workbench/pages/extensions";
@@ -30,7 +30,6 @@ export const AppRoutes = () => (
         <Route path="settings/llm" element={<LlmPage />} />
         <Route path="settings/embedding" element={<EmbeddingPage />} />
         <Route path="settings/agent" element={<AgentPage />} />
-        <Route path="settings/workflow" element={<WorkflowPage />} />
         <Route path="settings/sandbox" element={<SandboxSettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

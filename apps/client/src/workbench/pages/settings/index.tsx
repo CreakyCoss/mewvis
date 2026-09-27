@@ -1,11 +1,10 @@
-import { Bot, ChevronRight, GitBranch, Layers3, Settings, Shield, X } from "lucide-react";
+import { Bot, ChevronRight, Layers3, Settings, Shield, X } from "lucide-react";
 import { useNavigate } from "react-router";
 import { Button } from "design-system/components/ui/button";
 import { ScrollArea } from "design-system/components/ui/scroll-area";
 import { AgentSettingsPage } from "./agent";
 import { EmbeddingSettingsPage } from "./embedding";
 import { LlmSettingsPage } from "./llm";
-import { WorkflowSettingsPage } from "./workflow";
 
 type SettingsPanelProps = {
   settingsError: string;
@@ -14,7 +13,6 @@ type SettingsPanelProps = {
   onOpenLlmSettings: () => void;
   onOpenEmbeddingSettings: () => void;
   onOpenAgentSettings: () => void;
-  onOpenCollaborationWorkflowSettings: () => void;
   onOpenSandboxSettings: () => void;
 };
 
@@ -25,7 +23,6 @@ export const SettingsPanel = ({
   onOpenLlmSettings,
   onOpenEmbeddingSettings,
   onOpenAgentSettings,
-  onOpenCollaborationWorkflowSettings,
   onOpenSandboxSettings,
 }: SettingsPanelProps) => {
   const settingsItems = [
@@ -57,13 +54,6 @@ export const SettingsPanel = ({
       icon: Bot,
       onClick: onOpenAgentSettings,
     },
-    {
-      title: "协作流程设置",
-      description: "自定义协作流程、步骤顺序和每步执行的角色。",
-      category: "流程编排",
-      icon: GitBranch,
-      onClick: onOpenCollaborationWorkflowSettings,
-    },
   ];
 
   return (
@@ -74,7 +64,7 @@ export const SettingsPanel = ({
             <div className="min-w-0 space-y-1.5">
               <h2 className="text-xl font-semibold tracking-[-0.02em]">应用设置</h2>
               <p className="max-w-2xl text-sm text-muted-foreground">
-                设置会影响所有工作区中的模型服务、语义检索、角色画像和协作流程。
+                设置会影响所有工作区中的模型服务、语义检索、角色画像和执行环境。
               </p>
             </div>
             <Button
@@ -133,7 +123,6 @@ export const SettingsPage = () => {
       onOpenLlmSettings={() => navigate("/settings/llm")}
       onOpenEmbeddingSettings={() => navigate("/settings/embedding")}
       onOpenAgentSettings={() => navigate("/settings/agent")}
-      onOpenCollaborationWorkflowSettings={() => navigate("/settings/workflow")}
       onOpenSandboxSettings={() => navigate("/settings/sandbox")}
     />
   );
@@ -149,8 +138,4 @@ export const EmbeddingPage = () => {
 
 export const AgentPage = () => {
   return <AgentSettingsPage />;
-};
-
-export const WorkflowPage = () => {
-  return <WorkflowSettingsPage />;
 };

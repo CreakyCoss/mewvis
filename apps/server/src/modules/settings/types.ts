@@ -31,25 +31,3 @@ export interface AiAgent {
   createdAt: number;
   updatedAt: number;
 }
-
-export interface WorkflowStep {
-  id: string;
-  name: string;
-  agentId: string;
-  instruction: string | null;
-  phase: string | null;
-}
-
-export interface CollaborationWorkflow {
-  id: string;
-  name: string;
-  description: string | null;
-  writerAgentId: string;
-  reviewerAgentId: string;
-  draftInstruction: string | null;
-  reviewInstruction: string | null;
-  reviseInstruction: string | null;
-  steps: WorkflowStep[];
-  createdAt: number;
-  updatedAt: number;
-}

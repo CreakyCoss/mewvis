@@ -66,7 +66,7 @@ export function createDesktopCatalog(
           return fallback;
         };
         const models = value("models", results[0], []);
-        const agentSettings = value("agents", results[1], { agents: [], collaborationWorkflows: [] });
+        const agentSettings = value("agents", results[1], { agents: [] });
         const skillSettings = value("skillGroups", results[2], { skills: [], groups: [], defaultGroupId: "" });
         const knowledge = value("knowledgeCollections", results[3], { collections: [], sources: [] });
         const toolSettings = value("tools", results[4], { tools: [], defaultToolNames: [], permissionOptions: [] });

@@ -28,7 +28,7 @@ apps/server/
 │   ├── modules/               按业务聚合
 │   │   ├── agent/             Agent 宿主、沙箱、runtime 进程管理
 │   │   ├── applications/      应用包、SDK 数据与 ApplicationHost
-│   │   ├── settings/          模型、Agent 配置、协作流程
+│   │   ├── settings/          模型、聊天角色配置
 │   │   ├── workspaces/        工作区登记与默认工作区保护
 │   │   ├── knowledge/         知识配置、文档分块、Embedding、索引
 │   │   ├── files/             工作区文件与监听

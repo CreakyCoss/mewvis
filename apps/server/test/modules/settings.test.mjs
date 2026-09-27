@@ -69,7 +69,6 @@ test("settings commands use authenticated Tauri envelopes and isolated persisted
   assert.deepEqual(await s.invoke("get_llm_settings"), { providers: [] });
   assert.deepEqual(await s.invoke("get_ai_agent_settings"), {
     agents: [],
-    collaborationWorkflows: [],
   });
   const unauthenticated = await fetch(
     `${s.server.url}/api/commands/get_llm_settings`,
@@ -86,8 +85,6 @@ test("settings commands use authenticated Tauri envelopes and isolated persisted
     "get_ai_agent_settings",
     "save_ai_agent",
     "delete_ai_agent",
-    "save_collaboration_workflow",
-    "delete_collaboration_workflow",
   ])
     assert.ok(commands.includes(name));
   await s.invoke("get_llm_settings", { input: {} }, 400);
@@ -189,7 +186,7 @@ test("duplicate model failure rolls back the entire replacement without exposing
   }
 });
 
-test("Agent and workflow CRUD preserve IDs/timestamps and derive participants from steps", async (t) => {
+test("Agent CRUD preserves IDs, timestamps and persisted chat roles", async (t) => {
   const s = await setup(t);
   let settings = await s.invoke("save_ai_agent", {
     input: {
@@ -213,55 +210,66 @@ test("Agent and workflow CRUD preserve IDs/timestamps and derive participants fr
   assert.equal(settings.agents.length, 2);
   assert.equal(settings.agents[0].createdAt, writer.createdAt);
   assert.ok(settings.agents[0].updatedAt >= writer.updatedAt);
-  const input = {
-    name: " Workflow ",
-    writerAgentId: "ignored",
-    reviewerAgentId: "ignored",
-    steps: [
-      { name: "Draft", agentId: writer.id },
-      { name: "Revise", agentId: writer.id },
-      {
-        name: "Review",
-        agentId: reviewer.id,
-        instruction: " check ",
-        phase: " review ",
-      },
-    ],
-  };
-  settings = await s.invoke("save_collaboration_workflow", { input });
-  const workflow = settings.collaborationWorkflows[0];
-  assert.equal(workflow.writerAgentId, writer.id);
-  assert.equal(workflow.reviewerAgentId, reviewer.id);
-  assert.equal(workflow.steps[2].instruction, "check");
-  for (const step of workflow.steps) assert.match(step.id, uuid7);
-  settings = await s.invoke("save_collaboration_workflow", {
-    input: { ...input, id: workflow.id, steps: [workflow.steps[0]] },
-  });
-  assert.equal(
-    settings.collaborationWorkflows[0].createdAt,
-    workflow.createdAt,
-  );
-  assert.equal(settings.collaborationWorkflows[0].reviewerAgentId, writer.id);
   await s.restart();
   assert.deepEqual(await s.invoke("get_ai_agent_settings"), settings);
   settings = await s.invoke("delete_ai_agent", { id: writer.id });
-  assert.equal(settings.collaborationWorkflows.length, 1);
   assert.equal(settings.agents.length, 1);
+  assert.equal(settings.agents[0].id, reviewer.id);
   assert.deepEqual(
     await s.invoke("delete_ai_agent", { id: writer.id }),
     settings,
   );
-  settings = await s.invoke("delete_collaboration_workflow", {
-    id: workflow.id,
-  });
-  assert.deepEqual(settings.collaborationWorkflows, []);
-  await s.invoke(
-    "save_collaboration_workflow",
-    { input: { ...input, steps: [] } },
-    400,
-  );
   await s.invoke("save_ai_agent", { input: { name: "Bad", avatar: " " } }, 400);
   await s.invoke("delete_ai_agent", { input: { id: reviewer.id } }, 400);
+});
+
+test("retired workflow commands are unavailable and legacy data cannot break chat role settings", async (t) => {
+  const s = await setup(t);
+  const db = new DatabaseSync(join(s.root, "config.db"));
+  try {
+    // Invalid historical JSON must no longer be parsed when loading or saving chat roles.
+    db.prepare(
+      `INSERT INTO collaboration_workflows
+      (id, name, writer_agent_id, reviewer_agent_id, steps_json, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).run("legacy", "Saved flow", "writer", "reviewer", "invalid-json", 1, 2);
+    const original = {
+      ...db.prepare("SELECT * FROM collaboration_workflows").get(),
+    };
+    const catalog = await fetch(`${s.server.url}/api/commands`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    const { commands } = await catalog.json();
+    for (const name of [
+      "save_collaboration_workflow",
+      "delete_collaboration_workflow",
+    ]) {
+      assert.equal(commands.includes(name), false);
+      const failure = await s.invoke(
+        name,
+        name.startsWith("save_") ? { input: {} } : { id: "legacy" },
+        404,
+      );
+      assert.equal(failure.error.code, "COMMAND_NOT_FOUND");
+    }
+    assert.deepEqual(await s.invoke("get_ai_agent_settings"), { agents: [] });
+    const saved = await s.invoke("save_ai_agent", {
+      input: { name: "Chat role", avatar: "pen" },
+    });
+    assert.deepEqual(Object.keys(saved), ["agents"]);
+    assert.deepEqual(
+      await s.invoke("delete_ai_agent", { id: saved.agents[0].id }),
+      { agents: [] },
+    );
+    await s.restart();
+    assert.deepEqual(await s.invoke("get_ai_agent_settings"), { agents: [] });
+    assert.deepEqual(
+      { ...db.prepare("SELECT * FROM collaboration_workflows").get() },
+      original,
+    );
+  } finally {
+    db.close();
+  }
 });
 
 test("database locks return a bounded retryable error and leave settings intact", async (t) => {

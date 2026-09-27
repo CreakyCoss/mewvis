@@ -73,7 +73,7 @@ export const AgentSettingsPage = () => {
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface/45">
       <SettingsPageHeader
         title="角色设置"
-        description="管理聊天和协作流程中可复用的角色"
+        description="管理聊天中可复用的角色"
         action={
           <Button type="button" onClick={openCreateAgent}>
             <Plus className="size-4" />
@@ -114,7 +114,7 @@ export const AgentSettingsPage = () => {
               </span>
               <div className="space-y-1">
                 <h3 className="font-semibold">还没有创建角色</h3>
-                <p className="text-sm text-muted-foreground">创建角色后，可以在聊天和协作流程中直接选择使用。</p>
+                <p className="text-sm text-muted-foreground">创建角色后，可以在聊天中直接选择使用。</p>
               </div>
               <Button type="button" onClick={openCreateAgent}>
                 <Plus className="size-4" />

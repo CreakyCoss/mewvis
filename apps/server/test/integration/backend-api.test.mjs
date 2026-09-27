@@ -47,7 +47,7 @@ async function setup(t, runtimeOverrides = {}) {
   };
   return { root, server, raw, call };
 }
-test("every registered Tauri backend command has a Node command", async (t) => {
+test("every supported historical backend command has a Node command", async (t) => {
   const s = await setup(t);
   const names = JSON.parse(
     await fs.readFile(
@@ -60,8 +60,16 @@ test("every registered Tauri backend command has a Node command", async (t) => {
     headers: { authorization: "Bearer " + token },
   });
   const { commands } = await response.json();
+  const retired = [
+    "save_collaboration_workflow",
+    "delete_collaboration_workflow",
+  ];
+  for (const name of retired) {
+    assert.ok(names.includes(name));
+    assert.equal(commands.includes(name), false);
+  }
   assert.deepEqual(
-    names.filter((n) => !commands.includes(n)),
+    names.filter((n) => !retired.includes(n) && !commands.includes(n)),
     [],
   );
   assert.equal(new Set(commands).size, commands.length);
