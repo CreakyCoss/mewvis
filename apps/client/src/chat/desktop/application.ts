@@ -386,6 +386,12 @@ export function createApplicationChatHost(service: DesktopChatService, options: 
                       path.split("/").includes("..")
                     )
                       throw new Error("文件引用必须位于授权工作区内");
+                  } else if (part.type === "agent-reference") {
+                    only(part, ["type", "agentId", "name"]);
+                    const id = string(part.agentId);
+                    string(part.name);
+                    if (!session.getSnapshot().resources.agents?.some((agent) => agent.value === id))
+                      throw new Error("智能体引用无效");
                   } else if (part.type === "skill-reference") {
                     only(part, ["type", "skillKey", "name"]);
                     string(part.skillKey);

@@ -26,7 +26,7 @@ const primaryNavItems: MenuItem[] = [
 const menuItems: MenuItem[] = [
   { to: "/settings/sandbox", label: "沙箱设置", icon: Shield },
   { to: "/settings/llm", label: "模型设置", icon: Settings },
-  { to: "/settings/agent", label: "角色设置", icon: Bot },
+  { to: "/settings/agents", label: "智能体设置", icon: Bot },
 ];
 
 const linkClassName = ({ isActive }: { isActive: boolean }) =>

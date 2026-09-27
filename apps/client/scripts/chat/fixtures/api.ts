@@ -1,6 +1,8 @@
 import { agentPermissionOptions } from "../../../src/agent-client/wire";
 export const fake = {
   permissionOptions: structuredClone([...agentPermissionOptions]),
+  agents: [] as import("../../../src/workbench/pages/settings/agents/types").AgentDefinition[],
+  knowledgeQueries: [] as any[],
   record: null as any,
   writes: [] as any[],
   runs: [] as any[],
@@ -53,8 +55,8 @@ export async function summarizeLedger(input: any) {
   fake.summaries.push(input);
   return null;
 }
-export async function getAiAgentSettings() {
-  return { agents: [] };
+export async function getAgentSettings() {
+  return { agents: structuredClone(fake.agents) };
 }
 export async function getSkills() {
   return {
@@ -92,7 +94,8 @@ export async function setChatUnread(input: any) {
   if (fake.failUnread) throw new Error("unread write failed");
   fake.record.isUnread = input.isUnread;
 }
-export async function searchEnabledKnowledge() {
+export async function searchEnabledKnowledge(input: any) {
+  fake.knowledgeQueries.push(input);
   return null;
 }
 export function createAgentClient() {

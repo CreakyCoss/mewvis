@@ -873,3 +873,11 @@ test("coordinator placeholders hide only during delegated execution; plugin avat
   assert.equal(messageAvatarSource("cat-sky", builtin), "/assets/cat.jpg");
   assert.equal(messageAvatarSource(undefined, builtin), undefined);
 });
+
+test("agent defaults remain empty and discarded role IDs cannot be restored", async () => {
+  const { defaultConfig } = await import("../../src/chat/core/contracts");
+  const resources = { agents: [{ value: "builtin:office", label: "Office", isDefault: true }] };
+  assert.equal(defaultConfig(resources).selectedAgentId, "");
+  assert.equal(defaultConfig(resources, { selectedAgentId: "old-role" }).selectedAgentId, "");
+  assert.equal(defaultConfig(resources, { selectedAgentId: "builtin:office" }).selectedAgentId, "builtin:office");
+});

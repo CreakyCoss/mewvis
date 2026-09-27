@@ -54,7 +54,7 @@ const api =
     return result;
   };
 
-test("Rust v24 config → Node HTTP read/write → Rust validate/write → Node read, using one file", async (t) => {
+test("Rust v24 config → Node HTTP read/write → Rust SQL write → Node read, using one file", async (t) => {
   const root = await temporary(t),
     path = join(root, "config.db");
   rust("config", path);
@@ -101,15 +101,28 @@ test("Rust v24 config → Node HTTP read/write → Rust validate/write → Node 
         ],
       },
     });
-    await call("save_ai_agent", {
-      input: { name: "Node Agent", avatar: "pen" },
+    await call("save_agent", {
+      input: {
+        name: "Node Agent",
+        avatar: "cat-cream",
+        category: "办公",
+        instructions: "Node agent instructions",
+      },
     });
   } finally {
     await server.close();
   }
   assert.equal((await fs.stat(path)).ino, before.ino);
-  rust("config", path);
-  assert.equal(rust("query", path, "PRAGMA user_version")[0].user_version, 25);
+  // The frozen Rust schema is v25; v26 deliberately retires its role table.
+  assert.equal(rust("query", path, "PRAGMA user_version")[0].user_version, 26);
+  assert.equal(
+    rust(
+      "query",
+      path,
+      "SELECT COUNT(*) AS n FROM sqlite_master WHERE name='ai_agents'",
+    )[0].n,
+    0,
+  );
   assert.equal(
     rust("query", path, "PRAGMA application_id")[0].application_id,
     0,
@@ -125,7 +138,11 @@ test("Rust v24 config → Node HTTP read/write → Rust validate/write → Node 
     ).levels[0].value,
     "custom",
   );
-  rust("exec", path, "UPDATE ai_agents SET name='Rust updated Agent'");
+  rust(
+    "exec",
+    path,
+    `UPDATE agent_definitions SET definition_json=json_set(definition_json, '$.name', 'Rust updated Agent')`,
+  );
   server = await startServer({
     token,
     port: 0,
@@ -133,7 +150,9 @@ test("Rust v24 config → Node HTTP read/write → Rust validate/write → Node 
   });
   try {
     assert.equal(
-      (await api(server)("get_ai_agent_settings")).agents[0].name,
+      (await api(server)("get_agent_settings")).agents.find(
+        (agent) => agent.source === "custom",
+      ).name,
       "Rust updated Agent",
     );
   } finally {

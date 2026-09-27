@@ -16,7 +16,7 @@ export function validateConfigSchema(db: DatabaseSync) {
   }
 }
 
-/** Same v4–v25 upgrade chain as Rust. Column order is deliberately not significant. */
+/** Keeps the legacy upgrade chain; v26 discards retired roles without copying them. */
 export function migrateConfig(db: DatabaseSync) {
   const version = Number(db.prepare("PRAGMA user_version").get()!.user_version);
   if (version > CONFIG_SCHEMA_VERSION)
@@ -53,6 +53,7 @@ export function migrateConfig(db: DatabaseSync) {
   db.exec("PRAGMA foreign_keys=OFF; BEGIN IMMEDIATE");
   try {
     db.exec(configSchema);
+    db.exec("DROP TABLE IF EXISTS ai_agents");
     if (!fresh && version === 0) {
       validateConfigSchema(db);
       db.exec(
@@ -127,8 +128,7 @@ export function migrateConfig(db: DatabaseSync) {
             if (has("skill_groups", "is_default")) rebuild("skill_groups");
             break;
           case 16:
-            if (has("ai_agents", "provider_id") || has("ai_agents", "model_id"))
-              rebuild("ai_agents");
+            // Host roles are retired and discarded below.
             break;
           case 17:
           case 18:

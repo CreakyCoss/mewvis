@@ -33,9 +33,9 @@ export function registerSettingsCommands(
   const handlers: Record<string, CommandHandler> = {
     get_llm_settings: read(() => llm.read()),
     save_llm_settings: save((input) => llm.save(input)),
-    get_ai_agent_settings: read(() => agents.read()),
-    save_ai_agent: save((input) => agents.saveAgent(input)),
-    delete_ai_agent: remove((id) => agents.deleteAgent(id)),
+    get_agent_settings: read(() => agents.read()),
+    save_agent: save((input) => agents.saveAgent(input)),
+    delete_agent: remove((id) => agents.deleteAgent(id)),
   };
   for (const [name, handler] of Object.entries(handlers)) {
     registry.register(name, (args) => settingsOperation(() => handler(args)));

@@ -21,7 +21,15 @@ type SkillEntry = {
   skillKey: string;
   group: string;
 };
-export type ReferenceEntry = CommandEntry | SkillEntry;
+type AgentEntry = {
+  kind: "agent";
+  key: string;
+  name: string;
+  description: string;
+  agentId: string;
+  group: string;
+};
+export type ReferenceEntry = CommandEntry | SkillEntry | AgentEntry;
 
 const nameCollator = new Intl.Collator("zh-CN", { numeric: true, sensitivity: "base" });
 
@@ -85,9 +93,11 @@ const skillEntries = (skills: ChatInputSkillOption[], groups: SkillGroup[]): Ski
 
 const matches = (entry: ReferenceEntry, query: string) => {
   const searchable =
-    entry.kind === "command"
-      ? `${entry.name}\n${entry.description}\n${entry.commandId}\n${entry.source}\n${entry.pluginName}`
-      : `${entry.label}\n${entry.name}\n${entry.description}\n${entry.skillKey}\n${entry.group}`;
+    entry.kind === "agent"
+      ? `${entry.name}\n${entry.description}\n${entry.group}`
+      : entry.kind === "command"
+        ? `${entry.name}\n${entry.description}\n${entry.commandId}\n${entry.source}\n${entry.pluginName}`
+        : `${entry.label}\n${entry.name}\n${entry.description}\n${entry.skillKey}\n${entry.group}`;
   return searchable.toLocaleLowerCase().includes(query);
 };
 
@@ -97,9 +107,18 @@ export const getReferenceEntries = (
   commands: Command[],
   includeCommands: boolean,
   query: string,
+  agents: NonNullable<ChatResources["agents"]> = [],
 ): ReferenceEntry[] => {
   const available: ReferenceEntry[] = [
     ...(includeCommands ? commandEntries(commands) : []),
+    ...agents.map((agent): AgentEntry => ({
+      kind: "agent",
+      key: `agent:${agent.value}`,
+      agentId: agent.value,
+      name: agent.label,
+      description: agent.description ?? "",
+      group: agent.source === "custom" ? "我的智能体" : "内置智能体",
+    })),
     ...skillEntries(skills, skillGroups),
   ];
   const term = query.trim().toLocaleLowerCase();
@@ -107,4 +126,8 @@ export const getReferenceEntries = (
 };
 
 export const referenceGroupLabel = (entry: ReferenceEntry) =>
-  entry.kind === "command" ? `插件 · ${entry.pluginName}` : `技能 · ${entry.group}`;
+  entry.kind === "command"
+    ? `插件 · ${entry.pluginName}`
+    : entry.kind === "agent"
+      ? entry.group
+      : `技能 · ${entry.group}`;

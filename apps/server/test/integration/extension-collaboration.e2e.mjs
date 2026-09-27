@@ -48,9 +48,10 @@ test(
             }
           : { role: "assistant", content: `步骤结果 ${requests.length}` };
       response.writeHead(200, { "Content-Type": "text/event-stream" });
-      if (!tool) response.write(
-        `data: ${JSON.stringify({ id: "fixture", object: "chat.completion.chunk", created: 1, model: "local", choices: [{ index: 0, delta: { role: "assistant", reasoning_content: "步骤思考内容" }, finish_reason: null }] })}\n\n`,
-      );
+      if (!tool)
+        response.write(
+          `data: ${JSON.stringify({ id: "fixture", object: "chat.completion.chunk", created: 1, model: "local", choices: [{ index: 0, delta: { role: "assistant", reasoning_content: "步骤思考内容" }, finish_reason: null }] })}\n\n`,
+        );
       response.write(
         `data: ${JSON.stringify({ id: "fixture", object: "chat.completion.chunk", created: 1, model: "local", choices: [{ index: 0, delta, finish_reason: tool && !toolReply ? "tool_calls" : "stop" }] })}\n\n`,
       );
@@ -78,8 +79,8 @@ test(
         headers: { authorization: `Bearer ${token}` },
         body: JSON.stringify(
           [
-            "get_ai_agent_settings",
-            "delete_ai_agent",
+            "get_agent_settings",
+            "delete_agent",
             "resume_agent_runtime_agent",
             "abort_agent_runtime_agent",
           ].includes(name)
@@ -99,10 +100,12 @@ test(
       workspacePath: workspace.path,
       chatId: "collaboration-test",
     };
-    const hostSettings = await call("save_ai_agent", {
+    const hostSettings = await call("save_agent", {
       name: "分析师",
       avatar: "cat-sky",
-      description: "宿主角色独有指令，不应注入插件任务",
+      summary: "宿主智能体",
+      category: "研究",
+      instructions: "宿主智能体独有指令，不应注入插件任务",
     });
     const settings = await call("open_extension_view", {
       id: "isle.collaboration",
@@ -179,12 +182,16 @@ test(
       role,
     ]);
     assert.deepEqual(
-      await call("get_ai_agent_settings"),
+      await call("get_agent_settings"),
       hostSettings,
       "插件配置不能改动宿主角色",
     );
     const catalog = await call("list_extension_commands", target);
-    assert.equal(catalog.commands.find((item) => item.id === "isle.collaboration/review").label, flow.name);
+    assert.equal(
+      catalog.commands.find((item) => item.id === "isle.collaboration/review")
+        .label,
+      flow.name,
+    );
     assert.ok(
       catalog.commands.some(
         (item) =>
@@ -267,15 +274,28 @@ test(
     );
     const outputs = events
       .map((event) => event.payload?.event)
-      .filter((event) => event?.type === "subtask_event" && event.taskId === "slash-flow");
+      .filter(
+        (event) =>
+          event?.type === "subtask_event" && event.taskId === "slash-flow",
+      );
     assert.equal(new Set(outputs.map((event) => event.subtaskId)).size, 2);
     for (const subtaskId of new Set(outputs.map((event) => event.subtaskId))) {
       const child = outputs.filter((event) => event.subtaskId === subtaskId);
       assert.equal(child[0].event.type, "started");
       assert.match(child[0].avatar, /^data:image\/svg\+xml,/);
       assert.equal(child.at(-1).event.type, "done");
-      assert.ok(child.some(({ event }) => event.type === "thinking_delta" && event.delta.includes("步骤思考")));
-      assert.ok(child.some(({ event }) => event.type === "text_delta" && event.delta.includes("步骤结果")));
+      assert.ok(
+        child.some(
+          ({ event }) =>
+            event.type === "thinking_delta" && event.delta.includes("步骤思考"),
+        ),
+      );
+      assert.ok(
+        child.some(
+          ({ event }) =>
+            event.type === "text_delta" && event.delta.includes("步骤结果"),
+        ),
+      );
     }
     assert.match(JSON.stringify(requests[0].messages), /插件独立角色指令/);
     assert.doesNotMatch(
@@ -299,10 +319,14 @@ test(
         JSON.stringify(message).includes("步骤结果 2"),
       ),
     );
-    await call("delete_ai_agent", {
+    await call("delete_agent", {
       id: hostSettings.agents.find((r) => r.name === "分析师").id,
     });
-    assert.deepEqual((await call("get_ai_agent_settings")).agents, []);
+    assert.ok(
+      (await call("get_agent_settings")).agents.every(
+        (agent) => agent.source === "builtin",
+      ),
+    );
     await run("model-flow", "请按自定义评审流程完成任务");
     await done("model-flow");
     assert.ok(
@@ -346,7 +370,10 @@ test(
     await waitChild();
     const first = await query(status, "activity.read");
     assert.equal(first.pausable, true);
-    assert.deepEqual(first.steps.map((step) => step.actor), flow.steps.map(() => ({ name: role.name })));
+    assert.deepEqual(
+      first.steps.map((step) => step.actor),
+      flow.steps.map(() => ({ name: role.name })),
+    );
     await query(status, "activity.pause", { id: previous.id }, 409);
     await query(other, "activity.pause", { id: first.id }, 409);
     await query(status, "activity.pause", { id: first.id });

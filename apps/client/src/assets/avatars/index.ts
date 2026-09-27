@@ -46,7 +46,7 @@ export const agentAvatarGroups: AvatarGroup[] = [
   createAvatarGroup({
     id: "cats",
     label: "默认猫猫",
-    description: "系统角色默认使用的写实猫咪头像。",
+    description: "智能体默认使用的写实猫咪头像。",
     options: [
       createAvatar("cat-cream", "喵维斯", catCream),
       createAvatar("cat-moon", "狸花猫", catMoon),

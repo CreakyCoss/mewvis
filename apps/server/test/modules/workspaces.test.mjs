@@ -304,6 +304,9 @@ test("Rust v24 configuration upgrades without losing settings and preserves the 
   const path = join(root, "config.db");
   database(path, (db) => {
     db.exec(configSchema);
+    db.exec(
+      "DROP TABLE agent_definitions; CREATE TABLE ai_agents (id TEXT PRIMARY KEY, name TEXT NOT NULL, avatar TEXT NOT NULL, description TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
+    );
     db.exec("ALTER TABLE provider_models DROP COLUMN thinking_json");
     db.exec("PRAGMA user_version = 24;");
     db.exec(
@@ -315,8 +318,17 @@ test("Rust v24 configuration upgrades without losing settings and preserves the 
   });
   let config = new ConfigDatabase(root);
   const db = config.connection;
-  assert.equal(db.prepare("PRAGMA user_version").get().user_version, 25);
-  assert.equal(db.prepare("SELECT name FROM ai_agents").get().name, "Existing");
+  assert.equal(db.prepare("PRAGMA user_version").get().user_version, 26);
+  assert.equal(
+    db
+      .prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name='ai_agents'")
+      .get().n,
+    0,
+  );
+  assert.equal(
+    db.prepare("SELECT COUNT(*) AS n FROM agent_definitions").get().n,
+    0,
+  );
   assert.equal(
     db.prepare("SELECT api_key FROM llm_providers").get().api_key,
     "secret",

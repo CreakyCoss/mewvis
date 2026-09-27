@@ -74,6 +74,12 @@ export type ChatUserMessageBlock =
     }
   | {
       id: string;
+      type: "agent-reference";
+      agentId: string;
+      name: string;
+    }
+  | {
+      id: string;
       type: "skill-reference";
       skillKey: string;
       name: string;
@@ -155,7 +161,10 @@ export type ChatResources = {
     selectedLabel: string;
     thinking?: RuntimeModelThinking;
   })[];
-  agents?: ResourceOption[];
+  agents?: (ResourceOption & {
+    source?: "builtin" | "custom";
+    category?: string;
+  })[];
   skillGroups?: (ResourceOption & { skills: SkillOption[] })[];
   tools?: ResourceOption[];
   knowledgeCollections?: (ResourceOption & {

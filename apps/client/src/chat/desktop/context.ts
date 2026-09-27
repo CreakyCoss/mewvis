@@ -1,12 +1,12 @@
 import type { KnowledgeSearchResult } from "@/workbench/pages/knowledge/types";
 import type { Skill } from "@/workbench/pages/skills/types";
-import type { AiAgent } from "@/workbench/pages/settings/agent/types";
+import type { AgentDefinition } from "@/workbench/pages/settings/agents/types";
 import type { MessageInput, ChatResources } from "../core";
 export type PromptInput = {
   blocks: NonNullable<MessageInput["blocks"]>;
   skills: Skill[];
   tools: string[];
-  agent: AiAgent | null;
+  agent: AgentDefinition | null;
   knowledgeCollections: NonNullable<ChatResources["knowledgeCollections"]>;
 };
 
@@ -23,9 +23,10 @@ const skillFileLocation = (skillDirectory: string) => {
 };
 
 const buildInvokedSkillsContext = (payload: PromptInput) => {
-  const referencedSkillKeys = new Set(
-    payload.blocks.flatMap((block) => (block.type === "skill-reference" ? [block.skillKey] : [])),
-  );
+  const referencedSkillKeys = new Set([
+    ...payload.blocks.flatMap((block) => (block.type === "skill-reference" ? [block.skillKey] : [])),
+    ...(payload.agent?.skillKeys ?? []),
+  ]);
   const invokedSkills = payload.skills
     .filter((skill) => referencedSkillKeys.has(skill.key))
     .map((skill) => {
@@ -79,7 +80,7 @@ export const buildAgentPrompt = (
   knowledgeResult: KnowledgeSearchResult | null = null,
 ) => {
   const selectedAgent = payload.agent
-    ? [`当前角色：${payload.agent.name}`, payload.agent.description?.trim()].filter(Boolean).join("\n")
+    ? [`当前智能体：${payload.agent.name}`, payload.agent.instructions.trim()].filter(Boolean).join("\n")
     : "";
   const hasFileReferences = payload.blocks.some((block) => block.type === "file-reference");
   const canAskUser = payload.tools.includes("ask_user");

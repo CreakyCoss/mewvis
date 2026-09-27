@@ -30,6 +30,7 @@ export function ComposerActions(binding: ComposerBinding) {
   return (
     <>
       <ModelMenu
+        referencedAgentId={binding.draft.blocks?.find((block) => block.type === "agent-reference")?.agentId}
         controls={binding.controls}
         disabled={binding.disabled && !binding.busy}
         selectionDisabled={binding.disabled}
@@ -158,6 +159,7 @@ export function ComposerView({
                 skills={binding.skills}
                 skillGroups={binding.controls.resources.skillGroups}
                 commands={binding.commands}
+                agents={binding.controls.resources.agents}
                 disabled={binding.disabled}
                 slashTrigger={slashTrigger}
                 canInsertCommandAtSelection={() => editor.current?.canInsertCommandAtSelection() ?? false}

@@ -146,7 +146,7 @@ Windows ARM64 的本机构建需在 Visual Studio 的 ARM64 Native Tools 开发�
 
 | 数据                                        | 默认位置                                                    |
 | ------------------------------------------- | ----------------------------------------------------------- |
-| 模型、Agent、工作区、故事、技能、知识库配置 | `~/.isle-claw/config.db`，schema v25                        |
+| 模型、Agent、工作区、故事、技能、知识库配置 | `~/.isle-claw/config.db`，schema v26                        |
 | 默认工作区                                  | `~/.isle-claw/default-workspace`                            |
 | 宿主技能                                    | `~/.isle-claw/skills`                                       |
 | 应用包、配置、SDK 数据、应用工作区          | `~/.isle-claw/apps/<应用命名空间>/`                         |
@@ -316,4 +316,4 @@ pnpm test:server:interop
 
 前者还核对全部 Tauri 注册命令覆盖，使用真实 Git 临时仓库、真实 Node ApplicationHost、临时文件/数据库及本地 Embedding HTTP fixture 验证新业务。沙箱安装使用控制程序 fixture，不在测试中安装用户沙箱；技能 ZIP 安装使用离线包，公开市场下载不作为离线测试依赖。基础进程测试使用真实子进程 fixture 验证排队、取消、追问、审批、崩溃、错误输出、心跳、空闲回收、关闭清理、HTTP 与 SSE，并使用临时 SQLite 验证配置接口、持久化、回滚、锁冲突和 schema 边界。后者使用现有 Runtime 构建和 mock profile，通过 HTTP 验证 Agent、协作、聊天、会话读取、摘要、释放与删除；不消耗模型额度。缺少 Runtime 构建时测试失败并提示构建，不静默跳过。
 
-`test:server:interop` 需要 Rust 工具链，会编译 `test/support/legacy-rust` 中冻结的旧版 schema、迁移和 vector store 快照到测试辅助程序。测试在临时目录中验证 Rust → Node HTTP → Rust 的配置读写、同一 sqlite-vec 索引的双向搜索、原文件锁互斥及崩溃释放，以及原应用目录和旧版目录升级。辅助程序仅用于测试，启动 Node Server 不需要 Rust 服务或 Rust 编译器。常规测试另外核对全部配置/RAG 表定义，以及 v3–v25 历史库升级和回滚。
+`test:server:interop` 需要 Rust 工具链，会编译 `test/support/legacy-rust` 中冻结的旧版 schema、迁移和 vector store 快照到测试辅助程序。测试在临时目录中验证 Rust → Node HTTP → Rust 的配置读写、同一 sqlite-vec 索引的双向搜索、原文件锁互斥及崩溃释放，以及原应用目录和旧版目录升级。辅助程序仅用于测试，启动 Node Server 不需要 Rust 服务或 Rust 编译器。常规测试核对保留配置/RAG 表定义、v3–v25 历史库升级和回滚，以及 v26 废弃旧角色而不迁移。冻结的 Rust 程序仍按 v25 初始化历史库，升级后用 SQL 核验保留配置。

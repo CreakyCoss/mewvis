@@ -61,6 +61,9 @@ test("every supported historical backend command has a Node command", async (t) 
   });
   const { commands } = await response.json();
   const retired = [
+    "get_ai_agent_settings",
+    "save_ai_agent",
+    "delete_ai_agent",
     "save_collaboration_workflow",
     "delete_collaboration_workflow",
   ];

@@ -21,9 +21,10 @@ type ModelMenuProps = {
   controls: ReturnType<typeof useChatControls>;
   disabled: boolean;
   selectionDisabled: boolean;
+  referencedAgentId?: string;
 };
 
-export const ModelMenu = ({ disabled, selectionDisabled, controls }: ModelMenuProps) => {
+export const ModelMenu = ({ disabled, selectionDisabled, controls, referencedAgentId }: ModelMenuProps) => {
   const resourceStore = controls;
   const models = resourceStore.resources.models ?? [];
   const agents = resourceStore.resources.agents ?? [];
@@ -34,8 +35,9 @@ export const ModelMenu = ({ disabled, selectionDisabled, controls }: ModelMenuPr
   const thinkingLevel = resourceStore.options.thinkingLevel ?? "";
   const thinkingLabel =
     thinking?.levels.find((option) => option.value === thinkingLevel)?.label ?? (thinkingLevel || "不指定");
-  const selectedAgentLabel = selectedAgent?.label ?? "不使用角色";
-  const menuLabel = selectedAgent ? `${selectedModelLabel} · ${selectedAgent.label}` : selectedModelLabel;
+  const selectedAgentLabel = selectedAgent?.label ?? "不使用智能体";
+  const displayAgent = agents.find((agent) => agent.value === referencedAgentId) ?? selectedAgent;
+  const menuLabel = displayAgent ? `${displayAgent.label} · ${selectedModelLabel}` : selectedModelLabel;
   const processLabel = [
     resourceStore.options.showThinkingProcess ? "思考" : "",
     resourceStore.options.showToolCallProcess ? "工具" : "",
@@ -52,7 +54,7 @@ export const ModelMenu = ({ disabled, selectionDisabled, controls }: ModelMenuPr
           size="sm"
           disabled={disabled}
           className="h-9 min-w-0 max-w-[18rem] cursor-pointer px-2 text-xs"
-          title={`模型：${selectedModel?.description || selectedModelLabel}；角色：${selectedAgentLabel}`}
+          title={`模型：${selectedModel?.description || selectedModelLabel}；智能体：${displayAgent?.label ?? selectedAgentLabel}${referencedAgentId ? "（仅本次请求）" : ""}`}
         >
           <span className="min-w-0 truncate">{menuLabel}</span>
           <ChevronDown className="size-3 shrink-0" aria-hidden="true" />
@@ -111,23 +113,33 @@ export const ModelMenu = ({ disabled, selectionDisabled, controls }: ModelMenuPr
         <DropdownMenuSub>
           <DropdownMenuSubTrigger disabled={selectionDisabled} title={selectedAgent?.description || selectedAgentLabel}>
             <Bot className="size-3.5" aria-hidden="true" />
-            <span className="min-w-0 flex-1 truncate">角色</span>
+            <span className="min-w-0 flex-1 truncate">智能体</span>
             <span className="max-w-32 truncate text-xs text-muted-foreground">{selectedAgentLabel}</span>
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-56">
+          <DropdownMenuSubContent className="max-h-96 w-60 overflow-y-auto">
             <DropdownMenuRadioGroup
               value={selectedAgent?.value ?? ""}
               onValueChange={(selectedAgentId) => resourceStore.updateOptions({ selectedAgentId })}
             >
-              <DropdownMenuRadioItem value="">不使用角色</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="">不使用智能体</DropdownMenuRadioItem>
               {agents.length === 0 ? (
-                <DropdownMenuItem disabled>暂无角色</DropdownMenuItem>
+                <DropdownMenuItem disabled>暂无智能体</DropdownMenuItem>
               ) : (
-                agents.map((agent) => (
-                  <DropdownMenuRadioItem key={agent.value} value={agent.value} title={agent.description}>
-                    <span className="truncate">{agent.label}</span>
-                  </DropdownMenuRadioItem>
-                ))
+                (["builtin", "custom"] as const).map((source) => {
+                  const items = agents.filter((agent) => (agent.source ?? "builtin") === source);
+                  return items.length ? (
+                    <div key={source}>
+                      <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                        {source === "builtin" ? "内置智能体" : "我的智能体"}
+                      </DropdownMenuLabel>
+                      {items.map((agent) => (
+                        <DropdownMenuRadioItem key={agent.value} value={agent.value} title={agent.description}>
+                          <span className="truncate">{agent.label}</span>
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </div>
+                  ) : null;
+                })
               )}
             </DropdownMenuRadioGroup>
           </DropdownMenuSubContent>

@@ -52,7 +52,7 @@ test("Node uses original product and Tauri runtime paths without creating files"
     );
 });
 
-test("all config, RAG and vector SQL definitions match the legacy Rust snapshot", async () => {
+test("retained config, RAG and vector SQL definitions match the legacy Rust snapshot", async () => {
   const source = await rust("db/schema.rs");
   const definitions = [
     ...source.matchAll(
@@ -61,6 +61,7 @@ test("all config, RAG and vector SQL definitions match the legacy Rust snapshot"
   ];
   assert.equal(definitions.length, configTables.length);
   for (const [_, name, cols, sql] of definitions) {
+    if (name === "ai_agents") continue;
     const table = configTables.find((t) => t.name === name);
     assert.deepEqual(
       table.columns,
@@ -70,7 +71,7 @@ test("all config, RAG and vector SQL definitions match the legacy Rust snapshot"
   }
   assert.match(
     await rust("db/migrations/version.rs"),
-    new RegExp(`CONFIG_SCHEMA_VERSION: i64 = ${CONFIG_SCHEMA_VERSION};`),
+    /CONFIG_SCHEMA_VERSION: i64 = 25;/,
   );
   const index = await rust("rag-index.sql");
   assert.equal(norm(ragSchema), norm(index));
@@ -89,6 +90,12 @@ test("all config, RAG and vector SQL definitions match the legacy Rust snapshot"
 
 export function legacyFixture(db, version) {
   db.exec(configSchema);
+  db.exec(
+    "DROP TABLE agent_definitions; CREATE TABLE ai_agents (id TEXT PRIMARY KEY, name TEXT NOT NULL, avatar TEXT NOT NULL, description TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
+  );
+  db.exec(
+    "INSERT INTO ai_agents VALUES ('old-role','Old role','pen','Do not migrate',1,2)",
+  );
   const drop = (table, col) =>
     db.exec(`ALTER TABLE ${table} DROP COLUMN ${col}`);
   if (version < 25) drop("provider_models", "thinking_json");
@@ -140,7 +147,22 @@ test("every Rust schema version v3–v25 upgrades without losing skill membershi
     const config = new ConfigDatabase(dir),
       db = config.connection;
     try {
-      assert.equal(db.prepare("PRAGMA user_version").get().user_version, 25);
+      assert.equal(
+        db.prepare("PRAGMA user_version").get().user_version,
+        CONFIG_SCHEMA_VERSION,
+      );
+      assert.equal(
+        db
+          .prepare(
+            "SELECT COUNT(*) AS n FROM sqlite_master WHERE name='ai_agents'",
+          )
+          .get().n,
+        0,
+      );
+      assert.equal(
+        db.prepare("SELECT COUNT(*) AS n FROM agent_definitions").get().n,
+        0,
+      );
       assert.equal(db.prepare("PRAGMA application_id").get().application_id, 0);
       assert.equal(
         db.prepare("SELECT created_at FROM skill_group_skills").get()

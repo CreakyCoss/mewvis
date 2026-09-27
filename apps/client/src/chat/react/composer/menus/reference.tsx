@@ -23,6 +23,7 @@ type ReferenceInsertMenuProps = {
   skills: ChatInputSkillOption[];
   skillGroups?: ChatResources["skillGroups"];
   commands?: ChatResources["commands"];
+  agents?: ChatResources["agents"];
   disabled: boolean;
   slashTrigger: SlashReferenceTrigger | null;
   canInsertCommandAtSelection: () => boolean;
@@ -40,6 +41,7 @@ export const ReferenceInsertMenu = forwardRef<ReferenceInsertMenuHandle, Referen
       skills,
       skillGroups = [],
       commands = [],
+      agents = [],
       disabled,
       slashTrigger,
       canInsertCommandAtSelection,
@@ -69,8 +71,8 @@ export const ReferenceInsertMenu = forwardRef<ReferenceInsertMenuHandle, Referen
       getBoundingClientRect: () => anchorRef.current?.getBoundingClientRect() ?? new DOMRect(),
     });
     const entries = useMemo(
-      () => getReferenceEntries(skills, skillGroups, commands, includeCommands, query),
-      [skills, skillGroups, commands, includeCommands, query],
+      () => getReferenceEntries(skills, skillGroups, commands, includeCommands, query, agents),
+      [skills, skillGroups, commands, includeCommands, query, agents],
     );
 
     useEffect(() => {
@@ -154,8 +156,8 @@ export const ReferenceInsertMenu = forwardRef<ReferenceInsertMenuHandle, Referen
           <InputGroupButton
             type="button"
             size="icon-sm"
-            aria-label="插入命令或技能"
-            title="插入命令或技能"
+            aria-label="引用智能体、技能或命令"
+            title="引用智能体、技能或命令"
             disabled={disabled || slashOpen}
             className="size-9 shrink-0 cursor-pointer rounded-lg"
             onPointerDown={() => {
@@ -175,7 +177,7 @@ export const ReferenceInsertMenu = forwardRef<ReferenceInsertMenuHandle, Referen
           align="start"
           sideOffset={8}
           collisionPadding={16}
-          aria-label={includeCommands ? "命令与技能" : "技能"}
+          aria-label={includeCommands ? "智能体、技能与命令" : "智能体与技能"}
           className="max-h-[min(22rem,var(--radix-popover-content-available-height))] w-[min(30rem,calc(100vw-2rem))] gap-0 overflow-hidden p-0"
           onOpenAutoFocus={(event) => {
             event.preventDefault();
@@ -200,20 +202,22 @@ export const ReferenceInsertMenu = forwardRef<ReferenceInsertMenuHandle, Referen
                 setSelectedIndex(0);
               }}
               onKeyDown={handleListKeyDown}
-              aria-label={includeCommands ? "搜索命令与技能" : "搜索技能"}
-              placeholder={mode === "slash" ? "继续输入以搜索" : includeCommands ? "搜索命令与技能" : "搜索技能"}
+              aria-label={includeCommands ? "搜索智能体、技能与命令" : "搜索智能体与技能"}
+              placeholder={
+                mode === "slash" ? "继续输入以搜索" : includeCommands ? "搜索智能体、技能与命令" : "搜索智能体与技能"
+              }
               className="h-6 min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
             />
           </div>
           <div
             ref={listRef}
             role="listbox"
-            aria-label={includeCommands ? "命令与技能" : "技能"}
+            aria-label={includeCommands ? "智能体、技能与命令" : "智能体与技能"}
             className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
           >
             <ReferenceOptionsList
               options={entries}
-              emptyText={includeCommands ? "没有匹配的已启用命令或技能" : "没有匹配的已启用技能"}
+              emptyText={includeCommands ? "没有匹配的智能体、已启用命令或技能" : "没有匹配的智能体或已启用技能"}
               selectedIndex={selectedIndex}
               selectOption={selectEntry}
               setHighlightedIndex={setSelectedIndex}

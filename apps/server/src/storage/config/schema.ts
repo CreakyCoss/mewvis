@@ -1,5 +1,5 @@
-// Mirrors src-tauri/src/db/schema.rs; compatibility tests check every table.
-export const CONFIG_SCHEMA_VERSION = 25;
+// Retains the legacy configuration schema except for retired host roles.
+export const CONFIG_SCHEMA_VERSION = 26;
 export const configTables = [
   {
     name: "workspace_groups",
@@ -72,16 +72,9 @@ export const configTables = [
     sql: "CREATE TABLE IF NOT EXISTS skill_group_skills (\n    group_id TEXT NOT NULL,\n    skill_name TEXT NOT NULL,\n    disabled INTEGER NOT NULL DEFAULT 0,\n    created_at INTEGER NOT NULL,\n    PRIMARY KEY(group_id, skill_name),\n    FOREIGN KEY(group_id) REFERENCES skill_groups(id) ON DELETE CASCADE\n);",
   },
   {
-    name: "ai_agents",
-    columns: [
-      "id",
-      "name",
-      "avatar",
-      "description",
-      "created_at",
-      "updated_at",
-    ],
-    sql: "CREATE TABLE IF NOT EXISTS ai_agents (\n    id TEXT PRIMARY KEY,\n    name TEXT NOT NULL,\n    avatar TEXT NOT NULL,\n    description TEXT,\n    created_at INTEGER NOT NULL,\n    updated_at INTEGER NOT NULL\n);",
+    name: "agent_definitions",
+    columns: ["id", "definition_json", "created_at", "updated_at"],
+    sql: "CREATE TABLE IF NOT EXISTS agent_definitions (id TEXT PRIMARY KEY, definition_json TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);",
   },
   {
     // Retired host workflow data is retained only for v25 database compatibility.

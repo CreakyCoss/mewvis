@@ -23,11 +23,19 @@ export interface LlmProvider {
   updatedAt: number;
 }
 
-export interface AiAgent {
+export interface AgentDefinition {
   id: string;
   name: string;
   avatar: string;
-  description: string | null;
+  summary: string;
+  category: string;
+  instructions: string;
+  useCases: string[];
+  starterPrompts: string[];
+  skillKeys: string[];
+  toolNames: string[];
+  knowledgeCollectionIds: string[];
+  source: "builtin" | "custom";
   createdAt: number;
   updatedAt: number;
 }

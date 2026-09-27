@@ -1,12 +1,12 @@
 import { listExtensionCommands } from "@/api/agent-runtime";
 import { listExtensions } from "@/api/extensions";
 import { getLlmModelOptions } from "@/api/llm";
-import { getAiAgentSettings } from "@/api/agents";
+import { getAgentSettings } from "@/api/agents";
 import { getSkills } from "@/api/skills";
 import { listKnowledgeLibrary } from "@/api/knowledge";
 import type { AgentClient } from "@/agent-client/runtime";
 import type { Skill } from "@/workbench/pages/skills/types";
-import type { AiAgent } from "@/workbench/pages/settings/agent/types";
+import type { AgentDefinition } from "@/workbench/pages/settings/agents/types";
 import type { ChatContext, ChatMessage, ChatResources, TurnInput } from "../core";
 
 export type ChatProfile = {
@@ -28,7 +28,7 @@ export function createDesktopCatalog(
   target?: { workspacePath: string; chatId: string },
 ) {
   let skills: Skill[] = [];
-  let agents: AiAgent[] = [];
+  let agents: AgentDefinition[] = [];
   let resources: ChatResources = {};
   let inFlight: Promise<ChatResources> | undefined;
   let loadingProfile: ChatProfile | undefined;
@@ -49,7 +49,7 @@ export function createDesktopCatalog(
       inFlight = (async () => {
         const results = await Promise.allSettled([
           getLlmModelOptions({ refresh }),
-          getAiAgentSettings(),
+          getAgentSettings(),
           profile.skills ? Promise.resolve({ skills: profile.skills, groups: [], defaultGroupId: "" }) : getSkills(),
           profile.useKnowledge === false ? Promise.resolve({ collections: [], sources: [] }) : listKnowledgeLibrary(),
           Promise.all([client.capabilities.listAgentTools(), profile.toolCatalog?.()]).then(([tools, catalog]) =>
@@ -62,7 +62,7 @@ export function createDesktopCatalog(
         const value = <T>(key: keyof typeof errors, result: PromiseSettledResult<T>, fallback: T): T => {
           if (result.status === "fulfilled") return result.value;
           errors[key] =
-            `${{ models: "模型", agents: "角色", skillGroups: "技能", knowledgeCollections: "知识库", tools: "工具", commands: "插件命令" }[key]}加载失败，可重试`;
+            `${{ models: "模型", agents: "智能体", skillGroups: "技能", knowledgeCollections: "知识库", tools: "工具", commands: "插件命令" }[key]}加载失败，可重试`;
           return fallback;
         };
         const models = value("models", results[0], []);
@@ -121,7 +121,9 @@ export function createDesktopCatalog(
           agents: agents.map((agent) => ({
             value: agent.id,
             label: agent.name,
-            description: agent.description ?? "",
+            description: agent.summary,
+            source: agent.source,
+            category: agent.category,
             isDefault: false,
           })),
           skillGroups: groups.map((group) => ({

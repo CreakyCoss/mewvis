@@ -8,6 +8,7 @@ import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { PlainTextPlugin } from "@lexical/react/LexicalPlainTextPlugin";
 import {
+  $nodesOfType,
   $createParagraphNode,
   $createTextNode,
   $getNodeByKey,
@@ -25,6 +26,7 @@ import { $createCommandReferenceNode, CommandReferenceNode } from "./reference/c
 import { SkillReferenceTrigger, type SlashReferenceTrigger } from "./reference/skill";
 import type { ReferenceEntry } from "./reference/skill/options";
 import { $createSkillReferenceNode, SkillReferenceNode } from "./reference/skill/node";
+import { $createAgentReferenceNode, AgentReferenceNode } from "./reference/agent/node";
 import { serializeChatEditorState, type ChatEditorValue } from "./serialize";
 
 export type ChatEditorHandle = {
@@ -53,9 +55,11 @@ const restoreContent = (value: ChatEditorValue) => {
           ? $createFileReferenceNode(block.path, block.path.split(/[\\/]/).pop() ?? block.path)
           : block.type === "command-reference"
             ? $createCommandReferenceNode(block.commandId, block.name)
-            : block.type === "skill-reference"
-              ? $createSkillReferenceNode(block.skillKey, block.name)
-              : $createTextNode(block.content),
+            : block.type === "agent-reference"
+              ? $createAgentReferenceNode(block.agentId, block.name)
+              : block.type === "skill-reference"
+                ? $createSkillReferenceNode(block.skillKey, block.name)
+                : $createTextNode(block.content),
       );
   } else if (value.text) paragraph.append($createTextNode(value.text));
   $getRoot().clear().append(paragraph);
@@ -109,9 +113,15 @@ const EditorBridge = ({
             const referenceNode =
               entry.kind === "command"
                 ? $createCommandReferenceNode(entry.commandId, entry.name)
-                : $createSkillReferenceNode(entry.skillKey, entry.name);
+                : entry.kind === "agent"
+                  ? $createAgentReferenceNode(entry.agentId, entry.name)
+                  : $createSkillReferenceNode(entry.skillKey, entry.name);
             const trailingSpace = $createTextNode(" ");
             range.insertNodes([referenceNode, trailingSpace]);
+            if (entry.kind === "agent")
+              $nodesOfType(AgentReferenceNode)
+                .filter((node) => node !== referenceNode)
+                .forEach((node) => node.remove());
             trailingSpace.selectEnd();
           });
         });
@@ -141,7 +151,7 @@ const ChatEditorComponent = (
   const initialConfig = useMemo(
     () => ({
       namespace: "MewvisChatInput",
-      nodes: [FileReferenceNode, SkillReferenceNode, CommandReferenceNode],
+      nodes: [FileReferenceNode, SkillReferenceNode, CommandReferenceNode, AgentReferenceNode],
       editable: !disabled,
       theme: {
         paragraph: "m-0",

@@ -59,7 +59,9 @@ export function defaultConfig(resources: ChatResources, saved: Partial<ChatRunCo
   return {
     selectedModelId,
     thinkingLevel: saved.thinkingLevel === undefined ? (thinking?.defaultLevel ?? null) : saved.thinkingLevel,
-    selectedAgentId: saved.selectedAgentId ?? resources.agents?.find((agent) => agent.isDefault)?.value ?? "",
+    selectedAgentId: resources.agents?.some((agent) => agent.value === saved.selectedAgentId)
+      ? saved.selectedAgentId!
+      : "",
     selectedSkillKeys: saved.selectedSkillKeys ?? [
       ...new Set((defaults ? [defaults] : groups).flatMap((group) => group.skills.map((skill) => skill.key))),
     ],

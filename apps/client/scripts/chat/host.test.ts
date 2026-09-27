@@ -10,7 +10,6 @@ import {
   type DesktopChatService,
   type DesktopSessionInput,
 } from "../../src/chat/desktop/service";
-import { summarizeChatLedger } from "../../src/chat/desktop/ledger";
 import { getLlmSettings, getLlmModelOptions, resolveLlmModel, saveLlmSettings } from "../../src/api/llm";
 import { normalizeLlmSettingsConfig, toLlmSettingsConfig } from "../../src/workbench/pages/settings/llm/edit/utils";
 import { createApplicationChatHost } from "../../src/chat/desktop/application";
@@ -28,13 +27,6 @@ function deferred<T>() {
   });
   return { promise, resolve, reject };
 }
-const summaryInput = {
-  workspacePath: "fixture",
-  sessionRootDir: "chats/record/session",
-  selectedModelId: "model",
-  summaryInstruction: "Summarize",
-};
-
 const applicationInput = {
   workspaceId: "workspace",
   sceneId: "debug",
@@ -92,21 +84,19 @@ function completeTask(taskId: string) {
   fake.events.forEach((listener) => listener({ taskId, event: { type: "done", taskId, text: "Complete" } }));
 }
 
-test("catalog, model resolution and summaries share one cold read; callers cannot mutate the cache", async () => {
+test("catalog and model resolution share one cold read; callers cannot mutate the cache", async () => {
   const before = fake.llmReads;
   const [settings, options, model] = await Promise.all([
     getLlmSettings(),
     getLlmModelOptions(),
     resolveLlmModel("model"),
-    summarizeChatLedger(summaryInput),
   ]);
   assert.equal(fake.llmReads - before, 1);
   assert.equal(model.apiKey, "secret-must-not-reach-ui");
   assert.doesNotMatch(JSON.stringify(options), /apiKey|secret-must-not-reach-ui/);
   settings.providers[0].apiKey = "caller mutation";
   model.apiKey = "another mutation";
-  await summarizeChatLedger(summaryInput);
-  assert.equal(fake.summaries.at(-1).runtimeModel.apiKey, "secret-must-not-reach-ui");
+  assert.equal((await resolveLlmModel("model")).apiKey, "secret-must-not-reach-ui");
   assert.equal(fake.llmReads - before, 1);
 });
 
@@ -287,8 +277,7 @@ test("desktop owner isolates locations and refreshes scene context without expos
   await session.send({ text: "first" });
   await session.stop();
   assert.match(fake.runs[0].systemPrompt, /revision one/);
-  await summarizeChatLedger(summaryInput);
-  assert.equal(fake.llmReads, readsAfterOpen, "sending and summarizing reuse the catalog configuration");
+  assert.equal(fake.llmReads, readsAfterOpen, "sending reuses the catalog configuration");
   const refreshed = await owner.openSession({ ...input, profile: { ...profile, systemPrompt: () => "revision two" } });
   assert.equal(refreshed, session);
   await session.send({ text: "second" });
@@ -325,8 +314,6 @@ test("a successful save supersedes both late read results and late read failures
     try {
       assert.equal((await pending).providers[0].apiKey, updated.providers[0].apiKey);
       assert.equal((await resolveLlmModel("model")).apiKey, updated.providers[0].apiKey);
-      await summarizeChatLedger(summaryInput);
-      assert.equal(fake.summaries.at(-1).runtimeModel.apiKey, updated.providers[0].apiKey);
       assert.equal(fake.llmReads, reads, "the save response replaces the cache without another query");
     } finally {
       fake.readLlm = undefined;
@@ -402,7 +389,6 @@ test("failed saves preserve the last usable cache and do not poison later saves"
   await saveLlmSettings(updated);
   assert.deepEqual(await getLlmModelOptions(), []);
   await assert.rejects(resolveLlmModel("model"), /不可用/);
-  await assert.rejects(summarizeChatLedger(summaryInput), /不可用/);
   await saveLlmSettings(original as any);
 });
 
@@ -936,4 +922,99 @@ test("opening another chat preserves running and waiting chats at the open-chat 
     useWorkspaceStore.getState().openChats.map((chat) => chat.chatId),
     ["approval", "answer", "running", "current", "new"],
   );
+});
+
+test("all agents are selectable, no agent is chosen by default, and references apply to one turn", async () => {
+  const previousAgents = fake.agents;
+  fake.record = null;
+  const definition = {
+    avatar: "cat-cream",
+    category: "办公",
+    summary: "Short label only",
+    instructions: "OFFICE WORKING INSTRUCTIONS",
+    useCases: [],
+    starterPrompts: [],
+    skillKeys: [],
+    toolNames: [],
+    knowledgeCollectionIds: [],
+    createdAt: 0,
+    updatedAt: 0,
+  };
+  fake.agents = [
+    { ...definition, id: "builtin:office", name: "Office", source: "builtin" },
+    {
+      ...definition,
+      id: "custom",
+      name: "Research",
+      source: "custom",
+      instructions: "RESEARCH WORKING INSTRUCTIONS",
+      skillKeys: ["skill"],
+      toolNames: ["own", "outside-scene"],
+      knowledgeCollectionIds: ["knowledge", "disabled-knowledge"],
+    },
+  ];
+  const owner = createDesktopChatService();
+  try {
+    const session = await owner.openSession({
+      ...historyInput("agent-refs"),
+      profile: {
+        id: "agent-test",
+        systemPrompt: () => "Base scene",
+        allowedToolNames: ["own"],
+        context: async () => ({ systemPrompt: "Custom scene" }),
+      },
+    });
+    assert.deepEqual(
+      session.getSnapshot().resources.agents?.map((agent) => agent.value),
+      ["builtin:office", "custom"],
+    );
+    assert.equal(session.getSnapshot().config.selectedAgentId, "");
+    await session.updateConfig({
+      selectedAgentId: "builtin:office",
+      selectedSkillKeys: [],
+      selectedKnowledgeCollectionIds: [],
+    });
+    const referenced = await session.send({
+      text: "/Research prepare report",
+      blocks: [
+        { type: "agent-reference", agentId: "custom", name: "Research" },
+        { type: "text", content: " prepare report" },
+      ],
+    });
+    assert.equal(referenced.status, "dispatched");
+    const run = fake.runs.at(-1);
+    assert.match(run.systemPrompt, /Custom scene/);
+    assert.match(run.systemPrompt, /RESEARCH WORKING INSTRUCTIONS/);
+    assert.doesNotMatch(run.systemPrompt, /OFFICE WORKING INSTRUCTIONS|Short label only/);
+    assert.match(run.requestContext, /private skill body/);
+    assert.deepEqual(run.resources.tools.allowed, ["own"]);
+    assert.deepEqual(run.resources.skills.enabled, ["skill"]);
+    assert.deepEqual(fake.knowledgeQueries.at(-1).collectionIds, ["knowledge"]);
+    assert.equal((session.getSnapshot().messages.at(-1) as any).agentName, "Research");
+    assert.equal(session.getSnapshot().config.selectedAgentId, "builtin:office");
+    await session.stop();
+    await session.send({ text: "next ordinary request" });
+    assert.match(fake.runs.at(-1).systemPrompt, /OFFICE WORKING INSTRUCTIONS/);
+    assert.doesNotMatch(fake.runs.at(-1).requestContext, /private skill body/);
+    await session.stop();
+    const count = fake.runs.length;
+    const deleted = await session.send({
+      text: "deleted",
+      blocks: [{ type: "agent-reference", agentId: "deleted", name: "Deleted" }],
+    });
+    assert.equal(deleted.status, "rejected");
+    assert.match(deleted.reason ?? "", /已删除/);
+    const multiple = await session.send({
+      text: "two agents",
+      blocks: [
+        { type: "agent-reference", agentId: "custom", name: "Research" },
+        { type: "agent-reference", agentId: "builtin:office", name: "Office" },
+      ],
+    });
+    assert.equal(multiple.status, "rejected");
+    assert.equal(fake.runs.length, count);
+  } finally {
+    await owner.closeAll();
+    fake.agents = previousAgents;
+  }
 });

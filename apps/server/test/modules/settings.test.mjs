@@ -12,6 +12,13 @@ import { token } from "../support/helpers.mjs";
 const fixture = fileURLToPath(
   new URL("../support/fixtures/runtime.mjs", import.meta.url),
 );
+const customAgent = (extra = {}) => ({
+  name: "Writer",
+  avatar: "cat-cream",
+  category: "办公",
+  instructions: "Draft carefully",
+  ...extra,
+});
 const uuid7 = /^[0-9a-f]{12}7[0-9a-f]{3}[89ab][0-9a-f]{15}$/;
 const model = (extra = {}) => ({
   modelId: " m1 ",
@@ -67,9 +74,11 @@ async function setup(t) {
 test("settings commands use authenticated Tauri envelopes and isolated persisted defaults", async (t) => {
   const s = await setup(t);
   assert.deepEqual(await s.invoke("get_llm_settings"), { providers: [] });
-  assert.deepEqual(await s.invoke("get_ai_agent_settings"), {
-    agents: [],
-  });
+  const builtin = (await s.invoke("get_agent_settings")).agents;
+  assert.equal(builtin.length, 8);
+  assert.ok(
+    builtin.every((agent) => agent.source === "builtin" && agent.instructions),
+  );
   const unauthenticated = await fetch(
     `${s.server.url}/api/commands/get_llm_settings`,
     { method: "POST", body: "{}" },
@@ -82,9 +91,9 @@ test("settings commands use authenticated Tauri envelopes and isolated persisted
   for (const name of [
     "get_llm_settings",
     "save_llm_settings",
-    "get_ai_agent_settings",
-    "save_ai_agent",
-    "delete_ai_agent",
+    "get_agent_settings",
+    "save_agent",
+    "delete_agent",
   ])
     assert.ok(commands.includes(name));
   await s.invoke("get_llm_settings", { input: {} }, 400);
@@ -186,41 +195,63 @@ test("duplicate model failure rolls back the entire replacement without exposing
   }
 });
 
-test("Agent CRUD preserves IDs, timestamps and persisted chat roles", async (t) => {
+test("agents expose immutable presets and persist complete custom definitions across restarts", async (t) => {
   const s = await setup(t);
-  let settings = await s.invoke("save_ai_agent", {
-    input: {
+  const builtin = await s.invoke("get_agent_settings");
+  for (const name of [
+    "get_ai_agent_settings",
+    "save_ai_agent",
+    "delete_ai_agent",
+  ])
+    await s.invoke(name, {}, 404);
+  let settings = await s.invoke("save_agent", {
+    input: customAgent({
       id: "invalid",
       name: " Writer ",
-      avatar: " pen ",
-      description: " ",
-    },
+      summary: " ",
+      skillKeys: ["skill", "skill"],
+      toolNames: ["read_file"],
+      knowledgeCollectionIds: ["knowledge"],
+      useCases: ["撰写邮件"],
+      starterPrompts: ["写一封邀请邮件"],
+    }),
   });
-  const writer = settings.agents[0];
+  const writer = settings.agents.find((agent) => agent.source === "custom");
   assert.match(writer.id, uuid7);
   assert.equal(writer.name, "Writer");
-  assert.equal(writer.description, null);
-  settings = await s.invoke("save_ai_agent", {
-    input: { name: "Reviewer", avatar: "review" },
+  assert.equal(writer.summary, "");
+  assert.deepEqual(writer.skillKeys, ["skill"]);
+  assert.deepEqual(writer.toolNames, ["read_file"]);
+  assert.deepEqual(writer.knowledgeCollectionIds, ["knowledge"]);
+  settings = await s.invoke("save_agent", {
+    input: customAgent({
+      id: writer.id,
+      name: "Writer updated",
+      instructions: "New working instructions",
+    }),
   });
-  const reviewer = settings.agents[1];
-  settings = await s.invoke("save_ai_agent", {
-    input: { id: writer.id, name: "Writer updated", avatar: "pen" },
-  });
-  assert.equal(settings.agents.length, 2);
-  assert.equal(settings.agents[0].createdAt, writer.createdAt);
-  assert.ok(settings.agents[0].updatedAt >= writer.updatedAt);
-  await s.restart();
-  assert.deepEqual(await s.invoke("get_ai_agent_settings"), settings);
-  settings = await s.invoke("delete_ai_agent", { id: writer.id });
-  assert.equal(settings.agents.length, 1);
-  assert.equal(settings.agents[0].id, reviewer.id);
+  const updated = settings.agents.find((agent) => agent.id === writer.id);
+  assert.equal(updated.createdAt, writer.createdAt);
+  assert.ok(updated.updatedAt >= writer.updatedAt);
+  assert.equal(updated.instructions, "New working instructions");
   assert.deepEqual(
-    await s.invoke("delete_ai_agent", { id: writer.id }),
-    settings,
+    settings.agents.filter((agent) => agent.source === "builtin"),
+    builtin.agents,
   );
-  await s.invoke("save_ai_agent", { input: { name: "Bad", avatar: " " } }, 400);
-  await s.invoke("delete_ai_agent", { input: { id: reviewer.id } }, 400);
+  for (const bad of [
+    customAgent({ instructions: " " }),
+    customAgent({ skillKeys: [1] }),
+    customAgent({ description: "retired" }),
+    customAgent({ id: builtin.agents[0].id }),
+  ]) {
+    await s.invoke("save_agent", { input: bad }, 400);
+    assert.deepEqual(await s.invoke("get_agent_settings"), settings);
+  }
+  await s.invoke("delete_agent", { id: builtin.agents[0].id }, 400);
+  await s.restart();
+  assert.deepEqual(await s.invoke("get_agent_settings"), settings);
+  assert.deepEqual(await s.invoke("delete_agent", { id: writer.id }), builtin);
+  assert.deepEqual(await s.invoke("delete_agent", { id: writer.id }), builtin);
 });
 
 test("retired workflow commands are unavailable and legacy data cannot break chat role settings", async (t) => {
@@ -252,17 +283,19 @@ test("retired workflow commands are unavailable and legacy data cannot break cha
       );
       assert.equal(failure.error.code, "COMMAND_NOT_FOUND");
     }
-    assert.deepEqual(await s.invoke("get_ai_agent_settings"), { agents: [] });
-    const saved = await s.invoke("save_ai_agent", {
-      input: { name: "Chat role", avatar: "pen" },
+    const originalAgents = await s.invoke("get_agent_settings");
+    const saved = await s.invoke("save_agent", {
+      input: customAgent({ name: "Chat agent" }),
     });
     assert.deepEqual(Object.keys(saved), ["agents"]);
     assert.deepEqual(
-      await s.invoke("delete_ai_agent", { id: saved.agents[0].id }),
-      { agents: [] },
+      await s.invoke("delete_agent", {
+        id: saved.agents.find((agent) => agent.source === "custom").id,
+      }),
+      originalAgents,
     );
     await s.restart();
-    assert.deepEqual(await s.invoke("get_ai_agent_settings"), { agents: [] });
+    assert.deepEqual(await s.invoke("get_agent_settings"), originalAgents);
     assert.deepEqual(
       { ...db.prepare("SELECT * FROM collaboration_workflows").get() },
       original,
@@ -277,24 +310,20 @@ test("database locks return a bounded retryable error and leave settings intact"
   const locker = new DatabaseSync(join(s.root, "config.db"));
   try {
     locker.exec("BEGIN IMMEDIATE");
-    const failure = await s.invoke(
-      "save_ai_agent",
-      { input: { name: "Writer", avatar: "pen" } },
-      503,
-    );
+    const failure = await s.invoke("save_agent", { input: customAgent() }, 503);
     assert.equal(failure.error.code, "SETTINGS_BUSY");
   } finally {
     locker.exec("ROLLBACK");
     locker.close();
   }
-  assert.deepEqual((await s.invoke("get_ai_agent_settings")).agents, []);
+  assert.equal((await s.invoke("get_agent_settings")).agents.length, 8);
   assert.equal(
     (
-      await s.invoke("save_ai_agent", {
-        input: { name: "Writer", avatar: "pen" },
+      await s.invoke("save_agent", {
+        input: customAgent(),
       })
     ).agents.length,
-    1,
+    9,
   );
 });
 
@@ -331,7 +360,6 @@ test("migrated configuration tables keep Tauri column names", async (t) => {
       "workspaces",
       "llm_providers",
       "provider_models",
-      "ai_agents",
       "collaboration_workflows",
     ]) {
       const columns = rust.match(

@@ -5,6 +5,7 @@ import { releaseAgentRuntimeSession } from "@/api/agent-runtime";
 import type { ChatRuntime, ChatContextProvider } from "../core";
 import type { createDesktopCatalog, ChatProfile } from "./catalog";
 import { buildAgentPrompt } from "./context";
+import { resolveTurnAgent, resolveAgentCapabilities } from "./agent-selection";
 import type { ChatOrigin } from "@/api/chat";
 
 export function createDesktopRuntime(
@@ -22,8 +23,15 @@ export function createDesktopRuntime(
       const profile = readProfile();
       const details = catalog.getDetails();
       const { config, input } = turn;
+      const agent = resolveTurnAgent(details.agents, config, input);
+      const capabilities = resolveAgentCapabilities(
+        agent,
+        config,
+        details.resources,
+        details.skills.map((skill) => skill.key),
+      );
       const collections = (details.resources.knowledgeCollections ?? []).filter((item) =>
-        config.selectedKnowledgeCollectionIds.includes(item.value),
+        capabilities.knowledgeIds.includes(item.value),
       );
       const knowledge = collections.length
         ? await searchEnabledKnowledge({
@@ -37,18 +45,18 @@ export function createDesktopRuntime(
       const custom = await profile.context?.(turn, signal);
       signal.throwIfAborted();
       const prompt = buildAgentPrompt(
-        profile.systemPrompt(workspacePath),
+        custom?.systemPrompt ?? profile.systemPrompt(workspacePath),
         {
           blocks: input.blocks ?? [],
-          skills: details.skills.filter((skill) => config.selectedSkillKeys.includes(skill.key)),
-          tools: (details.resources.tools ?? []).map((tool) => tool.value),
-          agent: details.agents.find((agent) => agent.id === config.selectedAgentId) ?? null,
+          skills: details.skills.filter((skill) => capabilities.skillKeys.includes(skill.key)),
+          tools: capabilities.toolNames,
+          agent,
           knowledgeCollections: collections,
         },
         knowledge,
       );
       return {
-        systemPrompt: custom?.systemPrompt ?? prompt.systemPrompt,
+        systemPrompt: prompt.systemPrompt,
         requestContext: [prompt.requestContext, custom?.requestContext].filter(Boolean).join("\n\n"),
         runtimeInstruction: [prompt.runtimeInstruction, custom?.runtimeInstruction].filter(Boolean).join("\n\n"),
       };
@@ -66,9 +74,15 @@ export function createDesktopRuntime(
       const model = await resolveLlmModel(turn.config.selectedModelId, turn.config.thinkingLevel);
       signal.throwIfAborted();
       const details = catalog.getDetails();
-      const agent = details.agents.find((item) => item.id === turn.config.selectedAgentId);
+      const agent = resolveTurnAgent(details.agents, turn.config, turn.input);
+      const capabilities = resolveAgentCapabilities(
+        agent,
+        turn.config,
+        details.resources,
+        details.skills.map((skill) => skill.key),
+      );
       const skills = details.skills
-        .filter((skill) => turn.config.selectedSkillKeys.includes(skill.key))
+        .filter((skill) => capabilities.skillKeys.includes(skill.key))
         .map((skill) => skill.name);
       return {
         author: { name: agent?.name, avatar: agent?.avatar },
@@ -76,7 +90,10 @@ export function createDesktopRuntime(
           await readProfile().authorize?.();
           signal.throwIfAborted();
           const profile = readProfile();
-          const tools = profile.resolveToolNames?.() ?? profile.allowedToolNames;
+          const allowed = profile.resolveToolNames?.() ?? profile.allowedToolNames;
+          const tools = agent?.toolNames.length
+            ? capabilities.toolNames.filter((name) => !allowed || allowed.includes(name))
+            : allowed;
           await client.agent.run({
             taskId: turn.taskId,
             ...(origin.kind === "application" ? { applicationId: origin.applicationId } : {}),
