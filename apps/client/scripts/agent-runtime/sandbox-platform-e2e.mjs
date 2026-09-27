@@ -90,7 +90,14 @@ try {
   await api.setSandboxEnabled(false);
   assert.equal(api.resolveExecutionPolicy("ask", temp).sandbox, null);
   assert.ok(isolated.sandbox, "disabling does not change an active isolated run");
-  assert.throws(() => api.resolveExecutionPolicy("ask", temp, undefined, undefined, { access: {} }), /agentAccess/);
+  const access = {
+    filesystem: { read: [temp], write: [temp] },
+    network: { hosts: [] },
+    process: { execute: false },
+  };
+  const applicationPlain = api.resolveExecutionPolicy("ask", temp, undefined, undefined, { access });
+  assert.equal(applicationPlain.sandbox, null);
+  assert.deepEqual(applicationPlain.access, access, "application access checks survive disabled OS isolation");
   assert.throws(() => api.saveSandboxEnabled("false"), /boolean/);
   writeFileSync(process.env.ISLE_SANDBOX_SETTINGS_PATH, '{"enabled":"false"}');
   assert.throws(() => api.readExecutionConfig(), /boolean/, "invalid settings cannot silently disable isolation");

@@ -89,8 +89,9 @@ export function resolveExecutionPolicy(
   const parsed = validateExecutionConfig(config);
   const execution = { workspacePath: canonicalPath(workspacePath), environment: parsed.environment };
   if (!parsed.enabled) {
-    if (constraint) throw new Error("当前请求带有 agentAccess 限制，请启用执行沙箱后重试。");
-    return { ...execution, sandbox: null };
+    // Disabling OS isolation also applies to application chats. Keep their
+    // access snapshot for tool checks and Node's process permission guard.
+    return { ...execution, sandbox: null, ...(constraint ? { access: constraint.access } : {}) };
   }
   const profile = parsed.profiles.find((profile) => profile.mode === mode);
   if (!profile) throw new Error(`未配置沙箱档位：${mode}`);
@@ -186,10 +187,10 @@ export class ProgramExecutor {
   constructor(launch: ExecutionLaunch) {
     this.policy = launch.policy;
     if (launch.policy.access) {
-      if (!launch.policy.sandbox) throw new Error("带有访问范围的执行程序必须使用沙箱。");
       if (launch.program.executable !== process.execPath) throw new Error("当前执行程序尚未提供进程权限隔离适配。");
       // Node confines in-process custom tools too. Spawned programs remain under
-      // the OS filesystem/network sandbox; addons, FFI and worker escape paths stay disabled.
+      // the OS filesystem/network sandbox when enabled; addons, FFI and worker
+      // escape paths stay disabled even when OS isolation is switched off.
       launch = {
         ...launch,
         program: {

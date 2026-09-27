@@ -108,7 +108,9 @@ try {
     }
   }
   const disabled = { ...api.EXECUTION_CONFIG, enabled: false };
-  assert.throws(() => api.resolveExecutionPolicy("full", workspace, disabled, runtime, { access }));
+  const plain = api.resolveExecutionPolicy("full", workspace, disabled, runtime, { access });
+  assert.equal(plain.sandbox, null);
+  assert.deepEqual(plain.access, access);
   console.log(
     "PASS protocol parsing, path traversal/symlink rejection, immutable grants and hard denial in all modes, including disabled approvals",
   );
