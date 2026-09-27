@@ -27,6 +27,7 @@ type AgentEntry = {
   name: string;
   description: string;
   agentId: string;
+  category: string;
   group: string;
 };
 export type ReferenceEntry = CommandEntry | SkillEntry | AgentEntry;
@@ -94,7 +95,7 @@ const skillEntries = (skills: ChatInputSkillOption[], groups: SkillGroup[]): Ski
 const matches = (entry: ReferenceEntry, query: string) => {
   const searchable =
     entry.kind === "agent"
-      ? `${entry.name}\n${entry.description}\n${entry.group}`
+      ? `${entry.name}\n${entry.description}\n${entry.category}\n${entry.group}`
       : entry.kind === "command"
         ? `${entry.name}\n${entry.description}\n${entry.commandId}\n${entry.source}\n${entry.pluginName}`
         : `${entry.label}\n${entry.name}\n${entry.description}\n${entry.skillKey}\n${entry.group}`;
@@ -117,6 +118,7 @@ export const getReferenceEntries = (
       agentId: agent.value,
       name: agent.label,
       description: agent.description ?? "",
+      category: agent.category ?? "",
       group: "智能体",
     })),
     ...skillEntries(skills, skillGroups),

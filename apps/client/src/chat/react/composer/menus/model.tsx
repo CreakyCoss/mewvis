@@ -15,6 +15,7 @@ import {
 } from "design-system/components/ui/dropdown-menu";
 import { Switch } from "design-system/components/ui/switch";
 import type { useChatControls } from "../../provider";
+import { AgentOptionContent } from "../agent-option";
 import { CapabilitySubmenus } from "./capability";
 
 type ModelMenuProps = {
@@ -116,18 +117,26 @@ export const ModelMenu = ({ disabled, selectionDisabled, controls, referencedAge
             <span className="min-w-0 flex-1 truncate">智能体</span>
             <span className="max-w-32 truncate text-xs text-muted-foreground">{selectedAgentLabel}</span>
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="max-h-96 w-60 overflow-y-auto">
+          <DropdownMenuSubContent className="max-h-96 w-80 max-w-[calc(100vw-2rem)] overflow-y-auto">
             <DropdownMenuRadioGroup
               value={selectedAgent?.value ?? ""}
               onValueChange={(selectedAgentId) => resourceStore.updateOptions({ selectedAgentId })}
             >
-              <DropdownMenuRadioItem value="">不使用智能体</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="" className="pr-2.5 data-[state=checked]:pr-8">
+                不使用智能体
+              </DropdownMenuRadioItem>
               {agents.length === 0 ? (
                 <DropdownMenuItem disabled>暂无智能体</DropdownMenuItem>
               ) : (
                 agents.map((agent) => (
-                  <DropdownMenuRadioItem key={agent.value} value={agent.value} title={agent.description}>
-                    <span className="truncate">{agent.label}</span>
+                  <DropdownMenuRadioItem
+                    key={agent.value}
+                    value={agent.value}
+                    title={agent.description}
+                    textValue={agent.label}
+                    className="py-2 pr-2.5 data-[state=checked]:pr-8"
+                  >
+                    <AgentOptionContent label={agent.label} category={agent.category} description={agent.description} />
                   </DropdownMenuRadioItem>
                 ))
               )}
