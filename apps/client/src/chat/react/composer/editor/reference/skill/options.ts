@@ -117,7 +117,7 @@ export const getReferenceEntries = (
       agentId: agent.value,
       name: agent.label,
       description: agent.description ?? "",
-      group: agent.source === "custom" ? "我的智能体" : "内置智能体",
+      group: "智能体",
     })),
     ...skillEntries(skills, skillGroups),
   ];

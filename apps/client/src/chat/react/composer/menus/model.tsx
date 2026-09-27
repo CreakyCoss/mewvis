@@ -125,21 +125,11 @@ export const ModelMenu = ({ disabled, selectionDisabled, controls, referencedAge
               {agents.length === 0 ? (
                 <DropdownMenuItem disabled>暂无智能体</DropdownMenuItem>
               ) : (
-                (["builtin", "custom"] as const).map((source) => {
-                  const items = agents.filter((agent) => (agent.source ?? "builtin") === source);
-                  return items.length ? (
-                    <div key={source}>
-                      <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-                        {source === "builtin" ? "内置智能体" : "我的智能体"}
-                      </DropdownMenuLabel>
-                      {items.map((agent) => (
-                        <DropdownMenuRadioItem key={agent.value} value={agent.value} title={agent.description}>
-                          <span className="truncate">{agent.label}</span>
-                        </DropdownMenuRadioItem>
-                      ))}
-                    </div>
-                  ) : null;
-                })
+                agents.map((agent) => (
+                  <DropdownMenuRadioItem key={agent.value} value={agent.value} title={agent.description}>
+                    <span className="truncate">{agent.label}</span>
+                  </DropdownMenuRadioItem>
+                ))
               )}
             </DropdownMenuRadioGroup>
           </DropdownMenuSubContent>

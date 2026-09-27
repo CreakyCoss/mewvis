@@ -15,6 +15,46 @@ import { normalizeLlmSettingsConfig, toLlmSettingsConfig } from "../../src/workb
 import { createApplicationChatHost } from "../../src/chat/desktop/application";
 import { createApplicationChatClient, type ApplicationChatEvent } from "@isle/app-sdk/chat";
 import { createApplicationToolClient } from "@isle/app-sdk/tools";
+import { createAgentDraft } from "../../src/workbench/pages/settings/agents/draft";
+import type { AgentTemplate } from "../../src/workbench/pages/settings/agents/types";
+
+test("creating an agent from a system configuration strips identity and makes independent editable lists", () => {
+  const template: AgentTemplate = {
+    id: "template:reviewer",
+    name: "代码审查员",
+    avatar: "cat-graphite",
+    summary: "审查代码",
+    category: "研发",
+    instructions: "检查边界条件",
+    useCases: ["审查"],
+    starterPrompts: ["审查这个改动"],
+    skillKeys: ["review"],
+    toolNames: ["read_file"],
+    knowledgeCollectionIds: ["standards"],
+    references: [{ name: "Source", url: "https://example.com" }],
+  };
+  const original = structuredClone(template);
+  const first = createAgentDraft(template);
+  assert.equal(first.name, template.name);
+  assert.equal(first.instructions, template.instructions);
+  assert.ok(!("id" in first) && !("references" in first) && !("templateId" in first));
+  first.name = "我的审查员";
+  for (const key of ["useCases", "starterPrompts", "skillKeys", "toolNames", "knowledgeCollectionIds"] as const)
+    first[key].push("custom");
+  assert.deepEqual(template, original);
+  const { id: _id, references: _references, ...expected } = original;
+  assert.deepEqual(createAgentDraft(template), expected);
+});
+
+test("creating from blank does not reuse the previously selected configuration", () => {
+  const blank = createAgentDraft();
+  assert.equal(blank.name, "");
+  assert.equal(blank.instructions, "");
+  assert.equal(blank.category, "自定义");
+  assert.deepEqual(blank.skillKeys, []);
+  assert.deepEqual(blank.toolNames, []);
+  assert.deepEqual(blank.knowledgeCollectionIds, []);
+});
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -168,6 +208,7 @@ test("resource loading tolerates tools failure; UI descriptors contain no runtim
   const catalog = createDesktopCatalog(client as any, () => ({ id: "workspace", systemPrompt: () => "" }));
   const data = await catalog.load();
   assert.equal(data.models?.length, 1);
+  assert.deepEqual(data.agents, []);
   assert.equal(data.skillGroups?.[0].skills.length, 1);
   assert.equal(data.knowledgeCollections?.length, 1);
   assert.match(data.errors?.tools ?? "", /工具/);
@@ -924,7 +965,7 @@ test("opening another chat preserves running and waiting chats at the open-chat 
   );
 });
 
-test("all agents are selectable, no agent is chosen by default, and references apply to one turn", async () => {
+test("added and manually created agents share one catalog, stay unselected by default, and references apply to one turn", async () => {
   const previousAgents = fake.agents;
   fake.record = null;
   const definition = {
@@ -941,12 +982,12 @@ test("all agents are selectable, no agent is chosen by default, and references a
     updatedAt: 0,
   };
   fake.agents = [
-    { ...definition, id: "builtin:office", name: "Office", source: "builtin" },
+    { ...definition, id: "office", name: "Office", templateId: "template:office-assistant" },
     {
       ...definition,
       id: "custom",
       name: "Research",
-      source: "custom",
+      templateId: null,
       instructions: "RESEARCH WORKING INSTRUCTIONS",
       skillKeys: ["skill"],
       toolNames: ["own", "outside-scene"],
@@ -966,11 +1007,11 @@ test("all agents are selectable, no agent is chosen by default, and references a
     });
     assert.deepEqual(
       session.getSnapshot().resources.agents?.map((agent) => agent.value),
-      ["builtin:office", "custom"],
+      ["office", "custom"],
     );
     assert.equal(session.getSnapshot().config.selectedAgentId, "");
     await session.updateConfig({
-      selectedAgentId: "builtin:office",
+      selectedAgentId: "office",
       selectedSkillKeys: [],
       selectedKnowledgeCollectionIds: [],
     });
@@ -991,7 +1032,7 @@ test("all agents are selectable, no agent is chosen by default, and references a
     assert.deepEqual(run.resources.skills.enabled, ["skill"]);
     assert.deepEqual(fake.knowledgeQueries.at(-1).collectionIds, ["knowledge"]);
     assert.equal((session.getSnapshot().messages.at(-1) as any).agentName, "Research");
-    assert.equal(session.getSnapshot().config.selectedAgentId, "builtin:office");
+    assert.equal(session.getSnapshot().config.selectedAgentId, "office");
     await session.stop();
     await session.send({ text: "next ordinary request" });
     assert.match(fake.runs.at(-1).systemPrompt, /OFFICE WORKING INSTRUCTIONS/);
@@ -1008,7 +1049,7 @@ test("all agents are selectable, no agent is chosen by default, and references a
       text: "two agents",
       blocks: [
         { type: "agent-reference", agentId: "custom", name: "Research" },
-        { type: "agent-reference", agentId: "builtin:office", name: "Office" },
+        { type: "agent-reference", agentId: "office", name: "Office" },
       ],
     });
     assert.equal(multiple.status, "rejected");

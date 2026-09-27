@@ -74,11 +74,7 @@ async function setup(t) {
 test("settings commands use authenticated Tauri envelopes and isolated persisted defaults", async (t) => {
   const s = await setup(t);
   assert.deepEqual(await s.invoke("get_llm_settings"), { providers: [] });
-  const builtin = (await s.invoke("get_agent_settings")).agents;
-  assert.equal(builtin.length, 8);
-  assert.ok(
-    builtin.every((agent) => agent.source === "builtin" && agent.instructions),
-  );
+  assert.deepEqual(await s.invoke("get_agent_settings"), { agents: [] });
   const unauthenticated = await fetch(
     `${s.server.url}/api/commands/get_llm_settings`,
     { method: "POST", body: "{}" },
@@ -92,6 +88,9 @@ test("settings commands use authenticated Tauri envelopes and isolated persisted
     "get_llm_settings",
     "save_llm_settings",
     "get_agent_settings",
+    "get_agent_templates",
+    "add_agent_from_template",
+    "reset_agent",
     "save_agent",
     "delete_agent",
   ])
@@ -195,9 +194,9 @@ test("duplicate model failure rolls back the entire replacement without exposing
   }
 });
 
-test("agents expose immutable presets and persist complete custom definitions across restarts", async (t) => {
+test("agents start empty and persist manually created definitions across restarts", async (t) => {
   const s = await setup(t);
-  const builtin = await s.invoke("get_agent_settings");
+  const empty = await s.invoke("get_agent_settings");
   for (const name of [
     "get_ai_agent_settings",
     "save_ai_agent",
@@ -216,7 +215,7 @@ test("agents expose immutable presets and persist complete custom definitions ac
       starterPrompts: ["写一封邀请邮件"],
     }),
   });
-  const writer = settings.agents.find((agent) => agent.source === "custom");
+  const writer = settings.agents[0];
   assert.match(writer.id, uuid7);
   assert.equal(writer.name, "Writer");
   assert.equal(writer.summary, "");
@@ -234,24 +233,129 @@ test("agents expose immutable presets and persist complete custom definitions ac
   assert.equal(updated.createdAt, writer.createdAt);
   assert.ok(updated.updatedAt >= writer.updatedAt);
   assert.equal(updated.instructions, "New working instructions");
-  assert.deepEqual(
-    settings.agents.filter((agent) => agent.source === "builtin"),
-    builtin.agents,
-  );
+  assert.equal(updated.templateId, null);
+  await s.invoke("reset_agent", { id: writer.id }, 400);
   for (const bad of [
     customAgent({ instructions: " " }),
     customAgent({ skillKeys: [1] }),
     customAgent({ description: "retired" }),
-    customAgent({ id: builtin.agents[0].id }),
+    customAgent({ templateId: "template:office-assistant" }),
   ]) {
     await s.invoke("save_agent", { input: bad }, 400);
     assert.deepEqual(await s.invoke("get_agent_settings"), settings);
   }
-  await s.invoke("delete_agent", { id: builtin.agents[0].id }, 400);
   await s.restart();
   assert.deepEqual(await s.invoke("get_agent_settings"), settings);
-  assert.deepEqual(await s.invoke("delete_agent", { id: writer.id }), builtin);
-  assert.deepEqual(await s.invoke("delete_agent", { id: writer.id }), builtin);
+  assert.deepEqual(await s.invoke("delete_agent", { id: writer.id }), empty);
+  assert.deepEqual(await s.invoke("delete_agent", { id: writer.id }), empty);
+});
+
+test("system configurations add on demand, deduplicate and reset independently of user edits", async (t) => {
+  const s = await setup(t);
+  const library = await s.invoke("get_agent_templates");
+  assert.deepEqual(await s.invoke("get_agent_settings"), { agents: [] });
+  assert.equal(library.templates.length, 16);
+  assert.equal(new Set(library.templates.map((item) => item.id)).size, 16);
+  assert.ok(
+    library.templates.every(
+      (item) =>
+        item.id.startsWith("template:") &&
+        item.instructions &&
+        item.references.length,
+    ),
+  );
+  const templateId = "template:code-reviewer";
+  const reviewer = library.templates.find((item) => item.id === templateId);
+  for (const command of [
+    "get_agent_templates",
+    "add_agent_from_template",
+    "reset_agent",
+  ]) {
+    const unauthenticated = await fetch(
+      `${s.server.url}/api/commands/${command}`,
+      { method: "POST", body: "{}" },
+    );
+    assert.equal(unauthenticated.status, 401);
+  }
+  await s.invoke("get_agent_templates", { input: {} }, 400);
+  await s.invoke("add_agent_from_template", { templateId: "missing" }, 400);
+  await s.invoke(
+    "add_agent_from_template",
+    { templateId, name: "override" },
+    400,
+  );
+  await s.invoke("reset_agent", { id: "missing" }, 404);
+  await s.invoke("save_agent", { input: reviewer }, 400);
+  const additions = await Promise.all(
+    Array.from({ length: 4 }, () =>
+      s.invoke("add_agent_from_template", { templateId }),
+    ),
+  );
+  const added = additions[0].agents[0];
+  assert.match(added.id, uuid7);
+  assert.equal(added.templateId, templateId);
+  assert.ok(
+    additions.every(
+      (result) =>
+        result.agents.length === 1 && result.agents[0].id === added.id,
+    ),
+  );
+  const {
+    id: _templateId,
+    references: _references,
+    ...configuration
+  } = reviewer;
+  assert.deepEqual(added, {
+    ...configuration,
+    id: added.id,
+    templateId,
+    createdAt: added.createdAt,
+    updatedAt: added.updatedAt,
+  });
+  let settings = await s.invoke("save_agent", {
+    input: {
+      ...configuration,
+      id: added.id,
+      name: "我的审查员",
+      avatar: "cat-mint",
+      summary: "定制审查",
+      category: "自定义",
+      instructions: "只检查数据库事务",
+      useCases: ["数据库"],
+      starterPrompts: ["检查事务"],
+      skillKeys: ["custom-skill"],
+      toolNames: ["read_file"],
+      knowledgeCollectionIds: ["standards"],
+    },
+  });
+  assert.equal(settings.agents[0].templateId, templateId);
+  // Repeated addition never overwrites an edited agent.
+  assert.deepEqual(
+    await s.invoke("add_agent_from_template", { templateId }),
+    settings,
+  );
+  await s.restart();
+  assert.deepEqual(await s.invoke("get_agent_settings"), settings);
+  settings = await s.invoke("reset_agent", { id: added.id });
+  const reset = settings.agents[0];
+  assert.deepEqual(reset, {
+    ...configuration,
+    id: added.id,
+    templateId,
+    createdAt: added.createdAt,
+    updatedAt: reset.updatedAt,
+  });
+  assert.ok(reset.updatedAt >= added.updatedAt);
+  assert.deepEqual(await s.invoke("get_agent_templates"), library);
+  await s.restart();
+  assert.deepEqual(await s.invoke("get_agent_settings"), settings);
+  assert.deepEqual(await s.invoke("delete_agent", { id: added.id }), {
+    agents: [],
+  });
+  const readded = (await s.invoke("add_agent_from_template", { templateId }))
+    .agents[0];
+  assert.notEqual(readded.id, added.id);
+  assert.equal(readded.instructions, reviewer.instructions);
 });
 
 test("retired workflow commands are unavailable and legacy data cannot break chat role settings", async (t) => {
@@ -290,7 +394,7 @@ test("retired workflow commands are unavailable and legacy data cannot break cha
     assert.deepEqual(Object.keys(saved), ["agents"]);
     assert.deepEqual(
       await s.invoke("delete_agent", {
-        id: saved.agents.find((agent) => agent.source === "custom").id,
+        id: saved.agents[0].id,
       }),
       originalAgents,
     );
@@ -316,14 +420,14 @@ test("database locks return a bounded retryable error and leave settings intact"
     locker.exec("ROLLBACK");
     locker.close();
   }
-  assert.equal((await s.invoke("get_agent_settings")).agents.length, 8);
+  assert.deepEqual(await s.invoke("get_agent_settings"), { agents: [] });
   assert.equal(
     (
       await s.invoke("save_agent", {
         input: customAgent(),
       })
     ).agents.length,
-    9,
+    1,
   );
 });
 

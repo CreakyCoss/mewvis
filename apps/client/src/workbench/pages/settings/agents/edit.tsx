@@ -1,10 +1,10 @@
 import { useImperativeHandle, useState, type Ref } from "react";
-import { Loader2, Save, Trash2 } from "lucide-react";
-import { deleteAgent, saveAgent } from "@/api/agents";
+import { Loader2, RotateCcw, Save, Trash2 } from "lucide-react";
+import { deleteAgent, resetAgent, saveAgent } from "@/api/agents";
 import { getSkills } from "@/api/skills";
 import { listKnowledgeLibrary } from "@/api/knowledge";
 import { listAgentRuntimeTools } from "@/api/agent-runtime";
-import { agentAvatarOptions, defaultAgentAvatar, normalizeAgentAvatarId, resolveAvatar } from "@/assets/avatars";
+import { agentAvatarOptions, normalizeAgentAvatarId, resolveAvatar } from "@/assets/avatars";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,23 +27,12 @@ import {
 import { Input } from "design-system/components/ui/input";
 import { Label } from "design-system/components/ui/label";
 import { Textarea } from "design-system/components/ui/textarea";
+import { createAgentDraft } from "./draft";
 import type { AgentDefinition, SaveAgentInput } from "./types";
 
-type OpenOptions = { mode: "create" } | { mode: "edit" | "copy"; agent: AgentDefinition };
+type OpenOptions = { mode: "create" } | { mode: "edit"; agent: AgentDefinition };
 export type AgentEditDialogHandle = { open(options?: OpenOptions): void };
 type BindingOption = { value: string; label: string };
-const emptyDraft = (): SaveAgentInput => ({
-  name: "",
-  avatar: defaultAgentAvatar.id,
-  summary: "",
-  category: "自定义",
-  instructions: "",
-  useCases: [],
-  starterPrompts: [],
-  skillKeys: [],
-  toolNames: [],
-  knowledgeCollectionIds: [],
-});
 const lines = (value: string) => [
   ...new Set(
     value
@@ -64,6 +53,8 @@ export function AgentEditDialog({
   const [starterText, setStarterText] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [templateId, setTemplateId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [bindingError, setBindingError] = useState("");
   const [bindings, setBindings] = useState<{
@@ -94,18 +85,17 @@ export function AgentEditDialog({
     open(options = { mode: "create" }) {
       setError("");
       setConfirmDelete(false);
-      setCaseText(options.mode === "create" ? "" : options.agent.useCases.join("\n"));
-      setStarterText(options.mode === "create" ? "" : options.agent.starterPrompts.join("\n"));
-      if (options.mode === "create") setDraft(emptyDraft());
-      else {
-        const { id, source: _source, createdAt: _createdAt, updatedAt: _updatedAt, ...definition } = options.agent;
-        setDraft({
-          ...definition,
-          avatar: normalizeAgentAvatarId(definition.avatar),
-          id: options.mode === "edit" ? id : null,
-          name: options.mode === "copy" ? `${definition.name}（副本）` : definition.name,
-        });
-      }
+      setConfirmReset(false);
+      setTemplateId(options.mode === "edit" ? options.agent.templateId : null);
+      const configuration = options.mode === "create" ? undefined : options.agent;
+      const nextDraft = createAgentDraft(configuration);
+      setCaseText(nextDraft.useCases.join("\n"));
+      setStarterText(nextDraft.starterPrompts.join("\n"));
+      setDraft({
+        ...nextDraft,
+        avatar: normalizeAgentAvatarId(nextDraft.avatar),
+        id: options.mode === "edit" ? options.agent.id : null,
+      });
       void loadBindings();
     },
   }));
@@ -148,6 +138,25 @@ export function AgentEditDialog({
       setError(String(caught));
       setConfirmDelete(false);
     } finally {
+      setSaving(false);
+    }
+  };
+  const reset = async () => {
+    if (!draft?.id) return;
+    setSaving(true);
+    setError("");
+    try {
+      const { agents } = await resetAgent(draft.id);
+      const restored = agents.find((agent) => agent.id === draft.id);
+      if (!restored) throw new Error("智能体已删除");
+      setDraft({ ...createAgentDraft(restored), id: restored.id });
+      setCaseText(restored.useCases.join("\n"));
+      setStarterText(restored.starterPrompts.join("\n"));
+      await onSaved?.();
+    } catch (caught) {
+      setError(String(caught));
+    } finally {
+      setConfirmReset(false);
       setSaving(false);
     }
   };
@@ -352,6 +361,12 @@ export function AgentEditDialog({
                     删除
                   </Button>
                 )}
+                {draft.id && templateId && (
+                  <Button type="button" variant="outline" disabled={saving} onClick={() => setConfirmReset(true)}>
+                    <RotateCcw className="size-4" />
+                    重置
+                  </Button>
+                )}
                 <Button type="button" variant="outline" disabled={saving} onClick={() => setDraft(null)}>
                   取消
                 </Button>
@@ -379,6 +394,28 @@ export function AgentEditDialog({
               }}
             >
               删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={confirmReset} onOpenChange={setConfirmReset}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>重置 {draft?.name}？</AlertDialogTitle>
+            <AlertDialogDescription>
+              恢复系统配置的名称、头像、工作指令和能力绑定。已保存及尚未保存的修改都会被覆盖。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={saving}
+              onClick={(event) => {
+                event.preventDefault();
+                void reset();
+              }}
+            >
+              恢复系统配置
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -322,11 +322,7 @@ test(
     await call("delete_agent", {
       id: hostSettings.agents.find((r) => r.name === "分析师").id,
     });
-    assert.ok(
-      (await call("get_agent_settings")).agents.every(
-        (agent) => agent.source === "builtin",
-      ),
-    );
+    assert.deepEqual((await call("get_agent_settings")).agents, []);
     await run("model-flow", "请按自定义评审流程完成任务");
     await done("model-flow");
     assert.ok(

@@ -35,7 +35,15 @@ export interface AgentDefinition {
   skillKeys: string[];
   toolNames: string[];
   knowledgeCollectionIds: string[];
-  source: "builtin" | "custom";
+  templateId: string | null;
   createdAt: number;
   updatedAt: number;
 }
+
+/** System-maintained configurations used to create agents; not themselves selectable chat agents. */
+export type AgentTemplate = Omit<
+  AgentDefinition,
+  "templateId" | "createdAt" | "updatedAt"
+> & {
+  references: { name: string; url: string }[];
+};

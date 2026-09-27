@@ -122,7 +122,6 @@ export function createDesktopCatalog(
             value: agent.id,
             label: agent.name,
             description: agent.summary,
-            source: agent.source,
             category: agent.category,
             isDefault: false,
           })),

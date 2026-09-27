@@ -162,7 +162,6 @@ export type ChatResources = {
     thinking?: RuntimeModelThinking;
   })[];
   agents?: (ResourceOption & {
-    source?: "builtin" | "custom";
     category?: string;
   })[];
   skillGroups?: (ResourceOption & { skills: SkillOption[] })[];

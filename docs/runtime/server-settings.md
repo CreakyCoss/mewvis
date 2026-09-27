@@ -9,6 +9,9 @@
 | `get_llm_settings`                  | `{}`                                                        | `{providers: [...]}`         |
 | `save_llm_settings`                 | `{input: {providers: [...]}}`                               | 完整模型配置                 |
 | `get_agent_settings`                | `{}`                                                        | `{agents: [...]}`            |
+| `get_agent_templates`               | `{}`                                                        | `{templates: [...]}`         |
+| `add_agent_from_template`           | `{templateId}`                                              | 完整智能体列表               |
+| `reset_agent`                       | `{id}`                                                      | 完整智能体列表               |
 | `save_agent`                        | `{input: {id?, name, avatar, category, instructions, ...}}` | 完整智能体列表               |
 | `delete_agent`                      | `{id}`                                                      | 完整智能体列表               |
 | `get_agent_runtime_sandbox_status`  | `{}`                                                        | 沙箱开关及就绪状态           |
@@ -51,7 +54,11 @@ Provider 和模型可传 `id`；返回的模型包含 `providerId`。`thinking` 
 
 ## 智能体定义与聊天引用
 
-内置智能体包含办公、写作、资料整理、会议纪要、汇报、数据分析、项目规划和研发助手。全部可在模型菜单中选择，默认不选中；内置定义只读，修改时先复制为自定义智能体。`source` 为 `builtin` 或 `custom`，由服务端决定，保存时不得传入。
+系统在 `agent-templates.ts` 中维护智能体配置库，当前有 16 个配置，包含办公、写作、研究、产品、设计、研发与客户支持等用途。指令参考相关智能体职责和工作方法，由应用维护，无需安装外部技能。`get_agent_templates` 返回完整配置及参考链接；配置以 `template:` 为 ID 前缀，不属于聊天可选择的智能体。
+
+应用不默认添加智能体。“我的智能体”初始为空；设置页的“智能体配置库”展示系统配置，可搜索、按分类筛选和查看完整指令。点击“添加到我的智能体”会复制配置为独立记录，同一系统配置的重复添加返回已有记录且保留其修改。“新建智能体”直接创建空白配置。
+
+从配置库添加的智能体保存 `templateId`，编辑时由服务端保留，客户端不得传入或修改；自行创建的记录该字段为 `null`。编辑页可修改所有工作配置，也可确认重置为当前系统配置，恢复名称、头像、指令、示例与能力绑定，同时保留记录 ID 和创建时间。重置只适用于从系统配置库添加的记录，修改和删除用户记录均不影响系统配置库。聊天的模型菜单、`/` 与 `+` 都只读取“我的智能体”，展示为统一列表，默认不选中。
 
 自定义定义必须包含 `name`、`avatar`、`category` 和 `instructions`。可选 `summary` 为列表介绍，不充当工作指令；`useCases`、`starterPrompts`、`skillKeys`、`toolNames`、`knowledgeCollectionIds` 均为字符串数组，缺省为空。能力绑定只使用当前可用的资源：技能自动加入本次指令，知识库额外参与检索，非空工具列表限制本次可用工具且不能扩大场景权限；工具为空则沿用聊天工具。
 
@@ -68,12 +75,13 @@ Provider 和模型可传 `id`；返回的模型包含 `providerId`。`thinking` 
 
 配置直接使用原来的 `~/.isle-claw/config.db`，也可通过 `ISLE_SERVER_DATA_DIR` 指定根目录。模型、智能体、工作区、故事、技能和知识库配置共用同一份数据库；切换后端不需要复制或导入数据。
 
-配置库当前为 schema v26，不设置 Node 专属 `application_id`。v26 用 `agent_definitions` 保存自定义智能体的完整定义；内置智能体从服务端目录读取，不写入数据库。旧 `ai_agents` 表直接删除，旧角色不兼容、不迁移，原 `get_ai_agent_settings`、`save_ai_agent`、`delete_ai_agent` 命令已移除。旧会话中失效的角色选择会清空，聊天记录仍保留。
+配置库当前为 schema v26，不设置 Node 专属 `application_id`。v26 用 `agent_definitions` 保存“我的智能体”的完整定义，配置来源 ID 保存在定义 JSON 中；系统配置库从服务端读取，不自动写入用户数据。旧 `ai_agents` 表直接删除，旧角色不兼容、不迁移，原 `get_ai_agent_settings`、`save_ai_agent`、`delete_ai_agent` 命令已移除。旧会话中失效的角色选择会清空，聊天记录仍保留。
 
 历史 v4–v25 升级规则仍用于模型、知识库等保留配置；为兼容历史数据库，原 `collaboration_workflows` 表及已有数据继续保留，但宿主不再读写，旧流程不迁移到插件。数据库升级与版本写入在同一事务内完成，失败会整体回滚。更高版本、不兼容或损坏库保留原文件，通过状态接口报告初始化错误，不自动删库重建。
 
 API Key 与 Tauri 字段契约一致存入 SQLite，并由受认证的模型读取接口返回。支持 POSIX 权限的平台上，配置文件权限为 0600，新建数据目录为 0700。配置错误响应不包含 SQL、参数或凭据。
 
+- `404 AGENT_NOT_FOUND`：重置时指定的智能体已删除。
 - `400 INVALID_ARGUMENT`：输入字段、类型或必填内容不合法。
 - `409 SETTINGS_CONFLICT`：重复记录等约束冲突，写入已回滚。
 - `503 SETTINGS_BUSY`：配置库被其他连接占用，请稍后重试；锁等待上限为 100 毫秒。

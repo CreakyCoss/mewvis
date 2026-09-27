@@ -10,10 +10,14 @@ export type AgentDefinition = {
   skillKeys: string[];
   toolNames: string[];
   knowledgeCollectionIds: string[];
-  source: "builtin" | "custom";
+  templateId: string | null;
   createdAt: number;
   updatedAt: number;
 };
-export type SaveAgentInput = Omit<AgentDefinition, "id" | "source" | "createdAt" | "updatedAt"> & {
+export type SaveAgentInput = Omit<AgentDefinition, "id" | "templateId" | "createdAt" | "updatedAt"> & {
   id?: string | null;
+};
+
+export type AgentTemplate = Omit<AgentDefinition, "templateId" | "createdAt" | "updatedAt"> & {
+  references: { name: string; url: string }[];
 };

@@ -150,9 +150,7 @@ test("Rust v24 config → Node HTTP read/write → Rust SQL write → Node read,
   });
   try {
     assert.equal(
-      (await api(server)("get_agent_settings")).agents.find(
-        (agent) => agent.source === "custom",
-      ).name,
+      (await api(server)("get_agent_settings")).agents[0].name,
       "Rust updated Agent",
     );
   } finally {
