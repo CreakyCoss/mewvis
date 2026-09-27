@@ -69,7 +69,7 @@ export const AgentSettingsPage = () => {
     setNotice("");
     try {
       setAgents((await addAgentFromTemplate(template.id)).agents);
-      setNotice(`已添加 ${template.name}，可在“我的智能体”中修改或重置。`);
+      setNotice(`已添加「${template.name}」，可在“我的智能体”中编辑。`);
     } catch (caught) {
       setError(String(caught));
     } finally {
@@ -89,7 +89,7 @@ export const AgentSettingsPage = () => {
     [agents, templates, tab, query, category],
   );
   const busy = tab === "mine" ? loading : libraryLoading;
-  const selectedAgent = detail ? agents.find((agent) => agent.templateId === detail.id) : undefined;
+  const detailAdded = detail ? agents.some((agent) => agent.templateId === detail.id) : false;
   const avatar = (item: AgentTemplate | AgentDefinition) => (
     <img
       src={resolveAvatar(normalizeAgentAvatarId(item.avatar)).src}
@@ -101,11 +101,11 @@ export const AgentSettingsPage = () => {
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface/45">
       <SettingsPageHeader
         title="智能体设置"
-        description="从系统配置库添加智能体，或创建自己的工作方式"
+        description="从配置库添加，或新建自己的智能体"
         action={
-          <Button onClick={() => editor.current?.open({ mode: "create" })}>
+          <Button aria-label="新建智能体" onClick={() => editor.current?.open({ mode: "create" })}>
             <Plus className="size-4" />
-            新建智能体
+            新建
           </Button>
         }
       />
@@ -116,7 +116,7 @@ export const AgentSettingsPage = () => {
               {(
                 [
                   ["mine", "我的智能体", agents.length],
-                  ["library", "智能体配置库", templates.length],
+                  ["library", "配置库", templates.length],
                 ] as const
               ).map(([value, label, count]) => (
                 <button
@@ -148,8 +148,8 @@ export const AgentSettingsPage = () => {
                 </button>
               ))}
             </div>
-            <div className="relative w-56 max-w-full pb-2">
-              <Search className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
+            <div className="relative w-56 max-w-full">
+              <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 aria-label="搜索智能体"
                 placeholder="搜索名称或用途"
@@ -164,7 +164,7 @@ export const AgentSettingsPage = () => {
               <Button
                 key={item}
                 size="sm"
-                variant={category === item ? "secondary" : "ghost"}
+                variant={category === item ? "default" : "ghost"}
                 aria-pressed={category === item}
                 onClick={() => setCategory(item)}
                 className="h-7 rounded-full px-3 text-xs"
@@ -175,8 +175,8 @@ export const AgentSettingsPage = () => {
           </div>
           <p className="text-xs leading-5 text-muted-foreground">
             {tab === "library"
-              ? "系统维护的智能体配置。添加到“我的智能体”后即可在聊天中选择，也可以修改并重置为系统配置。"
-              : "聊天只显示我的智能体，可在模型菜单中选择，或通过 / 和 + 仅为当前请求引用。新对话默认不选中智能体。"}
+              ? "添加后可在聊天中使用，并在“我的智能体”中编辑或重置。"
+              : "在模型菜单中选择，或通过 / 和 + 临时引用。新对话默认不选中。"}
           </p>
           {notice && (
             <p role="status" className="text-sm text-muted-foreground">
@@ -203,7 +203,7 @@ export const AgentSettingsPage = () => {
             {busy ? (
               <div className="flex min-h-48 items-center justify-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" />
-                正在读取智能体
+                加载中…
               </div>
             ) : visible.length ? (
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -248,7 +248,9 @@ export const AgentSettingsPage = () => {
                         <span className="text-xs text-muted-foreground">系统配置</span>
                         <Button
                           size="sm"
-                          variant={added ? "ghost" : "outline"}
+                          aria-label={added ? `已添加 ${item.name}` : `添加 ${item.name} 到我的智能体`}
+                          variant="ghost"
+                          className={`h-7 gap-1.5 rounded-lg px-2.5 text-xs shadow-none ${added ? "text-muted-foreground disabled:opacity-100" : "bg-primary/8 text-primary hover:bg-primary/14 hover:text-primary dark:hover:bg-primary/18"}`}
                           disabled={added || loading || addingId !== null}
                           onClick={() => void add(item)}
                         >
@@ -259,7 +261,7 @@ export const AgentSettingsPage = () => {
                           ) : (
                             <Plus className="size-3.5" />
                           )}
-                          {added ? "已添加" : "添加到我的智能体"}
+                          {added ? "已添加" : addingId === item.id ? "添加中" : "添加"}
                         </Button>
                       </div>
                     </article>
@@ -282,8 +284,8 @@ export const AgentSettingsPage = () => {
                   {query || category !== "全部"
                     ? "没有匹配的智能体"
                     : tab === "mine"
-                      ? "还没有智能体，可以从系统配置库添加，或新建自己的智能体。"
-                      : "暂无系统智能体配置"}
+                      ? "暂无智能体，从配置库添加或自行新建。"
+                      : "配置库暂无智能体"}
                 </p>
                 {tab === "mine" && !query && category === "全部" && !error && (
                   <Button variant="outline" onClick={() => changeTab("library")}>
@@ -354,21 +356,20 @@ export const AgentSettingsPage = () => {
                 )}
               </div>
               <DialogFooter className="shrink-0 border-t border-border/70 px-6 py-4">
-                {selectedAgent ? (
-                  <Button
-                    onClick={() => {
-                      setDetail(null);
-                      editor.current?.open({ mode: "edit", agent: selectedAgent });
-                    }}
-                  >
-                    编辑我的智能体
-                  </Button>
-                ) : (
-                  <Button disabled={loading || addingId !== null} onClick={() => void add(detail)}>
-                    {addingId === detail.id ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-                    添加到我的智能体
-                  </Button>
-                )}
+                <Button
+                  aria-label={detailAdded ? `已添加 ${detail.name}` : `添加 ${detail.name} 到我的智能体`}
+                  disabled={detailAdded || loading || addingId !== null}
+                  onClick={() => void add(detail)}
+                >
+                  {addingId === detail.id ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : detailAdded ? (
+                    <Check className="size-4" />
+                  ) : (
+                    <Plus className="size-4" />
+                  )}
+                  {detailAdded ? "已添加" : addingId === detail.id ? "添加中" : "添加"}
+                </Button>
               </DialogFooter>
             </>
           )}
@@ -376,6 +377,7 @@ export const AgentSettingsPage = () => {
       </Dialog>
       <AgentEditDialog
         bind={editor}
+        categories={[...new Set([...templates, ...agents].map((item) => item.category))]}
         onSaved={async () => {
           changeTab("mine");
           await loadAgents();

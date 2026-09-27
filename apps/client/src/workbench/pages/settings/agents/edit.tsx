@@ -4,7 +4,7 @@ import { deleteAgent, resetAgent, saveAgent } from "@/api/agents";
 import { getSkills } from "@/api/skills";
 import { listKnowledgeLibrary } from "@/api/knowledge";
 import { listAgentRuntimeTools } from "@/api/agent-runtime";
-import { agentAvatarGroups, normalizeAgentAvatarId, resolveAvatar } from "@/assets/avatars";
+import { normalizeAgentAvatarId } from "@/assets/avatars";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +28,8 @@ import { Input } from "design-system/components/ui/input";
 import { Label } from "design-system/components/ui/label";
 import { Textarea } from "design-system/components/ui/textarea";
 import { createAgentDraft } from "./draft";
+import { AgentAvatarPicker } from "./avatar-picker";
+import { AgentCategorySelector } from "./category-selector";
 import type { AgentDefinition, SaveAgentInput } from "./types";
 
 type OpenOptions = { mode: "create" } | { mode: "edit"; agent: AgentDefinition };
@@ -43,9 +45,11 @@ const lines = (value: string) => [
 ];
 export function AgentEditDialog({
   bind,
+  categories,
   onSaved,
 }: {
   bind: Ref<AgentEditDialogHandle>;
+  categories: string[];
   onSaved?: () => void | Promise<void>;
 }) {
   const [draft, setDraft] = useState<SaveAgentInput | null>(null);
@@ -79,7 +83,7 @@ export function AgentEditDialog({
           : [],
     });
     if (results.some((result) => result.status === "rejected"))
-      setBindingError("部分能力列表读取失败，可稍后重试；已保存的绑定会保留。");
+      setBindingError("部分能力列表加载失败，已有绑定会保留。");
   };
   useImperativeHandle(bind, () => ({
     open(options = { mode: "create" }) {
@@ -216,7 +220,7 @@ export function AgentEditDialog({
         <DialogContent className="!flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[720px]">
           <DialogHeader className="shrink-0 border-b border-border/70 px-6 py-5">
             <DialogTitle>{draft?.id ? "编辑智能体" : "新建智能体"}</DialogTitle>
-            <DialogDescription>定义工作方式，并按需绑定已有技能、工具和知识库。</DialogDescription>
+            <DialogDescription>设置工作指令，可选绑定技能、工具和知识库。</DialogDescription>
           </DialogHeader>
           {draft && (
             <form
@@ -234,14 +238,10 @@ export function AgentEditDialog({
                     </p>
                   )}
                   <div className="flex items-start gap-4">
-                    <img
-                      alt="智能体头像"
-                      className="size-14 rounded-xl object-cover"
-                      src={resolveAvatar(draft.avatar).src}
-                    />
+                    <AgentAvatarPicker value={draft.avatar} onChange={(avatar) => patch({ avatar })} />
                     <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-[1fr_140px]">
                       <div className="space-y-2">
-                        <Label htmlFor="agent-name">智能体名称</Label>
+                        <Label htmlFor="agent-name">名称</Label>
                         <Input
                           id="agent-name"
                           autoFocus
@@ -252,46 +252,22 @@ export function AgentEditDialog({
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="agent-category">分类</Label>
-                        <Input
+                        <AgentCategorySelector
                           id="agent-category"
                           value={draft.category}
-                          onChange={(event) => patch({ category: event.target.value })}
+                          options={categories}
+                          onChange={(category) => patch({ category })}
                         />
                       </div>
                     </div>
                   </div>
-                  <details>
-                    <summary className="cursor-pointer text-xs text-muted-foreground">更换头像</summary>
-                    <div className="mt-3 space-y-4">
-                      {agentAvatarGroups.map((group) => (
-                        <div key={group.id} role="group" aria-label={group.label}>
-                          <h4 className="text-xs font-medium text-muted-foreground">{group.label}</h4>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {group.options.map((avatar) => (
-                              <button
-                                type="button"
-                                key={avatar.id}
-                                title={avatar.label}
-                                aria-label={avatar.label}
-                                aria-pressed={draft.avatar === avatar.id}
-                                className={`rounded-lg p-1 ${draft.avatar === avatar.id ? "ring-2 ring-primary" : "hover:bg-accent"}`}
-                                onClick={() => patch({ avatar: avatar.id })}
-                              >
-                                <img src={avatar.src} alt="" className="size-9 rounded-md" />
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </details>
                   <div className="space-y-2">
-                    <Label htmlFor="agent-summary">简短介绍</Label>
+                    <Label htmlFor="agent-summary">简介</Label>
                     <Input
                       id="agent-summary"
                       value={draft.summary}
                       onChange={(event) => patch({ summary: event.target.value })}
-                      placeholder="描述擅长的任务，便于聊天时选择"
+                      placeholder="擅长的任务或用途"
                     />
                   </div>
                   <div className="space-y-2">
@@ -303,11 +279,11 @@ export function AgentEditDialog({
                       className="min-h-44 text-sm leading-6"
                       placeholder="写明职责、工作步骤、输出格式和质量要求。"
                     />
-                    <p className="text-xs text-muted-foreground">选中或引用后，这些指令会应用到当前请求。</p>
+                    <p className="text-xs text-muted-foreground">选择或引用智能体时生效。</p>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="agent-cases">适用场景（每行一项）</Label>
+                      <Label htmlFor="agent-cases">适用场景</Label>
                       <Textarea
                         id="agent-cases"
                         value={caseText}
@@ -316,7 +292,7 @@ export function AgentEditDialog({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="agent-starters">示例任务（每行一项）</Label>
+                      <Label htmlFor="agent-starters">示例任务</Label>
                       <Textarea
                         id="agent-starters"
                         value={starterText}
@@ -324,6 +300,7 @@ export function AgentEditDialog({
                         placeholder="把下面的内容整理成工作周报"
                       />
                     </div>
+                    <p className="text-xs text-muted-foreground sm:col-span-2">适用场景与示例任务每行填写一项。</p>
                   </div>
                   <details className="rounded-xl border border-border/70 p-4">
                     <summary className="cursor-pointer text-sm font-medium">
@@ -338,7 +315,7 @@ export function AgentEditDialog({
                           </Button>
                         </p>
                       )}
-                      {bindingList("skillKeys", "技能", bindings.skills, "使用智能体时，自动加载绑定技能的工作指令。")}
+                      {bindingList("skillKeys", "技能", bindings.skills, "自动加载所选技能的指令。")}
                       {bindingList(
                         "toolNames",
                         "工具",
@@ -349,7 +326,7 @@ export function AgentEditDialog({
                         "knowledgeCollectionIds",
                         "知识库",
                         bindings.knowledge,
-                        "使用智能体时，额外检索所绑定且已启用的知识库。",
+                        "额外检索已绑定且启用的知识库。",
                       )}
                     </div>
                   </details>
@@ -377,8 +354,9 @@ export function AgentEditDialog({
                 <Button type="button" variant="outline" disabled={saving} onClick={() => setDraft(null)}>
                   取消
                 </Button>
-                <Button type="submit" disabled={saving}>
-                  {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}保存智能体
+                <Button type="submit" aria-label="保存智能体" disabled={saving}>
+                  {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                  {saving ? "保存中" : "保存"}
                 </Button>
               </DialogFooter>
             </form>
@@ -389,7 +367,7 @@ export function AgentEditDialog({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>删除 {draft?.name}？</AlertDialogTitle>
-            <AlertDialogDescription>删除后，该智能体将无法再被选择或引用。</AlertDialogDescription>
+            <AlertDialogDescription>删除后将无法在聊天中选择或引用。</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={saving}>取消</AlertDialogCancel>
@@ -409,9 +387,7 @@ export function AgentEditDialog({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>重置 {draft?.name}？</AlertDialogTitle>
-            <AlertDialogDescription>
-              恢复系统配置的名称、头像、工作指令和能力绑定。已保存及尚未保存的修改都会被覆盖。
-            </AlertDialogDescription>
+            <AlertDialogDescription>恢复为当前系统配置，覆盖已保存和未保存的修改。</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={saving}>取消</AlertDialogCancel>
@@ -422,7 +398,7 @@ export function AgentEditDialog({
                 void reset();
               }}
             >
-              恢复系统配置
+              确认重置
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
