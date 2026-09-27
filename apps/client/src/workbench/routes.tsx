@@ -3,7 +3,9 @@ import { AppLayout } from "@/workbench/shell/layout";
 import { ChatHomePage } from "@/workbench/pages/chats/home";
 import { WorkspaceChatRoute } from "@/workbench/pages/chats";
 import { HubPage } from "@/workbench/pages/hub";
-import { EmbeddingManagementPage, KnowledgePage } from "@/workbench/pages/knowledge";
+import { KnowledgePage } from "@/workbench/pages/knowledge";
+import { KnowledgeDetailPage } from "@/workbench/pages/knowledge/detail";
+import { EmbeddingManagementPage } from "@/workbench/pages/knowledge/embedding";
 import { ApplicationUiPage } from "@/workbench/pages/applications";
 import { ApplicationManagePage } from "@/workbench/pages/applications/manage";
 import { AgentPage, LlmPage, SettingsPage } from "@/workbench/pages/settings";
@@ -21,7 +23,7 @@ export const AppRoutes = () => (
         <Route path="skills" element={<SkillsPage />} />
         <Route path="knowledge" element={<KnowledgePage />} />
         <Route path="knowledge/embedding" element={<EmbeddingManagementPage />} />
-        <Route path="knowledge/:collectionId" element={<KnowledgePage />} />
+        <Route path="knowledge/:collectionId" element={<KnowledgeDetailPage />} />
         <Route path="apps" element={<ApplicationUiPage />} />
         <Route path="apps/manage" element={<ApplicationManagePage />} />
         <Route path="apps/:applicationId" element={<ApplicationUiPage />} />

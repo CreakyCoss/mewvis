@@ -44,6 +44,8 @@ Git 使用系统命令行，以独立参数传递路径并禁用 hooks、外部 
 
 知识库列表右上角的“管理”按钮进入 `/knowledge/embedding`，集中管理可供各知识库选择的 Embedding 服务、模型与凭据；新建知识库时缺少向量模型也可从提示跳转到这里。页面、编辑弹窗与草稿逻辑位于 `apps/client/src/workbench/pages/knowledge/embedding/`，应用设置不再提供 Embedding 入口。返回按钮回到知识库列表，配置存储和知识库模型绑定沿用原格式。
 
+知识库主页 `knowledge/index.tsx` 组织页头、搜索、列表与新建弹窗；`detail.tsx`、`embedding/index.tsx` 是由路由直接加载的独立页面，主页不按 URL 参数切换页面，也不转导出其他页面。`create-dialog.tsx` 负责新建知识库，`components.tsx` 收纳知识库共用组件，目前包含索引状态展示。
+
 配置复用原 `config.db`，索引复用 `<dataDir>/rag/index.sqlite`。沿用原 `rag_*` 表、FTS5、sqlite-vec 0.1.9 和 profile 向量表命名，向量为 little-endian float32 BLOB，已有索引无需因切换后端而重建。支持原有文本扩展名，跳过隐藏目录、构建产物、依赖目录与符号链接。单文件上限 50 MiB，一次重建扫描文本上限 256 MiB、分块上限 50,000；向量累计存储计算另设 256 MiB 上限。
 
 重建前须给集合绑定 Embedding profile。OpenAI-compatible 使用 `/embeddings`，Ollama 使用 `/api/embed`；校验响应数量、维度、有限数值及非零向量，支持 embeddinggemma 的文档/查询前缀。网络请求异步执行，关闭 Server 会取消索引中的网络请求。

@@ -19,7 +19,7 @@ import { NativeSelect, NativeSelectOption } from "design-system/components/ui/na
 import { Textarea } from "design-system/components/ui/textarea";
 import type { EmbeddingProfile } from "@/api/embedding";
 
-type CreateDialogProps = {
+type CreateKnowledgeDialogProps = {
   open: boolean;
   embeddingProfiles: EmbeddingProfile[];
   onOpenChange: (open: boolean) => void;
@@ -40,7 +40,12 @@ const directoryName = (path: string) =>
     .filter(Boolean)
     .at(-1) ?? "";
 
-export const CreateDialog = ({ open: isOpen, embeddingProfiles, onOpenChange, onCreated }: CreateDialogProps) => {
+export const CreateKnowledgeDialog = ({
+  open: isOpen,
+  embeddingProfiles,
+  onOpenChange,
+  onCreated,
+}: CreateKnowledgeDialogProps) => {
   const navigate = useNavigate();
   const [draft, setDraft] = useState(emptyDraft);
   const [error, setError] = useState("");

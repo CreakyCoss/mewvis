@@ -1,7 +1,7 @@
 import { CircleAlert, CircleCheck, Clock3, Loader2 } from "lucide-react";
-import type { KnowledgeIndexStatus } from "../types";
+import type { KnowledgeIndexStatus } from "./types";
 
-type StatusBadgeProps = {
+type KnowledgeIndexStatusBadgeProps = {
   status: KnowledgeIndexStatus | null;
   invalidModel?: boolean;
 };
@@ -9,7 +9,7 @@ type StatusBadgeProps = {
 const badgeClassName =
   "inline-flex w-fit justify-self-start items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium";
 
-export const StatusBadge = ({ status, invalidModel = false }: StatusBadgeProps) => {
+export const KnowledgeIndexStatusBadge = ({ status, invalidModel = false }: KnowledgeIndexStatusBadgeProps) => {
   if (invalidModel) {
     return (
       <span className={`${badgeClassName} bg-destructive/9 text-destructive`}>

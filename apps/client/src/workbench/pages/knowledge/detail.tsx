@@ -12,7 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { listEmbeddingProfiles, type EmbeddingProfile } from "@/api/embedding";
 import {
   deleteKnowledgeCollection,
@@ -38,12 +38,8 @@ import { NativeSelect, NativeSelectOption } from "design-system/components/ui/na
 import { ScrollArea } from "design-system/components/ui/scroll-area";
 import { Switch } from "design-system/components/ui/switch";
 import { Textarea } from "design-system/components/ui/textarea";
-import type { KnowledgeCollection, KnowledgeCollectionFile, KnowledgeIndexStatus } from "../types";
-import { formatFileSize, formatKnowledgeTime, StatusBadge } from "./status";
-
-type DetailPageProps = {
-  collectionId: string;
-};
+import type { KnowledgeCollection, KnowledgeCollectionFile, KnowledgeIndexStatus } from "./types";
+import { formatFileSize, formatKnowledgeTime, KnowledgeIndexStatusBadge } from "./components";
 
 type DetailTab = "overview" | "files" | "settings";
 
@@ -63,7 +59,8 @@ const emptySettingsDraft: SettingsDraft = {
   enabled: true,
 };
 
-export const DetailPage = ({ collectionId }: DetailPageProps) => {
+export const KnowledgeDetailPage = () => {
+  const { collectionId = "" } = useParams<{ collectionId: string }>();
   const navigate = useNavigate();
   const [collection, setCollection] = useState<KnowledgeCollection | null>(null);
   const [embeddingProfiles, setEmbeddingProfiles] = useState<EmbeddingProfile[]>([]);
@@ -280,7 +277,10 @@ export const DetailPage = ({ collectionId }: DetailPageProps) => {
             <div className="min-w-0">
               <div className="flex min-w-0 flex-wrap items-center gap-2.5">
                 <h2 className="truncate text-xl font-semibold tracking-[-0.02em]">{collection.name}</h2>
-                <StatusBadge status={status} invalidModel={invalidModel || !collection.embeddingProfileId} />
+                <KnowledgeIndexStatusBadge
+                  status={status}
+                  invalidModel={invalidModel || !collection.embeddingProfileId}
+                />
               </div>
               <p
                 className="mt-0.5 max-w-3xl truncate text-sm text-muted-foreground"
