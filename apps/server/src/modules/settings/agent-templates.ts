@@ -18,7 +18,7 @@ const baseConfigurations: Preset[] = [
   {
     id: "template:office-assistant",
     name: "办公助手",
-    avatar: "cat-cream",
+    avatar: "agent-office",
     category: "办公",
     summary: "处理日常办公事务，整理邮件、任务与工作沟通。",
     useCases: ["工作邮件", "待办整理", "日常沟通"],
@@ -32,7 +32,7 @@ const baseConfigurations: Preset[] = [
   {
     id: "template:writing-assistant",
     name: "写作助手",
-    avatar: "cat-peach",
+    avatar: "agent-writing",
     category: "写作",
     summary: "起草、润色和改写文本，保持原意与合适的表达风格。",
     useCases: ["文案起草", "文字润色", "内容改写"],
@@ -46,7 +46,7 @@ const baseConfigurations: Preset[] = [
   {
     id: "template:research-assistant",
     name: "资料整理助手",
-    avatar: "cat-moon",
+    avatar: "agent-research",
     category: "研究",
     summary: "提炼资料、归纳要点、比较信息，并保留来源依据。",
     useCases: ["资料摘要", "信息对比", "知识梳理"],
@@ -60,7 +60,7 @@ const baseConfigurations: Preset[] = [
   {
     id: "template:meeting-notes",
     name: "会议纪要助手",
-    avatar: "cat-lavender",
+    avatar: "agent-meeting",
     category: "办公",
     summary: "将会议记录整理为结论、行动项和未决问题。",
     useCases: ["会议纪要", "行动项提取", "讨论总结"],
@@ -71,7 +71,7 @@ const baseConfigurations: Preset[] = [
   {
     id: "template:reporting-assistant",
     name: "汇报助手",
-    avatar: "cat-sun",
+    avatar: "agent-reporting",
     category: "办公",
     summary: "组织周报、工作总结、汇报稿和演示提纲。",
     useCases: ["周报总结", "管理汇报", "演示提纲"],
@@ -85,7 +85,7 @@ const baseConfigurations: Preset[] = [
   {
     id: "template:data-analyst",
     name: "数据分析助手",
-    avatar: "cat-sky",
+    avatar: "agent-data",
     category: "研究",
     summary: "分析表格与业务指标，核对计算并解释异常。",
     useCases: ["表格分析", "指标解释", "异常发现"],
@@ -96,7 +96,7 @@ const baseConfigurations: Preset[] = [
   {
     id: "template:project-planner",
     name: "项目规划助手",
-    avatar: "cat-mint",
+    avatar: "agent-planning",
     category: "办公",
     summary: "拆解目标、里程碑、任务依赖与项目风险。",
     useCases: ["项目计划", "任务拆解", "风险梳理"],
@@ -107,7 +107,7 @@ const baseConfigurations: Preset[] = [
   {
     id: "template:development-assistant",
     name: "研发助手",
-    avatar: "cat-graphite",
+    avatar: "agent-development",
     category: "研发",
     summary: "理解代码、实现需求、定位问题并验证结果。",
     useCases: ["代码理解", "需求实现", "问题排查"],
@@ -126,7 +126,7 @@ const specialistConfigurations: (Preset & {
   {
     id: "template:product-manager",
     name: "产品经理",
-    avatar: "cat-mint",
+    avatar: "agent-product",
     category: "产品",
     summary: "把用户需求整理为产品方案、优先级和可验收的需求文档。",
     useCases: ["需求分析", "产品方案", "需求文档"],
@@ -143,7 +143,7 @@ const specialistConfigurations: (Preset & {
   {
     id: "template:ui-designer",
     name: "界面设计师",
-    avatar: "cat-peach",
+    avatar: "agent-design",
     category: "设计",
     summary: "设计界面布局、组件样式和交互状态，兼顾一致性与可访问性。",
     useCases: ["界面布局", "组件设计", "设计规范"],
@@ -160,7 +160,7 @@ const specialistConfigurations: (Preset & {
   {
     id: "template:ux-researcher",
     name: "用户研究员",
-    avatar: "cat-moon",
+    avatar: "agent-user-research",
     category: "研究",
     summary: "设计访谈与可用性研究，从反馈中提炼有依据的产品洞察。",
     useCases: ["用户访谈", "可用性研究", "反馈分析"],
@@ -177,7 +177,7 @@ const specialistConfigurations: (Preset & {
   {
     id: "template:code-reviewer",
     name: "代码审查员",
-    avatar: "cat-graphite",
+    avatar: "agent-review",
     category: "研发",
     summary: "审查代码的正确性、安全性和可维护性，提供可执行的修改建议。",
     useCases: ["代码审查", "缺陷定位", "测试检查"],
@@ -194,7 +194,7 @@ const specialistConfigurations: (Preset & {
   {
     id: "template:qa-tester",
     name: "测试工程师",
-    avatar: "cat-sky",
+    avatar: "agent-testing",
     category: "研发",
     summary: "设计测试场景、复现缺陷，并按验收标准核对功能表现。",
     useCases: ["测试计划", "缺陷复现", "功能验收"],
@@ -211,7 +211,7 @@ const specialistConfigurations: (Preset & {
   {
     id: "template:technical-writer",
     name: "技术文档作者",
-    avatar: "cat-lavender",
+    avatar: "agent-documentation",
     category: "写作",
     summary: "编写使用指南、技术说明和 API 文档，让读者顺利完成任务。",
     useCases: ["使用指南", "API 文档", "技术说明"],
@@ -228,7 +228,7 @@ const specialistConfigurations: (Preset & {
   {
     id: "template:customer-support",
     name: "客户支持专员",
-    avatar: "cat-cream",
+    avatar: "agent-support",
     category: "服务",
     summary: "整理客户问题、起草回复，并明确解决步骤和需要升级的事项。",
     useCases: ["客户回复", "问题排查", "服务交接"],
@@ -245,7 +245,7 @@ const specialistConfigurations: (Preset & {
   {
     id: "template:content-creator",
     name: "内容运营助手",
-    avatar: "cat-sun",
+    avatar: "agent-content",
     category: "写作",
     summary: "规划内容主题、撰写平台文案，并安排发布与复盘要点。",
     useCases: ["内容策划", "社交文案", "内容日历"],

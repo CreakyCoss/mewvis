@@ -51,6 +51,7 @@ test("creating from blank does not reuse the previously selected configuration",
   assert.equal(blank.name, "");
   assert.equal(blank.instructions, "");
   assert.equal(blank.category, "自定义");
+  assert.equal(blank.avatar, "agent-office");
   assert.deepEqual(blank.skillKeys, []);
   assert.deepEqual(blank.toolNames, []);
   assert.deepEqual(blank.knowledgeCollectionIds, []);

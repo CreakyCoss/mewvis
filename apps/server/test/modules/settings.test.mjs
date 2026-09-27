@@ -256,6 +256,10 @@ test("system configurations add on demand, deduplicate and reset independently o
   assert.deepEqual(await s.invoke("get_agent_settings"), { agents: [] });
   assert.equal(library.templates.length, 16);
   assert.equal(new Set(library.templates.map((item) => item.id)).size, 16);
+  assert.equal(new Set(library.templates.map((item) => item.avatar)).size, 16);
+  assert.ok(
+    library.templates.every((item) => item.avatar.startsWith("agent-")),
+  );
   assert.ok(
     library.templates.every(
       (item) =>

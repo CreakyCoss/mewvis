@@ -23,7 +23,7 @@ const runtime = await build({
   target: "es2022",
   minify: true,
   define: { "process.env.NODE_ENV": '"production"' },
-  loader: { ".jpg": "dataurl", ".png": "dataurl", ".svg": "dataurl" },
+  loader: { ".jpg": "dataurl", ".png": "dataurl", ".webp": "dataurl", ".svg": "dataurl" },
   metafile: true,
   outfile: resolve(output, "application-runtime.js"),
 });
@@ -58,7 +58,7 @@ await build({
   platform: "browser",
   target: "es2022",
   external: ["react", "react/*", "react-dom", "react-dom/*", "@isle/app-sdk/*"],
-  loader: { ".jpg": "dataurl", ".png": "dataurl", ".svg": "dataurl" },
+  loader: { ".jpg": "dataurl", ".png": "dataurl", ".webp": "dataurl", ".svg": "dataurl" },
 });
 await writeFile(resolve(previewOutput, "chat-ui.css"), bundledCss.outputFiles[0].text);
 await build({

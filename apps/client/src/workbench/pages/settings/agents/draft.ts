@@ -4,7 +4,7 @@ import type { AgentDefinition, AgentTemplate, SaveAgentInput } from "./types";
 export function createAgentDraft(configuration?: AgentTemplate | AgentDefinition): SaveAgentInput {
   return {
     name: configuration?.name ?? "",
-    avatar: configuration?.avatar ?? "cat-cream",
+    avatar: configuration?.avatar ?? "agent-office",
     summary: configuration?.summary ?? "",
     category: configuration?.category ?? "自定义",
     instructions: configuration?.instructions ?? "",

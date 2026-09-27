@@ -4,7 +4,7 @@ import { deleteAgent, resetAgent, saveAgent } from "@/api/agents";
 import { getSkills } from "@/api/skills";
 import { listKnowledgeLibrary } from "@/api/knowledge";
 import { listAgentRuntimeTools } from "@/api/agent-runtime";
-import { agentAvatarOptions, normalizeAgentAvatarId, resolveAvatar } from "@/assets/avatars";
+import { agentAvatarGroups, normalizeAgentAvatarId, resolveAvatar } from "@/assets/avatars";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -262,19 +262,26 @@ export function AgentEditDialog({
                   </div>
                   <details>
                     <summary className="cursor-pointer text-xs text-muted-foreground">更换头像</summary>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {agentAvatarOptions.map((avatar) => (
-                        <button
-                          type="button"
-                          key={avatar.id}
-                          title={avatar.label}
-                          aria-label={avatar.label}
-                          aria-pressed={draft.avatar === avatar.id}
-                          className={`rounded-lg p-1 ${draft.avatar === avatar.id ? "ring-2 ring-primary" : "hover:bg-accent"}`}
-                          onClick={() => patch({ avatar: avatar.id })}
-                        >
-                          <img src={avatar.src} alt="" className="size-9 rounded-md" />
-                        </button>
+                    <div className="mt-3 space-y-4">
+                      {agentAvatarGroups.map((group) => (
+                        <div key={group.id} role="group" aria-label={group.label}>
+                          <h4 className="text-xs font-medium text-muted-foreground">{group.label}</h4>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {group.options.map((avatar) => (
+                              <button
+                                type="button"
+                                key={avatar.id}
+                                title={avatar.label}
+                                aria-label={avatar.label}
+                                aria-pressed={draft.avatar === avatar.id}
+                                className={`rounded-lg p-1 ${draft.avatar === avatar.id ? "ring-2 ring-primary" : "hover:bg-accent"}`}
+                                onClick={() => patch({ avatar: avatar.id })}
+                              >
+                                <img src={avatar.src} alt="" className="size-9 rounded-md" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </details>
