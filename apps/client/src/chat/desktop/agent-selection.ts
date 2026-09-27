@@ -1,4 +1,4 @@
-import type { AgentDefinition } from "@/workbench/pages/settings/agents/types";
+import type { AgentDefinition } from "@/workbench/pages/agents/types";
 import type { ChatRunConfig, MessageInput, ChatResources } from "../core";
 
 /** References override the conversation selection for this turn, without changing saved preferences. */

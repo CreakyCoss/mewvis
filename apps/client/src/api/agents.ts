@@ -1,5 +1,5 @@
 import { invoke } from "@/transport";
-import type { AgentDefinition, AgentTemplate, SaveAgentInput } from "@/workbench/pages/settings/agents/types";
+import type { AgentDefinition, AgentTemplate, SaveAgentInput } from "@/workbench/pages/agents/types";
 
 type AgentDefinitionSettings = {
   agents: AgentDefinition[];

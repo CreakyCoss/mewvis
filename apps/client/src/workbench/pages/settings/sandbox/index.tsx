@@ -22,7 +22,7 @@ import { Badge } from "design-system/components/ui/badge";
 import { Button } from "design-system/components/ui/button";
 import { ScrollArea } from "design-system/components/ui/scroll-area";
 import { Switch } from "design-system/components/ui/switch";
-import { SettingsPageHeader } from "../page-header";
+import { PageHeader } from "../../page-header";
 
 type SandboxStatus = Awaited<ReturnType<typeof getAgentRuntimeSandboxStatus>>;
 type Action = "status" | "install" | "toggle";
@@ -113,9 +113,10 @@ export function SandboxSettingsPage() {
 
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
-      <SettingsPageHeader
+      <PageHeader
         title="沙箱设置"
         description="管理工具的执行方式与隔离环境"
+        backLink={{ to: "/settings", label: "返回设置" }}
         className="min-h-24 py-4"
         action={
           <Button

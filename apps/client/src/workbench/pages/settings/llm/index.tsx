@@ -8,7 +8,7 @@ import { ScrollArea } from "design-system/components/ui/scroll-area";
 import { getApiFormatLabel, getProviderWebsiteUrl } from "./options";
 import { ProviderEditDialog, type ProviderEditDialogHandle } from "./edit";
 import { useLlmSettingsStore } from "./store";
-import { SettingsPageHeader } from "../page-header";
+import { PageHeader } from "../../page-header";
 
 const countEnabledModels = (provider: LlmProvider) => provider.models.filter((model) => model.isEnabled).length;
 
@@ -92,9 +92,10 @@ export const LlmSettingsPage = () => {
 
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface/45">
-      <SettingsPageHeader
+      <PageHeader
         title="模型设置"
         description="管理模型服务、凭据与可用模型"
+        backLink={{ to: "/settings", label: "返回设置" }}
         action={
           <Button type="button" onClick={openCreateProvider}>
             <Plus className="size-4" />

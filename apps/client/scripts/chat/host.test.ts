@@ -15,8 +15,8 @@ import { normalizeLlmSettingsConfig, toLlmSettingsConfig } from "../../src/workb
 import { createApplicationChatHost } from "../../src/chat/desktop/application";
 import { createApplicationChatClient, type ApplicationChatEvent } from "@isle/app-sdk/chat";
 import { createApplicationToolClient } from "@isle/app-sdk/tools";
-import { createAgentDraft } from "../../src/workbench/pages/settings/agents/draft";
-import type { AgentTemplate } from "../../src/workbench/pages/settings/agents/types";
+import { createAgentDraft } from "../../src/workbench/pages/agents/draft";
+import type { AgentTemplate } from "../../src/workbench/pages/agents/types";
 
 test("creating an agent from a system configuration strips identity and makes independent editable lists", () => {
   const template: AgentTemplate = {

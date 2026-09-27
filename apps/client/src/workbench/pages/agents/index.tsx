@@ -13,11 +13,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "design-system/components/ui/dialog";
-import { SettingsPageHeader } from "../page-header";
+import { PageHeader } from "../page-header";
 import { AgentEditDialog, type AgentEditDialogHandle } from "./edit";
 import type { AgentDefinition, AgentTemplate } from "./types";
 
-export const AgentSettingsPage = () => {
+export const AgentsPage = () => {
   const editor = useRef<AgentEditDialogHandle>(null);
   const [agents, setAgents] = useState<AgentDefinition[]>([]);
   const [templates, setTemplates] = useState<AgentTemplate[]>([]);
@@ -99,8 +99,8 @@ export const AgentSettingsPage = () => {
   );
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface/45">
-      <SettingsPageHeader
-        title="智能体设置"
+      <PageHeader
+        title="智能体"
         description="从配置库添加，或新建自己的智能体"
         action={
           <Button aria-label="新建智能体" onClick={() => editor.current?.open({ mode: "create" })}>

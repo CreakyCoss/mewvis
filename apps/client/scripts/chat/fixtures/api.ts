@@ -1,7 +1,7 @@
 import { agentPermissionOptions } from "../../../src/agent-client/wire";
 export const fake = {
   permissionOptions: structuredClone([...agentPermissionOptions]),
-  agents: [] as import("../../../src/workbench/pages/settings/agents/types").AgentDefinition[],
+  agents: [] as import("../../../src/workbench/pages/agents/types").AgentDefinition[],
   knowledgeQueries: [] as any[],
   record: null as any,
   writes: [] as any[],

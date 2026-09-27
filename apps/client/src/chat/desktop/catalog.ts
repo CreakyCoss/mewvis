@@ -6,7 +6,7 @@ import { getSkills } from "@/api/skills";
 import { listKnowledgeLibrary } from "@/api/knowledge";
 import type { AgentClient } from "@/agent-client/runtime";
 import type { Skill } from "@/workbench/pages/skills/types";
-import type { AgentDefinition } from "@/workbench/pages/settings/agents/types";
+import type { AgentDefinition } from "@/workbench/pages/agents/types";
 import type { ChatContext, ChatMessage, ChatResources, TurnInput } from "../core";
 
 export type ChatProfile = {
