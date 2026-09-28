@@ -453,10 +453,7 @@ test("the first launch removes every old application data key only once", async 
   await r.save(course);
   await r.initialize(clearChats);
   assert.equal((await r.list())[0].id, course.id);
-  assert.equal(
-    storage.values.get("learning:data-version"),
-    "course-workspace-v3",
-  );
+  assert.equal(storage.values.get("learning:data-version"), "course-flow-v4");
   assert.equal(chatCleanups, 1);
 });
 test("failed chat cleanup leaves no version marker and retries on next launch", async () => {
@@ -574,6 +571,15 @@ const briefV2 = {
   count: 3,
   material: "参考材料",
 };
+const generatedOutline = () => ({
+  description: "学习方法课程简介",
+  level: "零基础",
+  goal: "能够选择并运用适合自己的学习方法。",
+  phases: [
+    { title: "建立认识", summary: "理解常见学习方法。" },
+    { title: "应用实践", summary: "在真实任务中运用和调整方法。" },
+  ],
+});
 const ref = { workspaceId: "w", chatId: "c" };
 const mixedLesson = () =>
   validateLesson(
@@ -662,10 +668,11 @@ test("outline edits, adoption and per-lesson retry survive draft reload without 
   const storage = memory();
   let d = newDraft(briefV2);
   d.task = { kind: "outline", ref };
-  const generatedOutline = copy();
-  delete generatedOutline.title;
-  d = acceptTask(d, JSON.stringify(generatedOutline));
+  d = acceptTask(d, JSON.stringify(generatedOutline()));
   assert.equal(d.outline.title, briefV2.topic);
+  assert.equal(d.outline.phases.length, 2);
+  assert.equal(d.outline.goal, generatedOutline().goal);
+  assert.doesNotMatch(outlinePrompt(briefV2), /"lessons"/);
   d.outline.lessons[0].title = "调整后的标题";
   d.outline.lessons.reverse();
   d = await writeDraft(storage, d, courseKey(d.courseId));
@@ -687,6 +694,7 @@ test("outline edits, adoption and per-lesson retry survive draft reload without 
   }
   const course = finishDraft(d);
   assert.equal(course.version, 2);
+  assert.deepEqual(course.outline.phases, generatedOutline().phases);
   assert.equal(course.lessons[0].id, retained.id);
   assert.equal(course.lessons[2].title, "调整后的标题");
   assert.equal(finishDraft(d).id, course.id);
@@ -704,6 +712,7 @@ test("temporary courses use course records and resume independently", async () =
   const course = copy();
   await repository(storage).save(course);
   const fresh = newDraft(briefV2, undefined, 1);
+  fresh.projectEnabled = true;
   const edit = newDraft({ ...briefV2, topic: course.title }, course);
   await repository(storage).saveDraft(fresh);
   await repository(storage).saveDraft(edit);
@@ -716,7 +725,13 @@ test("temporary courses use course records and resume independently", async () =
       .creationStep,
     1,
   );
+  assert.equal(
+    validateDraft(await storage.getItem(courseKey(fresh.courseId)))
+      .projectEnabled,
+    true,
+  );
   assert.equal(validateDraft({ ...fresh, creationStep: 2 }).creationStep, 2);
+  assert.equal(validateDraft({ ...fresh, creationStep: 3 }).creationStep, 3);
   assert.throws(() => validateDraft({ ...fresh, creationStep: 4 }), /步骤/);
   assert.throws(
     () => validateDraft({ ...fresh, creationStep: undefined }),
@@ -894,7 +909,7 @@ test("real Chat staged output never adopts streaming, cancelled, or previous-tur
   const { session, emit } = await realChatFixture();
   try {
     await session.send({ text: outlinePrompt(briefV2) });
-    const output = JSON.stringify(copy());
+    const output = JSON.stringify(generatedOutline());
     emit({ type: "text_delta", delta: output });
     assert.equal(finalText(session.getSnapshot()), null);
     emit({ type: "done", text: output });

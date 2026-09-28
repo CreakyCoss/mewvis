@@ -1,10 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { getApplicationDataClient } from "@isle/app-sdk/data";
-import type { Course } from "./course";
 import { Notice, Text, errorText } from "./components";
 import { ModelTask, createModelTask, closeModelTask } from "./ModelTask";
 import {
   type Project,
+  type ProjectSource,
   type ProjectPlan,
   type Milestone,
   type Review,
@@ -56,13 +62,15 @@ function ReviewView({
     </div>
   );
 }
-export function ProjectLab({
-  course,
-  mode,
-}: {
-  course: Course;
-  mode: "design" | "learn";
-}) {
+export type ProjectLabHandle = { savePending: () => Promise<void> };
+export const ProjectLab = forwardRef<
+  ProjectLabHandle,
+  {
+    course: ProjectSource;
+    mode: "design" | "learn";
+    onPlanReadyChange?: (ready: boolean) => void;
+  }
+>(function ProjectLab({ course, mode, onPlanReadyChange }, ref) {
   const [project, setProject] = useState<Project | null>(null);
   const [planDraft, setPlanDraft] = useState<ProjectPlan | null>(null);
   const [input, setInput] = useState("");
@@ -79,6 +87,7 @@ export function ProjectLab({
       const next =
         raw === null ? createProject(course) : validateProject(raw, course.id);
       setProject(next);
+      onPlanReadyChange?.(!!next.plan);
       setPlanDraft(next.plan ?? null);
       setInput(next.progress[next.selected]?.draft ?? "");
     } catch (e) {
@@ -108,9 +117,25 @@ export function ProjectLab({
   const persist = async (next: Project) => {
     const saved = await saveProject(storage(), next);
     setProject(saved);
+    onPlanReadyChange?.(!!saved.plan);
     setPlanDraft(saved.plan ?? null);
     return saved;
   };
+  useImperativeHandle(
+    ref,
+    () => ({
+      savePending: async () => {
+        if (
+          project &&
+          planDraft &&
+          JSON.stringify(planDraft) !== JSON.stringify(project.plan)
+        ) {
+          await persist({ ...project, plan: planDraft });
+        }
+      },
+    }),
+    [project, planDraft],
+  );
   const preparePlan = async () => {
     if (!project) return;
     const ref = await createModelTask(projectProfile);
@@ -121,6 +146,29 @@ export function ProjectLab({
       throw e;
     }
   };
+  const createManualPlan = (): ProjectPlan => ({
+    title: `${course.title}综合实践`,
+    scenario: `围绕${course.title}中的核心问题，完成一项可以展示的实践成果。`,
+    role: "项目实践者",
+    outcome: "一份说明问题、过程与结论的项目报告。",
+    milestones: [1, 2].map((number) => ({
+      id: `stage-${number}`,
+      title: number === 1 ? "规划项目" : "完成并展示成果",
+      goal: number === 1 ? "明确问题与实施方案。" : "完成实践并解释结果。",
+      steps: [
+        number === 1
+          ? "确定项目目标与所需资料。"
+          : "按照方案完成实践并整理结果。",
+      ],
+      deliverable: number === 1 ? "项目方案" : "项目成果与反思",
+      criteria: [
+        {
+          id: `stage-${number}-c1`,
+          description: "内容清楚、完整，能够说明判断依据。",
+        },
+      ],
+    })),
+  });
   const milestone = project?.plan?.milestones.find(
     (s) => s.id === project.selected,
   );
@@ -157,13 +205,14 @@ export function ProjectLab({
   };
   const courseChanged =
     project &&
-    JSON.stringify(project.sourceLessons) !==
+    JSON.stringify(
+      project.sourceLessons.map(({ title, objective }) => ({
+        title,
+        objective,
+      })),
+    ) !==
       JSON.stringify(
-        course.lessons.map(({ id, title, objective }) => ({
-          id,
-          title,
-          objective,
-        })),
+        course.lessons.map(({ title, objective }) => ({ title, objective })),
       );
   const hasSubmissions = Object.values(project?.progress ?? {}).some(
     (s) => !!s.submission,
@@ -210,7 +259,7 @@ export function ProjectLab({
               课程内容已更新，此项目保留创建时的课程目标与已有成果。
             </p>
           )}
-          {!project.plan ? (
+          {!project.plan && !planDraft ? (
             mode === "learn" ? (
               <div className="learn-project-empty">
                 <h3>这门课程还没有实训项目</h3>
@@ -220,17 +269,31 @@ export function ProjectLab({
               </div>
             ) : (
               <>
-                <p className="learn-muted">
-                  根据课程目标生成一个有明确角色、阶段任务和验收标准的项目。成果以文字或代码文本提交，不执行代码或访问外部文件。
-                </p>
                 {!project.generation ? (
-                  <button
-                    className="learn-button primary"
-                    disabled={busy}
-                    onClick={() => run(preparePlan)}
-                  >
-                    设计实训项目
-                  </button>
+                  <div className="learn-actions">
+                    <button
+                      className="learn-button"
+                      disabled={busy}
+                      onClick={() =>
+                        run(async () => {
+                          await persist({
+                            ...project,
+                            plan: createManualPlan(),
+                          });
+                          setNotice("项目草案已创建");
+                        })
+                      }
+                    >
+                      手动创建项目草案
+                    </button>
+                    <button
+                      className="learn-button primary"
+                      disabled={busy}
+                      onClick={() => run(preparePlan)}
+                    >
+                      AI 生成项目框架
+                    </button>
+                  </div>
                 ) : (
                   <div inert={busy}>
                     <ModelTask
@@ -276,9 +339,6 @@ export function ProjectLab({
             )
           ) : mode === "design" ? (
             <div className="learn-project-design">
-              <p className="learn-muted">
-                在这里设计和调整项目。学习者在课程学习页按阶段完成成果与评审。
-              </p>
               {hasSubmissions && (
                 <p className="learn-notice warning">
                   已有学习成果，项目计划已锁定，避免改变现有验收标准。
@@ -415,10 +475,20 @@ export function ProjectLab({
                   >
                     保存项目计划
                   </button>
+                  {!project.plan && (
+                    <button
+                      type="button"
+                      className="learn-button"
+                      disabled={busy}
+                      onClick={() => setPlanDraft(null)}
+                    >
+                      取消草案
+                    </button>
+                  )}
                 </fieldset>
               )}
             </div>
-          ) : (
+          ) : project.plan ? (
             <>
               <div className="learn-project-context">
                 <h3>{project.plan.title}</h3>
@@ -665,9 +735,9 @@ export function ProjectLab({
                 </>
               )}
             </>
-          )}
+          ) : null}
         </>
       )}
     </section>
   );
-}
+});

@@ -2,7 +2,12 @@ import type {
   ApplicationStorage,
   ApplicationStorageValue,
 } from "@isle/app-sdk/data";
-import { type Course, object, text, list, validId } from "./course";
+import { object, text, list, validId } from "./course";
+export type ProjectSource = {
+  id: string;
+  title: string;
+  lessons: { id: string; title: string; objective: string }[];
+};
 import {
   type SessionRef,
   parseJSON,
@@ -94,7 +99,7 @@ function planInput(plan: unknown): unknown {
     }),
   };
 }
-export function createProject(course: Course): Project {
+export function createProject(course: ProjectSource): Project {
   return {
     version: 1,
     id: crypto.randomUUID(),

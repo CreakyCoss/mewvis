@@ -16,7 +16,7 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 page.setDefaultTimeout(15000);
 const errors = [];
 page.on("pageerror", (error) => errors.push(error.message));
-const out = process.env.LEARNING_SCREENSHOTS || "/tmp/isle-learning-v3-smoke";
+const out = process.env.LEARNING_SCREENSHOTS || "/tmp/isle-learning-v4-smoke";
 await mkdir(out, { recursive: true });
 const fixtureLesson = {
   title: "模型返回的标题",
@@ -116,13 +116,13 @@ await page.addInitScript(
         ].join("\n\n");
       if (prompt.includes("只生成指定课时")) return JSON.stringify(lesson);
       return JSON.stringify({
-        title: "主动回忆入门",
         description: "理解、实践并检验主动回忆。",
         level: "零基础",
-        lessons: [1, 2, 3].map((n) => ({
-          title: `第 ${n} 课`,
-          objective: `完成第 ${n} 个学习目标`,
-        })),
+        goal: "掌握主动回忆的方法，并用于自己的学习。",
+        phases: [
+          { title: "理解方法", summary: "认识主动回忆的核心步骤。" },
+          { title: "实践反馈", summary: "在学习任务中练习并改进。" },
+        ],
       });
     };
   },
@@ -180,15 +180,11 @@ try {
     path: `${out}/create-dialog-desktop.png`,
     fullPage: true,
   });
-  assert.equal(
-    await page.getByLabel("参考资料 · 选填，最多 20,000 字").isVisible(),
-    false,
-  );
+  assert.equal(await page.getByLabel("参考资料 选填").isVisible(), true);
   await page.getByLabel("课程主题", { exact: true }).fill("主动回忆");
   await page.getByLabel("计划课时").selectOption("3");
-  await page.locator(".learn-setup-material summary").click();
   assert.equal(await page.getByRole("dialog").count(), 1);
-  await page.getByLabel("追加 TXT / Markdown 资料").setInputFiles([
+  await page.getByLabel("上传 TXT / Markdown").setInputFiles([
     {
       name: "notes.md",
       mimeType: "text/markdown",
@@ -205,18 +201,18 @@ try {
       .querySelector("#learning-material")
       ?.value.includes("来源：source.txt"),
   );
-  await page.getByLabel("参考资料 · 选填，最多 20,000 字").waitFor();
+  await page.getByLabel("参考资料 选填").waitFor();
   assert.match(
-    await page.getByLabel("参考资料 · 选填，最多 20,000 字").inputValue(),
+    await page.getByLabel("参考资料 选填").inputValue(),
     /来源：notes.md[\s\S]*来源：source.txt/,
   );
-  await button("查看课程大纲").click();
-  assert.equal(await page.locator(".learn-dialog-steps button").count(), 3);
-  await button("创建空白课时框架").waitFor();
+  await button("下一步：课程大纲").click();
+  assert.equal(await page.locator(".learn-dialog-steps button").count(), 4);
+  await button("手动创建大纲").waitFor();
   assert.equal(
     await page
       .locator(".learn-dialog-footer")
-      .getByRole("button", { name: "进入课时工作台" })
+      .getByRole("button", { name: "下一步：课时内容" })
       .isDisabled(),
     true,
   );
@@ -228,7 +224,7 @@ try {
     fullPage: true,
   });
   assert.equal(await page.getByLabel("课程名称").count(), 0);
-  await button("进入课时工作台").click();
+  await button("下一步：课时内容").click();
   assert.equal(await page.locator(".learn-lesson-workspace").count(), 1);
   await page.getByRole("complementary", { name: "课程 AI 助手" }).waitFor();
   await page.locator(".learn-lesson-card").first().click();
@@ -257,8 +253,12 @@ try {
   });
   await page.setViewportSize({ width: 1440, height: 1000 });
   for (let i = 0; i < 3; i++) {
-    await page.getByLabel("当前课时").selectOption({ index: i });
-    await button("AI 生成本课").click();
+    await page
+      .locator(".learn-lesson-cards li")
+      .nth(i)
+      .getByRole("button", { name: "AI" })
+      .click();
+    await button("开始生成").click();
     if (i === 1)
       await page.evaluate(() => {
         globalThis.__failLearningOnce = true;
@@ -272,7 +272,8 @@ try {
     await adopt();
   }
   await page.screenshot({ path: `${out}/outline-desktop.png`, fullPage: true });
-  await button("保存课程，开始学习").click();
+  await button("下一步：项目实训").click();
+  await button("保存课程").click();
   assert.equal(await page.getByRole("dialog").count(), 0);
   await page.getByRole("complementary", { name: "AI 学习导师" }).waitFor();
   await page.locator(".learn-chat").waitFor();
@@ -350,7 +351,7 @@ try {
   );
   assert.ok(course);
   assert.equal(values["learning:draft:v2"], undefined);
-  assert.equal(values["learning:data-version"], "course-workspace-v3");
+  assert.equal(values["learning:data-version"], "course-flow-v4");
   assert.equal(
     values[`learning:progress:${course.id}`].attempts[course.lessons[0].id]
       .grades[course.lessons[0].questions[2].id].score,
@@ -391,7 +392,7 @@ try {
   await button("课程库").click();
   await button("编辑课程").click();
   await page.locator(".learn-dialog-steps button").nth(1).click();
-  await button("编辑简介").click();
+  await button("编辑大纲").click();
   await page.getByLabel("课程简介").fill("暂存后继续完善的课程简介");
   await page
     .locator(".learn-dialog-footer")
@@ -408,31 +409,30 @@ try {
     "暂存后继续完善的课程简介",
   );
   await button("继续编辑").click();
-  await button("编辑简介").click();
+  await button("编辑大纲").click();
   assert.equal(
     await page.getByLabel("课程简介").inputValue(),
     "暂存后继续完善的课程简介",
   );
   assert.equal(await page.getByRole("dialog").getByText(/草稿/).count(), 0);
-  await button("进入课时工作台").click();
-  await page.getByLabel("当前课时").selectOption({ index: 1 });
-  await button("重新生成本课").click();
+  await button("下一步：课时内容").click();
+  await page
+    .locator(".learn-lesson-cards li")
+    .nth(1)
+    .getByRole("button", { name: "AI" })
+    .click();
+  await button("开始生成").click();
   await generate();
   await adopt();
-  await button("保存课程，开始学习").click();
+  await button("下一步：项目实训").click();
+  await button("保存课程").click();
   values = await data();
   assert.equal(values[`learning:course:${course.id}`].status, "ready");
   const revised = values[`learning:course:${course.id}`];
   assert.equal(revised.lessons[0].id, course.lessons[0].id);
   assert.notEqual(revised.lessons[1].id, course.lessons[1].id);
   assert.equal(revised.lessons[2].id, course.lessons[2].id);
-  await button("项目实训").click();
-  assert.equal(
-    await page.getByRole("tab", { name: "项目实训", exact: true }).count(),
-    0,
-  );
-  assert.equal(await button("设计实训项目").count(), 0);
-  await page.getByRole("heading", { name: "这门课程还没有实训项目" }).waitFor();
+  assert.equal(await button("项目实训").count(), 0);
   await page.setViewportSize({ width: 390, height: 844 });
   assert.ok(
     await page.evaluate(
@@ -443,14 +443,15 @@ try {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await button("课程库").click();
   await button("编辑课程").click();
-  await page.getByRole("tab", { name: "项目实训" }).click();
-  await button("设计实训项目").click();
+  await page.locator(".learn-dialog-steps button").nth(3).click();
+  await page.getByRole("radio", { name: /添加综合项目/ }).check();
+  await button("AI 生成项目框架").click();
   await generate();
   await adopt();
   await page.getByLabel("项目标题").waitFor();
   await page.getByLabel("项目标题").fill("学习指南实训（修订版）");
   await button("保存项目计划").click();
-  await closeEditor();
+  await button("保存课程").click();
   await button("开始学习").click();
   await button("项目实训").click();
   await page
@@ -507,7 +508,8 @@ try {
   await page.getByLabel("题干", { exact: true }).first().fill("修订后的单选题");
   await page.screenshot({ path: `${out}/manual-editor.png`, fullPage: true });
   await button("保存课时修改").click();
-  await button("保存课程，开始学习").click();
+  await button("下一步：项目实训").click();
+  await button("保存课程").click();
   await page
     .getByText("手动修正的课程正文。主动回忆应包含提取与反馈。", {
       exact: true,
@@ -534,11 +536,13 @@ try {
   );
   await button("课程库").click();
   await button("编辑课程").click();
-  await page.getByLabel("描述希望修改的部分").fill("只修改本课示例");
-  await button("准备 AI 修改").click();
+  await page.getByRole("tab", { name: "局部优化" }).click();
+  await page.getByLabel("补充你的要求").fill("只修改本课示例");
+  await button("开始优化").click();
   await generate();
   await adopt();
-  await button("保存课程，开始学习").click();
+  await button("下一步：项目实训").click();
+  await button("保存课程").click();
   values = await data();
   assert.equal(
     values[`learning:course:${course.id}`].lessons[0].example,
@@ -561,11 +565,11 @@ try {
     await page.getByLabel("课程主题", { exact: true }).inputValue(),
     "并行草稿",
   );
-  await button("查看课程大纲").click();
+  await button("下一步：课程大纲").click();
   await closeEditor();
   await button("继续编辑").waitFor();
   await button("编辑课程").click();
-  await page.getByRole("tab", { name: "项目实训" }).waitFor();
+  await page.locator(".learn-dialog-steps button").nth(3).waitFor();
   await closeEditor();
   await button("继续编辑").click();
   await page.getByRole("heading", { name: "并行草稿" }).waitFor();
@@ -586,10 +590,10 @@ try {
   assert.equal((await data())[`learning:pbl:${course.id}`], undefined);
   await button("创建第一门课程").click();
   await page.getByLabel("课程主题", { exact: true }).fill("手动规划课程");
-  await button("查看课程大纲").click();
-  await button("创建空白课时框架").click();
+  await button("下一步：课程大纲").click();
+  await button("手动创建大纲").click();
   assert.equal(await page.getByLabel("课程名称").count(), 0);
-  await button("进入课时工作台").click();
+  await button("下一步：课时内容").click();
   await page.locator(".learn-lesson-card").first().click();
   await page.getByLabel("课时标题", { exact: true }).fill("第一课标题");
   await button("保存标题与目标").click();

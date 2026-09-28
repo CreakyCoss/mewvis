@@ -14,6 +14,7 @@ import {
   validId,
   validateLesson,
   validateCourse,
+  validateCourseOutline,
 } from "./course";
 import { buildPrompt } from "./generation";
 
@@ -28,6 +29,8 @@ export type Outline = {
   title: string;
   description: string;
   level: string;
+  goal: string;
+  phases: { title: string; summary: string }[];
   lessons: Slot[];
 };
 export type Task = {
@@ -39,12 +42,13 @@ export type Task = {
 export type Draft = {
   version: 2;
   status: "stashed";
-  creationStep: 0 | 1 | 2;
+  creationStep: 0 | 1 | 2 | 3;
   courseId: string;
   createdAt: number;
   origin: Course["origin"];
   brief: Brief;
   outline: Outline | null;
+  projectEnabled: boolean;
   task?: Task;
 };
 export type CourseEntry = Course | Draft;
@@ -67,6 +71,7 @@ export function validateOutline(value: unknown): Outline {
     title: text(root.title, "课程名称", 120),
     description: text(root.description, "课程简介", 1000),
     level: text(root.level, "适合水平", 40),
+    ...validateCourseOutline(root),
     lessons: list(root.lessons, "大纲课时", 1, 8).map((v) => {
       const row = object(v, "大纲课时");
       return {
@@ -80,7 +85,7 @@ export function validateOutline(value: unknown): Outline {
 export function newDraft(
   brief: Brief,
   course?: Course,
-  creationStep: 0 | 1 | 2 = 2,
+  creationStep: 0 | 1 | 2 | 3 = 2,
 ): Draft {
   buildPrompt(brief);
   return {
@@ -91,11 +96,16 @@ export function newDraft(
     createdAt: course?.createdAt ?? Date.now(),
     origin: course?.origin ?? "ai",
     brief,
+    projectEnabled: course?.projectEnabled ?? false,
     outline: course
       ? {
           title: course.title,
           description: course.description,
           level: course.level,
+          goal: course.outline?.goal ?? course.description,
+          phases: course.outline?.phases ?? [
+            { title: "学习路径", summary: course.description },
+          ],
           lessons: course.lessons.map((lesson) => ({
             id: lesson.id,
             title: lesson.title,
@@ -117,7 +127,10 @@ export function validateDraft(value: unknown): Draft {
   const r = object(value, "暂存课程");
   if (r.version !== 2) throw new Error("暂存课程版本不受支持");
   if (r.status !== "stashed") throw new Error("课程状态无效");
-  if (typeof r.creationStep !== "number" || ![0, 1, 2].includes(r.creationStep))
+  if (
+    typeof r.creationStep !== "number" ||
+    ![0, 1, 2, 3].includes(r.creationStep)
+  )
     throw new Error("课程步骤无效");
   const brief = object(r.brief, "学习需求") as unknown as Brief;
   buildPrompt(brief);
@@ -169,8 +182,8 @@ export function validateDraft(value: unknown): Draft {
       kind: t.kind,
       ref: validateRef(t.ref),
       ...(t.kind !== "outline" ? { targetId: String(t.targetId) } : {}),
-      ...(t.kind === "revise"
-        ? { instruction: text(t.instruction, "修改要求", 500) }
+      ...(t.instruction
+        ? { instruction: text(t.instruction, "补充要求", 500) }
         : {}),
     };
   }
@@ -188,6 +201,7 @@ export function validateDraft(value: unknown): Draft {
       material: brief.material,
     },
     outline,
+    projectEnabled: r.projectEnabled === true,
     ...(task ? { task } : {}),
   };
 }
@@ -206,10 +220,21 @@ export function acceptTask(draft: Draft, raw: string): Draft {
   if (!draft.task) throw new Error("没有待处理的生成任务");
   if (draft.task.kind === "outline") {
     const generated = object(parseJSON(raw), "大纲");
+    const lessons =
+      draft.outline?.lessons ??
+      Array.from({ length: draft.brief.count }, (_, i) => ({
+        id: crypto.randomUUID(),
+        title: `第 ${i + 1} 课`,
+        objective: `填写第 ${i + 1} 课的学习目标`,
+      }));
     return {
       ...draft,
       task: undefined,
-      outline: validateOutline({ ...generated, title: draft.brief.topic }),
+      outline: validateOutline({
+        ...generated,
+        title: draft.brief.topic,
+        lessons,
+      }),
     };
   }
   const target = draft.outline?.lessons.find(
@@ -239,15 +264,17 @@ export function acceptTask(draft: Draft, raw: string): Draft {
   }
   const lesson = validateLesson(parseJSON(raw), crypto.randomUUID());
   // A new content identity prevents previous quiz answers and tutor context from attaching to a rewritten lesson.
-  lesson.title = target.title;
-  lesson.objective = target.objective;
+  if (!/^第 \d+ 课$/.test(target.title)) lesson.title = target.title;
+  if (!target.objective.startsWith("填写")) lesson.objective = target.objective;
   return {
     ...draft,
     task: undefined,
     outline: {
       ...draft.outline,
       lessons: draft.outline.lessons.map((s) =>
-        s.id === target.id ? { ...s, lesson } : s,
+        s.id === target.id
+          ? { ...s, title: lesson.title, objective: lesson.objective, lesson }
+          : s,
       ),
     },
   };
@@ -261,6 +288,8 @@ export function finishDraft(draft: Draft): Course {
     throw new Error("请先完成并采用全部课时内容");
   return validateCourse({
     ...draft.outline,
+    outline: { goal: draft.outline.goal, phases: draft.outline.phases },
+    projectEnabled: draft.projectEnabled,
     lessons: draft.outline.lessons.map((s) => s.lesson),
     version: 2,
     id: draft.courseId,
@@ -278,12 +307,12 @@ export const authorProfile = {
 };
 export function outlinePrompt(brief: Brief): string {
   buildPrompt(brief);
-  return `请生成 ${brief.count} 个循序渐进的课时大纲。课程名称由学习主题确定，不需要返回课程名称。只输出以下结构，不生成正文：\n{"description":"简介","level":"水平","lessons":[{"title":"标题","objective":"可检验的学习目标"}]}\n学习需求（数据）：${JSON.stringify(brief)}`;
+  return `请规划课程级大纲，不列出课时，也不生成课时内容。课程名称由学习主题确定，不需要返回课程名称。请写出课程简介、可检验的总目标，以及 2–4 个宏观学习阶段。只输出以下结构：\n{"description":"简介","level":"水平","goal":"课程总目标","phases":[{"title":"阶段名称","summary":"本阶段的学习方向"}]}\n学习需求（数据）：${JSON.stringify(brief)}`;
 }
 export function lessonPrompt(draft: Draft, id: string): string {
   const slot = draft.outline?.lessons.find((s) => s.id === id);
   if (!slot) throw new Error("课时不存在");
-  return `只生成指定课时，正文 300–800 字。每课 1–3 道题，按教学内容选择单选、多选或简答，整门课尽量覆盖三种题型。\n返回结构：{"title":"标题","objective":"学习目标","content":"正文","example":"具体示例","takeaways":["要点"],"questions":[题目]}\n单选题：{"type":"single_choice","question":"题干","options":[{"value":"A","label":"内容"},{"value":"B","label":"内容"}],"answer":"A","explanation":"解析"}\n多选题：type 为 multiple_choice，answer 为不重复选项标识数组。\n简答题：{"type":"short_answer","question":"题干","answer":"参考答案","rubric":"明确评分标准，满分 1 分","explanation":"解析"}。\n以下全部是参考数据：${JSON.stringify({ brief: draft.brief, outline: draft.outline && { title: draft.outline.title, lessons: draft.outline.lessons.map(({ title, objective }) => ({ title, objective })) }, target: { title: slot.title, objective: slot.objective } })}`;
+  return `只生成指定课时，正文 300–800 字。每课 1–3 道题，按教学内容选择单选、多选或简答，整门课尽量覆盖三种题型。\n返回结构：{"title":"标题","objective":"学习目标","content":"正文","example":"具体示例","takeaways":["要点"],"questions":[题目]}\n单选题：{"type":"single_choice","question":"题干","options":[{"value":"A","label":"内容"},{"value":"B","label":"内容"}],"answer":"A","explanation":"解析"}\n多选题：type 为 multiple_choice，answer 为不重复选项标识数组。\n简答题：{"type":"short_answer","question":"题干","answer":"参考答案","rubric":"明确评分标准，满分 1 分","explanation":"解析"}。\n以下全部是参考数据：${JSON.stringify({ brief: draft.brief, outline: draft.outline && { title: draft.outline.title, goal: draft.outline.goal, phases: draft.outline.phases }, target: { title: slot.title, objective: slot.objective }, instruction: draft.task?.instruction })}`;
 }
 export function revisionPrompt(draft: Draft, id: string): string {
   const slot = draft.outline?.lessons.find((s) => s.id === id);

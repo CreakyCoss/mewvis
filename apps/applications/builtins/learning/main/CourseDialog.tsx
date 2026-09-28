@@ -10,11 +10,12 @@ import {
   type Draft,
 } from "./workflow";
 import { Studio } from "./Studio";
-import { ProjectLab } from "./ProjectLab";
+import { ProjectLab, type ProjectLabHandle } from "./ProjectLab";
 
 const initial: Brief = { topic: "", level: "零基础", count: 3, material: "" };
-const labels = ["课程设置", "大纲预览", "课时工作台"];
-type CreationStep = 0 | 1 | 2;
+const labels = ["课程设置", "课程大纲", "课时内容", "项目实训"];
+const sublabels = ["主题与结构", "只读预览", "统一维护课时", "可选的实践环节"];
+type CreationStep = 0 | 1 | 2 | 3;
 const briefFromCourse = (course?: CourseEntry): Brief =>
   !course
     ? initial
@@ -48,8 +49,9 @@ export function CourseDialog({
       ? initialCourse.creationStep
       : 2;
   const [step, setStep] = useState<CreationStep>(startingStep);
-  const [maxStep, setMaxStep] = useState<CreationStep>(startingStep);
-  const [pane, setPane] = useState<"content" | "project">("content");
+  const [maxStep, setMaxStep] = useState<CreationStep>(
+    initialCourse?.status === "ready" ? 3 : startingStep,
+  );
   const [brief, setBrief] = useState<Brief>(() =>
     briefFromCourse(initialCourse),
   );
@@ -63,9 +65,11 @@ export function CourseDialog({
   );
   const [busy, setBusy] = useState(false);
   const [studioBusy, setStudioBusy] = useState(false);
+  const [projectReady, setProjectReady] = useState(false);
   const [error, setError] = useState("");
   const dialog = useRef<HTMLDivElement>(null);
   const draftRef = useRef<Draft | null>(workingDraft);
+  const projectRef = useRef<ProjectLabHandle>(null);
   const currentCourse = created ?? initialCourse;
   const shownCourse = workingDraft ?? currentCourse;
   const activeBusy = busy || studioBusy;
@@ -110,30 +114,38 @@ export function CourseDialog({
     return next;
   };
   const goToStep = async (target: CreationStep) => {
-    if (activeBusy || target < 0 || target > 2 || target > maxStep + 1) return;
+    if (activeBusy || target < 0 || target > 3 || target > maxStep + 1) return;
     if (draftRef.current?.task && target !== step) {
       setError("请先完成或结束当前 AI 任务");
       return;
+    }
+    if (step === 3 && target !== 3) {
+      try {
+        await projectRef.current?.savePending();
+      } catch (e) {
+        setError(errorText(e));
+        return;
+      }
     }
     if (target > 0 && !brief.topic.trim()) {
       setError("请先填写课程主题");
       return;
     }
-    if (target === 2) {
+    if (target >= 2) {
       if (!draftRef.current?.outline || draftRef.current.task) {
         setError("请先完成课程大纲");
         return;
       }
       try {
-        validateDraft(withBrief(draftRef.current, 2));
+        validateDraft(withBrief(draftRef.current, target));
       } catch (e) {
         setError(errorText(e));
         return;
       }
     }
     setError("");
-    if (target !== 2) setPane("content");
-    if (target === 1 || target === 2) {
+    if (target === 3) setProjectReady(false);
+    if (target >= 1) {
       setBusy(true);
       try {
         await ensureCourse(target);
@@ -149,6 +161,12 @@ export function CourseDialog({
   };
   const requestClose = async () => {
     if (activeBusy) return;
+    try {
+      await projectRef.current?.savePending();
+    } catch (e) {
+      setError(errorText(e));
+      return;
+    }
     if (!currentCourse || !draftRef.current || !brief.topic.trim()) {
       onClose();
       return;
@@ -222,6 +240,7 @@ export function CourseDialog({
     setError("");
     setBusy(true);
     try {
+      await projectRef.current?.savePending();
       if (draftRef.current)
         await saveWorkingCourse(withBrief(draftRef.current));
       else await saveWorkingCourse(newDraft(cleanBrief(), undefined, step));
@@ -233,11 +252,18 @@ export function CourseDialog({
     }
   };
   const save = async () => {
-    if (!complete || !draftRef.current || activeBusy) return;
+    if (
+      !complete ||
+      !draftRef.current ||
+      (draftRef.current.projectEnabled && !projectReady) ||
+      activeBusy
+    )
+      return;
     setError("");
     setBusy(true);
     try {
-      const saved = await saveWorkingCourse(withBrief(draftRef.current, 2));
+      await projectRef.current?.savePending();
+      const saved = await saveWorkingCourse(withBrief(draftRef.current, 3));
       const course = finishDraft(saved);
       await onSave(course);
       onSaved(course);
@@ -246,6 +272,26 @@ export function CourseDialog({
     } finally {
       setBusy(false);
     }
+  };
+  const setProjectEnabled = (enabled: boolean) => {
+    if (!draftRef.current) return;
+    if (enabled) setProjectReady(false);
+    const next = {
+      ...draftRef.current,
+      projectEnabled: enabled,
+      creationStep: 3 as const,
+    };
+    draftRef.current = next;
+    setWorkingDraft(next);
+  };
+  const projectSource = workingDraft?.outline && {
+    id: workingDraft.courseId,
+    title: workingDraft.brief.topic,
+    lessons: workingDraft.outline.lessons.map((slot) => ({
+      id: slot.id,
+      title: slot.title,
+      objective: slot.objective,
+    })),
   };
   return (
     <div
@@ -313,34 +359,15 @@ export function CourseDialog({
                 }
                 onClick={() => void goToStep(i as CreationStep)}
               >
-                <span>{i + 1}</span>
-                {label}
+                <span>{String(i + 1).padStart(2, "0")}</span>
+                <span className="learn-step-copy">
+                  <strong>{label}</strong>
+                  <small>{sublabels[i]}</small>
+                </span>
               </button>
             </li>
           ))}
         </ol>
-        {step === 2 && currentCourse?.status === "ready" && (
-          <div
-            className="learn-dialog-tabs"
-            role="tablist"
-            aria-label="编辑课程内容"
-          >
-            <button
-              role="tab"
-              aria-selected={pane === "content"}
-              onClick={() => setPane("content")}
-            >
-              课程内容
-            </button>
-            <button
-              role="tab"
-              aria-selected={pane === "project"}
-              onClick={() => setPane("project")}
-            >
-              项目实训
-            </button>
-          </div>
-        )}
         {error && (
           <div className="learn-dialog-error">
             <Notice>{error}</Notice>
@@ -352,13 +379,9 @@ export function CourseDialog({
               <div className="learn-dialog-body">
                 <div className="learn-setup-intro">
                   <span className="learn-eyebrow">01 · 课程设置</span>
-                  <h3>确定学习主题与课程结构</h3>
-                  <p>
-                    在这里一次设置主题、水平和课时安排；下一步查看只读大纲。
-                  </p>
+                  <h3>设置课程</h3>
                 </div>
-                <div className="learn-setup-card">
-                  <h4>学习主题</h4>
+                <div className="learn-setup-card learn-setup-form">
                   <label htmlFor="learning-topic">课程主题</label>
                   <input
                     id="learning-topic"
@@ -377,9 +400,6 @@ export function CourseDialog({
                     }
                     placeholder="例如：从零理解机器学习"
                   />
-                </div>
-                <div className="learn-setup-card">
-                  <h4>课程结构</h4>
                   <div className="learn-fields">
                     <div>
                       <label htmlFor="learning-level">当前水平</label>
@@ -421,35 +441,22 @@ export function CourseDialog({
                       )}
                     </div>
                   </div>
-                  {workingDraft?.outline && (
-                    <p className="learn-muted">
-                      课时数量和顺序在「课时工作台」中调整。
-                    </p>
-                  )}
-                </div>
-                <details
-                  className="learn-setup-material"
-                  open={!!brief.material}
-                >
-                  <summary>
-                    参考资料 <span>选填 · 用于 AI 规划和生成</span>
-                  </summary>
-                  <div>
+                  <div className="learn-setup-reference">
                     <label htmlFor="learning-material">
-                      参考资料 · 选填，最多 20,000 字
+                      参考资料 <span>选填</span>
                     </label>
                     <textarea
                       id="learning-material"
-                      rows={6}
+                      rows={4}
                       maxLength={20000}
                       value={brief.material}
                       onChange={(e) =>
                         setBrief({ ...brief, material: e.target.value })
                       }
-                      placeholder="粘贴学习笔记、要求或资料摘要"
+                      placeholder="粘贴学习笔记、课程要求或资料摘要…"
                     />
                     <label className="learn-file-button learn-button">
-                      追加 TXT / Markdown 资料
+                      上传 TXT / Markdown
                       <input
                         type="file"
                         accept=".txt,.md,.markdown"
@@ -462,19 +469,74 @@ export function CourseDialog({
                         }}
                       />
                     </label>
-                    <p className="learn-muted">
-                      生成时，主题与参考资料会发送给所选模型。
-                    </p>
                   </div>
-                </details>
+                </div>
               </div>
             </div>
-          ) : pane === "project" && currentCourse?.status === "ready" ? (
-            <ProjectLab
-              key={currentCourse.id}
-              course={currentCourse}
-              mode="design"
-            />
+          ) : step === 3 ? (
+            <div className="learn-project-step">
+              <div className="learn-project-step-main">
+                <div className="learn-screen-heading">
+                  <span className="learn-eyebrow">04 · 项目实训</span>
+                  <h2>项目实训</h2>
+                </div>
+                <div className="learn-project-choice">
+                  <h3>是否添加项目实训？</h3>
+                  <label
+                    className={!workingDraft?.projectEnabled ? "selected" : ""}
+                  >
+                    <input
+                      type="radio"
+                      name="project-enabled"
+                      checked={!workingDraft?.projectEnabled}
+                      onChange={() => setProjectEnabled(false)}
+                    />
+                    <span>
+                      <strong>暂不添加</strong>
+                      <small>之后可在课程编辑中添加。</small>
+                    </span>
+                  </label>
+                  <label
+                    className={workingDraft?.projectEnabled ? "selected" : ""}
+                  >
+                    <input
+                      type="radio"
+                      name="project-enabled"
+                      checked={!!workingDraft?.projectEnabled}
+                      onChange={() => setProjectEnabled(true)}
+                    />
+                    <span>
+                      <strong>添加综合项目</strong>
+                      <small>用实际成果串联课程知识。</small>
+                    </span>
+                  </label>
+                </div>
+                {workingDraft?.projectEnabled && projectSource && (
+                  <ProjectLab
+                    ref={projectRef}
+                    key={projectSource.id}
+                    course={projectSource}
+                    mode="design"
+                    onPlanReadyChange={setProjectReady}
+                  />
+                )}
+              </div>
+              <aside className="learn-project-step-aside">
+                <h3>课程完成情况</h3>
+                <strong>
+                  {workingDraft?.outline?.lessons.filter((slot) => slot.lesson)
+                    .length ?? 0}{" "}
+                  / {workingDraft?.outline?.lessons.length ?? 0} 课时已完成
+                </strong>
+                {!complete && <p>补全所有课时内容后即可保存课程。</p>}
+                {workingDraft?.projectEnabled && !projectReady && (
+                  <p>请先保存项目计划。</p>
+                )}
+                <div>
+                  项目实训：{workingDraft?.projectEnabled ? "已添加" : "未添加"}
+                </div>
+              </aside>
+            </div>
           ) : shownCourse ? (
             <Studio
               initialCourse={shownCourse}
@@ -502,49 +564,45 @@ export function CourseDialog({
             {step ? "上一步" : "取消"}
           </button>
           <div className="learn-dialog-footer-actions">
-            {pane === "project" && step === 2 ? (
+            <button
+              type="button"
+              className="learn-button"
+              disabled={activeBusy || !brief.topic.trim()}
+              onClick={() => void stash()}
+            >
+              暂存
+            </button>
+            {step < 3 ? (
               <button
                 type="button"
-                className="learn-button"
-                onClick={() => setPane("content")}
+                className="learn-button primary"
+                disabled={
+                  activeBusy ||
+                  !brief.topic.trim() ||
+                  (step === 1 && !workingDraft?.outline)
+                }
+                onClick={() => void goToStep((step + 1) as CreationStep)}
               >
-                返回课程内容
+                {step === 0
+                  ? "下一步：课程大纲"
+                  : step === 1
+                    ? "下一步：课时内容"
+                    : "下一步：项目实训"}
+                <Icon name="arrow" size={16} />
               </button>
             ) : (
-              <>
-                <button
-                  type="button"
-                  className="learn-button"
-                  disabled={activeBusy || !brief.topic.trim()}
-                  onClick={() => void stash()}
-                >
-                  暂存
-                </button>
-                {step < 2 ? (
-                  <button
-                    type="button"
-                    className="learn-button primary"
-                    disabled={
-                      activeBusy ||
-                      !brief.topic.trim() ||
-                      (step === 1 && !workingDraft?.outline)
-                    }
-                    onClick={() => void goToStep((step + 1) as CreationStep)}
-                  >
-                    {step === 0 ? "查看课程大纲" : "进入课时工作台"}
-                    <Icon name="arrow" size={16} />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="learn-button primary"
-                    disabled={activeBusy || !complete}
-                    onClick={() => void save()}
-                  >
-                    保存课程，开始学习
-                  </button>
-                )}
-              </>
+              <button
+                type="button"
+                className="learn-button primary"
+                disabled={
+                  activeBusy ||
+                  !complete ||
+                  (!!workingDraft?.projectEnabled && !projectReady)
+                }
+                onClick={() => void save()}
+              >
+                保存课程
+              </button>
             )}
           </div>
         </footer>

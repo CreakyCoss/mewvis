@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>学习工作台 · 课程创建流程原型</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./prototype.js" defer></script>
+  </head>
+  <body>
+    <div class="library-background" aria-hidden="true">
+      <div class="library-top"><strong>学习工作台</strong><span>我的课程</span><span>创建课程</span></div>
+      <div class="library-ghost"><small>我的课程</small><h1>继续你的学习计划</h1><p>课程、项目与学习进度都在这里。</p></div>
+    </div>
+
+    <main class="workspace" role="dialog" aria-modal="true" aria-labelledby="workspace-title">
+      <header class="workspace-header">
+        <div class="workspace-brand"><span>学习工作台 <b>/</b> 课程创建</span></div>
+        <div class="header-right"><span class="prototype-tag">设计稿 · V2</span><button class="icon-button" type="button" id="close-workspace" aria-label="关闭预览">×</button></div>
+      </header>
+
+      <nav class="stepper" aria-label="创建课程步骤">
+        <button type="button" data-step="0"><span class="step-number">01</span><span class="step-copy"><strong>课程设置</strong><small>主题与结构</small></span></button>
+        <button type="button" data-step="1"><span class="step-number">02</span><span class="step-copy"><strong>课程大纲</strong><small>只读预览</small></span></button>
+        <button type="button" data-step="2"><span class="step-number">03</span><span class="step-copy"><strong>课时内容</strong><small>统一维护课时</small></span></button>
+        <button type="button" data-step="3"><span class="step-number">04</span><span class="step-copy"><strong>项目实训</strong><small>可选的实践环节</small></span></button>
+      </nav>
+
+      <div class="workspace-content" id="screen"></div>
+
+      <footer class="workspace-footer">
+        <button type="button" class="button secondary" id="previous">上一步</button>
+        <div class="footer-actions">
+          <button type="button" class="button quiet" id="stash">暂存</button>
+          <button type="button" class="button primary" id="next">下一步</button>
+        </div>
+      </footer>
+    </main>
+
+    <div id="lesson-overlay" class="overlay" hidden>
+      <section class="lesson-dialog" role="dialog" aria-modal="true" aria-labelledby="lesson-dialog-title">
+        <header class="lesson-dialog-header"><div><span class="eyebrow">课时内容</span><h2 id="lesson-dialog-title">编辑课时</h2></div><button type="button" class="icon-button" id="close-lesson" aria-label="关闭课时编辑">×</button></header>
+        <form id="lesson-form">
+          <div class="lesson-form-scroll">
+            <div class="form-group"><label for="lesson-title">课时标题</label><input id="lesson-title" required maxlength="120" /></div>
+            <div class="form-group"><label for="lesson-objective">学习目标</label><textarea id="lesson-objective" required rows="2" maxlength="500"></textarea></div>
+            <div class="form-divider"><span>教学内容</span><small>正文与练习可以稍后补齐</small></div>
+            <div class="form-group"><label for="lesson-body">课时正文</label><textarea id="lesson-body" rows="6" placeholder="从核心概念、关键方法和实际操作开始写起…"></textarea></div>
+            <div class="form-group"><label for="lesson-example">具体示例</label><textarea id="lesson-example" rows="3" placeholder="用一个贴近实际的例子解释本课内容…"></textarea></div>
+            <div class="form-group"><label for="lesson-quiz">课后练习</label><input id="lesson-quiz" placeholder="例如：用自己的话解释本课核心概念" /></div>
+          </div>
+          <footer class="lesson-dialog-footer"><div><button type="button" class="button secondary" id="cancel-lesson">取消</button><button type="submit" class="button primary">保存课时</button></div></footer>
+        </form>
+      </section>
+    </div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>

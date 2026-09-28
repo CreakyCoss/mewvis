@@ -271,15 +271,17 @@ export default function App() {
                 课程库
               </button>
               <span className="learn-course-breadcrumb">{course.title}</span>
-              <button
-                className={`learn-button ${tab === "project" ? "primary" : ""}`}
-                onClick={() => {
-                  setTab(tab === "project" ? "lesson" : "project");
-                  setFocus(null);
-                }}
-              >
-                {tab === "project" ? "返回课时" : "项目实训"}
-              </button>
+              {(course.projectEnabled || tab === "project") && (
+                <button
+                  className={`learn-button ${tab === "project" ? "primary" : ""}`}
+                  onClick={() => {
+                    setTab(tab === "project" ? "lesson" : "project");
+                    setFocus(null);
+                  }}
+                >
+                  {tab === "project" ? "返回课时" : "项目实训"}
+                </button>
+              )}
             </div>
             <div
               className={`learn-classroom with-tutor ${tab === "project" ? "is-project" : ""} ${tutorExpanded ? "mobile-tutor-expanded" : ""}`}
@@ -592,7 +594,12 @@ export default function App() {
                                   ? "继续规划课程大纲"
                                   : item.creationStep === 1
                                     ? "查看课程大纲"
-                                    : `${item.outline.lessons.filter((slot) => slot.lesson).length} / ${item.outline.lessons.length} 课时已完成`}
+                                    : item.creationStep === 3 &&
+                                        item.outline.lessons.every(
+                                          (slot) => slot.lesson,
+                                        )
+                                      ? "完成项目实训设置并保存"
+                                      : `${item.outline.lessons.filter((slot) => slot.lesson).length} / ${item.outline.lessons.length} 课时已完成`}
                             </strong>
                           </div>
                           <div className="learn-card-actions">
@@ -726,6 +733,7 @@ export default function App() {
                                           title: item.title,
                                           description: item.description,
                                           level: item.level,
+                                          outline: item.outline,
                                           lessons: item.lessons,
                                         }),
                                         null,

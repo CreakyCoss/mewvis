@@ -34,6 +34,12 @@ export type CourseContent = {
   description: string;
   level: string;
   lessons: Lesson[];
+  outline?: CourseOutline;
+  projectEnabled?: boolean;
+};
+export type CourseOutline = {
+  goal: string;
+  phases: { title: string; summary: string }[];
 };
 export type Course = CourseContent & {
   version: 2;
@@ -170,6 +176,23 @@ export function validateContent(value: unknown): CourseContent {
     lessons: list(root.lessons, "课时", 1, 8).map((entry, i) =>
       validateLesson(entry, `lesson-${i + 1}`),
     ),
+    ...(root.outline ? { outline: validateCourseOutline(root.outline) } : {}),
+    ...(typeof root.projectEnabled === "boolean"
+      ? { projectEnabled: root.projectEnabled }
+      : {}),
+  };
+}
+export function validateCourseOutline(value: unknown): CourseOutline {
+  const root = object(value, "课程大纲");
+  return {
+    goal: text(root.goal, "课程目标", 1000),
+    phases: list(root.phases, "学习路径", 1, 6).map((entry) => {
+      const phase = object(entry, "学习阶段");
+      return {
+        title: text(phase.title, "阶段名称", 120),
+        summary: text(phase.summary, "阶段说明", 500),
+      };
+    }),
   };
 }
 export function validId(value: unknown): string {
