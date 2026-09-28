@@ -11,6 +11,7 @@ import {
 } from "./course";
 
 import { projectKey } from "./pbl";
+import { assistantHistoryKey } from "./assistantHistory";
 import {
   type CourseEntry,
   type Draft,
@@ -76,6 +77,7 @@ export function repository(storage: ApplicationStorage) {
       await storage.removeItem(courseKey(id));
       await storage.removeItem(progressKey(id));
       await storage.removeItem(projectKey(id));
+      await storage.removeItem(assistantHistoryKey(id));
     },
   };
 }

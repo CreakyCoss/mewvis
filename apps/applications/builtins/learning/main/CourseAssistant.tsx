@@ -8,6 +8,11 @@ import type { Brief } from "./course";
 import { Icon, Notice, errorText } from "./components";
 import { createModelTask, closeModelTask, openModelTask } from "./ModelTask";
 import { finalText } from "./generation";
+import {
+  type AssistantOutcome,
+  type AssistantPreviewSummary,
+  type AssistantTurn,
+} from "./assistantHistory";
 import { type ProjectPlan, validatePlan, projectProfile } from "./pbl";
 import {
   type Draft,
@@ -29,6 +34,7 @@ type AssistantTask = {
   ref: SessionRef;
   prompt: string;
   request: string;
+  context: string;
   session: ApplicationChatSession;
   draft?: Draft;
   targetId?: string;
@@ -63,6 +69,25 @@ const resultText = (value: unknown, label: string, max: number) => {
     throw new Error(`${label}需为 1–${max} 字`);
   return value.trim();
 };
+const summarizeResult = (task: AssistantTask, value: AssistantResult): AssistantPreviewSummary => {
+  if (typeof value === "string") return { body: value };
+  if ("milestones" in value)
+    return { title: value.title, body: value.scenario, detail: `${value.milestones.length} 个实践阶段` };
+  if ("phases" in value)
+    return {
+      title: value.goal,
+      body: value.description,
+      items: value.phases.map((phase) => phase.title),
+    };
+  const lesson = value.outline?.lessons.find((slot) => slot.id === task.targetId)?.lesson;
+  return lesson
+    ? {
+        title: lesson.title,
+        body: lesson.objective,
+        detail: `${lesson.content.slice(0, 180)}${lesson.content.length > 180 ? "…" : ""}`,
+      }
+    : { body: "课时结果已生成" };
+};
 
 export function CourseAssistant({
   step,
@@ -76,6 +101,8 @@ export function CourseAssistant({
   onApplyLesson,
   onApplyProject,
   onTaskActiveChange,
+  initialHistory,
+  onHistoryChange,
 }: {
   step: 0 | 1 | 2 | 3;
   brief: Brief;
@@ -93,6 +120,8 @@ export function CourseAssistant({
   onApplyLesson: (draft: Draft, targetId: string) => void;
   onApplyProject: (plan: ProjectPlan) => void;
   onTaskActiveChange: (active: boolean) => void;
+  initialHistory: AssistantTurn[];
+  onHistoryChange: (history: AssistantTurn[]) => void;
 }) {
   const [scope, setScope] = useState<"current" | "course">("current");
   const [instruction, setInstruction] = useState("");
@@ -102,7 +131,10 @@ export function CourseAssistant({
   const modelMenuRef = useRef<HTMLDivElement>(null);
   const modelTriggerRef = useRef<HTMLButtonElement>(null);
   const [task, setTask] = useState<AssistantTask | null>(null);
+  const [history, setHistory] = useState<AssistantTurn[]>(initialHistory);
+  const contentRef = useRef<HTMLDivElement>(null);
   const startLock = useRef(false);
+  const finishLock = useRef(false);
   const taskSnapshot = useSyncExternalStore(
     task?.session.subscribe ?? noTaskSubscription,
     task?.session.getSnapshot ?? noTaskSnapshot,
@@ -112,6 +144,11 @@ export function CourseAssistant({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => onTaskActiveChange(!!task || busy), [task, busy]);
+  useEffect(() => onHistoryChange(history), [history]);
+  useEffect(() => {
+    const panel = contentRef.current;
+    if (panel) panel.scrollTop = panel.scrollHeight;
+  }, [history.length, task?.request, taskSnapshot?.phase]);
   useEffect(() => {
     let alive = true;
     void (async () => {
@@ -254,6 +291,7 @@ export function CourseAssistant({
         ref,
         prompt,
         request: request || defaultRequests[kind],
+        context,
         session,
         draft: source ?? undefined,
         targetId: target?.id,
@@ -269,7 +307,9 @@ export function CourseAssistant({
     }
   };
   const sendAgain = async (active: AssistantTask, prompt: string, request: string) => {
-    if (busy || active.session.getSnapshot().phase !== "idle") return;
+    if (busy || startLock.current || active.session.getSnapshot().phase !== "idle") return;
+    startLock.current = true;
+    const previous = archiveTurn(active, prompt === active.prompt ? "retried" : "revised");
     setBusy(true);
     setError("");
     try {
@@ -280,11 +320,13 @@ export function CourseAssistant({
       const sent = await active.session.send({ text: prompt, requestId: crypto.randomUUID() });
       if (sent.status !== "dispatched")
         throw new Error(sent.reason || "AI 任务未启动，请重试");
+      setHistory((current) => [...current, previous]);
       setTask({ ...active, prompt, request });
       setInstruction("");
     } catch (e) {
       setError(errorText(e));
     } finally {
+      startLock.current = false;
       setBusy(false);
     }
   };
@@ -298,9 +340,19 @@ export function CourseAssistant({
     );
   };
   const discard = async (active: AssistantTask) => {
-    setTask(null);
-    setError("");
-    await closeModelTask(active.ref).catch(() => {});
+    if (finishLock.current) return;
+    finishLock.current = true;
+    setBusy(true);
+    try {
+      const archived = archiveTurn(active, "discarded");
+      setHistory((current) => [...current, archived]);
+      setTask(null);
+      setError("");
+      await closeModelTask(active.ref).catch(() => {});
+    } finally {
+      finishLock.current = false;
+      setBusy(false);
+    }
   };
   const result = (active: AssistantTask, raw: string) => {
     if (active.kind === "topic")
@@ -333,7 +385,31 @@ export function CourseAssistant({
     if (active.kind === "project") return validatePlan(parsed(raw));
     return resultText(parsed(raw).suggestion, "建议", 3000);
   };
+  function archiveTurn(active: AssistantTask, outcome: AssistantOutcome): AssistantTurn {
+    const snapshot = active.session.getSnapshot();
+    const raw = finalText(snapshot);
+    let preview: AssistantPreviewSummary | undefined;
+    let failure = snapshot.error || snapshot.initializationError || "";
+    if (raw !== null) {
+      try {
+        preview = summarizeResult(active, result(active, raw));
+      } catch (e) {
+        failure = errorText(e);
+      }
+    }
+    return {
+      id: crypto.randomUUID(),
+      context: active.context,
+      request: active.request,
+      outcome,
+      ...(preview ? { preview } : {}),
+      ...(failure ? { error: failure.slice(0, 500) } : {}),
+    };
+  }
   const accept = async (active: AssistantTask, raw: string) => {
+    if (finishLock.current) return;
+    finishLock.current = true;
+    setBusy(true);
     try {
       const value = result(active, raw);
       if (active.kind === "topic") onApplyTopic(value as string);
@@ -341,11 +417,16 @@ export function CourseAssistant({
       else if (active.kind === "lesson" || active.kind === "revise")
         onApplyLesson(value as Draft, active.targetId!);
       else if (active.kind === "project") onApplyProject(value as ProjectPlan);
+      const archived = archiveTurn(active, active.kind === "advice" ? "viewed" : "accepted");
+      setHistory((current) => [...current, archived]);
       setTask(null);
       setError("");
       await closeModelTask(active.ref).catch(() => {});
     } catch (e) {
       setError(errorText(e));
+    } finally {
+      finishLock.current = false;
+      setBusy(false);
     }
   };
   const selectedModelName = models.find((model) => model.id === selectedModelId)?.modelName ?? "选择模型";
@@ -379,20 +460,25 @@ export function CourseAssistant({
           </button>
         </div>
       </div>
-      <div className="learn-course-assistant-content">
+      <div className="learn-course-assistant-content" ref={contentRef}>
         {error && <Notice>{error}</Notice>}
-        {task ? (
-          <AssistantTaskView
-            task={task}
-            busy={busy}
-            resolve={result}
-            onAccept={(raw) => void accept(task, raw)}
-            onRetry={() => void sendAgain(task, task.prompt, task.request)}
-            onStop={() => void task.session.stop().then((stopped) => {
-              if (!stopped.ok) setError(stopped.error);
-            }).catch((e) => setError(errorText(e)))}
-            onDiscard={() => void discard(task)}
-          />
+        {history.length > 0 || task ? (
+          <div className="learn-assistant-thread" role="log" aria-label="AI 对话记录">
+            {history.map((turn) => <AssistantHistoryTurn key={turn.id} turn={turn} />)}
+            {task && (
+              <AssistantTaskView
+                task={task}
+                busy={busy}
+                resolve={result}
+                onAccept={(raw) => void accept(task, raw)}
+                onRetry={() => void sendAgain(task, task.prompt, task.request)}
+                onStop={() => void task.session.stop().then((stopped) => {
+                  if (!stopped.ok) setError(stopped.error);
+                }).catch((e) => setError(errorText(e)))}
+                onDiscard={() => void discard(task)}
+              />
+            )}
+          </div>
         ) : !instruction.trim() ? (
           <div className="learn-assistant-empty">
             <div className="learn-assistant-suggestions">
@@ -487,6 +573,39 @@ export function CourseAssistant({
   );
 }
 
+const outcomeLabels: Record<AssistantOutcome, string> = {
+  accepted: "已采纳",
+  viewed: "已查看",
+  discarded: "已放弃",
+  revised: "已继续调整",
+  retried: "已重新生成",
+};
+function AssistantHistoryTurn({ turn }: { turn: AssistantTurn }) {
+  return (
+    <div className="learn-assistant-flow learn-assistant-history-turn">
+      <div className="learn-assistant-request">
+        <span>{turn.context}</span>
+        <p>{turn.request}</p>
+      </div>
+      <section className="learn-assistant-response" aria-label="历史 AI 结果">
+        <div className="learn-assistant-response-heading">
+          <span className="learn-assistant-outcome" data-outcome={turn.outcome}>
+            {turn.outcome === "accepted" && <Icon name="check" size={13} />}
+            {outcomeLabels[turn.outcome]}
+          </span>
+        </div>
+        {turn.preview && (
+          <div className="learn-assistant-result">
+            <span>结果预览</span>
+            <AssistantPreview preview={turn.preview} />
+          </div>
+        )}
+        {turn.error && <p className="learn-assistant-response-note">{turn.error}</p>}
+      </section>
+    </div>
+  );
+}
+
 function AssistantTaskView({
   task,
   busy,
@@ -528,7 +647,7 @@ function AssistantTaskView({
   return (
     <div className="learn-assistant-flow">
       <div className="learn-assistant-request">
-        <span>你的要求</span>
+        <span>{task.context}</span>
         <p>{task.request}</p>
       </div>
       <section className="learn-assistant-response" aria-label="AI 生成结果">
@@ -548,7 +667,7 @@ function AssistantTaskView({
         {value !== null && (
           <div className="learn-assistant-result">
             <span>结果预览</span>
-            <AssistantPreview task={task} value={value} />
+            <AssistantPreview preview={summarizeResult(task, value)} />
           </div>
         )}
         <div className="learn-assistant-response-actions">
@@ -579,30 +698,13 @@ function AssistantTaskView({
   );
 }
 
-function AssistantPreview({ task, value }: { task: AssistantTask; value: AssistantResult }) {
-  if (typeof value === "string") return <p>{value}</p>;
-  if ("milestones" in value)
-    return (
-      <div>
-        <strong>{value.title}</strong>
-        <p>{value.scenario}</p>
-        <small>{value.milestones.length} 个实践阶段</small>
-      </div>
-    );
-  if ("phases" in value)
-    return (
-      <div>
-        <p>{value.description}</p>
-        <strong>{value.goal}</strong>
-        <ol>{value.phases.map((phase, index) => <li key={index}>{phase.title}</li>)}</ol>
-      </div>
-    );
-  const lesson = value.outline?.lessons.find((slot) => slot.id === task.targetId)?.lesson;
-  return lesson ? (
+function AssistantPreview({ preview }: { preview: AssistantPreviewSummary }) {
+  return (
     <div>
-      <strong>{lesson.title}</strong>
-      <p>{lesson.objective}</p>
-      <small>{lesson.content.slice(0, 180)}{lesson.content.length > 180 ? "…" : ""}</small>
+      {preview.title && <strong>{preview.title}</strong>}
+      <p>{preview.body}</p>
+      {preview.detail && <small>{preview.detail}</small>}
+      {preview.items && <ol>{preview.items.map((item, index) => <li key={index}>{item}</li>)}</ol>}
     </div>
-  ) : null;
+  );
 }

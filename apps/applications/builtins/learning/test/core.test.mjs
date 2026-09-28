@@ -12,7 +12,7 @@ test.after(() => rm(temporary, { recursive: true, force: true }));
 const compiled = await build({
   stdin: {
     contents:
-      'export * from "./main/course"; export * from "./main/repository"; export * from "./main/clearOldChats"; export * from "./main/generation"; export * from "./main/example"; export * from "./main/workflow"; export * from "./main/pbl"; export * from "./main/vendor/grading"; export * from "./main/mastery";',
+      'export * from "./main/course"; export * from "./main/repository"; export * from "./main/assistantHistory"; export * from "./main/clearOldChats"; export * from "./main/generation"; export * from "./main/example"; export * from "./main/workflow"; export * from "./main/pbl"; export * from "./main/vendor/grading"; export * from "./main/mastery";',
     resolveDir: root,
   },
   bundle: true,
@@ -32,6 +32,10 @@ const {
   restoreProgress,
   recordAttempt,
   repository,
+  assistantHistoryKey,
+  readAssistantHistory,
+  writeAssistantHistory,
+  validateAssistantHistory,
   clearOldChats,
   courseKey,
   courseFromSnapshot,
@@ -320,6 +324,34 @@ test("saved course and progress survive a new repository instance", async () => 
   await b.remove(course.id);
   assert.equal((await a.list()).length, 0);
   assert.equal(storage.values.size, 0);
+});
+test("assistant conversation keeps adopted results after stash and is removed with its course", async () => {
+  const storage = memory();
+  const course = copy();
+  const history = [
+    {
+      id: crypto.randomUUID(),
+      context: "课程设置",
+      request: "让主题更清晰",
+      outcome: "accepted",
+      preview: { title: "机器学习基础", body: "从实际例子入门" },
+    },
+    {
+      id: crypto.randomUUID(),
+      context: "课程大纲",
+      request: "继续优化学习路径",
+      outcome: "revised",
+      preview: { body: "先建立概念，再动手实践", items: ["认识模型", "完成练习"] },
+    },
+  ];
+  await repository(storage).saveDraft(newDraft({ ...briefV2, topic: course.title }, course));
+  await writeAssistantHistory(storage, course.id, history);
+  assert.deepEqual(await readAssistantHistory(storage, course.id), history);
+  await repository(storage).save(course);
+  assert.deepEqual(await readAssistantHistory(storage, course.id), history);
+  assert.throws(() => validateAssistantHistory([{ ...history[0], outcome: "unknown" }]), /状态/);
+  await repository(storage).remove(course.id);
+  assert.equal(await storage.getItem(assistantHistoryKey(course.id)), null);
 });
 test("malformed progress cannot introduce nonexistent lessons, answers, or duplicate completion", () => {
   const course = copy();

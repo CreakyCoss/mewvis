@@ -871,10 +871,6 @@ export default function App() {
           onClose={() => setCreateOpen(false)}
           onSave={save}
           onSaveDraft={saveDraft}
-          onStashed={() => {
-            setCreateOpen(false);
-            setView("library");
-          }}
           onSaved={(saved) => {
             setCreateOpen(false);
             setEditing(undefined);

@@ -13,6 +13,11 @@ import {
 } from "./workflow";
 import { Studio } from "./Studio";
 import { CourseAssistant } from "./CourseAssistant";
+import {
+  readAssistantHistory,
+  writeAssistantHistory,
+  type AssistantTurn,
+} from "./assistantHistory";
 import { OutlineEditor } from "./OutlineEditor";
 import { ProjectDesigner, starterProjectPlan } from "./ProjectDesigner";
 import {
@@ -45,14 +50,12 @@ export function CourseDialog({
   onSave,
   onSaveDraft,
   onSaved,
-  onStashed,
   initialCourse,
 }: {
   onClose: () => void;
   onSave: (course: Course) => Promise<void>;
   onSaveDraft: (draft: Draft) => Promise<Draft>;
   onSaved: (course: Course) => void;
-  onStashed: () => void;
   initialCourse?: CourseEntry;
 }) {
   const startingStep: CreationStep =
@@ -85,13 +88,20 @@ export function CourseDialog({
     creating: boolean;
   } | null>(null);
   const [assistantBusy, setAssistantBusy] = useState(false);
+  const [assistantHistory, setAssistantHistory] = useState<AssistantTurn[]>([]);
+  const assistantHistoryRef = useRef<AssistantTurn[]>([]);
+  const [historyReady, setHistoryReady] = useState(!initialCourse);
+  const [historyReadable, setHistoryReadable] = useState(true);
+  const [historyError, setHistoryError] = useState("");
   const [studioRevision, setStudioRevision] = useState(0);
   const [error, setError] = useState("");
+  const [stashNotice, setStashNotice] = useState(false);
+  const stashNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dialog = useRef<HTMLDivElement>(null);
   const draftRef = useRef<Draft | null>(workingDraft);
   const currentCourse = created ?? initialCourse;
   const shownCourse = workingDraft ?? currentCourse;
-  const activeBusy = busy || studioBusy || assistantBusy || projectLoading;
+  const activeBusy = busy || studioBusy || assistantBusy || projectLoading || !historyReady;
   const projectReady =
     !workingDraft?.projectEnabled ||
     (() => {
@@ -108,6 +118,43 @@ export function CourseDialog({
   const updateDraft = (next: Draft) => {
     draftRef.current = next;
     setWorkingDraft(next);
+  };
+  useEffect(() => {
+    if (!initialCourse) return;
+    let alive = true;
+    const courseId = initialCourse.status === "stashed" ? initialCourse.courseId : initialCourse.id;
+    void readAssistantHistory(getApplicationDataClient().storage, courseId)
+      .then((history) => {
+        if (!alive) return;
+        assistantHistoryRef.current = history;
+        setAssistantHistory(history);
+      })
+      .catch((e) => {
+        if (!alive) return;
+        setHistoryReadable(false);
+        setHistoryError(errorText(e));
+      })
+      .finally(() => {
+        if (alive) setHistoryReady(true);
+      });
+    return () => { alive = false; };
+  }, [initialCourse]);
+  const retryAssistantHistory = async () => {
+    if (!initialCourse) return;
+    setHistoryReady(false);
+    setHistoryError("");
+    try {
+      const courseId = initialCourse.status === "stashed" ? initialCourse.courseId : initialCourse.id;
+      const history = await readAssistantHistory(getApplicationDataClient().storage, courseId);
+      assistantHistoryRef.current = history;
+      setAssistantHistory(history);
+      setHistoryReadable(true);
+    } catch (e) {
+      setHistoryReadable(false);
+      setHistoryError(errorText(e));
+    } finally {
+      setHistoryReady(true);
+    }
   };
   useEffect(() => {
     if (!initialCourse || initialCourse.status !== "ready" || !initialCourse.projectEnabled)
@@ -220,6 +267,9 @@ export function CourseDialog({
       previous?.focus();
     };
   }, []);
+  useEffect(() => () => {
+    if (stashNoticeTimer.current) clearTimeout(stashNoticeTimer.current);
+  }, []);
   const appendFiles = async (files: File[]) => {
     setBusy(true);
     setError("");
@@ -252,12 +302,17 @@ export function CourseDialog({
   const stash = async () => {
     if (!brief.topic.trim() || activeBusy) return;
     setError("");
+    setStashNotice(false);
     setBusy(true);
     try {
-      if (draftRef.current)
-        await saveWorkingCourse(withBrief(draftRef.current));
-      else await saveWorkingCourse(newDraft(cleanBrief(), undefined, step));
-      onStashed();
+      const saved = draftRef.current
+        ? await saveWorkingCourse(withBrief(draftRef.current))
+        : await saveWorkingCourse(newDraft(cleanBrief(), undefined, step));
+      if (historyReadable)
+        await writeAssistantHistory(getApplicationDataClient().storage, saved.courseId, assistantHistoryRef.current);
+      setStashNotice(true);
+      if (stashNoticeTimer.current) clearTimeout(stashNoticeTimer.current);
+      stashNoticeTimer.current = setTimeout(() => setStashNotice(false), 3000);
     } catch (e) {
       setError(errorText(e));
     } finally {
@@ -296,6 +351,8 @@ export function CourseDialog({
         });
       }
       await onSave(course);
+      if (historyReadable)
+        await writeAssistantHistory(getApplicationDataClient().storage, course.id, assistantHistoryRef.current);
       onSaved(course);
     } catch (e) {
       setError(errorText(e));
@@ -327,18 +384,20 @@ export function CourseDialog({
         }}
       >
         <header className="learn-dialog-header">
+          <button
+            type="button"
+            className="learn-dialog-back"
+            aria-label="返回上一页"
+            title="返回上一页"
+            disabled={busy}
+            onClick={() => void requestClose()}
+          >
+            <Icon name="chevronLeft" size={16} />
+          </button>
           <div className="learn-course-header-title">
             <h2 id="learn-create-title">{initialCourse ? "编辑课程" : "创建课程"}</h2>
             <span>{brief.topic.trim() || "未命名课程"}</span>
           </div>
-          <button
-            className="learn-button text"
-            aria-label={initialCourse ? "关闭课程编辑" : "关闭创建课程"}
-            disabled={busy}
-            onClick={() => void requestClose()}
-          >
-            ×
-          </button>
         </header>
         <div className="learn-editor-grid">
         <div className="learn-course-main">
@@ -524,8 +583,19 @@ export function CourseDialog({
           ) : null}
         </div>
         </div>
-        <CourseAssistant
+        {!historyReady ? (
+          <aside className="learn-course-assistant"><p role="status">正在读取 AI 对话…</p></aside>
+        ) : !historyReadable ? (
+          <aside className="learn-course-assistant">
+            <Notice>AI 对话暂时无法读取：{historyError}</Notice>
+            <button type="button" className="learn-button compact" onClick={() => void retryAssistantHistory()}>
+              重试读取
+            </button>
+          </aside>
+        ) : <CourseAssistant
           step={step}
+          initialHistory={assistantHistory}
+          onHistoryChange={(history) => { assistantHistoryRef.current = history; }}
           brief={brief}
           draft={workingDraft}
           activeLesson={activeLesson}
@@ -572,7 +642,7 @@ export function CourseDialog({
               });
           }}
           onTaskActiveChange={setAssistantBusy}
-        />
+        />}
         </div>
         <footer className="learn-dialog-footer">
           <button
@@ -584,6 +654,9 @@ export function CourseDialog({
             上一步
           </button>
           <div className="learn-dialog-footer-actions">
+            <span className="learn-stash-notice" role="status" aria-live="polite">
+              {stashNotice ? "暂存成功" : ""}
+            </span>
             <button
               type="button"
               className="learn-button"
