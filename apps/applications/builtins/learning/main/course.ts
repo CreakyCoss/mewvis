@@ -406,6 +406,29 @@ export function recordAttempt(
   });
 }
 
+/** Archive the submitted work before starting a blank practice, independently of chat. */
+export function resetAttempt(
+  course: Course,
+  progress: Progress,
+  lessonId: string,
+): Progress {
+  if (!course.lessons.some((lesson) => lesson.id === lessonId))
+    throw new Error("课时不存在");
+  const current = progress.attempts[lessonId];
+  if (!current) return progress;
+  const { gradingSession: _session, ...archived } = current;
+  const attempts = { ...progress.attempts };
+  delete attempts[lessonId];
+  return restoreProgress(course, {
+    ...progress,
+    attempts,
+    history: {
+      ...progress.history,
+      [lessonId]: [archived, ...(progress.history[lessonId] ?? [])],
+    },
+  });
+}
+
 export function validAnswer(
   q: Question,
   answer: unknown,

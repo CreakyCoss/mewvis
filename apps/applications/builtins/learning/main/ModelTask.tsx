@@ -15,6 +15,7 @@ import { getApplicationDataClient } from "@isle/app-sdk/data";
 import { finalText } from "./generation";
 import type { SessionRef } from "./workflow";
 import { Notice, errorText } from "./components";
+import { recoverMissingChat } from "./chatRecovery";
 
 const sessions = new Map<string, ApplicationChatSession>();
 export async function createModelTask(
@@ -33,6 +34,10 @@ export async function createModelTask(
 }
 export async function openModelTask(ref: SessionRef) {
   let session = sessions.get(ref.chatId);
+  if (session?.getSnapshot().phase === "closed") {
+    sessions.delete(ref.chatId);
+    session = undefined;
+  }
   if (!session) {
     session = await getApplicationChatClient().openSession(ref);
     sessions.set(ref.chatId, session);
@@ -40,7 +45,11 @@ export async function openModelTask(ref: SessionRef) {
   return session;
 }
 export async function closeModelTask(ref: SessionRef) {
-  const session = await openModelTask(ref);
+  const session = await recoverMissingChat<ApplicationChatSession | null>(
+    () => openModelTask(ref),
+    async () => null,
+  );
+  if (!session) return;
   const result = await session.close();
   if (!result.ok) throw new Error(result.error);
   sessions.delete(ref.chatId);
@@ -53,6 +62,8 @@ type Props = {
   onAccept: (raw: string) => Promise<void>;
   onRetryConnection: () => Promise<void>;
   acceptLabel?: string;
+  embedded?: boolean;
+  renderChat?: (session: ApplicationChatSession) => ReactNode;
 };
 export function ModelTask(props: Props) {
   const [session, setSession] = useState<ApplicationChatSession | null>(null);
@@ -62,7 +73,13 @@ export function ModelTask(props: Props) {
     let alive = true;
     setSession(null);
     setError("");
-    void openModelTask(props.taskRef)
+    void recoverMissingChat<ApplicationChatSession | null>(
+      () => openModelTask(props.taskRef),
+      async () => {
+        if (alive) await props.onRetryConnection();
+        return null;
+      },
+    )
       .then((value) => {
         if (alive) setSession(value);
       })
@@ -76,7 +93,7 @@ export function ModelTask(props: Props) {
   if (error)
     return (
       <Notice>
-        恢复任务会话失败：{error}。暂存的课程内容仍保留。
+        恢复任务会话失败：{error}。已保存内容仍保留。
         <button
           className="learn-button"
           disabled={busy}
@@ -135,15 +152,19 @@ function ConnectedTask({
   };
   return (
     <section className="learn-task" aria-label={props.title}>
-      <div className="learn-section-title">
-        <h2>{props.title}</h2>
-        <span className="learn-chip">
-          {snapshot.phase === "idle" ? "等待操作" : "生成中"}
-        </span>
-      </div>
-      <p className="learn-muted">
-        在聊天区选择模型后开始。可停止或继续对话修正，结果校验通过后再采用。
-      </p>
+      {!props.embedded && (
+        <div className="learn-section-title">
+          <h2>{props.title}</h2>
+          <span className="learn-chip">
+            {snapshot.phase === "idle" ? "等待操作" : "生成中"}
+          </span>
+        </div>
+      )}
+      {!props.embedded && (
+        <p className="learn-muted">
+          在聊天区选择模型后开始。可停止或继续对话修正，结果校验通过后再采用。
+        </p>
+      )}
       {error && <Notice>{error}</Notice>}
       {validation && (
         <Notice>{validation}。已保存内容不受影响，可重试生成。</Notice>
@@ -167,7 +188,11 @@ function ConnectedTask({
             })
           }
         >
-          {snapshot.messages.length ? "重新生成 / 重试" : "开始生成"}
+          {snapshot.messages.length
+            ? "重新生成 / 重试"
+            : props.embedded
+              ? "开始评阅"
+              : "开始生成"}
         </button>
         {raw !== null && !validation && (
           <button
@@ -181,7 +206,11 @@ function ConnectedTask({
       </div>
       {preview && <div className="learn-result-preview">{preview}</div>}
       <div className="learn-author-chat" inert={busy}>
-        <Chat session={session} />
+        {props.renderChat ? (
+          props.renderChat(session)
+        ) : (
+          <Chat session={session} />
+        )}
       </div>
     </section>
   );

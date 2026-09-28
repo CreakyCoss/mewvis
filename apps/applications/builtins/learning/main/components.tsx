@@ -4,8 +4,22 @@ import {
   type ApplicationChatSession,
 } from "@isle/app-sdk/chat";
 import { getApplicationDataClient } from "@isle/app-sdk/data";
-import { Chat } from "@isle/app-sdk/chat/react";
+import {
+  Chat,
+  useChatComposer,
+  useChatSnapshot,
+} from "@isle/app-sdk/chat/react";
+import {
+  ArrowUp,
+  ClipboardCheck,
+  History,
+  ListChecks,
+  Plus,
+  Sparkles,
+  Square,
+} from "lucide-react";
 import { tutorProfile } from "./generation";
+import { recoverMissingChat } from "./chatRecovery";
 import type { Course, Lesson } from "./course";
 
 export const errorText = (error: unknown) =>
@@ -14,7 +28,18 @@ export function Icon({
   name,
   size = 20,
 }: {
-  name: "book" | "plus" | "arrow" | "send" | "spark" | "check" | "back" | "chevronLeft" | "chevronUp" | "chevronDown" | "trash";
+  name:
+    | "book"
+    | "plus"
+    | "arrow"
+    | "send"
+    | "spark"
+    | "check"
+    | "back"
+    | "chevronLeft"
+    | "chevronUp"
+    | "chevronDown"
+    | "trash";
   size?: number;
 }) {
   const paths = {
@@ -88,40 +113,24 @@ export type FocusTarget =
 export function Tutor({
   course,
   lesson,
-  onFocus,
+  panels,
   expanded,
   onToggleExpand,
 }: {
   course: Course;
   lesson: Lesson;
-  onFocus: (target: FocusTarget) => void;
+  panels: Record<"grading" | "mistakes" | "history", ReactNode>;
   expanded: boolean;
   onToggleExpand: () => void;
 }) {
   const [session, setSession] = useState<ApplicationChatSession | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [hint, setHint] = useState<FocusTarget | null>(null);
+  const [panel, setPanel] = useState<
+    "chat" | "grading" | "mistakes" | "history"
+  >("chat");
+  const [chatBusy, setChatBusy] = useState(false);
   const connecting = useRef(false);
-  const requestHint = async () => {
-    if (!session || connecting.current) return;
-    setBusy(true);
-    setError("");
-    try {
-      const result = await session.send({
-        text: "请根据本课目标给我一个分步学习提示：先提出一个让我自己思考的问题，再提示我应查看目标、例子、要点自测还是测验。不要直接给出测验答案。",
-        requestId: crypto.randomUUID(),
-      });
-      if (result.status !== "dispatched")
-        throw new Error(
-          result.reason || "导师提示未发送，请先在聊天区选择模型",
-        );
-    } catch (e) {
-      setError(errorText(e));
-    } finally {
-      setBusy(false);
-    }
-  };
   const connect = async (fresh = false) => {
     if (connecting.current) return;
     connecting.current = true;
@@ -139,10 +148,7 @@ export function Tutor({
         chatId: string;
       }>(key);
       const client = getApplicationChatClient();
-      if (previous && !fresh) {
-        // Do not silently replace an existing conversation when opening fails.
-        setSession(await client.openSession(previous));
-      } else {
+      const create = async () => {
         const created = await client.createSession({
           workspaceId: workspace.id,
           sceneId: "learning-tutor",
@@ -162,8 +168,13 @@ export function Tutor({
           await created.close();
           throw e;
         }
-        setSession(created);
-      }
+        return created;
+      };
+      setSession(
+        previous && !fresh
+          ? await recoverMissingChat(() => client.openSession(previous), create)
+          : await create(),
+      );
     } catch (e) {
       setError(errorText(e));
     } finally {
@@ -174,106 +185,311 @@ export function Tutor({
   useEffect(() => {
     void connect();
   }, []);
+  useEffect(() => {
+    if (!session) return;
+    const update = () =>
+      setChatBusy(!["idle", "closed"].includes(session.getSnapshot().phase));
+    update();
+    return session.subscribe(update);
+  }, [session]);
+  const tabs = [
+    { id: "chat", label: "助手", title: "学习助手", icon: Sparkles },
+    {
+      id: "grading",
+      label: "评阅",
+      title: "简答题 AI 评阅",
+      icon: ClipboardCheck,
+    },
+    { id: "mistakes", label: "错题", title: "错题本", icon: ListChecks },
+    { id: "history", label: "记录", title: "练习记录", icon: History },
+  ] as const;
   return (
-    <aside className="learn-tutor" aria-label="AI 学习导师">
-      <header>
-        <span className="learn-tutor-icon">
-          <Icon name="spark" />
-        </span>
-        <div>
-          <h2>学习导师</h2>
-          <p>{lesson.title}</p>
-        </div>
-        <span
-          className={`learn-tutor-status ${session ? "ready" : error ? "error" : ""}`}
-          role="status"
-        >
-          {session ? "可随时提问" : error ? "连接失败" : "连接中"}
-        </span>
-        <button
-          className="learn-tutor-expand"
-          onClick={onToggleExpand}
-          aria-expanded={expanded}
-        >
-          {expanded ? "返回课程" : "展开对话"}
-        </button>
-      </header>
-      <details className="learn-tutor-guide">
-        <summary>
-          学习引导 <span aria-hidden="true">⌄</span>
-        </summary>
-        <div className="learn-tutor-guide-body">
-          <p>快速定位内容，先独立思考，再向导师提问。</p>
-          <div className="learn-tutor-guide-actions">
-            {(
-              [
-                ["objective", "看目标"],
-                ["example", "看例子"],
-                ["recall", "回忆要点"],
-                ["quiz", "去测验"],
-              ] as const
-            ).map(([target, label]) => (
+    <aside
+      className="learn-tutor learn-study-assistant"
+      aria-label="学习助手工具区"
+    >
+      <div className="learn-study-assistant-main">
+        <header className="learn-study-assistant-header">
+          <h2>{tabs.find((item) => item.id === panel)?.title}</h2>
+          <div>
+            {panel === "chat" && (
               <button
-                key={target}
-                className="learn-button text"
-                onClick={() => {
-                  setHint(target);
-                  onFocus(target);
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          {session && (
-            <button
-              className="learn-button"
-              disabled={busy}
-              onClick={() => void requestHint()}
-            >
-              请 AI 导师给下一步提示
-            </button>
-          )}
-          {hint && (
-            <p className="learn-tutor-hint" role="status">
-              {hint === "objective"
-                ? `先用自己的话解释目标：${lesson.objective}`
-                : hint === "example"
-                  ? "读完例子后，试着说出它说明了正文中的哪一个概念。"
-                  : hint === "recall"
-                    ? "先遮住要点回忆，再翻开卡片核对遗漏。"
-                    : "先独立作答；提交后根据解析定位需要巩固的内容。"}
-            </p>
-          )}
-        </div>
-      </details>
-      {error && <Notice>{error}</Notice>}
-      {session ? (
-        <div className="learn-chat">
-          <Chat session={session} />
-        </div>
-      ) : (
-        <div className="learn-tutor-empty">
-          {busy ? (
-            <p role="status">正在准备导师对话…</p>
-          ) : error ? (
-            <>
-              <p>导师连接失败，已有对话记录仍保留。</p>
-              <button className="learn-button" onClick={() => void connect()}>
-                重试连接
-              </button>
-              <button
-                className="learn-button text"
+                className="learn-assistant-icon-button"
+                aria-label="新开导师对话"
+                title="新开对话"
+                disabled={busy || chatBusy}
                 onClick={() => void connect(true)}
               >
-                新开导师对话（保留原历史）
+                <Plus size={17} />
               </button>
-            </>
-          ) : (
-            <p role="status">正在准备导师对话…</p>
-          )}
-        </div>
-      )}
+            )}
+            <button
+              className="learn-tutor-expand"
+              onClick={onToggleExpand}
+              aria-expanded={expanded}
+            >
+              {expanded ? "返回课程" : "展开助手"}
+            </button>
+          </div>
+        </header>
+        {tabs.map(({ id }) => (
+          <section
+            key={id}
+            hidden={panel !== id}
+            id={`learn-panel-${id}`}
+            role="tabpanel"
+            aria-labelledby={`learn-tool-${id}`}
+            className={`learn-study-pane ${id === "chat" ? "is-chat" : ""}`}
+            tabIndex={0}
+          >
+            {id === "chat" ? (
+              <>
+                {error && <Notice>{error}</Notice>}
+                {session ? (
+                  <Chat.Provider
+                    key={session.identity.id}
+                    session={session}
+                    viewId="learning-study"
+                  >
+                    <TutorConversation lesson={lesson} />
+                  </Chat.Provider>
+                ) : (
+                  <div className="learn-panel-empty">
+                    <p>
+                      {busy
+                        ? "正在准备导师对话…"
+                        : "导师连接失败，已有对话记录仍保留。"}
+                    </p>
+                    {!busy && (
+                      <button
+                        className="learn-button"
+                        onClick={() => void connect()}
+                      >
+                        重试连接
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              panels[id]
+            )}
+          </section>
+        ))}
+      </div>
+      <nav
+        className="learn-study-rail"
+        role="tablist"
+        aria-label="学习工具"
+        aria-orientation="vertical"
+      >
+        {tabs.map(({ id, label, icon: ToolIcon }, index) => (
+          <button
+            key={id}
+            id={`learn-tool-${id}`}
+            role="tab"
+            aria-selected={panel === id}
+            aria-controls={`learn-panel-${id}`}
+            tabIndex={panel === id ? 0 : -1}
+            onClick={() => setPanel(id)}
+            onKeyDown={(event) => {
+              const next =
+                event.key === "ArrowDown"
+                  ? (index + 1) % tabs.length
+                  : event.key === "ArrowUp"
+                    ? (index + tabs.length - 1) % tabs.length
+                    : event.key === "Home"
+                      ? 0
+                      : event.key === "End"
+                        ? tabs.length - 1
+                        : null;
+              if (next === null) return;
+              event.preventDefault();
+              setPanel(tabs[next].id);
+              document.getElementById(`learn-tool-${tabs[next].id}`)?.focus();
+            }}
+          >
+            <ToolIcon size={18} strokeWidth={1.7} aria-hidden="true" />
+            <span>{label}</span>
+          </button>
+        ))}
+      </nav>
     </aside>
+  );
+}
+
+export function TutorConversation({
+  lesson,
+  reviewing = false,
+}: {
+  lesson: Lesson;
+  reviewing?: boolean;
+}) {
+  const binding = useChatComposer();
+  const snapshot = useChatSnapshot();
+  const [contextOpen, setContextOpen] = useState(false);
+  const [error, setError] = useState("");
+  const input = useRef<HTMLTextAreaElement>(null);
+  const send = async () => {
+    if (!binding.canSubmit || binding.disabled) return;
+    setError("");
+    try {
+      const result = await binding.submit();
+      if (result.status !== "dispatched")
+        setError(result.reason || "发送失败，请重试");
+    } catch (e) {
+      setError(errorText(e));
+    }
+  };
+  const hasMessages = snapshot.messages.some(
+    (message) => message.role === "user",
+  );
+  return (
+    <>
+      <div className="learn-study-conversation">
+        {hasMessages ? (
+          <Chat.Messages />
+        ) : reviewing ? (
+          <p className="learn-review-chat-empty">
+            选择模型后，点击上方「开始评阅」。评阅过程中也可以继续补充要求。
+          </p>
+        ) : (
+          <div className="learn-study-welcome">
+            <Sparkles size={23} />
+            <h3>一起弄懂这一课</h3>
+            <p>聊聊不懂的概念，或让我给你一点提示。</p>
+            {["用一个例子解释本课重点", "给我一个提示，先不要给答案"].map(
+              (text) => (
+                <button
+                  key={text}
+                  onClick={() => {
+                    binding.setDraft({ text, blocks: [] });
+                    input.current?.focus();
+                  }}
+                >
+                  {text}
+                  <Icon name="arrow" size={14} />
+                </button>
+              ),
+            )}
+          </div>
+        )}
+      </div>
+      <div className="learn-study-compose-area">
+        <Chat.Error />
+        <Chat.Question />
+        {error && <Notice>{error}</Notice>}
+        {snapshot.phase === "paused" && (
+          <button
+            className="learn-button"
+            onClick={() => void binding.resume?.()}
+          >
+            继续生成
+          </button>
+        )}
+        <div className="learn-study-context">
+          <span title={lesson.title}>{lesson.title}</span>
+          <button
+            aria-expanded={contextOpen}
+            onClick={() => setContextOpen(!contextOpen)}
+          >
+            上下文
+          </button>
+        </div>
+        {contextOpen && (
+          <div className="learn-study-context-detail">
+            助手会参考本课目标、讲解、要点和测验题目。
+          </div>
+        )}
+        <form
+          className="learn-study-composer"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void send();
+          }}
+        >
+          <textarea
+            ref={input}
+            rows={3}
+            aria-label="给学习助手的消息"
+            placeholder={
+              reviewing
+                ? "补充评阅要求，或追问评分依据…"
+                : "问不懂的地方，或说说你的理解…"
+            }
+            value={binding.draft.text}
+            disabled={binding.disabled}
+            onChange={(e) =>
+              binding.setDraft({ text: e.target.value, blocks: [] })
+            }
+            onKeyDown={(e) => {
+              if (
+                e.key === "Enter" &&
+                !e.shiftKey &&
+                !e.nativeEvent.isComposing
+              ) {
+                e.preventDefault();
+                void send();
+              }
+            }}
+          />
+          <div className="learn-study-composer-controls">
+            <button
+              type="button"
+              className="learn-assistant-icon-button"
+              aria-label="查看学习上下文"
+              onClick={() => setContextOpen(!contextOpen)}
+            >
+              <Plus size={16} />
+            </button>
+            <select
+              aria-label="学习助手模型"
+              value={binding.controls.options.selectedModelId}
+              disabled={binding.busy || binding.disabled}
+              onChange={(e) =>
+                binding.controls.updateOptions({
+                  selectedModelId: e.target.value,
+                })
+              }
+            >
+              {!binding.controls.resources.models?.length && (
+                <option value="">暂无可用模型</option>
+              )}
+              {(binding.controls.resources.models ?? []).map((model) => (
+                <option key={model.value} value={model.value}>
+                  {model.selectedLabel || model.label}
+                </option>
+              ))}
+            </select>
+            {binding.busy ? (
+              <button
+                type="button"
+                className="learn-study-send"
+                aria-label="停止生成"
+                onClick={() =>
+                  void binding
+                    .stop()
+                    .then((result) => {
+                      if (!result.ok) setError(result.error);
+                    })
+                    .catch((e) => setError(errorText(e)))
+                }
+              >
+                <Square size={15} />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                className="learn-study-send"
+                aria-label="发送给学习助手"
+                disabled={!binding.canSubmit || binding.disabled}
+              >
+                <ArrowUp size={18} />
+              </button>
+            )}
+          </div>
+        </form>
+      </div>
+    </>
   );
 }

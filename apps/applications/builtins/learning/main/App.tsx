@@ -1,14 +1,23 @@
 import "./styles.css";
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, Circle, MoreHorizontal, Pencil, Plus, Upload } from "lucide-react";
+import {
+  BookOpen,
+  Circle,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Upload,
+} from "lucide-react";
 import { getApplicationDataClient } from "@isle/app-sdk/data";
 import { getApplicationHost, writeClipboardText } from "@isle/app-sdk/browser";
 import {
   createCourse,
   emptyProgress,
   recordAttempt,
+  resetAttempt,
   restoreProgress,
   validateContent,
+  type Attempt,
   type Course,
   type Progress,
 } from "./course";
@@ -24,6 +33,9 @@ import {
   errorText,
   type FocusTarget,
 } from "./components";
+import { GradingPanel, MistakePanel, PracticeHistory } from "./StudyPanels";
+import { assertCurrentReview } from "./study";
+import { closeModelTask } from "./ModelTask";
 import { RecallCards } from "./RecallCards";
 import { ProjectLab } from "./ProjectLab";
 import { CourseDialog } from "./CourseDialog";
@@ -58,6 +70,14 @@ export default function App() {
   const [focus, setFocus] = useState<FocusTarget | null>(null);
   const [tab, setTab] = useState<"lesson" | "quiz" | "project">("lesson");
   const [tutorExpanded, setTutorExpanded] = useState(false);
+  const [retryRequest, setRetryRequest] = useState<{
+    courseId: string;
+    lessonId: string;
+    ids: string[];
+    nonce: number;
+  } | null>(null);
+  const progressRef = useRef(progress);
+  progressRef.current = progress;
   const [theme, setTheme] = useState("light");
   const lock = useRef(false);
   const initialization = useRef<Promise<void> | null>(null);
@@ -73,10 +93,12 @@ export default function App() {
   const lesson =
     course?.lessons.find((l) => l.id === currentProgress?.lessonId) ??
     course?.lessons[0];
-  const nextLesson = course && lesson
-    ? course.lessons[course.lessons.indexOf(lesson) + 1]
-    : undefined;
-  const lessonCompleted = !!lesson && !!currentProgress?.completed.includes(lesson.id);
+  const nextLesson =
+    course && lesson
+      ? course.lessons[course.lessons.indexOf(lesson) + 1]
+      : undefined;
+  const lessonCompleted =
+    !!lesson && !!currentProgress?.completed.includes(lesson.id);
   useEffect(() => {
     setConfirmCompletion(false);
   }, [view, course?.id, lesson?.id, tab]);
@@ -226,6 +248,7 @@ export default function App() {
   const updateProgress = async (next: Progress) => {
     if (!course) return;
     await repo().saveProgress(course, next);
+    progressRef.current = { ...progressRef.current, [course.id]: next };
     setProgress((current) => ({ ...current, [course.id]: next }));
   };
   const jump = (id: string) =>
@@ -235,11 +258,44 @@ export default function App() {
       setTab("lesson");
       setFocus(null);
     });
-  const focusSection = (target: FocusTarget) => {
-    setTutorExpanded(false);
-    setTab(target === "quiz" ? "quiz" : "lesson");
-    setFocus(target);
+  const saveAttempt = async (attempt: Attempt, review = false) => {
+    if (!course || !lesson) return;
+    if (lock.current) throw new Error("正在保存，请稍后重试");
+    lock.current = true;
+    setBusy(true);
+    try {
+      const latest = progressRef.current[course.id] ?? emptyProgress(course);
+      if (review) assertCurrentReview(latest.attempts[lesson.id], attempt);
+      await updateProgress(recordAttempt(course, latest, lesson.id, attempt));
+      if (!review) setRetryRequest(null);
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
   };
+  const restartPractice = async () => {
+    if (!course || !lesson) return;
+    if (lock.current) throw new Error("正在保存，请稍后重试");
+    lock.current = true;
+    setBusy(true);
+    try {
+      const latest = progressRef.current[course.id] ?? emptyProgress(course);
+      const previous = latest.attempts[lesson.id];
+      await updateProgress(resetAttempt(course, latest, lesson.id));
+      setRetryRequest(null);
+      // Chat cleanup must never prevent archiving answers or starting fresh.
+      if (previous?.gradingSession)
+        void closeModelTask(previous.gradingSession).catch(() => {});
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  };
+  const retryIds =
+    retryRequest?.courseId === course?.id &&
+    retryRequest?.lessonId === lesson?.id
+      ? retryRequest?.ids
+      : undefined;
 
   return (
     <div
@@ -390,9 +446,7 @@ export default function App() {
                             String(i + 1).padStart(2, "0")
                           )}
                         </span>
-                        <span>
-                          {item.title}
-                        </span>
+                        <span>{item.title}</span>
                       </button>
                     </li>
                   ))}
@@ -418,7 +472,9 @@ export default function App() {
                     )}
                   </span>
                   <div className="learn-lesson-title-row">
-                    <h1 title={tab === "project" ? "课程项目实训" : lesson.title}>
+                    <h1
+                      title={tab === "project" ? "课程项目实训" : lesson.title}
+                    >
                       {tab === "project" ? "课程项目实训" : lesson.title}
                       {tab !== "project" && lessonCompleted && (
                         <span className="learn-lesson-completed">已完成</span>
@@ -435,12 +491,17 @@ export default function App() {
                               : "点击后再次确认，完成本课并继续学习"
                         }
                         aria-label={
-                          lessonCompleted ? "进入下一课" : confirmCompletion ? "确认完成本课" : "完成本课"
+                          lessonCompleted
+                            ? "进入下一课"
+                            : confirmCompletion
+                              ? "确认完成本课"
+                              : "完成本课"
                         }
                         disabled={busy}
                         onBlur={() => setConfirmCompletion(false)}
                         onKeyDown={(event) => {
-                          if (event.key === "Escape") setConfirmCompletion(false);
+                          if (event.key === "Escape")
+                            setConfirmCompletion(false);
                         }}
                         onClick={() => {
                           if (busy || lock.current) return;
@@ -457,7 +518,10 @@ export default function App() {
                             await updateProgress({
                               ...currentProgress,
                               completed: [
-                                ...new Set([...currentProgress.completed, lesson.id]),
+                                ...new Set([
+                                  ...currentProgress.completed,
+                                  lesson.id,
+                                ]),
                               ],
                               lessonId: nextLesson?.id ?? lesson.id,
                             });
@@ -469,9 +533,13 @@ export default function App() {
                           ? "保存中…"
                           : lessonCompleted
                             ? "下一课"
-                            : confirmCompletion ? "确认完成" : "完成本课"}
+                            : confirmCompletion
+                              ? "确认完成"
+                              : "完成本课"}
                         <Icon
-                          name={lessonCompleted && nextLesson ? "arrow" : "check"}
+                          name={
+                            lessonCompleted && nextLesson ? "arrow" : "check"
+                          }
                           size={15}
                         />
                       </button>
@@ -568,30 +636,13 @@ export default function App() {
                     </article>
                   ) : (
                     <Quiz
-                      key={lesson.id}
+                      key={`${lesson.id}:${currentProgress.attempts[lesson.id]?.submittedAt ?? "blank"}:${retryIds ? retryRequest?.nonce : "latest"}`}
                       lesson={lesson}
                       attempt={currentProgress.attempts[lesson.id]}
-                      history={currentProgress.history[lesson.id] ?? []}
+                      retryIds={retryIds}
                       disabled={busy}
-                      onSubmit={async (attempt) => {
-                        if (lock.current)
-                          throw new Error("正在保存，请稍后重试");
-                        lock.current = true;
-                        setBusy(true);
-                        try {
-                          await updateProgress(
-                            recordAttempt(
-                              course,
-                              currentProgress,
-                              lesson.id,
-                              attempt,
-                            ),
-                          );
-                        } finally {
-                          lock.current = false;
-                          setBusy(false);
-                        }
-                      }}
+                      onSubmit={saveAttempt}
+                      onReset={restartPractice}
                     />
                   )}
                 </div>
@@ -600,7 +651,46 @@ export default function App() {
                 key={`${course.id}:${lesson.id}`}
                 course={course}
                 lesson={lesson}
-                onFocus={focusSection}
+                panels={{
+                  grading: (
+                    <GradingPanel
+                      key={
+                        currentProgress.attempts[lesson.id]?.submittedAt ??
+                        "empty"
+                      }
+                      lesson={lesson}
+                      attempt={currentProgress.attempts[lesson.id]}
+                      disabled={busy}
+                      onSubmit={(attempt) => saveAttempt(attempt, true)}
+                    />
+                  ),
+                  mistakes: (
+                    <MistakePanel
+                      lesson={lesson}
+                      attempt={currentProgress.attempts[lesson.id]}
+                      disabled={busy}
+                      onRetry={(ids) =>
+                        void run(async () => {
+                          setRetryRequest({
+                            courseId: course.id,
+                            lessonId: lesson.id,
+                            ids,
+                            nonce: Date.now(),
+                          });
+                          setTab("quiz");
+                          setTutorExpanded(false);
+                        })
+                      }
+                    />
+                  ),
+                  history: (
+                    <PracticeHistory
+                      lesson={lesson}
+                      attempt={currentProgress.attempts[lesson.id]}
+                      history={currentProgress.history[lesson.id] ?? []}
+                    />
+                  ),
+                }}
                 expanded={tutorExpanded}
                 onToggleExpand={() => setTutorExpanded((value) => !value)}
               />
@@ -631,7 +721,10 @@ export default function App() {
                     <article className="learn-course-card" key={id}>
                       <div className="learn-card-body">
                         <div className="learn-card-top">
-                          <span className="learn-card-accent" aria-hidden="true" />
+                          <span
+                            className="learn-card-accent"
+                            aria-hidden="true"
+                          />
                           <details className="learn-card-menu">
                             <summary aria-label={`更多课程操作：${title}`}>
                               <MoreHorizontal size={20} aria-hidden="true" />
@@ -669,7 +762,8 @@ export default function App() {
                                 disabled={busy}
                                 aria-label={`移除课程：${title}`}
                                 onClick={(event) => {
-                                  const menu = event.currentTarget.closest("details");
+                                  const menu =
+                                    event.currentTarget.closest("details");
                                   deleteReturnFocusRef.current =
                                     menu?.querySelector("summary") ?? null;
                                   menu?.removeAttribute("open");
@@ -762,7 +856,10 @@ export default function App() {
                     disabled={busy}
                     onClick={() =>
                       void run(async () => {
-                        const demo = { ...exampleCourse, createdAt: Date.now() };
+                        const demo = {
+                          ...exampleCourse,
+                          createdAt: Date.now(),
+                        };
                         await save(demo);
                         open(demo);
                       })
@@ -794,7 +891,8 @@ export default function App() {
           >
             <h2 id="learn-remove-title">移除课程</h2>
             <p id="learn-remove-description">
-              确认移除「{entryTitle(deleteTarget)}」？课程内容、学习进度、实训数据与课程助手记录会一并删除，且无法撤销。
+              确认移除「{entryTitle(deleteTarget)}
+              」？课程内容、学习进度、实训数据与课程助手记录会一并删除，且无法撤销。
             </p>
             <div className="learn-confirm-actions">
               <button

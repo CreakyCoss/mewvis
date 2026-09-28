@@ -12,7 +12,7 @@ test.after(() => rm(temporary, { recursive: true, force: true }));
 const compiled = await build({
   stdin: {
     contents:
-      'export * from "./main/course"; export * from "./main/repository"; export * from "./main/assistantHistory"; export * from "./main/clearOldChats"; export * from "./main/generation"; export * from "./main/example"; export * from "./main/workflow"; export * from "./main/pbl"; export * from "./main/vendor/grading"; export * from "./main/mastery";',
+      'export * from "./main/course"; export * from "./main/repository"; export * from "./main/assistantHistory"; export * from "./main/clearOldChats"; export * from "./main/generation"; export * from "./main/example"; export * from "./main/workflow"; export * from "./main/pbl"; export * from "./main/vendor/grading"; export * from "./main/mastery"; export * from "./main/study"; export * from "./main/chatRecovery";',
     resolveDir: root,
   },
   bundle: true,
@@ -24,6 +24,8 @@ const compiled = await build({
 const modulePath = join(temporary, "core.mjs");
 await writeFile(modulePath, compiled.outputFiles[0].contents);
 const {
+  reviewQuestions,
+  assertCurrentReview,
   validateContent,
   validateCourse,
   createCourse,
@@ -31,6 +33,8 @@ const {
   emptyProgress,
   restoreProgress,
   recordAttempt,
+  resetAttempt,
+  recoverMissingChat,
   repository,
   upsertCourseEntry,
   assistantHistoryKey,
@@ -1383,4 +1387,72 @@ test("PBL completion requires reviewed criteria; failed writes and malformed rec
     () => validateProject({ ...p, version: 42 }, p.courseId),
     /版本/,
   );
+});
+
+
+test("study mistake panel excludes pending short answers and includes reviewed weak answers", () => {
+  const lesson = mixedLesson();
+  const attempt = { submittedAt: 123, answers: Object.fromEntries(lesson.questions.map((q) => [q.id, q.type === "short_answer" ? "我的回答" : q.answer])) };
+  assert.deepEqual(reviewQuestions(lesson, attempt), []);
+  const short = lesson.questions.find((q) => q.type === "short_answer");
+  attempt.grades = { [short.id]: { score: 0, feedback: "需要补充" } };
+  assert.deepEqual(reviewQuestions(lesson, attempt).map((q) => q.id), [short.id]);
+  attempt.grades[short.id].score = short.points;
+  assert.deepEqual(reviewQuestions(lesson, attempt), []);
+  const choice = lesson.questions.find((q) => q.type === "single_choice");
+  attempt.answers[choice.id] = choice.options.find((o) => o.value !== choice.answer).value;
+  assert.deepEqual(reviewQuestions(lesson, attempt).map((q) => q.id), [choice.id]);
+});
+
+test("a background review cannot replace a newer practice attempt", () => {
+  const review = { submittedAt: 100, answers: {} };
+  assert.doesNotThrow(() => assertCurrentReview({ ...review }, review));
+  assert.throws(() => assertCurrentReview({ submittedAt: 200, answers: {} }, review), /作答已更新/);
+  assert.throws(() => assertCurrentReview(undefined, review), /作答已更新/);
+});
+
+
+test("restart archives complete answers and grades, clears current work, and survives reload", async () => {
+  const course = copy();
+  const lesson = mixedLesson();
+  course.lessons = [lesson];
+  const attempt = {
+    submittedAt: 100,
+    answers: { "mixed-q1": "B", "mixed-q2": ["A", "C"], "mixed-q3": "先回忆，再核对和纠正。" },
+    grades: { "mixed-q3": { score: 0.5, feedback: "还需要说明反馈的作用" } },
+    gradingSession: { workspaceId: "workspace", chatId: "missing-empty-chat" },
+  };
+  const submitted = recordAttempt(course, emptyProgress(course), lesson.id, attempt);
+  const restarted = resetAttempt(course, submitted, lesson.id);
+  assert.equal(restarted.attempts[lesson.id], undefined);
+  assert.deepEqual(restarted.history[lesson.id][0].answers, attempt.answers);
+  assert.deepEqual(restarted.history[lesson.id][0].grades, attempt.grades);
+  assert.equal(restarted.history[lesson.id][0].gradingSession, undefined);
+  assert.equal(submitted.attempts[lesson.id].submittedAt, 100, "input is not mutated");
+  assert.deepEqual(resetAttempt(course, restarted, lesson.id), restarted);
+  const storage = memory();
+  await repository(storage).saveProgress(course, restarted);
+  const restored = await repository(storage).progress(course);
+  assert.deepEqual(restored, restarted);
+  assert.throws(() => assertCurrentReview(restored.attempts[lesson.id], attempt), /作答已更新/);
+  const next = recordAttempt(course, restored, lesson.id, { submittedAt: 200, answers: { ...attempt.answers, "mixed-q3": "新的解释" } });
+  assert.equal(next.history[lesson.id].length, 1);
+  assert.equal(next.history[lesson.id][0].answers["mixed-q3"], "先回忆，再核对和纠正。");
+  const again = resetAttempt(course, next, lesson.id);
+  assert.deepEqual(again.history[lesson.id].map((entry) => entry.submittedAt), [200, 100]);
+});
+
+test("missing empty chats recover once while existing history and unrelated failures are preserved", async () => {
+  let created = 0;
+  const create = async () => ({ id: `replacement-${++created}` });
+  const existing = { id: "existing", messages: ["kept"] };
+  assert.equal(await recoverMissingChat(async () => existing, create), existing);
+  assert.equal(created, 0);
+  const replacement = await recoverMissingChat(async () => { throw new Error("未找到聊天记录"); }, create);
+  assert.equal(replacement.id, "replacement-1");
+  for (const message of ["网络连接失败", "无权访问工作区", "聊天记录损坏"]) {
+    await assert.rejects(recoverMissingChat(async () => { throw new Error(message); }, create), new RegExp(message));
+  }
+  assert.equal(created, 1);
+  await assert.rejects(recoverMissingChat(async () => { throw new Error("未找到聊天记录"); }, async () => { throw new Error("保存失败"); }), /保存失败/);
 });
