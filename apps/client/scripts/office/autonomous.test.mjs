@@ -7,8 +7,8 @@ import {
   createCatState,
   favoriteActivities,
   pointFor,
-} from "./office-model.ts";
-import { advanceOffice, createOffice } from "./office-simulation.ts";
+} from "../../src/workbench/pages/hub/office/office-model.ts";
+import { advanceOffice, createOffice } from "../../src/workbench/pages/hub/office/office-simulation.ts";
 
 function seeded(seed) {
   let value = seed;

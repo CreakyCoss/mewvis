@@ -31,12 +31,12 @@ Mewvis 偏爱统筹与规划，Lihua 偏爱开发与学习，Orange 偏爱调研
 ## 验证
 
 ```sh
-node --experimental-strip-types src/workbench/pages/hub/office/route.test.mjs
-node --experimental-strip-types src/workbench/pages/hub/office/autonomous.test.mjs
+node --experimental-strip-types scripts/office/route.test.mjs
+node --experimental-strip-types scripts/office/autonomous.test.mjs
 pnpm exec vite build --outDir /tmp/isle-hub-build
 pnpm exec tsc --noEmit --pretty false
 ```
 
 正式入口为 `apps/client/src/workbench/pages/hub/office/index.tsx`，导出 `MewvisOffice`，使用 `office-scene.tsx`。活动、偏好与路径定义在该目录的 `office-model.ts`，自主选择、计时与移动在 `office-simulation.ts`，样式为 `index.css`，素材位于 `assets/scene/`。样式和动画均限定在办公室内，不设置全局正文、按钮、标题样式。
 
-临时预览页面及其过程截图已移除；活动与路径测试直接使用正式模型。正式中枢路由及外部应用代码沿用原入口，功能代码位于办公室目录。
+临时预览页面及其过程截图已移除；活动与路径测试位于 `apps/client/scripts/office/`，直接使用正式模型。正式中枢路由及外部应用代码沿用原入口，功能代码位于办公室目录。

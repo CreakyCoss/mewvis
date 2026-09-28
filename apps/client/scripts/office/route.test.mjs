@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { CATS, deskPoint, loungePoint, routeFor, stepToward } from "./office-model.ts";
+import { CATS, deskPoint, loungePoint, routeFor, stepToward } from "../../src/workbench/pages/hub/office/office-model.ts";
 
 // Measured tabletop footprints in the scene's 1440 × 672 coordinate space.
 const tables = [560, 827, 1117].flatMap((x) => [
