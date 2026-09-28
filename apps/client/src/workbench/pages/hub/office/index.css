@@ -170,6 +170,11 @@
   background-size: 200% 300%;
   image-rendering: auto;
 }
+.mewvis-office .screen-art svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
 .mewvis-office .desk-screen .screen-art {
   animation: mewvis-screen-glow 8s ease-in-out infinite;
 }

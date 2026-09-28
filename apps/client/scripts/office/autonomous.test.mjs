@@ -17,7 +17,8 @@ function seeded(seed) {
     return value / 4294967296;
   };
 }
-assert.equal(ACTIVITY_POOL.length, 20);
+assert.equal(ACTIVITY_POOL.length, 23);
+assert.equal(ACTIVITY_POOL.filter((id) => ACTIVITIES[id].place === "desk").length, 20);
 assert.ok(!ACTIVITY_POOL.includes("standby"));
 for (const cat of CATS) {
   const random = seeded(cat.col + 104),
@@ -38,6 +39,22 @@ for (const cat of CATS) {
 const random = seeded(9042);
 let world = createOffice(random);
 const visited = new Set(Object.values(world.states).map((state) => state.activity));
+function assertDistinctDeskActivities(snapshot) {
+  const owners = new Map();
+  for (const cat of CATS) {
+    const id = cat.id;
+    for (const activity of new Set([
+      snapshot.states[id].activity,
+      snapshot.journeys[id]?.destination.activity,
+      snapshot.pending[id]?.activity,
+    ])) {
+      if (!activity || ACTIVITIES[activity].place !== "desk") continue;
+      assert.ok(!owners.has(activity), `${id} and ${owners.get(activity)} both chose ${activity}`);
+      owners.set(activity, id);
+    }
+  }
+}
+assertDistinctDeskActivities(world);
 assert.equal(
   advanceOffice(world, 0, () => {
     throw new Error("paused simulation consumed randomness");
@@ -49,11 +66,20 @@ advanceOffice(world, 500, random);
 assert.equal(JSON.stringify(world), original, "advance mutates an earlier snapshot");
 let walks = 0,
   arrivals = 0,
+  multipleResting = false,
   walkingWorld,
   queuedWorld;
 for (let tick = 0; tick < 7200; tick++) {
   const previous = world;
   world = advanceOffice(world, 500, random);
+  assertDistinctDeskActivities(world);
+  const activeScreens = CATS.map((cat) => {
+    const state = world.states[cat.id];
+    return world.journeys[cat.id] || state.place === "lounge" ? "standby" : state.activity;
+  }).filter((activity) => activity !== "standby");
+  assert.equal(new Set(activeScreens).size, activeScreens.length, "two occupied desks show the same screen");
+  if (CATS.filter((cat) => world.states[cat.id].place === "lounge" && !world.journeys[cat.id]).length > 1)
+    multipleResting = true;
   assert.ok(Object.keys(world.journeys).length <= 1, "two cats enter the shared aisle together");
   if (Object.keys(world.journeys).length) walkingWorld ??= world;
   if (Object.keys(world.pending).length) queuedWorld ??= world;
@@ -74,7 +100,8 @@ for (let tick = 0; tick < 7200; tick++) {
       assert.equal(world.pending[cat.id], previous.pending[cat.id], "queued activity was rerolled");
   }
 }
-assert.equal(visited.size, 20, "a simulated hour failed to reach every activity category");
+assert.equal(visited.size, 23, "a simulated hour failed to reach every activity category");
+assert.ok(multipleResting, "more than one cat could not rest at once");
 assert.ok(walks > 10 && arrivals > 10, "cats never autonomously leave/return to their seats");
 assert.ok(walkingWorld && queuedWorld, "movement and aisle waiting were not exercised");
 for (const active of [walkingWorld, queuedWorld]) {
@@ -84,5 +111,5 @@ for (const active of [walkingWorld, queuedWorld]) {
   for (const cat of CATS) assert.deepEqual(reduced.positions[cat.id], pointFor(cat, reduced.states[cat.id]));
 }
 console.log(
-  `Passed: 20 activities, six distinct preferences, no immediate repeats, autonomous journeys (${walks} departures / ${arrivals} arrivals), pause, immutable snapshots and reduced motion.`,
+  `Passed: 23 activities, 20 distinct desk screens, shared rest, six preferences, autonomous journeys (${walks} departures / ${arrivals} arrivals), pause, immutable snapshots and reduced motion.`,
 );

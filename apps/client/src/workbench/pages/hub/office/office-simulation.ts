@@ -6,6 +6,8 @@ import {
   routeFor,
   stepToward,
   type CatState,
+  type Activity,
+  type ActivityContext,
   type Journey,
   type Point,
 } from "./office-model.ts";
@@ -19,14 +21,34 @@ export type OfficeWorld = {
   revision: number;
 };
 
+function occupiedChoices(
+  states: Record<string, CatState>,
+  journeys: Record<string, Journey>,
+  pending: Record<string, CatState>,
+  except: string,
+): ActivityContext {
+  const occupiedActivities = new Set<Activity>();
+  for (const [id, state] of Object.entries(states)) {
+    if (id === except) continue;
+    const journey = journeys[id],
+      queued = pending[id];
+    if (state.place === "desk") occupiedActivities.add(state.activity);
+    if (journey?.destination.place === "desk") occupiedActivities.add(journey.destination.activity);
+    if (queued?.place === "desk") occupiedActivities.add(queued.activity);
+  }
+  return { occupiedActivities };
+}
+
 export function createOffice(random = Math.random): OfficeWorld {
-  const states = Object.fromEntries(
-    CATS.map((cat) => {
-      const state = createCatState(chooseNextActivity(cat, undefined, random), random);
-      state.elapsedMs = state.durationMs * random() * 0.55;
-      return [cat.id, state];
-    }),
-  );
+  const states: Record<string, CatState> = {};
+  for (const cat of CATS) {
+    const state = createCatState(
+      chooseNextActivity(cat, undefined, random, occupiedChoices(states, {}, {}, cat.id)),
+      random,
+    );
+    state.elapsedMs = state.durationMs * random() * 0.55;
+    states[cat.id] = state;
+  }
   return {
     states,
     positions: Object.fromEntries(CATS.map((cat) => [cat.id, pointFor(cat, states[cat.id])])),
@@ -89,7 +111,7 @@ export function advanceOffice(
     states[id] = { ...current, elapsedMs: Math.min(current.durationMs, current.elapsedMs + deltaMs) };
     if (states[id].elapsedMs < current.durationMs) continue;
     const next = createCatState(
-      chooseNextActivity(cat, current, random),
+      chooseNextActivity(cat, current, random, occupiedChoices(states, journeys, pending, id)),
       random,
       [current.activity, ...current.recent].slice(0, 4),
     );

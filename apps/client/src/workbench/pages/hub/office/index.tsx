@@ -3,8 +3,9 @@ import { Armchair, BookOpen, Coffee, Film, Gamepad2, Globe, Maximize2, Monitor, 
 import room from "./assets/room.png";
 import chair from "./assets/chair.png";
 import officeCatIcon from "./assets/office-cat-icon.png";
-import { ACTIVITIES, CATS, MODES, deskPoint, favoriteActivities, type Activity, type Point } from "./office-model";
+import { ACTIVITIES, CATS, MODES, deskPoint, favoriteActivities, type Point } from "./office-model";
 import { advanceOffice, createOffice } from "./office-simulation";
+import { ScreenArt } from "./office-screen";
 import { APP_DISPLAY_NAME } from "@/product-config";
 import "./index.css";
 
@@ -30,17 +31,6 @@ function Sprite({ col, row = 2 }: { col: number; row?: number }) {
           backgroundPosition: `${col * 20}% ${(row * 100) / 3}%`,
           transform: `translate(${(128 - centers[col]) / 2.56}%, ${[-14, 29, 34, 78][row] / 2.56}%)`,
         }}
-      />
-    </span>
-  );
-}
-function ScreenArt({ activity }: { activity: Activity }) {
-  const tile = ACTIVITIES[activity].tile;
-  return (
-    <span className={`screen-art screen-${activity}`} aria-hidden="true">
-      <span
-        className="screen-texture"
-        style={{ backgroundPosition: `${(tile % 2) * 100}% ${Math.floor(tile / 2) * 50}%` }}
       />
     </span>
   );
