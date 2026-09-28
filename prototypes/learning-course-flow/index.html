@@ -16,7 +16,7 @@
     <main class="workspace" role="dialog" aria-modal="true" aria-labelledby="workspace-title">
       <header class="workspace-header">
         <div class="workspace-brand"><span>学习工作台 <b>/</b> 课程创建</span></div>
-        <div class="header-right"><span class="prototype-tag">设计稿 · V2</span><button class="icon-button" type="button" id="close-workspace" aria-label="关闭预览">×</button></div>
+        <div class="header-right"><span class="prototype-tag">设计稿 · V3</span><button class="icon-button" type="button" id="close-workspace" aria-label="关闭预览">×</button></div>
       </header>
 
       <nav class="stepper" aria-label="创建课程步骤">
@@ -36,6 +36,22 @@
         </div>
       </footer>
     </main>
+
+    <div id="outline-overlay" class="overlay" hidden>
+      <section class="outline-dialog" role="dialog" aria-modal="true" aria-labelledby="outline-dialog-title">
+        <header class="outline-dialog-header"><div><span class="eyebrow">课程大纲</span><h2 id="outline-dialog-title">编辑课程大纲</h2><p>从零理解数据分析</p></div><button type="button" class="icon-button" id="close-outline" aria-label="关闭大纲编辑">×</button></header>
+        <form id="outline-form">
+          <div class="outline-form-scroll">
+            <div class="outline-ai-row"><div><strong>AI 辅助规划</strong><p>以当前填写的内容为基础生成或优化，预览后再采用。</p></div><button type="button" class="button small secondary" data-design-action="AI 优化大纲">AI 优化大纲</button></div>
+            <div class="form-group"><label for="outline-description">课程简介</label><textarea id="outline-description" rows="3">从真实问题出发，理解数据整理、描述与分析的基本方法，并能够用清晰的图表解释发现。</textarea></div>
+            <div class="form-group"><label for="outline-goal">课程目标</label><textarea id="outline-goal" rows="3">学会从实际问题出发，整理数据、识别关键信息，并清楚表达分析结论。</textarea></div>
+            <div class="outline-phase-heading"><h3>学习路径</h3><button type="button" class="button small secondary" data-design-action="添加阶段">添加阶段</button></div>
+            <ol class="outline-phase-fields"><li><span>01</span><div><input aria-label="第 1 阶段名称" value="提出可分析的问题" /><textarea aria-label="第 1 阶段说明" rows="2">明确问题边界、需要的数据与判断依据。</textarea></div><button type="button" data-design-action="移除阶段">移除</button></li><li><span>02</span><div><input aria-label="第 2 阶段名称" value="建立可靠的分析基础" /><textarea aria-label="第 2 阶段说明" rows="2">理解数据来源，完成整理与基础描述。</textarea></div><button type="button" data-design-action="移除阶段">移除</button></li><li><span>03</span><div><input aria-label="第 3 阶段名称" value="解释发现并提出建议" /><textarea aria-label="第 3 阶段说明" rows="2">选择合适的表达方式，区分观察与推断。</textarea></div><button type="button" data-design-action="移除阶段">移除</button></li></ol>
+          </div>
+          <footer class="outline-dialog-footer"><button type="button" class="button secondary" id="cancel-outline">取消</button><button type="submit" class="button primary">保存大纲</button></footer>
+        </form>
+      </section>
+    </div>
 
     <div id="lesson-overlay" class="overlay" hidden>
       <section class="lesson-dialog" role="dialog" aria-modal="true" aria-labelledby="lesson-dialog-title">

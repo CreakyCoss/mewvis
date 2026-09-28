@@ -181,6 +181,17 @@ try {
     fullPage: true,
   });
   assert.equal(await page.getByLabel("参考资料 选填").isVisible(), true);
+  assert.ok(
+    await page.locator("#learning-level").evaluate((element) => {
+      const field = element.closest(".learn-fields");
+      return (
+        Math.abs(
+          element.getBoundingClientRect().width -
+            field.getBoundingClientRect().width,
+        ) < 2
+      );
+    }),
+  );
   await page.getByLabel("课程主题", { exact: true }).fill("主动回忆");
   assert.equal(await page.getByRole("dialog").count(), 1);
   await page.getByLabel("上传 TXT / Markdown").setInputFiles([
@@ -207,7 +218,7 @@ try {
   );
   await button("下一步：课程大纲").click();
   assert.equal(await page.locator(".learn-dialog-steps button").count(), 4);
-  await button("手动创建大纲").waitFor();
+  await button("创建大纲").waitFor();
   assert.equal(
     await page
       .locator(".learn-dialog-footer")
@@ -215,15 +226,19 @@ try {
       .isDisabled(),
     true,
   );
+  await button("创建大纲").click();
+  assert.equal(await page.getByRole("dialog").count(), 2);
   await button("AI 生成大纲").click();
   await generate();
   await adopt();
+  await button("保存大纲").click();
+  assert.equal(await page.getByRole("dialog").count(), 1);
   await page.screenshot({
     path: `${out}/outline-collapsed-desktop.png`,
     fullPage: true,
   });
   assert.equal(await button("编辑大纲").count(), 1);
-  assert.equal(await button("AI 优化大纲").count(), 1);
+  assert.equal(await button("AI 优化大纲").count(), 0);
   assert.equal(await page.getByLabel("课程名称").count(), 0);
   await button("下一步：课时内容").click();
   assert.equal(await page.locator(".learn-lesson-workspace").count(), 1);
@@ -396,7 +411,9 @@ try {
   await button("编辑课程").click();
   await page.locator(".learn-dialog-steps button").nth(1).click();
   await button("编辑大纲").click();
+  assert.equal(await button("AI 优化大纲").count(), 1);
   await page.getByLabel("课程简介").fill("暂存后继续完善的课程简介");
+  await button("保存大纲").click();
   await page
     .locator(".learn-dialog-footer")
     .getByRole("button", { name: "暂存" })
@@ -417,6 +434,7 @@ try {
     await page.getByLabel("课程简介").inputValue(),
     "暂存后继续完善的课程简介",
   );
+  await button("取消").click();
   assert.equal(await page.getByRole("dialog").getByText(/草稿/).count(), 0);
   await button("下一步：课时内容").click();
   await page
@@ -594,9 +612,11 @@ try {
   await button("创建第一门课程").click();
   await page.getByLabel("课程主题", { exact: true }).fill("手动规划课程");
   await button("下一步：课程大纲").click();
-  await button("手动创建大纲").click();
+  await button("创建大纲").click();
   assert.equal(await page.getByLabel("课程名称").count(), 0);
+  await button("保存大纲").click();
   await button("下一步：课时内容").click();
+  await button("添加课时").click();
   await page.locator(".learn-lesson-card").first().click();
   await page.getByLabel("课时标题", { exact: true }).fill("第一课标题");
   await button("保存标题与目标").click();

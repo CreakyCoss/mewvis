@@ -14,6 +14,7 @@ import {
   lessonPrompt,
   revisionPrompt,
   acceptTask,
+  validateOutline,
   editDraftSlot,
   editDraftLesson,
 } from "./workflow";
@@ -37,7 +38,7 @@ export function Studio({
   const [error, setError] = useState("");
   const [editingSlot, setEditingSlot] = useState<string | null>(null);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
-  const [editingOutline, setEditingOutline] = useState(false);
+  const [outlineForm, setOutlineForm] = useState<Outline | null>(null);
   const [reordering, setReordering] = useState(false);
   const [aiMode, setAiMode] = useState<"generate" | "revise">("generate");
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
@@ -69,11 +70,13 @@ export function Studio({
     setError("");
     setReadFailed(false);
     try {
-      setWorkingCourse(
+      const next =
         initialCourse.status === "stashed"
           ? validateDraft(initialCourse)
-          : originalCourseDraft(),
-      );
+          : originalCourseDraft();
+      setWorkingCourse(next);
+      if (next.task?.kind === "outline")
+        setOutlineForm(next.outline ?? seedOutline(next));
     } catch (e) {
       setError(errorText(e));
       setReadFailed(true);
@@ -85,8 +88,8 @@ export function Studio({
     void load();
   }, []);
   useEffect(() => {
-    onBusyChangeRef.current(busy || !!editingSlot);
-  }, [busy, editingSlot]);
+    onBusyChangeRef.current(busy || !!editingSlot || !!outlineForm);
+  }, [busy, editingSlot, outlineForm]);
   useEffect(() => () => onBusyChangeRef.current(false), []);
   const run = async (action: () => Promise<void>) => {
     if (lock.current) return;
@@ -122,14 +125,16 @@ export function Studio({
     kind: Task["kind"],
     targetId?: string,
     instruction?: string,
+    source?: Draft,
   ) => {
-    if (!draft) return;
+    const current = source ?? draft;
+    if (!current) return;
     if (kind === "revise" && (!instruction?.trim() || instruction.length > 500))
       throw new Error("请填写 1–500 字的修改要求");
     const ref = await createModelTask(authorProfile);
     try {
       await persist({
-        ...draft,
+        ...current,
         task: {
           kind,
           ...(targetId ? { targetId } : {}),
@@ -151,24 +156,41 @@ export function Studio({
         outline,
       });
   };
-  const createManualOutline = () => {
+  const openOutlineEditor = () => {
     if (!draft) return;
-    updateOutline({
-      title: draft.brief.topic,
-      description: `围绕${draft.brief.topic}逐步学习并完成练习。`,
-      level: draft.brief.level,
-      goal: `掌握${draft.brief.topic}的核心知识，并能用于实际问题。`,
-      phases: [
-        {
-          title: "建立基础",
-          summary: `理解${draft.brief.topic}的基本概念与方法。`,
-        },
-        { title: "实践应用", summary: "通过练习和案例运用所学知识。" },
-      ],
-      lessons: [],
-    });
-    setEditingOutline(true);
+    setError("");
+    setOutlineForm(draft.outline ?? seedOutline(draft));
   };
+  const closeOutlineEditor = () => {
+    setError("");
+    setOutlineForm(null);
+  };
+  const preparedOutline = () => {
+    if (!draft || !outlineForm) throw new Error("课程大纲尚未填写");
+    const lessons = draft.outline?.lessons ?? [];
+    return {
+      ...validateOutline({
+        ...outlineForm,
+        title: draft.brief.topic,
+        level: draft.brief.level,
+        lessons,
+      }),
+      lessons,
+    };
+  };
+  const saveOutline = () =>
+    run(async () => {
+      if (!draft) return;
+      await persist({ ...draft, outline: preparedOutline() });
+      closeOutlineEditor();
+    });
+  const startOutlineAI = () =>
+    run(async () => {
+      if (!draft) return;
+      const outline = preparedOutline();
+      await startTask("outline", undefined, undefined, { ...draft, outline });
+      setOutlineForm(outline);
+    });
   const addSlot = () => {
     if (!draft?.outline || draft.outline.lessons.length >= 8) return;
     const id = crypto.randomUUID();
@@ -330,7 +352,13 @@ export function Studio({
               </>
             );
           }}
-          onAccept={(raw) => exclusive(() => persist(acceptTask(draft, raw)))}
+          onAccept={(raw) =>
+            exclusive(async () => {
+              const next = acceptTask(draft, raw);
+              await persist(next);
+              if (draft.task?.kind === "outline") setOutlineForm(next.outline);
+            })
+          }
           onRetryConnection={() =>
             exclusive(() =>
               startTask(
@@ -360,7 +388,7 @@ export function Studio({
     <section
       className={`learn-studio ${stage === "lessons" ? "is-lesson-workspace" : ""}`}
     >
-      {error && <Notice>{error}</Notice>}
+      {error && !outlineForm && <Notice>{error}</Notice>}
       {readFailed ? (
         <button className="learn-button" onClick={() => void load()}>
           重试读取课程
@@ -377,23 +405,16 @@ export function Studio({
               <h2>课程大纲</h2>
             </div>
           </div>
-          {!draft.outline && !draft.task && (
+          {!draft.outline && (
             <div className="learn-outline-empty">
               <h3>规划课程目标与学习路径</h3>
               <div className="learn-actions">
                 <button
-                  className="learn-button"
-                  disabled={busy}
-                  onClick={createManualOutline}
-                >
-                  手动创建大纲
-                </button>
-                <button
                   className="learn-button primary"
-                  disabled={busy}
-                  onClick={() => void run(() => startTask("outline"))}
+                  disabled={busy || !!draft.task}
+                  onClick={openOutlineEditor}
                 >
-                  AI 生成大纲
+                  创建大纲
                 </button>
               </div>
             </div>
@@ -403,65 +424,19 @@ export function Studio({
               <div className="learn-syllabus-top">
                 <div>
                   <h3>{draft.outline.title}</h3>
-                  {editingOutline ? (
-                    <label>
-                      <span className="learn-sr-only">课程简介</span>
-                      <textarea
-                        rows={3}
-                        maxLength={1000}
-                        value={draft.outline.description}
-                        onChange={(event) =>
-                          updateOutline({
-                            ...draft.outline!,
-                            description: event.target.value,
-                          })
-                        }
-                      />
-                    </label>
-                  ) : (
-                    <p>{draft.outline.description}</p>
-                  )}
+                  <p>{draft.outline.description}</p>
                 </div>
-                <div className="learn-outline-actions">
-                  <button
-                    className="learn-button"
-                    disabled={busy || !!draft.task}
-                    onClick={() => setEditingOutline((value) => !value)}
-                  >
-                    {editingOutline ? "完成编辑" : "编辑大纲"}
-                  </button>
-                  <button
-                    className="learn-button"
-                    disabled={busy || !!draft.task}
-                    onClick={() =>
-                      void run(async () => {
-                        await startTask("outline");
-                        setEditingOutline(false);
-                      })
-                    }
-                  >
-                    AI 优化大纲
-                  </button>
-                </div>
+                <button
+                  className="learn-button"
+                  disabled={busy || !!draft.task}
+                  onClick={openOutlineEditor}
+                >
+                  编辑大纲
+                </button>
               </div>
               <section className="learn-syllabus-section">
                 <h4>课程目标</h4>
-                {editingOutline ? (
-                  <textarea
-                    aria-label="课程目标"
-                    rows={3}
-                    maxLength={1000}
-                    value={draft.outline.goal}
-                    onChange={(event) =>
-                      updateOutline({
-                        ...draft.outline!,
-                        goal: event.target.value,
-                      })
-                    }
-                  />
-                ) : (
-                  <p>{draft.outline.goal}</p>
-                )}
+                <p>{draft.outline.goal}</p>
               </section>
               <section className="learn-syllabus-section">
                 <h4>学习路径</h4>
@@ -471,84 +446,188 @@ export function Studio({
                       <span className="learn-outline-number">
                         {String(index + 1).padStart(2, "0")}
                       </span>
-                      {editingOutline ? (
-                        <div className="learn-phase-editor">
-                          <input
-                            aria-label={`第 ${index + 1} 阶段名称`}
-                            maxLength={120}
-                            value={phase.title}
-                            onChange={(event) =>
-                              updateOutline({
-                                ...draft.outline!,
-                                phases: draft.outline!.phases.map((item, i) =>
-                                  i === index
-                                    ? { ...item, title: event.target.value }
-                                    : item,
-                                ),
-                              })
-                            }
-                          />
-                          <textarea
-                            aria-label={`第 ${index + 1} 阶段说明`}
-                            rows={2}
-                            maxLength={500}
-                            value={phase.summary}
-                            onChange={(event) =>
-                              updateOutline({
-                                ...draft.outline!,
-                                phases: draft.outline!.phases.map((item, i) =>
-                                  i === index
-                                    ? { ...item, summary: event.target.value }
-                                    : item,
-                                ),
-                              })
-                            }
-                          />
-                          {draft.outline!.phases.length > 1 && (
+                      <div>
+                        <strong>{phase.title}</strong>
+                        <p>{phase.summary}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            </div>
+          )}
+          {outlineForm && (
+            <OutlineEditModal
+              busy={busy || !!draft.task}
+              onCancel={closeOutlineEditor}
+            >
+              <header className="learn-outline-modal-header">
+                <div>
+                  <span className="learn-eyebrow">课程大纲</span>
+                  <h2>{draft.outline ? "编辑课程大纲" : "创建课程大纲"}</h2>
+                  <p>{draft.brief.topic}</p>
+                </div>
+                <button
+                  className="learn-button text"
+                  aria-label="关闭大纲编辑"
+                  disabled={busy || !!draft.task}
+                  onClick={closeOutlineEditor}
+                >
+                  ×
+                </button>
+              </header>
+              {error && <Notice>{error}</Notice>}
+              <div className="learn-outline-modal-body">
+                {draft.task?.kind === "outline" ? (
+                  taskPanel
+                ) : (
+                  <>
+                    <div className="learn-outline-ai-row">
+                      <div>
+                        <strong>AI 辅助规划</strong>
+                        <p>以当前填写的内容为基础生成或优化，预览后再采用。</p>
+                      </div>
+                      <button
+                        className="learn-button"
+                        disabled={busy}
+                        onClick={() => void startOutlineAI()}
+                      >
+                        {draft.outline ? "AI 优化大纲" : "AI 生成大纲"}
+                      </button>
+                    </div>
+                    <div className="learn-outline-form-fields">
+                      <label>
+                        课程简介
+                        <textarea
+                          rows={3}
+                          maxLength={1000}
+                          value={outlineForm.description}
+                          onChange={(event) =>
+                            setOutlineForm({
+                              ...outlineForm,
+                              description: event.target.value,
+                            })
+                          }
+                        />
+                      </label>
+                      <label>
+                        课程目标
+                        <textarea
+                          rows={3}
+                          maxLength={1000}
+                          value={outlineForm.goal}
+                          onChange={(event) =>
+                            setOutlineForm({
+                              ...outlineForm,
+                              goal: event.target.value,
+                            })
+                          }
+                        />
+                      </label>
+                      <div className="learn-outline-phase-heading">
+                        <h3>学习路径</h3>
+                        <button
+                          className="learn-button"
+                          disabled={outlineForm.phases.length >= 6}
+                          onClick={() =>
+                            setOutlineForm({
+                              ...outlineForm,
+                              phases: [
+                                ...outlineForm.phases,
+                                { title: "", summary: "" },
+                              ],
+                            })
+                          }
+                        >
+                          添加阶段
+                        </button>
+                      </div>
+                      <ol className="learn-outline-phase-fields">
+                        {outlineForm.phases.map((phase, index) => (
+                          <li key={index}>
+                            <span className="learn-outline-number">
+                              {String(index + 1).padStart(2, "0")}
+                            </span>
+                            <div>
+                              <input
+                                aria-label={`第 ${index + 1} 阶段名称`}
+                                placeholder="阶段名称"
+                                maxLength={120}
+                                value={phase.title}
+                                onChange={(event) =>
+                                  setOutlineForm({
+                                    ...outlineForm,
+                                    phases: outlineForm.phases.map((item, i) =>
+                                      i === index
+                                        ? { ...item, title: event.target.value }
+                                        : item,
+                                    ),
+                                  })
+                                }
+                              />
+                              <textarea
+                                aria-label={`第 ${index + 1} 阶段说明`}
+                                placeholder="本阶段的学习方向"
+                                rows={2}
+                                maxLength={500}
+                                value={phase.summary}
+                                onChange={(event) =>
+                                  setOutlineForm({
+                                    ...outlineForm,
+                                    phases: outlineForm.phases.map((item, i) =>
+                                      i === index
+                                        ? {
+                                            ...item,
+                                            summary: event.target.value,
+                                          }
+                                        : item,
+                                    ),
+                                  })
+                                }
+                              />
+                            </div>
                             <button
-                              className="learn-button"
+                              className="learn-button text"
+                              aria-label={`移除第 ${index + 1} 阶段`}
+                              disabled={outlineForm.phases.length <= 1}
                               onClick={() =>
-                                updateOutline({
-                                  ...draft.outline!,
-                                  phases: draft.outline!.phases.filter(
+                                setOutlineForm({
+                                  ...outlineForm,
+                                  phases: outlineForm.phases.filter(
                                     (_, i) => i !== index,
                                   ),
                                 })
                               }
                             >
-                              移除阶段
+                              移除
                             </button>
-                          )}
-                        </div>
-                      ) : (
-                        <div>
-                          <strong>{phase.title}</strong>
-                          <p>{phase.summary}</p>
-                        </div>
-                      )}
-                    </li>
-                  ))}
-                </ol>
-                {editingOutline && draft.outline.phases.length < 6 && (
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  </>
+                )}
+              </div>
+              {!draft.task && (
+                <footer className="learn-outline-modal-footer">
                   <button
                     className="learn-button"
-                    onClick={() =>
-                      updateOutline({
-                        ...draft.outline!,
-                        phases: [
-                          ...draft.outline!.phases,
-                          { title: "新阶段", summary: "填写阶段学习方向" },
-                        ],
-                      })
-                    }
+                    disabled={busy}
+                    onClick={closeOutlineEditor}
                   >
-                    添加阶段
+                    取消
                   </button>
-                )}
-              </section>
-            </div>
+                  <button
+                    className="learn-button primary"
+                    disabled={busy}
+                    onClick={() => void saveOutline()}
+                  >
+                    保存大纲
+                  </button>
+                </footer>
+              )}
+            </OutlineEditModal>
           )}
-          {taskPanel}
         </div>
       ) : (
         <div className="learn-lesson-workspace">
@@ -767,6 +846,77 @@ export function Studio({
       )}
       {editModal}
     </section>
+  );
+}
+
+function seedOutline(draft: Draft): Outline {
+  return {
+    title: draft.brief.topic,
+    description: `围绕${draft.brief.topic}逐步学习并完成练习。`,
+    level: draft.brief.level,
+    goal: `掌握${draft.brief.topic}的核心知识，并能用于实际问题。`,
+    phases: [
+      {
+        title: "建立基础",
+        summary: `理解${draft.brief.topic}的基本概念与方法。`,
+      },
+      { title: "实践应用", summary: "通过练习和案例运用所学知识。" },
+    ],
+    lessons: [],
+  };
+}
+
+function OutlineEditModal({
+  busy,
+  onCancel,
+  children,
+}: {
+  busy: boolean;
+  onCancel: () => void;
+  children: React.ReactNode;
+}) {
+  const dialog = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    dialog.current?.querySelector<HTMLElement>("textarea")?.focus();
+    return () => previous?.focus();
+  }, []);
+  return (
+    <div
+      className="learn-outline-overlay"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !busy) onCancel();
+      }}
+    >
+      <div
+        className="learn-outline-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="课程大纲编辑"
+        ref={dialog}
+        onKeyDown={(event) => {
+          event.stopPropagation();
+          if (event.key === "Escape" && !busy) onCancel();
+          if (event.key !== "Tab") return;
+          const focusable = Array.from(
+            dialog.current?.querySelectorAll<HTMLElement>(
+              "button:not(:disabled), input:not(:disabled), textarea:not(:disabled)",
+            ) ?? [],
+          );
+          const first = focusable[0];
+          const last = focusable.at(-1);
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last?.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first?.focus();
+          }
+        }}
+      >
+        {children}
+      </div>
+    </div>
   );
 }
 

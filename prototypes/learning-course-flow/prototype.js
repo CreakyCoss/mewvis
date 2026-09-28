@@ -88,7 +88,7 @@ function outlineScreen() {
     )
     .join("");
   return `<div class="overview-layout"><div class="screen-heading"><span class="eyebrow">02 / 课程大纲</span><h1>课程大纲</h1></div>
-    <article class="overview-card syllabus-sheet"><div class="overview-top"><div><h2>${sample.topic}</h2><p>${sample.description}</p></div><div class="heading-actions"><button type="button" class="button small secondary" data-design-action="编辑大纲">编辑大纲</button><button type="button" class="button small secondary" data-design-action="AI 优化大纲">AI 优化大纲</button></div></div>
+    <article class="overview-card syllabus-sheet"><div class="overview-top"><div><h2>${sample.topic}</h2><p>${sample.description}</p></div><button type="button" class="button small secondary" data-open-outline>编辑大纲</button></div>
       <section class="syllabus-section"><h3>课程目标</h3><p>学会从实际问题出发，整理数据、识别关键信息，并清楚表达分析结论。</p></section>
       <section class="syllabus-section"><h3>学习路径</h3><ol class="outline-list">${phases}</ol></section>
     </article>
@@ -158,6 +158,11 @@ document
   );
 
 screen.addEventListener("click", (event) => {
+  if (event.target.closest("[data-open-outline]")) {
+    document.getElementById("outline-overlay").hidden = false;
+    document.getElementById("outline-description").focus();
+    return;
+  }
   const open = event.target.closest("[data-open-lesson]");
   if (open) {
     const lesson = sample.lessons[Number(open.dataset.openLesson)];
@@ -184,6 +189,27 @@ screen.addEventListener("click", (event) => {
 function closeLesson() {
   overlay.hidden = true;
 }
+function closeOutline() {
+  document.getElementById("outline-overlay").hidden = true;
+}
+document
+  .getElementById("close-outline")
+  .addEventListener("click", closeOutline);
+document
+  .getElementById("cancel-outline")
+  .addEventListener("click", closeOutline);
+document
+  .getElementById("outline-overlay")
+  .addEventListener("click", (event) => {
+    if (event.target.id === "outline-overlay") closeOutline();
+    const action = event.target.closest("[data-design-action]");
+    if (action) announce(`设计稿示意：${action.dataset.designAction}`);
+  });
+document.getElementById("outline-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  closeOutline();
+  announce("设计稿示意：大纲已保存");
+});
 document.getElementById("close-lesson").addEventListener("click", closeLesson);
 document.getElementById("cancel-lesson").addEventListener("click", closeLesson);
 overlay.addEventListener("click", (event) => {
@@ -191,6 +217,7 @@ overlay.addEventListener("click", (event) => {
 });
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !overlay.hidden) closeLesson();
+  if (event.key === "Escape") closeOutline();
 });
 document.getElementById("lesson-form").addEventListener("submit", (event) => {
   event.preventDefault();

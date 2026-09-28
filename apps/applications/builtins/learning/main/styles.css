@@ -2836,7 +2836,9 @@
 .learn-setup-form { padding: 23px 27px; margin: 0; border-radius: 12px; }
 .learn-setup-form > label, .learn-setup-reference > label { display: block; margin-bottom: 7px; font-size: 13px; font-weight: 650; }
 .learn-setup-form > input { margin-bottom: 19px; }
-.learn-setup-form .learn-fields { grid-template-columns: minmax(0, 1fr); max-width: 400px; margin-bottom: 18px; }
+.learn-setup-form .learn-fields { grid-template-columns: minmax(0, 1fr); width: 100%; margin-bottom: 18px; }
+.learn-setup-form .learn-fields > div { min-width: 0; }
+.learn-setup-form .learn-fields select { width: 100%; }
 .learn-setup-reference { border-top: 1px solid var(--border); padding-top: 17px; }
 .learn-setup-reference label span { color: var(--muted-foreground); font-size: 11px; font-weight: 400; margin-left: 5px; }
 .learn-setup-reference textarea { min-height: 88px; }
@@ -2847,7 +2849,6 @@
 .learn-outline-readonly { padding: 0; overflow: hidden; border-radius: 12px; }
 .learn-syllabus-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 25px 30px; }
 .learn-syllabus-top > div:first-child { flex: 1; min-width: 0; }
-.learn-outline-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .learn-syllabus-top h3 { font-size: 23px; margin: 0 0 8px; }
 .learn-syllabus-top p { color: var(--muted-foreground); font-size: 13px; line-height: 1.7; }
 .learn-syllabus-section { padding: 21px 30px; border-top: 1px solid var(--border); }
@@ -2856,8 +2857,32 @@
 .learn-syllabus-section .learn-outline-preview-list li { padding: 12px 0; border-color: var(--border); }
 .learn-syllabus-section .learn-outline-preview-list li:last-child { border-bottom: 0; }
 .learn-outline-number { width: 31px; height: 31px; display: grid; place-items: center; flex: 0 0 31px; border-radius: 8px; background: var(--primary-subtle); font-size: 11px; }
-.learn-phase-editor { display: grid; gap: 8px; flex: 1; }
-.learn-phase-editor .learn-button { justify-self: start; }
+.learn-outline-overlay { position: fixed; inset: 0; z-index: 61; display: grid; place-items: center; padding: 20px; background: color-mix(in srgb, #10192c 68%, transparent); }
+.learn-outline-dialog { display: flex; flex-direction: column; width: min(820px, 100%); max-height: calc(100dvh - 40px); border: 1px solid var(--border); border-radius: 16px; background: var(--card); box-shadow: 0 24px 80px #0004; overflow: hidden; }
+.learn-outline-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 24px 28px 20px; border-bottom: 1px solid var(--border); }
+.learn-outline-modal-header h2 { margin: 5px 0 4px; font-size: 23px; }
+.learn-outline-modal-header p { color: var(--muted-foreground); font-size: 13px; }
+.learn-outline-modal-header .learn-button.text { font-size: 25px; line-height: 1; }
+.learn-outline-dialog > .learn-notice { margin: 12px 28px 0; }
+.learn-outline-modal-body { min-height: 0; overflow-y: auto; padding: 22px 28px 28px; }
+.learn-outline-ai-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 17px 19px; border: 1px solid var(--border); border-radius: 11px; background: var(--primary-subtle); }
+.learn-outline-ai-row strong { display: block; font-size: 14px; }
+.learn-outline-ai-row p { margin-top: 4px; color: var(--muted-foreground); font-size: 12px; line-height: 1.6; }
+.learn-outline-ai-row .learn-button { flex: 0 0 auto; background: var(--card); }
+.learn-outline-form-fields { display: grid; gap: 21px; margin-top: 24px; }
+.learn-outline-form-fields > label { display: grid; gap: 8px; font-size: 13px; font-weight: 650; }
+.learn-outline-form-fields textarea, .learn-outline-phase-fields input, .learn-outline-phase-fields textarea { width: 100%; min-width: 0; padding: 11px 13px; border: 1px solid var(--border); border-radius: 9px; background: var(--card); color: var(--foreground); font: inherit; font-weight: 400; line-height: 1.6; resize: vertical; }
+.learn-outline-form-fields textarea:focus-visible, .learn-outline-phase-fields input:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.learn-outline-phase-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 2px; }
+.learn-outline-phase-heading h3 { margin: 0; font-size: 15px; }
+.learn-outline-phase-fields { display: grid; gap: 11px; margin: -10px 0 0; padding: 0; list-style: none; }
+.learn-outline-phase-fields li { display: flex; align-items: flex-start; gap: 13px; padding: 15px; border: 1px solid var(--border); border-radius: 10px; background: var(--background); }
+.learn-outline-phase-fields li > div { display: grid; flex: 1; min-width: 0; gap: 8px; }
+.learn-outline-phase-fields input { font-weight: 650; }
+.learn-outline-phase-fields .learn-button.text { flex: 0 0 auto; font-size: 12px; }
+.learn-outline-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 15px 28px; border-top: 1px solid var(--border); background: var(--card); }
+.learn-outline-modal-body .learn-task { margin-top: 0; }
+.learn-outline-modal-body .learn-task .learn-author-chat { height: 380px; }
 .learn-lesson-workspace { grid-template-columns: minmax(0, 1.6fr) minmax(330px, 1fr); gap: 0; border: 1px solid var(--border); border-radius: 12px; background: var(--card); overflow: hidden; }
 .learn-lesson-rail, .learn-ai-assistant { border: 0; border-radius: 0; padding: 24px 27px; }
 .learn-lesson-rail { background: var(--card); }
@@ -2944,7 +2969,14 @@
 @media (max-width: 640px) {
   .learn-setup-form, .learn-syllabus-top, .learn-syllabus-section, .learn-lesson-rail, .learn-ai-assistant, .learn-project-choice, .learn-project-step-aside { padding: 18px; }
   .learn-syllabus-top { flex-wrap: wrap; }
-  .learn-outline-actions { width: 100%; justify-content: flex-start; }
+  .learn-outline-overlay { padding: 10px; }
+  .learn-outline-dialog { max-height: calc(100dvh - 20px); }
+  .learn-outline-modal-header { padding: 18px 18px 15px; }
+  .learn-outline-modal-body { padding: 18px; }
+  .learn-outline-modal-footer { padding: 14px 18px; }
+  .learn-outline-ai-row { align-items: flex-start; flex-direction: column; }
+  .learn-outline-phase-fields li { gap: 8px; padding: 11px; }
+  .learn-outline-phase-fields .learn-outline-number { display: none; }
   .learn-lesson-rail-header { align-items: flex-start; }
   .learn-lesson-toolbar { justify-content: flex-start; }
   .learn-lesson-cards li { flex-wrap: nowrap; }
