@@ -1,0 +1,13 @@
+# Keep only the approved reference and final verification captures in Git.
+*.png
+!design/
+!design/approved.png
+!formal-cat-title-icon.png
+!formal-warm-preferences.png
+!formal-warm-screen.png
+!formal-warm-narrow.png
+
+# Earlier prototype drafts are retained locally for comparison.
+office-preview.tsx
+preview.css
+scenarios.ts

@@ -1,0 +1,12 @@
+@import "../index.css";
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: #f8f9ff;
+}

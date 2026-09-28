@@ -5,6 +5,7 @@
 ## 开发入门
 
 - [桌面应用开发](guide/desktop.md)
+- [办公室中枢与预览](guide/office-preview.md)
 - [Git 与上游同步](guide/git.md)
 - [脚本目录](guide/scripts.md)
 - [文档维护](guide/documentation.md)
