@@ -84,7 +84,7 @@ export function ProjectDesigner({
           <h3>实践阶段</h3>
           <button
             type="button"
-            className="learn-button"
+            className="learn-button compact"
             disabled={plan.milestones.length >= 6}
             onClick={() => {
               const id = crypto.randomUUID();

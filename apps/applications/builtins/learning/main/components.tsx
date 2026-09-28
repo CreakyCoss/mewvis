@@ -14,7 +14,7 @@ export function Icon({
   name,
   size = 20,
 }: {
-  name: "book" | "plus" | "arrow" | "spark" | "check" | "back";
+  name: "book" | "plus" | "arrow" | "send" | "spark" | "check" | "back" | "chevronUp" | "chevronDown" | "trash";
   size?: number;
 }) {
   const paths = {
@@ -26,6 +26,12 @@ export function Icon({
     ),
     plus: <path d="M12 5v14M5 12h14" />,
     arrow: <path d="M4 12h15m-6-6 6 6-6 6" />,
+    send: (
+      <>
+        <path d="m22 2-7 20-4-9-9-4Z" />
+        <path d="M22 2 11 13" />
+      </>
+    ),
     back: <path d="M20 12H5m6-6-6 6 6 6" />,
     spark: (
       <>
@@ -34,6 +40,14 @@ export function Icon({
       </>
     ),
     check: <path d="m5 12 4 4L19 6" />,
+    chevronUp: <path d="m18 15-6-6-6 6" />,
+    chevronDown: <path d="m6 9 6 6 6-6" />,
+    trash: (
+      <>
+        <path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6" />
+        <path d="M10 10v6m4-6v6" />
+      </>
+    ),
   };
   return (
     <svg
@@ -42,7 +56,7 @@ export function Icon({
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.6"
+      strokeWidth={name === "send" ? 2 : 1.6}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"

@@ -255,6 +255,12 @@ export function createPreviewChat(options: {
   } as unknown as DesktopChatService;
   const dataClient = createApplicationDataClient(data);
   const host = createApplicationChatHost(service, {
+    models: async () => (resources.models ?? []).map(({ value, label }) => ({
+      id: value,
+      provider: { id: "preview", name: "预览" },
+      modelId: value,
+      modelName: label,
+    })),
     deleteRecord: async (workspacePath, chatId) => {
       sources.delete(JSON.stringify([workspacePath, chatId]));
       for (const [key, entry] of metadata)

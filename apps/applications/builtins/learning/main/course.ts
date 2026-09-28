@@ -106,6 +106,17 @@ export function checkSize(value: unknown): void {
   )
     throw new Error("课程内容过大，请减少课时或文字后重试（上限 180 KB）");
 }
+function questionPoints(value: unknown): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    value < 0.5 ||
+    value > 10 ||
+    !Number.isInteger(value * 2)
+  )
+    throw new Error("题目分值须为 0.5–10 分，按 0.5 分递增");
+  return value;
+}
 export function validateLesson(value: unknown, id: string): Lesson {
   const lesson = object(value, "课时");
   const questions = list(lesson.questions, "每课测验", 1, 3).map(
@@ -115,7 +126,7 @@ export function validateLesson(value: unknown, id: string): Lesson {
         id: `${id}-q${j + 1}`,
         question: text(q.question, "题干", 1000),
         explanation: text(q.explanation, "答案解析", 2000),
-        points: 1,
+        points: questionPoints(q.points),
       };
       const type = q.type ?? "single_choice";
       if (type === "short_answer")

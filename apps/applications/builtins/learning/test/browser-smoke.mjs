@@ -28,6 +28,7 @@ const fixtureLesson = {
   questions: [
     {
       type: "single_choice",
+      points: 1,
       question: "主动回忆的第一步是什么？",
       options: [
         { value: "A", label: "先尝试提取" },
@@ -38,6 +39,7 @@ const fixtureLesson = {
     },
     {
       type: "multiple_choice",
+      points: 1,
       question: "哪些步骤有助于主动回忆？",
       options: [
         { value: "A", label: "合上书解释" },
@@ -49,6 +51,7 @@ const fixtureLesson = {
     },
     {
       type: "short_answer",
+      points: 1,
       question: "用自己的话解释主动回忆。",
       answer: "主动从记忆提取知识并反馈",
       rubric: "提取和反馈各 0.5 分",

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Notice, Text, errorText } from "./components";
+import { Icon, Notice, Text, errorText } from "./components";
 import { LessonEditor } from "./LessonEditor";
 import { ModelTask, createModelTask, closeModelTask } from "./ModelTask";
 import {
@@ -44,7 +44,6 @@ export function Studio({
   const [editingSlot, setEditingSlot] = useState<string | null>(null);
   const [creatingSlotId, setCreatingSlotId] = useState<string | null>(null);
   const [outlineForm, setOutlineForm] = useState<Outline | null>(null);
-  const [reordering, setReordering] = useState(false);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const lock = useRef(false);
   const onBusyChangeRef = useRef(onBusyChange);
@@ -213,6 +212,7 @@ export function Studio({
       lessons[index],
     ];
     updateOutline({ ...draft.outline, lessons });
+    setConfirmRemoveId(null);
   };
   const removeSlot = (id: string) => {
     if (!draft?.outline) return;
@@ -569,7 +569,7 @@ export function Studio({
                       <div className="learn-outline-phase-heading">
                         <h3>学习路径</h3>
                         <button
-                          className="learn-button"
+                          className="learn-button compact"
                           disabled={outlineForm.phases.length >= 6}
                           onClick={() =>
                             setOutlineForm({
@@ -684,14 +684,7 @@ export function Studio({
                   共 {visibleSlots.length} 课时
                 </span>
                 <button
-                  className="learn-button"
-                  disabled={busy || !!draft.task}
-                  onClick={() => setReordering((value) => !value)}
-                >
-                  {reordering ? "完成调整" : "调整顺序"}
-                </button>
-                <button
-                  className="learn-button"
+                  className="learn-button compact"
                   disabled={
                     busy ||
                     !!draft.task ||
@@ -716,6 +709,7 @@ export function Studio({
                     disabled={busy || !!draft.task}
                     onClick={() => {
                       setError("");
+                      setConfirmRemoveId(null);
                       setEditingSlot(slot.id);
                     }}
                   >
@@ -726,48 +720,46 @@ export function Studio({
                       <strong>{slot.title}</strong>
                       <small>{slot.objective}</small>
                     </span>
-                    <span
-                      className="learn-lesson-card-chevron"
-                      aria-hidden="true"
-                    >
-                      ›
-                    </span>
                   </button>
-                  {reordering && (
-                    <div className="learn-lesson-card-actions">
-                      <>
-                        <button
-                          aria-label={`上移第 ${index + 1} 课`}
-                          disabled={busy || !!draft.task || index === 0}
-                          onClick={() => moveSlot(index, -1)}
-                        >
-                          上移
-                        </button>
-                        <button
-                          aria-label={`下移第 ${index + 1} 课`}
-                          disabled={
-                            busy ||
-                            !!draft.task ||
-                            index === visibleSlots.length - 1
-                          }
-                          onClick={() => moveSlot(index, 1)}
-                        >
-                          下移
-                        </button>
-                        <button
-                          aria-label={`${confirmRemoveId === slot.id ? "确认移除" : "移除"}第 ${index + 1} 课`}
-                          disabled={busy || !!draft.task}
-                          onClick={() =>
-                            confirmRemoveId === slot.id
-                              ? removeSlot(slot.id)
-                              : setConfirmRemoveId(slot.id)
-                          }
-                        >
-                          {confirmRemoveId === slot.id ? "确认移除" : "移除"}
-                        </button>
-                      </>
-                    </div>
-                  )}
+                  <div className="learn-lesson-card-actions">
+                    <button
+                      type="button"
+                      aria-label={`上移第 ${index + 1} 课`}
+                      title={`上移第 ${index + 1} 课`}
+                      disabled={busy || !!draft.task || index === 0}
+                      onClick={() => moveSlot(index, -1)}
+                    >
+                      <Icon name="chevronUp" size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`下移第 ${index + 1} 课`}
+                      title={`下移第 ${index + 1} 课`}
+                      disabled={
+                        busy ||
+                        !!draft.task ||
+                        index === visibleSlots.length - 1
+                      }
+                      onClick={() => moveSlot(index, 1)}
+                    >
+                      <Icon name="chevronDown" size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      className="learn-lesson-remove"
+                      data-confirming={confirmRemoveId === slot.id}
+                      aria-label={`${confirmRemoveId === slot.id ? "确认移除" : "移除"}第 ${index + 1} 课`}
+                      title={`${confirmRemoveId === slot.id ? "确认移除" : "移除"}第 ${index + 1} 课`}
+                      disabled={busy || !!draft.task}
+                      onClick={() =>
+                        confirmRemoveId === slot.id
+                          ? removeSlot(slot.id)
+                          : setConfirmRemoveId(slot.id)
+                      }
+                    >
+                      <Icon name={confirmRemoveId === slot.id ? "check" : "trash"} size={17} />
+                    </button>
+                  </div>
                 </li>
               ))}
             </ol>

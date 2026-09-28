@@ -393,6 +393,7 @@ test("mastery reflects only graded questions and changes after short answer revi
       questions: [
         {
           type: "single_choice",
+          points: 2,
           question: "第一步？",
           options: [
             { value: "A", label: "回忆" },
@@ -403,6 +404,7 @@ test("mastery reflects only graded questions and changes after short answer revi
         },
         {
           type: "short_answer",
+          points: 3,
           question: "如何检查？",
           answer: "核对资料",
           rubric: "提到核对",
@@ -418,16 +420,16 @@ test("mastery reflects only graded questions and changes after short answer revi
   };
   assert.deepEqual(lessonMastery(lesson, attempt), {
     percent: 100,
-    assessed: 1,
-    total: 2,
+    assessed: 2,
+    total: 5,
     pending: 1,
   });
   assert.deepEqual(
     lessonMastery(lesson, {
       ...attempt,
-      grades: { "lesson-1-q2": { score: 0.5, feedback: "继续" } },
+      grades: { "lesson-1-q2": { score: 1.5, feedback: "继续" } },
     }),
-    { percent: 75, assessed: 2, total: 2, pending: 0 },
+    { percent: 70, assessed: 5, total: 5, pending: 0 },
   );
 });
 test("the first launch removes every old application data key only once", async () => {
@@ -471,7 +473,7 @@ test("failed chat cleanup leaves no version marker and retries on next launch", 
   await r.initialize(async () => {});
   assert.deepEqual(await storage.keys(), ["learning:data-version"]);
 });
-test("old learning chats are removed from every registered workspace", async () => {
+test("old learning chats are removed without closing the shared chat client", async () => {
   const removed = [];
   let disposed = false;
   await clearOldChats(
@@ -496,7 +498,7 @@ test("old learning chats are removed from every registered workspace", async () 
     { workspaceId: "a", chatId: "two" },
     { workspaceId: "b", chatId: "three" },
   ]);
-  assert.equal(disposed, true);
+  assert.equal(disposed, false);
 });
 test("unsupported course records fail instead of being read as older data", async () => {
   const storage = memory();
@@ -587,6 +589,7 @@ const mixedLesson = () =>
       questions: [
         {
           type: "single_choice",
+          points: 1,
           question: "单选",
           options: [
             { value: "A", label: "甲" },
@@ -597,6 +600,7 @@ const mixedLesson = () =>
         },
         {
           type: "multiple_choice",
+          points: 1,
           question: "多选",
           options: [
             { value: "A", label: "甲" },
@@ -608,6 +612,7 @@ const mixedLesson = () =>
         },
         {
           type: "short_answer",
+          points: 1,
           question: "解释主动回忆",
           answer: "主动从记忆中提取",
           rubric: "说清提取与反馈，各占半分",
@@ -619,6 +624,14 @@ const mixedLesson = () =>
   );
 test("mixed quiz validates explicit types and grades choices only", () => {
   const l = mixedLesson();
+  for (const points of [undefined, 0, 0.3, 10.5, "2", Infinity]) {
+    const invalid = structuredClone(l);
+    invalid.questions[0].points = points;
+    assert.throws(() => validateLesson(invalid, "bad"), /题目分值/);
+  }
+  const weighted = structuredClone(l);
+  weighted.questions[0].points = 2.5;
+  assert.equal(validateLesson(weighted, "weighted").questions[0].points, 2.5);
   assert.equal(validAnswer(l.questions[1], ["A", "A"]), false);
   assert.equal(validAnswer(l.questions[1], ["Z"]), false);
   assert.equal(validAnswer(l.questions[1], "A"), false);
@@ -886,6 +899,25 @@ test("AI grading binds every score to the submitted attempt and validates covera
     0.5,
   );
   assert.ok(gradingPrompt(l, attempt).includes("我的答案"));
+  const weightedLesson = structuredClone(l);
+  weightedLesson.questions[2].points = 3;
+  assert.ok(gradingPrompt(weightedLesson, attempt).includes('"points":3'));
+  assert.equal(
+    parseGrades(
+      JSON.stringify({ ...output, grades: [{ ...output.grades[0], score: 2.5 }] }),
+      weightedLesson,
+      attempt,
+    )["mixed-q3"].score,
+    2.5,
+  );
+  assert.throws(
+    () => parseGrades(
+      JSON.stringify({ ...output, grades: [{ ...output.grades[0], score: 3.5 }] }),
+      weightedLesson,
+      attempt,
+    ),
+    /范围/,
+  );
   assert.throws(
     () =>
       parseGrades(

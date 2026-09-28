@@ -43,7 +43,7 @@ export function OutlineEditor({
           <label>学习目标</label>
           <button
             type="button"
-            className="learn-button text"
+            className="learn-button text compact"
             disabled={goals.length >= 6}
             onClick={() => change({ goal: [...goals, ""].join("\n") })}
           >
@@ -87,7 +87,7 @@ export function OutlineEditor({
           <label>学习路径</label>
           <button
             type="button"
-            className="learn-button text"
+            className="learn-button text compact"
             disabled={value.phases.length >= 6}
             onClick={() =>
               change({

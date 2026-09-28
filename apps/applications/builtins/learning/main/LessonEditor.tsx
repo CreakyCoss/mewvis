@@ -4,6 +4,7 @@ import { Notice, errorText } from "./components";
 
 type EditableQuestion = {
   type: Question["type"];
+  points: string;
   question: string;
   options: { value: string; label: string }[];
   answer: string | string[];
@@ -12,6 +13,7 @@ type EditableQuestion = {
 };
 const blankQuestion = (): EditableQuestion => ({
   type: "single_choice",
+  points: "1",
   question: "",
   options: [
     { value: "A", label: "" },
@@ -52,6 +54,7 @@ export function LessonEditor({
   const [questions, setQuestions] = useState<EditableQuestion[]>(
     lesson?.questions.map((q) => ({
       ...q,
+      points: String(q.points),
       options: [...q.options],
       rubric: q.type === "short_answer" ? q.rubric : "",
     })) ?? [blankQuestion()],
@@ -88,6 +91,15 @@ export function LessonEditor({
       invalid.takeaways = "知识要点应为 1–6 条，每条不超过 500 字";
     questions.forEach((q, i) => {
       requireText(`q${i}-question`, q.question, `第 ${i + 1} 题题干`);
+      const points = Number(q.points);
+      if (
+        !q.points.trim() ||
+        !Number.isFinite(points) ||
+        points < 0.5 ||
+        points > 10 ||
+        !Number.isInteger(points * 2)
+      )
+        invalid[`q${i}-points`] = "请输入 0.5–10 分，按 0.5 分递增";
       requireText(`q${i}-explanation`, q.explanation, `第 ${i + 1} 题答案解析`);
       if (q.type === "short_answer") {
         requireText(
@@ -141,7 +153,10 @@ export function LessonEditor({
               .split("\n")
               .map((s) => s.trim())
               .filter(Boolean),
-            questions,
+            questions: questions.map((question) => ({
+              ...question,
+              points: Number(question.points),
+            })),
           })
             .catch((e) => setError(errorText(e)))
             .finally(() => {
@@ -275,40 +290,90 @@ export function LessonEditor({
               </label>
             </fieldset>
             <div id="learn-lesson-quiz" hidden={activeTab !== "quiz"}>
-            <h2>
-              课后测验 <small>1–3 道题，每题 1 分</small>
-            </h2>
+            <div className="learn-quiz-heading">
+              <div>
+                <h2>课后测验</h2>
+                <p>共 {questions.length} 道题 · 总分 {questions.reduce((sum, question) => sum + (Number(question.points) || 0), 0)} 分</p>
+              </div>
+              <button
+                type="button"
+                className="learn-button compact learn-add-question"
+                disabled={busy || questions.length >= 3}
+                onClick={() => setQuestions([...questions, blankQuestion()])}
+              >
+                + 添加题目
+              </button>
+            </div>
             {questions.map((q, i) => (
               <fieldset
                 key={i}
                 className="learn-lesson-question"
+                aria-label={`第 ${i + 1} 题`}
                 disabled={busy}
               >
-                <legend>第 {i + 1} 题</legend>
-                <label>
-                  题型
-                  <select
-                    aria-label="题型"
-                    value={q.type}
-                    onChange={(e) => {
-                      const type = e.target.value as Question["type"];
-                      update(i, {
-                        type,
-                        answer: type === "multiple_choice" ? [] : "",
-                        options:
-                          type === "short_answer"
-                            ? []
-                            : q.options.length >= 2
-                              ? q.options
-                              : blankQuestion().options,
-                      });
-                    }}
-                  >
-                    <option value="single_choice">单选</option>
-                    <option value="multiple_choice">多选</option>
-                    <option value="short_answer">简答</option>
-                  </select>
-                </label>
+                <div className="learn-question-heading">
+                  <strong>第 {String(i + 1).padStart(2, "0")} 题</strong>
+                  <div className="learn-question-controls">
+                    <label className="learn-question-type">
+                      <span>题型</span>
+                      <span className="learn-select-wrap">
+                        <select
+                          aria-label={`第 ${i + 1} 题题型`}
+                          value={q.type}
+                          onChange={(e) => {
+                            const type = e.target.value as Question["type"];
+                            update(i, {
+                              type,
+                              answer: type === "multiple_choice" ? [] : "",
+                              options:
+                                type === "short_answer"
+                                  ? []
+                                  : q.options.length >= 2
+                                    ? q.options
+                                    : blankQuestion().options,
+                            });
+                          }}
+                        >
+                          <option value="single_choice">单选</option>
+                          <option value="multiple_choice">多选</option>
+                          <option value="short_answer">简答</option>
+                        </select>
+                      </span>
+                    </label>
+                    <label className="learn-question-points">
+                      <span>分值</span>
+                      <span className="learn-points-input">
+                        <input
+                          type="number"
+                          min="0.5"
+                          max="10"
+                          step="0.5"
+                          required
+                          aria-label={`第 ${i + 1} 题分值`}
+                          data-lesson-field={`q${i}-points`}
+                          aria-invalid={!!fieldErrors[`q${i}-points`]}
+                          value={q.points}
+                          onChange={(e) => update(i, { points: e.target.value })}
+                        />
+                        <span>分</span>
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      className="learn-button text compact learn-question-remove"
+                      disabled={questions.length <= 1}
+                      onClick={() =>
+                        setQuestions(questions.filter((_, k) => k !== i))
+                      }
+                    >
+                      删除
+                    </button>
+                  </div>
+                </div>
+                <div className="learn-question-body">
+                {fieldErrors[`q${i}-points`] && (
+                  <small className="learn-field-error">{fieldErrors[`q${i}-points`]}</small>
+                )}
                 <label>
                   题干
                   <textarea
@@ -328,7 +393,7 @@ export function LessonEditor({
                   )}
                 </label>
                 {q.type === "short_answer" ? (
-                  <>
+                  <div className="learn-question-short-answer">
                     <label>
                       参考答案
                       <textarea
@@ -348,12 +413,12 @@ export function LessonEditor({
                       )}
                     </label>
                     <label>
-                      评分标准（满分 1 分）
+                      评分标准（满分 {q.points || "—"} 分）
                       <textarea
                         required
                         rows={3}
                         maxLength={2000}
-                        aria-label="评分标准（满分 1 分）"
+                        aria-label={`评分标准（满分 ${q.points || "—"} 分）`}
                         data-lesson-field={`q${i}-rubric`}
                         aria-invalid={!!fieldErrors[`q${i}-rubric`]}
                         value={q.rubric}
@@ -365,9 +430,13 @@ export function LessonEditor({
                         </small>
                       )}
                     </label>
-                  </>
+                  </div>
                 ) : (
-                  <>
+                  <div className="learn-question-options">
+                    <div className="learn-question-options-heading">
+                      <strong>选项与正确答案</strong>
+                      <span>{q.type === "multiple_choice" ? "勾选所有正确选项" : "选择一个正确选项"}</span>
+                    </div>
                     {q.options.map((o, j) => (
                       <div key={o.value} className="learn-edit-option">
                         <label className="learn-correct-choice">
@@ -420,7 +489,7 @@ export function LessonEditor({
                         />
                         <button
                           type="button"
-                          className="learn-button text"
+                          className="learn-button text compact"
                           aria-label={`删除第 ${i + 1} 题选项 ${o.value}`}
                           disabled={q.options.length <= 2}
                           onClick={() =>
@@ -447,7 +516,7 @@ export function LessonEditor({
                     )}
                     <button
                       type="button"
-                      className="learn-button"
+                      className="learn-button compact learn-add-option"
                       disabled={q.options.length >= 5}
                       onClick={() =>
                         update(i, {
@@ -463,9 +532,9 @@ export function LessonEditor({
                         })
                       }
                     >
-                      添加选项
+                      + 添加选项
                     </button>
-                  </>
+                  </div>
                 )}
                 <label>
                   答案解析
@@ -485,26 +554,9 @@ export function LessonEditor({
                     </small>
                   )}
                 </label>
-                <button
-                  type="button"
-                  className="learn-button text"
-                  disabled={questions.length <= 1}
-                  onClick={() =>
-                    setQuestions(questions.filter((_, k) => k !== i))
-                  }
-                >
-                  删除此题
-                </button>
+                </div>
               </fieldset>
             ))}
-            <button
-              type="button"
-              className="learn-button learn-add-question"
-              disabled={busy || questions.length >= 3}
-              onClick={() => setQuestions([...questions, blankQuestion()])}
-            >
-              添加题目
-            </button>
             </div>
           </div>
         </div>

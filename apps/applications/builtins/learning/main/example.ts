@@ -26,6 +26,7 @@ export const exampleCourse = validateCourse({
       ],
       questions: [
         {
+          points: 1,
           question: "哪个目标最容易检验是否完成？",
           options: [
             { value: "A", label: "更加了解数据" },
@@ -53,6 +54,7 @@ export const exampleCourse = validateCourse({
       ],
       questions: [
         {
+          points: 1,
           question: "合上资料后解释不完整，下一步更合适的是？",
           options: [
             { value: "A", label: "只反复读熟原句" },
@@ -80,6 +82,7 @@ export const exampleCourse = validateCourse({
       ],
       questions: [
         {
+          points: 1,
           question: "哪种行为更能检验知识迁移？",
           options: [
             { value: "A", label: "把例题答案再抄一遍" },

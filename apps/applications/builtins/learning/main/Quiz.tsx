@@ -105,7 +105,9 @@ export function Quiz({
           <span className="learn-eyebrow">CHECK YOUR UNDERSTANDING</span>
           <h2>用练习，检验理解</h2>
         </div>
-        <span className="learn-chip">{lesson.questions.length} 道题</span>
+        <span className="learn-chip">
+          {lesson.questions.length} 道题 · 共 {lesson.questions.reduce((sum, question) => sum + question.points, 0)} 分
+        </span>
       </div>
       {mastery && (
         <p className="learn-muted">

@@ -31,7 +31,7 @@ export async function createModelTask(
   sessions.set(session.identity.id, session);
   return { workspaceId: workspace.id, chatId: session.identity.id };
 }
-async function open(ref: SessionRef) {
+export async function openModelTask(ref: SessionRef) {
   let session = sessions.get(ref.chatId);
   if (!session) {
     session = await getApplicationChatClient().openSession(ref);
@@ -40,7 +40,7 @@ async function open(ref: SessionRef) {
   return session;
 }
 export async function closeModelTask(ref: SessionRef) {
-  const session = await open(ref);
+  const session = await openModelTask(ref);
   const result = await session.close();
   if (!result.ok) throw new Error(result.error);
   sessions.delete(ref.chatId);
@@ -62,7 +62,7 @@ export function ModelTask(props: Props) {
     let alive = true;
     setSession(null);
     setError("");
-    void open(props.taskRef)
+    void openModelTask(props.taskRef)
       .then((value) => {
         if (alive) setSession(value);
       })
