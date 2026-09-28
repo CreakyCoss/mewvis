@@ -53,6 +53,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState("");
+  const [confirmCompletion, setConfirmCompletion] = useState(false);
   const [copiedCourse, setCopiedCourse] = useState("");
   const [focus, setFocus] = useState<FocusTarget | null>(null);
   const [tab, setTab] = useState<"lesson" | "quiz" | "project">("lesson");
@@ -72,6 +73,13 @@ export default function App() {
   const lesson =
     course?.lessons.find((l) => l.id === currentProgress?.lessonId) ??
     course?.lessons[0];
+  const nextLesson = course && lesson
+    ? course.lessons[course.lessons.indexOf(lesson) + 1]
+    : undefined;
+  const lessonCompleted = !!lesson && !!currentProgress?.completed.includes(lesson.id);
+  useEffect(() => {
+    setConfirmCompletion(false);
+  }, [view, course?.id, lesson?.id, tab]);
   const deleteTarget = courses.find((item) => entryId(item) === confirmDelete);
   useEffect(() => {
     if (!confirmDelete) return;
@@ -237,26 +245,21 @@ export default function App() {
     <div
       className={`learning-app theme-${theme} ${view === "lesson" ? "is-studying" : "is-library"}`}
     >
-      <nav className="learn-nav" aria-label="学习工作台导航">
-        <button
-          className="learn-brand"
-          onClick={() => setView("library")}
-          aria-label="学习工作台首页"
-        >
-          <span className="learn-brand-icon">
-            <BookOpen size={30} strokeWidth={2.1} aria-hidden="true" />
-          </span>
-          <span>
-            学习工作台<small>ISLE LEARNING</small>
-          </span>
-        </button>
-        <div className="learn-nav-links">
-          {view === "lesson" ? (
-            <button onClick={() => setView("library")}>
-              <Icon name="book" size={17} />
-              我的课程
-            </button>
-          ) : (
+      {view === "library" && (
+        <nav className="learn-nav" aria-label="学习工作台导航">
+          <button
+            className="learn-brand"
+            onClick={() => setView("library")}
+            aria-label="学习工作台首页"
+          >
+            <span className="learn-brand-icon">
+              <BookOpen size={30} strokeWidth={2.1} aria-hidden="true" />
+            </span>
+            <span>
+              学习工作台<small>ISLE LEARNING</small>
+            </span>
+          </button>
+          <div className="learn-nav-links">
             <label className="learn-nav-import">
               <Upload size={17} aria-hidden="true" />
               导入课程
@@ -281,20 +284,20 @@ export default function App() {
                 }}
               />
             </label>
-          )}
-          <button
-            className={view === "library" ? "learn-nav-create" : ""}
-            disabled={loading || loadFailed}
-            onClick={() => {
-              setEditing(undefined);
-              setCreateOpen(true);
-            }}
-          >
-            <Plus size={17} aria-hidden="true" />
-            创建课程
-          </button>
-        </div>
-      </nav>
+            <button
+              className="learn-nav-create"
+              disabled={loading || loadFailed}
+              onClick={() => {
+                setEditing(undefined);
+                setCreateOpen(true);
+              }}
+            >
+              <Plus size={17} aria-hidden="true" />
+              创建课程
+            </button>
+          </div>
+        </nav>
+      )}
       <main
         ref={mainRef}
         className={`learn-main ${view === "lesson" ? "is-lesson" : ""}`}
@@ -322,27 +325,33 @@ export default function App() {
           </div>
         ) : view === "lesson" && course && lesson && currentProgress ? (
           <>
-            <div className="learn-course-top">
+            <header className="learn-course-top learn-study-header">
               <button
-                className="learn-button text"
+                type="button"
+                className="learn-dialog-back"
+                aria-label="返回课程库"
+                title="返回课程库"
                 onClick={() => setView("library")}
               >
-                <Icon name="back" size={16} />
-                课程库
+                <Icon name="chevronLeft" size={16} />
               </button>
-              <span className="learn-course-breadcrumb">{course.title}</span>
-              {(course.projectEnabled || tab === "project") && (
-                <button
-                  className={`learn-button ${tab === "project" ? "primary" : ""}`}
-                  onClick={() => {
-                    setTab(tab === "project" ? "lesson" : "project");
-                    setFocus(null);
-                  }}
-                >
-                  {tab === "project" ? "返回课时" : "项目实训"}
-                </button>
-              )}
-            </div>
+              <div className="learn-course-header-title">
+                <h2 title={course.title}>{course.title}</h2>
+              </div>
+              <div className="learn-study-actions">
+                {(course.projectEnabled || tab === "project") && (
+                  <button
+                    className={`learn-button ${tab === "project" ? "primary" : ""}`}
+                    onClick={() => {
+                      setTab(tab === "project" ? "lesson" : "project");
+                      setFocus(null);
+                    }}
+                  >
+                    {tab === "project" ? "返回课时" : "项目实训"}
+                  </button>
+                )}
+              </div>
+            </header>
             <div
               className={`learn-classroom with-tutor ${tab === "project" ? "is-project" : ""} ${tutorExpanded ? "mobile-tutor-expanded" : ""}`}
             >
@@ -367,6 +376,11 @@ export default function App() {
                         aria-current={
                           item.id === lesson.id ? "step" : undefined
                         }
+                        aria-label={
+                          currentProgress.completed.includes(item.id)
+                            ? `${item.title}，已完成`
+                            : undefined
+                        }
                         onClick={() => jump(item.id)}
                       >
                         <span className="learn-step-number">
@@ -378,21 +392,11 @@ export default function App() {
                         </span>
                         <span>
                           {item.title}
-                          {currentProgress.completed.includes(item.id) && (
-                            <small>已完成</small>
-                          )}
                         </span>
                       </button>
                     </li>
                   ))}
                 </ol>
-                <div className="learn-outline-note">
-                  {tab === "project"
-                    ? "实训进度与课时阅读分开记录。"
-                    : currentProgress.completed.length === course.lessons.length
-                      ? "课程已完成。可以回看讲解或重练测验。"
-                      : `当前任务：阅读第 ${course.lessons.indexOf(lesson) + 1} 课，再完成练习。`}
-                </div>
               </aside>
               <div className="learn-reading">
                 <div
@@ -413,7 +417,66 @@ export default function App() {
                       </>
                     )}
                   </span>
-                  <h1>{tab === "project" ? "课程项目实训" : lesson.title}</h1>
+                  <div className="learn-lesson-title-row">
+                    <h1 title={tab === "project" ? "课程项目实训" : lesson.title}>
+                      {tab === "project" ? "课程项目实训" : lesson.title}
+                      {tab !== "project" && lessonCompleted && (
+                        <span className="learn-lesson-completed">已完成</span>
+                      )}
+                    </h1>
+                    {tab !== "project" && (!lessonCompleted || nextLesson) && (
+                      <button
+                        className="learn-button primary"
+                        title={
+                          lessonCompleted
+                            ? "进入下一课"
+                            : confirmCompletion
+                              ? "再次点击完成本课；移开焦点或按 Esc 取消"
+                              : "点击后再次确认，完成本课并继续学习"
+                        }
+                        aria-label={
+                          lessonCompleted ? "进入下一课" : confirmCompletion ? "确认完成本课" : "完成本课"
+                        }
+                        disabled={busy}
+                        onBlur={() => setConfirmCompletion(false)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Escape") setConfirmCompletion(false);
+                        }}
+                        onClick={() => {
+                          if (busy || lock.current) return;
+                          if (lessonCompleted && nextLesson) {
+                            jump(nextLesson.id);
+                            return;
+                          }
+                          if (!confirmCompletion) {
+                            setConfirmCompletion(true);
+                            return;
+                          }
+                          setConfirmCompletion(false);
+                          void run(async () => {
+                            await updateProgress({
+                              ...currentProgress,
+                              completed: [
+                                ...new Set([...currentProgress.completed, lesson.id]),
+                              ],
+                              lessonId: nextLesson?.id ?? lesson.id,
+                            });
+                            setTab("lesson");
+                          });
+                        }}
+                      >
+                        {busy
+                          ? "保存中…"
+                          : lessonCompleted
+                            ? "下一课"
+                            : confirmCompletion ? "确认完成" : "完成本课"}
+                        <Icon
+                          name={lessonCompleted && nextLesson ? "arrow" : "check"}
+                          size={15}
+                        />
+                      </button>
+                    )}
+                  </div>
                   <p>{tab === "project" ? course.title : lesson.objective}</p>
                 </div>
                 {tab !== "project" && (
@@ -532,47 +595,6 @@ export default function App() {
                     />
                   )}
                 </div>
-                {tab !== "project" && (
-                  <footer className="learn-lesson-footer">
-                    <span>
-                      {currentProgress.completed.includes(lesson.id)
-                        ? "本课已完成"
-                        : "完成情况由你自己决定"}
-                    </span>
-                    <button
-                      className="learn-button primary"
-                      disabled={busy}
-                      onClick={() =>
-                        void run(async () => {
-                          const next =
-                            course.lessons[course.lessons.indexOf(lesson) + 1];
-                          await updateProgress({
-                            ...currentProgress,
-                            completed: [
-                              ...new Set([
-                                ...currentProgress.completed,
-                                lesson.id,
-                              ]),
-                            ],
-                            lessonId: next?.id ?? lesson.id,
-                          });
-                          setTab("lesson");
-                        })
-                      }
-                    >
-                      {busy
-                        ? "保存中…"
-                        : course.lessons.indexOf(lesson) <
-                            course.lessons.length - 1
-                          ? "完成本课，继续学习"
-                          : currentProgress.completed.length ===
-                              course.lessons.length
-                            ? "已完成全部课程"
-                            : "完成本课"}
-                      <Icon name="check" size={17} />
-                    </button>
-                  </footer>
-                )}
               </div>
               <Tutor
                 key={`${course.id}:${lesson.id}`}

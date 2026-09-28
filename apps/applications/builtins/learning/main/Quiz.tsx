@@ -223,7 +223,7 @@ export function Quiz({
         );
       })}
       {error && <Notice>{error}</Notice>}
-      <div className="learn-actions">
+      <div className="learn-actions learn-quiz-actions">
         {saved ? (
           <>
             <span className="learn-muted">
