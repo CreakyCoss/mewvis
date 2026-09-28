@@ -53,6 +53,7 @@ const {
   lessonPrompt,
   revisionPrompt,
   finalText,
+  editDraftSlot,
   editDraftLesson,
   validatePlan,
   createProject,
@@ -452,7 +453,10 @@ test("the first launch removes every old application data key only once", async 
   await r.save(course);
   await r.initialize(clearChats);
   assert.equal((await r.list())[0].id, course.id);
-  assert.equal(storage.values.get("learning:data-version"), "course-status-v2");
+  assert.equal(
+    storage.values.get("learning:data-version"),
+    "course-workspace-v3",
+  );
   assert.equal(chatCleanups, 1);
 });
 test("failed chat cleanup leaves no version marker and retries on next launch", async () => {
@@ -658,7 +662,10 @@ test("outline edits, adoption and per-lesson retry survive draft reload without 
   const storage = memory();
   let d = newDraft(briefV2);
   d.task = { kind: "outline", ref };
-  d = acceptTask(d, JSON.stringify(copy()));
+  const generatedOutline = copy();
+  delete generatedOutline.title;
+  d = acceptTask(d, JSON.stringify(generatedOutline));
+  assert.equal(d.outline.title, briefV2.topic);
   d.outline.lessons[0].title = "调整后的标题";
   d.outline.lessons.reverse();
   d = await writeDraft(storage, d, courseKey(d.courseId));
@@ -709,7 +716,12 @@ test("temporary courses use course records and resume independently", async () =
       .creationStep,
     1,
   );
-  assert.equal(validateDraft({ ...fresh, creationStep: 4 }).creationStep, 4);
+  assert.equal(validateDraft({ ...fresh, creationStep: 2 }).creationStep, 2);
+  assert.throws(() => validateDraft({ ...fresh, creationStep: 4 }), /步骤/);
+  assert.throws(
+    () => validateDraft({ ...fresh, creationStep: undefined }),
+    /步骤/,
+  );
   assert.throws(() => validateDraft({ ...fresh, creationStep: 5 }), /步骤/);
   assert.equal(
     (await storage.getItem(courseKey(course.id))).courseId,
@@ -973,6 +985,22 @@ test("manual lesson edits preserve identity on no-op and revise only changed con
     /结束/,
   );
   assert.throws(() => editDraftLesson(d, "missing", slot.lesson), /不存在/);
+});
+test("changing a lesson's title or objective clears only that lesson's finished content", () => {
+  const d = newDraft(briefV2, copy());
+  const slot = d.outline.lessons[0];
+  const unchanged = editDraftSlot(d, slot.id, slot.title, slot.objective);
+  assert.equal(unchanged.outline.lessons[0].lesson.id, slot.lesson.id);
+  const renamed = editDraftSlot(d, slot.id, "新的课时标题", slot.objective);
+  assert.equal(renamed.outline.lessons[0].lesson, undefined);
+  assert.equal(
+    renamed.outline.lessons[1].lesson.id,
+    d.outline.lessons[1].lesson.id,
+  );
+  assert.throws(
+    () => editDraftSlot(d, slot.id, "", slot.objective),
+    /课时标题/,
+  );
 });
 test("PBL plans normalize model identities, validate requirements and preserve course ownership", () => {
   const raw = projectPlan();

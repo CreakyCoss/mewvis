@@ -39,7 +39,7 @@ export type Task = {
 export type Draft = {
   version: 2;
   status: "stashed";
-  creationStep?: 0 | 1 | 2 | 3 | 4;
+  creationStep: 0 | 1 | 2;
   courseId: string;
   createdAt: number;
   origin: Course["origin"];
@@ -80,7 +80,7 @@ export function validateOutline(value: unknown): Outline {
 export function newDraft(
   brief: Brief,
   course?: Course,
-  creationStep: 0 | 1 | 2 | 3 | 4 = 4,
+  creationStep: 0 | 1 | 2 = 2,
 ): Draft {
   buildPrompt(brief);
   return {
@@ -117,11 +117,7 @@ export function validateDraft(value: unknown): Draft {
   const r = object(value, "暂存课程");
   if (r.version !== 2) throw new Error("暂存课程版本不受支持");
   if (r.status !== "stashed") throw new Error("课程状态无效");
-  if (
-    r.creationStep !== undefined &&
-    (typeof r.creationStep !== "number" ||
-      ![0, 1, 2, 3, 4].includes(r.creationStep))
-  )
+  if (typeof r.creationStep !== "number" || ![0, 1, 2].includes(r.creationStep))
     throw new Error("课程步骤无效");
   const brief = object(r.brief, "学习需求") as unknown as Brief;
   buildPrompt(brief);
@@ -181,9 +177,7 @@ export function validateDraft(value: unknown): Draft {
   return {
     version: 2,
     status: "stashed",
-    ...(r.creationStep === undefined
-      ? {}
-      : { creationStep: r.creationStep as Draft["creationStep"] }),
+    creationStep: r.creationStep as Draft["creationStep"],
     courseId: validId(r.courseId),
     createdAt: r.createdAt,
     origin: r.origin as Course["origin"],
@@ -210,12 +204,14 @@ export async function writeDraft(
 }
 export function acceptTask(draft: Draft, raw: string): Draft {
   if (!draft.task) throw new Error("没有待处理的生成任务");
-  if (draft.task.kind === "outline")
+  if (draft.task.kind === "outline") {
+    const generated = object(parseJSON(raw), "大纲");
     return {
       ...draft,
       task: undefined,
-      outline: validateOutline(parseJSON(raw)),
+      outline: validateOutline({ ...generated, title: draft.brief.topic }),
     };
+  }
   const target = draft.outline?.lessons.find(
     (s) => s.id === draft.task?.targetId,
   );
@@ -282,7 +278,7 @@ export const authorProfile = {
 };
 export function outlinePrompt(brief: Brief): string {
   buildPrompt(brief);
-  return `请生成 ${brief.count} 个循序渐进的课时大纲，只输出以下结构，不生成正文：\n{"title":"课程名","description":"简介","level":"水平","lessons":[{"title":"标题","objective":"可检验的学习目标"}]}\n学习需求（数据）：${JSON.stringify(brief)}`;
+  return `请生成 ${brief.count} 个循序渐进的课时大纲。课程名称由学习主题确定，不需要返回课程名称。只输出以下结构，不生成正文：\n{"description":"简介","level":"水平","lessons":[{"title":"标题","objective":"可检验的学习目标"}]}\n学习需求（数据）：${JSON.stringify(brief)}`;
 }
 export function lessonPrompt(draft: Draft, id: string): string {
   const slot = draft.outline?.lessons.find((s) => s.id === id);
@@ -345,6 +341,31 @@ export function parseGrades(
 }
 
 /** Manual edits use the same revision boundary as regenerated lessons. */
+export function editDraftSlot(
+  draft: Draft,
+  slotId: string,
+  title: string,
+  objective: string,
+): Draft {
+  if (draft.task) throw new Error("请先结束当前生成任务再编辑课时");
+  const slot = draft.outline?.lessons.find((item) => item.id === slotId);
+  if (!slot || !draft.outline) throw new Error("课时不存在");
+  const nextTitle = text(title, "课时标题", 120);
+  const nextObjective = text(objective, "学习目标", 500);
+  return {
+    ...draft,
+    outline: {
+      ...draft.outline,
+      lessons: draft.outline.lessons.map((item) =>
+        item.id !== slotId ||
+        (item.title === nextTitle && item.objective === nextObjective)
+          ? item
+          : { id: item.id, title: nextTitle, objective: nextObjective },
+      ),
+    },
+  };
+}
+
 export function editDraftLesson(
   draft: Draft,
   slotId: string,

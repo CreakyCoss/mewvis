@@ -9,7 +9,6 @@ import {
   restoreProgress,
   validateContent,
   type Course,
-  type Brief,
   type Progress,
 } from "./course";
 import { repository } from "./repository";
@@ -27,7 +26,7 @@ import {
 import { RecallCards } from "./RecallCards";
 import { ProjectLab } from "./ProjectLab";
 import { CourseDialog } from "./CourseDialog";
-import { newDraft, type CourseEntry, type Draft } from "./workflow";
+import { type CourseEntry, type Draft } from "./workflow";
 
 const repo = () => repository(getApplicationDataClient().storage);
 const entryId = (item: CourseEntry) =>
@@ -151,12 +150,6 @@ export default function App() {
       ...current.filter((item) => entryId(item) !== saved.courseId),
     ]);
     return saved;
-  };
-  const create = async (
-    brief: Brief,
-    step: 0 | 1 | 2 | 3 | 4,
-  ): Promise<Draft> => {
-    return saveDraft(newDraft(brief, undefined, step));
   };
   const save = async (course: Course) => {
     await repo().save(course);
@@ -593,18 +586,13 @@ export default function App() {
                           <div className="learn-card-next">
                             <span>继续编辑</span>
                             <strong>
-                              {item.creationStep !== undefined &&
-                              item.creationStep < 3
-                                ? [
-                                    "继续填写课程主题",
-                                    "继续填写学习安排",
-                                    "继续填写参考资料",
-                                  ][item.creationStep]
-                                : item.outline
-                                  ? item.creationStep === 3
-                                    ? "继续编辑课程大纲"
-                                    : `${item.outline.lessons.filter((slot) => slot.lesson).length} / ${item.outline.lessons.length} 课时已完成`
-                                  : "继续创建课程大纲"}
+                              {item.creationStep === 0
+                                ? "继续设置课程"
+                                : !item.outline
+                                  ? "继续规划课程大纲"
+                                  : item.creationStep === 1
+                                    ? "查看课程大纲"
+                                    : `${item.outline.lessons.filter((slot) => slot.lesson).length} / ${item.outline.lessons.length} 课时已完成`}
                             </strong>
                           </div>
                           <div className="learn-card-actions">
@@ -872,7 +860,6 @@ export default function App() {
           key={editing ? entryId(editing) : "new"}
           initialCourse={editing}
           onClose={() => setCreateOpen(false)}
-          onCreate={create}
           onSave={save}
           onSaveDraft={saveDraft}
           onStashed={() => {

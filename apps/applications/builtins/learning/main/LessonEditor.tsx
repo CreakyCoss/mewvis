@@ -26,12 +26,14 @@ export function LessonEditor({
   title,
   objective,
   onSave,
+  onSaveOutline,
   onCancel,
 }: {
   lesson?: Lesson;
   title: string;
   objective: string;
   onSave: (value: unknown) => Promise<void>;
+  onSaveOutline: (title: string, objective: string) => Promise<void>;
   onCancel: () => void;
 }) {
   const [value, setValue] = useState({
@@ -57,9 +59,20 @@ export function LessonEditor({
     );
   return (
     <section className="learn-manual-editor" aria-label="手动编辑课时">
-      <h1>手动编辑课时</h1>
+      <div className="learn-manual-editor-header">
+        <h1>编辑课时</h1>
+        <button
+          type="button"
+          className="learn-button text"
+          aria-label="关闭课时编辑"
+          disabled={busy}
+          onClick={onCancel}
+        >
+          ×
+        </button>
+      </div>
       <p className="learn-muted">
-        保存后可继续编辑或暂存，完成全部课时后点击「保存课程，开始学习」。内容变更会重置本课旧测验和完成状态，其他课时不受影响。
+        可以先保存标题与目标，再逐步补充正文和测验。修改已完成课时的标题或目标会清除本课内容；内容变更会重置本课旧测验和完成状态。
       </p>
       {error && <Notice>{error}</Notice>}
       <form
@@ -85,7 +98,7 @@ export function LessonEditor({
         }}
       >
         <fieldset disabled={busy}>
-          <legend>课时内容</legend>
+          <legend>课时安排</legend>
           <label>
             课时标题
             <input
@@ -108,6 +121,28 @@ export function LessonEditor({
               }
             />
           </label>
+          <button
+            type="button"
+            className="learn-button"
+            disabled={busy}
+            onClick={() => {
+              if (lock.current) return;
+              lock.current = true;
+              setBusy(true);
+              setError("");
+              void onSaveOutline(value.title, value.objective)
+                .catch((e) => setError(errorText(e)))
+                .finally(() => {
+                  lock.current = false;
+                  setBusy(false);
+                });
+            }}
+          >
+            保存标题与目标
+          </button>
+        </fieldset>
+        <fieldset disabled={busy}>
+          <legend>教学内容</legend>
           <label>
             课时正文
             <textarea
