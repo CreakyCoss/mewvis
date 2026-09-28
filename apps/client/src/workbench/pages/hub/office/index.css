@@ -90,15 +90,6 @@
   font-weight: 750;
   white-space: nowrap;
 }
-.mewvis-office .preview-label {
-  border-left: 1px solid var(--line);
-  padding-left: 14px;
-  margin-left: 2px;
-  color: #7976ae;
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-}
 .mewvis-office .status-dot {
   display: inline-block;
   width: 10px;
@@ -557,9 +548,6 @@
   .mewvis-office .office-brand h1 {
     font-size: 21px;
   }
-  .mewvis-office .preview-label {
-    font-size: 11px;
-  }
 }
 @container office (max-width: 760px) {
   .mewvis-office .office-header {
@@ -570,10 +558,6 @@
   }
   .mewvis-office .office-brand h1 {
     font-size: 20px;
-  }
-  .mewvis-office .preview-label {
-    font-size: 10px;
-    padding-left: 10px;
   }
   .mewvis-office .office-scene {
     min-width: 640px;

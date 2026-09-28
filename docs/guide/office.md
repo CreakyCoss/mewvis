@@ -1,16 +1,8 @@
-# 办公室中枢与预览
+# 办公室中枢
 
 正式中枢已应用确认过的正向工位设计。房间、椅子、六只猫咪和六种屏幕内容均为独立像素素材；猫咪按照各自偏好自主安排办公室活动。
 
-在应用左侧点击「中枢」，进入 `#/hub`。正式页面不显示临时预览标识。办公室组件负责自己的纵向滚动，并根据可用容器宽度调整布局，适配应用导航栏和窄窗口。
-
-保留独立预览，使用与正式中枢相同的组件、模型、样式和素材。在 `apps/client` 运行：
-
-```sh
-pnpm exec vite --config src/workbench/pages/hub/office/preview/vite.config.mjs
-```
-
-访问 `http://127.0.0.1:4188/`。
+在应用左侧点击「中枢」，进入 `#/hub`。办公室组件负责自己的纵向滚动，并根据可用容器宽度调整布局，适配应用导航栏和窄窗口。
 
 ## 操作
 
@@ -39,13 +31,12 @@ Mewvis 偏爱统筹与规划，Lihua 偏爱开发与学习，Orange 偏爱调研
 ## 验证
 
 ```sh
-node --experimental-strip-types src/workbench/pages/hub/office/preview/route.test.mjs
-node --experimental-strip-types src/workbench/pages/hub/office/preview/autonomous.test.mjs
-pnpm exec vite build --config src/workbench/pages/hub/office/preview/vite.config.mjs
+node --experimental-strip-types src/workbench/pages/hub/office/route.test.mjs
+node --experimental-strip-types src/workbench/pages/hub/office/autonomous.test.mjs
 pnpm exec vite build --outDir /tmp/isle-hub-build
 pnpm exec tsc --noEmit --pretty false
 ```
 
 正式入口为 `apps/client/src/workbench/pages/hub/office/index.tsx`，导出 `MewvisOffice`，使用 `office-scene.tsx`。活动、偏好与路径定义在该目录的 `office-model.ts`，自主选择、计时与移动在 `office-simulation.ts`，样式为 `index.css`，素材位于 `assets/scene/`。样式和动画均限定在办公室内，不设置全局正文、按钮、标题样式。
 
-`office/preview/office-v2.tsx` 仅启用共享组件的预览标识；预览模型文件转发正式模型供测试使用。旧版预览原型与过程截图已清理，不加载也不纳入提交。该目录中的 `design/approved.png` 是已确认设计，`design-qa.md` 和最终截图是视觉与交互验证记录。正式中枢路由及外部应用代码沿用原入口，功能代码改动全部位于办公室目录。
+临时预览页面及其过程截图已移除；活动与路径测试直接使用正式模型。正式中枢路由及外部应用代码沿用原入口，功能代码位于办公室目录。

@@ -90,7 +90,7 @@ function useOfficeLife(reduced: boolean, visible: boolean) {
   return world;
 }
 
-export function OfficeScene({ preview = false }: { preview?: boolean }) {
+export function OfficeScene() {
   const [selected, setSelected] = useState("Orange");
   const [modal, setModal] = useState<"cat" | "screen" | null>(null);
   const dialogId = useId();
@@ -138,7 +138,6 @@ export function OfficeScene({ preview = false }: { preview?: boolean }) {
             <img src={officeCatIcon} alt="" draggable={false} />
           </span>
           <h1>{APP_DISPLAY_NAME} 办公室</h1>
-          {preview && <span className="preview-label">临时预览 · 模拟数据</span>}
         </div>
       </header>
 
