@@ -699,6 +699,7 @@ test("outline edits, adoption and per-lesson retry survive draft reload without 
     d = acceptTask(d, JSON.stringify(copy().lessons[0]));
   }
   const course = finishDraft(d);
+  assert.equal(course.material, briefV2.material);
   assert.equal(course.version, 2);
   assert.deepEqual(course.outline.phases, generatedOutline().phases);
   assert.equal(course.lessons[0].id, retained.id);
@@ -772,6 +773,41 @@ test("temporary courses use course records and resume independently", async () =
     (await storage.getItem(courseKey(fresh.courseId))).courseId,
     fresh.courseId,
   );
+});
+test("unfinished outline and project fields survive stash without becoming a completed course", async () => {
+  const storage = memory();
+  const draft = {
+    ...newDraft(briefV2, undefined, 3),
+    outline: {
+      title: briefV2.topic,
+      level: briefV2.level,
+      description: "已写的简介",
+      goal: "",
+      phases: [{ title: "", summary: "" }],
+      lessons: [],
+    },
+    projectEnabled: true,
+    projectPlan: {
+      title: "实训草案",
+      scenario: "",
+      role: "分析者",
+      outcome: "",
+      milestones: [1, 2].map((number) => ({
+        id: `stage-${number}`,
+        title: "",
+        goal: "",
+        steps: [""],
+        deliverable: "",
+        criteria: [{ id: `stage-${number}-c1`, description: "" }],
+      })),
+    },
+  };
+  await writeDraft(storage, draft, courseKey(draft.courseId));
+  const restored = validateDraft(await storage.getItem(courseKey(draft.courseId)));
+  assert.equal(restored.outline.description, "已写的简介");
+  assert.equal(restored.projectPlan.title, "实训草案");
+  assert.equal(restored.projectPlan.milestones.length, 2);
+  assert.throws(() => finishDraft(restored), /课时/);
 });
 test("rewriting one saved lesson invalidates only its progress and tutor identity", () => {
   const course = copy();

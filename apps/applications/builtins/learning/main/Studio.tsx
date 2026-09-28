@@ -16,7 +16,6 @@ import {
   revisionPrompt,
   acceptTask,
   validateOutline,
-  editDraftSlot,
   editDraftLesson,
   addDraftLesson,
 } from "./workflow";
@@ -25,12 +24,16 @@ export function Studio({
   onSaveDraft,
   onDraftChange,
   onBusyChange,
+  onLessonContextChange,
   initialCourse,
   stage,
 }: {
   onSaveDraft: (draft: Draft) => Promise<Draft>;
   onDraftChange: (draft: Draft) => void;
   onBusyChange: (busy: boolean) => void;
+  onLessonContextChange?: (
+    value: { id: string; title: string; objective: string; creating: boolean } | null,
+  ) => void;
   initialCourse: CourseEntry;
   stage: "outline" | "lessons";
 }) {
@@ -224,6 +227,25 @@ export function Studio({
     (creatingSlotId
       ? { id: creatingSlotId, title: "", objective: "" }
       : undefined);
+  useEffect(() => {
+    onLessonContextChange?.(
+      edited
+        ? {
+            id: edited.id,
+            title: edited.title,
+            objective: edited.objective,
+            creating: !!creatingSlotId,
+          }
+        : null,
+    );
+    return () => onLessonContextChange?.(null);
+  }, [
+    edited?.id,
+    edited?.title,
+    edited?.objective,
+    creatingSlotId,
+    onLessonContextChange,
+  ]);
   const visibleSlots =
     draft?.outline?.lessons.filter(
       (slot) => !draft.task?.creating || slot.id !== draft.task.targetId,
@@ -379,6 +401,14 @@ export function Studio({
             title={edited.title}
             objective={edited.objective}
             onCancel={closeLessonEditor}
+            onValueChange={({ title, objective }) =>
+              onLessonContextChange?.({
+                id: edited.id,
+                title,
+                objective,
+                creating: !!creatingSlotId,
+              })
+            }
             onSave={(value) =>
               exclusive(async () => {
                 await persist(
@@ -390,46 +420,6 @@ export function Studio({
                 setCreatingSlotId(null);
               })
             }
-            aiPanel={(title, objective, changed) => (
-              <LessonAIControls
-                complete={!!edited.lesson}
-                busy={busy}
-                requiresSave={!!edited.lesson && changed}
-                onStart={(instruction) =>
-                  run(async () => {
-                    const source: Draft = creatingSlotId
-                      ? {
-                          ...draft,
-                          outline: {
-                            ...draft.outline!,
-                            lessons: [
-                              ...draft.outline!.lessons,
-                              {
-                                id: creatingSlotId,
-                                title:
-                                  title.trim() ||
-                                  `第 ${visibleSlots.length + 1} 课`,
-                                objective:
-                                  objective.trim() || "填写本课学习目标",
-                              },
-                            ],
-                          },
-                        }
-                      : editDraftSlot(draft, edited.id, title, objective);
-                    const current = source.outline!.lessons.find(
-                      (slot) => slot.id === edited.id,
-                    )!;
-                    await startTask(
-                      current.lesson ? "revise" : "lesson",
-                      edited.id,
-                      instruction,
-                      source,
-                      !!creatingSlotId,
-                    );
-                  })
-                }
-              />
-            )}
           />
         </div>
       </LessonEditModal>
@@ -831,7 +821,7 @@ function OutlineEditModal({
       <div
         className="learn-outline-dialog"
         role="dialog"
-        aria-modal="true"
+        aria-modal="false"
         aria-label="课程大纲编辑"
         ref={dialog}
         onKeyDown={(event) => {
@@ -893,27 +883,12 @@ function LessonEditModal({
       <div
         className="learn-lesson-dialog"
         role="dialog"
-        aria-modal="true"
+        aria-modal="false"
         aria-label={creating ? "添加课时" : `编辑课时：${title}`}
         ref={dialog}
         onKeyDown={(event) => {
           event.stopPropagation();
           if (event.key === "Escape") onCancel();
-          if (event.key !== "Tab") return;
-          const focusable = Array.from(
-            dialog.current?.querySelectorAll<HTMLElement>(
-              "button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled)",
-            ) ?? [],
-          ).filter((element) => element.getClientRects().length > 0);
-          const first = focusable[0];
-          const last = focusable.at(-1);
-          if (event.shiftKey && document.activeElement === first) {
-            event.preventDefault();
-            last?.focus();
-          } else if (!event.shiftKey && document.activeElement === last) {
-            event.preventDefault();
-            first?.focus();
-          }
         }}
       >
         <header className="learn-lesson-modal-header">
@@ -932,63 +907,6 @@ function LessonEditModal({
           </button>
         </header>
         {children}
-      </div>
-    </div>
-  );
-}
-
-function LessonAIControls({
-  complete,
-  busy,
-  requiresSave,
-  onStart,
-}: {
-  complete: boolean;
-  busy: boolean;
-  requiresSave: boolean;
-  onStart: (instruction: string) => void;
-}) {
-  const [instruction, setInstruction] = useState("");
-  return (
-    <div className="learn-lesson-ai-panel">
-      <div className="learn-lesson-ai-panel-heading">
-        <div>
-          <strong>{complete ? "AI 优化课时" : "AI 辅助创建"}</strong>
-          <p>
-            {requiresSave
-              ? "请先保存当前修改，再优化课时内容。"
-              : complete
-                ? "告诉 AI 要改进的地方，结果会先预览。"
-                : "根据课程主题及已填写的信息生成完整课时。"}
-          </p>
-        </div>
-      </div>
-      <div className="learn-lesson-ai-panel-compose">
-        <label htmlFor="learn-lesson-ai-instruction">
-          {complete ? "优化要求" : "补充要求（选填）"}
-        </label>
-        <div className="learn-lesson-ai-composer">
-          <textarea
-            id="learn-lesson-ai-instruction"
-            rows={2}
-            maxLength={500}
-            value={instruction}
-            placeholder={
-              complete
-                ? "例如：把示例换成真实业务场景…"
-                : "例如：面向零基础，加入一步步操作的示例…"
-            }
-            onChange={(event) => setInstruction(event.target.value)}
-          />
-          <button
-            type="button"
-            className="learn-button primary"
-            disabled={busy || requiresSave || (complete && !instruction.trim())}
-            onClick={() => onStart(instruction)}
-          >
-            {complete ? "开始优化" : "生成课时"}
-          </button>
-        </div>
       </div>
     </div>
   );

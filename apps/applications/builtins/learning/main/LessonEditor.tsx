@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Lesson, Question } from "./course";
 import { Notice, errorText } from "./components";
 
@@ -27,15 +27,16 @@ export function LessonEditor({
   objective,
   onSave,
   onCancel,
-  aiPanel,
+  onValueChange,
 }: {
   lesson?: Lesson;
   title: string;
   objective: string;
   onSave: (value: unknown) => Promise<void>;
   onCancel: () => void;
-  aiPanel?: (title: string, objective: string, changed: boolean) => ReactNode;
+  onValueChange?: (value: { title: string; objective: string }) => void;
 }) {
+  const [activeTab, setActiveTab] = useState<"basics" | "content" | "quiz">("basics");
   const [value, setValue] = useState({
     title,
     objective,
@@ -43,6 +44,11 @@ export function LessonEditor({
     example: lesson?.example ?? "",
     takeaways: (lesson?.takeaways ?? []).join("\n"),
   });
+  const onValueChangeRef = useRef(onValueChange);
+  onValueChangeRef.current = onValueChange;
+  useEffect(() => {
+    onValueChangeRef.current?.({ title: value.title, objective: value.objective });
+  }, [value.title, value.objective]);
   const [questions, setQuestions] = useState<EditableQuestion[]>(
     lesson?.questions.map((q) => ({
       ...q,
@@ -64,35 +70,6 @@ export function LessonEditor({
     setValue((previous) => ({ ...previous, [key]: text }));
     setFieldErrors({});
   };
-  const changed =
-    !!lesson &&
-    (value.title !== title ||
-      value.objective !== objective ||
-      value.content !== lesson.content ||
-      value.example !== lesson.example ||
-      value.takeaways !== lesson.takeaways.join("\n") ||
-      JSON.stringify(
-        questions.map(
-          ({ type, question, options, answer, explanation, rubric }) => ({
-            type,
-            question,
-            options,
-            answer,
-            explanation,
-            rubric,
-          }),
-        ),
-      ) !==
-        JSON.stringify(
-          lesson.questions.map((q) => ({
-            type: q.type,
-            question: q.question,
-            options: q.options,
-            answer: q.answer,
-            explanation: q.explanation,
-            rubric: q.type === "short_answer" ? q.rubric : "",
-          })),
-        ));
   const validate = () => {
     const invalid: Record<string, string> = {};
     const requireText = (key: string, text: string, label: string) => {
@@ -128,7 +105,14 @@ export function LessonEditor({
     });
     setFieldErrors(invalid);
     const first = Object.keys(invalid)[0];
-    if (first)
+    if (first) {
+      setActiveTab(
+        first === "title" || first === "objective"
+          ? "basics"
+          : first.startsWith("q")
+            ? "quiz"
+            : "content",
+      );
       requestAnimationFrame(() => {
         const target = document.querySelector<HTMLElement>(
           `[data-lesson-field="${first}"]`,
@@ -136,6 +120,7 @@ export function LessonEditor({
         target?.focus();
         target?.scrollIntoView({ block: "center", behavior: "smooth" });
       });
+    }
     return !first;
   };
   return (
@@ -166,31 +151,30 @@ export function LessonEditor({
         }}
       >
         <div className="learn-lesson-form-fields">
-          <nav className="learn-lesson-section-nav" aria-label="课时编辑区域">
+          <nav className="learn-lesson-section-nav" role="tablist" aria-label="课时编辑区域">
             {[
-              ["learn-lesson-basics", "课时信息"],
-              ["learn-lesson-content", "教学内容"],
-              ["learn-lesson-quiz", "课后测验"],
-            ].map(([id, label]) => (
+              ["basics", "课时信息"],
+              ["content", "教学内容"],
+              ["quiz", "课后测验"],
+            ].map(([tab, label]) => (
               <button
-                key={id}
+                key={tab}
                 type="button"
-                onClick={() =>
-                  document
-                    .getElementById(id)
-                    ?.scrollIntoView({ block: "start", behavior: "smooth" })
-                }
+                role="tab"
+                aria-selected={activeTab === tab}
+                aria-controls={`learn-lesson-${tab}`}
+                onClick={() => setActiveTab(tab as typeof activeTab)}
               >
                 {label}
               </button>
             ))}
           </nav>
           <div className="learn-lesson-form-main">
-            {aiPanel?.(value.title, value.objective, changed)}
             <fieldset
               id="learn-lesson-basics"
               className="learn-lesson-basics"
               disabled={busy}
+              hidden={activeTab !== "basics"}
             >
               <legend>课时信息</legend>
               <label>
@@ -232,6 +216,7 @@ export function LessonEditor({
               id="learn-lesson-content"
               className="learn-lesson-content-fields"
               disabled={busy}
+              hidden={activeTab !== "content"}
             >
               <legend>教学内容</legend>
               <label>
@@ -289,7 +274,8 @@ export function LessonEditor({
                 )}
               </label>
             </fieldset>
-            <h2 id="learn-lesson-quiz">
+            <div id="learn-lesson-quiz" hidden={activeTab !== "quiz"}>
+            <h2>
               课后测验 <small>1–3 道题，每题 1 分</small>
             </h2>
             {questions.map((q, i) => (
@@ -382,9 +368,6 @@ export function LessonEditor({
                   </>
                 ) : (
                   <>
-                    <p className="learn-muted">
-                      填写 2–5 个选项，并勾选正确答案。
-                    </p>
                     {q.options.map((o, j) => (
                       <div key={o.value} className="learn-edit-option">
                         <label className="learn-correct-choice">
@@ -522,6 +505,7 @@ export function LessonEditor({
             >
               添加题目
             </button>
+            </div>
           </div>
         </div>
         <footer className="learn-actions learn-lesson-editor-footer">

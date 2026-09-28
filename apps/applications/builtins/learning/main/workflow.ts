@@ -17,6 +17,7 @@ import {
   validateCourseOutline,
 } from "./course";
 import { buildPrompt } from "./generation";
+import type { ProjectPlan } from "./pbl";
 
 export type SessionRef = { workspaceId: string; chatId: string };
 export type Slot = {
@@ -50,6 +51,7 @@ export type Draft = {
   brief: Brief;
   outline: Outline | null;
   projectEnabled: boolean;
+  projectPlan?: ProjectPlan;
   task?: Task;
 };
 export type CourseEntry = Course | Draft;
@@ -79,6 +81,66 @@ export function validateOutline(value: unknown): Outline {
         id: crypto.randomUUID(),
         title: text(row.title, "课时标题", 120),
         objective: text(row.objective, "学习目标", 500),
+      };
+    }),
+  };
+}
+const editableText = (value: unknown, label: string, max: number) => {
+  if (typeof value !== "string" || value.length > max)
+    throw new Error(`${label}不能超过 ${max} 字`);
+  return value;
+};
+function validateEditableOutline(value: unknown): Outline {
+  const root = object(value, "大纲");
+  return {
+    title: editableText(root.title, "课程名称", 120),
+    description: editableText(root.description, "课程简介", 1000),
+    level: editableText(root.level, "适合水平", 40),
+    goal: editableText(root.goal, "课程目标", 1000),
+    phases: list(root.phases, "学习路径", 1, 6).map((entry) => {
+      const phase = object(entry, "学习阶段");
+      return {
+        title: editableText(phase.title, "阶段名称", 120),
+        summary: editableText(phase.summary, "阶段说明", 500),
+      };
+    }),
+    lessons: list(root.lessons, "课时", 0, 8).map((entry) => {
+      const slot = object(entry, "课时");
+      return {
+        id: validId(slot.id),
+        title: text(slot.title, "课时标题", 120),
+        objective: text(slot.objective, "课时目标", 500),
+        ...(slot.lesson
+          ? { lesson: validateLesson(slot.lesson, validId(object(slot.lesson, "内容").id)) }
+          : {}),
+      };
+    }),
+  };
+}
+function validateEditableProjectPlan(value: unknown): ProjectPlan {
+  const root = object(value, "项目方案");
+  return {
+    title: editableText(root.title, "项目名称", 120),
+    scenario: editableText(root.scenario, "项目情境", 2000),
+    role: editableText(root.role, "学习者角色", 500),
+    outcome: editableText(root.outcome, "最终成果", 1000),
+    milestones: list(root.milestones, "实践阶段", 2, 6).map((entry) => {
+      const stage = object(entry, "实践阶段");
+      return {
+        id: validId(stage.id),
+        title: editableText(stage.title, "阶段名称", 120),
+        goal: editableText(stage.goal, "阶段目标", 1000),
+        steps: list(stage.steps, "实践步骤", 1, 6).map((v) =>
+          editableText(v, "实践步骤", 1000),
+        ),
+        deliverable: editableText(stage.deliverable, "交付物", 1000),
+        criteria: list(stage.criteria, "验收标准", 1, 5).map((entry) => {
+          const criterion = object(entry, "验收标准");
+          return {
+            id: validId(criterion.id),
+            description: editableText(criterion.description, "验收标准", 500),
+          };
+        }),
       };
     }),
   };
@@ -142,23 +204,7 @@ export function validateDraft(value: unknown): Draft {
     throw new Error("课程来源无效");
   let outline: Outline | null = null;
   if (r.outline !== null) {
-    outline = validateOutline(r.outline);
-    const rawSlots = object(r.outline, "大纲").lessons as unknown[];
-    outline.lessons = outline.lessons.map((s, i) => {
-      const raw = object(rawSlots[i], "课时");
-      return {
-        ...s,
-        id: validId(raw.id),
-        ...(raw.lesson
-          ? {
-              lesson: validateLesson(
-                raw.lesson,
-                validId(object(raw.lesson, "内容").id),
-              ),
-            }
-          : {}),
-      };
-    });
+    outline = validateEditableOutline(r.outline);
     if (
       new Set(outline.lessons.map((s) => s.id)).size !== outline.lessons.length
     )
@@ -209,6 +255,9 @@ export function validateDraft(value: unknown): Draft {
     },
     outline,
     projectEnabled: r.projectEnabled === true,
+    ...(r.projectPlan
+      ? { projectPlan: validateEditableProjectPlan(r.projectPlan) }
+      : {}),
     ...(task ? { task } : {}),
   };
 }
@@ -291,6 +340,7 @@ export function finishDraft(draft: Draft): Course {
     throw new Error("请先完成并采用全部课时内容");
   return validateCourse({
     ...draft.outline,
+    material: draft.brief.material,
     outline: { goal: draft.outline.goal, phases: draft.outline.phases },
     projectEnabled: draft.projectEnabled,
     lessons: draft.outline.lessons.map((s) => s.lesson),

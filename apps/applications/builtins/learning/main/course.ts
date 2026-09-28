@@ -33,6 +33,7 @@ export type CourseContent = {
   title: string;
   description: string;
   level: string;
+  material?: string;
   lessons: Lesson[];
   outline?: CourseOutline;
   projectEnabled?: boolean;
@@ -168,10 +169,18 @@ export function validateLesson(value: unknown, id: string): Lesson {
 export function validateContent(value: unknown): CourseContent {
   checkSize(value);
   const root = object(value, "课程");
+  if (
+    root.material !== undefined &&
+    (typeof root.material !== "string" || root.material.length > 20000)
+  )
+    throw new Error("参考资料最多 20,000 字");
   return {
     title: text(root.title, "课程名称", 120),
     description: text(root.description, "课程简介", 1000),
     level: text(root.level, "适合水平", 40),
+    ...(typeof root.material === "string"
+      ? { material: root.material.trim() }
+      : {}),
     lessons: list(root.lessons, "课时", 1, 8).map((entry, i) =>
       validateLesson(entry, `lesson-${i + 1}`),
     ),

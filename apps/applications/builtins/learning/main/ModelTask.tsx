@@ -52,6 +52,7 @@ type Props = {
   preview: (raw: string) => ReactNode;
   onAccept: (raw: string) => Promise<void>;
   onRetryConnection: () => Promise<void>;
+  acceptLabel?: string;
 };
 export function ModelTask(props: Props) {
   const [session, setSession] = useState<ApplicationChatSession | null>(null);
@@ -174,7 +175,7 @@ function ConnectedTask({
             disabled={busy}
             onClick={() => void run(() => props.onAccept(raw))}
           >
-            采用并保存结果
+            {props.acceptLabel ?? "采用并保存结果"}
           </button>
         )}
       </div>

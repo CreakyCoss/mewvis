@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { getApplicationDataClient } from "@isle/app-sdk/data";
 import type { Brief } from "./course";
 import type { Course } from "./course";
 import { Icon, Notice, errorText } from "./components";
@@ -6,15 +7,27 @@ import {
   finishDraft,
   newDraft,
   validateDraft,
+  validateOutline,
   type CourseEntry,
   type Draft,
 } from "./workflow";
 import { Studio } from "./Studio";
-import { ProjectLab, type ProjectLabHandle } from "./ProjectLab";
+import { CourseAssistant } from "./CourseAssistant";
+import { OutlineEditor } from "./OutlineEditor";
+import { ProjectDesigner, starterProjectPlan } from "./ProjectDesigner";
+import {
+  createProject,
+  projectKey,
+  saveProject,
+  validatePlan,
+  validateProject,
+  type Project,
+  type ProjectPlan,
+} from "./pbl";
 
 const initial: Brief = { topic: "", level: "零基础", material: "" };
 const labels = ["课程设置", "课程大纲", "课时内容", "项目实训"];
-const sublabels = ["主题与结构", "只读预览", "统一维护课时", "可选的实践环节"];
+const sublabels = ["主题与资料", "目标与路径", "统一维护课时", "可选的实践环节"];
 type CreationStep = 0 | 1 | 2 | 3;
 const briefFromCourse = (course?: CourseEntry): Brief =>
   !course
@@ -24,7 +37,7 @@ const briefFromCourse = (course?: CourseEntry): Brief =>
       : {
           topic: course.title,
           level: course.level,
-          material: "",
+          material: course.material ?? "",
         };
 
 export function CourseDialog({
@@ -42,11 +55,8 @@ export function CourseDialog({
   onStashed: () => void;
   initialCourse?: CourseEntry;
 }) {
-  const startingStep: CreationStep = !initialCourse
-    ? 0
-    : initialCourse.status === "stashed"
-      ? initialCourse.creationStep
-      : 2;
+  const startingStep: CreationStep =
+    initialCourse?.status === "stashed" ? initialCourse.creationStep : 0;
   const [step, setStep] = useState<CreationStep>(startingStep);
   const [maxStep, setMaxStep] = useState<CreationStep>(
     initialCourse?.status === "ready" ? 3 : startingStep,
@@ -64,14 +74,63 @@ export function CourseDialog({
   );
   const [busy, setBusy] = useState(false);
   const [studioBusy, setStudioBusy] = useState(false);
-  const [projectReady, setProjectReady] = useState(false);
+  const [projectRecord, setProjectRecord] = useState<Project | null>(null);
+  const [projectLoading, setProjectLoading] = useState(
+    initialCourse?.status === "ready" && initialCourse.projectEnabled === true,
+  );
+  const [activeLesson, setActiveLesson] = useState<{
+    id: string;
+    title: string;
+    objective: string;
+    creating: boolean;
+  } | null>(null);
+  const [assistantBusy, setAssistantBusy] = useState(false);
+  const [studioRevision, setStudioRevision] = useState(0);
   const [error, setError] = useState("");
   const dialog = useRef<HTMLDivElement>(null);
   const draftRef = useRef<Draft | null>(workingDraft);
-  const projectRef = useRef<ProjectLabHandle>(null);
   const currentCourse = created ?? initialCourse;
   const shownCourse = workingDraft ?? currentCourse;
-  const activeBusy = busy || studioBusy;
+  const activeBusy = busy || studioBusy || assistantBusy || projectLoading;
+  const projectReady =
+    !workingDraft?.projectEnabled ||
+    (() => {
+      try {
+        validatePlan(workingDraft.projectPlan);
+        return true;
+      } catch {
+        return false;
+      }
+    })();
+  const projectLocked = Object.values(projectRecord?.progress ?? {}).some(
+    (progress) => !!progress.submission,
+  );
+  const updateDraft = (next: Draft) => {
+    draftRef.current = next;
+    setWorkingDraft(next);
+  };
+  useEffect(() => {
+    if (!initialCourse || initialCourse.status !== "ready" || !initialCourse.projectEnabled)
+      return;
+    let alive = true;
+    void getApplicationDataClient()
+      .storage.getItem(projectKey(initialCourse.id))
+      .then((raw) => {
+        if (!alive || raw === null) return;
+        const saved = validateProject(raw, initialCourse.id);
+        setProjectRecord(saved);
+        if (saved.plan && draftRef.current) {
+          updateDraft({ ...draftRef.current, projectPlan: saved.plan });
+        }
+      })
+      .catch((e) => setError(errorText(e)))
+      .finally(() => {
+        if (alive) setProjectLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [initialCourse]);
   const complete =
     !!workingDraft?.outline &&
     !workingDraft.task &&
@@ -95,21 +154,18 @@ export function CourseDialog({
   };
   const saveWorkingCourse = async (draft: Draft): Promise<Draft> => {
     const saved = await onSaveDraft(draft);
-    draftRef.current = saved;
-    setWorkingDraft(saved);
+    updateDraft(saved);
     setCreated(saved);
     return saved;
   };
   const ensureCourse = async (targetStep: CreationStep): Promise<Draft> => {
     if (draftRef.current) {
       const updated = withBrief(draftRef.current, targetStep);
-      draftRef.current = updated;
-      setWorkingDraft(updated);
+      updateDraft(updated);
       return updated;
     }
     const next = newDraft(cleanBrief(), undefined, targetStep);
-    draftRef.current = next;
-    setWorkingDraft(next);
+    updateDraft(next);
     setCreated(next);
     return next;
   };
@@ -118,14 +174,6 @@ export function CourseDialog({
     if (draftRef.current?.task && target !== step) {
       setError("请先完成或结束当前 AI 任务");
       return;
-    }
-    if (step === 3 && target !== 3) {
-      try {
-        await projectRef.current?.savePending();
-      } catch (e) {
-        setError(errorText(e));
-        return;
-      }
     }
     if (target > 0 && !brief.topic.trim()) {
       setError("请先填写课程主题");
@@ -137,6 +185,7 @@ export function CourseDialog({
         return;
       }
       try {
+        validateOutline(draftRef.current.outline);
         validateDraft(withBrief(draftRef.current, target));
       } catch (e) {
         setError(errorText(e));
@@ -144,7 +193,6 @@ export function CourseDialog({
       }
     }
     setError("");
-    if (target === 3) setProjectReady(false);
     if (target >= 1) {
       setBusy(true);
       try {
@@ -160,41 +208,7 @@ export function CourseDialog({
     setMaxStep((value) => Math.max(value, target) as CreationStep);
   };
   const requestClose = async () => {
-    if (activeBusy) return;
-    try {
-      await projectRef.current?.savePending();
-    } catch (e) {
-      setError(errorText(e));
-      return;
-    }
-    if (!currentCourse || !draftRef.current || !brief.topic.trim()) {
-      onClose();
-      return;
-    }
-    const baseline =
-      currentCourse.status === "stashed"
-        ? currentCourse
-        : newDraft(briefFromCourse(currentCourse), currentCourse);
-    const updated = withBrief(draftRef.current);
-    const unchanged =
-      currentCourse.status === "ready"
-        ? JSON.stringify({ ...updated, creationStep: 2 }) ===
-          JSON.stringify(baseline)
-        : JSON.stringify(updated) === JSON.stringify(baseline);
-    if (unchanged) {
-      onClose();
-      return;
-    }
-    setError("");
-    setBusy(true);
-    try {
-      await saveWorkingCourse(updated);
-      onStashed();
-    } catch (e) {
-      setError(errorText(e));
-    } finally {
-      setBusy(false);
-    }
+    if (!busy) onClose();
   };
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -240,7 +254,6 @@ export function CourseDialog({
     setError("");
     setBusy(true);
     try {
-      await projectRef.current?.savePending();
       if (draftRef.current)
         await saveWorkingCourse(withBrief(draftRef.current));
       else await saveWorkingCourse(newDraft(cleanBrief(), undefined, step));
@@ -262,9 +275,26 @@ export function CourseDialog({
     setError("");
     setBusy(true);
     try {
-      await projectRef.current?.savePending();
-      const saved = await saveWorkingCourse(withBrief(draftRef.current, 3));
-      const course = finishDraft(saved);
+      const prepared = withBrief(draftRef.current, 3);
+      const course = finishDraft(prepared);
+      if (prepared.projectEnabled) {
+        const plan = validatePlan(prepared.projectPlan);
+        const source = {
+          id: course.id,
+          title: course.title,
+          lessons: course.lessons.map(({ id, title, objective }) => ({
+            id,
+            title,
+            objective,
+          })),
+        };
+        await saveProject(getApplicationDataClient().storage, {
+          ...(projectRecord ?? createProject(source)),
+          courseTitle: course.title,
+          sourceLessons: source.lessons,
+          plan,
+        });
+      }
       await onSave(course);
       onSaved(course);
     } catch (e) {
@@ -274,75 +304,44 @@ export function CourseDialog({
     }
   };
   const setProjectEnabled = (enabled: boolean) => {
-    if (!draftRef.current) return;
-    if (enabled) setProjectReady(false);
+    if (!draftRef.current || projectLocked || projectLoading) return;
     const next = {
       ...draftRef.current,
       projectEnabled: enabled,
+      ...(enabled && !draftRef.current.projectPlan
+        ? { projectPlan: starterProjectPlan(brief.topic.trim()) }
+        : {}),
       creationStep: 3 as const,
     };
-    draftRef.current = next;
-    setWorkingDraft(next);
-  };
-  const projectSource = workingDraft?.outline && {
-    id: workingDraft.courseId,
-    title: workingDraft.brief.topic,
-    lessons: workingDraft.outline.lessons.map((slot) => ({
-      id: slot.id,
-      title: slot.title,
-      objective: slot.objective,
-    })),
+    updateDraft(next);
   };
   return (
-    <div
-      className="learn-dialog-backdrop"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !activeBusy) void requestClose();
-      }}
-    >
+    <div className="learn-dialog-backdrop">
       <div
         className="learn-create-dialog"
         ref={dialog}
-        role="dialog"
-        aria-modal="true"
+        role="region"
         aria-labelledby="learn-create-title"
         onKeyDown={(event) => {
-          if (event.key === "Escape" && !activeBusy) void requestClose();
-          if (event.key !== "Tab") return;
-          const focusable = Array.from(
-            dialog.current?.querySelectorAll<HTMLElement>(
-              "button:not(:disabled), input:not(:disabled):not([type='file']), select:not(:disabled), textarea:not(:disabled)",
-            ) ?? [],
-          );
-          const first = focusable[0];
-          const last = focusable.at(-1);
-          if (event.shiftKey && document.activeElement === first) {
-            event.preventDefault();
-            last?.focus();
-          } else if (!event.shiftKey && document.activeElement === last) {
-            event.preventDefault();
-            first?.focus();
-          }
+          if (event.key === "Escape" && !busy) void requestClose();
         }}
       >
         <header className="learn-dialog-header">
-          <div>
-            <span className="learn-eyebrow">COURSE WORKSPACE</span>
-            <h2 id="learn-create-title">
-              {initialCourse && shownCourse
-                ? `编辑课程 · ${shownCourse.status === "stashed" ? (shownCourse.outline?.title ?? shownCourse.brief.topic) : shownCourse.title}`
-                : "创建课程"}
-            </h2>
+          <div className="learn-course-header-title">
+            <h2 id="learn-create-title">{initialCourse ? "编辑课程" : "创建课程"}</h2>
+            <span>{brief.topic.trim() || "未命名课程"}</span>
           </div>
           <button
             className="learn-button text"
             aria-label={initialCourse ? "关闭课程编辑" : "关闭创建课程"}
-            disabled={activeBusy}
+            disabled={busy}
             onClick={() => void requestClose()}
           >
             ×
           </button>
         </header>
+        <div className="learn-editor-grid">
+        <div className="learn-course-main">
         <ol className="learn-dialog-steps" aria-label="课程创建步骤">
           {labels.map((label, i) => (
             <li
@@ -354,7 +353,7 @@ export function CourseDialog({
                 aria-current={i === step ? "step" : undefined}
                 disabled={
                   activeBusy ||
-                  i > maxStep ||
+                  i > maxStep + 1 ||
                   (!!workingDraft?.task && i !== step)
                 }
                 onClick={() => void goToStep(i as CreationStep)}
@@ -378,8 +377,7 @@ export function CourseDialog({
             <div className="learn-dialog-setup">
               <div className="learn-dialog-body">
                 <div className="learn-setup-intro">
-                  <span className="learn-eyebrow">01 · 课程设置</span>
-                  <h3>设置课程</h3>
+                  <h3>课程设置</h3>
                 </div>
                 <div className="learn-setup-card learn-setup-form">
                   <label htmlFor="learning-topic">课程主题</label>
@@ -400,20 +398,21 @@ export function CourseDialog({
                     }
                     placeholder="例如：从零理解机器学习"
                   />
-                  <div className="learn-fields">
+                  <div className="learn-level-group">
+                    <span>当前水平</span>
                     <div>
-                      <label htmlFor="learning-level">当前水平</label>
-                      <select
-                        id="learning-level"
-                        value={brief.level}
-                        onChange={(e) =>
-                          setBrief({ ...brief, level: e.target.value })
-                        }
-                      >
-                        {["零基础", "了解一些", "希望进阶"].map((s) => (
-                          <option key={s}>{s}</option>
-                        ))}
-                      </select>
+                      {["零基础", "了解一些", "希望进阶"].map((level) => (
+                        <label key={level} className={brief.level === level ? "selected" : ""}>
+                          <input
+                            type="radio"
+                            name="learning-level"
+                            value={level}
+                            checked={brief.level === level}
+                            onChange={() => setBrief({ ...brief, level })}
+                          />
+                          <strong>{level}</strong>
+                        </label>
+                      ))}
                     </div>
                   </div>
                   <div className="learn-setup-reference">
@@ -448,15 +447,22 @@ export function CourseDialog({
                 </div>
               </div>
             </div>
+          ) : step === 1 ? (
+            <OutlineEditor
+              brief={brief}
+              outline={workingDraft?.outline ?? null}
+              onChange={(outline) => {
+                if (draftRef.current)
+                  updateDraft({ ...draftRef.current, outline, creationStep: 1 });
+              }}
+            />
           ) : step === 3 ? (
             <div className="learn-project-step">
               <div className="learn-project-step-main">
                 <div className="learn-screen-heading">
-                  <span className="learn-eyebrow">04 · 项目实训</span>
                   <h2>项目实训</h2>
                 </div>
                 <div className="learn-project-choice">
-                  <h3>是否添加项目实训？</h3>
                   <label
                     className={!workingDraft?.projectEnabled ? "selected" : ""}
                   >
@@ -464,11 +470,11 @@ export function CourseDialog({
                       type="radio"
                       name="project-enabled"
                       checked={!workingDraft?.projectEnabled}
+                      disabled={projectLocked || projectLoading}
                       onChange={() => setProjectEnabled(false)}
                     />
                     <span>
                       <strong>暂不添加</strong>
-                      <small>之后可在课程编辑中添加。</small>
                     </span>
                   </label>
                   <label
@@ -478,69 +484,104 @@ export function CourseDialog({
                       type="radio"
                       name="project-enabled"
                       checked={!!workingDraft?.projectEnabled}
+                      disabled={projectLocked || projectLoading}
                       onChange={() => setProjectEnabled(true)}
                     />
                     <span>
-                      <strong>添加综合项目</strong>
-                      <small>用实际成果串联课程知识。</small>
+                      <strong>添加项目实训</strong>
                     </span>
                   </label>
                 </div>
-                {workingDraft?.projectEnabled && projectSource && (
-                  <ProjectLab
-                    ref={projectRef}
-                    key={projectSource.id}
-                    course={projectSource}
-                    mode="design"
-                    onPlanReadyChange={setProjectReady}
+                {workingDraft?.projectEnabled && workingDraft.projectPlan && (
+                  <ProjectDesigner
+                    plan={workingDraft.projectPlan}
+                    locked={projectLocked}
+                    onChange={(plan) => {
+                      if (draftRef.current)
+                        updateDraft({
+                          ...draftRef.current,
+                          projectPlan: plan,
+                          creationStep: 3,
+                        });
+                    }}
                   />
                 )}
               </div>
-              <aside className="learn-project-step-aside">
-                <h3>课程完成情况</h3>
-                <strong>
-                  {workingDraft?.outline?.lessons.length ?? 0} 课时
-                </strong>
-                {!complete && (
-                  <p>
-                    {workingDraft?.outline?.lessons.length
-                      ? "请先完成现有课时内容。"
-                      : "添加并保存至少一个课时后即可保存课程。"}
-                  </p>
-                )}
-                {workingDraft?.projectEnabled && !projectReady && (
-                  <p>请先保存项目计划。</p>
-                )}
-                <div>
-                  项目实训：{workingDraft?.projectEnabled ? "已添加" : "未添加"}
-                </div>
-              </aside>
             </div>
           ) : shownCourse ? (
             <Studio
+              key={`lesson-studio-${studioRevision}`}
               initialCourse={shownCourse}
-              stage={step === 1 ? "outline" : "lessons"}
-              onSaveDraft={saveWorkingCourse}
-              onDraftChange={(draft) => {
-                draftRef.current = draft;
-                setWorkingDraft(draft);
+              stage="lessons"
+              onSaveDraft={async (draft) => {
+                updateDraft(draft);
+                return draft;
               }}
+              onDraftChange={updateDraft}
               onBusyChange={setStudioBusy}
+              onLessonContextChange={setActiveLesson}
             />
           ) : null}
+        </div>
+        </div>
+        <CourseAssistant
+          step={step}
+          brief={brief}
+          draft={workingDraft}
+          activeLesson={activeLesson}
+          projectPlan={workingDraft?.projectPlan}
+          projectLocked={projectLocked || projectLoading}
+          onApplyTopic={(topic) => setBrief((current) => ({ ...current, topic }))}
+          onApplyOutline={(outline) => {
+            if (draftRef.current)
+              updateDraft({
+                ...draftRef.current,
+                outline: {
+                  ...outline,
+                  lessons: draftRef.current.outline?.lessons ?? [],
+                },
+                creationStep: 1,
+              });
+          }}
+          onApplyLesson={(draft, targetId) => {
+            const current = draftRef.current;
+            const adopted = draft.outline?.lessons.find((slot) => slot.id === targetId);
+            if (!current?.outline || !adopted) return;
+            const exists = current.outline.lessons.some((slot) => slot.id === targetId);
+            updateDraft({
+              ...current,
+              outline: {
+                ...current.outline,
+                lessons: exists
+                  ? current.outline.lessons.map((slot) =>
+                      slot.id === targetId ? adopted : slot,
+                    )
+                  : [...current.outline.lessons, adopted],
+              },
+              creationStep: 2,
+            });
+            setStudioRevision((value) => value + 1);
+          }}
+          onApplyProject={(plan) => {
+            if (draftRef.current && !projectLocked && !projectLoading)
+              updateDraft({
+                ...draftRef.current,
+                projectEnabled: true,
+                projectPlan: plan,
+                creationStep: 3,
+              });
+          }}
+          onTaskActiveChange={setAssistantBusy}
+        />
         </div>
         <footer className="learn-dialog-footer">
           <button
             type="button"
             className="learn-button"
-            disabled={activeBusy || !!workingDraft?.task}
-            onClick={() =>
-              step
-                ? void goToStep((step - 1) as CreationStep)
-                : void requestClose()
-            }
+            disabled={activeBusy || !step || !!workingDraft?.task}
+            onClick={() => void goToStep((step - 1) as CreationStep)}
           >
-            {step ? "上一步" : "取消"}
+            上一步
           </button>
           <div className="learn-dialog-footer-actions">
             <button
