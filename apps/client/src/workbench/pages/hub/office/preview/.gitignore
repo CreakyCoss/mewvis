@@ -7,7 +7,7 @@
 !formal-warm-screen.png
 !formal-warm-narrow.png
 
-# Earlier prototype drafts are retained locally for comparison.
+# Prevent superseded prototype drafts from being staged later.
 office-preview.tsx
 preview.css
 scenarios.ts

@@ -48,4 +48,4 @@ pnpm exec tsc --noEmit --pretty false
 
 正式入口为 `apps/client/src/workbench/pages/hub/office/index.tsx`，导出 `MewvisOffice`，使用 `office-scene.tsx`。活动、偏好与路径定义在该目录的 `office-model.ts`，自主选择、计时与移动在 `office-simulation.ts`，样式为 `index.css`，素材位于 `assets/scene/`。样式和动画均限定在办公室内，不设置全局正文、按钮、标题样式。
 
-`office/preview/office-v2.tsx` 仅启用共享组件的预览标识；预览模型文件转发正式模型供测试使用。旧版预览原型与过程截图仅保留在本地，不加载也不纳入提交。该目录中的 `design/approved.png` 是已确认设计，`design-qa.md` 和最终截图是视觉与交互验证记录。正式中枢路由及外部应用代码沿用原入口，功能代码改动全部位于办公室目录。
+`office/preview/office-v2.tsx` 仅启用共享组件的预览标识；预览模型文件转发正式模型供测试使用。旧版预览原型与过程截图已清理，不加载也不纳入提交。该目录中的 `design/approved.png` 是已确认设计，`design-qa.md` 和最终截图是视觉与交互验证记录。正式中枢路由及外部应用代码沿用原入口，功能代码改动全部位于办公室目录。
