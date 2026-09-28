@@ -37,6 +37,6 @@ pnpm exec vite build --outDir /tmp/isle-hub-build
 pnpm exec tsc --noEmit --pretty false
 ```
 
-正式入口为 `apps/client/src/workbench/pages/hub/office/index.tsx`，导出 `MewvisOffice`，使用 `office-scene.tsx`。活动、偏好与路径定义在该目录的 `office-model.ts`，自主选择、计时与移动在 `office-simulation.ts`，样式为 `index.css`，素材位于 `assets/scene/`。样式和动画均限定在办公室内，不设置全局正文、按钮、标题样式。
+正式入口为 `apps/client/src/workbench/pages/hub/office/index.tsx`，直接实现并导出 `MewvisOffice`。活动、偏好与路径定义在该目录的 `office-model.ts`，自主选择、计时与移动在 `office-simulation.ts`，样式为 `index.css`，素材位于 `assets/`。样式和动画均限定在办公室内，不设置全局正文、按钮、标题样式。
 
 临时预览页面及其过程截图已移除；活动与路径测试位于 `apps/client/scripts/office/`，直接使用正式模型。正式中枢路由及外部应用代码沿用原入口，功能代码位于办公室目录。

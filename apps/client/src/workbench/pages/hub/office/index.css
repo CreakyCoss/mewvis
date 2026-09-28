@@ -166,7 +166,7 @@
   min-width: 100%;
   left: 50%;
   transform: translateX(-50%);
-  background-image: url("./assets/scene/screens.png");
+  background-image: url("./assets/screens.png");
   background-size: 200% 300%;
   image-rendering: auto;
 }
@@ -254,7 +254,7 @@
   display: block;
   width: 100%;
   height: 100%;
-  background-image: url("./assets/scene/cats.png");
+  background-image: url("./assets/cats.png");
   background-size: 600% 400%;
 }
 .mewvis-office .cat-body.face-left {
