@@ -95,11 +95,12 @@ export function CourseDialog({
   const [historyError, setHistoryError] = useState("");
   const [studioRevision, setStudioRevision] = useState(0);
   const [error, setError] = useState("");
-  const [stashNotice, setStashNotice] = useState(false);
-  const stashNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [saveNotice, setSaveNotice] = useState("");
+  const saveNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dialog = useRef<HTMLDivElement>(null);
   const draftRef = useRef<Draft | null>(workingDraft);
   const currentCourse = created ?? initialCourse;
+  const editingReadyCourse = initialCourse?.status === "ready";
   const shownCourse = workingDraft ?? currentCourse;
   const activeBusy = busy || studioBusy || assistantBusy || projectLoading || !historyReady;
   const projectReady =
@@ -268,7 +269,7 @@ export function CourseDialog({
     };
   }, []);
   useEffect(() => () => {
-    if (stashNoticeTimer.current) clearTimeout(stashNoticeTimer.current);
+    if (saveNoticeTimer.current) clearTimeout(saveNoticeTimer.current);
   }, []);
   const appendFiles = async (files: File[]) => {
     setBusy(true);
@@ -300,9 +301,10 @@ export function CourseDialog({
     }
   };
   const stash = async () => {
+    if (editingReadyCourse) return;
     if (!brief.topic.trim() || activeBusy) return;
     setError("");
-    setStashNotice(false);
+    setSaveNotice("");
     setBusy(true);
     try {
       const saved = draftRef.current
@@ -310,16 +312,16 @@ export function CourseDialog({
         : await saveWorkingCourse(newDraft(cleanBrief(), undefined, step));
       if (historyReadable)
         await writeAssistantHistory(getApplicationDataClient().storage, saved.courseId, assistantHistoryRef.current);
-      setStashNotice(true);
-      if (stashNoticeTimer.current) clearTimeout(stashNoticeTimer.current);
-      stashNoticeTimer.current = setTimeout(() => setStashNotice(false), 3000);
+      setSaveNotice("暂存成功");
+      if (saveNoticeTimer.current) clearTimeout(saveNoticeTimer.current);
+      saveNoticeTimer.current = setTimeout(() => setSaveNotice(""), 3000);
     } catch (e) {
       setError(errorText(e));
     } finally {
       setBusy(false);
     }
   };
-  const save = async () => {
+  const save = async (stayOpen = false) => {
     if (
       !complete ||
       !draftRef.current ||
@@ -328,6 +330,7 @@ export function CourseDialog({
     )
       return;
     setError("");
+    setSaveNotice("");
     setBusy(true);
     try {
       const prepared = withBrief(draftRef.current, 3);
@@ -353,7 +356,15 @@ export function CourseDialog({
       await onSave(course);
       if (historyReadable)
         await writeAssistantHistory(getApplicationDataClient().storage, course.id, assistantHistoryRef.current);
-      onSaved(course);
+      if (stayOpen) {
+        updateDraft(prepared);
+        setCreated(course);
+        setSaveNotice("保存成功");
+        if (saveNoticeTimer.current) clearTimeout(saveNoticeTimer.current);
+        saveNoticeTimer.current = setTimeout(() => setSaveNotice(""), 3000);
+      } else {
+        onSaved(course);
+      }
     } catch (e) {
       setError(errorText(e));
     } finally {
@@ -655,16 +666,22 @@ export function CourseDialog({
           </button>
           <div className="learn-dialog-footer-actions">
             <span className="learn-stash-notice" role="status" aria-live="polite">
-              {stashNotice ? "暂存成功" : ""}
+              {saveNotice}
             </span>
-            <button
-              type="button"
-              className="learn-button"
-              disabled={activeBusy || !brief.topic.trim()}
-              onClick={() => void stash()}
-            >
-              暂存
-            </button>
+            {(!editingReadyCourse || step < 3) && (
+              <button
+                type="button"
+                className="learn-button"
+                disabled={
+                  activeBusy ||
+                  !brief.topic.trim() ||
+                  (editingReadyCourse && (!complete || !projectReady))
+                }
+                onClick={() => void (editingReadyCourse ? save(true) : stash())}
+              >
+                {editingReadyCourse ? "保存" : "暂存"}
+              </button>
+            )}
             {step < 3 ? (
               <button
                 type="button"
@@ -692,9 +709,9 @@ export function CourseDialog({
                   !complete ||
                   (!!workingDraft?.projectEnabled && !projectReady)
                 }
-                onClick={() => void save()}
+                onClick={() => void save(editingReadyCourse)}
               >
-                保存课程
+                {editingReadyCourse ? "保存" : "保存课程"}
               </button>
             )}
           </div>

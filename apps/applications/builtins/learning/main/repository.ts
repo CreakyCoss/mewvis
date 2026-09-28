@@ -23,6 +23,21 @@ export const courseKey = (id: string) => `learning:course:${id}`;
 const progressKey = (id: string) => `learning:progress:${id}`;
 const dataVersionKey = "learning:data-version";
 const dataVersion = "course-flow-v5";
+const entryId = (entry: CourseEntry) =>
+  entry.status === "stashed" ? entry.courseId : entry.id;
+export const sortCourseEntries = (entries: CourseEntry[]): CourseEntry[] =>
+  [...entries].sort(
+    (a, b) => a.createdAt - b.createdAt || entryId(a).localeCompare(entryId(b)),
+  );
+export const upsertCourseEntry = (
+  entries: CourseEntry[],
+  saved: CourseEntry,
+): CourseEntry[] =>
+  sortCourseEntries([
+    ...entries.filter((entry) => entryId(entry) !== entryId(saved)),
+    saved,
+  ]);
+
 export function repository(storage: ApplicationStorage) {
   return {
     async initialize(removeOldChats: () => Promise<void>) {
@@ -50,7 +65,7 @@ export function repository(storage: ApplicationStorage) {
         if (key !== courseKey(id)) throw new Error("课程标识与存储键不一致");
         courses.push(course);
       }
-      return courses.sort((a, b) => b.createdAt - a.createdAt);
+      return sortCourseEntries(courses);
     },
     async save(course: Course) {
       const normalized = validateCourse(course);

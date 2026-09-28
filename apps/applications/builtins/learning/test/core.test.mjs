@@ -32,6 +32,7 @@ const {
   restoreProgress,
   recordAttempt,
   repository,
+  upsertCourseEntry,
   assistantHistoryKey,
   readAssistantHistory,
   writeAssistantHistory,
@@ -777,6 +778,65 @@ test("AI outline optimization preserves manually maintained lesson slots and con
   assert.equal(updated.outline.lessons[0].lesson.id, course.lessons[0].id);
   assert.equal(finishDraft(updated).lessons.length, course.lessons.length);
 });
+test("course creation order stays stable across inserts, edits, and reloads", async () => {
+  const storage = memory();
+  const repo = repository(storage);
+  const oldest = { ...copy(), id: "oldest", createdAt: 100 };
+  const newest = { ...copy(), id: "newest", createdAt: 300 };
+  const middle = { ...newDraft(briefV2), courseId: "middle", createdAt: 200 };
+  let entries = [];
+  for (const entry of [newest, oldest, middle]) {
+    if (entry.status === "stashed") await repo.saveDraft(entry);
+    else await repo.save(entry);
+    entries = upsertCourseEntry(entries, entry);
+  }
+  const ids = (items) => items.map((item) => item.courseId ?? item.id);
+  assert.deepEqual(ids(entries), ["oldest", "middle", "newest"]);
+  assert.deepEqual(ids(await repository(storage).list()), ids(entries));
+
+  const edited = { ...newest, title: "更新课程名称" };
+  await repo.save(edited);
+  entries = upsertCourseEntry(entries, edited);
+  const editedDraft = { ...middle, brief: { ...middle.brief, topic: "更新草稿" } };
+  await repo.saveDraft(editedDraft);
+  entries = upsertCourseEntry(entries, editedDraft);
+  assert.deepEqual(ids(entries), ["oldest", "middle", "newest"]);
+  assert.deepEqual(ids(await repository(storage).list()), ids(entries));
+
+  // Equal creation times also retain the same order after an edit or reload.
+  const tied = { ...oldest, id: "oldest-tie" };
+  await repo.save(tied);
+  entries = upsertCourseEntry(entries, tied);
+  const before = ids(entries);
+  entries = upsertCourseEntry(entries, oldest);
+  assert.deepEqual(ids(entries), before);
+  assert.deepEqual(ids(await repository(storage).list()), before);
+});
+
+test("saving edits to a ready course preserves status, creation time, and progress", async () => {
+  const storage = memory();
+  const repo = repository(storage);
+  const course = { ...copy(), createdAt: 123 };
+  await repo.save(course);
+  const progress = emptyProgress(course);
+  progress.completed = [course.lessons[0].id];
+  await repo.saveProgress(course, progress);
+  const draft = newDraft({ ...briefV2, topic: course.title }, course);
+  draft.outline.title = "编辑后保存的课程";
+  await repo.save(finishDraft(draft));
+  const [saved] = await repository(storage).list();
+  assert.equal(saved.status, "ready");
+  assert.equal(saved.id, course.id);
+  assert.equal(saved.createdAt, 123);
+  assert.equal(saved.title, "编辑后保存的课程");
+  assert.deepEqual(saved.lessons.map((lesson) => lesson.id), course.lessons.map((lesson) => lesson.id));
+  assert.deepEqual((await repo.progress(saved)).completed, progress.completed);
+
+  delete draft.outline.lessons[0].lesson;
+  assert.throws(() => finishDraft(draft), /课时/);
+  assert.equal((await repo.list())[0].status, "ready");
+});
+
 test("temporary courses use course records and resume independently", async () => {
   const storage = memory();
   const course = copy();

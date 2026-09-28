@@ -12,7 +12,7 @@ import {
   type Course,
   type Progress,
 } from "./course";
-import { repository } from "./repository";
+import { repository, upsertCourseEntry } from "./repository";
 import { clearOldChats } from "./clearOldChats";
 import { exampleCourse } from "./example";
 import {
@@ -188,19 +188,13 @@ export default function App() {
   };
   const saveDraft = async (draft: Draft): Promise<Draft> => {
     const saved = await repo().saveDraft(draft);
-    setCourses((current) => [
-      saved,
-      ...current.filter((item) => entryId(item) !== saved.courseId),
-    ]);
+    setCourses((current) => upsertCourseEntry(current, saved));
     return saved;
   };
   const save = async (course: Course) => {
     await repo().save(course);
     const storedProgress = await repo().progress(course);
-    setCourses((current) => [
-      course,
-      ...current.filter((c) => entryId(c) !== course.id),
-    ]);
+    setCourses((current) => upsertCourseEntry(current, course));
     setProgress((current) => ({
       ...current,
       [course.id]: restoreProgress(
