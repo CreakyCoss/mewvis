@@ -182,7 +182,6 @@ try {
   });
   assert.equal(await page.getByLabel("参考资料 选填").isVisible(), true);
   await page.getByLabel("课程主题", { exact: true }).fill("主动回忆");
-  await page.getByLabel("计划课时").selectOption("3");
   assert.equal(await page.getByRole("dialog").count(), 1);
   await page.getByLabel("上传 TXT / Markdown").setInputFiles([
     {
@@ -223,10 +222,14 @@ try {
     path: `${out}/outline-collapsed-desktop.png`,
     fullPage: true,
   });
+  assert.equal(await button("编辑大纲").count(), 1);
+  assert.equal(await button("AI 优化大纲").count(), 1);
   assert.equal(await page.getByLabel("课程名称").count(), 0);
   await button("下一步：课时内容").click();
   assert.equal(await page.locator(".learn-lesson-workspace").count(), 1);
   await page.getByRole("complementary", { name: "课程 AI 助手" }).waitFor();
+  assert.equal(await page.locator(".learn-lesson-card").count(), 0);
+  for (let i = 0; i < 3; i++) await button("添加课时").click();
   await page.locator(".learn-lesson-card").first().click();
   assert.equal(await page.locator(".learn-lesson-workspace").count(), 1);
   await page.getByLabel("课时标题", { exact: true }).fill("理解主动回忆");
@@ -351,7 +354,7 @@ try {
   );
   assert.ok(course);
   assert.equal(values["learning:draft:v2"], undefined);
-  assert.equal(values["learning:data-version"], "course-flow-v4");
+  assert.equal(values["learning:data-version"], "course-flow-v5");
   assert.equal(
     values[`learning:progress:${course.id}`].attempts[course.lessons[0].id]
       .grades[course.lessons[0].questions[2].id].score,

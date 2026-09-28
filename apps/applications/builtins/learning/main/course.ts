@@ -64,7 +64,6 @@ export type Progress = {
 export type Brief = {
   topic: string;
   level: string;
-  count: number;
   material: string;
 };
 export const MAX_COURSE_BYTES = 180_000;

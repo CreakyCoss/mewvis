@@ -189,7 +189,7 @@ export function validateProject(value: unknown, courseId: string): Project {
     id: validId(r.id),
     courseId,
     courseTitle: text(r.courseTitle, "来源课程", 120),
-    sourceLessons: list(r.sourceLessons, "来源课时", 1, 8).map((v) => {
+    sourceLessons: list(r.sourceLessons, "来源课时", 0, 8).map((v) => {
       const s = object(v, "来源课时");
       return {
         id: validId(s.id),

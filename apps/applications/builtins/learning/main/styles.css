@@ -2432,15 +2432,6 @@
 .learn-setup-card .learn-fields {
   margin-bottom: 0;
 }
-.learn-setup-count {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 10px 13px;
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  background: var(--background);
-}
 .learn-setup-material summary {
   cursor: pointer;
   font-weight: 650;
@@ -2845,7 +2836,7 @@
 .learn-setup-form { padding: 23px 27px; margin: 0; border-radius: 12px; }
 .learn-setup-form > label, .learn-setup-reference > label { display: block; margin-bottom: 7px; font-size: 13px; font-weight: 650; }
 .learn-setup-form > input { margin-bottom: 19px; }
-.learn-setup-form .learn-fields { margin-bottom: 18px; gap: 18px; }
+.learn-setup-form .learn-fields { grid-template-columns: minmax(0, 1fr); max-width: 400px; margin-bottom: 18px; }
 .learn-setup-reference { border-top: 1px solid var(--border); padding-top: 17px; }
 .learn-setup-reference label span { color: var(--muted-foreground); font-size: 11px; font-weight: 400; margin-left: 5px; }
 .learn-setup-reference textarea { min-height: 88px; }
@@ -2855,7 +2846,8 @@
 .learn-outline-overview-header h2 { font-size: 27px; margin: 5px 0 0; }
 .learn-outline-readonly { padding: 0; overflow: hidden; border-radius: 12px; }
 .learn-syllabus-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 25px 30px; }
-.learn-syllabus-top > div { flex: 1; min-width: 0; }
+.learn-syllabus-top > div:first-child { flex: 1; min-width: 0; }
+.learn-outline-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .learn-syllabus-top h3 { font-size: 23px; margin: 0 0 8px; }
 .learn-syllabus-top p { color: var(--muted-foreground); font-size: 13px; line-height: 1.7; }
 .learn-syllabus-section { padding: 21px 30px; border-top: 1px solid var(--border); }
@@ -2879,6 +2871,7 @@
 .learn-lesson-cards { display: block; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
 .learn-lesson-cards li { display: flex; align-items: center; gap: 5px; min-height: 68px; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: var(--card); }
 .learn-lesson-cards li:last-child { border-bottom: 0; }
+.learn-lesson-cards .learn-lesson-empty { display: block; min-height: 0; padding: 25px 14px; color: var(--muted-foreground); font-size: 13px; text-align: center; }
 .learn-lesson-cards li.selected { background: #f8f7ff; box-shadow: inset 3px 0 var(--primary); }
 .learn-lesson-card { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 10px 0 10px 14px; }
 .learn-lesson-card-index { flex: 0 0 23px; color: #9a9eac; font-size: 12px; }
@@ -2950,6 +2943,8 @@
 }
 @media (max-width: 640px) {
   .learn-setup-form, .learn-syllabus-top, .learn-syllabus-section, .learn-lesson-rail, .learn-ai-assistant, .learn-project-choice, .learn-project-step-aside { padding: 18px; }
+  .learn-syllabus-top { flex-wrap: wrap; }
+  .learn-outline-actions { width: 100%; justify-content: flex-start; }
   .learn-lesson-rail-header { align-items: flex-start; }
   .learn-lesson-toolbar { justify-content: flex-start; }
   .learn-lesson-cards li { flex-wrap: nowrap; }

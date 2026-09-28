@@ -21,7 +21,7 @@ import {
 export const courseKey = (id: string) => `learning:course:${id}`;
 const progressKey = (id: string) => `learning:progress:${id}`;
 const dataVersionKey = "learning:data-version";
-const dataVersion = "course-flow-v4";
+const dataVersion = "course-flow-v5";
 export function repository(storage: ApplicationStorage) {
   return {
     async initialize(removeOldChats: () => Promise<void>) {

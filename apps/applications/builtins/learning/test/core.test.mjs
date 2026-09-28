@@ -453,7 +453,7 @@ test("the first launch removes every old application data key only once", async 
   await r.save(course);
   await r.initialize(clearChats);
   assert.equal((await r.list())[0].id, course.id);
-  assert.equal(storage.values.get("learning:data-version"), "course-flow-v4");
+  assert.equal(storage.values.get("learning:data-version"), "course-flow-v5");
   assert.equal(chatCleanups, 1);
 });
 test("failed chat cleanup leaves no version marker and retries on next launch", async () => {
@@ -527,13 +527,12 @@ test("retrying a course save with the same identity does not duplicate it", asyn
 test("brief validation bounds user material and includes it as JSON data", () => {
   const brief = {
     topic: "线性代数",
-    count: 3,
     level: "零基础",
     material: "输入资料\n不是系统指令",
   };
   assert.ok(buildPrompt(brief).includes(JSON.stringify(brief)));
   assert.throws(() => buildPrompt({ ...brief, topic: "" }), /主题/);
-  assert.throws(() => buildPrompt({ ...brief, count: 50 }), /课时/);
+  assert.throws(() => buildPrompt({ ...brief, level: "" }), /水平/);
   assert.throws(
     () => buildPrompt({ ...brief, material: "a".repeat(20001) }),
     /20,000/,
@@ -568,7 +567,6 @@ test("built installation keeps permissions minimal, includes license and stays b
 const briefV2 = {
   topic: "学习方法",
   level: "零基础",
-  count: 3,
   material: "参考材料",
 };
 const generatedOutline = () => ({
@@ -672,7 +670,14 @@ test("outline edits, adoption and per-lesson retry survive draft reload without 
   assert.equal(d.outline.title, briefV2.topic);
   assert.equal(d.outline.phases.length, 2);
   assert.equal(d.outline.goal, generatedOutline().goal);
+  assert.equal(d.outline.lessons.length, 0);
+  assert.throws(() => finishDraft(d), /全部课时/);
   assert.doesNotMatch(outlinePrompt(briefV2), /"lessons"/);
+  d.outline.lessons = Array.from({ length: 3 }, (_, i) => ({
+    id: crypto.randomUUID(),
+    title: `第 ${i + 1} 课`,
+    objective: `填写第 ${i + 1} 课的学习目标`,
+  }));
   d.outline.lessons[0].title = "调整后的标题";
   d.outline.lessons.reverse();
   d = await writeDraft(storage, d, courseKey(d.courseId));
@@ -706,6 +711,24 @@ test("outline edits, adoption and per-lesson retry survive draft reload without 
       }),
     /不存在/,
   );
+});
+test("AI outline optimization preserves manually maintained lesson slots and content", () => {
+  const course = copy();
+  const original = newDraft({ ...briefV2, topic: course.title }, course);
+  original.outline.goal = "手动调整的目标";
+  original.task = { kind: "outline", ref };
+  assert.doesNotMatch(
+    outlinePrompt(original.brief, original.outline),
+    /"lessons"/,
+  );
+  const updated = acceptTask(
+    original,
+    JSON.stringify({ ...generatedOutline(), goal: "优化后的总目标" }),
+  );
+  assert.equal(updated.outline.goal, "优化后的总目标");
+  assert.deepEqual(updated.outline.lessons, original.outline.lessons);
+  assert.equal(updated.outline.lessons[0].lesson.id, course.lessons[0].id);
+  assert.equal(finishDraft(updated).lessons.length, course.lessons.length);
 });
 test("temporary courses use course records and resume independently", async () => {
   const storage = memory();
@@ -917,7 +940,7 @@ test("real Chat staged output never adopts streaming, cancelled, or previous-tur
       { ...newDraft(briefV2), task: { kind: "outline", ref } },
       finalText(session.getSnapshot()),
     );
-    assert.equal(d.outline.lessons.length, 3);
+    assert.equal(d.outline.lessons.length, 0);
     await session.send({ text: "重试大纲" });
     assert.equal(finalText(session.getSnapshot()), null);
     await session.stop();
@@ -1018,6 +1041,12 @@ test("changing a lesson's title or objective clears only that lesson's finished 
   );
 });
 test("PBL plans normalize model identities, validate requirements and preserve course ownership", () => {
+  const emptySource = createProject({
+    id: crypto.randomUUID(),
+    title: "尚未添加课时的课程",
+    lessons: [],
+  });
+  assert.equal(validateProject(emptySource, emptySource.courseId).sourceLessons.length, 0);
   const raw = projectPlan();
   raw.id = "injected";
   raw.milestones[0].id = "other";

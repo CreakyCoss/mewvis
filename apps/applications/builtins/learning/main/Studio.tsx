@@ -60,10 +60,6 @@ export function Studio({
           initialCourse.status === "ready"
             ? initialCourse.level
             : initialCourse.brief.level,
-        count:
-          initialCourse.status === "ready"
-            ? Math.max(3, initialCourse.lessons.length)
-            : initialCourse.brief.count,
         material: "",
       },
       initialCourse.status === "ready" ? initialCourse : undefined,
@@ -169,12 +165,9 @@ export function Studio({
         },
         { title: "实践应用", summary: "通过练习和案例运用所学知识。" },
       ],
-      lessons: Array.from({ length: draft.brief.count }, (_, i) => ({
-        id: crypto.randomUUID(),
-        title: `第 ${i + 1} 课`,
-        objective: `填写第 ${i + 1} 课的学习目标`,
-      })),
+      lessons: [],
     });
+    setEditingOutline(true);
   };
   const addSlot = () => {
     if (!draft?.outline || draft.outline.lessons.length >= 8) return;
@@ -202,11 +195,11 @@ export function Studio({
     updateOutline({ ...draft.outline, lessons });
   };
   const removeSlot = (id: string) => {
-    if (!draft?.outline || draft.outline.lessons.length <= 1) return;
+    if (!draft?.outline) return;
     const lessons = draft.outline.lessons.filter((slot) => slot.id !== id);
     updateOutline({ ...draft.outline, lessons });
     setConfirmRemoveId(null);
-    if (selectedSlotId === id) setSelectedSlotId(lessons[0].id);
+    if (selectedSlotId === id) setSelectedSlotId(lessons[0]?.id ?? null);
   };
   const selectForAI = (id: string) => {
     setSelectedSlotId(id);
@@ -278,7 +271,7 @@ export function Studio({
           }
           prompt={
             draft.task.kind === "outline"
-              ? outlinePrompt(draft.brief)
+              ? outlinePrompt(draft.brief, draft.outline)
               : draft.task.kind === "revise"
                 ? revisionPrompt(draft, draft.task.targetId!)
                 : lessonPrompt(draft, draft.task.targetId!)
@@ -429,13 +422,27 @@ export function Studio({
                     <p>{draft.outline.description}</p>
                   )}
                 </div>
-                <button
-                  className="learn-button"
-                  disabled={busy || !!draft.task}
-                  onClick={() => setEditingOutline((value) => !value)}
-                >
-                  {editingOutline ? "完成编辑" : "编辑大纲"}
-                </button>
+                <div className="learn-outline-actions">
+                  <button
+                    className="learn-button"
+                    disabled={busy || !!draft.task}
+                    onClick={() => setEditingOutline((value) => !value)}
+                  >
+                    {editingOutline ? "完成编辑" : "编辑大纲"}
+                  </button>
+                  <button
+                    className="learn-button"
+                    disabled={busy || !!draft.task}
+                    onClick={() =>
+                      void run(async () => {
+                        await startTask("outline");
+                        setEditingOutline(false);
+                      })
+                    }
+                  >
+                    AI 优化大纲
+                  </button>
+                </div>
               </div>
               <section className="learn-syllabus-section">
                 <h4>课程目标</h4>
@@ -580,11 +587,16 @@ export function Studio({
             <div className="learn-lesson-progress">
               <span
                 style={{
-                  width: `${draft.outline ? (100 * draft.outline.lessons.filter((slot) => slot.lesson).length) / draft.outline.lessons.length : 0}%`,
+                  width: `${draft.outline?.lessons.length ? (100 * draft.outline.lessons.filter((slot) => slot.lesson).length) / draft.outline.lessons.length : 0}%`,
                 }}
               />
             </div>
             <ol className="learn-lesson-cards">
+              {!draft.outline?.lessons.length && (
+                <li className="learn-lesson-empty">
+                  还没有课时。点击「添加课时」开始。
+                </li>
+              )}
               {draft.outline?.lessons.map((slot, index) => (
                 <li
                   key={slot.id}
@@ -649,11 +661,7 @@ export function Studio({
                         </button>
                         <button
                           aria-label={`${confirmRemoveId === slot.id ? "确认移除" : "移除"}第 ${index + 1} 课`}
-                          disabled={
-                            busy ||
-                            !!draft.task ||
-                            draft.outline!.lessons.length <= 1
-                          }
+                          disabled={busy || !!draft.task}
                           onClick={() =>
                             confirmRemoveId === slot.id
                               ? removeSlot(slot.id)

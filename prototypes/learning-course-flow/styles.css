@@ -58,6 +58,9 @@
 .overview-layout .screen-heading h1{margin-top:0}
 .syllabus-sheet{overflow:hidden}
 .syllabus-sheet .overview-top{padding:25px 32px}
+.syllabus-sheet .overview-top{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
+.syllabus-sheet .overview-top>div:first-child{min-width:0;flex:1}
+.syllabus-sheet .heading-actions{flex-wrap:wrap;justify-content:flex-end}
 .syllabus-section{padding:22px 32px;border-top:1px solid #e9eaf0}
 .syllabus-section h3{font-size:15px;margin-bottom:11px}
 .syllabus-section>p{font-size:13px;color:#555b6a;line-height:1.8}
@@ -79,11 +82,13 @@
 .compact-form{padding:24px 27px}
 .compact-form>.form-group:first-child{margin-bottom:20px}
 .compact-form .inline-fields{margin-bottom:19px}
+.compact-form .inline-fields{grid-template-columns:minmax(0,1fr);max-width:400px}
 .compact-form .inline-fields .form-group{margin-bottom:0}
 .compact-form .reference-group{border-top:1px solid #e9eaf0;padding-top:17px;margin-bottom:0}
 .compact-form .reference-group label small{margin-left:6px;color:#8c91a0;font-size:11px;font-weight:400}
 .compact-form input,.compact-form select{min-height:40px;padding:8px 11px}
 .compact-form textarea{min-height:78px;margin-bottom:9px}
+@media(max-width:640px){.syllabus-sheet .overview-top{flex-wrap:wrap}.syllabus-sheet .heading-actions{justify-content:flex-start}}
 @media(max-width:780px){
   .setup-layout{padding-top:18px}
   .setup-main .screen-heading{margin-bottom:14px}

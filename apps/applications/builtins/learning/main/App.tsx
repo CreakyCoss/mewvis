@@ -595,6 +595,7 @@ export default function App() {
                                   : item.creationStep === 1
                                     ? "查看课程大纲"
                                     : item.creationStep === 3 &&
+                                        item.outline.lessons.length > 0 &&
                                         item.outline.lessons.every(
                                           (slot) => slot.lesson,
                                         )

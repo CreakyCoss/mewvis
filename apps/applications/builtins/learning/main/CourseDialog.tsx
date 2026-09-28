@@ -12,7 +12,7 @@ import {
 import { Studio } from "./Studio";
 import { ProjectLab, type ProjectLabHandle } from "./ProjectLab";
 
-const initial: Brief = { topic: "", level: "零基础", count: 3, material: "" };
+const initial: Brief = { topic: "", level: "零基础", material: "" };
 const labels = ["课程设置", "课程大纲", "课时内容", "项目实训"];
 const sublabels = ["主题与结构", "只读预览", "统一维护课时", "可选的实践环节"];
 type CreationStep = 0 | 1 | 2 | 3;
@@ -24,7 +24,6 @@ const briefFromCourse = (course?: CourseEntry): Brief =>
       : {
           topic: course.title,
           level: course.level,
-          count: Math.max(3, course.lessons.length),
           material: "",
         };
 
@@ -76,6 +75,7 @@ export function CourseDialog({
   const complete =
     !!workingDraft?.outline &&
     !workingDraft.task &&
+    workingDraft.outline.lessons.length > 0 &&
     workingDraft.outline.lessons.every((slot) => !!slot.lesson);
   const cleanBrief = (): Brief => ({
     ...brief,
@@ -414,31 +414,6 @@ export function CourseDialog({
                           <option key={s}>{s}</option>
                         ))}
                       </select>
-                    </div>
-                    <div>
-                      <label htmlFor="learning-count">计划课时</label>
-                      {workingDraft?.outline ? (
-                        <div className="learn-setup-count" id="learning-count">
-                          {workingDraft.outline.lessons.length} 个课时
-                        </div>
-                      ) : (
-                        <select
-                          id="learning-count"
-                          value={brief.count}
-                          onChange={(e) =>
-                            setBrief({
-                              ...brief,
-                              count: Number(e.target.value),
-                            })
-                          }
-                        >
-                          {[3, 4, 5, 6, 7, 8].map((n) => (
-                            <option key={n} value={n}>
-                              {n} 个课时
-                            </option>
-                          ))}
-                        </select>
-                      )}
                     </div>
                   </div>
                   <div className="learn-setup-reference">

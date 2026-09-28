@@ -74,7 +74,7 @@ function setupScreen() {
     <div class="screen-heading"><span class="eyebrow">01 / 课程设置</span><h1>设置课程</h1></div>
     <div class="setup-panel compact-form">
       <div class="form-group"><label for="topic">课程主题</label><input id="topic" value="${sample.topic}" /></div>
-      <div class="inline-fields"><div class="form-group"><label for="level">当前水平</label><select id="level"><option selected>零基础</option><option>了解一些</option><option>希望进阶</option></select></div><div class="form-group"><label for="count">计划课时</label><select id="count"><option>3 个课时</option><option selected>4 个课时</option><option>5 个课时</option><option>6 个课时</option></select></div></div>
+      <div class="inline-fields"><div class="form-group"><label for="level">当前水平</label><select id="level"><option selected>零基础</option><option>了解一些</option><option>希望进阶</option></select></div></div>
       <div class="form-group reference-group"><label for="material">参考资料 <small>选填</small></label><textarea id="material" rows="3" placeholder="粘贴学习笔记、课程要求或资料摘要…"></textarea><button type="button" class="button small secondary" data-design-action="上传参考资料">上传 TXT / Markdown</button></div>
     </div>
   </div></div>`;
@@ -83,11 +83,12 @@ function setupScreen() {
 function outlineScreen() {
   const phases = sample.outline
     .map(
-      (phase, index) => `<li><span class="outline-index">${String(index + 1).padStart(2, "0")}</span><div><strong>${phase.title}</strong><p>${phase.summary}</p></div></li>`,
+      (phase, index) =>
+        `<li><span class="outline-index">${String(index + 1).padStart(2, "0")}</span><div><strong>${phase.title}</strong><p>${phase.summary}</p></div></li>`,
     )
     .join("");
   return `<div class="overview-layout"><div class="screen-heading"><span class="eyebrow">02 / 课程大纲</span><h1>课程大纲</h1></div>
-    <article class="overview-card syllabus-sheet"><div class="overview-top"><h2>${sample.topic}</h2><p>${sample.description}</p></div>
+    <article class="overview-card syllabus-sheet"><div class="overview-top"><div><h2>${sample.topic}</h2><p>${sample.description}</p></div><div class="heading-actions"><button type="button" class="button small secondary" data-design-action="编辑大纲">编辑大纲</button><button type="button" class="button small secondary" data-design-action="AI 优化大纲">AI 优化大纲</button></div></div>
       <section class="syllabus-section"><h3>课程目标</h3><p>学会从实际问题出发，整理数据、识别关键信息，并清楚表达分析结论。</p></section>
       <section class="syllabus-section"><h3>学习路径</h3><ol class="outline-list">${phases}</ol></section>
     </article>
@@ -97,7 +98,8 @@ function outlineScreen() {
 function lessonsScreen() {
   const rows = sample.lessons
     .map(
-      (lesson, index) => `<div class="lesson-row ${index === 2 ? "selected" : ""}"><span class="lesson-index">${String(index + 1).padStart(2, "0")}</span><button type="button" class="lesson-info" data-open-lesson="${index}"><strong>${lesson.title}</strong><small>${lesson.objective}</small></button><span class="chip ${lesson.complete ? "success" : "pending"}">${lesson.complete ? "已完成" : "待编写"}</span><div class="row-actions"><button type="button" data-open-lesson="${index}">编辑</button><button type="button" data-ai-lesson="${index}">AI</button></div></div>`,
+      (lesson, index) =>
+        `<div class="lesson-row ${index === 2 ? "selected" : ""}"><span class="lesson-index">${String(index + 1).padStart(2, "0")}</span><button type="button" class="lesson-info" data-open-lesson="${index}"><strong>${lesson.title}</strong><small>${lesson.objective}</small></button><span class="chip ${lesson.complete ? "success" : "pending"}">${lesson.complete ? "已完成" : "待编写"}</span><div class="row-actions"><button type="button" data-open-lesson="${index}">编辑</button><button type="button" data-ai-lesson="${index}">AI</button></div></div>`,
     )
     .join("");
   return `<div class="lesson-layout"><section class="lesson-main"><div class="screen-heading"><span class="eyebrow">03 / 课时内容</span><h1>课时内容</h1></div><div class="section-heading"><div><h2>课时列表</h2><p>2 / 4 已完成</p></div><div class="heading-actions"><button type="button" class="button small ghost" data-design-action="调整顺序">调整顺序</button><button type="button" class="button small secondary" data-design-action="添加课时">添加课时</button></div></div><div class="progress-line"><span style="width:50%"></span></div><div class="lesson-table">${rows}</div></section>
@@ -115,10 +117,18 @@ function render() {
   document.querySelectorAll(".stepper button").forEach((button, index) => {
     button.classList.toggle("active", index === currentStep);
     button.classList.toggle("visited", index < currentStep);
-    button.setAttribute("aria-current", index === currentStep ? "step" : "false");
+    button.setAttribute(
+      "aria-current",
+      index === currentStep ? "step" : "false",
+    );
   });
   previous.disabled = currentStep === 0;
-  next.textContent = currentStep === 3 ? "保存课程" : currentStep === 2 ? "下一步：项目实训" : "下一步";
+  next.textContent =
+    currentStep === 3
+      ? "保存课程"
+      : currentStep === 2
+        ? "下一步：项目实训"
+        : "下一步";
   screen.scrollTop = 0;
 }
 
@@ -133,18 +143,26 @@ previous.addEventListener("click", () => {
   render();
 });
 next.addEventListener("click", () => {
-  if (currentStep === 3) return announce("设计稿示意：补全 4 个课时后可保存课程");
+  if (currentStep === 3)
+    return announce("设计稿示意：补全 4 个课时后可保存课程");
   currentStep += 1;
   render();
 });
-document.getElementById("stash").addEventListener("click", () => announce("设计稿示意：课程已暂存"));
-document.getElementById("close-workspace").addEventListener("click", () => announce("当前为静态设计稿，可通过步骤条查看四个页面"));
+document
+  .getElementById("stash")
+  .addEventListener("click", () => announce("设计稿示意：课程已暂存"));
+document
+  .getElementById("close-workspace")
+  .addEventListener("click", () =>
+    announce("当前为静态设计稿，可通过步骤条查看四个页面"),
+  );
 
 screen.addEventListener("click", (event) => {
   const open = event.target.closest("[data-open-lesson]");
   if (open) {
     const lesson = sample.lessons[Number(open.dataset.openLesson)];
-    document.getElementById("lesson-dialog-title").textContent = `编辑课时 · ${lesson.title}`;
+    document.getElementById("lesson-dialog-title").textContent =
+      `编辑课时 · ${lesson.title}`;
     document.getElementById("lesson-title").value = lesson.title;
     document.getElementById("lesson-objective").value = lesson.objective;
     document.getElementById("lesson-body").value = lesson.body;
@@ -155,16 +173,29 @@ screen.addEventListener("click", (event) => {
     return;
   }
   const ai = event.target.closest("[data-ai-lesson]");
-  if (ai) return announce(`设计稿示意：AI 助手已选中第 ${Number(ai.dataset.aiLesson) + 1} 课`);
+  if (ai)
+    return announce(
+      `设计稿示意：AI 助手已选中第 ${Number(ai.dataset.aiLesson) + 1} 课`,
+    );
   const action = event.target.closest("[data-design-action]");
   if (action) announce(`设计稿示意：${action.dataset.designAction}`);
 });
 
-function closeLesson() { overlay.hidden = true; }
+function closeLesson() {
+  overlay.hidden = true;
+}
 document.getElementById("close-lesson").addEventListener("click", closeLesson);
 document.getElementById("cancel-lesson").addEventListener("click", closeLesson);
-overlay.addEventListener("click", (event) => { if (event.target === overlay) closeLesson(); });
-document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !overlay.hidden) closeLesson(); });
-document.getElementById("lesson-form").addEventListener("submit", (event) => { event.preventDefault(); closeLesson(); announce("设计稿示意：课时编辑表单"); });
+overlay.addEventListener("click", (event) => {
+  if (event.target === overlay) closeLesson();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !overlay.hidden) closeLesson();
+});
+document.getElementById("lesson-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  closeLesson();
+  announce("设计稿示意：课时编辑表单");
+});
 
 render();
