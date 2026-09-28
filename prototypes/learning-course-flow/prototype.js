@@ -99,11 +99,10 @@ function lessonsScreen() {
   const rows = sample.lessons
     .map(
       (lesson, index) =>
-        `<div class="lesson-row ${index === 2 ? "selected" : ""}"><span class="lesson-index">${String(index + 1).padStart(2, "0")}</span><button type="button" class="lesson-info" data-open-lesson="${index}"><strong>${lesson.title}</strong><small>${lesson.objective}</small></button><span class="chip ${lesson.complete ? "success" : "pending"}">${lesson.complete ? "已完成" : "待编写"}</span><div class="row-actions"><button type="button" data-open-lesson="${index}">编辑</button><button type="button" data-ai-lesson="${index}">AI</button></div></div>`,
+        `<div class="lesson-row"><button type="button" class="lesson-info" data-open-lesson="${index}"><span class="lesson-index">${String(index + 1).padStart(2, "0")}</span><span class="lesson-copy"><strong>${lesson.title}</strong><small>${lesson.objective}</small></span><span class="chip ${lesson.complete ? "success" : "pending"}">${lesson.complete ? "已完成" : "待编写"}</span><span class="lesson-chevron" aria-hidden="true">›</span></button></div>`,
     )
     .join("");
-  return `<div class="lesson-layout"><section class="lesson-main"><div class="screen-heading"><span class="eyebrow">03 / 课时内容</span><h1>课时内容</h1></div><div class="section-heading"><div><h2>课时列表</h2><p>2 / 4 已完成</p></div><div class="heading-actions"><button type="button" class="button small ghost" data-design-action="调整顺序">调整顺序</button><button type="button" class="button small secondary" data-design-action="添加课时">添加课时</button></div></div><div class="progress-line"><span style="width:50%"></span></div><div class="lesson-table">${rows}</div></section>
-    <aside class="lesson-ai"><div class="ai-head"><div class="ai-head-top"><h2>AI 课时助手</h2><span class="chip">当前课时 03</span></div><p>先选中课时，再让 AI 生成或优化这一课。</p></div><div class="ai-body"><div class="ai-current"><small>当前处理</small><strong>用图表描述发现</strong><p>根据问题选用合适图表并解释变化趋势。</p></div><div class="ai-modes"><button type="button" class="active">生成内容</button><button type="button">局部优化</button></div><p class="ai-intro">根据本课目标生成讲解、例子和练习；生成后先预览，再决定是否采用。</p></div><div class="ai-compose"><label for="ai-prompt">补充你的要求</label><textarea id="ai-prompt" placeholder="例如：讲解更适合零基础，并加入书店数据示例"></textarea><div class="ai-compose-bottom"><small>不会直接覆盖课时</small><button type="button" class="button primary small" data-design-action="开始 AI 生成">开始生成</button></div></div></aside></div>`;
+  return `<div class="lesson-layout"><section class="lesson-main"><div class="screen-heading"><span class="eyebrow">03 / 课时内容</span><h1>课时内容</h1></div><div class="section-heading"><div><h2>课时列表</h2><p>2 / 4 已完成</p></div><div class="heading-actions"><button type="button" class="button small ghost" data-design-action="调整顺序">调整顺序</button><button type="button" class="button small secondary" data-design-action="添加课时">添加课时</button></div></div><div class="progress-line"><span style="width:50%"></span></div><div class="lesson-table">${rows}</div></section></div>`;
 }
 
 function projectScreen() {
@@ -166,22 +165,23 @@ screen.addEventListener("click", (event) => {
   const open = event.target.closest("[data-open-lesson]");
   if (open) {
     const lesson = sample.lessons[Number(open.dataset.openLesson)];
-    document.getElementById("lesson-dialog-title").textContent =
-      `编辑课时 · ${lesson.title}`;
+    document.getElementById("lesson-dialog-title").textContent = lesson.title;
     document.getElementById("lesson-title").value = lesson.title;
     document.getElementById("lesson-objective").value = lesson.objective;
     document.getElementById("lesson-body").value = lesson.body;
     document.getElementById("lesson-example").value = lesson.example;
     document.getElementById("lesson-quiz").value = lesson.quiz;
+    document.getElementById("lesson-ai-action").textContent = lesson.complete
+      ? "AI 优化课时"
+      : "AI 生成课时";
+    document.getElementById("lesson-ai-intro").textContent = lesson.complete
+      ? "描述想调整的内容，先预览结果，再决定是否采用。"
+      : "根据课时标题与目标生成正文、示例和测验。";
+    document.getElementById("lesson-ai-instruction").value = "";
     overlay.hidden = false;
     document.getElementById("lesson-title").focus();
     return;
   }
-  const ai = event.target.closest("[data-ai-lesson]");
-  if (ai)
-    return announce(
-      `设计稿示意：AI 助手已选中第 ${Number(ai.dataset.aiLesson) + 1} 课`,
-    );
   const action = event.target.closest("[data-design-action]");
   if (action) announce(`设计稿示意：${action.dataset.designAction}`);
 });
@@ -212,6 +212,11 @@ document.getElementById("outline-form").addEventListener("submit", (event) => {
 });
 document.getElementById("close-lesson").addEventListener("click", closeLesson);
 document.getElementById("cancel-lesson").addEventListener("click", closeLesson);
+document
+  .getElementById("lesson-ai-action")
+  .addEventListener("click", () =>
+    announce("设计稿示意：AI 结果将在此弹窗中预览，确认后采用"),
+  );
 overlay.addEventListener("click", (event) => {
   if (event.target === overlay) closeLesson();
 });
