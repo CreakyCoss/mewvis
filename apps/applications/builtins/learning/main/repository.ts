@@ -11,6 +11,7 @@ import {
 } from "./course";
 
 import { projectKey } from "./pbl";
+import { draftKeyForCourse } from "./workflow";
 
 export const courseKey = (id: string) => `learning:course:${id}`;
 const progressKey = (id: string) => `learning:progress:${id}`;
@@ -63,6 +64,7 @@ export function repository(storage: ApplicationStorage) {
       await storage.removeItem(courseKey(id));
       await storage.removeItem(progressKey(id));
       await storage.removeItem(projectKey(id));
+      await storage.removeItem(draftKeyForCourse(id));
     },
   };
 }

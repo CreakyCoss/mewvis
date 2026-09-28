@@ -5,6 +5,7 @@ import { Notice, Text, errorText } from "./components";
 import { ModelTask, createModelTask, closeModelTask } from "./ModelTask";
 import {
   type Project,
+  type ProjectPlan,
   type Milestone,
   type Review,
   createProject,
@@ -55,8 +56,15 @@ function ReviewView({
     </div>
   );
 }
-export function ProjectLab({ course }: { course: Course }) {
+export function ProjectLab({
+  course,
+  mode,
+}: {
+  course: Course;
+  mode: "design" | "learn";
+}) {
   const [project, setProject] = useState<Project | null>(null);
+  const [planDraft, setPlanDraft] = useState<ProjectPlan | null>(null);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
@@ -71,6 +79,7 @@ export function ProjectLab({ course }: { course: Course }) {
       const next =
         raw === null ? createProject(course) : validateProject(raw, course.id);
       setProject(next);
+      setPlanDraft(next.plan ?? null);
       setInput(next.progress[next.selected]?.draft ?? "");
     } catch (e) {
       setError(`读取实训失败，原记录保留：${errorText(e)}`);
@@ -99,6 +108,7 @@ export function ProjectLab({ course }: { course: Course }) {
   const persist = async (next: Project) => {
     const saved = await saveProject(storage(), next);
     setProject(saved);
+    setPlanDraft(saved.plan ?? null);
     return saved;
   };
   const preparePlan = async () => {
@@ -155,12 +165,27 @@ export function ProjectLab({ course }: { course: Course }) {
           objective,
         })),
       );
+  const hasSubmissions = Object.values(project?.progress ?? {}).some(
+    (s) => !!s.submission,
+  );
+  const updatePlan = (next: ProjectPlan) => setPlanDraft(next);
+  const updateMilestone = (id: string, change: Partial<Milestone>) => {
+    if (!planDraft) return;
+    updatePlan({
+      ...planDraft,
+      milestones: planDraft.milestones.map((s) =>
+        s.id === id ? { ...s, ...change } : s,
+      ),
+    });
+  };
   return (
     <section className="learn-project" aria-label="项目实训">
       <div className="learn-section-title">
         <div>
           <span className="learn-eyebrow">LEARN BY DOING</span>
-          <h2>把知识，用在一个项目里</h2>
+          <h2>
+            {mode === "design" ? "设计课程实训项目" : "把知识，用在一个项目里"}
+          </h2>
         </div>
         <span className="learn-chip">PBL 文字实训</span>
       </div>
@@ -186,60 +211,213 @@ export function ProjectLab({ course }: { course: Course }) {
             </p>
           )}
           {!project.plan ? (
-            <>
+            mode === "learn" ? (
+              <div className="learn-project-empty">
+                <h3>这门课程还没有实训项目</h3>
+                <p>
+                  请先在课程列表中打开「编辑课程」，到「项目实训」完成设计。
+                </p>
+              </div>
+            ) : (
+              <>
+                <p className="learn-muted">
+                  根据课程目标生成一个有明确角色、阶段任务和验收标准的项目。成果以文字或代码文本提交，不执行代码或访问外部文件。
+                </p>
+                {!project.generation ? (
+                  <button
+                    className="learn-button primary"
+                    disabled={busy}
+                    onClick={() => run(preparePlan)}
+                  >
+                    设计实训项目
+                  </button>
+                ) : (
+                  <div inert={busy}>
+                    <ModelTask
+                      taskRef={project.generation}
+                      title="设计项目计划"
+                      prompt={projectPrompt(project)}
+                      preview={(raw) => {
+                        const plan = adoptPlan(project, raw).plan!;
+                        return (
+                          <>
+                            <h3>{plan.title}</h3>
+                            <p>{plan.scenario}</p>
+                            <p>你的角色：{plan.role}</p>
+                            <p>最终成果：{plan.outcome}</p>
+                            <ol>
+                              {plan.milestones.map((s) => (
+                                <li key={s.id}>
+                                  <strong>{s.title}</strong>
+                                  <p>{s.goal}</p>
+                                  <p>交付：{s.deliverable}</p>
+                                  <ul>
+                                    {s.criteria.map((c) => (
+                                      <li key={c.id}>{c.description}</li>
+                                    ))}
+                                  </ul>
+                                </li>
+                              ))}
+                            </ol>
+                          </>
+                        );
+                      }}
+                      onAccept={(raw) =>
+                        exclusive(async () => {
+                          await persist(adoptPlan(project, raw));
+                          setInput("");
+                        })
+                      }
+                      onRetryConnection={() => exclusive(preparePlan)}
+                    />
+                  </div>
+                )}
+              </>
+            )
+          ) : mode === "design" ? (
+            <div className="learn-project-design">
               <p className="learn-muted">
-                根据课程目标生成一个有明确角色、阶段任务和验收标准的项目。成果以文字或代码文本提交，不执行代码或访问外部文件。
+                在这里设计和调整项目。学习者在课程学习页按阶段完成成果与评审。
               </p>
-              {!project.generation ? (
-                <button
-                  className="learn-button primary"
-                  disabled={busy}
-                  onClick={() => run(preparePlan)}
-                >
-                  设计实训项目
-                </button>
-              ) : (
-                <div inert={busy}>
-                  <ModelTask
-                    taskRef={project.generation}
-                    title="设计项目计划"
-                    prompt={projectPrompt(project)}
-                    preview={(raw) => {
-                      const plan = adoptPlan(project, raw).plan!;
-                      return (
-                        <>
-                          <h3>{plan.title}</h3>
-                          <p>{plan.scenario}</p>
-                          <p>你的角色：{plan.role}</p>
-                          <p>最终成果：{plan.outcome}</p>
-                          <ol>
-                            {plan.milestones.map((s) => (
-                              <li key={s.id}>
-                                <strong>{s.title}</strong>
-                                <p>{s.goal}</p>
-                                <p>交付：{s.deliverable}</p>
-                                <ul>
-                                  {s.criteria.map((c) => (
-                                    <li key={c.id}>{c.description}</li>
-                                  ))}
-                                </ul>
-                              </li>
-                            ))}
-                          </ol>
-                        </>
-                      );
-                    }}
-                    onAccept={(raw) =>
-                      exclusive(async () => {
-                        await persist(adoptPlan(project, raw));
-                        setInput("");
+              {hasSubmissions && (
+                <p className="learn-notice warning">
+                  已有学习成果，项目计划已锁定，避免改变现有验收标准。
+                </p>
+              )}
+              {planDraft && (
+                <fieldset disabled={busy || hasSubmissions}>
+                  <label>
+                    项目标题
+                    <input
+                      maxLength={120}
+                      value={planDraft.title}
+                      onChange={(e) =>
+                        updatePlan({ ...planDraft, title: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label>
+                    项目情境
+                    <textarea
+                      rows={3}
+                      maxLength={2000}
+                      value={planDraft.scenario}
+                      onChange={(e) =>
+                        updatePlan({ ...planDraft, scenario: e.target.value })
+                      }
+                    />
+                  </label>
+                  <div className="learn-fields">
+                    <label>
+                      学习者角色
+                      <input
+                        maxLength={500}
+                        value={planDraft.role}
+                        onChange={(e) =>
+                          updatePlan({ ...planDraft, role: e.target.value })
+                        }
+                      />
+                    </label>
+                    <label>
+                      最终成果
+                      <input
+                        maxLength={1000}
+                        value={planDraft.outcome}
+                        onChange={(e) =>
+                          updatePlan({ ...planDraft, outcome: e.target.value })
+                        }
+                      />
+                    </label>
+                  </div>
+                  <h3>实训阶段</h3>
+                  {planDraft.milestones.map((s, i) => (
+                    <section className="learn-project-design-stage" key={s.id}>
+                      <h4>阶段 {i + 1}</h4>
+                      <label>
+                        阶段名称
+                        <input
+                          maxLength={120}
+                          value={s.title}
+                          onChange={(e) =>
+                            updateMilestone(s.id, { title: e.target.value })
+                          }
+                        />
+                      </label>
+                      <label>
+                        阶段目标
+                        <textarea
+                          rows={2}
+                          maxLength={1000}
+                          value={s.goal}
+                          onChange={(e) =>
+                            updateMilestone(s.id, { goal: e.target.value })
+                          }
+                        />
+                      </label>
+                      <label>
+                        实践步骤（每行一步）
+                        <textarea
+                          rows={4}
+                          value={s.steps.join("\n")}
+                          onChange={(e) =>
+                            updateMilestone(s.id, {
+                              steps: e.target.value.split("\n").slice(0, 6),
+                            })
+                          }
+                        />
+                      </label>
+                      <label>
+                        需要提交
+                        <input
+                          maxLength={1000}
+                          value={s.deliverable}
+                          onChange={(e) =>
+                            updateMilestone(s.id, {
+                              deliverable: e.target.value,
+                            })
+                          }
+                        />
+                      </label>
+                      <label>
+                        验收标准（每行一项）
+                        <textarea
+                          rows={3}
+                          value={s.criteria
+                            .map((c) => c.description)
+                            .join("\n")}
+                          onChange={(e) =>
+                            updateMilestone(s.id, {
+                              criteria: e.target.value
+                                .split("\n")
+                                .slice(0, 5)
+                                .map((description, j) => ({
+                                  id: `${s.id}-c${j + 1}`,
+                                  description,
+                                })),
+                            })
+                          }
+                        />
+                      </label>
+                    </section>
+                  ))}
+                  <button
+                    className="learn-button primary"
+                    disabled={
+                      busy ||
+                      JSON.stringify(planDraft) === JSON.stringify(project.plan)
+                    }
+                    onClick={() =>
+                      run(async () => {
+                        await persist({ ...project, plan: planDraft });
+                        setNotice("项目计划已保存");
                       })
                     }
-                    onRetryConnection={() => exclusive(preparePlan)}
-                  />
-                </div>
+                  >
+                    保存项目计划
+                  </button>
+                </fieldset>
               )}
-            </>
+            </div>
           ) : (
             <>
               <div className="learn-project-context">

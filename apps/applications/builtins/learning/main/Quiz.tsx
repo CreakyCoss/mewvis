@@ -4,20 +4,25 @@ import { gradeChoiceQuestions } from "./vendor/grading";
 import { Notice, errorText } from "./components";
 import { ModelTask, createModelTask, closeModelTask } from "./ModelTask";
 import { gradingProfile, gradingPrompt, parseGrades } from "./workflow";
+import { lessonMastery } from "./mastery";
 
 export function Quiz({
   lesson,
   attempt,
+  history,
   onSubmit,
   disabled,
 }: {
   lesson: Lesson;
   attempt?: Attempt;
+  history: Attempt[];
   onSubmit: (attempt: Attempt) => Promise<void>;
   disabled: boolean;
 }) {
   const [answers, setAnswers] = useState<Answers>(attempt?.answers ?? {});
   const [retrying, setRetrying] = useState(false);
+  const [retryWeak, setRetryWeak] = useState(false);
+  const [retryQuestionIds, setRetryQuestionIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const lock = useRef(false);
@@ -25,6 +30,20 @@ export function Quiz({
   const results = saved
     ? gradeChoiceQuestions(lesson.questions, saved.answers)
     : [];
+  const mastery = saved ? lessonMastery(lesson, saved) : null;
+  const weakIds = saved
+    ? lesson.questions
+        .filter((q) =>
+          q.type === "short_answer"
+            ? (saved.grades?.[q.id]?.score ?? -1) < q.points
+            : !results.find((result) => result.questionId === q.id)?.correct,
+        )
+        .map((q) => q.id)
+    : [];
+  const visibleQuestions =
+    retrying && retryWeak
+      ? lesson.questions.filter((q) => retryQuestionIds.includes(q.id))
+      : lesson.questions;
   const short = lesson.questions.filter((q) => q.type === "short_answer");
   const complete = lesson.questions.every((q) => validAnswer(q, answers[q.id]));
   const blocked = disabled || busy;
@@ -63,6 +82,22 @@ export function Quiz({
       throw e;
     }
   };
+  const beginRetry = async (onlyWeak: boolean) => {
+    if (!saved) return;
+    if (saved.gradingSession) await closeModelTask(saved.gradingSession);
+    setRetryWeak(onlyWeak);
+    setRetryQuestionIds(onlyWeak ? weakIds : []);
+    setAnswers(
+      onlyWeak
+        ? Object.fromEntries(
+            Object.entries(saved.answers).filter(
+              ([id]) => !weakIds.includes(id),
+            ),
+          )
+        : {},
+    );
+    setRetrying(true);
+  };
   return (
     <section className="learn-quiz" aria-label="课后测验">
       <div className="learn-section-title">
@@ -72,7 +107,21 @@ export function Quiz({
         </div>
         <span className="learn-chip">{lesson.questions.length} 道题</span>
       </div>
-      {lesson.questions.map((q, index) => {
+      {mastery && (
+        <p className="learn-muted">
+          最近一次掌握参考：
+          {mastery.percent === null ? "待评分" : `${mastery.percent}%`}
+          {`（按已评分 ${mastery.assessed}/${mastery.total} 分估算`}
+          {mastery.pending > 0 ? `，${mastery.pending} 道简答待评` : ""}）
+        </p>
+      )}
+      {retrying && retryWeak && (
+        <p className="learn-muted">
+          只显示需要再练的题目；已掌握题目的答案沿用上次作答。
+        </p>
+      )}
+      {visibleQuestions.map((q) => {
+        const index = lesson.questions.indexOf(q);
         const value = answers[q.id];
         const result = results.find((r) => r.questionId === q.id);
         const grade = saved?.grades?.[q.id];
@@ -181,19 +230,21 @@ export function Quiz({
               {short.filter((q) => saved.grades?.[q.id]).length} /{" "}
               {short.length}
             </span>
+            {weakIds.length > 0 && (
+              <button
+                className="learn-button primary"
+                disabled={blocked}
+                onClick={() => void run(() => beginRetry(true))}
+              >
+                只练需巩固的 {weakIds.length} 题
+              </button>
+            )}
             <button
               className="learn-button"
               disabled={blocked}
-              onClick={() =>
-                void run(async () => {
-                  if (saved.gradingSession)
-                    await closeModelTask(saved.gradingSession);
-                  setRetrying(true);
-                  setAnswers({});
-                })
-              }
+              onClick={() => void run(() => beginRetry(false))}
             >
-              再练一次
+              全部再练
             </button>
           </>
         ) : (
@@ -210,6 +261,8 @@ export function Quiz({
                   ),
                 });
                 setRetrying(false);
+                setRetryWeak(false);
+                setRetryQuestionIds([]);
               })
             }
           >
@@ -263,6 +316,45 @@ export function Quiz({
             </div>
           )}
         </section>
+      )}
+      {attempt && (
+        <details className="learn-attempt-history">
+          <summary>练习记录 · 共 {history.length + 1} 次</summary>
+          <p className="learn-muted">
+            每课最多保留 8 条先前记录；空间不足时移除最旧记录。
+          </p>
+          <ol>
+            {[attempt, ...history].map((entry, index) => {
+              const choice = gradeChoiceQuestions(
+                lesson.questions,
+                entry.answers,
+              );
+              const mastery = lessonMastery(lesson, entry);
+              const reviewed = short.filter((q) => entry.grades?.[q.id]).length;
+              return (
+                <li key={entry.submittedAt}>
+                  <span>
+                    {index === 0
+                      ? "最近一次"
+                      : `第 ${history.length + 1 - index} 次`}
+                  </span>
+                  <span>
+                    {new Date(entry.submittedAt).toLocaleString("zh-CN")}
+                  </span>
+                  <span>
+                    选择题 {choice.filter((r) => r.correct).length}/
+                    {choice.length}
+                    {short.length > 0
+                      ? ` · 简答已评 ${reviewed}/${short.length}`
+                      : ""}
+                    {` · 掌握参考 ${mastery.percent === null ? "待评分" : `${mastery.percent}%`}`}
+                    {mastery.pending > 0 ? `（${mastery.pending} 题待评）` : ""}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+        </details>
       )}
     </section>
   );

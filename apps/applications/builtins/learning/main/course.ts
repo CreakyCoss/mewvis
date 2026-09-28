@@ -51,6 +51,8 @@ export type Progress = {
   lessonId: string;
   completed: string[];
   attempts: Record<string, Attempt>;
+  /** Earlier submissions, newest first. The current submission stays in attempts. */
+  history: Record<string, Attempt[]>;
 };
 export type Brief = {
   topic: string;
@@ -59,10 +61,13 @@ export type Brief = {
   material: string;
 };
 export const MAX_COURSE_BYTES = 180_000;
+export const MAX_PROGRESS_BYTES = 220_000;
+export const MAX_ATTEMPT_HISTORY = 8;
 export const emptyProgress = (course: Course): Progress => ({
   lessonId: course.lessons[0].id,
   completed: [],
   attempts: {},
+  history: {},
 });
 export const object = (
   value: unknown,
@@ -235,57 +240,27 @@ export function restoreProgress(course: Course, value: unknown): Progress {
   const raw = value as Partial<Progress>;
   const ids = new Set(course.lessons.map((l) => l.id));
   const attempts: Progress["attempts"] = {};
+  const history: Progress["history"] = {};
   for (const lesson of course.lessons) {
-    const attempt = raw.attempts?.[lesson.id];
-    if (
-      !attempt ||
-      typeof attempt.submittedAt !== "number" ||
-      !Number.isFinite(attempt.submittedAt)
-    )
-      continue;
-    const answers: Answers = {};
-    for (const q of lesson.questions) {
-      const answer = attempt.answers?.[q.id];
-      if (validAnswer(q, answer)) answers[q.id] = answer;
-    }
-    if (Object.keys(answers).length === lesson.questions.length) {
-      const restored: Attempt = { answers, submittedAt: attempt.submittedAt };
-      if (attempt.grades) {
-        const grades: Record<string, AIGrade> = {};
-        for (const q of lesson.questions.filter(
-          (q) => q.type === "short_answer",
-        )) {
-          const g = attempt.grades[q.id];
-          if (
-            g &&
-            typeof g.score === "number" &&
-            Number.isFinite(g.score) &&
-            g.score >= 0 &&
-            g.score <= q.points &&
-            typeof g.feedback === "string" &&
-            g.feedback.trim() &&
-            g.feedback.length <= 2000
-          )
-            grades[q.id] = { score: g.score, feedback: g.feedback };
-        }
-        if (Object.keys(grades).length) restored.grades = grades;
-      }
-      const ref = attempt.gradingSession;
-      if (
-        ref &&
-        typeof ref.chatId === "string" &&
-        typeof ref.workspaceId === "string" &&
-        ref.chatId.length <= 200 &&
-        ref.workspaceId.length <= 200
-      )
-        restored.gradingSession = {
-          chatId: ref.chatId,
-          workspaceId: ref.workspaceId,
-        };
-      attempts[lesson.id] = restored;
-    }
+    const current = restoreAttempt(lesson, raw.attempts?.[lesson.id]);
+    if (current) attempts[lesson.id] = current;
+    const prior = raw.history?.[lesson.id];
+    if (!Array.isArray(prior)) continue;
+    const seen = new Set(current ? [current.submittedAt] : []);
+    const rows = prior
+      .slice(0, MAX_ATTEMPT_HISTORY * 3)
+      .map((entry) => restoreAttempt(lesson, entry))
+      .filter((entry): entry is Attempt => !!entry)
+      .sort((a, b) => b.submittedAt - a.submittedAt)
+      .filter((entry) => {
+        if (seen.has(entry.submittedAt)) return false;
+        seen.add(entry.submittedAt);
+        return true;
+      })
+      .slice(0, MAX_ATTEMPT_HISTORY);
+    if (rows.length) history[lesson.id] = rows;
   }
-  return {
+  const restored: Progress = {
     lessonId:
       typeof raw.lessonId === "string" && ids.has(raw.lessonId)
         ? raw.lessonId
@@ -294,7 +269,100 @@ export function restoreProgress(course: Course, value: unknown): Progress {
       ? [...new Set(raw.completed.filter((id) => ids.has(id)))]
       : [],
     attempts,
+    history,
   };
+  while (
+    new TextEncoder().encode(JSON.stringify(restored)).byteLength >
+    MAX_PROGRESS_BYTES
+  ) {
+    const oldest = Object.entries(restored.history)
+      .filter(([, rows]) => rows.length)
+      .sort(
+        (a, b) =>
+          a[1][a[1].length - 1].submittedAt - b[1][b[1].length - 1].submittedAt,
+      )[0];
+    if (!oldest) break;
+    oldest[1].pop();
+    if (!oldest[1].length) delete restored.history[oldest[0]];
+  }
+  return restored;
+}
+
+function restoreAttempt(lesson: Lesson, value: unknown): Attempt | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const attempt = value as Partial<Attempt>;
+  if (
+    typeof attempt.submittedAt !== "number" ||
+    !Number.isFinite(attempt.submittedAt)
+  )
+    return null;
+  const answers: Answers = {};
+  for (const q of lesson.questions) {
+    const answer = attempt.answers?.[q.id];
+    if (validAnswer(q, answer)) answers[q.id] = answer;
+  }
+  if (Object.keys(answers).length !== lesson.questions.length) return null;
+  const restored: Attempt = { answers, submittedAt: attempt.submittedAt };
+  if (attempt.grades) {
+    const grades: Record<string, AIGrade> = {};
+    for (const q of lesson.questions.filter((q) => q.type === "short_answer")) {
+      const g = attempt.grades[q.id];
+      if (
+        g &&
+        typeof g.score === "number" &&
+        Number.isFinite(g.score) &&
+        g.score >= 0 &&
+        g.score <= q.points &&
+        typeof g.feedback === "string" &&
+        !!g.feedback.trim() &&
+        g.feedback.length <= 2000
+      )
+        grades[q.id] = { score: g.score, feedback: g.feedback };
+    }
+    if (Object.keys(grades).length) restored.grades = grades;
+  }
+  const ref = attempt.gradingSession;
+  if (
+    ref &&
+    typeof ref.chatId === "string" &&
+    typeof ref.workspaceId === "string" &&
+    ref.chatId.length <= 200 &&
+    ref.workspaceId.length <= 200
+  )
+    restored.gradingSession = {
+      chatId: ref.chatId,
+      workspaceId: ref.workspaceId,
+    };
+  return restored;
+}
+
+export function recordAttempt(
+  course: Course,
+  progress: Progress,
+  lessonId: string,
+  attempt: Attempt,
+): Progress {
+  const lesson = course.lessons.find((item) => item.id === lessonId);
+  if (!lesson) throw new Error("课时不存在");
+  const normalized = restoreAttempt(lesson, attempt);
+  if (!normalized) throw new Error("本次作答无效");
+  const current = progress.attempts[lessonId];
+  const history = { ...progress.history };
+  if (current && current.submittedAt !== normalized.submittedAt) {
+    history[lessonId] = [
+      {
+        answers: current.answers,
+        submittedAt: current.submittedAt,
+        ...(current.grades ? { grades: current.grades } : {}),
+      },
+      ...(history[lessonId] ?? []),
+    ];
+  }
+  return restoreProgress(course, {
+    ...progress,
+    attempts: { ...progress.attempts, [lessonId]: normalized },
+    history,
+  });
 }
 
 export function validAnswer(

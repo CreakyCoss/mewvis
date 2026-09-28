@@ -1,29 +1,42 @@
 import "./styles.css";
 import { useEffect, useRef, useState } from "react";
 import { getApplicationDataClient } from "@isle/app-sdk/data";
-import { getApplicationHost } from "@isle/app-sdk/browser";
+import { getApplicationHost, writeClipboardText } from "@isle/app-sdk/browser";
 import {
   createCourse,
   emptyProgress,
+  recordAttempt,
   restoreProgress,
   validateContent,
   type Course,
+  type Brief,
   type Progress,
 } from "./course";
 import { repository } from "./repository";
 import { exampleCourse } from "./example";
-import { Icon, Notice, Quiz, Text, Tutor, errorText } from "./components";
+import {
+  Icon,
+  Notice,
+  Quiz,
+  Text,
+  Tutor,
+  errorText,
+  type FocusTarget,
+} from "./components";
+import { RecallCards } from "./RecallCards";
 import { ProjectLab } from "./ProjectLab";
-import { Studio } from "./Studio";
+import { CourseDialog } from "./CourseDialog";
+import { newDraft, writeDraft } from "./workflow";
 
 const repo = () => repository(getApplicationDataClient().storage);
-type View = "library" | "studio" | "lesson";
+type View = "library" | "lesson";
 export default function App() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [progress, setProgress] = useState<Record<string, Progress>>({});
   const [selected, setSelected] = useState("");
   const [editing, setEditing] = useState<Course | undefined>();
   const [view, setView] = useState<View>("library");
+  const [createOpen, setCreateOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -31,10 +44,13 @@ export default function App() {
   const [warnings, setWarnings] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [confirmDelete, setConfirmDelete] = useState("");
+  const [copiedCourse, setCopiedCourse] = useState("");
+  const [focus, setFocus] = useState<FocusTarget | null>(null);
   const [tab, setTab] = useState<"lesson" | "quiz" | "project">("lesson");
-  const [showTutor, setShowTutor] = useState(true);
+  const [tutorExpanded, setTutorExpanded] = useState(false);
   const [theme, setTheme] = useState("light");
   const lock = useRef(false);
+  const mainRef = useRef<HTMLElement>(null);
   const course = courses.find((c) => c.id === selected);
   const currentProgress = course
     ? (progress[course.id] ?? emptyProgress(course))
@@ -44,7 +60,15 @@ export default function App() {
     course?.lessons[0];
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
+    mainRef.current?.scrollTo({ top: 0, behavior: "instant" });
   }, [view, lesson?.id]);
+  useEffect(() => {
+    if (view !== "lesson" || !focus) return;
+    const target = document.getElementById(
+      focus === "quiz" ? "quiz-tab" : `learning-focus-${focus}`,
+    );
+    target?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [view, tab, focus, lesson?.id]);
   const load = async () => {
     setLoading(true);
     setLoadFailed(false);
@@ -92,7 +116,16 @@ export default function App() {
     setSelected(course.id);
     setView("lesson");
     setTab("lesson");
+    setTutorExpanded(false);
+    setFocus(null);
     setError("");
+  };
+  const edit = (item: Course) => {
+    setEditing(item);
+    setCreateOpen(true);
+  };
+  const create = async (brief: Brief) => {
+    await writeDraft(getApplicationDataClient().storage, newDraft(brief));
   };
   const save = async (course: Course) => {
     await repo().save(course);
@@ -115,6 +148,7 @@ export default function App() {
       if (!currentProgress) return;
       await updateProgress({ ...currentProgress, lessonId: id });
       setTab("lesson");
+      setFocus(null);
     });
   const totalCompleted = Object.values(progress).reduce(
     (n, p) => n + p.completed.length,
@@ -123,9 +157,16 @@ export default function App() {
   const filtered = courses.filter((c) =>
     `${c.title} ${c.description}`.toLowerCase().includes(search.toLowerCase()),
   );
+  const focusSection = (target: FocusTarget) => {
+    setTutorExpanded(false);
+    setTab(target === "quiz" ? "quiz" : "lesson");
+    setFocus(target);
+  };
 
   return (
-    <div className={`learning-app theme-${theme}`}>
+    <div
+      className={`learning-app theme-${theme} ${view === "lesson" ? "is-studying" : ""}`}
+    >
       <nav className="learn-nav" aria-label="学习工作台导航">
         <button
           className="learn-brand"
@@ -141,27 +182,33 @@ export default function App() {
         </button>
         <div className="learn-nav-links">
           <button
-            className={view !== "studio" ? "active" : ""}
+            className={view === "library" ? "active" : ""}
             onClick={() => setView("library")}
           >
             <Icon name="book" size={17} />
             我的课程
           </button>
           <button
-            className={view === "studio" ? "active" : ""}
             disabled={loading || loadFailed}
             onClick={() => {
               setEditing(undefined);
-              setView("studio");
+              setCreateOpen(true);
             }}
           >
             <Icon name="plus" size={17} />
             创建课程
           </button>
         </div>
-        <span className="learn-nav-note">每天一点，学有所获</span>
+        {view === "library" && !loading && !loadFailed && (
+          <span className="learn-nav-note">
+            {courses.length} 门课程 · 已完成 {totalCompleted} 个课时
+          </span>
+        )}
       </nav>
-      <main className={`learn-main ${view === "lesson" ? "is-lesson" : ""}`}>
+      <main
+        ref={mainRef}
+        className={`learn-main ${view === "lesson" ? "is-lesson" : ""}`}
+      >
         {error && (
           <Notice>
             {error}
@@ -191,8 +238,6 @@ export default function App() {
               重试读取课程
             </button>
           </div>
-        ) : view === "studio" ? (
-          <Studio initialCourse={editing} onSave={save} onSaved={open} />
         ) : view === "lesson" && course && lesson && currentProgress ? (
           <>
             <div className="learn-course-top">
@@ -203,29 +248,19 @@ export default function App() {
                 <Icon name="back" size={16} />
                 课程库
               </button>
-              <span>{course.title}</span>
+              <span className="learn-course-breadcrumb">{course.title}</span>
               <button
-                className="learn-button"
-                disabled={busy}
+                className={`learn-button ${tab === "project" ? "primary" : ""}`}
                 onClick={() => {
-                  setEditing(course);
-                  setView("studio");
+                  setTab(tab === "project" ? "lesson" : "project");
+                  setFocus(null);
                 }}
               >
-                编辑 / 重新生成
+                {tab === "project" ? "返回课时" : "项目实训"}
               </button>
-              {tab !== "project" && (
-                <button
-                  className="learn-button"
-                  onClick={() => setShowTutor(!showTutor)}
-                  aria-expanded={showTutor}
-                >
-                  {showTutor ? "收起导师" : "打开导师"}
-                </button>
-              )}
             </div>
             <div
-              className={`learn-classroom ${showTutor && tab !== "project" ? "with-tutor" : ""}`}
+              className={`learn-classroom with-tutor ${tab === "project" ? "is-project" : ""} ${tutorExpanded ? "mobile-tutor-expanded" : ""}`}
             >
               <aside className="learn-outline" aria-label="课程目录">
                 <span className="learn-eyebrow">COURSE OUTLINE</span>
@@ -268,77 +303,90 @@ export default function App() {
                   ))}
                 </ol>
                 <div className="learn-outline-note">
-                  按自己的节奏学习。读完一课，试着用自己的话解释一次。
+                  {tab === "project"
+                    ? "实训进度与课时阅读分开记录。"
+                    : currentProgress.completed.length === course.lessons.length
+                      ? "课程已完成。可以回看讲解或重练测验。"
+                      : `当前任务：阅读第 ${course.lessons.indexOf(lesson) + 1} 课，再完成练习。`}
                 </div>
               </aside>
               <div className="learn-reading">
-                <div className="learn-lesson-heading">
+                <div
+                  id="learning-focus-objective"
+                  className={`learn-lesson-heading ${focus === "objective" ? "learn-focused" : ""}`}
+                >
                   <span className="learn-eyebrow">
-                    LESSON{" "}
-                    {String(course.lessons.indexOf(lesson) + 1).padStart(
-                      2,
-                      "0",
-                    )}{" "}
-                    / {String(course.lessons.length).padStart(2, "0")}
+                    {tab === "project" ? (
+                      "COURSE PROJECT"
+                    ) : (
+                      <>
+                        LESSON{" "}
+                        {String(course.lessons.indexOf(lesson) + 1).padStart(
+                          2,
+                          "0",
+                        )}{" "}
+                        / {String(course.lessons.length).padStart(2, "0")}
+                      </>
+                    )}
                   </span>
                   <h1>{tab === "project" ? "课程项目实训" : lesson.title}</h1>
                   <p>{tab === "project" ? course.title : lesson.objective}</p>
                 </div>
+                {tab !== "project" && (
+                  <div
+                    className="learn-tabs"
+                    role="tablist"
+                    aria-label="课时内容"
+                  >
+                    <button
+                      role="tab"
+                      id="lesson-tab"
+                      aria-controls="lesson-panel"
+                      aria-selected={tab === "lesson"}
+                      onClick={() => setTab("lesson")}
+                    >
+                      课程讲解
+                    </button>
+                    <button
+                      role="tab"
+                      id="quiz-tab"
+                      aria-controls="lesson-panel"
+                      aria-selected={tab === "quiz"}
+                      onClick={() => setTab("quiz")}
+                    >
+                      课后测验<span>{lesson.questions.length}</span>
+                    </button>
+                  </div>
+                )}
                 <div
-                  className="learn-tabs"
-                  role="tablist"
-                  aria-label="课时内容"
-                >
-                  <button
-                    role="tab"
-                    id="lesson-tab"
-                    aria-controls="lesson-panel"
-                    aria-selected={tab === "lesson"}
-                    onClick={() => setTab("lesson")}
-                  >
-                    课程讲解
-                  </button>
-                  <button
-                    role="tab"
-                    id="quiz-tab"
-                    aria-controls="lesson-panel"
-                    aria-selected={tab === "quiz"}
-                    onClick={() => setTab("quiz")}
-                  >
-                    课后测验<span>{lesson.questions.length}</span>
-                  </button>
-                  <button
-                    role="tab"
-                    id="project-tab"
-                    aria-controls="lesson-panel"
-                    aria-selected={tab === "project"}
-                    onClick={() => setTab("project")}
-                  >
-                    项目实训
-                  </button>
-                </div>
-                <div
-                  id="lesson-panel"
-                  role="tabpanel"
+                  id={tab === "project" ? "project-panel" : "lesson-panel"}
+                  role={tab === "project" ? "region" : "tabpanel"}
+                  aria-label={tab === "project" ? "课程项目实训" : undefined}
                   aria-labelledby={
                     tab === "lesson"
                       ? "lesson-tab"
                       : tab === "quiz"
                         ? "quiz-tab"
-                        : "project-tab"
+                        : undefined
                   }
                 >
                   {tab === "project" ? (
-                    <ProjectLab key={course.id} course={course} />
+                    <ProjectLab key={course.id} course={course} mode="learn" />
                   ) : tab === "lesson" ? (
                     <article className="learn-article">
                       <Text value={lesson.content} />
-                      <section className="learn-example">
+                      <section
+                        id="learning-focus-example"
+                        className={`learn-example ${focus === "example" ? "learn-focused" : ""}`}
+                      >
                         <span className="learn-eyebrow">MAKE IT CONCRETE</span>
                         <h2>举个例子</h2>
                         <Text value={lesson.example} />
                       </section>
-                      <section className="learn-takeaways">
+                      <section
+                        id="learning-focus-takeaways"
+                        className={`learn-takeaways ${focus === "takeaways" ? "learn-focused" : ""}`}
+                      >
                         <h2>带走这几个要点</h2>
                         <ul>
                           {lesson.takeaways.map((point, i) => (
@@ -349,6 +397,15 @@ export default function App() {
                           ))}
                         </ul>
                       </section>
+                      <div
+                        id="learning-focus-recall"
+                        className={focus === "recall" ? "learn-focused" : ""}
+                      >
+                        <RecallCards
+                          key={lesson.id}
+                          points={lesson.takeaways}
+                        />
+                      </div>
                       <div className="learn-actions">
                         <span className="learn-muted">
                           读懂了？试着检验一下。
@@ -367,6 +424,7 @@ export default function App() {
                       key={lesson.id}
                       lesson={lesson}
                       attempt={currentProgress.attempts[lesson.id]}
+                      history={currentProgress.history[lesson.id] ?? []}
                       disabled={busy}
                       onSubmit={async (attempt) => {
                         if (lock.current)
@@ -374,13 +432,14 @@ export default function App() {
                         lock.current = true;
                         setBusy(true);
                         try {
-                          await updateProgress({
-                            ...currentProgress,
-                            attempts: {
-                              ...currentProgress.attempts,
-                              [lesson.id]: attempt,
-                            },
-                          });
+                          await updateProgress(
+                            recordAttempt(
+                              course,
+                              currentProgress,
+                              lesson.id,
+                              attempt,
+                            ),
+                          );
                         } finally {
                           lock.current = false;
                           setBusy(false);
@@ -431,118 +490,22 @@ export default function App() {
                   </footer>
                 )}
               </div>
-              {showTutor && tab !== "project" && (
-                <Tutor
-                  key={`${course.id}:${lesson.id}`}
-                  course={course}
-                  lesson={lesson}
-                />
-              )}
+              <Tutor
+                key={`${course.id}:${lesson.id}`}
+                course={course}
+                lesson={lesson}
+                onFocus={focusSection}
+                expanded={tutorExpanded}
+                onToggleExpand={() => setTutorExpanded((value) => !value)}
+              />
             </div>
           </>
         ) : (
           <section className="learn-library">
-            <div className="learn-page-heading">
-              <div>
-                <span className="learn-eyebrow">
-                  YOUR PERSONAL LEARNING SPACE
-                </span>
-                <h1>把好奇，变成收获。</h1>
-                <p>一个主题，一条学习路线。让每一次探索都有所积累。</p>
-              </div>
-              <button
-                className="learn-button primary"
-                onClick={() => {
-                  setEditing(undefined);
-                  setView("studio");
-                }}
-              >
-                <Icon name="plus" size={18} />
-                创建新课程
-              </button>
-            </div>
-            <div className="learn-hero">
-              <div>
-                <span className="learn-chip">从这里开始 · 示例课程</span>
-                <h2>
-                  学会学习，
-                  <br />
-                  让知识真正留下来。
-                </h2>
-                <p>
-                  从设定目标到主动回忆，
-                  <br />
-                  用三节短课，找到更适合自己的学习方法。
-                </p>
-                <button
-                  className="learn-button hero-button"
-                  disabled={busy}
-                  onClick={() =>
-                    void run(async () => {
-                      const existing = courses.find(
-                        (c) => c.id === exampleCourse.id,
-                      );
-                      if (existing) {
-                        open(existing);
-                        return;
-                      }
-                      const demo = { ...exampleCourse, createdAt: Date.now() };
-                      await save(demo);
-                      open(demo);
-                    })
-                  }
-                >
-                  {busy
-                    ? "正在打开…"
-                    : courses.some((c) => c.id === exampleCourse.id)
-                      ? "继续示例课程"
-                      : "体验示例课程"}
-                  <Icon name="arrow" size={18} />
-                </button>
-                <small>3 个课时 · 无需模型即可体验</small>
-              </div>
-              <div className="learn-hero-art" aria-hidden="true">
-                <div className="learn-art-orbit" />
-                <div className="learn-art-card back-card" />
-                <div className="learn-art-card front-card">
-                  <span>LEARN. REFLECT. GROW.</span>
-                  <Icon name="book" size={66} />
-                  <div className="learn-art-lines">
-                    <i />
-                    <i />
-                    <i />
-                  </div>
-                  <div className="learn-art-bottom">
-                    一小步，也算数。
-                    <Icon name="check" size={20} />
-                  </div>
-                </div>
-                <span className="learn-art-label">
-                  <Icon name="spark" size={16} />
-                  让理解发生
-                </span>
-              </div>
-            </div>
-            <div className="learn-library-heading">
-              <div>
-                <h2>
-                  我的课程<span>{courses.length}</span>
-                </h2>
-                <p>
-                  {totalCompleted
-                    ? `已经完成 ${totalCompleted} 个课时，继续保持你的节奏。`
-                    : "你的每一步进展，都会保存在这里。"}
-                </p>
-              </div>
-              <div className="learn-library-controls">
-                <input
-                  aria-label="搜索课程"
-                  type="search"
-                  placeholder="搜索课程…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-                <label className="learn-file-button">
+            <div className="learn-library-filter">
+              <h1>课程列表</h1>
+              <div className="learn-library-filter-actions">
+                <label className="learn-file-button learn-button">
                   导入课程
                   <input
                     type="file"
@@ -565,42 +528,60 @@ export default function App() {
                     }}
                   />
                 </label>
+                <input
+                  aria-label="搜索课程"
+                  type="search"
+                  placeholder="搜索课程…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
               </div>
             </div>
             {filtered.length ? (
               <div className="learn-course-grid">
-                {filtered.map((item, index) => {
+                {filtered.map((item) => {
                   const done = progress[item.id]?.completed.length ?? 0;
+                  const current = item.lessons.find(
+                    (lesson) => lesson.id === progress[item.id]?.lessonId,
+                  );
                   return (
                     <article className="learn-course-card" key={item.id}>
-                      <div className={`learn-card-cover cover-${index % 3}`}>
-                        <Icon name="book" size={34} />
-                        <span>
-                          {item.origin === "example"
-                            ? "示例课程"
-                            : item.origin === "import"
-                              ? "导入课程"
-                              : "AI 生成"}
-                        </span>
-                        <b>
-                          {String(item.lessons.length).padStart(2, "0")}
-                          <small>课时</small>
-                        </b>
-                      </div>
                       <div className="learn-card-body">
-                        <span className="learn-eyebrow">{item.level}</span>
+                        <div className="learn-card-meta">
+                          <span>
+                            <Icon name="book" size={16} />
+                            {item.level}
+                          </span>
+                          <span>
+                            {item.origin === "example"
+                              ? "示例课程"
+                              : item.origin === "import"
+                                ? "导入课程"
+                                : "AI 生成"}
+                          </span>
+                        </div>
                         <h3>{item.title}</h3>
                         <p>{item.description}</p>
+                        <div className="learn-card-next">
+                          <span>
+                            {done === item.lessons.length
+                              ? "学习完成"
+                              : "继续学习"}
+                          </span>
+                          <strong>
+                            {done === item.lessons.length
+                              ? "可回看讲解或重新练习"
+                              : (current?.title ?? item.lessons[0].title)}
+                          </strong>
+                        </div>
                         <div className="learn-card-progress">
                           <span>
                             {done === item.lessons.length
                               ? "已完成"
-                              : done
-                                ? "学习中"
-                                : "待开始"}
+                              : "课程进度"}
                           </span>
                           <span>
-                            {done} / {item.lessons.length}
+                            {done} / {item.lessons.length} 课
                           </span>
                         </div>
                         <progress
@@ -608,21 +589,57 @@ export default function App() {
                           value={done}
                           aria-label={`${item.title}学习进度`}
                         />
-                        <div className="learn-actions">
+                        <div className="learn-card-actions">
                           <button
-                            className="learn-button text"
+                            className="learn-button primary"
                             onClick={() => open(item)}
                           >
                             {done ? "继续学习" : "开始学习"}
                             <Icon name="arrow" size={16} />
                           </button>
                           <button
-                            className="learn-delete"
-                            disabled={busy}
-                            onClick={() => setConfirmDelete(item.id)}
+                            className="learn-button"
+                            onClick={() => edit(item)}
                           >
-                            移除
+                            编辑课程
                           </button>
+                          <details className="learn-card-menu">
+                            <summary aria-label={`更多课程操作：${item.title}`}>
+                              更多
+                            </summary>
+                            <div className="learn-card-menu-content">
+                              <button
+                                disabled={busy}
+                                onClick={() =>
+                                  void run(async () => {
+                                    await writeClipboardText(
+                                      JSON.stringify(
+                                        validateContent({
+                                          title: item.title,
+                                          description: item.description,
+                                          level: item.level,
+                                          lessons: item.lessons,
+                                        }),
+                                        null,
+                                        2,
+                                      ),
+                                    );
+                                    setCopiedCourse(item.id);
+                                  })
+                                }
+                              >
+                                {copiedCourse === item.id
+                                  ? "已复制课程 JSON"
+                                  : "复制课程 JSON"}
+                              </button>
+                              <button
+                                disabled={busy}
+                                onClick={() => setConfirmDelete(item.id)}
+                              >
+                                移除课程
+                              </button>
+                            </div>
+                          </details>
                         </div>
                         {confirmDelete === item.id && (
                           <div className="learn-delete-confirm">
@@ -673,20 +690,52 @@ export default function App() {
                 <p>
                   {search
                     ? "试试其他关键词，或清除搜索。"
-                    : "创建一门专属课程，或从上方示例开始体验。"}
+                    : "先体验一门三课时的示例课程，也可以创建自己的学习路线。"}
                 </p>
-                <button
-                  className="learn-button"
-                  onClick={() => {
-                    if (search) setSearch("");
-                    else {
-                      setEditing(undefined);
-                      setView("studio");
-                    }
-                  }}
-                >
-                  {search ? "清除搜索" : "创建第一门课程"}
-                </button>
+                {search ? (
+                  <button
+                    className="learn-button"
+                    onClick={() => setSearch("")}
+                  >
+                    清除搜索
+                  </button>
+                ) : (
+                  <div className="learn-empty-actions">
+                    <button
+                      className="learn-button primary"
+                      onClick={() => {
+                        setEditing(undefined);
+                        setCreateOpen(true);
+                      }}
+                    >
+                      创建第一门课程
+                    </button>
+                    <button
+                      className="learn-button"
+                      disabled={busy}
+                      onClick={() =>
+                        void run(async () => {
+                          const existing = courses.find(
+                            (course) => course.id === exampleCourse.id,
+                          );
+                          if (existing) {
+                            open(existing);
+                            return;
+                          }
+                          const demo = {
+                            ...exampleCourse,
+                            createdAt: Date.now(),
+                          };
+                          await save(demo);
+                          open(demo);
+                        })
+                      }
+                    >
+                      体验示例课程
+                    </button>
+                  </div>
+                )}
+                {!search && <small>示例课程无需模型即可学习</small>}
               </div>
             )}
             <footer className="learn-library-footer">
@@ -696,6 +745,20 @@ export default function App() {
           </section>
         )}
       </main>
+      {createOpen && (
+        <CourseDialog
+          key={editing?.id ?? "new"}
+          initialCourse={editing}
+          onClose={() => setCreateOpen(false)}
+          onCreate={create}
+          onSave={save}
+          onSaved={(saved) => {
+            setCreateOpen(false);
+            setEditing(undefined);
+            open(saved);
+          }}
+        />
+      )}
     </div>
   );
 }

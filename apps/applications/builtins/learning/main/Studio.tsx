@@ -13,10 +13,12 @@ import {
   validateDraft,
   writeDraft,
   draftKey,
+  draftKeyForCourse,
   legacyDraftKey,
   authorProfile,
   outlinePrompt,
   lessonPrompt,
+  revisionPrompt,
   acceptTask,
   finishDraft,
   editDraftLesson,
@@ -24,8 +26,8 @@ import {
 
 const defaults: Brief = { topic: "", level: "零基础", count: 3, material: "" };
 const storage = () => getApplicationDataClient().storage;
-export async function clearGenerationDraft() {
-  await storage().removeItem(draftKey);
+export async function clearGenerationDraft(key = draftKey) {
+  await storage().removeItem(key);
 }
 export function Studio({
   onSave,
@@ -44,16 +46,33 @@ export function Studio({
   const [legacy, setLegacy] = useState(false);
   const [showLegacy, setShowLegacy] = useState(false);
   const [editingSlot, setEditingSlot] = useState<string | null>(null);
+  const [revisionSlot, setRevisionSlot] = useState<string | null>(null);
+  const [revisionInstruction, setRevisionInstruction] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
   const lock = useRef(false);
+  const activeDraftKey = initialCourse
+    ? draftKeyForCourse(initialCourse.id)
+    : draftKey;
   const load = async () => {
     setBusy(true);
     setError("");
     setReadFailed(false);
     try {
-      const saved = await storage().getItem(draftKey);
-      if (saved) setDraft(validateDraft(saved));
-      else if (initialCourse) {
+      let saved = await storage().getItem(activeDraftKey);
+      if (!saved && initialCourse) {
+        const previous = await storage().getItem(draftKey);
+        if (previous && validateDraft(previous).courseId === initialCourse.id) {
+          saved = previous;
+          await storage().setItem(activeDraftKey, previous);
+          await storage().removeItem(draftKey);
+        }
+      }
+      if (saved) {
+        const restored = validateDraft(saved);
+        if (initialCourse && restored.courseId !== initialCourse.id)
+          throw new Error("编辑草稿与当前课程不匹配，原始记录已保留");
+        setDraft(restored);
+      } else if (initialCourse) {
         const d = newDraft(
           {
             topic: initialCourse.title,
@@ -63,7 +82,7 @@ export function Studio({
           },
           initialCourse,
         );
-        setDraft(await writeDraft(storage(), d));
+        setDraft(await writeDraft(storage(), d, activeDraftKey));
       }
       setLegacy(!!(await storage().getItem(legacyDraftKey)));
     } catch (e) {
@@ -102,16 +121,29 @@ export function Studio({
     }
   };
   const persist = async (next: Draft) => {
-    setDraft(await writeDraft(storage(), next));
+    setDraft(await writeDraft(storage(), next, activeDraftKey));
   };
-  const startTask = async (kind: Task["kind"], targetId?: string) => {
+  const startTask = async (
+    kind: Task["kind"],
+    targetId?: string,
+    instruction?: string,
+  ) => {
     if (!draft) return;
+    if (kind === "revise" && (!instruction?.trim() || instruction.length > 500))
+      throw new Error("请填写 1–500 字的修改要求");
     const ref = await createModelTask(authorProfile);
     try {
       await persist({
         ...draft,
-        task: { kind, ...(targetId ? { targetId } : {}), ref },
+        task: {
+          kind,
+          ...(targetId ? { targetId } : {}),
+          ...(kind === "revise" ? { instruction: instruction!.trim() } : {}),
+          ref,
+        },
       });
+      setRevisionSlot(null);
+      setRevisionInstruction("");
     } catch (e) {
       await closeModelTask(ref).catch(() => {});
       throw e;
@@ -122,7 +154,7 @@ export function Studio({
   };
   const reset = async () => {
     if (draft?.task) await closeModelTask(draft.task.ref);
-    await clearGenerationDraft();
+    await clearGenerationDraft(activeDraftKey);
     setDraft(null);
     setConfirmReset(false);
   };
@@ -158,16 +190,41 @@ export function Studio({
         />
       </>
     );
+  const prepared =
+    draft?.outline?.lessons.filter((slot) => slot.lesson).length ?? 0;
+  const stage = !draft
+    ? 0
+    : !draft.outline
+      ? 1
+      : prepared < draft.outline.lessons.length
+        ? 2
+        : 3;
   return (
     <section className="learn-studio">
       <div className="learn-page-heading">
         <div>
           <span className="learn-eyebrow">COURSE STUDIO</span>
-          <h1>让好奇，成为一条学习路线</h1>
-          <p>先确认大纲，再逐课生成。每一步都可以调整与重试。</p>
+          <h1>{initialCourse ? "编辑课程" : "创建课程"}</h1>
+          <p>确定目标、确认大纲、逐课准备内容，然后开始学习。</p>
         </div>
-        <span className="learn-chip">课程工坊 · 分课生成</span>
+        <span className="learn-chip">草稿自动保留已采用的内容</span>
       </div>
+      <ol className="learn-studio-steps" aria-label="课程制作阶段">
+        {(["学习需求", "课程大纲", "课时内容", "保存课程"] as const).map(
+          (label, index) => (
+            <li
+              key={label}
+              className={
+                index === stage ? "active" : index < stage ? "done" : ""
+              }
+              aria-current={index === stage ? "step" : undefined}
+            >
+              <span>{index < stage ? "✓" : index + 1}</span>
+              {label}
+            </li>
+          ),
+        )}
+      </ol>
       {error && <Notice>{error}</Notice>}
       {readFailed ? (
         <button className="learn-button" onClick={() => void load()}>
@@ -186,11 +243,6 @@ export function Studio({
               </button>
             </p>
           )}
-          {initialCourse && draft && draft.courseId !== initialCourse.id && (
-            <Notice>
-              已有另一门课程的草稿。请先完成或放弃该草稿，再从课程页进入编辑。
-            </Notice>
-          )}
           {!draft ? (
             <form
               className="learn-brief"
@@ -199,6 +251,11 @@ export function Studio({
                 void run(() => persist(newDraft(brief)));
               }}
             >
+              <div className="learn-brief-intro">
+                <span className="learn-eyebrow">STEP 01 · 学习需求</span>
+                <h2>这门课想帮你学会什么？</h2>
+                <p>先写主题和当前水平，再决定是否提供参考资料。</p>
+              </div>
               <label htmlFor="learning-topic">你想学什么？</label>
               <input
                 id="learning-topic"
@@ -240,48 +297,88 @@ export function Studio({
                   </select>
                 </div>
               </div>
-              <label htmlFor="learning-material">
-                参考资料 · 选填，最多 20,000 字
-              </label>
-              <textarea
-                id="learning-material"
-                rows={7}
-                maxLength={20000}
-                value={brief.material}
-                onChange={(e) =>
-                  setBrief({ ...brief, material: e.target.value })
-                }
-              />
-              <label className="learn-file-button">
-                导入 TXT / Markdown
-                <input
-                  type="file"
-                  accept=".txt,.md,.markdown"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    e.target.value = "";
-                    if (file)
-                      void run(async () => {
-                        if (
-                          !/\.(txt|md|markdown)$/i.test(file.name) ||
-                          file.size > 80000
-                        )
-                          throw new Error(
-                            "请选择不超过 80 KB 的 TXT / Markdown 文件",
-                          );
-                        const material = await file.text();
-                        if (
-                          material.length > 20000 ||
-                          material.includes("\u0000")
-                        )
-                          throw new Error(
-                            "请使用不超过 20,000 字的 UTF-8 文本资料",
-                          );
-                        setBrief((current) => ({ ...current, material }));
-                      });
-                  }}
-                />
-              </label>
+              <details
+                className="learn-material-details"
+                open={!!brief.material}
+              >
+                <summary>
+                  添加参考资料（选填）
+                  <small>粘贴文字或追加 TXT / Markdown</small>
+                </summary>
+                <div>
+                  <label htmlFor="learning-material">
+                    参考资料 · 选填，最多 20,000 字
+                  </label>
+                  <textarea
+                    id="learning-material"
+                    rows={7}
+                    maxLength={20000}
+                    disabled={busy}
+                    value={brief.material}
+                    onChange={(e) =>
+                      setBrief({ ...brief, material: e.target.value })
+                    }
+                  />
+                  <label className="learn-file-button">
+                    追加 TXT / Markdown 资料
+                    <input
+                      type="file"
+                      accept=".txt,.md,.markdown"
+                      multiple
+                      disabled={busy}
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files ?? []);
+                        e.target.value = "";
+                        if (files.length)
+                          void run(async () => {
+                            if (files.length > 5)
+                              throw new Error("每次最多导入 5 个资料文件");
+                            const sections = await Promise.all(
+                              files.map(async (file) => {
+                                if (
+                                  !/\.(txt|md|markdown)$/i.test(file.name) ||
+                                  file.size > 80000
+                                )
+                                  throw new Error(
+                                    "请选择不超过 80 KB 的 TXT / Markdown 文件",
+                                  );
+                                let content: string;
+                                try {
+                                  content = new TextDecoder("utf-8", {
+                                    fatal: true,
+                                  }).decode(await file.arrayBuffer());
+                                } catch {
+                                  throw new Error(
+                                    `${file.name} 不是有效的 UTF-8 文本资料`,
+                                  );
+                                }
+                                if (content.includes("\u0000"))
+                                  throw new Error(
+                                    `${file.name} 不是有效的 UTF-8 文本资料`,
+                                  );
+                                const name = file.name
+                                  .replace(/[\r\n\t]/g, " ")
+                                  .slice(0, 120);
+                                return `【来源：${name}】\n${content.trim()}`;
+                              }),
+                            );
+                            const material = [
+                              brief.material.trim(),
+                              ...sections,
+                            ]
+                              .filter(Boolean)
+                              .join("\n\n");
+                            if (material.length > 20000)
+                              throw new Error(
+                                "参考资料总长度不能超过 20,000 字",
+                              );
+                            setBrief((current) => ({ ...current, material }));
+                          });
+                      }}
+                    />
+                  </label>
+                </div>
+              </details>
               <p className="learn-muted">
                 生成时，需求与参考资料会发送给所选模型。草稿保存在本应用中。
               </p>
@@ -296,18 +393,61 @@ export function Studio({
                 <span className="learn-chip">{draft.brief.level}</span>
               </div>
               {!draft.outline && !draft.task && (
-                <button
-                  className="learn-button primary"
-                  disabled={busy}
-                  onClick={() => void run(() => startTask("outline"))}
-                >
-                  准备生成大纲
-                </button>
+                <div className="learn-next-step">
+                  <div>
+                    <span className="learn-eyebrow">STEP 02 · 课程大纲</span>
+                    <h3>学习需求已保存</h3>
+                    <p>先生成课程结构，再检查每课标题和目标。</p>
+                  </div>
+                  <button
+                    className="learn-button primary"
+                    disabled={busy}
+                    onClick={() => void run(() => startTask("outline"))}
+                  >
+                    准备生成大纲
+                  </button>
+                </div>
               )}
+              {draft.outline &&
+                !draft.task &&
+                draft.outline.lessons.some((slot) => !slot.lesson) && (
+                  <div className="learn-current-task">
+                    <div>
+                      <span className="learn-eyebrow">当前任务</span>
+                      <strong>
+                        生成第{" "}
+                        {draft.outline.lessons.findIndex(
+                          (slot) => !slot.lesson,
+                        ) + 1}{" "}
+                        课：
+                        {
+                          draft.outline.lessons.find((slot) => !slot.lesson)
+                            ?.title
+                        }
+                      </strong>
+                      <p>生成后先预览并采用，再继续下一课。</p>
+                    </div>
+                    <button
+                      className="learn-button primary"
+                      disabled={busy}
+                      onClick={() =>
+                        void run(() =>
+                          startTask(
+                            "lesson",
+                            draft.outline!.lessons.find((slot) => !slot.lesson)!
+                              .id,
+                          ),
+                        )
+                      }
+                    >
+                      生成下一个待完成课时
+                    </button>
+                  </div>
+                )}
               {draft.outline && (
                 <div className="learn-outline-editor">
                   <fieldset disabled={busy || !!draft.task}>
-                    <legend>编辑课程大纲</legend>
+                    <legend>课程结构</legend>
                     <p className="learn-muted">
                       修改已生成课时的标题或目标会清除该课草稿内容，需要重新生成。正式课程在点击「保存课程」前不会改变。
                     </p>
@@ -342,56 +482,61 @@ export function Studio({
                       {draft.outline.lessons.map((slot, i) => (
                         <li key={slot.id}>
                           <div className="learn-section-title">
-                            <strong>第 {i + 1} 课</strong>
+                            <strong>
+                              第 {i + 1} 课 · {slot.title}
+                            </strong>
                             <span
                               className={`learn-chip ${slot.lesson ? "success" : ""}`}
                             >
                               {slot.lesson ? "内容已保存" : "待生成"}
                             </span>
                           </div>
-                          <label>
-                            课时标题
-                            <input
-                              maxLength={120}
-                              value={slot.title}
-                              onChange={(e) =>
-                                updateOutline({
-                                  ...draft.outline!,
-                                  lessons: draft.outline!.lessons.map((s) =>
-                                    s.id === slot.id
-                                      ? {
-                                          id: s.id,
-                                          title: e.target.value,
-                                          objective: s.objective,
-                                        }
-                                      : s,
-                                  ),
-                                })
-                              }
-                            />
-                          </label>
-                          <label>
-                            学习目标
-                            <textarea
-                              rows={2}
-                              maxLength={500}
-                              value={slot.objective}
-                              onChange={(e) =>
-                                updateOutline({
-                                  ...draft.outline!,
-                                  lessons: draft.outline!.lessons.map((s) =>
-                                    s.id === slot.id
-                                      ? {
-                                          id: s.id,
-                                          title: s.title,
-                                          objective: e.target.value,
-                                        }
-                                      : s,
-                                  ),
-                                })
-                              }
-                            />
-                          </label>
+                          <details className="learn-slot-details">
+                            <summary>编辑标题与目标</summary>
+                            <label>
+                              课时标题
+                              <input
+                                maxLength={120}
+                                value={slot.title}
+                                onChange={(e) =>
+                                  updateOutline({
+                                    ...draft.outline!,
+                                    lessons: draft.outline!.lessons.map((s) =>
+                                      s.id === slot.id
+                                        ? {
+                                            id: s.id,
+                                            title: e.target.value,
+                                            objective: s.objective,
+                                          }
+                                        : s,
+                                    ),
+                                  })
+                                }
+                              />
+                            </label>
+                            <label>
+                              学习目标
+                              <textarea
+                                rows={2}
+                                maxLength={500}
+                                value={slot.objective}
+                                onChange={(e) =>
+                                  updateOutline({
+                                    ...draft.outline!,
+                                    lessons: draft.outline!.lessons.map((s) =>
+                                      s.id === slot.id
+                                        ? {
+                                            id: s.id,
+                                            title: s.title,
+                                            objective: e.target.value,
+                                          }
+                                        : s,
+                                    ),
+                                  })
+                                }
+                              />
+                            </label>
+                          </details>
                           <div className="learn-actions">
                             <div>
                               <button
@@ -453,7 +598,57 @@ export function Studio({
                             >
                               手动编辑内容
                             </button>
+                            {slot.lesson && (
+                              <button
+                                className="learn-button"
+                                onClick={() => {
+                                  setRevisionSlot(slot.id);
+                                  setRevisionInstruction("");
+                                }}
+                              >
+                                AI 局部修改
+                              </button>
+                            )}
                           </div>
+                          {revisionSlot === slot.id && slot.lesson && (
+                            <div className="learn-revision-form">
+                              <label>
+                                描述希望修改的部分
+                                <textarea
+                                  rows={3}
+                                  maxLength={500}
+                                  value={revisionInstruction}
+                                  placeholder="例如：把示例换成真实业务场景，并补一道相关练习题"
+                                  onChange={(e) =>
+                                    setRevisionInstruction(e.target.value)
+                                  }
+                                />
+                              </label>
+                              <div className="learn-actions">
+                                <button
+                                  className="learn-button primary"
+                                  disabled={busy || !revisionInstruction.trim()}
+                                  onClick={() =>
+                                    void run(() =>
+                                      startTask(
+                                        "revise",
+                                        slot.id,
+                                        revisionInstruction,
+                                      ),
+                                    )
+                                  }
+                                >
+                                  准备 AI 修改
+                                </button>
+                                <button
+                                  className="learn-button"
+                                  onClick={() => setRevisionSlot(null)}
+                                >
+                                  取消
+                                </button>
+                              </div>
+                            </div>
+                          )}
                           {slot.lesson && (
                             <details>
                               <summary>预览讲解与测验</summary>
@@ -515,22 +710,6 @@ export function Studio({
                   {!draft.task && (
                     <div className="learn-actions">
                       <button
-                        className="learn-button"
-                        disabled={
-                          busy || draft.outline.lessons.every((s) => s.lesson)
-                        }
-                        onClick={() =>
-                          void run(() =>
-                            startTask(
-                              "lesson",
-                              draft.outline!.lessons.find((s) => !s.lesson)!.id,
-                            ),
-                          )
-                        }
-                      >
-                        生成下一个待完成课时
-                      </button>
-                      <button
                         className="learn-button primary"
                         disabled={
                           busy || draft.outline.lessons.some((s) => !s.lesson)
@@ -540,7 +719,7 @@ export function Studio({
                             await persist(draft);
                             const course = finishDraft(draft);
                             await onSave(course);
-                            await clearGenerationDraft();
+                            await clearGenerationDraft(activeDraftKey);
                             onSaved(course);
                           })
                         }
@@ -559,12 +738,16 @@ export function Studio({
                     title={
                       draft.task.kind === "outline"
                         ? "生成课程大纲"
-                        : "生成单课内容"
+                        : draft.task.kind === "revise"
+                          ? "AI 局部修改课时"
+                          : "生成单课内容"
                     }
                     prompt={
                       draft.task.kind === "outline"
                         ? outlinePrompt(draft.brief)
-                        : lessonPrompt(draft, draft.task.targetId!)
+                        : draft.task.kind === "revise"
+                          ? revisionPrompt(draft, draft.task.targetId!)
+                          : lessonPrompt(draft, draft.task.targetId!)
                     }
                     preview={(raw) => {
                       const next = acceptTask(draft, raw);
@@ -584,9 +767,36 @@ export function Studio({
                       const lesson = next.outline!.lessons.find(
                         (s) => s.id === draft.task!.targetId,
                       )!.lesson!;
+                      const previous = draft.outline?.lessons.find(
+                        (s) => s.id === draft.task!.targetId,
+                      )?.lesson;
+                      const changed = previous
+                        ? [
+                            "title",
+                            "objective",
+                            "content",
+                            "example",
+                            "takeaways",
+                            "questions",
+                          ].filter(
+                            (field) =>
+                              JSON.stringify(
+                                lesson[field as keyof typeof lesson],
+                              ) !==
+                              JSON.stringify(
+                                previous[field as keyof typeof previous],
+                              ),
+                          )
+                        : [];
                       return (
                         <>
                           <h3>{lesson.title}</h3>
+                          {draft.task!.kind === "revise" && (
+                            <p>
+                              本次修改：{changed.join("、")}
+                              。采用后只更新这一课的草稿。
+                            </p>
+                          )}
                           <Text value={lesson.content} />
                           <h4>示例</h4>
                           <Text value={lesson.example} />
@@ -602,7 +812,11 @@ export function Studio({
                     }
                     onRetryConnection={() =>
                       exclusive(() =>
-                        startTask(draft.task!.kind, draft.task!.targetId),
+                        startTask(
+                          draft.task!.kind,
+                          draft.task!.targetId,
+                          draft.task!.instruction,
+                        ),
                       )
                     }
                   />

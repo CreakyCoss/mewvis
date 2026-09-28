@@ -12,7 +12,7 @@ test.after(() => rm(temporary, { recursive: true, force: true }));
 const compiled = await build({
   stdin: {
     contents:
-      'export * from "./main/course"; export * from "./main/repository"; export * from "./main/generation"; export * from "./main/example"; export * from "./main/workflow"; export * from "./main/pbl"; export * from "./main/vendor/grading";',
+      'export * from "./main/course"; export * from "./main/repository"; export * from "./main/generation"; export * from "./main/example"; export * from "./main/workflow"; export * from "./main/pbl"; export * from "./main/vendor/grading"; export * from "./main/mastery";',
     resolveDir: root,
   },
   bundle: true,
@@ -30,18 +30,21 @@ const {
   parseCourseOutput,
   emptyProgress,
   restoreProgress,
+  recordAttempt,
   repository,
   courseKey,
   courseFromSnapshot,
   buildPrompt,
   exampleCourse,
   gradeChoiceQuestions,
+  lessonMastery,
   validateLesson,
   validAnswer,
   newDraft,
   validateDraft,
   writeDraft,
   draftKey,
+  draftKeyForCourse,
   acceptTask,
   finishDraft,
   validateOutline,
@@ -49,6 +52,7 @@ const {
   gradingPrompt,
   outlinePrompt,
   lessonPrompt,
+  revisionPrompt,
   finalText,
   editDraftLesson,
   validatePlan,
@@ -317,6 +321,102 @@ test("malformed progress cannot introduce nonexistent lessons, answers, or dupli
   assert.deepEqual(result.completed, ["lesson-1"]);
   assert.deepEqual(result.attempts, {});
 });
+test("later submissions retain earlier work and grading updates do not add attempts", async () => {
+  const course = copy();
+  const lesson = course.lessons[0];
+  const question = lesson.questions[0];
+  let progress = emptyProgress(course);
+  progress = recordAttempt(course, progress, lesson.id, {
+    submittedAt: 10,
+    answers: { [question.id]: question.options[1].value },
+  });
+  progress = recordAttempt(course, progress, lesson.id, {
+    submittedAt: 20,
+    answers: { [question.id]: question.answer },
+  });
+  assert.equal(progress.history[lesson.id].length, 1);
+  assert.equal(progress.history[lesson.id][0].submittedAt, 10);
+  progress = recordAttempt(course, progress, lesson.id, {
+    ...progress.attempts[lesson.id],
+    submittedAt: 20,
+  });
+  assert.equal(progress.history[lesson.id].length, 1);
+  const storage = memory();
+  await repository(storage).saveProgress(course, progress);
+  assert.deepEqual(await repository(storage).progress(course), progress);
+  const changed = structuredClone(course);
+  changed.lessons[0].id = "replacement";
+  assert.equal(
+    restoreProgress(changed, progress).history[lesson.id],
+    undefined,
+  );
+});
+test("attempt history remains bounded within a course progress record", () => {
+  const course = copy();
+  const lesson = course.lessons[0];
+  const question = lesson.questions[0];
+  let progress = emptyProgress(course);
+  for (let timestamp = 1; timestamp <= 30; timestamp++) {
+    progress = recordAttempt(course, progress, lesson.id, {
+      submittedAt: timestamp,
+      answers: { [question.id]: question.answer },
+    });
+  }
+  assert.equal(progress.attempts[lesson.id].submittedAt, 30);
+  assert.deepEqual(
+    progress.history[lesson.id].map((entry) => entry.submittedAt),
+    [29, 28, 27, 26, 25, 24, 23, 22],
+  );
+  assert.ok(Buffer.byteLength(JSON.stringify(progress)) <= 220_000);
+});
+test("mastery reflects only graded questions and changes after short answer review", () => {
+  const lesson = validateLesson(
+    {
+      title: "回忆",
+      objective: "复习",
+      content: "先回忆，再核对。",
+      example: "说出所学内容。",
+      takeaways: ["主动提取"],
+      questions: [
+        {
+          type: "single_choice",
+          question: "第一步？",
+          options: [
+            { value: "A", label: "回忆" },
+            { value: "B", label: "抄写" },
+          ],
+          answer: "A",
+          explanation: "先回忆。",
+        },
+        {
+          type: "short_answer",
+          question: "如何检查？",
+          answer: "核对资料",
+          rubric: "提到核对",
+          explanation: "检查遗漏。",
+        },
+      ],
+    },
+    "lesson-1",
+  );
+  const attempt = {
+    submittedAt: 1,
+    answers: { "lesson-1-q1": "A", "lesson-1-q2": "核对" },
+  };
+  assert.deepEqual(lessonMastery(lesson, attempt), {
+    percent: 100,
+    assessed: 1,
+    total: 2,
+    pending: 1,
+  });
+  assert.deepEqual(
+    lessonMastery(lesson, {
+      ...attempt,
+      grades: { "lesson-1-q2": { score: 0.5, feedback: "继续" } },
+    }),
+    { percent: 75, assessed: 2, total: 2, pending: 0 },
+  );
+});
 test("corrupt documents are reported and retained alongside readable courses", async () => {
   const storage = memory();
   const r = repository(storage);
@@ -518,6 +618,23 @@ test("outline edits, adoption and per-lesson retry survive draft reload without 
     /不存在/,
   );
 });
+test("new course and saved course keep independent drafts", async () => {
+  const storage = memory();
+  const course = copy();
+  await repository(storage).save(course);
+  const fresh = newDraft(briefV2);
+  const edit = newDraft({ ...briefV2, topic: course.title }, course);
+  await writeDraft(storage, fresh);
+  await writeDraft(storage, edit, draftKeyForCourse(course.id));
+  assert.equal((await storage.getItem(draftKey)).courseId, fresh.courseId);
+  assert.equal(
+    (await storage.getItem(draftKeyForCourse(course.id))).courseId,
+    course.id,
+  );
+  await repository(storage).remove(course.id);
+  assert.equal(await storage.getItem(draftKeyForCourse(course.id)), null);
+  assert.equal((await storage.getItem(draftKey)).courseId, fresh.courseId);
+});
 test("rewriting one saved lesson invalidates only its progress and tutor identity", () => {
   const course = copy();
   let d = newDraft(briefV2, course);
@@ -540,6 +657,41 @@ test("rewriting one saved lesson invalidates only its progress and tutor identit
     course.lessons[2].id,
   ]);
   assert.equal(Object.keys(next.attempts).length, 2);
+});
+test("AI lesson revision accepts validated field patches and preserves other lessons", () => {
+  const course = copy();
+  const original = course.lessons[0];
+  let draft = newDraft(briefV2, course);
+  const slotId = draft.outline.lessons[0].id;
+  draft.task = {
+    kind: "revise",
+    targetId: slotId,
+    instruction: "只更新示例",
+    ref,
+  };
+  assert.match(revisionPrompt(draft, slotId), /只更新示例/);
+  assert.equal(validateDraft(draft).task.instruction, "只更新示例");
+  assert.throws(
+    () => acceptTask(draft, JSON.stringify({ changes: { id: "bad" } })),
+    /无效字段/,
+  );
+  assert.throws(
+    () =>
+      acceptTask(
+        draft,
+        JSON.stringify({ changes: { example: original.example } }),
+      ),
+    /没有实际变化/,
+  );
+  const revised = acceptTask(
+    draft,
+    JSON.stringify({ changes: { example: "新例子" } }),
+  );
+  assert.equal(revised.task, undefined);
+  assert.equal(revised.outline.lessons[0].lesson.example, "新例子");
+  assert.equal(revised.outline.lessons[0].lesson.content, original.content);
+  assert.notEqual(revised.outline.lessons[0].lesson.id, original.id);
+  assert.equal(revised.outline.lessons[1].lesson.id, course.lessons[1].id);
 });
 test("AI grading binds every score to the submitted attempt and validates coverage and bounds", () => {
   const l = mixedLesson();

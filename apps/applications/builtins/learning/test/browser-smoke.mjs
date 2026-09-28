@@ -107,6 +107,13 @@ await page.addInitScript(
           })),
         });
       }
+      if (prompt.includes("只修改指定课时中与要求相关的字段"))
+        return JSON.stringify({ changes: { example: "修改后的业务场景示例" } });
+      if (prompt.includes("请根据本课目标给我一个分步学习提示"))
+        return [
+          "先试着解释主动回忆，再打开要点自测核对遗漏。",
+          ...Array(35).fill("先独立解释概念，再核对例子、要点与测验反馈。"),
+        ].join("\n\n");
       if (prompt.includes("只生成指定课时")) return JSON.stringify(lesson);
       return JSON.stringify({
         title: "主动回忆入门",
@@ -141,6 +148,8 @@ await page.route("**/chat-host.js*", async (route) => {
   await route.fulfill({ response, body, contentType: "text/javascript" });
 });
 const button = (name) => page.getByRole("button", { name, exact: true });
+const closeEditor = () =>
+  page.getByRole("dialog").getByRole("button", { name: /关闭/ }).click();
 const adopt = () => button("采用并保存结果").click();
 const generate = () => button("开始生成").click();
 const data = () =>
@@ -161,19 +170,64 @@ const data = () =>
   });
 try {
   await page.goto(process.env.LEARNING_URL || "http://127.0.0.1:5178/");
-  await button("创建新课程").click();
-  await page.getByLabel("你想学什么？", { exact: true }).fill("主动回忆");
+  await button("创建第一门课程").waitFor();
+  await page.screenshot({
+    path: `${out}/library-empty-desktop.png`,
+    fullPage: true,
+  });
+  await button("创建第一门课程").click();
+  await page.screenshot({
+    path: `${out}/create-dialog-desktop.png`,
+    fullPage: true,
+  });
+  assert.equal(
+    await page.getByLabel("参考资料 · 选填，最多 20,000 字").isVisible(),
+    false,
+  );
+  await page.getByLabel("课程主题", { exact: true }).fill("主动回忆");
+  await button("下一步").click();
+  await page.getByLabel("计划课时").selectOption("3");
+  await button("下一步").click();
+  await page.getByLabel("追加 TXT / Markdown 资料").setInputFiles([
+    {
+      name: "notes.md",
+      mimeType: "text/markdown",
+      buffer: Buffer.from("主动回忆练习"),
+    },
+    {
+      name: "source.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("先提取再反馈"),
+    },
+  ]);
+  await page.waitForFunction(() =>
+    document
+      .querySelector("#learning-material")
+      ?.value.includes("来源：source.txt"),
+  );
+  await page.getByLabel("参考资料 · 选填，最多 20,000 字").waitFor();
+  assert.match(
+    await page.getByLabel("参考资料 · 选填，最多 20,000 字").inputValue(),
+    /来源：notes.md[\s\S]*来源：source.txt/,
+  );
   await button("保存需求，开始规划").click();
   await button("准备生成大纲").click();
   await generate();
   await adopt();
+  await page.screenshot({
+    path: `${out}/outline-collapsed-desktop.png`,
+    fullPage: true,
+  });
+  await page.locator(".learn-slot-details summary").first().click();
   await page
     .getByLabel("课时标题", { exact: true })
     .first()
     .fill("理解主动回忆");
   await button("保存大纲修改").click();
-  await button("我的课程").click();
+  await closeEditor();
   await button("创建课程").click();
+  await button("继续草稿").click();
+  await page.locator(".learn-slot-details summary").first().click();
   await page.getByLabel("课时标题", { exact: true }).first().waitFor();
   assert.equal(
     await page.getByLabel("课时标题", { exact: true }).first().inputValue(),
@@ -203,6 +257,65 @@ try {
   }
   await page.screenshot({ path: `${out}/outline-desktop.png`, fullPage: true });
   await button("保存课程，开始学习").click();
+  assert.equal(await page.getByRole("dialog").count(), 0);
+  await page.getByRole("complementary", { name: "AI 学习导师" }).waitFor();
+  await page.locator(".learn-chat").waitFor();
+  assert.equal(await button("连接 AI 导师").count(), 0);
+  assert.equal(await button("编辑课程").count(), 0);
+  assert.equal(
+    await page
+      .locator(".learn-main.is-lesson")
+      .evaluate((node) => getComputedStyle(node).overflow),
+    "hidden",
+  );
+  const layoutBefore = await page.evaluate(() => ({
+    header: document.querySelector(".learn-course-top").getBoundingClientRect()
+      .top,
+    tutor: document.querySelector(".learn-tutor").getBoundingClientRect().top,
+  }));
+  await page.locator(".learn-reading").evaluate((node) => {
+    node.scrollTop = 500;
+  });
+  const layoutAfter = await page.evaluate(() => ({
+    header: document.querySelector(".learn-course-top").getBoundingClientRect()
+      .top,
+    tutor: document.querySelector(".learn-tutor").getBoundingClientRect().top,
+  }));
+  assert.deepEqual(layoutAfter, layoutBefore);
+  await page.screenshot({ path: `${out}/lesson-desktop.png`, fullPage: true });
+  await page.locator(".learn-recall-card").first().click();
+  assert.equal(
+    await page
+      .locator(".learn-recall-card")
+      .first()
+      .getAttribute("aria-expanded"),
+    "true",
+  );
+  await page.locator(".learn-tutor-guide summary").click();
+  await button("看例子").click();
+  assert.equal(await page.locator(".learn-example.learn-focused").count(), 1);
+  await button("请 AI 导师给下一步提示").click();
+  await page
+    .getByText("先试着解释主动回忆，再打开要点自测核对遗漏。", { exact: true })
+    .waitFor();
+  await page.waitForFunction(() => {
+    const scroller = document.querySelector(
+      ".learn-chat [class*='overflow-y-auto']",
+    );
+    return scroller && scroller.scrollHeight > scroller.clientHeight;
+  });
+  assert.ok(
+    await page
+      .locator(".learn-chat [class*='overflow-y-auto']")
+      .first()
+      .evaluate((node) => {
+        node.scrollTop = 0;
+        return (
+          node.scrollHeight > node.clientHeight &&
+          getComputedStyle(node).overflowY === "auto"
+        );
+      }),
+  );
   await page.getByRole("tab", { name: /课后测验/ }).click();
   await page.getByRole("radio").first().check();
   await page.getByRole("checkbox").nth(0).check();
@@ -213,6 +326,7 @@ try {
   await generate();
   await adopt();
   await page.getByText("AI 评分：0.5 / 1 分", { exact: true }).waitFor();
+  await page.getByText(/最近一次掌握参考：83%/).waitFor();
   await page.screenshot({ path: `${out}/quiz-desktop.png`, fullPage: true });
   let values = await data();
   const course = Object.values(values).find(
@@ -230,6 +344,14 @@ try {
   await page.getByRole("tab", { name: /课后测验/ }).click();
   await page.getByText("AI 评分：0.5 / 1 分", { exact: true }).waitFor();
   await page.setViewportSize({ width: 390, height: 844 });
+  await button("展开对话").click();
+  assert.equal(
+    await page
+      .locator(".learn-reading")
+      .evaluate((node) => getComputedStyle(node).display),
+    "none",
+  );
+  await button("返回课程").click();
   assert.ok(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -237,7 +359,20 @@ try {
   );
   await page.screenshot({ path: `${out}/quiz-mobile.png`, fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await button("编辑 / 重新生成").click();
+  await button("只练需巩固的 1 题").click();
+  assert.equal(await page.locator(".learn-quiz fieldset").count(), 1);
+  await page.getByLabel("第 3 题作答").fill("主动提取知识，再核对并修正理解");
+  await button("提交答案").click();
+  await page.getByText("练习记录 · 共 2 次").waitFor();
+  await page.getByText(/最近一次掌握参考：100%.*1 道简答待评/).waitFor();
+  values = await data();
+  assert.equal(
+    values[`learning:progress:${course.id}`].history[course.lessons[0].id]
+      .length,
+    1,
+  );
+  await button("课程库").click();
+  await button("编辑课程").click();
   await button("重新生成本课").nth(1).click();
   await generate();
   await adopt();
@@ -247,18 +382,41 @@ try {
   assert.equal(revised.lessons[0].id, course.lessons[0].id);
   assert.notEqual(revised.lessons[1].id, course.lessons[1].id);
   assert.equal(revised.lessons[2].id, course.lessons[2].id);
-  await page.getByRole("tab", { name: "项目实训", exact: true }).click();
+  await button("项目实训").click();
+  assert.equal(
+    await page.getByRole("tab", { name: "项目实训", exact: true }).count(),
+    0,
+  );
+  assert.equal(await button("设计实训项目").count(), 0);
+  await page.getByRole("heading", { name: "这门课程还没有实训项目" }).waitFor();
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.ok(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  );
+  await page.screenshot({ path: `${out}/project-mobile.png`, fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await button("课程库").click();
+  await button("编辑课程").click();
+  await page.getByRole("tab", { name: "项目实训" }).click();
   await button("设计实训项目").click();
   await generate();
   await adopt();
+  await page.getByLabel("项目标题").waitFor();
+  await page.getByLabel("项目标题").fill("学习指南实训（修订版）");
+  await button("保存项目计划").click();
+  await closeEditor();
+  await button("开始学习").click();
+  await button("项目实训").click();
   await page
-    .getByRole("heading", { name: "学习指南实训", exact: true })
+    .getByRole("heading", { name: "学习指南实训（修订版）", exact: true })
     .waitFor();
   await page.getByLabel(/我的成果/).fill("第一版成果草稿");
   await button("保存成果草稿").click();
   await button("课程库").click();
   await button("开始学习").click();
-  await page.getByRole("tab", { name: "项目实训", exact: true }).click();
+  await button("项目实训").click();
   assert.equal(
     await page.getByLabel(/我的成果/).inputValue(),
     "第一版成果草稿",
@@ -296,7 +454,8 @@ try {
   const project = values[`learning:pbl:${course.id}`];
   assert.equal(project.progress["stage-1"].completed, true);
   assert.equal(project.progress["stage-2"].draft, "第二阶段的草稿");
-  await button("编辑 / 重新生成").click();
+  await button("课程库").click();
+  await button("编辑课程").click();
   await button("手动编辑内容").first().click();
   await page
     .getByLabel("课时正文", { exact: true })
@@ -310,7 +469,7 @@ try {
       exact: true,
     })
     .waitFor();
-  await page.getByRole("tab", { name: "项目实训", exact: true }).click();
+  await button("项目实训").click();
   await page
     .getByText("课程内容已更新，此项目保留创建时的课程目标与已有成果。", {
       exact: true,
@@ -330,7 +489,41 @@ try {
     revised.lessons[1].id,
   );
   await button("课程库").click();
-  await button("移除").click();
+  await button("编辑课程").click();
+  await button("AI 局部修改").first().click();
+  await page.getByLabel("描述希望修改的部分").fill("只修改本课示例");
+  await button("准备 AI 修改").click();
+  await generate();
+  await adopt();
+  await button("保存课程，开始学习").click();
+  values = await data();
+  assert.equal(
+    values[`learning:course:${course.id}`].lessons[0].example,
+    "修改后的业务场景示例",
+  );
+  assert.equal(
+    values[`learning:course:${course.id}`].lessons[1].id,
+    revised.lessons[1].id,
+  );
+  await button("课程库").click();
+  await page.screenshot({ path: `${out}/library-desktop.png`, fullPage: true });
+  await button("创建课程").click();
+  await page.getByLabel("课程主题", { exact: true }).fill("并行草稿");
+  await button("下一步").click();
+  await button("下一步").click();
+  await button("保存需求，开始规划").click();
+  await closeEditor();
+  await button("编辑课程").click();
+  await page.getByRole("tab", { name: "项目实训" }).waitFor();
+  await closeEditor();
+  await button("创建课程").click();
+  await button("继续草稿").click();
+  await page.getByRole("heading", { name: "并行草稿" }).waitFor();
+  await closeEditor();
+  await page.locator(".learn-card-menu summary").click();
+  await button("复制课程 JSON").click();
+  await button("已复制课程 JSON").waitFor();
+  await button("移除课程").click();
   await button("确认移除").click();
   await page
     .getByRole("heading", { name: "你的下一次探索，从这里开始" })
@@ -338,7 +531,7 @@ try {
   assert.equal((await data())[`learning:pbl:${course.id}`], undefined);
   assert.equal(errors.length, 0, errors.join("\n"));
   console.log(
-    "Browser smoke passed: editable outline, navigation recovery, per-lesson retry, mixed quiz, AI score persistence, targeted rewrite, PBL review/resubmit/recovery, manual content edits, project removal and mobile overflow checks.",
+    "Browser smoke passed: unified course dialog, draft isolation, automatic tutor connection and scrolling, mobile tutor expansion, staged generation, grading, PBL, and editing.",
   );
 } catch (error) {
   await page.screenshot({ path: `${out}/failure.png`, fullPage: true });

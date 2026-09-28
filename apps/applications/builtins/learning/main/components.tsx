@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   getApplicationChatClient,
   type ApplicationChatSession,
@@ -68,11 +68,45 @@ export function Text({ value }: { value: string }) {
   );
 }
 export { Quiz } from "./Quiz";
-export function Tutor({ course, lesson }: { course: Course; lesson: Lesson }) {
+export type FocusTarget =
+  "objective" | "example" | "takeaways" | "recall" | "quiz";
+export function Tutor({
+  course,
+  lesson,
+  onFocus,
+  expanded,
+  onToggleExpand,
+}: {
+  course: Course;
+  lesson: Lesson;
+  onFocus: (target: FocusTarget) => void;
+  expanded: boolean;
+  onToggleExpand: () => void;
+}) {
   const [session, setSession] = useState<ApplicationChatSession | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [hint, setHint] = useState<FocusTarget | null>(null);
   const connecting = useRef(false);
+  const requestHint = async () => {
+    if (!session || connecting.current) return;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await session.send({
+        text: "请根据本课目标给我一个分步学习提示：先提出一个让我自己思考的问题，再提示我应查看目标、例子、要点自测还是测验。不要直接给出测验答案。",
+        requestId: crypto.randomUUID(),
+      });
+      if (result.status !== "dispatched")
+        throw new Error(
+          result.reason || "导师提示未发送，请先在聊天区选择模型",
+        );
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
   const connect = async (fresh = false) => {
     if (connecting.current) return;
     connecting.current = true;
@@ -122,6 +156,9 @@ export function Tutor({ course, lesson }: { course: Course; lesson: Lesson }) {
       setBusy(false);
     }
   };
+  useEffect(() => {
+    void connect();
+  }, []);
   return (
     <aside className="learn-tutor" aria-label="AI 学习导师">
       <header>
@@ -130,9 +167,71 @@ export function Tutor({ course, lesson }: { course: Course; lesson: Lesson }) {
         </span>
         <div>
           <h2>学习导师</h2>
-          <p>围绕这一课，继续探索</p>
+          <p>{lesson.title}</p>
         </div>
+        <span
+          className={`learn-tutor-status ${session ? "ready" : error ? "error" : ""}`}
+          role="status"
+        >
+          {session ? "可随时提问" : error ? "连接失败" : "连接中"}
+        </span>
+        <button
+          className="learn-tutor-expand"
+          onClick={onToggleExpand}
+          aria-expanded={expanded}
+        >
+          {expanded ? "返回课程" : "展开对话"}
+        </button>
       </header>
+      <details className="learn-tutor-guide">
+        <summary>
+          学习引导 <span aria-hidden="true">⌄</span>
+        </summary>
+        <div className="learn-tutor-guide-body">
+          <p>快速定位内容，先独立思考，再向导师提问。</p>
+          <div className="learn-tutor-guide-actions">
+            {(
+              [
+                ["objective", "看目标"],
+                ["example", "看例子"],
+                ["recall", "回忆要点"],
+                ["quiz", "去测验"],
+              ] as const
+            ).map(([target, label]) => (
+              <button
+                key={target}
+                className="learn-button text"
+                onClick={() => {
+                  setHint(target);
+                  onFocus(target);
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {session && (
+            <button
+              className="learn-button"
+              disabled={busy}
+              onClick={() => void requestHint()}
+            >
+              请 AI 导师给下一步提示
+            </button>
+          )}
+          {hint && (
+            <p className="learn-tutor-hint" role="status">
+              {hint === "objective"
+                ? `先用自己的话解释目标：${lesson.objective}`
+                : hint === "example"
+                  ? "读完例子后，试着说出它说明了正文中的哪一个概念。"
+                  : hint === "recall"
+                    ? "先遮住要点回忆，再翻开卡片核对遗漏。"
+                    : "先独立作答；提交后根据解析定位需要巩固的内容。"}
+            </p>
+          )}
+        </div>
+      </details>
       {error && <Notice>{error}</Notice>}
       {session ? (
         <div className="learn-chat">
@@ -140,35 +239,24 @@ export function Tutor({ course, lesson }: { course: Course; lesson: Lesson }) {
         </div>
       ) : (
         <div className="learn-tutor-empty">
-          <div className="learn-orbit" aria-hidden="true">
-            <Icon name="spark" size={36} />
-          </div>
-          <h3>每一个问题，都值得展开</h3>
-          <p>
-            导师会带着本课内容与你交流。你可以让它换一种说法、举一个例子，或出一道新题。
-          </p>
-          <div className="learn-prompt-hints">
-            <span>「用一个生活中的例子解释」</span>
-            <span>「我最容易误解的地方是什么？」</span>
-          </div>
-          <button
-            className="learn-button"
-            disabled={busy}
-            onClick={() => void connect()}
-          >
-            {busy ? "连接中…" : error ? "重试连接" : "连接 AI 导师"}
-            <Icon name="arrow" size={16} />
-          </button>
-          {error && (
-            <button
-              className="learn-button text"
-              disabled={busy}
-              onClick={() => void connect(true)}
-            >
-              新开导师对话（保留原历史）
-            </button>
+          {busy ? (
+            <p role="status">正在准备导师对话…</p>
+          ) : error ? (
+            <>
+              <p>导师连接失败，已有对话记录仍保留。</p>
+              <button className="learn-button" onClick={() => void connect()}>
+                重试连接
+              </button>
+              <button
+                className="learn-button text"
+                onClick={() => void connect(true)}
+              >
+                新开导师对话（保留原历史）
+              </button>
+            </>
+          ) : (
+            <p role="status">正在准备导师对话…</p>
           )}
-          <small>使用 Isle 中已配置的模型</small>
         </div>
       )}
     </aside>
