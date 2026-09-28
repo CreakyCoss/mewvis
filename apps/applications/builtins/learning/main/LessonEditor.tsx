@@ -59,7 +59,7 @@ export function LessonEditor({
     <section className="learn-manual-editor" aria-label="手动编辑课时">
       <h1>手动编辑课时</h1>
       <p className="learn-muted">
-        保存后写入课程草稿，再点击「保存课程，开始学习」发布到课程库。内容变更会重置本课旧测验和完成状态，其他课时不受影响。
+        保存后可继续编辑或暂存，完成全部课时后点击「保存课程，开始学习」。内容变更会重置本课旧测验和完成状态，其他课时不受影响。
       </p>
       {error && <Notice>{error}</Notice>}
       <form
@@ -329,7 +329,7 @@ export function LessonEditor({
             className="learn-button primary"
             disabled={busy}
           >
-            {busy ? "保存中…" : "保存课时到草稿"}
+            {busy ? "保存中…" : "保存课时修改"}
           </button>
           <button
             type="button"

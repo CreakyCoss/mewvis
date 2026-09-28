@@ -12,7 +12,7 @@ test.after(() => rm(temporary, { recursive: true, force: true }));
 const compiled = await build({
   stdin: {
     contents:
-      'export * from "./main/course"; export * from "./main/repository"; export * from "./main/generation"; export * from "./main/example"; export * from "./main/workflow"; export * from "./main/pbl"; export * from "./main/vendor/grading"; export * from "./main/mastery";',
+      'export * from "./main/course"; export * from "./main/repository"; export * from "./main/clearOldChats"; export * from "./main/generation"; export * from "./main/example"; export * from "./main/workflow"; export * from "./main/pbl"; export * from "./main/vendor/grading"; export * from "./main/mastery";',
     resolveDir: root,
   },
   bundle: true,
@@ -32,6 +32,7 @@ const {
   restoreProgress,
   recordAttempt,
   repository,
+  clearOldChats,
   courseKey,
   courseFromSnapshot,
   buildPrompt,
@@ -43,8 +44,6 @@ const {
   newDraft,
   validateDraft,
   writeDraft,
-  draftKey,
-  draftKeyForCourse,
   acceptTask,
   finishDraft,
   validateOutline,
@@ -145,6 +144,9 @@ function memory() {
     },
     async removeItem(key) {
       values.delete(key);
+    },
+    async clear() {
+      values.clear();
     },
     async keys() {
       return [...values.keys()];
@@ -250,7 +252,7 @@ test("real Chat engine streams a course, finishes, and persists the parsed resul
     const storage = memory();
     await repository(storage).save(course);
     assert.equal(
-      (await repository(storage).list()).courses[0].title,
+      (await repository(storage).list())[0].title,
       exampleCourse.title,
     );
     assert.equal((await session.flush()).ok, true);
@@ -302,10 +304,19 @@ test("saved course and progress survive a new repository instance", async () => 
   };
   await a.saveProgress(course, progress);
   const b = repository(storage);
-  assert.equal((await b.list()).courses.length, 1);
+  assert.equal((await b.list()).length, 1);
   assert.deepEqual(await b.progress(course), progress);
+  await b.saveDraft(newDraft({ ...briefV2, topic: course.title }, course));
+  assert.equal((await a.list())[0].status, "stashed");
+  await a.save({ ...course, status: "ready" });
+  assert.equal((await b.list())[0].status, "ready");
+  assert.deepEqual(await b.progress(course), progress);
+  assert.throws(
+    () => validateCourse({ ...course, status: "unknown" }),
+    /课程状态/,
+  );
   await b.remove(course.id);
-  assert.equal((await a.list()).courses.length, 0);
+  assert.equal((await a.list()).length, 0);
   assert.equal(storage.values.size, 0);
 });
 test("malformed progress cannot introduce nonexistent lessons, answers, or duplicate completion", () => {
@@ -417,15 +428,80 @@ test("mastery reflects only graded questions and changes after short answer revi
     { percent: 75, assessed: 2, total: 2, pending: 0 },
   );
 });
-test("corrupt documents are reported and retained alongside readable courses", async () => {
+test("the first launch removes every old application data key only once", async () => {
   const storage = memory();
   const r = repository(storage);
-  await r.save(copy());
-  storage.values.set(courseKey("broken"), { version: 200 });
-  const result = await r.list();
-  assert.equal(result.courses.length, 1);
-  assert.equal(result.warnings.length, 1);
-  assert.ok(storage.values.has(courseKey("broken")));
+  for (const key of [
+    courseKey("old"),
+    "learning:progress:old",
+    "learning:pbl:old",
+    "learning:tutor:old:lesson",
+    "learning:draft:v1",
+    "learning:draft:v2",
+    "unknown-old-key",
+  ])
+    storage.values.set(key, { legacy: true });
+  let chatCleanups = 0;
+  const clearChats = async () => {
+    chatCleanups++;
+    assert.deepEqual(await storage.keys(), []);
+  };
+  await r.initialize(clearChats);
+  assert.deepEqual(await storage.keys(), ["learning:data-version"]);
+  const course = copy();
+  await r.save(course);
+  await r.initialize(clearChats);
+  assert.equal((await r.list())[0].id, course.id);
+  assert.equal(storage.values.get("learning:data-version"), "course-status-v2");
+  assert.equal(chatCleanups, 1);
+});
+test("failed chat cleanup leaves no version marker and retries on next launch", async () => {
+  const storage = memory();
+  const r = repository(storage);
+  storage.values.set("old", true);
+  await assert.rejects(
+    r.initialize(async () => {
+      throw new Error("chat cleanup failed");
+    }),
+    /chat cleanup failed/,
+  );
+  assert.deepEqual(await storage.keys(), []);
+  await r.initialize(async () => {});
+  assert.deepEqual(await storage.keys(), ["learning:data-version"]);
+});
+test("old learning chats are removed from every registered workspace", async () => {
+  const removed = [];
+  let disposed = false;
+  await clearOldChats(
+    {
+      workspaces: {
+        list: async () => [{ id: "a" }, { id: "b" }],
+      },
+    },
+    {
+      listSessions: async ({ workspaceId }) =>
+        workspaceId === "a"
+          ? [{ chatId: "one" }, { chatId: "two" }]
+          : [{ chatId: "three" }],
+      deleteSession: async (ref) => removed.push(ref),
+      dispose: () => {
+        disposed = true;
+      },
+    },
+  );
+  assert.deepEqual(removed, [
+    { workspaceId: "a", chatId: "one" },
+    { workspaceId: "a", chatId: "two" },
+    { workspaceId: "b", chatId: "three" },
+  ]);
+  assert.equal(disposed, true);
+});
+test("unsupported course records fail instead of being read as older data", async () => {
+  const storage = memory();
+  const r = repository(storage);
+  await r.initialize(async () => {});
+  storage.values.set(courseKey("broken"), { version: 1 });
+  await assert.rejects(r.list(), /版本/);
 });
 test("storage failures surface without a success fallback", async () => {
   const storage = memory();
@@ -445,7 +521,7 @@ test("retrying a course save with the same identity does not duplicate it", asyn
   const course = createCourse(copy());
   await r.save(course);
   await r.save(course);
-  assert.equal((await r.list()).courses.length, 1);
+  assert.equal((await r.list()).length, 1);
 });
 test("brief validation bounds user material and includes it as JSON data", () => {
   const brief = {
@@ -559,24 +635,22 @@ test("mixed quiz validates explicit types and grades choices only", () => {
   delete noRubric.questions[2].rubric;
   assert.throws(() => validateLesson(noRubric, "bad"), /评分标准/);
 });
-test("legacy courses remain readable while v2 preserves stable lesson identities", () => {
-  const old = validateCourse(copy());
-  assert.equal(old.version, 1);
-  const upgraded = validateCourse({
-    ...old,
-    version: 2,
-    lessons: [mixedLesson(), ...old.lessons.slice(1)],
+test("saved courses preserve stable lesson identities", () => {
+  const original = validateCourse(copy());
+  const updated = validateCourse({
+    ...original,
+    lessons: [mixedLesson(), ...original.lessons.slice(1)],
   });
-  assert.equal(upgraded.lessons[0].id, "mixed");
-  assert.equal(upgraded.lessons[0].questions[2].type, "short_answer");
+  assert.equal(updated.lessons[0].id, "mixed");
+  assert.equal(updated.lessons[0].questions[2].type, "short_answer");
   const reordered = validateCourse({
-    ...upgraded,
-    lessons: [...upgraded.lessons].reverse(),
+    ...updated,
+    lessons: [...updated.lessons].reverse(),
   });
   assert.equal(reordered.lessons.at(-1).questions[2].id, "mixed-q3");
   assert.throws(
     () =>
-      validateCourse({ ...upgraded, lessons: [mixedLesson(), mixedLesson()] }),
+      validateCourse({ ...updated, lessons: [mixedLesson(), mixedLesson()] }),
     /重复/,
   );
 });
@@ -587,17 +661,17 @@ test("outline edits, adoption and per-lesson retry survive draft reload without 
   d = acceptTask(d, JSON.stringify(copy()));
   d.outline.lessons[0].title = "调整后的标题";
   d.outline.lessons.reverse();
-  d = await writeDraft(storage, d);
-  d = validateDraft(await storage.getItem(draftKey));
+  d = await writeDraft(storage, d, courseKey(d.courseId));
+  d = validateDraft(await storage.getItem(courseKey(d.courseId)));
   assert.equal(d.outline.lessons.at(-1).title, "调整后的标题");
   const first = d.outline.lessons[0];
   d.task = { kind: "lesson", targetId: first.id, ref };
   d = acceptTask(d, JSON.stringify(mixedLesson()));
   const retained = structuredClone(d.outline.lessons[0].lesson);
   d.task = { kind: "lesson", targetId: d.outline.lessons[1].id, ref };
-  await writeDraft(storage, d);
+  await writeDraft(storage, d, courseKey(d.courseId));
   assert.throws(() => acceptTask(d, '{"partial":'), /完整 JSON/);
-  d = validateDraft(await storage.getItem(draftKey));
+  d = validateDraft(await storage.getItem(courseKey(d.courseId)));
   assert.deepEqual(d.outline.lessons[0].lesson, retained);
   assert.throws(() => finishDraft(d), /全部课时/);
   for (const slot of d.outline.lessons.filter((s) => !s.lesson)) {
@@ -618,22 +692,28 @@ test("outline edits, adoption and per-lesson retry survive draft reload without 
     /不存在/,
   );
 });
-test("new course and saved course keep independent drafts", async () => {
+test("temporary courses use course records and resume independently", async () => {
   const storage = memory();
   const course = copy();
   await repository(storage).save(course);
   const fresh = newDraft(briefV2);
   const edit = newDraft({ ...briefV2, topic: course.title }, course);
-  await writeDraft(storage, fresh);
-  await writeDraft(storage, edit, draftKeyForCourse(course.id));
-  assert.equal((await storage.getItem(draftKey)).courseId, fresh.courseId);
+  await repository(storage).saveDraft(fresh);
+  await repository(storage).saveDraft(edit);
   assert.equal(
-    (await storage.getItem(draftKeyForCourse(course.id))).courseId,
+    (await storage.getItem(courseKey(fresh.courseId))).courseId,
+    fresh.courseId,
+  );
+  assert.equal(
+    (await storage.getItem(courseKey(course.id))).courseId,
     course.id,
   );
   await repository(storage).remove(course.id);
-  assert.equal(await storage.getItem(draftKeyForCourse(course.id)), null);
-  assert.equal((await storage.getItem(draftKey)).courseId, fresh.courseId);
+  assert.equal(await storage.getItem(courseKey(course.id)), null);
+  assert.equal(
+    (await storage.getItem(courseKey(fresh.courseId))).courseId,
+    fresh.courseId,
+  );
 });
 test("rewriting one saved lesson invalidates only its progress and tutor identity", () => {
   const course = copy();
@@ -771,15 +851,22 @@ test("AI grading binds every score to the submitted attempt and validates covera
 test("draft storage rejects oversize data and propagates write failure without replacing saved draft", async () => {
   const storage = memory();
   const d = newDraft(briefV2, copy());
-  await writeDraft(storage, d);
+  await writeDraft(storage, d, courseKey(d.courseId));
   storage.setItem = async () => {
     throw new Error("disk full");
   };
   await assert.rejects(
-    writeDraft(storage, { ...d, brief: { ...briefV2, topic: "新需求" } }),
+    writeDraft(
+      storage,
+      { ...d, brief: { ...briefV2, topic: "新需求" } },
+      courseKey(d.courseId),
+    ),
     /disk full/,
   );
-  assert.equal((await storage.getItem(draftKey)).brief.topic, briefV2.topic);
+  assert.equal(
+    (await storage.getItem(courseKey(d.courseId))).brief.topic,
+    briefV2.topic,
+  );
   assert.throws(() => validateDraft({ ...d, version: 10 }), /版本/);
   assert.ok(outlinePrompt(briefV2).includes("大纲"));
   assert.ok(lessonPrompt(d, d.outline.lessons[0].id).includes("short_answer"));
@@ -819,7 +906,7 @@ test("draft byte limit rejects otherwise valid large lessons before any write", 
     };
     return { id, title: lesson.title, objective: lesson.objective, lesson };
   });
-  await assert.rejects(writeDraft(storage, d), /240 KB/);
+  await assert.rejects(writeDraft(storage, d, courseKey(d.courseId)), /240 KB/);
   assert.equal(storage.values.size, 0);
 });
 

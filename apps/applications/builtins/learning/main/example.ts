@@ -1,16 +1,18 @@
 import { validateCourse } from "./course";
 
 export const exampleCourse = validateCourse({
-  version: 1,
+  version: 2,
   id: "learning-how-to-learn",
   createdAt: 0,
   origin: "example",
+  status: "ready",
   title: "把读过的知识，变成自己的能力",
   description:
     "从一个具体目标开始，用主动回忆检验理解，再把知识用到真实问题里。三节短课，搭建你的个人学习方法。",
   level: "零基础",
   lessons: [
     {
+      id: "lesson-1",
       title: "从一个能完成的目标开始",
       objective: "把宽泛的学习愿望，改写成一个可检验的小任务。",
       content:
@@ -37,6 +39,7 @@ export const exampleCourse = validateCourse({
       ],
     },
     {
+      id: "lesson-2",
       title: "合上资料，试着解释一次",
       objective: "通过主动回忆找到理解中的缺口，而不是只依赖熟悉感。",
       content:
@@ -63,6 +66,7 @@ export const exampleCourse = validateCourse({
       ],
     },
     {
+      id: "lesson-3",
       title: "把知识放进一个新问题",
       objective: "设计一次小实践，并为下一次复习留下具体线索。",
       content:

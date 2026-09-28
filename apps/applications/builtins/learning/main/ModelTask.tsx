@@ -75,7 +75,7 @@ export function ModelTask(props: Props) {
   if (error)
     return (
       <Notice>
-        恢复任务会话失败：{error}。草稿和已采用的内容仍保留。
+        恢复任务会话失败：{error}。暂存的课程内容仍保留。
         <button
           className="learn-button"
           disabled={busy}

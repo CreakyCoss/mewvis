@@ -1,20 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { getApplicationDataClient } from "@isle/app-sdk/data";
-import type { Brief, Course } from "./course";
+import type { Course } from "./course";
 import { Notice, Text, errorText } from "./components";
 import { LessonEditor } from "./LessonEditor";
-import { LegacyStudio, clearLegacyDraft } from "./LegacyStudio";
 import { ModelTask, createModelTask, closeModelTask } from "./ModelTask";
 import {
   type Draft,
   type Outline,
   type Task,
+  type CourseEntry,
   newDraft,
   validateDraft,
-  writeDraft,
-  draftKey,
-  draftKeyForCourse,
-  legacyDraftKey,
   authorProfile,
   outlinePrompt,
   lessonPrompt,
@@ -24,67 +19,62 @@ import {
   editDraftLesson,
 } from "./workflow";
 
-const defaults: Brief = { topic: "", level: "零基础", count: 3, material: "" };
-const storage = () => getApplicationDataClient().storage;
-export async function clearGenerationDraft(key = draftKey) {
-  await storage().removeItem(key);
-}
 export function Studio({
   onSave,
+  onSaveDraft,
   onSaved,
+  onStashed,
+  onDraftChange,
   initialCourse,
 }: {
   onSave: (course: Course) => Promise<void>;
+  onSaveDraft: (draft: Draft) => Promise<Draft>;
   onSaved: (course: Course) => void;
-  initialCourse?: Course;
+  onStashed: () => void;
+  onDraftChange: (draft: Draft) => void;
+  initialCourse: CourseEntry;
 }) {
   const [draft, setDraft] = useState<Draft | null>(null);
-  const [brief, setBrief] = useState<Brief>(defaults);
   const [busy, setBusy] = useState(true);
   const [readFailed, setReadFailed] = useState(false);
   const [error, setError] = useState("");
-  const [legacy, setLegacy] = useState(false);
-  const [showLegacy, setShowLegacy] = useState(false);
   const [editingSlot, setEditingSlot] = useState<string | null>(null);
   const [revisionSlot, setRevisionSlot] = useState<string | null>(null);
   const [revisionInstruction, setRevisionInstruction] = useState("");
-  const [confirmReset, setConfirmReset] = useState(false);
   const lock = useRef(false);
-  const activeDraftKey = initialCourse
-    ? draftKeyForCourse(initialCourse.id)
-    : draftKey;
+  const setWorkingCourse = (next: Draft) => {
+    onDraftChange(next);
+    setDraft(next);
+  };
+  const originalCourseDraft = () =>
+    newDraft(
+      {
+        topic:
+          initialCourse.status === "ready"
+            ? initialCourse.title
+            : initialCourse.brief.topic,
+        level:
+          initialCourse.status === "ready"
+            ? initialCourse.level
+            : initialCourse.brief.level,
+        count:
+          initialCourse.status === "ready"
+            ? Math.max(3, initialCourse.lessons.length)
+            : initialCourse.brief.count,
+        material: "",
+      },
+      initialCourse.status === "ready" ? initialCourse : undefined,
+    );
   const load = async () => {
     setBusy(true);
     setError("");
     setReadFailed(false);
     try {
-      let saved = await storage().getItem(activeDraftKey);
-      if (!saved && initialCourse) {
-        const previous = await storage().getItem(draftKey);
-        if (previous && validateDraft(previous).courseId === initialCourse.id) {
-          saved = previous;
-          await storage().setItem(activeDraftKey, previous);
-          await storage().removeItem(draftKey);
-        }
-      }
-      if (saved) {
-        const restored = validateDraft(saved);
-        if (initialCourse && restored.courseId !== initialCourse.id)
-          throw new Error("编辑草稿与当前课程不匹配，原始记录已保留");
-        setDraft(restored);
-      } else if (initialCourse) {
-        const d = newDraft(
-          {
-            topic: initialCourse.title,
-            level: initialCourse.level,
-            count: Math.max(3, initialCourse.lessons.length),
-            material: "",
-          },
-          initialCourse,
-        );
-        setDraft(await writeDraft(storage(), d, activeDraftKey));
-      }
-      setLegacy(!!(await storage().getItem(legacyDraftKey)));
+      setWorkingCourse(
+        initialCourse.status === "stashed"
+          ? validateDraft(initialCourse)
+          : originalCourseDraft(),
+      );
     } catch (e) {
       setError(errorText(e));
       setReadFailed(true);
@@ -121,7 +111,7 @@ export function Studio({
     }
   };
   const persist = async (next: Draft) => {
-    setDraft(await writeDraft(storage(), next, activeDraftKey));
+    setWorkingCourse(await onSaveDraft(next));
   };
   const startTask = async (
     kind: Task["kind"],
@@ -150,13 +140,7 @@ export function Studio({
     }
   };
   const updateOutline = (outline: Outline) => {
-    if (draft) setDraft({ ...draft, outline });
-  };
-  const reset = async () => {
-    if (draft?.task) await closeModelTask(draft.task.ref);
-    await clearGenerationDraft(activeDraftKey);
-    setDraft(null);
-    setConfirmReset(false);
+    if (draft) setWorkingCourse({ ...draft, outline });
   };
   const edited = draft?.outline?.lessons.find((s) => s.id === editingSlot);
   if (edited && draft)
@@ -175,21 +159,6 @@ export function Studio({
         }
       />
     );
-  if (showLegacy)
-    return (
-      <>
-        <button className="learn-button" onClick={() => setShowLegacy(false)}>
-          返回新版工坊
-        </button>
-        <LegacyStudio
-          onSave={async (course) => {
-            await onSave(course);
-            await clearLegacyDraft();
-            onSaved(course);
-          }}
-        />
-      </>
-    );
   const prepared =
     draft?.outline?.lessons.filter((slot) => slot.lesson).length ?? 0;
   const stage = !draft
@@ -204,10 +173,10 @@ export function Studio({
       <div className="learn-page-heading">
         <div>
           <span className="learn-eyebrow">COURSE STUDIO</span>
-          <h1>{initialCourse ? "编辑课程" : "创建课程"}</h1>
+          <h1>编辑课程</h1>
           <p>确定目标、确认大纲、逐课准备内容，然后开始学习。</p>
         </div>
-        <span className="learn-chip">草稿自动保留已采用的内容</span>
+        <span className="learn-chip">可暂存并从首页继续编辑</span>
       </div>
       <ol className="learn-studio-steps" aria-label="课程制作阶段">
         {(["学习需求", "课程大纲", "课时内容", "保存课程"] as const).map(
@@ -225,167 +194,33 @@ export function Studio({
           ),
         )}
       </ol>
+      {draft && !readFailed && (
+        <div className="learn-actions">
+          <button
+            className="learn-button"
+            disabled={busy}
+            onClick={() =>
+              void run(async () => {
+                await persist(draft);
+                onStashed();
+              })
+            }
+          >
+            暂存并返回首页
+          </button>
+        </div>
+      )}
       {error && <Notice>{error}</Notice>}
       {readFailed ? (
         <button className="learn-button" onClick={() => void load()}>
-          重试读取草稿
+          重试读取课程
         </button>
       ) : (
         <>
-          {legacy && (
-            <p className="learn-notice warning">
-              发现旧版生成记录，原记录仍保留。
-              <button
-                className="learn-inline-button"
-                onClick={() => setShowLegacy(true)}
-              >
-                继续旧版生成
-              </button>
-            </p>
-          )}
           {!draft ? (
-            <form
-              className="learn-brief"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void run(() => persist(newDraft(brief)));
-              }}
-            >
-              <div className="learn-brief-intro">
-                <span className="learn-eyebrow">STEP 01 · 学习需求</span>
-                <h2>这门课想帮你学会什么？</h2>
-                <p>先写主题和当前水平，再决定是否提供参考资料。</p>
-              </div>
-              <label htmlFor="learning-topic">你想学什么？</label>
-              <input
-                id="learning-topic"
-                required
-                maxLength={200}
-                value={brief.topic}
-                onChange={(e) => setBrief({ ...brief, topic: e.target.value })}
-                placeholder="例如：从零理解机器学习"
-              />
-              <div className="learn-fields">
-                <div>
-                  <label htmlFor="learning-level">当前水平</label>
-                  <select
-                    id="learning-level"
-                    value={brief.level}
-                    onChange={(e) =>
-                      setBrief({ ...brief, level: e.target.value })
-                    }
-                  >
-                    {["零基础", "了解一些", "希望进阶"].map((s) => (
-                      <option key={s}>{s}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="learning-count">计划课时</label>
-                  <select
-                    id="learning-count"
-                    value={brief.count}
-                    onChange={(e) =>
-                      setBrief({ ...brief, count: Number(e.target.value) })
-                    }
-                  >
-                    {[3, 4, 5, 6, 7, 8].map((n) => (
-                      <option key={n} value={n}>
-                        {n} 个课时
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <details
-                className="learn-material-details"
-                open={!!brief.material}
-              >
-                <summary>
-                  添加参考资料（选填）
-                  <small>粘贴文字或追加 TXT / Markdown</small>
-                </summary>
-                <div>
-                  <label htmlFor="learning-material">
-                    参考资料 · 选填，最多 20,000 字
-                  </label>
-                  <textarea
-                    id="learning-material"
-                    rows={7}
-                    maxLength={20000}
-                    disabled={busy}
-                    value={brief.material}
-                    onChange={(e) =>
-                      setBrief({ ...brief, material: e.target.value })
-                    }
-                  />
-                  <label className="learn-file-button">
-                    追加 TXT / Markdown 资料
-                    <input
-                      type="file"
-                      accept=".txt,.md,.markdown"
-                      multiple
-                      disabled={busy}
-                      onChange={(e) => {
-                        const files = Array.from(e.target.files ?? []);
-                        e.target.value = "";
-                        if (files.length)
-                          void run(async () => {
-                            if (files.length > 5)
-                              throw new Error("每次最多导入 5 个资料文件");
-                            const sections = await Promise.all(
-                              files.map(async (file) => {
-                                if (
-                                  !/\.(txt|md|markdown)$/i.test(file.name) ||
-                                  file.size > 80000
-                                )
-                                  throw new Error(
-                                    "请选择不超过 80 KB 的 TXT / Markdown 文件",
-                                  );
-                                let content: string;
-                                try {
-                                  content = new TextDecoder("utf-8", {
-                                    fatal: true,
-                                  }).decode(await file.arrayBuffer());
-                                } catch {
-                                  throw new Error(
-                                    `${file.name} 不是有效的 UTF-8 文本资料`,
-                                  );
-                                }
-                                if (content.includes("\u0000"))
-                                  throw new Error(
-                                    `${file.name} 不是有效的 UTF-8 文本资料`,
-                                  );
-                                const name = file.name
-                                  .replace(/[\r\n\t]/g, " ")
-                                  .slice(0, 120);
-                                return `【来源：${name}】\n${content.trim()}`;
-                              }),
-                            );
-                            const material = [
-                              brief.material.trim(),
-                              ...sections,
-                            ]
-                              .filter(Boolean)
-                              .join("\n\n");
-                            if (material.length > 20000)
-                              throw new Error(
-                                "参考资料总长度不能超过 20,000 字",
-                              );
-                            setBrief((current) => ({ ...current, material }));
-                          });
-                      }}
-                    />
-                  </label>
-                </div>
-              </details>
-              <p className="learn-muted">
-                生成时，需求与参考资料会发送给所选模型。草稿保存在本应用中。
-              </p>
-              <button className="learn-button primary" disabled={busy}>
-                保存需求，开始规划
-              </button>
-            </form>
+            <p role="status" className="learn-muted">
+              正在读取课程…
+            </p>
           ) : (
             <>
               <div className="learn-section-title">
@@ -449,7 +284,7 @@ export function Studio({
                   <fieldset disabled={busy || !!draft.task}>
                     <legend>课程结构</legend>
                     <p className="learn-muted">
-                      修改已生成课时的标题或目标会清除该课草稿内容，需要重新生成。正式课程在点击「保存课程」前不会改变。
+                      修改已生成课时的标题或目标会清除该课内容，需要重新生成。完成全部课时后可保存课程。
                     </p>
                     <label>
                       课程名称
@@ -719,7 +554,6 @@ export function Studio({
                             await persist(draft);
                             const course = finishDraft(draft);
                             await onSave(course);
-                            await clearGenerationDraft(activeDraftKey);
                             onSaved(course);
                           })
                         }
@@ -794,7 +628,7 @@ export function Studio({
                           {draft.task!.kind === "revise" && (
                             <p>
                               本次修改：{changed.join("、")}
-                              。采用后只更新这一课的草稿。
+                              。采用后只更新这一课的内容。
                             </p>
                           )}
                           <Text value={lesson.content} />
@@ -838,33 +672,8 @@ export function Studio({
               )}
               <p className="learn-muted">
                 AI
-                内容请结合可靠资料核对。重新生成只在采用结果后替换草稿；保存课程后，被替换课时的旧测验和完成状态不再沿用。
+                内容请结合可靠资料核对。重新生成只在采用结果后替换课程内容；保存课程后，被替换课时的旧测验和完成状态不再沿用。
               </p>
-              <button
-                className="learn-button text"
-                disabled={busy}
-                onClick={() => setConfirmReset(true)}
-              >
-                放弃此草稿，重新开始
-              </button>
-              {confirmReset && (
-                <Notice>
-                  只删除生成草稿，已保存的课程与聊天历史保留。
-                  <button
-                    className="learn-button danger"
-                    disabled={busy}
-                    onClick={() => void run(reset)}
-                  >
-                    确认放弃草稿
-                  </button>
-                  <button
-                    className="learn-button"
-                    onClick={() => setConfirmReset(false)}
-                  >
-                    继续编辑
-                  </button>
-                </Notice>
-              )}
             </>
           )}
         </>

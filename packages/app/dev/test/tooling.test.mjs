@@ -704,6 +704,13 @@ test("preview data uses declared permissions and virtual workspaces that Chat ca
       sceneId: "test",
       profile: { id: "test", systemPrompt: "test" },
     });
+    await session.send({ text: "preview delete" });
+    await session.flush();
+    assert.ok(
+      (await chat.listSessions({ workspaceId: workspace.id })).some(
+        (item) => item.chatId === session.identity.id,
+      ),
+    );
     await data.storage.setItem("selection", {
       workspaceId: workspace.id,
       chatId: session.identity.id,
@@ -717,11 +724,13 @@ test("preview data uses declared permissions and virtual workspaces that Chat ca
     await data.storage.setItem("keep", true);
     await data.storage.clear();
     assert.deepEqual(await data.storage.keys(), []);
+    await chat.deleteSession({ workspaceId: workspace.id, chatId: session.identity.id });
+    assert.deepEqual(await chat.listSessions({ workspaceId: workspace.id }), []);
     assert.equal(
       (await data.workspaces.get(workspace.id)).path,
       workspace.path,
     );
-    assert.equal(host.stats().dispatches, 0);
+    assert.equal(host.stats().dispatches, 1);
   } finally {
     chat.dispose();
     deniedChat.dispose();

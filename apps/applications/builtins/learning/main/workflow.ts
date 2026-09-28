@@ -38,6 +38,7 @@ export type Task = {
 };
 export type Draft = {
   version: 2;
+  status: "stashed";
   courseId: string;
   createdAt: number;
   origin: Course["origin"];
@@ -45,10 +46,7 @@ export type Draft = {
   outline: Outline | null;
   task?: Task;
 };
-export const draftKey = "learning:draft:v2";
-export const draftKeyForCourse = (courseId: string) =>
-  `${draftKey}:course:${courseId}`;
-export const legacyDraftKey = "learning:draft:v1";
+export type CourseEntry = Course | Draft;
 export function parseJSON(raw: string): unknown {
   if (raw.length > 180000) throw new Error("模型输出过长");
   try {
@@ -82,6 +80,7 @@ export function newDraft(brief: Brief, course?: Course): Draft {
   buildPrompt(brief);
   return {
     version: 2,
+    status: "stashed",
     courseId: course?.id ?? crypto.randomUUID(),
     createdAt: course?.createdAt ?? Date.now(),
     origin: course?.origin ?? "ai",
@@ -109,15 +108,16 @@ export function validateRef(value: unknown): SessionRef {
   };
 }
 export function validateDraft(value: unknown): Draft {
-  const r = object(value, "生成草稿");
-  if (r.version !== 2) throw new Error("生成草稿版本不受支持");
+  const r = object(value, "暂存课程");
+  if (r.version !== 2) throw new Error("暂存课程版本不受支持");
+  if (r.status !== "stashed") throw new Error("课程状态无效");
   const brief = object(r.brief, "学习需求") as unknown as Brief;
   buildPrompt(brief);
   text(brief.level, "学习水平", 40);
   if (typeof r.createdAt !== "number" || !Number.isFinite(r.createdAt))
-    throw new Error("草稿时间无效");
+    throw new Error("课程时间无效");
   if (!["ai", "example", "import"].includes(String(r.origin)))
-    throw new Error("草稿来源无效");
+    throw new Error("课程来源无效");
   let outline: Outline | null = null;
   if (r.outline !== null) {
     outline = validateOutline(r.outline);
@@ -168,6 +168,7 @@ export function validateDraft(value: unknown): Draft {
   }
   return {
     version: 2,
+    status: "stashed",
     courseId: validId(r.courseId),
     createdAt: r.createdAt,
     origin: r.origin as Course["origin"],
@@ -184,11 +185,11 @@ export function validateDraft(value: unknown): Draft {
 export async function writeDraft(
   storage: ApplicationStorage,
   draft: Draft,
-  key = draftKey,
+  key: string,
 ): Promise<Draft> {
   const next = validateDraft(draft);
   if (new TextEncoder().encode(JSON.stringify(next)).byteLength > 240000)
-    throw new Error("草稿超过 240 KB，请减少参考资料或课时内容");
+    throw new Error("暂存课程超过 240 KB，请减少参考资料或课时内容");
   await storage.setItem(key, next as unknown as ApplicationStorageValue);
   return next;
 }
@@ -254,6 +255,7 @@ export function finishDraft(draft: Draft): Course {
     id: draft.courseId,
     createdAt: draft.createdAt,
     origin: draft.origin,
+    status: "ready",
   });
 }
 export const authorProfile = {

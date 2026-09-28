@@ -255,6 +255,15 @@ export function createPreviewChat(options: {
   } as unknown as DesktopChatService;
   const dataClient = createApplicationDataClient(data);
   const host = createApplicationChatHost(service, {
+    deleteRecord: async (workspacePath, chatId) => {
+      sources.delete(JSON.stringify([workspacePath, chatId]));
+      for (const [key, entry] of metadata)
+        if (entry.workspacePath === workspacePath && entry.id === chatId) {
+          metadata.delete(key);
+          records.delete(key);
+          locations.delete(key);
+        }
+    },
     toolCatalog: async () => {
       if (!options.permissions.includes("chat")) throw new Error("应用未声明 chat 权限");
       return options.tools.map((tool) => ({

@@ -225,8 +225,7 @@ try {
     .fill("理解主动回忆");
   await button("保存大纲修改").click();
   await closeEditor();
-  await button("创建课程").click();
-  await button("继续草稿").click();
+  await button("继续编辑").click();
   await page.locator(".learn-slot-details summary").first().click();
   await page.getByLabel("课时标题", { exact: true }).first().waitFor();
   assert.equal(
@@ -334,6 +333,7 @@ try {
   );
   assert.ok(course);
   assert.equal(values["learning:draft:v2"], undefined);
+  assert.equal(values["learning:data-version"], "course-status-v2");
   assert.equal(
     values[`learning:progress:${course.id}`].attempts[course.lessons[0].id]
       .grades[course.lessons[0].questions[2].id].score,
@@ -373,11 +373,30 @@ try {
   );
   await button("课程库").click();
   await button("编辑课程").click();
+  await page.getByLabel("课程简介").fill("暂存后继续完善的课程简介");
+  await button("暂存并返回首页").click();
+  await button("继续编辑").waitFor();
+  assert.equal(await button("开始学习").count(), 0);
+  assert.equal(await button("继续学习").count(), 0);
+  await page.getByLabel("课程状态：暂存").waitFor();
+  values = await data();
+  assert.equal(values[`learning:course:${course.id}`].status, "stashed");
+  assert.equal(
+    values[`learning:course:${course.id}`].outline.description,
+    "暂存后继续完善的课程简介",
+  );
+  await button("继续编辑").click();
+  assert.equal(
+    await page.getByLabel("课程简介").inputValue(),
+    "暂存后继续完善的课程简介",
+  );
+  assert.equal(await page.getByRole("dialog").getByText(/草稿/).count(), 0);
   await button("重新生成本课").nth(1).click();
   await generate();
   await adopt();
   await button("保存课程，开始学习").click();
   values = await data();
+  assert.equal(values[`learning:course:${course.id}`].status, "ready");
   const revised = values[`learning:course:${course.id}`];
   assert.equal(revised.lessons[0].id, course.lessons[0].id);
   assert.notEqual(revised.lessons[1].id, course.lessons[1].id);
@@ -462,7 +481,7 @@ try {
     .fill("手动修正的课程正文。主动回忆应包含提取与反馈。");
   await page.getByLabel("题干", { exact: true }).first().fill("修订后的单选题");
   await page.screenshot({ path: `${out}/manual-editor.png`, fullPage: true });
-  await button("保存课时到草稿").click();
+  await button("保存课时修改").click();
   await button("保存课程，开始学习").click();
   await page
     .getByText("手动修正的课程正文。主动回忆应包含提取与反馈。", {
@@ -513,16 +532,21 @@ try {
   await button("下一步").click();
   await button("保存需求，开始规划").click();
   await closeEditor();
+  await button("继续编辑").waitFor();
   await button("编辑课程").click();
   await page.getByRole("tab", { name: "项目实训" }).waitFor();
   await closeEditor();
-  await button("创建课程").click();
-  await button("继续草稿").click();
+  await button("继续编辑").click();
   await page.getByRole("heading", { name: "并行草稿" }).waitFor();
   await closeEditor();
   await page.locator(".learn-card-menu summary").click();
   await button("复制课程 JSON").click();
   await button("已复制课程 JSON").waitFor();
+  await page
+    .locator(".learn-card-menu-content")
+    .getByRole("button", { name: "移除课程" })
+    .click();
+  await button("确认移除").click();
   await button("移除课程").click();
   await button("确认移除").click();
   await page
@@ -531,7 +555,7 @@ try {
   assert.equal((await data())[`learning:pbl:${course.id}`], undefined);
   assert.equal(errors.length, 0, errors.join("\n"));
   console.log(
-    "Browser smoke passed: unified course dialog, draft isolation, automatic tutor connection and scrolling, mobile tutor expansion, staged generation, grading, PBL, and editing.",
+    "Browser smoke passed: unified course dialog, temporary course status and resume, automatic tutor connection and scrolling, mobile tutor expansion, staged generation, grading, PBL, and editing.",
   );
 } catch (error) {
   await page.screenshot({ path: `${out}/failure.png`, fullPage: true });

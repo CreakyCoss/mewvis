@@ -36,10 +36,11 @@ export type CourseContent = {
   lessons: Lesson[];
 };
 export type Course = CourseContent & {
-  version: 1 | 2;
+  version: 2;
   id: string;
   createdAt: number;
   origin: "ai" | "example" | "import";
+  status: "ready";
 };
 export type Attempt = {
   answers: Answers;
@@ -203,34 +204,32 @@ export function createCourse(
     id: crypto.randomUUID(),
     createdAt: Date.now(),
     origin,
+    status: "ready",
   };
 }
 export function validateCourse(value: unknown): Course {
   const raw = object(value, "已保存课程");
-  if (raw.version !== 1 && raw.version !== 2)
-    throw new Error("不支持此课程版本，请更新学习工作台");
+  if (raw.version !== 2) throw new Error("不支持此课程版本，请更新学习工作台");
   const id = text(raw.id, "课程 ID", 80);
   if (!/^[a-zA-Z0-9-]+$/.test(id)) throw new Error("课程 ID 无效");
   if (typeof raw.createdAt !== "number" || !Number.isFinite(raw.createdAt))
     throw new Error("课程时间无效");
   if (!["ai", "example", "import"].includes(String(raw.origin)))
     throw new Error("课程来源无效");
+  if (raw.status !== "ready") throw new Error("课程状态无效");
   const content = validateContent(raw);
-  if (raw.version === 2) {
-    content.lessons = (raw.lessons as unknown[]).map((entry) =>
-      validateLesson(entry, validId(object(entry, "课时").id)),
-    );
-    if (
-      new Set(content.lessons.map((l) => l.id)).size !== content.lessons.length
-    )
-      throw new Error("课时 ID 不能重复");
-  }
+  content.lessons = (raw.lessons as unknown[]).map((entry) =>
+    validateLesson(entry, validId(object(entry, "课时").id)),
+  );
+  if (new Set(content.lessons.map((l) => l.id)).size !== content.lessons.length)
+    throw new Error("课时 ID 不能重复");
   return {
     ...content,
-    version: raw.version,
+    version: 2,
     id,
     createdAt: raw.createdAt,
     origin: raw.origin as Course["origin"],
+    status: raw.status,
   };
 }
 export function restoreProgress(course: Course, value: unknown): Progress {

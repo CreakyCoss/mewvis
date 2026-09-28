@@ -13,6 +13,7 @@ import {
   type Progress,
 } from "./course";
 import { repository } from "./repository";
+import { clearOldChats } from "./clearOldChats";
 import { exampleCourse } from "./example";
 import {
   Icon,
@@ -26,22 +27,31 @@ import {
 import { RecallCards } from "./RecallCards";
 import { ProjectLab } from "./ProjectLab";
 import { CourseDialog } from "./CourseDialog";
-import { newDraft, writeDraft } from "./workflow";
+import { newDraft, type CourseEntry, type Draft } from "./workflow";
 
 const repo = () => repository(getApplicationDataClient().storage);
+const entryId = (item: CourseEntry) =>
+  item.status === "stashed" ? item.courseId : item.id;
+const entryTitle = (item: CourseEntry) =>
+  item.status === "stashed"
+    ? (item.outline?.title ?? item.brief.topic)
+    : item.title;
+const entryDescription = (item: CourseEntry) =>
+  item.status === "stashed"
+    ? (item.outline?.description ?? "课程内容待完成")
+    : item.description;
 type View = "library" | "lesson";
 export default function App() {
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [courses, setCourses] = useState<CourseEntry[]>([]);
   const [progress, setProgress] = useState<Record<string, Progress>>({});
   const [selected, setSelected] = useState("");
-  const [editing, setEditing] = useState<Course | undefined>();
+  const [editing, setEditing] = useState<CourseEntry | undefined>();
   const [view, setView] = useState<View>("library");
   const [createOpen, setCreateOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [warnings, setWarnings] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [confirmDelete, setConfirmDelete] = useState("");
   const [copiedCourse, setCopiedCourse] = useState("");
@@ -50,8 +60,10 @@ export default function App() {
   const [tutorExpanded, setTutorExpanded] = useState(false);
   const [theme, setTheme] = useState("light");
   const lock = useRef(false);
+  const initialization = useRef<Promise<void> | null>(null);
   const mainRef = useRef<HTMLElement>(null);
-  const course = courses.find((c) => c.id === selected);
+  const selectedEntry = courses.find((c) => entryId(c) === selected);
+  const course = selectedEntry?.status === "ready" ? selectedEntry : undefined;
   const currentProgress = course
     ? (progress[course.id] ?? emptyProgress(course))
     : null;
@@ -74,13 +86,19 @@ export default function App() {
     setLoadFailed(false);
     setError("");
     try {
-      const result = await repo().list();
+      if (!initialization.current)
+        initialization.current = repo().initialize(clearOldChats).catch((error) => {
+          initialization.current = null;
+          throw error;
+        });
+      await initialization.current;
+      const courses = await repo().list();
       const saved: Record<string, Progress> = {};
-      for (const course of result.courses)
-        saved[course.id] = await repo().progress(course);
-      setCourses(result.courses);
+      for (const course of courses)
+        if (course.status === "ready")
+          saved[course.id] = await repo().progress(course);
+      setCourses(courses);
       setProgress(saved);
-      setWarnings(result.warnings);
     } catch (e) {
       setLoadFailed(true);
       setError(`读取课程失败：${errorText(e)}`);
@@ -120,22 +138,34 @@ export default function App() {
     setFocus(null);
     setError("");
   };
-  const edit = (item: Course) => {
+  const edit = (item: CourseEntry) => {
     setEditing(item);
     setCreateOpen(true);
   };
-  const create = async (brief: Brief) => {
-    await writeDraft(getApplicationDataClient().storage, newDraft(brief));
+  const saveDraft = async (draft: Draft): Promise<Draft> => {
+    const saved = await repo().saveDraft(draft);
+    setCourses((current) => [
+      saved,
+      ...current.filter((item) => entryId(item) !== saved.courseId),
+    ]);
+    return saved;
+  };
+  const create = async (brief: Brief): Promise<Draft> => {
+    return saveDraft(newDraft(brief));
   };
   const save = async (course: Course) => {
     await repo().save(course);
+    const storedProgress = await repo().progress(course);
     setCourses((current) => [
       course,
-      ...current.filter((c) => c.id !== course.id),
+      ...current.filter((c) => entryId(c) !== course.id),
     ]);
     setProgress((current) => ({
       ...current,
-      [course.id]: restoreProgress(course, current[course.id]),
+      [course.id]: restoreProgress(
+        course,
+        current[course.id] ?? storedProgress,
+      ),
     }));
   };
   const updateProgress = async (next: Progress) => {
@@ -155,7 +185,9 @@ export default function App() {
     0,
   );
   const filtered = courses.filter((c) =>
-    `${c.title} ${c.description}`.toLowerCase().includes(search.toLowerCase()),
+    `${entryTitle(c)} ${entryDescription(c)}`
+      .toLowerCase()
+      .includes(search.toLowerCase()),
   );
   const focusSection = (target: FocusTarget) => {
     setTutorExpanded(false);
@@ -216,14 +248,6 @@ export default function App() {
               重新读取
             </button>
           </Notice>
-        )}
-        {!!warnings.length && (
-          <details className="learn-notice warning">
-            <summary>{warnings.length} 门课程无法读取，原始数据已保留</summary>
-            {warnings.map((w) => (
-              <p key={w}>{w}</p>
-            ))}
-          </details>
         )}
         {loading ? (
           <div className="learn-loading" role="status">
@@ -540,6 +564,82 @@ export default function App() {
             {filtered.length ? (
               <div className="learn-course-grid">
                 {filtered.map((item) => {
+                  if (item.status === "stashed")
+                    return (
+                      <article
+                        className="learn-course-card"
+                        key={item.courseId}
+                      >
+                        <div className="learn-card-body">
+                          <div className="learn-card-meta">
+                            <span>
+                              <Icon name="book" size={16} />
+                              {item.outline?.level ?? item.brief.level}
+                            </span>
+                            <span
+                              className="learn-chip"
+                              aria-label="课程状态：暂存"
+                            >
+                              暂存
+                            </span>
+                          </div>
+                          <h3>{entryTitle(item)}</h3>
+                          <p>{entryDescription(item)}</p>
+                          <div className="learn-card-next">
+                            <span>继续编辑</span>
+                            <strong>
+                              {item.outline
+                                ? `${item.outline.lessons.filter((slot) => slot.lesson).length} / ${item.outline.lessons.length} 课时已完成`
+                                : "等待生成课程大纲"}
+                            </strong>
+                          </div>
+                          <div className="learn-card-actions">
+                            <button
+                              className="learn-button primary"
+                              onClick={() => edit(item)}
+                            >
+                              继续编辑
+                              <Icon name="arrow" size={16} />
+                            </button>
+                            <button
+                              className="learn-button"
+                              onClick={() => setConfirmDelete(item.courseId)}
+                            >
+                              移除课程
+                            </button>
+                          </div>
+                          {confirmDelete === item.courseId && (
+                            <div className="learn-delete-confirm">
+                              <p>移除此暂存课程？</p>
+                              <button
+                                className="learn-button danger"
+                                disabled={busy}
+                                onClick={() =>
+                                  void run(async () => {
+                                    await repo().remove(item.courseId);
+                                    setCourses((all) =>
+                                      all.filter(
+                                        (entry) =>
+                                          entryId(entry) !== item.courseId,
+                                      ),
+                                    );
+                                    setConfirmDelete("");
+                                  })
+                                }
+                              >
+                                确认移除
+                              </button>
+                              <button
+                                className="learn-button"
+                                onClick={() => setConfirmDelete("")}
+                              >
+                                取消
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </article>
+                    );
                   const done = progress[item.id]?.completed.length ?? 0;
                   const current = item.lessons.find(
                     (lesson) => lesson.id === progress[item.id]?.lessonId,
@@ -561,6 +661,12 @@ export default function App() {
                           </span>
                         </div>
                         <h3>{item.title}</h3>
+                        <span
+                          className="learn-chip"
+                          aria-label="课程状态：已完成"
+                        >
+                          已完成
+                        </span>
                         <p>{item.description}</p>
                         <div className="learn-card-next">
                           <span>
@@ -653,7 +759,7 @@ export default function App() {
                                 void run(async () => {
                                   await repo().remove(item.id);
                                   setCourses((all) =>
-                                    all.filter((c) => c.id !== item.id),
+                                    all.filter((c) => entryId(c) !== item.id),
                                   );
                                   setProgress((all) => {
                                     const next = { ...all };
@@ -716,9 +822,11 @@ export default function App() {
                       onClick={() =>
                         void run(async () => {
                           const existing = courses.find(
-                            (course) => course.id === exampleCourse.id,
+                            (course) =>
+                              course.status === "ready" &&
+                              course.id === exampleCourse.id,
                           );
-                          if (existing) {
+                          if (existing?.status === "ready") {
                             open(existing);
                             return;
                           }
@@ -747,11 +855,16 @@ export default function App() {
       </main>
       {createOpen && (
         <CourseDialog
-          key={editing?.id ?? "new"}
+          key={editing ? entryId(editing) : "new"}
           initialCourse={editing}
           onClose={() => setCreateOpen(false)}
           onCreate={create}
           onSave={save}
+          onSaveDraft={saveDraft}
+          onStashed={() => {
+            setCreateOpen(false);
+            setView("library");
+          }}
           onSaved={(saved) => {
             setCreateOpen(false);
             setEditing(undefined);
