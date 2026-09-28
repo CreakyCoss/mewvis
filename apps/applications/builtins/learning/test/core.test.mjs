@@ -696,7 +696,7 @@ test("temporary courses use course records and resume independently", async () =
   const storage = memory();
   const course = copy();
   await repository(storage).save(course);
-  const fresh = newDraft(briefV2);
+  const fresh = newDraft(briefV2, undefined, 1);
   const edit = newDraft({ ...briefV2, topic: course.title }, course);
   await repository(storage).saveDraft(fresh);
   await repository(storage).saveDraft(edit);
@@ -704,6 +704,13 @@ test("temporary courses use course records and resume independently", async () =
     (await storage.getItem(courseKey(fresh.courseId))).courseId,
     fresh.courseId,
   );
+  assert.equal(
+    validateDraft(await storage.getItem(courseKey(fresh.courseId)))
+      .creationStep,
+    1,
+  );
+  assert.equal(validateDraft({ ...fresh, creationStep: 4 }).creationStep, 4);
+  assert.throws(() => validateDraft({ ...fresh, creationStep: 5 }), /步骤/);
   assert.equal(
     (await storage.getItem(courseKey(course.id))).courseId,
     course.id,

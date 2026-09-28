@@ -1367,46 +1367,6 @@
   margin-top: 12px;
   color: var(--muted-foreground);
 }
-.learn-studio-steps {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  max-width: 1050px;
-  padding: 0;
-  margin: 0 auto 26px;
-  list-style: none;
-}
-.learn-studio-steps li {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-  padding: 11px 12px;
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  background: var(--card);
-  color: var(--muted-foreground);
-  font-size: 12px;
-}
-.learn-studio-steps li span {
-  display: grid;
-  place-items: center;
-  width: 23px;
-  height: 23px;
-  flex: 0 0 23px;
-  border-radius: 50%;
-  background: var(--primary-subtle);
-  font-variant-numeric: tabular-nums;
-}
-.learn-studio-steps li.active {
-  border-color: var(--primary);
-  color: var(--primary);
-  font-weight: 600;
-}
-.learn-studio-steps li.done span {
-  background: var(--success-subtle);
-  color: var(--success);
-}
 .learn-brief,
 .learn-outline-editor,
 .learn-next-step {
@@ -1600,9 +1560,6 @@
   .learn-library-filter input[type="search"] {
     max-width: none;
   }
-  .learn-studio-steps {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
   .learn-classroom,
   .learn-classroom.with-tutor {
     grid-template-columns: minmax(0, 1fr);
@@ -1618,15 +1575,6 @@
   .learn-library-toolbar-actions .learn-button,
   .learn-library-toolbar-actions .learn-file-button {
     flex: 1;
-  }
-  .learn-studio-steps li {
-    padding: 8px;
-    font-size: 11px;
-  }
-  .learn-studio-steps li span {
-    width: 20px;
-    height: 20px;
-    flex-basis: 20px;
   }
 }
 .learn-revision-form label {
@@ -2007,17 +1955,36 @@
 .learn-dialog-steps {
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
-  padding: 22px 26px 0;
+  padding: 16px 26px;
   margin: 0;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 .learn-dialog-steps li {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.learn-dialog-steps li button {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--muted-foreground);
-  font-size: 12px;
+  width: 100%;
+  padding: 4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.learn-dialog-steps li button:hover:not(:disabled),
+.learn-dialog-steps li button:focus-visible {
+  background: var(--primary-subtle);
+}
+.learn-dialog-steps li button:disabled {
+  cursor: default;
 }
 .learn-dialog-steps li span {
   display: grid;
@@ -2026,6 +1993,7 @@
   height: 25px;
   border-radius: 50%;
   border: 1px solid var(--border);
+  flex-shrink: 0;
 }
 .learn-dialog-steps li.active {
   color: var(--primary);
@@ -2071,20 +2039,24 @@
   gap: 12px;
   padding: 16px 26px 24px;
   border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--card);
 }
 .learn-dialog-footer .learn-button {
   display: inline-flex;
   align-items: center;
   gap: 8px;
 }
-.learn-dialog-resume {
-  padding: 30px 26px;
+.learn-dialog-footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-left: auto;
 }
-.learn-dialog-resume p {
-  margin: 8px 0 22px;
-  color: var(--muted-foreground);
+.learn-dialog-error {
+  padding: 12px 26px 0;
+  flex-shrink: 0;
 }
-
 @media (max-width: 1150px) {
   .learn-classroom.with-tutor {
     grid-template-columns: 170px minmax(0, 1fr) 290px;
@@ -2181,10 +2153,6 @@
   flex-direction: column;
   overflow: hidden;
 }
-.learn-create-dialog.is-setup {
-  width: min(860px, calc(100vw - 32px));
-  height: min(690px, calc(100dvh - 32px));
-}
 .learn-dialog-header {
   flex-shrink: 0;
   align-items: center;
@@ -2196,25 +2164,8 @@
   white-space: nowrap;
 }
 .learn-dialog-setup {
-  min-height: 0;
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-.learn-dialog-setup form {
   width: min(720px, 100%);
   margin: auto;
-}
-.learn-dialog-setup .learn-dialog-resume {
-  width: min(720px, 100%);
-  margin: auto;
-}
-.learn-dialog-workspace {
-  min-height: 0;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
 }
 .learn-dialog-tabs {
   flex-shrink: 0;
@@ -2385,10 +2336,27 @@
   }
 }
 @media (max-width: 760px) {
-  .learn-create-dialog,
-  .learn-create-dialog.is-setup {
+  .learn-create-dialog {
     width: calc(100vw - 16px);
     height: calc(100dvh - 16px);
+  }
+  .learn-dialog-steps {
+    display: flex;
+    overflow-x: auto;
+    padding: 12px 14px;
+  }
+  .learn-dialog-steps li {
+    flex: 0 0 auto;
+  }
+  .learn-dialog-footer {
+    flex-wrap: wrap;
+    padding: 12px 14px;
+  }
+  .learn-dialog-footer-actions {
+    flex-wrap: wrap;
+  }
+  .learn-dialog-error {
+    padding: 10px 14px 0;
   }
   .learn-dialog-header {
     padding: 14px 18px;

@@ -188,6 +188,13 @@ try {
   await button("下一步").click();
   await page.getByLabel("计划课时").selectOption("3");
   await button("下一步").click();
+  await page.locator(".learn-dialog-steps button").first().click();
+  assert.equal(
+    await page.getByLabel("课程主题", { exact: true }).inputValue(),
+    "主动回忆",
+  );
+  await page.locator(".learn-dialog-steps button").nth(2).click();
+  assert.equal(await page.getByRole("dialog").count(), 1);
   await page.getByLabel("追加 TXT / Markdown 资料").setInputFiles([
     {
       name: "notes.md",
@@ -210,7 +217,16 @@ try {
     await page.getByLabel("参考资料 · 选填，最多 20,000 字").inputValue(),
     /来源：notes.md[\s\S]*来源：source.txt/,
   );
-  await button("保存需求，开始规划").click();
+  await button("编辑课程大纲").click();
+  assert.equal(await page.locator(".learn-dialog-steps button").count(), 5);
+  await button("手动创建大纲").waitFor();
+  assert.equal(
+    await page
+      .locator(".learn-dialog-footer")
+      .getByRole("button", { name: "编辑课时内容" })
+      .isDisabled(),
+    true,
+  );
   await button("准备生成大纲").click();
   await generate();
   await adopt();
@@ -218,15 +234,15 @@ try {
     path: `${out}/outline-collapsed-desktop.png`,
     fullPage: true,
   });
-  await page.locator(".learn-slot-details summary").first().click();
   await page
     .getByLabel("课时标题", { exact: true })
     .first()
     .fill("理解主动回忆");
-  await button("保存大纲修改").click();
-  await closeEditor();
+  await page
+    .locator(".learn-dialog-footer")
+    .getByRole("button", { name: "暂存" })
+    .click();
   await button("继续编辑").click();
-  await page.locator(".learn-slot-details summary").first().click();
   await page.getByLabel("课时标题", { exact: true }).first().waitFor();
   assert.equal(
     await page.getByLabel("课时标题", { exact: true }).first().inputValue(),
@@ -240,6 +256,7 @@ try {
   );
   await page.screenshot({ path: `${out}/outline-mobile.png`, fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1000 });
+  await button("编辑课时内容").click();
   for (let i = 0; i < 3; i++) {
     await button("生成下一个待完成课时").click();
     if (i === 1)
@@ -373,8 +390,12 @@ try {
   );
   await button("课程库").click();
   await button("编辑课程").click();
+  await page.locator(".learn-dialog-steps button").nth(3).click();
   await page.getByLabel("课程简介").fill("暂存后继续完善的课程简介");
-  await button("暂存并返回首页").click();
+  await page
+    .locator(".learn-dialog-footer")
+    .getByRole("button", { name: "暂存" })
+    .click();
   await button("继续编辑").waitFor();
   assert.equal(await button("开始学习").count(), 0);
   assert.equal(await button("继续学习").count(), 0);
@@ -391,6 +412,7 @@ try {
     "暂存后继续完善的课程简介",
   );
   assert.equal(await page.getByRole("dialog").getByText(/草稿/).count(), 0);
+  await button("编辑课时内容").click();
   await button("重新生成本课").nth(1).click();
   await generate();
   await adopt();
@@ -528,9 +550,18 @@ try {
   await page.screenshot({ path: `${out}/library-desktop.png`, fullPage: true });
   await button("创建课程").click();
   await page.getByLabel("课程主题", { exact: true }).fill("并行草稿");
+  await page
+    .locator(".learn-dialog-footer")
+    .getByRole("button", { name: "暂存" })
+    .click();
+  await button("继续编辑").click();
+  assert.equal(
+    await page.getByLabel("课程主题", { exact: true }).inputValue(),
+    "并行草稿",
+  );
   await button("下一步").click();
   await button("下一步").click();
-  await button("保存需求，开始规划").click();
+  await button("编辑课程大纲").click();
   await closeEditor();
   await button("继续编辑").waitFor();
   await button("编辑课程").click();
@@ -553,6 +584,25 @@ try {
     .getByRole("heading", { name: "你的下一次探索，从这里开始" })
     .waitFor();
   assert.equal((await data())[`learning:pbl:${course.id}`], undefined);
+  await button("创建第一门课程").click();
+  await page.getByLabel("课程主题", { exact: true }).fill("手动规划课程");
+  await button("下一步").click();
+  await button("下一步").click();
+  await button("编辑课程大纲").click();
+  await button("手动创建大纲").click();
+  await page.getByLabel("课程名称").fill("手动规划课程名称");
+  await page.getByLabel("课时标题", { exact: true }).first().fill("第一课标题");
+  await button("编辑课时内容").click();
+  await button("手动编辑内容").first().click();
+  await page.getByLabel("课时正文", { exact: true }).waitFor();
+  await button("取消本次编辑").click();
+  await page
+    .locator(".learn-dialog-footer")
+    .getByRole("button", { name: "暂存" })
+    .click();
+  await button("继续编辑").click();
+  await button("手动编辑内容").first().waitFor();
+  await closeEditor();
   assert.equal(errors.length, 0, errors.join("\n"));
   console.log(
     "Browser smoke passed: unified course dialog, temporary course status and resume, automatic tutor connection and scrolling, mobile tutor expansion, staged generation, grading, PBL, and editing.",

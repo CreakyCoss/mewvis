@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import type { Course } from "./course";
 import { Notice, Text, errorText } from "./components";
 import { LessonEditor } from "./LessonEditor";
 import { ModelTask, createModelTask, closeModelTask } from "./ModelTask";
@@ -15,24 +14,21 @@ import {
   lessonPrompt,
   revisionPrompt,
   acceptTask,
-  finishDraft,
   editDraftLesson,
 } from "./workflow";
 
 export function Studio({
-  onSave,
   onSaveDraft,
-  onSaved,
-  onStashed,
   onDraftChange,
+  onBusyChange,
   initialCourse,
+  stage,
 }: {
-  onSave: (course: Course) => Promise<void>;
   onSaveDraft: (draft: Draft) => Promise<Draft>;
-  onSaved: (course: Course) => void;
-  onStashed: () => void;
   onDraftChange: (draft: Draft) => void;
+  onBusyChange: (busy: boolean) => void;
   initialCourse: CourseEntry;
+  stage: "outline" | "lessons";
 }) {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(true);
@@ -42,6 +38,8 @@ export function Studio({
   const [revisionSlot, setRevisionSlot] = useState<string | null>(null);
   const [revisionInstruction, setRevisionInstruction] = useState("");
   const lock = useRef(false);
+  const onBusyChangeRef = useRef(onBusyChange);
+  onBusyChangeRef.current = onBusyChange;
   const setWorkingCourse = (next: Draft) => {
     onDraftChange(next);
     setDraft(next);
@@ -85,6 +83,10 @@ export function Studio({
   useEffect(() => {
     void load();
   }, []);
+  useEffect(() => {
+    onBusyChangeRef.current(busy || !!editingSlot);
+  }, [busy, editingSlot]);
+  useEffect(() => () => onBusyChangeRef.current(false), []);
   const run = async (action: () => Promise<void>) => {
     if (lock.current) return;
     lock.current = true;
@@ -142,6 +144,19 @@ export function Studio({
   const updateOutline = (outline: Outline) => {
     if (draft) setWorkingCourse({ ...draft, outline });
   };
+  const createManualOutline = () => {
+    if (!draft) return;
+    updateOutline({
+      title: draft.brief.topic,
+      description: `${draft.brief.topic}学习课程`,
+      level: draft.brief.level,
+      lessons: Array.from({ length: draft.brief.count }, (_, i) => ({
+        id: crypto.randomUUID(),
+        title: `第 ${i + 1} 课`,
+        objective: `填写第 ${i + 1} 课的学习目标`,
+      })),
+    });
+  };
   const edited = draft?.outline?.lessons.find((s) => s.id === editingSlot);
   if (edited && draft)
     return (
@@ -159,57 +174,8 @@ export function Studio({
         }
       />
     );
-  const prepared =
-    draft?.outline?.lessons.filter((slot) => slot.lesson).length ?? 0;
-  const stage = !draft
-    ? 0
-    : !draft.outline
-      ? 1
-      : prepared < draft.outline.lessons.length
-        ? 2
-        : 3;
   return (
     <section className="learn-studio">
-      <div className="learn-page-heading">
-        <div>
-          <span className="learn-eyebrow">COURSE STUDIO</span>
-          <h1>编辑课程</h1>
-          <p>确定目标、确认大纲、逐课准备内容，然后开始学习。</p>
-        </div>
-        <span className="learn-chip">可暂存并从首页继续编辑</span>
-      </div>
-      <ol className="learn-studio-steps" aria-label="课程制作阶段">
-        {(["学习需求", "课程大纲", "课时内容", "保存课程"] as const).map(
-          (label, index) => (
-            <li
-              key={label}
-              className={
-                index === stage ? "active" : index < stage ? "done" : ""
-              }
-              aria-current={index === stage ? "step" : undefined}
-            >
-              <span>{index < stage ? "✓" : index + 1}</span>
-              {label}
-            </li>
-          ),
-        )}
-      </ol>
-      {draft && !readFailed && (
-        <div className="learn-actions">
-          <button
-            className="learn-button"
-            disabled={busy}
-            onClick={() =>
-              void run(async () => {
-                await persist(draft);
-                onStashed();
-              })
-            }
-          >
-            暂存并返回首页
-          </button>
-        </div>
-      )}
       {error && <Notice>{error}</Notice>}
       {readFailed ? (
         <button className="learn-button" onClick={() => void load()}>
@@ -227,28 +193,38 @@ export function Studio({
                 <h2>{draft.brief.topic}</h2>
                 <span className="learn-chip">{draft.brief.level}</span>
               </div>
-              {!draft.outline && !draft.task && (
+              {stage === "outline" && !draft.outline && !draft.task && (
                 <div className="learn-next-step">
                   <div>
-                    <span className="learn-eyebrow">STEP 02 · 课程大纲</span>
-                    <h3>学习需求已保存</h3>
-                    <p>先生成课程结构，再检查每课标题和目标。</p>
+                    <span className="learn-eyebrow">课程大纲</span>
+                    <h3>规划课程名称、简介与课时目标</h3>
+                    <p>可以手动填写大纲，也可以让 AI 生成后逐项修改。</p>
                   </div>
-                  <button
-                    className="learn-button primary"
-                    disabled={busy}
-                    onClick={() => void run(() => startTask("outline"))}
-                  >
-                    准备生成大纲
-                  </button>
+                  <div className="learn-actions">
+                    <button
+                      className="learn-button"
+                      disabled={busy}
+                      onClick={createManualOutline}
+                    >
+                      手动创建大纲
+                    </button>
+                    <button
+                      className="learn-button primary"
+                      disabled={busy}
+                      onClick={() => void run(() => startTask("outline"))}
+                    >
+                      准备生成大纲
+                    </button>
+                  </div>
                 </div>
               )}
-              {draft.outline &&
+              {stage === "lessons" &&
+                draft.outline &&
                 !draft.task &&
                 draft.outline.lessons.some((slot) => !slot.lesson) && (
                   <div className="learn-current-task">
                     <div>
-                      <span className="learn-eyebrow">当前任务</span>
+                      <span className="learn-eyebrow">下一课待完成</span>
                       <strong>
                         生成第{" "}
                         {draft.outline.lessons.findIndex(
@@ -260,7 +236,7 @@ export function Studio({
                             ?.title
                         }
                       </strong>
-                      <p>生成后先预览并采用，再继续下一课。</p>
+                      <p>可以生成并采用，也可以在下方手动编辑本课内容。</p>
                     </div>
                     <button
                       className="learn-button primary"
@@ -282,37 +258,49 @@ export function Studio({
               {draft.outline && (
                 <div className="learn-outline-editor">
                   <fieldset disabled={busy || !!draft.task}>
-                    <legend>课程结构</legend>
-                    <p className="learn-muted">
-                      修改已生成课时的标题或目标会清除该课内容，需要重新生成。完成全部课时后可保存课程。
-                    </p>
-                    <label>
-                      课程名称
-                      <input
-                        maxLength={120}
-                        value={draft.outline.title}
-                        onChange={(e) =>
-                          updateOutline({
-                            ...draft.outline!,
-                            title: e.target.value,
-                          })
-                        }
-                      />
-                    </label>
-                    <label>
-                      课程简介
-                      <textarea
-                        rows={2}
-                        maxLength={1000}
-                        value={draft.outline.description}
-                        onChange={(e) =>
-                          updateOutline({
-                            ...draft.outline!,
-                            description: e.target.value,
-                          })
-                        }
-                      />
-                    </label>
+                    <legend>
+                      {stage === "outline" ? "课程大纲" : "逐课编辑内容"}
+                    </legend>
+                    {stage === "outline" ? (
+                      <p className="learn-muted">
+                        课程名称、简介、每课标题与目标都可修改；也可调整课时顺序和数量。修改已完成课时的标题或目标会清除该课内容。
+                      </p>
+                    ) : (
+                      <p className="learn-muted">
+                        逐课生成或手动编辑讲解、示例、知识要点与测验题。全部课时完成后可保存课程。
+                      </p>
+                    )}
+                    {stage === "outline" && (
+                      <>
+                        <label>
+                          课程名称
+                          <input
+                            maxLength={120}
+                            value={draft.outline.title}
+                            onChange={(e) =>
+                              updateOutline({
+                                ...draft.outline!,
+                                title: e.target.value,
+                              })
+                            }
+                          />
+                        </label>
+                        <label>
+                          课程简介
+                          <textarea
+                            rows={2}
+                            maxLength={1000}
+                            value={draft.outline.description}
+                            onChange={(e) =>
+                              updateOutline({
+                                ...draft.outline!,
+                                description: e.target.value,
+                              })
+                            }
+                          />
+                        </label>
+                      </>
+                    )}
                     <ol className="learn-slot-list">
                       {draft.outline.lessons.map((slot, i) => (
                         <li key={slot.id}>
@@ -323,168 +311,186 @@ export function Studio({
                             <span
                               className={`learn-chip ${slot.lesson ? "success" : ""}`}
                             >
-                              {slot.lesson ? "内容已保存" : "待生成"}
+                              {slot.lesson ? "内容已保存" : "内容待编写"}
                             </span>
                           </div>
-                          <details className="learn-slot-details">
-                            <summary>编辑标题与目标</summary>
-                            <label>
-                              课时标题
-                              <input
-                                maxLength={120}
-                                value={slot.title}
-                                onChange={(e) =>
-                                  updateOutline({
-                                    ...draft.outline!,
-                                    lessons: draft.outline!.lessons.map((s) =>
-                                      s.id === slot.id
-                                        ? {
-                                            id: s.id,
-                                            title: e.target.value,
-                                            objective: s.objective,
-                                          }
-                                        : s,
-                                    ),
-                                  })
-                                }
-                              />
-                            </label>
-                            <label>
-                              学习目标
-                              <textarea
-                                rows={2}
-                                maxLength={500}
-                                value={slot.objective}
-                                onChange={(e) =>
-                                  updateOutline({
-                                    ...draft.outline!,
-                                    lessons: draft.outline!.lessons.map((s) =>
-                                      s.id === slot.id
-                                        ? {
-                                            id: s.id,
-                                            title: s.title,
-                                            objective: e.target.value,
-                                          }
-                                        : s,
-                                    ),
-                                  })
-                                }
-                              />
-                            </label>
-                          </details>
-                          <div className="learn-actions">
-                            <div>
-                              <button
-                                className="learn-button text"
-                                disabled={i === 0}
-                                onClick={() => {
-                                  const lessons = [...draft.outline!.lessons];
-                                  [lessons[i - 1], lessons[i]] = [
-                                    lessons[i],
-                                    lessons[i - 1],
-                                  ];
-                                  updateOutline({ ...draft.outline!, lessons });
-                                }}
-                              >
-                                上移
-                              </button>
-                              <button
-                                className="learn-button text"
-                                disabled={
-                                  i === draft.outline!.lessons.length - 1
-                                }
-                                onClick={() => {
-                                  const lessons = [...draft.outline!.lessons];
-                                  [lessons[i + 1], lessons[i]] = [
-                                    lessons[i],
-                                    lessons[i + 1],
-                                  ];
-                                  updateOutline({ ...draft.outline!, lessons });
-                                }}
-                              >
-                                下移
-                              </button>
-                              <button
-                                className="learn-button text"
-                                disabled={draft.outline!.lessons.length <= 1}
-                                onClick={() =>
-                                  updateOutline({
-                                    ...draft.outline!,
-                                    lessons: draft.outline!.lessons.filter(
-                                      (s) => s.id !== slot.id,
-                                    ),
-                                  })
-                                }
-                              >
-                                移除课时
-                              </button>
-                            </div>
-                            <button
-                              className="learn-button"
-                              onClick={() =>
-                                void run(() => startTask("lesson", slot.id))
-                              }
-                            >
-                              {slot.lesson ? "重新生成本课" : "生成本课"}
-                            </button>
-                            <button
-                              className="learn-button"
-                              onClick={() => setEditingSlot(slot.id)}
-                            >
-                              手动编辑内容
-                            </button>
-                            {slot.lesson && (
-                              <button
-                                className="learn-button"
-                                onClick={() => {
-                                  setRevisionSlot(slot.id);
-                                  setRevisionInstruction("");
-                                }}
-                              >
-                                AI 局部修改
-                              </button>
-                            )}
-                          </div>
-                          {revisionSlot === slot.id && slot.lesson && (
-                            <div className="learn-revision-form">
+                          {stage === "outline" && (
+                            <div className="learn-slot-details">
                               <label>
-                                描述希望修改的部分
-                                <textarea
-                                  rows={3}
-                                  maxLength={500}
-                                  value={revisionInstruction}
-                                  placeholder="例如：把示例换成真实业务场景，并补一道相关练习题"
+                                课时标题
+                                <input
+                                  maxLength={120}
+                                  value={slot.title}
                                   onChange={(e) =>
-                                    setRevisionInstruction(e.target.value)
+                                    updateOutline({
+                                      ...draft.outline!,
+                                      lessons: draft.outline!.lessons.map(
+                                        (s) =>
+                                          s.id === slot.id
+                                            ? {
+                                                id: s.id,
+                                                title: e.target.value,
+                                                objective: s.objective,
+                                              }
+                                            : s,
+                                      ),
+                                    })
                                   }
                                 />
                               </label>
-                              <div className="learn-actions">
-                                <button
-                                  className="learn-button primary"
-                                  disabled={busy || !revisionInstruction.trim()}
-                                  onClick={() =>
-                                    void run(() =>
-                                      startTask(
-                                        "revise",
-                                        slot.id,
-                                        revisionInstruction,
+                              <label>
+                                学习目标
+                                <textarea
+                                  rows={2}
+                                  maxLength={500}
+                                  value={slot.objective}
+                                  onChange={(e) =>
+                                    updateOutline({
+                                      ...draft.outline!,
+                                      lessons: draft.outline!.lessons.map(
+                                        (s) =>
+                                          s.id === slot.id
+                                            ? {
+                                                id: s.id,
+                                                title: s.title,
+                                                objective: e.target.value,
+                                              }
+                                            : s,
                                       ),
-                                    )
+                                    })
+                                  }
+                                />
+                              </label>
+                            </div>
+                          )}
+                          <div className="learn-actions">
+                            {stage === "outline" ? (
+                              <div>
+                                <button
+                                  className="learn-button text"
+                                  disabled={i === 0}
+                                  onClick={() => {
+                                    const lessons = [...draft.outline!.lessons];
+                                    [lessons[i - 1], lessons[i]] = [
+                                      lessons[i],
+                                      lessons[i - 1],
+                                    ];
+                                    updateOutline({
+                                      ...draft.outline!,
+                                      lessons,
+                                    });
+                                  }}
+                                >
+                                  上移
+                                </button>
+                                <button
+                                  className="learn-button text"
+                                  disabled={
+                                    i === draft.outline!.lessons.length - 1
+                                  }
+                                  onClick={() => {
+                                    const lessons = [...draft.outline!.lessons];
+                                    [lessons[i + 1], lessons[i]] = [
+                                      lessons[i],
+                                      lessons[i + 1],
+                                    ];
+                                    updateOutline({
+                                      ...draft.outline!,
+                                      lessons,
+                                    });
+                                  }}
+                                >
+                                  下移
+                                </button>
+                                <button
+                                  className="learn-button text"
+                                  disabled={draft.outline!.lessons.length <= 1}
+                                  onClick={() =>
+                                    updateOutline({
+                                      ...draft.outline!,
+                                      lessons: draft.outline!.lessons.filter(
+                                        (s) => s.id !== slot.id,
+                                      ),
+                                    })
                                   }
                                 >
-                                  准备 AI 修改
+                                  移除课时
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <button
+                                  className="learn-button"
+                                  onClick={() =>
+                                    void run(() => startTask("lesson", slot.id))
+                                  }
+                                >
+                                  {slot.lesson ? "重新生成本课" : "生成本课"}
                                 </button>
                                 <button
                                   className="learn-button"
-                                  onClick={() => setRevisionSlot(null)}
+                                  onClick={() => setEditingSlot(slot.id)}
                                 >
-                                  取消
+                                  手动编辑内容
                                 </button>
+                                {slot.lesson && (
+                                  <button
+                                    className="learn-button"
+                                    onClick={() => {
+                                      setRevisionSlot(slot.id);
+                                      setRevisionInstruction("");
+                                    }}
+                                  >
+                                    AI 局部修改
+                                  </button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                          {stage === "lessons" &&
+                            revisionSlot === slot.id &&
+                            slot.lesson && (
+                              <div className="learn-revision-form">
+                                <label>
+                                  描述希望修改的部分
+                                  <textarea
+                                    rows={3}
+                                    maxLength={500}
+                                    value={revisionInstruction}
+                                    placeholder="例如：把示例换成真实业务场景，并补一道相关练习题"
+                                    onChange={(e) =>
+                                      setRevisionInstruction(e.target.value)
+                                    }
+                                  />
+                                </label>
+                                <div className="learn-actions">
+                                  <button
+                                    className="learn-button primary"
+                                    disabled={
+                                      busy || !revisionInstruction.trim()
+                                    }
+                                    onClick={() =>
+                                      void run(() =>
+                                        startTask(
+                                          "revise",
+                                          slot.id,
+                                          revisionInstruction,
+                                        ),
+                                      )
+                                    }
+                                  >
+                                    准备 AI 修改
+                                  </button>
+                                  <button
+                                    className="learn-button"
+                                    onClick={() => setRevisionSlot(null)}
+                                  >
+                                    取消
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                          )}
-                          {slot.lesson && (
+                            )}
+                          {stage === "lessons" && slot.lesson && (
                             <details>
                               <summary>预览讲解与测验</summary>
                               <Text value={slot.lesson.content} />
@@ -509,59 +515,37 @@ export function Studio({
                         </li>
                       ))}
                     </ol>
-                    <div className="learn-actions">
-                      <button
-                        className="learn-button"
-                        disabled={draft.outline.lessons.length >= 8}
-                        onClick={() =>
-                          updateOutline({
-                            ...draft.outline!,
-                            lessons: [
-                              ...draft.outline!.lessons,
-                              {
-                                id: crypto.randomUUID(),
-                                title: "新课时",
-                                objective: "填写本课学习目标",
-                              },
-                            ],
-                          })
-                        }
-                      >
-                        添加课时
-                      </button>
-                      <button
-                        className="learn-button"
-                        onClick={() => void run(() => persist(draft))}
-                      >
-                        保存大纲修改
-                      </button>
-                    </div>
+                    {stage === "outline" && (
+                      <div className="learn-actions">
+                        <button
+                          className="learn-button"
+                          disabled={draft.outline.lessons.length >= 8}
+                          onClick={() =>
+                            updateOutline({
+                              ...draft.outline!,
+                              lessons: [
+                                ...draft.outline!.lessons,
+                                {
+                                  id: crypto.randomUUID(),
+                                  title: "新课时",
+                                  objective: "填写本课学习目标",
+                                },
+                              ],
+                            })
+                          }
+                        >
+                          添加课时
+                        </button>
+                      </div>
+                    )}
                   </fieldset>
                   <p className="learn-muted">
                     {draft.outline.lessons.filter((s) => s.lesson).length} /{" "}
                     {draft.outline.lessons.length} 课时已准备 ·
-                    大纲修改需点击保存，开始生成时也会一并保存。
+                    {stage === "outline"
+                      ? "确认大纲后，点击右下角编辑课时内容。"
+                      : "课时修改可从弹窗底部暂存。"}
                   </p>
-                  {!draft.task && (
-                    <div className="learn-actions">
-                      <button
-                        className="learn-button primary"
-                        disabled={
-                          busy || draft.outline.lessons.some((s) => !s.lesson)
-                        }
-                        onClick={() =>
-                          void run(async () => {
-                            await persist(draft);
-                            const course = finishDraft(draft);
-                            await onSave(course);
-                            onSaved(course);
-                          })
-                        }
-                      >
-                        保存课程，开始学习
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
               {draft.task && (

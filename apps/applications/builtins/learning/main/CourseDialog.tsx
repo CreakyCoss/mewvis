@@ -2,12 +2,30 @@ import { useEffect, useRef, useState } from "react";
 import type { Brief } from "./course";
 import type { Course } from "./course";
 import { Icon, Notice, errorText } from "./components";
-import { newDraft, type CourseEntry, type Draft } from "./workflow";
+import {
+  finishDraft,
+  newDraft,
+  validateDraft,
+  type CourseEntry,
+  type Draft,
+} from "./workflow";
 import { Studio } from "./Studio";
 import { ProjectLab } from "./ProjectLab";
 
 const initial: Brief = { topic: "", level: "零基础", count: 3, material: "" };
-const labels = ["学习主题", "学习安排", "参考资料"];
+const labels = ["学习主题", "学习安排", "参考资料", "课程大纲", "课时内容"];
+type CreationStep = 0 | 1 | 2 | 3 | 4;
+const briefFromCourse = (course?: CourseEntry): Brief =>
+  !course
+    ? initial
+    : course.status === "stashed"
+      ? course.brief
+      : {
+          topic: course.title,
+          level: course.level,
+          count: Math.max(3, course.lessons.length),
+          material: "",
+        };
 
 export function CourseDialog({
   onClose,
@@ -19,64 +37,153 @@ export function CourseDialog({
   initialCourse,
 }: {
   onClose: () => void;
-  onCreate: (brief: Brief) => Promise<Draft>;
+  onCreate: (brief: Brief, step: CreationStep) => Promise<Draft>;
   onSave: (course: Course) => Promise<void>;
   onSaveDraft: (draft: Draft) => Promise<Draft>;
   onSaved: (course: Course) => void;
   onStashed: () => void;
   initialCourse?: CourseEntry;
 }) {
-  const [mode, setMode] = useState<"setup" | "studio">(
-    initialCourse ? "studio" : "setup",
-  );
+  const startingStep: CreationStep = initialCourse
+    ? initialCourse.status === "stashed"
+      ? (initialCourse.creationStep ?? (initialCourse.outline ? 4 : 3))
+      : 4
+    : 0;
+  const [step, setStep] = useState<CreationStep>(startingStep);
+  const [maxStep, setMaxStep] = useState<CreationStep>(startingStep);
   const [pane, setPane] = useState<"content" | "project">("content");
-  const [step, setStep] = useState(0);
-  const [brief, setBrief] = useState<Brief>(initial);
+  const [brief, setBrief] = useState<Brief>(() =>
+    briefFromCourse(initialCourse),
+  );
   const [created, setCreated] = useState<CourseEntry | undefined>();
+  const [workingDraft, setWorkingDraft] = useState<Draft | null>(() =>
+    !initialCourse
+      ? null
+      : initialCourse.status === "stashed"
+        ? validateDraft(initialCourse)
+        : newDraft(briefFromCourse(initialCourse), initialCourse),
+  );
   const [busy, setBusy] = useState(false);
+  const [studioBusy, setStudioBusy] = useState(false);
   const [error, setError] = useState("");
   const dialog = useRef<HTMLDivElement>(null);
-  const draftRef = useRef<Draft | null>(null);
+  const draftRef = useRef<Draft | null>(workingDraft);
   const currentCourse = created ?? initialCourse;
+  const shownCourse = workingDraft ?? currentCourse;
+  const activeBusy = busy || studioBusy;
+  const complete =
+    !!workingDraft?.outline &&
+    !workingDraft.task &&
+    workingDraft.outline.lessons.every((slot) => !!slot.lesson);
+  const cleanBrief = (): Brief => ({
+    ...brief,
+    topic: brief.topic.trim(),
+    material: brief.material.trim(),
+  });
+  const withBrief = (draft: Draft, targetStep: CreationStep = step): Draft => {
+    const next = cleanBrief();
+    const renameOutline =
+      !!draft.outline &&
+      next.topic !== draft.brief.topic &&
+      draft.outline.title === draft.brief.topic;
+    const changeLevel = !!draft.outline && next.level !== draft.brief.level;
+    return {
+      ...draft,
+      brief: next,
+      creationStep: targetStep,
+      outline:
+        draft.outline && (renameOutline || changeLevel)
+          ? {
+              ...draft.outline,
+              ...(renameOutline ? { title: next.topic } : {}),
+              ...(changeLevel ? { level: next.level } : {}),
+            }
+          : draft.outline,
+    };
+  };
   const saveWorkingCourse = async (draft: Draft): Promise<Draft> => {
-    setBusy(true);
-    try {
-      const saved = await onSaveDraft(draft);
-      draftRef.current = saved;
-      setCreated(saved);
-      return saved;
-    } finally {
-      setBusy(false);
+    const saved = await onSaveDraft(draft);
+    draftRef.current = saved;
+    setWorkingDraft(saved);
+    setCreated(saved);
+    return saved;
+  };
+  const ensureCourse = async (targetStep: CreationStep): Promise<Draft> => {
+    if (draftRef.current) {
+      const updated = withBrief(draftRef.current, targetStep);
+      draftRef.current = updated;
+      setWorkingDraft(updated);
+      return updated;
     }
+    const saved = await onCreate(cleanBrief(), targetStep);
+    draftRef.current = saved;
+    setWorkingDraft(saved);
+    setCreated(saved);
+    return saved;
+  };
+  const goToStep = async (target: CreationStep) => {
+    if (activeBusy || target < 0 || target > 4 || target > maxStep + 1) return;
+    if (target > 0 && !brief.topic.trim()) {
+      setError("请先填写课程主题");
+      return;
+    }
+    if (target === 4) {
+      if (!draftRef.current?.outline || draftRef.current.task) {
+        setError("请先完成课程大纲");
+        return;
+      }
+      try {
+        validateDraft(withBrief(draftRef.current, 4));
+      } catch (e) {
+        setError(errorText(e));
+        return;
+      }
+    }
+    setError("");
+    if (target !== 4) setPane("content");
+    if (target === 3 || target === 4) {
+      setBusy(true);
+      try {
+        await ensureCourse(target);
+      } catch (e) {
+        setError(errorText(e));
+        return;
+      } finally {
+        setBusy(false);
+      }
+    }
+    setStep(target);
+    setMaxStep((value) => Math.max(value, target) as CreationStep);
   };
   const requestClose = async () => {
-    if (busy) return;
-    if (mode !== "studio" || !currentCourse || !draftRef.current) {
+    if (activeBusy) return;
+    if (!currentCourse || !draftRef.current || !brief.topic.trim()) {
       onClose();
       return;
     }
     const baseline =
       currentCourse.status === "stashed"
         ? currentCourse
-        : newDraft(
-            {
-              topic: currentCourse.title,
-              level: currentCourse.level,
-              count: Math.max(3, currentCourse.lessons.length),
-              material: "",
-            },
-            currentCourse,
-          );
-    if (JSON.stringify(draftRef.current) === JSON.stringify(baseline)) {
+        : newDraft(briefFromCourse(currentCourse), currentCourse);
+    const updated = withBrief(draftRef.current);
+    const unchanged =
+      currentCourse.status === "ready"
+        ? JSON.stringify({ ...updated, creationStep: 4 }) ===
+          JSON.stringify(baseline)
+        : JSON.stringify(updated) === JSON.stringify(baseline);
+    if (unchanged) {
       onClose();
       return;
     }
     setError("");
+    setBusy(true);
     try {
-      await saveWorkingCourse(draftRef.current);
+      await saveWorkingCourse(updated);
       onStashed();
     } catch (e) {
       setError(errorText(e));
+    } finally {
+      setBusy(false);
     }
   };
   useEffect(() => {
@@ -118,24 +225,33 @@ export function CourseDialog({
       setBusy(false);
     }
   };
-  const next = async () => {
+  const stash = async () => {
+    if (!brief.topic.trim() || activeBusy) return;
     setError("");
-    if (step < 2) {
-      setStep(step + 1);
-      return;
-    }
     setBusy(true);
     try {
-      const saved = await onCreate({
-        ...brief,
-        topic: brief.topic.trim(),
-        material: brief.material.trim(),
-      });
-      setCreated(saved);
-      setMode("studio");
-      setBusy(false);
+      if (draftRef.current)
+        await saveWorkingCourse(withBrief(draftRef.current));
+      else await ensureCourse(step);
+      onStashed();
     } catch (e) {
       setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const save = async () => {
+    if (!complete || !draftRef.current || activeBusy) return;
+    setError("");
+    setBusy(true);
+    try {
+      const saved = await saveWorkingCourse(withBrief(draftRef.current, 4));
+      const course = finishDraft(saved);
+      await onSave(course);
+      onSaved(course);
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
       setBusy(false);
     }
   };
@@ -143,17 +259,17 @@ export function CourseDialog({
     <div
       className="learn-dialog-backdrop"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !busy) void requestClose();
+        if (e.target === e.currentTarget && !activeBusy) void requestClose();
       }}
     >
       <div
-        className={`learn-create-dialog ${mode === "setup" ? "is-setup" : ""}`}
+        className="learn-create-dialog"
         ref={dialog}
         role="dialog"
         aria-modal="true"
         aria-labelledby="learn-create-title"
         onKeyDown={(event) => {
-          if (event.key === "Escape" && !busy) void requestClose();
+          if (event.key === "Escape" && !activeBusy) void requestClose();
           if (event.key !== "Tab") return;
           const focusable = Array.from(
             dialog.current?.querySelectorAll<HTMLElement>(
@@ -175,86 +291,68 @@ export function CourseDialog({
           <div>
             <span className="learn-eyebrow">COURSE WORKSPACE</span>
             <h2 id="learn-create-title">
-              {currentCourse
-                ? `编辑课程 · ${currentCourse.status === "stashed" ? (currentCourse.outline?.title ?? currentCourse.brief.topic) : currentCourse.title}`
+              {initialCourse && shownCourse
+                ? `编辑课程 · ${shownCourse.status === "stashed" ? (shownCourse.outline?.title ?? shownCourse.brief.topic) : shownCourse.title}`
                 : "创建课程"}
             </h2>
           </div>
           <button
             className="learn-button text"
-            aria-label={currentCourse ? "关闭课程编辑" : "关闭创建课程"}
-            disabled={busy}
+            aria-label={initialCourse ? "关闭课程编辑" : "关闭创建课程"}
+            disabled={activeBusy}
             onClick={() => void requestClose()}
           >
             ×
           </button>
         </header>
-        {mode === "studio" && currentCourse ? (
-          <div className="learn-dialog-workspace">
-            {currentCourse?.status === "ready" && (
-              <div
-                className="learn-dialog-tabs"
-                role="tablist"
-                aria-label="编辑课程内容"
-              >
-                <button
-                  role="tab"
-                  aria-selected={pane === "content"}
-                  onClick={() => setPane("content")}
-                >
-                  课程内容
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={pane === "project"}
-                  onClick={() => setPane("project")}
-                >
-                  项目实训
-                </button>
-              </div>
-            )}
-            <div className="learn-dialog-scroll">
-              {pane === "project" && currentCourse?.status === "ready" ? (
-                <ProjectLab
-                  key={currentCourse.id}
-                  course={currentCourse}
-                  mode="design"
-                />
-              ) : (
-                <Studio
-                  initialCourse={currentCourse}
-                  onSave={onSave}
-                  onSaveDraft={saveWorkingCourse}
-                  onDraftChange={(draft) => {
-                    draftRef.current = draft;
-                  }}
-                  onSaved={onSaved}
-                  onStashed={onStashed}
-                />
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="learn-dialog-setup">
-            {error && <Notice>{error}</Notice>}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void next();
-              }}
+        <ol className="learn-dialog-steps" aria-label="课程创建步骤">
+          {labels.map((label, i) => (
+            <li
+              key={label}
+              className={i === step ? "active" : i < step ? "done" : ""}
             >
-              <ol className="learn-dialog-steps" aria-label="创建课程步骤">
-                {labels.map((label, i) => (
-                  <li
-                    key={label}
-                    className={i === step ? "active" : i < step ? "done" : ""}
-                    aria-current={i === step ? "step" : undefined}
-                  >
-                    <span>{i + 1}</span>
-                    {label}
-                  </li>
-                ))}
-              </ol>
+              <button
+                type="button"
+                aria-current={i === step ? "step" : undefined}
+                disabled={activeBusy || i > maxStep}
+                onClick={() => void goToStep(i as CreationStep)}
+              >
+                <span>{i + 1}</span>
+                {label}
+              </button>
+            </li>
+          ))}
+        </ol>
+        {step === 4 && currentCourse?.status === "ready" && (
+          <div
+            className="learn-dialog-tabs"
+            role="tablist"
+            aria-label="编辑课程内容"
+          >
+            <button
+              role="tab"
+              aria-selected={pane === "content"}
+              onClick={() => setPane("content")}
+            >
+              课程内容
+            </button>
+            <button
+              role="tab"
+              aria-selected={pane === "project"}
+              onClick={() => setPane("project")}
+            >
+              项目实训
+            </button>
+          </div>
+        )}
+        {error && (
+          <div className="learn-dialog-error">
+            <Notice>{error}</Notice>
+          </div>
+        )}
+        <div className="learn-dialog-scroll">
+          {step < 3 ? (
+            <div className="learn-dialog-setup">
               <div className="learn-dialog-body">
                 {step === 0 && (
                   <>
@@ -266,6 +364,12 @@ export function CourseDialog({
                       required
                       maxLength={200}
                       autoFocus
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          void goToStep(1);
+                        }
+                      }}
                       value={brief.topic}
                       onChange={(e) =>
                         setBrief({ ...brief, topic: e.target.value })
@@ -352,30 +456,90 @@ export function CourseDialog({
                   </>
                 )}
               </div>
-              <footer className="learn-dialog-footer">
+            </div>
+          ) : pane === "project" && currentCourse?.status === "ready" ? (
+            <ProjectLab
+              key={currentCourse.id}
+              course={currentCourse}
+              mode="design"
+            />
+          ) : shownCourse ? (
+            <Studio
+              initialCourse={shownCourse}
+              stage={step === 3 ? "outline" : "lessons"}
+              onSaveDraft={saveWorkingCourse}
+              onDraftChange={(draft) => {
+                draftRef.current = draft;
+                setWorkingDraft(draft);
+              }}
+              onBusyChange={setStudioBusy}
+            />
+          ) : null}
+        </div>
+        <footer className="learn-dialog-footer">
+          <button
+            type="button"
+            className="learn-button"
+            disabled={activeBusy}
+            onClick={() =>
+              step
+                ? void goToStep((step - 1) as CreationStep)
+                : void requestClose()
+            }
+          >
+            {step ? "上一步" : "取消"}
+          </button>
+          <div className="learn-dialog-footer-actions">
+            {pane === "project" && step === 4 ? (
+              <button
+                type="button"
+                className="learn-button"
+                onClick={() => setPane("content")}
+              >
+                返回课程内容
+              </button>
+            ) : (
+              <>
                 <button
                   type="button"
                   className="learn-button"
-                  onClick={() => (step ? setStep(step - 1) : onClose())}
-                  disabled={busy}
+                  disabled={activeBusy || !brief.topic.trim()}
+                  onClick={() => void stash()}
                 >
-                  {step ? "上一步" : "取消"}
+                  暂存
                 </button>
-                <button
-                  className="learn-button primary"
-                  disabled={busy || (step === 0 && !brief.topic.trim())}
-                >
-                  {busy
-                    ? "保存中…"
-                    : step === 2
-                      ? "保存需求，开始规划"
-                      : "下一步"}
-                  <Icon name="arrow" size={16} />
-                </button>
-              </footer>
-            </form>
+                {step < 4 ? (
+                  <button
+                    type="button"
+                    className="learn-button primary"
+                    disabled={
+                      activeBusy ||
+                      !brief.topic.trim() ||
+                      (step === 3 && !workingDraft?.outline)
+                    }
+                    onClick={() => void goToStep((step + 1) as CreationStep)}
+                  >
+                    {step === 2
+                      ? "编辑课程大纲"
+                      : step === 3
+                        ? "编辑课时内容"
+                        : "下一步"}
+                    <Icon name="arrow" size={16} />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="learn-button primary"
+                    disabled={activeBusy || !complete}
+                    onClick={() => void save()}
+                  >
+                    保存课程，开始学习
+                  </button>
+                )}
+              </>
+            )}
           </div>
-        )}
+        </footer>
       </div>
     </div>
   );

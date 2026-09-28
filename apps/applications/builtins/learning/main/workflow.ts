@@ -39,6 +39,7 @@ export type Task = {
 export type Draft = {
   version: 2;
   status: "stashed";
+  creationStep?: 0 | 1 | 2 | 3 | 4;
   courseId: string;
   createdAt: number;
   origin: Course["origin"];
@@ -76,11 +77,16 @@ export function validateOutline(value: unknown): Outline {
     }),
   };
 }
-export function newDraft(brief: Brief, course?: Course): Draft {
+export function newDraft(
+  brief: Brief,
+  course?: Course,
+  creationStep: 0 | 1 | 2 | 3 | 4 = 4,
+): Draft {
   buildPrompt(brief);
   return {
     version: 2,
     status: "stashed",
+    creationStep,
     courseId: course?.id ?? crypto.randomUUID(),
     createdAt: course?.createdAt ?? Date.now(),
     origin: course?.origin ?? "ai",
@@ -111,6 +117,12 @@ export function validateDraft(value: unknown): Draft {
   const r = object(value, "暂存课程");
   if (r.version !== 2) throw new Error("暂存课程版本不受支持");
   if (r.status !== "stashed") throw new Error("课程状态无效");
+  if (
+    r.creationStep !== undefined &&
+    (typeof r.creationStep !== "number" ||
+      ![0, 1, 2, 3, 4].includes(r.creationStep))
+  )
+    throw new Error("课程步骤无效");
   const brief = object(r.brief, "学习需求") as unknown as Brief;
   buildPrompt(brief);
   text(brief.level, "学习水平", 40);
@@ -169,6 +181,9 @@ export function validateDraft(value: unknown): Draft {
   return {
     version: 2,
     status: "stashed",
+    ...(r.creationStep === undefined
+      ? {}
+      : { creationStep: r.creationStep as Draft["creationStep"] }),
     courseId: validId(r.courseId),
     createdAt: r.createdAt,
     origin: r.origin as Course["origin"],
