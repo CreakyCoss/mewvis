@@ -1,6 +1,6 @@
 import "./styles.css";
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, Circle, Minus, MoreHorizontal, Pencil, Plus, Upload } from "lucide-react";
+import { BookOpen, Circle, MoreHorizontal, Pencil, Plus, Upload } from "lucide-react";
 import { getApplicationDataClient } from "@isle/app-sdk/data";
 import { getApplicationHost, writeClipboardText } from "@isle/app-sdk/browser";
 import {
@@ -615,12 +615,7 @@ export default function App() {
                     <article className="learn-course-card" key={id}>
                       <div className="learn-card-body">
                         <div className="learn-card-top">
-                          <Minus
-                            className="learn-card-accent"
-                            size={39}
-                            strokeWidth={2}
-                            aria-hidden="true"
-                          />
+                          <span className="learn-card-accent" aria-hidden="true" />
                           <details className="learn-card-menu">
                             <summary aria-label={`更多课程操作：${title}`}>
                               <MoreHorizontal size={20} aria-hidden="true" />
