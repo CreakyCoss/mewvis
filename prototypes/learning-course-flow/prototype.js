@@ -96,17 +96,18 @@ function outlineScreen() {
 }
 
 function lessonsScreen() {
-  const rows = sample.lessons
+  const lessons = sample.lessons.filter((lesson) => lesson.complete);
+  const rows = lessons
     .map(
       (lesson, index) =>
-        `<div class="lesson-row"><button type="button" class="lesson-info" data-open-lesson="${index}"><span class="lesson-index">${String(index + 1).padStart(2, "0")}</span><span class="lesson-copy"><strong>${lesson.title}</strong><small>${lesson.objective}</small></span><span class="chip ${lesson.complete ? "success" : "pending"}">${lesson.complete ? "已完成" : "待编写"}</span><span class="lesson-chevron" aria-hidden="true">›</span></button></div>`,
+        `<div class="lesson-row"><button type="button" class="lesson-info" data-open-lesson="${index}"><span class="lesson-index">${String(index + 1).padStart(2, "0")}</span><span class="lesson-copy"><strong>${lesson.title}</strong><small>${lesson.objective}</small></span><span class="lesson-chevron" aria-hidden="true">›</span></button></div>`,
     )
     .join("");
-  return `<div class="lesson-layout"><section class="lesson-main"><div class="screen-heading"><span class="eyebrow">03 / 课时内容</span><h1>课时内容</h1></div><div class="section-heading"><div><h2>课时列表</h2><p>2 / 4 已完成</p></div><div class="heading-actions"><button type="button" class="button small ghost" data-design-action="调整顺序">调整顺序</button><button type="button" class="button small secondary" data-design-action="添加课时">添加课时</button></div></div><div class="progress-line"><span style="width:50%"></span></div><div class="lesson-table">${rows}</div></section></div>`;
+  return `<div class="lesson-layout"><section class="lesson-main"><div class="screen-heading"><span class="eyebrow">03 / 课时内容</span><h1>课时内容</h1></div><div class="section-heading"><div><h2>课时列表</h2><p>共 ${lessons.length} 课时</p></div><div class="heading-actions"><button type="button" class="button small ghost" data-design-action="调整顺序">调整顺序</button><button type="button" class="button small secondary" data-add-lesson>添加课时</button></div></div><div class="lesson-table">${rows}</div></section></div>`;
 }
 
 function projectScreen() {
-  return `<div class="project-layout"><div class="screen-heading"><span class="eyebrow">04 / 项目实训</span><h1>项目实训</h1></div><div class="project-grid"><section class="project-panel"><h2>是否添加项目实训？</h2><label class="project-option"><input type="radio" name="project" /><span><strong>暂不添加</strong><p>之后可在课程编辑中添加。</p></span></label><label class="project-option active"><input type="radio" name="project" checked /><span><strong>添加综合项目</strong><p>用实际成果串联课程知识。</p></span></label><div class="project-extra"><h3>项目草案</h3><div class="form-group"><label>项目名称</label><input value="用数据讲清一家书店的周末经营变化" /></div><div class="form-group"><label>交付成果</label><textarea rows="3">一份包含问题、数据检查、图表和行动建议的简短分析报告。</textarea></div><button type="button" class="button small ghost" data-design-action="AI 生成项目框架">让 AI 生成项目框架</button></div></section><aside class="project-aside"><h3>课程完成情况</h3><div class="rule"></div><div class="stat">2 / 4 课时已完成</div><small>还有 2 个课时需要正文与练习</small><div class="rule"></div><div class="stat">项目实训：已加入草案</div></aside></div></div>`;
+  return `<div class="project-layout"><div class="screen-heading"><span class="eyebrow">04 / 项目实训</span><h1>项目实训</h1></div><div class="project-grid"><section class="project-panel"><h2>是否添加项目实训？</h2><label class="project-option"><input type="radio" name="project" /><span><strong>暂不添加</strong><p>之后可在课程编辑中添加。</p></span></label><label class="project-option active"><input type="radio" name="project" checked /><span><strong>添加综合项目</strong><p>用实际成果串联课程知识。</p></span></label><div class="project-extra"><h3>项目草案</h3><div class="form-group"><label>项目名称</label><input value="用数据讲清一家书店的周末经营变化" /></div><div class="form-group"><label>交付成果</label><textarea rows="3">一份包含问题、数据检查、图表和行动建议的简短分析报告。</textarea></div><button type="button" class="button small ghost" data-design-action="AI 生成项目框架">让 AI 生成项目框架</button></div></section><aside class="project-aside"><h3>课程完成情况</h3><div class="rule"></div><div class="stat">2 课时</div><div class="rule"></div><div class="stat">项目实训：已加入草案</div></aside></div></div>`;
 }
 
 const screens = [setupScreen, outlineScreen, lessonsScreen, projectScreen];
@@ -162,6 +163,25 @@ screen.addEventListener("click", (event) => {
     document.getElementById("outline-description").focus();
     return;
   }
+  if (event.target.closest("[data-add-lesson]")) {
+    document.getElementById("lesson-dialog-title").textContent = "添加课时";
+    for (const id of [
+      "lesson-title",
+      "lesson-objective",
+      "lesson-body",
+      "lesson-example",
+      "lesson-takeaways",
+      "lesson-quiz",
+    ])
+      document.getElementById(id).value = "";
+    document.getElementById("lesson-ai-instruction").value = "";
+    document.getElementById("lesson-ai-action").textContent = "生成课时";
+    document.getElementById("lesson-ai-intro").textContent =
+      "根据课程主题及已填写的信息生成完整课时。";
+    overlay.hidden = false;
+    document.getElementById("lesson-title").focus();
+    return;
+  }
   const open = event.target.closest("[data-open-lesson]");
   if (open) {
     const lesson = sample.lessons[Number(open.dataset.openLesson)];
@@ -171,9 +191,10 @@ screen.addEventListener("click", (event) => {
     document.getElementById("lesson-body").value = lesson.body;
     document.getElementById("lesson-example").value = lesson.example;
     document.getElementById("lesson-quiz").value = lesson.quiz;
+    document.getElementById("lesson-takeaways").value = "确认问题\n核对数据";
     document.getElementById("lesson-ai-action").textContent = lesson.complete
-      ? "AI 优化课时"
-      : "AI 生成课时";
+      ? "开始优化"
+      : "生成课时";
     document.getElementById("lesson-ai-intro").textContent = lesson.complete
       ? "描述想调整的内容，先预览结果，再决定是否采用。"
       : "根据课时标题与目标生成正文、示例和测验。";

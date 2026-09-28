@@ -3040,3 +3040,69 @@
 @media (max-width: 760px) {
   .learn-lesson-ai-panel { grid-template-columns: 1fr; gap: 12px; }
 }
+
+/* Lesson creation saves only complete lessons; the editor is a structured form. */
+.learn-lesson-card-chevron { flex: 0 0 auto; padding-right: 8px; color: var(--muted-foreground); font-size: 23px; line-height: 1; }
+.learn-lesson-form-fields { display: grid; grid-template-columns: 142px minmax(0, 1fr); gap: 30px; padding: 0 28px 32px; }
+.learn-lesson-section-nav { position: sticky; top: 0; align-self: start; display: grid; gap: 5px; padding: 24px 0; }
+.learn-lesson-section-nav a { display: block; padding: 10px 12px; border-radius: 8px; color: var(--muted-foreground); font-size: 13px; text-decoration: none; }
+.learn-lesson-section-nav a:hover, .learn-lesson-section-nav a:focus-visible { background: var(--primary-subtle); color: var(--primary); }
+.learn-lesson-form-main { min-width: 0; padding-top: 24px; }
+.learn-lesson-dialog .learn-manual-editor .learn-lesson-basics,
+.learn-lesson-dialog .learn-manual-editor .learn-lesson-content-fields { margin: 0 0 28px; padding: 0 0 20px; border-bottom: 1px solid var(--border); }
+.learn-lesson-dialog .learn-manual-editor legend,
+.learn-lesson-dialog .learn-manual-editor h2 { margin: 0 0 16px; padding: 0; border: 0; font-size: 16px; line-height: 1.4; }
+.learn-lesson-dialog .learn-manual-editor h2 small { margin-left: 8px; color: var(--muted-foreground); font-size: 12px; font-weight: 400; }
+.learn-lesson-dialog .learn-manual-editor label { gap: 7px; margin-bottom: 18px; color: var(--foreground); }
+.learn-lesson-dialog .learn-manual-editor label:last-child { margin-bottom: 0; }
+.learn-lesson-dialog .learn-manual-editor textarea { line-height: 1.55; resize: vertical; }
+.learn-lesson-content-fields textarea[aria-label="课时正文"] { min-height: 190px; }
+.learn-lesson-content-fields textarea[aria-label="具体示例"] { min-height: 100px; }
+.learn-lesson-dialog .learn-manual-editor .learn-lesson-question { position: relative; margin: 0 0 15px; padding: 18px 20px 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--background); }
+.learn-lesson-dialog .learn-manual-editor .learn-lesson-question legend { width: auto; margin: 0; padding: 0 5px; color: var(--primary); font-size: 13px; font-weight: 700; }
+.learn-lesson-question > .learn-muted { margin: -6px 0 14px; font-size: 11px; }
+.learn-lesson-question > .learn-button.text { margin-top: 7px; padding-left: 0; color: var(--muted-foreground); }
+.learn-lesson-dialog .learn-manual-editor .learn-edit-option { display: grid; grid-template-columns: 44px minmax(0,1fr) auto; gap: 10px; margin-bottom: 10px; }
+.learn-lesson-dialog .learn-manual-editor .learn-correct-choice { justify-content: center; gap: 5px; font-size: 12px; }
+.learn-lesson-dialog .learn-manual-editor .learn-edit-option > input { min-width: 0; }
+.learn-lesson-ai-panel { display: block; margin: 0 0 30px; padding: 18px 20px 20px; border-color: color-mix(in srgb, var(--primary) 18%, var(--border)); background: var(--primary-subtle); }
+.learn-lesson-ai-panel-heading { margin-bottom: 14px; }
+.learn-lesson-ai-panel-heading strong { font-size: 14px; }
+.learn-lesson-ai-panel-heading p { margin-top: 3px; }
+.learn-lesson-ai-panel-compose { display: block; }
+.learn-lesson-ai-panel-compose label { display: block; margin-bottom: 8px !important; color: var(--foreground); font-size: 12px; font-weight: 650; }
+.learn-lesson-ai-composer { display: flex; align-items: flex-end; gap: 10px; padding: 9px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }
+.learn-lesson-ai-composer:focus-within { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-subtle); }
+.learn-lesson-dialog .learn-manual-editor .learn-lesson-ai-composer textarea { flex: 1; min-width: 0; min-height: 50px; padding: 7px 5px; border: 0; background: transparent; box-shadow: none; resize: vertical; }
+.learn-lesson-ai-composer textarea:focus-visible { outline: none; }
+.learn-lesson-ai-composer .learn-button { flex: 0 0 auto; min-height: 38px; padding: 8px 14px; white-space: nowrap; }
+.learn-field-error { display: block; color: #b42318; font-size: 11px; font-weight: 500; }
+.learn-lesson-dialog [aria-invalid="true"] { border-color: #dc5b50 !important; }
+.learn-lesson-editor-footer .learn-button { min-width: 80px; }
+@media (max-width: 760px) {
+  .learn-lesson-form-fields { display: block; padding: 0 18px 24px; }
+  .learn-lesson-section-nav { position: sticky; top: 0; z-index: 1; display: flex; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--border); background: var(--card); }
+  .learn-lesson-section-nav a { flex: 1; padding: 8px 5px; font-size: 11px; text-align: center; }
+  .learn-lesson-form-main { padding-top: 18px; }
+  .learn-lesson-ai-composer { display: block; }
+  .learn-lesson-ai-composer .learn-button { display: block; margin: 6px 0 0 auto; }
+  .learn-lesson-dialog .learn-manual-editor .learn-lesson-question { padding: 14px; }
+  .learn-lesson-dialog .learn-manual-editor .learn-edit-option { grid-template-columns: 35px minmax(0,1fr); }
+  .learn-lesson-dialog .learn-manual-editor .learn-edit-option .learn-button.text { grid-column: 2; justify-self: start; }
+}
+.learn-lesson-ai-composer .learn-button.primary { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+.learn-lesson-ai-composer .learn-button.primary:hover:not(:disabled) { filter: brightness(.95); }
+.learn-lesson-form-main > [id] { scroll-margin-top: 70px; }
+.learn-lesson-dialog .learn-manual-editor .learn-edit-option { grid-template-columns: 44px minmax(0,1fr) 30px; }
+.learn-lesson-dialog .learn-manual-editor .learn-edit-option .learn-button.text { width: 30px; min-width: 30px; height: 30px; padding: 0; border-radius: 7px; font-size: 20px; line-height: 1; }
+.learn-lesson-dialog .learn-manual-editor .learn-edit-option .learn-button.text:disabled { visibility: hidden; }
+@media (max-width: 760px) {
+  .learn-lesson-dialog .learn-manual-editor .learn-edit-option { grid-template-columns: 35px minmax(0,1fr) 30px; }
+  .learn-lesson-dialog .learn-manual-editor .learn-edit-option .learn-button.text { grid-column: auto; justify-self: auto; }
+}
+.learn-lesson-section-nav button { display: block; width: 100%; padding: 10px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--muted-foreground); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.learn-lesson-section-nav button:hover, .learn-lesson-section-nav button:focus-visible { background: var(--primary-subtle); color: var(--primary); }
+@media (max-width: 760px) {
+  .learn-lesson-section-nav button { flex: 1; padding: 8px 5px; font-size: 11px; text-align: center; }
+}
+.learn-lesson-dialog .learn-manual-editor .learn-lesson-question > .learn-button.text:disabled { display: none; }

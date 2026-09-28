@@ -600,7 +600,7 @@ export default function App() {
                                           (slot) => slot.lesson,
                                         )
                                       ? "完成项目实训设置并保存"
-                                      : `${item.outline.lessons.filter((slot) => slot.lesson).length} / ${item.outline.lessons.length} 课时已完成`}
+                                      : `共 ${item.outline.lessons.length} 课时`}
                             </strong>
                           </div>
                           <div className="learn-card-actions">

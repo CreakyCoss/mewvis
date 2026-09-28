@@ -55,6 +55,7 @@ const {
   finalText,
   editDraftSlot,
   editDraftLesson,
+  addDraftLesson,
   validatePlan,
   createProject,
   validateProject,
@@ -1024,6 +1025,38 @@ test("manual lesson edits preserve identity on no-op and revise only changed con
   );
   assert.throws(() => editDraftLesson(d, "missing", slot.lesson), /不存在/);
 });
+test("new lessons enter the draft only with complete validated content", () => {
+  const draft = newDraft(briefV2, copy());
+  const before = draft.outline.lessons.length;
+  const id = crypto.randomUUID();
+  assert.throws(
+    () => addDraftLesson(draft, { ...mixedLesson(), content: "" }, id),
+    /课时正文/,
+  );
+  assert.equal(draft.outline.lessons.length, before);
+  const next = addDraftLesson(draft, mixedLesson(), id);
+  assert.equal(next.outline.lessons.length, before + 1);
+  assert.equal(next.outline.lessons.at(-1).id, id);
+  assert.equal(next.outline.lessons.at(-1).lesson.title, mixedLesson().title);
+  assert.throws(() => addDraftLesson(next, mixedLesson(), id), /已存在/);
+  const generating = {
+    ...draft,
+    outline: {
+      ...draft.outline,
+      lessons: [
+        ...draft.outline.lessons,
+        { id, title: "第 3 课", objective: "填写本课学习目标" },
+      ],
+    },
+    task: { kind: "lesson", targetId: id, creating: true, ref },
+  };
+  assert.equal(validateDraft(generating).task.creating, true);
+  assert.equal(
+    acceptTask(generating, JSON.stringify(mixedLesson())).outline.lessons.at(-1)
+      .lesson.title,
+    mixedLesson().title,
+  );
+});
 test("changing a lesson's title or objective clears only that lesson's finished content", () => {
   const d = newDraft(briefV2, copy());
   const slot = d.outline.lessons[0];
@@ -1046,7 +1079,10 @@ test("PBL plans normalize model identities, validate requirements and preserve c
     title: "尚未添加课时的课程",
     lessons: [],
   });
-  assert.equal(validateProject(emptySource, emptySource.courseId).sourceLessons.length, 0);
+  assert.equal(
+    validateProject(emptySource, emptySource.courseId).sourceLessons.length,
+    0,
+  );
   const raw = projectPlan();
   raw.id = "injected";
   raw.milestones[0].id = "other";

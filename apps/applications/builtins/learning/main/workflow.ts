@@ -37,6 +37,7 @@ export type Task = {
   kind: "outline" | "lesson" | "revise";
   targetId?: string;
   instruction?: string;
+  creating?: true;
   ref: SessionRef;
 };
 export type Draft = {
@@ -178,10 +179,17 @@ export function validateDraft(value: unknown): Draft {
       !outline?.lessons.some((s) => s.id === t.targetId && s.lesson)
     )
       throw new Error("待修改课时没有内容");
+    if (
+      t.creating === true &&
+      (t.kind !== "lesson" ||
+        !outline?.lessons.some((s) => s.id === t.targetId && !s.lesson))
+    )
+      throw new Error("新课时生成任务无效");
     task = {
       kind: t.kind,
       ref: validateRef(t.ref),
       ...(t.kind !== "outline" ? { targetId: String(t.targetId) } : {}),
+      ...(t.creating === true ? { creating: true as const } : {}),
       ...(t.instruction
         ? { instruction: text(t.instruction, "补充要求", 500) }
         : {}),
@@ -410,6 +418,34 @@ export function editDraftLesson(
           ? { ...s, title: lesson.title, objective: lesson.objective, lesson }
           : s,
       ),
+    },
+  };
+}
+
+export function addDraftLesson(
+  draft: Draft,
+  value: unknown,
+  slotId: string,
+): Draft {
+  if (draft.task) throw new Error("请先结束当前生成任务再添加课时");
+  if (!draft.outline) throw new Error("请先完成课程大纲");
+  if (draft.outline.lessons.length >= 8) throw new Error("最多添加 8 个课时");
+  if (draft.outline.lessons.some((slot) => slot.id === slotId))
+    throw new Error("课时已存在");
+  const lesson = validateLesson(value, crypto.randomUUID());
+  return {
+    ...draft,
+    outline: {
+      ...draft.outline,
+      lessons: [
+        ...draft.outline.lessons,
+        {
+          id: validId(slotId),
+          title: lesson.title,
+          objective: lesson.objective,
+          lesson,
+        },
+      ],
     },
   };
 }

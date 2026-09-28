@@ -499,11 +499,15 @@ export function CourseDialog({
               <aside className="learn-project-step-aside">
                 <h3>课程完成情况</h3>
                 <strong>
-                  {workingDraft?.outline?.lessons.filter((slot) => slot.lesson)
-                    .length ?? 0}{" "}
-                  / {workingDraft?.outline?.lessons.length ?? 0} 课时已完成
+                  {workingDraft?.outline?.lessons.length ?? 0} 课时
                 </strong>
-                {!complete && <p>补全所有课时内容后即可保存课程。</p>}
+                {!complete && (
+                  <p>
+                    {workingDraft?.outline?.lessons.length
+                      ? "请先完成现有课时内容。"
+                      : "添加并保存至少一个课时后即可保存课程。"}
+                  </p>
+                )}
                 {workingDraft?.projectEnabled && !projectReady && (
                   <p>请先保存项目计划。</p>
                 )}

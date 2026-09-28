@@ -5,6 +5,7 @@ import { ModelTask, createModelTask, closeModelTask } from "./ModelTask";
 import {
   type Draft,
   type Outline,
+  type Slot,
   type Task,
   type CourseEntry,
   newDraft,
@@ -17,6 +18,7 @@ import {
   validateOutline,
   editDraftSlot,
   editDraftLesson,
+  addDraftLesson,
 } from "./workflow";
 
 export function Studio({
@@ -37,6 +39,7 @@ export function Studio({
   const [readFailed, setReadFailed] = useState(false);
   const [error, setError] = useState("");
   const [editingSlot, setEditingSlot] = useState<string | null>(null);
+  const [creatingSlotId, setCreatingSlotId] = useState<string | null>(null);
   const [outlineForm, setOutlineForm] = useState<Outline | null>(null);
   const [reordering, setReordering] = useState(false);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
@@ -74,7 +77,8 @@ export function Studio({
       setWorkingCourse(next);
       if (next.task?.kind === "outline")
         setOutlineForm(next.outline ?? seedOutline(next));
-      if (next.task && next.task.kind !== "outline")
+      if (next.task?.creating) setCreatingSlotId(next.task.targetId ?? null);
+      else if (next.task && next.task.kind !== "outline")
         setEditingSlot(next.task.targetId ?? null);
     } catch (e) {
       setError(errorText(e));
@@ -87,8 +91,10 @@ export function Studio({
     void load();
   }, []);
   useEffect(() => {
-    onBusyChangeRef.current(busy || !!editingSlot || !!outlineForm);
-  }, [busy, editingSlot, outlineForm]);
+    onBusyChangeRef.current(
+      busy || !!editingSlot || !!creatingSlotId || !!outlineForm,
+    );
+  }, [busy, editingSlot, creatingSlotId, outlineForm]);
   useEffect(() => () => onBusyChangeRef.current(false), []);
   const run = async (action: () => Promise<void>) => {
     if (lock.current) return;
@@ -125,6 +131,7 @@ export function Studio({
     targetId?: string,
     instruction?: string,
     source?: Draft,
+    creating = false,
   ) => {
     const current = source ?? draft;
     if (!current) return;
@@ -138,6 +145,7 @@ export function Studio({
           kind,
           ...(targetId ? { targetId } : {}),
           ...(instruction?.trim() ? { instruction: instruction.trim() } : {}),
+          ...(creating ? { creating: true as const } : {}),
           ref,
         },
       });
@@ -191,18 +199,8 @@ export function Studio({
     });
   const addSlot = () => {
     if (!draft?.outline || draft.outline.lessons.length >= 8) return;
-    const id = crypto.randomUUID();
-    updateOutline({
-      ...draft.outline,
-      lessons: [
-        ...draft.outline.lessons,
-        {
-          id,
-          title: `第 ${draft.outline.lessons.length + 1} 课`,
-          objective: "填写本课学习目标",
-        },
-      ],
-    });
+    setError("");
+    setCreatingSlotId(crypto.randomUUID());
   };
   const moveSlot = (index: number, offset: -1 | 1) => {
     if (!draft?.outline) return;
@@ -219,20 +217,17 @@ export function Studio({
     updateOutline({ ...draft.outline, lessons });
     setConfirmRemoveId(null);
   };
-  const saveSlotOutline = async (
-    id: string,
-    title: string,
-    objective: string,
-  ) => {
-    if (!draft) return;
-    await exclusive(async () => {
-      await persist(editDraftSlot(draft, id, title, objective));
-      setEditingSlot(null);
-    });
-  };
-  const edited = draft?.outline?.lessons.find(
-    (slot) => slot.id === editingSlot,
-  );
+  const edited: Slot | undefined =
+    draft?.outline?.lessons.find(
+      (slot) => slot.id === (creatingSlotId ?? editingSlot),
+    ) ??
+    (creatingSlotId
+      ? { id: creatingSlotId, title: "", objective: "" }
+      : undefined);
+  const visibleSlots =
+    draft?.outline?.lessons.filter(
+      (slot) => !draft.task?.creating || slot.id !== draft.task.targetId,
+    ) ?? [];
   const taskPanel = draft?.task ? (
     <>
       <div inert={busy}>
@@ -312,6 +307,10 @@ export function Studio({
               const next = acceptTask(draft, raw);
               await persist(next);
               if (draft.task?.kind === "outline") setOutlineForm(next.outline);
+              if (draft.task?.creating) {
+                setEditingSlot(draft.task.targetId ?? null);
+                setCreatingSlotId(null);
+              }
             })
           }
           onRetryConnection={() =>
@@ -320,6 +319,8 @@ export function Studio({
                 draft.task!.kind,
                 draft.task!.targetId,
                 draft.task!.instruction,
+                undefined,
+                draft.task!.creating === true,
               ),
             )
           }
@@ -331,7 +332,21 @@ export function Studio({
         onClick={() =>
           void run(async () => {
             await closeModelTask(draft.task!.ref);
-            await persist({ ...draft, task: undefined });
+            const outline = draft.outline;
+            await persist({
+              ...draft,
+              task: undefined,
+              ...(draft.task?.creating && outline
+                ? {
+                    outline: {
+                      ...outline,
+                      lessons: outline.lessons.filter(
+                        (slot) => slot.id !== draft.task!.targetId,
+                      ),
+                    },
+                  }
+                : {}),
+            });
           })
         }
       >
@@ -343,12 +358,13 @@ export function Studio({
     if (busy || draft?.task) return;
     setError("");
     setEditingSlot(null);
+    setCreatingSlotId(null);
   };
   const editModal =
     edited && draft ? (
       <LessonEditModal
-        title={edited.title}
-        complete={!!edited.lesson}
+        title={creatingSlotId ? "添加课时" : edited.title}
+        creating={!!creatingSlotId}
         busy={busy || !!draft.task}
         onCancel={closeLessonEditor}
       >
@@ -363,13 +379,15 @@ export function Studio({
             title={edited.title}
             objective={edited.objective}
             onCancel={closeLessonEditor}
-            onSaveOutline={(title, objective) =>
-              saveSlotOutline(edited.id, title, objective)
-            }
             onSave={(value) =>
               exclusive(async () => {
-                await persist(editDraftLesson(draft, edited.id, value));
+                await persist(
+                  creatingSlotId
+                    ? addDraftLesson(draft, value, creatingSlotId)
+                    : editDraftLesson(draft, edited.id, value),
+                );
                 setEditingSlot(null);
+                setCreatingSlotId(null);
               })
             }
             aiPanel={(title, objective, changed) => (
@@ -379,12 +397,25 @@ export function Studio({
                 requiresSave={!!edited.lesson && changed}
                 onStart={(instruction) =>
                   run(async () => {
-                    const source = editDraftSlot(
-                      draft,
-                      edited.id,
-                      title,
-                      objective,
-                    );
+                    const source: Draft = creatingSlotId
+                      ? {
+                          ...draft,
+                          outline: {
+                            ...draft.outline!,
+                            lessons: [
+                              ...draft.outline!.lessons,
+                              {
+                                id: creatingSlotId,
+                                title:
+                                  title.trim() ||
+                                  `第 ${visibleSlots.length + 1} 课`,
+                                objective:
+                                  objective.trim() || "填写本课学习目标",
+                              },
+                            ],
+                          },
+                        }
+                      : editDraftSlot(draft, edited.id, title, objective);
                     const current = source.outline!.lessons.find(
                       (slot) => slot.id === edited.id,
                     )!;
@@ -393,6 +424,7 @@ export function Studio({
                       edited.id,
                       instruction,
                       source,
+                      !!creatingSlotId,
                     );
                   })
                 }
@@ -406,7 +438,9 @@ export function Studio({
     <section
       className={`learn-studio ${stage === "lessons" ? "is-lesson-workspace" : ""}`}
     >
-      {error && !outlineForm && !editingSlot && <Notice>{error}</Notice>}
+      {error && !outlineForm && !editingSlot && !creatingSlotId && (
+        <Notice>{error}</Notice>
+      )}
       {readFailed ? (
         <button className="learn-button" onClick={() => void load()}>
           重试读取课程
@@ -657,9 +691,7 @@ export function Studio({
               </div>
               <div className="learn-lesson-toolbar">
                 <span className="learn-chip">
-                  {draft.outline?.lessons.filter((slot) => slot.lesson)
-                    .length ?? 0}{" "}
-                  / {draft.outline?.lessons.length ?? 0} 已完成
+                  共 {visibleSlots.length} 课时
                 </span>
                 <button
                   className="learn-button"
@@ -681,20 +713,13 @@ export function Studio({
                 </button>
               </div>
             </div>
-            <div className="learn-lesson-progress">
-              <span
-                style={{
-                  width: `${draft.outline?.lessons.length ? (100 * draft.outline.lessons.filter((slot) => slot.lesson).length) / draft.outline.lessons.length : 0}%`,
-                }}
-              />
-            </div>
             <ol className="learn-lesson-cards">
-              {!draft.outline?.lessons.length && (
+              {!visibleSlots.length && (
                 <li className="learn-lesson-empty">
                   还没有课时。点击「添加课时」开始。
                 </li>
               )}
-              {draft.outline?.lessons.map((slot, index) => (
+              {visibleSlots.map((slot, index) => (
                 <li key={slot.id}>
                   <button
                     className="learn-lesson-card"
@@ -712,9 +737,10 @@ export function Studio({
                       <small>{slot.objective}</small>
                     </span>
                     <span
-                      className={`learn-chip ${slot.lesson ? "success" : ""}`}
+                      className="learn-lesson-card-chevron"
+                      aria-hidden="true"
                     >
-                      {slot.lesson ? "已完成" : "待编写"}
+                      ›
                     </span>
                   </button>
                   {reordering && (
@@ -732,7 +758,7 @@ export function Studio({
                           disabled={
                             busy ||
                             !!draft.task ||
-                            index === draft.outline!.lessons.length - 1
+                            index === visibleSlots.length - 1
                           }
                           onClick={() => moveSlot(index, 1)}
                         >
@@ -836,13 +862,13 @@ function OutlineEditModal({
 
 function LessonEditModal({
   title,
-  complete,
+  creating,
   busy,
   onCancel,
   children,
 }: {
   title: string;
-  complete: boolean;
+  creating: boolean;
   busy: boolean;
   onCancel: () => void;
   children: React.ReactNode;
@@ -868,7 +894,7 @@ function LessonEditModal({
         className="learn-lesson-dialog"
         role="dialog"
         aria-modal="true"
-        aria-label={`编辑课时：${title}`}
+        aria-label={creating ? "添加课时" : `编辑课时：${title}`}
         ref={dialog}
         onKeyDown={(event) => {
           event.stopPropagation();
@@ -894,9 +920,6 @@ function LessonEditModal({
           <div>
             <span className="learn-eyebrow">课时内容</span>
             <h2>{title}</h2>
-            <span className={`learn-chip ${complete ? "success" : ""}`}>
-              {complete ? "已完成" : "待编写"}
-            </span>
           </div>
           <button
             type="button"
@@ -930,13 +953,13 @@ function LessonAIControls({
     <div className="learn-lesson-ai-panel">
       <div className="learn-lesson-ai-panel-heading">
         <div>
-          <strong>{complete ? "AI 优化本课" : "AI 生成本课"}</strong>
+          <strong>{complete ? "AI 优化课时" : "AI 辅助创建"}</strong>
           <p>
             {requiresSave
-              ? "请先保存标题与目标，再优化课时内容。"
+              ? "请先保存当前修改，再优化课时内容。"
               : complete
-                ? "描述想调整的内容，先预览结果，再决定是否采用。"
-                : "根据课时标题与目标生成正文、示例和测验。"}
+                ? "告诉 AI 要改进的地方，结果会先预览。"
+                : "根据课程主题及已填写的信息生成完整课时。"}
           </p>
         </div>
       </div>
@@ -944,26 +967,28 @@ function LessonAIControls({
         <label htmlFor="learn-lesson-ai-instruction">
           {complete ? "优化要求" : "补充要求（选填）"}
         </label>
-        <textarea
-          id="learn-lesson-ai-instruction"
-          rows={2}
-          maxLength={500}
-          value={instruction}
-          placeholder={
-            complete
-              ? "例如：换一个更贴近真实场景的示例"
-              : "例如：讲解适合零基础学习者"
-          }
-          onChange={(event) => setInstruction(event.target.value)}
-        />
-        <button
-          type="button"
-          className="learn-button"
-          disabled={busy || requiresSave || (complete && !instruction.trim())}
-          onClick={() => onStart(instruction)}
-        >
-          {complete ? "AI 优化课时" : "AI 生成课时"}
-        </button>
+        <div className="learn-lesson-ai-composer">
+          <textarea
+            id="learn-lesson-ai-instruction"
+            rows={2}
+            maxLength={500}
+            value={instruction}
+            placeholder={
+              complete
+                ? "例如：把示例换成真实业务场景…"
+                : "例如：面向零基础，加入一步步操作的示例…"
+            }
+            onChange={(event) => setInstruction(event.target.value)}
+          />
+          <button
+            type="button"
+            className="learn-button primary"
+            disabled={busy || requiresSave || (complete && !instruction.trim())}
+            onClick={() => onStart(instruction)}
+          >
+            {complete ? "开始优化" : "生成课时"}
+          </button>
+        </div>
       </div>
     </div>
   );

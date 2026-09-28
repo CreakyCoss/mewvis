@@ -58,15 +58,15 @@
         <header class="lesson-dialog-header"><div><span class="eyebrow">课时内容</span><h2 id="lesson-dialog-title">编辑课时</h2></div><button type="button" class="icon-button" id="close-lesson" aria-label="关闭课时编辑">×</button></header>
         <form id="lesson-form">
           <div class="lesson-form-scroll">
-            <div class="lesson-ai-panel"><div><strong>AI 辅助本课</strong><p id="lesson-ai-intro">根据课时标题与目标生成正文、示例和测验。</p></div><div class="lesson-ai-controls"><label for="lesson-ai-instruction">补充要求</label><textarea id="lesson-ai-instruction" rows="2" placeholder="例如：加入更贴近真实场景的示例"></textarea><button type="button" class="button small secondary" id="lesson-ai-action">AI 生成课时</button></div></div>
-            <div class="form-group"><label for="lesson-title">课时标题</label><input id="lesson-title" required maxlength="120" /></div>
-            <div class="form-group"><label for="lesson-objective">学习目标</label><textarea id="lesson-objective" required rows="2" maxlength="500"></textarea></div>
-            <div class="form-divider"><span>教学内容</span></div>
-            <div class="form-group"><label for="lesson-body">课时正文</label><textarea id="lesson-body" rows="6" placeholder="从核心概念、关键方法和实际操作开始写起…"></textarea></div>
-            <div class="form-group"><label for="lesson-example">具体示例</label><textarea id="lesson-example" rows="3" placeholder="用一个贴近实际的例子解释本课内容…"></textarea></div>
-            <div class="form-group"><label for="lesson-quiz">课后练习</label><input id="lesson-quiz" placeholder="例如：用自己的话解释本课核心概念" /></div>
+            <nav class="lesson-section-nav" aria-label="课时编辑区域"><a href="#proto-lesson-basics">课时信息</a><a href="#proto-lesson-content">教学内容</a><a href="#proto-lesson-quiz">课后测验</a></nav>
+            <div class="lesson-form-main">
+              <div class="lesson-ai-panel"><strong>AI 辅助创建</strong><p id="lesson-ai-intro">根据课程主题及已填写的信息生成完整课时。</p><label for="lesson-ai-instruction">补充要求（选填）</label><div class="lesson-ai-composer"><textarea id="lesson-ai-instruction" rows="2" placeholder="例如：面向零基础，加入一步步操作的示例…"></textarea><button type="button" class="button primary small" id="lesson-ai-action">生成课时</button></div></div>
+              <section id="proto-lesson-basics" class="lesson-form-section"><h3>课时信息</h3><div class="form-group"><label for="lesson-title">课时标题</label><input id="lesson-title" required maxlength="120" /></div><div class="form-group"><label for="lesson-objective">学习目标</label><textarea id="lesson-objective" required rows="2" maxlength="500"></textarea></div></section>
+              <section id="proto-lesson-content" class="lesson-form-section"><h3>教学内容</h3><div class="form-group"><label for="lesson-body">课时正文</label><textarea id="lesson-body" required rows="7" placeholder="从核心概念、关键方法和实际操作开始写起…"></textarea></div><div class="form-group"><label for="lesson-example">具体示例</label><textarea id="lesson-example" required rows="3" placeholder="用一个贴近实际的例子解释本课内容…"></textarea></div><div class="form-group"><label for="lesson-takeaways">知识要点（每行一条，1–6 条）</label><textarea id="lesson-takeaways" required rows="3"></textarea></div></section>
+              <section id="proto-lesson-quiz" class="lesson-form-section"><h3>课后测验 <small>1–3 道题，每题 1 分</small></h3><div class="lesson-quiz-card"><strong>第 1 题</strong><div class="form-group"><label for="lesson-quiz">题干</label><input id="lesson-quiz" required placeholder="例如：本课的核心概念是什么？" /></div><div class="form-group"><label for="lesson-option-a">选项 A</label><input id="lesson-option-a" required /></div><div class="form-group"><label for="lesson-option-b">选项 B</label><input id="lesson-option-b" required /></div><div class="form-group"><label>正确答案</label><label class="lesson-answer"><input type="radio" name="lesson-answer" required /> A</label><label class="lesson-answer"><input type="radio" name="lesson-answer" required /> B</label></div></div></section>
+            </div>
           </div>
-          <footer class="lesson-dialog-footer"><div><button type="button" class="button secondary" id="cancel-lesson">取消</button><button type="submit" class="button primary">保存课时</button></div></footer>
+          <footer class="lesson-dialog-footer"><div><button type="button" class="button secondary" id="cancel-lesson">取消</button><button type="submit" class="button primary">保存</button></div></footer>
         </form>
       </section>
     </div>

@@ -247,21 +247,33 @@ try {
     0,
   );
   assert.equal(await page.locator(".learn-lesson-card").count(), 0);
-  for (let i = 0; i < 3; i++) await button("添加课时").click();
-  await page.locator(".learn-lesson-card").first().click();
-  assert.equal(await page.locator(".learn-lesson-workspace").count(), 1);
+  await button("添加课时").click();
+  assert.equal(await page.getByRole("dialog", { name: "添加课时" }).count(), 1);
+  await button("保存").click();
+  await page.getByText("请填写课时标题").waitFor();
+  assert.equal(await page.locator(".learn-lesson-card").count(), 0);
+  await button("取消").click();
+  assert.equal(await page.locator(".learn-lesson-card").count(), 0);
+  await button("添加课时").click();
   await page.getByLabel("课时标题", { exact: true }).fill("理解主动回忆");
-  await button("仅保存标题与目标").click();
   await page
-    .locator(".learn-dialog-footer")
-    .getByRole("button", { name: "暂存" })
-    .click();
-  await button("继续编辑").click();
+    .getByLabel("学习目标", { exact: true })
+    .fill("能运用主动回忆巩固知识");
+  await button("生成课时").click();
+  await generate();
+  await adopt();
+  await button("关闭课时编辑").click();
   await page
     .locator(".learn-lesson-card")
     .first()
     .getByText("理解主动回忆")
     .waitFor();
+  await page
+    .locator(".learn-dialog-footer")
+    .getByRole("button", { name: "暂存" })
+    .click();
+  await button("继续编辑").click();
+  assert.equal(await page.locator(".learn-lesson-card").count(), 1);
   await page.setViewportSize({ width: 390, height: 844 });
   assert.ok(
     await page.evaluate(
@@ -273,9 +285,9 @@ try {
     fullPage: true,
   });
   await page.setViewportSize({ width: 1440, height: 1000 });
-  for (let i = 0; i < 3; i++) {
-    await page.locator(".learn-lesson-card").nth(i).click();
-    await button("AI 生成课时").click();
+  for (let i = 1; i < 3; i++) {
+    await button("添加课时").click();
+    await button("生成课时").click();
     if (i === 1)
       await page.evaluate(() => {
         globalThis.__failLearningOnce = true;
@@ -439,7 +451,7 @@ try {
   await button("下一步：课时内容").click();
   await page.locator(".learn-lesson-card").nth(1).click();
   await page.getByLabel("优化要求").fill("只修改本课示例");
-  await button("AI 优化课时").click();
+  await button("开始优化").click();
   await generate();
   await adopt();
   await button("关闭课时编辑").click();
@@ -526,7 +538,7 @@ try {
     .fill("手动修正的课程正文。主动回忆应包含提取与反馈。");
   await page.getByLabel("题干", { exact: true }).first().fill("修订后的单选题");
   await page.screenshot({ path: `${out}/manual-editor.png`, fullPage: true });
-  await button("保存完整课时").click();
+  await button("保存").click();
   await button("下一步：项目实训").click();
   await button("保存课程").click();
   await page
@@ -557,7 +569,7 @@ try {
   await button("编辑课程").click();
   await page.locator(".learn-lesson-card").first().click();
   await page.getByLabel("优化要求").fill("只修改本课示例");
-  await button("AI 优化课时").click();
+  await button("开始优化").click();
   await generate();
   await adopt();
   await button("关闭课时编辑").click();
@@ -616,9 +628,19 @@ try {
   await button("保存大纲").click();
   await button("下一步：课时内容").click();
   await button("添加课时").click();
-  await page.locator(".learn-lesson-card").first().click();
   await page.getByLabel("课时标题", { exact: true }).fill("第一课标题");
-  await button("仅保存标题与目标").click();
+  await page.getByLabel("学习目标", { exact: true }).fill("能解释本课核心概念");
+  await page
+    .getByLabel("课时正文", { exact: true })
+    .fill("这里是完整课时正文。");
+  await page.getByLabel("具体示例", { exact: true }).fill("这里是具体示例。");
+  await page.getByLabel("知识要点（每行一条，1–6 条）").fill("先理解概念");
+  await page.getByLabel("题干", { exact: true }).fill("本课的核心是什么？");
+  await page.getByLabel("第 1 题选项 A").fill("理解概念");
+  await page.getByLabel("第 1 题选项 B").fill("忽略概念");
+  await page.getByLabel("第 1 题正确答案 A").check();
+  await page.getByLabel("答案解析", { exact: true }).fill("理解概念是第一步。");
+  await button("保存").click();
   await page
     .locator(".learn-lesson-card")
     .first()
