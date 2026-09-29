@@ -348,7 +348,7 @@ export function TutorConversation({
     <>
       <div className="learn-study-conversation">
         {hasMessages ? (
-          <Chat.Messages />
+          <Chat.Messages className="learn-study-messages" />
         ) : reviewing ? (
           <p className="learn-review-chat-empty">
             选择模型后，点击上方「开始评阅」。评阅过程中也可以继续补充要求。

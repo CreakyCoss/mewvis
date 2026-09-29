@@ -81,7 +81,7 @@ export default function App() {
   const [theme, setTheme] = useState("light");
   const lock = useRef(false);
   const initialization = useRef<Promise<void> | null>(null);
-  const mainRef = useRef<HTMLElement>(null);
+  const readingRef = useRef<HTMLDivElement>(null);
   const deleteDialogRef = useRef<HTMLDivElement>(null);
   const deleteCancelRef = useRef<HTMLButtonElement>(null);
   const deleteReturnFocusRef = useRef<HTMLElement | null>(null);
@@ -143,15 +143,27 @@ export default function App() {
     };
   }, [confirmDelete]);
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "instant" });
-    mainRef.current?.scrollTo({ top: 0, behavior: "instant" });
+    if (view !== "lesson")
+      window.scrollTo({ top: 0, behavior: "instant" });
   }, [view, lesson?.id]);
   useEffect(() => {
+    if (view === "lesson")
+      readingRef.current?.scrollTo({ top: 0, behavior: "instant" });
+  }, [view, lesson?.id, tab]);
+  useEffect(() => {
     if (view !== "lesson" || !focus) return;
+    const scroller = readingRef.current;
     const target = document.getElementById(
       focus === "quiz" ? "quiz-tab" : `learning-focus-${focus}`,
     );
-    target?.scrollIntoView({ block: "center", behavior: "smooth" });
+    if (!scroller || !target || !scroller.contains(target)) return;
+    const scrollerRect = scroller.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    scroller.scrollTo({
+      top: scroller.scrollTop + targetRect.top - scrollerRect.top -
+        (scroller.clientHeight - targetRect.height) / 2,
+      behavior: "smooth",
+    });
   }, [view, tab, focus, lesson?.id]);
   const load = async () => {
     setLoading(true);
@@ -354,10 +366,7 @@ export default function App() {
           </div>
         </nav>
       )}
-      <main
-        ref={mainRef}
-        className={`learn-main ${view === "lesson" ? "is-lesson" : ""}`}
-      >
+      <main className={`learn-main ${view === "lesson" ? "is-lesson" : ""}`}>
         {error && (
           <Notice>
             {error}
@@ -452,7 +461,7 @@ export default function App() {
                   ))}
                 </ol>
               </aside>
-              <div className="learn-reading">
+              <div ref={readingRef} className="learn-reading">
                 <div
                   id="learning-focus-objective"
                   className={`learn-lesson-heading ${focus === "objective" ? "learn-focused" : ""}`}

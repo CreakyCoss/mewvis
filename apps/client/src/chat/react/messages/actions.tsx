@@ -94,7 +94,6 @@ export const MessageActions = ({ message }: MessageActionsProps) => {
         onClick={() => void copyMessage()}
       >
         {isCopied ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
-        <span className="sr-only">复制</span>
       </Button>
     </div>
   );

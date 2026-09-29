@@ -1844,7 +1844,7 @@
 }
 
 .learning-app.is-studying {
-  height: 100dvh;
+  height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -4034,7 +4034,7 @@
   border-bottom: 1px solid var(--border);
 }
 .learning-app.is-studying .learn-study-assistant-header h2 {
-  font-size: 14px;
+  font-size: var(--learn-text-section);
   font-weight: 600;
 }
 .learn-study-assistant-header > div {
@@ -4083,7 +4083,7 @@
   padding: 8px 4px;
   background: transparent;
   color: var(--muted-foreground);
-  font-size: 12px;
+  font-size: var(--learn-text-sm);
 }
 .learn-study-rail button[aria-selected="true"],
 .learn-study-rail button:hover {
@@ -4118,7 +4118,7 @@
 }
 .learn-study-panel-body {
   padding: 16px;
-  font-size: 13px;
+  font-size: var(--learn-text-base);
   line-height: 1.75;
   overflow-wrap: anywhere;
 }
@@ -4231,10 +4231,27 @@
   padding-left: 18px;
 }
 .learn-study-conversation {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
+}
+.learn-study-conversation > .learn-study-messages {
+  padding: 16px;
+  overscroll-behavior: contain;
   scrollbar-width: thin;
+}
+.learn-study-messages > div {
+  gap: 16px;
+}
+.learn-study-messages > div > [data-role="assistant"] > [data-role="assistant"] {
+  flex: 1;
+  max-width: none;
+}
+.learn-study-messages article[data-role] {
+  padding: 10px 12px;
+  line-height: 1.65;
 }
 .learn-study-welcome {
   padding: 28px 20px;
@@ -4248,7 +4265,7 @@
   margin: 12px 0 8px;
 }
 .learn-study-welcome p {
-  font-size: 13px;
+  font-size: var(--learn-text-base);
   line-height: 1.75;
   color: var(--muted-foreground);
   margin-bottom: 20px;
@@ -4265,7 +4282,7 @@
   border-bottom: 1px solid var(--border);
   background: transparent;
   color: var(--foreground);
-  font-size: 12px;
+  font-size: var(--learn-text-sm);
 }
 .learn-study-welcome button:hover {
   color: var(--primary);
@@ -4286,7 +4303,7 @@
   justify-content: space-between;
   gap: 12px;
   min-height: 32px;
-  font-size: 12px;
+  font-size: var(--learn-text-sm);
   color: var(--muted-foreground);
 }
 .learn-study-context > span {
@@ -4328,7 +4345,7 @@
   box-shadow: none;
   outline: none;
   resize: vertical;
-  font-size: 13px;
+  font-size: var(--learn-text-base);
   line-height: 1.75;
 }
 .learn-study-composer-controls {
@@ -4345,7 +4362,7 @@
   padding: 4px 0;
   border: 0;
   color: var(--muted-foreground);
-  font-size: 12px;
+  font-size: var(--learn-text-sm);
   text-overflow: ellipsis;
 }
 .learn-study-send {
@@ -4378,6 +4395,9 @@
   }
   .learn-study-welcome {
     padding: 20px 16px;
+  }
+  .learn-study-conversation > .learn-study-messages {
+    padding: 12px;
   }
 }
 
