@@ -487,7 +487,7 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
             aria-label={saveLabel}
           >
             <Check className="size-3.5" />
-            {saveLabel}
+            <span>{saveLabel}</span>
           </button>
           <Button
             variant="ghost"
