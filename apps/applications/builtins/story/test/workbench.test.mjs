@@ -20,6 +20,7 @@ const bundle = await build({
 const {
   buildChapters,
   newChapterWrites,
+  renameChapterWrites,
   manuscriptWrites,
   manuscriptText,
   wordCount,
@@ -142,11 +143,14 @@ for (const storyTypeId of ["long-novel", "short-novel"]) {
     const commit = async (writes) =>
       commitDocumentWrites(project, () => writes);
     await commit(
-      newChapterWrites(structure, await project.listDocuments(), "chapter-1"),
+      newChapterWrites(structure, await project.listDocuments(), "chapter-1", " 雨夜来客 "),
     );
     let chapters = buildChapters(await project.listDocuments(), structure);
     assert.equal(chapters.length, 1);
     assert.ok(chapters[0].plan && chapters[0].record && chapters[0].content);
+    assert.equal(chapters[0].title, "雨夜来客");
+    assert.equal(chapters[0].plan.value.title, "雨夜来客");
+    assert.equal(chapters[0].record.value.title, "雨夜来客");
     const stableKey = chapters[0].key;
     const text = "雨夜。\n\n来客叩门。🌧";
     await commit(manuscriptWrites(structure, chapters[0], text));
@@ -154,10 +158,19 @@ for (const storyTypeId of ["long-novel", "short-novel"]) {
     assert.equal(chapters[0].key, stableKey);
     assert.equal(manuscriptText(chapters[0].content), text);
     assert.equal(chapters[0].record.value.wordCount, wordCount(text));
+    await commit(renameChapterWrites(chapters[0], " 灯下的影子 "));
+    chapters = buildChapters(await project.listDocuments(), structure);
+    assert.equal(chapters[0].key, stableKey);
+    assert.equal(chapters[0].title, "灯下的影子");
+    assert.equal(chapters[0].plan.value.title, "灯下的影子");
+    assert.equal(chapters[0].record.value.title, "灯下的影子");
+    assert.equal(manuscriptText(chapters[0].content), text);
+    assert.throws(() => renameChapterWrites(chapters[0], "  "), /请输入章节标题/);
     await commit(
-      newChapterWrites(structure, await project.listDocuments(), "chapter-2"),
+      newChapterWrites(structure, await project.listDocuments(), "chapter-2", "门外的人"),
     );
     chapters = buildChapters(await project.listDocuments(), structure);
+    assert.equal(chapters[1].title, "门外的人");
     assert.deepEqual(
       chapters.map((c) => c.number),
       [1, 2],
@@ -177,7 +190,7 @@ async function draftFixture() {
     { storyTypeId: "long-novel", storyId: "draft-story", title: "草稿" },
   );
   await commitDocumentWrites(project, (docs, structure) =>
-    newChapterWrites(structure, docs, "chapter-1"),
+    newChapterWrites(structure, docs, "chapter-1", "草稿章节"),
   );
   const documents = await project.listDocuments();
   const chapter = buildChapters(documents)[0];

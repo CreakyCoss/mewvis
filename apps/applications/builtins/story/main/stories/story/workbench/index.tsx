@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type FormEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
@@ -30,6 +31,16 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "design-system/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "design-system/components/ui/dialog";
+import { Input } from "design-system/components/ui/input";
+import { Label } from "design-system/components/ui/label";
 import type { StoryDocument } from "@story/project/types";
 import { toast } from "sonner";
 import { writeClipboardText } from "@isle/app-sdk/browser";
@@ -48,6 +59,7 @@ import {
   chapterLabel,
   documentRoles,
   newChapterWrites,
+  renameChapterWrites,
   wordCount,
   type Chapter,
   type Passage,
@@ -167,6 +179,11 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
     after: string;
   } | null>(null);
   const [creating, setCreating] = useState(false);
+  const [chapterDialogMode, setChapterDialogMode] = useState<
+    "create" | "rename" | null
+  >(null);
+  const [chapterTitle, setChapterTitle] = useState("");
+  const [editingChapterKey, setEditingChapterKey] = useState("");
   const [collapsed, setCollapsed] = useState(new Set<string>());
   const [leaving, setLeaving] = useState(false);
   const dialog = useRef<StoryDocumentDialogHandle>(null);
@@ -309,18 +326,45 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
     setSelection(null);
     void drafts.flush();
   };
-  const createChapter = async () => {
+  const openChapterDialog = () => {
     if (creating || !structure) return;
+    setChapterTitle("");
+    setChapterDialogMode("create");
+  };
+  const openRenameChapterDialog = (item: Chapter) => {
+    if (creating) return;
+    setEditingChapterKey(item.key);
+    setChapterTitle(item.title);
+    setChapterDialogMode("rename");
+  };
+  const submitChapterTitle = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const title = chapterTitle.trim();
+    const mode = chapterDialogMode;
+    if (creating || !structure || !title || !mode) return;
+    if (mode === "rename" && !editingChapterKey) return;
     setCreating(true);
     try {
       if (!(await drafts.flush())) return;
+      if (mode === "rename") {
+        const result = await writeDocuments((docs, schema) => {
+          const target = buildChapters(docs, schema).find(
+            (item) => item.key === editingChapterKey,
+          );
+          if (!target) throw new Error("这一章已不存在，无法修改标题。");
+          return renameChapterWrites(target, title);
+        });
+        if (result) setChapterDialogMode(null);
+        return;
+      }
       const id =
         globalThis.crypto?.randomUUID?.() ??
         `chapter-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
       const result = await writeDocuments((docs, schema) =>
-        newChapterWrites(schema, docs, id),
+        newChapterWrites(schema, docs, id, title),
       );
       if (result) {
+        setChapterDialogMode(null);
         const created = buildChapters(result, structure).find(
           (c) => c.id === id,
         );
@@ -607,7 +651,7 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
               aria-label={creating ? "正在新建章节" : "新建章节"}
               title={creating ? "正在新建章节" : "新建章节"}
               disabled={!structure || creating}
-              onClick={() => void createChapter()}
+              onClick={openChapterDialog}
             >
               <Plus className="size-4" />
             </Button>
@@ -832,7 +876,17 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
             ) : chapter ? (
               <div className="sw-editor-stage" ref={stage}>
                 <article className="sw-paper">
-                  <h1>{chapterLabel(chapter)}</h1>
+                  <h1>
+                    <button
+                      type="button"
+                      className="sw-title-button"
+                      title="点击修改章节标题"
+                      aria-label={`修改章节标题：${chapterLabel(chapter)}`}
+                      onClick={() => openRenameChapterDialog(chapter)}
+                    >
+                      {chapterLabel(chapter)}
+                    </button>
+                  </h1>
                   <textarea
                     ref={editor}
                     className="sw-novel-text"
@@ -899,7 +953,7 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
                 <p>章节、细纲和记录会一起保存在当前故事中。</p>
                 <Button
                   disabled={!structure || creating}
-                  onClick={() => void createChapter()}
+                  onClick={openChapterDialog}
                 >
                   <Plus className="size-4" />
                   新建章节
@@ -1065,6 +1119,56 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
           ))}
         </nav>
       </div>
+      <Dialog
+        open={chapterDialogMode !== null}
+        onOpenChange={(open) => {
+          if (!open && !creating) setChapterDialogMode(null);
+        }}
+      >
+        <DialogContent showCloseButton={!creating}>
+          <DialogHeader>
+            <DialogTitle>
+              {chapterDialogMode === "rename" ? "修改章节标题" : "新建章节"}
+            </DialogTitle>
+            <DialogDescription>
+              {chapterDialogMode === "rename"
+                ? "修改后会同步更新章节和细纲的标题。"
+                : "输入章节标题后创建新章节。"}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(event) => void submitChapterTitle(event)}>
+            <div className="space-y-2">
+              <Label htmlFor="story-new-chapter-title">章节标题</Label>
+              <Input
+                id="story-new-chapter-title"
+                value={chapterTitle}
+                onChange={(event) => setChapterTitle(event.currentTarget.value)}
+                placeholder="请输入章节标题"
+                autoFocus
+                required
+                disabled={creating}
+              />
+            </div>
+            <DialogFooter className="mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={creating}
+                onClick={() => setChapterDialogMode(null)}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={creating || !chapterTitle.trim()}>
+                {creating
+                  ? "正在保存"
+                  : chapterDialogMode === "rename"
+                    ? "保存标题"
+                    : "创建章节"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       <StoryDocumentDialog
         bind={dialog}
         onSaved={(document) => {

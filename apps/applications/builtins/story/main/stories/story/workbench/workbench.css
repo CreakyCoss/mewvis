@@ -362,6 +362,23 @@
   margin: 0 0 var(--sw-space-6);
   overflow-wrap: anywhere;
 }
+.sw-title-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sw-title-button:hover {
+  color: var(--primary);
+}
+.sw-title-button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
 .sw-shell .sw-novel-text {
   display: block;
   width: 100%;

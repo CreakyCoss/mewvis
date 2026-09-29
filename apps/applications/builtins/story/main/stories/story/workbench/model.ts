@@ -165,7 +165,10 @@ export function newChapterWrites(
   structure: StoryProjectStructure,
   documents: StoryDocument[],
   id: string,
+  title: string,
 ): DocumentWrite[] {
+  const chapterTitle = title.trim();
+  if (!chapterTitle) throw new Error("请输入章节标题。");
   const roles = documentRoles(structure);
   const number =
     Math.max(0, ...buildChapters(documents, structure).map((c) => c.number)) +
@@ -183,7 +186,7 @@ export function newChapterWrites(
     value: {
       ...draftPlan.value,
       number,
-      title: "未命名",
+      title: chapterTitle,
       volumeId: volume.ref.identity.id,
     },
   };
@@ -191,7 +194,7 @@ export function newChapterWrites(
     key: storyDocumentKey(plan),
     id,
     number,
-    title: "未命名",
+    title: chapterTitle,
     volumeId: volume.ref.identity.id,
     plan: { ...plan, displayName: "", updatedAt: null },
   };
@@ -215,6 +218,25 @@ export function newChapterWrites(
     plan,
     ...manuscriptWrites(structure, chapter, ""),
   ];
+}
+
+export function renameChapterWrites(
+  chapter: Chapter,
+  title: string,
+): DocumentWrite[] {
+  const chapterTitle = title.trim();
+  if (!chapterTitle) throw new Error("请输入章节标题。");
+  const writes: DocumentWrite[] = [];
+  for (const document of [chapter.plan, chapter.record]) {
+    if (!document) continue;
+    if (!isJsonObject(document.value)) throw new Error("章节格式无法编辑。");
+    writes.push({
+      ref: document.ref,
+      value: { ...document.value, title: chapterTitle },
+    });
+  }
+  if (!writes.length) throw new Error("找不到可编辑的章节信息。");
+  return writes;
 }
 
 export const selectionValid = (text: string, passage: Passage) =>
