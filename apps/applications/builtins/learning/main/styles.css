@@ -4297,7 +4297,11 @@
   max-height: 60%;
   overflow-y: auto;
 }
+.learn-study-compose-area.is-popover-open {
+  overflow: visible;
+}
 .learn-study-context {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -4321,60 +4325,58 @@
   font-size: 12px;
 }
 .learn-study-context-detail {
-  padding: 12px;
-  margin-bottom: 8px;
-  background: var(--muted);
-  border-radius: 8px;
-  font-size: 12px;
+  position: absolute;
+  z-index: 3;
+  right: 0;
+  bottom: calc(100% + 8px);
+  width: min(260px, 100%);
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.14);
+  font-size: var(--learn-text-sm);
+  line-height: 1.55;
+}
+.learn-study-context-detail p {
+  margin-top: 6px;
+  color: var(--muted-foreground);
 }
 .learn-study-composer {
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--card);
+  position: relative;
 }
-.learn-study-composer:focus-within {
+.learn-study-composer:focus-within textarea {
   border-color: var(--ring);
 }
 .learning-app .learn-study-composer textarea {
-  min-height: 64px;
+  display: block;
+  min-height: 88px;
   max-height: 160px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  outline: none;
+  padding: 11px 55px 46px 13px;
   resize: vertical;
   font-size: var(--learn-text-base);
-  line-height: 1.75;
-}
-.learn-study-composer-controls {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 8px;
-}
-.learning-app .learn-study-composer-controls select {
-  flex: 1;
-  min-width: 0;
-  width: auto;
-  min-height: 32px;
-  padding: 4px 0;
-  border: 0;
-  color: var(--muted-foreground);
-  font-size: var(--learn-text-sm);
-  text-overflow: ellipsis;
+  line-height: 1.5;
 }
 .learn-study-send {
+  position: absolute;
+  right: 9px;
+  bottom: 9px;
   display: grid;
   place-items: center;
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 50%;
   background: var(--primary);
   color: var(--primary-foreground);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+}
+.learn-study-send:hover:not(:disabled) {
+  box-shadow: 0 6px 18px -12px color-mix(in srgb, var(--primary) 68%, transparent);
+}
+.learn-study-send:active:not(:disabled) {
+  transform: scale(0.97);
 }
 .learn-answer.saved {
   background: var(--muted);

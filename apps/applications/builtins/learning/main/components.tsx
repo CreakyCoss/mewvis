@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import {
   getApplicationChatClient,
   type ApplicationChatSession,
@@ -10,7 +10,6 @@ import {
   useChatSnapshot,
 } from "@isle/app-sdk/chat/react";
 import {
-  ArrowUp,
   ClipboardCheck,
   History,
   ListChecks,
@@ -328,8 +327,24 @@ export function TutorConversation({
   const binding = useChatComposer();
   const snapshot = useChatSnapshot();
   const [contextOpen, setContextOpen] = useState(false);
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [error, setError] = useState("");
+  const contextDetailId = useId();
   const input = useRef<HTMLTextAreaElement>(null);
+  const contextRef = useRef<HTMLDivElement>(null);
+  const modelMenuRef = useRef<HTMLDivElement>(null);
+  const modelTriggerRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!contextOpen && !modelMenuOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (contextOpen && !contextRef.current?.contains(event.target as Node))
+        setContextOpen(false);
+      if (modelMenuOpen && !modelMenuRef.current?.contains(event.target as Node))
+        setModelMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [contextOpen, modelMenuOpen]);
   const send = async () => {
     if (!binding.canSubmit || binding.disabled) return;
     setError("");
@@ -344,6 +359,10 @@ export function TutorConversation({
   const hasMessages = snapshot.messages.some(
     (message) => message.role === "user",
   );
+  const models = binding.controls.resources.models ?? [];
+  const selectedModelId = binding.controls.options.selectedModelId;
+  const selectedModel = models.find((model) => model.value === selectedModelId);
+  const selectedModelName = selectedModel?.selectedLabel || selectedModel?.label || "暂无可用模型";
   return (
     <>
       <div className="learn-study-conversation">
@@ -375,7 +394,7 @@ export function TutorConversation({
           </div>
         )}
       </div>
-      <div className="learn-study-compose-area">
+      <div className={`learn-study-compose-area ${contextOpen || modelMenuOpen ? "is-popover-open" : ""}`}>
         <Chat.Error />
         <Chat.Question />
         {error && <Notice>{error}</Notice>}
@@ -387,20 +406,48 @@ export function TutorConversation({
             继续生成
           </button>
         )}
-        <div className="learn-study-context">
+        <div
+          className="learn-study-context"
+          ref={contextRef}
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null))
+              setContextOpen(false);
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Escape" || !contextOpen) return;
+            event.preventDefault();
+            event.stopPropagation();
+            setContextOpen(false);
+            event.currentTarget.querySelector("button")?.focus();
+          }}
+        >
           <span title={lesson.title}>{lesson.title}</span>
           <button
+            type="button"
             aria-expanded={contextOpen}
-            onClick={() => setContextOpen(!contextOpen)}
+            aria-controls={contextOpen ? contextDetailId : undefined}
+            onClick={() => {
+              setModelMenuOpen(false);
+              setContextOpen((open) => !open);
+            }}
           >
             上下文
           </button>
+          {contextOpen && (
+            <div
+              id={contextDetailId}
+              className="learn-study-context-detail"
+              role="note"
+            >
+              <strong>本课上下文</strong>
+              <p>
+                {reviewing
+                  ? "评阅助手会参考本课讲解、题目、评分标准和本次作答，结果仅供学习参考。"
+                  : "本课目标、讲解、示例、要点和测验题目会作为助手回答的参考资料；助手不会修改课程或学习进度。"}
+              </p>
+            </div>
+          )}
         </div>
-        {contextOpen && (
-          <div className="learn-study-context-detail">
-            助手会参考本课目标、讲解、要点和测验题目。
-          </div>
-        )}
         <form
           className="learn-study-composer"
           onSubmit={(e) => {
@@ -433,61 +480,83 @@ export function TutorConversation({
               }
             }}
           />
-          <div className="learn-study-composer-controls">
+          <div
+            className="learn-assistant-model"
+            ref={modelMenuRef}
+            onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null))
+                setModelMenuOpen(false);
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== "Escape" || !modelMenuOpen) return;
+              event.preventDefault();
+              event.stopPropagation();
+              setModelMenuOpen(false);
+              modelTriggerRef.current?.focus();
+            }}
+          >
             <button
+              ref={modelTriggerRef}
               type="button"
-              className="learn-assistant-icon-button"
-              aria-label="查看学习上下文"
-              onClick={() => setContextOpen(!contextOpen)}
+              className="learn-assistant-model-trigger"
+              disabled={binding.busy || binding.disabled || models.length === 0}
+              aria-label={`学习助手模型：${selectedModelName}`}
+              aria-expanded={modelMenuOpen}
+              title={selectedModelName}
+              onClick={() => {
+                setContextOpen(false);
+                setModelMenuOpen((open) => !open);
+              }}
             >
-              <Plus size={16} />
+              <span>{selectedModelName}</span>
+              <Icon name="chevronDown" size={15} />
             </button>
-            <select
-              aria-label="学习助手模型"
-              value={binding.controls.options.selectedModelId}
-              disabled={binding.busy || binding.disabled}
-              onChange={(e) =>
-                binding.controls.updateOptions({
-                  selectedModelId: e.target.value,
-                })
-              }
-            >
-              {!binding.controls.resources.models?.length && (
-                <option value="">暂无可用模型</option>
-              )}
-              {(binding.controls.resources.models ?? []).map((model) => (
-                <option key={model.value} value={model.value}>
-                  {model.selectedLabel || model.label}
-                </option>
-              ))}
-            </select>
-            {binding.busy ? (
-              <button
-                type="button"
-                className="learn-study-send"
-                aria-label="停止生成"
-                onClick={() =>
-                  void binding
-                    .stop()
-                    .then((result) => {
-                      if (!result.ok) setError(result.error);
-                    })
-                    .catch((e) => setError(errorText(e)))
-                }
-              >
-                <Square size={15} />
-              </button>
-            ) : (
-              <button
-                type="submit"
-                className="learn-study-send"
-                aria-label="发送给学习助手"
-                disabled={!binding.canSubmit || binding.disabled}
-              >
-                <ArrowUp size={18} />
-              </button>
+            {modelMenuOpen && (
+              <div className="learn-assistant-model-menu" role="group" aria-label="可用学习助手模型">
+                {models.map((model) => (
+                  <button
+                    key={model.value}
+                    type="button"
+                    aria-pressed={model.value === selectedModelId}
+                    onClick={() => {
+                      binding.controls.updateOptions({ selectedModelId: model.value });
+                      setModelMenuOpen(false);
+                      modelTriggerRef.current?.focus();
+                    }}
+                  >
+                    <span>{model.selectedLabel || model.label}</span>
+                    {model.value === selectedModelId && <Icon name="check" size={15} />}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
+          {binding.busy ? (
+            <button
+              type="button"
+              className="learn-study-send"
+              aria-label="停止生成"
+              onClick={() =>
+                void binding
+                  .stop()
+                  .then((result) => {
+                    if (!result.ok) setError(result.error);
+                  })
+                  .catch((e) => setError(errorText(e)))
+              }
+            >
+              <Square size={15} />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              className="learn-study-send"
+              aria-label="发送给学习助手"
+              disabled={!binding.canSubmit || binding.disabled}
+            >
+              <Icon name="send" size={16} />
+            </button>
+          )}
         </form>
       </div>
     </>
