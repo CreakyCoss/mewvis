@@ -1,126 +1,94 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { Attempt, Lesson, Question } from "./course";
 import { gradeChoiceQuestions } from "./vendor/grading";
 import { lessonMastery } from "./mastery";
-import { Notice, TutorConversation, errorText } from "./components";
-import { Chat } from "@isle/app-sdk/chat/react";
-import { ModelTask, createModelTask, closeModelTask } from "./ModelTask";
-import { gradingProfile, gradingPrompt, parseGrades } from "./workflow";
 import { reviewQuestions } from "./study";
 
-type Props = {
+export function PracticePanel({
+  lesson,
+  attempt,
+  history,
+  disabled,
+  onRetry,
+  expanded,
+  onToggleExpand,
+}: {
   lesson: Lesson;
   attempt?: Attempt;
+  history: Attempt[];
   disabled: boolean;
-  onSubmit: (attempt: Attempt) => Promise<void>;
-};
-
-export function GradingPanel({ lesson, attempt, disabled, onSubmit }: Props) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const lock = useRef(false);
-  const short = lesson.questions.filter((q) => q.type === "short_answer");
-  const exclusive = async (action: () => Promise<void>) => {
-    if (lock.current || disabled) throw new Error("正在保存，请稍后重试");
-    lock.current = true;
-    setBusy(true);
-    try {
-      await action();
-    } finally {
-      lock.current = false;
-      setBusy(false);
-    }
-  };
-  const connect = async () => {
-    if (!attempt) return;
-    const ref = await createModelTask(gradingProfile);
-    try {
-      await onSubmit({ ...attempt, gradingSession: ref });
-    } catch (e) {
-      await closeModelTask(ref).catch(() => {});
-      throw e;
-    }
-  };
-  if (!short.length)
-    return <PanelEmpty>本课没有简答题，选择题会在提交后直接判断。</PanelEmpty>;
-  if (!attempt)
-    return <PanelEmpty>先完成并提交本课测验，再来评阅简答题。</PanelEmpty>;
+  onRetry: (ids: string[]) => void;
+  expanded: boolean;
+  onToggleExpand: () => void;
+}) {
+  const [tab, setTab] = useState<"history" | "mistakes">("history");
+  const tabs = [
+    { id: "history", label: "全部记录" },
+    { id: "mistakes", label: "错题本" },
+  ] as const;
   return (
-    <div className="learn-study-panel-body">
-      <p className="learn-muted">
-        AI 评阅会参考本课讲解、题目、评分标准和本次作答，结果仅供学习参考。
-      </p>
-      {error && <Notice>{error}</Notice>}
-      {short.map((q) => {
-        const grade = attempt.grades?.[q.id];
-        return (
-          <section className="learn-review-item" key={q.id}>
-            <div className="learn-review-heading">
-              <strong>{q.question}</strong>
-              <span>
-                {grade ? `${grade.score} / ${q.points} 分` : "待评阅"}
-              </span>
-            </div>
-            <p className="learn-muted">我的作答</p>
-            <p>{String(attempt.answers[q.id] ?? "未作答")}</p>
-            {grade && <p className="learn-review-feedback">{grade.feedback}</p>}
-            <details>
-              <summary>参考答案与评分标准</summary>
-              <p>{q.answer}</p>
-              <p>{q.rubric}</p>
-              <p>{q.explanation}</p>
-            </details>
-          </section>
-        );
-      })}
-      {!attempt.gradingSession ? (
-        <button
-          className="learn-button primary"
-          disabled={disabled || busy}
-          onClick={() => {
-            setError("");
-            void exclusive(connect).catch((e) => setError(errorText(e)));
-          }}
-        >
-          {busy ? "连接中…" : "连接 AI 评阅"}
-        </button>
-      ) : (
-        <div inert={disabled || busy}>
-          <ModelTask
-            embedded
-            renderChat={(session) => (
-              <Chat.Provider session={session} viewId="learning-review">
-                <TutorConversation lesson={lesson} reviewing />
-              </Chat.Provider>
-            )}
-            key={`${attempt.submittedAt}:${attempt.gradingSession.chatId}`}
-            taskRef={attempt.gradingSession}
-            title="简答题 AI 评阅"
-            prompt={gradingPrompt(lesson, attempt)}
-            preview={(raw) => (
-              <ul>
-                {Object.entries(parseGrades(raw, lesson, attempt)).map(
-                  ([id, grade]) => (
-                    <li key={id}>
-                      {lesson.questions.find((q) => q.id === id)?.question}：
-                      {grade.score} 分 · {grade.feedback}
-                    </li>
-                  ),
-                )}
-              </ul>
-            )}
-            onAccept={(raw) =>
-              exclusive(() =>
-                onSubmit({
-                  ...attempt,
-                  grades: parseGrades(raw, lesson, attempt),
-                }),
-              )
-            }
-            onRetryConnection={() => exclusive(connect)}
-          />
+    <div className="learn-practice-panel">
+      <header className="learn-study-assistant-header learn-practice-header">
+        <div className="learn-practice-tabs" role="tablist" aria-label="测验记录分类">
+          {tabs.map(({ id, label }, index) => (
+            <button
+              key={id}
+              id={`learn-practice-tab-${id}`}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              aria-controls={`learn-practice-panel-${id}`}
+              tabIndex={tab === id ? 0 : -1}
+              onClick={() => setTab(id)}
+              onKeyDown={(event) => {
+                const next = event.key === "ArrowRight"
+                  ? (index + 1) % tabs.length
+                  : event.key === "ArrowLeft"
+                    ? (index + tabs.length - 1) % tabs.length
+                    : event.key === "Home"
+                      ? 0
+                      : event.key === "End"
+                        ? tabs.length - 1
+                        : null;
+                if (next === null) return;
+                event.preventDefault();
+                setTab(tabs[next].id);
+                document.getElementById(`learn-practice-tab-${tabs[next].id}`)?.focus();
+              }}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-      )}
+        <button
+          className="learn-tutor-expand"
+          type="button"
+          onClick={onToggleExpand}
+          aria-expanded={expanded}
+        >
+          {expanded ? "返回课程" : "展开助手"}
+        </button>
+      </header>
+      <section
+        id="learn-practice-panel-history"
+        className="learn-practice-section"
+        role="tabpanel"
+        aria-labelledby="learn-practice-tab-history"
+        hidden={tab !== "history"}
+        tabIndex={0}
+      >
+        <PracticeHistory lesson={lesson} attempt={attempt} history={history} />
+      </section>
+      <section
+        id="learn-practice-panel-mistakes"
+        className="learn-practice-section"
+        role="tabpanel"
+        aria-labelledby="learn-practice-tab-mistakes"
+        hidden={tab !== "mistakes"}
+        tabIndex={0}
+      >
+        <MistakePanel lesson={lesson} attempt={attempt} disabled={disabled} onRetry={onRetry} />
+      </section>
     </div>
   );
 }
@@ -136,12 +104,12 @@ export function PracticeHistory({
 }) {
   const entries = attempt ? [attempt, ...history] : history;
   if (!entries.length)
-    return <PanelEmpty>还没有练习记录，提交测验后会保存在这里。</PanelEmpty>;
+    return <PanelEmpty>还没有测验记录，提交测验后会保存在这里。</PanelEmpty>;
   const short = lesson.questions.filter((q) => q.type === "short_answer");
   return (
     <div className="learn-study-panel-body">
       <p className="learn-muted">
-        共 {entries.length} 次练习 · 最多保留 8 条历史记录
+        共 {entries.length} 次测验 · 最多保留 8 条历史记录
       </p>
       <ol className="learn-practice-list">
         {entries.map((entry, index) => {
@@ -156,47 +124,25 @@ export function PracticeHistory({
               <p>
                 选择题答对 {choice.filter((r) => r.correct).length} /{" "}
                 {choice.length}
-                {short.length
-                  ? ` · 简答已评 ${short.filter((q) => entry.grades?.[q.id]).length} / ${short.length}`
-                  : ""}
+                {short.length ? ` · 简答已保存 ${short.length} 题` : ""}
               </p>
               <p className="learn-muted">
-                掌握参考{" "}
-                {mastery.percent === null ? "待评分" : `${mastery.percent}%`}
-                {mastery.pending ? ` · ${mastery.pending} 题待评` : ""}
+                {mastery.percent === null
+                  ? "本次无已判分题目"
+                  : `已判分题目掌握参考 ${mastery.percent}%`}
+                {mastery.pending ? ` · ${mastery.pending} 道简答未计分` : ""}
               </p>
               <details className="learn-history-answers">
                 <summary>查看作答详情</summary>
-                {lesson.questions.map((question, questionIndex) => {
-                  const result = choice.find(
-                    (item) => item.questionId === question.id,
-                  );
-                  const grade = entry.grades?.[question.id];
-                  return (
-                    <section key={question.id}>
-                      <strong>
-                        {questionIndex + 1}. {question.question}
-                      </strong>
-                      <p>
-                        当时作答：
-                        {answerLabel(question, entry.answers[question.id])}
-                      </p>
-                      <p className="learn-muted">
-                        {question.type === "short_answer"
-                          ? grade
-                            ? `AI 评分：${grade.score} / ${question.points} 分`
-                            : "当次尚未评阅"
-                          : result?.correct
-                            ? "回答正确"
-                            : "回答错误"}
-                      </p>
-                      {grade && <p>{grade.feedback}</p>}
-                      <p className="learn-muted">
-                        参考答案：{answerLabel(question, question.answer)}
-                      </p>
-                    </section>
-                  );
-                })}
+                {lesson.questions.map((question, questionIndex) => (
+                  <AnswerDetail
+                    key={question.id}
+                    question={question}
+                    number={questionIndex + 1}
+                    attempt={entry}
+                    correct={choice.find((item) => item.questionId === question.id)?.correct}
+                  />
+                ))}
               </details>
             </li>
           );
@@ -220,6 +166,39 @@ function answerLabel(
     .join("；");
 }
 
+function AnswerDetail({
+  question,
+  number,
+  attempt,
+  correct,
+}: {
+  question: Question;
+  number: number;
+  attempt: Attempt;
+  correct?: boolean | null;
+}) {
+  const grade = attempt.grades?.[question.id];
+  return (
+    <section className="learn-answer-detail">
+      <strong>{number}. {question.question}</strong>
+      <p>我的作答：{answerLabel(question, attempt.answers[question.id])}</p>
+      <p className="learn-muted">
+        {question.type === "short_answer"
+          ? grade
+            ? `AI 评分：${grade.score} / ${question.points} 分`
+            : "简答未计分"
+          : correct
+            ? "回答正确"
+            : "回答错误"}
+      </p>
+      <p>参考答案：{answerLabel(question, question.answer)}</p>
+      {(grade?.feedback || question.explanation) && (
+        <p className="learn-muted">{grade?.feedback || question.explanation}</p>
+      )}
+    </section>
+  );
+}
+
 export function MistakePanel({
   lesson,
   attempt,
@@ -239,41 +218,39 @@ export function MistakePanel({
   const pending = lesson.questions.filter(
     (q) => q.type === "short_answer" && !attempt.grades?.[q.id],
   ).length;
+  const choice = gradeChoiceQuestions(lesson.questions, attempt.answers);
   return (
     <div className="learn-study-panel-body">
-      <p className="learn-muted">
-        本课最近一次作答 · {questions.length} 题需巩固
-      </p>
-      {pending > 0 && (
-        <p className="learn-muted">{pending} 道简答题待评阅，暂不计入错题。</p>
-      )}
-      {!questions.length && <p>已判分的题目均已答对。</p>}
+      <div className="learn-mistake-overview">
+        <div className="learn-mistake-overview-row">
+          <strong>{questions.length ? `${questions.length} 题待巩固` : "暂无待巩固题目"}</strong>
+          {questions.length > 0 && (
+            <button
+              type="button"
+              className="learn-button compact learn-mistake-retry"
+              disabled={disabled}
+              onClick={() => onRetry(questions.map((q) => q.id))}
+            >
+              重练错题
+            </button>
+          )}
+        </div>
+        <p className="learn-muted">
+          {questions.length
+            ? "根据本课最近一次测验整理。"
+            : "最近一次测验的已判分题目均已答对。"}
+          {pending > 0 && `另有 ${pending} 道简答题未计分。`}
+        </p>
+      </div>
       {questions.map((q) => (
-        <section className="learn-review-item" key={q.id}>
-          <strong>
-            {lesson.questions.indexOf(q) + 1}. {q.question}
-          </strong>
-          <p className="learn-muted">
-            我的作答：
-            {Array.isArray(attempt.answers[q.id])
-              ? (attempt.answers[q.id] as string[]).join("、")
-              : attempt.answers[q.id]}
-          </p>
-          <p>
-            参考答案：{Array.isArray(q.answer) ? q.answer.join("、") : q.answer}
-          </p>
-          <p>{attempt.grades?.[q.id]?.feedback ?? q.explanation}</p>
-        </section>
+        <AnswerDetail
+          key={q.id}
+          question={q}
+          number={lesson.questions.indexOf(q) + 1}
+          attempt={attempt}
+          correct={choice.find((item) => item.questionId === q.id)?.correct}
+        />
       ))}
-      {questions.length > 0 && (
-        <button
-          className="learn-button primary"
-          disabled={disabled}
-          onClick={() => onRetry(questions.map((q) => q.id))}
-        >
-          只练需巩固的 {questions.length} 题
-        </button>
-      )}
     </div>
   );
 }

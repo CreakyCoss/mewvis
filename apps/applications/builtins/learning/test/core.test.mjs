@@ -25,6 +25,7 @@ const modulePath = join(temporary, "core.mjs");
 await writeFile(modulePath, compiled.outputFiles[0].contents);
 const {
   reviewQuestions,
+  questionAnalysisPrompt,
   assertCurrentReview,
   validateContent,
   validateCourse,
@@ -1402,6 +1403,24 @@ test("study mistake panel excludes pending short answers and includes reviewed w
   const choice = lesson.questions.find((q) => q.type === "single_choice");
   attempt.answers[choice.id] = choice.options.find((o) => o.value !== choice.answer).value;
   assert.deepEqual(reviewQuestions(lesson, attempt).map((q) => q.id), [choice.id]);
+});
+
+test("question analysis prompts cover every question type and the current answer", () => {
+  const lesson = mixedLesson();
+  const [single, multiple, short] = lesson.questions;
+  const singlePrompt = questionAnalysisPrompt(lesson, single, 0, "B");
+  assert.match(singlePrompt, /第 1 题（单选题）/);
+  assert.match(singlePrompt, /B\. 乙/);
+  assert.match(singlePrompt, /我的作答：B/);
+  const multiplePrompt = questionAnalysisPrompt(lesson, multiple, 1, ["A", "C"]);
+  assert.match(multiplePrompt, /第 2 题（多选题）/);
+  assert.match(multiplePrompt, /我的作答：A、C/);
+  assert.match(questionAnalysisPrompt(lesson, multiple, 1, []), /我的作答：尚未作答/);
+  const shortPrompt = questionAnalysisPrompt(lesson, short, 2, "  我的解释  ");
+  assert.match(shortPrompt, /第 3 题（简答题）/);
+  assert.match(shortPrompt, /我的作答：我的解释/);
+  assert.doesNotMatch(shortPrompt, /选项：/);
+  assert.match(questionAnalysisPrompt(lesson, short, 2, undefined), /我的作答：尚未作答/);
 });
 
 test("a background review cannot replace a newer practice attempt", () => {

@@ -1,5 +1,5 @@
 import "./styles.css";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   BookOpen,
   Circle,
@@ -20,6 +20,7 @@ import {
   type Attempt,
   type Course,
   type Progress,
+  type Question,
 } from "./course";
 import { repository, upsertCourseEntry } from "./repository";
 import { clearOldChats } from "./clearOldChats";
@@ -33,8 +34,8 @@ import {
   errorText,
   type FocusTarget,
 } from "./components";
-import { GradingPanel, MistakePanel, PracticeHistory } from "./StudyPanels";
-import { assertCurrentReview } from "./study";
+import { PracticePanel } from "./StudyPanels";
+import { questionAnalysisPrompt } from "./study";
 import { closeModelTask } from "./ModelTask";
 import { RecallCards } from "./RecallCards";
 import { ProjectLab } from "./ProjectLab";
@@ -71,6 +72,12 @@ export default function App() {
   const [tab, setTab] = useState<"lesson" | "quiz" | "project">("lesson");
   const [tutorExpanded, setTutorExpanded] = useState(false);
   const [tutorWidth, setTutorWidth] = useState<number | null>(null);
+  const [tutorRequest, setTutorRequest] = useState<{
+    id: string;
+    courseId: string;
+    lessonId: string;
+    prompt: string;
+  } | null>(null);
   const [retryRequest, setRetryRequest] = useState<{
     courseId: string;
     lessonId: string;
@@ -271,16 +278,15 @@ export default function App() {
       setTab("lesson");
       setFocus(null);
     });
-  const saveAttempt = async (attempt: Attempt, review = false) => {
+  const saveAttempt = async (attempt: Attempt) => {
     if (!course || !lesson) return;
     if (lock.current) throw new Error("正在保存，请稍后重试");
     lock.current = true;
     setBusy(true);
     try {
       const latest = progressRef.current[course.id] ?? emptyProgress(course);
-      if (review) assertCurrentReview(latest.attempts[lesson.id], attempt);
       await updateProgress(recordAttempt(course, latest, lesson.id, attempt));
-      if (!review) setRetryRequest(null);
+      setRetryRequest(null);
     } finally {
       lock.current = false;
       setBusy(false);
@@ -309,6 +315,24 @@ export default function App() {
     retryRequest?.lessonId === lesson?.id
       ? retryRequest?.ids
       : undefined;
+  const explainQuestion = (
+    question: Question,
+    answer: string | string[] | undefined,
+    index: number,
+  ) => {
+    if (!course || !lesson) return;
+    setTutorRequest({
+      id: crypto.randomUUID(),
+      courseId: course.id,
+      lessonId: lesson.id,
+      prompt: questionAnalysisPrompt(lesson, question, index, answer),
+    });
+    if (window.matchMedia("(max-width: 760px)").matches)
+      setTutorExpanded(true);
+  };
+  const clearTutorRequest = useCallback((id: string) => {
+    setTutorRequest((current) => current?.id === id ? null : current);
+  }, []);
 
   return (
     <div
@@ -654,6 +678,7 @@ export default function App() {
                       disabled={busy}
                       onSubmit={saveAttempt}
                       onReset={restartPractice}
+                      onExplain={explainQuestion}
                     />
                   )}
                 </div>
@@ -663,23 +688,14 @@ export default function App() {
                 course={course}
                 lesson={lesson}
                 panels={{
-                  grading: (
-                    <GradingPanel
-                      key={
-                        currentProgress.attempts[lesson.id]?.submittedAt ??
-                        "empty"
-                      }
+                  practice: (
+                    <PracticePanel
                       lesson={lesson}
                       attempt={currentProgress.attempts[lesson.id]}
+                      history={currentProgress.history[lesson.id] ?? []}
                       disabled={busy}
-                      onSubmit={(attempt) => saveAttempt(attempt, true)}
-                    />
-                  ),
-                  mistakes: (
-                    <MistakePanel
-                      lesson={lesson}
-                      attempt={currentProgress.attempts[lesson.id]}
-                      disabled={busy}
+                      expanded={tutorExpanded}
+                      onToggleExpand={() => setTutorExpanded((value) => !value)}
                       onRetry={(ids) =>
                         void run(async () => {
                           setRetryRequest({
@@ -694,15 +710,10 @@ export default function App() {
                       }
                     />
                   ),
-                  history: (
-                    <PracticeHistory
-                      lesson={lesson}
-                      attempt={currentProgress.attempts[lesson.id]}
-                      history={currentProgress.history[lesson.id] ?? []}
-                    />
-                  ),
                 }}
                 expanded={tutorExpanded}
+                request={tutorRequest}
+                onRequestHandled={clearTutorRequest}
                 onToggleExpand={() => setTutorExpanded((value) => !value)}
                 onWidthChange={setTutorWidth}
               />

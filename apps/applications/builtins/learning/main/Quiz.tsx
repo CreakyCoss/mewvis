@@ -1,5 +1,11 @@
 import { useRef, useState } from "react";
-import { type Attempt, type Answers, type Lesson, validAnswer } from "./course";
+import {
+  type Attempt,
+  type Answers,
+  type Lesson,
+  type Question,
+  validAnswer,
+} from "./course";
 import { gradeChoiceQuestions } from "./vendor/grading";
 import { Notice, errorText } from "./components";
 
@@ -9,6 +15,7 @@ export function Quiz({
   retryIds,
   onSubmit,
   onReset,
+  onExplain,
   disabled,
 }: {
   lesson: Lesson;
@@ -16,6 +23,11 @@ export function Quiz({
   retryIds?: string[];
   onSubmit: (attempt: Attempt) => Promise<void>;
   onReset: () => Promise<void>;
+  onExplain: (
+    question: Question,
+    answer: Answers[string] | undefined,
+    index: number,
+  ) => void;
   disabled: boolean;
 }) {
   const [answers, setAnswers] = useState<Answers>(() =>
@@ -91,88 +103,108 @@ export function Quiz({
         const value = answers[q.id];
         const result = results.find((r) => r.questionId === q.id);
         return (
-          <fieldset key={q.id} disabled={blocked || !!saved}>
-            <legend>
-              {index + 1}. {q.question}{" "}
-              <small>
-                （
+          <div className="learn-quiz-question" key={q.id}>
+            <h3
+              className="learn-quiz-question-heading"
+              id={`learn-question-${index + 1}`}
+            >
+              {index + 1}. {q.question}
+            </h3>
+            <div className="learn-quiz-question-tools">
+              <span className="learn-quiz-question-meta">
                 {q.type === "short_answer"
                   ? "简答"
                   : q.type === "multiple_choice"
                     ? "多选"
                     : "单选"}{" "}
-                · {q.points} 分）
-              </small>
-            </legend>
-            {q.type === "short_answer" ? (
-              <textarea
-                aria-label={`第 ${index + 1} 题作答`}
-                rows={5}
-                maxLength={2000}
-                value={typeof value === "string" ? value : ""}
-                placeholder="用自己的话回答，最多 2,000 字"
-                onChange={(e) =>
-                  setAnswers({ ...answers, [q.id]: e.target.value })
-                }
-              />
-            ) : (
-              <div className="learn-options">
-                {q.options.map((option) => {
-                  const checked = Array.isArray(value)
-                    ? value.includes(option.value)
-                    : value === option.value;
-                  return (
-                    <label
-                      key={option.value}
-                      className={`learn-option ${checked ? "selected" : ""}`}
-                    >
-                      <input
-                        type={
-                          q.type === "multiple_choice" ? "checkbox" : "radio"
-                        }
-                        name={q.id}
-                        checked={checked}
-                        onChange={() =>
-                          setAnswers((current) => {
-                            const previous = Array.isArray(current[q.id])
-                              ? (current[q.id] as string[])
-                              : [];
-                            return {
-                              ...current,
-                              [q.id]:
-                                q.type === "multiple_choice"
-                                  ? checked
-                                    ? previous.filter((v) => v !== option.value)
-                                    : [...previous, option.value]
-                                  : option.value,
-                            };
-                          })
-                        }
-                      />
-                      <span className="learn-option-letter">
-                        {option.value}
-                      </span>
-                      <span>{option.label}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-            {saved && (
-              <div
-                className={`learn-answer ${q.type === "short_answer" ? "saved" : result?.correct ? "correct" : "incorrect"}`}
+                · {q.points} 分
+              </span>
+              <button
+                type="button"
+                className="learn-question-explain"
+                aria-label={`AI 解析第 ${index + 1} 题`}
+                disabled={blocked}
+                onClick={() => onExplain(q, value, index)}
               >
-                <strong>
-                  {q.type === "short_answer"
-                    ? "作答已保存"
-                    : result?.correct
-                      ? "回答正确"
-                      : `正确答案：${Array.isArray(q.answer) ? q.answer.join("、") : q.answer}`}
-                </strong>
-                {q.type !== "short_answer" && <p>{q.explanation}</p>}
-              </div>
-            )}
-          </fieldset>
+                AI 解析
+              </button>
+            </div>
+            <fieldset
+              aria-labelledby={`learn-question-${index + 1}`}
+              disabled={blocked || !!saved}
+            >
+              {q.type === "short_answer" ? (
+                <textarea
+                  aria-label={`第 ${index + 1} 题作答`}
+                  rows={5}
+                  maxLength={2000}
+                  value={typeof value === "string" ? value : ""}
+                  placeholder="用自己的话回答，最多 2,000 字"
+                  onChange={(e) =>
+                    setAnswers({ ...answers, [q.id]: e.target.value })
+                  }
+                />
+              ) : (
+                <div className="learn-options">
+                  {q.options.map((option) => {
+                    const checked = Array.isArray(value)
+                      ? value.includes(option.value)
+                      : value === option.value;
+                    return (
+                      <label
+                        key={option.value}
+                        className={`learn-option ${checked ? "selected" : ""}`}
+                      >
+                        <input
+                          type={
+                            q.type === "multiple_choice" ? "checkbox" : "radio"
+                          }
+                          name={q.id}
+                          checked={checked}
+                          onChange={() =>
+                            setAnswers((current) => {
+                              const previous = Array.isArray(current[q.id])
+                                ? (current[q.id] as string[])
+                                : [];
+                              return {
+                                ...current,
+                                [q.id]:
+                                  q.type === "multiple_choice"
+                                    ? checked
+                                      ? previous.filter(
+                                          (v) => v !== option.value,
+                                        )
+                                      : [...previous, option.value]
+                                    : option.value,
+                              };
+                            })
+                          }
+                        />
+                        <span className="learn-option-letter">
+                          {option.value}
+                        </span>
+                        <span>{option.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+              {saved && (
+                <div
+                  className={`learn-answer ${q.type === "short_answer" ? "saved" : result?.correct ? "correct" : "incorrect"}`}
+                >
+                  <strong>
+                    {q.type === "short_answer"
+                      ? "作答已保存"
+                      : result?.correct
+                        ? "回答正确"
+                        : `正确答案：${Array.isArray(q.answer) ? q.answer.join("、") : q.answer}`}
+                  </strong>
+                  {q.type !== "short_answer" && <p>{q.explanation}</p>}
+                </div>
+              )}
+            </fieldset>
+          </div>
         );
       })}
       {error && <Notice>{error}</Notice>}

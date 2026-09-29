@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import {
   getApplicationChatClient,
   type ApplicationChatSession,
@@ -7,12 +7,11 @@ import { getApplicationDataClient } from "@isle/app-sdk/data";
 import {
   Chat,
   useChatComposer,
+  useChatSession,
   useChatSnapshot,
 } from "@isle/app-sdk/chat/react";
 import {
-  ClipboardCheck,
   History,
-  ListChecks,
   Plus,
   Sparkles,
   Square,
@@ -132,26 +131,29 @@ export function Tutor({
   lesson,
   panels,
   expanded,
+  request,
+  onRequestHandled,
   onToggleExpand,
   onWidthChange,
 }: {
   course: Course;
   lesson: Lesson;
-  panels: Record<"grading" | "mistakes" | "history", ReactNode>;
+  panels: Record<"practice", ReactNode>;
   expanded: boolean;
+  request: { id: string; courseId: string; lessonId: string; prompt: string } | null;
+  onRequestHandled: (id: string) => void;
   onToggleExpand: () => void;
   onWidthChange: (width: number | null) => void;
 }) {
   const [session, setSession] = useState<ApplicationChatSession | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [panel, setPanel] = useState<
-    "chat" | "grading" | "mistakes" | "history"
-  >("chat");
+  const [panel, setPanel] = useState<"chat" | "practice">("chat");
   const [chatBusy, setChatBusy] = useState(false);
   const [measuredWidth, setMeasuredWidth] = useState(400);
   const [resizeBounds, setResizeBounds] = useState({ min: tutorMinWidth, max: tutorMaxWidth });
   const connecting = useRef(false);
+  const handledRequest = useRef("");
   const tutorRef = useRef<HTMLElement>(null);
   const resizeDrag = useRef<{
     pointerId: number;
@@ -247,16 +249,54 @@ export function Tutor({
     update();
     return session.subscribe(update);
   }, [session]);
+  useEffect(() => {
+    if (!request || handledRequest.current === request.id) return;
+    if (request.courseId !== course.id || request.lessonId !== lesson.id) {
+      onRequestHandled(request.id);
+      return;
+    }
+    setPanel("chat");
+    requestAnimationFrame(() =>
+      tutorRef.current?.querySelector<HTMLButtonElement>("#learn-tool-chat")?.focus(),
+    );
+    if (busy || connecting.current) return;
+    if (!session) {
+      handledRequest.current = request.id;
+      setError("学习助手未连接，请重试连接后再次点击 AI 解析。");
+      onRequestHandled(request.id);
+      return;
+    }
+    const dispatch = () => {
+      if (handledRequest.current === request.id) return;
+      const snapshot = session.getSnapshot();
+      if (!snapshot.initialized && !snapshot.initializationError) return;
+      handledRequest.current = request.id;
+      onRequestHandled(request.id);
+      if (snapshot.initializationError) {
+        setError(snapshot.initializationError);
+        return;
+      }
+      if (snapshot.phase !== "idle") {
+        setError("学习助手正在回复，请稍后再试。");
+        return;
+      }
+      setError("");
+      void session.send({ text: request.prompt, requestId: request.id })
+        .then((result) => {
+          if (handledRequest.current === request.id && result.status !== "dispatched")
+            setError(result.reason || "发送失败，请重试。");
+        })
+        .catch((e) => {
+          if (handledRequest.current === request.id) setError(errorText(e));
+        });
+    };
+    const unsubscribe = session.subscribe(dispatch);
+    dispatch();
+    return unsubscribe;
+  }, [request, session, busy, course.id, lesson.id, onRequestHandled]);
   const tabs = [
-    { id: "chat", label: "助手", title: "学习助手", icon: Sparkles },
-    {
-      id: "grading",
-      label: "评阅",
-      title: "简答题 AI 评阅",
-      icon: ClipboardCheck,
-    },
-    { id: "mistakes", label: "错题", title: "错题本", icon: ListChecks },
-    { id: "history", label: "记录", title: "练习记录", icon: History },
+    { id: "chat", label: "助手", icon: Sparkles },
+    { id: "practice", label: "记录", icon: History },
   ] as const;
   return (
     <aside
@@ -317,20 +357,18 @@ export function Tutor({
         }}
       />
       <div className="learn-study-assistant-main">
-        <header className="learn-study-assistant-header">
-          <h2>{tabs.find((item) => item.id === panel)?.title}</h2>
+        {panel === "chat" && <header className="learn-study-assistant-header">
+          <h2>学习助手</h2>
           <div>
-            {panel === "chat" && (
-              <button
-                className="learn-assistant-icon-button"
-                aria-label="新开导师对话"
-                title="新开对话"
-                disabled={busy || chatBusy}
-                onClick={() => void connect(true)}
-              >
-                <Plus size={17} />
-              </button>
-            )}
+            <button
+              className="learn-assistant-icon-button"
+              aria-label="新开导师对话"
+              title="新开对话"
+              disabled={busy || chatBusy}
+              onClick={() => void connect(true)}
+            >
+              <Plus size={17} />
+            </button>
             <button
               className="learn-tutor-expand"
               onClick={onToggleExpand}
@@ -339,7 +377,7 @@ export function Tutor({
               {expanded ? "返回课程" : "展开助手"}
             </button>
           </div>
-        </header>
+        </header>}
         {tabs.map(({ id }) => (
           <section
             key={id}
@@ -347,7 +385,7 @@ export function Tutor({
             id={`learn-panel-${id}`}
             role="tabpanel"
             aria-labelledby={`learn-tool-${id}`}
-            className={`learn-study-pane ${id === "chat" ? "is-chat" : ""}`}
+            className={`learn-study-pane ${id === "chat" ? "is-chat" : "is-practice"}`}
             tabIndex={0}
           >
             {id === "chat" ? (
@@ -359,7 +397,7 @@ export function Tutor({
                     session={session}
                     viewId="learning-study"
                   >
-                    <TutorConversation lesson={lesson} />
+                    <TutorConversation />
                   </Chat.Provider>
                 ) : (
                   <div className="learn-panel-empty">
@@ -426,39 +464,45 @@ export function Tutor({
   );
 }
 
-export function TutorConversation({
-  lesson,
-  reviewing = false,
-}: {
-  lesson: Lesson;
-  reviewing?: boolean;
-}) {
+const tutorPresetQuestions = [
+  {
+    label: "这节课最该掌握什么？",
+    prompt: "请结合本课学习目标，用通俗的话概括这节课最重要的知识点，并说明为什么重要。",
+  },
+  {
+    label: "能换个实际例子讲吗？",
+    prompt: "请用一个不同于课文示例的生活或工作场景，一步步解释这节课的核心概念。",
+  },
+  {
+    label: "能出一道题考考我吗？",
+    prompt: "请根据这节课出一道能检验理解的小题，先不要给答案，等我回答后再讲解。",
+  },
+];
+
+export function TutorConversation() {
   const binding = useChatComposer();
+  const session = useChatSession();
   const snapshot = useChatSnapshot();
-  const [contextOpen, setContextOpen] = useState(false);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [error, setError] = useState("");
-  const contextDetailId = useId();
-  const input = useRef<HTMLTextAreaElement>(null);
-  const contextRef = useRef<HTMLDivElement>(null);
   const modelMenuRef = useRef<HTMLDivElement>(null);
   const modelTriggerRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    if (!contextOpen && !modelMenuOpen) return;
+    if (!modelMenuOpen) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (contextOpen && !contextRef.current?.contains(event.target as Node))
-        setContextOpen(false);
-      if (modelMenuOpen && !modelMenuRef.current?.contains(event.target as Node))
+      if (!modelMenuRef.current?.contains(event.target as Node))
         setModelMenuOpen(false);
     };
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [contextOpen, modelMenuOpen]);
-  const send = async () => {
-    if (!binding.canSubmit || binding.disabled) return;
+  }, [modelMenuOpen]);
+  const send = async (preset?: string) => {
+    if (binding.disabled || (!preset && !binding.canSubmit)) return;
     setError("");
     try {
-      const result = await binding.submit();
+      const result = preset
+        ? await session.send({ text: preset })
+        : await binding.submit();
       if (result.status !== "dispatched")
         setError(result.reason || "发送失败，请重试");
     } catch (e) {
@@ -477,33 +521,26 @@ export function TutorConversation({
       <div className="learn-study-conversation">
         {hasMessages ? (
           <Chat.Messages className="learn-study-messages" />
-        ) : reviewing ? (
-          <p className="learn-review-chat-empty">
-            选择模型后，点击上方「开始评阅」。评阅过程中也可以继续补充要求。
-          </p>
         ) : (
           <div className="learn-study-welcome">
             <Sparkles size={23} />
             <h3>一起弄懂这一课</h3>
-            <p>聊聊不懂的概念，或让我给你一点提示。</p>
-            {["用一个例子解释本课重点", "给我一个提示，先不要给答案"].map(
-              (text) => (
-                <button
-                  key={text}
-                  onClick={() => {
-                    binding.setDraft({ text, blocks: [] });
-                    input.current?.focus();
-                  }}
-                >
-                  {text}
-                  <Icon name="arrow" size={14} />
-                </button>
-              ),
-            )}
+            <p>先抓住重点，再用例子理解，最后试着回答一道题。</p>
+            {tutorPresetQuestions.map(({ label, prompt }) => (
+              <button
+                key={label}
+                type="button"
+                disabled={binding.disabled}
+                onClick={() => void send(prompt)}
+              >
+                {label}
+                <Icon name="arrow" size={14} />
+              </button>
+            ))}
           </div>
         )}
       </div>
-      <div className={`learn-study-compose-area ${contextOpen || modelMenuOpen ? "is-popover-open" : ""}`}>
+      <div className={`learn-study-compose-area ${modelMenuOpen ? "is-popover-open" : ""}`}>
         <Chat.Error />
         <Chat.Question />
         {error && <Notice>{error}</Notice>}
@@ -515,48 +552,6 @@ export function TutorConversation({
             继续生成
           </button>
         )}
-        <div
-          className="learn-study-context"
-          ref={contextRef}
-          onBlur={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget as Node | null))
-              setContextOpen(false);
-          }}
-          onKeyDown={(event) => {
-            if (event.key !== "Escape" || !contextOpen) return;
-            event.preventDefault();
-            event.stopPropagation();
-            setContextOpen(false);
-            event.currentTarget.querySelector("button")?.focus();
-          }}
-        >
-          <span title={lesson.title}>{lesson.title}</span>
-          <button
-            type="button"
-            aria-expanded={contextOpen}
-            aria-controls={contextOpen ? contextDetailId : undefined}
-            onClick={() => {
-              setModelMenuOpen(false);
-              setContextOpen((open) => !open);
-            }}
-          >
-            上下文
-          </button>
-          {contextOpen && (
-            <div
-              id={contextDetailId}
-              className="learn-study-context-detail"
-              role="note"
-            >
-              <strong>本课上下文</strong>
-              <p>
-                {reviewing
-                  ? "评阅助手会参考本课讲解、题目、评分标准和本次作答，结果仅供学习参考。"
-                  : "本课目标、讲解、示例、要点和测验题目会作为助手回答的参考资料；助手不会修改课程或学习进度。"}
-              </p>
-            </div>
-          )}
-        </div>
         <form
           className="learn-study-composer"
           onSubmit={(e) => {
@@ -565,14 +560,9 @@ export function TutorConversation({
           }}
         >
           <textarea
-            ref={input}
             rows={3}
             aria-label="给学习助手的消息"
-            placeholder={
-              reviewing
-                ? "补充评阅要求，或追问评分依据…"
-                : "问不懂的地方，或说说你的理解…"
-            }
+            placeholder="问不懂的地方，或说说你的理解…"
             value={binding.draft.text}
             disabled={binding.disabled}
             onChange={(e) =>
@@ -612,10 +602,7 @@ export function TutorConversation({
               aria-label={`学习助手模型：${selectedModelName}`}
               aria-expanded={modelMenuOpen}
               title={selectedModelName}
-              onClick={() => {
-                setContextOpen(false);
-                setModelMenuOpen((open) => !open);
-              }}
+              onClick={() => setModelMenuOpen((open) => !open)}
             >
               <span>{selectedModelName}</span>
               <Icon name="chevronDown" size={15} />
