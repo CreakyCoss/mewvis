@@ -1,5 +1,5 @@
 import "./styles.css";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   BookOpen,
   Circle,
@@ -70,6 +70,7 @@ export default function App() {
   const [focus, setFocus] = useState<FocusTarget | null>(null);
   const [tab, setTab] = useState<"lesson" | "quiz" | "project">("lesson");
   const [tutorExpanded, setTutorExpanded] = useState(false);
+  const [tutorWidth, setTutorWidth] = useState<number | null>(null);
   const [retryRequest, setRetryRequest] = useState<{
     courseId: string;
     lessonId: string;
@@ -419,6 +420,7 @@ export default function App() {
             </header>
             <div
               className={`learn-classroom with-tutor ${tab === "project" ? "is-project" : ""} ${tutorExpanded ? "mobile-tutor-expanded" : ""}`}
+              style={tutorWidth === null ? undefined : { "--learn-tutor-width": `${tutorWidth}px` } as CSSProperties}
             >
               <aside className="learn-outline" aria-label="课程目录">
                 <span className="learn-eyebrow">COURSE OUTLINE</span>
@@ -702,6 +704,7 @@ export default function App() {
                 }}
                 expanded={tutorExpanded}
                 onToggleExpand={() => setTutorExpanded((value) => !value)}
+                onWidthChange={setTutorWidth}
               />
             </div>
           </>

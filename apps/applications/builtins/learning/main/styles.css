@@ -4013,8 +4013,37 @@
 
 /* Learning tools follow the story workbench: panel, then a right-hand rail. */
 .learn-tutor.learn-study-assistant {
+  position: relative;
+  top: 0;
   flex-direction: row;
   background: var(--card);
+}
+.learn-study-resize-handle {
+  position: absolute;
+  z-index: 4;
+  inset: 0 auto 0 0;
+  width: 10px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+.learn-study-resize-handle::after {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 3px;
+  height: 44px;
+  border-radius: 3px;
+  background: var(--border);
+  content: "";
+  transform: translateY(-50%);
+}
+.learning-app .learn-study-resize-handle:focus-visible {
+  outline: none;
+}
+.learn-study-resize-handle:hover::after,
+.learn-study-resize-handle:focus-visible::after {
+  background: var(--primary);
 }
 .learn-study-assistant-main {
   display: flex;
@@ -4407,3 +4436,33 @@
 .learn-history-answers summary { color: var(--primary); cursor: pointer; font-size: 12px; }
 .learn-history-answers section { margin-top: 12px; padding: 12px; border-radius: 8px; background: var(--muted); }
 .learn-history-answers section p { margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+@media (min-width: 761px) {
+  .learning-app.is-studying .learn-classroom.with-tutor {
+    --learn-outline-width: 195px;
+    --learn-default-tutor-width: 400px;
+    grid-template-columns:
+      var(--learn-outline-width) minmax(0, 1fr)
+      clamp(320px, var(--learn-tutor-width, var(--learn-default-tutor-width)), min(720px, calc(100% - var(--learn-outline-width) - 300px)));
+  }
+  .learning-app.is-studying .learn-classroom.is-project.with-tutor {
+    --learn-outline-width: 0px;
+    grid-template-columns:
+      minmax(0, 1fr)
+      clamp(320px, var(--learn-tutor-width, var(--learn-default-tutor-width)), min(720px, calc(100% - 300px)));
+  }
+}
+@media (min-width: 761px) and (max-width: 1150px) {
+  .learning-app.is-studying .learn-classroom.with-tutor {
+    --learn-outline-width: 155px;
+    --learn-default-tutor-width: 340px;
+  }
+  .learning-app.is-studying .learn-classroom.is-project.with-tutor {
+    --learn-outline-width: 0px;
+  }
+}
+@media (max-width: 760px) {
+  .learn-study-resize-handle {
+    display: none;
+  }
+}

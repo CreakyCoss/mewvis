@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import {
   getApplicationChatClient,
   type ApplicationChatSession,
@@ -109,18 +109,38 @@ export function Text({ value }: { value: string }) {
 export { Quiz } from "./Quiz";
 export type FocusTarget =
   "objective" | "example" | "takeaways" | "recall" | "quiz";
+const tutorMinWidth = 320;
+const tutorMaxWidth = 720;
+const tutorWidthBounds = (tutor: HTMLElement | null) => {
+  const classroom = tutor?.parentElement;
+  const outline = classroom?.querySelector<HTMLElement>(".learn-outline");
+  const outlineWidth = outline && getComputedStyle(outline).display !== "none"
+    ? outline.getBoundingClientRect().width
+    : 0;
+  return {
+    min: tutorMinWidth,
+    max: Math.max(
+      tutorMinWidth,
+      Math.min(tutorMaxWidth, (classroom?.getBoundingClientRect().width ?? 0) - outlineWidth - 300),
+    ),
+  };
+};
+const clampTutorWidth = (width: number, min: number, max: number) =>
+  Math.round(Math.max(min, Math.min(max, width)));
 export function Tutor({
   course,
   lesson,
   panels,
   expanded,
   onToggleExpand,
+  onWidthChange,
 }: {
   course: Course;
   lesson: Lesson;
   panels: Record<"grading" | "mistakes" | "history", ReactNode>;
   expanded: boolean;
   onToggleExpand: () => void;
+  onWidthChange: (width: number | null) => void;
 }) {
   const [session, setSession] = useState<ApplicationChatSession | null>(null);
   const [busy, setBusy] = useState(false);
@@ -129,7 +149,43 @@ export function Tutor({
     "chat" | "grading" | "mistakes" | "history"
   >("chat");
   const [chatBusy, setChatBusy] = useState(false);
+  const [measuredWidth, setMeasuredWidth] = useState(400);
+  const [resizeBounds, setResizeBounds] = useState({ min: tutorMinWidth, max: tutorMaxWidth });
   const connecting = useRef(false);
+  const tutorRef = useRef<HTMLElement>(null);
+  const resizeDrag = useRef<{
+    pointerId: number;
+    startX: number;
+    startWidth: number;
+    min: number;
+    max: number;
+  } | null>(null);
+  useEffect(() => {
+    const tutor = tutorRef.current;
+    const classroom = tutor?.parentElement;
+    if (!tutor || !classroom) return;
+    const measure = () => {
+      const nextWidth = Math.round(tutor.getBoundingClientRect().width);
+      const nextBounds = tutorWidthBounds(tutor);
+      setMeasuredWidth((current) => current === nextWidth ? current : nextWidth);
+      setResizeBounds((current) =>
+        current.min === nextBounds.min && current.max === nextBounds.max
+          ? current
+          : nextBounds,
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(tutor);
+    observer.observe(classroom);
+    return () => observer.disconnect();
+  }, []);
+  const finishResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (resizeDrag.current?.pointerId !== event.pointerId) return;
+    resizeDrag.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId))
+      event.currentTarget.releasePointerCapture(event.pointerId);
+  };
   const connect = async (fresh = false) => {
     if (connecting.current) return;
     connecting.current = true;
@@ -204,9 +260,62 @@ export function Tutor({
   ] as const;
   return (
     <aside
+      ref={tutorRef}
       className="learn-tutor learn-study-assistant"
       aria-label="学习助手工具区"
     >
+      <div
+        className="learn-study-resize-handle"
+        role="separator"
+        aria-label="调整学习助手宽度"
+        aria-orientation="vertical"
+        aria-valuemin={resizeBounds.min}
+        aria-valuemax={resizeBounds.max}
+        aria-valuenow={measuredWidth}
+        aria-valuetext={`${measuredWidth} 像素`}
+        tabIndex={0}
+        title="左右拖动调整宽度，双击恢复默认"
+        onPointerDown={(event) => {
+          if (!event.isPrimary || event.button !== 0) return;
+          const bounds = tutorWidthBounds(tutorRef.current);
+          resizeDrag.current = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startWidth: tutorRef.current?.getBoundingClientRect().width ?? measuredWidth,
+            ...bounds,
+          };
+          event.currentTarget.setPointerCapture(event.pointerId);
+          event.preventDefault();
+        }}
+        onPointerMove={(event) => {
+          const drag = resizeDrag.current;
+          if (!drag || drag.pointerId !== event.pointerId) return;
+          onWidthChange(clampTutorWidth(
+            drag.startWidth + drag.startX - event.clientX,
+            drag.min,
+            drag.max,
+          ));
+        }}
+        onPointerUp={finishResize}
+        onPointerCancel={finishResize}
+        onLostPointerCapture={() => { resizeDrag.current = null; }}
+        onDoubleClick={() => onWidthChange(null)}
+        onKeyDown={(event) => {
+          const bounds = tutorWidthBounds(tutorRef.current);
+          const next = event.key === "ArrowLeft"
+            ? measuredWidth + 24
+            : event.key === "ArrowRight"
+              ? measuredWidth - 24
+              : event.key === "Home"
+                ? bounds.min
+                : event.key === "End"
+                  ? bounds.max
+                  : null;
+          if (next === null) return;
+          event.preventDefault();
+          onWidthChange(clampTutorWidth(next, bounds.min, bounds.max));
+        }}
+      />
       <div className="learn-study-assistant-main">
         <header className="learn-study-assistant-header">
           <h2>{tabs.find((item) => item.id === panel)?.title}</h2>
