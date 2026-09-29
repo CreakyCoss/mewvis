@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
   ArrowLeft,
@@ -66,6 +67,60 @@ const tools = [
   { id: "continuity", label: "伏笔", icon: GitBranch },
 ] as const;
 type Tool = (typeof tools)[number]["id"];
+const sidebarMinWidth = 200;
+const sidebarMaxWidth = 420;
+const assistantMinWidth = 320;
+const assistantMaxWidth = 720;
+const sidebarWidthBounds = (
+  workspace: HTMLElement | null,
+  panel: HTMLElement | null,
+) => {
+  const panelStyle = panel ? getComputedStyle(panel) : null;
+  const panelWidth =
+    panel &&
+    panelStyle?.display !== "none" &&
+    panelStyle?.position !== "absolute"
+      ? panel.getBoundingClientRect().width
+      : 0;
+  return {
+    min: sidebarMinWidth,
+    max: Math.max(
+      sidebarMinWidth,
+      Math.min(
+        sidebarMaxWidth,
+        (workspace?.getBoundingClientRect().width ?? 0) - panelWidth - 56 - 300,
+      ),
+    ),
+  };
+};
+const assistantWidthBounds = (
+  workspace: HTMLElement | null,
+  sidebar: HTMLElement | null,
+) => {
+  const sidebarStyle = sidebar ? getComputedStyle(sidebar) : null;
+  const sidebarWidth =
+    sidebar &&
+    sidebarStyle?.display !== "none" &&
+    sidebarStyle?.position !== "absolute"
+      ? sidebar.getBoundingClientRect().width
+      : 0;
+  return {
+    min: assistantMinWidth,
+    max: Math.max(
+      assistantMinWidth,
+      Math.min(
+        assistantMaxWidth,
+        (workspace?.getBoundingClientRect().width ?? 0) -
+          sidebarWidth -
+          56 -
+          300,
+      ),
+    ),
+  };
+};
+const clampAssistantWidth = (width: number, min: number, max: number) =>
+  Math.round(Math.max(min, Math.min(max, width)));
+const clampSidebarWidth = clampAssistantWidth;
 export function StoryWorkbench({ onBack }: { onBack: () => void }) {
   const overview = useStoryState((s) => s.overview)!;
   const workspace = useStoryState((s) => s.storyWorkspace)!;
@@ -90,6 +145,18 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
     window.matchMedia("(max-width: 700px)").matches ? null : "assistant",
   );
   const [focused, setFocused] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState<number | null>(null);
+  const [measuredSidebarWidth, setMeasuredSidebarWidth] = useState(240);
+  const [sidebarResizeBounds, setSidebarResizeBounds] = useState({
+    min: sidebarMinWidth,
+    max: sidebarMaxWidth,
+  });
+  const [assistantWidth, setAssistantWidth] = useState<number | null>(null);
+  const [measuredAssistantWidth, setMeasuredAssistantWidth] = useState(400);
+  const [assistantResizeBounds, setAssistantResizeBounds] = useState({
+    min: assistantMinWidth,
+    max: assistantMaxWidth,
+  });
   const [fontSize, setFontSize] = useState(20);
   const [selection, setSelection] = useState<
     (Passage & { x: number; y: number }) | null
@@ -107,6 +174,23 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
   const dialog = useRef<StoryDocumentDialogHandle>(null);
   const editor = useRef<HTMLTextAreaElement>(null);
   const stage = useRef<HTMLDivElement>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const assistantPanelRef = useRef<HTMLElement>(null);
+  const sidebarResizeDrag = useRef<{
+    pointerId: number;
+    startX: number;
+    startWidth: number;
+    min: number;
+    max: number;
+  } | null>(null);
+  const assistantResizeDrag = useRef<{
+    pointerId: number;
+    startX: number;
+    startWidth: number;
+    min: number;
+    max: number;
+  } | null>(null);
   const pointer = useRef<{ x: number; y: number } | null>(null);
   const chapter = chapters.find((c) => c.key === selectedKey) ?? chapters[0];
   const text = drafts.textFor(chapter);
@@ -128,6 +212,60 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     void loadStructure();
   }, [loadStructure]);
+  useEffect(() => {
+    const workspaceElement = workspaceRef.current;
+    const panelElement = assistantPanelRef.current;
+    const sidebarElement = sidebarRef.current;
+    if (!workspaceElement || !panelElement || !sidebarElement) return;
+    const measure = () => {
+      const assistantBounds = assistantWidthBounds(
+        workspaceElement,
+        sidebarElement,
+      );
+      const assistantMeasured = Math.round(
+        panelElement.getBoundingClientRect().width,
+      );
+      setMeasuredAssistantWidth((current) =>
+        current === assistantMeasured ? current : assistantMeasured,
+      );
+      setAssistantResizeBounds((current) =>
+        current.min === assistantBounds.min &&
+        current.max === assistantBounds.max
+          ? current
+          : assistantBounds,
+      );
+      const sidebarBounds = sidebarWidthBounds(workspaceElement, panelElement);
+      const sidebarMeasured = Math.round(
+        sidebarElement.getBoundingClientRect().width,
+      );
+      setMeasuredSidebarWidth((current) =>
+        current === sidebarMeasured ? current : sidebarMeasured,
+      );
+      setSidebarResizeBounds((current) =>
+        current.min === sidebarBounds.min && current.max === sidebarBounds.max
+          ? current
+          : sidebarBounds,
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(workspaceElement);
+    observer.observe(panelElement);
+    observer.observe(sidebarElement);
+    return () => observer.disconnect();
+  }, []);
+  const finishSidebarResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (sidebarResizeDrag.current?.pointerId !== event.pointerId) return;
+    sidebarResizeDrag.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId))
+      event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+  const finishAssistantResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (assistantResizeDrag.current?.pointerId !== event.pointerId) return;
+    assistantResizeDrag.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId))
+      event.currentTarget.releasePointerCapture(event.pointerId);
+  };
   useEffect(() => {
     if (!chapters.some((c) => c.key === selectedKey))
       setSelectedKey(chapters[0]?.key ?? "");
@@ -375,7 +513,24 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
         </div>
       </header>
       <div
+        ref={workspaceRef}
         className={`sw-workspace ${sidebarHidden ? "sw-no-sidebar" : ""} ${!panel ? "sw-no-panel" : ""}`}
+        style={
+          assistantWidth === null && sidebarWidth === null
+            ? undefined
+            : ({
+                ...(assistantWidth === null
+                  ? {}
+                  : {
+                      "--sw-panel-width": `${Math.min(assistantWidth, assistantResizeBounds.max)}px`,
+                    }),
+                ...(sidebarWidth === null
+                  ? {}
+                  : {
+                      "--sw-sidebar-resized-width": `${Math.min(sidebarWidth, sidebarResizeBounds.max)}px`,
+                    }),
+              } as CSSProperties)
+        }
       >
         {sidebarOpen && !focused && (
           <button
@@ -385,9 +540,75 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
           />
         )}
         <aside
+          ref={sidebarRef}
           className={`sw-sidebar ${sidebarOpen ? "is-open" : ""}`}
           aria-label="章节与资料"
         >
+          <div
+            className="sw-sidebar-resize-handle"
+            role="separator"
+            aria-label="调整章节与资料宽度"
+            aria-orientation="vertical"
+            aria-valuemin={sidebarResizeBounds.min}
+            aria-valuemax={sidebarResizeBounds.max}
+            aria-valuenow={measuredSidebarWidth}
+            aria-valuetext={`${measuredSidebarWidth} 像素`}
+            tabIndex={0}
+            title="左右拖动调整宽度，双击恢复默认"
+            onPointerDown={(event) => {
+              if (!event.isPrimary || event.button !== 0) return;
+              const bounds = sidebarWidthBounds(
+                workspaceRef.current,
+                assistantPanelRef.current,
+              );
+              sidebarResizeDrag.current = {
+                pointerId: event.pointerId,
+                startX: event.clientX,
+                startWidth:
+                  sidebarRef.current?.getBoundingClientRect().width ??
+                  measuredSidebarWidth,
+                ...bounds,
+              };
+              event.currentTarget.setPointerCapture(event.pointerId);
+              event.preventDefault();
+            }}
+            onPointerMove={(event) => {
+              const drag = sidebarResizeDrag.current;
+              if (!drag || drag.pointerId !== event.pointerId) return;
+              setSidebarWidth(
+                clampSidebarWidth(
+                  drag.startWidth + event.clientX - drag.startX,
+                  drag.min,
+                  drag.max,
+                ),
+              );
+            }}
+            onPointerUp={finishSidebarResize}
+            onPointerCancel={finishSidebarResize}
+            onLostPointerCapture={() => {
+              sidebarResizeDrag.current = null;
+            }}
+            onDoubleClick={() => setSidebarWidth(null)}
+            onKeyDown={(event) => {
+              const bounds = sidebarWidthBounds(
+                workspaceRef.current,
+                assistantPanelRef.current,
+              );
+              const next =
+                event.key === "ArrowRight"
+                  ? measuredSidebarWidth + 24
+                  : event.key === "ArrowLeft"
+                    ? measuredSidebarWidth - 24
+                    : event.key === "Home"
+                      ? bounds.min
+                      : event.key === "End"
+                        ? bounds.max
+                        : null;
+              if (next === null) return;
+              event.preventDefault();
+              setSidebarWidth(clampSidebarWidth(next, bounds.min, bounds.max));
+            }}
+          />
           <div className="sw-sidebar-tabs">
             <button
               className={sidebar === "chapters" ? "active" : ""}
@@ -785,9 +1006,79 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
           </footer>
         </main>
         <aside
+          ref={assistantPanelRef}
           className={`sw-context-panel ${panel ? "is-open" : ""}`}
           aria-label="写作辅助"
         >
+          {panel === "assistant" && (
+            <div
+              className="sw-assistant-resize-handle"
+              role="separator"
+              aria-label="调整创作助手宽度"
+              aria-orientation="vertical"
+              aria-valuemin={assistantResizeBounds.min}
+              aria-valuemax={assistantResizeBounds.max}
+              aria-valuenow={measuredAssistantWidth}
+              aria-valuetext={`${measuredAssistantWidth} 像素`}
+              tabIndex={0}
+              title="左右拖动调整宽度，双击恢复默认"
+              onPointerDown={(event) => {
+                if (!event.isPrimary || event.button !== 0) return;
+                const bounds = assistantWidthBounds(
+                  workspaceRef.current,
+                  sidebarRef.current,
+                );
+                assistantResizeDrag.current = {
+                  pointerId: event.pointerId,
+                  startX: event.clientX,
+                  startWidth:
+                    assistantPanelRef.current?.getBoundingClientRect().width ??
+                    measuredAssistantWidth,
+                  ...bounds,
+                };
+                event.currentTarget.setPointerCapture(event.pointerId);
+                event.preventDefault();
+              }}
+              onPointerMove={(event) => {
+                const drag = assistantResizeDrag.current;
+                if (!drag || drag.pointerId !== event.pointerId) return;
+                setAssistantWidth(
+                  clampAssistantWidth(
+                    drag.startWidth + drag.startX - event.clientX,
+                    drag.min,
+                    drag.max,
+                  ),
+                );
+              }}
+              onPointerUp={finishAssistantResize}
+              onPointerCancel={finishAssistantResize}
+              onLostPointerCapture={() => {
+                assistantResizeDrag.current = null;
+              }}
+              onDoubleClick={() => setAssistantWidth(null)}
+              onKeyDown={(event) => {
+                const bounds = assistantWidthBounds(
+                  workspaceRef.current,
+                  sidebarRef.current,
+                );
+                const next =
+                  event.key === "ArrowLeft"
+                    ? measuredAssistantWidth + 24
+                    : event.key === "ArrowRight"
+                      ? measuredAssistantWidth - 24
+                      : event.key === "Home"
+                        ? bounds.min
+                        : event.key === "End"
+                          ? bounds.max
+                          : null;
+                if (next === null) return;
+                event.preventDefault();
+                setAssistantWidth(
+                  clampAssistantWidth(next, bounds.min, bounds.max),
+                );
+              }}
+            />
+          )}
           <div
             className={
               panel === "assistant" ? "sw-assistant-view" : "sw-hidden"
