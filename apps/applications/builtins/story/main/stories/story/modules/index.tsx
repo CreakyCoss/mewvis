@@ -60,17 +60,20 @@ const groupHints = [
     keywords: ["chapter-content", "章节正文", "正文"],
   },
   {
+    id: "chapter-result",
+    label: "章节记录",
+    icon: FileText,
+    keywords: ["chapter-result", "章节结果", "章节记录"],
+  },
+  {
     id: "continuity",
     label: "伏笔与连续性",
     icon: GitBranch,
     keywords: [
       "tracking",
-      "chapter-result",
       "foreshadow",
       "continuity",
       "progress",
-      "章节结果",
-      "章节记录",
       "伏笔",
       "连续",
       "进度",
@@ -92,7 +95,7 @@ const exactGroupIdsByKind: Readonly<Record<string, string>> = {
   "story-volume": "outline",
   "story-chapter-plan": "chapter-plan",
   "story-chapter-content": "chapter-content",
-  "story-chapter": "continuity",
+  "story-chapter": "chapter-result",
   "story-character-state": "continuity",
   "story-foreshadows": "continuity",
   "story-progress": "continuity",
@@ -140,7 +143,7 @@ export const buildDocumentGroups = (documents: StoryDocument[], query: string): 
     current.documents.push(document);
     groups.set(group.id, current);
   }
-  const order = ["work", "people", "world", "outline", "chapter-plan", "chapter-content", "continuity"];
+  const order = ["work", "people", "world", "outline", "chapter-plan", "chapter-content", "chapter-result", "continuity"];
   return [...groups.values()].sort((left, right) => order.indexOf(left.id) - order.indexOf(right.id));
 };
 

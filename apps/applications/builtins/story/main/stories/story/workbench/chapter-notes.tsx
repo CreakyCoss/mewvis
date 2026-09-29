@@ -51,7 +51,7 @@ export function ChapterNotes({
             <ListTree className="size-4" />
             {mode === "plan" ? "本章细纲" : "章节记录"} · {status}
           </span>
-          <Button variant="outline" size="sm" onClick={onEdit}>
+          <Button type="button" variant="default" size="sm" onClick={onEdit}>
             <Pencil className="size-3.5" />
             {mode === "plan" ? "编辑细纲" : "编辑记录"}
           </Button>
