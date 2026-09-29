@@ -1,4 +1,4 @@
-import { BookOpenText, Loader2, Wine } from "lucide-react";
+import { BookOpenText, Loader2, Settings2, Wine } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "design-system/components/ui/button";
 import {
@@ -18,6 +18,7 @@ type StoryTavernSelectDialogProps = {
   isLoading: boolean;
   onConfirm: (chapterId: string) => void | Promise<void>;
   onOpenChange: (open: boolean) => void;
+  onOpenSettings?: () => void;
   open: boolean;
 };
 
@@ -26,6 +27,7 @@ export const StoryTavernSelectDialog = ({
   isLoading,
   onConfirm,
   onOpenChange,
+  onOpenSettings,
   open,
 }: StoryTavernSelectDialogProps) => {
   const [selectedChapterId, setSelectedChapterId] = useState("");
@@ -58,8 +60,23 @@ export const StoryTavernSelectDialog = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="!flex max-h-[min(88vh,38rem)] flex-col overflow-hidden sm:max-w-3xl">
-        <DialogHeader className="shrink-0">
-          <DialogTitle>进入酒馆</DialogTitle>
+        <DialogHeader className="shrink-0 pr-10">
+          <div className="flex items-center justify-between gap-3">
+            <DialogTitle>进入酒馆</DialogTitle>
+            {onOpenSettings && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1 px-2 text-muted-foreground"
+                aria-label="酒馆设置"
+                onClick={onOpenSettings}
+              >
+                <Settings2 className="size-4" />
+                设置
+              </Button>
+            )}
+          </div>
           <DialogDescription>选择要演绎的章节；酒馆会读取与章节写作相同的结构化上下文。</DialogDescription>
         </DialogHeader>
 

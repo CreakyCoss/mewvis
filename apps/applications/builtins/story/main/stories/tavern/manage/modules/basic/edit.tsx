@@ -106,12 +106,12 @@ export const BasicEdit = ({ bind, data, onSave }: BasicEditProps) => {
                     }
                   >
                     <p className="line-clamp-4 text-xs leading-5 text-muted-foreground">
-                      故事、角色、世界书和剧情结构由独立故事页维护。
+                      故事、角色、设定和大纲在故事编辑页维护。
                     </p>
                   </EditorFormSidebarCard>
                   <EditorFormSidebarPanel title="故事配置">
                     <div className="text-xs leading-5 text-muted-foreground">
-                      需要修改故事设定、玩家称呼或角色设定时，请返回故事配置入口。
+                      需要修改故事设定、玩家称呼或角色设定时，请关闭酒馆设置，在故事编辑页修改。
                     </div>
                   </EditorFormSidebarPanel>
                   <EditorFormNav

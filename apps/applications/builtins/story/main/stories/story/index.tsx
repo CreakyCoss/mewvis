@@ -17,6 +17,7 @@ export type StoryModulesHandle = {
 type StoryModulesContentProps = {
   bind: Ref<StoryModulesHandle>;
   onBack: () => void;
+  onOpenTavernSettings: (item: Pick<StoryLibraryItem, "id" | "workspace">) => void;
 };
 
 const fullScreenDialogContentClassName =
@@ -25,9 +26,11 @@ const fullScreenDialogContentClassName =
 export const StoryModulesContent = ({
   bind,
   onBack,
+  onOpenTavernSettings,
 }: StoryModulesContentProps) => {
   const overview = useStoryState((state) => state.overview);
-  const workspacePath = useStoryState((state) => state.storyWorkspace?.path);
+  const workspace = useStoryState((state) => state.storyWorkspace);
+  const workspacePath = workspace?.path;
   const closeStory = useStoryState((state) => state.closeStory);
   const openStory = useStoryState((state) => state.openStory);
 
@@ -71,6 +74,9 @@ export const StoryModulesContent = ({
             <StoryWorkbench
               key={workspacePath ?? overview.id}
               onBack={handleBack}
+              onOpenTavernSettings={() => {
+                if (workspace) onOpenTavernSettings({ id: workspace.id, workspace });
+              }}
             />
           </div>
         ) : null}

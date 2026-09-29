@@ -133,7 +133,13 @@ const assistantWidthBounds = (
 const clampAssistantWidth = (width: number, min: number, max: number) =>
   Math.round(Math.max(min, Math.min(max, width)));
 const clampSidebarWidth = clampAssistantWidth;
-export function StoryWorkbench({ onBack }: { onBack: () => void }) {
+export function StoryWorkbench({
+  onBack,
+  onOpenTavernSettings,
+}: {
+  onBack: () => void;
+  onOpenTavernSettings: () => void;
+}) {
   const overview = useStoryState((s) => s.overview)!;
   const workspace = useStoryState((s) => s.storyWorkspace)!;
   const documents = useStoryState((s) => s.documents);
@@ -542,7 +548,6 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
             <Copy className="size-3.5" />
             <span>复制正文</span>
           </Button>
-          <TavernStoryAction />
         </div>
       </header>
       <div
@@ -1117,6 +1122,7 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
               <span>{label}</span>
             </button>
           ))}
+          <TavernStoryAction placement="rail" onOpenSettings={onOpenTavernSettings} />
         </nav>
       </div>
       <Dialog

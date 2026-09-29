@@ -1267,7 +1267,16 @@
   border-left: 1px solid var(--border);
   padding: var(--sw-space-2) var(--sw-space-1);
   gap: var(--sw-space-2);
+  overflow-y: auto;
   background: var(--surface-raised);
+}
+.sw-tavern-tool {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  padding-top: var(--sw-space-2);
+}
+.sw-tavern-tool button {
+  width: 100%;
 }
 .sw-tool-rail button {
   display: flex;
@@ -1500,10 +1509,6 @@
   }
   .sw-global-actions > button span {
     display: none;
-  }
-  .sw-global-actions > button:last-child {
-    width: auto;
-    font-size: var(--sw-font-caption);
   }
   .sw-workspace,
   .sw-workspace.sw-no-sidebar,

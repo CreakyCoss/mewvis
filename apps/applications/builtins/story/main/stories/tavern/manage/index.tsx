@@ -1,4 +1,4 @@
-import { Loader2, LogOut, ScrollText, Settings2, Wine } from "lucide-react";
+import { Loader2, ScrollText, Settings2, Wine } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Ref } from "react";
 import { useCallback, useImperativeHandle, useRef, useState } from "react";
@@ -20,7 +20,7 @@ import { cloneTavernRoom, prepareTavernRoomForSave } from "./utils";
 
 export type TavernManageHandle = {
   close: () => void;
-  open: (item: StoryLibraryItem) => void;
+  open: (item: Pick<StoryLibraryItem, "id" | "workspace">) => void;
 };
 
 type EditorModuleId = "basic" | "prompt" | "settings";
@@ -69,16 +69,15 @@ const editorModuleGroups: Array<{
   },
 ];
 
-const fullScreenDialogContentClassName =
-  "!fixed !inset-0 !left-0 !top-0 !flex !h-screen !max-h-none !w-screen !max-w-none !translate-x-0 !translate-y-0 flex-col gap-0 overflow-hidden !rounded-none !bg-background p-0 text-foreground !ring-0";
+const settingsDialogContentClassName =
+  "!flex !h-[min(820px,calc(100dvh-24px))] !w-[min(1080px,calc(100vw-24px))] !max-w-none flex-col gap-0 overflow-hidden bg-background p-0";
 
 type TavernManageContentProps = {
   bind: Ref<TavernManageHandle>;
-  onBack: () => void;
 };
 
-export const TavernManageContent = ({ bind, onBack }: TavernManageContentProps) => {
-  const [item, setItem] = useState<StoryLibraryItem | null>(null);
+export const TavernManageContent = ({ bind }: TavernManageContentProps) => {
+  const [item, setItem] = useState<Pick<StoryLibraryItem, "id" | "workspace"> | null>(null);
   const [data, setData] = useState<TavernRoomConfig | null>(null);
   const [activeModuleId, setActiveModuleId] = useState<EditorModuleId>("basic");
   const [isLoading, setIsLoading] = useState(false);
@@ -96,7 +95,7 @@ export const TavernManageContent = ({ bind, onBack }: TavernManageContentProps) 
     setGlobalRuntimeModel(null);
   }, []);
 
-  const open = useCallback((nextItem: StoryLibraryItem) => {
+  const open = useCallback((nextItem: Pick<StoryLibraryItem, "id" | "workspace">) => {
     const requestId = openRequestIdRef.current + 1;
     openRequestIdRef.current = requestId;
     setItem(nextItem);
@@ -142,11 +141,6 @@ export const TavernManageContent = ({ bind, onBack }: TavernManageContentProps) 
 
   useImperativeHandle(bind, () => ({ close, open }), [bind, close, open]);
 
-  const handleBack = () => {
-    close();
-    onBack();
-  };
-
   const persistRoom = (room: TavernRoomConfig) => {
     if (!item) {
       return room;
@@ -191,14 +185,10 @@ export const TavernManageContent = ({ bind, onBack }: TavernManageContentProps) 
   };
 
   return (
-    <Dialog open={Boolean(item)} onOpenChange={(nextOpen) => !nextOpen && handleBack()}>
-      <DialogContent
-        showCloseButton={false}
-        overlayClassName="bg-overlay/5 backdrop-blur-none"
-        className={fullScreenDialogContentClassName}
-      >
+    <Dialog open={Boolean(item)} onOpenChange={(nextOpen) => !nextOpen && close()}>
+      <DialogContent className={settingsDialogContentClassName}>
         <DialogTitle className="sr-only">
-          {item?.workspace.name ? `${item.workspace.name} · 酒馆配置` : "故事酒馆配置"}
+          {item?.workspace.name ? `${item.workspace.name} · 酒馆设置` : "酒馆设置"}
         </DialogTitle>
         {isLoading || !data ? (
           <div className="app-canvas flex min-h-0 flex-1 items-center justify-center px-6">
@@ -212,9 +202,6 @@ export const TavernManageContent = ({ bind, onBack }: TavernManageContentProps) 
                 <>
                   <p>{loadError || "当前故事酒馆配置不可用。"}</p>
                   <div className="flex items-center gap-2">
-                    <Button type="button" variant="outline" onClick={handleBack}>
-                      返回故事
-                    </Button>
                     {item ? (
                       <Button type="button" onClick={() => open(item)}>
                         重试
@@ -269,36 +256,14 @@ export const TavernManageContent = ({ bind, onBack }: TavernManageContentProps) 
                   </div>
                 ))}
               </nav>
-              <div className="mt-3 border-t pt-3">
-                <button
-                  type="button"
-                  className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm text-muted-foreground transition-colors hover:bg-background/80 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
-                  title="返回故事"
-                  aria-label="返回故事"
-                  onClick={handleBack}
-                >
-                  <LogOut className="size-4 rotate-180" aria-hidden="true" />
-                </button>
-              </div>
             </aside>
 
             <div className="flex min-w-0 flex-1 flex-col">
-              <Header data={data} onBack={handleBack} />
+              <Header data={data} />
 
               <ScrollArea className="app-canvas min-h-0 flex-1">
                 <div className="flex w-full flex-col gap-4 px-4 py-5 lg:px-6 lg:py-6">
                   <nav className="flex gap-2 overflow-x-auto pb-1 md:hidden">
-                    <Button
-                      type="button"
-                      title="返回故事"
-                      aria-label="返回故事"
-                      size="sm"
-                      variant="outline"
-                      className="h-8 shrink-0 gap-1.5 px-2 text-xs"
-                      onClick={handleBack}
-                    >
-                      <LogOut className="size-3.5 rotate-180" />
-                    </Button>
                     {editorModuleGroups.map((group) => (
                       <div key={group.id} className="flex shrink-0 items-center gap-1">
                         <span className="rounded-md border bg-muted/30 px-2 py-1 text-xs font-medium leading-5 text-muted-foreground">

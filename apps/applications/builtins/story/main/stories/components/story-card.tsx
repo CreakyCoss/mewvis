@@ -5,12 +5,10 @@ import {
   FileText,
   Globe2,
   Loader2,
-  Pencil,
   RefreshCw,
   Target,
   Trash2,
   UsersRound,
-  Wine,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
@@ -47,13 +45,11 @@ export const StoryCard = ({
   overview,
   workspacePath,
   onEdit,
-  onTavern,
   onDelete,
 }: {
   overview: StoryOverview;
   workspacePath: string;
   onEdit: () => void;
-  onTavern: () => void;
   onDelete: (deleteContent: boolean) => boolean | Promise<boolean>;
 }) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -105,6 +101,7 @@ export const StoryCard = ({
 
         <button
           type="button"
+          aria-label={`打开《${overview.title || "当前故事"}》的故事编辑`}
           className="flex min-w-0 flex-1 cursor-pointer flex-col text-left transition-colors hover:bg-accent/15 focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:outline-none"
           onClick={onEdit}
         >
@@ -149,28 +146,6 @@ export const StoryCard = ({
           </div>
         </button>
 
-        <div className="grid grid-cols-2 border-t bg-background/55">
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="h-10 min-w-0 justify-center rounded-none border-r border-border/70 text-sm text-muted-foreground hover:text-foreground"
-            onClick={onEdit}
-          >
-            <Pencil className="size-4 shrink-0" />
-            <span className="truncate">编辑</span>
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="h-10 min-w-0 justify-center rounded-none text-sm text-muted-foreground hover:text-foreground"
-            onClick={onTavern}
-          >
-            <Wine className="size-4 shrink-0" />
-            <span className="truncate">酒馆</span>
-          </Button>
-        </div>
       </article>
 
       <AlertDialog

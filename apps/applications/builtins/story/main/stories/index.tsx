@@ -73,11 +73,6 @@ export const StoriesPage = () => {
     modulesRef.current?.open(item);
   };
 
-  const openStoryTavern = (item: StoryLibraryItem) => {
-    modulesRef.current?.close();
-    tavernManageRef.current?.open(item);
-  };
-
   const openCreateStoryDialog = () => {
     createDialogRef.current?.();
   };
@@ -184,7 +179,6 @@ export const StoriesPage = () => {
                   overview={item.overview}
                   workspacePath={item.workspace.path}
                   onEdit={() => openStoryEditor(item)}
-                  onTavern={() => openStoryTavern(item)}
                   onDelete={(deleteContent) => handleDeleteStory(item, deleteContent)}
                 />
               ) : (
@@ -248,8 +242,12 @@ export const StoriesPage = () => {
         )}
       </div>
 
-      <StoryModulesContent bind={modulesRef} onBack={backToStoryHome} />
-      <TavernManageContent bind={tavernManageRef} onBack={backToStoryHome} />
+      <StoryModulesContent
+        bind={modulesRef}
+        onBack={backToStoryHome}
+        onOpenTavernSettings={(item) => tavernManageRef.current?.open(item)}
+      />
+      <TavernManageContent bind={tavernManageRef} />
       <StoryCreateDialog bind={createDialogRef} onCreated={handleStoryCreated} />
     </section>
   );

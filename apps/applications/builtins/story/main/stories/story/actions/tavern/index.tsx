@@ -1,4 +1,4 @@
-import { BookOpen } from "lucide-react";
+import { Wine } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "design-system/components/ui/button";
@@ -14,7 +14,13 @@ import { editorHeaderActionButtonClassName } from "../../../components/story-pri
 import { useStoryState } from "../../use-story-state";
 import { StoryTavernSelectDialog } from "./dialog";
 
-export const TavernStoryAction = () => {
+export const TavernStoryAction = ({
+  onOpenSettings,
+  placement = "header",
+}: {
+  onOpenSettings?: () => void;
+  placement?: "header" | "rail";
+}) => {
   const storyWorkspace = useStoryState((state) => state.storyWorkspace);
   const [isChapterSelectOpen, setIsChapterSelectOpen] = useState(false);
   const [isLoadingChapters, setIsLoadingChapters] = useState(false);
@@ -70,16 +76,30 @@ export const TavernStoryAction = () => {
 
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        className={`${editorHeaderActionButtonClassName} h-9`}
-        onClick={() => void openChapterSelect()}
-        disabled={!storyWorkspace}
-      >
-        <BookOpen className="size-3.5" />
-        酒馆
-      </Button>
+      {placement === "rail" ? (
+        <div className="sw-tavern-tool">
+          <button
+            type="button"
+            onClick={() => void openChapterSelect()}
+            disabled={!storyWorkspace}
+            title="酒馆与酒馆设置"
+          >
+            <Wine className="size-5" strokeWidth={1.7} />
+            <span>酒馆</span>
+          </button>
+        </div>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          className={`${editorHeaderActionButtonClassName} h-9`}
+          onClick={() => void openChapterSelect()}
+          disabled={!storyWorkspace}
+        >
+          <Wine className="size-3.5" />
+          酒馆
+        </Button>
+      )}
       <StoryTavernSelectDialog
         open={isChapterSelectOpen}
         chapterOptions={chapterOptions}
@@ -90,6 +110,7 @@ export const TavernStoryAction = () => {
           }
         }}
         onConfirm={openStoryTavern}
+        onOpenSettings={onOpenSettings}
       />
       <TavernRoomDialog bind={roomDialogRef} />
     </>

@@ -1,19 +1,15 @@
-import { ArrowLeft, Palette, ScrollText } from "lucide-react";
+import { Palette, ScrollText } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { Button } from "design-system/components/ui/button";
-import { cn } from "design-system/lib/utils";
 import type { TavernRoomConfig } from "@/stories/tavern/manage/model";
 import { emptyValueText } from "./utils";
-import { editorHeaderActionButtonClassName } from "./primitives";
 import { getVisualPreset } from "../presets/visual-presets";
 import { getTavernRoomStyle } from "../presets/prompts/room-styles";
 
 type HeaderProps = {
   data: TavernRoomConfig;
-  onBack: () => void;
 };
 
-export const Header = ({ data, onBack }: HeaderProps) => {
+export const Header = ({ data }: HeaderProps) => {
   const visualPreset = getVisualPreset(data.scenePresetId);
   const roomStyle = getTavernRoomStyle(data.roomStyleId);
   const headerStats: Array<{
@@ -34,30 +30,13 @@ export const Header = ({ data, onBack }: HeaderProps) => {
   ];
 
   return (
-    <header className="app-page-header shrink-0 px-5 py-4 lg:px-7">
+    <header className="app-page-header shrink-0 px-5 py-4 pr-14 lg:px-7 lg:pr-16">
       <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0 space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="truncate text-xl font-semibold leading-7">{data.title.trim() || emptyValueText}</h1>
-            </div>
-            <p className="line-clamp-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              编辑酒馆呈现、系统叙事和调度策略；故事资产在独立故事页维护。
-            </p>
-          </div>
-
-          <div className="flex shrink-0 flex-wrap items-center gap-2 self-start lg:self-auto">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className={cn(editorHeaderActionButtonClassName, "h-9 px-3 md:hidden")}
-              onClick={onBack}
-            >
-              <ArrowLeft className="size-3.5" />
-              返回故事
-            </Button>
-          </div>
+        <div className="min-w-0 space-y-1.5">
+          <h1 className="truncate text-xl font-semibold leading-7">酒馆设置</h1>
+          <p className="line-clamp-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            {data.title.trim() || emptyValueText} · 调整酒馆呈现、叙事和运行方式。
+          </p>
         </div>
 
         <div className="grid grid-cols-2 gap-2 text-xs">
