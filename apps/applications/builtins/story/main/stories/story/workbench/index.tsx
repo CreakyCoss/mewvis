@@ -9,6 +9,7 @@ import {
 import {
   ArrowLeft,
   BookOpen,
+  BookOpenText,
   Check,
   ChevronDown,
   ChevronRight,
@@ -24,7 +25,6 @@ import {
   PanelRightClose,
   Pencil,
   Plus,
-  Search,
   Sparkles,
   UsersRound,
   X,
@@ -40,7 +40,6 @@ import {
   StoryDocumentDialog,
   type StoryDocumentDialogHandle,
 } from "../modules/dialog";
-import { buildDocumentGroups } from "../modules";
 import { TavernStoryAction } from "../actions/tavern";
 import { StoryWorkbenchAssistant, type WritingIntent } from "./assistant";
 import {
@@ -61,6 +60,7 @@ import "./workbench.css";
 
 const tools = [
   { id: "assistant", label: "助手", icon: Sparkles },
+  { id: "work", label: "作品", icon: BookOpenText },
   { id: "outline", label: "大纲", icon: ListTree },
   { id: "people", label: "角色", icon: UsersRound },
   { id: "world", label: "设定", icon: Globe2 },
@@ -135,10 +135,8 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
   );
   const drafts = useManuscripts(chapters);
   const [selectedKey, setSelectedKey] = useState("");
-  const [sidebar, setSidebar] = useState<"chapters" | "materials">("chapters");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarHidden, setSidebarHidden] = useState(false);
-  const [query, setQuery] = useState("");
   const [tab, setTab] = useState<"content" | "plan" | "record">("content");
   const [materialKey, setMaterialKey] = useState<string | null>(null);
   const [panel, setPanel] = useState<Tool | null>(() =>
@@ -198,10 +196,6 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
     (d) => storyDocumentKey(d) === materialKey,
   );
   const relatedDocument = tab === "plan" ? chapter?.plan : chapter?.record;
-  const groups = useMemo(
-    () => buildDocumentGroups(documents, query),
-    [documents, query],
-  );
   const volumes = documents
     .filter((d) => d.ref.kind === documentRoles(structure).volume)
     .sort(
@@ -331,8 +325,6 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
           (c) => c.id === id,
         );
         if (created) openChapter(created);
-        setSidebar("chapters");
-        setQuery("");
       }
     } finally {
       setCreating(false);
@@ -441,9 +433,6 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
       : drafts.dirty
         ? "待保存"
         : "已保存";
-  const visibleChapters = chapters.filter((c) =>
-    chapterLabel(c).toLowerCase().includes(query.toLowerCase().trim()),
-  );
   const renderChapters = (items: Chapter[]) =>
     items.map((item) => (
       <button
@@ -542,12 +531,12 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
         <aside
           ref={sidebarRef}
           className={`sw-sidebar ${sidebarOpen ? "is-open" : ""}`}
-          aria-label="章节与资料"
+          aria-label="章节目录"
         >
           <div
             className="sw-sidebar-resize-handle"
             role="separator"
-            aria-label="调整章节与资料宽度"
+            aria-label="调整章节目录宽度"
             aria-orientation="vertical"
             aria-valuemin={sidebarResizeBounds.min}
             aria-valuemax={sidebarResizeBounds.max}
@@ -609,25 +598,19 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
               setSidebarWidth(clampSidebarWidth(next, bounds.min, bounds.max));
             }}
           />
-          <div className="sw-sidebar-tabs">
-            <button
-              className={sidebar === "chapters" ? "active" : ""}
-              onClick={() => {
-                setSidebar("chapters");
-                setQuery("");
-              }}
+          <div className="sw-sidebar-header">
+            <strong>章节</strong>
+            <Button
+              className="sw-new"
+              size="icon-sm"
+              variant="ghost"
+              aria-label={creating ? "正在新建章节" : "新建章节"}
+              title={creating ? "正在新建章节" : "新建章节"}
+              disabled={!structure || creating}
+              onClick={() => void createChapter()}
             >
-              章节
-            </button>
-            <button
-              className={sidebar === "materials" ? "active" : ""}
-              onClick={() => {
-                setSidebar("materials");
-                setQuery("");
-              }}
-            >
-              资料
-            </button>
+              <Plus className="size-4" />
+            </Button>
             <button
               className="sw-drawer-close"
               aria-label="关闭目录"
@@ -636,104 +619,47 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
               <X className="size-4" />
             </button>
           </div>
-          <label className="sw-search">
-            <Search className="size-4" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label={sidebar === "chapters" ? "搜索章节" : "搜索资料"}
-              placeholder={sidebar === "chapters" ? "搜索章节" : "搜索资料"}
-            />
-          </label>
-          <Button
-            className="sw-new"
-            disabled={sidebar === "chapters" && (!structure || creating)}
-            onClick={() =>
-              sidebar === "chapters" ? void createChapter() : dialog.current?.()
-            }
-          >
-            <Plus className="size-4" />
-            {sidebar === "chapters"
-              ? creating
-                ? "正在新建…"
-                : "新建章节"
-              : "新增资料"}
-          </Button>
-          <nav
-            className="sw-tree"
-            aria-label={sidebar === "chapters" ? "章节目录" : "故事资料"}
-          >
-            {sidebar === "chapters" ? (
-              <>
-                {volumes.map((volume) => {
-                  const id = volume.ref.identity.id;
-                  const children = visibleChapters.filter(
-                    (c) => c.volumeId === id,
-                  );
-                  const data = storyDocumentData(volume);
-                  const folded = collapsed.has(id);
-                  if (query && !children.length) return null;
-                  return (
-                    <section key={id}>
-                      <button
-                        className="sw-volume"
-                        aria-expanded={!folded}
-                        onClick={() =>
-                          setCollapsed((current) => {
-                            const next = new Set(current);
-                            if (next.has(id)) next.delete(id);
-                            else next.add(id);
-                            return next;
-                          })
-                        }
-                      >
-                        {folded ? (
-                          <ChevronRight className="size-3.5" />
-                        ) : (
-                          <ChevronDown className="size-3.5" />
-                        )}
-                        <Folder className="size-4" />
-                        <span>
-                          {String(data?.title || `第${data?.number || ""}卷`)}
-                        </span>
-                        <small>{children.length}</small>
-                      </button>
-                      {!folded && renderChapters(children)}
-                    </section>
-                  );
-                })}
-                {renderChapters(
-                  visibleChapters.filter(
-                    (c) =>
-                      !volumes.some((v) => v.ref.identity.id === c.volumeId),
-                  ),
-                )}
-                {!visibleChapters.length && (
-                  <p className="sw-empty">
-                    {query ? "没有匹配的章节" : "新建一章，开始你的故事。"}
-                  </p>
-                )}
-              </>
-            ) : (
-              groups.map((group) => (
-                <details key={group.id} open>
-                  <summary>
-                    <group.icon className="size-4" />
-                    {group.label}
-                    <small>{group.documents.length}</small>
-                  </summary>
-                  {group.documents.map((document) => (
-                    <button
-                      className={`sw-material-row ${materialKey === storyDocumentKey(document) ? "active" : ""}`}
-                      key={storyDocumentKey(document)}
-                      onClick={() => openMaterial(document)}
-                    >
-                      {document.displayName}
-                    </button>
-                  ))}
-                </details>
-              ))
+          <nav className="sw-tree" aria-label="章节目录">
+            {volumes.map((volume) => {
+              const id = volume.ref.identity.id;
+              const children = chapters.filter((c) => c.volumeId === id);
+              const data = storyDocumentData(volume);
+              const folded = collapsed.has(id);
+              return (
+                <section key={id}>
+                  <button
+                    className="sw-volume"
+                    aria-expanded={!folded}
+                    onClick={() =>
+                      setCollapsed((current) => {
+                        const next = new Set(current);
+                        if (next.has(id)) next.delete(id);
+                        else next.add(id);
+                        return next;
+                      })
+                    }
+                  >
+                    {folded ? (
+                      <ChevronRight className="size-3.5" />
+                    ) : (
+                      <ChevronDown className="size-3.5" />
+                    )}
+                    <Folder className="size-4" />
+                    <span>
+                      {String(data?.title || `第${data?.number || ""}卷`)}
+                    </span>
+                    <small>{children.length}</small>
+                  </button>
+                  {!folded && renderChapters(children)}
+                </section>
+              );
+            })}
+            {renderChapters(
+              chapters.filter(
+                (c) => !volumes.some((v) => v.ref.identity.id === c.volumeId),
+              ),
             )}
+            {!chapters.length && <p className="sw-empty">新建一章，开始你的故事。</p>}
           </nav>
           <div className="sw-library-footer">
             全书{" "}
@@ -1112,6 +1038,7 @@ export function StoryWorkbench({ onBack }: { onBack: () => void }) {
                   undefined,
                   structure?.roles[
                     {
+                      work: "analysis",
                       outline: "volume",
                       people: "character",
                       world: "worldEntry",

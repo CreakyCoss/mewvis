@@ -148,55 +148,32 @@
 .sw-sidebar-resize-handle:focus-visible::after {
   background: var(--primary);
 }
-.sw-sidebar-tabs {
+.sw-sidebar-header {
   height: var(--sw-bar-height);
   display: flex;
-  padding: 0 var(--sw-space-4);
-  gap: var(--sw-space-6);
-  flex-shrink: 0;
-}
-.sw-sidebar-tabs > button {
-  position: relative;
-  flex: 1;
-  color: var(--muted-foreground);
-}
-.sw-sidebar-tabs > button.active {
-  color: var(--primary);
-  font-weight: 600;
-}
-.sw-sidebar-tabs > button.active::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--primary);
-}
-.sw-search {
-  height: var(--sw-control-height);
-  display: flex;
   align-items: center;
-  border: 1px solid var(--border);
-  border-radius: var(--sw-radius);
-  margin: var(--sw-space-3) var(--sw-space-4) var(--sw-space-2);
-  padding: 0 var(--sw-space-3);
   gap: var(--sw-space-2);
-  color: var(--muted-foreground);
-  background: var(--background);
+  padding: 0 var(--sw-space-4);
   flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
 }
-.sw-search input {
-  width: 100%;
-  border: 0;
-  min-width: 0;
-  background: transparent;
-  outline: none;
+.sw-sidebar-header strong {
+  font-size: var(--sw-font-heading);
+  font-weight: 600;
+  white-space: nowrap;
 }
-.sw-new {
-  margin: 0 var(--sw-space-4);
-  height: var(--sw-control-height);
+.sw-shell .sw-new {
+  width: var(--sw-icon-height);
+  height: var(--sw-icon-height);
+  margin-left: auto;
   flex-shrink: 0;
+  color: var(--primary);
+  background: color-mix(in oklab, var(--primary) 9%, var(--surface-raised));
+}
+.sw-shell .sw-new:hover:not(:disabled) {
+  color: var(--primary);
+  background: color-mix(in oklab, var(--primary) 15%, var(--surface-raised));
 }
 .sw-tree {
   padding: var(--sw-space-2) var(--sw-space-2);
@@ -249,16 +226,13 @@
   font-size: var(--sw-font-caption);
   opacity: 0.7;
 }
-.sw-chapter-row.active,
-.sw-material-row.active {
+.sw-chapter-row.active {
   background: color-mix(in oklab, var(--primary) 13%, transparent);
   color: var(--foreground);
   font-weight: 600;
 }
 .sw-chapter-row:hover,
-.sw-volume:hover,
-.sw-material-row:hover,
-.sw-reference-list > button:hover {
+.sw-volume:hover {
   background: color-mix(in oklab, var(--primary) 7%, transparent);
 }
 .sw-draft-dot {
@@ -268,28 +242,6 @@
   background: var(--muted-foreground);
   margin-left: auto;
   flex-shrink: 0;
-}
-.sw-tree summary {
-  display: flex;
-  align-items: center;
-  gap: var(--sw-space-2);
-  cursor: pointer;
-  padding: var(--sw-space-3) var(--sw-space-2);
-  font-weight: 500;
-}
-.sw-material-row {
-  width: 100%;
-  text-align: left;
-  min-height: var(--sw-row-height);
-  padding: var(--sw-space-2) var(--sw-space-3) var(--sw-space-2)
-    var(--sw-space-6);
-  border-radius: 6px;
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--muted-foreground);
-  font-size: var(--sw-font-ui);
 }
 .sw-library-footer {
   padding: var(--sw-space-3) var(--sw-space-4);
@@ -1373,12 +1325,12 @@
   }
   .sw-workspace {
     grid-template-columns:
-      var(--sw-sidebar-resized-width, 200px) minmax(0, 1fr)
+      var(--sw-sidebar-resized-width, 232px) minmax(0, 1fr)
       var(--sw-panel-width) var(--sw-rail-width);
   }
   .sw-workspace.sw-no-panel {
     grid-template-columns:
-      var(--sw-sidebar-resized-width, 200px) minmax(0, 1fr)
+      var(--sw-sidebar-resized-width, 232px) minmax(0, 1fr)
       var(--sw-rail-width);
   }
   .sw-workspace.sw-no-sidebar {
@@ -1426,7 +1378,7 @@
     display: flex !important;
     position: absolute;
     inset: 0 auto 0 0;
-    width: 260px;
+    width: 280px;
     z-index: 30;
     box-shadow: var(--shadow-floating);
   }

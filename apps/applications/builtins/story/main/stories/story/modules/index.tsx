@@ -84,6 +84,7 @@ const exactGroupIdsByKind: Readonly<Record<string, string>> = {
   "story-chapter-plan": "chapter-plan",
   "story-chapter-content": "chapter-content",
   "story-chapter": "continuity",
+  "story-timeline": "continuity",
 };
 
 const documentSearchText = (document: StoryDocument) => {

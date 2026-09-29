@@ -22,7 +22,7 @@
   --sw-row-height: 40px;
   --sw-bar-height: 56px;
   --sw-radius: 8px;
-  --sw-sidebar-width: clamp(216px, 16vw, 264px);
+  --sw-sidebar-width: clamp(248px, 18vw, 288px);
   --sw-panel-width: clamp(320px, 25vw, 400px);
   --sw-rail-width: 56px;
   --sw-paper-inset: 48px;
