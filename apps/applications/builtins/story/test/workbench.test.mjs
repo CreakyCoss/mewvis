@@ -7,7 +7,7 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const bundle = await build({
   stdin: {
     contents:
-      'export * from "./main/stories/story/workbench/model.ts"; export * from "./main/stories/story/workbench/persistence.ts"; export * from "./main/stories/story/workbench/manuscript-drafts.ts"; export { createStoryProjectApi } from "./core/project/index.ts";',
+      'export * from "./main/stories/story/workbench/model.ts"; export * from "./main/stories/story/workbench/reference-panel-model.ts"; export * from "./main/stories/story/workbench/persistence.ts"; export * from "./main/stories/story/workbench/manuscript-drafts.ts"; export { createStoryProjectApi } from "./core/project/index.ts";',
     resolveDir: root,
     loader: "ts",
   },
@@ -19,6 +19,7 @@ const bundle = await build({
 });
 const {
   buildChapters,
+  buildReferenceLayout,
   newChapterWrites,
   renameChapterWrites,
   manuscriptWrites,
@@ -40,6 +41,37 @@ const doc = (kind, id, data = {}) => ({
   value: { kind, id, ...data },
   displayName: id,
   updatedAt: null,
+});
+
+test("reference panels group shared rows and nest plans under their volumes", () => {
+  const outline = buildReferenceLayout(
+    [
+      doc("story-chapter-plan", "plan-2", { number: 2, volumeId: "v2" }),
+      doc("story-volume", "v2", { number: 2 }),
+      doc("story-book-arc", "arc"),
+      doc("story-chapter-plan", "plan-1", { number: 1, volumeId: "v1" }),
+      doc("story-volume", "v1", { number: 1 }),
+      doc("story-chapter-plan", "orphan", { number: 3 }),
+    ],
+    "outline",
+  );
+  assert.deepEqual(outline.leading.map((item) => item.displayName), ["arc"]);
+  assert.deepEqual(outline.sections.map((item) => item.label), ["v1", "v2", "章节细纲"]);
+  assert.deepEqual(outline.sections.map((item) => item.documents.map((document) => document.displayName)), [
+    ["plan-1"],
+    ["plan-2"],
+    ["orphan"],
+  ]);
+  assert.deepEqual(
+    buildReferenceLayout([doc("story-book", "book"), doc("story-analysis", "analysis")], "work")
+      .sections.map((item) => item.label),
+    ["核心资料", "分析资料"],
+  );
+  assert.deepEqual(
+    buildReferenceLayout([doc("story-character", "hero"), doc("story-relationships", "links")], "people")
+      .sections.map((item) => item.label),
+    ["人物", "关系资料"],
+  );
 });
 
 test("associate independently named plans and results without duplicating chapters", () => {

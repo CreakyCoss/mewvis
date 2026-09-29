@@ -79,11 +79,23 @@ const groupHints = [
 ] as const;
 
 const exactGroupIdsByKind: Readonly<Record<string, string>> = {
+  "story-book": "work",
+  "story-positioning": "work",
+  "story-style": "work",
+  "story-analysis": "work",
+  "story-review": "work",
+  "story-import": "work",
+  "story-character": "people",
+  "story-relationships": "people",
+  "story-world-entry": "world",
   "story-book-arc": "outline",
   "story-volume": "outline",
   "story-chapter-plan": "chapter-plan",
   "story-chapter-content": "chapter-content",
   "story-chapter": "continuity",
+  "story-character-state": "continuity",
+  "story-foreshadows": "continuity",
+  "story-progress": "continuity",
   "story-timeline": "continuity",
 };
 
@@ -94,6 +106,9 @@ const documentSearchText = (document: StoryDocument) => {
 
 export const groupForDocument = (document: StoryDocument) => {
   const exactGroupId = exactGroupIdsByKind[document.ref.kind];
+  if (exactGroupId === "work") {
+    return { id: "work", label: "作品", icon: BookOpenText, keywords: [] };
+  }
   const exactGroup = exactGroupId ? groupHints.find((group) => group.id === exactGroupId) : null;
   if (exactGroup) return exactGroup;
 
