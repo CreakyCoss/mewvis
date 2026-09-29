@@ -4102,6 +4102,7 @@
   min-height: 0;
 }
 .learn-study-assistant-header {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -4135,6 +4136,89 @@
 .learn-assistant-icon-button:hover {
   background: var(--muted);
   color: var(--foreground);
+}
+.learn-tutor-history-popover {
+  position: absolute;
+  z-index: 6;
+  top: calc(100% + 6px);
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  width: min(300px, calc(100% - 24px));
+  max-height: min(360px, calc(100dvh - 130px));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.14);
+  overflow: hidden;
+}
+.learn-tutor-history-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.learn-tutor-history-heading span {
+  color: var(--muted-foreground);
+}
+.learn-tutor-history-list {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 5px;
+  scrollbar-width: thin;
+}
+.learn-tutor-history-list button {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  padding: 9px 10px;
+  background: transparent;
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+}
+.learn-tutor-history-list button:hover,
+.learn-tutor-history-list button[aria-current="true"] {
+  background: var(--primary-subtle);
+}
+.learn-tutor-history-list button:disabled {
+  cursor: default;
+}
+.learn-tutor-history-title {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+}
+.learn-tutor-history-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-style: normal;
+}
+.learn-tutor-history-meta em {
+  color: var(--primary);
+  font-style: normal;
+}
+.learn-tutor.learn-study-assistant .learn-tutor-history-empty {
+  max-width: none;
+  padding: 18px 12px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: normal;
 }
 .learn-study-rail {
   display: flex;

@@ -12,7 +12,7 @@ test.after(() => rm(temporary, { recursive: true, force: true }));
 const compiled = await build({
   stdin: {
     contents:
-      'export * from "./main/course"; export * from "./main/repository"; export * from "./main/assistantHistory"; export * from "./main/clearOldChats"; export * from "./main/generation"; export * from "./main/example"; export * from "./main/workflow"; export * from "./main/pbl"; export * from "./main/vendor/grading"; export * from "./main/mastery"; export * from "./main/study"; export * from "./main/chatRecovery";',
+      'export * from "./main/course"; export * from "./main/repository"; export * from "./main/assistantHistory"; export * from "./main/clearOldChats"; export * from "./main/generation"; export * from "./main/example"; export * from "./main/workflow"; export * from "./main/pbl"; export * from "./main/vendor/grading"; export * from "./main/mastery"; export * from "./main/study"; export * from "./main/chatRecovery"; export * from "./main/tutorSessions";',
     resolveDir: root,
   },
   bundle: true,
@@ -36,6 +36,9 @@ const {
   recordAttempt,
   resetAttempt,
   recoverMissingChat,
+  readTutorSessionIndex,
+  activateTutorSession,
+  tutorSessionHistory,
   repository,
   upsertCourseEntry,
   assistantHistoryKey,
@@ -510,6 +513,26 @@ test("failed chat cleanup leaves no version marker and retries on next launch", 
   assert.deepEqual(await storage.keys(), []);
   await r.initialize(async () => {});
   assert.deepEqual(await storage.keys(), ["learning:data-version"]);
+});
+test("tutor history keeps legacy sessions and lists only chats for the lesson", () => {
+  const legacy = readTutorSessionIndex({ workspaceId: "workspace", chatId: "first" });
+  assert.deepEqual(legacy, {
+    workspaceId: "workspace",
+    chatId: "first",
+    sessionIds: ["first"],
+  });
+  const next = activateTutorSession(legacy, "workspace", "second");
+  assert.deepEqual(next.sessionIds, ["first", "second"]);
+  assert.equal(activateTutorSession(next, "workspace", "first").chatId, "first");
+  assert.deepEqual(
+    tutorSessionHistory(next, [
+      { sceneId: "learning-tutor", chatId: "first", updatedAt: 1, createdAt: 1 },
+      { sceneId: "learning-tutor", chatId: "other-lesson", updatedAt: 4, createdAt: 4 },
+      { sceneId: "learning-task", chatId: "second", updatedAt: 3, createdAt: 3 },
+      { sceneId: "learning-tutor", chatId: "second", updatedAt: 2, createdAt: 2 },
+    ]).map((item) => item.chatId),
+    ["second", "first"],
+  );
 });
 test("old learning chats are removed without closing the shared chat client", async () => {
   const removed = [];

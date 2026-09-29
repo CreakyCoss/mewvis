@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, ty
 import {
   getApplicationChatClient,
   type ApplicationChatSession,
+  type ApplicationChatSummary,
 } from "@isle/app-sdk/chat";
 import { getApplicationDataClient } from "@isle/app-sdk/data";
 import {
@@ -18,6 +19,12 @@ import {
 } from "lucide-react";
 import { tutorProfile } from "./generation";
 import { recoverMissingChat } from "./chatRecovery";
+import {
+  activateTutorSession,
+  readTutorSessionIndex,
+  tutorSessionHistory,
+  tutorSessionKey,
+} from "./tutorSessions";
 import type { Course, Lesson } from "./course";
 
 export const errorText = (error: unknown) =>
@@ -150,11 +157,17 @@ export function Tutor({
   const [error, setError] = useState("");
   const [panel, setPanel] = useState<"chat" | "practice">("chat");
   const [chatBusy, setChatBusy] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [history, setHistory] = useState<ApplicationChatSummary[]>([]);
   const [measuredWidth, setMeasuredWidth] = useState(400);
   const [resizeBounds, setResizeBounds] = useState({ min: tutorMinWidth, max: tutorMaxWidth });
   const connecting = useRef(false);
   const handledRequest = useRef("");
   const tutorRef = useRef<HTMLElement>(null);
+  const historyHeaderRef = useRef<HTMLElement>(null);
+  const historyTriggerRef = useRef<HTMLButtonElement>(null);
   const resizeDrag = useRef<{
     pointerId: number;
     startX: number;
@@ -199,11 +212,8 @@ export function Tutor({
       const workspace = workspaces.find((w) => w.isDefault) ?? workspaces[0];
       if (!workspace)
         throw new Error("尚无学习工作区，请在 Isle 中重新打开应用");
-      const key = `learning:tutor:${course.id}:${lesson.id}`;
-      const previous = await data.storage.getItem<{
-        workspaceId: string;
-        chatId: string;
-      }>(key);
+      const key = tutorSessionKey(course.id, lesson.id);
+      const previous = readTutorSessionIndex(await data.storage.getItem(key));
       const client = getApplicationChatClient();
       const create = async () => {
         const created = await client.createSession({
@@ -217,10 +227,10 @@ export function Tutor({
           },
         });
         try {
-          await data.storage.setItem(key, {
-            workspaceId: workspace.id,
-            chatId: created.identity.id,
-          });
+          await data.storage.setItem(
+            key,
+            activateTutorSession(previous, workspace.id, created.identity.id),
+          );
         } catch (e) {
           await created.close();
           throw e;
@@ -229,9 +239,16 @@ export function Tutor({
       };
       setSession(
         previous && !fresh
-          ? await recoverMissingChat(() => client.openSession(previous), create)
+          ? await recoverMissingChat(
+              () => client.openSession({
+                workspaceId: previous.workspaceId,
+                chatId: previous.chatId,
+              }),
+              create,
+            )
           : await create(),
       );
+      setHistoryOpen(false);
     } catch (e) {
       setError(errorText(e));
     } finally {
@@ -249,6 +266,70 @@ export function Tutor({
     update();
     return session.subscribe(update);
   }, [session]);
+  useEffect(() => {
+    if (!historyOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!historyHeaderRef.current?.contains(event.target as Node))
+        setHistoryOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [historyOpen]);
+  useEffect(() => {
+    if (panel !== "chat") setHistoryOpen(false);
+  }, [panel]);
+  const showHistory = async () => {
+    setHistoryOpen(true);
+    setHistoryLoading(true);
+    setHistoryError("");
+    try {
+      const data = getApplicationDataClient();
+      const index = readTutorSessionIndex(
+        await data.storage.getItem(tutorSessionKey(course.id, lesson.id)),
+      );
+      setHistory(index
+        ? tutorSessionHistory(
+            index,
+            await getApplicationChatClient().listSessions({ workspaceId: index.workspaceId }),
+          )
+        : []);
+    } catch (e) {
+      setHistoryError(errorText(e));
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+  const selectHistory = async (chatId: string) => {
+    if (session?.identity.id === chatId) {
+      setHistoryOpen(false);
+      return;
+    }
+    if (busy || chatBusy) return;
+    setBusy(true);
+    setHistoryError("");
+    try {
+      const data = getApplicationDataClient();
+      const key = tutorSessionKey(course.id, lesson.id);
+      const index = readTutorSessionIndex(await data.storage.getItem(key));
+      if (!index?.sessionIds.includes(chatId))
+        throw new Error("这段会话已不在本课的历史记录中");
+      const opened = await getApplicationChatClient().openSession({
+        workspaceId: index.workspaceId,
+        chatId,
+      });
+      await data.storage.setItem(
+        key,
+        activateTutorSession(index, index.workspaceId, chatId),
+      );
+      setSession(opened);
+      setError("");
+      setHistoryOpen(false);
+    } catch (e) {
+      setHistoryError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
   useEffect(() => {
     if (!request || handledRequest.current === request.id) return;
     if (request.courseId !== course.id || request.lessonId !== lesson.id) {
@@ -357,15 +438,45 @@ export function Tutor({
         }}
       />
       <div className="learn-study-assistant-main">
-        {panel === "chat" && <header className="learn-study-assistant-header">
+        {panel === "chat" && <header
+          ref={historyHeaderRef}
+          className="learn-study-assistant-header"
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null))
+              setHistoryOpen(false);
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Escape" || !historyOpen) return;
+            event.preventDefault();
+            setHistoryOpen(false);
+            historyTriggerRef.current?.focus();
+          }}
+        >
           <h2>学习助手</h2>
           <div>
             <button
+              ref={historyTriggerRef}
               className="learn-assistant-icon-button"
+              type="button"
+              aria-label="会话历史"
+              aria-expanded={historyOpen}
+              aria-controls="learn-tutor-history"
+              title="会话历史"
+              disabled={busy || chatBusy}
+              onClick={() => historyOpen ? setHistoryOpen(false) : void showHistory()}
+            >
+              <History size={17} />
+            </button>
+            <button
+              className="learn-assistant-icon-button"
+              type="button"
               aria-label="新开导师对话"
               title="新开对话"
               disabled={busy || chatBusy}
-              onClick={() => void connect(true)}
+              onClick={() => {
+                setHistoryOpen(false);
+                void connect(true);
+              }}
             >
               <Plus size={17} />
             </button>
@@ -377,6 +488,46 @@ export function Tutor({
               {expanded ? "返回课程" : "展开助手"}
             </button>
           </div>
+          {historyOpen && (
+            <section
+              id="learn-tutor-history"
+              className="learn-tutor-history-popover"
+              role="group"
+              aria-label="本课会话历史"
+            >
+              <div className="learn-tutor-history-heading">
+                <strong>会话历史</strong>
+                <span>本课</span>
+              </div>
+              {historyLoading ? (
+                <p className="learn-tutor-history-empty">正在加载…</p>
+              ) : historyError ? (
+                <p className="learn-tutor-history-empty" role="alert">{historyError}</p>
+              ) : history.length ? (
+                <div className="learn-tutor-history-list">
+                  {history.map((item) => (
+                    <button
+                      key={item.chatId}
+                      type="button"
+                      aria-current={session?.identity.id === item.chatId ? "true" : undefined}
+                      disabled={busy || chatBusy}
+                      onClick={() => void selectHistory(item.chatId)}
+                    >
+                      <span className="learn-tutor-history-title">
+                        {item.title.trim() || "未命名对话"}
+                      </span>
+                      <span className="learn-tutor-history-meta">
+                        {new Date(item.updatedAt).toLocaleString("zh-CN")}
+                        {session?.identity.id === item.chatId && <em>当前</em>}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="learn-tutor-history-empty">暂无本课历史会话</p>
+              )}
+            </section>
+          )}
         </header>}
         {tabs.map(({ id }) => (
           <section
