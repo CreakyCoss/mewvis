@@ -71,15 +71,15 @@ const GenericObjectEditor = ({
     <div
       className={
         nested
-          ? "rounded-r-xl border-l-2 border-primary/15 bg-surface/30 px-3"
-          : "rounded-xl border border-border/65 bg-surface/35 px-3"
+          ? "sd-json-object sd-json-object-nested"
+          : "sd-json-object"
       }
     >
-      <div className="divide-y divide-border/60">
+      <div className="sd-json-object-fields">
         {Object.entries(value).map(([key, child]) => (
-          <div key={key} className="py-4 first:pt-0 last:pb-0">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <Label className="min-w-0 truncate font-mono text-xs text-muted-foreground">
+          <div key={key} className="sd-json-object-row">
+            <div className="sd-json-key-row">
+              <Label className="sd-json-key">
                 {key}
               </Label>
               {!disabled ? (
@@ -88,7 +88,7 @@ const GenericObjectEditor = ({
                   size="icon"
                   variant="ghost"
                   title={`删除 ${key}`}
-                  className="size-9 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                  className="sd-list-remove"
                   onClick={() =>
                     onChange(
                       Object.fromEntries(
@@ -111,7 +111,7 @@ const GenericObjectEditor = ({
         ))}
       </div>
       {!disabled ? (
-        <div className="flex gap-2 py-4">
+        <div className="sd-json-add-row">
           <Input
             value={newKey}
             className="font-mono text-xs"
@@ -148,23 +148,23 @@ const GenericArrayEditor = ({
   onChange: (value: StoryValue[]) => void;
   value: StoryValue[];
 }) => (
-  <div className="space-y-3">
+  <div className="sd-json-array">
     {value.length > 0 ? (
       <Accordion
         type="multiple"
         defaultValue={value.length === 1 ? ["item-0"] : []}
-        className="rounded-xl border border-border/65 bg-card/55 px-3"
+        className="sd-json-array-list"
       >
         {value.map((item, index) => (
-          <AccordionItem key={index} value={`item-${index}`}>
-            <AccordionTrigger className="hover:no-underline">
+          <AccordionItem key={index} value={`item-${index}`} className="sd-json-array-item">
+            <AccordionTrigger className="sd-json-array-trigger">
               <span className="min-w-0 truncate">
                 <span className="mr-2 text-muted-foreground">{index + 1}.</span>
                 {shortSummary(item, `第 ${index + 1} 项`)}
               </span>
             </AccordionTrigger>
             <AccordionContent>
-              <div className="space-y-3">
+              <div className="sd-json-array-content">
                 <GenericJsonValueEditor
                   nested
                   value={item}
@@ -182,7 +182,7 @@ const GenericArrayEditor = ({
                     type="button"
                     size="default"
                     variant="ghost"
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    className="sd-item-remove"
                     onClick={() =>
                       onChange(
                         value.filter((_, itemIndex) => itemIndex !== index),
@@ -208,6 +208,7 @@ const GenericArrayEditor = ({
         type="button"
         size="default"
         variant="outline"
+        className="sd-inline-add"
         onClick={() => onChange([...value, inferredEmptyValue(value.at(-1))])}
       >
         <Plus className="size-3.5" />
@@ -249,7 +250,7 @@ export const GenericJsonValueEditor = ({
   }
   if (typeof value === "boolean") {
     return (
-      <div className="flex h-9 items-center gap-2">
+      <div className="sd-boolean-control">
         <Switch
           checked={value}
           disabled={disabled}
@@ -304,9 +305,9 @@ const MetadataObjectEditor = ({
   onChange: (value: JsonObject) => void;
   value: JsonObject;
 }) => (
-  <div className="grid gap-x-5 gap-y-1 border-l-2 border-primary/15 pl-4 md:grid-cols-2">
+  <div className="sd-object">
     {definition.label ? (
-      <div className="pb-2 text-xs font-medium text-muted-foreground md:col-span-2">
+      <div className="sd-object-title">
         {definition.label}
       </div>
     ) : null}
@@ -321,7 +322,7 @@ const MetadataObjectEditor = ({
         "reference-list",
       ].includes(field.type);
       return (
-        <div key={pointer} className={wide ? "md:col-span-2" : undefined}>
+        <div key={pointer} className={wide ? "sd-object-wide" : undefined}>
           <MetadataFieldEditor
             compact
             field={field}
@@ -349,18 +350,18 @@ const MetadataCollectionEditor = ({
   onChange: (value: StoryValue[]) => void;
   value: StoryValue[];
 }) => (
-  <div className="space-y-3">
+  <div className="sd-collection">
     {value.length > 0 ? (
       <Accordion
         type="multiple"
         defaultValue={value.length === 1 ? ["item-0"] : []}
-        className="rounded-xl border border-border/65 bg-card/55 px-3"
+        className="sd-collection-list"
       >
         {value.map((item, index) => {
           const object = isJsonObject(item) ? item : {};
           return (
-            <AccordionItem key={index} value={`item-${index}`}>
-              <AccordionTrigger className="hover:no-underline">
+            <AccordionItem key={index} value={`item-${index}`} className="sd-collection-item">
+              <AccordionTrigger className="sd-collection-trigger">
                 <span className="min-w-0 truncate">
                   <span className="mr-2 text-muted-foreground">
                     {index + 1}.
@@ -390,7 +391,7 @@ const MetadataCollectionEditor = ({
                     type="button"
                     size="default"
                     variant="ghost"
-                    className="mt-3 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    className="sd-item-remove"
                     onClick={() =>
                       onChange(
                         value.filter((_, itemIndex) => itemIndex !== index),
@@ -416,6 +417,7 @@ const MetadataCollectionEditor = ({
         type="button"
         size="default"
         variant="outline"
+        className="sd-inline-add"
         onClick={() =>
           onChange([
             ...value,
@@ -444,13 +446,13 @@ const StringListEditor = ({
   onChange: (value: StoryValue) => void;
   value: string[];
 }) => (
-  <div className="space-y-2">
+  <div className="sd-string-list">
     {value.map((item, index) => (
       <div
         key={index}
-        className="flex items-center gap-2 rounded-xl border border-border/60 bg-card/55 p-2"
+        className="sd-string-row"
       >
-        <span className="w-5 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+        <span className="sd-string-index">
           {index + 1}
         </span>
         <Input
@@ -470,7 +472,7 @@ const StringListEditor = ({
             size="icon"
             variant="ghost"
             title="删除此项"
-            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            className="sd-list-remove"
             onClick={() =>
               onChange(value.filter((_, itemIndex) => itemIndex !== index))
             }
@@ -484,6 +486,7 @@ const StringListEditor = ({
       <Button
         type="button"
         variant="outline"
+        className="sd-inline-add"
         onClick={() => onChange([...value, ""])}
       >
         <Plus className="size-3.5" />
@@ -529,7 +532,7 @@ export const MetadataFieldEditor = ({
   if (field.type === "boolean") {
     const checked = actualValue === true;
     editor = (
-      <div className="flex h-9 items-center gap-2">
+      <div className="sd-boolean-control">
         <Switch
           id={fieldId}
           checked={checked}
@@ -645,7 +648,7 @@ export const MetadataFieldEditor = ({
   }
 
   return (
-    <div className={`sd-field ${compact ? "sd-field-compact" : ""}`}>
+    <div className={`sd-field sd-field-${field.type} ${compact ? "sd-field-compact" : ""}`}>
       <div className="flex min-w-0 items-center gap-2">
         <Label htmlFor={fieldId} className="text-sm font-medium">
           {field.label}
@@ -654,7 +657,7 @@ export const MetadataFieldEditor = ({
           ) : null}
         </Label>
         {disabled ? (
-          <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs leading-4 text-muted-foreground">
+          <span className="sd-readonly">
             只读
           </span>
         ) : null}
