@@ -1,6 +1,5 @@
 import { clamp } from "lodash-es";
 import { Input } from "design-system/components/ui/input";
-import { Switch } from "design-system/components/ui/switch";
 import { SettingsField, SettingsGroup, SettingsSelect } from "../../fields";
 import type { TavernRoomSettings } from "../../model";
 import type { ModuleEditProps } from "../types";
@@ -39,24 +38,29 @@ export const SettingsSection = ({ data, onChange }: ModuleEditProps) => {
     });
   return (
     <div className="space-y-[var(--tavern-section-gap,1.25rem)] [&>section+section]:border-t [&>section+section]:border-border/80 [&>section+section]:pt-[var(--tavern-section-padding,1.25rem)]">
+      <SettingsGroup
+        title="互动方式"
+        description="当前使用导演调度，由导演安排角色发言。"
+      >
+        <SettingsField
+          label="用户控制权"
+          htmlFor="tavern-settings-agency-mode"
+        >
+          <SettingsSelect
+            id="tavern-settings-agency-mode"
+            value={data.settings.directorNarrativeControl.agencyMode}
+            options={agencyModes}
+            onChange={(value) =>
+              changeNarrative({
+                agencyMode:
+                  value as TavernRoomSettings["directorNarrativeControl"]["agencyMode"],
+              })
+            }
+          />
+        </SettingsField>
+      </SettingsGroup>
       <SettingsGroup title="导演调度">
-        <div className="grid gap-[var(--tavern-group-gap,1rem)] sm:grid-cols-2">
-          <SettingsField
-            label="用户控制权"
-            htmlFor="tavern-settings-agency-mode"
-          >
-            <SettingsSelect
-              id="tavern-settings-agency-mode"
-              value={data.settings.directorNarrativeControl.agencyMode}
-              options={agencyModes}
-              onChange={(value) =>
-                changeNarrative({
-                  agencyMode:
-                    value as TavernRoomSettings["directorNarrativeControl"]["agencyMode"],
-                })
-              }
-            />
-          </SettingsField>
+        <div className="grid items-end gap-[var(--tavern-group-gap,1rem)] sm:grid-cols-2">
           <SettingsField
             label="调度规模"
             htmlFor="tavern-settings-response-scale"
@@ -74,7 +78,7 @@ export const SettingsSection = ({ data, onChange }: ModuleEditProps) => {
             />
           </SettingsField>
           <SettingsField
-            label="导演人数"
+            label="每轮发言人数"
             htmlFor="tavern-settings-max-speakers"
             description="每轮安排 1–6 名角色发言。"
           >
@@ -99,7 +103,7 @@ export const SettingsSection = ({ data, onChange }: ModuleEditProps) => {
             />
           </SettingsField>
           <SettingsField
-            label="每回合回环轮次"
+            label="每回合调度轮次"
             htmlFor="tavern-settings-director-loop-rounds"
             description="每回合运行 1–5 轮导演调度。"
           >
@@ -142,26 +146,6 @@ export const SettingsSection = ({ data, onChange }: ModuleEditProps) => {
               }
             />
           </SettingsField>
-        </div>
-      </SettingsGroup>
-      <SettingsGroup title="沉浸描写">
-        <div className="flex items-start justify-between gap-4">
-          <label
-            htmlFor="tavern-settings-immersive-description"
-            className="space-y-1"
-          >
-            <span className="block text-sm font-medium">动作与内心描写</span>
-            <span className="block text-xs leading-5 text-muted-foreground">
-              在角色回复中呈现动作、内心和沉浸式排版。
-            </span>
-          </label>
-          <Switch
-            id="tavern-settings-immersive-description"
-            checked={data.settings.immersiveDescriptionEnabled}
-            onCheckedChange={(checked) =>
-              changeSettings({ immersiveDescriptionEnabled: checked === true })
-            }
-          />
         </div>
       </SettingsGroup>
     </div>

@@ -25,9 +25,9 @@ export type TavernManageHandle = {
   open: (item: Pick<StoryLibraryItem, "id" | "workspace">) => void;
 };
 const editorModules = [
-  { id: "basic", label: "基础" },
+  { id: "basic", label: "基础与场景" },
   { id: "prompt", label: "呈现与叙事" },
-  { id: "settings", label: "运行设置" },
+  { id: "settings", label: "互动与调度" },
 ] as const;
 type EditorModuleId = (typeof editorModules)[number]["id"];
 

@@ -6,15 +6,7 @@ import {
   TAVERN_SCENE_PRESET_OPTIONS,
   getVisualPreset,
 } from "../../../presets/visual-presets";
-import {
-  TAVERN_PRESENTATION_RULES,
-  normalizeTavernPresentationProfileId,
-} from "../../../presets/prompts/presentation-rules";
-import {
-  TAVERN_ROOM_STYLES,
-  normalizeTavernRoomStyleId,
-} from "../../../presets/prompts/room-styles";
-import { SettingsGroup, SettingsSelect } from "../../fields";
+import { SettingsGroup } from "../../fields";
 import type { ModuleEditProps } from "../types";
 export const BasicSection = ({ data, onChange }: ModuleEditProps) => {
   const [showAllScenes, setShowAllScenes] = useState(false);
@@ -111,58 +103,6 @@ export const BasicSection = ({ data, onChange }: ModuleEditProps) => {
               </span>
             </label>
           ))}
-        </div>
-      </SettingsGroup>
-      <SettingsGroup title="互动与呈现">
-        <div className="grid items-center gap-3 sm:grid-cols-[5.5rem_minmax(0,1fr)]">
-          <span className="text-sm text-muted-foreground">发言模式</span>
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="flex h-[var(--tavern-control-height,2.5rem)] min-w-32 flex-1 items-center rounded-lg bg-muted/60 px-3 text-sm text-muted-foreground">
-              导演调度
-            </span>
-            <span className="text-xs leading-5 text-muted-foreground">
-              由导演安排角色发言。
-            </span>
-          </div>
-        </div>
-        <div className="grid gap-[var(--tavern-group-gap,1rem)] sm:grid-cols-2">
-          <div className="grid items-center gap-2 sm:grid-cols-[5.5rem_minmax(0,1fr)] sm:gap-3">
-            <label
-              htmlFor="tavern-basic-presentation"
-              className="text-sm text-muted-foreground"
-            >
-              呈现规则
-            </label>
-            <SettingsSelect
-              id="tavern-basic-presentation"
-              value={data.presentation.profileId}
-              options={TAVERN_PRESENTATION_RULES}
-              onChange={(value) =>
-                onChange({
-                  presentation: {
-                    ...data.presentation,
-                    profileId: normalizeTavernPresentationProfileId(value),
-                  },
-                })
-              }
-            />
-          </div>
-          <div className="grid items-center gap-2 sm:grid-cols-[5.5rem_minmax(0,1fr)] sm:gap-3">
-            <label
-              htmlFor="tavern-basic-room-style"
-              className="text-sm text-muted-foreground"
-            >
-              房间文风
-            </label>
-            <SettingsSelect
-              id="tavern-basic-room-style"
-              value={data.roomStyleId}
-              options={TAVERN_ROOM_STYLES}
-              onChange={(value) =>
-                onChange({ roomStyleId: normalizeTavernRoomStyleId(value) })
-              }
-            />
-          </div>
         </div>
       </SettingsGroup>
     </div>
