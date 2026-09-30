@@ -64,7 +64,7 @@ const resolveApiEndpoint = (provider: string, apiFormat: RuntimeApiFormat) => {
 };
 
 export const getProviderCatalog = (provider: string) => {
-  return MODEL_CATALOG[provider];
+  return Object.prototype.hasOwnProperty.call(MODEL_CATALOG, provider) ? MODEL_CATALOG[provider] : undefined;
 };
 
 export const getProviderModels = (provider: string) => {
@@ -105,6 +105,8 @@ export const getProviderApiFormats = (provider: string): RuntimeApiFormat[] => {
   for (const api of getProviderApis(provider)) {
     formats.add(api.apiFormat);
   }
+
+  if (formats.size === 0) return apiFormatLabelEntries.map(([apiFormat]) => apiFormat);
 
   const orderedFormats = apiFormatLabelEntries
     .map(([apiFormat]) => apiFormat)

@@ -23,7 +23,7 @@ import { Label } from "design-system/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "design-system/components/ui/native-select";
 import { Switch } from "design-system/components/ui/switch";
 import { saveLlmSettings } from "@/api/llm";
-import { getProviderApiFormatOptions, getProviderOption, getProviderOptions } from "../options";
+import { getProviderApiFormatOptions, getProviderOption } from "../options";
 import {
   applyApiFormatDefaults,
   applyProviderDefaults,
@@ -34,11 +34,13 @@ import {
   normalizeProvidersForSave,
   toLlmSettingsConfig,
   toProviderConfig,
+  updateProviderIdentifier,
   validateLlmSettingsConfig,
 } from "./utils";
 
 import { ModelEditDialog } from "./model";
 import { DiscoverModelsDialog } from "./discover-models";
+import { ProviderSelector } from "./provider-selector";
 
 type ProviderEditMode = "create" | "edit";
 
@@ -250,21 +252,16 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
 
                     <div className="space-y-2">
                       <Label htmlFor="llm-provider">供应商</Label>
-                      <NativeSelect
+                      <ProviderSelector
                         id="llm-provider"
-                        className="w-full"
                         value={providerDraft.provider}
-                        onChange={(event) => {
-                          const provider = event.currentTarget.value;
+                        onValueChange={(provider) => {
+                          updateProviderDraft((current) => updateProviderIdentifier(current, provider));
+                        }}
+                        onPresetSelect={(provider) => {
                           updateProviderDraft((current) => applyProviderDefaults(current, provider));
                         }}
-                      >
-                        {getProviderOptions().map((providerOption) => (
-                          <NativeSelectOption key={providerOption.value} value={providerOption.value}>
-                            {providerOption.label}
-                          </NativeSelectOption>
-                        ))}
-                      </NativeSelect>
+                      />
                     </div>
 
                     <div className="space-y-2">
@@ -324,7 +321,9 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                           const value = event.currentTarget.value;
                           updateProviderDraft((current) => ({ ...current, apiEndpoint: value }));
                         }}
-                        placeholder="自动匹配供应商和 API Format"
+                        placeholder={
+                          selectedProviderOption ? "自动匹配供应商和 API Format" : "填写自定义服务的 API 地址"
+                        }
                       />
                     </div>
                   </div>

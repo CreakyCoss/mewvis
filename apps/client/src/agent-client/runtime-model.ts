@@ -81,7 +81,9 @@ const getCatalogModel = (
   provider: Pick<LlmProvider, "provider">,
   model: Pick<ProviderModel, "modelId">,
 ): RuntimeModelSummary | null => {
-  return MODEL_CATALOG[provider.provider]?.models[model.modelId] ?? null;
+  return Object.prototype.hasOwnProperty.call(MODEL_CATALOG, provider.provider)
+    ? (MODEL_CATALOG[provider.provider]?.models[model.modelId] ?? null)
+    : null;
 };
 
 // Saved settings take precedence; the built-in catalog is only a frontend preset.
@@ -89,8 +91,7 @@ export const getModelThinking = (
   provider: Pick<LlmProvider, "provider" | "apiFormat">,
   model: Pick<ProviderModel, "modelId" | "thinking">,
 ): RuntimeModelThinking | undefined => {
-  const thinking =
-    model.thinking ?? MODEL_CATALOG[provider.provider]?.models[model.modelId]?.thinking?.[provider.apiFormat];
+  const thinking = model.thinking ?? getCatalogModel(provider, model)?.thinking?.[provider.apiFormat];
   return thinking ? structuredClone(thinking) : undefined;
 };
 

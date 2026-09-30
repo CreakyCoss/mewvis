@@ -11,12 +11,103 @@ import {
   type DesktopSessionInput,
 } from "../../src/chat/desktop/service";
 import { getLlmSettings, getLlmModelOptions, resolveLlmModel, saveLlmSettings } from "../../src/api/llm";
-import { normalizeLlmSettingsConfig, toLlmSettingsConfig } from "../../src/workbench/pages/settings/llm/edit/utils";
+import {
+  applyApiFormatDefaults,
+  applyProviderDefaults,
+  createModelConfig,
+  createProviderConfig,
+  normalizeLlmSettingsConfig,
+  toLlmSettingsConfig,
+  updateProviderIdentifier,
+  validateLlmSettingsConfig,
+} from "../../src/workbench/pages/settings/llm/edit/utils";
+import {
+  getDefaultApiFormat,
+  getProviderApiFormats,
+  getProviderModelOptions,
+  getProviderOptions,
+  inferApiEndpoint,
+} from "../../src/workbench/pages/settings/llm/options";
+import { buildRuntimeModelInputs, buildRuntimeModelOptions } from "../../src/agent-client/runtime-model";
 import { createApplicationChatHost } from "../../src/chat/desktop/application";
 import { createApplicationChatClient, type ApplicationChatEvent } from "@isle/app-sdk/chat";
 import { createApplicationToolClient } from "@isle/app-sdk/tools";
 import { createAgentDraft } from "../../src/workbench/pages/agents/draft";
 import type { AgentTemplate } from "../../src/workbench/pages/agents/types";
+
+test("custom suppliers survive settings reload and remain selectable with their own connection and thinking", () => {
+  const configured = createProviderConfig(true);
+  configured.provider = "my-proxy";
+  configured.name = "私有网关";
+  configured.apiKey = "custom-fixture-key";
+  configured.apiEndpoint = "https://gateway.invalid/v1";
+  configured.apiFormat = "openai-completions";
+  configured.models = [
+    {
+      ...createModelConfig(),
+      modelId: "custom-model",
+      modelName: "Custom model",
+      thinking: { levels: [{ value: "custom", label: "Custom" }], defaultLevel: "custom" },
+    },
+  ];
+  const persisted = {
+    ...configured,
+    createdAt: 1,
+    updatedAt: 2,
+    models: configured.models.map((model) => ({ ...model, providerId: configured.id, createdAt: 1, updatedAt: 2 })),
+  };
+  const draft = toLlmSettingsConfig({ providers: [persisted] });
+  assert.deepEqual(draft.providers[0], configured);
+  assert.equal(validateLlmSettingsConfig(normalizeLlmSettingsConfig(draft)), "");
+  assert.equal(buildRuntimeModelOptions({ providers: [persisted] })[0].modelId, "custom-model");
+  const runtime = buildRuntimeModelInputs({ providers: [persisted] })[configured.models[0].id];
+  assert.equal(runtime.provider, "my-proxy");
+  assert.equal(runtime.apiEndpoint, configured.apiEndpoint);
+  assert.equal(runtime.thinkingLevel, "custom");
+  assert.equal(getDefaultApiFormat("my-proxy"), "openai-completions");
+  assert.ok(getProviderApiFormats("my-proxy").includes("anthropic-messages"));
+  assert.ok(getProviderApiFormats("my-proxy").includes("openai-responses"));
+  const invalid = structuredClone(draft);
+  invalid.providers[0].apiEndpoint = "";
+  assert.match(validateLlmSettingsConfig(invalid), /API Endpoint/);
+  invalid.providers[0] = { ...configured, provider: " " };
+  assert.equal(validateLlmSettingsConfig(invalid), "供应商不能为空");
+  const prototypeNamed = { providers: [{ ...persisted, provider: "constructor" }] };
+  assert.equal(toLlmSettingsConfig(prototypeNamed).providers[0].provider, "constructor");
+  assert.equal(buildRuntimeModelOptions(prototypeNamed).length, 1);
+});
+
+test("typing supplier identifiers and changing custom API formats preserve manually configured fields", () => {
+  const original = createProviderConfig(false);
+  original.name = "手动配置";
+  original.apiKey = "fixture-key";
+  original.apiEndpoint = "https://gateway.invalid/custom";
+  original.models = [{ ...createModelConfig(), modelId: "manual-model", modelName: "Manual model" }];
+  let draft = original;
+  for (const supplier of ["m", "my-", "my-proxy"]) draft = updateProviderIdentifier(draft, supplier);
+  assert.equal(draft.provider, "my-proxy");
+  assert.equal(draft.name, original.name);
+  assert.equal(draft.apiKey, original.apiKey);
+  assert.equal(draft.apiEndpoint, original.apiEndpoint);
+  assert.deepEqual(draft.models, original.models);
+  const changed = applyApiFormatDefaults(draft, "anthropic-messages");
+  assert.equal(changed.apiFormat, "anthropic-messages");
+  assert.equal(changed.apiEndpoint, original.apiEndpoint);
+  assert.deepEqual(changed.models, original.models);
+  assert.equal(updateProviderIdentifier(createProviderConfig(false), "my-proxy").name, "my-proxy");
+});
+
+test("selecting a supplier preset still applies its API, endpoint and initial model", () => {
+  const original = createProviderConfig(false);
+  original.apiKey = "fixture-key";
+  const next = getProviderOptions().find((option) => option.value !== original.provider)!;
+  const updated = applyProviderDefaults(original, next.value);
+  assert.equal(updated.provider, next.value);
+  assert.equal(updated.apiFormat, getDefaultApiFormat(next.value));
+  assert.equal(updated.apiEndpoint, inferApiEndpoint(next.value, updated.apiFormat));
+  assert.equal(updated.models[0].modelId, getProviderModelOptions(next.value)[0].id);
+  assert.equal(updated.apiKey, original.apiKey);
+});
 
 test("creating an agent from a system configuration strips identity and makes independent editable lists", () => {
   const template: AgentTemplate = {

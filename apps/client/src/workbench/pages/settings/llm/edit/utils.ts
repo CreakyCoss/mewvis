@@ -54,7 +54,7 @@ export const createProviderConfig = (isDefault: boolean): LlmProviderConfig => {
 
 export const toLlmSettingsConfig = (settings: LlmSettings): LlmSettingsConfig => {
   const providers = settings.providers.map((provider) => {
-    const providerId = getProviderOption(provider.provider)?.value ?? getProviderOptions()[0]?.value ?? "openai";
+    const providerId = provider.provider.trim();
     const apiFormat = provider.apiFormat || getDefaultApiFormat(providerId);
 
     return {
@@ -125,16 +125,16 @@ export const validateLlmSettingsConfig = (draft: LlmSettingsConfig) => {
       return "供应商不能为空";
     }
 
-    if (!getProviderOption(provider.provider)) {
-      return "请选择支持的供应商";
-    }
-
     if (!provider.apiFormat.trim()) {
       return "API Format 不能为空";
     }
 
     if (!getProviderApiFormats(provider.provider).some((apiFormat) => apiFormat === provider.apiFormat)) {
       return "请选择支持的 API Format";
+    }
+
+    if (!getProviderOption(provider.provider) && !provider.apiEndpoint.trim()) {
+      return "自定义供应商需要填写 API Endpoint";
     }
 
     if (provider.models.length === 0) {
@@ -181,9 +181,26 @@ export const normalizeProvidersForSave = (providers: LlmProviderConfig[], provid
   return nextProviders;
 };
 
+export const updateProviderIdentifier = (provider: LlmProviderConfig, providerId: string): LlmProviderConfig => {
+  const shouldFollowName =
+    !provider.name.trim() ||
+    provider.name === getProviderOption(provider.provider)?.label ||
+    provider.name === provider.provider;
+  const apiFormat = getProviderApiFormats(providerId.trim()).includes(provider.apiFormat)
+    ? provider.apiFormat
+    : getDefaultApiFormat(providerId.trim());
+  return {
+    ...provider,
+    provider: providerId,
+    name: shouldFollowName ? providerId : provider.name,
+    apiFormat,
+  };
+};
+
 export const applyProviderDefaults = (provider: LlmProviderConfig, providerId: string): LlmProviderConfig => {
   const currentOption = getProviderOption(provider.provider);
   const nextOption = getProviderOption(providerId);
+  if (!nextOption) return updateProviderIdentifier(provider, providerId);
   const apiFormat = getDefaultApiFormat(providerId);
   const defaultModel = getProviderModelOptions(providerId)[0];
   const shouldFollowName =
@@ -211,7 +228,9 @@ export const applyApiFormatDefaults = (provider: LlmProviderConfig, apiFormat: R
   return {
     ...provider,
     apiFormat,
-    apiEndpoint: inferApiEndpoint(provider.provider, apiFormat),
+    apiEndpoint: getProviderOption(provider.provider)
+      ? inferApiEndpoint(provider.provider, apiFormat)
+      : provider.apiEndpoint,
   };
 };
 
