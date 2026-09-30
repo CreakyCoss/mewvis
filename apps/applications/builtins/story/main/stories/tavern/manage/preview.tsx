@@ -4,13 +4,26 @@ import { cn } from "design-system/lib/utils";
 import { getVisualPreset } from "../presets/visual-presets";
 import { getTavernPresentationProfile } from "../presets/prompts/presentation-rules";
 import { getTavernRoomStyle } from "../presets/prompts/room-styles";
+import { getTavernSystemNarrativeStyle } from "../presets/prompts/system-narrative-styles";
 import type { TavernRoomConfig } from "./model";
+import { getTavernPreviewContent } from "./preview-content";
 export const TavernSettingsPreview = ({ data }: { data: TavernRoomConfig }) => {
   const scene = getVisualPreset(data.scenePresetId);
   const presentation = getTavernPresentationProfile(
     data.presentation.profileId,
   );
   const roomStyle = getTavernRoomStyle(data.roomStyleId);
+  const narrativeStyle = getTavernSystemNarrativeStyle(
+    data.systemNarrative.styleId,
+  );
+  const content = getTavernPreviewContent({
+    roomStyleId: roomStyle.id,
+    narrativeStyleId: narrativeStyle.id,
+    presentationProfileId: presentation.id,
+  });
+  const hasCustomInstructions = Boolean(
+    data.systemNarrative.customInstructions?.trim(),
+  );
   return (
     <aside
       aria-label="酒馆示例预览"
@@ -19,7 +32,9 @@ export const TavernSettingsPreview = ({ data }: { data: TavernRoomConfig }) => {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-base font-semibold leading-6">示例预览</h3>
         <p className="text-xs leading-5 text-muted-foreground">
-          示例内容，用于查看视觉与呈现效果。
+          {hasCustomInstructions
+            ? "预设示例；补充要求在实际演绎中生效。"
+            : "示例内容，随叙事策略与文风切换。"}
         </p>
       </div>
       <div
@@ -40,7 +55,7 @@ export const TavernSettingsPreview = ({ data }: { data: TavernRoomConfig }) => {
           {presentation.renderStyle === "chat" ? (
             <>
               <p className="self-center rounded-md bg-white/65 px-3 py-1.5 text-sm text-slate-700 backdrop-blur-sm">
-                雨声落在窗沿。
+                {content.narrator}
               </p>
               <div className="flex items-start gap-3">
                 <img
@@ -60,26 +75,21 @@ export const TavernSettingsPreview = ({ data }: { data: TavernRoomConfig }) => {
                   >
                     {data.settings.immersiveDescriptionEnabled && (
                       <p className="mb-1 text-xs italic opacity-70">
-                        他放下手中的书，抬眼望来。
+                        {content.action}
                       </p>
                     )}
-                    <p>“进来吧，外面雨大。”</p>
+                    <p>“{content.dialogue}”</p>
                   </div>
                 </div>
               </div>
             </>
           ) : (
             <div className="rounded-lg bg-white/85 p-5 font-serif text-sm leading-7 text-slate-800 backdrop-blur-sm">
-              <p>雨声落在窗沿。沈砚放下手中的书，抬眼望向门口。</p>
-              {data.presentation.profileId === "third-person-prose" ? (
-                <p className="mt-3">
-                  他示意来人进屋避雨，把靠近炉火的位置留了出来。
+              {content.paragraphs.map((paragraph, index) => (
+                <p key={index} className={index > 0 ? "mt-3" : undefined}>
+                  {paragraph}
                 </p>
-              ) : (
-                <p className="mt-3">
-                  “进来吧，外面雨大。”他把靠近炉火的位置留了出来。
-                </p>
-              )}
+              ))}
             </div>
           )}
         </div>
@@ -87,7 +97,7 @@ export const TavernSettingsPreview = ({ data }: { data: TavernRoomConfig }) => {
       <p className="flex items-center gap-2 rounded-full bg-primary/[0.06] px-4 py-2.5 text-xs leading-5 text-muted-foreground">
         <Wine className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
         <span>
-          导演调度 · {presentation.label} / {roomStyle.label}
+          {presentation.label} · {narrativeStyle.label} / {roomStyle.label}
         </span>
       </p>
     </aside>
