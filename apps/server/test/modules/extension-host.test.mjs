@@ -171,7 +171,7 @@ test("desktop adapter uses stateless chat with host-resolved credentials, never 
               provider: "test",
               apiFormat: "openai-completions",
               apiKey: "secret",
-              models: [{ id: "chosen", modelId: "model", isEnabled: true }],
+              models: [{ id: "chosen", modelId: "model" }],
             },
           ],
         }),

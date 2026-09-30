@@ -15,6 +15,7 @@ import {
   vectorSchema,
 } from "../../dist/modules/knowledge/storage/schema.js";
 import { KnowledgeRepository } from "../../dist/modules/knowledge/repository.js";
+import { LlmRepository } from "../../dist/modules/settings/llm-repository.js";
 import {
   runtimeConfig,
   runtimeEnvironment,
@@ -65,9 +66,17 @@ test("retained config, RAG and vector SQL definitions match the legacy Rust snap
     const table = configTables.find((t) => t.name === name);
     assert.deepEqual(
       table.columns,
-      [...cols.matchAll(/"(\w+)"/g)].map((m) => m[1]),
+      [...cols.matchAll(/"(\w+)"/g)]
+        .map((m) => m[1])
+        .filter(
+          (column) => name !== "provider_models" || column !== "is_enabled",
+        ),
     );
-    assert.equal(norm(table.sql), norm(sql));
+    const retainedSql =
+      name === "provider_models"
+        ? sql.replace(/\s*is_enabled INTEGER DEFAULT 1,/, "")
+        : sql;
+    assert.equal(norm(table.sql), norm(retainedSql));
   }
   assert.match(
     await rust("db/migrations/version.rs"),
@@ -90,6 +99,9 @@ test("retained config, RAG and vector SQL definitions match the legacy Rust snap
 
 export function legacyFixture(db, version) {
   db.exec(configSchema);
+  db.exec(
+    "ALTER TABLE provider_models ADD COLUMN is_enabled INTEGER DEFAULT 1",
+  );
   db.exec(
     "DROP TABLE agent_definitions; CREATE TABLE ai_agents (id TEXT PRIMARY KEY, name TEXT NOT NULL, avatar TEXT NOT NULL, description TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)",
   );
@@ -193,6 +205,58 @@ test("every Rust schema version v3–v25 upgrades without losing skill membershi
       assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
     } finally {
       config.close();
+    }
+  }
+});
+
+test("retiring model enablement preserves every configured model and its settings", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "isle-model-enable-upgrade-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  for (const version of [0, 26]) {
+    const dir = join(root, String(version));
+    const { mkdir } = await import("node:fs/promises");
+    await mkdir(dir);
+    const raw = new DatabaseSync(join(dir, "config.db"));
+    raw.exec(configSchema);
+    raw.exec(`ALTER TABLE provider_models ADD COLUMN is_enabled INTEGER DEFAULT 1;
+      INSERT INTO llm_providers VALUES ('provider', 'Provider', 'custom', 'openai-completions', 'fixture-key', NULL, 1, 1, 2);
+      INSERT INTO provider_models (id, provider_id, model_id, model_name, is_one_million_context, thinking_json, created_at, updated_at, is_enabled)
+      VALUES ('first', 'provider', 'first-model', 'First', 0, NULL, 3, 4, 1),
+             ('second', 'provider', 'second-model', 'Second', 1, '{"levels":[{"value":"custom","label":"Custom"}],"defaultLevel":"custom"}', 5, 6, 0);
+      PRAGMA user_version=${version};`);
+    const query =
+      "SELECT id, provider_id, model_id, model_name, is_one_million_context, thinking_json, created_at, updated_at FROM provider_models ORDER BY id";
+    const original = raw.prepare(query).all();
+    raw.close();
+    const migrated = new ConfigDatabase(dir);
+    try {
+      const db = migrated.connection;
+      assert.deepEqual(db.prepare(query).all(), original);
+      assert.equal(
+        db
+          .prepare("PRAGMA table_info(provider_models)")
+          .all()
+          .some((column) => column.name === "is_enabled"),
+        false,
+      );
+      assert.equal(
+        db.prepare("PRAGMA user_version").get().user_version,
+        CONFIG_SCHEMA_VERSION,
+      );
+      assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
+      const models = new LlmRepository(migrated).read().providers[0].models;
+      assert.deepEqual(
+        models.map((model) => model.id),
+        ["first", "second"],
+      );
+      assert.equal(
+        models.some((model) => Object.hasOwn(model, "isEnabled")),
+        false,
+      );
+      assert.equal(models[1].isOneMillionContext, true);
+      assert.equal(models[1].thinking.defaultLevel, "custom");
+    } finally {
+      migrated.close();
     }
   }
 });

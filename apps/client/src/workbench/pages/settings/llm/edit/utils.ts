@@ -21,7 +21,6 @@ export const createModelConfig = (): ProviderModelConfig => ({
   id: createUuid(),
   modelId: "",
   modelName: "",
-  isEnabled: true,
   isOneMillionContext: false,
 });
 
@@ -70,7 +69,6 @@ export const toLlmSettingsConfig = (settings: LlmSettings): LlmSettingsConfig =>
         id: model.id,
         modelId: model.modelId,
         modelName: model.modelName,
-        isEnabled: model.isEnabled,
         isOneMillionContext: model.isOneMillionContext,
         thinking: model.thinking,
       })),
@@ -154,8 +152,8 @@ export const validateLlmSettingsConfig = (draft: LlmSettingsConfig) => {
     }
   }
 
-  if (!draft.providers.some((provider) => provider.models.some((model) => model.isEnabled))) {
-    return "至少启用一个模型";
+  if (!draft.providers.some((provider) => provider.models.length > 0)) {
+    return "至少添加一个模型";
   }
 
   return "";

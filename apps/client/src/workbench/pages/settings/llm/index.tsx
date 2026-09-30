@@ -10,8 +10,6 @@ import { ProviderEditDialog, type ProviderEditDialogHandle } from "./edit";
 import { useLlmSettingsStore } from "./store";
 import { PageHeader } from "../../page-header";
 
-const countEnabledModels = (provider: LlmProvider) => provider.models.filter((model) => model.isEnabled).length;
-
 const Status = ({ children }: { children: string }) => (
   <span className="inline-flex items-center gap-2 text-sm text-success">
     <span className="size-1.5 shrink-0 rounded-full bg-success" aria-hidden="true" />
@@ -21,7 +19,6 @@ const Status = ({ children }: { children: string }) => (
 
 const ProviderRow = ({ provider, onOpen }: { provider: LlmProvider; onOpen: () => void }) => {
   const apiEndpoint = provider.apiEndpoint?.trim() || getProviderWebsiteUrl(provider.provider).trim();
-  const enabledModelCount = countEnabledModels(provider);
 
   return (
     <button
@@ -41,7 +38,7 @@ const ProviderRow = ({ provider, onOpen }: { provider: LlmProvider; onOpen: () =
 
       <span className="truncate text-sm text-muted-foreground">{getApiFormatLabel(provider.apiFormat)}</span>
       <span className="truncate text-sm text-muted-foreground max-lg:hidden">{apiEndpoint || "未设置 Endpoint"}</span>
-      <span className="text-sm text-foreground">{enabledModelCount} 个模型</span>
+      <span className="text-sm text-foreground">{provider.models.length} 个模型</span>
       {provider.apiKey?.trim() ? <Status>凭据已配置</Status> : <span className="text-sm text-warning">缺少凭据</span>}
       <span className="inline-flex items-center gap-2 text-sm text-foreground max-lg:hidden">
         <span className="size-1.5 shrink-0 rounded-full bg-success" aria-hidden="true" />
@@ -56,7 +53,7 @@ const ProviderTableHeader = () => (
     <span>Provider</span>
     <span>API 格式</span>
     <span className="max-lg:hidden">Endpoint</span>
-    <span>已启用模型</span>
+    <span>可用模型</span>
     <span>凭据状态</span>
     <span className="max-lg:hidden">状态</span>
   </div>
@@ -132,7 +129,7 @@ export const LlmSettingsPage = () => {
               <div className="space-y-1">
                 <h3 className="font-semibold">还没有配置 Provider</h3>
                 <p className="text-sm text-muted-foreground">
-                  添加模型服务后，就可以在聊天、角色和应用中选择启用的模型。
+                  添加模型服务后，就可以在聊天、角色和应用中选择已添加的模型。
                 </p>
               </div>
               <Button type="button" onClick={openCreateProvider}>

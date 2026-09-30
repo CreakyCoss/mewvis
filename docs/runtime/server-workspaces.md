@@ -31,7 +31,7 @@
 
 默认工作区位于 `<ISLE_SERVER_DATA_DIR>/default-workspace`，末级目录名读取产品配置 `defaultWorkspaceDirName`。首次列出工作区时初始化目录、`workspace.db` 和登记记录；并发请求也只创建一条默认记录。默认工作区置顶，由系统管理，禁止编辑、删除或作为普通工作区创建。
 
-直接复用 `config.db` 中的 `workspace_groups` 和 `workspaces`，当前配置库为 schema v26，这两张表沿用原有结构。启动时保留并修复默认分组，缺少时创建「默认分组」。默认工作区仍为 `~/.isle-claw/default-workspace`，已有工作区的登记路径直接使用，无需搬动目录。
+直接复用 `config.db` 中的 `workspace_groups` 和 `workspaces`，当前配置库为 schema v27，这两张表沿用原有结构。启动时保留并修复默认分组，缺少时创建「默认分组」。默认工作区仍为 `~/.isle-claw/default-workspace`，已有工作区的登记路径直接使用，无需搬动目录。
 
 未传 `groupId`、传空字符串或传不存在的分组时，按 Tauri 行为回退到默认分组。新工作区追加在目标分组末尾；更新时分组不变则保留顺序，跨分组则追加到目标分组末尾。列表按置顶、顺序、创建时间倒序排列。
 

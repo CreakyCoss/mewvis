@@ -151,7 +151,7 @@ test("model catalog drives host and application thinking selection, request payl
         {
           ...previous.providers[0],
           provider: "deepseek",
-          models: [{ id: "model", modelId: "deepseek-v4-pro", modelName: "DeepSeek", isEnabled: true }],
+          models: [{ id: "model", modelId: "deepseek-v4-pro", modelName: "DeepSeek" }],
         },
       ],
     };
@@ -427,7 +427,7 @@ test("failed saves preserve the last usable cache and do not poison later saves"
     fake.saveLlm = undefined;
   }
   const updated = structuredClone(original) as any;
-  updated.providers[0].models[0].isEnabled = false;
+  updated.providers[0].models = [];
   await saveLlmSettings(updated);
   assert.deepEqual(await getLlmModelOptions(), []);
   await assert.rejects(resolveLlmModel("model"), /不可用/);

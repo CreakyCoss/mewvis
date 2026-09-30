@@ -41,7 +41,6 @@
           {
             "modelId": "example-model",
             "modelName": "示例模型",
-            "isEnabled": true,
             "isOneMillionContext": false,
             "thinking": null
           }
@@ -52,7 +51,7 @@
 }
 ```
 
-Provider 和模型可传 `id`；返回的模型包含 `providerId`。`thinking` 保留原始 JSON 配置，不限制为固定思考等级列表。模型 API Format 与供应商标识的支持范围仍由 Runtime 决定。
+所有已添加模型均可用，不再配置启用状态。Provider 和模型可传 `id`；返回的模型包含 `providerId`。`thinking` 保留原始 JSON 配置，不限制为固定思考等级列表。模型 API Format 与供应商标识的支持范围仍由 Runtime 决定。
 
 ## 智能体定义与聊天引用
 
@@ -81,9 +80,9 @@ Provider 和模型可传 `id`；返回的模型包含 `providerId`。`thinking` 
 
 配置直接使用原来的 `~/.isle-claw/config.db`，也可通过 `ISLE_SERVER_DATA_DIR` 指定根目录。模型、智能体、工作区、故事、技能和知识库配置共用同一份数据库；切换后端不需要复制或导入数据。
 
-配置库当前为 schema v26，不设置 Node 专属 `application_id`。v26 用 `agent_definitions` 保存“我的智能体”的完整定义，配置来源 ID 保存在定义 JSON 中；系统配置库从服务端读取，不自动写入用户数据。旧 `ai_agents` 表直接删除，旧角色不兼容、不迁移，原 `get_ai_agent_settings`、`save_ai_agent`、`delete_ai_agent` 命令已移除。旧会话中失效的角色选择会清空，聊天记录仍保留。
+配置库当前为 schema v27，不设置 Node 专属 `application_id`。v26 用 `agent_definitions` 保存“我的智能体”的完整定义，配置来源 ID 保存在定义 JSON 中；系统配置库从服务端读取，不自动写入用户数据。旧 `ai_agents` 表直接删除，旧角色不兼容、不迁移，原 `get_ai_agent_settings`、`save_ai_agent`、`delete_ai_agent` 命令已移除。旧会话中失效的角色选择会清空，聊天记录仍保留。
 
-历史 v4–v25 升级规则仍用于模型、知识库等保留配置；为兼容历史数据库，原 `collaboration_workflows` 表及已有数据继续保留，但宿主不再读写，旧流程不迁移到插件。数据库升级与版本写入在同一事务内完成，失败会整体回滚。更高版本、不兼容或损坏库保留原文件，通过状态接口报告初始化错误，不自动删库重建。
+历史 v4–v25 升级规则仍用于模型、知识库等保留配置；v27 移除模型启用字段，保留全部模型及其上下文、思考等级配置，原先停用的模型也直接可用。为兼容历史数据库，原 `collaboration_workflows` 表及已有数据继续保留，但宿主不再读写，旧流程不迁移到插件。数据库升级与版本写入在同一事务内完成，失败会整体回滚。更高版本、不兼容或损坏库保留原文件，通过状态接口报告初始化错误，不自动删库重建。
 
 API Key 与 Tauri 字段契约一致存入 SQLite，并由受认证的模型读取接口返回。支持 POSIX 权限的平台上，配置文件权限为 0600，新建数据目录为 0700。配置错误响应不包含 SQL、参数或凭据。
 

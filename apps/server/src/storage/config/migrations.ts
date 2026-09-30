@@ -16,7 +16,7 @@ export function validateConfigSchema(db: DatabaseSync) {
   }
 }
 
-/** Keeps the legacy upgrade chain; v26 discards retired roles without copying them. */
+/** Keeps the legacy upgrade chain; v26 retires roles and v27 retires model enablement. */
 export function migrateConfig(db: DatabaseSync) {
   const version = Number(db.prepare("PRAGMA user_version").get()!.user_version);
   if (version > CONFIG_SCHEMA_VERSION)
@@ -55,6 +55,8 @@ export function migrateConfig(db: DatabaseSync) {
     db.exec(configSchema);
     db.exec("DROP TABLE IF EXISTS ai_agents");
     if (!fresh && version === 0) {
+      if (has("provider_models", "is_enabled"))
+        db.exec("ALTER TABLE provider_models DROP COLUMN is_enabled");
       validateConfigSchema(db);
       db.exec(
         "DELETE FROM stories; DELETE FROM skill_settings WHERE key='readonly_skill_group_members'",
@@ -159,6 +161,10 @@ export function migrateConfig(db: DatabaseSync) {
             break;
           case 25:
             add("provider_models", "thinking_json", "TEXT");
+            break;
+          case 27:
+            if (has("provider_models", "is_enabled"))
+              db.exec("ALTER TABLE provider_models DROP COLUMN is_enabled");
             break;
         }
       }

@@ -29,7 +29,7 @@ export const fake = {
         apiFormat: "openai-completions",
         apiKey: "secret-must-not-reach-ui",
         isDefault: true,
-        models: [{ id: "model", modelId: "mock", modelName: "Mock", isEnabled: true }],
+        models: [{ id: "model", modelId: "mock", modelName: "Mock" }],
       },
     ],
   } as any,

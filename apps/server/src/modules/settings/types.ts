@@ -3,7 +3,6 @@ export interface ProviderModel {
   providerId: string;
   modelId: string;
   modelName: string;
-  isEnabled: boolean;
   isOneMillionContext: boolean;
   thinking: unknown;
   createdAt: number;

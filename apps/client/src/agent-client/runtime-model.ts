@@ -6,7 +6,6 @@ export type ProviderModel = {
   providerId: string;
   modelId: string;
   modelName: string;
-  isEnabled: boolean;
   isOneMillionContext: boolean;
   thinking?: RuntimeModelThinking | null;
   createdAt: number;
@@ -145,17 +144,13 @@ const buildRuntimeModelInput = (provider: LlmProvider, model: ProviderModel): Ru
 export const buildRuntimeModelOptions = (settings: LlmSettings): RuntimeModelOption[] =>
   [...settings.providers]
     .sort((left, right) => Number(right.isDefault) - Number(left.isDefault))
-    .flatMap((provider) =>
-      provider.models.filter((model) => model.isEnabled).map((model) => buildRuntimeModelOption(provider, model)),
-    );
+    .flatMap((provider) => provider.models.map((model) => buildRuntimeModelOption(provider, model)));
 
 export const buildRuntimeModelInputs = (settings: LlmSettings): RuntimeModelInputMap => {
   const inputs: RuntimeModelInputMap = {};
 
   for (const provider of settings.providers) {
     for (const model of provider.models) {
-      if (!model.isEnabled) continue;
-
       inputs[model.id] = buildRuntimeModelInput(provider, model);
     }
   }

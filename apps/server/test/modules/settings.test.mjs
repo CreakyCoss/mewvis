@@ -23,7 +23,6 @@ const uuid7 = /^[0-9a-f]{12}7[0-9a-f]{3}[89ab][0-9a-f]{15}$/;
 const model = (extra = {}) => ({
   modelId: " m1 ",
   modelName: " Model ",
-  isEnabled: true,
   isOneMillionContext: false,
   ...extra,
 });
@@ -121,7 +120,7 @@ test("LLM settings preserve custom thinking, normalize defaults and cascade remo
         provider({
           name: "Second",
           isDefault: true,
-          models: [model({ isEnabled: false, isOneMillionContext: true })],
+          models: [model({ isOneMillionContext: true })],
         }),
         provider({ name: "Third", isDefault: true, models: [] }),
       ],
@@ -137,7 +136,7 @@ test("LLM settings preserve custom thinking, normalize defaults and cascade remo
   assert.equal(p.models[0].providerId, p.id);
   assert.deepEqual(p.models[0].thinking, thinking);
   assert.equal(p.models[0].modelId, "m1");
-  assert.equal(saved.providers[0].models[0].isEnabled, false);
+  assert.equal(Object.hasOwn(saved.providers[0].models[0], "isEnabled"), false);
   assert.equal(saved.providers[0].models[0].isOneMillionContext, true);
   const replaced = await s.invoke("save_llm_settings", {
     input: { providers: [provider({ id: p.id, models: [] })] },
@@ -187,7 +186,7 @@ test("duplicate model failure rolls back the entire replacement without exposing
   for (const bad of [
     provider({ name: " " }),
     provider({ isDefault: 1 }),
-    provider({ models: [model({ isEnabled: "yes" })] }),
+    provider({ models: [model({ isOneMillionContext: "yes" })] }),
   ]) {
     await s.invoke("save_llm_settings", { input: { providers: [bad] } }, 400);
     assert.deepEqual(await s.invoke("get_llm_settings"), original);
@@ -475,6 +474,9 @@ test("migrated configuration tables keep Tauri column names", async (t) => {
       )[1];
       const expected = [...columns.matchAll(/"([^"]+)"/g)]
         .map((m) => m[1])
+        .filter(
+          (column) => table !== "provider_models" || column !== "is_enabled",
+        )
         .sort();
       assert.deepEqual(
         db

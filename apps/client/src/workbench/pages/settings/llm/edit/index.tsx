@@ -1,5 +1,5 @@
 import { useImperativeHandle, useRef, useState, type Ref } from "react";
-import { CheckCircle2, Download, Eye, EyeOff, Loader2, Pencil, Plus, Save, ServerCog, Trash2 } from "lucide-react";
+import { Download, Eye, EyeOff, Loader2, Pencil, Plus, Save, ServerCog, Trash2 } from "lucide-react";
 import {
   getModelThinking,
   type LlmProvider,
@@ -17,19 +17,11 @@ import {
   AlertDialogTitle,
 } from "design-system/components/ui/alert-dialog";
 import { Button } from "design-system/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "design-system/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "design-system/components/ui/dialog";
 import { Input } from "design-system/components/ui/input";
 import { Label } from "design-system/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "design-system/components/ui/native-select";
 import { Switch } from "design-system/components/ui/switch";
-import { cn } from "design-system/lib/utils";
 import { saveLlmSettings } from "@/api/llm";
 import { getProviderApiFormatOptions, getProviderOption, getProviderOptions } from "../options";
 import {
@@ -196,9 +188,10 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
 
   return (
     <>
-      <Dialog open={open && !modelEditor && !isDiscoveryOpen} onOpenChange={handleOpenChange}>
+      <Dialog open={open && !isDiscoveryOpen} onOpenChange={handleOpenChange}>
         <DialogContent
-          className="!flex max-h-[calc(100vh-2rem)] w-[min(720px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden border-border/70 bg-popover p-0 shadow-[var(--shadow-floating)] sm:max-w-[720px]"
+          aria-describedby={undefined}
+          className="!flex max-h-[calc(100vh-2rem)] w-[min(720px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden border-border/70 bg-popover p-0 shadow-[var(--shadow-floating)] sm:max-w-[720px] [&>[data-slot=dialog-close]]:top-2.5"
           onOpenAutoFocus={(event) => {
             if (!modelFocusTarget.current) return;
             const target = document.getElementById(modelFocusTarget.current);
@@ -209,16 +202,13 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
             modelFocusTarget.current = null;
           }}
         >
-          <DialogHeader className="shrink-0">
-            <div className="border-b border-border/70 bg-card/35 px-6 pt-6 pb-5">
-              <DialogTitle className="flex items-center gap-3 text-lg font-semibold">
-                <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-primary">
-                  <ServerCog className="size-5" />
-                </span>
-                <span>{mode === "create" ? "新增 Provider" : "编辑 Provider"}</span>
-              </DialogTitle>
-              <DialogDescription className="mt-1.5 pl-[52px]">配置连接信息和可用模型。</DialogDescription>
-            </div>
+          <DialogHeader className="shrink-0 border-b border-border/70 bg-card/35 px-6 py-3 pr-14">
+            <DialogTitle className="flex items-center gap-2.5 text-lg leading-tight font-semibold">
+              <span className="flex size-8 items-center justify-center rounded-lg bg-accent text-primary">
+                <ServerCog className="size-4" />
+              </span>
+              <span>{mode === "create" ? "新增 Provider" : "编辑 Provider"}</span>
+            </DialogTitle>
           </DialogHeader>
 
           {providerDraft && (
@@ -300,36 +290,28 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
 
                     <div className="space-y-2">
                       <Label htmlFor="llm-api-key">API Key</Label>
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="relative min-w-0 flex-1">
-                          <Input
-                            id="llm-api-key"
-                            className="pr-10"
-                            type={isApiKeyVisible ? "text" : "password"}
-                            value={providerDraft.apiKey}
-                            onChange={(event) => {
-                              const value = event.currentTarget.value;
-                              updateProviderDraft((current) => ({ ...current, apiKey: value }));
-                            }}
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            className="absolute top-1/2 right-1 -translate-y-1/2"
-                            aria-label={isApiKeyVisible ? "隐藏 API Key" : "显示 API Key"}
-                            title={isApiKeyVisible ? "隐藏 API Key" : "显示 API Key"}
-                            onClick={() => setIsApiKeyVisible((visible) => !visible)}
-                          >
-                            {isApiKeyVisible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                          </Button>
-                        </div>
-                        {providerDraft.apiKey.trim() && (
-                          <span className="inline-flex shrink-0 items-center gap-1.5 text-xs text-success">
-                            <CheckCircle2 className="size-4" />
-                            凭据已配置
-                          </span>
-                        )}
+                      <div className="relative">
+                        <Input
+                          id="llm-api-key"
+                          className="pr-10"
+                          type={isApiKeyVisible ? "text" : "password"}
+                          value={providerDraft.apiKey}
+                          onChange={(event) => {
+                            const value = event.currentTarget.value;
+                            updateProviderDraft((current) => ({ ...current, apiKey: value }));
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="absolute top-1/2 right-1 -translate-y-1/2"
+                          aria-label={isApiKeyVisible ? "隐藏 API Key" : "显示 API Key"}
+                          title={isApiKeyVisible ? "隐藏 API Key" : "显示 API Key"}
+                          onClick={() => setIsApiKeyVisible((visible) => !visible)}
+                        >
+                          {isApiKeyVisible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                        </Button>
                       </div>
                     </div>
 
@@ -373,6 +355,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                         id="llm-discover-models"
                         type="button"
                         variant="outline"
+                        className="h-9 gap-1.5 bg-transparent px-3 shadow-none"
                         onClick={(event) => {
                           modelFocusTarget.current = event.currentTarget.id;
                           setIsDiscoveryOpen(true);
@@ -384,7 +367,8 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                       <Button
                         id="llm-add-model"
                         type="button"
-                        variant="outline"
+                        variant="secondary"
+                        className="h-9 gap-1.5 bg-primary/10 px-3 text-primary hover:bg-primary/15"
                         onClick={(event) => {
                           modelFocusTarget.current = event.currentTarget.id;
                           setModelEditor({});
@@ -402,9 +386,6 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                         <tr>
                           <th scope="col" className="px-3 py-2.5 font-normal">
                             模型
-                          </th>
-                          <th scope="col" className="w-16 px-2 py-2.5 text-center font-normal sm:w-20 sm:px-3">
-                            状态
                           </th>
                           <th scope="col" className="hidden w-20 px-3 py-2.5 text-center font-normal sm:table-cell">
                             上下文
@@ -434,17 +415,6 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                                   {model.modelId || "待设置模型 ID"}
                                 </p>
                               </td>
-                              <td className="px-2 py-3 text-center sm:px-3">
-                                <span
-                                  className={cn(
-                                    "inline-flex items-center gap-1.5 text-xs",
-                                    model.isEnabled ? "text-success" : "text-muted-foreground",
-                                  )}
-                                >
-                                  <span className="size-1.5 shrink-0 rounded-full bg-current" />
-                                  {model.isEnabled ? "启用" : "停用"}
-                                </span>
-                              </td>
                               <td className="hidden px-3 py-3 text-center text-xs text-muted-foreground sm:table-cell">
                                 {model.isOneMillionContext ? "1M" : "默认"}
                               </td>
@@ -473,9 +443,8 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                                 <Button
                                   id={`llm-model-${model.id}`}
                                   type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 min-w-16 gap-1.5 px-2 text-xs"
+                                  variant="ghost"
+                                  className="h-9 min-w-16 gap-1.5 px-2.5 text-primary"
                                   aria-label={`编辑模型 ${model.modelName || model.modelId || "未命名模型"}`}
                                   onClick={(event) => {
                                     modelFocusTarget.current = event.currentTarget.id;
@@ -555,6 +524,11 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
           provider={providerDraft}
           model={modelEditor.model}
           onClose={() => setModelEditor(null)}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            if (modelFocusTarget.current) document.getElementById(modelFocusTarget.current)?.focus();
+            modelFocusTarget.current = null;
+          }}
           onConfirm={(model) => {
             modelFocusTarget.current = `llm-model-${model.id}`;
             updateProviderDraft((current) => ({

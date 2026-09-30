@@ -37,7 +37,7 @@ export function ModelSetupDialog() {
         <AlertDialogHeader>
           <AlertDialogTitle>先配置一个聊天模型</AlertDialogTitle>
           <AlertDialogDescription>
-            当前没有可用的模型。请前往模型设置添加模型服务，并启用至少一个模型后开始聊天。
+            当前没有可用的模型。请前往模型设置添加模型服务和模型后开始聊天。
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

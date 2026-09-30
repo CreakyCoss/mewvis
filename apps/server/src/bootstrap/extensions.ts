@@ -156,9 +156,7 @@ export function createDesktopExtensionAdapter({
         const candidates = llm
           .read()
           .providers.flatMap((provider) =>
-            provider.models
-              .filter((model) => model.isEnabled)
-              .map((model) => ({ provider, model })),
+            provider.models.map((model) => ({ provider, model })),
           );
         const selected = selectedId
           ? candidates.find(({ model }) => model.id === selectedId)

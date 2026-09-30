@@ -92,7 +92,6 @@ test("Rust v24 config → Node HTTP read/write → Rust SQL write → Node read,
                 id: m.id,
                 modelId: m.modelId,
                 modelName: "Node model",
-                isEnabled: true,
                 isOneMillionContext: false,
                 thinking: { levels: [{ value: "custom", label: "Custom" }] },
               },
@@ -113,8 +112,8 @@ test("Rust v24 config → Node HTTP read/write → Rust SQL write → Node read,
     await server.close();
   }
   assert.equal((await fs.stat(path)).ino, before.ino);
-  // The frozen Rust schema is v25; v26 deliberately retires its role table.
-  assert.equal(rust("query", path, "PRAGMA user_version")[0].user_version, 26);
+  // The frozen Rust schema is v25; newer versions retire roles and model enablement.
+  assert.equal(rust("query", path, "PRAGMA user_version")[0].user_version, 27);
   assert.equal(
     rust(
       "query",

@@ -77,7 +77,6 @@ const loadMiniMaxRuntimeModel = () => {
     "join provider_models m on m.provider_id = p.id",
     "where p.provider = 'minimax-cn'",
     "and m.model_id = 'MiniMax-M3-highspeed'",
-    "and coalesce(m.is_enabled, 1) = 1",
     "order by p.is_default desc",
     "limit 1",
   ].join(" ");

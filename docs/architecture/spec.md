@@ -157,7 +157,6 @@ CREATE TABLE provider_models (
     provider_id TEXT NOT NULL,      -- 外键，关联 llm_providers
     model_id TEXT NOT NULL,          -- 模型 ID，如 "claude-sonnet-4-7"
     model_name TEXT NOT NULL,        -- 模型显示名称，如 "Claude Sonnet 4"
-    is_enabled INTEGER DEFAULT 1,     -- 是否启用
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     FOREIGN KEY (provider_id) REFERENCES llm_providers(id) ON DELETE CASCADE,

@@ -318,7 +318,7 @@ test("Rust v24 configuration upgrades without losing settings and preserves the 
   });
   let config = new ConfigDatabase(root);
   const db = config.connection;
-  assert.equal(db.prepare("PRAGMA user_version").get().user_version, 26);
+  assert.equal(db.prepare("PRAGMA user_version").get().user_version, 27);
   assert.equal(
     db
       .prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name='ai_agents'")

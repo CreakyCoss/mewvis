@@ -47,7 +47,6 @@ export class LlmSettingsService {
             "id",
             "modelId",
             "modelName",
-            "isEnabled",
             "isOneMillionContext",
             "thinking",
           ]);
@@ -56,7 +55,6 @@ export class LlmSettingsService {
             providerId: id,
             modelId: nonempty(m.modelId, "模型 ID"),
             modelName: nonempty(m.modelName, "模型名称"),
-            isEnabled: boolean(m.isEnabled, "isEnabled"),
             isOneMillionContext: boolean(
               m.isOneMillionContext,
               "isOneMillionContext",

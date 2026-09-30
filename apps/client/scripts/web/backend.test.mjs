@@ -140,7 +140,7 @@ test("browser APIs use authenticated proxy, real persistence and replayable even
           apiFormat: "openai-completions",
           apiKey: "test-key",
           isDefault: true,
-          models: [{ modelId: "web-model", modelName: "Web model", isEnabled: true, isOneMillionContext: false }],
+          models: [{ modelId: "web-model", modelName: "Web model", isOneMillionContext: false }],
         },
       ],
     });

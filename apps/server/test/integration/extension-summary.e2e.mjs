@@ -66,7 +66,6 @@ test(
             {
               modelId: "local",
               modelName: "Local",
-              isEnabled: true,
               isOneMillionContext: false,
             },
           ],
@@ -110,7 +109,9 @@ test(
       "done",
     );
     const summaryAction = (await call("list_extension_ui_contributions")).find(
-      (item) => item.extensionId === "isle.session-ledger" && item.id === "open-summary",
+      (item) =>
+        item.extensionId === "isle.session-ledger" &&
+        item.id === "open-summary",
     );
     assert.equal(summaryAction?.slot, "session.header-actions");
     assert.deepEqual(summaryAction?.trigger, { kind: "dialog", id: "summary" });
