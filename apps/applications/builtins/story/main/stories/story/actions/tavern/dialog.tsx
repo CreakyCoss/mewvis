@@ -1,4 +1,4 @@
-import { BookOpenText, Loader2, Settings2, Wine } from "lucide-react";
+import { BookOpenText, Loader2, Settings, Wine } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "design-system/components/ui/button";
 import {
@@ -61,21 +61,8 @@ export const StoryTavernSelectDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="!flex max-h-[min(88vh,38rem)] flex-col overflow-hidden sm:max-w-3xl">
         <DialogHeader className="shrink-0 pr-10">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex min-h-8 items-center">
             <DialogTitle>进入酒馆</DialogTitle>
-            {onOpenSettings && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-8 gap-1 px-2 text-muted-foreground"
-                aria-label="酒馆设置"
-                onClick={onOpenSettings}
-              >
-                <Settings2 className="size-4" />
-                设置
-              </Button>
-            )}
           </div>
           <DialogDescription>选择要演绎的章节；酒馆会读取与章节写作相同的结构化上下文。</DialogDescription>
         </DialogHeader>
@@ -133,17 +120,30 @@ export const StoryTavernSelectDialog = ({
           </ScrollArea>
         </div>
 
-        <DialogFooter className="shrink-0">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            取消
-          </Button>
-          <Button
-            type="button"
-            onClick={() => void confirm()}
-            disabled={isLoading || !selectedChapterId || isConfirming}
-          >
-            {isConfirming ? "进入中" : "进入酒馆"}
-          </Button>
+        <DialogFooter className="shrink-0 flex-row flex-wrap items-center justify-between gap-3 sm:justify-between">
+          {onOpenSettings && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="gap-1.5 bg-muted/40 text-muted-foreground hover:text-foreground"
+              onClick={onOpenSettings}
+            >
+              <Settings className="size-4" aria-hidden="true" />
+              酒馆设置
+            </Button>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              取消
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void confirm()}
+              disabled={isLoading || !selectedChapterId || isConfirming}
+            >
+              {isConfirming ? "进入中" : "进入酒馆"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
