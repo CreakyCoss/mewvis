@@ -15,7 +15,7 @@ export const SettingsGroup = ({
   description?: string;
   action?: ReactNode;
 }) => (
-  <section className="space-y-4">
+  <section className="space-y-[var(--tavern-group-gap,1rem)]">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <h3 className="text-base font-semibold leading-6">{title}</h3>
       {action}
@@ -39,7 +39,12 @@ export const SettingsField = ({
   description?: string;
   className?: string;
 }) => (
-  <div className={cn("min-w-0 space-y-2", className)}>
+  <div
+    className={cn(
+      "min-w-0 space-y-[var(--tavern-field-gap,0.5rem)]",
+      className,
+    )}
+  >
     <label htmlFor={htmlFor} className="block text-sm font-medium">
       {label}
     </label>
@@ -63,7 +68,7 @@ export const SettingsSelect = ({
   <NativeSelect
     id={id}
     value={value}
-    className="w-full [&_select]:h-10"
+    className="w-full [&_select]:h-[var(--tavern-control-height,2.5rem)]"
     onChange={(event) => onChange(event.target.value)}
   >
     {options.map((option) => (

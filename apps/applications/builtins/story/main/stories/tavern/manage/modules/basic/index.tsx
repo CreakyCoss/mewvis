@@ -27,7 +27,7 @@ export const BasicSection = ({ data, onChange }: ModuleEditProps) => {
     : [firstScenes[0], firstScenes[1], selectedScene];
   const scenes = showAllScenes ? TAVERN_SCENE_PRESET_OPTIONS : compactScenes;
   return (
-    <div className="space-y-5 [&>section+section]:border-t [&>section+section]:border-border/80 [&>section+section]:pt-5">
+    <div className="space-y-[var(--tavern-section-gap,1.25rem)] [&>section+section]:border-t [&>section+section]:border-border/80 [&>section+section]:pt-[var(--tavern-section-padding,1.25rem)]">
       <SettingsGroup title="房间信息">
         <div className="grid items-center gap-3 sm:grid-cols-[5.5rem_minmax(0,1fr)]">
           <label
@@ -39,7 +39,7 @@ export const BasicSection = ({ data, onChange }: ModuleEditProps) => {
           <Input
             id="tavern-basic-title"
             value={data.title}
-            className="h-10 bg-card"
+            className="h-[var(--tavern-control-height,2.5rem)] bg-card"
             placeholder="为酒馆起一个名字"
             onChange={(event) => onChange({ title: event.target.value })}
           />
@@ -90,7 +90,7 @@ export const BasicSection = ({ data, onChange }: ModuleEditProps) => {
                     "bg-primary/[0.03] ring-2 ring-primary",
                 )}
               >
-                <span className="relative block aspect-[1.55] overflow-hidden rounded-md">
+                <span className="relative block aspect-[var(--tavern-scene-aspect,1.55)] overflow-hidden rounded-md">
                   <img
                     src={scene.tavern.backgroundImage}
                     alt=""
@@ -102,10 +102,10 @@ export const BasicSection = ({ data, onChange }: ModuleEditProps) => {
                     </span>
                   )}
                 </span>
-                <span className="mt-2 block text-sm font-medium">
+                <span className="mt-[var(--tavern-scene-title-gap,0.5rem)] block text-sm font-medium">
                   {scene.label}
                 </span>
-                <span className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                <span className="mt-1 line-clamp-2 text-xs leading-[var(--tavern-scene-description-leading,1.25rem)] text-muted-foreground">
                   {scene.description}
                 </span>
               </span>
@@ -117,7 +117,7 @@ export const BasicSection = ({ data, onChange }: ModuleEditProps) => {
         <div className="grid items-center gap-3 sm:grid-cols-[5.5rem_minmax(0,1fr)]">
           <span className="text-sm text-muted-foreground">发言模式</span>
           <div className="flex flex-wrap items-center gap-3">
-            <span className="flex h-10 min-w-32 flex-1 items-center rounded-lg bg-muted/60 px-3 text-sm text-muted-foreground">
+            <span className="flex h-[var(--tavern-control-height,2.5rem)] min-w-32 flex-1 items-center rounded-lg bg-muted/60 px-3 text-sm text-muted-foreground">
               导演调度
             </span>
             <span className="text-xs leading-5 text-muted-foreground">
@@ -125,7 +125,7 @@ export const BasicSection = ({ data, onChange }: ModuleEditProps) => {
             </span>
           </div>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-[var(--tavern-group-gap,1rem)] sm:grid-cols-2">
           <div className="grid items-center gap-2 sm:grid-cols-[5.5rem_minmax(0,1fr)] sm:gap-3">
             <label
               htmlFor="tavern-basic-presentation"

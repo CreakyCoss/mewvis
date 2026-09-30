@@ -1,0 +1,22 @@
+/* Keep the spacious layout on tall screens and touch-sized controls on phones. */
+@media (min-width: 640px) and (max-height: 820px) {
+  .tavern-settings-dialog {
+    --tavern-content-padding: 20px;
+    --tavern-content-padding-y: 16px;
+    --tavern-header-padding-top: 12px;
+    --tavern-header-padding-bottom: 12px;
+    --tavern-tab-padding-y: 12px;
+    --tavern-footer-padding-y: 12px;
+    --tavern-group-gap: 12px;
+    --tavern-field-gap: 6px;
+    --tavern-section-gap: 12px;
+    --tavern-section-padding: 16px;
+    --tavern-control-height: 36px;
+    --tavern-textarea-height: 80px;
+    --tavern-scene-aspect: 1.8;
+    --tavern-scene-title-gap: 6px;
+    --tavern-scene-description-leading: 18px;
+    /* Reserve space for the header, tabs, footer, frame and content padding. */
+    --tavern-preview-height: min(510px, max(380px, calc(100dvh - 260px)));
+  }
+}

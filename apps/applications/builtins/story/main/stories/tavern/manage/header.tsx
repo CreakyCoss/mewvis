@@ -13,7 +13,7 @@ export const Header = ({
   onClose: () => void;
   disabled: boolean;
 }) => (
-  <header className="relative flex shrink-0 items-center gap-4 px-4 pt-5 pb-4 pr-16 sm:px-6 sm:pr-16">
+  <header className="relative flex shrink-0 items-center gap-4 px-4 pt-[var(--tavern-header-padding-top,1.25rem)] pb-[var(--tavern-header-padding-bottom,1rem)] pr-16 sm:px-[var(--tavern-content-padding,1.5rem)] sm:pr-16">
     <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
       <Wine className="size-6" aria-hidden="true" />
     </span>

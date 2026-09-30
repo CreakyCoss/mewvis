@@ -4,6 +4,39 @@ final result: passed
 
 没有未解决的 P0/P1/P2 问题。验收对象是用户选定的第 1 张设计稿，以及当前工作区中的真实 `TavernManageContent` 组件。
 
+## 小屏间距调整 · 最新验收
+
+用户确认整体视觉后要求略减尺寸与 padding。本轮以已确认的界面为视觉基准，按窗口高度调整密度，没有隐藏滚动条或裁掉字段。
+
+- Source visual truth（本轮响应式基准）：`/Users/haowen.zheng/.codex/visualizations/2026/09/30/01a0f006-ec5d-7981-80bd-61e6d4c3c3b2/tavern-settings-compact-before.jpg`；同一真实组件在 1280 × 720 下的调整前截图。整体美术方向仍来自下文的第 1 张设计稿。
+- Latest implementation screenshot：同目录 `tavern-settings-compact-1280.jpg`。比较两侧都是 1280 × 720 px、CSS 视口 1280 × 720、devicePixelRatio = 1，不需要密度缩放。
+- 同一画布的完整比较：`tavern-settings-compact-comparison.jpg`；原尺寸表单局部比较：`tavern-settings-compact-form-comparison.jpg`。两张合成图都已打开检查。
+- 大窗口回归比较：`tavern-settings-compact-desktop-comparison.jpg`，两侧均为 1440 × 1024 px，左侧是已确认的 `tavern-settings-refinement-basic.jpg`，右侧是本轮 `tavern-settings-compact-desktop.jpg`；原尺寸对齐后观察结构与排版。
+- 相同状态：浅色主题、雨夜酒馆、基础标签、通用场景、对话演绎、小说风格、沉浸开启。调整前关闭按钮处于焦点状态，这个焦点环不是布局差异。
+
+### 发现与修复历史
+
+1. [P2 / 已修复] 调整前 1280 × 720 的主体 `clientHeight = 481`、`scrollHeight = 585`，预览固定高度 510px；基础页下方控件需要滚动才能看见。将较矮桌面窗口的控件由 40px 调为 36px，外侧 padding 改为水平 20px / 纵向 16px，略减分组和头尾间距，缩短场景缩略图高度。预览随窗口高度调整，720px 高窗口为 460px。
+2. [P2 / 已修复] 第一版压缩后基础页完整显示，但叙事页仍多出 24px。字段内部间隔从 8px 调为 6px，补充要求文本框最小高度调为 80px，保留用户调整文本框尺寸及长内容滚动的能力。最终叙事页 `clientHeight = scrollHeight = 506`，证据为 `tavern-settings-compact-narrative.jpg`。
+3. 最终三个默认标签在 1280 × 720 下均为 `clientHeight = scrollHeight = 506`。运行设置截图：`tavern-settings-compact-runtime.jpg`。基础页最新截图与完整、局部合成比较确认所有默认字段和操作栏都可见；结果 passed。
+
+### 五项视觉表面复核
+
+- 字体与排版：标题、分组、正文和说明文字的字体、字号及字重保持原有层级。场景说明行高仅在紧凑模式中由 20px 调为 18px；说明依然清楚可读。
+- 间距与布局：紧凑规则只在宽度至少 640px、视口高度至多 820px 时生效。名称、发言模式、呈现规则控件保持对齐，1280 × 720 的三个控件左边缘均为 x=201。1440 × 1024 保留 40px 控件、24px 外侧 padding、510px 预览和原有组间距，主体 `586 / 586`。
+- 颜色与 token：没有变更颜色、边框、圆角、阴影、语义色或主题逻辑；间距变量限于酒馆设置弹窗。
+- 图片与素材：复用全部现有素材，当前显示的 5 张图片都已加载；只在紧凑模式中调整缩略图比例、预览高度，裁切仍保留主要场景。没有新增占位素材或绘制替代图案。
+- 文案与内容：原有字段、说明、标签、示例和保存提示均保留。没有通过省略设置内容来消除滚动。
+
+### 浏览器验证
+
+- 1366 × 768：默认基础页主体 `554 / 554`，36px 控件、508px 预览。
+- 展开全部 8 个场景：主体 `554 / 879`，正常保留滚动，页脚底边 y=755 在窗口内；选择“科幻”并收起后保持选择，切回“通用”恢复已保存状态。
+- 390 × 740：控件仍为 40px，页面宽度 390px，固定页脚底边 y=727。截图为 `tavern-settings-compact-mobile.jpg`，单列长内容正常滚动。
+- 最终页面重新加载后控制台没有新的 error/warn。
+- 本轮 `pnpm --filter @isle/story check`、`pnpm --filter @isle/story build` 和 `git diff --check` 通过；没有修改读写或保存逻辑。
+- 很矮的窗口、长文本或展开全部场景仍可能需要滚动，这是保留可读性和完整内容的正常行为。
+
 ## 用户确认后的追加调整
 
 - 最新实现截图：`/Users/haowen.zheng/.codex/visualizations/2026/09/30/01a0f006-ec5d-7981-80bd-61e6d4c3c3b2/tavern-settings-refinement-basic.jpg`。

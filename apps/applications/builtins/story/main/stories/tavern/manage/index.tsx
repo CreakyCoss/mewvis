@@ -18,6 +18,7 @@ import {
   saveStoryTavernConfig,
 } from "./storage";
 import { cloneTavernRoom, prepareTavernRoomForSave } from "./utils";
+import "./compact.css";
 
 export type TavernManageHandle = {
   close: () => void;
@@ -124,7 +125,7 @@ export const TavernManageContent = ({
     >
       <DialogContent
         showCloseButton={false}
-        className="!flex !h-[min(800px,calc(100dvh-24px))] !w-[min(1120px,calc(100vw-24px))] !max-w-none flex-col gap-0 overflow-hidden bg-card p-0"
+        className="tavern-settings-dialog !flex !h-[min(800px,calc(100dvh-24px))] !w-[min(1120px,calc(100vw-24px))] !max-w-none flex-col gap-0 overflow-hidden bg-card p-0"
       >
         <Header
           title={data?.title ?? item?.workspace.name ?? ""}
@@ -150,7 +151,7 @@ export const TavernManageContent = ({
             <div
               role="tablist"
               aria-label="酒馆设置分类"
-              className="flex shrink-0 gap-2 overflow-x-auto border-b px-4 sm:gap-5 sm:px-6"
+              className="flex shrink-0 gap-2 overflow-x-auto border-b px-4 sm:gap-5 sm:px-[var(--tavern-content-padding,1.5rem)]"
             >
               {editorModules.map(({ id, label }, index) => (
                 <button
@@ -181,7 +182,7 @@ export const TavernManageContent = ({
                     document.getElementById(`tavern-tab-${nextId}`)?.focus();
                   }}
                   className={cn(
-                    "shrink-0 border-b-2 border-transparent px-3 py-3.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-ring disabled:opacity-50",
+                    "shrink-0 border-b-2 border-transparent px-3 py-[var(--tavern-tab-padding-y,0.875rem)] text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-ring disabled:opacity-50",
                     activeModuleId === id && "border-primary text-primary",
                   )}
                 >
@@ -200,7 +201,7 @@ export const TavernManageContent = ({
                 key={activeModuleId}
                 className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
               >
-                <div className="grid min-h-full gap-6 p-4 sm:p-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2.15fr)]">
+                <div className="grid min-h-full gap-6 p-4 sm:p-[var(--tavern-content-padding,1.5rem)] sm:py-[var(--tavern-content-padding-y,1.5rem)] lg:grid-cols-[minmax(0,3fr)_minmax(0,2.15fr)]">
                   <fieldset disabled={isSaving} className="min-w-0">
                     <div
                       id={`tavern-panel-${activeModuleId}`}
@@ -226,7 +227,7 @@ export const TavernManageContent = ({
                   <TavernSettingsPreview data={data} />
                 </div>
               </div>
-              <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t px-4 py-4 sm:px-6">
+              <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t px-4 py-[var(--tavern-footer-padding-y,1rem)] sm:px-[var(--tavern-content-padding,1.5rem)]">
                 <p
                   role={saveError ? "alert" : "status"}
                   className={cn(

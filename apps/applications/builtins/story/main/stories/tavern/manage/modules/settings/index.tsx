@@ -38,9 +38,9 @@ export const SettingsSection = ({ data, onChange }: ModuleEditProps) => {
       },
     });
   return (
-    <div className="space-y-5 [&>section+section]:border-t [&>section+section]:border-border/80 [&>section+section]:pt-5">
+    <div className="space-y-[var(--tavern-section-gap,1.25rem)] [&>section+section]:border-t [&>section+section]:border-border/80 [&>section+section]:pt-[var(--tavern-section-padding,1.25rem)]">
       <SettingsGroup title="导演调度">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-[var(--tavern-group-gap,1rem)] sm:grid-cols-2">
           <SettingsField
             label="用户控制权"
             htmlFor="tavern-settings-agency-mode"
@@ -85,7 +85,7 @@ export const SettingsSection = ({ data, onChange }: ModuleEditProps) => {
               max={6}
               step={1}
               value={data.settings.directorMaxSpeakers}
-              className="h-10 bg-card"
+              className="h-[var(--tavern-control-height,2.5rem)] bg-card"
               onChange={(event) =>
                 changeSettings({
                   directorMaxSpeakers: clampInteger(
@@ -110,7 +110,7 @@ export const SettingsSection = ({ data, onChange }: ModuleEditProps) => {
               max={5}
               step={1}
               value={data.settings.directorLoop.maxRounds}
-              className="h-10 bg-card"
+              className="h-[var(--tavern-control-height,2.5rem)] bg-card"
               onChange={(event) =>
                 changeSettings({
                   directorLoop: {

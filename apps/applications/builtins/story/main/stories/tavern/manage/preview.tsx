@@ -14,7 +14,7 @@ export const TavernSettingsPreview = ({ data }: { data: TavernRoomConfig }) => {
   return (
     <aside
       aria-label="酒馆示例预览"
-      className="flex min-h-[420px] flex-col gap-4 border-t pt-6 lg:sticky lg:top-6 lg:h-[510px] lg:min-h-0 lg:self-start lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6"
+      className="flex min-h-[420px] flex-col gap-[var(--tavern-group-gap,1rem)] border-t pt-6 lg:sticky lg:top-[var(--tavern-content-padding-y,1.5rem)] lg:h-[var(--tavern-preview-height,510px)] lg:min-h-0 lg:self-start lg:border-t-0 lg:border-l lg:pt-0 lg:pl-[var(--tavern-content-padding,1.5rem)]"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-base font-semibold leading-6">示例预览</h3>

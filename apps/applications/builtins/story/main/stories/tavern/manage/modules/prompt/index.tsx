@@ -17,7 +17,7 @@ import {
 import { SettingsField, SettingsGroup, SettingsSelect } from "../../fields";
 import type { ModuleEditProps } from "../types";
 export const PromptSection = ({ data, onChange }: ModuleEditProps) => (
-  <div className="space-y-5 [&>section+section]:border-t [&>section+section]:border-border/80 [&>section+section]:pt-5">
+  <div className="space-y-[var(--tavern-section-gap,1.25rem)] [&>section+section]:border-t [&>section+section]:border-border/80 [&>section+section]:pt-[var(--tavern-section-padding,1.25rem)]">
     <SettingsGroup title="呈现规则">
       <SettingsField
         label="呈现方式"
@@ -42,7 +42,7 @@ export const PromptSection = ({ data, onChange }: ModuleEditProps) => (
       </SettingsField>
     </SettingsGroup>
     <SettingsGroup title="叙事与文风">
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-[var(--tavern-group-gap,1rem)] sm:grid-cols-2">
         <SettingsField
           label="系统叙事"
           htmlFor="tavern-system-narrative"
@@ -89,7 +89,7 @@ export const PromptSection = ({ data, onChange }: ModuleEditProps) => (
         id="tavern-system-narrative-custom"
         aria-label="补充叙事要求"
         value={data.systemNarrative.customInstructions ?? ""}
-        className="min-h-28 resize-y bg-card"
+        className="min-h-[var(--tavern-textarea-height,7rem)] resize-y bg-card"
         placeholder="例如：减少旁白，保留角色的行动与选择空间。"
         onChange={(event) =>
           onChange({
