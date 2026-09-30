@@ -1,231 +1,169 @@
 import { clamp } from "lodash-es";
-import { Box, Clapperboard, Eye, Gauge, Settings2, UsersRound } from "lucide-react";
-import type { RuntimeModelOption } from "@/platform/models";
 import { Input } from "design-system/components/ui/input";
-import { NativeSelect, NativeSelectOption } from "design-system/components/ui/native-select";
 import { Switch } from "design-system/components/ui/switch";
-import type { TavernRoomConfig, TavernRoomSettings } from "@/stories/tavern/manage/model";
-import { EditorField, EditorMetricStrip, EditorSection, EditorSettingGroup } from "../../primitives";
-import type { ModuleSave } from "../types";
-
-type SettingsSectionProps = {
-  data: TavernRoomConfig;
-  globalRuntimeModel: RuntimeModelOption | null;
-  onSave: ModuleSave;
-};
-
-const directorScaleLabel = {
-  focused: "聚焦",
-  balanced: "均衡",
-  ensemble: "群像",
-} satisfies Record<TavernRoomSettings["directorNarrativeControl"]["responseScale"], string>;
-
-const narratorPressureLabel = {
-  low: "低",
-  balanced: "均衡",
-  high: "高",
-} satisfies Record<TavernRoomSettings["directorNarrativeControl"]["narratorPressure"], string>;
-
-const agencyModeLabel = {
-  player_protagonist: "主角行动",
-  story_directive: "剧情指令",
-  scene_drive: "场景自推",
-} satisfies Record<TavernRoomSettings["directorNarrativeControl"]["agencyMode"], string>;
-
-const editorControlClassName = "w-full bg-background/80";
-
-const clampInteger = (value: number, fallback: number, min: number, max: number) => {
-  if (!Number.isFinite(value)) {
-    return fallback;
-  }
-
-  return clamp(Math.round(value), min, max);
-};
-
-export const SettingsSection = ({ data, globalRuntimeModel, onSave }: SettingsSectionProps) => {
-  const modelLabel = globalRuntimeModel
-    ? `${globalRuntimeModel.provider.name} / ${globalRuntimeModel.modelName || globalRuntimeModel.modelId}`
-    : "未选择";
-  const saveSettings = (patch: Partial<TavernRoomSettings>) =>
-    onSave({
-      settings: {
-        ...data.settings,
-        ...patch,
-      },
-    });
-  const saveNarrativeControl = (patch: Partial<TavernRoomSettings["directorNarrativeControl"]>) =>
-    saveSettings({
+import { SettingsField, SettingsGroup, SettingsSelect } from "../../fields";
+import type { TavernRoomSettings } from "../../model";
+import type { ModuleEditProps } from "../types";
+const agencyModes = [
+  { id: "player_protagonist", label: "主角行动" },
+  { id: "story_directive", label: "剧情指令" },
+  { id: "scene_drive", label: "场景自推" },
+];
+const scales = [
+  { id: "focused", label: "聚焦" },
+  { id: "balanced", label: "均衡" },
+  { id: "ensemble", label: "群像" },
+];
+const pressures = [
+  { id: "low", label: "低" },
+  { id: "balanced", label: "均衡" },
+  { id: "high", label: "高" },
+];
+const clampInteger = (
+  value: number,
+  fallback: number,
+  min: number,
+  max: number,
+) => (Number.isFinite(value) ? clamp(Math.round(value), min, max) : fallback);
+export const SettingsSection = ({ data, onChange }: ModuleEditProps) => {
+  const changeSettings = (patch: Partial<TavernRoomSettings>) =>
+    onChange({ settings: { ...data.settings, ...patch } });
+  const changeNarrative = (
+    patch: Partial<TavernRoomSettings["directorNarrativeControl"]>,
+  ) =>
+    changeSettings({
       directorNarrativeControl: {
         ...data.settings.directorNarrativeControl,
         ...patch,
       },
     });
-  const saveDirectorLoop = (patch: Partial<TavernRoomSettings["directorLoop"]>) =>
-    saveSettings({
-      directorLoop: {
-        ...data.settings.directorLoop,
-        ...patch,
-      },
-    });
-
   return (
-    <EditorSection
-      icon={Settings2}
-      title="运行设置"
-      description="调整用户控制权、导演调度规模和每回合回环轮次。候选回复作为通用辅助能力始终可用。"
-      contentClassName="space-y-4 pb-4"
-    >
-      <EditorMetricStrip
-        items={[
-          {
-            icon: Box,
-            label: "酒馆模型",
-            value: modelLabel,
-            className: "sm:col-span-2 xl:col-span-1",
-          },
-          {
-            icon: UsersRound,
-            label: "导演人数",
-            value: `${data.settings.directorMaxSpeakers} 人`,
-          },
-          {
-            icon: Clapperboard,
-            label: "导演回环",
-            value: `${data.settings.directorLoop.maxRounds} 轮`,
-          },
-          {
-            icon: Gauge,
-            label: "控制权",
-            value: agencyModeLabel[data.settings.directorNarrativeControl.agencyMode],
-          },
-          {
-            icon: Eye,
-            label: "沉浸描写",
-            value: data.settings.immersiveDescriptionEnabled ? "开启" : "关闭",
-          },
-        ]}
-      />
-
-      <div className="app-panel rounded-xl px-3.5 py-3.5">
-        <EditorSettingGroup title="核心策略" className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <EditorField label="用户控制权" htmlFor="tavern-settings-agency-mode">
-              <NativeSelect
-                id="tavern-settings-agency-mode"
-                value={data.settings.directorNarrativeControl.agencyMode}
-                className={editorControlClassName}
-                onChange={(event) =>
-                  saveNarrativeControl({
-                    agencyMode: event.target.value as TavernRoomSettings["directorNarrativeControl"]["agencyMode"],
-                  })
-                }
-              >
-                {Object.entries(agencyModeLabel).map(([value, label]) => (
-                  <NativeSelectOption key={value} value={value}>
-                    {label}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-            </EditorField>
-
-            <EditorField label="调度规模" htmlFor="tavern-settings-response-scale">
-              <NativeSelect
-                id="tavern-settings-response-scale"
-                value={data.settings.directorNarrativeControl.responseScale}
-                className={editorControlClassName}
-                onChange={(event) =>
-                  saveNarrativeControl({
-                    responseScale: event.target
-                      .value as TavernRoomSettings["directorNarrativeControl"]["responseScale"],
-                  })
-                }
-              >
-                {Object.entries(directorScaleLabel).map(([value, label]) => (
-                  <NativeSelectOption key={value} value={value}>
-                    {label}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-            </EditorField>
-
-            <EditorField label="导演人数" htmlFor="tavern-settings-max-speakers">
-              <Input
-                id="tavern-settings-max-speakers"
-                type="number"
-                min={1}
-                max={6}
-                value={data.settings.directorMaxSpeakers}
-                className={editorControlClassName}
-                onChange={(event) =>
-                  saveSettings({
-                    directorMaxSpeakers: clampInteger(
+    <div className="space-y-5 [&>section+section]:border-t [&>section+section]:border-border/80 [&>section+section]:pt-5">
+      <SettingsGroup title="导演调度">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SettingsField
+            label="用户控制权"
+            htmlFor="tavern-settings-agency-mode"
+          >
+            <SettingsSelect
+              id="tavern-settings-agency-mode"
+              value={data.settings.directorNarrativeControl.agencyMode}
+              options={agencyModes}
+              onChange={(value) =>
+                changeNarrative({
+                  agencyMode:
+                    value as TavernRoomSettings["directorNarrativeControl"]["agencyMode"],
+                })
+              }
+            />
+          </SettingsField>
+          <SettingsField
+            label="调度规模"
+            htmlFor="tavern-settings-response-scale"
+          >
+            <SettingsSelect
+              id="tavern-settings-response-scale"
+              value={data.settings.directorNarrativeControl.responseScale}
+              options={scales}
+              onChange={(value) =>
+                changeNarrative({
+                  responseScale:
+                    value as TavernRoomSettings["directorNarrativeControl"]["responseScale"],
+                })
+              }
+            />
+          </SettingsField>
+          <SettingsField
+            label="导演人数"
+            htmlFor="tavern-settings-max-speakers"
+            description="每轮安排 1–6 名角色发言。"
+          >
+            <Input
+              id="tavern-settings-max-speakers"
+              type="number"
+              min={1}
+              max={6}
+              step={1}
+              value={data.settings.directorMaxSpeakers}
+              className="h-10 bg-card"
+              onChange={(event) =>
+                changeSettings({
+                  directorMaxSpeakers: clampInteger(
+                    event.target.valueAsNumber,
+                    data.settings.directorMaxSpeakers,
+                    1,
+                    6,
+                  ),
+                })
+              }
+            />
+          </SettingsField>
+          <SettingsField
+            label="每回合回环轮次"
+            htmlFor="tavern-settings-director-loop-rounds"
+            description="每回合运行 1–5 轮导演调度。"
+          >
+            <Input
+              id="tavern-settings-director-loop-rounds"
+              type="number"
+              min={1}
+              max={5}
+              step={1}
+              value={data.settings.directorLoop.maxRounds}
+              className="h-10 bg-card"
+              onChange={(event) =>
+                changeSettings({
+                  directorLoop: {
+                    ...data.settings.directorLoop,
+                    maxRounds: clampInteger(
                       event.target.valueAsNumber,
-                      data.settings.directorMaxSpeakers,
+                      data.settings.directorLoop.maxRounds,
                       1,
-                      6,
+                      5,
                     ),
-                  })
-                }
-              />
-            </EditorField>
-
-            <EditorField label="每回合回环轮次" htmlFor="tavern-settings-director-loop-rounds">
-              <Input
-                id="tavern-settings-director-loop-rounds"
-                type="number"
-                min={1}
-                max={5}
-                value={data.settings.directorLoop.maxRounds}
-                className={editorControlClassName}
-                onChange={(event) =>
-                  saveDirectorLoop({
-                    maxRounds: clampInteger(event.target.valueAsNumber, data.settings.directorLoop.maxRounds, 1, 5),
-                  })
-                }
-              />
-            </EditorField>
-
-            <EditorField label="旁白压力" htmlFor="tavern-settings-narrator-pressure">
-              <NativeSelect
-                id="tavern-settings-narrator-pressure"
-                value={data.settings.directorNarrativeControl.narratorPressure}
-                className={editorControlClassName}
-                onChange={(event) =>
-                  saveNarrativeControl({
-                    narratorPressure: event.target
-                      .value as TavernRoomSettings["directorNarrativeControl"]["narratorPressure"],
-                  })
-                }
-              >
-                {Object.entries(narratorPressureLabel).map(([value, label]) => (
-                  <NativeSelectOption key={value} value={value}>
-                    {label}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-            </EditorField>
-
-            <EditorField
-              label="沉浸描写"
-              htmlFor="tavern-settings-immersive-description"
-              description="控制角色回复中的动作标注、内心和沉浸式排版。"
-            >
-              <div className="flex h-10 items-center rounded-md border border-input bg-background/80 px-3">
-                <Switch
-                  id="tavern-settings-immersive-description"
-                  checked={data.settings.immersiveDescriptionEnabled}
-                  onCheckedChange={(checked) =>
-                    saveSettings({
-                      immersiveDescriptionEnabled: checked === true,
-                    })
-                  }
-                  aria-label="切换沉浸描写"
-                />
-              </div>
-            </EditorField>
-          </div>
-        </EditorSettingGroup>
-      </div>
-    </EditorSection>
+                  },
+                })
+              }
+            />
+          </SettingsField>
+          <SettingsField
+            label="旁白压力"
+            htmlFor="tavern-settings-narrator-pressure"
+          >
+            <SettingsSelect
+              id="tavern-settings-narrator-pressure"
+              value={data.settings.directorNarrativeControl.narratorPressure}
+              options={pressures}
+              onChange={(value) =>
+                changeNarrative({
+                  narratorPressure:
+                    value as TavernRoomSettings["directorNarrativeControl"]["narratorPressure"],
+                })
+              }
+            />
+          </SettingsField>
+        </div>
+      </SettingsGroup>
+      <SettingsGroup title="沉浸描写">
+        <div className="flex items-start justify-between gap-4">
+          <label
+            htmlFor="tavern-settings-immersive-description"
+            className="space-y-1"
+          >
+            <span className="block text-sm font-medium">动作与内心描写</span>
+            <span className="block text-xs leading-5 text-muted-foreground">
+              在角色回复中呈现动作、内心和沉浸式排版。
+            </span>
+          </label>
+          <Switch
+            id="tavern-settings-immersive-description"
+            checked={data.settings.immersiveDescriptionEnabled}
+            onCheckedChange={(checked) =>
+              changeSettings({ immersiveDescriptionEnabled: checked === true })
+            }
+          />
+        </div>
+      </SettingsGroup>
+    </div>
   );
 };

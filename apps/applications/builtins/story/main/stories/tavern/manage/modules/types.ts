@@ -1,8 +1,6 @@
-import type { TavernRoomConfig } from "@/stories/tavern/manage/model";
-
-export type ModuleSave = (patch: Partial<TavernRoomConfig>) => void;
-
+import type { TavernRoomConfig } from "../model";
+export type ModuleChange = (patch: Partial<TavernRoomConfig>) => void;
 export type ModuleEditProps = {
   data: TavernRoomConfig;
-  onSave: ModuleSave;
+  onChange: ModuleChange;
 };
