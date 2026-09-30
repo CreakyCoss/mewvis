@@ -6,12 +6,17 @@ import type { LlmSettingsService } from "./llm-service.js";
 import type { AgentSettingsService } from "./agents-service.js";
 import { settingsOperation } from "../../storage/config/database.js";
 import { object, onlyKeys } from "../../shared/validation.js";
+import { discoverProviderModels } from "./model-discovery.js";
 
 export function registerSettingsCommands(
   registry: CommandRegistry,
   llm: LlmSettingsService,
   agents: AgentSettingsService,
 ) {
+  registry.register("discover_provider_models", (args, context) => {
+    onlyKeys(args, ["input"]);
+    return discoverProviderModels(object(args.input), context?.signal);
+  });
   const read =
     (work: () => unknown): CommandHandler =>
     (args) => {

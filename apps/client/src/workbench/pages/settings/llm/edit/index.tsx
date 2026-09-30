@@ -1,5 +1,5 @@
 import { useImperativeHandle, useRef, useState, type Ref } from "react";
-import { CheckCircle2, Eye, EyeOff, Loader2, Pencil, Plus, Save, ServerCog, Trash2 } from "lucide-react";
+import { CheckCircle2, Download, Eye, EyeOff, Loader2, Pencil, Plus, Save, ServerCog, Trash2 } from "lucide-react";
 import {
   getModelThinking,
   type LlmProvider,
@@ -36,6 +36,7 @@ import {
   applyApiFormatDefaults,
   applyProviderDefaults,
   cloneProviderConfig,
+  createModelConfig,
   createProviderConfig,
   normalizeLlmSettingsConfig,
   normalizeProvidersForSave,
@@ -45,6 +46,7 @@ import {
 } from "./utils";
 
 import { ModelEditDialog } from "./model";
+import { DiscoverModelsDialog } from "./discover-models";
 
 type ProviderEditMode = "create" | "edit";
 
@@ -65,6 +67,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
   const [mode, setMode] = useState<ProviderEditMode>("create");
   const [providerDraft, setProviderDraft] = useState<LlmProviderConfig | null>(null);
   const [modelEditor, setModelEditor] = useState<{ model?: ProviderModelConfig } | null>(null);
+  const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
   const modelFocusTarget = useRef<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isApiKeyVisible, setIsApiKeyVisible] = useState(false);
@@ -74,6 +77,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
   const resetTransientState = () => {
     setError("");
     setModelEditor(null);
+    setIsDiscoveryOpen(false);
     modelFocusTarget.current = null;
     setIsApiKeyVisible(false);
     setIsDeleteConfirmOpen(false);
@@ -192,7 +196,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
 
   return (
     <>
-      <Dialog open={open && !modelEditor} onOpenChange={handleOpenChange}>
+      <Dialog open={open && !modelEditor && !isDiscoveryOpen} onOpenChange={handleOpenChange}>
         <DialogContent
           className="!flex max-h-[calc(100vh-2rem)] w-[min(720px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden border-border/70 bg-popover p-0 shadow-[var(--shadow-floating)] sm:max-w-[720px]"
           onOpenAutoFocus={(event) => {
@@ -359,23 +363,37 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                 </section>
 
                 <section className="border-t border-border/70 px-6 py-5" aria-labelledby="llm-models-heading">
-                  <div className="mb-3 flex items-center justify-between gap-4">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
                     <h3 id="llm-models-heading" className="flex items-center gap-2 text-sm font-semibold">
                       可用模型{" "}
                       <span className="text-xs font-normal text-muted-foreground">{providerDraft.models.length}</span>
                     </h3>
-                    <Button
-                      id="llm-add-model"
-                      type="button"
-                      variant="outline"
-                      onClick={(event) => {
-                        modelFocusTarget.current = event.currentTarget.id;
-                        setModelEditor({});
-                      }}
-                    >
-                      <Plus className="size-4" />
-                      <span>新增模型</span>
-                    </Button>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Button
+                        id="llm-discover-models"
+                        type="button"
+                        variant="outline"
+                        onClick={(event) => {
+                          modelFocusTarget.current = event.currentTarget.id;
+                          setIsDiscoveryOpen(true);
+                        }}
+                      >
+                        <Download className="size-4" />
+                        <span>获取模型</span>
+                      </Button>
+                      <Button
+                        id="llm-add-model"
+                        type="button"
+                        variant="outline"
+                        onClick={(event) => {
+                          modelFocusTarget.current = event.currentTarget.id;
+                          setModelEditor({});
+                        }}
+                      >
+                        <Plus className="size-4" />
+                        <span>新增模型</span>
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="overflow-hidden rounded-lg border border-border/70">
@@ -510,6 +528,27 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
           )}
         </DialogContent>
       </Dialog>
+
+      {open && providerDraft && isDiscoveryOpen && (
+        <DiscoverModelsDialog
+          provider={providerDraft}
+          onClose={() => setIsDiscoveryOpen(false)}
+          onConfirm={(models) => {
+            updateProviderDraft((current) => {
+              const existing = new Set(current.models.map((model) => model.modelId.trim()));
+              const additions = models
+                .filter((model) => !existing.has(model.modelId))
+                .map((model) => ({
+                  ...createModelConfig(),
+                  modelId: model.modelId,
+                  modelName: model.modelName || model.modelId,
+                }));
+              return { ...current, models: [...current.models, ...additions] };
+            });
+            setIsDiscoveryOpen(false);
+          }}
+        />
+      )}
 
       {open && providerDraft && modelEditor && (
         <ModelEditDialog

@@ -1,4 +1,5 @@
 import { invoke } from "@/transport";
+import { invokeNode } from "@/transport/http";
 import {
   buildRuntimeModelInputs,
   buildRuntimeModelOptions,
@@ -7,6 +8,13 @@ import {
 } from "@/agent-client/runtime-model";
 
 type LoadOptions = { refresh?: boolean };
+
+export type DiscoveredProviderModel = { modelId: string; modelName: string };
+
+export const discoverProviderModels = (
+  input: { apiFormat: string; apiEndpoint: string; apiKey: string },
+  signal?: AbortSignal,
+) => invokeNode<{ models: DiscoveredProviderModel[] }>("discover_provider_models", { input }, signal);
 // Host-only configuration, shared by catalog, runs and ledger summaries.
 // Callers receive copies; credentials never enter Chat snapshots or component props.
 let cachedSettings: LlmSettings | undefined;
