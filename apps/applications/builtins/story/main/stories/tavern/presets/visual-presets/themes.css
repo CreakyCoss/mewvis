@@ -1,0 +1,181 @@
+/* Scope shared controls and text to the selected scene, including dark scenes
+   displayed inside the light settings dialog. */
+.tavern-scene {
+  --primary-subtle: color-mix(in srgb, var(--primary) 12%, var(--background));
+  --primary-border: color-mix(in srgb, var(--primary) 30%, var(--border));
+  --accent: var(--primary-subtle);
+  --accent-foreground: var(--primary);
+  --secondary: var(--muted);
+  --secondary-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--card-foreground);
+  --ring: var(--primary);
+  --shadow-primary:
+    0 1px 2px color-mix(in srgb, var(--primary) 24%, transparent),
+    0 8px 18px -12px color-mix(in srgb, var(--primary) 48%, transparent);
+  --tavern-background-overlay: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--background) 36%, transparent),
+    color-mix(in srgb, var(--background) 12%, transparent) 44%,
+    color-mix(in srgb, var(--background) 56%, transparent)
+  );
+}
+
+.tavern-scene-general {
+  --background: #f4f5f3;
+  --foreground: #263136;
+  --card: #ffffff;
+  --card-foreground: #263136;
+  --muted: #e8eeec;
+  --muted-foreground: #617270;
+  --primary: #52677c;
+  --primary-foreground: #ffffff;
+  --border: #ced6d4;
+  --input: #b6c3c1;
+}
+
+.tavern-scene-wuxia {
+  --background: #f7faf7;
+  --foreground: #15231d;
+  --card: #fbfdf9;
+  --card-foreground: #182b23;
+  --muted: #e7f1eb;
+  --muted-foreground: #4d655c;
+  --primary: #08765c;
+  --primary-foreground: #ffffff;
+  --border: #a6bbb0;
+  --input: #92a99d;
+}
+
+.tavern-scene-modern {
+  --background: #f8fafc;
+  --foreground: #172033;
+  --card: #ffffff;
+  --card-foreground: #172033;
+  --muted: #e8eff6;
+  --muted-foreground: #53657a;
+  --primary: #0369a1;
+  --primary-foreground: #ffffff;
+  --border: #cbd5e1;
+  --input: #b7c5d6;
+}
+
+.dark .tavern-scene-general,
+.dark .tavern-scene-wuxia,
+.dark .tavern-scene-modern {
+  --tavern-background-overlay: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--background) 80%, transparent),
+    color-mix(in srgb, var(--background) 78%, transparent) 44%,
+    color-mix(in srgb, var(--background) 88%, transparent)
+  );
+}
+
+.dark .tavern-scene-general {
+  --background: #161b20;
+  --foreground: #edf2f5;
+  --card: #202930;
+  --card-foreground: #edf2f5;
+  --muted: #2b3740;
+  --muted-foreground: #afbbc7;
+  --primary: #adbfce;
+  --primary-foreground: #14202b;
+  --border: #43525e;
+  --input: #576976;
+}
+
+.dark .tavern-scene-wuxia {
+  --background: #07100d;
+  --foreground: #e8f2ed;
+  --card: #10231c;
+  --card-foreground: #e8f2ed;
+  --muted: #183328;
+  --muted-foreground: #aac5ba;
+  --primary: #67d0ad;
+  --primary-foreground: #06110d;
+  --border: #456b59;
+  --input: #527f6b;
+}
+
+.dark .tavern-scene-modern {
+  --background: #0d1117;
+  --foreground: #eff6ff;
+  --card: #111827;
+  --card-foreground: #eff6ff;
+  --muted: #1e293b;
+  --muted-foreground: #becddd;
+  --primary: #7dd3fc;
+  --primary-foreground: #082f49;
+  --border: #334155;
+  --input: #475569;
+}
+
+.tavern-scene-tavern {
+  color-scheme: dark;
+  --background: #1c1410;
+  --foreground: #f7f0e4;
+  --card: #2a1d16;
+  --card-foreground: #fff6df;
+  --muted: #39271c;
+  --muted-foreground: #d8c6ad;
+  --primary: #f5c56d;
+  --primary-foreground: #2a1d16;
+  --border: #76543a;
+  --input: #92704c;
+}
+
+.tavern-scene-mystery {
+  color-scheme: dark;
+  --background: #101216;
+  --foreground: #f4f1e8;
+  --card: #171b23;
+  --card-foreground: #f9fafb;
+  --muted: #27212b;
+  --muted-foreground: #c6c5ce;
+  --primary: #e7a3ae;
+  --primary-foreground: #24131b;
+  --border: #555561;
+  --input: #69626f;
+}
+
+.tavern-scene-scifi {
+  color-scheme: dark;
+  --background: #07111d;
+  --foreground: #eef8ff;
+  --card: #0b1f33;
+  --card-foreground: #eef8ff;
+  --muted: #0c3046;
+  --muted-foreground: #b9d9e7;
+  --primary: #67e8f9;
+  --primary-foreground: #06212b;
+  --border: #24586d;
+  --input: #387b8f;
+}
+
+.tavern-scene-fantasy {
+  color-scheme: dark;
+  --background: #101813;
+  --foreground: #fbf6df;
+  --card: #1b2a1f;
+  --card-foreground: #fbf6df;
+  --muted: #293c2b;
+  --muted-foreground: #ddd6bd;
+  --primary: #f6d77a;
+  --primary-foreground: #24351e;
+  --border: #687446;
+  --input: #8b925d;
+}
+
+.tavern-scene-oracle {
+  color-scheme: dark;
+  --background: #171222;
+  --foreground: #f5eefc;
+  --card: #251b34;
+  --card-foreground: #f5eefc;
+  --muted: #382847;
+  --muted-foreground: #d0bedf;
+  --primary: #c8a4ef;
+  --primary-foreground: #251334;
+  --border: #72558c;
+  --input: #8b6ca4;
+}

@@ -34,7 +34,7 @@ export const TavernSettingsPreview = ({ data }: { data: TavernRoomConfig }) => {
         <p className="text-xs leading-5 text-muted-foreground">
           {hasCustomInstructions
             ? "预设示例；补充要求在实际演绎中生效。"
-            : "示例内容，随叙事策略与文风切换。"}
+            : "示例内容，随场景、叙事策略与文风切换。"}
         </p>
       </div>
       <div
@@ -46,25 +46,46 @@ export const TavernSettingsPreview = ({ data }: { data: TavernRoomConfig }) => {
         <img
           src={scene.tavern.backgroundImage}
           alt={`${scene.label}场景示例`}
-          className="absolute inset-0 size-full object-cover object-left"
+          className="absolute inset-0 size-full object-cover"
+          style={{ objectPosition: scene.tavern.backgroundPosition }}
         />
-        <span className="relative m-4 self-start rounded-lg bg-slate-800/65 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm">
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{ backgroundImage: scene.tavern.backgroundOverlay }}
+          aria-hidden="true"
+        />
+        <span
+          className={cn(
+            "relative m-4 self-start px-3 py-1.5 text-xs font-medium backdrop-blur-sm",
+            scene.tavern.sceneBadge,
+          )}
+        >
           {data.title.trim() || "未命名酒馆"}
         </span>
-        <div className="relative flex flex-1 flex-col justify-center gap-5 px-5 pb-12">
+        <div
+          className={cn(
+            "relative flex flex-1 flex-col justify-center gap-5 px-5 pb-12",
+            scene.tavern.messageList,
+          )}
+        >
           {presentation.renderStyle === "chat" ? (
             <>
-              <p className="self-center rounded-md bg-white/65 px-3 py-1.5 text-sm text-slate-700 backdrop-blur-sm">
+              <p
+                className={cn(
+                  "self-center border px-3 py-1.5 text-sm",
+                  scene.tavern.narratorBubble,
+                )}
+              >
                 {content.narrator}
               </p>
               <div className="flex items-start gap-3">
                 <img
                   src={previewAvatar}
                   alt=""
-                  className="size-10 shrink-0 rounded-full object-cover ring-2 ring-white/70"
+                  className="size-10 shrink-0 rounded-xl object-cover ring-2 ring-border/70"
                 />
                 <div className="min-w-0 space-y-2">
-                  <p className="w-fit rounded bg-white/70 px-1.5 text-xs font-medium text-slate-800">
+                  <p className="w-fit rounded bg-background/80 px-1.5 text-xs font-medium text-foreground">
                     沈砚
                   </p>
                   <div
@@ -84,7 +105,12 @@ export const TavernSettingsPreview = ({ data }: { data: TavernRoomConfig }) => {
               </div>
             </>
           ) : (
-            <div className="rounded-lg bg-white/85 p-5 font-serif text-sm leading-7 text-slate-800 backdrop-blur-sm">
+            <div
+              className={cn(
+                "border p-5 font-serif text-sm leading-7",
+                scene.tavern.sceneCard,
+              )}
+            >
               {content.paragraphs.map((paragraph, index) => (
                 <p key={index} className={index > 0 ? "mt-3" : undefined}>
                   {paragraph}
