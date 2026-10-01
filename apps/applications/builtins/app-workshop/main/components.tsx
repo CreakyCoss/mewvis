@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import {
   AlertCircle,
+  ArrowLeft,
   BookOpen,
   CheckCircle2,
   Clock3,
@@ -20,6 +21,35 @@ import type { BuildArtifact, ProjectSummary } from "./contracts";
 import { errorText } from "./api";
 import { previewInteractionGuard } from "./preview";
 import { useToastLayer } from "./Notifications";
+
+export function ApplicationHeader({
+  name = "小应用",
+  home,
+  disabled = false,
+}: {
+  name?: string;
+  home(): void;
+  disabled?: boolean;
+}) {
+  return (
+    <header className="wk-header wk-application-header">
+      <button
+        type="button"
+        className="wk-back"
+        onClick={home}
+        disabled={disabled}
+        aria-label="返回应用工坊"
+      >
+        <ArrowLeft aria-hidden="true" />
+        <span>应用工坊</span>
+      </button>
+      <span className="wk-header-divider" aria-hidden="true" />
+      <strong className="wk-header-name" title={name}>
+        {name}
+      </strong>
+    </header>
+  );
+}
 
 export function Status({ project }: { project: ProjectSummary }) {
   return (

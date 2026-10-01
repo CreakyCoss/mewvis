@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ApplicationChatSession } from "@isle/app-sdk/chat";
 import { toast } from "sonner";
 import {
-  ArrowLeft,
   CheckCircle2,
   ChevronDown,
   Circle,
@@ -13,14 +12,20 @@ import {
   Maximize2,
   Minimize2,
   Monitor,
-  Play,
   RefreshCw,
   Save,
   Sparkles,
   Trash2,
 } from "lucide-react";
 import { api, errorText, projectContext } from "./api";
-import { AppView, Busy, Empty, ErrorNotice, Modal } from "./components";
+import {
+  ApplicationHeader,
+  AppView,
+  Busy,
+  Empty,
+  ErrorNotice,
+  Modal,
+} from "./components";
 import { CodeEditor } from "./CodeEditor";
 import { FileTree } from "./FileTree";
 import { WorkshopChat } from "./WorkshopChat";
@@ -61,7 +66,6 @@ export function Editor({
   const [aiBusy, setAiBusy] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [showCode, setShowCode] = useState(false);
-  const [viewKey, setViewKey] = useState(0);
   const artifactRef = useRef(artifact);
   artifactRef.current = artifact;
   const [modal, setModal] = useState<
@@ -355,78 +359,112 @@ export function Editor({
     : dirty || !artifact
       ? "请先更新应用预览，再保存或创建版本。"
       : "";
+  const previewStatus = aiBusy
+    ? "AI 正在生成…"
+    : pending === "正在构建…"
+      ? "正在更新预览…"
+      : hasUnsavedChanges
+        ? "未保存到版本"
+        : "已保存到版本";
   return (
     <div className="wk-editor-shell">
-      <header className="wk-header">
-        <button
-          className="wk-back"
-          aria-label="返回应用工坊"
-          onClick={() => void navigate(home)}
-          disabled={!!pending}
-        >
-          <ArrowLeft />
-          <span>应用工坊</span>
-        </button>
-        <span className="wk-header-divider" />
-        <strong className="wk-header-name">{project.name}</strong>
-        <span className={`wk-saved ${hasUnsavedChanges ? "is-unsaved" : ""}`}>
-          {hasUnsavedChanges ? <Circle /> : <CheckCircle2 />}
-          {hasUnsavedChanges ? "未保存到版本" : "已保存到版本"}
-        </span>
-        <div className="wk-header-actions">
-          <button
-            className="wk-version-trigger"
-            aria-label={`版本管理，${versionNumber ? `当前版本 ${versionNumber}` : "尚未保存版本"}`}
-            aria-haspopup="dialog"
-            aria-expanded={modal === "versions"}
-            title="版本管理"
-            onClick={() => setModal("versions")}
-            disabled={disabled}
-          >
-            <History />
-            <span>
-              {versionNumber ? `版本 ${versionNumber}` : "未保存版本"}
-            </span>
-            <ChevronDown />
-          </button>
-          <button
-            className="wk-button is-accent"
-            disabled={disabled || !!versionBlockedReason}
-            title={
-              versionBlockedReason
-                ? versionBlockedReason
-                : versionNumber
-                  ? `覆盖更新版本 ${versionNumber}`
-                  : "将当前内容保存为第一个版本"
-            }
-            onClick={() => void saveVersion()}
-          >
-            {pending === "正在保存版本…" ? (
-              <LoaderCircle className="wk-spin" />
-            ) : (
-              <Save />
-            )}
-            {pending === "正在保存版本…" ? "保存中…" : "保存版本"}
-          </button>
-          <button
-            className="wk-code-toggle"
-            aria-label={showCode ? "收起代码" : "查看代码"}
-            aria-pressed={showCode}
-            aria-controls="wk-code-workspace"
-            onClick={() => {
-              setExpanded(false);
-              setShowCode(!showCode);
-            }}
-          >
-            <Code2 aria-hidden="true" />
-            <span>{showCode ? "收起代码" : "查看代码"}</span>
-          </button>
-        </div>
-      </header>
+      <ApplicationHeader
+        name={project.name}
+        home={() => void navigate(home)}
+        disabled={!!pending}
+      />
       <div
         className={`wk-editor ${showCode ? "is-code-visible" : ""} ${expanded ? "is-preview-expanded" : ""}`}
       >
         <main className="wk-workspace">
+          <header className="wk-preview-header" aria-label="应用预览操作">
+            <strong className="wk-preview-title">
+              <Monitor aria-hidden="true" />
+              <span>应用预览</span>
+            </strong>
+            <span
+              className={`wk-saved ${hasUnsavedChanges ? "is-unsaved" : ""}`}
+              role="status"
+              title={previewStatus}
+            >
+              {aiBusy || pending === "正在构建…" ? (
+                <LoaderCircle className="wk-spin" aria-hidden="true" />
+              ) : hasUnsavedChanges ? (
+                <Circle aria-hidden="true" />
+              ) : (
+                <CheckCircle2 aria-hidden="true" />
+              )}
+              <span>{previewStatus}</span>
+            </span>
+            <div className="wk-preview-actions">
+              <button
+                className="wk-version-trigger"
+                aria-label={`版本管理，${versionNumber ? `当前版本 ${versionNumber}` : "尚未保存版本"}`}
+                aria-haspopup="dialog"
+                aria-expanded={modal === "versions"}
+                title="版本管理"
+                onClick={() => setModal("versions")}
+                disabled={disabled}
+              >
+                <History aria-hidden="true" />
+                <span>
+                  {versionNumber ? `版本 ${versionNumber}` : "未保存版本"}
+                </span>
+                <ChevronDown aria-hidden="true" />
+              </button>
+              <button
+                className="wk-button is-accent"
+                aria-label={
+                  pending === "正在保存版本…" ? "保存中…" : "保存版本"
+                }
+                disabled={disabled || !!versionBlockedReason}
+                title={
+                  versionBlockedReason
+                    ? versionBlockedReason
+                    : versionNumber
+                      ? `覆盖更新版本 ${versionNumber}`
+                      : "将当前内容保存为第一个版本"
+                }
+                onClick={() => void saveVersion()}
+              >
+                {pending === "正在保存版本…" ? (
+                  <LoaderCircle className="wk-spin" aria-hidden="true" />
+                ) : (
+                  <Save aria-hidden="true" />
+                )}
+                <span>
+                  {pending === "正在保存版本…" ? "保存中…" : "保存版本"}
+                </span>
+              </button>
+              <button
+                className="wk-button"
+                aria-label={pending === "正在构建…" ? "更新中…" : "更新预览"}
+                title="更新应用预览"
+                disabled={disabled || !source}
+                onClick={() => void build()}
+              >
+                <RefreshCw
+                  className={pending === "正在构建…" ? "wk-spin" : ""}
+                  aria-hidden="true"
+                />
+                <span>{pending === "正在构建…" ? "更新中…" : "更新预览"}</span>
+              </button>
+              <button
+                className="wk-code-toggle"
+                aria-label={showCode ? "收起代码" : "查看代码"}
+                title={showCode ? "收起代码" : "查看代码"}
+                aria-pressed={showCode}
+                aria-controls="wk-code-workspace"
+                onClick={() => {
+                  setExpanded(false);
+                  setShowCode(!showCode);
+                }}
+              >
+                <Code2 aria-hidden="true" />
+                <span>{showCode ? "收起代码" : "查看代码"}</span>
+              </button>
+            </div>
+          </header>
           <section id="wk-code-workspace" className="wk-code-workspace">
             <aside className="wk-files">
               <header>
@@ -506,18 +544,6 @@ export function Editor({
                   >
                     <Trash2 />
                   </button>
-                  <button
-                    className="wk-button is-small"
-                    disabled={disabled || !source}
-                    onClick={() => void build()}
-                  >
-                    {pending === "正在构建…" ? (
-                      <LoaderCircle className="wk-spin" />
-                    ) : (
-                      <Play />
-                    )}
-                    {pending === "正在构建…" ? "更新中…" : "更新预览"}
-                  </button>
                 </div>
               </header>
               {source ? (
@@ -543,45 +569,6 @@ export function Editor({
             </section>
           </section>
           <section className="wk-runtime">
-            <header>
-              <strong>
-                <Monitor aria-hidden="true" />
-                应用预览
-              </strong>
-              {aiBusy ? (
-                <span className="wk-muted" role="status">
-                  AI 正在生成…
-                </span>
-              ) : dirty ? (
-                <span className="wk-muted">等待更新预览</span>
-              ) : null}
-              <div>
-                <button
-                  className="wk-icon-button"
-                  aria-label="重新运行预览"
-                  title="重新运行预览"
-                  disabled={!artifact}
-                  onClick={() => {
-                    setRuntimeError("");
-                    setViewKey((key) => key + 1);
-                  }}
-                >
-                  <RefreshCw />
-                </button>
-                <button
-                  className="wk-icon-button"
-                  aria-label={expanded ? "收起预览" : "展开预览"}
-                  title={expanded ? "收起预览" : "展开预览"}
-                  onClick={() => setExpanded(!expanded)}
-                >
-                  {expanded ? (
-                    <Minimize2 aria-hidden="true" />
-                  ) : (
-                    <Maximize2 aria-hidden="true" />
-                  )}
-                </button>
-              </div>
-            </header>
             <div className="wk-runtime-surface">
               {diagnostics.length > 0 ? (
                 <div className="wk-diagnostics" role="alert">
@@ -604,7 +591,6 @@ export function Editor({
                 </div>
               ) : artifact ? (
                 <AppView
-                  key={viewKey}
                   projectId={project.id}
                   artifact={artifact}
                   onFailure={setRuntimeError}
@@ -617,24 +603,25 @@ export function Editor({
                   icon={
                     <Sparkles className="wk-empty-icon" aria-hidden="true" />
                   }
-                  action={
-                    showCode && (
-                      <button
-                        className="wk-button"
-                        disabled={disabled}
-                        onClick={() => void build()}
-                      >
-                        <Play />
-                        更新预览
-                      </button>
-                    )
-                  }
                 >
                   {aiBusy
                     ? "预览准备好后，就可以在这里直接试用。"
                     : "告诉 AI 你想做什么，生成后在这里直接试用。"}
                 </Empty>
               )}
+              <button
+                className="wk-icon-button wk-preview-expand"
+                aria-label={expanded ? "收起预览" : "展开预览"}
+                title={expanded ? "收起预览" : "展开预览"}
+                aria-pressed={expanded}
+                onClick={() => setExpanded(!expanded)}
+              >
+                {expanded ? (
+                  <Minimize2 aria-hidden="true" />
+                ) : (
+                  <Maximize2 aria-hidden="true" />
+                )}
+              </button>
             </div>
           </section>
         </main>

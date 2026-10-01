@@ -1,5 +1,10 @@
-import { ArrowLeft } from "lucide-react";
-import { AppView, Busy, Empty, ErrorNotice } from "./components";
+import {
+  ApplicationHeader,
+  AppView,
+  Busy,
+  Empty,
+  ErrorNotice,
+} from "./components";
 import type { BuildArtifact, ProjectSummary } from "./contracts";
 
 export function UseView({
@@ -19,16 +24,7 @@ export function UseView({
 }) {
   return (
     <>
-      <header className="wk-header">
-        <button className="wk-back" onClick={home} aria-label="返回应用工坊">
-          <ArrowLeft aria-hidden="true" />
-          <span>应用工坊</span>
-        </button>
-        <span className="wk-header-divider" aria-hidden="true" />
-        <strong className="wk-header-name" title={project?.name}>
-          {project?.name ?? "小应用"}
-        </strong>
-      </header>
+      <ApplicationHeader name={project?.name} home={home} />
       <main
         className="wk-use"
         aria-label={`${project?.name ?? "小应用"}使用界面`}
