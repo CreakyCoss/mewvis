@@ -511,10 +511,17 @@
 }
 .wk-editor {
   --wk-pane-header-height: 54px;
+  --wk-assistant-default-width: 31.6%;
   display: grid;
   min-height: 0;
   flex: 1;
-  grid-template-columns: minmax(0, 1fr) minmax(350px, 31.6%);
+  grid-template-columns:
+    minmax(0, 1fr) 6px
+    clamp(
+      320px,
+      var(--wk-assistant-width, var(--wk-assistant-default-width)),
+      min(640px, calc(100% - 406px))
+    );
 }
 .wk-workspace-content {
   display: grid;
@@ -538,13 +545,17 @@
   container-name: workshop-code;
 }
 .wk-code-workspace.is-files-expanded {
-  grid-template-columns: 144px minmax(0, 1fr);
+  grid-template-columns:
+    clamp(140px, var(--wk-files-width, 180px), min(360px, calc(100% - 246px)))
+    6px minmax(0, 1fr);
 }
 .wk-editor.is-layout-preview .wk-code-workspace,
 .wk-editor.is-layout-code .wk-runtime {
   display: none;
 }
-.wk-workspace-resizer {
+.wk-workspace-resizer,
+.wk-files-resizer,
+.wk-assistant-resizer {
   display: none;
   align-items: center;
   justify-content: center;
@@ -556,27 +567,37 @@
   cursor: col-resize;
   touch-action: none;
 }
-.wk-editor.is-layout-both .wk-workspace-resizer {
+.wk-editor.is-layout-both .wk-workspace-resizer,
+.wk-code-workspace.is-files-expanded > .wk-files-resizer,
+.wk-assistant-resizer {
   display: flex;
 }
-.wk-workspace-resizer svg {
+.wk-workspace-resizer svg,
+.wk-files-resizer svg,
+.wk-assistant-resizer svg {
   width: 12px;
   height: 24px;
   pointer-events: none;
 }
 .wk-workspace-resizer:hover,
 .wk-workspace-resizer:focus-visible,
-.wk-workspace-content.is-resizing .wk-workspace-resizer {
+.wk-workspace-content.is-resizing .wk-workspace-resizer,
+.wk-files-resizer:hover,
+.wk-files-resizer:focus-visible,
+.wk-files-resizer.is-resizing,
+.wk-assistant-resizer:hover,
+.wk-assistant-resizer:focus-visible,
+.wk-assistant-resizer.is-resizing {
   outline: none;
   border-color: var(--primary-border);
   background: var(--primary-subtle);
   color: var(--primary);
 }
-.wk-workspace-content.is-resizing {
+.wk-editor.is-resizing {
   user-select: none;
   cursor: col-resize;
 }
-.wk-workspace-content.is-resizing iframe {
+.wk-editor.is-resizing iframe {
   pointer-events: none;
 }
 .wk-preview-header {
@@ -683,7 +704,7 @@
 .wk-files {
   display: none;
   flex-direction: column;
-  border-right: 1px solid var(--border);
+  min-width: 0;
   min-height: 0;
   background: var(--surface-raised);
   padding: 12px 6px;
@@ -835,11 +856,26 @@
     top: 44px;
     bottom: 0;
     left: 0;
-    width: 160px;
+    width: clamp(
+      140px,
+      var(--wk-files-width, 180px),
+      min(360px, calc(100% - 48px))
+    );
     z-index: 3;
-    border-right: 1px solid var(--border);
     box-shadow: 4px 0 12px
       color-mix(in oklab, var(--foreground) 8%, transparent);
+  }
+  .wk-files-resizer {
+    position: absolute;
+    top: 44px;
+    bottom: 0;
+    left: clamp(
+      140px,
+      var(--wk-files-width, 180px),
+      min(360px, calc(100% - 48px))
+    );
+    width: 6px;
+    z-index: 4;
   }
   .wk-code-actions {
     gap: 0;
@@ -994,7 +1030,6 @@
   min-height: 0;
   min-width: 0;
   flex-direction: column;
-  border-left: 1px solid var(--border);
   background: var(--surface-raised);
   overflow: hidden;
 }
@@ -1318,7 +1353,9 @@
 .wk-editor.is-preview-expanded .wk-files,
 .wk-editor.is-preview-expanded .wk-assistant,
 .wk-editor.is-preview-expanded .wk-code-workspace,
-.wk-editor.is-preview-expanded .wk-workspace-resizer {
+.wk-editor.is-preview-expanded .wk-workspace-resizer,
+.wk-editor.is-preview-expanded .wk-files-resizer,
+.wk-editor.is-preview-expanded .wk-assistant-resizer {
   display: none;
 }
 .wk-editor.is-preview-expanded .wk-workspace-content {
@@ -1665,7 +1702,7 @@
 }
 @media (max-width: 1180px) {
   .wk-editor {
-    grid-template-columns: minmax(0, 1fr) minmax(340px, 35%);
+    --wk-assistant-default-width: 35%;
   }
   .wk-assistant > header {
     padding-right: 16px;
@@ -1752,6 +1789,9 @@
     grid-template-rows: 480px 400px;
   }
   .wk-editor.is-layout-both .wk-workspace-resizer {
+    display: none;
+  }
+  .wk-assistant-resizer {
     display: none;
   }
   .wk-editor.is-layout-both .wk-runtime {

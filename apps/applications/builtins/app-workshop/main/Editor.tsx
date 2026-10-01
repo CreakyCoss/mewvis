@@ -35,6 +35,7 @@ import {
 } from "./components";
 import { CodeEditor } from "./CodeEditor";
 import { FileTree } from "./FileTree";
+import { PaneResizer } from "./PaneResizer";
 import { WorkshopChat } from "./WorkshopChat";
 import { getVersionNumber, VersionsDialog } from "./VersionsDialog";
 import { APP_ENTRY, MAIN_ENTRY, STYLE_ENTRY } from "./contracts";
@@ -51,6 +52,19 @@ const workspaceLayouts = [
   { value: "preview", label: "仅预览", icon: Monitor },
 ] as const;
 type WorkspaceLayout = (typeof workspaceLayouts)[number]["value"];
+
+const filesWidthBounds = (width: number) => {
+  const availableWidth = width || 540;
+  const reservedWidth = availableWidth > 420 ? 246 : 48;
+  return {
+    min: 140,
+    max: Math.max(140, Math.min(360, availableWidth - reservedWidth)),
+  };
+};
+const assistantWidthBounds = (width: number) => ({
+  min: 320,
+  max: Math.max(320, Math.min(640, (width || 1046) - 406)),
+});
 
 export function Editor({
   initial,
@@ -81,8 +95,16 @@ export function Editor({
   const [layoutMode, setLayoutMode] = useState<WorkspaceLayout>("preview");
   const [filesExpanded, setFilesExpanded] = useState(true);
   const [codeRatio, setCodeRatio] = useState(64);
-  const [resizing, setResizing] = useState(false);
+  const [filesWidth, setFilesWidth] = useState(180);
+  const [assistantWidth, setAssistantWidth] = useState<number | null>(null);
+  const [resizing, setResizing] = useState<
+    "workspace" | "files" | "assistant" | null
+  >(null);
+  const editorRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
+  const codeWorkspaceRef = useRef<HTMLElement>(null);
+  const filesRef = useRef<HTMLElement>(null);
+  const assistantRef = useRef<HTMLElement>(null);
   const [modal, setModal] = useState<
     "file" | "versions" | "reload" | "delete" | null
   >(null);
@@ -362,7 +384,15 @@ export function Editor({
         disabled={!!pending}
       />
       <div
-        className={`wk-editor is-layout-${layoutMode} ${expanded ? "is-preview-expanded" : ""}`}
+        className={`wk-editor is-layout-${layoutMode} ${expanded ? "is-preview-expanded" : ""} ${resizing ? "is-resizing" : ""}`}
+        ref={editorRef}
+        style={
+          assistantWidth === null
+            ? undefined
+            : ({
+                "--wk-assistant-width": `${assistantWidth}px`,
+              } as CSSProperties)
+        }
       >
         <main className="wk-workspace">
           <header className="wk-preview-header" aria-label="应用预览操作">
@@ -452,18 +482,21 @@ export function Editor({
           </header>
           <div
             id="wk-workspace-content"
-            className={`wk-workspace-content ${resizing ? "is-resizing" : ""}`}
+            className={`wk-workspace-content ${resizing === "workspace" ? "is-resizing" : ""}`}
             ref={workspaceRef}
             style={{ "--wk-code-width": `${codeRatio}%` } as CSSProperties}
           >
             <section
               id="wk-code-workspace"
               className={`wk-code-workspace ${filesExpanded ? "is-files-expanded" : ""}`}
+              ref={codeWorkspaceRef}
+              style={{ "--wk-files-width": `${filesWidth}px` } as CSSProperties}
             >
               <aside
                 id="wk-project-files"
                 className="wk-files"
                 aria-label="项目文件"
+                ref={filesRef}
               >
                 <header>
                   <h2>项目文件</h2>
@@ -488,6 +521,20 @@ export function Editor({
                 />
                 <p>修改后可保存并更新预览</p>
               </aside>
+              <PaneResizer
+                className="wk-files-resizer"
+                label="调整文件树宽度"
+                paneRef={filesRef}
+                containerRef={codeWorkspaceRef}
+                getBounds={filesWidthBounds}
+                defaultWidth={180}
+                side="right"
+                onResize={setFilesWidth}
+                onReset={() => setFilesWidth(180)}
+                onResizingChange={(active) =>
+                  setResizing(active ? "files" : null)
+                }
+              />
               <section className="wk-source">
                 <header className="wk-code-toolbar">
                   <button
@@ -597,7 +644,7 @@ export function Editor({
                 if (event.button !== 0 || !event.isPrimary) return;
                 event.preventDefault();
                 event.currentTarget.setPointerCapture(event.pointerId);
-                setResizing(true);
+                setResizing("workspace");
               }}
               onPointerMove={(event) => {
                 if (!event.currentTarget.hasPointerCapture(event.pointerId))
@@ -612,9 +659,10 @@ export function Editor({
               onPointerUp={(event) => {
                 if (event.currentTarget.hasPointerCapture(event.pointerId))
                   event.currentTarget.releasePointerCapture(event.pointerId);
-                setResizing(false);
+                setResizing(null);
               }}
-              onLostPointerCapture={() => setResizing(false)}
+              onLostPointerCapture={() => setResizing(null)}
+              onDoubleClick={() => setCodeRatio(64)}
               onKeyDown={(event) => {
                 const next =
                   event.key === "ArrowLeft"
@@ -694,7 +742,19 @@ export function Editor({
             </section>
           </div>
         </main>
-        <aside className="wk-assistant" aria-label="AI 应用创作">
+        <PaneResizer
+          className="wk-assistant-resizer"
+          label="调整 AI 助手宽度"
+          paneRef={assistantRef}
+          containerRef={editorRef}
+          getBounds={assistantWidthBounds}
+          defaultWidth={400}
+          side="left"
+          onResize={setAssistantWidth}
+          onReset={() => setAssistantWidth(null)}
+          onResizingChange={(active) => setResizing(active ? "assistant" : null)}
+        />
+        <aside className="wk-assistant" aria-label="AI 应用创作" ref={assistantRef}>
           <header>
             <h2>
               <Sparkles aria-hidden="true" />
