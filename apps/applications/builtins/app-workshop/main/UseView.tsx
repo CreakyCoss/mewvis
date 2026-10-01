@@ -24,7 +24,7 @@ export function UseView({
 }) {
   return (
     <>
-      <ApplicationHeader name={project?.name} home={home} useHostHeader />
+      <ApplicationHeader name={project?.name} home={home} />
       <main
         className="wk-use"
         aria-label={`${project?.name ?? "小应用"}使用界面`}

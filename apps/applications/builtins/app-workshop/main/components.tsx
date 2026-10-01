@@ -30,32 +30,36 @@ export function ApplicationHeader({
   name = "小应用",
   home,
   disabled = false,
-  useHostHeader = false,
 }: {
   name?: string;
   home(): void;
   disabled?: boolean;
-  useHostHeader?: boolean;
 }) {
+  const [header] = useState<ApplicationHeaderHost | undefined>(() => {
+    try {
+      return getApplicationHost().header;
+    } catch {
+      return undefined;
+    }
+  });
   const [hosted, setHosted] = useState(false);
   const homeAction = useRef(home);
   const disabledRef = useRef(disabled);
   homeAction.current = home;
   disabledRef.current = disabled;
   useEffect(() => {
-    if (!useHostHeader) return;
-    let hostHeader: ApplicationHeaderHost | undefined;
-    try {
-      hostHeader = getApplicationHost().header;
-    } catch {
-      return;
-    }
-    if (!hostHeader) return;
-    const header = hostHeader;
-    let active = true;
+    if (!header) return;
     const unsubscribe = header.subscribe((action) => {
       if (action === "back" && !disabledRef.current) homeAction.current();
     });
+    return () => {
+      unsubscribe();
+      void header.set(null).catch(() => {});
+    };
+  }, [header]);
+  useEffect(() => {
+    if (!header) return;
+    let active = true;
     void header
       .set({ title: name, backLabel: "应用工坊", backDisabled: disabled })
       .then((result) => {
@@ -66,27 +70,28 @@ export function ApplicationHeader({
       });
     return () => {
       active = false;
-      unsubscribe();
-      void header.set(null).catch(() => {});
     };
-  }, [useHostHeader, name, disabled]);
-  if (hosted && useHostHeader) return null;
+  }, [header, name, disabled]);
+  if (hosted) return null;
   return (
-    <header className="wk-header wk-application-header">
-      <button
-        type="button"
-        className="wk-back"
-        onClick={home}
-        disabled={disabled}
-        aria-label="返回应用工坊"
-      >
-        <ArrowLeft aria-hidden="true" />
-        <span>应用工坊</span>
-      </button>
-      <span className="wk-header-divider" aria-hidden="true" />
-      <strong className="wk-header-name" title={name}>
-        {name}
-      </strong>
+    <header className="wk-header wk-application-header" aria-label="应用导航">
+      <div className="wk-application-navigation">
+        <button
+          type="button"
+          className="wk-back"
+          onClick={home}
+          disabled={disabled}
+          aria-label="返回应用工坊"
+          title="返回应用工坊"
+        >
+          <ArrowLeft aria-hidden="true" />
+          <span>应用工坊</span>
+        </button>
+        <span className="wk-header-divider" aria-hidden="true" />
+        <strong className="wk-header-name" title={name}>
+          {name}
+        </strong>
+      </div>
     </header>
   );
 }

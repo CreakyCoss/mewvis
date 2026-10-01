@@ -156,23 +156,26 @@ export const ApplicationFrame = ({
         const backLabel = typeof header.backLabel === "string" ? header.backLabel.trim() : "";
         releaseHeader.current?.();
         releaseHeader.current = registerHeader(
-          <header aria-label="应用导航" className="flex h-full min-w-0 items-center gap-3 px-4 text-sm">
-            {backLabel && (
-              <>
-                <button
-                  type="button"
-                  className="pointer-events-auto inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-default disabled:opacity-50"
-                  aria-label={`返回${backLabel}`}
-                  disabled={header.backDisabled === true}
-                  onClick={() => post({ type: "header:action", action: "back" })}
-                >
-                  <ArrowLeft className="size-4" aria-hidden="true" />
-                  <span>{backLabel}</span>
-                </button>
-                <span className="h-4 w-px shrink-0 bg-border" aria-hidden="true" />
-              </>
-            )}
-            <strong className="min-w-0 truncate font-medium" title={title}>{title}</strong>
+          <header aria-label="应用导航" className="flex h-full min-w-0 items-center justify-end px-3">
+            <div className="flex h-8 max-w-full min-w-0 items-center rounded-lg border border-border/70 bg-muted/50 p-0.5 text-xs">
+              {backLabel && (
+                <>
+                  <button
+                    type="button"
+                    className="pointer-events-auto inline-flex h-[26px] max-w-36 shrink-0 items-center gap-1.5 rounded-md px-2 text-muted-foreground hover:bg-background hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-default disabled:opacity-50"
+                    aria-label={`返回${backLabel}`}
+                    title={`返回${backLabel}`}
+                    disabled={header.backDisabled === true}
+                    onClick={() => post({ type: "header:action", action: "back" })}
+                  >
+                    <ArrowLeft className="size-3.5 shrink-0" aria-hidden="true" />
+                    <span className="truncate">{backLabel}</span>
+                  </button>
+                  <span className="mx-1 h-3 w-px shrink-0 bg-border" aria-hidden="true" />
+                </>
+              )}
+              <strong className="min-w-0 max-w-60 truncate px-2 font-medium" title={title}>{title}</strong>
+            </div>
           </header>,
         );
         post({ type: "host:result", id, result: { supported: true } });
