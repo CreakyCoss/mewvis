@@ -189,7 +189,6 @@ export default function App() {
           sessionError={sessionError}
           onChange={update}
           home={home}
-          use={() => use(detail)}
           retryChat={() => void connect(detail)}
         />
       ) : (

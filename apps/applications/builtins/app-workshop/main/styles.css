@@ -175,24 +175,6 @@
   width: 14px;
   color: var(--success);
 }
-.wk-mode {
-  display: flex;
-  border-radius: 8px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  padding: 2px;
-}
-.wk-mode button {
-  border: 0;
-  background: transparent;
-  border-radius: 6px;
-  padding: 6px 17px;
-  color: var(--muted-foreground);
-}
-.wk-mode button[aria-pressed="true"] {
-  background: var(--primary-subtle);
-  color: var(--primary);
-}
 .wk-home {
   min-height: 0;
   flex: 1;
@@ -1055,9 +1037,6 @@
   .wk-header-divider,
   .wk-header-name ~ .wk-saved {
     display: none;
-  }
-  .wk-mode button {
-    padding: 6px 12px;
   }
   .wk-header-actions {
     gap: 8px;

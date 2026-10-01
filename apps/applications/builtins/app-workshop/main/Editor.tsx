@@ -32,7 +32,6 @@ export function Editor({
   sessionError,
   onChange,
   home,
-  use,
   retryChat,
 }: {
   initial: ProjectDetail;
@@ -40,7 +39,6 @@ export function Editor({
   sessionError: string;
   onChange(project: ProjectDetail): void;
   home(): void;
-  use(): void;
   retryChat(): void;
 }) {
   const [project, setProject] = useState(initial);
@@ -314,19 +312,6 @@ export function Editor({
           {dirty ? "未保存" : "已保存"}
         </span>
         <div className="wk-header-actions">
-          <div className="wk-mode" aria-label="应用模式">
-            <button aria-pressed="true">开发</button>
-            <button
-              aria-pressed="false"
-              disabled={!project.savedVersionId || !!pending}
-              title={
-                project.savedVersionId ? "打开已保存版本" : "保存版本后可使用"
-              }
-              onClick={() => void navigate(use)}
-            >
-              使用
-            </button>
-          </div>
           <button
             className="wk-icon-button"
             aria-label="版本历史"
