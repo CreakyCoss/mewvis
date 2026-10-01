@@ -7,10 +7,19 @@ import { ErrorNotice, Modal } from "./components";
 import { Home } from "./Home";
 import { Editor } from "./Editor";
 import { UseView } from "./UseView";
+import { Notifications } from "./Notifications";
 import type { BuildArtifact, ProjectDetail, ProjectSummary } from "./contracts";
 import "./styles.css";
 
 export default function App() {
+  return (
+    <Notifications>
+      <Workshop />
+    </Notifications>
+  );
+}
+
+function Workshop() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [mode, setMode] = useState<"home" | "develop" | "use">("home");

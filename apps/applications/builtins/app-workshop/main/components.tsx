@@ -19,6 +19,7 @@ import {
 import type { BuildArtifact, ProjectSummary } from "./contracts";
 import { errorText } from "./api";
 import { previewInteractionGuard } from "./preview";
+import { useToastLayer } from "./Notifications";
 
 export function Status({ project }: { project: ProjectSummary }) {
   return (
@@ -75,23 +76,30 @@ export function Modal({
   children,
   onClose,
   busy = false,
+  className = "",
 }: {
   title: string;
   children: ReactNode;
   onClose(): void;
   busy?: boolean;
+  className?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const setToastLayer = useToastLayer();
   useEffect(() => {
     const dialog = ref.current!;
     dialog.showModal();
+    setToastLayer(dialog);
     dialog.querySelector<HTMLElement>("[autofocus], input, textarea")?.focus();
-    return () => dialog.close();
-  }, []);
+    return () => {
+      setToastLayer(null);
+      dialog.close();
+    };
+  }, [setToastLayer]);
   return (
     <dialog
       ref={ref}
-      className="wk-modal"
+      className={`wk-modal ${className}`}
       onCancel={(event) => {
         event.preventDefault();
         if (!busy) onClose();

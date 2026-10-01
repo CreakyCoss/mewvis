@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ApplicationChatSession } from "@isle/app-sdk/chat";
 import { Chat } from "@isle/app-sdk/chat/react";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   CheckCircle2,
+  ChevronDown,
   Code2,
   FilePlus2,
   History,
+  LoaderCircle,
   Maximize2,
   Play,
-  Plus,
   RefreshCw,
   Save,
   Sparkles,
@@ -19,6 +21,7 @@ import { api, errorText, projectContext } from "./api";
 import { AppView, Busy, Empty, ErrorNotice, Modal } from "./components";
 import { CodeEditor } from "./CodeEditor";
 import { FileTree } from "./FileTree";
+import { getVersionNumber, VersionsDialog } from "./VersionsDialog";
 import { APP_ENTRY, MAIN_ENTRY, STYLE_ENTRY } from "./contracts";
 import type {
   BuildArtifact,
@@ -51,8 +54,6 @@ export function Editor({
   const [artifact, setArtifact] = useState<BuildArtifact | null>(null);
   const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
   const [runtimeError, setRuntimeError] = useState("");
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [pending, setPending] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -63,7 +64,6 @@ export function Editor({
     "file" | "versions" | "reload" | "delete" | null
   >(null);
   const [newPath, setNewPath] = useState("");
-  const [restoringId, setRestoringId] = useState("");
   const live = useRef(true);
   const action = useRef("");
   const current = useRef({ project, source, value, path });
@@ -90,7 +90,7 @@ export function Editor({
     setSource(file);
     setValue(file.content);
   }
-  async function saveSource() {
+  async function saveSource(notify = false) {
     const state = current.current;
     if (!dirtyRef.current || !state.source) return state.project;
     const next = await api.write(
@@ -109,7 +109,7 @@ export function Editor({
     setSource(file);
     update(next);
     setArtifact(null);
-    setNotice("源码已保存，构建后更新预览。");
+    if (notify) toast.success("源码已保存。");
     return next;
   }
   async function refresh() {
@@ -122,7 +122,9 @@ export function Editor({
       current.current.source?.revision !== next.revision
     ) {
       if (dirtyRef.current)
-        setNotice("AI 已更新项目。你的本地修改仍保留，请先处理保存冲突。");
+        toast.warning("AI 已更新项目。你的本地修改仍保留，请先处理保存冲突。", {
+          id: "workshop-source-conflict",
+        });
       else {
         const nextPath = next.files.includes(current.current.path)
           ? current.current.path
@@ -146,12 +148,10 @@ export function Editor({
     if (action.current) return;
     action.current = label;
     setPending(label);
-    setError("");
-    setNotice("");
     try {
       await callback();
     } catch (value) {
-      if (live.current) setError(errorText(value));
+      if (live.current) toast.error(errorText(value), { duration: 5000 });
     } finally {
       action.current = "";
       if (live.current) setPending("");
@@ -165,11 +165,8 @@ export function Editor({
       setDiagnostics(result.diagnostics);
       setRuntimeError("");
       setArtifact(result.ok ? await api.artifact(initial.id, "draft") : null);
-      setNotice(
-        result.ok
-          ? "构建成功，预览已更新。"
-          : "构建未通过，请按错误位置修复源码。",
-      );
+      if (result.ok) toast.success("构建成功，预览已更新。");
+      else toast.error("构建未通过，请按错误位置修复源码。");
     });
   const saveVersion = (createNew = false) =>
     perform(createNew ? "正在创建新版本…" : "正在保存版本…", async () => {
@@ -184,16 +181,34 @@ export function Editor({
         setArtifact(await api.artifact(initial.id, "draft"));
       }
       const isNewVersion = createNew || !current.current.project.savedVersionId;
-      update(
-        createNew
-          ? await api.createVersion(initial.id)
-          : await api.save(initial.id),
-      );
-      setNotice(
+      const next = createNew
+        ? await api.createVersion(initial.id)
+        : await api.save(initial.id);
+      update(next);
+      setModal(null);
+      toast.success(
         isNewVersion
-          ? "新版本已创建，可以从首页打开使用。"
-          : "当前版本已更新，可以从首页打开使用。",
+          ? `已创建版本 ${getVersionNumber(next)}。`
+          : `版本 ${getVersionNumber(next)} 已保存。`,
       );
+    });
+  const restoreVersion = (versionId: string) =>
+    perform("正在恢复版本…", async () => {
+      await saveSource();
+      const next = await api.restore(
+        project.id,
+        versionId,
+        current.current.project.revision,
+      );
+      update(next);
+      const nextPath = next.files.includes(path) ? path : next.files[0];
+      if (nextPath !== path) setPath(nextPath);
+      else await loadFile(nextPath, true);
+      setDiagnostics([]);
+      setArtifact(await api.artifact(project.id, "draft"));
+      setRuntimeError("");
+      setModal(null);
+      toast.success(`已恢复版本 ${getVersionNumber(next)}，草稿已更新。`);
     });
   const beforeSend = useRef<() => Promise<void>>(async () => {});
   beforeSend.current = async () => {
@@ -238,7 +253,7 @@ export function Editor({
         }
       })
       .catch((value) => {
-        if (active) setError(errorText(value));
+        if (active) toast.error(errorText(value), { duration: 5000 });
       });
     return () => {
       active = false;
@@ -251,7 +266,7 @@ export function Editor({
         if (live.current) setArtifact(value);
       })
       .catch((value) => {
-        if (live.current) setError(errorText(value));
+        if (live.current) toast.error(errorText(value), { duration: 5000 });
       });
   }, [initial.id]);
   useEffect(() => {
@@ -274,7 +289,7 @@ export function Editor({
       setAiBusy(busy);
       if (wasBusy && !busy && !action.current)
         void refresh().catch((value) => {
-          if (live.current) setError(errorText(value));
+          if (live.current) toast.error(errorText(value), { duration: 5000 });
         });
       wasBusy = busy;
     };
@@ -285,7 +300,7 @@ export function Editor({
         polling = true;
         void refresh()
           .catch((value) => {
-            if (live.current) setError(errorText(value));
+            if (live.current) toast.error(errorText(value), { duration: 5000 });
           })
           .finally(() => {
             polling = false;
@@ -308,11 +323,12 @@ export function Editor({
       callback();
     });
   const disabled = !!pending || aiBusy;
-  const versionIndex = project.versions.findIndex(
-    (version) => version.id === project.savedVersionId,
-  );
-  const versionNumber =
-    versionIndex >= 0 ? project.versions.length - versionIndex : null;
+  const versionNumber = getVersionNumber(project);
+  const versionBlockedReason = runtimeError
+    ? "请先修复预览中的运行错误，再构建和保存版本。"
+    : dirty || !artifact
+      ? "请先构建当前草稿，再保存或创建版本。"
+      : "";
   return (
     <div className="wk-editor-shell">
       <header className="wk-header">
@@ -329,55 +345,43 @@ export function Editor({
         <strong className="wk-header-name">{project.name}</strong>
         <span className="wk-saved">
           <CheckCircle2 />
-          {dirty ? "未保存" : "已保存"}
+          {dirty ? "源码未保存" : "源码已保存"}
         </span>
         <div className="wk-header-actions">
           <button
-            className="wk-icon-button"
-            aria-label="版本管理"
+            className="wk-version-trigger"
+            aria-label={`版本管理，${versionNumber ? `当前版本 ${versionNumber}` : "尚未保存版本"}`}
+            aria-haspopup="dialog"
+            aria-expanded={modal === "versions"}
             title="版本管理"
             onClick={() => setModal("versions")}
             disabled={disabled}
           >
             <History />
+            <span>{versionNumber ? `版本 ${versionNumber}` : "草稿"}</span>
+            <ChevronDown />
           </button>
-          {project.savedVersionId && (
-            <button
-              className="wk-button"
-              disabled={disabled || dirty || !artifact || !!runtimeError}
-              title="保留已有版本，将当前草稿保存为新版本"
-              onClick={() => void saveVersion(true)}
-            >
-              <Plus />
-              创建新版本
-            </button>
-          )}
           <button
             className="wk-button is-primary"
-            disabled={disabled || dirty || !artifact || !!runtimeError}
+            disabled={disabled || !!versionBlockedReason}
             title={
-              !artifact
-                ? "先构建当前草稿，再保存版本"
+              versionBlockedReason
+                ? versionBlockedReason
                 : versionNumber
                   ? `覆盖更新版本 ${versionNumber}`
                   : "将当前草稿保存为第一个版本"
             }
             onClick={() => void saveVersion()}
           >
-            <Save />
-            {versionNumber ? `保存版本 ${versionNumber}` : "保存版本"}
+            {pending === "正在保存版本…" ? (
+              <LoaderCircle className="wk-spin" />
+            ) : (
+              <Save />
+            )}
+            {pending === "正在保存版本…" ? "保存中…" : "保存"}
           </button>
         </div>
       </header>
-      {(error || notice || pending) && (
-        <div className="wk-editor-notice">
-          {error ? (
-            <ErrorNotice>{error}</ErrorNotice>
-          ) : (
-            <span role="status">{pending || notice}</span>
-          )}
-        </div>
-      )}
       <div className={`wk-editor ${expanded ? "is-preview-expanded" : ""}`}>
         <aside className="wk-files">
           <header>
@@ -429,7 +433,7 @@ export function Editor({
                   title="保存源码 · ⌘/Ctrl S"
                   onClick={() =>
                     void perform("正在保存源码…", async () => {
-                      await saveSource();
+                      await saveSource(true);
                     })
                   }
                 >
@@ -461,8 +465,12 @@ export function Editor({
                   disabled={disabled || !source}
                   onClick={() => void build()}
                 >
-                  <Play />
-                  构建预览
+                  {pending === "正在构建…" ? (
+                    <LoaderCircle className="wk-spin" />
+                  ) : (
+                    <Play />
+                  )}
+                  {pending === "正在构建…" ? "构建中…" : "构建预览"}
                 </button>
               </div>
             </header>
@@ -478,7 +486,7 @@ export function Editor({
                 disabled={disabled}
                 save={() =>
                   void perform("正在保存源码…", async () => {
-                    await saveSource();
+                    await saveSource(true);
                   })
                 }
                 build={() => void build()}
@@ -605,7 +613,6 @@ export function Editor({
               autoFocus
             />
             <p>路径相对于 source/，支持 JS、TS、CSS、JSON 和文本文件。</p>
-            {error && <ErrorNotice>{error}</ErrorNotice>}
           </div>
           <footer>
             <button
@@ -634,6 +641,7 @@ export function Editor({
                   setPath(newPath.trim());
                   setArtifact(null);
                   setModal(null);
+                  toast.success("文件已创建。");
                 })
               }
             >
@@ -643,105 +651,16 @@ export function Editor({
         </Modal>
       )}
       {modal === "versions" && (
-        <Modal
-          title="版本管理"
-          onClose={() => {
-            setModal(null);
-            setRestoringId("");
-          }}
-          busy={!!pending}
-        >
-          <div className="wk-modal-body wk-versions">
-            {!project.versions.length ? (
-              <p>还没有保存版本。构建完成后点击「保存版本」。</p>
-            ) : restoringId ? (
-              <>
-                <p>
-                  恢复会替换草稿源码并切换正在使用的版本。之后保存会覆盖所选版本；需要保留它时，请创建新版本。请先保存当前源码。
-                </p>
-                <button
-                  className="wk-button"
-                  disabled={!!pending}
-                  onClick={() => setRestoringId("")}
-                >
-                  返回版本列表
-                </button>
-              </>
-            ) : (
-              project.versions.map((version, index) => (
-                <div key={version.id}>
-                  <div>
-                    <strong>
-                      版本 {project.versions.length - index}
-                      {version.id === project.savedVersionId
-                        ? " · 正在使用"
-                        : ""}
-                    </strong>
-                    <span>
-                      创建于 {new Date(version.createdAt).toLocaleString()}
-                    </span>
-                  </div>
-                  <button
-                    className="wk-button is-small"
-                    disabled={!!pending}
-                    onClick={() => {
-                      setError("");
-                      setRestoringId(version.id);
-                    }}
-                  >
-                    恢复此版本
-                  </button>
-                </div>
-              ))
-            )}
-            {!!project.versions.length && !restoringId && (
-              <p>
-                保存会覆盖当前版本。点击「创建新版本」可保留原版本，并将当前草稿保存到新版本。
-              </p>
-            )}
-            {error && <ErrorNotice>{error}</ErrorNotice>}
-          </div>
-          {restoringId && (
-            <footer>
-              <button
-                className="wk-button"
-                disabled={!!pending}
-                onClick={() => setRestoringId("")}
-              >
-                取消
-              </button>
-              <button
-                className="wk-button is-primary"
-                disabled={!!pending}
-                onClick={() =>
-                  void perform("正在恢复版本…", async () => {
-                    if (dirtyRef.current)
-                      throw new Error("请先保存当前源码，再恢复版本。");
-                    const next = await api.restore(
-                      project.id,
-                      restoringId,
-                      current.current.project.revision,
-                    );
-                    update(next);
-                    const nextPath = next.files.includes(path)
-                      ? path
-                      : next.files[0];
-                    if (nextPath !== path) setPath(nextPath);
-                    else await loadFile(nextPath, true);
-                    setDiagnostics([]);
-                    setArtifact(await api.artifact(project.id, "draft"));
-                    setRuntimeError("");
-                    setModal(null);
-                    setRestoringId("");
-                    setNotice("已恢复保存版本，草稿源码也已替换。");
-                  })
-                }
-              >
-                确认恢复
-              </button>
-            </footer>
-          )}
-        </Modal>
+        <VersionsDialog
+          project={project}
+          pending={pending}
+          disabled={disabled}
+          blockedReason={versionBlockedReason}
+          onClose={() => setModal(null)}
+          onSave={() => void saveVersion()}
+          onCreate={() => void saveVersion(true)}
+          onRestore={(id) => void restoreVersion(id)}
+        />
       )}
       {(modal === "reload" || modal === "delete") && (
         <Modal
@@ -755,7 +674,6 @@ export function Editor({
                 ? "重新读取会丢弃这个文件的本地未保存修改。"
                 : `将删除 ${path}，保存的历史版本仍可恢复。`}
             </p>
-            {error && <ErrorNotice>{error}</ErrorNotice>}
           </div>
           <footer>
             <button
@@ -786,6 +704,9 @@ export function Editor({
                     setArtifact(null);
                   }
                   setModal(null);
+                  toast.success(
+                    modal === "delete" ? "文件已删除。" : "源码已重新读取。",
+                  );
                 })
               }
             >

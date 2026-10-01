@@ -765,14 +765,6 @@
   min-height: 0;
   height: auto !important;
 }
-.wk-editor-notice {
-  flex-shrink: 0;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 8px 16px;
-  font-size: 12px;
-  color: var(--muted-foreground);
-}
 .wk-diagnostics {
   padding: 20px;
   overflow: auto;
@@ -907,22 +899,157 @@
   gap: 10px;
   border-top: 1px solid var(--border);
 }
-.wk-versions > div {
+.wk-version-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--foreground);
+  white-space: nowrap;
+}
+.wk-version-trigger:hover:not(:disabled) {
+  background: var(--muted);
+}
+.wk-version-trigger svg:last-child {
+  width: 14px;
+  height: 14px;
+  color: var(--muted-foreground);
+}
+.wk-version-modal {
+  width: min(600px, calc(100vw - 32px));
+}
+.wk-version-summary {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 0;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 18px 24px;
   border-bottom: 1px solid var(--border);
+  background: var(--surface);
 }
-.wk-versions > div > div {
+.wk-version-summary > span:first-child {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.wk-version-badge {
+  display: inline-flex;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--success-subtle);
+  color: var(--success);
+  font-size: 11px;
+}
+.wk-version-list {
+  max-height: min(42dvh, 360px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px 16px 16px;
+}
+.wk-version-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 12px;
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.wk-version-row.is-current {
+  border-color: var(--primary-border);
+  background: var(--primary-subtle);
+}
+.wk-version-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+.wk-version-row.is-current .wk-version-icon {
+  background: var(--surface-raised);
+  color: var(--primary);
+}
+.wk-version-info {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
-.wk-versions span {
+.wk-version-info > span,
+.wk-version-footer > span,
+.wk-version-empty > span {
   font-size: 12px;
   color: var(--muted-foreground);
+}
+.wk-modal-content > .wk-version-footer {
+  justify-content: space-between;
+  align-items: center;
+}
+.wk-version-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 16px;
+  text-align: center;
+}
+.wk-version-empty > svg {
+  width: 32px;
+  height: 32px;
+  color: var(--muted-foreground);
+}
+.wk-version-confirm {
+  gap: 20px;
+}
+.wk-version-flow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.wk-version-flow > svg {
+  color: var(--muted-foreground);
+}
+.wk-version-flow > strong {
+  color: var(--primary);
+}
+.wk-version-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--warning-subtle);
+}
+.wk-version-warning > svg {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  color: var(--warning);
+}
+.wk-toast {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  box-shadow: var(--shadow-floating);
+}
+.wk-toast svg {
+  width: 16px;
+  height: 16px;
 }
 @media (max-width: 1180px) {
   .wk-editor {

@@ -435,6 +435,9 @@ importers:
       react-dom:
         specifier: ^19.1.0
         version: 19.1.0(react@19.1.0)
+      sonner:
+        specifier: ^2.0.7
+        version: 2.0.7(react-dom@19.1.0)(react@19.1.0)
       typescript:
         specifier: ~5.8.3
         version: 5.8.3
