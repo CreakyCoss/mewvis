@@ -8,9 +8,7 @@ import {
 import type { ApplicationChatSession } from "@isle/app-sdk/chat";
 import { toast } from "sonner";
 import {
-  CheckCircle2,
   ChevronDown,
-  Circle,
   Code2,
   Columns2,
   FilePlus2,
@@ -77,7 +75,6 @@ export function Editor({
   const [value, setValue] = useState("");
   const [artifact, setArtifact] = useState<BuildArtifact | null>(null);
   const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
-  const [runtimeError, setRuntimeError] = useState("");
   const [pending, setPending] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -86,8 +83,6 @@ export function Editor({
   const [codeRatio, setCodeRatio] = useState(64);
   const [resizing, setResizing] = useState(false);
   const workspaceRef = useRef<HTMLDivElement>(null);
-  const artifactRef = useRef(artifact);
-  artifactRef.current = artifact;
   const [modal, setModal] = useState<
     "file" | "versions" | "reload" | "delete" | null
   >(null);
@@ -163,15 +158,7 @@ export function Editor({
       }
     }
     const built = await api.artifact(initial.id, "draft");
-    if (live.current) {
-      if (
-        artifactRef.current?.id !== built?.id ||
-        artifactRef.current?.sourceHash !== built?.sourceHash ||
-        artifactRef.current?.createdAt !== built?.createdAt
-      )
-        setRuntimeError("");
-      setArtifact(built);
-    }
+    if (live.current) setArtifact(built);
   }
   async function perform(label: string, callback: () => Promise<void>) {
     if (action.current) return;
@@ -186,30 +173,24 @@ export function Editor({
       if (live.current) setPending("");
     }
   }
+  async function rebuildPreview() {
+    await saveSource();
+    const result = await api.build(initial.id);
+    update(result.project);
+    setDiagnostics(result.diagnostics);
+    setArtifact(result.ok ? await api.artifact(initial.id, "draft") : null);
+    return result.ok;
+  }
   const build = () =>
     perform("正在构建…", async () => {
-      await saveSource();
-      const result = await api.build(initial.id);
-      update(result.project);
-      setDiagnostics(result.diagnostics);
-      setRuntimeError("");
-      setArtifact(result.ok ? await api.artifact(initial.id, "draft") : null);
-      if (result.ok) toast.success("应用预览已更新。");
+      if (await rebuildPreview()) toast.success("应用预览已更新。");
       else
         toast.error("构建未通过，请按错误位置修复源码。", { duration: 3000 });
     });
   const saveVersion = (createNew = false) =>
     perform(createNew ? "正在创建新版本…" : "正在保存版本…", async () => {
-      await saveSource();
-      if (runtimeError)
-        throw new Error("小应用运行出错，请修复并重新构建后再保存。");
-      if (!current.current.project.hasDraftBuild) {
-        const built = await api.build(initial.id);
-        update(built.project);
-        setDiagnostics(built.diagnostics);
-        if (!built.ok) throw new Error("构建失败，请先修复下面的错误。");
-        setArtifact(await api.artifact(initial.id, "draft"));
-      }
+      if (!(await rebuildPreview()))
+        throw new Error("预览更新失败，版本未保存。请先修复下面的错误。");
       const isNewVersion = createNew || !current.current.project.savedVersionId;
       const next = createNew
         ? await api.createVersion(initial.id)
@@ -246,7 +227,6 @@ export function Editor({
       } else await loadFile(nextPath, true);
       setDiagnostics([]);
       setArtifact(await api.artifact(project.id, "draft"));
-      setRuntimeError("");
       setModal(null);
       toast.success(
         restoringCurrent
@@ -374,18 +354,6 @@ export function Editor({
       ? project.changedFiles.some((name) => name !== path) ||
         value !== source.savedContent
       : project.changedFiles.length > 0 || dirty);
-  const versionBlockedReason = runtimeError
-    ? "请让 AI 修复预览中的问题，再保存版本。"
-    : dirty || !artifact
-      ? "请先更新应用预览，再保存或创建版本。"
-      : "";
-  const previewStatus = aiBusy
-    ? "AI 正在生成…"
-    : pending === "正在构建…"
-      ? "正在更新预览…"
-      : hasUnsavedChanges
-        ? "未保存到版本"
-        : "已保存到版本";
   return (
     <div className="wk-editor-shell">
       <ApplicationHeader
@@ -398,71 +366,64 @@ export function Editor({
       >
         <main className="wk-workspace">
           <header className="wk-preview-header" aria-label="应用预览操作">
-            <strong className="wk-preview-title">
-              <Monitor aria-hidden="true" />
-              <span>应用预览</span>
-            </strong>
-            <span
-              className={`wk-saved ${hasUnsavedChanges ? "is-unsaved" : ""}`}
-              role="status"
-              title={previewStatus}
-            >
-              {aiBusy || pending === "正在构建…" ? (
-                <LoaderCircle className="wk-spin" aria-hidden="true" />
-              ) : hasUnsavedChanges ? (
-                <Circle aria-hidden="true" />
-              ) : (
-                <CheckCircle2 aria-hidden="true" />
-              )}
-              <span>{previewStatus}</span>
-            </span>
+            <div className="wk-preview-context">
+              <strong className="wk-preview-title">
+                <Monitor aria-hidden="true" />
+                <span>应用预览</span>
+              </strong>
+            </div>
             <div className="wk-preview-actions">
-              <button
-                className="wk-version-trigger"
-                aria-label={`版本管理，${versionNumber ? `当前版本 ${versionNumber}` : "尚未保存版本"}`}
-                aria-haspopup="dialog"
-                aria-expanded={modal === "versions"}
-                title="版本管理"
-                onClick={() => setModal("versions")}
-                disabled={disabled}
+              <div
+                className="wk-preview-tools"
+                role="group"
+                aria-label="版本、更新与保存"
               >
-                <span>{versionNumber ? `V${versionNumber}` : "版本"}</span>
-                <ChevronDown aria-hidden="true" />
-              </button>
-              <button
-                className="wk-button is-primary wk-preview-save"
-                aria-label={
-                  pending === "正在保存版本…" ? "保存中…" : "保存版本"
-                }
-                disabled={disabled || !!versionBlockedReason}
-                title={
-                  versionBlockedReason
-                    ? versionBlockedReason
-                    : versionNumber
-                      ? `覆盖更新版本 ${versionNumber}`
-                      : "将当前内容保存为第一个版本"
-                }
-                onClick={() => void saveVersion()}
-              >
-                {pending === "正在保存版本…" ? (
-                  <LoaderCircle className="wk-spin" aria-hidden="true" />
-                ) : (
-                  <Save aria-hidden="true" />
-                )}
-                <span>{pending === "正在保存版本…" ? "保存中" : "保存"}</span>
-              </button>
-              <button
-                className="wk-button wk-preview-refresh"
-                aria-label={pending === "正在构建…" ? "更新中…" : "更新预览"}
-                title="更新应用预览"
-                disabled={disabled || !source}
-                onClick={() => void build()}
-              >
-                <RefreshCw
-                  className={pending === "正在构建…" ? "wk-spin" : ""}
-                  aria-hidden="true"
-                />
-              </button>
+                <button
+                  className="wk-version-trigger"
+                  aria-label={`版本管理，${versionNumber ? `当前版本 ${versionNumber}` : "尚未保存版本"}`}
+                  aria-haspopup="dialog"
+                  aria-expanded={modal === "versions"}
+                  title="版本管理"
+                  onClick={() => setModal("versions")}
+                  disabled={disabled}
+                >
+                  <span>{versionNumber ? `V${versionNumber}` : "版本"}</span>
+                  <ChevronDown aria-hidden="true" />
+                </button>
+                <button
+                  className="wk-button wk-preview-refresh"
+                  aria-label={pending === "正在构建…" ? "更新中…" : "更新预览"}
+                  title="更新应用预览"
+                  disabled={disabled || !source}
+                  onClick={() => void build()}
+                >
+                  <RefreshCw
+                    className={pending === "正在构建…" ? "wk-spin" : ""}
+                    aria-hidden="true"
+                  />
+                </button>
+                <button
+                  className="wk-button wk-preview-save"
+                  aria-label={
+                    pending === "正在保存版本…" ? "保存中…" : "保存版本"
+                  }
+                  disabled={disabled || !hasUnsavedChanges}
+                  title={
+                    !hasUnsavedChanges
+                      ? "内容无变更"
+                      : versionNumber
+                        ? `更新预览并保存版本 ${versionNumber}`
+                        : "更新预览并保存第一个版本"
+                  }
+                  onClick={() => void saveVersion()}
+                >
+                  {pending === "正在保存版本…" ? (
+                    <LoaderCircle className="wk-spin" aria-hidden="true" />
+                  ) : (
+                    <Save aria-hidden="true" />
+                  )}
+                </button>
+              </div>
               <div
                 className="wk-layout-switch"
                 role="group"
@@ -525,7 +486,7 @@ export function Editor({
                   disabled={disabled}
                   select={(name) => void switchFile(name)}
                 />
-                <p>修改后可重新构建预览</p>
+                <p>修改后可保存并更新预览</p>
               </aside>
               <section className="wk-source">
                 <header className="wk-code-toolbar">
@@ -701,7 +662,6 @@ export function Editor({
                   <AppView
                     projectId={project.id}
                     artifact={artifact}
-                    onFailure={setRuntimeError}
                   />
                 ) : (
                   <Empty
@@ -819,7 +779,6 @@ export function Editor({
           project={project}
           pending={pending}
           disabled={disabled}
-          blockedReason={versionBlockedReason}
           hasUnsavedChanges={hasUnsavedChanges}
           onClose={() => setModal(null)}
           onCreate={() => void saveVersion(true)}

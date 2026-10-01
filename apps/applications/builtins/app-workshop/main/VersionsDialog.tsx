@@ -24,7 +24,6 @@ export function VersionsDialog({
   project,
   pending,
   disabled,
-  blockedReason,
   hasUnsavedChanges,
   onClose,
   onCreate,
@@ -33,7 +32,6 @@ export function VersionsDialog({
   project: ProjectDetail;
   pending: string;
   disabled: boolean;
-  blockedReason: string;
   hasUnsavedChanges: boolean;
   onClose(): void;
   onCreate(): void;
@@ -55,10 +53,6 @@ export function VersionsDialog({
   const selectedNumber = getVersionNumber(project, selectedId);
   const restoringCurrent = selectedId === project.savedVersionId;
   const beginCreate = () => {
-    if (blockedReason) {
-      toast.info(blockedReason);
-      return;
-    }
     if (project.versions.length >= 100) {
       toast.info("最多保存 100 个版本。");
       return;
@@ -90,7 +84,6 @@ export function VersionsDialog({
                 <span
                   className={`wk-version-state ${hasUnsavedChanges ? "is-unsaved" : ""}`}
                 >
-                  <span aria-hidden="true">·</span>
                   <Circle aria-hidden="true" />
                   {hasUnsavedChanges ? "内容有修改" : "内容已同步"}
                 </span>
@@ -142,7 +135,7 @@ export function VersionsDialog({
                 <div className="wk-version-empty">
                   <Layers />
                   <strong>还没有保存版本</strong>
-                  <span>构建预览后，保存第一个版本。</span>
+                  <span>保存当前内容，创建第一个版本。</span>
                 </div>
               )}
             </div>
