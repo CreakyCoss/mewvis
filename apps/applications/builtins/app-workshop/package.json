@@ -9,7 +9,7 @@
     "dev": "node scripts/preview.mjs",
     "check": "pnpm prepare:runtime && isle-app check",
     "build": "pnpm prepare:runtime && isle-app build",
-    "test": "pnpm build && node --test test/*.test.mjs"
+    "test": "pnpm --filter @isle/app-host build && pnpm build && node --test test/*.test.mjs"
   },
   "dependencies": {
     "@isle/app-sdk": "workspace:*",

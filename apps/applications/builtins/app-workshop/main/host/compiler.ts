@@ -5,6 +5,7 @@ import runtime from "./generated/runtime.js";
 import theme from "./generated/theme.js";
 import {
   DEPENDENCIES,
+  MAIN_ENTRY,
   validateFileName,
   type Diagnostic,
   type FileMap,
@@ -20,7 +21,7 @@ export const sourceHash = (files: FileMap) =>
     .digest("hex");
 
 // The compiler reads only this in-memory module table. It never loads project code,
-// a project's package.json, plugins, Node modules, or filesystem imports.
+// project executables, package scripts, plugins, Node modules or filesystem imports.
 export function compile(files: FileMap): {
   script: string;
   style: string;
@@ -46,24 +47,64 @@ export function compile(files: FileMap): {
         ".ts",
         ".jsx",
         ".js",
+        ".json",
         "/index.tsx",
         "/index.ts",
         "/index.js",
       ].map((ext) => base + ext),
     ].find((name) => Object.hasOwn(files, name));
     if (!file) throw new Error(`找不到导入文件：${specifier}`);
+    if (!/\.(?:[jt]sx?|css|json)$/.test(file))
+      throw new Error(`不能导入此类文件：${specifier}`);
     return file;
   };
-  if (!Object.hasOwn(files, "main.tsx"))
-    diagnostics.push({
-      file: "main.tsx",
-      line: 1,
-      column: 1,
-      message: "缺少入口 main.tsx。",
-    });
+  for (const name of [MAIN_ENTRY, "package.json", "tsconfig.json"])
+    if (!Object.hasOwn(files, name))
+      diagnostics.push({
+        file: name,
+        line: 1,
+        column: 1,
+        message: `缺少项目文件 ${name}。`,
+      });
   for (const [name, source] of Object.entries(files)) {
     validateFileName(name);
     links[name] = {};
+    if (name.endsWith(".json")) {
+      try {
+        const parsed =
+          name === "tsconfig.json"
+            ? ts.parseConfigFileTextToJson(name, source)
+            : { config: JSON.parse(source), error: undefined };
+        if (parsed.error)
+          throw new Error(
+            ts.flattenDiagnosticMessageText(parsed.error.messageText, "\n"),
+          );
+        if (
+          ["package.json", "tsconfig.json"].includes(name) &&
+          (!parsed.config ||
+            typeof parsed.config !== "object" ||
+            Array.isArray(parsed.config))
+        )
+          throw new Error("项目配置须为 JSON 对象。");
+        if (
+          name === "tsconfig.json" &&
+          (parsed.config.extends || parsed.config.compilerOptions?.plugins)
+        )
+          throw new Error("工坊编译不支持外部 tsconfig 或编译插件。");
+        factories.push(
+          `${JSON.stringify(name)}: function(module) { module.exports = ${JSON.stringify(parsed.config)}; }`,
+        );
+      } catch (error) {
+        diagnostics.push({
+          file: name,
+          line: 1,
+          column: 1,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+      continue;
+    }
+    if (!/\.(?:[jt]sx?|css)$/.test(name)) continue;
     if (name.endsWith(".css")) {
       if (/@import\s|url\s*\(/i.test(source))
         diagnostics.push({
@@ -163,7 +204,7 @@ function load(id){
   factories[id](module,module.exports,require); return module.exports;
 }
 const root=document.createElement('div');root.id='root';root.style.minHeight='100vh';document.body.append(root);
-load('main.tsx');\n})();`;
+load(${JSON.stringify(MAIN_ENTRY)});\n})();`;
   const style =
     theme +
     "\n" +
@@ -174,7 +215,7 @@ load('main.tsx');\n})();`;
       .join("\n");
   if (Buffer.byteLength(script) + Buffer.byteLength(style) > 3 * 1024 * 1024)
     diagnostics.push({
-      file: "main.tsx",
+      file: MAIN_ENTRY,
       line: 1,
       column: 1,
       message: "构建产物超过 3 MiB。",

@@ -104,6 +104,10 @@ export const projectContext = (project: ProjectDetail) =>
     name: project.name,
     description: project.description,
     revision: project.revision,
+    sourceRoot: project.sourceRoot,
+    entry: project.entry,
+    pathConvention:
+      "源码工具的 path 相对于 source/，例如 src/App.tsx；不包含 source/ 前缀，不访问 .workshop 或宿主会话目录。",
     files: project.files,
   });
 const sessions = new Map<string, Promise<ApplicationChatSession>>();
@@ -127,10 +131,10 @@ export function developerSession(
       workspaceId: project.id,
       sceneId: "workshop-developer",
       profile: {
-        id: "workshop-developer-v1",
+        id: "workshop-developer-v2",
         introduction:
           "描述你想做的小应用，我会读取项目、修改代码并构建预览。运行版本由你点击「保存版本」保存。",
-        systemPrompt: `你是应用工坊的开发助手。只开发当前项目中的浏览器小应用。先调用 workshop_read_project 与 workshop_read_file，使用返回的最新 revision 作为写入的 baseRevision；每次写入后用返回的新 revision 继续。完成后调用 workshop_build，根据 diagnostics 修复。入口 main.tsx，支持 React、react/jsx-runtime、react-dom/client、@isle/app-sdk/views 和项目内 JS/TS/TSX/CSS；不支持安装依赖、命令、外部资源或网络。小应用可通过 getApplicationViewClient().request('state.read',{key:'state'})、request('state.write',{key:'state',value:JSON值}) 保存状态。状态接口是异步的。使用公共 CSS 主题令牌。不要执行生成代码，不要修改宿主，不自动保存运行版本。用户的需求可能是任意浏览器工具，不局限于计时器。`,
+        systemPrompt: `你是应用工坊的开发助手。只开发当前项目中的浏览器小应用。先调用 workshop_read_project 与 workshop_read_file，使用返回的最新 revision 作为写入的 baseRevision；每次写入后用返回的新 revision 继续。完成后调用 workshop_build，根据 diagnostics 修复。所有源码工具路径都相对于 source/，例如 src/App.tsx；入口为 src/main.tsx，package.json 和 tsconfig.json 也是源码文件。禁止访问 .workshop 和宿主会话目录。支持 React、react/jsx-runtime、react-dom/client、@isle/app-sdk/views 和项目内 JS/TS/TSX/CSS/JSON；不支持安装依赖、命令、外部资源或网络。小应用可通过 getApplicationViewClient().request('state.read',{key:'state'})、request('state.write',{key:'state',value:JSON值}) 保存状态。状态接口是异步的。使用公共 CSS 主题令牌。不要执行生成代码，不要修改宿主，不自动保存运行版本。用户的需求可能是任意浏览器工具，不局限于计时器。`,
         context: { requestContext: projectContext(project) },
         allowedToolNames: AUTHORING_TOOLS,
         skills: [],

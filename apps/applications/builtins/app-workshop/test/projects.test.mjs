@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   mkdir,
+  link,
   mkdtemp,
   readFile,
+  rename,
   rm,
   symlink,
   writeFile,
@@ -94,8 +96,36 @@ test("create, edit, build, save, reopen and restore a real packaged application"
   const f = await fixture(t);
   assert.deepEqual((await f.run("workshop_list_projects")).projects, []);
   let project = await f.create("计数器");
+  assert.equal(project.sourceRoot, "source");
+  assert.equal(project.entry, "src/main.tsx");
+  const workspace = f.enrolled.get(project.id).path;
+  const metadata = JSON.parse(
+    await readFile(join(workspace, ".workshop/project.json"), "utf8"),
+  );
+  assert.equal(metadata.format, 2);
+  assert.equal(
+    "files" in metadata,
+    false,
+    "metadata does not store the working source",
+  );
+  assert.equal(
+    JSON.parse(await readFile(join(workspace, "source/package.json"), "utf8"))
+      .private,
+    true,
+  );
+  assert.match(
+    await readFile(join(workspace, "source/src/App.tsx"), "utf8"),
+    /计数器/,
+  );
   const args = { workspaceId: project.id };
-  assert.deepEqual(project.files, ["App.tsx", "main.tsx", "styles.css"]);
+  assert.deepEqual(project.files, [
+    ".gitignore",
+    "package.json",
+    "src/App.tsx",
+    "src/main.tsx",
+    "src/styles.css",
+    "tsconfig.json",
+  ]);
   assert.equal(project.savedVersionId, null);
   assert.equal(
     (await f.run("workshop_read_build", { ...args, mode: "saved" })).artifact,
@@ -103,7 +133,7 @@ test("create, edit, build, save, reopen and restore a real packaged application"
   );
   project = await f.write(
     project,
-    "App.tsx",
+    "src/App.tsx",
     "import {useState} from 'react';export default function App(){const [n,setN]=useState(0);return <button onClick={()=>setN(n+1)}>{n}</button>}",
   );
   const first = await f.run("workshop_build", args);
@@ -122,7 +152,7 @@ test("create, edit, build, save, reopen and restore a real packaged application"
   const firstVersion = project.savedVersionId;
   project = await f.write(
     project,
-    "App.tsx",
+    "src/App.tsx",
     "export default function App(){return <h1>第二版</h1>}",
   );
   assert.equal(
@@ -148,7 +178,7 @@ test("create, edit, build, save, reopen and restore a real packaged application"
   ).project;
   assert.equal(project.savedVersionId, firstVersion);
   assert.match(
-    (await f.run("workshop_read_file", { ...args, path: "App.tsx" })).file
+    (await f.run("workshop_read_file", { ...args, path: "src/App.tsx" })).file
       .content,
     /useState/,
   );
@@ -176,18 +206,297 @@ test("create, edit, build, save, reopen and restore a real packaged application"
   assert.equal(f.skills.has("workshop-authoring"), true);
 });
 
+const hashFiles = (files) =>
+  createHash("sha256")
+    .update(
+      JSON.stringify(
+        Object.entries(files).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+      ),
+    )
+    .digest("hex");
+const workspaceOf = (f, project) => f.enrolled.get(project.id).path;
+const sourceOf = (f, project, path) =>
+  join(workspaceOf(f, project), "source", path);
+async function sourceFiles(f, project) {
+  return Object.fromEntries(
+    await Promise.all(
+      project.files.map(async (path) => [
+        path,
+        await readFile(sourceOf(f, project, path), "utf8"),
+      ]),
+    ),
+  );
+}
+
+test("external edits invalidate draft builds and reject stale saves without changing the running version", async (t) => {
+  const f = await fixture(t);
+  let project = await f.create("外部编辑");
+  const args = { workspaceId: project.id };
+  assert.equal((await f.run("workshop_build", args)).ok, true);
+  project = (await f.run("workshop_save_version", args)).project;
+  const saved = project.savedVersionId;
+  const content = "export default()=> <h1>外部编辑器</h1>";
+  await writeFile(sourceOf(f, project, "src/App.tsx"), content);
+  await assert.rejects(
+    f.write(project, "src/App.tsx", "stale local buffer"),
+    /源码已被/,
+  );
+  const next = (await f.run("workshop_read_project", args)).project;
+  assert.equal(next.revision, project.revision + 1);
+  assert.equal(next.hasDraftBuild, false);
+  assert.equal(
+    await readFile(sourceOf(f, project, "src/App.tsx"), "utf8"),
+    content,
+  );
+  assert.equal(
+    (await f.run("workshop_read_build", { ...args, mode: "draft" })).artifact,
+    null,
+  );
+  assert.equal(
+    (await f.run("workshop_read_build", { ...args, mode: "saved" })).artifact
+      .id,
+    saved,
+  );
+  assert.equal((await f.run("workshop_build", args)).ok, true);
+});
+
+test("unsupported project and build formats are rejected without rewriting files", async (t) => {
+  const f = await fixture(t);
+  let project = await f.create("格式校验");
+  const args = { workspaceId: project.id };
+  assert.equal((await f.run("workshop_build", args)).ok, true);
+  project = (await f.run("workshop_save_version", args)).project;
+  const internal = join(workspaceOf(f, project), ".workshop");
+  const sources = await sourceFiles(f, project);
+  const artifactPath = join(
+    internal,
+    "builds",
+    project.savedVersionId + ".json",
+  );
+  const artifact = JSON.parse(await readFile(artifactPath, "utf8"));
+  artifact.sourceLayout = 99;
+  const invalidArtifact = JSON.stringify(artifact);
+  await writeFile(artifactPath, invalidArtifact);
+  await assert.rejects(
+    f.run("workshop_read_build", { ...args, mode: "saved" }),
+    /构建产物无效/,
+  );
+  await assert.rejects(
+    f.run("workshop_restore_version", {
+      ...args,
+      versionId: project.savedVersionId,
+      baseRevision: project.revision,
+    }),
+    /构建产物无效/,
+  );
+  assert.equal(await readFile(artifactPath, "utf8"), invalidArtifact);
+  assert.deepEqual(await sourceFiles(f, project), sources);
+
+  const metadataPath = join(internal, "project.json");
+  const metadata = JSON.parse(await readFile(metadataPath, "utf8"));
+  metadata.format = 99;
+  const invalidMetadata = JSON.stringify(metadata);
+  await writeFile(metadataPath, invalidMetadata);
+  await assert.rejects(
+    f.run("workshop_read_project", args),
+    /工坊项目格式无效/,
+  );
+  assert.equal(await readFile(metadataPath, "utf8"), invalidMetadata);
+  assert.deepEqual(await sourceFiles(f, project), sources);
+});
+
+test("source roots, nested symlinks and hard links cannot access workspace metadata or outside files", async (t) => {
+  const f = await fixture(t);
+  const project = await f.create("物理边界");
+  const outside = join(f.root, "outside");
+  await mkdir(outside);
+  await writeFile(join(outside, "secret.ts"), "private data");
+  const source = sourceOf(f, project, "");
+  const preserved = source + "-preserved";
+  await rename(source, preserved);
+  await symlink(outside, source);
+  await assert.rejects(
+    f.run("workshop_read_project", { workspaceId: project.id }),
+    /符号链接/,
+  );
+  await assert.rejects(f.write(project, "secret.ts", "overwrite"), /符号链接/);
+  await rm(source);
+  await rename(preserved, source);
+  await symlink(outside, join(source, "escape"));
+  await assert.rejects(
+    f.write(project, "escape/secret.ts", "overwrite"),
+    /符号链接/,
+  );
+  await rm(join(source, "escape"));
+  await link(join(outside, "secret.ts"), join(source, "linked.ts"));
+  await assert.rejects(
+    f.run("workshop_read_project", { workspaceId: project.id }),
+    /硬链接/,
+  );
+  assert.equal(
+    await readFile(join(outside, "secret.ts"), "utf8"),
+    "private data",
+  );
+});
+
+test("interrupted source transactions recover all files and metadata while retaining Git and chats", async (t) => {
+  const f = await fixture(t);
+  const project = await f.create("事务恢复");
+  const workspace = workspaceOf(f, project);
+  const internal = join(workspace, ".workshop");
+  const before = await sourceFiles(f, project);
+  const after = {
+    ...before,
+    "src/App.tsx": "export default()=> <p>恢复完成</p>",
+    "src/components/Message.tsx": "export default()=> <span>message</span>",
+  };
+  delete after["src/styles.css"];
+  const metadata = JSON.parse(
+    await readFile(join(internal, "project.json"), "utf8"),
+  );
+  const next = {
+    ...metadata,
+    sourceHash: hashFiles(after),
+    revision: metadata.revision + 1,
+  };
+  await mkdir(sourceOf(f, project, ".git"));
+  await writeFile(sourceOf(f, project, ".git/config"), "Git state");
+  const chat = join(workspace, ".isle-claw/chats/retained/messages.json");
+  await mkdir(join(workspace, ".isle-claw/chats/retained"), {
+    recursive: true,
+  });
+  await writeFile(chat, "[]");
+  await writeFile(
+    join(internal, "source-transaction.json"),
+    JSON.stringify({
+      format: 1,
+      baseRevision: metadata.revision,
+      before,
+      after,
+      metadata: next,
+    }),
+  );
+  await writeFile(sourceOf(f, project, "src/App.tsx"), after["src/App.tsx"]);
+  await rm(sourceOf(f, project, "src/styles.css"));
+  const reopened = (
+    await f.run("workshop_read_project", { workspaceId: project.id })
+  ).project;
+  assert.equal(reopened.revision, next.revision);
+  assert.deepEqual(await sourceFiles(f, reopened), after);
+  assert.deepEqual(
+    JSON.parse(await readFile(join(internal, "project.json"), "utf8")),
+    next,
+  );
+  await assert.rejects(readFile(join(internal, "source-transaction.json")), {
+    code: "ENOENT",
+  });
+  assert.equal(
+    await readFile(sourceOf(f, project, ".git/config"), "utf8"),
+    "Git state",
+  );
+  assert.equal(await readFile(chat, "utf8"), "[]");
+});
+
+test("transaction recovery preserves conflicting external edits instead of overwriting them", async (t) => {
+  const f = await fixture(t);
+  const project = await f.create("恢复冲突");
+  const internal = join(workspaceOf(f, project), ".workshop");
+  const before = await sourceFiles(f, project);
+  const after = {
+    ...before,
+    "src/App.tsx": "export default()=> <p>工坊修改</p>",
+  };
+  const metadata = JSON.parse(
+    await readFile(join(internal, "project.json"), "utf8"),
+  );
+  const next = {
+    ...metadata,
+    sourceHash: hashFiles(after),
+    revision: metadata.revision + 1,
+  };
+  await writeFile(
+    join(internal, "source-transaction.json"),
+    JSON.stringify({
+      format: 1,
+      baseRevision: metadata.revision,
+      before,
+      after,
+      metadata: next,
+    }),
+  );
+  await writeFile(
+    sourceOf(f, project, "src/App.tsx"),
+    "external change during interruption",
+  );
+  await assert.rejects(
+    f.run("workshop_read_project", { workspaceId: project.id }),
+    /外部修改.*保留/,
+  );
+  assert.equal(
+    await readFile(sourceOf(f, project, "src/App.tsx"), "utf8"),
+    "external change during interruption",
+  );
+  assert.deepEqual(
+    JSON.parse(await readFile(join(internal, "project.json"), "utf8")),
+    metadata,
+  );
+});
+
+test("project JSON participates in snapshots and compilation without executing package scripts or compiler plugins", async (t) => {
+  const f = await fixture(t);
+  let project = await f.create("项目配置");
+  const args = { workspaceId: project.id };
+  project = await f.write(project, "src/data.json", '{"title":"JSON module"}');
+  project = await f.write(
+    project,
+    "src/App.tsx",
+    "import data from './data.json';export default()=> <h1>{data.title}</h1>",
+  );
+  project = await f.write(
+    project,
+    "package.json",
+    JSON.stringify({
+      private: true,
+      scripts: { build: "node -e 'globalThis.__workshopPackageExecuted=true'" },
+    }),
+  );
+  assert.equal((await f.run("workshop_build", args)).ok, true);
+  assert.equal(globalThis.__workshopPackageExecuted, undefined);
+  await f.run("workshop_save_version", args);
+  project = await f.write(
+    project,
+    "tsconfig.json",
+    '{"extends":"../.workshop/project.json"}',
+  );
+  const invalid = await f.run("workshop_build", args);
+  assert.equal(invalid.ok, false);
+  assert.equal(invalid.diagnostics[0].file, "tsconfig.json");
+  assert.ok(
+    (await f.run("workshop_read_build", { ...args, mode: "saved" })).artifact,
+  );
+  for (const path of ["package.json", "tsconfig.json", "src/main.tsx"])
+    await assert.rejects(
+      f.run("workshop_delete_file", {
+        ...args,
+        path,
+        baseRevision: project.revision,
+      }),
+      /不能删除/,
+    );
+});
+
 test("CAS and filesystem locking prevent concurrent or stale source overwrites", async (t) => {
   const f = await fixture(t);
   const project = await f.create("并发");
   const changes = await Promise.allSettled([
-    f.write(project, "App.tsx", "export default()=> <p>A</p>"),
-    f.write(project, "App.tsx", "export default()=> <p>B</p>"),
+    f.write(project, "src/App.tsx", "export default()=> <p>A</p>"),
+    f.write(project, "src/App.tsx", "export default()=> <p>B</p>"),
   ]);
   assert.equal(
     changes.filter((value) => value.status === "fulfilled").length,
     1,
   );
-  await assert.rejects(f.write(project, "App.tsx", "old"), /源码已被/);
+  await assert.rejects(f.write(project, "src/App.tsx", "old"), /源码已被/);
   assert.equal(
     (await f.run("workshop_read_project", { workspaceId: project.id })).project
       .revision,
@@ -201,7 +510,7 @@ test("compilation rejects external imports and reports syntax locations without 
   const args = { workspaceId: project.id };
   project = await f.write(
     project,
-    "App.tsx",
+    "src/App.tsx",
     "globalThis.__workshopCompilerExecuted=true;export default()=> <h1>safe</h1>",
   );
   assert.equal((await f.run("workshop_build", args)).ok, true);
@@ -209,13 +518,13 @@ test("compilation rejects external imports and reports syntax locations without 
   await f.run("workshop_save_version", args);
   for (const source of [
     "import fs from 'node:fs';export default()=>null",
-    "import value from '../outside';export default()=>null",
+    "import value from '../../outside';export default()=>null",
     "export default function App( {",
   ]) {
-    project = await f.write(project, "App.tsx", source);
+    project = await f.write(project, "src/App.tsx", source);
     const result = await f.run("workshop_build", args);
     assert.equal(result.ok, false);
-    assert.equal(result.diagnostics[0].file, "App.tsx");
+    assert.equal(result.diagnostics[0].file, "src/App.tsx");
     assert.ok(result.diagnostics[0].line > 0);
     assert.ok(
       (await f.run("workshop_read_build", { ...args, mode: "saved" })).artifact,
@@ -224,18 +533,18 @@ test("compilation rejects external imports and reports syntax locations without 
   }
   project = await f.write(
     project,
-    "App.tsx",
+    "src/App.tsx",
     "import Card from './components/Card';export default()=> <Card />",
   );
   project = await f.write(
     project,
-    "components/Card.tsx",
+    "src/components/Card.tsx",
     "export default()=> <p>Local</p>",
   );
   assert.equal((await f.run("workshop_build", args)).ok, true);
   project = await f.write(
     project,
-    "styles.css",
+    "src/styles.css",
     "@import 'https://example.com/style.css';",
   );
   assert.equal((await f.run("workshop_build", args)).ok, false);
@@ -258,7 +567,9 @@ test("source paths, project identity, payload sizes and symlinked files are chec
     "/tmp/code.ts",
     ".isle/marker.ts",
     "folder/../test.ts",
-    "package.json",
+    "../.workshop/project.json",
+    "node_modules/escape.ts",
+    "dist/escape.ts",
     "a\\b.ts",
   ])
     await assert.rejects(f.write(project, path, ""), /文件名/);
@@ -269,7 +580,7 @@ test("source paths, project identity, payload sizes and symlinked files are chec
   await assert.rejects(
     f.run("workshop_delete_file", {
       ...args,
-      path: "main.tsx",
+      path: "src/main.tsx",
       baseRevision: project.revision,
     }),
     /不能删除/,
@@ -356,14 +667,14 @@ test("a crashed owner lock is reclaimed but a live owner is never displaced", as
     JSON.stringify({ pid: process.pid }),
   );
   await assert.rejects(
-    f.write(project, "App.tsx", "export default()=>null"),
+    f.write(project, "src/App.tsx", "export default()=>null"),
     /正在保存/,
   );
   await writeFile(
     join(lock, "owner.json"),
     JSON.stringify({ pid: 2147483647 }),
   );
-  project = await f.write(project, "App.tsx", "export default()=>null");
+  project = await f.write(project, "src/App.tsx", "export default()=>null");
   assert.equal(project.revision, 1);
   await assert.rejects(readFile(join(lock, "owner.json")), { code: "ENOENT" });
 });

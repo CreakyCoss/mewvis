@@ -90,7 +90,7 @@ export default defineApplication({
     );
     register(
       "workshop_read_file",
-      "读取项目内一个源码文件的完整内容与 revision。",
+      "读取 source 内一个文件的完整内容与 revision。path 相对于 source，例如 src/App.tsx 或 package.json。",
       "low",
       { workspaceId: id, path: string },
       ["workspaceId", "path"],
@@ -100,7 +100,7 @@ export default defineApplication({
     );
     register(
       "workshop_write_file",
-      "创建或完整替换一个 JS/TS/TSX/CSS 源码文件。baseRevision 必须等于最新 revision，冲突后重新读取。",
+      "创建或完整替换 source 内的 JS/TS/CSS/JSON 或文本文件。path 相对于 source，不含 source/ 前缀；不能访问工坊元数据或聊天目录。baseRevision 必须等于最新 revision，冲突后重新读取。",
       "medium",
       {
         workspaceId: id,
@@ -120,7 +120,7 @@ export default defineApplication({
     );
     register(
       "workshop_delete_file",
-      "删除项目内一个源码文件；不能删除 main.tsx。",
+      "删除项目内一个源码文件；不能删除 src/main.tsx、package.json 或 tsconfig.json。",
       "medium",
       { workspaceId: id, path: string, baseRevision },
       ["workspaceId", "path", "baseRevision"],
@@ -199,8 +199,9 @@ export default defineApplication({
     );
     ctx.skills.register({
       name: "workshop-authoring",
+      source: "bundled",
       description: "在应用工坊中开发 React 小应用，读写源码、编译和修复预览。",
-      content: `先用 workshop_read_project 读取当前项目的 revision 与文件列表，再用 workshop_read_file 读取需要修改的源码。每次 workshop_write_file 或 workshop_delete_file 使用最新 baseRevision；使用返回的 revision 继续下一次修改。最后调用 workshop_build，若有 diagnostics 则修复并再次构建。入口为 main.tsx，支持 React、react/jsx-runtime、react-dom/client、@isle/app-sdk/views，以及项目内 JS/TS/TSX/CSS。样式中的 @import 和 url() 不支持；不要安装依赖、运行命令、访问网络或修改宿主。通过 getApplicationViewClient().request('state.read', {key:'state'}) 和 request('state.write', {key:'state',value:JSON值}) 保存小应用状态。主题使用 var(--background)、var(--foreground)、var(--primary) 等公共令牌。只开发当前项目，生成代码只在浏览器沙箱运行。保存运行版本由用户点击「保存版本」完成。可用工具：${AUTHORING_TOOLS.join("、")}。`,
+      content: `先用 workshop_read_project 读取当前项目的 revision 与文件列表，再用 workshop_read_file 读取需要修改的源码。每次 workshop_write_file 或 workshop_delete_file 使用最新 baseRevision；使用返回的 revision 继续下一次修改。最后调用 workshop_build，若有 diagnostics 则修复并再次构建。所有源码工具路径相对于 source/，例如 src/App.tsx；入口为 src/main.tsx。package.json 和 tsconfig.json 属于应用源码，但不会执行包脚本或编译插件。禁止访问 .workshop 或宿主聊天目录。支持 React、react/jsx-runtime、react-dom/client、@isle/app-sdk/views，以及项目内 JS/TS/TSX/CSS/JSON。样式中的 @import 和 url() 不支持；不要安装依赖、运行命令、访问网络或修改宿主。通过 getApplicationViewClient().request('state.read', {key:'state'}) 和 request('state.write', {key:'state',value:JSON值}) 保存小应用状态。主题使用 var(--background)、var(--foreground)、var(--primary) 等公共令牌。只开发当前项目，生成代码只在浏览器沙箱运行。保存运行版本由用户点击「保存版本」完成。可用工具：${AUTHORING_TOOLS.join("、")}。`,
     });
   },
 });

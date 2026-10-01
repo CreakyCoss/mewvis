@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Code2,
   FilePlus2,
-  FolderOpen,
   History,
   Maximize2,
   Play,
@@ -16,15 +15,10 @@ import {
   Trash2,
 } from "lucide-react";
 import { api, errorText, projectContext } from "./api";
-import {
-  AppView,
-  Busy,
-  Empty,
-  ErrorNotice,
-  FileIcon,
-  Modal,
-} from "./components";
+import { AppView, Busy, Empty, ErrorNotice, Modal } from "./components";
 import { CodeEditor } from "./CodeEditor";
+import { FileTree } from "./FileTree";
+import { APP_ENTRY, MAIN_ENTRY, STYLE_ENTRY } from "./contracts";
 import type {
   BuildArtifact,
   Diagnostic,
@@ -51,7 +45,7 @@ export function Editor({
 }) {
   const [project, setProject] = useState(initial);
   const [path, setPath] = useState(
-    initial.files.includes("App.tsx") ? "App.tsx" : initial.files[0],
+    initial.files.includes(APP_ENTRY) ? APP_ENTRY : initial.files[0],
   );
   const [source, setSource] = useState<SourceFile | null>(null);
   const [value, setValue] = useState("");
@@ -383,24 +377,12 @@ export function Editor({
               <FilePlus2 />
             </button>
           </header>
-          <div className="wk-folder">
-            <FolderOpen />
-            src
-          </div>
-          <nav aria-label="源码文件">
-            {project.files.map((name) => (
-              <button
-                key={name}
-                aria-pressed={path === name}
-                className={path === name ? "is-selected" : ""}
-                disabled={disabled}
-                onClick={() => void switchFile(name)}
-              >
-                <FileIcon />
-                <span>{name}</span>
-              </button>
-            ))}
-          </nav>
+          <FileTree
+            files={project.files}
+            selected={path}
+            disabled={disabled}
+            select={(name) => void switchFile(name)}
+          />
           <p>修改后可重新构建预览</p>
         </aside>
         <main className="wk-workspace">
@@ -411,11 +393,11 @@ export function Editor({
                   <span>{path}</span>
                   {dirty && <span className="wk-dirty-dot" />}
                 </button>
-                {path !== "styles.css" &&
-                  project.files.includes("styles.css") && (
+                {path !== STYLE_ENTRY &&
+                  project.files.includes(STYLE_ENTRY) && (
                     <button
                       disabled={disabled}
-                      onClick={() => void switchFile("styles.css")}
+                      onClick={() => void switchFile(STYLE_ENTRY)}
                     >
                       styles.css
                     </button>
@@ -446,7 +428,10 @@ export function Editor({
                 </button>
                 <button
                   className="wk-icon-button"
-                  disabled={disabled || path === "main.tsx"}
+                  disabled={
+                    disabled ||
+                    [MAIN_ENTRY, "package.json", "tsconfig.json"].includes(path)
+                  }
                   aria-label="删除当前文件"
                   title="删除当前文件"
                   onClick={() => setModal("delete")}
@@ -597,11 +582,11 @@ export function Editor({
               id="wk-file-name"
               value={newPath}
               onChange={(event) => setNewPath(event.target.value)}
-              placeholder="例如 components/Counter.tsx"
-              maxLength={120}
+              placeholder="例如 src/components/Counter.tsx"
+              maxLength={128}
               autoFocus
             />
-            <p>支持 JS、TS、TSX 和 CSS 文件。</p>
+            <p>路径相对于 source/，支持 JS、TS、CSS、JSON 和文本文件。</p>
             {error && <ErrorNotice>{error}</ErrorNotice>}
           </div>
           <footer>

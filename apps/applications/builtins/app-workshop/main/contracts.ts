@@ -1,7 +1,11 @@
 export const APPLICATION_ID = "@isle/app-workshop";
 export const SOURCE_LIMIT = 128 * 1024;
-export const PROJECT_LIMIT = 512 * 1024;
-export const FILE_LIMIT = 32;
+export const PROJECT_LIMIT = 1024 * 1024;
+export const FILE_LIMIT = 64;
+export const SOURCE_DIRECTORY = "source";
+export const MAIN_ENTRY = "src/main.tsx";
+export const APP_ENTRY = "src/App.tsx";
+export const STYLE_ENTRY = "src/styles.css";
 export const DEPENDENCIES = [
   "react",
   "react/jsx-runtime",
@@ -31,6 +35,8 @@ export interface SavedVersion {
   sourceRevision: number;
 }
 export interface ProjectDetail extends ProjectSummary {
+  sourceRoot: "source";
+  entry: "src/main.tsx";
   files: string[];
   versions: SavedVersion[];
   hasDraftBuild: boolean;
@@ -66,14 +72,26 @@ export type FileMap = Record<string, string>;
 export function validateFileName(value: unknown): string {
   if (
     typeof value !== "string" ||
-    value.length > 120 ||
-    !/^(?:[a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_.-]+\.(?:tsx?|jsx?|css)$/.test(value) ||
+    value.length > 128 ||
+    !(
+      value === ".gitignore" ||
+      /^(?:[a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_.-]+\.(?:tsx?|jsx?|css|json|md|txt|html)$/.test(
+        value,
+      )
+    ) ||
     value
       .split("/")
-      .some((part) => part === "." || part === ".." || part.startsWith("."))
+      .some(
+        (part) =>
+          part === "." ||
+          part === ".." ||
+          part === "node_modules" ||
+          part === "dist" ||
+          (part.startsWith(".") && value !== ".gitignore"),
+      )
   )
     throw new Error(
-      "文件名须为项目内的 JS、TS、TSX 或 CSS 路径，不能包含隐藏目录或上级目录。",
+      "文件名须为 source 内的 JS、TS、CSS、JSON 或文本路径，不能包含隐藏目录或上级目录（仅允许根目录 .gitignore）。",
     );
   return value;
 }

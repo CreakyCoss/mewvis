@@ -17,9 +17,10 @@ import type {
 } from "@isle/app-sdk/data";
 import {
   APPLICATION_ID,
-  FILE_LIMIT,
-  PROJECT_LIMIT,
-  SOURCE_LIMIT,
+  APP_ENTRY,
+  MAIN_ENTRY,
+  SOURCE_DIRECTORY,
+  STYLE_ENTRY,
   validateFileName,
   type BuildArtifact,
   type BuildResult,
@@ -29,22 +30,34 @@ import {
   type SavedVersion,
 } from "../contracts.js";
 import { compile, sourceHash } from "./compiler.js";
+import { applySource, readSource, validateFiles } from "./source.js";
 
-interface ProjectRecord {
-  format: 1;
+interface ProjectMetadata {
+  format: 2;
   id: string;
   name: string;
   description: string;
   revision: number;
   createdAt: number;
   updatedAt: number;
-  files: FileMap;
+  sourceHash: string;
   draftBuildId: string | null;
   savedVersionId: string | null;
   versions: SavedVersion[];
 }
+interface ProjectRecord extends ProjectMetadata {
+  files: FileMap;
+}
+interface SourceTransaction {
+  format: 1;
+  baseRevision: number;
+  before: FileMap;
+  after: FileMap;
+  metadata: ProjectMetadata;
+}
 interface ArtifactRecord extends BuildArtifact {
   files: FileMap;
+  sourceLayout: 2;
 }
 const isId = (id: unknown): id is string =>
   typeof id === "string" &&
@@ -58,23 +71,6 @@ const errorCode = (error: unknown) =>
   error && typeof error === "object" && "code" in error
     ? error.code
     : undefined;
-function validateFiles(files: FileMap) {
-  if (
-    !files ||
-    typeof files !== "object" ||
-    Array.isArray(files) ||
-    Object.keys(files).length > FILE_LIMIT
-  )
-    throw new Error(`项目最多保存 ${FILE_LIMIT} 个源码文件。`);
-  let size = 0;
-  for (const [name, source] of Object.entries(files)) {
-    validateFileName(name);
-    if (typeof source !== "string" || Buffer.byteLength(source) > SOURCE_LIMIT)
-      throw new Error("单个源码文件最多 128 KiB。");
-    size += Buffer.byteLength(source);
-  }
-  if (size > PROJECT_LIMIT) throw new Error("项目源码总量最多 512 KiB。");
-}
 async function directory(path: string) {
   const info = await lstat(path);
   if (!info.isDirectory() || info.isSymbolicLink())
@@ -106,11 +102,57 @@ async function atomicJson(path: string, value: unknown) {
     await rm(temporary, { force: true });
   }
 }
-export const starterFiles = (name: string): FileMap => ({
-  "App.tsx": `export default function App() {\n  return <main className="app"><h1>{${JSON.stringify(name)}}</h1><p>从一个想法开始，告诉 AI 你想做什么。</p></main>;\n}\n`,
-  "main.tsx": `import { createRoot } from "react-dom/client";\nimport App from "./App";\nimport "./styles.css";\ncreateRoot(document.getElementById("root")!).render(<App />);\n`,
-  "styles.css": `body { margin: 0; font-family: system-ui, sans-serif; background: var(--background); color: var(--foreground); }\n.app { max-width: 720px; margin: 0 auto; padding: 64px 32px; }\nh1 { font-size: 28px; }\np { color: var(--muted-foreground); line-height: 1.7; }\n`,
+const projectFiles = (): FileMap => ({
+  "package.json":
+    JSON.stringify(
+      {
+        name: "workshop-mini-app",
+        version: "0.1.0",
+        private: true,
+        type: "module",
+        dependencies: {
+          react: "19.1.0",
+          "react-dom": "19.1.0",
+          "@isle/app-sdk": "0.1.0",
+        },
+        devDependencies: { typescript: "5.8.3" },
+      },
+      null,
+      2,
+    ) + "\n",
+  "tsconfig.json":
+    JSON.stringify(
+      {
+        compilerOptions: {
+          target: "ES2022",
+          lib: ["ES2022", "DOM", "DOM.Iterable"],
+          module: "ESNext",
+          moduleResolution: "Bundler",
+          jsx: "react-jsx",
+          strict: true,
+          skipLibCheck: true,
+          esModuleInterop: true,
+          resolveJsonModule: true,
+          noEmit: true,
+        },
+        include: ["src"],
+      },
+      null,
+      2,
+    ) + "\n",
+  ".gitignore": "node_modules/\ndist/\n",
 });
+export const starterFiles = (name: string): FileMap => ({
+  ...projectFiles(),
+  [APP_ENTRY]: `export default function App() {\n  return <main className="app"><h1>{${JSON.stringify(name)}}</h1><p>从一个想法开始，告诉 AI 你想做什么。</p></main>;\n}\n`,
+  [MAIN_ENTRY]: `import { createRoot } from "react-dom/client";\nimport App from "./App";\nimport "./styles.css";\ncreateRoot(document.getElementById("root")!).render(<App />);\n`,
+  [STYLE_ENTRY]: `body { margin: 0; font-family: system-ui, sans-serif; background: var(--background); color: var(--foreground); }\n.app { max-width: 720px; margin: 0 auto; padding: 64px 32px; }\nh1 { font-size: 28px; }\np { color: var(--muted-foreground); line-height: 1.7; }\n`,
+});
+const metadata = ({
+  files: _files,
+  ...record
+}: ProjectRecord): ProjectMetadata => record;
+const gates = new Map<string, Promise<void>>();
 
 export function createProjectService(workspaces: ApplicationWorkspaces) {
   async function resolve(id: unknown) {
@@ -141,9 +183,10 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
       throw new Error("工坊目录不能越界。");
     return internal;
   }
-  function validate(record: ProjectRecord, id: string) {
+  function validate(record: ProjectMetadata, id: string): ProjectMetadata {
     if (
-      record.format !== 1 ||
+      !record ||
+      record.format !== 2 ||
       record.id !== id ||
       !Number.isSafeInteger(record.revision) ||
       record.revision < 0 ||
@@ -161,17 +204,83 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
       record.description.length > 500
     )
       throw new Error("项目说明无效。");
-    validateFiles(record.files);
+    if (
+      typeof record.sourceHash !== "string" ||
+      !/^[a-f0-9]{64}$/.test(record.sourceHash) ||
+      Object.hasOwn(record, "files")
+    )
+      throw new Error("工坊源码元数据无效。");
     return record;
   }
-  const read = async (root: string, id: string) =>
+  const readMetadata = async (root: string, id: string) =>
     validate(
-      await readJson<ProjectRecord>(
+      await readJson<ProjectMetadata>(
         join(root, "project.json"),
-        2 * 1024 * 1024,
+        4 * 1024 * 1024,
       ),
       id,
     );
+  const writeRecord = (root: string, record: ProjectRecord) =>
+    atomicJson(join(root, "project.json"), metadata(record));
+  async function recover(root: string, id: string) {
+    let pending: SourceTransaction;
+    try {
+      pending = await readJson<SourceTransaction>(
+        join(root, "source-transaction.json"),
+        16 * 1024 * 1024,
+      );
+    } catch (error) {
+      if (errorCode(error) === "ENOENT") return;
+      throw error;
+    }
+    const next = validate(pending.metadata, id);
+    validateFiles(pending.before);
+    validateFiles(pending.after);
+    const previous = await readMetadata(root, id);
+    if (
+      pending.format !== 1 ||
+      !Number.isSafeInteger(pending.baseRevision) ||
+      next.revision !== pending.baseRevision + 1 ||
+      ![pending.baseRevision, next.revision].includes(previous.revision) ||
+      next.sourceHash !== sourceHash(pending.after)
+    )
+      throw new Error("源码事务无效，已保留原项目数据。");
+    await applySource(root, pending.before, pending.after);
+    await atomicJson(join(root, "project.json"), next);
+    await rm(join(root, "source-transaction.json"));
+  }
+  async function commitSource(
+    root: string,
+    before: FileMap,
+    next: ProjectRecord,
+  ) {
+    validateFiles(next.files);
+    if (sourceHash(next.files) !== next.sourceHash)
+      throw new Error("源码事务校验失败。");
+    await atomicJson(join(root, "source-transaction.json"), {
+      format: 1,
+      baseRevision: next.revision - 1,
+      before,
+      after: next.files,
+      metadata: metadata(next),
+    } satisfies SourceTransaction);
+    await recover(root, next.id);
+  }
+  async function read(root: string, id: string): Promise<ProjectRecord> {
+    await recover(root, id);
+    const stored = await readMetadata(root, id);
+    const files = await readSource(root);
+    const hash = sourceHash(files);
+    const record: ProjectRecord = { ...stored, files };
+    if (hash !== stored.sourceHash) {
+      record.sourceHash = hash;
+      record.revision++;
+      record.updatedAt = Date.now();
+      record.draftBuildId = null;
+      await writeRecord(root, record);
+    }
+    return record;
+  }
   const summary = (record: ProjectRecord): ProjectSummary => ({
     id: record.id,
     name: record.name,
@@ -182,6 +291,8 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
   });
   const detail = (record: ProjectRecord): ProjectDetail => ({
     ...summary(record),
+    sourceRoot: SOURCE_DIRECTORY,
+    entry: MAIN_ENTRY,
     files: Object.keys(record.files).sort(),
     versions: record.versions,
     hasDraftBuild: !!record.draftBuildId,
@@ -191,6 +302,25 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
     action: (root: string, record: ProjectRecord) => Promise<T>,
   ): Promise<T> {
     const root = await resolve(id);
+    const previous = gates.get(root);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    gates.set(root, gate);
+    await previous;
+    try {
+      return await filesystemLocked(root, id, action);
+    } finally {
+      release();
+      if (gates.get(root) === gate) gates.delete(root);
+    }
+  }
+  async function filesystemLocked<T>(
+    root: string,
+    id: string,
+    action: (root: string, record: ProjectRecord) => Promise<T>,
+  ): Promise<T> {
     const lock = join(root, ".write-lock");
     const busy = () => new Error("项目正在保存或构建，请稍后重试。");
     try {
@@ -252,9 +382,10 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
     await directory(join(root, "builds"));
     const value = await readJson<ArtifactRecord>(
       join(root, "builds", `${id}.json`),
-      6 * 1024 * 1024,
+      16 * 1024 * 1024,
     );
     if (
+      value.sourceLayout !== 2 ||
       value.id !== id ||
       value.projectId !== record.id ||
       typeof value.script !== "string" ||
@@ -270,6 +401,7 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
   }
   const publicArtifact = ({
     files: _files,
+    sourceLayout: _layout,
     ...value
   }: ArtifactRecord): BuildArtifact => value;
   function revision(record: ProjectRecord, expected: unknown) {
@@ -283,7 +415,9 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
         if (workspace.isDefault) continue;
         try {
           items.push(
-            summary(await read(await resolve(workspace.id), workspace.id)),
+            await locked(workspace.id, async (_root, record) =>
+              summary(record),
+            ),
           );
         } catch (error) {
           items.push({
@@ -319,20 +453,23 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
         await mkdir(root);
         await mkdir(join(root, "builds"));
         const now = Date.now();
+        const files = starterFiles(name);
         const record: ProjectRecord = {
-          format: 1,
+          format: 2,
           id: workspace.id,
           name,
           description: descriptionInput.trim(),
           revision: 0,
           createdAt: now,
           updatedAt: now,
-          files: starterFiles(name),
+          files,
+          sourceHash: sourceHash(files),
           draftBuildId: null,
           savedVersionId: null,
           versions: [],
         };
-        await atomicJson(join(root, "project.json"), record);
+        await applySource(root, {}, files);
+        await writeRecord(root, record);
         return detail(record);
       } catch (error) {
         await workspaces.remove({ id: workspace.id, deleteContent: true });
@@ -340,14 +477,15 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
       }
     },
     async inspect(id: string) {
-      return detail(await read(await resolve(id), id));
+      return locked(id, async (_root, record) => detail(record));
     },
     async readFile(id: string, name: unknown) {
       const path = validateFileName(name);
-      const record = await read(await resolve(id), id);
-      if (!Object.hasOwn(record.files, path))
-        throw new Error("源码文件不存在。");
-      return { path, content: record.files[path], revision: record.revision };
+      return locked(id, async (_root, record) => {
+        if (!Object.hasOwn(record.files, path))
+          throw new Error("源码文件不存在。");
+        return { path, content: record.files[path], revision: record.revision };
+      });
     },
     async writeFile(
       id: string,
@@ -364,17 +502,19 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
         const next = {
           ...record,
           files,
+          sourceHash: sourceHash(files),
           revision: record.revision + 1,
           updatedAt: Date.now(),
           draftBuildId: null,
         };
-        await atomicJson(join(root, "project.json"), next);
+        await commitSource(root, record.files, next);
         return detail(next);
       });
     },
     async deleteFile(id: string, name: unknown, expected: unknown) {
       const path = validateFileName(name);
-      if (path === "main.tsx") throw new Error("入口 main.tsx 不能删除。");
+      if ([MAIN_ENTRY, "package.json", "tsconfig.json"].includes(path))
+        throw new Error("入口和项目配置文件不能删除。");
       return locked(id, async (root, record) => {
         revision(record, expected);
         if (!Object.hasOwn(record.files, path))
@@ -384,11 +524,12 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
         const next = {
           ...record,
           files,
+          sourceHash: sourceHash(files),
           revision: record.revision + 1,
           updatedAt: Date.now(),
           draftBuildId: null,
         };
-        await atomicJson(join(root, "project.json"), next);
+        await commitSource(root, record.files, next);
         return detail(next);
       });
     },
@@ -408,13 +549,14 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
           sourceHash: sourceHash(record.files),
           sourceRevision: record.revision,
           files: record.files,
+          sourceLayout: 2,
           script: result.script,
           style: result.style,
         };
         await directory(join(root, "builds"));
         await atomicJson(join(root, "builds", `${built.id}.json`), built);
         const next = { ...record, draftBuildId: built.id };
-        await atomicJson(join(root, "project.json"), next);
+        await writeRecord(root, next);
         return {
           ok: true,
           project: detail(next),
@@ -424,22 +566,22 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
       });
     },
     async readArtifact(id: string, mode: "draft" | "saved") {
-      const root = await resolve(id);
-      const record = await read(root, id);
-      const target =
-        mode === "saved" ? record.savedVersionId : record.draftBuildId;
-      if (!target) return null;
-      const value = await artifact(root, record, target);
-      if (mode === "draft" && value.sourceHash !== sourceHash(record.files))
-        return null;
-      return publicArtifact(value);
+      return locked(id, async (root, record) => {
+        const target =
+          mode === "saved" ? record.savedVersionId : record.draftBuildId;
+        if (!target) return null;
+        const value = await artifact(root, record, target);
+        if (mode === "draft" && value.sourceHash !== record.sourceHash)
+          return null;
+        return publicArtifact(value);
+      });
     },
     async saveVersion(id: string) {
       return locked(id, async (root, record) => {
         if (!record.draftBuildId)
           throw new Error("请先构建当前草稿，再保存版本。");
         const built = await artifact(root, record, record.draftBuildId);
-        if (built.sourceHash !== sourceHash(record.files))
+        if (built.sourceHash !== record.sourceHash)
           throw new Error("构建已过期，请重新构建当前源码。");
         const versions = record.versions.some((v) => v.id === built.id)
           ? record.versions
@@ -458,7 +600,7 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
           savedVersionId: built.id,
           updatedAt: Date.now(),
         };
-        await atomicJson(join(root, "project.json"), next);
+        await writeRecord(root, next);
         return detail(next);
       });
     },
@@ -468,15 +610,17 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
         if (!record.versions.some((v) => v.id === versionId))
           throw new Error("保存的版本不存在。");
         const built = await artifact(root, record, versionId);
+        const files = built.files;
         const next = {
           ...record,
-          files: built.files,
+          files,
+          sourceHash: sourceHash(files),
           revision: record.revision + 1,
           draftBuildId: built.id,
           savedVersionId: built.id,
           updatedAt: Date.now(),
         };
-        await atomicJson(join(root, "project.json"), next);
+        await commitSource(root, record.files, next);
         return detail(next);
       });
     },

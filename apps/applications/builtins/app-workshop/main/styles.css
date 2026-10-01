@@ -982,6 +982,7 @@
     flex-direction: column;
   }
   .wk-files {
+    flex-shrink: 0;
     border: 0;
     border-bottom: 1px solid var(--border);
     padding: 10px 12px;

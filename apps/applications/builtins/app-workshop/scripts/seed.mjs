@@ -88,13 +88,13 @@ export async function seedExamples(tools) {
         : `body{margin:0;font:15px/1.6 system-ui;color:var(--foreground);background:var(--surface-raised)}.notes{padding:36px;max-width:700px;margin:auto}.notes h1{font-size:24px}.notes p{color:var(--muted-foreground)}.notes textarea{width:100%;height:200px;font:inherit;padding:14px;border:1px solid var(--border);border-radius:8px;box-sizing:border-box;background:var(--background);color:var(--foreground)}`;
     ({ project } = await run("workshop_write_file", {
       workspaceId: project.id,
-      path: "App.tsx",
+      path: "src/App.tsx",
       content: source,
       baseRevision: project.revision,
     }));
     ({ project } = await run("workshop_write_file", {
       workspaceId: project.id,
-      path: "styles.css",
+      path: "src/styles.css",
       content: style,
       baseRevision: project.revision,
     }));
