@@ -40,6 +40,8 @@ export interface ProjectDetail extends ProjectSummary {
   files: string[];
   versions: SavedVersion[];
   hasDraftBuild: boolean;
+  /** Draft files that differ from the current saved version, including deletions. */
+  changedFiles: string[];
 }
 export interface BuildArtifact {
   id: string;
@@ -66,6 +68,7 @@ export interface SourceFile {
   path: string;
   content: string;
   revision: number;
+  savedContent: string | null;
 }
 export type FileMap = Record<string, string>;
 

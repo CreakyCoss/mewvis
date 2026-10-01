@@ -24,6 +24,7 @@ export function VersionsDialog({
   pending,
   disabled,
   blockedReason,
+  hasUnsavedChanges,
   onClose,
   onSave,
   onCreate,
@@ -33,6 +34,7 @@ export function VersionsDialog({
   pending: string;
   disabled: boolean;
   blockedReason: string;
+  hasUnsavedChanges: boolean;
   onClose(): void;
   onSave(): void;
   onCreate(): void;
@@ -66,7 +68,7 @@ export function VersionsDialog({
           ? "创建新版本"
           : stage === "restore"
             ? restoringCurrent
-              ? "恢复草稿"
+              ? "还原到当前版本"
               : `切换到版本 ${selectedNumber}`
             : "版本管理"
       }
@@ -82,7 +84,11 @@ export function VersionsDialog({
               {currentNumber ? `版本 ${currentNumber}` : "未保存"}
             </strong>
             {currentNumber && (
-              <span className="wk-version-badge">正在使用</span>
+              <span
+                className={`wk-version-badge ${hasUnsavedChanges ? "is-unsaved" : ""}`}
+              >
+                {hasUnsavedChanges ? "草稿有修改" : "草稿已同步"}
+              </span>
             )}
           </div>
           <div className="wk-version-list">
@@ -105,13 +111,17 @@ export function VersionsDialog({
                     </div>
                     <button
                       className="wk-button is-small"
-                      disabled={disabled}
+                      disabled={disabled || (current && !hasUnsavedChanges)}
                       onClick={() => {
+                        if (!hasUnsavedChanges) {
+                          onRestore(version.id);
+                          return;
+                        }
                         setSelectedId(version.id);
                         setStage("restore");
                       }}
                     >
-                      {current ? "恢复草稿" : "切换"}
+                      {current ? "还原到当前版本" : "切换"}
                     </button>
                   </div>
                 );
@@ -156,7 +166,11 @@ export function VersionsDialog({
             ) : (
               <div className="wk-version-warning">
                 <AlertTriangle />
-                <p>当前草稿将被替换。之后保存会更新版本 {selectedNumber}。</p>
+                <p>
+                  {restoringCurrent
+                    ? `将丢弃未保存到当前版本的修改，用版本 ${selectedNumber} 的内容覆盖草稿。`
+                    : `草稿有未保存到版本的修改，切换后这些修改将被丢弃，并用版本 ${selectedNumber} 的内容覆盖草稿。`}
+                </p>
               </div>
             )}
           </div>
@@ -171,7 +185,10 @@ export function VersionsDialog({
             <button
               ref={primaryAction}
               className="wk-button is-primary"
-              disabled={disabled}
+              disabled={
+                disabled ||
+                (stage === "restore" && restoringCurrent && !hasUnsavedChanges)
+              }
               onClick={() =>
                 stage === "create" ? onCreate() : onRestore(selectedId)
               }
@@ -188,7 +205,7 @@ export function VersionsDialog({
                 : stage === "create"
                   ? "创建版本"
                   : restoringCurrent
-                    ? "恢复草稿"
+                    ? "还原到当前版本"
                     : "切换版本"}
             </button>
           </footer>

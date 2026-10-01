@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   ChevronDown,
+  Circle,
   Code2,
   FilePlus2,
   History,
@@ -100,6 +101,7 @@ export function Editor({
       state.source.revision,
     );
     const file = {
+      ...state.source,
       path: state.path,
       content: state.value,
       revision: next.revision,
@@ -184,6 +186,12 @@ export function Editor({
       const next = createNew
         ? await api.createVersion(initial.id)
         : await api.save(initial.id);
+      const file = current.current.source;
+      if (file?.revision === next.revision) {
+        const savedFile = { ...file, savedContent: file.content };
+        current.current.source = savedFile;
+        setSource(savedFile);
+      }
       update(next);
       setModal(null);
       toast.success(
@@ -193,22 +201,30 @@ export function Editor({
       );
     });
   const restoreVersion = (versionId: string) =>
-    perform("正在恢复版本…", async () => {
-      await saveSource();
+    perform("正在更新草稿…", async () => {
+      const restoringCurrent =
+        versionId === current.current.project.savedVersionId;
       const next = await api.restore(
         project.id,
         versionId,
         current.current.project.revision,
       );
+      dirtyRef.current = false;
       update(next);
       const nextPath = next.files.includes(path) ? path : next.files[0];
-      if (nextPath !== path) setPath(nextPath);
-      else await loadFile(nextPath, true);
+      if (nextPath !== path) {
+        setSource(null);
+        setPath(nextPath);
+      } else await loadFile(nextPath, true);
       setDiagnostics([]);
       setArtifact(await api.artifact(project.id, "draft"));
       setRuntimeError("");
       setModal(null);
-      toast.success(`已恢复版本 ${getVersionNumber(next)}，草稿已更新。`);
+      toast.success(
+        restoringCurrent
+          ? `草稿已还原到版本 ${getVersionNumber(next)}。`
+          : `已切换到版本 ${getVersionNumber(next)}，草稿已替换。`,
+      );
     });
   const beforeSend = useRef<() => Promise<void>>(async () => {});
   beforeSend.current = async () => {
@@ -324,6 +340,12 @@ export function Editor({
     });
   const disabled = !!pending || aiBusy;
   const versionNumber = getVersionNumber(project);
+  const hasUnsavedChanges =
+    !project.savedVersionId ||
+    (source?.path === path && source.revision === project.revision
+      ? project.changedFiles.some((name) => name !== path) ||
+        value !== source.savedContent
+      : project.changedFiles.length > 0 || dirty);
   const versionBlockedReason = runtimeError
     ? "请先修复预览中的运行错误，再构建和保存版本。"
     : dirty || !artifact
@@ -343,9 +365,9 @@ export function Editor({
         </button>
         <span className="wk-header-divider" />
         <strong className="wk-header-name">{project.name}</strong>
-        <span className="wk-saved">
-          <CheckCircle2 />
-          {dirty ? "源码未保存" : "源码已保存"}
+        <span className={`wk-saved ${hasUnsavedChanges ? "is-unsaved" : ""}`}>
+          {hasUnsavedChanges ? <Circle /> : <CheckCircle2 />}
+          {hasUnsavedChanges ? "未保存到版本" : "已保存到版本"}
         </span>
         <div className="wk-header-actions">
           <button
@@ -378,7 +400,7 @@ export function Editor({
             ) : (
               <Save />
             )}
-            {pending === "正在保存版本…" ? "保存中…" : "保存"}
+            {pending === "正在保存版本…" ? "保存中…" : "保存版本"}
           </button>
         </div>
       </header>
@@ -656,6 +678,7 @@ export function Editor({
           pending={pending}
           disabled={disabled}
           blockedReason={versionBlockedReason}
+          hasUnsavedChanges={hasUnsavedChanges}
           onClose={() => setModal(null)}
           onSave={() => void saveVersion()}
           onCreate={() => void saveVersion(true)}

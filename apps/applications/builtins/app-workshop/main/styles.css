@@ -175,6 +175,9 @@
   width: 14px;
   color: var(--success);
 }
+.wk-saved.is-unsaved svg {
+  color: var(--muted-foreground);
+}
 .wk-home {
   min-height: 0;
   flex: 1;
@@ -942,6 +945,10 @@
   background: var(--success-subtle);
   color: var(--success);
   font-size: 11px;
+}
+.wk-version-badge.is-unsaved {
+  background: var(--muted);
+  color: var(--muted-foreground);
 }
 .wk-version-list {
   max-height: min(42dvh, 360px);

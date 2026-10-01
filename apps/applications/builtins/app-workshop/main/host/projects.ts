@@ -289,14 +289,33 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
     updatedAt: record.updatedAt,
     savedVersionId: record.savedVersionId,
   });
-  const detail = (record: ProjectRecord): ProjectDetail => ({
-    ...summary(record),
-    sourceRoot: SOURCE_DIRECTORY,
-    entry: MAIN_ENTRY,
-    files: Object.keys(record.files).sort(),
-    versions: record.versions,
-    hasDraftBuild: !!record.draftBuildId,
-  });
+  async function savedFiles(
+    root: string,
+    record: ProjectRecord,
+  ): Promise<FileMap> {
+    return record.savedVersionId
+      ? (await artifact(root, record, record.savedVersionId)).files
+      : {};
+  }
+  async function detail(
+    root: string,
+    record: ProjectRecord,
+  ): Promise<ProjectDetail> {
+    const saved = await savedFiles(root, record);
+    return {
+      ...summary(record),
+      sourceRoot: SOURCE_DIRECTORY,
+      entry: MAIN_ENTRY,
+      files: Object.keys(record.files).sort(),
+      versions: record.versions,
+      hasDraftBuild: !!record.draftBuildId,
+      changedFiles: [
+        ...new Set([...Object.keys(record.files), ...Object.keys(saved)]),
+      ]
+        .filter((path) => record.files[path] !== saved[path])
+        .sort(),
+    };
+  }
   async function locked<T>(
     id: string,
     action: (root: string, record: ProjectRecord) => Promise<T>,
@@ -470,21 +489,27 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
         };
         await applySource(root, {}, files);
         await writeRecord(root, record);
-        return detail(record);
+        return detail(root, record);
       } catch (error) {
         await workspaces.remove({ id: workspace.id, deleteContent: true });
         throw error;
       }
     },
     async inspect(id: string) {
-      return locked(id, async (_root, record) => detail(record));
+      return locked(id, async (root, record) => detail(root, record));
     },
     async readFile(id: string, name: unknown) {
       const path = validateFileName(name);
-      return locked(id, async (_root, record) => {
+      return locked(id, async (root, record) => {
         if (!Object.hasOwn(record.files, path))
           throw new Error("源码文件不存在。");
-        return { path, content: record.files[path], revision: record.revision };
+        const saved = await savedFiles(root, record);
+        return {
+          path,
+          content: record.files[path],
+          revision: record.revision,
+          savedContent: saved[path] ?? null,
+        };
       });
     },
     async writeFile(
@@ -508,7 +533,7 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
           draftBuildId: null,
         };
         await commitSource(root, record.files, next);
-        return detail(next);
+        return detail(root, next);
       });
     },
     async deleteFile(id: string, name: unknown, expected: unknown) {
@@ -530,7 +555,7 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
           draftBuildId: null,
         };
         await commitSource(root, record.files, next);
-        return detail(next);
+        return detail(root, next);
       });
     },
     async build(id: string): Promise<BuildResult> {
@@ -539,7 +564,7 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
         if (result.diagnostics.length)
           return {
             ok: false,
-            project: detail(record),
+            project: await detail(root, record),
             diagnostics: result.diagnostics,
           };
         const built: ArtifactRecord = {
@@ -559,7 +584,7 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
         await writeRecord(root, next);
         return {
           ok: true,
-          project: detail(next),
+          project: await detail(root, next),
           artifact: publicArtifact(built),
           diagnostics: [],
         };
@@ -614,7 +639,7 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
           updatedAt: saved.createdAt,
         };
         await writeRecord(root, next);
-        return detail(next);
+        return detail(root, next);
       });
     },
     async restore(id: string, versionId: string, expected: unknown) {
@@ -643,7 +668,7 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
         await atomicJson(join(root, "builds", `${draft.id}.json`), draft);
         const ready = { ...next, draftBuildId: draft.id };
         await writeRecord(root, ready);
-        return detail(ready);
+        return detail(root, ready);
       });
     },
     async remove(id: string) {
