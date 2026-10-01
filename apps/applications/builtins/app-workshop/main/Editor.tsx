@@ -11,14 +11,14 @@ import {
   ChevronDown,
   Code2,
   Columns2,
-  FilePlus2,
-  Folder,
-  FolderOpen,
   GripVertical,
   LoaderCircle,
   Maximize2,
   Minimize2,
   Monitor,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plus,
   RefreshCw,
   Save,
   Sparkles,
@@ -477,7 +477,7 @@ export function Editor({
                       setModal("file");
                     }}
                   >
-                    <FilePlus2 />
+                    <Plus aria-hidden="true" />
                   </button>
                 </header>
                 <FileTree
@@ -493,16 +493,16 @@ export function Editor({
                   <button
                     type="button"
                     className="wk-icon-button wk-file-toggle"
-                    aria-label={filesExpanded ? "折叠文件列表" : "展开文件列表"}
-                    title={filesExpanded ? "折叠文件列表" : "展开文件列表"}
+                    aria-label={filesExpanded ? "折叠文件树" : "展开文件树"}
+                    title={filesExpanded ? "折叠文件树" : "展开文件树"}
                     aria-expanded={filesExpanded}
                     aria-controls="wk-project-files"
                     onClick={() => setFilesExpanded(!filesExpanded)}
                   >
                     {filesExpanded ? (
-                      <FolderOpen aria-hidden="true" />
+                      <PanelLeftClose aria-hidden="true" />
                     ) : (
-                      <Folder aria-hidden="true" />
+                      <PanelLeftOpen aria-hidden="true" />
                     )}
                   </button>
                   <div className="wk-file-tabs">

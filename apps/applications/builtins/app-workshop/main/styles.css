@@ -778,16 +778,24 @@
   border-bottom: 1px solid var(--border);
   background: var(--background);
 }
-.wk-file-toggle {
-  width: 32px;
-  height: 32px;
-  margin-left: 6px;
+.wk-files header .wk-icon-button,
+.wk-code-toolbar .wk-icon-button {
+  width: 30px;
+  height: 30px;
   padding: 7px;
   border-radius: 6px;
 }
+.wk-files header .wk-icon-button svg,
+.wk-code-toolbar .wk-icon-button svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.75;
+}
+.wk-file-toggle {
+  margin-left: 6px;
+}
 .wk-file-toggle[aria-expanded="true"] {
-  color: var(--primary);
-  background: var(--primary-subtle);
+  color: var(--foreground);
 }
 .wk-file-tabs {
   min-width: 0;
@@ -817,11 +825,6 @@
   align-items: center;
   gap: 2px;
   padding-right: 6px;
-}
-.wk-code-actions .wk-icon-button {
-  width: 30px;
-  height: 30px;
-  padding: 7px;
 }
 @container workshop-code (max-width: 420px) {
   .wk-source {
