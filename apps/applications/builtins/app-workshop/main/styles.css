@@ -809,26 +809,6 @@
   overflow: hidden;
   background: var(--surface-raised);
 }
-.wk-use-exit {
-  position: absolute;
-  z-index: 2;
-  top: 16px;
-  left: 16px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  padding: 8px 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--surface-raised) 94%, transparent);
-  color: var(--foreground);
-  box-shadow: var(--shadow-floating);
-  backdrop-filter: blur(8px);
-}
-.wk-use-exit:hover {
-  background: var(--muted);
-}
 .wk-modal {
   position: fixed;
   inset: 0;
@@ -1091,12 +1071,6 @@
   }
   .wk-shell.is-using {
     overflow: hidden;
-  }
-  .wk-use-exit {
-    top: auto;
-    left: auto;
-    right: 12px;
-    bottom: 12px;
   }
   .wk-home {
     display: flex;
