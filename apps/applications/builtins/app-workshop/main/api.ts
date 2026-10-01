@@ -79,6 +79,12 @@ export const api = {
         workspaceId,
       })
     ).project,
+  createVersion: async (workspaceId: string) =>
+    (
+      await call<{ project: ProjectDetail }>("workshop_create_version", {
+        workspaceId,
+      })
+    ).project,
   restore: async (
     workspaceId: string,
     versionId: string,

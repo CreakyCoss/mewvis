@@ -6,6 +6,7 @@ import {
   link,
   mkdtemp,
   readFile,
+  readdir,
   rename,
   rm,
   symlink,
@@ -167,7 +168,7 @@ test("create, edit, build, save, reopen and restore a real packaged application"
   );
   await assert.rejects(f.run("workshop_save_version", args), /先构建/);
   assert.equal((await f.run("workshop_build", args)).ok, true);
-  project = (await f.run("workshop_save_version", args)).project;
+  project = (await f.run("workshop_create_version", args)).project;
   assert.equal(project.versions.length, 2);
   project = (
     await f.run("workshop_restore_version", {
@@ -185,7 +186,7 @@ test("create, edit, build, save, reopen and restore a real packaged application"
   assert.equal(
     (await f.run("workshop_read_build", { ...args, mode: "draft" })).artifact
       .id,
-    firstVersion,
+    project.id,
   );
   const second = new Map();
   application.apply({
@@ -227,6 +228,116 @@ async function sourceFiles(f, project) {
     ),
   );
 }
+
+test("builds use one draft, saves overwrite the current version, and new versions require explicit creation", async (t) => {
+  const f = await fixture(t);
+  let project = await f.create("草稿与版本");
+  const args = { workspaceId: project.id };
+  const builds = join(workspaceOf(f, project), ".workshop/builds");
+  const first = await f.run("workshop_build", args);
+  assert.equal(first.ok, true);
+  assert.equal(first.artifactId, project.id);
+  const firstDraft = (
+    await f.run("workshop_read_build", { ...args, mode: "draft" })
+  ).artifact;
+  project = await f.write(
+    project,
+    "src/App.tsx",
+    "export default function App(){return <h1>保存前的修改</h1>}",
+  );
+  const second = await f.run("workshop_build", args);
+  assert.equal(second.ok, true);
+  assert.equal(second.artifactId, first.artifactId);
+  const secondDraft = (
+    await f.run("workshop_read_build", { ...args, mode: "draft" })
+  ).artifact;
+  assert.notEqual(secondDraft.sourceHash, firstDraft.sourceHash);
+  assert.deepEqual(await readdir(builds), [`${project.id}.json`]);
+  assert.equal(second.project.versions.length, 0);
+  project = (await f.run("workshop_save_version", args)).project;
+  const savedId = project.savedVersionId;
+  assert.notEqual(savedId, project.id);
+  const savedPath = join(builds, `${savedId}.json`);
+  let snapshot = await readFile(savedPath, "utf8");
+  const createdAt = project.versions[0].createdAt;
+  assert.equal(JSON.parse(snapshot).sourceHash, secondDraft.sourceHash);
+  assert.equal(
+    (await f.run("workshop_save_version", args)).project.versions.length,
+    1,
+  );
+  await f.run("workshop_build", args);
+  assert.equal(
+    (await f.run("workshop_save_version", args)).project.versions.length,
+    1,
+  );
+  snapshot = await readFile(savedPath, "utf8");
+  project = await f.write(
+    project,
+    "src/App.tsx",
+    "export default function App(){return <h1>保存后的修改</h1>}",
+  );
+  assert.equal((await f.run("workshop_build", args)).artifactId, project.id);
+  assert.deepEqual(
+    (await readdir(builds)).sort(),
+    [project.id, savedId].map((id) => `${id}.json`).sort(),
+  );
+  assert.equal(await readFile(savedPath, "utf8"), snapshot);
+  assert.equal(
+    (await f.run("workshop_read_build", { ...args, mode: "saved" })).artifact.id,
+    savedId,
+  );
+  project = (await f.run("workshop_save_version", args)).project;
+  assert.equal(project.versions.length, 1);
+  assert.equal(project.savedVersionId, savedId);
+  assert.equal(project.versions[0].createdAt, createdAt);
+  assert.equal(project.versions[0].sourceRevision, project.revision);
+  assert.notEqual(await readFile(savedPath, "utf8"), snapshot);
+  snapshot = await readFile(savedPath, "utf8");
+  assert.match(JSON.parse(snapshot).files["src/App.tsx"], /保存后的修改/);
+  assert.equal((await readdir(builds)).length, 2);
+  project = (await f.run("workshop_create_version", args)).project;
+  assert.equal(project.versions.length, 2);
+  assert.notEqual(project.savedVersionId, savedId);
+  assert.equal(await readFile(savedPath, "utf8"), snapshot);
+  const newVersionId = project.savedVersionId;
+  const newVersionPath = join(builds, `${newVersionId}.json`);
+  const newSnapshot = await readFile(newVersionPath, "utf8");
+  assert.equal(JSON.parse(newSnapshot).sourceHash, JSON.parse(snapshot).sourceHash);
+  assert.equal((await readdir(builds)).length, 3);
+  project = (
+    await f.run("workshop_restore_version", {
+      ...args,
+      versionId: savedId,
+      baseRevision: project.revision,
+    })
+  ).project;
+  assert.equal(
+    (await f.run("workshop_read_build", { ...args, mode: "draft" })).artifact.id,
+    project.id,
+  );
+  assert.equal(project.savedVersionId, savedId);
+  project = await f.write(
+    project,
+    "src/App.tsx",
+    "export default function App(){return <h1>恢复后的修改</h1>}",
+  );
+  assert.equal((await f.run("workshop_build", args)).artifactId, project.id);
+  assert.equal(await readFile(savedPath, "utf8"), snapshot);
+  assert.equal((await readdir(builds)).length, 3);
+  project = (await f.run("workshop_save_version", args)).project;
+  assert.equal(project.savedVersionId, savedId);
+  assert.equal(project.versions.length, 2);
+  assert.deepEqual(
+    project.versions.map((version) => version.id),
+    [newVersionId, savedId],
+  );
+  assert.match(
+    JSON.parse(await readFile(savedPath, "utf8")).files["src/App.tsx"],
+    /恢复后的修改/,
+  );
+  assert.equal(await readFile(newVersionPath, "utf8"), newSnapshot);
+  assert.equal((await readdir(builds)).length, 3);
+});
 
 test("external edits invalidate draft builds and reject stale saves without changing the running version", async (t) => {
   const f = await fixture(t);

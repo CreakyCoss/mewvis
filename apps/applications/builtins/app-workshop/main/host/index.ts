@@ -164,12 +164,22 @@ export default defineApplication({
     );
     register(
       "workshop_save_version",
-      "将已成功构建且未过期的草稿保存为可使用版本。",
+      "将已成功构建且未过期的草稿覆盖保存到当前版本；首次保存创建第一个版本。",
       "medium",
       { workspaceId: id },
       ["workspaceId"],
       async (args) => ({
         project: await projects.saveVersion(args.workspaceId),
+      }),
+    );
+    register(
+      "workshop_create_version",
+      "将已成功构建且未过期的草稿保存为新的独立版本，保留已有版本并切换到新版本。仅由用户明确创建。",
+      "medium",
+      { workspaceId: id },
+      ["workspaceId"],
+      async (args) => ({
+        project: await projects.saveVersion(args.workspaceId, true),
       }),
     );
     register(

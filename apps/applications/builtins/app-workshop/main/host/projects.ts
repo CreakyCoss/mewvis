@@ -543,7 +543,7 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
             diagnostics: result.diagnostics,
           };
         const built: ArtifactRecord = {
-          id: randomUUID(),
+          id: record.id,
           projectId: id,
           createdAt: Date.now(),
           sourceHash: sourceHash(record.files),
@@ -576,29 +576,42 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
         return publicArtifact(value);
       });
     },
-    async saveVersion(id: string) {
+    async saveVersion(id: string, createNew = false) {
       return locked(id, async (root, record) => {
         if (!record.draftBuildId)
           throw new Error("请先构建当前草稿，再保存版本。");
         const built = await artifact(root, record, record.draftBuildId);
         if (built.sourceHash !== record.sourceHash)
           throw new Error("构建已过期，请重新构建当前源码。");
-        const versions = record.versions.some((v) => v.id === built.id)
-          ? record.versions
-          : [
+        const isNewVersion = createNew || !record.savedVersionId;
+        if (isNewVersion && record.versions.length >= 100)
+          throw new Error("最多保存 100 个版本。");
+        const saved: ArtifactRecord = {
+          ...built,
+          id: isNewVersion ? randomUUID() : record.savedVersionId!,
+          createdAt: Date.now(),
+          sourceRevision: record.revision,
+        };
+        await atomicJson(join(root, "builds", `${saved.id}.json`), saved);
+        const versions = isNewVersion
+          ? [
               {
-                id: built.id,
-                createdAt: Date.now(),
-                sourceRevision: record.revision,
+                id: saved.id,
+                createdAt: saved.createdAt,
+                sourceRevision: saved.sourceRevision,
               },
               ...record.versions,
-            ];
-        if (versions.length > 100) throw new Error("最多保存 100 个版本。");
+            ]
+          : record.versions.map((version) =>
+              version.id === saved.id
+                ? { ...version, sourceRevision: saved.sourceRevision }
+                : version,
+            );
         const next = {
           ...record,
           versions,
-          savedVersionId: built.id,
-          updatedAt: Date.now(),
+          savedVersionId: saved.id,
+          updatedAt: saved.createdAt,
         };
         await writeRecord(root, next);
         return detail(next);
@@ -616,12 +629,21 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
           files,
           sourceHash: sourceHash(files),
           revision: record.revision + 1,
-          draftBuildId: built.id,
+          draftBuildId: null,
           savedVersionId: built.id,
           updatedAt: Date.now(),
         };
         await commitSource(root, record.files, next);
-        return detail(next);
+        const draft: ArtifactRecord = {
+          ...built,
+          id: record.id,
+          sourceRevision: next.revision,
+          createdAt: next.updatedAt,
+        };
+        await atomicJson(join(root, "builds", `${draft.id}.json`), draft);
+        const ready = { ...next, draftBuildId: draft.id };
+        await writeRecord(root, ready);
+        return detail(ready);
       });
     },
     async remove(id: string) {

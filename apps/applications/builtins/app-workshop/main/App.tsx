@@ -92,7 +92,14 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [selectedId, selected?.savedVersionId, selected?.error, mode, reload]);
+  }, [
+    selectedId,
+    selected?.savedVersionId,
+    selected?.updatedAt,
+    selected?.error,
+    mode,
+    reload,
+  ]);
   async function perform(label: string, callback: () => Promise<void>) {
     if (action.current) return;
     action.current = true;

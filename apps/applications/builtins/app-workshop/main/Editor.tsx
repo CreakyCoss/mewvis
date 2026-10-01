@@ -9,6 +9,7 @@ import {
   History,
   Maximize2,
   Play,
+  Plus,
   RefreshCw,
   Save,
   Sparkles,
@@ -132,7 +133,12 @@ export function Editor({
     }
     const built = await api.artifact(initial.id, "draft");
     if (live.current) {
-      if (artifactRef.current?.id !== built?.id) setRuntimeError("");
+      if (
+        artifactRef.current?.id !== built?.id ||
+        artifactRef.current?.sourceHash !== built?.sourceHash ||
+        artifactRef.current?.createdAt !== built?.createdAt
+      )
+        setRuntimeError("");
       setArtifact(built);
     }
   }
@@ -165,8 +171,8 @@ export function Editor({
           : "构建未通过，请按错误位置修复源码。",
       );
     });
-  const saveVersion = () =>
-    perform("正在保存版本…", async () => {
+  const saveVersion = (createNew = false) =>
+    perform(createNew ? "正在创建新版本…" : "正在保存版本…", async () => {
       await saveSource();
       if (runtimeError)
         throw new Error("小应用运行出错，请修复并重新构建后再保存。");
@@ -177,8 +183,17 @@ export function Editor({
         if (!built.ok) throw new Error("构建失败，请先修复下面的错误。");
         setArtifact(await api.artifact(initial.id, "draft"));
       }
-      update(await api.save(initial.id));
-      setNotice("版本已保存，可以从首页打开使用。");
+      const isNewVersion = createNew || !current.current.project.savedVersionId;
+      update(
+        createNew
+          ? await api.createVersion(initial.id)
+          : await api.save(initial.id),
+      );
+      setNotice(
+        isNewVersion
+          ? "新版本已创建，可以从首页打开使用。"
+          : "当前版本已更新，可以从首页打开使用。",
+      );
     });
   const beforeSend = useRef<() => Promise<void>>(async () => {});
   beforeSend.current = async () => {
@@ -293,6 +308,11 @@ export function Editor({
       callback();
     });
   const disabled = !!pending || aiBusy;
+  const versionIndex = project.versions.findIndex(
+    (version) => version.id === project.savedVersionId,
+  );
+  const versionNumber =
+    versionIndex >= 0 ? project.versions.length - versionIndex : null;
   return (
     <div className="wk-editor-shell">
       <header className="wk-header">
@@ -314,25 +334,38 @@ export function Editor({
         <div className="wk-header-actions">
           <button
             className="wk-icon-button"
-            aria-label="版本历史"
-            title="版本历史"
+            aria-label="版本管理"
+            title="版本管理"
             onClick={() => setModal("versions")}
             disabled={disabled}
           >
             <History />
           </button>
+          {project.savedVersionId && (
+            <button
+              className="wk-button"
+              disabled={disabled || dirty || !artifact || !!runtimeError}
+              title="保留已有版本，将当前草稿保存为新版本"
+              onClick={() => void saveVersion(true)}
+            >
+              <Plus />
+              创建新版本
+            </button>
+          )}
           <button
             className="wk-button is-primary"
             disabled={disabled || dirty || !artifact || !!runtimeError}
             title={
               !artifact
                 ? "先构建当前草稿，再保存版本"
-                : "将当前构建保存为可使用版本"
+                : versionNumber
+                  ? `覆盖更新版本 ${versionNumber}`
+                  : "将当前草稿保存为第一个版本"
             }
             onClick={() => void saveVersion()}
           >
             <Save />
-            保存版本
+            {versionNumber ? `保存版本 ${versionNumber}` : "保存版本"}
           </button>
         </div>
       </header>
@@ -611,7 +644,7 @@ export function Editor({
       )}
       {modal === "versions" && (
         <Modal
-          title="版本历史"
+          title="版本管理"
           onClose={() => {
             setModal(null);
             setRestoringId("");
@@ -624,7 +657,7 @@ export function Editor({
             ) : restoringId ? (
               <>
                 <p>
-                  恢复会替换草稿源码与正在使用的版本；已有保存版本仍保留。请先保存当前源码。
+                  恢复会替换草稿源码并切换正在使用的版本。之后保存会覆盖所选版本；需要保留它时，请创建新版本。请先保存当前源码。
                 </p>
                 <button
                   className="wk-button"
@@ -644,7 +677,9 @@ export function Editor({
                         ? " · 正在使用"
                         : ""}
                     </strong>
-                    <span>{new Date(version.createdAt).toLocaleString()}</span>
+                    <span>
+                      创建于 {new Date(version.createdAt).toLocaleString()}
+                    </span>
                   </div>
                   <button
                     className="wk-button is-small"
@@ -658,6 +693,11 @@ export function Editor({
                   </button>
                 </div>
               ))
+            )}
+            {!!project.versions.length && !restoringId && (
+              <p>
+                保存会覆盖当前版本。点击「创建新版本」可保留原版本，并将当前草稿保存到新版本。
+              </p>
             )}
             {error && <ErrorNotice>{error}</ErrorNotice>}
           </div>

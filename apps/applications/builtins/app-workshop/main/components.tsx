@@ -216,7 +216,15 @@ export function AppView({
     return () => {
       active = false;
     };
-  }, [artifact?.id, projectId, scope, passive, retry]);
+  }, [
+    artifact?.id,
+    artifact?.sourceHash,
+    artifact?.createdAt,
+    projectId,
+    scope,
+    passive,
+    retry,
+  ]);
   return (
     <div className={`wk-view ${passive ? "is-passive" : ""}`}>
       <div ref={ref} className="wk-view-frame" />
