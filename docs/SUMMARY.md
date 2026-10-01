@@ -61,6 +61,7 @@
 
 - [故事工作台](apps/builtins/story.md)
 - [文档中心](apps/builtins/docs-reader.md)
+- [应用工坊](apps/builtins/app-workshop.md)
 - [聊天调试台](apps/builtins/chat-playground.md)
 - [RSS 阅读器](apps/builtins/rss-reader.md)
 - [学习工作台](apps/builtins/learning.md)

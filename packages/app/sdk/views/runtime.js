@@ -263,7 +263,6 @@ export function createApplicationViewHost({ getTheme }) {
 <style>:root{color-scheme:light;font-family:system-ui,sans-serif}:root[data-theme=dark]{color-scheme:dark}html,body{height:100%;margin:0}*{box-sizing:border-box}${escapeStyle(options.style ?? "")}</style></head><body>
 <script>${escapeScript(bootstrap)}</script><script>${escapeScript(options.script)}</script>
 <script>parent.postMessage({channel:${JSON.stringify(channel)},instance:${JSON.stringify(instance)},type:"ready"},"*");</script></body></html>`;
-    const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
     const calls = new Map();
     let state = "loading";
     let loads = 0;
@@ -304,7 +303,6 @@ export function createApplicationViewHost({ getTheme }) {
       removeEventListener("message", onMessage);
       frame.removeEventListener("load", onLoad);
       frame.remove();
-      URL.revokeObjectURL(url);
       views.delete(options.id);
     };
     const onMessage = (event) => {
@@ -435,7 +433,10 @@ export function createApplicationViewHost({ getTheme }) {
     });
     addEventListener("message", onMessage);
     frame.addEventListener("load", onLoad);
-    frame.src = url;
+    // WebKit can leave sandboxed Blob navigations on about:blank. srcdoc works
+    // in both the desktop WebView and dev preview; allow-scripts without
+    // allow-same-origin still gives this document an opaque, isolated origin.
+    frame.srcdoc = html;
     try {
       container.append(frame);
     } catch (error) {

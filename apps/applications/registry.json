@@ -1,5 +1,6 @@
 {
   "applications": [
+    "app-workshop",
     "chat-playground",
     "docs-reader",
     "learning",

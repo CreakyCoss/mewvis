@@ -38,7 +38,7 @@ export interface ApplicationView {
   readonly ready: Promise<void>;
   /** Sends a bounded JSON event to this child. */
   postMessage(value: ApplicationViewValue): void;
-  /** Idempotent; aborts handlers, closes the frame, and releases its blob URL. */
+  /** Idempotent; aborts handlers and closes the isolated frame. */
   dispose(): void;
 }
 export interface ApplicationViewHost {

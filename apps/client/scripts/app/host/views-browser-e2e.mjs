@@ -126,6 +126,8 @@ try {
       await owner.evaluate(() => Promise.all([mount("a"), mount("b")]));
       const a = owner.childFrames()[0];
       const b = owner.childFrames()[1];
+      assert.equal(await a.evaluate(() => location.href), "about:srcdoc");
+      assert.equal(await b.evaluate(() => location.href), "about:srcdoc");
       assert.deepEqual(await a.evaluate(() => isleEmbeddedView.request("who", { viewId: "b" })), {
         viewId: "a",
         params: { viewId: "b" },

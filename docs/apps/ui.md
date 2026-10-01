@@ -55,7 +55,7 @@ console.log(response.value);
 
 沙箱使用不透明源和固定 CSP：
 
-- 禁止 fetch 及图片、媒体、字体、frame、object 等外部资源；声明 `embedded-views` 的应用页面仅额外允许本地 blob 视图。
+- 禁止 fetch 及图片、媒体、字体、frame、object 等外部资源；声明 `embedded-views` 的应用页面仅额外允许本地内嵌视图。
 - 不授予表单、弹窗、下载、同源访问和顶层导航能力。
 - 允许内联脚本和 CSS，是因为受审计的宿主文档直接嵌入包资源。
 - 工具参数必须是 JSON 对象，上限 256 KiB；每个 frame 最多同时调用四个工具。
@@ -69,7 +69,7 @@ iframe 离开宿主文档后不再展示界面。JS 入口上限 8 MiB，样式�
 
 应用工坊等容器应用可以加载自己管理的 JS/CSS 构建产物，无需将每个小应用安装到 Isle 应用列表。创建项目、源码编辑、编译、版本与业务数据管理仍由容器应用负责。宿主只提供浏览器视图隔离与通信，不导入生成的 Node 入口。
 
-在 `isle.config.ts` 的 `permissions` 中声明 `"embedded-views"`。已声明并启用的应用页面获得 `getApplicationHost().views`，CSP 的 `frame-src` 仅允许 `blob:`；普通应用保持 `frame-src 'none'`。每个子视图使用 `sandbox="allow-scripts"` 与不透明源，并设置自己的严格 CSP，禁止网络、外部资源与再次嵌套视图。
+在 `isle.config.ts` 的 `permissions` 中声明 `"embedded-views"`。已声明并启用的应用页面获得 `getApplicationHost().views`，CSP 的 `frame-src` 仅允许 `blob:`；普通应用保持 `frame-src 'none'`。每个子视图通过 `srcdoc` 载入，使用 `sandbox="allow-scripts"` 与不透明源，并设置自己的严格 CSP，禁止网络及外部资源；子视图不获得应用宿主或视图挂载接口。该载入方式兼容 WebKit 对沙箱 Blob 导航的限制。
 
 容器应用挂载示例：
 
@@ -115,7 +115,7 @@ const unsubscribe = client.subscribe((event) => updateSelection(event));
 
 单个应用页面最多四个视图，每个视图最多四个并发请求。请求、响应及主动事件上限 256 KiB，方法执行超时 30 秒，启动超时 5 秒，JS/CSS 上限为 8 MiB / 2 MiB。`ready` 在浏览器 bundle 的初始同步执行结束后完成，不代表业务验收通过。主题和公共 CSS tokens 随应用更新；`client.getHost()` 返回当前视图 ID 与主题。
 
-`dispose()` 可重复调用，释放 iframe、监听器、blob URL 并取消进行中的请求。移除容器、iframe 导航、应用卸载或页面关闭也会释放视图。处理函数获得的 `signal` 会在关闭或超时时取消；已完成的外部写入不会自动回滚，运行时不重放请求。替换版本时先释放旧句柄，再用同一项目 ID 挂载新产物。
+`dispose()` 可重复调用，释放 iframe、监听器并取消进行中的请求。移除容器、iframe 导航、应用卸载或页面关闭也会释放视图。处理函数获得的 `signal` 会在关闭或超时时取消；已完成的外部写入不会自动回滚，运行时不重放请求。替换版本时先释放旧句柄，再用同一项目 ID 挂载新产物。
 
 `pnpm dev` 使用同一视图运行时，子视图同样受沙箱与 CSP 限制，应用数据和聊天仍遵循开发预览的内存语义。声明 `embedded-views` 不开放 Agent 的文件、网络或进程权限。
 
