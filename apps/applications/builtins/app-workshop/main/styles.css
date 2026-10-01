@@ -1475,25 +1475,25 @@
   font-size: 18px;
   line-height: 24px;
 }
-.wk-version-create-modal {
+.wk-version-confirm-modal {
   width: min(400px, calc(100vw - 32px));
   border-radius: 12px;
 }
-.wk-version-create-modal::backdrop {
+.wk-version-confirm-modal::backdrop {
   background: color-mix(in srgb, var(--overlay) 20%, transparent);
   backdrop-filter: none;
 }
-.wk-version-create-modal .wk-modal-content > header {
+.wk-version-confirm-modal .wk-modal-content > header {
   padding: 16px 20px;
 }
-.wk-version-create-modal h2 {
+.wk-version-confirm-modal h2 {
   font-size: 16px;
   line-height: 24px;
 }
-.wk-version-create-modal .wk-modal-body {
+.wk-version-confirm-modal .wk-modal-body {
   padding: 20px;
 }
-.wk-version-create-modal .wk-modal-content > footer {
+.wk-version-confirm-modal .wk-modal-content > footer {
   padding: 14px 20px;
 }
 .wk-version-summary {
@@ -1637,22 +1637,6 @@
 }
 .wk-version-confirm {
   gap: 16px;
-}
-.wk-version-flow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  min-height: 56px;
-  padding: 16px;
-  border-radius: 8px;
-  background: var(--surface);
-}
-.wk-version-flow > svg {
-  color: var(--muted-foreground);
-}
-.wk-version-flow > strong {
-  color: var(--primary);
 }
 .wk-version-warning {
   display: flex;
