@@ -210,12 +210,12 @@
 .wk-project-row {
   position: relative;
   min-width: 0;
-  min-height: 64px;
+  min-height: 72px;
   border-bottom: 1px solid var(--border);
   border-left: 2px solid transparent;
   display: flex;
   align-items: center;
-  padding: 10px 4px 10px 10px;
+  padding: 10px;
 }
 .wk-project-row.is-selected {
   background: var(--primary-subtle);
@@ -269,12 +269,14 @@
 }
 .wk-project-text {
   display: flex;
+  flex: 1;
   min-width: 0;
   gap: 4px;
   flex-direction: column;
 }
 .wk-project-heading {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 76px;
   min-width: 0;
   align-items: center;
   gap: 8px;
@@ -288,13 +290,26 @@
   font-weight: 600;
 }
 .wk-project-heading .wk-status {
-  flex-shrink: 0;
+  justify-content: center;
   gap: 4px;
-  font-size: 11px;
+  min-height: 24px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
 }
 .wk-project-heading .wk-status svg {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
+}
+.wk-project-heading .wk-status.is-ready {
+  background: var(--success-subtle);
+}
+.wk-project-heading .wk-status.is-error {
+  background: var(--error-subtle);
 }
 .wk-description {
   overflow: hidden;
@@ -319,42 +334,6 @@
 }
 .wk-status.is-error {
   color: var(--error);
-}
-.wk-project-menu {
-  position: relative;
-  margin-left: 4px;
-}
-.wk-project-menu > .wk-icon-button {
-  width: 28px;
-  height: 28px;
-  padding: 5px;
-}
-.wk-menu {
-  position: absolute;
-  z-index: 10;
-  right: 0;
-  top: 38px;
-  padding: 6px;
-  width: 160px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--popover);
-  box-shadow: var(--shadow-floating);
-}
-.wk-menu button {
-  width: 100%;
-  min-height: 36px;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  border: 0;
-  background: transparent;
-  color: var(--destructive);
-  padding: 8px;
-  border-radius: 6px;
-}
-.wk-menu button:hover {
-  background: var(--muted);
 }
 .wk-home-detail {
   display: flex;
@@ -413,6 +392,12 @@
   min-width: 88px;
   padding: 7px 12px;
   font-size: 14px;
+}
+.wk-detail-actions .wk-delete-button {
+  color: var(--destructive);
+}
+.wk-detail-actions .wk-delete-button:hover {
+  background: var(--error-subtle);
 }
 .wk-updated {
   padding-left: 12px;
@@ -1233,7 +1218,7 @@
   }
   .wk-project-row {
     flex: 0 0 260px;
-    min-height: 64px;
+    min-height: 72px;
   }
   .wk-home-detail {
     overflow: visible;
@@ -1404,5 +1389,8 @@
   .wk-detail-actions {
     grid-column: 1/-1;
     justify-self: end;
+    max-width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 }

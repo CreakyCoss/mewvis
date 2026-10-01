@@ -1,5 +1,4 @@
-import { Code2, MoreHorizontal, Play, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Code2, Play, Plus, Trash2 } from "lucide-react";
 import {
   AppView,
   Busy,
@@ -37,7 +36,6 @@ export function Home({
   previewError: string;
   retry(): void;
 }) {
-  const [menu, setMenu] = useState("");
   const project = projects.find((value) => value.id === selectedId);
   const updatedLabel =
     project &&
@@ -73,10 +71,7 @@ export function Home({
               <button
                 className="wk-project-select"
                 aria-pressed={item.id === selectedId}
-                onClick={() => {
-                  setMenu("");
-                  select(item.id);
-                }}
+                onClick={() => select(item.id)}
               >
                 <ProjectIcon name={item.name} />
                 <span className="wk-project-text">
@@ -89,36 +84,6 @@ export function Home({
                   </span>
                 </span>
               </button>
-              <div className="wk-project-menu">
-                <button
-                  className="wk-icon-button"
-                  aria-label={`管理 ${item.name}`}
-                  aria-expanded={menu === item.id}
-                  onClick={() => setMenu(menu === item.id ? "" : item.id)}
-                >
-                  <MoreHorizontal />
-                </button>
-                {menu === item.id && (
-                  <div
-                    className="wk-menu"
-                    role="menu"
-                    onKeyDown={(event) => {
-                      if (event.key === "Escape") setMenu("");
-                    }}
-                  >
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        setMenu("");
-                        remove(item);
-                      }}
-                    >
-                      <Trash2 />
-                      删除小应用
-                    </button>
-                  </div>
-                )}
-              </div>
             </div>
           ))}
         </div>
@@ -153,6 +118,14 @@ export function Home({
                 >
                   <Code2 />
                   继续开发
+                </button>
+                <button
+                  className="wk-button wk-delete-button"
+                  aria-label={`删除 ${project.name}`}
+                  onClick={() => remove(project)}
+                >
+                  <Trash2 />
+                  删除
                 </button>
               </div>
             </header>
