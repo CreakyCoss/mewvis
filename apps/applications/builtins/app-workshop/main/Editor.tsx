@@ -168,7 +168,8 @@ export function Editor({
       setRuntimeError("");
       setArtifact(result.ok ? await api.artifact(initial.id, "draft") : null);
       if (result.ok) toast.success("构建成功，预览已更新。");
-      else toast.error("构建未通过，请按错误位置修复源码。", { duration: 3000 });
+      else
+        toast.error("构建未通过，请按错误位置修复源码。", { duration: 3000 });
     });
   const saveVersion = (createNew = false) =>
     perform(createNew ? "正在创建新版本…" : "正在保存版本…", async () => {
@@ -193,7 +194,7 @@ export function Editor({
         setSource(savedFile);
       }
       update(next);
-      setModal(null);
+      if (!createNew) setModal(null);
       toast.success(
         isNewVersion
           ? `已创建版本 ${getVersionNumber(next)}。`
@@ -201,7 +202,7 @@ export function Editor({
       );
     });
   const restoreVersion = (versionId: string) =>
-    perform("正在更新草稿…", async () => {
+    perform("正在更新内容…", async () => {
       const restoringCurrent =
         versionId === current.current.project.savedVersionId;
       const next = await api.restore(
@@ -222,8 +223,8 @@ export function Editor({
       setModal(null);
       toast.success(
         restoringCurrent
-          ? `草稿已还原到版本 ${getVersionNumber(next)}。`
-          : `已切换到版本 ${getVersionNumber(next)}，草稿已替换。`,
+          ? `内容已还原到版本 ${getVersionNumber(next)}。`
+          : `已切换到版本 ${getVersionNumber(next)}，内容已更新。`,
       );
     });
   const beforeSend = useRef<() => Promise<void>>(async () => {});
@@ -349,7 +350,7 @@ export function Editor({
   const versionBlockedReason = runtimeError
     ? "请先修复预览中的运行错误，再构建和保存版本。"
     : dirty || !artifact
-      ? "请先构建当前草稿，再保存或创建版本。"
+      ? "请先构建当前内容，再保存或创建版本。"
       : "";
   return (
     <div className="wk-editor-shell">
@@ -380,7 +381,9 @@ export function Editor({
             disabled={disabled}
           >
             <History />
-            <span>{versionNumber ? `版本 ${versionNumber}` : "草稿"}</span>
+            <span>
+              {versionNumber ? `版本 ${versionNumber}` : "未保存版本"}
+            </span>
             <ChevronDown />
           </button>
           <button
@@ -391,7 +394,7 @@ export function Editor({
                 ? versionBlockedReason
                 : versionNumber
                   ? `覆盖更新版本 ${versionNumber}`
-                  : "将当前草稿保存为第一个版本"
+                  : "将当前内容保存为第一个版本"
             }
             onClick={() => void saveVersion()}
           >
@@ -680,7 +683,6 @@ export function Editor({
           blockedReason={versionBlockedReason}
           hasUnsavedChanges={hasUnsavedChanges}
           onClose={() => setModal(null)}
-          onSave={() => void saveVersion()}
           onCreate={() => void saveVersion(true)}
           onRestore={(id) => void restoreVersion(id)}
         />

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import {
   AlertCircle,
   BookOpen,
@@ -85,17 +85,18 @@ export function Modal({
   className?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
-  const setToastLayer = useToastLayer();
+  const titleId = useId();
+  const registerToastLayer = useToastLayer();
   useEffect(() => {
     const dialog = ref.current!;
     dialog.showModal();
-    setToastLayer(dialog);
+    const unregisterToastLayer = registerToastLayer(dialog);
     dialog.querySelector<HTMLElement>("[autofocus], input, textarea")?.focus();
     return () => {
-      setToastLayer(null);
+      unregisterToastLayer();
       dialog.close();
     };
-  }, [setToastLayer]);
+  }, [registerToastLayer]);
   return (
     <dialog
       ref={ref}
@@ -107,11 +108,11 @@ export function Modal({
       onClick={(event) => {
         if (event.target === event.currentTarget && !busy) onClose();
       }}
-      aria-labelledby="wk-modal-title"
+      aria-labelledby={titleId}
     >
       <div className="wk-modal-content">
         <header>
-          <h2 id="wk-modal-title">{title}</h2>
+          <h2 id={titleId}>{title}</h2>
           <button
             className="wk-icon-button"
             onClick={onClose}

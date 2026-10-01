@@ -604,7 +604,7 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
     async saveVersion(id: string, createNew = false) {
       return locked(id, async (root, record) => {
         if (!record.draftBuildId)
-          throw new Error("请先构建当前草稿，再保存版本。");
+          throw new Error("请先构建当前内容，再保存版本。");
         const built = await artifact(root, record, record.draftBuildId);
         if (built.sourceHash !== record.sourceHash)
           throw new Error("构建已过期，请重新构建当前源码。");

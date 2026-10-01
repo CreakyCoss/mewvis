@@ -134,7 +134,7 @@ export default defineApplication({
     );
     register(
       "workshop_build",
-      "编译当前草稿，返回错误位置并生成浏览器预览产物。不会在 Node 中执行源码，不自动保存运行版本。",
+      "编译当前内容，返回错误位置并生成浏览器预览产物。不会在 Node 中执行源码，不自动保存运行版本。",
       "medium",
       { workspaceId: id },
       ["workspaceId"],
@@ -150,7 +150,7 @@ export default defineApplication({
     );
     register(
       "workshop_read_build",
-      "读取当前草稿或已保存版本的浏览器构建产物，仅用于工坊界面挂载。",
+      "读取当前内容或已保存版本的浏览器构建产物，仅用于工坊界面挂载。",
       "low",
       { workspaceId: id, mode: { type: "string", enum: ["draft", "saved"] } },
       ["workspaceId", "mode"],
@@ -164,7 +164,7 @@ export default defineApplication({
     );
     register(
       "workshop_save_version",
-      "将已成功构建且未过期的草稿覆盖保存到当前版本；首次保存创建第一个版本。",
+      "将已成功构建且未过期的当前内容覆盖保存到当前版本；首次保存创建第一个版本。",
       "medium",
       { workspaceId: id },
       ["workspaceId"],
@@ -174,7 +174,7 @@ export default defineApplication({
     );
     register(
       "workshop_create_version",
-      "将已成功构建且未过期的草稿保存为新的独立版本，保留已有版本并切换到新版本。仅由用户明确创建。",
+      "将已成功构建且未过期的当前内容保存为新的独立版本，保留已有版本并切换到新版本。仅由用户明确创建。",
       "medium",
       { workspaceId: id },
       ["workspaceId"],
@@ -184,7 +184,7 @@ export default defineApplication({
     );
     register(
       "workshop_restore_version",
-      "恢复指定已保存版本，同时替换当前草稿源码。",
+      "恢复指定已保存版本，同时替换当前内容的源码。",
       "medium",
       { workspaceId: id, versionId: id, baseRevision },
       ["workspaceId", "versionId", "baseRevision"],
