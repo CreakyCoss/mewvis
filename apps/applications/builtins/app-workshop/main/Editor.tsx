@@ -153,7 +153,7 @@ export function Editor({
     try {
       await callback();
     } catch (value) {
-      if (live.current) toast.error(errorText(value), { duration: 5000 });
+      if (live.current) toast.error(errorText(value), { duration: 3000 });
     } finally {
       action.current = "";
       if (live.current) setPending("");
@@ -168,7 +168,7 @@ export function Editor({
       setRuntimeError("");
       setArtifact(result.ok ? await api.artifact(initial.id, "draft") : null);
       if (result.ok) toast.success("构建成功，预览已更新。");
-      else toast.error("构建未通过，请按错误位置修复源码。");
+      else toast.error("构建未通过，请按错误位置修复源码。", { duration: 3000 });
     });
   const saveVersion = (createNew = false) =>
     perform(createNew ? "正在创建新版本…" : "正在保存版本…", async () => {
@@ -269,7 +269,7 @@ export function Editor({
         }
       })
       .catch((value) => {
-        if (active) toast.error(errorText(value), { duration: 5000 });
+        if (active) toast.error(errorText(value), { duration: 3000 });
       });
     return () => {
       active = false;
@@ -282,7 +282,7 @@ export function Editor({
         if (live.current) setArtifact(value);
       })
       .catch((value) => {
-        if (live.current) toast.error(errorText(value), { duration: 5000 });
+        if (live.current) toast.error(errorText(value), { duration: 3000 });
       });
   }, [initial.id]);
   useEffect(() => {
@@ -305,7 +305,7 @@ export function Editor({
       setAiBusy(busy);
       if (wasBusy && !busy && !action.current)
         void refresh().catch((value) => {
-          if (live.current) toast.error(errorText(value), { duration: 5000 });
+          if (live.current) toast.error(errorText(value), { duration: 3000 });
         });
       wasBusy = busy;
     };
@@ -316,7 +316,7 @@ export function Editor({
         polling = true;
         void refresh()
           .catch((value) => {
-            if (live.current) toast.error(errorText(value), { duration: 5000 });
+            if (live.current) toast.error(errorText(value), { duration: 3000 });
           })
           .finally(() => {
             polling = false;

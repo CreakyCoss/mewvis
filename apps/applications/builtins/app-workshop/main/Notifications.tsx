@@ -29,8 +29,10 @@ export function Notifications({ children }: { children: ReactNode }) {
         <Toaster
           position="top-right"
           containerAriaLabel="操作提示"
-          duration={3200}
+          duration={1500}
           visibleToasts={2}
+          // Keep toast positions and heights stable when the pointer enters or leaves.
+          expand
           richColors
           closeButton
           toastOptions={{
