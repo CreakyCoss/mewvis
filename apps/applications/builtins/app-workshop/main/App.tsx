@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ApplicationChatSession } from "@isle/app-sdk/chat";
 import { getApplicationDataClient } from "@isle/app-sdk/data";
-import { LayoutGrid, Plus } from "lucide-react";
 import { api, closeProjectSessions, developerSession, errorText } from "./api";
 import { ErrorNotice, Modal } from "./components";
 import { Home } from "./Home";
@@ -209,22 +208,6 @@ function Workshop() {
         />
       ) : (
         <>
-          <header className="wk-header wk-home-header">
-            <h1 className="wk-brand">
-              <LayoutGrid />
-              应用工坊
-            </h1>
-            <div className="wk-header-actions">
-              <button
-                className="wk-button is-primary"
-                disabled={!!pending}
-                onClick={() => openCreate()}
-              >
-                <Plus />
-                新建小应用
-              </button>
-            </div>
-          </header>
           {error && (
             <div className="wk-top-error">
               <ErrorNotice>{error}</ErrorNotice>
@@ -256,6 +239,7 @@ function Workshop() {
             }}
             artifact={artifact}
             loading={loading}
+            busy={!!pending}
             previewLoading={previewLoading}
             previewError={previewError}
             retry={() => {

@@ -1,4 +1,4 @@
-import { Code2, Play, Plus, Trash2 } from "lucide-react";
+import { Code2, LayoutGrid, Play, Plus, Trash2 } from "lucide-react";
 import {
   AppView,
   Busy,
@@ -19,6 +19,7 @@ export function Home({
   remove,
   artifact,
   loading,
+  busy,
   previewLoading,
   previewError,
   retry,
@@ -32,6 +33,7 @@ export function Home({
   remove(project: ProjectSummary): void;
   artifact: BuildArtifact | null;
   loading: boolean;
+  busy: boolean;
   previewLoading: boolean;
   previewError: string;
   retry(): void;
@@ -44,24 +46,23 @@ export function Home({
       : project
         ? `${new Date(project.updatedAt).toLocaleDateString()} 更新`
         : "";
-  if (loading && !projects.length) return <Busy text="正在加载小应用…" />;
-  if (!projects.length)
-    return (
-      <Empty
-        title="从第一个小应用开始"
-        action={
-          <button className="wk-button is-primary" onClick={create}>
-            <Plus />
-            新建小应用
-          </button>
-        }
-      >
-        先创建项目，再进入编辑页让 AI 帮你开发。
-      </Empty>
-    );
   return (
     <div className="wk-home">
       <aside className="wk-library" aria-label="小应用列表">
+        <header className="wk-library-header">
+          <h1 className="wk-brand">
+            <LayoutGrid />
+            应用工坊
+          </h1>
+          <button
+            className="wk-button is-primary"
+            disabled={busy}
+            onClick={create}
+          >
+            <Plus />
+            新建小应用
+          </button>
+        </header>
         <div className="wk-project-list">
           {projects.map((item) => (
             <div
@@ -89,7 +90,25 @@ export function Home({
         </div>
       </aside>
       <section className="wk-home-detail" aria-label="所选小应用">
-        {project && (
+        {loading && !projects.length ? (
+          <Busy text="正在加载小应用…" />
+        ) : !projects.length ? (
+          <Empty
+            title="从第一个小应用开始"
+            action={
+              <button
+                className="wk-button is-primary"
+                disabled={busy}
+                onClick={create}
+              >
+                <Plus />
+                新建小应用
+              </button>
+            }
+          >
+            先创建项目，再进入编辑页让 AI 帮你开发。
+          </Empty>
+        ) : project && (
           <>
             <header className="wk-detail-header">
               <ProjectIcon name={project.name} large />
@@ -104,7 +123,7 @@ export function Home({
               <div className="wk-detail-actions">
                 {project.savedVersionId && !project.error && (
                   <button
-                    className="wk-button is-accent"
+                    className="wk-button is-primary"
                     onClick={() => use(project)}
                   >
                     <Play />
