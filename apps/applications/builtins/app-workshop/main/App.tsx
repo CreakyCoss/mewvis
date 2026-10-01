@@ -209,7 +209,7 @@ function Workshop() {
         />
       ) : (
         <>
-          <header className="wk-header">
+          <header className="wk-header wk-home-header">
             <h1 className="wk-brand">
               <LayoutGrid />
               应用工坊

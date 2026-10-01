@@ -142,3 +142,58 @@ final result: passed
 - P3：真实 SDK 聊天控件比图稿多权限入口；保留产品现有组件的一致性。
 
 final result: passed
+
+---
+
+# App Workshop homepage design QA
+
+Final result: **passed**
+
+## Scope and reference
+
+- Implemented the selected compact-toolbar homepage direction, retaining the two-column layout. Runtime-page design is outside this change.
+- Reference: `output/design/app-workshop-2026-10-01/selected-refinement/workshop-home-and-browser-runtime.png` (2167 × 725).
+- Compared only its homepage crop, coordinates `(26, 55, 1075, 712)`, at 1049 × 657 without resampling.
+- Implementation: `main/App.tsx`, `main/Home.tsx`, and homepage selectors in `main/styles.css`.
+- Preview: <http://127.0.0.1:5185/>. Reading-list example selected in an isolated, seeded preview workspace.
+
+## Visual comparison
+
+Evidence under `output/design/app-workshop-2026-10-01/implementation/`:
+
+- `home-comparison.png`: selected reference and final implementation side by side.
+- `home-header-comparison.png`: focused comparison of the toolbar, first sidebar row, and selected-app introduction.
+- `home-reference-size.jpg`: implementation at the same 1049 × 657 homepage dimensions as the reference. Browser viewport was 1049 × 691; the 34 px development toolbar was excluded. Density 1, no scaling.
+- `home-desktop.jpg`: final 1280 × 686 homepage, excluding the development toolbar.
+- `home-mobile.jpg`: final 390 × 844 browser view.
+- `verification.json`: viewport bounds, mobile measurements, and console errors.
+
+The reference and implementation were inspected together. The retained structure, restrained purple accent, compact list, inline metadata, and larger preview area match the approved direction.
+
+| Surface | Result |
+| --- | --- |
+| Typography | Existing system font retained; 20 px selected-app title, 14 px list names and action labels, secondary text visually subdued. |
+| Layout and spacing | Sidebar 300 px; list rows at least 64 px; introduction uses a centered grid; preview follows after 16 px. No excessive headings or bottom note. |
+| Colors and surfaces | Existing theme tokens retained for borders, background, selected row, and primary action. Preview has a subtle border and 6 px radius. |
+| Assets | Existing Lucide icons retained; list icons 32 px and selected-app icon 36 px. No new raster assets. |
+| Copy | Removed the visible library heading and preview labels. Primary action reads “运行” as requested; preview retains an accessible region label. |
+
+Intentional differences from the generated reference: spacing follows the compact implementation dimensions above, the primary-action label is “运行”, and the embedded example retains its own content styling. The workshop does not restyle application contents to match generated mock content.
+
+## Layout and interaction verification
+
+- At 1280 × 720, introduction center Y = 134 px and both action-button centers Y = 134 px: **0 px deviation**.
+- At 820 × 720, wrapping introduction center Y = 138.5 px and action center Y = 138.5 px: **0 px deviation**. Actions remain inside the viewport.
+- At 390 × 844, actions move beneath the introduction and share center Y = 353 px; all horizontal list cards measure 260 px. No document-level horizontal overflow.
+- Verified selection of a saved application and a pending application, project menu opening/closing, create dialog opening/canceling, “继续开发” opening the editor, and “运行” opening the saved application with return to homepage.
+- Homepage preview remains passive. Existing preview action is reported disabled in the accessibility tree.
+- Fresh preview console contains no errors or warnings.
+- `pnpm --filter @isle/app-workshop check` passed; `git diff --check` passed.
+
+## Iteration and limits
+
+The first mobile check exposed automatic minimum sizing that widened horizontal list cards. Added `min-width: 0` to rows, then rechecked all card widths and page overflow.
+
+The pre-existing preview on port 5183 had stale host output and an editor error. Verification used a newly started isolated preview on port 5185; no unrelated editor or backend changes were needed.
+
+No open P0/P1/P2 findings for this homepage change. Screen-reader walkthroughs and browser zoom were not tested; no comprehensive accessibility certification is implied.

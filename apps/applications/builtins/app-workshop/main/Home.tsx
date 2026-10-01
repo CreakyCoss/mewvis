@@ -64,10 +64,6 @@ export function Home({
   return (
     <div className="wk-home">
       <aside className="wk-library" aria-label="小应用列表">
-        <div className="wk-library-heading">
-          <h2>我的小应用</h2>
-          <p>选择一个小应用，开始使用或继续开发。</p>
-        </div>
         <div className="wk-project-list">
           {projects.map((item) => (
             <div
@@ -84,11 +80,13 @@ export function Home({
               >
                 <ProjectIcon name={item.name} />
                 <span className="wk-project-text">
-                  <strong>{item.name}</strong>
+                  <span className="wk-project-heading">
+                    <strong title={item.name}>{item.name}</strong>
+                    <Status project={item} />
+                  </span>
                   <span className="wk-description">
                     {item.description || "还没有应用说明"}
                   </span>
-                  <Status project={item} />
                 </span>
               </button>
               <div className="wk-project-menu">
@@ -131,12 +129,12 @@ export function Home({
             <header className="wk-detail-header">
               <ProjectIcon name={project.name} large />
               <div className="wk-detail-title">
-                <h2>{project.name}</h2>
-                <p>{project.description || "进入编辑页，完善你的小应用。"}</p>
-                <div className="wk-detail-meta">
+                <div className="wk-detail-heading">
+                  <h2>{project.name}</h2>
                   <Status project={project} />
                   <span className="wk-updated">{updatedLabel}</span>
                 </div>
+                <p>{project.description || "进入编辑页，完善你的小应用。"}</p>
               </div>
               <div className="wk-detail-actions">
                 {project.savedVersionId && !project.error && (
@@ -145,7 +143,7 @@ export function Home({
                     onClick={() => use(project)}
                   >
                     <Play />
-                    使用
+                    运行
                   </button>
                 )}
                 <button
@@ -158,8 +156,11 @@ export function Home({
                 </button>
               </div>
             </header>
-            <h3 className="wk-preview-label">界面预览</h3>
-            <div className="wk-home-preview">
+            <div
+              className="wk-home-preview"
+              role="region"
+              aria-label="应用界面预览"
+            >
               {previewLoading ? (
                 <Busy text="正在加载界面预览…" />
               ) : previewError || project.error ? (
@@ -195,7 +196,6 @@ export function Home({
                 </Empty>
               )}
             </div>
-            <p className="wk-home-footnote">小应用在应用工坊中运行。</p>
           </>
         )}
       </section>
