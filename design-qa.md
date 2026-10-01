@@ -260,3 +260,51 @@ final result: passed
 - 左侧预览 header 与右侧助手 header 共用 54 px 高度，位于代码与预览内容上方；保存状态、版本管理、保存版本、更新预览和查看代码集中于该区域。窄屏使用带名称和提示的图标操作。
 - 更新预览继续保存源码并重新构建，移除代码区及空态的重复更新按钮；展开／收起预览按钮浮动在预览容器右上角，保留相反图标。固定外框及内部绘制隔离继续保留。
 - `pnpm --filter @isle/app-workshop check` 与 `git diff --check` 通过。沿用用户自行验证视觉效果的安排，本轮未进行浏览器视觉验收；此前截图对应旧 header。
+
+## 应用工坊并排工作区与紧凑操作（2026-10-02）
+
+**Source and comparison evidence**
+
+- 用户选择方案 2：代码与预览并排，保留左侧文件树，通过文件夹按钮折叠；随后要求版本、视图与更新操作统一并缩短文案。最终视觉参考为 `output/design/app-workshop-code-layout-2026-10-02/selected-refinement/split-view-compact-controls.png`，原始尺寸 1672 × 941 px，提示词保存在同目录的 `compact-controls-manifest.json`。
+- 实现预览：`http://127.0.0.1:5197/`。桌面浏览器 viewport 为 1280 × 754 CSS px，devicePixelRatio = 1；顶部 34 px 为独立开发预览控制，工坊区域为 1280 × 720 CSS px。
+- 实现原图：`output/design/app-workshop-code-layout-2026-10-02/implementation/split-view-desktop-final-raw.png`（1280 × 754 px）。裁掉开发控制后保存为 `implementation/split-view-desktop.png`（1280 × 720 px）；参考图等比归一至相同目标尺寸。
+- 完整并列比较：`implementation/desktop-comparison.png`；针对本轮重点的 header 操作比较：`implementation/header-controls-comparison.png`。已实际打开两张组合图检查布局与可读性。
+- 比较状态为浅色、专注计时器、同时显示、文件树展开、预览 25:00。参考中的代码和聊天是示意内容；实际使用隔离工作区的真实源码与全新会话空态。只对工坊壳层和操作区域作设计比较，保留内嵌应用自身的计时器样式、现有源码和真实会话内容。
+
+**Findings and correction history**
+
+- [P2, resolved] 窄屏同时显示时，内容网格最低 880 px，而外层工作区仅 440 px，助手从预览之前开始，产生重叠。第一次修正后，自动网格轨道又随源码行数增长，代码与预览各达到 1498 px，影响页面密度。此阶段结果为 blocked。
+- 为窄屏明确工作区高度为 header + 880 px，代码与预览轨道为 480 / 400 px；仅代码、仅预览与放大预览分别设置独立高度。后续证据为 `implementation/split-view-mobile-final-raw.png`（390 × 878 px），实测代码 y = 204–684、预览 y = 684–1084、助手 y = 1084–1644，无重叠、无横向页面溢出。桌面修正后重新捕获并打开上述组合比较图，未发现新的 P0 / P1 / P2 问题。
+
+**Required fidelity surfaces**
+
+| Surface | Assessment |
+| --- | --- |
+| Fonts / typography | 延用产品系统字体与中文回退。标题 14 px、操作 12 px、代码 13 px / 22 px，层级与参考一致。版本显示 V1，保存显示两字，视图和更新无可见长文案；文件名可横向滚动，未扩大工具栏高度。 |
+| Spacing / layout | 顶部 56 px、两侧 header 54 px；操作均为 32 px 高、6 px 圆角。桌面代码区约 560 × 610 px，编辑器约 416 × 566 px，可显示约 25 行；预览框约 289 × 586 px。保留已有 AI 栏宽 31.6%，代码比例默认 64% 且可调整，文件树 144 px；这些比例是保留产品现有会话宽度的实现约束。 |
+| Colors / tokens | 沿用现有 border、surface-raised、muted、primary、primary-subtle 与 primary-border。中性操作使用相同边框与表面，保存为紫色主按钮，当前视图浅紫选中；没有新增独立色值或装饰渐变。 |
+| Image quality / assets | 壳层无位图资产。标准操作沿用与产品及参考相符的 Lucide 图标；内嵌计时器由真实运行应用提供，保持其响应式布局，不以图片占位。截图按实际 CSS 区域归一，未将密度差异当作设计偏差。 |
+| Copy / content | 保留应用名、保存状态、AI header 与现有会话文案；版本缩为 V1，保存缩为「保存」。三个视图和更新按钮均有完整 aria-label 与 title，选中状态由 aria-pressed 表达。示意稿中的助手回复不替换真实会话空态。 |
+
+**Interaction and validation evidence**
+
+- 已验证同时显示、仅代码与仅预览；切换后未保存编辑内容原样保留，临时验证内容已恢复。
+- 已验证文件树折叠 / 展开，窄代码区域保留左侧浮动文件树。分隔条键盘调整 64 → 69 → 64，实际拖动到约 60% 后恢复；指针释放后 resizing 状态清除。
+- 已验证放大预览隐藏代码与助手、收起后恢复同时显示；模式选择同步显示正确的选中状态。
+- 已验证紧凑更新按钮实际完成构建、V1 按钮打开版本管理。计时器开始后切换到仅代码再返回，仍显示「暂停」，运行实例状态保留；随后重置至 25:00。
+- 浏览器 error 日志为空。`pnpm --filter @isle/app-workshop check`、Prettier 检查与 `git diff --check` 通过。
+- 本轮验证使用隔离开发工作区与内存会话；未重新测试真实模型生成、原生宿主滚动细微闪动或深色全部交互。最终观感仍可由用户在宿主中自行验证。
+
+**Open Questions / Follow-up Polish**
+
+没有阻碍本轮布局和操作改造的问题；未新增需要阻塞交付的视觉差异。
+
+**Implementation Checklist**
+
+- [x] 全高并排代码与预览，右侧保留 AI 助手。
+- [x] 文件树保留且可折叠，三种图标视图切换。
+- [x] 版本、保存、更新和视图统一紧凑操作样式。
+- [x] 桌面设计对照、窄屏修正和关键交互检查完成。
+- [x] 类型、运行边界和变更格式检查通过。
+
+final result: passed
