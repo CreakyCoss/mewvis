@@ -29,7 +29,7 @@ React 项目可使用 [应用工程工具链](development.md)：页面从 `main/
 
 路径必须以 `./` 开头，解析后位于包内，不得经符号链接越界。
 
-内置与外部应用的自带界面统一铺满常驻导航栏之外的应用工作区，无需声明布局。宿主不显示应用详情栏或沙箱卡片边框，窗口顶部保留拖动区域，通过常驻导航栏切换页面。应用加载失败时，宿主显示错误信息；UI 声明无效或未提供自带界面时，使用通用工具页面。
+内置与外部应用的自带界面统一铺满常驻导航栏之外的应用工作区，无需声明布局。宿主不显示应用详情栏或沙箱卡片边框，窗口顶部保留 40 px 拖动区域，应用可通过公共顶栏接口复用这一区域显示标题与返回入口，通过常驻导航栏切换页面。应用加载失败时，宿主显示错误信息；UI 声明无效或未提供自带界面时，使用通用工具页面。
 
 未声明 `isle.ui` 时，Isle 根据工具 JSON Schema 生成通用表单，因此只有自定义流程才需要自带界面。
 
@@ -46,6 +46,7 @@ console.log(response.value);
 
 - `window.isleApplication.version`：当前为 `1`。
 - `window.isleApplication.getHost()`：最近一次宿主描述，包括安全的应用元数据、`light` / `dark` 主题与工具 Schema。
+- `window.isleApplication.header`：可选的宿主顶栏接口，旧宿主和独立开发预览可能不提供。`header.set({ title, backLabel?, backDisabled? })` 显示纯文本标题和可选返回按钮，返回 `{ supported }`；仅在 supported 为 true 后收起应用自己的 header。标题最多 160 字符，返回文案最多 80 字符。`header.subscribe(action => …)` 订阅 `"back"` 操作并返回取消订阅函数，应用自行处理内部导航；`header.set(null)` 清空本 frame 的顶栏。离开应用、重新加载或 frame 离开沙箱时宿主自动清理，空白处继续支持拖动窗口。该接口不提供自定义 HTML、窗口拖动或其他应用的导航能力。
 - `window.isleApplication.openExternal(url)`：由用户操作触发，请求宿主用系统浏览器打开 HTTP(S) 地址，其他协议会被拒绝。
 - `window.isleApplication.writeClipboardText(text)`：从用户点击操作复制文本，上限 256 KiB，不提供剪贴板读取。共享 Chat 消息与故事酒馆使用 SDK 的同名辅助函数，独立预览回退到浏览器剪贴板。
 - `isle:ready`：收到宿主描述后触发的窗口事件。

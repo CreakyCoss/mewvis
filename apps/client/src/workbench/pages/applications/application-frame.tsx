@@ -3,7 +3,7 @@ import type { ApplicationChatRequest } from "@isle/app-sdk/chat";
 import type { ApplicationDataRequest } from "@isle/app-sdk/data";
 import { createBackendApplicationDataTransport } from "@/api/applications/data";
 import { platform } from "@/platform";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   executeApplicationUiTool,
@@ -12,6 +12,7 @@ import {
   type ApplicationUiApplication,
 } from "@/api/applications";
 import { Alert, AlertDescription, AlertTitle } from "design-system/components/ui/alert";
+import { useWorkspaceHeader } from "@/workbench/shell/layout/workspace";
 import { readApplicationTheme, sandboxDocument } from "./sandbox-document";
 export { sandboxDocument } from "./sandbox-document";
 
@@ -33,6 +34,8 @@ export const ApplicationFrame = ({
   loadDocument?: typeof getApplicationUiDocument;
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const registerHeader = useWorkspaceHeader();
+  const releaseHeader = useRef<(() => void) | null>(null);
   const inFlight = useRef(new Set<string>());
   const externalOpenInFlight = useRef(false);
   const frameLoadCount = useRef(0);
@@ -57,6 +60,8 @@ export const ApplicationFrame = ({
 
   useEffect(() => {
     let cancelled = false;
+    releaseHeader.current?.();
+    releaseHeader.current = null;
     setUiDocument(null);
     setLoadError("");
     setRuntimeError("");
@@ -118,6 +123,59 @@ export const ApplicationFrame = ({
       }
       if (message.type === "application:error") {
         setRuntimeError(typeof message.message === "string" ? message.message : "应用 UI 运行失败。");
+        return;
+      }
+      if (message.type === "header:set") {
+        const id = message.id;
+        if (typeof id !== "string" || !id || id.length > 128) return;
+        if (message.header === null) {
+          releaseHeader.current?.();
+          releaseHeader.current = null;
+          post({ type: "host:result", id, result: { supported: Boolean(registerHeader) } });
+          return;
+        }
+        const header = messageObject(message.header);
+        if (
+          !header ||
+          typeof header.title !== "string" ||
+          !header.title.trim() ||
+          header.title.length > 160 ||
+          (header.backLabel !== undefined &&
+            (typeof header.backLabel !== "string" || !header.backLabel.trim() || header.backLabel.length > 80)) ||
+          (header.backDisabled !== undefined && typeof header.backDisabled !== "boolean") ||
+          Object.keys(header).some((key) => !["title", "backLabel", "backDisabled"].includes(key))
+        ) {
+          post({ type: "host:result", id, error: "应用顶栏内容无效。" });
+          return;
+        }
+        if (!registerHeader) {
+          post({ type: "host:result", id, result: { supported: false } });
+          return;
+        }
+        const title = header.title.trim();
+        const backLabel = typeof header.backLabel === "string" ? header.backLabel.trim() : "";
+        releaseHeader.current?.();
+        releaseHeader.current = registerHeader(
+          <header aria-label="应用导航" className="flex h-full min-w-0 items-center gap-3 px-4 text-sm">
+            {backLabel && (
+              <>
+                <button
+                  type="button"
+                  className="pointer-events-auto inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-default disabled:opacity-50"
+                  aria-label={`返回${backLabel}`}
+                  disabled={header.backDisabled === true}
+                  onClick={() => post({ type: "header:action", action: "back" })}
+                >
+                  <ArrowLeft className="size-4" aria-hidden="true" />
+                  <span>{backLabel}</span>
+                </button>
+                <span className="h-4 w-px shrink-0 bg-border" aria-hidden="true" />
+              </>
+            )}
+            <strong className="min-w-0 truncate font-medium" title={title}>{title}</strong>
+          </header>,
+        );
+        post({ type: "host:result", id, result: { supported: true } });
         return;
       }
       if (message.type === "host:clipboard-write") {
@@ -281,10 +339,18 @@ export const ApplicationFrame = ({
       chat.dispose();
       themeObserver.disconnect();
       window.removeEventListener("message", onMessage);
+      releaseHeader.current?.();
+      releaseHeader.current = null;
       inFlight.current.clear();
       externalOpenInFlight.current = false;
     };
-  }, [application.id, signature, toolNames, chatHost]);
+  }, [application.id, signature, toolNames, chatHost, registerHeader]);
+
+  useEffect(() => {
+    if (!navigationBlocked) return;
+    releaseHeader.current?.();
+    releaseHeader.current = null;
+  }, [navigationBlocked]);
 
   useEffect(() => {
     if (!uiDocument || isFrameReady) return;

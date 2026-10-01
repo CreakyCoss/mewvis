@@ -21,6 +21,7 @@ const BRIDGE_SOURCE = String.raw`
   let host = null;
   /* EMBEDDED_VIEWS */
   const chatListeners = new Set();
+  const headerListeners = new Set();
   let appliedThemeTokens = [];
   const applyTheme = (theme, tokens) => {
     const root = document.documentElement;
@@ -39,6 +40,17 @@ const BRIDGE_SOURCE = String.raw`
   const api = Object.freeze({
     version: 1,
     ...(views ? { views } : {}),
+    header: Object.freeze({
+      set(header) {
+        const id = String(nextId++);
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => { pending.delete(id); reject(new Error("应用顶栏请求超时")); }, 5000);
+          pending.set(id, { resolve: (value) => { clearTimeout(timer); resolve(value); }, reject: (error) => { clearTimeout(timer); reject(error); } });
+          send({ type: "header:set", id, header });
+        });
+      },
+      subscribe(listener) { headerListeners.add(listener); return () => headerListeners.delete(listener); },
+    }),
     writeClipboardText(text) {
       if (typeof text !== "string" || new TextEncoder().encode(text).byteLength > 256 * 1024) return Promise.reject(new Error("复制内容超过 256 KiB 或格式无效"));
       if (navigator.userActivation && !navigator.userActivation.isActive) return Promise.reject(new Error("复制需要用户操作"));
@@ -98,6 +110,7 @@ const BRIDGE_SOURCE = String.raw`
     const message = event.data;
     if (!message || message.channel !== channel) return;
     if (message.type === "chat:snapshot") { chatListeners.forEach((listener) => listener(message.event)); return; }
+    if (message.type === "header:action" && message.action === "back") { headerListeners.forEach((listener) => listener(message.action)); return; }
     if (message.type === "host:init") {
       host = Object.freeze(message.host);
       applyTheme(host.theme, host.themeTokens);

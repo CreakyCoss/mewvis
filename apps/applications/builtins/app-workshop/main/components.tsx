@@ -14,6 +14,10 @@ import {
 } from "lucide-react";
 import { getApplicationDataClient } from "@isle/app-sdk/data";
 import {
+  getApplicationHost,
+  type ApplicationHeaderHost,
+} from "@isle/app-sdk/browser";
+import {
   mountApplicationView,
   type ApplicationViewValue,
 } from "@isle/app-sdk/views";
@@ -26,11 +30,47 @@ export function ApplicationHeader({
   name = "小应用",
   home,
   disabled = false,
+  useHostHeader = false,
 }: {
   name?: string;
   home(): void;
   disabled?: boolean;
+  useHostHeader?: boolean;
 }) {
+  const [hosted, setHosted] = useState(false);
+  const homeAction = useRef(home);
+  const disabledRef = useRef(disabled);
+  homeAction.current = home;
+  disabledRef.current = disabled;
+  useEffect(() => {
+    if (!useHostHeader) return;
+    let hostHeader: ApplicationHeaderHost | undefined;
+    try {
+      hostHeader = getApplicationHost().header;
+    } catch {
+      return;
+    }
+    if (!hostHeader) return;
+    const header = hostHeader;
+    let active = true;
+    const unsubscribe = header.subscribe((action) => {
+      if (action === "back" && !disabledRef.current) homeAction.current();
+    });
+    void header
+      .set({ title: name, backLabel: "应用工坊", backDisabled: disabled })
+      .then((result) => {
+        if (active) setHosted(result.supported);
+      })
+      .catch(() => {
+        if (active) setHosted(false);
+      });
+    return () => {
+      active = false;
+      unsubscribe();
+      void header.set(null).catch(() => {});
+    };
+  }, [useHostHeader, name, disabled]);
+  if (hosted && useHostHeader) return null;
   return (
     <header className="wk-header wk-application-header">
       <button

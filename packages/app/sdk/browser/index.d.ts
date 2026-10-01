@@ -14,8 +14,22 @@ export interface ApplicationToolResult<T = unknown> {
   content: unknown[];
   meta: unknown;
 }
+export interface ApplicationHeaderState {
+  /** Plain-text title, up to 160 characters. */
+  title: string;
+  /** Optional back action label, up to 80 characters. */
+  backLabel?: string;
+  backDisabled?: boolean;
+}
+export interface ApplicationHeaderHost {
+  /** Uses the host's existing top bar. Null releases this frame's header. */
+  set(header: ApplicationHeaderState | null): Promise<{ supported: boolean }>;
+  subscribe(listener: (action: "back") => void): () => void;
+}
 export interface ApplicationBrowserHost {
   readonly version: 1;
+  /** Optional host-rendered title and back action. Older and preview hosts omit it. */
+  readonly header?: ApplicationHeaderHost;
   /** Optional authenticated data v1 transport. Older hosts omit this capability. */
   readonly data?: import("../data/index.js").ApplicationDataTransport;
   /** Present only when the application declares embedded-views. Children receive no application bridge. */
