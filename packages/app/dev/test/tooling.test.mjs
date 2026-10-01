@@ -135,6 +135,33 @@ test("React application UI is packaged without configurable layouts", async () =
   assert.equal(Object.hasOwn(manifest.isle.ui, "layout"), false);
 });
 
+test("embedded-views is declared in the built manifest and its browser SDK bundles outside the repository", async () => {
+  const configFile = join(source, "isle.config.ts");
+  const appFile = join(source, "main/App.tsx");
+  const originalConfig = await readFile(configFile, "utf8");
+  const originalApp = await readFile(appFile, "utf8");
+  try {
+    await writeFile(configFile, 'export default { displayName: "View owner", permissions: ["embedded-views"] };');
+    await writeFile(appFile, `import { useEffect, useRef } from "react";
+import { mountApplicationView } from "@isle/app-sdk/views";
+export default function App() {
+  const container = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const view = mountApplicationView(container.current!, { id: "child", title: "Child", script: "document.body.textContent = 'hello';" });
+    return () => view.dispose();
+  }, []);
+  return <div ref={container} />;
+}`);
+    await checkApplication(source);
+    const result = await packApplication({ source, quiet: true });
+    assert.deepEqual(result.manifest.isle.permissions, ["embedded-views"]);
+    assert.match(await readFile(join(result.outputRoot, "isle-ui.js"), "utf8"), /embedded-views/);
+  } finally {
+    await writeFile(configFile, originalConfig);
+    await writeFile(appFile, originalApp);
+  }
+});
+
 test("a full host entry captures the existing application workspace context", async () => {
   const configFile = join(source, "isle.config.ts");
   const entryFile = join(source, "main/host/index.ts");

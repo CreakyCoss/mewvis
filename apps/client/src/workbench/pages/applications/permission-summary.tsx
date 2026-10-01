@@ -37,6 +37,7 @@ const permissionMeta = {
   process: { label: "启动子进程", shortLabel: "子进程", icon: Terminal },
   chat: { label: "使用宿主聊天与模型", shortLabel: "聊天与模型", icon: MessageSquare },
   "chat-knowledge": { label: "在聊天中检索知识库", shortLabel: "知识库", icon: BookOpen },
+  "embedded-views": { label: "运行应用内嵌沙箱视图", shortLabel: "内嵌视图", icon: Blocks },
 } satisfies Record<ApplicationPermission, { label: string; shortLabel: string; icon: typeof Shield }>;
 
 export const applicationPermissionLabel = (permission: ApplicationPermission) => permissionMeta[permission].label;

@@ -1,5 +1,4 @@
 import type { IsleApplicationContext } from "@isle/app-sdk";
-import type { ApplicationBrowserHost } from "@isle/app-sdk/browser";
 import type { ApplicationChatClient } from "@isle/app-sdk/chat";
 import {
   createApplicationDataClient,
@@ -15,8 +14,6 @@ const transport: ApplicationDataTransport = {
   request: async () => ({ ok: true, value: null }),
 };
 const client = createApplicationDataClient(transport);
-const browser: ApplicationBrowserHost["data"] = transport;
-void browser;
 void getApplicationDataClient;
 
 function chatUsesRegisteredWorkspace(

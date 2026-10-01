@@ -115,3 +115,14 @@ test("host exports only design-system properties and reads current values", () =
     delete globalThis.getComputedStyle;
   }
 });
+
+test("embedded view runtime and blob frames are available only on explicit opt-in", () => {
+  const ordinary = sandbox();
+  assert.equal(ordinary.window.isleApplication.views, undefined);
+  assert.match(ordinary.html, /frame-src 'none'/);
+  const enabled = sandboxDocument({ script: "", style: "" }, undefined, { embeddedViews: true });
+  assert.match(enabled, /frame-src blob:/);
+  assert.match(enabled, /createApplicationViewHost/);
+  assert.match(enabled, /connect-src 'none'/);
+  assert.doesNotMatch(enabled, /allow-same-origin/);
+});

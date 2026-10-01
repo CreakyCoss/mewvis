@@ -53,6 +53,7 @@ const PERMISSIONS = new Set([
   "process",
   "chat",
   "chat-knowledge",
+  "embedded-views",
 ]);
 const sdkEntry = createRequire(import.meta.url).resolve("@isle/app-sdk");
 
@@ -60,7 +61,7 @@ const isleSdkResolver = {
   name: "isle-app-sdk",
   setup(buildContext) {
     buildContext.onResolve(
-      { filter: /^@isle\/app-sdk(?:\/(?:browser|data|chat(?:\/react)?))?$/ },
+      { filter: /^@isle\/app-sdk(?:\/(?:browser|data|views(?:\/runtime)?|chat(?:\/react)?))?$/ },
       ({ path }) => ({
         path:
           path === "@isle/app-sdk"

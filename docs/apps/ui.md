@@ -55,7 +55,7 @@ console.log(response.value);
 
 沙箱使用不透明源和固定 CSP：
 
-- 禁止 fetch 及图片、媒体、字体、frame、object 等外部资源。
+- 禁止 fetch 及图片、媒体、字体、frame、object 等外部资源；声明 `embedded-views` 的应用页面仅额外允许本地 blob 视图。
 - 不授予表单、弹窗、下载、同源访问和顶层导航能力。
 - 允许内联脚本和 CSS，是因为受审计的宿主文档直接嵌入包资源。
 - 工具参数必须是 JSON 对象，上限 256 KiB；每个 frame 最多同时调用四个工具。
@@ -64,6 +64,62 @@ console.log(response.value);
 iframe 离开宿主文档后不再展示界面。JS 入口上限 8 MiB，样式表上限 2 MiB（图片、字体内联后的实际大小）。只有 UI 文档读取响应允许 24 MiB，以容纳内联资源及 JSON 编码开销；普通应用工具响应仍限制为 4 MiB，普通 HTTP 响应仍限制为 16 MiB。UI 加载或执行失败不影响工具与技能；无效 UI 声明回退到通用工具台。
 
 浏览器沙箱隔离 DOM 与应用权限，不会将安装包变为不可信数据。宿主侧 Cordis 入口是可执行 Node.js 代码，必须来自受信任来源。
+
+## 内嵌沙箱视图
+
+应用工坊等容器应用可以加载自己管理的 JS/CSS 构建产物，无需将每个小应用安装到 Isle 应用列表。创建项目、源码编辑、编译、版本与业务数据管理仍由容器应用负责。宿主只提供浏览器视图隔离与通信，不导入生成的 Node 入口。
+
+在 `isle.config.ts` 的 `permissions` 中声明 `"embedded-views"`。已声明并启用的应用页面获得 `getApplicationHost().views`，CSP 的 `frame-src` 仅允许 `blob:`；普通应用保持 `frame-src 'none'`。每个子视图使用 `sandbox="allow-scripts"` 与不透明源，并设置自己的严格 CSP，禁止网络、外部资源与再次嵌套视图。
+
+容器应用挂载示例：
+
+```ts
+import { mountApplicationView } from "@isle/app-sdk/views";
+import { getApplicationDataClient } from "@isle/app-sdk/data";
+
+const storage = getApplicationDataClient().storage;
+const view = mountApplicationView(container, {
+  id: project.id,
+  title: project.name,
+  script: build.script,
+  style: build.style,
+  methods: {
+    "state.read": async (_params, { viewId }) =>
+      storage.getItem(`mini:${viewId}:state`),
+    "state.write": async ({ value }, { viewId, signal }) => {
+      signal.throwIfAborted();
+      await storage.setItem(`mini:${viewId}:state`, value);
+      return null;
+    },
+  },
+  onError: (error) => showError(error.message),
+});
+await view.ready;
+view.postMessage({ selection: "current" });
+// 关闭或替换版本时：
+view.dispose();
+```
+
+子视图的源码在编译时引用 SDK：
+
+```ts
+import { getApplicationViewClient } from "@isle/app-sdk/views";
+
+const client = getApplicationViewClient();
+const state = await client.request("state.read");
+await client.request("state.write", { value: { count: 1 } });
+const unsubscribe = client.subscribe((event) => updateSelection(event));
+```
+
+子视图没有 `isleApplication`、工作区连接、应用工具目录或聊天权限。容器显式提供方法白名单，运行时按实际 frame 来源及每次挂载的实例标识校验通信；`viewId` 来自挂载身份，子视图参数不能替换它。容器的方法仍须校验业务参数和限定数据范围，不能直接透传任意工具名、存储键或工作区路径。方法白名单在挂载时快照，修改权限需要释放并重新挂载。
+
+单个应用页面最多四个视图，每个视图最多四个并发请求。请求、响应及主动事件上限 256 KiB，方法执行超时 30 秒，启动超时 5 秒，JS/CSS 上限为 8 MiB / 2 MiB。`ready` 在浏览器 bundle 的初始同步执行结束后完成，不代表业务验收通过。主题和公共 CSS tokens 随应用更新；`client.getHost()` 返回当前视图 ID 与主题。
+
+`dispose()` 可重复调用，释放 iframe、监听器、blob URL 并取消进行中的请求。移除容器、iframe 导航、应用卸载或页面关闭也会释放视图。处理函数获得的 `signal` 会在关闭或超时时取消；已完成的外部写入不会自动回滚，运行时不重放请求。替换版本时先释放旧句柄，再用同一项目 ID 挂载新产物。
+
+`pnpm dev` 使用同一视图运行时，子视图同样受沙箱与 CSP 限制，应用数据和聊天仍遵循开发预览的内存语义。声明 `embedded-views` 不开放 Agent 的文件、网络或进程权限。
+
+在 `apps/client` 运行 `pnpm test:app-host:theme` 检查默认限制与显式开启行为；`pnpm test:app-host:views:browser` 用已安装的 Playwright 运行 Chromium 端到端检查。可用 `ISLE_PLAYWRIGHT_MODULE` 指定 Playwright 模块路径，`ISLE_VIEW_TEST_BROWSERS=chromium,webkit` 同时检查 WebKit；自定义浏览器位置使用 `ISLE_VIEW_TEST_WEBKIT_EXECUTABLE` 等对应变量。
 
 ## 与 dsh.client 的关系
 

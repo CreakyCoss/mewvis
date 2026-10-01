@@ -18,7 +18,8 @@
           "open-external",
           "process",
           "chat",
-          "chat-knowledge"
+          "chat-knowledge",
+          "embedded-views"
         ]
       },
       "uniqueItems": true

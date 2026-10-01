@@ -1,5 +1,6 @@
 import type { ApplicationUiDocument } from "@/api/applications";
 import themeTokensCss from "design-system/tokens.css?raw";
+import { createApplicationViewHost } from "@isle/app-sdk/views/runtime";
 
 // Only the public design-system tokens cross the sandbox boundary.
 const themeTokenNames = [...new Set([...themeTokensCss.matchAll(/(--[\w-]+)\s*:/g)].map((match) => match[1]))];
@@ -18,6 +19,7 @@ const BRIDGE_SOURCE = String.raw`
   const pending = new Map();
   let nextId = 1;
   let host = null;
+  /* EMBEDDED_VIEWS */
   const chatListeners = new Set();
   let appliedThemeTokens = [];
   const applyTheme = (theme, tokens) => {
@@ -36,6 +38,7 @@ const BRIDGE_SOURCE = String.raw`
   const send = (message) => parent.postMessage({ channel, ...message }, "*");
   const api = Object.freeze({
     version: 1,
+    ...(views ? { views } : {}),
     writeClipboardText(text) {
       if (typeof text !== "string" || new TextEncoder().encode(text).byteLength > 256 * 1024) return Promise.reject(new Error("复制内容超过 256 KiB 或格式无效"));
       if (navigator.userActivation && !navigator.userActivation.isActive) return Promise.reject(new Error("复制需要用户操作"));
@@ -131,16 +134,22 @@ button, input, textarea, select { font: inherit; }
 const escapeScript = (value: string) => value.replace(/<\/script/gi, "<\\/script");
 const escapeStyle = (value: string) => value.replace(/<\/style/gi, "<\\/style");
 
-export const sandboxDocument = (document: ApplicationUiDocument, chat?: ApplicationUiDocument) => `<!doctype html>
+export const sandboxDocument = (
+  document: ApplicationUiDocument,
+  chat?: ApplicationUiDocument,
+  options: { embeddedViews?: boolean } = {},
+) => `<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; connect-src 'none'; form-action 'none'; frame-src 'none'; img-src data: blob:; media-src 'none'; object-src 'none'; font-src data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; connect-src 'none'; form-action 'none'; frame-src ${options.embeddedViews ? "blob:" : "'none'"}; img-src data: blob:; media-src 'none'; object-src 'none'; font-src data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
     <style>${escapeStyle(themeTokensCss)}${chat ? escapeStyle(chat.style) : ""}${chat ? "html, body { height: 100%; margin: 0; }" : escapeStyle(BASE_STYLE)}${escapeStyle(document.style)}</style>
   </head>
   <body>
-    <script>${escapeScript(BRIDGE_SOURCE)}</script>
+    <script>${escapeScript(BRIDGE_SOURCE.replace("/* EMBEDDED_VIEWS */", options.embeddedViews
+      ? `const views = (${createApplicationViewHost.toString()})({ getTheme: () => host });`
+      : "const views = null;"))}</script>
     ${chat ? `<script>${escapeScript(chat.script)}</script>` : ""}
     <script>${escapeScript(document.script)}\n//# sourceURL=isle-app-ui.js</script>
   </body>

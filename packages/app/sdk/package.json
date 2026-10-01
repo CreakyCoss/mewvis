@@ -27,6 +27,14 @@
     "./data": {
       "types": "./data/index.d.ts",
       "default": "./data/index.js"
+    },
+    "./views": {
+      "types": "./views/index.d.ts",
+      "default": "./views/index.js"
+    },
+    "./views/runtime": {
+      "types": "./views/runtime.d.ts",
+      "default": "./views/runtime.js"
     }
   },
   "files": [
@@ -35,7 +43,8 @@
     "chat",
     "browser",
     "data",
-    "tools"
+    "tools",
+    "views"
   ],
   "scripts": {
     "test": "node --test test/*.test.mjs"

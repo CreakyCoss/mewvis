@@ -12,7 +12,8 @@ export type ApplicationPermission =
   | "open-external"
   | "process"
   | "chat"
-  | "chat-knowledge";
+  | "chat-knowledge"
+  | "embedded-views";
 export type ApplicationPermissionStatus = "declared" | "isle-upgrade-required" | "dsh-unsupported";
 
 export type ApplicationDescriptor = {

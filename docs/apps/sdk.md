@@ -8,7 +8,7 @@
 
 ## 权限与生命周期
 
-权限声明在包清单的 `isle.permissions`，不放在 `defineApplication` 中。支持 `network`、`application-data`、`application-workspaces`、`workspace-files`、`open-external`、`process`、`chat`、`chat-knowledge`；无需能力时使用空数组。新安装的原生包缺少此字段会失败。安装界面展示这些声明供用户审核，对应 SDK 宿主接口检查所需权限；声明不替代现有沙箱。
+权限声明在包清单的 `isle.permissions`，不放在 `defineApplication` 中。支持 `network`、`application-data`、`application-workspaces`、`workspace-files`、`open-external`、`process`、`chat`、`chat-knowledge`、`embedded-views`；无需能力时使用空数组。新安装的原生包缺少此字段会失败。安装界面展示这些声明供用户审核，对应 SDK 宿主接口检查所需权限；声明不替代现有沙箱。
 
 应用通过 Isle 上下文中的 `tools`、`skills`、`settings` 使用 Cordis 生命周期和依赖注入，无需直接导入 Cordis 或 DeepSeek Harness 服务包。
 
@@ -82,3 +82,7 @@ export async function apply(ctx) {
 ## 聊天
 
 [应用聊天](chat.md)介绍无界面客户端、默认与组合 React Chat、桌面 `ctx.chat` 接口、权限、生命周期及构建测试。SDK 根入口不会加载聊天 UI；需明确使用 `/chat` 或 `/chat/react` 子入口。
+
+## 内嵌沙箱视图
+
+声明 `embedded-views` 后，应用可以通过 `@isle/app-sdk/views` 的 `mountApplicationView()` 挂载浏览器构建产物。子视图通过 `getApplicationViewClient()` 调用所属视图的方法白名单，不继承应用的工具、数据或聊天连接。生命周期、通信与示例见 [应用界面协议](ui.md#内嵌沙箱视图)。

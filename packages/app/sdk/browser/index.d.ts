@@ -18,6 +18,8 @@ export interface ApplicationBrowserHost {
   readonly version: 1;
   /** Optional authenticated data v1 transport. Older hosts omit this capability. */
   readonly data?: import("../data/index.js").ApplicationDataTransport;
+  /** Present only when the application declares embedded-views. Children receive no application bridge. */
+  readonly views?: import("../views/index.js").ApplicationViewHost;
   /** Only this application's tools enabled by the user can be invoked. Result types are caller supplied. */
   executeTool<T = unknown>(
     name: string,

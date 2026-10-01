@@ -55,6 +55,7 @@ const permissions = [
   "process",
   "chat",
   "chat-knowledge",
+  "embedded-views",
 ];
 export type Application = Record<string, any>;
 export async function assertApplicationPath(base: string, path: string) {

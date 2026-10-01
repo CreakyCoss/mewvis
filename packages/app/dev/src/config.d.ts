@@ -13,7 +13,8 @@ export type ApplicationPermission =
   | "open-external"
   | "process"
   | "chat"
-  | "chat-knowledge";
+  | "chat-knowledge"
+  | "embedded-views";
 export interface ApplicationConfig {
   displayName: string;
   permissions: ApplicationPermission[];

@@ -357,7 +357,7 @@ test("application data ownership, workspace confirmation, revocation and package
     type: "module",
     isle: {
       app: { version: 1, entry: "index.js" },
-      permissions: ["application-data", "application-workspaces", "chat"],
+      permissions: ["application-data", "application-workspaces", "chat", "embedded-views"],
       agentAccess: { process: { execute: false } },
     },
   };
@@ -377,6 +377,7 @@ test("application data ownership, workspace confirmation, revocation and package
     sourcePath: packagePath,
   });
   assert.equal(installed.enabled, true);
+  assert.ok(installed.permissions.includes("embedded-views"));
   const connection = await s.call(
     "connect_application_data",
     { applicationId: installed.id },

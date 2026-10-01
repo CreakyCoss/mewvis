@@ -42,7 +42,11 @@ export const ApplicationFrame = ({
   const [runtimeError, setRuntimeError] = useState("");
   const [navigationBlocked, setNavigationBlocked] = useState(false);
   const [isFrameReady, setIsFrameReady] = useState(false);
-  const source = useMemo(() => (uiDocument ? sandboxDocument(uiDocument, chatRuntime) : ""), [uiDocument, chatRuntime]);
+  const embeddedViews = application.permissionStatus === "declared" && application.permissions.includes("embedded-views");
+  const source = useMemo(
+    () => (uiDocument ? sandboxDocument(uiDocument, chatRuntime, { embeddedViews }) : ""),
+    [uiDocument, chatRuntime, embeddedViews],
+  );
   const signature = JSON.stringify([
     application.version,
     [...application.permissions].sort(),

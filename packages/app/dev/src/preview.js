@@ -4,6 +4,7 @@ import "../dist/chat-ui.css";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { createPreviewChat } from "../dist/chat-host.js";
+import { createApplicationViewHost } from "@isle/app-sdk/views/runtime";
 
 let environment;
 export async function mountPreview(App, options) {
@@ -49,10 +50,14 @@ export async function mountPreview(App, options) {
       tools,
       theme: "light",
     };
+    const views = options.permissions?.includes("embedded-views")
+      ? createApplicationViewHost({ getTheme: () => info })
+      : undefined;
     Object.defineProperty(globalThis, "isleApplication", {
       configurable: true,
       value: Object.freeze({
         version: 1,
+        ...(views ? { views } : {}),
         chat: chat.transport,
         data: chat.data,
         executeTool,
@@ -66,6 +71,7 @@ export async function mountPreview(App, options) {
     addEventListener(
       "pagehide",
       () => {
+        views?.dispose();
         void chat.dispose();
       },
       { once: true },
