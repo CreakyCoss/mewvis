@@ -41,14 +41,16 @@ export function Empty({
   title,
   children,
   action,
+  icon,
 }: {
   title: string;
   children?: ReactNode;
   action?: ReactNode;
+  icon?: ReactNode;
 }) {
   return (
     <div className="wk-empty">
-      <Code2 className="wk-empty-icon" />
+      {icon ?? <Code2 className="wk-empty-icon" />}
       <h2>{title}</h2>
       {children && <p>{children}</p>}
       {action}
@@ -101,6 +103,7 @@ export function Modal({
     <dialog
       ref={ref}
       className={`wk-modal ${className}`}
+      onKeyDown={(event) => event.stopPropagation()}
       onCancel={(event) => {
         event.preventDefault();
         if (!busy) onClose();
@@ -114,6 +117,7 @@ export function Modal({
         <header>
           <h2 id={titleId}>{title}</h2>
           <button
+            type="button"
             className="wk-icon-button"
             onClick={onClose}
             disabled={busy}

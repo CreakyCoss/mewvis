@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ApplicationChatSession } from "@isle/app-sdk/chat";
-import { Chat } from "@isle/app-sdk/chat/react";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -12,6 +11,8 @@ import {
   History,
   LoaderCircle,
   Maximize2,
+  Minimize2,
+  Monitor,
   Play,
   RefreshCw,
   Save,
@@ -22,6 +23,7 @@ import { api, errorText, projectContext } from "./api";
 import { AppView, Busy, Empty, ErrorNotice, Modal } from "./components";
 import { CodeEditor } from "./CodeEditor";
 import { FileTree } from "./FileTree";
+import { WorkshopChat } from "./WorkshopChat";
 import { getVersionNumber, VersionsDialog } from "./VersionsDialog";
 import { APP_ENTRY, MAIN_ENTRY, STYLE_ENTRY } from "./contracts";
 import type {
@@ -58,6 +60,7 @@ export function Editor({
   const [pending, setPending] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [showCode, setShowCode] = useState(false);
   const [viewKey, setViewKey] = useState(0);
   const artifactRef = useRef(artifact);
   artifactRef.current = artifact;
@@ -167,7 +170,7 @@ export function Editor({
       setDiagnostics(result.diagnostics);
       setRuntimeError("");
       setArtifact(result.ok ? await api.artifact(initial.id, "draft") : null);
-      if (result.ok) toast.success("构建成功，预览已更新。");
+      if (result.ok) toast.success("应用预览已更新。");
       else
         toast.error("构建未通过，请按错误位置修复源码。", { duration: 3000 });
     });
@@ -348,9 +351,9 @@ export function Editor({
         value !== source.savedContent
       : project.changedFiles.length > 0 || dirty);
   const versionBlockedReason = runtimeError
-    ? "请先修复预览中的运行错误，再构建和保存版本。"
+    ? "请让 AI 修复预览中的问题，再保存版本。"
     : dirty || !artifact
-      ? "请先构建当前内容，再保存或创建版本。"
+      ? "请先更新应用预览，再保存或创建版本。"
       : "";
   return (
     <div className="wk-editor-shell">
@@ -387,7 +390,7 @@ export function Editor({
             <ChevronDown />
           </button>
           <button
-            className="wk-button is-primary"
+            className="wk-button is-accent"
             disabled={disabled || !!versionBlockedReason}
             title={
               versionBlockedReason
@@ -405,131 +408,153 @@ export function Editor({
             )}
             {pending === "正在保存版本…" ? "保存中…" : "保存版本"}
           </button>
+          <button
+            className="wk-code-toggle"
+            aria-label={showCode ? "收起代码" : "查看代码"}
+            aria-pressed={showCode}
+            aria-controls="wk-code-workspace"
+            onClick={() => {
+              setExpanded(false);
+              setShowCode(!showCode);
+            }}
+          >
+            <Code2 aria-hidden="true" />
+            <span>{showCode ? "收起代码" : "查看代码"}</span>
+          </button>
         </div>
       </header>
-      <div className={`wk-editor ${expanded ? "is-preview-expanded" : ""}`}>
-        <aside className="wk-files">
-          <header>
-            <h2>项目文件</h2>
-            <button
-              className="wk-icon-button"
-              aria-label="新建源码文件"
-              title="新建文件"
-              disabled={disabled}
-              onClick={() => {
-                setNewPath("");
-                setModal("file");
-              }}
-            >
-              <FilePlus2 />
-            </button>
-          </header>
-          <FileTree
-            files={project.files}
-            selected={path}
-            disabled={disabled}
-            select={(name) => void switchFile(name)}
-          />
-          <p>修改后可重新构建预览</p>
-        </aside>
+      <div
+        className={`wk-editor ${showCode ? "is-code-visible" : ""} ${expanded ? "is-preview-expanded" : ""}`}
+      >
         <main className="wk-workspace">
-          <section className="wk-source">
-            <header className="wk-code-toolbar">
-              <div className="wk-file-tabs">
-                <button className="is-active" aria-label={`当前文件 ${path}`}>
-                  <span>{path}</span>
-                  {dirty && <span className="wk-dirty-dot" />}
-                </button>
-                {path !== STYLE_ENTRY &&
-                  project.files.includes(STYLE_ENTRY) && (
-                    <button
-                      disabled={disabled}
-                      onClick={() => void switchFile(STYLE_ENTRY)}
-                    >
-                      styles.css
-                    </button>
-                  )}
-              </div>
-              <div className="wk-code-actions">
+          <section id="wk-code-workspace" className="wk-code-workspace">
+            <aside className="wk-files">
+              <header>
+                <h2>项目文件</h2>
                 <button
                   className="wk-icon-button"
-                  disabled={disabled || !dirty}
-                  aria-label="保存源码"
-                  title="保存源码 · ⌘/Ctrl S"
-                  onClick={() =>
+                  aria-label="新建源码文件"
+                  title="新建文件"
+                  disabled={disabled}
+                  onClick={() => {
+                    setNewPath("");
+                    setModal("file");
+                  }}
+                >
+                  <FilePlus2 />
+                </button>
+              </header>
+              <FileTree
+                files={project.files}
+                selected={path}
+                disabled={disabled}
+                select={(name) => void switchFile(name)}
+              />
+              <p>修改后可重新构建预览</p>
+            </aside>
+            <section className="wk-source">
+              <header className="wk-code-toolbar">
+                <div className="wk-file-tabs">
+                  <button className="is-active" aria-label={`当前文件 ${path}`}>
+                    <span>{path}</span>
+                    {dirty && <span className="wk-dirty-dot" />}
+                  </button>
+                  {path !== STYLE_ENTRY &&
+                    project.files.includes(STYLE_ENTRY) && (
+                      <button
+                        disabled={disabled}
+                        onClick={() => void switchFile(STYLE_ENTRY)}
+                      >
+                        styles.css
+                      </button>
+                    )}
+                </div>
+                <div className="wk-code-actions">
+                  <button
+                    className="wk-icon-button"
+                    disabled={disabled || !dirty}
+                    aria-label="保存源码"
+                    title="保存源码 · ⌘/Ctrl S"
+                    onClick={() =>
+                      void perform("正在保存源码…", async () => {
+                        await saveSource(true);
+                      })
+                    }
+                  >
+                    <Save />
+                  </button>
+                  <button
+                    className="wk-icon-button"
+                    disabled={disabled}
+                    aria-label="重新读取源码"
+                    title="重新读取源码"
+                    onClick={() => setModal("reload")}
+                  >
+                    <RefreshCw />
+                  </button>
+                  <button
+                    className="wk-icon-button"
+                    disabled={
+                      disabled ||
+                      [MAIN_ENTRY, "package.json", "tsconfig.json"].includes(
+                        path,
+                      )
+                    }
+                    aria-label="删除当前文件"
+                    title="删除当前文件"
+                    onClick={() => setModal("delete")}
+                  >
+                    <Trash2 />
+                  </button>
+                  <button
+                    className="wk-button is-small"
+                    disabled={disabled || !source}
+                    onClick={() => void build()}
+                  >
+                    {pending === "正在构建…" ? (
+                      <LoaderCircle className="wk-spin" />
+                    ) : (
+                      <Play />
+                    )}
+                    {pending === "正在构建…" ? "更新中…" : "更新预览"}
+                  </button>
+                </div>
+              </header>
+              {source ? (
+                <CodeEditor
+                  value={value}
+                  path={path}
+                  onChange={(next) => {
+                    current.current.value = next;
+                    dirtyRef.current = source.content !== next;
+                    setValue(next);
+                  }}
+                  disabled={disabled}
+                  save={() =>
                     void perform("正在保存源码…", async () => {
                       await saveSource(true);
                     })
                   }
-                >
-                  <Save />
-                </button>
-                <button
-                  className="wk-icon-button"
-                  disabled={disabled}
-                  aria-label="重新读取源码"
-                  title="重新读取源码"
-                  onClick={() => setModal("reload")}
-                >
-                  <RefreshCw />
-                </button>
-                <button
-                  className="wk-icon-button"
-                  disabled={
-                    disabled ||
-                    [MAIN_ENTRY, "package.json", "tsconfig.json"].includes(path)
-                  }
-                  aria-label="删除当前文件"
-                  title="删除当前文件"
-                  onClick={() => setModal("delete")}
-                >
-                  <Trash2 />
-                </button>
-                <button
-                  className="wk-button is-small"
-                  disabled={disabled || !source}
-                  onClick={() => void build()}
-                >
-                  {pending === "正在构建…" ? (
-                    <LoaderCircle className="wk-spin" />
-                  ) : (
-                    <Play />
-                  )}
-                  {pending === "正在构建…" ? "构建中…" : "构建预览"}
-                </button>
-              </div>
-            </header>
-            {source ? (
-              <CodeEditor
-                value={value}
-                path={path}
-                onChange={(next) => {
-                  current.current.value = next;
-                  dirtyRef.current = source.content !== next;
-                  setValue(next);
-                }}
-                disabled={disabled}
-                save={() =>
-                  void perform("正在保存源码…", async () => {
-                    await saveSource(true);
-                  })
-                }
-                build={() => void build()}
-              />
-            ) : (
-              <Busy text="正在读取源码…" />
-            )}
+                  build={() => void build()}
+                />
+              ) : (
+                <Busy text="正在读取源码…" />
+              )}
+            </section>
           </section>
           <section className="wk-runtime">
             <header>
-              <strong>运行预览</strong>
-              {artifact && !dirty && !runtimeError && (
-                <span className="wk-build-status">
-                  <CheckCircle2 />
-                  构建成功
+              <strong>
+                <Monitor aria-hidden="true" />
+                应用预览
+              </strong>
+              {aiBusy ? (
+                <span className="wk-muted" role="status">
+                  AI 正在生成…
                 </span>
-              )}
-              {dirty && <span className="wk-muted">源码有修改</span>}
+              ) : dirty ? (
+                <span className="wk-muted">等待更新预览</span>
+              ) : null}
               <div>
                 <button
                   className="wk-icon-button"
@@ -549,65 +574,83 @@ export function Editor({
                   title={expanded ? "收起预览" : "展开预览"}
                   onClick={() => setExpanded(!expanded)}
                 >
-                  <Maximize2 />
+                  {expanded ? (
+                    <Minimize2 aria-hidden="true" />
+                  ) : (
+                    <Maximize2 aria-hidden="true" />
+                  )}
                 </button>
               </div>
             </header>
-            {diagnostics.length > 0 ? (
-              <div className="wk-diagnostics" role="alert">
-                <h3>构建未通过</h3>
-                {diagnostics.map((item, index) => (
-                  <button
-                    key={index}
-                    onClick={() => void switchFile(item.file)}
-                  >
-                    <strong>
-                      {item.file}:{item.line}:{item.column}
-                    </strong>
-                    <span>{item.message}</span>
-                  </button>
-                ))}
-              </div>
-            ) : artifact ? (
-              <AppView
-                key={viewKey}
-                projectId={project.id}
-                artifact={artifact}
-                onFailure={setRuntimeError}
-              />
-            ) : (
-              <Empty
-                title="构建后，在这里试用"
-                action={
-                  <button
-                    className="wk-button"
-                    disabled={disabled}
-                    onClick={() => void build()}
-                  >
-                    <Play />
-                    构建预览
-                  </button>
-                }
-              >
-                让 AI 编写代码，或直接修改上方源码。
-              </Empty>
-            )}
+            <div className="wk-runtime-surface">
+              {diagnostics.length > 0 ? (
+                <div className="wk-diagnostics" role="alert">
+                  <h3>应用预览未能生成</h3>
+                  <p>把这些问题告诉 AI，继续修复应用。</p>
+                  {diagnostics.map((item, index) => (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        setShowCode(true);
+                        void switchFile(item.file);
+                      }}
+                    >
+                      <strong>
+                        {item.file}:{item.line}:{item.column}
+                      </strong>
+                      <span>{item.message}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : artifact ? (
+                <AppView
+                  key={viewKey}
+                  projectId={project.id}
+                  artifact={artifact}
+                  onFailure={setRuntimeError}
+                />
+              ) : (
+                <Empty
+                  title={
+                    aiBusy ? "AI 正在生成你的应用" : "描述想法，生成你的应用"
+                  }
+                  icon={
+                    <Sparkles className="wk-empty-icon" aria-hidden="true" />
+                  }
+                  action={
+                    showCode && (
+                      <button
+                        className="wk-button"
+                        disabled={disabled}
+                        onClick={() => void build()}
+                      >
+                        <Play />
+                        更新预览
+                      </button>
+                    )
+                  }
+                >
+                  {aiBusy
+                    ? "预览准备好后，就可以在这里直接试用。"
+                    : "告诉 AI 你想做什么，生成后在这里直接试用。"}
+                </Empty>
+              )}
+            </div>
           </section>
         </main>
-        <aside className="wk-assistant">
+        <aside className="wk-assistant" aria-label="AI 应用创作">
           <header>
             <h2>
-              <Sparkles />
-              AI 开发助手
+              <Sparkles aria-hidden="true" />
+              AI 应用创作
             </h2>
-            <p>当前项目 · {project.name}</p>
+            <p>说出想法，让 AI 帮你做成应用</p>
           </header>
           {guarded ? (
-            <Chat
+            <WorkshopChat
               session={guarded}
-              viewId={`workshop:${project.id}`}
-              className="wk-chat"
-              composer={{ placeholder: "描述需求，或询问这段代码…" }}
+              projectId={project.id}
+              name={project.name}
             />
           ) : sessionError ? (
             <div className="wk-empty">
@@ -617,7 +660,7 @@ export function Editor({
               </button>
             </div>
           ) : (
-            <Busy text="正在连接开发助手…" />
+            <Busy text="正在连接 AI…" />
           )}
         </aside>
       </div>

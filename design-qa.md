@@ -175,3 +175,81 @@ final result: passed
 - 压缩标题区并移除说明；API Key 输入框占满字段宽度，移除凭据提示。
 - 获取模型、新增模型及列表编辑按钮统一为 36 px 高；分别使用描边、浅色强调和无边框样式。
 - 本轮只核对前端类型、格式及 diff；检查通过。
+
+---
+
+# 应用工坊：AI 应用创作编辑页设计验收
+
+**Findings**
+
+没有未解决的 P0 / P1 / P2 问题。确认稿中的左右分栏、无头像会话、单行创作标题、完整应用预览及次级代码入口已实现。以下差异保留为产品约束或 P3 调整项，而非像素完全一致的声明。
+
+**Comparison target and evidence**
+
+- Source visual truth: `output/design/app-workshop-editor-2026-10-01/selected-refinement/conversation-compact-header.png`。
+- Implementation: <http://127.0.0.1:5197/>，打开「专注计时器」的「继续开发」。
+- Implementation screenshot: `output/design/app-workshop-editor-2026-10-01/implementation/editor-desktop.jpg`。
+- Full-view comparison: `output/design/app-workshop-editor-2026-10-01/implementation/desktop-comparison.png`，左为确认稿，右为实现。
+- Focused comparison: `output/design/app-workshop-editor-2026-10-01/implementation/conversation-comparison.png`，并排比较创作 header、用户消息与助手消息。
+- 参考图为 1672 × 941 像素；等比例归一到 1280 × 720，保存为 `implementation/reference-normalized.png`。浏览器视口为 1280 × 754 CSS px，上方 34 px 为开发预览控制条，比较截图裁去控制条，得到 1280 × 720 的应用内容。截图输出密度为 1 个图像像素 / CSS px。
+- State: 浅色、版本 1 已保存、代码收起、预览正常、输入框为空；用户消息在右，助手回复在左。应用预览仍使用项目中真实可交互的计时器，而非静态设计图。
+- 本地会话为内存模拟器：测试对话包含额外的偏好追问，助手实际返回「已收到预览回答：简洁一点」。确认稿中的生成结果文案和绿色更新提示属于动态内容，不在宿主界面中硬编码。两边均处于用户需求与助手完成回复的会话状态，但消息文本不相同。
+
+**Required fidelity surfaces**
+
+| Surface | Comparison and result |
+| --- | --- |
+| Fonts / typography | 延续工坊的系统无衬线字体与中文回退（macOS 使用 PingFang SC），不额外下载字体。创作标题 14 px / 600，说明 12 px，会话沿用共享组件的 14 px / 24 px 正文。单行标题与说明保持清晰层级；较长消息自然换行；应用名支持省略。生成图没有可验证的字体文件，比较以可见字重、层级与换行为准。 |
+| Spacing / layout rhythm | 1280 px 下会话栏约 404.5 px（31.6%），预览栏约 875.5 px；创作 header 高 54 px，整体页头 56 px。会话左右内距 20 px，用户气泡最大宽 82%，右对齐；助手没有头像占位和卡片底色。预览框 8 px 圆角，间距与确认稿主要区域对齐。输入框稍高，列为 P3。 |
+| Colors / tokens | 使用现有 `background`、`surface-raised`、`muted`、`border`、`primary`、`success` 等主题令牌。浅色为白色会话、浅灰用户气泡、淡色预览背景和紫色操作按钮；深色随同一套令牌切换，正文和状态均可辨读。没有增加装饰渐变。 |
+| Image quality / assets | 此编辑器壳层没有照片、插画、头像或其他需要生成的位图资产。图标沿用产品已使用的 Lucide 图标库与 1.75 描边。右侧是真实小应用运行视图，保留原有计时器的字号、圆环和按钮，未用图像或绘制的占位内容替代应用。参考计时器的展示差异是嵌入应用内容差异，不属于工坊壳层改造。 |
+| Copy / content | 「AI 应用创作」「说出想法，让 AI 帮你做成应用」「应用预览」「可以试用」「查看代码」及输入提示与确认方向一致。新会话介绍、空态和诊断提示围绕生成、试用、调整；代码相关操作在展开区保留。版本状态继续准确表达「已保存到版本 / 未保存到版本」，不改成可能混淆保存语义的预览更新状态。 |
+
+**Comparison history and corrections**
+
+1. [P1, resolved] 旧的桌面媒体规则仍指定三栏布局，会覆盖新的左右分栏。删除这条过时规则，保留左侧 AI 会话和右侧预览两栏。修复后证据：`implementation/editor-desktop.jpg` 及 `implementation/desktop-comparison.png`，DOM 测量为 404.5 / 875.5 px，代码与文件树默认不可见。
+2. [P2, resolved] 窄屏隐藏「查看代码」按钮文字后，图标按钮缺少可访问名称。为展开 / 收起按钮增加明确的 `aria-label`、`aria-pressed` 和受控区域关联。修复前截图：`implementation/editor-mobile-before-label-fix.jpg`；修复后截图：`implementation/editor-mobile.jpg` 与 `implementation/editor-mobile-chat.jpg`。浏览器可访问性树确认按钮名称为「查看代码」，390 px 宽度没有横向溢出。
+3. [P2, resolved] 设置弹窗位于共享输入表单内部，关闭按钮和表单键盘快捷键可能误触发送。关闭 / 完成按钮使用 `type="button"`，弹窗隔离键盘事件。浏览器验证：保留非空草稿，在设置中按 Ctrl+Enter 并关闭后，派发数仍为 0，草稿原样保留。
+
+**Responsive and interaction evidence**
+
+- `implementation/code-expanded.jpg`：展开文件树与代码，预览继续保留；展开 / 收起均可用。
+- `implementation/editor-mobile.jpg` 与 `implementation/editor-mobile-chat.jpg`：390 × 844 CSS px 的窄屏，上下排列预览与会话，滚动后可完整使用输入区，无横向溢出；窄屏不作为桌面确认稿的逐像素比较目标。
+- `implementation/editor-dark.jpg`：1280 × 720 内容区域的深色模式；恢复浅色后交付。
+- 已验证实际计时器开始 / 暂停 / 重置，刷新与扩大预览；修改源码后更新预览，保存当前版本；收起代码保留未保存修改，再展开仍可继续编辑。测试修改已恢复。
+- 已验证建议仅填入草稿、Ctrl+Enter 发送、停止生成、共享追问与回答、过程显示选项、设置关闭及键盘隔离。模型和权限控制仍由共享会话提供。
+- 浏览器 error 日志检查为空。未测试真实模型生成：此独立开发预览使用内存会话；实际模型需在 Isle 宿主中调用。没有将模拟回复当作真实生成成功的证据。
+- `pnpm --filter @isle/app-workshop check`：通过。
+- `pnpm --filter @isle/app-workshop test`：15 / 15 通过，包含实际打包、编辑 / 构建 / 保存 / 恢复版本及宿主边界检查。
+- `git diff --check`：通过。
+
+**Open Questions**
+
+没有阻碍本次编辑页实现的问题。真实模型输出长度与生成质量由宿主会话和所选模型决定，后续可在实际应用中继续观察。
+
+**Follow-up Polish**
+
+- [P3] 输入框整体约 138 px，比归一化确认稿约 116 px 高。当前保留较舒适的多行输入空间；如需要更紧凑，可将 `.wk-chat-input` 的最小高度从 88 px 降到 66 px。
+- [P3] 共享消息操作仍占用少量垂直空间，以保留复制等行为。后续若要进一步提高会话密度，可将消息操作改为悬浮出现，并重新检查键盘可达性。
+
+**Implementation Checklist**
+
+- [x] 左侧 AI 创作、右侧完整预览，代码入口默认折叠。
+- [x] 用户消息右侧、助手消息左侧，去掉头像及头像占位。
+- [x] 创作标题与说明压缩成单行 header。
+- [x] 保留会话发送、停止、追问、设置及现有源码 / 版本能力。
+- [x] 桌面、窄屏、深色、关键交互与设计对照完成。
+- [x] 类型检查、现有测试和变更格式检查通过。
+
+final result: passed
+
+## 应用工坊输入区后续调整（2026-10-01）
+
+- 按用户要求，对照故事应用 `workbench/assistant.tsx` 与 `workbench.css` 调整输入区；上方截图及视觉验收记录对应调整前版本。
+- 输入框改为故事助手的 12 px 圆角、12 px 内距、柔和阴影及焦点描边；多行输入最小高度 76 px、最大高度 180 px、行高 1.75。
+- 底部同步模型下拉、权限图标与共享圆形发送／停止按钮；思考等级与过程显示保留在创作设置中。
+- 本轮 `pnpm --filter @isle/app-workshop check`、格式与 `git diff --check` 通过。按用户指示，未进行浏览器效果验收，由用户自行验证。
+- 随后按用户要求移除「创作设置」按钮、弹窗及对应样式；输入框底部仅保留模型、权限与发送／停止按钮。类型与变更格式检查通过，效果仍由用户自行验证。
+- 根据最新要求，将 AI 助手移至右侧、应用预览移至左侧，保持原有栏宽比例、输入框及会话样式；代码展开区随预览移至左侧，窄屏仍先预览后会话。同步调整分隔线、DOM 顺序及方向性说明文案。类型与变更格式检查通过，浏览器效果由用户自行验证。
+- 预览标题栏移除「可以试用」标签及对应样式；展开使用 `Maximize2`，收起使用方向相反的 `Minimize2`，按钮名称与提示继续随状态切换。类型与变更格式检查通过，浏览器效果由用户自行验证。
+- 针对滚动预览时标题下方边框轻微抖动的问题，新增持续挂载的 `.wk-runtime-surface`，由外层固定覆盖边框，内层运行页面隔离布局与绘制。灵感便签内页实际滚动至 `scrollTop = 153` 时，外框仍为 `x = 14, y = 463, width = 847.5234375, height = 237`，边框为 1 px，位置、尺寸和颜色均未变化；展开／收起预览正常。类型检查、浏览器错误日志与变更格式检查通过。未在原生宿主中复现细微闪动，实际观感由用户继续验证；最终预览截图为 `implementation/preview-border-fixed.jpg`。

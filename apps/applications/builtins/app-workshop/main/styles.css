@@ -51,6 +51,7 @@
 .wk-shell button:focus-visible,
 .wk-modal button:focus-visible,
 .wk-modal input:focus-visible,
+.wk-modal select:focus-visible,
 .wk-modal textarea:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 3px;
@@ -519,11 +520,48 @@
   height: 100%;
   min-height: 0;
 }
+.wk-editor-shell > .wk-header {
+  height: 56px;
+  min-height: 56px;
+}
+.wk-code-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.wk-code-toggle:hover,
+.wk-code-toggle[aria-pressed="true"] {
+  background: var(--muted);
+  color: var(--foreground);
+}
 .wk-editor {
   display: grid;
   min-height: 0;
   flex: 1;
-  grid-template-columns: 208px minmax(0, 1fr) 350px;
+  grid-template-columns: minmax(0, 1fr) minmax(350px, 31.6%);
+}
+.wk-code-workspace {
+  display: none;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+}
+.wk-editor.is-code-visible .wk-code-workspace {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+}
+.wk-editor.is-code-visible .wk-workspace {
+  display: grid;
+  grid-template-rows: minmax(220px, 1fr) minmax(220px, 1fr);
 }
 .wk-files {
   display: flex;
@@ -596,11 +634,11 @@
   color: var(--muted-foreground);
 }
 .wk-workspace {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
-  grid-template-rows: minmax(200px, 1fr) minmax(220px, 1fr);
-  background: var(--surface-raised);
+  background: var(--background);
 }
 .wk-source,
 .wk-runtime {
@@ -736,36 +774,69 @@
   color: var(--muted-foreground);
 }
 .wk-runtime {
-  border-top: 6px solid var(--surface);
+  flex: 1;
+  padding: 0 14px 20px;
 }
 .wk-runtime > header {
-  min-height: 48px;
+  height: 58px;
+  min-height: 58px;
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 0 16px;
-  border-bottom: 1px solid var(--border);
+  padding: 0 6px;
   flex-shrink: 0;
 }
 .wk-runtime > header strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 14px;
+}
+.wk-runtime-surface {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--surface-raised);
+  isolation: isolate;
+}
+.wk-runtime-surface::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border: 1px solid var(--border);
+  border-radius: inherit;
+  pointer-events: none;
+}
+.wk-runtime-surface > .wk-view,
+.wk-runtime-surface > .wk-empty,
+.wk-runtime-surface > .wk-diagnostics {
+  position: absolute;
+  inset: 1px;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 7px;
+  background: var(--surface-raised);
+}
+/* Keep iframe scrolling and painting separate from the fixed outer border. */
+.wk-runtime-surface > .wk-view {
+  contain: layout paint;
+  transform: translateZ(0);
+}
+.wk-runtime-surface > .wk-diagnostics {
+  overflow: auto;
+  background: var(--error-subtle);
 }
 .wk-runtime > header > div {
   margin-left: auto;
   display: flex;
   gap: 6px;
-}
-.wk-build-status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--success);
-}
-.wk-build-status svg {
-  width: 13px;
-  height: 13px;
 }
 .wk-muted {
   color: var(--muted-foreground);
@@ -781,31 +852,295 @@
   overflow: hidden;
 }
 .wk-assistant > header {
-  padding: 24px 20px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 54px;
+  min-height: 54px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 .wk-assistant > header h2 {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 17px;
+  gap: 8px;
+  font-size: 14px;
   font-weight: 600;
+  white-space: nowrap;
 }
 .wk-assistant > header h2 svg {
   color: var(--primary);
-  width: 21px;
-  height: 21px;
+  width: 18px;
+  height: 18px;
 }
 .wk-assistant > header p {
-  margin: 8px 0 0 31px;
+  margin: 0;
   font-size: 12px;
   color: var(--muted-foreground);
-  overflow-wrap: anywhere;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .wk-chat {
   flex: 1;
   min-height: 0;
   height: auto !important;
+  background: var(--surface-raised);
+}
+.wk-chat-messages {
+  padding: 24px 20px 12px;
+}
+.wk-chat-messages > [aria-live] {
+  gap: 24px;
+}
+.wk-chat-messages .app-empty-state {
+  min-height: 120px;
+  padding: 24px 12px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+/* Keep shared message blocks and actions; customize only the workshop surface. */
+.wk-chat-message > [data-role] {
+  gap: 0;
+  padding-right: 0;
+}
+.wk-chat-message > [data-role="assistant"] > :not([data-role]),
+.wk-chat-message > [data-role="assistant"] > [data-role] > div:first-child {
+  display: none;
+}
+.wk-chat-message > [data-role="assistant"] > [data-role] {
+  max-width: 100%;
+  width: 100%;
+}
+.wk-chat-message > [data-role="user"] > [data-role] {
+  max-width: 82%;
+}
+.wk-chat-message article[data-role="user"] {
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: var(--muted);
+  color: var(--foreground);
+  box-shadow: none;
+  text-align: left;
+}
+.wk-chat-message article[data-role="assistant"] {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.wk-chat-footer {
+  border-top: 1px solid var(--border);
+  padding: 12px 16px 16px;
+  max-height: 55%;
+  overflow-y: auto;
+  background: var(--surface-raised);
+  backdrop-filter: none;
+}
+.wk-chat-footer > * + * {
+  margin-top: 12px;
+}
+.wk-chat-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.wk-chat-suggestions button {
+  min-height: 32px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface-raised);
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.wk-chat-suggestions button:hover:not(:disabled) {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.wk-chat-composer [data-slot="input-group"] {
+  border-color: var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--background);
+  box-shadow: 0 2px 12px color-mix(in oklab, var(--foreground) 5%, transparent);
+}
+.wk-chat-input {
+  display: block;
+  width: 100%;
+  min-height: 76px;
+  max-height: 180px;
+  padding: 0;
+  resize: vertical;
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.75;
+  box-shadow: none;
+  outline: 0;
+}
+.wk-chat-input::placeholder {
+  color: var(--muted-foreground);
+}
+.wk-chat-composer:focus-within [data-slot="input-group"] {
+  border-color: var(--ring);
+  box-shadow:
+    0 0 0 2px color-mix(in oklab, var(--ring) 12%, transparent),
+    0 2px 12px color-mix(in oklab, var(--foreground) 5%, transparent);
+}
+.wk-chat-composer [data-slot="input-group-addon"] {
+  min-height: 36px;
+  margin-top: 8px;
+  padding: 0;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+.wk-chat-composer [data-slot="input-group-addon"] > div:first-child {
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+.wk-shell .wk-chat-model-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  max-width: 180px;
+  min-height: 36px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  text-align: left;
+}
+.wk-chat-model-trigger > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wk-chat-model-trigger > svg {
+  width: 14px;
+  height: 14px;
+}
+.wk-chat-model-trigger:hover:not(:disabled),
+.wk-chat-model-trigger[data-state="open"] {
+  background: color-mix(in oklab, var(--foreground) 5%, transparent);
+  color: var(--foreground);
+}
+[data-slot="dropdown-menu-content"].wk-chat-model-menu {
+  width: min(300px, calc(100vw - 24px));
+  max-height: 250px;
+  overflow-y: auto;
+}
+.wk-chat-model-option {
+  min-height: 34px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.wk-chat-model-option[data-state="checked"] {
+  background: color-mix(in oklab, var(--primary) 9%, transparent);
+  color: var(--primary);
+}
+.wk-chat-model-option > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.wk-chat-permission-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+}
+.wk-chat-permission-trigger > svg {
+  width: 16px;
+  height: 16px;
+}
+.wk-chat-permission-trigger[data-mode="ask"] {
+  color: var(--primary);
+}
+.wk-chat-permission-trigger[data-mode="auto"] {
+  color: var(--success);
+}
+.wk-chat-permission-trigger[data-mode="full"] {
+  color: var(--warning);
+}
+.wk-chat-permission-trigger[data-mode="unset"] {
+  color: var(--muted-foreground);
+}
+.wk-chat-permission-trigger:hover:not(:disabled),
+.wk-chat-permission-trigger[data-state="open"] {
+  opacity: 0.72;
+}
+[data-slot="dropdown-menu-content"].wk-chat-permission-menu {
+  width: min(300px, calc(100vw - 24px));
+}
+.wk-chat-permission-option {
+  min-height: 56px;
+  gap: 10px;
+}
+.wk-chat-permission-option-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 7px;
+}
+.wk-chat-permission-option[data-mode="ask"] .wk-chat-permission-option-icon {
+  color: var(--primary);
+  background: color-mix(in oklab, var(--primary) 9%, transparent);
+}
+.wk-chat-permission-option[data-mode="auto"] .wk-chat-permission-option-icon {
+  color: var(--success);
+  background: var(--success-subtle);
+}
+.wk-chat-permission-option[data-mode="full"] .wk-chat-permission-option-icon {
+  color: var(--warning);
+  background: var(--warning-subtle);
+}
+.wk-chat-permission-option-text {
+  display: grid;
+  min-width: 0;
+}
+.wk-chat-permission-option-text strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.wk-chat-permission-option-text small {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.wk-chat-send {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.wk-chat-send svg {
+  width: 16px;
+  height: 16px;
+}
+.wk-chat-send .wk-chat-stop {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+}
+.wk-chat-composer button:disabled {
+  opacity: 0.45;
 }
 .wk-diagnostics {
   padding: 20px;
@@ -835,10 +1170,11 @@
 }
 .wk-editor.is-preview-expanded .wk-files,
 .wk-editor.is-preview-expanded .wk-assistant,
-.wk-editor.is-preview-expanded .wk-source {
+.wk-editor.is-preview-expanded .wk-code-workspace {
   display: none;
 }
 .wk-editor.is-preview-expanded .wk-workspace {
+  display: flex;
   grid-template-rows: 1fr;
 }
 .wk-use {
@@ -1179,7 +1515,18 @@
 }
 @media (max-width: 1180px) {
   .wk-editor {
-    grid-template-columns: 165px minmax(0, 1fr) 310px;
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 35%);
+  }
+  .wk-assistant > header {
+    padding-right: 16px;
+    padding-left: 16px;
+    gap: 8px;
+  }
+  .wk-assistant > header p {
+    font-size: 11px;
+  }
+  .wk-editor.is-code-visible .wk-code-workspace {
+    grid-template-columns: 145px minmax(0, 1fr);
   }
   .wk-header {
     padding: 0 16px;
@@ -1256,12 +1603,28 @@
     max-width: 240px;
   }
   .wk-workspace {
-    min-height: 720px;
+    min-height: 440px;
+    order: 0;
+  }
+  .wk-editor.is-code-visible .wk-workspace {
+    min-height: 740px;
+  }
+  .wk-editor.is-code-visible .wk-code-workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
   }
   .wk-assistant {
-    min-height: 600px;
+    height: 560px;
+    min-height: 560px;
     border-left: 0;
     border-top: 1px solid var(--border);
+    order: 1;
+  }
+  .wk-chat-messages {
+    padding: 20px 16px 12px;
+  }
+  .wk-chat-footer {
+    padding: 12px 16px 16px;
   }
   .wk-header-name {
     max-width: 160px;
@@ -1272,6 +1635,13 @@
   }
   .wk-header-actions {
     gap: 8px;
+  }
+  .wk-code-toggle span {
+    display: none;
+  }
+  .wk-code-toggle {
+    width: 36px;
+    justify-content: center;
   }
   .wk-header-actions .wk-button svg {
     display: none;
@@ -1342,15 +1712,6 @@
 .wk-app-icon[data-kind="wallet"] {
   background: var(--success-subtle);
   color: var(--success);
-}
-/* Desktop proportions follow the selected workshop mockups. */
-@media (min-width: 1181px) {
-  .wk-editor {
-    grid-template-columns: 216px minmax(0, 1fr) 420px;
-  }
-  .wk-workspace {
-    grid-template-rows: minmax(200px, 0.92fr) minmax(220px, 1.08fr);
-  }
 }
 .wk-status.is-ready svg {
   fill: var(--success);
