@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ApplicationChatSession } from "@isle/app-sdk/chat";
 import { getApplicationDataClient } from "@isle/app-sdk/data";
-import { ArrowLeft, Code2, LayoutGrid, Plus } from "lucide-react";
+import { LayoutGrid, Plus } from "lucide-react";
 import { api, closeProjectSessions, developerSession, errorText } from "./api";
-import { AppView, Busy, Empty, ErrorNotice, Modal } from "./components";
+import { ErrorNotice, Modal } from "./components";
 import { Home } from "./Home";
 import { Editor } from "./Editor";
+import { UseView } from "./UseView";
 import type { BuildArtifact, ProjectDetail, ProjectSummary } from "./contracts";
 import "./styles.css";
 
@@ -145,7 +146,7 @@ export default function App() {
     void perform("正在刷新小应用…", refresh);
   }
   function use(project: ProjectSummary) {
-    if (project.savedVersionId) {
+    if (project.savedVersionId && !project.error) {
       ++epoch.current;
       select(project.id);
       setMode("use");
@@ -170,8 +171,17 @@ export default function App() {
       void connect(project);
     });
   return (
-    <div className="wk-shell">
-      {mode === "develop" && detail ? (
+    <div className={`wk-shell ${mode === "use" ? "is-using" : ""}`}>
+      {mode === "use" ? (
+        <UseView
+          project={selected}
+          artifact={artifact}
+          loading={previewLoading}
+          error={previewError || error}
+          home={home}
+          retry={() => setReload((value) => value + 1)}
+        />
+      ) : mode === "develop" && detail ? (
         <Editor
           key={detail.id}
           initial={detail}
@@ -185,57 +195,19 @@ export default function App() {
       ) : (
         <>
           <header className="wk-header">
-            {mode === "use" ? (
-              <>
-                <button
-                  className="wk-back"
-                  aria-label="返回应用工坊"
-                  onClick={home}
-                >
-                  <ArrowLeft />
-                  <span>应用工坊</span>
-                </button>
-                <span className="wk-header-divider" />
-                <strong className="wk-header-name">{selected?.name}</strong>
-              </>
-            ) : (
-              <h1 className="wk-brand">
-                <LayoutGrid />
-                应用工坊
-              </h1>
-            )}
+            <h1 className="wk-brand">
+              <LayoutGrid />
+              应用工坊
+            </h1>
             <div className="wk-header-actions">
-              {mode === "home" ? (
-                <button
-                  className="wk-button is-primary"
-                  disabled={!!pending}
-                  onClick={openCreate}
-                >
-                  <Plus />
-                  新建小应用
-                </button>
-              ) : (
-                selected && (
-                  <>
-                    <div className="wk-mode" aria-label="应用模式">
-                      <button
-                        aria-pressed="false"
-                        onClick={() => develop(selected)}
-                      >
-                        开发
-                      </button>
-                      <button aria-pressed="true">使用</button>
-                    </div>
-                    <button
-                      className="wk-button"
-                      onClick={() => develop(selected)}
-                    >
-                      <Code2 />
-                      继续开发
-                    </button>
-                  </>
-                )
-              )}
+              <button
+                className="wk-button is-primary"
+                disabled={!!pending}
+                onClick={() => openCreate()}
+              >
+                <Plus />
+                新建小应用
+              </button>
             </div>
           </header>
           {error && (
@@ -256,66 +228,26 @@ export default function App() {
               {pending}
             </div>
           )}
-          {mode === "home" ? (
-            <Home
-              projects={projects}
-              selectedId={selectedId}
-              select={select}
-              create={openCreate}
-              develop={develop}
-              use={use}
-              remove={(project) => {
-                setError("");
-                setRemoving(project);
-              }}
-              artifact={artifact}
-              loading={loading}
-              previewLoading={previewLoading}
-              previewError={previewError}
-              retry={() => {
-                setReload((value) => value + 1);
-                void perform("正在重新加载…", refresh);
-              }}
-            />
-          ) : (
-            <main className="wk-use">
-              {previewLoading ? (
-                <Busy text="正在打开保存的版本…" />
-              ) : previewError ? (
-                <div className="wk-empty">
-                  <ErrorNotice>{previewError}</ErrorNotice>
-                  <button
-                    className="wk-button"
-                    onClick={() => setReload((value) => value + 1)}
-                  >
-                    重新加载
-                  </button>
-                </div>
-              ) : artifact && selected ? (
-                <AppView
-                  projectId={selected.id}
-                  artifact={artifact}
-                  scope="live"
-                />
-              ) : (
-                <Empty
-                  title="还没有可使用的版本"
-                  action={
-                    selected && (
-                      <button
-                        className="wk-button"
-                        onClick={() => develop(selected)}
-                      >
-                        返回开发
-                      </button>
-                    )
-                  }
-                >
-                  进入编辑页构建并保存版本。
-                </Empty>
-              )}
-            </main>
-          )}
+          <Home
+            projects={projects}
+            selectedId={selectedId}
+            select={select}
+            create={openCreate}
+            develop={develop}
+            use={use}
+            remove={(project) => {
+              setError("");
+              setRemoving(project);
+            }}
+            artifact={artifact}
+            loading={loading}
+            previewLoading={previewLoading}
+            previewError={previewError}
+            retry={() => {
+              setReload((value) => value + 1);
+              void perform("正在重新加载…", refresh);
+            }}
+          />
         </>
       )}
       {createOpen && (

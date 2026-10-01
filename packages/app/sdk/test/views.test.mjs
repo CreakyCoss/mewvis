@@ -4,6 +4,57 @@ import {
   getApplicationViewClient,
   mountApplicationView,
 } from "../views/index.js";
+import { createApplicationViewHost } from "../views/runtime.js";
+
+test("view host starts before the document root exists and releases its observer", () => {
+  const keys = [
+    "document",
+    "MutationObserver",
+    "addEventListener",
+    "removeEventListener",
+  ];
+  const originals = new Map(
+    keys.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]),
+  );
+  const subscriptions = new Map();
+  let disconnected = false;
+  const values = {
+    document: { nodeType: 9, documentElement: null },
+    MutationObserver: class {
+      observe(target) {
+        if (!target)
+          throw new TypeError("The observation target must be a Node");
+      }
+      disconnect() {
+        disconnected = true;
+      }
+    },
+    addEventListener(type, listener) {
+      subscriptions.set(type, listener);
+    },
+    removeEventListener(type, listener) {
+      if (subscriptions.get(type) === listener) subscriptions.delete(type);
+    },
+  };
+  try {
+    for (const key of keys)
+      Object.defineProperty(globalThis, key, {
+        configurable: true,
+        value: values[key],
+      });
+    const host = createApplicationViewHost({ getTheme: () => ({}) });
+    assert.equal(host.version, 1);
+    assert.ok(subscriptions.size > 0);
+    host.dispose();
+    assert.equal(disconnected, true);
+    assert.equal(subscriptions.size, 0);
+  } finally {
+    for (const [key, original] of originals) {
+      if (original) Object.defineProperty(globalThis, key, original);
+      else delete globalThis[key];
+    }
+  }
+});
 
 test("owner mount requires an explicit host capability; child client never falls back to the application bridge", () => {
   const original = Object.getOwnPropertyDescriptor(

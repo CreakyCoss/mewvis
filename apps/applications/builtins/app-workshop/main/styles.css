@@ -197,36 +197,40 @@
   min-height: 0;
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(320px, 34%) minmax(0, 1fr);
+  grid-template-columns: 320px minmax(0, 1fr);
 }
 .wk-library {
   min-height: 0;
   overflow: auto;
-  padding: 32px 20px;
+  padding: 18px 16px;
   border-right: 1px solid var(--border);
   background: var(--surface-raised);
 }
 .wk-library-heading {
-  margin: 0 12px 24px;
+  margin: 0 0 14px;
 }
-.wk-library-heading h1 {
-  font-size: 24px;
+.wk-library-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
   line-height: 1.4;
   font-weight: 600;
 }
 .wk-library-heading p {
-  font-size: 13px;
+  margin-top: 6px;
   color: var(--muted-foreground);
-  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.5;
 }
 .wk-project-row {
   position: relative;
-  min-height: 116px;
+  min-height: 88px;
   border-bottom: 1px solid var(--border);
   border-left: 3px solid transparent;
   display: flex;
   align-items: flex-start;
-  padding: 20px 8px 20px 16px;
+  padding: 12px 4px 12px 10px;
 }
 .wk-project-row.is-selected {
   background: var(--primary-subtle);
@@ -236,7 +240,7 @@
 }
 .wk-project-select {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   text-align: left;
   flex: 1;
   min-width: 0;
@@ -250,32 +254,32 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   background: var(--primary-subtle);
   color: var(--primary);
 }
 .wk-app-icon svg {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
 }
 .wk-app-icon.is-large {
-  width: 64px;
-  height: 64px;
+  width: 52px;
+  height: 52px;
 }
 .wk-app-icon.is-large svg {
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
 }
 .wk-project-text {
   display: flex;
   min-width: 0;
-  gap: 6px;
+  gap: 3px;
   flex-direction: column;
 }
 .wk-project-text strong {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
 }
 .wk-description {
@@ -338,14 +342,14 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  padding: 32px;
+  padding: 20px;
   overflow: auto;
 }
 .wk-detail-header {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding-bottom: 28px;
+  padding-bottom: 16px;
   border-bottom: 1px solid var(--border);
 }
 .wk-detail-title {
@@ -353,13 +357,13 @@
   flex: 1;
 }
 .wk-detail-title h2 {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
 .wk-detail-title p {
   color: var(--muted-foreground);
-  margin: 6px 0 10px;
+  margin: 4px 0 8px;
   font-size: 13px;
 }
 .wk-detail-actions {
@@ -368,21 +372,22 @@
   flex-shrink: 0;
 }
 .wk-preview-label {
-  margin: 24px 0 18px;
+  margin: 14px 0 10px !important;
+  font-size: 13px;
   font-weight: 600;
 }
+.wk-home-footnote {
+  margin-top: 10px !important;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
 .wk-home-preview {
-  min-height: 320px;
+  min-height: 280px;
   flex: 1;
   overflow: hidden;
   border: 1px solid var(--border);
   background: var(--surface-raised);
   border-radius: 8px;
-}
-.wk-home-footnote {
-  margin-top: 16px !important;
-  color: var(--muted-foreground);
-  font-size: 12px;
 }
 .wk-view {
   position: relative;
@@ -399,9 +404,6 @@
   border: 0;
   width: 100%;
   height: 100%;
-}
-.wk-view.is-passive .wk-view-frame {
-  pointer-events: none;
 }
 .wk-view-overlay {
   position: absolute;
@@ -824,14 +826,41 @@
   grid-template-rows: 1fr;
 }
 .wk-use {
+  position: relative;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
   background: var(--surface-raised);
 }
+.wk-use-exit {
+  position: absolute;
+  z-index: 2;
+  top: 16px;
+  left: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-raised) 94%, transparent);
+  color: var(--foreground);
+  box-shadow: var(--shadow-floating);
+  backdrop-filter: blur(8px);
+}
+.wk-use-exit:hover {
+  background: var(--muted);
+}
 .wk-modal {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  height: fit-content;
   color: var(--foreground);
   width: min(520px, calc(100vw - 32px));
-  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -928,13 +957,13 @@
     grid-template-columns: 300px minmax(0, 1fr);
   }
   .wk-home-detail {
-    padding: 24px;
+    padding: 20px;
   }
   .wk-detail-header {
     flex-wrap: wrap;
   }
   .wk-detail-actions {
-    margin-left: 80px;
+    margin-left: 68px;
   }
   .wk-saved {
     display: none;
@@ -943,6 +972,15 @@
 @media (max-width: 800px) {
   .wk-shell {
     overflow: auto;
+  }
+  .wk-shell.is-using {
+    overflow: hidden;
+  }
+  .wk-use-exit {
+    top: auto;
+    left: auto;
+    right: 12px;
+    bottom: 12px;
   }
   .wk-home {
     display: flex;
@@ -957,7 +995,7 @@
     padding: 24px 16px;
   }
   .wk-library-heading {
-    margin-bottom: 16px;
+    margin-bottom: 12px;
   }
   .wk-project-list {
     display: flex;
@@ -965,12 +1003,12 @@
     gap: 12px;
   }
   .wk-project-row {
-    flex: 0 0 260px;
-    min-height: 110px;
+    flex: 0 0 240px;
+    min-height: 88px;
   }
   .wk-home-detail {
     overflow: visible;
-    min-height: 620px;
+    min-height: 540px;
     flex-shrink: 0;
   }
   .wk-editor-shell {
@@ -1083,9 +1121,6 @@
   .wk-runtime > header {
     gap: 8px;
   }
-  .wk-preview-label {
-    margin: 20px 0 12px;
-  }
 }
 .wk-app-icon[data-kind="timer"] {
   background: var(--primary-subtle);
@@ -1107,60 +1142,6 @@
   }
   .wk-workspace {
     grid-template-rows: minmax(200px, 0.92fr) minmax(220px, 1.08fr);
-  }
-  .wk-library {
-    padding-top: 38px;
-  }
-  .wk-library-heading {
-    margin-bottom: 28px;
-  }
-  .wk-library-heading h1 {
-    font-size: 26px;
-  }
-  .wk-library-heading p {
-    font-size: 14px;
-    margin-top: 10px;
-  }
-  .wk-project-row {
-    min-height: 124px;
-    padding: 20px 8px 20px 20px;
-  }
-  .wk-project-select {
-    gap: 20px;
-  }
-  .wk-app-icon {
-    width: 60px;
-    height: 60px;
-  }
-  .wk-app-icon svg {
-    width: 30px;
-    height: 30px;
-  }
-  .wk-app-icon.is-large {
-    width: 76px;
-    height: 76px;
-  }
-  .wk-app-icon.is-large svg {
-    width: 38px;
-    height: 38px;
-  }
-  .wk-project-text strong {
-    font-size: 18px;
-  }
-  .wk-description {
-    font-size: 14px;
-  }
-  .wk-status {
-    font-size: 13px;
-  }
-  .wk-detail-header {
-    gap: 28px;
-  }
-  .wk-detail-title h2 {
-    font-size: 24px;
-  }
-  .wk-detail-title p {
-    font-size: 15px;
   }
 }
 .wk-status.is-ready svg {
@@ -1184,10 +1165,10 @@
   color: var(--foreground);
 }
 .wk-detail-actions .wk-button {
-  min-height: 46px;
-  min-width: 128px;
-  padding: 10px 20px;
-  font-size: 15px;
+  min-height: 38px;
+  min-width: 100px;
+  padding: 8px 14px;
+  font-size: 14px;
 }
 @media (max-width: 480px) {
   .wk-detail-actions .wk-button {
@@ -1200,8 +1181,8 @@
 @media (max-width: 800px) {
   .wk-detail-header {
     display: grid;
-    grid-template-columns: 64px minmax(0, 1fr);
-    gap: 16px;
+    grid-template-columns: 52px minmax(0, 1fr);
+    gap: 12px;
   }
   .wk-detail-actions {
     grid-column: 1/-1;
@@ -1219,12 +1200,4 @@
   border-left: 1px solid var(--border);
   font-size: 13px;
   color: var(--muted-foreground);
-}
-@media (min-width: 1181px) {
-  .wk-home-detail {
-    padding-top: 42px;
-  }
-  .wk-detail-header {
-    padding-bottom: 38px;
-  }
 }

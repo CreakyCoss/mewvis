@@ -18,6 +18,7 @@ import {
 } from "@isle/app-sdk/views";
 import type { BuildArtifact, ProjectSummary } from "./contracts";
 import { errorText } from "./api";
+import { previewInteractionGuard } from "./preview";
 
 export function Status({ project }: { project: ProjectSummary }) {
   return (
@@ -152,8 +153,10 @@ export function AppView({
     try {
       const view = mountApplicationView(ref.current, {
         id: viewId,
-        title: "小应用运行界面",
-        script: artifact.script,
+        title: passive ? "小应用界面预览（可滚动）" : "小应用运行界面",
+        script: passive
+          ? previewInteractionGuard + artifact.script
+          : artifact.script,
         style: artifact.style,
         methods: {
           "state.read": async (params, { viewId: actual, signal }) => {
@@ -175,7 +178,8 @@ export function AppView({
             )
               throw new Error("状态写入参数无效。");
             signal.throwIfAborted();
-            await storage.setItem(key(params), params.value);
+            const stateKey = key(params);
+            if (!passive) await storage.setItem(stateKey, params.value);
             return null;
           },
         },
@@ -187,10 +191,6 @@ export function AppView({
           }
         },
       });
-      if (passive) {
-        const frame = ref.current.querySelector("iframe");
-        if (frame) frame.tabIndex = -1;
-      }
       void view.ready
         .then(() => {
           if (active) setLoading(false);
@@ -219,7 +219,7 @@ export function AppView({
   }, [artifact?.id, projectId, scope, passive, retry]);
   return (
     <div className={`wk-view ${passive ? "is-passive" : ""}`}>
-      <div ref={ref} className="wk-view-frame" inert={passive} />
+      <div ref={ref} className="wk-view-frame" />
       {loading && (
         <div className="wk-view-overlay">
           <Busy text="正在启动小应用…" />

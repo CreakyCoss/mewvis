@@ -65,7 +65,7 @@ export function Home({
     <div className="wk-home">
       <aside className="wk-library" aria-label="小应用列表">
         <div className="wk-library-heading">
-          <h1>我的小应用</h1>
+          <h2>我的小应用</h2>
           <p>选择一个小应用，开始使用或继续开发。</p>
         </div>
         <div className="wk-project-list">
@@ -158,7 +158,7 @@ export function Home({
                 </button>
               </div>
             </header>
-            <div className="wk-preview-label">界面预览</div>
+            <h3 className="wk-preview-label">界面预览</h3>
             <div className="wk-home-preview">
               {previewLoading ? (
                 <Busy text="正在加载界面预览…" />
@@ -169,13 +169,15 @@ export function Home({
                     重新加载
                   </button>
                 </div>
-              ) : artifact ? (
+              ) : artifact?.projectId === project.id ? (
                 <AppView
                   key={project.id}
                   projectId={project.id}
                   artifact={artifact}
                   passive
                 />
+              ) : project.savedVersionId ? (
+                <Busy text="正在加载界面预览…" />
               ) : (
                 <Empty
                   title="项目已创建，等待你的想法"

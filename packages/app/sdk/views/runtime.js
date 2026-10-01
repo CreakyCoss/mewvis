@@ -451,7 +451,8 @@ export function createApplicationViewHost({ getTheme }) {
     for (const { frame, container, view } of views.values())
       if (!container.isConnected || !container.contains(frame)) view.dispose();
   });
-  observer.observe(document.documentElement, {
+  // The host can be installed before an embedded document has its root element.
+  observer.observe(document, {
     childList: true,
     subtree: true,
   });
