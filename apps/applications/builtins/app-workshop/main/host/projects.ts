@@ -190,6 +190,7 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
       record.id !== id ||
       !Number.isSafeInteger(record.revision) ||
       record.revision < 0 ||
+      !Number.isFinite(record.createdAt) ||
       !Number.isFinite(record.updatedAt) ||
       !Array.isArray(record.versions) ||
       record.versions.some((v) => !isId(v.id)) ||
@@ -286,6 +287,7 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
     name: record.name,
     description: record.description,
     revision: record.revision,
+    createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     savedVersionId: record.savedVersionId,
   });
@@ -444,13 +446,17 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
             name: workspace.name,
             description: "",
             revision: 0,
+            createdAt: 0,
             updatedAt: 0,
             savedVersionId: null,
             error: `项目不可用：${error instanceof Error ? error.message : String(error)}`,
           });
         }
       }
-      return items.sort((a, b) => b.updatedAt - a.updatedAt);
+      return items.sort((a, b) => {
+        if (a.error || b.error) return Number(!!a.error) - Number(!!b.error);
+        return a.createdAt - b.createdAt;
+      });
     },
     async create(nameInput: unknown, descriptionInput: unknown = "") {
       const name = text(nameInput, 80, "应用名称");

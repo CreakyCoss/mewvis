@@ -178,7 +178,7 @@ function Workshop() {
     perform("正在创建小应用…", async () => {
       if (!name.trim()) return;
       const project = await api.create(name.trim(), description.trim());
-      setProjects((items) => [project, ...items]);
+      setProjects((items) => [...items, project]);
       select(project.id);
       setDetail(project);
       setCreateOpen(false);

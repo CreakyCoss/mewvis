@@ -93,6 +93,27 @@ async function fixture(t) {
   return { root, tools, skills, enrolled, workspaces, run, create, write };
 }
 
+test("projects stay in creation order after editing an older application", async (t) => {
+  const f = await fixture(t);
+  const older = await f.create("先创建的应用");
+  const newer = await f.create("后创建的应用");
+  for (const [project, createdAt] of [[older, 1000], [newer, 2000]]) {
+    const path = join(f.enrolled.get(project.id).path, ".workshop/project.json");
+    const metadata = JSON.parse(await readFile(path, "utf8"));
+    metadata.createdAt = createdAt;
+    metadata.updatedAt = createdAt;
+    await writeFile(path, JSON.stringify(metadata));
+  }
+  const before = (await f.run("workshop_list_projects")).projects;
+  assert.deepEqual(before.map((project) => project.id), [older.id, newer.id]);
+  assert.deepEqual(before.map((project) => project.createdAt), [1000, 2000]);
+  await f.write(older, "src/order.json", '{"edited":true}');
+  const after = (await f.run("workshop_list_projects")).projects;
+  assert.ok(after[0].updatedAt > after[1].updatedAt);
+  assert.deepEqual(after.map((project) => project.id), [older.id, newer.id]);
+  assert.deepEqual(after.map((project) => project.createdAt), [1000, 2000]);
+});
+
 test("create, edit, build, save, reopen and restore a real packaged application", async (t) => {
   const f = await fixture(t);
   assert.deepEqual((await f.run("workshop_list_projects")).projects, []);

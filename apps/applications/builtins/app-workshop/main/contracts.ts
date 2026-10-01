@@ -25,6 +25,7 @@ export interface ProjectSummary {
   name: string;
   description: string;
   revision: number;
+  createdAt: number;
   updatedAt: number;
   savedVersionId: string | null;
   error?: string;
