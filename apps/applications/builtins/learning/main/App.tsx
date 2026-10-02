@@ -339,17 +339,17 @@ export default function App() {
       className={`learning-app theme-${theme} ${view === "lesson" ? "is-studying" : "is-library"}`}
     >
       {view === "library" && (
-        <nav className="learn-nav" aria-label="学习工作台导航">
+        <nav className="learn-nav" aria-label="学习工坊导航">
           <button
             className="learn-brand"
             onClick={() => setView("library")}
-            aria-label="学习工作台首页"
+            aria-label="学习工坊首页"
           >
             <span className="learn-brand-icon">
               <BookOpen size={30} strokeWidth={2.1} aria-hidden="true" />
             </span>
             <span>
-              学习工作台<small>ISLE LEARNING</small>
+              学习工坊<small>ISLE LEARNING</small>
             </span>
           </button>
           <div className="learn-nav-links">

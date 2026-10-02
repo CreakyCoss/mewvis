@@ -510,7 +510,7 @@ export default function App() {
             C
           </span>
           <div>
-            <h1>聊天调试台</h1>
+            <h1>调试台</h1>
             <p>选择应用自己的工作区，保存和继续调试对话。</p>
           </div>
         </div>

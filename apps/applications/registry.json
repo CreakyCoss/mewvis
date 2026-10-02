@@ -1,10 +1,10 @@
 {
   "applications": [
     "app-workshop",
-    "chat-playground",
-    "docs-reader",
+    "story",
     "learning",
+    "docs-reader",
     "rss-reader",
-    "story"
+    "chat-playground"
   ]
 }

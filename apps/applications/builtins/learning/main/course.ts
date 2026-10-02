@@ -251,7 +251,7 @@ export function createCourse(
 }
 export function validateCourse(value: unknown): Course {
   const raw = object(value, "已保存课程");
-  if (raw.version !== 2) throw new Error("不支持此课程版本，请更新学习工作台");
+  if (raw.version !== 2) throw new Error("不支持此课程版本，请更新学习工坊");
   const id = text(raw.id, "课程 ID", 80);
   if (!/^[a-zA-Z0-9-]+$/.test(id)) throw new Error("课程 ID 无效");
   if (typeof raw.createdAt !== "number" || !Number.isFinite(raw.createdAt))

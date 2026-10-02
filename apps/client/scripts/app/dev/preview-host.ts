@@ -173,7 +173,7 @@ export function createPreviewChat(options: {
                 });
                 return;
               }
-              const text = `### 聊天调试台已连接\n\n这条回复由 **内存预览** 生成。正式安装后，相同界面会使用所选宿主模型。\n\n| 检查项 | 结果 |\n| --- | --- |\n| 流式文本 | 正常 |\n| 工作区隔离 | ${workspacePath.split("/").at(-1)} |\n\n\`\`\`ts\nconst session = await chat.openSession(input);\n\`\`\`\n\n${turn.context.requestContext ? `本轮上下文：${turn.context.requestContext}` : "可以切换界面、打开双视图或尝试停止。"}`;
+              const text = `### 调试台已连接\n\n这条回复由 **内存预览** 生成。正式安装后，相同界面会使用所选宿主模型。\n\n| 检查项 | 结果 |\n| --- | --- |\n| 流式文本 | 正常 |\n| 工作区隔离 | ${workspacePath.split("/").at(-1)} |\n\n\`\`\`ts\nconst session = await chat.openSession(input);\n\`\`\`\n\n${turn.context.requestContext ? `本轮上下文：${turn.context.requestContext}` : "可以切换界面、打开双视图或尝试停止。"}`;
               let offset = 0;
               const interval = setInterval(
                 () => {

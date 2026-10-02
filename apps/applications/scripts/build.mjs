@@ -1,4 +1,4 @@
-import { mkdir, rm } from "node:fs/promises";
+import { copyFile, mkdir, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { packApplication, validateApplication } from "@isle/app-dev/tooling";
@@ -34,6 +34,8 @@ for (const application of builtinApplications) {
     quiet: true,
   });
 }
+
+await copyFile(join(root, "registry.json"), join(outputRoot, "registry.json"));
 
 console.log(
   `${builtinApplications.length} built-in applications packed to ${outputRoot}`,

@@ -1,7 +1,7 @@
 {
   "name": "@isle/chat-playground",
   "version": "0.1.0",
-  "description": "Isle 内置聊天调试台：工作区与会话选择、默认和组合 Chat、会话状态以及回显工具。",
+  "description": "Isle 内置调试台：工作区与会话选择、默认和组合 Chat、会话状态以及回显工具。",
   "type": "module",
   "dependencies": {
     "@isle/app-sdk": "workspace:*",

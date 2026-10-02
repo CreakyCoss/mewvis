@@ -1,7 +1,7 @@
 {
   "name": "@isle/story",
   "version": "0.1.0",
-  "description": "Isle 内置故事工作台：结构化小说项目、文档编辑、创作助手与章节酒馆。",
+  "description": "Isle 内置故事工坊：结构化小说项目、文档编辑、创作助手与章节酒馆。",
   "type": "module",
   "private": true,
   "scripts": {

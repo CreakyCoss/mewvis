@@ -51,7 +51,7 @@ const registered = await workspaces.list();
 
 纯 JavaScript 客户端 `createApplicationDataClient(transport)` 不依赖 Node、DOM、Tauri 或数据库驱动。自定义宿主可提供自己的 transport。独立 Agent 运行环境及 DSH 兼容适配器没有自动接入本服务；无宿主连接时明确报告能力不可用，不回退到浏览器存储或内存，也不自动重试。
 
-`@isle/app-dev` 的浏览器开发预览显式注入内存数据适配，按声明检查权限，支持业务键和虚拟工作区，整页刷新即清空。它不连接原生数据库，不打开真实目录选择器；持久化、共享确认和目录访问需在 Isle 中验证。[聊天调试台](builtins/chat-playground.md)提供完整接入示例。
+`@isle/app-dev` 的浏览器开发预览显式注入内存数据适配，按声明检查权限，支持业务键和虚拟工作区，整页刷新即清空。它不连接原生数据库，不打开真实目录选择器；持久化、共享确认和目录访问需在 Isle 中验证。[调试台](builtins/chat-playground.md)提供完整接入示例。
 
 ## 通用业务数据
 

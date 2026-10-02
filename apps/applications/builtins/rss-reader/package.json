@@ -18,7 +18,7 @@
       ]
     },
     "displayName": "RSS 阅读器",
-    "defaultEnabled": false,
+    "defaultEnabled": true,
     "permissions": [
       "network",
       "application-data",

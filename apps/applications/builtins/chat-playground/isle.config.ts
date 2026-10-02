@@ -1,7 +1,7 @@
 import { defineConfig } from "@isle/app-dev";
 
 export default defineConfig({
-  displayName: "聊天调试台",
+  displayName: "调试台",
   defaultEnabled: true,
   permissions: ["chat", "workspace-files", "chat-knowledge", "application-workspaces", "application-data"],
   agentAccess: {
@@ -13,5 +13,5 @@ export default defineConfig({
     tools: "./main/host/tools.ts",
     skills: "./main/host/skills.ts",
   },
-  ui: { title: "聊天调试台" },
+  ui: { title: "调试台" },
 });

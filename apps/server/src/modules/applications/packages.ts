@@ -201,13 +201,28 @@ export class Packages {
   }
   async list(): Promise<Application[]> {
     const found = new Map<string, Application>();
-    if (this.bundled && (await exists(this.bundled)))
+    const bundledOrder = new Map<string, number>();
+    if (this.bundled && (await exists(this.bundled))) {
+      const registry = await jsonOptional(join(this.bundled, "registry.json"));
+      const names = registry?.applications ?? [];
+      if (
+        !Array.isArray(names) ||
+        names.some((name: unknown) => typeof name !== "string") ||
+        new Set(names).size !== names.length
+      )
+        invalid("内置应用登记格式无效");
+      const order = new Map<string, number>(
+        names.map((name: string, index: number) => [name, index]),
+      );
       for (const e of await fs.readdir(this.bundled, { withFileTypes: true })) {
         if (e.isDirectory() && !e.name.startsWith(".")) {
           const p = await readPackage(join(this.bundled, e.name), "bundled");
           found.set(p.id, p);
+          const index = order.get(e.name);
+          if (index !== undefined) bundledOrder.set(p.id, index);
         }
       }
+    }
     const scan = async (path: string, depth = 0) => {
       if (!(await exists(path)) || depth > 20) return;
       for (const e of await fs.readdir(path, { withFileTypes: true })) {
@@ -237,7 +252,12 @@ export class Packages {
           p.permissionStatus !== "isle-upgrade-required" &&
           (r.enabled[p.id] ?? p.defaultEnabled),
       }))
-      .sort((a, b) => a.id.localeCompare(b.id));
+      .sort(
+        (a, b) =>
+          (bundledOrder.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+            (bundledOrder.get(b.id) ?? Number.MAX_SAFE_INTEGER) ||
+          a.id.localeCompare(b.id),
+      );
   }
   async get(id: unknown) {
     const value = (await this.list()).find(

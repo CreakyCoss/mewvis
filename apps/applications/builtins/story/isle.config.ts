@@ -1,7 +1,7 @@
 import { defineConfig } from "@isle/app-dev";
 
 export default defineConfig({
-  displayName: "故事",
+  displayName: "故事工坊",
   defaultEnabled: true,
   permissions: ["application-workspaces", "application-data", "chat", "chat-knowledge"],
   agentAccess: {
@@ -10,5 +10,5 @@ export default defineConfig({
     process: { execute: false },
   },
   host: { entry: "./main/host/index.ts" },
-  ui: { title: "故事工作台" },
+  ui: { title: "故事工坊" },
 });

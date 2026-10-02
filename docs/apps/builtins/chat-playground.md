@@ -1,4 +1,4 @@
-# 聊天调试台 · @isle/chat-playground
+# 调试台 · @isle/chat-playground
 
 这是使用 `@isle/app-dev` 的内置 React 应用示例，默认启用；已有用户的禁用设置仍然优先。
 
@@ -26,7 +26,7 @@ pnpm build:runtime
 ```
 
 内置产物位于 `apps/agent-runtime/dist/apps/chat-playground`，会随应用正常构建。
-构建后在当前开发应用刷新应用列表并打开「聊天调试台」。不需要导入或创建另一份应用。
+构建后在当前开发应用刷新应用列表并打开「调试台」。不需要导入或创建另一份应用。
 
 调试台声明 `application-workspaces`、`application-data`，通过 `@isle/app-sdk/data` 管理自己的工作区和业务状态。首次加载使用应用的默认工作区；点击「新增工作区」，填写名称，再点击「选择目录并创建」，由宿主打开目录选择器。选择已被其他应用登记的目录时，宿主显示共享提示；取消不会切换或登记目录。页面展示实际目录，应用工作区不会加入应用侧栏的工作区列表。
 
@@ -38,7 +38,7 @@ pnpm build:runtime
 
 现有的 `chat_playground_echo`、`chat_playground_inspect_text` 都声明为 `low`。新增的 `chat_playground_medium_risk` 声明为 `medium`，复用回显逻辑，仅用于验证审批，不读写文件或访问网络。点击「查询当前工具授权」可查看工具的授权状态和声明风险。
 
-测试中风险审批时，先在应用管理的工具权限中确认 `chat_playground_medium_risk` 已开启；已有的自定义工具勾选不会自动包含新工具。在聊天调试台选择 `ask` 档位，点击组合界面的「中风险工具」并发送，预期出现审批；选择 `auto` 或 `full` 档位时，预期直接执行。默认界面也可以发送“请调用 chat_playground_medium_risk，text 设为中风险审批测试”。审批测试应通过聊天中的 Agent 工具调用进行；顶部 SDK 直接调用按钮用于测试工具执行，不经过 Agent 审批。
+测试中风险审批时，先在应用管理的工具权限中确认 `chat_playground_medium_risk` 已开启；已有的自定义工具勾选不会自动包含新工具。在调试台选择 `ask` 档位，点击组合界面的「中风险工具」并发送，预期出现审批；选择 `auto` 或 `full` 档位时，预期直接执行。默认界面也可以发送“请调用 chat_playground_medium_risk，text 设为中风险审批测试”。审批测试应通过聊天中的 Agent 工具调用进行；顶部 SDK 直接调用按钮用于测试工具执行，不经过 Agent 审批。
 
 技能示例 `chat-playground-text-inspection` 在 `host.skills` 中声明，工具链自动注册到宿主。新建对话后，点击组合界面的“技能示例”填入请求并发送；默认界面可以直接输入“请使用 chat-playground-text-inspection 技能分析文本 Hello Isle 👋 的字符数、UTF-8 字节数和 SHA-256”。技能指导模型使用 `chat_playground_inspect_text` 并解释结果，不会自动调用工具或扩大工具权限。
 
