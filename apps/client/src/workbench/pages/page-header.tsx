@@ -6,13 +6,14 @@ import { cn } from "design-system/lib/utils";
 
 type PageHeaderProps = {
   title: string;
+  titleAction?: ReactNode;
   description: string;
   backLink?: { to: string; label: string };
   action?: ReactNode;
   className?: string;
 };
 
-export const PageHeader = ({ title, description, backLink, action, className }: PageHeaderProps) => (
+export const PageHeader = ({ title, titleAction, description, backLink, action, className }: PageHeaderProps) => (
   <header
     className={cn(
       "app-page-header flex min-h-28 shrink-0 items-center justify-between gap-4 bg-transparent px-6 py-5 lg:px-8",
@@ -33,7 +34,10 @@ export const PageHeader = ({ title, description, backLink, action, className }: 
         </Button>
       )}
       <div className="min-w-0">
-        <h2 className="truncate text-xl font-semibold tracking-[-0.02em]">{title}</h2>
+        <div className="flex min-w-0 items-center gap-2">
+          <h2 className="truncate text-xl font-semibold tracking-[-0.02em]">{title}</h2>
+          {titleAction}
+        </div>
         <p className="mt-1 truncate text-sm text-muted-foreground">{description}</p>
       </div>
     </div>
