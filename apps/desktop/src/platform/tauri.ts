@@ -40,6 +40,7 @@ export const platform: ClientPlatform = {
     await revealItemInDir(path);
   },
   window: {
+    titleBarStyle: import.meta.env.ISLE_TITLE_BAR_STYLE,
     startDragging: () => getCurrentWindow().startDragging(),
     async onCloseRequested(canClose, onError) {
       const window = getCurrentWindow();

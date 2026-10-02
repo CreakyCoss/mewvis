@@ -9,6 +9,8 @@ export type PathDialogOptions = {
 };
 
 export interface PlatformWindow {
+  /** Whether the native title bar overlaps the web content. */
+  readonly titleBarStyle: "overlay" | "native";
   startDragging(): Promise<void>;
   /** Keep the window open until the caller permits closing. Returns a disposable subscription. */
   onCloseRequested(

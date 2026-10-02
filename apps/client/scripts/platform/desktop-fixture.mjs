@@ -3,11 +3,15 @@ import { fileURLToPath } from "node:url";
 const adapter = fileURLToPath(new URL("../../../desktop/src/platform/tauri.ts", import.meta.url));
 
 /** Bundle the real desktop adapter while replacing only its OS bridge. */
-export function desktopPlatformFixture(globalName = "__platformFixture") {
+export function desktopPlatformFixture(globalName = "__platformFixture", titleBarStyle = "native") {
   const fixture = `globalThis[${JSON.stringify(globalName)}]`;
   return {
     name: "desktop-platform-fixture",
     setup(build) {
+      build.initialOptions.define = {
+        ...build.initialOptions.define,
+        "import.meta.env.ISLE_TITLE_BAR_STYLE": JSON.stringify(titleBarStyle),
+      };
       build.onResolve({ filter: /^@platform-impl$/ }, () => ({ path: adapter }));
       build.onResolve({ filter: /^@tauri-apps\/(api\/(core|window)|plugin-(dialog|opener))$/ }, ({ path }) => ({
         path,

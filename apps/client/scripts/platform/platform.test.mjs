@@ -4,11 +4,12 @@ import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
+import { loadConfigFromFile } from "vite";
 import { desktopPlatformFixture } from "./desktop-fixture.mjs";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 let version = 0;
-async function bundle(desktop = false) {
+async function bundle(desktop = false, titleBarStyle = "native") {
   const result = await build({
     stdin: {
       contents:
@@ -21,7 +22,7 @@ async function bundle(desktop = false) {
     format: "esm",
     platform: "browser",
     tsconfig: join(root, "tsconfig.json"),
-    plugins: desktop ? [desktopPlatformFixture()] : [],
+    plugins: desktop ? [desktopPlatformFixture("__platformFixture", titleBarStyle)] : [],
   });
   const module = await import(
     `data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString("base64")}#${version++}`
@@ -43,6 +44,29 @@ test("shared client imports no Tauri SDK and the Web bundle contains no desktop 
   assert.equal(await web.platform.getBackendConnection(), undefined);
   assert.equal(web.platform.window, undefined);
   assert.equal(web.platform.revealPath, undefined);
+});
+
+test("desktop title bar follows the Tauri target rather than the build host", async (t) => {
+  const originalTarget = process.env.TAURI_ENV_PLATFORM;
+  t.after(() => {
+    if (originalTarget === undefined) delete process.env.TAURI_ENV_PLATFORM;
+    else process.env.TAURI_ENV_PLATFORM = originalTarget;
+  });
+  for (const [target, expected] of [
+    ["windows", "native"],
+    ["darwin", "overlay"],
+    ["linux", "native"],
+  ]) {
+    process.env.TAURI_ENV_PLATFORM = target;
+    const { config } = await loadConfigFromFile(
+      { command: "build", mode: "production" },
+      join(root, "../desktop/vite.config.ts"),
+    );
+    const titleBarStyle = JSON.parse(config.define["import.meta.env.ISLE_TITLE_BAR_STYLE"]);
+    assert.equal(titleBarStyle, expected, target);
+    const desktop = await bundle(true, titleBarStyle);
+    assert.equal(desktop.platform.window.titleBarStyle, expected, target);
+  }
 });
 
 test("Web requests use same-origin credentials; external links use the shared protocol policy", async (t) => {

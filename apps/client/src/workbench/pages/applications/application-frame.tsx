@@ -45,7 +45,8 @@ export const ApplicationFrame = ({
   const [runtimeError, setRuntimeError] = useState("");
   const [navigationBlocked, setNavigationBlocked] = useState(false);
   const [isFrameReady, setIsFrameReady] = useState(false);
-  const embeddedViews = application.permissionStatus === "declared" && application.permissions.includes("embedded-views");
+  const embeddedViews =
+    application.permissionStatus === "declared" && application.permissions.includes("embedded-views");
   const source = useMemo(
     () => (uiDocument ? sandboxDocument(uiDocument, chatRuntime, { embeddedViews }) : ""),
     [uiDocument, chatRuntime, embeddedViews],
@@ -156,7 +157,10 @@ export const ApplicationFrame = ({
         const backLabel = typeof header.backLabel === "string" ? header.backLabel.trim() : "";
         releaseHeader.current?.();
         releaseHeader.current = registerHeader(
-          <header aria-label="应用导航" className="flex h-full min-w-0 items-center justify-end px-3">
+          <header
+            aria-label="应用导航"
+            className={`flex h-full min-w-0 items-center px-3 ${platform.window?.titleBarStyle === "overlay" ? "justify-end" : "justify-start"}`}
+          >
             <div className="flex h-8 max-w-full min-w-0 items-center rounded-lg border border-border/70 bg-muted/50 p-0.5 text-xs">
               {backLabel && (
                 <>
@@ -174,7 +178,9 @@ export const ApplicationFrame = ({
                   <span className="mx-1 h-3 w-px shrink-0 bg-border" aria-hidden="true" />
                 </>
               )}
-              <strong className="min-w-0 max-w-60 truncate px-2 font-medium" title={title}>{title}</strong>
+              <strong className="min-w-0 max-w-60 truncate px-2 font-medium" title={title}>
+                {title}
+              </strong>
             </div>
           </header>,
         );

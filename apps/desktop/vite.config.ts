@@ -10,6 +10,15 @@ const host = process.env.TAURI_DEV_HOST;
 
 export default defineConfig({
   ...config,
+  define: {
+    ...config.define,
+    // Tauri provides the target platform, including when cross-compiling from macOS to Windows.
+    "import.meta.env.ISLE_TITLE_BAR_STYLE": JSON.stringify(
+      (process.env.TAURI_ENV_PLATFORM ?? process.platform) === "darwin"
+        ? "overlay"
+        : "native",
+    ),
+  },
   clearScreen: false,
   server: {
     ...config.server,

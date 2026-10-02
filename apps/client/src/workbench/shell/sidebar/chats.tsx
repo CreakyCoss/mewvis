@@ -179,7 +179,7 @@ export const ChatSidebar = () => {
   return (
     <aside
       aria-label="聊天记录"
-      className="relative z-20 hidden w-[clamp(216px,20vw,272px)] shrink-0 flex-col border-r border-sidebar-border bg-sidebar pt-12 text-sidebar-foreground min-[720px]:flex"
+      className="relative z-20 hidden w-[clamp(216px,20vw,272px)] shrink-0 flex-col border-r border-sidebar-border bg-sidebar pt-[var(--shell-sidebar-top-padding,8px)] text-sidebar-foreground min-[720px]:flex"
     >
       <div className="relative h-11 shrink-0 px-2 pt-2 pb-3">
         <h1 className="app-brand truncate px-0.5 text-xl font-bold leading-6 tracking-[-0.03em]">{APP_DISPLAY_NAME}</h1>

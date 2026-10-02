@@ -38,6 +38,8 @@ Windows ARM64 包保留原生 ARM64 桌面外壳与 Node。sqlite-vec 0.1.9 的 
 
 窗口拖动、拦截关闭、原生选择器和文件位置是可选能力。Web 文件选择仍由 `src/api/native.ts` 调用 Node 接口，数据库位置按钮显示“复制路径”。聊天服务负责保存会话并返回是否允许关闭，桌面适配器负责拦截关闭事件、避免重复关闭并最终销毁窗口。链接协议校验在公共平台入口执行。
 
+`platform.window.titleBarStyle` 描述标题栏是否覆盖 Web 内容：macOS 为 `overlay`，保留 40 px 顶部拖动区和侧栏的 48 px 顶部间距；Windows/Linux 为 `native`，使用原生标题栏，内容从顶部开始，侧栏只保留 8 px 内边距。Web 同样不预留桌面标题栏空间。应用导航在 macOS 的覆盖顶栏靠右显示，在原生标题栏与 Web 环境下作为内容区内的 40 px 导航行靠左显示，仅在应用注册导航时占用高度。桌面构建使用 Tauri 的 `TAURI_ENV_PLATFORM` 选择标题栏模式，直接启动 Vite 时使用当前构建机的平台。
+
 在仓库根目录运行 `pnpm --filter client test:platform` 检查平台边界、后端握手重试、链接协议、选择取消和窗口关闭时序。`pnpm --filter client test:web` 验证两端真实传输、鉴权、SSE 和进程生命周期。
 
 ## 编辑器
