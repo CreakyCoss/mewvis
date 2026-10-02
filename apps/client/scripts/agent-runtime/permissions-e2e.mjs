@@ -42,6 +42,9 @@ try {
     "pre-call safety must not depend on execution or a sandbox backend",
   );
   const api = await import(pathToFileURL(outfile).href);
+  assert.equal(api.DEFAULT_AGENT_PERMISSION_MODE, "auto");
+  assert.equal(api.getAgentPermissionOptions()[1].mode, "auto");
+  assert.equal(api.getAgentPermissionOptions()[1].isDefault, true);
   const disabled = api.resolveSafetyPolicy(
     "ask",
     workspace,

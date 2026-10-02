@@ -32,11 +32,11 @@ const restricted = {
   network: { allow: [] as string[], deny: [] as string[] },
 };
 const profiles = [
-  { mode: "ask", label: "请求批准", isDefault: true, approval: { maximumRisk: "low", unknown: "ask" }, ...restricted },
+  { mode: "ask", label: "请求批准", isDefault: false, approval: { maximumRisk: "low", unknown: "ask" }, ...restricted },
   {
     mode: "auto",
     label: "帮我批准",
-    isDefault: false,
+    isDefault: true,
     approval: { maximumRisk: "medium", unknown: "ask" },
     ...restricted,
     network: { allow: "all", deny: [] },

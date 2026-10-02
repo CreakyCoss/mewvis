@@ -531,7 +531,22 @@ test("authorization belongs to the core turn: no record changes before approval,
   await session.close();
 });
 
-test("legacy tool selection migrates to ask and restored modes are independent of the tool catalog", async () => {
+test("new chats select auto by default and dispatch with that permission", async () => {
+  const { session } = await setup({
+    runtime: {
+      async prepare(turn) {
+        assert.equal(turn.config.permissionMode, "auto");
+        return { async dispatch() {} };
+      },
+    },
+  });
+  assert.equal(session.getSnapshot().config.permissionMode, "auto");
+  assert.equal((await session.send({ text: "use default permission" })).status, "dispatched");
+  await session.stop();
+  await session.close();
+});
+
+test("legacy tool selection uses the permission default and restored modes are independent of the tool catalog", async () => {
   const legacy = await setup({
     storage: {
       async load() {
@@ -539,7 +554,7 @@ test("legacy tool selection migrates to ask and restored modes are independent o
       },
     },
   });
-  assert.equal(legacy.session.getSnapshot().config.permissionMode, "ask");
+  assert.equal(legacy.session.getSnapshot().config.permissionMode, "auto");
   await legacy.session.close();
   const application = await setup({
     catalog: async () => ({ ...resources, tools: [] }),

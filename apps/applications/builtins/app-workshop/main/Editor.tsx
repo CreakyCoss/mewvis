@@ -24,7 +24,12 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { api, errorText, projectContext } from "./api";
+import {
+  api,
+  errorText,
+  projectContext,
+  type DeveloperSessionOptions,
+} from "./api";
 import {
   ApplicationHeader,
   AppView,
@@ -37,6 +42,7 @@ import { CodeEditor } from "./CodeEditor";
 import { FileTree } from "./FileTree";
 import { PaneResizer } from "./PaneResizer";
 import { WorkshopChat } from "./WorkshopChat";
+import { WorkshopChatHistory } from "./WorkshopChatHistory";
 import { getVersionNumber, VersionsDialog } from "./VersionsDialog";
 import { APP_ENTRY, MAIN_ENTRY, STYLE_ENTRY } from "./contracts";
 import type {
@@ -73,6 +79,7 @@ export function Editor({
   onChange,
   home,
   retryChat,
+  changeChat,
 }: {
   initial: ProjectDetail;
   session?: ApplicationChatSession;
@@ -80,6 +87,7 @@ export function Editor({
   onChange(project: ProjectDetail): void;
   home(): void;
   retryChat(): void;
+  changeChat(options: DeveloperSessionOptions): Promise<void>;
 }) {
   const [project, setProject] = useState(initial);
   const [path, setPath] = useState(
@@ -707,10 +715,7 @@ export function Editor({
                     ))}
                   </div>
                 ) : artifact ? (
-                  <AppView
-                    projectId={project.id}
-                    artifact={artifact}
-                  />
+                  <AppView projectId={project.id} artifact={artifact} />
                 ) : (
                   <Empty
                     title={
@@ -752,18 +757,39 @@ export function Editor({
           side="left"
           onResize={setAssistantWidth}
           onReset={() => setAssistantWidth(null)}
-          onResizingChange={(active) => setResizing(active ? "assistant" : null)}
+          onResizingChange={(active) =>
+            setResizing(active ? "assistant" : null)
+          }
         />
-        <aside className="wk-assistant" aria-label="AI 应用创作" ref={assistantRef}>
+        <aside
+          className="wk-assistant"
+          aria-label="AI 应用创作"
+          ref={assistantRef}
+        >
           <header>
             <h2>
               <Sparkles aria-hidden="true" />
               AI 应用创作
             </h2>
-            <p>说出想法，让 AI 帮你做成应用</p>
+            <WorkshopChatHistory
+              projectId={project.id}
+              sessionId={session?.identity.id}
+              disabled={!session || aiBusy || !!pending}
+              onChange={(options) =>
+                void perform(
+                  options.fresh ? "正在新建会话…" : "正在打开会话…",
+                  async () => {
+                    if (session?.getSnapshot().activeTaskId)
+                      throw new Error("请等待当前 AI 创作完成后再切换会话。");
+                    await changeChat(options);
+                  },
+                )
+              }
+            />
           </header>
           {guarded ? (
             <WorkshopChat
+              key={guarded.identity.id}
               session={guarded}
               projectId={project.id}
               name={project.name}

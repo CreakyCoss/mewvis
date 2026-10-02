@@ -52,7 +52,7 @@
 
 在外部编辑器修改 `source/` 后，下一次读取会更新 revision 并清除过期的草稿构建，已保存的运行版本保持原样。过期保存及事务恢复遇到外部冲突会保留现有文件并报错；中断事务存在冲突时，需先合并相关文件，使其与事务的修改前或修改后内容一致，再重新读取项目。
 
-AI 会话通过公共 `Chat` 组件与 `ApplicationChatSession` 接入，每个项目拥有独立的 `workshop-developer` 场景。开发助手仅能调用以下工具：
+AI 会话通过公共 `Chat` 组件与 `ApplicationChatSession` 接入，每个项目拥有独立的 `workshop-developer` 场景。助手标题右侧提供新建会话和会话历史按钮，历史仅列出当前小应用的创作会话，可点击恢复；再次进入编辑页会恢复上次选中的会话。切换前保存当前会话，AI 创作或会话切换过程中禁用这两个按钮。开发助手仅能调用以下工具：
 
 - `workshop_read_project`、`workshop_read_file`：读取当前项目与源码。
 - `workshop_write_file`、`workshop_delete_file`：使用最新 revision 修改源码。

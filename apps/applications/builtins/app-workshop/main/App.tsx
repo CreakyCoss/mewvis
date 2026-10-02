@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ApplicationChatSession } from "@isle/app-sdk/chat";
 import { getApplicationDataClient } from "@isle/app-sdk/data";
-import { api, closeProjectSessions, developerSession, errorText } from "./api";
+import {
+  api,
+  closeProjectSessions,
+  developerSession,
+  errorText,
+  type DeveloperSessionOptions,
+} from "./api";
 import { ErrorNotice, Modal } from "./components";
 import { Home } from "./Home";
 import { Editor } from "./Editor";
@@ -134,14 +140,23 @@ function Workshop() {
       values.map((item) => (item.id === project.id ? project : item)),
     );
   }, []);
-  async function connect(project: ProjectDetail) {
+  async function connect(
+    project: ProjectDetail,
+    options?: DeveloperSessionOptions,
+  ) {
     const token = ++epoch.current;
-    setSession(undefined);
+    if (!options) setSession(undefined);
     setSessionError("");
     try {
-      const value = await developerSession(project);
+      if (options && session) {
+        const saved = await session.flush();
+        if (!saved.ok) throw new Error(saved.error);
+      }
+      if (epoch.current !== token) return;
+      const value = await developerSession(project, options);
       if (epoch.current === token) setSession(value);
     } catch (value) {
+      if (options) throw value;
       if (epoch.current === token) setSessionError(errorText(value));
     }
   }
@@ -205,6 +220,7 @@ function Workshop() {
           onChange={update}
           home={home}
           retryChat={() => void connect(detail)}
+          changeChat={(options) => connect(detail, options)}
         />
       ) : (
         <>
@@ -337,7 +353,10 @@ function Workshop() {
                   await api.remove(removing.id);
                   const storage = getApplicationDataClient().storage;
                   for (const key of await storage.keys())
-                    if (key.startsWith(`mini:${removing.id}:`))
+                    if (
+                      key.startsWith(`mini:${removing.id}:`) ||
+                      key === `workshop:chat:${removing.id}`
+                    )
                       await storage.removeItem(key);
                   setRemoving(null);
                   await refresh();

@@ -1132,14 +1132,76 @@
   width: 18px;
   height: 18px;
 }
-.wk-assistant > header p {
-  margin: 0;
+.wk-chat-session-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+[data-slot="dropdown-menu-content"].wk-chat-history-menu {
+  display: flex;
+  flex-direction: column;
+  width: min(300px, calc(100vw - 24px));
+  max-height: min(360px, var(--radix-dropdown-menu-content-available-height));
+  padding: 0;
+  overflow: hidden;
+}
+[data-slot="dropdown-menu-label"].wk-chat-history-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
   font-size: 12px;
+}
+.wk-chat-history-heading > span {
   color: var(--muted-foreground);
+  font-weight: 400;
+}
+.wk-chat-history-list {
+  min-height: 0;
+  padding: 5px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+[data-slot="dropdown-menu-item"].wk-chat-history-item {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  padding: 9px 10px;
+}
+.wk-chat-history-item[aria-current="true"] {
+  background: var(--primary-subtle);
+}
+.wk-chat-history-title {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+}
+.wk-chat-history-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.wk-chat-history-meta em {
+  color: var(--primary);
+  font-style: normal;
+}
+.wk-chat-history-empty {
+  margin: 0;
+  padding: 18px 12px;
+  color: var(--muted-foreground);
+  font-size: 12px;
 }
 .wk-chat {
   flex: 1;
@@ -1267,7 +1329,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   max-width: 180px;
   min-height: 36px;
@@ -1768,9 +1830,6 @@
     padding-right: 16px;
     padding-left: 16px;
     gap: 8px;
-  }
-  .wk-assistant > header p {
-    font-size: 11px;
   }
   .wk-header {
     padding: 0 16px;

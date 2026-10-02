@@ -239,7 +239,7 @@ Node 存储回归测试覆盖元数据来源不可变、配置不覆盖归属、
 ## 执行权限与审批
 
 输入区以 `permissionMode` 提供请求批准、帮我批准、完全访问权限；技能与知识库在模型菜单中分别选择。
-未指定有效权限时使用权限目录声明的默认项（当前为请求批准）。工具范围由 Runtime 默认值与宿主场景配置决定。
+未指定有效权限时使用权限目录声明的默认项（当前为第二档“帮我批准”，`auto`）。工具范围由 Runtime 默认值与宿主场景配置决定。
 应用和宿主使用同一份权限目录。`agent/tools/list` 的 `permissionOptions` 返回模式、名称、说明和默认项。
 唯一维护位置是 Runtime 的 `security/safety/policy.ts`（`security/safety/index.ts` 统一校验并提供展示选项），
 审批层与 `security/execution/policy.ts` 的沙箱层各自通过 `enabled` 开关控制。

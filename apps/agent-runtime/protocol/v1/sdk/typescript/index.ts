@@ -1120,14 +1120,14 @@ export const agentPermissionOptions = [
   {
     mode: "ask",
     label: "请求批准",
-    isDefault: true,
+    isDefault: false,
     description:
       "低风险直接执行，超过上限需审批；未知操作需要审批。调用前检查可写范围：工作区、临时目录；可访问域名：禁止联网。沙箱由执行配置独立控制。",
   },
   {
     mode: "auto",
     label: "帮我批准",
-    isDefault: false,
+    isDefault: true,
     description:
       "低、中风险直接执行，超过上限需审批；未知操作需要审批。调用前检查可写范围：工作区、临时目录；可访问域名：任意域名。沙箱由执行配置独立控制。",
   },
